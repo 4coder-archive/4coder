@@ -123,6 +123,18 @@ ENUM(int32_t, Event_Message_Type_ID){
     EventMessage_CloseView
 };
 
+/* DOC(A Wrap_Indicator_Mode is used in the buffer setting BufferSetting_WrapIndicator to specify how to indicate that line has been wrapped.) */
+ENUM(int32_t, Wrap_Indicator_Mode){
+    /* DOC(WrapIndicator_Hide tells the buffer rendering system not to put any indicator on wrapped lines.) */
+    WrapIndicator_Hide,
+    
+    /* DOC(WrapIndicator_Show_After_Line tells the buffer rendering system to put a backslash indicator on wrapped lines right after the last character of the line.) */
+    WrapIndicator_Show_After_Line,
+    
+    /* DOC(WrapIndicator_Show_At_Wrap_Edge tells the buffer rendering system to put a backslash indicator on wrapped lines aligned with the wrap position for that line.) */
+    WrapIndicator_Show_At_Wrap_Edge,
+};
+
 /* DOC(A Buffer_Setting_ID names a setting in a buffer.) */
 ENUM(int32_t, Buffer_Setting_ID){
     /* DOC(BufferSetting_Null is not a valid setting, it is reserved to detect errors.) */
@@ -144,6 +156,12 @@ ENUM(int32_t, Buffer_Setting_ID){
     operation because the wrap positions of the file have to be reindexed. For
     best behavior try to only set this setting once per frame, if possible.) */
     BufferSetting_WrapPosition,
+    
+    /* DOC(The BufferSetting_MinimumBaseWrapPosition setting is used to increase the with in pixels allotted to a line for wrapping, by setting a minimum position away from the base of the line.  The base of a line is always 0, or the left hand side of the view, in text files.  In code files the base of a line is the amount the line is shifted to the right due to brace nesting.  This setting allows for deeply nested code to remain readable by ensuring lines deep in the nesting get some minimum base width which may be more wrapping space than the non base adjusted wrap position would have allowed.  In any case where the (default wrapping position) is greater than (the base + minimum base position), the larger ) the default will still be used. */
+    BufferSetting_MinimumBaseWrapPosition,
+    
+    /* DOC(The BufferSetting_WrapIndicator setting is used to specify how wrapped lines should be marked so the user can see that they have been wrapped.  The value should be one of the values in the Wrap_Indicator_Mode enum.) DOC_SEE(Wrap_Indicator_Mode) */
+    BufferSetting_WrapIndicator,
     
     /* DOC(The BufferSetting_MapID setting specifies the id of the command map that should be
     active when a buffer is active.) */

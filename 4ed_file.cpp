@@ -92,6 +92,7 @@ struct Editing_File_Settings{
     i32 base_map_id;
     i32 display_width;
     i32 minimum_base_display_width;
+    i32 wrap_indicator;
     b32 dos_write_mode;
     b32 virtual_white;
     i16 font_id;
@@ -439,22 +440,21 @@ editing_file_zero(){
 internal Editing_File*
 working_set_alloc(Working_Set *working_set){
     Editing_File *result = 0;
-    File_Node *node;
-    Buffer_Slot_ID id;
     
     if (working_set->file_count < working_set->file_max){
-        node = working_set->free_sentinel.next;
+        File_Node *node = working_set->free_sentinel.next;
         Assert(node != &working_set->free_sentinel);
         result = (Editing_File*)node;
         
         dll_remove(node);
-        id = result->id;
+        Buffer_Slot_ID id = result->id;
         *result = editing_file_zero();
         result->id = id;
         result->unique_buffer_id = ++working_set->unique_file_counter;
         dll_insert(&working_set->used_sentinel, node);
         result->settings.display_width = working_set->default_display_width;
         result->settings.minimum_base_display_width = working_set->default_minimum_base_display_width;
+        result->settings.wrap_indicator = WrapIndicator_Show_At_Wrap_Edge;
         ++working_set->file_count;
     }
     

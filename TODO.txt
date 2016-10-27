@@ -90,10 +90,8 @@
 ;
 ; [X] query buffer font info
 ; [X] issues with drive letters
-; [] ad hoc call for setting up/down keys for interactive screens
-; [] option to not open *messages* every startup
-; [] API docs have duplicate ids?
-; [] miblo's various number editors
+; [X] ad hoc call for setting up/down keys for interactive screens
+; [X] miblo's various number editors
 ; [] decent options for indentation rules for text & presentation
 ;
 
@@ -194,6 +192,8 @@
 ;    [] support full length unicode file names
 
 ; [] user file bar string
+; [] option to not open *messages* every startup
+; [] API docs have duplicate ids?
 ; [] API docs as text file
 ; [] read only files
 ; [] option to hide hidden files

@@ -1861,6 +1861,12 @@ file_set_display_width_and_fix_cursor(System_Functions *system, Models *models, 
     file_measure_wraps_and_fix_cursor(system, models, file, font_height, adv);
 }
 
+internal void
+file_set_minimum_base_display_width_and_fix_cursor(System_Functions *system, Models *models, Editing_File *file, i32 minimum_base_display_width, f32 font_height, f32 *adv){
+    file->settings.minimum_base_display_width = minimum_base_display_width;
+    file_measure_wraps_and_fix_cursor(system, models, file, font_height, adv);
+}
+
 //
 //
 //
@@ -4893,6 +4899,9 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                     GUI_id scroll_context = {0};
                     scroll_context.id[1] = VUI_Interactive + ((u64)view->interaction << 32);
                     
+                    i16 user_up_key = models->user_up_key;
+                    i16 user_down_key = models->user_down_key;
+                    
                     switch (view->interaction){
                         case IInt_Sys_File_List:
                         {
@@ -4954,9 +4963,7 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                             if (gui_begin_list(target, id, view->list_i, 0,
                                                snap_into_view, &update)){
                                 // TODO(allen): Allow me to handle key consumption correctly here!
-                                gui_standard_list(target, id, &view->gui_scroll,
-                                                  view->scroll_region,
-                                                  &keys, &view->list_i, &update);
+                                gui_standard_list(target, id, &view->gui_scroll, view->scroll_region, &keys, &view->list_i, &update, user_up_key, user_down_key);
                             }
                             
                             begin_exhaustive_loop(&loop, hdir);
@@ -5038,15 +5045,11 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                             if (gui_scroll_was_activated(target, scroll_context)){
                                 snap_into_view = 1;
                             }
-                            gui_begin_scrollable(target, scroll_context, view->gui_scroll,
-                                                 9 * view->line_height, show_scrollbar);
+                            gui_begin_scrollable(target, scroll_context, view->gui_scroll, 9 * view->line_height, show_scrollbar);
                             
                             id.id[0] = (u64)(working_set) + 1;
-                            if (gui_begin_list(target, id, view->list_i,
-                                               0, snap_into_view, &update)){
-                                gui_standard_list(target, id, &view->gui_scroll,
-                                                  view->scroll_region,
-                                                  &keys, &view->list_i, &update);
+                            if (gui_begin_list(target, id, view->list_i, 0, snap_into_view, &update)){
+                                gui_standard_list(target, id, &view->gui_scroll, view->scroll_region, &keys, &view->list_i, &update, user_up_key, user_down_key);
                             }
                             
                             {
@@ -5940,7 +5943,7 @@ draw_file_loaded(View *view, i32_Rect rect, b32 is_active, Render_Target *target
         params.font_height   = (f32)line_height;
         params.adv           = advance_data;
         params.virtual_white = file->settings.virtual_white;
-        params.wrap_slashes  = BRWrapSlash_Show_At_Wrap_Edge;
+        params.wrap_slashes  = file->settings.wrap_indicator;
         
         Buffer_Render_State state = {0};
         Buffer_Layout_Stop stop = {0};

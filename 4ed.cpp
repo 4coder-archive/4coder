@@ -1733,6 +1733,10 @@ App_Init_Sig(app_init){
     vars->cli_processes.procs = push_array(partition, CLI_Process, max_children);
     vars->cli_processes.max = max_children;
     vars->cli_processes.count = 0;
+    
+    // NOTE(allen): init GUI keys
+    models->user_up_key = key_up;
+    models->user_down_key = key_down;
 }
 
 internal i32

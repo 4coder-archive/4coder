@@ -511,7 +511,7 @@ get_indent_lines_whole_tokens(Application_Links *app, Buffer_Summary *buffer, Cp
     for (;line_start > 0;){
         int32_t line_start_pos = 0;
         Cpp_Token *token = get_first_token_at_line(app, buffer, tokens, line_start, &line_start_pos);
-        if (token->start < line_start_pos){
+        if (token && token->start < line_start_pos){
             line_start = buffer_get_line_index(app, buffer, token->start);
         }
         else{

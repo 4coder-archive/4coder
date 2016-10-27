@@ -787,6 +787,24 @@ DOC_SEE(Buffer_Setting_ID)
                 }
             }break;
             
+            case BufferSetting_MinimumBaseWrapPosition:
+            {
+                i32 new_value = value;
+                if (new_value < 0){
+                    new_value = 0;
+                }
+                if (new_value != file->settings.minimum_base_display_width){
+                    i16 font_id = file->settings.font_id;
+                    Render_Font *font = get_font_info(models->font_set, font_id)->font;
+                    file_set_minimum_base_display_width_and_fix_cursor(system, models, file, new_value, (f32)font->height, font->advance_data);
+                }
+            }break;
+            
+            case BufferSetting_WrapIndicator:
+            {
+                file->settings.wrap_indicator = value;
+            }break;
+            
             case BufferSetting_MapID:
             {
                 if (value == mapid_global){
@@ -2224,6 +2242,15 @@ DOC(After this call the file list passed in should not be read or written to.)
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     System_Functions *system = cmd->system;
     system->set_file_list(&list, make_string(0, 0));
+}
+
+API_EXPORT void
+Set_GUI_Up_Down_Keys(Application_Links *app, int16_t up_key, int16_t down_key)
+{
+    Command_Data *cmd = (Command_Data*)app->cmd_context;
+    Models *models = cmd->models;
+    models->user_up_key = up_key;
+    models->user_down_key = down_key;
 }
 
 // BOTTOM

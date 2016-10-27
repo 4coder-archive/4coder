@@ -1354,16 +1354,14 @@ buffer_seek_whitespace_up(Application_Links *app, Buffer_Summary *buffer, int32_
     int32_t chunk_size = sizeof(chunk);
     Stream_Chunk stream = {0};
     
-    int32_t no_hard;
-    int32_t still_looping;
     char at_pos;
     
     --pos;
     if (init_stream_chunk(&stream, app, buffer, pos, chunk, chunk_size)){
         // Step 1: Find the first non-whitespace character
         // behind the current position.
-        still_looping = true;
-        do{
+        int32_t still_looping = 1;
+        while (still_looping){
             for (; pos >= stream.start; --pos){
                 at_pos = stream.data[pos];
                 if (!char_is_whitespace(at_pos)){
@@ -1371,7 +1369,7 @@ buffer_seek_whitespace_up(Application_Links *app, Buffer_Summary *buffer, int32_
                 }
             }
             still_looping = backward_stream_chunk(&stream);
-        } while(still_looping);
+        }
         double_break_1:;
         
         // Step 2: Continue scanning backward, at each '\n'
@@ -1379,7 +1377,7 @@ buffer_seek_whitespace_up(Application_Links *app, Buffer_Summary *buffer, int32_
         // no_hard to true, set it back to false if a
         // non-whitespace character is discovered before
         // the next '\n'
-        no_hard = false;
+        int32_t no_hard = false;
         while (still_looping){
             for (; pos >= stream.start; --pos){
                 at_pos = stream.data[pos];
@@ -2119,15 +2117,11 @@ CUSTOM_COMMAND_SIG(delete_word){
 CUSTOM_COMMAND_SIG(snipe_token_or_word){
     uint32_t access = AccessOpen;
     
-    View_Summary view;
-    Buffer_Summary buffer;
-    int32_t pos1, pos2;
+    View_Summary view = get_active_view(app, access);
+    Buffer_Summary buffer = get_buffer(app, view.buffer_id, access);
     
-    view = get_active_view(app, access);
-    buffer = get_buffer(app, view.buffer_id, access);
-    
-    pos1 = buffer_boundary_seek(app, &buffer, view.cursor.pos, false, BoundaryToken | BoundaryWhitespace);
-    pos2 = buffer_boundary_seek(app, &buffer, pos1,            true,  BoundaryToken | BoundaryWhitespace);
+    int32_t pos1 = buffer_boundary_seek(app, &buffer, view.cursor.pos, false, BoundaryToken | BoundaryWhitespace);
+    int32_t pos2 = buffer_boundary_seek(app, &buffer, pos1,            true,  BoundaryToken | BoundaryWhitespace);
     
     Range range = make_range(pos1, pos2);
     buffer_replace_range(app, &buffer, range.start, range.end, 0, 0);

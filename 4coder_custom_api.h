@@ -55,6 +55,7 @@
 #define DIRECTORY_GET_HOT_SIG(n) int32_t n(Application_Links *app, char *out, int32_t capacity)
 #define GET_FILE_LIST_SIG(n) File_List n(Application_Links *app, char *dir, int32_t len)
 #define FREE_FILE_LIST_SIG(n) void n(Application_Links *app, File_List list)
+#define SET_GUI_UP_DOWN_KEYS_SIG(n) void n(Application_Links *app, int16_t up_key, int16_t down_key)
 #define MEMORY_ALLOCATE_SIG(n) void* n(Application_Links *app, int32_t size)
 #define MEMORY_SET_PROTECTION_SIG(n) bool32 n(Application_Links *app, void *ptr, int32_t size, Memory_Protect_Flags flags)
 #define MEMORY_FREE_SIG(n) void n(Application_Links *app, void *ptr, int32_t size)
@@ -122,6 +123,7 @@ typedef GET_THEME_COLORS_SIG(Get_Theme_Colors_Function);
 typedef DIRECTORY_GET_HOT_SIG(Directory_Get_Hot_Function);
 typedef GET_FILE_LIST_SIG(Get_File_List_Function);
 typedef FREE_FILE_LIST_SIG(Free_File_List_Function);
+typedef SET_GUI_UP_DOWN_KEYS_SIG(Set_GUI_Up_Down_Keys_Function);
 typedef MEMORY_ALLOCATE_SIG(Memory_Allocate_Function);
 typedef MEMORY_SET_PROTECTION_SIG(Memory_Set_Protection_Function);
 typedef MEMORY_FREE_SIG(Memory_Free_Function);
@@ -191,6 +193,7 @@ Get_Theme_Colors_Function *get_theme_colors;
 Directory_Get_Hot_Function *directory_get_hot;
 Get_File_List_Function *get_file_list;
 Free_File_List_Function *free_file_list;
+Set_GUI_Up_Down_Keys_Function *set_gui_up_down_keys;
 Memory_Allocate_Function *memory_allocate;
 Memory_Set_Protection_Function *memory_set_protection;
 Memory_Free_Function *memory_free;
@@ -259,6 +262,7 @@ Get_Theme_Colors_Function *get_theme_colors_;
 Directory_Get_Hot_Function *directory_get_hot_;
 Get_File_List_Function *get_file_list_;
 Free_File_List_Function *free_file_list_;
+Set_GUI_Up_Down_Keys_Function *set_gui_up_down_keys_;
 Memory_Allocate_Function *memory_allocate_;
 Memory_Set_Protection_Function *memory_set_protection_;
 Memory_Free_Function *memory_free_;
@@ -335,6 +339,7 @@ app_links->get_theme_colors_ = Get_Theme_Colors;\
 app_links->directory_get_hot_ = Directory_Get_Hot;\
 app_links->get_file_list_ = Get_File_List;\
 app_links->free_file_list_ = Free_File_List;\
+app_links->set_gui_up_down_keys_ = Set_GUI_Up_Down_Keys;\
 app_links->memory_allocate_ = Memory_Allocate;\
 app_links->memory_set_protection_ = Memory_Set_Protection;\
 app_links->memory_free_ = Memory_Free;\
@@ -403,6 +408,7 @@ static inline void get_theme_colors(Application_Links *app, Theme_Color *colors,
 static inline int32_t directory_get_hot(Application_Links *app, char *out, int32_t capacity){return(app->directory_get_hot(app, out, capacity));}
 static inline File_List get_file_list(Application_Links *app, char *dir, int32_t len){return(app->get_file_list(app, dir, len));}
 static inline void free_file_list(Application_Links *app, File_List list){(app->free_file_list(app, list));}
+static inline void set_gui_up_down_keys(Application_Links *app, int16_t up_key, int16_t down_key){(app->set_gui_up_down_keys(app, up_key, down_key));}
 static inline void* memory_allocate(Application_Links *app, int32_t size){return(app->memory_allocate(app, size));}
 static inline bool32 memory_set_protection(Application_Links *app, void *ptr, int32_t size, Memory_Protect_Flags flags){return(app->memory_set_protection(app, ptr, size, flags));}
 static inline void memory_free(Application_Links *app, void *ptr, int32_t size){(app->memory_free(app, ptr, size));}
@@ -471,6 +477,7 @@ static inline void get_theme_colors(Application_Links *app, Theme_Color *colors,
 static inline int32_t directory_get_hot(Application_Links *app, char *out, int32_t capacity){return(app->directory_get_hot_(app, out, capacity));}
 static inline File_List get_file_list(Application_Links *app, char *dir, int32_t len){return(app->get_file_list_(app, dir, len));}
 static inline void free_file_list(Application_Links *app, File_List list){(app->free_file_list_(app, list));}
+static inline void set_gui_up_down_keys(Application_Links *app, int16_t up_key, int16_t down_key){(app->set_gui_up_down_keys_(app, up_key, down_key));}
 static inline void* memory_allocate(Application_Links *app, int32_t size){return(app->memory_allocate_(app, size));}
 static inline bool32 memory_set_protection(Application_Links *app, void *ptr, int32_t size, Memory_Protect_Flags flags){return(app->memory_set_protection_(app, ptr, size, flags));}
 static inline void memory_free(Application_Links *app, void *ptr, int32_t size){(app->memory_free_(app, ptr, size));}

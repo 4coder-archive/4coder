@@ -10,6 +10,8 @@
 # define BIND_4CODER_TESTS(context) ((void)context)
 #endif
 
+#include "4coder_miblo_numbers.cpp"
+
 #include <string.h>
 
 CUSTOM_COMMAND_SIG(kill_rect){
@@ -697,6 +699,13 @@ get_bindings(void *data, int size){
     begin_map(context, mapid_file);
     bind(context, 'k', MDFR_ALT, kill_rect);
     bind(context, ' ', MDFR_ALT, multi_line_edit);
+    
+    bind(context, key_page_up, MDFR_ALT, miblo_increment_time_stamp);
+    bind(context, key_page_down, MDFR_ALT, miblo_decrement_time_stamp);
+    
+    bind(context, key_home, MDFR_ALT, miblo_increment_time_stamp_minute);
+    bind(context, key_end, MDFR_ALT, miblo_decrement_time_stamp_minute);
+    
     end_map(context);
     
     begin_map(context, my_code_map);

@@ -954,21 +954,15 @@ cpp_lex_nonalloc_no_null_out_limit(Cpp_Lex_Data *S_ptr, char *chunk, int32_t siz
 #define NO_OUT_LIMIT ((int32_t)(-1))
 
 FCPP_LINK Cpp_Lex_Result
-cpp_lex_step(Cpp_Lex_Data *S_ptr, char *chunk, int32_t size, int32_t full_size,
-             Cpp_Token_Array *token_array_out, int32_t max_tokens_out)/*
+cpp_lex_step(Cpp_Lex_Data *S_ptr, char *chunk, int32_t size, int32_t full_size, Cpp_Token_Array *token_array_out, int32_t max_tokens_out)/*
 DOC_PARAM(S_ptr, The lexer state.  Go to the Cpp_Lex_Data section to see how to initialize the state.)
 DOC_PARAM(chunk, The first or next chunk of the file being lexed.)
-DOC_PARAM(size, The number of bytes in the chunk including the null terminator if the chunk ends in a null terminator.
-If the chunk ends in a null terminator the system will interpret it as the end of the file.)
-DOC_PARAM(full_size, If the final chunk is not null terminated this parameter should specify the length of the
-file in bytes.  To rely on an eventual null terminator use HAS_NULL_TERM for this parameter.)
+DOC_PARAM(size, The number of bytes in the chunk including the null terminator if the chunk ends in a null terminator. If the chunk ends in a null terminator the system will interpret it as the end of the file.)
+DOC_PARAM(full_size, If the final chunk is not null terminated this parameter should specify the length of the file in bytes.  To rely on an eventual null terminator use HAS_NULL_TERM for this parameter.)
 DOC_PARAM(token_array_out, The token array structure that will receive the tokens output by the lexer.)
 DOC_PARAM(max_tokens_out, The maximum number of tokens to be output to the token array.  To rely on the
 max built into the token array pass NO_OUT_LIMIT here.)
-
-DOC(This call is the primary interface of the lexing system.  It is quite general so it can be used in
-a lot of different ways.  I will explain the general rules first, and then give some examples of common
-ways it might be used.
+DOC(This call is the primary interface of the lexing system.  It is quite general so it can be used in a lot of different ways.  I will explain the general rules first, and then give some examples of common ways it might be used.
 
 First a lexing state, Cpp_Lex_Data, must be initialized. The file to lex must be read into N contiguous chunks
 of memory.  An output Cpp_Token_Array must be allocated and initialized with the appropriate count and max_count

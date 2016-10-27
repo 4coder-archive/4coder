@@ -89,6 +89,9 @@ struct Models{
     b32 keep_playing;
     
     Debug_Data debug;
+    
+    i16 user_up_key;
+    i16 user_down_key;
 };
 
 // BOTTOM

@@ -1188,12 +1188,6 @@ struct Buffer_Render_Params{
     i32 wrap_slashes;
 };
 
-enum Wrap_Slash_Mode{
-    BRWrapSlash_Hide,
-    BRWrapSlash_Show_After_Line,
-    BRWrapSlash_Show_At_Wrap_Edge,
-};
-
 struct Buffer_Render_State{
     Buffer_Stream_Type stream;
     b32 still_looping;
@@ -1295,12 +1289,12 @@ buffer_render_data(Buffer_Render_State *S_ptr, Buffer_Render_Params params, f32 
                         
                         if (params.wrapped){
                             switch (params.wrap_slashes){
-                                case BRWrapSlash_Show_After_Line:
+                                case WrapIndicator_Show_After_Line:
                                 {
                             S.write = write_render_item(S.write, S.i-1, '\\', BRFlag_Ghost_Character);
                                 }break;
                                 
-                                case BRWrapSlash_Show_At_Wrap_Edge:
+                                case WrapIndicator_Show_At_Wrap_Edge:
                                 {
                                     if (S.write.x < shift_x + params.width){
                                         S.write.x = shift_x + params.width;
