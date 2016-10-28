@@ -137,12 +137,6 @@ HOOK_SIG(my_start){
     exec_command(app, change_active_panel);
     exec_command(app, hide_scrollbar);
     
-    {
-        View_Summary view = get_active_view(app, AccessAll);
-         int32_t width = view.file_region.x1 - view.file_region.x0;
-        default_wrap_width = width - 40;
-    }
-    
     // Theme options:
     //  "4coder"
     //  "Handmade Hero"
