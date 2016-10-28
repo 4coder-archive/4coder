@@ -3503,7 +3503,7 @@ process_config_file(Application_Links *app){
         int32_t size = ftell(file);
         char *mem = (char*)push_block(&global_part, size+1);
         fseek(file, 0, SEEK_SET);
-        int32_t check_size = fread(mem, 1, size, file);
+        int32_t check_size = (int32_t)fread(mem, 1, size, file);
         if (check_size == size){
         mem[size] = 0;
         fclose(file);
