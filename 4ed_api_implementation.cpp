@@ -860,7 +860,10 @@ DOC_SEE(Buffer_Setting_ID)
                 b32 full_remeasure = 0;
                 if (value){
                     if (!file->settings.virtual_white){
-                        if (file->settings.tokens_exist && !file->state.still_lexing){
+                        if (!file->settings.tokens_exist){
+                            file_first_lex_serial(system, &models->mem, file);
+                        }
+                        if (!file->state.still_lexing){
                         file->settings.virtual_white = 1;
                         full_remeasure = 1;
                         }

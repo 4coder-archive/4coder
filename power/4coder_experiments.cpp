@@ -609,32 +609,13 @@ CUSTOM_COMMAND_SIG(write_explicit_enum_values){
     end_temp_memory(temp);
 }
 
-// TODO(allen): Query theme settings
-#if 0
-CUSTOM_COMMAND_SIG(save_theme_settings){
-    FILE *file = fopen(".4coder_settings", "rb");
-    char theme_name[128];
-    char font_name[128];
-    
-    fscanf(file, "%*128s %*128s", theme_name, font_name);
-    
-    if (file){
-        replace_char(theme_name, '#', ' ');
-        replace_char(font_name, '#', ' ');
-        
-        fclose(file);
-        
-        change_theme(app, theme_name, strlen(theme_name));
-        change_font(app, font_name, strlen(font_name));
-    }
-}
-#endif
-
 #include <stdio.h>
 
 #define SETTINGS_FILE ".4coder_settings"
 HOOK_SIG(experimental_start){
     init_memory(app);
+    
+    process_config_file(app);
     
     char theme_name[128];
     char font_name[128];
@@ -664,12 +645,12 @@ HOOK_SIG(experimental_start){
         
         change_theme(app, theme_name, theme_len);
         change_font(app, font_name, font_len, true);
-        
-        exec_command(app, open_panel_vsplit);
-        exec_command(app, hide_scrollbar);
-        exec_command(app, change_active_panel);
-        exec_command(app, hide_scrollbar);
     }
+    
+    exec_command(app, open_panel_vsplit);
+    exec_command(app, hide_scrollbar);
+    exec_command(app, change_active_panel);
+    exec_command(app, hide_scrollbar);
     
     return(0);
 }

@@ -124,87 +124,10 @@ CUSTOM_COMMAND_SIG(seek_whitespace_down_end_line){
     exec_command(app, seek_end_of_line);
 }
 
-static bool32 enable_code_wrapping = 1;
-static int32_t default_wrap_width = 672;
-
 HOOK_SIG(my_start){
     init_memory(app);
     
-    {
-        FILE *file = fopen("config.4coder", "rb");
-        if (file){
-            Temp_Memory temp = begin_temp_memory(&global_part);
-            
-            fseek(file, 0, SEEK_END);
-            int32_t size = ftell(file);
-            char *mem = (char*)push_block(&global_part, size+1);
-            fseek(file, 0, SEEK_SET);
-            fread(mem, 1, size+1, file);
-            fclose(file);
-            
-            Cpp_Token_Array array;
-            array.count = 0;
-            array.max_count = (1 << 20)/sizeof(Cpp_Token);
-            array.tokens = push_array(&global_part, Cpp_Token, array.max_count);
-            
-            Cpp_Lex_Data S = cpp_lex_data_init();
-            Cpp_Lex_Result result = cpp_lex_step(&S, mem, size, HAS_NULL_TERM, &array, NO_OUT_LIMIT);
-            
-            if (result == LexResult_Finished){
-                
-                for (int32_t i = 0; i < array.count; ++i){
-                int32_t read_setting_failed = 1;
-                    Cpp_Token id_token = array.tokens[i];
-                if (id_token.type == CPP_TOKEN_IDENTIFIER){
-                    ++i;
-                    if (i < array.count){
-                    Cpp_Token eq_token = array.tokens[i];
-                        if (eq_token.type == CPP_TOKEN_EQEQ){
-                            ++i;
-                            if (i < array.count){
-                                Cpp_Token val_token = array.tokens[i];
-                                {
-                                ++i;
-                                    if (i < array.count){
-                                        Cpp_Token semicolon_token = array.tokens[i];
-                                        if (semicolon_token.type == CPP_TOKEN_SEMICOLON){
-                                            read_setting_failed = 0;
-                                            
-                                            String id = make_string(mem + id_token.start, id_token.size);
-                                            
-                                            if (match(id, "enable_code_wrapping")){
-                                                if (val_token.type == CPP_TOKEN_BOOLEAN_CONSTANT){
-                                                    String val = make_string(mem + val_token.start, val_token.size);
-                                                    if (val.str[0] == 't'){
-                                                        enable_code_wrapping = 1;
-                                                    }
-                                                    else{
-                                                        enable_code_wrapping = 0;
-                                                    }
-                                                }
-                                                }
-                                        }
-                                }
-                            }
-                            }
-                        }
-                    }
-                }
-                
-                if (read_setting_failed){
-                    for (; i < array.count; ++i){
-                        Cpp_Token token = array.tokens[i];
-                        if (token.type == CPP_TOKEN_SEMICOLON){
-                            break;
-                        }
-                    }
-                }
-            }
-            }
-            
-            end_temp_memory(temp);
-        }
-    }
+    process_config_file(app);
     
     change_theme(app, literal("4coder"));
     change_font(app, literal("Liberation Sans"), true);
@@ -297,14 +220,24 @@ OPEN_FILE_HOOK_SIG(my_file_settings){
         wrap_lines = 0;
     }
     
-    buffer_set_setting(app, &buffer, BufferSetting_Lex, treat_as_code);
-    buffer_set_setting(app, &buffer, BufferSetting_WrapLine, wrap_lines);
     buffer_set_setting(app, &buffer, BufferSetting_WrapPosition, default_wrap_width);
     buffer_set_setting(app, &buffer, BufferSetting_MapID, (treat_as_code)?((int32_t)my_code_map):((int32_t)mapid_file));
     
     if (treat_as_code && enable_code_wrapping && buffer.size < (1 << 20)){
+        // NOTE(allen|a4.0.12): There is a little bit of grossness going on here.
+        // If we set BufferSetting_Lex to true, it will launch a lexing job.
+        // If a lexing job is active when we set BufferSetting_VirtualWhitespace on
+        //  that call can fail.
+        // Unfortunantely without tokens virtual whitespace doesn't really make sense.
+        // So for now I have it automatically turning on lexing when virtual whitespace
+        //  is turned on.
+        // Cleaning some of that up is a goal for future versions.
         buffer_set_setting(app, &buffer, BufferSetting_WrapLine, 1);
         buffer_set_setting(app, &buffer, BufferSetting_VirtualWhitespace, 1);
+    }
+    else{
+        buffer_set_setting(app, &buffer, BufferSetting_WrapLine, wrap_lines);
+        buffer_set_setting(app, &buffer, BufferSetting_Lex, treat_as_code);
     }
     
     // no meaning for return
