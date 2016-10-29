@@ -153,9 +153,11 @@ execute(char *dir, char *str){
 
 static void
 slash_fix(char *path){
+    if (path){
     for (int32_t i = 0; path[i]; ++i){
         if (path[i] == '/') path[i] = '\\';
     }
+}
 }
 
 static void
@@ -175,11 +177,11 @@ make_folder_if_missing(char *dir, char *folder){
     for (; *p; ++p){
         if (*p == '\\'){
             *p = 0;
-            CreateDirectoryA(folder, 0);
+            CreateDirectoryA(path.str, 0);
             *p = '\\';
         }
     }
-    CreateDirectoryA(folder, 0);
+    CreateDirectoryA(path.str, 0);
 }
 
 static void
