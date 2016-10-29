@@ -217,7 +217,7 @@ OPEN_FILE_HOOK_SIG(my_file_settings){
     buffer_set_setting(app, &buffer, BufferSetting_WrapPosition, default_wrap_width);
     buffer_set_setting(app, &buffer, BufferSetting_MapID, (treat_as_code)?((int32_t)my_code_map):((int32_t)mapid_file));
     
-    if (treat_as_code && enable_code_wrapping && buffer.size < (1 << 20)){
+    if (treat_as_code && enable_code_wrapping && buffer.size < (1 << 18)){
         // NOTE(allen|a4.0.12): There is a little bit of grossness going on here.
         // If we set BufferSetting_Lex to true, it will launch a lexing job.
         // If a lexing job is active when we set BufferSetting_VirtualWhitespace on

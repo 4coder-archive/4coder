@@ -599,6 +599,10 @@ binary_search(i32 *array, i32 value, i32 l_bound, i32 u_bound){
     i32 start = l_bound, end = u_bound;
     i32 i = 0;
     
+    if (value < 0){
+        value = 0;
+    }
+    
     for (;;){
         i = (start + end) >> 1;
         if (array[i] < value){
