@@ -865,6 +865,7 @@ file_grow_starts_as_needed(System_Functions *system, General_Memory *general, Bu
         
         if (new_lines){
             result = GROW_SUCCESS;
+            buffer->line_max = max;
             buffer->line_starts = new_lines;
         }
         else{
