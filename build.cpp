@@ -937,7 +937,7 @@ package(char *cdir){
     ONLY_WINDOWS(copy_file(BUILD_DIR, "4ed"PDB, PACK_SUPER_DIR, 0, 0));
     copy_file(BUILD_DIR, "4ed_app"DLL, PACK_SUPER_DIR, 0, 0);
     ONLY_WINDOWS(copy_file(BUILD_DIR, "4ed_app"PDB, PACK_SUPER_DIR, 0, 0));
-    copy_all (PACK_DATA_DIR, "/*", PACK_SUPER_DIR);
+    copy_all (PACK_DATA_DIR, "*", PACK_SUPER_DIR);
     copy_file(0, "README.txt", PACK_SUPER_DIR, 0, 0);
     copy_file(0, "TODO.txt", PACK_SUPER_DIR, 0, 0);
     copy_file(DATA_DIR, "config.4coder", PACK_SUPER_DIR, 0, 0);
@@ -959,11 +959,10 @@ package(char *cdir){
     clear_folder(PACK_POWER_PAR_DIR);
     make_folder_if_missing(PACK_POWER_DIR, 0);
     make_folder_if_missing(PACK_DIR, "power");
-    copy_all(0, "power/*", PACK_POWER_DIR);
+    copy_all("power", "*", PACK_POWER_DIR);
     
     get_4coder_dist_name(&str, 0, "power", "zip");
     zip(PACK_POWER_PAR_DIR, "power", str.str);
-    
 }
 
 #if defined(DEV_BUILD)
