@@ -2661,7 +2661,8 @@ CUSTOM_COMMAND_SIG(increase_line_wrap){
     View_Summary view = get_active_view(app, AccessProtected);
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessProtected);
     
-    int32_t wrap = buffer_get_setting(app, &buffer, BufferSetting_WrapPosition);
+    int32_t wrap = 0;
+        buffer_get_setting(app, &buffer, BufferSetting_WrapPosition, &wrap);
     buffer_set_setting(app, &buffer, BufferSetting_WrapPosition, wrap + 10);
 }
 
@@ -2669,7 +2670,8 @@ CUSTOM_COMMAND_SIG(decrease_line_wrap){
     View_Summary view = get_active_view(app, AccessProtected);
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessProtected);
     
-    int32_t wrap = buffer_get_setting(app, &buffer, BufferSetting_WrapPosition);
+    int32_t wrap = 0;
+    buffer_get_setting(app, &buffer, BufferSetting_WrapPosition, &wrap);
     buffer_set_setting(app, &buffer, BufferSetting_WrapPosition, wrap - 10);
 }
 
@@ -2677,7 +2679,8 @@ CUSTOM_COMMAND_SIG(toggle_virtual_whitespace){
     View_Summary view = get_active_view(app, AccessProtected);
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessProtected);
     
-    int32_t vwhite = buffer_get_setting(app, &buffer, BufferSetting_VirtualWhitespace);
+    int32_t vwhite = 0;
+    buffer_get_setting(app, &buffer, BufferSetting_VirtualWhitespace, &vwhite);
     buffer_set_setting(app, &buffer, BufferSetting_VirtualWhitespace, !vwhite);
 }
 

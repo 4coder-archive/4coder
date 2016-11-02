@@ -12,8 +12,8 @@
 #define ENUM_INTERNAL(type,name) typedef type name; enum name##_
 #endif
 
-#ifndef struct_internal
-#define struct_internal struct
+#ifndef STRUCT
+#define STRUCT struct
 #endif
 
 /* DOC(A Cpp_Token_Type classifies a token to make parsing easier. Some types are not actually output by the lexer, but exist because parsers will also make use of token types in their own output.) */
@@ -233,7 +233,7 @@ ENUM(uint32_t, Cpp_Token_Type){
 /* DOC(Cpp_Token represents a single lexed token.
 It is the primary output of the lexing system.)
 DOC_SEE(Cpp_Token_Flag) */
-struct Cpp_Token{
+ STRUCT Cpp_Token{
     /* DOC(The type field indicates the type of the token. 
     All tokens have a type no matter the circumstances.) */
 	Cpp_Token_Type type;
@@ -275,7 +275,7 @@ ENUM(uint16_t, Cpp_Token_Flag){
 of a growing array of Cpp_Tokens.  To initialize it the tokens field should
 point to a block of memory with a size equal to max_count*sizeof(Cpp_Token)
 and the count should be initialized to zero.) */
-struct Cpp_Token_Array{
+ STRUCT Cpp_Token_Array{
     /* DOC(The tokens field points to the memory used to store the array of tokens.) */
 	Cpp_Token *tokens;
     
@@ -291,7 +291,7 @@ static Cpp_Token_Array null_cpp_token_array = {0};
 
 /* DOC(Cpp_Get_Token_Result is the return result of the cpp_get_token call.)
 DOC_SEE(cpp_get_token) */
-struct Cpp_Get_Token_Result{
+ STRUCT Cpp_Get_Token_Result{
     /* DOC(The token_index field indicates which token answers the query.  To get the token from
     the source array CODE_EXAMPLE(array.tokens[result.token_index])) */
 	int32_t token_index;
@@ -311,7 +311,7 @@ struct Cpp_Get_Token_Result{
 
 /* DOC(Cpp_Relex_Range is the return result of the cpp_get_relex_range call.)
 DOC_SEE(cpp_get_relex_range) */
-struct Cpp_Relex_Range{
+ STRUCT Cpp_Relex_Range{
     /* DOC(The index of the first token in the unedited array that needs to be relexed.) */
     int32_t start_token_index;
     /* DOC(The index of the first token in the unedited array after the edited range
@@ -320,7 +320,7 @@ struct Cpp_Relex_Range{
     int32_t end_token_index;
 };
 
-struct_internal Cpp_Lex_FSM{
+struct Cpp_Lex_FSM{
     uint8_t state;
     uint8_t int_state;
     uint8_t emit_token;
@@ -335,7 +335,7 @@ a new lexer state call cpp_lex_data_init.
 The internals of the lex state should not be treated as a part of the public API.)
 DOC_SEE(cpp_lex_data_init)
 HIDE_MEMBERS() */
-struct Cpp_Lex_Data{
+ STRUCT Cpp_Lex_Data{
     char tb[32];
     int32_t tb_pos;
     int32_t token_start;
@@ -375,7 +375,7 @@ ENUM(int32_t, Cpp_Lex_Result){
 To create a new relex state call cpp_relex_init.)
 DOC_SEE(cpp_relex_init)
 HIDE_MEMBERS()*/
-struct Cpp_Relex_Data{
+ STRUCT Cpp_Relex_Data{
     Cpp_Lex_Data lex;
     
     Cpp_Token end_token;

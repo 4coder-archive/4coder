@@ -1,7 +1,15 @@
 
 #define FSTRING_DECLS
 #define FSTRING_BEGIN
-#define DOC_EXPORT
+#define API_EXPORT_MACRO
+
+#ifndef API_EXPORT
+# define API_EXPORT
+#endif
+
+#ifndef API_EXPORT_INLINE
+# define API_EXPORT_INLINE
+#endif
 
 #define CPP_NAME(n)
 
@@ -61,73 +69,73 @@ static String null_string = {0};
 // Character Helpers
 //
 
-FSTRING_INLINE fstr_bool
+API_EXPORT_INLINE FSTRING_INLINE fstr_bool
 char_is_slash(char c)
 /* DOC(This call returns non-zero if c is \ or /.) */{
     return (c == '\\' || c == '/');
 }
 
-FSTRING_INLINE fstr_bool
+API_EXPORT_INLINE FSTRING_INLINE fstr_bool
 char_is_upper(char c)
 /* DOC(If c is an uppercase letter this call returns true.) */{
     return (c >= 'A' && c <= 'Z');
 }
 
-FSTRING_INLINE fstr_bool
+API_EXPORT_INLINE FSTRING_INLINE fstr_bool
 char_is_lower(char c)
 /* DOC(If c is a lower letter this call returns true.) */{
     return (c >= 'a' && c <= 'z');
 }
 
-FSTRING_INLINE char
+API_EXPORT_INLINE FSTRING_INLINE char
 char_to_upper(char c)
 /* DOC(If c is a lowercase letter this call returns the uppercase equivalent, otherwise it returns c.) */{
     return (c >= 'a' && c <= 'z') ? c + (char)('A' - 'a') : c;
 }
 
-FSTRING_INLINE char
+API_EXPORT_INLINE FSTRING_INLINE char
 char_to_lower(char c)
 /* DOC(If c is an uppercase letter this call returns the lowercase equivalent, otherwise it returns c.) */{
     return (c >= 'A' && c <= 'Z') ? c - (char)('A' - 'a') : c;
 }
 
-FSTRING_INLINE fstr_bool
+API_EXPORT_INLINE FSTRING_INLINE fstr_bool
 char_is_whitespace(char c)
 /* DOC(This call returns non-zero if c is whitespace.) */{
     return (c == ' ' || c == '\n' || c == '\r' || c == '\t');
 }
 
-FSTRING_INLINE fstr_bool
+API_EXPORT_INLINE FSTRING_INLINE fstr_bool
 char_is_alpha_numeric(char c)
 /* DOC(This call returns non-zero if c is any alphanumeric character including underscore.) */{
     return (c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c >= '0' && c <= '9' || c == '_');
 }
 
-FSTRING_INLINE fstr_bool
+API_EXPORT_INLINE FSTRING_INLINE fstr_bool
 char_is_alpha_numeric_true(char c)
 /* DOC(This call returns non-zero if c is any alphanumeric character no including underscore.) */{
     return (c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c >= '0' && c <= '9');
 }
 
-FSTRING_INLINE fstr_bool
+API_EXPORT_INLINE FSTRING_INLINE fstr_bool
 char_is_alpha(char c)
 /* DOC(This call returns non-zero if c is any alphabetic character including underscore.) */{
     return (c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c == '_');
 }
 
-FSTRING_INLINE fstr_bool
+API_EXPORT_INLINE FSTRING_INLINE fstr_bool
 char_is_alpha_true(char c)
 /* DOC(This call returns non-zero if c is any alphabetic character.) */{
     return (c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z');
 }
 
-FSTRING_INLINE fstr_bool
+API_EXPORT_INLINE FSTRING_INLINE fstr_bool
 char_is_hex(char c)
 /* DOC(This call returns non-zero if c is any valid hexadecimal digit.) */{
     return (c >= '0' && c <= '9' || c >= 'A' && c <= 'F' || c >= 'a' && c <= 'f');
 }
 
-FSTRING_INLINE fstr_bool
+API_EXPORT_INLINE FSTRING_INLINE fstr_bool
 char_is_numeric(char c)
 /* DOC(This call returns non-zero if c is any valid decimal digit.) */{
     return (c >= '0' && c <= '9');
@@ -139,7 +147,7 @@ char_is_numeric(char c)
 //
 
 CPP_NAME(make_string)
-FSTRING_INLINE String
+API_EXPORT_INLINE FSTRING_INLINE String
 make_string_cap(void *str, int32_t size, int32_t mem_size)/*
 DOC_PARAM(str, The str parameter provides the of memory with which the string shall operate.)
 DOC_PARAM(size, The size parameter expresses the initial size of the string.
@@ -154,7 +162,7 @@ DOC(This call returns the String created from the parameters.)
     return(result);
 }
 
-FSTRING_INLINE String
+API_EXPORT_INLINE FSTRING_INLINE String
 make_string(void *str, int32_t size)/*
 DOC_PARAM(str, The str parameter provides the of memory with which the string shall operate.)
 DOC_PARAM(size, The size parameter expresses the initial size of the string.
@@ -170,19 +178,19 @@ DOC(This call returns the String created from the parameters.)
     return(result);
 }
 
-DOC_EXPORT /* DOC(This macro takes a literal string in quotes and uses it to create a String
-with the correct size and memory size.  Strings created this way should usually not be mutated.) */
+API_EXPORT_MACRO 
+/* DOC(This macro takes a literal string in quotes and uses it to create a String with the correct size and memory size.  Strings created this way should usually not be mutated.) */
 #define make_lit_string(s) (make_string_cap((char*)(s), sizeof(s)-1, sizeof(s)))
 
-DOC_EXPORT /* DOC(This macro takes a local char array with a fixed width and uses it to create
-an empty String with the correct size and memory size to operate on the array.) */
+API_EXPORT_MACRO
+/* DOC(This macro takes a local char array with a fixed width and uses it to create an empty String with the correct size and memory size to operate on the array.) */
 #define make_fixed_width_string(s) (make_string_cap((char*)(s), 0, sizeof(s)))
 
-DOC_EXPORT /* DOC(This macro is a helper for any calls that take a char*,integer pair to specify a
-string. This macro expands to both of those parameters from one String struct.) */
+API_EXPORT_MACRO
+/* DOC(This macro is a helper for any calls that take a char*,integer pair to specify a string. This macro expands to both of those parameters from one String struct.) */
 #define expand_str(s) ((s).str), ((s).size)
 
-FSTRING_LINK int32_t
+API_EXPORT FSTRING_LINK int32_t
 str_size(char *str)
 /* DOC(This call returns the number of bytes before a null terminator starting at str.) */{
     int32_t i = 0;
@@ -190,10 +198,9 @@ str_size(char *str)
     return(i);
 }
 
-FSTRING_INLINE String
+API_EXPORT_INLINE FSTRING_INLINE String
 make_string_slowly(void *str)
-/* DOC(This call makes a string by counting the number of bytes before a null terminator and
-treating that as the size and memory size of the string.) */{
+/* DOC(This call makes a string by counting the number of bytes before a null terminator and treating that as the size and memory size of the string.) */{
     String result;
     result.str = (char*)str;
     result.size = str_size((char*)str);
@@ -202,7 +209,7 @@ treating that as the size and memory size of the string.) */{
 }
 
 CPP_NAME(substr)
-FSTRING_INLINE String
+API_EXPORT_INLINE FSTRING_INLINE String
 substr_tail(String str, int32_t start)
 /* DOC(This call creates a substring of str that starts with an offset from str's base.
 The new string uses the same underlying memory so both strings will see changes.
@@ -214,7 +221,7 @@ Usually strings created this way should only go through immutable calls.) */{
     return(result);
 }
 
-FSTRING_INLINE String
+API_EXPORT_INLINE FSTRING_INLINE String
 substr(String str, int32_t start, int32_t size)
 /* DOC(This call creates a substring of str that starts with an offset from str's base,
 and has a fixed size. The new string uses the same underlying memory so both strings
@@ -229,7 +236,7 @@ will see changes. Usually strings created this way should only go through immuta
     return(result);
 }
 
-FSTRING_LINK String
+API_EXPORT FSTRING_LINK String
 skip_whitespace(String str)
 /* DOC(This call creates a substring that starts with the first non-whitespace character of str.
 Like other substr calls, the new string uses the underlying memory and so should usually be
@@ -241,7 +248,7 @@ considered immutable.) DOC_SEE(substr) */{
     return(result);
 }
 
-FSTRING_LINK String
+API_EXPORT FSTRING_LINK String
 chop_whitespace(String str)
 /* DOC(This call creates a substring that ends with the last non-whitespace character of str.
 Like other substr calls, the new string uses the underlying memory and so should usually be
@@ -253,7 +260,7 @@ considered immutable.) DOC_SEE(substr) */{
     return(result);
 }
 
-FSTRING_LINK String
+API_EXPORT FSTRING_LINK String
 skip_chop_whitespace(String str)
 /* DOC(This call is equivalent to calling skip_whitespace and chop_whitespace together.)
 DOC_SEE(skip_whitespace) DOC_SEE(chop_whitespace)*/{
@@ -262,7 +269,7 @@ DOC_SEE(skip_whitespace) DOC_SEE(chop_whitespace)*/{
     return(str);
 }
 
-FSTRING_INLINE String
+API_EXPORT_INLINE FSTRING_INLINE String
 tailstr(String str)
 /* DOC(This call returns an empty String with underlying memory taken from
 the portion of str's memory that is not used.) */{
@@ -279,7 +286,7 @@ the portion of str's memory that is not used.) */{
 //
 
 CPP_NAME(match)
-FSTRING_LINK fstr_bool
+API_EXPORT FSTRING_LINK fstr_bool
 match_cc(char *a, char *b)/* DOC(This call returns non-zero if a and b are equivalent.) */{
     for (int32_t i = 0;; ++i){
         if (a[i] != b[i]){
@@ -292,7 +299,7 @@ match_cc(char *a, char *b)/* DOC(This call returns non-zero if a and b are equiv
 }
 
 CPP_NAME(match)
-FSTRING_LINK fstr_bool
+API_EXPORT FSTRING_LINK fstr_bool
 match_sc(String a, char *b)/* DOC(This call returns non-zero if a and b are equivalent.) */{
     int32_t i = 0;
     for (; i < a.size; ++i){
@@ -307,13 +314,13 @@ match_sc(String a, char *b)/* DOC(This call returns non-zero if a and b are equi
 }
 
 CPP_NAME(match)
-FSTRING_INLINE fstr_bool
+API_EXPORT_INLINE FSTRING_INLINE fstr_bool
 match_cs(char *a, String b)/* DOC(This call returns non-zero if a and b are equivalent.) */{
     return(match_sc(b,a));
 }
 
 CPP_NAME(match)
-FSTRING_LINK fstr_bool
+API_EXPORT FSTRING_LINK fstr_bool
 match_ss(String a, String b)/* DOC(This call returns non-zero if a and b are equivalent.) */{
     if (a.size != b.size){
         return 0;
@@ -327,7 +334,7 @@ match_ss(String a, String b)/* DOC(This call returns non-zero if a and b are equ
 }
 
 CPP_NAME(match_part)
-FSTRING_LINK fstr_bool
+API_EXPORT FSTRING_LINK fstr_bool
 match_part_ccl(char *a, char *b, int32_t *len)/*
 DOC_PARAM(len, If this call returns non-zero this parameter is used to output the length of b.)
 DOC(This call is similar to a match call, except that it is permitted for a to be longer than b.
@@ -343,7 +350,7 @@ In other words this call returns non-zero if b is a prefix of a.) */{
 }
 
 CPP_NAME(match_part)
-FSTRING_LINK fstr_bool
+API_EXPORT FSTRING_LINK fstr_bool
 match_part_scl(String a, char *b, int32_t *len)/*
 DOC_PARAM(len, If this call returns non-zero this parameter is used to output the length of b.)
 DOC(This call is similar to a match call, except that it is permitted for a to be longer than b.
@@ -359,7 +366,7 @@ In other words this call returns non-zero if b is a prefix of a.) */{
 }
 
 CPP_NAME(match_part)
-FSTRING_INLINE fstr_bool
+API_EXPORT_INLINE FSTRING_INLINE fstr_bool
 match_part_cc(char *a, char *b)/*
 DOC_PARAM(len, If this call returns non-zero this parameter is used to output the length of b.)
 DOC(This call is similar to a match call, except that it is permitted for a to be longer than b.
@@ -369,7 +376,7 @@ In other words this call returns non-zero if b is a prefix of a.) */{
 }
 
 CPP_NAME(match_part)
-FSTRING_INLINE fstr_bool
+API_EXPORT_INLINE FSTRING_INLINE fstr_bool
 match_part_sc(String a, char *b)/*
 DOC(This call is similar to a match call, except that it is permitted for a to be longer than b.
 In other words this call returns non-zero if b is a prefix of a.) */{
@@ -378,7 +385,7 @@ In other words this call returns non-zero if b is a prefix of a.) */{
 }
 
 CPP_NAME(match_part)
-FSTRING_LINK fstr_bool
+API_EXPORT FSTRING_LINK fstr_bool
 match_part_cs(char *a, String b)/*
 DOC(This call is similar to a match call, except that it is permitted for a to be longer than b.
 In other words this call returns non-zero if b is a prefix of a.) */{
@@ -391,7 +398,7 @@ In other words this call returns non-zero if b is a prefix of a.) */{
 }
 
 CPP_NAME(match_part)
-FSTRING_LINK fstr_bool
+API_EXPORT FSTRING_LINK fstr_bool
 match_part_ss(String a, String b)/*
 DOC(This call is similar to a match call, except that it is permitted for a to be longer than b.
 In other words this call returns non-zero if b is a prefix of a.) */{
@@ -407,7 +414,7 @@ In other words this call returns non-zero if b is a prefix of a.) */{
 }
 
 CPP_NAME(match_insensitive)
-FSTRING_LINK fstr_bool
+API_EXPORT FSTRING_LINK fstr_bool
 match_insensitive_cc(char *a, char *b)/*
 DOC(This call returns non-zero if a and b are equivalent under case insensitive comparison.) */{
     for (int32_t i = 0;; ++i){
@@ -422,7 +429,7 @@ DOC(This call returns non-zero if a and b are equivalent under case insensitive 
 }
 
 CPP_NAME(match_insensitive)
-FSTRING_LINK fstr_bool
+API_EXPORT FSTRING_LINK fstr_bool
 match_insensitive_sc(String a, char *b)/*
 DOC(This call returns non-zero if a and b are equivalent under case insensitive comparison.) */{
     int32_t i = 0;
@@ -439,14 +446,14 @@ DOC(This call returns non-zero if a and b are equivalent under case insensitive 
 }
 
 CPP_NAME(match_insensitive)
-FSTRING_INLINE fstr_bool
+API_EXPORT_INLINE FSTRING_INLINE fstr_bool
 match_insensitive_cs(char *a, String b)/*
 DOC(This call returns non-zero if a and b are equivalent under case insensitive comparison.) */{
     return match_insensitive_sc(b,a);
 }
 
 CPP_NAME(match_insensitive)
-FSTRING_LINK fstr_bool
+API_EXPORT FSTRING_LINK fstr_bool
 match_insensitive_ss(String a, String b)/*
 DOC(This call returns non-zero if a and b are equivalent under case insensitive comparison.) */{
     if (a.size != b.size){
@@ -462,7 +469,7 @@ DOC(This call returns non-zero if a and b are equivalent under case insensitive 
 }
 
 CPP_NAME(match_part_insensitive)
-FSTRING_LINK fstr_bool
+API_EXPORT FSTRING_LINK fstr_bool
 match_part_insensitive_ccl(char *a, char *b, int32_t *len)/*
 DOC_PARAM(len, If this call returns non-zero this parameter is used to output the length of b.)
 DOC(This call performs the same partial matching rule as match_part under case insensitive comparison.)
@@ -478,7 +485,7 @@ DOC_SEE(match_part) */{
 }
 
 CPP_NAME(match_part_insensitive)
-FSTRING_LINK fstr_bool
+API_EXPORT FSTRING_LINK fstr_bool
 match_part_insensitive_scl(String a, char *b, int32_t *len)/*
 DOC_PARAM(len, If this call returns non-zero this parameter is used to output the length of b.)
 DOC(This call performs the same partial matching rule as match_part under case insensitive comparison.)
@@ -495,7 +502,7 @@ DOC_SEE(match_part) */{
 }
 
 CPP_NAME(match_part_insensitive)
-FSTRING_INLINE fstr_bool
+API_EXPORT_INLINE FSTRING_INLINE fstr_bool
 match_part_insensitive_cc(char *a, char *b)/*
 DOC(This call performs the same partial matching rule as match_part under case insensitive comparison.)
 DOC_SEE(match_part) */{
@@ -504,7 +511,7 @@ DOC_SEE(match_part) */{
 }
 
 CPP_NAME(match_part_insensitive)
-FSTRING_INLINE fstr_bool
+API_EXPORT_INLINE FSTRING_INLINE fstr_bool
 match_part_insensitive_sc(String a, char *b)/*
 DOC(This call performs the same partial matching rule as match_part under case insensitive comparison.)
 DOC_SEE(match_part) */{
@@ -513,7 +520,7 @@ DOC_SEE(match_part) */{
 }
 
 CPP_NAME(match_part_insensitive)
-FSTRING_LINK fstr_bool
+API_EXPORT FSTRING_LINK fstr_bool
 match_part_insensitive_cs(char *a, String b)/*
 DOC(This call performs the same partial matching rule as match_part under case insensitive comparison.)
 DOC_SEE(match_part) */{
@@ -526,7 +533,7 @@ DOC_SEE(match_part) */{
 }
 
 CPP_NAME(match_part_insensitive)
-FSTRING_LINK fstr_bool
+API_EXPORT FSTRING_LINK fstr_bool
 match_part_insensitive_ss(String a, String b)/*
 DOC(This call performs the same partial matching rule as match_part under case insensitive comparison.)
 DOC_SEE(match_part) */{
@@ -542,7 +549,7 @@ DOC_SEE(match_part) */{
 }
 
 CPP_NAME(compare)
-FSTRING_LINK int32_t
+API_EXPORT FSTRING_LINK int32_t
 compare_cc(char *a, char *b)/*
 DOC(This call returns zero if a and b are equivalent,
 it returns negative if a sorts before b alphabetically,
@@ -556,7 +563,7 @@ and positive if a sorts after b alphabetically.) */{
 }
 
 CPP_NAME(compare)
-FSTRING_LINK int32_t
+API_EXPORT FSTRING_LINK int32_t
 compare_sc(String a, char *b)/*
 DOC(This call returns zero if a and b are equivalent,
 it returns negative if a sorts before b alphabetically,
@@ -580,7 +587,7 @@ and positive if a sorts after b alphabetically.) */{
 }
 
 CPP_NAME(compare)
-FSTRING_INLINE int32_t
+API_EXPORT_INLINE FSTRING_INLINE int32_t
 compare_cs(char *a, String b)/*
 DOC(This call returns zero if a and b are equivalent,
 it returns negative if a sorts before b alphabetically,
@@ -590,7 +597,7 @@ and positive if a sorts after b alphabetically.) */{
 }
 
 CPP_NAME(compare)
-FSTRING_LINK int32_t
+API_EXPORT FSTRING_LINK int32_t
 compare_ss(String a, String b)/*
 DOC(This call returns zero if a and b are equivalent,
 it returns negative if a sorts before b alphabetically,
@@ -619,7 +626,7 @@ and positive if a sorts after b alphabetically.) */{
 //
 
 CPP_NAME(find)
-FSTRING_LINK int32_t
+API_EXPORT FSTRING_LINK int32_t
 find_c_char(char *str, int32_t start, char character)/*
 DOC_PARAM(str, The str parameter provides a null terminated string to search.)
 DOC_PARAM(start, The start parameter provides the index of the first character in str to search.)
@@ -632,7 +639,7 @@ if the character is not found.) */{
 }
 
 CPP_NAME(find)
-FSTRING_LINK int32_t
+API_EXPORT FSTRING_LINK int32_t
 find_s_char(String str, int32_t start, char character)/*
 DOC_PARAM(str, The str parameter provides a string to search.)
 DOC_PARAM(start, The start parameter provides the index of the first character in str to search.)
@@ -645,7 +652,7 @@ if the character is not found.) */{
 }
 
 CPP_NAME(rfind)
-FSTRING_LINK int32_t
+API_EXPORT FSTRING_LINK int32_t
 rfind_s_char(String str, int32_t start, char character)/*
 DOC_PARAM(str, The str parameter provides a string to search.)
 DOC_PARAM(start, The start parameter provides the index of the first character in str to search.)
@@ -658,7 +665,7 @@ the given character occurs.  If the index is found it is returned otherwise -1 i
 }
 
 CPP_NAME(find)
-FSTRING_LINK int32_t
+API_EXPORT FSTRING_LINK int32_t
 find_c_chars(char *str, int32_t start, char *characters)/*
 DOC_PARAM(str, The str parameter provides a null terminated string to search.)
 DOC_PARAM(start, The start parameter provides the index of the first character in str to search.)
@@ -678,7 +685,7 @@ or the size of the string if no such character is not found.) */{
 }
 
 CPP_NAME(find)
-FSTRING_LINK int32_t
+API_EXPORT FSTRING_LINK int32_t
 find_s_chars(String str, int32_t start, char *characters)/*
 DOC_PARAM(str, The str parameter provides a string to search.)
 DOC_PARAM(start, The start parameter provides the index of the first character in str to search.)
@@ -698,7 +705,7 @@ or the size of the string if no such character is not found.) */{
 }
 
 CPP_NAME(find_substr)
-FSTRING_LINK int32_t
+API_EXPORT FSTRING_LINK int32_t
 find_substr_c(char *str, int32_t start, String seek)/*
 DOC_PARAM(str, The str parameter provides a null terminated string to search.)
 DOC_PARAM(start, The start parameter provides the index of the first character in str to search.)
@@ -730,7 +737,7 @@ size of str if no such substring in str is found.) */{
 }
 
 CPP_NAME(find_substr)
-FSTRING_LINK int32_t
+API_EXPORT FSTRING_LINK int32_t
 find_substr_s(String str, int32_t start, String seek)/*
 DOC_PARAM(str, The str parameter provides a string to search.)
 DOC_PARAM(start, The start parameter provides the index of the first character in str to search.)
@@ -762,7 +769,7 @@ size of str if no such substring in str is found.) */{
 }
 
 CPP_NAME(rfind_substr)
-FSTRING_LINK int32_t
+API_EXPORT FSTRING_LINK int32_t
 rfind_substr_s(String str, int32_t start, String seek)/*
 DOC_PARAM(str, The str parameter provides a string to search.)
 DOC_PARAM(start, The start parameter provides the index of the first character in str to search.)
@@ -796,7 +803,7 @@ or -1 if no such substring in str is found.) */{
 }
 
 CPP_NAME(find_substr_insensitive)
-FSTRING_LINK int32_t
+API_EXPORT FSTRING_LINK int32_t
 find_substr_insensitive_c(char *str, int32_t start, String seek)/*
 DOC_PARAM(str, The str parameter provides a null terminated string to search.)
 DOC_PARAM(start, The start parameter provides the index of the first character in str to search.)
@@ -830,7 +837,7 @@ DOC_SEE(find_substr)*/{
 }
 
 CPP_NAME(find_substr_insensitive)
-FSTRING_LINK int32_t
+API_EXPORT FSTRING_LINK int32_t
 find_substr_insensitive_s(String str, int32_t start, String seek)/*
 DOC_PARAM(str, The str parameter provides a string to search.)
 DOC_PARAM(start, The start parameter provides the index of the first character in str to search.)
@@ -866,21 +873,21 @@ DOC_SEE(find_substr)*/{
 }
 
 CPP_NAME(has_substr)
-FSTRING_INLINE fstr_bool
+API_EXPORT_INLINE FSTRING_INLINE fstr_bool
 has_substr_c(char *s, String seek)/*
 DOC(This call returns non-zero if the string s contains a substring equivalent to seek.) */{
     return (s[find_substr_c(s, 0, seek)] != 0);
 }
 
 CPP_NAME(has_substr)
-FSTRING_INLINE fstr_bool
+API_EXPORT_INLINE FSTRING_INLINE fstr_bool
 has_substr_s(String s, String seek)/*
 DOC(This call returns non-zero if the string s contains a substring equivalent to seek.) */{
     return (find_substr_s(s, 0, seek) < s.size);
 }
 
 CPP_NAME(has_substr_insensitive)
-FSTRING_INLINE fstr_bool
+API_EXPORT_INLINE FSTRING_INLINE fstr_bool
 has_substr_insensitive_c(char *s, String seek)/*
 DOC(This call returns non-zero if the string s contains a substring equivalent to seek
 under case insensitive comparison.) */{
@@ -888,7 +895,7 @@ under case insensitive comparison.) */{
 }
 
 CPP_NAME(has_substr_insensitive)
-FSTRING_INLINE fstr_bool
+API_EXPORT_INLINE FSTRING_INLINE fstr_bool
 has_substr_insensitive_s(String s, String seek)/*
 DOC(This call returns non-zero if the string s contains a substring equivalent to seek
 under case insensitive comparison.) */{
@@ -900,7 +907,7 @@ under case insensitive comparison.) */{
 //
 
 CPP_NAME(copy_fast_unsafe)
-FSTRING_LINK int32_t
+API_EXPORT FSTRING_LINK int32_t
 copy_fast_unsafe_cc(char *dest, char *src)/*
 DOC(This call performs a copy from the src buffer to the dest buffer.
 The copy does not stop until a null terminator is found in src.  There
@@ -917,7 +924,7 @@ of bytes coppied to dest.) */{
 }
 
 CPP_NAME(copy_fast_unsafe)
-FSTRING_LINK int32_t
+API_EXPORT FSTRING_LINK int32_t
 copy_fast_unsafe_cs(char *dest, String src)/*
 DOC(This call performs a copy from the src string to the dest buffer.
 The copy does not stop until src.size characters are coppied.  There
@@ -933,7 +940,7 @@ of bytes coppied to dest.) */{
 }
 
 CPP_NAME(copy_checked)
-FSTRING_LINK fstr_bool
+API_EXPORT FSTRING_LINK fstr_bool
 copy_checked_ss(String *dest, String src)/*
 DOC(This call performs a copy from the src string to the dest string.
 The memory_size of dest is checked before any coppying is done.
@@ -952,7 +959,7 @@ This call returns non-zero on a successful copy.) */{
 }
 
 CPP_NAME(copy_partial)
-FSTRING_LINK fstr_bool
+API_EXPORT FSTRING_LINK fstr_bool
 copy_partial_sc(String *dest, char *src)/*
 DOC(This call performs a copy from the src buffer to the dest string.
 The memory_size of dest is checked if the entire copy cannot be performed,
@@ -973,7 +980,7 @@ if the entire string is coppied to dest.) */{
 }
 
 CPP_NAME(copy_partial)
-FSTRING_LINK fstr_bool
+API_EXPORT FSTRING_LINK fstr_bool
 copy_partial_ss(String *dest, String src)/*
 DOC(This call performs a copy from the src string to the dest string.
 The memory_size of dest is checked if the entire copy cannot be performed,
@@ -994,7 +1001,7 @@ if the entire string is coppied to dest.) */{
 }
 
 CPP_NAME(copy)
-FSTRING_INLINE int32_t
+API_EXPORT_INLINE FSTRING_INLINE int32_t
 copy_cc(char *dest, char *src)/*
 DOC(This call performs a copy from src to dest equivalent to copy_fast_unsafe.)
 DOC_SEE(copy_fast_unsafe) */{
@@ -1002,7 +1009,7 @@ DOC_SEE(copy_fast_unsafe) */{
 }
 
 CPP_NAME(copy)
-FSTRING_INLINE void
+API_EXPORT_INLINE FSTRING_INLINE void
 copy_ss(String *dest, String src)/*
 DOC(This call performs a copy from src to dest equivalent to copy_checked.)
 DOC_SEE(copy_checked) */{
@@ -1010,7 +1017,7 @@ DOC_SEE(copy_checked) */{
 }
 
 CPP_NAME(copy)
-FSTRING_INLINE void
+API_EXPORT_INLINE FSTRING_INLINE void
 copy_sc(String *dest, char *src)/*
 DOC(This call performs a copy from src to dest equivalent to copy_partial.)
 DOC_SEE(copy_partial) */{
@@ -1018,7 +1025,7 @@ DOC_SEE(copy_partial) */{
 }
 
 CPP_NAME(append_checked)
-FSTRING_LINK fstr_bool
+API_EXPORT FSTRING_LINK fstr_bool
 append_checked_ss(String *dest, String src)/*
 DOC(This call checks if there is enough space in dest's underlying memory
 to append src onto dest. If there is src is appended and the call returns non-zero.) */{
@@ -1032,7 +1039,7 @@ to append src onto dest. If there is src is appended and the call returns non-ze
 }
 
 CPP_NAME(append_partial)
-FSTRING_LINK fstr_bool
+API_EXPORT FSTRING_LINK fstr_bool
 append_partial_sc(String *dest, char *src)/*
 DOC(This call attemps to append as much of src into the space in dest's underlying memory
 as possible.  If the entire string is appended the call returns non-zero.) */{
@@ -1043,7 +1050,7 @@ as possible.  If the entire string is appended the call returns non-zero.) */{
 }
 
 CPP_NAME(append_partial)
-FSTRING_LINK fstr_bool
+API_EXPORT FSTRING_LINK fstr_bool
 append_partial_ss(String *dest, String src)/*
 DOC(This call attemps to append as much of src into the space in dest's underlying memory
 as possible.  If the entire string is appended the call returns non-zero.) */{
@@ -1054,7 +1061,7 @@ as possible.  If the entire string is appended the call returns non-zero.) */{
 }
 
 CPP_NAME(append)
-FSTRING_LINK fstr_bool
+API_EXPORT FSTRING_LINK fstr_bool
 append_s_char(String *dest, char c)/*
 DOC(This call attemps to append c onto dest.  If there is space left in dest's underlying
 memory the character is appended and the call returns non-zero.) */{
@@ -1067,20 +1074,20 @@ memory the character is appended and the call returns non-zero.) */{
 }
 
 CPP_NAME(append)
-FSTRING_INLINE fstr_bool
+API_EXPORT_INLINE FSTRING_INLINE fstr_bool
 append_ss(String *dest, String src)/*
 DOC(This call is equivalent to append_partial.) DOC_SEE(append_partial) */{
     return append_partial_ss(dest, src);
 }
 
 CPP_NAME(append)
-FSTRING_INLINE fstr_bool
+API_EXPORT_INLINE FSTRING_INLINE fstr_bool
 append_sc(String *dest, char *src)/*
 DOC(This call is equivalent to append_partial.) DOC_SEE(append_partial) */{
     return append_partial_sc(dest, src);
 }
 
-FSTRING_LINK fstr_bool
+API_EXPORT FSTRING_LINK fstr_bool
 terminate_with_null(String *str)/*
 DOC(This call attemps to append a null terminator onto str without effecting the
 size of str. This is usually called when the time comes to pass the the string to an
@@ -1094,7 +1101,7 @@ byte in the strings underlying memory.) */{
     return(result);
 }
 
-FSTRING_LINK fstr_bool
+API_EXPORT FSTRING_LINK fstr_bool
 append_padding(String *dest, char c, int32_t target_size)/*
 DOC(This call pads out dest so that it has a size of target_size by appending
 the padding character c until the target size is achieved.  This call returns
@@ -1118,7 +1125,7 @@ non-zero if dest does not run out of space in the underlying memory.) */{
 // Other Edits
 //
 
-FSTRING_LINK void
+API_EXPORT FSTRING_LINK void
 replace_char(String *str, char replace, char with)/*
 DOC_PARAM(str, The str parameter provides the string in which replacement shall be performed.)
 DOC_PARAM(replace, The replace character specifies which character should be replaced.)
@@ -1132,7 +1139,7 @@ DOC(This call replaces all occurances of character in str with another character
 }
 
 CPP_NAME(to_lower)
-FSTRING_LINK void
+API_EXPORT FSTRING_LINK void
 to_lower_cc(char *src, char *dst)/*
 DOC_PARAM(src, The source string to conver to lowercase.  This string must be null terminated.)
 DOC_PARAM(dst, The destination buffer to receive the converted string.  This must be large
@@ -1148,7 +1155,7 @@ string in place.)
 }
 
 CPP_NAME(to_lower)
-FSTRING_LINK void
+API_EXPORT FSTRING_LINK void
 to_lower_ss(String *dst, String src)/*
 DOC_PARAM(dst, The destination buffer to receive the converted string.
 This must have a capacity of at least the size of src.)
@@ -1170,7 +1177,7 @@ that src and dst may be exactly equal in order to convert the string in place.)
 }
 
 CPP_NAME(to_lower)
-FSTRING_LINK void
+API_EXPORT FSTRING_LINK void
 to_lower_s(String *str)/*
 DOC_PARAM(str, The string to be converted to all lowercase.)
 DOC(This version of to_lower converts str to lowercase in place.)
@@ -1184,7 +1191,7 @@ DOC(This version of to_lower converts str to lowercase in place.)
 }
 
 CPP_NAME(to_upper)
-FSTRING_LINK void
+API_EXPORT FSTRING_LINK void
 to_upper_cc(char *src, char *dst)/*
 DOC_PARAM(src, The source string to convert to uppercase.  This string must be null terminated.)
 DOC_PARAM(dst, The destination buffer to receive the converted string. 
@@ -1199,7 +1206,7 @@ that src and dst may be exactly equal in order to convert the string in place.)
 }
 
 CPP_NAME(to_upper)
-FSTRING_LINK void
+API_EXPORT FSTRING_LINK void
 to_upper_ss(String *dst, String src)/*
 DOC_PARAM(dst, The destination buffer to receive the converted string.
 This must have a capacity of at least the size of src.)
@@ -1221,7 +1228,7 @@ that src and dst may be exactly equal in order to convert the string in place.)
 }
 
 CPP_NAME(to_upper)
-FSTRING_LINK void
+API_EXPORT FSTRING_LINK void
 to_upper_s(String *str)/*
 DOC_PARAM(str, The string to be converted to all uppercase.)
 DOC(This version of to_upper converts str to uppercase in place.)
@@ -1235,7 +1242,7 @@ DOC(This version of to_upper converts str to uppercase in place.)
 }
 
 CPP_NAME(to_camel)
-FSTRING_LINK void
+API_EXPORT FSTRING_LINK void
 to_camel_cc(char *src, char *dst)/*
 DOC_PARAM(src, The source string to convert to camel case.)
 DOC_PARAM(dst, The destination buffer to receive the converted string.
@@ -1270,7 +1277,7 @@ convert the string in place.)
 //  String <-> Number Conversions
 //
 
-FSTRING_LINK int32_t
+API_EXPORT FSTRING_LINK int32_t
 int_to_str_size(int32_t x)/*
 DOC(This call returns the number of bytes required to represent x as a string.) */{
     int32_t size = 1;
@@ -1285,7 +1292,7 @@ DOC(This call returns the number of bytes required to represent x as a string.) 
     return(size);
 }
 
-FSTRING_LINK fstr_bool
+API_EXPORT FSTRING_LINK fstr_bool
 int_to_str(String *dest, int32_t x)/*
 DOC(This call writes a string representation of x into dest. If there is enough
 space in dest this call returns non-zero.) */{
@@ -1333,7 +1340,7 @@ space in dest this call returns non-zero.) */{
     return(result);
 }
 
-FSTRING_LINK fstr_bool
+API_EXPORT FSTRING_LINK fstr_bool
 append_int_to_str(String *dest, int32_t x)/*
 DOC(This call appends a string representation of x onto dest. If there is enough
 space in dest this call returns non-zero.) */{
@@ -1345,7 +1352,7 @@ space in dest this call returns non-zero.) */{
     return(result);
 }
 
-FSTRING_LINK int32_t
+API_EXPORT FSTRING_LINK int32_t
 u64_to_str_size(uint64_t x)/*
 DOC(This call returns the number of bytes required to represent x as a string.) */{
     int32_t size;
@@ -1363,7 +1370,7 @@ DOC(This call returns the number of bytes required to represent x as a string.) 
     return(size);
 }
 
-FSTRING_LINK fstr_bool
+API_EXPORT FSTRING_LINK fstr_bool
 u64_to_str(String *dest, uint64_t x)/*
 DOC(This call writes a string representation of x into dest. If there is enough
 space in dest this call returns non-zero.) */{
@@ -1402,7 +1409,7 @@ space in dest this call returns non-zero.) */{
     return(result);
 }
 
-FSTRING_LINK fstr_bool
+API_EXPORT FSTRING_LINK fstr_bool
 append_u64_to_str(String *dest, uint64_t x)/*
 DOC(This call appends a string representation of x onto dest. If there is enough
 space in dest this call returns non-zero.) */{
@@ -1437,7 +1444,7 @@ get_float_vars(float x){
 }
 #endif
 
-FSTRING_LINK int32_t
+API_EXPORT FSTRING_LINK int32_t
 float_to_str_size(float x)/*
 DOC(This call returns the number of bytes required to represent x as a string.) */{
     Float_To_Str_Variables vars = get_float_vars(x);
@@ -1446,7 +1453,7 @@ DOC(This call returns the number of bytes required to represent x as a string.) 
     return(size);
 }
 
-FSTRING_LINK fstr_bool
+API_EXPORT FSTRING_LINK fstr_bool
 append_float_to_str(String *dest, float x)/*
 DOC(This call writes a string representation of x into dest. If there is enough
 space in dest this call returns non-zero.) */{
@@ -1464,7 +1471,7 @@ space in dest this call returns non-zero.) */{
     return(result);
 }
 
-FSTRING_LINK fstr_bool
+API_EXPORT FSTRING_LINK fstr_bool
 float_to_str(String *dest, float x)/*
 DOC(This call appends a string representation of x onto dest. If there is enough
 space in dest this call returns non-zero.) */{
@@ -1475,7 +1482,7 @@ space in dest this call returns non-zero.) */{
 }
 
 CPP_NAME(str_is_int)
-FSTRING_LINK int32_t
+API_EXPORT FSTRING_LINK int32_t
 str_is_int_c(char *str)/*
 DOC(If str is a valid string representation of an integer, this call returns non-zero) */{
     fstr_bool result = 1;
@@ -1489,7 +1496,7 @@ DOC(If str is a valid string representation of an integer, this call returns non
 }
 
 CPP_NAME(str_is_int)
-FSTRING_LINK fstr_bool
+API_EXPORT FSTRING_LINK fstr_bool
 str_is_int_s(String str)/*
 DOC(If str is a valid string representation of an integer, this call returns non-zero.) */{
     fstr_bool result = 1;
@@ -1503,7 +1510,7 @@ DOC(If str is a valid string representation of an integer, this call returns non
 }
 
 CPP_NAME(str_to_int)
-FSTRING_LINK int32_t
+API_EXPORT FSTRING_LINK int32_t
 str_to_int_c(char *str)/*
 DOC(If str is a valid string representation of an integer, this call will return
 the integer represented by the string.  Otherwise this call returns zero.) */{
@@ -1522,7 +1529,7 @@ the integer represented by the string.  Otherwise this call returns zero.) */{
 }
 
 CPP_NAME(str_to_int)
-FSTRING_LINK int32_t
+API_EXPORT FSTRING_LINK int32_t
 str_to_int_s(String str)/*
 DOC(If str represents a valid string representation of an integer, this call will return
 the integer represented by the string.  Otherwise this call returns zero.) */{
@@ -1540,7 +1547,7 @@ the integer represented by the string.  Otherwise this call returns zero.) */{
     return(x);
 }
 
-FSTRING_LINK int32_t
+API_EXPORT FSTRING_LINK int32_t
 hexchar_to_int(char c)/*
 DOC(If c is a valid hexadecimal digit [0-9a-fA-F] this call returns the value of
 the integer value of the digit. Otherwise the return is some nonsense value.) */{
@@ -1557,14 +1564,14 @@ the integer value of the digit. Otherwise the return is some nonsense value.) */
     return(x);
 }
 
-FSTRING_LINK char
+API_EXPORT FSTRING_LINK char
 int_to_hexchar(int32_t x)/*
 DOC(If x is in the range [0,15] this call returns the equivalent lowercase hexadecimal digit.
 Otherwise the return is some nonsense value.) */{
     return (x<10)?((char)x+'0'):((char)x+'a'-10);
 }
 
-FSTRING_LINK uint32_t
+API_EXPORT FSTRING_LINK uint32_t
 hexstr_to_int(String str)/*
 DOC(This call interprets str has a hexadecimal representation of an integer and returns
 the represented integer value.) */{
@@ -1583,7 +1590,7 @@ the represented integer value.) */{
     return(x);
 }
 
-FSTRING_LINK fstr_bool
+API_EXPORT FSTRING_LINK fstr_bool
 color_to_hexstr(String *s, uint32_t color)/*
 DOC(This call fills s with the hexadecimal representation of the color.
 If there is enough memory in s to represent the color this call returns non-zero.) */{
@@ -1612,7 +1619,7 @@ If there is enough memory in s to represent the color this call returns non-zero
     return(result);
 }
 
-FSTRING_LINK fstr_bool
+API_EXPORT FSTRING_LINK fstr_bool
 hexstr_to_color(String s, uint32_t *out)/*
 DOC(This call interprets s as a color and writes the 32-bit integer representation into out.) */{
     fstr_bool result = 0;
@@ -1636,7 +1643,7 @@ DOC(This call interprets s as a color and writes the 32-bit integer representati
 //
 
 CPP_NAME(reverse_seek_slash)
-FSTRING_LINK int32_t
+API_EXPORT FSTRING_LINK int32_t
 reverse_seek_slash_pos(String str, int32_t pos)/*
 DOC(This call searches for a slash in str by starting pos bytes from the end and going backwards.) */{
     int32_t i = str.size - 1 - pos;
@@ -1646,20 +1653,20 @@ DOC(This call searches for a slash in str by starting pos bytes from the end and
     return i;
 }
 
-FSTRING_INLINE int32_t
+API_EXPORT_INLINE FSTRING_INLINE int32_t
 reverse_seek_slash(String str)/*
 DOC(This call searches for a slash in str by starting at the end and going backwards.) */{
     return(reverse_seek_slash_pos(str, 0));
 }
 
-FSTRING_INLINE String
+API_EXPORT_INLINE FSTRING_INLINE String
 front_of_directory(String dir)/*
 DOC(This call returns a substring of dir containing only the file name or
 folder name furthest to the right in the directory.) DOC_SEE(substr) */{
     return substr_tail(dir, reverse_seek_slash(dir) + 1);
 }
 
-FSTRING_INLINE String
+API_EXPORT_INLINE FSTRING_INLINE String
 path_of_directory(String dir)/*
 DOC(This call returns a substring of dir containing the whole path except
 for the final file or folder name.) DOC_SEE(substr) */{
@@ -1667,7 +1674,7 @@ for the final file or folder name.) DOC_SEE(substr) */{
 }
 
 CPP_NAME(set_last_folder)
-FSTRING_LINK fstr_bool
+API_EXPORT FSTRING_LINK fstr_bool
 set_last_folder_sc(String *dir, char *folder_name, char slash)/*
 DOC_PARAM(dir, The dir parameter is the directory string in which to set the last folder in the directory.)
 DOC_PARAM(folder_name, The folder_name parameter is a null terminated string specifying the name to set
@@ -1690,7 +1697,7 @@ If there is enough memory in dir this call returns non-zero.) */{
 }
 
 CPP_NAME(set_last_folder)
-FSTRING_LINK fstr_bool
+API_EXPORT FSTRING_LINK fstr_bool
 set_last_folder_ss(String *dir, String folder_name, char slash)/*
 DOC_PARAM(dir, The dir parameter is the directory string in which to set the last folder in the directory.)
 DOC_PARAM(folder_name, The folder_name parameter is a string specifying the name to set at the end of the directory.)
@@ -1711,7 +1718,7 @@ If there is enough memory in dir this call returns non-zero.) */{
     return(result);
 }
 
-FSTRING_LINK String
+API_EXPORT FSTRING_LINK String
 file_extension(String str)/*
 DOC(This call returns a substring containing only the file extension of the provided filename.)
 DOC_SEE(substr) */{
@@ -1723,7 +1730,7 @@ DOC_SEE(substr) */{
     return(make_string(str.str+i, str.size-i));
 }
 
-FSTRING_LINK fstr_bool
+API_EXPORT FSTRING_LINK fstr_bool
 remove_extension(String *str)/*
 DOC(This call attemps to delete a file extension off the end of a filename.
 This call returns non-zero on success.) */{
@@ -1739,7 +1746,7 @@ This call returns non-zero on success.) */{
     return(result);
 }
 
-FSTRING_LINK fstr_bool
+API_EXPORT FSTRING_LINK fstr_bool
 remove_last_folder(String *str)/*
 DOC(This call attemps to delete a folder or filename off the end of a path string.
 This call returns non-zero on success.) */{
@@ -1754,7 +1761,7 @@ This call returns non-zero on success.) */{
 
 // TODO(allen): Add hash-table extension to string sets.
 CPP_NAME(string_set_match)
-FSTRING_LINK fstr_bool
+API_EXPORT FSTRING_LINK fstr_bool
 string_set_match_table(void *str_set, int32_t item_size, int32_t count, String str, int32_t *match_index)/*
 DOC_PARAM(str_set, The str_set parameter may be an array of any type. 
 It should point at the String in the first element of the array.)
@@ -1779,7 +1786,7 @@ DOC_SEE(match) */{
     return(result);
 }
 
-FSTRING_LINK fstr_bool
+API_EXPORT FSTRING_LINK fstr_bool
 string_set_match(String *str_set, int32_t count, String str, int32_t *match_index)/*
 DOC_PARAM(str_set, The str_set parameter is an array of String structs specifying matchable strings.)
 DOC_PARAM(count, The count parameter specifies the number of String structs in the str_set array.)

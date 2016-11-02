@@ -398,12 +398,9 @@ DOC_PARAM(item_index, This parameter specifies which item to read, 0 is the most
 DOC_PARAM(out, This parameter provides a buffer where the clipboard contents are written.  This parameter may be NULL.)
 DOC_PARAM(len, This parameter specifies the length of the out buffer.)
 DOC_RETURN(This call returns the size of the item associated with item_index.)
-DOC
-(
-This function always returns the size of the item even if the output buffer is NULL.
-If the output buffer is too small to contain the whole string, it is filled with the
-first len character of the clipboard contents.  The output string is not null terminated.
-)
+
+DOC(This function always returns the size of the item even if the output buffer is NULL. If the output buffer is too small to contain the whole string, it is filled with the first len character of the clipboard contents.  The output string is not null terminated. )
+
 DOC_SEE(The_4coder_Clipboard)
 */{
     Command_Data *cmd = (Command_Data*)app->cmd_context;
@@ -423,7 +420,10 @@ DOC_SEE(The_4coder_Clipboard)
 }
 
 API_EXPORT int32_t
-Get_Buffer_Count(Application_Links *app){
+Get_Buffer_Count(Application_Links *app)
+/*
+DOC(Gives the total number of buffers in the application.)
+*/{
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     Working_Set *working_set = &cmd->models->working_set;
     int32_t result = working_set->file_count;
@@ -709,21 +709,27 @@ DOC_SEE(Buffer_Batch_Edit_Type)
 }
 
 API_EXPORT int32_t
-Buffer_Get_Setting(Application_Links *app, Buffer_Summary *buffer, Buffer_Setting_ID setting){
+Buffer_Get_Setting(Application_Links *app, Buffer_Summary *buffer, Buffer_Setting_ID setting, int32_t *value_out)
+/*
+DOC_PARAM(buffer, the buffer from which to read a setting)
+DOC_PARAM(setting, the setting to read from the buffer)
+DOC_PARAM(value_out, address to write the setting value on success)
+DOC_RETURN(returns non-zero on success)
+*/{
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     Editing_File *file = imp_get_file(cmd, buffer);
-    int32_t result = -1;
+    int32_t result = 0;
     
     if (file){
         switch (setting){
-            case BufferSetting_Lex:               result = file->settings.tokens_exist;     break;
-            case BufferSetting_WrapLine:          result = !file->settings.unwrapped_lines; break;
-            case BufferSetting_WrapPosition:      result = file->settings.display_width;    break;
-            case BufferSetting_MapID:             result = file->settings.base_map_id;      break;
-            case BufferSetting_Eol:               result = file->settings.dos_write_mode;   break;
-            case BufferSetting_Unimportant:       result = file->settings.unimportant;      break;
-            case BufferSetting_ReadOnly:          result = file->settings.read_only;        break;
-            case BufferSetting_VirtualWhitespace: result = file->settings.virtual_white;    break;
+            case BufferSetting_Lex: result = file->settings.tokens_exist; break;
+            case BufferSetting_WrapLine: result = !file->settings.unwrapped_lines; break;
+            case BufferSetting_WrapPosition: result = file->settings.display_width; break;
+            case BufferSetting_MapID: result = file->settings.base_map_id; break;
+            case BufferSetting_Eol: result = file->settings.dos_write_mode; break;
+            case BufferSetting_Unimportant: result = file->settings.unimportant; break;
+            case BufferSetting_ReadOnly: result = file->settings.read_only; break;
+            case BufferSetting_VirtualWhitespace: result = file->settings.virtual_white; break;
         }
     }
     
@@ -972,20 +978,61 @@ DOC_SEE(cpp_get_token)
     return(result);
 }
 
-API_EXPORT void
-Begin_Buffer_Creation(Application_Links *app, Buffer_Creation_Data *data, Buffer_Create_Flag flags){
+// TODO(allen): Buffer_Creation_Flag
+API_EXPORT bool32
+Begin_Buffer_Creation(Application_Links *app, Buffer_Creation_Data *data, Buffer_Create_Flag flags)
+/*
+DOC_PARAM(data, a local user handle for the buffer creation process)
+DOC_PARAM(flags, flags defining the buffer creation behavior)
+
+DOC(Begins a buffer creation by initializing a Buffer_Creation_Data struct.  The buffer is not actually created until end_buffer_creation is called.)
+
+DOC_SEE(buffer_creation_name)
+DOC_SEE(end_buffer_creation)
+
+DOC_SEE(Buffer_Creation_Data)
+DOC_SEE(Buffer_Create_Flag)
+*/{
+    bool32 result = 0;
+    if (data){
     data->flags = flags;
+        result = 1;
+    }
+    return(result);
 }
 
-API_EXPORT void
-Buffer_Creation_Name(Application_Links *app, Buffer_Creation_Data *data, char *filename, int32_t filename_len, uint32_t flags){
+API_EXPORT bool32
+Buffer_Creation_Name(Application_Links *app, Buffer_Creation_Data *data, char *filename, int32_t filename_len, uint32_t flags)
+/* 
+DOC_PARAM(data, a local user handle for buffer creation that has already been initialized by begin_buffer_creation)
+DOC_PARAM(filename, the name to associate to the buffer; This string need not be null terminated.)
+DOC_PARAM(filename_len, the length of the filename string)
+DOC_PARAM(flags, not currently used this should be 0)
+
+DOC(This call sets the name associated to the buffer.  If the name is a filename, that filename will be used for loading and saving with the disk, and the buffer name will be extracted from the filename.  If the name is not a filename it will be an unassociated buffer and the buffer name will be exactly set to filename.)
+
+DOC_SEE(begin_buffer_creation)
+DOC_SEE(end_buffer_creation)
+*/{
+    bool32 result = 0;
+    if (data){
     String fname = make_fixed_width_string(data->fname_space);
     copy_ss(&fname, make_string(filename, filename_len));
     data->fname_len = filename_len;
+        result = 1;
+    }
+    return(result);
 }
-
+  
 API_EXPORT Buffer_Summary
-End_Buffer_Creation(Application_Links *app, Buffer_Creation_Data *data){
+End_Buffer_Creation(Application_Links *app, Buffer_Creation_Data *data)
+/*
+DOC_PARAM(data, a local user handle for buffer creation that has already been initialized by begin_buffer_creation and used in subsequent buffer creation flags)
+
+DOC_RETURN(returns a summary of the newly created buffer or of the existing buffer that already has the specified name.  If there is not enough creation data to make the buffer the returned summary will be null.)
+
+DOC_SEE(begin_buffer_creation)
+*/{
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     System_Functions *system = cmd->system;
     Models *models = cmd->models;
@@ -995,7 +1042,7 @@ End_Buffer_Creation(Application_Links *app, Buffer_Creation_Data *data){
     
     Buffer_Summary result = {0};
     
-        if (data->fname_len > 0){
+    if (data && data->fname_len > 0){
             String fname = make_string(data->fname_space, data->fname_len);
             
             Editing_File *file = 0;
@@ -1073,114 +1120,7 @@ End_Buffer_Creation(Application_Links *app, Buffer_Creation_Data *data){
         }
         
         end_temp_memory(temp);
-    }
-    
-    return(result);
 }
-
-API_EXPORT Buffer_Summary
-Create_Buffer_(Application_Links *app, char *filename, int32_t filename_len, Buffer_Create_Flag flags)
-/*
-DOC_PARAM(filename, The filename parameter specifies the name of the file to be opened or created;
-it need not be null terminated.)
-DOC_PARAM(filename_len, The filename_len parameter spcifies the length of the filename string.)
-DOC_PARAM(flags, The flags parameter specifies behaviors for buffer creation.)
-DOC_RETURN(This call returns the summary of the created buffer.)
-
-DOC(Tries to create a new buffer and associate it to the given filename.  If such a buffer
-already exists the existing buffer is returned in the Buffer_Summary and no new buffer is
-created. If the buffer does not exist a new buffer is created and named after the given
-filename. If the filename corresponds to a file on the disk that file is loaded and put into
-buffer, if the filename does not correspond to a file on disk the buffer is created empty.)
-
-DOC_SEE(Buffer_Summary)
-DOC_SEE(Buffer_Create_Flag)
-*/{
-    Command_Data *cmd = (Command_Data*)app->cmd_context;
-    System_Functions *system = cmd->system;
-    Models *models = cmd->models;
-    Working_Set *working_set = &models->working_set;
-    General_Memory *general = &models->mem.general;
-    Partition *part = &models->mem.part;
-    
-    Buffer_Summary result = {0};
-    
-    String fname = make_string(filename, filename_len);
-    
-    Temp_Memory temp = begin_temp_memory(part);
-    
-    if (filename != 0){
-        Editing_File *file = 0;
-        b32 do_new_file = 0;
-        Plat_Handle handle = {0};
-        
-        Editing_File_Canon_Name canon = {0};
-        if (get_canon_name(system, &canon, fname)){
-            file = working_set_canon_contains(working_set, canon.name);
-        }
-        else{
-            do_new_file = 1;
-        }
-        
-        if (!file){
-            file = working_set_name_contains(working_set, fname);
-        }
-        
-        if (!file){
-            if (!do_new_file){
-                if (flags & BufferCreate_AlwaysNew){
-                    do_new_file = 1;
-                }
-                else{
-                    if (!system->load_handle(canon.name.str, &handle)){
-                        do_new_file = 1;
-                    }
-                }
-            }
-            
-            if (!do_new_file){
-                Assert(!handle_equal(handle, handle_zero()));
-                
-                i32 size = system->load_size(handle);
-                b32 in_general_mem = 0;
-                char *buffer = push_array(part, char, size);
-                
-                if (buffer == 0){
-                    buffer = (char*)general_memory_allocate(system, general, size);
-                    Assert(buffer != 0);
-                    in_general_mem = 1;
-                }
-                
-                if (system->load_file(handle, buffer, size)){
-                    file = working_set_alloc_always(system, working_set, general);
-                    if (file){
-                        buffer_bind_file(system, general, working_set, file, canon.name);
-                        buffer_bind_name(system, general, working_set, file, fname);
-                        init_normal_file(system, models, file, buffer, size);
-                        fill_buffer_summary(&result, file, cmd);
-                    }
-                }
-                
-                if (in_general_mem){
-                    general_memory_free(system, general, buffer);
-                }
-                
-                system->load_close(handle);
-            }
-            else if (!(flags & BufferCreate_NeverNew)){
-                file = working_set_alloc_always(system, working_set, general);
-                if (file){
-                    buffer_bind_name(system, general, working_set, file, fname);
-                    init_normal_file(system, models, file, 0, 0);
-                    fill_buffer_summary(&result, file, cmd);
-                }
-            }
-        }
-        else{
-            fill_buffer_summary(&result, file, cmd);
-        }
-    }
-    end_temp_memory(temp);
     
     return(result);
 }
@@ -1588,8 +1528,14 @@ DOC_SEE(get_active_view)
     return(result);
 }
 
-API_EXPORT int32_t
-View_Get_Setting(Application_Links *app, View_Summary *view, View_Setting_ID setting){
+API_EXPORT bool32
+View_Get_Setting(Application_Links *app, View_Summary *view, View_Setting_ID setting, int32_t *value_out)
+/*
+DOC_PARAM(view, the view from which to read a setting)
+DOC_PARAM(setting, the view setting to read)
+DOC_PARAM(value_out, address to write the setting value on success)
+DOC_RETURN(returns non-zero on success)
+*/{
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     View *vptr = imp_get_view(cmd, view);
     int32_t result = -1;
@@ -2104,14 +2050,20 @@ DOC(This call sets the display font of a particular buffer.)
     }
 }
 
-API_EXPORT int32_t
+API_EXPORT bool32
 Buffer_Get_Font(Application_Links *app, Buffer_Summary *buffer, char *name_out, int32_t name_max)
+/*
+DOC_PARAM(buffer, the buffer from which to get the font name)
+DOC_PARAM(name_out, a character array in which to write the name of the font)
+DOC_PARAM(name_max, the capacity of name_out)
+DOC_RETURN(returns non-zero on success)
+*/
 {
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     Models *models = cmd->models;
     Editing_File *file = imp_get_file(cmd, buffer);
     
-    int32_t result = 0;
+     bool32 result = 0;
     if (file){
         Font_Set *set = models->font_set;
         String name = make_string_cap(name_out, 0, name_max);
@@ -2249,6 +2201,11 @@ DOC(After this call the file list passed in should not be read or written to.)
 
 API_EXPORT void
 Set_GUI_Up_Down_Keys(Application_Links *app, int16_t up_key, int16_t down_key)
+/*
+DOC_PARAM(up_key, the code of the key that should be interpreted as an up key)
+DOC_PARAM(down_key, the code of the key that should be interpreted as a down key)
+
+DOC(This is a temporary ad-hoc solution to allow some customization of the behavior of the built in GUI. There is a high chance that it will be removed and not replaced at some point, so it is not recommended that it be heavily used.) */
 {
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     Models *models = cmd->models;

@@ -158,8 +158,30 @@ HOOK_SIG(my_start){
 HOOK_SIG(my_exit){
     // if this returns zero it cancels the exit.
     return(1);
-}
+      }
 
+      // TODO(allen): delete this
+      CUSTOM_COMMAND_SIG(weird_buffer_test){
+          for (Buffer_Summary buffer = get_buffer_first(app, AccessAll);
+               buffer.exists;
+               get_buffer_next(app, &buffer, AccessAll)){
+              print_message(app, literal("filename:"));
+              if (buffer.file_name){
+                  print_message(app, buffer.file_name, buffer.file_name_len);
+              }
+              else{
+                  print_message(app, literal("*NULL*"));
+              }
+              print_message(app, literal("buffername:"));
+              if (buffer.buffer_name){
+                  print_message(app, buffer.buffer_name, buffer.buffer_name_len);
+              }
+              else{
+                  print_message(app, literal("*NULL*"));
+              }
+          }
+      }
+      
 // NOTE(allen|a4.0.12): This is for testing it may be removed and replaced with a better test for the buffer_get_font when you eventally read this and wonder what it's about.
 CUSTOM_COMMAND_SIG(write_name_of_font){
     View_Summary view = get_active_view(app, AccessOpen);
@@ -314,6 +336,7 @@ default_keys(Bind_Helper *context){
     bind(context, key_f2, MDFR_NONE, toggle_mouse);
     bind(context, key_page_up, MDFR_CTRL, toggle_fullscreen);
     bind(context, 'E', MDFR_ALT, exit_4coder);
+    bind(context, 'K', MDFR_ALT, weird_buffer_test);
     
     end_map(context);
     
