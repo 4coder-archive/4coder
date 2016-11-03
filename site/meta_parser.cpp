@@ -1362,6 +1362,13 @@ compile_meta_unit(Partition *part, char *code_directory, char **files, Meta_Keyw
     return(unit);
 }
 
+static Meta_Unit
+compile_meta_unit(Partition *part, char *code_directory, char *file, Meta_Keywords *keywords, int32_t key_count){
+    char *file_array[2] = {file, 0};
+    Meta_Unit unit = compile_meta_unit(part, code_directory, file_array, keywords, key_count);
+    return(unit);
+}
+
 #endif
 
 // BOTTOM

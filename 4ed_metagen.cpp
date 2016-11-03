@@ -23,7 +23,9 @@
 #include <assert.h>
 
 #include "4coder_mem.h"
-#include "meta_parser.cpp"
+
+// TODO(allen): In the end the metaprogramming base should be one sub-project, the site should be one sub-project, and this code generator should be one sub-project.
+#include "site/meta_parser.cpp"
 
 #define InvalidPath Assert(!"Invalid path of execution")
 

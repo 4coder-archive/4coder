@@ -22,8 +22,11 @@
 
 #include "4coder_mem.h"
 #include "meta_parser.cpp"
+#include "abstract_document.h"
 
 #define InvalidPath Assert(!"Invalid path of execution")
+
+// TODO(allen): Move the Out_Context into it's own file.
 
 typedef struct Out_Context{
     char out_directory_space[256];
@@ -856,7 +859,34 @@ allocate_app_api(Partition *part, int32_t count){
 }
 
 static void
-generate_custom_headers(char *code_directory, char *src_directory, char *dst_directory){
+assert_files_are_equal(char *directory, char *filename1, char *filename2){
+    char space[256];
+    String name = make_fixed_width_string(space);
+    append_sc(&name, directory);
+    append_sc(&name, "\\");
+    append_sc(&name, filename1);
+    terminate_with_null(&name);
+    
+    String file1 = file_dump(name.str);
+    
+    name.size = 0;
+    append_sc(&name, directory);
+    append_sc(&name, "\\");
+    append_sc(&name, filename2);
+    terminate_with_null(&name);
+    
+    String file2 = file_dump(name.str);
+    
+    if (!match(file1, file2)){
+        fprintf(stderr, "Failed transitional test: %s != %s\n", filename1, filename2);
+    }
+    else{
+        fprintf(stderr, "Passed transitional test: %s == %s\n", filename1, filename2);
+    }
+    }
+
+static void
+generate_site(char *code_directory, char *src_directory, char *dst_directory){
 #define API_DOC "4coder_API.html"
     
     int32_t size = (512 << 20);
@@ -879,45 +909,29 @@ generate_custom_headers(char *code_directory, char *src_directory, char *dst_dir
     
 #define ExpandArray(a) (a), (ArrayCount(a))
     
-    // NOTE(allen): Parse the internal string file.
-    static char *string_files[] = {
-        "internal_4coder_string.cpp",
-        0
-    };
+    // NOTE(allen): Parse the important code.
+    Meta_Unit custom_types_unit = compile_meta_unit(part, code_directory, "4coder_types.h", ExpandArray(meta_keywords));
     
-    Meta_Unit string_unit = compile_meta_unit(part, code_directory, string_files, ExpandArray(meta_keywords));
+    Meta_Unit lexer_funcs_unit = compile_meta_unit(part, code_directory, "4cpp_lexer.h", ExpandArray(meta_keywords));
     
-    // NOTE(allen): Parse the lexer library
-    static char *lexer_types_files[] = {
-        "4cpp_lexer_types.h",
-        0
-    };
+    Meta_Unit lexer_types_unit = compile_meta_unit(part, code_directory, "4cpp_lexer_types.h", ExpandArray(meta_keywords));
     
-    Meta_Unit lexer_types_unit = compile_meta_unit(part, code_directory, lexer_types_files, ExpandArray(meta_keywords));
+    Meta_Unit string_unit = compile_meta_unit(part, code_directory, "internal_4coder_string.cpp", ExpandArray(meta_keywords));
     
-    static char *lexer_funcs_files[] = {
-        "4cpp_lexer.h",
-        0
-    };
-    
-    Meta_Unit lexer_funcs_unit = compile_meta_unit(part, code_directory, lexer_funcs_files, ExpandArray(meta_keywords));
-    
-    
-    // NOTE(allen): Parse the customization API files
     static char *functions_files[] = {
         "4ed_api_implementation.cpp",
         "win32_api_impl.cpp",
         0
     };
     
-    Meta_Unit unit_custom = compile_meta_unit(part, code_directory, functions_files, ExpandArray(meta_keywords));
+    Meta_Unit custom_funcs_unit = compile_meta_unit(part, code_directory, functions_files, ExpandArray(meta_keywords));
     
     
-    // NOTE(allen): Compute and store variations of the function names
-    App_API func_4ed_names = allocate_app_api(part, unit_custom.set.count);
+    // NOTE(allen): Compute and store variations of the custom function names
+    App_API func_4ed_names = allocate_app_api(part, custom_funcs_unit.set.count);
     
-    for (int32_t i = 0; i < unit_custom.set.count; ++i){
-        String name_string = unit_custom.set.items[i].name;
+    for (int32_t i = 0; i < custom_funcs_unit.set.count; ++i){
+        String name_string = custom_funcs_unit.set.items[i].name;
         String *macro = &func_4ed_names.names[i].macro;
         String *public_name = &func_4ed_names.names[i].public_name;
         
@@ -931,23 +945,88 @@ generate_custom_headers(char *code_directory, char *src_directory, char *dst_dir
         partition_align(part, 4);
     }
     
-    // NOTE(allen): Parse the customization API types
-    static char *type_files[] = {
-        "4coder_types.h",
-        0
-    };
     
-    Meta_Unit unit = compile_meta_unit(part, code_directory, type_files, ExpandArray(meta_keywords));
+    // NOTE(allen): Put together the abstract document
+    Abstract_Document doc = {0};
+    begin_document_description(&doc, part);
+    
+    begin_section(&doc, "Intro");
+    add_todo(&doc);
+    end_section(&doc);
+    
+    begin_section(&doc, "4coder Systems Overview");
+    add_todo(&doc);
+    end_section(&doc);
+    
+    begin_section(&doc, "Types and Functions");
+    {
+        begin_section(&doc, "Function List");
+        add_element_list(&doc, &custom_funcs_unit);
+        end_section(&doc);
+        begin_section(&doc, "Type List");
+        add_element_list(&doc, &custom_types_unit);
+        end_section(&doc);
+        begin_section(&doc, "Function Descriptions");
+        add_full_elements(&doc, &custom_funcs_unit);
+        end_section(&doc);
+        begin_section(&doc, "Type Descriptions");
+        add_full_elements(&doc, &custom_types_unit);
+        end_section(&doc);
+    }
+    end_section(&doc);
+    
+    begin_section(&doc, "String Library");
+    {
+        begin_section(&doc, "String Library Intro");
+        add_todo(&doc);
+        end_section(&doc);
+    begin_section(&doc, "String Function List");
+        add_element_list(&doc, &string_unit);
+    end_section(&doc);
+        begin_section(&doc, "String Function Descriptions");
+        add_full_elements(&doc, &string_unit);
+        end_section(&doc);
+    }
+    end_section(&doc);
+    
+    begin_section(&doc, "Lexer Library");
+    {
+        begin_section(&doc, "Lexer Intro");
+        add_todo(&doc);
+        end_section(&doc);
+        begin_section(&doc, "Lexer Function List");
+        add_element_list(&doc, &lexer_funcs_unit);
+        end_section(&doc);
+        begin_section(&doc, "Lexer Type List");
+        add_element_list(&doc, &lexer_types_unit);
+        end_section(&doc);
+        begin_section(&doc, "Lexer Function Descriptions");
+        add_full_elements(&doc, &lexer_funcs_unit);
+        end_section(&doc);
+        begin_section(&doc, "Lexer Type Descriptions");
+        add_full_elements(&doc, &lexer_types_unit);
+        end_section(&doc);
+    }
+    end_section(&doc);
+    
+    end_document_description(&doc);
     
     // NOTE(allen): Output
     String out = str_alloc(part, 10 << 20);
     Out_Context context = {0};
-    
     set_context_directory(&context, dst_directory);
     
-    // Output Docs
+    // Output Docs - General Document Generator
+    if (begin_file_out(&context, "gen-test.html", &out)){
+        generate_document_html(&context, &doc);
+        end_file_out(context);
+    }
+    else{
+        // TODO(allen): warning
+    }
+    
+    // Output Docs - Direct Method
     if (begin_file_out(&context, API_DOC, &out)){
-        
         Used_Links used_links = {0};
         init_used_links(part, &used_links, 4000);
         
@@ -1103,7 +1182,7 @@ generate_custom_headers(char *code_directory, char *src_directory, char *dst_dir
 #define SECTION MAJOR_SECTION".1"
         
         append_sc(&out, "<h3>&sect;"SECTION" Function List</h3><ul>");
-        for (int32_t i = 0; i < unit_custom.set.count; ++i){
+        for (int32_t i = 0; i < custom_funcs_unit.set.count; ++i){
             print_item_in_list(&out, func_4ed_names.names[i].public_name, "_doc");
         }
         append_sc(&out, "</ul>");
@@ -1112,8 +1191,8 @@ generate_custom_headers(char *code_directory, char *src_directory, char *dst_dir
 #define SECTION MAJOR_SECTION".2"
         
         append_sc(&out, "<h3>&sect;"SECTION" Type List</h3><ul>");
-        for (int32_t i = 0; i < unit.set.count; ++i){
-            print_item_in_list(&out, unit.set.items[i].name, "_doc");
+        for (int32_t i = 0; i < custom_types_unit.set.count; ++i){
+            print_item_in_list(&out, custom_types_unit.set.items[i].name, "_doc");
         }
         append_sc(&out, "</ul>");
         
@@ -1121,8 +1200,8 @@ generate_custom_headers(char *code_directory, char *src_directory, char *dst_dir
 #define SECTION MAJOR_SECTION".3"
         
         append_sc(&out, "<h3>&sect;"SECTION" Function Descriptions</h3>");
-        for (int32_t i = 0; i < unit_custom.set.count; ++i){
-            Item_Node *item = &unit_custom.set.items[i];
+        for (int32_t i = 0; i < custom_funcs_unit.set.count; ++i){
+            Item_Node *item = &custom_funcs_unit.set.items[i];
             String name = func_4ed_names.names[i].public_name;
             
             append_sc        (&out, "<div id='");
@@ -1147,8 +1226,8 @@ generate_custom_headers(char *code_directory, char *src_directory, char *dst_dir
         append_sc(&out, "<h3>&sect;"SECTION" Type Descriptions</h3>");
         
         int32_t I = 1;
-        for (int32_t i = 0; i < unit.set.count; ++i, ++I){
-            print_item(&out, part, &used_links, unit.set.items + i, "_doc", 0, SECTION, I);
+        for (int32_t i = 0; i < custom_types_unit.set.count; ++i, ++I){
+            print_item(&out, part, &used_links, custom_types_unit.set.items + i, "_doc", 0, SECTION, I);
         }
         
 #undef MAJOR_SECTION
@@ -1262,18 +1341,19 @@ generate_custom_headers(char *code_directory, char *src_directory, char *dst_dir
             print_item(&out, part, &used_links, lexer_types_unit.set.items+i, "_doc", "", SECTION, i+1);
         }
         
-        
         append_sc(&out, "</div></body></html>");
         end_file_out(context);
     }
     else{
         // TODO(allen): warning
     }
+    
+    assert_files_are_equal(dst_directory, API_DOC, "gen-test.html");
 }
 
 int main(int argc, char **argv){
     if (argc == 4){
-        generate_custom_headers(argv[1], argv[2], argv[3]);
+        generate_site(argv[1], argv[2], argv[3]);
     }
 }
 
