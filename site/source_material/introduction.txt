@@ -1,0 +1,4 @@
+
+This is the documentation for the 4cpp lexer version 1.1.  The documentation is the newest piece of this lexer project so it may still have problems.  What is here should be correct and mostly complete.
+
+If you have questions or discover errors please contact \CODE_STYLE{editor@4coder.net} or  to get help from members of the 4coder and handmade network community you can post on the  4coder forums hosted at \CODE_STYLE{4coder.handmade.network}

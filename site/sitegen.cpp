@@ -22,67 +22,10 @@
 
 #include "4coder_mem.h"
 #include "meta_parser.cpp"
-#include "abstract_document.h"
+#include "out_context.cpp"
+#include "abstract_document.cpp"
 
 #define InvalidPath Assert(!"Invalid path of execution")
-
-// TODO(allen): Move the Out_Context into it's own file.
-
-typedef struct Out_Context{
-    char out_directory_space[256];
-    String out_directory;
-    FILE *file;
-    String *str;
-} Out_Context;
-
-static void
-set_context_directory(Out_Context *context, char *dst_directory){
-    context->out_directory = make_fixed_width_string(context->out_directory_space);
-    copy_sc(&context->out_directory, dst_directory);
-}
-
-static int32_t
-begin_file_out(Out_Context *out_context, char *filename, String *out){
-    char str_space[512];
-    String name = make_fixed_width_string(str_space);
-    if (out_context->out_directory.size > 0){
-        append_ss(&name, out_context->out_directory);
-        append_sc(&name, "\\");
-    }
-    append_sc(&name, filename);
-    terminate_with_null(&name);
-    
-    int32_t r = 0;
-    out_context->file = fopen(name.str, "wb");
-    out_context->str = out;
-    out->size = 0;
-    if (out_context->file){
-        r = 1;
-    }
-    
-    return(r);
-}
-
-static void
-dump_file_out(Out_Context out_context){
-    fwrite(out_context.str->str, 1, out_context.str->size, out_context.file);
-    out_context.str->size = 0;
-}
-
-static void
-end_file_out(Out_Context out_context){
-    dump_file_out(out_context);
-    fclose(out_context.file);
-}
-
-static String
-make_out_string(int32_t x){
-    String str;
-    str.size = 0;
-    str.memory_size = x;
-    str.str = (char*)malloc(x);
-    return(str);
-}
 
 //////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -243,6 +186,7 @@ print_macro_html(String *out, String name, Argument_Breakdown breakdown){
 #define EXAMPLE_CODE_OPEN  "<div style='"CODE_STYLE EXAMPLE_CODE_STYLE"'>"
 #define EXAMPLE_CODE_CLOSE "</div>"
 
+// TODO(allen): move string iteration utils somewhere cooler (4coder_string.h?)
 static String
 get_first_double_line(String source){
     String line = {0};
@@ -877,7 +821,7 @@ assert_files_are_equal(char *directory, char *filename1, char *filename2){
     
     String file2 = file_dump(name.str);
     
-    if (!match(file1, file2)){
+    if (!match_ss(file1, file2)){
         fprintf(stderr, "Failed transitional test: %s != %s\n", filename1, filename2);
     }
     else{
@@ -945,65 +889,69 @@ generate_site(char *code_directory, char *src_directory, char *dst_directory){
         partition_align(part, 4);
     }
     
+    // NOTE(allen): Load enriched text materials
+    Enriched_Text introduction = load_enriched_text(part, src_directory, "introduction.txt");
     
     // NOTE(allen): Put together the abstract document
     Abstract_Document doc = {0};
-    begin_document_description(&doc, part);
+    begin_document_description(&doc, part, "4coder API Docs");
     
-    begin_section(&doc, "Intro");
+    add_table_of_contents(&doc);
+    
+    begin_section(&doc, "Introduction", "introduction");
+    add_enriched_text(&doc, &introduction);
+    end_section(&doc);
+    
+    begin_section(&doc, "4coder Systems", "4coder_systems");
     add_todo(&doc);
     end_section(&doc);
     
-    begin_section(&doc, "4coder Systems Overview");
-    add_todo(&doc);
-    end_section(&doc);
-    
-    begin_section(&doc, "Types and Functions");
+    begin_section(&doc, "Types and Functions", "types_and_functions");
     {
-        begin_section(&doc, "Function List");
+        begin_section(&doc, "Function List", 0);
         add_element_list(&doc, &custom_funcs_unit);
         end_section(&doc);
-        begin_section(&doc, "Type List");
+        begin_section(&doc, "Type List", 0);
         add_element_list(&doc, &custom_types_unit);
         end_section(&doc);
-        begin_section(&doc, "Function Descriptions");
+        begin_section(&doc, "Function Descriptions", 0);
         add_full_elements(&doc, &custom_funcs_unit);
         end_section(&doc);
-        begin_section(&doc, "Type Descriptions");
+        begin_section(&doc, "Type Descriptions", 0);
         add_full_elements(&doc, &custom_types_unit);
         end_section(&doc);
     }
     end_section(&doc);
     
-    begin_section(&doc, "String Library");
+    begin_section(&doc, "String Library", "string_library");
     {
-        begin_section(&doc, "String Library Intro");
+        begin_section(&doc, "String Library Intro", 0);
         add_todo(&doc);
         end_section(&doc);
-    begin_section(&doc, "String Function List");
+        begin_section(&doc, "String Function List", 0);
         add_element_list(&doc, &string_unit);
     end_section(&doc);
-        begin_section(&doc, "String Function Descriptions");
+        begin_section(&doc, "String Function Descriptions", 0);
         add_full_elements(&doc, &string_unit);
         end_section(&doc);
     }
     end_section(&doc);
     
-    begin_section(&doc, "Lexer Library");
+    begin_section(&doc, "Lexer Library", "lexer_library");
     {
-        begin_section(&doc, "Lexer Intro");
+        begin_section(&doc, "Lexer Intro", 0);
         add_todo(&doc);
         end_section(&doc);
-        begin_section(&doc, "Lexer Function List");
+        begin_section(&doc, "Lexer Function List", 0);
         add_element_list(&doc, &lexer_funcs_unit);
         end_section(&doc);
-        begin_section(&doc, "Lexer Type List");
+        begin_section(&doc, "Lexer Type List", 0);
         add_element_list(&doc, &lexer_types_unit);
         end_section(&doc);
-        begin_section(&doc, "Lexer Function Descriptions");
+        begin_section(&doc, "Lexer Function Descriptions", 0);
         add_full_elements(&doc, &lexer_funcs_unit);
         end_section(&doc);
-        begin_section(&doc, "Lexer Type Descriptions");
+        begin_section(&doc, "Lexer Type Descriptions", 0);
         add_full_elements(&doc, &lexer_types_unit);
         end_section(&doc);
     }
@@ -1018,7 +966,7 @@ generate_site(char *code_directory, char *src_directory, char *dst_directory){
     
     // Output Docs - General Document Generator
     if (begin_file_out(&context, "gen-test.html", &out)){
-        generate_document_html(&context, &doc);
+        generate_document_html(&out, &doc);
         end_file_out(context);
     }
     else{
@@ -1083,9 +1031,9 @@ generate_site(char *code_directory, char *src_directory, char *dst_directory){
                   "<body>"
                   "<div style='font-family:Arial; margin: 0 auto; "
                   "width: 800px; text-align: justify; line-height: 1.25;'>"
-                  //                  "<h1 style='margin-top: 5mm; margin-bottom: 5mm;'>4cpp Lexing Library</h1>");
+                  //"<h1 style='margin-top: 5mm; margin-bottom: 5mm;'>4cpp Lexing Library</h1>");
                   
-                  "<h1 style='margin-top: 5mm; margin-bottom: 5mm;'>4coder API</h1>");
+                  "<h1 style='margin-top: 5mm; margin-bottom: 5mm;'>4coder API Docs</h1>");
         
         struct Section{
             char *id_string;
@@ -1102,7 +1050,7 @@ generate_site(char *code_directory, char *src_directory, char *dst_directory){
             {"lexer_library", "Lexer Library"}
         };
         
-        append_sc(&out, "<h3 style='margin:0;'>Table of Contents</h3>""<ul>");
+        append_sc(&out, "<h3 style='margin:0;'>Table of Contents</h3><ul>");
         
         int32_t section_count = ArrayCount(sections);
         for (int32_t i = 0; i < section_count; ++i){
@@ -1348,6 +1296,18 @@ generate_site(char *code_directory, char *src_directory, char *dst_directory){
         // TODO(allen): warning
     }
     
+    // Here to test the file equality tester
+    // Output Docs - General Document Generator
+    if (begin_file_out(&context, "gen-test2.html", &out)){
+        generate_document_html(&out, &doc);
+        end_file_out(context);
+    }
+    else{
+        // TODO(allen): warning
+    }
+    
+    assert_files_are_equal(dst_directory, API_DOC, API_DOC);
+    assert_files_are_equal(dst_directory, "gen-test.html", "gen-test2.html");
     assert_files_are_equal(dst_directory, API_DOC, "gen-test.html");
 }
 
