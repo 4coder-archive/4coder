@@ -1799,6 +1799,76 @@ DOC_SEE(match) */{
     return(result);
 }
 
+API_EXPORT FSTRING_LINK String
+get_first_double_line(String source){
+    String line = {0};
+    int32_t pos0 = find_substr_s(source, 0, make_lit_string("\n\n"));
+    int32_t pos1 = find_substr_s(source, 0, make_lit_string("\r\n\r\n"));
+    if (pos1 < pos0){
+        pos0 = pos1;
+    }
+    line = substr(source, 0, pos0);
+    return(line);
+}
+
+API_EXPORT FSTRING_LINK String
+get_next_double_line(String source, String line){
+    String next = {0};
+    int32_t pos = (int32_t)(line.str - source.str) + line.size;
+    int32_t start = 0, pos0 = 0, pos1 = 0;
+    
+    if (pos < source.size){
+        //Assert(source.str[pos] == '\n' || source.str[pos] == '\r');
+        start = pos + 1;
+        
+        if (start < source.size){
+            pos0 = find_substr_s(source, start, make_lit_string("\n\n"));
+            pos1 = find_substr_s(source, start, make_lit_string("\r\n\r\n"));
+            if (pos1 < pos0){
+                pos0 = pos1;
+            }
+            next = substr(source, start, pos0 - start);
+        }
+    }
+    
+    return(next);
+}
+
+API_EXPORT FSTRING_LINK String
+get_next_word(String source, String prev_word){
+    
+    String word = {0};
+    int32_t pos0 = (int32_t)(prev_word.str - source.str) + prev_word.size;
+    int32_t pos1 = 0;
+    char c = 0;
+    
+    for (; pos0 < source.size; ++pos0){
+        c = source.str[pos0];
+        if (!(char_is_whitespace(c) || c == '(' || c == ')')){
+            break;
+        }
+    }
+    
+    if (pos0 < source.size){
+        for (pos1 = pos0; pos1 < source.size; ++pos1){
+            c = source.str[pos1];
+            if (char_is_whitespace(c) || c == '(' || c == ')'){
+                break;
+            }
+        }
+        
+        word = substr(source, pos0, pos1 - pos0);
+    }
+    
+    return(word);
+}
+
+API_EXPORT FSTRING_LINK String
+get_first_word(String source){
+    String start_str = make_string(source.str, 0);
+    String word = get_next_word(source, start_str);
+    return(word);
+}
 
 #ifndef FSTRING_EXPERIMENTAL
 #define FSTRING_EXPERIMENTAL

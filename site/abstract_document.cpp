@@ -268,17 +268,64 @@ write_enriched_text_html(String *out, Enriched_Text *text){
     
     append_sc(out, "<div>");
     
-    // TODO(allen): get this working
-#if 0
     for (String line = get_first_double_line(source);
          line.str;
-         line = get_next_double_line(chunk, line)){
+         line = get_next_double_line(source, line)){
+        String l  = skip_chop_whitespace(line);
         append_sc(out, "<p>");
-        append_ss(out, line);
+        
+        //append_ss(out, l);
+        int32_t start = 0, i = 0;
+        for (; i < l.size; ++i){
+            if (l.str[i] == '\\'){
+                append_ss(out, substr(l, start, i-start));
+                
+                int32_t command_start = i+1;
+                int32_t command_end = command_start;
+                for (; command_end < l.size; ++command_end){
+                    if (!char_is_alpha_numeric(l.str[command_end])){
+                        break;
+                    }
+                }
+                
+                if (command_end == command_start){
+                    if (command_end < l.size && l.str[command_end] == '\\'){
+                        ++command_end;
+                    }
+                }
+                
+                String command_string = substr(l, command_start, command_end - command_start);
+                
+                static String enriched_commands[] = {
+                    make_lit_string("\\"),
+                    make_lit_string("VERSION"),
+                    make_lit_string("CODE_STYLE"),
+                };
+                
+                int32_t match_index = 0;
+                if (string_set_match(enriched_commands, ArrayCount(enriched_commands), command_string, &match_index)){
+                    switch (match_index){
+                        case 0: append_sc(out, "\\"); break;
+                        case 1: append_sc(out, VERSION); break;
+                        case 2: append_sc(out, "<span style='"HTML_CODE_STYLE"'> TEST </span>"); break;
+                    }
+                }
+                else{
+                    append_sc(out,"<span style='color:#F00'>! Doc generator error: unrecognized command !</span>");
+                    fprintf(stderr, "error: Unrecognized command %.*s\n", command_string.size, command_string.str);
+                }
+                
+                i = command_end;
+                start = i;
+            }
+        }
+        
+        if (start != i){
+            append_ss(out, substr(l, start, i-start));
+        }
+        
         append_sc(out, "</p>");
     }
-#endif
-    append_ss(out, source);
     
     append_sc(out, "</div>");
     }
@@ -292,7 +339,9 @@ doc_item_head_html(String *out, Document_Item *item, Section_Counter section_cou
                       "<html lang=\"en-US\">"
                       "<head>"
                       "<title>");
+            
             append_ss(out, item->section.name);
+            
             append_sc(out,
                       "</title>"
                       "<style>"

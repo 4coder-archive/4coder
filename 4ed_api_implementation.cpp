@@ -1091,6 +1091,7 @@ DOC_SEE(begin_buffer_creation)
                 }
                 
                 if (system->load_file(handle, buffer, size)){
+                    system->load_close(handle);
                     file = working_set_alloc_always(system, working_set, general);
                     if (file){
                         buffer_bind_file(system, general, working_set, file, canon.name);
@@ -1099,12 +1100,13 @@ DOC_SEE(begin_buffer_creation)
                         fill_buffer_summary(&result, file, cmd);
                     }
                 }
+                else{
+                    system->load_close(handle);
+                }
                 
                 if (in_general_mem){
                     general_memory_free(system, general, buffer);
                 }
-                
-                system->load_close(handle);
             }
             else if (!(flags & BufferCreate_NeverNew)){
                 file = working_set_alloc_always(system, working_set, general);

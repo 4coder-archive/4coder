@@ -186,77 +186,6 @@ print_macro_html(String *out, String name, Argument_Breakdown breakdown){
 #define EXAMPLE_CODE_OPEN  "<div style='"CODE_STYLE EXAMPLE_CODE_STYLE"'>"
 #define EXAMPLE_CODE_CLOSE "</div>"
 
-// TODO(allen): move string iteration utils somewhere cooler (4coder_string.h?)
-static String
-get_first_double_line(String source){
-    String line = {0};
-    int32_t pos0 = find_substr_s(source, 0, make_lit_string("\n\n"));
-    int32_t pos1 = find_substr_s(source, 0, make_lit_string("\r\n\r\n"));
-    if (pos1 < pos0){
-        pos0 = pos1;
-    }
-    line = substr(source, 0, pos0);
-    return(line);
-}
-
-static String
-get_next_double_line(String source, String line){
-    String next = {0};
-    int32_t pos = (int32_t)(line.str - source.str) + line.size;
-    int32_t start = 0, pos0 = 0, pos1 = 0;
-    
-    if (pos < source.size){
-        assert(source.str[pos] == '\n' || source.str[pos] == '\r');
-        start = pos + 1;
-        
-        if (start < source.size){
-            pos0 = find_substr_s(source, start, make_lit_string("\n\n"));
-            pos1 = find_substr_s(source, start, make_lit_string("\r\n\r\n"));
-            if (pos1 < pos0){
-                pos0 = pos1;
-            }
-            next = substr(source, start, pos0 - start);
-        }
-    }
-    
-    return(next);
-}
-
-static String
-get_next_word(String source, String prev_word){
-    String word = {0};
-    int32_t pos0 = (int32_t)(prev_word.str - source.str) + prev_word.size;
-    int32_t pos1 = 0;
-    char c = 0;
-    
-    for (; pos0 < source.size; ++pos0){
-        c = source.str[pos0];
-        if (!(char_is_whitespace(c) || c == '(' || c == ')')){
-            break;
-        }
-    }
-    
-    if (pos0 < source.size){
-        for (pos1 = pos0; pos1 < source.size; ++pos1){
-            c = source.str[pos1];
-            if (char_is_whitespace(c) || c == '(' || c == ')'){
-                break;
-            }
-        }
-        
-        word = substr(source, pos0, pos1 - pos0);
-    }
-    
-    return(word);
-}
-
-static String
-get_first_word(String source){
-    String start_str = make_string(source.str, 0);
-    String word = get_next_word(source, start_str);
-    return(word);
-}
-
 enum Doc_Chunk_Type{
     DocChunk_PlainText,
     DocChunk_CodeExample,
@@ -1092,14 +1021,14 @@ generate_site(char *code_directory, char *src_directory, char *dst_directory){
         
         append_sc(&out,
                   "<div>"
-                  "<p>This is the documentation for " VERSION " The documentation is still "
+                  "<p>This is the documentation for " VERSION ". The documentation is still "
                   "under construction so some of the links are linking to sections that "
                   "have not been written yet.  What is here should be correct and I suspect "
                   "useful even without some of the other sections.</p>"
                   "<p>If you have questions or discover errors please contact "
                   "<span style='"CODE_STYLE"'>editor@4coder.net</span> or "
-                  "to get help from community members you can post on the "
-                  "4coder forums hosted on handmade.network at "
+                  "to get help from members of the 4coder and handmade network community you "
+                  "can post on the  4coder forums hosted at "
                   "<span style='"CODE_STYLE"'>4coder.handmade.network</span></p>"
                   "</div>");
         

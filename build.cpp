@@ -822,17 +822,17 @@ do_buildsuper(char *cdir){
     //terminate_with_null(&str);
     //buildsuper(cdir, BUILD_DIR, str.str);
 #if defined(IS_WINDOWS)
-    copy_sc(&str, "../code/internal_4coder_tests.cpp");
-    terminate_with_null(&str);
-    buildsuper(cdir, BUILD_DIR, str.str);
+    //copy_sc(&str, "../code/internal_4coder_tests.cpp");
+    //terminate_with_null(&str);
+    //buildsuper(cdir, BUILD_DIR, str.str);
 #else
     copy_sc(&str, "../code/power/4coder_experiments.cpp");
     terminate_with_null(&str);
     buildsuper(cdir, BUILD_DIR, str.str);
 #endif
-    //copy_sc(&str, "../code/power/4coder_casey.cpp");
-    //terminate_with_null(&str);
-    //buildsuper(cdir, BUILD_DIR, str.str);
+    copy_sc(&str, "../code/power/4coder_casey.cpp");
+    terminate_with_null(&str);
+    buildsuper(cdir, BUILD_DIR, str.str);
     //copy_sc(&str, "../4vim/4coder_chronal.cpp");
     //terminate_with_null(&str);
     //buildsuper(cdir, BUILD_DIR, str.str);
