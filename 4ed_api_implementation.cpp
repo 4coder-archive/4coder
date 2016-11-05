@@ -1143,14 +1143,16 @@ DOC_RETURN(This call returns non-zero on success.)
     
     Editing_File *file = imp_get_file(cmd, buffer);
     if (file){
+        if (file_get_sync(file) != DirtyState_UpToDate){
         result = true;
         
         Partition *part = &models->mem.part;
         Temp_Memory temp = begin_temp_memory(part);
         String name = make_string_terminated(part, filename, filename_len);
-        save_file_to_name(system, &models->mem, file, name.str);
-        end_temp_memory(temp);
-    }
+            save_file_to_name(system, &models->mem, file, name.str);
+            end_temp_memory(temp);
+        }
+        }
     
     return(result);
 }
