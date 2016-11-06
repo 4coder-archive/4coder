@@ -716,8 +716,9 @@ static void
 init_global_strings(){
     int32_t size = 1024;
     char *base = (char*)malloc(size);
+    char term_space[1] = {0};
     String builder = make_string_cap(base, 0, size);
-    String term = make_string("\0", 1);
+    String term = make_string_cap(term_space, 1, 1);
     
     META_DIR = get_head(builder);
     append_sc(&builder, D_META_DIR);

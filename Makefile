@@ -12,7 +12,7 @@ package: FLAGS += -DPACKAGE
 package: ../build/build
 
 ../build/build: $(CPP_FILES) $(C_FILES) $(H_FILES)
-	gcc $(WARNINGS) $(FLAGS) build.c -g -o $@
+	gcc $(WARNINGS) $(FLAGS) build.cpp -g -o $@
 	../build/build
 
 clean:
