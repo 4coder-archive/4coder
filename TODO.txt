@@ -76,6 +76,7 @@
 ; [X] killing compilation panel changes active panel
 ; [X] make panel resizing not whacky with child panels
 ; [X] visual studio file saves aren't picked up by the file track system
+; [X] findstr format not quite working
 ;
 ; [] indication on failure to save
 ; [] history is broken, revist the entire system
@@ -84,6 +85,8 @@
 ;
 ; [] view fails to follow cursor when the view is shrunk
 ; [] view fails to follow cursor after deleting long line
+;
+; [] over left-shifting the view?
 ;
 
 ; BEFORE I SHIP

@@ -113,7 +113,7 @@ parse_jump_location(String line, Name_Based_Jump_Location *location,
         int32_t colon_pos2 = find_s_char(line, colon_pos1+1, ':');
         int32_t colon_pos3 = find_s_char(line, colon_pos2+1, ':');
         
-        if (colon_pos3+1 < line.size && line.str[colon_pos3+1] == ' '){
+        if (colon_pos3+1 <= line.size){
             String filename = substr(line, 0, colon_pos1);
             String line_number = substr(line, colon_pos1+1, colon_pos2 - colon_pos1 - 1);
             String column_number = substr(line, colon_pos2+1, colon_pos3 - colon_pos2 - 1);
@@ -129,16 +129,7 @@ parse_jump_location(String line, Name_Based_Jump_Location *location,
             }
         }
         else{
-            colon_pos1 = find_s_char(line, 0, ':');
-            if (line.size > colon_pos1+1){
-                if (char_is_slash(line.str[colon_pos1+1])){
-                    colon_pos1 = find_s_char(line, colon_pos1+1, ':');
-                }
-            }
-            
-            colon_pos2 = find_s_char(line, colon_pos1+1, ':');
-            
-            if (colon_pos2+1 < line.size && line.str[colon_pos2+1] == ' '){
+            if (colon_pos2+1 <= line.size){
                 String filename = substr(line, 0, colon_pos1);
                 String line_number = substr(line, colon_pos1+1, colon_pos2 - colon_pos1 - 1);
                 
