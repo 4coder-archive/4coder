@@ -557,10 +557,13 @@ build_cl(uint32_t flags,
 }
 
 
+// NOTE(inso): added ../code to GCC_OPTS to allow metagen to build.
+// this is currently needed because it is built with cwd ../meta but includes
+// 4cpp_lexer.h which is in code/ whereas metagen.cpp is in code/site
 
 #define GCC_OPTS                             \
 "-Wno-write-strings -D_GNU_SOURCE -fPIC "    \
-"-fno-threadsafe-statics -pthread"
+"-fno-threadsafe-statics -pthread -I../code"
 
 #define GCC_INCLUDES \
 "-I../foreign"
@@ -836,6 +839,7 @@ do_buildsuper(char *cdir){
     //copy_sc(&str, "../4vim/4coder_chronal.cpp");
     //terminate_with_null(&str);
     //buildsuper(cdir, BUILD_DIR, str.str);
+
     END_TIME_SECTION("build custom");
 }
 
