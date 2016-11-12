@@ -4,6 +4,8 @@ The implementation for the custom API
 
 // TOP
 
+#define API_EXPORT
+
 inline b32
 access_test(u32 lock_flags, u32 access_flags){
     b32 result = 0;
@@ -153,15 +155,12 @@ imp_get_view(Command_Data *cmd, View_Summary *view){
     return(vptr);
 }
 
-#define API_EXPORT
-
 API_EXPORT bool32
 Exec_Command(Application_Links *app, Command_ID command_id)
 /*
 DOC_PARAM(command_id, The command_id parameter specifies which internal command to execute.)
 DOC_RETURN(This call returns non-zero if command_id named a valid internal command.)
-DOC(A call to exec_command executes an internal command.
-If command_id is invalid a warning is posted to *messages*.)
+DOC(A call to exec_command executes an internal command. If command_id is invalid a warning is posted to *messages*.)
 DOC_SEE(Command_ID)
 */{
     bool32 result = false;
@@ -719,17 +718,20 @@ DOC_RETURN(returns non-zero on success)
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     Editing_File *file = imp_get_file(cmd, buffer);
     int32_t result = 0;
-    
+     
     if (file){
+        result = 1;
         switch (setting){
-            case BufferSetting_Lex: result = file->settings.tokens_exist; break;
-            case BufferSetting_WrapLine: result = !file->settings.unwrapped_lines; break;
-            case BufferSetting_WrapPosition: result = file->settings.display_width; break;
-            case BufferSetting_MapID: result = file->settings.base_map_id; break;
-            case BufferSetting_Eol: result = file->settings.dos_write_mode; break;
-            case BufferSetting_Unimportant: result = file->settings.unimportant; break;
-            case BufferSetting_ReadOnly: result = file->settings.read_only; break;
-            case BufferSetting_VirtualWhitespace: result = file->settings.virtual_white; break;
+            case BufferSetting_Lex: *value_out = file->settings.tokens_exist; break;
+            case BufferSetting_WrapLine: *value_out = !file->settings.unwrapped_lines; break;
+            case BufferSetting_WrapPosition: *value_out = file->settings.display_width; break;
+            case BufferSetting_MinimumBaseWrapPosition: *value_out = file->settings.minimum_base_display_width; break;
+            case BufferSetting_MapID: *value_out = file->settings.base_map_id; break;
+            case BufferSetting_Eol: *value_out = file->settings.dos_write_mode; break;
+            case BufferSetting_Unimportant: *value_out = file->settings.unimportant; break;
+            case BufferSetting_ReadOnly: *value_out = file->settings.read_only; break;
+            case BufferSetting_VirtualWhitespace: *value_out = file->settings.virtual_white; break;
+            default: result = 0; break;
         }
     }
     
@@ -1542,12 +1544,14 @@ DOC_RETURN(returns non-zero on success)
 */{
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     View *vptr = imp_get_view(cmd, view);
-    int32_t result = -1;
+    int32_t result = 0;
     
     if (vptr){
+        result = 1;
         switch (setting){
-            case ViewSetting_ShowWhitespace: result = vptr->file_data.show_whitespace; break;
-            case ViewSetting_ShowScrollbar: result = !vptr->hide_scrollbar; break;
+            case ViewSetting_ShowWhitespace: *value_out = vptr->file_data.show_whitespace; break;
+            case ViewSetting_ShowScrollbar: *value_out = !vptr->hide_scrollbar; break;
+            default: result = 0; break;
         }
     }
     

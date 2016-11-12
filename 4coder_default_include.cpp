@@ -810,8 +810,11 @@ CUSTOM_COMMAND_SIG(left_adjust_view){
     
     GUI_Scroll_Vars scroll = view.scroll_vars;
     
-    float x = get_view_x(view);
-    x = x - 30.f;
+    float x = get_view_x(view) - 30.f;
+    if (x < 0){
+        x = 0.f;
+    }
+    
     scroll.target_x = (int32_t)(x + .5f);
     view_set_scroll(app, &view, scroll);
 }
@@ -3133,14 +3136,7 @@ get_build_directory(Application_Links *app, Buffer_Summary *buffer, String *dir_
 
 // TODO(allen): Better names for the "standard build search" family.
 static int32_t
-standard_build_search(Application_Links *app,
-                      View_Summary *view,
-                      Buffer_Summary *active_buffer,
-                      String *dir, String *command,
-                      int32_t perform_backup,
-                      int32_t use_path_in_command,
-                      String filename,
-                      String commandname){
+standard_build_search(Application_Links *app, View_Summary *view, Buffer_Summary *active_buffer, String *dir, String *command, int32_t perform_backup, int32_t use_path_in_command, String filename, String commandname){
     int32_t result = false;
     
     for(;;){
@@ -3489,10 +3485,11 @@ COMMAND_CALLER_HOOK(default_command_caller){
     return(0);
 }
 
-// NOTE(allen|a4.0.12): A primordial config system (actually really hate this but it seems best)
+// NOTE(allen|a4.0.12): A primordial config system (actually really hate this but it seems best at least right now... arg)
 
 static bool32 enable_code_wrapping = 1;
 static int32_t default_wrap_width = 672;
+static int32_t default_min_base_width = 550;
 
 #include <stdio.h>
 
@@ -3558,6 +3555,13 @@ process_config_file(Application_Links *app){
                                                     default_wrap_width = str_to_int(val);
                                                 }
                                             }
+                                            else if (match(id, "default_min_base_width")){
+                                                if (val_token.type == CPP_TOKEN_INTEGER_CONSTANT){
+                                                    String val = make_string(mem + val_token.start, val_token.size);
+                                                    default_min_base_width = str_to_int(val);
+                                                }
+                                            }
+                                            
                                         }
                                     }
                                 }

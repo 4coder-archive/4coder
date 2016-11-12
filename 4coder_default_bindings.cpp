@@ -237,6 +237,7 @@ OPEN_FILE_HOOK_SIG(my_file_settings){
     }
     
     buffer_set_setting(app, &buffer, BufferSetting_WrapPosition, default_wrap_width);
+    buffer_set_setting(app, &buffer, BufferSetting_MinimumBaseWrapPosition, default_min_base_width);
     buffer_set_setting(app, &buffer, BufferSetting_MapID, (treat_as_code)?((int32_t)my_code_map):((int32_t)mapid_file));
     
     if (treat_as_code && enable_code_wrapping && buffer.size < (1 << 18)){

@@ -284,8 +284,8 @@ view_file_display_width(View *view){
 inline f32
 view_file_minimum_base__width(View *view){
     Editing_File *file = view->file_data.file;
-        f32 result = (f32)file->settings.display_width;
-        return(result);
+    f32 result = (f32)file->settings.display_width;
+    return(result);
 }
 
 inline f32
@@ -1066,7 +1066,7 @@ wrap_state_consume_token(Code_Wrap_State *state, i32 fixed_end_point){
     }
     
     if (state->in_pp_body){
-            if (!(state->token_ptr->flags & CPP_TFLAG_PP_BODY)){
+        if (!(state->token_ptr->flags & CPP_TFLAG_PP_BODY)){
             state->in_pp_body = 0;
             state->wrap_x = state->plane_wrap_x;
         }
@@ -1252,7 +1252,7 @@ stickieness_guess(Cpp_Token_Type type, Cpp_Token_Type other_type, u16 flags, u16
         }
         else{
             if (other_is_words){
-            guess = 100;
+                guess = 100;
             }
         }
     }
@@ -1365,49 +1365,49 @@ get_current_shift(Code_Wrap_State *wrap_state, i32 next_line_start, b32 *adjust_
         
         if (wrap_state->wrap_x.paren_safe_top != 0 && prev_token.type == CPP_TOKEN_PARENTHESE_OPEN){
             current_shift = wrap_state->wrap_x.paren_nesting[wrap_state->wrap_x.paren_safe_top-1] + wrap_state->tab_indent_amount;
-        
+            
             *adjust_top_to_this = 1;
+        }
+        
+        f32 statement_continuation_indent = 0.f;
+        if (current_shift != 0.f && wrap_state->wrap_x.paren_safe_top == 0){
+            if (!(prev_token.flags & CPP_TFLAG_PP_BODY) && !(prev_token.flags & CPP_TFLAG_PP_DIRECTIVE)){
+                
+                switch (prev_token.type){
+                    case CPP_TOKEN_BRACKET_OPEN:
+                    case CPP_TOKEN_BRACE_OPEN:
+                    case CPP_TOKEN_BRACE_CLOSE:
+                    case CPP_TOKEN_SEMICOLON:
+                    case CPP_TOKEN_COLON:
+                    case CPP_TOKEN_COMMA:
+                    case CPP_TOKEN_COMMENT: break;
+                    default: statement_continuation_indent += wrap_state->tab_indent_amount; break;
+                }
+            }
+        }
+        
+        switch (wrap_state->token_ptr->type){
+            case CPP_TOKEN_BRACE_CLOSE: case CPP_TOKEN_BRACE_OPEN: break;
+            default: current_shift += statement_continuation_indent; break;
+        }
     }
     
-    f32 statement_continuation_indent = 0.f;
-    if (current_shift != 0.f && wrap_state->wrap_x.paren_safe_top == 0){
-                                if (!(prev_token.flags & CPP_TFLAG_PP_BODY) && !(prev_token.flags & CPP_TFLAG_PP_DIRECTIVE)){
-                                    
-                                switch (prev_token.type){
-                                    case CPP_TOKEN_BRACKET_OPEN:
-                                    case CPP_TOKEN_BRACE_OPEN:
-                                    case CPP_TOKEN_BRACE_CLOSE:
-                                    case CPP_TOKEN_SEMICOLON:
-                                    case CPP_TOKEN_COLON:
-                                    case CPP_TOKEN_COMMA:
-                                    case CPP_TOKEN_COMMENT: break;
-                                    default: statement_continuation_indent += wrap_state->tab_indent_amount; break;
-                                }
-                            }
-                        }
-                    
-                    switch (wrap_state->token_ptr->type){
-                        case CPP_TOKEN_BRACE_CLOSE: case CPP_TOKEN_BRACE_OPEN: break;
-                        default: current_shift += statement_continuation_indent; break;
+    if (wrap_state->token_ptr->start < next_line_start){
+        if (wrap_state->token_ptr->flags & CPP_TFLAG_PP_DIRECTIVE){
+            current_shift = 0;
+        }
+        else{
+            switch (wrap_state->token_ptr->type){
+                case CPP_TOKEN_BRACE_CLOSE:
+                {
+                    if (wrap_state->wrap_x.paren_safe_top == 0){
+                        current_shift -= wrap_state->tab_indent_amount;
                     }
-                }
-                    
-                    if (wrap_state->token_ptr->start < next_line_start){
-                        if (wrap_state->token_ptr->flags & CPP_TFLAG_PP_DIRECTIVE){
-                                current_shift = 0;
-                            }
-                            else{
-                                switch (wrap_state->token_ptr->type){
-                                    case CPP_TOKEN_BRACE_CLOSE:
-                                    {
-                                        if (wrap_state->wrap_x.paren_safe_top == 0){
-                                            current_shift -= wrap_state->tab_indent_amount;
-                                        }
-                                    }break;
-                                }
-                            }
-                        }
-                        
+                }break;
+            }
+        }
+    }
+    
     return(current_shift);
 }
 
@@ -1499,7 +1499,7 @@ file_measure_wraps(System_Functions *system, Models *models, Editing_File *file,
                         b32 still_looping = 0;
                         do{
                             for (; i < stream.end; ++i){
-                                 u8 ch = stream.data[i];
+                                u8 ch = stream.data[i];
                                 
                                 switch (word_stage){
                                     case 0:
@@ -1549,13 +1549,16 @@ file_measure_wraps(System_Functions *system, Models *models, Editing_File *file,
                 
                 if (use_tokens){
                     Code_Wrap_State original_wrap_state = wrap_state;
-                    i32 next_line_start = params.buffer->line_starts[stop.line_index+1];
+                    i32 next_line_start = buffer_size(params.buffer);
+                    if (stop.line_index+1 < params.buffer->line_count){
+                        next_line_start = params.buffer->line_starts[stop.line_index+1];
+                    }
                     
                     f32 base_adjusted_width = wrap_state.wrap_x.base_x + minimum_base_width;
                     
                     if (minimum_base_width != 0 && current_width < base_adjusted_width){
-                                                current_width = base_adjusted_width;
-                                            }
+                        current_width = base_adjusted_width;
+                    }
                     
                     if (stop.status == BLStatus_NeedLineShift){
                         real_count = 0;
@@ -1580,7 +1583,8 @@ file_measure_wraps(System_Functions *system, Models *models, Editing_File *file,
                             b32 emit_comment_position = 0;
                             b32 first_word = 1;
                             
-                            if (wrap_state.token_ptr->type == CPP_TOKEN_COMMENT){
+                            if (wrap_state.token_ptr->type == CPP_TOKEN_COMMENT || 
+                                wrap_state.token_ptr->type == CPP_TOKEN_STRING_CONSTANT){
                                 i32 i = wrap_state.token_ptr->start;
                                 i32 end_i = i + wrap_state.token_ptr->size;
                                 
@@ -1607,74 +1611,86 @@ file_measure_wraps(System_Functions *system, Models *models, Editing_File *file,
                                 potential_wrap.wrap_x = x;
                                 potential_wrap.adjust_top_to_this = 0;
                                 
-                    if (buffer_stringify_loop(&stream, params.buffer, i, end_i)){
-                        b32 still_looping = 1;
-                        
-                        do{
-                        while (still_looping){
-                            for (; i < stream.end; ++i){
-                                 u8 ch = stream.data[i];
-                                
-                                        if (char_is_whitespace(ch)){
-                                            goto doublebreak_stage1;
-                                        }
-                                        
-                                            f32 adv = params.adv[ch];
-                                            x += adv;
-                                        if (!first_word && x > current_width){
-                                            emit_comment_position = 1;
-                                                goto doublebreak_stage1;
+                                if (buffer_stringify_loop(&stream, params.buffer, i, end_i)){
+                                    b32 still_looping = 1;
+                                    
+                                    while(still_looping){
+                                        for (; i < stream.end; ++i){
+                                            u8 ch = stream.data[i];
+                                            
+                                            if (!char_is_whitespace(ch)){
+                                                goto doublebreak_stage_vspace;
                                             }
-                                }
-                            still_looping = buffer_stringify_next(&stream);
-                        }
-                        doublebreak_stage1:;
-                        first_word = 0;
-                        
-                        if (emit_comment_position){
-                            step.position_end = i;
-                            step.final_x = x;
-                            goto finished_comment_split;
-                        }
-                        
-                        while(still_looping){
-                            for (; i < stream.end; ++i){
-                                 u8 ch = stream.data[i];
-                                
-                                        if (!char_is_whitespace(ch)){
-                                            goto doublebreak_stage2;
+                                        }
+                                        still_looping = buffer_stringify_next(&stream);
+                                    }
+                                    doublebreak_stage_vspace:;
+                                    
+                                    do{
+                                        while (still_looping){
+                                            for (; i < stream.end; ++i){
+                                                u8 ch = stream.data[i];
+                                                
+                                                if (char_is_whitespace(ch)){
+                                                    goto doublebreak_stage1;
+                                                }
+                                                
+                                                f32 adv = params.adv[ch];
+                                                x += adv;
+                                                if (!first_word && x > current_width){
+                                                    emit_comment_position = 1;
+                                                    goto doublebreak_stage1;
+                                                }
+                                            }
+                                            still_looping = buffer_stringify_next(&stream);
+                                        }
+                                        doublebreak_stage1:;
+                                        first_word = 0;
+                                        
+                                        if (emit_comment_position){
+                                            step.position_end = i;
+                                            step.final_x = x;
+                                            goto finished_comment_split;
                                         }
                                         
-                                        f32 adv = params.adv[ch];
-                                        x += adv;
+                                        while(still_looping){
+                                            for (; i < stream.end; ++i){
+                                                u8 ch = stream.data[i];
+                                                
+                                                if (!char_is_whitespace(ch)){
+                                                    goto doublebreak_stage2;
+                                                }
+                                                
+                                                f32 adv = params.adv[ch];
+                                                x += adv;
+                                            }
+                                            still_looping = buffer_stringify_next(&stream);
+                                        }
+                                        doublebreak_stage2:;
+                                        
+                                        potential_wrap.wrap_position = i;
+                                        potential_wrap.wrap_x = x;
+                                    }while(still_looping);
                                 }
-                            still_looping = buffer_stringify_next(&stream);
-                        }
-                        doublebreak_stage2:;
-                        
-                        potential_wrap.wrap_position = i;
-                        potential_wrap.wrap_x = x;
-                    }while(still_looping);
-                }
-                        
-                    finished_comment_split:;
-                if (emit_comment_position){
-                        potential_marks[potential_count] = potential_wrap;
-                        ++potential_count;
-                    }
-                    }
+                                
+                                finished_comment_split:;
+                                if (emit_comment_position){
+                                    potential_marks[potential_count] = potential_wrap;
+                                    ++potential_count;
+                                }
+                            }
                             
-                    if (!emit_comment_position){
-                        step = wrap_state_consume_token(&wrap_state, next_line_start-1);
-                    }
+                            if (!emit_comment_position){
+                                step = wrap_state_consume_token(&wrap_state, next_line_start-1);
+                            }
                             
                             b32 need_to_choose_a_wrap = 0;
                             if (step.final_x > current_width){
                                 need_to_choose_a_wrap = 1;
                             }
                             
-                             adjust_top_to_this = 0;
-                             current_shift = get_current_shift(&wrap_state, next_line_start, &adjust_top_to_this);
+                            adjust_top_to_this = 0;
+                            current_shift = get_current_shift(&wrap_state, next_line_start, &adjust_top_to_this);
                             
                             b32 next_token_is_on_line = 0;
                             if (wrap_state.token_ptr->start < next_line_start){
@@ -2146,78 +2162,78 @@ file_first_lex_serial(System_Functions *system, Mem_Options *mem, Editing_File *
             Temp_Memory temp = begin_temp_memory(part);
             
             Buffer_Type *buffer = &file->state.buffer;
-    i32 text_size = buffer_size(buffer);
-    
+            i32 text_size = buffer_size(buffer);
+            
             i32 mem_size = partition_remaining(part);
             
             Cpp_Token_Array tokens;
             tokens.max_count = mem_size / sizeof(Cpp_Token);
             tokens.count = 0;
             tokens.tokens = push_array(part, Cpp_Token, tokens.max_count);
-    
-    b32 still_lexing = 1;
-    
-    Cpp_Lex_Data lex = cpp_lex_data_init();
-    
-    // TODO(allen): deduplicate this against relex
-    char *chunks[3];
-    i32 chunk_sizes[3];
-    
-    chunks[0] = buffer->data;
-    chunk_sizes[0] = buffer->size1;
-    
-    chunks[1] = buffer->data + buffer->size1 + buffer->gap_size;
-    chunk_sizes[1] = buffer->size2;
-    
-    chunks[2] = 0;
-    chunk_sizes[2] = 0;
-    
-    i32 chunk_index = 0;
-    
-    do{
-        char *chunk = chunks[chunk_index];
-        i32 chunk_size = chunk_sizes[chunk_index];
-        
-        i32 result = cpp_lex_step(&lex, chunk, chunk_size, text_size, &tokens, NO_OUT_LIMIT);
-        
-        switch (result){
-            case LexResult_NeedChunk: ++chunk_index; break;
-            case LexResult_NeedTokenMemory: InvalidCodePath;
-            case LexResult_HitTokenLimit: InvalidCodePath;
-            case LexResult_Finished: still_lexing = 0; break;
-        }
-    } while (still_lexing);
-    
-    i32 new_max = LargeRoundUp(tokens.count+1, Kbytes(1));
-    
-    {
-        Assert(file->state.swap_array.tokens == 0);
-        file->state.swap_array.tokens = (Cpp_Token*) general_memory_allocate(system, general, new_max*sizeof(Cpp_Token));
-    }
-    
-    u8 *dest = (u8*)file->state.swap_array.tokens;
-    u8 *src = (u8*)tokens.tokens;
-    
-    memcpy(dest, src, tokens.count*sizeof(Cpp_Token));
-    
-    {
-        Cpp_Token_Array *file_token_array = &file->state.token_array;
-        file_token_array->count = tokens.count;
-        file_token_array->max_count = new_max;
-        if (file_token_array->tokens){
-            general_memory_free(system, general, file_token_array->tokens);
-        }
-        file_token_array->tokens = file->state.swap_array.tokens;
-        file->state.swap_array.tokens = 0;
-    }
-    
-    // NOTE(allen): These are outside the locked section because I don't
-    // think getting these out of order will cause critical bugs, and I
-    // want to minimize what's done in locked sections.
-    file->state.tokens_complete = 1;
-    file->state.still_lexing = 0;
-    
-    end_temp_memory(temp);
+            
+            b32 still_lexing = 1;
+            
+            Cpp_Lex_Data lex = cpp_lex_data_init();
+            
+            // TODO(allen): deduplicate this against relex
+            char *chunks[3];
+            i32 chunk_sizes[3];
+            
+            chunks[0] = buffer->data;
+            chunk_sizes[0] = buffer->size1;
+            
+            chunks[1] = buffer->data + buffer->size1 + buffer->gap_size;
+            chunk_sizes[1] = buffer->size2;
+            
+            chunks[2] = 0;
+            chunk_sizes[2] = 0;
+            
+            i32 chunk_index = 0;
+            
+            do{
+                char *chunk = chunks[chunk_index];
+                i32 chunk_size = chunk_sizes[chunk_index];
+                
+                i32 result = cpp_lex_step(&lex, chunk, chunk_size, text_size, &tokens, NO_OUT_LIMIT);
+                
+                switch (result){
+                    case LexResult_NeedChunk: ++chunk_index; break;
+                    case LexResult_NeedTokenMemory: InvalidCodePath;
+                    case LexResult_HitTokenLimit: InvalidCodePath;
+                    case LexResult_Finished: still_lexing = 0; break;
+                }
+            } while (still_lexing);
+            
+            i32 new_max = LargeRoundUp(tokens.count+1, Kbytes(1));
+            
+            {
+                Assert(file->state.swap_array.tokens == 0);
+                file->state.swap_array.tokens = (Cpp_Token*) general_memory_allocate(system, general, new_max*sizeof(Cpp_Token));
+            }
+            
+            u8 *dest = (u8*)file->state.swap_array.tokens;
+            u8 *src = (u8*)tokens.tokens;
+            
+            memcpy(dest, src, tokens.count*sizeof(Cpp_Token));
+            
+            {
+                Cpp_Token_Array *file_token_array = &file->state.token_array;
+                file_token_array->count = tokens.count;
+                file_token_array->max_count = new_max;
+                if (file_token_array->tokens){
+                    general_memory_free(system, general, file_token_array->tokens);
+                }
+                file_token_array->tokens = file->state.swap_array.tokens;
+                file->state.swap_array.tokens = 0;
+            }
+            
+            // NOTE(allen): These are outside the locked section because I don't
+            // think getting these out of order will cause critical bugs, and I
+            // want to minimize what's done in locked sections.
+            file->state.tokens_complete = 1;
+            file->state.still_lexing = 0;
+            
+            end_temp_memory(temp);
         }
         
         file->state.tokens_complete = 1;
@@ -2363,69 +2379,69 @@ file_relex_serial(System_Functions *system, Mem_Options *mem, Editing_File *file
     
     Assert(!file->state.still_lexing);
     
-        Buffer_Type *buffer = &file->state.buffer;
-        Cpp_Token_Array *array = &file->state.token_array;
-        
-        Temp_Memory temp = begin_temp_memory(part);
-        Cpp_Token_Array relex_array;
-        relex_array.count = 0;
+    Buffer_Type *buffer = &file->state.buffer;
+    Cpp_Token_Array *array = &file->state.token_array;
+    
+    Temp_Memory temp = begin_temp_memory(part);
+    Cpp_Token_Array relex_array;
+    relex_array.count = 0;
     relex_array.max_count = partition_remaining(part) / sizeof(Cpp_Token);
-        relex_array.tokens = push_array(part, Cpp_Token, relex_array.max_count);
+    relex_array.tokens = push_array(part, Cpp_Token, relex_array.max_count);
+    
+    i32 size = buffer_size(buffer);
+    
+    Cpp_Relex_Data state = cpp_relex_init(array, start_i, end_i, shift_amount);
+    
+    char *chunks[3];
+    i32 chunk_sizes[3];
+    
+    chunks[0] = buffer->data;
+    chunk_sizes[0] = buffer->size1;
+    
+    chunks[1] = buffer->data + buffer->size1 + buffer->gap_size;
+    chunk_sizes[1] = buffer->size2;
+    
+    chunks[2] = 0;
+    chunk_sizes[2] = 0;
+    
+    i32 chunk_index = 0;
+    char *chunk = chunks[chunk_index];
+    i32 chunk_size = chunk_sizes[chunk_index];
+    
+    while (!cpp_relex_is_start_chunk(&state, chunk, chunk_size)){
+        ++chunk_index;
+        chunk = chunks[chunk_index];
+        chunk_size = chunk_sizes[chunk_index];
+    }
+    
+    for(;;){
+        Cpp_Lex_Result lex_result = cpp_relex_step(&state, chunk, chunk_size, size, array, &relex_array);
         
-        i32 size = buffer_size(buffer);
-        
-        Cpp_Relex_Data state = cpp_relex_init(array, start_i, end_i, shift_amount);
-        
-        char *chunks[3];
-        i32 chunk_sizes[3];
-        
-        chunks[0] = buffer->data;
-        chunk_sizes[0] = buffer->size1;
-        
-        chunks[1] = buffer->data + buffer->size1 + buffer->gap_size;
-        chunk_sizes[1] = buffer->size2;
-        
-        chunks[2] = 0;
-        chunk_sizes[2] = 0;
-        
-        i32 chunk_index = 0;
-        char *chunk = chunks[chunk_index];
-        i32 chunk_size = chunk_sizes[chunk_index];
-        
-        while (!cpp_relex_is_start_chunk(&state, chunk, chunk_size)){
+        switch (lex_result){
+            case LexResult_NeedChunk:
             ++chunk_index;
             chunk = chunks[chunk_index];
             chunk_size = chunk_sizes[chunk_index];
-        }
-        
-        for(;;){
-            Cpp_Lex_Result lex_result = cpp_relex_step(&state, chunk, chunk_size, size, array, &relex_array);
+            break;
             
-            switch (lex_result){
-                case LexResult_NeedChunk:
-                ++chunk_index;
-                chunk = chunks[chunk_index];
-                chunk_size = chunk_sizes[chunk_index];
-                break;
-                
-                case LexResult_NeedTokenMemory: InvalidCodePath;
-                
-                case LexResult_Finished: goto doublebreak;
-            }
-        }
-        doublebreak:;
-        
-            i32 new_count = cpp_relex_get_new_count(&state, array->count, &relex_array);
-            if (new_count > array->max_count){
-                i32 new_max = LargeRoundUp(new_count, Kbytes(1));
-                array->tokens = (Cpp_Token*)
-                    general_memory_reallocate(system, general, array->tokens, array->count*sizeof(Cpp_Token), new_max*sizeof(Cpp_Token));
-                array->max_count = new_max;
-            }
+            case LexResult_NeedTokenMemory: InvalidCodePath;
             
-            cpp_relex_complete(&state, array, &relex_array);
-        
-        end_temp_memory(temp);
+            case LexResult_Finished: goto doublebreak;
+        }
+    }
+    doublebreak:;
+    
+    i32 new_count = cpp_relex_get_new_count(&state, array->count, &relex_array);
+    if (new_count > array->max_count){
+        i32 new_max = LargeRoundUp(new_count, Kbytes(1));
+        array->tokens = (Cpp_Token*)
+            general_memory_reallocate(system, general, array->tokens, array->count*sizeof(Cpp_Token), new_max*sizeof(Cpp_Token));
+        array->max_count = new_max;
+    }
+    
+    cpp_relex_complete(&state, array, &relex_array);
+    
+    end_temp_memory(temp);
     
     return(1);
 }
@@ -2755,7 +2771,7 @@ view_get_relative_scrolling(View *view){
 internal void
 view_set_relative_scrolling(View *view, Relative_Scrolling scrolling){
     f32 cursor_y = view_get_cursor_y(view);
-
+    
     if (view->edit_pos){
         view->edit_pos->scroll.scroll_y = cursor_y - scrolling.scroll_y;
         view->edit_pos->scroll.target_y =
@@ -3116,7 +3132,7 @@ file_do_single_edit(System_Functions *system, Models *models, Editing_File *file
     // NOTE(allen): token fixing
     if (file->settings.tokens_exist){
         if (!file->settings.virtual_white){
-        file_relex_parallel(system, mem, file, start, end, shift_amount);
+            file_relex_parallel(system, mem, file, start, end, shift_amount);
         }
         else{
             file_relex_serial(system, mem, file, start, end, shift_amount);
@@ -3208,7 +3224,7 @@ file_do_batch_edit(System_Functions *system, Models *models, Editing_File *file,
                 Buffer_Edit *last_edit = batch + batch_size - 1;
                 
                 if (!file->settings.virtual_white){
-                file_relex_parallel(system, mem, file, first_edit->start, last_edit->end, shift_total);
+                    file_relex_parallel(system, mem, file, first_edit->start, last_edit->end, shift_total);
                 }
                 else{
                     file_relex_serial(system, mem, file, first_edit->start, last_edit->end, shift_total);
@@ -3724,13 +3740,13 @@ make_string_terminated(Partition *part, char *str, i32 len){
 
 internal void
 init_normal_file(System_Functions *system, Models *models, Editing_File *file, char *buffer, i32 size){
-     String val = make_string(buffer, size);
+    String val = make_string(buffer, size);
     file_create_from_string(system, models, file, val);
     
     Mem_Options *mem = &models->mem;
     if (file->settings.tokens_exist && file->state.token_array.tokens == 0){
         if (!file->settings.virtual_white){
-        file_first_lex_parallel(system, mem, file);
+            file_first_lex_parallel(system, mem, file);
         }
         else{
             file_first_lex_serial(system, mem, file);
@@ -3796,7 +3812,7 @@ view_open_file(System_Functions *system, Models *models, View *view, String file
                         init_normal_file(system, models, file, buffer, size);
                     }
                     else{
-                    system->load_close(handle);
+                        system->load_close(handle);
                     }
                     
                     if (gen_buffer){
@@ -4037,24 +4053,24 @@ update_highlighting(View *view){
         view->highlight = {};
         return;
     }
-
+    
     Editing_File *file = file_view->file;
     if (!file || !file_is_ready(file)){
         view->highlight = {};
         return;
     }
-
+    
     Models *models = view->persistent.models;
-
+    
     Style *style = &models->style;
     i32 pos = view_get_cursor_pos(file_view);
     char c = buffer_get_char(&file->state.buffer, pos);
-
+    
     if (c == '\r'){
         view->highlight.ids[0] =
             raw_ptr_dif(&style->main.special_character_color, style);
     }
-
+    
     else if (file->state.tokens_complete){
         Cpp_Token_Stack *tokens = &file->state.token_array;
         Cpp_Get_Token_Result result = cpp_get_token(tokens, pos);
@@ -4080,7 +4096,7 @@ update_highlighting(View *view){
                 raw_ptr_dif(&style->main.highlight_white_color, style);
         }
     }
-
+    
     else{
         if (char_is_whitespace(c)){
             view->highlight.ids[0] = 0;
@@ -4093,7 +4109,7 @@ update_highlighting(View *view){
             view->highlight.ids[1] = 0;
         }
     }
-
+    
     if (file_view->show_temp_highlight){
         view->highlight.ids[2] =
             raw_ptr_dif(&style->main.highlight_color, style);
@@ -4123,9 +4139,9 @@ internal void
 intbar_draw_string(Render_Target *target, File_Bar *bar, String str, u32 char_color){
     i16 font_id = bar->font_id;
     draw_string(target, font_id, str,
-        (i32)(bar->pos_x + bar->text_shift_x),
-        (i32)(bar->pos_y + bar->text_shift_y),
-        char_color);
+                (i32)(bar->pos_x + bar->text_shift_x),
+                (i32)(bar->pos_y + bar->text_shift_y),
+                char_color);
     bar->pos_x += font_string_width(target, font_id, str);
 }
 
@@ -4408,10 +4424,10 @@ app_single_line_input_core(System_Functions *system, Working_Set *working_set, K
 
 inline Single_Line_Input_Step
 app_single_line_input_step(System_Functions *system, Key_Event_Data key, String *string){
-	Single_Line_Mode mode = {};
-	mode.type = SINGLE_LINE_STRING;
-	mode.string = string;
-	return app_single_line_input_core(system, 0, key, mode);
+    Single_Line_Mode mode = {};
+    mode.type = SINGLE_LINE_STRING;
+    mode.string = string;
+    return app_single_line_input_core(system, 0, key, mode);
 }
 
 inline Single_Line_Input_Step
@@ -4434,7 +4450,7 @@ app_single_number_input_step(System_Functions *system, Key_Event_Data key, Strin
     Single_Line_Mode mode = {};
     mode.type = SINGLE_LINE_STRING;
     mode.string = string;
-
+    
     char c = (char)key.character;
     if (c == 0 || c == '\n' || char_is_numeric(c))
         result = app_single_line_input_core(system, 0, key, mode);
@@ -5583,7 +5599,7 @@ click_button_input(GUI_Target *target, GUI_Session *session, Input_Summary *user
     b32 result = 0;
     i32 mx = user_input->mouse.x;
     i32 my = user_input->mouse.y;
-
+    
     if (hit_check(mx, my, session->rect)){
         target->hover = b->id;
         if (user_input->mouse.press_l){
@@ -5609,7 +5625,7 @@ scroll_button_input(GUI_Target *target, GUI_Session *session, Input_Summary *use
     b32 result = 0;
     i32 mx = user_input->mouse.x;
     i32 my = user_input->mouse.y;
-
+    
     if (hit_check(mx, my, session->rect)){
         target->hover = id;
         if (user_input->mouse.l){
