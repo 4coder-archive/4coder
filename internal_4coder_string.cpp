@@ -1763,15 +1763,12 @@ This call returns non-zero on success.) */{
 CPP_NAME(string_set_match)
 API_EXPORT FSTRING_LINK fstr_bool
 string_set_match_table(void *str_set, int32_t item_size, int32_t count, String str, int32_t *match_index)/*
-DOC_PARAM(str_set, The str_set parameter may be an array of any type. 
-It should point at the String in the first element of the array.)
-DOC_PARAM(count, The item_size parameter should describe the "stride" from one String to the next, in other
-words it should be the size of one element of the array.)
+DOC_PARAM(str_set, The str_set parameter may be an array of any type. It should point at the String in the first element of the array.)
+DOC_PARAM(count, The item_size parameter should describe the "stride" from one String to the next, in other words it should be the size of one element of the array.)
 DOC_PARAM(count, The count parameter specifies the number of elements in the str_set array.)
 DOC_PARAM(str, The str parameter specifies the string to match against the str_set.)
 DOC_PARAM(match_index, If this call succeeds match_index is filled with the index into str_set where the match occurred.)
-DOC(This call tries to see if str matches any of the strings in str_set.  If there is a match the call
-succeeds and returns non-zero.  The matching rule is equivalent to the matching rule for match.)
+DOC(This call tries to see if str matches any of the strings in str_set.  If there is a match the call succeeds and returns non-zero.  The matching rule is equivalent to the matching rule for match.)
 DOC_SEE(match) */{
     fstr_bool result = 0;
     int32_t i = 0;
@@ -1792,15 +1789,19 @@ DOC_PARAM(str_set, The str_set parameter is an array of String structs specifyin
 DOC_PARAM(count, The count parameter specifies the number of String structs in the str_set array.)
 DOC_PARAM(str, The str parameter specifies the string to match against the str_set.)
 DOC_PARAM(match_index, If this call succeeds match_index is filled with the index into str_set where the match occurred.)
-DOC(This call tries to see if str matches any of the strings in str_set.  If there is a match the call
-succeeds and returns non-zero.  The matching rule is equivalent to the matching rule for match.)
+DOC(This call tries to see if str matches any of the strings in str_set.  If there is a match the call succeeds and returns non-zero.  The matching rule is equivalent to the matching rule for match.)
 DOC_SEE(match) */{
     fstr_bool result = string_set_match_table(str_set, sizeof(String), count, str, match_index);
     return(result);
 }
 
 API_EXPORT FSTRING_LINK String
-get_first_double_line(String source){
+get_first_double_line(String source)/*
+DOC_PARAM(source, the source string accross which a 'double line' iteration will occur)
+DOC_RETURN(The returned value is the first 'double line' in the source string.)
+DOC(A 'double line' is a string of characters delimited by two new line characters.  This call begins an iteration over all the double lines in the given source string.)
+DOC_SEE(get_next_double_line)
+*/{
     String line = {0};
     int32_t pos0 = find_substr_s(source, 0, make_lit_string("\n\n"));
     int32_t pos1 = find_substr_s(source, 0, make_lit_string("\r\n\r\n"));
@@ -1812,7 +1813,12 @@ get_first_double_line(String source){
 }
 
 API_EXPORT FSTRING_LINK String
-get_next_double_line(String source, String line){
+get_next_double_line(String source, String line)/*
+DOC_PARAM(source, the source string accross which the 'double line' iteration is occurring)
+DOC_PARAM(line, the value returned from the previous call of get_first_double_line or get_next_double_line)
+DOC_RETURN(The returned value is the first 'double line' in the source string.)
+DOC_SEE(get_first_double_line)
+*/{
     String next = {0};
     int32_t pos = (int32_t)(line.str - source.str) + line.size;
     int32_t start = 0, pos0 = 0, pos1 = 0;
@@ -1835,7 +1841,12 @@ get_next_double_line(String source, String line){
 }
 
 API_EXPORT FSTRING_LINK String
-get_next_word(String source, String prev_word){
+get_next_word(String source, String prev_word)/*
+DOC_PARAM(source, the source string accross which the 'word' iteration is occurring)
+DOC_PARAM(line, the value returned from the previous call of get_first_word or get_next_word)
+DOC_RETURN(The returned value is the first 'word' in the source string.)
+DOC_SEE(get_first_word)
+*/{
     
     String word = {0};
     int32_t pos0 = (int32_t)(prev_word.str - source.str) + prev_word.size;
@@ -1864,7 +1875,12 @@ get_next_word(String source, String prev_word){
 }
 
 API_EXPORT FSTRING_LINK String
-get_first_word(String source){
+get_first_word(String source)/*
+DOC_PARAM(source, the source string accross which a 'word' iteration will occur)
+DOC_RETURN(The returned value is the first 'word' in the source string.)
+DOC(A 'word' is a string of characters delimited by whitespace or parentheses.  This call begins an iteration over all the double lines in the given source string.)
+DOC_SEE(get_next_word)
+*/{
     String start_str = make_string(source.str, 0);
     String word = get_next_word(source, start_str);
     return(word);
