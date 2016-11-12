@@ -3,7 +3,7 @@ C_FILES    := $(wildcard *.c) $(wildcard **/*.c)
 H_FILES    := $(wildcard *.h) $(wildcard **/*.h)
 
 WARNINGS   := -Wno-write-strings
-FLAGS      := -D_GNU_SOURCE -fPIC
+FLAGS      := -D_GNU_SOURCE -fPIC -fpermissive
 
 debug: FLAGS += -DDEV_BUILD
 debug: ../build/build
@@ -12,7 +12,7 @@ package: FLAGS += -DPACKAGE
 package: ../build/build
 
 ../build/build: $(CPP_FILES) $(C_FILES) $(H_FILES)
-	gcc $(WARNINGS) $(FLAGS) build.cpp -g -o $@
+	g++ $(WARNINGS) $(FLAGS) build.cpp -g -o $@
 	../build/build
 
 clean:

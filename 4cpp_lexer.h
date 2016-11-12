@@ -12,7 +12,9 @@
 # define FCPP_LINK static
 #endif
 
-#define FCPP_INTERNAL FCPP_LINK
+#ifndef API_EXPORT
+#define API_EXPORT
+#endif
 
 #include <stdint.h>
 #if !defined(FSTRING_GUARD)
@@ -150,7 +152,7 @@ static String_And_Flag keywords[] = {
 };
 
 
-FCPP_LINK Cpp_Get_Token_Result
+API_EXPORT FCPP_LINK Cpp_Get_Token_Result
 cpp_get_token(Cpp_Token_Array array, int32_t pos)/*
 DOC_PARAM(array, The array of tokens from which to get a token.)
 DOC_PARAM(pos, The position, measured in bytes, to get the token for.)
@@ -226,7 +228,7 @@ DOC_SEE(Cpp_Get_Token_Result)
     return(result);
 }
 
-FCPP_INTERNAL Cpp_Lex_PP_State
+FCPP_LINK Cpp_Lex_PP_State
 cpp_pp_directive_to_state(Cpp_Token_Type type){
     Cpp_Lex_PP_State result = LSPP_default;
     switch (type){
@@ -280,7 +282,7 @@ cpp_pp_directive_to_state(Cpp_Token_Type type){
 
 #define DrReturn(n) { token_array_out->count = token_i; *S_ptr = S; S_ptr->__pc__ = -1; return(n); }
 
-FCPP_INTERNAL Cpp_Lex_Result
+FCPP_LINK Cpp_Lex_Result
 cpp_lex_nonalloc_null_end_no_limit(Cpp_Lex_Data *S_ptr, char *chunk, int32_t size,
                                    Cpp_Token_Array *token_array_out){
     Cpp_Lex_Data S = *S_ptr;
@@ -888,7 +890,7 @@ cpp_lex_nonalloc_null_end_no_limit(Cpp_Lex_Data *S_ptr, char *chunk, int32_t siz
 #undef DrReturn
 #undef DrCase
 
-FCPP_INTERNAL Cpp_Lex_Result
+FCPP_LINK Cpp_Lex_Result
 cpp_lex_nonalloc_null_end_out_limit(Cpp_Lex_Data *S_ptr, char *chunk, int32_t size,
                                     Cpp_Token_Array *token_array_out, int32_t max_tokens_out){
     Cpp_Token_Array temp_array = *token_array_out;
@@ -908,7 +910,7 @@ cpp_lex_nonalloc_null_end_out_limit(Cpp_Lex_Data *S_ptr, char *chunk, int32_t si
     return(result);
 }
 
-FCPP_INTERNAL Cpp_Lex_Result
+FCPP_LINK Cpp_Lex_Result
 cpp_lex_nonalloc_no_null_no_limit(Cpp_Lex_Data *S_ptr, char *chunk, int32_t size, int32_t full_size,
                                   Cpp_Token_Array *token_array_out){
     Cpp_Lex_Result result = 0;
@@ -928,7 +930,7 @@ cpp_lex_nonalloc_no_null_no_limit(Cpp_Lex_Data *S_ptr, char *chunk, int32_t size
     return(result);
 }
 
-FCPP_INTERNAL Cpp_Lex_Result
+FCPP_LINK Cpp_Lex_Result
 cpp_lex_nonalloc_no_null_out_limit(Cpp_Lex_Data *S_ptr, char *chunk, int32_t size, int32_t full_size,
                                    Cpp_Token_Array *token_array_out, int32_t max_tokens_out){
     Cpp_Token_Array temp_stack = *token_array_out;
@@ -953,7 +955,7 @@ cpp_lex_nonalloc_no_null_out_limit(Cpp_Lex_Data *S_ptr, char *chunk, int32_t siz
 #define HAS_NULL_TERM ((int32_t)(-1))
 #define NO_OUT_LIMIT ((int32_t)(-1))
 
-FCPP_LINK Cpp_Lex_Result
+API_EXPORT FCPP_LINK Cpp_Lex_Result
 cpp_lex_step(Cpp_Lex_Data *S_ptr, char *chunk, int32_t size, int32_t full_size, Cpp_Token_Array *token_array_out, int32_t max_tokens_out)/*
 DOC_PARAM(S_ptr, The lexer state.  Go to the Cpp_Lex_Data section to see how to initialize the state.)
 DOC_PARAM(chunk, The first or next chunk of the file being lexed.)
@@ -1038,7 +1040,7 @@ DOC_SEE(Cpp_Lex_Result)
     return(result);
 }
 
-FCPP_LINK Cpp_Lex_Data
+API_EXPORT FCPP_LINK Cpp_Lex_Data
 cpp_lex_data_init()/*
 DOC_RETURN(A brand new lex state ready to begin lexing a file from the beginning.)
 
@@ -1051,7 +1053,7 @@ as the file being lexed.)
     return(data);
 }
 
-FCPP_LINK int32_t
+API_EXPORT FCPP_LINK int32_t
 cpp_lex_data_temp_size(Cpp_Lex_Data *lex_data)/*
 DOC_PARAM(lex_data, The lex state from which to get the temporary buffer size.)
 DOC(This call gets the current size of the temporary buffer in the lexer state so
@@ -1064,7 +1066,7 @@ DOC_SEE(cpp_lex_data_new_temp)
     return(result);
 }
 
-FCPP_LINK void
+API_EXPORT FCPP_LINK void
 cpp_lex_data_temp_read(Cpp_Lex_Data *lex_data, char *out_buffer)/*
 DOC_PARAM(lex_data, The lex state from which to read the temporary buffer.)
 DOC_PARAM(out_buffer, The buffer into which the contents of the temporary buffer will be written.
@@ -1081,16 +1083,16 @@ DOC_SEE(cpp_lex_data_new_temp)
     }
 }
 
-FCPP_LINK void
+API_EXPORT FCPP_LINK void
 cpp_lex_data_new_temp_DEP(Cpp_Lex_Data *lex_data, char *new_buffer)
 /*DOC(Deprecated in 4cpp Lexer 1.0.1*/{}
 
-FCPP_INTERNAL char
+FCPP_LINK char
 cpp_token_get_pp_state(uint16_t bitfield){
     return (char)(bitfield);
 }
 
-FCPP_INTERNAL void
+FCPP_LINK void
 cpp_shift_token_starts(Cpp_Token_Array *array, int32_t from_token_i, int32_t shift_amount){
     Cpp_Token *token = array->tokens + from_token_i;
     int32_t count = array->count, i = 0;
@@ -1099,7 +1101,7 @@ cpp_shift_token_starts(Cpp_Token_Array *array, int32_t from_token_i, int32_t shi
     }
 }
 
-FCPP_INTERNAL Cpp_Token
+FCPP_LINK Cpp_Token
 cpp_index_array(Cpp_Token_Array *array, int32_t file_size, int32_t index){
     Cpp_Token result;
     if (index < array->count){
@@ -1115,7 +1117,7 @@ cpp_index_array(Cpp_Token_Array *array, int32_t file_size, int32_t index){
     return(result);
 }
 
-FCPP_LINK Cpp_Relex_Range
+API_EXPORT FCPP_LINK Cpp_Relex_Range
 cpp_get_relex_range(Cpp_Token_Array *array, int32_t start_pos, int32_t end_pos)
 /*
 DOC_PARAM(array, A pointer to the token array that will be modified by the relex,
@@ -1148,7 +1150,7 @@ The start and end points are based on the edited region of the file before the e
     return(range);
 }
 
-FCPP_LINK Cpp_Relex_Data
+API_EXPORT FCPP_LINK Cpp_Relex_Data
 cpp_relex_init(Cpp_Token_Array *array, int32_t start_pos, int32_t end_pos, int32_t character_shift_amount)
 /*
 DOC_PARAM(array, A pointer to the token array that will be modified by the relex,
@@ -1192,7 +1194,7 @@ DOC_SEE(cpp_relex_is_start_chunk)
     return(state);
 }
 
-FCPP_LINK int32_t
+API_EXPORT FCPP_LINK int32_t
 cpp_relex_start_position(Cpp_Relex_Data *S_ptr)
 /*
 DOC_PARAM(S_ptr, A pointer to a state that is done with the first stage of initialization (cpp_relex_init))
@@ -1211,7 +1213,7 @@ DOC_SEE(cpp_relex_declare_first_chunk_position)
     return(result);
 }
 
-FCPP_LINK void
+API_EXPORT FCPP_LINK void
 cpp_relex_declare_first_chunk_position(Cpp_Relex_Data *S_ptr, int32_t position)
 /*
 DOC_PARAM(S_ptr, A pointer to a state that is done with the first stage of initialization (cpp_relex_init))
@@ -1230,7 +1232,7 @@ DOC_SEE(cpp_relex_start_position)
     S_ptr->lex.chunk_pos = position;
 }
 
-FCPP_LINK int32_t
+API_EXPORT FCPP_LINK int32_t
 cpp_relex_is_start_chunk(Cpp_Relex_Data *S_ptr, char *chunk, int32_t chunk_size)
 /*
 DOC_PARAM(S_ptr, A pointer to a state that is done with the first stage of initialization (cpp_relex_init))
@@ -1280,7 +1282,7 @@ DOC_SEE(cpp_relex_init)
     S_ptr->result_state = n;                     \
     *S_ptr = S; S_ptr->__pc__ = -1; return(n); }
 
-FCPP_LINK Cpp_Lex_Result
+API_EXPORT FCPP_LINK Cpp_Lex_Result
 cpp_relex_step(Cpp_Relex_Data *S_ptr, char *chunk, int32_t chunk_size, int32_t full_size,
                Cpp_Token_Array *array, Cpp_Token_Array *relex_array)
 /*
@@ -1385,7 +1387,7 @@ DOC_SEE(cpp_relex_abort)
 #undef DrReturn
 #undef DrCase
 
-FCPP_LINK int32_t
+API_EXPORT FCPP_LINK int32_t
 cpp_relex_get_new_count(Cpp_Relex_Data *S_ptr, int32_t current_count, Cpp_Token_Array *relex_array)
 /*
 DOC_PARAM(S_ptr, A pointer to a state that has gone through cpp_relex_step with a LexResult_Finished return.)
@@ -1411,7 +1413,7 @@ the new array, it's capacity should be increased before passing to cpp_relex_com
 #include <string.h>
 #endif
 
-FCPP_INTERNAL void
+FCPP_LINK void
 cpp__block_move(void *dst, void *src, int32_t size){
 #if !defined(FCPP_FORBID_MEMCPY)
     memmove(dst, src, size);
@@ -1433,7 +1435,7 @@ cpp__block_move(void *dst, void *src, int32_t size){
 #endif
 }
 
-FCPP_LINK void
+API_EXPORT FCPP_LINK void
 cpp_relex_complete(Cpp_Relex_Data *S_ptr, Cpp_Token_Array *array, Cpp_Token_Array *relex_array)
 /*
 DOC_PARAM(S_ptr, A pointer to a state that has gone through cpp_relex_step with a LexResult_Finished return.)
@@ -1460,7 +1462,7 @@ does the necessary replacement of tokens in the array to make it match the new f
                     sizeof(Cpp_Token)*relex_array->count);
 }
 
-FCPP_LINK void
+API_EXPORT FCPP_LINK void
 cpp_relex_abort(Cpp_Relex_Data *S_ptr, Cpp_Token_Array *array)
 /*
 DOC_PARAM(S_ptr, A pointer to a state that has gone through at least one cpp_relex_step.)
@@ -1480,7 +1482,7 @@ is dead.)
 #include <stdlib.h>
 #include <string.h>
 
-FCPP_LINK Cpp_Token_Array
+API_EXPORT FCPP_LINK Cpp_Token_Array
 cpp_make_token_array(int32_t starting_max)/*
 DOC_PARAM(starting_max, The number of tokens to initialize the array with.)
 DOC_RETURN(An empty Cpp_Token_Array with memory malloc'd for storing tokens.)
@@ -1495,7 +1497,7 @@ used in the convenience functions.)
     return(token_array);
 }
 
-FCPP_LINK void
+API_EXPORT FCPP_LINK void
 cpp_free_token_array(Cpp_Token_Array token_array)/*
 DOC_PARAM(token_array, An array previously allocated by cpp_make_token_array)
 DOC(This call frees a Cpp_Token_Array.)
@@ -1504,7 +1506,7 @@ DOC_SEE(cpp_make_token_array)
     free(token_array.tokens);
 }
 
-FCPP_LINK void
+API_EXPORT FCPP_LINK void
 cpp_resize_token_array(Cpp_Token_Array *token_array, int32_t new_max)/*
 DOC_PARAM(token_array, An array previously allocated by cpp_make_token_array.)
 DOC_PARAM(new_max, The new maximum size the array should support.  If this is not greater
@@ -1525,7 +1527,7 @@ DOC_SEE(cpp_make_token_array)
     }
 }
 
-FCPP_LINK void
+API_EXPORT FCPP_LINK void
 cpp_lex_file(char *data, int32_t size, Cpp_Token_Array *token_array_out)/*
 DOC_PARAM(data, The file data to be lexed in a single contiguous block.)
 DOC_PARAM(size, The number of bytes in data.)

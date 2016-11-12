@@ -361,6 +361,8 @@ COMMAND_DECL(reopen){
             
             if (buffer){
                 if (system->load_file(handle, buffer, size)){
+                    system->load_close(handle);
+                    
                     General_Memory *general = &models->mem.general;
                     
                     File_Edit_Positions edit_poss[16];
@@ -395,11 +397,15 @@ COMMAND_DECL(reopen){
                                         file->settings.unwrapped_lines);
                     }
                 }
+                else{
+                    system->load_close(handle);
+                }
+            }
+            else{
+                system->load_close(handle);
             }
             
             end_temp_memory(temp);
-            
-            system->load_close(handle);
         }
     }
 }

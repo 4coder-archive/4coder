@@ -12,15 +12,14 @@
 #define BUFFER_REPLACE_RANGE_SIG(n) bool32 n(Application_Links *app, Buffer_Summary *buffer, int32_t start, int32_t end, char *str, int32_t len)
 #define BUFFER_COMPUTE_CURSOR_SIG(n) bool32 n(Application_Links *app, Buffer_Summary *buffer, Buffer_Seek seek, Partial_Cursor *cursor_out)
 #define BUFFER_BATCH_EDIT_SIG(n) bool32 n(Application_Links *app, Buffer_Summary *buffer, char *str, int32_t str_len, Buffer_Edit *edits, int32_t edit_count, Buffer_Batch_Edit_Type type)
-#define BUFFER_GET_SETTING_SIG(n) int32_t n(Application_Links *app, Buffer_Summary *buffer, Buffer_Setting_ID setting)
+#define BUFFER_GET_SETTING_SIG(n) int32_t n(Application_Links *app, Buffer_Summary *buffer, Buffer_Setting_ID setting, int32_t *value_out)
 #define BUFFER_SET_SETTING_SIG(n) bool32 n(Application_Links *app, Buffer_Summary *buffer, Buffer_Setting_ID setting, int32_t value)
 #define BUFFER_TOKEN_COUNT_SIG(n) int32_t n(Application_Links *app, Buffer_Summary *buffer)
 #define BUFFER_READ_TOKENS_SIG(n) bool32 n(Application_Links *app, Buffer_Summary *buffer, int32_t start_token, int32_t end_token, Cpp_Token *tokens_out)
 #define BUFFER_GET_TOKEN_INDEX_SIG(n) bool32 n(Application_Links *app, Buffer_Summary *buffer, int32_t pos, Cpp_Get_Token_Result *get_result)
-#define BEGIN_BUFFER_CREATION_SIG(n) void n(Application_Links *app, Buffer_Creation_Data *data, Buffer_Create_Flag flags)
-#define BUFFER_CREATION_NAME_SIG(n) void n(Application_Links *app, Buffer_Creation_Data *data, char *filename, int32_t filename_len, uint32_t flags)
+#define BEGIN_BUFFER_CREATION_SIG(n) bool32 n(Application_Links *app, Buffer_Creation_Data *data, Buffer_Create_Flag flags)
+#define BUFFER_CREATION_NAME_SIG(n) bool32 n(Application_Links *app, Buffer_Creation_Data *data, char *filename, int32_t filename_len, uint32_t flags)
 #define END_BUFFER_CREATION_SIG(n) Buffer_Summary n(Application_Links *app, Buffer_Creation_Data *data)
-#define CREATE_BUFFER__SIG(n) Buffer_Summary n(Application_Links *app, char *filename, int32_t filename_len, Buffer_Create_Flag flags)
 #define SAVE_BUFFER_SIG(n) bool32 n(Application_Links *app, Buffer_Summary *buffer, char *filename, int32_t filename_len, uint32_t flags)
 #define KILL_BUFFER_SIG(n) bool32 n(Application_Links *app, Buffer_Identifier buffer, View_ID view_id, Buffer_Kill_Flag flags)
 #define GET_VIEW_FIRST_SIG(n) View_Summary n(Application_Links *app, Access_Flag access)
@@ -30,7 +29,7 @@
 #define OPEN_VIEW_SIG(n) View_Summary n(Application_Links *app, View_Summary *view_location, View_Split_Position position)
 #define CLOSE_VIEW_SIG(n) bool32 n(Application_Links *app, View_Summary *view)
 #define SET_ACTIVE_VIEW_SIG(n) bool32 n(Application_Links *app, View_Summary *view)
-#define VIEW_GET_SETTING_SIG(n) int32_t n(Application_Links *app, View_Summary *view, View_Setting_ID setting)
+#define VIEW_GET_SETTING_SIG(n) bool32 n(Application_Links *app, View_Summary *view, View_Setting_ID setting, int32_t *value_out)
 #define VIEW_SET_SETTING_SIG(n) bool32 n(Application_Links *app, View_Summary *view, View_Setting_ID setting, int32_t value)
 #define VIEW_SET_SPLIT_PROPORTION_SIG(n) bool32 n(Application_Links *app, View_Summary *view, float t)
 #define VIEW_COMPUTE_CURSOR_SIG(n) bool32 n(Application_Links *app, View_Summary *view, Buffer_Seek seek, Full_Cursor *cursor_out)
@@ -49,7 +48,7 @@
 #define CHANGE_THEME_SIG(n) void n(Application_Links *app, char *name, int32_t len)
 #define CHANGE_FONT_SIG(n) void n(Application_Links *app, char *name, int32_t len, bool32 apply_to_all_files)
 #define BUFFER_SET_FONT_SIG(n) void n(Application_Links *app, Buffer_Summary *buffer, char *name, int32_t len)
-#define BUFFER_GET_FONT_SIG(n) int32_t n(Application_Links *app, Buffer_Summary *buffer, char *name_out, int32_t name_max)
+#define BUFFER_GET_FONT_SIG(n) bool32 n(Application_Links *app, Buffer_Summary *buffer, char *name_out, int32_t name_max)
 #define SET_THEME_COLORS_SIG(n) void n(Application_Links *app, Theme_Color *colors, int32_t count)
 #define GET_THEME_COLORS_SIG(n) void n(Application_Links *app, Theme_Color *colors, int32_t count)
 #define DIRECTORY_GET_HOT_SIG(n) int32_t n(Application_Links *app, char *out, int32_t capacity)
@@ -88,7 +87,6 @@ typedef BUFFER_GET_TOKEN_INDEX_SIG(Buffer_Get_Token_Index_Function);
 typedef BEGIN_BUFFER_CREATION_SIG(Begin_Buffer_Creation_Function);
 typedef BUFFER_CREATION_NAME_SIG(Buffer_Creation_Name_Function);
 typedef END_BUFFER_CREATION_SIG(End_Buffer_Creation_Function);
-typedef CREATE_BUFFER__SIG(Create_Buffer__Function);
 typedef SAVE_BUFFER_SIG(Save_Buffer_Function);
 typedef KILL_BUFFER_SIG(Kill_Buffer_Function);
 typedef GET_VIEW_FIRST_SIG(Get_View_First_Function);
@@ -158,7 +156,6 @@ Buffer_Get_Token_Index_Function *buffer_get_token_index;
 Begin_Buffer_Creation_Function *begin_buffer_creation;
 Buffer_Creation_Name_Function *buffer_creation_name;
 End_Buffer_Creation_Function *end_buffer_creation;
-Create_Buffer__Function *create_buffer_;
 Save_Buffer_Function *save_buffer;
 Kill_Buffer_Function *kill_buffer;
 Get_View_First_Function *get_view_first;
@@ -227,7 +224,6 @@ Buffer_Get_Token_Index_Function *buffer_get_token_index_;
 Begin_Buffer_Creation_Function *begin_buffer_creation_;
 Buffer_Creation_Name_Function *buffer_creation_name_;
 End_Buffer_Creation_Function *end_buffer_creation_;
-Create_Buffer__Function *create_buffer__;
 Save_Buffer_Function *save_buffer_;
 Kill_Buffer_Function *kill_buffer_;
 Get_View_First_Function *get_view_first_;
@@ -304,7 +300,6 @@ app_links->buffer_get_token_index_ = Buffer_Get_Token_Index;\
 app_links->begin_buffer_creation_ = Begin_Buffer_Creation;\
 app_links->buffer_creation_name_ = Buffer_Creation_Name;\
 app_links->end_buffer_creation_ = End_Buffer_Creation;\
-app_links->create_buffer__ = Create_Buffer_;\
 app_links->save_buffer_ = Save_Buffer;\
 app_links->kill_buffer_ = Kill_Buffer;\
 app_links->get_view_first_ = Get_View_First;\
@@ -365,15 +360,14 @@ static inline bool32 buffer_read_range(Application_Links *app, Buffer_Summary *b
 static inline bool32 buffer_replace_range(Application_Links *app, Buffer_Summary *buffer, int32_t start, int32_t end, char *str, int32_t len){return(app->buffer_replace_range(app, buffer, start, end, str, len));}
 static inline bool32 buffer_compute_cursor(Application_Links *app, Buffer_Summary *buffer, Buffer_Seek seek, Partial_Cursor *cursor_out){return(app->buffer_compute_cursor(app, buffer, seek, cursor_out));}
 static inline bool32 buffer_batch_edit(Application_Links *app, Buffer_Summary *buffer, char *str, int32_t str_len, Buffer_Edit *edits, int32_t edit_count, Buffer_Batch_Edit_Type type){return(app->buffer_batch_edit(app, buffer, str, str_len, edits, edit_count, type));}
-static inline int32_t buffer_get_setting(Application_Links *app, Buffer_Summary *buffer, Buffer_Setting_ID setting){return(app->buffer_get_setting(app, buffer, setting));}
+static inline int32_t buffer_get_setting(Application_Links *app, Buffer_Summary *buffer, Buffer_Setting_ID setting, int32_t *value_out){return(app->buffer_get_setting(app, buffer, setting, value_out));}
 static inline bool32 buffer_set_setting(Application_Links *app, Buffer_Summary *buffer, Buffer_Setting_ID setting, int32_t value){return(app->buffer_set_setting(app, buffer, setting, value));}
 static inline int32_t buffer_token_count(Application_Links *app, Buffer_Summary *buffer){return(app->buffer_token_count(app, buffer));}
 static inline bool32 buffer_read_tokens(Application_Links *app, Buffer_Summary *buffer, int32_t start_token, int32_t end_token, Cpp_Token *tokens_out){return(app->buffer_read_tokens(app, buffer, start_token, end_token, tokens_out));}
 static inline bool32 buffer_get_token_index(Application_Links *app, Buffer_Summary *buffer, int32_t pos, Cpp_Get_Token_Result *get_result){return(app->buffer_get_token_index(app, buffer, pos, get_result));}
-static inline void begin_buffer_creation(Application_Links *app, Buffer_Creation_Data *data, Buffer_Create_Flag flags){(app->begin_buffer_creation(app, data, flags));}
-static inline void buffer_creation_name(Application_Links *app, Buffer_Creation_Data *data, char *filename, int32_t filename_len, uint32_t flags){(app->buffer_creation_name(app, data, filename, filename_len, flags));}
+static inline bool32 begin_buffer_creation(Application_Links *app, Buffer_Creation_Data *data, Buffer_Create_Flag flags){return(app->begin_buffer_creation(app, data, flags));}
+static inline bool32 buffer_creation_name(Application_Links *app, Buffer_Creation_Data *data, char *filename, int32_t filename_len, uint32_t flags){return(app->buffer_creation_name(app, data, filename, filename_len, flags));}
 static inline Buffer_Summary end_buffer_creation(Application_Links *app, Buffer_Creation_Data *data){return(app->end_buffer_creation(app, data));}
-static inline Buffer_Summary create_buffer_(Application_Links *app, char *filename, int32_t filename_len, Buffer_Create_Flag flags){return(app->create_buffer_(app, filename, filename_len, flags));}
 static inline bool32 save_buffer(Application_Links *app, Buffer_Summary *buffer, char *filename, int32_t filename_len, uint32_t flags){return(app->save_buffer(app, buffer, filename, filename_len, flags));}
 static inline bool32 kill_buffer(Application_Links *app, Buffer_Identifier buffer, View_ID view_id, Buffer_Kill_Flag flags){return(app->kill_buffer(app, buffer, view_id, flags));}
 static inline View_Summary get_view_first(Application_Links *app, Access_Flag access){return(app->get_view_first(app, access));}
@@ -383,7 +377,7 @@ static inline View_Summary get_active_view(Application_Links *app, Access_Flag a
 static inline View_Summary open_view(Application_Links *app, View_Summary *view_location, View_Split_Position position){return(app->open_view(app, view_location, position));}
 static inline bool32 close_view(Application_Links *app, View_Summary *view){return(app->close_view(app, view));}
 static inline bool32 set_active_view(Application_Links *app, View_Summary *view){return(app->set_active_view(app, view));}
-static inline int32_t view_get_setting(Application_Links *app, View_Summary *view, View_Setting_ID setting){return(app->view_get_setting(app, view, setting));}
+static inline bool32 view_get_setting(Application_Links *app, View_Summary *view, View_Setting_ID setting, int32_t *value_out){return(app->view_get_setting(app, view, setting, value_out));}
 static inline bool32 view_set_setting(Application_Links *app, View_Summary *view, View_Setting_ID setting, int32_t value){return(app->view_set_setting(app, view, setting, value));}
 static inline bool32 view_set_split_proportion(Application_Links *app, View_Summary *view, float t){return(app->view_set_split_proportion(app, view, t));}
 static inline bool32 view_compute_cursor(Application_Links *app, View_Summary *view, Buffer_Seek seek, Full_Cursor *cursor_out){return(app->view_compute_cursor(app, view, seek, cursor_out));}
@@ -402,7 +396,7 @@ static inline void print_message(Application_Links *app, char *str, int32_t len)
 static inline void change_theme(Application_Links *app, char *name, int32_t len){(app->change_theme(app, name, len));}
 static inline void change_font(Application_Links *app, char *name, int32_t len, bool32 apply_to_all_files){(app->change_font(app, name, len, apply_to_all_files));}
 static inline void buffer_set_font(Application_Links *app, Buffer_Summary *buffer, char *name, int32_t len){(app->buffer_set_font(app, buffer, name, len));}
-static inline int32_t buffer_get_font(Application_Links *app, Buffer_Summary *buffer, char *name_out, int32_t name_max){return(app->buffer_get_font(app, buffer, name_out, name_max));}
+static inline bool32 buffer_get_font(Application_Links *app, Buffer_Summary *buffer, char *name_out, int32_t name_max){return(app->buffer_get_font(app, buffer, name_out, name_max));}
 static inline void set_theme_colors(Application_Links *app, Theme_Color *colors, int32_t count){(app->set_theme_colors(app, colors, count));}
 static inline void get_theme_colors(Application_Links *app, Theme_Color *colors, int32_t count){(app->get_theme_colors(app, colors, count));}
 static inline int32_t directory_get_hot(Application_Links *app, char *out, int32_t capacity){return(app->directory_get_hot(app, out, capacity));}
@@ -434,15 +428,14 @@ static inline bool32 buffer_read_range(Application_Links *app, Buffer_Summary *b
 static inline bool32 buffer_replace_range(Application_Links *app, Buffer_Summary *buffer, int32_t start, int32_t end, char *str, int32_t len){return(app->buffer_replace_range_(app, buffer, start, end, str, len));}
 static inline bool32 buffer_compute_cursor(Application_Links *app, Buffer_Summary *buffer, Buffer_Seek seek, Partial_Cursor *cursor_out){return(app->buffer_compute_cursor_(app, buffer, seek, cursor_out));}
 static inline bool32 buffer_batch_edit(Application_Links *app, Buffer_Summary *buffer, char *str, int32_t str_len, Buffer_Edit *edits, int32_t edit_count, Buffer_Batch_Edit_Type type){return(app->buffer_batch_edit_(app, buffer, str, str_len, edits, edit_count, type));}
-static inline int32_t buffer_get_setting(Application_Links *app, Buffer_Summary *buffer, Buffer_Setting_ID setting){return(app->buffer_get_setting_(app, buffer, setting));}
+static inline int32_t buffer_get_setting(Application_Links *app, Buffer_Summary *buffer, Buffer_Setting_ID setting, int32_t *value_out){return(app->buffer_get_setting_(app, buffer, setting, value_out));}
 static inline bool32 buffer_set_setting(Application_Links *app, Buffer_Summary *buffer, Buffer_Setting_ID setting, int32_t value){return(app->buffer_set_setting_(app, buffer, setting, value));}
 static inline int32_t buffer_token_count(Application_Links *app, Buffer_Summary *buffer){return(app->buffer_token_count_(app, buffer));}
 static inline bool32 buffer_read_tokens(Application_Links *app, Buffer_Summary *buffer, int32_t start_token, int32_t end_token, Cpp_Token *tokens_out){return(app->buffer_read_tokens_(app, buffer, start_token, end_token, tokens_out));}
 static inline bool32 buffer_get_token_index(Application_Links *app, Buffer_Summary *buffer, int32_t pos, Cpp_Get_Token_Result *get_result){return(app->buffer_get_token_index_(app, buffer, pos, get_result));}
-static inline void begin_buffer_creation(Application_Links *app, Buffer_Creation_Data *data, Buffer_Create_Flag flags){(app->begin_buffer_creation_(app, data, flags));}
-static inline void buffer_creation_name(Application_Links *app, Buffer_Creation_Data *data, char *filename, int32_t filename_len, uint32_t flags){(app->buffer_creation_name_(app, data, filename, filename_len, flags));}
+static inline bool32 begin_buffer_creation(Application_Links *app, Buffer_Creation_Data *data, Buffer_Create_Flag flags){return(app->begin_buffer_creation_(app, data, flags));}
+static inline bool32 buffer_creation_name(Application_Links *app, Buffer_Creation_Data *data, char *filename, int32_t filename_len, uint32_t flags){return(app->buffer_creation_name_(app, data, filename, filename_len, flags));}
 static inline Buffer_Summary end_buffer_creation(Application_Links *app, Buffer_Creation_Data *data){return(app->end_buffer_creation_(app, data));}
-static inline Buffer_Summary create_buffer_(Application_Links *app, char *filename, int32_t filename_len, Buffer_Create_Flag flags){return(app->create_buffer__(app, filename, filename_len, flags));}
 static inline bool32 save_buffer(Application_Links *app, Buffer_Summary *buffer, char *filename, int32_t filename_len, uint32_t flags){return(app->save_buffer_(app, buffer, filename, filename_len, flags));}
 static inline bool32 kill_buffer(Application_Links *app, Buffer_Identifier buffer, View_ID view_id, Buffer_Kill_Flag flags){return(app->kill_buffer_(app, buffer, view_id, flags));}
 static inline View_Summary get_view_first(Application_Links *app, Access_Flag access){return(app->get_view_first_(app, access));}
@@ -452,7 +445,7 @@ static inline View_Summary get_active_view(Application_Links *app, Access_Flag a
 static inline View_Summary open_view(Application_Links *app, View_Summary *view_location, View_Split_Position position){return(app->open_view_(app, view_location, position));}
 static inline bool32 close_view(Application_Links *app, View_Summary *view){return(app->close_view_(app, view));}
 static inline bool32 set_active_view(Application_Links *app, View_Summary *view){return(app->set_active_view_(app, view));}
-static inline int32_t view_get_setting(Application_Links *app, View_Summary *view, View_Setting_ID setting){return(app->view_get_setting_(app, view, setting));}
+static inline bool32 view_get_setting(Application_Links *app, View_Summary *view, View_Setting_ID setting, int32_t *value_out){return(app->view_get_setting_(app, view, setting, value_out));}
 static inline bool32 view_set_setting(Application_Links *app, View_Summary *view, View_Setting_ID setting, int32_t value){return(app->view_set_setting_(app, view, setting, value));}
 static inline bool32 view_set_split_proportion(Application_Links *app, View_Summary *view, float t){return(app->view_set_split_proportion_(app, view, t));}
 static inline bool32 view_compute_cursor(Application_Links *app, View_Summary *view, Buffer_Seek seek, Full_Cursor *cursor_out){return(app->view_compute_cursor_(app, view, seek, cursor_out));}
@@ -471,7 +464,7 @@ static inline void print_message(Application_Links *app, char *str, int32_t len)
 static inline void change_theme(Application_Links *app, char *name, int32_t len){(app->change_theme_(app, name, len));}
 static inline void change_font(Application_Links *app, char *name, int32_t len, bool32 apply_to_all_files){(app->change_font_(app, name, len, apply_to_all_files));}
 static inline void buffer_set_font(Application_Links *app, Buffer_Summary *buffer, char *name, int32_t len){(app->buffer_set_font_(app, buffer, name, len));}
-static inline int32_t buffer_get_font(Application_Links *app, Buffer_Summary *buffer, char *name_out, int32_t name_max){return(app->buffer_get_font_(app, buffer, name_out, name_max));}
+static inline bool32 buffer_get_font(Application_Links *app, Buffer_Summary *buffer, char *name_out, int32_t name_max){return(app->buffer_get_font_(app, buffer, name_out, name_max));}
 static inline void set_theme_colors(Application_Links *app, Theme_Color *colors, int32_t count){(app->set_theme_colors_(app, colors, count));}
 static inline void get_theme_colors(Application_Links *app, Theme_Color *colors, int32_t count){(app->get_theme_colors_(app, colors, count));}
 static inline int32_t directory_get_hot(Application_Links *app, char *out, int32_t capacity){return(app->directory_get_hot_(app, out, capacity));}

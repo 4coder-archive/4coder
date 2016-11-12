@@ -1,28 +1,41 @@
 
 
 #ifndef ENUM
-#define ENUM(type,name) typedef type name; enum name##_
+# define ENUM(type,name) typedef type name; enum name##_
 #endif
 
+#ifndef TYPEDEF
+# define TYPEDEF typedef
+#endif
+
+#ifndef STRUCT
+# define STRUCT struct
+#endif
+
+#ifndef UNION
+# define UNION union
+#endif
+
+
 /* DOC(bool32 is an alias name to signal that an integer parameter or field is for
-true/false vales.) */
-typedef int32_t bool32;
+true/false values.) */
+TYPEDEF int32_t bool32;
 
 /* DOC(int_color is an alias name to signal that an integer parameter or field is for
 a color value, colors are specified as 24 bit integers in 3 channels: 0xRRGGBB.) */
-typedef uint32_t int_color;
+TYPEDEF uint32_t int_color;
 
 /* DOC(Key_Code is the alias for key codes including raw codes and codes translated
 to textual input that takes modifiers into account.) */
-typedef unsigned char Key_Code;
+TYPEDEF unsigned char Key_Code;
 
 /* DOC(Buffer_ID is used to name a 4coder buffer.  Each buffer has a unique id but
 when a buffer is closed it's id may be recycled by future, different buffers.) */
-typedef int32_t Buffer_ID;
+TYPEDEF int32_t Buffer_ID;
 
 /* DOC(View_ID is used to name a 4coder view.  Each view has a unique id in
 the interval [1,16].) */
-typedef int32_t View_ID;
+TYPEDEF int32_t View_ID;
 
 /* DOC(A Key_Modifier acts as an index for specifying modifiers in arrays.) */
 ENUM(int32_t, Key_Modifier){
@@ -216,9 +229,9 @@ ENUM(uint32_t, Buffer_Create_Flag){
 };
 
 
-/* DOC(TODO)
+/* DOC(Buffer_Creation_Data is a struct used as a local handle for the creation of a buffer. )
 HIDE_MEMBERS() */
-struct Buffer_Creation_Data{
+ STRUCT Buffer_Creation_Data{
     Buffer_Create_Flag flags;
     char fname_space [256];
     int32_t fname_len;
@@ -233,12 +246,7 @@ ENUM(uint32_t, Buffer_Kill_Flag){
     BufferKill_AlwaysKill  = 0x2,
 };
 
-/* DOC(An Access_Flag field specifies what sort of permission you grant to an
-access call.  An access call is usually one the returns a summary struct.  If a
-4coder object has a particular protection flag set and the corresponding bit is
-not set in the access field, that 4coder object is hidden.  On the other hand if
-a protection flag is set in the access parameter and the object does not have
-that protection flag, the object is still returned from the access call.) */
+/* DOC(An Access_Flag field specifies what sort of permission you grant to an access call.  An access call is usually one the returns a summary struct.  If a 4coder object has a particular protection flag set and the corresponding bit is not set in the access field, that 4coder object is hidden.  On the other hand if a protection flag is set in the access parameter and the object does not have that protection flag, the object is still returned from the access call.) */
 ENUM(uint32_t, Access_Flag){
     /* DOC(AccessOpen does not include any bits, it indicates that the access should
     only return objects that have no protection flags set.) */
@@ -255,25 +263,19 @@ ENUM(uint32_t, Access_Flag){
     AccessAll       = 0xFF
 };
 
-/* DOC(A Dirty_State value describes whether changes have been made to a buffer
-or to an underlying file since the last sync time between the two.  Saving a buffer
-to it's file or loading the buffer from the file both act as sync points.) */
+/* DOC(A Dirty_State value describes whether changes have been made to a buffer or to an underlying file since the last sync time between the two.  Saving a buffer to it's file or loading the buffer from the file both act as sync points.) */
 ENUM(uint32_t, Dirty_State){
-    /* DOC(DirtyState_UpToDate indicates that there are no unsaved changes and
-    the underlying system file still agrees with the buffer's state.) */
+    /* DOC(DirtyState_UpToDate indicates that there are no unsaved changes and the underlying system file still agrees with the buffer's state.) */
     DirtyState_UpToDate = 0,
     
-    /* DOC(DirtyState_UnsavedChanges indicates that there have been changes in the
-    buffer since the last sync point.) */
+    /* DOC(DirtyState_UnsavedChanges indicates that there have been changes in the buffer since the last sync point.) */
     DirtyState_UnsavedChanges = 1,
     
-    /* DOC(DirtyState_UnsavedChanges indicates that the underlying file has been
-    edited since the last sync point with the buffer.) */
+    /* DOC(DirtyState_UnsavedChanges indicates that the underlying file has been edited since the last sync point with the buffer.) */
     DirtyState_UnloadedChanges = 2
 };
 
-/* DOC(A Seek_Boundary_Flag field specifies a set of "boundary" types used in seeks for the
-beginning or end of different types of words.) */
+/* DOC(A Seek_Boundary_Flag field specifies a set of "boundary" types used in seeks for the beginning or end of different types of words.) */
 ENUM(uint32_t, Seek_Boundary_Flag){
     BoundaryWhitespace   = 0x1,
     BoundaryToken        = 0x2,
@@ -283,34 +285,23 @@ ENUM(uint32_t, Seek_Boundary_Flag){
 
 /* DOC(A Command_Line_Interface_Flag field specifies the behavior of a call to a command line interface.) */
 ENUM(uint32_t, Command_Line_Interface_Flag){
-    /* DOC(If CLI_OverlapWithConflict is set if output buffer of the new command is already
-    in use by another command which is still executing, the older command relinquishes control
-    of the buffer and both operate simultaneously with only the newer command outputting to
-    the buffer.) */
+    /* DOC(If CLI_OverlapWithConflict is set if output buffer of the new command is already in use by another command which is still executing, the older command relinquishes control of the buffer and both operate simultaneously with only the newer command outputting to the buffer.) */
     CLI_OverlapWithConflict = 0x1,
-    /* DOC(If CLI_AlwaysBindToView is set the output buffer will always be set in the active
-    view even if it is already set in another open view.) */
+    /* DOC(If CLI_AlwaysBindToView is set the output buffer will always be set in the active view even if it is already set in another open view.) */
     CLI_AlwaysBindToView    = 0x2,
-    /* DOC(If CLI_CursorAtEnd is set the cursor will be kept at the end of the output buffer,
-    otherwise the cursor is kept at the beginning.) */
+    /* DOC(If CLI_CursorAtEnd is set the cursor will be kept at the end of the output buffer, otherwise the cursor is kept at the beginning.) */
     CLI_CursorAtEnd         = 0x4,
 };
 
 /* DOC(An Auto_Indent_Flag field specifies the behavior of an auto indentation operation.) */
 ENUM(uint32_t, Auto_Indent_Flag){
-    /* DOC(If AutoIndent_ClearLine is set, then any line that is only whitespace will
-    be cleared to contain nothing at all. otherwise the line is filled with whitespace
-    to match the nearby indentation.) */
+    /* DOC(If AutoIndent_ClearLine is set, then any line that is only whitespace will be cleared to contain nothing at all. otherwise the line is filled with whitespace to match the nearby indentation.) */
     AutoIndent_ClearLine = 0x1,
-    /* DOC(If AutoIndent_UseTab is set, then when putting in leading whitespace to align
-    code, as many tabs will be used as possible until the fine grained control of spaces
-    is needed to finish the alignment.) */
+    /* DOC(If AutoIndent_UseTab is set, then when putting in leading whitespace to align code, as many tabs will be used as possible until the fine grained control of spaces is needed to finish the alignment.) */
     AutoIndent_UseTab    = 0x2,
-    /* DOC(If AutoIndent_ExactAlignBlock is set, then block comments are indented by putting
-    the first non-whitespace character of the line in line with the beginning of the comment.) */
+    /* DOC(If AutoIndent_ExactAlignBlock is set, then block comments are indented by putting the first non-whitespace character of the line in line with the beginning of the comment.) */
     AutoIndent_ExactAlignBlock = 0x4,
-    /* DOC(If AutoIndent_FullTokens is set, then the set of lines that are indented is
-    automatically expanded so that any token spanning multiple lines gets entirely indented.) */
+    /* DOC(If AutoIndent_FullTokens is set, then the set of lines that are indented is automatically expanded so that any token spanning multiple lines gets entirely indented.) */
     AutoIndent_FullTokens = 0x8,
 };
 
@@ -355,8 +346,7 @@ ENUM(int32_t, Mouse_Cursor_Show_Type){
 //    MouseCursorShow_WhenActive,// TODO(allen): coming soon
 };
 
-/* DOC(A View_Split_Position specifies where a new view should be placed as a result of
-a view split operation.) */
+/* DOC(A View_Split_Position specifies where a new view should be placed as a result of a view split operation.) */
 ENUM(int32_t, View_Split_Position){
     /* DOC(This value indicates that the new view should be above the existing view.) */
     ViewSplit_Top,
@@ -368,52 +358,35 @@ ENUM(int32_t, View_Split_Position){
     ViewSplit_Right
 };
 
-/* DOC(
-Generic_Command acts as a name for a command, and can name an
-internal command or a custom command.
-)*/
-union Generic_Command{
-    /*DOC(If this Generic_Command represents an internal command the cmdid field
-    will have a value less than cmdid_count, and this field is the command id for the command.)*/
+/* DOC(Generic_Command acts as a name for a command, and can name an internal command or a custom command.) */
+ UNION Generic_Command{
+    /*DOC(If this Generic_Command represents an internal command the cmdid field will have a value less than cmdid_count, and this field is the command id for the command.)*/
     Command_ID cmdid;
     /*DOC(If this Generic_Command does not represent an internal command the command
     field is the pointer to the custom command..)*/
     Custom_Command_Function *command;
 };
 
-/* DOC(
-Key_Event_Data describes a key event, including the
-translation to a character, the translation to
-a character ignoring the state of caps lock, and
-an array of all the modifiers that were pressed
-at the time of the event.
-)*/
-struct Key_Event_Data{
+/* DOC(Key_Event_Data describes a key event, including the translation to a character, the translation to a character ignoring the state of caps lock, and an array of all the modifiers that were pressed at the time of the event.) */
+STRUCT Key_Event_Data{
     /* DOC(This field is the raw keycode which is always non-zero in valid key events.) */
 	Key_Code keycode;
     
     /* DOC(This field is the keycode after translation to a character, this is 0 if there is no translation.) */
 	Key_Code character;
     
-    /* DOC(
-    This field is like the field character, except that the state of caps lock is ignored in the translation.
-    ) */
+    /* DOC(This field is like the field character, except that the state of caps lock is ignored in the translation.) */
 	Key_Code character_no_caps_lock;
     
-    /* DOC(
-    This field is an array indicating the state of modifiers at the time of the key press.
-    The array is indexed using the values of Key_Modifier.  A 1 indicates that the corresponding
-    modifier was held, and a 0 indicates that it was not held.
-    )
+    /* DOC(This field is an array indicating the state of modifiers at the time of the key press. The array is indexed using the values of Key_Modifier.  A 1 indicates that the corresponding modifier was held, and a 0 indicates that it was not held.)
+    
     DOC_SEE(Key_Modifier)
     */
 	char modifiers[MDFR_INDEX_COUNT];
 };
 
-/* DOC(Mouse_State describes an entire mouse state complete with the
-position, left and right button states, the wheel state, and whether
-or not the mouse if in the window.) */
-struct Mouse_State{
+/* DOC(Mouse_State describes an entire mouse state complete with the position, left and right button states, the wheel state, and whether or not the mouse if in the window.) */
+ STRUCT Mouse_State{
     /* DOC(This field indicates that the left button is held.) */
     char l;
     /* DOC(This field indicates that the right button is held.) */
@@ -439,21 +412,17 @@ struct Mouse_State{
 };
 
 /* DOC(
-Range describes an integer range typically used for ranges within a buffer.
-Ranges tend are usually not passed as a Range struct into the API, but this
-struct is used to return ranges.
+Range describes an integer range typically used for ranges within a buffer. Ranges tend are usually not passed as a Range struct into the API, but this struct is used to return ranges.
 
-Throughout the API ranges are thought of in the form [min,max) where max is
-"one past the end" of the range that is actually read/edited/modified.
-) */
-union Range{
-    struct{
+Throughout the API ranges are thought of in the form [min,max) where max is "one past the end" of the range that is actually read/edited/modified.) */
+UNION Range{
+    STRUCT{
         /* DOC(This is the smaller value in the range, it is also the 'start'.) */
         int32_t min;
         /* DOC(This is the larger value in the range, it is also the 'end'.) */
         int32_t max;
     };
-    struct{
+    STRUCT{
         /* DOC(This is the start of the range, it is also the 'min'.) */
         int32_t start;
         /* DOC(This is the end of the range, it is also the 'max'.) */
@@ -465,7 +434,7 @@ union Range{
 DOC(File_Info describes the name and type of a file.)
 DOC_SEE(File_List)
 */
-struct File_Info{
+STRUCT File_Info{
     /* DOC(This field is a null terminated string specifying the name of the file.) */
     char *filename;
     /* DOC(This field specifies the length of the filename string not counting the null terminator.) */
@@ -475,7 +444,7 @@ struct File_Info{
 };
 
 /* DOC(File_List is a list of File_Info structs.) */
-struct File_List{
+STRUCT File_List{
     /* DOC(This field is for inernal use.) */
     void *block;
     /* DOC(This field is an array of File_Info structs.) */
@@ -486,26 +455,20 @@ struct File_List{
     int32_t block_size;
 };
 
-/* DOC(
-Buffer_Identifier acts as a loosely typed description of a buffer that
-can either be a name or an id.  If the
-) */
-struct Buffer_Identifier{
-    /* DOC(
-    This field is the name of the buffer; it need not be null terminated.
-    If id is specified this pointer should be NULL.
-    ) */
+/* DOC(Buffer_Identifier acts as a loosely typed description of a buffer that can either be a name or an id.) */
+ STRUCT Buffer_Identifier{
+    /* DOC(This field is the name of the buffer; it need not be null terminated. If id is specified this pointer should be NULL.) */
     char *name;
     
     /* DOC(This field specifies the length of the name string.) */
     int32_t name_len;
     
     /* DOC(This field is the id of the buffer.  If name is specified this should be 0.) */
-    int32_t id;
+     Buffer_ID id;
 };
 
 /* DOC(This struct is a part of an incomplete feature.) */
-struct GUI_Scroll_Vars{
+STRUCT GUI_Scroll_Vars{
     /* DOC(TODO) */
     float   scroll_y;
     /* DOC(TODO) */
@@ -542,32 +505,26 @@ ENUM(int32_t, Buffer_Seek_Type){
     buffer_seek_line_char
 };
 
-/* DOC(Buffer_Seek describes the destination of a seek operation.  There are helpers
-for concisely creating Buffer_Seek structs.  They can be found in 4coder_buffer_types.h.)
+/* DOC(Buffer_Seek describes the destination of a seek operation.  There are helpers for concisely creating Buffer_Seek structs.  They can be found in 4coder_buffer_types.h.)
 DOC_SEE(Buffer_Seek_Type)
-DOC_SEE(4coder_Buffer_Positioning_System)*/
-struct Buffer_Seek{
+DOC_SEE(4coder_Buffer_Positioning_System) */
+STRUCT Buffer_Seek{
     /* DOC(The type field determines the coordinate system of the seek operation.) */
     Buffer_Seek_Type type;
-    union{
-        struct {
+    UNION{
+        STRUCT {
             /* DOC(The pos field specified the pos when the seek is in absolute position.) */
             int32_t pos;
         };
-        struct {
-            /* DOC(For xy coordinate seeks, rounding down means that any x in the box of the
-            character lands on that character. For instance when clicking rounding down is the
-            user's expected behavior.  Not rounding down means that the right hand portion of
-            the character's box, which is closer to the next character, will land on that next
-            character.  The unrounded behavior is the expected behavior when moving vertically
-            and keeping the preferred x.) */
+        STRUCT {
+            /* DOC(For xy coordinate seeks, rounding down means that any x in the box of the character lands on that character. For instance when clicking rounding down is the user's expected behavior.  Not rounding down means that the right hand portion of the character's box, which is closer to the next character, will land on that next character.  The unrounded behavior is the expected behavior when moving vertically and keeping the preferred x.) */
             bool32 round_down;
             /* DOC(The x coordinate for xy type seeks.) */
             float x;
             /* DOC(The y coordinate for xy type seeks.) */
             float y;
         };
-        struct {
+        STRUCT {
             /* DOC(The line number of a line-character type seek.) */
             int32_t line;
             /* DOC(The character number of a line-character type seek.) */
@@ -576,11 +533,9 @@ struct Buffer_Seek{
     };
 };
 
-/* DOC(Full_Cursor describes the position of a cursor in every buffer
-coordinate system supported by 4coder. This cursor type requires that
-the buffer is associated with a view to give the x/y values meaning.)
+/* DOC(Full_Cursor describes the position of a cursor in every buffer coordinate system supported by 4coder. This cursor type requires that the buffer is associated with a view to give the x/y values meaning.)
 DOC_SEE(4coder_Buffer_Positioning_System) */
-struct Full_Cursor{
+STRUCT Full_Cursor{
     /* DOC(This field contains the cursor's position in absolute byte index positioning.) */
     int32_t pos;
     /* DOC(This field contains the cursor's position in apparent character index positioning.) */
@@ -608,7 +563,7 @@ the coordinate systems that a invariant to the View.  In other words
 the coordinate systems available here can be used on a buffer that is
 not currently associated with a View.)
 DOC_SEE(4coder_Buffer_Positioning_System) */
-struct Partial_Cursor{
+STRUCT Partial_Cursor{
     /* DOC(This field contains the cursor's position in absolute byte index positioning.) */
     int32_t pos;
     /* DOC(This field contains the number of the character from the beginninf of the line
@@ -621,7 +576,7 @@ struct Partial_Cursor{
 /* DOC(Buffer_Edit describes a range of a buffer and string to replace that range.
 A Buffer_Edit has to be paired with a string that contains the actual text that
 will be replaced into the buffer.) */
-struct Buffer_Edit{
+STRUCT Buffer_Edit{
     /* DOC(The str_start field specifies the first character in the accompanying string that corresponds with this edit.) */
     int32_t str_start;
     /* DOC(The len field specifies the length of the string being written into the buffer.) */
@@ -635,7 +590,7 @@ struct Buffer_Edit{
 /* DOC(Buffer_Summary acts as a handle to a buffer and describes the state of the buffer.)
 DOC_SEE(Access_Flag)
 DOC_SEE(Dirty_State) */
-struct Buffer_Summary{
+STRUCT Buffer_Summary{
     /* DOC(This field indicates whether the Buffer_Summary describes a buffer that is open in 4coder.
     When this field is false the summary is referred to as a "null summary".) */
     bool32 exists;
@@ -681,7 +636,7 @@ struct Buffer_Summary{
 /* DOC(View_Summary acts as a handle to a view and describes the state of the view.)
 DOC_SEE(Access_Flag)
 DOC_SEE(Full_Cursor) */
-struct View_Summary{
+STRUCT View_Summary{
     /* DOC(
     This field indicates whether the View_Summary describes a view that is open in 4coder.
     When this field is false the summary is referred to as a "null summary".
@@ -727,14 +682,14 @@ DOC(User_Input describes a user input event which can be either a key press or m
 DOC_SEE(User_Input_Type_ID)
 DOC_SEE(Generic_Command)
 */
-struct User_Input{
+ STRUCT User_Input{
     /*
     DOC(This field specifies whether the event was a key press or mouse event.)
     */
     User_Input_Type_ID type;
     /* DOC(This field indicates that an abort event has occurred and the command needs to shut down.) */
     bool32 abort;
-    union{
+    UNION{
         /* DOC(This field describes a key press event.) */
         Key_Event_Data key;
         /* DOC(This field describes a mouse input event.) */
@@ -748,7 +703,7 @@ struct User_Input{
 
 /* DOC(Query_Bar is a struct used to store information in the user's control
 that will be displayed as a drop down bar durring an interactive command.) */
-struct Query_Bar{
+ STRUCT Query_Bar{
     /* DOC(This specifies the prompt portion of the drop down bar.) */
     String prompt;
     /* DOC(This specifies the main string portion of the drop down bar.) */
@@ -756,7 +711,7 @@ struct Query_Bar{
 };
 
 /* DOC(This feature is not implemented.) */
-struct Event_Message{
+STRUCT Event_Message{
     /* DOC(This feature is not implemented.) */
     int32_t type;
 };
@@ -766,7 +721,7 @@ DOC(Theme_Color stores a style tag/color pair, for the purpose of setting and ge
 DOC_SEE(Style_Tag)
 DOC_SEE(int_color)
 */
-struct Theme_Color{
+STRUCT Theme_Color{
     /* DOC(The style slot in the style palette.) */
     Style_Tag tag;
     /* DOC(The color in the slot.) */
@@ -787,7 +742,7 @@ DOC(This struct is used to bundle the parameters of the buffer_batch_edit functi
 for a few functions that return a batch edit to the user.)
 DOC_SEE(buffer_batch_edit)
 */
-struct Buffer_Batch_Edit{
+STRUCT Buffer_Batch_Edit{
     /* DOC(The pointer to the edit string buffer.) */
     char *str;
     /* DOC(The length of the edit string buffer.) */

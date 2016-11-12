@@ -3792,10 +3792,12 @@ view_open_file(System_Functions *system, Models *models, View *view, String file
                     }
                     
                     if (system->load_file(handle, buffer, size)){
+                        system->load_close(handle);
                         init_normal_file(system, models, file, buffer, size);
                     }
-                    
+                    else{
                     system->load_close(handle);
+                    }
                     
                     if (gen_buffer){
                         general_memory_free(system, general, buffer);
