@@ -11,6 +11,9 @@ debug: ../build/build
 package: FLAGS += -DPACKAGE
 package: ../build/build
 
+site: FLAGS += -DSITE_BUILD
+site: ../build/build
+
 ../build/build: $(CPP_FILES) $(C_FILES) $(H_FILES)
 	g++ $(WARNINGS) $(FLAGS) build.cpp -g -o $@
 	../build/build

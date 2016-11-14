@@ -31,7 +31,7 @@ begin_file_out(Out_Context *out_context, char *filename, String *out){
     String name = make_fixed_width_string(str_space);
     if (out_context->out_directory.size > 0){
         append_ss(&name, out_context->out_directory);
-        append_sc(&name, "\\");
+        append_sc(&name, "/");
     }
     append_sc(&name, filename);
     terminate_with_null(&name);

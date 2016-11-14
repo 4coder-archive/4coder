@@ -454,6 +454,7 @@ enum{
     OPTIMIZATION = 0x100,
     KEEP_ASSERT = 0x200,
     SITE_INCLUDES = 0x400,
+     NORMAL_SELF_INCLUDES = 0x800,
 };
 
 
@@ -590,6 +591,9 @@ build_cl(uint32_t flags, char *code_path, char *code_file, char *out_path, char 
 #define GCC_INCLUDES \
 "-I../foreign"
 
+#define GCC_NORMAL_SELF_INCLUDES \
+"-I../code"
+
 #define GCC_SITE_INCLUDES \
 "-I../../code"
 
@@ -621,6 +625,10 @@ build_gcc(uint32_t flags, char *code_path, char *code_file, char *out_path, char
         
         build_ap(line, GCC_INCLUDES" %s", freetype_include);
 #endif
+    }
+    
+    if (flags & NORMAL_SELF_INCLUDES){
+        build_ap(line, GCC_NORMAL_SELF_INCLUDES);
     }
     
     if (flags & SITE_INCLUDES){
@@ -839,7 +847,7 @@ static void
 metagen(char *cdir){
     {
         BEGIN_TIME_SECTION();
-        build(OPTS | DEBUG_INFO, cdir, "4ed_metagen.cpp", META_DIR, "metagen", 0);
+        build(OPTS | DEBUG_INFO | NORMAL_SELF_INCLUDES, cdir, "4ed_metagen.cpp", META_DIR, "metagen", 0);
         END_TIME_SECTION("build metagen");
     }
     
@@ -915,7 +923,16 @@ site_build(char *cdir, uint32_t flags){
 #if defined(IS_WINDOWS)
         systemf("pushd %s\\site & ..\\..\\build\\site\\sitegen .. source_material ..\\..\\site", cdir);
         #else
-        systemf("pushd %s/site & ../../build/site/sitegen .. source_material ../../site", cdir);
+        char space[512];
+        String str = make_fixed_width_string(space);
+        append_sc(&str, cdir);
+        append_sc(&str, "/");
+        append_sc(&str, "site");
+        terminate_with_null(&str);
+        
+        Temp_Dir temp = linux_pushd(str.str);
+        systemf("../../build/site/sitegen .. source_material ../../site");
+        linux_popd(temp);
 #endif
         
         END_TIME_SECTION("run metagen");

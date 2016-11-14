@@ -293,7 +293,7 @@ generate_site(char *code_directory, char *src_directory, char *dst_directory){
         end_file_out(context);
     }
     else{
-        // TODO(allen): warning
+        fprintf(stderr, "Failed to open %s", API_DOC);
     }
     
 }
