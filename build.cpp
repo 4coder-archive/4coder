@@ -430,7 +430,8 @@ enum{
     SUPER = 0x40,
     INTERNAL = 0x80,
     OPTIMIZATION = 0x100,
-    KEEP_ASSERT = 0x200
+    KEEP_ASSERT = 0x200,
+    SITE_INCLUDES = 0x400,
 };
 
 
@@ -483,6 +484,9 @@ init_build_line(Build_Line *line){
 #define CL_INCLUDES \
 "/I..\\foreign /I..\\foreign\\freetype2"
 
+#define CL_SITE_INCLUDES \
+"/I..\\..\\code"
+
 #define CL_LIBS                                  \
 "user32.lib winmm.lib gdi32.lib opengl32.lib "   \
 "..\\foreign\\freetype.lib"
@@ -491,10 +495,7 @@ init_build_line(Build_Line *line){
 "..\\res\\icon.res"
 
 static void
-build_cl(uint32_t flags,
-         char *code_path, char *code_file,
-         char *out_path, char *out_file,
-         char *exports){
+build_cl(uint32_t flags, char *code_path, char *code_file, char *out_path, char *out_file, char *exports){
     slash_fix(out_path);
     slash_fix(code_path);
     
@@ -507,6 +508,10 @@ build_cl(uint32_t flags,
     
     if (flags & INCLUDES){
         build_ap(line, CL_INCLUDES);
+    }
+    
+    if (flags & SITE_INCLUDES){
+        build_ap(line, CL_SITE_INCLUDES);
     }
     
     if (flags & LIBS){
@@ -552,31 +557,26 @@ build_cl(uint32_t flags,
         snprintf(link_options, sizeof(link_options), "/NODEFAULTLIB:library");
     }
     
-    systemf("pushd %s & cl %s %s\\%s /Fe%s /link /DEBUG /INCREMENTAL:NO %s",
-            out_path, line.build_options, code_path, code_file, out_file, link_options);
+    systemf("pushd %s & cl %s %s\\%s /Fe%s /link /DEBUG /INCREMENTAL:NO %s", out_path, line.build_options, code_path, code_file, out_file, link_options);
 }
 
 
-// NOTE(inso): added ../code to GCC_OPTS to allow metagen to build.
-// this is currently needed because it is built with cwd ../meta but includes
-// 4cpp_lexer.h which is in code/ whereas metagen.cpp is in code/site
-
 #define GCC_OPTS                             \
 "-Wno-write-strings -D_GNU_SOURCE -fPIC "    \
-"-fno-threadsafe-statics -pthread -I../code"
+"-fno-threadsafe-statics -pthread"
 
 #define GCC_INCLUDES \
 "-I../foreign"
+
+#define GCC_SITE_INCLUDES \
+"-I../../code"
 
 #define GCC_LIBS                               \
 "-L/usr/local/lib -lX11 -lpthread -lm -lrt "   \
 "-lGL -ldl -lXfixes -lfreetype -lfontconfig"
 
 static void
-build_gcc(uint32_t flags,
-          char *code_path, char *code_file,
-          char *out_path, char *out_file,
-          char *exports){
+build_gcc(uint32_t flags, char *code_path, char *code_file, char *out_path, char *out_file, char *exports){
     Build_Line line;
     init_build_line(&line);
     
@@ -599,6 +599,10 @@ build_gcc(uint32_t flags,
         
         build_ap(line, GCC_INCLUDES" %s", freetype_include);
 #endif
+    }
+    
+    if (flags & SITE_INCLUDES){
+        build_ap(line, GCC_SITE_INCLUDES);
     }
     
     if (flags & DEBUG_INFO){
@@ -642,10 +646,7 @@ build_gcc(uint32_t flags,
 }
 
 static void
-build(uint32_t flags,
-      char *code_path, char *code_file,
-      char *out_path, char *out_file,
-      char *exports){
+build(uint32_t flags, char *code_path, char *code_file, char *out_path, char *out_file, char *exports){
 #if defined(IS_CL)
     build_cl(flags, code_path, code_file, out_path, out_file, exports);
 #elif defined(IS_GCC)
@@ -683,6 +684,7 @@ buildsuper(char *code_path, char *out_path, char *filename){
 #define D_META_FSM_DIR "../meta/fsmgen"
 #define D_META_GEN_DIR "../meta/metagen"
 #define D_BUILD_DIR "../build"
+#define D_BUILD_SITE_DIR "../build/site"
 
 #define D_PACK_DIR "../distributions"
 #define D_PACK_DATA_DIR "../data/dist_files"
@@ -700,6 +702,7 @@ static char *META_DIR = 0;
 static char *META_FSM_DIR = 0;
 static char *META_GEN_DIR = 0;
 static char *BUILD_DIR = 0;
+static char *BUILD_SITE_DIR = 0;
 static char *PACK_DIR = 0;
 static char *PACK_DATA_DIR = 0;
 static char *DATA_DIR = 0;
@@ -737,6 +740,10 @@ init_global_strings(){
     
     BUILD_DIR = get_head(builder);
     append_sc(&builder, D_BUILD_DIR);
+    append_ss(&builder, term);
+    
+    BUILD_SITE_DIR = get_head(builder);
+    append_sc(&builder, D_BUILD_SITE_DIR);
     append_ss(&builder, term);
     
     PACK_DIR = get_head(builder);
@@ -804,8 +811,7 @@ static void
 metagen(char *cdir){
     {
         BEGIN_TIME_SECTION();
-        build(OPTS | DEBUG_INFO, cdir, "4ed_metagen.cpp",
-              META_DIR, "metagen", 0);
+        build(OPTS | DEBUG_INFO, cdir, "4ed_metagen.cpp", META_DIR, "metagen", 0);
         END_TIME_SECTION("build metagen");
     }
     
@@ -848,15 +854,13 @@ static void
 build_main(char *cdir, uint32_t flags){
     {
         BEGIN_TIME_SECTION();
-        build(OPTS | INCLUDES | SHARED_CODE | flags, cdir, "4ed_app_target.cpp",
-              BUILD_DIR, "4ed_app"DLL, "/EXPORT:app_get_functions");
+        build(OPTS | INCLUDES | SHARED_CODE | flags, cdir, "4ed_app_target.cpp", BUILD_DIR, "4ed_app"DLL, "/EXPORT:app_get_functions");
         END_TIME_SECTION("build 4ed_app");
     }
     
     {
         BEGIN_TIME_SECTION();
-        build(OPTS | INCLUDES | LIBS | ICON | flags, cdir, PLAT_LAYER,
-              BUILD_DIR, "4ed", 0);
+        build(OPTS | INCLUDES | LIBS | ICON | flags, cdir, PLAT_LAYER, BUILD_DIR, "4ed", 0);
         END_TIME_SECTION("build 4ed");
     }
 }
@@ -867,6 +871,13 @@ standard_build(char *cdir, uint32_t flags){
     metagen(cdir);
     do_buildsuper(cdir);
     build_main(cdir, flags);
+}
+
+static void
+site_build(char *cdir, uint32_t flags){
+    BEGIN_TIME_SECTION();
+    build(OPTS | SITE_INCLUDES | flags, cdir, "site/sitegen.cpp", BUILD_SITE_DIR, "sitegen", 0);
+    END_TIME_SECTION("build site");
 }
 
 static void
@@ -1002,6 +1013,24 @@ int main(int argc, char **argv){
     END_TIME_SECTION("current directory");
     
     package(cdir);
+    
+    return(error_state);
+}
+
+#elif defined(SITE_BUILD)
+
+int main(int argc, char **argv){
+    init_time_system();
+    init_global_strings();
+    
+    char cdir[256];
+    
+    BEGIN_TIME_SECTION();
+    int32_t n = get_current_directory(cdir, sizeof(cdir));
+    assert(n < sizeof(cdir));
+    END_TIME_SECTION("current directory");
+    
+    site_build(cdir, DEBUG_INFO);
     
     return(error_state);
 }

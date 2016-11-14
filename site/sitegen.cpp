@@ -10,9 +10,7 @@
 // TOP
 
 #include "4coder_version.h"
-
 #include "internal_4coder_string.cpp"
-
 #include "4cpp_lexer.h"
 
 #include <stdlib.h>
