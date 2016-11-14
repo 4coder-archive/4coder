@@ -27,7 +27,7 @@ load_enriched_text(Partition *part, char *directory, char *filename){
     char space[256];
     String fname = make_fixed_width_string(space);
     append_sc(&fname, directory);
-    append_sc(&fname, "\\");
+    append_sc(&fname, "/");
     append_sc(&fname, filename);
     terminate_with_null(&fname);
     

@@ -129,7 +129,7 @@ assert_files_are_equal(char *directory, char *filename1, char *filename2){
     char space[256];
     String name = make_fixed_width_string(space);
     append_sc(&name, directory);
-    append_sc(&name, "\\");
+    append_sc(&name, "/");
     append_sc(&name, filename1);
     terminate_with_null(&name);
                                      
@@ -137,7 +137,7 @@ assert_files_are_equal(char *directory, char *filename1, char *filename2){
                                      
     name.size = 0;
     append_sc(&name, directory);
-    append_sc(&name, "\\");
+    append_sc(&name, "/");
     append_sc(&name, filename2);
     terminate_with_null(&name);
                                      
