@@ -75,7 +75,7 @@ static int32_t prev_error = 0;
 static void     init_time_system();
 static uint64_t get_time();
 static int32_t  get_current_directory(char *buffer, int32_t max);
-static void     execute(char *dir, char *str);
+static void     execute(char *dir, char *str, char *args);
 
 static void make_folder_if_missing(char *dir, char *folder);
 static void clear_folder(char *folder);
@@ -142,12 +142,22 @@ get_current_directory(char *buffer, int32_t max){
 }
 
 static void
-execute(char *dir, char *str){
+execute(char *dir, char *str, char *args){
     if (dir){
-        systemf("pushd %s & call \"%s\"", dir, str);
+        if (args){
+        systemf("pushd %s & call \"%s\" %s", dir, str, args);
+        }
+        else{
+            systemf("pushd %s & call \"%s\"", dir, str);
+        }
     }
     else{
-        systemf("call \"%s\"", str);
+        if (args){
+            systemf("call \"%s\" %s", str, args);
+        }
+        else{
+            systemf("call \"%s\"", str);
+        }
     }
 }
 
@@ -299,14 +309,26 @@ get_current_directory(char *buffer, int32_t max){
 }
 
 static void
-execute(char *dir, char *str){
+execute(char *dir, char *str, char *args){
     if (dir){
+        if (args){
         Temp_Dir temp = linux_pushd(dir);
-        systemf("%s", str);
+        systemf("%s %s", str, args);
         linux_popd(temp);
+        }
+        else{
+            Temp_Dir temp = linux_pushd(dir);
+            systemf("%s", str);
+            linux_popd(temp);
+        }
     }
     else{
-        systemf("%s", str);
+        if (args){
+        systemf("%s %s", str, args);
+        }
+        else{
+            systemf("%s", str);
+        }
     }
 }
 
@@ -685,6 +707,7 @@ buildsuper(char *code_path, char *out_path, char *filename){
 #define D_META_GEN_DIR "../meta/metagen"
 #define D_BUILD_DIR "../build"
 #define D_BUILD_SITE_DIR "../build/site"
+#define D_SITE_GEN_DIR "../../build/site/sitegen"
 
 #define D_PACK_DIR "../distributions"
 #define D_PACK_DATA_DIR "../data/dist_files"
@@ -703,6 +726,7 @@ static char *META_FSM_DIR = 0;
 static char *META_GEN_DIR = 0;
 static char *BUILD_DIR = 0;
 static char *BUILD_SITE_DIR = 0;
+static char *SITE_GEN_DIR = 0;
 static char *PACK_DIR = 0;
 static char *PACK_DATA_DIR = 0;
 static char *DATA_DIR = 0;
@@ -743,6 +767,10 @@ init_global_strings(){
     
     BUILD_SITE_DIR = get_head(builder);
     append_sc(&builder, D_BUILD_SITE_DIR);
+    append_ss(&builder, term);
+    
+    SITE_GEN_DIR = get_head(builder);
+    append_sc(&builder, D_SITE_GEN_DIR);
     append_ss(&builder, term);
     
     PACK_DIR = get_head(builder);
@@ -801,7 +829,7 @@ fsm_generator(char *cdir){
     
     if (prev_error == 0){
         BEGIN_TIME_SECTION();
-        execute(cdir, META_FSM_DIR);
+        execute(cdir, META_FSM_DIR, 0);
         END_TIME_SECTION("run fsm generator");
     }
 }
@@ -816,7 +844,7 @@ metagen(char *cdir){
     
     if (prev_error == 0){
         BEGIN_TIME_SECTION();
-        execute(cdir, META_GEN_DIR);
+        execute(cdir, META_GEN_DIR, 0);
         END_TIME_SECTION("run metagen");
     }
 }
@@ -874,9 +902,23 @@ standard_build(char *cdir, uint32_t flags){
 
 static void
 site_build(char *cdir, uint32_t flags){
+    {
     BEGIN_TIME_SECTION();
     build(OPTS | SITE_INCLUDES | flags, cdir, "site/sitegen.cpp", BUILD_SITE_DIR, "sitegen", 0);
-    END_TIME_SECTION("build site");
+    END_TIME_SECTION("build sitegen");
+    }
+    
+    {
+        BEGIN_TIME_SECTION();
+        
+#if defined(IS_WINDOWS)
+        systemf("pushd %s\\site & ..\\..\\build\\site\\sitegen .. source_material ..\\..\\site", cdir);
+        #else
+        systemf("pushd %s/site & ../../build/site/sitegen .. source_material ../../site", cdir);
+#endif
+        
+        END_TIME_SECTION("run metagen");
+    }
 }
 
 static void
