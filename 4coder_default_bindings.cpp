@@ -93,9 +93,7 @@ CUSTOM_COMMAND_SIG(rewrite_as_single_caps){
     
     buffer_replace_range(app, &buffer, range.min, range.max, string.str, string.size);
     
-    view_set_cursor(app, &view,
-                         seek_line_char(cursor.line+1, cursor.character),
-                         true);
+    view_set_cursor(app, &view, seek_line_char(cursor.line+1, cursor.character), true);
 }
 
 CUSTOM_COMMAND_SIG(open_my_files){
@@ -107,11 +105,7 @@ CUSTOM_COMMAND_SIG(open_my_files){
 CUSTOM_COMMAND_SIG(build_at_launch_location){
     uint32_t access = AccessAll;
     View_Summary view = get_active_view(app, access);
-    exec_system_command(app, &view,
-                             buffer_identifier(literal("*compilation*")),
-                             literal("."),
-                             literal("build"),
-                             CLI_OverlapWithConflict);
+    exec_system_command(app, &view, buffer_identifier(literal("*compilation*")),literal("."), literal("build"), CLI_OverlapWithConflict);
 }
 
 CUSTOM_COMMAND_SIG(seek_whitespace_up_end_line){
@@ -405,7 +399,9 @@ default_keys(Bind_Helper *context){
     bind(context, key_left, MDFR_NONE, move_left);
     bind(context, key_right, MDFR_NONE, move_right);
     bind(context, key_del, MDFR_NONE, delete_char);
+    bind(context, key_del, MDFR_SHIFT, delete_char);
     bind(context, key_back, MDFR_NONE, backspace_char);
+    bind(context, key_back, MDFR_SHIFT, backspace_char);
     bind(context, key_up, MDFR_NONE, move_up);
     bind(context, key_down, MDFR_NONE, move_down);
     bind(context, key_end, MDFR_NONE, seek_end_of_line);
