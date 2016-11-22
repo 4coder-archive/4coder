@@ -25,7 +25,7 @@
 
 #define InvalidPath Assert(!"Invalid path of execution")
 
-//////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////
 
 //
 // Meta Parse Rules
@@ -151,150 +151,210 @@ assert_files_are_equal(char *directory, char *filename1, char *filename2){
     }
     }
                                      
+    static Abstract_Document*
+        generate_4coder_API(Partition *part, char *code_directory, char *src_directory, char *dst_directory){
+#define API_DOC "4coder_API.html"
+        
+        static Meta_Keywords meta_keywords[] = {
+            {make_lit_string("API_EXPORT")        , Item_Function } ,
+            {make_lit_string("API_EXPORT_INLINE") , Item_Function } ,
+            {make_lit_string("API_EXPORT_MACRO")  , Item_Macro    } ,
+            {make_lit_string("CPP_NAME")          , Item_CppName  } ,
+            {make_lit_string("TYPEDEF") , Item_Typedef } ,
+            {make_lit_string("STRUCT")  , Item_Struct  } ,
+            {make_lit_string("UNION")   , Item_Union   } ,
+            {make_lit_string("ENUM")    , Item_Enum    } ,
+        };
+        
+#define ExpandArray(a) (a), (ArrayCount(a))
+        
+        Meta_Unit *custom_types_unit = push_struct(part, Meta_Unit);
+        Meta_Unit *lexer_funcs_unit = push_struct(part, Meta_Unit);
+        Meta_Unit *lexer_types_unit = push_struct(part, Meta_Unit);
+        Meta_Unit *string_unit = push_struct(part, Meta_Unit);
+        Meta_Unit *custom_funcs_unit = push_struct(part, Meta_Unit);
+        
+        Alternate_Names_Array *custom_func_names = push_struct(part, Alternate_Names_Array);
+        
+        Enriched_Text *introduction = push_struct(part, Enriched_Text);
+        Enriched_Text *lexer_introduction = push_struct(part, Enriched_Text);
+        
+        Abstract_Document *doc = push_struct(part, Abstract_Document);
+        
+        // NOTE(allen): Parse the important code.
+        *custom_types_unit = compile_meta_unit(part, code_directory, "4coder_types.h", ExpandArray(meta_keywords));
+        
+        *lexer_funcs_unit = compile_meta_unit(part, code_directory, "4cpp_lexer.h", ExpandArray(meta_keywords));
+        
+        *lexer_types_unit = compile_meta_unit(part, code_directory, "4cpp_lexer_types.h", ExpandArray(meta_keywords));
+        
+        *string_unit = compile_meta_unit(part, code_directory, "internal_4coder_string.cpp", ExpandArray(meta_keywords));
+        
+        static char *functions_files[] = {
+            "4ed_api_implementation.cpp",
+            "win32_api_impl.cpp",
+            0
+        };
+        
+        *custom_funcs_unit = compile_meta_unit(part, code_directory, functions_files, ExpandArray(meta_keywords));
+        
+        
+        // NOTE(allen): Compute and store variations of the custom function names
+        *custom_func_names = allocate_app_api(part, custom_funcs_unit->set.count);
+        
+        for (int32_t i = 0; i < custom_funcs_unit->set.count; ++i){
+            String name_string = custom_funcs_unit->set.items[i].name;
+            String *macro = &custom_func_names->names[i].macro;
+            String *public_name = &custom_func_names->names[i].public_name;
+            
+            *macro = str_alloc(part, name_string.size+4);
+            to_upper_ss(macro, name_string);
+            append_ss(macro, make_lit_string("_SIG"));
+            
+            *public_name = str_alloc(part, name_string.size);
+            to_lower_ss(public_name, name_string);
+            
+            partition_align(part, 4);
+        }
+        
+        // NOTE(allen): Load enriched text materials
+        *introduction = load_enriched_text(part, src_directory, "introduction.txt");
+        *lexer_introduction = load_enriched_text(part, src_directory, "lexer_introduction.txt");
+        
+        // NOTE(allen): Put together the abstract document
+        memset(doc, 0, sizeof(*doc));
+        begin_document_description(doc, part, "4coder API Docs");
+        set_document_name(doc, API_DOC);
+        
+        add_table_of_contents(doc);
+        
+        begin_section(doc, "Introduction", "introduction");
+        add_enriched_text(doc, introduction);
+        end_section(doc);
+        
+        begin_section(doc, "4coder Systems", "4coder_systems");
+        add_todo(doc);
+        end_section(doc);
+        
+        begin_section(doc, "Types and Functions", "types_and_functions");
+        {
+            begin_section(doc, "Function List", 0);
+            add_element_list(doc, custom_funcs_unit, custom_func_names, AltName_Public_Name);
+            end_section(doc);
+            begin_section(doc, "Type List", 0);
+            add_element_list(doc, custom_types_unit);
+            end_section(doc);
+            begin_section(doc, "Function Descriptions", 0);
+            add_full_elements(doc, custom_funcs_unit, custom_func_names, AltName_Public_Name);
+            end_section(doc);
+            begin_section(doc, "Type Descriptions", 0);
+            add_full_elements(doc, custom_types_unit);
+            end_section(doc);
+        }
+        end_section(doc);
+        
+        begin_section(doc, "String Library", "string_library");
+        {
+            begin_section(doc, "String Library Intro", 0);
+            add_todo(doc);
+            end_section(doc);
+            begin_section(doc, "String Function List", 0);
+            add_element_list(doc, string_unit);
+            end_section(doc);
+            begin_section(doc, "String Function Descriptions", 0);
+            add_full_elements(doc, string_unit);
+            end_section(doc);
+        }
+        end_section(doc);
+        
+        begin_section(doc, "Lexer Library", "lexer_library");
+        {
+            begin_section(doc, "Lexer Intro", 0);
+            add_enriched_text(doc, lexer_introduction);
+            end_section(doc);
+            begin_section(doc, "Lexer Function List", 0);
+            add_element_list(doc, lexer_funcs_unit);
+            end_section(doc);
+            begin_section(doc, "Lexer Type List", 0);
+            add_element_list(doc, lexer_types_unit);
+            end_section(doc);
+            begin_section(doc, "Lexer Function Descriptions", 0);
+            add_full_elements(doc, lexer_funcs_unit);
+            end_section(doc);
+            begin_section(doc, "Lexer Type Descriptions", 0);
+            add_full_elements(doc, lexer_types_unit);
+            end_section(doc);
+        }
+        end_section(doc);
+        
+        end_document_description(doc);
+        
+        // NOTE(allen): Output
+        Temp_Memory temp = begin_temp_memory(part);
+        String out = str_alloc(part, 10 << 20);
+        Out_Context context = {0};
+        set_context_directory(&context, dst_directory);
+        
+        // Output Docs
+        if (begin_file_out(&context, doc->name, &out)){
+            generate_document_html(&out, part, doc);
+            end_file_out(context);
+        }
+        else{
+            fprintf(stderr, "Failed to open %s", doc->name);
+        }
+        end_temp_memory(temp);
+        
+        return(doc);
+    }
+    
+    static Abstract_Document*
+        generate_feature_list(Partition *part, char *src_directory, char *dst_directory){
+            Enriched_Text *feature_list = push_struct(part, Enriched_Text);
+            Abstract_Document *doc = push_struct(part, Abstract_Document);
+        
+            *feature_list = load_enriched_text(part, src_directory, "feature_list.txt");
+            
+            // NOTE(allen): Put together the abstract document
+            memset(doc, 0, sizeof(*doc));
+            begin_document_description(doc, part, "4coder Feature List");
+            set_document_name(doc, "4coder_features.html");
+            
+            add_enriched_text(doc, feature_list);
+            
+            end_document_description(doc);
+            
+            // NOTE(allen): Output
+            Temp_Memory temp = begin_temp_memory(part);
+            String out = str_alloc(part, 10 << 20);
+            Out_Context context = {0};
+            set_context_directory(&context, dst_directory);
+            
+            // Output Docs
+            if (begin_file_out(&context, doc->name, &out)){
+                generate_document_html(&out, part, doc);
+                end_file_out(context);
+            }
+            else{
+                fprintf(stderr, "Failed to open %s", doc->name);
+            }
+            end_temp_memory(temp);
+            
+        return(doc);
+    }
+    
 static void
 generate_site(char *code_directory, char *src_directory, char *dst_directory){
-#define API_DOC "4coder_API.html"
-                                     
     int32_t size = (512 << 20);
     void *mem = malloc(size);
     memset(mem, 0, size);
-                                     
+    
     Partition part_ = make_part(mem, size);
     Partition *part = &part_;
-                                     
-    static Meta_Keywords meta_keywords[] = {
-        {make_lit_string("API_EXPORT")        , Item_Function } ,
-        {make_lit_string("API_EXPORT_INLINE") , Item_Function } ,
-        {make_lit_string("API_EXPORT_MACRO")  , Item_Macro    } ,
-        {make_lit_string("CPP_NAME")          , Item_CppName  } ,
-        {make_lit_string("TYPEDEF") , Item_Typedef } ,
-        {make_lit_string("STRUCT")  , Item_Struct  } ,
-        {make_lit_string("UNION")   , Item_Union   } ,
-        {make_lit_string("ENUM")    , Item_Enum    } ,
-    };
-                                     
-#define ExpandArray(a) (a), (ArrayCount(a))
-                                     
-    // NOTE(allen): Parse the important code.
-    Meta_Unit custom_types_unit = compile_meta_unit(part, code_directory, "4coder_types.h", ExpandArray(meta_keywords));
-                                     
-    Meta_Unit lexer_funcs_unit = compile_meta_unit(part, code_directory, "4cpp_lexer.h", ExpandArray(meta_keywords));
-                                     
-    Meta_Unit lexer_types_unit = compile_meta_unit(part, code_directory, "4cpp_lexer_types.h", ExpandArray(meta_keywords));
-                                     
-    Meta_Unit string_unit = compile_meta_unit(part, code_directory, "internal_4coder_string.cpp", ExpandArray(meta_keywords));
-                                     
-    static char *functions_files[] = {
-        "4ed_api_implementation.cpp",
-        "win32_api_impl.cpp",
-        0
-    };
-                                     
-    Meta_Unit custom_funcs_unit = compile_meta_unit(part, code_directory, functions_files, ExpandArray(meta_keywords));
-                                     
-                                     
-    // NOTE(allen): Compute and store variations of the custom function names
-     Alternate_Names_Array custom_func_names = allocate_app_api(part, custom_funcs_unit.set.count);
-                                     
-    for (int32_t i = 0; i < custom_funcs_unit.set.count; ++i){
-        String name_string = custom_funcs_unit.set.items[i].name;
-        String *macro = &custom_func_names.names[i].macro;
-        String *public_name = &custom_func_names.names[i].public_name;
-                                     
-        *macro = str_alloc(part, name_string.size+4);
-        to_upper_ss(macro, name_string);
-        append_ss(macro, make_lit_string("_SIG"));
-                                     
-        *public_name = str_alloc(part, name_string.size);
-        to_lower_ss(public_name, name_string);
-                                     
-        partition_align(part, 4);
-    }
-                                     
-    // NOTE(allen): Load enriched text materials
-    Enriched_Text introduction = load_enriched_text(part, src_directory, "introduction.txt");
-    Enriched_Text lexer_introduction = load_enriched_text(part, src_directory, "lexer_introduction.txt");
-                                     
-    // NOTE(allen): Put together the abstract document
-    Abstract_Document doc = {0};
-    begin_document_description(&doc, part, "4coder API Docs");
-                                     
-    add_table_of_contents(&doc);
-                                     
-    begin_section(&doc, "Introduction", "introduction");
-    add_enriched_text(&doc, &introduction);
-    end_section(&doc);
-                                     
-    begin_section(&doc, "4coder Systems", "4coder_systems");
-    add_todo(&doc);
-    end_section(&doc);
-                                     
-    begin_section(&doc, "Types and Functions", "types_and_functions");
-    {
-        begin_section(&doc, "Function List", 0);
-        add_element_list(&doc, &custom_funcs_unit, &custom_func_names, AltName_Public_Name);
-        end_section(&doc);
-        begin_section(&doc, "Type List", 0);
-        add_element_list(&doc, &custom_types_unit);
-        end_section(&doc);
-        begin_section(&doc, "Function Descriptions", 0);
-        add_full_elements(&doc, &custom_funcs_unit, &custom_func_names, AltName_Public_Name);
-        end_section(&doc);
-        begin_section(&doc, "Type Descriptions", 0);
-        add_full_elements(&doc, &custom_types_unit);
-        end_section(&doc);
-    }
-    end_section(&doc);
-                                     
-    begin_section(&doc, "String Library", "string_library");
-    {
-        begin_section(&doc, "String Library Intro", 0);
-        add_todo(&doc);
-        end_section(&doc);
-        begin_section(&doc, "String Function List", 0);
-        add_element_list(&doc, &string_unit);
-    end_section(&doc);
-        begin_section(&doc, "String Function Descriptions", 0);
-        add_full_elements(&doc, &string_unit);
-        end_section(&doc);
-    }
-    end_section(&doc);
-                                     
-    begin_section(&doc, "Lexer Library", "lexer_library");
-    {
-        begin_section(&doc, "Lexer Intro", 0);
-        add_enriched_text(&doc, &lexer_introduction);
-        end_section(&doc);
-        begin_section(&doc, "Lexer Function List", 0);
-        add_element_list(&doc, &lexer_funcs_unit);
-        end_section(&doc);
-        begin_section(&doc, "Lexer Type List", 0);
-        add_element_list(&doc, &lexer_types_unit);
-        end_section(&doc);
-        begin_section(&doc, "Lexer Function Descriptions", 0);
-        add_full_elements(&doc, &lexer_funcs_unit);
-        end_section(&doc);
-        begin_section(&doc, "Lexer Type Descriptions", 0);
-        add_full_elements(&doc, &lexer_types_unit);
-        end_section(&doc);
-    }
-    end_section(&doc);
-                                     
-    end_document_description(&doc);
-                                     
-    // NOTE(allen): Output
-    String out = str_alloc(part, 10 << 20);
-    Out_Context context = {0};
-    set_context_directory(&context, dst_directory);
-                                     
-    // Output Docs
-    if (begin_file_out(&context, API_DOC, &out)){
-        generate_document_html(&out, part, &doc);
-        end_file_out(context);
-    }
-    else{
-        fprintf(stderr, "Failed to open %s", API_DOC);
-    }
+    
+    Abstract_Document *api_document = generate_4coder_API(part, code_directory, src_directory, dst_directory);
+    
+    Abstract_Document *feature_list = generate_feature_list(part, src_directory, dst_directory);
     
 }
 

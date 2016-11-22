@@ -188,8 +188,7 @@ restore_state(Application_Links *app, App_Coroutine_State state){
 }
 
 inline Coroutine*
-app_launch_coroutine(System_Functions *system, Application_Links *app, Coroutine_Type type,
-                     Coroutine *co, void *in, void *out){
+app_launch_coroutine(System_Functions *system, Application_Links *app, Coroutine_Type type, Coroutine *co, void *in, void *out){
     Coroutine* result = 0;
     
     App_Coroutine_State prev_state = get_state(app);
@@ -203,8 +202,7 @@ app_launch_coroutine(System_Functions *system, Application_Links *app, Coroutine
 }
 
 inline Coroutine*
-app_resume_coroutine(System_Functions *system, Application_Links *app, Coroutine_Type type,
-                     Coroutine *co, void *in, void *out){
+app_resume_coroutine(System_Functions *system, Application_Links *app, Coroutine_Type type, Coroutine *co, void *in, void *out){
     Coroutine* result = 0;
     
     App_Coroutine_State prev_state = get_state(app);

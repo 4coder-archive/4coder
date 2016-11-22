@@ -90,6 +90,7 @@ static Document_Item null_document_item = {0};
 struct Abstract_Document{
     // Document value members
     Document_Item *root_item;
+    char *name;
     
     // Document building members
     Partition *part;
@@ -125,6 +126,11 @@ begin_document_description(Abstract_Document *doc, Partition *part, char *title)
     doc->root_item->type = Doc_Root;
     
     set_section_name(doc->part, doc->root_item, title);
+}
+
+static void
+set_document_name(Abstract_Document *doc, char *name){
+    doc->name = name;
 }
 
 static void
@@ -296,10 +302,10 @@ struct Section_Counter{
 };
 
 static void
-append_section_number_reduced(String *out, Section_Counter section_counter, int32_t reduce){
-    int32_t level = section_counter.nest_level-reduce;
+append_section_number_reduced(String *out, Section_Counter *section_counter, int32_t reduce){
+    int32_t level = section_counter->nest_level-reduce;
     for (int32_t i = 1; i <= level; ++i){
-        append_int_to_str(out, section_counter.counter[i]);
+        append_int_to_str(out, section_counter->counter[i]);
         if (i != level){
             append_sc(out, ".");
         }
@@ -307,7 +313,7 @@ append_section_number_reduced(String *out, Section_Counter section_counter, int3
 }
 
 static void
-append_section_number(String *out, Section_Counter section_counter){
+append_section_number(String *out, Section_Counter *section_counter){
     append_section_number_reduced(out, section_counter, 0);
 }
 
@@ -360,7 +366,39 @@ extract_command_body(String *out, String l, int32_t *i_in_out, int32_t *body_sta
 }
 
 static void
-write_enriched_text_html(String *out, Enriched_Text *text){
+html_render_section_header(String *out, String section_name, String section_id, Section_Counter *section_counter){
+    if (section_counter->nest_level <= 1){
+        if (section_id.size > 0){
+            append_sc(out, "\n<h2 id='section_");
+            append_ss(out, section_id);
+            append_sc(out, "'>&sect;");
+        }
+        else{
+            append_sc(out, "\n<h2>&sect;");
+        }
+        append_section_number(out, section_counter);
+        append_sc(out, " ");
+        append_ss(out, section_name);
+        append_sc(out, "</h2>");
+    }
+    else{
+        if (section_id.size > 0){
+            append_sc(out, "<h3 id='section_");
+            append_ss(out, section_id);
+            append_sc(out, "'>&sect;");
+        }
+        else{
+            append_sc(out, "<h3>&sect;");
+        }
+        append_section_number(out, section_counter);
+        append_sc(out, " ");
+        append_ss(out, section_name);
+        append_sc(out, "</h3>");
+    }
+}
+
+static void
+write_enriched_text_html(String *out, Enriched_Text *text, Section_Counter *section_counter){
     String source = text->source;
     
     append_sc(out, "<div>");
@@ -393,33 +431,54 @@ write_enriched_text_html(String *out, Enriched_Text *text){
                 
                 String command_string = substr(l, command_start, command_end - command_start);
                 
-                static String enriched_commands[] = {
-                    make_lit_string("\\"),
-                    make_lit_string("VERSION"),
-                    make_lit_string("CODE_STYLE"),
-                    make_lit_string("DOC_LINK"),
+                enum Command_Types{
+                    Cmd_BackSlash,
+                    Cmd_Version,
+                    Cmd_CodeStyle,
+                    Cmd_DocLink,
+                    Cmd_BeginList,
+                    Cmd_EndList,
+                    Cmd_BeginItem,
+                    Cmd_EndItem,
+                    Cmd_BoldFace,
+                    Cmd_Section,
+                    // never below this
+                    Cmd_COUNT,
                 };
+                
+                static String enriched_commands[Cmd_COUNT];
+                
+                enriched_commands[Cmd_BackSlash] = make_lit_string("\\");
+                enriched_commands[Cmd_Version]   = make_lit_string("VERSION");
+                enriched_commands[Cmd_CodeStyle] = make_lit_string("CODE_STYLE");
+                enriched_commands[Cmd_DocLink]   = make_lit_string("DOC_LINK");
+                enriched_commands[Cmd_BeginList] = make_lit_string("BEGIN_LIST");
+                enriched_commands[Cmd_EndList]   = make_lit_string("END_LIST");
+                enriched_commands[Cmd_BeginItem] = make_lit_string("BEGIN_ITEM");
+                enriched_commands[Cmd_EndItem]   = make_lit_string("END_ITEM");
+                enriched_commands[Cmd_BoldFace]  = make_lit_string("BOLD_FACE");
+                enriched_commands[Cmd_Section]   = make_lit_string("SECTION");
                 
                 i = command_end;
                 
                 int32_t match_index = 0;
                 if (string_set_match(enriched_commands, ArrayCount(enriched_commands), command_string, &match_index)){
                     switch (match_index){
-                        case 0: append_sc(out, "\\"); break;
-                        case 1: append_sc(out, VERSION); break;
-                        case 2:
+                        case Cmd_BackSlash: append_sc(out, "\\"); break;
+                        case Cmd_Version: append_sc(out, VERSION); break;
+                        case Cmd_CodeStyle:
                         {
                             int32_t body_start = 0, body_end = 0;
-                             int32_t has_body = extract_command_body(out, l, &i, &body_start, &body_end, command_string);
+                            int32_t has_body = extract_command_body(out, l, &i, &body_start, &body_end, command_string);
                             if (has_body){
                                 String body_text = substr(l, body_start, body_end - body_start);
-                            append_sc(out, "<span style='"HTML_CODE_STYLE"'>");
-                            append_ss(out, body_text);
-                            append_sc(out, "</span>");
-                        }
+                                append_sc(out, "<span style='"HTML_CODE_STYLE"'>");
+                                append_ss(out, body_text);
+                                append_sc(out, "</span>");
+                            }
                         }break;
                         
-                        case 3:
+                        case Cmd_DocLink:
                         {
                             int32_t body_start = 0, body_end = 0;
                             int32_t has_body = extract_command_body(out, l, &i, &body_start, &body_end, command_string);
@@ -430,6 +489,38 @@ write_enriched_text_html(String *out, Enriched_Text *text){
                                 append_sc(out, "_doc'>");
                                 append_ss(out, body_text);
                                 append_sc(out, "</a>");
+                            }
+                        }break;
+                        
+                        case Cmd_BeginList:
+                        {
+                            append_sc(out, "<ul style='margin-left: 5mm;'>");
+                        }break;
+                        
+                        case Cmd_EndList:
+                        {
+                            append_sc(out, "</ul>");
+                        }break;
+                        
+                        case Cmd_BeginItem:
+                        {
+                            append_sc(out, "<li>");
+                        }break;
+                        
+                        case Cmd_EndItem:
+                        {
+                            append_sc(out, "</li>");
+                        }break;
+                        
+                        case Cmd_Section:
+                        {
+                            int32_t body_start = 0, body_end = 0;
+                            int32_t has_body = extract_command_body(out, l, &i, &body_start, &body_end, command_string);
+                            if (has_body){
+                                String body_text = substr(l, body_start, body_end - body_start);
+                                
+                                html_render_section_header(out, body_text, null_string, section_counter);
+                                ++section_counter->counter[section_counter->nest_level];
                             }
                         }break;
                     }
@@ -1060,7 +1151,7 @@ write_enriched_text_html(String *out, Enriched_Text *text){
     }
     
 static void
-        doc_item_head_html(String *out, Partition *part, Used_Links *used_links, Document_Item *item, Section_Counter section_counter){
+        doc_item_head_html(String *out, Partition *part, Used_Links *used_links, Document_Item *item, Section_Counter *section_counter){
     switch (item->type){
         case Doc_Root:
         {
@@ -1131,34 +1222,7 @@ static void
         
         case Doc_Section:
         {
-            if (section_counter.nest_level <= 1){
-            if (item->section.id.size > 0){
-            append_sc(out, "\n<h2 id='section_");
-            append_ss(out, item->section.id);
-            append_sc(out, "'>&sect;");
-            }
-            else{
-                append_sc(out, "\n<h2>&sect;");
-            }
-            append_section_number(out, section_counter);
-                append_sc(out, " ");
-            append_ss(out, item->section.name);
-            append_sc(out, "</h2>");
-        }
-        else{
-            if (item->section.id.size > 0){
-                append_sc(out, "<h3 id='section_");
-                append_ss(out, item->section.id);
-                append_sc(out, "'>&sect;");
-            }
-            else{
-                append_sc(out, "<h3>&sect;");
-            }
-            append_section_number(out, section_counter);
-            append_sc(out, " ");
-            append_ss(out, item->section.name);
-            append_sc(out, "</h3>");
-        }
+            html_render_section_header(out, item->section.name, item->section.id, section_counter);
         }break;
         
         case Doc_Todo:
@@ -1168,7 +1232,7 @@ static void
         
         case Doc_Enriched_Text:
         {
-            write_enriched_text_html(out, item->text.text);
+            write_enriched_text_html(out, item->text.text, section_counter);
         }break;
         
         case Doc_Element_List:
@@ -1261,7 +1325,7 @@ static void
 }
 
 static void
-doc_item_foot_html(String *out, Partition *part, Used_Links *used_links, Document_Item *item, Section_Counter section_counter){
+doc_item_foot_html(String *out, Partition *part, Used_Links *used_links, Document_Item *item, Section_Counter *section_counter){
     switch (item->type){
         case Doc_Root:
         {
@@ -1276,8 +1340,7 @@ doc_item_foot_html(String *out, Partition *part, Used_Links *used_links, Documen
 
 static void
 generate_item_html(String *out, Partition *part, Used_Links *used_links, Document_Item *item, Section_Counter *section_counter){
-    Section_Counter sc = *section_counter;
-    doc_item_head_html(out, part, used_links, item, sc);
+    doc_item_head_html(out, part, used_links, item, section_counter);
     
     if (item->type == Doc_Root || item->type == Doc_Section){
         int32_t level = ++section_counter->nest_level;
@@ -1291,7 +1354,7 @@ generate_item_html(String *out, Partition *part, Used_Links *used_links, Documen
         ++section_counter->counter[section_counter->nest_level];
     }
     
-    doc_item_foot_html(out, part, used_links, item, sc);
+    doc_item_foot_html(out, part, used_links, item, section_counter);
 }
 
 static void

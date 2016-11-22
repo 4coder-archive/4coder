@@ -935,7 +935,7 @@ site_build(char *cdir, uint32_t flags){
         linux_popd(temp);
 #endif
         
-        END_TIME_SECTION("run metagen");
+        END_TIME_SECTION("run sitegen");
     }
 }
 

@@ -1,0 +1,30 @@
+
+\SECTION{Text Editing}
+ \BEGIN_LIST
+ \BEGIN_ITEM Cursor and mark editing paradigm \END_ITEM
+ \BEGIN_ITEM Navigation by characters, words, tokens, lines, and blank lines \END_ITEM
+ \BEGIN_ITEM Modern style undo and redo \END_ITEM
+ \BEGIN_ITEM Word complete with matching words in open files \END_ITEM
+ \BEGIN_ITEM Incremental word search \END_ITEM
+ \BEGIN_ITEM Word replace \END_ITEM
+ \BEGIN_ITEM List all occurences of words in open buffers \END_ITEM
+ \END_LIST
+
+\SECTION{C/C++ Editing}
+ \BEGIN_LIST
+ \BEGIN_ITEM Code highlighting for C/C++ code \END_ITEM
+ \BEGIN_ITEM Code auto-layout rendering engine \END_ITEM
+ \BEGIN_ITEM Text level auto-indenting \END_ITEM
+ \BEGIN_ITEM Build in editor \END_ITEM
+ \BEGIN_ITEM Jump to error \END_ITEM
+ \END_LIST
+
+\SECTION{The Customization API}
+ \BEGIN_LIST
+ \BEGIN_ITEM Easy key rebinding \END_ITEM
+ \BEGIN_ITEM Create custom commands \END_ITEM
+ \BEGIN_ITEM Buffer reading and editing \END_ITEM
+ \BEGIN_ITEM Buffer reading and editing \END_ITEM
+ \BEGIN_ITEM View opening, closing, positioning \END_ITEM
+ \END_LIST
+
