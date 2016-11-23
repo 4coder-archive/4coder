@@ -1773,9 +1773,6 @@ file_measure_wraps(System_Functions *system, Models *models, Editing_File *file,
                                         else if (x_left_over <= x_gain_threshold){
                                             this_score = 1;
                                         }
-                                        else{
-                                            this_score += FLOOR32(0.5f*x_shift_adjusted);
-                                        }
                                         
                                         if (this_score > best_score){
                                             best_score = this_score;

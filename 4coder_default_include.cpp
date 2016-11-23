@@ -3213,26 +3213,16 @@ execute_standard_build_search(Application_Links *app, View_Summary *view,
 
 // NOTE(allen): Build search rule for linux.
 static int32_t
-execute_standard_build_search(Application_Links *app, View_Summary *view,
-                              Buffer_Summary *active_buffer,
-                              String *dir, String *command, int32_t perform_backup){
+execute_standard_build_search(Application_Links *app, View_Summary *view, Buffer_Summary *active_buffer, String *dir, String *command, bool32 perform_backup){
     
     char dir_space[512];
     String dir_copy = make_fixed_width_string(dir_space);
     copy(&dir_copy, *dir);
     
-    int32_t result = standard_build_search(app, view,
-                                       active_buffer,
-                                       dir, command, false, true,
-                                       make_lit_string("build.sh"),
-                                       make_lit_string("build.sh"));
+    int32_t result = standard_build_search(app, view, active_buffer, dir, command, 0, 1, make_lit_string("build.sh"), make_lit_string("build.sh"));
     
     if (!result){
-        result = standard_build_search(app, view,
-                                       active_buffer,
-                                       &dir_copy, command, perform_backup, false,
-                                       make_lit_string("Makefile"),
-                                       make_lit_string("make"));
+        result = standard_build_search(app, view, active_buffer, &dir_copy, command, perform_backup, 0, make_lit_string("Makefile"), make_lit_string("make"));
     }
     
     return(result);

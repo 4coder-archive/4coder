@@ -75,22 +75,22 @@ print_function_body_code(String *out, Parse_Context *context, int32_t start){
     
     int32_t do_print = 0;
     int32_t nest_level = 0;
-    int32_t finish = false;
-    int32_t do_whitespace_print = false;
+    int32_t finish = 0;
+    int32_t do_whitespace_print = 0;
     for (; (token = get_token(context)) != 0; get_next_token(context)){
         if (do_whitespace_print){
             pstr = str_start_end(context->data, start, token->start);
             append_ss(out, pstr);
         }
         else{
-            do_whitespace_print = true;
+            do_whitespace_print = 1;
         }
         
-        do_print = true;
+        do_print = 1;
         if (token->type == CPP_TOKEN_COMMENT){
             lexeme = get_lexeme(*token, context->data);
             if (check_and_fix_docs(&lexeme)){
-                do_print = false;
+                do_print = 0;
             }
         }
         else if (token->type == CPP_TOKEN_BRACE_OPEN){
@@ -99,7 +99,7 @@ print_function_body_code(String *out, Parse_Context *context, int32_t start){
         else if (token->type == CPP_TOKEN_BRACE_CLOSE){
             --nest_level;
             if (nest_level == 0){
-                finish = true;
+                finish = 1;
             }
         }
         
@@ -153,8 +153,6 @@ assert_files_are_equal(char *directory, char *filename1, char *filename2){
                                      
     static Abstract_Document*
         generate_4coder_API(Partition *part, char *code_directory, char *src_directory, char *dst_directory){
-#define API_DOC "4coder_API.html"
-        
         static Meta_Keywords meta_keywords[] = {
             {make_lit_string("API_EXPORT")        , Item_Function } ,
             {make_lit_string("API_EXPORT_INLINE") , Item_Function } ,
@@ -224,7 +222,7 @@ assert_files_are_equal(char *directory, char *filename1, char *filename2){
         // NOTE(allen): Put together the abstract document
         memset(doc, 0, sizeof(*doc));
         begin_document_description(doc, part, "4coder API Docs");
-        set_document_name(doc, API_DOC);
+        set_document_name(doc, "custom_API.html");
         
         add_table_of_contents(doc);
         
@@ -318,7 +316,7 @@ assert_files_are_equal(char *directory, char *filename1, char *filename2){
             // NOTE(allen): Put together the abstract document
             memset(doc, 0, sizeof(*doc));
             begin_document_description(doc, part, "4coder Feature List");
-            set_document_name(doc, "4coder_features.html");
+            set_document_name(doc, "features.html");
             
             add_enriched_text(doc, feature_list);
             

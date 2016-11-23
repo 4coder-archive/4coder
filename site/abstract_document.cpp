@@ -442,6 +442,8 @@ write_enriched_text_html(String *out, Enriched_Text *text, Section_Counter *sect
                     Cmd_EndItem,
                     Cmd_BoldFace,
                     Cmd_Section,
+                    Cmd_BeginLink,
+                    Cmd_EndLink,
                     // never below this
                     Cmd_COUNT,
                 };
@@ -458,6 +460,8 @@ write_enriched_text_html(String *out, Enriched_Text *text, Section_Counter *sect
                 enriched_commands[Cmd_EndItem]   = make_lit_string("END_ITEM");
                 enriched_commands[Cmd_BoldFace]  = make_lit_string("BOLD_FACE");
                 enriched_commands[Cmd_Section]   = make_lit_string("SECTION");
+                enriched_commands[Cmd_BeginLink] = make_lit_string("BEGIN_LINK");
+                enriched_commands[Cmd_EndLink]   = make_lit_string("END_LINK");
                 
                 i = command_end;
                 
@@ -522,6 +526,24 @@ write_enriched_text_html(String *out, Enriched_Text *text, Section_Counter *sect
                                 html_render_section_header(out, body_text, null_string, section_counter);
                                 ++section_counter->counter[section_counter->nest_level];
                             }
+                        }break;
+                        
+                        case Cmd_BeginLink:
+                        {
+                            int32_t body_start = 0, body_end = 0;
+                            int32_t has_body = extract_command_body(out, l, &i, &body_start, &body_end, command_string);
+                            if (has_body){
+                                String body_text = substr(l, body_start, body_end - body_start);
+                                
+                                append_sc(out, "<a href='>");
+                                append_ss(out, body_text);
+                                append_sc(out, "'>");
+                            }
+                        }break;
+                        
+                        case Cmd_EndLink:
+                        {
+                            append_sc(out, "</a>");
                         }break;
                     }
                 }

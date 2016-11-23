@@ -83,6 +83,13 @@ static void copy_file(char *path, char *file, char *folder1, char *folder2, char
 static void copy_all(char *source, char *tag, char *folder);
 static void zip(char *parent, char *folder, char *dest);
 
+typedef struct Temp_Dir{
+    char dir[512];
+} Temp_Dir;
+
+static Temp_Dir pushdir(char *dir);
+static void popdir(Temp_Dir temp);
+
 #if defined(IS_WINDOWS)
 
 typedef uint32_t DWORD;
@@ -115,6 +122,12 @@ extern "C" BOOL WINAPI CreateDirectoryA(_In_ LPCTSTR lpPathName, _In_opt_ LPSECU
 extern "C" BOOL WINAPI CopyFileA(_In_ LPCTSTR lpExistingFileName, _In_ LPCTSTR lpNewFileName, _In_ BOOL bFailIfExists);
 
 static uint64_t perf_frequency;
+
+static Temp_Dir
+pushdir(char *dir){}
+
+static void
+popdir(Temp_Dir temp){}
 
 static void
 init_time_system(){
@@ -262,12 +275,8 @@ zip(char *parent, char *folder, char *dest){
 #include <time.h>
 #include <unistd.h>
 
-typedef struct Temp_Dir{
-    char dir[512];
-} Temp_Dir;
-
 static Temp_Dir
-linux_pushd(char *dir){
+pushdir(char *dir){
     Temp_Dir temp;
     char *result = getcwd(temp.dir, sizeof(temp.dir));
     int32_t chresult = chdir(dir);
@@ -280,7 +289,7 @@ linux_pushd(char *dir){
 }
 
 static void
-linux_popd(Temp_Dir temp){
+popdir(Temp_Dir temp){
     chdir(temp.dir);
 }
 
@@ -312,14 +321,14 @@ static void
 execute(char *dir, char *str, char *args){
     if (dir){
         if (args){
-        Temp_Dir temp = linux_pushd(dir);
+        Temp_Dir temp = pushdir(dir);
         systemf("%s %s", str, args);
-        linux_popd(temp);
+        popdir(temp);
         }
         else{
-            Temp_Dir temp = linux_pushd(dir);
+            Temp_Dir temp = pushdir(dir);
             systemf("%s", str);
-            linux_popd(temp);
+            popdir(temp);
         }
     }
     else{
@@ -386,9 +395,9 @@ copy_all(char *source, char *tag, char *folder){
 
 static void
 zip(char *parent, char *folder, char *file){
-    Temp_Dir temp = linux_pushd(parent);
+    Temp_Dir temp = pushdir(parent);
     systemf("zip -r %s %s", file, folder);
-    linux_popd(temp);
+    popdir(temp);
 }
 
 #else
@@ -588,7 +597,7 @@ build_cl(uint32_t flags, char *code_path, char *code_file, char *out_path, char 
 "-fno-threadsafe-statics -pthread"
 
 #define GCC_INCLUDES \
-"-I../foreign"
+"-I../foreign -I../code"
 
 #define GCC_SITE_INCLUDES \
 "-I../../code"
@@ -659,12 +668,9 @@ build_gcc(uint32_t flags, char *code_path, char *code_file, char *out_path, char
     
     swap_ptr(&line.build_options, &line.build_options_prev);
     
-    // TODO(allen): Abstract this out.
-#if defined(IS_LINUX)
-    Temp_Dir temp = linux_pushd(out_path);
+    Temp_Dir temp = pushdir(out_path);
     systemf("g++ %s -o %s", line.build_options, out_file);
-    linux_popd(temp);
-#endif
+    popdir(temp);
 }
 
 static void
@@ -690,12 +696,12 @@ buildsuper(char *code_path, char *out_path, char *filename){
     
 #elif defined(IS_GCC)
     
-    Temp_Dir temp = linux_pushd(out_path);
+    Temp_Dir temp = pushdir(out_path);
     
     systemf("\"%s/buildsuper.sh\" %s",
             code_path, filename);
     
-    linux_popd(temp);
+    popdir(temp);
     
 #else
 #error The build rule for this compiler is not ready
@@ -706,7 +712,7 @@ buildsuper(char *code_path, char *out_path, char *filename){
 #define D_META_FSM_DIR "../meta/fsmgen"
 #define D_META_GEN_DIR "../meta/metagen"
 #define D_BUILD_DIR "../build"
-#define D_BUILD_SITE_DIR "../build/site"
+#define D_BUILD_SITE_DIR "../../build/site"
 #define D_SITE_GEN_DIR "../../build/site/sitegen"
 
 #define D_SITE_DIR "../site"
@@ -749,7 +755,7 @@ init_global_strings(){
     int32_t size = (1 << 12);
     char *base = (char*)malloc(size);
     String builder = make_string_cap(base, 0, size);
-    String term = make_string("\0", 1);
+    String term = make_string((void*)"\0", 1);
     
     META_DIR = get_head(builder);
     append_sc(&builder, D_META_DIR);
@@ -844,7 +850,7 @@ static void
 metagen(char *cdir){
     {
         BEGIN_TIME_SECTION();
-        build(OPTS | DEBUG_INFO, cdir, "4ed_metagen.cpp", META_DIR, "metagen", 0);
+        build(OPTS | INCLUDES | DEBUG_INFO, cdir, "4ed_metagen.cpp", META_DIR, "metagen", 0);
         END_TIME_SECTION("build metagen");
     }
     
@@ -910,7 +916,7 @@ static void
 site_build(char *cdir, uint32_t flags){
     {
     BEGIN_TIME_SECTION();
-    build(OPTS | SITE_INCLUDES | flags, cdir, "site/sitegen.cpp", BUILD_SITE_DIR, "sitegen", 0);
+    build(OPTS | SITE_INCLUDES | flags, cdir, "sitegen.cpp", BUILD_SITE_DIR, "sitegen", 0);
     END_TIME_SECTION("build sitegen");
     }
     
@@ -918,9 +924,9 @@ site_build(char *cdir, uint32_t flags){
         BEGIN_TIME_SECTION();
         
 #if defined(IS_WINDOWS)
-        systemf("pushd %s\\site & ..\\..\\build\\site\\sitegen .. source_material ..\\..\\site", cdir);
+        systemf("..\\..\\build\\site\\sitegen .. source_material ..\\..\\site");
         #else
-        systemf("pushd %s/site & ../../build/site/sitegen .. source_material ../../site", cdir);
+        systemf("../../build/site/sitegen .. source_material ../../site");
 #endif
         
         END_TIME_SECTION("run sitegen");

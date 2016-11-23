@@ -44,9 +44,7 @@ CUSTOM_COMMAND_SIG(kill_rect){
 }
 
 static void
-pad_buffer_line(Application_Links *app, Partition *part,
-                Buffer_Summary *buffer, int line,
-                char padchar, int target){
+pad_buffer_line(Application_Links *app, Partition *part, Buffer_Summary *buffer, int line, char padchar, int target){
     Partial_Cursor start = {0};
     Partial_Cursor end = {0};
     
@@ -679,7 +677,7 @@ get_bindings(void *data, int size){
     
     begin_map(context, mapid_file);
     bind(context, 'k', MDFR_ALT, kill_rect);
-    bind(context, ' ', MDFR_ALT, multi_line_edit);
+    bind(context, ' ', MDFR_ALT | MDFR_CTRL, multi_line_edit);
     
     bind(context, key_page_up, MDFR_ALT, miblo_increment_time_stamp);
     bind(context, key_page_down, MDFR_ALT, miblo_decrement_time_stamp);
