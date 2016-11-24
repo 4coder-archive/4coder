@@ -151,8 +151,30 @@ assert_files_are_equal(char *directory, char *filename1, char *filename2){
     }
     }
                                      
+    static void
+        do_html_output(Document_System *doc_system, Partition *part, char *dst_directory, Abstract_Document *doc){
+            // NOTE(allen): Output
+            Temp_Memory temp = begin_temp_memory(part);
+            String out = str_alloc(part, 10 << 20);
+            Out_Context context = {0};
+            set_context_directory(&context, dst_directory);
+            
+            // Output Docs
+            char space[256];
+            if (doc_get_link_string(doc, space, sizeof(space))){
+            if (begin_file_out(&context, space, &out)){
+                generate_document_html(&out, part, doc_system, doc);
+                end_file_out(context);
+            }
+            else{
+                fprintf(stderr, "Failed to open %s", space);
+            }
+        }
+            end_temp_memory(temp);
+    }
+    
     static Abstract_Document*
-        generate_4coder_API(Partition *part, char *code_directory, char *src_directory, char *dst_directory){
+        generate_4coder_API(Document_System *doc_system, Partition *part, char *code_directory, char *src_directory, char *dst_directory){
         static Meta_Keywords meta_keywords[] = {
             {make_lit_string("API_EXPORT")        , Item_Function } ,
             {make_lit_string("API_EXPORT_INLINE") , Item_Function } ,
@@ -176,8 +198,6 @@ assert_files_are_equal(char *directory, char *filename1, char *filename2){
         
         Enriched_Text *introduction = push_struct(part, Enriched_Text);
         Enriched_Text *lexer_introduction = push_struct(part, Enriched_Text);
-        
-        Abstract_Document *doc = push_struct(part, Abstract_Document);
         
         // NOTE(allen): Parse the important code.
         *custom_types_unit = compile_meta_unit(part, code_directory, "4coder_types.h", ExpandArray(meta_keywords));
@@ -220,9 +240,7 @@ assert_files_are_equal(char *directory, char *filename1, char *filename2){
         *lexer_introduction = load_enriched_text(part, src_directory, "lexer_introduction.txt");
         
         // NOTE(allen): Put together the abstract document
-        memset(doc, 0, sizeof(*doc));
-        begin_document_description(doc, part, "4coder API Docs");
-        set_document_name(doc, "custom_API.html");
+        Abstract_Document *doc = begin_document_description(doc_system, "4coder API Docs", "custom_API");
         
         add_table_of_contents(doc);
         
@@ -287,58 +305,31 @@ assert_files_are_equal(char *directory, char *filename1, char *filename2){
         
         end_document_description(doc);
         
-        // NOTE(allen): Output
-        Temp_Memory temp = begin_temp_memory(part);
-        String out = str_alloc(part, 10 << 20);
-        Out_Context context = {0};
-        set_context_directory(&context, dst_directory);
-        
-        // Output Docs
-        if (begin_file_out(&context, doc->name, &out)){
-            generate_document_html(&out, part, doc);
-            end_file_out(context);
-        }
-        else{
-            fprintf(stderr, "Failed to open %s", doc->name);
-        }
-        end_temp_memory(temp);
-        
         return(doc);
     }
     
     static Abstract_Document*
-        generate_feature_list(Partition *part, char *src_directory, char *dst_directory){
+        generate_feature_list(Document_System *doc_system, Partition *part, char *src_directory, char *dst_directory){
             Enriched_Text *feature_list = push_struct(part, Enriched_Text);
-            Abstract_Document *doc = push_struct(part, Abstract_Document);
-        
             *feature_list = load_enriched_text(part, src_directory, "feature_list.txt");
             
-            // NOTE(allen): Put together the abstract document
-            memset(doc, 0, sizeof(*doc));
-            begin_document_description(doc, part, "4coder Feature List");
-            set_document_name(doc, "features.html");
-            
+            Abstract_Document *doc = begin_document_description(doc_system, "4coder Feature List", "features");
             add_enriched_text(doc, feature_list);
-            
             end_document_description(doc);
             
-            // NOTE(allen): Output
-            Temp_Memory temp = begin_temp_memory(part);
-            String out = str_alloc(part, 10 << 20);
-            Out_Context context = {0};
-            set_context_directory(&context, dst_directory);
-            
-            // Output Docs
-            if (begin_file_out(&context, doc->name, &out)){
-                generate_document_html(&out, part, doc);
-                end_file_out(context);
-            }
-            else{
-                fprintf(stderr, "Failed to open %s", doc->name);
-            }
-            end_temp_memory(temp);
-            
         return(doc);
+    }
+    
+    static Abstract_Document*
+        generate_roadmap(Document_System *doc_system, Partition *part, char *src_directory, char *dst_directory){
+            Enriched_Text *roadmap = push_struct(part, Enriched_Text);
+            *roadmap = load_enriched_text(part, src_directory, "roadmap.txt");
+
+            Abstract_Document *doc = begin_document_description(doc_system, "4coder Roadmap", "roadmap");
+            add_enriched_text(doc, roadmap);
+            end_document_description(doc);
+            
+            return(doc);
     }
     
 static void
@@ -350,10 +341,17 @@ generate_site(char *code_directory, char *src_directory, char *dst_directory){
     Partition part_ = make_part(mem, size);
     Partition *part = &part_;
     
-    Abstract_Document *api_document = generate_4coder_API(part, code_directory, src_directory, dst_directory);
+    Document_System doc_system = create_document_system(part);
     
-    Abstract_Document *feature_list = generate_feature_list(part, src_directory, dst_directory);
+    Abstract_Document *api_document = generate_4coder_API(&doc_system, part, code_directory, src_directory, dst_directory);
     
+    Abstract_Document *feature_list = generate_feature_list(&doc_system, part, src_directory, dst_directory);
+    
+    Abstract_Document *roadmap = generate_roadmap(&doc_system, part, src_directory, dst_directory);
+    
+    do_html_output(&doc_system, part, dst_directory, api_document);
+    do_html_output(&doc_system, part, dst_directory, feature_list);
+    do_html_output(&doc_system, part, dst_directory, roadmap);
 }
 
 int main(int argc, char **argv){

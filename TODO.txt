@@ -77,6 +77,7 @@
 ; [X] make panel resizing not whacky with child panels
 ; [X] visual studio file saves aren't picked up by the file track system
 ; [X] findstr format not quite working
+; [X] over left-shifting the view?
 ;
 ; [] indication on failure to save
 ; [] history is broken, revist the entire system
@@ -86,7 +87,6 @@
 ; [] view fails to follow cursor when the view is shrunk
 ; [] view fails to follow cursor after deleting long line
 ;
-; [] over left-shifting the view?
 ;
 
 ; BEFORE I SHIP
@@ -190,8 +190,8 @@
 ;    [X] get the navigation working correctly around multi-glyph characters
 ;    [] provide full cursor positioning in buffers
 ;    [] provide cursor positioning system that does columns correctly
-;    [] binary buffer mode
 ;    [] unicode buffer mode
+;    [] binary buffer mode
 ;    [] support full length unicode file names
 
 ; [] user file bar string
@@ -224,20 +224,17 @@
 
 ; meta programming system
 ;    [X] condense system into single meta compiler
+;    [X] formalize the documentation writer so the TOC can be better and so it's easier to shoot off other docs
 ;    [] formalize the rewriter for the 4coder_string.h so it can be used for other single header libs
-;    [] formalize the documentation writer so the TOC can be better and so it's easier to shoot off other docs
 ;    [] profile and optimize the current metagen system
 ;    [] expand the use of 4coder_types.h to also allow static variable and function declarations
 ;    [] get more of the helper functions going through the documentation system
-;    [] method of pulling the documentation line from another item rather than copy-pasting the text.
+;    [] method of virtually pulling the documentation line from another item rather than copy-pasting the text.
 ;
 
 ; GUI related tech
-;    [X] consolidate all GUI code properly
-;    [X] rewrite GUI
-;    [X] arrow navigation of GUIs
-;    [] scroll bar position and size options
-;    [] GUI API
+; [] scroll bar options
+; [] buffer driven GUI experiment
 ;
 
 ; search related tech
@@ -251,16 +248,11 @@
 ;
 
 ; theme related business
-;    [] fix the versioning system for themes
-;    [] theme switch per panel?
-;    [] allow multiple font faces with effects
-;
 
 ; control schemes
 ;    [] emacs style sub-maps
-;    [] vim style modes
+;    [] vim keys
 ;    [] sublime style editing
-;    [] "tap typing"
 ;    [] command meta data
 ;    [] macros
 ;
@@ -281,7 +273,7 @@
 ;    [] fancy code presentation mode
 ;
 
-; [] switch based word complete
+; [] switch-case-enum based word complete
 ; [] keep copy of unedited orignal maybe? (compressed? restore by history?)
 ;
 ; [] diff
@@ -291,7 +283,6 @@
 ; [] polish for hot directories
 ;
 ; [] tutorials
-; [] 4edT thing
 ; [] console emulator
 ;
 ; [] 10 GB text file
@@ -303,6 +294,7 @@
 ; [X] change job canceling to a polling based thing
 ; [] hashed string pool for clipboard/filenames/etc
 ; [] new profiling/debugging system
+; [] new testing system
 ;
 
 ; EASY TODOS
@@ -354,10 +346,10 @@
 ;    [] file drag and drop
 ;    [] allow for multiple clipboards
 ; [] OS X port
-;    [] 4coder code compiling
-;    [] opengl window up
-;    [] basic versions of system functions
-;    [] get 4coder to render to window
+;    [X] 4coder code compiling
+;    [X] opengl window up
+;    [X] basic versions of system functions
+;    [X] get 4coder to render to window
 ;    [] keyboard and mouse input
 ;    [] file exchange
 ;    [] clipboard

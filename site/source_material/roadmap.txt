@@ -1,0 +1,41 @@
+
+This page provides an outline of planned 4coder features roughly sorted by priority.  If a feature is missing here it may be on the \BEGIN_LINK{document:features} features \END_LINK page which means it is already in 4coder.  If a feature is missing from both lists and you would like to recommend it for consideration, send your recommendation to \CODE_STYLE{editor@4coder.net}.  If you believe the priority sorting of the items should be tweaked because certain items are more important than others, that recommendation can also be sent to the same 4coder email as any other recommendation.
+
+Each section represents one major type of todo item, within each section the items are roughly sorted by priority with respect to other items in that section.  The sections are also sorted by a rough priority, but more than one section might receive attention at a time.
+
+\SECTION{General Editing}
+ \BEGIN_LIST
+ \BEGIN_ITEM Unicode buffer formats \END_ITEM
+ \END_LIST
+
+\SECTION{Code Layout}
+ \BEGIN_LIST
+ \END_LIST
+
+\SECTION{Buffer Driven GUI}
+ \BEGIN_LIST
+ \END_LIST
+
+\SECTION{Code Intelligence}
+ \BEGIN_LIST
+ \END_LIST
+
+\SECTION{API "Main" Upgrade}
+ \BEGIN_LIST
+ \END_LIST
+
+\SECTION{API Miscellanea}
+ \BEGIN_LIST
+ \BEGIN_ITEM Expose the file bar string \END_ITEM
+ \BEGIN_ITEM Expose the binding of initial files to views such as *messages* \END_ITEM
+ \END_LIST
+
+\SECTION{Cross OS Miscellanea}
+ \BEGIN_LIST
+ \BEGIN_ITEM Support for the concept of multiple keyboards \END_ITEM
+ \BEGIN_ITEM Support for OS fonts \END_ITEM
+ \BEGIN_ITEM Support for double click opening new files in an existing window \END_ITEM
+ \BEGIN_ITEM Support for multi-window single process \END_ITEM
+ \END_LIST
+
+

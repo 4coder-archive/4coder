@@ -12,7 +12,9 @@ cl %OPTS% ..\code\build.cpp /Zi /Febuild /DSITE_BUILD
 if %ERRORLEVEL% neq 0 (set FirstError=1)
 popd
 
-..\..\build\build
+pushd ..
+..\build\build
 if %ERRORLEVEL% neq 0 (set FirstError=1)
+popd
 
 call "ctime" -end 4ed_site.ctm %FirstError%

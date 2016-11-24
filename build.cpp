@@ -115,11 +115,17 @@ typedef union    _LARGE_INTEGER {
 # define WINAPI
 #endif
 
-extern "C" DWORD WINAPI GetCurrentDirectoryA(_In_  DWORD  nBufferLength, _Out_ LPTSTR lpBuffer);
-extern "C" BOOL WINAPI QueryPerformanceCounter(_Out_ LARGE_INTEGER *lpPerformanceCount);
-extern "C" BOOL WINAPI QueryPerformanceFrequency(_Out_ LARGE_INTEGER *lpFrequency);
-extern "C" BOOL WINAPI CreateDirectoryA(_In_ LPCTSTR lpPathName, _In_opt_ LPSECURITY_ATTRIBUTES lpSecurityAttributes);
-extern "C" BOOL WINAPI CopyFileA(_In_ LPCTSTR lpExistingFileName, _In_ LPCTSTR lpNewFileName, _In_ BOOL bFailIfExists);
+extern "C"{
+DWORD WINAPI GetCurrentDirectoryA(_In_  DWORD  nBufferLength, _Out_ LPTSTR lpBuffer);
+
+    BOOL WINAPI QueryPerformanceCounter(_Out_ LARGE_INTEGER *lpPerformanceCount);
+
+    BOOL WINAPI QueryPerformanceFrequency(_Out_ LARGE_INTEGER *lpFrequency);
+ 
+    BOOL WINAPI CreateDirectoryA(_In_ LPCTSTR lpPathName, _In_opt_ LPSECURITY_ATTRIBUTES lpSecurityAttributes);
+    
+ BOOL WINAPI CopyFileA(_In_ LPCTSTR lpExistingFileName, _In_ LPCTSTR lpNewFileName, _In_ BOOL bFailIfExists);
+}
 
 static uint64_t perf_frequency;
 
@@ -157,12 +163,14 @@ get_current_directory(char *buffer, int32_t max){
 static void
 execute(char *dir, char *str, char *args){
     if (dir){
+        Temp_Dir temp = pushdir(dir);
         if (args){
-        systemf("pushd %s & call \"%s\" %s", dir, str, args);
+        systemf("call \"%s\" %s", str, args);
         }
         else{
-            systemf("pushd %s & call \"%s\"", dir, str);
+            systemf("call \"%s\"", str);
         }
+        popdir(temp);
     }
     else{
         if (args){
@@ -266,7 +274,10 @@ zip(char *parent, char *folder, char *dest){
     slash_fix(parent);
     slash_fix(dest);
     
-    systemf("pushd %s & %s\\zip %s\\4tech_gobble.zip", parent, cdir, cdir);
+    Temp_Dir temp = pushdir(parent);
+    systemf("%s\\zip %s\\4tech_gobble.zip", cdir, cdir);
+    popdir(temp);
+    
     systemf("copy %s\\4tech_gobble.zip %s & del %s\\4tech_gobble.zip", cdir, dest, cdir);
 }
 
@@ -281,7 +292,7 @@ pushdir(char *dir){
     char *result = getcwd(temp.dir, sizeof(temp.dir));
     int32_t chresult = chdir(dir);
     if (result == 0 || chresult != 0){
-        printf("trying pushd %s\n", dir);
+        printf("trying pushdir %s\n", dir);
         assert(result != 0);
         assert(chresult == 0);
     }
@@ -512,23 +523,21 @@ init_build_line(Build_Line *line){
 "/wd4127 /wd4510 /wd4512 /wd4610 /wd4390 /WX "   \
 "/GR- /EHa- /nologo /FC"
 
-#define CL_INCLUDES \
-"/I..\\foreign /I..\\foreign\\freetype2"
+#define CL_INCLUDES "/I..\\foreign /I..\\foreign\\freetype2"
 
-#define CL_SITE_INCLUDES \
-"/I..\\..\\code"
+#define CL_SITE_INCLUDES "/I..\\..\\code"
 
 #define CL_LIBS                                  \
 "user32.lib winmm.lib gdi32.lib opengl32.lib "   \
 "..\\foreign\\freetype.lib"
 
-#define CL_ICON \
-"..\\res\\icon.res"
+#define CL_ICON "..\\res\\icon.res"
 
 static void
 build_cl(uint32_t flags, char *code_path, char *code_file, char *out_path, char *out_file, char *exports){
     slash_fix(out_path);
     slash_fix(code_path);
+    slash_fix(code_file);
     
     Build_Line line;
     init_build_line(&line);
@@ -588,7 +597,9 @@ build_cl(uint32_t flags, char *code_path, char *code_file, char *out_path, char 
         snprintf(link_options, sizeof(link_options), "/NODEFAULTLIB:library");
     }
     
-    systemf("pushd %s & cl %s %s\\%s /Fe%s /link /DEBUG /INCREMENTAL:NO %s", out_path, line.build_options, code_path, code_file, out_file, link_options);
+    Temp_Dir temp = pushdir(out_path);
+    systemf("cl %s %s\\%s /Fe%s /link /DEBUG /INCREMENTAL:NO %s", line.build_options, code_path, code_file, out_file, link_options);
+    popdir(temp);
 }
 
 
@@ -596,11 +607,9 @@ build_cl(uint32_t flags, char *code_path, char *code_file, char *out_path, char 
 "-Wno-write-strings -D_GNU_SOURCE -fPIC "    \
 "-fno-threadsafe-statics -pthread"
 
-#define GCC_INCLUDES \
-"-I../foreign -I../code"
+#define GCC_INCLUDES "-I../foreign -I../code"
 
-#define GCC_SITE_INCLUDES \
-"-I../../code"
+#define GCC_SITE_INCLUDES "-I../../code"
 
 #define GCC_LIBS                               \
 "-L/usr/local/lib -lX11 -lpthread -lm -lrt "   \
@@ -686,34 +695,32 @@ build(uint32_t flags, char *code_path, char *code_file, char *out_path, char *ou
 
 static void
 buildsuper(char *code_path, char *out_path, char *filename){
+    Temp_Dir temp = pushdir(out_path);
+    
 #if defined(IS_CL)
     slash_fix(filename);
     slash_fix(out_path);
     slash_fix(code_path);
     
-    systemf("pushd %s & call \"%s\\buildsuper.bat\" %s",
-            out_path, code_path, filename);
+    systemf("call \"%s\\buildsuper.bat\" %s", code_path, filename);
     
 #elif defined(IS_GCC)
     
-    Temp_Dir temp = pushdir(out_path);
-    
-    systemf("\"%s/buildsuper.sh\" %s",
-            code_path, filename);
-    
-    popdir(temp);
+    systemf("\"%s/buildsuper.sh\" %s", code_path, filename);
     
 #else
 #error The build rule for this compiler is not ready
 #endif
+    
+    popdir(temp);
 }
 
 #define D_META_DIR "../meta"
 #define D_META_FSM_DIR "../meta/fsmgen"
 #define D_META_GEN_DIR "../meta/metagen"
 #define D_BUILD_DIR "../build"
-#define D_BUILD_SITE_DIR "../../build/site"
-#define D_SITE_GEN_DIR "../../build/site/sitegen"
+#define D_BUILD_SITE_DIR "../build/site"
+#define D_SITE_GEN_DIR "../build/site/sitegen"
 
 #define D_SITE_DIR "../site"
 #define D_PACK_DIR "../distributions"
@@ -916,7 +923,7 @@ static void
 site_build(char *cdir, uint32_t flags){
     {
     BEGIN_TIME_SECTION();
-    build(OPTS | SITE_INCLUDES | flags, cdir, "sitegen.cpp", BUILD_SITE_DIR, "sitegen", 0);
+    build(OPTS | SITE_INCLUDES | flags, cdir, "site/sitegen.cpp", BUILD_SITE_DIR, "sitegen", 0);
     END_TIME_SECTION("build sitegen");
     }
     
@@ -924,9 +931,9 @@ site_build(char *cdir, uint32_t flags){
         BEGIN_TIME_SECTION();
         
 #if defined(IS_WINDOWS)
-        systemf("..\\..\\build\\site\\sitegen .. source_material ..\\..\\site");
+        systemf("..\\build\\site\\sitegen . site\\source_material ..\\site");
         #else
-        systemf("../../build/site/sitegen .. source_material ../../site");
+        systemf("../build/site/sitegen . site/source_material ../site");
 #endif
         
         END_TIME_SECTION("run sitegen");

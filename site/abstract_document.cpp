@@ -47,14 +47,14 @@ enum{
     Doc_Table_Of_Contents
 };
 
-typedef struct Alternate_Name{
+struct Alternate_Name{
     String macro;
     String public_name;
-} Alternate_Name;
+};
 
-typedef struct Alternate_Names_Array{
+struct Alternate_Names_Array{
     Alternate_Name *names;
-} Alternate_Names_Array;
+};
 
 enum{
     AltName_Standard,
@@ -99,6 +99,74 @@ struct Abstract_Document{
 };
 static Abstract_Document null_abstract_document = {0};
 
+struct Document_Node{
+    Abstract_Document doc;
+    Document_Node *next;
+};
+
+struct Document_System{
+    Document_Node *head;
+    Document_Node *tail;
+    
+    Partition *part;
+};
+
+static Document_System
+create_document_system(Partition *part){
+    Document_System system = {0};
+    system.part = part;
+    return(system);
+}
+
+static Abstract_Document*
+create_document(Document_System *system, char *name){
+    int32_t is_new_name = 1;
+    
+    for (Document_Node *node = system->head;
+          node != 0;
+         node = node->next){
+        if (match_cc(node->doc.name, name)){
+            is_new_name = 0;
+        }
+    }
+    
+    Abstract_Document *result = 0;
+    if (is_new_name){
+        Document_Node *node = push_struct(system->part, Document_Node);
+        memset(node, 0, sizeof(*node));
+        assert(node != 0);
+        
+        result = &node->doc;
+        node->next = 0;
+        if (system->head == 0){
+            system->head = node;
+            system->tail = node;
+        }
+        else{
+            system->tail->next = node;
+            system->tail = node;
+        }
+    }
+    
+    return(result);
+}
+
+static Abstract_Document*
+get_document_by_name(Document_System *system, String name){
+    Abstract_Document *result = 0;
+    
+    for (Document_Node *node = system->head;
+         node != 0;
+         node = node->next){
+        if (match_cs(node->doc.name, name)){
+            result = &node->doc;
+            break;
+        }
+    }
+    
+    return(result);
+}
+
 static void
 set_section_name(Partition *part, Document_Item *item, char *name){
     int32_t name_len = str_size(name);
@@ -131,6 +199,16 @@ begin_document_description(Abstract_Document *doc, Partition *part, char *title)
 static void
 set_document_name(Abstract_Document *doc, char *name){
     doc->name = name;
+}
+
+static Abstract_Document*
+begin_document_description(Document_System *system, char *title, char *name){
+    Abstract_Document *doc = create_document(system, name);
+    if (doc){
+        begin_document_description(doc, system->part, title);
+    }
+    set_document_name(doc, name);
+    return(doc);
 }
 
 static void
@@ -257,7 +335,7 @@ add_enriched_text(Abstract_Document *doc, Enriched_Text *text){
     append_child(parent, item);
 }
 
-// Document Generation
+// HTML Document Generation
 
 #define HTML_BACK_COLOR   "#FAFAFA"
 #define HTML_TEXT_COLOR   "#0D0D0D"
@@ -300,6 +378,15 @@ struct Section_Counter{
     int32_t counter[16];
     int32_t nest_level;
 };
+
+static int32_t
+doc_get_link_string(Abstract_Document *doc, char *space, int32_t capacity){
+    String str = make_string_cap(space, 0, capacity);
+    append_sc(&str, doc->name);
+    append_sc(&str, ".html");
+    int32_t result = terminate_with_null(&str);
+    return(result);
+}
 
 static void
 append_section_number_reduced(String *out, Section_Counter *section_counter, int32_t reduce){
@@ -398,10 +485,12 @@ html_render_section_header(String *out, String section_name, String section_id, 
 }
 
 static void
-write_enriched_text_html(String *out, Enriched_Text *text, Section_Counter *section_counter){
+write_enriched_text_html(String *out, Enriched_Text *text, Document_System *doc_system,  Section_Counter *section_counter){
     String source = text->source;
     
     append_sc(out, "<div>");
+    
+    int32_t item_counter = 0;
     
     for (String line = get_first_double_line(source);
          line.str;
@@ -498,7 +587,7 @@ write_enriched_text_html(String *out, Enriched_Text *text, Section_Counter *sect
                         
                         case Cmd_BeginList:
                         {
-                            append_sc(out, "<ul style='margin-left: 5mm;'>");
+                            append_sc(out,"<ul style='margin-top: 5mm; margin-left: 1mm;'>");
                         }break;
                         
                         case Cmd_EndList:
@@ -508,7 +597,14 @@ write_enriched_text_html(String *out, Enriched_Text *text, Section_Counter *sect
                         
                         case Cmd_BeginItem:
                         {
-                            append_sc(out, "<li>");
+                            if (item_counter == 0){
+                                append_sc(out, "<li style='font-size: 95%; background: #EFEFDF;'>");
+                                ++item_counter;
+                            }
+                            else{
+                                append_sc(out, "<li style='font-size: 95%;'>");
+                                item_counter = 0;
+                            }
                         }break;
                         
                         case Cmd_EndItem:
@@ -518,6 +614,7 @@ write_enriched_text_html(String *out, Enriched_Text *text, Section_Counter *sect
                         
                         case Cmd_Section:
                         {
+                            // TODO(allen): undo the duplication of this body extraction code.
                             int32_t body_start = 0, body_end = 0;
                             int32_t has_body = extract_command_body(out, l, &i, &body_start, &body_end, command_string);
                             if (has_body){
@@ -525,6 +622,7 @@ write_enriched_text_html(String *out, Enriched_Text *text, Section_Counter *sect
                                 
                                 html_render_section_header(out, body_text, null_string, section_counter);
                                 ++section_counter->counter[section_counter->nest_level];
+                                item_counter = 0;
                             }
                         }break;
                         
@@ -535,8 +633,24 @@ write_enriched_text_html(String *out, Enriched_Text *text, Section_Counter *sect
                             if (has_body){
                                 String body_text = substr(l, body_start, body_end - body_start);
                                 
-                                append_sc(out, "<a href='>");
-                                append_ss(out, body_text);
+                                append_sc(out, "<a target='_blank'href='");
+                                
+                                if (match_part_sc(body_text, "document:")){
+                                    String doc_name = substr_tail(body_text, sizeof("document:")-1);
+                                    Abstract_Document *doc_lookup = get_document_by_name(doc_system, doc_name);
+                                    if (doc_lookup){
+                                        char space[256];
+                                        if (doc_get_link_string(doc_lookup, space, sizeof(space))){
+                                            append_sc(out, space);
+                                        }
+                                        else{
+                                            NotImplemented;
+                                        }
+                                    }
+                                }
+                                else{
+                                    append_ss(out, body_text);
+                                }
                                 append_sc(out, "'>");
                             }
                         }break;
@@ -1173,7 +1287,7 @@ write_enriched_text_html(String *out, Enriched_Text *text, Section_Counter *sect
     }
     
 static void
-        doc_item_head_html(String *out, Partition *part, Used_Links *used_links, Document_Item *item, Section_Counter *section_counter){
+        doc_item_head_html(String *out, Partition *part, Document_System *doc_system, Used_Links *used_links, Document_Item *item, Section_Counter *section_counter){
     switch (item->type){
         case Doc_Root:
         {
@@ -1254,7 +1368,7 @@ static void
         
         case Doc_Enriched_Text:
         {
-            write_enriched_text_html(out, item->text.text, section_counter);
+            write_enriched_text_html(out, item->text.text, doc_system, section_counter);
         }break;
         
         case Doc_Element_List:
@@ -1347,7 +1461,7 @@ static void
 }
 
 static void
-doc_item_foot_html(String *out, Partition *part, Used_Links *used_links, Document_Item *item, Section_Counter *section_counter){
+doc_item_foot_html(String *out, Partition *part, Document_System *doc_system, Used_Links *used_links, Document_Item *item, Section_Counter *section_counter){
     switch (item->type){
         case Doc_Root:
         {
@@ -1361,8 +1475,8 @@ doc_item_foot_html(String *out, Partition *part, Used_Links *used_links, Documen
 }
 
 static void
-generate_item_html(String *out, Partition *part, Used_Links *used_links, Document_Item *item, Section_Counter *section_counter){
-    doc_item_head_html(out, part, used_links, item, section_counter);
+generate_item_html(String *out, Partition *part, Document_System *doc_system, Used_Links *used_links, Document_Item *item, Section_Counter *section_counter){
+    doc_item_head_html(out, part, doc_system, used_links, item, section_counter);
     
     if (item->type == Doc_Root || item->type == Doc_Section){
         int32_t level = ++section_counter->nest_level;
@@ -1370,23 +1484,23 @@ generate_item_html(String *out, Partition *part, Used_Links *used_links, Documen
         for (Document_Item *m = item->section.first_child;
              m != 0;
              m = m->next){
-            generate_item_html(out, part, used_links, m, section_counter);
+            generate_item_html(out, part, doc_system, used_links, m, section_counter);
         }
         --section_counter->nest_level;
         ++section_counter->counter[section_counter->nest_level];
     }
     
-    doc_item_foot_html(out, part, used_links, item, section_counter);
+    doc_item_foot_html(out, part, doc_system, used_links, item, section_counter);
 }
 
 static void
-generate_document_html(String *out, Partition *part, Abstract_Document *doc){
+generate_document_html(String *out, Partition *part, Document_System *doc_system, Abstract_Document *doc){
     Used_Links used_links = {0};
     init_used_links(part, &used_links, 4000);
     
     Section_Counter section_counter = {0};
     section_counter.counter[section_counter.nest_level] = 1;
-    generate_item_html(out, part, &used_links, doc->root_item, &section_counter);
+    generate_item_html(out, part, doc_system, &used_links, doc->root_item, &section_counter);
 }
 
 #endif
