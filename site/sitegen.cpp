@@ -174,7 +174,19 @@ assert_files_are_equal(char *directory, char *filename1, char *filename2){
     }
     
     static Abstract_Document*
-        generate_4coder_API(Document_System *doc_system, Partition *part, char *code_directory, char *src_directory, char *dst_directory){
+        generate_homepage(Document_System *doc_system, Partition *part, char *src_directory){
+            Enriched_Text *home = push_struct(part, Enriched_Text);
+            *home = load_enriched_text(part, src_directory, "home.txt");
+            
+            Abstract_Document *doc = begin_document_description(doc_system, "4coder Home", "home");
+            add_enriched_text(doc, home);
+            end_document_description(doc);
+            
+            return(doc);
+    }
+    
+    static Abstract_Document*
+        generate_4coder_docs(Document_System *doc_system, Partition *part, char *code_directory, char *src_directory){
         static Meta_Keywords meta_keywords[] = {
             {make_lit_string("API_EXPORT")        , Item_Function } ,
             {make_lit_string("API_EXPORT_INLINE") , Item_Function } ,
@@ -240,7 +252,7 @@ assert_files_are_equal(char *directory, char *filename1, char *filename2){
         *lexer_introduction = load_enriched_text(part, src_directory, "lexer_introduction.txt");
         
         // NOTE(allen): Put together the abstract document
-        Abstract_Document *doc = begin_document_description(doc_system, "4coder API Docs", "custom_API");
+        Abstract_Document *doc = begin_document_description(doc_system, "4coder API Docs", "custom_docs");
         
         add_table_of_contents(doc);
         
@@ -309,7 +321,7 @@ assert_files_are_equal(char *directory, char *filename1, char *filename2){
     }
     
     static Abstract_Document*
-        generate_feature_list(Document_System *doc_system, Partition *part, char *src_directory, char *dst_directory){
+        generate_feature_list(Document_System *doc_system, Partition *part, char *src_directory){
             Enriched_Text *feature_list = push_struct(part, Enriched_Text);
             *feature_list = load_enriched_text(part, src_directory, "feature_list.txt");
             
@@ -321,7 +333,7 @@ assert_files_are_equal(char *directory, char *filename1, char *filename2){
     }
     
     static Abstract_Document*
-        generate_roadmap(Document_System *doc_system, Partition *part, char *src_directory, char *dst_directory){
+        generate_roadmap(Document_System *doc_system, Partition *part, char *src_directory){
             Enriched_Text *roadmap = push_struct(part, Enriched_Text);
             *roadmap = load_enriched_text(part, src_directory, "roadmap.txt");
 
@@ -343,15 +355,16 @@ generate_site(char *code_directory, char *src_directory, char *dst_directory){
     
     Document_System doc_system = create_document_system(part);
     
-    Abstract_Document *api_document = generate_4coder_API(&doc_system, part, code_directory, src_directory, dst_directory);
+    generate_homepage(&doc_system, part, src_directory);
+    generate_4coder_docs(&doc_system, part, code_directory, src_directory);
+    generate_feature_list(&doc_system, part, src_directory);
+    generate_roadmap(&doc_system, part, src_directory);
     
-    Abstract_Document *feature_list = generate_feature_list(&doc_system, part, src_directory, dst_directory);
-    
-    Abstract_Document *roadmap = generate_roadmap(&doc_system, part, src_directory, dst_directory);
-    
-    do_html_output(&doc_system, part, dst_directory, api_document);
-    do_html_output(&doc_system, part, dst_directory, feature_list);
-    do_html_output(&doc_system, part, dst_directory, roadmap);
+    for (Document_Node *node = doc_system.head;
+         node != 0;
+         node = node->next){
+        do_html_output(&doc_system, part, dst_directory, &node->doc);
+    }
 }
 
 int main(int argc, char **argv){
