@@ -1,5 +1,7 @@
 
-This page provides an outline of planned 4coder features roughly sorted by priority.  If a feature is missing here it may be on the \BEGIN_LINK{document:features} features \END_LINK page which means it is already in 4coder.  If a feature is missing from both lists and you would like to recommend it for consideration, send your recommendation to \CODE_STYLE{editor@4coder.net}.  If you believe the priority sorting of the items should be tweaked because certain items are more important than others, that recommendation can also be sent to the same 4coder email as any other recommendation.
+\IMAGE{image:4coder_logo}
+
+This page provides an outline of planned 4coder features roughly sorted by priority.  If a feature is missing here it may be on the \BEGIN_LINK{document:features} features \END_LINK page which means it is already in 4coder.  If a feature is missing from both lists and you would like to recommend it for consideration, send your recommendation to \BEGIN_STYLE{code} editor@4coder.net \END_STYLE.  If you believe the priority sorting of the items should be tweaked because certain items are more important than others, that recommendation can also be sent to the same 4coder email as any other recommendation.
 
 Each section represents one major type of todo item, within each section the items are roughly sorted by priority with respect to other items in that section.  The sections are also sorted by a rough priority, but more than one section might receive attention at a time.
 

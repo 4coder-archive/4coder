@@ -525,7 +525,7 @@ init_build_line(Build_Line *line){
 
 #define CL_INCLUDES "/I..\\foreign /I..\\foreign\\freetype2"
 
-#define CL_SITE_INCLUDES "/I..\\..\\code"
+#define CL_SITE_INCLUDES "/I..\\..\\foreign /I..\\..\\code"
 
 #define CL_LIBS                                  \
 "user32.lib winmm.lib gdi32.lib opengl32.lib "   \
@@ -609,7 +609,7 @@ build_cl(uint32_t flags, char *code_path, char *code_file, char *out_path, char 
 
 #define GCC_INCLUDES "-I../foreign -I../code"
 
-#define GCC_SITE_INCLUDES "-I../../code"
+#define GCC_SITE_INCLUDES "-I../../foreign -I../../code"
 
 #define GCC_LIBS                               \
 "-L/usr/local/lib -lX11 -lpthread -lm -lrt "   \
@@ -931,9 +931,9 @@ site_build(char *cdir, uint32_t flags){
         BEGIN_TIME_SECTION();
         
 #if defined(IS_WINDOWS)
-        systemf("..\\build\\site\\sitegen . site\\source_material ..\\site");
+        systemf("..\\build\\site\\sitegen . ..\\foreign\\site-resources site\\source_material ..\\site");
         #else
-        systemf("../build/site/sitegen . site/source_material ../site");
+        systemf("../build/site/sitegen . ../foreign/site-resources site/source_material ../site");
 #endif
         
         END_TIME_SECTION("run sitegen");

@@ -1,5 +1,7 @@
 
-This page provides a list of 4coder features for anyone trying to determine whether 4coder is the right editor for them.  If a feature is missing here you should check out the \BEGIN_LINK{document:roadmap} roadmap \END_LINK page to see what is coming in the future.  If the feature you want is on neither, you should contact \CODE_STYLE{editor@4coder.net}.  Some features that are already in 4coder might be missing from this list, if you want to be sure you should contact \CODE_STYLE{editor@4coder.net}.
+\IMAGE{image:4coder_logo}
+
+This page provides a list of 4coder features for anyone trying to determine whether 4coder is the right editor for them.  If a feature is missing here you should check out the \BEGIN_LINK{document:roadmap} roadmap \END_LINK page to see what is coming in the future.  If the feature you want is on neither, you should contact \BEGIN_STYLE{code} editor@4coder.net \END_STYLE.  Some features that are already in 4coder might be missing from this list, if you want to be sure you should contact \BEGIN_STYLE{code} editor@4coder.net \END_STYLE.
 
 \SECTION{Text Editing}
  \BEGIN_LIST
@@ -46,7 +48,7 @@ This page provides a list of 4coder features for anyone trying to determine whet
 4coder's current setup and editing paradigm is modeled after emacs, so it is very natural to transition to 4coder from emacs for many users.  4coder customization is quite different from emacs though, so anyone who wants to keep their current keybinds will have to take the time to rewrite the keybinding code.  Once the initial transition is done, any user who prefers C++ to Lisp will have a much better time in their 4coder configuration code.
 
 \SECTION{Transition From Vim}
-For vim users the built-in editing paradigm will not line up with editing habits.  Thanks to the open customization model, a vim paradigm and default vim key bindings can be used in 4coder.  The vim customization \BEGIN_LINK{https://github.com/Chronister/4vim} here \END_LINK is an early example of this with many basic vim systems up and running.
+For vim users the built-in editing paradigm will not line up with editing habits.  Thanks to the open customization model, a vim paradigm and default vim key bindings can be used in 4coder.  The vim customization \BEGIN_LINK{!https://github.com/Chronister/4vim} here \END_LINK is an early example of this with many basic vim systems up and running.
 
 Right now 4coder is admittedly not great for vim users, but the transition path exists so keep your eyes on 4coder as better vim emulation is still on the way.
 

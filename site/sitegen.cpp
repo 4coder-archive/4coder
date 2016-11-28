@@ -9,8 +9,12 @@
 
 // TOP
 
+#define STB_IMAGE_IMPLEMENTATION
+#include "stb_image.h"
+
 #include "4coder_version.h"
-#include "internal_4coder_string.cpp"
+#define FSTRING_IMPLEMENTATION
+#include "4coder_string.h"
 #include "4cpp_lexer.h"
 
 #include <stdlib.h>
@@ -19,6 +23,10 @@
 #include <assert.h>
 
 #include "4coder_mem.h"
+
+#define CEIL32(x) ((int32_t) ( (x>0)?(x+1.f):(x) ))
+#define FLOOR32(x) ((int32_t) ( (x>0)?(x):(x-1.f) ))
+
 #include "meta_parser.cpp"
 #include "out_context.cpp"
 #include "abstract_document.cpp"
@@ -30,43 +38,6 @@
 //
 // Meta Parse Rules
 //
-
-#define BACK_COLOR   "#FAFAFA"
-#define TEXT_COLOR   "#0D0D0D"
-#define CODE_BACK    "#DFDFDF"
-#define EXAMPLE_BACK "#EFEFDF"
-
-#define POP_COLOR_1  "#309030"
-#define POP_BACK_1   "#E0FFD0"
-#define VISITED_LINK "#A0C050"
-
-#define POP_COLOR_2  "#005000"
-
-#define CODE_STYLE "font-family: \"Courier New\", Courier, monospace; text-align: left;"
-
-#define CODE_BLOCK_STYLE(back)                             \
-"margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; "  \
-"background: "back"; padding: 0.25em;"
-
-#define DESCRIPT_SECTION_STYLE CODE_BLOCK_STYLE(CODE_BACK)
-#define EXAMPLE_CODE_STYLE CODE_BLOCK_STYLE(EXAMPLE_BACK)
-
-#define DOC_HEAD_OPEN  "<div style='margin-top: 3mm; margin-bottom: 3mm; color: "POP_COLOR_1";'><b><i>"
-#define DOC_HEAD_CLOSE "</i></b></div>"
-
-#define DOC_ITEM_HEAD_STYLE "font-weight: 600;"
-
-#define DOC_ITEM_HEAD_INL_OPEN  "<span style='"DOC_ITEM_HEAD_STYLE"'>"
-#define DOC_ITEM_HEAD_INL_CLOSE "</span>"
-
-#define DOC_ITEM_HEAD_OPEN  "<div style='"DOC_ITEM_HEAD_STYLE"'>"
-#define DOC_ITEM_HEAD_CLOSE "</div>"
-
-#define DOC_ITEM_OPEN  "<div style='margin-left: 5mm; margin-right: 5mm;'>"
-#define DOC_ITEM_CLOSE "</div>"
-
-#define EXAMPLE_CODE_OPEN  "<div style='"CODE_STYLE EXAMPLE_CODE_STYLE"'>"
-#define EXAMPLE_CODE_CLOSE "</div>"
 
 static void
 print_function_body_code(String *out, Parse_Context *context, int32_t start){
@@ -152,40 +123,44 @@ assert_files_are_equal(char *directory, char *filename1, char *filename2){
     }
                                      
     static void
-        do_html_output(Document_System *doc_system, Partition *part, char *dst_directory, Abstract_Document *doc){
+        do_html_output(Document_System *doc_system, Partition *part, char *dst_directory, Abstract_Item *doc){
             // NOTE(allen): Output
             Temp_Memory temp = begin_temp_memory(part);
+            
             String out = str_alloc(part, 10 << 20);
+            assert(out.str);
             Out_Context context = {0};
             set_context_directory(&context, dst_directory);
             
             // Output Docs
             char space[256];
             if (doc_get_link_string(doc, space, sizeof(space))){
-            if (begin_file_out(&context, space, &out)){
-                generate_document_html(&out, part, doc_system, doc);
-                end_file_out(context);
+                if (begin_file_out(&context, space, &out)){
+                    generate_document_html(&out, part, doc_system, doc);
+                    end_file_out(context);
+                }
+                else{
+                    fprintf(stderr, "Failed to open %s\n", space);
+                }
             }
-            else{
-                fprintf(stderr, "Failed to open %s", space);
-            }
-        }
+            
             end_temp_memory(temp);
     }
     
-    static Abstract_Document*
+    static Abstract_Item*
         generate_homepage(Document_System *doc_system, Partition *part, char *src_directory){
             Enriched_Text *home = push_struct(part, Enriched_Text);
             *home = load_enriched_text(part, src_directory, "home.txt");
             
-            Abstract_Document *doc = begin_document_description(doc_system, "4coder Home", "home");
+            Abstract_Item *doc = begin_document_description(doc_system, "4coder Home", "home", 0);
             add_enriched_text(doc, home);
             end_document_description(doc);
             
             return(doc);
     }
     
-    static Abstract_Document*
+    // TODO(allen): replace the documentation declaration system with a straight up enriched text system
+    static Abstract_Item*
         generate_4coder_docs(Document_System *doc_system, Partition *part, char *code_directory, char *src_directory){
         static Meta_Keywords meta_keywords[] = {
             {make_lit_string("API_EXPORT")        , Item_Function } ,
@@ -252,7 +227,7 @@ assert_files_are_equal(char *directory, char *filename1, char *filename2){
         *lexer_introduction = load_enriched_text(part, src_directory, "lexer_introduction.txt");
         
         // NOTE(allen): Put together the abstract document
-        Abstract_Document *doc = begin_document_description(doc_system, "4coder API Docs", "custom_docs");
+        Abstract_Item *doc = begin_document_description(doc_system, "4coder API Docs", "custom_docs", 1);
         
         add_table_of_contents(doc);
         
@@ -320,24 +295,24 @@ assert_files_are_equal(char *directory, char *filename1, char *filename2){
         return(doc);
     }
     
-    static Abstract_Document*
+    static Abstract_Item*
         generate_feature_list(Document_System *doc_system, Partition *part, char *src_directory){
             Enriched_Text *feature_list = push_struct(part, Enriched_Text);
             *feature_list = load_enriched_text(part, src_directory, "feature_list.txt");
             
-            Abstract_Document *doc = begin_document_description(doc_system, "4coder Feature List", "features");
+            Abstract_Item *doc = begin_document_description(doc_system, "4coder Feature List", "features", 0);
             add_enriched_text(doc, feature_list);
             end_document_description(doc);
             
         return(doc);
     }
     
-    static Abstract_Document*
+    static Abstract_Item*
         generate_roadmap(Document_System *doc_system, Partition *part, char *src_directory){
             Enriched_Text *roadmap = push_struct(part, Enriched_Text);
             *roadmap = load_enriched_text(part, src_directory, "roadmap.txt");
 
-            Abstract_Document *doc = begin_document_description(doc_system, "4coder Roadmap", "roadmap");
+            Abstract_Item *doc = begin_document_description(doc_system, "4coder Roadmap", "roadmap", 0);
             add_enriched_text(doc, roadmap);
             end_document_description(doc);
             
@@ -345,7 +320,7 @@ assert_files_are_equal(char *directory, char *filename1, char *filename2){
     }
     
 static void
-generate_site(char *code_directory, char *src_directory, char *dst_directory){
+generate_site(char *code_directory, char *asset_directory, char *src_directory, char *dst_directory){
     int32_t size = (512 << 20);
     void *mem = malloc(size);
     memset(mem, 0, size);
@@ -354,22 +329,33 @@ generate_site(char *code_directory, char *src_directory, char *dst_directory){
     Partition *part = &part_;
     
     Document_System doc_system = create_document_system(part);
+    add_image_description(&doc_system, asset_directory, "4coder_green.png", "4coder_logo.png", "4coder_logo");
     
     generate_homepage(&doc_system, part, src_directory);
     generate_4coder_docs(&doc_system, part, code_directory, src_directory);
     generate_feature_list(&doc_system, part, src_directory);
     generate_roadmap(&doc_system, part, src_directory);
     
-    for (Document_Node *node = doc_system.head;
+    for (Basic_Node *node = doc_system.img_list.head;
          node != 0;
          node = node->next){
-        do_html_output(&doc_system, part, dst_directory, &node->doc);
+        Abstract_Item *img = NodeGetData(node, Abstract_Item);
+        assert(img->item_type == ItemType_Image);
+        do_file_copy(part, asset_directory, img->source_file, dst_directory, img->out_file);
+    }
+    
+    for (Basic_Node *node = doc_system.doc_list.head;
+         node != 0;
+         node = node->next){
+        Abstract_Item *doc = NodeGetData(node, Abstract_Item);
+        assert(doc->item_type == ItemType_Document);
+        do_html_output(&doc_system, part, dst_directory, doc);
     }
 }
 
 int main(int argc, char **argv){
-    if (argc == 4){
-        generate_site(argv[1], argv[2], argv[3]);
+    if (argc == 5){
+        generate_site(argv[1], argv[2], argv[3], argv[4]);
     }
 }
 

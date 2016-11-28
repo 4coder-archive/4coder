@@ -1,7 +1,9 @@
 
+\IMAGE{image:4coder_logo}
+
 4coder is a code editor that first and foremost targets the needs C/C++ developers so that developers in that space can be as efficient as possible.  Here you can learn about the features of 4coder, how to get started with 4coder, and how to get the absolute most out of 4cocer.
 
-If you cannot find what you are looking for please contact \CODE_STYLE{editor@4coder.net} with questions.
+If you cannot find what you are looking for please contact \BEGIN_STYLE{code} editor@4coder.net \END_STYLE with questions.
 
 \BEGIN_LINK{document:features} The official 4coder feature list \END_LINK
 
