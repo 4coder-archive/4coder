@@ -305,7 +305,7 @@ CUSTOM_COMMAND_SIG(cursor_to_surrounding_scope){
     
     finished:;
     if (found_result){
-        view_set_cursor(app, &view, seek_pos(result), 0);
+        view_set_cursor(app, &view, seek_pos(result), 1);
     }
 }
 

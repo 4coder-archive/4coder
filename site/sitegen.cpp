@@ -11,6 +11,8 @@
 
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
+#define STB_IMAGE_RESIZE_IMPLEMENTATION
+#include "stb_image_resize.h"
 
 #include "4coder_version.h"
 #define FSTRING_IMPLEMENTATION
@@ -125,9 +127,10 @@ assert_files_are_equal(char *directory, char *filename1, char *filename2){
     static void
         do_html_output(Document_System *doc_system, Partition *part, char *dst_directory, Abstract_Item *doc){
             // NOTE(allen): Output
-            Temp_Memory temp = begin_temp_memory(part);
+            int32_t out_size = 10 << 20;
+            Tail_Temp_Partition temp = begin_tail_part(part, out_size);
             
-            String out = str_alloc(part, 10 << 20);
+            String out = str_alloc(&temp.part, out_size);
             assert(out.str);
             Out_Context context = {0};
             set_context_directory(&context, dst_directory);
@@ -144,7 +147,7 @@ assert_files_are_equal(char *directory, char *filename1, char *filename2){
                 }
             }
             
-            end_temp_memory(temp);
+            end_tail_part(temp);
     }
     
     static Abstract_Item*
@@ -319,6 +322,32 @@ assert_files_are_equal(char *directory, char *filename1, char *filename2){
             return(doc);
     }
     
+    static Abstract_Item*
+        generate_tutorials(Document_System *doc_system, Partition *part, char *src_directory){
+        Enriched_Text *roadmap = push_struct(part, Enriched_Text);
+        *roadmap = load_enriched_text(part, src_directory, "tutorials.txt");
+        
+        Abstract_Item *doc = begin_document_description(doc_system, "4coder Tutorials", "tutorials", 0);
+        add_enriched_text(doc, roadmap);
+        end_document_description(doc);
+        
+        return(doc);
+    }
+    
+    static String
+        push_string(Partition *part, int32_t size){
+            String str = {0};
+            str.memory_size = size;
+            str.str = push_array(part, char, size);
+            partition_align(part, 4);
+            return(str);
+    }
+    
+    static void
+        do_image_resize(Partition *part, char *src_file, char *dst_dir, char *dst_file, int32_t w, int32_t h){
+            do_file_copy(part, src_file, dst_dir, dst_file);
+    }
+    
 static void
 generate_site(char *code_directory, char *asset_directory, char *src_directory, char *dst_directory){
     int32_t size = (512 << 20);
@@ -327,22 +356,46 @@ generate_site(char *code_directory, char *asset_directory, char *src_directory, 
     
     Partition part_ = make_part(mem, size);
     Partition *part = &part_;
+    String str;
     
     Document_System doc_system = create_document_system(part);
-    add_image_description(&doc_system, asset_directory, "4coder_green.png", "4coder_logo.png", "4coder_logo");
+    
+    // TODO(allen): code compression here
+    str = push_string(part, 256);
+    append_sc(&str, asset_directory);
+    append_sc(&str, "/4coder_logo_low_green.png");
+    terminate_with_null(&str);
+    add_image_description(&doc_system, str.str, "png", "4coder_logo");
+    
+    str = push_string(part, 256);
+    append_sc(&str, asset_directory);
+    append_sc(&str, "/screen_1.png");
+    terminate_with_null(&str);
+    add_image_description(&doc_system, str.str, "png", "screen_1");
+    
+    str = push_string(part, 256);
+    append_sc(&str, asset_directory);
+    append_sc(&str, "/screen_2.png");
+    terminate_with_null(&str);
+    add_image_description(&doc_system, str.str, "png", "screen_2");
+    
+    str = push_string(part, 256);
+    append_sc(&str, asset_directory);
+    append_sc(&str, "/screen_3.png");
+    terminate_with_null(&str);
+    add_image_description(&doc_system, str.str, "png", "screen_3");
+    
+    str = push_string(part, 256);
+    append_sc(&str, asset_directory);
+    append_sc(&str, "/4coder_icon.ico");
+    terminate_with_null(&str);
+    add_generic_file(&doc_system, str.str, "ico", "4coder_icon");
     
     generate_homepage(&doc_system, part, src_directory);
     generate_4coder_docs(&doc_system, part, code_directory, src_directory);
     generate_feature_list(&doc_system, part, src_directory);
     generate_roadmap(&doc_system, part, src_directory);
-    
-    for (Basic_Node *node = doc_system.img_list.head;
-         node != 0;
-         node = node->next){
-        Abstract_Item *img = NodeGetData(node, Abstract_Item);
-        assert(img->item_type == ItemType_Image);
-        do_file_copy(part, asset_directory, img->source_file, dst_directory, img->out_file);
-    }
+    generate_tutorials(&doc_system, part, src_directory);
     
     for (Basic_Node *node = doc_system.doc_list.head;
          node != 0;
@@ -350,6 +403,40 @@ generate_site(char *code_directory, char *asset_directory, char *src_directory, 
         Abstract_Item *doc = NodeGetData(node, Abstract_Item);
         assert(doc->item_type == ItemType_Document);
         do_html_output(&doc_system, part, dst_directory, doc);
+    }
+    
+    for (Basic_Node *node = doc_system.file_list.head;
+         node != 0;
+         node = node->next){
+        Abstract_Item *file = NodeGetData(node, Abstract_Item);
+        assert(file->item_type == ItemType_GenericFile);
+        
+        char space[256];
+        String str = make_fixed_width_string(space);
+        append_sc(&str, file->name);
+        append_sc(&str, ".");
+        append_sc(&str, file->extension);
+        terminate_with_null(&str);
+        
+        do_file_copy(part, file->source_file, dst_directory, space);
+    }
+    
+    for (Basic_Node *node = doc_system.img_list.head;
+         node != 0;
+         node = node->next){
+        Abstract_Item *img = NodeGetData(node, Abstract_Item);
+        assert(img->item_type == ItemType_Image);
+        
+        for (Basic_Node *node = img->img_instantiations.head;
+             node != 0;
+             node = node->next){
+            Image_Instantiation *inst = NodeGetData(node, Image_Instantiation);
+            
+        char space[256];
+            if (img_get_link_string(img, space, sizeof(space), inst->w, inst->h)){
+                do_image_resize(part, img->source_file, dst_directory, space, inst->w, inst->h);
+            }
+        }
     }
 }
 

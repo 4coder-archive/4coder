@@ -404,7 +404,7 @@ buffer_seek_delimiter_forward(Application_Links *app, Buffer_Summary *buffer,
 
 static void
 buffer_seek_delimiter_backward(Application_Links *app, Buffer_Summary *buffer,
-                              int32_t pos, char delim, int32_t *result){
+                               int32_t pos, char delim, int32_t *result){
     if (buffer->exists){
         char chunk[1024];
         int32_t size = sizeof(chunk);
@@ -1404,7 +1404,7 @@ buffer_seek_whitespace_up(Application_Links *app, Buffer_Summary *buffer, int32_
             ++pos;
         }
     }
-
+    
     return(pos);
 }
 
@@ -1479,8 +1479,8 @@ CUSTOM_COMMAND_SIG(seek_whitespace_up){
     
     int32_t new_pos = buffer_seek_whitespace_up(app, &buffer, view.cursor.pos);
     view_set_cursor(app, &view,
-                         seek_pos(new_pos),
-                         true);
+                    seek_pos(new_pos),
+                    true);
 }
 
 CUSTOM_COMMAND_SIG(seek_whitespace_down){
@@ -1490,8 +1490,8 @@ CUSTOM_COMMAND_SIG(seek_whitespace_down){
     
     int32_t new_pos = buffer_seek_whitespace_down(app, &buffer, view.cursor.pos);
     view_set_cursor(app, &view,
-                         seek_pos(new_pos),
-                         true);
+                    seek_pos(new_pos),
+                    true);
 }
 
 CUSTOM_COMMAND_SIG(seek_end_of_textual_line){
@@ -2053,18 +2053,18 @@ CUSTOM_COMMAND_SIG(if0_off){
         edits[1].end = range.max;
         
         buffer_batch_edit(app,&buffer,
-                               base, global_part.pos,
-                               edits, ArrayCount(edits), BatchEdit_Normal);
+                          base, global_part.pos,
+                          edits, ArrayCount(edits), BatchEdit_Normal);
         
         view = get_view(app, view.view_id, AccessAll);
         if (view.cursor.pos > view.mark.pos){
             view_set_cursor(app, &view,
-                                 seek_line_char(view.cursor.line+1, view.cursor.character), 
-                                 true);
+                            seek_line_char(view.cursor.line+1, view.cursor.character), 
+                            true);
         }
         else{
             view_set_mark(app, &view,
-                               seek_line_char(view.mark.line+1, view.mark.character));
+                          seek_line_char(view.mark.line+1, view.mark.character));
         }
         
         range = get_range(&view);
@@ -2623,10 +2623,10 @@ CUSTOM_COMMAND_SIG(execute_any_cli){
     View_Summary view = get_active_view(app, access);
     
     exec_system_command(app, &view,
-                             buffer_identifier(bar_out.string.str, bar_out.string.size),
-                             hot_directory.str, hot_directory.size,
-                             bar_cmd.string.str, bar_cmd.string.size,
-                             CLI_OverlapWithConflict | CLI_CursorAtEnd);
+                        buffer_identifier(bar_out.string.str, bar_out.string.size),
+                        hot_directory.str, hot_directory.size,
+                        bar_cmd.string.str, bar_cmd.string.size,
+                        CLI_OverlapWithConflict | CLI_CursorAtEnd);
 }
 
 CUSTOM_COMMAND_SIG(execute_previous_cli){
@@ -2639,10 +2639,10 @@ CUSTOM_COMMAND_SIG(execute_previous_cli){
         View_Summary view = get_active_view(app, access);
         
         exec_system_command(app, &view,
-                                 buffer_identifier(out_buffer.str, out_buffer.size),
-                                 hot_directory.str, hot_directory.size,
-                                 cmd.str, cmd.size,
-                                 CLI_OverlapWithConflict | CLI_CursorAtEnd);
+                            buffer_identifier(out_buffer.str, out_buffer.size),
+                            hot_directory.str, hot_directory.size,
+                            cmd.str, cmd.size,
+                            CLI_OverlapWithConflict | CLI_CursorAtEnd);
     }
 }
 
@@ -2665,7 +2665,7 @@ CUSTOM_COMMAND_SIG(increase_line_wrap){
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessProtected);
     
     int32_t wrap = 0;
-        buffer_get_setting(app, &buffer, BufferSetting_WrapPosition, &wrap);
+    buffer_get_setting(app, &buffer, BufferSetting_WrapPosition, &wrap);
     buffer_set_setting(app, &buffer, BufferSetting_WrapPosition, wrap + 10);
 }
 
@@ -2984,7 +2984,7 @@ CUSTOM_COMMAND_SIG(word_complete){
             complete_state.initialized = true;
             search_iter_init(&global_general, &complete_state.iter, size);
             buffer_read_range(app, &buffer, word_start, word_end,
-                                   complete_state.iter.word.str);
+                              complete_state.iter.word.str);
             complete_state.iter.word.size = size;
             
             // NOTE(allen): Initialize the set of ranges to be searched.
@@ -3045,15 +3045,15 @@ CUSTOM_COMMAND_SIG(word_complete){
                     char *spare = push_array(&global_part, char, match_size);
                     
                     buffer_read_range(app, &match.buffer,
-                                           match.start, match.end, spare);
+                                      match.start, match.end, spare);
                     
                     if (search_hit_add(&global_general, &complete_state.hits, &complete_state.str,
                                        spare, match_size)){
                         buffer_replace_range(app, &buffer, word_start, word_end,
-                                                  spare, match_size);
+                                             spare, match_size);
                         view_set_cursor(app, &view,
-                                             seek_pos(word_start + match_size),
-                                             true);
+                                        seek_pos(word_start + match_size),
+                                        true);
                         
                         complete_state.word_end = word_start + match_size;
                         complete_state.set.ranges[0].mid_size = match_size;
@@ -3075,10 +3075,10 @@ CUSTOM_COMMAND_SIG(word_complete){
                     match_size = complete_state.iter.word.size;
                     char *str = complete_state.iter.word.str;
                     buffer_replace_range(app, &buffer, word_start, word_end,
-                                              str, match_size);
+                                         str, match_size);
                     view_set_cursor(app, &view,
-                                         seek_pos(word_start + match_size),
-                                         true);
+                                    seek_pos(word_start + match_size),
+                                    true);
                     
                     complete_state.word_end = word_start + match_size;
                     complete_state.set.ranges[0].mid_size = match_size;
@@ -3124,7 +3124,7 @@ get_build_directory(Application_Links *app, Buffer_Summary *buffer, String *dir_
     
     if (!result){
         int32_t len = directory_get_hot(app, dir_out->str,
-                                         dir_out->memory_size - dir_out->size);
+                                        dir_out->memory_size - dir_out->size);
         if (len + dir_out->size < dir_out->memory_size){
             dir_out->size += len;
             result = BuildDir_AtHot;
@@ -3165,10 +3165,10 @@ standard_build_search(Application_Links *app, View_Summary *view, Buffer_Summary
             
             
             exec_system_command(app, view,
-                                     buffer_identifier(literal("*compilation*")),
-                                     dir->str, dir->size,
-                                     command->str, command->size,
-                                     CLI_OverlapWithConflict);
+                                buffer_identifier(literal("*compilation*")),
+                                dir->str, dir->size,
+                                command->str, command->size,
+                                CLI_OverlapWithConflict);
             result = true;
             break;
         }
@@ -3182,10 +3182,10 @@ standard_build_search(Application_Links *app, View_Summary *view, Buffer_Summary
                 append_ss(&backup_command, make_lit_string("echo could not find "));
                 append_ss(&backup_command, filename);
                 exec_system_command(app, view,
-                                         buffer_identifier(literal("*compilation*")),
-                                         dir->str, dir->size,
-                                         backup_command.str, backup_command.size,
-                                         CLI_OverlapWithConflict);
+                                    buffer_identifier(literal("*compilation*")),
+                                    dir->str, dir->size,
+                                    backup_command.str, backup_command.size,
+                                    CLI_OverlapWithConflict);
             }
             break;
         }
@@ -3445,14 +3445,14 @@ SCROLL_RULE_SIG(smooth_scroll_rule){
         velocity->x = 1.f;
         velocity->y = 1.f;
     }
-
+    
     if (smooth_camera_step(target_y, scroll_y, &velocity->y, 80.f, 1.f/2.f)){
         result = 1;
     }
     if (smooth_camera_step(target_x, scroll_x, &velocity->x, 80.f, 1.f/2.f)){
         result = 1;
     }
-
+    
     return(result);
 }
 
@@ -3495,88 +3495,88 @@ process_config_file(Application_Links *app){
         fseek(file, 0, SEEK_SET);
         int32_t check_size = (int32_t)fread(mem, 1, size, file);
         if (check_size == size){
-        mem[size] = 0;
-        fclose(file);
-        
-        Cpp_Token_Array array;
-        array.count = 0;
-        array.max_count = (1 << 20)/sizeof(Cpp_Token);
-        array.tokens = push_array(&global_part, Cpp_Token, array.max_count);
-        
-        Cpp_Lex_Data S = cpp_lex_data_init();
-        Cpp_Lex_Result result = cpp_lex_step(&S, mem, size+1, HAS_NULL_TERM, &array, NO_OUT_LIMIT);
-        
-        if (result == LexResult_Finished){
+            mem[size] = 0;
+            fclose(file);
             
-            for (int32_t i = 0; i < array.count; ++i){
-                int32_t read_setting_failed = 1;
-                Cpp_Token id_token = array.tokens[i];
-                if (id_token.type == CPP_TOKEN_IDENTIFIER){
-                    ++i;
-                    if (i < array.count){
-                        Cpp_Token eq_token = array.tokens[i];
-                        if (eq_token.type == CPP_TOKEN_EQ){
-                            ++i;
-                            if (i < array.count){
-                                Cpp_Token val_token = array.tokens[i];
-                                {
-                                    ++i;
-                                    if (i < array.count){
-                                        Cpp_Token semicolon_token = array.tokens[i];
-                                        if (semicolon_token.type == CPP_TOKEN_SEMICOLON){
-                                            read_setting_failed = 0;
-                                            
-                                            String id = make_string(mem + id_token.start, id_token.size);
-                                            
-                                            if (match(id, "enable_code_wrapping")){
-                                                if (val_token.type == CPP_TOKEN_BOOLEAN_CONSTANT){
-                                                    String val = make_string(mem + val_token.start, val_token.size);
-                                                    if (val.str[0] == 't'){
-                                                        enable_code_wrapping = 1;
+            Cpp_Token_Array array;
+            array.count = 0;
+            array.max_count = (1 << 20)/sizeof(Cpp_Token);
+            array.tokens = push_array(&global_part, Cpp_Token, array.max_count);
+            
+            Cpp_Lex_Data S = cpp_lex_data_init();
+            Cpp_Lex_Result result = cpp_lex_step(&S, mem, size+1, HAS_NULL_TERM, &array, NO_OUT_LIMIT);
+            
+            if (result == LexResult_Finished){
+                
+                for (int32_t i = 0; i < array.count; ++i){
+                    int32_t read_setting_failed = 1;
+                    Cpp_Token id_token = array.tokens[i];
+                    if (id_token.type == CPP_TOKEN_IDENTIFIER){
+                        ++i;
+                        if (i < array.count){
+                            Cpp_Token eq_token = array.tokens[i];
+                            if (eq_token.type == CPP_TOKEN_EQ){
+                                ++i;
+                                if (i < array.count){
+                                    Cpp_Token val_token = array.tokens[i];
+                                    {
+                                        ++i;
+                                        if (i < array.count){
+                                            Cpp_Token semicolon_token = array.tokens[i];
+                                            if (semicolon_token.type == CPP_TOKEN_SEMICOLON){
+                                                read_setting_failed = 0;
+                                                
+                                                String id = make_string(mem + id_token.start, id_token.size);
+                                                
+                                                if (match(id, "enable_code_wrapping")){
+                                                    if (val_token.type == CPP_TOKEN_BOOLEAN_CONSTANT){
+                                                        String val = make_string(mem + val_token.start, val_token.size);
+                                                        if (val.str[0] == 't'){
+                                                            enable_code_wrapping = 1;
+                                                        }
+                                                        else{
+                                                            enable_code_wrapping = 0;
+                                                        }
                                                     }
-                                                    else{
-                                                        enable_code_wrapping = 0;
+                                                }
+                                                else if (match(id, "default_wrap_width")){
+                                                    if (val_token.type == CPP_TOKEN_INTEGER_CONSTANT){
+                                                        String val = make_string(mem + val_token.start, val_token.size);
+                                                        default_wrap_width = str_to_int(val);
                                                     }
                                                 }
-                                            }
-                                            else if (match(id, "default_wrap_width")){
-                                                if (val_token.type == CPP_TOKEN_INTEGER_CONSTANT){
-                                                    String val = make_string(mem + val_token.start, val_token.size);
-                                                    default_wrap_width = str_to_int(val);
+                                                else if (match(id, "default_min_base_width")){
+                                                    if (val_token.type == CPP_TOKEN_INTEGER_CONSTANT){
+                                                        String val = make_string(mem + val_token.start, val_token.size);
+                                                        default_min_base_width = str_to_int(val);
+                                                    }
                                                 }
+                                                
                                             }
-                                            else if (match(id, "default_min_base_width")){
-                                                if (val_token.type == CPP_TOKEN_INTEGER_CONSTANT){
-                                                    String val = make_string(mem + val_token.start, val_token.size);
-                                                    default_min_base_width = str_to_int(val);
-                                                }
-                                            }
-                                            
                                         }
                                     }
                                 }
                             }
                         }
                     }
-                }
-                
-                if (read_setting_failed){
-                    for (; i < array.count; ++i){
-                        Cpp_Token token = array.tokens[i];
-                        if (token.type == CPP_TOKEN_SEMICOLON){
-                            break;
+                    
+                    if (read_setting_failed){
+                        for (; i < array.count; ++i){
+                            Cpp_Token token = array.tokens[i];
+                            if (token.type == CPP_TOKEN_SEMICOLON){
+                                break;
+                            }
                         }
                     }
                 }
             }
+            
+            end_temp_memory(temp);
         }
-        
-        end_temp_memory(temp);
+        else{
+            print_message(app, literal("Did not find config.4coder, using default settings"));
+        }
     }
-    else{
-        print_message(app, literal("Did not find config.4coder, using default settings"));
-    }
-}
 }
 
 #endif

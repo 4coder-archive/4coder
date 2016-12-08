@@ -116,7 +116,8 @@ typedef union    _LARGE_INTEGER {
 #endif
 
 extern "C"{
-DWORD WINAPI GetCurrentDirectoryA(_In_  DWORD  nBufferLength, _Out_ LPTSTR lpBuffer);
+    DWORD WINAPI GetCurrentDirectoryA(_In_  DWORD  nBufferLength, _Out_ LPTSTR lpBuffer);
+    BOOL WINAPI SetCurrentDirectoryA(_In_ LPCTSTR lpPathName);
 
     BOOL WINAPI QueryPerformanceCounter(_Out_ LARGE_INTEGER *lpPerformanceCount);
 
@@ -130,10 +131,17 @@ DWORD WINAPI GetCurrentDirectoryA(_In_  DWORD  nBufferLength, _Out_ LPTSTR lpBuf
 static uint64_t perf_frequency;
 
 static Temp_Dir
-pushdir(char *dir){}
+pushdir(char *dir){
+    Temp_Dir temp = {0};
+    GetCurrentDirectoryA(sizeof(temp.dir), temp.dir);
+    SetCurrentDirectoryA(dir);
+    return(temp);
+}
 
 static void
-popdir(Temp_Dir temp){}
+popdir(Temp_Dir temp){
+    SetCurrentDirectoryA(temp.dir);
+}
 
 static void
 init_time_system(){
@@ -922,9 +930,14 @@ standard_build(char *cdir, uint32_t flags){
 static void
 site_build(char *cdir, uint32_t flags){
     {
-    BEGIN_TIME_SECTION();
-    build(OPTS | SITE_INCLUDES | flags, cdir, "site/sitegen.cpp", BUILD_SITE_DIR, "sitegen", 0);
-    END_TIME_SECTION("build sitegen");
+        BEGIN_TIME_SECTION();
+        // TODO(allen): Figure out how to do these strings the right way... fuck.
+#if defined(IS_WINDOWS)
+        build(OPTS | SITE_INCLUDES | flags, cdir, "site\\sitegen.cpp", BUILD_SITE_DIR, "sitegen", 0);
+#else
+        build(OPTS | SITE_INCLUDES | flags, cdir, "site/sitegen.cpp", BUILD_SITE_DIR, "sitegen", 0);
+#endif
+        END_TIME_SECTION("build sitegen");
     }
     
     {
@@ -932,7 +945,7 @@ site_build(char *cdir, uint32_t flags){
         
 #if defined(IS_WINDOWS)
         systemf("..\\build\\site\\sitegen . ..\\foreign\\site-resources site\\source_material ..\\site");
-        #else
+#else
         systemf("../build/site/sitegen . ../foreign/site-resources site/source_material ../site");
 #endif
         

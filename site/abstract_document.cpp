@@ -91,8 +91,20 @@ static Document_Item null_document_item = {0};
 enum{
     ItemType_Document,
     ItemType_Image,
+    ItemType_GenericFile,
     // never below this
     ItemType_COUNT,
+};
+
+struct Basic_Node{
+    Basic_Node *next;
+};
+
+#define NodeGetData(node, T) ((T*) ((node)+1))
+
+struct Basic_List{
+    Basic_Node *head;
+    Basic_Node *tail;
 };
 
 struct Abstract_Item{
@@ -110,26 +122,21 @@ struct Abstract_Item{
     
     // Image value members
     char *source_file;
-    char *out_file;
+    char *extension;
     float w_h_ratio;
     float h_w_ratio;
+    Basic_List img_instantiations;
 };
 static Abstract_Item null_abstract_item = {0};
 
-struct Basic_Node{
-    Basic_Node *next;
-};
-
-#define NodeGetData(node, T) ((T*) ((node)+1))
-
-struct Basic_List{
-    Basic_Node *head;
-    Basic_Node *tail;
+struct Image_Instantiation{
+    int32_t w, h;
 };
 
 struct Document_System{
     Basic_List doc_list;
     Basic_List img_list;
+    Basic_List file_list;
     Partition *part;
 };
 
@@ -195,18 +202,40 @@ get_item_by_name(Basic_List list, char *name){
     return(result);
 }
 
+static Image_Instantiation*
+get_image_instantiation(Basic_List list, int32_t w, int32_t h){
+    Image_Instantiation *result = 0;
+    
+    for (Basic_Node *node = list.head;
+         node != 0;
+         node = node->next){
+        Image_Instantiation *instantiation = NodeGetData(node, Image_Instantiation);
+        if (instantiation->w == w && instantiation->h == h){
+            result = instantiation;
+            break;
+        }
+    }
+    
+    return(result);
+}
+
 static Abstract_Item*
 create_item(Partition *part, Basic_List *list, char *name){
-    int32_t is_new_name = 1;
-    
     Abstract_Item *lookup = get_item_by_name(*list, name);
     
     Abstract_Item *result = 0;
-    if (is_new_name){
+    if (lookup == 0){
         result = (Abstract_Item*)push_item_on_list(part, list, sizeof(Abstract_Item));
     }
     
     return(result);
+}
+
+static void
+add_image_instantiation(Partition *part, Basic_List *list, int32_t w, int32_t h){
+    Image_Instantiation *instantiation = (Image_Instantiation*)push_item_on_list(part, list, sizeof(Image_Instantiation));
+    instantiation->w = w;
+    instantiation->h = h;
 }
 
 static void
@@ -241,26 +270,37 @@ begin_document_description(Abstract_Item *doc, Partition *part, char *title, int
 }
 
 static Abstract_Item*
-add_image_description(Document_System *system, char *asset_directory, char *source_file, char *out_file, char *name){
+add_generic_file(Document_System *system, char *source_file, char *extension, char *name){
+    Abstract_Item *item = create_item(system->part, &system->file_list, name);
+    if (item){
+        item->item_type = ItemType_GenericFile;
+        item->extension = extension;
+        item->source_file = source_file;
+        item->name = name;
+    }
+    return(item);
+}
+
+static Abstract_Item*
+add_image_description(Document_System *system, char *source_file, char *extension, char *name){
     Abstract_Item *item = create_item(system->part, &system->img_list, name);
     if (item){
         item->item_type = ItemType_Image;
+        item->extension = extension;
         item->source_file = source_file;
-        item->out_file = out_file;
         item->name = name;
         
-        char str[256];
-        String s = make_fixed_width_string(str);
-        append_sc(&s, asset_directory);
-        append_sc(&s, "/");
-        append_sc(&s, source_file);
-        terminate_with_null(&s);
-        
         int32_t w = 0, h = 0, comp = 0;
-        int32_t stbi_r = stbi_info(str, &w, &h, &comp);
-        assert(stbi_r);
+        int32_t stbi_r = stbi_info(source_file, &w, &h, &comp);
+        if (!stbi_r){
+            fprintf(stderr, "Did not find file %s\n", source_file);
+            item->w_h_ratio = 1.f;
+            item->h_w_ratio = 1.f;
+        }
+        else{
         item->w_h_ratio = ((float)w/(float)h);
         item->h_w_ratio = ((float)h/(float)w);
+        }
     }
     return(item);
 }
@@ -453,9 +493,17 @@ doc_get_link_string(Abstract_Item *doc, char *space, int32_t capacity){
 }
 
 static int32_t
-img_get_link_string(Abstract_Item *img, char *space, int32_t capacity){
+img_get_link_string(Abstract_Item *img, char *space, int32_t capacity, int32_t w, int32_t h){
     String str = make_string_cap(space, 0, capacity);
-    append_sc(&str, img->out_file);
+    append_sc(&str, img->name);
+    
+    append_sc(&str, "_");
+    append_int_to_str(&str, w);
+    append_sc(&str, "_");
+    append_int_to_str(&str, h);
+    
+    append_sc(&str, ".");
+    append_sc(&str, img->extension);
     int32_t result = terminate_with_null(&str);
     return(result);
 }
@@ -477,7 +525,7 @@ append_section_number(String *out, Section_Counter *section_counter){
 }
 
 static int32_t
-extract_command_body(String *out, String l, int32_t *i_in_out, int32_t *body_start_out, int32_t *body_end_out, String command_name){
+extract_command_body(String *out, String l, int32_t *i_in_out, int32_t *body_start_out, int32_t *body_end_out, String command_name, int32_t require_body){
     int32_t result = 0;
     
     int32_t i = *i_in_out;
@@ -507,6 +555,7 @@ extract_command_body(String *out, String l, int32_t *i_in_out, int32_t *body_sta
         result = 1;
     }
     else{
+        if (require_body){
 #define STR_START "<span style='color:#F00'>! Doc generator error: missing body for "
 #define STR_SLOW " !</span>"
         append_sc(out, STR_START);
@@ -515,6 +564,7 @@ extract_command_body(String *out, String l, int32_t *i_in_out, int32_t *body_sta
 #undef STR
         
         fprintf(stderr, "error: missing body for %.*s\n", command_name.size, command_name.str);
+        }
     }
     
     *i_in_out = i;
@@ -559,7 +609,7 @@ html_render_section_header(String *out, String section_name, String section_id, 
 #define HTML_WIDTH 800
 
 static void
-write_enriched_text_html(String *out, Enriched_Text *text, Document_System *doc_system,  Section_Counter *section_counter){
+write_enriched_text_html(String *out, Partition *part, Enriched_Text *text, Document_System *doc_system,  Section_Counter *section_counter){
     String source = text->source;
     
     append_sc(out, "<div>");
@@ -609,6 +659,7 @@ write_enriched_text_html(String *out, Enriched_Text *text, Document_System *doc_
                     Cmd_BeginLink,
                     Cmd_EndLink,
                     Cmd_Image,
+                    Cmd_Video,
                     // never below this
                     Cmd_COUNT,
                 };
@@ -629,6 +680,7 @@ write_enriched_text_html(String *out, Enriched_Text *text, Document_System *doc_
                 enriched_commands[Cmd_BeginLink]  = make_lit_string("BEGIN_LINK");
                 enriched_commands[Cmd_EndLink]    = make_lit_string("END_LINK");
                 enriched_commands[Cmd_Image]      = make_lit_string("IMAGE");
+                enriched_commands[Cmd_Video]      = make_lit_string("VIDEO");
                 
                 i = command_end;
                 
@@ -641,7 +693,7 @@ write_enriched_text_html(String *out, Enriched_Text *text, Document_System *doc_
                         case Cmd_BeginStyle:
                         {
                             int32_t body_start = 0, body_end = 0;
-                            int32_t has_body = extract_command_body(out, l, &i, &body_start, &body_end, command_string);
+                            int32_t has_body = extract_command_body(out, l, &i, &body_start, &body_end, command_string, 1);
                             if (has_body){
                                 String body_text = substr(l, body_start, body_end - body_start);
                                 body_text = skip_chop_whitespace(body_text);
@@ -660,7 +712,7 @@ write_enriched_text_html(String *out, Enriched_Text *text, Document_System *doc_
                         case Cmd_DocLink:
                         {
                             int32_t body_start = 0, body_end = 0;
-                            int32_t has_body = extract_command_body(out, l, &i, &body_start, &body_end, command_string);
+                            int32_t has_body = extract_command_body(out, l, &i, &body_start, &body_end, command_string, 1);
                             if (has_body){
                                 String body_text = substr(l, body_start, body_end - body_start);
                                 body_text = skip_chop_whitespace(body_text);
@@ -703,7 +755,7 @@ write_enriched_text_html(String *out, Enriched_Text *text, Document_System *doc_
                         {
                             // TODO(allen): undo the duplication of this body extraction code.
                             int32_t body_start = 0, body_end = 0;
-                            int32_t has_body = extract_command_body(out, l, &i, &body_start, &body_end, command_string);
+                            int32_t has_body = extract_command_body(out, l, &i, &body_start, &body_end, command_string, 1);
                             if (has_body){
                                 String body_text = substr(l, body_start, body_end - body_start);
                                 body_text = skip_chop_whitespace(body_text);
@@ -717,7 +769,7 @@ write_enriched_text_html(String *out, Enriched_Text *text, Document_System *doc_
                         case Cmd_BeginLink:
                         {
                             int32_t body_start = 0, body_end = 0;
-                            int32_t has_body = extract_command_body(out, l, &i, &body_start, &body_end, command_string);
+                            int32_t has_body = extract_command_body(out, l, &i, &body_start, &body_end, command_string, 1);
                             if (has_body){
                                 String body_text = substr(l, body_start, body_end - body_start);
                                 body_text = skip_chop_whitespace(body_text);
@@ -746,7 +798,6 @@ write_enriched_text_html(String *out, Enriched_Text *text, Document_System *doc_
                                     append_ss(out, body_text);
                                 }
                                 append_sc(out, "'>");
-                                
                             }
                         }break;
                         
@@ -757,19 +808,32 @@ write_enriched_text_html(String *out, Enriched_Text *text, Document_System *doc_
                         
                         case Cmd_Image:
                         {
+                            // TODO(allen): generalize this
                             int32_t body_start = 0, body_end = 0;
-                            int32_t has_body = extract_command_body(out, l, &i, &body_start, &body_end, command_string);
+                            int32_t has_body = extract_command_body(out, l, &i, &body_start, &body_end, command_string, 1);
+                            
                             if (has_body){
                                 String body_text = substr(l, body_start, body_end - body_start);
                                 body_text = skip_chop_whitespace(body_text);
                                 
                                 int32_t pixel_height = 10;
-                                int32_t pixel_width = HTML_WIDTH / 4;
+                                int32_t pixel_width = HTML_WIDTH;
                                 
-                                Abstract_Item *img_lookup = 0;
+                                body_start = 0, body_end = 0;
+                                has_body = extract_command_body(out, l, &i, &body_start, &body_end, command_string, 0);
+                                if (has_body){
+                                    String size_parameter = substr(l, body_start, body_end - body_start);
+                                    if (match_part_sc(size_parameter, "width:")){
+                                        String width_string = substr_tail(size_parameter, sizeof("width:")-1);
+                                        if (str_is_int_s(width_string)){
+                                            pixel_width = str_to_int_s(width_string);
+                                        }
+                                    }
+                                }
+                                
                                 if (match_part_sc(body_text, "image:")){
                                     String img_name = substr_tail(body_text, sizeof("image:")-1);
-                                    img_lookup = get_item_by_name(doc_system->img_list, img_name);
+                                    Abstract_Item *img_lookup = get_item_by_name(doc_system->img_list, img_name);
                                     
                                     if (img_lookup){
                                         pixel_height = CEIL32(pixel_width*img_lookup->h_w_ratio);
@@ -777,8 +841,9 @@ write_enriched_text_html(String *out, Enriched_Text *text, Document_System *doc_
                                         append_sc(out, "<img src='");
                                         
                                         char space[256];
-                                        if (img_get_link_string(img_lookup, space, sizeof(space))){
+                                        if (img_get_link_string(img_lookup, space, sizeof(space), pixel_width, pixel_height)){
                                             append_sc(out, space);
+                                            add_image_instantiation(part, &img_lookup->img_instantiations, pixel_width, pixel_height);
                                         }
                                         else{
                                             NotImplemented;
@@ -790,6 +855,33 @@ write_enriched_text_html(String *out, Enriched_Text *text, Document_System *doc_
                                         append_int_to_str(out, pixel_height);
                                         append_sc(out, "px;'>");
                                     }
+                                }
+                            }
+                        }break;
+                        
+                        case Cmd_Video:
+                        {
+                            // TODO(allen): generalize this
+                            int32_t body_start = 0, body_end = 0;
+                            int32_t has_body = extract_command_body(out, l, &i, &body_start, &body_end, command_string, 1);
+                            
+                            int32_t pixel_width = HTML_WIDTH;
+                            int32_t pixel_height = (int32_t)(pixel_width * 0.5625);
+                            
+                            if (has_body){
+                                String body_text = substr(l, body_start, body_end - body_start);
+                                body_text = skip_chop_whitespace(body_text);
+                                
+                                if (match_part_sc(body_text, "youtube:")){
+                                    String youtube_str = substr_tail(body_text, sizeof("youtube:")-1);
+                                    
+                                    append_sc(out, "<iframe  width='");
+                                    append_int_to_str(out, pixel_width);
+                                    append_sc(out, "' height='");
+                                    append_int_to_str(out, pixel_height);
+                                append_sc(out, "' src='");
+                                    append_ss(out, youtube_str);
+                                    append_sc(out, "' allowfullscreen> </iframe>");
                                 }
                             }
                         }break;
@@ -1428,6 +1520,7 @@ doc_item_head_html(String *out, Partition *part, Document_System *doc_system, Us
             append_sc(out,
                       "<html lang=\"en-US\">"
                       "<head>"
+                      "<link rel='shortcut icon' type='image/x-icon' href='4coder_icon.ico' />"
                       "<title>");
             
             append_ss(out, item->section.name);
@@ -1505,7 +1598,7 @@ doc_item_head_html(String *out, Partition *part, Document_System *doc_system, Us
         
         case Doc_Enriched_Text:
         {
-            write_enriched_text_html(out, item->text.text, doc_system, section_counter);
+            write_enriched_text_html(out, part, item->text.text, doc_system, section_counter);
         }break;
         
         case Doc_Element_List:

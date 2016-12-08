@@ -69,17 +69,10 @@ make_out_string(int32_t x){
 }
 
 static void
-do_file_copy(Partition *part, char *src_dir, char *src_file, char *dst_dir, char *dst_file){
-    char src[256];
+do_file_copy(Partition *part, char *src_file, char *dst_dir, char *dst_file){
     char dst[256];
     String str = {0};
     int32_t success = 0;
-    
-    str = make_fixed_width_string(src);
-    append_sc(&str, src_dir);
-    append_sc(&str, "/");
-    append_sc(&str, src_file);
-    terminate_with_null(&str);
     
     str = make_fixed_width_string(dst);
     append_sc(&str, dst_dir);
@@ -90,7 +83,7 @@ do_file_copy(Partition *part, char *src_dir, char *src_file, char *dst_dir, char
     Temp_Memory temp = begin_temp_memory(part);
     int32_t mem_size = partition_remaining(part);
     void *mem = push_block(part, mem_size);
-    FILE *in = fopen(src, "rb");
+    FILE *in = fopen(src_file, "rb");
     if (in){
         fseek(in, 0, SEEK_END);
         int32_t file_size = ftell(in);
@@ -111,7 +104,9 @@ do_file_copy(Partition *part, char *src_dir, char *src_file, char *dst_dir, char
     }
     end_temp_memory(temp);
     
-    assert(success);
+    if (!success){
+        fprintf(stderr, "Could not copy from %s to %s\n", src_file, dst);
+    }
 }
 
 #endif

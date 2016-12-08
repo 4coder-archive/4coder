@@ -91,10 +91,6 @@
 
 ; BEFORE I SHIP
 ;
-; [X] query buffer font info
-; [X] issues with drive letters
-; [X] ad hoc call for setting up/down keys for interactive screens
-; [X] miblo's various number editors
 ; [] decent options for indentation rules for text & presentation
 ;
 
@@ -145,6 +141,14 @@
 ; [X] use strange theme
 ; [X] cuber's return to previous buffer idea
 ; [X] find matches for current identifier
+; [X] query buffer font info
+; [X] issues with drive letters
+; [X] ad hoc call for setting up/down keys for interactive screens
+; [X] miblo's various number editors
+; [X] eliminate the need for the lexer state's spare array.
+; [X] fix buffer render item capacity issue
+; [X] tab to complete folder names in the new file dialogue
+; [X] API docs have duplicate ids?
 
 ; Token related upgrades
 ; [X] tokens in the custom API
@@ -154,10 +158,6 @@
 ;         [X] inserting lines at end of block comment
 ;         [] switch to line classification system
 ;         [] more built in options for auto indenting
-;
-; [X] eliminate the need for the lexer state's spare array.
-; [X] fix buffer render item capacity issue
-; [X] tab to complete folder names in the new file dialogue
 
 ; Arbitrary wrap positions
 ; [X] allow for arbitrary wrap positions independent of view width
@@ -196,7 +196,6 @@
 
 ; [] user file bar string
 ; [] option to not open *messages* every startup
-; [] API docs have duplicate ids?
 ; [] API docs as text file
 ; [] read only files
 ; [] option to hide hidden files

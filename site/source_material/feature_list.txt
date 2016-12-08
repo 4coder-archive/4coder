@@ -1,5 +1,7 @@
 
-\IMAGE{image:4coder_logo}
+\BEGIN_LINK{document:home}
+\IMAGE{image:4coder_logo}{width:200}
+\END_LINK
 
 This page provides a list of 4coder features for anyone trying to determine whether 4coder is the right editor for them.  If a feature is missing here you should check out the \BEGIN_LINK{document:roadmap} roadmap \END_LINK page to see what is coming in the future.  If the feature you want is on neither, you should contact \BEGIN_STYLE{code} editor@4coder.net \END_STYLE.  Some features that are already in 4coder might be missing from this list, if you want to be sure you should contact \BEGIN_STYLE{code} editor@4coder.net \END_STYLE.
 
@@ -28,7 +30,6 @@ This page provides a list of 4coder features for anyone trying to determine whet
  \BEGIN_LIST
  \BEGIN_ITEM Easy key rebinding \END_ITEM
  \BEGIN_ITEM Create custom commands \END_ITEM
- \BEGIN_ITEM Buffer reading and editing \END_ITEM
  \BEGIN_ITEM Buffer reading and editing \END_ITEM
  \BEGIN_ITEM View opening, closing, positioning \END_ITEM
  \BEGIN_ITEM Access to the code intelligence engine \END_ITEM

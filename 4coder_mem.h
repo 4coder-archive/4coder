@@ -8,12 +8,19 @@
 
 struct Partition{
     char *base;
-    int32_t pos, max;
+    int32_t pos;
+    int32_t max;
 };
 
 struct Temp_Memory{
     void *handle;
     int32_t pos;
+};
+
+struct Tail_Temp_Partition{
+    Partition part;
+    void *handle;
+    int32_t old_max;
 };
 
 inline Partition
@@ -43,12 +50,12 @@ partition_align(Partition *data, uint32_t boundary){
 
 inline void*
 partition_current(Partition *data){
-    return data->base + data->pos;
+    return(data->base + data->pos);
 }
 
 inline int32_t
 partition_remaining(Partition *data){
-    return data->max - data->pos;
+    return(data->max - data->pos);
 }
 
 inline Partition
@@ -58,7 +65,7 @@ partition_sub_part(Partition *data, int32_t size){
     if (d){
         result = make_part(d, size);
     }
-    return result;
+    return(result);
 }
 
 #define push_struct(part, T) (T*)partition_allocate(part, sizeof(T))
@@ -70,12 +77,32 @@ begin_temp_memory(Partition *data){
     Temp_Memory result;
     result.handle = data;
     result.pos = data->pos;
-    return result;
+    return(result);
 }
 
 inline void
 end_temp_memory(Temp_Memory temp){
     ((Partition*)temp.handle)->pos = temp.pos;
+}
+
+inline Tail_Temp_Partition
+begin_tail_part(Partition *data, int32_t size){
+    Tail_Temp_Partition result = {0};
+    if (data->pos + size <= data->max){
+    result.handle = data;
+    result.old_max = data->max;
+        data->max -= size;
+        result.part = make_part(data->base + data->max, size);
+    }
+    return(result);
+}
+
+inline void
+end_tail_part(Tail_Temp_Partition temp){
+    if (temp.handle){
+        Partition *part = (Partition*)temp.handle;
+        part->max = temp.old_max;
+    }
 }
 
 /*

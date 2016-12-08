@@ -1,0 +1,12 @@
+
+\BEGIN_LINK{document:home}
+\IMAGE{image:4coder_logo}{width:200}
+\END_LINK
+
+Getting started with 4coder and navigating your files:
+
+\VIDEO{youtube:https://www.youtube.com/embed/h5cbOcnSrcc}
+
+More tutorials coming soon.
+
+

@@ -1,9 +1,13 @@
 
-\IMAGE{image:4coder_logo}
+\BEGIN_LINK{document:home}
+\IMAGE{image:4coder_logo}{width:200}
+\END_LINK
 
-4coder is a code editor that first and foremost targets the needs C/C++ developers so that developers in that space can be as efficient as possible.  Here you can learn about the features of 4coder, how to get started with 4coder, and how to get the absolute most out of 4cocer.
+4coder is a code editor that first and foremost targets the needs of C/C++ developers so they can be as efficient as possible. Here you can learn about the features of 4coder, how to get started with 4coder, and how to get the absolute most out of 4coder.
 
 If you cannot find what you are looking for please contact \BEGIN_STYLE{code} editor@4coder.net \END_STYLE with questions.
+
+\BEGIN_LINK{!http://patreon.com/mr4thdimention} Get an alpha build by supporting development \END_LINK
 
 \BEGIN_LINK{document:features} The official 4coder feature list \END_LINK
 
@@ -11,4 +15,10 @@ If you cannot find what you are looking for please contact \BEGIN_STYLE{code} ed
 
 \BEGIN_LINK{document:custom_docs} The official documentation for the 4coder customization system \END_LINK
 
+\BEGIN_LINK{document:tutorials} Using 4coder tutorials \END_LINK
 
+\IMAGE{image:screen_1}
+
+\IMAGE{image:screen_2}
+
+\IMAGE{image:screen_3}
