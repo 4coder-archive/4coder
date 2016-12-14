@@ -159,7 +159,7 @@ folders.
     return(result);
 }
 
-API_EXPORT bool32
+API_EXPORT int32_t
 Get_4ed_Path(Application_Links *app, char *out, int32_t capacity)
 /*
 DOC_PARAM(out, This parameter provides a character buffer that receives the path to the 4ed executable file.)
@@ -167,7 +167,8 @@ DOC_PARAM(capacity, This parameter specifies the maximum capacity of the out buf
 DOC_RETURN(This call returns non-zero on success.)
 */{
     String str = make_string_cap(out, 0, capacity);
-    return(system_get_binary_path(&str));
+    int32_t size = system_get_binary_path(&str);
+    return(size);
 }
 
 // TODO(allen): add a "shown but auto-hides on timer" setting here.

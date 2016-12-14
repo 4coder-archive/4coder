@@ -13,6 +13,8 @@
 #include "stb_image.h"
 #define STB_IMAGE_RESIZE_IMPLEMENTATION
 #include "stb_image_resize.h"
+#define STB_IMAGE_WRITE_IMPLEMENTATION
+#include "stb_image_write.h"
 
 #include "4coder_version.h"
 #define FSTRING_IMPLEMENTATION
@@ -88,7 +90,7 @@ print_function_body_code(String *out, Parse_Context *context, int32_t start){
         }
     }
 }
-                                     
+
 static Alternate_Names_Array
 allocate_app_api(Partition *part, int32_t count){
     Alternate_Names_Array app_api = {0};
@@ -96,7 +98,7 @@ allocate_app_api(Partition *part, int32_t count){
     memset(app_api.names, 0, sizeof(Alternate_Name)*count);
     return(app_api);
 }
-                                     
+
 static void
 assert_files_are_equal(char *directory, char *filename1, char *filename2){
     char space[256];
@@ -105,249 +107,260 @@ assert_files_are_equal(char *directory, char *filename1, char *filename2){
     append_sc(&name, "/");
     append_sc(&name, filename1);
     terminate_with_null(&name);
-                                     
+    
     String file1 = file_dump(name.str);
-                                     
+    
     name.size = 0;
     append_sc(&name, directory);
     append_sc(&name, "/");
     append_sc(&name, filename2);
     terminate_with_null(&name);
-                                     
+    
     String file2 = file_dump(name.str);
-                                     
+    
     if (!match_ss(file1, file2)){
         fprintf(stderr, "Failed transitional test: %s != %s\n", filename1, filename2);
     }
     else{
         fprintf(stderr, "Passed transitional test: %s == %s\n", filename1, filename2);
     }
-    }
-                                     
-    static void
-        do_html_output(Document_System *doc_system, Partition *part, char *dst_directory, Abstract_Item *doc){
-            // NOTE(allen): Output
-            int32_t out_size = 10 << 20;
-            Tail_Temp_Partition temp = begin_tail_part(part, out_size);
-            
-            String out = str_alloc(&temp.part, out_size);
-            assert(out.str);
-            Out_Context context = {0};
-            set_context_directory(&context, dst_directory);
-            
-            // Output Docs
-            char space[256];
-            if (doc_get_link_string(doc, space, sizeof(space))){
-                if (begin_file_out(&context, space, &out)){
-                    generate_document_html(&out, part, doc_system, doc);
-                    end_file_out(context);
-                }
-                else{
-                    fprintf(stderr, "Failed to open %s\n", space);
-                }
-            }
-            
-            end_tail_part(temp);
-    }
+}
+
+static void
+do_html_output(Document_System *doc_system, Partition *part, char *dst_directory, Abstract_Item *doc){
+    // NOTE(allen): Output
+    int32_t out_size = 10 << 20;
+    Tail_Temp_Partition temp = begin_tail_part(part, out_size);
     
-    static Abstract_Item*
-        generate_homepage(Document_System *doc_system, Partition *part, char *src_directory){
-            Enriched_Text *home = push_struct(part, Enriched_Text);
-            *home = load_enriched_text(part, src_directory, "home.txt");
-            
-            Abstract_Item *doc = begin_document_description(doc_system, "4coder Home", "home", 0);
-            add_enriched_text(doc, home);
-            end_document_description(doc);
-            
-            return(doc);
-    }
+    String out = str_alloc(&temp.part, out_size);
+    assert(out.str);
+    Out_Context context = {0};
+    set_context_directory(&context, dst_directory);
     
-    // TODO(allen): replace the documentation declaration system with a straight up enriched text system
-    static Abstract_Item*
-        generate_4coder_docs(Document_System *doc_system, Partition *part, char *code_directory, char *src_directory){
-        static Meta_Keywords meta_keywords[] = {
-            {make_lit_string("API_EXPORT")        , Item_Function } ,
-            {make_lit_string("API_EXPORT_INLINE") , Item_Function } ,
-            {make_lit_string("API_EXPORT_MACRO")  , Item_Macro    } ,
-            {make_lit_string("CPP_NAME")          , Item_CppName  } ,
-            {make_lit_string("TYPEDEF") , Item_Typedef } ,
-            {make_lit_string("STRUCT")  , Item_Struct  } ,
-            {make_lit_string("UNION")   , Item_Union   } ,
-            {make_lit_string("ENUM")    , Item_Enum    } ,
-        };
-        
-#define ExpandArray(a) (a), (ArrayCount(a))
-        
-        Meta_Unit *custom_types_unit = push_struct(part, Meta_Unit);
-        Meta_Unit *lexer_funcs_unit = push_struct(part, Meta_Unit);
-        Meta_Unit *lexer_types_unit = push_struct(part, Meta_Unit);
-        Meta_Unit *string_unit = push_struct(part, Meta_Unit);
-        Meta_Unit *custom_funcs_unit = push_struct(part, Meta_Unit);
-        
-        Alternate_Names_Array *custom_func_names = push_struct(part, Alternate_Names_Array);
-        
-        Enriched_Text *introduction = push_struct(part, Enriched_Text);
-        Enriched_Text *lexer_introduction = push_struct(part, Enriched_Text);
-        
-        // NOTE(allen): Parse the important code.
-        *custom_types_unit = compile_meta_unit(part, code_directory, "4coder_types.h", ExpandArray(meta_keywords));
-        
-        *lexer_funcs_unit = compile_meta_unit(part, code_directory, "4cpp_lexer.h", ExpandArray(meta_keywords));
-        
-        *lexer_types_unit = compile_meta_unit(part, code_directory, "4cpp_lexer_types.h", ExpandArray(meta_keywords));
-        
-        *string_unit = compile_meta_unit(part, code_directory, "internal_4coder_string.cpp", ExpandArray(meta_keywords));
-        
-        static char *functions_files[] = {
-            "4ed_api_implementation.cpp",
-            "win32_api_impl.cpp",
-            0
-        };
-        
-        *custom_funcs_unit = compile_meta_unit(part, code_directory, functions_files, ExpandArray(meta_keywords));
-        
-        
-        // NOTE(allen): Compute and store variations of the custom function names
-        *custom_func_names = allocate_app_api(part, custom_funcs_unit->set.count);
-        
-        for (int32_t i = 0; i < custom_funcs_unit->set.count; ++i){
-            String name_string = custom_funcs_unit->set.items[i].name;
-            String *macro = &custom_func_names->names[i].macro;
-            String *public_name = &custom_func_names->names[i].public_name;
-            
-            *macro = str_alloc(part, name_string.size+4);
-            to_upper_ss(macro, name_string);
-            append_ss(macro, make_lit_string("_SIG"));
-            
-            *public_name = str_alloc(part, name_string.size);
-            to_lower_ss(public_name, name_string);
-            
-            partition_align(part, 4);
+    // Output Docs
+    char space[256];
+    if (doc_get_link_string(doc, space, sizeof(space))){
+        if (begin_file_out(&context, space, &out)){
+            generate_document_html(&out, part, doc_system, doc);
+            end_file_out(context);
         }
+        else{
+            fprintf(stderr, "Failed to open %s\n", space);
+        }
+    }
+    
+    end_tail_part(temp);
+}
+
+static Abstract_Item*
+generate_homepage(Document_System *doc_system, Partition *part, char *src_directory){
+    Enriched_Text *home = push_struct(part, Enriched_Text);
+    *home = load_enriched_text(part, src_directory, "home.txt");
+    
+    Abstract_Item *doc = begin_document_description(doc_system, "4coder Home", "home", 0);
+    add_enriched_text(doc, home);
+    end_document_description(doc);
+    
+    return(doc);
+}
+
+// TODO(allen): replace the documentation declaration system with a straight up enriched text system
+static Abstract_Item*
+generate_4coder_docs(Document_System *doc_system, Partition *part, char *code_directory, char *src_directory){
+    static Meta_Keywords meta_keywords[] = {
+        {make_lit_string("API_EXPORT")        , Item_Function } ,
+        {make_lit_string("API_EXPORT_INLINE") , Item_Function } ,
+        {make_lit_string("API_EXPORT_MACRO")  , Item_Macro    } ,
+        {make_lit_string("CPP_NAME")          , Item_CppName  } ,
+        {make_lit_string("TYPEDEF") , Item_Typedef } ,
+        {make_lit_string("STRUCT")  , Item_Struct  } ,
+        {make_lit_string("UNION")   , Item_Union   } ,
+        {make_lit_string("ENUM")    , Item_Enum    } ,
+    };
+    
+#define ExpandArray(a) (a), (ArrayCount(a))
+    
+    Meta_Unit *custom_types_unit = push_struct(part, Meta_Unit);
+    Meta_Unit *lexer_funcs_unit = push_struct(part, Meta_Unit);
+    Meta_Unit *lexer_types_unit = push_struct(part, Meta_Unit);
+    Meta_Unit *string_unit = push_struct(part, Meta_Unit);
+    Meta_Unit *custom_funcs_unit = push_struct(part, Meta_Unit);
+    
+    Alternate_Names_Array *custom_func_names = push_struct(part, Alternate_Names_Array);
+    
+    Enriched_Text *introduction = push_struct(part, Enriched_Text);
+    Enriched_Text *lexer_introduction = push_struct(part, Enriched_Text);
+    
+    // NOTE(allen): Parse the important code.
+    *custom_types_unit = compile_meta_unit(part, code_directory, "4coder_types.h", ExpandArray(meta_keywords));
+    
+    *lexer_funcs_unit = compile_meta_unit(part, code_directory, "4cpp_lexer.h", ExpandArray(meta_keywords));
+    
+    *lexer_types_unit = compile_meta_unit(part, code_directory, "4cpp_lexer_types.h", ExpandArray(meta_keywords));
+    
+    *string_unit = compile_meta_unit(part, code_directory, "internal_4coder_string.cpp", ExpandArray(meta_keywords));
+    
+    static char *functions_files[] = {
+        "4ed_api_implementation.cpp",
+        "win32_api_impl.cpp",
+        0
+    };
+    
+    *custom_funcs_unit = compile_meta_unit(part, code_directory, functions_files, ExpandArray(meta_keywords));
+    
+    
+    // NOTE(allen): Compute and store variations of the custom function names
+    *custom_func_names = allocate_app_api(part, custom_funcs_unit->set.count);
+    
+    for (int32_t i = 0; i < custom_funcs_unit->set.count; ++i){
+        String name_string = custom_funcs_unit->set.items[i].name;
+        String *macro = &custom_func_names->names[i].macro;
+        String *public_name = &custom_func_names->names[i].public_name;
         
-        // NOTE(allen): Load enriched text materials
-        *introduction = load_enriched_text(part, src_directory, "introduction.txt");
-        *lexer_introduction = load_enriched_text(part, src_directory, "lexer_introduction.txt");
+        *macro = str_alloc(part, name_string.size+4);
+        to_upper_ss(macro, name_string);
+        append_ss(macro, make_lit_string("_SIG"));
         
-        // NOTE(allen): Put together the abstract document
-        Abstract_Item *doc = begin_document_description(doc_system, "4coder API Docs", "custom_docs", 1);
+        *public_name = str_alloc(part, name_string.size);
+        to_lower_ss(public_name, name_string);
         
-        add_table_of_contents(doc);
-        
-        begin_section(doc, "Introduction", "introduction");
-        add_enriched_text(doc, introduction);
+        partition_align(part, 4);
+    }
+    
+    // NOTE(allen): Load enriched text materials
+    *introduction = load_enriched_text(part, src_directory, "introduction.txt");
+    *lexer_introduction = load_enriched_text(part, src_directory, "lexer_introduction.txt");
+    
+    // NOTE(allen): Put together the abstract document
+    Abstract_Item *doc = begin_document_description(doc_system, "4coder API Docs", "custom_docs", 1);
+    
+    add_table_of_contents(doc);
+    
+    begin_section(doc, "Introduction", "introduction");
+    add_enriched_text(doc, introduction);
+    end_section(doc);
+    
+    begin_section(doc, "4coder Systems", "4coder_systems");
+    add_todo(doc);
+    end_section(doc);
+    
+    begin_section(doc, "Types and Functions", "types_and_functions");
+    {
+        begin_section(doc, "Function List", 0);
+        add_element_list(doc, custom_funcs_unit, custom_func_names, AltName_Public_Name);
         end_section(doc);
-        
-        begin_section(doc, "4coder Systems", "4coder_systems");
+        begin_section(doc, "Type List", 0);
+        add_element_list(doc, custom_types_unit);
+        end_section(doc);
+        begin_section(doc, "Function Descriptions", 0);
+        add_full_elements(doc, custom_funcs_unit, custom_func_names, AltName_Public_Name);
+        end_section(doc);
+        begin_section(doc, "Type Descriptions", 0);
+        add_full_elements(doc, custom_types_unit);
+        end_section(doc);
+    }
+    end_section(doc);
+    
+    begin_section(doc, "String Library", "string_library");
+    {
+        begin_section(doc, "String Library Intro", 0);
         add_todo(doc);
         end_section(doc);
-        
-        begin_section(doc, "Types and Functions", "types_and_functions");
-        {
-            begin_section(doc, "Function List", 0);
-            add_element_list(doc, custom_funcs_unit, custom_func_names, AltName_Public_Name);
-            end_section(doc);
-            begin_section(doc, "Type List", 0);
-            add_element_list(doc, custom_types_unit);
-            end_section(doc);
-            begin_section(doc, "Function Descriptions", 0);
-            add_full_elements(doc, custom_funcs_unit, custom_func_names, AltName_Public_Name);
-            end_section(doc);
-            begin_section(doc, "Type Descriptions", 0);
-            add_full_elements(doc, custom_types_unit);
-            end_section(doc);
-        }
+        begin_section(doc, "String Function List", 0);
+        add_element_list(doc, string_unit);
         end_section(doc);
-        
-        begin_section(doc, "String Library", "string_library");
-        {
-            begin_section(doc, "String Library Intro", 0);
-            add_todo(doc);
-            end_section(doc);
-            begin_section(doc, "String Function List", 0);
-            add_element_list(doc, string_unit);
-            end_section(doc);
-            begin_section(doc, "String Function Descriptions", 0);
-            add_full_elements(doc, string_unit);
-            end_section(doc);
-        }
+        begin_section(doc, "String Function Descriptions", 0);
+        add_full_elements(doc, string_unit);
         end_section(doc);
-        
-        begin_section(doc, "Lexer Library", "lexer_library");
-        {
-            begin_section(doc, "Lexer Intro", 0);
-            add_enriched_text(doc, lexer_introduction);
-            end_section(doc);
-            begin_section(doc, "Lexer Function List", 0);
-            add_element_list(doc, lexer_funcs_unit);
-            end_section(doc);
-            begin_section(doc, "Lexer Type List", 0);
-            add_element_list(doc, lexer_types_unit);
-            end_section(doc);
-            begin_section(doc, "Lexer Function Descriptions", 0);
-            add_full_elements(doc, lexer_funcs_unit);
-            end_section(doc);
-            begin_section(doc, "Lexer Type Descriptions", 0);
-            add_full_elements(doc, lexer_types_unit);
-            end_section(doc);
-        }
-        end_section(doc);
-        
-        end_document_description(doc);
-        
-        return(doc);
     }
+    end_section(doc);
     
-    static Abstract_Item*
-        generate_feature_list(Document_System *doc_system, Partition *part, char *src_directory){
-            Enriched_Text *feature_list = push_struct(part, Enriched_Text);
-            *feature_list = load_enriched_text(part, src_directory, "feature_list.txt");
-            
-            Abstract_Item *doc = begin_document_description(doc_system, "4coder Feature List", "features", 0);
-            add_enriched_text(doc, feature_list);
-            end_document_description(doc);
-            
-        return(doc);
+    begin_section(doc, "Lexer Library", "lexer_library");
+    {
+        begin_section(doc, "Lexer Intro", 0);
+        add_enriched_text(doc, lexer_introduction);
+        end_section(doc);
+        begin_section(doc, "Lexer Function List", 0);
+        add_element_list(doc, lexer_funcs_unit);
+        end_section(doc);
+        begin_section(doc, "Lexer Type List", 0);
+        add_element_list(doc, lexer_types_unit);
+        end_section(doc);
+        begin_section(doc, "Lexer Function Descriptions", 0);
+        add_full_elements(doc, lexer_funcs_unit);
+        end_section(doc);
+        begin_section(doc, "Lexer Type Descriptions", 0);
+        add_full_elements(doc, lexer_types_unit);
+        end_section(doc);
     }
+    end_section(doc);
     
-    static Abstract_Item*
-        generate_roadmap(Document_System *doc_system, Partition *part, char *src_directory){
-            Enriched_Text *roadmap = push_struct(part, Enriched_Text);
-            *roadmap = load_enriched_text(part, src_directory, "roadmap.txt");
+    end_document_description(doc);
+    
+    return(doc);
+}
 
-            Abstract_Item *doc = begin_document_description(doc_system, "4coder Roadmap", "roadmap", 0);
-            add_enriched_text(doc, roadmap);
-            end_document_description(doc);
-            
-            return(doc);
+static Abstract_Item*
+generate_feature_list(Document_System *doc_system, Partition *part, char *src_directory){
+    Enriched_Text *feature_list = push_struct(part, Enriched_Text);
+    *feature_list = load_enriched_text(part, src_directory, "feature_list.txt");
+    
+    Abstract_Item *doc = begin_document_description(doc_system, "4coder Feature List", "features", 0);
+    add_enriched_text(doc, feature_list);
+    end_document_description(doc);
+    
+    return(doc);
+}
+
+static Abstract_Item*
+generate_roadmap(Document_System *doc_system, Partition *part, char *src_directory){
+    Enriched_Text *roadmap = push_struct(part, Enriched_Text);
+    *roadmap = load_enriched_text(part, src_directory, "roadmap.txt");
+    
+    Abstract_Item *doc = begin_document_description(doc_system, "4coder Roadmap", "roadmap", 0);
+    add_enriched_text(doc, roadmap);
+    end_document_description(doc);
+    
+    return(doc);
+}
+
+static Abstract_Item*
+generate_tutorials(Document_System *doc_system, Partition *part, char *src_directory){
+    Enriched_Text *roadmap = push_struct(part, Enriched_Text);
+    *roadmap = load_enriched_text(part, src_directory, "tutorials.txt");
+    
+    Abstract_Item *doc = begin_document_description(doc_system, "4coder Tutorials", "tutorials", 0);
+    add_enriched_text(doc, roadmap);
+    end_document_description(doc);
+    
+    return(doc);
+}
+
+static String
+push_string(Partition *part, int32_t size){
+    String str = {0};
+    str.memory_size = size;
+    str.str = push_array(part, char, size);
+    partition_align(part, 4);
+    return(str);
+}
+
+static void
+do_image_resize(Partition *part, char *src_file, char *dst_file, char *extension, int32_t w, int32_t h){
+    int x, y, channels;
+    stbi_uc *image = stbi_load(src_file, &x, &y, &channels, 0);
+    
+    stbi_uc *resized_image = (stbi_uc*)malloc(w*h*channels);
+    stbir_resize_uint8(image, x, y, x*channels, resized_image, w, h, w*channels, channels);
+    
+    if (match_cc(extension, "png")){
+        stbi_write_png(dst_file, w, h, channels, resized_image, w*channels);
     }
     
-    static Abstract_Item*
-        generate_tutorials(Document_System *doc_system, Partition *part, char *src_directory){
-        Enriched_Text *roadmap = push_struct(part, Enriched_Text);
-        *roadmap = load_enriched_text(part, src_directory, "tutorials.txt");
-        
-        Abstract_Item *doc = begin_document_description(doc_system, "4coder Tutorials", "tutorials", 0);
-        add_enriched_text(doc, roadmap);
-        end_document_description(doc);
-        
-        return(doc);
-    }
-    
-    static String
-        push_string(Partition *part, int32_t size){
-            String str = {0};
-            str.memory_size = size;
-            str.str = push_array(part, char, size);
-            partition_align(part, 4);
-            return(str);
-    }
-    
-    static void
-        do_image_resize(Partition *part, char *src_file, char *dst_dir, char *dst_file, int32_t w, int32_t h){
-            do_file_copy(part, src_file, dst_dir, dst_file);
-    }
-    
+    free(image);
+    free(resized_image);
+}
+
 static void
 generate_site(char *code_directory, char *asset_directory, char *src_directory, char *dst_directory){
     int32_t size = (512 << 20);
@@ -432,9 +445,17 @@ generate_site(char *code_directory, char *asset_directory, char *src_directory, 
              node = node->next){
             Image_Instantiation *inst = NodeGetData(node, Image_Instantiation);
             
-        char space[256];
+            char space[256];
             if (img_get_link_string(img, space, sizeof(space), inst->w, inst->h)){
-                do_image_resize(part, img->source_file, dst_directory, space, inst->w, inst->h);
+                char space2[256];
+                String str = make_fixed_width_string(space2);
+                
+                append_sc(&str, dst_directory);
+                append_sc(&str, "/");
+                append_sc(&str, space);
+                terminate_with_null(&str);
+                
+                do_image_resize(part, img->source_file, space2, img->extension, inst->w, inst->h);
             }
         }
     }

@@ -876,15 +876,31 @@ metagen(char *cdir){
     }
 }
 
+enum{
+    Custom_Default,
+    Custom_Experiments,
+    Custom_Casey,
+    Custom_ChronalVim,
+    CUSTOM_COUNT
+};
+
 static void
-do_buildsuper(char *cdir){
+do_buildsuper(char *cdir, int32_t custom_option){
     char space[1024];
     String str = make_fixed_width_string(space);
     
     BEGIN_TIME_SECTION();
-    //copy_sc(&str, "../code/4coder_default_bindings.cpp");
-    //terminate_with_null(&str);
-    //buildsuper(cdir, BUILD_DIR, str.str);
+    
+    switch (custom_option){
+        case Custom_Default:
+        {
+            copy_sc(&str, "../code/4coder_default_bindings.cpp");
+    terminate_with_null(&str);
+    buildsuper(cdir, BUILD_DIR, str.str);
+        }break;
+    
+        case Custom_Experiments:
+        {
 #if defined(IS_WINDOWS)
     copy_sc(&str, "../code/internal_4coder_tests.cpp");
     terminate_with_null(&str);
@@ -894,13 +910,23 @@ do_buildsuper(char *cdir){
     terminate_with_null(&str);
     buildsuper(cdir, BUILD_DIR, str.str);
 #endif
-    //copy_sc(&str, "../code/power/4coder_casey.cpp");
-    //terminate_with_null(&str);
-    //buildsuper(cdir, BUILD_DIR, str.str);
-    //copy_sc(&str, "../4vim/4coder_chronal.cpp");
-    //terminate_with_null(&str);
-    //buildsuper(cdir, BUILD_DIR, str.str);
-
+    }break;
+        
+    case Custom_Casey:
+        {
+            copy_sc(&str, "../code/power/4coder_casey.cpp");
+    terminate_with_null(&str);
+    buildsuper(cdir, BUILD_DIR, str.str);
+        }break;
+        
+        case Custom_ChronalVim:
+        {
+            copy_sc(&str, "../4vim/4coder_chronal.cpp");
+            terminate_with_null(&str);
+            buildsuper(cdir, BUILD_DIR, str.str);
+        }break;
+    }
+    
     END_TIME_SECTION("build custom");
 }
 
@@ -923,7 +949,8 @@ static void
 standard_build(char *cdir, uint32_t flags){
     fsm_generator(cdir);
     metagen(cdir);
-    do_buildsuper(cdir);
+    do_buildsuper(cdir, Custom_Experiments);
+    //do_buildsuper(cdir, Custom_ChronalVim);
     build_main(cdir, flags);
 }
 
@@ -1017,15 +1044,19 @@ package(char *cdir){
     
     // NOTE(allen): super
     build_main(cdir, OPTIMIZATION | KEEP_ASSERT | DEBUG_INFO | SUPER);
+    do_buildsuper(cdir, Custom_Default);
     
     clear_folder(PACK_SUPER_PAR_DIR);
     make_folder_if_missing(PACK_SUPER_DIR, "3rdparty");
     make_folder_if_missing(PACK_DIR, "super");
     make_folder_if_missing(PACK_DIR, "super-docs");
+    
     copy_file(BUILD_DIR, "4ed"EXE, PACK_SUPER_DIR, 0, 0);
     ONLY_WINDOWS(copy_file(BUILD_DIR, "4ed"PDB, PACK_SUPER_DIR, 0, 0));
     copy_file(BUILD_DIR, "4ed_app"DLL, PACK_SUPER_DIR, 0, 0);
     ONLY_WINDOWS(copy_file(BUILD_DIR, "4ed_app"PDB, PACK_SUPER_DIR, 0, 0));
+    copy_file(BUILD_DIR, "4coder_custom"DLL, PACK_SUPER_DIR, 0, 0);
+    
     copy_all (PACK_DATA_DIR, "*", PACK_SUPER_DIR);
     copy_file(0, "README.txt", PACK_SUPER_DIR, 0, 0);
     copy_file(0, "TODO.txt", PACK_SUPER_DIR, 0, 0);

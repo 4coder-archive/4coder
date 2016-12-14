@@ -3465,12 +3465,9 @@ SCROLL_RULE_SIG(smooth_scroll_rule){
 COMMAND_CALLER_HOOK(default_command_caller){
     View_Summary view = get_active_view(app, AccessAll);
     
-    view_paste_index[view.view_id].next_rewrite = false;
-    
+    view_paste_index[view.view_id].next_rewrite = 0;
     exec_command(app, cmd);
-    
-    view_paste_index[view.view_id].rewrite = 
-        view_paste_index[view.view_id].next_rewrite;
+    view_paste_index[view.view_id].rewrite = view_paste_index[view.view_id].next_rewrite;
     
     return(0);
 }
@@ -3486,6 +3483,16 @@ static int32_t default_min_base_width = 550;
 static void
 process_config_file(Application_Links *app){
     FILE *file = fopen("config.4coder", "rb");
+    
+    if (!file){
+        char space[256];
+        int32_t size = get_4ed_path(app, space, sizeof(space));
+        String str = make_string_cap(space, size, sizeof(space));
+        append_sc(&str, "/config.4coder");
+        terminate_with_null(&str);
+        file = fopen(str.str, "rb");
+    }
+    
     if (file){
         Temp_Memory temp = begin_temp_memory(&global_part);
         

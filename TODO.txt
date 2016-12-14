@@ -92,6 +92,8 @@
 ; BEFORE I SHIP
 ;
 ; [] decent options for indentation rules for text & presentation
+; [] code file outlining
+; [] alternate code completion plan
 ;
 
 ; TODOS

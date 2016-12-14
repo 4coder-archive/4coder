@@ -7,6 +7,10 @@ Getting started with 4coder and navigating your files:
 
 \VIDEO{youtube:https://www.youtube.com/embed/h5cbOcnSrcc}
 
+Setting up and navigating your project with 4coder:
+
+\VIDEO{youtube:https://www.youtube.com/embed/glPEpaT6GH0}
+
 More tutorials coming soon.
 
 

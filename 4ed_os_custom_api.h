@@ -3,7 +3,7 @@
 #define MEMORY_FREE_SIG(n) void n(Application_Links *app, void *ptr, int32_t size)
 #define FILE_EXISTS_SIG(n) bool32 n(Application_Links *app, char *filename, int32_t len)
 #define DIRECTORY_CD_SIG(n) bool32 n(Application_Links *app, char *dir, int32_t *len, int32_t capacity, char *rel_path, int32_t rel_len)
-#define GET_4ED_PATH_SIG(n) bool32 n(Application_Links *app, char *out, int32_t capacity)
+#define GET_4ED_PATH_SIG(n) int32_t n(Application_Links *app, char *out, int32_t capacity)
 #define SHOW_MOUSE_CURSOR_SIG(n) void n(Application_Links *app, Mouse_Cursor_Show_Type show)
 #define TOGGLE_FULLSCREEN_SIG(n) void n(Application_Links *app)
 #define IS_FULLSCREEN_SIG(n) bool32 n(Application_Links *app)

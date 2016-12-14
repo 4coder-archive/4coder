@@ -60,7 +60,7 @@
 #define MEMORY_FREE_SIG(n) void n(Application_Links *app, void *ptr, int32_t size)
 #define FILE_EXISTS_SIG(n) bool32 n(Application_Links *app, char *filename, int32_t len)
 #define DIRECTORY_CD_SIG(n) bool32 n(Application_Links *app, char *dir, int32_t *len, int32_t capacity, char *rel_path, int32_t rel_len)
-#define GET_4ED_PATH_SIG(n) bool32 n(Application_Links *app, char *out, int32_t capacity)
+#define GET_4ED_PATH_SIG(n) int32_t n(Application_Links *app, char *out, int32_t capacity)
 #define SHOW_MOUSE_CURSOR_SIG(n) void n(Application_Links *app, Mouse_Cursor_Show_Type show)
 #define TOGGLE_FULLSCREEN_SIG(n) void n(Application_Links *app)
 #define IS_FULLSCREEN_SIG(n) bool32 n(Application_Links *app)
@@ -408,7 +408,7 @@ static inline bool32 memory_set_protection(Application_Links *app, void *ptr, in
 static inline void memory_free(Application_Links *app, void *ptr, int32_t size){(app->memory_free(app, ptr, size));}
 static inline bool32 file_exists(Application_Links *app, char *filename, int32_t len){return(app->file_exists(app, filename, len));}
 static inline bool32 directory_cd(Application_Links *app, char *dir, int32_t *len, int32_t capacity, char *rel_path, int32_t rel_len){return(app->directory_cd(app, dir, len, capacity, rel_path, rel_len));}
-static inline bool32 get_4ed_path(Application_Links *app, char *out, int32_t capacity){return(app->get_4ed_path(app, out, capacity));}
+static inline int32_t get_4ed_path(Application_Links *app, char *out, int32_t capacity){return(app->get_4ed_path(app, out, capacity));}
 static inline void show_mouse_cursor(Application_Links *app, Mouse_Cursor_Show_Type show){(app->show_mouse_cursor(app, show));}
 static inline void toggle_fullscreen(Application_Links *app){(app->toggle_fullscreen(app));}
 static inline bool32 is_fullscreen(Application_Links *app){return(app->is_fullscreen(app));}
@@ -476,7 +476,7 @@ static inline bool32 memory_set_protection(Application_Links *app, void *ptr, in
 static inline void memory_free(Application_Links *app, void *ptr, int32_t size){(app->memory_free_(app, ptr, size));}
 static inline bool32 file_exists(Application_Links *app, char *filename, int32_t len){return(app->file_exists_(app, filename, len));}
 static inline bool32 directory_cd(Application_Links *app, char *dir, int32_t *len, int32_t capacity, char *rel_path, int32_t rel_len){return(app->directory_cd_(app, dir, len, capacity, rel_path, rel_len));}
-static inline bool32 get_4ed_path(Application_Links *app, char *out, int32_t capacity){return(app->get_4ed_path_(app, out, capacity));}
+static inline int32_t get_4ed_path(Application_Links *app, char *out, int32_t capacity){return(app->get_4ed_path_(app, out, capacity));}
 static inline void show_mouse_cursor(Application_Links *app, Mouse_Cursor_Show_Type show){(app->show_mouse_cursor_(app, show));}
 static inline void toggle_fullscreen(Application_Links *app){(app->toggle_fullscreen_(app));}
 static inline bool32 is_fullscreen(Application_Links *app){return(app->is_fullscreen_(app));}
