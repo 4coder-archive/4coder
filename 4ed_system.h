@@ -201,14 +201,8 @@ typedef Sys_Acquire_Lock_Sig(System_Acquire_Lock);
 typedef Sys_Release_Lock_Sig(System_Release_Lock);
 
 // debug
-#define INTERNAL_Sys_Sentinel_Sig(name) Bubble* name()
-typedef INTERNAL_Sys_Sentinel_Sig(INTERNAL_System_Sentinel);
-
 #define INTERNAL_Sys_Get_Thread_States_Sig(name) void name(Thread_Group_ID id, b8 *running, i32 *pending)
 typedef INTERNAL_Sys_Get_Thread_States_Sig(INTERNAL_System_Get_Thread_States);
-
-#define INTERNAL_Sys_Debug_Message_Sig(name) void name(char *message)
-typedef INTERNAL_Sys_Debug_Message_Sig(INTERNAL_System_Debug_Message);
 
 struct System_Functions{
     
@@ -262,10 +256,8 @@ struct System_Functions{
     System_Acquire_Lock *acquire_lock;
     System_Release_Lock *release_lock;
     
-    // debug: 3
-    INTERNAL_System_Sentinel *internal_sentinel;
+    // debug: 1
     INTERNAL_System_Get_Thread_States *internal_get_thread_states;
-    INTERNAL_System_Debug_Message *internal_debug_message;
     
     // non-function details
     char slash;

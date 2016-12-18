@@ -142,14 +142,6 @@ typedef struct Win32_Coroutine{
     i32 done;
 } Win32_Coroutine;
 
-#if FRED_INTERNAL
-struct Sys_Bubble : public Bubble{
-    i32 line_number;
-    char *file_name;
-};
-typedef struct Sys_Bubble Sys_Bubble;
-#endif
-
 enum CV_ID{
     CANCEL_CV0,
     CANCEL_CV1,
@@ -209,10 +201,6 @@ typedef struct Win32_Vars{
     b32 first;
     i32 running_cli;
     
-#if FRED_INTERNAL
-    CRITICAL_SECTION DEBUG_sysmem_lock;
-    Sys_Bubble internal_bubble;
-#endif
 } Win32_Vars;
 
 globalvar Win32_Vars win32vars;
@@ -261,20 +249,7 @@ internal
 Sys_Get_Memory_Sig(system_get_memory_){
     void *ptr = 0;
     if (size > 0){
-#if FRED_INTERNAL
-        ptr = VirtualAlloc(0, size + sizeof(Sys_Bubble), MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
-        Sys_Bubble *bubble = (Sys_Bubble*)ptr;
-        bubble->flags = 0;
-        bubble->line_number = line_number;
-        bubble->file_name = file_name;
-        bubble->size = size;
-        EnterCriticalSection(&win32vars.DEBUG_sysmem_lock);
-        insert_bubble(&win32vars.internal_bubble, bubble);
-        LeaveCriticalSection(&win32vars.DEBUG_sysmem_lock);
-        ptr = bubble + 1;
-#else
         ptr = VirtualAlloc(0, size, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
-#endif
     }
     return(ptr);
 }
@@ -282,15 +257,7 @@ Sys_Get_Memory_Sig(system_get_memory_){
 internal
 Sys_Free_Memory_Sig(system_free_memory){
     if (block){
-#if FRED_INTERNAL
-        Sys_Bubble *bubble = ((Sys_Bubble*)block) - 1;
-        EnterCriticalSection(&win32vars.DEBUG_sysmem_lock);
-        remove_bubble(bubble);
-        LeaveCriticalSection(&win32vars.DEBUG_sysmem_lock);
-        VirtualFree(bubble, 0, MEM_RELEASE);
-#else
         VirtualFree(block, 0, MEM_RELEASE);
-#endif
     }
 }
 
@@ -302,11 +269,6 @@ Sys_Free_Memory_Sig(system_free_memory){
 #define Win32ScratchPartitionDouble sysshared_partition_double
 
 #if FRED_INTERNAL
-internal Bubble*
-INTERNAL_system_sentinel(){
-    return (&win32vars.internal_bubble);
-}
-
 internal void
 INTERNAL_system_debug_message(char *message){
     OutputDebugStringA(message);
@@ -1410,9 +1372,7 @@ Win32LoadSystemCode(){
     win32vars.system.release_lock = system_release_lock;
     
 #if FRED_INTERNAL
-    win32vars.system.internal_sentinel = INTERNAL_system_sentinel;
     win32vars.system.internal_get_thread_states = INTERNAL_get_thread_states;
-    win32vars.system.internal_debug_message = INTERNAL_system_debug_message;
 #endif
     
     win32vars.system.slash = '/';
@@ -1855,18 +1815,6 @@ WinMain(HINSTANCE hInstance,
     //
     // Threads and Coroutines
     //
-    
-    // NOTE(allen): These should come before threads are started!
-    // Threads now get memory right away and so they use
-    // the internal_bubble and DEBUG_sysmem_lock
-    
-#if FRED_INTERNAL
-    win32vars.internal_bubble.next = &win32vars.internal_bubble;
-    win32vars.internal_bubble.prev = &win32vars.internal_bubble;
-    win32vars.internal_bubble.flags = 0;
-    
-    InitializeCriticalSection(&win32vars.DEBUG_sysmem_lock);
-#endif
     
     for (i32 i = 0; i < LOCK_COUNT; ++i){
         InitializeCriticalSection(&win32vars.locks[i]);

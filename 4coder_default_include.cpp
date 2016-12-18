@@ -375,8 +375,7 @@ backward_stream_tokens(Stream_Tokens *stream){
 }
 
 void
-buffer_seek_delimiter_forward(Application_Links *app, Buffer_Summary *buffer,
-                              int32_t pos, char delim, int32_t *result){
+buffer_seek_delimiter_forward(Application_Links *app, Buffer_Summary *buffer, int32_t pos, char delim, int32_t *result){
     if (buffer->exists){
         char chunk[1024];
         int32_t size = sizeof(chunk);
@@ -403,8 +402,7 @@ buffer_seek_delimiter_forward(Application_Links *app, Buffer_Summary *buffer,
 }
 
 static void
-buffer_seek_delimiter_backward(Application_Links *app, Buffer_Summary *buffer,
-                               int32_t pos, char delim, int32_t *result){
+buffer_seek_delimiter_backward(Application_Links *app, Buffer_Summary *buffer, int32_t pos, char delim, int32_t *result){
     if (buffer->exists){
         char chunk[1024];
         int32_t size = sizeof(chunk);
@@ -437,8 +435,7 @@ buffer_seek_delimiter_backward(Application_Links *app, Buffer_Summary *buffer,
 // You can push it up or do something more clever by just
 // replacing char read_buffer[512]; with more memory.
 static void
-buffer_seek_string_forward(Application_Links *app, Buffer_Summary *buffer,
-                           int32_t pos, int32_t end, char *str, int32_t size, int32_t *result){
+buffer_seek_string_forward(Application_Links *app, Buffer_Summary *buffer, int32_t pos, int32_t end, char *str, int32_t size, int32_t *result){
     char read_buffer[512];
     
     if (size <= 0){
@@ -492,8 +489,7 @@ buffer_seek_string_forward(Application_Links *app, Buffer_Summary *buffer,
 // You can push it up or do something more clever by just
 // replacing char read_buffer[512]; with more memory.
 static void
-buffer_seek_string_backward(Application_Links *app, Buffer_Summary *buffer,
-                            int32_t pos, int32_t min, char *str, int32_t size, int32_t *result){
+buffer_seek_string_backward(Application_Links *app, Buffer_Summary *buffer, int32_t pos, int32_t min, char *str, int32_t size, int32_t *result){
     char read_buffer[512];
     if (size <= 0){
         *result = min-1;
@@ -541,8 +537,7 @@ buffer_seek_string_backward(Application_Links *app, Buffer_Summary *buffer,
 // You can push it up or do something more clever by just
 // replacing char read_buffer[512]; with more memory.
 static void
-buffer_seek_string_insensitive_forward(Application_Links *app, Buffer_Summary *buffer,
-                                       int32_t pos, int32_t end, char *str, int32_t size, int32_t *result){
+buffer_seek_string_insensitive_forward(Application_Links *app, Buffer_Summary *buffer, int32_t pos, int32_t end, char *str, int32_t size, int32_t *result){
     char read_buffer[512];
     char chunk[1024];
     int32_t chunk_size = sizeof(chunk);
@@ -591,8 +586,7 @@ buffer_seek_string_insensitive_forward(Application_Links *app, Buffer_Summary *b
 // You can push it up or do something more clever by just
 // replacing char read_buffer[512]; with more memory.
 static void
-buffer_seek_string_insensitive_backward(Application_Links *app, Buffer_Summary *buffer,
-                                        int32_t pos, int32_t min, char *str, int32_t size, int32_t *result){
+buffer_seek_string_insensitive_backward(Application_Links *app, Buffer_Summary *buffer, int32_t pos, int32_t min, char *str, int32_t size, int32_t *result){
     char read_buffer[512];
     char chunk[1024];
     int32_t chunk_size = sizeof(chunk);
@@ -1041,10 +1035,7 @@ CUSTOM_COMMAND_SIG(auto_tab_line_at_cursor){
     View_Summary view = get_active_view(app, access);
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, access);
     
-    buffer_auto_indent(app, &buffer,
-                       view.cursor.pos, view.cursor.pos,
-                       DEF_TAB_WIDTH,
-                       DEFAULT_INDENT_FLAGS | AutoIndent_FullTokens);
+    buffer_auto_indent(app, &buffer, view.cursor.pos, view.cursor.pos, DEF_TAB_WIDTH, DEFAULT_INDENT_FLAGS | AutoIndent_FullTokens);
     move_past_lead_whitespace(app, &view, &buffer);
 }
 
@@ -1065,10 +1056,7 @@ CUSTOM_COMMAND_SIG(auto_tab_range){
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, access);
     Range range = get_range(&view);
     
-    buffer_auto_indent(app, &buffer,
-                       range.min, range.max,
-                       DEF_TAB_WIDTH,
-                       DEFAULT_INDENT_FLAGS | AutoIndent_FullTokens);
+    buffer_auto_indent(app, &buffer, range.min, range.max, DEF_TAB_WIDTH, DEFAULT_INDENT_FLAGS | AutoIndent_FullTokens);
     move_past_lead_whitespace(app, &view, &buffer);
 }
 
@@ -1079,10 +1067,7 @@ CUSTOM_COMMAND_SIG(write_and_auto_tab){
     View_Summary view = get_active_view(app, access);
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, access);
     
-    buffer_auto_indent(app, &buffer,
-                       view.cursor.pos, view.cursor.pos,
-                       DEF_TAB_WIDTH,
-                       DEFAULT_INDENT_FLAGS | AutoIndent_ExactAlignBlock);
+    buffer_auto_indent(app, &buffer, view.cursor.pos, view.cursor.pos, DEF_TAB_WIDTH, DEFAULT_INDENT_FLAGS | AutoIndent_ExactAlignBlock);
     move_past_lead_whitespace(app, &view, &buffer);
 }
 
@@ -1103,8 +1088,7 @@ CUSTOM_COMMAND_SIG(clean_all_lines){
         Stream_Chunk chunk = {0};
         
         int32_t i = 0;
-        if (init_stream_chunk(&chunk, app, &buffer,
-                              i, data, sizeof(data))){
+        if (init_stream_chunk(&chunk, app, &buffer, i, data, sizeof(data))){
             Buffer_Edit *edit = edits;
             
             int32_t buffer_size = buffer.size;
@@ -1177,8 +1161,7 @@ clipboard_copy(Application_Links *app, int32_t start, int32_t end, Buffer_Summar
 }
 
 static int32_t
-clipboard_cut(Application_Links *app, int32_t start, int32_t end, Buffer_Summary *buffer_out,
-              uint32_t access){
+clipboard_cut(Application_Links *app, int32_t start, int32_t end, Buffer_Summary *buffer_out, uint32_t access){
     Buffer_Summary buffer = {0};
     int32_t result = false;
     
@@ -1994,10 +1977,7 @@ long_braces(Application_Links *app, char *text, int32_t size){
     buffer_replace_range(app, &buffer, pos, pos, text, size);
     view_set_cursor(app, &view, seek_pos(pos + 2), true);
     
-    buffer_auto_indent(app, &buffer,
-                       pos, pos + size,
-                       DEF_TAB_WIDTH,
-                       DEFAULT_INDENT_FLAGS | AutoIndent_FullTokens);
+    buffer_auto_indent(app, &buffer, pos, pos + size, DEF_TAB_WIDTH, DEFAULT_INDENT_FLAGS | AutoIndent_FullTokens);
     move_past_lead_whitespace(app, &view, &buffer);
 }
 
@@ -2052,26 +2032,18 @@ CUSTOM_COMMAND_SIG(if0_off){
         edits[1].start = range.max;
         edits[1].end = range.max;
         
-        buffer_batch_edit(app,&buffer,
-                          base, global_part.pos,
-                          edits, ArrayCount(edits), BatchEdit_Normal);
+        buffer_batch_edit(app,&buffer, base, global_part.pos, edits, ArrayCount(edits), BatchEdit_Normal);
         
         view = get_view(app, view.view_id, AccessAll);
         if (view.cursor.pos > view.mark.pos){
-            view_set_cursor(app, &view,
-                            seek_line_char(view.cursor.line+1, view.cursor.character), 
-                            true);
+            view_set_cursor(app, &view, seek_line_char(view.cursor.line+1, view.cursor.character), 1);
         }
         else{
-            view_set_mark(app, &view,
-                          seek_line_char(view.mark.line+1, view.mark.character));
+            view_set_mark(app, &view, seek_line_char(view.mark.line+1, view.mark.character));
         }
         
         range = get_range(&view);
-        buffer_auto_indent(app, &buffer,
-                           range.min, range.max,
-                           DEF_TAB_WIDTH,
-                           DEFAULT_INDENT_FLAGS | AutoIndent_FullTokens);
+        buffer_auto_indent(app, &buffer, range.min, range.max, DEF_TAB_WIDTH, DEFAULT_INDENT_FLAGS | AutoIndent_FullTokens);
         move_past_lead_whitespace(app, &view, &buffer);
     }
 }
@@ -2123,8 +2095,8 @@ CUSTOM_COMMAND_SIG(snipe_token_or_word){
     View_Summary view = get_active_view(app, access);
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, access);
     
-    int32_t pos1 = buffer_boundary_seek(app, &buffer, view.cursor.pos, false, BoundaryToken | BoundaryWhitespace);
-    int32_t pos2 = buffer_boundary_seek(app, &buffer, pos1,            true,  BoundaryToken | BoundaryWhitespace);
+    int32_t pos1 = buffer_boundary_seek(app, &buffer, view.cursor.pos, 0, BoundaryToken | BoundaryWhitespace);
+    int32_t pos2 = buffer_boundary_seek(app, &buffer, pos1,            1, BoundaryToken | BoundaryWhitespace);
     
     Range range = make_range(pos1, pos2);
     buffer_replace_range(app, &buffer, range.start, range.end, 0, 0);
@@ -3481,6 +3453,18 @@ static int32_t default_min_base_width = 550;
 #include <stdio.h>
 
 static void
+adjust_all_buffer_wrap_widths(Application_Links *app, int32_t wrap_widths, int32_t min_base_width){
+    for (Buffer_Summary buffer = get_buffer_first(app, AccessAll);
+         buffer.exists;
+         get_buffer_next(app, &buffer, AccessAll)){
+        buffer_set_setting(app, &buffer, BufferSetting_WrapPosition, wrap_widths);
+        buffer_set_setting(app, &buffer, BufferSetting_MinimumBaseWrapPosition, min_base_width);
+    }
+    default_wrap_width = wrap_widths;
+    default_min_base_width = min_base_width;
+}
+
+static void
 process_config_file(Application_Links *app){
     FILE *file = fopen("config.4coder", "rb");
     
@@ -3515,6 +3499,9 @@ process_config_file(Application_Links *app){
             
             if (result == LexResult_Finished){
                 
+                int32_t new_wrap_width = default_wrap_width;
+                int32_t new_min_base_width = default_min_base_width;
+                
                 for (int32_t i = 0; i < array.count; ++i){
                     int32_t read_setting_failed = 1;
                     Cpp_Token id_token = array.tokens[i];
@@ -3526,7 +3513,6 @@ process_config_file(Application_Links *app){
                                 ++i;
                                 if (i < array.count){
                                     Cpp_Token val_token = array.tokens[i];
-                                    {
                                         ++i;
                                         if (i < array.count){
                                             Cpp_Token semicolon_token = array.tokens[i];
@@ -3549,19 +3535,18 @@ process_config_file(Application_Links *app){
                                                 else if (match(id, "default_wrap_width")){
                                                     if (val_token.type == CPP_TOKEN_INTEGER_CONSTANT){
                                                         String val = make_string(mem + val_token.start, val_token.size);
-                                                        default_wrap_width = str_to_int(val);
+                                                         new_wrap_width = str_to_int(val);
                                                     }
                                                 }
                                                 else if (match(id, "default_min_base_width")){
                                                     if (val_token.type == CPP_TOKEN_INTEGER_CONSTANT){
                                                         String val = make_string(mem + val_token.start, val_token.size);
-                                                        default_min_base_width = str_to_int(val);
+                                                        new_min_base_width = str_to_int(val);
                                                     }
                                                 }
                                                 
                                             }
                                         }
-                                    }
                                 }
                             }
                         }
@@ -3576,6 +3561,8 @@ process_config_file(Application_Links *app){
                         }
                     }
                 }
+                
+                adjust_all_buffer_wrap_widths(app, new_wrap_width, new_min_base_width);
             }
             
             end_temp_memory(temp);

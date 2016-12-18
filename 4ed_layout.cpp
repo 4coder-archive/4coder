@@ -55,6 +55,7 @@ struct Editing_Layout{
     i32 root;
     i32 active_panel;
     i32 full_width, full_height;
+    b32 panel_state_dirty;
 };
 
 struct Divider_And_ID{
@@ -305,11 +306,12 @@ layout_fix_all_panels(Editing_Layout *layout){
         panel->full.y1 = layout->full_height;
         panel_fix_internal_area(panel);
     }
+    
+    layout->panel_state_dirty = 1;
 }
 
 internal void
 layout_refit(Editing_Layout *layout, i32 prev_width, i32 prev_height){
-    
     Panel_Divider *dividers = layout->dividers;
     i32 max = layout->panel_max_count - 1;
     

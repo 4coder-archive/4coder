@@ -14,6 +14,7 @@
 #include "4coder_mem.h"
 #include "4cpp_lexer_types.h"
 
+// TODO(allen): We need to eliminate this soon.
 #ifndef FSTRING_STRUCT
 #define FSTRING_STRUCT
 typedef struct String{
@@ -34,6 +35,7 @@ enum Hook_ID{
     hook_start,
     hook_file_out_of_sync,
     hook_exit,
+    hook_view_size_change,
     // never below this
     hook_type_count
 };
@@ -78,12 +80,12 @@ make_range(int32_t p1, int32_t p2){
 }
 
 #define HOOK_SIG(name) int32_t name(struct Application_Links *app)
-#define OPEN_FILE_HOOK_SIG(name) int32_t name(struct Application_Links *app, int32_t buffer_id)
 #define SCROLL_RULE_SIG(name) int32_t name(float target_x, float target_y, float *scroll_x, float *scroll_y, int32_t view_id, int32_t is_new_target, float dt)
+#define OPEN_FILE_HOOK_SIG(name) int32_t name(struct Application_Links *app, int32_t buffer_id)
 #define INPUT_FILTER_SIG(name) void name(Mouse_State *mouse)
 
-typedef HOOK_SIG(Hook_Function);
 typedef OPEN_FILE_HOOK_SIG(Open_File_Hook_Function);
+typedef HOOK_SIG(Hook_Function);
 typedef SCROLL_RULE_SIG(Scroll_Rule_Function);
 typedef INPUT_FILTER_SIG(Input_Filter_Function);
 

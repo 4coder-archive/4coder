@@ -87,7 +87,7 @@ fill_view_summary(View_Summary *view, View *vptr, Live_Views *live_set, Working_
         view->cursor = vptr->edit_pos->cursor;
         view->preferred_x = vptr->edit_pos->preferred_x;
         
-        view->file_region = vptr->file_region;
+        view->file_region = vptr->panel->inner;
         view->scroll_vars = vptr->edit_pos->scroll;
     }
 }

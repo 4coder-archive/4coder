@@ -649,29 +649,27 @@ STRUCT View_Summary{
     int32_t view_id;
     /* DOC(If this is not a null summary, then this is the id of the buffer this view currently sees.) */
     int32_t buffer_id;
-    /*
-    DOC(If this is not a null summary, this field contains flags describing the protection status of the view.)
-    */
+    /* DOC(If this is not a null summary, this field contains flags describing the protection status of the view.) */
     Access_Flag lock_flags;
     
-    /*
-    DOC(If this is not a null summary, this describes the position of the cursor.)
-    */
+    /* DOC(If this is not a null summary, this describes the position of the cursor.) */
     Full_Cursor cursor;
-    /*
-    DOC(If this is not a null summary, this describes the position of the mark.)
-    */
+    /* DOC(If this is not a null summary, this describes the position of the mark.) */
     Full_Cursor mark;
     /* DOC(If this is not a null summary, this is the x position that is maintained in vertical navigation.) */
     float preferred_x;
     /* DOC(If this is not a null summary, this specifies the height of a line rendered in the view.) */
     float line_height;
-    /* DOC(If this is not a null summary, this indicates that the view is set to render with unwrapped lines.) */
+    /*
+    DOC(If this is not a null summary, this indicates that the view is set to render with unwrapped lines.)
+    */
     bool32 unwrapped_lines;
     /* DOC(If this is not a null summary, this indicates that the view is set to highlight white space.) */
     bool32 show_whitespace;
     
-    /* DOC(If this is not a null summary, this describes the screen position in which this view's buffer is displayed.) */
+    /*
+    DOC(If this is not a null summary, this describes the screen position in which this view's buffer is displayed.)
+    */
     i32_Rect file_region;
     /* DOC(If this is not a null summary, this describes the scrolling position inside the view.) */
     GUI_Scroll_Vars scroll_vars;
@@ -683,9 +681,7 @@ DOC_SEE(User_Input_Type_ID)
 DOC_SEE(Generic_Command)
 */
  STRUCT User_Input{
-    /*
-    DOC(This field specifies whether the event was a key press or mouse event.)
-    */
+    /* DOC(This field specifies whether the event was a key press or mouse event.) */
     User_Input_Type_ID type;
     /* DOC(This field indicates that an abort event has occurred and the command needs to shut down.) */
     bool32 abort;
@@ -695,9 +691,7 @@ DOC_SEE(Generic_Command)
         /* DOC(This field describes a mouse input event.) */
         Mouse_State mouse;
     };
-    /*
-    DOC(If this event would trigger a command, this field specifies what the command would be.)
-    */
+    /* DOC(If this event would trigger a command, this field specifies what the command would be.) */
     Generic_Command command;
 };
 

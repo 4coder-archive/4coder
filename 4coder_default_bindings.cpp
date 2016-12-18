@@ -152,30 +152,50 @@ HOOK_SIG(my_start){
 HOOK_SIG(my_exit){
     // if this returns zero it cancels the exit.
     return(1);
-      }
+}
 
-      // TODO(allen): delete this
-      CUSTOM_COMMAND_SIG(weird_buffer_test){
-          for (Buffer_Summary buffer = get_buffer_first(app, AccessAll);
-               buffer.exists;
-               get_buffer_next(app, &buffer, AccessAll)){
-              print_message(app, literal("filename:"));
-              if (buffer.file_name){
-                  print_message(app, buffer.file_name, buffer.file_name_len);
-              }
-              else{
-                  print_message(app, literal("*NULL*"));
-              }
-              print_message(app, literal("buffername:"));
-              if (buffer.buffer_name){
-                  print_message(app, buffer.buffer_name, buffer.buffer_name_len);
-              }
-              else{
-                  print_message(app, literal("*NULL*"));
-              }
-          }
-      }
-      
+HOOK_SIG(my_view_adjust){
+    int32_t count = 0;
+    int32_t new_wrap_width = 0;
+    for (View_Summary view = get_view_first(app, AccessAll);
+         view.exists;
+         get_view_next(app, &view, AccessAll)){
+        new_wrap_width += view.file_region.x1 - view.file_region.x0;
+        ++count;
+    }
+    
+    new_wrap_width /= count;
+    new_wrap_width = (int32_t)(new_wrap_width * .9f);
+    
+    int32_t new_min_base_width = (int32_t)(new_wrap_width * .77f);
+    adjust_all_buffer_wrap_widths(app, new_wrap_width, new_min_base_width);
+    
+    // no meaning for return
+    return(0);
+}
+
+// TODO(allen): delete this
+CUSTOM_COMMAND_SIG(weird_buffer_test){
+    for (Buffer_Summary buffer = get_buffer_first(app, AccessAll);
+         buffer.exists;
+         get_buffer_next(app, &buffer, AccessAll)){
+        print_message(app, literal("filename:"));
+        if (buffer.file_name){
+            print_message(app, buffer.file_name, buffer.file_name_len);
+        }
+        else{
+            print_message(app, literal("*NULL*"));
+        }
+        print_message(app, literal("buffername:"));
+        if (buffer.buffer_name){
+            print_message(app, buffer.buffer_name, buffer.buffer_name_len);
+        }
+        else{
+            print_message(app, literal("*NULL*"));
+        }
+    }
+}
+
 // NOTE(allen|a4.0.12): This is for testing it may be removed and replaced with a better test for the buffer_get_font when you eventally read this and wonder what it's about.
 CUSTOM_COMMAND_SIG(write_name_of_font){
     View_Summary view = get_active_view(app, AccessOpen);
@@ -186,7 +206,7 @@ CUSTOM_COMMAND_SIG(write_name_of_font){
     int32_t font_len = buffer_get_font(app, &buffer, font_name, font_max);
     
     if (font_len != 0){
-    write_string(app, &view, &buffer, make_string(font_name, font_len));
+        write_string(app, &view, &buffer, make_string(font_name, font_len));
     }
 }
 
@@ -481,6 +501,7 @@ get_bindings(void *data, int32_t size){
     // and once set they always apply, regardless of what map is active.
     set_hook(context, hook_start, my_start);
     set_hook(context, hook_exit, my_exit);
+    set_hook(context, hook_view_size_change, my_view_adjust);
     
     set_open_file_hook(context, my_file_settings);
     set_command_caller(context, default_command_caller);

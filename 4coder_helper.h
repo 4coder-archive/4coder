@@ -150,10 +150,10 @@ set_hook(Bind_Helper *helper, int32_t hook_id, Hook_Function *func){
 }
 
 inline void
-set_open_file_hook(Bind_Helper *helper, Open_File_Hook_Function *func){
+set_scroll_rule(Bind_Helper *helper, Scroll_Rule_Function *func){
     Binding_Unit unit;
     unit.type = unit_hook;
-    unit.hook.hook_id = _hook_open_file;
+    unit.hook.hook_id = _hook_scroll_rule;
     unit.hook.func = (void*) func;
     
     write_unit(helper, unit);
@@ -164,6 +164,16 @@ set_new_file_hook(Bind_Helper *helper, Open_File_Hook_Function *func){
     Binding_Unit unit;
     unit.type = unit_hook;
     unit.hook.hook_id = _hook_new_file;
+    unit.hook.func = (void*) func;
+    
+    write_unit(helper, unit);
+}
+
+inline void
+set_open_file_hook(Bind_Helper *helper, Open_File_Hook_Function *func){
+    Binding_Unit unit;
+    unit.type = unit_hook;
+    unit.hook.hook_id = _hook_open_file;
     unit.hook.func = (void*) func;
     
     write_unit(helper, unit);
@@ -184,16 +194,6 @@ set_input_filter(Bind_Helper *helper, Input_Filter_Function *func){
     Binding_Unit unit;
     unit.type = unit_hook;
     unit.hook.hook_id = _hook_input_filter;
-    unit.hook.func = (void*) func;
-    
-    write_unit(helper, unit);
-}
-
-inline void
-set_scroll_rule(Bind_Helper *helper, Scroll_Rule_Function *func){
-    Binding_Unit unit;
-    unit.type = unit_hook;
-    unit.hook.hook_id = _hook_scroll_rule;
     unit.hook.func = (void*) func;
     
     write_unit(helper, unit);

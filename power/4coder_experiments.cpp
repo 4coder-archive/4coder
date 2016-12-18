@@ -659,6 +659,8 @@ get_bindings(void *data, int size){
     Bind_Helper *context = &context_;
     
     set_hook(context, hook_start, experimental_start);
+    set_hook(context, hook_view_size_change, my_view_adjust);
+    
     set_open_file_hook(context, my_file_settings);
     set_input_filter(context, my_suppress_mouse_filter);
     set_command_caller(context, default_command_caller);

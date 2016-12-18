@@ -148,7 +148,7 @@ consume_input(Available_Input *available, i32 input_type, char *consumer){
     }
 }
 
-typedef struct App_Vars{
+struct App_Vars{
     Models models;
     // TODO(allen): This wants to live in
     // models with everyone else but the order
@@ -163,7 +163,7 @@ typedef struct App_Vars{
     Command_Data command_data;
     
     Available_Input available_input;
-} App_Vars;
+};
 
 typedef enum Coroutine_Type{
     Co_View,
@@ -1869,6 +1869,7 @@ App_Step_Sig(app_step){
         
         if (prev_width != current_width || prev_height != current_height){
             layout_refit(&models->layout, prev_width, prev_height);
+            
         }
     }
     
@@ -2178,7 +2179,6 @@ App_Step_Sig(app_step){
     // NOTE(allen): pass events to debug
     vars->available_input = init_available_input(&key_summary, &input->mouse);
     
-#if FRED_INTERNAL
     {
         Debug_Data *debug = &models->debug;
         Key_Summary key_data = get_key_data(&vars->available_input);
@@ -2204,7 +2204,6 @@ App_Step_Sig(app_step){
             events[i].is_shift = key.modifiers[MDFR_SHIFT_INDEX];
         }
     }
-#endif
     
     // NOTE(allen): Keyboard input to command coroutine.
     if (models->command_coroutine != 0){
@@ -2244,23 +2243,18 @@ App_Step_Sig(app_step){
                 
                 if (EventOnAnyKey & get_flags){
                     pass_in = 1;
-                    consume_input(&vars->available_input, Input_AnyKey,
-                                  "command coroutine");
+                    consume_input(&vars->available_input, Input_AnyKey, "command coroutine");
                 }
                 if (key.keycode == key_esc){
                     if (EventOnEsc & get_flags){
                         pass_in = 1;
                     }
-                    consume_input(&vars->available_input, Input_Esc,
-                                  "command coroutine");
+                    consume_input(&vars->available_input, Input_Esc, "command coroutine");
                 }
                 
                 if (pass_in){
                     models->command_coroutine =
-                        app_resume_coroutine(system, &models->app_links, Co_Command,
-                                             command_coroutine,
-                                             &user_in,
-                                             models->command_coroutine_flags);
+                        app_resume_coroutine(system, &models->app_links, Co_Command, command_coroutine, &user_in, models->command_coroutine_flags);
                     
                     app_result.animating = 1;
                     
@@ -2292,8 +2286,7 @@ App_Step_Sig(app_step){
             }
             if (get_flags & EventOnMouseMove){
                 pass_in = 1;
-                consume_input(&vars->available_input, Input_MouseMove,
-                              "command coroutine");
+                consume_input(&vars->available_input, Input_MouseMove, "command coroutine");
             }
             
             if (input->mouse.press_l || input->mouse.release_l || input->mouse.l){
@@ -2302,8 +2295,7 @@ App_Step_Sig(app_step){
                 }
                 if (get_flags & EventOnLeftButton){
                     pass_in = 1;
-                    consume_input(&vars->available_input, Input_MouseLeftButton,
-                                  "command coroutine");
+                    consume_input(&vars->available_input, Input_MouseLeftButton, "command coroutine");
                 }
             }
             
@@ -2313,8 +2305,7 @@ App_Step_Sig(app_step){
                 }
                 if (get_flags & EventOnRightButton){
                     pass_in = 1;
-                    consume_input(&vars->available_input, Input_MouseRightButton,
-                                  "command coroutine");
+                    consume_input(&vars->available_input, Input_MouseRightButton, "command coroutine");
                 }
             }
             
@@ -2324,17 +2315,13 @@ App_Step_Sig(app_step){
                 }
                 if (get_flags & EventOnWheel){
                     pass_in = 1;
-                    consume_input(&vars->available_input, Input_MouseWheel,
-                                  "command coroutine");
+                    consume_input(&vars->available_input, Input_MouseWheel, "command coroutine");
                 }
             }
             
             if (pass_in){
                 models->command_coroutine = 
-                    app_resume_coroutine(system, &models->app_links, Co_Command,
-                                         command_coroutine,
-                                         &user_in,
-                                         models->command_coroutine_flags);
+                    app_resume_coroutine(system, &models->app_links, Co_Command, command_coroutine, &user_in, models->command_coroutine_flags);
                 
                 app_result.animating = 1;
                 
@@ -2387,12 +2374,10 @@ App_Step_Sig(app_step){
                 app_result.animating = 1;
             }
             if (result.consume_keys){
-                consume_input(&vars->available_input, Input_AnyKey,
-                              "file view step");
+                consume_input(&vars->available_input, Input_AnyKey, "file view step");
             }
             if (result.consume_keys || result.consume_esc){
-                consume_input(&vars->available_input, Input_Esc,
-                              "file view step");
+                consume_input(&vars->available_input, Input_Esc, "file view step");
             }
             
             if (view->changed_context_in_step == 0){
@@ -2423,20 +2408,16 @@ App_Step_Sig(app_step){
                     max_y = view->gui_max_y;
                 }
                 
-                Input_Process_Result ip_result =
-                    do_step_file_view(system, view, panel->inner, active,
-                                      &summary, *scroll_vars, view->scroll_region, max_y);
+                Input_Process_Result ip_result = do_step_file_view(system, view, panel->inner, active, &summary, *scroll_vars, view->scroll_region, max_y);
                 
                 if (ip_result.is_animating){
                     app_result.animating = 1;
                 }
                 if (ip_result.consumed_l){
-                    consume_input(&vars->available_input, Input_MouseLeftButton,
-                                  "file view step");
+                    consume_input(&vars->available_input, Input_MouseLeftButton, "file view step");
                 }
                 if (ip_result.consumed_r){
-                    consume_input(&vars->available_input, Input_MouseRightButton,
-                                  "file view step");
+                    consume_input(&vars->available_input, Input_MouseRightButton, "file view step");
                 }
                 
                 if (ip_result.has_max_y_suggestion){
@@ -2499,11 +2480,7 @@ App_Step_Sig(app_step){
                         cmd_in.cmd = cmd;
                         cmd_in.bind = cmd_bind;
                         
-                        models->command_coroutine =
-                            app_launch_coroutine(system, &models->app_links, Co_Command,
-                                                 models->command_coroutine,
-                                                 &cmd_in,
-                                                 models->command_coroutine_flags);
+                        models->command_coroutine = app_launch_coroutine(system, &models->app_links, Co_Command, models->command_coroutine, &cmd_in, models->command_coroutine_flags);
                         
                         models->prev_command = cmd_bind;
                         
@@ -2521,12 +2498,10 @@ App_Step_Sig(app_step){
         }
         
         if (hit_something){
-            consume_input(&vars->available_input, Input_AnyKey,
-                          "command dispatcher");
+            consume_input(&vars->available_input, Input_AnyKey, "command dispatcher");
         }
         if (hit_esc){
-            consume_input(&vars->available_input, Input_Esc,
-                          "command dispatcher");
+            consume_input(&vars->available_input, Input_Esc, "command dispatcher");
         }
     }
     
@@ -2586,7 +2561,7 @@ App_Step_Sig(app_step){
                             "you can use the key combo <ctrl o> to look for a file\n"
                             "and if you load README.txt you'll find all the key combos there are.\n"
                             "\n"
-                            "Newest features:\n"
+                            "New in alpha 4.0.12:\n"
                             "-Text files wrap lines at whitespace when possible\n"
                             "-New code wrapping feature is on by default\n"
                             "-Introduced a 'config.4coder' for setting several wrapping options:"
@@ -2761,6 +2736,11 @@ App_Step_Sig(app_step){
                 vars->state = APP_STATE_EDIT;
             }
         }break;
+    }
+    
+    if (models->layout.panel_state_dirty && models->hooks[hook_view_size_change] != 0){
+        models->layout.panel_state_dirty = 0;
+        models->hooks[hook_view_size_change](&models->app_links);
     }
     
     if (mouse_in_edit_area && mouse_panel != 0 && input->mouse.press_l){

@@ -139,15 +139,6 @@ struct Application_Links;
 // Linux structs / enums
 //
 
-#if FRED_INTERNAL
-
-struct Sys_Bubble : public Bubble{
-    i32 line_number;
-    char *file_name;
-};
-
-#endif
-
 enum {
     LINUX_4ED_EVENT_X11          = (UINT64_C(1) << 32),
     LINUX_4ED_EVENT_X11_INTERNAL = (UINT64_C(2) << 32),
@@ -253,11 +244,6 @@ struct Linux_Vars{
     Custom_API custom_api;
     b32 vsync;
 
-#if FRED_INTERNAL
-    Sys_Bubble internal_bubble;
-    pthread_mutex_t DEBUG_sysmem_lock;
-#endif
-
     Linux_Coroutine coroutine_data[18];
     Linux_Coroutine *coroutine_free;
 };
@@ -309,21 +295,6 @@ LinuxGetMemory_(i32 size, i32 line_number, char *file_name){
     
     Assert(size != 0);
     
-#if FRED_INTERNAL
-    result = mmap(0, size + sizeof(Sys_Bubble), PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-    
-    Sys_Bubble* bubble = (Sys_Bubble*)result;
-    bubble->flags = 0;
-    bubble->line_number = line_number;
-    bubble->file_name = file_name;
-    bubble->size = size;
-
-    pthread_mutex_lock(&linuxvars.DEBUG_sysmem_lock);
-    insert_bubble(&linuxvars.internal_bubble, bubble);
-    pthread_mutex_unlock(&linuxvars.DEBUG_sysmem_lock);
-
-    result = bubble + 1;
-#else
     size_t real_size = size + sizeof(size_t);
     result = mmap(0, real_size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
     if(result == MAP_FAILED){
@@ -333,7 +304,6 @@ LinuxGetMemory_(i32 size, i32 line_number, char *file_name){
         memcpy(result, &real_size, sizeof(size_t));
         result = (char*)result + sizeof(size_t);
     }
-#endif
     
     return(result);
 }
@@ -341,21 +311,9 @@ LinuxGetMemory_(i32 size, i32 line_number, char *file_name){
 internal void
 LinuxFreeMemory(void *block){
     if (block){
-#if FRED_INTERNAL
-        Sys_Bubble *bubble = ((Sys_Bubble*)block) - 1;
-
-        size_t size = bubble->size + sizeof(Sys_Bubble);
-
-        pthread_mutex_lock(&linuxvars.DEBUG_sysmem_lock);
-        remove_bubble(bubble);
-        pthread_mutex_unlock(&linuxvars.DEBUG_sysmem_lock);
-        
-        munmap(bubble, size);
-#else
         block = (char*)block - sizeof(size_t);
         size_t size = *(size_t*)block;
         munmap(block, size);
-#endif
     }
 }
 
@@ -1343,11 +1301,6 @@ Sys_Grow_Thread_Memory_Sig(system_grow_thread_memory){
 
 #if FRED_INTERNAL
 
-internal
-INTERNAL_Sys_Sentinel_Sig(internal_sentinel){
-    return (&linuxvars.internal_bubble);
-}
-
 #ifdef OLD_JOB_QUEUE
 internal
 INTERNAL_Sys_Get_Thread_States_Sig(internal_get_thread_states){
@@ -1378,11 +1331,6 @@ INTERNAL_Sys_Get_Thread_States_Sig(internal_get_thread_states){
     }
 }
 #endif
-
-internal
-INTERNAL_Sys_Debug_Message_Sig(internal_debug_message){
-    fprintf(stderr, "%s", message);
-}
 
 #endif
 
@@ -1534,9 +1482,7 @@ LinuxLoadSystemCode(){
 
     // debug
 #if FRED_INTERNAL
-    linuxvars.system.internal_sentinel = internal_sentinel;
     linuxvars.system.internal_get_thread_states = internal_get_thread_states;
-    linuxvars.system.internal_debug_message = internal_debug_message;
 #endif
 
     // non-function details
@@ -3025,14 +2971,6 @@ main(int argc, char **argv)
     //
     // System & Memory init
     //
-
-#if FRED_INTERNAL
-    linuxvars.internal_bubble.next = &linuxvars.internal_bubble;
-    linuxvars.internal_bubble.prev = &linuxvars.internal_bubble;
-    linuxvars.internal_bubble.flags = 0;
-
-    pthread_mutex_init(&linuxvars.DEBUG_sysmem_lock, 0);
-#endif
 
     char base_dir_mem[PATH_MAX];
     String base_dir = make_fixed_width_string(base_dir_mem);
