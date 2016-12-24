@@ -49,7 +49,7 @@ seek_unwrapped_xy(float x, float y, int32_t round_down){
 }
 
 static Buffer_Seek
-seek_xy(float x, float y, int32_t round_down, int32_t unwrapped){
+seek_xy(float x, float y, bool32 round_down, bool32 unwrapped){
     Buffer_Seek result;
     result.type = unwrapped?buffer_seek_unwrapped_xy:buffer_seek_wrapped_xy;
     result.x = x;

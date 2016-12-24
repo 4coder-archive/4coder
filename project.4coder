@@ -1,0 +1,35 @@
+extensions=".c.cpp.h.hpp";
+
+fkey_command_wnd[1]  = {"build.bat", "*compilation*"};
+fkey_command_wnd[2]  = {"..\\misc\\run.bat", 0};
+fkey_command_wnd[3]  = {"site\\build.bat", "*compilation*"};
+fkey_command_wnd[4]  = {0, 0};
+fkey_command_wnd[5]  = {0, 0};
+fkey_command_wnd[6]  = {0, 0};
+fkey_command_wnd[7]  = {0, 0};
+fkey_command_wnd[8]  = {0, 0};
+fkey_command_wnd[9]  = {0, 0};
+fkey_command_wnd[10] = {0, 0};
+fkey_command_wnd[11] = {0, 0};
+fkey_command_wnd[12] = {"package.bat", "*compilation*"};
+fkey_command_wnd[13] = {0, 0};
+fkey_command_wnd[14] = {0, 0};
+fkey_command_wnd[15] = {0, 0};
+fkey_command_wnd[16] = {0, 0};
+
+fkey_command_linux[1]  = {"make", "*compilation*"};
+fkey_command_linux[2]  = {"../build/4ed", 0};
+fkey_command_linux[3]  = {"site/build.sh", "*compilation*"};
+fkey_command_linux[4]  = {0, 0};
+fkey_command_linux[5]  = {0, 0};
+fkey_command_linux[6]  = {0, 0};
+fkey_command_linux[7]  = {0, 0};
+fkey_command_linux[8]  = {0, 0};
+fkey_command_linux[9]  = {0, 0};
+fkey_command_linux[10] = {0, 0};
+fkey_command_linux[11] = {0, 0};
+fkey_command_linux[12] = {"package.sh", "*compilation*"};
+fkey_command_linux[13] = {0, 0};
+fkey_command_linux[14] = {0, 0};
+fkey_command_linux[15] = {0, 0};
+fkey_command_linux[16] = {0, 0};

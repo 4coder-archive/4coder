@@ -1270,7 +1270,10 @@ stickieness_guess(Cpp_Token_Type type, Cpp_Token_Type other_type, u16 flags, u16
              type == CPP_TOKEN_BRACKET_OPEN ||
              type == CPP_TOKEN_BRACKET_CLOSE){
         if (on_left){
-            guess = 0;
+            guess = 20;
+            if (other_is_words){
+                guess = 100;
+            }
         }
         else{
             guess = 100;

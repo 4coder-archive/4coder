@@ -2157,8 +2157,9 @@ directories controlled on the custom side.
     Hot_Directory *hot = &cmd->models->hot_directory;
     i32 copy_max = capacity - 1;
     hot_directory_clean_end(hot);
-    if (copy_max > hot->string.size)
+    if (copy_max > hot->string.size){
         copy_max = hot->string.size;
+    }
     memcpy(out, hot->string.str, copy_max);
     out[copy_max] = 0;
     return(hot->string.size);

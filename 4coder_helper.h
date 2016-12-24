@@ -245,6 +245,31 @@ get_rect(View_Summary *view){
     return(rect);
 }
 
+inline i32_Rect
+get_line_x_rect(View_Summary *view){
+    i32_Rect rect = {0};
+    
+    if (view->unwrapped_lines){
+        rect.x0 = (int32_t)view->mark.unwrapped_x;
+        rect.x1 = (int32_t)view->cursor.unwrapped_x;
+    }
+    else{
+        rect.x0 = (int32_t)view->mark.wrapped_x;
+        rect.x1 = (int32_t)view->cursor.wrapped_x;
+    }
+    rect.y0 = view->mark.line;
+    rect.y1 = view->cursor.line;
+    
+    if (rect.y0 > rect.y1){
+        Swap(int32_t, rect.y0, rect.y1);
+    }
+    if (rect.x0 > rect.x1){
+        Swap(int32_t, rect.x0, rect.x1);
+    }
+    
+    return(rect);
+}
+
 inline void
 exec_command(Application_Links *app, Custom_Command_Function *func){
     func(app);

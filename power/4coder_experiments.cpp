@@ -18,22 +18,26 @@ CUSTOM_COMMAND_SIG(kill_rect){
     View_Summary view = get_active_view(app, AccessOpen);
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessOpen);
     
-    Buffer_Rect rect = get_rect(&view);
+    i32_Rect rect = get_line_x_rect(&view);
     
-    for (int32_t line = rect.line1; line >= rect.line0; --line){
+    bool32 unwrapped = view.unwrapped_lines;
+    
+    for (int32_t line = rect.y1; line >= rect.y0; --line){
         int32_t start = 0;
         int32_t end = 0;
         
-        int32_t success = 1;
+         bool32 success = 1;
         Full_Cursor cursor = {0};
         
+        float y = (line-1) * view.line_height;
+        
         if (success){
-            success = view_compute_cursor(app, &view, seek_line_char(line, rect.char0), &cursor);
+            success = view_compute_cursor(app, &view, seek_xy((float)rect.x0, y, 0, unwrapped), &cursor);
         }
         start = cursor.pos;
         
         if (success){
-            success = view_compute_cursor(app, &view, seek_line_char(line, rect.char1), &cursor);
+            success = view_compute_cursor(app, &view, seek_xy((float)rect.x1, y, 0, unwrapped), &cursor);
         }
         end = cursor.pos;
         
@@ -607,58 +611,12 @@ CUSTOM_COMMAND_SIG(write_explicit_enum_values){
     end_temp_memory(temp);
 }
 
-#include <stdio.h>
-
-#define SETTINGS_FILE ".4coder_settings"
-HOOK_SIG(experimental_start){
-    init_memory(app);
-    
-    process_config_file(app);
-    
-    char theme_name[128];
-    char font_name[128];
-    
-    FILE *file = fopen(SETTINGS_FILE, "rb");
-    
-    if (!file){
-        char module_path[512];
-        int len = get_4ed_path(app, module_path, 448);
-        memcpy(module_path+len, SETTINGS_FILE, sizeof(SETTINGS_FILE));
-        file = fopen(module_path, "rb");
-    }
-    
-    if (file){
-        fscanf(file, "%127s\n%127s", theme_name, font_name);
-        
-        String theme = make_string_slowly(theme_name);
-        String font = make_string_slowly(font_name);
-        
-        replace_char(&theme, '#', ' ');
-        replace_char(&font, '#', ' ');
-        
-        fclose(file);
-        
-        int theme_len = (int)strlen(theme_name);
-        int font_len = (int)strlen(font_name);
-        
-        change_theme(app, theme_name, theme_len);
-        change_font(app, font_name, font_len, true);
-    }
-    
-    exec_command(app, open_panel_vsplit);
-    exec_command(app, hide_scrollbar);
-    exec_command(app, change_active_panel);
-    exec_command(app, hide_scrollbar);
-    
-    return(0);
-}
-
 extern "C" int
 get_bindings(void *data, int size){
     Bind_Helper context_ = begin_bind_helper(data, size);
     Bind_Helper *context = &context_;
     
-    set_hook(context, hook_start, experimental_start);
+    set_hook(context, hook_start, my_start);
     set_hook(context, hook_view_size_change, my_view_adjust);
     
     set_open_file_hook(context, my_file_settings);

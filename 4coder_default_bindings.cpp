@@ -123,8 +123,8 @@ HOOK_SIG(my_start){
     
     process_config_file(app);
     
-    change_theme(app, literal("4coder"));
-    change_font(app, literal("Liberation Sans"), true);
+    change_theme(app, default_theme_name.str, default_theme_name.size);
+    change_font(app, default_font_name.str, default_font_name.size, 1);
     
     exec_command(app, open_panel_vsplit);
     exec_command(app, hide_scrollbar);
@@ -168,32 +168,12 @@ HOOK_SIG(my_view_adjust){
     new_wrap_width = (int32_t)(new_wrap_width * .9f);
     
     int32_t new_min_base_width = (int32_t)(new_wrap_width * .77f);
+    if (automatically_adjust_wrapping){
     adjust_all_buffer_wrap_widths(app, new_wrap_width, new_min_base_width);
+    }
     
     // no meaning for return
     return(0);
-}
-
-// TODO(allen): delete this
-CUSTOM_COMMAND_SIG(weird_buffer_test){
-    for (Buffer_Summary buffer = get_buffer_first(app, AccessAll);
-         buffer.exists;
-         get_buffer_next(app, &buffer, AccessAll)){
-        print_message(app, literal("filename:"));
-        if (buffer.file_name){
-            print_message(app, buffer.file_name, buffer.file_name_len);
-        }
-        else{
-            print_message(app, literal("*NULL*"));
-        }
-        print_message(app, literal("buffername:"));
-        if (buffer.buffer_name){
-            print_message(app, buffer.buffer_name, buffer.buffer_name_len);
-        }
-        else{
-            print_message(app, literal("*NULL*"));
-        }
-    }
 }
 
 // NOTE(allen|a4.0.12): This is for testing it may be removed and replaced with a better test for the buffer_get_font when you eventally read this and wonder what it's about.
@@ -257,11 +237,9 @@ OPEN_FILE_HOOK_SIG(my_file_settings){
     if (treat_as_code && enable_code_wrapping && buffer.size < (1 << 18)){
         // NOTE(allen|a4.0.12): There is a little bit of grossness going on here.
         // If we set BufferSetting_Lex to true, it will launch a lexing job.
-        // If a lexing job is active when we set BufferSetting_VirtualWhitespace on
-        //  that call can fail.
+        // If a lexing job is active when we set BufferSetting_VirtualWhitespace on that call can fail.
         // Unfortunantely without tokens virtual whitespace doesn't really make sense.
-        // So for now I have it automatically turning on lexing when virtual whitespace
-        //  is turned on.
+        // So for now I have it automatically turning on lexing when virtual whitespace is turned on.
         // Cleaning some of that up is a goal for future versions.
         buffer_set_setting(app, &buffer, BufferSetting_WrapLine, 1);
         buffer_set_setting(app, &buffer, BufferSetting_VirtualWhitespace, 1);
@@ -280,7 +258,7 @@ OPEN_FILE_HOOK_SIG(my_file_settings){
 //
 // Right now it only has access to the mouse state, but it will be
 // extended to have access to the key presses soon.
-static int32_t suppressing_mouse = false;
+static bool32 suppressing_mouse = false;
 
 INPUT_FILTER_SIG(my_suppress_mouse_filter){
     if (suppressing_mouse){
@@ -293,11 +271,11 @@ INPUT_FILTER_SIG(my_suppress_mouse_filter){
 static void
 set_mouse_suppression(Application_Links *app, int32_t suppress){
     if (suppress){
-        suppressing_mouse = true;
+        suppressing_mouse = 1;
         show_mouse_cursor(app, MouseCursorShow_Never);
     }
     else{
-        suppressing_mouse = false;
+        suppressing_mouse = 0;
         show_mouse_cursor(app, MouseCursorShow_Always);
     }
 }
@@ -351,7 +329,6 @@ default_keys(Bind_Helper *context){
     bind(context, key_f2, MDFR_NONE, toggle_mouse);
     bind(context, key_page_up, MDFR_CTRL, toggle_fullscreen);
     bind(context, 'E', MDFR_ALT, exit_4coder);
-    bind(context, 'K', MDFR_ALT, weird_buffer_test);
     
     end_map(context);
     

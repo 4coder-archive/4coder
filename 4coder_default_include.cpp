@@ -24,8 +24,7 @@
 //
 
 static int32_t
-open_file(Application_Links *app, Buffer_Summary *buffer_out, char *filename,
-          int32_t filename_len, int32_t background, int32_t never_new){
+open_file(Application_Links *app, Buffer_Summary *buffer_out, char *filename, int32_t filename_len, int32_t background, int32_t never_new){
     int32_t result = false;
     Buffer_Summary buffer =
         get_buffer_by_name(app, filename, filename_len,
@@ -54,8 +53,7 @@ open_file(Application_Links *app, Buffer_Summary *buffer_out, char *filename,
 }
 
 static int32_t
-view_open_file(Application_Links *app, View_Summary *view, char *filename,
-               int32_t filename_len, int32_t never_new){
+view_open_file(Application_Links *app, View_Summary *view, char *filename, int32_t filename_len, int32_t never_new){
     int32_t result = 0;
     
     if (view){
@@ -70,8 +68,7 @@ view_open_file(Application_Links *app, View_Summary *view, char *filename,
 }
 
 static int32_t
-read_line(Application_Links *app, Partition *part, Buffer_Summary *buffer,
-          int32_t line, String *str){
+read_line(Application_Links *app, Partition *part, Buffer_Summary *buffer, int32_t line, String *str){
     
     Partial_Cursor begin = {0};
     Partial_Cursor end = {0};
@@ -3444,11 +3441,272 @@ COMMAND_CALLER_HOOK(default_command_caller){
     return(0);
 }
 
+struct Config_Line{
+    Cpp_Token id_token;
+    Cpp_Token subscript_token;
+    Cpp_Token eq_token;
+    Cpp_Token val_token;
+    int32_t val_array_start;
+    int32_t val_array_end;
+    int32_t val_array_count;
+    bool32 read_success;
+};
+
+struct Config_Item{
+    Config_Line line;
+    char *mem;
+    String id;
+    int32_t subscript_index;
+    bool32 has_subscript;
+};
+
+struct Config_Array_Reader{
+    char *mem;
+    int32_t i;
+    int32_t val_array_end;
+    bool32 good;
+};
+
+static Cpp_Token
+read_config_token(Cpp_Token_Array array, int32_t *i_ptr){
+    Cpp_Token token = {0};
+    
+    int32_t i = *i_ptr;
+    
+    for (; i < array.count; ++i){
+        Cpp_Token comment_token = array.tokens[i];
+        if (comment_token.type != CPP_TOKEN_COMMENT){
+            break;
+        }
+    }
+    
+    if (i < array.count){
+        token = array.tokens[i];
+    }
+    
+    i = *i_ptr;
+    
+    return(token);
+}
+
+static Config_Line
+read_config_line(Cpp_Token_Array array, int32_t *i_ptr){
+    Config_Line config_line = {0};
+    
+    int32_t i = *i_ptr;
+    
+    config_line.id_token = read_config_token(array, &i);
+    if (config_line.id_token.type == CPP_TOKEN_IDENTIFIER){
+        ++i;
+        if (i < array.count){
+            Cpp_Token token = read_config_token(array, &i);
+            
+            bool32 subscript_success = 1;
+            if (token.type == CPP_TOKEN_BRACE_OPEN){
+                subscript_success = 0;
+                ++i;
+                if (i < array.count){
+                    config_line.subscript_token = read_config_token(array, &i);
+                    if (config_line.subscript_token.type == CPP_TOKEN_INTEGER_CONSTANT){
+                        ++i;
+                        if (i < array.count){
+                            token = read_config_token(array, &i);
+                            if (token.type == CPP_TOKEN_BRACE_CLOSE){
+                                ++i;
+                                if (i < array.count){
+                                    token = read_config_token(array, &i);
+                                    subscript_success = 1;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            
+            if (subscript_success){
+            if (token.type == CPP_TOKEN_EQ){
+                config_line.eq_token = read_config_token(array, &i);
+                ++i;
+                if (i < array.count){
+                    Cpp_Token val_token = read_config_token(array, &i);
+                    
+                    bool32 array_success = 1;
+                    if (val_token.type == CPP_TOKEN_BRACE_OPEN){
+                        array_success = 0;
+                        ++i;
+                        if (i < array.count){
+                            config_line.val_array_start = i;
+                            
+                            bool32 expecting_array_item = 1;
+                            for (; i < array.count; ++i){
+                                Cpp_Token array_token = read_config_token(array, &i);
+                                if (array_token.type != CPP_TOKEN_BRACE_CLOSE){
+                                    config_line.val_array_end = i;
+                                    array_success = 1;
+                                    break;
+                                }
+                                else{
+                                    if (array_token.type == CPP_TOKEN_COMMA){
+                                        if (!expecting_array_item){
+                                            expecting_array_item = 1;
+                                        }
+                                        else{
+                                            break;
+                                        }
+                                    }
+                                    else{
+                                        if (expecting_array_item){
+                                            expecting_array_item = 0;
+                                            ++config_line.val_array_count;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    
+                    if (array_success){
+                        config_line.val_token = val_token;
+                    ++i;
+                    if (i < array.count){
+                        Cpp_Token semicolon_token = read_config_token(array, &i);
+                        if (semicolon_token.type == CPP_TOKEN_SEMICOLON){
+                            config_line.read_success = 1;
+                        }
+                    }
+                }
+                }
+            }
+        }
+    }
+}
+    
+    if (!config_line.read_success){
+        for (; i < array.count; ++i){
+            Cpp_Token token = read_config_token(array, &i);
+            if (token.type == CPP_TOKEN_SEMICOLON){
+                break;
+            }
+        }
+    }
+    
+    *i_ptr = i;
+    
+    return(config_line);
+}
+
+static Config_Item
+get_config_item(Config_Line line, char *mem){
+    Config_Item item = {0};
+    item.line = line;
+    item.mem = mem;
+    item.id = make_string(mem + line.id_token.start,line.id_token.size);
+    
+    if (line.subscript_token.size != 0){
+        String subscript_str = make_string(mem + line.subscript_token.start,line.subscript_token.size);
+        item.subscript_index = str_to_int_s(subscript_str);
+        item.has_subscript = 1;
+    }
+    
+    return(item);
+}
+
+static bool32
+config_var(Config_Item item, char *var_name, int32_t *subscript, uint32_t token_type, void *var_out){
+    bool32 result = 0;
+    bool32 subscript_succes = 1;
+    if (item.line.val_token.type == token_type){
+        if ((var_name == 0 && item.id.size == 0) || match(item.id, var_name)){
+            if (subscript){
+            if (item.has_subscript){
+                *subscript = item.subscript_index;
+            }
+            else{
+                subscript_succes = 0;
+            }
+        }
+        if (subscript_succes){
+            if (var_out){
+                switch (token_type){
+                    case CPP_TOKEN_BOOLEAN_CONSTANT:
+                    {
+                        *(bool32*)var_out = (item.mem[item.line.val_token.start] == 't');
+                    }break;
+                    
+                    case CPP_TOKEN_INTEGER_CONSTANT:
+                    {
+                        String val = make_string(item.mem + item.line.val_token.start, item.line.val_token.size);
+                        *(int32_t*)var_out = str_to_int(val);
+                    }break;
+                    
+                    case CPP_TOKEN_STRING_CONSTANT:
+                    {
+                        *(String*)var_out = make_string(item.mem + item.line.val_token.start + 1,item.line.val_token.size - 2);
+                    }break;
+                    
+                    case CPP_TOKEN_BRACE_OPEN:
+                    {
+                        Config_Array_Reader *array_reader = (Config_Array_Reader*)var_out;
+                        array_reader->mem = item.mem;
+                        array_reader->i = item.line.val_array_start;
+                        array_reader->val_array_end = item.line.val_array_end;
+                        array_reader->good = 1;
+                    }break;
+                }
+            }
+            result = 1;
+        }
+    }
+}
+    return(result);
+}
+
+static bool32
+config_bool_var(Config_Item item, char *var_name, int32_t *subscript, bool32 *var_out){
+    bool32 result = config_var(item, var_name, subscript, CPP_TOKEN_BOOLEAN_CONSTANT, var_out);
+    return(result);
+}
+
+static bool32
+config_int_var(Config_Item item, char *var_name, int32_t *subscript, int32_t *var_out){
+    bool32 result = config_var(item, var_name, subscript, CPP_TOKEN_INTEGER_CONSTANT, var_out);
+    return(result);
+}
+
+static bool32
+config_string_var(Config_Item item, char *var_name, int32_t *subscript, String *var_out){
+    bool32 result = config_var(item, var_name, subscript, CPP_TOKEN_STRING_CONSTANT, var_out);
+    return(result);
+}
+
+static bool32
+config_array_var(Config_Item item, char *var_name, int32_t *subscript, Config_Array_Reader *array_reader){
+    bool32 result = config_var(item, var_name, subscript, CPP_TOKEN_BRACE_OPEN, array_reader);
+    return(result);
+}
+
+static bool32
+config_array_next_item(Config_Array_Reader *array_reader, Config_Item *item){
+    
+    
+    bool32 result = (array_reader->good);
+    return(result);
+}
+
+static bool32
+config_array_good(Config_Array_Reader *array_reader){
+    bool32 result = (array_reader->good);
+    return(result);
+}
+
 // NOTE(allen|a4.0.12): A primordial config system (actually really hate this but it seems best at least right now... arg)
 
 static bool32 enable_code_wrapping = 1;
+static bool32 automatically_adjust_wrapping = 1;
 static int32_t default_wrap_width = 672;
 static int32_t default_min_base_width = 550;
+static String default_theme_name = make_lit_string("4coder");
+static String default_font_name = make_lit_string("Liberation Sans");
 
 #include <stdio.h>
 
@@ -3464,8 +3722,29 @@ adjust_all_buffer_wrap_widths(Application_Links *app, int32_t wrap_widths, int32
     default_min_base_width = min_base_width;
 }
 
+static bool32
+file_handle_dump(Partition *part, FILE *file, char **mem_ptr, int32_t *size_ptr){
+    bool32 success = 0;
+    
+    fseek(file, 0, SEEK_END);
+    int32_t size = ftell(file);
+    char *mem = (char*)push_block(part, size+1);
+    fseek(file, 0, SEEK_SET);
+    int32_t check_size = (int32_t)fread(mem, 1, size, file);
+    if (check_size == size){
+        mem[size] = 0;
+        success = 1;
+    }
+    
+    *mem_ptr = mem;
+    *size_ptr = size;
+    
+    return(success);
+}
+
 static void
 process_config_file(Application_Links *app){
+    Partition *part = &global_part;
     FILE *file = fopen("config.4coder", "rb");
     
     if (!file){
@@ -3478,15 +3757,13 @@ process_config_file(Application_Links *app){
     }
     
     if (file){
-        Temp_Memory temp = begin_temp_memory(&global_part);
+        Temp_Memory temp = begin_temp_memory(part);
         
-        fseek(file, 0, SEEK_END);
-        int32_t size = ftell(file);
-        char *mem = (char*)push_block(&global_part, size+1);
-        fseek(file, 0, SEEK_SET);
-        int32_t check_size = (int32_t)fread(mem, 1, size, file);
-        if (check_size == size){
-            mem[size] = 0;
+        char *mem = 0;
+        int32_t size = 0;
+        bool32 file_read_success = file_handle_dump(part, file, &mem, &size);
+        
+        if (file_read_success){
             fclose(file);
             
             Cpp_Token_Array array;
@@ -3498,79 +3775,159 @@ process_config_file(Application_Links *app){
             Cpp_Lex_Result result = cpp_lex_step(&S, mem, size+1, HAS_NULL_TERM, &array, NO_OUT_LIMIT);
             
             if (result == LexResult_Finished){
-                
                 int32_t new_wrap_width = default_wrap_width;
                 int32_t new_min_base_width = default_min_base_width;
                 
                 for (int32_t i = 0; i < array.count; ++i){
-                    int32_t read_setting_failed = 1;
-                    Cpp_Token id_token = array.tokens[i];
-                    if (id_token.type == CPP_TOKEN_IDENTIFIER){
-                        ++i;
-                        if (i < array.count){
-                            Cpp_Token eq_token = array.tokens[i];
-                            if (eq_token.type == CPP_TOKEN_EQ){
-                                ++i;
-                                if (i < array.count){
-                                    Cpp_Token val_token = array.tokens[i];
-                                        ++i;
-                                        if (i < array.count){
-                                            Cpp_Token semicolon_token = array.tokens[i];
-                                            if (semicolon_token.type == CPP_TOKEN_SEMICOLON){
-                                                read_setting_failed = 0;
-                                                
-                                                String id = make_string(mem + id_token.start, id_token.size);
-                                                
-                                                if (match(id, "enable_code_wrapping")){
-                                                    if (val_token.type == CPP_TOKEN_BOOLEAN_CONSTANT){
-                                                        String val = make_string(mem + val_token.start, val_token.size);
-                                                        if (val.str[0] == 't'){
-                                                            enable_code_wrapping = 1;
-                                                        }
-                                                        else{
-                                                            enable_code_wrapping = 0;
-                                                        }
-                                                    }
-                                                }
-                                                else if (match(id, "default_wrap_width")){
-                                                    if (val_token.type == CPP_TOKEN_INTEGER_CONSTANT){
-                                                        String val = make_string(mem + val_token.start, val_token.size);
-                                                         new_wrap_width = str_to_int(val);
-                                                    }
-                                                }
-                                                else if (match(id, "default_min_base_width")){
-                                                    if (val_token.type == CPP_TOKEN_INTEGER_CONSTANT){
-                                                        String val = make_string(mem + val_token.start, val_token.size);
-                                                        new_min_base_width = str_to_int(val);
-                                                    }
-                                                }
-                                                
-                                            }
-                                        }
-                                }
-                            }
-                        }
-                    }
+                    Config_Line config_line = read_config_line(array, &i);
                     
-                    if (read_setting_failed){
-                        for (; i < array.count; ++i){
-                            Cpp_Token token = array.tokens[i];
-                            if (token.type == CPP_TOKEN_SEMICOLON){
-                                break;
+                    if (config_line.read_success){
+                        Config_Item item = get_config_item(config_line, mem);
+                        
+                        config_bool_var(item, "enable_code_wrapping", 0, &enable_code_wrapping);
+                        config_bool_var(item, "automatically_adjust_wrapping", 0, &automatically_adjust_wrapping);
+                         
+                        config_int_var(item, "default_wrap_width", 0, &new_wrap_width);
+                        config_int_var(item, "default_min_base_width", 0, &new_min_base_width);
+                                                 
+                        config_string_var(item, "default_theme_name", 0, &default_theme_name);
+                        config_string_var(item, "default_font_name", 0, &default_font_name);
                             }
                         }
+                        adjust_all_buffer_wrap_widths(app, new_wrap_width, new_min_base_width);
+                        }
+        }
+        
+        end_temp_memory(temp);
+    }
+    else{
+        print_message(app, literal("Did not find config.4coder, using default settings"));
+    }
+}
+
+// NOTE(allen): Project system setup
+
+static char *loaded_project = 0;
+
+CUSTOM_COMMAND_SIG(load_project){
+    Partition *part = &global_part;
+    
+    char project_file_space[512];
+    String project_name = make_fixed_width_string(project_file_space);
+    project_name.size = directory_get_hot(app, project_name.str, project_name.memory_size);
+    if (project_name.size >= project_name.memory_size){
+        project_name.size = 0;
+    }
+    
+    if (project_name.size != 0){
+    append_sc(&project_name, "/project.4coder");
+    terminate_with_null(&project_name);
+    
+    FILE *file = fopen(project_name.str, "rb");
+    if (file){
+        Temp_Memory temp = begin_temp_memory(part);
+        
+        char *mem = 0;
+        int32_t size = 0;
+        bool32 file_read_success = file_handle_dump(part, file, &mem, &size);
+        if (file_read_success){
+            fclose(file);
+            
+        Cpp_Token_Array array;
+        array.count = 0;
+        array.max_count = (1 << 20)/sizeof(Cpp_Token);
+        array.tokens = push_array(&global_part, Cpp_Token, array.max_count);
+        
+        Cpp_Lex_Data S = cpp_lex_data_init();
+        Cpp_Lex_Result result = cpp_lex_step(&S, mem, size+1, HAS_NULL_TERM, &array, NO_OUT_LIMIT);
+        
+        if (result == LexResult_Finished){
+            for (int32_t i = 0; i < array.count; ++i){
+                Config_Line config_line = read_config_line(array, &i);
+                if (config_line.read_success){
+                    Config_Item item = get_config_item(config_line, mem);
+                    
+                    {
+                    String str = {0};
+                    if (config_string_var(item, "extensions", 0, &str)){
+                        // TODO(allen)
                     }
                 }
                 
-                adjust_all_buffer_wrap_widths(app, new_wrap_width, new_min_base_width);
+                {
+                    #if WIN
+                    #define FKEY_COMMAND "fkey_command_wnd"
+                    #else
+#define FKEY_COMMAND "fkey_command_linux"
+                    #endif
+                    
+                    int32_t index = 0;
+                    Config_Array_Reader array_reader = {0};
+                    if (config_array_var(item, FKEY_COMMAND, &index, &array_reader)){
+                        if (index >= 1 && index <= 16){
+                        Config_Item array_item = {0};
+                        int32_t item_index = 0;
+                        
+                        for (config_array_next_item(&array_reader, &array_item);
+                             config_array_good(&array_reader);
+                             config_array_next_item(&array_reader, &array_item)){
+                            if (item_index >= 2){
+                                break;
+                            }
+                            
+                            switch (item_index){
+                                case 0:
+                                {
+                                    if (config_int_var(array_item, 0, 0, 0)){
+                                        // TODO(allen)
+                                    }
+                                    String str = {0};
+                                    if (config_string_var(array_item, 0, 0, &str)){
+                                        // TODO(allen)
+                                    }
+                                }break;
+                                
+                                    case 1:
+                                    {
+                                        if (config_int_var(array_item, 0, 0, 0)){
+                                            // TODO(allen)
+                                        }
+                                        String str = {0};
+                                        if (config_string_var(array_item, 0, 0, &str)){
+                                            // TODO(allen)
+                                        }
+                                    }break;
+                            }
+                            
+                            item_index++;
+                        }
+                    }
+                    }
+                }
+                }
             }
-            
-            end_temp_memory(temp);
-        }
-        else{
-            print_message(app, literal("Did not find config.4coder, using default settings"));
         }
     }
+    
+    end_temp_memory(temp);
+    }
+    else{
+        char message_space[512];
+        String message = make_fixed_width_string(message_space);
+        append_sc(&message, "Did not find project.4coder.  ");
+        if (loaded_project != 0){
+            append_sc(&message, "Continuing with: ");
+            append_sc(&message, loaded_project);
+        }
+        else{
+            append_sc(&message, "Continuing without a project");
+        }
+        print_message(app, message.str, message.size);
+    }
+}
+else{
+    print_message(app, literal("Failed trying to get project file name"));
+}
 }
 
 #endif
