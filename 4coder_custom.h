@@ -46,6 +46,7 @@ enum Special_Hook_ID{
     _hook_scroll_rule = hook_type_count,
     _hook_new_file,
     _hook_open_file,
+    _hook_save_file,
     _hook_command_caller,
     _hook_input_filter,
 };

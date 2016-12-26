@@ -87,7 +87,8 @@ fill_view_summary(View_Summary *view, View *vptr, Live_Views *live_set, Working_
         view->cursor = vptr->edit_pos->cursor;
         view->preferred_x = vptr->edit_pos->preferred_x;
         
-        view->file_region = vptr->panel->inner;
+        view->view_region = vptr->panel->inner;
+        view->file_region = vptr->file_region;
         view->scroll_vars = vptr->edit_pos->scroll;
     }
 }
@@ -118,7 +119,7 @@ imp_get_file(Command_Data *cmd, Buffer_Summary *buffer){
     Editing_File *file = 0;
     Working_Set *working_set = &cmd->models->working_set;;
     
-    if (buffer->exists){
+    if (buffer && buffer->exists){
         file = working_set_get_active_file(working_set, buffer->buffer_id);
         if (file != 0 && !file_is_ready(file)){
             file = 0;
@@ -148,7 +149,7 @@ internal View*
 imp_get_view(Command_Data *cmd, View_Summary *view){
     View *vptr = 0;
     
-    if (view->exists){
+    if (view && view->exists){
         vptr = imp_get_view(cmd, view->view_id);
     }
     
@@ -185,28 +186,24 @@ DOC_SEE(Command_ID)
 API_EXPORT bool32
 Exec_System_Command(Application_Links *app, View_Summary *view, Buffer_Identifier buffer, char *path, int32_t path_len, char *command, int32_t command_len, Command_Line_Interface_Flag flags)
 /*
-DOC_PARAM(view, If the view parameter is non-null it specifies a view to display the command's output buffer.)
+DOC_PARAM(view, If the view parameter is non-null it specifies a view to display the command's output buffer, otherwise the command will still work but if there is a buffer capturing the output it will not automatically be displayed.)
 DOC_PARAM(buffer, The buffer the command will output to is specified by the buffer parameter.
-See Buffer_Identifier for information on how this type specifies a buffer.)
+See Buffer_Identifier for information on how this type specifies a buffer.  The command will cause a crash if no file is specified.)
 DOC_PARAM(path, The path parameter specifies the path in which the command shall be executed. The string need not be null terminated.)
 DOC_PARAM(path_len, The parameter path_len specifies the length of the path string.)
 DOC_PARAM(command, The command parameter specifies the command that shall be executed. The string need not be null terminated.)
 DOC_PARAM(command_len, The parameter command_len specifies the length of the command string.)
 DOC_PARAM(flags, Flags for the behavior of the call are specified in the flags parameter.)
 DOC_RETURN(This call returns non-zero on success.)
-DOC
-(
-A call to exec_system_command executes a command as if called from the command line, and sends the output to
-a buffer. The buffer identifier can either name a new buffer that does not exist, name a buffer that does
-exist, or provide the id of a buffer that does exist.
+DOC(
+A call to exec_system_command executes a command as if called from the command line, and sends the output to a buffer. The buffer identifier can name a new buffer that does not exist, name a buffer that does exist, or provide the id of a buffer that does exist.
 
 If the buffer is not already in an open view and the view parameter is not NULL,
 then the provided view will display the output buffer.
 
-If the view parameter is NULL, no view will switch to the output.
-)
+If the view parameter is NULL, no view will switch to the output.)
 DOC_SEE(Buffer_Identifier)
-DOC_SEE(Command_Line_Input_Flag)
+DOC_SEE(Command_Line_Interface_Flag)
 */{
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     System_Functions *system = cmd->system;
@@ -231,6 +228,7 @@ DOC_SEE(Command_Line_Input_Flag)
     
     if (vars->cli_processes.count < vars->cli_processes.max){
         file = get_file_from_identifier(system, working_set, buffer);
+        
         if (file){
             if (file->settings.read_only == 0){
                 append_ss(&feedback_str, make_lit_string("ERROR: "));
@@ -252,13 +250,11 @@ DOC_SEE(Command_Line_Input_Flag)
         else if (buffer.name){
             file = working_set_alloc_always(system, working_set, general);
             if (file == 0){
-                append_ss(&feedback_str,
-                          make_lit_string("ERROR: unable to  allocate a new buffer\n"));
+                append_ss(&feedback_str, make_lit_string("ERROR: unable to allocate a new buffer\n"));
                 do_feedback_message(system, models, feedback_str);
                 result = false;
                 goto done;
             }
-            
             String name = make_string_terminated(part, buffer.name, buffer.name_len);
             buffer_bind_name(system, general, working_set, file, name);
             init_read_only_file(system, models, file);
@@ -707,7 +703,7 @@ DOC_SEE(Buffer_Batch_Edit_Type)
     return(result);
 }
 
-API_EXPORT int32_t
+API_EXPORT bool32
 Buffer_Get_Setting(Application_Links *app, Buffer_Summary *buffer, Buffer_Setting_ID setting, int32_t *value_out)
 /*
 DOC_PARAM(buffer, the buffer from which to read a setting)
@@ -717,7 +713,7 @@ DOC_RETURN(returns non-zero on success)
 */{
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     Editing_File *file = imp_get_file(cmd, buffer);
-    int32_t result = 0;
+    bool32 result = 0;
      
     if (file){
         result = 1;
@@ -1141,17 +1137,17 @@ DOC_RETURN(This call returns non-zero on success.)
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     System_Functions *system = cmd->system;
     Models *models = cmd->models;
-    bool32 result = false;
+    bool32 result = 0;
     
     Editing_File *file = imp_get_file(cmd, buffer);
     if (file){
         if (file_get_sync(file) != DirtyState_UpToDate){
-        result = true;
+        result = 1;
         
         Partition *part = &models->mem.part;
         Temp_Memory temp = begin_temp_memory(part);
         String name = make_string_terminated(part, filename, filename_len);
-            save_file_to_name(system, &models->mem, file, name.str);
+            save_file_to_name(system, models, file, name.str);
             end_temp_memory(temp);
         }
         }

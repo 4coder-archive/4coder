@@ -180,6 +180,16 @@ set_open_file_hook(Bind_Helper *helper, Open_File_Hook_Function *func){
 }
 
 inline void
+set_save_file_hook(Bind_Helper *helper, Open_File_Hook_Function *func){
+    Binding_Unit unit;
+    unit.type = unit_hook;
+    unit.hook.hook_id = _hook_save_file;
+    unit.hook.func = (void*) func;
+    
+    write_unit(helper, unit);
+}
+
+inline void
 set_command_caller(Bind_Helper *helper, Command_Caller_Hook_Function *func){
     Binding_Unit unit;
     unit.type = unit_hook;

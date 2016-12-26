@@ -65,6 +65,7 @@ struct Models{
     
     Open_File_Hook_Function *hook_open_file;
     Open_File_Hook_Function *hook_new_file;
+    Open_File_Hook_Function *hook_save_file;
     Command_Caller_Hook_Function *command_caller;
     Input_Filter_Function *input_filter;
     Scroll_Rule_Function *scroll_rule;

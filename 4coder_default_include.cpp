@@ -1036,15 +1036,17 @@ CUSTOM_COMMAND_SIG(auto_tab_line_at_cursor){
     move_past_lead_whitespace(app, &view, &buffer);
 }
 
+static void
+auto_tab_whole_file_by_summary(Application_Links *app, Buffer_Summary *buffer){
+    buffer_auto_indent(app, buffer, 0, buffer->size, DEF_TAB_WIDTH, DEFAULT_INDENT_FLAGS | AutoIndent_FullTokens);
+}
+
 CUSTOM_COMMAND_SIG(auto_tab_whole_file){
     uint32_t access = AccessOpen;
     View_Summary view = get_active_view(app, access);
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, access);
     
-    buffer_auto_indent(app, &buffer,
-                       0, buffer.size,
-                       DEF_TAB_WIDTH,
-                       DEFAULT_INDENT_FLAGS | AutoIndent_FullTokens);
+    auto_tab_whole_file_by_summary(app, &buffer);
 }
 
 CUSTOM_COMMAND_SIG(auto_tab_range){
@@ -2501,77 +2503,9 @@ CUSTOM_COMMAND_SIG(query_replace){
 // Fast Buffer Management
 //
 
-CUSTOM_COMMAND_SIG(close_all_code){
-    String extension;
-    Buffer_Summary buffer;
-    
-    // TODO(allen): Get better memory constructs to the custom layer
-    // so that it doesn't have to rely on arbitrary limits like this one.
-    int32_t buffers_to_close[2048];
-    int32_t buffers_to_close_count = 0;
-    
-    uint32_t access = AccessAll;
-    for (buffer = get_buffer_first(app, access);
-         buffer.exists;
-         get_buffer_next(app, &buffer, access)){
-        
-        extension = file_extension(make_string(buffer.file_name, buffer.file_name_len));
-        if (match_ss(extension, make_lit_string("cpp")) ||
-            match_ss(extension, make_lit_string("hpp")) ||
-            match_ss(extension, make_lit_string("c")) ||
-            match_ss(extension, make_lit_string("h")) ||
-            match_ss(extension, make_lit_string("cc"))){
-            
-            buffers_to_close[buffers_to_close_count++] = buffer.buffer_id;
-        }
-    }
-    
-    for (int32_t i = 0; i < buffers_to_close_count; ++i){
-        kill_buffer(app, buffer_identifier(buffers_to_close[i]), true, 0);
-    }
-}
-
-CUSTOM_COMMAND_SIG(open_all_code){
-    // NOTE(allen|a3.4.4): This method of getting the hot directory works
-    // because this custom.cpp gives no special meaning to app->memory
-    // and doesn't set up a persistent allocation system within app->memory.
-    // push_directory isn't a very good option since it's tied to the parameter
-    // stack, so I am phasing that idea out now.
-    String dir = make_string_cap(app->memory, 0, app->memory_size);
-    dir.size = directory_get_hot(app, dir.str, dir.memory_size);
-    int32_t dir_size = dir.size;
-    
-    // NOTE(allen|a3.4.4): Here we get the list of files in this directory.
-    // Notice that we free_file_list at the end.
-    File_List list = get_file_list(app, dir.str, dir.size);
-    
-    for (int32_t i = 0; i < list.count; ++i){
-        File_Info *info = list.infos + i;
-        if (!info->folder){
-            String extension = make_string_cap(info->filename, info->filename_len, info->filename_len+1);
-            extension = file_extension(extension);
-            if (match_ss(extension, make_lit_string("cpp")) ||
-                match_ss(extension, make_lit_string("hpp")) ||
-                match_ss(extension, make_lit_string("c")) ||
-                match_ss(extension, make_lit_string("h")) ||
-                match_ss(extension, make_lit_string("cc"))){
-                // NOTE(allen): There's no way in the 4coder API to use relative
-                // paths at the moment, so everything should be full paths.  Which is
-                // managable.  Here simply set the dir string size back to where it
-                // was originally, so that new appends overwrite old ones.
-                dir.size = dir_size;
-                append_sc(&dir, info->filename);
-                create_buffer(app, dir.str, dir.size, 0);
-            }
-        }
-    }
-    
-    free_file_list(app, list);
-}
-
-char out_buffer_space[1024];
-char command_space[1024];
-char hot_directory_space[1024];
+static char out_buffer_space[1024];
+static char command_space[1024];
+static char hot_directory_space[1024];
 
 CUSTOM_COMMAND_SIG(execute_any_cli){
     Query_Bar bar_out = {0};
@@ -2591,11 +2525,7 @@ CUSTOM_COMMAND_SIG(execute_any_cli){
     uint32_t access = AccessAll;
     View_Summary view = get_active_view(app, access);
     
-    exec_system_command(app, &view,
-                        buffer_identifier(bar_out.string.str, bar_out.string.size),
-                        hot_directory.str, hot_directory.size,
-                        bar_cmd.string.str, bar_cmd.string.size,
-                        CLI_OverlapWithConflict | CLI_CursorAtEnd);
+    exec_system_command(app, &view, buffer_identifier(bar_out.string.str, bar_out.string.size), hot_directory.str, hot_directory.size, bar_cmd.string.str, bar_cmd.string.size, CLI_OverlapWithConflict | CLI_CursorAtEnd);
 }
 
 CUSTOM_COMMAND_SIG(execute_previous_cli){
@@ -2607,11 +2537,7 @@ CUSTOM_COMMAND_SIG(execute_previous_cli){
         uint32_t access = AccessAll;
         View_Summary view = get_active_view(app, access);
         
-        exec_system_command(app, &view,
-                            buffer_identifier(out_buffer.str, out_buffer.size),
-                            hot_directory.str, hot_directory.size,
-                            cmd.str, cmd.size,
-                            CLI_OverlapWithConflict | CLI_CursorAtEnd);
+        exec_system_command(app, &view, buffer_identifier(out_buffer.str, out_buffer.size), hot_directory.str, hot_directory.size, cmd.str, cmd.size, CLI_OverlapWithConflict | CLI_CursorAtEnd);
     }
 }
 
@@ -2698,8 +2624,7 @@ get_search_all_string(Application_Links *app, Query_Bar *bar){
 }
 
 static void
-generic_search_all_buffers(Application_Links *app, General_Memory *general, Partition *part,
-                           String string, uint32_t match_flags){
+generic_search_all_buffers(Application_Links *app, General_Memory *general, Partition *part, String string, uint32_t match_flags){
     Search_Set set = {0};
     Search_Iter iter = {0};
     
@@ -2828,32 +2753,28 @@ CUSTOM_COMMAND_SIG(list_all_locations){
     Query_Bar bar;
     get_search_all_string(app, &bar);
     if (bar.string.size == 0) return;
-    generic_search_all_buffers(app, &global_general, &global_part,
-                               bar.string, SearchFlag_MatchWholeWord);
+    generic_search_all_buffers(app, &global_general, &global_part, bar.string, SearchFlag_MatchWholeWord);
 }
 
 CUSTOM_COMMAND_SIG(list_all_substring_locations){
     Query_Bar bar;
     get_search_all_string(app, &bar);
     if (bar.string.size == 0) return;
-    generic_search_all_buffers(app, &global_general, &global_part,
-                               bar.string, SearchFlag_MatchSubstring);
+    generic_search_all_buffers(app, &global_general, &global_part, bar.string, SearchFlag_MatchSubstring);
 }
 
 CUSTOM_COMMAND_SIG(list_all_locations_case_insensitive){
     Query_Bar bar;
     get_search_all_string(app, &bar);
     if (bar.string.size == 0) return;
-    generic_search_all_buffers(app, &global_general, &global_part,
-                               bar.string, SearchFlag_CaseInsensitive | SearchFlag_MatchWholeWord);
+    generic_search_all_buffers(app, &global_general, &global_part, bar.string, SearchFlag_CaseInsensitive | SearchFlag_MatchWholeWord);
 }
 
 CUSTOM_COMMAND_SIG(list_all_substring_locations_case_insensitive){
     Query_Bar bar;
     get_search_all_string(app, &bar);
     if (bar.string.size == 0) return;
-    generic_search_all_buffers(app, &global_general, &global_part,
-                               bar.string, SearchFlag_CaseInsensitive | SearchFlag_MatchSubstring);
+    generic_search_all_buffers(app, &global_general, &global_part, bar.string, SearchFlag_CaseInsensitive | SearchFlag_MatchSubstring);
 }
 
 CUSTOM_COMMAND_SIG(list_all_locations_of_identifier){
@@ -3132,12 +3053,7 @@ standard_build_search(Application_Links *app, View_Summary *view, Buffer_Summary
             append_s_char(&message, '\n');
             print_message(app, message.str, message.size);
             
-            
-            exec_system_command(app, view,
-                                buffer_identifier(literal("*compilation*")),
-                                dir->str, dir->size,
-                                command->str, command->size,
-                                CLI_OverlapWithConflict);
+            exec_system_command(app, view, buffer_identifier(literal("*compilation*")), dir->str, dir->size, command->str, command->size, CLI_OverlapWithConflict);
             result = true;
             break;
         }
@@ -3150,11 +3066,7 @@ standard_build_search(Application_Links *app, View_Summary *view, Buffer_Summary
                 String backup_command = make_fixed_width_string(backup_space);
                 append_ss(&backup_command, make_lit_string("echo could not find "));
                 append_ss(&backup_command, filename);
-                exec_system_command(app, view,
-                                    buffer_identifier(literal("*compilation*")),
-                                    dir->str, dir->size,
-                                    backup_command.str, backup_command.size,
-                                    CLI_OverlapWithConflict);
+                exec_system_command(app, view, buffer_identifier(literal("*compilation*")), dir->str, dir->size, backup_command.str, backup_command.size, CLI_OverlapWithConflict);
             }
             break;
         }
@@ -3170,11 +3082,7 @@ static int32_t
 execute_standard_build_search(Application_Links *app, View_Summary *view,
                               Buffer_Summary *active_buffer,
                               String *dir, String *command, int32_t perform_backup){
-    int32_t result = standard_build_search(app, view,
-                                           active_buffer,
-                                           dir, command, perform_backup, true,
-                                           make_lit_string("build.bat"),
-                                           make_lit_string("build"));
+    int32_t result = standard_build_search(app, view, active_buffer, dir, command, perform_backup, true, make_lit_string("build.bat"), make_lit_string("build"));
     return(result);
 }
 
@@ -3183,7 +3091,6 @@ execute_standard_build_search(Application_Links *app, View_Summary *view,
 // NOTE(allen): Build search rule for linux.
 static int32_t
 execute_standard_build_search(Application_Links *app, View_Summary *view, Buffer_Summary *active_buffer, String *dir, String *command, bool32 perform_backup){
-    
     char dir_space[512];
     String dir_copy = make_fixed_width_string(dir_space);
     copy(&dir_copy, *dir);
@@ -3205,8 +3112,7 @@ execute_standard_build_search(Application_Links *app, View_Summary *view, Buffer
 // NOTE(allen): This searches first using the active file's directory,
 // then if no build script is found, it searches from 4coders hot directory.
 static void
-execute_standard_build(Application_Links *app, View_Summary *view,
-                       Buffer_Summary *active_buffer){
+execute_standard_build(Application_Links *app, View_Summary *view, Buffer_Summary *active_buffer){
     char dir_space[512];
     String dir = make_fixed_width_string(dir_space);
     
@@ -3216,8 +3122,7 @@ execute_standard_build(Application_Links *app, View_Summary *view,
     int32_t build_dir_type = get_build_directory(app, active_buffer, &dir);
     
     if (build_dir_type == BuildDir_AtFile){
-        if (!execute_standard_build_search(app, view, active_buffer,
-                                           &dir, &command, false)){
+        if (!execute_standard_build_search(app, view, active_buffer, &dir, &command, false)){
             dir.size = 0;
             command.size = 0;
             build_dir_type = get_build_directory(app, 0, &dir);
@@ -3225,8 +3130,7 @@ execute_standard_build(Application_Links *app, View_Summary *view,
     }
     
     if (build_dir_type == BuildDir_AtHot){
-        execute_standard_build_search(app, view, active_buffer,
-                                      &dir, &command, true);
+        execute_standard_build_search(app, view, active_buffer, &dir, &command, true);
     }
 }
 
@@ -3293,48 +3197,6 @@ CUSTOM_COMMAND_SIG(change_to_build_panel){
     
     if (view.exists){
         set_active_view(app, &view);
-    }
-}
-
-//
-// Other
-//
-
-CUSTOM_COMMAND_SIG(execute_arbitrary_command){
-    // NOTE(allen): This isn't a super powerful version of this command, I will expand
-    // upon it so that it has all the cmdid_* commands by default.  However, with this
-    // as an example you have everything you need to make it work already. You could
-    // even use app->memory to create a hash table in the start hook.
-    Query_Bar bar;
-    char space[1024];
-    bar.prompt = make_lit_string("Command: ");
-    bar.string = make_fixed_width_string(space);
-    
-    if (!query_user_string(app, &bar)) return;
-    
-    // NOTE(allen): Here I chose to end this query bar because when I call another
-    // command it might ALSO have query bars and I don't want this one hanging
-    // around at that point.  Since the bar exists on my stack the result of the query
-    // is still available in bar.string though.
-    end_query_bar(app, &bar, 0);
-    
-    if (match_ss(bar.string, make_lit_string("open all code"))){
-        exec_command(app, open_all_code);
-    }
-    else if(match_ss(bar.string, make_lit_string("close all code"))){
-        exec_command(app, close_all_code);
-    }
-    else if (match_ss(bar.string, make_lit_string("open menu"))){
-        exec_command(app, cmdid_open_menu);
-    }
-    else if (match_ss(bar.string, make_lit_string("dos lines"))){
-        exec_command(app, eol_dosify);
-    }
-    else if (match_ss(bar.string, make_lit_string("nix lines"))){
-        exec_command(app, eol_nixify);
-    }
-    else{
-        print_message(app, literal("unrecognized command\n"));
     }
 }
 
@@ -3454,6 +3316,7 @@ struct Config_Line{
 
 struct Config_Item{
     Config_Line line;
+    Cpp_Token_Array array;
     char *mem;
     String id;
     int32_t subscript_index;
@@ -3461,6 +3324,7 @@ struct Config_Item{
 };
 
 struct Config_Array_Reader{
+    Cpp_Token_Array array;
     char *mem;
     int32_t i;
     int32_t val_array_end;
@@ -3484,7 +3348,7 @@ read_config_token(Cpp_Token_Array array, int32_t *i_ptr){
         token = array.tokens[i];
     }
     
-    i = *i_ptr;
+    *i_ptr = i;
     
     return(token);
 }
@@ -3502,7 +3366,7 @@ read_config_line(Cpp_Token_Array array, int32_t *i_ptr){
             Cpp_Token token = read_config_token(array, &i);
             
             bool32 subscript_success = 1;
-            if (token.type == CPP_TOKEN_BRACE_OPEN){
+            if (token.type == CPP_TOKEN_BRACKET_OPEN){
                 subscript_success = 0;
                 ++i;
                 if (i < array.count){
@@ -3511,7 +3375,7 @@ read_config_line(Cpp_Token_Array array, int32_t *i_ptr){
                         ++i;
                         if (i < array.count){
                             token = read_config_token(array, &i);
-                            if (token.type == CPP_TOKEN_BRACE_CLOSE){
+                            if (token.type == CPP_TOKEN_BRACKET_CLOSE){
                                 ++i;
                                 if (i < array.count){
                                     token = read_config_token(array, &i);
@@ -3540,7 +3404,10 @@ read_config_line(Cpp_Token_Array array, int32_t *i_ptr){
                             bool32 expecting_array_item = 1;
                             for (; i < array.count; ++i){
                                 Cpp_Token array_token = read_config_token(array, &i);
-                                if (array_token.type != CPP_TOKEN_BRACE_CLOSE){
+                                if (array_token.size == 0){
+                                    break;
+                                }
+                                if (array_token.type == CPP_TOKEN_BRACE_CLOSE){
                                     config_line.val_array_end = i;
                                     array_success = 1;
                                     break;
@@ -3596,11 +3463,14 @@ read_config_line(Cpp_Token_Array array, int32_t *i_ptr){
 }
 
 static Config_Item
-get_config_item(Config_Line line, char *mem){
+get_config_item(Config_Line line, char *mem, Cpp_Token_Array array){
     Config_Item item = {0};
     item.line = line;
+    item.array = array;
     item.mem = mem;
-    item.id = make_string(mem + line.id_token.start,line.id_token.size);
+    if (line.id_token.size != 0){
+    item.id = make_string(mem + line.id_token.start, line.id_token.size);
+    }
     
     if (line.subscript_token.size != 0){
         String subscript_str = make_string(mem + line.subscript_token.start,line.subscript_token.size);
@@ -3625,6 +3495,7 @@ config_var(Config_Item item, char *var_name, int32_t *subscript, uint32_t token_
                 subscript_succes = 0;
             }
         }
+        
         if (subscript_succes){
             if (var_out){
                 switch (token_type){
@@ -3647,6 +3518,7 @@ config_var(Config_Item item, char *var_name, int32_t *subscript, uint32_t token_
                     case CPP_TOKEN_BRACE_OPEN:
                     {
                         Config_Array_Reader *array_reader = (Config_Array_Reader*)var_out;
+                        array_reader->array = item.array;
                         array_reader->mem = item.mem;
                         array_reader->i = item.line.val_array_start;
                         array_reader->val_array_end = item.line.val_array_end;
@@ -3687,9 +3559,37 @@ config_array_var(Config_Item item, char *var_name, int32_t *subscript, Config_Ar
 
 static bool32
 config_array_next_item(Config_Array_Reader *array_reader, Config_Item *item){
+    bool32 result = 0;
     
+    for (;array_reader->i < array_reader->val_array_end;
+         ++array_reader->i){
+        Cpp_Token array_token = read_config_token(array_reader->array, &array_reader->i);
+        if (array_token.size == 0 || array_reader->i >= array_reader->val_array_end){
+            break;
+        }
+        
+        if (array_token.type == CPP_TOKEN_BRACE_CLOSE){
+            break;
+        }
+        
+        switch (array_token.type){
+            case CPP_TOKEN_BOOLEAN_CONSTANT:
+            case CPP_TOKEN_INTEGER_CONSTANT:
+            case CPP_TOKEN_STRING_CONSTANT:
+            {
+                Config_Line line = {0};
+                line.val_token = array_token;
+                line.read_success = 1;
+                *item = get_config_item(line, array_reader->mem, array_reader->array);
+                result = 1;
+                ++array_reader->i;
+                goto doublebreak;
+            }break;
+            }
+        }
+        doublebreak:;
     
-    bool32 result = (array_reader->good);
+    array_reader->good = result;
     return(result);
 }
 
@@ -3705,6 +3605,8 @@ static bool32 enable_code_wrapping = 1;
 static bool32 automatically_adjust_wrapping = 1;
 static int32_t default_wrap_width = 672;
 static int32_t default_min_base_width = 550;
+static bool32 automatically_indent_text_on_save = 1;
+
 static String default_theme_name = make_lit_string("4coder");
 static String default_font_name = make_lit_string("Liberation Sans");
 
@@ -3782,10 +3684,11 @@ process_config_file(Application_Links *app){
                     Config_Line config_line = read_config_line(array, &i);
                     
                     if (config_line.read_success){
-                        Config_Item item = get_config_item(config_line, mem);
+                        Config_Item item = get_config_item(config_line, mem, array);
                         
                         config_bool_var(item, "enable_code_wrapping", 0, &enable_code_wrapping);
                         config_bool_var(item, "automatically_adjust_wrapping", 0, &automatically_adjust_wrapping);
+                        config_bool_var(item, "automatically_indent_text_on_save", 0, &automatically_indent_text_on_save);
                          
                         config_int_var(item, "default_wrap_width", 0, &new_wrap_width);
                         config_int_var(item, "default_min_base_width", 0, &new_min_base_width);
@@ -3807,7 +3710,223 @@ process_config_file(Application_Links *app){
 
 // NOTE(allen): Project system setup
 
-static char *loaded_project = 0;
+static char *default_extensions[] = {
+    "cpp",
+    "hpp",
+    "c",
+    "h",
+    "cc"
+};
+
+struct Fkey_Command{
+    char command[128];
+    char out[128];
+    bool32 use_build_panel;
+};
+
+struct Project{
+    char dir_space[256];
+    char *dir;
+    int32_t dir_len;
+    
+    char extension_space[256];
+    char *extensions[94];
+    int32_t extension_count;
+    
+    Fkey_Command fkey_commands[16];
+    
+    bool32 close_all_code_when_this_project_closes;
+    bool32 close_all_files_when_project_opens;
+};
+
+static Project null_project = {};
+static Project current_project = {};
+
+static void
+set_project_extensions(Project *project, String src){
+    int32_t mode = 0;
+    int32_t j = 0, k = 0;
+    for (int32_t i = 0; i < src.size; ++i){
+        switch (mode){
+                case 0:
+            {
+                if (src.str[i] == '.'){
+                    mode = 1;
+                    project->extensions[k++] = &project->extension_space[j];
+                }
+            }break;
+            
+            case 1:
+            {
+                if (src.str[i] == '.'){
+                    project->extension_space[j++] = 0;
+                    project->extensions[k++] = &project->extension_space[j];
+                }
+                else{
+                    project->extension_space[j++] = src.str[i];
+                }
+            }break;
+                }
+    }
+    project->extension_space[j++] = 0;
+    project->extension_count = k;
+}
+
+// TODO(allen): make this a string operation or a lexer operation or something
+static void
+interpret_escaped_string(char *dst, String src){
+    int32_t mode = 0;
+    int32_t j = 0;
+    for (int32_t i = 0; i < src.size; ++i){
+         switch (mode){
+            case 0:
+            {
+        if (src.str[i] == '\\'){
+            mode = 1;
+        }
+        else{
+            dst[j++] = src.str[i];
+        }
+    }break;
+    
+    case 1:
+    {
+         switch (src.str[i]){
+             case '\\':{dst[j++] = '\\'; mode = 0;}break;
+             case 'n': {dst[j++] = '\n'; mode = 0;}break;
+             case 't': {dst[j++] = '\t'; mode = 0;}break;
+             case '"': {dst[j++] = '"';  mode = 0;}break;
+             case '0': {dst[j++] = '\0'; mode = 0;}break;
+        }
+    }break;
+}
+    }
+    dst[j] = 0;
+}
+
+static void
+close_all_files_with_extension(Application_Links *app, Partition *scratch_part, char **extension_list, int32_t extension_count){
+    Temp_Memory temp = begin_temp_memory(scratch_part);
+    
+    int32_t buffers_to_close_max = partition_remaining(scratch_part)/sizeof(int32_t);
+    int32_t *buffers_to_close = push_array(scratch_part, int32_t, buffers_to_close_max);
+    
+    int32_t buffers_to_close_count = 0;
+    bool32 do_repeat = 0;
+    do{
+        buffers_to_close_count = 0;
+        do_repeat = 0;
+        
+    uint32_t access = AccessAll;
+    Buffer_Summary buffer = {0};
+    for (buffer = get_buffer_first(app, access);
+         buffer.exists;
+         get_buffer_next(app, &buffer, access)){
+        
+        bool32 is_match = 1;
+        if (extension_count > 0){
+            String extension = file_extension(make_string(buffer.file_name, buffer.file_name_len));
+            is_match = 0;
+            for (int32_t i = 0; i < extension_count; ++i){
+                if (match(extension, extension_list[i])){
+                    is_match = 1;
+                    break;
+                }
+            }
+        }
+        
+        if (is_match){
+            if (buffers_to_close_count >= buffers_to_close_max){
+                do_repeat = 1;
+                break;
+            }
+            buffers_to_close[buffers_to_close_count++] = buffer.buffer_id;
+        }
+    }
+    
+    for (int32_t i = 0; i < buffers_to_close_count; ++i){
+        kill_buffer(app, buffer_identifier(buffers_to_close[i]), true, 0);
+    }
+}
+    while(do_repeat);
+    
+    end_temp_memory(temp);
+}
+
+static void
+open_all_files_with_extension(Application_Links *app, Partition *scratch_part, char **extension_list, int32_t extension_count){
+    Temp_Memory temp = begin_temp_memory(scratch_part);
+    
+    int32_t max_size = partition_remaining(scratch_part);
+    char *memory = push_array(scratch_part, char, max_size);
+    
+    String dir = make_string_cap(memory, 0, max_size);
+    dir.size = directory_get_hot(app, dir.str, dir.memory_size);
+    int32_t dir_size = dir.size;
+    
+    // NOTE(allen|a3.4.4): Here we get the list of files in this directory.
+    // Notice that we free_file_list at the end.
+    File_List list = get_file_list(app, dir.str, dir.size);
+    
+    for (int32_t i = 0; i < list.count; ++i){
+        File_Info *info = list.infos + i;
+        if (!info->folder){
+            bool32 is_match = 1;
+            
+            if (extension_count > 0){
+                is_match = 0;
+                
+            String extension = make_string_cap(info->filename, info->filename_len, info->filename_len+1);
+            extension = file_extension(extension);
+                for (int32_t j = 0; j < extension_count; ++j){
+                    if (match(extension, extension_list[j])){
+                        is_match = 1;
+                        break;
+                    }
+        }
+        
+        if (is_match){
+            // NOTE(allen): There's no way in the 4coder API to use relative
+            // paths at the moment, so everything should be full paths.  Which is
+            // managable.  Here simply set the dir string size back to where it
+            // was originally, so that new appends overwrite old ones.
+            dir.size = dir_size;
+            append_sc(&dir, info->filename);
+            create_buffer(app, dir.str, dir.size, 0);
+        }
+    }
+    }
+}
+    
+    free_file_list(app, list);
+
+end_temp_memory(temp);
+}
+
+static char**
+get_standard_code_extensions(int32_t *extension_count_out){
+    char **extension_list = default_extensions;
+    int32_t extension_count = ArrayCount(default_extensions);
+    if (current_project.dir != 0){
+        extension_list = current_project.extensions;
+        extension_count = current_project.extension_count;
+    }
+    *extension_count_out = extension_count;
+    return(extension_list);
+}
+
+// NOTE(allen|a4.0.14): open_all_code and close_all_code now use the extensions set in the loaded project.  If there is no project loaded the extensions ".cpp.hpp.c.h.cc" are used.
+CUSTOM_COMMAND_SIG(open_all_code){
+    int32_t extension_count = 0;
+    char **extension_list = get_standard_code_extensions(&extension_count);
+    open_all_files_with_extension(app, &global_part, extension_list, extension_count);
+}
+
+CUSTOM_COMMAND_SIG(close_all_code){
+    int32_t extension_count = 0;
+    char **extension_list = get_standard_code_extensions(&extension_count);
+    close_all_files_with_extension(app, &global_part, extension_list, extension_count);
+}
 
 CUSTOM_COMMAND_SIG(load_project){
     Partition *part = &global_part;
@@ -3820,114 +3939,255 @@ CUSTOM_COMMAND_SIG(load_project){
     }
     
     if (project_name.size != 0){
-    append_sc(&project_name, "/project.4coder");
-    terminate_with_null(&project_name);
-    
-    FILE *file = fopen(project_name.str, "rb");
-    if (file){
-        Temp_Memory temp = begin_temp_memory(part);
+        int32_t original_size = project_name.size;
+        append_sc(&project_name, "project.4coder");
+        terminate_with_null(&project_name);
         
-        char *mem = 0;
-        int32_t size = 0;
-        bool32 file_read_success = file_handle_dump(part, file, &mem, &size);
-        if (file_read_success){
-            fclose(file);
+        // TODO(allen): make sure we do nothing when this project is already open
+        
+        FILE *file = fopen(project_name.str, "rb");
+        if (file){
+            project_name.size = original_size;
+            terminate_with_null(&project_name);
             
-        Cpp_Token_Array array;
-        array.count = 0;
-        array.max_count = (1 << 20)/sizeof(Cpp_Token);
-        array.tokens = push_array(&global_part, Cpp_Token, array.max_count);
-        
-        Cpp_Lex_Data S = cpp_lex_data_init();
-        Cpp_Lex_Result result = cpp_lex_step(&S, mem, size+1, HAS_NULL_TERM, &array, NO_OUT_LIMIT);
-        
-        if (result == LexResult_Finished){
-            for (int32_t i = 0; i < array.count; ++i){
-                Config_Line config_line = read_config_line(array, &i);
-                if (config_line.read_success){
-                    Config_Item item = get_config_item(config_line, mem);
-                    
-                    {
-                    String str = {0};
-                    if (config_string_var(item, "extensions", 0, &str)){
-                        // TODO(allen)
-                    }
-                }
+            Temp_Memory temp = begin_temp_memory(part);
+            
+            char *mem = 0;
+            int32_t size = 0;
+            bool32 file_read_success = file_handle_dump(part, file, &mem, &size);
+            if (file_read_success){
+                fclose(file);
                 
-                {
-                    #if WIN
-                    #define FKEY_COMMAND "fkey_command_wnd"
-                    #else
-#define FKEY_COMMAND "fkey_command_linux"
-                    #endif
+                Cpp_Token_Array array;
+                array.count = 0;
+                array.max_count = (1 << 20)/sizeof(Cpp_Token);
+                array.tokens = push_array(&global_part, Cpp_Token, array.max_count);
+                
+                Cpp_Lex_Data S = cpp_lex_data_init();
+                Cpp_Lex_Result result = cpp_lex_step(&S, mem, size+1, HAS_NULL_TERM, &array, NO_OUT_LIMIT);
+                
+                if (result == LexResult_Finished){
+                    // Clear out current project
+                        if (current_project.close_all_code_when_this_project_closes){
+                            exec_command(app, close_all_code);
+                        }
+                        current_project = null_project;
                     
-                    int32_t index = 0;
-                    Config_Array_Reader array_reader = {0};
-                    if (config_array_var(item, FKEY_COMMAND, &index, &array_reader)){
-                        if (index >= 1 && index <= 16){
-                        Config_Item array_item = {0};
-                        int32_t item_index = 0;
-                        
-                        for (config_array_next_item(&array_reader, &array_item);
-                             config_array_good(&array_reader);
-                             config_array_next_item(&array_reader, &array_item)){
-                            if (item_index >= 2){
-                                break;
+                    // Set new project directory
+                    {
+                        current_project.dir = current_project.dir_space;
+                        String str = make_fixed_width_string(current_project.dir_space);
+                        copy(&str, project_name);
+                        terminate_with_null(&str);
+                        current_project.dir_len = str.size;
+                    }
+                    
+                    // Read the settings from project.4coder
+                    for (int32_t i = 0; i < array.count; ++i){
+                        Config_Line config_line = read_config_line(array, &i);
+                        if (config_line.read_success){
+                            Config_Item item = get_config_item(config_line, mem, array);
+                            
+                            {
+                                String str = {0};
+                                if (config_string_var(item, "extensions", 0, &str)){
+                                    if (str.size < sizeof(current_project.extension_space)){
+                                    set_project_extensions(&current_project, str);
+                                    print_message(app, str.str, str.size);
+                                    print_message(app, "\n", 1);
+                                    }
+                                    else{
+                                        print_message(app, literal("STRING TOO LONG!\n"));
+                                    }
+                                }
                             }
                             
-                            switch (item_index){
-                                case 0:
-                                {
-                                    if (config_int_var(array_item, 0, 0, 0)){
-                                        // TODO(allen)
-                                    }
-                                    String str = {0};
-                                    if (config_string_var(array_item, 0, 0, &str)){
-                                        // TODO(allen)
-                                    }
-                                }break;
+                            {
+#if defined(_WIN32)
+#define FKEY_COMMAND "fkey_command_win"
+#elif defined(__linux__)
+#define FKEY_COMMAND "fkey_command_linux"
+#else
+#error no project configuration names for this platform
+#endif
                                 
-                                    case 1:
-                                    {
-                                        if (config_int_var(array_item, 0, 0, 0)){
-                                            // TODO(allen)
+                                int32_t index = 0;
+                                Config_Array_Reader array_reader = {0};
+                                if (config_array_var(item, FKEY_COMMAND, &index, &array_reader)){
+                                    if (index >= 1 && index <= 16){
+                                        Config_Item array_item = {0};
+                                        int32_t item_index = 0;
+                                        
+                                        char space[256];
+                                        String msg = make_fixed_width_string(space);
+                                        append(&msg, FKEY_COMMAND"[");
+                                        append_int_to_str(&msg, index);
+                                        append(&msg, "] = {");
+                                        
+                                        for (config_array_next_item(&array_reader, &array_item);
+                                             config_array_good(&array_reader);
+                                             config_array_next_item(&array_reader, &array_item)){
+                                            
+                                            if (item_index >= 3){
+                                                break;
+                                            }
+                                            
+                                            append(&msg, "[");
+                                            append_int_to_str(&msg, item_index);
+                                            append(&msg, "] = ");
+                                            
+                                            bool32 read_string = 0;
+                                            bool32 read_bool = 0;
+                                            
+                                            char *dest_str = 0;
+                                            int32_t dest_str_size = 0;
+                                            
+                                            bool32 *dest_bool = 0;
+                                            
+                                            switch (item_index){
+                                                case 0:
+                                                {
+                                                    dest_str = current_project.fkey_commands[index-1].command;
+                                                    dest_str_size = sizeof(current_project.fkey_commands[index-1].command);
+                                                    read_string = 1;
+                                                }break;
+                                                
+                                                case 1:
+                                                {
+                                                    dest_str = current_project.fkey_commands[index-1].out;
+                                                    dest_str_size = sizeof(current_project.fkey_commands[index-1].out);
+                                                    read_string = 1;
+                                                }break;
+                                                
+                                                case 2:
+                                                {
+                                                    dest_bool = &current_project.fkey_commands[index-1].use_build_panel;
+                                                    read_bool = 1;
+                                                }break;
+                                            }
+                                            
+                                            if (read_string){
+                                            if (config_int_var(array_item, 0, 0, 0)){
+                                                append(&msg, "NULL, ");
+                                                dest_str[0] = 0;
+                                            }
+                                            
+                                            String str = {0};
+                                            if (config_string_var(array_item, 0, 0, &str)){
+                                                if (str.size < dest_str_size){
+                                                    interpret_escaped_string(dest_str, str);
+                                                    append(&msg, dest_str);
+                                                    append(&msg, ", ");
+                                                }
+                                                else{
+                                                    append(&msg, "STRING TOO LONG!, ");
+                                                }
+                                            }
                                         }
-                                        String str = {0};
-                                        if (config_string_var(array_item, 0, 0, &str)){
-                                            // TODO(allen)
+                                            
+                                        if (read_bool){
+                                            if (config_bool_var(array_item, 0, 0, dest_bool)){
+                                                if (dest_bool){
+                                                    append(&msg, "true, ");
+                                                }
+                                                else{
+                                                    append(&msg, "false, ");
+                                                }
+                                            }
                                         }
-                                    }break;
+                                        
+                                            item_index++;
+                                        }
+                                        
+                                        append(&msg, "}\n");
+                                        print_message(app, msg.str, msg.size);
+                                    }
+                                }
                             }
-                            
-                            item_index++;
                         }
                     }
+                
+                    if (current_project.close_all_files_when_project_opens){
+                        close_all_files_with_extension(app, &global_part, 0, 0);
                     }
+                    
+                    // Open all project files
+                    exec_command(app, open_all_code);
                 }
+            }
+            
+            end_temp_memory(temp);
+        }
+        else{
+            char message_space[512];
+            String message = make_fixed_width_string(message_space);
+            append_sc(&message, "Did not find project.4coder.  ");
+            if (current_project.dir != 0){
+                append_sc(&message, "Continuing with: ");
+                append_sc(&message, current_project.dir);
+            }
+            else{
+                append_sc(&message, "Continuing without a project");
+            }
+            print_message(app, message.str, message.size);
+        }
+    }
+    else{
+        print_message(app, literal("Failed trying to get project file name"));
+    }
+}
+
+CUSTOM_COMMAND_SIG(project_fkey_command){
+    User_Input input = get_command_input(app);
+    if (input.type == UserInputKey){
+        if (input.key.keycode >= key_f1 && input.key.keycode <= key_f16){
+            int32_t ind = (input.key.keycode - key_f1);
+            
+            char *command = current_project.fkey_commands[ind].command;
+            char *out = current_project.fkey_commands[ind].out;
+            bool32 use_build_panel = current_project.fkey_commands[ind].use_build_panel;
+            
+            if (command[0] != 0){
+                int32_t command_len = str_size(command);
+                
+                View_Summary view_ = {0};
+                View_Summary *view = 0;
+                Buffer_Identifier buffer_id = {0};
+                uint32_t flags = 0;
+                
+                bool32 set_fancy_font = 0;
+                
+                if (out[0] != 0){
+                    int32_t out_len = str_size(out);
+                    buffer_id = buffer_identifier(out, out_len);
+                    
+                    view = &view_;
+                    
+                    if (use_build_panel){
+                        view_ = get_or_open_build_panel(app);
+                        if (match(out, "*compilation*")){
+                            set_fancy_font = 1;
+                        }
+                    }
+                    else{
+                        view_ = get_active_view(app, AccessAll);
+                    }
+                    
+                    prev_location = null_location;
+                    lock_jump_buffer(out, out_len);
+                }
+                else{
+                    // TODO(allen): fix the exec_system_command call so it can take a null buffer_id.
+                    buffer_id = buffer_identifier(literal("*dump*"));
+                }
+                
+                exec_system_command(app, view, buffer_id, current_project.dir, current_project.dir_len, command, command_len, flags);
+                if (set_fancy_font){
+                    set_fancy_compilation_buffer_font(app);
                 }
             }
         }
     }
-    
-    end_temp_memory(temp);
-    }
-    else{
-        char message_space[512];
-        String message = make_fixed_width_string(message_space);
-        append_sc(&message, "Did not find project.4coder.  ");
-        if (loaded_project != 0){
-            append_sc(&message, "Continuing with: ");
-            append_sc(&message, loaded_project);
-        }
-        else{
-            append_sc(&message, "Continuing without a project");
-        }
-        print_message(app, message.str, message.size);
-    }
-}
-else{
-    print_message(app, literal("Failed trying to get project file name"));
-}
 }
 
 #endif

@@ -744,7 +744,7 @@ file_synchronize_times(System_Functions *system, Editing_File *file){
 }
 
 internal b32
-save_file_to_name(System_Functions *system, Mem_Options *mem, Editing_File *file, char *filename){
+save_file_to_name(System_Functions *system, Models *models, Editing_File *file, char *filename){
     b32 result = 0;
     b32 using_actual_filename = 0;
     
@@ -755,6 +755,11 @@ save_file_to_name(System_Functions *system, Mem_Options *mem, Editing_File *file
     }
     
     if (filename){
+        Mem_Options *mem = &models->mem;
+        if (models->hook_save_file){
+            models->hook_save_file(&models->app_links, file->id.id);
+        }
+        
         i32 max = 0, size = 0;
         b32 dos_write_mode = file->settings.dos_write_mode;
         char *data = 0;
@@ -810,8 +815,8 @@ save_file_to_name(System_Functions *system, Mem_Options *mem, Editing_File *file
 }
 
 inline b32
-save_file(System_Functions *system, Mem_Options *mem, Editing_File *file){
-    b32 result = save_file_to_name(system, mem, file, 0);
+save_file(System_Functions *system, Models *models, Editing_File *file){
+    b32 result = save_file_to_name(system, models, file, 0);
     return(result);
 }
 
@@ -835,12 +840,10 @@ buffer_link_to_new_file(System_Functions *system, General_Memory *general, Worki
 }
 
 inline b32
-file_save_and_set_names(System_Functions *system, Mem_Options *mem,
-                        Working_Set *working_set, Editing_File *file,
-                        String filename){
-    b32 result = buffer_link_to_new_file(system, &mem->general, working_set, file, filename);
+file_save_and_set_names(System_Functions *system, Models *models, Editing_File *file, String filename){
+    b32 result = buffer_link_to_new_file(system, &models->mem.general, &models->working_set, file, filename);
     if (result){
-        result = save_file(system, mem, file);
+        result = save_file(system, models, file);
     }
     return(result);
 }
@@ -1960,9 +1963,8 @@ file_create_from_string(System_Functions *system, Models *models,
         file->state.undo.current_block_normal = 1;
     }
     
-    Open_File_Hook_Function *open_hook = models->hook_open_file;
-    if (open_hook){
-        open_hook(&models->app_links, file->id.id);
+    if (models->hook_open_file){
+        models->hook_open_file(&models->app_links, file->id.id);
     }
     file->settings.is_initialized = 1;
 }
@@ -3833,7 +3835,7 @@ view_open_file(System_Functions *system, Models *models, View *view, String file
 internal void
 view_interactive_save_as(System_Functions *system, Models *models, Editing_File *file, String filename){
     if (terminate_with_null(&filename)){
-        file_save_and_set_names(system, &models->mem, &models->working_set, file, filename);
+        file_save_and_set_names(system, models, file, filename);
     }
 }
 
@@ -3913,7 +3915,7 @@ internal void
 save_file_by_name(System_Functions *system, Models *models, String name){
     Editing_File *file = working_set_name_contains(&models->working_set, name);
     if (file){
-        save_file(system, &models->mem, file);
+        save_file(system, models, file);
     }
 }
 

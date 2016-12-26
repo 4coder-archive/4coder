@@ -160,7 +160,7 @@ HOOK_SIG(my_view_adjust){
     for (View_Summary view = get_view_first(app, AccessAll);
          view.exists;
          get_view_next(app, &view, AccessAll)){
-        new_wrap_width += view.file_region.x1 - view.file_region.x0;
+        new_wrap_width += view.view_region.x1 - view.view_region.x0;
         ++count;
     }
     
@@ -237,7 +237,7 @@ OPEN_FILE_HOOK_SIG(my_file_settings){
     if (treat_as_code && enable_code_wrapping && buffer.size < (1 << 18)){
         // NOTE(allen|a4.0.12): There is a little bit of grossness going on here.
         // If we set BufferSetting_Lex to true, it will launch a lexing job.
-        // If a lexing job is active when we set BufferSetting_VirtualWhitespace on that call can fail.
+        // If a lexing job is active when we set BufferSetting_VirtualWhitespace, the call can fail.
         // Unfortunantely without tokens virtual whitespace doesn't really make sense.
         // So for now I have it automatically turning on lexing when virtual whitespace is turned on.
         // Cleaning some of that up is a goal for future versions.
@@ -247,6 +247,22 @@ OPEN_FILE_HOOK_SIG(my_file_settings){
     else{
         buffer_set_setting(app, &buffer, BufferSetting_WrapLine, wrap_lines);
         buffer_set_setting(app, &buffer, BufferSetting_Lex, treat_as_code);
+    }
+    
+    // no meaning for return
+    return(0);
+}
+
+OPEN_FILE_HOOK_SIG(my_file_save){
+    uint32_t access = AccessAll;
+    Buffer_Summary buffer = get_buffer(app, buffer_id, access);
+    assert(buffer.exists);
+    
+    int32_t is_virtual = 0;
+    if (automatically_indent_text_on_save && buffer_get_setting(app, &buffer, BufferSetting_VirtualWhitespace, &is_virtual)){ 
+        if (is_virtual){
+            auto_tab_whole_file_by_summary(app, &buffer);
+        }
     }
     
     // no meaning for return
@@ -292,6 +308,47 @@ CUSTOM_COMMAND_SIG(toggle_mouse){
     set_mouse_suppression(app, !suppressing_mouse);
 }
 
+CUSTOM_COMMAND_SIG(execute_arbitrary_command){
+    // NOTE(allen): This isn't a super powerful version of this command, I will expand
+    // upon it so that it has all the cmdid_* commands by default.  However, with this
+    // as an example you have everything you need to make it work already. You could
+    // even use app->memory to create a hash table in the start hook.
+    Query_Bar bar;
+    char space[1024];
+    bar.prompt = make_lit_string("Command: ");
+    bar.string = make_fixed_width_string(space);
+    
+    if (!query_user_string(app, &bar)) return;
+    
+    // NOTE(allen): Here I chose to end this query bar because when I call another
+    // command it might ALSO have query bars and I don't want this one hanging
+    // around at that point.  Since the bar exists on my stack the result of the query
+    // is still available in bar.string though.
+    end_query_bar(app, &bar, 0);
+    
+    if (match_ss(bar.string, make_lit_string("load project"))){
+        exec_command(app, load_project);
+    }
+    else if (match_ss(bar.string, make_lit_string("open all code"))){
+        exec_command(app, open_all_code);
+    }
+    else if(match_ss(bar.string, make_lit_string("close all code"))){
+        exec_command(app, close_all_code);
+    }
+    else if (match_ss(bar.string, make_lit_string("open menu"))){
+        exec_command(app, cmdid_open_menu);
+    }
+    else if (match_ss(bar.string, make_lit_string("dos lines"))){
+        exec_command(app, eol_dosify);
+    }
+    else if (match_ss(bar.string, make_lit_string("nix lines"))){
+        exec_command(app, eol_nixify);
+    }
+    else{
+        print_message(app, literal("unrecognized command\n"));
+    }
+}
+
 void
 default_keys(Bind_Helper *context){
     begin_map(context, mapid_global);
@@ -326,9 +383,29 @@ default_keys(Bind_Helper *context){
     bind(context, 's', MDFR_ALT, show_scrollbar);
     bind(context, 'w', MDFR_ALT, hide_scrollbar);
     
-    bind(context, key_f2, MDFR_NONE, toggle_mouse);
+    bind(context, key_f2, MDFR_CTRL, toggle_mouse);
     bind(context, key_page_up, MDFR_CTRL, toggle_fullscreen);
     bind(context, 'E', MDFR_ALT, exit_4coder);
+    
+    bind(context, key_f1, MDFR_NONE, project_fkey_command);
+    bind(context, key_f2, MDFR_NONE, project_fkey_command);
+    bind(context, key_f3, MDFR_NONE, project_fkey_command);
+    bind(context, key_f4, MDFR_NONE, project_fkey_command);
+    
+    bind(context, key_f5, MDFR_NONE, project_fkey_command);
+    bind(context, key_f6, MDFR_NONE, project_fkey_command);
+    bind(context, key_f7, MDFR_NONE, project_fkey_command);
+    bind(context, key_f8, MDFR_NONE, project_fkey_command);
+    
+    bind(context, key_f9, MDFR_NONE, project_fkey_command);
+    bind(context, key_f10, MDFR_NONE, project_fkey_command);
+    bind(context, key_f11, MDFR_NONE, project_fkey_command);
+    bind(context, key_f12, MDFR_NONE, project_fkey_command);
+    
+    bind(context, key_f13, MDFR_NONE, project_fkey_command);
+    bind(context, key_f14, MDFR_NONE, project_fkey_command);
+    bind(context, key_f15, MDFR_NONE, project_fkey_command);
+    bind(context, key_f16, MDFR_NONE, project_fkey_command);
     
     end_map(context);
     
@@ -481,6 +558,7 @@ get_bindings(void *data, int32_t size){
     set_hook(context, hook_view_size_change, my_view_adjust);
     
     set_open_file_hook(context, my_file_settings);
+    set_save_file_hook(context, my_file_save);
     set_command_caller(context, default_command_caller);
     set_input_filter(context, my_suppress_mouse_filter);
     set_scroll_rule(context, smooth_scroll_rule);

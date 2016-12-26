@@ -414,7 +414,7 @@ COMMAND_DECL(save){
     REQ_FILE(file, view);
     
     if (!file->is_dummy && file_is_ready(file) && buffer_can_save(file)){
-        save_file(system, &models->mem, file);
+        save_file(system, models, file);
     }
 }
 
@@ -422,9 +422,7 @@ COMMAND_DECL(save_as){
     USE_VIEW(view);
     REQ_FILE(file, view);
     
-    view_show_interactive(system, view,
-                          IAct_Save_As, IInt_Sys_File_List,
-                          make_lit_string("Save As: "));
+    view_show_interactive(system, view, IAct_Save_As, IInt_Sys_File_List, make_lit_string("Save As: "));
 }
 
 COMMAND_DECL(change_active_panel){
@@ -1439,6 +1437,7 @@ App_Init_Sig(app_init){
         models->scroll_rule = fallback_scroll_rule;
         models->hook_open_file = 0;
         models->hook_new_file = 0;
+        models->hook_save_file = 0;
         
         setup_command_table();
         
@@ -1576,6 +1575,10 @@ App_Init_Sig(app_init){
                                         
                                         case _hook_new_file:
                                         models->hook_new_file = (Open_File_Hook_Function*)unit->hook.func;
+                                        break;
+                                        
+                                        case _hook_save_file:
+                                        models->hook_save_file = (Open_File_Hook_Function*)unit->hook.func;
                                         break;
                                         
                                         case _hook_command_caller:
@@ -2564,6 +2567,8 @@ App_Step_Sig(app_step){
                             "-The 'config.4coder' file can now be placed with the 4ed executable file\n"
                             "-New options in 'config.4coder' to specify the font and color theme\n"
                             "-New built in project configuration system\n"
+                            "-New on-save hooks allows custom behavior in the custom layer whenever a file is saved\n"
+                            "-When using code wrapping, any saved file is automatically indented in the text format, this option can be turned off in config.4coder\n"
                             "\n"
                             "New in alpha 4.0.12 and 4.0.13:\n"
                             "-Text files wrap lines at whitespace when possible\n"

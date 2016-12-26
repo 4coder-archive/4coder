@@ -81,8 +81,6 @@
 ;
 ; [] indication on failure to save
 ; [] history is broken, revist the entire system
-; [] 8.0\Include\um\dsound.h (not reproduced, get more info)
-; [] paste external text from bug report (in email) (not reproduced, get more info)
 ;
 ; [] view fails to follow cursor when the view is shrunk
 ; [] view fails to follow cursor after deleting long line
@@ -90,10 +88,6 @@
 ;
 
 ; BEFORE I SHIP
-;
-; [] decent options for indentation rules for text & presentation
-; [] code file outlining
-; [] alternate code completion plan
 ;
 
 ; TODOS
@@ -181,11 +175,15 @@
 ;     [X] handle comments
 ;     [X] additional width for nesting?
 ;     [X] fix issues when relexing happens in parallel
+; [X] improve code display mode so that it can auto-indent the text on save
 ; [] command for setting wrap positions in views directly
 ; [] ability to see the wrap position as a number/line and adjust graphically
 ; [] code level wrapping level 2
 ;     [] comment lead whitespace problem
 ;     [] remeasure version of measure_wraps
+
+; [] code file outlining
+; [] alternate code completion plan
 
 ; Buffer behavior cleanup
 ;    [X] show all characters as \# if they can't be rendered

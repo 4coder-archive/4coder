@@ -668,7 +668,11 @@ STRUCT View_Summary{
     bool32 show_whitespace;
     
     /*
-    DOC(If this is not a null summary, this describes the screen position in which this view's buffer is displayed.)
+    DOC(If this is not a null summary, this describes the screen position in which this view's is displayed.)
+    */
+    i32_Rect view_region;
+    /*
+    DOC(If this is not a null summary, this describes the screen position in which this view's buffer is displayed.  This is different from view_region, because it does not include any fixed height GUI at the top of the view.)
     */
     i32_Rect file_region;
     /* DOC(If this is not a null summary, this describes the scrolling position inside the view.) */
