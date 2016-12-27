@@ -118,14 +118,14 @@ typedef union    _LARGE_INTEGER {
 extern "C"{
     DWORD WINAPI GetCurrentDirectoryA(_In_  DWORD  nBufferLength, _Out_ LPTSTR lpBuffer);
     BOOL WINAPI SetCurrentDirectoryA(_In_ LPCTSTR lpPathName);
-
+    
     BOOL WINAPI QueryPerformanceCounter(_Out_ LARGE_INTEGER *lpPerformanceCount);
-
+    
     BOOL WINAPI QueryPerformanceFrequency(_Out_ LARGE_INTEGER *lpFrequency);
- 
+    
     BOOL WINAPI CreateDirectoryA(_In_ LPCTSTR lpPathName, _In_opt_ LPSECURITY_ATTRIBUTES lpSecurityAttributes);
     
- BOOL WINAPI CopyFileA(_In_ LPCTSTR lpExistingFileName, _In_ LPCTSTR lpNewFileName, _In_ BOOL bFailIfExists);
+    BOOL WINAPI CopyFileA(_In_ LPCTSTR lpExistingFileName, _In_ LPCTSTR lpNewFileName, _In_ BOOL bFailIfExists);
 }
 
 static uint64_t perf_frequency;
@@ -173,7 +173,7 @@ execute(char *dir, char *str, char *args){
     if (dir){
         Temp_Dir temp = pushdir(dir);
         if (args){
-        systemf("call \"%s\" %s", str, args);
+            systemf("call \"%s\" %s", str, args);
         }
         else{
             systemf("call \"%s\"", str);
@@ -193,10 +193,10 @@ execute(char *dir, char *str, char *args){
 static void
 slash_fix(char *path){
     if (path){
-    for (int32_t i = 0; path[i]; ++i){
-        if (path[i] == '/') path[i] = '\\';
+        for (int32_t i = 0; path[i]; ++i){
+            if (path[i] == '/') path[i] = '\\';
+        }
     }
-}
 }
 
 static void
@@ -207,8 +207,8 @@ make_folder_if_missing(char *dir, char *folder){
     String path = make_fixed_width_string(space);
     append_sc(&path, dir);
     if (folder){
-    append_sc(&path, "\\");
-    append_sc(&path, folder);
+        append_sc(&path, "\\");
+        append_sc(&path, folder);
     }
     terminate_with_null(&path);
     
@@ -267,7 +267,7 @@ copy_all(char *source, char *tag, char *folder){
     slash_fix(source);
     slash_fix(folder);
     if (source){
-    systemf("copy %s\\%s %s\\*", source, tag, folder);
+        systemf("copy %s\\%s %s\\*", source, tag, folder);
     }
     else{
         systemf("copy %s %s\\*", tag, folder);
@@ -340,9 +340,9 @@ static void
 execute(char *dir, char *str, char *args){
     if (dir){
         if (args){
-        Temp_Dir temp = pushdir(dir);
-        systemf("%s %s", str, args);
-        popdir(temp);
+            Temp_Dir temp = pushdir(dir);
+            systemf("%s %s", str, args);
+            popdir(temp);
         }
         else{
             Temp_Dir temp = pushdir(dir);
@@ -352,7 +352,7 @@ execute(char *dir, char *str, char *args){
     }
     else{
         if (args){
-        systemf("%s %s", str, args);
+            systemf("%s %s", str, args);
         }
         else{
             systemf("%s", str);
@@ -366,7 +366,7 @@ slash_fix(char *path){}
 static void
 make_folder_if_missing(char *dir, char *folder){
     if (folder){
-    systemf("mkdir -p %s/%s", dir, folder);
+        systemf("mkdir -p %s/%s", dir, folder);
     }
     else{
         systemf("mkdir -p %s", dir);
@@ -386,7 +386,7 @@ copy_file(char *path, char *file, char *folder1, char *folder2, char *newname){
     
     if (path){
         if (folder2){
-        systemf("cp %s/%s %s/%s/%s", path, file, folder1, folder2, newname);
+            systemf("cp %s/%s %s/%s/%s", path, file, folder1, folder2, newname);
         }
         else{
             systemf("cp %s/%s %s/%s", path, file, folder1, newname);
@@ -405,7 +405,7 @@ copy_file(char *path, char *file, char *folder1, char *folder2, char *newname){
 static void
 copy_all(char *source, char *tag, char *folder){
     if (source){
-    systemf("cp -rf %s/%s %s", source, tag, folder);
+        systemf("cp -rf %s/%s %s", source, tag, folder);
     }
     else{
         systemf("cp -rf %s %s", tag, folder);
@@ -895,28 +895,28 @@ do_buildsuper(char *cdir, int32_t custom_option){
         case Custom_Default:
         {
             copy_sc(&str, "../code/4coder_default_bindings.cpp");
-    terminate_with_null(&str);
-    buildsuper(cdir, BUILD_DIR, str.str);
+            terminate_with_null(&str);
+            buildsuper(cdir, BUILD_DIR, str.str);
         }break;
-    
+        
         case Custom_Experiments:
         {
 #if defined(IS_WINDOWS)
-    copy_sc(&str, "../code/internal_4coder_tests.cpp");
-    terminate_with_null(&str);
-    buildsuper(cdir, BUILD_DIR, str.str);
+            copy_sc(&str, "../code/internal_4coder_tests.cpp");
+            terminate_with_null(&str);
+            buildsuper(cdir, BUILD_DIR, str.str);
 #else
-    copy_sc(&str, "../code/power/4coder_experiments.cpp");
-    terminate_with_null(&str);
-    buildsuper(cdir, BUILD_DIR, str.str);
+            copy_sc(&str, "../code/power/4coder_experiments.cpp");
+            terminate_with_null(&str);
+            buildsuper(cdir, BUILD_DIR, str.str);
 #endif
-    }break;
+        }break;
         
-    case Custom_Casey:
+        case Custom_Casey:
         {
             copy_sc(&str, "../code/power/4coder_casey.cpp");
-    terminate_with_null(&str);
-    buildsuper(cdir, BUILD_DIR, str.str);
+            terminate_with_null(&str);
+            buildsuper(cdir, BUILD_DIR, str.str);
         }break;
         
         case Custom_ChronalVim:
@@ -1070,7 +1070,7 @@ package(char *cdir){
     
     get_4coder_dist_name(&str, 0, "API", "html");
     str2 = front_of_directory(str);
-    copy_file(SITE_DIR, "4coder_API.html", PACK_DIR, "super-docs", str2.str);
+    copy_file(SITE_DIR, "custom_docs.html", PACK_DIR, "super-docs", str2.str);
     
     get_4coder_dist_name(&str, 1, "super", "zip");
     zip(PACK_SUPER_PAR_DIR, "4coder", str.str);
