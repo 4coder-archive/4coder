@@ -1037,7 +1037,7 @@ package(char *cdir){
     copy_all (PACK_DATA_DIR, "*", PACK_ALPHA_DIR);
     copy_file(0, "README.txt", PACK_ALPHA_DIR, 0, 0);
     copy_file(0, "TODO.txt", PACK_ALPHA_DIR, 0, 0);
-    copy_file(DATA_DIR, "config.4coder", PACK_ALPHA_DIR, 0, 0);
+    copy_file(DATA_DIR, "release-config.4coder", PACK_ALPHA_DIR, 0, "config.4coder");
     
     get_4coder_dist_name(&str, 1, "alpha", "zip");
     zip(PACK_ALPHA_PAR_DIR, "4coder", str.str);
@@ -1060,7 +1060,7 @@ package(char *cdir){
     copy_all (PACK_DATA_DIR, "*", PACK_SUPER_DIR);
     copy_file(0, "README.txt", PACK_SUPER_DIR, 0, 0);
     copy_file(0, "TODO.txt", PACK_SUPER_DIR, 0, 0);
-    copy_file(DATA_DIR, "config.4coder", PACK_SUPER_DIR, 0, 0);
+    copy_file(DATA_DIR, "release-config.4coder", PACK_SUPER_DIR, 0, "config.4coder");
     
     copy_all (0, "4coder_*.h", PACK_SUPER_DIR);
     copy_all (0, "4coder_*.cpp", PACK_SUPER_DIR);
