@@ -169,7 +169,7 @@ HOOK_SIG(my_view_adjust){
     
     int32_t new_min_base_width = (int32_t)(new_wrap_width * .77f);
     if (automatically_adjust_wrapping){
-    adjust_all_buffer_wrap_widths(app, new_wrap_width, new_min_base_width);
+        adjust_all_buffer_wrap_widths(app, new_wrap_width, new_min_base_width);
     }
     
     // no meaning for return
@@ -383,6 +383,7 @@ default_keys(Bind_Helper *context){
     bind(context, 's', MDFR_ALT, show_scrollbar);
     bind(context, 'w', MDFR_ALT, hide_scrollbar);
     
+    // TODO(allen): This is apparently not working on Linux.  Need to try it on windows still.
     bind(context, key_f2, MDFR_CTRL, toggle_mouse);
     bind(context, key_page_up, MDFR_CTRL, toggle_fullscreen);
     bind(context, 'E', MDFR_ALT, exit_4coder);

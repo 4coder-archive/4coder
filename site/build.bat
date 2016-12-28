@@ -7,14 +7,12 @@ SET OPTS=%OPTS% /GR- /EHa- /nologo /FC
 
 SET FirstError=0
 
-pushd ..\..\build
+pushd ..\build
 cl %OPTS% ..\code\build.cpp /Zi /Febuild /DSITE_BUILD
 if %ERRORLEVEL% neq 0 (set FirstError=1)
 popd
 
-pushd ..
 ..\build\build
 if %ERRORLEVEL% neq 0 (set FirstError=1)
-popd
 
 call "ctime" -end 4ed_site.ctm %FirstError%

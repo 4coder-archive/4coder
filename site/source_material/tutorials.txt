@@ -11,6 +11,10 @@ Setting up and navigating your project with 4coder:
 
 \VIDEO{youtube:https://www.youtube.com/embed/glPEpaT6GH0}
 
+Extending your project with a project file:
+
+\VIDEO{youtube:https://www.youtube.com/embed/iZLtS3IoatE}
+
 More tutorials coming soon.
 
 
