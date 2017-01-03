@@ -11,8 +11,10 @@
 #define FRED_DEFINES_H
 
 #include <string.h>
-#include <stdint.h>
 
+#if !defined (FRED_TYPES)
+#include <stdint.h>
+#define FRED_TYPES
 typedef uint8_t u8;
 typedef uint16_t u16;
 typedef uint32_t u32;
@@ -34,12 +36,12 @@ typedef double real64;
 typedef float f32;
 typedef double f64;
 
-#define external extern "C"
 #define internal static
 #define globalvar static
 #define persist static
 
 #define globalconst static const
+#endif
 
 #define COMP_ID_(a,b,c,d) (d << 24) | (c << 16) | (b << 8) | a
 #define COMPOSE_ID(a,b,c,d) (COMP_ID_((a),(b),(c),(d)))
@@ -97,13 +99,13 @@ TMin(i64, -9223372036854775807-1);
 
 internal i32
 LargeRoundUp(i32 x, i32 granularity){
-	i32 original_x = x;
-	x /= granularity;
-	x *= granularity;
-	if (x < original_x){
-		x += granularity;
-	}
-	return x;
+    i32 original_x = x;
+    x /= granularity;
+    x *= granularity;
+    if (x < original_x){
+        x += granularity;
+    }
+    return x;
 }
 
 #define Bit_0 (1 << 0)

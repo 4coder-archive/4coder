@@ -1,193 +1,17 @@
 /*
  * Mr. 4th Dimention - Allen Webster
  *
- * 20.02.2016
+ * 03.01.2017
  *
- * File editing view for 4coder
+ * Working_Set data structure for 4coder
  *
  */
 
 // TOP
 
-enum Edit_Pos_Set_Type{
-    EditPos_None,
-    EditPos_CursorSet,
-    EditPos_ScrollSet
-};
-struct File_Edit_Positions{
-    GUI_Scroll_Vars scroll;
-    Full_Cursor cursor;
-    i32 mark;
-    f32 preferred_x;
-    i32 scroll_i;
-    i32 last_set_type;
-    b32 in_view;
-};
-static File_Edit_Positions null_edit_pos = {0};
-
-enum Edit_Type{
-    ED_NORMAL,
-    ED_REVERSE_NORMAL,
-    ED_UNDO,
-    ED_REDO,
-};
-
-struct Edit_Step{
-    Edit_Type type;
-    union{
-        struct{
-            b32 can_merge;
-            Buffer_Edit edit;
-            i32 next_block;
-            i32 prev_block;
-        };
-        struct{
-            i32 first_child;
-            i32 inverse_first_child;
-            i32 inverse_child_count;
-            i32 special_type;
-        };
-    };
-    i32 child_count;
-};
-
-struct Edit_Stack{
-    u8 *strings;
-    i32 size, max;
-    
-    Edit_Step *edits;
-    i32 edit_count, edit_max;
-};
-
-struct Small_Edit_Stack{
-    u8 *strings;
-    i32 size, max;
-    
-    Buffer_Edit *edits;
-    i32 edit_count, edit_max;
-};
-
-struct Undo_Data{
-    Edit_Stack undo;
-    Edit_Stack redo;
-    Edit_Stack history;
-    Small_Edit_Stack children;
-    
-    i32 history_block_count, history_head_block;
-    i32 edit_history_cursor;
-    b32 current_block_normal;
-};
-
-struct Text_Effect{
-    i32 start, end;
-    u32 color;
-    f32 seconds_down, seconds_max;
-};
-
-// NOTE(allen): The Editing_File struct is now divided into two
-// parts.  Variables in the Settings part can be set even when the
-// file is still streaming in, and persists thorugh all operations except
-// for the initial allocation of the file.
-struct Editing_File_Settings{
-    i32 base_map_id;
-    i32 display_width;
-    i32 minimum_base_display_width;
-    i32 wrap_indicator;
-    b32 dos_write_mode;
-    b32 virtual_white;
-    i16 font_id;
-    b8 unwrapped_lines;
-    b8 tokens_exist;
-    b8 is_initialized;
-    b8 unimportant;
-    b8 read_only;
-    b8 never_kill;
-};
-static Editing_File_Settings null_editing_file_settings = {0};
-
-// NOTE(allen): This part of the Editing_File is cleared whenever
-// the contents of the file is set.
-struct Editing_File_State{
-    Buffer_Type buffer;
-    
-    i32 *wrap_line_index;
-    i32 wrap_max;
-    
-    i32 *character_starts;
-    i32 character_start_max;
-    
-    f32 *line_indents;
-    i32 line_indent_max;
-    
-    i32 wrap_line_count;
-    
-    i32 *wrap_positions;
-    i32 wrap_position_count;
-    i32 wrap_position_max;
-    
-    Undo_Data undo;
-    
-    Cpp_Token_Array token_array;
-    Cpp_Token_Array swap_array;
-    u32 lex_job;
-    b32 tokens_complete;
-    b32 still_lexing;
-    
-    Text_Effect paste_effect;
-    
-    Dirty_State dirty;
-    u32 ignore_behind_os;
-    
-    File_Edit_Positions edit_pos_space[16];
-    File_Edit_Positions *edit_poss[16];
-    i32 edit_poss_count;
-};
-static Editing_File_State null_editing_file_state = {0};
-
-struct Editing_File_Name{
-    char live_name_[256];
-    char source_path_[256];
-    char extension_[16];
-    String live_name;
-    String source_path;
-    String extension;
-};
-
-struct Editing_File_Canon_Name{
-    char name_[256];
-    String name;
-};
-
-struct File_Node{
-    File_Node *next, *prev;
-};
-
-union Buffer_Slot_ID{
-    i32 id;
-    i16 part[2];
-};
-
-inline Buffer_Slot_ID
-to_file_id(i32 id){
-    Buffer_Slot_ID result;
-    result.id = id;
-    return(result);
-}
-
-struct Editing_File{
-    // NOTE(allen): node must be the first member of Editing_File!
-    File_Node node;
-    Editing_File_Settings settings;
-    struct{
-        b32 is_loading;
-        b32 is_dummy;
-        Editing_File_State state;
-    };
-    Editing_File_Name name;
-    Editing_File_Canon_Name canon;
-    Buffer_Slot_ID id;
-    u64 unique_buffer_id;
-};
+//
+// Working_Set of files
+//
 
 struct Non_File_Table_Entry{
     String name;
@@ -204,15 +28,15 @@ struct Working_Set{
     i32 file_count, file_max;
     i16 array_count, array_max;
     
-	File_Node free_sentinel;
+    File_Node free_sentinel;
     File_Node used_sentinel;
     
     Table canon_table;
     Table name_table;
     
-	String clipboards[64];
-	i32 clipboard_size, clipboard_max_size;
-	i32 clipboard_current, clipboard_rolling;
+    String clipboards[64];
+    i32 clipboard_size, clipboard_max_size;
+    i32 clipboard_current, clipboard_rolling;
     
     u64 unique_file_counter;
     
@@ -222,175 +46,11 @@ struct Working_Set{
     i32 default_minimum_base_display_width;
 };
 
-//
-// File_Edit_Positions stuff
-//
-
-internal void
-edit_pos_set_cursor_(File_Edit_Positions *edit_pos,
-                     Full_Cursor cursor,
-                     b32 set_preferred_x,
-                     b32 unwrapped_lines){
-    edit_pos->cursor = cursor;
-    if (set_preferred_x){
-        edit_pos->preferred_x = cursor.wrapped_x;
-        if (unwrapped_lines){
-            edit_pos->preferred_x = cursor.unwrapped_x;
-        }
-    }
-    edit_pos->last_set_type = EditPos_CursorSet;
-}
-
-internal void
-edit_pos_set_scroll_(File_Edit_Positions *edit_pos, GUI_Scroll_Vars scroll){
-    edit_pos->scroll = scroll;
-    edit_pos->last_set_type = EditPos_ScrollSet;
-}
-
-internal i32
-edit_pos_get_index(Editing_File *file, File_Edit_Positions *edit_pos){
-    i32 edit_pos_index = -1;
-    
-    i32 count = file->state.edit_poss_count;
-    File_Edit_Positions **edit_poss = file->state.edit_poss;
-    for (i32 i = 0; i < count; ++i){
-        if (edit_poss[i] == edit_pos){
-            edit_pos_index = i;
-            break;
-        }
-    }
-    
-    return(edit_pos_index);
-}
-
-internal b32
-edit_pos_move_to_front(Editing_File *file, File_Edit_Positions *edit_pos){
-    b32 result = false;
-    
-    if (file && edit_pos){
-        i32 edit_pos_index = edit_pos_get_index(file, edit_pos);
-        Assert(edit_pos_index != -1);
-        
-        File_Edit_Positions **edit_poss = file->state.edit_poss;
-        
-        memmove(edit_poss + 1, edit_poss, edit_pos_index*sizeof(*edit_poss));
-        
-        edit_poss[0] = edit_pos;
-        result = true;
-    }
-    
-    return(result);
-}
-
-internal b32
-edit_pos_unset(Editing_File *file, File_Edit_Positions *edit_pos){
-    b32 result = false;
-    
-    if (file && edit_pos){
-        i32 edit_pos_index = edit_pos_get_index(file, edit_pos);
-        Assert(edit_pos_index != -1);
-        
-        i32 count = file->state.edit_poss_count;
-        File_Edit_Positions **edit_poss = file->state.edit_poss;
-        
-        memmove(edit_poss + edit_pos_index,
-                edit_poss + edit_pos_index + 1,
-                (count - edit_pos_index - 1)*sizeof(*edit_poss));
-        
-        edit_pos->in_view = false;
-        
-        if (file->state.edit_poss_count > 1){
-            file->state.edit_poss_count -= 1;
-        }
-        result = true;
-    }
-    
-    return(result);
-}
-
-internal File_Edit_Positions*
-edit_pos_get_new(Editing_File *file, i32 index){
-    File_Edit_Positions *result = 0;
-    
-    if (file && 0 <= index && index < 16){
-        result = file->state.edit_pos_space + index;
-        i32 edit_pos_index = edit_pos_get_index(file, result);
-        
-        if (edit_pos_index == -1){
-            File_Edit_Positions **edit_poss = file->state.edit_poss;
-            i32 count = file->state.edit_poss_count;
-            
-            if (count > 0){
-                if (edit_poss[0]->in_view){
-                    memcpy(result, edit_poss[0], sizeof(*result));
-                    memmove(edit_poss+1, edit_poss, sizeof(*edit_poss)*count);
-                    file->state.edit_poss_count = count + 1;
-                }
-                else{
-                    Assert(count == 1);
-                    memcpy(result, edit_poss[0], sizeof(*result));
-                }
-            }
-            else{
-                memset(result, 0, sizeof(*result));
-                file->state.edit_poss_count = 1;
-            }
-            
-            edit_poss[0] = result;
-        }
-        
-        result->in_view = true;
-    }
-    
-    return(result);
-}
-
-//
-// File Cursor Seeking
-//
-
-inline Partial_Cursor
-file_compute_cursor_from_pos(Editing_File *file, i32 pos){
-    Partial_Cursor result = buffer_partial_from_pos(&file->state.buffer, pos);
-    return(result);
-}
-
-inline Partial_Cursor
-file_compute_cursor_from_line_character(Editing_File *file, i32 line, i32 character){
-    Partial_Cursor result = buffer_partial_from_line_character(&file->state.buffer, line, character);
-    return(result);
-}
-
-inline b32
-file_compute_partial_cursor(Editing_File *file, Buffer_Seek seek, Partial_Cursor *cursor){
-    b32 result = 1;
-    switch (seek.type){
-        case buffer_seek_pos:
-        {
-            *cursor = file_compute_cursor_from_pos(file, seek.pos);
-        }break;
-        
-        case buffer_seek_line_char:
-        {
-            *cursor = file_compute_cursor_from_line_character(file, seek.line, seek.character);
-        }break;
-        
-        default:
-        {
-            result = 0;
-        }break;
-    }
-    return(result);
-}
-
-//
-// Working_Set stuff
-//
-
 struct File_Name_Entry{
     String name;
     Buffer_Slot_ID id;
 };
+
 
 internal i32
 tbl_name_compare(void *a, void *b, void *arg){
@@ -431,12 +91,6 @@ working_set_extend_memory(Working_Set *working_set, Editing_File *new_space, i16
     }
 }
 
-inline Editing_File
-editing_file_zero(){
-    Editing_File file = {0};
-    return(file);
-}
-
 internal Editing_File*
 working_set_alloc(Working_Set *working_set){
     Editing_File *result = 0;
@@ -448,7 +102,7 @@ working_set_alloc(Working_Set *working_set){
         
         dll_remove(node);
         Buffer_Slot_ID id = result->id;
-        *result = editing_file_zero();
+        *result = null_editing_file;
         result->id = id;
         result->unique_buffer_id = ++working_set->unique_file_counter;
         dll_insert(&working_set->used_sentinel, node);
@@ -626,7 +280,7 @@ working_set_canon_contains(Working_Set *working_set, String name){
 
 internal b32
 working_set_canon_add(System_Functions *system, General_Memory *general, Working_Set *working_set,
-                     Editing_File *file, String name){
+                      Editing_File *file, String name){
     b32 result = working_set_add_basic(system, general,working_set, &working_set->canon_table, file, name);
     return(result);
 }
@@ -673,8 +327,8 @@ working_set_lookup_file(Working_Set *working_set, String string){
         }
         if (node == used_nodes) file = 0;
     }
-	
-	if (!file){
+    
+    if (!file){
         File_Node *node, *used_nodes;
         used_nodes = &working_set->used_sentinel;
         for (dll_items(node, used_nodes)){
@@ -684,9 +338,9 @@ working_set_lookup_file(Working_Set *working_set, String string){
             }
         }
         if (node == used_nodes) file = 0;
-	}
+    }
     
-	return (file);
+    return (file);
 }
 
 internal void
@@ -698,164 +352,10 @@ touch_file(Working_Set *working_set, Editing_File *file){
     }
 }
 
-// Hot Directory
 
-struct Hot_Directory{
-	String string;
-	File_List file_list;
-    // TODO(allen): eliminate slash
-    char slash;
-};
-
-internal void
-hot_directory_clean_end(Hot_Directory *hot_directory){
-    String *str = &hot_directory->string;
-    if (str->size != 0 && str->str[str->size-1] != hot_directory->slash){
-        str->size = reverse_seek_slash(*str) + 1;
-        str->str[str->size] = 0;
-    }
-}
-
-internal i32
-hot_directory_quick_partition(File_Info *infos, i32 start, i32 pivot){
-    File_Info *p = infos + pivot;
-    File_Info *a = infos + start;
-    for (i32 i = start; i < pivot; ++i, ++a){
-        i32 comp = 0;
-        comp = p->folder - a->folder;
-        if (comp == 0){
-            comp = compare_cc(a->filename, p->filename);
-        }
-        if (comp < 0){
-            Swap(File_Info, *a, infos[start]);
-            ++start;
-        }
-    }
-    Swap(File_Info, *p, infos[start]);
-    return start;
-}
-
-internal void
-hot_directory_quick_sort(File_Info *infos, i32 start, i32 pivot){
-    i32 mid = hot_directory_quick_partition(infos, start, pivot);
-    if (start < mid-1) hot_directory_quick_sort(infos, start, mid-1);
-    if (mid+1 < pivot) hot_directory_quick_sort(infos, mid+1, pivot);
-}
-
-inline void
-hot_directory_fixup(Hot_Directory *hot_directory, Working_Set *working_set){
-    File_List *files = &hot_directory->file_list;
-    if (files->count >= 2)
-        hot_directory_quick_sort(files->infos, 0, files->count - 1);
-}
-
-inline void
-hot_directory_set(System_Functions *system, Hot_Directory *hot_directory,
-                  String str, Working_Set *working_set){
-    b32 success = copy_checked_ss(&hot_directory->string, str);
-    terminate_with_null(&hot_directory->string);
-    if (success){
-        if (str.size > 0){
-            system->set_file_list(&hot_directory->file_list, str);
-        }
-        else{
-            system->set_file_list(&hot_directory->file_list, make_string((char*)1, 0));
-        }
-    }
-    hot_directory_fixup(hot_directory, working_set);
-}
-
-inline void
-hot_directory_reload(System_Functions *system, Hot_Directory *hot_directory, Working_Set *working_set){
-    system->set_file_list(&hot_directory->file_list, hot_directory->string);
-    hot_directory_fixup(hot_directory, working_set);
-}
-
-internal void
-hot_directory_init(Hot_Directory *hot_directory, String base, String dir, char slash){
-	hot_directory->string = base;
-    hot_directory->string.str[255] = 0;
-    hot_directory->string.size = 0;
-    copy_ss(&hot_directory->string, dir);
-	append_s_char(&hot_directory->string, slash);
-    hot_directory->slash = slash;
-}
-
-struct Hot_Directory_Match{
-	String filename;
-	b32 is_folder;
-};
-
-internal b32
-filename_match(String query, Absolutes *absolutes, String filename){
-    b32 result;
-    result = (query.size == 0);
-    if (!result) result = wildcard_match_s(absolutes, filename, 0);
-    return result;
-}
-
-inline b32
-buffer_needs_save(Editing_File *file){
-    b32 result = 0;
-    if (!file->settings.unimportant){
-        if (file->state.dirty == DirtyState_UnsavedChanges){
-            result = 1;
-        }
-    }
-    return(result);
-}
-
-inline b32
-buffer_can_save(Editing_File *file){
-    b32 result = 0;
-    if (!file->settings.unimportant){
-        if (file->state.dirty == DirtyState_UnsavedChanges ||
-            file->state.dirty == DirtyState_UnloadedChanges){
-            result = 1;
-        }
-    }
-    return(result);
-}
-
-inline b32
-file_is_ready(Editing_File *file){
-    b32 result = 0;
-    if (file && file->is_loading == 0){
-        result = 1;
-    }
-    return(result);
-}
-
-inline void
-file_set_to_loading(Editing_File *file){
-    file->state = null_editing_file_state;
-    file->settings = null_editing_file_settings;
-    file->is_loading = 1;
-}
-
-inline void
-file_mark_clean(Editing_File *file){
-    if (file->state.dirty != DirtyState_UnloadedChanges){
-        file->state.dirty = DirtyState_UpToDate;
-    }
-}
-
-inline void
-file_mark_dirty(Editing_File *file){
-    if (file->state.dirty != DirtyState_UnloadedChanges){
-        file->state.dirty = DirtyState_UnsavedChanges;
-    }
-}
-
-inline void
-file_mark_behind_os(Editing_File *file){
-    file->state.dirty = DirtyState_UnloadedChanges;
-}
-
-inline Dirty_State
-file_get_sync(Editing_File *file){
-    return (file->state.dirty);
-}
+//
+// Name Binding
+//
 
 internal void
 editing_file_name_init(Editing_File_Name *name){
@@ -868,9 +368,7 @@ internal b32
 get_canon_name(System_Functions *system, Editing_File_Canon_Name *canon_name, String filename){
     canon_name->name = make_fixed_width_string(canon_name->name_);
     
-    canon_name->name.size =
-        system->get_canonical(filename.str, filename.size,
-                              canon_name->name.str, canon_name->name.memory_size);
+    canon_name->name.size = system->get_canonical(filename.str, filename.size, canon_name->name.str, canon_name->name.memory_size);
     terminate_with_null(&canon_name->name);
     
     b32 result = (canon_name->name.size != 0);
@@ -928,8 +426,7 @@ buffer_get_new_name(Working_Set *working_set, Editing_File_Name *name, char *fil
 }
 
 internal void
-buffer_bind_file(System_Functions *system, General_Memory *general, Working_Set *working_set,
-                 Editing_File *file, String canon_filename){
+buffer_bind_file(System_Functions *system, General_Memory *general, Working_Set *working_set, Editing_File *file, String canon_filename){
     Assert(file->name.live_name.size == 0 &&
            file->name.source_path.size == 0 &&
            file->name.extension.size == 0);
@@ -956,8 +453,7 @@ buffer_unbind_file(System_Functions *system, Working_Set *working_set, Editing_F
 }
 
 internal void
-buffer_bind_name(System_Functions *system, General_Memory *general, Working_Set *working_set,
-                 Editing_File *file, String filename){
+buffer_bind_name(System_Functions *system, General_Memory *general, Working_Set *working_set, Editing_File *file, String filename){
     Assert(file->name.live_name.size == 0 &&
            file->name.source_path.size == 0 &&
            file->name.extension.size == 0);
@@ -983,6 +479,7 @@ buffer_unbind_name(Working_Set *working_set, Editing_File *file){
     file->name.source_path.size = 0;
     file->name.extension.size = 0;
 }
+
 
 // BOTTOM
 

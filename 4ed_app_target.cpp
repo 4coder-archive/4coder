@@ -45,7 +45,10 @@
 #include "buffer/4coder_gap_buffer.cpp"
 #define Buffer_Type Gap_Buffer
 #include "buffer/4coder_buffer_abstract.cpp"
-#include "4ed_file.cpp"
+
+#include "file/4coder_file.cpp"
+#include "file/4coder_working_set.cpp"
+#include "file/4coder_hot_directory.cpp"
 
 #include "4ed_gui.cpp"
 #include "4ed_layout.cpp"

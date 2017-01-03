@@ -1047,19 +1047,19 @@ Win32ToggleFullscreen(void){
 
 internal
 Sys_Post_Clipboard_Sig(system_post_clipboard){
-	if (OpenClipboard(win32vars.window_handle)){
-		EmptyClipboard();
-		HANDLE memory_handle;
-		memory_handle = GlobalAlloc(GMEM_MOVEABLE, str.size+1);
-		if (memory_handle){
-			char *dest = (char*)GlobalLock(memory_handle);
+    if (OpenClipboard(win32vars.window_handle)){
+        EmptyClipboard();
+        HANDLE memory_handle;
+        memory_handle = GlobalAlloc(GMEM_MOVEABLE, str.size+1);
+        if (memory_handle){
+            char *dest = (char*)GlobalLock(memory_handle);
             copy_fast_unsafe_cs(dest, str);
-			GlobalUnlock(memory_handle);
-			SetClipboardData(CF_TEXT, memory_handle);
-			win32vars.next_clipboard_is_self = 1;
-		}
-		CloseClipboard();
-	}
+            GlobalUnlock(memory_handle);
+            SetClipboardData(CF_TEXT, memory_handle);
+            win32vars.next_clipboard_is_self = 1;
+        }
+        CloseClipboard();
+    }
 }
 
 internal b32
@@ -1320,7 +1320,7 @@ Win32LoadAppCode(){
         result = 1;
         win32vars.app = get_funcs();        
     }
-
+    
     return result;
 }
 
@@ -1374,8 +1374,6 @@ Win32LoadSystemCode(){
 #if FRED_INTERNAL
     win32vars.system.internal_get_thread_states = INTERNAL_get_thread_states;
 #endif
-    
-    win32vars.system.slash = '/';
 }
 
 internal void
@@ -1973,7 +1971,7 @@ WinMain(HINSTANCE hInstance,
             GetProcAddress(win32vars.custom, "get_alpha_4coder_version");
         
         if (win32vars.custom_api.get_alpha_4coder_version == 0 ||
-                win32vars.custom_api.get_alpha_4coder_version(MAJOR, MINOR, PATCH) == 0){
+            win32vars.custom_api.get_alpha_4coder_version(MAJOR, MINOR, PATCH) == 0){
             MessageBoxA(0,"Error: The application and custom version numbers don't match.\n", "Error",0);
             exit(1);
         }
@@ -2052,8 +2050,7 @@ WinMain(HINSTANCE hInstance,
     }
     
     win32vars.window_handle =
-        CreateWindowA(window_class.lpszClassName,
-                      WINDOW_NAME, window_style,
+        CreateWindowA(window_class.lpszClassName, WINDOW_NAME, window_style,
                       window_x, window_y,
                       window_rect.right - window_rect.left,
                       window_rect.bottom - window_rect.top,
@@ -2370,7 +2367,7 @@ WinMain(HINSTANCE hInstance,
 int main(int argc, char **argv){
     HINSTANCE hInstance = GetModuleHandle(0);
 #endif
-
-// BOTTOM
-
-
+    
+    // BOTTOM
+    
+    

@@ -2019,100 +2019,108 @@ typedef struct Absolutes{
 
 static void
 get_absolutes(String name, Absolutes *absolutes, fstr_bool implicit_first, fstr_bool implicit_last){
-    int32_t count = 0;
-    int32_t max = ArrayCount(absolutes->a) - 1;
-    if (implicit_last) --max;
-    
-    String str;
-    str.str = name.str;
-    str.size = 0;
-    str.memory_size = 0;
-    fstr_bool prev_was_wild = 0;
-    
-    if (implicit_first){
-        absolutes->a[count++] = str;
-        prev_was_wild = 1;
-    }
-    
-    int32_t i;
-    for (i = 0; i < name.size; ++i){
-        if (name.str[i] == '*' && count < max){
-            if (!prev_was_wild){
-                str.memory_size = str.size;
-                absolutes->a[count++] = str;
-                str.size = 0;
-            }
-            str.str = name.str + i + 1;
-            prev_was_wild = 1;
-        }
-        else{
-            ++str.size;
-            prev_was_wild = 0;
-        }
-    }
-    
-    str.memory_size = str.size;
-    absolutes->a[count++] = str;
-    
-    if (implicit_last){
+    if (name.size != 0){
+        int32_t count = 0;
+        int32_t max = ArrayCount(absolutes->a) - 1;
+        if (implicit_last) --max;
+        
+        String str;
+        str.str = name.str;
         str.size = 0;
         str.memory_size = 0;
+        fstr_bool prev_was_wild = 0;
+        
+        if (implicit_first){
+            absolutes->a[count++] = str;
+            prev_was_wild = 1;
+        }
+        
+        int32_t i;
+        for (i = 0; i < name.size; ++i){
+            if (name.str[i] == '*' && count < max){
+                if (!prev_was_wild){
+                    str.memory_size = str.size;
+                    absolutes->a[count++] = str;
+                    str.size = 0;
+                }
+                str.str = name.str + i + 1;
+                prev_was_wild = 1;
+            }
+            else{
+                ++str.size;
+                prev_was_wild = 0;
+            }
+        }
+        
+        str.memory_size = str.size;
         absolutes->a[count++] = str;
+        
+        if (implicit_last){
+            str.size = 0;
+            str.memory_size = 0;
+            absolutes->a[count++] = str;
+        }
+        
+        absolutes->count = count;
     }
-    
-    absolutes->count = count;
+    else{
+        absolutes->count = 0;
+    }
 }
 
 static fstr_bool
 wildcard_match_c(Absolutes *absolutes, char *x, int32_t case_sensitive){
     fstr_bool r = 1;
-    String *a = absolutes->a;
     
-    fstr_bool (*match_func)(char*, String);
-    fstr_bool (*match_part_func)(char*, String);
-    
-    if (case_sensitive){
-        match_func = match_cs;
-        match_part_func = match_part_cs;
-    }
-    else{
-        match_func = match_insensitive_cs;
-        match_part_func = match_part_insensitive_cs;
-    }
-    
-    if (absolutes->count == 1){
-        r = match_func(x, *a);
-    }
-    else{
-        if (!match_part_func(x, *a)){
-            r = 0;
+    if (absolutes->count > 0){
+        String *a = absolutes->a;
+        
+        fstr_bool (*match_func)(char*, String);
+        fstr_bool (*match_part_func)(char*, String);
+        
+        if (case_sensitive){
+            match_func = match_cs;
+            match_part_func = match_part_cs;
         }
         else{
-            String *max = a + absolutes->count - 1;
-            x += a->size;
-            ++a;
-            while (a < max){
-                if (*x == 0){
-                    r = 0;
-                    break;
-                }
-                if (match_part_func(x, *a)){
-                    x += a->size;
-                    ++a;
-                }
-                else{
-                    ++x;
-                }
-            }
-            if (r && a->size > 0){
+            match_func = match_insensitive_cs;
+            match_part_func = match_part_insensitive_cs;
+        }
+        
+        if (absolutes->count == 1){
+            r = match_func(x, *a);
+        }
+        else{
+            if (!match_part_func(x, *a)){
                 r = 0;
-                while (*x != 0){
-                    if (match_part_func(x, *a) && *(x + a->size) == 0){
-                        r = 1;
+            }
+            else{
+                String *max = a + absolutes->count - 1;
+                x += a->size;
+                ++a;
+                while (a < max){
+                    if (*x == 0){
+                        r = 0;
                         break;
+                    }
+                    if (match_part_func(x, *a)){
+                        x += a->size;
+                        ++a;
                     }
                     else{
                         ++x;
+                    }
+                }
+                if (r && a->size > 0){
+                    r = 0;
+                    while (*x != 0){
+                        if (match_part_func(x, *a) && *(x + a->size) == 0){
+                            r = 1;
+                            break;
+                        }
+                        else{
+                            ++x;
+                        }
                     }
                 }
             }

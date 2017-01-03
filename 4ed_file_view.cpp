@@ -596,11 +596,9 @@ view_move_cursor_to_view(View *view, GUI_Scroll_Vars scroll,
 }
 
 internal void
-view_set_cursor(View *view, Full_Cursor cursor,
-                b32 set_preferred_x, b32 unwrapped_lines){
+view_set_cursor(View *view, Full_Cursor cursor, b32 set_preferred_x, b32 unwrapped_lines){
     if (edit_pos_move_to_front(view->file_data.file, view->edit_pos)){
-        edit_pos_set_cursor_(view->edit_pos, cursor, set_preferred_x, unwrapped_lines);
-        
+        edit_pos_set_cursor(view->edit_pos, cursor, set_preferred_x, unwrapped_lines);
         GUI_Scroll_Vars scroll = view->edit_pos->scroll;
         if (view_move_view_to_cursor(view, &scroll, 0)){
             view->edit_pos->scroll = scroll;
@@ -609,11 +607,9 @@ view_set_cursor(View *view, Full_Cursor cursor,
 }
 
 internal void
-view_set_scroll(View *view,
-                GUI_Scroll_Vars scroll){
+view_set_scroll(View *view, GUI_Scroll_Vars scroll){
     if (edit_pos_move_to_front(view->file_data.file, view->edit_pos)){
-        edit_pos_set_scroll_(view->edit_pos, scroll);
-        
+        edit_pos_set_scroll(view->edit_pos, scroll);
         Full_Cursor cursor = view->edit_pos->cursor;
         if (view_move_cursor_to_view(view, view->edit_pos->scroll,
                                      &cursor, view->edit_pos->preferred_x)){
@@ -623,15 +619,11 @@ view_set_scroll(View *view,
 }
 
 internal void
-view_set_cursor_and_scroll(View *view,
-                           Full_Cursor cursor,
-                           b32 set_preferred_x,
-                           b32 unwrapped_lines,
-                           GUI_Scroll_Vars scroll){
+view_set_cursor_and_scroll(View *view, Full_Cursor cursor, b32 set_preferred_x, b32 unwrapped_lines, GUI_Scroll_Vars scroll){
     File_Edit_Positions *edit_pos = view->edit_pos;
     if (edit_pos_move_to_front(view->file_data.file, edit_pos)){
-        edit_pos_set_cursor_(edit_pos, cursor, set_preferred_x, unwrapped_lines);
-        edit_pos_set_scroll_(edit_pos, scroll);
+        edit_pos_set_cursor(edit_pos, cursor, set_preferred_x, unwrapped_lines);
+        edit_pos_set_scroll(edit_pos, scroll);
         edit_pos->last_set_type = EditPos_None;
     }
 }
@@ -1251,11 +1243,14 @@ stickieness_guess(Cpp_Token_Type type, Cpp_Token_Type other_type, u16 flags, u16
     }
     else if (type == CPP_TOKEN_PARENTHESE_OPEN){
         if (on_left){
-            guess = 0;
+            guess = 100;
         }
         else{
             if (other_is_words){
                 guess = 100;
+            }
+            else{
+                guess = 0;
             }
         }
     }
@@ -3700,7 +3695,7 @@ view_show_interactive(System_Functions *system, View *view,
     view->map = &models->map_ui;
     
     hot_directory_clean_end(&models->hot_directory);
-    hot_directory_reload(system, &models->hot_directory, &models->working_set);
+    hot_directory_reload(system, &models->hot_directory);
     view->changed_context_in_step = 1;
 }
 
@@ -4271,11 +4266,10 @@ get_exhaustive_info(System_Functions *system, Working_Set *working_set, Exhausti
         file = working_set_canon_contains(working_set, canon_name.name);
     }
     
-    String filename = make_string_cap(result.info->filename,
-                                      result.info->filename_len, result.info->filename_len+1);
+    String filename = make_string_cap(result.info->filename, result.info->filename_len, result.info->filename_len+1);
     
     result.is_folder = (result.info->folder != 0);
-    result.name_match = (filename_match(loop->front_name, &loop->absolutes, filename) != 0);
+    result.name_match = (wildcard_match_s(&loop->absolutes, filename, 0) != 0);
     result.is_loaded = (file != 0 && file_is_ready(file));
     
     result.message = null_string;
@@ -4379,7 +4373,7 @@ app_single_line_input_core(System_Functions *system, Working_Set *working_set, K
                         if (char_is_slash(end_character)){
                             mode.string->size = reverse_seek_slash(*mode.string) + 1;
                             mode.string->str[mode.string->size] = 0;
-                            hot_directory_set(system, mode.hot_directory, *mode.string, working_set);
+                            hot_directory_set(system, mode.hot_directory, *mode.string);
                         }
                         else{
                             mode.string->str[mode.string->size] = 0;
@@ -4411,7 +4405,7 @@ app_single_line_input_core(System_Functions *system, Working_Set *working_set, K
                 mode.string->size++;
                 mode.string->str[mode.string->size] = 0;
                 if (mode.type == SINGLE_LINE_FILE && char_is_slash(new_character)){
-                    hot_directory_set(system, mode.hot_directory, *mode.string, working_set);
+                    hot_directory_set(system, mode.hot_directory, *mode.string);
                 }
                 result.made_a_change = 1;
             }
@@ -5021,7 +5015,7 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                             }
                             
                             if (do_new_directory){
-                                hot_directory_reload(system, hdir, &models->working_set);
+                                hot_directory_reload(system, hdir);
                             }
                             
                             gui_end_scrollable(target);
@@ -5088,7 +5082,7 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                                     Editing_File *file = (Editing_File*)node;
                                     Assert(!file->is_dummy);
                                     
-                                    if (filename_match(view->dest, &absolutes, file->name.live_name)){
+                                    if (wildcard_match_s(&absolutes, file->name.live_name, 0) != 0){
                                         View_Iter iter = file_view_iter_init(layout, file, 0);
                                         if (file_view_iter_good(iter)){
                                             reserved_files[reserved_top++] = file;
@@ -6530,7 +6524,7 @@ do_render_file_view(System_Functions *system, View *view, GUI_Scroll_Vars *scrol
                         String m = gui_read_string(&ptr);
                         
                         if (folder){
-                            append_s_char(&f, system->slash);
+                            append_s_char(&f, '/');
                         }
                         
                         draw_fat_option_block(gui_target, target, view, font_id, gui_session.rect, b->id, f, m);

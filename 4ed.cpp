@@ -1732,7 +1732,7 @@ App_Init_Sig(app_init){
     models->layout.active_panel = p.id;
     
     String hdbase = make_fixed_width_string(models->hot_dir_base_);
-    hot_directory_init(&models->hot_directory, hdbase, current_directory, system->slash);
+    hot_directory_init(&models->hot_directory, hdbase, current_directory);
     
     // NOTE(allen): child proc list setup
     i32 max_children = 16;
@@ -2870,7 +2870,7 @@ App_Step_Sig(app_step){
     // end-of-app_step
 }
 
-external App_Get_Functions_Sig(app_get_functions){
+extern "C" App_Get_Functions_Sig(app_get_functions){
     App_Functions result = {};
     
     result.read_command_line = app_read_command_line;

@@ -146,10 +146,10 @@ struct Thread_Exchange;
 struct System_Functions;
 
 #define Job_Callback_Sig(name) void name(        \
-        System_Functions *system,                \
-        Thread_Context *thread,                  \
-        Thread_Memory *memory,                   \
-        void *data[2])
+System_Functions *system,                \
+Thread_Context *thread,                  \
+Thread_Memory *memory,                   \
+void *data[2])
 typedef Job_Callback_Sig(Job_Callback);
 
 struct Job_Data{
@@ -258,9 +258,6 @@ struct System_Functions{
     
     // debug: 1
     INTERNAL_System_Get_Thread_States *internal_get_thread_states;
-    
-    // non-function details
-    char slash;
 };
 
 // BOTTOM
