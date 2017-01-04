@@ -455,6 +455,11 @@ Sys_Get_Canonical_Sig(system_get_canonical){
     char* write_p = path;
     const char* read_p = filename;
 
+    // return 0 for relative paths (e.g. cmdline args)
+    if(len > 0 && filename[0] != '/'){
+        return 0;
+    }
+
     while(read_p < filename + len){
         if(read_p == filename || read_p[0] == '/'){
             if(read_p[1] == '/'){
@@ -529,9 +534,11 @@ Sys_Load_File_Sig(system_load_file){
     int fd = *(int*)&handle;
     do {
         ssize_t n = read(fd, buffer, size);
-        if(n == -1 && errno != EAGAIN){
-            perror("read");
-            break;
+        if(n == -1){
+            if(errno != EINTR){
+                perror("read");
+                break;
+            }
         } else {
             size -= n;
             buffer += n;
