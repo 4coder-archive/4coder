@@ -39,14 +39,14 @@ TYPEDEF int32_t View_ID;
 
 /* DOC(A Key_Modifier acts as an index for specifying modifiers in arrays.) */
 ENUM(int32_t, Key_Modifier){
-	MDFR_SHIFT_INDEX,
-	MDFR_CONTROL_INDEX,
-	MDFR_ALT_INDEX,
+    MDFR_SHIFT_INDEX,
+    MDFR_CONTROL_INDEX,
+    MDFR_ALT_INDEX,
     MDFR_CAPS_INDEX,
     MDFR_HOLD_INDEX,
     
     /* DOC(MDFR_INDEX_COUNT is used to specify the number of modifiers supported.) */
-	MDFR_INDEX_COUNT
+    MDFR_INDEX_COUNT
 };
 
 /* DOC(A Key_Modifier_Flag field is used to specify a specific state of modifiers.
@@ -231,7 +231,7 @@ ENUM(uint32_t, Buffer_Create_Flag){
 
 /* DOC(Buffer_Creation_Data is a struct used as a local handle for the creation of a buffer. )
 HIDE_MEMBERS() */
- STRUCT Buffer_Creation_Data{
+STRUCT Buffer_Creation_Data{
     Buffer_Create_Flag flags;
     char fname_space [256];
     int32_t fname_len;
@@ -343,7 +343,7 @@ ENUM(int32_t, Mouse_Cursor_Show_Type){
     MouseCursorShow_Never,
     /* DOC(The MouseCursorShow_Never mode always shows the cursor.) */
     MouseCursorShow_Always,
-//    MouseCursorShow_WhenActive,// TODO(allen): coming soon
+    //    MouseCursorShow_WhenActive,// TODO(allen): coming soon
 };
 
 /* DOC(A View_Split_Position specifies where a new view should be placed as a result of a view split operation.) */
@@ -359,7 +359,7 @@ ENUM(int32_t, View_Split_Position){
 };
 
 /* DOC(Generic_Command acts as a name for a command, and can name an internal command or a custom command.) */
- UNION Generic_Command{
+UNION Generic_Command{
     /*DOC(If this Generic_Command represents an internal command the cmdid field will have a value less than cmdid_count, and this field is the command id for the command.)*/
     Command_ID cmdid;
     /*DOC(If this Generic_Command does not represent an internal command the command
@@ -370,23 +370,23 @@ ENUM(int32_t, View_Split_Position){
 /* DOC(Key_Event_Data describes a key event, including the translation to a character, the translation to a character ignoring the state of caps lock, and an array of all the modifiers that were pressed at the time of the event.) */
 STRUCT Key_Event_Data{
     /* DOC(This field is the raw keycode which is always non-zero in valid key events.) */
-	Key_Code keycode;
+    Key_Code keycode;
     
     /* DOC(This field is the keycode after translation to a character, this is 0 if there is no translation.) */
-	Key_Code character;
+    Key_Code character;
     
     /* DOC(This field is like the field character, except that the state of caps lock is ignored in the translation.) */
-	Key_Code character_no_caps_lock;
+    Key_Code character_no_caps_lock;
     
     /* DOC(This field is an array indicating the state of modifiers at the time of the key press. The array is indexed using the values of Key_Modifier.  A 1 indicates that the corresponding modifier was held, and a 0 indicates that it was not held.)
     
     DOC_SEE(Key_Modifier)
     */
-	char modifiers[MDFR_INDEX_COUNT];
+    char modifiers[MDFR_INDEX_COUNT];
 };
 
 /* DOC(Mouse_State describes an entire mouse state complete with the position, left and right button states, the wheel state, and whether or not the mouse if in the window.) */
- STRUCT Mouse_State{
+STRUCT Mouse_State{
     /* DOC(This field indicates that the left button is held.) */
     char l;
     /* DOC(This field indicates that the right button is held.) */
@@ -402,9 +402,9 @@ STRUCT Key_Event_Data{
     /* DOC(
     This field is 0 when the wheel has not moved, it is 1 for a downward motion and -1 for an upward motion.
     ) */
-	char wheel;
+    char wheel;
     /* DOC(This field indicates that the mouse is outside of the window.) */
-	char out_of_window;
+    char out_of_window;
     /* DOC(This field contains the x position of the mouse relative to the window where the left side is 0.) */
     int32_t x;
     /* DOC(This field contains the y position of the mouse relative to the window where the top side is 0.) */
@@ -456,7 +456,7 @@ STRUCT File_List{
 };
 
 /* DOC(Buffer_Identifier acts as a loosely typed description of a buffer that can either be a name or an id.) */
- STRUCT Buffer_Identifier{
+STRUCT Buffer_Identifier{
     /* DOC(This field is the name of the buffer; it need not be null terminated. If id is specified this pointer should be NULL.) */
     char *name;
     
@@ -464,7 +464,7 @@ STRUCT File_List{
     int32_t name_len;
     
     /* DOC(This field is the id of the buffer.  If name is specified this should be 0.) */
-     Buffer_ID id;
+    Buffer_ID id;
 };
 
 /* DOC(This struct is a part of an incomplete feature.) */
@@ -684,7 +684,7 @@ DOC(User_Input describes a user input event which can be either a key press or m
 DOC_SEE(User_Input_Type_ID)
 DOC_SEE(Generic_Command)
 */
- STRUCT User_Input{
+STRUCT User_Input{
     /* DOC(This field specifies whether the event was a key press or mouse event.) */
     User_Input_Type_ID type;
     /* DOC(This field indicates that an abort event has occurred and the command needs to shut down.) */
@@ -701,7 +701,7 @@ DOC_SEE(Generic_Command)
 
 /* DOC(Query_Bar is a struct used to store information in the user's control
 that will be displayed as a drop down bar durring an interactive command.) */
- STRUCT Query_Bar{
+STRUCT Query_Bar{
     /* DOC(This specifies the prompt portion of the drop down bar.) */
     String prompt;
     /* DOC(This specifies the main string portion of the drop down bar.) */

@@ -3,14 +3,16 @@
  *
  * 12.12.2014
  *
- * Win32 layer for project codename "4ed"
+ * Win32 layer for 4coder
  *
  */
 
 // TOP
 
 #include <assert.h>
-#include "4ed_defines.h"
+#include <string.h>
+#include "common/4coder_defines.h"
+#include "common/4coder_version.h"
 
 #if defined(FRED_SUPER)
 
@@ -18,7 +20,6 @@
 # define FSTRING_C
 # include "4coder_string.h"
 
-# include "4coder_version.h"
 # include "4coder_keycodes.h"
 # include "4coder_style.h"
 # include "4coder_rect.h"
@@ -47,7 +48,6 @@ typedef void Custom_Command_Function;
 struct Application_Links;
 # include "4coder_custom_api.h"
 
-//# include "4coder_custom.h"
 #else
 # include "4coder_default_bindings.cpp"
 
@@ -581,7 +581,7 @@ Sys_Grow_Thread_Memory_Sig(system_grow_thread_memory){
     system_acquire_lock(CANCEL_LOCK0 + memory->id - 1);
     old_data = memory->data;
     old_size = memory->size;
-    new_size = LargeRoundUp(memory->size*2, Kbytes(4));
+    new_size = l_round_up_i32(memory->size*2, Kbytes(4));
     memory->data = system_get_memory(new_size);
     memory->size = new_size;
     if (old_data){
@@ -710,9 +710,7 @@ Sys_Yield_Coroutine_Sig(system_yield_coroutine){
 
 internal
 Sys_File_Can_Be_Made_Sig(system_file_can_be_made){
-    HANDLE file;
-    file = CreateFile((char*)filename, FILE_APPEND_DATA, 0, 0,
-                      OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, 0);
+    HANDLE file = CreateFile((char*)filename, FILE_APPEND_DATA, 0, 0, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, 0);
     
     if (!file || file == INVALID_HANDLE_VALUE){
         return 0;
@@ -951,13 +949,7 @@ Sys_Load_Close_Sig(system_load_close){
 internal
 Sys_Save_File_Sig(system_save_file){
     b32 result = 0;
-    HANDLE file = CreateFile(filename,
-                             GENERIC_WRITE,
-                             0,
-                             0,
-                             CREATE_ALWAYS,
-                             FILE_ATTRIBUTE_NORMAL,
-                             0);
+    HANDLE file = CreateFile(filename, GENERIC_WRITE, 0, 0, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, 0);
     
     if (file != INVALID_HANDLE_VALUE){
         DWORD written_total = 0;
@@ -966,7 +958,7 @@ Sys_Save_File_Sig(system_save_file){
         result = 1;
         
         while (written_total < size){
-            if (!WriteFile(file, buffer, size, &written_size, 0)){
+            if (!WriteFile(file, buffer + written_total, size - written_total, &written_size, 0)){
                 result = 0;
                 break;
             }
@@ -1675,8 +1667,7 @@ Win32Callback(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
             i32 new_x = LOWORD(lParam);
             i32 new_y = HIWORD(lParam);
             
-            if (new_x != win32vars.input_chunk.pers.mouse_x
-                || new_y != win32vars.input_chunk.pers.mouse_y){
+            if (new_x != win32vars.input_chunk.pers.mouse_x || new_y != win32vars.input_chunk.pers.mouse_y){
                 win32vars.input_chunk.pers.mouse_x = new_x;
                 win32vars.input_chunk.pers.mouse_y = new_y;
                 

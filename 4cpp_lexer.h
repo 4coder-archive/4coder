@@ -149,6 +149,10 @@ static String_And_Flag keywords[] = {
     {make_lit_string("register")     , CPP_TOKEN_KEY_OTHER},
     {make_lit_string("this")         , CPP_TOKEN_KEY_OTHER},
     {make_lit_string("thread_local") , CPP_TOKEN_KEY_OTHER},
+    
+#if defined(FCPP_LEXER_EXTRA_KEYWORDS)
+    FCPP_LEXER_EXTRA_KEYWORDS
+#endif
 };
 
 
@@ -171,7 +175,7 @@ DOC_SEE(Cpp_Get_Token_Result)
     Cpp_Get_Token_Result result = {};
     Cpp_Token *token_array = array.tokens;
     Cpp_Token *token = 0;
-	int32_t first = 0;
+    int32_t first = 0;
     int32_t count = array.count;
     int32_t last = count;
     int32_t this_start = 0, next_start = 0;
@@ -218,7 +222,7 @@ DOC_SEE(Cpp_Get_Token_Result)
         result.token_index = -1;
         result.in_whitespace = 1;
     }
-	
+    
     if (result.token_index >= 0 && result.token_index < count){
         token = array.tokens + result.token_index;
         result.token_start = token->start;
@@ -939,7 +943,7 @@ cpp_lex_nonalloc_no_null_out_limit(Cpp_Lex_Data *S_ptr, char *chunk, int32_t siz
     }
     
     Cpp_Lex_Result result = cpp_lex_nonalloc_no_null_no_limit(S_ptr, chunk, size, full_size,
-                                                       &temp_stack);
+                                                              &temp_stack);
     
     token_array_out->count = temp_stack.count;
     
@@ -996,23 +1000,23 @@ to make sure it returns LexResult_Finished to you:
 
 CODE_EXAMPLE(
 Cpp_Token_Array lex_file(char *file_name){
-    File_Data file = read_whole_file(file_name);
-    
-    char *temp = (char*)malloc(4096); // hopefully big enough
-    Cpp_Lex_Data lex_state = cpp_lex_data_init(temp); 
-    
-    Cpp_Token_Array array = {0};
-    array.tokens = (Cpp_Token*)malloc(1 << 20); // hopefully big enough
-    array.max_count = (1 << 20)/sizeof(Cpp_Token);
-    
-    Cpp_Lex_Result result = 
-        cpp_lex_step(&lex_state, file.data, file.size, file.size,
-                     &array, NO_OUT_LIMIT);
-    Assert(result == LexResult_Finished);
-    
-    free(temp);
-    
-    return(array);
+File_Data file = read_whole_file(file_name);
+
+char *temp = (char*)malloc(4096); // hopefully big enough
+Cpp_Lex_Data lex_state = cpp_lex_data_init(temp); 
+
+Cpp_Token_Array array = {0};
+array.tokens = (Cpp_Token*)malloc(1 << 20); // hopefully big enough
+array.max_count = (1 << 20)/sizeof(Cpp_Token);
+
+Cpp_Lex_Result result = 
+cpp_lex_step(&lex_state, file.data, file.size, file.size,
+&array, NO_OUT_LIMIT);
+Assert(result == LexResult_Finished);
+
+free(temp);
+
+return(array);
 })
 
 )
@@ -1538,15 +1542,15 @@ it is quick and convenient to lex files.
 
 CODE_EXAMPLE(
 Cpp_Token_Array lex_file(char *file_name){
-    File_Data file = read_whole_file(file_name);
-    
-    // This array will be automatically grown if it runs
-    // out of memory.
-    Cpp_Token_Array array = cpp_make_token_array(100);
-    
-    cpp_lex_file(file.data, file.size, &array);
-    
-    return(array);
+File_Data file = read_whole_file(file_name);
+
+// This array will be automatically grown if it runs
+// out of memory.
+Cpp_Token_Array array = cpp_make_token_array(100);
+
+cpp_lex_file(file.data, file.size, &array);
+
+return(array);
 })
 
 )

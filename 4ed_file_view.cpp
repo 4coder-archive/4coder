@@ -440,7 +440,7 @@ view_compute_cursor(View *view, Buffer_Seek seek, b32 return_hint){
                         first_wrap_determination = 0;
                     }
                     else{
-                        assert_4tech(stop.pos == wrap_unit_end);
+                        assert(stop.pos == wrap_unit_end);
                         do_wrap = 1;
                         ++wrap_array_index;
                         wrap_unit_end = file->state.wrap_positions[wrap_array_index];
@@ -484,7 +484,7 @@ internal i32
 file_compute_lowest_line(Editing_File *file, f32 font_height){
     i32 lowest_line = 0;
     
-    Buffer_Type *buffer = &file->state.buffer;
+    Gap_Buffer *buffer = &file->state.buffer;
     if (file->settings.unwrapped_lines){
         lowest_line = buffer->line_count;
     }
@@ -755,7 +755,7 @@ save_file_to_name(System_Functions *system, Models *models, Editing_File *file, 
         i32 max = 0, size = 0;
         b32 dos_write_mode = file->settings.dos_write_mode;
         char *data = 0;
-        Buffer_Type *buffer = &file->state.buffer;
+        Gap_Buffer *buffer = &file->state.buffer;
         
         if (dos_write_mode){
             max = buffer_size(buffer) + buffer->line_count + 1;
@@ -847,14 +847,14 @@ enum{
 };
 
 internal i32
-file_grow_starts_as_needed(System_Functions *system, General_Memory *general, Buffer_Type *buffer, i32 additional_lines){
+file_grow_starts_as_needed(System_Functions *system, General_Memory *general, Gap_Buffer *buffer, i32 additional_lines){
     b32 result = GROW_NOT_NEEDED;
     i32 max = buffer->line_max;
     i32 count = buffer->line_count;
     i32 target_lines = count + additional_lines;
     
     if (target_lines > max || max == 0){
-        max = LargeRoundUp(target_lines + max, Kbytes(1));
+        max = l_round_up_i32(target_lines + max, Kbytes(1));
         
         i32 *new_lines = (i32*)general_memory_reallocate(system, general, buffer->line_starts, sizeof(i32)*count, sizeof(f32)*max);
         
@@ -894,7 +894,7 @@ file_update_cursor_positions(Models *models, Editing_File *file){
 //
 
 internal void
-file_measure_starts(System_Functions *system, General_Memory *general, Buffer_Type *buffer){
+file_measure_starts(System_Functions *system, General_Memory *general, Gap_Buffer *buffer){
     if (!buffer->line_starts){
         i32 max = buffer->line_max = Kbytes(1);
         buffer->line_starts = (i32*)general_memory_allocate(system, general, max*sizeof(i32));
@@ -922,7 +922,7 @@ file_measure_starts(System_Functions *system, General_Memory *general, Buffer_Ty
 // NOTE(allen): These calls assumes that the buffer's line starts are already correct,
 // and that the buffer's line_count is correct.
 internal void
-file_allocate_metadata_as_needed(System_Functions *system, General_Memory *general, Buffer_Type *buffer, void **mem, i32 *mem_max_count, i32 count, i32 item_size){
+file_allocate_metadata_as_needed(System_Functions *system, General_Memory *general, Gap_Buffer *buffer, void **mem, i32 *mem_max_count, i32 count, i32 item_size){
     if (*mem == 0){
         i32 max = ((count+1)*2);
         max = (max+(0x3FF))&(~(0x3FF));
@@ -996,7 +996,7 @@ struct Code_Wrap_State{
     f32 x;
     b32 consume_newline;
     
-    Buffer_Stream_Type stream;
+    Gap_Buffer_Stream stream;
     i32 i;
     
     f32 *adv;
@@ -1012,7 +1012,7 @@ wrap_state_init(Code_Wrap_State *state, Editing_File *file, f32 *adv){
     state->line_starts = file->state.buffer.line_starts;
     state->next_line_start = state->line_starts[1];
     
-    Buffer_Type *buffer = &file->state.buffer;
+    Gap_Buffer *buffer = &file->state.buffer;
     i32 size = buffer_size(buffer);
     buffer_stringify_loop(&state->stream, buffer, 0, size);
     
@@ -1262,9 +1262,11 @@ stickieness_guess(Cpp_Token_Type type, Cpp_Token_Type other_type, u16 flags, u16
             guess = 1000;
         }
     }
+    else if (type == CPP_TOKEN_COMMA){
+        guess = 20;
+    }
     else if (type == CPP_TOKEN_COLON ||
              type == CPP_TOKEN_PARENTHESE_CLOSE ||
-             type == CPP_TOKEN_COMMA ||
              type == CPP_TOKEN_BRACKET_OPEN ||
              type == CPP_TOKEN_BRACKET_CLOSE){
         if (on_left){
@@ -1490,7 +1492,7 @@ file_measure_wraps(System_Functions *system, Models *models, Editing_File *file,
                     }
                 }
                 else{
-                    Buffer_Stream_Type stream = {0};
+                    Gap_Buffer_Stream stream = {0};
                     
                     i32 word_stage = 0;
                     i32 i = stop.pos;
@@ -1603,7 +1605,7 @@ file_measure_wraps(System_Functions *system, Models *models, Editing_File *file,
                                 step.start_x = x;
                                 step.this_token = wrap_state.token_ptr;
                                 
-                                Buffer_Stream_Type stream = {0};
+                                Gap_Buffer_Stream stream = {0};
                                 
                                 Potential_Wrap_Indent_Pair potential_wrap = {0};
                                 potential_wrap.wrap_position = i;
@@ -1735,6 +1737,10 @@ file_measure_wraps(System_Functions *system, Models *models, Editing_File *file,
                                 i32 general_stickieness = this_stickieness;
                                 if (general_stickieness < next_stickieness){
                                     general_stickieness = next_stickieness;
+                                }
+                                
+                                if (wrap_state.wrap_x.paren_top != 0 && this_type == CPP_TOKEN_COMMA){
+                                    general_stickieness = 0;
                                 }
                                 
                                 wrappable_score = 64*50;
@@ -1893,14 +1899,14 @@ file_create_from_string(System_Functions *system, Models *models,
     Font_Set *font_set = models->font_set;
     General_Memory *general = &models->mem.general;
     Partition *part = &models->mem.part;
-    Buffer_Init_Type init;
+    Gap_Buffer_Init init;
     
     file->state = null_editing_file_state;
     
     init = buffer_begin_init(&file->state.buffer, val.str, val.size);
     for (; buffer_init_need_more(&init); ){
         i32 page_size = buffer_init_page_size(&init);
-        page_size = LargeRoundUp(page_size, Kbytes(4));
+        page_size = l_round_up_i32(page_size, Kbytes(4));
         if (page_size < Kbytes(4)) page_size = Kbytes(4);
         void *data = general_memory_allocate(system, general, page_size);
         buffer_init_provide_page(&init, data, page_size);
@@ -1977,7 +1983,7 @@ file_close(System_Functions *system, General_Memory *general, Editing_File *file
         general_memory_free(system, general, file->state.token_array.tokens);
     }
     
-    Buffer_Type *buffer = &file->state.buffer;
+    Gap_Buffer *buffer = &file->state.buffer;
     if (buffer->data){
         general_memory_free(system, general, buffer->data);
         general_memory_free(system, general, buffer->line_starts);
@@ -2012,7 +2018,7 @@ Job_Callback_Sig(job_full_lex){
     Editing_File *file = (Editing_File*)data[0];
     General_Memory *general = (General_Memory*)data[1];
     
-    Buffer_Type *buffer = &file->state.buffer;
+    Gap_Buffer *buffer = &file->state.buffer;
     i32 text_size = buffer_size(buffer);
     
     i32 aligned_buffer_size = (text_size + 3)&(~3);
@@ -2074,7 +2080,7 @@ Job_Callback_Sig(job_full_lex){
         }
     } while (still_lexing);
     
-    i32 new_max = LargeRoundUp(tokens.count+1, Kbytes(1));
+    i32 new_max = l_round_up_i32(tokens.count+1, Kbytes(1));
     
     system->acquire_lock(FRAME_LOCK);
     {
@@ -2158,7 +2164,7 @@ file_first_lex_serial(System_Functions *system, Mem_Options *mem, Editing_File *
         {
             Temp_Memory temp = begin_temp_memory(part);
             
-            Buffer_Type *buffer = &file->state.buffer;
+            Gap_Buffer *buffer = &file->state.buffer;
             i32 text_size = buffer_size(buffer);
             
             i32 mem_size = partition_remaining(part);
@@ -2201,7 +2207,7 @@ file_first_lex_serial(System_Functions *system, Mem_Options *mem, Editing_File *
                 }
             } while (still_lexing);
             
-            i32 new_max = LargeRoundUp(tokens.count+1, Kbytes(1));
+            i32 new_max = l_round_up_i32(tokens.count+1, Kbytes(1));
             
             {
                 Assert(file->state.swap_array.tokens == 0);
@@ -2250,7 +2256,7 @@ file_relex_parallel(System_Functions *system, Mem_Options *mem, Editing_File *fi
     b32 result = 1;
     b32 inline_lex = !file->state.still_lexing;
     if (inline_lex){
-        Buffer_Type *buffer = &file->state.buffer;
+        Gap_Buffer *buffer = &file->state.buffer;
         i32 extra_tolerance = 100;
         
         Cpp_Token_Array *array = &file->state.token_array;
@@ -2315,7 +2321,7 @@ file_relex_parallel(System_Functions *system, Mem_Options *mem, Editing_File *fi
         if (inline_lex){
             i32 new_count = cpp_relex_get_new_count(&state, array->count, &relex_array);
             if (new_count > array->max_count){
-                i32 new_max = LargeRoundUp(new_count, Kbytes(1));
+                i32 new_max = l_round_up_i32(new_count, Kbytes(1));
                 array->tokens = (Cpp_Token*)
                     general_memory_reallocate(system, general, array->tokens, array->count*sizeof(Cpp_Token), new_max*sizeof(Cpp_Token));
                 array->max_count = new_max;
@@ -2376,7 +2382,7 @@ file_relex_serial(System_Functions *system, Mem_Options *mem, Editing_File *file
     
     Assert(!file->state.still_lexing);
     
-    Buffer_Type *buffer = &file->state.buffer;
+    Gap_Buffer *buffer = &file->state.buffer;
     Cpp_Token_Array *array = &file->state.token_array;
     
     Temp_Memory temp = begin_temp_memory(part);
@@ -2430,7 +2436,7 @@ file_relex_serial(System_Functions *system, Mem_Options *mem, Editing_File *file
     
     i32 new_count = cpp_relex_get_new_count(&state, array->count, &relex_array);
     if (new_count > array->max_count){
-        i32 new_max = LargeRoundUp(new_count, Kbytes(1));
+        i32 new_max = l_round_up_i32(new_count, Kbytes(1));
         array->tokens = (Cpp_Token*)
             general_memory_reallocate(system, general, array->tokens, array->count*sizeof(Cpp_Token), new_max*sizeof(Cpp_Token));
         array->max_count = new_max;
@@ -3137,7 +3143,7 @@ file_do_single_edit(System_Functions *system, Models *models, Editing_File *file
     }
     
     // NOTE(allen): meta data
-    Buffer_Type *buffer = &file->state.buffer;
+    Gap_Buffer *buffer = &file->state.buffer;
     i32 line_start = buffer_get_line_index(&file->state.buffer, start);
     i32 line_end = buffer_get_line_index(&file->state.buffer, end);
     i32 replaced_line_count = line_end - line_start;
@@ -5989,7 +5995,7 @@ draw_file_loaded(View *view, i32_Rect rect, b32 is_active, Render_Target *target
                         first_wrap_determination = 0;
                     }
                     else{
-                        assert_4tech(stop.pos == wrap_unit_end);
+                        assert(stop.pos == wrap_unit_end);
                         do_wrap = 1;
                         ++wrap_array_index;
                         wrap_unit_end = file->state.wrap_positions[wrap_array_index];

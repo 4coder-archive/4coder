@@ -47,63 +47,6 @@ edit_pos_set_scroll(File_Edit_Positions *edit_pos, GUI_Scroll_Vars scroll){
     edit_pos->last_set_type = EditPos_ScrollSet;
 }
 
-//
-// Undo Basics
-//
-
-enum Edit_Type{
-    ED_NORMAL,
-    ED_REVERSE_NORMAL,
-    ED_UNDO,
-    ED_REDO,
-};
-
-struct Edit_Step{
-    Edit_Type type;
-    union{
-        struct{
-            b32 can_merge;
-            Buffer_Edit edit;
-            i32 next_block;
-            i32 prev_block;
-        };
-        struct{
-            i32 first_child;
-            i32 inverse_first_child;
-            i32 inverse_child_count;
-            i32 special_type;
-        };
-    };
-    i32 child_count;
-};
-
-struct Edit_Stack{
-    u8 *strings;
-    i32 size, max;
-    
-    Edit_Step *edits;
-    i32 edit_count, edit_max;
-};
-
-struct Small_Edit_Stack{
-    u8 *strings;
-    i32 size, max;
-    
-    Buffer_Edit *edits;
-    i32 edit_count, edit_max;
-};
-
-struct Undo_Data{
-    Edit_Stack undo;
-    Edit_Stack redo;
-    Edit_Stack history;
-    Small_Edit_Stack children;
-    
-    i32 history_block_count, history_head_block;
-    i32 edit_history_cursor;
-    b32 current_block_normal;
-};
-
 
 //
 // Highlighting Information
@@ -138,7 +81,7 @@ struct Editing_File_Settings{
 static Editing_File_Settings null_editing_file_settings = {0};
 
 struct Editing_File_State{
-    Buffer_Type buffer;
+    Gap_Buffer buffer;
     
     i32 *wrap_line_index;
     i32 wrap_max;

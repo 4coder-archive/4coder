@@ -16,26 +16,21 @@
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "stb_image_write.h"
 
-#include "4coder_version.h"
-#define FSTRING_IMPLEMENTATION
-#include "4coder_string.h"
-#include "4cpp_lexer.h"
-
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
-#include <assert.h>
 
-#include "4coder_mem.h"
+#include "../common/4coder_defines.h"
+#include "../common/4coder_version.h"
+#define FSTRING_IMPLEMENTATION
+#include "../4coder_string.h"
+#include "../4cpp_lexer.h"
 
-#define CEIL32(x) ((int32_t) ( (x>0)?(x+1.f):(x) ))
-#define FLOOR32(x) ((int32_t) ( (x>0)?(x):(x-1.f) ))
+#include "../4coder_mem.h"
 
-#include "meta_parser.cpp"
-#include "out_context.cpp"
+#include "../meta/meta_parser.cpp"
+#include "../meta/out_context.cpp"
 #include "abstract_document.cpp"
-
-#define InvalidPath Assert(!"Invalid path of execution")
 
 ///////////////////////////////////////////////////////////////////////////
 
@@ -44,14 +39,14 @@
 //
 
 static void
-print_function_body_code(String *out, Parse_Context *context, int32_t start){
+print_function_body_code(String *out, Parse_Context *context, i32 start){
     String pstr = {0}, lexeme = {0};
     Cpp_Token *token = 0;
     
-    int32_t do_print = 0;
-    int32_t nest_level = 0;
-    int32_t finish = 0;
-    int32_t do_whitespace_print = 0;
+    i32 do_print = 0;
+    i32 nest_level = 0;
+    i32 finish = 0;
+    i32 do_whitespace_print = 0;
     for (; (token = get_token(context)) != 0; get_next_token(context)){
         if (do_whitespace_print){
             pstr = str_start_end(context->data, start, token->start);
@@ -92,7 +87,7 @@ print_function_body_code(String *out, Parse_Context *context, int32_t start){
 }
 
 static Alternate_Names_Array
-allocate_app_api(Partition *part, int32_t count){
+allocate_app_api(Partition *part, i32 count){
     Alternate_Names_Array app_api = {0};
     app_api.names = push_array(part, Alternate_Name, count);
     memset(app_api.names, 0, sizeof(Alternate_Name)*count);
@@ -129,7 +124,7 @@ assert_files_are_equal(char *directory, char *filename1, char *filename2){
 static void
 do_html_output(Document_System *doc_system, Partition *part, char *dst_directory, Abstract_Item *doc){
     // NOTE(allen): Output
-    int32_t out_size = 10 << 20;
+    i32 out_size = 10 << 20;
     Tail_Temp_Partition temp = begin_tail_part(part, out_size);
     
     String out = str_alloc(&temp.part, out_size);
@@ -212,7 +207,7 @@ generate_4coder_docs(Document_System *doc_system, Partition *part, char *code_di
     // NOTE(allen): Compute and store variations of the custom function names
     *custom_func_names = allocate_app_api(part, custom_funcs_unit->set.count);
     
-    for (int32_t i = 0; i < custom_funcs_unit->set.count; ++i){
+    for (i32 i = 0; i < custom_funcs_unit->set.count; ++i){
         String name_string = custom_funcs_unit->set.items[i].name;
         String *macro = &custom_func_names->names[i].macro;
         String *public_name = &custom_func_names->names[i].public_name;
@@ -337,7 +332,7 @@ generate_tutorials(Document_System *doc_system, Partition *part, char *src_direc
 }
 
 static String
-push_string(Partition *part, int32_t size){
+push_string(Partition *part, i32 size){
     String str = {0};
     str.memory_size = size;
     str.str = push_array(part, char, size);
@@ -346,8 +341,8 @@ push_string(Partition *part, int32_t size){
 }
 
 static void
-do_image_resize(Partition *part, char *src_file, char *dst_file, char *extension, int32_t w, int32_t h){
-    int x, y, channels;
+do_image_resize(Partition *part, char *src_file, char *dst_file, char *extension, i32 w, i32 h){
+    i32 x = 0, y = 0, channels = 0;
     stbi_uc *image = stbi_load(src_file, &x, &y, &channels, 0);
     
     stbi_uc *resized_image = (stbi_uc*)malloc(w*h*channels);
@@ -363,7 +358,7 @@ do_image_resize(Partition *part, char *src_file, char *dst_file, char *extension
 
 static void
 generate_site(char *code_directory, char *asset_directory, char *src_directory, char *dst_directory){
-    int32_t size = (512 << 20);
+    i32 size = (512 << 20);
     void *mem = malloc(size);
     memset(mem, 0, size);
     

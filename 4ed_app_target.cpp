@@ -11,7 +11,7 @@
 
 // TODO(allen): can I get away from this one?
 #include <assert.h>
-#include "4ed_defines.h"
+#include "common/4coder_defines.h"
 
 #define FSTRING_IMPLEMENTATION
 #define FSTRING_C
@@ -41,11 +41,8 @@
 #include "4ed_style.cpp"
 #include "4ed_command.cpp"
 
-#include "buffer/4coder_shared.cpp"
-#include "buffer/4coder_gap_buffer.cpp"
-#define Buffer_Type Gap_Buffer
-#include "buffer/4coder_buffer_abstract.cpp"
-
+#include "file/4coder_buffer.cpp"
+#include "file/4coder_undo.cpp"
 #include "file/4coder_file.cpp"
 #include "file/4coder_working_set.cpp"
 #include "file/4coder_hot_directory.cpp"

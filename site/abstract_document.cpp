@@ -9,11 +9,6 @@
 
 // TOP
 
-#if !defined(ABSTRACT_DOCUMENT_H)
-#define ABSTRACT_DOCUMENT_H
-
-#define NotImplemented Assert(!"Not Implemented!")
-
 // Enriched Text
 
 struct Enriched_Text{
@@ -65,20 +60,20 @@ enum{
 struct Document_Item{
     Document_Item *next;
     Document_Item *parent;
-    int32_t type;
+    i32 type;
     union{
         struct{
             Document_Item *first_child;
             Document_Item *last_child;
             String name;
             String id;
-            int32_t show_title;
+            i32 show_title;
         } section;
         
         struct{
             Meta_Unit *unit;
             Alternate_Names_Array *alt_names;
-            int32_t alt_name_type;
+            i32 alt_name_type;
         } unit_elements;
         
         struct{
@@ -108,7 +103,7 @@ struct Basic_List{
 };
 
 struct Abstract_Item{
-    int32_t item_type;
+    i32 item_type;
     char *name;
     
     // Document value members
@@ -118,7 +113,7 @@ struct Abstract_Item{
     // Document building members
     Partition *part;
     Document_Item *section_stack[16];
-    int32_t section_top;
+    i32 section_top;
     
     // Image value members
     char *source_file;
@@ -130,7 +125,7 @@ struct Abstract_Item{
 static Abstract_Item null_abstract_item = {0};
 
 struct Image_Instantiation{
-    int32_t w, h;
+    i32 w, h;
 };
 
 struct Document_System{
@@ -148,8 +143,8 @@ create_document_system(Partition *part){
 }
 
 static void*
-push_item_on_list(Partition *part, Basic_List *list, int32_t item_size){
-    int32_t mem_size = item_size + sizeof(Basic_Node);
+push_item_on_list(Partition *part, Basic_List *list, i32 item_size){
+    i32 mem_size = item_size + sizeof(Basic_Node);
     void *mem = push_block(part, mem_size);
     assert(mem != 0);
     memset(mem, 0, mem_size);
@@ -203,7 +198,7 @@ get_item_by_name(Basic_List list, char *name){
 }
 
 static Image_Instantiation*
-get_image_instantiation(Basic_List list, int32_t w, int32_t h){
+get_image_instantiation(Basic_List list, i32 w, i32 h){
     Image_Instantiation *result = 0;
     
     for (Basic_Node *node = list.head;
@@ -232,15 +227,15 @@ create_item(Partition *part, Basic_List *list, char *name){
 }
 
 static void
-add_image_instantiation(Partition *part, Basic_List *list, int32_t w, int32_t h){
+add_image_instantiation(Partition *part, Basic_List *list, i32 w, i32 h){
     Image_Instantiation *instantiation = (Image_Instantiation*)push_item_on_list(part, list, sizeof(Image_Instantiation));
     instantiation->w = w;
     instantiation->h = h;
 }
 
 static void
-set_section_name(Partition *part, Document_Item *item, char *name, int32_t show_title){
-    int32_t name_len = str_size(name);
+set_section_name(Partition *part, Document_Item *item, char *name, i32 show_title){
+    i32 name_len = str_size(name);
     item->section.name = make_string_cap(push_array(part, char, name_len+1), 0, name_len+1);
     partition_align(part, 8);
     append_sc(&item->section.name, name);
@@ -249,14 +244,14 @@ set_section_name(Partition *part, Document_Item *item, char *name, int32_t show_
 
 static void
 set_section_id(Partition *part, Document_Item *item, char *id){
-    int32_t id_len = str_size(id);
+    i32 id_len = str_size(id);
     item->section.id = make_string_cap(push_array(part, char, id_len+1), 0, id_len+1);
     partition_align(part, 8);
     append_sc(&item->section.id, id);
 }
 
 static void
-begin_document_description(Abstract_Item *doc, Partition *part, char *title, int32_t show_title){
+begin_document_description(Abstract_Item *doc, Partition *part, char *title, i32 show_title){
     *doc = null_abstract_item;
     doc->item_type = ItemType_Document;
     doc->part = part;
@@ -290,23 +285,23 @@ add_image_description(Document_System *system, char *source_file, char *extensio
         item->source_file = source_file;
         item->name = name;
         
-        int32_t w = 0, h = 0, comp = 0;
-        int32_t stbi_r = stbi_info(source_file, &w, &h, &comp);
+        i32 w = 0, h = 0, comp = 0;
+        i32 stbi_r = stbi_info(source_file, &w, &h, &comp);
         if (!stbi_r){
             fprintf(stderr, "Did not find file %s\n", source_file);
             item->w_h_ratio = 1.f;
             item->h_w_ratio = 1.f;
         }
         else{
-        item->w_h_ratio = ((float)w/(float)h);
-        item->h_w_ratio = ((float)h/(float)w);
+            item->w_h_ratio = ((float)w/(float)h);
+            item->h_w_ratio = ((float)h/(float)w);
         }
     }
     return(item);
 }
 
 static Abstract_Item*
-begin_document_description(Document_System *system, char *title, char *name, int32_t show_title){
+begin_document_description(Document_System *system, char *title, char *name, i32 show_title){
     Abstract_Item *item = create_item(system->part, &system->doc_list, name);
     if (item){
         begin_document_description(item, system->part, title, show_title);
@@ -380,7 +375,7 @@ add_element_list(Abstract_Item *doc, Meta_Unit *unit){
 }
 
 static void
-add_element_list(Abstract_Item *doc, Meta_Unit *unit, Alternate_Names_Array *alt_names, int32_t alt_name_type){
+add_element_list(Abstract_Item *doc, Meta_Unit *unit, Alternate_Names_Array *alt_names, i32 alt_name_type){
     Document_Item *parent = doc->section_stack[doc->section_top];
     Document_Item *item = push_struct(doc->part, Document_Item);
     *item = null_document_item;
@@ -404,7 +399,7 @@ add_full_elements(Abstract_Item *doc, Meta_Unit *unit){
 }
 
 static void
-add_full_elements(Abstract_Item *doc, Meta_Unit *unit, Alternate_Names_Array *alt_names, int32_t alt_name_type){
+add_full_elements(Abstract_Item *doc, Meta_Unit *unit, Alternate_Names_Array *alt_names, i32 alt_name_type){
     Document_Item *parent = doc->section_stack[doc->section_top];
     Document_Item *item = push_struct(doc->part, Document_Item);
     *item = null_document_item;
@@ -479,21 +474,21 @@ add_enriched_text(Abstract_Item *doc, Enriched_Text *text){
 #define HTML_EXAMPLE_CODE_CLOSE "</div>"
 
 struct Section_Counter{
-    int32_t counter[16];
-    int32_t nest_level;
+    i32 counter[16];
+    i32 nest_level;
 };
 
-static int32_t
-doc_get_link_string(Abstract_Item *doc, char *space, int32_t capacity){
+static i32
+doc_get_link_string(Abstract_Item *doc, char *space, i32 capacity){
     String str = make_string_cap(space, 0, capacity);
     append_sc(&str, doc->name);
     append_sc(&str, ".html");
-    int32_t result = terminate_with_null(&str);
+    i32 result = terminate_with_null(&str);
     return(result);
 }
 
-static int32_t
-img_get_link_string(Abstract_Item *img, char *space, int32_t capacity, int32_t w, int32_t h){
+static i32
+img_get_link_string(Abstract_Item *img, char *space, i32 capacity, i32 w, i32 h){
     String str = make_string_cap(space, 0, capacity);
     append_sc(&str, img->name);
     
@@ -504,14 +499,14 @@ img_get_link_string(Abstract_Item *img, char *space, int32_t capacity, int32_t w
     
     append_sc(&str, ".");
     append_sc(&str, img->extension);
-    int32_t result = terminate_with_null(&str);
+    i32 result = terminate_with_null(&str);
     return(result);
 }
 
 static void
-append_section_number_reduced(String *out, Section_Counter *section_counter, int32_t reduce){
-    int32_t level = section_counter->nest_level-reduce;
-    for (int32_t i = 1; i <= level; ++i){
+append_section_number_reduced(String *out, Section_Counter *section_counter, i32 reduce){
+    i32 level = section_counter->nest_level-reduce;
+    for (i32 i = 1; i <= level; ++i){
         append_int_to_str(out, section_counter->counter[i]);
         if (i != level){
             append_sc(out, ".");
@@ -524,11 +519,11 @@ append_section_number(String *out, Section_Counter *section_counter){
     append_section_number_reduced(out, section_counter, 0);
 }
 
-static int32_t
-extract_command_body(String *out, String l, int32_t *i_in_out, int32_t *body_start_out, int32_t *body_end_out, String command_name, int32_t require_body){
-    int32_t result = 0;
+static i32
+extract_command_body(String *out, String l, i32 *i_in_out, i32 *body_start_out, i32 *body_end_out, String command_name, i32 require_body){
+    i32 result = 0;
     
-    int32_t i = *i_in_out;
+    i32 i = *i_in_out;
     
     for (; i < l.size; ++i){
         if (!char_is_whitespace(l.str[i])){
@@ -536,8 +531,8 @@ extract_command_body(String *out, String l, int32_t *i_in_out, int32_t *body_sta
         }
     }
     
-    int32_t found_command_body = 0;
-    int32_t body_start = 0, body_end = 0;
+    i32 found_command_body = 0;
+    i32 body_start = 0, body_end = 0;
     if (l.str[i] == '{'){
         body_start = i+1;
         
@@ -558,12 +553,12 @@ extract_command_body(String *out, String l, int32_t *i_in_out, int32_t *body_sta
         if (require_body){
 #define STR_START "<span style='color:#F00'>! Doc generator error: missing body for "
 #define STR_SLOW " !</span>"
-        append_sc(out, STR_START);
-        append_ss(out, command_name);
-        append_sc(out, STR_SLOW);
+            append_sc(out, STR_START);
+            append_ss(out, command_name);
+            append_sc(out, STR_SLOW);
 #undef STR
-        
-        fprintf(stderr, "error: missing body for %.*s\n", command_name.size, command_name.str);
+            
+            fprintf(stderr, "error: missing body for %.*s\n", command_name.size, command_name.str);
         }
     }
     
@@ -614,7 +609,7 @@ write_enriched_text_html(String *out, Partition *part, Enriched_Text *text, Docu
     
     append_sc(out, "<div>");
     
-    int32_t item_counter = 0;
+    i32 item_counter = 0;
     
     for (String line = get_first_double_line(source);
          line.str;
@@ -623,13 +618,13 @@ write_enriched_text_html(String *out, Partition *part, Enriched_Text *text, Docu
         append_sc(out, "<p>");
         
         //append_ss(out, l);
-        int32_t start = 0, i = 0;
+        i32 start = 0, i = 0;
         for (; i < l.size; ++i){
             if (l.str[i] == '\\'){
                 append_ss(out, substr(l, start, i-start));
                 
-                int32_t command_start = i+1;
-                int32_t command_end = command_start;
+                i32 command_start = i+1;
+                i32 command_end = command_start;
                 for (; command_end < l.size; ++command_end){
                     if (!char_is_alpha_numeric(l.str[command_end])){
                         break;
@@ -684,7 +679,7 @@ write_enriched_text_html(String *out, Partition *part, Enriched_Text *text, Docu
                 
                 i = command_end;
                 
-                int32_t match_index = 0;
+                i32 match_index = 0;
                 if (string_set_match(enriched_commands, ArrayCount(enriched_commands), command_string, &match_index)){
                     switch (match_index){
                         case Cmd_BackSlash: append_sc(out, "\\"); break;
@@ -692,8 +687,8 @@ write_enriched_text_html(String *out, Partition *part, Enriched_Text *text, Docu
                         
                         case Cmd_BeginStyle:
                         {
-                            int32_t body_start = 0, body_end = 0;
-                            int32_t has_body = extract_command_body(out, l, &i, &body_start, &body_end, command_string, 1);
+                            i32 body_start = 0, body_end = 0;
+                            i32 has_body = extract_command_body(out, l, &i, &body_start, &body_end, command_string, 1);
                             if (has_body){
                                 String body_text = substr(l, body_start, body_end - body_start);
                                 body_text = skip_chop_whitespace(body_text);
@@ -711,8 +706,8 @@ write_enriched_text_html(String *out, Partition *part, Enriched_Text *text, Docu
                         // TODO(allen): upgrade this bs
                         case Cmd_DocLink:
                         {
-                            int32_t body_start = 0, body_end = 0;
-                            int32_t has_body = extract_command_body(out, l, &i, &body_start, &body_end, command_string, 1);
+                            i32 body_start = 0, body_end = 0;
+                            i32 has_body = extract_command_body(out, l, &i, &body_start, &body_end, command_string, 1);
                             if (has_body){
                                 String body_text = substr(l, body_start, body_end - body_start);
                                 body_text = skip_chop_whitespace(body_text);
@@ -754,8 +749,8 @@ write_enriched_text_html(String *out, Partition *part, Enriched_Text *text, Docu
                         case Cmd_Section:
                         {
                             // TODO(allen): undo the duplication of this body extraction code.
-                            int32_t body_start = 0, body_end = 0;
-                            int32_t has_body = extract_command_body(out, l, &i, &body_start, &body_end, command_string, 1);
+                            i32 body_start = 0, body_end = 0;
+                            i32 has_body = extract_command_body(out, l, &i, &body_start, &body_end, command_string, 1);
                             if (has_body){
                                 String body_text = substr(l, body_start, body_end - body_start);
                                 body_text = skip_chop_whitespace(body_text);
@@ -768,8 +763,8 @@ write_enriched_text_html(String *out, Partition *part, Enriched_Text *text, Docu
                         
                         case Cmd_BeginLink:
                         {
-                            int32_t body_start = 0, body_end = 0;
-                            int32_t has_body = extract_command_body(out, l, &i, &body_start, &body_end, command_string, 1);
+                            i32 body_start = 0, body_end = 0;
+                            i32 has_body = extract_command_body(out, l, &i, &body_start, &body_end, command_string, 1);
                             if (has_body){
                                 String body_text = substr(l, body_start, body_end - body_start);
                                 body_text = skip_chop_whitespace(body_text);
@@ -809,15 +804,15 @@ write_enriched_text_html(String *out, Partition *part, Enriched_Text *text, Docu
                         case Cmd_Image:
                         {
                             // TODO(allen): generalize this
-                            int32_t body_start = 0, body_end = 0;
-                            int32_t has_body = extract_command_body(out, l, &i, &body_start, &body_end, command_string, 1);
+                            i32 body_start = 0, body_end = 0;
+                            i32 has_body = extract_command_body(out, l, &i, &body_start, &body_end, command_string, 1);
                             
                             if (has_body){
                                 String body_text = substr(l, body_start, body_end - body_start);
                                 body_text = skip_chop_whitespace(body_text);
                                 
-                                int32_t pixel_height = 10;
-                                int32_t pixel_width = HTML_WIDTH;
+                                i32 pixel_height = 10;
+                                i32 pixel_width = HTML_WIDTH;
                                 
                                 body_start = 0, body_end = 0;
                                 has_body = extract_command_body(out, l, &i, &body_start, &body_end, command_string, 0);
@@ -862,11 +857,11 @@ write_enriched_text_html(String *out, Partition *part, Enriched_Text *text, Docu
                         case Cmd_Video:
                         {
                             // TODO(allen): generalize this
-                            int32_t body_start = 0, body_end = 0;
-                            int32_t has_body = extract_command_body(out, l, &i, &body_start, &body_end, command_string, 1);
+                            i32 body_start = 0, body_end = 0;
+                            i32 has_body = extract_command_body(out, l, &i, &body_start, &body_end, command_string, 1);
                             
-                            int32_t pixel_width = HTML_WIDTH;
-                            int32_t pixel_height = (int32_t)(pixel_width * 0.5625);
+                            i32 pixel_width = HTML_WIDTH;
+                            i32 pixel_height = (i32)(pixel_width * 0.5625);
                             
                             if (has_body){
                                 String body_text = substr(l, body_start, body_end - body_start);
@@ -879,7 +874,7 @@ write_enriched_text_html(String *out, Partition *part, Enriched_Text *text, Docu
                                     append_int_to_str(out, pixel_width);
                                     append_sc(out, "' height='");
                                     append_int_to_str(out, pixel_height);
-                                append_sc(out, "' src='");
+                                    append_sc(out, "' src='");
                                     append_ss(out, youtube_str);
                                     append_sc(out, "' allowfullscreen> </iframe>");
                                 }
@@ -917,16 +912,16 @@ print_item_in_list(String *out, String name, char *id_postfix){
 }
 
 static void
-init_used_links(Partition *part, Used_Links *used, int32_t count){
+init_used_links(Partition *part, Used_Links *used, i32 count){
     used->strs = push_array(part, String, count);
     used->count = 0;
     used->max = count;
 }
 
-static int32_t
+static i32
 try_to_use(Used_Links *used, String str){
-    int32_t result = 1;
-    int32_t index = 0;
+    i32 result = 1;
+    i32 index = 0;
     
     if (string_set_match(used->strs, used->count, str, &index)){
         result = 0;
@@ -939,7 +934,7 @@ try_to_use(Used_Links *used, String str){
 }
 
 static void
-print_struct_html(String *out, Item_Node *member, int32_t hide_children){
+print_struct_html(String *out, Item_Node *member, i32 hide_children){
     String name = member->name;
     String type = member->type;
     String type_postfix = member->type_postfix;
@@ -991,7 +986,7 @@ print_function_html(String *out, Used_Links *used, String cpp_name, String ret, 
     else{
         append_sc(out, "(<div style='margin-left: 4mm;'>");
         
-        for (int32_t j = 0; j < breakdown.count; ++j){
+        for (i32 j = 0; j < breakdown.count; ++j){
             append_ss(out, breakdown.args[j].param_string);
             if (j < breakdown.count - 1){
                 append_s_char(out, ',');
@@ -1020,7 +1015,7 @@ print_macro_html(String *out, String name, Argument_Breakdown breakdown){
     else{
         append_sc (out, "(<div style='margin-left: 4mm;'>");
         
-        for (int32_t j = 0; j < breakdown.count; ++j){
+        for (i32 j = 0; j < breakdown.count; ++j){
             append_ss(out, breakdown.args[j].param_string);
             if (j < breakdown.count - 1){
                 append_s_char(out, ',');
@@ -1048,11 +1043,11 @@ static String
 get_next_doc_chunk(String source, String prev_chunk, Doc_Chunk_Type *type){
     String chunk = {0};
     String word = {0};
-    int32_t pos = source.size;
-    int32_t word_index = 0;
+    i32 pos = source.size;
+    i32 word_index = 0;
     Doc_Chunk_Type t = DocChunk_PlainText;
     
-    int32_t start_pos = (int32_t)(prev_chunk.str - source.str) + prev_chunk.size;
+    i32 start_pos = (i32)(prev_chunk.str - source.str) + prev_chunk.size;
     String source_tail = substr_tail(source, start_pos);
     
     Assert(DocChunk_Count == ArrayCount(doc_chunk_headers));
@@ -1061,9 +1056,9 @@ get_next_doc_chunk(String source, String prev_chunk, Doc_Chunk_Type *type){
          word.str;
          word = get_next_word(source_tail, word), ++word_index){
         
-        for (int32_t i = 1; i < DocChunk_Count; ++i){
+        for (i32 i = 1; i < DocChunk_Count; ++i){
             if (match_ss(word, doc_chunk_headers[i])){
-                pos = (int32_t)(word.str - source.str);
+                pos = (i32)(word.str - source.str);
                 t = (Doc_Chunk_Type)i;
                 goto doublebreak;
             }
@@ -1075,8 +1070,8 @@ get_next_doc_chunk(String source, String prev_chunk, Doc_Chunk_Type *type){
     if (word_index == 0){
         *type = t;
         
-        int32_t nest_level = 1;
-        int32_t i = find_s_char(source, pos, '(');
+        i32 nest_level = 1;
+        i32 i = find_s_char(source, pos, '(');
         for (++i; i < source.size; ++i){
             if (source.str[i] == '('){
                 ++nest_level;
@@ -1094,8 +1089,8 @@ get_next_doc_chunk(String source, String prev_chunk, Doc_Chunk_Type *type){
     
     chunk = substr(source, start_pos, pos - start_pos);
     
-    int32_t is_all_white = 1;
-    for (int32_t i = 0; i < chunk.size; ++i){
+    i32 is_all_white = 1;
+    for (i32 i = 0; i < chunk.size; ++i){
         if (!char_is_whitespace(chunk.str[i])){
             is_all_white = 0;
             break;
@@ -1137,8 +1132,8 @@ print_doc_description(String *out, Partition *part, String src){
             
             case DocChunk_CodeExample:
             {
-                int32_t start = 0;
-                int32_t end = chunk.size-1;
+                i32 start = 0;
+                i32 end = chunk.size-1;
                 while (start < end && chunk.str[start] != '(') ++start;
                 start += 1;
                 while (end > start && chunk.str[end] != ')') --end;
@@ -1148,14 +1143,14 @@ print_doc_description(String *out, Partition *part, String src){
                 
                 if (start < end){
                     String code_example = substr(chunk, start, end - start);
-                    int32_t first_line = 1;
+                    i32 first_line = 1;
                     
                     for (String line = get_first_line(code_example);
                          line.str;
                          line = get_next_line(code_example, line)){
                         
                         if (!(first_line && line.size == 0)){
-                            int32_t space_i = 0;
+                            i32 space_i = 0;
                             for (; space_i < line.size; ++space_i){
                                 if (line.str[space_i] == ' '){
                                     append_sc(out, "&nbsp;");
@@ -1210,11 +1205,11 @@ print_struct_docs(String *out, Partition *part, Item_Node *member){
 
 static void
 print_see_also(String *out, Documentation *doc){
-    int32_t doc_see_count = doc->see_also_count;
+    i32 doc_see_count = doc->see_also_count;
     if (doc_see_count > 0){
         append_sc(out, HTML_DOC_HEAD_OPEN"See Also"HTML_DOC_HEAD_CLOSE);
         
-        for (int32_t j = 0; j < doc_see_count; ++j){
+        for (i32 j = 0; j < doc_see_count; ++j){
             String see_also = doc->see_also[j];
             append_sc(out, HTML_DOC_ITEM_OPEN"<a href='#");
             append_ss(out, see_also);
@@ -1238,11 +1233,11 @@ print_function_docs(String *out, Partition *part, String name, String doc_string
     
     perform_doc_parse(part, doc_string, &doc);
     
-    int32_t doc_param_count = doc.param_count;
+    i32 doc_param_count = doc.param_count;
     if (doc_param_count > 0){
         append_sc(out, HTML_DOC_HEAD_OPEN"Parameters"HTML_DOC_HEAD_CLOSE);
         
-        for (int32_t j = 0; j < doc_param_count; ++j){
+        for (i32 j = 0; j < doc_param_count; ++j){
             String param_name = doc.param_name[j];
             String param_docs = doc.param_docs[j];
             
@@ -1277,7 +1272,7 @@ print_function_docs(String *out, Partition *part, String name, String doc_string
 }
 
 static void
-print_item_html(String *out, Partition *part, Used_Links *used, Item_Node *item, char *id_postfix, char *section, int32_t I, Alternate_Name *alt_name, int32_t alt_name_type){
+print_item_html(String *out, Partition *part, Used_Links *used, Item_Node *item, char *id_postfix, char *section, i32 I, Alternate_Name *alt_name, i32 alt_name_type){
     Temp_Memory temp = begin_temp_memory(part);
     
     String name = item->name;
@@ -1304,7 +1299,7 @@ print_item_html(String *out, Partition *part, Used_Links *used, Item_Node *item,
     append_sc(out, id_postfix);
     append_sc(out, "' style='margin-bottom: 1cm;'>");
     
-    int32_t has_cpp_name = 0;
+    i32 has_cpp_name = 0;
     if (item->cpp_name.str != 0){
         if (try_to_use(used, item->cpp_name)){
             append_sc(out, "<div id='");
@@ -1451,7 +1446,7 @@ print_item_html(String *out, Partition *part, Used_Links *used, Item_Node *item,
         {
             String doc_string = item->doc_string;
             
-            int32_t hide_members = 0;
+            i32 hide_members = 0;
             
             if (doc_string.size == 0){
                 hide_members = 1;
@@ -1607,26 +1602,26 @@ doc_item_head_html(String *out, Partition *part, Document_System *doc_system, Us
             
             Meta_Unit *unit = item->unit_elements.unit;
             Alternate_Names_Array *alt_names = item->unit_elements.alt_names;
-            int32_t count = unit->set.count;
+            i32 count = unit->set.count;
             
             switch (item->unit_elements.alt_name_type){
                 case AltName_Standard:
                 {
-                    for (int32_t i = 0; i < count; ++i){
+                    for (i32 i = 0; i < count; ++i){
                         print_item_in_list(out, unit->set.items[i].name, "_doc");
                     }
                 }break;
                 
                 case AltName_Macro:
                 {
-                    for (int32_t i = 0; i < count; ++i){
+                    for (i32 i = 0; i < count; ++i){
                         print_item_in_list(out, alt_names->names[i].macro, "_doc");
                     }
                 }break;
                 
                 case AltName_Public_Name:
                 {
-                    for (int32_t i = 0; i < count; ++i){
+                    for (i32 i = 0; i < count; ++i){
                         print_item_in_list(out, alt_names->names[i].public_name, "_doc");
                     }
                 }break;
@@ -1639,7 +1634,7 @@ doc_item_head_html(String *out, Partition *part, Document_System *doc_system, Us
         {
             Meta_Unit *unit = item->unit_elements.unit;
             Alternate_Names_Array *alt_names = item->unit_elements.alt_names;
-            int32_t count = unit->set.count;
+            i32 count = unit->set.count;
             
             char section_space[32];
             String section_str = make_fixed_width_string(section_space);
@@ -1647,14 +1642,14 @@ doc_item_head_html(String *out, Partition *part, Document_System *doc_system, Us
             terminate_with_null(&section_str);
             
             if (alt_names){
-                int32_t I = 1;
-                for (int32_t i = 0; i < count; ++i, ++I){
+                i32 I = 1;
+                for (i32 i = 0; i < count; ++i, ++I){
                     print_item_html(out, part, used_links, &unit->set.items[i], "_doc", section_str.str, I, &alt_names->names[i], item->unit_elements.alt_name_type);
                 }
             }
             else{
-                int32_t I = 1;
-                for (int32_t i = 0; i < count; ++i, ++I){
+                i32 I = 1;
+                for (i32 i = 0; i < count; ++i, ++I){
                     print_item_html(out, part, used_links, &unit->set.items[i], "_doc", section_str.str, I, 0, 0);
                 }
             }
@@ -1664,7 +1659,7 @@ doc_item_head_html(String *out, Partition *part, Document_System *doc_system, Us
         {
             append_sc(out, "<h3 style='margin:0;'>Table of Contents</h3><ul>");
             
-            int32_t i = 1;
+            i32 i = 1;
             for (Document_Item *toc_item = item->parent->section.first_child;
                  toc_item != 0;
                  toc_item = toc_item->next){
@@ -1709,7 +1704,7 @@ generate_item_html(String *out, Partition *part, Document_System *doc_system, Us
     doc_item_head_html(out, part, doc_system, used_links, item, section_counter);
     
     if (item->type == Doc_Root || item->type == Doc_Section){
-        int32_t level = ++section_counter->nest_level;
+        i32 level = ++section_counter->nest_level;
         section_counter->counter[level] = 1;
         for (Document_Item *m = item->section.first_child;
              m != 0;
@@ -1734,8 +1729,6 @@ generate_document_html(String *out, Partition *part, Document_System *doc_system
     section_counter.counter[section_counter.nest_level] = 1;
     generate_item_html(out, part, doc_system, &used_links, doc->root_item, &section_counter);
 }
-
-#endif
 
 // BOTTOM
 

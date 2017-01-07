@@ -264,11 +264,7 @@ match_check(Application_Links *app, Search_Range *range, int32_t *pos, Search_Ma
 }
 
 static int32_t
-search_front_to_back_step(Application_Links *app,
-                          Search_Range *range,
-                          String word,
-                          int32_t *pos,
-                          Search_Match *result_ptr){
+search_front_to_back_step(Application_Links *app, Search_Range *range, String word, int32_t *pos, Search_Match *result_ptr){
     int32_t found_match = FindResult_None;
     
     Search_Match result = *result_ptr;
@@ -284,16 +280,10 @@ search_front_to_back_step(Application_Links *app,
         
         result.buffer = get_buffer(app, range->buffer, AccessAll);
         if (case_insensitive){
-            buffer_seek_string_insensitive_forward(app, &result.buffer,
-                                                   start_pos, end_pos,
-                                                   word.str, word.size,
-                                                   &result.start);
+            buffer_seek_string_insensitive_forward(app, &result.buffer, start_pos, end_pos, word.str, word.size, &result.start);
         }
         else{
-            buffer_seek_string_forward(app, &result.buffer,
-                                       start_pos, end_pos,
-                                       word.str, word.size,
-                                       &result.start);
+            buffer_seek_string_forward(app, &result.buffer, start_pos, end_pos, word.str, word.size, &result.start);
         }
         
         if (result.start < end_pos){
@@ -319,11 +309,7 @@ search_front_to_back_step(Application_Links *app,
 }
 
 static int32_t
-search_front_to_back(Application_Links *app,
-                     Search_Range *range,
-                     String word,
-                     int32_t *pos,
-                     Search_Match *result_ptr){
+search_front_to_back(Application_Links *app, Search_Range *range, String word, int32_t *pos, Search_Match *result_ptr){
     int32_t found_match = FindResult_None;
     for (;found_match == FindResult_None;){
         found_match = search_front_to_back_step(app, range, word, pos, result_ptr);
@@ -332,11 +318,7 @@ search_front_to_back(Application_Links *app,
 }
 
 static int32_t
-search_back_to_front_step(Application_Links *app,
-                          Search_Range *range,
-                          String word,
-                          int32_t *pos,
-                          Search_Match *result_ptr){
+search_back_to_front_step(Application_Links *app, Search_Range *range, String word, int32_t *pos, Search_Match *result_ptr){
     int32_t found_match = FindResult_None;
     
     Search_Match result = *result_ptr;
@@ -372,11 +354,7 @@ search_back_to_front_step(Application_Links *app,
 }
 
 static int32_t
-search_back_to_front(Application_Links *app,
-                     Search_Range *range,
-                     String word,
-                     int32_t *pos,
-                     Search_Match *result_ptr){
+search_back_to_front(Application_Links *app, Search_Range *range, String word, int32_t *pos, Search_Match *result_ptr){
     int32_t found_match = FindResult_None;
     for (;found_match == FindResult_None;){
         found_match = search_back_to_front_step(app, range, word, pos, result_ptr);

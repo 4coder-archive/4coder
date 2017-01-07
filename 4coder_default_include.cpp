@@ -435,13 +435,14 @@ static void
 buffer_seek_string_forward(Application_Links *app, Buffer_Summary *buffer, int32_t pos, int32_t end, char *str, int32_t size, int32_t *result){
     char read_buffer[512];
     
-    if (size <= 0){
-        *result = pos;
-    }
-    else if (size > sizeof(read_buffer)){
-        *result = pos;
+    if (buffer->size > end){
+        *result = buffer->size;
     }
     else{
+        *result = end;
+    }
+    
+    if (size > 0 && size <= sizeof(read_buffer)){
         if (buffer->exists){
             String read_str = make_fixed_width_string(read_buffer);
             String needle_str = make_string(str, size);
@@ -488,13 +489,9 @@ buffer_seek_string_forward(Application_Links *app, Buffer_Summary *buffer, int32
 static void
 buffer_seek_string_backward(Application_Links *app, Buffer_Summary *buffer, int32_t pos, int32_t min, char *str, int32_t size, int32_t *result){
     char read_buffer[512];
-    if (size <= 0){
-        *result = min-1;
-    }
-    else if (size > sizeof(read_buffer)){
-        *result = min-1;
-    }
-    else{
+    
+    *result = min-1;
+    if (size > 0 && size <= sizeof(read_buffer)){
         if (buffer->exists){
             String read_str = make_fixed_width_string(read_buffer);
             String needle_str = make_string(str, size);
@@ -524,8 +521,6 @@ buffer_seek_string_backward(Application_Links *app, Buffer_Summary *buffer, int3
             }
         }
         
-        *result = min-1;
-        
         finished:;
     }
 }
@@ -541,13 +536,14 @@ buffer_seek_string_insensitive_forward(Application_Links *app, Buffer_Summary *b
     Stream_Chunk stream = {0};
     stream.max_end = end;
     
-    if (size <= 0){
-        *result = buffer->size;
-    }
-    else if (size > sizeof(read_buffer)){
+    if (buffer->size > end){
         *result = buffer->size;
     }
     else{
+        *result = end;
+    }
+    
+    if (size > 0 && size <= sizeof(read_buffer)){
         if (buffer->exists){
             String read_str = make_fixed_width_string(read_buffer);
             String needle_str = make_string(str, size);
@@ -573,8 +569,6 @@ buffer_seek_string_insensitive_forward(Application_Links *app, Buffer_Summary *b
             }
         }
         
-        *result = buffer->size;
-        
         finished:;
     }
 }
@@ -590,13 +584,8 @@ buffer_seek_string_insensitive_backward(Application_Links *app, Buffer_Summary *
     Stream_Chunk stream = {0};
     stream.min_start = min;
     
-    if (size <= 0){
-        *result = -1;
-    }
-    else if (size > sizeof(read_buffer)){
-        *result = -1;
-    }
-    else{
+    *result = min-1;
+    if (size > 0 && size <= sizeof(read_buffer)){
         if (buffer->exists){
             String read_str = make_fixed_width_string(read_buffer);
             String needle_str = make_string(str, size);
@@ -621,8 +610,6 @@ buffer_seek_string_insensitive_backward(Application_Links *app, Buffer_Summary *
                 }while (still_looping);
             }
         }
-        
-        *result = -1;
         
         finished:;
     }
@@ -3388,65 +3375,65 @@ read_config_line(Cpp_Token_Array array, int32_t *i_ptr){
             }
             
             if (subscript_success){
-            if (token.type == CPP_TOKEN_EQ){
-                config_line.eq_token = read_config_token(array, &i);
-                ++i;
-                if (i < array.count){
-                    Cpp_Token val_token = read_config_token(array, &i);
-                    
-                    bool32 array_success = 1;
-                    if (val_token.type == CPP_TOKEN_BRACE_OPEN){
-                        array_success = 0;
-                        ++i;
-                        if (i < array.count){
-                            config_line.val_array_start = i;
-                            
-                            bool32 expecting_array_item = 1;
-                            for (; i < array.count; ++i){
-                                Cpp_Token array_token = read_config_token(array, &i);
-                                if (array_token.size == 0){
-                                    break;
-                                }
-                                if (array_token.type == CPP_TOKEN_BRACE_CLOSE){
-                                    config_line.val_array_end = i;
-                                    array_success = 1;
-                                    break;
-                                }
-                                else{
-                                    if (array_token.type == CPP_TOKEN_COMMA){
-                                        if (!expecting_array_item){
-                                            expecting_array_item = 1;
-                                        }
-                                        else{
-                                            break;
-                                        }
+                if (token.type == CPP_TOKEN_EQ){
+                    config_line.eq_token = read_config_token(array, &i);
+                    ++i;
+                    if (i < array.count){
+                        Cpp_Token val_token = read_config_token(array, &i);
+                        
+                        bool32 array_success = 1;
+                        if (val_token.type == CPP_TOKEN_BRACE_OPEN){
+                            array_success = 0;
+                            ++i;
+                            if (i < array.count){
+                                config_line.val_array_start = i;
+                                
+                                bool32 expecting_array_item = 1;
+                                for (; i < array.count; ++i){
+                                    Cpp_Token array_token = read_config_token(array, &i);
+                                    if (array_token.size == 0){
+                                        break;
+                                    }
+                                    if (array_token.type == CPP_TOKEN_BRACE_CLOSE){
+                                        config_line.val_array_end = i;
+                                        array_success = 1;
+                                        break;
                                     }
                                     else{
-                                        if (expecting_array_item){
-                                            expecting_array_item = 0;
-                                            ++config_line.val_array_count;
+                                        if (array_token.type == CPP_TOKEN_COMMA){
+                                            if (!expecting_array_item){
+                                                expecting_array_item = 1;
+                                            }
+                                            else{
+                                                break;
+                                            }
+                                        }
+                                        else{
+                                            if (expecting_array_item){
+                                                expecting_array_item = 0;
+                                                ++config_line.val_array_count;
+                                            }
                                         }
                                     }
                                 }
                             }
                         }
-                    }
-                    
-                    if (array_success){
-                        config_line.val_token = val_token;
-                    ++i;
-                    if (i < array.count){
-                        Cpp_Token semicolon_token = read_config_token(array, &i);
-                        if (semicolon_token.type == CPP_TOKEN_SEMICOLON){
-                            config_line.read_success = 1;
+                        
+                        if (array_success){
+                            config_line.val_token = val_token;
+                            ++i;
+                            if (i < array.count){
+                                Cpp_Token semicolon_token = read_config_token(array, &i);
+                                if (semicolon_token.type == CPP_TOKEN_SEMICOLON){
+                                    config_line.read_success = 1;
+                                }
+                            }
                         }
                     }
-                }
                 }
             }
         }
     }
-}
     
     if (!config_line.read_success){
         for (; i < array.count; ++i){
@@ -3469,7 +3456,7 @@ get_config_item(Config_Line line, char *mem, Cpp_Token_Array array){
     item.array = array;
     item.mem = mem;
     if (line.id_token.size != 0){
-    item.id = make_string(mem + line.id_token.start, line.id_token.size);
+        item.id = make_string(mem + line.id_token.start, line.id_token.size);
     }
     
     if (line.subscript_token.size != 0){
@@ -3488,48 +3475,48 @@ config_var(Config_Item item, char *var_name, int32_t *subscript, uint32_t token_
     if (item.line.val_token.type == token_type){
         if ((var_name == 0 && item.id.size == 0) || match(item.id, var_name)){
             if (subscript){
-            if (item.has_subscript){
-                *subscript = item.subscript_index;
-            }
-            else{
-                subscript_succes = 0;
-            }
-        }
-        
-        if (subscript_succes){
-            if (var_out){
-                switch (token_type){
-                    case CPP_TOKEN_BOOLEAN_CONSTANT:
-                    {
-                        *(bool32*)var_out = (item.mem[item.line.val_token.start] == 't');
-                    }break;
-                    
-                    case CPP_TOKEN_INTEGER_CONSTANT:
-                    {
-                        String val = make_string(item.mem + item.line.val_token.start, item.line.val_token.size);
-                        *(int32_t*)var_out = str_to_int(val);
-                    }break;
-                    
-                    case CPP_TOKEN_STRING_CONSTANT:
-                    {
-                        *(String*)var_out = make_string(item.mem + item.line.val_token.start + 1,item.line.val_token.size - 2);
-                    }break;
-                    
-                    case CPP_TOKEN_BRACE_OPEN:
-                    {
-                        Config_Array_Reader *array_reader = (Config_Array_Reader*)var_out;
-                        array_reader->array = item.array;
-                        array_reader->mem = item.mem;
-                        array_reader->i = item.line.val_array_start;
-                        array_reader->val_array_end = item.line.val_array_end;
-                        array_reader->good = 1;
-                    }break;
+                if (item.has_subscript){
+                    *subscript = item.subscript_index;
+                }
+                else{
+                    subscript_succes = 0;
                 }
             }
-            result = 1;
+            
+            if (subscript_succes){
+                if (var_out){
+                    switch (token_type){
+                        case CPP_TOKEN_BOOLEAN_CONSTANT:
+                        {
+                            *(bool32*)var_out = (item.mem[item.line.val_token.start] == 't');
+                        }break;
+                        
+                        case CPP_TOKEN_INTEGER_CONSTANT:
+                        {
+                            String val = make_string(item.mem + item.line.val_token.start, item.line.val_token.size);
+                            *(int32_t*)var_out = str_to_int(val);
+                        }break;
+                        
+                        case CPP_TOKEN_STRING_CONSTANT:
+                        {
+                            *(String*)var_out = make_string(item.mem + item.line.val_token.start + 1,item.line.val_token.size - 2);
+                        }break;
+                        
+                        case CPP_TOKEN_BRACE_OPEN:
+                        {
+                            Config_Array_Reader *array_reader = (Config_Array_Reader*)var_out;
+                            array_reader->array = item.array;
+                            array_reader->mem = item.mem;
+                            array_reader->i = item.line.val_array_start;
+                            array_reader->val_array_end = item.line.val_array_end;
+                            array_reader->good = 1;
+                        }break;
+                    }
+                }
+                result = 1;
+            }
         }
     }
-}
     return(result);
 }
 
@@ -3585,9 +3572,9 @@ config_array_next_item(Config_Array_Reader *array_reader, Config_Item *item){
                 ++array_reader->i;
                 goto doublebreak;
             }break;
-            }
         }
-        doublebreak:;
+    }
+    doublebreak:;
     
     array_reader->good = result;
     return(result);
@@ -3689,16 +3676,16 @@ process_config_file(Application_Links *app){
                         config_bool_var(item, "enable_code_wrapping", 0, &enable_code_wrapping);
                         config_bool_var(item, "automatically_adjust_wrapping", 0, &automatically_adjust_wrapping);
                         config_bool_var(item, "automatically_indent_text_on_save", 0, &automatically_indent_text_on_save);
-                         
+                        
                         config_int_var(item, "default_wrap_width", 0, &new_wrap_width);
                         config_int_var(item, "default_min_base_width", 0, &new_min_base_width);
-                                                 
+                        
                         config_string_var(item, "default_theme_name", 0, &default_theme_name);
                         config_string_var(item, "default_font_name", 0, &default_font_name);
-                            }
-                        }
-                        adjust_all_buffer_wrap_widths(app, new_wrap_width, new_min_base_width);
-                        }
+                    }
+                }
+                adjust_all_buffer_wrap_widths(app, new_wrap_width, new_min_base_width);
+            }
         }
         
         end_temp_memory(temp);
@@ -3748,7 +3735,7 @@ set_project_extensions(Project *project, String src){
     int32_t j = 0, k = 0;
     for (int32_t i = 0; i < src.size; ++i){
         switch (mode){
-                case 0:
+            case 0:
             {
                 if (src.str[i] == '.'){
                     mode = 1;
@@ -3766,7 +3753,7 @@ set_project_extensions(Project *project, String src){
                     project->extension_space[j++] = src.str[i];
                 }
             }break;
-                }
+        }
     }
     project->extension_space[j++] = 0;
     project->extension_count = k;
@@ -3778,28 +3765,28 @@ interpret_escaped_string(char *dst, String src){
     int32_t mode = 0;
     int32_t j = 0;
     for (int32_t i = 0; i < src.size; ++i){
-         switch (mode){
+        switch (mode){
             case 0:
             {
-        if (src.str[i] == '\\'){
-            mode = 1;
+                if (src.str[i] == '\\'){
+                    mode = 1;
+                }
+                else{
+                    dst[j++] = src.str[i];
+                }
+            }break;
+            
+            case 1:
+            {
+                switch (src.str[i]){
+                    case '\\':{dst[j++] = '\\'; mode = 0;}break;
+                    case 'n': {dst[j++] = '\n'; mode = 0;}break;
+                    case 't': {dst[j++] = '\t'; mode = 0;}break;
+                    case '"': {dst[j++] = '"';  mode = 0;}break;
+                    case '0': {dst[j++] = '\0'; mode = 0;}break;
+                }
+            }break;
         }
-        else{
-            dst[j++] = src.str[i];
-        }
-    }break;
-    
-    case 1:
-    {
-         switch (src.str[i]){
-             case '\\':{dst[j++] = '\\'; mode = 0;}break;
-             case 'n': {dst[j++] = '\n'; mode = 0;}break;
-             case 't': {dst[j++] = '\t'; mode = 0;}break;
-             case '"': {dst[j++] = '"';  mode = 0;}break;
-             case '0': {dst[j++] = '\0'; mode = 0;}break;
-        }
-    }break;
-}
     }
     dst[j] = 0;
 }
@@ -3817,37 +3804,37 @@ close_all_files_with_extension(Application_Links *app, Partition *scratch_part, 
         buffers_to_close_count = 0;
         do_repeat = 0;
         
-    uint32_t access = AccessAll;
-    Buffer_Summary buffer = {0};
-    for (buffer = get_buffer_first(app, access);
-         buffer.exists;
-         get_buffer_next(app, &buffer, access)){
-        
-        bool32 is_match = 1;
-        if (extension_count > 0){
-            String extension = file_extension(make_string(buffer.file_name, buffer.file_name_len));
-            is_match = 0;
-            for (int32_t i = 0; i < extension_count; ++i){
-                if (match(extension, extension_list[i])){
-                    is_match = 1;
-                    break;
+        uint32_t access = AccessAll;
+        Buffer_Summary buffer = {0};
+        for (buffer = get_buffer_first(app, access);
+             buffer.exists;
+             get_buffer_next(app, &buffer, access)){
+            
+            bool32 is_match = 1;
+            if (extension_count > 0){
+                String extension = file_extension(make_string(buffer.file_name, buffer.file_name_len));
+                is_match = 0;
+                for (int32_t i = 0; i < extension_count; ++i){
+                    if (match(extension, extension_list[i])){
+                        is_match = 1;
+                        break;
+                    }
                 }
             }
+            
+            if (is_match){
+                if (buffers_to_close_count >= buffers_to_close_max){
+                    do_repeat = 1;
+                    break;
+                }
+                buffers_to_close[buffers_to_close_count++] = buffer.buffer_id;
+            }
         }
         
-        if (is_match){
-            if (buffers_to_close_count >= buffers_to_close_max){
-                do_repeat = 1;
-                break;
-            }
-            buffers_to_close[buffers_to_close_count++] = buffer.buffer_id;
+        for (int32_t i = 0; i < buffers_to_close_count; ++i){
+            kill_buffer(app, buffer_identifier(buffers_to_close[i]), true, 0);
         }
     }
-    
-    for (int32_t i = 0; i < buffers_to_close_count; ++i){
-        kill_buffer(app, buffer_identifier(buffers_to_close[i]), true, 0);
-    }
-}
     while(do_repeat);
     
     end_temp_memory(temp);
@@ -3876,31 +3863,31 @@ open_all_files_with_extension(Application_Links *app, Partition *scratch_part, c
             if (extension_count > 0){
                 is_match = 0;
                 
-            String extension = make_string_cap(info->filename, info->filename_len, info->filename_len+1);
-            extension = file_extension(extension);
+                String extension = make_string_cap(info->filename, info->filename_len, info->filename_len+1);
+                extension = file_extension(extension);
                 for (int32_t j = 0; j < extension_count; ++j){
                     if (match(extension, extension_list[j])){
                         is_match = 1;
                         break;
                     }
-        }
-        
-        if (is_match){
-            // NOTE(allen): There's no way in the 4coder API to use relative
-            // paths at the moment, so everything should be full paths.  Which is
-            // managable.  Here simply set the dir string size back to where it
-            // was originally, so that new appends overwrite old ones.
-            dir.size = dir_size;
-            append_sc(&dir, info->filename);
-            create_buffer(app, dir.str, dir.size, 0);
+                }
+                
+                if (is_match){
+                    // NOTE(allen): There's no way in the 4coder API to use relative
+                    // paths at the moment, so everything should be full paths.  Which is
+                    // managable.  Here simply set the dir string size back to where it
+                    // was originally, so that new appends overwrite old ones.
+                    dir.size = dir_size;
+                    append_sc(&dir, info->filename);
+                    create_buffer(app, dir.str, dir.size, 0);
+                }
+            }
         }
     }
-    }
-}
     
     free_file_list(app, list);
-
-end_temp_memory(temp);
+    
+    end_temp_memory(temp);
 }
 
 static char**
@@ -3968,10 +3955,10 @@ CUSTOM_COMMAND_SIG(load_project){
                 
                 if (result == LexResult_Finished){
                     // Clear out current project
-                        if (current_project.close_all_code_when_this_project_closes){
-                            exec_command(app, close_all_code);
-                        }
-                        current_project = null_project;
+                    if (current_project.close_all_code_when_this_project_closes){
+                        exec_command(app, close_all_code);
+                    }
+                    current_project = null_project;
                     
                     // Set new project directory
                     {
@@ -3992,9 +3979,9 @@ CUSTOM_COMMAND_SIG(load_project){
                                 String str = {0};
                                 if (config_string_var(item, "extensions", 0, &str)){
                                     if (str.size < sizeof(current_project.extension_space)){
-                                    set_project_extensions(&current_project, str);
-                                    print_message(app, str.str, str.size);
-                                    print_message(app, "\n", 1);
+                                        set_project_extensions(&current_project, str);
+                                        print_message(app, str.str, str.size);
+                                        print_message(app, "\n", 1);
                                     }
                                     else{
                                         print_message(app, literal("STRING TOO LONG!\n"));
@@ -4067,35 +4054,35 @@ CUSTOM_COMMAND_SIG(load_project){
                                             }
                                             
                                             if (read_string){
-                                            if (config_int_var(array_item, 0, 0, 0)){
-                                                append(&msg, "NULL, ");
-                                                dest_str[0] = 0;
+                                                if (config_int_var(array_item, 0, 0, 0)){
+                                                    append(&msg, "NULL, ");
+                                                    dest_str[0] = 0;
+                                                }
+                                                
+                                                String str = {0};
+                                                if (config_string_var(array_item, 0, 0, &str)){
+                                                    if (str.size < dest_str_size){
+                                                        interpret_escaped_string(dest_str, str);
+                                                        append(&msg, dest_str);
+                                                        append(&msg, ", ");
+                                                    }
+                                                    else{
+                                                        append(&msg, "STRING TOO LONG!, ");
+                                                    }
+                                                }
                                             }
                                             
-                                            String str = {0};
-                                            if (config_string_var(array_item, 0, 0, &str)){
-                                                if (str.size < dest_str_size){
-                                                    interpret_escaped_string(dest_str, str);
-                                                    append(&msg, dest_str);
-                                                    append(&msg, ", ");
-                                                }
-                                                else{
-                                                    append(&msg, "STRING TOO LONG!, ");
+                                            if (read_bool){
+                                                if (config_bool_var(array_item, 0, 0, dest_bool)){
+                                                    if (dest_bool){
+                                                        append(&msg, "true, ");
+                                                    }
+                                                    else{
+                                                        append(&msg, "false, ");
+                                                    }
                                                 }
                                             }
-                                        }
                                             
-                                        if (read_bool){
-                                            if (config_bool_var(array_item, 0, 0, dest_bool)){
-                                                if (dest_bool){
-                                                    append(&msg, "true, ");
-                                                }
-                                                else{
-                                                    append(&msg, "false, ");
-                                                }
-                                            }
-                                        }
-                                        
                                             item_index++;
                                         }
                                         
@@ -4106,7 +4093,7 @@ CUSTOM_COMMAND_SIG(load_project){
                             }
                         }
                     }
-                
+                    
                     if (current_project.close_all_files_when_project_opens){
                         close_all_files_with_extension(app, &global_part, 0, 0);
                     }

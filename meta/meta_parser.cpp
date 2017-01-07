@@ -16,14 +16,14 @@
 #include "internal_4coder_string.cpp"
 #endif
 
-#include "4cpp_lexer.h"
+#include "../4cpp_lexer.h"
 
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 #include <assert.h>
 
-#include "4coder_mem.h"
+#include "../4coder_mem.h"
 
 typedef struct Parse_Context{
     Cpp_Token *token_s;

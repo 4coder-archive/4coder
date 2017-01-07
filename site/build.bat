@@ -8,7 +8,7 @@ SET OPTS=%OPTS% /GR- /EHa- /nologo /FC
 SET FirstError=0
 
 pushd ..\build
-cl %OPTS% ..\code\build.cpp /Zi /Febuild /DSITE_BUILD
+cl %OPTS% ..\code\meta\build.cpp /Zi /Febuild /DSITE_BUILD
 if %ERRORLEVEL% neq 0 (set FirstError=1)
 popd
 

@@ -1,28 +1,580 @@
 /*
  * Mr. 4th Dimention - Allen Webster
  *
- * 24.10.2015
+ * 06.01.2017
  *
- * Buffer features based on the stringify loop,
- *  and other abstract buffer features.
+ * The 4coder base buffer data structure.
  *
  */
 
 // TOP
 
-#define Buffer_Init_Type cat_4tech(Buffer_Type, _Init)
-#define Buffer_Stream_Type cat_4tech(Buffer_Type, _Stream)
+//
+// Buffer low level operations
+//
 
-inline_4tech void
-buffer_stringify(Buffer_Type *buffer, i32 start, i32 end, char *out){
-    Buffer_Stream_Type stream = {0};
+// TODO(allen): Put 4coder_seek_types into the file directory.
+// Setup a meta system for putting together a file in the custom
+// code directory from the export structs and helpers.
+
+#include "../4coder_seek_types.h"
+
+typedef struct Cursor_With_Index{
+    i32 pos;
+    i32 index;
+} Cursor_With_Index;
+
+inline void
+write_cursor_with_index(Cursor_With_Index *positions, i32 *count, i32 pos){
+    positions[(*count)].index = *count;
+    positions[(*count)].pos = pos;
+    ++(*count);
+}
+
+#define CursorSwap__(a,b) { Cursor_With_Index t = a; a = b; b = t; }
+
+internal void
+buffer_quick_sort_cursors(Cursor_With_Index *positions, i32 start, i32 pivot){
+    i32 mid = start;
+    i32 pivot_pos = positions[pivot].pos;
+    for (i32 i = mid; i < pivot; ++i){
+        if (positions[i].pos < pivot_pos){
+            CursorSwap__(positions[mid], positions[i]);
+            ++mid;
+        }
+    }
+    CursorSwap__(positions[mid], positions[pivot]);
+    
+    if (start < mid - 1) buffer_quick_sort_cursors(positions, start, mid - 1);
+    if (mid + 1 < pivot) buffer_quick_sort_cursors(positions, mid + 1, pivot);
+}
+
+// TODO(allen): Rewrite this without being a dumbass.
+internal void
+buffer_quick_unsort_cursors(Cursor_With_Index *positions, i32 start, i32 pivot){
+    i32 mid = start;
+    i32 pivot_index = positions[pivot].index;
+    for (i32 i = mid; i < pivot; ++i){
+        if (positions[i].index < pivot_index){
+            CursorSwap__(positions[mid], positions[i]);
+            ++mid;
+        }
+    }
+    CursorSwap__(positions[mid], positions[pivot]);
+    
+    if (start < mid - 1) buffer_quick_unsort_cursors(positions, start, mid - 1);
+    if (mid + 1 < pivot) buffer_quick_unsort_cursors(positions, mid + 1, pivot);
+}
+
+#undef CursorSwap__
+
+inline void
+buffer_sort_cursors(Cursor_With_Index *positions, i32 count){
+    assert(count > 0);
+    buffer_quick_sort_cursors(positions, 0, count-1);
+}
+
+inline void
+buffer_unsort_cursors(Cursor_With_Index *positions, i32 count){
+    assert(count > 0);
+    buffer_quick_unsort_cursors(positions, 0, count-1);
+}
+
+internal void
+buffer_update_cursors(Cursor_With_Index *sorted_positions, i32 count, i32 start, i32 end, i32 len){
+    i32 shift_amount = (len - (end - start));
+    Cursor_With_Index *position = sorted_positions + count - 1;
+    
+    for (; position >= sorted_positions && position->pos > end; --position) position->pos += shift_amount;
+    for (; position >= sorted_positions && position->pos >= start; --position) position->pos = start;
+}
+
+internal i32
+buffer_batch_debug_sort_check(Buffer_Edit *sorted_edits, i32 edit_count){
+    Buffer_Edit *edit = sorted_edits;
+    i32 i = 0, start_point = 0;
+    i32 result = 1; 
+    
+    for (i = 0; i < edit_count; ++i, ++edit){
+        if (start_point > edit->start){
+            result = 0; break;
+        }
+        start_point = (edit->end < edit->start + 1)?(edit->start + 1):(edit->end);
+    }
+    
+    return(result);
+}
+
+internal i32
+buffer_batch_edit_max_shift(Buffer_Edit *sorted_edits, i32 edit_count){
+    i32 i = 0;
+    i32 shift_total = 0, shift_max = 0;
+    
+    Buffer_Edit *edit = sorted_edits;
+    for (i = 0; i < edit_count; ++i, ++edit){
+        shift_total += (edit->len - (edit->end - edit->start));
+        if (shift_total > shift_max) shift_max = shift_total;
+    }
+    
+    return(shift_max);
+}
+
+internal i32
+buffer_batch_edit_update_cursors(Cursor_With_Index *sorted_positions, i32 count, Buffer_Edit *sorted_edits, i32 edit_count){
+    Cursor_With_Index *position = sorted_positions;
+    Cursor_With_Index *end_position = sorted_positions + count;
+    Buffer_Edit *edit = sorted_edits;
+    Buffer_Edit *end_edit = sorted_edits + edit_count;
+    i32 shift_amount = 0;
+    i32 start = 0, end = 0;
+    
+    for (; edit < end_edit && position < end_position; ++edit){
+        start = edit->start;
+        end = edit->end;
+        
+        for (; position->pos < start && position < end_position; ++position){
+            position->pos += shift_amount;
+        }
+        
+        for (; position->pos <= end && position < end_position; ++position){
+            position->pos = start + shift_amount;
+        }
+        
+        shift_amount += (edit->len - (end - start));
+    }
+    
+    for (; position < end_position; ++position){
+        position->pos += shift_amount;
+    }
+    
+    for (; edit < end_edit; ++edit){
+        shift_amount += (edit->len - (edit->end - edit->start));
+    }
+    
+    return(shift_amount);
+}
+
+internal i32
+eol_convert_in(char *dest, char *src, i32 size){
+    i32 i = 0, j = 0, k = 0;
+    
+    for (; j < size && src[j] != '\r'; ++j);
+    memcpy(dest, src, j);
+    
+    if (j < size){
+        k = 1;
+        ++j;
+        for (i = j; i < size; ++i){
+            if (src[i] == '\r'){
+                memcpy(dest + j - k, src + j, i - j);
+                ++k;
+                j = i+1;
+            }
+        }
+        memcpy(dest + j - k, src + j, i - j);
+        j = i - k;
+    }
+    
+    return(j);
+}
+
+internal i32
+eol_in_place_convert_in(char *data, i32 size){
+    i32 i = 0, j = 0, k = 0;
+    
+    for (; j < size && data[j] != '\r'; ++j);
+    
+    if (j < size){
+        k = 1;
+        ++j;
+        for (i = j; i < size; ++i){
+            if (data[i] == '\r'){
+                memmove(data + j - k, data + j, i - j);
+                ++k;
+                j = i+1;
+            }
+        }
+        memmove(data + j - k, data + j, i - j);
+        j = i - k;
+    }
+    
+    return(j);
+}
+
+// TODO(allen): iterative memory check?
+internal i32
+eol_convert_out(char *dest, i32 max, char *src, i32 size, i32 *size_out){
+    i32 result = 1;
+    i32 i = 0, j = 0;
+    
+    for (; i < size; ++i, ++j){
+        if (src[i] == '\n'){
+            dest[j] = '\r';
+            ++j;
+            dest[j] = '\n';
+        }
+        else dest[j] = src[i];
+    }
+    
+    *size_out = j;
+    return(result);
+}
+
+// TODO(allen): iterative memory check?
+internal i32
+eol_in_place_convert_out(char *data, i32 size, i32 max, i32 *size_out){
+    i32 result = 1;
+    i32 i = 0;
+    
+    for (; i < size; ++i){
+        if (data[i] == '\n'){
+            memmove(data + i + 1, data + i, size - i);
+            data[i] = '\r';
+            ++i;
+            ++size;
+        }
+    }
+    
+    *size_out = size;
+    return(result);
+}
+
+inline i32
+is_whitespace(char c){
+    i32 result;
+    result = (c == ' ' || c == '\n' || c == '\r'  || c == '\t' || c == '\f' || c == '\v');
+    return(result);
+}
+
+inline i32
+is_alphanumeric_true(char c){
+    return (c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c >= '0' && c <= '9');
+}
+
+inline i32
+is_alphanumeric(char c){
+    return (c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c >= '0' && c <= '9' || c == '_');
+}
+
+inline i32
+is_upper(char c){
+    return (c >= 'A' && c <= 'Z');
+}
+
+inline i32
+is_lower(char c){
+    return (c >= 'a' && c <= 'z');
+}
+
+inline char
+to_upper(char c){
+    if (is_lower(c)){
+        c += 'A' - 'a';
+    }
+    return(c);
+}
+
+internal i32
+is_match(char *a, char *b, i32 len){
+    i32 result = 1;
+    for (;len > 0; --len, ++a, ++b)
+        if (*a != *b) { result = 0; break; }
+    
+    return(result);
+}
+
+internal i32
+is_match_insensitive(char *a, char *b, i32 len){
+    i32 result = 1;
+    for (;len > 0; --len, ++a, ++b)
+        if (to_upper(*a) != to_upper(*b)) { result = 0; break; }
+    
+    return(result);
+}
+
+//
+// Implementation of the gap buffer
+//
+
+typedef struct Gap_Buffer{
+    char *data;
+    i32 size1;
+    i32 gap_size;
+    i32 size2;
+    i32 max;
+    
+    i32 *line_starts;
+    i32 line_count;
+    i32 line_max;
+} Gap_Buffer;
+
+inline i32
+buffer_good(Gap_Buffer *buffer){
+    i32 good = (buffer->data != 0);
+    return(good);
+}
+
+inline i32
+buffer_size(Gap_Buffer *buffer){
+    i32 size = buffer->size1 + buffer->size2;
+    return(size);
+}
+
+typedef struct Gap_Buffer_Init{
+    Gap_Buffer *buffer;
+    char *data;
+    i32 size;
+} Gap_Buffer_Init;
+
+internal Gap_Buffer_Init
+buffer_begin_init(Gap_Buffer *buffer, char *data, i32 size){
+    Gap_Buffer_Init init;
+    init.buffer = buffer;
+    init.data = data;
+    init.size = size;
+    return(init);
+}
+
+internal i32
+buffer_init_need_more(Gap_Buffer_Init *init){
+    i32 result = 1;
+    if (init->buffer->data) result = 0;
+    return(result);
+}
+
+internal i32
+buffer_init_page_size(Gap_Buffer_Init *init){
+    i32 result = init->size * 2;
+    return(result);
+}
+
+internal void
+buffer_init_provide_page(Gap_Buffer_Init *init, void *page, i32 page_size){
+    Gap_Buffer *buffer = init->buffer;
+    buffer->data = (char*)page;
+    buffer->max = page_size;
+}
+
+internal i32
+buffer_end_init(Gap_Buffer_Init *init, void *scratch, i32 scratch_size){
+    Gap_Buffer *buffer = init->buffer;
+    i32 osize1 = 0, size1 = 0, size2 = 0, size = init->size;
+    i32 result = 0;
+    
+    if (buffer->data){
+        if (buffer->max >= init->size){
+            size2 = size >> 1;
+            size1 = osize1 = size - size2;
+            
+            if (size1 > 0){
+                size1 = eol_convert_in(buffer->data, init->data, size1);
+                if (size2 > 0){
+                    size2 = eol_convert_in(buffer->data + size1, init->data + osize1, size2);
+                }
+            }
+            
+            buffer->size1 = size1;
+            buffer->size2 = size2;
+            buffer->gap_size = buffer->max - size1 - size2;
+            memmove(buffer->data + size1 + buffer->gap_size, buffer->data + size1, size2);
+            
+            result = 1;
+        }
+    }
+    
+    return(result);
+}
+
+typedef struct Gap_Buffer_Stream{
+    Gap_Buffer *buffer;
+    char *data;
+    i32 end;
+    i32 separated;
+    i32 absolute_end;
+    
+    b32 use_termination_character;
+    char terminator;
+} Gap_Buffer_Stream;
+static Gap_Buffer_Stream null_buffer_stream = {0};
+
+internal b32
+buffer_stringify_loop(Gap_Buffer_Stream *stream, Gap_Buffer *buffer, i32 start, i32 end){
+    b32 result = 0;
+    
+    if (0 <= start && start < end && end <= buffer->size1 + buffer->size2){
+        stream->buffer = buffer;
+        stream->absolute_end = end;
+        
+        if (start < buffer->size1){
+            if (buffer->size1 < end){
+                stream->separated = 1;
+            }
+            else{
+                stream->separated = 0;
+            }
+            stream->data = buffer->data;
+        }
+        else{
+            stream->separated = 0;
+            stream->data = buffer->data + buffer->gap_size;
+        }
+        
+        if (stream->separated){
+            stream->end = buffer->size1;
+        }
+        else{
+            stream->end = end;
+        }
+        
+        if (stream->end > stream->absolute_end){
+            stream->end = stream->absolute_end;
+        }
+        
+        result = 1;
+    }
+    
+    if (result == 0){
+        if (stream->use_termination_character){
+            stream->buffer = buffer;
+            stream->absolute_end = end;
+            stream->use_termination_character = 0;
+            stream->data = (&stream->terminator) - buffer->size1 - buffer->size2;
+            stream->end = stream->absolute_end + 1;
+            result = 1;
+        }
+    }
+    
+    return(result);
+}
+
+internal b32
+buffer_stringify_next(Gap_Buffer_Stream *stream){
+    b32 result = 0;
+    Gap_Buffer *buffer = stream->buffer;
+    if (stream->separated){
+        stream->data = buffer->data + buffer->gap_size;
+        stream->end = stream->absolute_end;
+        stream->separated = 0;
+        result = 1;
+    }
+    
+    if (result == 0){
+        if (stream->use_termination_character){
+            stream->use_termination_character = 0;
+            stream->data = (&stream->terminator) - buffer->size1 - buffer->size2;
+            stream->end = stream->absolute_end + 1;
+            result = 1;
+        }
+    }
+    
+    return(result);
+}
+
+internal i32
+buffer_replace_range(Gap_Buffer *buffer, i32 start, i32 end, char *str, i32 len, i32 *shift_amount,
+                     void *scratch, i32 scratch_memory, i32 *request_amount){
+    char *data = buffer->data;
+    i32 size = buffer_size(buffer);
+    i32 result = 0;
+    i32 move_size = 0;
+    
+    assert(0 <= start);
+    assert(start <= end);
+    assert(end <= size);
+    
+    *shift_amount = (len - (end - start));
+    if (*shift_amount + size <= buffer->max){
+        if (end < buffer->size1){
+            move_size = buffer->size1 - end;
+            memmove(data + buffer->size1 + buffer->gap_size - move_size, data + end, move_size);
+            buffer->size1 -= move_size;
+            buffer->size2 += move_size;
+        }
+        if (start > buffer->size1){
+            move_size = start - buffer->size1;
+            memmove(data + buffer->size1, data + buffer->size1 + buffer->gap_size, move_size);
+            buffer->size1 += move_size;
+            buffer->size2 -= move_size;
+        }
+        
+        memcpy(data + start, str, len);
+        buffer->size2 = size - end;
+        buffer->size1 = start + len;
+        buffer->gap_size -= *shift_amount;
+        
+        assert(buffer->size1 + buffer->size2 == size + *shift_amount);
+        assert(buffer->size1 + buffer->gap_size + buffer->size2 == buffer->max);
+    }
+    else{
+        *request_amount = l_round_up_u32(2*(*shift_amount + size), 4 << 10);
+        result = 1;
+    }
+    
+    return(result);
+}
+
+typedef struct Buffer_Batch_State{
+    i32 i;
+    i32 shift_total;
+} Buffer_Batch_State;
+
+// TODO(allen): Now that we are just using Gap_Buffer we could afford to improve
+// this for the Gap_Buffer's behavior.
+internal i32
+buffer_batch_edit_step(Buffer_Batch_State *state, Gap_Buffer *buffer, Buffer_Edit *sorted_edits, char *strings, i32 edit_count, void *scratch, i32 scratch_size, i32 *request_amount){
+    Buffer_Edit *edit = 0;
+    i32 i = state->i;
+    i32 shift_total = state->shift_total;
+    i32 shift_amount = 0;
+    i32 result = 0;
+    
+    edit = sorted_edits + i;
+    for (; i < edit_count; ++i, ++edit){
+        result = buffer_replace_range(buffer, edit->start + shift_total, edit->end + shift_total,
+                                      strings + edit->str_start, edit->len, &shift_amount,
+                                      scratch, scratch_size, request_amount);
+        if (result) break;
+        shift_total += shift_amount;
+    }
+    
+    state->shift_total = shift_total;
+    state->i = i;
+    
+    return(result);
+}
+
+internal void*
+buffer_edit_provide_memory(Gap_Buffer *buffer, void *new_data, i32 new_max){
+    void *result = buffer->data;
+    i32 size = buffer_size(buffer);
+    i32 new_gap_size = new_max - size;
+    
+    assert(new_max >= size);
+    
+    memcpy(new_data, buffer->data, buffer->size1);
+    memcpy((char*)new_data + buffer->size1 + new_gap_size, buffer->data + buffer->size1 + buffer->gap_size, buffer->size2);
+    
+    buffer->data = (char*)new_data;
+    buffer->gap_size = new_gap_size;
+    buffer->max = new_max;
+    
+    return(result);
+}
+
+//
+// High level buffer operations
+//
+
+inline void
+buffer_stringify(Gap_Buffer *buffer, i32 start, i32 end, char *out){
+    Gap_Buffer_Stream stream = {0};
     
     i32 i = start;
     if (buffer_stringify_loop(&stream, buffer, i, end)){
         b32 still_looping = 0;
         do{
             i32 size = stream.end - i;
-            memcpy_4tech(out, stream.data + i, size);
+            memcpy(out, stream.data + i, size);
             i = stream.end;
             out += size;
             still_looping = buffer_stringify_next(&stream);
@@ -30,12 +582,12 @@ buffer_stringify(Buffer_Type *buffer, i32 start, i32 end, char *out){
     }
 }
 
-internal_4tech i32
-buffer_convert_out(Buffer_Type *buffer, char *dest, i32 max){
-    Buffer_Stream_Type stream = {0};
+internal i32
+buffer_convert_out(Gap_Buffer *buffer, char *dest, i32 max){
+    Gap_Buffer_Stream stream = {0};
     i32 i = 0;
     i32 size = buffer_size(buffer);
-    assert_4tech(size + buffer->line_count <= max);
+    assert(size + buffer->line_count <= max);
     
     i32 pos = 0;
     if (buffer_stringify_loop(&stream, buffer, 0, size)){
@@ -44,7 +596,7 @@ buffer_convert_out(Buffer_Type *buffer, char *dest, i32 max){
             i32 size = stream.end - i;
             i32 out_size = 0;
             i32 result = eol_convert_out(dest + pos, max - pos, stream.data + i, size, &out_size);
-            assert_4tech(result);
+            assert(result);
             i = stream.end;
             pos += out_size;
             still_looping = buffer_stringify_next(&stream);
@@ -54,15 +606,15 @@ buffer_convert_out(Buffer_Type *buffer, char *dest, i32 max){
     return(pos);
 }
 
-internal_4tech i32
-buffer_count_newlines(Buffer_Type *buffer, i32 start, i32 end){
-    Buffer_Stream_Type stream = {0};
+internal i32
+buffer_count_newlines(Gap_Buffer *buffer, i32 start, i32 end){
+    Gap_Buffer_Stream stream = {0};
     i32 i = start;
     i32 count = 0;
     
-    assert_4tech(0 <= start);
-    assert_4tech(start <= end);
-    assert_4tech(end <= buffer_size(buffer));
+    assert(0 <= start);
+    assert(start <= end);
+    assert(end <= buffer_size(buffer));
     
     if (buffer_stringify_loop(&stream, buffer, i, end)){
         b32 still_looping = 0;
@@ -86,9 +638,9 @@ typedef struct Buffer_Measure_Starts{
 // TODO(allen): Rewrite this with a duff routine
 // Also make it so that the array goes one past the end
 // and stores the size in the extra spot.
-internal_4tech i32
-buffer_measure_starts(Buffer_Measure_Starts *state, Buffer_Type *buffer){
-    Buffer_Stream_Type stream = {0};
+internal i32
+buffer_measure_starts(Buffer_Measure_Starts *state, Gap_Buffer *buffer){
+    Gap_Buffer_Stream stream = {0};
     i32 size = buffer_size(buffer);
     i32 start = state->start, i = state->i;
     i32 *start_ptr = buffer->line_starts + state->count;
@@ -113,7 +665,7 @@ buffer_measure_starts(Buffer_Measure_Starts *state, Buffer_Type *buffer){
         }while(still_looping);
     }
     
-    assert_4tech(i == size);
+    assert(i == size);
     
     if (start_ptr == start_end){
         goto buffer_measure_starts_widths_end;
@@ -133,11 +685,11 @@ buffer_measure_starts(Buffer_Measure_Starts *state, Buffer_Type *buffer){
     return(result);
 }
 
-internal_4tech void
-buffer_measure_character_starts(Buffer_Type *buffer, i32 *character_starts, i32 mode, i32 virtual_white){
-    assert_4tech(mode == 0);
+internal void
+buffer_measure_character_starts(Gap_Buffer *buffer, i32 *character_starts, i32 mode, i32 virtual_white){
+    assert(mode == 0);
     
-    Buffer_Stream_Type stream = {0};
+    Gap_Buffer_Stream stream = {0};
     i32 i = 0;
     i32 size = buffer_size(buffer);
     
@@ -180,7 +732,7 @@ buffer_measure_character_starts(Buffer_Type *buffer, i32 *character_starts, i32 
         }while(still_looping);
     }
     
-    assert_4tech(line_index-1 == buffer->line_count);
+    assert(line_index-1 == buffer->line_count);
 }
 
 enum{
@@ -200,14 +752,14 @@ struct Buffer_Layout_Stop{
 };
 
 struct Buffer_Measure_Wrap_Params{
-    Buffer_Type *buffer;
+    Gap_Buffer *buffer;
     i32 *wrap_line_index;
     f32 *adv;
     b32 virtual_white;
 };
 
 struct Buffer_Measure_Wrap_State{
-    Buffer_Stream_Type stream;
+    Gap_Buffer_Stream stream;
     i32 i;
     i32 size;
     b32 still_looping;
@@ -233,7 +785,7 @@ struct Buffer_Measure_Wrap_State{
 #define DrYield(PC, n) { *S_ptr = S; S_ptr->__pc__ = PC; return(n); resumespot_##PC:; }
 #define DrReturn(n) { *S_ptr = S; S_ptr->__pc__ = -1; return(n); }
 
-internal_4tech Buffer_Layout_Stop
+internal Buffer_Layout_Stop
 buffer_measure_wrap_y(Buffer_Measure_Wrap_State *S_ptr, Buffer_Measure_Wrap_Params params, f32 line_shift, b32 do_wrap, i32 wrap_unit_end){
     Buffer_Measure_Wrap_State S = *S_ptr;
     Buffer_Layout_Stop S_stop;
@@ -337,7 +889,7 @@ buffer_measure_wrap_y(Buffer_Measure_Wrap_State *S_ptr, Buffer_Measure_Wrap_Para
     ++S.current_wrap_index;
     params.wrap_line_index[S.line_index++] = S.current_wrap_index;
     
-    assert_4tech(S.line_index-1 == params.buffer->line_count);
+    assert(S.line_index-1 == params.buffer->line_count);
     
     S_stop.status = BLStatus_Finished;
     DrReturn(S_stop);
@@ -347,15 +899,15 @@ buffer_measure_wrap_y(Buffer_Measure_Wrap_State *S_ptr, Buffer_Measure_Wrap_Para
 #undef DrYield
 #undef DrReturn
 
-internal_4tech void
-buffer_remeasure_starts(Buffer_Type *buffer, i32 line_start, i32 line_end, i32 line_shift, i32 text_shift){
+internal void
+buffer_remeasure_starts(Gap_Buffer *buffer, i32 line_start, i32 line_end, i32 line_shift, i32 text_shift){
     i32 *starts = buffer->line_starts;
     i32 line_count = buffer->line_count;
     
-    assert_4tech(0 <= line_start);
-    assert_4tech(line_start <= line_end);
-    assert_4tech(line_end < line_count);
-    assert_4tech(line_count + line_shift <= buffer->line_max);
+    assert(0 <= line_start);
+    assert(line_start <= line_end);
+    assert(line_end < line_count);
+    assert(line_count + line_shift <= buffer->line_max);
     
     ++line_end;
     
@@ -376,12 +928,12 @@ buffer_remeasure_starts(Buffer_Type *buffer, i32 line_start, i32 line_end, i32 l
         new_line_count += line_shift;
         new_line_end += line_shift;
         
-        memmove_4tech(starts + line_end + line_shift, starts + line_end,
-                      sizeof(i32)*(line_count - line_end));
+        memmove(starts + line_end + line_shift, starts + line_end,
+                sizeof(i32)*(line_count - line_end));
     }
     
     // Iteration data (yikes! Need better loop system)
-    Buffer_Stream_Type stream = {0};
+    Gap_Buffer_Stream stream = {0};
     i32 size = buffer_size(buffer);
     i32 char_i = starts[line_start];
     i32 line_i = line_start;
@@ -417,20 +969,20 @@ buffer_remeasure_starts(Buffer_Type *buffer, i32 line_start, i32 line_end, i32 l
     }
     
     buffer_remeasure_starts_end:;
-    assert_4tech(line_count >= 1);
+    assert(line_count >= 1);
     buffer->line_count = new_line_count;
 }
 
-internal_4tech void
-buffer_remeasure_character_starts(Buffer_Type *buffer, i32 line_start, i32 line_end, i32 line_shift,
+internal void
+buffer_remeasure_character_starts(Gap_Buffer *buffer, i32 line_start, i32 line_end, i32 line_shift,
                                   i32 *character_starts, i32 mode, i32 virtual_whitespace){
-    assert_4tech(mode == 0);
+    assert(mode == 0);
     
     i32 new_line_count = buffer->line_count;
     
-    assert_4tech(0 <= line_start);
-    assert_4tech(line_start <= line_end);
-    assert_4tech(line_end < new_line_count - line_shift);
+    assert(0 <= line_start);
+    assert(line_start <= line_end);
+    assert(line_end < new_line_count - line_shift);
     
     ++line_end;
     
@@ -441,12 +993,12 @@ buffer_remeasure_character_starts(Buffer_Type *buffer, i32 line_start, i32 line_
         line_count -= line_shift;
         new_line_end += line_shift;
         
-        memmove_4tech(character_starts + line_end + line_shift, character_starts + line_end,
-                      sizeof(i32)*(line_count - line_end + 1));
+        memmove(character_starts + line_end + line_shift, character_starts + line_end,
+                sizeof(i32)*(line_count - line_end + 1));
     }
     
     // Iteration data (yikes! Need better loop system)
-    Buffer_Stream_Type stream = {0};
+    Gap_Buffer_Stream stream = {0};
     i32 size = buffer_size(buffer);
     i32 char_i = buffer->line_starts[line_start];
     i32 line_i = line_start;
@@ -494,7 +1046,7 @@ buffer_remeasure_character_starts(Buffer_Type *buffer, i32 line_start, i32 line_
         }while(still_looping);
     }
     
-    assert_4tech(line_i >= new_line_end);
+    assert(line_i >= new_line_end);
     
     buffer_remeasure_character_starts_end:;
     
@@ -511,14 +1063,14 @@ buffer_remeasure_character_starts(Buffer_Type *buffer, i32 line_start, i32 line_
     }
 }
 
-internal_4tech void
-buffer_remeasure_wrap_y(Buffer_Type *buffer, i32 line_start, i32 line_end, i32 line_shift,
+internal void
+buffer_remeasure_wrap_y(Gap_Buffer *buffer, i32 line_start, i32 line_end, i32 line_shift,
                         f32 *wraps, f32 font_height, f32 *adv, f32 max_width){
     i32 new_line_count = buffer->line_count;
     
-    assert_4tech(0 <= line_start);
-    assert_4tech(line_start <= line_end);
-    assert_4tech(line_end < new_line_count - line_shift);
+    assert(0 <= line_start);
+    assert(line_start <= line_end);
+    assert(line_end < new_line_count - line_shift);
     
     ++line_end;
     
@@ -529,12 +1081,11 @@ buffer_remeasure_wrap_y(Buffer_Type *buffer, i32 line_start, i32 line_end, i32 l
         line_count -= line_shift;
         new_line_end += line_shift;
         
-        memmove_4tech(wraps + line_end + line_shift, wraps + line_end,
-                      sizeof(i32)*(line_count - line_end + 1));
+        memmove(wraps + line_end + line_shift, wraps + line_end, sizeof(i32)*(line_count - line_end + 1));
     }
     
     // Iteration data (yikes! Need better loop system)
-    Buffer_Stream_Type stream = {0};
+    Gap_Buffer_Stream stream = {0};
     i32 size = buffer_size(buffer);
     i32 char_i = buffer->line_starts[line_start];
     i32 line_i = line_start;
@@ -594,7 +1145,7 @@ buffer_remeasure_wrap_y(Buffer_Type *buffer, i32 line_start, i32 line_end, i32 l
     }
 }
 
-internal_4tech i32
+internal i32
 binary_search(i32 *array, i32 value, i32 l_bound, i32 u_bound){
     i32 start = l_bound, end = u_bound;
     i32 i = 0;
@@ -614,7 +1165,7 @@ binary_search(i32 *array, i32 value, i32 l_bound, i32 u_bound){
         else{
             break;
         }
-        assert_4tech(start < end);
+        assert(start < end);
         if (start == end - 1){
             i = start;
             break;
@@ -624,39 +1175,39 @@ binary_search(i32 *array, i32 value, i32 l_bound, i32 u_bound){
     return(i);
 }
 
-inline_4tech i32
-buffer_get_line_index_range(Buffer_Type *buffer, i32 pos, i32 l_bound, i32 u_bound){
-    assert_4tech(0 <= l_bound);
-    assert_4tech(l_bound <= u_bound);
-    assert_4tech(u_bound <= buffer->line_count);
+inline i32
+buffer_get_line_index_range(Gap_Buffer *buffer, i32 pos, i32 l_bound, i32 u_bound){
+    assert(0 <= l_bound);
+    assert(l_bound <= u_bound);
+    assert(u_bound <= buffer->line_count);
     
-    assert_4tech(buffer->line_starts != 0);
+    assert(buffer->line_starts != 0);
     
     i32 i = binary_search(buffer->line_starts, pos, l_bound, u_bound);
     return(i);
 }
 
-inline_4tech i32
-buffer_get_line_index(Buffer_Type *buffer, i32 pos){
+inline i32
+buffer_get_line_index(Gap_Buffer *buffer, i32 pos){
     i32 result = buffer_get_line_index_range(buffer, pos, 0, buffer->line_count);
     return(result);
 }
 
-inline_4tech i32
+inline i32
 buffer_get_line_index_from_character_pos(i32 *character_starts, i32 pos, i32 l_bound, i32 u_bound){
     i32 i = binary_search(character_starts, pos, l_bound, u_bound);
     return(i);
 }
 
-inline_4tech i32
+inline i32
 buffer_get_line_index_from_wrapped_y(i32 *wrap_line_index, f32 y, f32 line_height, i32 l_bound, i32 u_bound){
     i32 wrap_index = FLOOR32(y/line_height);
     i32 i = binary_search(wrap_line_index, wrap_index, l_bound, u_bound);
     return(i);
 }
 
-internal_4tech Partial_Cursor
-buffer_partial_from_pos(Buffer_Type *buffer, i32 pos){
+internal Partial_Cursor
+buffer_partial_from_pos(Gap_Buffer *buffer, i32 pos){
     Partial_Cursor result = {0};
     
     int32_t size = buffer_size(buffer);
@@ -675,8 +1226,8 @@ buffer_partial_from_pos(Buffer_Type *buffer, i32 pos){
     return(result);
 }
 
-internal_4tech Partial_Cursor
-buffer_partial_from_line_character(Buffer_Type *buffer, i32 line, i32 character){
+internal Partial_Cursor
+buffer_partial_from_line_character(Gap_Buffer *buffer, i32 line, i32 character){
     Partial_Cursor result = {0};
     
     i32 line_index = line - 1;
@@ -710,7 +1261,7 @@ buffer_partial_from_line_character(Buffer_Type *buffer, i32 line, i32 character)
 }
 
 struct Buffer_Cursor_Seek_Params{
-    Buffer_Type *buffer;
+    Gap_Buffer *buffer;
     Buffer_Seek seek;
     f32 font_height;
     f32 *adv;
@@ -726,7 +1277,7 @@ struct Buffer_Cursor_Seek_State{
     Full_Cursor this_cursor;
     Full_Cursor prev_cursor;
     
-    Buffer_Stream_Type stream;
+    Gap_Buffer_Stream stream;
     b32 still_looping;
     i32 i;
     i32 size;
@@ -745,7 +1296,7 @@ struct Buffer_Cursor_Seek_State{
 #define DrYield(PC, n) { *S_ptr = S; S_ptr->__pc__ = PC; return(n); resumespot_##PC:; }
 #define DrReturn(n) { *S_ptr = S; S_ptr->__pc__ = -1; return(n); }
 
-internal_4tech Buffer_Layout_Stop
+internal Buffer_Layout_Stop
 buffer_cursor_seek(Buffer_Cursor_Seek_State *S_ptr, Buffer_Cursor_Seek_Params params, f32 line_shift, b32 do_wrap, i32 wrap_unit_end){
     Buffer_Cursor_Seek_State S = *S_ptr;
     Buffer_Layout_Stop S_stop;
@@ -1074,13 +1625,13 @@ buffer_cursor_seek(Buffer_Cursor_Seek_State *S_ptr, Buffer_Cursor_Seek_Params pa
 #undef DrYield
 #undef DrReturn
 
-internal_4tech void
-buffer_invert_edit_shift(Buffer_Type *buffer, Buffer_Edit edit, Buffer_Edit *inverse, char *strings,
+internal void
+buffer_invert_edit_shift(Gap_Buffer *buffer, Buffer_Edit edit, Buffer_Edit *inverse, char *strings,
                          i32 *str_pos, i32 max, i32 shift_amount){
     i32 pos = *str_pos;
     i32 len = edit.end - edit.start;
-    assert_4tech(pos >= 0);
-    assert_4tech(pos + len <= max);
+    assert(pos >= 0);
+    assert(pos + len <= max);
     *str_pos = pos + len;
     
     inverse->str_start = pos;
@@ -1090,8 +1641,8 @@ buffer_invert_edit_shift(Buffer_Type *buffer, Buffer_Edit edit, Buffer_Edit *inv
     buffer_stringify(buffer, edit.start, edit.end, strings + pos);
 }
 
-inline_4tech void
-buffer_invert_edit(Buffer_Type *buffer, Buffer_Edit edit, Buffer_Edit *inverse, char *strings,
+inline void
+buffer_invert_edit(Gap_Buffer *buffer, Buffer_Edit edit, Buffer_Edit *inverse, char *strings,
                    i32 *str_pos, i32 max){
     buffer_invert_edit_shift(buffer, edit, inverse, strings, str_pos, max, 0);
 }
@@ -1102,8 +1653,8 @@ typedef struct Buffer_Invert_Batch{
     i32 len;
 } Buffer_Invert_Batch;
 
-internal_4tech i32
-buffer_invert_batch(Buffer_Invert_Batch *state, Buffer_Type *buffer, Buffer_Edit *edits, i32 count,
+internal i32
+buffer_invert_batch(Buffer_Invert_Batch *state, Gap_Buffer *buffer, Buffer_Edit *edits, i32 count,
                     Buffer_Edit *inverse, char *strings, i32 *str_pos, i32 max){
     i32 shift_amount = state->shift_amount;
     i32 i = state->i;
@@ -1130,7 +1681,7 @@ buffer_invert_batch(Buffer_Invert_Batch *state, Buffer_Type *buffer, Buffer_Edit
 
 enum Buffer_Render_Flag{
     BRFlag_Special_Character = (1 << 0),
-        BRFlag_Ghost_Character = (1 << 1)
+    BRFlag_Ghost_Character = (1 << 1)
 };
 
 typedef struct Buffer_Render_Item{
@@ -1150,7 +1701,7 @@ typedef struct Render_Item_Write{
     f32 x_max;
 } Render_Item_Write;
 
-inline_4tech Render_Item_Write
+inline Render_Item_Write
 write_render_item(Render_Item_Write write, i32 index, u16 glyphid, u16 flags){
     f32 ch_width = write.adv[(u8)glyphid];
     
@@ -1173,7 +1724,7 @@ write_render_item(Render_Item_Write write, i32 index, u16 glyphid, u16 flags){
 
 // TODO(allen): Reduce the number of parameters.
 struct Buffer_Render_Params{
-    Buffer_Type *buffer;
+    Gap_Buffer *buffer;
     Buffer_Render_Item *items;
     i32 max;
     i32 *count;
@@ -1193,7 +1744,7 @@ struct Buffer_Render_Params{
 };
 
 struct Buffer_Render_State{
-    Buffer_Stream_Type stream;
+    Gap_Buffer_Stream stream;
     b32 still_looping;
     i32 i;
     
@@ -1216,7 +1767,7 @@ struct Buffer_Render_State{
 #define DrYield(PC, n) { *S_ptr = S; S_ptr->__pc__ = PC; return(n); resumespot_##PC:; }
 #define DrReturn(n) { *S_ptr = S; S_ptr->__pc__ = -1; return(n); }
 
-internal_4tech Buffer_Layout_Stop
+internal Buffer_Layout_Stop
 buffer_render_data(Buffer_Render_State *S_ptr, Buffer_Render_Params params, f32 line_shift, b32 do_wrap, i32 wrap_unit_end){
     Buffer_Render_State S = *S_ptr;
     Buffer_Layout_Stop S_stop;
@@ -1295,7 +1846,7 @@ buffer_render_data(Buffer_Render_State *S_ptr, Buffer_Render_Params params, f32 
                             switch (params.wrap_slashes){
                                 case WrapIndicator_Show_After_Line:
                                 {
-                            S.write = write_render_item(S.write, S.i-1, '\\', BRFlag_Ghost_Character);
+                                    S.write = write_render_item(S.write, S.i-1, '\\', BRFlag_Ghost_Character);
                                 }break;
                                 
                                 case WrapIndicator_Show_At_Wrap_Edge:
@@ -1410,7 +1961,7 @@ buffer_render_data(Buffer_Render_State *S_ptr, Buffer_Render_Params params, f32 
     }
     
     *params.count = (i32)(S.write.item - params.items);
-    assert_4tech(*params.count <= params.max);
+    assert(*params.count <= params.max);
     
     S_stop.status = BLStatus_Finished;
     DrReturn(S_stop);

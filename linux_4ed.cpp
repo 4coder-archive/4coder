@@ -4,14 +4,16 @@
  *
  * 14.11.2015
  *
- * Linux layer for project codename "4ed"
+ * Linux layer for 4coder
  *
  */
 
 // TOP
 
-# include <assert.h>
-# include "4ed_defines.h"
+#include <assert.h>
+#include <string.h>
+#include "common/4coder_defines.h"
+#include "common/4coder_version.h"
 
 #if FRED_SUPER
 
@@ -19,7 +21,6 @@
 # define FSTRING_C
 # include "4coder_string.h"
 
-#include "4coder_version.h"
 # include "4coder_keycodes.h"
 # include "4coder_style.h"
 # include "4coder_rect.h"
@@ -48,7 +49,6 @@ typedef void Custom_Command_Function;
 struct Application_Links;
 # include "4ed_os_custom_api.h"
 
-//# include "4coder_custom.h"
 #else
 # include "4coder_default_bindings.cpp"
 

@@ -1,10 +1,9 @@
 extensions=".c.cpp.h.hpp.bat.sh";
 
-// NOTE(allen): There is some kind of bug where hitting f12 causes a crash.  It looks like there is a special meaning placed on some fkeys by windows, which I have not found how to disable yet.
 fkey_command_win[1]  = {"build.bat", "*compilation*", true};
 fkey_command_win[2]  = {"..\\misc\\run.bat", "*run*"};
 fkey_command_win[3]  = {"site\\build.bat", "*compilation*", true};
-fkey_command_win[4]  = {"file\\run_tests.bat", "*tests*"};
+fkey_command_win[4]  = {"file\\run_tests.bat", "*tests*", true};
 fkey_command_win[5]  = {0, 0};
 fkey_command_win[6]  = {0, 0};
 fkey_command_win[7]  = {0, 0};

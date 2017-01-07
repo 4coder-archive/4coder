@@ -9,7 +9,10 @@
 
 // TOP
 
-#include "4coder_file.cpp"
+#include "../common/4ed_defines.h"
+
+#include "4coder_buffer.cpp"
+#include "4coder_undo.cpp"
 
 int main(){
     return(0);

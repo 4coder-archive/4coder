@@ -7,10 +7,10 @@
  *
  */
 
-#ifndef FRED_DEFINES_H
-#define FRED_DEFINES_H
+// TOP
 
-#include <string.h>
+#if !defined(FRED_DEFINES_H)
+#define FRED_DEFINES_H
 
 #if !defined (FRED_TYPES)
 #include <stdint.h>
@@ -58,13 +58,14 @@ typedef double f64;
 #define TentativeAssert(c) Assert(c)
 #define NotImplemented Assert(!"This is not implemented yet!")
 #define InvalidCodePath Assert(!"Invalid code path!")
+#define InvalidPath InvalidCodePath
 
 #define AllowLocal(name) (void)name
 #ifndef ArrayCount
 #  define ArrayCount(array) (sizeof(array)/sizeof(array[0]))
 #endif
+
 #define OffsetOfStruct(S,c) ((i64)(& ((S*)0)->c ))
-#define OffsetOfPtr(s,c) ((i64)((char*)(&(s)->c) - (char*)(s)))
 
 #define Swap(T,a,b) do{ T t = a; a = b; b = t; } while(0)
 
@@ -96,17 +97,6 @@ TMin(i16, -32767-1);
 TMin(i32, -2147483647-1);
 TMin(i64, -9223372036854775807-1);
 #undef TMin
-
-internal i32
-LargeRoundUp(i32 x, i32 granularity){
-    i32 original_x = x;
-    x /= granularity;
-    x *= granularity;
-    if (x < original_x){
-        x += granularity;
-    }
-    return x;
-}
 
 #define Bit_0 (1 << 0)
 #define Bit_1 (1 << 1)
@@ -150,4 +140,57 @@ LargeRoundUp(i32 x, i32 granularity){
 #define Gbytes(n) (((u64)n) << 30)
 #define Tbytes(n) (((u64)n) << 40)
 
+//
+// Rounding
+//
+
+internal u32
+l_round_up_u32(u32 x, u32 granularity){
+    u32 new_x = x + granularity - 1;
+    new_x = new_x - (new_x % granularity);
+    return(new_x);
+}
+
+internal i32
+l_round_up_i32(i32 x, i32 granularity){
+    i32 new_x = (i32)l_round_up_u32((u32)x, (u32)granularity);
+    return(new_x);
+}
+
+inline i32
+TRUNC32(real32 x) { return (i32)x; }
+
+inline i32
+FLOOR32(real32 x) { return (i32)(x)-((x!=(i32)(x) && x<0)?1:0); }
+
+inline i32
+CEIL32(real32 x) { return (i32)(x)+((x!=(i32)(x) && x>0)?1:0); }
+
+inline i32
+ROUND32(real32 x) { return FLOOR32(x + .5f); }
+
+inline i32
+DIVCEIL32(i32 n, i32 d) {
+    i32 q = (n/d);
+    return q + (q*d < n);
+}
+
+inline real32
+FRACPART32(real32 x) { return x - (i32)x; }
+
+inline u32
+ROUNDPOT32(u32 v){
+    v--;
+    v |= v >> 1;
+    v |= v >> 2;
+    v |= v >> 4;
+    v |= v >> 8;
+    v |= v >> 16;
+    v++;
+    return v;
+}
+
 #endif
+
+// BOTTOM
+

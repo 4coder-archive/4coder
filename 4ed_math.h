@@ -54,43 +54,6 @@ COS(f32 x_degrees){
 #endif
 
 /*
- * Rounding
- */
-
-inline i32
-TRUNC32(real32 x) { return (i32)x; }
-
-inline i32
-FLOOR32(real32 x) { return (i32)(x)-((x!=(i32)(x) && x<0)?1:0); }
-
-inline i32
-CEIL32(real32 x) { return (i32)(x)+((x!=(i32)(x) && x>0)?1:0); }
-
-inline i32
-ROUND32(real32 x) { return FLOOR32(x + .5f); }
-
-inline i32
-DIVCEIL32(i32 n, i32 d) {
-    i32 q = (n/d);
-    return q + (q*d < n);
-}
-
-inline real32
-FRACPART32(real32 x) { return x - (i32)x; }
-
-inline u32
-ROUNDPOT32(u32 v){
-    v--;
-    v |= v >> 1;
-    v |= v >> 2;
-    v |= v >> 4;
-    v |= v >> 8;
-    v |= v >> 16;
-    v++;
-    return v;
-}
-
-/*
  * Vectors
  */
 
@@ -413,10 +376,10 @@ perp(Vec2 v){
 
 inline Vec2
 polar_to_cartesian(real32 theta_degrees, real32 length){
-	Vec2 result;
-	result.x = COS(theta_degrees)*length;
-	result.y = SIN(theta_degrees)*length;
-	return result;
+    Vec2 result;
+    result.x = COS(theta_degrees)*length;
+    result.y = SIN(theta_degrees)*length;
+    return result;
 }
 
 inline Vec2
@@ -463,8 +426,8 @@ inline f32
 unlerp(f32 a, f32 x, f32 b){
     f32 r = x;
     if (b > a){
-		r = (x - a) / (b - a);
-	}
+        r = (x - a) / (b - a);
+    }
     return(r);
 }
 
@@ -517,7 +480,7 @@ color_blend(u32 a, real32 t, u32 b){
         u8 byte[4];
         u32 comp;
     } A, B, R;
-     
+    
     A.comp = a;
     B.comp = b;
     
@@ -589,23 +552,23 @@ rgba_to_hsla(Vec4 rgba){
     }
     else{
         switch (maxc){
-        case 0:
-        {
-            hsla.x = (rgba.g - rgba.b) / delta;
-            hsla.x += (rgba.g < rgba.b) * 6.f;
-        }break;
-        
-        case 1:
-        {
-            hsla.x = (rgba.b - rgba.r) / delta;
-            hsla.x += 2.f;
-        }break;
-        
-        case 2:
-        {
-            hsla.x = (rgba.r - rgba.g) / delta;
-            hsla.x += 4.f;
-        }break;
+            case 0:
+            {
+                hsla.x = (rgba.g - rgba.b) / delta;
+                hsla.x += (rgba.g < rgba.b) * 6.f;
+            }break;
+            
+            case 1:
+            {
+                hsla.x = (rgba.b - rgba.r) / delta;
+                hsla.x += 2.f;
+            }break;
+            
+            case 2:
+            {
+                hsla.x = (rgba.r - rgba.g) / delta;
+                hsla.x += 4.f;
+            }break;
         }
         hsla.x *= (1/6.f); // * 60 / 360
         hsla.y = delta / (1.f - ABS(2.f*hsla.z - 1.f));
@@ -626,27 +589,27 @@ hsla_to_rgba(Vec4 hsla){
     m = hsla.z - C*.5f;
     H = FLOOR32(hsla.x * 6.f);
     switch (H){
-    case 0:
+        case 0:
         rgba.r = C; rgba.g = X; rgba.b = 0;
         break;
         
-    case 1:
+        case 1:
         rgba.r = X; rgba.g = C; rgba.b = 0;
         break;
         
-    case 2:
+        case 2:
         rgba.r = 0; rgba.g = C; rgba.b = X;
         break;
         
-    case 3:
+        case 3:
         rgba.r = 0; rgba.g = X; rgba.b = C;
         break;
         
-    case 4:
+        case 4:
         rgba.r = X; rgba.g = 0; rgba.b = C;
         break;
         
-    case 5:
+        case 5:
         rgba.r = C; rgba.g = 0; rgba.b = X;
         break;
     }

@@ -430,7 +430,6 @@ shut_down_track_system(File_Track_System *system){
     File_Track_Result result = FileTrack_Good;
     Win32_File_Track_Vars *vars = to_vars(system);
     
-    
     DWORD win32_result = 0;
     
     // NOTE(allen): Close all the handles stored in the table.

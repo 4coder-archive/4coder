@@ -7,7 +7,7 @@
 #include <string.h>
 
 
-#include "4coder_version.h"
+#include "common/4coder_version.h"
 #include "4coder_keycodes.h"
 #include "4coder_style.h"
 #include "4coder_rect.h"

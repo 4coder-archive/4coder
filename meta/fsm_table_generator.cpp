@@ -14,8 +14,8 @@
 #define Assert(n) do{ if (!(n)) { *(int*)0 = 0xA11E; } }while(0)
 #define ArrayCount(a) (sizeof(a)/sizeof(*a))
 
-#include "4cpp_lexer_types.h"
-#include "4ed_mem_ansi.c"
+#include "../4cpp_lexer_types.h"
+#include "../4ed_mem_ansi.c"
 
 typedef struct Whitespace_FSM{
     unsigned char pp_state;
