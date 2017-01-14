@@ -174,8 +174,7 @@ font_set_use(Partition *partition, Font_Set *set, i16 font_id){
 }
 
 internal b32
-font_set_add(Partition *partition, Font_Set *set,
-             String filename, String name, i32 pt_size){
+font_set_add(Partition *partition, Font_Set *set, String filename, String name, i32 pt_size){
     b32 result = 0;
     if (font_set_can_add(set)){
         Render_Font dummy_font = {0};
@@ -184,10 +183,7 @@ font_set_add(Partition *partition, Font_Set *set,
         info->filename = filename;
         info->name = name;
         info->pt_size = pt_size;
-        set->font_load(&dummy_font,
-                       info->filename.str,
-                       info->name.str,
-                       info->pt_size, 4, false);
+        set->font_load(&dummy_font, info->filename.str, info->name.str, info->pt_size, 4, false);
         info->height = dummy_font.height;
         info->advance = dummy_font.advance;
         

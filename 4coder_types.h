@@ -252,7 +252,7 @@ ENUM(uint32_t, Access_Flag){
     only return objects that have no protection flags set.) */
     AccessOpen      = 0x0,
     /* DOC(AccessProtected is set on buffers and views that are "read only" such as
-    the output from an app->exec_system_command call such as *build*. This is to prevent
+    the output from an app->exec_system_command call into *build*. This is to prevent
     the user from accidentally editing output that they might prefer to keep in tact.) */
     AccessProtected = 0x1,
     /* DOC(AccessHidden is set on any view that is not currently showing it's file, for
@@ -484,8 +484,7 @@ STRUCT GUI_Scroll_Vars{
     int32_t prev_target_x;
 };
 
-/* DOC(The Buffer_Seek_Type is is used in a Buffer_Seek to identify which
-coordinates are suppose to be used for the seek.)
+/* DOC(The Buffer_Seek_Type is is used in a Buffer_Seek to identify which coordinates are suppose to be used for the seek.)
 DOC_SEE(Buffer_Seek)
 DOC_SEE(4coder_Buffer_Positioning_System)
 */
@@ -542,11 +541,9 @@ STRUCT Full_Cursor{
     int32_t character_pos;
     /* DOC(This field contains the number of the line where the cursor is located. This field is one based.) */
     int32_t line;
-    /* DOC(This field contains the number of the character from the beginninf of the line
-    where the cursor is located. This field is one based.) */
+    /* DOC(This field contains the number of the character from the beginninf of the line where the cursor is located. This field is one based.) */
     int32_t character;
-    /* DOC(This field contains the number of the line where the cursor is located, taking the line wrapping
-    into account.  This field is one based.) */
+    /* DOC(This field contains the number of the line where the cursor is located, taking the line wrapping into account.  This field is one based.) */
     int32_t wrap_line;
     /* DOC(This field contains the x position measured with unwrapped lines.) */
     float unwrapped_x;
@@ -558,10 +555,7 @@ STRUCT Full_Cursor{
     float wrapped_y;
 };
 
-/* DOC(Partial_Cursor describes the position of a cursor in all of
-the coordinate systems that a invariant to the View.  In other words
-the coordinate systems available here can be used on a buffer that is
-not currently associated with a View.)
+/* DOC(Partial_Cursor describes the position of a cursor in all of the coordinate systems that a invariant to the View.  In other words the coordinate systems available here can be used on a buffer that is not currently associated with a View.)
 DOC_SEE(4coder_Buffer_Positioning_System) */
 STRUCT Partial_Cursor{
     /* DOC(This field contains the cursor's position in absolute byte index positioning.) */
@@ -573,9 +567,7 @@ STRUCT Partial_Cursor{
     int32_t character;
 };
 
-/* DOC(Buffer_Edit describes a range of a buffer and string to replace that range.
-A Buffer_Edit has to be paired with a string that contains the actual text that
-will be replaced into the buffer.) */
+/* DOC(Buffer_Edit describes a range of a buffer and string to replace that range. A Buffer_Edit has to be paired with a string that contains the actual text that will be replaced into the buffer.) */
 STRUCT Buffer_Edit{
     /* DOC(The str_start field specifies the first character in the accompanying string that corresponds with this edit.) */
     int32_t str_start;
@@ -637,15 +629,9 @@ STRUCT Buffer_Summary{
 DOC_SEE(Access_Flag)
 DOC_SEE(Full_Cursor) */
 STRUCT View_Summary{
-    /* DOC(
-    This field indicates whether the View_Summary describes a view that is open in 4coder.
-    When this field is false the summary is referred to as a "null summary".
-    ) */
+    /* DOC( This field indicates whether the View_Summary describes a view that is open in 4coder. When this field is false the summary is referred to as a "null summary". ) */
     bool32 exists;
-    /* DOC(
-    If this is not a null summary, this field is the id of the associated view.
-    If this is a null summary then view_id is 0.
-    ) */
+    /* DOC(If this is not a null summary, this field is the id of the associated view. If this is a null summary then view_id is 0. ) */
     int32_t view_id;
     /* DOC(If this is not a null summary, then this is the id of the buffer this view currently sees.) */
     int32_t buffer_id;
@@ -660,20 +646,14 @@ STRUCT View_Summary{
     float preferred_x;
     /* DOC(If this is not a null summary, this specifies the height of a line rendered in the view.) */
     float line_height;
-    /*
-    DOC(If this is not a null summary, this indicates that the view is set to render with unwrapped lines.)
-    */
+    /* DOC(If this is not a null summary, this indicates that the view is set to render with unwrapped lines.) */
     bool32 unwrapped_lines;
     /* DOC(If this is not a null summary, this indicates that the view is set to highlight white space.) */
     bool32 show_whitespace;
     
-    /*
-    DOC(If this is not a null summary, this describes the screen position in which this view's is displayed.)
-    */
+    /* DOC(If this is not a null summary, this describes the screen position in which this view's is displayed.) */
     i32_Rect view_region;
-    /*
-    DOC(If this is not a null summary, this describes the screen position in which this view's buffer is displayed.  This is different from view_region, because it does not include any fixed height GUI at the top of the view.)
-    */
+    /* DOC(If this is not a null summary, this describes the screen position in which this view's buffer is displayed.  This is different from view_region, because it does not include any fixed height GUI at the top of the view.) */
     i32_Rect file_region;
     /* DOC(If this is not a null summary, this describes the scrolling position inside the view.) */
     GUI_Scroll_Vars scroll_vars;

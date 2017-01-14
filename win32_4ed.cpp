@@ -69,7 +69,7 @@ struct Application_Links;
 #define GL_TEXTURE_MAX_LEVEL 0x813D
 
 #include "filetrack/4tech_file_track_win32.c"
-#include "system_shared.h"
+#include "4ed_system_shared.h"
 
 #define SUPPORT_DPI 1
 #define USE_FT_FONTS 1
@@ -111,7 +111,7 @@ struct Control_Keys{
     b8 l_alt;
     b8 r_alt;
 };
-static Control_Keys null_control_keys;
+static Control_Keys null_control_keys = {0};
 
 struct Win32_Input_Chunk_Transient{
     Key_Input_Data key_data;
@@ -1221,7 +1221,7 @@ Sys_CLI_End_Update_Sig(system_cli_end_update){
     return(close_me);
 }
 
-#include "system_shared.cpp"
+#include "4ed_system_shared.cpp"
 
 #if USE_FT_FONTS
 # include "win32_ft_font.cpp"
@@ -1486,10 +1486,8 @@ Win32Callback(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
                 case VK_MENU:case VK_LMENU:case VK_RMENU:
                 case VK_SHIFT:case VK_LSHIFT:case VK_RSHIFT:
                 {
-                    Control_Keys *controls = 0;
-                    b8 *control_keys = 0;
-                    controls = &win32vars.input_chunk.pers.controls;
-                    control_keys = win32vars.input_chunk.pers.control_keys;
+                    Control_Keys *controls = &win32vars.input_chunk.pers.controls;
+                    b8 *control_keys = win32vars.input_chunk.pers.control_keys;
                     
                     b8 down = ((lParam & Bit_31)?(0):(1));
                     b8 is_right = ((lParam & Bit_24)?(1):(0));
@@ -1722,7 +1720,7 @@ Win32Callback(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
             win32vars.input_chunk.pers.mouse_l = 0;
             win32vars.input_chunk.pers.mouse_r = 0;
             
-            for (int32_t i = 0; i < MDFR_INDEX_COUNT; ++i){
+            for (i32 i = 0; i < MDFR_INDEX_COUNT; ++i){
                 win32vars.input_chunk.pers.control_keys[i] = 0;
             }
             win32vars.input_chunk.pers.controls = null_control_keys;
@@ -2091,7 +2089,7 @@ WinMain(HINSTANCE hInstance,
         PFD_MAIN_PLANE,
         0,
         0, 0, 0 };
-    
+    // TODO(allen): get an upgraded context to see if that fixes the nvidia card issues.
     {
         i32 pixel_format;
         pixel_format = ChoosePixelFormat(hdc, &pfd);

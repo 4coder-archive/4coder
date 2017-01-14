@@ -160,15 +160,9 @@ API_EXPORT FCPP_LINK Cpp_Get_Token_Result
 cpp_get_token(Cpp_Token_Array array, int32_t pos)/*
 DOC_PARAM(array, The array of tokens from which to get a token.)
 DOC_PARAM(pos, The position, measured in bytes, to get the token for.)
-DOC_RETURN(A Cpp_Get_Token_Result struct is returned containing the index
-of a token and a flag indicating whether the pos is contained in the token
-or in whitespace after the token.)
+DOC_RETURN(A Cpp_Get_Token_Result struct is returned containing the index of a token and a flag indicating whether the pos is contained in the token or in whitespace after the token.)
 
-DOC(This call performs a binary search over all of the tokens looking
-for the token that contains the specified position. If the position
-is in whitespace between the tokens, the returned token index is the
-index of the token immediately before the provided position.  The returned
-index can be -1 if the position is before the first token.)
+DOC(This call finds the token that contains a particular position, or if the position is in between tokens it finds the index of the token to the left of the position.  The returned index can be -1 if the position is before the first token.)
 
 DOC_SEE(Cpp_Get_Token_Result)
 */{
@@ -966,37 +960,17 @@ DOC_PARAM(chunk, The first or next chunk of the file being lexed.)
 DOC_PARAM(size, The number of bytes in the chunk including the null terminator if the chunk ends in a null terminator. If the chunk ends in a null terminator the system will interpret it as the end of the file.)
 DOC_PARAM(full_size, If the final chunk is not null terminated this parameter should specify the length of the file in bytes.  To rely on an eventual null terminator use HAS_NULL_TERM for this parameter.)
 DOC_PARAM(token_array_out, The token array structure that will receive the tokens output by the lexer.)
-DOC_PARAM(max_tokens_out, The maximum number of tokens to be output to the token array.  To rely on the
-max built into the token array pass NO_OUT_LIMIT here.)
+DOC_PARAM(max_tokens_out, The maximum number of tokens to be output to the token array.  To rely on the max built into the token array pass NO_OUT_LIMIT here.)
+
 DOC(This call is the primary interface of the lexing system.  It is quite general so it can be used in a lot of different ways.  I will explain the general rules first, and then give some examples of common ways it might be used.
 
-First a lexing state, Cpp_Lex_Data, must be initialized. The file to lex must be read into N contiguous chunks
-of memory.  An output Cpp_Token_Array must be allocated and initialized with the appropriate count and max_count
-values. Then each chunk of the file must be passed to cpp_lex_step in order using the same lexing state for each call.
-Every time a call to cpp_lex_step returns LexResult_NeedChunk, the next call to cpp_lex_step should use the
-next chunk.  If the return is some other value, the lexer hasn't finished with the current chunk and it sopped for some
-other reason, so the same chunk should be used again in the next call.
+First a lexing state, Cpp_Lex_Data, must be initialized. The file to lex must be read into N contiguous chunks of memory.  An output Cpp_Token_Array must be allocated and initialized with the appropriate count and max_count values. Then each chunk of the file must be passed to cpp_lex_step in order using the same lexing state for each call.  Every time a call to cpp_lex_step returns LexResult_NeedChunk, the next call to cpp_lex_step should use the next chunk.  If the return is some other value, the lexer hasn't finished with the current chunk and it sopped for some other reason, so the same chunk should be used again in the next call.
 
-If the file chunks contain a null terminator the lexer will return LexResult_Finished when it finds this character. 
-At this point calling the lexer again with the same state will result in an error.  If you do not have a null
-terminated chunk to end the file, you may instead pass the exact size in bytes of the entire file to the full_size
-parameter and it will automatically handle the termination of the lexing state when it has read that many bytes.
-If a full_size is specified and the system terminates for having seen that many bytes, it will return
-LexResult_Finished. If a full_size is specified and a null character is read before the total number of bytes have
-been read the system will still terminate as usual and return LexResult_Finished.
+If the file chunks contain a null terminator the lexer will return LexResult_Finished when it finds this character. At this point calling the lexer again with the same state will result in an error.  If you do not have a null terminated chunk to end the file, you may instead pass the exact size in bytes of the entire file to the full_size parameter and it will automatically handle the termination of the lexing state when it has read that many bytes. If a full_size is specified and the system terminates for having seen that many bytes, it will return LexResult_Finished. If a full_size is specified and a null character is read before the total number of bytes have been read the system will still terminate as usual and return LexResult_Finished.
 
-If the system has filled the entire output array it will return LexResult_NeedTokenMemory.  When this happens if you
-want to continue lexing the file you can grow the token array, or switch to a new output array and then call
-cpp_lex_step again with the chunk that was being lexed and the new output.  You can also specify a max_tokens_out
-which is limits how many new tokens will be added to the token array.  Even if token_array_out still had more space
-to hold tokens, if the max_tokens_out limit is hit, the lexer will stop and return LexResult_HitTokenLimit.  If this
-happens there is still space left in the token array, so you can resume simply by calling cpp_lex_step again with
-the same chunk and the same output array.  Also note that, unlike the chunks which must only be replaced when the
-system says it needs a chunk.  You may switch to or modify the output array in between calls as much as you like.
+If the system has filled the entire output array it will return LexResult_NeedTokenMemory.  When this happens if you want to continue lexing the file you can grow the token array, or switch to a new output array and then call cpp_lex_step again with the chunk that was being lexed and the new output.  You can also specify a max_tokens_out which is limits how many new tokens will be added to the token array.  Even if token_array_out still had more space to hold tokens, if the max_tokens_out limit is hit, the lexer will stop and return LexResult_HitTokenLimit.  If this happens there is still space left in the token array, so you can resume simply by calling cpp_lex_step again with the same chunk and the same output array.  Also note that, unlike the chunks which must only be replaced when the system says it needs a chunk.  You may switch to or modify the output array in between calls as much as you like.
 
-The most basic use of this system is to get it all done in one big chunk and try to allocate a nearly "infinite" output
-array so that it will not run out of memory.  This way you can get the entire job done in one call and then just assert
-to make sure it returns LexResult_Finished to you:
+The most basic use of this system is to get it all done in one big chunk and try to allocate a nearly "infinite" output array so that it will not run out of memory.  This way you can get the entire job done in one call and then just assert to make sure it returns LexResult_Finished to you:
 
 CODE_EXAMPLE(
 Cpp_Token_Array lex_file(char *file_name){

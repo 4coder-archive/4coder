@@ -134,12 +134,12 @@ sysshared_load_file(char *filename){
             result.data = (char*)system_get_memory(size+1);
             
             if (!result.data){
-                result = file_data_zero();
+                result = null_file_data;
             }
             else{
                 if (!system_load_file(handle, result.data, size)){
                     system_free_memory(result.data);
-                    result = file_data_zero();
+                    result = null_file_data;
                 }
             }
         }
@@ -366,8 +366,7 @@ private_draw_rectangle_outline(Render_Target *target, f32_Rect rect, u32 color){
 }
 
 inline void
-private_draw_gradient(Render_Target *target, f32_Rect rect,
-                      Vec4 color_left, Vec4 color_right){
+private_draw_gradient(Render_Target *target, f32_Rect rect, Vec4 color_left, Vec4 color_right){
     Vec4 cl = color_left;
     Vec4 cr = color_right;
     
@@ -429,12 +428,8 @@ get_exact_render_quad(Glyph_Data *b, i32 pw, i32 ph, float xpos, float ypos){
 }
 
 inline void
-private_draw_glyph(Render_Target *target, Render_Font *font,
-                   u8 character, f32 x, f32 y, u32 color){
-    Render_Quad q = get_render_quad(
-        font->glyphs + character,
-        font->tex_width, font->tex_height, x, y
-        );
+private_draw_glyph(Render_Target *target, Render_Font *font, u8 character, f32 x, f32 y, u32 color){
+    Render_Quad q = get_render_quad(font->glyphs + character, font->tex_width, font->tex_height, x, y);
     
     draw_set_color(target, color);
     draw_bind_texture(target, font->tex);
@@ -494,59 +489,50 @@ launch_rendering(Render_Target *target){
         switch (type){
             case piece_type_rectangle:
             {
-                Render_Piece_Rectangle *rectangle =
-                    ExtractStruct(Render_Piece_Rectangle);
+                Render_Piece_Rectangle *rectangle = ExtractStruct(Render_Piece_Rectangle);
                 private_draw_rectangle(target, rectangle->rect, rectangle->color);
             }break;
             
             case piece_type_outline:
             {
-                Render_Piece_Rectangle *rectangle =
-                    ExtractStruct(Render_Piece_Rectangle);
+                Render_Piece_Rectangle *rectangle = ExtractStruct(Render_Piece_Rectangle);
                 private_draw_rectangle_outline(target, rectangle->rect, rectangle->color);
             }break;
             
             case piece_type_gradient:
             {
-                Render_Piece_Gradient *gradient =
-                    ExtractStruct(Render_Piece_Gradient);
-                private_draw_gradient(target, gradient->rect,
-                                      unpack_color4(gradient->left_color),
-                                      unpack_color4(gradient->right_color));
+                Render_Piece_Gradient *gradient = ExtractStruct(Render_Piece_Gradient);
+                private_draw_gradient(target, gradient->rect, unpack_color4(gradient->left_color), unpack_color4(gradient->right_color));
             }break;
             
             case piece_type_glyph:
             {
-                Render_Piece_Glyph *glyph =
-                    ExtractStruct(Render_Piece_Glyph);
+                Render_Piece_Glyph *glyph = ExtractStruct(Render_Piece_Glyph);
                 
                 Render_Font *font = get_font_info(&target->font_set, glyph->font_id)->font;
-                if (font)
-                    private_draw_glyph(target, font, glyph->character,
-                                       glyph->pos.x, glyph->pos.y, glyph->color);
+                if (font){
+                    private_draw_glyph(target, font, glyph->character, glyph->pos.x, glyph->pos.y, glyph->color);
+                }
             }break;
             
             case piece_type_mono_glyph:
             {
-                Render_Piece_Glyph *glyph =
-                    ExtractStruct(Render_Piece_Glyph);
+                Render_Piece_Glyph *glyph = ExtractStruct(Render_Piece_Glyph);
                 
                 Render_Font *font = get_font_info(&target->font_set, glyph->font_id)->font;
-                if (font)            
-                    private_draw_glyph_mono(target, font, glyph->character,
-                                            glyph->pos.x, glyph->pos.y, glyph->color);
+                if (font){
+                    private_draw_glyph_mono(target, font, glyph->character, glyph->pos.x, glyph->pos.y, glyph->color);
+                }
             }break;
             
             case piece_type_mono_glyph_advance:
             {
-                Render_Piece_Glyph_Advance *glyph =
-                    ExtractStruct(Render_Piece_Glyph_Advance);
+                Render_Piece_Glyph_Advance *glyph = ExtractStruct(Render_Piece_Glyph_Advance);
                 
                 Render_Font *font = get_font_info(&target->font_set, glyph->font_id)->font;
-                if (font)
-                    private_draw_glyph_mono(target, font, glyph->character,
-                                            glyph->pos.x, glyph->pos.y,
-                                            glyph->advance, glyph->color);
+                if (font){
+                    private_draw_glyph_mono(target, font, glyph->character, glyph->pos.x, glyph->pos.y, glyph->advance, glyph->color);
+                }
             }break;
             
             case piece_type_change_clip:

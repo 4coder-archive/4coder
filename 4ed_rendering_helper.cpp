@@ -33,7 +33,7 @@ begin_render_section(Render_Target *target, System_Functions *system){
     memset(font_set->font_used_flags, 0, font_set->max);
     target->size = 0;
     target->clip_top = -1;
-
+    
     i32_Rect clip;
     clip.x0 = 0;
     clip.y0 = 0;
@@ -112,12 +112,11 @@ draw_margin(Render_Target *target, i32_Rect outer, i32 width, u32 color){
 
 inline internal i32
 font_predict_size(i32 pt_size){
-	return pt_size*pt_size*128;
+    return pt_size*pt_size*128;
 }
 
 internal void
-font_draw_glyph_mono(Render_Target *target, i16 font_id,
-                     u8 character, f32 x, f32 y, f32 advance, u32 color){
+font_draw_glyph_mono(Render_Target *target, i16 font_id, u8 character, f32 x, f32 y, f32 advance, u32 color){
     Render_Piece_Combined piece;
     piece.header.type = piece_type_mono_glyph;
     piece.glyph.pos.x = x;
@@ -137,8 +136,7 @@ font_draw_glyph_mono(Render_Target *target, i16 font_id,
 }
 
 internal void
-font_draw_glyph(Render_Target *target, i16 font_id,
-                u8 character, f32 x, f32 y, u32 color){
+font_draw_glyph(Render_Target *target, i16 font_id, u8 character, f32 x, f32 y, u32 color){
     Render_Piece_Combined piece;
     piece.header.type = piece_type_glyph;
     piece.glyph.pos.x = x;

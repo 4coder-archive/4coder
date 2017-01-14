@@ -248,7 +248,7 @@ DOC_SEE(Command_Line_Interface_Flag)
             }
         }
         else if (buffer.name){
-            file = working_set_alloc_always(system, working_set, general);
+            file = working_set_alloc_always(working_set, general);
             if (file == 0){
                 append_ss(&feedback_str, make_lit_string("ERROR: unable to allocate a new buffer\n"));
                 do_feedback_message(system, models, feedback_str);
@@ -256,7 +256,7 @@ DOC_SEE(Command_Line_Interface_Flag)
                 goto done;
             }
             String name = make_string_terminated(part, buffer.name, buffer.name_len);
-            buffer_bind_name(system, general, working_set, file, name);
+            buffer_bind_name(general, working_set, file, name);
             init_read_only_file(system, models, file);
         }
         
@@ -367,7 +367,7 @@ DOC_SEE(The_4coder_Clipboard)
     General_Memory *general = &models->mem.general;
     Working_Set *working = &models->working_set;
     
-    String *dest = working_set_next_clipboard_string(system, general, working, len);
+    String *dest = working_set_next_clipboard_string(general, working, len);
     copy_ss(dest, make_string(str, len));
     system->post_clipboard(*dest);
 }
@@ -689,8 +689,7 @@ DOC_SEE(Buffer_Batch_Edit_Type)
             char *inv_str = (char*)part->base + part->pos;
             int32_t inv_str_max = part->max - part->pos;
             
-            Edit_Spec spec =
-                file_compute_edit(system, mem, file, edits, str, str_len, inverse_edits, inv_str, inv_str_max, edit_count, type);
+            Edit_Spec spec = file_compute_edit(mem, file, edits, str, str_len, inverse_edits, inv_str, inv_str_max, edit_count, type);
             
             file_do_batch_edit(system, models, file, spec, hist_normal, type);
             
@@ -714,7 +713,7 @@ DOC_RETURN(returns non-zero on success)
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     Editing_File *file = imp_get_file(cmd, buffer);
     bool32 result = 0;
-     
+    
     if (file){
         result = 1;
         switch (setting){
@@ -764,10 +763,10 @@ DOC_SEE(Buffer_Setting_ID)
                 else{
                     if (value){
                         if (!file->settings.virtual_white){
-                        file_first_lex_parallel(system, &models->mem, file);
+                            file_first_lex_parallel(system, &models->mem, file);
                         }
                         else{
-                            file_first_lex_serial(system, &models->mem, file);
+                            file_first_lex_serial(&models->mem, file);
                         }
                     }
                 }
@@ -787,7 +786,7 @@ DOC_SEE(Buffer_Setting_ID)
                 if (new_value != file->settings.display_width){
                     i16 font_id = file->settings.font_id;
                     Render_Font *font = get_font_info(models->font_set, font_id)->font;
-                    file_set_display_width_and_fix_cursor(system, models, file, new_value, (f32)font->height, font->advance_data);
+                    file_set_display_width_and_fix_cursor(models, file, new_value, (f32)font->height, font->advance_data);
                 }
             }break;
             
@@ -800,7 +799,7 @@ DOC_SEE(Buffer_Setting_ID)
                 if (new_value != file->settings.minimum_base_display_width){
                     i16 font_id = file->settings.font_id;
                     Render_Font *font = get_font_info(models->font_set, font_id)->font;
-                    file_set_minimum_base_display_width_and_fix_cursor(system, models, file, new_value, (f32)font->height, font->advance_data);
+                    file_set_minimum_base_display_width_and_fix_cursor(models, file, new_value, (f32)font->height, font->advance_data);
                 }
             }break;
             
@@ -865,11 +864,11 @@ DOC_SEE(Buffer_Setting_ID)
                 if (value){
                     if (!file->settings.virtual_white){
                         if (!file->settings.tokens_exist){
-                            file_first_lex_serial(system, &models->mem, file);
+                            file_first_lex_serial(&models->mem, file);
                         }
                         if (!file->state.still_lexing){
-                        file->settings.virtual_white = 1;
-                        full_remeasure = 1;
+                            file->settings.virtual_white = 1;
+                            full_remeasure = 1;
                         }
                         else{
                             result = 0;
@@ -887,9 +886,9 @@ DOC_SEE(Buffer_Setting_ID)
                     i16 font_id = file->settings.font_id;
                     Render_Font *font = get_font_info(models->font_set, font_id)->font;
                     
-                    file_allocate_character_starts_as_needed(system, &models->mem.general, file);
+                    file_allocate_character_starts_as_needed(&models->mem.general, file);
                     buffer_measure_character_starts(&file->state.buffer, file->state.character_starts, 0, file->settings.virtual_white);
-                    file_measure_wraps(system, models, file, (f32)font->height, font->advance_data);
+                    file_measure_wraps(models, file, (f32)font->height, font->advance_data);
                     file_update_cursor_positions(models, file);
                 }
             }break;
@@ -954,10 +953,8 @@ Buffer_Get_Token_Index(Application_Links *app, Buffer_Summary *buffer, int32_t p
 DOC_PARAM(buffer, The buffer from which to get a token.)
 DOC_PARAM(pos, The position in the buffer in absolute coordinates.)
 DOC_PARAM(get_result, The output struct specifying which token contains pos.)
-DOC_RETURN(Returns non-zero on success.  This call can fail if the buffer doesn't exist,
-or if the buffer doesn't have tokens ready.)
-DOC(This call finds the token that contains a particular position, or if the position is in between
-tokens it finds the index of the token to the left of the position.)
+DOC_RETURN(Returns non-zero on success.  This call can fail if the buffer doesn't exist, or if the buffer doesn't have tokens ready.)
+DOC(This call finds the token that contains a particular position, or if the position is in between tokens it finds the index of the token to the left of the position.  The returned index can be -1 if the position is before the first token.)
 DOC_SEE(Cpp_Get_Token_Result)
 DOC_SEE(cpp_get_token)
 */{
@@ -993,7 +990,7 @@ DOC_SEE(Buffer_Create_Flag)
 */{
     bool32 result = 0;
     if (data){
-    data->flags = flags;
+        data->flags = flags;
         result = 1;
     }
     return(result);
@@ -1014,14 +1011,14 @@ DOC_SEE(end_buffer_creation)
 */{
     bool32 result = 0;
     if (data){
-    String fname = make_fixed_width_string(data->fname_space);
-    copy_ss(&fname, make_string(filename, filename_len));
-    data->fname_len = filename_len;
+        String fname = make_fixed_width_string(data->fname_space);
+        copy_ss(&fname, make_string(filename, filename_len));
+        data->fname_len = filename_len;
         result = 1;
     }
     return(result);
 }
-  
+
 API_EXPORT Buffer_Summary
 End_Buffer_Creation(Application_Links *app, Buffer_Creation_Data *data)
 /*
@@ -1041,14 +1038,14 @@ DOC_SEE(begin_buffer_creation)
     Buffer_Summary result = {0};
     
     if (data && data->fname_len > 0){
-            String fname = make_string(data->fname_space, data->fname_len);
-            
-            Editing_File *file = 0;
-            b32 do_new_file = 0;
-            Plat_Handle handle = {0};
-            
-            Temp_Memory temp = begin_temp_memory(part);
-            
+        String fname = make_string(data->fname_space, data->fname_len);
+        
+        Editing_File *file = 0;
+        b32 do_new_file = 0;
+        Plat_Handle handle = {0};
+        
+        Temp_Memory temp = begin_temp_memory(part);
+        
         Editing_File_Canon_Name canon = {0};
         if (get_canon_name(system, &canon, fname)){
             file = working_set_canon_contains(working_set, canon.name);
@@ -1083,17 +1080,17 @@ DOC_SEE(begin_buffer_creation)
                 char *buffer = push_array(part, char, size);
                 
                 if (buffer == 0){
-                    buffer = (char*)general_memory_allocate(system, general, size);
+                    buffer = (char*)general_memory_allocate(general, size);
                     Assert(buffer != 0);
                     in_general_mem = 1;
                 }
                 
                 if (system->load_file(handle, buffer, size)){
                     system->load_close(handle);
-                    file = working_set_alloc_always(system, working_set, general);
+                    file = working_set_alloc_always(working_set, general);
                     if (file){
                         buffer_bind_file(system, general, working_set, file, canon.name);
-                        buffer_bind_name(system, general, working_set, file, fname);
+                        buffer_bind_name(general, working_set, file, fname);
                         init_normal_file(system, models, file, buffer, size);
                         fill_buffer_summary(&result, file, cmd);
                     }
@@ -1103,13 +1100,13 @@ DOC_SEE(begin_buffer_creation)
                 }
                 
                 if (in_general_mem){
-                    general_memory_free(system, general, buffer);
+                    general_memory_free(general, buffer);
                 }
             }
             else if (!(flags & BufferCreate_NeverNew)){
-                file = working_set_alloc_always(system, working_set, general);
+                file = working_set_alloc_always(working_set, general);
                 if (file){
-                    buffer_bind_name(system, general, working_set, file, fname);
+                    buffer_bind_name(general, working_set, file, fname);
                     init_normal_file(system, models, file, 0, 0);
                     fill_buffer_summary(&result, file, cmd);
                 }
@@ -1120,7 +1117,7 @@ DOC_SEE(begin_buffer_creation)
         }
         
         end_temp_memory(temp);
-}
+    }
     
     return(result);
 }
@@ -1142,15 +1139,15 @@ DOC_RETURN(This call returns non-zero on success.)
     Editing_File *file = imp_get_file(cmd, buffer);
     if (file){
         if (file_get_sync(file) != DirtyState_UpToDate){
-        result = 1;
-        
-        Partition *part = &models->mem.part;
-        Temp_Memory temp = begin_temp_memory(part);
-        String name = make_string_terminated(part, filename, filename_len);
+            result = 1;
+            
+            Partition *part = &models->mem.part;
+            Temp_Memory temp = begin_temp_memory(part);
+            String name = make_string_terminated(part, filename, filename_len);
             save_file_to_name(system, models, file, name.str);
             end_temp_memory(temp);
         }
-        }
+    }
     
     return(result);
 }
@@ -1414,7 +1411,6 @@ in the system, the call will fail.)
 
 */{
     Command_Data *cmd = (Command_Data*)app->cmd_context;
-    System_Functions *system = cmd->system;
     Models *models = cmd->models;
     View *vptr = imp_get_view(cmd, view);
     
@@ -1430,7 +1426,7 @@ in the system, the call will fail.)
             i32 which_child;
             i32 active;
             
-            live_set_free_view(system, models->live_set, vptr);
+            live_set_free_view(models->live_set, vptr);
             panel->view = 0;
             
             div = layout_get_divider(&models->layout, panel->parent);
@@ -2022,7 +2018,7 @@ DOC(This call changes 4coder's default font to one of the built in fonts.)
     
     if (font_set_extract(set, font_name, &font_id)){
         if (apply_to_all_files){
-            global_set_font(cmd->system, cmd->models, font_id);
+            global_set_font(cmd->models, font_id);
         }
         else{
             global_font->font_id = font_id;
@@ -2039,7 +2035,6 @@ DOC_PARAM(len, The len parameter specifies the length of the name string.)
 DOC(This call sets the display font of a particular buffer.)
 */{
     Command_Data *cmd = (Command_Data*)app->cmd_context;
-    System_Functions *system = cmd->system;
     Models *models = cmd->models;
     Editing_File *file = imp_get_file(cmd, buffer);
     
@@ -2049,7 +2044,7 @@ DOC(This call sets the display font of a particular buffer.)
         i16 font_id = 0;
         
         if (font_set_extract(set, font_name, &font_id)){
-            file_set_font(system, models, file, font_id);
+            file_set_font(models, file, font_id);
         }
     }
 }
@@ -2067,7 +2062,7 @@ DOC_RETURN(returns non-zero on success)
     Models *models = cmd->models;
     Editing_File *file = imp_get_file(cmd, buffer);
     
-     bool32 result = 0;
+    bool32 result = 0;
     if (file){
         Font_Set *set = models->font_set;
         String name = make_string_cap(name_out, 0, name_max);

@@ -27,11 +27,12 @@ struct Application_Memory{
 #define KEY_INPUT_BUFFER_DSIZE (KEY_INPUT_BUFFER_SIZE << 1)
 
 struct Key_Input_Data{
-	Key_Event_Data press[KEY_INPUT_BUFFER_SIZE];
-	Key_Event_Data hold[KEY_INPUT_BUFFER_SIZE];
-	i32 press_count;
+    Key_Event_Data press[KEY_INPUT_BUFFER_SIZE];
+    Key_Event_Data hold[KEY_INPUT_BUFFER_SIZE];
+    i32 press_count;
     i32 hold_count;
     
+    // TODO(allen): determine if we still need this.
     char modifiers[MDFR_INDEX_COUNT];
 };
 static Key_Input_Data null_key_input_data = {0};
@@ -74,39 +75,39 @@ typedef struct Plat_Settings{
 } Plat_Settings;
 
 #define App_Read_Command_Line_Sig(name)                 \
-    i32 name(System_Functions *system,                  \
-             Application_Memory *memory,                \
-             String current_directory,                  \
-             Plat_Settings *plat_settings,              \
-             char ***files, i32 **file_count,           \
-             Command_Line_Parameters clparams)
+i32 name(System_Functions *system,                  \
+Application_Memory *memory,                \
+String current_directory,                  \
+Plat_Settings *plat_settings,              \
+char ***files, i32 **file_count,           \
+Command_Line_Parameters clparams)
 
 typedef App_Read_Command_Line_Sig(App_Read_Command_Line);
 
 
 #define App_Init_Sig(name) void                                    \
 name(System_Functions *system,                                     \
-     Render_Target *target,                                        \
-     Application_Memory *memory,                                   \
-     String clipboard,                                             \
-     String current_directory,                                     \
-     Custom_API api)
+Render_Target *target,                                        \
+Application_Memory *memory,                                   \
+String clipboard,                                             \
+String current_directory,                                     \
+Custom_API api)
 
 typedef App_Init_Sig(App_Init);
 
 
 enum Application_Mouse_Cursor{
-	APP_MOUSE_CURSOR_DEFAULT,
-	APP_MOUSE_CURSOR_ARROW,
-	APP_MOUSE_CURSOR_IBEAM,
-	APP_MOUSE_CURSOR_LEFTRIGHT,
-	APP_MOUSE_CURSOR_UPDOWN,
-	// never below this
-	APP_MOUSE_CURSOR_COUNT
+    APP_MOUSE_CURSOR_DEFAULT,
+    APP_MOUSE_CURSOR_ARROW,
+    APP_MOUSE_CURSOR_IBEAM,
+    APP_MOUSE_CURSOR_LEFTRIGHT,
+    APP_MOUSE_CURSOR_UPDOWN,
+    // never below this
+    APP_MOUSE_CURSOR_COUNT
 };
 
 struct Application_Step_Result{
-	Application_Mouse_Cursor mouse_cursor_type;
+    Application_Mouse_Cursor mouse_cursor_type;
     b32 lctrl_lalt_is_altgr;
     b32 trying_to_kill;
     b32 perform_kill;
@@ -123,11 +124,11 @@ struct Application_Step_Input{
 
 #define App_Step_Sig(name) void      \
 name(System_Functions *system,       \
-    Render_Target *target,           \
-    Application_Memory *memory,      \
-    Application_Step_Input *input,   \
-    Application_Step_Result *result, \
-    Command_Line_Parameters params)
+Render_Target *target,           \
+Application_Memory *memory,      \
+Application_Step_Input *input,   \
+Application_Step_Result *result, \
+Command_Line_Parameters params)
 
 typedef App_Step_Sig(App_Step);
 

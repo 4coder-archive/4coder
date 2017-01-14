@@ -284,14 +284,13 @@ typedef struct Stream_Tokens{
 } Stream_Tokens;
 
 static bool32
-init_stream_tokens(Stream_Tokens *stream, Application_Links *app, Buffer_Summary *buffer,
-                   int32_t pos, Cpp_Token *data, int32_t count){
+init_stream_tokens(Stream_Tokens *stream, Application_Links *app, Buffer_Summary *buffer, int32_t pos, Cpp_Token *data, int32_t count){
     bool32 result = 0;
     
     refresh_buffer(app, buffer);
     
     int32_t token_count = buffer_token_count(app, buffer);
-    if (pos >= 0 && pos < token_count && count > 0){
+    if (buffer->tokens_are_ready && pos >= 0 && pos < token_count && count > 0){
         stream->app = app;
         stream->buffer = buffer;
         stream->base_tokens = data;
@@ -317,7 +316,10 @@ static void
 end_temp_stream_token(Stream_Tokens *stream, Stream_Tokens temp){
     if (stream->start != temp.start || stream->end != temp.end){
         Application_Links *app = stream->app;
-        buffer_read_tokens(app, stream->buffer, stream->start, stream->end, stream->base_tokens);
+        buffer_read_tokens(app, temp.buffer, temp.start, temp.end, temp.base_tokens);
+        stream->tokens = stream->base_tokens - temp.start;
+        stream->start = temp.start;
+        stream->end = temp.end;
     }
 }
 
@@ -634,6 +636,50 @@ buffer_get_line_start(Application_Links *app, Buffer_Summary *buffer, int32_t li
 }
 
 static int32_t
+buffer_get_line_end(Application_Links *app, Buffer_Summary *buffer, int32_t line){
+    Partial_Cursor partial_cursor;
+    int32_t result = buffer->size;
+    if (line <= buffer->line_count){
+        buffer_compute_cursor(app, buffer, seek_line_char(line, 65536), &partial_cursor);
+        result = partial_cursor.pos;
+    }
+    return(result);
+}
+
+static bool32
+buffer_line_is_blank(Application_Links *app, Buffer_Summary *buffer, int32_t line){
+    Partial_Cursor start, end;
+    bool32 result = 0;
+    if (line <= buffer->line_count){
+        buffer_compute_cursor(app, buffer, seek_line_char(line, 1), &start);
+        buffer_compute_cursor(app, buffer, seek_line_char(line, 65536), &end);
+        
+        static const int32_t chunk_size = 1024;
+        char chunk[chunk_size];
+        Stream_Chunk stream = {0};
+        int32_t i = start.pos;
+        stream.max_end = end.pos;
+        
+        result = true;
+        if (init_stream_chunk(&stream, app, buffer, i, chunk, chunk_size)){
+            bool32 still_looping = false;
+            do{
+                for (;i < stream.end; ++i){
+                    char c = stream.data[i];
+                    if (!(c == ' ' || c == '\t' || c == '\r' || c == '\v' || c == '\n')){
+                        result = false;
+                        goto double_break;
+                    }
+                }
+                still_looping = forward_stream_chunk(&stream);
+            }while(still_looping);
+        }
+        double_break:;
+    }
+    return(result);
+}
+
+static int32_t
 buffer_get_line_index(Application_Links *app, Buffer_Summary *buffer, int32_t pos){
     Partial_Cursor partial_cursor;
     buffer_compute_cursor(app, buffer, seek_pos(pos), &partial_cursor);
@@ -641,8 +687,7 @@ buffer_get_line_index(Application_Links *app, Buffer_Summary *buffer, int32_t po
 }
 
 static Cpp_Token*
-get_first_token_at_line(Application_Links *app, Buffer_Summary *buffer, Cpp_Token_Array tokens, int32_t line,
-                        int32_t *line_start_out = 0){
+get_first_token_at_line(Application_Links *app, Buffer_Summary *buffer, Cpp_Token_Array tokens, int32_t line, int32_t *line_start_out = 0){
     int32_t line_start = buffer_get_line_start(app, buffer, line);
     Cpp_Get_Token_Result get_token = cpp_get_token(tokens, line_start);
     
@@ -1697,8 +1742,7 @@ buffer_seek_range_camel_left(Application_Links *app, Buffer_Summary *buffer, int
     --pos;
     if (pos > 0){
         stream.min_start = an_pos+1;
-        if (init_stream_chunk(&stream, app, buffer,
-                              pos, data_chunk, sizeof(data_chunk))){
+        if (init_stream_chunk(&stream, app, buffer, pos, data_chunk, sizeof(data_chunk))){
             
             char c = 0, pc = stream.data[pos];
             
@@ -1985,8 +2029,6 @@ CUSTOM_COMMAND_SIG(open_long_braces_break){
     long_braces(app, text, size);
 }
 
-// TODO(allen): have this thing check if it is on
-// a blank line and insert newlines as needed.
 CUSTOM_COMMAND_SIG(if0_off){
     char text1[] = "\n#if 0";
     int32_t size1 = sizeof(text1) - 1;
@@ -2018,7 +2060,7 @@ CUSTOM_COMMAND_SIG(if0_off){
         edits[1].start = range.max;
         edits[1].end = range.max;
         
-        buffer_batch_edit(app,&buffer, base, global_part.pos, edits, ArrayCount(edits), BatchEdit_Normal);
+        buffer_batch_edit(app, &buffer, base, global_part.pos, edits, ArrayCount(edits), BatchEdit_Normal);
         
         view = get_view(app, view.view_id, AccessAll);
         if (view.cursor.pos > view.mark.pos){
@@ -2624,9 +2666,7 @@ generic_search_all_buffers(Application_Links *app, General_Memory *general, Part
     Search_Range *ranges = set.ranges;
     
     String search_name = make_lit_string("*search*");
-    
-    Buffer_Summary search_buffer = get_buffer_by_name(app, search_name.str, search_name.size,
-                                                      AccessAll);
+    Buffer_Summary search_buffer = get_buffer_by_name(app, search_name.str, search_name.size, AccessAll);
     if (!search_buffer.exists){
         search_buffer = create_buffer(app, search_name.str, search_name.size, BufferCreate_AlwaysNew);
         buffer_set_setting(app, &search_buffer, BufferSetting_Unimportant, true);
@@ -2694,8 +2734,7 @@ generic_search_all_buffers(Application_Links *app, General_Memory *general, Part
                 char *spare = push_array(part, char, str_len);
                 
                 if (spare == 0){
-                    buffer_replace_range(app, &search_buffer,
-                                         size, size, str, part_size);
+                    buffer_replace_range(app, &search_buffer, size, size, str, part_size);
                     size += part_size;
                     
                     end_temp_memory(temp);
@@ -2717,6 +2756,7 @@ generic_search_all_buffers(Application_Links *app, General_Memory *general, Part
                 append_s_char(&out_line, ' ');
                 append_ss(&out_line, line_str);
                 append_s_char(&out_line, '\n');
+                Assert(out_line.size == str_len);
                 
                 end_temp_memory(line_temp);
             }
@@ -2831,8 +2871,7 @@ CUSTOM_COMMAND_SIG(word_complete){
             
             char space[1024];
             Stream_Chunk chunk = {0};
-            if (init_stream_chunk(&chunk, app, &buffer,
-                                  cursor_pos, space, sizeof(space))){
+            if (init_stream_chunk(&chunk, app, &buffer, cursor_pos, space, sizeof(space))){
                 int32_t still_looping = true;
                 do{
                     for (; cursor_pos >= chunk.start; --cursor_pos){
@@ -3691,7 +3730,7 @@ process_config_file(Application_Links *app){
         end_temp_memory(temp);
     }
     else{
-        print_message(app, literal("Did not find config.4coder, using default settings"));
+        print_message(app, literal("Did not find config.4coder, using default settings\n"));
     }
 }
 

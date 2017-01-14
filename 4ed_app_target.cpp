@@ -25,7 +25,13 @@
 #include "4ed_rendering.h"
 
 #include "4ed.h"
-#include "4ed_mem.h"
+
+# include "4coder_mem.h"
+
+//#define USE_DEBUG_MEMORY
+#if defined(USE_DEBUG_MEMORY)
+# include "4ed_debug_mem.h"
+#endif
 
 #define FCPP_FORBID_MALLOC
 #include "4cpp_lexer.h"

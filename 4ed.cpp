@@ -272,7 +272,7 @@ panel_make_empty(System_Functions *system, App_Vars *vars, Panel *panel){
     View_And_ID new_view;
     
     Assert(panel->view == 0);
-    new_view = live_set_alloc_view(system, &vars->live_set, panel, models);
+    new_view = live_set_alloc_view(&vars->live_set, panel, models);
     view_set_file(new_view.view, models->scratch_buffer, models);
     new_view.view->map = get_map(models, mapid_file);
     
@@ -507,7 +507,7 @@ case_change_range(System_Functions *system, Mem_Options *mem, View *view, Editin
             system->cancel_job(BACKGROUND_THREADS, file->state.lex_job);
         }
         
-        file_update_history_before_edit(system, mem, file, step, 0, hist_normal);
+        file_update_history_before_edit(mem, file, step, 0, hist_normal);
         
         u8 *data = (u8*)file->state.buffer.data;
         for (i32 i = range.start; i < range.end; ++i){
@@ -516,8 +516,9 @@ case_change_range(System_Functions *system, Mem_Options *mem, View *view, Editin
             }
         }
         
-        if (file->state.token_array.tokens)
+        if (file->state.token_array.tokens){
             file_relex_parallel(system, mem, file, range.start, range.end, 0);
+        }
     }
 }
 
@@ -596,7 +597,7 @@ COMMAND_DECL(close_panel){
     i32 active;
     
     if (models->layout.panel_count > 1){
-        live_set_free_view(system, command->live_set, view);
+        live_set_free_view(command->live_set, view);
         panel->view = 0;
         
         div = layout_get_divider(&models->layout, panel->parent);
@@ -1309,7 +1310,11 @@ app_setup_memory(System_Functions *system, Application_Memory *memory){
     *vars = app_vars_zero();
     vars->models.mem.part = _partition;
     
+#if defined(USE_DEBUG_MEMORY)
     general_memory_open(system, &vars->models.mem.general, memory->target_memory, memory->target_memory_size);
+#else
+    general_memory_open(&vars->models.mem.general, memory->target_memory, memory->target_memory_size);
+#endif
     
     return(vars);
 }
@@ -1661,7 +1666,7 @@ App_Init_Sig(app_init){
     }
     
     // NOTE(allen): file setup
-    working_set_init(system, &models->working_set, partition, &vars->models.mem.general);
+    working_set_init(&models->working_set, partition, &vars->models.mem.general);
     models->working_set.default_display_width = DEFAULT_DISPLAY_WIDTH;
     models->working_set.default_minimum_base_display_width = DEFAULT_MINIMUM_BASE_DISPLAY_WIDTH;
     
@@ -1673,7 +1678,7 @@ App_Init_Sig(app_init){
     
     // TODO(allen): more robust allocation solution for the clipboard
     if (clipboard.str){
-        String *dest = working_set_next_clipboard_string(system, &models->mem.general, &models->working_set, clipboard.size);
+        String *dest = working_set_next_clipboard_string(&models->mem.general, &models->working_set, clipboard.size);
         copy_ss(dest, make_string((char*)clipboard.str, clipboard.size));
     }
     
@@ -1710,12 +1715,19 @@ App_Init_Sig(app_init){
     };
     
     for (i32 i = 0; i < ArrayCount(init_files); ++i){
-        Editing_File *file = working_set_alloc_always(system, &models->working_set, general);
-        buffer_bind_name(system, general, &models->working_set, file, init_files[i].name);
+        Editing_File *file = working_set_alloc_always(&models->working_set, general);
+        buffer_bind_name(general, &models->working_set, file, init_files[i].name);
         
         switch (init_files[i].type){
-            case 0: init_normal_file(system, models, file, 0, 0); break;
-            case 1: init_read_only_file(system, models, file); break;
+            case 0:
+            {
+                init_normal_file(system, models, file, 0, 0);
+            }break;
+            
+            case 1:
+            {
+                init_read_only_file(system, models, file);
+            }break;
         }
         
         file->settings.never_kill = 1;
@@ -1811,8 +1823,7 @@ App_Step_Sig(app_step){
     String clipboard = input->clipboard;
     
     if (clipboard.str){
-        String *dest =
-            working_set_next_clipboard_string(system, &models->mem.general, &models->working_set, clipboard.size);
+        String *dest =working_set_next_clipboard_string(&models->mem.general, &models->working_set, clipboard.size);
         dest->size = eol_convert_in(dest->str, clipboard.str, clipboard.size);
     }
     

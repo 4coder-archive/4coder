@@ -19,11 +19,7 @@ struct File_Data{
     u32 size;
     b32 got_file;
 };
-inline File_Data
-file_data_zero(){
-    File_Data result = {0};
-    return(result);
-}
+globalvar File_Data null_file_data = {0};
 
 #define Sys_Get_Memory_Sig(name) void* name(i32 size, i32 line_number, char *file_name)
 #define Sys_Free_Memory_Sig(name) void name(void *block)

@@ -133,7 +133,7 @@ struct Application_Links;
 #define InterlockedCompareExchange(dest, ex, comp) __sync_val_compare_and_swap((dest), (comp), (ex))
 
 #include "filetrack/4tech_file_track_linux.c"
-#include "system_shared.h"
+#include "4ed_system_shared.h"
 
 //
 // Linux structs / enums
@@ -1338,7 +1338,7 @@ INTERNAL_Sys_Get_Thread_States_Sig(internal_get_thread_states){
 // Linux rendering/font system functions
 //
 
-#include "system_shared.cpp"
+#include "4ed_system_shared.cpp"
 #include "linux_font.cpp"
 
 internal f32

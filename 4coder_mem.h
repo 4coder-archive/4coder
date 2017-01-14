@@ -89,8 +89,8 @@ inline Tail_Temp_Partition
 begin_tail_part(Partition *data, int32_t size){
     Tail_Temp_Partition result = {0};
     if (data->pos + size <= data->max){
-    result.handle = data;
-    result.old_max = data->max;
+        result.handle = data;
+        result.old_max = data->max;
         data->max -= size;
         result.part = make_part(data->base + data->max, size);
     }
@@ -218,7 +218,7 @@ general_memory_open(General_Memory *general, void *memory, int32_t size){
     insert_bubble2(&general->free_sentinel, first);
 }
 
-#ifdef Assert
+#if defined(Assert)
 static int32_t
 general_memory_check(General_Memory *general){
     Bubble *sentinel = &general->sentinel;
@@ -309,6 +309,11 @@ general_memory_reallocate_nocopy(General_Memory *general, void *old, int32_t siz
     void *result = general_memory_reallocate(general, old, 0, size);
     return(result);
 }
+
+#define reset_temp_memory end_temp_memory
+#define gen_struct(g, T) (T*)general_memory_allocate(g, sizeof(T), 0)
+#define gen_array(g, T, size) (T*)general_memory_allocate(g, sizeof(T)*(size))
+#define gen_block(g, size) general_memory_open(g, size, 0)
 
 #endif
 
