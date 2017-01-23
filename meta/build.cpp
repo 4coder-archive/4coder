@@ -4,413 +4,22 @@
 
 // TOP
 
-#include <stdio.h>  // include system for windows
-#include <stdlib.h> // include system for linux   (YAY!)
-#include <stdint.h>
+#include "../4tech_defines.h"
+#include "4tech_file_moving.h"
+
 #include <assert.h>
 #include <string.h>
 
-#include "../common/4coder_version.h"
+#include "../4coder_API/version.h"
 
-#define FSTRING_INLINE static
-#include "../internal_4coder_string.cpp"
+#define FSTRING_IMPLEMENTATION
+#include "../4coder_lib/4coder_string.h"
 
 //
 // reusable
 //
 
 #define IS_64BIT
-
-// NOTE(allen): Compiler/OS cracking.
-#if defined(_MSC_VER)
-
-# define IS_CL
-# define snprintf _snprintf
-
-# if defined(_WIN32)
-#  define IS_WINDOWS
-#  pragma comment(lib, "Kernel32.lib")
-# else
-#  error This compiler/platform combo is not supported yet
-# endif
-
-#elif defined(__GNUC__) || defined(__GNUG__)
-
-# define IS_GCC
-
-# if defined(__gnu_linux__)
-#  define IS_LINUX
-# else
-#  error This compiler/platform combo is not supported yet
-# endif
-
-#else
-#error This compiler is not supported yet
-#endif
-
-
-#if defined(IS_WINDOWS)
-#  define ONLY_WINDOWS(x) x
-#  define ONLY_LINUX(x) (void)0
-#elif defined(IS_LINUX)
-#  define ONLY_WINDOWS(x) (void)0
-#  define ONLY_LINUX(x) x
-#else
-#  define ONLY_WIN(x) (void)0
-#  define ONLY_LINUX(x) (void)0
-#endif
-
-
-static char cmd[4096];
-static int32_t error_state = 0;
-static int32_t prev_error = 0;
-
-#define systemf(...) do{                                   \
-    int32_t n = snprintf(cmd, sizeof(cmd), __VA_ARGS__);   \
-    assert(n < sizeof(cmd));                               \
-    prev_error = system(cmd);                              \
-    if (prev_error != 0) error_state = 1;                  \
-}while(0)
-
-static void     init_time_system();
-static uint64_t get_time();
-static int32_t  get_current_directory(char *buffer, int32_t max);
-static void     execute_in_dir(char *dir, char *str, char *args);
-
-static void make_folder_if_missing(char *dir, char *folder);
-static void clear_folder(char *folder);
-static void copy_file(char *path, char *file, char *folder1, char *folder2, char *newname);
-static void copy_all(char *source, char *tag, char *folder);
-static void zip(char *parent, char *folder, char *dest);
-
-typedef struct Temp_Dir{
-    char dir[512];
-} Temp_Dir;
-
-static Temp_Dir pushdir(char *dir);
-static void popdir(Temp_Dir temp);
-
-#if defined(IS_WINDOWS)
-
-typedef uint32_t DWORD;
-typedef int32_t  LONG;
-typedef int64_t  LONGLONG;
-typedef char*    LPTSTR;
-typedef char*    LPCTSTR;
-typedef int32_t  BOOL;
-typedef void*    LPSECURITY_ATTRIBUTES;
-typedef union    _LARGE_INTEGER {
-    struct {
-        DWORD LowPart;
-        LONG  HighPart;
-    };
-    struct {
-        DWORD LowPart;
-        LONG  HighPart;
-    } u;
-    LONGLONG QuadPart;
-} LARGE_INTEGER, *PLARGE_INTEGER;
-
-#if defined(IS_64BIT)
-# define WINAPI
-#endif
-
-extern "C"{
-    DWORD WINAPI GetCurrentDirectoryA(_In_  DWORD  nBufferLength, _Out_ LPTSTR lpBuffer);
-    BOOL WINAPI SetCurrentDirectoryA(_In_ LPCTSTR lpPathName);
-    
-    BOOL WINAPI QueryPerformanceCounter(_Out_ LARGE_INTEGER *lpPerformanceCount);
-    
-    BOOL WINAPI QueryPerformanceFrequency(_Out_ LARGE_INTEGER *lpFrequency);
-    
-    BOOL WINAPI CreateDirectoryA(_In_ LPCTSTR lpPathName, _In_opt_ LPSECURITY_ATTRIBUTES lpSecurityAttributes);
-    
-    BOOL WINAPI CopyFileA(_In_ LPCTSTR lpExistingFileName, _In_ LPCTSTR lpNewFileName, _In_ BOOL bFailIfExists);
-}
-
-static uint64_t perf_frequency;
-
-static Temp_Dir
-pushdir(char *dir){
-    Temp_Dir temp = {0};
-    GetCurrentDirectoryA(sizeof(temp.dir), temp.dir);
-    SetCurrentDirectoryA(dir);
-    return(temp);
-}
-
-static void
-popdir(Temp_Dir temp){
-    SetCurrentDirectoryA(temp.dir);
-}
-
-static void
-init_time_system(){
-    LARGE_INTEGER lint;
-    if (QueryPerformanceFrequency(&lint)){
-        perf_frequency = lint.QuadPart;
-    }
-}
-
-static uint64_t
-get_time(){
-    uint64_t time = 0;
-    LARGE_INTEGER lint;
-    if (QueryPerformanceCounter(&lint)){
-        time = lint.QuadPart;
-        time = (time * 1000000) / perf_frequency;
-    }
-    return(time);
-}
-
-static int32_t
-get_current_directory(char *buffer, int32_t max){
-    int32_t result = GetCurrentDirectoryA(max, buffer);
-    return(result);
-}
-
-static void
-execute_in_dir(char *dir, char *str, char *args){
-    if (dir){
-        Temp_Dir temp = pushdir(dir);
-        if (args){
-            systemf("call \"%s\" %s", str, args);
-        }
-        else{
-            systemf("call \"%s\"", str);
-        }
-        popdir(temp);
-    }
-    else{
-        if (args){
-            systemf("call \"%s\" %s", str, args);
-        }
-        else{
-            systemf("call \"%s\"", str);
-        }
-    }
-}
-
-static void
-slash_fix(char *path){
-    if (path){
-        for (int32_t i = 0; path[i]; ++i){
-            if (path[i] == '/') path[i] = '\\';
-        }
-    }
-}
-
-static void
-make_folder_if_missing(char *dir, char *folder){
-    char space[1024];
-    String path = make_fixed_width_string(space);
-    append_sc(&path, dir);
-    if (folder){
-        append_sc(&path, "\\");
-        append_sc(&path, folder);
-    }
-    terminate_with_null(&path);
-    
-    char *p = path.str;
-    for (; *p; ++p){
-        if (*p == '\\'){
-            *p = 0;
-            CreateDirectoryA(path.str, 0);
-            *p = '\\';
-        }
-    }
-    CreateDirectoryA(path.str, 0);
-}
-
-static void
-clear_folder(char *folder){
-    systemf("del /S /Q /F %s\\* & rmdir /S /Q %s & mkdir %s",
-            folder, folder, folder);
-}
-
-static void
-copy_file(char *path, char *file, char *folder1, char *folder2, char *newname){
-    char src[256], dst[256];
-    String b = make_fixed_width_string(src);
-    if (path){
-        append_sc(&b, path);
-        append_sc(&b, "\\");
-    }
-    append_sc(&b, file);
-    terminate_with_null(&b);
-    
-    b = make_fixed_width_string(dst);
-    append_sc(&b, folder1);
-    append_sc(&b, "\\");
-    if (folder2){
-        append_sc(&b, folder2);
-        append_sc(&b, "\\");
-    }
-    if (newname){
-        append_sc(&b, newname);
-    }
-    else{
-        append_sc(&b, file);
-    }
-    terminate_with_null(&b);
-    
-    CopyFileA(src, dst, 0);
-}
-
-static void
-copy_all(char *source, char *tag, char *folder){
-    if (source){
-        systemf("copy %s\\%s %s\\*", source, tag, folder);
-    }
-    else{
-        systemf("copy %s %s\\*", tag, folder);
-    }
-}
-
-static void
-zip(char *parent, char *folder, char *dest){
-    char cdir[512];
-    get_current_directory(cdir, sizeof(cdir));
-    
-    Temp_Dir temp = pushdir(parent);
-    systemf("%s\\zip %s\\4tech_gobble.zip", cdir, cdir);
-    popdir(temp);
-    
-    systemf("copy %s\\4tech_gobble.zip %s & del %s\\4tech_gobble.zip", cdir, dest, cdir);
-}
-
-#elif defined(IS_LINUX)
-
-#include <time.h>
-#include <unistd.h>
-
-static Temp_Dir
-pushdir(char *dir){
-    Temp_Dir temp;
-    char *result = getcwd(temp.dir, sizeof(temp.dir));
-    int32_t chresult = chdir(dir);
-    if (result == 0 || chresult != 0){
-        printf("trying pushdir %s\n", dir);
-        assert(result != 0);
-        assert(chresult == 0);
-    }
-    return(temp);
-}
-
-static void
-popdir(Temp_Dir temp){
-    chdir(temp.dir);
-}
-
-static void
-init_time_system(){
-    // NOTE(allen): do nothing
-}
-
-static uint64_t
-get_time(){
-    struct timespec spec;
-    uint64_t result;
-    clock_gettime(CLOCK_MONOTONIC, &spec);
-    result = (spec.tv_sec * (uint64_t)(1000000)) + (spec.tv_nsec / (uint64_t)(1000));
-    return(result);
-}
-
-static int32_t
-get_current_directory(char *buffer, int32_t max){
-    int32_t result = 0;
-    char *d = getcwd(buffer, max);
-    if (d == buffer){
-        result = strlen(buffer);
-    }
-    return(result);
-}
-
-static void
-execute_in_dir(char *dir, char *str, char *args){
-    if (dir){
-        if (args){
-            Temp_Dir temp = pushdir(dir);
-            systemf("%s %s", str, args);
-            popdir(temp);
-        }
-        else{
-            Temp_Dir temp = pushdir(dir);
-            systemf("%s", str);
-            popdir(temp);
-        }
-    }
-    else{
-        if (args){
-            systemf("%s %s", str, args);
-        }
-        else{
-            systemf("%s", str);
-        }
-    }
-}
-
-static void
-slash_fix(char *path){}
-
-static void
-make_folder_if_missing(char *dir, char *folder){
-    if (folder){
-        systemf("mkdir -p %s/%s", dir, folder);
-    }
-    else{
-        systemf("mkdir -p %s", dir);
-    }
-}
-
-static void
-clear_folder(char *folder){
-    systemf("rm -rf %s*", folder);
-}
-
-static void
-copy_file(char *path, char *file, char *folder1, char *folder2, char *newname){
-    if (!newname){
-        newname = file;
-    }
-    
-    if (path){
-        if (folder2){
-            systemf("cp %s/%s %s/%s/%s", path, file, folder1, folder2, newname);
-        }
-        else{
-            systemf("cp %s/%s %s/%s", path, file, folder1, newname);
-        }
-    }
-    else{
-        if (folder2){
-            systemf("cp %s %s/%s/%s", file, folder1, folder2, newname);
-        }
-        else{
-            systemf("cp %s %s/%s", file, folder1, newname);
-        }
-    }
-}
-
-static void
-copy_all(char *source, char *tag, char *folder){
-    if (source){
-        systemf("cp -rf %s/%s %s", source, tag, folder);
-    }
-    else{
-        systemf("cp -rf %s %s", tag, folder);
-    }
-}
-
-static void
-zip(char *parent, char *folder, char *file){
-    Temp_Dir temp = pushdir(parent);
-    systemf("zip -r %s %s", file, folder);
-    popdir(temp);
-}
-
-#else
-#error This OS is not supported yet
-#endif
 
 #define BEGIN_TIME_SECTION() uint64_t start = get_time()
 #define END_TIME_SECTION(n) uint64_t total = get_time() - start; printf("%-20s: %.2lu.%.6lu\n", (n), total/1000000, total%1000000);
@@ -480,7 +89,7 @@ typedef struct Build_Line{
     char build_optionsB[BUILD_LINE_MAX];
     char *build_options;
     char *build_options_prev;
-    int32_t build_max;
+    i32 build_max;
 } Build_Line;
 
 static void
@@ -504,21 +113,18 @@ init_build_line(Build_Line *line){
 
 #elif defined(IS_GCC)
 
-#define build_ap(line, str, ...) do{        \
-    snprintf(line.build_options,            \
-    line.build_max, "%s "str,               \
-    line.build_options_prev, ##__VA_ARGS__);\
-    swap_ptr(&line.build_options,           \
-    &line.build_options_prev);              \
+#define build_ap(line, str, ...) do{                         \
+    snprintf(line.build_options, line.build_max, "%s "str,   \
+    line.build_options_prev, ##__VA_ARGS__);        \
+    swap_ptr(&line.build_options, &line.build_options_prev); \
 }while(0)
 
 #endif
 
-
 #define CL_OPTS                                  \
-"/W4 /wd4310 /wd4100 /wd4201 /wd4505 /wd4996 "   \
-"/wd4127 /wd4510 /wd4512 /wd4610 /wd4390 /WX "   \
-"/GR- /EHa- /nologo /FC"
+"-W4 -wd4310 -wd4100 -wd4201 -wd4505 -wd4996 "   \
+"-wd4127 -wd4510 -wd4512 -wd4610 -wd4390 "       \
+"-wd4611 -WX -GR- -EHa- -nologo -FC"
 
 #define CL_INCLUDES "/I..\\foreign /I..\\foreign\\freetype2"
 
@@ -531,7 +137,7 @@ init_build_line(Build_Line *line){
 #define CL_ICON "..\\res\\icon.res"
 
 static void
-build_cl(uint32_t flags, char *code_path, char *code_file, char *out_path, char *out_file, char *exports){
+build_cl(u32 flags, char *code_path, char *code_file, char *out_path, char *out_file, char *exports){
     Build_Line line;
     init_build_line(&line);
     
@@ -609,7 +215,7 @@ build_cl(uint32_t flags, char *code_path, char *code_file, char *out_path, char 
 "-lGL -ldl -lXfixes -lfreetype -lfontconfig"
 
 static void
-build_gcc(uint32_t flags, char *code_path, char *code_file, char *out_path, char *out_file, char *exports){
+build_gcc(u32 flags, char *code_path, char *code_file, char *out_path, char *out_file, char *exports){
     Build_Line line;
     init_build_line(&line);
     
@@ -620,7 +226,7 @@ build_gcc(uint32_t flags, char *code_path, char *code_file, char *out_path, char
     if (flags & INCLUDES){
         // TODO(allen): Abstract this out.
 #if defined(IS_LINUX)
-        int32_t size = 0;
+        i32 size = 0;
         char freetype_include[512];
         FILE *file = popen("pkg-config --cflags freetype2", "r");
         if (file != 0){
@@ -676,7 +282,7 @@ build_gcc(uint32_t flags, char *code_path, char *code_file, char *out_path, char
 }
 
 static void
-build(uint32_t flags, char *code_path, char *code_file, char *out_path, char *out_file, char *exports){
+build(u32 flags, char *code_path, char *code_file, char *out_path, char *out_file, char *exports){
 #if defined(IS_CL)
     build_cl(flags, code_path, code_file, out_path, out_file, exports);
 #elif defined(IS_GCC)
@@ -728,8 +334,6 @@ buildsuper(char *code_path, char *out_path, char *filename){
 #error No platform layer defined for this OS.
 #endif
 
-#define DECL_STR(n,s) char n[] = s; slash_fix(n)
-
 static void
 fsm_generator(char *cdir){
     {
@@ -777,7 +381,7 @@ enum{
 };
 
 static void
-do_buildsuper(char *cdir, int32_t custom_option){
+do_buildsuper(char *cdir, i32 custom_option){
     char space[1024];
     String str = make_fixed_width_string(space);
     
@@ -818,7 +422,7 @@ do_buildsuper(char *cdir, int32_t custom_option){
 }
 
 static void
-build_main(char *cdir, uint32_t flags){
+build_main(char *cdir, u32 flags){
     DECL_STR(dir, BUILD_DIR);
     {
         DECL_STR(file, "4ed_app_target.cpp");
@@ -835,7 +439,9 @@ build_main(char *cdir, uint32_t flags){
 }
 
 static void
-standard_build(char *cdir, uint32_t flags){
+standard_build(char *cdir, u32 flags){
+    //run_update("4coder_string.h");
+    //run_update("4cpp/4cpp_lexer.h 4cpp/4cpp_lexer.h 4cpp/4cpp_lexer.h");
     fsm_generator(cdir);
     metagen(cdir);
     do_buildsuper(cdir, Custom_Experiments);
@@ -844,7 +450,7 @@ standard_build(char *cdir, uint32_t flags){
 }
 
 static void
-site_build(char *cdir, uint32_t flags){
+site_build(char *cdir, u32 flags){
     {
         DECL_STR(file, "site/sitegen.cpp");
         DECL_STR(dir, BUILD_DIR"/site");
@@ -857,14 +463,14 @@ site_build(char *cdir, uint32_t flags){
         BEGIN_TIME_SECTION();
         
         DECL_STR(cmd, "../build/site/sitegen . ../site_resources site/source_material ../site");
-        systemf(cmd);
+        systemf("%s", cmd);
         
         END_TIME_SECTION("run sitegen");
     }
 }
 
 static void
-get_4coder_dist_name(String *zip_file, int32_t OS_specific, char *tier, char *ext){
+get_4coder_dist_name(String *zip_file, i32 OS_specific, char *tier, char *ext){
     zip_file->size = 0;
     
     append_sc(zip_file, PACK_DIR"/");
@@ -927,13 +533,13 @@ package(char *cdir){
     make_folder_if_missing(pack_alpha_dir, "3rdparty");
     make_folder_if_missing(pack_dir, "alpha");
     copy_file(build_dir, "4ed"EXE, pack_alpha_dir, 0, 0);
-    ONLY_WINDOWS(copy_file(build_dir, "4ed"PDB, pack_alpha_dir, 0, 0));
+    //ONLY_WINDOWS(copy_file(build_dir, "4ed"PDB, pack_alpha_dir, 0, 0));
     copy_file(build_dir, "4ed_app"DLL, pack_alpha_dir, 0, 0);
-    ONLY_WINDOWS(copy_file(build_dir, "4ed_app"PDB, pack_alpha_dir, 0, 0));
+    //ONLY_WINDOWS(copy_file(build_dir, "4ed_app"PDB, pack_alpha_dir, 0, 0));
     copy_all (pack_data_dir, "*", pack_alpha_dir);
     copy_file(0, "README.txt", pack_alpha_dir, 0, 0);
     copy_file(0, "TODO.txt", pack_alpha_dir, 0, 0);
-    copy_file(DATA_DIR, "release-config.4coder", pack_alpha_dir, 0, "config.4coder");
+    copy_file(data_dir, "release-config.4coder", pack_alpha_dir, 0, "config.4coder");
     
     get_4coder_dist_name(&str, 1, "alpha", "zip");
     zip(pack_alpha_par_dir, "4coder", str.str);
@@ -948,21 +554,46 @@ package(char *cdir){
     make_folder_if_missing(pack_dir, "super-docs");
     
     copy_file(build_dir, "4ed"EXE, pack_super_dir, 0, 0);
-    ONLY_WINDOWS(copy_file(build_dir, "4ed"PDB, pack_super_dir, 0, 0));
+    //ONLY_WINDOWS(copy_file(build_dir, "4ed"PDB, pack_super_dir, 0, 0));
     copy_file(build_dir, "4ed_app"DLL, pack_super_dir, 0, 0);
-    ONLY_WINDOWS(copy_file(build_dir, "4ed_app"PDB, pack_super_dir, 0, 0));
-    copy_file(build_dir, "4coder_custom"DLL, pack_super_dir, 0, 0);
+    //ONLY_WINDOWS(copy_file(build_dir, "4ed_app"PDB, pack_super_dir, 0, 0));
+    copy_file(build_dir, "custom_4coder"DLL, pack_super_dir, 0, 0);
     
     copy_all (pack_data_dir, "*", pack_super_dir);
     copy_file(0, "README.txt", pack_super_dir, 0, 0);
     copy_file(0, "TODO.txt", pack_super_dir, 0, 0);
     copy_file(data_dir, "release-config.4coder", pack_super_dir, 0, "config.4coder");
     
-    copy_all (0, "4coder_*.h", pack_super_dir);
-    copy_all (0, "4coder_*.cpp", pack_super_dir);
-    copy_all (0, "4cpp_*.h", pack_super_dir);
-    copy_all (0, "4cpp_*.c", pack_super_dir);
+    copy_all(0, "4coder_*", pack_super_dir);
+    
     copy_file(0, "buildsuper"BAT, pack_super_dir, 0, 0);
+    
+    DECL_STR(custom_dir, "4coder_API");
+    DECL_STR(custom_helper_dir, "4coder_helper");
+    DECL_STR(custom_lib_dir, "4coder_lib");
+    DECL_STR(fcpp_dir, "4cpp");
+    
+    char *dir_array[] = {
+        custom_dir,
+        custom_helper_dir,
+        custom_lib_dir,
+        fcpp_dir,
+    };
+    i32 dir_count = ArrayCount(dir_array);
+    
+    for (i32 i = 0; i < dir_count; ++i){
+        char *d = dir_array[i];
+        make_folder_if_missing(pack_super_dir, d);
+        
+        char space[256];
+        String str = make_fixed_width_string(space);
+        append_sc(&str, pack_super_dir);
+        append_s_char(&str, platform_correct_slash);
+        append_sc(&str, d);
+        terminate_with_null(&str);
+        
+        copy_all(d, "*", str.str);
+    }
     
     get_4coder_dist_name(&str, 0, "API", "html");
     str2 = front_of_directory(str);
@@ -989,7 +620,7 @@ int main(int argc, char **argv){
     char cdir[256];
     
     BEGIN_TIME_SECTION();
-    int32_t n = get_current_directory(cdir, sizeof(cdir));
+    i32 n = get_current_directory(cdir, sizeof(cdir));
     assert(n < sizeof(cdir));
     END_TIME_SECTION("current directory");
     
@@ -1002,12 +633,11 @@ int main(int argc, char **argv){
 
 int main(int argc, char **argv){
     init_time_system();
-    init_global_strings();
     
     char cdir[256];
     
     BEGIN_TIME_SECTION();
-    int32_t n = get_current_directory(cdir, sizeof(cdir));
+    i32 n = get_current_directory(cdir, sizeof(cdir));
     assert(n < sizeof(cdir));
     END_TIME_SECTION("current directory");
     
@@ -1024,7 +654,7 @@ int main(int argc, char **argv){
     char cdir[256];
     
     BEGIN_TIME_SECTION();
-    int32_t n = get_current_directory(cdir, sizeof(cdir));
+    i32 n = get_current_directory(cdir, sizeof(cdir));
     assert(n < sizeof(cdir));
     END_TIME_SECTION("current directory");
     
@@ -1037,4 +667,9 @@ int main(int argc, char **argv){
 #error No build type specified
 #endif
 
+#define FTECH_FILE_MOVING_IMPLEMENTATION
+#include "4tech_file_moving.h"
+
 // BOTTOM
+
+

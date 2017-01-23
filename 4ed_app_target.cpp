@@ -9,34 +9,34 @@
 
 // TOP
 
-// TODO(allen): can I get away from this one?
+// TODO(allen): get away from assert.h
+// TODO(allen): get away from string.h
 #include <assert.h>
-#include "common/4coder_defines.h"
+#include <string.h>
+
+#include "4tech_defines.h"
+
+#include "4coder_API/custom.h"
+
+#include "4ed_math.h"
+#include "4ed_system.h"
+
+//#define USE_DEBUG_MEMORY
 
 #define FSTRING_IMPLEMENTATION
 #define FSTRING_C
-#include "4coder_string.h"
-
-#include "4coder_custom.h"
-
-#include "4ed_math.h"
-
-#include "4ed_system.h"
-#include "4ed_rendering.h"
-
-#include "4ed.h"
-
-# include "4coder_mem.h"
-
-//#define USE_DEBUG_MEMORY
+#include "4coder_lib/4coder_string.h"
+#include "4coder_lib/4coder_mem.h"
+#include "4coder_lib/4coder_table.h"
 #if defined(USE_DEBUG_MEMORY)
 # include "4ed_debug_mem.h"
 #endif
 
-#define FCPP_FORBID_MALLOC
-#include "4cpp_lexer.h"
+#include "4ed_rendering.h"
+#include "4ed.h"
 
-#include "4coder_table.cpp"
+#define FCPP_FORBID_MALLOC
+#include "4cpp/4cpp_lexer.h"
 
 #include "4ed_doubly_linked_list.cpp"
 
@@ -53,6 +53,7 @@
 #include "file/4coder_working_set.cpp"
 #include "file/4coder_hot_directory.cpp"
 
+#include "4ed_gui.h"
 #include "4ed_gui.cpp"
 #include "4ed_layout.cpp"
 #include "4ed_app_models.h"

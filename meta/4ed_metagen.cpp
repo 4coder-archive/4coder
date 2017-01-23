@@ -9,21 +9,24 @@
 
 // TOP
 
-#include "../common/4coder_defines.h"
-#include "../common/4coder_version.h"
+#define KEYCODES_FILE "4coder_API/keycodes.h"
+#define STYLE_FILE "4coder_API/style.h"
 
-#if !defined(FSTRING_GUARD)
-#include "../internal_4coder_string.cpp"
-#endif
+#define API_H "4coder_API/app_functions.h"
+#define OS_API_H "4ed_os_custom_api.h"
 
-#include "../4cpp_lexer.h"
+#include "4tech_meta_defines.h"
+#include "../4coder_API/version.h"
+
+#define FSTRING_IMPLEMENTATION
+#include "../4coder_lib/4coder_string.h"
+#include "../4coder_lib/4coder_mem.h"
+
+#include "../4cpp/4cpp_lexer.h"
 
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
-#include <assert.h>
-
-#include "../4coder_mem.h"
 
 #include "meta_parser.cpp"
 #include "out_context.cpp"
@@ -69,7 +72,7 @@ char *keys_that_need_codes[] = {
 
 void
 generate_keycode_enum(){
-    char *filename_keycodes = "4coder_keycodes.h";
+    char *filename_keycodes = KEYCODES_FILE;
     Out_Context context = {0};
     int32_t i = 0, count = 0;
     unsigned char code = 1;
@@ -196,7 +199,7 @@ make_style_tag(char *tag){
 
 static void
 generate_style(){
-    char filename_4coder[] = "4coder_style.h";
+    char filename_4coder[] = STYLE_FILE;
     char filename_4ed[] = "4ed_style.h";
     char *tag = 0;
     int32_t count = 0, i = 0;
@@ -377,9 +380,7 @@ allocate_app_api(Partition *part, int32_t count){
 
 static void
 generate_custom_headers(){
-#define API_H "4coder_custom_api.h"
-#define OS_API_H "4ed_os_custom_api.h"
-#define STRING_H "4coder_string.h"
+    META_BEGIN();
     
     int32_t size = (512 << 20);
     void *mem = malloc(size);
@@ -401,24 +402,12 @@ generate_custom_headers(){
     
 #define ExpandArray(a) (a), (ArrayCount(a))
     
-    // NOTE(allen): Parse the internal string file.
-    static char *string_files[] = {
-        "internal_4coder_string.cpp",
-        0
-    };
-    
-    Meta_Unit string_unit = compile_meta_unit(part, ".", string_files, ExpandArray(meta_keywords));
-    
-    
     // NOTE(allen): Parse the customization API files
-    static char *functions_files[] = {
-        "4ed_api_implementation.cpp",
-        "win32_api_impl.cpp",
-        0
-    };
-    
+    static char *functions_files[] = { "4ed_api_implementation.cpp", 0 };
     Meta_Unit unit_custom = compile_meta_unit(part, ".", functions_files, ExpandArray(meta_keywords));
-    
+    if (unit_custom.parse == 0){
+        Assert(!"Missing one or more input files!");
+    }
     
     // NOTE(allen): Compute and store variations of the function names
     App_API func_4ed_names = allocate_app_api(part, unit_custom.set.count);
@@ -446,6 +435,8 @@ generate_custom_headers(){
     if (begin_file_out(&context, OS_API_H, &out)){
         int32_t main_api_count = unit_custom.parse[0].item_count;
         int32_t os_api_count = unit_custom.parse[1].item_count;
+        append_sc(&out, "struct Application_Links;\n");
+        
         for (int32_t i = main_api_count; i < os_api_count; ++i){
             append_sc(&out, "#define ");
             append_ss(&out, func_4ed_names.names[i].macro);
@@ -471,6 +462,8 @@ generate_custom_headers(){
     }
     
     if (begin_file_out(&context, API_H, &out)){
+        append_sc(&out, "struct Application_Links;\n");
+        
         for (int32_t i = 0; i < unit_custom.set.count; ++i){
             append_sc(&out, "#define ");
             append_ss(&out, func_4ed_names.names[i].macro);
@@ -586,212 +579,7 @@ generate_custom_headers(){
         // TODO(allen): warning
     }
     
-    // NOTE(allen): String Library
-    if (begin_file_out(&context, STRING_H, &out)){
-        Cpp_Token *token = 0;
-        int32_t start = 0;
-        
-        Parse parse = string_unit.parse[0];
-        Parse_Context pcontext = setup_parse_context(parse);
-        
-        for (; (token = get_token(&pcontext)) != 0; get_next_token(&pcontext)){
-            if (!(token->flags & CPP_TFLAG_PP_BODY) &&
-                token->type == CPP_TOKEN_IDENTIFIER){
-                String lexeme = get_lexeme(*token, pcontext.data);
-                if (match_ss(lexeme, make_lit_string("FSTRING_BEGIN"))){
-                    start = token->start + token->size;
-                    break;
-                }
-            }
-        }
-        
-        String pstr = {0};
-        int32_t do_whitespace_print = true;
-        
-        for(;(token = get_next_token(&pcontext)) != 0;){
-            if (do_whitespace_print){
-                pstr = str_start_end(pcontext.data, start, token->start);
-                append_ss(&out, pstr);
-            }
-            else{
-                do_whitespace_print = true;
-            }
-            
-            String lexeme = get_lexeme(*token, pcontext.data);
-            
-            int32_t do_print = true;
-            if (match_ss(lexeme, make_lit_string("FSTRING_DECLS"))){
-                append_sc(&out, "#if !defined(FCODER_STRING_H)\n#define FCODER_STRING_H\n\n");
-                do_print = false;
-                
-                static int32_t SIG_PADDING = 35;
-                
-                for (int32_t j = 0; j < string_unit.set.count; ++j){
-                    char line_[2048];
-                    String line = make_fixed_width_string(line_);
-                    Item_Node *item = string_unit.set.items + j;
-                    
-                    if (item->t == Item_Function){
-                        //append_ss       (&line, item->marker);
-                        //append_padding  (&line, ' ', RETURN_PADDING);
-                        append_ss       (&line, item->ret);
-                        append_padding  (&line, ' ', SIG_PADDING);
-                        append_ss       (&line, item->name);
-                        append_ss       (&line, item->args);
-                        append_sc       (&line, ";\n");
-                    }
-                    else if (item->t == Item_Macro){
-                        append_ss       (&line, make_lit_string("#ifndef "));
-                        append_padding  (&line, ' ', 10);
-                        append_ss       (&line, item->name);
-                        append_s_char   (&line, '\n');
-                        
-                        append_ss       (&line, make_lit_string("# define "));
-                        append_padding  (&line, ' ', 10);
-                        append_ss       (&line, item->name);
-                        append_ss       (&line, item->args);
-                        append_s_char   (&line, ' ');
-                        append_ss       (&line, item->body);
-                        append_s_char   (&line, '\n');
-                        
-                        append_ss       (&line, make_lit_string("#endif"));
-                        append_s_char   (&line, '\n');
-                    }
-                    else{
-                        InvalidPath;
-                    }
-                    
-                    append_ss(&out, line);
-                }
-                
-                append_sc(&out, "\n#endif\n");
-                
-                // NOTE(allen): C++ overload definitions
-                append_sc(&out, "\n#if !defined(FSTRING_C) && !defined(FSTRING_GUARD)\n\n");
-                
-                for (int32_t j = 0; j < string_unit.set.count; ++j){
-                    char line_space[2048];
-                    String line = make_fixed_width_string(line_space);
-                    
-                    Item_Node *item = &string_unit.set.items[j];
-                    
-                    if (item->t == Item_Function){
-                        String cpp_name = item->cpp_name;
-                        if (cpp_name.str != 0){
-                            Argument_Breakdown breakdown = item->breakdown;
-                            
-                            append_ss     (&line, item->ret);
-                            append_padding(&line, ' ', SIG_PADDING);
-                            append_ss     (&line, cpp_name);
-                            append_ss     (&line, item->args);
-                            if (match_ss(item->ret, make_lit_string("void"))){
-                                append_ss(&line, make_lit_string("{("));
-                            }
-                            else{
-                                append_ss(&line, make_lit_string("{return("));
-                            }
-                            append_ss    (&line, item->name);
-                            append_s_char(&line, '(');
-                            
-                            if (breakdown.count > 0){
-                                for (int32_t i = 0; i < breakdown.count; ++i){
-                                    if (i != 0){
-                                        append_s_char(&line, ',');
-                                    }
-                                    append_ss(&line, breakdown.args[i].param_name);
-                                }
-                            }
-                            else{
-                                append_ss(&line, make_lit_string("void"));
-                            }
-                            
-                            append_ss(&line, make_lit_string("));}\n"));
-                            
-                            append_ss(&out, line);
-                        }
-                    }
-                }
-                
-                append_sc(&out, "\n#endif\n");
-            }
-            
-            else if (match_ss(lexeme, make_lit_string("API_EXPORT_MACRO"))){
-                token = get_next_token(&pcontext);
-                if (token && token->type == CPP_TOKEN_COMMENT){
-                    token = get_next_token(&pcontext);
-                    if (token && token->type == CPP_PP_DEFINE){
-                        for (;(token = get_next_token(&pcontext)) != 0;){
-                            if (!(token->flags & CPP_TFLAG_PP_BODY)){
-                                break;
-                            }
-                        }
-                        if (token != 0){
-                            get_prev_token(&pcontext);
-                        }
-                        do_print = false;
-                        do_whitespace_print = false;
-                    }
-                }
-            }
-            
-            else if (match_ss(lexeme, make_lit_string("API_EXPORT")) ||
-                     match_ss(lexeme, make_lit_string("API_EXPORT_INLINE"))){
-                if (!(token->flags & CPP_TFLAG_PP_BODY)){
-                    if (match_ss(lexeme, make_lit_string("API_EXPORT_INLINE"))){
-                        append_sc(&out, "#if !defined(FSTRING_GUARD)\n");
-                    }
-                    else{
-                        append_sc(&out, "#if defined(FSTRING_IMPLEMENTATION)\n");
-                    }
-                    print_function_body_code(&out, &pcontext, start);
-                    append_sc(&out, "\n#endif");
-                    do_print = false;
-                }
-            }
-            
-            else if (match_ss(lexeme, make_lit_string("CPP_NAME"))){
-                Cpp_Token *token_start = token;
-                int32_t has_cpp_name = false;
-                
-                token = get_next_token(&pcontext);
-                if (token && token->type == CPP_TOKEN_PARENTHESE_OPEN){
-                    token = get_next_token(&pcontext);
-                    if (token && token->type == CPP_TOKEN_IDENTIFIER){
-                        token = get_next_token(&pcontext);
-                        if (token && token->type == CPP_TOKEN_PARENTHESE_CLOSE){
-                            has_cpp_name = true;
-                            do_print = false;
-                        }
-                    }
-                }
-                
-                if (!has_cpp_name){
-                    token = set_token(&pcontext, token_start);
-                }
-            }
-            
-            else if (token->type == CPP_TOKEN_COMMENT){
-                if (check_and_fix_docs(&lexeme)){
-                    do_print = false;
-                }
-            }
-            
-            if ((token = get_token(&pcontext)) != 0){
-                if (do_print){
-                    pstr = get_lexeme(*token, pcontext.data);
-                    append_ss(&out, pstr);
-                }
-                start = token->start + token->size;
-            }
-        }
-        pstr = str_start_end(pcontext.data, start, parse.code.size);
-        append_ss(&out, pstr);
-        
-        end_file_out(context);
-    }
-    else{
-        // TODO(allen): warning
-    }
+    META_FINISH();
 }
 
 int main(int argc, char **argv){

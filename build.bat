@@ -25,5 +25,5 @@ call "print_size.bat" 4ed_app.dll
 call "print_size.bat" 4ed.exe
 popd
 
-::END
+:END
 call "ctime" -end 4ed_data.ctm %FirstError%

@@ -14,7 +14,9 @@
 #define Assert(n) do{ if (!(n)) { *(int*)0 = 0xA11E; } }while(0)
 #define ArrayCount(a) (sizeof(a)/sizeof(*a))
 
-#include "../4cpp_lexer_types.h"
+#define LEXER_TABLE_FILE "4cpp/4cpp_lexer_tables.c"
+
+#include "../4cpp/4cpp_lexer_types.h"
 #include "../4ed_mem_ansi.c"
 
 typedef struct Whitespace_FSM{
@@ -700,7 +702,7 @@ static PP_Names pp_names[] = {
 int
 main(){
     FILE *file;
-    file = fopen("4cpp_lexer_tables.c", "wb");
+    file = fopen(LEXER_TABLE_FILE, "wb");
     
     FSM_Tables wtables = generate_whitespace_skip_table();
     render_fsm_table(file, wtables, "whitespace_fsm");

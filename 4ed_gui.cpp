@@ -213,14 +213,14 @@ gui_active_level(GUI_Target *target, GUI_id id){
     i32 level = 0;
     if (gui_id_eq(target->active, id)){
         level = 4;
-	}
+    }
     else if (gui_id_eq(target->auto_hot, id)){
         level = 3;
     }
     else if (gui_id_eq(target->mouse_hot, id)){
         if (gui_id_eq(target->hover, id)){
             level = 3;
-		}
+        }
         else{
             level = 2;
         }
@@ -305,7 +305,7 @@ gui_push_aligned_item(GUI_Target *target, GUI_Header *h, void *item, i32 size){
     char *ptr = (char*)partition_allocate(&target->push, size);
     if (ptr && item){
         memcpy(ptr, item, size);
-	}
+    }
     gui_align(target, h);
     return(ptr);
 }
@@ -316,7 +316,7 @@ gui_push_item(GUI_Target *target, GUI_Header *h, void *item, i32 size){
     ptr = (char*)partition_allocate(&target->push, size);
     if (ptr && item){
         memcpy(ptr, item, size);
-	}
+    }
     h->size += size;
     return(ptr);
 }
@@ -445,7 +445,7 @@ gui_do_color_button(GUI_Target *target, GUI_id id, u32 fore, u32 back, String te
     if (gui_id_eq(id, target->active)){
         result = 1;
         target->animating = 1;
-	}
+    }
     
     return(result);
 }
@@ -462,7 +462,7 @@ gui_do_font_button(GUI_Target *target, GUI_id id, i16 font_id, String text){
     if (gui_id_eq(id, target->active)){
         result = 1;
         target->animating = 1;
-	}
+    }
     
     return(result);
 }
@@ -485,7 +485,7 @@ gui_begin_list(GUI_Target *target, GUI_id id, i32 list_i,
     if (gui_id_eq(id, target->active)){
         active = 1;
         result = 1;
-	}
+    }
     
     if (snap_into_view){
         if (target->list_view_min > list_min){
@@ -543,7 +543,7 @@ gui_do_file_option(GUI_Target *target, GUI_id id, String filename,
     if (gui_id_eq(id, target->active)){
         result = 1;
         target->animating = 1;
-	}
+    }
     
     return(result);
 }
@@ -559,7 +559,7 @@ gui_do_button(GUI_Target *target, GUI_id id, String message){
     if (gui_id_eq(id, target->active)){
         result = 1;
         target->animating = 1;
-	}
+    }
     
     return(result);
 }
@@ -576,7 +576,7 @@ gui_do_fixed_option(GUI_Target *target, GUI_id id, String message, char key){
     if (gui_id_eq(id, target->active)){
         result = 1;
         target->animating = 1;
-	}
+    }
     
     return(result);
 }
@@ -594,7 +594,7 @@ gui_do_fixed_option_checkbox(GUI_Target *target, GUI_id id, String message, char
     if (gui_id_eq(id, target->active)){
         result = 1;
         target->animating = 1;
-	}
+    }
     
     return(result);
 }
@@ -610,7 +610,7 @@ gui_do_style_preview(GUI_Target *target, GUI_id id, i32 style_index){
     if (gui_id_eq(id, target->active)){
         result = 1;
         target->animating = 1;
-	}
+    }
     
     return(result);
 }
@@ -821,7 +821,7 @@ gui_layout_top_bottom(GUI_Session *session, i32 y0, i32 y1){
     if (session->is_scrollable){
         rect.x0 = session->scroll_region.x0;
         rect.x1 = session->scroll_region.x1;
-	}
+    }
     
     return(rect);
 }
@@ -968,10 +968,10 @@ gui_interpret(GUI_Target *target, GUI_Session *session, GUI_Header *h,
     y = section->v;
     
     if (!session->is_scrollable) scroll_v = 0;
-
+    
     switch (h->type){
         case guicom_null: Assert(0); break;
-
+        
         case guicom_begin_serial:
         ++session->t;
         Assert(session->t < ArrayCount(session->sections));
@@ -980,21 +980,21 @@ gui_interpret(GUI_Target *target, GUI_Session *session, GUI_Header *h,
         new_section->max_v = y;
         new_section->top_v = y;
         break;
-
+        
         case guicom_end_serial:
         Assert(session->t > 0);
         prev_section = &session->sections[--session->t];
         end_v = section->max_v;
         end_section = prev_section;
         break;
-
+        
         case guicom_top_bar:
         give_to_user = 1;
         rect = gui_layout_fixed_h(session, y, session->line_height + 2);
         end_v = rect.y1;
         end_section = section;
         break;
-
+        
         case guicom_file:
         give_to_user = 1;
         rect = gui_layout_top_bottom(session, y, session->full_rect.y1);
@@ -1002,7 +1002,7 @@ gui_interpret(GUI_Target *target, GUI_Session *session, GUI_Header *h,
         end_section = section;
         scroll_v = 0;
         break;
-
+        
         case guicom_text_with_cursor:
         case guicom_text_field:
         give_to_user = 1;
@@ -1010,7 +1010,7 @@ gui_interpret(GUI_Target *target, GUI_Session *session, GUI_Header *h,
         end_v = rect.y1;
         end_section = section;
         break;
-
+        
         case guicom_color_button:
         case guicom_font_button:
         give_to_user = 1;
@@ -1018,7 +1018,7 @@ gui_interpret(GUI_Target *target, GUI_Session *session, GUI_Header *h,
         end_v = rect.y1;
         end_section = section;
         break;
-
+        
         case guicom_begin_list:
         {
             GUI_Interactive *b = (GUI_Interactive*)h;
@@ -1164,9 +1164,7 @@ gui_interpret(GUI_Target *target, GUI_Session *session, GUI_Header *h,
         
         case guicom_end_scrollable_section:
         always_give_to_user = 1;
-        session->suggested_max_y =
-            CEIL32(session->scrollable_items_bottom -
-                  (session->full_rect.y0 + session->full_rect.y1)*.5f);
+        session->suggested_max_y = ceil32(session->scrollable_items_bottom - (session->full_rect.y0 + session->full_rect.y1)*.5f);
         if (session->suggested_max_y < 0){
             session->suggested_max_y = 0;
         }

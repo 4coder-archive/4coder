@@ -84,14 +84,13 @@ Command_Line_Parameters clparams)
 
 typedef App_Read_Command_Line_Sig(App_Read_Command_Line);
 
+struct Custom_API{
+    Get_Binding_Data_Function *get_bindings;
+    _Get_Version_Function *get_alpha_4coder_version;
+};
 
-#define App_Init_Sig(name) void                                    \
-name(System_Functions *system,                                     \
-Render_Target *target,                                        \
-Application_Memory *memory,                                   \
-String clipboard,                                             \
-String current_directory,                                     \
-Custom_API api)
+#define App_Init_Sig(name) \
+void name(System_Functions *system, Render_Target *target, Application_Memory *memory, String clipboard, String current_directory, Custom_API api)
 
 typedef App_Init_Sig(App_Init);
 

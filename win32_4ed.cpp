@@ -11,50 +11,23 @@
 
 #include <assert.h>
 #include <string.h>
-#include "common/4coder_defines.h"
-#include "common/4coder_version.h"
+#include "4tech_defines.h"
+#include "4coder_API/version.h"
 
 #if defined(FRED_SUPER)
+# include "4coder_API/keycodes.h"
+# include "4coder_API/style.h"
 
 # define FSTRING_IMPLEMENTATION
 # define FSTRING_C
-# include "4coder_string.h"
+# include "4coder_lib/4coder_string.h"
+# include "4coder_lib/4coder_mem.h"
 
-# include "4coder_keycodes.h"
-# include "4coder_style.h"
-# include "4coder_rect.h"
-# include "4coder_mem.h"
-# include "4cpp_lexer.h"
-
-// TODO(allen): This is duplicated from 4coder_custom.h
-// I need to work out a way to avoid this.
-#define VIEW_ROUTINE_SIG(name) void name(struct Application_Links *app, int32_t view_id)
-#define GET_BINDING_DATA(name) int32_t name(void *data, int32_t size)
-#define _GET_VERSION_SIG(n) int32_t n(int32_t maj, int32_t min, int32_t patch)
-
-typedef VIEW_ROUTINE_SIG(View_Routine_Function);
-typedef GET_BINDING_DATA(Get_Binding_Data_Function);
-typedef _GET_VERSION_SIG(_Get_Version_Function);
-
-struct Custom_API{
-    View_Routine_Function *view_routine;
-    Get_Binding_Data_Function *get_bindings;
-    _Get_Version_Function *get_alpha_4coder_version;
-};
-
-
-typedef void Custom_Command_Function;
-#include "4coder_types.h"
-struct Application_Links;
-# include "4coder_custom_api.h"
+# include "4coder_API/types.h"
+# include "4ed_os_custom_api.h"
 
 #else
 # include "4coder_default_bindings.cpp"
-
-# define FSTRING_IMPLEMENTATION
-# define FSTRING_C
-# include "4coder_string.h"
-
 #endif
 
 #include "4ed_math.h"
@@ -203,8 +176,8 @@ typedef struct Win32_Vars{
     
 } Win32_Vars;
 
-globalvar Win32_Vars win32vars;
-globalvar Application_Memory memory_vars;
+global Win32_Vars win32vars;
+global Application_Memory memory_vars;
 
 
 //
@@ -246,6 +219,48 @@ Win32Ptr(void *h){
 //
 
 internal
+Sys_Memory_Allocate_Sig(system_memory_allocate){
+    void *result = VirtualAlloc(0, size, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
+    return(result);
+}
+
+internal
+Sys_Memory_Set_Protection_Sig(system_memory_set_protection){
+    bool32 result = false;
+    DWORD old_protect = 0;
+    DWORD protect = 0;
+    
+    flags = flags & 0x7;
+    
+    switch (flags){
+        case 0: protect = PAGE_NOACCESS; break;
+        
+        case MemProtect_Read: protect = PAGE_READONLY; break;
+        
+        case MemProtect_Write:
+        case MemProtect_Read|MemProtect_Write:
+        protect = PAGE_READWRITE; break;
+        
+        case MemProtect_Execute: protect = PAGE_EXECUTE; break;
+        
+        case MemProtect_Execute|MemProtect_Read: protect = PAGE_EXECUTE_READ; break;
+        
+        case MemProtect_Execute|MemProtect_Write:
+        case MemProtect_Execute|MemProtect_Write|MemProtect_Read:
+        protect = PAGE_EXECUTE_READWRITE; break;
+    }
+    
+    VirtualProtect(ptr, size, protect, &old_protect);
+    return(result);
+}
+
+internal
+Sys_Memory_Free_Sig(system_memory_free){
+    VirtualFree(ptr, 0, MEM_RELEASE);
+}
+
+// TODO(allen): delete
+internal
 Sys_Get_Memory_Sig(system_get_memory_){
     void *ptr = 0;
     if (size > 0){
@@ -254,6 +269,7 @@ Sys_Get_Memory_Sig(system_get_memory_){
     return(ptr);
 }
 
+// TODO(allen): delete
 internal
 Sys_Free_Memory_Sig(system_free_memory){
     if (block){
@@ -317,7 +333,7 @@ JobThreadProc(LPVOID lpParameter){
     Thread_Memory *thread_memory = win32vars.thread_memory + thread_index;
     
     if (thread_memory->size == 0){
-        i32 new_size = Kbytes(64);
+        i32 new_size = KB(64);
         thread_memory->data = Win32GetMemory(new_size);
         thread_memory->size = new_size;
     }
@@ -575,13 +591,10 @@ Sys_Check_Cancel_Sig(system_check_cancel){
 
 internal
 Sys_Grow_Thread_Memory_Sig(system_grow_thread_memory){
-    void *old_data;
-    i32 old_size, new_size;
-    
     system_acquire_lock(CANCEL_LOCK0 + memory->id - 1);
-    old_data = memory->data;
-    old_size = memory->size;
-    new_size = l_round_up_i32(memory->size*2, Kbytes(4));
+    void *old_data = memory->data;
+    i32 old_size = memory->size;
+    i32 new_size = l_round_up(memory->size*2, KB(4));
     memory->data = system_get_memory(new_size);
     memory->size = new_size;
     if (old_data){
@@ -593,13 +606,15 @@ Sys_Grow_Thread_Memory_Sig(system_grow_thread_memory){
 
 #if FRED_INTERNAL
 internal void
-INTERNAL_get_thread_states(Thread_Group_ID id, bool8 *running, i32 *pending){
+INTERNAL_get_thread_states(Thread_Group_ID id, b8 *running, i32 *pending){
     Thread_Group *group = win32vars.groups + id;
     Unbounded_Work_Queue *source_queue = &group->queue;
     Work_Queue *queue = win32vars.queues + id;
     u32 write = queue->write_position;
     u32 read = queue->read_position;
-    if (write < read) write += QUEUE_WRAP;
+    if (write < read){
+        write += QUEUE_WRAP;
+    }
     *pending = (i32)(write - read) + source_queue->count - source_queue->skip;
     
     for (i32 i = 0; i < group->count; ++i){
@@ -996,6 +1011,76 @@ Sys_Get_Binary_Path_Sig(system_get_binary_path){
     return(result);
 }
 
+internal
+Sys_File_Exists_Sig(system_file_exists){
+    char full_filename_space[1024];
+    String full_filename;
+    HANDLE file;
+    b32 result = 0;
+    
+    if (len < sizeof(full_filename_space)){
+        full_filename = make_fixed_width_string(full_filename_space);
+        copy_ss(&full_filename, make_string(filename, len));
+        terminate_with_null(&full_filename);
+        
+        file = CreateFile(full_filename.str, GENERIC_READ, 0, 0,
+                          OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
+        
+        if (file != INVALID_HANDLE_VALUE){
+            CloseHandle(file);
+            result = 1;
+        }
+    }
+    
+    return(result);
+}
+
+internal
+Sys_Directory_CD_Sig(system_directory_cd){
+    String directory = make_string_cap(dir, *len, cap);
+    b32 result = 0;
+    i32 old_size;
+    
+    char rel_path_space[1024];
+    String rel_path_string = make_fixed_width_string(rel_path_space);
+    copy_ss(&rel_path_string, make_string(rel_path, rel_len));
+    terminate_with_null(&rel_path_string);
+    
+    if (rel_path[0] != 0){
+        if (rel_path[0] == '.' && rel_path[1] == 0){
+            result = 1;
+        }
+        else if (rel_path[0] == '.' && rel_path[1] == '.' && rel_path[2] == 0){
+            result = remove_last_folder(&directory);
+            terminate_with_null(&directory);
+        }
+        else{
+            if (directory.size + rel_len + 1 > directory.memory_size){
+                old_size = directory.size;
+                append_partial_sc(&directory, rel_path);
+                append_s_char(&directory, '\\');
+                if (Win32DirectoryExists(directory.str)){
+                    result = 1;
+                }
+                else{
+                    directory.size = old_size;
+                }
+            }
+        }
+    }
+    
+    *len = directory.size;
+    
+    return(result);
+}
+
+internal
+Sys_Get_4ed_Path_Sig(system_get_4ed_path){
+    String str = make_string_cap(out, 0, capacity);
+    int32_t size = system_get_binary_path(&str);
+    return(size);
+}
+
 
 /*
 NOTE(casey): This follows Raymond Chen's prescription
@@ -1030,8 +1115,6 @@ Win32ToggleFullscreen(void){
         win32vars.full_screen = 0;
     }
 }
-
-#include "win32_api_impl.cpp"
 
 //
 // Clipboard
@@ -1206,10 +1289,12 @@ Sys_CLI_End_Update_Sig(system_cli_end_update){
     DWORD result = 0;
     
     if (WaitForSingleObject(proc, 0) == WAIT_OBJECT_0){
-        if (GetExitCodeProcess(proc, &result) == 0)
+        if (GetExitCodeProcess(proc, &result) == 0){
             cli->exit = -1;
-        else
+        }
+        else{
             cli->exit = (i32)result;
+        }
         
         close_me = 1;
         CloseHandle(*(HANDLE*)&cli->proc);
@@ -1219,6 +1304,59 @@ Sys_CLI_End_Update_Sig(system_cli_end_update){
         --win32vars.running_cli;
     }
     return(close_me);
+}
+
+//
+// Appearence Settings
+//
+
+// TODO(allen): add a "shown but auto-hides on timer" setting here.
+internal
+Sys_Show_Mouse_Cursor_Sig(system_show_mouse_cursor){
+    switch (show){
+        case MouseCursorShow_Never:
+        ShowCursor(false);
+        break;
+        
+        case MouseCursorShow_Always:
+        ShowCursor(true);
+        break;
+        
+        // TODO(allen): MouseCursor_HideWhenStill
+    }
+}
+
+internal
+Sys_Toggle_Fullscreen_Sig(system_toggle_fullscreen){
+    /* NOTE(allen): Don't actually change window size now!
+    Tell the platform layer to do the toggle (or to cancel the toggle)
+    later when the app.step function isn't running. If the size changes
+    mid step, it messes up the rendering rules and stuff. */
+    
+    b32 success = false;
+    
+    // NOTE(allen): On windows we must be in stream mode to go fullscreen.
+    if (win32vars.settings.stream_mode){
+        win32vars.do_toggle = !win32vars.do_toggle;
+        success = true;
+    }
+    
+    return(success);
+}
+
+internal
+Sys_Is_Fullscreen_Sig(system_is_fullscreen){
+    /* NOTE(allen): This is a fancy way to say 'full_screen XOR do_toggle'
+    This way this function can always report the state the fullscreen
+    will have when the next frame runs, given the number of toggles
+    that have occurred this frame and the original value. */
+    bool32 result = (win32vars.full_screen + win32vars.do_toggle) & 1;
+    return(result);
+}
+
+internal
+Sys_Send_Exit_Signal_Sig(system_send_exit_signal){
+    win32vars.send_exit_signal = 1;
 }
 
 #include "4ed_system_shared.cpp"
@@ -1239,14 +1377,14 @@ size_change(i32 dpi_x, i32 dpi_y){
 internal
 Font_Load_Sig(system_draw_font_load){
     if (win32vars.font_part.base == 0){
-        win32vars.font_part = Win32ScratchPartition(Mbytes(8));
+        win32vars.font_part = Win32ScratchPartition(MB(8));
     }
     
     i32 oversample = 2;
     AllowLocal(oversample);
     
 #if SUPPORT_DPI
-    pt_size = ROUND32(pt_size * size_change(win32vars.dpi_x, win32vars.dpi_y));
+    pt_size = round32(pt_size * size_change(win32vars.dpi_x, win32vars.dpi_y));
 #endif
     
     for (b32 success = 0; success == 0;){
@@ -1331,19 +1469,6 @@ Win32LoadSystemCode(){
     
     win32vars.system.now_time = system_now_time;
     
-    win32vars.system.memory_allocate = Memory_Allocate;
-    win32vars.system.memory_set_protection = Memory_Set_Protection;
-    win32vars.system.memory_free = Memory_Free;
-    
-    win32vars.system.file_exists = File_Exists;
-    win32vars.system.directory_cd = Directory_CD;
-    win32vars.system.get_4ed_path = Get_4ed_Path;
-    win32vars.system.show_mouse_cursor = Show_Mouse_Cursor;
-    
-    win32vars.system.toggle_fullscreen = Toggle_Fullscreen;
-    win32vars.system.is_fullscreen = Is_Fullscreen;
-    win32vars.system.send_exit_signal = Send_Exit_Signal;
-    
     win32vars.system.post_clipboard = system_post_clipboard;
     
     win32vars.system.create_coroutine = system_create_coroutine;
@@ -1362,6 +1487,17 @@ Win32LoadSystemCode(){
     win32vars.system.grow_thread_memory = system_grow_thread_memory;
     win32vars.system.acquire_lock = system_acquire_lock;
     win32vars.system.release_lock = system_release_lock;
+    
+    win32vars.system.memory_allocate = system_memory_allocate;
+    win32vars.system.memory_set_protection = system_memory_set_protection;
+    win32vars.system.memory_free = system_memory_free;
+    win32vars.system.file_exists = system_file_exists;
+    win32vars.system.directory_cd = system_directory_cd;
+    win32vars.system.get_4ed_path = system_get_4ed_path;
+    win32vars.system.toggle_fullscreen = system_toggle_fullscreen;
+    win32vars.system.is_fullscreen = system_is_fullscreen;win32vars.system.show_mouse_cursor = system_show_mouse_cursor;
+    win32vars.system.send_exit_signal = system_send_exit_signal;
+    
     
 #if FRED_INTERNAL
     win32vars.system.internal_get_thread_states = INTERNAL_get_thread_states;
@@ -1382,7 +1518,7 @@ Win32LoadRenderCode(){
 // Helpers
 //
 
-globalvar u8 keycode_lookup_table[255];
+global u8 keycode_lookup_table[255];
 
 internal void
 Win32KeycodeInit(){
@@ -1855,37 +1991,31 @@ WinMain(HINSTANCE hInstance,
     
     LPVOID base;
 #if FRED_INTERNAL
-    base = (LPVOID)Tbytes(1);
+    base = (LPVOID)TB(1);
 #else
     base = (LPVOID)0;
 #endif
     
-    memory_vars.vars_memory_size = Mbytes(2);
-    memory_vars.vars_memory = VirtualAlloc(base, memory_vars.vars_memory_size,
-                                           MEM_COMMIT | MEM_RESERVE,
-                                           PAGE_READWRITE);
+    memory_vars.vars_memory_size = MB(2);
+    memory_vars.vars_memory = VirtualAlloc(base, memory_vars.vars_memory_size, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
     
 #if FRED_INTERNAL
-    base = (LPVOID)Tbytes(2);
+    base = (LPVOID)TB(2);
 #else
     base = (LPVOID)0;
 #endif
-    memory_vars.target_memory_size = Mbytes(512);
-    memory_vars.target_memory =
-        VirtualAlloc(base, memory_vars.target_memory_size,
-                     MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
+    memory_vars.target_memory_size = MB(512);
+    memory_vars.target_memory = VirtualAlloc(base, memory_vars.target_memory_size, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
     
     base = (LPVOID)0;
-    memory_vars.user_memory_size = Mbytes(2);
-    memory_vars.user_memory =
-        VirtualAlloc(base, memory_vars.target_memory_size,
-                     MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
+    memory_vars.user_memory_size = MB(2);
+    memory_vars.user_memory = VirtualAlloc(base, memory_vars.target_memory_size, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
     
     if (!memory_vars.vars_memory){
         exit(1);
     }
     
-    win32vars.target.max = Mbytes(1);
+    win32vars.target.max = MB(1);
     win32vars.target.push_buffer = (char*)system_get_memory(win32vars.target.max);
     
     
@@ -1943,7 +2073,7 @@ WinMain(HINSTANCE hInstance,
     //
     
 #if defined(FRED_SUPER)
-    char *custom_file_default = "4coder_custom.dll";
+    char *custom_file_default = "custom_4coder.dll";
     char *custom_file = 0;
     if (win32vars.settings.custom_dll) custom_file = win32vars.settings.custom_dll;
     else custom_file = custom_file_default;
@@ -1966,13 +2096,6 @@ WinMain(HINSTANCE hInstance,
         }
         win32vars.custom_api.get_bindings = (Get_Binding_Data_Function*)
             GetProcAddress(win32vars.custom, "get_bindings");
-        
-        // NOTE(allen): I am temporarily taking the view routine
-        // back out, it will be back soon.
-#if 0
-        win32vars.custom_api.view_routine = (View_Routine_Function*)
-            GetProcAddress(win32vars.custom, "view_routine");
-#endif
     }
     
     if (win32vars.custom_api.get_bindings == 0){
@@ -1983,15 +2106,6 @@ WinMain(HINSTANCE hInstance,
 #else
     win32vars.custom_api.get_bindings = (Get_Binding_Data_Function*)get_bindings;
 #endif
-    
-    win32vars.custom_api.view_routine = (View_Routine_Function*)0;
-    
-#if 0
-    if (win32vars.custom_api.view_routine == 0){
-        win32vars.custom_api.view_routine = (View_Routine_Function*)view_routine;
-    }
-#endif
-    
     
     //
     // Window and GL Initialization
@@ -2232,10 +2346,21 @@ WinMain(HINSTANCE hInstance,
         if (GetCursorPos(&mouse_point) &&
             ScreenToClient(win32vars.window_handle, &mouse_point)){
             
-            i32_Rect screen =
-                i32R(0, 0, win32vars.target.width, win32vars.target.height);
+            i32_Rect screen;
+            screen.x0 = 0;
+            screen.y0 = 0;
+            screen.x1 = win32vars.target.width;
+            screen.y1 = win32vars.target.height;
             
-            if (!hit_check(mouse_point.x, mouse_point.y, screen)){
+            i32 mx = mouse_point.x;
+            i32 my = mouse_point.y;
+            
+            b32 is_hit = false;
+            if (mx >= screen.x0 && mx < screen.x1 && my >= screen.y0 && my < screen.y1){
+                is_hit = true;
+            }
+            
+            if (!is_hit){
                 win32vars.input_chunk.trans.out_of_window = 1;
             }
             

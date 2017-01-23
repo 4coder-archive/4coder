@@ -1,30 +1,62 @@
+/*
+4coder_mem.h - Preversioning
+no warranty implied; use at your own risk
 
-#ifndef FCODER_MEM_H
+This software is in the public domain. Where that dedication is not
+recognized, you are granted a perpetual, irrevocable license to copy,
+distribute, and modify this file as you see fit.
+*/
+
+#if !defined(FCODER_MEM_H)
 #define FCODER_MEM_H
 
-#ifndef Assert
-# define Assert(n) do{ if(!(n)){*(int*)0 = 0xA11E;} }while(0)
+// 4tech_standard_preamble.h
+#if !defined(FTECH_INTEGERS)
+#define FTECH_INTEGERS
+#include <stdint.h>
+typedef int8_t i8_4tech;
+typedef int16_t i16_4tech;
+typedef int32_t i32_4tech;
+typedef int64_t i64_4tech;
+
+typedef uint8_t u8_4tech;
+typedef uint16_t u16_4tech;
+typedef uint32_t u32_4tech;
+typedef uint64_t u64_4tech;
+
+typedef float f32_4tech;
+typedef double f64_4tech;
+
+typedef int8_t b8_4tech;
+typedef int32_t b32_4tech;
 #endif
+
+#if !defined(Assert)
+# define Assert(n) do{ if (!(n)) *(int*)0 = 0xA11E; }while(0)
+#endif
+// standard preamble end 
+
+#include <string.h>
 
 struct Partition{
     char *base;
-    int32_t pos;
-    int32_t max;
+    i32_4tech pos;
+    i32_4tech max;
 };
 
 struct Temp_Memory{
     void *handle;
-    int32_t pos;
+    i32_4tech pos;
 };
 
 struct Tail_Temp_Partition{
     Partition part;
     void *handle;
-    int32_t old_max;
+    i32_4tech old_max;
 };
 
 inline Partition
-make_part(void *memory, int32_t size){
+make_part(void *memory, i32_4tech size){
     Partition partition;
     partition.base = (char*)memory;
     partition.pos = 0;
@@ -33,7 +65,7 @@ make_part(void *memory, int32_t size){
 }
 
 inline void*
-partition_allocate(Partition *data, int32_t size){
+partition_allocate(Partition *data, i32_4tech size){
     void *ret = 0;
     if (size > 0 && data->pos + size <= data->max){
         ret = data->base + data->pos;
@@ -43,7 +75,7 @@ partition_allocate(Partition *data, int32_t size){
 }
 
 inline void
-partition_align(Partition *data, uint32_t boundary){
+partition_align(Partition *data, u32_4tech boundary){
     --boundary;
     data->pos = (data->pos + boundary) & (~boundary);
 }
@@ -53,13 +85,13 @@ partition_current(Partition *data){
     return(data->base + data->pos);
 }
 
-inline int32_t
+inline i32_4tech
 partition_remaining(Partition *data){
     return(data->max - data->pos);
 }
 
 inline Partition
-partition_sub_part(Partition *data, int32_t size){
+partition_sub_part(Partition *data, i32_4tech size){
     Partition result = {};
     void *d = partition_allocate(data, size);
     if (d){
@@ -86,7 +118,7 @@ end_temp_memory(Temp_Memory temp){
 }
 
 inline Tail_Temp_Partition
-begin_tail_part(Partition *data, int32_t size){
+begin_tail_part(Partition *data, i32_4tech size){
     Tail_Temp_Partition result = {0};
     if (data->pos + size <= data->max){
         result.handle = data;
@@ -121,9 +153,9 @@ struct Bubble{
     Bubble *next;
     Bubble *prev2;
     Bubble *next2;
-    int32_t size;
-    uint32_t flags;
-    uint32_t _unused_[4];
+    i32_4tech size;
+    u32_4tech flags;
+    u32_4tech _unused_[4];
 };
 
 struct General_Memory{
@@ -178,12 +210,12 @@ general_sentinel_init(Bubble *bubble){
 #define BUBBLE_MIN_SIZE 1024
 
 static void
-general_memory_attempt_split(General_Memory *general, Bubble *bubble, int32_t wanted_size){
-    int32_t remaining_size = bubble->size - wanted_size;
+general_memory_attempt_split(General_Memory *general, Bubble *bubble, i32_4tech wanted_size){
+    i32_4tech remaining_size = bubble->size - wanted_size;
     if (remaining_size >= BUBBLE_MIN_SIZE){
         bubble->size = wanted_size;
         Bubble *new_bubble = (Bubble*)((char*)(bubble + 1) + wanted_size);
-        new_bubble->flags = (uint32_t)MEM_BUBBLE_FLAG_INIT;
+        new_bubble->flags = (u32_4tech)MEM_BUBBLE_FLAG_INIT;
         new_bubble->size = remaining_size - sizeof(Bubble);
         insert_bubble(bubble, new_bubble);
         insert_bubble2(&general->free_sentinel, new_bubble);
@@ -206,20 +238,20 @@ general_memory_attempt_merge(Bubble *left, Bubble *right){
 
 // NOTE(allen): public procedures
 static void
-general_memory_open(General_Memory *general, void *memory, int32_t size){
+general_memory_open(General_Memory *general, void *memory, i32_4tech size){
     general_sentinel_init(&general->sentinel);
     general_sentinel_init(&general->free_sentinel);
     general_sentinel_init(&general->used_sentinel);
     
     Bubble *first = (Bubble*)memory;
-    first->flags = (uint32_t)MEM_BUBBLE_FLAG_INIT;
+    first->flags = (u32_4tech)MEM_BUBBLE_FLAG_INIT;
     first->size = size - sizeof(Bubble);
     insert_bubble(&general->sentinel, first);
     insert_bubble2(&general->free_sentinel, first);
 }
 
 #if defined(Assert)
-static int32_t
+static i32_4tech
 general_memory_check(General_Memory *general){
     Bubble *sentinel = &general->sentinel;
     for (Bubble *bubble = sentinel->next;
@@ -243,12 +275,12 @@ general_memory_check(General_Memory *general){
     return(1);
 }
 #else
-static int32_t
+static i32_4tech
 general_memory_check(General_Memory *general){}
 #endif
 
 static void*
-general_memory_allocate(General_Memory *general, int32_t size){
+general_memory_allocate(General_Memory *general, i32_4tech size){
     void *result = 0;
     if (size < BUBBLE_MIN_SIZE) size = BUBBLE_MIN_SIZE;
     for (Bubble *bubble = general->free_sentinel.next2;
@@ -284,10 +316,10 @@ general_memory_free(General_Memory *general, void *memory){
 }
 
 static void*
-general_memory_reallocate(General_Memory *general, void *old, int32_t old_size, int32_t size){
+general_memory_reallocate(General_Memory *general, void *old, i32_4tech old_size, i32_4tech size){
     void *result = old;
     Bubble *bubble = ((Bubble*)old) - 1;
-    int32_t additional_space = size - bubble->size;
+    i32_4tech additional_space = size - bubble->size;
     if (additional_space > 0){
         Bubble *next = bubble->next;
         if (!(next->flags & MEM_BUBBLE_USED) &&
@@ -305,7 +337,7 @@ general_memory_reallocate(General_Memory *general, void *old, int32_t old_size, 
 }
 
 inline void*
-general_memory_reallocate_nocopy(General_Memory *general, void *old, int32_t size){
+general_memory_reallocate_nocopy(General_Memory *general, void *old, i32_4tech size){
     void *result = general_memory_reallocate(general, old, 0, size);
     return(result);
 }

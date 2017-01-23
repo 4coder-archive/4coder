@@ -1,6 +1,20 @@
+/*
+4coder_jump_parsing.cpp - Commands and helpers for parsing jump locations from 
+compiler errors and jumping to them in the corresponding buffer.
 
-#ifndef FCODER_JUMP_PARSING
+TYPE: 'drop-in-command-pack'
+*/
+
+// TOP
+
+#if !defined(FCODER_JUMP_PARSING)
 #define FCODER_JUMP_PARSING
+
+#include "4coder_default_framework.h"
+#include "4coder_helper/4coder_long_seek.h"
+#include "4coder_helper/4coder_helper.h"
+
+#include "4coder_lib/4coder_mem.h"
 
 typedef struct Name_Based_Jump_Location{
     String file;
@@ -38,8 +52,7 @@ ms_style_verify(String line, int32_t paren_pos){
 }
 
 static int32_t
-parse_jump_location(String line, Name_Based_Jump_Location *location,
-                    int32_t skip_sub_errors, int32_t *colon_char){
+parse_jump_location(String line, Name_Based_Jump_Location *location, int32_t skip_sub_errors, int32_t *colon_char){
     int32_t result = false;
     
     String original_line = line;
@@ -150,12 +163,7 @@ parse_jump_location(String line, Name_Based_Jump_Location *location,
 }
 
 static int32_t
-parse_jump_from_buffer_line(Application_Links *app,
-                            Partition *part,
-                            int32_t buffer_id,
-                            int32_t line,
-                            int32_t skip_sub_errors,
-                            Name_Based_Jump_Location *location){
+parse_jump_from_buffer_line(Application_Links *app, Partition *part, int32_t buffer_id, int32_t line, int32_t skip_sub_errors, Name_Based_Jump_Location *location){
     
     int32_t result = false;
     String line_str = {0};
@@ -193,15 +201,7 @@ CUSTOM_COMMAND_SIG(goto_jump_at_cursor){
 //
 
 static int32_t
-seek_next_jump_in_buffer(Application_Links *app,
-                         Partition *part,
-                         int32_t buffer_id,
-                         int32_t first_line,
-                         bool32 skip_sub_errors,
-                         int32_t direction,
-                         int32_t *line_out,
-                         int32_t *colon_index_out,
-                         Name_Based_Jump_Location *location_out){
+seek_next_jump_in_buffer(Application_Links *app, Partition *part, int32_t buffer_id, int32_t first_line, bool32 skip_sub_errors, int32_t direction, int32_t *line_out, int32_t *colon_index_out, Name_Based_Jump_Location *location_out){
     
     Assert(direction == 1 || direction == -1);
     
@@ -247,14 +247,7 @@ convert_name_based_to_id_based(Application_Links *app, Name_Based_Jump_Location 
 }
 
 static int32_t
-seek_next_jump_in_view(Application_Links *app,
-                       Partition *part,
-                       View_Summary *view,
-                       int32_t skip_sub_errors,
-                       int32_t direction,
-                       int32_t *line_out,
-                       int32_t *colon_index_out,
-                       Name_Based_Jump_Location *location_out){
+seek_next_jump_in_view(Application_Links *app, Partition *part, View_Summary *view, int32_t skip_sub_errors, int32_t direction, int32_t *line_out, int32_t *colon_index_out, Name_Based_Jump_Location *location_out){
     int32_t result = false;
     
     Name_Based_Jump_Location location = {0};
@@ -287,13 +280,7 @@ skip_this_jump(ID_Based_Jump_Location prev, ID_Based_Jump_Location jump){
 static ID_Based_Jump_Location prev_location = {0};
 
 static int32_t
-advance_cursor_in_jump_view(Application_Links *app,
-                            Partition *part,
-                            View_Summary *view,
-                            int32_t skip_repeats,
-                            int32_t skip_sub_error,
-                            int32_t direction,
-                            Name_Based_Jump_Location *location_out){
+advance_cursor_in_jump_view(Application_Links *app, Partition *part, View_Summary *view, int32_t skip_repeats, int32_t skip_sub_error, int32_t direction, Name_Based_Jump_Location *location_out){
     int32_t result = true;
     
     Name_Based_Jump_Location location = {0};
@@ -325,47 +312,8 @@ advance_cursor_in_jump_view(Application_Links *app,
     return(result);
 }
 
-static char locked_buffer_space[256];
-static String locked_buffer = make_fixed_width_string(locked_buffer_space);
-
-static void
-unlock_jump_buffer(){
-    locked_buffer.size = 0;
-}
-
-static void
-lock_jump_buffer(char *name, int32_t size){
-    copy(&locked_buffer, make_string(name, size));
-}
-
-static void
-lock_jump_buffer(Buffer_Summary buffer){
-    copy(&locked_buffer, make_string(buffer.buffer_name, buffer.buffer_name_len));
-}
-
-static View_Summary
-get_view_for_locked_jump_buffer(Application_Links *app){
-    View_Summary view = {0};
-    
-    if (locked_buffer.size > 0){
-        Buffer_Summary buffer = get_buffer_by_name(app, locked_buffer.str, locked_buffer.size, AccessAll);
-        if (buffer.exists){
-            view = get_first_view_with_buffer(app, buffer.buffer_id);
-        }
-        else{
-            unlock_jump_buffer();
-        }
-    }
-    
-    return(view);
-}
-
 static int32_t
-seek_error(Application_Links *app,
-           Partition *part,
-           int32_t skip_repeats,
-           int32_t skip_sub_errors,
-           int32_t direction){
+seek_error(Application_Links *app, Partition *part, int32_t skip_repeats, int32_t skip_sub_errors, int32_t direction){
     int32_t result = 0;
     
     View_Summary view = get_view_for_locked_jump_buffer(app);
@@ -437,4 +385,6 @@ CUSTOM_COMMAND_SIG(goto_first_jump){
 #define goto_first_error            goto_first_jump
 
 #endif
+
+// BOTTOM
 

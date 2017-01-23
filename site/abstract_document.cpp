@@ -831,7 +831,7 @@ write_enriched_text_html(String *out, Partition *part, Enriched_Text *text, Docu
                                     Abstract_Item *img_lookup = get_item_by_name(doc_system->img_list, img_name);
                                     
                                     if (img_lookup){
-                                        pixel_height = CEIL32(pixel_width*img_lookup->h_w_ratio);
+                                        pixel_height = ceil32(pixel_width*img_lookup->h_w_ratio);
                                         
                                         append_sc(out, "<img src='");
                                         

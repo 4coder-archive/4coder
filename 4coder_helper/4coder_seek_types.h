@@ -9,7 +9,7 @@
 
 // TOP
 
-#ifndef FRED_BUFFER_TYPES_H
+#if !defined(FRED_BUFFER_TYPES_H)
 #define FRED_BUFFER_TYPES_H
 
 static Buffer_Seek

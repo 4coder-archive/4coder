@@ -1,6 +1,27 @@
+/*
+4coder_auto_indent.cpp - Commands for auto-indentation of C++ code.
 
-#ifndef FCODER_AUTO_INDENT_INC
-#define FCODER_AUTO_INDENT_INC
+TYPE: 'drop-in-command-pack'
+*/
+
+// TOP
+
+#if !defined(FCODER_AUTO_INDENT_CPP)
+#define FCODER_AUTO_INDENT_CPP
+
+#include "4coder_base_commands.cpp"
+#include "4coder_helper/4coder_streaming.h"
+#include "4coder_helper/4coder_long_seek.h"
+#include "4coder_lib/4coder_mem.h"
+#include "4coder_default_framework.h"
+
+#if !defined(DEFAULT_INDENT_FLAGS)
+# define DEFAULT_INDENT_FLAGS 0
+#endif
+
+#if !defined(DEF_TAB_WIDTH)
+# define DEF_TAB_WIDTH 4
+#endif
 
 //
 // Generic Line Indenter
@@ -67,9 +88,7 @@ struct Indent_Options{
 };
 
 static Buffer_Batch_Edit
-make_batch_from_indent_marks(Application_Links *app, Partition *part, Buffer_Summary *buffer,
-                             int32_t line_start, int32_t line_end, int32_t *indent_marks,
-                             Indent_Options opts){
+make_batch_from_indent_marks(Application_Links *app, Partition *part, Buffer_Summary *buffer, int32_t line_start, int32_t line_end, int32_t *indent_marks, Indent_Options opts){
     
     Buffer_Batch_Edit result = {0};
     
@@ -140,20 +159,18 @@ make_batch_from_indent_marks(Application_Links *app, Partition *part, Buffer_Sum
 }
 
 static void
-set_line_indents(Application_Links *app, Partition *part, Buffer_Summary *buffer,
-                 int32_t line_start, int32_t line_end, int32_t *indent_marks, Indent_Options opts){
+set_line_indents(Application_Links *app, Partition *part, Buffer_Summary *buffer, int32_t line_start, int32_t line_end, int32_t *indent_marks, Indent_Options opts){
     Buffer_Batch_Edit batch =
         make_batch_from_indent_marks(app, part, buffer, line_start, line_end, indent_marks, opts);
     
     if (batch.edit_count > 0){
         buffer_batch_edit(app, buffer, batch.str, batch.str_len,
-                               batch.edits, batch.edit_count, BatchEdit_PreserveTokens);
+                          batch.edits, batch.edit_count, BatchEdit_PreserveTokens);
     }
 }
 
 static Cpp_Token*
-seek_matching_token_backwards(Cpp_Token_Array tokens, Cpp_Token *token,
-                              Cpp_Token_Type open_type, Cpp_Token_Type close_type){
+seek_matching_token_backwards(Cpp_Token_Array tokens, Cpp_Token *token, Cpp_Token_Type open_type, Cpp_Token_Type close_type){
     int32_t nesting_level = 0;
     if (token <= tokens.tokens){
         token = tokens.tokens;
@@ -179,8 +196,7 @@ seek_matching_token_backwards(Cpp_Token_Array tokens, Cpp_Token *token,
 }
 
 static Cpp_Token*
-find_anchor_token(Application_Links *app, Buffer_Summary *buffer, Cpp_Token_Array tokens,
-                  int32_t line_start, int32_t tab_width, int32_t *current_indent_out){
+find_anchor_token(Application_Links *app, Buffer_Summary *buffer, Cpp_Token_Array tokens, int32_t line_start, int32_t tab_width, int32_t *current_indent_out){
     Cpp_Token *token = get_first_token_at_line(app, buffer, tokens, line_start);
     
     if (token == 0 && tokens.count == 0){
@@ -282,9 +298,7 @@ struct Indent_Parse_State{
 };
 
 static int32_t*
-get_indentation_marks(Application_Links *app, Partition *part, Buffer_Summary *buffer,
-                      Cpp_Token_Array tokens, int32_t line_start, int32_t line_end,
-                      bool32 exact_align, int32_t tab_width){
+get_indentation_marks(Application_Links *app, Partition *part, Buffer_Summary *buffer, Cpp_Token_Array tokens, int32_t line_start, int32_t line_end, bool32 exact_align, int32_t tab_width){
     
     int32_t indent_mark_count = line_end - line_start;
     int32_t *indent_marks = push_array(part, int32_t, indent_mark_count);
@@ -595,5 +609,56 @@ buffer_auto_indent(Application_Links *app, Buffer_Summary *buffer, int32_t start
     return(result);
 }
 
+//
+// Commands
+//
+
+static void
+auto_tab_whole_file_by_summary(Application_Links *app, Buffer_Summary *buffer){
+    buffer_auto_indent(app, buffer, 0, buffer->size, DEF_TAB_WIDTH, DEFAULT_INDENT_FLAGS | AutoIndent_FullTokens);
+}
+
+CUSTOM_COMMAND_SIG(auto_tab_whole_file){
+    uint32_t access = AccessOpen;
+    View_Summary view = get_active_view(app, access);
+    Buffer_Summary buffer = get_buffer(app, view.buffer_id, access);
+    
+    auto_tab_whole_file_by_summary(app, &buffer);
+}
+
+CUSTOM_COMMAND_SIG(auto_tab_line_at_cursor){
+    uint32_t access = AccessOpen;
+    View_Summary view = get_active_view(app, access);
+    Buffer_Summary buffer = get_buffer(app, view.buffer_id, access);
+    
+    buffer_auto_indent(app, &buffer, view.cursor.pos, view.cursor.pos, DEF_TAB_WIDTH, DEFAULT_INDENT_FLAGS | AutoIndent_FullTokens);
+    move_past_lead_whitespace(app, &view, &buffer);
+}
+
+CUSTOM_COMMAND_SIG(auto_tab_range){
+    uint32_t access = AccessOpen;
+    View_Summary view = get_active_view(app, access);
+    Buffer_Summary buffer = get_buffer(app, view.buffer_id, access);
+    Range range = get_range(&view);
+    
+    buffer_auto_indent(app, &buffer, range.min, range.max, DEF_TAB_WIDTH, DEFAULT_INDENT_FLAGS | AutoIndent_FullTokens);
+    move_past_lead_whitespace(app, &view, &buffer);
+}
+
+CUSTOM_COMMAND_SIG(write_and_auto_tab){
+    exec_command(app, write_character);
+    
+    uint32_t access = AccessOpen;
+    View_Summary view = get_active_view(app, access);
+    Buffer_Summary buffer = get_buffer(app, view.buffer_id, access);
+    
+    buffer_auto_indent(app, &buffer, view.cursor.pos, view.cursor.pos, DEF_TAB_WIDTH, DEFAULT_INDENT_FLAGS | AutoIndent_ExactAlignBlock);
+    move_past_lead_whitespace(app, &view, &buffer);
+}
+
+
+
 #endif
+
+// BOTTOM
 

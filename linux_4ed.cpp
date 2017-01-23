@@ -12,50 +12,23 @@
 
 #include <assert.h>
 #include <string.h>
-#include "common/4coder_defines.h"
-#include "common/4coder_version.h"
+#include "4tech_defines.h"
+#include "4coder_API/version.h"
 
-#if FRED_SUPER
+#if defined(FRED_SUPER)
+# include "4coder_API/keycodes.h"
+# include "4coder_API/style.h"
 
 # define FSTRING_IMPLEMENTATION
 # define FSTRING_C
-# include "4coder_string.h"
+# include "4coder_lib/4coder_string.h"
+# include "4coder_lib/4coder_mem.h"
 
-# include "4coder_keycodes.h"
-# include "4coder_style.h"
-# include "4coder_rect.h"
-
-# include "4coder_mem.h"
-
-// TODO(allen): This is duplicated from 4coder_custom.h
-// I need to work out a way to avoid this.
-#define VIEW_ROUTINE_SIG(name) void name(struct Application_Links *app, int32_t view_id)
-#define GET_BINDING_DATA(name) int32_t name(void *data, int32_t size)
-#define _GET_VERSION_SIG(n) int32_t n(int32_t maj, int32_t min, int32_t patch)
-
-typedef VIEW_ROUTINE_SIG(View_Routine_Function);
-typedef GET_BINDING_DATA(Get_Binding_Data_Function);
-typedef _GET_VERSION_SIG(_Get_Version_Function);
-
-struct Custom_API{
-    View_Routine_Function *view_routine;
-    Get_Binding_Data_Function *get_bindings;
-    _Get_Version_Function *get_alpha_4coder_version;
-};
-
-
-typedef void Custom_Command_Function;
-#include "4coder_types.h"
-struct Application_Links;
+# include "4coder_API/types.h"
 # include "4ed_os_custom_api.h"
 
 #else
 # include "4coder_default_bindings.cpp"
-
-# define FSTRING_IMPLEMENTATION
-# define FSTRING_C
-# include "4coder_string.h"
-
 #endif
 
 #include "4ed_math.h"
@@ -252,8 +225,8 @@ struct Linux_Vars{
 // Linux globals
 //
 
-globalvar Linux_Vars linuxvars;
-globalvar Application_Memory memory_vars;
+global Linux_Vars linuxvars;
+global Application_Memory memory_vars;
 
 //
 // Linux forward declarations
@@ -601,11 +574,11 @@ Sys_Now_Time_Sig(system_now_time){
 }
 
 //
-// 4coder_custom.h
+// custom.h
 //
 
 internal
-MEMORY_ALLOCATE_SIG(system_memory_allocate){
+Sys_Memory_Allocate_Sig(system_memory_allocate){
     // NOTE(allen): This must return the exact base of the vpage.
     // We will count on the user to keep track of size themselves.
     void *result = mmap(0, size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
@@ -617,7 +590,7 @@ MEMORY_ALLOCATE_SIG(system_memory_allocate){
 }
 
 internal 
-MEMORY_SET_PROTECTION_SIG(system_memory_set_protection){
+Sys_Memory_Set_Protection_Sig(system_memory_set_protection){
     // NOTE(allen):
     // There is no such thing as "write only" in windows
     // so I just made write = write + read in all cases.
@@ -658,13 +631,13 @@ MEMORY_SET_PROTECTION_SIG(system_memory_set_protection){
 }
 
 internal
-MEMORY_FREE_SIG(system_memory_free){
+Sys_Memory_Free_Sig(system_memory_free){
     // NOTE(allen): This must take the exact base of the vpage.
     munmap(ptr, size);
 }
 
 internal
-FILE_EXISTS_SIG(system_file_exists){
+Sys_File_Exists_Sig(system_file_exists){
     int result = 0;
     char buff[PATH_MAX] = {};
     
@@ -683,8 +656,8 @@ FILE_EXISTS_SIG(system_file_exists){
 }
 
 internal
-DIRECTORY_CD_SIG(system_directory_cd){
-    String directory = make_string_cap(dir, *len, capacity);
+Sys_Directory_CD_Sig(system_directory_cd){
+    String directory = make_string_cap(dir, *len, cap);
     b32 result = 0;
     i32 old_size;
     
@@ -722,24 +695,26 @@ DIRECTORY_CD_SIG(system_directory_cd){
 }
 
 internal
-GET_4ED_PATH_SIG(system_get_4ed_path){
+Sys_Get_4ed_Path_Sig(system_get_4ed_path){
     String str = make_string_cap(out, 0, capacity);
     return(system_get_binary_path(&str));
 }
 
 internal
-SHOW_MOUSE_CURSOR_SIG(system_show_mouse_cursor){
+Sys_Show_Mouse_Cursor_Sig(system_show_mouse_cursor){
     linuxvars.hide_cursor = !show;
     XDefineCursor(linuxvars.XDisplay, linuxvars.XWindow, show ? None : linuxvars.hidden_cursor);
 }
 
 internal
-TOGGLE_FULLSCREEN_SIG(system_toggle_fullscreen){
+Sys_Toggle_Fullscreen_Sig(system_toggle_fullscreen){
+    b32 success = true;
     LinuxToggleFullscreen(linuxvars.XDisplay, linuxvars.XWindow);
+    return(success);
 }
 
 internal
-IS_FULLSCREEN_SIG(system_is_fullscreen){
+Sys_Is_Fullscreen_Sig(system_is_fullscreen){
     b32 result = 0;
     
     Atom type, *prop;
@@ -765,7 +740,7 @@ IS_FULLSCREEN_SIG(system_is_fullscreen){
 }
 
 internal
-SEND_EXIT_SIGNAL_SIG(system_send_exit_signal){
+Sys_Send_Exit_Signal_Sig(system_send_exit_signal){
     linuxvars.keep_running = 0;
 }
 
@@ -1020,7 +995,7 @@ JobThreadProc(void* lpParameter){
     Thread_Memory *thread_memory = linuxvars.thread_memory + thread_index;
     
     if (thread_memory->size == 0){
-        i32 new_size = Kbytes(64);
+        i32 new_size = KB(64);
         thread_memory->data = LinuxGetMemory(new_size);
         thread_memory->size = new_size;
     }
@@ -1285,7 +1260,7 @@ Sys_Grow_Thread_Memory_Sig(system_grow_thread_memory){
     system_acquire_lock(CANCEL_LOCK0 + memory->id - 1);
     old_data = memory->data;
     old_size = memory->size;
-    new_size = LargeRoundUp(memory->size*2, Kbytes(4));
+    new_size = l_round_up(memory->size*2, KB(4));
     memory->data = system_get_memory(new_size);
     memory->size = new_size;
     if (old_data){
@@ -1358,13 +1333,13 @@ Font_Load_Sig(system_draw_font_load){
     LINUX_FN_DEBUG("%s, %dpt, tab_width: %d", filename, pt_size, tab_width);
     
     if (linuxvars.font_part.base == 0){
-        linuxvars.font_part = sysshared_scratch_partition(Mbytes(8));
+        linuxvars.font_part = sysshared_scratch_partition(MB(8));
     }
     
     i32 oversample = 2;
     
 #if SUPPORT_DPI
-    pt_size = ROUND32(pt_size * size_change(linuxvars.dpi_x, linuxvars.dpi_y));
+    pt_size = round32(pt_size * size_change(linuxvars.dpi_x, linuxvars.dpi_y));
 #endif
     
     for(; attempts < 3; ++attempts){
@@ -1444,7 +1419,7 @@ LinuxLoadSystemCode(){
     // time
     linuxvars.system.now_time = system_now_time;
     
-    // 4coder_custom.h
+    // custom.h
     linuxvars.system.memory_allocate = system_memory_allocate;
     linuxvars.system.memory_set_protection = system_memory_set_protection;
     linuxvars.system.memory_free = system_memory_free;
@@ -1911,7 +1886,7 @@ LinuxInputInit(Display *dpy, Window XWindow)
 // Keyboard handling funcs
 //
 
-globalvar u8 keycode_lookup_table[255];
+global u8 keycode_lookup_table[255];
 
 internal void
 LinuxKeycodeInit(Display* dpy){
@@ -2979,14 +2954,14 @@ main(int argc, char **argv)
     LinuxLoadSystemCode();
     LinuxLoadRenderCode();
     
-    memory_vars.vars_memory_size   = Mbytes(2);
+    memory_vars.vars_memory_size   = MB(2);
     memory_vars.vars_memory        = system_get_memory(memory_vars.vars_memory_size);
-    memory_vars.target_memory_size = Mbytes(512);
+    memory_vars.target_memory_size = MB(512);
     memory_vars.target_memory      = system_get_memory(memory_vars.target_memory_size);
-    memory_vars.user_memory_size   = Mbytes(2);
+    memory_vars.user_memory_size   = MB(2);
     memory_vars.user_memory        = system_get_memory(memory_vars.user_memory_size);
     
-    linuxvars.target.max         = Mbytes(1);
+    linuxvars.target.max         = MB(1);
     linuxvars.target.push_buffer = (char*)system_get_memory(linuxvars.target.max);
     
     if(memory_vars.vars_memory == NULL || memory_vars.target_memory == NULL || memory_vars.user_memory == NULL || linuxvars.target.push_buffer == NULL){
@@ -3043,7 +3018,7 @@ main(int argc, char **argv)
     
 #ifdef FRED_SUPER
     
-    char *custom_file_default = "4coder_custom.so";
+    char *custom_file_default = "custom_4coder.so";
     sysshared_to_binary_path(&base_dir, custom_file_default);
     custom_file_default = base_dir.str;
     
@@ -3067,23 +3042,21 @@ main(int argc, char **argv)
         
         if (linuxvars.custom_api.get_alpha_4coder_version == 0 ||
             linuxvars.custom_api.get_alpha_4coder_version(MAJOR, MINOR, PATCH) == 0){
-            LinuxFatalErrorMsg("Failed to load '4coder_custom.so': Version mismatch. Try rebuilding it with 'buildsuper.sh'.");
+            LinuxFatalErrorMsg("Failed to load 'custom_4coder.so': Version mismatch. Try rebuilding it with 'buildsuper.sh'.");
             exit(1);
         }
         else{
             linuxvars.custom_api.get_bindings = (Get_Binding_Data_Function*)
                 dlsym(linuxvars.custom, "get_bindings");
-            linuxvars.custom_api.view_routine = (View_Routine_Function*)
-                dlsym(linuxvars.custom, "view_routine");
             
             if (linuxvars.custom_api.get_bindings == 0){
-                LinuxFatalErrorMsg("Failed to load '4coder_custom.so': "
+                LinuxFatalErrorMsg("Failed to load 'custom_4coder.so': "
                                    "It does not export the required 'get_bindings' function. "
                                    "Try rebuilding it with 'buildsuper.sh'.");
                 exit(1);
             }
             else{
-                fprintf(stderr, "Successfully loaded 4coder_custom.so\n");
+                fprintf(stderr, "Successfully loaded custom_4coder.so\n");
             }
         }
     } else {
@@ -3091,20 +3064,12 @@ main(int argc, char **argv)
         const char* error = dlerror();
         snprintf(buf, sizeof(buf), "Error loading custom: %s. "
                  "Make sure this file is in the same directory as the main '4ed' executable.",
-                 error ? error : "'4coder_custom.so' missing");
+                 error ? error : "'custom_4coder.so' missing");
         LinuxFatalErrorMsg(buf);
         exit(1);
     }
 #else
     linuxvars.custom_api.get_bindings = get_bindings;
-#endif
-    
-    linuxvars.custom_api.view_routine = 0;
-    
-#if 0
-    if (linuxvars.custom_api.view_routine == 0){
-        linuxvars.custom_api.view_routine = view_routine;
-    }
 #endif
     
     //
@@ -3116,7 +3081,7 @@ main(int argc, char **argv)
         linuxvars.coroutine_data[i].next = linuxvars.coroutine_data + i + 1;
     }
     
-    const size_t stack_size = Mbytes(2);
+    const size_t stack_size = MB(2);
     for (i32 i = 0; i < ArrayCount(linuxvars.coroutine_data); ++i){
         linuxvars.coroutine_data[i].stack.ss_size = stack_size;
         linuxvars.coroutine_data[i].stack.ss_sp = system_get_memory(stack_size);

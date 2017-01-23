@@ -1,40 +1,34 @@
 
 
-#ifndef ENUM
+#if !defined(FCODER_TYPES_H)
+#define FCODER_TYPES_H
+
+#if !defined(FCODER_META_TAGS)
+#define FCODER_META_TAGS
+
 # define ENUM(type,name) typedef type name; enum name##_
-#endif
-
-#ifndef TYPEDEF
 # define TYPEDEF typedef
-#endif
-
-#ifndef STRUCT
+# define TYPEDEF_FUNC typedef
 # define STRUCT struct
-#endif
-
-#ifndef UNION
 # define UNION union
+# define GLOBAL_VAR static
+
 #endif
 
 
-/* DOC(bool32 is an alias name to signal that an integer parameter or field is for
-true/false values.) */
+/* DOC(bool32 is an alias name to signal that an integer parameter or field is for true/false values.) */
 TYPEDEF int32_t bool32;
 
-/* DOC(int_color is an alias name to signal that an integer parameter or field is for
-a color value, colors are specified as 24 bit integers in 3 channels: 0xRRGGBB.) */
+/* DOC(int_color is an alias name to signal that an integer parameter or field is for a color value, colors are specified as 24 bit integers in 3 channels: 0xRRGGBB.) */
 TYPEDEF uint32_t int_color;
 
-/* DOC(Key_Code is the alias for key codes including raw codes and codes translated
-to textual input that takes modifiers into account.) */
+/* DOC(Key_Code is the alias for key codes including raw codes and codes translated to textual input that takes modifiers into account.) */
 TYPEDEF unsigned char Key_Code;
 
-/* DOC(Buffer_ID is used to name a 4coder buffer.  Each buffer has a unique id but
-when a buffer is closed it's id may be recycled by future, different buffers.) */
+/* DOC(Buffer_ID is used to name a 4coder buffer.  Each buffer has a unique id but when a buffer is closed it's id may be recycled by future, different buffers.) */
 TYPEDEF int32_t Buffer_ID;
 
-/* DOC(View_ID is used to name a 4coder view.  Each view has a unique id in
-the interval [1,16].) */
+/* DOC(View_ID is used to name a 4coder view.  Each view has a unique id in the interval [1,16].) */
 TYPEDEF int32_t View_ID;
 
 /* DOC(A Key_Modifier acts as an index for specifying modifiers in arrays.) */
@@ -68,10 +62,6 @@ ENUM(uint64_t, Command_ID){
     cmdid_undo,
     /* DOC(cmdid_redo reperforms an edit that was undone.) */
     cmdid_redo,
-    /* DOC(cmdid_history_backward performs a step backwards through the file history, which includes previously lost redo branches.) */
-    cmdid_history_backward,
-    /* DOC(cmdid_history_forward unperforms the previous cmdid_history_backward step if possible.) */
-    cmdid_history_forward,
     
     /* DOC(cmdid_interactive_new begins an interactive dialogue to create a new buffer.) */
     cmdid_interactive_new,
@@ -358,15 +348,6 @@ ENUM(int32_t, View_Split_Position){
     ViewSplit_Right
 };
 
-/* DOC(Generic_Command acts as a name for a command, and can name an internal command or a custom command.) */
-UNION Generic_Command{
-    /*DOC(If this Generic_Command represents an internal command the cmdid field will have a value less than cmdid_count, and this field is the command id for the command.)*/
-    Command_ID cmdid;
-    /*DOC(If this Generic_Command does not represent an internal command the command
-    field is the pointer to the custom command..)*/
-    Custom_Command_Function *command;
-};
-
 /* DOC(Key_Event_Data describes a key event, including the translation to a character, the translation to a character ignoring the state of caps lock, and an array of all the modifiers that were pressed at the time of the event.) */
 STRUCT Key_Event_Data{
     /* DOC(This field is the raw keycode which is always non-zero in valid key events.) */
@@ -384,6 +365,9 @@ STRUCT Key_Event_Data{
     */
     char modifiers[MDFR_INDEX_COUNT];
 };
+
+// TODO(allen): GLOBAL_VAR meta parsing
+GLOBAL_VAR Key_Event_Data null_key_event_data = {0};
 
 /* DOC(Mouse_State describes an entire mouse state complete with the position, left and right button states, the wheel state, and whether or not the mouse if in the window.) */
 STRUCT Mouse_State{
@@ -410,6 +394,8 @@ STRUCT Mouse_State{
     /* DOC(This field contains the y position of the mouse relative to the window where the top side is 0.) */
     int32_t y;
 };
+
+GLOBAL_VAR Mouse_State null_mouse_state = {0};
 
 /* DOC(
 Range describes an integer range typically used for ranges within a buffer. Ranges tend are usually not passed as a Range struct into the API, but this struct is used to return ranges.
@@ -625,6 +611,26 @@ STRUCT Buffer_Summary{
     bool32 unwrapped_lines;
 };
 
+GLOBAL_VAR Buffer_Summary null_buffer_summary = {0};
+
+STRUCT i32_Rect{
+    int32_t x0;
+    int32_t y0;
+    int32_t x1;
+    int32_t y1;
+};
+
+GLOBAL_VAR i32_Rect null_i32_rect = {0};
+
+STRUCT f32_Rect{
+    float x0;
+    float y0;
+    float x1;
+    float y1;
+};
+
+GLOBAL_VAR f32_Rect null_f32_rect = {0};
+
 /* DOC(View_Summary acts as a handle to a view and describes the state of the view.)
 DOC_SEE(Access_Flag)
 DOC_SEE(Full_Cursor) */
@@ -659,31 +665,14 @@ STRUCT View_Summary{
     GUI_Scroll_Vars scroll_vars;
 };
 
-/*
-DOC(User_Input describes a user input event which can be either a key press or mouse event.)
-DOC_SEE(User_Input_Type_ID)
-DOC_SEE(Generic_Command)
-*/
-STRUCT User_Input{
-    /* DOC(This field specifies whether the event was a key press or mouse event.) */
-    User_Input_Type_ID type;
-    /* DOC(This field indicates that an abort event has occurred and the command needs to shut down.) */
-    bool32 abort;
-    UNION{
-        /* DOC(This field describes a key press event.) */
-        Key_Event_Data key;
-        /* DOC(This field describes a mouse input event.) */
-        Mouse_State mouse;
-    };
-    /* DOC(If this event would trigger a command, this field specifies what the command would be.) */
-    Generic_Command command;
-};
+GLOBAL_VAR View_Summary null_view_summary = {0};
 
 /* DOC(Query_Bar is a struct used to store information in the user's control
 that will be displayed as a drop down bar durring an interactive command.) */
 STRUCT Query_Bar{
     /* DOC(This specifies the prompt portion of the drop down bar.) */
     String prompt;
+    
     /* DOC(This specifies the main string portion of the drop down bar.) */
     String string;
 };
@@ -710,14 +699,12 @@ STRUCT Theme_Color{
 ENUM(int32_t, Buffer_Batch_Edit_Type){
     /* DOC(The BatchEdit_Normal operation is always correct but does the most work if there are tokens to correct.) */
     BatchEdit_Normal,
-    /* DOC(The BatchEdit_PreserveTokens operation is one in which none of the edits add, delete, or change any tokens.
-    This usually applies when whitespace is being replaced with whitespace.) */
+    /* DOC(The BatchEdit_PreserveTokens operation is one in which none of the edits add, delete, or change any tokens. This usually applies when whitespace is being replaced with whitespace.) */
     BatchEdit_PreserveTokens
 };
 
 /*
-DOC(This struct is used to bundle the parameters of the buffer_batch_edit function.  It is convenient
-for a few functions that return a batch edit to the user.)
+DOC(This struct is used to bundle the parameters of the buffer_batch_edit function.  It is convenient for a few functions that return a batch edit to the user.)
 DOC_SEE(buffer_batch_edit)
 */
 STRUCT Buffer_Batch_Edit{
@@ -732,4 +719,139 @@ STRUCT Buffer_Batch_Edit{
     int32_t edit_count;
 };
 
+
+/* DOC(Custom_Command_Function is a function type which matches the signature used for commands.  To declare a command use CUSTOM_COMMAND_SIG.) DOC_SEE(CUSTOM_COMMAND_SIG) */
+TYPEDEF void Custom_Command_Function(struct Application_Links *app);
+
+// TODO(allen): Improve meta system so that the system for picking up macros is universal.
+#define CUSTOM_COMMAND_SIG(name) void name(struct Application_Links *app)
+
+
+/* DOC(Generic_Command acts as a name for a command, and can name an internal command or a custom command.) */
+UNION Generic_Command{
+    /*DOC(If this Generic_Command represents an internal command the cmdid field will have a value less than cmdid_count, and this field is the command id for the command.)*/
+    Command_ID cmdid;
+    /*DOC(If this Generic_Command does not represent an internal command the command
+    field is the pointer to the custom command..)*/
+    Custom_Command_Function *command;
+};
+
+
+/*
+DOC(User_Input describes a user input event which can be either a key press or mouse event.)
+DOC_SEE(User_Input_Type_ID)
+DOC_SEE(Generic_Command)
+*/
+STRUCT User_Input{
+    /* DOC(This field specifies whether the event was a key press or mouse event.) */
+    User_Input_Type_ID type;
+    /* DOC(This field indicates that an abort event has occurred and the command needs to shut down.) */
+    bool32 abort;
+    UNION{
+        /* DOC(This field describes a key press event.) */
+        Key_Event_Data key;
+        /* DOC(This field describes a mouse input event.) */
+        Mouse_State mouse;
+    };
+    /* DOC(If this event would trigger a command, this field specifies what the command would be.) */
+    Generic_Command command;
+};
+
+
+/* DOC(Hook_IDs name the various hooks into 4coder, these hooks use the Hook_Function signature.)
+DOC_SEE(Hook_Function) */
+ENUM(int32_t, Hook_ID){
+    /* DOC(TODO) */
+    hook_start,
+    /* DOC(TODO) */
+    hook_file_out_of_sync,
+    /* DOC(TODO) */
+    hook_exit,
+    /* DOC(TODO) */
+    hook_view_size_change,
+    // never below this
+    hook_type_count
+};
+
+/* DOC(Special_Hook_IDs name special hooks that use specialized signatures.) */
+ENUM(int32_t, Special_Hook_ID){
+    /* DOC(TODO) */
+    special_hook_scroll_rule = hook_type_count,
+    /* DOC(TODO) */
+    special_hook_new_file,
+    /* DOC(TODO) */
+    special_hook_open_file,
+    /* DOC(TODO) */
+    special_hook_save_file,
+    /* DOC(TODO) */
+    special_hook_command_caller,
+    /* DOC(TODO) */
+    special_hook_input_filter,
+};
+
+TYPEDEF_FUNC int32_t Command_Caller_Hook_Function(struct Application_Links *app, Generic_Command cmd);
+#define COMMAND_CALLER_HOOK(name) int32_t name(struct Application_Links *app, Generic_Command cmd)
+
+TYPEDEF_FUNC int32_t Hook_Function(struct Application_Links *app);
+#define HOOK_SIG(name) int32_t name(struct Application_Links *app)
+
+TYPEDEF_FUNC int32_t Open_File_Hook_Function(struct Application_Links *app, int32_t buffer_id);
+#define OPEN_FILE_HOOK_SIG(name) int32_t name(struct Application_Links *app, int32_t buffer_id)
+
+TYPEDEF_FUNC void Input_Filter_Function(Mouse_State *mouse);
+#define INPUT_FILTER_SIG(name) void name(Mouse_State *mouse)
+
+TYPEDEF_FUNC int32_t Scroll_Rule_Function(float target_x, float target_y, float *scroll_x, float *scroll_y, int32_t view_id, int32_t is_new_target, float dt);
+#define SCROLL_RULE_SIG(name) \
+int32_t name(float target_x, float target_y, float *scroll_x, float *scroll_y, int32_t view_id, int32_t is_new_target, float dt)
+
+TYPEDEF_FUNC int32_t Get_Binding_Data_Function(void *data, int32_t size);
+#define GET_BINDING_DATA(name) int32_t name(void *data, int32_t size)
+
+// NOTE(allen): Definitions for the format that Get_Binding_Data uses to launch 4coder.
+// TODO(allen): Find a way to transition to a more dynamic Command_Map system.
+
+ENUM(int32_t, Binding_Unit_Type){
+    unit_header,
+    unit_map_begin,
+    unit_binding,
+    unit_callback,
+    unit_inherit,
+    unit_hook
+};
+
+ENUM(int32_t, Map_ID){
+    mapid_global = (1 << 24),
+    mapid_file,
+    mapid_nomap
+};
+
+STRUCT Binding_Unit{
+    Binding_Unit_Type type;
+    UNION{
+        STRUCT{ int32_t total_size; int32_t user_map_count; int32_t error; } header;
+        
+        STRUCT{ int32_t mapid; int32_t replace; int32_t bind_count; } map_begin;
+        STRUCT{ int32_t mapid; } map_inherit;
+        STRUCT{
+            int16_t code;
+            uint8_t modifiers;
+            int32_t command_id;
+        } binding;
+        STRUCT{
+            int16_t code;
+            uint8_t modifiers;
+            Custom_Command_Function *func;
+        } callback;
+        STRUCT{
+            int32_t hook_id;
+            void *func;
+        } hook;
+    };
+};
+
+typedef int32_t _Get_Version_Function(int32_t maj, int32_t min, int32_t patch);
+#define _GET_VERSION_SIG(n) int32_t n(int32_t maj, int32_t min, int32_t patch)
+
+#endif
 

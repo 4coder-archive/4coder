@@ -200,12 +200,42 @@ typedef Sys_Acquire_Lock_Sig(System_Acquire_Lock);
 #define Sys_Release_Lock_Sig(name) void name(i32 id)
 typedef Sys_Release_Lock_Sig(System_Release_Lock);
 
+// needed for custom layer
+#define Sys_Memory_Allocate_Sig(name) void* name(i32 size)
+typedef Sys_Memory_Allocate_Sig(System_Memory_Allocate);
+
+#define Sys_Memory_Set_Protection_Sig(name) bool32 name(void *ptr, i32 size, u32 flags)
+typedef Sys_Memory_Set_Protection_Sig(System_Memory_Set_Protection);
+
+#define Sys_Memory_Free_Sig(name) void name(void *ptr, i32 size)
+typedef Sys_Memory_Free_Sig(System_Memory_Free);
+
+#define Sys_File_Exists_Sig(name) b32 name(char *filename, i32 len)
+typedef Sys_File_Exists_Sig(System_File_Exists);
+
+#define Sys_Directory_CD_Sig(name) bool32 name(char *dir, i32 *len, i32 cap, char *rel_path, i32 rel_len)
+typedef Sys_Directory_CD_Sig(System_Directory_CD);
+
+#define Sys_Get_4ed_Path_Sig(name) int32_t name(char *out, i32 capacity)
+typedef Sys_Get_4ed_Path_Sig(System_Get_4ed_Path);
+
+#define Sys_Show_Mouse_Cursor_Sig(name) void name(i32 show)
+typedef Sys_Show_Mouse_Cursor_Sig(System_Show_Mouse_Cursor);
+
+#define Sys_Toggle_Fullscreen_Sig(name) b32 name()
+typedef Sys_Toggle_Fullscreen_Sig(System_Toggle_Fullscreen);
+
+#define Sys_Is_Fullscreen_Sig(name) bool32 name()
+typedef Sys_Is_Fullscreen_Sig(System_Is_Fullscreen);
+
+#define Sys_Send_Exit_Signal_Sig(name) void name()
+typedef Sys_Send_Exit_Signal_Sig(System_Send_Exit_Signal);
+
 // debug
 #define INTERNAL_Sys_Get_Thread_States_Sig(name) void name(Thread_Group_ID id, b8 *running, i32 *pending)
 typedef INTERNAL_Sys_Get_Thread_States_Sig(INTERNAL_System_Get_Thread_States);
 
 struct System_Functions{
-    
     // files (tracked api): 10
     System_Set_File_List *set_file_list;
     System_Get_Canonical *get_canonical;
@@ -220,18 +250,6 @@ struct System_Functions{
     
     // time: 1
     System_Now_Time *now_time;
-    
-    // 4coder_custom.h: 7
-    Memory_Allocate_Function *memory_allocate;
-    Memory_Set_Protection_Function *memory_set_protection;
-    Memory_Free_Function *memory_free;
-    File_Exists_Function *file_exists;
-    Directory_CD_Function *directory_cd;
-    Get_4ed_Path_Function *get_4ed_path;
-    Show_Mouse_Cursor_Function *show_mouse_cursor;
-    Toggle_Fullscreen_Function *toggle_fullscreen;
-    Is_Fullscreen_Function *is_fullscreen;
-    Send_Exit_Signal_Function *send_exit_signal;
     
     // clipboard: 1
     System_Post_Clipboard *post_clipboard;
@@ -248,13 +266,25 @@ struct System_Functions{
     System_CLI_Update_Step *cli_update_step;
     System_CLI_End_Update *cli_end_update;
     
-    // threads: 7
+    // threads: 6
     System_Post_Job *post_job;
     System_Cancel_Job *cancel_job;
     System_Check_Cancel *check_cancel;
     System_Grow_Thread_Memory *grow_thread_memory;
     System_Acquire_Lock *acquire_lock;
     System_Release_Lock *release_lock;
+    
+    // custom: 10
+    System_Memory_Allocate        *memory_allocate;
+    System_Memory_Set_Protection  *memory_set_protection;
+    System_Memory_Free            *memory_free;
+    System_File_Exists            *file_exists;
+    System_Directory_CD           *directory_cd;
+    System_Get_4ed_Path           *get_4ed_path;
+    System_Show_Mouse_Cursor      *show_mouse_cursor;
+    System_Toggle_Fullscreen      *toggle_fullscreen;
+    System_Is_Fullscreen          *is_fullscreen;
+    System_Send_Exit_Signal       *send_exit_signal;
     
     // debug: 1
     INTERNAL_System_Get_Thread_States *internal_get_thread_states;

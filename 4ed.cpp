@@ -304,22 +304,6 @@ COMMAND_DECL(redo){
     Assert(file->state.undo.undo.size >= 0);
 }
 
-COMMAND_DECL(history_backward){
-    USE_MODELS(models);
-    REQ_OPEN_VIEW(view);
-    REQ_FILE_HISTORY(file, view);
-    
-    view_history_step(system, models, view, hist_backward);
-}
-
-COMMAND_DECL(history_forward){
-    USE_MODELS(models);
-    REQ_OPEN_VIEW(view);
-    REQ_FILE_HISTORY(file, view);
-    
-    view_history_step(system, models, view, hist_backward);
-}
-
 COMMAND_DECL(interactive_new){
     USE_VIEW(view);
     
@@ -466,7 +450,6 @@ COMMAND_DECL(toggle_line_wrap){
     
     Assert(view->edit_pos);
     
-    // TODO(allen): WHAT TO DO HERE???
     Relative_Scrolling scrolling = view_get_relative_scrolling(view);
     if (file->settings.unwrapped_lines){
         file->settings.unwrapped_lines = 0;
@@ -495,7 +478,9 @@ COMMAND_DECL(toggle_tokens){
 
 internal void
 case_change_range(System_Functions *system, Mem_Options *mem, View *view, Editing_File *file, u8 a, u8 z, u8 char_delta){
-    Range range = make_range(view->edit_pos->cursor.pos, view->edit_pos->mark);
+    Range range  = {0};
+    range.min = Min(view->edit_pos->cursor.pos, view->edit_pos->mark);
+    range.max = Max(view->edit_pos->cursor.pos, view->edit_pos->mark);
     if (range.start < range.end){
         Edit_Step step = {};
         step.type = ED_NORMAL;
@@ -520,175 +505,6 @@ case_change_range(System_Functions *system, Mem_Options *mem, View *view, Editin
             file_relex_parallel(system, mem, file, range.start, range.end, 0);
         }
     }
-}
-
-COMMAND_DECL(open_panel_vsplit){
-    USE_VARS(vars);
-    USE_MODELS(models);
-    USE_PANEL(panel);
-    
-    if (models->layout.panel_count < models->layout.panel_max_count){
-        Split_Result split = layout_split_panel(&models->layout, panel, 1);
-        
-        Panel *panel1 = panel;
-        Panel *panel2 = split.panel;
-        
-        panel2->screen_region = panel1->screen_region;
-        
-        i32 x_pos = ROUND32(lerp((f32)panel1->full.x0,
-                                 split.divider->pos,
-                                 (f32)panel1->full.x1)
-                            );
-        
-        panel2->full.x0 = x_pos;
-        panel2->full.x1 = panel1->full.x1;
-        panel1->full.x1 = x_pos;
-        
-        panel_fix_internal_area(panel1);
-        panel_fix_internal_area(panel2);
-        panel2->prev_inner = panel2->inner;
-        
-        models->layout.active_panel = (i32)(panel2 - models->layout.panels);
-        panel_make_empty(system, vars, panel2);
-    }
-}
-
-COMMAND_DECL(open_panel_hsplit){
-    USE_VARS(vars);
-    USE_MODELS(models);
-    USE_PANEL(panel);
-    
-    if (models->layout.panel_count < models->layout.panel_max_count){
-        Split_Result split = layout_split_panel(&models->layout, panel, 0);
-        
-        Panel *panel1 = panel;
-        Panel *panel2 = split.panel;
-        
-        panel2->screen_region = panel1->screen_region;
-        
-        i32 y_pos = ROUND32(lerp((f32)panel1->full.y0,
-                                 split.divider->pos,
-                                 (f32)panel1->full.y1)
-                            );
-        
-        panel2->full.y0 = y_pos;
-        panel2->full.y1 = panel1->full.y1;
-        panel1->full.y1 = y_pos;
-        
-        panel_fix_internal_area(panel1);
-        panel_fix_internal_area(panel2);
-        panel2->prev_inner = panel2->inner;
-        
-        models->layout.active_panel = (i32)(panel2 - models->layout.panels);
-        panel_make_empty(system, vars, panel2);
-    }
-}
-
-COMMAND_DECL(close_panel){
-    USE_MODELS(models);
-    USE_PANEL(panel);
-    USE_VIEW(view);
-    
-    Panel *panel_ptr, *used_panels;
-    Divider_And_ID div, parent_div, child_div;
-    i32 child;
-    i32 parent;
-    i32 which_child;
-    i32 active;
-    
-    if (models->layout.panel_count > 1){
-        live_set_free_view(command->live_set, view);
-        panel->view = 0;
-        
-        div = layout_get_divider(&models->layout, panel->parent);
-        
-        // This divider cannot have two child dividers.
-        Assert(div.divider->child1 == -1 || div.divider->child2 == -1);
-        
-        // Get the child who needs to fill in this node's spot
-        child = div.divider->child1;
-        if (child == -1) child = div.divider->child2;
-        
-        parent = div.divider->parent;
-        which_child = div.divider->which_child;
-        
-        // Fill the child in the slot this node use to hold
-        if (parent == -1){
-            Assert(models->layout.root == div.id);
-            models->layout.root = child;
-        }
-        else{
-            parent_div = layout_get_divider(&models->layout, parent);
-            if (which_child == -1){
-                parent_div.divider->child1 = child;
-            }
-            else{
-                parent_div.divider->child2 = child;
-            }
-        }
-        
-        // If there was a child divider, give it information about it's new parent.
-        if (child != -1){
-            child_div = layout_get_divider(&models->layout, child);
-            child_div.divider->parent = parent;
-            child_div.divider->which_child = div.divider->which_child;
-        }
-        
-        // What is the new active panel?
-        active = -1;
-        if (child == -1){
-            used_panels = &models->layout.used_sentinel;
-            for (dll_items(panel_ptr, used_panels)){
-                if (panel_ptr != panel && panel_ptr->parent == div.id){
-                    panel_ptr->parent = parent;
-                    panel_ptr->which_child = which_child;
-                    active = (i32)(panel_ptr - models->layout.panels);
-                    break;
-                }
-            }
-        }
-        else{
-            panel_ptr = panel->next;
-            if (panel_ptr == &models->layout.used_sentinel){
-                panel_ptr = panel_ptr->next;
-            }
-            Assert(panel_ptr != panel);
-            active = (i32)(panel_ptr - models->layout.panels);
-        }
-        
-        Assert(active != -1 && panel != models->layout.panels + active);
-        models->layout.active_panel = active;
-        
-        layout_free_divider(&models->layout, div.divider);
-        layout_free_panel(&models->layout, panel);
-        layout_fix_all_panels(&models->layout);
-    }
-}
-
-COMMAND_DECL(page_down){
-    REQ_READABLE_VIEW(view);
-    
-    Assert(view->edit_pos);
-    
-    i32 height = CEIL32(view_file_height(view));
-    f32 y = view_get_cursor_y(view);
-    f32 x = view->edit_pos->preferred_x;
-    
-    Full_Cursor cursor = view_compute_cursor_from_xy(view, x, y+height);
-    view_set_cursor(view, cursor, false, view->file_data.file->settings.unwrapped_lines);
-}
-
-COMMAND_DECL(page_up){
-    REQ_READABLE_VIEW(view);
-    
-    Assert(view->edit_pos);
-    
-    i32 height = CEIL32(view_file_height(view));
-    f32 y = view_get_cursor_y(view);
-    f32 x = view->edit_pos->preferred_x;
-    
-    Full_Cursor cursor = view_compute_cursor_from_xy(view, x, y-height);
-    view_set_cursor(view, cursor, false, view->file_data.file->settings.unwrapped_lines);
 }
 
 COMMAND_DECL(open_color_tweaker){
@@ -717,7 +533,7 @@ COMMAND_DECL(user_callback){
     if (binding.custom) binding.custom(&models->app_links);
 }
 
-globalvar Command_Function command_table[cmdid_count];
+global Command_Function command_table[cmdid_count];
 
 #include "4ed_api_implementation.cpp"
 
@@ -747,13 +563,6 @@ command_caller(Coroutine *coroutine){
     else{
         cmd_in->bind.function(command->system, command, cmd_in->bind);
     }
-}
-
-internal void
-view_caller(Coroutine *coroutine){
-    View *view = (View*)coroutine->in;
-    View_Persistent *persistent = &view->persistent;
-    persistent->view_routine(&persistent->models->app_links, persistent->id);
 }
 
 internal void
@@ -805,8 +614,6 @@ setup_command_table(){
     
     SET(undo);
     SET(redo);
-    SET(history_backward);
-    SET(history_forward);
     
     SET(interactive_new);
     SET(interactive_open);
@@ -1429,16 +1236,10 @@ App_Init_Sig(app_init){
             persistent = &view->persistent;
             persistent->id = i;
             persistent->models = models;
-            persistent->view_routine = models->config_api.view_routine;
         }
     }
     
     {
-        Command_Map *global = 0;
-        i32 wanted_size = 0;
-        b32 did_top = 0;
-        b32 did_file = 0;
-        
         models->scroll_rule = fallback_scroll_rule;
         models->hook_open_file = 0;
         models->hook_new_file = 0;
@@ -1446,11 +1247,13 @@ App_Init_Sig(app_init){
         
         setup_command_table();
         
-        global = &models->map_top;
+        Command_Map *global_map = &models->map_top;
         Assert(models->config_api.get_bindings != 0);
         
-        wanted_size = models->config_api.get_bindings(models->app_links.memory, models->app_links.memory_size);
+        i32 wanted_size = models->config_api.get_bindings(models->app_links.memory, models->app_links.memory_size);
         
+        b32 did_top = false;
+        b32 did_file = false;
         if (wanted_size <= models->app_links.memory_size){
             Command_Map *map_ptr = 0;
             Binding_Unit *unit, *end;
@@ -1497,21 +1300,23 @@ App_Init_Sig(app_init){
                             i32 table_max = count * 3 / 2;
                             if (mapid == mapid_global){
                                 map_ptr = &models->map_top;
-                                map_init(map_ptr, &models->mem.part, table_max, global);
-                                did_top = 1;
+                                map_init(map_ptr, &models->mem.part, table_max, global_map);
+                                did_top = true;
                             }
                             else if (mapid == mapid_file){
                                 map_ptr = &models->map_file;
-                                map_init(map_ptr, &models->mem.part, table_max, global);
-                                did_file = 1;
+                                map_init(map_ptr, &models->mem.part, table_max, global_map);
+                                did_file = true;
                             }
                             else if (mapid < mapid_global){
                                 i32 index = get_or_add_map_index(models, mapid);
                                 Assert(index < user_map_count);
                                 map_ptr = models->user_maps + index;
-                                map_init(map_ptr, &models->mem.part, table_max, global);
+                                map_init(map_ptr, &models->mem.part, table_max, global_map);
                             }
-                            else map_ptr = 0;
+                            else{
+                                map_ptr = 0;
+                            }
                             
                             if (map_ptr && unit->map_begin.replace){
                                 map_clear(map_ptr);
@@ -1574,27 +1379,27 @@ App_Init_Sig(app_init){
                                 }
                                 else{
                                     switch (hook_id){
-                                        case _hook_open_file:
+                                        case special_hook_open_file:
                                         models->hook_open_file = (Open_File_Hook_Function*)unit->hook.func;
                                         break;
                                         
-                                        case _hook_new_file:
+                                        case special_hook_new_file:
                                         models->hook_new_file = (Open_File_Hook_Function*)unit->hook.func;
                                         break;
                                         
-                                        case _hook_save_file:
+                                        case special_hook_save_file:
                                         models->hook_save_file = (Open_File_Hook_Function*)unit->hook.func;
                                         break;
                                         
-                                        case _hook_command_caller:
+                                        case special_hook_command_caller:
                                         models->command_caller = (Command_Caller_Hook_Function*)unit->hook.func;
                                         break;
                                         
-                                        case _hook_scroll_rule:
+                                        case special_hook_scroll_rule:
                                         models->scroll_rule = (Scroll_Rule_Function*)unit->hook.func;
                                         break;
                                         
-                                        case _hook_input_filter:
+                                        case special_hook_input_filter:
                                         models->input_filter = (Input_Filter_Function*)unit->hook.func;
                                         break;
                                     }
@@ -1607,10 +1412,10 @@ App_Init_Sig(app_init){
         }
         
         memset(models->app_links.memory, 0, wanted_size);
-        if (!did_top) setup_top_commands(&models->map_top, &models->mem.part, global);
-        if (!did_file) setup_file_commands(&models->map_file, &models->mem.part, global);
+        if (!did_top) setup_top_commands(&models->map_top, &models->mem.part, global_map);
+        if (!did_file) setup_file_commands(&models->map_file, &models->mem.part, global_map);
         
-        setup_ui_commands(&models->map_ui, &models->mem.part, global);
+        setup_ui_commands(&models->map_ui, &models->mem.part, global_map);
     }
     
     // NOTE(allen): font setup
@@ -2008,7 +1813,7 @@ App_Step_Sig(app_step){
     // NOTE(allen): update child processes
     if (input->dt > 0){
         Temp_Memory temp = begin_temp_memory(&models->mem.part);
-        u32 max = Kbytes(128);
+        u32 max = KB(128);
         char *dest = push_array(&models->mem.part, char, max);
         
         i32 count = vars->cli_processes.count;

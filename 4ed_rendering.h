@@ -30,9 +30,9 @@ struct Render_Font{
     // TODO(allen): Have our own type here instead
     // of stbtt_packedchar, and have both stb fonts
     // and OS fonts go to our type.
-	Glyph_Data glyphs[256];
+    Glyph_Data glyphs[256];
     f32 advance_data[256];
-	i32 height, ascent, descent, line_skip;
+    i32 height, ascent, descent, line_skip;
     i32 advance;
     u32 tex;
     i32 tex_width, tex_height;
@@ -174,7 +174,12 @@ struct Render_Target{
 
 inline i32_Rect
 rect_from_target(Render_Target *target){
-	return i32R(0, 0, target->width, target->height);
+    i32_Rect r;
+    r.x0 = 0;
+    r.y0 = 0;
+    r.x1 = target->width;
+    r.y1 = target->height;
+    return(r);
 }
 
 inline Font_Info*

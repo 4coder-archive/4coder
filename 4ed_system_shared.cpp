@@ -304,6 +304,12 @@ draw_push_piece_clip(Render_Target *target, i32_Rect clip_box){
     PutStruct(Render_Piece_Change_Clip, clip);
 }
 
+inline int32_t
+fits_inside(i32_Rect rect, i32_Rect outer){
+    return (rect.x0 >= outer.x0 && rect.x1 <= outer.x1 &&
+            rect.y0 >= outer.y0 && rect.y1 <= outer.y1);
+}
+
 internal void
 draw_push_clip(Render_Target *target, i32_Rect clip_box){
     Assert(target->clip_top == -1 ||
@@ -472,8 +478,7 @@ private_draw_glyph_mono(Render_Target *target, Render_Font *font, u8 character,
 }
 
 inline void
-private_draw_glyph_mono(Render_Target *target, Render_Font *font, u8 character,
-                        real32 x, real32 y, u32 color){
+private_draw_glyph_mono(Render_Target *target, Render_Font *font, u8 character, f32 x, f32 y, u32 color){
     private_draw_glyph_mono(target, font, character, x, y, (f32)font->advance, color);
 }
 
@@ -656,7 +661,7 @@ stb_font_load(Partition *part,
                     f32 *advance_data = font_out->advance_data;
                     Glyph_Data *glyphs = font_out->glyphs;
                     for (u8 code_point = 0; code_point < 128; ++code_point){
-                        advance_data[code_point]   = (f32)(CEIL32(chardata[code_point].xadvance));
+                        advance_data[code_point]   = (f32)(ceil32(chardata[code_point].xadvance));
                         glyphs[code_point].x0      = chardata[code_point].x0;
                         glyphs[code_point].y0      = chardata[code_point].y0;
                         glyphs[code_point].x1      = chardata[code_point].x1;
@@ -680,7 +685,7 @@ stb_font_load(Partition *part,
                     for (u8 code_point = 0; code_point < 128; ++code_point){
                         if (stbtt_FindGlyphIndex(&font, code_point) != 0){
                             font_out->glyphs[code_point].exists = 1;
-                            i32 advance = CEIL32(advance_data[code_point]);
+                            i32 advance = ceil32(advance_data[code_point]);
                             if (max_advance < advance){
                                 max_advance = advance;
                             }
@@ -758,10 +763,10 @@ font_load_freetype(Partition *part,
     FT_Request_Size(face, &size);
     
     rf->loaded    = 1;
-    rf->ascent    = CEIL32  (face->size->metrics.ascender    / 64.0f);
-    rf->descent   = FLOOR32 (face->size->metrics.descender   / 64.0f);
-    rf->advance   = CEIL32  (face->size->metrics.max_advance / 64.0f);
-    rf->height    = CEIL32  (face->size->metrics.height      / 64.0f);
+    rf->ascent    = ceil32  (face->size->metrics.ascender    / 64.0f);
+    rf->descent   = floor32 (face->size->metrics.descender   / 64.0f);
+    rf->advance   = ceil32  (face->size->metrics.max_advance / 64.0f);
+    rf->height    = ceil32  (face->size->metrics.height      / 64.0f);
     rf->line_skip = rf->height - (rf->ascent - rf->descent);
     
     rf->height -= rf->line_skip;
@@ -777,7 +782,7 @@ font_load_freetype(Partition *part,
         tex_width *= 2;
         float glyphs_per_row = ceilf(tex_width / (float) max_glyph_w);
         float rows = ceilf(NUM_GLYPHS / glyphs_per_row);
-        tex_height = CEIL32(rows * (max_glyph_h + 2));
+        tex_height = ceil32(rows * (max_glyph_h + 2));
     } while(tex_height > tex_width);
     
     tex_height = next_pow_of_2(tex_height);
@@ -836,7 +841,7 @@ font_load_freetype(Partition *part,
         
         // TODO(allen): maybe advance data should be integers for a while...
         // I require the actual values to be integers anyway... hmm...
-        rf->advance_data[i] = (f32)CEIL32(face->glyph->advance.x / 64.0f);
+        rf->advance_data[i] = (f32)ceil32(face->glyph->advance.x / 64.0f);
         
         rf->glyphs[i].exists = 1;
         
@@ -872,7 +877,7 @@ font_load_freetype(Partition *part,
             }
         }
         
-        pen_x = CEIL32(c->x1 + 1);
+        pen_x = ceil32(c->x1 + 1);
     }
     
     // TODO(allen): advance data is still too stupid.

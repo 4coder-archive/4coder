@@ -9,21 +9,8 @@
 
 // TOP
 
-#if !defined(META_PARSER_CPP_4CODER)
-#define META_PARSER_CPP_4CODER
-
-#if !defined(FSTRING_GUARD)
-#include "internal_4coder_string.cpp"
-#endif
-
-#include "../4cpp_lexer.h"
-
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
-#include <assert.h>
-
-#include "../4coder_mem.h"
+#if !defined(META_PARSER_CPP)
+#define META_PARSER_CPP
 
 typedef struct Parse_Context{
     Cpp_Token *token_s;
@@ -241,8 +228,10 @@ static Parse
 meta_lex(char *filename){
     Parse result = {0};
     result.code = file_dump(filename);
-    result.tokens = cpp_make_token_array(1024);
-    cpp_lex_file(result.code.str, result.code.size, &result.tokens);
+    if (result.code.str != 0){
+        result.tokens = cpp_make_token_array(1024);
+        cpp_lex_file(result.code.str, result.code.size, &result.tokens);
+    }
     return(result);
 }
 
@@ -261,7 +250,7 @@ get_next_line(String source, String line){
     int32_t start = 0;
     
     if (pos < source.size){
-        assert(source.str[pos] == '\n');
+        Assert(source.str[pos] == '\n');
         start = pos + 1;
         
         if (start < source.size){
@@ -369,7 +358,7 @@ static String
 doc_parse_note_string(String source, int32_t *pos){
     String result = {0};
     
-    assert(source.str[*pos] == '(');
+    Assert(source.str[*pos] == '(');
     
     int32_t p = *pos + 1;
     int32_t start = p;
@@ -498,7 +487,7 @@ perform_doc_parse(Partition *part, String doc_string, Documentation *doc){
                 switch (doc_note_type){
                     case DOC_PARAM:
                     {
-                        assert(param_index < param_count);
+                        Assert(param_index < param_count);
                         int32_t param_pos = 0;
                         String param_name = doc_parse_parameter(doc_note_string, &param_pos);
                         String param_docs = doc_parse_last_parameter(doc_note_string, &param_pos);
@@ -519,7 +508,7 @@ perform_doc_parse(Partition *part, String doc_string, Documentation *doc){
                     
                     case DOC_SEE:
                     {
-                        assert(see_index < see_count);
+                        Assert(see_index < see_count);
                         doc->see_also[see_index++] = doc_note_string;
                     }break;
                 }
@@ -613,7 +602,7 @@ struct_parse_next_member(Partition *part, Parse_Context *context){
                     break;
                 }
                 else{
-                    assert(!"unhandled error");
+                    Assert(!"unhandled error");
                 }
             }
             else if (match_ss(lexeme, make_lit_string("UNION"))){
@@ -623,7 +612,7 @@ struct_parse_next_member(Partition *part, Parse_Context *context){
                     break;
                 }
                 else{
-                    assert(!"unhandled error");
+                    Assert(!"unhandled error");
                 }
             }
             else{
@@ -633,7 +622,7 @@ struct_parse_next_member(Partition *part, Parse_Context *context){
                     break;
                 }
                 else{
-                    assert(!"unhandled error");
+                    Assert(!"unhandled error");
                 }
             }
         }
@@ -1210,6 +1199,7 @@ compile_meta_unit(Partition *part, char *code_directory, char **files, Meta_Keyw
     unit.count = file_count;
     unit.parse = push_array(part, Parse, file_count);
     
+    b32 all_files_lexed = true;
     int32_t i = 0;
     for (char **file_ptr = files; *file_ptr; ++file_ptr, ++i){
         char str_space[512];
@@ -1224,143 +1214,151 @@ compile_meta_unit(Partition *part, char *code_directory, char **files, Meta_Keyw
         terminate_with_null(&name);
         
         unit.parse[i] = meta_lex(name.str);
+        if (unit.parse[i].code.str == 0){
+            all_files_lexed = false;
+            break;
+        }
     }
     
-    // TODO(allen): This stage counts nested structs
-    // and unions which is not correct.  Luckily it only
-    // means we over allocate by a few items, but fixing it
-    // to be exactly correct would be nice.
-    for (int32_t J = 0; J < unit.count; ++J){
-        Cpp_Token *token = 0;
-        Parse_Context context_ = setup_parse_context(unit.parse[J]);
-        Parse_Context *context = &context_;
-        
-        for (; (token = get_token(context)) != 0; get_next_token(context)){
-            if (!(token->flags & CPP_TFLAG_PP_BODY)){
-                
-                String lexeme = get_lexeme(*token, context->data);
-                int32_t match_index = 0;
-                if (string_set_match_table(keywords, sizeof(*keywords), key_count, lexeme, &match_index)){
-                    Item_Type type = keywords[match_index].type;
+    
+    if (all_files_lexed){
+        // TODO(allen): This stage counts nested structs and unions which is not correct.  Luckily it only means we over allocate by a few items, but fixing it to be exactly correct would be nice.
+        for (int32_t J = 0; J < unit.count; ++J){
+            Cpp_Token *token = 0;
+            Parse_Context context_ = setup_parse_context(unit.parse[J]);
+            Parse_Context *context = &context_;
+            
+            for (; (token = get_token(context)) != 0; get_next_token(context)){
+                if (!(token->flags & CPP_TFLAG_PP_BODY)){
                     
-                    if (type > Item_Null && type < Item_Type_Count){
-                        ++unit.set.count;
-                    }
-                    else{
-                        // TODO(allen): Warning
+                    String lexeme = get_lexeme(*token, context->data);
+                    int32_t match_index = 0;
+                    if (string_set_match_table(keywords, sizeof(*keywords), key_count, lexeme, &match_index)){
+                        Item_Type type = keywords[match_index].type;
+                        
+                        if (type > Item_Null && type < Item_Type_Count){
+                            ++unit.set.count;
+                        }
+                        else{
+                            // TODO(allen): Warning
+                        }
                     }
                 }
             }
         }
-    }
-    
-    if (unit.set.count >  0){
-        unit.set = allocate_item_set(part, unit.set.count);
-    }
-    
-    int32_t index = 0;
-    
-    for (int32_t J = 0; J < unit.count; ++J){
-        Cpp_Token *token = 0;
-        Parse_Context context_ = setup_parse_context(unit.parse[J]);
-        Parse_Context *context = &context_;
         
-        String cpp_name = {0};
-        int32_t has_cpp_name = 0;
-        
-        for (; (token = get_token(context)) != 0; get_next_token(context)){
-            if (!(token->flags & CPP_TFLAG_PP_BODY)){
-                
-                String lexeme = get_lexeme(*token, context->data);
-                int32_t match_index = 0;
-                if (string_set_match_table(keywords, sizeof(*keywords), key_count, lexeme, &match_index)){
-                    Item_Type type = keywords[match_index].type;
-                    
-                    switch (type){
-                        case Item_Function:
-                        {
-                            if (function_parse(part, context, unit.set.items + index, cpp_name)){
-                                Assert(unit.set.items[index].t == Item_Function);
-                                ++index;
-                            }
-                            else{
-                                fprintf(stderr, "warning: invalid function signature\n");
-                            }
-                        }break;
-                        
-                        case Item_CppName:
-                        {
-                            if (cpp_name_parse(context, &cpp_name)){
-                                has_cpp_name = 1;
-                            }
-                            else{
-                                // TODO(allen): warning message
-                            }
-                        }break;
-                        
-                        case Item_Macro:
-                        {
-                            if (macro_parse(part, context, unit.set.items + index)){
-                                Assert(unit.set.items[index].t == Item_Macro);
-                                ++index;
-                            }
-                            else{
-                                // TODO(allen): warning message
-                            }
-                        }break;
-                        
-                        case Item_Typedef: //typedef
-                        {
-                            if (typedef_parse(context, unit.set.items + index)){
-                                Assert(unit.set.items[index].t == Item_Typedef);
-                                ++index;
-                            }
-                            else{
-                                // TODO(allen): warning message
-                            }
-                        }break;
-                        
-                        case Item_Struct: case Item_Union: //struct/union
-                        {
-                            if (struct_parse(part, (type == Item_Struct), context, unit.set.items + index)){
-                                Assert(unit.set.items[index].t == Item_Struct ||
-                                       unit.set.items[index].t == Item_Union);
-                                ++index;
-                            }
-                            else{
-                                // TODO(allen): warning message
-                            }
-                        }break;
-                        
-                        case Item_Enum: //ENUM
-                        {
-                            if (enum_parse(part, context, unit.set.items + index)){
-                                Assert(unit.set.items[index].t == Item_Enum);
-                                ++index;
-                            }
-                            else{
-                                // TODO(allen): warning message
-                            }
-                        }break;
-                        
-                    }
-                }
-            }
-            
-            if (has_cpp_name){
-                has_cpp_name = 0;
-            }
-            else{
-                cpp_name = null_string;
-            }
-            
-            unit.parse[J].item_count = index;
+        if (unit.set.count >  0){
+            unit.set = allocate_item_set(part, unit.set.count);
         }
         
-        // NOTE(allen): This is necessary for now because
-        // the original count is slightly overestimated thanks
-        // to nested structs and unions.
-        unit.set.count = index;
+        int32_t index = 0;
+        
+        for (int32_t J = 0; J < unit.count; ++J){
+            Cpp_Token *token = 0;
+            Parse_Context context_ = setup_parse_context(unit.parse[J]);
+            Parse_Context *context = &context_;
+            
+            String cpp_name = {0};
+            int32_t has_cpp_name = 0;
+            
+            for (; (token = get_token(context)) != 0; get_next_token(context)){
+                if (!(token->flags & CPP_TFLAG_PP_BODY)){
+                    
+                    String lexeme = get_lexeme(*token, context->data);
+                    int32_t match_index = 0;
+                    if (string_set_match_table(keywords, sizeof(*keywords), key_count, lexeme, &match_index)){
+                        Item_Type type = keywords[match_index].type;
+                        
+                        switch (type){
+                            case Item_Function:
+                            {
+                                if (function_parse(part, context, unit.set.items + index, cpp_name)){
+                                    Assert(unit.set.items[index].t == Item_Function);
+                                    ++index;
+                                }
+                                else{
+                                    fprintf(stderr, "warning: invalid function signature\n");
+                                }
+                            }break;
+                            
+                            case Item_CppName:
+                            {
+                                if (cpp_name_parse(context, &cpp_name)){
+                                    has_cpp_name = 1;
+                                }
+                                else{
+                                    // TODO(allen): warning message
+                                }
+                            }break;
+                            
+                            case Item_Macro:
+                            {
+                                if (macro_parse(part, context, unit.set.items + index)){
+                                    Assert(unit.set.items[index].t == Item_Macro);
+                                    ++index;
+                                }
+                                else{
+                                    // TODO(allen): warning message
+                                }
+                            }break;
+                            
+                            case Item_Typedef: //typedef
+                            {
+                                if (typedef_parse(context, unit.set.items + index)){
+                                    Assert(unit.set.items[index].t == Item_Typedef);
+                                    ++index;
+                                }
+                                else{
+                                    // TODO(allen): warning message
+                                }
+                            }break;
+                            
+                            case Item_Struct: case Item_Union: //struct/union
+                            {
+                                if (struct_parse(part, (type == Item_Struct), context, unit.set.items + index)){
+                                    Assert(unit.set.items[index].t == Item_Struct ||
+                                           unit.set.items[index].t == Item_Union);
+                                    ++index;
+                                }
+                                else{
+                                    // TODO(allen): warning message
+                                }
+                            }break;
+                            
+                            case Item_Enum: //ENUM
+                            {
+                                if (enum_parse(part, context, unit.set.items + index)){
+                                    Assert(unit.set.items[index].t == Item_Enum);
+                                    ++index;
+                                }
+                                else{
+                                    // TODO(allen): warning message
+                                }
+                            }break;
+                            
+                        }
+                    }
+                }
+                
+                if (has_cpp_name){
+                    has_cpp_name = 0;
+                }
+                else{
+                    cpp_name = null_string;
+                }
+                
+                unit.parse[J].item_count = index;
+            }
+            
+            // NOTE(allen): This is necessary for now because
+            // the original count is slightly overestimated thanks
+            // to nested structs and unions.
+            unit.set.count = index;
+        }
+    }
+    else{
+        unit.parse = 0;
+        unit.count = 0;
     }
     
     return(unit);

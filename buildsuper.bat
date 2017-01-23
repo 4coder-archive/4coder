@@ -17,7 +17,7 @@ REM default files no matter where you store your code.
 REM And no matter how you call buildsuper.bat.
 SET CODE_HOME=%~dp0
 
-cl /I%CODE_HOME% %OPTS% %DEBUG% %SRC% /Fe4coder_custom %BUILD_DLL% %EXPORTS%
+cl /I%CODE_HOME% %OPTS% %DEBUG% %SRC% /Fecustom_4coder %BUILD_DLL% %EXPORTS%
 
 REM file spammation preventation
 del *.exp

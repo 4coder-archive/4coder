@@ -13,11 +13,7 @@
 // Buffer low level operations
 //
 
-// TODO(allen): Put 4coder_seek_types into the file directory.
-// Setup a meta system for putting together a file in the custom
-// code directory from the export structs and helpers.
-
-#include "../4coder_seek_types.h"
+#include "../4coder_helper/4coder_seek_types.h"
 
 typedef struct Cursor_With_Index{
     i32 pos;
@@ -506,7 +502,7 @@ buffer_replace_range(Gap_Buffer *buffer, i32 start, i32 end, char *str, i32 len,
         assert(buffer->size1 + buffer->gap_size + buffer->size2 == buffer->max);
     }
     else{
-        *request_amount = l_round_up_u32(2*(*shift_amount + size), 4 << 10);
+        *request_amount = l_round_up(2*(*shift_amount + size), 4 << 10);
         result = 1;
     }
     
@@ -1201,7 +1197,7 @@ buffer_get_line_index_from_character_pos(i32 *character_starts, i32 pos, i32 l_b
 
 inline i32
 buffer_get_line_index_from_wrapped_y(i32 *wrap_line_index, f32 y, f32 line_height, i32 l_bound, i32 u_bound){
-    i32 wrap_index = FLOOR32(y/line_height);
+    i32 wrap_index = floor32(y/line_height);
     i32 i = binary_search(wrap_line_index, wrap_index, l_bound, u_bound);
     return(i);
 }

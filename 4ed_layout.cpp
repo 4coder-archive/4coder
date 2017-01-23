@@ -73,8 +73,8 @@ panel_init(Panel *panel){
     panel->view = 0;
     panel->parent = -1;
     panel->which_child = 0;
-    panel->screen_region.full = i32_rect_zero();
-    panel->screen_region.inner = i32_rect_zero();
+    panel->screen_region.full = null_i32_rect;
+    panel->screen_region.inner = null_i32_rect;
     panel->l_margin = 3;
     panel->r_margin = 3;
     panel->t_margin = 3;
@@ -233,18 +233,18 @@ layout_get_rect(Editing_Layout *layout, i32 id, i32 which_child){
         Panel_Divider *div = dividers + divider_chain[i];
         if (div->v_divider){
             if (div->child1 == divider_chain[i-1]){
-                r.x1 = ROUND32(lerp((f32)r.x0, div->pos, (f32)r.x1));
+                r.x1 = round32(lerp((f32)r.x0, div->pos, (f32)r.x1));
             }
             else{
-                r.x0 = ROUND32(lerp((f32)r.x0, div->pos, (f32)r.x1));
+                r.x0 = round32(lerp((f32)r.x0, div->pos, (f32)r.x1));
             }
         }
         else{
             if (div->child1 == divider_chain[i-1]){
-                r.y1 = ROUND32(lerp((f32)r.y0, div->pos, (f32)r.y1));
+                r.y1 = round32(lerp((f32)r.y0, div->pos, (f32)r.y1));
             }
             else{
-                r.y0 = ROUND32(lerp((f32)r.y0, div->pos, (f32)r.y1));
+                r.y0 = round32(lerp((f32)r.y0, div->pos, (f32)r.y1));
             }
         }
     }
@@ -253,20 +253,20 @@ layout_get_rect(Editing_Layout *layout, i32 id, i32 which_child){
         case 1:
         {
             if (original_div->v_divider){
-                r.x0 = ROUND32(lerp((f32)r.x0, original_div->pos, (f32)r.x1));
+                r.x0 = round32(lerp((f32)r.x0, original_div->pos, (f32)r.x1));
             }
             else{
-                r.y0 = ROUND32(lerp((f32)r.y0, original_div->pos, (f32)r.y1));
+                r.y0 = round32(lerp((f32)r.y0, original_div->pos, (f32)r.y1));
             }
         }break;
         
         case -1:
         {
             if (original_div->v_divider){
-                r.x1 = ROUND32(lerp((f32)r.x0, original_div->pos, (f32)r.x1));
+                r.x1 = round32(lerp((f32)r.x0, original_div->pos, (f32)r.x1));
             }
             else{
-                r.y1 = ROUND32(lerp((f32)r.y0, original_div->pos, (f32)r.y1));
+                r.y1 = round32(lerp((f32)r.y0, original_div->pos, (f32)r.y1));
             }
         }break;
     }

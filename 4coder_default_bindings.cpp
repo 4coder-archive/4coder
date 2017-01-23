@@ -11,7 +11,6 @@
 // 2^24 of them so don't be wasteful!
 enum My_Maps{
     my_code_map,
-    
     my_maps_count
 };
 
@@ -29,15 +28,6 @@ CUSTOM_COMMAND_SIG(write_allen_doc){
 
 CUSTOM_COMMAND_SIG(write_zero_struct){
     write_string(app, make_lit_string(" = {0};"));
-}
-
-CUSTOM_COMMAND_SIG(write_capital){
-    User_Input command_in = get_command_input(app);
-    char c = command_in.key.character_no_caps_lock;
-    if (c != 0){
-        c = char_to_upper(c);
-        write_string(app, make_string(&c, 1));
-    }
 }
 
 CUSTOM_COMMAND_SIG(switch_to_compilation){
@@ -119,31 +109,8 @@ CUSTOM_COMMAND_SIG(seek_whitespace_down_end_line){
 }
 
 HOOK_SIG(my_start){
-    init_memory(app);
-    
-    process_config_file(app);
-    
-    change_theme(app, default_theme_name.str, default_theme_name.size);
-    change_font(app, default_font_name.str, default_font_name.size, 1);
-    
-    exec_command(app, open_panel_vsplit);
-    exec_command(app, hide_scrollbar);
-    exec_command(app, change_active_panel);
-    exec_command(app, hide_scrollbar);
-    
-    // Theme options:
-    //  "4coder"
-    //  "Handmade Hero"
-    //  "Twilight"
-    //  "Woverine"
-    //  "stb"
-    
-    // Font options:
-    //  "Liberation Sans"
-    //  "Liberation Mono"
-    //  "Hack"
-    //  "Cutive Mono"
-    //  "Inconsolata"
+    default_4coder_initialize(app);
+    default_4coder_side_by_side_panels(app);
     
     // no meaning for return
     return(0);
@@ -344,11 +311,11 @@ default_keys(Bind_Helper *context){
     bind(context, 'P', MDFR_CTRL, close_panel);
     bind(context, ',', MDFR_CTRL, change_active_panel);
     
-    bind(context, 'n', MDFR_CTRL, cmdid_interactive_new);
-    bind(context, 'o', MDFR_CTRL, cmdid_interactive_open);
+    bind(context, 'n', MDFR_CTRL, interactive_new);
+    bind(context, 'o', MDFR_CTRL, interactive_open);
     bind(context, 'o', MDFR_ALT, open_in_other);
-    bind(context, 'k', MDFR_CTRL, cmdid_interactive_kill_buffer);
-    bind(context, 'i', MDFR_CTRL, cmdid_interactive_switch_buffer);
+    bind(context, 'k', MDFR_CTRL, interactive_kill_buffer);
+    bind(context, 'i', MDFR_CTRL, interactive_switch_buffer);
     bind(context, 'w', MDFR_CTRL, save_as);
     
     bind(context, 'c', MDFR_ALT, cmdid_open_color_tweaker);
@@ -492,8 +459,6 @@ default_keys(Bind_Helper *context){
     bind(context, 'F', MDFR_CTRL, list_all_locations);
     bind(context, 'F', MDFR_ALT, list_all_substring_locations_case_insensitive);
     bind(context, 'g', MDFR_CTRL, goto_line);
-    bind(context, 'h', MDFR_CTRL, cmdid_history_backward);
-    bind(context, 'H', MDFR_CTRL, cmdid_history_forward);
     bind(context, 'j', MDFR_CTRL, to_lowercase);
     bind(context, 'K', MDFR_CTRL, cmdid_kill_buffer);
     bind(context, 'l', MDFR_CTRL, toggle_line_wrap);

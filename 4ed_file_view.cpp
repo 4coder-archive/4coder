@@ -175,7 +175,6 @@ context_eq(Scroll_Context a, Scroll_Context b){
 struct View_Persistent{
     i32 id;
     
-    View_Routine_Function *view_routine;
     Coroutine *coroutine;
     Event_Message message_passing_slot;
     
@@ -477,7 +476,7 @@ inline i32
 view_compute_max_target_y(i32 lowest_line, i32 line_height, f32 view_height){
     f32 max_target_y = ((lowest_line+.5f)*line_height) - view_height*.5f;
     max_target_y = clamp_bottom(0.f, max_target_y);
-    return(CEIL32(max_target_y));
+    return(ceil32(max_target_y));
 }
 
 internal i32
@@ -521,28 +520,28 @@ view_move_view_to_cursor(View *view, GUI_Scroll_Vars *scroll, b32 center_view){
     
     if (cursor_y > target_y + limits.max){
         if (center_view){
-            target_y = ROUND32(cursor_y - limits.max*.5f);
+            target_y = round32(cursor_y - limits.max*.5f);
         }
         else{
-            target_y = CEIL32(cursor_y - limits.max + limits.delta);
+            target_y = ceil32(cursor_y - limits.max + limits.delta);
         }
     }
     if (cursor_y < target_y + limits.min){
         if (center_view){
-            target_y = ROUND32(cursor_y - limits.max*.5f);
+            target_y = round32(cursor_y - limits.max*.5f);
         }
         else{
-            target_y = FLOOR32(cursor_y - limits.delta - limits.min);
+            target_y = floor32(cursor_y - limits.delta - limits.min);
         }
     }
     
     target_y = clamp(0, target_y, max_y);
     
     if (cursor_x >= target_x + max_x){
-        target_x = CEIL32(cursor_x - max_x/2);
+        target_x = ceil32(cursor_x - max_x/2);
     }
     else if (cursor_x < target_x){
-        target_x = FLOOR32(Max(0, cursor_x - max_x/2));
+        target_x = floor32(Max(0, cursor_x - max_x/2));
     }
     
     if (target_x != scroll_vars.target_x || target_y != scroll_vars.target_y){
@@ -854,7 +853,7 @@ file_grow_starts_as_needed(General_Memory *general, Gap_Buffer *buffer, i32 addi
     i32 target_lines = count + additional_lines;
     
     if (target_lines > max || max == 0){
-        max = l_round_up_i32(target_lines + max, Kbytes(1));
+        max = l_round_up(target_lines + max, KB(1));
         
         i32 *new_lines = (i32*)general_memory_reallocate(general, buffer->line_starts, sizeof(i32)*count, sizeof(f32)*max);
         
@@ -896,7 +895,7 @@ file_update_cursor_positions(Models *models, Editing_File *file){
 internal void
 file_measure_starts(General_Memory *general, Gap_Buffer *buffer){
     if (!buffer->line_starts){
-        i32 max = buffer->line_max = Kbytes(1);
+        i32 max = buffer->line_max = KB(1);
         buffer->line_starts = (i32*)general_memory_allocate(general, max*sizeof(i32));
         TentativeAssert(buffer->line_starts);
         // TODO(allen): when unable to allocate?
@@ -977,7 +976,7 @@ struct Code_Wrap_X{
     i32 paren_safe_top;
     i32 paren_top;
 };
-globalvar Code_Wrap_X null_wrap_x  = {0};
+global Code_Wrap_X null_wrap_x  = {0};
 
 struct Code_Wrap_State{
     Cpp_Token_Array token_array;
@@ -1462,7 +1461,7 @@ file_measure_wraps(Models *models, Editing_File *file, f32 font_height, f32 *adv
         wrap_state_init(&wrap_state, file, adv);
         use_tokens = 1;
         
-        potential_marks = push_array(part, Potential_Wrap_Indent_Pair, FLOOR32(width));
+        potential_marks = push_array(part, Potential_Wrap_Indent_Pair, floor32(width));
         
         max_wrap_indent_mark = partition_remaining(part)/sizeof(Wrap_Indent_Pair);
         wrap_indent_marks = push_array(part, Wrap_Indent_Pair, max_wrap_indent_mark);
@@ -1905,8 +1904,10 @@ file_create_from_string(System_Functions *system, Models *models, Editing_File *
     Gap_Buffer_Init init = buffer_begin_init(&file->state.buffer, val.str, val.size);
     for (; buffer_init_need_more(&init); ){
         i32 page_size = buffer_init_page_size(&init);
-        page_size = l_round_up_i32(page_size, Kbytes(4));
-        if (page_size < Kbytes(4)) page_size = Kbytes(4);
+        page_size = l_round_up(page_size, KB(4));
+        if (page_size < KB(4)){
+            page_size = KB(4);
+        }
         void *data = general_memory_allocate(general, page_size);
         buffer_init_provide_page(&init, data, page_size);
     }
@@ -1937,7 +1938,7 @@ file_create_from_string(System_Functions *system, Models *models, Editing_File *
     file->settings.read_only = read_only;
     if (!read_only){
         // TODO(allen): Redo undo system (if you don't mind the pun)
-        i32 request_size = Kbytes(64);
+        i32 request_size = KB(64);
         file->state.undo.undo.max = request_size;
         file->state.undo.undo.strings = (u8*)general_memory_allocate(general, request_size);
         file->state.undo.undo.edit_max = request_size / sizeof(Edit_Step);
@@ -2079,7 +2080,7 @@ Job_Callback_Sig(job_full_lex){
         }
     } while (still_lexing);
     
-    i32 new_max = l_round_up_i32(tokens.count+1, Kbytes(1));
+    i32 new_max = l_round_up(tokens.count+1, KB(1));
     
     system->acquire_lock(FRAME_LOCK);
     {
@@ -2206,7 +2207,7 @@ file_first_lex_serial(Mem_Options *mem, Editing_File *file){
                 }
             } while (still_lexing);
             
-            i32 new_max = l_round_up_i32(tokens.count+1, Kbytes(1));
+            i32 new_max = l_round_up(tokens.count+1, KB(1));
             
             {
                 Assert(file->state.swap_array.tokens == 0);
@@ -2320,7 +2321,7 @@ file_relex_parallel(System_Functions *system, Mem_Options *mem, Editing_File *fi
         if (inline_lex){
             i32 new_count = cpp_relex_get_new_count(&state, array->count, &relex_array);
             if (new_count > array->max_count){
-                i32 new_max = l_round_up_i32(new_count, Kbytes(1));
+                i32 new_max = l_round_up(new_count, KB(1));
                 array->tokens = (Cpp_Token*)
                     general_memory_reallocate(general, array->tokens, array->count*sizeof(Cpp_Token), new_max*sizeof(Cpp_Token));
                 array->max_count = new_max;
@@ -2435,9 +2436,8 @@ file_relex_serial(Mem_Options *mem, Editing_File *file, i32 start_i, i32 end_i, 
     
     i32 new_count = cpp_relex_get_new_count(&state, array->count, &relex_array);
     if (new_count > array->max_count){
-        i32 new_max = l_round_up_i32(new_count, Kbytes(1));
-        array->tokens = (Cpp_Token*)
-            general_memory_reallocate(general, array->tokens, array->count*sizeof(Cpp_Token), new_max*sizeof(Cpp_Token));
+        i32 new_max = l_round_up(new_count, KB(1));
+        array->tokens = (Cpp_Token*)general_memory_reallocate(general, array->tokens, array->count*sizeof(Cpp_Token), new_max*sizeof(Cpp_Token));
         array->max_count = new_max;
     }
     
@@ -2658,7 +2658,7 @@ file_post_history(General_Memory *general, Editing_File *file, Edit_Step step, b
     Edit_Stack *history = &file->state.undo.history;
     Edit_Step *result = 0;
     
-    persist Edit_Type reverse_types[4];
+    local_persist Edit_Type reverse_types[4];
     if (reverse_types[ED_UNDO] == 0){
         reverse_types[ED_NORMAL] = ED_REVERSE_NORMAL;
         reverse_types[ED_REVERSE_NORMAL] = ED_NORMAL;
@@ -2816,7 +2816,7 @@ view_set_relative_scrolling(View *view, Relative_Scrolling scrolling){
     
     if (view->edit_pos){
         view->edit_pos->scroll.scroll_y = cursor_y - scrolling.scroll_y;
-        view->edit_pos->scroll.target_y = ROUND32(clamp_bottom(0.f, cursor_y - scrolling.target_y));
+        view->edit_pos->scroll.target_y = round32(clamp_bottom(0.f, cursor_y - scrolling.target_y));
     }
 }
 
@@ -3088,8 +3088,7 @@ file_edit_cursor_fix(System_Functions *system, Models *models,
                     }
                     y_position += y_offset;
                     
-                    scroll.target_y +=
-                        ROUND32(y_position - scroll.scroll_y);
+                    scroll.target_y += round32(y_position - scroll.scroll_y);
                     scroll.scroll_y = y_position;
                 }
                 
@@ -4165,10 +4164,10 @@ view_reinit_scrolling(View *view){
         h = view_file_height(view);
         
         if (cursor_x >= target_x + w){
-            target_x = ROUND32(cursor_x - w*.35f);
+            target_x = round32(cursor_x - w*.35f);
         }
         
-        target_y = clamp_bottom(0, FLOOR32(cursor_y - h*.5f));
+        target_y = clamp_bottom(0, floor32(cursor_y - h*.5f));
     }
     
     GUI_Scroll_Vars scroll = {0};
@@ -4254,9 +4253,9 @@ begin_exhaustive_loop(Exhaustive_File_Loop *loop, Hot_Directory *hdir){
 
 internal Exhaustive_File_Info
 get_exhaustive_info(System_Functions *system, Working_Set *working_set, Exhaustive_File_Loop *loop, i32 i){
-    persist String message_loaded = make_lit_string(" LOADED");
-    persist String message_unsaved = make_lit_string(" LOADED *");
-    persist String message_unsynced = make_lit_string(" LOADED !");
+    local_persist String message_loaded = make_lit_string(" LOADED");
+    local_persist String message_unsaved = make_lit_string(" LOADED *");
+    local_persist String message_unsynced = make_lit_string(" LOADED !");
     
     Exhaustive_File_Info result = {0};
     Editing_File *file = 0;
@@ -5029,8 +5028,8 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                         
                         case IInt_Live_File_List:
                         {
-                            persist String message_unsaved = make_lit_string(" *");
-                            persist String message_unsynced = make_lit_string(" !");
+                            local_persist String message_unsaved = make_lit_string(" *");
+                            local_persist String message_unsynced = make_lit_string(" !");
                             
                             String message = {0};
                             switch (view->action){
@@ -5805,7 +5804,7 @@ do_step_file_view(System_Functions *system,
                             v = unlerp(gui_session.scroll_top, (f32)my,
                                        gui_session.scroll_bottom);
                             v = clamp(0.f, v, 1.f);
-                            result.vars.target_y = ROUND32(lerp(0.f, v, (f32)max_y));
+                            result.vars.target_y = round32(lerp(0.f, v, (f32)max_y));
                             
                             gui_activate_scrolling(target);
                             result.is_animating = 1;
@@ -6146,7 +6145,7 @@ draw_text_field(Render_Target *target, View *view, i16 font_id,
     
     if (target){
         draw_rectangle(target, rect, back_color);
-        x = CEIL32(draw_string(target, font_id, p, x, y, text2_color));
+        x = ceil32(draw_string(target, font_id, p, x, y, text2_color));
         draw_string(target, font_id, t, x, y, text1_color);
     }
 }
@@ -6178,19 +6177,19 @@ draw_text_with_cursor(Render_Target *target, View *view, i16 font_id,
             part3 = substr(s, pos+1, s.size-pos-1);
             
             
-            x = draw_string(target, font_id, part1, FLOOR32(x), y, text_color);
+            x = draw_string(target, font_id, part1, floor32(x), y, text_color);
             
-            cursor_rect.x0 = FLOOR32(x);
-            cursor_rect.x1 = FLOOR32(x) + CEIL32(font->advance_data[s.str[pos]]);
+            cursor_rect.x0 = floor32(x);
+            cursor_rect.x1 = floor32(x) + ceil32(font->advance_data[s.str[pos]]);
             cursor_rect.y0 = y;
             cursor_rect.y1 = y + view->line_height;
             draw_rectangle(target, cursor_rect, cursor_color);
-            x = draw_string(target, font_id, part2, FLOOR32(x), y, at_cursor_color);
+            x = draw_string(target, font_id, part2, floor32(x), y, at_cursor_color);
             
-            draw_string(target, font_id, part3, FLOOR32(x), y, text_color);
+            draw_string(target, font_id, part3, floor32(x), y, text_color);
         }
         else{
-            draw_string(target, font_id, s, FLOOR32(x), y, text_color);
+            draw_string(target, font_id, s, floor32(x), y, text_color);
         }
     }
 }
@@ -6254,13 +6253,13 @@ draw_file_bar(Render_Target *target, View *view, Editing_File *file, i32_Rect re
                 switch (file_get_sync(file)){
                     case DirtyState_UnloadedChanges:
                     {
-                        persist String out_of_sync = make_lit_string(" !");
+                        local_persist String out_of_sync = make_lit_string(" !");
                         intbar_draw_string(target, &bar, out_of_sync, pop2_color);
                     }break;
                     
                     case DirtyState_UnsavedChanges:
                     {
-                        persist String out_of_sync = make_lit_string(" *");
+                        local_persist String out_of_sync = make_lit_string(" *");
                         intbar_draw_string(target, &bar, out_of_sync, pop2_color);
                     }break;
                 }
@@ -6358,13 +6357,12 @@ draw_fat_option_block(GUI_Target *gui_target, Render_Target *target, View *view,
         x = checkbox_rect.x1 + 3;
     }
     
-    x = CEIL32(draw_string(target, font_id, text, x, y, text_color));
+    x = ceil32(draw_string(target, font_id, text, x, y, text_color));
     draw_string(target, font_id, pop, x, y, pop_color);
 }
 
 internal void
-draw_button(GUI_Target *gui_target, Render_Target *target, View *view,
-            i16 font_id, i32_Rect rect, GUI_id id, String text){
+draw_button(GUI_Target *gui_target, Render_Target *target, View *view, i16 font_id, i32_Rect rect, GUI_id id, String text){
     Models *models = view->persistent.models;
     Style *style = main_style(models);
     
@@ -6410,7 +6408,7 @@ draw_style_preview(GUI_Target *gui_target, Render_Target *target, View *view,
     
     i32 y = inner.y0;
     i32 x = inner.x0;
-    x = CEIL32(draw_string(target, font_id, style->name.str, x, y, text_color));
+    x = ceil32(draw_string(target, font_id, style->name.str, x, y, text_color));
     i32 font_x = (i32)(inner.x1 - font_string_width(target, font_id, info->name.str));
     if (font_x > x + 10){
         draw_string(target, font_id, info->name.str, font_x, y, text_color);
@@ -6418,13 +6416,13 @@ draw_style_preview(GUI_Target *gui_target, Render_Target *target, View *view,
     
     x = inner.x0;
     y += info->height;
-    x = CEIL32(draw_string(target, font_id, "if", x, y, keyword_color));
-    x = CEIL32(draw_string(target, font_id, "(x < ", x, y, text_color));
-    x = CEIL32(draw_string(target, font_id, "0", x, y, int_constant_color));
-    x = CEIL32(draw_string(target, font_id, ") { x = ", x, y, text_color));
-    x = CEIL32(draw_string(target, font_id, "0", x, y, int_constant_color));
-    x = CEIL32(draw_string(target, font_id, "; } ", x, y, text_color));
-    x = CEIL32(draw_string(target, font_id, "// comment", x, y, comment_color));
+    x = ceil32(draw_string(target, font_id, "if", x, y, keyword_color));
+    x = ceil32(draw_string(target, font_id, "(x < ", x, y, text_color));
+    x = ceil32(draw_string(target, font_id, "0", x, y, int_constant_color));
+    x = ceil32(draw_string(target, font_id, ") { x = ", x, y, text_color));
+    x = ceil32(draw_string(target, font_id, "0", x, y, int_constant_color));
+    x = ceil32(draw_string(target, font_id, "; } ", x, y, text_color));
+    x = ceil32(draw_string(target, font_id, "// comment", x, y, comment_color));
     
     x = inner.x0;
     y += info->height;
@@ -6680,7 +6678,7 @@ live_set_alloc_view(Live_Views *live_set, Panel *panel, Models *models){
     init_query_set(&result.view->query_set);
     
     {
-        i32 gui_mem_size = Kbytes(512);
+        i32 gui_mem_size = KB(512);
         void *gui_mem = general_memory_allocate(&models->mem.general, gui_mem_size + 8);
         result.view->gui_mem = gui_mem;
         gui_mem = advance_to_alignment(gui_mem);

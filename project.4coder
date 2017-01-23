@@ -2,7 +2,7 @@ extensions=".c.cpp.h.hpp.bat.sh";
 
 fkey_command_win[1]  = {"build.bat", "*compilation*", true};
 fkey_command_win[2]  = {"site\\build.bat", "*compilation*", true};
-fkey_command_win[3]  = {"file\\run_tests.bat", "*tests*", true};
+fkey_command_win[3]  = {"string\\build.bat", "*compilation*", true};
 fkey_command_win[4]  = {0, 0};
 fkey_command_win[5]  = {"..\\misc\\run.bat", "*run*"};
 fkey_command_win[6]  = {0, 0};

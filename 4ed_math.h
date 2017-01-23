@@ -60,10 +60,10 @@ COS(f32 x_degrees){
 struct Vec2{
     union{
         struct{
-            real32 x, y;
+            f32 x, y;
         };
         struct{
-            real32 v[2];
+            f32 v[2];
         };
     };
 };
@@ -71,21 +71,21 @@ struct Vec2{
 struct Vec3{
     union{
         struct{
-            real32 x, y, z;
+            f32 x, y, z;
         };
         struct{
-            real32 r, g, b;
+            f32 r, g, b;
         };
         struct{
             Vec2 xy;
-            real32 _z;
+            f32 _z;
         };
         struct{
-            real32 _x;
+            f32 _x;
             Vec2 yz;
         };
         struct{
-            real32 v[3];
+            f32 v[3];
         };
     };
 };
@@ -93,35 +93,35 @@ struct Vec3{
 struct Vec4{
     union{
         struct{
-            real32 r, g, b, a;
+            f32 r, g, b, a;
         };
         
         struct{
-            real32 h, s, l, __a;
+            f32 h, s, l, __a;
         };
         struct{
-            real32 x, y, z, w;
+            f32 x, y, z, w;
         };
         struct{
             Vec3 rgb;
-            real32 _a;
+            f32 _a;
         };
         struct{
             Vec3 xyz;
-            real32 _w;
+            f32 _w;
         };
         struct{
-            real32 _x;
+            f32 _x;
             Vec3 yzw;
         };
         struct{
-            real32 v[4];
+            f32 v[4];
         };
     };
 };
 
 inline internal Vec2
-V2(real32 x, real32 y){
+V2(f32 x, f32 y){
     Vec2 result;
     result.x = x;
     result.y = y;
@@ -129,7 +129,7 @@ V2(real32 x, real32 y){
 }
 
 inline internal Vec3
-V3(real32 x, real32 y, real32 z){
+V3(f32 x, f32 y, f32 z){
     Vec3 result;
     result.x = x;
     result.y = y;
@@ -138,7 +138,7 @@ V3(real32 x, real32 y, real32 z){
 }
 
 inline internal Vec4
-V4(real32 x, real32 y, real32 z, real32 w){
+V4(f32 x, f32 y, f32 z, f32 w){
     Vec4 result;
     result.x = x;
     result.y = y;
@@ -202,7 +202,7 @@ operator-(Vec4 a, Vec4 b){
 }
 
 inline internal Vec2
-operator*(Vec2 a, real32 k){
+operator*(Vec2 a, f32 k){
     Vec2 result;
     result.x = a.x * k;
     result.y = a.y * k;
@@ -210,7 +210,7 @@ operator*(Vec2 a, real32 k){
 }
 
 inline internal Vec3
-operator*(Vec3 a, real32 k){
+operator*(Vec3 a, f32 k){
     Vec3 result;
     result.x = a.x * k;
     result.y = a.y * k;
@@ -219,7 +219,7 @@ operator*(Vec3 a, real32 k){
 }
 
 inline internal Vec4
-operator*(Vec4 a, real32 k){
+operator*(Vec4 a, f32 k){
     Vec4 result;
     result.x = a.x * k;
     result.y = a.y * k;
@@ -229,7 +229,7 @@ operator*(Vec4 a, real32 k){
 }
 
 inline internal Vec2
-operator*(real32 k, Vec2 a){
+operator*(f32 k, Vec2 a){
     Vec2 result;
     result.x = a.x * k;
     result.y = a.y * k;
@@ -237,7 +237,7 @@ operator*(real32 k, Vec2 a){
 }
 
 inline internal Vec3
-operator*(real32 k, Vec3 a){
+operator*(f32 k, Vec3 a){
     Vec3 result;
     result.x = a.x * k;
     result.y = a.y * k;
@@ -246,7 +246,7 @@ operator*(real32 k, Vec3 a){
 }
 
 inline internal Vec4
-operator*(real32 k, Vec4 a){
+operator*(f32 k, Vec4 a){
     Vec4 result;
     result.x = a.x * k;
     result.y = a.y * k;
@@ -292,40 +292,40 @@ operator-=(Vec4 &a, Vec4 b){
 }
 
 inline internal Vec2&
-operator*=(Vec2 &a, real32 k){
+operator*=(Vec2 &a, f32 k){
     a = (a * k);
     return a;
 }
 
 inline internal Vec3&
-operator*=(Vec3 &a, real32 k){
+operator*=(Vec3 &a, f32 k){
     a = (a * k);
     return a;
 }
 
 inline internal Vec4&
-operator*=(Vec4 &a, real32 k){
+operator*=(Vec4 &a, f32 k){
     a = (a * k);
     return a;
 }
 
-inline internal real32
+inline internal f32
 dot(Vec2 a, Vec2 b){
-    real32 result;
+    f32 result;
     result = a.x*b.x + a.y*b.y;
     return result;
 }
 
-inline internal real32
+inline internal f32
 dot(Vec3 a, Vec3 b){
-    real32 result;
+    f32 result;
     result = a.x*b.x + a.y*b.y + a.z*b.z;
     return result;
 }
 
-inline internal real32
+inline internal f32
 dot(Vec4 a, Vec4 b){
-    real32 result;
+    f32 result;
     result = a.x*b.x + a.y*b.y + a.z*b.z + a.w*b.w;
     return result;
 }
@@ -375,7 +375,7 @@ perp(Vec2 v){
 }
 
 inline Vec2
-polar_to_cartesian(real32 theta_degrees, real32 length){
+polar_to_cartesian(f32 theta_degrees, f32 length){
     Vec2 result;
     result.x = COS(theta_degrees)*length;
     result.y = SIN(theta_degrees)*length;
@@ -383,9 +383,9 @@ polar_to_cartesian(real32 theta_degrees, real32 length){
 }
 
 inline Vec2
-rotate(Vec2 v, real32 theta_degrees){
+rotate(Vec2 v, f32 theta_degrees){
     Vec2 result;
-    real32 c, s;
+    f32 c, s;
     c = COS(theta_degrees);
     s = SIN(theta_degrees);
     result.x = v.x*c - v.y*s;
@@ -475,7 +475,7 @@ clamp(i32 a, i32 n, i32 z){
 
 // TODO(allen): Convert colors to Vec4
 inline u32
-color_blend(u32 a, real32 t, u32 b){
+color_blend(u32 a, f32 t, u32 b){
     union{
         u8 byte[4];
         u32 comp;
@@ -524,7 +524,7 @@ pack_color4(Vec4 color){
 internal Vec4
 rgba_to_hsla(Vec4 rgba){
     Vec4 hsla = {};
-    real32 max, min, delta;
+    f32 max, min, delta;
     i32 maxc;
     hsla.a = rgba.a;
     max = rgba.r; min = rgba.r;
@@ -580,43 +580,80 @@ rgba_to_hsla(Vec4 rgba){
 internal Vec4
 hsla_to_rgba(Vec4 hsla){
     if (hsla.h >= 1.f) hsla.h = 0.f;
-    Vec4 rgba = {};
-    real32 C, X, m;
-    i32 H;
+    Vec4 rgba = {0};
+    f32 C = (1.f - ABS(2*hsla.z - 1.f)) * hsla.y;
+    f32 X = C * (1.f-ABS(MOD(hsla.x*6.f, 2)-1.f));
+    f32 m = hsla.z - C*.5f;
+    i32 H = floor32(hsla.x * 6.f);
     rgba.a = hsla.a;
-    C = (1.f - ABS(2*hsla.z - 1.f)) * hsla.y;
-    X = C * (1.f-ABS(MOD(hsla.x*6.f, 2)-1.f));
-    m = hsla.z - C*.5f;
-    H = FLOOR32(hsla.x * 6.f);
     switch (H){
-        case 0:
-        rgba.r = C; rgba.g = X; rgba.b = 0;
-        break;
-        
-        case 1:
-        rgba.r = X; rgba.g = C; rgba.b = 0;
-        break;
-        
-        case 2:
-        rgba.r = 0; rgba.g = C; rgba.b = X;
-        break;
-        
-        case 3:
-        rgba.r = 0; rgba.g = X; rgba.b = C;
-        break;
-        
-        case 4:
-        rgba.r = X; rgba.g = 0; rgba.b = C;
-        break;
-        
-        case 5:
-        rgba.r = C; rgba.g = 0; rgba.b = X;
-        break;
+        case 0: rgba.r = C; rgba.g = X; rgba.b = 0; break;
+        case 1: rgba.r = X; rgba.g = C; rgba.b = 0; break;
+        case 2: rgba.r = 0; rgba.g = C; rgba.b = X; break;
+        case 3: rgba.r = 0; rgba.g = X; rgba.b = C; break;
+        case 4: rgba.r = X; rgba.g = 0; rgba.b = C; break;
+        case 5: rgba.r = C; rgba.g = 0; rgba.b = X; break;
     }
     rgba.r += m;
     rgba.g += m;
     rgba.b += m;
-    return rgba;
+    return(rgba);
+}
+
+//
+// Rectangle Operations
+//
+
+inline i32_Rect
+i32R(int32_t l, int32_t t, int32_t r, int32_t b){
+    i32_Rect rect;
+    rect.x0 = l; rect.y0 = t;
+    rect.x1 = r; rect.y1 = b;
+    return(rect);
+}
+
+inline f32_Rect
+f32R(float l, float t, float r, float b){
+    f32_Rect rect;
+    rect.x0 = l; rect.y0 = t;
+    rect.x1 = r; rect.y1 = b;
+    return(rect);
+}
+
+inline f32_Rect
+f32R(i32_Rect r){
+    f32_Rect rect;
+    rect.x0 = (float)r.x0;
+    rect.y0 = (float)r.y0;
+    rect.x1 = (float)r.x1;
+    rect.y1 = (float)r.y1;
+    return(rect);
+}
+
+inline int32_t
+rect_equal(i32_Rect r1, i32_Rect r2){
+    int32_t result = (r1.x0 == r2.x0 && r1.y0 == r2.y0 && r1.x1 == r2.x1 && r1.y1 == r2.y1);
+    return(result);
+}
+
+inline int32_t
+hit_check(int32_t x, int32_t y, int32_t x0, int32_t y0, int32_t x1, int32_t y1){
+    return (x >= x0 && x < x1 && y >= y0 && y < y1);
+}
+
+inline int32_t
+hit_check(int32_t x, int32_t y, i32_Rect rect){
+    return (hit_check(x, y, rect.x0, rect.y0, rect.x1, rect.y1));
+}
+
+inline i32_Rect
+get_inner_rect(i32_Rect outer, int32_t margin){
+    i32_Rect r;
+    r.x0 = outer.x0 + margin;
+    r.y0 = outer.y0 + margin;
+    r.x1 = outer.x1 - margin;
+    r.y1 = outer.y1 - margin;
+    return r;
 }
 
 // BOTTOM
