@@ -182,6 +182,16 @@ make_range(int32_t p1, int32_t p2){
     return(range);
 }
 
+static void
+adjust_all_buffer_wrap_widths(Application_Links *app, int32_t wrap_width, int32_t min_base_width){
+    for (Buffer_Summary buffer = get_buffer_first(app, AccessAll);
+         buffer.exists;
+         get_buffer_next(app, &buffer, AccessAll)){
+        buffer_set_setting(app, &buffer, BufferSetting_WrapPosition, wrap_width);
+        buffer_set_setting(app, &buffer, BufferSetting_MinimumBaseWrapPosition, min_base_width);
+    }
+}
+
 struct Buffer_Rect{
     int32_t char0, line0;
     int32_t char1, line1;

@@ -277,29 +277,25 @@ layout_get_rect(Editing_Layout *layout, i32 id, i32 which_child){
 internal i32_Rect
 layout_get_panel_rect(Editing_Layout *layout, Panel *panel){
     Assert(layout->panel_count > 1);
-    
     i32_Rect r = layout_get_rect(layout, panel->parent, panel->which_child);
-    
     return(r);
 }
 
 internal void
 layout_fix_all_panels(Editing_Layout *layout){
-    Panel *panel;
     Panel_Divider *dividers = layout->dividers; AllowLocal(dividers);
     i32 panel_count = layout->panel_count;
     
     if (panel_count > 1){
-        for (panel = layout->used_sentinel.next;
+        for (Panel *panel = layout->used_sentinel.next;
              panel != &layout->used_sentinel;
              panel = panel->next){
             panel->full = layout_get_panel_rect(layout, panel);
             panel_fix_internal_area(panel);
         }
     }
-    
     else{
-        panel = layout->used_sentinel.next;
+        Panel *panel = layout->used_sentinel.next;
         panel->full.x0 = 0;
         panel->full.y0 = 0;
         panel->full.x1 = layout->full_width;
@@ -316,10 +312,8 @@ layout_refit(Editing_Layout *layout, i32 prev_width, i32 prev_height){
     i32 max = layout->panel_max_count - 1;
     
     Panel_Divider *divider = dividers;
-    
     if (layout->panel_count > 1){
         Assert(prev_width != 0 && prev_height != 0);
-        
         for (i32 i = 0; i < max; ++i, ++divider){
             if (divider->v_divider){
                 divider->pos = divider->pos;
@@ -373,8 +367,8 @@ layout_compute_position(Editing_Layout *layout, Panel_Divider *divider, i32 pos)
 internal void
 layout_compute_abs_step(Editing_Layout *layout, i32 divider_id, i32_Rect rect, i32 *abs_pos){
     Panel_Divider *div = layout->dividers + divider_id;
-    i32 p0 = 0, p1 = 0;
     
+    i32 p0 = 0, p1 = 0;
     if (div->v_divider){
         p0 = rect.x0; p1 = rect.x1;
     }
@@ -405,11 +399,7 @@ layout_compute_abs_step(Editing_Layout *layout, i32 divider_id, i32_Rect rect, i
 
 internal void
 layout_compute_absolute_positions(Editing_Layout *layout, i32 *abs_pos){
-    i32_Rect r;
-    r.x0 = 0;
-    r.y0 = 0;
-    r.x1 = layout->full_width;
-    r.y1 = layout->full_height;
+    i32_Rect r = i32R(0, 0, layout->full_width, layout->full_height);
     if (layout->panel_count > 1){
         layout_compute_abs_step(layout, layout->root, r, abs_pos);
     }
@@ -434,14 +424,12 @@ layout_get_min_max_step_up(Editing_Layout *layout, b32 v, i32 divider_id, i32 wh
     }
     
     if (divider->parent != -1){
-        layout_get_min_max_step_up(layout, v, divider->parent, divider->which_child,
-                                   abs_pos, min_out, max_out);
+        layout_get_min_max_step_up(layout, v, divider->parent, divider->which_child, abs_pos, min_out, max_out);
     }
 }
 
 internal void
-layout_get_min_max_step_down(Editing_Layout *layout, b32 v, i32 divider_id, i32 which_child,
-                             i32 *abs_pos, i32 *min_out, i32 *max_out){
+layout_get_min_max_step_down(Editing_Layout *layout, b32 v, i32 divider_id, i32 which_child, i32 *abs_pos, i32 *min_out, i32 *max_out){
     Panel_Divider *divider = layout->dividers + divider_id;
     
     // NOTE(allen): The min/max is switched here, because children on the -1 side
@@ -504,8 +492,8 @@ layout_get_min_max(Editing_Layout *layout, Panel_Divider *divider, i32 *abs_pos,
 internal void
 layout_update_pos_step(Editing_Layout *layout, i32 divider_id, i32_Rect rect, i32 *abs_pos){
     Panel_Divider *div = layout->dividers + divider_id;
-    i32 p0 = 0, p1 = 0;
     
+    i32 p0 = 0, p1 = 0;
     if (div->v_divider){
         p0 = rect.x0; p1 = rect.x1;
     }
@@ -516,6 +504,7 @@ layout_update_pos_step(Editing_Layout *layout, i32 divider_id, i32_Rect rect, i3
     i32 pos = abs_pos[divider_id];
     i32_Rect r1 = rect, r2 = rect;
     f32 lpos = unlerp((f32)p0, (f32)pos, (f32)p1);
+    lpos = clamp(0.f, lpos, 1.f);
     
     div->pos = lpos;
     
@@ -539,11 +528,7 @@ layout_update_pos_step(Editing_Layout *layout, i32 divider_id, i32_Rect rect, i3
 
 internal void
 layout_update_all_positions(Editing_Layout *layout, i32 *abs_pos){
-    i32_Rect r;
-    r.x0 = 0;
-    r.y0 = 0;
-    r.x1 = layout->full_width;
-    r.y1 = layout->full_height;
+    i32_Rect r = i32R(0, 0, layout->full_width, layout->full_height);
     if (layout->panel_count > 1){
         layout_update_pos_step(layout, layout->root, r, abs_pos);
     }

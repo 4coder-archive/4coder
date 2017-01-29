@@ -647,13 +647,28 @@ hit_check(int32_t x, int32_t y, i32_Rect rect){
 }
 
 inline i32_Rect
-get_inner_rect(i32_Rect outer, int32_t margin){
+get_inner_rect(i32_Rect outer, i32 margin){
     i32_Rect r;
     r.x0 = outer.x0 + margin;
     r.y0 = outer.y0 + margin;
     r.x1 = outer.x1 - margin;
     r.y1 = outer.y1 - margin;
-    return r;
+    return(r);
+}
+
+inline f32_Rect
+get_inner_rect(f32_Rect outer, f32 margin){
+    f32_Rect r;
+    r.x0 = outer.x0 + margin;
+    r.y0 = outer.y0 + margin;
+    r.x1 = outer.x1 - margin;
+    r.y1 = outer.y1 - margin;
+    return(r);
+}
+
+inline int32_t
+fits_inside(i32_Rect rect, i32_Rect outer){
+    return(rect.x0 >= outer.x0 && rect.x1 <= outer.x1 && rect.y0 >= outer.y0 && rect.y1 <= outer.y1);
 }
 
 // BOTTOM

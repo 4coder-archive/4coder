@@ -1,5 +1,22 @@
+/*
+4coder_function_list.cpp - Command for listing all functions in a C/C++ file in a jump list.
+
+TYPE: 'drop-in-command-pack'
+*/
 
 // TOP
+
+#if !defined(FCODER_FUNCTION_LIST_CPP)
+#define FCODER_FUNCTION_LIST_CPP
+
+#include "4coder_API/custom.h"
+
+#include "4coder_default_framework.h"
+
+#include "4coder_helper/4coder_helper.h"
+#include "4coder_helper/4coder_streaming.h"
+
+#include "4coder_lib/4coder_mem.h"
 
 // NOTE(allen|a4.0.14): This turned out to be a nasty little routine.  There might 
 // be a better way to do it with just tokens that I didn't see the first time 
@@ -9,7 +26,6 @@
 // This version can be dropped anywhere underneath 4coder_default_include.cpp and
 // will then provide the "list_all_functions_current_buffer" command.
 //
-
 
 //
 // Declaration list
@@ -277,6 +293,8 @@ CUSTOM_COMMAND_SIG(list_all_functions_current_buffer){
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, access);
     list_all_functions(app, &global_part, &buffer);
 }
+
+#endif
 
 // BOTTOM
 

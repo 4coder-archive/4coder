@@ -9,20 +9,6 @@
 
 // TOP
 
-#if 0
-inline i32_Rect
-i32_rect_zero(){
-    i32_Rect rect={0};
-    return(rect);
-}
-
-inline f32_Rect
-f32_rect_zero(){
-    f32_Rect rect={0};
-    return(rect);
-}
-#endif
-
 inline void
 draw_push_clip(Render_Target *target, i32_Rect clip_box){
     target->push_clip(target, clip_box);

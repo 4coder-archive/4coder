@@ -502,7 +502,7 @@ buffer_replace_range(Gap_Buffer *buffer, i32 start, i32 end, char *str, i32 len,
         assert(buffer->size1 + buffer->gap_size + buffer->size2 == buffer->max);
     }
     else{
-        *request_amount = l_round_up(2*(*shift_amount + size), 4 << 10);
+        *request_amount = l_round_up_i32(2*(*shift_amount + size), 4 << 10);
         result = 1;
     }
     
@@ -1235,6 +1235,7 @@ buffer_partial_from_line_character(Gap_Buffer *buffer, i32 line, i32 character){
     }
     
     i32 size = buffer_size(buffer);
+    
     i32 this_start = buffer->line_starts[line_index];
     i32 max_character = (size-this_start) + 1;
     if (line_index+1 < buffer->line_count){
@@ -1242,14 +1243,28 @@ buffer_partial_from_line_character(Gap_Buffer *buffer, i32 line, i32 character){
         max_character = (next_start-this_start);
     }
     
-    if (character <= 0){
-        character = 1;
+    i32 adjusted_pos = 0;
+    if (character > 0){
+        if (character > max_character){
+            adjusted_pos = max_character - 1;
+        }
+        else{
+            adjusted_pos = character - 1;
+        }
     }
-    if (character > max_character){
-        character = max_character;
+    else if (character == 0){
+        adjusted_pos = 0;
+    }
+    else{
+        if (-character > max_character){
+            adjusted_pos = 0;
+        }
+        else{
+            adjusted_pos = max_character + character;
+        }
     }
     
-    result.pos = this_start + character - 1;
+    result.pos = this_start + adjusted_pos;
     result.line = line_index + 1;
     result.character = character;
     

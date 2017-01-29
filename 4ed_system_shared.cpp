@@ -266,69 +266,66 @@ draw_safe_push(Render_Target *target, i32 size, void *x){
 
 internal void
 draw_push_piece(Render_Target *target, Render_Piece_Combined piece){
-    PutStruct(Render_Piece_Header, piece.header);
-    
-    switch (piece.header.type){
-        case piece_type_rectangle:
-        case piece_type_outline:
-        PutStruct(Render_Piece_Rectangle, piece.rectangle);
-        break;
+    if (!target->clip_all){
+        PutStruct(Render_Piece_Header, piece.header);
         
-        case piece_type_gradient:
-        PutStruct(Render_Piece_Gradient, piece.gradient);
-        break;
+        switch (piece.header.type){
+            case piece_type_rectangle:
+            case piece_type_outline:
+            PutStruct(Render_Piece_Rectangle, piece.rectangle);
+            break;
+            
+            case piece_type_gradient:
+            PutStruct(Render_Piece_Gradient, piece.gradient);
+            break;
+            
+            case piece_type_glyph:
+            case piece_type_mono_glyph:
+            PutStruct(Render_Piece_Glyph, piece.glyph);
+            break;
+            
+            case piece_type_mono_glyph_advance:
+            PutStruct(Render_Piece_Glyph_Advance, piece.glyph_advance);
+            break;
+        }
         
-        case piece_type_glyph:
-        case piece_type_mono_glyph:
-        PutStruct(Render_Piece_Glyph, piece.glyph);
-        break;
-        
-        case piece_type_mono_glyph_advance:
-        PutStruct(Render_Piece_Glyph_Advance, piece.glyph_advance);
-        break;
+        Assert(target->size <= target->max);
     }
-    
-    Assert(target->size <= target->max);
 }
 
 internal void
 draw_push_piece_clip(Render_Target *target, i32_Rect clip_box){
-    // TODO(allen): optimize out if there are two clip box changes in a row
-    Render_Piece_Change_Clip clip;
-    Render_Piece_Header header;
-    
-    header.type = piece_type_change_clip;
-    clip.box = clip_box;
-    
-    PutStruct(Render_Piece_Header, header);
-    PutStruct(Render_Piece_Change_Clip, clip);
-}
-
-inline int32_t
-fits_inside(i32_Rect rect, i32_Rect outer){
-    return (rect.x0 >= outer.x0 && rect.x1 <= outer.x1 &&
-            rect.y0 >= outer.y0 && rect.y1 <= outer.y1);
+    if (!target->clip_all){
+        // TODO(allen): optimize out if there are two clip box changes in a row
+        Render_Piece_Change_Clip clip;
+        Render_Piece_Header header;
+        
+        header.type = piece_type_change_clip;
+        clip.box = clip_box;
+        
+        PutStruct(Render_Piece_Header, header);
+        PutStruct(Render_Piece_Change_Clip, clip);
+    }
 }
 
 internal void
 draw_push_clip(Render_Target *target, i32_Rect clip_box){
-    Assert(target->clip_top == -1 ||
-           fits_inside(clip_box, target->clip_boxes[target->clip_top]));
+    Assert(target->clip_top == -1 || fits_inside(clip_box, target->clip_boxes[target->clip_top]));
     Assert(target->clip_top+1 < ArrayCount(target->clip_boxes));
     target->clip_boxes[++target->clip_top] = clip_box;
     
+    target->clip_all = (clip_box.x0 >= clip_box.x1 || clip_box.y0 >= clip_box.y1);
     draw_push_piece_clip(target, clip_box);
 }
 
 internal i32_Rect
 draw_pop_clip(Render_Target *target){
-    i32_Rect result = {0};
-    i32_Rect clip_box = {0};
-    
     Assert(target->clip_top > 0);
-    result = target->clip_boxes[target->clip_top];
+    i32_Rect result = target->clip_boxes[target->clip_top];
     --target->clip_top;
-    clip_box = target->clip_boxes[target->clip_top];
+    i32_Rect clip_box = target->clip_boxes[target->clip_top];
+    
+    target->clip_all = (clip_box.x0 >= clip_box.x1 || clip_box.y0 >= clip_box.y1);
     draw_push_piece_clip(target, clip_box);
     
     return(result);
@@ -352,12 +349,7 @@ private_draw_rectangle(Render_Target *target, f32_Rect rect, u32 color){
 
 inline void
 private_draw_rectangle_outline(Render_Target *target, f32_Rect rect, u32 color){
-    f32_Rect r;
-    r.x0 = rect.x0 + .5f;
-    r.y0 = rect.y0 + .5f;
-    r.x1 = rect.x1 - .5f;
-    r.y1 = rect.y1 - .5f;
-    
+    f32_Rect r = get_inner_rect(rect, .5f);
     draw_set_color(target, color);
     draw_bind_texture(target, 0);
     glBegin(GL_LINE_STRIP);

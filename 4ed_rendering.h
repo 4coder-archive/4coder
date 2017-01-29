@@ -151,6 +151,7 @@ struct Render_Target{
     void *context;
     i32_Rect clip_boxes[5];
     i32 clip_top;
+    b32 clip_all;
     i32 width, height;
     i32 bound_texture;
     u32 color;
@@ -166,8 +167,6 @@ struct Render_Target{
     Draw_Push_Clip *push_clip;
     Draw_Pop_Clip *pop_clip;
     Draw_Push_Piece *push_piece;
-    
-    //i32 dpi;
 };
 
 #define DpiMultiplier(n,dpi) ((n) * (dpi) / 96)

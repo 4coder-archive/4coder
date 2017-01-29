@@ -187,8 +187,7 @@ API_EXPORT bool32
 Exec_System_Command(Application_Links *app, View_Summary *view, Buffer_Identifier buffer, char *path, int32_t path_len, char *command, int32_t command_len, Command_Line_Interface_Flag flags)
 /*
 DOC_PARAM(view, If the view parameter is non-null it specifies a view to display the command's output buffer, otherwise the command will still work but if there is a buffer capturing the output it will not automatically be displayed.)
-DOC_PARAM(buffer, The buffer the command will output to is specified by the buffer parameter.
-See Buffer_Identifier for information on how this type specifies a buffer.  The command will cause a crash if no file is specified.)
+DOC_PARAM(buffer, The buffer the command will output to is specified by the buffer parameter. See Buffer_Identifier for information on how this type specifies a buffer.  The command will cause a crash if no file is specified.)
 DOC_PARAM(path, The path parameter specifies the path in which the command shall be executed. The string need not be null terminated.)
 DOC_PARAM(path_len, The parameter path_len specifies the length of the path string.)
 DOC_PARAM(command, The command parameter specifies the command that shall be executed. The string need not be null terminated.)
@@ -1636,9 +1635,6 @@ DOC_SEE(Full_Cursor)
     if (vptr){
         file = vptr->file_data.file;
         if (file && !file->is_loading){
-            if (seek.type == buffer_seek_line_char && seek.character <= 0){
-                seek.character = 1;
-            }
             result = true;
             *cursor_out = view_compute_cursor(vptr, seek, 0);
             fill_view_summary(view, vptr, cmd);
@@ -1673,9 +1669,6 @@ DOC_SEE(Buffer_Seek)
         Assert(file);
         if (!file->is_loading){
             result = true;
-            if (seek.type == buffer_seek_line_char && seek.character <= 0){
-                seek.character = 1;
-            }
             Full_Cursor cursor = view_compute_cursor(vptr, seek, 0);
             view_set_cursor(vptr, cursor, set_preferred_x, file->settings.unwrapped_lines);
             fill_view_summary(view, vptr, cmd);
@@ -1726,12 +1719,13 @@ DOC_SEE(Buffer_Seek)
     if (vptr){
         file = vptr->file_data.file;
         if (file && !file->is_loading){
-            result = true;
             if (seek.type != buffer_seek_pos){
+                result = true;
                 cursor = view_compute_cursor(vptr, seek, 0);
                 vptr->edit_pos->mark = cursor.pos;
             }
             else{
+                result = true;
                 vptr->edit_pos->mark = seek.pos;
             }
             fill_view_summary(view, vptr, cmd);
@@ -1905,17 +1899,17 @@ DOC_SEE(Mouse_State)
 /*
 API_EXPORT Event_Message
 Get_Event_Message (Application_Links *app){
-    Event_Message message = {0};
-    System_Functions *system = (System_Functions*)app->system_links;
-    Coroutine *coroutine = (Coroutine*)app->current_coroutine;
-    
-    if (app->type_coroutine == Co_View){
-        Assert(coroutine);
-        system->yield_coroutine(coroutine);
-        message = *(Event_Message*)coroutine->in;
-    }
-    
-    return(message);
+Event_Message message = {0};
+System_Functions *system = (System_Functions*)app->system_links;
+Coroutine *coroutine = (Coroutine*)app->current_coroutine;
+
+if (app->type_coroutine == Co_View){
+Assert(coroutine);
+system->yield_coroutine(coroutine);
+message = *(Event_Message*)coroutine->in;
+}
+
+return(message);
 }
 */
 

@@ -1,314 +1,23 @@
+/*
+4coder_default_bidings.cpp - Supplies the default bindings used for default 4coder behavior.
+
+TYPE: 'build-target'
+*/
 
 // TOP
 
-#ifndef FCODER_DEFAULT_BINDINGS
+#if !defined(FCODER_DEFAULT_BINDINGS)
 #define FCODER_DEFAULT_BINDINGS
 
 #include "4coder_default_include.cpp"
-
-// NOTE(allen|a3.3): All of your custom ids should be enumerated
-// as shown here, they may start at 0, and you can only have
-// 2^24 of them so don't be wasteful!
-enum My_Maps{
-    my_code_map,
-    my_maps_count
-};
-
-CUSTOM_COMMAND_SIG(write_allen_todo){
-    write_string(app, make_lit_string("// TODO(allen): "));
-}
-
-CUSTOM_COMMAND_SIG(write_allen_note){
-    write_string(app, make_lit_string("// NOTE(allen): "));
-}
-
-CUSTOM_COMMAND_SIG(write_allen_doc){
-    write_string(app, make_lit_string("/* DOC() */"));
-}
-
-CUSTOM_COMMAND_SIG(write_zero_struct){
-    write_string(app, make_lit_string(" = {0};"));
-}
-
-CUSTOM_COMMAND_SIG(switch_to_compilation){
-    
-    char name[] = "*compilation*";
-    int32_t name_size = sizeof(name)-1;
-    
-    uint32_t access = AccessOpen;
-    View_Summary view = get_active_view(app, access);
-    Buffer_Summary buffer = get_buffer_by_name(app, name, name_size, access);
-    
-    view_set_buffer(app, &view, buffer.buffer_id, 0);
-}
-
-CUSTOM_COMMAND_SIG(rewrite_as_single_caps){
-    uint32_t access = AccessOpen;
-    View_Summary view = get_active_view(app, access);
-    Full_Cursor cursor = view.cursor;
-    
-    // TODO(allen): This can be rewritten now without moving the
-    // cursor around, instead just calling the boundary seek.
-    Range range = {0};
-    exec_command(app, seek_token_left);
-    refresh_view(app, &view);
-    range.min = view.cursor.pos;
-    
-    exec_command(app, seek_token_right);
-    refresh_view(app, &view);
-    range.max = view.cursor.pos;
-    
-    String string = {0};
-    string.str = (char*)app->memory;
-    string.size = range.max - range.min;
-    assert(string.size < app->memory_size);
-    
-    Buffer_Summary buffer = get_buffer(app, view.buffer_id, access);
-    buffer_read_range(app, &buffer, range.min, range.max, string.str);
-    
-    int32_t is_first = true;
-    for (int32_t i = 0; i < string.size; ++i){
-        if (char_is_alpha_true(string.str[i])){
-            if (is_first){
-                is_first = false;
-            }
-            else{
-                string.str[i] = char_to_lower(string.str[i]);
-            }
-        }
-        else{
-            is_first = true;
-        }
-    }
-    
-    buffer_replace_range(app, &buffer, range.min, range.max, string.str, string.size);
-    
-    view_set_cursor(app, &view, seek_line_char(cursor.line+1, cursor.character), true);
-}
-
-CUSTOM_COMMAND_SIG(open_my_files){
-    uint32_t access = AccessAll;
-    View_Summary view = get_active_view(app, access);
-    view_open_file(app, &view, literal("w:/4ed/data/test/basic.cpp"), true);
-}
-
-CUSTOM_COMMAND_SIG(build_at_launch_location){
-    uint32_t access = AccessAll;
-    View_Summary view = get_active_view(app, access);
-    exec_system_command(app, &view, buffer_identifier(literal("*compilation*")),literal("."), literal("build"), CLI_OverlapWithConflict);
-}
-
-CUSTOM_COMMAND_SIG(seek_whitespace_up_end_line){
-    exec_command(app, seek_whitespace_up);
-    exec_command(app, seek_end_of_line);
-}
-
-CUSTOM_COMMAND_SIG(seek_whitespace_down_end_line){
-    exec_command(app, seek_whitespace_down);
-    exec_command(app, seek_end_of_line);
-}
-
-HOOK_SIG(my_start){
-    default_4coder_initialize(app);
-    default_4coder_side_by_side_panels(app);
-    
-    // no meaning for return
-    return(0);
-}
-
-HOOK_SIG(my_exit){
-    // if this returns zero it cancels the exit.
-    return(1);
-}
-
-HOOK_SIG(my_view_adjust){
-    int32_t count = 0;
-    int32_t new_wrap_width = 0;
-    for (View_Summary view = get_view_first(app, AccessAll);
-         view.exists;
-         get_view_next(app, &view, AccessAll)){
-        new_wrap_width += view.view_region.x1 - view.view_region.x0;
-        ++count;
-    }
-    
-    new_wrap_width /= count;
-    new_wrap_width = (int32_t)(new_wrap_width * .9f);
-    
-    int32_t new_min_base_width = (int32_t)(new_wrap_width * .77f);
-    if (automatically_adjust_wrapping){
-        adjust_all_buffer_wrap_widths(app, new_wrap_width, new_min_base_width);
-    }
-    
-    // no meaning for return
-    return(0);
-}
-
-CUSTOM_COMMAND_SIG(newline_or_goto_position){
-    View_Summary view = get_active_view(app, AccessProtected);
-    Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessProtected);
-    
-    if (buffer.lock_flags & AccessProtected){
-        exec_command(app, goto_jump_at_cursor);
-        lock_jump_buffer(buffer);
-    }
-    else{
-        exec_command(app, write_character);
-    }
-}
-
-// TODO(allen): Eliminate this hook if you can.
-OPEN_FILE_HOOK_SIG(my_file_settings){
-    // NOTE(allen|a4.0.8): The get_parameter_buffer was eliminated
-    // and instead the buffer is passed as an explicit parameter through
-    // the function call.  That is where buffer_id comes from here.
-    uint32_t access = AccessAll;
-    Buffer_Summary buffer = get_buffer(app, buffer_id, access);
-    assert(buffer.exists);
-    
-    int32_t treat_as_code = 0;
-    int32_t wrap_lines = 1;
-    
-    if (buffer.file_name && buffer.size < (16 << 20)){
-        String ext = file_extension(make_string(buffer.file_name, buffer.file_name_len));
-        if (match_ss(ext, make_lit_string("cpp"))) treat_as_code = 1;
-        else if (match_ss(ext, make_lit_string("h"))) treat_as_code = 1;
-        else if (match_ss(ext, make_lit_string("c"))) treat_as_code = 1;
-        else if (match_ss(ext, make_lit_string("hpp"))) treat_as_code = 1;
-    }
-    
-    if (treat_as_code){
-        wrap_lines = 0;
-    }
-    if (buffer.file_name[0] == '*'){
-        wrap_lines = 0;
-    }
-    
-    buffer_set_setting(app, &buffer, BufferSetting_WrapPosition, default_wrap_width);
-    buffer_set_setting(app, &buffer, BufferSetting_MinimumBaseWrapPosition, default_min_base_width);
-    buffer_set_setting(app, &buffer, BufferSetting_MapID, (treat_as_code)?((int32_t)my_code_map):((int32_t)mapid_file));
-    
-    if (treat_as_code && enable_code_wrapping && buffer.size < (1 << 18)){
-        // NOTE(allen|a4.0.12): There is a little bit of grossness going on here.
-        // If we set BufferSetting_Lex to true, it will launch a lexing job.
-        // If a lexing job is active when we set BufferSetting_VirtualWhitespace, the call can fail.
-        // Unfortunantely without tokens virtual whitespace doesn't really make sense.
-        // So for now I have it automatically turning on lexing when virtual whitespace is turned on.
-        // Cleaning some of that up is a goal for future versions.
-        buffer_set_setting(app, &buffer, BufferSetting_WrapLine, 1);
-        buffer_set_setting(app, &buffer, BufferSetting_VirtualWhitespace, 1);
-    }
-    else{
-        buffer_set_setting(app, &buffer, BufferSetting_WrapLine, wrap_lines);
-        buffer_set_setting(app, &buffer, BufferSetting_Lex, treat_as_code);
-    }
-    
-    // no meaning for return
-    return(0);
-}
-
-OPEN_FILE_HOOK_SIG(my_file_save){
-    uint32_t access = AccessAll;
-    Buffer_Summary buffer = get_buffer(app, buffer_id, access);
-    assert(buffer.exists);
-    
-    int32_t is_virtual = 0;
-    if (automatically_indent_text_on_save && buffer_get_setting(app, &buffer, BufferSetting_VirtualWhitespace, &is_virtual)){ 
-        if (is_virtual){
-            auto_tab_whole_file_by_summary(app, &buffer);
-        }
-    }
-    
-    // no meaning for return
-    return(0);
-}
-
-// NOTE(allen|a4.0.9): The input filter allows you to modify the input
-// to a frame before 4coder starts processing it at all.
-//
-// Right now it only has access to the mouse state, but it will be
-// extended to have access to the key presses soon.
-static bool32 suppressing_mouse = false;
-
-INPUT_FILTER_SIG(my_suppress_mouse_filter){
-    if (suppressing_mouse){
-        *mouse = null_mouse_state;
-        mouse->x = -100;
-        mouse->y = -100;
-    }
-}
-
-static void
-set_mouse_suppression(Application_Links *app, int32_t suppress){
-    if (suppress){
-        suppressing_mouse = 1;
-        show_mouse_cursor(app, MouseCursorShow_Never);
-    }
-    else{
-        suppressing_mouse = 0;
-        show_mouse_cursor(app, MouseCursorShow_Always);
-    }
-}
-
-CUSTOM_COMMAND_SIG(suppress_mouse){
-    set_mouse_suppression(app, true);
-}
-
-CUSTOM_COMMAND_SIG(allow_mouse){
-    set_mouse_suppression(app, false);
-}
-
-CUSTOM_COMMAND_SIG(toggle_mouse){
-    set_mouse_suppression(app, !suppressing_mouse);
-}
-
-CUSTOM_COMMAND_SIG(execute_arbitrary_command){
-    // NOTE(allen): This isn't a super powerful version of this command, I will expand
-    // upon it so that it has all the cmdid_* commands by default.  However, with this
-    // as an example you have everything you need to make it work already. You could
-    // even use app->memory to create a hash table in the start hook.
-    Query_Bar bar;
-    char space[1024];
-    bar.prompt = make_lit_string("Command: ");
-    bar.string = make_fixed_width_string(space);
-    
-    if (!query_user_string(app, &bar)) return;
-    
-    // NOTE(allen): Here I chose to end this query bar because when I call another
-    // command it might ALSO have query bars and I don't want this one hanging
-    // around at that point.  Since the bar exists on my stack the result of the query
-    // is still available in bar.string though.
-    end_query_bar(app, &bar, 0);
-    
-    if (match_ss(bar.string, make_lit_string("load project"))){
-        exec_command(app, load_project);
-    }
-    else if (match_ss(bar.string, make_lit_string("open all code"))){
-        exec_command(app, open_all_code);
-    }
-    else if(match_ss(bar.string, make_lit_string("close all code"))){
-        exec_command(app, close_all_code);
-    }
-    else if (match_ss(bar.string, make_lit_string("open menu"))){
-        exec_command(app, cmdid_open_menu);
-    }
-    else if (match_ss(bar.string, make_lit_string("dos lines"))){
-        exec_command(app, eol_dosify);
-    }
-    else if (match_ss(bar.string, make_lit_string("nix lines"))){
-        exec_command(app, eol_nixify);
-    }
-    else{
-        print_message(app, literal("unrecognized command\n"));
-    }
-}
 
 void
 default_keys(Bind_Helper *context){
     begin_map(context, mapid_global);
     
-    bind(context, 'p', MDFR_CTRL, open_panel_vsplit);
-    bind(context, '_', MDFR_CTRL, open_panel_hsplit);
-    bind(context, 'P', MDFR_CTRL, close_panel);
+    //bind(context, 'p', MDFR_CTRL, open_panel_vsplit);
+    //bind(context, '_', MDFR_CTRL, open_panel_hsplit);
+    //bind(context, 'P', MDFR_CTRL, close_panel);
     bind(context, ',', MDFR_CTRL, change_active_panel);
     
     bind(context, 'n', MDFR_CTRL, interactive_new);
@@ -318,8 +27,8 @@ default_keys(Bind_Helper *context){
     bind(context, 'i', MDFR_CTRL, interactive_switch_buffer);
     bind(context, 'w', MDFR_CTRL, save_as);
     
-    bind(context, 'c', MDFR_ALT, cmdid_open_color_tweaker);
-    bind(context, 'd', MDFR_ALT, cmdid_open_debug);
+    bind(context, 'c', MDFR_ALT, open_color_tweaker);
+    bind(context, 'd', MDFR_ALT, open_debug);
     
     bind(context, '.', MDFR_ALT, change_to_build_panel);
     bind(context, ',', MDFR_ALT, close_build_panel);
@@ -336,7 +45,7 @@ default_keys(Bind_Helper *context){
     bind(context, 's', MDFR_ALT, show_scrollbar);
     bind(context, 'w', MDFR_ALT, hide_scrollbar);
     
-    // TODO(allen): This is apparently not working on Linux.  Need to try it on windows still.
+    // TODO(allen): This is apparently not working on Linux, must investigate.
     bind(context, key_f2, MDFR_CTRL, toggle_mouse);
     bind(context, key_page_up, MDFR_CTRL, toggle_fullscreen);
     bind(context, 'E', MDFR_ALT, exit_4coder);
@@ -363,9 +72,9 @@ default_keys(Bind_Helper *context){
     
     end_map(context);
     
-    begin_map(context, my_code_map);
+    begin_map(context, default_code_map);
     
-    // NOTE(allen|a3.1): Set this map (my_code_map == mapid_user_custom) to
+    // NOTE(allen|a3.1): Set this map (default_code_map == mapid_user_custom) to
     // inherit from mapid_file.  When searching if a key is bound
     // in this map, if it is not found here it will then search mapid_file.
     //
@@ -391,15 +100,16 @@ default_keys(Bind_Helper *context){
     bind(context, '\t', MDFR_CTRL, auto_tab_range);
     bind(context, '\t', MDFR_SHIFT, auto_tab_line_at_cursor);
     
-    bind(context, 't', MDFR_ALT, write_allen_todo);
-    bind(context, 'y', MDFR_ALT, write_allen_note);
-    bind(context, 'r', MDFR_ALT, write_allen_doc);
+    bind(context, 't', MDFR_ALT, write_todo);
+    bind(context, 'y', MDFR_ALT, write_note);
+    bind(context, 'r', MDFR_ALT, write_block);
     bind(context, '[', MDFR_CTRL, open_long_braces);
     bind(context, '{', MDFR_CTRL, open_long_braces_semicolon);
     bind(context, '}', MDFR_CTRL, open_long_braces_break);
     bind(context, 'i', MDFR_ALT, if0_off);
     bind(context, '1', MDFR_ALT, open_file_in_quotes);
     bind(context, '0', MDFR_CTRL, write_zero_struct);
+    bind(context, 'I', MDFR_CTRL, list_all_functions_current_buffer);
     
     end_map(context);
     
@@ -460,25 +170,21 @@ default_keys(Bind_Helper *context){
     bind(context, 'F', MDFR_ALT, list_all_substring_locations_case_insensitive);
     bind(context, 'g', MDFR_CTRL, goto_line);
     bind(context, 'j', MDFR_CTRL, to_lowercase);
-    bind(context, 'K', MDFR_CTRL, cmdid_kill_buffer);
+    bind(context, 'K', MDFR_CTRL, kill_buffer);
     bind(context, 'l', MDFR_CTRL, toggle_line_wrap);
     bind(context, 'm', MDFR_CTRL, cursor_mark_swap);
-    bind(context, 'O', MDFR_CTRL, cmdid_reopen);
+    bind(context, 'O', MDFR_CTRL, reopen);
     bind(context, 'q', MDFR_CTRL, query_replace);
     bind(context, 'r', MDFR_CTRL, reverse_search);
-    bind(context, 's', MDFR_CTRL, cmdid_save);
+    bind(context, 's', MDFR_CTRL, save);
     bind(context, 'T', MDFR_CTRL, list_all_locations_of_identifier);
     bind(context, 'u', MDFR_CTRL, to_uppercase);
-    bind(context, 'U', MDFR_CTRL, rewrite_as_single_caps);
     bind(context, 'v', MDFR_CTRL, paste_and_indent);
     bind(context, 'v', MDFR_ALT, toggle_virtual_whitespace);
     bind(context, 'V', MDFR_CTRL, paste_next_and_indent);
     bind(context, 'x', MDFR_CTRL, cut);
-    bind(context, 'y', MDFR_CTRL, cmdid_redo);
-    bind(context, 'z', MDFR_CTRL, cmdid_undo);
-    
-    bind(context, '1', MDFR_CTRL, eol_dosify);
-    bind(context, '!', MDFR_CTRL, eol_nixify);
+    bind(context, 'y', MDFR_CTRL, redo);
+    bind(context, 'z', MDFR_CTRL, undo);
     
     bind(context, '2', MDFR_CTRL, decrease_line_wrap);
     bind(context, '3', MDFR_CTRL, increase_line_wrap);
@@ -492,8 +198,6 @@ default_keys(Bind_Helper *context){
     end_map(context);
 }
 
-
-
 #ifndef NO_BINDING
 
 extern "C" int32_t
@@ -501,18 +205,7 @@ get_bindings(void *data, int32_t size){
     Bind_Helper context_ = begin_bind_helper(data, size);
     Bind_Helper *context = &context_;
     
-    // NOTE(allen|a3.1): Hooks have no loyalties to maps. All hooks are global
-    // and once set they always apply, regardless of what map is active.
-    set_hook(context, hook_start, my_start);
-    set_hook(context, hook_exit, my_exit);
-    set_hook(context, hook_view_size_change, my_view_adjust);
-    
-    set_open_file_hook(context, my_file_settings);
-    set_save_file_hook(context, my_file_save);
-    set_command_caller(context, default_command_caller);
-    set_input_filter(context, my_suppress_mouse_filter);
-    set_scroll_rule(context, smooth_scroll_rule);
-    
+    set_all_default_hooks(context);
     default_keys(context);
     
     int32_t result = end_bind_helper(context);
@@ -524,3 +217,4 @@ get_bindings(void *data, int32_t size){
 #endif //FCODER_DEFAULT_BINDINGS
 
 // BOTTOM
+

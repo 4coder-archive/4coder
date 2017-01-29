@@ -38,6 +38,7 @@
 
 #include <Windows.h>
 #include <GL/gl.h>
+#include "win32_gl.h"
 
 #define GL_TEXTURE_MAX_LEVEL 0x813D
 
@@ -594,7 +595,7 @@ Sys_Grow_Thread_Memory_Sig(system_grow_thread_memory){
     system_acquire_lock(CANCEL_LOCK0 + memory->id - 1);
     void *old_data = memory->data;
     i32 old_size = memory->size;
-    i32 new_size = l_round_up(memory->size*2, KB(4));
+    i32 new_size = l_round_up_i32(memory->size*2, KB(4));
     memory->data = system_get_memory(new_size);
     memory->size = new_size;
     if (old_data){
@@ -1575,6 +1576,148 @@ Win32Resize(i32 width, i32 height){
     }
 }
 
+internal void*
+win32_load_gl_always(char *name, HMODULE module){
+    void *p = (void *)wglGetProcAddress(name), *r = 0;
+    if(p == 0 ||
+       (p == (void*)0x1) || (p == (void*)0x2) || (p == (void*)0x3) ||
+       (p == (void*)-1) ){
+        r = (void *)GetProcAddress(module, name);
+    }
+    else{
+        r = p;
+    }
+    return(r);
+}
+
+internal void
+OpenGLDebugCallback(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const char *message, const void *userParam)
+{
+    OutputDebugStringA(message);
+    OutputDebugStringA("\n");
+}
+
+internal void
+Win32InitGL(){
+    // GL context initialization
+    {
+        PIXELFORMATDESCRIPTOR format;
+        int format_id;
+        BOOL success;
+        HDC dc;
+        
+        format.nSize = sizeof(format);
+        format.nVersion = 1;
+        format.dwFlags = PFD_SUPPORT_OPENGL | PFD_DRAW_TO_WINDOW;
+        format.iPixelType = PFD_TYPE_RGBA;
+        format.cColorBits = 32;
+        format.cRedBits = 0;
+        format.cRedShift = 0;
+        format.cGreenBits = 0;
+        format.cGreenShift = 0;
+        format.cBlueBits = 0;
+        format.cBlueShift = 0;
+        format.cAlphaBits = 0;
+        format.cAlphaShift = 0;
+        format.cAccumBits = 0;
+        format.cAccumRedBits = 0;
+        format.cAccumGreenBits = 0;
+        format.cAccumBlueBits = 0;
+        format.cAccumAlphaBits = 0;
+        format.cDepthBits = 24;
+        format.cStencilBits = 8;
+        format.cAuxBuffers = 0;
+        format.iLayerType = PFD_MAIN_PLANE;
+        format.bReserved = 0;
+        format.dwLayerMask = 0;
+        format.dwVisibleMask = 0;
+        format.dwDamageMask = 0;
+        
+        dc = GetDC(win32vars.window_handle);
+        Assert(dc);
+        format_id = ChoosePixelFormat(dc, &format);
+        Assert(format_id != 0);
+        success = SetPixelFormat(dc, format_id, &format);
+        Assert(success == TRUE);
+        
+        HGLRC glcontext = wglCreateContext(dc);
+        wglMakeCurrent(dc, glcontext);
+        
+        {
+            HMODULE module = LoadLibraryA("opengl32.dll");
+            
+            wglCreateContextAttribsARB_Function *wglCreateContextAttribsARB = 0;
+            wglCreateContextAttribsARB = (wglCreateContextAttribsARB_Function*)
+                win32_load_gl_always("wglCreateContextAttribsARB", module);
+            
+            wglChoosePixelFormatARB_Function *wglChoosePixelFormatARB = 0;
+            wglChoosePixelFormatARB = (wglChoosePixelFormatARB_Function*)
+                win32_load_gl_always("wglChoosePixelFormatARB", module);
+            
+            if (wglCreateContextAttribsARB != 0 && wglChoosePixelFormatARB != 0){
+                const int choosePixel_attribList[] =
+                {
+                    WGL_DRAW_TO_WINDOW_ARB, TRUE,
+                    WGL_SUPPORT_OPENGL_ARB, TRUE,
+                    //WGL_DOUBLE_BUFFER_ARB, GL_TRUE,
+                    WGL_PIXEL_TYPE_ARB, WGL_TYPE_RGBA_ARB,
+                    WGL_COLOR_BITS_ARB, 32,
+                    WGL_DEPTH_BITS_ARB, 24,
+                    WGL_STENCIL_BITS_ARB, 8,
+                    0,
+                };
+                
+                i32 extended_format_id;
+                UINT num_formats = 0;
+                BOOL result = 0;
+                
+                result = wglChoosePixelFormatARB(dc, choosePixel_attribList, 0, 1, &extended_format_id, &num_formats);
+                
+                if (result != 0 && num_formats > 0){
+                    const int createContext_attribList[] = {
+                        WGL_CONTEXT_MAJOR_VERSION_ARB, 3,
+                        WGL_CONTEXT_MINOR_VERSION_ARB, 2,
+                        WGL_CONTEXT_PROFILE_MASK_ARB, WGL_CONTEXT_COMPATIBILITY_PROFILE_BIT_ARB,
+                        0
+                    };
+                    
+                    if (extended_format_id == format_id){
+                        HGLRC extended_context = wglCreateContextAttribsARB(dc, 0, createContext_attribList);
+                        if (extended_context){
+                            wglMakeCurrent(dc, extended_context);
+                            wglDeleteContext(glcontext);
+                            glcontext = extended_context;
+                        }
+                    }
+                }
+            }
+        }
+        
+        ReleaseDC(win32vars.window_handle, dc);
+    }
+    
+#if FRED_INTERNAL
+    // NOTE(casey): This slows down GL but puts error messages to
+    // the debug console immediately whenever you do something wrong
+    glDebugMessageCallback_type *glDebugMessageCallback =
+        (glDebugMessageCallback_type *)wglGetProcAddress("glDebugMessageCallback");
+    glDebugMessageControl_type *glDebugMessageControl =
+        (glDebugMessageControl_type *)wglGetProcAddress("glDebugMessageControl");
+    if(glDebugMessageCallback && glDebugMessageControl)
+    {
+        glDebugMessageCallback(OpenGLDebugCallback, 0);
+        glDebugMessageControl(GL_DONT_CARE, GL_DONT_CARE, GL_DONT_CARE, 0, 0, GL_TRUE);
+        glEnable(GL_DEBUG_OUTPUT);
+        glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
+    }
+#endif
+    
+    glEnable(GL_TEXTURE_2D);
+    glEnable(GL_SCISSOR_TEST);
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+}
+
 internal void
 Win32SetCursorFromUpdate(Application_Mouse_Cursor cursor){
     switch (cursor){
@@ -1602,6 +1745,120 @@ Win32HighResolutionTime(){
     return(result);
 }
 
+internal void
+Win32Foo(WPARAM wParam, LPARAM lParam){
+    b8 previous_state = ((lParam & Bit_30)?(1):(0));
+    b8 current_state = ((lParam & Bit_31)?(0):(1));
+    
+    if (current_state){
+        u8 key = keycode_lookup_table[(u8)wParam];
+        
+        i32 *count = &win32vars.input_chunk.trans.key_data.count;
+        Key_Event_Data *data = win32vars.input_chunk.trans.key_data.keys;
+        b8 *control_keys = win32vars.input_chunk.pers.control_keys;
+        i32 control_keys_size = sizeof(win32vars.input_chunk.pers.control_keys);
+        
+        if (*count < KEY_INPUT_BUFFER_SIZE){
+            if (!key){
+                UINT vk = (UINT)wParam;
+                UINT scan = (UINT)((lParam >> 16) & 0x7F);
+                BYTE state[256];
+                BYTE control_state = 0;
+                WORD x1 = 0, x2 = 0, x = 0, junk_x;
+                i32 result1 = 0, result2 = 0, result = 0;
+                
+                GetKeyboardState(state);
+                x1 = 0;
+                result1 = ToAscii(vk, scan, state, &x1, 0);
+                if (result1 < 0){
+                    ToAscii(vk, scan, state, &junk_x, 0);
+                }
+                result1 = (result1 == 1);
+                if (!usable_ascii((char)x1)){
+                    result1 = 0;
+                }
+                
+                control_state = state[VK_CONTROL];
+                state[VK_CONTROL] = 0;
+                x2 = 0;
+                result2 = ToAscii(vk, scan, state, &x2, 0);
+                if (result2 < 0){
+                    ToAscii(vk, scan, state, &junk_x, 0);
+                }
+                result2 = (result2 == 1);
+                if (!usable_ascii((char)x2)){
+                    result2 = 0;
+                }
+                
+                // TODO(allen): This is becoming a really major issue.
+                // Apparently control + i outputs a '\t' which is VALID ascii
+                // according to this system. So it reports the key as '\t'.
+                // This wasn't an issue before because we were ignoring control
+                // when computing character_no_caps_lock which is what is used
+                // for commands. But that is incorrect for some keyboard layouts
+                // where control+alt is used to signal AltGr for important keys.
+                if (result1 && result2){
+                    char c1 = char_to_upper((char)x1);
+                    char cParam = char_to_upper((char)wParam);
+                    
+                    if ((c1 == '\n' || c1 == '\r') && cParam != VK_RETURN){
+                        result1 = 0;
+                    }
+                    if (c1 == '\t' && cParam != VK_TAB){
+                        result1 = 0;
+                    }
+                }
+                
+                if (result1){
+                    x = x1;
+                    state[VK_CONTROL] = control_state;
+                    result = 1;
+                }
+                else if (result2){
+                    x = x2;
+                    result = 1;
+                }
+                
+                if (result == 1 && x < 128){
+                    key = (u8)x;
+                    if (key == '\r') key = '\n';
+                    data[*count].character = key;
+                    
+                    state[VK_CAPITAL] = 0;
+                    x = 0;
+                    result = ToAscii(vk, scan, state, &x, 0);
+                    if (result < 0){
+                        ToAscii(vk, scan, state, &junk_x, 0);
+                    }
+                    result = (result == 1);
+                    if (!usable_ascii((char)x)){
+                        result = 0;
+                    }
+                    
+                    if (result){
+                        key = (u8)x;
+                        if (key == '\r') key = '\n';
+                        data[*count].character_no_caps_lock = key;
+                        data[*count].keycode = key;
+                    }
+                }
+                if (result != 1 || x >= 128){
+                    data[*count].character = 0;
+                    data[*count].character_no_caps_lock = 0;
+                    data[*count].keycode = 0;
+                }
+            }
+            else{
+                data[*count].character = 0;
+                data[*count].character_no_caps_lock = 0;
+                data[*count].keycode = key;
+            }
+            memcpy(data[*count].modifiers, control_keys, control_keys_size);
+            data[*count].modifiers[MDFR_HOLD_INDEX] = previous_state;
+            ++(*count);
+        }
+    }
+}
 
 
 internal LRESULT
@@ -1609,8 +1866,7 @@ Win32Callback(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
     LRESULT result = 0;
     
     switch (uMsg){
-        case WM_MENUCHAR:
-        case WM_SYSCHAR:break;
+        case WM_MENUCHAR:break;
         
         case WM_SYSKEYDOWN:
         case WM_SYSKEYUP:
@@ -1648,9 +1904,8 @@ Win32Callback(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
                             }break;
                         }
                         
-                        b8 ctrl, alt;
-                        ctrl = (controls->r_ctrl || (controls->l_ctrl && !controls->r_alt));
-                        alt = (controls->l_alt || (controls->r_alt && !controls->l_ctrl));
+                        b8 ctrl = (controls->r_ctrl || (controls->l_ctrl && !controls->r_alt));
+                        b8 alt = (controls->l_alt || (controls->r_alt && !controls->l_ctrl));
                         
                         if (win32vars.lctrl_lalt_is_altgr){
                             if (controls->l_alt && controls->l_ctrl){
@@ -1666,134 +1921,69 @@ Win32Callback(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
                 
                 default:
                 {
-                    b8 previous_state = ((lParam & Bit_30)?(1):(0));
                     b8 current_state = ((lParam & Bit_31)?(0):(1));
-                    
-                    win32vars.got_useful_event = 1;
                     
                     if (current_state){
                         u8 key = keycode_lookup_table[(u8)wParam];
                         
-                        i32 *count = 0;
-                        Key_Event_Data *data = 0;
-                        b8 *control_keys = 0;
-                        i32 control_keys_size = 0;
-                        
-                        if (!previous_state){
-                            count = &win32vars.input_chunk.trans.key_data.press_count;
-                            data = win32vars.input_chunk.trans.key_data.press;
-                        }
-                        else{
-                            count = &win32vars.input_chunk.trans.key_data.hold_count;
-                            data = win32vars.input_chunk.trans.key_data.hold;
-                        }
-                        control_keys = win32vars.input_chunk.pers.control_keys;
-                        control_keys_size = sizeof(win32vars.input_chunk.pers.control_keys);
-                        
-                        if (*count < KEY_INPUT_BUFFER_SIZE){
-                            if (!key){
-                                UINT vk = (UINT)wParam;
-                                UINT scan = (UINT)((lParam >> 16) & 0x7F);
-                                BYTE state[256];
-                                BYTE control_state = 0;
-                                WORD x1 = 0, x2 = 0, x = 0, junk_x;
-                                i32 result1 = 0, result2 = 0, result = 0;
-                                
-                                GetKeyboardState(state);
-                                x1 = 0;
-                                result1 = ToAscii(vk, scan, state, &x1, 0);
-                                if (result1 < 0){
-                                    ToAscii(vk, scan, state, &junk_x, 0);
-                                }
-                                result1 = (result1 == 1);
-                                if (!usable_ascii((char)x1)){
-                                    result1 = 0;
-                                }
-                                
-                                control_state = state[VK_CONTROL];
-                                state[VK_CONTROL] = 0;
-                                x2 = 0;
-                                result2 = ToAscii(vk, scan, state, &x2, 0);
-                                if (result2 < 0){
-                                    ToAscii(vk, scan, state, &junk_x, 0);
-                                }
-                                result2 = (result2 == 1);
-                                if (!usable_ascii((char)x2)){
-                                    result2 = 0;
-                                }
-                                
-                                // TODO(allen): This is becoming a really major issue.
-                                // Apparently control + i outputs a '\t' which is VALID ascii
-                                // according to this system. So it reports the key as '\t'.
-                                // This wasn't an issue before because we were ignoring control
-                                // when computing character_no_caps_lock which is what is used
-                                // for commands. But that is incorrect for some keyboard layouts
-                                // where control+alt is used to signal AltGr for important keys.
-                                if (result1 && result2){
-                                    char c1 = char_to_upper((char)x1);
-                                    char cParam = char_to_upper((char)wParam);
-                                    
-                                    if ((c1 == '\n' || c1 == '\r') && cParam != VK_RETURN){
-                                        result1 = 0;
-                                    }
-                                    if (c1 == '\t' && cParam != VK_TAB){
-                                        result1 = 0;
-                                    }
-                                }
-                                
-                                if (result1){
-                                    x = x1;
-                                    state[VK_CONTROL] = control_state;
-                                    result = 1;
-                                }
-                                else if (result2){
-                                    x = x2;
-                                    result = 1;
-                                }
-                                
-                                if (result == 1 && x < 128){
-                                    key = (u8)x;
-                                    if (key == '\r') key = '\n';
-                                    data[*count].character = key;
-                                    
-                                    state[VK_CAPITAL] = 0;
-                                    x = 0;
-                                    result = ToAscii(vk, scan, state, &x, 0);
-                                    if (result < 0){
-                                        ToAscii(vk, scan, state, &junk_x, 0);
-                                    }
-                                    result = (result == 1);
-                                    if (!usable_ascii((char)x)){
-                                        result = 0;
-                                    }
-                                    
-                                    if (result){
-                                        key = (u8)x;
-                                        if (key == '\r') key = '\n';
-                                        data[*count].character_no_caps_lock = key;
-                                        data[*count].keycode = key;
-                                    }
-                                }
-                                if (result != 1 || x >= 128){
-                                    data[*count].character = 0;
-                                    data[*count].character_no_caps_lock = 0;
-                                    data[*count].keycode = 0;
-                                }
-                            }
-                            else{
-                                data[*count].character = 0;
-                                data[*count].character_no_caps_lock = 0;
-                                data[*count].keycode = key;
-                            }
+                        if (key != 0){
+                            i32 *count = &win32vars.input_chunk.trans.key_data.count;
+                            Key_Event_Data *data = win32vars.input_chunk.trans.key_data.keys;
+                            b8 *control_keys = win32vars.input_chunk.pers.control_keys;
+                            i32 control_keys_size = sizeof(win32vars.input_chunk.pers.control_keys);
+                            
+                            Assert(*count < KEY_INPUT_BUFFER_SIZE);
+                            data[*count].character = 0;
+                            data[*count].character_no_caps_lock = 0;
+                            data[*count].keycode = key;
                             memcpy(data[*count].modifiers, control_keys, control_keys_size);
-                            data[*count].modifiers[MDFR_HOLD_INDEX] = previous_state;
                             ++(*count);
+                            
+                            win32vars.got_useful_event = 1;
                         }
                     }
-                    
-                    result = DefWindowProc(hwnd, uMsg, wParam, lParam);
                 }break;
             }/* switch */
+        }break;
+        
+        case WM_CHAR: case WM_SYSCHAR: case WM_UNICHAR:
+        {
+            u8 character = wParam & 0x7F;
+            
+            if (character == '\r'){
+                character = '\n';
+            }
+            else if ((character < 32 && character != '\t') || character == 127){
+                break;
+            }
+            
+            u8 character_no_caps_lock = character;
+            
+            i32 *count = &win32vars.input_chunk.trans.key_data.count;
+            Key_Event_Data *data = win32vars.input_chunk.trans.key_data.keys;
+            b8 *control_keys = win32vars.input_chunk.pers.control_keys;
+            i32 control_keys_size = sizeof(win32vars.input_chunk.pers.control_keys);
+            
+            BYTE state[256];
+            GetKeyboardState(state);
+            if (state[VK_CAPITAL]){
+                if (character_no_caps_lock >= 'a' && character_no_caps_lock <= 'z'){
+                    character_no_caps_lock += (u8)('A' - 'a');
+                }
+                else if (character_no_caps_lock >= 'A' && character_no_caps_lock <= 'Z'){
+                    character_no_caps_lock += (u8)('a' - 'A');
+                }
+            }
+            
+            Assert(*count < KEY_INPUT_BUFFER_SIZE);
+            data[*count].character = character;
+            data[*count].character_no_caps_lock = character_no_caps_lock;
+            data[*count].keycode = character_no_caps_lock;
+            memcpy(data[*count].modifiers, control_keys, control_keys_size);
+            ++(*count);
+            
+            result = DefWindowProc(hwnd, uMsg, wParam, lParam);
+            win32vars.got_useful_event = 1;
         }break;
         
         case WM_MOUSEMOVE:
@@ -1865,12 +2055,10 @@ Win32Callback(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
         case WM_SIZE:
         {
             win32vars.got_useful_event = 1;
-            if (win32vars.target.handle){
-                i32 new_width = LOWORD(lParam);
-                i32 new_height = HIWORD(lParam);
-                
-                Win32Resize(new_width, new_height);
-            }
+            i32 new_width = LOWORD(lParam);
+            i32 new_height = HIWORD(lParam);
+            
+            Win32Resize(new_width, new_height);
         }break;
         
         case WM_PAINT:
@@ -1905,21 +2093,6 @@ Win32Callback(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
     }
     
     return(result);
-}
-
-#define GL_DEBUG_OUTPUT_SYNCHRONOUS 0x8242
-#define GL_DEBUG_OUTPUT 0x92E0
-
-typedef void GLDEBUGPROC_TYPE(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const char * message, const GLvoid * userParam);
-typedef GLDEBUGPROC_TYPE * GLDEBUGPROC;
-typedef void glDebugMessageControl_type(GLenum source, GLenum type, GLenum severity, GLsizei count, GLuint * ids, GLboolean enabled);
-typedef void glDebugMessageCallback_type(GLDEBUGPROC callback, void * userParam);
-
-internal void
-OpenGLDebugCallback(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const char *message, const void *userParam)
-{
-    OutputDebugStringA(message);
-    OutputDebugStringA("\n");
 }
 
 int
@@ -2177,65 +2350,9 @@ WinMain(HINSTANCE hInstance,
 #endif
     
     GetClientRect(win32vars.window_handle, &window_rect);
-    
-    DWORD pfd_flags = PFD_DRAW_TO_WINDOW | PFD_SUPPORT_OPENGL;
-    
-    // NOTE(allen): This is probably not an issue on linux and
-    // does not need to be ported.
-    if (!win32vars.settings.stream_mode){
-        pfd_flags |= PFD_DOUBLEBUFFER;
-    }
-    
-    static PIXELFORMATDESCRIPTOR pfd = {
-        sizeof(PIXELFORMATDESCRIPTOR),
-        1,
-        pfd_flags,
-        PFD_TYPE_RGBA,
-        32,
-        0, 0, 0, 0, 0, 0,
-        0,
-        0,
-        0,
-        0, 0, 0, 0,
-        16,
-        0,
-        0,
-        PFD_MAIN_PLANE,
-        0,
-        0, 0, 0 };
-    // TODO(allen): get an upgraded context to see if that fixes the nvidia card issues.
-    {
-        i32 pixel_format;
-        pixel_format = ChoosePixelFormat(hdc, &pfd);
-        SetPixelFormat(hdc, pixel_format, &pfd);
-        
-        win32vars.target.handle = hdc;
-        win32vars.target.context = wglCreateContext(hdc);
-        wglMakeCurrent(hdc, (HGLRC)win32vars.target.context);
-    }
     ReleaseDC(win32vars.window_handle, hdc);
     
-#if FRED_INTERNAL
-    // NOTE(casey): This slows down GL but puts error messages to
-    // the debug console immediately whenever you do something wrong
-    glDebugMessageCallback_type *glDebugMessageCallback =
-        (glDebugMessageCallback_type *)wglGetProcAddress("glDebugMessageCallback");
-    glDebugMessageControl_type *glDebugMessageControl =
-        (glDebugMessageControl_type *)wglGetProcAddress("glDebugMessageControl");
-    if(glDebugMessageCallback && glDebugMessageControl)
-    {
-        glDebugMessageCallback(OpenGLDebugCallback, 0);
-        glDebugMessageControl(GL_DONT_CARE, GL_DONT_CARE, GL_DONT_CARE, 0, 0, GL_TRUE);
-        glEnable(GL_DEBUG_OUTPUT);
-        glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
-    }
-#endif
-    
-    glEnable(GL_TEXTURE_2D);
-    glEnable(GL_SCISSOR_TEST);
-    glEnable(GL_BLEND);
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    
+    Win32InitGL();
     Win32Resize(window_rect.right - window_rect.left, window_rect.bottom - window_rect.top);
     
     
@@ -2316,28 +2433,96 @@ WinMain(HINSTANCE hInstance,
         if (!(win32vars.first && win32vars.settings.stream_mode)){
             system_release_lock(FRAME_LOCK);
             
-            if (win32vars.running_cli == 0){
-                win32vars.got_useful_event = 0;
-                for (;win32vars.got_useful_event == 0;){
-                    if (GetMessage(&msg, 0, 0, 0)){
-                        if (msg.message == WM_QUIT){
-                            keep_playing = 0;
-                        }else{
+            b32 get_more_messages = true;
+            do{
+                if (win32vars.got_useful_event == 0){
+                    get_more_messages = GetMessage(&msg, 0, 0, 0);
+                }
+                else{
+                    get_more_messages = PeekMessage(&msg, 0, 0, 0, 1);
+                }
+                
+                if (get_more_messages){
+                    if (msg.message == WM_QUIT){
+                        keep_playing = 0;
+                    }else{
+                        b32 treat_normally = true;
+                        if (msg.message == WM_KEYDOWN || msg.message == WM_SYSKEYDOWN){
+                            switch (msg.wParam){
+                                case VK_CONTROL:case VK_LCONTROL:case VK_RCONTROL:
+                                case VK_MENU:case VK_LMENU:case VK_RMENU:
+                                case VK_SHIFT:case VK_LSHIFT:case VK_RSHIFT:break;
+                                
+                                default: treat_normally = false; break;
+                            }
+                        }
+                        
+                        if (treat_normally){
                             TranslateMessage(&msg);
                             DispatchMessage(&msg);
                         }
+                        else{
+                            Control_Keys *controls = &win32vars.input_chunk.pers.controls;
+                            
+                            b8 ctrl = (controls->r_ctrl || (controls->l_ctrl && !controls->r_alt));
+                            b8 alt = (controls->l_alt || (controls->r_alt && !controls->l_ctrl));
+                            
+                            if (win32vars.lctrl_lalt_is_altgr){
+                                if (controls->l_alt && controls->l_ctrl){
+                                    ctrl = 0;
+                                    alt = 0;
+                                }
+                            }
+                            
+                            BYTE ctrl_state = 0, alt_state = 0;
+                            BYTE state[256];
+                            if (ctrl || alt){
+                                GetKeyboardState(state);
+                                if (ctrl){
+                                    ctrl_state = state[VK_CONTROL];
+                                    state[VK_CONTROL] = 0;
+                                }
+                                if (alt){
+                                    alt_state = state[VK_MENU];
+                                    state[VK_MENU] = 0;
+                                }
+                                SetKeyboardState(state);
+                                
+                                TranslateMessage(&msg);
+                                DispatchMessage(&msg);
+                                
+                                if (ctrl){
+                                    state[VK_CONTROL] = ctrl_state;
+                                }
+                                if (alt){
+                                    state[VK_MENU] = alt_state;
+                                }
+                                SetKeyboardState(state);
+                            }
+                            else{
+                                TranslateMessage(&msg);
+                                DispatchMessage(&msg);
+                            }
+#if 0
+                            UINT count = 0;
+                            INPUT in[1];
+                            if (ctrl){
+                                in[count].type = INPUT_KEYBOARD;
+                                in[count].ki.wVk = VK_CONTROL;
+                                in[count].ki.wScan = 0;
+                                in[count].ki.dwFlags = KEYEVENTF_KEYUP;
+                                in[count].ki.time = 0;
+                                in[count].ki.dwExtraInfo = GetMessageExtraInfo();
+                                ++count;
+                            }
+                            if(count > 0){
+                                SendInput(count, in, sizeof(in));
+                            }
+#endif
+                        }
                     }
                 }
-            }
-            
-            while (PeekMessage(&msg, 0, 0, 0, 1)){
-                if (msg.message == WM_QUIT){
-                    keep_playing = 0;
-                }else{
-                    TranslateMessage(&msg);
-                    DispatchMessage(&msg);
-                }
-            }
+            }while(get_more_messages);
             
             system_acquire_lock(FRAME_LOCK);
         }
@@ -2398,7 +2583,6 @@ WinMain(HINSTANCE hInstance,
         input.dt = frame_useconds / 1000000.f;
         
         input.keys = input_chunk.trans.key_data;
-        memcpy(input.keys.modifiers, input_chunk.pers.control_keys, sizeof(input_chunk.pers.control_keys));
         
         input.mouse.out_of_window = input_chunk.trans.out_of_window;
         

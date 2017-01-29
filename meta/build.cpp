@@ -445,6 +445,7 @@ standard_build(char *cdir, u32 flags){
     fsm_generator(cdir);
     metagen(cdir);
     do_buildsuper(cdir, Custom_Experiments);
+    //do_buildsuper(cdir, Custom_Casey);
     //do_buildsuper(cdir, Custom_ChronalVim);
     build_main(cdir, flags);
 }

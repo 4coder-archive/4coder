@@ -1254,9 +1254,7 @@ gui_do_jump(GUI_Target *target, GUI_View_Jump jump, GUI_Scroll_Vars vars){
 }
 
 internal void
-gui_standard_list(GUI_Target *target, GUI_id id, GUI_Scroll_Vars *vars, i32_Rect scroll_region, 
-                  Key_Summary *keys, i32 *list_i, GUI_Item_Update *update, 
-                  i16 user_up_key, i16 user_down_key){
+gui_standard_list(GUI_Target *target, GUI_id id, GUI_Scroll_Vars *vars, i32_Rect scroll_region,  Key_Input_Data *keys, i32 *list_i, GUI_Item_Update *update, i16 user_up_key, i16 user_down_key){
     
     if (update->has_adjustment){
         *list_i = update->adjustment_value;

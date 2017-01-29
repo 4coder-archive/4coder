@@ -230,6 +230,20 @@ considered immutable.) DOC_SEE(substr) */{
     return(result);
 }
 
+CPP_NAME(skip_whitespace)
+API_EXPORT FSTRING_LINK String
+skip_whitespace_measure(String str, i32_4tech *skip_length)
+/* DOC(This call creates a substring that starts with the first non-whitespace character of str.
+Like other substr calls, the new string uses the underlying memory and so should usually be
+considered immutable.) DOC_SEE(substr) */{
+    String result = {0};
+    i32_4tech i = 0;
+    for (; i < str.size && char_is_whitespace(str.str[i]); ++i);
+    result = substr(str, i, str.size - i);
+    *skip_length = i;
+    return(result);
+}
+
 API_EXPORT FSTRING_LINK String
 chop_whitespace(String str)
 /* DOC(This call creates a substring that ends with the last non-whitespace character of str.
@@ -247,6 +261,16 @@ skip_chop_whitespace(String str)
 /* DOC(This call is equivalent to calling skip_whitespace and chop_whitespace together.)
 DOC_SEE(skip_whitespace) DOC_SEE(chop_whitespace)*/{
     str = skip_whitespace(str);
+    str = chop_whitespace(str);
+    return(str);
+}
+
+CPP_NAME(skip_chop_whitespace)
+API_EXPORT FSTRING_LINK String
+skip_chop_whitespace_measure(String str, i32_4tech *skip_length)
+/* DOC(This call is equivalent to calling skip_whitespace and chop_whitespace together.)
+DOC_SEE(skip_whitespace) DOC_SEE(chop_whitespace)*/{
+    str = skip_whitespace_measure(str, skip_length);
     str = chop_whitespace(str);
     return(str);
 }
@@ -1880,7 +1904,7 @@ static void
 get_absolutes(String name, Absolutes *absolutes, b32_4tech implicit_first, b32_4tech implicit_last){
     if (name.size != 0){
         i32_4tech count = 0;
-        i32_4tech max = ArrayCount(absolutes->a) - 1;
+        i32_4tech max = (sizeof(absolutes->a)/sizeof(*absolutes->a)) - 1;
         if (implicit_last) --max;
         
         String str;

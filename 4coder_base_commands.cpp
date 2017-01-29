@@ -306,6 +306,16 @@ CUSTOM_COMMAND_SIG(seek_end_of_line){
     view_set_cursor(app, &view, seek_xy(100000.f, y, 1, view.unwrapped_lines), 1);
 }
 
+CUSTOM_COMMAND_SIG(seek_whitespace_up_end_line){
+    exec_command(app, seek_whitespace_up);
+    exec_command(app, seek_end_of_line);
+}
+
+CUSTOM_COMMAND_SIG(seek_whitespace_down_end_line){
+    exec_command(app, seek_whitespace_down);
+    exec_command(app, seek_end_of_line);
+}
+
 
 //
 // Fancy Editing

@@ -1,9 +1,16 @@
+/*
+4coder_experiments.cpp - Supplies extension bindings to the defaults with experimental new features.
+
+TYPE: 'build-target'
+*/
 
 // TOP
 
-#include "4coder_default_include.cpp"
+#if !defined(FCODER_EXPERIMENTS_CPP)
+#define FCODER_EXPERIMENTS_CPP
 
-#include "4coder_function_list.cpp"
+#include "4coder_default_include.cpp"
+#include "4coder_miblo_numbers.cpp"
 
 #define NO_BINDING
 #include "4coder_default_bindings.cpp"
@@ -11,8 +18,6 @@
 #ifndef BIND_4CODER_TESTS
 # define BIND_4CODER_TESTS(context) ((void)context)
 #endif
-
-#include "4coder_miblo_numbers.cpp"
 
 #include <string.h>
 
@@ -108,8 +113,8 @@ multi-cursor showing but it is unclear to me how to do that
 conveniently.  Since this won't exist inside a coroutine
 what does such an API even look like??? It's clear to me now
 that I may need to start pushing for the view routine before
-I am even able to support the GUI. Because that will the
-system up to allow me to think about the problem in more ways.
+I am even able to support the GUI. Because that will set up the
+system to allow me to think about the problem in more ways.
 
 Finally I have decided not to pursue this direction any more,
 it just seems like the wrong way to do it, so I'll stop without
@@ -540,7 +545,7 @@ view_set_to_region(Application_Links *app, View_Summary *view, int32_t major_pos
 
 static float scope_center_threshold = 0.75f;
 
-CUSTOM_COMMAND_SIG(highlight_surroundng_scope){
+CUSTOM_COMMAND_SIG(highlight_surrounding_scope){
     uint32_t access = AccessProtected;
     View_Summary view = get_active_view(app, access);
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, access);
@@ -712,6 +717,334 @@ CUSTOM_COMMAND_SIG(place_in_scope){
         view_set_cursor(app, &view, seek_pos(range.min + 2), true);
         view_set_mark(app, &view, seek_pos(range.min + 2));
     }
+}
+
+CUSTOM_COMMAND_SIG(delete_current_scope){
+    uint32_t access = AccessOpen;
+    View_Summary view = get_active_view(app, access);
+    Buffer_Summary buffer = get_buffer(app, view.buffer_id, access);
+    
+    int32_t top = view.cursor.pos;
+    int32_t bottom = view.mark.pos;
+    
+    if (top > bottom){
+        int32_t x = top;
+        top = bottom;
+        bottom = x;
+    }
+    
+    if (buffer_get_char(app, &buffer, top) == '{' && buffer_get_char(app, &buffer, bottom-1) == '}'){
+        int32_t top_len = 1;
+        int32_t bottom_len = 1;
+        if (buffer_get_char(app, &buffer, top-1) == '\n'){
+            top_len = 2;
+        }
+        if (buffer_get_char(app, &buffer, bottom+1) == '\n'){
+            bottom_len = 2;
+        }
+        
+        Buffer_Edit edits[2];
+        edits[0].str_start = 0;
+        edits[0].len = 0;
+        edits[0].start = top+1 - top_len;
+        edits[0].end = top+1;
+        
+        edits[1].str_start = 0;
+        edits[1].len = 0;
+        edits[1].start = bottom-1;
+        edits[1].end = bottom-1 + bottom_len;
+        
+        buffer_batch_edit(app, &buffer, 0, 0, edits, 2, BatchEdit_Normal);
+    }
+}
+
+struct Statement_Parser{
+    Stream_Tokens stream;
+    int32_t token_index;
+    Buffer_Summary *buffer;
+};
+
+static Cpp_Token*
+parser_next_token(Statement_Parser *parser){
+    Cpp_Token *result = 0;
+    bool32 still_looping = true;
+    while (parser->token_index >= parser->stream.end && still_looping){
+        still_looping = forward_stream_tokens(&parser->stream);
+    }
+    if (parser->token_index < parser->stream.end){
+        result = &parser->stream.tokens[parser->token_index];
+        ++parser->token_index;
+    }
+    return(result);
+}
+
+static bool32 parse_statement_down(Application_Links *app, Statement_Parser *parser, Cpp_Token *token_out);
+
+static bool32
+parse_for_down(Application_Links *app, Statement_Parser *parser, Cpp_Token *token_out){
+    bool32 success = false;
+    Cpp_Token *token = parser_next_token(parser);
+    
+    int32_t paren_level = 0;
+    while (token != 0){
+        if (!(token->flags & CPP_TFLAG_PP_BODY)){
+            switch (token->type){
+                case CPP_TOKEN_PARENTHESE_OPEN:
+                {
+                    ++paren_level;
+                }break;
+                
+                case CPP_TOKEN_PARENTHESE_CLOSE:
+                {
+                    --paren_level;
+                    if (paren_level == 0){
+                        success = parse_statement_down(app, parser, token_out);
+                        goto finished;
+                    }
+                    else if (paren_level < 0){
+                        success = false;
+                        goto finished;
+                    }
+                }break;
+            }
+        }
+        
+        token = parser_next_token(parser);
+    }
+    
+    finished:;
+    return(success);
+}
+
+static bool32
+parse_if_down(Application_Links *app, Statement_Parser *parser, Cpp_Token *token_out){
+    bool32 success = false;
+    Cpp_Token *token = parser_next_token(parser);
+    
+    if (token != 0){
+        success = parse_statement_down(app, parser, token_out);
+        if (success){
+            token = parser_next_token(parser);
+            if (token != 0 && token->type == CPP_TOKEN_KEY_CONTROL_FLOW){
+                char lexeme[32];
+                if (sizeof(lexeme)-1 >= token->size){
+                    if (buffer_read_range(app, parser->buffer, token->start, token->start + token->size, lexeme)){
+                        lexeme[token->size] = 0;
+                        if (match(lexeme, "else")){
+                            success = parse_statement_down(app, parser, token_out);
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    return(success);
+}
+
+static bool32
+parse_block_down(Application_Links *app, Statement_Parser *parser, Cpp_Token *token_out){
+    bool32 success = false;
+    Cpp_Token *token = parser_next_token(parser);
+    
+    int32_t nest_level = 0;
+    while (token != 0){
+        switch (token->type){
+            case CPP_TOKEN_BRACE_OPEN:
+            {
+                ++nest_level;
+            }break;
+            
+            case CPP_TOKEN_BRACE_CLOSE:
+            {
+                if (nest_level == 0){
+                    *token_out = *token;
+                    success = true;
+                    goto finished;
+                }
+                --nest_level;
+            }break;
+        }
+        token = parser_next_token(parser);
+    }
+    
+    finished:;
+    return(success);
+}
+
+static bool32
+parse_statement_down(Application_Links *app, Statement_Parser *parser, Cpp_Token *token_out){
+    bool32 success = false;
+    Cpp_Token *token = parser_next_token(parser);
+    
+    if (token != 0){
+        bool32 not_getting_block = false;
+        
+        do{
+            switch (token->type){
+                case CPP_TOKEN_BRACE_CLOSE:
+                {
+                    goto finished;
+                }break;
+                
+                case CPP_TOKEN_KEY_CONTROL_FLOW:
+                {
+                    char lexeme[32];
+                    if (sizeof(lexeme)-1 >= token->size){
+                        if (buffer_read_range(app, parser->buffer, token->start, token->start + token->size, lexeme)){
+                            lexeme[token->size] = 0;
+                            if (match(lexeme, "for")){
+                                success = parse_for_down(app, parser, token_out);
+                                goto finished;
+                            }
+                            else if (match(lexeme, "if")){
+                                success = parse_if_down(app, parser, token_out);
+                                goto finished;
+                            }
+                            else if (match(lexeme, "else")){
+                                success = false;
+                                goto finished;
+                            }
+                        }
+                    }
+                }break;
+                
+                case CPP_TOKEN_BRACE_OPEN:
+                {
+                    if (!not_getting_block){
+                        success = parse_block_down(app, parser, token_out);
+                        goto finished;
+                    }
+                }break;
+                
+                case CPP_TOKEN_SEMICOLON:
+                {
+                    success = true;
+                    *token_out = *token;
+                    goto finished;
+                }break;
+                
+                case CPP_TOKEN_EQ:
+                {
+                    not_getting_block = true;
+                }break;
+            }
+            
+            token = parser_next_token(parser);
+        }while(token != 0);
+    }
+    
+    finished:;
+    return(success);
+}
+
+static bool32
+find_whole_statement_down(Application_Links *app, Buffer_Summary *buffer, int32_t pos, int32_t *start_out, int32_t *end_out){
+    bool32 result = false;
+    int32_t start = pos;
+    int32_t end = start;
+    
+    Cpp_Get_Token_Result get_result = {0};
+    
+    if (buffer_get_token_index(app, buffer, pos, &get_result)){
+        Statement_Parser parser = {0};
+        parser.token_index = get_result.token_index;
+        
+        if (parser.token_index < 0){
+            parser.token_index = 0;
+        }
+        if (get_result.in_whitespace){
+            parser.token_index += 1;
+        }
+        
+        static const int32_t chunk_cap = 512;
+        Cpp_Token chunk[chunk_cap];
+        
+        if (init_stream_tokens(&parser.stream, app, buffer, parser.token_index, chunk, chunk_cap)){
+            parser.buffer = buffer;
+            
+            Cpp_Token end_token = {0};
+            if (parse_statement_down(app, &parser, &end_token)){
+                end = end_token.start + end_token.size;
+                result = true;
+            }
+        }
+    }
+    
+    *start_out = start;
+    *end_out = end;
+    return(result);
+}
+
+CUSTOM_COMMAND_SIG(scope_absorb_down){
+    uint32_t access = AccessOpen;
+    View_Summary view = get_active_view(app, access);
+    Buffer_Summary buffer = get_buffer(app, view.buffer_id, access);
+    
+    int32_t top = view.cursor.pos;
+    int32_t bottom = view.mark.pos;
+    
+    if (top > bottom){
+        int32_t x = top;
+        top = bottom;
+        bottom = x;
+    }
+    
+    Partition *part = &global_part;
+    
+    Temp_Memory temp = begin_temp_memory(part);
+    if (buffer_get_char(app, &buffer, top) == '{' && buffer_get_char(app, &buffer, bottom-1) == '}'){
+        Range range;
+        if (find_whole_statement_down(app, &buffer, bottom, &range.start, &range.end)){
+            char *string_space = push_array(part, char, range.end - range.start);
+            buffer_read_range(app, &buffer, range.start, range.end, string_space);
+            
+            String string = make_string(string_space, range.end - range.start);
+            string = skip_chop_whitespace(string);
+            
+            int32_t newline_count = 0;
+            for (char *ptr = string_space; ptr < string.str; ++ptr){
+                if (*ptr == '\n'){
+                    ++newline_count;
+                }
+            }
+            
+            bool32 extra_newline = false;
+            if (newline_count >= 2){
+                extra_newline = true;
+            }
+            
+            int32_t edit_len = string.size + 1;
+            if (extra_newline){
+                edit_len += 1;
+            }
+            
+            char *edit_str = push_array(part, char, edit_len);
+            if (extra_newline){
+                edit_str[0] = '\n';
+                copy_fast_unsafe(edit_str+1, string);
+                edit_str[edit_len-1] = '\n';
+            }
+            else{
+                copy_fast_unsafe(edit_str, string);
+                edit_str[edit_len-1] = '\n';
+            }
+            
+            Buffer_Edit edits[2];
+            edits[0].str_start = 0;
+            edits[0].len = edit_len;
+            edits[0].start = bottom-1;
+            edits[0].end = bottom-1;
+            
+            edits[1].str_start = 0;
+            edits[1].len = 0;
+            edits[1].start = range.start;
+            edits[1].end = range.end;
+            
+            buffer_batch_edit(app, &buffer, edit_str, edit_len, edits, 2, BatchEdit_Normal);
+        }
+    }
+    end_temp_memory(temp);
 }
 
 // NOTE(allen): Some basic code manipulation ideas.
@@ -890,17 +1223,17 @@ CUSTOM_COMMAND_SIG(write_explicit_enum_values){
                     
                     ++token_index;
                     
-                    int32_t closed_correctly = 0;
                     int32_t seeker_index = token_index;
                     Stream_Tokens seek_stream = begin_temp_stream_token(&stream);
                     
-                    int32_t still_looping = 0;
+                    bool32 closed_correctly = false;
+                    bool32 still_looping = false;
                     do{
                         for (; seeker_index < stream.end; ++seeker_index){
                             Cpp_Token *token_seeker = stream.tokens + seeker_index;
                             switch (token_seeker->type){
                                 case CPP_TOKEN_BRACE_CLOSE:
-                                closed_correctly = 1;
+                                closed_correctly = true;
                                 goto finished_seek;
                                 
                                 case CPP_TOKEN_BRACE_OPEN:
@@ -915,15 +1248,15 @@ CUSTOM_COMMAND_SIG(write_explicit_enum_values){
                     if (closed_correctly){
                         int32_t count_estimate = 1 + (seeker_index - token_index)/2;
                         
-                        Buffer_Edit *edits = push_array(part, Buffer_Edit, count_estimate);
                         int32_t edit_count = 0;
+                        Buffer_Edit *edits = push_array(part, Buffer_Edit, count_estimate);
                         
                         char *string_base = (char*)partition_current(part);
                         String string = make_string(string_base, 0, partition_remaining(part));
                         
+                        closed_correctly = false;
+                        still_looping = false;
                         int32_t value = 0;
-                        closed_correctly = 0;
-                        still_looping = 0;
                         do{
                             for (;token_index < stream.end; ++token_index){
                                 Cpp_Token *token_ptr = stream.tokens + token_index;
@@ -1016,12 +1349,12 @@ get_bindings(void *data, int32_t size){
     Bind_Helper context_ = begin_bind_helper(data, size);
     Bind_Helper *context = &context_;
     
-    set_hook(context, hook_start, my_start);
-    set_hook(context, hook_view_size_change, my_view_adjust);
+    set_hook(context, hook_start, default_start);
+    set_hook(context, hook_view_size_change, default_view_adjust);
     
-    set_open_file_hook(context, my_file_settings);
-    set_save_file_hook(context, my_file_save);
-    set_input_filter(context, my_suppress_mouse_filter);
+    set_open_file_hook(context, default_file_settings);
+    set_save_file_hook(context, default_file_save);
+    set_input_filter(context, default_suppress_mouse_filter);
     set_command_caller(context, default_command_caller);
     
     set_scroll_rule(context, smooth_scroll_rule);
@@ -1048,14 +1381,17 @@ get_bindings(void *data, int32_t size){
     
     end_map(context);
     
-    begin_map(context, my_code_map);
-    bind(context, '[', MDFR_ALT, highlight_surroundng_scope);
+    begin_map(context, default_code_map);
+    bind(context, '[', MDFR_ALT, highlight_surrounding_scope);
     bind(context, ']', MDFR_ALT, highlight_prev_scope_absolute);
     bind(context, '\'', MDFR_ALT, highlight_next_scope_absolute);
     
+    bind(context, '/', MDFR_ALT, place_in_scope);
+    bind(context, '-', MDFR_ALT, delete_current_scope);
+    bind(context, 'j', MDFR_ALT, scope_absorb_down);
+    
     bind(context, key_insert, MDFR_CTRL, write_explicit_enum_values);
     bind(context, 'p', MDFR_ALT, rename_parameter);
-    bind(context, 'I', MDFR_CTRL, list_all_functions_current_buffer);
     end_map(context);
     
     BIND_4CODER_TESTS(context);
@@ -1063,6 +1399,8 @@ get_bindings(void *data, int32_t size){
     int32_t result = end_bind_helper(context);
     return(result);
 }
+
+#endif
 
 // BOTTOM
 

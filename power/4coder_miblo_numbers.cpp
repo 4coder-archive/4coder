@@ -1,8 +1,18 @@
+/*
+4coder_miblo_numbers.cpp - Commands for so called "Miblo Number Operations" which involve incrementing
+and decrementing various forms of number as numerical objects despite being encoded as text objects.
 
-#if !defined(MIBLO_NUMBERS_4CODER)
-#define MIBLO_NUMBERS_4CODER
+TYPE: 'drop-in-command-pack'
+*/
 
-// TODO(allen): thevaber number converter idea
+// TOP
+
+#if !defined(FCODER_MIBLO_NUMBERS_CPP)
+#define FCODER_MIBLO_NUMBERS_CPP
+
+#include "4coder_API/custom.h"
+#include "4coder_helper/4coder_helper.h"
+#include "4coder_helper/4coder_streaming.h"
 
 static int32_t
 get_numeric_string_at_cursor(Application_Links *app, Buffer_Summary *buffer, int32_t start_pos, int32_t *numeric_start, int32_t *numeric_end){
@@ -198,14 +208,14 @@ increment_timestamp(Miblo_Timestamp t, int32_t type, int32_t amt){
         amt = 0;
         
         // TODO(allen): someday do the math, instead of being lazy.
-         while (r.second < 0){
-             --amt;
-             r.second += 60;
+        while (r.second < 0){
+            --amt;
+            r.second += 60;
         }
         
-         while (r.second >= 60){
-             ++amt;
-             r.second -= 60;
+        while (r.second >= 60){
+            ++amt;
+            r.second -= 60;
         }
         
         case MIBLO_MINUTE:
@@ -236,7 +246,7 @@ timestamp_to_str(String *dest, Miblo_Timestamp t){
     
     if (t.hour > 0){
         append_int_to_str(dest, t.hour);
-            append(dest, ":");
+        append(dest, ":");
     }
     
     if (t.minute >= 10){
@@ -279,7 +289,7 @@ get_timestamp_at_cursor(Application_Links *app, Buffer_Summary *buffer, int32_t 
             int32_t count_colons = 0;
             for (int32_t i = 0; i < str.size; ++i){
                 if (str.str[i] == ':'){
-                ++count_colons;
+                    ++count_colons;
                 }
             }
             
@@ -305,18 +315,18 @@ get_timestamp_at_cursor(Application_Links *app, Buffer_Summary *buffer, int32_t 
                 }
                 
                 if (count_colons == 2){
-                t.hour = str_to_int(make_string(str.str + number_start[0], number_end[0] - number_start[0]));
-                
-                if (number_end[1] - number_start[1] == 2){
-                
-                    t.minute = str_to_int(make_string(str.str + number_start[1], number_end[1] - number_start[1]));
-                
-                    if (number_end[2] - number_start[2] == 2){
-                        t.second = str_to_int(make_string(str.str + number_start[2], number_end[2] - number_start[2]));
+                    t.hour = str_to_int(make_string(str.str + number_start[0], number_end[0] - number_start[0]));
+                    
+                    if (number_end[1] - number_start[1] == 2){
                         
-                        success = 1;
+                        t.minute = str_to_int(make_string(str.str + number_start[1], number_end[1] - number_start[1]));
+                        
+                        if (number_end[2] - number_start[2] == 2){
+                            t.second = str_to_int(make_string(str.str + number_start[2], number_end[2] - number_start[2]));
+                            
+                            success = 1;
+                        }
                     }
-                }
                 }
                 else{
                     if (number_end[0] - number_start[0] == 2 || number_end[0] - number_start[0] == 1){
@@ -331,10 +341,10 @@ get_timestamp_at_cursor(Application_Links *app, Buffer_Summary *buffer, int32_t 
                 }
                 
                 if (success){
-            info->start = timestamp_start;
-            info->end = timestamp_end;
-            info->time = t;
-            result = 1;
+                    info->start = timestamp_start;
+                    info->end = timestamp_end;
+                    info->time = t;
+                    result = 1;
                 }
             }
         }
@@ -378,4 +388,4 @@ CUSTOM_COMMAND_SIG(miblo_decrement_time_stamp_minute){
 
 #endif
 
-
+// BOTTOM

@@ -285,7 +285,7 @@ file_compute_cursor_from_line_character(Editing_File *file, i32 line, i32 charac
 
 inline b32
 file_compute_partial_cursor(Editing_File *file, Buffer_Seek seek, Partial_Cursor *cursor){
-    b32 result = 1;
+    b32 result = true;
     switch (seek.type){
         case buffer_seek_pos:
         {
@@ -299,7 +299,7 @@ file_compute_partial_cursor(Editing_File *file, Buffer_Seek seek, Partial_Cursor
         
         default:
         {
-            result = 0;
+            result = false;
         }break;
     }
     return(result);

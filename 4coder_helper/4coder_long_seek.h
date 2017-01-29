@@ -884,7 +884,7 @@ read_line(Application_Links *app, Partition *part, Buffer_Summary *buffer, int32
     int32_t success = 0;
     
     if (buffer_compute_cursor(app, buffer, seek_line_char(line, 1), &begin)){
-        if (buffer_compute_cursor(app, buffer, seek_line_char(line, 65536), &end)){
+        if (buffer_compute_cursor(app, buffer, seek_line_char(line, -1), &end)){
             if (begin.line == line){
                 if (0 <= begin.pos && begin.pos <= end.pos && end.pos <= buffer->size){
                     int32_t size = (end.pos - begin.pos);
@@ -919,7 +919,7 @@ buffer_get_line_end(Application_Links *app, Buffer_Summary *buffer, int32_t line
     Partial_Cursor partial_cursor;
     int32_t result = buffer->size;
     if (line <= buffer->line_count){
-        buffer_compute_cursor(app, buffer, seek_line_char(line, 65536), &partial_cursor);
+        buffer_compute_cursor(app, buffer, seek_line_char(line, -1), &partial_cursor);
         result = partial_cursor.pos;
     }
     return(result);
@@ -931,7 +931,7 @@ buffer_line_is_blank(Application_Links *app, Buffer_Summary *buffer, int32_t lin
     bool32 result = 0;
     if (line <= buffer->line_count){
         buffer_compute_cursor(app, buffer, seek_line_char(line, 1), &start);
-        buffer_compute_cursor(app, buffer, seek_line_char(line, 65536), &end);
+        buffer_compute_cursor(app, buffer, seek_line_char(line, -1), &end);
         
         static const int32_t chunk_size = 1024;
         char chunk[chunk_size];

@@ -22,13 +22,6 @@ typedef struct Name_Based_Jump_Location{
     int32_t column;
 } Name_Based_Jump_Location;
 
-typedef struct ID_Based_Jump_Location{
-    int32_t buffer_id;
-    int32_t line;
-    int32_t column;
-} ID_Based_Jump_Location;
-static ID_Based_Jump_Location null_location = {0};
-
 static void
 jump_to_location(Application_Links *app, View_Summary *view, Name_Based_Jump_Location *l){
     if (view_open_file(app, view, l->file.str, l->file.size, true)){
@@ -55,8 +48,9 @@ static int32_t
 parse_jump_location(String line, Name_Based_Jump_Location *location, int32_t skip_sub_errors, int32_t *colon_char){
     int32_t result = false;
     
+    int32_t whitespace_length = 0;
     String original_line = line;
-    line = skip_chop_whitespace(line);
+    line = skip_chop_whitespace(line, &whitespace_length);
     
     int32_t colon_pos = 0;
     int32_t is_ms_style = 0;
@@ -102,7 +96,7 @@ parse_jump_location(String line, Name_Based_Jump_Location *location, int32_t ski
                                     location->column = 1;
                                 }
                                 
-                                *colon_char = colon_pos;
+                                *colon_char = colon_pos + whitespace_length;
                                 result = true;
                             }
                         }
@@ -137,7 +131,7 @@ parse_jump_location(String line, Name_Based_Jump_Location *location, int32_t ski
                 location->file = filename;
                 location->line = str_to_int_s(line_number);
                 location->column = str_to_int_s(column_number);
-                *colon_char = colon_pos3;
+                *colon_char = colon_pos3 + whitespace_length;
                 result = true;
             }
         }
@@ -151,7 +145,7 @@ parse_jump_location(String line, Name_Based_Jump_Location *location, int32_t ski
                         location->file = filename;
                         location->line = str_to_int_s(line_number);
                         location->column = 0;
-                        *colon_char = colon_pos2;
+                        *colon_char = colon_pos2 + whitespace_length;
                         result = true;
                     }
                 }
@@ -253,9 +247,7 @@ seek_next_jump_in_view(Application_Links *app, Partition *part, View_Summary *vi
     Name_Based_Jump_Location location = {0};
     int32_t line = view->cursor.line;
     int32_t colon_index = 0;
-    if (seek_next_jump_in_buffer(app, part, view->buffer_id,
-                                 line+direction, skip_sub_errors, direction,
-                                 &line, &colon_index, &location)){
+    if (seek_next_jump_in_buffer(app, part, view->buffer_id, line+direction, skip_sub_errors, direction, &line, &colon_index, &location)){
         result = true;
         *line_out = line;
         *colon_index_out = colon_index;
@@ -277,8 +269,6 @@ skip_this_jump(ID_Based_Jump_Location prev, ID_Based_Jump_Location jump){
     return(result);
 }
 
-static ID_Based_Jump_Location prev_location = {0};
-
 static int32_t
 advance_cursor_in_jump_view(Application_Links *app, Partition *part, View_Summary *view, int32_t skip_repeats, int32_t skip_sub_error, int32_t direction, Name_Based_Jump_Location *location_out){
     int32_t result = true;
@@ -289,10 +279,9 @@ advance_cursor_in_jump_view(Application_Links *app, Partition *part, View_Summar
     
     do{
         Temp_Memory temp = begin_temp_memory(part);
-        if (seek_next_jump_in_view(app, part, view,
-                                   skip_sub_error, direction,
-                                   &line, &colon_index, &location)){
+        if (seek_next_jump_in_view(app, part, view, skip_sub_error, direction, &line, &colon_index, &location)){
             jump = convert_name_based_to_id_based(app, location);
+            view_set_cursor(app, view, seek_line_char(line, colon_index+1), true);
             result = true;
         }
         else{
@@ -313,16 +302,14 @@ advance_cursor_in_jump_view(Application_Links *app, Partition *part, View_Summar
 }
 
 static int32_t
-seek_error(Application_Links *app, Partition *part, int32_t skip_repeats, int32_t skip_sub_errors, int32_t direction){
+seek_jump(Application_Links *app, Partition *part, int32_t skip_repeats, int32_t skip_sub_errors, int32_t direction){
     int32_t result = 0;
     
     View_Summary view = get_view_for_locked_jump_buffer(app);
     if (view.exists){
         
         Name_Based_Jump_Location location = {0};
-        if (advance_cursor_in_jump_view(app, &global_part, &view,
-                                        skip_repeats, skip_sub_errors, direction,
-                                        &location)){
+        if (advance_cursor_in_jump_view(app, &global_part, &view, skip_repeats, skip_sub_errors, direction, &location)){
             View_Summary active_view = get_active_view(app, AccessAll);
             if (active_view.view_id == view.view_id){
                 exec_command(app, change_active_panel);
@@ -342,28 +329,28 @@ CUSTOM_COMMAND_SIG(goto_next_jump){
     int32_t skip_repeats = true;
     int32_t skip_sub_errors = true;
     int32_t dir = 1;
-    seek_error(app, &global_part, skip_repeats, skip_sub_errors, dir);
+    seek_jump(app, &global_part, skip_repeats, skip_sub_errors, dir);
 }
 
 CUSTOM_COMMAND_SIG(goto_prev_jump){
     int32_t skip_repeats = true;
     int32_t skip_sub_errors = true;
     int32_t dir = -1;
-    seek_error(app, &global_part, skip_repeats, skip_sub_errors, dir);
+    seek_jump(app, &global_part, skip_repeats, skip_sub_errors, dir);
 }
 
 CUSTOM_COMMAND_SIG(goto_next_jump_no_skips){
     int32_t skip_repeats = false;
     int32_t skip_sub_errors = true;
     int32_t dir = 1;
-    seek_error(app, &global_part, skip_repeats, skip_sub_errors, dir);
+    seek_jump(app, &global_part, skip_repeats, skip_sub_errors, dir);
 }
 
 CUSTOM_COMMAND_SIG(goto_prev_jump_no_skips){
     int32_t skip_repeats = false;
     int32_t skip_sub_errors = true;
     int32_t dir = -1;
-    seek_error(app, &global_part, skip_repeats, skip_sub_errors, dir);
+    seek_jump(app, &global_part, skip_repeats, skip_sub_errors, dir);
 }
 
 CUSTOM_COMMAND_SIG(goto_first_jump){
@@ -374,11 +361,29 @@ CUSTOM_COMMAND_SIG(goto_first_jump){
         view_set_cursor(app, &view, seek_pos(0), true);
         
         prev_location = null_location;
-        seek_error(app, &global_part, false, true, 1);
+        seek_jump(app, &global_part, false, true, 1);
     }
     end_temp_memory(temp);
 }
 
+//
+// Insert Newline - or Tigger Jump on Read Only Buffer
+//
+
+CUSTOM_COMMAND_SIG(newline_or_goto_position){
+    View_Summary view = get_active_view(app, AccessProtected);
+    Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessProtected);
+    
+    if (buffer.lock_flags & AccessProtected){
+        exec_command(app, goto_jump_at_cursor);
+        lock_jump_buffer(buffer);
+    }
+    else{
+        exec_command(app, write_character);
+    }
+}
+
+#define seek_error                  seek_jump
 #define goto_next_error             goto_next_jump
 #define goto_prev_error             goto_prev_jump
 #define goto_next_error_no_skips    goto_next_jump_no_skips

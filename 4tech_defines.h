@@ -59,18 +59,34 @@ typedef double f64;
 #define Max(a,b) (((a)>(b))?(a):(b))
 #define Min(a,b) (((a)<(b))?(a):(b))
 
-#define ceil32(v)  (((v)>0)?( (v == (i32)(v))?((i32)(v)):((i32)((v)+1.f)) ):( ((i32)(v)) ))
-
-#define floor32(v) (((v)<0)?( (v == (i32)(v))?((i32)(v)):((i32)((v)-1.f)) ):( ((i32)(v)) ))
-
-#define round32(v) (floor32(v + 0.5f))
-
-#define trunc32(v) (i32)(v)
-
-#define div_ceil(n,d) ( ((n) % (d) != 0) + ((n) / (d)) )
-
-#define l_round_up(x,b) ( ((x)+(b)-1) - (((x)+(b)-1)%(b)) )
-
+inline i32 ceil32(f32 v){
+     return(((v)>0)?( (v == (i32)(v))?((i32)(v)):((i32)((v)+1.f)) ):( ((i32)(v)) ));
+ }
+ 
+ inline i32 floor32(f32 v){
+     return(((v)<0)?( (v == (i32)(v))?((i32)(v)):((i32)((v)-1.f)) ):( ((i32)(v)) ));
+ }
+ 
+ inline i32 round32(f32 v){
+     return(floor32(v + 0.5f));
+ }
+ 
+ inline i32 trun32(f32 v){
+     return((i32)(v));
+ }
+     
+ inline i32 div_ceil(i32 n, i32 d){
+     return( ((n) % (d) != 0) + ((n) / (d)) );
+ }
+     
+ inline i32 l_round_up_i32(i32 x, i32 b){
+return( ((x)+(b)-1) - (((x)+(b)-1)%(b)) );
+ }
+ 
+ inline u32 l_round_up_u32(u32 x, u32 b){
+     return( ((x)+(b)-1) - (((x)+(b)-1)%(b)) );
+ }
+ 
 #define STR__(s) #s
 #define STR_(s) STR__(s)
 

@@ -1,0 +1,255 @@
+/*
+4coder_default_hooks.cpp - Sets up the hooks for the default framework.
+
+TYPE: 'internal-for-default-system'
+*/
+
+// TOP
+
+#if !defined(FCODER_DEFAULT_HOOKS_CPP)
+#define FCODER_DEFAULT_HOOKS_CPP
+
+#include "4coder_default_framework.h"
+#include "4coder_helper/4coder_bind_helper.h"
+
+HOOK_SIG(default_start){
+    default_4coder_initialize(app);
+    default_4coder_side_by_side_panels(app);
+    
+    // no meaning for return
+    return(0);
+}
+
+// NOTE(allen|a4.0.9): All command calls can now go through this hook
+// If this hook is not implemented a default behavior of calling the
+// command is used.  It is important to note that paste_next does not
+// work without this hook.
+// NOTE(allen|a4.0.10): As of this version the word_complete command
+// also relies on this particular command caller hook.
+COMMAND_CALLER_HOOK(default_command_caller){
+    View_Summary view = get_active_view(app, AccessAll);
+    
+    view_paste_index[view.view_id].next_rewrite = 0;
+    exec_command(app, cmd);
+    view_paste_index[view.view_id].rewrite = view_paste_index[view.view_id].next_rewrite;
+    
+    return(0);
+}
+
+HOOK_SIG(default_exit){
+    // if this returns zero it cancels the exit.
+    return(1);
+}
+
+HOOK_SIG(default_view_adjust){
+    int32_t count = 0;
+    int32_t new_wrap_width = 0;
+    for (View_Summary view = get_view_first(app, AccessAll);
+         view.exists;
+         get_view_next(app, &view, AccessAll)){
+        new_wrap_width += view.view_region.x1 - view.view_region.x0;
+        ++count;
+    }
+    
+    new_wrap_width /= count;
+    new_wrap_width = (int32_t)(new_wrap_width * .9f);
+    
+    int32_t new_min_base_width = (int32_t)(new_wrap_width * .77f);
+    if (automatically_adjust_wrapping){
+        adjust_all_buffer_wrap_widths(app, new_wrap_width, new_min_base_width);
+        default_wrap_width = new_wrap_width;
+        default_min_base_width = new_min_base_width;
+    }
+    
+    // no meaning for return
+    return(0);
+}
+
+// TODO(allen): Eliminate this hook if you can.
+OPEN_FILE_HOOK_SIG(default_file_settings){
+    // NOTE(allen|a4.0.8): The get_parameter_buffer was eliminated
+    // and instead the buffer is passed as an explicit parameter through
+    // the function call.  That is where buffer_id comes from here.
+    uint32_t access = AccessAll;
+    Buffer_Summary buffer = get_buffer(app, buffer_id, access);
+    Assert(buffer.exists);
+    
+    int32_t treat_as_code = 0;
+    int32_t wrap_lines = 1;
+    
+    if (buffer.file_name && buffer.size < (16 << 20)){
+        String ext = file_extension(make_string(buffer.file_name, buffer.file_name_len));
+        
+        if (match_ss(ext, make_lit_string("cpp")) ||
+            match_ss(ext, make_lit_string("h")) ||
+            match_ss(ext, make_lit_string("c")) ||
+            match_ss(ext, make_lit_string("hpp"))){
+            treat_as_code = 1;
+        }
+    }
+    
+    if (treat_as_code){
+        wrap_lines = 0;
+    }
+    if (buffer.file_name[0] == '*'){
+        wrap_lines = 0;
+    }
+    
+    buffer_set_setting(app, &buffer, BufferSetting_WrapPosition, default_wrap_width);
+    buffer_set_setting(app, &buffer, BufferSetting_MinimumBaseWrapPosition, default_min_base_width);
+    buffer_set_setting(app, &buffer, BufferSetting_MapID, (treat_as_code)?((int32_t)default_code_map):((int32_t)mapid_file));
+    
+    if (treat_as_code && enable_code_wrapping && buffer.size < (1 << 18)){
+        // NOTE(allen|a4.0.12): There is a little bit of grossness going on here.
+        // If we set BufferSetting_Lex to true, it will launch a lexing job.
+        // If a lexing job is active when we set BufferSetting_VirtualWhitespace, the call can fail.
+        // Unfortunantely without tokens virtual whitespace doesn't really make sense.
+        // So for now I have it automatically turning on lexing when virtual whitespace is turned on.
+        // Cleaning some of that up is a goal for future versions.
+        buffer_set_setting(app, &buffer, BufferSetting_WrapLine, 1);
+        buffer_set_setting(app, &buffer, BufferSetting_VirtualWhitespace, 1);
+    }
+    else{
+        buffer_set_setting(app, &buffer, BufferSetting_WrapLine, wrap_lines);
+        buffer_set_setting(app, &buffer, BufferSetting_Lex, treat_as_code);
+    }
+    
+    // no meaning for return
+    return(0);
+}
+
+OPEN_FILE_HOOK_SIG(default_file_save){
+    uint32_t access = AccessAll;
+    Buffer_Summary buffer = get_buffer(app, buffer_id, access);
+    Assert(buffer.exists);
+    
+#if defined(FCODER_AUTO_INDENT_CPP)
+    int32_t is_virtual = 0;
+    if (automatically_indent_text_on_save && buffer_get_setting(app, &buffer, BufferSetting_VirtualWhitespace, &is_virtual)){ 
+        if (is_virtual){
+            auto_tab_whole_file_by_summary(app, &buffer);
+        }
+    }
+#endif
+    
+    // no meaning for return
+    return(0);
+}
+
+// NOTE(allen|a4.0.9): The input filter allows you to modify the input
+// to a frame before 4coder starts processing it at all.
+//
+// Right now it only has access to the mouse state, but it will be
+// extended to have access to the key presses soon.
+INPUT_FILTER_SIG(default_suppress_mouse_filter){
+    if (suppressing_mouse){
+        *mouse = null_mouse_state;
+        mouse->x = -100;
+        mouse->y = -100;
+    }
+}
+
+// NOTE(allen|a4): scroll rule information
+//
+// The parameters:
+// target_x, target_y
+//  This is where the view would like to be for the purpose of
+// following the cursor, doing mouse wheel work, etc.
+//
+// scroll_x, scroll_y
+//  These are pointers to where the scrolling actually is. If you bind
+// the scroll rule it is you have to update these in some way to move
+// the actual location of the scrolling.
+//
+// view_id
+//  This corresponds to which view is computing it's new scrolling position.
+// This id DOES correspond to the views that View_Summary contains.
+// This will always be between 1 and 16 (0 is a null id).
+// See below for an example of having state that carries across scroll udpates.
+//
+// is_new_target
+//  If the target of the view is different from the last target in either x or y
+// this is true, otherwise it is false.
+//
+// The return:
+//  Should be true if and only if scroll_x or scroll_y are changed.
+//
+// Don't try to use the app pointer in a scroll rule, you're asking for trouble.
+//
+// If you don't bind scroll_rule, nothing bad will happen, yo will get default
+// 4coder scrolling behavior.
+//
+
+struct Scroll_Velocity{
+    float x, y;
+};
+
+Scroll_Velocity scroll_velocity_[16] = {0};
+Scroll_Velocity *scroll_velocity = scroll_velocity_ - 1;
+
+static int32_t
+smooth_camera_step(float target, float *current, float *vel, float S, float T){
+    int32_t result = 0;
+    float curr = *current;
+    float v = *vel;
+    if (curr != target){
+        if (curr > target - .1f && curr < target + .1f){
+            curr = target;
+            v = 1.f;
+        }
+        else{
+            float L = curr + T*(target - curr);
+            
+            int32_t sign = (target > curr) - (target < curr);
+            float V = curr + sign*v;
+            
+            if (sign > 0) curr = (L<V)?(L):(V);
+            else curr = (L>V)?(L):(V);
+            
+            if (curr == V){
+                v *= S;
+            }
+        }
+        
+        *current = curr;
+        *vel = v;
+        result = 1;
+    }
+    return(result);
+}
+
+SCROLL_RULE_SIG(smooth_scroll_rule){
+    Scroll_Velocity *velocity = scroll_velocity + view_id;
+    int32_t result = 0;
+    if (velocity->x == 0.f){
+        velocity->x = 1.f;
+        velocity->y = 1.f;
+    }
+    
+    if (smooth_camera_step(target_y, scroll_y, &velocity->y, 80.f, 1.f/2.f)){
+        result = 1;
+    }
+    if (smooth_camera_step(target_x, scroll_x, &velocity->x, 80.f, 1.f/2.f)){
+        result = 1;
+    }
+    
+    return(result);
+}
+
+static void
+set_all_default_hooks(Bind_Helper *context){
+    set_hook(context, hook_start, default_start);
+    set_hook(context, hook_exit, default_exit);
+    set_hook(context, hook_view_size_change, default_view_adjust);
+    
+    set_open_file_hook(context, default_file_settings);
+    set_save_file_hook(context, default_file_save);
+    set_command_caller(context, default_command_caller);
+    set_input_filter(context, default_suppress_mouse_filter);
+    set_scroll_rule(context, smooth_scroll_rule);
+}
+
+#endif
+
+// BOTTOM
+

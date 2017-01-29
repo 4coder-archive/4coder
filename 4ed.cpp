@@ -62,22 +62,22 @@ typedef struct Consumption_Record{
 } Consumption_Record;
 
 typedef struct Available_Input{
-    Key_Summary *keys;
+    Key_Input_Data *keys;
     Mouse_State *mouse;
     Consumption_Record records[Input_Count];
 } Available_Input;
 
 internal Available_Input
-init_available_input(Key_Summary *keys, Mouse_State *mouse){
+init_available_input(Key_Input_Data *keys, Mouse_State *mouse){
     Available_Input result = {0};
     result.keys = keys;
     result.mouse = mouse;
     return(result);
 }
 
-internal Key_Summary
+internal Key_Input_Data
 direct_get_key_data(Available_Input *available){
-    Key_Summary result = *available->keys;
+    Key_Input_Data result = *available->keys;
     return(result);
 }
 
@@ -87,9 +87,9 @@ direct_get_mouse_state(Available_Input *available){
     return(result);
 }
 
-internal Key_Summary
+internal Key_Input_Data
 get_key_data(Available_Input *available){
-    Key_Summary result = {0};
+    Key_Input_Data result = {0};
     
     if (!available->records[Input_AnyKey].consumed){
         result = *available->keys;
@@ -1688,46 +1688,32 @@ App_Step_Sig(app_step){
         
         if (prev_width != current_width || prev_height != current_height){
             layout_refit(&models->layout, prev_width, prev_height);
-            
         }
     }
     
     // NOTE(allen): prepare input information
-    Key_Summary key_summary = {0};
-    
     {
-        for (i32 i = 0; i < input->keys.press_count; ++i){
-            key_summary.keys[key_summary.count++] = input->keys.press[i];
-        }
-        for (i32 i = 0; i < input->keys.hold_count; ++i){
-            key_summary.keys[key_summary.count++] = input->keys.hold[i];
-        }
-        
         if (models->input_filter){
             models->input_filter(&input->mouse);
         }
         
         Key_Event_Data mouse_event = {0};
-        memcpy(mouse_event.modifiers, input->keys.modifiers, sizeof(input->keys.modifiers));
-        
         if (input->mouse.press_l){
             mouse_event.keycode = key_mouse_left;
-            key_summary.keys[key_summary.count++] = mouse_event;
+            input->keys.keys[input->keys.count++] = mouse_event;
+        }
+        else if (input->mouse.release_l){
+            mouse_event.keycode = key_mouse_left_release;
+            input->keys.keys[input->keys.count++] = mouse_event;
         }
         
         if (input->mouse.press_r){
             mouse_event.keycode = key_mouse_right;
-            key_summary.keys[key_summary.count++] = mouse_event;
+            input->keys.keys[input->keys.count++] = mouse_event;
         }
-        
-        if (input->mouse.release_l){
-            mouse_event.keycode = key_mouse_left_release;
-            key_summary.keys[key_summary.count++] = mouse_event;
-        }
-        
-        if (input->mouse.release_r){
+        else if (input->mouse.release_r){
             mouse_event.keycode = key_mouse_right_release;
-            key_summary.keys[key_summary.count++] = mouse_event;
+            input->keys.keys[input->keys.count++] = mouse_event;
         }
         
         input->mouse.wheel = -input->mouse.wheel;
@@ -1996,11 +1982,11 @@ App_Step_Sig(app_step){
     }
     
     // NOTE(allen): pass events to debug
-    vars->available_input = init_available_input(&key_summary, &input->mouse);
+    vars->available_input = init_available_input(&input->keys, &input->mouse);
     
     {
         Debug_Data *debug = &models->debug;
-        Key_Summary key_data = get_key_data(&vars->available_input);
+        Key_Input_Data key_data = get_key_data(&vars->available_input);
         
         Debug_Input_Event *events = debug->input_events;
         
@@ -2033,7 +2019,7 @@ App_Step_Sig(app_step){
         get_flags |= abort_flags;
         
         if ((get_flags & EventOnAnyKey) || (get_flags & EventOnEsc)){
-            Key_Summary key_data = get_key_data(&vars->available_input);
+            Key_Input_Data key_data = get_key_data(&vars->available_input);
             
             for (i32 key_i = 0; key_i < key_data.count; ++key_i){
                 Key_Event_Data key = get_single_key(&key_data, key_i);
@@ -2259,7 +2245,7 @@ App_Step_Sig(app_step){
     
     // NOTE(allen): command execution
     {
-        Key_Summary key_data = get_key_data(&vars->available_input);
+        Key_Input_Data key_data = get_key_data(&vars->available_input);
         b32 hit_something = 0;
         b32 hit_esc = 0;
         
@@ -2379,6 +2365,11 @@ App_Step_Sig(app_step){
                             "If you're new to 4coder there are some tutorials at http://4coder.net/tutorials.html\n"
                             "\n"
                             "Newest features:\n"
+                            "-<ctrl I> find all functions in the current buffer and list them in a jump buffer\n"
+                            "-option to set user name in config.4coder\n"
+                            "  The user name is used in <alt t> and <alt y> comment writing commands\n"
+                            "\n"
+                            "New in alpha 4.0.14:\n"
                             "-Option to have wrap widths automatically adjust based on average view width\n"
                             "-The 'config.4coder' file can now be placed with the 4ed executable file\n"
                             "-New options in 'config.4coder' to specify the font and color theme\n"
@@ -2389,7 +2380,7 @@ App_Step_Sig(app_step){
                             "New in alpha 4.0.12 and 4.0.13:\n"
                             "-Text files wrap lines at whitespace when possible\n"
                             "-New code wrapping feature is on by default\n"
-                            "-Introduced a 'config.4coder' for setting several wrapping options:"
+                            "-Introduced a 'config.4coder' for setting several wrapping options:\n"
                             "  enable_code_wrapping: set to false if you want the text like behavior\n"
                             "  default_wrap_width: the wrap width to set in new files\n"
                             "-<ctrl 2> decrease the current buffer's wrap width\n"
@@ -2635,8 +2626,7 @@ App_Step_Sig(app_step){
                 }
             }
             
-            do_render_file_view(system, view, scroll_vars, active_view, 
-                                panel->inner, active, target, &dead_input);
+            do_render_file_view(system, view, scroll_vars, active_view,  panel->inner, active, target, &dead_input);
             
             draw_pop_clip(target);
             

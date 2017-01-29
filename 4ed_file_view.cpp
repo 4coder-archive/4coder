@@ -853,7 +853,7 @@ file_grow_starts_as_needed(General_Memory *general, Gap_Buffer *buffer, i32 addi
     i32 target_lines = count + additional_lines;
     
     if (target_lines > max || max == 0){
-        max = l_round_up(target_lines + max, KB(1));
+        max = l_round_up_i32(target_lines + max, KB(1));
         
         i32 *new_lines = (i32*)general_memory_reallocate(general, buffer->line_starts, sizeof(i32)*count, sizeof(f32)*max);
         
@@ -1904,7 +1904,7 @@ file_create_from_string(System_Functions *system, Models *models, Editing_File *
     Gap_Buffer_Init init = buffer_begin_init(&file->state.buffer, val.str, val.size);
     for (; buffer_init_need_more(&init); ){
         i32 page_size = buffer_init_page_size(&init);
-        page_size = l_round_up(page_size, KB(4));
+        page_size = l_round_up_i32(page_size, KB(4));
         if (page_size < KB(4)){
             page_size = KB(4);
         }
@@ -2080,7 +2080,7 @@ Job_Callback_Sig(job_full_lex){
         }
     } while (still_lexing);
     
-    i32 new_max = l_round_up(tokens.count+1, KB(1));
+    i32 new_max = l_round_up_i32(tokens.count+1, KB(1));
     
     system->acquire_lock(FRAME_LOCK);
     {
@@ -2207,7 +2207,7 @@ file_first_lex_serial(Mem_Options *mem, Editing_File *file){
                 }
             } while (still_lexing);
             
-            i32 new_max = l_round_up(tokens.count+1, KB(1));
+            i32 new_max = l_round_up_i32(tokens.count+1, KB(1));
             
             {
                 Assert(file->state.swap_array.tokens == 0);
@@ -2321,7 +2321,7 @@ file_relex_parallel(System_Functions *system, Mem_Options *mem, Editing_File *fi
         if (inline_lex){
             i32 new_count = cpp_relex_get_new_count(&state, array->count, &relex_array);
             if (new_count > array->max_count){
-                i32 new_max = l_round_up(new_count, KB(1));
+                i32 new_max = l_round_up_i32(new_count, KB(1));
                 array->tokens = (Cpp_Token*)
                     general_memory_reallocate(general, array->tokens, array->count*sizeof(Cpp_Token), new_max*sizeof(Cpp_Token));
                 array->max_count = new_max;
@@ -2436,7 +2436,7 @@ file_relex_serial(Mem_Options *mem, Editing_File *file, i32 start_i, i32 end_i, 
     
     i32 new_count = cpp_relex_get_new_count(&state, array->count, &relex_array);
     if (new_count > array->max_count){
-        i32 new_max = l_round_up(new_count, KB(1));
+        i32 new_max = l_round_up_i32(new_count, KB(1));
         array->tokens = (Cpp_Token*)general_memory_reallocate(general, array->tokens, array->count*sizeof(Cpp_Token), new_max*sizeof(Cpp_Token));
         array->max_count = new_max;
     }
@@ -2766,6 +2766,22 @@ view_cursor_move(View *view, i32 line, i32 character){
     view_cursor_move(view, cursor);
 }
 
+inline void
+view_show_file(View *view){
+    Editing_File *file = view->file_data.file;
+    if (file){
+        view->map = get_map(view->persistent.models, file->settings.base_map_id);
+    }
+    else{
+        view->map = get_map(view->persistent.models, mapid_global);
+    }
+    
+    if (view->showing_ui != VUI_None){
+        view->showing_ui = VUI_None;
+        view->changed_context_in_step = 1;
+    }
+}
+
 internal void
 view_set_file(View *view, Editing_File *file, Models *models){
     Assert(file);
@@ -2791,6 +2807,10 @@ view_set_file(View *view, Editing_File *file, Models *models){
     
     if (edit_pos->cursor.line == 0){
         view_cursor_move(view, 0);
+    }
+    
+    if (view->showing_ui == VUI_None){
+        view_show_file(view);
     }
 }
 
@@ -3714,22 +3734,6 @@ view_show_theme(View *view){
     view->changed_context_in_step = 1;
 }
 
-inline void
-view_show_file(View *view){
-    Editing_File *file = view->file_data.file;
-    if (file){
-        view->map = get_map(view->persistent.models, file->settings.base_map_id);
-    }
-    else{
-        view->map = get_map(view->persistent.models, mapid_global);
-    }
-    
-    if (view->showing_ui != VUI_None){
-        view->showing_ui = VUI_None;
-        view->changed_context_in_step = 1;
-    }
-}
-
 internal String
 make_string_terminated(Partition *part, char *str, i32 len){
     char *space = (char*)push_array(part, char, len + 1);
@@ -4600,7 +4604,7 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
     View_Step_Result result = {0};
     GUI_Target *target = &view->gui_target;
     Models *models = view->persistent.models;
-    Key_Summary keys = input.keys;
+    Key_Input_Data keys = input.keys;
     
     b32 show_scrollbar = !view->hide_scrollbar;
     
@@ -5754,23 +5758,19 @@ do_step_file_view(System_Functions *system,
                         }
                         
                         {
-                            Key_Event_Data key;
-                            Key_Summary *keys = &user_input->keys;
+                            Key_Input_Data *keys = &user_input->keys;
                             
                             void *ptr = (b + 1);
-                            String string;
-                            char activation_key;
+                            String string = gui_read_string(&ptr);
+                            AllowLocal(string);
                             
-                            i32 i, count;
-                            
-                            string = gui_read_string(&ptr);
-                            activation_key = *(char*)ptr;
+                            char activation_key = *(char*)ptr;
                             activation_key = char_to_upper(activation_key);
                             
                             if (activation_key != 0){
-                                count = keys->count;
-                                for (i = 0; i < count; ++i){
-                                    key = get_single_key(keys, i);
+                                i32 count = keys->count;
+                                for (i32 i = 0; i < count; ++i){
+                                    Key_Event_Data key = get_single_key(keys, i);
                                     if (char_to_upper(key.character) == activation_key){
                                         target->active = b->id;
                                         result.is_animating = 1;

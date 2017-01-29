@@ -4,7 +4,7 @@
    to know what I'm actually even doing.  So if you decide to use the code in
    here, be advised that it might be super crashy or break something or cause you 
    to lose work or who knows what else!
-
+   
    DON'T SAY I WE DIDN'T WARN YA: This custom extension provided "as is" without
    warranty of any kind, either express or implied, including without
    limitation any implied warranties of condition, uninterrupted use,
@@ -16,9 +16,9 @@
    - High priority:
      - Buffer switching still seems a little bit broken.  I find I can't reliably hit switch-return
        and switch to the most recently viewed file that wasn't one of the two currently viewed buffers?
-
+       
      - High-DPI settings break rendering and all fonts just show up as solid squares <<< Check this again
-
+     
      - Pretty sure auto-indent has some bugs.  Things that should be pretty easy to indent
        properly even from only a few surrounding lines seem to be indented improperly at the moment
      - Multi-line comments should default to indenting to the indentation of the line prior?
@@ -34,24 +34,24 @@
         as well - similarly, scrolling breaks, in that it thinks it has "hit the end" of the buffer
         when you cursor down, but the cursor and the rest of the wrapped lines are actually off
         the bottom of the screen)
-
+        
    - Search:
      - Should highlight all matches in the buffer
      - Seems to buggily break out of the search sometimes for no reason?  (eg., you hit the end and it just drops out of the search instead of stopping?)
        - Tracked this one down: I think it is because spurious mousewheel or other inputs break
          out of the search.  How can this be prevented?
-
+         
    - Display:
      - When switching _back_ to a buffer, it seems like it loses the scroll position, instead preferring
        to center the cursor?  This is undesirable IMO... <<< Check this again
-
+       
      - I'd like to be able to hide the mark in text entry mode, and show the whole highlighted
        region in edit mode - perhaps even with a magic split at the top or bottom that shows where the mark
        is if it's off screen?
      - There are often repaint bugs with 4coder coming to the front / unminimizing, etc.
        I think this might have something to do with the way you're doing lots of semaphore
        locking but I haven't investigated yet. <<< How are we doing on this bug? It might be fixed but I haven't heard from anyone.
-
+       
      - Need a word-wrap mode that wraps at word boundaries instead of characters
      - Need to be able to set a word wrap length at something other than the window
      - First go-to-line for a file seems to still just go to the beginning of the buffer?
@@ -64,7 +64,7 @@
        of people on The Stream(TM)
      - Some kind of matching brace display so in long ifs, etc., you can see
        what they match (maybe draw it directly into the buffer?)
-
+       
    - Indentation:
      - Multiple // lines don't seem to indent properly.  The first one will go to the correct place, but the subsequent ones will go to the first column regardless?
      - Need to have better indentation / wrapping control for typing in comments. 
@@ -74,13 +74,13 @@
        etc.
      - It should never reindent text in comments that it doesn't know how to indent - eg., in a comment block, it shouldn't decide to move things around if it doesn't know what they are
      - Sometimes when I hit [ it inserts a [ _and_ a space?  I think this is related to the auto-indent? <<< Check this again
-
+     
    - Buffer management: 
      - I'd like to be able to set a buffer to "auto-revert", so it reloads automatically whenever it changes externally
      - If you undo back to where there are no changes, the "buffer changed" flag should be cleared
      - Seems like there's no way to switch to buffers whose names are substrings of other
        buffers' names without using the mouse? <<< Check this again
-
+       
    - File system
      - When switching to a buffer that has changed on disk, notify?  Really this can just
        be some way to query the modification flag and then the customization layer can do it?
@@ -88,14 +88,14 @@
      - I'd prefer it if file-open could create new files, and that I could get called on that
        so I can insert my boilerplate headers on new files
      - I'd prefer it if file-open deleted per-character instead of deleting entire path sections
-
+     
    - Need auto-complete for things like "arbitrary command", with options listed, etc.,
      so this should either be built into 4ed, or the custom DLL should have the ability
      to display possible completions and iterate over internal cmdid's, etc.  Possibly
      the latter, for maximal ability of customizers to add their own commands?
-
+     
    - Macro recording/playback
-
+   
    - Arbitrary cool features:
      - Once you can highlight things in 4coder buffers, I could make it so that my 
        metacompiler output _ranges_ for errors, so it highlights the whole token rather
@@ -107,7 +107,7 @@
      - You should just implement a shell inside 4coder which can call all the 4coder
        stuff as well as execute system stuff, so that from now on you just write
        scripts "in 4coder", etc., so they are always portable everywhere 4coder runs?
-
+       
    - Things I should write:
      - Ability to do "file open from same directory as the current buffer"
      - Spell-checker
@@ -139,11 +139,11 @@
 struct Parsed_Error
 {
     int exists;
-
+    
     String target_file_name;
     int target_line_number;
     int target_column_number;
-
+    
     int source_buffer_id;
     int source_position;
 };
@@ -157,7 +157,7 @@ static char BuildDirectory[4096] = "./";
 enum token_type
 {
     Token_Unknown,
-
+    
     Token_OpenParen,    
     Token_CloseParen,    
     Token_Asterisk,
@@ -168,13 +168,13 @@ enum token_type
     Token_Colon,
     Token_Number,
     Token_Comma,
-
+    
     Token_EndOfStream,
 };
 struct token
 {
     token_type Type;
-
+    
     size_t TextLength;
     char *Text;
 };
@@ -189,7 +189,7 @@ IsEndOfLine(char C)
 {
     bool Result = ((C == '\n') ||
                    (C == '\r'));
-
+    
     return(Result);
 }
 
@@ -201,7 +201,7 @@ IsWhitespace(char C)
                    (C == '\v') ||
                    (C == '\f') ||
                    IsEndOfLine(C));
-
+    
     return(Result);
 }
 
@@ -210,7 +210,7 @@ IsAlpha(char C)
 {
     bool Result = (((C >= 'a') && (C <= 'z')) ||
                    ((C >= 'A') && (C <= 'Z')));
-
+    
     return(Result);
 }
 
@@ -218,7 +218,7 @@ inline bool
 IsNumeric(char C)
 {
     bool Result = ((C >= '0') && (C <= '9'));
-
+    
     return(Result);
 }
 
@@ -250,7 +250,7 @@ EatAllWhitespace(tokenizer *Tokenizer)
             {
                 ++Tokenizer->At;
             }
-
+            
             if(Tokenizer->At[0] == '*')
             {
                 Tokenizer->At += 2;
@@ -267,7 +267,7 @@ static token
 GetToken(tokenizer *Tokenizer)
 {
     EatAllWhitespace(Tokenizer);
-
+    
     token Token = {};
     Token.TextLength = 1;
     Token.Text = Tokenizer->At;
@@ -276,7 +276,7 @@ GetToken(tokenizer *Tokenizer)
     switch(C)
     {
         case 0: {--Tokenizer->At; Token.Type = Token_EndOfStream;} break;
-
+        
         case '(': {Token.Type = Token_OpenParen;} break;
         case ')': {Token.Type = Token_CloseParen;} break;
         case '*': {Token.Type = Token_Asterisk;} break;
@@ -286,7 +286,7 @@ GetToken(tokenizer *Tokenizer)
         case '%': {Token.Type = Token_Percent;} break;
         case ':': {Token.Type = Token_Colon;} break;
         case ',': {Token.Type = Token_Comma;} break;
-
+        
         default:
         {
             if(IsNumeric(C))
@@ -307,7 +307,7 @@ GetToken(tokenizer *Tokenizer)
             }
         } break;        
     }
-
+    
     return(Token);
 }
 
@@ -325,7 +325,7 @@ IsH(String extension)
     bool Result = (match(extension, make_lit_string("h")) ||
                    match(extension, make_lit_string("hpp")) ||
                    match(extension, make_lit_string("hin")));
-
+    
     return(Result);
 }
 
@@ -335,7 +335,7 @@ IsCPP(String extension)
     bool Result = (match(extension, make_lit_string("c")) ||
                    match(extension, make_lit_string("cpp")) ||
                    match(extension, make_lit_string("cin")));
-
+    
     return(Result);
 }
 
@@ -343,7 +343,7 @@ inline bool
 IsINL(String extension)
 {
     bool Result = (match(extension, make_lit_string("inl")) != 0);
-
+    
     return(Result);
 }
 
@@ -351,7 +351,7 @@ inline bool
 IsCode(String extension)
 {
     bool Result = (IsH(extension) || IsCPP(extension) || IsINL(extension));
-
+    
     return(Result);
 }
 
@@ -404,7 +404,7 @@ DeleteAfterCommand(struct Application_Links *app, unsigned long long CommandID)
 {
     unsigned int access = AccessOpen;
     View_Summary view = get_active_view(app, access);
-
+    
     int pos2 = view.cursor.pos;
     if (CommandID < cmdid_count){
         exec_command(app, (Command_ID)CommandID);
@@ -414,9 +414,9 @@ DeleteAfterCommand(struct Application_Links *app, unsigned long long CommandID)
     }
     refresh_view(app, &view);
     int pos1 = view.cursor.pos;
-
+    
     Range range = make_range(pos1, pos2);
-
+    
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, access);
     buffer_replace_range(app, &buffer, range.min, range.max, 0, 0);
 }
@@ -435,18 +435,18 @@ CUSTOM_COMMAND_SIG(casey_kill_to_end_of_line)
 {
     unsigned int access = AccessOpen;
     View_Summary view = get_active_view(app, access);
-
+    
     int pos2 = view.cursor.pos;
     exec_command(app, seek_end_of_line);
     refresh_view(app, &view);
     int pos1 = view.cursor.pos;
-
+    
     Range range = make_range(pos1, pos2);
     if(pos1 == pos2)
     {
         range.max += 1;
     }
-
+    
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, access);
     buffer_replace_range(app, &buffer, range.min, range.max, 0, 0);
     exec_command(app, auto_tab_line_at_cursor);
@@ -496,16 +496,16 @@ inline switch_to_result
 SwitchToOrLoadFile(struct Application_Links *app, String FileName, bool CreateIfNotFound = false)
 {
     switch_to_result Result = {};
-
+    
     SanitizeSlashes(FileName);
     
     unsigned int access = AccessAll;
     View_Summary view = get_active_view(app, access);
     Buffer_Summary buffer = get_buffer_by_name(app, FileName.str, FileName.size, access);
-
+    
     Result.view = view;
     Result.buffer = buffer;
-
+    
     if(buffer.exists)
     {
         view_set_buffer(app, &view, buffer.buffer_id, 0);
@@ -525,7 +525,7 @@ SwitchToOrLoadFile(struct Application_Links *app, String FileName, bool CreateIf
             Result.Switched = true;
         }
     }
-
+    
     return(Result);
 }
 
@@ -543,29 +543,29 @@ CUSTOM_COMMAND_SIG(casey_build_search)
     // we should properly suballocating from app->memory.
     String dir = make_string(app->memory, 0, app->memory_size);
     dir.size = directory_get_hot(app, dir.str, dir.memory_size);
-
+    
     while (keep_going)
     {
         old_size = dir.size;
         append(&dir, "build.bat");
-
+        
         if (file_exists(app, dir.str, dir.size))
         {
             dir.size = old_size;
             memcpy(BuildDirectory, dir.str, dir.size);
             BuildDirectory[dir.size] = 0;
-
+            
             // TODO(allen): There are ways this could be boiled down
             // to one print message which would be better.
             print_message(app, literal("Building with: "));
             print_message(app, BuildDirectory, dir.size);
             print_message(app, literal("build.bat\n"));
-
+            
             return;
         }
-
+        
         dir.size = old_size;
-
+        
         if (directory_cd(app, dir.str, &dir.size, dir.memory_size, literal("..")) == 0)
         {
             keep_going = 0;
@@ -579,7 +579,7 @@ CUSTOM_COMMAND_SIG(casey_find_corresponding_file)
     unsigned int access = AccessProtected;
     View_Summary view = get_active_view(app, access);
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, access);
-
+    
     String extension = file_extension(make_string(buffer.file_name, buffer.file_name_len));
     if (extension.str)
     {       
@@ -589,14 +589,14 @@ CUSTOM_COMMAND_SIG(casey_find_corresponding_file)
             "hin",
             "h",
         };
-
+        
         char *CExtensions[] =
         {
             "c",
             "cin",
             "cpp",
         };
-
+        
         int ExtensionCount = 0;
         char **Extensions = 0;
         if(IsH(extension))
@@ -609,7 +609,7 @@ CUSTOM_COMMAND_SIG(casey_find_corresponding_file)
             ExtensionCount = ArrayCount(HExtensions);
             Extensions = HExtensions;
         }
-
+        
         int MaxExtensionLength = 3;
         int Space = (int)(buffer.file_name_len + MaxExtensionLength);
         String FileNameStem = make_string(buffer.file_name, (int)(extension.str - buffer.file_name), 0);
@@ -621,7 +621,7 @@ CUSTOM_COMMAND_SIG(casey_find_corresponding_file)
             TestFileName.size = 0;
             append(&TestFileName, FileNameStem);
             append(&TestFileName, Extensions[ExtensionIndex]);
-
+            
             if(SwitchToOrLoadFile(app, TestFileName, ((ExtensionIndex + 1) == ExtensionCount)).Switched)
             {
                 break;
@@ -635,12 +635,12 @@ CUSTOM_COMMAND_SIG(casey_find_corresponding_file_other_window)
     unsigned int access = AccessProtected;
     View_Summary old_view = get_active_view(app, access);
     Buffer_Summary buffer = get_buffer(app, old_view.buffer_id, access);
-
+    
     exec_command(app, change_active_panel);
     View_Summary new_view = get_active_view(app, AccessAll);
     view_set_buffer(app, &new_view, buffer.buffer_id, 0);
-
-//    exec_command(app, casey_find_corresponding_file);
+    
+    //    exec_command(app, casey_find_corresponding_file);
 }
 
 CUSTOM_COMMAND_SIG(casey_save_and_make_without_asking)
@@ -656,11 +656,6 @@ CUSTOM_COMMAND_SIG(casey_save_and_make_without_asking)
     {
         save_buffer(app, &buffer, buffer.file_name, buffer.file_name_len, 0);
     }
-    
-    // NOTE(allen): The parameter pushing made it a little easier
-    // to deal with this particular pattern where two similar strings
-    // were both used.  Now both strings need to exist at the same
-    // time on the users side.
     
     int size = app->memory_size/2;
     String dir = make_string(app->memory, 0, size);
@@ -683,14 +678,17 @@ CUSTOM_COMMAND_SIG(casey_save_and_make_without_asking)
     {
         unsigned int access = AccessAll;
         View_Summary view = get_active_view(app, access);
+        char *BufferName = GlobalCompilationBufferName;
+        int BufferNameLength = (int)strlen(GlobalCompilationBufferName);
         exec_system_command(app, &view,
-                            buffer_identifier(GlobalCompilationBufferName, (int)strlen(GlobalCompilationBufferName)),
+                            buffer_identifier(BufferName, BufferNameLength),
                             dir.str, dir.size,
                             command.str, command.size,
                             CLI_OverlapWithConflict);
+        lock_jump_buffer(BufferName, BufferNameLength);
     }
-    exec_command(app, change_active_panel);
     
+    exec_command(app, change_active_panel);
     prev_location = null_location;
 }
 
@@ -699,7 +697,7 @@ internal bool
 casey_errors_are_the_same(Parsed_Error a, Parsed_Error b)
 {
     bool result = ((a.exists == b.exists) && compare(a.target_file_name, b.target_file_name) && (a.target_line_number == b.target_line_number));
-
+    
     return(result);
 }
 
@@ -713,7 +711,7 @@ casey_goto_error(Application_Links *app, Parsed_Error e)
         {
             app->view_set_cursor(app, &Switch.view, seek_line_char(e.target_line_number, e.target_column_number), 1);
         }
-
+        
         View_Summary compilation_view = get_first_view_with_buffer(app, e.source_buffer_id);
         if(compilation_view.exists)
         {
@@ -726,24 +724,24 @@ internal Parsed_Error
 casey_parse_error(Application_Links *app, Buffer_Summary buffer, View_Summary view)
 {
     Parsed_Error result = {};
-
+    
     refresh_view(app, &view);
     int restore_pos = view.cursor.pos;
-
+    
     // TODO(allen): view_compute_cursor can get these
     // positions without ever changing the position of the cursor.
     app->view_set_cursor(app, &view, seek_line_char(view.cursor.line, 1), 1);
     int start = view.cursor.pos;
-
+    
     app->view_set_cursor(app, &view, seek_line_char(view.cursor.line, 65536), 1);
     int end = view.cursor.pos;
-
+    
     app->view_set_cursor(app, &view, seek_pos(restore_pos), 1);
-
+    
     int size = end - start;
-
+    
     char *ParsingRegion = (char *)malloc(size + 1);
-//    char *ParsingRegion = (char *)app->push_memory(app, size + 1);
+    //    char *ParsingRegion = (char *)app->push_memory(app, size + 1);
     app->buffer_read_range(app, &buffer, start, end, ParsingRegion);
     ParsingRegion[size] = 0;
     tokenizer Tokenizer = {ParsingRegion};
@@ -756,7 +754,7 @@ casey_parse_error(Application_Links *app, Buffer_Summary buffer, View_Summary vi
             if(LineToken.Type == Token_Number)
             {
                 token CloseToken = GetToken(&Tokenizer);
-
+                
                 int column_number = 0;
                 if(CloseToken.Type == Token_Comma)
                 {
@@ -767,7 +765,7 @@ casey_parse_error(Application_Links *app, Buffer_Summary buffer, View_Summary vi
                         CloseToken = GetToken(&Tokenizer);
                     }
                 }
-
+                
                 if(CloseToken.Type == Token_CloseParen)
                 {
                     token ColonToken = GetToken(&Tokenizer);
@@ -775,7 +773,7 @@ casey_parse_error(Application_Links *app, Buffer_Summary buffer, View_Summary vi
                     {
                         // NOTE(casey): We maybe found an error!
                         int line_number = atoi(LineToken.Text);
-
+                        
                         char *Seek = Token.Text;
                         while(Seek != ParsingRegion)
                         {
@@ -787,17 +785,17 @@ casey_parse_error(Application_Links *app, Buffer_Summary buffer, View_Summary vi
                                 }
                                 break;
                             }
-
+                            
                             --Seek;
                         }
-
+                        
                         result.exists = true;
                         result.target_file_name = make_string(Seek, (int)(Token.Text - Seek));;
                         result.target_line_number = line_number;
                         result.target_column_number = column_number;
                         result.source_buffer_id = buffer.buffer_id;
                         result.source_position = start + (int)(ColonToken.Text - ParsingRegion);
-
+                        
                         break;
                     }
                 }
@@ -809,7 +807,7 @@ casey_parse_error(Application_Links *app, Buffer_Summary buffer, View_Summary vi
         }
     }
     free(ParsingRegion);
-
+    
     return(result);
 }
 
@@ -818,10 +816,10 @@ casey_seek_error_dy(Application_Links *app, int dy)
 {
     Buffer_Summary Buffer = app->get_buffer_by_name(app, GlobalCompilationBufferName, (int)strlen(GlobalCompilationBufferName), AccessAll);
     View_Summary compilation_view = get_first_view_with_buffer(app, Buffer.buffer_id);
-
+    
     // NOTE(casey): First get the current error (which may be none, if we've never parsed before)
     Parsed_Error StartingError = casey_parse_error(app, Buffer, compilation_view);
-
+    
     // NOTE(casey): Now hunt for the previous distinct error
     for(;;)
     {
@@ -846,7 +844,7 @@ casey_seek_error_dy(Application_Links *app, int dy)
 
 CUSTOM_COMMAND_SIG(casey_goto_previous_error)
 {
-//    casey_seek_error_dy(app, -1);
+    //    casey_seek_error_dy(app, -1);
     seek_error(app, &global_part, true, false, -1);
 }
 
@@ -888,13 +886,13 @@ CUSTOM_COMMAND_SIG(casey_fill_paragraph)
 enum calc_node_type
 {
     CalcNode_UnaryMinus,
-
+    
     CalcNode_Add,
     CalcNode_Subtract,
     CalcNode_Multiply,
     CalcNode_Divide,
     CalcNode_Mod,
-
+    
     CalcNode_Constant,
 };
 struct calc_node
@@ -909,7 +907,7 @@ internal double
 ExecCalcNode(calc_node *Node)
 {
     double Result = 0.0f;
-
+    
     if(Node)
     {
         switch(Node->Type)
@@ -924,7 +922,7 @@ ExecCalcNode(calc_node *Node)
             default: {Assert(!"AHHHHH!");}
         }
     }
-
+    
     return(Result);
 }
 
@@ -954,10 +952,10 @@ internal calc_node *
 ParseNumber(tokenizer *Tokenizer)
 {
     calc_node *Result = AddNode(CalcNode_Constant);
-
+    
     token Token = GetToken(Tokenizer);
     Result->Value = atof(Token.Text);
-
+    
     return(Result);
 }
 
@@ -965,7 +963,7 @@ internal calc_node *
 ParseConstant(tokenizer *Tokenizer)
 {
     calc_node *Result = 0;
-
+    
     token Token = PeekToken(Tokenizer);
     if(Token.Type == Token_Minus)
     {
@@ -977,7 +975,7 @@ ParseConstant(tokenizer *Tokenizer)
     {
         Result = ParseNumber(Tokenizer);
     }
-
+    
     return(Result);
 }
 
@@ -985,7 +983,7 @@ internal calc_node *
 ParseMultiplyExpression(tokenizer *Tokenizer)
 {
     calc_node *Result = 0;
-
+    
     token Token = PeekToken(Tokenizer);
     if((Token.Type == Token_Minus) ||
        (Token.Type == Token_Number))
@@ -1003,7 +1001,7 @@ ParseMultiplyExpression(tokenizer *Tokenizer)
             Result = AddNode(CalcNode_Multiply, Result, ParseNumber(Tokenizer));
         }
     }
-
+    
     return(Result);
 }
 
@@ -1011,7 +1009,7 @@ internal calc_node *
 ParseAddExpression(tokenizer *Tokenizer)
 {
     calc_node *Result = 0;
-
+    
     token Token = PeekToken(Tokenizer);
     if((Token.Type == Token_Minus) ||
        (Token.Type == Token_Number))
@@ -1029,7 +1027,7 @@ ParseAddExpression(tokenizer *Tokenizer)
             Result = AddNode(CalcNode_Subtract, Result, ParseMultiplyExpression(Tokenizer));
         }
     }
-
+    
     return(Result);
 }
 
@@ -1037,7 +1035,7 @@ internal calc_node *
 ParseCalc(tokenizer *Tokenizer)
 {
     calc_node *Node = ParseAddExpression(Tokenizer);
-
+    
     return(Node);
 }
 
@@ -1045,26 +1043,26 @@ CUSTOM_COMMAND_SIG(casey_quick_calc)
 {
     unsigned int access = AccessOpen;
     View_Summary view = get_active_view(app, access);
-
+    
     Range range = get_range(&view);
-
+    
     size_t Size = range.max - range.min;
     char *Stuff = (char *)malloc(Size + 1);
     Stuff[Size] = 0;
-
+    
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, access);
     buffer_read_range(app, &buffer, range.min, range.max, Stuff);
-
+    
     tokenizer Tokenizer = {Stuff};
     calc_node *CalcTree = ParseCalc(&Tokenizer);
     double ComputedValue = ExecCalcNode(CalcTree);
     FreeCalcNode(CalcTree);
-
+    
     char ResultBuffer[256];
     int ResultSize = sprintf(ResultBuffer, "%f", ComputedValue);
-
+    
     buffer_replace_range(app, &buffer, range.min, range.max, ResultBuffer, ResultSize);
-
+    
     free(Stuff);
 }
 
@@ -1072,7 +1070,7 @@ internal void
 OpenProject(Application_Links *app, char *ProjectFileName)
 {
     int TotalOpenAttempts = 0;
-
+    
     FILE *ProjectFile = fopen(ProjectFileName, "r");
     if(ProjectFile)
     {
@@ -1082,13 +1080,13 @@ OpenProject(Application_Links *app, char *ProjectFileName)
         {
             --BuildDirSize;
         }
-
+        
         if((BuildDirSize) && (BuildDirectory[BuildDirSize - 1] != '/'))
         {
             BuildDirectory[BuildDirSize++] = '/';
             BuildDirectory[BuildDirSize] = 0;
         }
-
+        
         char SourceFileDirectoryName[4096];
         char FileDirectoryName[4096];
         while(fgets(SourceFileDirectoryName, sizeof(SourceFileDirectoryName) - 1, ProjectFile))
@@ -1101,15 +1099,15 @@ OpenProject(Application_Links *app, char *ProjectFileName)
             {
                 --dir.size;
             }
-
+            
             if(dir.size && dir.str[dir.size-1] != '/')
             {
                 dir.str[dir.size++] = '/';
             }
-
+            
             File_List list = get_file_list(app, dir.str, dir.size);
             int dir_size = dir.size;
-
+            
             for (int i = 0; i < list.count; ++i)
             {
                 File_Info *info = list.infos + i;
@@ -1125,16 +1123,16 @@ OpenProject(Application_Links *app, char *ProjectFileName)
                         // was originally, so that new appends overwrite old ones.
                         dir.size = dir_size;
                         append(&dir, info->filename);
-
+                        
                         open_file(app, 0, dir.str, dir.size, true, true);
                         ++TotalOpenAttempts;
                     }
                 }
             }
-
+            
             free_file_list(app, list);
         }
-
+        
         fclose(ProjectFile);
     }
 }    
@@ -1145,13 +1143,13 @@ CUSTOM_COMMAND_SIG(casey_execute_arbitrary_command)
     char space[1024], more_space[1024];
     bar.prompt = make_lit_string("Command: ");
     bar.string = make_fixed_width_string(space);
-
+    
     if (!query_user_string(app, &bar)) return;
     end_query_bar(app, &bar, 0);
-
+    
     if(match(bar.string, make_lit_string("project")))
     {
-//        exec_command(app, open_all_code);
+        //        exec_command(app, open_all_code);
     }
     else if(match(bar.string, make_lit_string("open menu")))
     {
@@ -1163,7 +1161,7 @@ CUSTOM_COMMAND_SIG(casey_execute_arbitrary_command)
         append(&bar.prompt, make_lit_string("Unrecognized: "));
         append(&bar.prompt, bar.string);
         bar.string.size = 0;
-
+        
         start_query_bar(app, &bar, 0);
         get_user_input(app, EventOnAnyKey | EventOnButton, 0);
     }
@@ -1182,7 +1180,7 @@ UpdateModalIndicator(Application_Links *app)
         {Stag_Margin_Active, 0x404040},
         {Stag_Bar, 0xCACACA}
     };
-
+    
     Theme_Color edit_colors[] = 
     {
         {Stag_Cursor, 0xFF0000},
@@ -1193,7 +1191,7 @@ UpdateModalIndicator(Application_Links *app)
         {Stag_Margin_Active, 0x934420},
         {Stag_Bar, 0x934420}
     };
-
+    
     if (GlobalEditMode){
         set_theme_colors(app, edit_colors, ArrayCount(edit_colors));
     }
@@ -1304,10 +1302,10 @@ OPEN_FILE_HOOK_SIG(casey_file_settings)
     unsigned int access = AccessAll;
     //Buffer_Summary buffer = app->get_parameter_buffer(app, 0, access);
     Buffer_Summary buffer = get_buffer(app, buffer_id, access);
-
+    
     int treat_as_code = 0;
     int treat_as_project = 0;
-
+    
     if (buffer.file_name && buffer.size < (16 << 20))
     {
         String ext = file_extension(make_string(buffer.file_name, buffer.file_name_len));
@@ -1323,10 +1321,10 @@ OPEN_FILE_HOOK_SIG(casey_file_settings)
     {
         OpenProject(app, buffer.file_name);
         // NOTE(casey): Don't actually want to kill this, or you can never edit the project.
-//        exec_command(app, cmdid_kill_buffer);
-
+        //        exec_command(app, cmdid_kill_buffer);
+        
     }
-
+    
     return(0);
 }
 
@@ -1334,7 +1332,7 @@ bool
 CubicUpdateFixedDuration1(float *P0, float *V0, float P1, float V1, float Duration, float dt)
 {
     bool Result = false;
-
+    
     if(dt > 0)
     {
         if(Duration < dt)
@@ -1347,27 +1345,27 @@ CubicUpdateFixedDuration1(float *P0, float *V0, float P1, float V1, float Durati
         {
             float t = (dt / Duration);
             float u = (1.0f - t);
-
+            
             float C0 = 1*u*u*u;
             float C1 = 3*u*u*t;
             float C2 = 3*u*t*t;
             float C3 = 1*t*t*t;
-
+            
             float dC0 = -3*u*u;
             float dC1 = -6*u*t + 3*u*u;
             float dC2 =  6*u*t - 3*t*t;
             float dC3 =  3*t*t;
-
+            
             float B0 = *P0;
             float B1 = *P0 + (Duration / 3.0f) * *V0;
             float B2 = P1 - (Duration / 3.0f) * V1;
             float B3 = P1;
-
+            
             *P0 = C0*B0 + C1*B1 + C2*B2 + C3*B3;
             *V0 = (dC0*B0 + dC1*B1 + dC2*B2 + dC3*B3) * (1.0f / Duration);
         }
     }
-
+    
     return(Result);
 }
 
@@ -1385,18 +1383,18 @@ SCROLL_RULE_SIG(casey_smooth_scroll_rule){
     if(is_new_target)
     {
         if((*scroll_x != target_x) ||
-            (*scroll_y != target_y))
+           (*scroll_y != target_y))
         {
             velocity->t = 0.1f;
         }
     }
-
+    
     if(velocity->t > 0)
     {
         result = !(CubicUpdateFixedDuration1(scroll_x, &velocity->x, target_x, 0.0f, velocity->t, dt) ||
-                CubicUpdateFixedDuration1(scroll_y, &velocity->y, target_y, 0.0f, velocity->t, dt));
+                   CubicUpdateFixedDuration1(scroll_y, &velocity->y, target_y, 0.0f, velocity->t, dt));
     }
-
+    
     velocity->t -= dt;
     if(velocity->t < 0)
     {
@@ -1404,7 +1402,7 @@ SCROLL_RULE_SIG(casey_smooth_scroll_rule){
         *scroll_x = target_x;
         *scroll_y = target_y;
     }
-
+    
     return(result);
 }
 
@@ -1415,7 +1413,7 @@ static WINDOWPLACEMENT GlobalWindowPosition = {sizeof(GlobalWindowPosition)};
 internal BOOL CALLBACK win32_find_4coder_window(HWND Window, LPARAM LParam)
 {
     BOOL Result = TRUE;
-
+    
     char TestClassName[256];
     GetClassName(Window, TestClassName, sizeof(TestClassName));
     if((strcmp("4coder-win32-wndclass", TestClassName) == 0) && 
@@ -1424,7 +1422,7 @@ internal BOOL CALLBACK win32_find_4coder_window(HWND Window, LPARAM LParam)
         GlobalWindowHandle = Window;
         Result = FALSE;
     }
-
+    
     return(Result);
 }
 
@@ -1435,21 +1433,21 @@ win32_toggle_fullscreen(void)
     // NOTE(casey): This follows Raymond Chen's prescription
     // for fullscreen toggling, see:
     // http://blogs.msdn.com/b/oldnewthing/archive/2010/04/12/9994016.aspx
-
+    
     HWND Window = GlobalWindowHandle;
     DWORD Style = GetWindowLong(Window, GWL_STYLE);
     if(Style & WS_OVERLAPPEDWINDOW)
     {
         MONITORINFO MonitorInfo = {sizeof(MonitorInfo)};
         if(GetWindowPlacement(Window, &GlobalWindowPosition) &&
-            GetMonitorInfo(MonitorFromWindow(Window, MONITOR_DEFAULTTOPRIMARY), &MonitorInfo))
+           GetMonitorInfo(MonitorFromWindow(Window, MONITOR_DEFAULTTOPRIMARY), &MonitorInfo))
         {
             SetWindowLong(Window, GWL_STYLE, Style & ~WS_OVERLAPPEDWINDOW);
             SetWindowPos(Window, HWND_TOP,
-                            MonitorInfo.rcMonitor.left, MonitorInfo.rcMonitor.top,
-                            MonitorInfo.rcMonitor.right - MonitorInfo.rcMonitor.left,
-                            MonitorInfo.rcMonitor.bottom - MonitorInfo.rcMonitor.top,
-                            SWP_NOOWNERZORDER | SWP_FRAMECHANGED);
+                         MonitorInfo.rcMonitor.left, MonitorInfo.rcMonitor.top,
+                         MonitorInfo.rcMonitor.right - MonitorInfo.rcMonitor.left,
+                         MonitorInfo.rcMonitor.bottom - MonitorInfo.rcMonitor.top,
+                         SWP_NOOWNERZORDER | SWP_FRAMECHANGED);
         }
     }
     else
@@ -1457,8 +1455,8 @@ win32_toggle_fullscreen(void)
         SetWindowLong(Window, GWL_STYLE, Style | WS_OVERLAPPEDWINDOW);
         SetWindowPlacement(Window, &GlobalWindowPosition);
         SetWindowPos(Window, 0, 0, 0, 0, 0,
-                        SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER |
-                        SWP_NOOWNERZORDER | SWP_FRAMECHANGED);
+                     SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER |
+                     SWP_NOOWNERZORDER | SWP_FRAMECHANGED);
     }
 #else
     ShowWindow(GlobalWindowHandle, SW_MAXIMIZE);
@@ -1477,10 +1475,10 @@ HOOK_SIG(casey_start)
     exec_command(app, open_panel_vsplit);
     exec_command(app, hide_scrollbar);
     exec_command(app, change_active_panel);
-
+    
     change_theme(app, literal("Handmade Hero"));
     change_font(app, literal("Liberation Mono"), true);
-
+    
     Theme_Color colors[] =
     {
         {Stag_Default, 0xA08563},
@@ -1514,9 +1512,9 @@ HOOK_SIG(casey_start)
         // {Stag_Next_Undo, },
     };
     set_theme_colors(app, colors, ArrayCount(colors));
-
+    
     win32_toggle_fullscreen();
-
+    
     return(0);
 }
 
@@ -1524,14 +1522,14 @@ extern "C" GET_BINDING_DATA(get_bindings)
 {
     Bind_Helper context_actual = begin_bind_helper(data, size);
     Bind_Helper *context = &context_actual;
-
+    
     set_hook(context, hook_start, casey_start);
     set_command_caller(context, default_command_caller);
     set_open_file_hook(context, casey_file_settings);
     set_scroll_rule(context, casey_smooth_scroll_rule);
-
+    
     EnumWindows(win32_find_4coder_window, 0);
-
+    
     begin_map(context, mapid_global);
     {
         bind(context, 'z', MDFR_NONE, cmdid_interactive_open);
@@ -1542,28 +1540,28 @@ extern "C" GET_BINDING_DATA(get_bindings)
         bind(context, key_page_up, MDFR_NONE, search);
         bind(context, key_page_down, MDFR_NONE, reverse_search);
         bind(context, 'm', MDFR_NONE, casey_save_and_make_without_asking);
-
+        
         // NOTE(allen): Added this so mouse would keep working rougly as before.
         // Of course now there could be a modal click behavior if that will be useful.
         // As well as right click.
         bind(context, key_mouse_left, MDFR_NONE, click_set_cursor);
     }        
     end_map(context);
-
+    
     begin_map(context, mapid_file);
-
+    
     bind_vanilla_keys(context, write_character);
-
+    
     bind(context, key_insert, MDFR_NONE, begin_free_typing);
     bind(context, '`', MDFR_NONE, begin_free_typing);
     bind(context, key_esc, MDFR_NONE, end_free_typing);
     bind(context, '\n', MDFR_NONE, casey_newline_and_indent);
     bind(context, '\n', MDFR_SHIFT, casey_newline_and_indent);
-
+    
     // NOTE(casey): Modal keys come here.
     bind(context, ' ', MDFR_NONE, modal_space);
     bind(context, ' ', MDFR_SHIFT, modal_space);
-
+    
     bind(context, '\\', MDFR_NONE, modal_back_slash);
     bind(context, '\'', MDFR_NONE, modal_single_quote);
     bind(context, ',', MDFR_NONE, modal_comma);
@@ -1600,7 +1598,7 @@ extern "C" GET_BINDING_DATA(get_bindings)
     bind(context, 'x', MDFR_NONE, modal_x);
     bind(context, 'y', MDFR_NONE, modal_y);
     bind(context, 'z', MDFR_NONE, modal_z);
-
+    
     bind(context, '1', MDFR_NONE, modal_1);
     bind(context, '2', MDFR_NONE, modal_2);
     bind(context, '3', MDFR_NONE, modal_3);
@@ -1613,42 +1611,42 @@ extern "C" GET_BINDING_DATA(get_bindings)
     bind(context, '0', MDFR_NONE, modal_0);
     bind(context, '-', MDFR_NONE, modal_minus);
     bind(context, '=', MDFR_NONE, modal_equals);
-
+    
     bind(context, key_back, MDFR_NONE, modal_backspace);
     bind(context, key_back, MDFR_SHIFT, modal_backspace);
-
+    
     bind(context, key_up, MDFR_NONE, modal_up);
     bind(context, key_up, MDFR_SHIFT, modal_up);
-
+    
     bind(context, key_down, MDFR_NONE, modal_down);
     bind(context, key_down, MDFR_SHIFT, modal_down);
-
+    
     bind(context, key_left, MDFR_NONE, modal_left);
     bind(context, key_left, MDFR_SHIFT, modal_left);
-
+    
     bind(context, key_right, MDFR_NONE, modal_right);
     bind(context, key_right, MDFR_SHIFT, modal_right);
-
+    
     bind(context, key_del, MDFR_NONE, modal_delete);
     bind(context, key_del, MDFR_SHIFT, modal_delete);
-
+    
     bind(context, key_home, MDFR_NONE, modal_home);
     bind(context, key_home, MDFR_SHIFT, modal_home);
-
+    
     bind(context, key_end, MDFR_NONE, modal_end);
     bind(context, key_end, MDFR_SHIFT, modal_end);
-
+    
     bind(context, key_page_up, MDFR_NONE, modal_page_up);
     bind(context, key_page_up, MDFR_SHIFT, modal_page_up);
-
+    
     bind(context, key_page_down, MDFR_NONE, modal_page_down);
     bind(context, key_page_down, MDFR_SHIFT, modal_page_down);
-
+    
     bind(context, '\t', MDFR_NONE, modal_tab);
     bind(context, '\t', MDFR_SHIFT, modal_tab);
-
+    
     end_map(context);
-
+    
     end_bind_helper(context);
     return context->write_total;
 }

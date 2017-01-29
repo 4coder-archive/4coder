@@ -23,35 +23,24 @@ struct Application_Memory{
     i32 user_memory_size;
 };
 
-#define KEY_INPUT_BUFFER_SIZE 4
-#define KEY_INPUT_BUFFER_DSIZE (KEY_INPUT_BUFFER_SIZE << 1)
+#define KEY_INPUT_BUFFER_SIZE 8
+#define KEY_EXTRA_SIZE 2
 
 struct Key_Input_Data{
-    Key_Event_Data press[KEY_INPUT_BUFFER_SIZE];
-    Key_Event_Data hold[KEY_INPUT_BUFFER_SIZE];
-    i32 press_count;
-    i32 hold_count;
-    
-    // TODO(allen): determine if we still need this.
-    char modifiers[MDFR_INDEX_COUNT];
+    Key_Event_Data keys[KEY_INPUT_BUFFER_SIZE + KEY_EXTRA_SIZE];
+    i32 count;
 };
 static Key_Input_Data null_key_input_data = {0};
 
-struct Key_Summary{
-    i32 count;
-    Key_Event_Data keys[KEY_INPUT_BUFFER_DSIZE + 2];
-};
-
 inline Key_Event_Data
-get_single_key(Key_Summary *summary, i32 index){
-    Key_Event_Data key;
-    key = summary->keys[index];
-    return key;
+get_single_key(Key_Input_Data *data, i32 index){
+    Key_Event_Data key = data->keys[index];
+    return(key);
 }
 
 typedef struct Input_Summary{
     Mouse_State mouse;
-    Key_Summary keys;
+    Key_Input_Data keys;
     f32 dt;
 } Input_Summary;
 

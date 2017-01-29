@@ -1,5 +1,5 @@
 /*
-4coder_string.h - Version 1.0.14
+4coder_string.h - Version 1.0.59
 no warranty implied; use at your own risk
 
 This software is in the public domain. Where that dedication is not
@@ -94,8 +94,10 @@ FSTRING_INLINE String              make_string_slowly(void *str);
 FSTRING_INLINE String              substr_tail(String str, i32_4tech start);
 FSTRING_INLINE String              substr(String str, i32_4tech start, i32_4tech size);
 FSTRING_LINK String                skip_whitespace(String str);
+FSTRING_LINK String                skip_whitespace_measure(String str, i32_4tech *skip_length);
 FSTRING_LINK String                chop_whitespace(String str);
 FSTRING_LINK String                skip_chop_whitespace(String str);
+FSTRING_LINK String                skip_chop_whitespace_measure(String str, i32_4tech *skip_length);
 FSTRING_INLINE String              tailstr(String str);
 FSTRING_LINK b32_4tech             match_cc(char *a, char *b);
 FSTRING_LINK b32_4tech             match_sc(String a, char *b);
@@ -199,6 +201,8 @@ FSTRING_LINK String                get_first_word(String source);
 
 FSTRING_INLINE String              make_string(void *str, i32_4tech size, i32_4tech mem_size){return(make_string_cap(str,size,mem_size));}
 FSTRING_INLINE String              substr(String str, i32_4tech start){return(substr_tail(str,start));}
+FSTRING_LINK String                skip_whitespace(String str, i32_4tech *skip_length){return(skip_whitespace_measure(str,skip_length));}
+FSTRING_LINK String                skip_chop_whitespace(String str, i32_4tech *skip_length){return(skip_chop_whitespace_measure(str,skip_length));}
 FSTRING_LINK b32_4tech             match(char *a, char *b){return(match_cc(a,b));}
 FSTRING_LINK b32_4tech             match(String a, char *b){return(match_sc(a,b));}
 FSTRING_INLINE b32_4tech           match(char *a, String b){return(match_cs(a,b));}
@@ -460,6 +464,20 @@ skip_whitespace(String str)
 }
 #endif
 
+
+#if defined(FSTRING_IMPLEMENTATION)
+FSTRING_LINK String
+skip_whitespace_measure(String str, i32_4tech *skip_length)
+{
+    String result = {0};
+    i32_4tech i = 0;
+    for (; i < str.size && char_is_whitespace(str.str[i]); ++i);
+    result = substr(str, i, str.size - i);
+    *skip_length = i;
+    return(result);
+}
+#endif
+
 #if defined(FSTRING_IMPLEMENTATION)
 FSTRING_LINK String
 chop_whitespace(String str)
@@ -477,6 +495,17 @@ FSTRING_LINK String
 skip_chop_whitespace(String str)
 {
     str = skip_whitespace(str);
+    str = chop_whitespace(str);
+    return(str);
+}
+#endif
+
+
+#if defined(FSTRING_IMPLEMENTATION)
+FSTRING_LINK String
+skip_chop_whitespace_measure(String str, i32_4tech *skip_length)
+{
+    str = skip_whitespace_measure(str, skip_length);
     str = chop_whitespace(str);
     return(str);
 }
@@ -2031,7 +2060,7 @@ static void
 get_absolutes(String name, Absolutes *absolutes, b32_4tech implicit_first, b32_4tech implicit_last){
     if (name.size != 0){
         i32_4tech count = 0;
-        i32_4tech max = sizeof(absolutes->a)/sizeof(absolutes->a[0]) - 1;
+        i32_4tech max = (sizeof(absolutes->a)/sizeof(*absolutes->a)) - 1;
         if (implicit_last) --max;
         
         String str;
