@@ -13,11 +13,7 @@ struct Plat_Handle{
     u32 d[4];
 };
 
-inline Plat_Handle
-handle_zero(void){
-    Plat_Handle result = {0};
-    return(result);
-}
+static Plat_Handle null_plat_handle = {0};
 
 inline int32_t
 handle_equal(Plat_Handle a, Plat_Handle b){

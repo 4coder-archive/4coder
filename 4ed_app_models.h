@@ -16,11 +16,15 @@ struct App_Settings{
     char *init_files[8];
     i32 init_files_count;
     i32 init_files_max;
-
+    
     i32 initial_line;
     b32 lctrl_lalt_is_altgr;
     
     i32 font_size;
+    
+    char *custom_font_file;
+    char *custom_font_name;
+    i32 custom_font_size;
     
     i32 custom_arg_start;
     i32 custom_arg_end;

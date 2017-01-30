@@ -2231,12 +2231,7 @@ WinMain(HINSTANCE hInstance,
     char **files = 0;
     i32 *file_count = 0;
     
-    win32vars.app.read_command_line(&win32vars.system,
-                                    &memory_vars,
-                                    current_directory,
-                                    &win32vars.settings,
-                                    &files, &file_count,
-                                    clparams);
+    win32vars.app.read_command_line(&win32vars.system, &memory_vars, current_directory, &win32vars.settings, &files, &file_count, clparams);
     
     sysshared_filter_real_files(files, file_count);
     

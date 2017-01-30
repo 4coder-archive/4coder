@@ -63,7 +63,7 @@ typedef struct Plat_Settings{
     b8 use_hinting;
 } Plat_Settings;
 
-#define App_Read_Command_Line_Sig(name)                 \
+#define App_Read_Command_Line_Sig(name)             \
 i32 name(System_Functions *system,                  \
 Application_Memory *memory,                \
 String current_directory,                  \

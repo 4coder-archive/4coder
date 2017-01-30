@@ -1072,7 +1072,7 @@ DOC_SEE(begin_buffer_creation)
             }
             
             if (!do_new_file){
-                Assert(!handle_equal(handle, handle_zero()));
+                Assert(!handle_equal(handle, null_plat_handle));
                 
                 i32 size = system->load_size(handle);
                 b32 in_general_mem = 0;
