@@ -1267,7 +1267,7 @@ Sys_Grow_Thread_Memory_Sig(system_grow_thread_memory){
     system_acquire_lock(CANCEL_LOCK0 + memory->id - 1);
     old_data = memory->data;
     old_size = memory->size;
-    new_size = l_round_up(memory->size*2, KB(4));
+    new_size = l_round_up_i32(memory->size*2, KB(4));
     memory->data = system_get_memory(new_size);
     memory->size = new_size;
     if (old_data){
@@ -1975,16 +1975,8 @@ LinuxKeycodeInit(Display* dpy){
 internal void
 LinuxPushKey(u8 code, u8 chr, u8 chr_nocaps, b8 (*mods)[MDFR_INDEX_COUNT], b32 is_hold)
 {
-    i32 *count;
-    Key_Event_Data *data;
-    
-    if(is_hold){
-        count = &linuxvars.input.keys.hold_count;
-        data = linuxvars.input.keys.hold;
-    } else {
-        count = &linuxvars.input.keys.press_count;
-        data = linuxvars.input.keys.press;
-    }
+    i32 *count = &linuxvars.input.keys.count;
+    Key_Event_Data *data = linuxvars.input.keys.keys;
     
     if(*count < KEY_INPUT_BUFFER_SIZE){
         data[*count].keycode = code;
