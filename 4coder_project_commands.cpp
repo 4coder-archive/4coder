@@ -217,7 +217,8 @@ CUSTOM_COMMAND_SIG(load_project){
                             Config_Item item = get_config_item(config_line, mem, array);
                             
                             {
-                                String str = {0};
+                                char str_space[512];
+                                String str = make_fixed_width_string(str_space);
                                 if (config_string_var(item, "extensions", 0, &str)){
                                     if (str.size < sizeof(current_project.extension_space)){
                                         set_project_extensions(&current_project, str);
@@ -300,7 +301,8 @@ CUSTOM_COMMAND_SIG(load_project){
                                                     dest_str[0] = 0;
                                                 }
                                                 
-                                                String str = {0};
+                                                char str_space[512];
+                                                String str = make_fixed_width_string(str_space);
                                                 if (config_string_var(array_item, 0, 0, &str)){
                                                     if (str.size < dest_str_size){
                                                         interpret_escaped_string(dest_str, str);

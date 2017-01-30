@@ -486,7 +486,8 @@ config_var(Config_Item item, char *var_name, int32_t *subscript, uint32_t token_
                         
                         case CPP_TOKEN_STRING_CONSTANT:
                         {
-                            *(String*)var_out = make_string(item.mem + item.line.val_token.start + 1,item.line.val_token.size - 2);
+                            String str = make_string(item.mem + item.line.val_token.start + 1,item.line.val_token.size - 2);
+                            copy((String*)var_out, str);
                         }break;
                         
                         case CPP_TOKEN_BRACE_OPEN:
@@ -584,21 +585,43 @@ static int32_t default_wrap_width = 672;
 static int32_t default_min_base_width = 550;
 static bool32 automatically_indent_text_on_save = 1;
 
-static String default_theme_name = make_lit_string("4coder");
-static String default_font_name = make_lit_string("Liberation Sans");
+static char default_theme_name_space[256] = {0};
+static String default_theme_name = make_fixed_width_string(default_theme_name_space);
 
-static String user_name = {0};
+static char default_font_name_space[256] = {0};
+static String default_font_name = make_fixed_width_string(default_font_name_space);
+
+static char user_name_space[256] = {0};
+static String user_name = make_fixed_width_string(user_name_space);
 
 static bool32
 get_current_name(char **name_out, int32_t *len_out){
     bool32 result = false;
     *name_out = 0;
-    if (user_name.str != 0){
+    if (user_name.str[0] != 0){
         *name_out = user_name.str;
         *len_out = user_name.size;
         result = true;
     }
     return(result);
+}
+
+static String
+get_default_theme_name(){
+    String str = default_theme_name;
+    if (str.size == 0){
+        str = make_lit_string("4coder");
+    }
+    return(str);
+}
+
+static String
+get_default_font_name(){
+    String str = default_font_name;
+    if (str.size == 0){
+        str = make_lit_string("Liberation Mono");
+    }
+    return(str);
 }
 
 // TODO(allen): Stop handling files this way!  My own API should be able to do this!!?!?!?!!?!?!!!!?
@@ -712,8 +735,12 @@ static void
 default_4coder_initialize(Application_Links *app){
     init_memory(app);
     process_config_file(app);
-    change_theme(app, default_theme_name.str, default_theme_name.size);
-    change_font(app, default_font_name.str, default_font_name.size, 1);
+    
+    String theme = get_default_theme_name();
+    String font = get_default_font_name();
+    
+    change_theme(app, theme.str, theme.size);
+    change_font(app, font.str, font.size, 1);
 }
 
 static void
@@ -730,8 +757,12 @@ default_4coder_one_panel(Application_Links *app){
 }
 
 static void
-default_4coder_full_width_bottom_side_by_side_panels(Application_Links){
-    // TODO(allen): 
+default_4coder_full_width_bottom_side_by_side_panels(Application_Links *app){
+    open_special_note_view(app);
+    exec_command(app, open_panel_vsplit);
+    exec_command(app, hide_scrollbar);
+    exec_command(app, change_active_panel);
+    exec_command(app, hide_scrollbar);
 }
 
 #endif

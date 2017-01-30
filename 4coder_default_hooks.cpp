@@ -14,7 +14,8 @@ TYPE: 'internal-for-default-system'
 
 HOOK_SIG(default_start){
     default_4coder_initialize(app);
-    default_4coder_side_by_side_panels(app);
+    //default_4coder_side_by_side_panels(app);
+    default_4coder_full_width_bottom_side_by_side_panels(app);
     
     // no meaning for return
     return(0);
