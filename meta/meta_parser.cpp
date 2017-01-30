@@ -1220,7 +1220,6 @@ compile_meta_unit(Partition *part, char *code_directory, char **files, Meta_Keyw
         }
     }
     
-    
     if (all_files_lexed){
         // TODO(allen): This stage counts nested structs and unions which is not correct.  Luckily it only means we over allocate by a few items, but fixing it to be exactly correct would be nice.
         for (int32_t J = 0; J < unit.count; ++J){

@@ -462,10 +462,8 @@ site_build(char *cdir, u32 flags){
     
     {
         BEGIN_TIME_SECTION();
-        
         DECL_STR(cmd, "../build/site/sitegen . ../site_resources site/source_material ../site");
         systemf("%s", cmd);
-        
         END_TIME_SECTION("run sitegen");
     }
 }

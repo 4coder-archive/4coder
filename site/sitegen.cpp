@@ -21,6 +21,8 @@
 #include <string.h>
 
 #include "../4tech_defines.h"
+#include "../meta/4tech_meta_defines.h"
+
 #include "../4coder_API/version.h"
 #define FSTRING_IMPLEMENTATION
 #include "../4coder_lib/4coder_string.h"
@@ -185,22 +187,21 @@ generate_4coder_docs(Document_System *doc_system, Partition *part, char *code_di
     Enriched_Text *introduction = push_struct(part, Enriched_Text);
     Enriched_Text *lexer_introduction = push_struct(part, Enriched_Text);
     
-    // NOTE(allen): Parse the important code.
-    *custom_types_unit = compile_meta_unit(part, code_directory, "4coder_types.h", ExpandArray(meta_keywords));
+    // NOTE(allen): Parse the code.
+    *custom_types_unit = compile_meta_unit(part, code_directory, "4coder_API/types.h", ExpandArray(meta_keywords));
+    Assert(custom_types_unit->count != 0);
     
-    *lexer_funcs_unit = compile_meta_unit(part, code_directory, "4cpp_lexer.h", ExpandArray(meta_keywords));
+    *lexer_funcs_unit = compile_meta_unit(part, code_directory, "4cpp/4cpp_lexer.h", ExpandArray(meta_keywords));
+    Assert(lexer_funcs_unit->count != 0);
     
-    *lexer_types_unit = compile_meta_unit(part, code_directory, "4cpp_lexer_types.h", ExpandArray(meta_keywords));
+    *lexer_types_unit = compile_meta_unit(part, code_directory, "4cpp/4cpp_lexer_types.h", ExpandArray(meta_keywords));
+    Assert(lexer_types_unit->count != 0);
     
-    *string_unit = compile_meta_unit(part, code_directory, "internal_4coder_string.cpp", ExpandArray(meta_keywords));
+    *string_unit = compile_meta_unit(part, code_directory, "string/internal_4coder_string.cpp", ExpandArray(meta_keywords));
+    Assert(string_unit->count != 0);
     
-    static char *functions_files[] = {
-        "4ed_api_implementation.cpp",
-        "win32_api_impl.cpp",
-        0
-    };
-    
-    *custom_funcs_unit = compile_meta_unit(part, code_directory, functions_files, ExpandArray(meta_keywords));
+    *custom_funcs_unit = compile_meta_unit(part, code_directory, "4ed_api_implementation.cpp", ExpandArray(meta_keywords));
+    Assert(custom_funcs_unit->count != 0);
     
     
     // NOTE(allen): Compute and store variations of the custom function names
@@ -456,9 +457,13 @@ generate_site(char *code_directory, char *asset_directory, char *src_directory, 
 }
 
 int main(int argc, char **argv){
+    META_BEGIN();
+    
     if (argc == 5){
         generate_site(argv[1], argv[2], argv[3], argv[4]);
     }
+    
+    META_FINISH();
 }
 
 // BOTTOM
