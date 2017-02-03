@@ -1643,6 +1643,7 @@ Win32InitGL(){
         HGLRC glcontext = wglCreateContext(dc);
         wglMakeCurrent(dc, glcontext);
         
+#if 1
         {
             HMODULE module = LoadLibraryA("opengl32.dll");
             
@@ -1692,6 +1693,7 @@ Win32InitGL(){
                 }
             }
         }
+#endif
         
         ReleaseDC(win32vars.window_handle, dc);
     }
@@ -1982,7 +1984,7 @@ Win32Callback(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
             memcpy(data[*count].modifiers, control_keys, control_keys_size);
             ++(*count);
             
-            result = DefWindowProc(hwnd, uMsg, wParam, lParam);
+            //result = DefWindowProc(hwnd, uMsg, wParam, lParam);
             win32vars.got_useful_event = 1;
         }break;
         
@@ -2078,8 +2080,9 @@ Win32Callback(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
         }break;
         
         case WM_4coder_ANIMATE:
-        win32vars.got_useful_event = 1;
-        break;
+        {
+            win32vars.got_useful_event = 1;
+        }break;
         
         case WM_CANCELMODE:
         {
@@ -2096,11 +2099,7 @@ Win32Callback(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
 }
 
 int
-WinMain(HINSTANCE hInstance,
-        HINSTANCE hPrevInstance,
-        LPSTR lpCmdLine,
-        int nCmdShow){
-    
+WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow){
     i32 argc = __argc;
     char **argv = __argv;
     
@@ -2320,12 +2319,7 @@ WinMain(HINSTANCE hInstance,
         window_style |= WS_MAXIMIZE;
     }
     
-    win32vars.window_handle =
-        CreateWindowA(window_class.lpszClassName, WINDOW_NAME, window_style,
-                      window_x, window_y,
-                      window_rect.right - window_rect.left,
-                      window_rect.bottom - window_rect.top,
-                      0, 0, hInstance, 0);
+    win32vars.window_handle = CreateWindowA(window_class.lpszClassName, WINDOW_NAME, window_style, window_x, window_y, window_rect.right - window_rect.left, window_rect.bottom - window_rect.top, 0, 0, hInstance, 0);
     
     if (win32vars.window_handle == 0){
         exit(1);
@@ -2428,6 +2422,10 @@ WinMain(HINSTANCE hInstance,
         if (!(win32vars.first && win32vars.settings.stream_mode)){
             system_release_lock(FRAME_LOCK);
             
+            if (win32vars.running_cli == 0){
+                win32vars.got_useful_event = false;
+            }
+            
             b32 get_more_messages = true;
             do{
                 if (win32vars.got_useful_event == 0){
@@ -2498,22 +2496,6 @@ WinMain(HINSTANCE hInstance,
                                 TranslateMessage(&msg);
                                 DispatchMessage(&msg);
                             }
-#if 0
-                            UINT count = 0;
-                            INPUT in[1];
-                            if (ctrl){
-                                in[count].type = INPUT_KEYBOARD;
-                                in[count].ki.wVk = VK_CONTROL;
-                                in[count].ki.wScan = 0;
-                                in[count].ki.dwFlags = KEYEVENTF_KEYUP;
-                                in[count].ki.time = 0;
-                                in[count].ki.dwExtraInfo = GetMessageExtraInfo();
-                                ++count;
-                            }
-                            if(count > 0){
-                                SendInput(count, in, sizeof(in));
-                            }
-#endif
                         }
                     }
                 }

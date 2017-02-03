@@ -15,9 +15,9 @@ void
 default_keys(Bind_Helper *context){
     begin_map(context, mapid_global);
     
-    //bind(context, 'p', MDFR_CTRL, open_panel_vsplit);
-    //bind(context, '_', MDFR_CTRL, open_panel_hsplit);
-    //bind(context, 'P', MDFR_CTRL, close_panel);
+    bind(context, 'p', MDFR_CTRL, open_panel_vsplit);
+    bind(context, '_', MDFR_CTRL, open_panel_hsplit);
+    bind(context, 'P', MDFR_CTRL, close_panel);
     bind(context, ',', MDFR_CTRL, change_active_panel);
     
     bind(context, 'n', MDFR_CTRL, interactive_new);

@@ -500,6 +500,8 @@ get_4coder_dist_name(String *zip_file, i32 OS_specific, char *tier, char *ext){
     append_sc         (zip_file, ".");
     append_sc         (zip_file, ext);
     terminate_with_null(zip_file);
+    
+    slash_fix(zip_file->str);
 }
 
 static void
