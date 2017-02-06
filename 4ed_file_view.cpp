@@ -737,12 +737,15 @@ file_synchronize_times(System_Functions *system, Editing_File *file){
 internal b32
 save_file_to_name(System_Functions *system, Models *models, Editing_File *file, char *filename){
     b32 result = 0;
-    b32 using_actual_filename = 0;
+    b32 using_actual_filename = false;
     
     if (!filename){
         terminate_with_null(&file->canon.name);
         filename = file->canon.name.str;
-        using_actual_filename = 1;
+        using_actual_filename = true;
+    }
+    else if (match(filename, file->canon.name)){
+        using_actual_filename = true;
     }
     
     if (filename){
