@@ -340,6 +340,71 @@ CUSTOM_COMMAND_SIG(open_in_other){
 
 
 //
+// File Navigating
+//
+
+static bool32
+get_cpp_matching_file(Application_Links *app, Buffer_Summary buffer, Buffer_Summary *buffer_out){
+    bool32 result = false;
+    
+    char space[512];
+    String file_name = make_string_cap(space, 0, sizeof(space));
+    
+    append(&file_name, make_string(buffer.file_name, buffer.file_name_len));
+    
+    String extension = file_extension(file_name);
+    String new_extensions[2] = {0};
+    int32_t new_extensions_count = 0;
+    
+    if (match(extension, "cpp") || match(extension, "cc")){
+        new_extensions[0] = make_lit_string("h");
+        new_extensions[1] = make_lit_string("hpp");
+        new_extensions_count = 2;
+    }
+    else if (match(extension, "c")){
+        new_extensions[0] = make_lit_string("h");
+        new_extensions_count = 1;
+    }
+    else if (match(extension, "h")){
+        new_extensions[0] = make_lit_string("c");
+        new_extensions[1] = make_lit_string("cpp");
+        new_extensions_count = 2;
+    }
+    else if (match(extension, "hpp")){
+        new_extensions[0] = make_lit_string("cpp");
+        new_extensions_count = 1;
+    }
+    
+    remove_extension(&file_name);
+    int32_t base_pos = file_name.size;
+    for (int32_t i = 0; i < new_extensions_count; ++i){
+        String ext = new_extensions[i];
+        file_name.size = base_pos;
+        append(&file_name, ext);
+        
+        if (open_file(app, buffer_out, file_name.str, file_name.size, false, true)){
+            result = true;
+            break;
+        }
+    }
+    
+    return(result);
+}
+
+CUSTOM_COMMAND_SIG(open_matching_file_cpp){
+    View_Summary view = get_active_view(app, AccessAll);
+    Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessAll);
+    
+    Buffer_Summary new_buffer = {0};
+    if (get_cpp_matching_file(app, buffer, &new_buffer)){
+        get_view_next_looped(app, &view, AccessAll);
+        view_set_buffer(app, &view, new_buffer.buffer_id, 0);
+        set_active_view(app, &view);
+    }
+}
+
+
+//
 // Execute Arbitrary Command
 //
 
@@ -366,6 +431,9 @@ CUSTOM_COMMAND_SIG(execute_arbitrary_command){
     }
     else if (match_ss(bar.string, make_lit_string("open all code"))){
         exec_command(app, open_all_code);
+    }
+    else if (match_ss(bar.string, make_lit_string("open all code recursive"))){
+        exec_command(app, open_all_code_recursive);
     }
     else if(match_ss(bar.string, make_lit_string("close all code"))){
         exec_command(app, close_all_code);

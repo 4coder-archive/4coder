@@ -196,6 +196,7 @@ struct Fkey_Command{
     char command[128];
     char out[128];
     bool32 use_build_panel;
+    bool32 save_dirty_buffers;
 };
 
 struct Project{
@@ -211,6 +212,8 @@ struct Project{
     
     bool32 close_all_code_when_this_project_closes;
     bool32 close_all_files_when_project_opens;
+    
+    bool32 open_recursively;
 };
 
 static Project null_project = {};
@@ -579,11 +582,14 @@ config_array_good(Config_Array_Reader *array_reader){
 // Configuration
 //
 
-static bool32 enable_code_wrapping = 1;
-static bool32 automatically_adjust_wrapping = 1;
+static bool32 enable_code_wrapping = true;
+
+static bool32 automatically_adjust_wrapping = true;
+static bool32 automatically_indent_text_on_save = true;
+static bool32 automatically_save_changes_on_build = true;
+
 static int32_t default_wrap_width = 672;
 static int32_t default_min_base_width = 550;
-static bool32 automatically_indent_text_on_save = 1;
 
 static char default_theme_name_space[256] = {0};
 static String default_theme_name = make_fixed_width_string(default_theme_name_space);
@@ -625,6 +631,7 @@ get_default_font_name(){
 }
 
 // TODO(allen): Stop handling files this way!  My own API should be able to do this!!?!?!?!!?!?!!!!?
+// NOTE(allen): Actually need binary buffers for some stuff to work, but not this parsing thing here.
 #include <stdio.h>
 
 static bool32
@@ -692,6 +699,7 @@ process_config_file(Application_Links *app){
                         config_bool_var(item, "enable_code_wrapping", 0, &enable_code_wrapping);
                         config_bool_var(item, "automatically_adjust_wrapping", 0, &automatically_adjust_wrapping);
                         config_bool_var(item, "automatically_indent_text_on_save", 0, &automatically_indent_text_on_save);
+                        config_bool_var(item, "automatically_save_changes_on_build", 0, &automatically_save_changes_on_build);
                         
                         config_int_var(item, "default_wrap_width", 0, &new_wrap_width);
                         config_int_var(item, "default_min_base_width", 0, &new_min_base_width);

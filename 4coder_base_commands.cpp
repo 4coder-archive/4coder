@@ -524,7 +524,6 @@ CUSTOM_COMMAND_SIG(exit_4coder){
     send_exit_signal(app);
 }
 
-
 //
 // Interactive Commands
 //

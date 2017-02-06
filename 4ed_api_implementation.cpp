@@ -1125,10 +1125,11 @@ API_EXPORT bool32
 Save_Buffer(Application_Links *app, Buffer_Summary *buffer, char *filename, int32_t filename_len, uint32_t flags)
 /*
 DOC_PARAM(buffer, The buffer parameter specifies the buffer to save to a file.)
-DOC_PARAM(filename, The filename parameter specifies the name of the file to associated to the buffer; it need not be null terminated.)
+DOC_PARAM(filename, The filename parameter specifies the name of the file to write with the contents of the buffer; it need not be null terminated.)
 DOC_PARAM(filename_len, The filename_len parameter specifies the length of the filename string.)
 DOC_PARAM(flags, This parameter is not currently used and should be set to 0 for now.)
 DOC_RETURN(This call returns non-zero on success.)
+DOC(Often it will make sense to set filename and filename_len to buffer.filename and buffer.filename_len)
 */{
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     System_Functions *system = cmd->system;

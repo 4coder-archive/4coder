@@ -45,8 +45,7 @@ default_keys(Bind_Helper *context){
     bind(context, 's', MDFR_ALT, show_scrollbar);
     bind(context, 'w', MDFR_ALT, hide_scrollbar);
     
-    // TODO(allen): This is apparently not working on Linux, must investigate.
-    bind(context, key_f2, MDFR_CTRL, toggle_mouse);
+    bind(context, '@', MDFR_ALT, toggle_mouse);
     bind(context, key_page_up, MDFR_CTRL, toggle_fullscreen);
     bind(context, 'E', MDFR_ALT, exit_4coder);
     
@@ -108,6 +107,7 @@ default_keys(Bind_Helper *context){
     bind(context, '}', MDFR_CTRL, open_long_braces_break);
     bind(context, 'i', MDFR_ALT, if0_off);
     bind(context, '1', MDFR_ALT, open_file_in_quotes);
+    bind(context, '2', MDFR_ALT, open_matching_file_cpp);
     bind(context, '0', MDFR_CTRL, write_zero_struct);
     bind(context, 'I', MDFR_CTRL, list_all_functions_current_buffer);
     

@@ -96,51 +96,57 @@ close_all_files_with_extension(Application_Links *app, Partition *scratch_part, 
 }
 
 static void
-open_all_files_with_extension(Application_Links *app, Partition *scratch_part, char **extension_list, int32_t extension_count){
-    Temp_Memory temp = begin_temp_memory(scratch_part);
-    
-    int32_t max_size = partition_remaining(scratch_part);
-    char *memory = push_array(scratch_part, char, max_size);
-    
-    String dir = make_string_cap(memory, 0, max_size);
-    dir.size = directory_get_hot(app, dir.str, dir.memory_size);
-    int32_t dir_size = dir.size;
-    
-    // NOTE(allen|a3.4.4): Here we get the list of files in this directory.
-    // Notice that we free_file_list at the end.
+open_all_files_with_extension_internal(Application_Links *app, String dir, char **extension_list, int32_t extension_count, bool32 recursive){
     File_List list = get_file_list(app, dir.str, dir.size);
+    int32_t dir_size = dir.size;
     
     for (int32_t i = 0; i < list.count; ++i){
         File_Info *info = list.infos + i;
-        if (!info->folder){
-            bool32 is_match = 1;
+        if (info->folder){
+            if (recursive){
+                dir.size = dir_size;
+                append(&dir, info->filename);
+                append(&dir, "/");
+                open_all_files_with_extension_internal(app, dir, extension_list, extension_count, recursive);
+            }
+        }
+        else{
+            bool32 is_match = true;
             
             if (extension_count > 0){
-                is_match = 0;
+                is_match = false;
                 
                 String extension = make_string_cap(info->filename, info->filename_len, info->filename_len+1);
                 extension = file_extension(extension);
                 for (int32_t j = 0; j < extension_count; ++j){
                     if (match(extension, extension_list[j])){
-                        is_match = 1;
+                        is_match = true;
                         break;
                     }
                 }
-                
-                if (is_match){
-                    // NOTE(allen): There's no way in the 4coder API to use relative
-                    // paths at the moment, so everything should be full paths.  Which is
-                    // managable.  Here simply set the dir string size back to where it
-                    // was originally, so that new appends overwrite old ones.
-                    dir.size = dir_size;
-                    append_sc(&dir, info->filename);
-                    create_buffer(app, dir.str, dir.size, 0);
-                }
+            }
+            
+            if (is_match){
+                dir.size = dir_size;
+                append(&dir, info->filename);
+                create_buffer(app, dir.str, dir.size, 0);
             }
         }
     }
     
     free_file_list(app, list);
+}
+
+static void
+open_all_files_with_extension(Application_Links *app, Partition *scratch_part, char **extension_list, int32_t extension_count, bool32 recursive){
+    Temp_Memory temp = begin_temp_memory(scratch_part);
+    
+    int32_t max_size = 4096;
+    char *memory = push_array(scratch_part, char, max_size);
+    
+    String dir = make_string_cap(memory, 0, max_size);
+    dir.size = directory_get_hot(app, dir.str, dir.memory_size);
+    open_all_files_with_extension_internal(app, dir, extension_list, extension_count, recursive);
     
     end_temp_memory(temp);
 }
@@ -149,7 +155,13 @@ open_all_files_with_extension(Application_Links *app, Partition *scratch_part, c
 CUSTOM_COMMAND_SIG(open_all_code){
     int32_t extension_count = 0;
     char **extension_list = get_current_code_extensions(&extension_count);
-    open_all_files_with_extension(app, &global_part, extension_list, extension_count);
+    open_all_files_with_extension(app, &global_part, extension_list, extension_count, false);
+}
+
+CUSTOM_COMMAND_SIG(open_all_code_recursive){
+    int32_t extension_count = 0;
+    char **extension_list = get_current_code_extensions(&extension_count);
+    open_all_files_with_extension(app, &global_part, extension_list, extension_count, true);
 }
 
 CUSTOM_COMMAND_SIG(close_all_code){
@@ -232,6 +244,13 @@ CUSTOM_COMMAND_SIG(load_project){
                             }
                             
                             {
+                                bool32 open_recursively = false;
+                                if (config_bool_var(item, "open_recursively", 0, &open_recursively)){
+                                    current_project.open_recursively = open_recursively;
+                                }
+                            }
+                            
+                            {
 #if defined(_WIN32)
 #define FKEY_COMMAND "fkey_command_win"
 #elif defined(__linux__)
@@ -257,7 +276,7 @@ CUSTOM_COMMAND_SIG(load_project){
                                              config_array_good(&array_reader);
                                              config_array_next_item(&array_reader, &array_item)){
                                             
-                                            if (item_index >= 3){
+                                            if (item_index >= 4){
                                                 break;
                                             }
                                             
@@ -265,8 +284,8 @@ CUSTOM_COMMAND_SIG(load_project){
                                             append_int_to_str(&msg, item_index);
                                             append(&msg, "] = ");
                                             
-                                            bool32 read_string = 0;
-                                            bool32 read_bool = 0;
+                                            bool32 read_string = false;
+                                            bool32 read_bool = false;
                                             
                                             char *dest_str = 0;
                                             int32_t dest_str_size = 0;
@@ -278,20 +297,26 @@ CUSTOM_COMMAND_SIG(load_project){
                                                 {
                                                     dest_str = current_project.fkey_commands[index-1].command;
                                                     dest_str_size = sizeof(current_project.fkey_commands[index-1].command);
-                                                    read_string = 1;
+                                                    read_string = true;
                                                 }break;
                                                 
                                                 case 1:
                                                 {
                                                     dest_str = current_project.fkey_commands[index-1].out;
                                                     dest_str_size = sizeof(current_project.fkey_commands[index-1].out);
-                                                    read_string = 1;
+                                                    read_string = true;
                                                 }break;
                                                 
                                                 case 2:
                                                 {
                                                     dest_bool = &current_project.fkey_commands[index-1].use_build_panel;
-                                                    read_bool = 1;
+                                                    read_bool = true;
+                                                }break;
+                                                
+                                                case 3:
+                                                {
+                                                    dest_bool = &current_project.fkey_commands[index-1].save_dirty_buffers;
+                                                    read_bool = true;
                                                 }break;
                                             }
                                             
@@ -342,7 +367,12 @@ CUSTOM_COMMAND_SIG(load_project){
                     }
                     
                     // Open all project files
-                    exec_command(app, open_all_code);
+                    if (current_project.open_recursively){
+                        exec_command(app, open_all_code_recursive);
+                    }
+                    else{
+                        exec_command(app, open_all_code);
+                    }
                 }
             }
             
@@ -369,11 +399,18 @@ CUSTOM_COMMAND_SIG(load_project){
 
 static void
 exec_project_fkey_command(Application_Links *app, int32_t command_ind){
-    char *command = current_project.fkey_commands[command_ind].command;
-    char *out = current_project.fkey_commands[command_ind].out;
-    bool32 use_build_panel = current_project.fkey_commands[command_ind].use_build_panel;
+    Fkey_Command *fkey = &current_project.fkey_commands[command_ind];
+    char *command = fkey->command;
     
     if (command[0] != 0){
+        char *out = fkey->out;
+        bool32 use_build_panel = fkey->use_build_panel;
+        bool32 save_dirty_buffers = fkey->save_dirty_buffers;
+        
+        if (save_dirty_buffers){
+            save_all_dirty_buffers(app);
+        }
+        
         int32_t command_len = str_size(command);
         
         View_Summary view_ = {0};

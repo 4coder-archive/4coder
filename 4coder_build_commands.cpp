@@ -44,13 +44,24 @@ get_build_directory(Application_Links *app, Buffer_Summary *buffer, String *dir_
     if (!result){
         int32_t len = directory_get_hot(app, dir_out->str,
                                         dir_out->memory_size - dir_out->size);
-        if (len + dir_out->size < dir_out->memory_size){
+        if (dir_out->size + len < dir_out->memory_size){
             dir_out->size += len;
             result = BuildDir_AtHot;
         }
     }
     
     return(result);
+}
+
+static void
+save_all_dirty_buffers(Application_Links *app){
+    for (Buffer_Summary buffer = get_buffer_first(app, AccessOpen);
+         buffer.exists;
+         get_buffer_next(app, &buffer, AccessOpen)){
+        if (buffer.dirty == DirtyState_UnsavedChanges){
+            save_buffer(app, &buffer, buffer.file_name, buffer.file_name_len, 0);
+        }
+    }
 }
 
 // TODO(allen): Better names for the "standard build search" family.
@@ -81,6 +92,10 @@ standard_build_search(Application_Links *app, View_Summary *view, Buffer_Summary
             append_ss(&message, *command);
             append_s_char(&message, '\n');
             print_message(app, message.str, message.size);
+            
+            if (automatically_save_changes_on_build){
+                save_all_dirty_buffers(app);
+            }
             
             exec_system_command(app, view, buffer_identifier(literal("*compilation*")), dir->str, dir->size, command->str, command->size, CLI_OverlapWithConflict);
             result = true;

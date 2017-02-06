@@ -246,9 +246,9 @@ get_line_x_rect(View_Summary *view){
     return(rect);
 }
 
-static int32_t
-open_file(Application_Links *app, Buffer_Summary *buffer_out, char *filename, int32_t filename_len, int32_t background, int32_t never_new){
-    int32_t result = false;
+static bool32
+open_file(Application_Links *app, Buffer_Summary *buffer_out, char *filename, int32_t filename_len, bool32 background, bool32 never_new){
+    bool32 result = false;
     Buffer_Summary buffer = get_buffer_by_name(app, filename, filename_len, AccessProtected|AccessHidden);
     
     if (buffer.exists){
