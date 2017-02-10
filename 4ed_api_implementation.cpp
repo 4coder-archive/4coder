@@ -2152,16 +2152,16 @@ Get_File_List(Application_Links *app, char *dir, int32_t len)
 /*
 DOC_PARAM(dir, This parameter specifies the directory whose files will be enumerated in the returned list; it need not be null terminated.)
 DOC_PARAM(len, This parameter the length of the dir string.)
-DOC_RETURN(
-This call returns a File_List struct containing pointers to the names of the files in
-the specified directory.  The File_List returned should be passed to free_file_list
-when it is no longer in use.
-)
+DOC_RETURN(This call returns a File_List struct containing pointers to the names of the files in the specified directory.  The File_List returned should be passed to free_file_list when it is no longer in use.)
 */{
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     System_Functions *system = cmd->system;
+    Partition *part = &cmd->models->mem.part;
     File_List result = {};
-    system->set_file_list(&result, make_string(dir, len));
+    Temp_Memory temp = begin_temp_memory(part);
+    String str = make_string_terminated(part, dir, len);
+    system->set_file_list(&result, str.str);
+    end_temp_memory(temp);
     return(result);
 }
 
@@ -2173,7 +2173,7 @@ DOC(After this call the file list passed in should not be read or written to.)
 */{
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     System_Functions *system = cmd->system;
-    system->set_file_list(&list, make_string(0, 0));
+    system->set_file_list(&list, 0);
 }
 
 API_EXPORT void

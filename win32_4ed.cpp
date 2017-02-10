@@ -739,10 +739,11 @@ Sys_File_Can_Be_Made_Sig(system_file_can_be_made){
 
 internal
 Sys_Set_File_List_Sig(system_set_file_list){
-    if (directory.size > 0){
+    b32 clear_list = false;
+    if (directory != 0){
         char dir_space[MAX_PATH + 32];
         String dir = make_string_cap(dir_space, 0, MAX_PATH + 32);
-        append_ss(&dir, directory);
+        append_sc(&dir, directory);
         append_ss(&dir, make_lit_string("\\*"));
         terminate_with_null(&dir);
         
@@ -753,49 +754,48 @@ Sys_Set_File_List_Sig(system_set_file_list){
         search = FindFirstFileA(c_str_dir, &find_data);
         
         if (search != INVALID_HANDLE_VALUE){            
-            i32 count = 0;
+            i32 character_count = 0;
             i32 file_count = 0;
-            BOOL more_files = 1;
+            BOOL more_files = true;
             do{
                 if (!match_cs(find_data.cFileName, make_lit_string(".")) &&
                     !match_cs(find_data.cFileName, make_lit_string(".."))){
                     ++file_count;
                     i32 size = 0;
                     for(;find_data.cFileName[size];++size);
-                    count += size + 1;
+                    character_count += size + 1;
                 }
                 more_files = FindNextFile(search, &find_data);
             }while(more_files);
             FindClose(search);
             
-            i32 required_size = count + file_count * sizeof(File_Info);
+            i32 required_size = character_count + file_count * sizeof(File_Info);
             if (file_list->block_size < required_size){
-                Win32FreeMemory(file_list->block);
-                file_list->block = Win32GetMemory(required_size);
+                system_free_memory(file_list->block);
+                file_list->block = system_get_memory(required_size);
                 file_list->block_size = required_size;
             }
             
             file_list->infos = (File_Info*)file_list->block;
             char *name = (char*)(file_list->infos + file_count);
-            if (file_list->block){
+            if (file_list->block != 0){
                 search = FindFirstFileA(c_str_dir, &find_data);
                 
                 if (search != INVALID_HANDLE_VALUE){
                     File_Info *info = file_list->infos;
-                    more_files = 1;
+                    more_files = true;
                     do{
                         if (!match_cs(find_data.cFileName, make_lit_string(".")) &&
                             !match_cs(find_data.cFileName, make_lit_string(".."))){
                             info->folder = (find_data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) != 0;
                             info->filename = name;
                             
-                            i32 i = 0;
-                            for(;find_data.cFileName[i];++i) *name++ = find_data.cFileName[i];
-                            info->filename_len = i;
+                            i32 length = copy_fast_unsafe_cc(name, find_data.cFileName);
+                            name += length;
+                            
+                            info->filename_len = length;
                             *name++ = 0;
-                            String fname = make_string_cap(info->filename,
-                                                           info->filename_len,
-                                                           info->filename_len+1);
+                            String fname = make_string_cap(info->filename, info->filename_len, info->filename_len+1);
                             replace_char(&fname, '\\', '/');
                             ++info;
                         }
@@ -804,21 +804,23 @@ Sys_Set_File_List_Sig(system_set_file_list){
                     FindClose(search);
                     
                     file_list->count = file_count;
-                    
                 }else{
-                    Win32FreeMemory(file_list->block);
-                    file_list->block = 0;
-                    file_list->block_size = 0;
+                    clear_list = true;
                 }
             }
         }
+        else{
+            clear_list = true;
+        }
     }
     else{
-        if (directory.str == 0){
-            Win32FreeMemory(file_list->block);
-            file_list->block = 0;
-            file_list->block_size = 0;
-        }
+        clear_list = true;
+    }
+    
+    if (clear_list){
+        Win32FreeMemory(file_list->block);
+        file_list->block = 0;
+        file_list->block_size = 0;
         file_list->infos = 0;
         file_list->count = 0;
     }

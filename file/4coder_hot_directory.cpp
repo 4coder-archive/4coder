@@ -59,14 +59,14 @@ hot_directory_fixup(Hot_Directory *hot_directory){
 
 inline void
 hot_directory_set(System_Functions *system, Hot_Directory *hot_directory, String str){
-    b32 success = copy_checked_ss(&hot_directory->string, str);
-    terminate_with_null(&hot_directory->string);
+    copy_checked_ss(&hot_directory->string, str);
+    b32 success = terminate_with_null(&hot_directory->string);
     if (success){
         if (str.size > 0){
-            system->set_file_list(&hot_directory->file_list, str);
+            system->set_file_list(&hot_directory->file_list, hot_directory->string.str);
         }
         else{
-            system->set_file_list(&hot_directory->file_list, make_string((char*)1, 0));
+            system->set_file_list(&hot_directory->file_list, 0);
         }
     }
     hot_directory_fixup(hot_directory);
@@ -74,8 +74,7 @@ hot_directory_set(System_Functions *system, Hot_Directory *hot_directory, String
 
 inline void
 hot_directory_reload(System_Functions *system, Hot_Directory *hot_directory){
-    system->set_file_list(&hot_directory->file_list, hot_directory->string);
-    hot_directory_fixup(hot_directory);
+    hot_directory_set(system, hot_directory, hot_directory->string);
 }
 
 internal void

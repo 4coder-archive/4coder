@@ -819,12 +819,15 @@ DOC_SEE(find_substr)*/{
     i32_4tech i, j, k;
     b32_4tech hit;
     char a_upper, b_upper;
+    char first_test_char;
     
     if (seek.size == 0){
         return str_size(str);
     }
+    first_test_char = char_to_upper(seek.str[0]);
     for (i = start; str[i]; ++i){
-        if (str[i] == seek.str[0]){
+        a_upper = char_to_upper(str[i]);
+        if (a_upper == first_test_char){
             hit = 1;
             for (j = 1, k = i+1; j < seek.size; ++j, ++k){
                 a_upper = char_to_upper(str[k]);
@@ -854,13 +857,16 @@ DOC_SEE(find_substr)*/{
     i32_4tech stop_at;
     b32_4tech hit;
     char a_upper, b_upper;
+    char first_test_char;
     
     if (seek.size == 0){
         return str.size;
     }
     stop_at = str.size - seek.size + 1;
+    first_test_char = char_to_upper(seek.str[0]);
     for (i = start; i < stop_at; ++i){
-        if (str.str[i] == seek.str[0]){
+        a_upper = char_to_upper(str.str[i]);
+        if (a_upper == first_test_char){
             hit = 1;
             for (j = 1, k = i+1; j < seek.size; ++j, ++k){
                 a_upper = char_to_upper(str.str[k]);

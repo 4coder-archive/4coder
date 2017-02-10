@@ -21,8 +21,7 @@ handle_equal(Plat_Handle a, Plat_Handle b){
     return(result);
 }
 
-// TODO(allen): make directory a char* to signal that it must be null terminated
-#define Sys_Set_File_List_Sig(name) void name(File_List *file_list, String directory)
+#define Sys_Set_File_List_Sig(name) void name(File_List *file_list, char *directory)
 typedef Sys_Set_File_List_Sig(System_Set_File_List);
 
 #define Sys_Get_Canonical_Sig(name) i32 name(char *filename, i32 len, char *buffer, i32 max)

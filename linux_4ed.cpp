@@ -337,77 +337,76 @@ Sys_Set_File_List_Sig(system_set_file_list){
     struct dirent *entry;
     char *fname, *cursor, *cursor_start;
     File_Info *info_ptr;
-    i32 count, file_count, size, required_size;
+    i32 character_count, file_count, size, required_size, length;
+    b32 clear_list = false;
     
-    if(directory.size <= 0){
-        if(!directory.str){
-            system_free_memory(file_list->block);
-            file_list->block = 0;
-            file_list->block_size = 0;
-        }
+    if(directory == 0){
+        system_free_memory(file_list->block);
+        file_list->block = 0;
+        file_list->block_size = 0;
         file_list->infos = 0;
         file_list->count = 0;
         return;
     }
     
-    char* dir = (char*) alloca(directory.size + 1);
-    memcpy(dir, directory.str, directory.size);
-    dir[directory.size] = 0;
+    LINUX_FN_DEBUG("%s", directory);
     
-    LINUX_FN_DEBUG("%s", dir);
-    
-    d = opendir(dir);
+    d = opendir(directory);
     if (d){
-        count = 0;
+        character_count = 0;
         file_count = 0;
         for (entry = readdir(d);
              entry != 0;
              entry = readdir(d)){
             fname = entry->d_name;
-            if(fname[0] == '.' && (fname[1] == 0 || (fname[1] == '.' && fname[2] == 0))){
+            if (match_cc(fname, ".") || match_cc(fname, "..")){
                 continue;
             }
             ++file_count;            
             for (size = 0; fname[size]; ++size);
-            count += size + 1;
+            character_count += size + 1;
         }
         
-        required_size = count + file_count * sizeof(File_Info);
+        required_size = character_count + file_count * sizeof(File_Info);
         if (file_list->block_size < required_size){
             system_free_memory(file_list->block);
             file_list->block = system_get_memory(required_size);
+            file_list->block_size = required_size;
         }
         
         file_list->infos = (File_Info*)file_list->block;
         cursor = (char*)(file_list->infos + file_count);
         
-        rewinddir(d);
-        info_ptr = file_list->infos;
-        for (entry = readdir(d);
-             entry != 0;
-             entry = readdir(d)){
-            fname = entry->d_name;
-            if(fname[0] == '.' && (fname[1] == 0 || (fname[1] == '.' && fname[2] == 0))){
-                continue;
-            }
-            cursor_start = cursor;
-            for (; *fname; ) *cursor++ = *fname++;
-            
-            if(entry->d_type == DT_LNK){
-                struct stat st;
-                if(stat(entry->d_name, &st) != -1){
-                    info_ptr->folder = S_ISDIR(st.st_mode);
-                } else {
-                    info_ptr->folder = 0;
+        if (file_list->block != 0){
+            rewinddir(d);
+            info_ptr = file_list->infos;
+            for (entry = readdir(d);
+                 entry != 0;
+                 entry = readdir(d)){
+                fname = entry->d_name;
+                if (match_cc(fname, ".") || match_cc(fname, "..")){
+                    continue;
                 }
-            } else {
-                info_ptr->folder = entry->d_type == DT_DIR;
+                cursor_start = cursor;
+                length = copy_fast_unsafe_cc(cursor_start, fname);
+                cursor += length;
+                
+                if(entry->d_type == DT_LNK){
+                    struct stat st;
+                    if(stat(entry->d_name, &st) != -1){
+                        info_ptr->folder = S_ISDIR(st.st_mode);
+                    } else {
+                        info_ptr->folder = 0;
+                    }
+                } else {
+                    info_ptr->folder = (entry->d_type == DT_DIR);
+                }
+                
+                info_ptr->filename = cursor_start;
+                info_ptr->filename_len = length;
+                *cursor++ = 0;
+                ++info_ptr;
             }
-            
-            info_ptr->filename = cursor_start;
-            info_ptr->filename_len = (int)(cursor - cursor_start);
-            *cursor++ = 0;
-            ++info_ptr;
         }
         
         file_list->count = file_count;
