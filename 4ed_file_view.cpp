@@ -4887,7 +4887,7 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                                         i32 j = 0;
                                         
                                         for (j = 0; j < keys.count; ++j){
-                                            i16 key = keys.keys[j].keycode;
+                                            Key_Code key = keys.keys[j].keycode;
                                             switch (key){
                                                 case key_left: --view->color_cursor; r = 1; result.consume_keys = 1; break;
                                                 case key_right: ++view->color_cursor; r = 1; result.consume_keys = 1; break;

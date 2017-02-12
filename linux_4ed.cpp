@@ -353,6 +353,12 @@ Sys_Set_File_List_Sig(system_set_file_list){
     
     d = opendir(directory);
     if (d){
+        if (canon_directory_out != 0){
+            u32 length = copy_fast_unsafe_cc(canon_directory_out, directory);
+            canon_directory_out[length] = 0;
+            *canon_directory_size_out = length;
+        }
+        
         character_count = 0;
         file_count = 0;
         for (entry = readdir(d);
@@ -1909,7 +1915,7 @@ LinuxKeycodeInit(Display* dpy){
     
     struct SymMapping {
         KeySym sym;
-        u8 code;
+        u16 code;
     } sym_table[] = {
         { XK_BackSpace, key_back },
         { XK_Delete, key_del },
@@ -1972,7 +1978,7 @@ LinuxKeycodeInit(Display* dpy){
 }
 
 internal void
-LinuxPushKey(u8 code, u8 chr, u8 chr_nocaps, b8 (*mods)[MDFR_INDEX_COUNT], b32 is_hold)
+LinuxPushKey(Key_Code code, Key_Code chr, Key_Code chr_nocaps, b8 (*mods)[MDFR_INDEX_COUNT])
 {
     i32 *count = &linuxvars.input.keys.count;
     Key_Event_Data *data = linuxvars.input.keys.keys;
@@ -2677,14 +2683,14 @@ LinuxHandleX11Events(void)
                     mods[MDFR_SHIFT_INDEX] = 1;
                 }
                 
-                u8 special_key = keycode_lookup_table[(u8)Event.xkey.keycode];
+                Key_Code special_key = keycode_lookup_table[(u8)Event.xkey.keycode];
                 
                 if(special_key){
-                    LinuxPushKey(special_key, 0, 0, &mods, is_hold);
+                    LinuxPushKey(special_key, 0, 0, &mods);
                 } else if(key < 128){
-                    LinuxPushKey(key, key, key_no_caps, &mods, is_hold);
+                    LinuxPushKey(key, key, key_no_caps, &mods);
                 } else {
-                    LinuxPushKey(0, 0, 0, &mods, is_hold);
+                    LinuxPushKey(0, 0, 0, &mods);
                 }
             }break;
             
