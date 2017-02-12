@@ -120,6 +120,22 @@ CUSTOM_COMMAND_SIG(change_active_panel){
     }
 }
 
+CUSTOM_COMMAND_SIG(change_active_panel_backwards){
+    View_Summary view = get_active_view(app, AccessAll);
+    View_ID original_view_id = view.view_id;
+    
+    do{
+        get_view_prev_looped(app, &view, AccessAll);
+        if (view.view_id != special_note_view_id){
+            break;
+        }
+    }while(view.view_id != original_view_id);
+    
+    if (view.exists){
+        set_active_view(app, &view);
+    }
+}
+
 //
 // View Variabls
 //

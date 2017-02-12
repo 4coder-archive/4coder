@@ -676,7 +676,8 @@ CUSTOM_COMMAND_SIG(list_all_substring_locations_case_insensitive){
     generic_search_all_buffers(app, &global_general, &global_part, bar.string, SearchFlag_CaseInsensitive | SearchFlag_MatchSubstring);
 }
 
-CUSTOM_COMMAND_SIG(list_all_locations_of_identifier){
+static void
+list_all_locations_of_identifier_parameters(Application_Links *app, bool32 substrings, bool32 case_insensitive){
     View_Summary view = get_active_view(app, AccessProtected);
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessProtected);
     
@@ -692,10 +693,29 @@ CUSTOM_COMMAND_SIG(list_all_locations_of_identifier){
             if (success){
                 String str = make_string(space, size);
                 exec_command(app, change_active_panel);
-                generic_search_all_buffers(app, &global_general, &global_part, str, SearchFlag_MatchWholeWord);
+                
+                uint32_t flags = 0;
+                if (substrings){
+                    flags |= SearchFlag_MatchSubstring;
+                }
+                else{
+                    flags |= SearchFlag_MatchWholeWord;
+                }
+                if (case_insensitive){
+                    flags |= SearchFlag_CaseInsensitive;
+                }
+                generic_search_all_buffers(app, &global_general, &global_part, str, flags);
             }
         }
     }
+}
+
+CUSTOM_COMMAND_SIG(list_all_locations_of_identifier){
+    list_all_locations_of_identifier_parameters(app, false, false);
+}
+
+CUSTOM_COMMAND_SIG(list_all_locations_of_identifier_case_insensitive){
+    list_all_locations_of_identifier_parameters(app, false, true);
 }
 
 //

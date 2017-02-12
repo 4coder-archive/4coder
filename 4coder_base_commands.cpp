@@ -243,6 +243,13 @@ CUSTOM_COMMAND_SIG(move_right){
     view_set_cursor(app, &view, seek_character_pos(new_pos), 1);
 }
 
+CUSTOM_COMMAND_SIG(select_all){
+    View_Summary view = get_active_view(app, AccessProtected);
+    Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessProtected);
+    view_set_cursor(app, &view, seek_character_pos(0), true);
+    view_set_mark(app, &view, seek_character_pos(buffer.size));
+}
+
 //
 // Long Seeks
 //
@@ -419,21 +426,6 @@ CUSTOM_COMMAND_SIG(clean_all_lines){
 
 
 //
-// Scroll Bar Controlling
-//
-
-CUSTOM_COMMAND_SIG(show_scrollbar){
-    View_Summary view = get_active_view(app, AccessProtected);
-    view_set_setting(app, &view, ViewSetting_ShowScrollbar, true);
-}
-
-CUSTOM_COMMAND_SIG(hide_scrollbar){
-    View_Summary view = get_active_view(app, AccessProtected);
-    view_set_setting(app, &view, ViewSetting_ShowScrollbar, false);
-}
-
-
-//
 // Basic Panel Management
 //
 
@@ -464,6 +456,16 @@ CUSTOM_COMMAND_SIG(open_panel_hsplit){
 //
 // Common Settings Commands
 //
+
+CUSTOM_COMMAND_SIG(show_scrollbar){
+    View_Summary view = get_active_view(app, AccessProtected);
+    view_set_setting(app, &view, ViewSetting_ShowScrollbar, true);
+}
+
+CUSTOM_COMMAND_SIG(hide_scrollbar){
+    View_Summary view = get_active_view(app, AccessProtected);
+    view_set_setting(app, &view, ViewSetting_ShowScrollbar, false);
+}
 
 //toggle_fullscreen can be used as a command
 
@@ -783,6 +785,20 @@ CUSTOM_COMMAND_SIG(query_replace){
     view_set_cursor(app, &view, seek_pos(pos), 1);
 }
 
+
+//
+// File Handling Commands
+//
+
+CUSTOM_COMMAND_SIG(save_all_dirty_buffers){
+    for (Buffer_Summary buffer = get_buffer_first(app, AccessOpen);
+         buffer.exists;
+         get_buffer_next(app, &buffer, AccessOpen)){
+        if (buffer.dirty == DirtyState_UnsavedChanges){
+            save_buffer(app, &buffer, buffer.file_name, buffer.file_name_len, 0);
+        }
+    }
+}
 
 //
 // cmdid wrappers

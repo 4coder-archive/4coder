@@ -40,7 +40,8 @@ map_hash(u16 event_code, u8 modifiers){
 }
 
 internal b32
-map_add(Command_Map *map, u16 event_code, u8 modifiers, Command_Function function, Custom_Command_Function *custom = 0){
+map_add(Command_Map *map, u16 event_code, u8 modifiers, Command_Function function, Custom_Command_Function *custom = 0, b32 override_original = true){
+    b32 result = false;
     Assert(map->count * 8 < map->max * 7);
     Command_Binding bind;
     bind.function = function;
@@ -52,18 +53,21 @@ map_add(Command_Map *map, u16 event_code, u8 modifiers, Command_Function functio
     Command_Binding entry;
     while ((entry = map->commands[index]).function && entry.hash != -1){
         if (entry.hash == bind.hash){
-            return 1;
+            result = 1;
+            break;
         }
         index = (index + 1) % max;
     }
-    map->commands[index] = bind;
-    ++map->count;
-    return 0;
+    if (override_original || !result){
+        map->commands[index] = bind;
+        ++map->count;
+    }
+    return(result);
 }
 
 inline b32
-map_add(Command_Map *map, u16 event_code, u8 modifiers, Command_Function function, u64 custom_id){
-    return (map_add(map, event_code, modifiers, function, (Custom_Command_Function*)custom_id));
+map_add(Command_Map *map, u16 event_code, u8 modifiers, Command_Function function, u64 custom_id, b32 override_original = true){
+    return (map_add(map, event_code, modifiers, function, (Custom_Command_Function*)custom_id), override_original);
 }
 
 internal b32

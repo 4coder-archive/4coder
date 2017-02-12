@@ -1356,8 +1356,7 @@ App_Init_Sig(app_init){
                                     map_add(map_ptr, unit->binding.code, unit->binding.modifiers, func, unit->binding.command_id);
                                 }
                             }
-                        }
-                        break;
+                        }break;
                         
                         case unit_callback:
                         if (map_ptr){
@@ -1372,8 +1371,7 @@ App_Init_Sig(app_init){
                                     map_add(map_ptr, unit->callback.code, unit->callback.modifiers, func, custom);
                                 }
                             }
-                        }
-                        break;
+                        }break;
                         
                         case unit_hook:
                         {

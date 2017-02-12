@@ -308,10 +308,56 @@ view_open_file(Application_Links *app, View_Summary *view, char *filename, int32
 }
 
 static void
+get_view_prev(Application_Links *app, View_Summary *view, uint32_t access){
+    if (view->exists){
+        View_ID original_id = view->view_id;
+        View_ID check_id = original_id;
+        
+        View_Summary new_view = {0};
+        
+        for (;;){
+            --check_id;
+            if (check_id <= 0){
+                check_id = 16;
+            }
+            if (check_id == original_id){
+                new_view = *view;
+                break;
+            }
+            new_view = get_view(app, check_id, access);
+            if (new_view.exists){
+                break;
+            }
+        }
+        
+        *view = new_view;
+    }
+}
+
+static View_Summary
+get_view_last(Application_Links *app, uint32_t access){
+    View_Summary view = {0};
+    view.exists = true;
+    get_view_prev(app, &view, access);
+    if (view.view_id < 1 || view.view_id > 16){
+        view = null_view_summary;
+    }
+    return(view);
+}
+
+static void
 get_view_next_looped(Application_Links *app, View_Summary *view, uint32_t access){
     get_view_next(app, view, access);
     if (!view->exists){
         *view = get_view_first(app, access);
+    }
+}
+
+static void
+get_view_prev_looped(Application_Links *app, View_Summary *view, uint32_t access){
+    get_view_prev(app, view, access);
+    if (!view->exists){
+        *view = get_view_last(app, access);
     }
 }
 

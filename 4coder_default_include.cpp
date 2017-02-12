@@ -129,6 +129,46 @@ CUSTOM_COMMAND_SIG(snipe_token_or_word){
 
 
 //
+// Line Manipulation
+//
+
+CUSTOM_COMMAND_SIG(duplicate_line){
+    View_Summary view = get_active_view(app, AccessOpen);
+    Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessOpen);
+    
+    Partition *part = &global_part;
+    
+    Temp_Memory temp = begin_temp_memory(part);
+    String line_string = {0};
+    read_line(app, part, &buffer, view.cursor.line, &line_string);
+    
+    push_array(part, char, 1);
+    ++line_string.memory_size;
+    append_s_char(&line_string, '\n');
+    
+    int32_t pos = buffer_get_line_end(app, &buffer, view.cursor.line) + 1;
+    buffer_replace_range(app, &buffer, pos, pos, line_string.str, line_string.size);
+    
+    end_temp_memory(temp);
+}
+
+CUSTOM_COMMAND_SIG(delete_line){
+    View_Summary view = get_active_view(app, AccessOpen);
+    Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessOpen);
+    
+    Partition *part = &global_part;
+    
+    Temp_Memory temp = begin_temp_memory(part);
+    int32_t start = buffer_get_line_start(app, &buffer, view.cursor.line);
+    int32_t end = buffer_get_line_end(app, &buffer, view.cursor.line) + 1;
+    
+    buffer_replace_range(app, &buffer, start, end, 0, 0);
+    
+    end_temp_memory(temp);
+}
+
+
+//
 // Clipboard + Indent Combo Command
 //
 
@@ -336,6 +376,11 @@ CUSTOM_COMMAND_SIG(open_file_in_quotes){
 CUSTOM_COMMAND_SIG(open_in_other){
     exec_command(app, change_active_panel);
     exec_command(app, interactive_open);
+}
+
+CUSTOM_COMMAND_SIG(new_in_other){
+    exec_command(app, change_active_panel);
+    exec_command(app, interactive_new);
 }
 
 

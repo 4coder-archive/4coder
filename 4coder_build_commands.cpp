@@ -53,17 +53,6 @@ get_build_directory(Application_Links *app, Buffer_Summary *buffer, String *dir_
     return(result);
 }
 
-static void
-save_all_dirty_buffers(Application_Links *app){
-    for (Buffer_Summary buffer = get_buffer_first(app, AccessOpen);
-         buffer.exists;
-         get_buffer_next(app, &buffer, AccessOpen)){
-        if (buffer.dirty == DirtyState_UnsavedChanges){
-            save_buffer(app, &buffer, buffer.file_name, buffer.file_name_len, 0);
-        }
-    }
-}
-
 // TODO(allen): Better names for the "standard build search" family.
 static int32_t
 standard_build_search(Application_Links *app, View_Summary *view, Buffer_Summary *active_buffer, String *dir, String *command, int32_t perform_backup, int32_t use_path_in_command, String filename, String commandname){
