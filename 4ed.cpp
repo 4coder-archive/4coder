@@ -321,15 +321,14 @@ COMMAND_DECL(interactive_open){
 }
 
 // TODO(allen): Improvements to reopen
-// - Preserve existing token stack
-// - Keep current version open and do some sort of diff to keep
-//    the cursor position correct
+// - Perform a diff
+// - If the diff is not tremendously big, apply the edits.
 COMMAND_DECL(reopen){
     USE_MODELS(models);
     USE_VIEW(view);
     REQ_FILE(file, view);
     
-    if (match_ss(file->name.source_path, file->name.live_name)) return;
+    if (file->canon.name.str == 0) return;
     
     if (file->canon.name.size != 0){
         Plat_Handle handle;
@@ -585,10 +584,9 @@ setup_ui_commands(Command_Map *commands, Partition *part, Command_Map *parent){
     // TODO(allen): This is hacky, when the new UI stuff happens, let's fix it,
     // and by that I mean actually fix it, don't just say you fixed it with
     // something stupid again.
-    u8 mdfr;
     u8 mdfr_array[] = {MDFR_NONE, MDFR_SHIFT, MDFR_CTRL, MDFR_SHIFT | MDFR_CTRL};
     for (i32 i = 0; i < 4; ++i){
-        mdfr = mdfr_array[i];
+        u8 mdfr = mdfr_array[i];
         map_add(commands, key_left, mdfr, command_null);
         map_add(commands, key_right, mdfr, command_null);
         map_add(commands, key_up, mdfr, command_null);
@@ -629,7 +627,6 @@ setup_command_table(){
     SET(open_config);
     SET(open_menu);
     SET(open_debug);
-    
 #undef SET
 }
 
@@ -1542,9 +1539,9 @@ App_Init_Sig(app_init){
             }break;
         }
         
-        file->settings.never_kill = 1;
-        file->settings.unimportant = 1;
-        file->settings.unwrapped_lines = 1;
+        file->settings.never_kill = true;
+        file->settings.unimportant = true;
+        file->settings.unwrapped_lines = true;
         
         if (init_files[i].ptr){
             *init_files[i].ptr = file;
@@ -1555,8 +1552,7 @@ App_Init_Sig(app_init){
     panel_make_empty(system, vars, p.panel);
     models->layout.active_panel = p.id;
     
-    String hdbase = make_fixed_width_string(models->hot_dir_base_);
-    hot_directory_init(&models->hot_directory, hdbase, current_directory);
+    hot_directory_init(&models->hot_directory, current_directory);
     
     // NOTE(allen): child proc list setup
     i32 max_children = 16;
@@ -1648,15 +1644,14 @@ App_Step_Sig(app_step){
         Partition *part = &models->mem.part;
         Temp_Memory temp = begin_temp_memory(part);
         char *buffer = push_array(part, char, buffer_size);
-        i32 unmark_top = 0;
-        i32 unmark_max = (8 << 10);
+        u32 unmark_top = 0;
+        u32 unmark_max = (8 << 10);
         Editing_File **unmark = (Editing_File**)push_array(part, Editing_File*, unmark_max);
         
         Working_Set *working_set = &models->working_set;
         
         for (;system->get_file_change(buffer, buffer_size, &mem_too_small, &size);){
             Assert(!mem_too_small);
-            
             Editing_File_Canon_Name canon;
             if (get_canon_name(system, &canon, make_string(buffer, size))){
                 Editing_File *file = working_set_canon_contains(working_set, canon.name);
@@ -1665,18 +1660,17 @@ App_Step_Sig(app_step){
                         file_mark_behind_os(file);
                     }
                     else if (file->state.ignore_behind_os == 1){
-                        // TODO(allen): I need the ability to put a file back on the list
+                        file->state.ignore_behind_os = 2;
+                        unmark[unmark_top++] = file;
                         if (unmark_top == unmark_max){
                             break;
                         }
-                        file->state.ignore_behind_os = 2;
-                        unmark[unmark_top++] = file;
                     }
                 }
             }
         }
         
-        for (i32 i = 0; i < unmark_top; ++i){
+        for (u32 i = 0; i < unmark_top; ++i){
             unmark[i]->state.ignore_behind_os = 0;
         }
         

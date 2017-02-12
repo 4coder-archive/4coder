@@ -695,9 +695,7 @@ stb_font_load(Partition *part,
     return(result);
 }
 
-// NOTE(allen): Thanks to insofaras.
-// This is copy-pasted from some work he
-// did to get free type working on Linux.
+// NOTE(allen): Thanks to insofaras.  This is copy-pasted from some work he originally did to get free type working on Linux.
 
 #undef internal
 #include <ft2build.h>
@@ -716,16 +714,11 @@ next_pow_of_2(u32 v){
     return ++v;
 }
 
-#define NUM_GLYPHS 128
+#define NUM_GLYPHS 256
 #define ENABLE_LCD_FILTER 0
 
 internal b32
-font_load_freetype(Partition *part,
-                   Render_Font *rf,
-                   char *filename,
-                   i32 pt_size,
-                   i32 tab_width,
-                   b32 use_hinting){
+font_load_freetype(Partition *part, Render_Font *rf, char *filename, i32 pt_size, i32 tab_width, b32 use_hinting){
     
     memset(rf, 0, sizeof(*rf));
     
@@ -877,7 +870,7 @@ font_load_freetype(Partition *part,
     // on the fly.  Maybe later introduce a caching system or whatevs.
     f32 *adv = rf->advance_data;
     for (i32 i = 0; i < 256; ++i){
-        if (i < ' ' || i > '~'){
+        if (i < ' ' || i == 127){
             switch (i){
                 case '\n':
                 adv[i] = adv[' '];

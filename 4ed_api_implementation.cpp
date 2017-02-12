@@ -28,9 +28,10 @@ fill_buffer_summary(Buffer_Summary *buffer, Editing_File *file, Working_Set *wor
         buffer->size = buffer_size(&file->state.buffer);
         buffer->line_count = file->state.buffer.line_count;
         
-        buffer->file_name_len = file->name.source_path.size;
+        buffer->file_name_len = file->canon.name.size;
+        buffer->file_name = file->canon.name.str;
+        
         buffer->buffer_name_len = file->name.live_name.size;
-        buffer->file_name = file->name.source_path.str;
         buffer->buffer_name = file->name.live_name.str;
         
         buffer->dirty = file->state.dirty;
@@ -275,7 +276,7 @@ DOC_SEE(Command_Line_Interface_Flag)
             
             if (file){
                 file_clear(system, models, file);
-                file->settings.unimportant = 1;
+                file->settings.unimportant = true;
                 
                 if (!(flags & CLI_AlwaysBindToView)){
                     View_Iter iter = file_view_iter_init(&models->layout, file, 0);
@@ -840,10 +841,10 @@ DOC_SEE(Buffer_Setting_ID)
             case BufferSetting_Unimportant:
             {
                 if (value){
-                    file->settings.unimportant = 1;
+                    file->settings.unimportant = true;
                 }
                 else{
-                    file->settings.unimportant = 0;
+                    file->settings.unimportant = false;
                 }
             }break;
             
@@ -2160,7 +2161,7 @@ DOC_RETURN(This call returns a File_List struct containing pointers to the names
     File_List result = {};
     Temp_Memory temp = begin_temp_memory(part);
     String str = make_string_terminated(part, dir, len);
-    system->set_file_list(&result, str.str);
+    system->set_file_list(&result, str.str, 0, 0, 0);
     end_temp_memory(temp);
     return(result);
 }
@@ -2173,7 +2174,7 @@ DOC(After this call the file list passed in should not be read or written to.)
 */{
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     System_Functions *system = cmd->system;
-    system->set_file_list(&list, 0);
+    system->set_file_list(&list, 0, 0, 0, 0);
 }
 
 API_EXPORT void

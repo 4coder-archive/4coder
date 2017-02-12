@@ -358,7 +358,7 @@ touch_file(Working_Set *working_set, Editing_File *file){
 internal void
 editing_file_name_init(Editing_File_Name *name){
     name->live_name = make_fixed_width_string(name->live_name_);
-    name->source_path = make_fixed_width_string(name->source_path_);
+    //name->source_path = make_fixed_width_string(name->source_path_);
     name->extension = make_fixed_width_string(name->extension_);
 }
 
@@ -377,9 +377,12 @@ internal void
 buffer_get_new_name(Working_Set *working_set, Editing_File_Name *name, String filename){
     Assert(name->live_name.str != 0);
     
-    copy_checked_ss(&name->source_path, filename);
+    //copy_checked_ss(&name->source_path, filename);
     copy_ss(&name->live_name, front_of_directory(filename));
     
+    String ext = file_extension(filename);
+    copy_ss(&name->extension, ext);
+#if 0
     if (name->source_path.size == name->live_name.size){
         name->extension.size = 0;
     }
@@ -387,6 +390,7 @@ buffer_get_new_name(Working_Set *working_set, Editing_File_Name *name, String fi
         String ext = file_extension(filename);
         copy_ss(&name->extension, ext);
     }
+#endif
     
     {
         i32 original_len = name->live_name.size;
@@ -425,9 +429,8 @@ buffer_get_new_name(Working_Set *working_set, Editing_File_Name *name, char *fil
 
 internal void
 buffer_bind_file(System_Functions *system, General_Memory *general, Working_Set *working_set, Editing_File *file, String canon_filename){
-    Assert(file->name.live_name.size == 0 &&
-           file->name.source_path.size == 0 &&
-           file->name.extension.size == 0);
+    Assert(file->name.live_name.size == 0 && file->name.extension.size == 0);
+    //&& file->name.source_path.size == 0);
     Assert(file->canon.name.size == 0);
     
     file->canon.name = make_fixed_width_string(file->canon.name_);
@@ -440,9 +443,8 @@ buffer_bind_file(System_Functions *system, General_Memory *general, Working_Set 
 
 internal void
 buffer_unbind_file(System_Functions *system, Working_Set *working_set, Editing_File *file){
-    Assert(file->name.live_name.size == 0 &&
-           file->name.source_path.size == 0 &&
-           file->name.extension.size == 0);
+    Assert(file->name.live_name.size == 0 && file->name.extension.size == 0);
+    // && file->name.source_path.size == 0
     Assert(file->canon.name.size != 0);
     
     system->remove_listener(file->canon.name_);
@@ -453,8 +455,8 @@ buffer_unbind_file(System_Functions *system, Working_Set *working_set, Editing_F
 internal void
 buffer_bind_name(General_Memory *general, Working_Set *working_set, Editing_File *file, String filename){
     Assert(file->name.live_name.size == 0 &&
-           file->name.source_path.size == 0 &&
            file->name.extension.size == 0);
+    // && file->name.source_path.size == 0
     
     Editing_File_Name new_name;
     editing_file_name_init(&new_name);
@@ -462,7 +464,7 @@ buffer_bind_name(General_Memory *general, Working_Set *working_set, Editing_File
     
     editing_file_name_init(&file->name);
     copy_ss(&file->name.live_name, new_name.live_name);
-    copy_ss(&file->name.source_path, new_name.source_path);
+    //copy_ss(&file->name.source_path, new_name.source_path);
     copy_ss(&file->name.extension, new_name.extension);
     
     b32 result = working_set_name_add(general, working_set, file, file->name.live_name);
@@ -474,7 +476,7 @@ buffer_unbind_name(Working_Set *working_set, Editing_File *file){
     Assert(file->name.live_name.size != 0);
     working_set_name_remove(working_set, file->name.live_name);
     file->name.live_name.size = 0;
-    file->name.source_path.size = 0;
+    //file->name.source_path.size = 0;
     file->name.extension.size = 0;
 }
 

@@ -22,9 +22,6 @@ TYPEDEF int32_t bool32;
 /* DOC(int_color is an alias name to signal that an integer parameter or field is for a color value, colors are specified as 24 bit integers in 3 channels: 0xRRGGBB.) */
 TYPEDEF uint32_t int_color;
 
-/* DOC(Key_Code is the alias for key codes including raw codes and codes translated to textual input that takes modifiers into account.) */
-TYPEDEF unsigned char Key_Code;
-
 /* DOC(Buffer_ID is used to name a 4coder buffer.  Each buffer has a unique id but when a buffer is closed it's id may be recycled by future, different buffers.) */
 TYPEDEF int32_t Buffer_ID;
 
@@ -174,14 +171,10 @@ ENUM(int32_t, Buffer_Setting_ID){
     A 1 indicates dos endings "\r\n" and a 0 indicates nix endings "\n".) */
     BufferSetting_Eol,
     
-    /* DOC(The BufferSetting_Unimportant setting marks a buffer so that it's dirty state will be completely
-    ignored.  This means the "dirty" star is hidden and the buffer can be closed without presenting an
-    "are you sure" dialogue screen.) */
+    /* DOC(The BufferSetting_Unimportant setting marks a buffer so that its dirty state will be forced to stay at DirtyState_UpToDate when the buffer is edited or when the buffer's paired file, if it has one, is edited.) */
     BufferSetting_Unimportant,
     
-    /* DOC(The BufferSetting_ReadOnly setting marks a buffer so that it can only be returned from buffer
-    access calls that include an AccessProtected flag.  By convention this means that edit commands that
-    should not be applied to read only buffers will not edit this buffer.) */
+    /* DOC(The BufferSetting_ReadOnly setting marks a buffer so that it can only be returned from buffer access calls that include an AccessProtected flag.  By convention this means that edit commands that should not be applied to read only buffers will not edit this buffer.) */
     BufferSetting_ReadOnly,
     
     /* DOC(The BufferSetting_VirtualWhitespace settings enables virtual whitespace on a buffer.
@@ -347,6 +340,9 @@ ENUM(int32_t, View_Split_Position){
     /* DOC(This value indicates that the new view should be right of the existing view.) */
     ViewSplit_Right
 };
+
+/* DOC(Key_Code is the alias for key codes including raw codes and codes translated to textual input that takes modifiers into account.) */
+TYPEDEF uint16_t Key_Code;
 
 /* DOC(Key_Event_Data describes a key event, including the translation to a character, the translation to a character ignoring the state of caps lock, and an array of all the modifiers that were pressed at the time of the event.) */
 STRUCT Key_Event_Data{

@@ -148,7 +148,6 @@ font_draw_glyph(Render_Target *target, i16 font_id, u8 character, f32 x, f32 y, 
     font_set_use(target->partition, &target->font_set, font_id);
 }
 
-// TODO(allen): Someday let's not punt on the the unicode rendering
 internal f32
 font_string_width(Render_Target *target, i16 font_id, char *str){
     f32 x = 0;
@@ -157,7 +156,7 @@ font_string_width(Render_Target *target, i16 font_id, char *str){
     
     if (font){
         for (i32 i = 0; str[i]; ++i){
-            u8 c = str[i] % 128;
+            u8 c = str[i];
             x += advance_data[c];
         }
     }
@@ -173,7 +172,7 @@ font_string_width(Render_Target *target, i16 font_id, String str){
     
     if (font){
         for (i32 i = 0; i < str.size; ++i){
-            u8 c = str.str[i] % 128;
+            u8 c = str.str[i];
             x += advance_data[c];
         }
     }
@@ -190,7 +189,7 @@ draw_string(Render_Target *target, i16 font_id,
     
     if (font){
         for (i32 i = 0; str[i]; ++i){
-            u8 c = str[i] % 128;
+            u8 c = str[i];
             font_draw_glyph(target, font_id, c, x, (f32)y, color);
             x += advance_data[c];
         }
@@ -200,26 +199,25 @@ draw_string(Render_Target *target, i16 font_id,
 }
 
 internal f32
-draw_string_mono(Render_Target *target, i16 font_id,
-                 char *str, f32 x, f32 y, f32 advance, u32 color){
+draw_string_mono(Render_Target *target, i16 font_id, char *str, f32 x, f32 y, f32 advance, u32 color){
     for (i32 i = 0; str[i]; ++i){
-        u8 c = str[i] % 128;
+        u8 c = str[i];
         font_draw_glyph_mono(target, font_id, c, x, y, advance, color);
         x += advance;
     }
+    
     return(x);
 }
 
 internal f32
-draw_string(Render_Target *target, i16 font_id,
-            String str, i32 x_, i32 y, u32 color){
+draw_string(Render_Target *target, i16 font_id, String str, i32 x_, i32 y, u32 color){
     f32 x = (f32)x_;
     Render_Font *font = get_font_info(&target->font_set, font_id)->font;
     f32 *advance_data = font->advance_data;
     
     if (font){
         for (i32 i = 0; i < str.size; ++i){
-            u8 c = str.str[i] % 128;
+            u8 c = str.str[i];
             font_draw_glyph(target, font_id, c, x, (f32)y, color);
             x += advance_data[c];
         }
@@ -229,13 +227,13 @@ draw_string(Render_Target *target, i16 font_id,
 }
 
 internal f32
-draw_string_mono(Render_Target *target, i16 font_id,
-                 String str, f32 x, f32 y, f32 advance, u32 color){
+draw_string_mono(Render_Target *target, i16 font_id, String str, f32 x, f32 y, f32 advance, u32 color){
     for (i32 i = 0; i < str.size; ++i){
         u8 c = str.str[i] % 128;
         font_draw_glyph_mono(target, font_id, c, x, y, advance, color);
         x += advance;
     }
+    
     return(x);
 }
 

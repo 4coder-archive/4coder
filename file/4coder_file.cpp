@@ -119,10 +119,10 @@ static Editing_File_State null_editing_file_state = {0};
 
 struct Editing_File_Name{
     char live_name_[256];
-    char source_path_[256];
+    //char source_path_[256];
     char extension_[16];
     String live_name;
-    String source_path;
+    //String source_path;
     String extension;
 };
 
@@ -351,21 +351,36 @@ file_set_to_loading(Editing_File *file){
 
 inline void
 file_mark_clean(Editing_File *file){
-    if (file->state.dirty != DirtyState_UnloadedChanges){
+    if (file->settings.unimportant){
         file->state.dirty = DirtyState_UpToDate;
+    }
+    else{
+        if (file->state.dirty != DirtyState_UnloadedChanges){
+            file->state.dirty = DirtyState_UpToDate;
+        }
     }
 }
 
 inline void
 file_mark_dirty(Editing_File *file){
-    if (file->state.dirty != DirtyState_UnloadedChanges){
-        file->state.dirty = DirtyState_UnsavedChanges;
+    if (file->settings.unimportant){
+        file->state.dirty = DirtyState_UpToDate;
+    }
+    else{
+        if (file->state.dirty != DirtyState_UnloadedChanges){
+            file->state.dirty = DirtyState_UnsavedChanges;
+        }
     }
 }
 
 inline void
 file_mark_behind_os(Editing_File *file){
-    file->state.dirty = DirtyState_UnloadedChanges;
+    if (file->settings.unimportant){
+        file->state.dirty = DirtyState_UpToDate;
+    }
+    else{
+        file->state.dirty = DirtyState_UnloadedChanges;
+    }
 }
 
 inline Dirty_State

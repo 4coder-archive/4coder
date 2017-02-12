@@ -27,9 +27,6 @@ struct Render_Font{
     String name;
     b32 loaded;
     
-    // TODO(allen): Have our own type here instead
-    // of stbtt_packedchar, and have both stb fonts
-    // and OS fonts go to our type.
     Glyph_Data glyphs[256];
     f32 advance_data[256];
     i32 height, ascent, descent, line_skip;
@@ -59,7 +56,8 @@ struct Render_Piece_Rectangle{
 
 struct Render_Piece_Gradient{
     f32_Rect rect;
-    u32 left_color, right_color;
+    u32 left_color;
+    u32 right_color;
 };
 
 struct Render_Piece_Glyph{

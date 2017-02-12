@@ -744,9 +744,6 @@ save_file_to_name(System_Functions *system, Models *models, Editing_File *file, 
         filename = file->canon.name.str;
         using_actual_filename = true;
     }
-    else if (match(filename, file->canon.name)){
-        using_actual_filename = true;
-    }
     
     if (filename){
         Mem_Options *mem = &models->mem;
@@ -774,13 +771,12 @@ save_file_to_name(System_Functions *system, Models *models, Editing_File *file, 
         }
         else{
             data = (char*)push_array(&mem->part, char, max);
-            
             if (!data){
                 used_general = 1;
                 data = (char*)general_memory_allocate(&mem->general, max);
             }
         }
-        Assert(data);
+        Assert(data != 0);
         
         if (dos_write_mode){
             size = buffer_convert_out(buffer, data, max);
@@ -790,9 +786,21 @@ save_file_to_name(System_Functions *system, Models *models, Editing_File *file, 
             buffer_stringify(buffer, 0, size, data);
         }
         
+        if (!using_actual_filename && file->canon.name.str != 0){
+            char space[512];
+            u32 length = str_size(filename);
+            system->get_canonical(filename, length, space, sizeof(space));
+            
+            char *source_path = file->canon.name.str;
+            if (match(space, source_path)){
+                using_actual_filename = true;
+            }
+        }
+        
         result = system->save_file(filename, data, size);
+        
         if (result && using_actual_filename){
-            file->state.ignore_behind_os = 1;
+            file->state.ignore_behind_os = true;
         }
         
         file_mark_clean(file);
@@ -2196,6 +2204,8 @@ file_first_lex_serial(Mem_Options *mem, Editing_File *file){
             
             i32 chunk_index = 0;
             
+            Cpp_Token_Array *swap_array = &file->state.swap_array;
+            
             do{
                 char *chunk = chunks[chunk_index];
                 i32 chunk_size = chunk_sizes[chunk_index];
@@ -2204,40 +2214,50 @@ file_first_lex_serial(Mem_Options *mem, Editing_File *file){
                 
                 switch (result){
                     case LexResult_NeedChunk: ++chunk_index; break;
-                    case LexResult_NeedTokenMemory: InvalidCodePath;
+                    
+                    
+                    case LexResult_Finished:
+                    case LexResult_NeedTokenMemory:
+                    {
+                        u32 new_max = l_round_up_u32(tokens.count+1, KB(1));
+                        u32 new_mem_max = new_max*sizeof(Cpp_Token);
+                        u32 old_mem_max = swap_array->count*sizeof(Cpp_Token);
+                        if (swap_array->tokens == 0){
+                            swap_array->tokens = (Cpp_Token*)general_memory_allocate(general, new_mem_max);
+                        }
+                        else{
+                            swap_array->tokens = (Cpp_Token*)
+                                general_memory_reallocate(general, swap_array->tokens, old_mem_max, new_mem_max);
+                        }
+                        swap_array->max_count = new_max;
+                        
+                        memcpy(swap_array->tokens + swap_array->count, tokens.tokens, tokens.count*sizeof(Cpp_Token));
+                        swap_array->count += tokens.count;
+                        tokens.count = 0;
+                        
+                        if (result == LexResult_Finished){
+                            still_lexing = 0;
+                        }
+                    }break;
+                    
                     case LexResult_HitTokenLimit: InvalidCodePath;
-                    case LexResult_Finished: still_lexing = 0; break;
                 }
             } while (still_lexing);
             
-            i32 new_max = l_round_up_i32(tokens.count+1, KB(1));
-            
-            {
-                Assert(file->state.swap_array.tokens == 0);
-                file->state.swap_array.tokens = (Cpp_Token*)general_memory_allocate(general, new_max*sizeof(Cpp_Token));
+            Cpp_Token_Array *token_array = &file->state.token_array;
+            token_array->count = swap_array->count;
+            token_array->max_count = swap_array->max_count;
+            if (token_array->tokens != 0){
+                general_memory_free(general, token_array->tokens);
             }
+            token_array->tokens = swap_array->tokens;
             
-            u8 *dest = (u8*)file->state.swap_array.tokens;
-            u8 *src = (u8*)tokens.tokens;
+            swap_array->tokens = 0;
+            swap_array->count = 0;
+            swap_array->max_count = 0;
             
-            memcpy(dest, src, tokens.count*sizeof(Cpp_Token));
-            
-            {
-                Cpp_Token_Array *file_token_array = &file->state.token_array;
-                file_token_array->count = tokens.count;
-                file_token_array->max_count = new_max;
-                if (file_token_array->tokens){
-                    general_memory_free(general, file_token_array->tokens);
-                }
-                file_token_array->tokens = file->state.swap_array.tokens;
-                file->state.swap_array.tokens = 0;
-            }
-            
-            // NOTE(allen): These are outside the locked section because I don't
-            // think getting these out of order will cause critical bugs, and I
-            // want to minimize what's done in locked sections.
-            file->state.tokens_complete = 1;
-            file->state.still_lexing = 0;
+            file->state.tokens_complete = true;
+            file->state.still_lexing = false;
             
             end_temp_memory(temp);
         }
@@ -4254,7 +4274,7 @@ begin_exhaustive_loop(Exhaustive_File_Loop *loop, Hot_Directory *hdir){
     
     copy_ss(&loop->front_name, front_of_directory(hdir->string));
     get_absolutes(loop->front_name, &loop->absolutes, 1, 1);
-    copy_ss(&loop->full_path, path_of_directory(hdir->string));
+    copy_ss(&loop->full_path, hdir->canon_dir);
     loop->r = loop->full_path.size;
 }
 
@@ -4265,18 +4285,23 @@ get_exhaustive_info(System_Functions *system, Working_Set *working_set, Exhausti
     local_persist String message_unsynced = make_lit_string(" LOADED !");
     
     Exhaustive_File_Info result = {0};
-    Editing_File *file = 0;
     
     result.info = loop->infos + i;
     loop->full_path.size = loop->r;
     append_sc(&loop->full_path, result.info->filename);
     terminate_with_null(&loop->full_path);
     
-    Editing_File_Canon_Name canon_name;
+    Editing_File *file = working_set_canon_contains(working_set, loop->full_path);
     
-    if (get_canon_name(system, &canon_name, loop->full_path)){
-        file = working_set_canon_contains(working_set, canon_name.name);
+#if 0
+    if (file != 0){
+        Editing_File_Canon_Name canon_name;
+        
+        if (get_canon_name(system, &canon_name, loop->full_path)){
+            file = working_set_canon_contains(working_set, canon_name.name);
+        }
     }
+#endif
     
     String filename = make_string_cap(result.info->filename, result.info->filename_len, result.info->filename_len+1);
     
@@ -5661,6 +5686,23 @@ struct Input_Process_Result{
     i32 max_y;
 };
 
+static char
+to_writable_char(Key_Code long_character){
+    char character = 0;
+    if (long_character < ' '){
+        if (long_character == '\n'){
+            character = '\n';
+        }
+        else if (long_character == '\t'){
+            character = '\t';
+        }
+    }
+    else if (long_character >= ' ' && long_character <= 255 && long_character != 127){
+        character = (char)long_character;
+    }
+    return(character);
+}
+
 internal Input_Process_Result
 do_step_file_view(System_Functions *system,
                   View *view, i32_Rect rect, b32 is_active,
@@ -5774,7 +5816,8 @@ do_step_file_view(System_Functions *system,
                                 i32 count = keys->count;
                                 for (i32 i = 0; i < count; ++i){
                                     Key_Event_Data key = get_single_key(keys, i);
-                                    if (char_to_upper(key.character) == activation_key){
+                                    char character = to_writable_char(key.character);
+                                    if (char_to_upper(character) == activation_key){
                                         target->active = b->id;
                                         result.is_animating = 1;
                                         break;

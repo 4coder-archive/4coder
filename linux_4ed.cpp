@@ -1892,7 +1892,7 @@ LinuxInputInit(Display *dpy, Window XWindow)
 // Keyboard handling funcs
 //
 
-global u8 keycode_lookup_table[255];
+global Key_Code keycode_lookup_table[255];
 
 internal void
 LinuxKeycodeInit(Display* dpy){

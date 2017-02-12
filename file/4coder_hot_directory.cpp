@@ -10,7 +10,10 @@
 // TOP
 
 struct Hot_Directory{
+    char string_space[256];
+    char canon_dir_space[256];
     String string;
+    String canon_dir;
     File_List file_list;
 };
 
@@ -63,10 +66,23 @@ hot_directory_set(System_Functions *system, Hot_Directory *hot_directory, String
     b32 success = terminate_with_null(&hot_directory->string);
     if (success){
         if (str.size > 0){
-            system->set_file_list(&hot_directory->file_list, hot_directory->string.str);
+            u32 canon_max = hot_directory->canon_dir.memory_size;
+            u32 canon_length = 0;
+            char *canon_str = hot_directory->canon_dir.str;
+            system->set_file_list(&hot_directory->file_list, hot_directory->string.str, canon_str, &canon_length, canon_max);
+            if (canon_length > 0){
+                hot_directory->canon_dir.size = canon_length;
+                if (!char_is_slash(hot_directory->canon_dir.str[canon_length-1])){
+                    append_s_char(&hot_directory->canon_dir, '/');
+                }
+            }
+            else{
+                hot_directory->canon_dir.size = 0;
+            }
         }
         else{
-            system->set_file_list(&hot_directory->file_list, 0);
+            system->set_file_list(&hot_directory->file_list, 0, 0, 0, 0);
+            hot_directory->canon_dir.size = 0;
         }
     }
     hot_directory_fixup(hot_directory);
@@ -78,8 +94,10 @@ hot_directory_reload(System_Functions *system, Hot_Directory *hot_directory){
 }
 
 internal void
-hot_directory_init(Hot_Directory *hot_directory, String base, String dir){
-    hot_directory->string = base;
+hot_directory_init(Hot_Directory *hot_directory, String dir){
+    hot_directory->string = make_fixed_width_string(hot_directory->string_space);
+    hot_directory->canon_dir = make_fixed_width_string(hot_directory->canon_dir_space);
+    
     hot_directory->string.str[255] = 0;
     hot_directory->string.size = 0;
     copy_ss(&hot_directory->string, dir);

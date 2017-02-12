@@ -739,82 +739,104 @@ Sys_File_Can_Be_Made_Sig(system_file_can_be_made){
 
 internal
 Sys_Set_File_List_Sig(system_set_file_list){
-    b32 clear_list = false;
+    b32 clear_list = true;
     if (directory != 0){
         char dir_space[MAX_PATH + 32];
         String dir = make_string_cap(dir_space, 0, MAX_PATH + 32);
         append_sc(&dir, directory);
-        append_ss(&dir, make_lit_string("\\*"));
         terminate_with_null(&dir);
         
-        char *c_str_dir = dir.str;
+        HANDLE dir_handle = CreateFile(dir.str, FILE_LIST_DIRECTORY, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, 0, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OVERLAPPED, 0);
         
-        WIN32_FIND_DATA find_data;
-        HANDLE search;
-        search = FindFirstFileA(c_str_dir, &find_data);
-        
-        if (search != INVALID_HANDLE_VALUE){            
-            i32 character_count = 0;
-            i32 file_count = 0;
-            BOOL more_files = true;
-            do{
-                if (!match_cs(find_data.cFileName, make_lit_string(".")) &&
-                    !match_cs(find_data.cFileName, make_lit_string(".."))){
-                    ++file_count;
-                    i32 size = 0;
-                    for(;find_data.cFileName[size];++size);
-                    character_count += size + 1;
-                }
-                more_files = FindNextFile(search, &find_data);
-            }while(more_files);
-            FindClose(search);
+        if (dir_handle != INVALID_HANDLE_VALUE){
+            DWORD final_length = GetFinalPathNameByHandleA(dir_handle, dir_space, sizeof(dir_space), 0);
+            CloseHandle(dir_handle);
             
-            i32 required_size = character_count + file_count * sizeof(File_Info);
-            if (file_list->block_size < required_size){
-                system_free_memory(file_list->block);
-                file_list->block = system_get_memory(required_size);
-                file_list->block_size = required_size;
-            }
-            
-            file_list->infos = (File_Info*)file_list->block;
-            char *name = (char*)(file_list->infos + file_count);
-            if (file_list->block != 0){
-                search = FindFirstFileA(c_str_dir, &find_data);
+            if (final_length < sizeof(dir_space)){
+                char *c_str_dir = dir_space;
                 
-                if (search != INVALID_HANDLE_VALUE){
-                    File_Info *info = file_list->infos;
-                    more_files = true;
+                final_length -= 4;
+                memmove(c_str_dir, c_str_dir+4, final_length);
+                c_str_dir[final_length] = '\\';
+                c_str_dir[final_length+1] = '*';
+                c_str_dir[final_length+2] = 0;
+                
+                if (canon_directory_out != 0){
+                    if (final_length+1 < canon_directory_max){
+                        memcpy(canon_directory_out, c_str_dir, final_length);
+                        if (char_is_slash(dir.str[dir.size-1]) && canon_directory_out[final_length-1] != '\\'){
+                            canon_directory_out[final_length++] = '\\';
+                        }
+                        canon_directory_out[final_length] = 0;
+                        *canon_directory_size_out = final_length;
+                    }
+                    else{
+                        u32 length = copy_fast_unsafe_cc(canon_directory_out, directory);
+                        canon_directory_out[length] = 0;
+                        *canon_directory_size_out = length;
+                    }
+                }
+                
+                WIN32_FIND_DATA find_data;
+                HANDLE search = FindFirstFileA(c_str_dir, &find_data);
+                
+                if (search != INVALID_HANDLE_VALUE){            
+                    i32 character_count = 0;
+                    i32 file_count = 0;
+                    BOOL more_files = true;
                     do{
                         if (!match_cs(find_data.cFileName, make_lit_string(".")) &&
                             !match_cs(find_data.cFileName, make_lit_string(".."))){
-                            info->folder = (find_data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) != 0;
-                            info->filename = name;
-                            
-                            i32 length = copy_fast_unsafe_cc(name, find_data.cFileName);
-                            name += length;
-                            
-                            info->filename_len = length;
-                            *name++ = 0;
-                            String fname = make_string_cap(info->filename, info->filename_len, info->filename_len+1);
-                            replace_char(&fname, '\\', '/');
-                            ++info;
+                            ++file_count;
+                            i32 size = 0;
+                            for(;find_data.cFileName[size];++size);
+                            character_count += size + 1;
                         }
                         more_files = FindNextFile(search, &find_data);
                     }while(more_files);
                     FindClose(search);
                     
-                    file_list->count = file_count;
-                }else{
-                    clear_list = true;
+                    i32 required_size = character_count + file_count * sizeof(File_Info);
+                    if (file_list->block_size < required_size){
+                        system_free_memory(file_list->block);
+                        file_list->block = system_get_memory(required_size);
+                        file_list->block_size = required_size;
+                    }
+                    
+                    file_list->infos = (File_Info*)file_list->block;
+                    char *name = (char*)(file_list->infos + file_count);
+                    if (file_list->block != 0){
+                        search = FindFirstFileA(c_str_dir, &find_data);
+                        
+                        if (search != INVALID_HANDLE_VALUE){
+                            File_Info *info = file_list->infos;
+                            more_files = true;
+                            do{
+                                if (!match_cs(find_data.cFileName, make_lit_string(".")) &&
+                                    !match_cs(find_data.cFileName, make_lit_string(".."))){
+                                    info->folder = (find_data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) != 0;
+                                    info->filename = name;
+                                    
+                                    i32 length = copy_fast_unsafe_cc(name, find_data.cFileName);
+                                    name += length;
+                                    
+                                    info->filename_len = length;
+                                    *name++ = 0;
+                                    String fname = make_string_cap(info->filename, info->filename_len, info->filename_len+1);
+                                    replace_char(&fname, '\\', '/');
+                                    ++info;
+                                }
+                                more_files = FindNextFile(search, &find_data);
+                            }while(more_files);
+                            FindClose(search);
+                            
+                            file_list->count = file_count;
+                            clear_list = false;
+                        }
+                    }
                 }
             }
         }
-        else{
-            clear_list = true;
-        }
-    }
-    else{
-        clear_list = true;
     }
     
     if (clear_list){
@@ -826,13 +848,70 @@ Sys_Set_File_List_Sig(system_set_file_list){
     }
 }
 
-// NOTE(allen): This does not chase down symbolic links because doing so
-// would require a lot of heavy duty OS calls.  I've decided to give up
-// a little ground on always recognizing files as equivalent in exchange
-// for the ability to handle them very quickly when nothing strange is
-// going on.
-internal int32_t
-win32_canonical_ascii_name(char *src, i32 len, char *dst, i32 max){
+#if 1
+internal u32
+win32_canonical_ascii_name(char *src, u32 len, char *dst, u32 max){
+    u32 result = 0;
+    
+    char src_space[MAX_PATH + 32];
+    if (len < sizeof(src_space) && len >= 2 && ((src[0] >= 'a' && src[0] <= 'z') || (src[0] >= 'A' && src[0] <= 'Z')) && src[1] == ':'){
+        memcpy(src_space, src, len);
+        src_space[len] = 0;
+        
+        HANDLE file = CreateFile(src_space, GENERIC_READ, 0, 0, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
+        
+        if (file != INVALID_HANDLE_VALUE){
+            DWORD final_length = GetFinalPathNameByHandleA(file, dst, max, 0);
+            
+            if (final_length < max && final_length >= 4){
+                if (dst[final_length-1] == 0){
+                    --final_length;
+                }
+                final_length -= 4;
+                memmove(dst, dst+4, final_length);
+                dst[final_length] = 0;
+                result = final_length;
+            }
+            
+            CloseHandle(file);
+        }
+        else{
+            String src_str = make_string(src, len);
+            String path_str = path_of_directory(src_str);
+            String front_str = front_of_directory(src_str);
+            
+            memcpy(src_space, path_str.str, path_str.size);
+            src_space[path_str.size] = 0;
+            
+            HANDLE dir = CreateFile(src_space, FILE_LIST_DIRECTORY, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, 0, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OVERLAPPED, 0);
+            
+            if (dir != INVALID_HANDLE_VALUE){
+                DWORD final_length = GetFinalPathNameByHandleA(dir, dst, max, 0);
+                
+                if (final_length < max && final_length >= 4){
+                    if (dst[final_length-1] == 0){
+                        --final_length;
+                    }
+                    final_length -= 4;
+                    memmove(dst, dst+4, final_length);
+                    dst[final_length++] = '\\';
+                    memcpy(dst + final_length, front_str.str, front_str.size);
+                    final_length += front_str.size;
+                    dst[final_length] = 0;
+                    result = final_length;
+                }
+                
+                CloseHandle(dir);
+            }
+        }
+    }
+    
+    return(result);
+}
+
+#else
+internal u32
+win32_canonical_ascii_name(char *src, u32 len, char *dst, u32 max){
     char *wrt = dst;
     char *wrt_stop = dst + max;
     char *src_stop = src + len;
@@ -890,9 +969,10 @@ win32_canonical_ascii_name(char *src, i32 len, char *dst, i32 max){
         wrt = dst;
     }
     
-    int32_t result = (int32_t)(wrt - dst);
+    u32 result = (u32)(wrt - dst);
     return(result);
 }
+#endif
 
 internal
 Sys_Get_Canonical_Sig(system_get_canonical){
@@ -903,13 +983,7 @@ Sys_Get_Canonical_Sig(system_get_canonical){
 internal
 Sys_Load_Handle_Sig(system_load_handle){
     b32 result = 0;
-    HANDLE file = CreateFile(filename,
-                             GENERIC_READ,
-                             0,
-                             0,
-                             OPEN_EXISTING,
-                             FILE_ATTRIBUTE_NORMAL,
-                             0);
+    HANDLE file = CreateFile(filename, GENERIC_READ, 0, 0, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
     
     if (file != INVALID_HANDLE_VALUE){
         *(HANDLE*)handle_out = file;
@@ -941,11 +1015,7 @@ Sys_Load_File_Sig(system_load_file){
     
     DWORD read_size = 0;
     
-    if (ReadFile(file,
-                 buffer,
-                 size,
-                 &read_size,
-                 0)){
+    if (ReadFile(file, buffer, size, &read_size, 0)){
         if (read_size == size){
             result = 1;
         }
@@ -1521,7 +1591,7 @@ Win32LoadRenderCode(){
 // Helpers
 //
 
-global u8 keycode_lookup_table[255];
+global Key_Code keycode_lookup_table[255];
 
 internal void
 Win32KeycodeInit(){
@@ -1749,122 +1819,6 @@ Win32HighResolutionTime(){
     return(result);
 }
 
-internal void
-Win32Foo(WPARAM wParam, LPARAM lParam){
-    b8 previous_state = ((lParam & Bit_30)?(1):(0));
-    b8 current_state = ((lParam & Bit_31)?(0):(1));
-    
-    if (current_state){
-        u8 key = keycode_lookup_table[(u8)wParam];
-        
-        i32 *count = &win32vars.input_chunk.trans.key_data.count;
-        Key_Event_Data *data = win32vars.input_chunk.trans.key_data.keys;
-        b8 *control_keys = win32vars.input_chunk.pers.control_keys;
-        i32 control_keys_size = sizeof(win32vars.input_chunk.pers.control_keys);
-        
-        if (*count < KEY_INPUT_BUFFER_SIZE){
-            if (!key){
-                UINT vk = (UINT)wParam;
-                UINT scan = (UINT)((lParam >> 16) & 0x7F);
-                BYTE state[256];
-                BYTE control_state = 0;
-                WORD x1 = 0, x2 = 0, x = 0, junk_x;
-                i32 result1 = 0, result2 = 0, result = 0;
-                
-                GetKeyboardState(state);
-                x1 = 0;
-                result1 = ToAscii(vk, scan, state, &x1, 0);
-                if (result1 < 0){
-                    ToAscii(vk, scan, state, &junk_x, 0);
-                }
-                result1 = (result1 == 1);
-                if (!usable_ascii((char)x1)){
-                    result1 = 0;
-                }
-                
-                control_state = state[VK_CONTROL];
-                state[VK_CONTROL] = 0;
-                x2 = 0;
-                result2 = ToAscii(vk, scan, state, &x2, 0);
-                if (result2 < 0){
-                    ToAscii(vk, scan, state, &junk_x, 0);
-                }
-                result2 = (result2 == 1);
-                if (!usable_ascii((char)x2)){
-                    result2 = 0;
-                }
-                
-                // TODO(allen): This is becoming a really major issue.
-                // Apparently control + i outputs a '\t' which is VALID ascii
-                // according to this system. So it reports the key as '\t'.
-                // This wasn't an issue before because we were ignoring control
-                // when computing character_no_caps_lock which is what is used
-                // for commands. But that is incorrect for some keyboard layouts
-                // where control+alt is used to signal AltGr for important keys.
-                if (result1 && result2){
-                    char c1 = char_to_upper((char)x1);
-                    char cParam = char_to_upper((char)wParam);
-                    
-                    if ((c1 == '\n' || c1 == '\r') && cParam != VK_RETURN){
-                        result1 = 0;
-                    }
-                    if (c1 == '\t' && cParam != VK_TAB){
-                        result1 = 0;
-                    }
-                }
-                
-                if (result1){
-                    x = x1;
-                    state[VK_CONTROL] = control_state;
-                    result = 1;
-                }
-                else if (result2){
-                    x = x2;
-                    result = 1;
-                }
-                
-                if (result == 1 && x < 128){
-                    key = (u8)x;
-                    if (key == '\r') key = '\n';
-                    data[*count].character = key;
-                    
-                    state[VK_CAPITAL] = 0;
-                    x = 0;
-                    result = ToAscii(vk, scan, state, &x, 0);
-                    if (result < 0){
-                        ToAscii(vk, scan, state, &junk_x, 0);
-                    }
-                    result = (result == 1);
-                    if (!usable_ascii((char)x)){
-                        result = 0;
-                    }
-                    
-                    if (result){
-                        key = (u8)x;
-                        if (key == '\r') key = '\n';
-                        data[*count].character_no_caps_lock = key;
-                        data[*count].keycode = key;
-                    }
-                }
-                if (result != 1 || x >= 128){
-                    data[*count].character = 0;
-                    data[*count].character_no_caps_lock = 0;
-                    data[*count].keycode = 0;
-                }
-            }
-            else{
-                data[*count].character = 0;
-                data[*count].character_no_caps_lock = 0;
-                data[*count].keycode = key;
-            }
-            memcpy(data[*count].modifiers, control_keys, control_keys_size);
-            data[*count].modifiers[MDFR_HOLD_INDEX] = previous_state;
-            ++(*count);
-        }
-    }
-}
-
-
 internal LRESULT
 Win32Callback(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
     LRESULT result = 0;
@@ -1928,7 +1882,7 @@ Win32Callback(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
                     b8 current_state = ((lParam & Bit_31)?(0):(1));
                     
                     if (current_state){
-                        u8 key = keycode_lookup_table[(u8)wParam];
+                        Key_Code key = keycode_lookup_table[(u8)wParam];
                         
                         if (key != 0){
                             i32 *count = &win32vars.input_chunk.trans.key_data.count;
@@ -1952,16 +1906,19 @@ Win32Callback(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
         
         case WM_CHAR: case WM_SYSCHAR: case WM_UNICHAR:
         {
-            u8 character = wParam & 0x7F;
+            u16 character = (u16)wParam;
             
             if (character == '\r'){
                 character = '\n';
             }
-            else if ((character < 32 && character != '\t') || character == 127){
+            else if (character == '\t'){
+                character = '\t';
+            }
+            else if (character < 32 || character == 127){
                 break;
             }
             
-            u8 character_no_caps_lock = character;
+            u16 character_no_caps_lock = character;
             
             i32 *count = &win32vars.input_chunk.trans.key_data.count;
             Key_Event_Data *data = win32vars.input_chunk.trans.key_data.keys;
@@ -1972,7 +1929,7 @@ Win32Callback(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
             GetKeyboardState(state);
             if (state[VK_CAPITAL]){
                 if (character_no_caps_lock >= 'a' && character_no_caps_lock <= 'z'){
-                    character_no_caps_lock += (u8)('A' - 'a');
+                    character_no_caps_lock -= (u8)('a' - 'A');
                 }
                 else if (character_no_caps_lock >= 'A' && character_no_caps_lock <= 'Z'){
                     character_no_caps_lock += (u8)('a' - 'A');
@@ -1986,7 +1943,6 @@ Win32Callback(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
             memcpy(data[*count].modifiers, control_keys, control_keys_size);
             ++(*count);
             
-            //result = DefWindowProc(hwnd, uMsg, wParam, lParam);
             win32vars.got_useful_event = 1;
         }break;
         

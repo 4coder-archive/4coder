@@ -70,35 +70,25 @@ char *keys_that_need_codes[] = {
     "f16",
 };
 
-void
+internal void
 generate_keycode_enum(){
     char *filename_keycodes = KEYCODES_FILE;
-    Out_Context context = {0};
-    int32_t i = 0, count = 0;
-    unsigned char code = 1;
+    
+    uint16_t code = 0xE000;
     
     String out = make_out_string(10 << 20);
     
+    Out_Context context = {0};
     if (begin_file_out(&context, filename_keycodes, &out)){
-        count = ArrayCount(keys_that_need_codes);
+        int32_t count = ArrayCount(keys_that_need_codes);
         
         append_sc(&out, "enum{\n");
-        for (i = 0; i < count; i){
-            if (strcmp(keys_that_need_codes[i], "f1") == 0 && code < 0x7F){
-                code = 0x7F;
-            }
-            switch (code){
-                case '\n': code++; break;
-                case '\t': code++; break;
-                case 0x20: code = 0x7F; break;
-                default:
-                append_sc(&out, "key_");
-                append_sc(&out, keys_that_need_codes[i++]);
-                append_sc(&out, " = ");
-                append_int_to_str(&out, code++);
-                append_sc(&out, ",\n");
-                break;
-            }
+        for (int32_t i = 0; i < count;){
+            append_sc(&out, "key_");
+            append_sc(&out, keys_that_need_codes[i++]);
+            append_sc(&out, " = ");
+            append_int_to_str(&out, code++);
+            append_sc(&out, ",\n");
         }
         append_sc(&out, "};\n");
         
@@ -108,7 +98,7 @@ generate_keycode_enum(){
                   "char *result = 0;\n"
                   "switch(key_code){\n");
         
-        for (i = 0; i < count; ++i){
+        for (int32_t i = 0; i < count; ++i){
             append_sc(&out, "case key_");
             append_sc(&out, keys_that_need_codes[i]);
             append_sc(&out, ": result = \"");

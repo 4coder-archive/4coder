@@ -30,11 +30,11 @@ static int32_t
 get_build_directory(Application_Links *app, Buffer_Summary *buffer, String *dir_out){
     int32_t result = BuildDir_None;
     
-    if (buffer && buffer->file_name){
+    if (buffer != 0 && buffer->file_name != 0){
         if (!match_cc(buffer->file_name, buffer->buffer_name)){
-            String dir = make_string_cap(buffer->file_name,
-                                         buffer->file_name_len,
-                                         buffer->file_name_len+1);
+            char *file_name = buffer->file_name;
+            int32_t file_name_len = buffer->file_name_len;
+            String dir = make_string_cap(file_name, file_name_len, file_name_len+1);
             remove_last_folder(&dir);
             append_ss(dir_out, dir);
             result = BuildDir_AtFile;

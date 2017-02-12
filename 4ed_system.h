@@ -21,10 +21,10 @@ handle_equal(Plat_Handle a, Plat_Handle b){
     return(result);
 }
 
-#define Sys_Set_File_List_Sig(name) void name(File_List *file_list, char *directory)
+#define Sys_Set_File_List_Sig(name) void name(File_List *file_list, char *directory, char *canon_directory_out, u32 *canon_directory_size_out, u32 canon_directory_max)
 typedef Sys_Set_File_List_Sig(System_Set_File_List);
 
-#define Sys_Get_Canonical_Sig(name) i32 name(char *filename, i32 len, char *buffer, i32 max)
+#define Sys_Get_Canonical_Sig(name) u32 name(char *filename, u32 len, char *buffer, u32 max)
 typedef Sys_Get_Canonical_Sig(System_Get_Canonical);
 
 #define Sys_Add_Listener_Sig(name) b32 name(char *filename)
@@ -50,7 +50,6 @@ typedef Sys_Load_Close_Sig(System_Load_Close);
 
 #define Sys_Save_File_Sig(name) b32 name(char *filename, char *buffer, u32 size)
 typedef Sys_Save_File_Sig(System_Save_File);
-
 
 #define Sys_Now_Time_Sig(name) u64 name()
 typedef Sys_Now_Time_Sig(System_Now_Time);

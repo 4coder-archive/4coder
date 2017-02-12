@@ -86,7 +86,6 @@ struct Models{
     Editing_File *message_buffer;
     Editing_File *scratch_buffer;
     
-    char hot_dir_base_[256];
     Hot_Directory hot_directory;
     
     Panel *prev_mouse_panel;
@@ -95,8 +94,8 @@ struct Models{
     
     Debug_Data debug;
     
-    i16 user_up_key;
-    i16 user_down_key;
+    u16 user_up_key;
+    u16 user_down_key;
 };
 
 // BOTTOM

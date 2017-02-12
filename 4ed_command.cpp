@@ -9,10 +9,8 @@
 
 // TOP
 
-#define Command_Function_Sig(name) void (name)(                         \
-        System_Functions *system,                                       \
-        struct Command_Data *command,                                   \
-        struct Command_Binding binding)
+#define Command_Function_Sig(name) \
+void (name)(System_Functions *system, struct Command_Data *command, struct Command_Binding binding)
 
 typedef Command_Function_Sig(*Command_Function);
 
@@ -24,6 +22,7 @@ struct Command_Binding{
     };
     i64 hash;
 };
+static Command_Binding null_command_binding = {0};
 
 struct Command_Map{
     Command_Map *parent;
@@ -41,8 +40,7 @@ map_hash(u16 event_code, u8 modifiers){
 }
 
 internal b32
-map_add(Command_Map *map, u16 event_code, u8 modifiers,
-        Command_Function function, Custom_Command_Function *custom = 0){
+map_add(Command_Map *map, u16 event_code, u8 modifiers, Command_Function function, Custom_Command_Function *custom = 0){
     Assert(map->count * 8 < map->max * 7);
     Command_Binding bind;
     bind.function = function;
@@ -64,14 +62,12 @@ map_add(Command_Map *map, u16 event_code, u8 modifiers,
 }
 
 inline b32
-map_add(Command_Map *map, u16 event_code, u8 modifiers,
-    Command_Function function, u64 custom_id){
+map_add(Command_Map *map, u16 event_code, u8 modifiers, Command_Function function, u64 custom_id){
     return (map_add(map, event_code, modifiers, function, (Custom_Command_Function*)custom_id));
 }
 
 internal b32
-map_find_entry(Command_Map *map, u16 event_code, u8 modifiers,
-               i32 *index_out){
+map_find_entry(Command_Map *map, u16 event_code, u8 modifiers, i32 *index_out){
     i64 hash = map_hash(event_code, modifiers);
     i32 max = map->max;
     i32 index = hash % map->max;
@@ -87,8 +83,7 @@ map_find_entry(Command_Map *map, u16 event_code, u8 modifiers,
 }
 
 internal b32
-map_find(Command_Map *map, u16 event_code, u8 modifiers,
-         Command_Binding *bind_out){
+map_find(Command_Map *map, u16 event_code, u8 modifiers, Command_Binding *bind_out){
     b32 result;
     i32 index;
     result = map_find_entry(map, event_code, modifiers, &index);
@@ -110,17 +105,11 @@ map_drop(Command_Map *map, u16 event_code, u8 modifiers){
     return result;
 }
 
-inline Command_Binding
-command_binding_zero(){
-    Command_Binding binding = {0};
-    return(binding);
-}
-
 internal void
 map_clear(Command_Map *commands){
     i32 max = commands->max;
     memset(commands->commands, 0, max*sizeof(*commands->commands));
-    commands->vanilla_keyboard_default = command_binding_zero();
+    commands->vanilla_keyboard_default = null_command_binding;
     commands->count = 0;
 }
 
@@ -131,42 +120,31 @@ map_init(Command_Map *commands, Partition *part, i32 max, Command_Map *parent){
         commands->parent = parent;
         commands->commands = push_array(part, Command_Binding, max);
         commands->max = max;
-        
         map_clear(commands);
     }
 }
 
 internal void
-map_get_vanilla_keyboard_default(Command_Map *map, u8 command,
-                                 Command_Binding *bind_out){
+map_get_vanilla_keyboard_default(Command_Map *map, u8 command, Command_Binding *bind_out){
     if (command == MDFR_NONE){
         *bind_out = map->vanilla_keyboard_default;
     }
 }
 
-inline u8
-apply_shift_to_code(u8 keycode){
-    return !(keycode >= 0x20 && keycode < 0x7F && keycode != ' ');
-}
-
 internal Command_Binding
 map_extract(Command_Map *map, Key_Event_Data key){
-    Command_Binding bind = {};
+    Command_Binding bind = {0};
     
     b32 ctrl = key.modifiers[MDFR_CONTROL_INDEX];
     b32 alt = key.modifiers[MDFR_ALT_INDEX];
     b32 shift = key.modifiers[MDFR_SHIFT_INDEX];
-    u16 code;
     u8 command = MDFR_NONE;
-    
-    //if (key.character_no_caps_lock != 0 &&
-    //    key.character_no_caps_lock != ' ') shift = 0;
     
     if (shift) command |= MDFR_SHIFT;
     if (ctrl) command |= MDFR_CTRL;
     if (alt) command |= MDFR_ALT;
-
-    code = key.character_no_caps_lock;
+    
+    u16 code = key.character_no_caps_lock;
     if (code == 0){
         code = key.keycode;
         map_find(map, code, command, &bind);
@@ -175,7 +153,6 @@ map_extract(Command_Map *map, Key_Event_Data key){
         if (code != '\n' && code != '\t' && code != ' '){
             command &= ~(MDFR_SHIFT);
         }
-        
         map_find(map, code, command, &bind);
         if (bind.function == 0){
             map_get_vanilla_keyboard_default(map, command, &bind);

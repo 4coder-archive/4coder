@@ -289,33 +289,33 @@ CUSTOM_COMMAND_SIG(write_zero_struct){
 // Open File In Quotes
 //
 
-static int32_t
+static bool32
 file_name_in_quotes(Application_Links *app, String *file_name){
-    int32_t result = false;
+    bool32 result = false;
     uint32_t access = AccessProtected;
     
-    View_Summary view;
-    Buffer_Summary buffer;
-    char short_file_name[128];
-    int32_t pos, start, end, size;
+    View_Summary view = get_active_view(app, access);
+    Buffer_Summary buffer = get_buffer(app, view.buffer_id, access);
     
-    view = get_active_view(app, access);
-    buffer = get_buffer(app, view.buffer_id, access);
-    pos = view.cursor.pos;
-    buffer_seek_delimiter_forward(app, &buffer, pos, '"', &end);
-    buffer_seek_delimiter_backward(app, &buffer, pos, '"', &start);
-    
-    ++start;
-    size = end - start;
-    
-    // NOTE(allen): This check is necessary because buffer_read_range
-    // requiers that the output buffer you provide is at least (end - start) bytes long.
-    if (size < sizeof(short_file_name)){
-        if (buffer_read_range(app, &buffer, start, end, short_file_name)){
-            result = true;
-            copy_ss(file_name, make_string(buffer.file_name, buffer.file_name_len));
-            remove_last_folder(file_name);
-            append_ss(file_name, make_string(short_file_name, size));
+    if (buffer.file_name != 0){
+        int32_t pos = view.cursor.pos;
+        int32_t start = 0, end = 0;
+        buffer_seek_delimiter_forward(app, &buffer, pos, '"', &end);
+        buffer_seek_delimiter_backward(app, &buffer, pos, '"', &start);
+        ++start;
+        
+        int32_t size = end - start;
+        
+        char short_file_name[128];
+        // NOTE(allen): This check is necessary because buffer_read_range
+        // requiers that the output buffer you provide is at least (end - start) bytes long.
+        if (size < sizeof(short_file_name)){
+            if (buffer_read_range(app, &buffer, start, end, short_file_name)){
+                result = true;
+                copy_ss(file_name, make_string(buffer.file_name, buffer.file_name_len));
+                remove_last_folder(file_name);
+                append_ss(file_name, make_string(short_file_name, size));
+            }
         }
     }
     
@@ -347,44 +347,45 @@ static bool32
 get_cpp_matching_file(Application_Links *app, Buffer_Summary buffer, Buffer_Summary *buffer_out){
     bool32 result = false;
     
-    char space[512];
-    String file_name = make_string_cap(space, 0, sizeof(space));
-    
-    append(&file_name, make_string(buffer.file_name, buffer.file_name_len));
-    
-    String extension = file_extension(file_name);
-    String new_extensions[2] = {0};
-    int32_t new_extensions_count = 0;
-    
-    if (match(extension, "cpp") || match(extension, "cc")){
-        new_extensions[0] = make_lit_string("h");
-        new_extensions[1] = make_lit_string("hpp");
-        new_extensions_count = 2;
-    }
-    else if (match(extension, "c")){
-        new_extensions[0] = make_lit_string("h");
-        new_extensions_count = 1;
-    }
-    else if (match(extension, "h")){
-        new_extensions[0] = make_lit_string("c");
-        new_extensions[1] = make_lit_string("cpp");
-        new_extensions_count = 2;
-    }
-    else if (match(extension, "hpp")){
-        new_extensions[0] = make_lit_string("cpp");
-        new_extensions_count = 1;
-    }
-    
-    remove_extension(&file_name);
-    int32_t base_pos = file_name.size;
-    for (int32_t i = 0; i < new_extensions_count; ++i){
-        String ext = new_extensions[i];
-        file_name.size = base_pos;
-        append(&file_name, ext);
+    if (buffer.file_name != 0){
+        char space[512];
+        String file_name = make_string_cap(space, 0, sizeof(space));
+        append(&file_name, make_string(buffer.file_name, buffer.file_name_len));
         
-        if (open_file(app, buffer_out, file_name.str, file_name.size, false, true)){
-            result = true;
-            break;
+        String extension = file_extension(file_name);
+        String new_extensions[2] = {0};
+        int32_t new_extensions_count = 0;
+        
+        if (match(extension, "cpp") || match(extension, "cc")){
+            new_extensions[0] = make_lit_string("h");
+            new_extensions[1] = make_lit_string("hpp");
+            new_extensions_count = 2;
+        }
+        else if (match(extension, "c")){
+            new_extensions[0] = make_lit_string("h");
+            new_extensions_count = 1;
+        }
+        else if (match(extension, "h")){
+            new_extensions[0] = make_lit_string("c");
+            new_extensions[1] = make_lit_string("cpp");
+            new_extensions_count = 2;
+        }
+        else if (match(extension, "hpp")){
+            new_extensions[0] = make_lit_string("cpp");
+            new_extensions_count = 1;
+        }
+        
+        remove_extension(&file_name);
+        int32_t base_pos = file_name.size;
+        for (int32_t i = 0; i < new_extensions_count; ++i){
+            String ext = new_extensions[i];
+            file_name.size = base_pos;
+            append(&file_name, ext);
+            
+            if (open_file(app, buffer_out, file_name.str, file_name.size, false, true)){
+                result = true;
+                break;
+            }
         }
     }
     

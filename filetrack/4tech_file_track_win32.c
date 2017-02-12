@@ -140,14 +140,7 @@ add_listener(File_Track_System *system, char *filename){
         char dir_name[1024];
         internal_get_parent_name(dir_name, sizeof(dir_name), filename);
         
-        HANDLE dir = CreateFile(
-            dir_name,
-            FILE_LIST_DIRECTORY,
-            FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
-            0,
-            OPEN_EXISTING,
-            FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OVERLAPPED,
-            0);
+        HANDLE dir = CreateFile(dir_name, FILE_LIST_DIRECTORY, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, 0, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OVERLAPPED, 0);
         
         if (dir != INVALID_HANDLE_VALUE){
             BY_HANDLE_FILE_INFORMATION dir_info = {0};

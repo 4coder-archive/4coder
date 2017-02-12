@@ -122,6 +122,7 @@ default_keys(Bind_Helper *context){
     // value such as key_left or key_back then it is a vanilla key.
     // It is possible to override this binding for individual keys.
     bind_vanilla_keys(context, write_character);
+    bind(context, 241, MDFR_NONE, write_character);
     
     // NOTE(allen|a4.0.7): You can now bind left and right clicks.
     // They only trigger on mouse presses.  Modifiers do work
@@ -199,7 +200,6 @@ default_keys(Bind_Helper *context){
 }
 
 #ifndef NO_BINDING
-
 extern "C" int32_t
 get_bindings(void *data, int32_t size){
     Bind_Helper context_ = begin_bind_helper(data, size);
@@ -211,7 +211,6 @@ get_bindings(void *data, int32_t size){
     int32_t result = end_bind_helper(context);
     return(result);
 }
-
 #endif //NO_BINDING
 
 #endif //FCODER_DEFAULT_BINDINGS

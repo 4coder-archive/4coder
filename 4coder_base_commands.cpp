@@ -22,15 +22,14 @@ CUSTOM_COMMAND_SIG(write_character){
     View_Summary view = get_active_view(app, access);
     
     User_Input in = get_command_input(app);
-    char character = 0;
     
+    char character = 0;
     if (in.type == UserInputKey){
-        character = in.key.character;
+        character = to_writable_char(in.key.character);
     }
     
     if (character != 0){
         Buffer_Summary buffer = get_buffer(app, view.buffer_id, access);
-        
         int32_t pos = view.cursor.pos;
         buffer_replace_range(app, &buffer, pos, pos, &character, 1);
         view_set_cursor(app, &view, seek_pos(view.cursor.pos + 1), true);
@@ -587,12 +586,13 @@ isearch(Application_Links *app, int32_t start_reversed){
         // only asked to intercept key events.
         Assert(in.type == UserInputKey);
         
+        char character = to_writable_char(in.key.character);
         int32_t made_change = 0;
         if (in.key.keycode == '\n' || in.key.keycode == '\t'){
             break;
         }
-        else if (in.key.character && key_is_unmodified(&in.key)){
-            append_s_char(&bar.string, in.key.character);
+        else if (character && key_is_unmodified(&in.key)){
+            append_s_char(&bar.string, character);
             made_change = 1;
         }
         else if (in.key.keycode == key_back){

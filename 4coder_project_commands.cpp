@@ -67,12 +67,14 @@ close_all_files_with_extension(Application_Links *app, Partition *scratch_part, 
             
             bool32 is_match = 1;
             if (extension_count > 0){
-                String extension = file_extension(make_string(buffer.file_name, buffer.file_name_len));
                 is_match = 0;
-                for (int32_t i = 0; i < extension_count; ++i){
-                    if (match(extension, extension_list[i])){
-                        is_match = 1;
-                        break;
+                if (buffer.file_name != 0){
+                    String extension = file_extension(make_string(buffer.file_name, buffer.file_name_len));
+                    for (int32_t i = 0; i < extension_count; ++i){
+                        if (match(extension, extension_list[i])){
+                            is_match = 1;
+                            break;
+                        }
                     }
                 }
             }

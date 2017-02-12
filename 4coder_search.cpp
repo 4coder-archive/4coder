@@ -582,7 +582,13 @@ generic_search_all_buffers(Application_Links *app, General_Memory *general, Part
         if (match.found_match){
             Partial_Cursor word_pos = {0};
             if (buffer_compute_cursor(app, &match.buffer, seek_pos(match.start), &word_pos)){
+                char *file_name = match.buffer.file_name;
                 int32_t file_len = match.buffer.file_name_len;
+                if (file_name != 0){
+                    file_name = match.buffer.buffer_name;
+                    file_len = match.buffer.buffer_name_len;
+                }
+                
                 int32_t line_num_len = int_to_str_size(word_pos.line);
                 int32_t column_num_len = int_to_str_size(word_pos.character);
                 
@@ -609,7 +615,7 @@ generic_search_all_buffers(Application_Links *app, General_Memory *general, Part
                 part_size += str_len;
                 
                 String out_line = make_string_cap(spare, 0, str_len);
-                append_ss(&out_line, make_string(match.buffer.file_name, file_len));
+                append_ss(&out_line, make_string(file_name, file_len));
                 append_s_char(&out_line, ':');
                 append_int_to_str(&out_line, word_pos.line);
                 append_s_char(&out_line, ':');

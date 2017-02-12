@@ -74,25 +74,24 @@ OPEN_FILE_HOOK_SIG(default_file_settings){
     Buffer_Summary buffer = get_buffer(app, buffer_id, access);
     Assert(buffer.exists);
     
-    int32_t treat_as_code = 0;
-    int32_t wrap_lines = 1;
+    int32_t treat_as_code = false;
+    int32_t wrap_lines = true;
     
-    if (buffer.file_name && buffer.size < (16 << 20)){
+    if (buffer.file_name != 0 && buffer.size < (16 << 20)){
         String ext = file_extension(make_string(buffer.file_name, buffer.file_name_len));
-        
         if (match_ss(ext, make_lit_string("cpp")) ||
             match_ss(ext, make_lit_string("h")) ||
             match_ss(ext, make_lit_string("c")) ||
             match_ss(ext, make_lit_string("hpp"))){
-            treat_as_code = 1;
+            treat_as_code = true;
         }
     }
     
     if (treat_as_code){
-        wrap_lines = 0;
+        wrap_lines = false;
     }
-    if (buffer.file_name[0] == '*'){
-        wrap_lines = 0;
+    if (buffer.file_name == 0){
+        wrap_lines = false;
     }
     
     buffer_set_setting(app, &buffer, BufferSetting_WrapPosition, default_wrap_width);
@@ -106,8 +105,8 @@ OPEN_FILE_HOOK_SIG(default_file_settings){
         // Unfortunantely without tokens virtual whitespace doesn't really make sense.
         // So for now I have it automatically turning on lexing when virtual whitespace is turned on.
         // Cleaning some of that up is a goal for future versions.
-        buffer_set_setting(app, &buffer, BufferSetting_WrapLine, 1);
-        buffer_set_setting(app, &buffer, BufferSetting_VirtualWhitespace, 1);
+        buffer_set_setting(app, &buffer, BufferSetting_WrapLine, true);
+        buffer_set_setting(app, &buffer, BufferSetting_VirtualWhitespace, true);
     }
     else{
         buffer_set_setting(app, &buffer, BufferSetting_WrapLine, wrap_lines);

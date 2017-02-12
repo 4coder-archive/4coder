@@ -52,11 +52,27 @@ key_is_unmodified(Key_Event_Data *key){
     return(unmodified);
 }
 
+static char
+to_writable_char(Key_Code long_character){
+    char character = 0;
+    if (long_character < ' '){
+        if (long_character == '\n'){
+            character = '\n';
+        }
+        else if (long_character == '\t'){
+            character = '\t';
+        }
+    }
+    else if (long_character >= ' ' && long_character <= 255 && long_character != 127){
+        character = (char)long_character;
+    }
+    return(character);
+}
+
 static int32_t
 query_user_general(Application_Links *app, Query_Bar *bar, bool32 force_number){
     User_Input in;
     int32_t success = 1;
-    int32_t good_character = 0;
     
     // NOTE(allen|a3.4.4): It will not cause an *error* if we continue on after failing to.
     // start a query bar, but it will be unusual behavior from the point of view of the
@@ -79,16 +95,19 @@ query_user_general(Application_Links *app, Query_Bar *bar, bool32 force_number){
             break;
         }
         
-        good_character = 0;
+        char character = 0;
+        bool32 good_character = false;
         if (key_is_unmodified(&in.key)){
             if (force_number){
                 if (in.key.character >= '0' && in.key.character <= '9'){
-                    good_character = 1;
+                    good_character = true;
+                    character = (char)(in.key.character);
                 }
             }
             else{
-                if (in.key.character != 0){
-                    good_character = 1;
+                character = to_writable_char(in.key.character);
+                if (character != 0){
+                    good_character = true;
                 }
             }
         }
@@ -106,7 +125,7 @@ query_user_general(Application_Links *app, Query_Bar *bar, bool32 force_number){
                 }
             }
             else if (good_character){
-                append_s_char(&bar->string, in.key.character);
+                append_s_char(&bar->string, character);
             }
         }
     }

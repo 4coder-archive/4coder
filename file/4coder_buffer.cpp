@@ -1929,7 +1929,7 @@ buffer_render_data(Buffer_Render_State *S_ptr, Buffer_Render_Params params, f32 
                         
                         default:
                         if (S.write.item < item_end){
-                            if (S.ch >= ' ' && S.ch <= '~'){
+                            if (S.ch >= ' ' && S.ch <= 256 && S.ch != 127){
                                 S.write = write_render_item(S.write, S.i, S.ch, 0);
                             }
                             else{
