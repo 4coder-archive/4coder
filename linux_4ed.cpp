@@ -2598,6 +2598,32 @@ LinuxX11WindowInit(int argc, char** argv, int* WinWidth, int* WinHeight)
     return true;
 }
 
+internal u16
+utf8_to_u16_unchecked(u8 *buffer){
+    u16 result = 0;
+    
+    if (buffer[0] <= 0x7F){
+        result = (u16)buffer[0];
+    }
+    else if (buffer[0] <= 0xE0){
+        result = ((u16)((buffer[0])&0x1F)) << 6;
+        result |= ((u16)((buffer[1])&0x3F));
+    }
+    else if (buffer[0] <= 0xF0){
+        result = ((u16)((buffer[0])&0x0F)) << 12;
+        result |= ((u16)((buffer[1])&0x3F)) << 6;
+        result |= ((u16)((buffer[2])&0x3F));
+    }
+    else{
+        result = ((u16)((buffer[0])&0x07)) << 18;
+        result |= ((u16)((buffer[1])&0x3F)) << 12;
+        result |= ((u16)((buffer[2])&0x3F)) << 6;
+        result |= ((u16)((buffer[3])&0x3F));
+    }
+    
+    return(result);
+}
+
 internal void
 LinuxHandleX11Events(void)
 {
@@ -2633,12 +2659,12 @@ LinuxHandleX11Events(void)
                 
                 Status status;
                 KeySym keysym = NoSymbol;
-                char buff[32] = {};
+                u8 buff[32] = {};
                 
                 Xutf8LookupString(
                     linuxvars.input_context,
                     &Event.xkey,
-                    buff,
+                    (char*)buff,
                     sizeof(buff) - 1,
                     &keysym,
                     &status
@@ -2651,22 +2677,23 @@ LinuxHandleX11Events(void)
                     fputs("FIXME: XBufferOverflow from LookupString.\n", stderr);
                 }
                 
-                u8 key = *buff, key_no_caps = key;
+                u16 key = utf8_to_u16_unchecked(buff);
+                u16 key_no_caps = key;
                 
                 if(mods[MDFR_CAPS_INDEX] && status == XLookupBoth && Event.xkey.keycode){
-                    char buff_no_caps[32] = {};
+                    u8 buff_no_caps[32] = {};
                     Event.xkey.state &= ~(LockMask);
                     
                     XLookupString(
                         &Event.xkey,
-                        buff_no_caps,
+                        (char*)buff_no_caps,
                         sizeof(buff_no_caps) - 1,
                         NULL,
                         NULL
                         );
                     
                     if(*buff_no_caps){
-                        key_no_caps = *buff_no_caps;
+                        key_no_caps = utf8_to_u16_unchecked(buff_no_caps);
                     }
                 }
                 
@@ -2687,7 +2714,7 @@ LinuxHandleX11Events(void)
                 
                 if(special_key){
                     LinuxPushKey(special_key, 0, 0, &mods);
-                } else if(key < 128){
+                } else if(key < 256){
                     LinuxPushKey(key, key, key_no_caps, &mods);
                 } else {
                     LinuxPushKey(0, 0, 0, &mods);
