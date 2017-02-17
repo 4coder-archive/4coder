@@ -94,7 +94,7 @@ generate_keycode_enum(){
         
         append_sc(&out,
                   "static char*\n"
-                  "global_key_name(int32_t key_code, int32_t *size){\n"
+                  "global_key_name(uint32_t key_code, int32_t *size){\n"
                   "char *result = 0;\n"
                   "switch(key_code){\n");
         

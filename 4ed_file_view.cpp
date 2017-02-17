@@ -79,7 +79,7 @@ get_map(Models *models, i32 mapid){
 }
 
 internal void
-map_set_count(Models *models, i32 mapid, i32 count){
+map_set_count(Models *models, i32 mapid, u32 count){
     Command_Map *map = get_or_add_map(models, mapid);
     Assert(map->commands == 0);
     map->count = count;
@@ -88,18 +88,18 @@ map_set_count(Models *models, i32 mapid, i32 count){
     }
 }
 
-internal i32
+internal u32
 map_get_count(Models *models, i32 mapid){
     Command_Map *map = get_or_add_map(models, mapid);
-    i32 count = map->count;
+    u32 count = map->count;
     Assert(map->commands == 0);
     return(count);
 }
 
-internal i32
+internal u32
 map_get_max_count(Models *models, i32 mapid){
     Command_Map *map = get_or_add_map(models, mapid);
-    i32 count = map->max;
+    u32 count = map->max;
     return(count);
 }
 
@@ -4951,8 +4951,8 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                     GUI_id scroll_context = {0};
                     scroll_context.id[1] = VUI_Interactive + ((u64)view->interaction << 32);
                     
-                    i16 user_up_key = models->user_up_key;
-                    i16 user_down_key = models->user_down_key;
+                    Key_Code user_up_key = models->user_up_key;
+                    Key_Code user_down_key = models->user_down_key;
                     
                     switch (view->interaction){
                         case IInt_Sys_File_List:

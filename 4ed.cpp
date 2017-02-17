@@ -164,6 +164,7 @@ struct App_Vars{
     
     Available_Input available_input;
 };
+global_const App_Vars null_app_vars = {0};
 
 typedef enum Coroutine_Type{
     Co_View,
@@ -1112,18 +1113,12 @@ init_command_line_settings(App_Settings *settings, Plat_Settings *plat_settings,
     }
 }
 
-inline App_Vars
-app_vars_zero(){
-    App_Vars vars={0};
-    return(vars);
-}
-
 internal App_Vars*
 app_setup_memory(System_Functions *system, Application_Memory *memory){
     Partition _partition = make_part(memory->vars_memory, memory->vars_memory_size);
     App_Vars *vars = push_struct(&_partition, App_Vars);
-    Assert(vars);
-    *vars = app_vars_zero();
+    Assert(vars != 0);
+    *vars = null_app_vars;
     vars->models.mem.part = _partition;
     
 #if defined(USE_DEBUG_MEMORY)
@@ -1261,21 +1256,17 @@ App_Init_Sig(app_init){
         b32 did_file = false;
         if (wanted_size <= models->app_links.memory_size){
             Command_Map *map_ptr = 0;
-            Binding_Unit *unit, *end;
-            i32 user_map_count;
             
-            unit = (Binding_Unit*)models->app_links.memory;
+            Binding_Unit *unit = (Binding_Unit*)models->app_links.memory;
             if (unit->type == unit_header && unit->header.error == 0){
-                end = unit + unit->header.total_size;
+                Binding_Unit *end = unit + unit->header.total_size;
                 
-                user_map_count = unit->header.user_map_count;
+                i32 user_map_count = unit->header.user_map_count;
                 
-                models->map_id_table = push_array(
-                    &models->mem.part, i32, user_map_count);
+                models->map_id_table = push_array(&models->mem.part, i32, user_map_count);
                 memset(models->map_id_table, -1, user_map_count*sizeof(i32));
                 
-                models->user_maps = push_array(
-                    &models->mem.part, Command_Map, user_map_count);
+                models->user_maps = push_array(&models->mem.part, Command_Map, user_map_count);
                 
                 models->user_map_count = user_map_count;
                 

@@ -86,7 +86,7 @@ end_map(Bind_Helper *helper){
 }
 
 inline void
-bind(Bind_Helper *helper, uint16_t code, uint8_t modifiers, int32_t cmdid){
+bind(Bind_Helper *helper, Key_Code code, uint8_t modifiers, int32_t cmdid){
     if (helper->group == 0 && helper->error == 0) helper->error = BH_ERR_MISSING_BEGIN;
     if (!helper->error) ++helper->group->map_begin.bind_count;
     
@@ -100,7 +100,7 @@ bind(Bind_Helper *helper, uint16_t code, uint8_t modifiers, int32_t cmdid){
 }
 
 inline void
-bind(Bind_Helper *helper, uint16_t code, uint8_t modifiers, Custom_Command_Function *func){
+bind(Bind_Helper *helper, Key_Code code, uint8_t modifiers, Custom_Command_Function *func){
     if (helper->group == 0 && helper->error == 0) helper->error = BH_ERR_MISSING_BEGIN;
     if (!helper->error) ++helper->group->map_begin.bind_count;
     

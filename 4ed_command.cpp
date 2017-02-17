@@ -20,7 +20,7 @@ struct Command_Binding{
         Custom_Command_Function *custom;
         u64 custom_id;
     };
-    i64 hash;
+    u64 hash;
 };
 static Command_Binding null_command_binding = {0};
 
@@ -28,103 +28,110 @@ struct Command_Map{
     Command_Map *parent;
     Command_Binding vanilla_keyboard_default;
     Command_Binding *commands;
-    i32 count, max;
+    u32 count, max;
 };
+
+#define COMMAND_HASH_EMPTY 0
+#define COMMAND_HASH_ERASED max_u64
 
 internal void command_null(Command_Data *command);
 
-internal i64
-map_hash(u16 event_code, u8 modifiers){
-    i64 result = (event_code << 8) | modifiers;
-    return result;
+internal u64
+map_hash(Key_Code event_code, u8 modifiers){
+    u64 result = (event_code << 8) | modifiers;
+    return(result);
 }
 
 internal b32
-map_add(Command_Map *map, u16 event_code, u8 modifiers, Command_Function function, Custom_Command_Function *custom = 0, b32 override_original = true){
+map_add(Command_Map *map, Key_Code event_code, u8 modifiers, Command_Function function, Custom_Command_Function *custom = 0, b32 override_original = true){
     b32 result = false;
     Assert(map->count * 8 < map->max * 7);
-    Command_Binding bind;
-    bind.function = function;
-    bind.custom = custom;
-    bind.hash = map_hash(event_code, modifiers);
+    u64 hash = map_hash(event_code, modifiers);
     
-    i32 max = map->max;
-    i32 index = bind.hash % max;
-    Command_Binding entry;
-    while ((entry = map->commands[index]).function && entry.hash != -1){
-        if (entry.hash == bind.hash){
-            result = 1;
+    u32 max = map->max;
+    u32 index = hash % max;
+    Command_Binding entry = map->commands[index];
+    while (entry.function != 0 && entry.hash != COMMAND_HASH_ERASED){
+        if (entry.hash == hash){
+            result = true;
             break;
         }
         index = (index + 1) % max;
+        entry = map->commands[index];
     }
+    
     if (override_original || !result){
+        Command_Binding bind;
+        bind.function = function;
+        bind.custom = custom;
+        bind.hash = hash;
         map->commands[index] = bind;
         ++map->count;
     }
+    
     return(result);
 }
 
 inline b32
-map_add(Command_Map *map, u16 event_code, u8 modifiers, Command_Function function, u64 custom_id, b32 override_original = true){
-    return (map_add(map, event_code, modifiers, function, (Custom_Command_Function*)custom_id), override_original);
+map_add(Command_Map *map, Key_Code event_code, u8 modifiers, Command_Function function, u64 custom_id, b32 override_original = true){
+    return (map_add(map, event_code, modifiers, function, (Custom_Command_Function*)custom_id, override_original));
 }
 
 internal b32
-map_find_entry(Command_Map *map, u16 event_code, u8 modifiers, i32 *index_out){
-    i64 hash = map_hash(event_code, modifiers);
-    i32 max = map->max;
-    i32 index = hash % map->max;
-    Command_Binding entry;
-    while ((entry = map->commands[index]).function){
+map_find_entry(Command_Map *map, Key_Code event_code, u8 modifiers, u32 *index_out){
+    u64 hash = map_hash(event_code, modifiers);
+    u32 max = map->max;
+    u32 index = hash % max;
+    b32 result = false;
+    Command_Binding entry = map->commands[index];
+    while (entry.function != 0){
         if (entry.hash == hash){
             *index_out = index;
-            return 1;
+            result = true;
+            break;
         }
         index = (index + 1) % max;
+        entry = map->commands[index];
     }
-    return 0;
+    return(result);
 }
 
 internal b32
-map_find(Command_Map *map, u16 event_code, u8 modifiers, Command_Binding *bind_out){
-    b32 result;
-    i32 index;
-    result = map_find_entry(map, event_code, modifiers, &index);
+map_find(Command_Map *map, Key_Code event_code, u8 modifiers, Command_Binding *bind_out){
+    u32 index = 0;
+    b32 result = map_find_entry(map, event_code, modifiers, &index);
     if (result){
         *bind_out = map->commands[index];
     }
-    return result;
+    return(result);
 }
 
 internal b32
-map_drop(Command_Map *map, u16 event_code, u8 modifiers){
-    b32 result;
-    i32 index;
-    result = map_find_entry(map, event_code, modifiers, &index);
+map_drop(Command_Map *map, Key_Code event_code, u8 modifiers){
+    u32 index = 0;
+    b32 result = map_find_entry(map, event_code, modifiers, &index);
     if (result){
         map->commands[index].function = 0;
-        map->commands[index].hash = -1;
+        map->commands[index].hash = COMMAND_HASH_ERASED;
     }
-    return result;
+    return(result);
 }
 
 internal void
 map_clear(Command_Map *commands){
-    i32 max = commands->max;
+    u32 max = commands->max;
     memset(commands->commands, 0, max*sizeof(*commands->commands));
     commands->vanilla_keyboard_default = null_command_binding;
     commands->count = 0;
 }
 
 internal void
-map_init(Command_Map *commands, Partition *part, i32 max, Command_Map *parent){
+map_init(Command_Map *commands, Partition *part, u32 max, Command_Map *parent){
     if (commands->commands == 0){
-        max = ((max < 6)?(6):(max));
+        max = clamp_bottom((u32)6, max);
         commands->parent = parent;
         commands->commands = push_array(part, Command_Binding, max);
         commands->max = max;
-        map_clear(commands);
     }
 }
 
@@ -148,7 +155,7 @@ map_extract(Command_Map *map, Key_Event_Data key){
     if (ctrl) command |= MDFR_CTRL;
     if (alt) command |= MDFR_ALT;
     
-    u16 code = key.character_no_caps_lock;
+    Key_Code code = key.character_no_caps_lock;
     if (code == 0){
         code = key.keycode;
         map_find(map, code, command, &bind);
@@ -168,8 +175,8 @@ map_extract(Command_Map *map, Key_Event_Data key){
 
 internal Command_Binding
 map_extract_recursive(Command_Map *map, Key_Event_Data key){
-    Command_Binding cmd_bind = {};
-    Command_Map *visited_maps[16] = {};
+    Command_Binding cmd_bind = {0};
+    Command_Map *visited_maps[16] = {0};
     i32 visited_top = 0;
     
     while (map){
@@ -185,9 +192,13 @@ map_extract_recursive(Command_Map *map, Key_Event_Data key){
                     }
                 }
             }
-            else map = 0;
+            else{
+                map = 0;
+            }
         }
-        else map = 0;
+        else{
+            map = 0;
+        }
     }
     
     return(cmd_bind);

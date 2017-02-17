@@ -342,7 +342,7 @@ ENUM(int32_t, View_Split_Position){
 };
 
 /* DOC(Key_Code is the alias for key codes including raw codes and codes translated to textual input that takes modifiers into account.) */
-TYPEDEF uint16_t Key_Code;
+TYPEDEF uint32_t Key_Code;
 
 /* DOC(Key_Event_Data describes a key event, including the translation to a character, the translation to a character ignoring the state of caps lock, and an array of all the modifiers that were pressed at the time of the event.) */
 STRUCT Key_Event_Data{
@@ -355,7 +355,7 @@ STRUCT Key_Event_Data{
     /* DOC(This field is like the field character, except that the state of caps lock is ignored in the translation.) */
     Key_Code character_no_caps_lock;
     
-    /* DOC(This field is an array indicating the state of modifiers at the time of the key press. The array is indexed using the values of Key_Modifier.  A 1 indicates that the corresponding modifier was held, and a 0 indicates that it was not held.)
+    /* DOC(This field is an array indicating the state of modifiers at the time of the key press. The array is indexed using the values of Key_Modifier.  1 indicates that the corresponding modifier was held, and a 0 indicates that it was not held.)
     
     DOC_SEE(Key_Modifier)
     */
@@ -826,23 +826,11 @@ STRUCT Binding_Unit{
     Binding_Unit_Type type;
     UNION{
         STRUCT{ int32_t total_size; int32_t user_map_count; int32_t error; } header;
-        
         STRUCT{ int32_t mapid; int32_t replace; int32_t bind_count; } map_begin;
         STRUCT{ int32_t mapid; } map_inherit;
-        STRUCT{
-            int16_t code;
-            uint8_t modifiers;
-            int32_t command_id;
-        } binding;
-        STRUCT{
-            int16_t code;
-            uint8_t modifiers;
-            Custom_Command_Function *func;
-        } callback;
-        STRUCT{
-            int32_t hook_id;
-            void *func;
-        } hook;
+        STRUCT{ Key_Code code; uint8_t modifiers; int32_t command_id; } binding;
+        STRUCT{ Key_Code code; uint8_t modifiers; Custom_Command_Function *func; } callback;
+        STRUCT{ int32_t hook_id; void *func; } hook;
     };
 };
 

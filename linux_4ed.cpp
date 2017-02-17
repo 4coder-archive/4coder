@@ -37,6 +37,8 @@
 #include "4ed_rendering.h"
 #include "4ed.h"
 
+#include "4ed_utf8_conversions.h"
+
 #include <stdio.h>
 #include <math.h>
 #include <time.h>
@@ -2598,32 +2600,6 @@ LinuxX11WindowInit(int argc, char** argv, int* WinWidth, int* WinHeight)
     return true;
 }
 
-internal u16
-utf8_to_u16_unchecked(u8 *buffer){
-    u16 result = 0;
-    
-    if (buffer[0] <= 0x7F){
-        result = (u16)buffer[0];
-    }
-    else if (buffer[0] <= 0xE0){
-        result = ((u16)((buffer[0])&0x1F)) << 6;
-        result |= ((u16)((buffer[1])&0x3F));
-    }
-    else if (buffer[0] <= 0xF0){
-        result = ((u16)((buffer[0])&0x0F)) << 12;
-        result |= ((u16)((buffer[1])&0x3F)) << 6;
-        result |= ((u16)((buffer[2])&0x3F));
-    }
-    else{
-        result = ((u16)((buffer[0])&0x07)) << 18;
-        result |= ((u16)((buffer[1])&0x3F)) << 12;
-        result |= ((u16)((buffer[2])&0x3F)) << 6;
-        result |= ((u16)((buffer[3])&0x3F));
-    }
-    
-    return(result);
-}
-
 internal void
 LinuxHandleX11Events(void)
 {
@@ -2677,7 +2653,7 @@ LinuxHandleX11Events(void)
                     fputs("FIXME: XBufferOverflow from LookupString.\n", stderr);
                 }
                 
-                u16 key = utf8_to_u16_unchecked(buff);
+                u16 key = utf8_to_u32_unchecked(buff);
                 u16 key_no_caps = key;
                 
                 if(mods[MDFR_CAPS_INDEX] && status == XLookupBoth && Event.xkey.keycode){

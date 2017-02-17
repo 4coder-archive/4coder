@@ -94,8 +94,8 @@ struct Models{
     
     Debug_Data debug;
     
-    u16 user_up_key;
-    u16 user_down_key;
+    Key_Code user_up_key;
+    Key_Code user_down_key;
 };
 
 // BOTTOM
