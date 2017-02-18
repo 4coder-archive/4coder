@@ -74,7 +74,7 @@ internal void
 generate_keycode_enum(){
     char *filename_keycodes = KEYCODES_FILE;
     
-    uint16_t code = 0xE000;
+    uint16_t code = 0xD800;
     
     String out = make_out_string(10 << 20);
     

@@ -33,10 +33,9 @@ TYPE: 'major-system-include'
 #include "4coder_lib/4coder_string.h"
 #include "4coder_lib/4coder_table.h"
 #include "4coder_lib/4coder_mem.h"
+#include "4coder_lib/4coder_utf8.h"
 
 #include "4cpp/4cpp_lexer.h"
-
-#include <assert.h>
 
 //
 // Seeks Using Default Framework Memory

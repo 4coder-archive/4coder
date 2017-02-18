@@ -15,6 +15,8 @@
 #include "4tech_defines.h"
 #include "4coder_API/version.h"
 
+#include "4coder_lib/4coder_utf8.h"
+
 #if defined(FRED_SUPER)
 # include "4coder_API/keycodes.h"
 # include "4coder_API/style.h"
@@ -36,8 +38,6 @@
 #include "4ed_system.h"
 #include "4ed_rendering.h"
 #include "4ed.h"
-
-#include "4ed_utf8_conversions.h"
 
 #include <stdio.h>
 #include <math.h>

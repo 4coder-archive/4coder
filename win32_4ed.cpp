@@ -14,6 +14,8 @@
 #include "4tech_defines.h"
 #include "4coder_API/version.h"
 
+#include "4coder_lib/4coder_utf8.h"
+
 #if defined(FRED_SUPER)
 # include "4coder_API/keycodes.h"
 # include "4coder_API/style.h"
@@ -285,11 +287,13 @@ Sys_Free_Memory_Sig(system_free_memory){
 #define Win32ScratchPartitionGrow sysshared_partition_grow
 #define Win32ScratchPartitionDouble sysshared_partition_double
 
+#if 0
 #if FRED_INTERNAL
 internal void
 INTERNAL_system_debug_message(char *message){
-    OutputDebugStringA(message);
+    OutputDebugStringW(message);
 }
+#endif
 #endif
 
 
@@ -749,7 +753,7 @@ Sys_Set_File_List_Sig(system_set_file_list){
         HANDLE dir_handle = CreateFile(dir.str, FILE_LIST_DIRECTORY, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, 0, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OVERLAPPED, 0);
         
         if (dir_handle != INVALID_HANDLE_VALUE){
-            DWORD final_length = GetFinalPathNameByHandleA(dir_handle, dir_space, sizeof(dir_space), 0);
+            DWORD final_length = GetFinalPathNameByHandle(dir_handle, dir_space, sizeof(dir_space), 0);
             CloseHandle(dir_handle);
             
             if (final_length < sizeof(dir_space)){
@@ -778,7 +782,7 @@ Sys_Set_File_List_Sig(system_set_file_list){
                 }
                 
                 WIN32_FIND_DATA find_data;
-                HANDLE search = FindFirstFileA(c_str_dir, &find_data);
+                HANDLE search = FindFirstFile(c_str_dir, &find_data);
                 
                 if (search != INVALID_HANDLE_VALUE){            
                     i32 character_count = 0;
@@ -806,7 +810,7 @@ Sys_Set_File_List_Sig(system_set_file_list){
                     file_list->infos = (File_Info*)file_list->block;
                     char *name = (char*)(file_list->infos + file_count);
                     if (file_list->block != 0){
-                        search = FindFirstFileA(c_str_dir, &find_data);
+                        search = FindFirstFile(c_str_dir, &find_data);
                         
                         if (search != INVALID_HANDLE_VALUE){
                             File_Info *info = file_list->infos;
@@ -848,7 +852,6 @@ Sys_Set_File_List_Sig(system_set_file_list){
     }
 }
 
-#if 1
 internal u32
 win32_canonical_ascii_name(char *src, u32 len, char *dst, u32 max){
     u32 result = 0;
@@ -861,7 +864,7 @@ win32_canonical_ascii_name(char *src, u32 len, char *dst, u32 max){
         HANDLE file = CreateFile(src_space, GENERIC_READ, 0, 0, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
         
         if (file != INVALID_HANDLE_VALUE){
-            DWORD final_length = GetFinalPathNameByHandleA(file, dst, max, 0);
+            DWORD final_length = GetFinalPathNameByHandle(file, dst, max, 0);
             
             if (final_length < max && final_length >= 4){
                 if (dst[final_length-1] == 0){
@@ -886,7 +889,7 @@ win32_canonical_ascii_name(char *src, u32 len, char *dst, u32 max){
             HANDLE dir = CreateFile(src_space, FILE_LIST_DIRECTORY, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, 0, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OVERLAPPED, 0);
             
             if (dir != INVALID_HANDLE_VALUE){
-                DWORD final_length = GetFinalPathNameByHandleA(dir, dst, max, 0);
+                DWORD final_length = GetFinalPathNameByHandle(dir, dst, max, 0);
                 
                 if (final_length < max && final_length >= 4){
                     if (dst[final_length-1] == 0){
@@ -909,7 +912,7 @@ win32_canonical_ascii_name(char *src, u32 len, char *dst, u32 max){
     return(result);
 }
 
-#else
+#if 0
 internal u32
 win32_canonical_ascii_name(char *src, u32 len, char *dst, u32 max){
     char *wrt = dst;
@@ -1065,10 +1068,10 @@ Sys_Now_Time_Sig(system_now_time){
     return(result);
 }
 
-b32 Win32DirectoryExists(char *path){
-    DWORD attrib = GetFileAttributesA(path);
-    return (attrib != INVALID_FILE_ATTRIBUTES &&
-            (attrib & FILE_ATTRIBUTE_DIRECTORY));
+internal b32
+Win32DirectoryExists(char *path){
+    DWORD attrib = GetFileAttributes(path);
+    return (attrib != INVALID_FILE_ATTRIBUTES && (attrib & FILE_ATTRIBUTE_DIRECTORY));
 }
 
 internal
@@ -2216,7 +2219,7 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
         
         if (win32vars.custom_api.get_alpha_4coder_version == 0 ||
             win32vars.custom_api.get_alpha_4coder_version(MAJOR, MINOR, PATCH) == 0){
-            MessageBoxA(0,"Error: The application and custom version numbers don't match.\n", "Error",0);
+            MessageBox(0,"Error: The application and custom version numbers don't match.\n", "Error",0);
             exit(1);
         }
         win32vars.custom_api.get_bindings = (Get_Binding_Data_Function*)
@@ -2224,7 +2227,7 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
     }
     
     if (win32vars.custom_api.get_bindings == 0){
-        MessageBoxA(0,"Error: The custom dll is missing.\n", "Error",0);
+        MessageBox(0,"Error: The custom dll is missing.\n", "Error",0);
         exit(1);
     }
     
@@ -2277,7 +2280,7 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
         window_style |= WS_MAXIMIZE;
     }
     
-    win32vars.window_handle = CreateWindowA(window_class.lpszClassName, WINDOW_NAME, window_style, window_x, window_y, window_rect.right - window_rect.left, window_rect.bottom - window_rect.top, 0, 0, hInstance, 0);
+    win32vars.window_handle = CreateWindow(window_class.lpszClassName, WINDOW_NAME, window_style, window_x, window_y, window_rect.right - window_rect.left, window_rect.bottom - window_rect.top, 0, 0, hInstance, 0);
     
     if (win32vars.window_handle == 0){
         exit(1);

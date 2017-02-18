@@ -13,6 +13,8 @@ TYPE: 'drop-in-command-pack'
 #include "4coder_helper/4coder_helper.h"
 #include "4coder_helper/4coder_long_seek.h"
 
+#include "4coder_lib/4coder_utf8.h"
+
 //
 // Fundamental Editing Commands
 //

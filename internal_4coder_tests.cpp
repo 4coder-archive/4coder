@@ -16,6 +16,7 @@ Allen Webster
 
 #include "4coder_default_include.cpp"
 
+#include <assert.h>
 #include <stdio.h>
 
 #include <intrin.h>
@@ -50,7 +51,7 @@ CUSTOM_COMMAND_SIG(load_lots_of_files){
         if (!info->folder){
             append_ss(&str, make_string(info->filename, info->filename_len));
             Buffer_Summary buffer = create_buffer(app, str.str, str.size,
-                                                       BufferCreate_Background);
+                                                  BufferCreate_Background);
             assert(buffer.size != 0);
             str.size = size;
         }

@@ -424,6 +424,7 @@ do_buildsuper(char *cdir, i32 custom_option){
 static void
 build_main(char *cdir, u32 flags){
     DECL_STR(dir, BUILD_DIR);
+    
     {
         DECL_STR(file, "4ed_app_target.cpp");
         BEGIN_TIME_SECTION();
@@ -440,8 +441,6 @@ build_main(char *cdir, u32 flags){
 
 static void
 standard_build(char *cdir, u32 flags){
-    //run_update("4coder_string.h");
-    //run_update("4cpp/4cpp_lexer.h 4cpp/4cpp_lexer.h 4cpp/4cpp_lexer.h");
     fsm_generator(cdir);
     metagen(cdir);
     do_buildsuper(cdir, Custom_Experiments);

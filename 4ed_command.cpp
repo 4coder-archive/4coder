@@ -26,7 +26,7 @@ static Command_Binding null_command_binding = {0};
 
 struct Command_Map{
     Command_Map *parent;
-    Command_Binding vanilla_keyboard_default;
+    Command_Binding vanilla_keyboard_default[8];
     Command_Binding *commands;
     u32 count, max;
 };
@@ -121,24 +121,46 @@ internal void
 map_clear(Command_Map *commands){
     u32 max = commands->max;
     memset(commands->commands, 0, max*sizeof(*commands->commands));
-    commands->vanilla_keyboard_default = null_command_binding;
+    memset(commands->vanilla_keyboard_default, 0, sizeof(commands->vanilla_keyboard_default));
     commands->count = 0;
 }
 
-internal void
+internal b32
 map_init(Command_Map *commands, Partition *part, u32 max, Command_Map *parent){
+    b32 result = false;
     if (commands->commands == 0){
         max = clamp_bottom((u32)6, max);
         commands->parent = parent;
         commands->commands = push_array(part, Command_Binding, max);
+        commands->count = 0;
         commands->max = max;
+        result = true;
     }
+    return(result);
+}
+
+internal b32
+map_get_modifiers_hash(u8 modifiers, u32 *hash_out){
+    b32 result = true;
+    u32 hash = 0;
+    if (modifiers & MDFR_SHIFT){
+        hash += 0x1;
+    }
+    if (modifiers & MDFR_CTRL){
+        hash += 0x2;
+    }
+    if (modifiers & MDFR_ALT){
+        hash += 0x4;
+    }
+    *hash_out = hash;
+    return(result);
 }
 
 internal void
 map_get_vanilla_keyboard_default(Command_Map *map, u8 command, Command_Binding *bind_out){
-    if (command == MDFR_NONE){
-        *bind_out = map->vanilla_keyboard_default;
+    u32 modifiers_hashed = 0;
+    if (map_get_modifiers_hash(command, &modifiers_hashed)){
+        *bind_out = map->vanilla_keyboard_default[modifiers_hashed];
     }
 }
 

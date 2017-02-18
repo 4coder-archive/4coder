@@ -7,6 +7,8 @@ recognized, you are granted a perpetual, irrevocable license to copy,
 distribute, and modify this file as you see fit.
 */
 
+// TOP
+
 #if !defined(FCODER_MEM_H)
 #define FCODER_MEM_H
 
@@ -23,6 +25,8 @@ typedef uint8_t u8_4tech;
 typedef uint16_t u16_4tech;
 typedef uint32_t u32_4tech;
 typedef uint64_t u64_4tech;
+
+typedef u64_4tech umem_4tech;
 
 typedef float f32_4tech;
 typedef double f64_4tech;
@@ -348,4 +352,6 @@ general_memory_reallocate_nocopy(General_Memory *general, void *old, i32_4tech s
 #define gen_block(g, size) general_memory_open(g, size, 0)
 
 #endif
+
+// BOTTOM
 

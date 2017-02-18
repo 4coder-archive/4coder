@@ -63,7 +63,7 @@ to_writable_char(Key_Code long_character){
             character = '\t';
         }
     }
-    else if (long_character >= ' ' && long_character <= 255 && long_character != 127){
+    else if (long_character <= 255 && long_character != 127){
         character = (char)long_character;
     }
     return(character);

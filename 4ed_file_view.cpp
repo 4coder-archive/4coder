@@ -5704,10 +5704,7 @@ to_writable_char(Key_Code long_character){
 }
 
 internal Input_Process_Result
-do_step_file_view(System_Functions *system,
-                  View *view, i32_Rect rect, b32 is_active,
-                  Input_Summary *user_input,
-                  GUI_Scroll_Vars vars, i32_Rect region, i32 max_y){
+do_step_file_view(System_Functions *system, View *view, i32_Rect rect, b32 is_active, Input_Summary *user_input, GUI_Scroll_Vars vars, i32_Rect region, i32 max_y){
     Input_Process_Result result = {0};
     b32 is_file_scroll = 0;
     

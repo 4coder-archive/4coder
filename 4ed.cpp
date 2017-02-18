@@ -579,8 +579,7 @@ app_links_init(System_Functions *system, Application_Links *app_links, void *dat
 internal void
 setup_ui_commands(Command_Map *commands, Partition *part, Command_Map *parent){
     map_init(commands, part, 32, parent);
-    
-    commands->vanilla_keyboard_default.function = command_null;
+    map_clear(commands);
     
     // TODO(allen): This is hacky, when the new UI stuff happens, let's fix it,
     // and by that I mean actually fix it, don't just say you fixed it with
@@ -1294,27 +1293,28 @@ App_Init_Sig(app_init){
                             i32 mapid = unit->map_begin.mapid;
                             i32 count = map_get_max_count(models, mapid);
                             i32 table_max = count * 3 / 2;
+                            b32 auto_clear = false;
                             if (mapid == mapid_global){
                                 map_ptr = &models->map_top;
-                                map_init(map_ptr, &models->mem.part, table_max, global_map);
+                                auto_clear = map_init(map_ptr, &models->mem.part, table_max, global_map);
                                 did_top = true;
                             }
                             else if (mapid == mapid_file){
                                 map_ptr = &models->map_file;
-                                map_init(map_ptr, &models->mem.part, table_max, global_map);
+                                auto_clear = map_init(map_ptr, &models->mem.part, table_max, global_map);
                                 did_file = true;
                             }
                             else if (mapid < mapid_global){
                                 i32 index = get_or_add_map_index(models, mapid);
                                 Assert(index < user_map_count);
                                 map_ptr = models->user_maps + index;
-                                map_init(map_ptr, &models->mem.part, table_max, global_map);
+                                auto_clear = map_init(map_ptr, &models->mem.part, table_max, global_map);
                             }
                             else{
                                 map_ptr = 0;
                             }
                             
-                            if (map_ptr && unit->map_begin.replace){
+                            if (map_ptr && (unit->map_begin.replace || auto_clear)){
                                 map_clear(map_ptr);
                             }
                         }break;
@@ -1339,9 +1339,12 @@ App_Init_Sig(app_init){
                             if (unit->binding.command_id >= 0 && unit->binding.command_id < cmdid_count)
                                 func = command_table[unit->binding.command_id];
                             if (func){
-                                if (unit->binding.code == 0 && unit->binding.modifiers == 0){
-                                    map_ptr->vanilla_keyboard_default.function = func;
-                                    map_ptr->vanilla_keyboard_default.custom_id = unit->binding.command_id;
+                                if (unit->binding.code == 0){
+                                    u32 index = 0;
+                                    if (map_get_modifiers_hash(unit->binding.modifiers, &index)){
+                                        map_ptr->vanilla_keyboard_default[index].function = func;
+                                        map_ptr->vanilla_keyboard_default[index].custom_id = unit->binding.command_id;
+                                    }
                                 }
                                 else{
                                     map_add(map_ptr, unit->binding.code, unit->binding.modifiers, func, unit->binding.command_id);
@@ -1354,9 +1357,12 @@ App_Init_Sig(app_init){
                             Command_Function func = command_user_callback;
                             Custom_Command_Function *custom = unit->callback.func;
                             if (func){
-                                if (unit->callback.code == 0 && unit->callback.modifiers == 0){
-                                    map_ptr->vanilla_keyboard_default.function = func;
-                                    map_ptr->vanilla_keyboard_default.custom = custom;
+                                if (unit->callback.code == 0){
+                                    u32 index = 0;
+                                    if (map_get_modifiers_hash(unit->binding.modifiers, &index)){
+                                        map_ptr->vanilla_keyboard_default[index].function = func;
+                                        map_ptr->vanilla_keyboard_default[index].custom = custom;
+                                    }
                                 }
                                 else{
                                     map_add(map_ptr, unit->callback.code, unit->callback.modifiers, func, custom);

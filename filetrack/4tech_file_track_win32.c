@@ -158,14 +158,7 @@ add_listener(File_Track_System *system, char *filename){
                         if (node){
                             if (CreateIoCompletionPort(dir, vars->iocp, (ULONG_PTR)node, 1)){
                                 ZeroStruct(node->listener.overlapped);
-                                if (ReadDirectoryChangesW(dir,
-                                                          node->listener.result,
-                                                          sizeof(node->listener.result),
-                                                          1,
-                                                          FLAGS,
-                                                          0,
-                                                          &node->listener.overlapped,
-                                                          0)){
+                                if (ReadDirectoryChangesW(dir, node->listener.result, sizeof(node->listener.result), 1, FLAGS, 0, &node->listener.overlapped, 0)){
                                     node->listener.dir = dir;
                                     node->listener.user_count = 1;
                                     
