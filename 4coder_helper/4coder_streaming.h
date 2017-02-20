@@ -17,7 +17,7 @@ struct Stream_Chunk{
     int32_t start, end;
     int32_t min_start, max_end;
     bool32 add_null;
-    int32_t data_size;
+    uint32_t data_size;
     
     char *data;
 };
@@ -42,7 +42,7 @@ round_up(int32_t x, int32_t b){
 
 static bool32
 init_stream_chunk(Stream_Chunk *chunk, Application_Links *app, Buffer_Summary *buffer,
-                  int32_t pos, char *data, int32_t size){
+                  int32_t pos, char *data, uint32_t size){
     bool32 result = 0;
     
     refresh_buffer(app, buffer);

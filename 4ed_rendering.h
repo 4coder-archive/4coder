@@ -28,7 +28,8 @@ struct Render_Font{
     b32 loaded;
     
     Glyph_Data glyphs[256];
-    f32 advance_data[256];
+    f32 byte_advance;
+    f32 codepoint_advance_data[256];
     i32 height, ascent, descent, line_skip;
     i32 advance;
     u32 tex;

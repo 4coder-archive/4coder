@@ -19,6 +19,7 @@ TYPE: 'build-target'
 # define BIND_4CODER_TESTS(context) ((void)context)
 #endif
 
+#include <assert.h>
 #include <string.h>
 
 static float
@@ -1344,6 +1345,27 @@ CUSTOM_COMMAND_SIG(write_explicit_enum_values){
     end_temp_memory(temp);
 }
 
+CUSTOM_COMMAND_SIG(punishment){
+    Theme_Color colors[4];
+    colors[0].tag = Stag_Back;
+    colors[1].tag = Stag_Margin;
+    colors[2].tag = Stag_Margin_Hover;
+    colors[3].tag = Stag_Margin_Active;
+    get_theme_colors(app, colors, 4);
+    
+    for (uint32_t i = 0; i < 4; ++i){
+        int_color color = colors[i].color;
+        uint8_t *c = (uint8_t*)(&color);
+        c[0] = 0xFF - c[0];
+        c[1] = 0xFF - c[1];
+        c[2] = 0xFF - c[2];
+        c[3] = 0xFF - c[3];
+        colors[i].color = color;
+    }
+    
+    set_theme_colors(app, colors, 4);
+}
+
 extern "C" int32_t
 get_bindings(void *data, int32_t size){
     Bind_Helper context_ = begin_bind_helper(data, size);
@@ -1370,6 +1392,9 @@ get_bindings(void *data, int32_t size){
     end_map(context);
     
     begin_map(context, mapid_file);
+    bind(context, 's', MDFR_CTRL, punishment);
+    bind(context, 's', MDFR_ALT, save);
+    
     bind(context, 'k', MDFR_ALT, kill_rect);
     bind(context, ' ', MDFR_ALT | MDFR_CTRL, multi_line_edit);
     

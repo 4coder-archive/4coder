@@ -357,6 +357,9 @@ Sys_Set_File_List_Sig(system_set_file_list){
     if (d){
         if (canon_directory_out != 0){
             u32 length = copy_fast_unsafe_cc(canon_directory_out, directory);
+            if (canon_directory_out[length-1] != '/'){
+                canon_directory_out[length++] = '/';
+            }
             canon_directory_out[length] = 0;
             *canon_directory_size_out = length;
         }
@@ -2653,11 +2656,11 @@ LinuxHandleX11Events(void)
                     fputs("FIXME: XBufferOverflow from LookupString.\n", stderr);
                 }
                 
-                u16 key = utf8_to_u32_unchecked(buff);
-                u16 key_no_caps = key;
+                u32 key = utf8_to_u32_unchecked(buff);
+                u32 key_no_caps = key;
                 
                 if(mods[MDFR_CAPS_INDEX] && status == XLookupBoth && Event.xkey.keycode){
-                    u8 buff_no_caps[32] = {};
+                    u8 buff_no_caps[32] = {0};
                     Event.xkey.state &= ~(LockMask);
                     
                     XLookupString(
@@ -2669,7 +2672,7 @@ LinuxHandleX11Events(void)
                         );
                     
                     if(*buff_no_caps){
-                        key_no_caps = utf8_to_u16_unchecked(buff_no_caps);
+                        key_no_caps = utf8_to_u32_unchecked(buff_no_caps);
                     }
                 }
                 

@@ -41,29 +41,135 @@ typedef int32_t b32_4tech;
 // standard preamble end 
 
 static u32_4tech
-utf8_to_u32_unchecked(u8_4tech *buffer){
+utf8_to_u32_length_unchecked(u8_4tech *buffer, u32_4tech *length_out){
     u32_4tech result = 0;
     
     if (buffer[0] <= 0x7F){
         result = (u32_4tech)buffer[0];
+        *length_out = 1;
     }
     else if (buffer[0] <= 0xE0){
         result = ((u32_4tech)((buffer[0])&0x1F)) << 6;
         result |= ((u32_4tech)((buffer[1])&0x3F));
+        *length_out = 2;
     }
     else if (buffer[0] <= 0xF0){
         result = ((u32_4tech)((buffer[0])&0x0F)) << 12;
         result |= ((u32_4tech)((buffer[1])&0x3F)) << 6;
         result |= ((u32_4tech)((buffer[2])&0x3F));
+        *length_out = 3;
     }
     else{
         result = ((u32_4tech)((buffer[0])&0x07)) << 18;
         result |= ((u32_4tech)((buffer[1])&0x3F)) << 12;
         result |= ((u32_4tech)((buffer[2])&0x3F)) << 6;
         result |= ((u32_4tech)((buffer[3])&0x3F));
+        *length_out = 4;
     }
     
     return(result);
+}
+
+static u32_4tech
+utf8_to_u32_unchecked(u8_4tech *buffer){
+    u32_4tech ignore;
+    u32_4tech result = utf8_to_u32_length_unchecked(buffer, &ignore);
+    return(result);
+}
+
+static u32_4tech
+utf8_to_u32(u8_4tech **buffer_ptr, u8_4tech *end){
+    u8_4tech *buffer = *buffer_ptr;
+    u32_4tech limit = (u32_4tech)(end - buffer);
+    
+    u32_4tech length = 0;
+    if (buffer[0] < 0x80){
+        length = 1;
+    }
+    else if (buffer[0] < 0xC0){
+        length = 0;
+    }
+    else if (buffer[0] < 0xE0){
+        length = 2;
+    }
+    else if (buffer[0] < 0xF0){
+        length = 3;
+    }
+    else{
+        length = 4;
+    }
+    
+    for (u32_4tech i = 1; i < length; ++i){
+        if ((buffer[i] & 0xC0) != 0x80){
+            length = 0;
+            break;
+        }
+    }
+    
+    u32_4tech result = 0;
+    if (length != 0 && length <= limit){
+        switch (length){
+            case 1:
+            {
+                result = (u32_4tech)buffer[0];
+            }break;
+            
+            case 2:
+            {
+                result = ((u32_4tech)((buffer[0])&0x1F)) << 6;
+                result |= ((u32_4tech)((buffer[1])&0x3F));
+            }break;
+            
+            case 3:
+            {
+                result = ((u32_4tech)((buffer[0])&0x0F)) << 12;
+                result |= ((u32_4tech)((buffer[1])&0x3F)) << 6;
+                result |= ((u32_4tech)((buffer[2])&0x3F));
+            }break;
+            
+            case 4:
+            {
+                result = ((u32_4tech)((buffer[0])&0x07)) << 18;
+                result |= ((u32_4tech)((buffer[1])&0x3F)) << 12;
+                result |= ((u32_4tech)((buffer[2])&0x3F)) << 6;
+                result |= ((u32_4tech)((buffer[3])&0x3F));
+            }break;
+        }
+        
+        *buffer_ptr = buffer + length;
+    }
+    else{
+        *buffer_ptr = end;
+    }
+    
+    return(result);
+}
+
+static void
+u32_to_utf8_unchecked(u32_4tech code_point, u8_4tech *buffer, u32_4tech *length_out){
+    if (code_point <= 0x7F){
+        buffer[0] = (u8_4tech)code_point;
+        *length_out = 1;
+    }
+    else if (code_point <= 0x7FF){
+        buffer[0] = (u8_4tech)(0xC0 | (code_point >> 6));
+        buffer[1] = (u8_4tech)(0x80 | (code_point & 0x3F));
+        *length_out = 2;
+    }
+    else if (code_point <= 0xFFFF){
+        buffer[0] = (u8_4tech)(0xE0 | (code_point >> 12));
+        buffer[1] = (u8_4tech)(0x80 | ((code_point >> 6) & 0x3F));
+        buffer[2] = (u8_4tech)(0x80 | (code_point & 0x3F));
+        *length_out = 3;
+    }
+    else{
+        code_point &= 0x001FFFFF;
+        buffer[0] = (u8_4tech)(0xF0 | (code_point >> 18));
+        buffer[1] = (u8_4tech)(0x80 | ((code_point >> 12) & 0x3F));
+        buffer[2] = (u8_4tech)(0x80 | ((code_point >> 6) & 0x3F));
+        buffer[3] = (u8_4tech)(0x80 | (code_point & 0x3F));
+        *length_out = 4;
+    }
 }
 
 static umem_4tech
@@ -245,6 +351,22 @@ utf16_to_utf8_minimal_checking(u8_4tech *dst, umem_4tech max_chars, u16_4tech *s
     }
     
     return(needed_max);
+}
+
+static void
+byte_to_ascii(u8_4tech n, u8_4tech *out){
+    u8_4tech C = '0' + (n / 0x10);
+    if ((n / 0x10) > 0x9){
+        C = ('A' - 0xA) + (n / 0x10);
+    }
+    out[0] = C;
+    
+    n = (n % 0x10);
+    C = '0' + n;
+    if (n > 0x9){
+        C = ('A' - 0xA) + n;
+    }
+    out[1] = C;
 }
 
 #endif

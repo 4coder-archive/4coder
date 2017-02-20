@@ -768,7 +768,7 @@ Sys_Set_File_List_Sig(system_set_file_list){
                 if (canon_directory_out != 0){
                     if (final_length+1 < canon_directory_max){
                         memcpy(canon_directory_out, c_str_dir, final_length);
-                        if (char_is_slash(dir.str[dir.size-1]) && canon_directory_out[final_length-1] != '\\'){
+                        if (canon_directory_out[final_length-1] != '\\'){
                             canon_directory_out[final_length++] = '\\';
                         }
                         canon_directory_out[final_length] = 0;

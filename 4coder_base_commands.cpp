@@ -25,16 +25,17 @@ CUSTOM_COMMAND_SIG(write_character){
     
     User_Input in = get_command_input(app);
     
-    char character = 0;
+    uint8_t character[4];
+    uint32_t length = 0;
     if (in.type == UserInputKey){
-        character = to_writable_char(in.key.character);
+        u32_to_utf8_unchecked(in.key.character, character, &length);
     }
     
-    if (character != 0){
+    if (length != 0){
         Buffer_Summary buffer = get_buffer(app, view.buffer_id, access);
         int32_t pos = view.cursor.pos;
-        buffer_replace_range(app, &buffer, pos, pos, &character, 1);
-        view_set_cursor(app, &view, seek_pos(view.cursor.pos + 1), true);
+        buffer_replace_range(app, &buffer, pos, pos, (char*)character, length);
+        view_set_cursor(app, &view, seek_character_pos(view.cursor.character_pos + 1), true);
     }
 }
 

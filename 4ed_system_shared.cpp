@@ -544,6 +544,7 @@ launch_rendering(Render_Target *target){
 
 #undef ExtractStruct
 
+#if 0
 internal void*
 part_alloc(i32 size, void *context){
     Partition *part = (Partition*)context;
@@ -552,8 +553,7 @@ part_alloc(i32 size, void *context){
 }
 
 internal void
-part_free(void *ptr, void *context){
-}
+part_free(void *ptr, void *context){}
 
 #define STBTT_malloc part_alloc
 #define STBTT_free part_free
@@ -561,34 +561,28 @@ part_free(void *ptr, void *context){
 #define STB_TRUETYPE_IMPLEMENTATION
 #include "stb_truetype.h"
 
-internal i32
-stb_font_load(Partition *part,
-              Render_Font *font_out,
-              char *filename_untranslated,
-              i32 pt_size,
-              i32 tab_width,
-              i32 oversample,
-              b32 store_texture){
+internal b32
+stb_font_load(Partition *part, Render_Font *font_out, char *filename_untranslated, i32 pt_size, i32 tab_width, i32 oversample, b32 store_texture){
     
     char space_[1024];
     String filename = make_fixed_width_string(space_);
     b32 translate_success = sysshared_to_binary_path(&filename, filename_untranslated);
     if (!translate_success) return 0;
     
-    i32 result = 1;
+    b32 result = true;
     
     stbtt_packedchar chardata[256];
     
     File_Data file = sysshared_load_file(filename.str);
     
     if (!file.data){
-        result = 0;
+        result = false;
     }
     
     else{
         stbtt_fontinfo font;
         if (!stbtt_InitFont(&font, (u8*)file.data, 0)){
-            result = 0;
+            result = false;
         }
         else{
             memset(font_out, 0, sizeof(*font_out));
@@ -620,19 +614,16 @@ stb_font_load(Partition *part,
                 /////////////////////////////////////////////////////////////////
                 stbtt_pack_context spc;
                 
-                if (stbtt_PackBegin(&spc, (u8*)block, tex_width, tex_height,
-                                    tex_width, 1, part)){
+                if (stbtt_PackBegin(&spc, (u8*)block, tex_width, tex_height, tex_width, 1, part)){
                     stbtt_PackSetOversampling(&spc, oversample, oversample);
-                    if (!stbtt_PackFontRange(&spc, (u8*)file.data, 0,
-                                             STBTT_POINT_SIZE((f32)pt_size),
-                                             0, 128, chardata)){
-                        result = 0;
+                    if (!stbtt_PackFontRange(&spc, (u8*)file.data, 0, STBTT_POINT_SIZE((f32)pt_size), 0, 128, chardata)){
+                        result = false;
                     }
                     
                     stbtt_PackEnd(&spc);
                 }
                 else{
-                    result = 0;
+                    result = false;
                 }
                 /////////////////////////////////////////////////////////////////
                 
@@ -694,6 +685,7 @@ stb_font_load(Partition *part,
     
     return(result);
 }
+#endif
 
 // NOTE(allen): Thanks to insofaras.  This is copy-pasted from some work he originally did to get free type working on Linux.
 
@@ -826,10 +818,10 @@ font_load_freetype(Partition *part, Render_Font *rf, char *filename, i32 pt_size
         
         // TODO(allen): maybe advance data should be integers for a while...
         // I require the actual values to be integers anyway... hmm...
-        rf->advance_data[i] = (f32)ceil32(face->glyph->advance.x / 64.0f);
+        f32 advance = (f32)ceil32(face->glyph->advance.x / 64.0f);
+        rf->codepoint_advance_data[i] = advance;
         
         rf->glyphs[i].exists = 1;
-        
         
         i32 pitch = face->glyph->bitmap.pitch;
         
@@ -865,40 +857,23 @@ font_load_freetype(Partition *part, Render_Font *rf, char *filename, i32 pt_size
         pen_x = ceil32(c->x1 + 1);
     }
     
-    // TODO(allen): advance data is still too stupid.
-    // Provide an "unedited" version, then generate these
-    // on the fly.  Maybe later introduce a caching system or whatevs.
-    f32 *adv = rf->advance_data;
-    for (i32 i = 0; i < 256; ++i){
-        if (i < ' ' || i == 127){
-            switch (i){
-                case '\n':
-                adv[i] = adv[' '];
-                break;
-                
-                case '\r':
-                adv[i] = adv['\\'] + adv['r'];
-                break;
-                
-                case '\t':
-                adv[i] = adv[' ']*tab_width;
-                break;
-                
-                default:
-                {
-                    int8_t d1 = (int8_t)(i/0x10), d2 = (int8_t)(i%0x10);
-                    char c1 = '0' + d1, c2 = '0' + d2;
-                    if (d1 >= 0xA){
-                        c1 = ('A' - 0xA) + d1;
-                    }
-                    if (d2 >= 0xA){
-                        c2 = ('A' - 0xA) + d2;
-                    }
-                    adv[i] = adv['\\'] + adv[c1] + adv[c2];
-                }break;
-            }
-        }
+    f32 *cp_adv = rf->codepoint_advance_data;
+    cp_adv['\n'] = cp_adv[' '];
+    cp_adv['\r'] = cp_adv['\\'] + cp_adv['r'];
+    cp_adv['\t'] = cp_adv[' ']*tab_width;
+    
+    f32 max_hex_advance = cp_adv['0'];
+    for (u32 i = '1'; i <= '9'; ++i){
+        max_hex_advance = Max(max_hex_advance, cp_adv[i]);
     }
+    for (u32 i = 'a'; i <= 'f'; ++i){
+        max_hex_advance = Max(max_hex_advance, cp_adv[i]);
+    }
+    for (u32 i = 'A'; i <= 'F'; ++i){
+        max_hex_advance = Max(max_hex_advance, cp_adv[i]);
+    }
+    
+    rf->byte_advance = cp_adv['\\'] + max_hex_advance*2;
     
     FT_Done_FreeType(ft);
     

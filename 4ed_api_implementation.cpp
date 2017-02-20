@@ -786,7 +786,7 @@ DOC_SEE(Buffer_Setting_ID)
                 if (new_value != file->settings.display_width){
                     i16 font_id = file->settings.font_id;
                     Render_Font *font = get_font_info(models->font_set, font_id)->font;
-                    file_set_display_width_and_fix_cursor(models, file, new_value, (f32)font->height, font->advance_data);
+                    file_set_width(models, file, new_value, (f32)font->height, font->codepoint_advance_data, font->byte_advance);
                 }
             }break;
             
@@ -799,7 +799,7 @@ DOC_SEE(Buffer_Setting_ID)
                 if (new_value != file->settings.minimum_base_display_width){
                     i16 font_id = file->settings.font_id;
                     Render_Font *font = get_font_info(models->font_set, font_id)->font;
-                    file_set_minimum_base_display_width_and_fix_cursor(models, file, new_value, (f32)font->height, font->advance_data);
+                    file_set_min_base_width(models, file, new_value, (f32)font->height, font->codepoint_advance_data, font->byte_advance);
                 }
             }break;
             
@@ -888,7 +888,7 @@ DOC_SEE(Buffer_Setting_ID)
                     
                     file_allocate_character_starts_as_needed(&models->mem.general, file);
                     buffer_measure_character_starts(&file->state.buffer, file->state.character_starts, 0, file->settings.virtual_white);
-                    file_measure_wraps(models, file, (f32)font->height, font->advance_data);
+                    file_measure_wraps(models, file, (f32)font->height, font->codepoint_advance_data, font->byte_advance);
                     file_update_cursor_positions(models, file);
                 }
             }break;
@@ -2071,12 +2071,9 @@ Set_Theme_Colors(Application_Links *app, Theme_Color *colors, int32_t count)
 /*
 DOC_PARAM(colors, The colors pointer provides an array of color structs pairing differet style tags to color codes.)
 DOC_PARAM(count, The count parameter specifies the number of Theme_Color structs in the colors array.)
-DOC
-(
-For each struct in the array, the slot in the main color pallet specified by the
-struct's tag is set to the color code in the struct. If the tag value is invalid
-no change is made to the color pallet.
-)
+DOC(
+For each struct in the array, the slot in the main color pallet specified by the struct's tag is set to the color code in the struct. If the tag value is invalid no change is made to the color pallet.)
+DOC_SEE(Theme_Color)
 */{
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     Style *style = main_style(cmd->models);
@@ -2098,11 +2095,8 @@ Get_Theme_Colors(Application_Links *app, Theme_Color *colors, int32_t count)
 /*
 DOC_PARAM(colors, an array of color structs listing style tags to get color values for)
 DOC_PARAM(count, the number of color structs in the colors array)
-DOC(
-For each struct in the array, the color field of the struct is filled with the
-color from the slot in the main color pallet specified by the tag.  If the tag
-value is invalid the color is filled with black.
-)
+DOC(For each struct in the array, the color field of the struct is filled with the color from the slot in the main color pallet specified by the tag.  If the tag value is invalid the color is filled with black.)
+DOC_SEE(Theme_Color)
 */{
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     Style *style = main_style(cmd->models);

@@ -13,5 +13,7 @@ fi
 
 echo "Building custom_4coders.so from $SOURCE ..."
 
+SOURCE=$(readlink -f "$SOURCE")
+
 g++ -I"$CODE_HOME" -Wno-write-strings -std=gnu++0x "$SOURCE" -shared -o custom_4coder.so -fPIC
 

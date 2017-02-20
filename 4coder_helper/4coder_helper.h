@@ -151,7 +151,7 @@ inline char
 buffer_get_char(Application_Links *app, Buffer_Summary *buffer, int32_t pos){
     char result = ' ';
     *buffer = get_buffer(app, buffer->buffer_id, AccessAll);
-    if (pos >= 0 && pos < buffer->size){
+    if (pos < buffer->size){
         buffer_read_range(app, buffer, pos, pos+1, &result);
     }
     return(result);

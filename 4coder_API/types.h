@@ -19,7 +19,7 @@
 /* DOC(bool32 is an alias name to signal that an integer parameter or field is for true/false values.) */
 TYPEDEF int32_t bool32;
 
-/* DOC(int_color is an alias name to signal that an integer parameter or field is for a color value, colors are specified as 24 bit integers in 3 channels: 0xRRGGBB.) */
+/* DOC(int_color is an alias name to signal that an integer parameter or field is for a color value, colors are specified as 32 bit integers (8 bit + 24 bit) with 3 channels: 0x**RRGGBB.) */
 TYPEDEF uint32_t int_color;
 
 /* DOC(Buffer_ID is used to name a 4coder buffer.  Each buffer has a unique id but when a buffer is closed it's id may be recycled by future, different buffers.) */

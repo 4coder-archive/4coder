@@ -396,7 +396,8 @@ view_compute_cursor(View *view, Buffer_Seek seek, b32 return_hint){
     params.buffer           = &file->state.buffer;
     params.seek             = seek;
     params.font_height      = (f32)font->height;
-    params.adv              = font->advance_data;
+    params.cp_adv           = font->codepoint_advance_data;
+    params.byte_adv         = font->byte_advance;
     params.wrap_line_index  = file->state.wrap_line_index;
     params.character_starts = file->state.character_starts;
     params.virtual_white    = file->settings.virtual_white;
@@ -1007,14 +1008,18 @@ struct Code_Wrap_State{
     b32 consume_newline;
     
     Gap_Buffer_Stream stream;
+    i32 size;
     i32 i;
     
-    f32 *adv;
+    f32 *cp_adv;
+    f32 byte_adv;
     f32 tab_indent_amount;
+    
+    Buffer_Translating_State tran;
 };
 
 internal void
-wrap_state_init(Code_Wrap_State *state, Editing_File *file, f32 *adv){
+wrap_state_init(Code_Wrap_State *state, Editing_File *file, f32 *cp_adv, f32 byte_adv){
     state->token_array = file->state.token_array;
     state->token_ptr = state->token_array.tokens;
     state->end_token = state->token_ptr + state->token_array.count;
@@ -1025,9 +1030,14 @@ wrap_state_init(Code_Wrap_State *state, Editing_File *file, f32 *adv){
     Gap_Buffer *buffer = &file->state.buffer;
     i32 size = buffer_size(buffer);
     buffer_stringify_loop(&state->stream, buffer, 0, size);
+    state->size = size;
+    state->i = 0;
     
-    state->adv = adv;
-    state->tab_indent_amount = adv['\t'];
+    state->cp_adv = cp_adv;
+    state->byte_adv = byte_adv;
+    state->tab_indent_amount = cp_adv['\t'];
+    
+    state->tran = null_buffer_translating_state;
 }
 
 internal void
@@ -1085,11 +1095,11 @@ wrap_state_consume_token(Code_Wrap_State *state, i32 fixed_end_point){
         }
     }
     
-    b32 skipping_whitespace = 0;
+    b32 skipping_whitespace = false;
     if (i >= state->next_line_start){
         state->x = state->wrap_x.paren_nesting[state->wrap_x.paren_safe_top];
         state->x = state->wrap_x.paren_nesting[state->wrap_x.paren_safe_top];
-        skipping_whitespace = 1;
+        skipping_whitespace = true;
     }
     
     // TODO(allen): exponential search this shit!
@@ -1111,34 +1121,49 @@ wrap_state_consume_token(Code_Wrap_State *state, i32 fixed_end_point){
     }
     
     if (i == line_start){
-        skipping_whitespace = 1;
+        skipping_whitespace = true;
     }
     
-    b32 recorded_start_x = 0;
+    b32 recorded_start_x = false;
     do{
         for (; i < state->stream.end; ++i){
             if (!(i < end)){
+                Assert(state->tran.fill_expected == 0);
                 goto doublebreak;
             }
             
             u8 ch = (u8)state->stream.data[i];
             
-            if (ch != ' ' && ch != '\t'){
-                skipping_whitespace = 0;
-            }
+            translating_consume_byte(&state->tran, ch, i, state->size);
             
-            if (!skipping_whitespace){
-                if (ch == '\n'){
+            for (TRANSLATION_OUTPUT(&state->tran)){
+                TRANSLATION_GET_STEP(&state->tran);
+                
+                if (state->tran.do_newline){
                     state->consume_newline = 1;
                     goto doublebreak;
                 }
-                else{
-                    if (!recorded_start_x){
-                        result.start_x = state->x;
-                        recorded_start_x = 1;
+                else if(state->tran.do_number_advance || state->tran.do_codepoint_advance){
+                    u32 n = state->tran.step_current.value;
+                    f32 adv = 0;
+                    if (state->tran.do_codepoint_advance){
+                        adv = state->cp_adv[n];
+                        if (n != ' ' && n != '\t'){
+                            skipping_whitespace = false;
+                        }
+                    }
+                    else{
+                        adv = state->byte_adv;
+                        skipping_whitespace = false;
                     }
                     
-                    state->x += state->adv[ch];
+                    if (!skipping_whitespace){
+                        if (!recorded_start_x){
+                            result.start_x = state->x;
+                            recorded_start_x = 1;
+                        }
+                        state->x += adv;
+                    }
                 }
             }
         }
@@ -1425,7 +1450,7 @@ get_current_shift(Code_Wrap_State *wrap_state, i32 next_line_start, b32 *adjust_
 }
 
 internal void
-file_measure_wraps(Models *models, Editing_File *file, f32 font_height, f32 *adv){
+file_measure_wraps(Models *models, Editing_File *file, f32 font_height, f32 *cp_adv, f32 byte_adv){
     General_Memory *general = &models->mem.general;
     Partition *part = &models->mem.part;
     
@@ -1438,7 +1463,8 @@ file_measure_wraps(Models *models, Editing_File *file, f32 font_height, f32 *adv
     Buffer_Measure_Wrap_Params params;
     params.buffer          = &file->state.buffer;
     params.wrap_line_index = file->state.wrap_line_index;
-    params.adv             = adv;
+    params.cp_adv          = cp_adv;
+    params.byte_adv        = byte_adv;
     params.virtual_white   = file->settings.virtual_white;
     
     f32 width = (f32)file->settings.display_width;
@@ -1468,8 +1494,9 @@ file_measure_wraps(Models *models, Editing_File *file, f32 font_height, f32 *adv
     Wrap_Indent_Pair *wrap_indent_marks = 0;
     Potential_Wrap_Indent_Pair *potential_marks = 0;
     i32 max_wrap_indent_mark = 0;
+    
     if (params.virtual_white && file->state.tokens_complete && !file->state.still_lexing){
-        wrap_state_init(&wrap_state, file, adv);
+        wrap_state_init(&wrap_state, file, cp_adv, byte_adv);
         use_tokens = 1;
         
         potential_marks = push_array(part, Potential_Wrap_Indent_Pair, floor32(width));
@@ -1521,7 +1548,7 @@ file_measure_wraps(Models *models, Editing_File *file, f32 font_height, f32 *adv
                                             word_stage = 1;
                                         }
                                         else{
-                                            f32 adv = params.adv[ch];
+                                            f32 adv = params.cp_adv[ch];
                                             x += adv;
                                             self_x += adv;
                                             if (self_x > width){
@@ -1648,7 +1675,7 @@ file_measure_wraps(Models *models, Editing_File *file, f32 font_height, f32 *adv
                                                     goto doublebreak_stage1;
                                                 }
                                                 
-                                                f32 adv = params.adv[ch];
+                                                f32 adv = params.cp_adv[ch];
                                                 x += adv;
                                                 if (!first_word && x > current_width){
                                                     emit_comment_position = 1;
@@ -1674,7 +1701,7 @@ file_measure_wraps(Models *models, Editing_File *file, f32 font_height, f32 *adv
                                                     goto doublebreak_stage2;
                                                 }
                                                 
-                                                f32 adv = params.adv[ch];
+                                                f32 adv = params.cp_adv[ch];
                                                 x += adv;
                                             }
                                             still_looping = buffer_stringify_next(&stream);
@@ -1881,21 +1908,21 @@ file_measure_wraps(Models *models, Editing_File *file, f32 font_height, f32 *adv
 }
 
 internal void
-file_measure_wraps_and_fix_cursor(Models *models, Editing_File *file, f32 font_height, f32 *adv){
-    file_measure_wraps(models, file, font_height, adv);
+file_measure_wraps_and_fix_cursor(Models *models, Editing_File *file, f32 font_height, f32 *cp_adv, f32 byte_adv){
+    file_measure_wraps(models, file, font_height, cp_adv, byte_adv);
     file_update_cursor_positions(models, file);
 }
 
 internal void
-file_set_display_width_and_fix_cursor(Models *models, Editing_File *file, i32 display_width, f32 font_height, f32 *adv){
+file_set_width(Models *models, Editing_File *file, i32 display_width, f32 font_height, f32 *cp_adv, f32 byte_adv){
     file->settings.display_width = display_width;
-    file_measure_wraps_and_fix_cursor(models, file, font_height, adv);
+    file_measure_wraps_and_fix_cursor(models, file, font_height, cp_adv, byte_adv);
 }
 
 internal void
-file_set_minimum_base_display_width_and_fix_cursor(Models *models, Editing_File *file, i32 minimum_base_display_width, f32 font_height, f32 *adv){
+file_set_min_base_width(Models *models, Editing_File *file, i32 minimum_base_display_width, f32 font_height, f32 *cp_adv, f32 byte_adv){
     file->settings.minimum_base_display_width = minimum_base_display_width;
-    file_measure_wraps_and_fix_cursor(models, file, font_height, adv);
+    file_measure_wraps_and_fix_cursor(models, file, font_height, cp_adv, byte_adv);
 }
 
 //
@@ -1944,7 +1971,7 @@ file_create_from_string(System_Functions *system, Models *models, Editing_File *
     file->settings.font_id = font_id;
     Render_Font *font = get_font_info(font_set, font_id)->font;
     
-    file_measure_wraps(models, file, (f32)font->height, font->advance_data);
+    file_measure_wraps(models, file, (f32)font->height, font->codepoint_advance_data, font->byte_advance);
     
     file->settings.read_only = read_only;
     if (!read_only){
@@ -3215,7 +3242,7 @@ file_do_single_edit(System_Functions *system, Models *models, Editing_File *file
                             (f32)file->settings.display_width);
 #endif
     
-    file_measure_wraps(models, file, (f32)font->height, font->advance_data);
+    file_measure_wraps(models, file, (f32)font->height, font->codepoint_advance_data, font->byte_advance);
     
     // NOTE(allen): cursor fixing
     Cursor_Fix_Descriptor desc = {};
@@ -3330,16 +3357,14 @@ file_do_batch_edit(System_Functions *system, Models *models, Editing_File *file,
     buffer_measure_character_starts(&file->state.buffer, file->state.character_starts, 0, file->settings.virtual_white);
     
     Render_Font *font = get_font_info(models->font_set, file->settings.font_id)->font;
-    file_measure_wraps(models, file, (f32)font->height, font->advance_data);
+    file_measure_wraps(models, file, (f32)font->height, font->codepoint_advance_data, font->byte_advance);
     
     // NOTE(allen): cursor fixing
-    {
-        Cursor_Fix_Descriptor desc = {};
-        desc.is_batch = 1;
-        desc.batch = batch;
-        desc.batch_size = batch_size;
-        file_edit_cursor_fix(system, models, file, layout, desc);
-    }
+    Cursor_Fix_Descriptor desc = {0};
+    desc.is_batch = 1;
+    desc.batch = batch;
+    desc.batch_size = batch_size;
+    file_edit_cursor_fix(system, models, file, layout, desc);
 }
 
 inline void
@@ -3697,7 +3722,7 @@ internal void
 file_set_font(Models *models, Editing_File *file, i16 font_id){
     file->settings.font_id = font_id;
     Render_Font *font = get_font_info(models->font_set, file->settings.font_id)->font;
-    file_measure_wraps_and_fix_cursor(models, file, (f32)font->height, font->advance_data);
+    file_measure_wraps_and_fix_cursor(models, file, (f32)font->height, font->codepoint_advance_data, font->byte_advance);
     
     Editing_Layout *layout = &models->layout;
     for (View_Iter iter = file_view_iter_init(layout, file, 0);
@@ -5966,7 +5991,6 @@ draw_file_loaded(View *view, i32_Rect rect, b32 is_active, Render_Target *target
     
     i16 font_id = file->settings.font_id;
     Render_Font *font = get_font_info(models->font_set, font_id)->font;
-    float *advance_data = font->advance_data;
     
     f32 scroll_x = view->edit_pos->scroll.scroll_x;
     f32 scroll_y = view->edit_pos->scroll.scroll_y;
@@ -6005,7 +6029,8 @@ draw_file_loaded(View *view, i32_Rect rect, b32 is_active, Render_Target *target
         params.start_cursor  = render_cursor;
         params.wrapped       = wrapped;
         params.font_height   = (f32)line_height;
-        params.adv           = advance_data;
+        params.cp_adv        = font->codepoint_advance_data;
+        params.byte_adv      = font->byte_advance;
         params.virtual_white = file->settings.virtual_white;
         params.wrap_slashes  = file->settings.wrap_indicator;
         
@@ -6162,8 +6187,7 @@ draw_file_loaded(View *view, i32_Rect rect, b32 is_active, Render_Target *target
             draw_rectangle_outline(target, char_rect, mark_color);
         }
         if (item->glyphid != 0){
-            font_draw_glyph(target, font_id, (u8)item->glyphid,
-                            item->x0, item->y0, char_color);
+            font_draw_glyph(target, font_id, (u8)item->glyphid, item->x0, item->y0, char_color);
         }
         prev_ind = ind;
     }
@@ -6194,8 +6218,7 @@ draw_text_field(Render_Target *target, View *view, i16 font_id,
 }
 
 internal void
-draw_text_with_cursor(Render_Target *target, View *view, i16 font_id,
-                      i32_Rect rect, String s, i32 pos){
+draw_text_with_cursor(Render_Target *target, View *view, i16 font_id, i32_Rect rect, String s, i32 pos){
     Models *models = view->persistent.models;
     Style *style = main_style(models);
     
@@ -6222,8 +6245,9 @@ draw_text_with_cursor(Render_Target *target, View *view, i16 font_id,
             
             x = draw_string(target, font_id, part1, floor32(x), y, text_color);
             
+            // TODO(allen): WHAT TO DO NOW?
             cursor_rect.x0 = floor32(x);
-            cursor_rect.x1 = floor32(x) + ceil32(font->advance_data[s.str[pos]]);
+            cursor_rect.x1 = floor32(x) + ceil32(font->codepoint_advance_data[s.str[pos]]);
             cursor_rect.y0 = y;
             cursor_rect.y1 = y + view->line_height;
             draw_rectangle(target, cursor_rect, cursor_color);
