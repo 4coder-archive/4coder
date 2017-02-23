@@ -19,11 +19,5 @@ popd
 ..\build\build
 if %ERRORLEVEL% neq 0 (set FirstError=1)
 
-pushd ..\build
-call "print_size.bat" 4coder_custom.dll
-call "print_size.bat" 4ed_app.dll
-call "print_size.bat" 4ed.exe
-popd
-
 :END
 call "ctime" -end 4ed_data.ctm %FirstError%

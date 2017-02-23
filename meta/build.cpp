@@ -80,6 +80,7 @@ enum{
     OPTIMIZATION = 0x100,
     KEEP_ASSERT = 0x200,
     SITE_INCLUDES = 0x400,
+    X86 = 0x800,
 };
 
 
@@ -136,10 +137,14 @@ init_build_line(Build_Line *line){
 
 #define CL_ICON "..\\res\\icon.res"
 
+#define CL_X86 "-MACHINE:X86"
+
 static void
 build_cl(u32 flags, char *code_path, char *code_file, char *out_path, char *out_file, char *exports){
     Build_Line line;
+    Build_Line link_line;
     init_build_line(&line);
+    init_build_line(&link_line);
     
     if (flags & OPTS){
         build_ap(line, CL_OPTS);
@@ -187,17 +192,26 @@ build_cl(u32 flags, char *code_path, char *code_file, char *out_path, char *out_
     
     swap_ptr(&line.build_options, &line.build_options_prev);
     
-    char link_options[1024];
-    if (flags & SHARED_CODE){
-        assert(exports);
-        snprintf(link_options, sizeof(link_options), "/OPT:REF %s", exports);
-    }
-    else{
-        snprintf(link_options, sizeof(link_options), "/NODEFAULTLIB:library");
+    if (flags & X86){
+        build_ap(link_line, CL_X86);
     }
     
+    if (flags & DEBUG_INFO){
+        build_ap(link_line, "/DEBUG ");
+    }
+    
+    char link_type_string[1024];
+    if (flags & SHARED_CODE){
+        assert(exports);
+        snprintf(link_type_string, sizeof(link_type_string), "/OPT:REF %s", exports);
+    }
+    else{
+        snprintf(link_type_string, sizeof(link_type_string), "/NODEFAULTLIB:library");
+    }
+    build_ap(link_line, "%s", link_type_string);
+    
     Temp_Dir temp = pushdir(out_path);
-    systemf("cl %s %s\\%s /Fe%s /link /DEBUG /INCREMENTAL:NO %s", line.build_options, code_path, code_file, out_file, link_options);
+    systemf("cl %s %s\\%s /Fe%s /link /INCREMENTAL:NO %s", line.build_options, code_path, code_file, out_file, link_line.build_options);
     popdir(temp);
 }
 
@@ -625,6 +639,23 @@ int main(int argc, char **argv){
     END_TIME_SECTION("current directory");
     
     standard_build(cdir, DEBUG_INFO | SUPER | INTERNAL);
+    
+    return(error_state);
+}
+
+#elif defined(DEV_BUILD_X86)
+
+int main(int argc, char **argv){
+    init_time_system();
+    
+    char cdir[256];
+    
+    BEGIN_TIME_SECTION();
+    i32 n = get_current_directory(cdir, sizeof(cdir));
+    assert(n < sizeof(cdir));
+    END_TIME_SECTION("current directory");
+    
+    standard_build(cdir, DEBUG_INFO | SUPER | INTERNAL | X86);
     
     return(error_state);
 }
