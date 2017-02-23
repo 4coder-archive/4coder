@@ -1151,8 +1151,6 @@ flush_to_direct_queue(Unbounded_Work_Queue *source_queue, Work_Queue *queue, i32
     }
     
     // NOTE(allen): platform dependent portion...
-    // TODO(allen): pull out the duplicated part once I see
-    // that this is pretty much the same on linux.
     for (i32 i = 0; i < semaphore_release_count; ++i){
         sem_post(LinuxHandleToSem(queue->semaphore));
     }

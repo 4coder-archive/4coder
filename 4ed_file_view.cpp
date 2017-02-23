@@ -4318,16 +4318,6 @@ get_exhaustive_info(System_Functions *system, Working_Set *working_set, Exhausti
     
     Editing_File *file = working_set_canon_contains(working_set, loop->full_path);
     
-#if 0
-    if (file != 0){
-        Editing_File_Canon_Name canon_name;
-        
-        if (get_canon_name(system, &canon_name, loop->full_path)){
-            file = working_set_canon_contains(working_set, canon_name.name);
-        }
-    }
-#endif
-    
     String filename = make_string_cap(result.info->filename, result.info->filename_len, result.info->filename_len+1);
     
     result.is_folder = (result.info->folder != 0);
@@ -5050,12 +5040,11 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                                 if (file_info.name_match){
                                     id.id[0] = (u64)(file_info.info);
                                     
-                                    String filename = make_string_cap(file_info.info->filename,
-                                                                      file_info.info->filename_len,
-                                                                      file_info.info->filename_len+1);
+                                    char *str = file_info.info->filename;
+                                    i32 len = file_info.info->filename_len;
+                                    String filename = make_string_cap(str, len, len + 1);
                                     
-                                    if (gui_do_file_option(target, id, filename,
-                                                           file_info.is_folder, file_info.message)){
+                                    if (gui_do_file_option(target, id, filename, file_info.is_folder, file_info.message)){
                                         if (file_info.is_folder){
                                             set_last_folder_sc(&hdir->string, file_info.info->filename, '/');
                                             do_new_directory = 1;
@@ -6400,7 +6389,7 @@ draw_fat_option_block(GUI_Target *gui_target, Render_Target *target, View *view,
     u32 margin = get_margin_color(active_level, style);
     u32 back = style->main.back_color;
     u32 text_color = style->main.default_color;
-    u32 pop_color = style->main.special_character_color;
+    u32 pop_color = style->main.file_info_style.pop2_color;
     
     i32 h = view->line_height;
     i32 x = inner.x0 + 3;

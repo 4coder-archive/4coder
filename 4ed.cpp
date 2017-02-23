@@ -837,6 +837,45 @@ app_hardcode_styles(Models *models){
     ++style;
     
     /////////////////
+    style_set_name(style, make_lit_string("stb dark"));
+    
+    style->main.back_color = 0xFF303030;
+    style->main.margin_color = 0xFF383838;
+    style->main.margin_hover_color = 0xFF404040;
+    style->main.margin_active_color = 0xFF484848;
+    style->main.cursor_color = 0xFFDDDDDD;
+    style->main.at_cursor_color = 0xFF303030;
+    style->main.mark_color = 0xFF808080;
+    style->main.highlight_color = 0xFF006080;
+    style->main.at_highlight_color = 0xFF303030;
+    style->main.default_color = 0xFFAAAAAA;
+    style->main.comment_color = 0xFF6AC000;
+    style->main.keyword_color = 0xFFAAAAAA;
+    style->main.str_constant_color = 0xFFAAAAAA;
+    style->main.char_constant_color = style->main.str_constant_color;
+    style->main.int_constant_color = style->main.str_constant_color;
+    style->main.float_constant_color = style->main.str_constant_color;
+    style->main.bool_constant_color = style->main.str_constant_color;
+    style->main.include_color = style->main.str_constant_color;
+    style->main.preproc_color = style->main.default_color;
+    style->main.special_character_color = 0xFFFF0000;
+    style->main.ghost_character_color = color_blend(style->main.default_color, 0.5f, style->main.back_color);
+    
+    style->main.paste_color = 0xFF00FFFF;
+    style->main.undo_color = 0xFFFF00FF;
+    
+    style->main.highlight_junk_color = 0xFF482020;
+    style->main.highlight_white_color = 0xFF383838;
+    
+    file_info_style.bar_color = 0xFF606060;
+    file_info_style.bar_active_color = 0xFF3E3E3E;
+    file_info_style.base_color = 0xFF000000;
+    file_info_style.pop1_color = 0xFF00B0D0;
+    file_info_style.pop2_color = 0xFFFF3A00;
+    style->main.file_info_style = file_info_style;
+    ++style;
+    
+    /////////////////
     style_set_name(style, make_lit_string("Hjortshoej"));
     
     style->main.back_color = 0xFFF0F0F0;
