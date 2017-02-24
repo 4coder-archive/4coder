@@ -9,9 +9,9 @@ TYPE: 'major-system-include'
 #if !defined(FCODER_DEFAULT_INCLUDE_CPP)
 #define FCODER_DEFAULT_INCLUDE_CPP
 
-#include "4coder_function_list.cpp"
-
 #include "4coder_API/custom.h"
+
+#include "4coder_helper/4coder_jump_parsing.h"
 
 #include "4coder_default_framework.h"
 #include "4coder_base_commands.cpp"
@@ -23,6 +23,7 @@ TYPE: 'major-system-include'
 #include "4coder_build_commands.cpp"
 #include "4coder_project_commands.cpp"
 #include "4coder_default_hooks.cpp"
+#include "4coder_function_list.cpp"
 
 #include "4coder_helper/4coder_bind_helper.h"
 #include "4coder_helper/4coder_helper.h"
