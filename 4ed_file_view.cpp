@@ -3096,17 +3096,19 @@ struct Cursor_Fix_Descriptor{
 };
 
 internal void
-file_edit_cursor_fix(System_Functions *system, Models *models,
-                     Editing_File *file, Editing_Layout *layout,
-                     Cursor_Fix_Descriptor desc){
+file_edit_cursor_fix(System_Functions *system, Models *models, Editing_File *file, Editing_Layout *layout, Cursor_Fix_Descriptor desc){
     
     Partition *part = &models->mem.part;
     
     Temp_Memory cursor_temp = begin_temp_memory(part);
-    i32 cursor_max = layout->panel_max_count * 2;
+    i32 cursor_max = layout->panel_max_count * 3;
+    cursor_max += file->markers.marker_count;
     Cursor_With_Index *cursors = push_array(part, Cursor_With_Index, cursor_max);
+    Cursor_With_Index *r_cursors = push_array(part, Cursor_With_Index, cursor_max);
+    Assert(cursors != 0);
     
     i32 cursor_count = 0;
+    i32 r_cursor_count = 0;
     
     View *view = 0;
     Panel *panel = 0, *used_panels = &layout->used_sentinel;
@@ -3120,20 +3122,37 @@ file_edit_cursor_fix(System_Functions *system, Models *models,
         }
     }
     
+    Marker_Array *marker_it = 0;
+    Marker_Array *marker_sent = &file->markers.sentinel;
+    for (dll_items(marker_it, marker_sent)){
+        u32 count = marker_it->count;
+        Marker *markers = &marker_it->marker_0;
+        for (u32 i = 0; i < count; ++i){
+            if (markers[i].lean_right){
+                write_cursor_with_index(r_cursors, &r_cursor_count, markers[i].pos);
+            }
+            else{
+                write_cursor_with_index(cursors, &cursor_count, markers[i].pos);
+            }
+        }
+    }
+    
+    // TODO(NAME): dump all the markers in the file and then read them back out.
+    // Make a plan for "right leaning" markers.
     if (cursor_count > 0){
         buffer_sort_cursors(cursors, cursor_count);
         if (desc.is_batch){
-            buffer_batch_edit_update_cursors(cursors, cursor_count,
-                                             desc.batch, desc.batch_size);
+            buffer_batch_edit_update_cursors(cursors, cursor_count, desc.batch, desc.batch_size, false);
+            buffer_batch_edit_update_cursors(r_cursors, r_cursor_count, desc.batch, desc.batch_size, true);
         }
         else{
-            buffer_update_cursors(cursors, cursor_count,
-                                  desc.start, desc.end,
-                                  desc.shift_amount + (desc.end - desc.start));
+            buffer_update_cursors(cursors, cursor_count, desc.start, desc.end, desc.shift_amount + (desc.end - desc.start), false);
+            buffer_update_cursors(r_cursors, r_cursor_count, desc.start, desc.end, desc.shift_amount + (desc.end - desc.start), true);
         }
         buffer_unsort_cursors(cursors, cursor_count);
         
         cursor_count = 0;
+        r_cursor_count = 0;
         for (dll_items(panel, used_panels)){
             view = panel->view;
             if (view->file_data.file == file){
@@ -3165,6 +3184,19 @@ file_edit_cursor_fix(System_Functions *system, Models *models,
                 view_set_cursor_and_scroll(view, new_cursor,
                                            1, view->file_data.file->settings.unwrapped_lines,
                                            scroll);
+            }
+        }
+        
+        for (dll_items(marker_it, marker_sent)){
+            u32 count = marker_it->count;
+            Marker *markers = &marker_it->marker_0;
+            for (u32 i = 0; i < count; ++i){
+                if (markers[i].lean_right){
+                    markers[i].pos = r_cursors[r_cursor_count++].pos;
+                }
+                else{
+                    markers[i].pos = cursors[cursor_count++].pos;
+                }
             }
         }
     }
@@ -3245,11 +3277,10 @@ file_do_single_edit(System_Functions *system, Models *models, Editing_File *file
     file_measure_wraps(models, file, (f32)font->height, font->codepoint_advance_data, font->byte_advance);
     
     // NOTE(allen): cursor fixing
-    Cursor_Fix_Descriptor desc = {};
+    Cursor_Fix_Descriptor desc = {0};
     desc.start = start;
     desc.end = end;
     desc.shift_amount = shift_amount;
-    
     file_edit_cursor_fix(system, models, file, layout, desc);
 }
 
@@ -3368,8 +3399,7 @@ file_do_batch_edit(System_Functions *system, Models *models, Editing_File *file,
 }
 
 inline void
-file_replace_range(System_Functions *system, Models *models, Editing_File *file,
-                   i32 start, i32 end, char *str, i32 len){
+file_replace_range(System_Functions *system, Models *models, Editing_File *file, i32 start, i32 end, char *str, i32 len){
     Edit_Spec spec = {};
     spec.step.type = ED_NORMAL;
     spec.step.edit.start =  start;
@@ -3413,9 +3443,7 @@ main_style(Models *models){
 }
 
 internal void
-apply_history_edit(System_Functions *system, Models *models,
-                   Editing_File *file, View *view,
-                   Edit_Stack *stack, Edit_Step step, History_Mode history_mode){
+apply_history_edit(System_Functions *system, Models *models, Editing_File *file, View *view, Edit_Stack *stack, Edit_Step step, History_Mode history_mode){
     Edit_Spec spec = {};
     spec.step = step;
     
@@ -3929,13 +3957,13 @@ internal void
 kill_file(System_Functions *system, Models *models, Editing_File *file){
     Working_Set *working_set = &models->working_set;
     
-    if (file && !file->settings.never_kill){
+    if (file != 0 && !file->settings.never_kill){
         buffer_unbind_name(working_set, file);
         if (file->canon.name.size != 0){
             buffer_unbind_file(system, working_set, file);
         }
         file_close(system, &models->mem.general, file);
-        working_set_free_file(working_set, file);
+        working_set_free_file(&models->mem.general, working_set, file);
         
         File_Node *used = &models->working_set.used_sentinel;
         File_Node *node = used->next;
@@ -3958,9 +3986,7 @@ kill_file(System_Functions *system, Models *models, Editing_File *file){
 internal void
 kill_file_by_name(System_Functions *system, Models *models, String name){
     Editing_File *file = working_set_name_contains(&models->working_set, name);
-    if (file){
-        kill_file(system, models, file);
-    }
+    kill_file(system, models, file);
 }
 
 internal void

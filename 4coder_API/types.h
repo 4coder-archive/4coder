@@ -1,5 +1,4 @@
 
-
 #if !defined(FCODER_TYPES_H)
 #define FCODER_TYPES_H
 
@@ -608,6 +607,13 @@ STRUCT Buffer_Summary{
 };
 
 GLOBAL_VAR Buffer_Summary null_buffer_summary = {0};
+
+STRUCT Marker{
+    int32_t pos;
+    bool32 lean_right;
+};
+
+typedef void* Marker_Handle;
 
 STRUCT i32_Rect{
     int32_t x0;

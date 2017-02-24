@@ -64,16 +64,17 @@ static char platform_correct_slash = '/';
 #endif
 
 
-static char cmd[4096];
+static char SF_CMD[4096];
 static i32 error_state = 0;
 static i32 prev_error = 0;
 
-#define systemf(...) do{                                   \
-    int32_t n = snprintf(cmd, sizeof(cmd), __VA_ARGS__);   \
-    AllowLocal(n);                                         \
-    Assert(n < sizeof(cmd));                               \
-    prev_error = system(cmd);                              \
-    if (prev_error != 0) error_state = 1;                  \
+#define systemf(...) do{                                       \
+    int32_t n = snprintf(SF_CMD, sizeof(SF_CMD), __VA_ARGS__); \
+    AllowLocal(n);                                             \
+    Assert(n < sizeof(SF_CMD));                                \
+    /** printf("%s\n", SF_CMD); /**/                          \
+    prev_error = system(SF_CMD);                               \
+    if (prev_error != 0) error_state = 1;                      \
 }while(0)
 
 static void init_time_system();

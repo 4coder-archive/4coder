@@ -1462,7 +1462,7 @@ Font_Load_Sig(system_draw_font_load){
 #if SUPPORT_DPI
     pt_size = round32(pt_size * size_change(win32vars.dpi_x, win32vars.dpi_y));
 #endif
-    
+   
     for (b32 success = 0; success == 0;){
 #if USE_WIN32_FONTS
         

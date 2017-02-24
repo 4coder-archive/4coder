@@ -38,7 +38,7 @@ struct Working_Set{
     i32 clipboard_size, clipboard_max_size;
     i32 clipboard_current, clipboard_rolling;
     
-    u64 unique_file_counter;
+    //u64 unique_file_counter;
     
     File_Node *sync_check_iter;
     
@@ -104,11 +104,12 @@ working_set_alloc(Working_Set *working_set){
         Buffer_Slot_ID id = result->id;
         *result = null_editing_file;
         result->id = id;
-        result->unique_buffer_id = ++working_set->unique_file_counter;
+        //result->unique_buffer_id = ++working_set->unique_file_counter;
         dll_insert(&working_set->used_sentinel, node);
         result->settings.display_width = working_set->default_display_width;
         result->settings.minimum_base_display_width = working_set->default_minimum_base_display_width;
         result->settings.wrap_indicator = WrapIndicator_Show_At_Wrap_Edge;
+        init_file_markers_state(&result->markers);
         ++working_set->file_count;
     }
     
@@ -118,29 +119,23 @@ working_set_alloc(Working_Set *working_set){
 internal Editing_File*
 working_set_alloc_always(Working_Set *working_set, General_Memory *general){
     Editing_File *result = 0;
-    Editing_File *new_chunk;
-    i32 full_new_count = working_set->file_max;
-    i16 new_count;
-    
-    if (full_new_count > max_i16) new_count = max_i16;
-    else new_count = (i16)full_new_count;
-    
-    if (working_set->file_count == working_set->file_max &&working_set->array_count < working_set->array_max){
-        new_chunk = gen_array(general, Editing_File, new_count);
+    if (working_set->file_count == working_set->file_max && working_set->array_count < working_set->array_max){
+        i16 new_count = (i16)clamp_top(working_set->file_max, max_i16);
+        Editing_File *new_chunk = gen_array(general, Editing_File, new_count);
         working_set_extend_memory(working_set, new_chunk, new_count);
     }
     result = working_set_alloc(working_set);
-    
     return(result);
 }
 
 inline void
-working_set_free_file(Working_Set  *working_set, Editing_File *file){
+working_set_free_file(General_Memory *general, Working_Set  *working_set, Editing_File *file){
     if (working_set->sync_check_iter == &file->node){
         working_set->sync_check_iter = working_set->sync_check_iter->next;
     }
     
     file->is_dummy = 1;
+    clear_file_markers_state(general, &file->markers);
     dll_remove(&file->node);
     dll_insert(&working_set->free_sentinel, &file->node);
     --working_set->file_count;
@@ -198,6 +193,8 @@ working_set_init(Working_Set *working_set, Partition *partition, General_Memory 
     Editing_File *files = push_array(partition, Editing_File, init_count);
     working_set_extend_memory(working_set, files, init_count);
     
+    // TODO(NAME): Unclear that this is still needed.  But double check that the buffer id 0 does not start getting used by the next real buffer when this is removed before actually removing it.  Buffer id cannot be allowed to be zero on real buffers.
+#if 1
     // NOTE(allen): init null file
     {
         Editing_File *null_file = working_set_index(working_set, 0);
@@ -205,6 +202,7 @@ working_set_init(Working_Set *working_set, Partition *partition, General_Memory 
         null_file->is_dummy = 1;
         ++working_set->file_count;
     }
+#endif
     
     // NOTE(allen): init canon table
     {

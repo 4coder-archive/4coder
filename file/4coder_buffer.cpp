@@ -77,12 +77,26 @@ buffer_unsort_cursors(Cursor_With_Index *positions, i32 count){
 }
 
 internal void
-buffer_update_cursors(Cursor_With_Index *sorted_positions, i32 count, i32 start, i32 end, i32 len){
+buffer_update_cursors(Cursor_With_Index *sorted_positions, i32 count, i32 start, i32 end, i32 len, b32 lean_right){
     i32 shift_amount = (len - (end - start));
     Cursor_With_Index *position = sorted_positions + count - 1;
     
-    for (; position >= sorted_positions && position->pos > end; --position) position->pos += shift_amount;
-    for (; position >= sorted_positions && position->pos >= start; --position) position->pos = start;
+    if (lean_right){
+        for (; position >= sorted_positions && position->pos > end; --position){
+            position->pos += shift_amount;
+        }
+        for (; position >= sorted_positions && position->pos >= start; --position){
+            position->pos = start + len;
+        }
+    }
+    else{
+        for (; position >= sorted_positions && position->pos > end; --position){
+            position->pos += shift_amount;
+        }
+        for (; position >= sorted_positions && position->pos >= start; --position){
+            position->pos = start;
+        }
+    }
 }
 
 internal i32
@@ -109,34 +123,55 @@ buffer_batch_edit_max_shift(Buffer_Edit *sorted_edits, i32 edit_count){
     Buffer_Edit *edit = sorted_edits;
     for (i = 0; i < edit_count; ++i, ++edit){
         shift_total += (edit->len - (edit->end - edit->start));
-        if (shift_total > shift_max) shift_max = shift_total;
+        if (shift_total > shift_max){
+            shift_max = shift_total;
+        }
     }
     
     return(shift_max);
 }
 
 internal i32
-buffer_batch_edit_update_cursors(Cursor_With_Index *sorted_positions, i32 count, Buffer_Edit *sorted_edits, i32 edit_count){
+buffer_batch_edit_update_cursors(Cursor_With_Index *sorted_positions, i32 count, Buffer_Edit *sorted_edits, i32 edit_count, b32 lean_right){
     Cursor_With_Index *position = sorted_positions;
     Cursor_With_Index *end_position = sorted_positions + count;
     Buffer_Edit *edit = sorted_edits;
     Buffer_Edit *end_edit = sorted_edits + edit_count;
     i32 shift_amount = 0;
-    i32 start = 0, end = 0;
     
-    for (; edit < end_edit && position < end_position; ++edit){
-        start = edit->start;
-        end = edit->end;
-        
-        for (; position->pos < start && position < end_position; ++position){
-            position->pos += shift_amount;
+    if (lean_right){
+        for (; edit < end_edit && position < end_position; ++edit){
+            i32 start = edit->start;
+            i32 end = edit->end;
+            
+            for (; position->pos < start && position < end_position; ++position){
+                position->pos += shift_amount;
+            }
+            
+            i32 new_end = start + edit->len + shift_amount;
+            for (; position->pos <= end && position < end_position; ++position){
+                position->pos = new_end;
+            }
+            
+            shift_amount += (edit->len - (end - start));
         }
-        
-        for (; position->pos <= end && position < end_position; ++position){
-            position->pos = start + shift_amount;
+    }
+    else{
+        for (; edit < end_edit && position < end_position; ++edit){
+            i32 start = edit->start;
+            i32 end = edit->end;
+            
+            for (; position->pos < start && position < end_position; ++position){
+                position->pos += shift_amount;
+            }
+            
+            i32 new_end = start + shift_amount;
+            for (; position->pos <= end && position < end_position; ++position){
+                position->pos = new_end;
+            }
+            
+            shift_amount += (edit->len - (end - start));
         }
-        
-        shift_amount += (edit->len - (end - start));
     }
     
     for (; position < end_position; ++position){

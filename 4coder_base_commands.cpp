@@ -34,8 +34,20 @@ CUSTOM_COMMAND_SIG(write_character){
     if (length != 0){
         Buffer_Summary buffer = get_buffer(app, view.buffer_id, access);
         int32_t pos = view.cursor.pos;
+        
+        Marker next_cursor_marker = {0};
+        next_cursor_marker.pos = character_pos_to_pos(app, &view, &buffer, view.cursor.character_pos);
+        next_cursor_marker.lean_right = true;
+        
+        Marker_Handle handle = buffer_add_markers(app, &buffer, 1);
+        buffer_set_markers(app, &buffer, handle, 0, 1, &next_cursor_marker);
+        
         buffer_replace_range(app, &buffer, pos, pos, (char*)character, length);
-        view_set_cursor(app, &view, seek_character_pos(view.cursor.character_pos + 1), true);
+        
+        buffer_get_markers(app, &buffer, handle, 0, 1, &next_cursor_marker);
+        buffer_remove_markers(app, &buffer, handle);
+        
+        view_set_cursor(app, &view, seek_pos(next_cursor_marker.pos), true);
     }
 }
 

@@ -702,6 +702,66 @@ DOC_SEE(Buffer_Batch_Edit_Type)
     return(result);
 }
 
+API_EXPORT Marker_Handle
+Buffer_Add_Markers(Application_Links *app, Buffer_Summary *buffer, uint32_t marker_count){
+    Command_Data *cmd = (Command_Data*)app->cmd_context;
+    Models *models = cmd->models;
+    Editing_File *file = imp_get_file(cmd, buffer);
+    
+    Marker_Handle result = 0;
+    if (file != 0){
+        result = allocate_markers_state(&models->mem.general, file, marker_count);
+    }
+    
+    return(result);
+}
+
+API_EXPORT bool32
+Buffer_Set_Markers(Application_Links *app, Buffer_Summary *buffer, Marker_Handle marker, uint32_t first_marker_index, uint32_t marker_count, Marker *source_markers){
+    Command_Data *cmd = (Command_Data*)app->cmd_context;
+    Editing_File *file = imp_get_file(cmd, buffer);
+    
+    bool32 result = false;
+    if (file != 0){
+        if (markers_set(file, marker, first_marker_index, marker_count, source_markers)){
+            result = true;
+        }
+    }
+    
+    return(result);
+}
+
+API_EXPORT bool32
+Buffer_Get_Markers(Application_Links *app, Buffer_Summary *buffer, Marker_Handle marker, uint32_t first_marker_index, uint32_t marker_count, Marker *markers_out){
+    Command_Data *cmd = (Command_Data*)app->cmd_context;
+    Editing_File *file = imp_get_file(cmd, buffer);
+    
+    bool32 result = false;
+    if (file != 0){
+        if (markers_get(file, marker, first_marker_index, marker_count, markers_out)){
+            result = true;
+        }
+    }
+    
+    return(result);
+}
+
+API_EXPORT bool32
+Buffer_Remove_Markers(Application_Links *app, Buffer_Summary *buffer, Marker_Handle marker){
+    Command_Data *cmd = (Command_Data*)app->cmd_context;
+    Models *models = cmd->models;
+    Editing_File *file = imp_get_file(cmd, buffer);
+    
+    bool32 result = false;
+    if (file != 0){
+        if (markers_free(&models->mem.general, file, marker)){
+            result = true;
+        }
+    }
+    
+    return(result);
+}
+
 API_EXPORT bool32
 Buffer_Get_Setting(Application_Links *app, Buffer_Summary *buffer, Buffer_Setting_ID setting, int32_t *value_out)
 /*

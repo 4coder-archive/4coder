@@ -48,6 +48,7 @@ edit_pos_set_scroll(File_Edit_Positions *edit_pos, GUI_Scroll_Vars scroll){
 }
 
 
+// TODO(NAME): Replace this with markers over time.
 //
 // Highlighting Information
 //
@@ -58,10 +59,34 @@ struct Text_Effect{
     f32 seconds_down, seconds_max;
 };
 
-
 //
 // Editing_File
 //
+
+union Buffer_Slot_ID{
+    i32 id;
+    i16 part[2];
+};
+inline Buffer_Slot_ID
+to_file_id(i32 id){
+    Buffer_Slot_ID result;
+    result.id = id;
+    return(result);
+}
+
+struct Marker_Array{
+    Marker_Array *next, *prev;
+    Buffer_Slot_ID buffer_id;
+    u32 count, sim_max, max;
+    Marker marker_0;
+};
+global_const u32 sizeof_marker_array = sizeof(Marker_Array) - sizeof(Marker);
+
+struct Editing_File_Markers{
+    Marker_Array sentinel;
+    u32 array_count;
+    u32 marker_count;
+};
 
 struct Editing_File_Settings{
     i32 base_map_id;
@@ -78,7 +103,7 @@ struct Editing_File_Settings{
     b8 read_only;
     b8 never_kill;
 };
-static Editing_File_Settings null_editing_file_settings = {0};
+global_const Editing_File_Settings null_editing_file_settings = {0};
 
 struct Editing_File_State{
     Gap_Buffer buffer;
@@ -115,7 +140,7 @@ struct Editing_File_State{
     File_Edit_Positions *edit_poss[16];
     i32 edit_poss_count;
 };
-static Editing_File_State null_editing_file_state = {0};
+global_const Editing_File_State null_editing_file_state = {0};
 
 struct Editing_File_Name{
     char live_name_[256];
@@ -135,34 +160,121 @@ struct File_Node{
     File_Node *next, *prev;
 };
 
-union Buffer_Slot_ID{
-    i32 id;
-    i16 part[2];
-};
-
-inline Buffer_Slot_ID
-to_file_id(i32 id){
-    Buffer_Slot_ID result;
-    result.id = id;
-    return(result);
-}
-
 struct Editing_File{
     // NOTE(allen): node must be the first member of Editing_File!
     File_Node node;
     Editing_File_Settings settings;
-    struct{
-        b32 is_loading;
-        b32 is_dummy;
-        Editing_File_State state;
-    };
+    b32 is_loading;
+    b32 is_dummy;
+    Editing_File_State state;
+    Editing_File_Markers markers;
     Editing_File_Name name;
     Editing_File_Canon_Name canon;
     Buffer_Slot_ID id;
-    u64 unique_buffer_id;
+    //u64 unique_buffer_id;
 };
 static Editing_File null_editing_file = {0};
 
+
+//
+// Handling a file's Marker Arrays
+//
+
+internal void
+init_file_markers_state(Editing_File_Markers *markers){
+    Marker_Array *sentinel = &markers->sentinel;
+    dll_init_sentinel(sentinel);
+    markers->array_count = 0;
+    markers->marker_count = 0;
+}
+
+internal void
+clear_file_markers_state(General_Memory *general, Editing_File_Markers *markers){
+    Marker_Array *sentinel = &markers->sentinel;
+    for (Marker_Array *marker_array = sentinel->next;
+         marker_array != sentinel;
+         marker_array = sentinel->next){
+        dll_remove(marker_array);
+        general_memory_free(general, marker_array);
+    }
+    Assert(sentinel->next == sentinel);
+    Assert(sentinel->prev == sentinel);
+    markers->array_count = 0;
+    markers->marker_count = 0;
+}
+
+internal void*
+allocate_markers_state(General_Memory *general, Editing_File *file, u32 new_array_max){
+    u32 memory_size = sizeof_marker_array + sizeof(Marker)*new_array_max;
+    memory_size = l_round_up_u32(memory_size, KB(4));
+    u32 real_max = (memory_size - sizeof_marker_array)/sizeof(Marker);
+    Marker_Array *array = (Marker_Array*)general_memory_allocate(general, memory_size);
+    
+    dll_back_insert(&file->markers.sentinel, array);
+    array->buffer_id = file->id;
+    array->count = 0;
+    array->sim_max = new_array_max;
+    array->max = real_max;
+    
+    ++file->markers.array_count;
+    
+    return(array);
+}
+
+internal b32
+markers_set(Editing_File *file, void *handle, u32 first_index, u32 count, Marker *source){
+    Assert(file != 0);
+    b32 result = false;
+    if (handle != 0){
+        Marker_Array *markers = (Marker_Array*)handle;
+        if (markers->buffer_id.id == file->id.id){
+            if (first_index + count <= markers->sim_max){
+                u32 new_count = first_index + count;
+                if (new_count > markers->count){
+                    file->markers.marker_count += new_count - markers->count;
+                    markers->count = new_count;
+                }
+                Marker *dst = &markers->marker_0;
+                memcpy(dst + first_index, source, sizeof(Marker)*count);
+                result = true;
+            }
+        }
+    }
+    return(result);
+}
+
+internal b32
+markers_get(Editing_File *file, void *handle, u32 first_index, u32 count, Marker *output){
+    Assert(file != 0);
+    b32 result = false;
+    if (handle != 0){
+        Marker_Array *markers = (Marker_Array*)handle;
+        if (markers->buffer_id.id == file->id.id){
+            if (first_index + count <= markers->count){
+                Marker *src = &markers->marker_0;
+                memcpy(output, src + first_index, sizeof(Marker)*count);
+                result = true;
+            }
+        }
+    }
+    return(result);
+}
+
+internal b32
+markers_free(General_Memory *general, Editing_File *file, void *handle){
+    Assert(file != 0);
+    b32 result = false;
+    if (handle != 0){
+        Marker_Array *markers = (Marker_Array*)handle;
+        if (markers->buffer_id.id == file->id.id){
+            dll_remove(markers);
+            file->markers.marker_count -= markers->count;
+            --file->markers.array_count;
+            general_memory_free(general, markers);
+        }
+    }
+    return(result);
+}
 
 //
 // Manipulating a file's Edit_Pos array
@@ -390,3 +502,4 @@ file_get_sync(Editing_File *file){
 
 
 // BOTTOM
+

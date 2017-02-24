@@ -7,12 +7,12 @@
 
 #include "4coder_seek_types.h"
 
-inline void
+static void
 exec_command(Application_Links *app, Custom_Command_Function *func){
     func(app);
 }
 
-inline void
+static void
 exec_command(Application_Links *app, Generic_Command cmd){
     if (cmd.cmdid < cmdid_count){
         exec_command(app, cmd.cmdid);
@@ -22,7 +22,7 @@ exec_command(Application_Links *app, Generic_Command cmd){
     }
 }
 
-inline View_Summary
+static View_Summary
 get_first_view_with_buffer(Application_Links *app, int32_t buffer_id){
     View_Summary result = {};
     View_Summary test = {};
@@ -45,7 +45,7 @@ get_first_view_with_buffer(Application_Links *app, int32_t buffer_id){
     return(result);
 }
 
-inline int32_t
+static int32_t
 key_is_unmodified(Key_Event_Data *key){
     char *mods = key->modifiers;
     int32_t unmodified = !mods[MDFR_CONTROL_INDEX] && !mods[MDFR_ALT_INDEX];
@@ -135,19 +135,19 @@ query_user_general(Application_Links *app, Query_Bar *bar, bool32 force_number){
     return(success);
 }
 
-inline int32_t
+static int32_t
 query_user_string(Application_Links *app, Query_Bar *bar){
     int32_t success = query_user_general(app, bar, false);
     return(success);
 }
 
-inline int32_t
+static int32_t
 query_user_number(Application_Links *app, Query_Bar *bar){
     int32_t success = query_user_general(app, bar, true);
     return(success);
 }
 
-inline char
+static char
 buffer_get_char(Application_Links *app, Buffer_Summary *buffer, int32_t pos){
     char result = ' ';
     *buffer = get_buffer(app, buffer->buffer_id, AccessAll);
@@ -157,7 +157,7 @@ buffer_get_char(Application_Links *app, Buffer_Summary *buffer, int32_t pos){
     return(result);
 }
 
-inline Buffer_Identifier
+static Buffer_Identifier
 buffer_identifier(char *str, int32_t len){
     Buffer_Identifier identifier;
     identifier.name = str;
@@ -166,7 +166,7 @@ buffer_identifier(char *str, int32_t len){
     return(identifier);
 }
 
-inline Buffer_Identifier
+static Buffer_Identifier
 buffer_identifier(int32_t id){
     Buffer_Identifier identifier;
     identifier.name = 0;
@@ -187,7 +187,7 @@ create_buffer(Application_Links *app, char *filename, int32_t filename_len, Buff
     return(buffer);
 }
 
-inline Range
+static Range
 make_range(int32_t p1, int32_t p2){
     Range range;
     if (p1 < p2){
@@ -211,6 +211,17 @@ adjust_all_buffer_wrap_widths(Application_Links *app, int32_t wrap_width, int32_
     }
 }
 
+// TODO(allen): Setup buffer seeking to do character_pos and get View_Summary out of this parameter list.
+static int32_t
+character_pos_to_pos(Application_Links *app, View_Summary *view, Buffer_Summary *buffer, int32_t character_pos){
+    int32_t result = 0;
+    Full_Cursor cursor = {0};
+    if (view_compute_cursor(app, view, seek_character_pos(character_pos), &cursor)){
+        result = cursor.pos;
+    }
+    return(result);
+}
+
 struct Buffer_Rect{
     int32_t char0, line0;
     int32_t char1, line1;
@@ -220,7 +231,7 @@ struct Buffer_Rect{
 #define Swap(T,a,b) do{ T t = a; a = b; b = t; } while(0)
 #endif
 
-inline Buffer_Rect
+static Buffer_Rect
 get_rect(View_Summary *view){
     Buffer_Rect rect = {0};
     
@@ -240,7 +251,7 @@ get_rect(View_Summary *view){
     return(rect);
 }
 
-inline i32_Rect
+static i32_Rect
 get_line_x_rect(View_Summary *view){
     i32_Rect rect = {0};
     
@@ -371,7 +382,7 @@ refresh_view(Application_Links *app, View_Summary *view){
     *view = get_view(app, view->view_id, AccessAll);
 }
 
-inline float
+static float
 get_view_y(View_Summary *view){
     float y = view->cursor.wrapped_y;
     if (view->unwrapped_lines){
@@ -380,7 +391,7 @@ get_view_y(View_Summary *view){
     return(y);
 }
 
-inline float
+static float
 get_view_x(View_Summary *view){
     float x = view->cursor.wrapped_x;
     if (view->unwrapped_lines){
@@ -389,7 +400,7 @@ get_view_x(View_Summary *view){
     return(x);
 }
 
-inline Range
+static Range
 get_range(View_Summary *view){
     Range range = make_range(view->cursor.pos, view->mark.pos);
     return(range);

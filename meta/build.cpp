@@ -190,14 +190,12 @@ build_cl(u32 flags, char *code_path, char *code_file, char *out_path, char *out_
         build_ap(line, "/DFRED_KEEP_ASSERT");
     }
     
-    swap_ptr(&line.build_options, &line.build_options_prev);
-    
     if (flags & X86){
         build_ap(link_line, CL_X86);
     }
     
     if (flags & DEBUG_INFO){
-        build_ap(link_line, "/DEBUG ");
+        build_ap(link_line, "/DEBUG");
     }
     
     char link_type_string[1024];
@@ -210,6 +208,8 @@ build_cl(u32 flags, char *code_path, char *code_file, char *out_path, char *out_
     }
     build_ap(link_line, "%s", link_type_string);
     
+    swap_ptr(&line.build_options, &line.build_options_prev);
+    swap_ptr(&link_line.build_options, &link_line.build_options_prev);
     Temp_Dir temp = pushdir(out_path);
     systemf("cl %s %s\\%s /Fe%s /link /INCREMENTAL:NO %s", line.build_options, code_path, code_file, out_file, link_line.build_options);
     popdir(temp);
