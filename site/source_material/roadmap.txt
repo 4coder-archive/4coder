@@ -3,65 +3,37 @@
 \IMAGE{image:4coder_logo}{width:200}
 \END_LINK
 
-This page provides an outline of planned 4coder features roughly sorted by priority.  If a feature is missing here it may be on the \BEGIN_LINK{document:features} features \END_LINK page which means it is already in 4coder.  If a feature is missing from both lists and you would like to recommend it for consideration, send your recommendation to \BEGIN_STYLE{code} editor@4coder.net \END_STYLE.  If you believe the priority sorting of the items should be tweaked because certain items are more important than others, that recommendation can also be sent to the same 4coder email as any other recommendation.
+The 4coder TODO list, in the rough order of priority and with very speculative time to completion estimates.
 
-Each section represents one major type of todo item, within each section the items are roughly sorted by priority with respect to other items in that section.  The sections are also sorted by a rough priority, but more than one section might receive attention at a time.
-
-\SECTION{General Editing}
+\SECTION{Improve the Core Buffer Systems}
  \BEGIN_LIST
- \BEGIN_ITEM Unicode buffer formats \END_ITEM
- \BEGIN_ITEM Fix up the undo/redo system - improve efficiency and fix a few buggy details \END_ITEM
- \BEGIN_ITEM Properply handle files with read-only access \END_ITEM
- \BEGIN_ITEM Options for hiding or showing hidden files \END_ITEM
- \BEGIN_ITEM Change font size \END_ITEM
+ \BEGIN_ITEM utf8 buffer mode. Target completion: March 2017. \END_ITEM
+ \BEGIN_ITEM binary buffer mode. Target completion: March 2017. \END_ITEM
+ \BEGIN_ITEM Fix up the undo/redo system. Target completion: March 2017. \END_ITEM
+ \BEGIN_ITEM Expose undo/redo system in the custom layer. Target completion: April 2017. \END_ITEM
  \END_LIST
 
-\SECTION{Code Layout}
+\SECTION{Provide Customizations for Multiple Editing Paradgims}
  \BEGIN_LIST
- \BEGIN_ITEM Reduce code "jumpieness" by adding brace/paren m atching rules and scoping rules \END_ITEM
- \BEGIN_ITEM Regain the ability to parse in parallel with a smarter background job system \END_ITEM
- \BEGIN_ITEM Add partial remeasurement systems to decrease the amount of CPU work put into layout \END_ITEM
- \BEGIN_ITEM Expand code layout to also virtualize trailing whitespace and newline characters \END_ITEM
- \BEGIN_ITEM Expand code layout to virtualize all whitespace \END_ITEM
+ \BEGIN_ITEM Restructure custom layer to work as an event loop.  Target completion: May 2017. \END_ITEM
+ \BEGIN_ITEM Custom layer reloading at runtime.  Target completion: May 2017. \END_ITEM
+ \BEGIN_ITEM Virtual/Ghost text for features such as word complete. Target completion: May 2017. \END_ITEM
+ \BEGIN_ITEM New frameworks for vim like and sublime like editing.  Target completion: June 2017. \END_ITEM
+ \END_LIST
+
+\SECTION{Platform Layer Features and Porting Issues}
+ \BEGIN_LIST
+ \BEGIN_ITEM Upgrade to worker thread system to better support async and parallel systems. Target completion: ??? \END_ITEM
+ \BEGIN_ITEM Support for double click opening files in an existing window.  Target completion: ??? \END_ITEM
+ \BEGIN_ITEM Support for multi-window single process.  Target completion: ??? \END_ITEM
+ \BEGIN_ITEM Make the rendeirng system modular.  Target completion: ??? \END_ITEM
  \END_LIST
 
 \SECTION{Buffer Driven GUI}
  \BEGIN_LIST
- \BEGIN_ITEM Labels \END_ITEM
- \BEGIN_ITEM Clickable buttons \END_ITEM
- \BEGIN_ITEM Arbitrary non-editable regions \END_ITEM
- \BEGIN_ITEM Tables \END_ITEM
- \END_LIST
-
-\SECTION{Code Intelligence}
- \BEGIN_LIST
- \BEGIN_ITEM Create a usable "in stream" preprocessor \END_ITEM
- \BEGIN_ITEM Create a usable "in stream" parser \END_ITEM
- \BEGIN_ITEM Preprocessor effect visualization \END_ITEM
- \END_LIST
-
-\SECTION{API "Main" Upgrade}
- \BEGIN_LIST
- \BEGIN_ITEM Expose undo/redo grouping so that edits can be treated as one undo/redo event \END_ITEM
- \BEGIN_ITEM Improve the control over the view/cursor positioning \END_ITEM
- \BEGIN_ITEM Generic control over rendering cursor, mark, and highlight regions \END_ITEM
- \BEGIN_ITEM Move the concept of the cursor and mark entirely onto the custom side \END_ITEM
- \BEGIN_ITEM Virtual text for ghosted word completion and in-line compiler errors \END_ITEM
- \END_LIST
-
-\SECTION{API Miscellanea}
- \BEGIN_LIST
- \BEGIN_ITEM Expose the file bar string \END_ITEM
- \BEGIN_ITEM Expose the binding of initial files to views such as *messages* \END_ITEM
- \BEGIN_ITEM Make command maps modifiable and allow them to be created and discarded at any time \END_ITEM
- \END_LIST
-
-\SECTION{Cross OS Miscellanea}
- \BEGIN_LIST
- \BEGIN_ITEM Support for the concept of multiple keyboards \END_ITEM
- \BEGIN_ITEM Support for OS fonts \END_ITEM
- \BEGIN_ITEM Support for double click opening new files in an existing window \END_ITEM
- \BEGIN_ITEM Support for multi-window single process \END_ITEM
+ \BEGIN_ITEM Labels, clickable buttons, text fields.  Target completion: ??? \END_ITEM
+ \BEGIN_ITEM Tables.  Target completion: ??? \END_ITEM
+ \BEGIN_ITEM IMGUI helper wrapper. Target completion: ??? \END_ITEM
  \END_LIST
 
 
