@@ -388,7 +388,7 @@ CUSTOM_COMMAND_SIG(clean_all_lines){
     int32_t line_count = buffer.line_count;
     int32_t edit_max = line_count;
     
-    if (edit_max*sizeof(Buffer_Edit) < app->memory_size){
+    if (edit_max*(int32_t)sizeof(Buffer_Edit) < app->memory_size){
         Buffer_Edit *edits = (Buffer_Edit*)app->memory;
         
         char data[1024];

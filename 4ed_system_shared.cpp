@@ -31,10 +31,7 @@ init_shared_vars(){
     shared_vars.track_node_size = (16 << 10);
     void *track_nodes = system_get_memory(shared_vars.track_node_size);
     
-    i32 track_result =
-        init_track_system(&shared_vars.track,
-                          shared_vars.track_table, shared_vars.track_table_size,
-                          track_nodes, shared_vars.track_node_size);
+    i32 track_result = init_track_system(&shared_vars.track, shared_vars.track_table, shared_vars.track_table_size, track_nodes, shared_vars.track_node_size);
     
     if (track_result != FileTrack_Good){
         exit(1);

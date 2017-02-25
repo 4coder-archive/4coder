@@ -131,9 +131,13 @@ init_build_line(Build_Line *line){
 
 #define CL_SITE_INCLUDES "/I..\\..\\foreign /I..\\..\\code"
 
-#define CL_LIBS                                  \
+#define CL_LIBS_X64                              \
 "user32.lib winmm.lib gdi32.lib opengl32.lib "   \
-"..\\foreign\\freetype.lib"
+"..\\foreign_x64\\freetype.lib"
+
+#define CL_LIBS_X86                              \
+"user32.lib winmm.lib gdi32.lib opengl32.lib "   \
+"..\\foreign_x86\\freetype.lib"
 
 #define CL_ICON "..\\res\\icon.res"
 
@@ -142,9 +146,17 @@ init_build_line(Build_Line *line){
 static void
 build_cl(u32 flags, char *code_path, char *code_file, char *out_path, char *out_file, char *exports){
     Build_Line line;
-    Build_Line link_line;
     init_build_line(&line);
+    
+    Build_Line link_line;
     init_build_line(&link_line);
+    
+    Build_Line line_prefix;
+    init_build_line(&line_prefix);
+    
+    if (flags & X86){
+        build_ap(line_prefix, "SETUP_CLX86 & ");
+    }
     
     if (flags & OPTS){
         build_ap(line, CL_OPTS);
@@ -159,7 +171,12 @@ build_cl(u32 flags, char *code_path, char *code_file, char *out_path, char *out_
     }
     
     if (flags & LIBS){
-        build_ap(line, CL_LIBS);
+        if (flags & X86){
+            build_ap(line, CL_LIBS_X86);
+        }
+        else{
+            build_ap(line, CL_LIBS_X64);
+        }
     }
     
     if (flags & ICON){
@@ -210,8 +227,10 @@ build_cl(u32 flags, char *code_path, char *code_file, char *out_path, char *out_
     
     swap_ptr(&line.build_options, &line.build_options_prev);
     swap_ptr(&link_line.build_options, &link_line.build_options_prev);
+    swap_ptr(&line_prefix.build_options, &line_prefix.build_options_prev);
+    
     Temp_Dir temp = pushdir(out_path);
-    systemf("cl %s %s\\%s /Fe%s /link /INCREMENTAL:NO %s", line.build_options, code_path, code_file, out_file, link_line.build_options);
+    systemf("%scl %s %s\\%s /Fe%s /link /INCREMENTAL:NO %s", line_prefix.build_options, line.build_options, code_path, code_file, out_file, link_line.build_options);
     popdir(temp);
 }
 
@@ -307,38 +326,27 @@ build(u32 flags, char *code_path, char *code_file, char *out_path, char *out_fil
 }
 
 static void
-buildsuper(char *code_path, char *out_path, char *filename){
+buildsuper(char *code_path, char *out_path, char *filename, b32 x86_build){
     Temp_Dir temp = pushdir(out_path);
-    
 #if defined(IS_CL)
-    systemf("call \"%s\\buildsuper.bat\" %s", code_path, filename);
-    
+    {
+        char *prefix = "";
+        char *build_script = "buildsuper.bat";
+        if (x86_build){
+            prefix = "setup_clx86 & ";
+            build_script = "buildsuper_x86.bat";
+        }
+        systemf("%scall \"%s\\%s\" %s", prefix, code_path, build_script, filename);
+    }
 #elif defined(IS_GCC)
-    
-    systemf("\"%s/buildsuper.sh\" %s", code_path, filename);
-    
+    {
+        systemf("\"%s/buildsuper.sh\" %s", code_path, filename);
+    }
 #else
 #error The build rule for this compiler is not ready
 #endif
-    
     popdir(temp);
 }
-
-#define META_DIR "../meta"
-#define BUILD_DIR "../build"
-
-#define SITE_DIR "../site"
-#define PACK_DIR "../distributions"
-#define PACK_DATA_DIR "../data/dist_files"
-#define DATA_DIR "../data/test"
-
-#define PACK_ALPHA_PAR_DIR "../current_dist"
-#define PACK_SUPER_PAR_DIR "../current_dist_super"
-#define PACK_POWER_PAR_DIR "../current_dist_power"
-
-#define PACK_ALPHA_DIR PACK_ALPHA_PAR_DIR"/4coder"
-#define PACK_SUPER_DIR PACK_SUPER_PAR_DIR"/4coder"
-#define PACK_POWER_DIR PACK_POWER_PAR_DIR"/power"
 
 #if defined(IS_WINDOWS)
 #define PLAT_LAYER "win32_4ed.cpp"
@@ -347,6 +355,9 @@ buildsuper(char *code_path, char *out_path, char *filename){
 #else
 #error No platform layer defined for this OS.
 #endif
+
+#define META_DIR "../meta"
+#define BUILD_DIR "../build"
 
 static void
 fsm_generator(char *cdir){
@@ -395,7 +406,7 @@ enum{
 };
 
 static void
-do_buildsuper(char *cdir, i32 custom_option){
+do_buildsuper(char *cdir, i32 custom_option, u32 flags){
     char space[1024];
     String str = make_fixed_width_string(space);
     
@@ -426,11 +437,15 @@ do_buildsuper(char *cdir, i32 custom_option){
             copy_sc(&str, "../4vim/4coder_chronal.cpp");
         }break;
     }
-    
     terminate_with_null(&str);
     
+    b32 x86_build = false;
+    if (flags & X86){
+        x86_build = true;
+    }
+    
     DECL_STR(dir, BUILD_DIR);
-    buildsuper(cdir, dir, str.str);
+    buildsuper(cdir, dir, str.str, x86_build);
     
     END_TIME_SECTION("build custom");
 }
@@ -457,9 +472,9 @@ static void
 standard_build(char *cdir, u32 flags){
     fsm_generator(cdir);
     metagen(cdir);
-    do_buildsuper(cdir, Custom_Experiments);
-    //do_buildsuper(cdir, Custom_Casey);
-    //do_buildsuper(cdir, Custom_ChronalVim);
+    do_buildsuper(cdir, Custom_Experiments, flags);
+    //do_buildsuper(cdir, Custom_Casey, flags);
+    //do_buildsuper(cdir, Custom_ChronalVim, flags);
     build_main(cdir, flags);
 }
 
@@ -480,6 +495,8 @@ site_build(char *cdir, u32 flags){
         END_TIME_SECTION("run sitegen");
     }
 }
+
+#define PACK_DIR "../distributions"
 
 static void
 get_4coder_dist_name(String *zip_file, i32 OS_specific, char *tier, char *ext){
@@ -526,8 +543,9 @@ package(char *cdir){
     fsm_generator(cdir);
     metagen(cdir);
     
-    // NOTE(allen): alpha
-    build_main(cdir, OPTIMIZATION | KEEP_ASSERT | DEBUG_INFO);
+#define SITE_DIR "../site"
+#define PACK_DATA_DIR "../data/dist_files"
+#define DATA_DIR "../data/test"
     
     DECL_STR(build_dir, BUILD_DIR);
     DECL_STR(site_dir, SITE_DIR);
@@ -535,88 +553,170 @@ package(char *cdir){
     DECL_STR(pack_data_dir, PACK_DATA_DIR);
     DECL_STR(data_dir, DATA_DIR);
     
+#define PACK_ALPHA_PAR_DIR "../current_dist"
+#define PACK_ALPHA_DIR PACK_ALPHA_PAR_DIR"/4coder"
     DECL_STR(pack_alpha_par_dir, PACK_ALPHA_PAR_DIR);
-    DECL_STR(pack_super_par_dir, PACK_SUPER_PAR_DIR);
-    DECL_STR(pack_power_par_dir, PACK_POWER_PAR_DIR);
-    
     DECL_STR(pack_alpha_dir, PACK_ALPHA_DIR);
-    DECL_STR(pack_super_dir, PACK_SUPER_DIR);
-    DECL_STR(pack_power_dir, PACK_POWER_DIR);
     
-    clear_folder(pack_alpha_par_dir);
-    make_folder_if_missing(pack_alpha_dir, "3rdparty");
-    make_folder_if_missing(pack_dir, "alpha");
-    copy_file(build_dir, "4ed"EXE, pack_alpha_dir, 0, 0);
-    //ONLY_WINDOWS(copy_file(build_dir, "4ed"PDB, pack_alpha_dir, 0, 0));
-    copy_file(build_dir, "4ed_app"DLL, pack_alpha_dir, 0, 0);
-    //ONLY_WINDOWS(copy_file(build_dir, "4ed_app"PDB, pack_alpha_dir, 0, 0));
-    copy_all (pack_data_dir, "*", pack_alpha_dir);
-    copy_file(0, "README.txt", pack_alpha_dir, 0, 0);
-    copy_file(0, "TODO.txt", pack_alpha_dir, 0, 0);
-    copy_file(data_dir, "release-config.4coder", pack_alpha_dir, 0, "config.4coder");
+#define PACK_ALPHA_X86_PAR_DIR "../current_dist_x86"
+#define PACK_ALPHA_X86_DIR PACK_ALPHA_X86_PAR_DIR"/4coder"
+    DECL_STR(pack_alpha_x86_par_dir, PACK_ALPHA_X86_PAR_DIR);
+    DECL_STR(pack_alpha_x86_dir, PACK_ALPHA_X86_DIR);
     
-    get_4coder_dist_name(&str, 1, "alpha", "zip");
-    zip(pack_alpha_par_dir, "4coder", str.str);
-    
-    // NOTE(allen): super
-    build_main(cdir, OPTIMIZATION | KEEP_ASSERT | DEBUG_INFO | SUPER);
-    do_buildsuper(cdir, Custom_Default);
-    
-    clear_folder(pack_super_par_dir);
-    make_folder_if_missing(pack_super_dir, "3rdparty");
-    make_folder_if_missing(pack_dir, "super");
-    make_folder_if_missing(pack_dir, "super-docs");
-    
-    copy_file(build_dir, "4ed"EXE, pack_super_dir, 0, 0);
-    //ONLY_WINDOWS(copy_file(build_dir, "4ed"PDB, pack_super_dir, 0, 0));
-    copy_file(build_dir, "4ed_app"DLL, pack_super_dir, 0, 0);
-    //ONLY_WINDOWS(copy_file(build_dir, "4ed_app"PDB, pack_super_dir, 0, 0));
-    copy_file(build_dir, "custom_4coder"DLL, pack_super_dir, 0, 0);
-    
-    copy_all (pack_data_dir, "*", pack_super_dir);
-    copy_file(0, "README.txt", pack_super_dir, 0, 0);
-    copy_file(0, "TODO.txt", pack_super_dir, 0, 0);
-    copy_file(data_dir, "release-config.4coder", pack_super_dir, 0, "config.4coder");
-    
-    copy_all(0, "4coder_*", pack_super_dir);
-    
-    copy_file(0, "buildsuper"BAT, pack_super_dir, 0, 0);
-    
-    DECL_STR(custom_dir, "4coder_API");
-    DECL_STR(custom_helper_dir, "4coder_helper");
-    DECL_STR(custom_lib_dir, "4coder_lib");
-    DECL_STR(fcpp_dir, "4cpp");
-    
-    char *dir_array[] = {
-        custom_dir,
-        custom_helper_dir,
-        custom_lib_dir,
-        fcpp_dir,
-    };
-    i32 dir_count = ArrayCount(dir_array);
-    
-    for (i32 i = 0; i < dir_count; ++i){
-        char *d = dir_array[i];
-        make_folder_if_missing(pack_super_dir, d);
+    // NOTE(allen): alpha
+    {
+        char *dest_dirs[] = {
+            pack_alpha_dir,
+            pack_alpha_x86_dir,
+        };
         
-        char space[256];
-        String str = make_fixed_width_string(space);
-        append_sc(&str, pack_super_dir);
-        append_s_char(&str, platform_correct_slash);
-        append_sc(&str, d);
-        terminate_with_null(&str);
+        char *dest_par_dirs[] = {
+            pack_alpha_dir,
+            pack_alpha_x86_dir,
+        };
         
-        copy_all(d, "*", str.str);
+        char *zip_dirs[] = {
+            "alpha",
+            "alpha_x86",
+        };
+        
+        Assert(ArrayCount(dest_dirs) == ArrayCount(dest_par_dirs));
+        u32 count = ArrayCount(dest_dirs);
+        
+        u32 base_flags = OPTIMIZATION | KEEP_ASSERT | DEBUG_INFO;
+        u32 flags[] = {
+            0,
+            X86,
+        };
+        
+        for (u32 i = 0; i < count; ++i){
+            char *dir = dest_dirs[i];
+            char *par_dir = dest_par_dirs[i];
+            char *zip_dir = zip_dirs[i];
+            
+            build_main(cdir, base_flags | flags[i]);
+            
+            clear_folder(par_dir);
+            make_folder_if_missing(dir, "3rdparty");
+            make_folder_if_missing(pack_dir, zip_dir);
+            copy_file(build_dir, "4ed"EXE, dir, 0, 0);
+            copy_file(build_dir, "4ed_app"DLL, dir, 0, 0);
+            copy_all (pack_data_dir, "*", dir);
+            copy_file(0, "README.txt", dir, 0, 0);
+            copy_file(0, "TODO.txt", dir, 0, 0);
+            copy_file(data_dir, "release-config.4coder", dir, 0, "config.4coder");
+            
+            get_4coder_dist_name(&str, 1, zip_dir, "zip");
+            zip(par_dir, "4coder", str.str);
+        }
     }
     
-    get_4coder_dist_name(&str, 0, "API", "html");
-    str2 = front_of_directory(str);
-    copy_file(site_dir, "custom_docs.html", pack_dir, "super-docs", str2.str);
+    // NOTE(allen): super
+#define PACK_SUPER_PAR_DIR "../current_dist_super"
+#define PACK_SUPER_DIR PACK_SUPER_PAR_DIR"/4coder"
+    DECL_STR(pack_super_par_dir, PACK_SUPER_PAR_DIR);
+    DECL_STR(pack_super_dir, PACK_SUPER_DIR);
     
-    get_4coder_dist_name(&str, 1, "super", "zip");
-    zip(pack_super_par_dir, "4coder", str.str);
+#define PACK_SUPER_X86_PAR_DIR "../current_dist_super_x86"
+#define PACK_SUPER_X86_DIR PACK_SUPER_X86_PAR_DIR"/4coder"
+    DECL_STR(pack_super_x86_par_dir, PACK_SUPER_X86_PAR_DIR);
+    DECL_STR(pack_super_x86_dir, PACK_SUPER_X86_DIR);
+    
+    {
+        char *dest_dirs[] = {
+            pack_super_dir,
+            pack_super_x86_dir,
+        };
+        
+        char *dest_par_dirs[] = {
+            pack_super_dir,
+            pack_super_x86_dir,
+        };
+        
+        char *zip_dirs[] = {
+            "super",
+            "super_x86",
+        };
+        
+        Assert(ArrayCount(dest_dirs) == ArrayCount(dest_par_dirs));
+        u32 count = ArrayCount(dest_dirs);
+        
+        u32 base_flags = OPTIMIZATION | KEEP_ASSERT | DEBUG_INFO | SUPER;
+        u32 flags[] = {
+            0,
+            X86,
+        };
+        
+        for (u32 i = 0; i < count; ++i){
+            char *dir = dest_dirs[i];
+            char *par_dir = dest_par_dirs[i];
+            char *zip_dir = zip_dirs[i];
+            
+            build_main(cdir, base_flags | flags[i]);
+            do_buildsuper(cdir, Custom_Default, flags[i]);
+            
+            clear_folder(par_dir);
+            make_folder_if_missing(dir, "3rdparty");
+            make_folder_if_missing(pack_dir, zip_dir);
+            
+            copy_file(build_dir, "4ed"EXE, dir, 0, 0);
+            ONLY_WINDOWS(copy_file(build_dir, "4ed"PDB, dir, 0, 0));
+            copy_file(build_dir, "4ed_app"DLL, dir, 0, 0);
+            ONLY_WINDOWS(copy_file(build_dir, "4ed_app"PDB, dir, 0, 0));
+            copy_file(build_dir, "custom_4coder"DLL, dir, 0, 0);
+            
+            copy_all (pack_data_dir, "*", dir);
+            copy_file(0, "README.txt", dir, 0, 0);
+            copy_file(0, "TODO.txt", dir, 0, 0);
+            copy_file(data_dir, "release-config.4coder", dir, 0, "config.4coder");
+            
+            copy_all(0, "4coder_*", dir);
+            
+            copy_file(0, "buildsuper"BAT, dir, 0, 0);
+            
+            DECL_STR(custom_dir, "4coder_API");
+            DECL_STR(custom_helper_dir, "4coder_helper");
+            DECL_STR(custom_lib_dir, "4coder_lib");
+            DECL_STR(fcpp_dir, "4cpp");
+            
+            char *dir_array[] = {
+                custom_dir,
+                custom_helper_dir,
+                custom_lib_dir,
+                fcpp_dir,
+            };
+            i32 dir_count = ArrayCount(dir_array);
+            
+            for (i32 i = 0; i < dir_count; ++i){
+                char *d = dir_array[i];
+                make_folder_if_missing(dir, d);
+                
+                char space[256];
+                String str = make_fixed_width_string(space);
+                append_sc(&str, dir);
+                append_s_char(&str, platform_correct_slash);
+                append_sc(&str, d);
+                terminate_with_null(&str);
+                
+                copy_all(d, "*", str.str);
+            }
+            
+            get_4coder_dist_name(&str, 1, zip_dir, "zip");
+            zip(par_dir, "4coder", str.str);
+        }
+        
+        make_folder_if_missing(pack_dir, "super-docs");
+        get_4coder_dist_name(&str, 0, "API", "html");
+        str2 = front_of_directory(str);
+        copy_file(site_dir, "custom_docs.html", pack_dir, "super-docs", str2.str);
+    }
     
     // NOTE(allen): power
+#define PACK_POWER_PAR_DIR "../current_dist_power"
+#define PACK_POWER_DIR PACK_POWER_PAR_DIR"/power"
+    DECL_STR(pack_power_par_dir, PACK_POWER_PAR_DIR);
+    DECL_STR(pack_power_dir, PACK_POWER_DIR);
+    
     clear_folder(pack_power_par_dir);
     make_folder_if_missing(pack_power_dir, 0);
     make_folder_if_missing(pack_dir, "power");

@@ -327,7 +327,7 @@ general_memory_reallocate(General_Memory *general, void *old, i32_4tech old_size
     if (additional_space > 0){
         Bubble *next = bubble->next;
         if (!(next->flags & MEM_BUBBLE_USED) &&
-            next->size + sizeof(Bubble) >= additional_space){
+            next->size + (i32_4tech)sizeof(Bubble) >= additional_space){
             general_memory_do_merge(bubble, next);
             general_memory_attempt_split(general, bubble, size);
         }

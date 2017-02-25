@@ -1,6 +1,6 @@
 @echo off
 
-IF NOT DEFINED LIB (call "C:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\vcvarsall.bat" amd64)
+IF NOT DEFINED LIB (call "C:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\vcvarsall.bat" amd64_x86)
 
 SET SRC=%1
 if "%SRC%" == "" SET SRC=4coder_default_bindings.cpp

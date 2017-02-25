@@ -55,7 +55,6 @@ Created 27.01.2017 (dd.mm.yyyy)
 #define WGL_SWAP_UNDEFINED_ARB                  0x202A
 #define WGL_TYPE_RGBA_ARB                       0x202B
 #define WGL_TYPE_COLORINDEX_ARB                 0x202C
-typedef BOOL wglChoosePixelFormatARB_Function(HDC hdc, const int *piAttribIList, const FLOAT *pfAttribFList, UINT nMaxFormats, int *piFormats, UINT *nNumFormats);
 
 #define WGL_CONTEXT_DEBUG_BIT_ARB         0x00000001
 #define WGL_CONTEXT_FORWARD_COMPATIBLE_BIT_ARB 0x00000002
@@ -67,14 +66,25 @@ typedef BOOL wglChoosePixelFormatARB_Function(HDC hdc, const int *piAttribIList,
 #define WGL_CONTEXT_PROFILE_MASK_ARB      0x9126
 #define WGL_CONTEXT_CORE_PROFILE_BIT_ARB  0x00000001
 #define WGL_CONTEXT_COMPATIBILITY_PROFILE_BIT_ARB 0x00000002
-typedef HGLRC wglCreateContextAttribsARB_Function(HDC hDC, HGLRC hshareContext, const int *attribList);
 
-typedef const char* wglGetExtensionsStringARB_Function(HDC hdc);
+typedef BOOL CALL_CONVENTION 
+wglChoosePixelFormatARB_Function(HDC hdc, const int *piAttribIList, const FLOAT *pfAttribFList, UINT nMaxFormats, int *piFormats, UINT *nNumFormats);
 
-typedef void GLDEBUGPROC_TYPE(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const char * message, const GLvoid * userParam);
+typedef HGLRC CALL_CONVENTION 
+wglCreateContextAttribsARB_Function(HDC hDC, HGLRC hshareContext, const int *attribList);
+
+typedef const char* CALL_CONVENTION 
+wglGetExtensionsStringARB_Function(HDC hdc);
+
+typedef void CALL_CONVENTION 
+GLDEBUGPROC_TYPE(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const char * message, const GLvoid * userParam);
+
 typedef GLDEBUGPROC_TYPE * GLDEBUGPROC;
-typedef void glDebugMessageControl_type(GLenum source, GLenum type, GLenum severity, GLsizei count, GLuint * ids, GLboolean enabled);
-typedef void glDebugMessageCallback_type(GLDEBUGPROC callback, void * userParam);
+typedef void CALL_CONVENTION 
+glDebugMessageControl_type(GLenum source, GLenum type, GLenum severity, GLsizei count, GLuint * ids, GLboolean enabled);
+
+typedef void CALL_CONVENTION 
+glDebugMessageCallback_type(GLDEBUGPROC callback, void * userParam);
 
 #define GL_DEBUG_OUTPUT_SYNCHRONOUS 0x8242
 #define GL_DEBUG_OUTPUT 0x92E0
