@@ -77,13 +77,16 @@ OPEN_FILE_HOOK_SIG(default_file_settings){
     int32_t treat_as_code = false;
     int32_t wrap_lines = true;
     
+    int32_t extension_count = 0;
+    char **extension_list = get_current_code_extensions(&extension_count);
+    
     if (buffer.file_name != 0 && buffer.size < (16 << 20)){
         String ext = file_extension(make_string(buffer.file_name, buffer.file_name_len));
-        if (match_ss(ext, make_lit_string("cpp")) ||
-            match_ss(ext, make_lit_string("h")) ||
-            match_ss(ext, make_lit_string("c")) ||
-            match_ss(ext, make_lit_string("hpp"))){
-            treat_as_code = true;
+        for (int32_t i = 0; i < extension_count; ++i){
+            if (match(ext, extension_list[i])){
+                treat_as_code = true;
+                break;
+            }
         }
     }
     
@@ -121,6 +124,9 @@ OPEN_FILE_HOOK_SIG(default_new_file){
     Buffer_Summary buffer = get_buffer(app, buffer_id, AccessOpen);
     char str[] = "/*\nNew File\n*/\n\n\n";
     buffer_replace_range(app, &buffer, 0, 0, str, sizeof(str)-1);
+    
+    // no meaning for return
+    return(0);
 }
 
 OPEN_FILE_HOOK_SIG(default_file_save){

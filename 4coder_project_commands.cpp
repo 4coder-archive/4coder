@@ -156,19 +156,19 @@ open_all_files_with_extension(Application_Links *app, Partition *scratch_part, c
 // NOTE(allen|a4.0.14): open_all_code and close_all_code now use the extensions set in the loaded project.  If there is no project loaded the extensions ".cpp.hpp.c.h.cc" are used.
 CUSTOM_COMMAND_SIG(open_all_code){
     int32_t extension_count = 0;
-    char **extension_list = get_current_code_extensions(&extension_count);
+    char **extension_list = get_current_project_extensions(&extension_count);
     open_all_files_with_extension(app, &global_part, extension_list, extension_count, false);
 }
 
 CUSTOM_COMMAND_SIG(open_all_code_recursive){
     int32_t extension_count = 0;
-    char **extension_list = get_current_code_extensions(&extension_count);
+    char **extension_list = get_current_project_extensions(&extension_count);
     open_all_files_with_extension(app, &global_part, extension_list, extension_count, true);
 }
 
 CUSTOM_COMMAND_SIG(close_all_code){
     int32_t extension_count = 0;
-    char **extension_list = get_current_code_extensions(&extension_count);
+    char **extension_list = get_current_project_extensions(&extension_count);
     close_all_files_with_extension(app, &global_part, extension_list, extension_count);
 }
 
@@ -234,8 +234,8 @@ CUSTOM_COMMAND_SIG(load_project){
                                 char str_space[512];
                                 String str = make_fixed_width_string(str_space);
                                 if (config_string_var(item, "extensions", 0, &str)){
-                                    if (str.size < sizeof(current_project.extension_space)){
-                                        set_project_extensions(&current_project, str);
+                                    if (str.size < sizeof(current_project.extension_list.extension_space)){
+                                        set_extensions(&current_project.extension_list, str);
                                         print_message(app, str.str, str.size);
                                         print_message(app, "\n", 1);
                                     }

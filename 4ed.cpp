@@ -1693,8 +1693,6 @@ App_Step_Sig(app_step){
             if (get_canon_name(system, &canon, make_string(buffer, size))){
                 Editing_File *file = working_set_canon_contains(working_set, canon.name);
                 if (file){
-                    Application_Links *app = &models->app_links;
-                    
                     if (file->state.ignore_behind_os == 0){
                         file_mark_behind_os(file);
                     }

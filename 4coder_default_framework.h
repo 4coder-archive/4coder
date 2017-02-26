@@ -208,6 +208,42 @@ static char *default_extensions[] = {
     "cc"
 };
 
+struct Extension_List{
+    char extension_space[256];
+    char *extensions[94];
+    int32_t extension_count;
+};
+
+static void
+set_extensions(Extension_List *extension_list, String src){
+    int32_t mode = 0;
+    int32_t j = 0, k = 0;
+    for (int32_t i = 0; i < src.size; ++i){
+        switch (mode){
+            case 0:
+            {
+                if (src.str[i] == '.'){
+                    mode = 1;
+                    extension_list->extensions[k++] = &extension_list->extension_space[j];
+                }
+            }break;
+            
+            case 1:
+            {
+                if (src.str[i] == '.'){
+                    extension_list->extension_space[j++] = 0;
+                    extension_list->extensions[k++] = &extension_list->extension_space[j];
+                }
+                else{
+                    extension_list->extension_space[j++] = src.str[i];
+                }
+            }break;
+        }
+    }
+    extension_list->extension_space[j++] = 0;
+    extension_list->extension_count = k;
+}
+
 struct Fkey_Command{
     char command[128];
     char out[128];
@@ -220,10 +256,7 @@ struct Project{
     char *dir;
     int32_t dir_len;
     
-    char extension_space[256];
-    char *extensions[94];
-    int32_t extension_count;
-    
+    Extension_List extension_list;
     Fkey_Command fkey_commands[16];
     
     bool32 close_all_code_when_this_project_closes;
@@ -232,46 +265,16 @@ struct Project{
     bool32 open_recursively;
 };
 
-static Project null_project = {};
-static Project current_project = {};
-
-static void
-set_project_extensions(Project *project, String src){
-    int32_t mode = 0;
-    int32_t j = 0, k = 0;
-    for (int32_t i = 0; i < src.size; ++i){
-        switch (mode){
-            case 0:
-            {
-                if (src.str[i] == '.'){
-                    mode = 1;
-                    project->extensions[k++] = &project->extension_space[j];
-                }
-            }break;
-            
-            case 1:
-            {
-                if (src.str[i] == '.'){
-                    project->extension_space[j++] = 0;
-                    project->extensions[k++] = &project->extension_space[j];
-                }
-                else{
-                    project->extension_space[j++] = src.str[i];
-                }
-            }break;
-        }
-    }
-    project->extension_space[j++] = 0;
-    project->extension_count = k;
-}
+static Project null_project = {0};
+static Project current_project = {0};
 
 static char**
-get_current_code_extensions(int32_t *extension_count_out){
+get_current_project_extensions(int32_t *extension_count_out){
     char **extension_list = default_extensions;
     int32_t extension_count = ArrayCount(default_extensions);
     if (current_project.dir != 0){
-        extension_list = current_project.extensions;
-        extension_count = current_project.extension_count;
+        extension_list = current_project.extension_list.extensions;
+        extension_count = current_project.extension_list.extension_count;
     }
     *extension_count_out = extension_count;
     return(extension_list);
@@ -616,6 +619,8 @@ static String default_font_name = make_fixed_width_string(default_font_name_spac
 static char user_name_space[256] = {0};
 static String user_name = make_fixed_width_string(user_name_space);
 
+static Extension_List treat_as_code_exts = {0};
+
 static bool32
 get_current_name(char **name_out, int32_t *len_out){
     bool32 result = false;
@@ -644,6 +649,18 @@ get_default_font_name(){
         str = make_lit_string("Liberation Mono");
     }
     return(str);
+}
+
+static char**
+get_current_code_extensions(int32_t *extension_count_out){
+    char **extension_list = default_extensions;
+    int32_t extension_count = ArrayCount(default_extensions);
+    if (treat_as_code_exts.extensions != 0){
+        extension_list = treat_as_code_exts.extensions;
+        extension_count = treat_as_code_exts.extension_count;
+    }
+    *extension_count_out = extension_count;
+    return(extension_list);
 }
 
 // TODO(allen): Stop handling files this way!  My own API should be able to do this!!?!?!?!!?!?!!!!?
@@ -723,6 +740,21 @@ process_config_file(Application_Links *app){
                         config_string_var(item, "default_theme_name", 0, &default_theme_name);
                         config_string_var(item, "default_font_name", 0, &default_font_name);
                         config_string_var(item, "user_name", 0, &user_name);
+                        
+                        {
+                            char str_space[512];
+                            String str = make_fixed_width_string(str_space);
+                            if (config_string_var(item, "treat_as_code", 0, &str)){
+                                if (str.size < sizeof(treat_as_code_exts.extension_space)){
+                                    set_extensions(&treat_as_code_exts, str);
+                                    print_message(app, str.str, str.size);
+                                    print_message(app, "\n", 1);
+                                }
+                                else{
+                                    print_message(app, literal("STRING TOO LONG!\n"));
+                                }
+                            }
+                        }
                     }
                 }
                 adjust_all_buffer_wrap_widths(app, new_wrap_width, new_min_base_width);

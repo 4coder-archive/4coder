@@ -510,12 +510,15 @@ site_build(char *cdir, u32 flags){
 #define PACK_DIR "../distributions"
 
 static void
-get_4coder_dist_name(String *zip_file, i32 OS_specific, char *tier, char *ext){
+get_4coder_dist_name(String *zip_file, b32 OS_specific, char *folder, char *tier, char *arch, char *ext){
     zip_file->size = 0;
     
     append_sc(zip_file, PACK_DIR"/");
-    append_sc(zip_file, tier);
-    append_sc(zip_file, "/4coder-");
+    if (folder != 0){
+        append_sc(zip_file, folder);
+        append_sc(zip_file, "/");
+    }
+    append_sc(zip_file, "4coder-");
     
     if (OS_specific){
 #if defined(IS_WINDOWS)
@@ -534,12 +537,16 @@ get_4coder_dist_name(String *zip_file, i32 OS_specific, char *tier, char *ext){
     append_int_to_str (zip_file, MINOR);
     append_sc         (zip_file, "-");
     append_int_to_str (zip_file, PATCH);
-    if (!match_cc(tier, "alpha")){
+    if (tier != 0){
         append_sc     (zip_file, "-");
         append_sc     (zip_file, tier);
     }
-    append_sc         (zip_file, ".");
-    append_sc         (zip_file, ext);
+    if (arch != 0){
+        append_sc     (zip_file, "-");
+        append_sc     (zip_file, arch);
+    }
+    append_sc     (zip_file, ".");
+    append_sc     (zip_file, ext);
     terminate_with_null(zip_file);
     
     slash_fix(zip_file->str);
@@ -591,6 +598,13 @@ package(char *cdir){
             "alpha_x86",
         };
         
+        char *tier = "alpha";
+        
+        char *archs[] = {
+            "x64",
+            "x86",
+        };
+        
         Assert(ArrayCount(dest_dirs) == ArrayCount(dest_par_dirs));
         u32 count = ArrayCount(dest_dirs);
         
@@ -604,6 +618,7 @@ package(char *cdir){
             char *dir = dest_dirs[i];
             char *par_dir = dest_par_dirs[i];
             char *zip_dir = zip_dirs[i];
+            char *arch = archs[i];
             
             build_main(cdir, base_flags | flags[i]);
             
@@ -617,7 +632,7 @@ package(char *cdir){
             copy_file(0, "TODO.txt", dir, 0, 0);
             copy_file(data_dir, "release-config.4coder", dir, 0, "config.4coder");
             
-            get_4coder_dist_name(&str, 1, zip_dir, "zip");
+            get_4coder_dist_name(&str, true, zip_dir, tier, arch, "zip");
             zip(par_dir, "4coder", str.str);
         }
     }
@@ -649,6 +664,13 @@ package(char *cdir){
             "super_x86",
         };
         
+        char *tier = "super";
+        
+        char *archs[] = {
+            "x64",
+            "x86",
+        };
+        
         Assert(ArrayCount(dest_dirs) == ArrayCount(dest_par_dirs));
         u32 count = ArrayCount(dest_dirs);
         
@@ -662,6 +684,7 @@ package(char *cdir){
             char *dir = dest_dirs[i];
             char *par_dir = dest_par_dirs[i];
             char *zip_dir = zip_dirs[i];
+            char *arch = archs[i];
             
             build_main(cdir, base_flags | flags[i]);
             do_buildsuper(cdir, Custom_Default, flags[i]);
@@ -712,12 +735,12 @@ package(char *cdir){
                 copy_all(d, "*", str.str);
             }
             
-            get_4coder_dist_name(&str, 1, zip_dir, "zip");
+            get_4coder_dist_name(&str, true, zip_dir, tier, arch, "zip");
             zip(par_dir, "4coder", str.str);
         }
         
         make_folder_if_missing(pack_dir, "super-docs");
-        get_4coder_dist_name(&str, 0, "API", "html");
+        get_4coder_dist_name(&str, false, "super-docs", "API", 0, "html");
         str2 = front_of_directory(str);
         copy_file(site_dir, "custom_docs.html", pack_dir, "super-docs", str2.str);
     }
@@ -733,7 +756,7 @@ package(char *cdir){
     make_folder_if_missing(pack_dir, "power");
     copy_all("power", "*", pack_power_dir);
     
-    get_4coder_dist_name(&str, 0, "power", "zip");
+    get_4coder_dist_name(&str, 0, "power", 0, 0, "zip");
     zip(pack_power_par_dir, "power", str.str);
 }
 

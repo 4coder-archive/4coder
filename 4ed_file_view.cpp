@@ -790,7 +790,7 @@ save_file_to_name(System_Functions *system, Models *models, Editing_File *file, 
         if (!using_actual_filename && file->canon.name.str != 0){
             char space[512];
             u32 length = str_size(filename);
-            u32 canon_length = system->get_canonical(filename, length, space, sizeof(space));
+            system->get_canonical(filename, length, space, sizeof(space));
             
             char *source_path = file->canon.name.str;
             if (match(space, source_path)){
