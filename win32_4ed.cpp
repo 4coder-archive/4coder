@@ -932,74 +932,9 @@ win32_canonical_ascii_name(char *src, u32 len, char *dst, u32 max){
     return(result);
 }
 
-#if 0
-internal u32
-win32_canonical_ascii_name(char *src, u32 len, char *dst, u32 max){
-    char *wrt = dst;
-    char *wrt_stop = dst + max;
-    char *src_stop = src + len;
-    char c = 0;
-    
-    if (len >= 2 && max > 0){
-        c = src[0];
-        if (c >= 'a' && c <= 'z'){
-            c -= 'a' - 'A';
-        }
-        
-        if (c >= 'A' && c <= 'Z' && src[1] == ':'){
-            *(wrt++) = c;
-            if (wrt == wrt_stop) goto fail;
-            *(wrt++) = ':';
-            if (wrt == wrt_stop) goto fail;
-            
-            src += 2;
-            
-            for (; src < src_stop; ++src){
-                c = src[0];
-                
-                if (c >= 'A' && c <= 'Z'){
-                    c += 'a' - 'A';
-                }
-                
-                if (c == '/' || c == '\\'){
-                    c = '\\';
-                    if (wrt > dst && wrt[-1] == '\\'){
-                        continue;
-                    }
-                    else if (src[1] == '.'){
-                        if (src[2] == '\\' || src[2] == '/'){
-                            src += 1;
-                        }
-                        else if (src[2] == '.' && (src[3] == '\\' || src[3] == '/')){
-                            src += 2;
-                            while (wrt > dst && wrt[0] != '\\'){
-                                --wrt;
-                            }
-                            if (wrt == dst) goto fail;
-                        }
-                    }
-                }
-                
-                *wrt = c;
-                ++wrt;
-                if (wrt == wrt_stop) goto fail;
-            }
-        }
-    }
-    
-    if (0){
-        fail:;
-        wrt = dst;
-    }
-    
-    u32 result = (u32)(wrt - dst);
-    return(result);
-}
-#endif
-
 internal
 Sys_Get_Canonical_Sig(system_get_canonical){
-    i32 result = win32_canonical_ascii_name(filename, len, buffer, max);
+    u32 result = win32_canonical_ascii_name(filename, len, buffer, max);
     return(result);
 }
 

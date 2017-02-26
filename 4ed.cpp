@@ -284,13 +284,12 @@ COMMAND_DECL(null){
     AllowLocal(command);
 }
 
-// TODO(allen): FIX THIS SHIT!
 COMMAND_DECL(undo){
     USE_MODELS(models);
     REQ_OPEN_VIEW(view);
     REQ_FILE_HISTORY(file, view);
     
-    view_undo(system, models, view);
+    view_undo_redo(system, models, view, &file->state.undo.undo, ED_UNDO);
     
     Assert(file->state.undo.undo.size >= 0);
 }
@@ -300,7 +299,7 @@ COMMAND_DECL(redo){
     REQ_OPEN_VIEW(view);
     REQ_FILE_HISTORY(file, view);
     
-    view_redo(system, models, view);
+    view_undo_redo(system, models, view, &file->state.undo.redo, ED_REDO);
     
     Assert(file->state.undo.undo.size >= 0);
 }
@@ -308,17 +307,13 @@ COMMAND_DECL(redo){
 COMMAND_DECL(interactive_new){
     USE_VIEW(view);
     
-    view_show_interactive(system, view,
-                          IAct_New, IInt_Sys_File_List,
-                          make_lit_string("New: "));
+    view_show_interactive(system, view, IAct_New, IInt_Sys_File_List, make_lit_string("New: "));
 }
 
 COMMAND_DECL(interactive_open){
     USE_VIEW(view);
     
-    view_show_interactive(system, view,
-                          IAct_Open, IInt_Sys_File_List,
-                          make_lit_string("Open: "));
+    view_show_interactive(system, view, IAct_Open, IInt_Sys_File_List,make_lit_string("Open: "));
 }
 
 // TODO(allen): Improvements to reopen
@@ -1282,6 +1277,8 @@ App_Init_Sig(app_init){
         models->hook_open_file = 0;
         models->hook_new_file = 0;
         models->hook_save_file = 0;
+        models->command_caller = 0;
+        models->input_filter = 0;
         
         setup_command_table();
         
@@ -1419,28 +1416,34 @@ App_Init_Sig(app_init){
                                 else{
                                     switch (hook_id){
                                         case special_hook_open_file:
-                                        models->hook_open_file = (Open_File_Hook_Function*)unit->hook.func;
-                                        break;
+                                        {
+                                            models->hook_open_file = (Open_File_Hook_Function*)unit->hook.func;
+                                        }break;
                                         
                                         case special_hook_new_file:
-                                        models->hook_new_file = (Open_File_Hook_Function*)unit->hook.func;
-                                        break;
+                                        {
+                                            models->hook_new_file = (Open_File_Hook_Function*)unit->hook.func;
+                                        }break;
                                         
                                         case special_hook_save_file:
-                                        models->hook_save_file = (Open_File_Hook_Function*)unit->hook.func;
-                                        break;
+                                        {
+                                            models->hook_save_file = (Open_File_Hook_Function*)unit->hook.func;
+                                        }break;
                                         
                                         case special_hook_command_caller:
-                                        models->command_caller = (Command_Caller_Hook_Function*)unit->hook.func;
-                                        break;
+                                        {
+                                            models->command_caller = (Command_Caller_Hook_Function*)unit->hook.func;
+                                        }break;
                                         
                                         case special_hook_scroll_rule:
-                                        models->scroll_rule = (Scroll_Rule_Function*)unit->hook.func;
-                                        break;
+                                        {
+                                            models->scroll_rule = (Scroll_Rule_Function*)unit->hook.func;
+                                        }break;
                                         
                                         case special_hook_input_filter:
-                                        models->input_filter = (Input_Filter_Function*)unit->hook.func;
-                                        break;
+                                        {
+                                            models->input_filter = (Input_Filter_Function*)unit->hook.func;
+                                        }break;
                                     }
                                 }
                             }
@@ -1673,7 +1676,7 @@ App_Step_Sig(app_step){
     {
         b32 mem_too_small = 0;
         i32 size = 0;
-        i32 buffer_size = (32 << 10);
+        i32 buffer_size = KB(32);
         
         Partition *part = &models->mem.part;
         Temp_Memory temp = begin_temp_memory(part);
@@ -1690,6 +1693,8 @@ App_Step_Sig(app_step){
             if (get_canon_name(system, &canon, make_string(buffer, size))){
                 Editing_File *file = working_set_canon_contains(working_set, canon.name);
                 if (file){
+                    Application_Links *app = &models->app_links;
+                    
                     if (file->state.ignore_behind_os == 0){
                         file_mark_behind_os(file);
                     }
@@ -2402,6 +2407,7 @@ App_Step_Sig(app_step){
                             "Newest features:\n"
                             "-New support for extended ascii input.\n"
                             "-Extended ascii encoded in buffers as utf8.\n"
+                            "-The custom layer now has a 'markers' API for tracking buffer positions across changes.\n"
                             "\n"
                             "New in alpha 4.0.16:\n"
                             "-<alt 2> If the current file is a C++ code file, this opens the matching header.\n""  If the current file is a C++ header, this opens the matching code file.\n"

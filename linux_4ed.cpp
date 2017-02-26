@@ -443,6 +443,12 @@ Sys_Get_Canonical_Sig(system_get_canonical){
         return 0;
     }
     
+    if (max == 0){
+        return 0;
+    }
+    
+    max -= 1;
+    
     while(read_p < filename + len){
         if(read_p == filename || read_p[0] == '/'){
             if(read_p[1] == '/'){
@@ -477,7 +483,9 @@ Sys_Get_Canonical_Sig(system_get_canonical){
     }
 #endif
     
-    return write_p - path;
+    u32 length = (i32)(write_p - path);
+    buffer[length] = 0;
+    return(length);
 }
 
 internal

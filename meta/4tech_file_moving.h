@@ -426,6 +426,7 @@ copy_all(char *source, char *tag, char *folder){
 static void
 zip(char *parent, char *folder, char *file){
     Temp_Dir temp = pushdir(parent);
+    printf("PARENT DIR: %s\n", parent);
     systemf("zip -r %s %s", file, folder);
     popdir(temp);
 }

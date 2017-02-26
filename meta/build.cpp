@@ -239,6 +239,10 @@ build_cl(u32 flags, char *code_path, char *code_file, char *out_path, char *out_
 "-Wno-write-strings -D_GNU_SOURCE -fPIC "    \
 "-fno-threadsafe-statics -pthread"
 
+#define GCC_X86 "-m32"
+
+#define GCC_X64 "-m64"
+
 #define GCC_INCLUDES "-I../foreign -I../code"
 
 #define GCC_SITE_INCLUDES "-I../../foreign -I../../code"
@@ -251,6 +255,13 @@ static void
 build_gcc(u32 flags, char *code_path, char *code_file, char *out_path, char *out_file, char *exports){
     Build_Line line;
     init_build_line(&line);
+    
+    if (flags & X86){
+        build_ap(line, GCC_X86);
+    }
+    else{
+        build_ap(line, GCC_X64);
+    }
     
     if (flags & OPTS){
         build_ap(line, GCC_OPTS);
@@ -510,7 +521,7 @@ get_4coder_dist_name(String *zip_file, i32 OS_specific, char *tier, char *ext){
 #if defined(IS_WINDOWS)
         append_sc(zip_file, "win-");
 #elif defined(IS_LINUX) && defined(IS_64BIT)
-        append_sc(zip_file, "linux-64-");
+        append_sc(zip_file, "linux-");
 #else
 #error No OS string for zips on this OS
 #endif
@@ -571,8 +582,8 @@ package(char *cdir){
         };
         
         char *dest_par_dirs[] = {
-            pack_alpha_dir,
-            pack_alpha_x86_dir,
+            pack_alpha_par_dir,
+            pack_alpha_x86_par_dir,
         };
         
         char *zip_dirs[] = {
@@ -629,8 +640,8 @@ package(char *cdir){
         };
         
         char *dest_par_dirs[] = {
-            pack_super_dir,
-            pack_super_x86_dir,
+            pack_super_par_dir,
+            pack_super_x86_par_dir,
         };
         
         char *zip_dirs[] = {

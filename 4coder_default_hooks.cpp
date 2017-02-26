@@ -117,6 +117,12 @@ OPEN_FILE_HOOK_SIG(default_file_settings){
     return(0);
 }
 
+OPEN_FILE_HOOK_SIG(default_new_file){
+    Buffer_Summary buffer = get_buffer(app, buffer_id, AccessOpen);
+    char str[] = "/*\nNew File\n*/\n\n\n";
+    buffer_replace_range(app, &buffer, 0, 0, str, sizeof(str)-1);
+}
+
 OPEN_FILE_HOOK_SIG(default_file_save){
     uint32_t access = AccessAll;
     Buffer_Summary buffer = get_buffer(app, buffer_id, access);
@@ -242,6 +248,7 @@ set_all_default_hooks(Bind_Helper *context){
     set_hook(context, hook_view_size_change, default_view_adjust);
     
     set_open_file_hook(context, default_file_settings);
+    set_new_file_hook(context, default_new_file);
     set_save_file_hook(context, default_file_save);
     set_command_caller(context, default_command_caller);
     set_input_filter(context, default_suppress_mouse_filter);

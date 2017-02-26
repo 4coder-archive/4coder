@@ -790,7 +790,7 @@ save_file_to_name(System_Functions *system, Models *models, Editing_File *file, 
         if (!using_actual_filename && file->canon.name.str != 0){
             char space[512];
             u32 length = str_size(filename);
-            system->get_canonical(filename, length, space, sizeof(space));
+            u32 canon_length = system->get_canonical(filename, length, space, sizeof(space));
             
             char *source_path = file->canon.name.str;
             if (match(space, source_path)){
@@ -3458,9 +3458,7 @@ apply_history_edit(System_Functions *system, Models *models, Editing_File *file,
             view->edit_pos->mark = view->edit_pos->cursor.pos;
             
             Style *style = main_style(models);
-            view_post_paste_effect(view, 0.333f,
-                                   step.edit.start, step.edit.len,
-                                   style->main.undo_color);
+            view_post_paste_effect(view, 0.333f, step.edit.start, step.edit.len, style->main.undo_color);
         }
     }
     else{
@@ -3469,9 +3467,7 @@ apply_history_edit(System_Functions *system, Models *models, Editing_File *file,
 }
 
 internal void
-view_undo_redo(System_Functions *system,
-               Models *models, View *view,
-               Edit_Stack *stack, Edit_Type expected_type){
+view_undo_redo(System_Functions *system, Models *models, View *view, Edit_Stack *stack, Edit_Type expected_type){
     Editing_File *file = view->file_data.file;
     
     Assert(file);
@@ -3479,88 +3475,10 @@ view_undo_redo(System_Functions *system,
     
     if (stack->edit_count > 0){
         Edit_Step step = stack->edits[stack->edit_count-1];
-        
         Assert(step.type == expected_type);
-        
-        apply_history_edit(system, models,
-                           file, view,
-                           stack, step, hist_normal);
+        apply_history_edit(system, models, file, view, stack, step, hist_normal);
     }
 }
-
-inline void
-view_undo(System_Functions *system, Models *models, View *view){
-    view_undo_redo(system, models, view, &view->file_data.file->state.undo.undo, ED_UNDO);
-}
-
-inline void
-view_redo(System_Functions *system, Models *models, View *view){
-    view_undo_redo(system, models, view, &view->file_data.file->state.undo.redo, ED_REDO);
-}
-
-inline u8*
-write_data(u8 *ptr, void *x, i32 size){
-    memcpy(ptr, x, size);
-    return (ptr + size);
-}
-
-#define UseFileHistoryDump 0
-
-#if UseFileHistoryDump
-internal void
-file_dump_history(System_Functions *system, Mem_Options *mem, Editing_File *file, char *filename){
-    if (!file->state.undo.undo.edits) return;
-    
-    i32 size = 0;
-    
-    size += sizeof(i32);
-    size += file->state.undo.undo.edit_count*sizeof(Edit_Step);
-    size += sizeof(i32);
-    size += file->state.undo.redo.edit_count*sizeof(Edit_Step);
-    size += sizeof(i32);
-    size += file->state.undo.history.edit_count*sizeof(Edit_Step);
-    size += sizeof(i32);
-    size += file->state.undo.children.edit_count*sizeof(Buffer_Edit);
-    
-    size += sizeof(i32);
-    size += file->state.undo.undo.size;
-    size += sizeof(i32);
-    size += file->state.undo.redo.size;
-    size += sizeof(i32);
-    size += file->state.undo.history.size;
-    size += sizeof(i32);
-    size += file->state.undo.children.size;
-    
-    Partition *part = &mem->part;
-    i32 remaining = partition_remaining(part);
-    if (size < remaining){
-        u8 *data, *curs;
-        data = (u8*)part->base + part->pos;
-        curs = data;
-        curs = write_data(curs, &file->state.undo.undo.edit_count, 4);
-        curs = write_data(curs, &file->state.undo.redo.edit_count, 4);
-        curs = write_data(curs, &file->state.undo.history.edit_count, 4);
-        curs = write_data(curs, &file->state.undo.children.edit_count, 4);
-        curs = write_data(curs, &file->state.undo.undo.size, 4);
-        curs = write_data(curs, &file->state.undo.redo.size, 4);
-        curs = write_data(curs, &file->state.undo.history.size, 4);
-        curs = write_data(curs, &file->state.undo.children.size, 4);
-        
-        curs = write_data(curs, file->state.undo.undo.edits, sizeof(Edit_Step)*file->state.undo.undo.edit_count);
-        curs = write_data(curs, file->state.undo.redo.edits, sizeof(Edit_Step)*file->state.undo.redo.edit_count);
-        curs = write_data(curs, file->state.undo.history.edits, sizeof(Edit_Step)*file->state.undo.history.edit_count);
-        curs = write_data(curs, file->state.undo.children.edits, sizeof(Buffer_Edit)*file->state.undo.children.edit_count);
-        
-        curs = write_data(curs, file->state.undo.undo.strings, file->state.undo.undo.size);
-        curs = write_data(curs, file->state.undo.redo.strings, file->state.undo.redo.size);
-        curs = write_data(curs, file->state.undo.history.strings, file->state.undo.history.size);
-        curs = write_data(curs, file->state.undo.children.strings, file->state.undo.children.size);
-        
-        Assert((i32)(curs - data) == size);
-        system->save_file(filename, data, size);
-    }
-}
-#endif
 
 internal void
 view_history_step(System_Functions *system, Models *models, View *view, History_Mode history_mode){
@@ -3780,10 +3698,7 @@ view_show_GUI(View *view, View_UI ui){
 }
 
 inline void
-view_show_interactive(System_Functions *system, View *view,
-                      Interactive_Action action,
-                      Interactive_Interaction interaction,
-                      String query){
+view_show_interactive(System_Functions *system, View *view, Interactive_Action action, Interactive_Interaction interaction, String query){
     
     Models *models = view->persistent.models;
     
@@ -3992,7 +3907,7 @@ kill_file_by_name(System_Functions *system, Models *models, String name){
 internal void
 save_file_by_name(System_Functions *system, Models *models, String name){
     Editing_File *file = working_set_name_contains(&models->working_set, name);
-    if (file){
+    if (file != 0){
         save_file(system, models, file);
     }
 }
@@ -4069,8 +3984,11 @@ interactive_view_complete(System_Functions *system, View *view, String dest, i32
         if (dest.size > 0 && !char_is_slash(dest.str[dest.size-1])){
             view_interactive_new_file(system, models, view, dest);
             view_show_file(view);
-        }
-        break;
+            if (models->hook_new_file != 0){
+                Editing_File *file = view->file_data.file;
+                models->hook_new_file(&models->app_links, file->id.id);
+            }
+        }break;
         
         case IAct_Switch:
         {
@@ -4079,14 +3997,12 @@ interactive_view_complete(System_Functions *system, View *view, String dest, i32
                 view_set_file(view, file, models);
             }
             view_show_file(view);
-        }
-        break;
+        }break;
         
         case IAct_Kill:
         if (!interactive_try_kill_file_by_name(system, models, view, dest)){
             view_show_file(view);
-        }
-        break;
+        }break;
         
         case IAct_Sure_To_Close:
         switch (user_action){

@@ -1,5 +1,5 @@
-extensions=".c.cpp.h.hpp.bat.sh";
-open_recursively=false;
+extensions=".c.cpp.h.hpp.bat.sh.4coder";
+open_recursively=true;
 
 fkey_command_win[1]  = {"echo build: x64 & build.bat", "*compilation*", true , true };
 fkey_command_win[2]  = {"site\\build.bat", "*compilation*", true , true };
@@ -8,7 +8,8 @@ fkey_command_win[4]  = {"echo build: x86 & build.bat /DDEV_BUILD_X86", "*compila
 fkey_command_win[5]  = {"..\\misc\\run.bat", "*run*", false, false };
 fkey_command_win[12] = {"package.bat", "*package*", false, true };
 
-fkey_command_linux[1]  = {"./build.sh",    "*compilation*", true , true };
+fkey_command_linux[1]  = {"echo build: x64 & ./build.sh", "*compilation*", true , true };
 fkey_command_linux[2]  = {"site/build.sh", "*compilation*", true , true };
-fkey_command_linux[5]  = {"../build/4ed",  "*run*",         false, false};
-fkey_command_linux[12] = {"./package.sh",  "*package*",     false, true };
+fkey_command_linux[4]  = {"echo build: x86 & ./build.sh -DDEV_BUILD_X86", "*compilation*", true, true };
+fkey_command_linux[5]  = {"../build/4ed",  "*run*", false, false};
+fkey_command_linux[12] = {"./package.sh",  "*package*", false, true };

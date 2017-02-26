@@ -1375,6 +1375,7 @@ get_bindings(void *data, int32_t size){
     set_hook(context, hook_view_size_change, default_view_adjust);
     
     set_open_file_hook(context, default_file_settings);
+    set_new_file_hook(context, default_new_file);
     set_save_file_hook(context, default_file_save);
     set_input_filter(context, default_suppress_mouse_filter);
     set_command_caller(context, default_command_caller);
