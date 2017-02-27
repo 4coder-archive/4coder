@@ -520,16 +520,6 @@ get_4coder_dist_name(String *zip_file, b32 OS_specific, char *folder, char *tier
     }
     append_sc(zip_file, "4coder-");
     
-    if (OS_specific){
-#if defined(IS_WINDOWS)
-        append_sc(zip_file, "win-");
-#elif defined(IS_LINUX) && defined(IS_64BIT)
-        append_sc(zip_file, "linux-");
-#else
-#error No OS string for zips on this OS
-#endif
-    }
-    
     append_sc         (zip_file, "alpha");
     append_sc         (zip_file, "-");
     append_int_to_str (zip_file, MAJOR);
@@ -540,6 +530,15 @@ get_4coder_dist_name(String *zip_file, b32 OS_specific, char *folder, char *tier
     if (tier != 0){
         append_sc     (zip_file, "-");
         append_sc     (zip_file, tier);
+    }
+    if (OS_specific){
+#if defined(IS_WINDOWS)
+        append_sc(zip_file, "win-");
+#elif defined(IS_LINUX) && defined(IS_64BIT)
+        append_sc(zip_file, "linux-");
+#else
+#error No OS string for zips on this OS
+#endif
     }
     if (arch != 0){
         append_sc     (zip_file, "-");
@@ -694,9 +693,9 @@ package(char *cdir){
             make_folder_if_missing(pack_dir, zip_dir);
             
             copy_file(build_dir, "4ed"EXE, dir, 0, 0);
-            ONLY_WINDOWS(copy_file(build_dir, "4ed"PDB, dir, 0, 0));
+            //ONLY_WINDOWS(copy_file(build_dir, "4ed"PDB, dir, 0, 0));
             copy_file(build_dir, "4ed_app"DLL, dir, 0, 0);
-            ONLY_WINDOWS(copy_file(build_dir, "4ed_app"PDB, dir, 0, 0));
+            //ONLY_WINDOWS(copy_file(build_dir, "4ed_app"PDB, dir, 0, 0));
             copy_file(build_dir, "custom_4coder"DLL, dir, 0, 0);
             
             copy_all (pack_data_dir, "*", dir);
