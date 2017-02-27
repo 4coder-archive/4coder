@@ -527,15 +527,15 @@ get_4coder_dist_name(String *zip_file, b32 OS_specific, char *folder, char *tier
     append_int_to_str (zip_file, MINOR);
     append_sc         (zip_file, "-");
     append_int_to_str (zip_file, PATCH);
-    if (tier != 0){
+    if (tier != 0 && !match_cc(tier, "alpha")){
         append_sc     (zip_file, "-");
         append_sc     (zip_file, tier);
     }
     if (OS_specific){
 #if defined(IS_WINDOWS)
-        append_sc(zip_file, "win-");
+        append_sc(zip_file, "-win");
 #elif defined(IS_LINUX) && defined(IS_64BIT)
-        append_sc(zip_file, "linux-");
+        append_sc(zip_file, "-linux");
 #else
 #error No OS string for zips on this OS
 #endif
