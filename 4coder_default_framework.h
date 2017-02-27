@@ -655,7 +655,7 @@ static char**
 get_current_code_extensions(int32_t *extension_count_out){
     char **extension_list = default_extensions;
     int32_t extension_count = ArrayCount(default_extensions);
-    if (treat_as_code_exts.extensions != 0){
+    if (treat_as_code_exts.extension_count != 0){
         extension_list = treat_as_code_exts.extensions;
         extension_count = treat_as_code_exts.extension_count;
     }

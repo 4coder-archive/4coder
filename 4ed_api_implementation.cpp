@@ -665,8 +665,7 @@ DOC_PARAM(str_len, This parameter specifies the length of the str string.)
 DOC_PARAM(edits, This parameter provides about the source string and destination range of each edit as an array.)
 DOC_PARAM(edit_count, This parameter specifies the number of Buffer_Edit structs in edits.)
 DOC_PARAM(type, This prameter specifies what type of batch edit to execute.)
-DOC_RETURN(This call returns non-zero if the batch edit succeeds.  This call can fail if the provided
-buffer summary does not refer to an actual buffer in 4coder.)
+DOC_RETURN(This call returns non-zero if the batch edit succeeds.  This call can fail if the provided buffer summary does not refer to an actual buffer in 4coder.)
 DOC(TODO)
 DOC_SEE(Buffer_Edit)
 DOC_SEE(Buffer_Batch_Edit_Type)
@@ -703,7 +702,14 @@ DOC_SEE(Buffer_Batch_Edit_Type)
 }
 
 API_EXPORT Marker_Handle
-Buffer_Add_Markers(Application_Links *app, Buffer_Summary *buffer, uint32_t marker_count){
+Buffer_Add_Markers(Application_Links *app, Buffer_Summary *buffer, uint32_t marker_count)
+/*
+DOC_PARAM(buffer, The buffer on which to add the new markers.)
+DOC_PARAM(marker_count, How many markers to be stored in the new marker array.)
+DOC_RETURN(If this call succeeds it returns a handle to the new markers.  If it fails it returns a null handle.)
+DOC(This call makes an allocation of markers for the specified buffer.  The newly allocated markers are not immediately activated.  To activate a marker use buffer_set_markers to give the marker a value.  The markers will remain allocated on the buffer until buffer_remove_markers is called or until the buffer is killed.)
+DOC_SEE(Marker)
+*/{
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     Models *models = cmd->models;
     Editing_File *file = imp_get_file(cmd, buffer);
@@ -717,7 +723,17 @@ Buffer_Add_Markers(Application_Links *app, Buffer_Summary *buffer, uint32_t mark
 }
 
 API_EXPORT bool32
-Buffer_Set_Markers(Application_Links *app, Buffer_Summary *buffer, Marker_Handle marker, uint32_t first_marker_index, uint32_t marker_count, Marker *source_markers){
+Buffer_Set_Markers(Application_Links *app, Buffer_Summary *buffer, Marker_Handle marker, uint32_t first_marker_index, uint32_t marker_count, Marker *source_markers)
+/*
+DOC_PARAM(buffer, The buffer on which the specified markers are attached.)
+DOC_PARAM(marker, The marker handle refering to the markers to be set.)
+DOC_PARAM(first_marker_index, The index of the first marker to be set by this call.)
+DOC_PARAM(marker_count, The number of markers to be set by this call.)
+DOC_PARAM(source_markers, An array of marker_count Markers to specify the values to set to the markers specified.)
+DOC_RETURN(On success returns non-zero, on failure returns zero.)
+DOC(This call sets the value of a Marker, eliminating whatever value was there before.  Any markers that are set become active if they were not active before.  If a marker of lower index than first_marker_index was not active before this call, it will be cleared to zero and made active as well, so that all markers between 0 and  first_marker_index + marker_count - 1 are active after this call.  If first_marker_index + marker_count exceeds the originally allocated size of the marker array, this call will fail.)
+DOC_SEE(Marker)
+*/{
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     Editing_File *file = imp_get_file(cmd, buffer);
     
@@ -732,7 +748,17 @@ Buffer_Set_Markers(Application_Links *app, Buffer_Summary *buffer, Marker_Handle
 }
 
 API_EXPORT bool32
-Buffer_Get_Markers(Application_Links *app, Buffer_Summary *buffer, Marker_Handle marker, uint32_t first_marker_index, uint32_t marker_count, Marker *markers_out){
+Buffer_Get_Markers(Application_Links *app, Buffer_Summary *buffer, Marker_Handle marker, uint32_t first_marker_index, uint32_t marker_count, Marker *markers_out)
+/*
+DOC_PARAM(buffer, The buffer on which the specified markers are attached.)
+DOC_PARAM(marker, The marker handle refering to the markers to be read.)
+DOC_PARAM(first_marker_index, The index of the first marker to be read by this call.)
+DOC_PARAM(marker_count, The number of markers to be read by this call.)
+DOC_PARAM(markers_out, An array of marker_count Markers to be filled by the result of the read.)
+DOC_RETURN(On success returns non-zero, on failure returns zero.)
+DOC(When the range specified by first_marker_index and marker_count is a range of active markers in the array specified by the marker handle, this call succeeds and fills the markers_out buffer with the current values of the specified markers.)
+DOC_SEE(Marker)
+*/{
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     Editing_File *file = imp_get_file(cmd, buffer);
     
@@ -747,7 +773,14 @@ Buffer_Get_Markers(Application_Links *app, Buffer_Summary *buffer, Marker_Handle
 }
 
 API_EXPORT bool32
-Buffer_Remove_Markers(Application_Links *app, Buffer_Summary *buffer, Marker_Handle marker){
+Buffer_Remove_Markers(Application_Links *app, Buffer_Summary *buffer, Marker_Handle marker)
+/*
+DOC_PARAM(buffer, The buffer on which the specified markers are attached.)
+DOC_PARAM(marker, The marker handle refering to the markers to be detached from the buffer.)
+DOC_RETURN(On success returns non-zero, on failure returns zero.)
+DOC(Deactivates the entire range of markers specified by the marker handle and frees the memory used to store the markers internally.)
+DOC_SEE(buffer_add_markers)
+*/{
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     Models *models = cmd->models;
     Editing_File *file = imp_get_file(cmd, buffer);
