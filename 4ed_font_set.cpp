@@ -111,7 +111,7 @@ font_set_can_load(Font_Set *set){
 }
 
 internal void
-font_set_load(Partition *partition, Font_Set *set, i16 font_id){
+font_set_load(Font_Set *set, i16 font_id){
     Font_Info *info = get_font_info(set, font_id);
     Font_Slot *slot = set->free_slots.next;
     Assert(slot != &set->free_slots);
@@ -119,10 +119,7 @@ font_set_load(Partition *partition, Font_Set *set, i16 font_id){
     font__insert(&set->used_slots, slot);
     
     Render_Font *font = (Render_Font*)(slot + 1);
-    set->font_load(font,
-                   info->filename.str,
-                   info->name.str,
-                   info->pt_size, 4, true);
+    set->font_load(font, info->filename.str, info->name.str, info->pt_size, 4, true);
     info->font = font;
     slot->font_id = font_id;
 }
@@ -145,7 +142,7 @@ font_set_evict_lru(Font_Set *set){
 }
 
 internal void
-font_set_use(Partition *partition, Font_Set *set, i16 font_id){
+font_set_use(Font_Set *set, i16 font_id){
     b8 already_used = set->font_used_flags[font_id-1];
     
     if (!already_used){
@@ -164,7 +161,7 @@ font_set_use(Partition *partition, Font_Set *set, i16 font_id){
             if (!font_set_can_load(set)){
                 font_set_evict_lru(set);
             }
-            font_set_load(partition, set, font_id);
+            font_set_load(set, font_id);
         }
         slot = ((Font_Slot*)info->font) - 1;
         
@@ -174,7 +171,7 @@ font_set_use(Partition *partition, Font_Set *set, i16 font_id){
 }
 
 internal b32
-font_set_add(Partition *partition, Font_Set *set, String filename, String name, i32 pt_size){
+font_set_add(Font_Set *set, String filename, String name, i32 pt_size){
     b32 result = 0;
     if (font_set_can_add(set)){
         Render_Font dummy_font = {0};
@@ -184,13 +181,13 @@ font_set_add(Partition *partition, Font_Set *set, String filename, String name, 
         info->name = name;
         info->pt_size = pt_size;
         set->font_load(&dummy_font, info->filename.str, info->name.str, info->pt_size, 4, false);
-        info->height = dummy_font.height;
-        info->advance = dummy_font.advance;
+        //info->height = dummy_font.height;
+        //info->advance = dummy_font.advance;
         
         font_set_add_hash(set, name, font_id);
         
         if (font_set_can_load(set)){
-            font_set_load(partition, set, font_id);
+            font_set_load(set, font_id);
         }
         
         result = 1;

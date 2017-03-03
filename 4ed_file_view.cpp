@@ -395,9 +395,7 @@ view_compute_cursor(View *view, Buffer_Seek seek, b32 return_hint){
     Buffer_Cursor_Seek_Params params;
     params.buffer           = &file->state.buffer;
     params.seek             = seek;
-    params.font_height      = (f32)font->height;
-    params.cp_adv           = font->codepoint_advance_data;
-    params.byte_adv         = font->byte_advance;
+    params.font             = font;
     params.wrap_line_index  = file->state.wrap_line_index;
     params.character_starts = file->state.character_starts;
     params.virtual_white    = file->settings.virtual_white;
@@ -1011,15 +1009,14 @@ struct Code_Wrap_State{
     i32 size;
     i32 i;
     
-    f32 *cp_adv;
-    f32 byte_adv;
+    Render_Font *font;
     f32 tab_indent_amount;
     
     Buffer_Translating_State tran;
 };
 
 internal void
-wrap_state_init(Code_Wrap_State *state, Editing_File *file, f32 *cp_adv, f32 byte_adv){
+wrap_state_init(Code_Wrap_State *state, Editing_File *file, Render_Font *font){
     state->token_array = file->state.token_array;
     state->token_ptr = state->token_array.tokens;
     state->end_token = state->token_ptr + state->token_array.count;
@@ -1033,9 +1030,8 @@ wrap_state_init(Code_Wrap_State *state, Editing_File *file, f32 *cp_adv, f32 byt
     state->size = size;
     state->i = 0;
     
-    state->cp_adv = cp_adv;
-    state->byte_adv = byte_adv;
-    state->tab_indent_amount = cp_adv['\t'];
+    state->font = font;
+    state->tab_indent_amount = get_codepoint_advance(font, '\t');
     
     state->tran = null_buffer_translating_state;
 }
@@ -1147,13 +1143,13 @@ wrap_state_consume_token(Code_Wrap_State *state, i32 fixed_end_point){
                     u32 n = state->tran.step_current.value;
                     f32 adv = 0;
                     if (state->tran.do_codepoint_advance){
-                        adv = state->cp_adv[n];
+                        adv = get_codepoint_advance(state->font, n);
                         if (n != ' ' && n != '\t'){
                             skipping_whitespace = false;
                         }
                     }
                     else{
-                        adv = state->byte_adv;
+                        adv = state->font->byte_advance;
                         skipping_whitespace = false;
                     }
                     
@@ -1450,7 +1446,7 @@ get_current_shift(Code_Wrap_State *wrap_state, i32 next_line_start, b32 *adjust_
 }
 
 internal void
-file_measure_wraps(Models *models, Editing_File *file, f32 font_height, f32 *cp_adv, f32 byte_adv){
+file_measure_wraps(Models *models, Editing_File *file, Render_Font *font){
     General_Memory *general = &models->mem.general;
     Partition *part = &models->mem.part;
     
@@ -1463,8 +1459,7 @@ file_measure_wraps(Models *models, Editing_File *file, f32 font_height, f32 *cp_
     Buffer_Measure_Wrap_Params params;
     params.buffer          = &file->state.buffer;
     params.wrap_line_index = file->state.wrap_line_index;
-    params.cp_adv          = cp_adv;
-    params.byte_adv        = byte_adv;
+    params.font            = font;
     params.virtual_white   = file->settings.virtual_white;
     
     f32 width = (f32)file->settings.display_width;
@@ -1496,7 +1491,7 @@ file_measure_wraps(Models *models, Editing_File *file, f32 font_height, f32 *cp_
     i32 max_wrap_indent_mark = 0;
     
     if (params.virtual_white && file->state.tokens_complete && !file->state.still_lexing){
-        wrap_state_init(&wrap_state, file, cp_adv, byte_adv);
+        wrap_state_init(&wrap_state, file, font);
         use_tokens = 1;
         
         potential_marks = push_array(part, Potential_Wrap_Indent_Pair, floor32(width));
@@ -1548,7 +1543,7 @@ file_measure_wraps(Models *models, Editing_File *file, f32 font_height, f32 *cp_
                                             word_stage = 1;
                                         }
                                         else{
-                                            f32 adv = params.cp_adv[ch];
+                                            f32 adv = get_codepoint_advance(params.font, ch);
                                             x += adv;
                                             self_x += adv;
                                             if (self_x > width){
@@ -1675,7 +1670,7 @@ file_measure_wraps(Models *models, Editing_File *file, f32 font_height, f32 *cp_
                                                     goto doublebreak_stage1;
                                                 }
                                                 
-                                                f32 adv = params.cp_adv[ch];
+                                                f32 adv = get_codepoint_advance(params.font, ch);
                                                 x += adv;
                                                 if (!first_word && x > current_width){
                                                     emit_comment_position = 1;
@@ -1701,7 +1696,7 @@ file_measure_wraps(Models *models, Editing_File *file, f32 font_height, f32 *cp_
                                                     goto doublebreak_stage2;
                                                 }
                                                 
-                                                f32 adv = params.cp_adv[ch];
+                                                f32 adv = get_codepoint_advance(params.font, ch);
                                                 x += adv;
                                             }
                                             still_looping = buffer_stringify_next(&stream);
@@ -1908,21 +1903,21 @@ file_measure_wraps(Models *models, Editing_File *file, f32 font_height, f32 *cp_
 }
 
 internal void
-file_measure_wraps_and_fix_cursor(Models *models, Editing_File *file, f32 font_height, f32 *cp_adv, f32 byte_adv){
-    file_measure_wraps(models, file, font_height, cp_adv, byte_adv);
+file_measure_wraps_and_fix_cursor(Models *models, Editing_File *file, Render_Font *font){
+    file_measure_wraps(models, file, font);
     file_update_cursor_positions(models, file);
 }
 
 internal void
-file_set_width(Models *models, Editing_File *file, i32 display_width, f32 font_height, f32 *cp_adv, f32 byte_adv){
+file_set_width(Models *models, Editing_File *file, i32 display_width, Render_Font *font){
     file->settings.display_width = display_width;
-    file_measure_wraps_and_fix_cursor(models, file, font_height, cp_adv, byte_adv);
+    file_measure_wraps_and_fix_cursor(models, file, font);
 }
 
 internal void
-file_set_min_base_width(Models *models, Editing_File *file, i32 minimum_base_display_width, f32 font_height, f32 *cp_adv, f32 byte_adv){
+file_set_min_base_width(Models *models, Editing_File *file, i32 minimum_base_display_width, Render_Font *font){
     file->settings.minimum_base_display_width = minimum_base_display_width;
-    file_measure_wraps_and_fix_cursor(models, file, font_height, cp_adv, byte_adv);
+    file_measure_wraps_and_fix_cursor(models, file, font);
 }
 
 //
@@ -1971,7 +1966,7 @@ file_create_from_string(System_Functions *system, Models *models, Editing_File *
     file->settings.font_id = font_id;
     Render_Font *font = get_font_info(font_set, font_id)->font;
     
-    file_measure_wraps(models, file, (f32)font->height, font->codepoint_advance_data, font->byte_advance);
+    file_measure_wraps(models, file, font);
     
     file->settings.read_only = read_only;
     if (!read_only){
@@ -3269,12 +3264,10 @@ file_do_single_edit(System_Functions *system, Models *models, Editing_File *file
     // TODO(allen): Redo this as some sort of dialogical API
 #if 0
     file_allocate_wraps_as_needed(general, file);
-    buffer_remeasure_wrap_y(buffer, line_start, line_end, line_shift,
-                            file->state.wraps, (f32)font->height, font->advance_data,
-                            (f32)file->settings.display_width);
+    buffer_remeasure_wrap_y(buffer, line_start, line_end, line_shift, file->state.wraps, (f32)font->height, font->advance_data, (f32)file->settings.display_width);
 #endif
     
-    file_measure_wraps(models, file, (f32)font->height, font->codepoint_advance_data, font->byte_advance);
+    file_measure_wraps(models, file, font);
     
     // NOTE(allen): cursor fixing
     Cursor_Fix_Descriptor desc = {0};
@@ -3388,7 +3381,7 @@ file_do_batch_edit(System_Functions *system, Models *models, Editing_File *file,
     buffer_measure_character_starts(&file->state.buffer, file->state.character_starts, 0, file->settings.virtual_white);
     
     Render_Font *font = get_font_info(models->font_set, file->settings.font_id)->font;
-    file_measure_wraps(models, file, (f32)font->height, font->codepoint_advance_data, font->byte_advance);
+    file_measure_wraps(models, file, font);
     
     // NOTE(allen): cursor fixing
     Cursor_Fix_Descriptor desc = {0};
@@ -3667,8 +3660,9 @@ style_get_color(Style *style, Cpp_Token token){
 internal void
 file_set_font(Models *models, Editing_File *file, i16 font_id){
     file->settings.font_id = font_id;
-    Render_Font *font = get_font_info(models->font_set, file->settings.font_id)->font;
-    file_measure_wraps_and_fix_cursor(models, file, (f32)font->height, font->codepoint_advance_data, font->byte_advance);
+    Font_Info *font_info = get_font_info(models->font_set, file->settings.font_id);
+    Render_Font *font = font_info->font;
+    file_measure_wraps_and_fix_cursor(models, file, font);
     
     Editing_Layout *layout = &models->layout;
     for (View_Iter iter = file_view_iter_init(layout, file, 0);
@@ -5959,9 +5953,7 @@ draw_file_loaded(View *view, i32_Rect rect, b32 is_active, Render_Target *target
         params.height        = (f32)max_y;
         params.start_cursor  = render_cursor;
         params.wrapped       = wrapped;
-        params.font_height   = (f32)line_height;
-        params.cp_adv        = font->codepoint_advance_data;
-        params.byte_adv      = font->byte_advance;
+        params.font          = font;
         params.virtual_white = file->settings.virtual_white;
         params.wrap_slashes  = file->settings.wrap_indicator;
         
@@ -6173,12 +6165,10 @@ draw_text_with_cursor(Render_Target *target, View *view, i16 font_id, i32_Rect r
             part2 = substr(s, pos, 1);
             part3 = substr(s, pos+1, s.size-pos-1);
             
-            
             x = draw_string(target, font_id, part1, floor32(x), y, text_color);
             
-            // TODO(allen): WHAT TO DO NOW?
             cursor_rect.x0 = floor32(x);
-            cursor_rect.x1 = floor32(x) + ceil32(font->codepoint_advance_data[s.str[pos]]);
+            cursor_rect.x1 = floor32(x) + ceil32(get_codepoint_advance(font, s.str[pos]));
             cursor_rect.y0 = y;
             cursor_rect.y1 = y + view->line_height;
             draw_rectangle(target, cursor_rect, cursor_color);
@@ -6385,8 +6375,7 @@ draw_button(GUI_Target *gui_target, Render_Target *target, View *view, i16 font_
 }
 
 internal void
-draw_style_preview(GUI_Target *gui_target, Render_Target *target, View *view,
-                   i16 font_id, i32_Rect rect, GUI_id id, Style *style){
+draw_style_preview(GUI_Target *gui_target, Render_Target *target, View *view, i16 font_id, i32_Rect rect, GUI_id id, Style *style){
     Models *models = view->persistent.models;
     
     i32 active_level = gui_active_level(gui_target, id);
@@ -6412,8 +6401,9 @@ draw_style_preview(GUI_Target *gui_target, Render_Target *target, View *view,
         draw_string(target, font_id, info->name.str, font_x, y, text_color);
     }
     
+    i32 height = info->font->height;
     x = inner.x0;
-    y += info->height;
+    y += height;
     x = ceil32(draw_string(target, font_id, "if", x, y, keyword_color));
     x = ceil32(draw_string(target, font_id, "(x < ", x, y, text_color));
     x = ceil32(draw_string(target, font_id, "0", x, y, int_constant_color));
@@ -6423,7 +6413,7 @@ draw_style_preview(GUI_Target *gui_target, Render_Target *target, View *view,
     x = ceil32(draw_string(target, font_id, "// comment", x, y, comment_color));
     
     x = inner.x0;
-    y += info->height;
+    y += height;
     draw_string(target, font_id, "[] () {}; * -> +-/ <>= ! && || % ^", x, y, text_color);
 }
 

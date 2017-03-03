@@ -225,13 +225,9 @@ sysshared_to_binary_path(String *out_filename, char *filename){
 // Rendering
 //
 
-
 inline void
 draw_set_clip(Render_Target *target, i32_Rect clip_box){
-    glScissor(clip_box.x0,
-              target->height - clip_box.y1,
-              clip_box.x1 - clip_box.x0,
-              clip_box.y1 - clip_box.y0);
+    glScissor(clip_box.x0, target->height - clip_box.y1, clip_box.x1 - clip_box.x0, clip_box.y1 - clip_box.y0);
 }
 
 inline void
@@ -267,23 +263,25 @@ draw_push_piece(Render_Target *target, Render_Piece_Combined piece){
         PutStruct(Render_Piece_Header, piece.header);
         
         switch (piece.header.type){
-            case piece_type_rectangle:
-            case piece_type_outline:
-            PutStruct(Render_Piece_Rectangle, piece.rectangle);
-            break;
+            case piece_type_rectangle: case piece_type_outline:
+            {
+                PutStruct(Render_Piece_Rectangle, piece.rectangle);
+            }break;
             
             case piece_type_gradient:
-            PutStruct(Render_Piece_Gradient, piece.gradient);
-            break;
+            {
+                PutStruct(Render_Piece_Gradient, piece.gradient);
+            }break;
             
-            case piece_type_glyph:
-            case piece_type_mono_glyph:
-            PutStruct(Render_Piece_Glyph, piece.glyph);
-            break;
+            case piece_type_glyph: case piece_type_mono_glyph:
+            {
+                PutStruct(Render_Piece_Glyph, piece.glyph);
+            }break;
             
             case piece_type_mono_glyph_advance:
-            PutStruct(Render_Piece_Glyph_Advance, piece.glyph_advance);
-            break;
+            {
+                PutStruct(Render_Piece_Glyph_Advance, piece.glyph_advance);
+            }break;
         }
         
         Assert(target->size <= target->max);
@@ -385,7 +383,7 @@ struct Render_Quad{
 };
 
 inline Render_Quad
-get_render_quad(Glyph_Data *b, i32 pw, i32 ph, float xpos, float ypos){
+get_render_quad(Glyph_Bounds *b, i32 pw, i32 ph, float xpos, float ypos){
     Render_Quad q;
     
     float ipw = 1.0f / pw, iph = 1.0f / ph;
@@ -404,7 +402,7 @@ get_render_quad(Glyph_Data *b, i32 pw, i32 ph, float xpos, float ypos){
 }
 
 inline Render_Quad
-get_exact_render_quad(Glyph_Data *b, i32 pw, i32 ph, float xpos, float ypos){
+get_exact_render_quad(Glyph_Bounds *b, i32 pw, i32 ph, float xpos, float ypos){
     Render_Quad q;
     
     float ipw = 1.0f / pw, iph = 1.0f / ph;
@@ -423,47 +421,48 @@ get_exact_render_quad(Glyph_Data *b, i32 pw, i32 ph, float xpos, float ypos){
 }
 
 inline void
-private_draw_glyph(Render_Target *target, Render_Font *font, u8 character, f32 x, f32 y, u32 color){
-    Render_Quad q = get_render_quad(font->glyphs + character, font->tex_width, font->tex_height, x, y);
-    
-    draw_set_color(target, color);
-    draw_bind_texture(target, font->tex);
-    glBegin(GL_QUADS);
-    {
-        glTexCoord2f(q.s0, q.t1); glVertex2f(q.x0, q.y1);
-        glTexCoord2f(q.s1, q.t1); glVertex2f(q.x1, q.y1);
-        glTexCoord2f(q.s1, q.t0); glVertex2f(q.x1, q.y0);
-        glTexCoord2f(q.s0, q.t0); glVertex2f(q.x0, q.y0);
+private_draw_glyph(Render_Target *target, Render_Font *font, u32 character, f32 x, f32 y, u32 color){
+    Glyph_Data glyph = {0};
+    if (get_codepoint_glyph_data(font, character, &glyph)){
+        Render_Quad q = get_render_quad(&glyph.bounds, glyph.tex_width, glyph.tex_height, x, y);
+        
+        draw_set_color(target, color);
+        draw_bind_texture(target, glyph.tex);
+        glBegin(GL_QUADS);
+        {
+            glTexCoord2f(q.s0, q.t1); glVertex2f(q.x0, q.y1);
+            glTexCoord2f(q.s1, q.t1); glVertex2f(q.x1, q.y1);
+            glTexCoord2f(q.s1, q.t0); glVertex2f(q.x1, q.y0);
+            glTexCoord2f(q.s0, q.t0); glVertex2f(q.x0, q.y0);
+        }
+        glEnd();
     }
-    glEnd();
 }
 
 inline void
-private_draw_glyph_mono(Render_Target *target, Render_Font *font, u8 character,
-                        f32 x, f32 y, f32 advance, u32 color){
-    
-    f32 left = font->glyphs[character].x0;
-    f32 right = font->glyphs[character].x1;
-    f32 width = (right - left);
-    f32 x_shift = (advance - width) * .5f;
-    
-    x += x_shift;
-    
-    Render_Quad q = get_exact_render_quad(
-        font->glyphs + character,
-        font->tex_width, font->tex_height, x, y
-        );
-    
-    draw_set_color(target, color);
-    draw_bind_texture(target, font->tex);
-    glBegin(GL_QUADS);
-    {
-        glTexCoord2f(q.s0, q.t1); glVertex2f(q.x0, q.y1);
-        glTexCoord2f(q.s1, q.t1); glVertex2f(q.x1, q.y1);
-        glTexCoord2f(q.s1, q.t0); glVertex2f(q.x1, q.y0);
-        glTexCoord2f(q.s0, q.t0); glVertex2f(q.x0, q.y0);
+private_draw_glyph_mono(Render_Target *target, Render_Font *font, u8 character, f32 x, f32 y, f32 advance, u32 color){
+    Glyph_Data glyph = {0};
+    if (get_codepoint_glyph_data(font, character, &glyph)){
+        f32 left = glyph.bounds.x0;
+        f32 right = glyph.bounds.x1;
+        f32 width = (right - left);
+        f32 x_shift = (advance - width) * .5f;
+        
+        x += x_shift;
+        
+        Render_Quad q = get_exact_render_quad(&glyph.bounds, glyph.tex_width, glyph.tex_height, x, y);
+        
+        draw_set_color(target, color);
+        draw_bind_texture(target, glyph.tex);
+        glBegin(GL_QUADS);
+        {
+            glTexCoord2f(q.s0, q.t1); glVertex2f(q.x0, q.y1);
+            glTexCoord2f(q.s1, q.t1); glVertex2f(q.x1, q.y1);
+            glTexCoord2f(q.s1, q.t0); glVertex2f(q.x1, q.y0);
+            glTexCoord2f(q.s0, q.t0); glVertex2f(q.x0, q.y0);
+        }
+        glEnd();
     }
-    glEnd();
 }
 
 inline void
@@ -540,149 +539,6 @@ launch_rendering(Render_Target *target){
 }
 
 #undef ExtractStruct
-
-#if 0
-internal void*
-part_alloc(i32 size, void *context){
-    Partition *part = (Partition*)context;
-    void *result = push_block(part, size);
-    return(result);
-}
-
-internal void
-part_free(void *ptr, void *context){}
-
-#define STBTT_malloc part_alloc
-#define STBTT_free part_free
-
-#define STB_TRUETYPE_IMPLEMENTATION
-#include "stb_truetype.h"
-
-internal b32
-stb_font_load(Partition *part, Render_Font *font_out, char *filename_untranslated, i32 pt_size, i32 tab_width, i32 oversample, b32 store_texture){
-    
-    char space_[1024];
-    String filename = make_fixed_width_string(space_);
-    b32 translate_success = sysshared_to_binary_path(&filename, filename_untranslated);
-    if (!translate_success) return 0;
-    
-    b32 result = true;
-    
-    stbtt_packedchar chardata[256];
-    
-    File_Data file = sysshared_load_file(filename.str);
-    
-    if (!file.data){
-        result = false;
-    }
-    
-    else{
-        stbtt_fontinfo font;
-        if (!stbtt_InitFont(&font, (u8*)file.data, 0)){
-            result = false;
-        }
-        else{
-            memset(font_out, 0, sizeof(*font_out));
-            
-            i32 ascent, descent, line_gap;
-            stbtt_GetFontVMetrics(&font, &ascent, &descent, &line_gap);
-            
-            f32 scale = stbtt_ScaleForPixelHeight(&font, (f32)pt_size);
-            
-            f32 scaled_ascent = scale*ascent;
-            f32 scaled_descent = scale*descent;
-            f32 scaled_line_gap = scale*line_gap;
-            
-            font_out->height = (i32)(scaled_ascent - scaled_descent + scaled_line_gap);
-            font_out->ascent = (i32)(scaled_ascent);
-            font_out->descent = (i32)(scaled_descent);
-            font_out->line_skip = (i32)(scaled_line_gap);
-            
-            if (store_texture){
-                Temp_Memory temp = begin_temp_memory(part);
-                
-                i32 tex_width = pt_size*16*oversample;
-                i32 tex_height = pt_size*16*oversample;
-                void *block = sysshared_push_block(part, tex_width * tex_height);
-                
-                font_out->tex_width = tex_width;
-                font_out->tex_height = tex_height;
-                
-                /////////////////////////////////////////////////////////////////
-                stbtt_pack_context spc;
-                
-                if (stbtt_PackBegin(&spc, (u8*)block, tex_width, tex_height, tex_width, 1, part)){
-                    stbtt_PackSetOversampling(&spc, oversample, oversample);
-                    if (!stbtt_PackFontRange(&spc, (u8*)file.data, 0, STBTT_POINT_SIZE((f32)pt_size), 0, 128, chardata)){
-                        result = false;
-                    }
-                    
-                    stbtt_PackEnd(&spc);
-                }
-                else{
-                    result = false;
-                }
-                /////////////////////////////////////////////////////////////////
-                
-                if (result){
-                    GLuint font_tex;
-                    glGenTextures(1, &font_tex);
-                    glBindTexture(GL_TEXTURE_2D, font_tex);
-                    
-                    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-                    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-                    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-                    
-                    glTexImage2D(GL_TEXTURE_2D, 0, GL_ALPHA, tex_width, tex_height, 0, GL_ALPHA, GL_UNSIGNED_BYTE, block);
-                    
-                    font_out->tex = font_tex;
-                    glBindTexture(GL_TEXTURE_2D, 0);
-                    
-                    f32 *advance_data = font_out->advance_data;
-                    Glyph_Data *glyphs = font_out->glyphs;
-                    for (u8 code_point = 0; code_point < 128; ++code_point){
-                        advance_data[code_point]   = (f32)(ceil32(chardata[code_point].xadvance));
-                        glyphs[code_point].x0      = chardata[code_point].x0;
-                        glyphs[code_point].y0      = chardata[code_point].y0;
-                        glyphs[code_point].x1      = chardata[code_point].x1;
-                        glyphs[code_point].y1      = chardata[code_point].y1;
-                        glyphs[code_point].xoff    = chardata[code_point].xoff;
-                        glyphs[code_point].yoff    = chardata[code_point].yoff  + font_out->ascent;
-                        glyphs[code_point].xoff2   = chardata[code_point].xoff2;
-                        glyphs[code_point].yoff2   = chardata[code_point].yoff2 + font_out->ascent;
-                    }
-                    
-                    glyphs['\r'] = glyphs[' '];
-                    advance_data['\r'] = advance_data[' '];
-                    
-                    glyphs['\n'] = glyphs[' '];
-                    advance_data['\n'] = advance_data[' '];
-                    
-                    glyphs['\t'] = glyphs[' '];
-                    advance_data['\t'] = advance_data[' ']*tab_width;
-                    
-                    i32 max_advance = 0;
-                    for (u8 code_point = 0; code_point < 128; ++code_point){
-                        if (stbtt_FindGlyphIndex(&font, code_point) != 0){
-                            font_out->glyphs[code_point].exists = 1;
-                            i32 advance = ceil32(advance_data[code_point]);
-                            if (max_advance < advance){
-                                max_advance = advance;
-                            }
-                        }
-                    }
-                    font_out->advance = max_advance - 1;
-                }
-                
-                end_temp_memory(temp);
-            }
-        }
-        system_free_memory(file.data);
-    }
-    
-    return(result);
-}
-#endif
 
 // NOTE(allen): Thanks to insofaras.  This is copy-pasted from some work he originally did to get free type working on Linux.
 
@@ -800,88 +656,99 @@ font_load_freetype(Partition *part, Render_Font *rf, char *filename, i32 pt_size
         }
         
         // set all this stuff the renderer needs
-        Glyph_Data* c = rf->glyphs + i;
-        
-        c->x0 = (f32)(pen_x);
-        c->y0 = (f32)(pen_y);
-        c->x1 = (f32)(pen_x + w);
-        c->y1 = (f32)(pen_y + h + 1);
-        
-        c->xoff = (f32)(face->glyph->bitmap_left);
-        c->yoff = (f32)(rf->ascent - face->glyph->bitmap_top);
-        
-        c->xoff2 = w + c->xoff;
-        c->yoff2 = h + c->yoff + 1;
-        
-        // TODO(allen): maybe advance data should be integers for a while...
-        // I require the actual values to be integers anyway... hmm...
-        f32 advance = (f32)ceil32(face->glyph->advance.x / 64.0f);
-        rf->codepoint_advance_data[i] = advance;
-        
-        rf->glyphs[i].exists = 1;
-        
-        i32 pitch = face->glyph->bitmap.pitch;
-        
-        // write to texture atlas
-        for(i32 j = 0; j < h; ++j){
-            for(i32 i = 0; i < w; ++i){
-                i32 x = pen_x + i;
-                i32 y = pen_y + j;
-                
-                if(use_lcd_filter){
+        Glyph_Bounds* c = 0;
+        f32 *advance_ptr = 0;
+        get_codepoint_memory(rf, i, &c, &advance_ptr);
+        if (c != 0 && advance_ptr != 0){
+            c->exists = true;
+            
+            c->x0 = (f32)(pen_x);
+            c->y0 = (f32)(pen_y);
+            c->x1 = (f32)(pen_x + w);
+            c->y1 = (f32)(pen_y + h + 1);
+            
+            c->xoff = (f32)(face->glyph->bitmap_left);
+            c->yoff = (f32)(rf->ascent - face->glyph->bitmap_top);
+            
+            c->xoff2 = w + c->xoff;
+            c->yoff2 = h + c->yoff + 1;
+            
+            // TODO(allen): maybe advance data should be integers for a while...
+            // I require the actual values to be integers anyway... hmm...
+            f32 advance = (f32)ceil32(face->glyph->advance.x / 64.0f);
+            *advance_ptr = advance;
+            
+            // write to texture atlas
+            i32 pitch = face->glyph->bitmap.pitch;
+            for(i32 j = 0; j < h; ++j){
+                for(i32 i = 0; i < w; ++i){
+                    i32 x = pen_x + i;
+                    i32 y = pen_y + j;
+                    
+                    if(use_lcd_filter){
 #if 1
-                    u8 a = face->glyph->bitmap.buffer[j * pitch + i * 3 + 1];
-                    u8 r = face->glyph->bitmap.buffer[j * pitch + i * 3 + 0];
-                    u8 b = face->glyph->bitmap.buffer[j * pitch + i * 3 + 2];
-                    
-                    pixels[y * tex_width + x] = (a << 24) | (b << 16) | (a << 8) | r;
-                    
+                        u8 a = face->glyph->bitmap.buffer[j * pitch + i * 3 + 1];
+                        u8 r = face->glyph->bitmap.buffer[j * pitch + i * 3 + 0];
+                        u8 b = face->glyph->bitmap.buffer[j * pitch + i * 3 + 2];
+                        
+                        pixels[y * tex_width + x] = (a << 24) | (b << 16) | (a << 8) | r;
+                        
 #else
-                    
-                    u8 r = face->glyph->bitmap.buffer[j * pitch + i * 3];
-                    u8 g = face->glyph->bitmap.buffer[j * pitch + i * 3 + 1];
-                    u8 b = face->glyph->bitmap.buffer[j * pitch + i * 3 + 2];
-                    u8 a = (u8)ROUND32((r + g + b) / 3.0f);
-                    
-                    pixels[y * tex_width + x] = (a << 24) | (r << 16) | (g << 8) | b;
+                        
+                        u8 r = face->glyph->bitmap.buffer[j * pitch + i * 3];
+                        u8 g = face->glyph->bitmap.buffer[j * pitch + i * 3 + 1];
+                        u8 b = face->glyph->bitmap.buffer[j * pitch + i * 3 + 2];
+                        u8 a = (u8)ROUND32((r + g + b) / 3.0f);
+                        
+                        pixels[y * tex_width + x] = (a << 24) | (r << 16) | (g << 8) | b;
 #endif
-                } else {
-                    pixels[y * tex_width + x] = face->glyph->bitmap.buffer[j * pitch + i] * 0x1010101;
+                    } else {
+                        pixels[y * tex_width + x] = face->glyph->bitmap.buffer[j * pitch + i] * 0x1010101;
+                    }
                 }
             }
+            
+            pen_x = ceil32(c->x1 + 1);
         }
-        
-        pen_x = ceil32(c->x1 + 1);
     }
     
-    f32 *cp_adv = rf->codepoint_advance_data;
-    cp_adv['\n'] = cp_adv[' '];
-    cp_adv['\r'] = cp_adv['\\'] + cp_adv['r'];
-    cp_adv['\t'] = cp_adv[' ']*tab_width;
+    // NOTE(allen): Setup some basic spacing stuff.
+    f32 space_adv = get_codepoint_advance(rf, ' ');
+    f32 backslash_adv = get_codepoint_advance(rf, '\\');
+    f32 r_adv = get_codepoint_advance(rf, 'r');
     
-    f32 max_hex_advance = cp_adv['0'];
-    for (u32 i = '1'; i <= '9'; ++i){
-        max_hex_advance = Max(max_hex_advance, cp_adv[i]);
+    set_codepoint_advance(rf, '\n', space_adv);
+    set_codepoint_advance(rf, '\r', backslash_adv + r_adv);
+    set_codepoint_advance(rf, '\t', space_adv*tab_width);
+    
+    f32 max_hex_advance = 0.f;
+    for (u32 i = '0'; i <= '9'; ++i){
+        f32 adv = get_codepoint_advance(rf,  i);
+        max_hex_advance = Max(max_hex_advance, adv);
     }
     for (u32 i = 'a'; i <= 'f'; ++i){
-        max_hex_advance = Max(max_hex_advance, cp_adv[i]);
+        f32 adv = get_codepoint_advance(rf,  i);
+        max_hex_advance = Max(max_hex_advance, adv);
     }
     for (u32 i = 'A'; i <= 'F'; ++i){
-        max_hex_advance = Max(max_hex_advance, cp_adv[i]);
+        f32 adv = get_codepoint_advance(rf,  i);
+        max_hex_advance = Max(max_hex_advance, adv);
     }
     
-    rf->byte_advance = cp_adv['\\'] + max_hex_advance*2;
+    rf->byte_advance = backslash_adv + max_hex_advance*2;
     
     FT_Done_FreeType(ft);
     
     tex_height = next_pow_of_2(pen_y + max_glyph_h + 2);
     
-    rf->tex_width  = tex_width;
-    rf->tex_height = tex_height;
+    u32 page_index = 0;
+    rf->glyph_pages[page_index].tex_width  = tex_width;
+    rf->glyph_pages[page_index].tex_height = tex_height;
     
     // upload texture
-    glGenTextures(1, &rf->tex);
-    glBindTexture(GL_TEXTURE_2D, rf->tex);
+    u32 tex;
+    glGenTextures(1, &tex);
+    glBindTexture(GL_TEXTURE_2D, tex);
     
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
@@ -896,14 +763,22 @@ font_load_freetype(Partition *part, Render_Font *rf, char *filename, i32 pt_size
     }
     
     glBindTexture(GL_TEXTURE_2D, 0);
+    rf->glyph_pages[page_index].tex = tex;
     
-    return 1;
+    rf->glyph_pages[page_index].exists = true;
+    
+    return(true);
 }
 
 internal
 Release_Font_Sig(draw_release_font){
-    glDeleteTextures(1, &font->tex);
-    font->tex = 0;
+    for (u32 i = 0; i < ArrayCount(font->glyph_pages); ++i){
+        Glyph_Page *page = &font->glyph_pages[i];
+        if (page->exists){
+            glDeleteTextures(1, &page->tex);
+        }
+        page->tex = 0;
+    }
 }
 
 // BOTTOM

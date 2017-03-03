@@ -125,7 +125,7 @@ font_draw_glyph(Render_Target *target, i16 font_id, i32 type, u8 character, f32 
     piece.glyph.font_id = font_id;
     piece.glyph.character = character;
     target->push_piece(target, piece);
-    font_set_use(target->partition, &target->font_set, font_id);
+    font_set_use(&target->font_set, font_id);
 }
 
 internal void
@@ -135,7 +135,8 @@ font_draw_glyph(Render_Target *target, i16 font_id, u8 character, f32 x, f32 y, 
 
 internal f32
 draw_string_base(Render_Target *target, i16 font_id, i32 type, String str_, i32 x_, i32 y_, u32 color){
-    Render_Font *font = get_font_info(&target->font_set, font_id)->font;
+    Font_Info *font_info = get_font_info(&target->font_set, font_id);
+    Render_Font *font = font_info->font;
     f32 x = 0;
     
     if (font){
@@ -143,7 +144,6 @@ draw_string_base(Render_Target *target, i16 font_id, i32 type, String str_, i32 
         x = (f32)x_;
         
         f32 byte_advance = font->byte_advance;
-        f32 *codepoint_advance_data = font->codepoint_advance_data;
         
         u8 *str = (u8*)str_.str;
         u8 *str_end = str + str_.size;
@@ -170,7 +170,7 @@ draw_string_base(Render_Target *target, i16 font_id, i32 type, String str_, i32 
                 if (color != 0){
                     font_draw_glyph(target, font_id, type, (u8)codepoint, x, y, color);
                 }
-                x += codepoint_advance_data[codepoint];
+                x += get_codepoint_advance(font, codepoint);
             }
             else if (do_numbers){
                 for (;byte < str; ++byte){

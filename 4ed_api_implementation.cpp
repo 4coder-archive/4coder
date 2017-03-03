@@ -878,8 +878,9 @@ DOC_SEE(Buffer_Setting_ID)
                 }
                 if (new_value != file->settings.display_width){
                     i16 font_id = file->settings.font_id;
-                    Render_Font *font = get_font_info(models->font_set, font_id)->font;
-                    file_set_width(models, file, new_value, (f32)font->height, font->codepoint_advance_data, font->byte_advance);
+                    Font_Info *font_info = get_font_info(models->font_set, font_id);
+                    Render_Font *font = font_info->font;
+                    file_set_width(models, file, new_value, font);
                 }
             }break;
             
@@ -892,7 +893,7 @@ DOC_SEE(Buffer_Setting_ID)
                 if (new_value != file->settings.minimum_base_display_width){
                     i16 font_id = file->settings.font_id;
                     Render_Font *font = get_font_info(models->font_set, font_id)->font;
-                    file_set_min_base_width(models, file, new_value, (f32)font->height, font->codepoint_advance_data, font->byte_advance);
+                    file_set_min_base_width(models, file, new_value, font);
                 }
             }break;
             
@@ -981,7 +982,7 @@ DOC_SEE(Buffer_Setting_ID)
                     
                     file_allocate_character_starts_as_needed(&models->mem.general, file);
                     buffer_measure_character_starts(&file->state.buffer, file->state.character_starts, 0, file->settings.virtual_white);
-                    file_measure_wraps(models, file, (f32)font->height, font->codepoint_advance_data, font->byte_advance);
+                    file_measure_wraps(models, file, font);
                     file_update_cursor_positions(models, file);
                 }
             }break;

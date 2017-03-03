@@ -12,29 +12,57 @@
 #ifndef FRED_RENDERING_H
 #define FRED_RENDERING_H
 
-struct Glyph_Data{
-    b32 exists;
-    
-    f32 x0, x1;
-    f32 y0, y1;
-    
-    f32 xoff, yoff;
-    f32 xoff2, yoff2;
+//
+// Fonts
+//
+
+#include "file/4coder_font_data.h"
+
+struct Font_Table_Entry{
+    u32 hash;
+    String name;
+    i16 font_id;
 };
 
-struct Render_Font{
-    char name_[24];
+struct Font_Info{
+    Render_Font *font;
+    String filename;
     String name;
-    b32 loaded;
-    
-    Glyph_Data glyphs[256];
-    f32 byte_advance;
-    f32 codepoint_advance_data[256];
-    i32 height, ascent, descent, line_skip;
-    i32 advance;
-    u32 tex;
-    i32 tex_width, tex_height;
+    i32 pt_size;
 };
+
+struct Font_Slot{
+    Font_Slot *next, *prev;
+    i16 font_id;
+    u8 padding[6];
+};
+
+#define Font_Load_Sig(name) i32 name(Render_Font *font_out, char *filename, char *fontname, i32 pt_size, i32 tab_width, b32 store_texture)
+typedef Font_Load_Sig(Font_Load);
+
+#define Release_Font_Sig(name) void name(Render_Font *font)
+typedef Release_Font_Sig(Release_Font);
+
+struct Font_Set{
+    Font_Info *info;
+    Font_Table_Entry *entries;
+    u32 count, max;
+    
+    void *font_block;
+    Font_Slot free_slots;
+    Font_Slot used_slots;
+    
+    Font_Load *font_load;
+    Release_Font *release_font;
+    
+    b8 *font_used_flags;
+    i16 used_this_frame;
+    i16 live_max;
+};
+
+//
+// Render Commands
+//
 
 enum Render_Piece_Type{
     piece_type_rectangle,
@@ -101,49 +129,9 @@ typedef Draw_Pop_Clip_Sig(Draw_Pop_Clip);
 #define Draw_Push_Piece_Sig(name) void name(Render_Target *target, Render_Piece_Combined piece)
 typedef Draw_Push_Piece_Sig(Draw_Push_Piece);
 
-#define Font_Load_Sig(name) i32 name(Render_Font *font_out, char *filename, char *fontname, i32 pt_size, i32 tab_width, b32 store_texture)
-typedef Font_Load_Sig(Font_Load);
-
-#define Release_Font_Sig(name) void name(Render_Font *font)
-typedef Release_Font_Sig(Release_Font);
-
-struct Font_Table_Entry{
-    u32 hash;
-    String name;
-    i16 font_id;
-};
-
-struct Font_Info{
-    Render_Font *font;
-    String filename;
-    String name;
-    i32 height, advance;
-    i32 pt_size;
-};
-
-struct Font_Slot{
-    Font_Slot *next, *prev;
-    i16 font_id;
-    u8 padding[14];
-};
-
-struct Font_Set{
-    Font_Info *info;
-    Font_Table_Entry *entries;
-    u32 count, max;
-    
-    void *font_block;
-    Font_Slot free_slots;
-    Font_Slot used_slots;
-    
-    //Font_Info_Load *font_info_load;
-    Font_Load *font_load;
-    Release_Font *release_font;
-    
-    b8 *font_used_flags;
-    i16 used_this_frame;
-    i16 live_max;
-};
+//
+// Render target stuff
+//
 
 struct Render_Target{
     void *handle;
@@ -159,13 +147,13 @@ struct Render_Target{
     char *push_buffer;
     i32 size, max;
     
-    // TODO(allen): rename this to font_partition
-    Font_Set font_set;
-    Partition *partition;
-    
     Draw_Push_Clip *push_clip;
     Draw_Pop_Clip *pop_clip;
     Draw_Push_Piece *push_piece;
+    
+    // TODO(allen): Does the font set really belong here?  Actually, do we still want it at all?
+    Font_Set font_set;
+    Partition *partition;
 };
 
 #define DpiMultiplier(n,dpi) ((n) * (dpi) / 96)
