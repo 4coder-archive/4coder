@@ -60,33 +60,44 @@ typedef double f64;
 #define Min(a,b) (((a)<(b))?(a):(b))
 
 inline i32 ceil32(f32 v){
-     return(((v)>0)?( (v == (i32)(v))?((i32)(v)):((i32)((v)+1.f)) ):( ((i32)(v)) ));
- }
- 
- inline i32 floor32(f32 v){
-     return(((v)<0)?( (v == (i32)(v))?((i32)(v)):((i32)((v)-1.f)) ):( ((i32)(v)) ));
- }
- 
- inline i32 round32(f32 v){
-     return(floor32(v + 0.5f));
- }
- 
- inline i32 trun32(f32 v){
-     return((i32)(v));
- }
-     
- inline i32 div_ceil(i32 n, i32 d){
-     return( ((n) % (d) != 0) + ((n) / (d)) );
- }
-     
- inline i32 l_round_up_i32(i32 x, i32 b){
-return( ((x)+(b)-1) - (((x)+(b)-1)%(b)) );
- }
- 
- inline u32 l_round_up_u32(u32 x, u32 b){
-     return( ((x)+(b)-1) - (((x)+(b)-1)%(b)) );
- }
- 
+    return(((v)>0)?( (v == (i32)(v))?((i32)(v)):((i32)((v)+1.f)) ):( ((i32)(v)) ));
+}
+
+inline i32 floor32(f32 v){
+    return(((v)<0)?( (v == (i32)(v))?((i32)(v)):((i32)((v)-1.f)) ):( ((i32)(v)) ));
+}
+
+inline i32 round32(f32 v){
+    return(floor32(v + 0.5f));
+}
+
+inline i32 trun32(f32 v){
+    return((i32)(v));
+}
+
+inline i32 div_ceil(i32 n, i32 d){
+    return( ((n) % (d) != 0) + ((n) / (d)) );
+}
+
+inline i32 l_round_up_i32(i32 x, i32 b){
+    return( ((x)+(b)-1) - (((x)+(b)-1)%(b)) );
+}
+
+inline u32 l_round_up_u32(u32 x, u32 b){
+    return( ((x)+(b)-1) - (((x)+(b)-1)%(b)) );
+}
+
+inline u32 round_up_pot_u32(u32 x){
+    --x;
+    x |= x >> 1;
+    x |= x >> 2;
+    x |= x >> 4;
+    x |= x >> 8;
+    x |= x >> 16;
+    ++x;
+    return(x);
+}
+
 #define STR__(s) #s
 #define STR_(s) STR__(s)
 

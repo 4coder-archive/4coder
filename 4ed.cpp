@@ -1478,13 +1478,13 @@ App_Init_Sig(app_init){
         char *custom_font_name = models->settings.custom_font_name;
         i32 custom_font_size = models->settings.custom_font_size;
         b32 use_custom_font = true;
-        if (!custom_font_file){
+        if (custom_font_file == 0){
             use_custom_font = false;
             custom_font_file = "";
             custom_font_name = "";
         }
         
-        if (font_size < 8) font_size = 8;
+        font_size = clamp_bottom(8, font_size);
         
         Font_Setup font_setup[] = {
             {literal("LiberationSans-Regular.ttf"), literal("Liberation Sans"), font_size},
@@ -1531,9 +1531,6 @@ App_Init_Sig(app_init){
     // NOTE(allen): style setup
     app_hardcode_styles(models);
     
-    models->palette_size = 40;
-    models->palette = push_array(partition, u32, models->palette_size);
-    
     // NOTE(allen): init first panel
     Command_Data *cmd = &vars->command_data;
     
@@ -1556,8 +1553,8 @@ App_Init_Sig(app_init){
     };
     
     File_Init init_files[] = {
-        { make_lit_string("*messages*"), &models->message_buffer, 1, },
-        { make_lit_string("*scratch*"),  &models->scratch_buffer, 0, }
+        { make_lit_string("*messages*"), &models->message_buffer, true , },
+        { make_lit_string("*scratch*"),  &models->scratch_buffer, false, }
     };
     
     for (i32 i = 0; i < ArrayCount(init_files); ++i){

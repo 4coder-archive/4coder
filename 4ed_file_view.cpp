@@ -229,7 +229,6 @@ struct View{
     // theme stuff
     View *hot_file_view;
     u32 *palette;
-    i32 palette_size;
     Color_View_Mode color_mode;
     Super_Color color;
     b32 p4c_only;
@@ -387,8 +386,12 @@ view_cursor_limits(View *view){
 internal Full_Cursor
 view_compute_cursor(View *view, Buffer_Seek seek, b32 return_hint){
     Editing_File *file = view->file_data.file;
+    
+#if 0
     Models *models = view->persistent.models;
     Render_Font *font = get_font_info(models->font_set, file->settings.font_id)->font;
+#endif
+    Render_Font *font = 0;
     
     Full_Cursor result = {0};
     
@@ -1031,7 +1034,11 @@ wrap_state_init(Code_Wrap_State *state, Editing_File *file, Render_Font *font){
     state->i = 0;
     
     state->font = font;
+    
+#if 0
     state->tab_indent_amount = get_codepoint_advance(font, '\t');
+#endif
+    state->tab_indent_amount = 2.f;
     
     state->tran = null_buffer_translating_state;
 }
@@ -1143,7 +1150,11 @@ wrap_state_consume_token(Code_Wrap_State *state, i32 fixed_end_point){
                     u32 n = state->tran.step_current.value;
                     f32 adv = 0;
                     if (state->tran.do_codepoint_advance){
+#if 0
                         adv = get_codepoint_advance(state->font, n);
+#endif
+                        adv = 2.f;
+                        
                         if (n != ' ' && n != '\t'){
                             skipping_whitespace = false;
                         }
@@ -1543,7 +1554,11 @@ file_measure_wraps(Models *models, Editing_File *file, Render_Font *font){
                                             word_stage = 1;
                                         }
                                         else{
+#if 0
                                             f32 adv = get_codepoint_advance(params.font, ch);
+#endif
+                                            f32 adv = 2.f;
+                                            
                                             x += adv;
                                             self_x += adv;
                                             if (self_x > width){
@@ -1670,7 +1685,11 @@ file_measure_wraps(Models *models, Editing_File *file, Render_Font *font){
                                                     goto doublebreak_stage1;
                                                 }
                                                 
+#if 0
                                                 f32 adv = get_codepoint_advance(params.font, ch);
+#endif
+                                                f32 adv = 2.f;
+                                                
                                                 x += adv;
                                                 if (!first_word && x > current_width){
                                                     emit_comment_position = 1;
@@ -1696,7 +1715,12 @@ file_measure_wraps(Models *models, Editing_File *file, Render_Font *font){
                                                     goto doublebreak_stage2;
                                                 }
                                                 
+                                                
+#if 0
                                                 f32 adv = get_codepoint_advance(params.font, ch);
+#endif
+                                                f32 adv = 2.f;
+                                                
                                                 x += adv;
                                             }
                                             still_looping = buffer_stringify_next(&stream);

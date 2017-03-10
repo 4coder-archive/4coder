@@ -13,7 +13,7 @@
 // Buffer low level operations
 //
 
-#include "../file/4coder_font_data.h"
+#include "../font/4coder_font_data.h"
 #include "../4coder_helper/4coder_seek_types.h"
 
 typedef struct Cursor_With_Index{
@@ -1093,12 +1093,16 @@ buffer_measure_wrap_y(Buffer_Measure_Wrap_State *S_ptr, Buffer_Measure_Wrap_Para
                     else if (S.tran.do_number_advance || S.tran.do_codepoint_advance){
                         if (!S.skipping_whitespace){
                             
+                            S.current_adv = 2.f;
+                            
+#if 0
                             if (S.tran.do_codepoint_advance){
                                 S.current_adv = get_codepoint_advance(params.font, S.tran.step_current.value);
                             }
                             else{
                                 S.current_adv = params.font->byte_advance;
                             }
+#endif
                             
                             S.did_wrap = false;
                             if (S.i >= S.wrap_unit_end){
@@ -1779,12 +1783,16 @@ buffer_cursor_seek(Buffer_Cursor_Seek_State *S_ptr, Buffer_Cursor_Seek_Params pa
                     }
                     else if (S.tran.do_number_advance || S.tran.do_codepoint_advance){
                         
+                        S.ch_width = 2.f;
+                        
+#if 0
                         if (S.tran.do_codepoint_advance){
                             S.ch_width = get_codepoint_advance(params.font, S.tran.step_current.value);
                         }
                         else{
                             S.ch_width = params.font->byte_advance;
                         }
+#endif
                         
                         if (S.tran.step_current.i >= S.wrap_unit_end){
                             S_stop.status          = BLStatus_NeedWrapDetermination;
@@ -1979,7 +1987,12 @@ typedef struct Render_Item_Write{
 
 inline Render_Item_Write
 write_render_item(Render_Item_Write write, i32 index, u32 glyphid, u32 flags){
+    
+#if 0
     f32 ch_width = get_codepoint_advance(write.font, glyphid);
+#endif
+    
+    f32 ch_width = 2.f;
     
     if (write.x <= write.x_max && write.x + ch_width >= write.x_min){
         write.item->index = index;
@@ -2191,7 +2204,12 @@ buffer_render_data(Buffer_Render_State *S_ptr, Buffer_Render_Params params, f32 
                                 
                                 case '\t':
                                 {
+                                    
+#if 0
                                     S.ch_width = get_codepoint_advance(params.font, '\t');
+#endif
+                                    S.ch_width = 2.f;
+                                    
                                     f32 new_x = S.write.x + S.ch_width;
                                     S.write = write_render_item(S.write, I, ' ', 0);
                                     S.write.x = new_x;

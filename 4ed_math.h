@@ -475,8 +475,20 @@ clamp_bottom(u32 a, u32 n){
     return (n);
 }
 
+inline u64
+clamp_bottom(u64 a, u64 n){
+    if (n < a) n = a;
+    return (n);
+}
+
 inline u32
 clamp_top(u32 n, u32 z){
+    if (n  > z) n = z;
+    return (n);
+}
+
+inline u64
+clamp_top(u64 n, u64 z){
     if (n  > z) n = z;
     return (n);
 }

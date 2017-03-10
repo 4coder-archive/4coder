@@ -146,28 +146,28 @@ utf8_to_u32(u8_4tech **buffer_ptr, u8_4tech *end){
 }
 
 static void
-u32_to_utf8_unchecked(u32_4tech code_point, u8_4tech *buffer, u32_4tech *length_out){
-    if (code_point <= 0x7F){
-        buffer[0] = (u8_4tech)code_point;
+u32_to_utf8_unchecked(u32_4tech codepoint, u8_4tech *buffer, u32_4tech *length_out){
+    if (codepoint <= 0x7F){
+        buffer[0] = (u8_4tech)codepoint;
         *length_out = 1;
     }
-    else if (code_point <= 0x7FF){
-        buffer[0] = (u8_4tech)(0xC0 | (code_point >> 6));
-        buffer[1] = (u8_4tech)(0x80 | (code_point & 0x3F));
+    else if (codepoint <= 0x7FF){
+        buffer[0] = (u8_4tech)(0xC0 | (codepoint >> 6));
+        buffer[1] = (u8_4tech)(0x80 | (codepoint & 0x3F));
         *length_out = 2;
     }
-    else if (code_point <= 0xFFFF){
-        buffer[0] = (u8_4tech)(0xE0 | (code_point >> 12));
-        buffer[1] = (u8_4tech)(0x80 | ((code_point >> 6) & 0x3F));
-        buffer[2] = (u8_4tech)(0x80 | (code_point & 0x3F));
+    else if (codepoint <= 0xFFFF){
+        buffer[0] = (u8_4tech)(0xE0 | (codepoint >> 12));
+        buffer[1] = (u8_4tech)(0x80 | ((codepoint >> 6) & 0x3F));
+        buffer[2] = (u8_4tech)(0x80 | (codepoint & 0x3F));
         *length_out = 3;
     }
     else{
-        code_point &= 0x001FFFFF;
-        buffer[0] = (u8_4tech)(0xF0 | (code_point >> 18));
-        buffer[1] = (u8_4tech)(0x80 | ((code_point >> 12) & 0x3F));
-        buffer[2] = (u8_4tech)(0x80 | ((code_point >> 6) & 0x3F));
-        buffer[3] = (u8_4tech)(0x80 | (code_point & 0x3F));
+        codepoint &= 0x001FFFFF;
+        buffer[0] = (u8_4tech)(0xF0 | (codepoint >> 18));
+        buffer[1] = (u8_4tech)(0x80 | ((codepoint >> 12) & 0x3F));
+        buffer[2] = (u8_4tech)(0x80 | ((codepoint >> 6) & 0x3F));
+        buffer[3] = (u8_4tech)(0x80 | (codepoint & 0x3F));
         *length_out = 4;
     }
 }
@@ -186,11 +186,11 @@ utf8_to_utf16_minimal_checking(u16_4tech *dst, umem_4tech max_wchars, u8_4tech *
     
     *error = false;
     for(; s < s_end;){
-        u32_4tech code_point = 0;
+        u32_4tech codepoint = 0;
         u32_4tech utf8_size = 0;
         
         if (s[0] <= 0x7F){
-            code_point = (u32_4tech)s[0];
+            codepoint = (u32_4tech)s[0];
             utf8_size = 1;
         }
         else if (s[0] <= 0xE0){
@@ -199,8 +199,8 @@ utf8_to_utf16_minimal_checking(u16_4tech *dst, umem_4tech max_wchars, u8_4tech *
                 break;
             }
             
-            code_point = ((u32_4tech)((s[0])&0x1F)) << 6;
-            code_point |= ((u32_4tech)((s[1])&0x3F));
+            codepoint = ((u32_4tech)((s[0])&0x1F)) << 6;
+            codepoint |= ((u32_4tech)((s[1])&0x3F));
             utf8_size = 2;
         }
         else if (s[0] <= 0xF0){
@@ -209,9 +209,9 @@ utf8_to_utf16_minimal_checking(u16_4tech *dst, umem_4tech max_wchars, u8_4tech *
                 break;
             }
             
-            code_point = ((u32_4tech)((s[0])&0x0F)) << 12;
-            code_point |= ((u32_4tech)((s[1])&0x3F)) << 6;
-            code_point |= ((u32_4tech)((s[2])&0x3F));
+            codepoint = ((u32_4tech)((s[0])&0x0F)) << 12;
+            codepoint |= ((u32_4tech)((s[1])&0x3F)) << 6;
+            codepoint |= ((u32_4tech)((s[2])&0x3F));
             utf8_size = 3;
         }
         else{
@@ -220,26 +220,26 @@ utf8_to_utf16_minimal_checking(u16_4tech *dst, umem_4tech max_wchars, u8_4tech *
                 break;
             }
             
-            code_point = ((u32_4tech)((s[0])&0x07)) << 18;
-            code_point |= ((u32_4tech)((s[1])&0x3F)) << 12;
-            code_point |= ((u32_4tech)((s[2])&0x3F)) << 6;
-            code_point |= ((u32_4tech)((s[3])&0x3F));
+            codepoint = ((u32_4tech)((s[0])&0x07)) << 18;
+            codepoint |= ((u32_4tech)((s[1])&0x3F)) << 12;
+            codepoint |= ((u32_4tech)((s[2])&0x3F)) << 6;
+            codepoint |= ((u32_4tech)((s[3])&0x3F));
             utf8_size = 4;
         }
         
         s += utf8_size;
         limit -= utf8_size;
         
-        if (code_point <= 0xD7FF || (code_point >= 0xE000 && code_point <= 0xFFFF)){
-            *d = (u16_4tech)(code_point);
+        if (codepoint <= 0xD7FF || (codepoint >= 0xE000 && codepoint <= 0xFFFF)){
+            *d = (u16_4tech)(codepoint);
             d += advance;
             needed_max += 1;
         }
-        else if (code_point >= 0x10000 && code_point <= 0x10FFFF){
-            code_point -= 0x10000;
+        else if (codepoint >= 0x10000 && codepoint <= 0x10FFFF){
+            codepoint -= 0x10000;
             
-            u32_4tech high = (code_point >> 10) & 0x03FF;
-            u32_4tech low = (code_point) & 0x03FF;
+            u32_4tech high = (codepoint >> 10) & 0x03FF;
+            u32_4tech low = (codepoint) & 0x03FF;
             
             high += 0xD800;
             low += 0xDC00;
@@ -283,11 +283,11 @@ utf16_to_utf8_minimal_checking(u8_4tech *dst, umem_4tech max_chars, u16_4tech *s
     *error = false;
     
     for (; s < s_end;){
-        u32_4tech code_point = 0;
+        u32_4tech codepoint = 0;
         u32_4tech utf16_size = 0;
         
         if (s[0] <= 0xD7FF || (s[0] >= 0xE000 && s[0] <= 0xFFFF)){
-            code_point = s[0];
+            codepoint = s[0];
             utf16_size = 1;
         }
         else{
@@ -299,7 +299,7 @@ utf16_to_utf8_minimal_checking(u8_4tech *dst, umem_4tech max_chars, u16_4tech *s
                 
                 u32_4tech high = s[0] - 0xD800;
                 u32_4tech low = s[1] - 0xDC00;
-                code_point = ((high << 10) | (low)) + 0x10000;
+                codepoint = ((high << 10) | (low)) + 0x10000;
                 utf16_size = 2;
             }
             else{
@@ -314,26 +314,26 @@ utf16_to_utf8_minimal_checking(u8_4tech *dst, umem_4tech max_chars, u16_4tech *s
         u8_4tech d_fill[4];
         u32_4tech d_fill_count = 0;
         
-        if (code_point <= 0x7F){
-            d_fill[0] = (u8_4tech)code_point;
+        if (codepoint <= 0x7F){
+            d_fill[0] = (u8_4tech)codepoint;
             d_fill_count = 1;
         }
-        else if (code_point <= 0x7FF){
-            d_fill[0] = (u8_4tech)(0xC0 | (code_point >> 6));
-            d_fill[1] = (u8_4tech)(0x80 | (code_point & 0x3F));
+        else if (codepoint <= 0x7FF){
+            d_fill[0] = (u8_4tech)(0xC0 | (codepoint >> 6));
+            d_fill[1] = (u8_4tech)(0x80 | (codepoint & 0x3F));
             d_fill_count = 2;
         }
-        else if (code_point <= 0xFFFF){
-            d_fill[0] = (u8_4tech)(0xE0 | (code_point >> 12));
-            d_fill[1] = (u8_4tech)(0x80 | ((code_point >> 6) & 0x3F));
-            d_fill[2] = (u8_4tech)(0x80 | (code_point & 0x3F));
+        else if (codepoint <= 0xFFFF){
+            d_fill[0] = (u8_4tech)(0xE0 | (codepoint >> 12));
+            d_fill[1] = (u8_4tech)(0x80 | ((codepoint >> 6) & 0x3F));
+            d_fill[2] = (u8_4tech)(0x80 | (codepoint & 0x3F));
             d_fill_count = 3;
         }
-        else if (code_point <= 0x10FFFF){
-            d_fill[0] = (u8_4tech)(0xF0 | (code_point >> 18));
-            d_fill[1] = (u8_4tech)(0x80 | ((code_point >> 12) & 0x3F));
-            d_fill[2] = (u8_4tech)(0x80 | ((code_point >> 6) & 0x3F));
-            d_fill[3] = (u8_4tech)(0x80 | (code_point & 0x3F));
+        else if (codepoint <= 0x10FFFF){
+            d_fill[0] = (u8_4tech)(0xF0 | (codepoint >> 18));
+            d_fill[1] = (u8_4tech)(0x80 | ((codepoint >> 12) & 0x3F));
+            d_fill[2] = (u8_4tech)(0x80 | ((codepoint >> 6) & 0x3F));
+            d_fill[3] = (u8_4tech)(0x80 | (codepoint & 0x3F));
             d_fill_count = 4;
         }
         else{

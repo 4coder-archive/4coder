@@ -745,14 +745,7 @@ process_config_file(Application_Links *app){
                             char str_space[512];
                             String str = make_fixed_width_string(str_space);
                             if (config_string_var(item, "treat_as_code", 0, &str)){
-                                if (str.size < sizeof(treat_as_code_exts.extension_space)){
-                                    set_extensions(&treat_as_code_exts, str);
-                                    print_message(app, str.str, str.size);
-                                    print_message(app, "\n", 1);
-                                }
-                                else{
-                                    print_message(app, literal("STRING TOO LONG!\n"));
-                                }
+                                set_extensions(&treat_as_code_exts, str);
                             }
                         }
                     }

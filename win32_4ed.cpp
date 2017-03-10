@@ -67,7 +67,6 @@
 #include "4ed_system_shared.h"
 
 #define SUPPORT_DPI 1
-#define USE_FT_FONTS 1
 
 #define FPS 60
 #define frame_useconds (1000000 / FPS)
@@ -1392,9 +1391,7 @@ Sys_Send_Exit_Signal_Sig(system_send_exit_signal){
 
 #include "4ed_system_shared.cpp"
 
-#if USE_FT_FONTS
-# include "win32_ft_font.cpp"
-#endif
+#include "win32_ft_font.cpp"
 
 internal f32
 size_change(i32 dpi_x, i32 dpi_y){
@@ -1406,60 +1403,29 @@ size_change(i32 dpi_x, i32 dpi_y){
 }
 
 internal
-Font_Load_Sig(system_draw_font_load){
+Font_Load_Sig(font_load){
     if (win32vars.font_part.base == 0){
         win32vars.font_part = Win32ScratchPartition(MB(8));
     }
-    
-    i32 oversample = 2;
-    AllowLocal(oversample);
     
 #if SUPPORT_DPI
     pt_size = round32(pt_size * size_change(win32vars.dpi_x, win32vars.dpi_y));
 #endif
     
-    for (b32 success = 0; success == 0;){
-#if USE_WIN32_FONTS
+    // TODO(allen): Make the growable partition something that can just be passed directly to font load and let it be grown there.
+    b32 success = false;
+    for (u32 R = 0; R < 3; ++R){
+        success = win32_ft_font_load(&win32vars.font_part, font_out, filename, pt_size, tab_width,win32vars.settings.use_hinting);
         
-        success = win32_font_load(&win32vars.font_part,
-                                  font_out,
-                                  filename,
-                                  fontname,
-                                  pt_size,
-                                  tab_width,
-                                  oversample,
-                                  store_texture);
-        
-#elif USE_FT_FONTS
-        
-        success = win32_ft_font_load(&win32vars.font_part,
-                                     font_out,
-                                     filename,
-                                     pt_size,
-                                     tab_width,
-                                     win32vars.settings.use_hinting);
-        
-#else
-        
-        success = stb_font_load(&win32vars.font_part,
-                                font_out,
-                                filename,
-                                pt_size,
-                                tab_width,
-                                oversample,
-                                store_texture);
-        
-#endif
-        
-        // TODO(allen): Make the growable partition something
-        // that can just be passed directly to font load and
-        // let it be grown there.
-        if (!success){
+        if (success){
+            break;
+        }
+        else{
             Win32ScratchPartitionDouble(&win32vars.font_part);
         }
     }
     
-    return(1);
+    return(success);
 }
 
 //
@@ -1541,7 +1507,7 @@ Win32LoadRenderCode(){
     win32vars.target.pop_clip = draw_pop_clip;
     win32vars.target.push_piece = draw_push_piece;
     
-    win32vars.target.font_set.font_load = system_draw_font_load;
+    win32vars.target.font_set.font_load = font_load;
     win32vars.target.font_set.release_font = draw_release_font;
 }
 

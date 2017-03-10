@@ -28,9 +28,6 @@ draw_change_clip(Render_Target *target, i32_Rect clip_box){
 
 internal void
 begin_render_section(Render_Target *target, System_Functions *system){
-    Font_Set *font_set = &target->font_set;
-    font_set->used_this_frame = 0;
-    memset(font_set->font_used_flags, 0, font_set->max);
     target->size = 0;
     target->clip_top = -1;
     
@@ -117,6 +114,8 @@ font_predict_size(i32 pt_size){
 
 internal void
 font_draw_glyph(Render_Target *target, i16 font_id, i32 type, u8 character, f32 x, f32 y, u32 color){
+    
+#if 0
     Render_Piece_Combined piece;
     piece.header.type = type;
     piece.glyph.pos.x = x;
@@ -126,6 +125,8 @@ font_draw_glyph(Render_Target *target, i16 font_id, i32 type, u8 character, f32 
     piece.glyph.character = character;
     target->push_piece(target, piece);
     font_set_use(&target->font_set, font_id);
+#endif
+    
 }
 
 internal void
@@ -135,9 +136,12 @@ font_draw_glyph(Render_Target *target, i16 font_id, u8 character, f32 x, f32 y, 
 
 internal f32
 draw_string_base(Render_Target *target, i16 font_id, i32 type, String str_, i32 x_, i32 y_, u32 color){
+    
+    f32 x = 0;
+    
+#if 0
     Font_Info *font_info = get_font_info(&target->font_set, font_id);
     Render_Font *font = font_info->font;
-    f32 x = 0;
     
     if (font){
         f32 y = (f32)y_;
@@ -192,6 +196,7 @@ draw_string_base(Render_Target *target, i16 font_id, i32 type, String str_, i32 
             }
         }
     }
+#endif
     
     return(x);
 }

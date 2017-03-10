@@ -1,3 +1,14 @@
+/*
+ * Insofaras
+ *
+ * ??.??.2016
+ * 
+ * For getting the font files on Linux.
+ * 
+ */
+
+// TOP
+
 #undef internal
 #include <fontconfig/fontconfig.h>
 #define internal static
@@ -8,26 +19,26 @@ static FcConfig* fc;
 internal char*
 linux_get_sys_font(char* name, i32 pt_size){
     char* result = 0;
-
+    
     if(!fc){
         fc = FcInitLoadConfigAndFonts();
     }
-
+    
     FcPattern* pat = FcPatternBuild(
         NULL,
         FC_POSTSCRIPT_NAME, FcTypeString, name,
         FC_SIZE,            FcTypeDouble, (double)pt_size,
         FC_FONTFORMAT,      FcTypeString, "TrueType",
         NULL
-    );
-
+        );
+    
     FcConfigSubstitute(fc, pat, FcMatchPattern);
     FcDefaultSubstitute(pat);
-
+    
     FcResult res;
     FcPattern* font = FcFontMatch(fc, pat, &res);
     FcChar8* fname = 0;
-
+    
     if(font){
         FcPatternGetString(font, FC_FILE, 0, &fname);
         if(fname){
@@ -36,9 +47,9 @@ linux_get_sys_font(char* name, i32 pt_size){
         }
         FcPatternDestroy(font);
     }
-
+    
     FcPatternDestroy(pat);
-
+    
     if(!result){
         char space[1024];
         String str = make_fixed_width_string(space);
@@ -48,16 +59,16 @@ linux_get_sys_font(char* name, i32 pt_size){
             result = strdup(name);
         }
     }
-
+    
     return result;
 }
 
 internal b32
 linux_font_load(Partition *part, Render_Font *rf, char *name, i32 pt_size, i32 tab_width, b32 use_hinting){
     b32 result = 0;
-
+    
     Temp_Memory temp = begin_temp_memory(part);
-
+    
 #if 0
     char* filename = linux_get_sys_font(name, pt_size);
 #else
@@ -67,22 +78,25 @@ linux_font_load(Partition *part, Render_Font *rf, char *name, i32 pt_size, i32 t
         sysshared_to_binary_path(&str, name);
     }
 #endif
-
+    
     if (filename != 0){
         struct stat st;
         if(stat(filename, &st) == -1 || S_ISDIR(st.st_mode)){
             char buff[1024];
-
+            
             // NOTE(inso): if/when you can load fonts from anywhere, the message should be changed.
             snprintf(buff, sizeof(buff), "Unable to load font '%s'. Make sure this file is in the same directory as the '4ed' executable.", filename);
             LinuxFatalErrorMsg(buff);
             exit(1);
         }
-
+        
         result = font_load_freetype(part, rf, filename, pt_size, tab_width, use_hinting);
     }
-
+    
     end_temp_memory(temp);
-
+    
     return(result);
 }
+
+// BOTTOM
+

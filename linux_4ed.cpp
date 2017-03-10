@@ -103,7 +103,6 @@
 #endif
 
 #define SUPPORT_DPI 1
-#define LINUX_FONTS 1
 
 #define InterlockedCompareExchange(dest, ex, comp) __sync_val_compare_and_swap((dest), (comp), (ex))
 
@@ -1359,27 +1358,14 @@ Font_Load_Sig(system_draw_font_load){
         linuxvars.font_part = sysshared_scratch_partition(MB(8));
     }
     
-    i32 oversample = 2;
-    
 #if SUPPORT_DPI
     pt_size = round32(pt_size * size_change(linuxvars.dpi_x, linuxvars.dpi_y));
 #endif
     
-    for(; attempts < 3; ++attempts){
-#if LINUX_FONTS
+    b32 success = false;
+    for (u32 R = 0; R < 3; ++R){
         success = linux_font_load(&linuxvars.font_part, font_out, filename, pt_size, tab_width,
                                   linuxvars.settings.use_hinting);
-#else
-        success = font_load(
-            &linuxvars.font_part,
-            font_out,
-            filename,
-            pt_size,
-            tab_width,
-            oversample,
-            store_texture
-            );
-#endif
         
         if(success){
             break;
@@ -1389,7 +1375,7 @@ Font_Load_Sig(system_draw_font_load){
         }
     }
     
-    return success;
+    return(success);
 }
 
 //
