@@ -10,8 +10,7 @@
 // TOP
 
 //
-// Standard implementation of file system stuff
-// based on the file track layer.
+// Standard implementation of file system stuff based on the file track layer.
 //
 
 struct Shared_Vars{
@@ -422,6 +421,8 @@ get_exact_render_quad(Glyph_Bounds *b, i32 pw, i32 ph, float xpos, float ypos){
 
 inline void
 private_draw_glyph(Render_Target *target, Render_Font *font, u32 character, f32 x, f32 y, u32 color){
+    
+#if 0
     Glyph_Data glyph = {0};
     if (get_codepoint_glyph_data(font, character, &glyph)){
         Render_Quad q = get_render_quad(&glyph.bounds, glyph.tex_width, glyph.tex_height, x, y);
@@ -437,10 +438,14 @@ private_draw_glyph(Render_Target *target, Render_Font *font, u32 character, f32 
         }
         glEnd();
     }
+#endif
+    
 }
 
 inline void
 private_draw_glyph_mono(Render_Target *target, Render_Font *font, u8 character, f32 x, f32 y, f32 advance, u32 color){
+    
+#if 0
     Glyph_Data glyph = {0};
     if (get_codepoint_glyph_data(font, character, &glyph)){
         f32 left = glyph.bounds.x0;
@@ -463,6 +468,8 @@ private_draw_glyph_mono(Render_Target *target, Render_Font *font, u8 character, 
         }
         glEnd();
     }
+#endif
+    
 }
 
 inline void
@@ -500,32 +507,38 @@ launch_rendering(Render_Target *target){
             
             case piece_type_glyph:
             {
+#if 0
                 Render_Piece_Glyph *glyph = ExtractStruct(Render_Piece_Glyph);
                 
                 Render_Font *font = get_font_info(&target->font_set, glyph->font_id)->font;
                 if (font){
                     private_draw_glyph(target, font, glyph->character, glyph->pos.x, glyph->pos.y, glyph->color);
                 }
+#endif
             }break;
             
             case piece_type_mono_glyph:
             {
+#if 0
                 Render_Piece_Glyph *glyph = ExtractStruct(Render_Piece_Glyph);
                 
                 Render_Font *font = get_font_info(&target->font_set, glyph->font_id)->font;
                 if (font){
                     private_draw_glyph_mono(target, font, glyph->character, glyph->pos.x, glyph->pos.y, glyph->color);
                 }
+#endif
             }break;
             
             case piece_type_mono_glyph_advance:
             {
+#if 0
                 Render_Piece_Glyph_Advance *glyph = ExtractStruct(Render_Piece_Glyph_Advance);
                 
                 Render_Font *font = get_font_info(&target->font_set, glyph->font_id)->font;
                 if (font){
                     private_draw_glyph_mono(target, font, glyph->character, glyph->pos.x, glyph->pos.y, glyph->advance, glyph->color);
                 }
+#endif
             }break;
             
             case piece_type_change_clip:
@@ -586,8 +599,11 @@ font_load_freetype_page_inner(Partition *part, Render_Font *font, FT_Library ft,
     
     // fill the texture
     u32 base_codepoint = (page_number << 8);
-    Glyph_Bounds *glyph_ptr = &page->glyphs[0];
-    f32 *advance_ptr = &page->advance[0];
+    Glyph_Bounds *glyphs = &page->glyphs[0];
+    Glyph_Bounds *glyph_ptr = glyphs;
+    
+    f32 *advances = &page->advance[0];
+    f32 *advance_ptr = advances;
     for(u32 i = 0; i < ITEM_PER_FONT_PAGE; ++i, ++glyph_ptr, ++advance_ptr){
         u32 codepoint = i + base_codepoint;
         
@@ -656,31 +672,14 @@ font_load_freetype_page_inner(Partition *part, Render_Font *font, FT_Library ft,
     
     // whitespace spacing stuff
     if (page_number == 0){
-        f32 space_adv = get_codepoint_advance(font, ' ');
-        f32 backslash_adv = get_codepoint_advance(font, '\\');
-        f32 r_adv = get_codepoint_advance(font, 'r');
+        f32 space_adv = advances[' '];
+        f32 backslash_adv = advances['\\'];
+        f32 r_adv = advances['r'];
         
-        set_codepoint_advance(font, '\n', space_adv);
-        set_codepoint_advance(font, '\r', backslash_adv + r_adv);
-        set_codepoint_advance(font, '\t', space_adv*tab_width);
+        advances['\n'] = space_adv;
+        advances['\r'] = backslash_adv + r_adv;
+        advances['\t'] = space_adv*tab_width;
     }
-}
-
-internal b32
-font_load_freetype_page(Partition *part, Render_Font *font, char *filename, i32 pt_size, b32 use_hinting, u32 page_number, i32 tab_width){
-    
-    // TODO(allen): Stop redoing all this init for each call.
-    FT_Library ft;
-    FT_Init_FreeType(&ft);
-    
-    FT_Face face;
-    FT_New_Face(ft, filename, 0, &face);
-    
-    Glyph_Page *page = font_get_or_make_page(font, page_number);
-    font_load_freetype_page_inner(part, font, ft, face, use_hinting, page_number, tab_width);
-    FT_Done_FreeType(ft);
-    
-    return(true);
 }
 
 internal b32
@@ -688,6 +687,7 @@ font_load_freetype(Partition *part, Render_Font *font, char *filename, i32 pt_si
     
     memset(font, 0, sizeof(*font));
     
+#if 0
     // TODO(allen): Stop redoing all this init for each call.
     FT_Library ft;
     FT_Init_FreeType(&ft);
@@ -734,10 +734,12 @@ font_load_freetype(Partition *part, Render_Font *font, char *filename, i32 pt_si
     font->byte_advance = backslash_adv + max_hex_advance*2;
     
     FT_Done_FreeType(ft);
+#endif
     
     return(true);
 }
 
+#if 0
 internal
 Release_Font_Sig(draw_release_font){
     for (u32 i = 0; i < ArrayCount(font->pages); ++i){
@@ -749,6 +751,7 @@ Release_Font_Sig(draw_release_font){
         FREE(font->pages);
     }
 }
+#endif
 
 // BOTTOM
 

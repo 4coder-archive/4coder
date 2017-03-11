@@ -1951,7 +1951,7 @@ file_set_min_base_width(Models *models, Editing_File *file, i32 minimum_base_dis
 internal void
 file_create_from_string(System_Functions *system, Models *models, Editing_File *file, String val, b8 read_only = 0){
     
-    Font_Set *font_set = models->font_set;
+    //Font_Set *font_set = models->font_set;
     General_Memory *general = &models->mem.general;
     Partition *part = &models->mem.part;
     Open_File_Hook_Function *hook_open_file = models->hook_open_file;
@@ -1986,9 +1986,10 @@ file_create_from_string(System_Functions *system, Models *models, Editing_File *
     file_allocate_character_starts_as_needed(general, file);
     buffer_measure_character_starts(&file->state.buffer, file->state.character_starts, 0, file->settings.virtual_white);
     
-    i16 font_id = models->global_font.font_id;
+    i16 font_id = models->global_font_id;
     file->settings.font_id = font_id;
-    Render_Font *font = get_font_info(font_set, font_id)->font;
+    //Render_Font *font = get_font_info(font_set, font_id)->font;
+    Render_Font *font = 0;
     
     file_measure_wraps(models, file, font);
     
@@ -2799,7 +2800,8 @@ file_view_nullify_file(View *view){
 
 internal void
 update_view_line_height(Models *models, View *view, i16 font_id){
-    Render_Font *font = get_font_info(models->font_set, font_id)->font;
+    //Render_Font *font = get_font_info(models->font_set, font_id)->font;
+    Render_Font *font = 0;
     view->line_height = font->height;
 }
 
@@ -3278,7 +3280,8 @@ file_do_single_edit(System_Functions *system, Models *models, Editing_File *file
     i32 new_line_count = buffer_count_newlines(&file->state.buffer, start, start+str_len);
     i32 line_shift =  new_line_count - replaced_line_count;
     
-    Render_Font *font = get_font_info(models->font_set, file->settings.font_id)->font;
+    //Render_Font *font = get_font_info(models->font_set, file->settings.font_id)->font;
+    Render_Font *font = 0;
     file_grow_starts_as_needed(general, buffer, line_shift);
     buffer_remeasure_starts(buffer, line_start, line_end, line_shift, shift_amount);
     
@@ -3404,7 +3407,8 @@ file_do_batch_edit(System_Functions *system, Models *models, Editing_File *file,
     file_allocate_character_starts_as_needed(&models->mem.general, file);
     buffer_measure_character_starts(&file->state.buffer, file->state.character_starts, 0, file->settings.virtual_white);
     
-    Render_Font *font = get_font_info(models->font_set, file->settings.font_id)->font;
+    //Render_Font *font = get_font_info(models->font_set, file->settings.font_id)->font;
+    Render_Font *font = 0;
     file_measure_wraps(models, file, font);
     
     // NOTE(allen): cursor fixing
@@ -3684,8 +3688,9 @@ style_get_color(Style *style, Cpp_Token token){
 internal void
 file_set_font(Models *models, Editing_File *file, i16 font_id){
     file->settings.font_id = font_id;
-    Font_Info *font_info = get_font_info(models->font_set, file->settings.font_id);
-    Render_Font *font = font_info->font;
+    //Font_Info *font_info = get_font_info(models->font_set, file->settings.font_id);
+    //Render_Font *font = font_info->font;
+    Render_Font *font = 0;
     file_measure_wraps_and_fix_cursor(models, file, font);
     
     Editing_Layout *layout = &models->layout;
@@ -3704,8 +3709,7 @@ global_set_font(Models *models, i16 font_id){
         Editing_File *file = (Editing_File*)node;
         file_set_font(models, file, font_id);
     }
-    
-    models->global_font.font_id = font_id;
+    models->global_font_id = font_id;
 }
 
 inline void
@@ -4738,7 +4742,7 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                         }
                         
                         message = make_lit_string("Set Global Font");
-                        id.id[0] = (u64)(&models->global_font);
+                        id.id[0] = (u64)(&models->global_font_id);
                         
                         if (gui_do_button(target, id, message)){
                             view->color_mode = CV_Mode_Global_Font;
@@ -4774,10 +4778,8 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                         {
                             Assert(view->file_data.file);
                             
-                            Font_Set *font_set = models->font_set;
-                            Font_Info *info = 0;
-                            
-                            i16 i = 1, count = (i16)models->font_set->count + 1;
+                            //Font_Set *font_set = models->font_set;
+                            //Font_Info *info = 0;
                             
                             String message = make_lit_string("Back");
                             
@@ -4786,18 +4788,18 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                                 view->color_mode = CV_Mode_Library;
                             }
                             
-                            i16 font_id = models->global_font.font_id;
+                            i16 font_id = models->global_font_id;
                             if (view->color_mode == CV_Mode_Font){
                                 font_id = view->file_data.file->settings.font_id;
                             }
                             
                             i16 new_font_id = font_id;
-                            
-                            for (i = 1; i < count; ++i){
-                                info = get_font_info(font_set, i);
+                            i16 count = 2;
+                            for (i16 i = 1; i < count; ++i){
+                                String font_name = {0};
                                 id.id[0] = (u64)i;
                                 if (i != font_id){
-                                    if (gui_do_font_button(target, id, i, info->name)){
+                                    if (gui_do_font_button(target, id, i, font_name)){
                                         new_font_id = i;
                                     }
                                 }
@@ -4805,7 +4807,7 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                                     char message_space[256];
                                     message = make_fixed_width_string(message_space);
                                     copy_ss(&message, make_lit_string("currently selected: "));
-                                    append_ss(&message, info->name);
+                                    append_ss(&message, font_name);
                                     gui_do_font_button(target, id, i, message);
                                 }
                             }
@@ -5939,7 +5941,8 @@ draw_file_loaded(View *view, i32_Rect rect, b32 is_active, Render_Target *target
     Buffer_Render_Item *items = push_array(part, Buffer_Render_Item, max);
     
     i16 font_id = file->settings.font_id;
-    Render_Font *font = get_font_info(models->font_set, font_id)->font;
+    //Render_Font *font = get_font_info(models->font_set, font_id)->font;
+    Render_Font *font = 0;
     
     f32 scroll_x = view->edit_pos->scroll.scroll_x;
     f32 scroll_y = view->edit_pos->scroll.scroll_y;
@@ -6181,18 +6184,20 @@ draw_text_with_cursor(Render_Target *target, View *view, i16 font_id, i32_Rect r
         draw_rectangle(target, rect, back_color);
         
         if (pos >= 0 && pos <  s.size){
-            String part1, part2, part3;
-            i32_Rect cursor_rect;
-            Render_Font *font = get_font_info(models->font_set, font_id)->font;
+            //Render_Font *font = get_font_info(models->font_set, font_id)->font;
+            Render_Font *font = 0; AllowLocal(font);
             
-            part1 = substr(s, 0, pos);
-            part2 = substr(s, pos, 1);
-            part3 = substr(s, pos+1, s.size-pos-1);
+            String part1 = substr(s, 0, pos);
+            String part2 = substr(s, pos, 1);
+            String part3 = substr(s, pos+1, s.size-pos-1);
             
             x = draw_string(target, font_id, part1, floor32(x), y, text_color);
             
+            //f32 adv = get_codepoint_advance(font, s.str[pos]);
+            f32 adv = 2.f;
+            i32_Rect cursor_rect;
             cursor_rect.x0 = floor32(x);
-            cursor_rect.x1 = floor32(x) + ceil32(get_codepoint_advance(font, s.str[pos]));
+            cursor_rect.x1 = floor32(x) + ceil32(adv);
             cursor_rect.y0 = y;
             cursor_rect.y1 = y + view->line_height;
             draw_rectangle(target, cursor_rect, cursor_color);
@@ -6400,10 +6405,12 @@ draw_button(GUI_Target *gui_target, Render_Target *target, View *view, i16 font_
 
 internal void
 draw_style_preview(GUI_Target *gui_target, Render_Target *target, View *view, i16 font_id, i32_Rect rect, GUI_id id, Style *style){
-    Models *models = view->persistent.models;
+    Models *models = view->persistent.models; AllowLocal(models);
     
     i32 active_level = gui_active_level(gui_target, id);
-    Font_Info *info = get_font_info(models->font_set, font_id);
+    //Font_Info *info = get_font_info(models->font_set, font_id);
+    String font_name = {0};
+    Render_Font *font = 0;
     
     i32_Rect inner = get_inner_rect(rect, 3);
     
@@ -6420,12 +6427,12 @@ draw_style_preview(GUI_Target *gui_target, Render_Target *target, View *view, i1
     i32 y = inner.y0;
     i32 x = inner.x0;
     x = ceil32(draw_string(target, font_id, style->name.str, x, y, text_color));
-    i32 font_x = (i32)(inner.x1 - font_string_width(target, font_id, info->name.str));
+    i32 font_x = (i32)(inner.x1 - font_string_width(target, font_id, font_name));
     if (font_x > x + 10){
-        draw_string(target, font_id, info->name.str, font_x, y, text_color);
+        draw_string(target, font_id, font_name, font_x, y, text_color);
     }
     
-    i32 height = info->font->height;
+    i32 height = font->height;
     x = inner.x0;
     y += height;
     x = ceil32(draw_string(target, font_id, "if", x, y, keyword_color));

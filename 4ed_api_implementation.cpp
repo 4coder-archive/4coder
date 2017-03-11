@@ -877,9 +877,10 @@ DOC_SEE(Buffer_Setting_ID)
                     new_value = 48;
                 }
                 if (new_value != file->settings.display_width){
-                    i16 font_id = file->settings.font_id;
-                    Font_Info *font_info = get_font_info(models->font_set, font_id);
-                    Render_Font *font = font_info->font;
+                    //i16 font_id = file->settings.font_id;
+                    //Font_Info *font_info = get_font_info(models->font_set, font_id);
+                    //Render_Font *font = font_info->font;
+                    Render_Font *font = 0;
                     file_set_width(models, file, new_value, font);
                 }
             }break;
@@ -891,8 +892,9 @@ DOC_SEE(Buffer_Setting_ID)
                     new_value = 0;
                 }
                 if (new_value != file->settings.minimum_base_display_width){
-                    i16 font_id = file->settings.font_id;
-                    Render_Font *font = get_font_info(models->font_set, font_id)->font;
+                    //i16 font_id = file->settings.font_id;
+                    //Render_Font *font = get_font_info(models->font_set, font_id)->font;
+                    Render_Font *font = 0;
                     file_set_min_base_width(models, file, new_value, font);
                 }
             }break;
@@ -977,8 +979,9 @@ DOC_SEE(Buffer_Setting_ID)
                 }
                 
                 if (full_remeasure){
-                    i16 font_id = file->settings.font_id;
-                    Render_Font *font = get_font_info(models->font_set, font_id)->font;
+                    //i16 font_id = file->settings.font_id;
+                    //Render_Font *font = get_font_info(models->font_set, font_id)->font;
+                    Render_Font *font = 0;
                     
                     file_allocate_character_starts_as_needed(&models->mem.general, file);
                     buffer_measure_character_starts(&file->state.buffer, file->state.character_starts, 0, file->settings.virtual_white);
@@ -2095,6 +2098,8 @@ DOC_PARAM(apply_to_all_files, If this is set all open files change to this font.
 durring the start hook because several files already exist at that time.)
 DOC(This call changes 4coder's default font to one of the built in fonts.)
 */{
+    
+#if 0
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     Font_Set *set = cmd->models->font_set;
     
@@ -2110,6 +2115,8 @@ DOC(This call changes 4coder's default font to one of the built in fonts.)
             global_font->font_id = font_id;
         }
     }
+#endif
+    
 }
 
 API_EXPORT void
@@ -2120,6 +2127,8 @@ DOC_PARAM(name, The name parameter specifies the name of the font to begin using
 DOC_PARAM(len, The len parameter specifies the length of the name string.)
 DOC(This call sets the display font of a particular buffer.)
 */{
+    
+#if 0
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     Models *models = cmd->models;
     Editing_File *file = imp_get_file(cmd, buffer);
@@ -2133,6 +2142,8 @@ DOC(This call sets the display font of a particular buffer.)
             file_set_font(models, file, font_id);
         }
     }
+#endif
+    
 }
 
 API_EXPORT bool32
@@ -2144,18 +2155,21 @@ DOC_PARAM(name_max, the capacity of name_out)
 DOC_RETURN(returns non-zero on success)
 */
 {
+    bool32 result = false;
+    
+#if 0
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     Models *models = cmd->models;
     Editing_File *file = imp_get_file(cmd, buffer);
     
-    bool32 result = 0;
     if (file){
         Font_Set *set = models->font_set;
         String name = make_string_cap(name_out, 0, name_max);
         if (font_set_get_name(set, file->settings.font_id, &name)){
-            result = name.size;
+            result = (name.size > 0);
         }
     }
+#endif
     
     return(result);
 }

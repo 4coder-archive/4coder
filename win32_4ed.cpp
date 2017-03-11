@@ -64,6 +64,7 @@
 #define GL_TEXTURE_MAX_LEVEL 0x813D
 
 #include "filetrack/4tech_file_track_win32.c"
+#include "font/4coder_font_data.h"
 #include "4ed_system_shared.h"
 
 #define SUPPORT_DPI 1
@@ -1402,6 +1403,7 @@ size_change(i32 dpi_x, i32 dpi_y){
     return(size_max);
 }
 
+#if 0
 internal
 Font_Load_Sig(font_load){
     if (win32vars.font_part.base == 0){
@@ -1427,6 +1429,7 @@ Font_Load_Sig(font_load){
     
     return(success);
 }
+#endif
 
 //
 // Linkage to Custom and Application
@@ -1507,8 +1510,10 @@ Win32LoadRenderCode(){
     win32vars.target.pop_clip = draw_pop_clip;
     win32vars.target.push_piece = draw_push_piece;
     
+#if 0
     win32vars.target.font_set.font_load = font_load;
     win32vars.target.font_set.release_font = draw_release_font;
+#endif
 }
 
 //

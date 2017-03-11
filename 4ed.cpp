@@ -634,7 +634,7 @@ app_hardcode_styles(Models *models){
     Style *style = styles + 1;
     
     i16 fonts = 1;
-    models->global_font.font_id = fonts + 0;
+    models->global_font_id = fonts + 0;
     
     /////////////////
     style_set_name(style, make_lit_string("4coder"));
@@ -1215,11 +1215,8 @@ App_Init_Sig(app_init){
     models->app_links.cmd_context = &vars->command_data;
     
     partition = &models->mem.part;
-    target->partition = partition;
     
     {
-        i32 i;
-        
         panel_max_count = models->layout.panel_max_count = MAX_VIEWS;
         divider_max_count = panel_max_count - 1;
         models->layout.panel_count = 0;
@@ -1231,7 +1228,7 @@ App_Init_Sig(app_init){
         dll_init_sentinel(&models->layout.used_sentinel);
         
         panel = panels;
-        for (i = 0; i < panel_max_count; ++i, ++panel){
+        for (i32 i = 0; i < panel_max_count; ++i, ++panel){
             dll_insert(&models->layout.free_sentinel, panel);
         }
         
@@ -1239,7 +1236,7 @@ App_Init_Sig(app_init){
         models->layout.dividers = dividers;
         
         div = dividers;
-        for (i = 0; i < divider_max_count-1; ++i, ++div){
+        for (i32 i = 0; i < divider_max_count-1; ++i, ++div){
             div->next = (div + 1);
         }
         div->next = 0;
@@ -1460,6 +1457,7 @@ App_Init_Sig(app_init){
         setup_ui_commands(&models->map_ui, &models->mem.part, global_map);
     }
     
+#if 0
     // NOTE(allen): font setup
     {
         models->font_set = &target->font_set;
@@ -1510,6 +1508,7 @@ App_Init_Sig(app_init){
             font_set_add(models->font_set, file_name, name, pt_size);
         }
     }
+#endif
     
     // NOTE(allen): file setup
     working_set_init(&models->working_set, partition, &vars->models.mem.general);
@@ -1659,7 +1658,6 @@ App_Step_Sig(app_step){
     
     App_Vars *vars = (App_Vars*)memory->vars_memory;
     Models *models = &vars->models;
-    target->partition = &models->mem.part;
     
     // NOTE(allen): OS clipboard event handling
     String clipboard = input->clipboard;

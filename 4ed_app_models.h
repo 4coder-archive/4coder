@@ -50,6 +50,8 @@ struct Models{
     Mem_Options mem;
     App_Settings settings;
     
+    i16 global_font_id;
+    
     Command_Map map_top;
     Command_Map map_file;
     Command_Map map_ui;
