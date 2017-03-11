@@ -67,24 +67,20 @@ tbl_name_compare(void *a, void *b, void *arg){
 
 internal void
 working_set_extend_memory(Working_Set *working_set, Editing_File *new_space, i16 number_of_files){
-    Buffer_Slot_ID id;
-    i16 i, high_part;
-    Editing_File *file_ptr;
-    File_Node *free_sentinel;
-    
     Assert(working_set->array_count < working_set->array_max);
     
-    high_part = working_set->array_count++;
+    i16 high_part = working_set->array_count++;
     working_set->file_arrays[high_part].files = new_space;
     working_set->file_arrays[high_part].size = number_of_files;
     
     working_set->file_max += number_of_files;
     
+    Buffer_Slot_ID id = {0};
     id.part[1] = high_part;
     
-    file_ptr = new_space;
-    free_sentinel = &working_set->free_sentinel;
-    for (i = 0; i < number_of_files; ++i, ++file_ptr){
+    Editing_File *file_ptr = new_space;
+    File_Node *free_sentinel = &working_set->free_sentinel;
+    for (i16 i = 0; i < number_of_files; ++i, ++file_ptr){
         id.part[0] = i;
         file_ptr->id = id;
         dll_insert(free_sentinel, &file_ptr->node);

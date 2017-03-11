@@ -113,7 +113,7 @@ font_predict_size(i32 pt_size){
 }
 
 internal void
-font_draw_glyph(Render_Target *target, i16 font_id, i32 type, u8 character, f32 x, f32 y, u32 color){
+font_draw_glyph(Render_Target *target, Font_ID font_id, i32 type, u8 character, f32 x, f32 y, u32 color){
     
 #if 0
     Render_Piece_Combined piece;
@@ -130,12 +130,12 @@ font_draw_glyph(Render_Target *target, i16 font_id, i32 type, u8 character, f32 
 }
 
 internal void
-font_draw_glyph(Render_Target *target, i16 font_id, u8 character, f32 x, f32 y, u32 color){
+font_draw_glyph(Render_Target *target, Font_ID font_id, u8 character, f32 x, f32 y, u32 color){
     font_draw_glyph(target, font_id, piece_type_glyph, character, x, y, color);
 }
 
 internal f32
-draw_string_base(Render_Target *target, i16 font_id, i32 type, String str_, i32 x_, i32 y_, u32 color){
+draw_string_base(Render_Target *target, Font_ID font_id, i32 type, String str_, i32 x_, i32 y_, u32 color){
     
     f32 x = 0;
     
@@ -202,39 +202,39 @@ draw_string_base(Render_Target *target, i16 font_id, i32 type, String str_, i32 
 }
 
 internal f32
-draw_string(Render_Target *target, i16 font_id, String str, i32 x, i32 y, u32 color){
+draw_string(Render_Target *target, Font_ID font_id, String str, i32 x, i32 y, u32 color){
     f32 w = draw_string_base(target, font_id, piece_type_glyph, str, x, y, color);
     return(w);
 }
 
 internal f32
-draw_string(Render_Target *target, i16 font_id, char *str, i32 x, i32 y, u32 color){
+draw_string(Render_Target *target, Font_ID font_id, char *str, i32 x, i32 y, u32 color){
     String string = make_string_slowly(str);
     f32 w = draw_string_base(target, font_id, piece_type_glyph, string, x, y, color);
     return(w);
 }
 
 internal f32
-draw_string_mono(Render_Target *target, i16 font_id, String str, i32 x, i32 y, f32 advance, u32 color){
+draw_string_mono(Render_Target *target, Font_ID font_id, String str, i32 x, i32 y, f32 advance, u32 color){
     f32 w = draw_string_base(target, font_id, piece_type_mono_glyph, str, x, y, color);
     return(w);
 }
 
 internal f32
-draw_string_mono(Render_Target *target, i16 font_id, char *str, i32 x, i32 y, f32 advance, u32 color){
+draw_string_mono(Render_Target *target, Font_ID font_id, char *str, i32 x, i32 y, f32 advance, u32 color){
     String string = make_string_slowly(str);
     f32 w = draw_string_base(target, font_id, piece_type_mono_glyph, string, x, y, color);
     return(w);
 }
 
 internal f32
-font_string_width(Render_Target *target, i16 font_id, String str){
+font_string_width(Render_Target *target, Font_ID font_id, String str){
     f32 w = draw_string_base(target, font_id, piece_type_glyph, str, 0, 0, 0);
     return(w);
 }
 
 internal f32
-font_string_width(Render_Target *target, i16 font_id, char *str){
+font_string_width(Render_Target *target, Font_ID font_id, char *str){
     String string = make_string_slowly(str);
     f32 w = draw_string_base(target, font_id, piece_type_glyph, string, 0, 0, 0);
     return(w);

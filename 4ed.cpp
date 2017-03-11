@@ -633,9 +633,6 @@ app_hardcode_styles(Models *models){
     Style *styles = models->styles.styles;
     Style *style = styles + 1;
     
-    i16 fonts = 1;
-    models->global_font_id = fonts + 0;
-    
     /////////////////
     style_set_name(style, make_lit_string("4coder"));
     
@@ -1528,6 +1525,7 @@ App_Init_Sig(app_init){
     }
     
     // NOTE(allen): style setup
+    models->global_font_id = 1;
     app_hardcode_styles(models);
     
     // NOTE(allen): init first panel

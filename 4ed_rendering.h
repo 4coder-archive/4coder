@@ -44,7 +44,7 @@ struct Render_Piece_Gradient{
 struct Render_Piece_Glyph{
     Vec2 pos;
     u32 color;
-    i16 font_id;
+    Font_ID font_id;
     u8 character;
 };
 
@@ -52,7 +52,7 @@ struct Render_Piece_Glyph_Advance{
     Vec2 pos;
     u32 color;
     f32 advance;
-    i16 font_id;
+    Font_ID font_id;
     u8 character;
 };
 

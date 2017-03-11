@@ -14,7 +14,7 @@
 struct Font_Table_Entry{
     u32 hash;
     String name;
-    i16 font_id;
+    Font_ID font_id;
 };
 
 struct Font_Info{
@@ -26,7 +26,7 @@ struct Font_Info{
 
 struct Font_Slot{
     Font_Slot *next, *prev;
-    i16 font_id;
+    Font_ID font_id;
     u8 padding[6];
 };
 global_const Font_Slot null_font_slot = {0};
@@ -56,12 +56,12 @@ struct Font_Set{
     Release_Font *release_font;
     
     b8 *font_used_flags;
-    i16 used_this_frame;
-    i16 live_max;
+    Font_ID used_this_frame;
+    Font_ID live_max;
 };
 
 inline Font_Info*
-get_font_info(Font_Set *set, i16 font_id){
+get_font_info(Font_Set *set, Font_ID font_id){
     Font_Info *result = set->info + font_id - 1;
     return(result);
 }
@@ -104,7 +104,7 @@ font__remove(Font_Slot *slot){
 }
 
 internal void
-font_set_init(Font_Set *set, Partition *partition, i32 max, i16 live_max){
+font_set_init(Font_Set *set, Partition *partition, i32 max, Font_ID live_max){
     partition_align(partition, 8);
     set->info = push_array(partition, Font_Info, max);
     partition_align(partition, 8);
@@ -139,7 +139,7 @@ font_set_can_add(Font_Set *set){
 }
 
 internal void
-font_set_add_hash(Font_Set *set, String name, i16 font_id){
+font_set_add_hash(Font_Set *set, String name, Font_ID font_id){
     Font_Table_Entry entry;
     entry.hash = font_hash(name);
     entry.name = name;
@@ -167,7 +167,7 @@ font_set_can_load(Font_Set *set){
 }
 
 internal void
-font_set_load(Font_Set *set, i16 font_id){
+font_set_load(Font_Set *set, Font_ID font_id){
     Font_Info *info = get_font_info(set, font_id);
     Font_Slot *slot = set->free_slots.next;
     Assert(slot != &set->free_slots);
@@ -185,7 +185,7 @@ font_set_evict_lru(Font_Set *set){
     Font_Slot *slot = set->used_slots.prev;
     Assert(slot != &set->used_slots);
     
-    i16 font_id = slot->font_id;
+    Font_ID font_id = slot->font_id;
     Font_Info *info = get_font_info(set, font_id);
     Assert(((Font_Slot*)info->font) - 1 == slot);
     
@@ -198,7 +198,7 @@ font_set_evict_lru(Font_Set *set){
 }
 
 internal void
-font_set_use(Font_Set *set, i16 font_id){
+font_set_use(Font_Set *set, Font_ID font_id){
     b8 already_used = set->font_used_flags[font_id-1];
     
     if (!already_used){
@@ -231,7 +231,7 @@ font_set_add(Font_Set *set, String filename, String name, i32 pt_size){
     b32 result = false;
     if (font_set_can_add(set)){
         Render_Font dummy_font = {0};
-        i16 font_id = (i16)(++set->count);
+        Font_ID font_id = (i16)(++set->count);
         Font_Info *info = get_font_info(set, font_id);
         info->filename = filename;
         info->name = name;
@@ -278,14 +278,14 @@ font_set_find_pos(Font_Set *set, String name, u32 *position){
 }
 
 internal b32
-font_set_get_name(Font_Set *set, i16 font_id, String *name){
+font_set_get_name(Font_Set *set, Font_ID font_id, String *name){
     Font_Info *info = get_font_info(set, font_id);
     b32 result = copy_checked_ss(name, info->name);
     return(result);
 }
 
 internal b32
-font_set_extract(Font_Set *set, String name, i16 *font_id){
+font_set_extract(Font_Set *set, String name, Font_ID *font_id){
     u32 position;
     b32 result = font_set_find_pos(set, name, &position);
     if (result){

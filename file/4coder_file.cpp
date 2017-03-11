@@ -95,13 +95,14 @@ struct Editing_File_Settings{
     i32 wrap_indicator;
     b32 dos_write_mode;
     b32 virtual_white;
-    i16 font_id;
+    Font_ID font_id;
     b8 unwrapped_lines;
     b8 tokens_exist;
     b8 is_initialized;
     b8 unimportant;
     b8 read_only;
     b8 never_kill;
+    u8 pad[2];
 };
 global_const Editing_File_Settings null_editing_file_settings = {0};
 

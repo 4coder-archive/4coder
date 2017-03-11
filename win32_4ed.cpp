@@ -54,6 +54,7 @@
 #include "4ed_math.h"
 
 #include "4ed_system.h"
+#include "font/4coder_font_data.h"
 #include "4ed_rendering.h"
 #include "4ed.h"
 
@@ -64,7 +65,6 @@
 #define GL_TEXTURE_MAX_LEVEL 0x813D
 
 #include "filetrack/4tech_file_track_win32.c"
-#include "font/4coder_font_data.h"
 #include "4ed_system_shared.h"
 
 #define SUPPORT_DPI 1
@@ -1883,7 +1883,7 @@ Win32Callback(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
         case WM_MOUSEWHEEL:
         {
             win32vars.got_useful_event = 1;
-            i16 rotation = GET_WHEEL_DELTA_WPARAM(wParam);
+            Font_ID rotation = GET_WHEEL_DELTA_WPARAM(wParam);
             if (rotation > 0){
                 win32vars.input_chunk.trans.mouse_wheel = 1;
             }

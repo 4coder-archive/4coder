@@ -1986,7 +1986,7 @@ file_create_from_string(System_Functions *system, Models *models, Editing_File *
     file_allocate_character_starts_as_needed(general, file);
     buffer_measure_character_starts(&file->state.buffer, file->state.character_starts, 0, file->settings.virtual_white);
     
-    i16 font_id = models->global_font_id;
+    Font_ID font_id = models->global_font_id;
     file->settings.font_id = font_id;
     //Render_Font *font = get_font_info(font_set, font_id)->font;
     Render_Font *font = 0;
@@ -2799,7 +2799,7 @@ file_view_nullify_file(View *view){
 }
 
 internal void
-update_view_line_height(Models *models, View *view, i16 font_id){
+update_view_line_height(Models *models, View *view, Font_ID font_id){
     //Render_Font *font = get_font_info(models->font_set, font_id)->font;
     Render_Font *font = 0;
     view->line_height = font->height;
@@ -3686,7 +3686,7 @@ style_get_color(Style *style, Cpp_Token token){
 }
 
 internal void
-file_set_font(Models *models, Editing_File *file, i16 font_id){
+file_set_font(Models *models, Editing_File *file, Font_ID font_id){
     file->settings.font_id = font_id;
     //Font_Info *font_info = get_font_info(models->font_set, file->settings.font_id);
     //Render_Font *font = font_info->font;
@@ -3702,7 +3702,7 @@ file_set_font(Models *models, Editing_File *file, i16 font_id){
 }
 
 internal void
-global_set_font(Models *models, i16 font_id){
+global_set_font(Models *models, Font_ID font_id){
     File_Node *node = 0;
     File_Node *sentinel = &models->working_set.used_sentinel;
     for (dll_items(node, sentinel)){
@@ -4150,17 +4150,13 @@ struct File_Bar{
     f32 pos_x, pos_y;
     f32 text_shift_x, text_shift_y;
     i32_Rect rect;
-    i16 font_id;
+    Font_ID font_id;
 };
 
 internal void
 intbar_draw_string(Render_Target *target, File_Bar *bar, String str, u32 char_color){
-    i16 font_id = bar->font_id;
-    draw_string(target, font_id, str,
-                (i32)(bar->pos_x + bar->text_shift_x),
-                (i32)(bar->pos_y + bar->text_shift_y),
-                char_color);
-    bar->pos_x += font_string_width(target, font_id, str);
+    draw_string(target, bar->font_id, str, (i32)(bar->pos_x + bar->text_shift_x), (i32)(bar->pos_y + bar->text_shift_y), char_color);
+    bar->pos_x += font_string_width(target, bar->font_id, str);
 }
 
 internal GUI_Scroll_Vars
@@ -4788,14 +4784,14 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                                 view->color_mode = CV_Mode_Library;
                             }
                             
-                            i16 font_id = models->global_font_id;
+                            Font_ID font_id = models->global_font_id;
                             if (view->color_mode == CV_Mode_Font){
                                 font_id = view->file_data.file->settings.font_id;
                             }
                             
-                            i16 new_font_id = font_id;
-                            i16 count = 2;
-                            for (i16 i = 1; i < count; ++i){
+                            Font_ID new_font_id = font_id;
+                            Font_ID count = 2;
+                            for (Font_ID i = 1; i < count; ++i){
                                 String font_name = {0};
                                 id.id[0] = (u64)i;
                                 if (i != font_id){
@@ -5940,7 +5936,7 @@ draw_file_loaded(View *view, i32_Rect rect, b32 is_active, Render_Target *target
     i32 max = partition_remaining(part) / sizeof(Buffer_Render_Item);
     Buffer_Render_Item *items = push_array(part, Buffer_Render_Item, max);
     
-    i16 font_id = file->settings.font_id;
+    Font_ID font_id = file->settings.font_id;
     //Render_Font *font = get_font_info(models->font_set, font_id)->font;
     Render_Font *font = 0;
     
@@ -6148,8 +6144,7 @@ draw_file_loaded(View *view, i32_Rect rect, b32 is_active, Render_Target *target
 }
 
 internal void
-draw_text_field(Render_Target *target, View *view, i16 font_id,
-                i32_Rect rect, String p, String t){
+draw_text_field(Render_Target *target, View *view, Font_ID font_id, i32_Rect rect, String p, String t){
     Models *models = view->persistent.models;
     Style *style = main_style(models);
     
@@ -6168,7 +6163,7 @@ draw_text_field(Render_Target *target, View *view, i16 font_id,
 }
 
 internal void
-draw_text_with_cursor(Render_Target *target, View *view, i16 font_id, i32_Rect rect, String s, i32 pos){
+draw_text_with_cursor(Render_Target *target, View *view, Font_ID font_id, i32_Rect rect, String s, i32 pos){
     Models *models = view->persistent.models;
     Style *style = main_style(models);
     
@@ -6307,8 +6302,7 @@ get_margin_color(i32 active_level, Style *style){
 }
 
 internal void
-draw_color_button(GUI_Target *gui_target, Render_Target *target, View *view,
-                  i16 font_id, i32_Rect rect, GUI_id id, u32 fore, u32 back, String text){
+draw_color_button(GUI_Target *gui_target, Render_Target *target, View *view, Font_ID font_id, i32_Rect rect, GUI_id id, u32 fore, u32 back, String text){
     i32 active_level = gui_active_level(gui_target, id);
     
     if (active_level > 0){
@@ -6320,8 +6314,7 @@ draw_color_button(GUI_Target *gui_target, Render_Target *target, View *view,
 }
 
 internal void
-draw_font_button(GUI_Target *gui_target, Render_Target *target, View *view,
-                 i32_Rect rect, GUI_id id, i16 font_id, String text){
+draw_font_button(GUI_Target *gui_target, Render_Target *target, View *view, i32_Rect rect, GUI_id id, Font_ID font_id, String text){
     Models *models = view->persistent.models;
     Style *style = main_style(models);
     
@@ -6337,8 +6330,7 @@ draw_font_button(GUI_Target *gui_target, Render_Target *target, View *view,
 }
 
 internal void
-draw_fat_option_block(GUI_Target *gui_target, Render_Target *target, View *view,
-                      i16 font_id, i32_Rect rect, GUI_id id,
+draw_fat_option_block(GUI_Target *gui_target, Render_Target *target, View *view, Font_ID font_id, i32_Rect rect, GUI_id id,
                       String text, String pop, i8 checkbox = -1){
     Models *models = view->persistent.models;
     Style *style = main_style(models);
@@ -6379,7 +6371,7 @@ draw_fat_option_block(GUI_Target *gui_target, Render_Target *target, View *view,
 }
 
 internal void
-draw_button(GUI_Target *gui_target, Render_Target *target, View *view, i16 font_id, i32_Rect rect, GUI_id id, String text){
+draw_button(GUI_Target *gui_target, Render_Target *target, View *view, Font_ID font_id, i32_Rect rect, GUI_id id, String text){
     Models *models = view->persistent.models;
     Style *style = main_style(models);
     
@@ -6404,7 +6396,7 @@ draw_button(GUI_Target *gui_target, Render_Target *target, View *view, i16 font_
 }
 
 internal void
-draw_style_preview(GUI_Target *gui_target, Render_Target *target, View *view, i16 font_id, i32_Rect rect, GUI_id id, Style *style){
+draw_style_preview(GUI_Target *gui_target, Render_Target *target, View *view, Font_ID font_id, i32_Rect rect, GUI_id id, Style *style){
     Models *models = view->persistent.models; AllowLocal(models);
     
     i32 active_level = gui_active_level(gui_target, id);
@@ -6463,11 +6455,10 @@ do_render_file_view(System_Functions *system, View *view, GUI_Scroll_Vars *scrol
     
     f32 v = {0};
     i32 max_y = view_compute_max_target_y(view);
-    i16 font_id = 0;
     
     Assert(file != 0);
     
-    font_id = file->settings.font_id;
+    Font_ID font_id = file->settings.font_id;
     if (gui_target->push.pos > 0){
         gui_session_init(&gui_session, gui_target, rect, view->line_height);
         
@@ -6533,7 +6524,7 @@ do_render_file_view(System_Functions *system, View *view, GUI_Scroll_Vars *scrol
                     {
                         GUI_Interactive *b = (GUI_Interactive*)h;
                         void *ptr = (b + 1);
-                        i16 font_id = (i16)gui_read_integer(&ptr);
+                        Font_ID font_id = (Font_ID)gui_read_integer(&ptr);
                         String t = gui_read_string(&ptr);
                         
                         draw_font_button(gui_target, target, view, gui_session.rect, b->id, font_id, t);

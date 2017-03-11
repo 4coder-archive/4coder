@@ -33,6 +33,7 @@
 # include "4ed_debug_mem.h"
 #endif
 
+#include "font/4coder_font_data.h"
 #include "4ed_rendering.h"
 #include "4ed.h"
 

@@ -12,6 +12,8 @@
 #if !defined(FCODER_FONT_DATA_H)
 #define FCODER_FONT_DATA_H
 
+typedef u32 Font_ID;
+
 #define ITEM_PER_FONT_PAGE 256
 
 struct Glyph_Bounds{

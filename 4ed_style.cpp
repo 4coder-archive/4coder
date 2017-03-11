@@ -10,7 +10,7 @@
 // TOP
 
 struct Style_Font{
-    i16 font_id;
+    Font_ID font_id;
 };
 
 struct Style{
