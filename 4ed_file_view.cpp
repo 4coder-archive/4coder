@@ -391,6 +391,7 @@ view_compute_cursor(System_Functions *system, View *view, Buffer_Seek seek, b32 
     Buffer_Cursor_Seek_Params params;
     params.buffer           = &file->state.buffer;
     params.seek             = seek;
+    params.system           = system;
     params.font             = font;
     params.wrap_line_index  = file->state.wrap_line_index;
     params.character_starts = file->state.character_starts;
@@ -951,7 +952,7 @@ file_allocate_character_starts_as_needed(General_Memory *general, Editing_File *
 internal void
 file_measure_character_starts(System_Functions *system, Models *models, Editing_File *file){
     file_allocate_character_starts_as_needed(&models->mem.general, file);
-    buffer_measure_character_starts(&file->state.buffer, file->state.character_starts, 0, file->settings.virtual_white);
+    buffer_measure_character_starts(system, font, &file->state.buffer, file->state.character_starts, 0, file->settings.virtual_white);
     file_update_cursor_positions(system, models, file);
 }
 
@@ -1132,7 +1133,7 @@ wrap_state_consume_token(Code_Wrap_State *state, i32 fixed_end_point){
             
             u8 ch = (u8)state->stream.data[i];
             
-            translating_fully_process_byte(&state->tran, ch, i, state->size, &state->emits);
+            translating_fully_process_byte(system, font, &state->tran, ch, i, state->size, &state->emits);
             
             for (TRANSLATION_OUTPUT(state->J, state->emits)){
                 TRANSLATION_GET_STEP(state->step, state->behavior, state->J, state->emits);
@@ -1452,7 +1453,7 @@ get_current_shift(Code_Wrap_State *wrap_state, i32 next_line_start, b32 *adjust_
 }
 
 internal void
-file_measure_wraps(Models *models, Editing_File *file, Render_Font *font){
+file_measure_wraps(System_Functions *system, Models *models, Editing_File *file, Render_Font *font){
     General_Memory *general = &models->mem.general;
     Partition *part = &models->mem.part;
     
@@ -1465,6 +1466,7 @@ file_measure_wraps(Models *models, Editing_File *file, Render_Font *font){
     Buffer_Measure_Wrap_Params params;
     params.buffer          = &file->state.buffer;
     params.wrap_line_index = file->state.wrap_line_index;
+    params.system          = system;
     params.font            = font;
     params.virtual_white   = file->settings.virtual_white;
     
@@ -5977,6 +5979,7 @@ draw_file_loaded(System_Functions *system, View *view, i32_Rect rect, b32 is_act
         params.height        = (f32)max_y;
         params.start_cursor  = render_cursor;
         params.wrapped       = wrapped;
+        params.system        = system;
         params.font          = font;
         params.virtual_white = file->settings.virtual_white;
         params.wrap_slashes  = file->settings.wrap_indicator;

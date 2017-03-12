@@ -46,6 +46,8 @@ internal i32 font_get_descent(Render_Font *font);
 internal i32 font_get_line_skip(Render_Font *font);
 internal i32 font_get_advance(Render_Font *font);
 
+internal b32 font_can_render(struct System_Functions *system, Render_Font *font, u32 codepoint);
+
 #endif
 
 // BOTTOM
