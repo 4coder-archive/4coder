@@ -1005,8 +1005,8 @@ struct Code_Wrap_State{
     f32 tab_indent_amount;
     f32 byte_advance;
     
-    Buffer_Translating_State tran;
-    Buffer_Translating_Emits emits;
+    Translation_State tran;
+    Translation_Emits emits;
     u32 J;
     Buffer_Model_Step step;
     Buffer_Model_Behavior behavior;
