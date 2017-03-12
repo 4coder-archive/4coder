@@ -9,6 +9,9 @@
 
 // TOP
 
+#if !defined(FCODER_SYSTEM_SHARED_CPP)
+#define FCODER_SYSTEM_SHARED_CPP
+
 #include "font/4coder_font_data.h"
 
 //
@@ -728,7 +731,7 @@ font_load(System_Functions *system, Partition *part, Render_Font *font, char *fi
     
     // NOTE(allen): set texture and glyph data.
     Glyph_Page *page = font_get_or_make_page(system, font, 0);
-    font_load_freetype_page_inner(part, font, ft, face, use_hinting, page, 0, tab_width);
+    font_load_page_inner(part, font, ft, face, use_hinting, page, 0, tab_width);
     
     // NOTE(allen): Setup some basic spacing stuff.
     f32 backslash_adv = page->advance['\\'];
@@ -752,6 +755,8 @@ font_load(System_Functions *system, Partition *part, Render_Font *font, char *fi
     
     return(true);
 }
+
+#endif
 
 // BOTTOM
 
