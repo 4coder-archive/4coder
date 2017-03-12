@@ -15,6 +15,7 @@
 typedef u32 Font_ID;
 
 struct Render_Font;
+struct Glyph_Page;
 
 #define Sys_Font_Get_Count_Sig(name_) u32 (name_)(void)
 typedef Sys_Font_Get_Count_Sig(Font_Get_Count_Function);
@@ -31,12 +32,21 @@ typedef Sys_Font_Get_Name_By_ID_Sig(Font_Get_Name_By_ID_Function);
 #define Sys_Font_Get_Render_Data_By_ID_Sig(name_) Render_Font* (name_)(u32 font_id)
 typedef Sys_Font_Get_Render_Data_By_ID_Sig(Font_Get_Render_Data_By_ID_Function);
 
+#define Sys_Font_Allocate_Sig(name_) void* (name_)(umem size)
+typedef Sys_Font_Allocate_Sig(Font_Allocate_Function);
+
+#define Sys_Font_Free_Sig(name_) void (name_)(void *ptr)
+typedef Sys_Font_Free_Sig(Font_Free_Function);
+
 struct Font_Functions{
     Font_Get_Count_Function *get_count;
     Font_Get_IDs_By_Index_Function *get_ids_by_index;
     Font_Get_Name_By_Index_Function *get_name_by_index;
     Font_Get_Name_By_ID_Function *get_name_by_id;
     Font_Get_Render_Data_By_ID_Function *get_render_data_by_id;
+    
+    Font_Allocate_Function *allocate;
+    Font_Free_Function *free;
 };
 
 internal f32 font_get_byte_advance(Render_Font *font);
@@ -47,6 +57,8 @@ internal i32 font_get_line_skip(Render_Font *font);
 internal i32 font_get_advance(Render_Font *font);
 
 internal b32 font_can_render(struct System_Functions *system, Render_Font *font, u32 codepoint);
+
+internal Glyph_Page *font_get_or_make_page(struct System_Functions *system, Render_Font *font, u32 page_number);
 
 #endif
 

@@ -1391,45 +1391,6 @@ Sys_Send_Exit_Signal_Sig(system_send_exit_signal){
 
 #include "4ed_system_shared.cpp"
 
-#include "win32_ft_font.cpp"
-
-internal f32
-size_change(i32 dpi_x, i32 dpi_y){
-    // TODO(allen): We're just hoping dpi_x == dpi_y for now I guess.
-    f32 size_x = dpi_x / 96.f;
-    f32 size_y = dpi_y / 96.f;
-    f32 size_max = Max(size_x, size_y);
-    return(size_max);
-}
-
-#if 0
-internal
-Font_Load_Sig(font_load){
-    if (win32vars.font_part.base == 0){
-        win32vars.font_part = Win32ScratchPartition(MB(8));
-    }
-    
-#if SUPPORT_DPI
-    pt_size = round32(pt_size * size_change(win32vars.dpi_x, win32vars.dpi_y));
-#endif
-    
-    // TODO(allen): Make the growable partition something that can just be passed directly to font load and let it be grown there.
-    b32 success = false;
-    for (u32 R = 0; R < 3; ++R){
-        success = win32_ft_font_load(&win32vars.font_part, font_out, filename, pt_size, tab_width,win32vars.settings.use_hinting);
-        
-        if (success){
-            break;
-        }
-        else{
-            Win32ScratchPartitionDouble(&win32vars.font_part);
-        }
-    }
-    
-    return(success);
-}
-#endif
-
 //
 // Linkage to Custom and Application
 //

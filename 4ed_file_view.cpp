@@ -952,6 +952,7 @@ file_allocate_character_starts_as_needed(General_Memory *general, Editing_File *
 internal void
 file_measure_character_starts(System_Functions *system, Models *models, Editing_File *file){
     file_allocate_character_starts_as_needed(&models->mem.general, file);
+    Render_Font *font = system->font.get_render_data_by_id(file->settings.font_id);
     buffer_measure_character_starts(system, font, &file->state.buffer, file->state.character_starts, 0, file->settings.virtual_white);
     file_update_cursor_positions(system, models, file);
 }
@@ -1067,7 +1068,7 @@ struct Code_Wrap_Step{
 };
 
 internal Code_Wrap_Step
-wrap_state_consume_token(Code_Wrap_State *state, i32 fixed_end_point){
+wrap_state_consume_token(System_Functions *system, Render_Font *font, Code_Wrap_State *state, i32 fixed_end_point){
     Code_Wrap_Step result = {0};
     i32 i = state->i;
     
@@ -1132,7 +1133,6 @@ wrap_state_consume_token(Code_Wrap_State *state, i32 fixed_end_point){
             }
             
             u8 ch = (u8)state->stream.data[i];
-            
             translating_fully_process_byte(system, font, &state->tran, ch, i, state->size, &state->emits);
             
             for (TRANSLATION_OUTPUT(state->J, state->emits)){
@@ -1737,7 +1737,7 @@ file_measure_wraps(System_Functions *system, Models *models, Editing_File *file,
                             }
                             
                             if (!emit_comment_position){
-                                step = wrap_state_consume_token(&wrap_state, next_line_start-1);
+                                step = wrap_state_consume_token(system, font, &wrap_state, next_line_start-1);
                             }
                             
                             b32 need_to_choose_a_wrap = 0;
@@ -1855,7 +1855,7 @@ file_measure_wraps(System_Functions *system, Models *models, Editing_File *file,
                                     
                                     wrap_state = original_wrap_state;
                                     for (;;){
-                                        step = wrap_state_consume_token(&wrap_state, wrap_position);
+                                        step = wrap_state_consume_token(system, font, &wrap_state, wrap_position);
                                         if (step.position_end >= wrap_position){
                                             break;
                                         }
@@ -1881,7 +1881,7 @@ file_measure_wraps(System_Functions *system, Models *models, Editing_File *file,
                         ++real_count;
                         
                         for (i32 l = 0; wrap_state.i < next_line_start && l < 3; ++l){
-                            wrap_state_consume_token(&wrap_state, next_line_start);
+                            wrap_state_consume_token(system, font, &wrap_state, next_line_start);
                         }
                     }
                     
@@ -1925,7 +1925,7 @@ file_measure_wraps(System_Functions *system, Models *models, Editing_File *file,
 
 internal void
 file_measure_wraps_and_fix_cursor(System_Functions *system, Models *models, Editing_File *file, Render_Font *font){
-    file_measure_wraps(models, file, font);
+    file_measure_wraps(system, models, file, font);
     file_update_cursor_positions(system, models, file);
 }
 
@@ -1976,19 +1976,16 @@ file_create_from_string(System_Functions *system, Models *models, Editing_File *
     }
     file_synchronize_times(system, file);
     
-    // TODO(allen): batch some of these together so we can avoid
-    // making so many passes over the buffer?
+    Font_ID font_id = models->global_font_id;
+    file->settings.font_id = font_id;
+    Render_Font *font = 0;
+    
     file_measure_starts(general, &file->state.buffer);
     
     file_allocate_character_starts_as_needed(general, file);
-    buffer_measure_character_starts(&file->state.buffer, file->state.character_starts, 0, file->settings.virtual_white);
+    buffer_measure_character_starts(system, font, &file->state.buffer, file->state.character_starts, 0, file->settings.virtual_white);
     
-    Font_ID font_id = models->global_font_id;
-    file->settings.font_id = font_id;
-    //Render_Font *font = get_font_info(font_set, font_id)->font;
-    Render_Font *font = 0;
-    
-    file_measure_wraps(models, file, font);
+    file_measure_wraps(system, models, file, font);
     
     file->settings.read_only = read_only;
     if (!read_only){
@@ -3282,7 +3279,7 @@ file_do_single_edit(System_Functions *system, Models *models, Editing_File *file
     buffer_remeasure_starts(buffer, line_start, line_end, line_shift, shift_amount);
     
     file_allocate_character_starts_as_needed(general, file);
-    buffer_remeasure_character_starts(buffer, line_start, line_end, line_shift, file->state.character_starts, 0, file->settings.virtual_white);
+    buffer_remeasure_character_starts(system, font, buffer, line_start, line_end, line_shift, file->state.character_starts, 0, file->settings.virtual_white);
     
     // TODO(allen): Redo this as some sort of dialogical API
 #if 0
@@ -3290,7 +3287,7 @@ file_do_single_edit(System_Functions *system, Models *models, Editing_File *file
     buffer_remeasure_wrap_y(buffer, line_start, line_end, line_shift, file->state.wraps, (f32)font->height, font->advance_data, (f32)file->settings.display_width);
 #endif
     
-    file_measure_wraps(models, file, font);
+    file_measure_wraps(system, models, file, font);
     
     // NOTE(allen): cursor fixing
     Cursor_Fix_Descriptor desc = {0};
@@ -3399,13 +3396,14 @@ file_do_batch_edit(System_Functions *system, Models *models, Editing_File *file,
     Buffer_Measure_Starts measure_state = {};
     buffer_measure_starts(&measure_state, &file->state.buffer);
     
-    // TODO(allen): write the remeasurement version
-    file_allocate_character_starts_as_needed(&models->mem.general, file);
-    buffer_measure_character_starts(&file->state.buffer, file->state.character_starts, 0, file->settings.virtual_white);
-    
     //Render_Font *font = get_font_info(models->font_set, file->settings.font_id)->font;
     Render_Font *font = 0;
-    file_measure_wraps(models, file, font);
+    
+    // TODO(allen): write the remeasurement version
+    file_allocate_character_starts_as_needed(&models->mem.general, file);
+    buffer_measure_character_starts(system, font, &file->state.buffer, file->state.character_starts, 0, file->settings.virtual_white);
+    
+    file_measure_wraps(system, models, file, font);
     
     // NOTE(allen): cursor fixing
     Cursor_Fix_Descriptor desc = {0};

@@ -876,10 +876,7 @@ DOC_SEE(Buffer_Setting_ID)
                     new_value = 48;
                 }
                 if (new_value != file->settings.display_width){
-                    //i16 font_id = file->settings.font_id;
-                    //Font_Info *font_info = get_font_info(models->font_set, font_id);
-                    //Render_Font *font = font_info->font;
-                    Render_Font *font = 0;
+                    Render_Font *font = system->font.get_render_data_by_id(file->settings.font_id);
                     file_set_width(system, models, file, new_value, font);
                 }
             }break;
@@ -891,9 +888,7 @@ DOC_SEE(Buffer_Setting_ID)
                     new_value = 0;
                 }
                 if (new_value != file->settings.minimum_base_display_width){
-                    //i16 font_id = file->settings.font_id;
-                    //Render_Font *font = get_font_info(models->font_set, font_id)->font;
-                    Render_Font *font = 0;
+                    Render_Font *font = system->font.get_render_data_by_id(file->settings.font_id);
                     file_set_min_base_width(system, models, file, new_value, font);
                 }
             }break;
@@ -978,13 +973,11 @@ DOC_SEE(Buffer_Setting_ID)
                 }
                 
                 if (full_remeasure){
-                    //i16 font_id = file->settings.font_id;
-                    //Render_Font *font = get_font_info(models->font_set, font_id)->font;
-                    Render_Font *font = 0;
+                    Render_Font *font = system->font.get_render_data_by_id(file->settings.font_id);
                     
                     file_allocate_character_starts_as_needed(&models->mem.general, file);
-                    buffer_measure_character_starts(&file->state.buffer, file->state.character_starts, 0, file->settings.virtual_white);
-                    file_measure_wraps(models, file, font);
+                    buffer_measure_character_starts(system, font, &file->state.buffer, file->state.character_starts, 0, file->settings.virtual_white);
+                    file_measure_wraps(system, models, file, font);
                     file_update_cursor_positions(system, models, file);
                 }
             }break;

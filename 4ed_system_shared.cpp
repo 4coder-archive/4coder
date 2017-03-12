@@ -560,12 +560,10 @@ launch_rendering(Render_Target *target){
 #define internal static
 
 internal void
-font_load_freetype_page_inner(Partition *part, Render_Font *font, FT_Library ft, FT_Face face, b32 use_hinting, Layout_Page *layout_page, u32 page_number, i32 tab_width){
+font_load_page_inner(Partition *part, Render_Font *font, FT_Library ft, FT_Face face, b32 use_hinting, Glyph_Page *page, u32 page_number, i32 tab_width){
     Temp_Memory temp = begin_temp_memory(part);
-    Assert(layout_page != 0);
-    layout_page->page_number = page_number;
-    
-    Glyph_Page *glyph_page = (Glyph_Page*)(layout_page + 1);
+    Assert(page != 0);
+    page->page_number = page_number;
     
     // prepare to read glyphs into a temporary texture buffer
     i32 max_glyph_w = face->size->metrics.x_ppem;
@@ -600,10 +598,10 @@ font_load_freetype_page_inner(Partition *part, Render_Font *font, FT_Library ft,
     
     // fill the texture
     u32 base_codepoint = (page_number << 8);
-    Glyph_Bounds *glyphs = &glyph_page->glyphs[0];
+    Glyph_Bounds *glyphs = &page->glyphs[0];
     Glyph_Bounds *glyph_ptr = glyphs;
     
-    f32 *advances = &layout_page->advance[0];
+    f32 *advances = &page->advance[0];
     f32 *advance_ptr = advances;
     for(u32 i = 0; i < ITEM_PER_FONT_PAGE; ++i, ++glyph_ptr, ++advance_ptr){
         u32 codepoint = i + base_codepoint;
@@ -652,12 +650,11 @@ font_load_freetype_page_inner(Partition *part, Render_Font *font, FT_Library ft,
     // upload texture
     tex_height = round_up_pot_u32(pen_y + max_glyph_h + 2);
     
-    glyph_page->tex_width  = tex_width;
-    glyph_page->tex_height = tex_height;
+    page->tex_width  = tex_width;
+    page->tex_height = tex_height;
     
-    u32 tex;
-    glGenTextures(1, &tex);
-    glBindTexture(GL_TEXTURE_2D, tex);
+    glGenTextures(1, &page->tex);
+    glBindTexture(GL_TEXTURE_2D, page->tex);
     
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
@@ -668,7 +665,6 @@ font_load_freetype_page_inner(Partition *part, Render_Font *font, FT_Library ft,
     glTexImage2D(GL_TEXTURE_2D, 0, GL_ALPHA, tex_width, tex_height, 0, GL_ALPHA, GL_UNSIGNED_INT, pixels);
     
     glBindTexture(GL_TEXTURE_2D, 0);
-    glyph_page->tex = tex;
     
     end_temp_memory(temp);
     
@@ -685,11 +681,29 @@ font_load_freetype_page_inner(Partition *part, Render_Font *font, FT_Library ft,
 }
 
 internal b32
-font_load_freetype(Partition *part, Render_Font *font, char *filename, i32 pt_size, i32 tab_width, b32 use_hinting){
+font_load_page(System_Functions *system, Partition *part, Render_Font *font, char *filename, i32 pt_size, i32 tab_width, b32 use_hinting, u32 page_number){
+    
+    // TODO(allen): Stop redoing all this init for each call.
+    FT_Library ft;
+    FT_Init_FreeType(&ft);
+    
+    FT_Face face;
+    FT_New_Face(ft, filename, 0, &face);
+    
+    // NOTE(allen): set texture and glyph data.
+    Glyph_Page *page = font_get_or_make_page(system, font, page_number);
+    font_load_page_inner(part, font, ft, face, use_hinting, page, page_number, tab_width);
+    
+    FT_Done_FreeType(ft);
+    
+    return(true);
+}
+
+internal b32
+font_load(System_Functions *system, Partition *part, Render_Font *font, char *filename, i32 pt_size, i32 tab_width, b32 use_hinting){
     
     memset(font, 0, sizeof(*font));
     
-#if 0
     // TODO(allen): Stop redoing all this init for each call.
     FT_Library ft;
     FT_Init_FreeType(&ft);
@@ -703,7 +717,6 @@ font_load_freetype(Partition *part, Render_Font *font, char *filename, i32 pt_si
     size.height = pt_size << 6;
     FT_Request_Size(face, &size);
     
-    font->loaded    = true;
     font->ascent    = ceil32  (face->size->metrics.ascender    / 64.0f);
     font->descent   = floor32 (face->size->metrics.descender   / 64.0f);
     font->advance   = ceil32  (face->size->metrics.max_advance / 64.0f);
@@ -714,46 +727,31 @@ font_load_freetype(Partition *part, Render_Font *font, char *filename, i32 pt_si
     font->line_skip = 0;
     
     // NOTE(allen): set texture and glyph data.
-    Glyph_Page *page = font_get_or_make_page(font, 0);
+    Glyph_Page *page = font_get_or_make_page(system, font, 0);
     font_load_freetype_page_inner(part, font, ft, face, use_hinting, page, 0, tab_width);
     
     // NOTE(allen): Setup some basic spacing stuff.
-    f32 backslash_adv = get_codepoint_advance(font, '\\');
+    f32 backslash_adv = page->advance['\\'];
     f32 max_hex_advance = 0.f;
     for (u32 i = '0'; i <= '9'; ++i){
-        f32 adv = get_codepoint_advance(font,  i);
+        f32 adv = page->advance[i];
         max_hex_advance = Max(max_hex_advance, adv);
     }
     for (u32 i = 'a'; i <= 'f'; ++i){
-        f32 adv = get_codepoint_advance(font,  i);
+        f32 adv = page->advance[i];
         max_hex_advance = Max(max_hex_advance, adv);
     }
     for (u32 i = 'A'; i <= 'F'; ++i){
-        f32 adv = get_codepoint_advance(font,  i);
+        f32 adv = page->advance[i];
         max_hex_advance = Max(max_hex_advance, adv);
     }
     
     font->byte_advance = backslash_adv + max_hex_advance*2;
     
     FT_Done_FreeType(ft);
-#endif
     
     return(true);
 }
-
-#if 0
-internal
-Release_Font_Sig(draw_release_font){
-    for (u32 i = 0; i < ArrayCount(font->pages); ++i){
-        Glyph_Page *page = font->pages[i];
-        if (IS_REAL_FONT_PAGE(page)){
-            glDeleteTextures(1, &page->tex);
-            FREE(page);
-        }
-        FREE(font->pages);
-    }
-}
-#endif
 
 // BOTTOM
 
