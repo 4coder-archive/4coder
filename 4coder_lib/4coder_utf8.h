@@ -40,6 +40,15 @@ typedef int32_t b32_4tech;
 #endif
 // standard preamble end 
 
+static b32_4tech
+codepoint_is_whitespace(u32_4tech codepoint){
+    b32_4tech result = false;
+    if (codepoint == ' ' || codepoint == '\r' || codepoint == '\n' || codepoint == '\t'){
+        result = true;
+    }
+    return(result);
+}
+
 static u32_4tech
 utf8_to_u32_length_unchecked(u8_4tech *buffer, u32_4tech *length_out){
     u32_4tech result = 0;

@@ -12,9 +12,19 @@
 #if !defined(FCODER_FONT_DATA_H)
 #define FCODER_FONT_DATA_H
 
-typedef u32 Font_ID;
-
 #define ITEM_PER_FONT_PAGE 256
+
+struct Layout_Page{
+    u32 page_number;
+    f32 advance[ITEM_PER_FONT_PAGE];
+};
+
+struct Render_Font{
+    Layout_Page **_layout_pages;
+    u32 page_count, page_max;
+    f32 byte_advance;
+    i32 height, ascent, descent, line_skip, advance;
+};
 
 struct Glyph_Bounds{
     f32 x0, x1;
@@ -31,24 +41,9 @@ struct Glyph_Data{
 };
 
 struct Glyph_Page{
-    u32 page_number;
     u32 tex;
     i32 tex_width, tex_height;
     Glyph_Bounds glyphs[ITEM_PER_FONT_PAGE];
-    f32 advance[ITEM_PER_FONT_PAGE];
-};
-
-struct Render_Font{
-    char name_[24];
-    String name;
-    b32 loaded;
-    
-    Glyph_Page **pages;
-    u32 page_count, page_max;
-    
-    f32 byte_advance;
-    i32 height, ascent, descent, line_skip;
-    i32 advance;
 };
 
 #endif

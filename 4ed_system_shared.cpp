@@ -9,6 +9,8 @@
 
 // TOP
 
+#include "font/4coder_font_data.h"
+
 //
 // Standard implementation of file system stuff based on the file track layer.
 //
@@ -181,8 +183,7 @@ internal void
 sysshared_partition_grow(Partition *part, i32 new_size){
     void *data = 0;
     if (new_size > part->max){
-        // TODO(allen): attempt to grow in place by just
-        // acquiring next vpages?!
+        // TODO(allen): attempt to grow in place by just acquiring next vpages?!
         data = system_get_memory(new_size);
         memcpy(data, part->base, part->pos);
         system_free_memory(part->base);
@@ -420,8 +421,7 @@ get_exact_render_quad(Glyph_Bounds *b, i32 pw, i32 ph, float xpos, float ypos){
 }
 
 inline void
-private_draw_glyph(Render_Target *target, Render_Font *font, u32 character, f32 x, f32 y, u32 color){
-    
+private_draw_glyph(Render_Target *target, Render_Font *font, u32 codepoint, f32 x, f32 y, u32 color){
 #if 0
     Glyph_Data glyph = {0};
     if (get_codepoint_glyph_data(font, character, &glyph)){
@@ -439,12 +439,10 @@ private_draw_glyph(Render_Target *target, Render_Font *font, u32 character, f32 
         glEnd();
     }
 #endif
-    
 }
 
 inline void
-private_draw_glyph_mono(Render_Target *target, Render_Font *font, u8 character, f32 x, f32 y, f32 advance, u32 color){
-    
+private_draw_glyph_mono(Render_Target *target, Render_Font *font, u32 codepoint, f32 x, f32 y, f32 advance, u32 color){
 #if 0
     Glyph_Data glyph = {0};
     if (get_codepoint_glyph_data(font, character, &glyph)){
@@ -473,8 +471,9 @@ private_draw_glyph_mono(Render_Target *target, Render_Font *font, u8 character, 
 }
 
 inline void
-private_draw_glyph_mono(Render_Target *target, Render_Font *font, u8 character, f32 x, f32 y, u32 color){
-    private_draw_glyph_mono(target, font, character, x, y, (f32)font->advance, color);
+private_draw_glyph_mono(Render_Target *target, Render_Font *font, u32 character, f32 x, f32 y, u32 color){
+    f32 advance = (f32)font_get_advance(font);
+    private_draw_glyph_mono(target, font, character, x, y, advance, color);
 }
 
 internal void
@@ -561,14 +560,16 @@ launch_rendering(Render_Target *target){
 #define internal static
 
 internal void
-font_load_freetype_page_inner(Partition *part, Render_Font *font, FT_Library ft, FT_Face face, b32 use_hinting, Glyph_Page *page, u32 page_number, i32 tab_width){
+font_load_freetype_page_inner(Partition *part, Render_Font *font, FT_Library ft, FT_Face face, b32 use_hinting, Layout_Page *layout_page, u32 page_number, i32 tab_width){
     Temp_Memory temp = begin_temp_memory(part);
-    Assert(page != 0);
-    page->page_number = page_number;
+    Assert(layout_page != 0);
+    layout_page->page_number = page_number;
+    
+    Glyph_Page *glyph_page = (Glyph_Page*)(layout_page + 1);
     
     // prepare to read glyphs into a temporary texture buffer
     i32 max_glyph_w = face->size->metrics.x_ppem;
-    i32 max_glyph_h = font->height;
+    i32 max_glyph_h = font_get_height(font);
     i32 tex_width   = 64;
     i32 tex_height  = 0;
     
@@ -599,10 +600,10 @@ font_load_freetype_page_inner(Partition *part, Render_Font *font, FT_Library ft,
     
     // fill the texture
     u32 base_codepoint = (page_number << 8);
-    Glyph_Bounds *glyphs = &page->glyphs[0];
+    Glyph_Bounds *glyphs = &glyph_page->glyphs[0];
     Glyph_Bounds *glyph_ptr = glyphs;
     
-    f32 *advances = &page->advance[0];
+    f32 *advances = &layout_page->advance[0];
     f32 *advance_ptr = advances;
     for(u32 i = 0; i < ITEM_PER_FONT_PAGE; ++i, ++glyph_ptr, ++advance_ptr){
         u32 codepoint = i + base_codepoint;
@@ -610,6 +611,8 @@ font_load_freetype_page_inner(Partition *part, Render_Font *font, FT_Library ft,
         if(FT_Load_Char(face, codepoint, ft_flags) == 0){
             i32 w = face->glyph->bitmap.width;
             i32 h = face->glyph->bitmap.rows;
+            
+            i32 ascent = font_get_ascent(font);
             
             // move to next line if necessary
             if(pen_x + w >= tex_width){
@@ -624,7 +627,7 @@ font_load_freetype_page_inner(Partition *part, Render_Font *font, FT_Library ft,
             glyph_ptr->y1 = (f32)(pen_y + h + 1);
             
             glyph_ptr->xoff = (f32)(face->glyph->bitmap_left);
-            glyph_ptr->yoff = (f32)(font->ascent - face->glyph->bitmap_top);
+            glyph_ptr->yoff = (f32)(ascent - face->glyph->bitmap_top);
             glyph_ptr->xoff2 = glyph_ptr->xoff + w;
             glyph_ptr->yoff2 = glyph_ptr->yoff + h + 1;
             
@@ -649,8 +652,8 @@ font_load_freetype_page_inner(Partition *part, Render_Font *font, FT_Library ft,
     // upload texture
     tex_height = round_up_pot_u32(pen_y + max_glyph_h + 2);
     
-    page->tex_width  = tex_width;
-    page->tex_height = tex_height;
+    glyph_page->tex_width  = tex_width;
+    glyph_page->tex_height = tex_height;
     
     u32 tex;
     glGenTextures(1, &tex);
@@ -665,8 +668,7 @@ font_load_freetype_page_inner(Partition *part, Render_Font *font, FT_Library ft,
     glTexImage2D(GL_TEXTURE_2D, 0, GL_ALPHA, tex_width, tex_height, 0, GL_ALPHA, GL_UNSIGNED_INT, pixels);
     
     glBindTexture(GL_TEXTURE_2D, 0);
-    page->tex = tex;
-    page->page_number = page_number;
+    glyph_page->tex = tex;
     
     end_temp_memory(temp);
     

@@ -33,7 +33,6 @@
 # include "4ed_debug_mem.h"
 #endif
 
-#include "font/4coder_font_data.h"
 #include "4ed_rendering.h"
 #include "4ed.h"
 
@@ -61,6 +60,8 @@
 #include "4ed_app_models.h"
 #include "4ed_file_view.cpp"
 #include "4ed.cpp"
+
+#include "font/4coder_font_static_functions.cpp"
 
 // BOTTOM
 

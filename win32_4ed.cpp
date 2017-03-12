@@ -54,7 +54,6 @@
 #include "4ed_math.h"
 
 #include "4ed_system.h"
-#include "font/4coder_font_data.h"
 #include "4ed_rendering.h"
 #include "4ed.h"
 
@@ -2514,13 +2513,15 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
     return(0);
 }
 
+#include "font/4coder_font_static_functions.cpp"
+
 #if 0
 // NOTE(allen): In case I want to switch back to a console
 // application at some point.
 int main(int argc, char **argv){
     HINSTANCE hInstance = GetModuleHandle(0);
+}
 #endif
-    
-    // BOTTOM
-    
-    
+
+// BOTTOM
+

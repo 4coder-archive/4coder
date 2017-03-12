@@ -9,15 +9,21 @@
 
 // TOP
 
+#if !defined(FCODER_SYSTEM_INTERFACE_H)
+#define FCODER_SYSTEM_INTERFACE_H
+
+#include "font/4coder_font_interface.h"
+
+// types
 struct Plat_Handle{
     u32 d[4];
 };
 
 static Plat_Handle null_plat_handle = {0};
 
-inline int32_t
+inline b32
 handle_equal(Plat_Handle a, Plat_Handle b){
-    int32_t result = (memcmp(&a, &b, sizeof(a)) == 0);
+    b32 result = (memcmp(&a, &b, sizeof(a)) == 0);
     return(result);
 }
 
@@ -233,6 +239,8 @@ typedef Sys_Send_Exit_Signal_Sig(System_Send_Exit_Signal);
 typedef INTERNAL_Sys_Get_Thread_States_Sig(INTERNAL_System_Get_Thread_States);
 
 struct System_Functions{
+    Font_Functions font;
+    
     // files (tracked api): 10
     System_Set_File_List *set_file_list;
     System_Get_Canonical *get_canonical;
@@ -286,6 +294,8 @@ struct System_Functions{
     // debug: 1
     INTERNAL_System_Get_Thread_States *internal_get_thread_states;
 };
+
+#endif
 
 // BOTTOM
 

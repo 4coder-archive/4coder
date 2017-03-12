@@ -45,7 +45,7 @@ struct Render_Piece_Glyph{
     Vec2 pos;
     u32 color;
     Font_ID font_id;
-    u8 character;
+    u32 codepoint;
 };
 
 struct Render_Piece_Glyph_Advance{
@@ -53,7 +53,7 @@ struct Render_Piece_Glyph_Advance{
     u32 color;
     f32 advance;
     Font_ID font_id;
-    u8 character;
+    u32 codepoint;
 };
 
 struct Render_Piece_Change_Clip{

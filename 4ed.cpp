@@ -235,7 +235,7 @@ do_feedback_message(System_Functions *system, Models *models, String value, b32 
         for (View_Iter iter = file_view_iter_init(&models->layout, file, 0);
              file_view_iter_good(iter);
              iter = file_view_iter_next(iter)){
-            view_cursor_move(iter.view, pos);
+            view_cursor_move(system, iter.view, pos);
         }
     }
 }
@@ -274,7 +274,7 @@ panel_make_empty(System_Functions *system, App_Vars *vars, Panel *panel){
     
     Assert(panel->view == 0);
     new_view = live_set_alloc_view(&vars->live_set, panel, models);
-    view_set_file(new_view.view, models->scratch_buffer, models);
+    view_set_file(system, new_view.view, models->scratch_buffer, models);
     new_view.view->map = get_map(models, mapid_file);
     
     return(new_view.view);
@@ -362,16 +362,15 @@ COMMAND_DECL(reopen){
                     init_normal_file(system, models, file, buffer, size);
                     
                     for (i32 i = 0; i < vptr_count; ++i){
-                        view_set_file(vptrs[i], file, models);
+                        view_set_file(system, vptrs[i], file, models);
                         
                         int32_t line = line_number[i];
                         int32_t character = column_number[i];
                         
                         *vptrs[i]->edit_pos = edit_poss[i];
-                        Full_Cursor cursor = view_compute_cursor(vptrs[i], seek_line_char(line, character), 0);
+                        Full_Cursor cursor = view_compute_cursor(system, vptrs[i], seek_line_char(line, character), 0);
                         
-                        view_set_cursor(vptrs[i], cursor, true,
-                                        file->settings.unwrapped_lines);
+                        view_set_cursor(vptrs[i], cursor, true, file->settings.unwrapped_lines);
                     }
                 }
                 else{
@@ -449,12 +448,11 @@ COMMAND_DECL(toggle_line_wrap){
     if (file->settings.unwrapped_lines){
         file->settings.unwrapped_lines = 0;
         view->edit_pos->scroll.target_x = 0;
-        view_cursor_move(view, view->edit_pos->cursor.pos);
     }
     else{
         file->settings.unwrapped_lines = 1;
-        view_cursor_move(view, view->edit_pos->cursor.pos);
     }
+    view_cursor_move(system, view, view->edit_pos->cursor.pos);
     view_set_relative_scrolling(view, scrolling);
 }
 
@@ -520,7 +518,7 @@ COMMAND_DECL(open_menu){
 COMMAND_DECL(open_debug){
     USE_VIEW(view);
     view_show_GUI(view, VUI_Debug);
-    view->debug_vars = debug_vars_zero();
+    view->debug_vars = null_debug_vars;
 }
 
 COMMAND_DECL(user_callback){
@@ -1616,8 +1614,7 @@ update_cli_handle_without_file(System_Functions *system, Models *models,
 }
 
 internal i32
-update_cli_handle_with_file(System_Functions *system, Models *models,
-                            CLI_Handles *cli, Editing_File *file, char *dest, i32 max, b32 cursor_at_end){
+update_cli_handle_with_file(System_Functions *system, Models *models, CLI_Handles *cli, Editing_File *file, char *dest, i32 max, b32 cursor_at_end){
     i32 result = 0;
     u32 amount = 0;
     
@@ -1642,7 +1639,7 @@ update_cli_handle_with_file(System_Functions *system, Models *models,
         for (View_Iter iter = file_view_iter_init(&models->layout, file, 0);
              file_view_iter_good(iter);
              iter = file_view_iter_next(iter)){
-            view_cursor_move(iter.view, new_cursor);
+            view_cursor_move(system, iter.view, new_cursor);
         }
     }
     
@@ -1947,7 +1944,7 @@ App_Step_Sig(app_step){
         }
         
         if (i < models->layout.panel_count){
-            view_set_file(panel->view, models->message_buffer, models);
+            view_set_file(system, panel->view, models->message_buffer, models);
             view_show_file(panel->view);
             ++i;
             panel = panel->next;
@@ -2262,7 +2259,7 @@ App_Step_Sig(app_step){
                 
                 if (!gui_scroll_eq(scroll_vars, &ip_result.vars)){
                     if (file_scroll){
-                        view_set_scroll(view, ip_result.vars);
+                        view_set_scroll(system, view, ip_result.vars);
                     }
                     else{
                         *scroll_vars = ip_result.vars;

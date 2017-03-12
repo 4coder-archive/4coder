@@ -113,25 +113,20 @@ font_predict_size(i32 pt_size){
 }
 
 internal void
-font_draw_glyph(Render_Target *target, Font_ID font_id, i32 type, u8 character, f32 x, f32 y, u32 color){
-    
-#if 0
+font_draw_glyph(Render_Target *target, Font_ID font_id, i32 type, u32 codepoint, f32 x, f32 y, u32 color){
     Render_Piece_Combined piece;
     piece.header.type = type;
     piece.glyph.pos.x = x;
     piece.glyph.pos.y = y;
     piece.glyph.color = color;
     piece.glyph.font_id = font_id;
-    piece.glyph.character = character;
+    piece.glyph.codepoint = codepoint;
     target->push_piece(target, piece);
-    font_set_use(&target->font_set, font_id);
-#endif
-    
 }
 
 internal void
-font_draw_glyph(Render_Target *target, Font_ID font_id, u8 character, f32 x, f32 y, u32 color){
-    font_draw_glyph(target, font_id, piece_type_glyph, character, x, y, color);
+font_draw_glyph(Render_Target *target, Font_ID font_id, u32 codepoint, f32 x, f32 y, u32 color){
+    font_draw_glyph(target, font_id, piece_type_glyph, codepoint, x, y, color);
 }
 
 internal f32
