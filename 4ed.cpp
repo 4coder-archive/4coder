@@ -962,7 +962,6 @@ enum Command_Line_Action{
     CLAct_WindowStreamMode,
     CLAct_FontSize,
     CLAct_FontStartHinting,
-    CLAct_FontCustom,
     CLAct_Count
 };
 
@@ -1009,8 +1008,6 @@ init_command_line_settings(App_Settings *settings, Plat_Settings *plat_settings,
                             switch (arg[1]){
                                 case 'u': action = CLAct_UserFile; strict = 0;          break;
                                 case 'U': action = CLAct_UserFile; strict = 1;          break;
-                                
-                                case 'c': action = CLAct_FontCustom;                    break;
                                 
                                 case 'd': action = CLAct_CustomDLL; strict = 0;         break;
                                 case 'D': action = CLAct_CustomDLL; strict = 1;         break;
@@ -1115,16 +1112,6 @@ init_command_line_settings(App_Settings *settings, Plat_Settings *plat_settings,
                         action = CLAct_Nothing;
                     }break;
                     
-                    case CLAct_FontCustom:
-                    {
-                        if ((i + 3) <= clparams.argc){
-                            settings->custom_font_file = clparams.argv[i++];
-                            settings->custom_font_name = clparams.argv[i++];
-                            settings->custom_font_size = str_to_int_c(clparams.argv[i]);
-                        }
-                        action = CLAct_Nothing;
-                    }break;
-                    
                     case CLAct_FontStartHinting:
                     {
                         plat_settings->use_hinting = 1;
@@ -1157,8 +1144,6 @@ app_setup_memory(System_Functions *system, Application_Memory *memory){
     
     return(vars);
 }
-
-static App_Settings null_app_settings = {0};
 
 App_Read_Command_Line_Sig(app_read_command_line){
     i32 out_size = 0;
@@ -1451,59 +1436,6 @@ App_Init_Sig(app_init){
         
         setup_ui_commands(&models->map_ui, &models->mem.part, global_map);
     }
-    
-#if 0
-    // NOTE(allen): font setup
-    {
-        models->font_set = &target->font_set;
-        
-        struct Font_Setup{
-            char *c_file_name;
-            i32 file_name_len;
-            char *c_name;
-            i32 name_len;
-            i32 pt_size;
-        };
-        
-        i32 font_size = models->settings.font_size;
-        
-        char *custom_font_file = models->settings.custom_font_file;
-        char *custom_font_name = models->settings.custom_font_name;
-        i32 custom_font_size = models->settings.custom_font_size;
-        b32 use_custom_font = true;
-        if (custom_font_file == 0){
-            use_custom_font = false;
-            custom_font_file = "";
-            custom_font_name = "";
-        }
-        
-        font_size = clamp_bottom(8, font_size);
-        
-        Font_Setup font_setup[] = {
-            {literal("LiberationSans-Regular.ttf"), literal("Liberation Sans"), font_size},
-            {literal("liberation-mono.ttf"), literal("Liberation Mono"), font_size},
-            {literal("Hack-Regular.ttf"), literal("Hack"), font_size},
-            {literal("CutiveMono-Regular.ttf"), literal("Cutive Mono"), font_size},
-            {literal("Inconsolata-Regular.ttf"), literal("Inconsolata"), font_size},
-            {custom_font_file, str_size(custom_font_file),
-                custom_font_name, str_size(custom_font_name),
-                custom_font_size},
-        };
-        i32 font_count = ArrayCount(font_setup);
-        if (!use_custom_font){
-            --font_count;
-        }
-        
-        font_set_init(models->font_set, partition, 16, 6);
-        
-        for (i32 i = 0; i < font_count; ++i){
-            String file_name = make_string(font_setup[i].c_file_name, font_setup[i].file_name_len);
-            String name = make_string(font_setup[i].c_name, font_setup[i].name_len);
-            i32 pt_size = font_setup[i].pt_size;
-            font_set_add(models->font_set, file_name, name, pt_size);
-        }
-    }
-#endif
     
     // NOTE(allen): file setup
     working_set_init(&models->working_set, partition, &vars->models.mem.general);

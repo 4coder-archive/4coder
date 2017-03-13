@@ -184,10 +184,8 @@ typedef struct Win32_Vars{
     b32 next_clipboard_is_self;
     DWORD clipboard_sequence;
     
-    
     HWND window_handle;
     Render_Target target;
-    Partition font_part;
 #if SUPPORT_DPI
     i32 dpi_x, dpi_y;
 #endif
@@ -332,9 +330,7 @@ Sys_Release_Lock_Sig(system_release_lock){
 
 internal void
 system_wait_cv(i32 crit_id, i32 cv_id){
-    SleepConditionVariableCS(win32vars.condition_vars + cv_id,
-                             win32vars.locks + crit_id,
-                             INFINITE);
+    SleepConditionVariableCS(win32vars.condition_vars + cv_id, win32vars.locks + crit_id, INFINITE);
 }
 
 internal void
@@ -371,9 +367,7 @@ JobThreadProc(LPVOID lpParameter){
             // wrapping by the queue wrap.  That was super stupid what was that?
             // Now it just wraps by the queue wrap.
             u32 next_read_index = (read_index + 1) % QUEUE_WRAP;
-            u32 safe_read_index =
-                InterlockedCompareExchange(&queue->read_position,
-                                           next_read_index, read_index);
+            u32 safe_read_index = InterlockedCompareExchange(&queue->read_position, next_read_index, read_index);
             
             if (safe_read_index == read_index){
                 Full_Job_Data *full_job = queue->jobs + safe_read_index;
@@ -381,16 +375,13 @@ JobThreadProc(LPVOID lpParameter){
                 // with the cancel job routine, which may try to cancel this job
                 // at the same time that we try to run it
                 
-                i32 safe_running_thread =
-                    InterlockedCompareExchange(&full_job->running_thread,
-                                               thread->id, THREAD_NOT_ASSIGNED);
+                i32 safe_running_thread =InterlockedCompareExchange(&full_job->running_thread, thread->id, THREAD_NOT_ASSIGNED);
                 
                 if (safe_running_thread == THREAD_NOT_ASSIGNED){
                     thread->job_id = full_job->id;
                     thread->running = 1;
                     
-                    full_job->job.callback(&win32vars.system,
-                                           thread, thread_memory, full_job->job.data);
+                    full_job->job.callback(&win32vars.system, thread, thread_memory, full_job->job.data);
                     PostMessage(win32vars.window_handle, WM_4coder_ANIMATE, 0, 0);
                     //full_job->running_thread = 0;
                     thread->running = 0;
@@ -1391,6 +1382,8 @@ Sys_Send_Exit_Signal_Sig(system_send_exit_signal){
 
 #include "4ed_system_shared.cpp"
 
+#include "win32_4ed_fonts.cpp"
+
 //
 // Linkage to Custom and Application
 //
@@ -1458,7 +1451,6 @@ Win32LoadSystemCode(){
     win32vars.system.is_fullscreen = system_is_fullscreen;win32vars.system.show_mouse_cursor = system_show_mouse_cursor;
     win32vars.system.send_exit_signal = system_send_exit_signal;
     
-    
 #if FRED_INTERNAL
     win32vars.system.internal_get_thread_states = INTERNAL_get_thread_states;
 #endif
@@ -1469,11 +1461,6 @@ Win32LoadRenderCode(){
     win32vars.target.push_clip = draw_push_clip;
     win32vars.target.pop_clip = draw_pop_clip;
     win32vars.target.push_piece = draw_push_piece;
-    
-#if 0
-    win32vars.target.font_set.font_load = font_load;
-    win32vars.target.font_set.release_font = draw_release_font;
-#endif
 }
 
 //
@@ -1518,7 +1505,7 @@ Win32KeycodeInit(){
 
 internal void
 Win32RedrawScreen(HDC hdc){
-    launch_rendering(&win32vars.target);
+    launch_rendering(&win32vars.system, &win32vars.target);
     glFlush();
     SwapBuffers(hdc);
 }
@@ -2034,10 +2021,9 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
     win32vars.target.max = MB(1);
     win32vars.target.push_buffer = (char*)system_get_memory(win32vars.target.max);
     
-    if (!memory_vars.vars_memory || !memory_vars.target_memory || !memory_vars.user_memory || !win32vars.target.push_buffer){
+    if (memory_vars.vars_memory == 0 || memory_vars.target_memory == 0 || memory_vars.user_memory == 0 || win32vars.target.push_buffer == 0){
         exit(1);
     }
-    
     
     //
     // System and Application Layer Linkage
@@ -2048,16 +2034,13 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
     }
     
     Win32LoadSystemCode();
-    
     Win32LoadRenderCode();
-    
     
     //
     // Shared Systems Init
     //
     
     init_shared_vars();
-    
     
     //
     // Read Command Line
@@ -2081,7 +2064,6 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
     win32vars.app.read_command_line(&win32vars.system, &memory_vars, current_directory, &win32vars.settings, &files, &file_count, clparams);
     
     sysshared_filter_real_files(files, file_count);
-    
     
     //
     // Custom Layer Linkage
@@ -2192,6 +2174,11 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
     Win32InitGL();
     Win32Resize(window_rect.right - window_rect.left, window_rect.bottom - window_rect.top);
     
+    //
+    // Font System Init
+    //
+    
+    system_font_init(&win32vars.system.font, 0, 0, 16, true);
     
     //
     // Misc System Initializations

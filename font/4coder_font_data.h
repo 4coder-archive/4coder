@@ -38,12 +38,13 @@ struct Render_Font{
     Glyph_Page **pages;
     u32 page_count, page_max;
     f32 byte_advance;
+    f32 byte_sub_advances[3];
     i32 height, ascent, descent, line_skip, advance;
     
-    char filename[256];
-    char name[256];
     u32 filename_len;
     u32 name_len;
+    char filename[256];
+    char name[256];
 };
 
 struct Glyph_Data{
@@ -55,5 +56,4 @@ struct Glyph_Data{
 #endif
 
 // BOTTOM
-
 

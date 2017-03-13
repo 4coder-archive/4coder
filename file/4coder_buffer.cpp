@@ -922,17 +922,12 @@ buffer_measure_wrap_y(Buffer_Measure_Wrap_State *S_ptr, Buffer_Measure_Wrap_Para
                     }
                     else if (S.behavior.do_number_advance || S.behavior.do_codepoint_advance){
                         if (!S.skipping_whitespace){
-                            
-                            S.current_adv = 2.f;
-                            
-#if 0
                             if (S.behavior.do_codepoint_advance){
-                                S.current_adv = get_codepoint_advance(params.font, S.tran.step_current.value);
+                                S.current_adv = font_get_glyph_advance(params.system, params.font, S.step.value);
                             }
                             else{
-                                S.current_adv = params.font->byte_advance;
+                                S.current_adv = font_get_byte_advance(params.font);
                             }
-#endif
                             
                             S.did_wrap = false;
                             if (S.i >= S.wrap_unit_end){
@@ -1438,9 +1433,7 @@ buffer_cursor_seek(Buffer_Cursor_Seek_State *S_ptr, Buffer_Cursor_Seek_Params pa
         switch (params.seek.type){
             case buffer_seek_pos:
             {
-                if (params.seek.pos > S.size){
-                    params.seek.pos = S.size;
-                }
+                params.seek.pos = clamp(0, params.seek.pos, S.size);
                 
                 line_index = buffer_get_line_index(params.buffer, params.seek.pos);
             }break;
@@ -1449,34 +1442,21 @@ buffer_cursor_seek(Buffer_Cursor_Seek_State *S_ptr, Buffer_Cursor_Seek_Params pa
             {
                 i32 line_count = params.buffer->line_count;
                 i32 max_character = params.character_starts[line_count] - 1;
-                if (params.seek.pos > max_character){
-                    params.seek.pos = max_character;
-                }
+                params.seek.pos = clamp(0, params.seek.pos, max_character);
                 
-                line_index = buffer_get_line_index_from_character_pos(params.character_starts, params.seek.pos,
-                                                                      0, params.buffer->line_count);
+                line_index = buffer_get_line_index_from_character_pos(params.character_starts, params.seek.pos, 0, params.buffer->line_count);
             }break;
             
             case buffer_seek_line_char:
             {
                 line_index = params.seek.line - 1;
-                if (line_index >= params.buffer->line_count){
-                    line_index = params.buffer->line_count - 1;
-                }
-                if (line_index < 0){
-                    line_index = 0;
-                }
+                line_index = clamp_bottom(0, line_index);
             }break;
             
             case buffer_seek_unwrapped_xy:
             {
                 line_index = (i32)(params.seek.y / S.font_height);
-                if (line_index >= params.buffer->line_count){
-                    line_index = params.buffer->line_count - 1;
-                }
-                if (line_index < 0){
-                    line_index = 0;
-                }
+                line_index = clamp_bottom(0, line_index);
             }break;
             
             case buffer_seek_wrapped_xy:
@@ -1487,15 +1467,20 @@ buffer_cursor_seek(Buffer_Cursor_Seek_State *S_ptr, Buffer_Cursor_Seek_Params pa
             default: InvalidCodePath;
         }
         
+        i32 safe_line_index = line_index;
+        if (line_index >= params.buffer->line_count){
+            safe_line_index = params.buffer->line_count-1;
+        }
+        
         // Build the cursor hint
-        S.next_cursor.pos = params.buffer->line_starts[line_index];
-        S.next_cursor.character_pos = params.character_starts[line_index];
+        S.next_cursor.pos = params.buffer->line_starts[safe_line_index];
+        S.next_cursor.character_pos = params.character_starts[safe_line_index];
         S.next_cursor.line = line_index + 1;
         S.next_cursor.character = 1;
-        S.next_cursor.wrap_line = params.wrap_line_index[line_index] + 1;
-        S.next_cursor.unwrapped_y = (f32)(line_index * S.font_height);
+        S.next_cursor.wrap_line = params.wrap_line_index[safe_line_index] + 1;
+        S.next_cursor.unwrapped_y = (f32)(safe_line_index * S.font_height);
         S.next_cursor.unwrapped_x = 0;
-        S.next_cursor.wrapped_y = (f32)(params.wrap_line_index[line_index] * S.font_height);
+        S.next_cursor.wrapped_y = (f32)(params.wrap_line_index[safe_line_index] * S.font_height);
         S.next_cursor.wrapped_x = 0;
     }
     
@@ -1624,16 +1609,12 @@ buffer_cursor_seek(Buffer_Cursor_Seek_State *S_ptr, Buffer_Cursor_Seek_Params pa
                     }
                     else if (S.behavior.do_number_advance || S.behavior.do_codepoint_advance){
                         
-                        S.ch_width = 2.f;
-                        
-#if 0
-                        if (S.tran.do_codepoint_advance){
-                            S.ch_width = get_codepoint_advance(params.font, S.tran.step_current.value);
+                        if (S.behavior.do_codepoint_advance){
+                            S.ch_width = font_get_glyph_advance(params.system, params.font, S.step.value);
                         }
                         else{
-                            S.ch_width = params.font->byte_advance;
+                            S.ch_width = font_get_byte_advance(params.font);
                         }
-#endif
                         
                         if (S.step.i >= S.wrap_unit_end){
                             S_stop.status          = BLStatus_NeedWrapDetermination;
@@ -1821,6 +1802,7 @@ typedef struct Buffer_Render_Item{
 typedef struct Render_Item_Write{
     Buffer_Render_Item *item;
     f32 x, y;
+    System_Functions *system;
     Render_Font *font;
     i32 font_height;
     f32 x_min;
@@ -1830,11 +1812,7 @@ typedef struct Render_Item_Write{
 inline Render_Item_Write
 write_render_item(Render_Item_Write write, i32 index, u32 codepoint, u32 flags){
     
-#if 0
-    f32 ch_width = get_codepoint_advance(write.font, codepoint);
-#endif
-    
-    f32 ch_width = 2.f;
+    f32 ch_width = font_get_glyph_advance(write.system, write.font, codepoint);
     
     if (write.x <= write.x_max && write.x + ch_width >= write.x_min){
         write.item->index = index;
@@ -1945,6 +1923,7 @@ buffer_render_data(Buffer_Render_State *S_ptr, Buffer_Render_Params params, f32 
     S.write.item        = params.items;
     S.write.x           = S.shift_x + line_shift;
     S.write.y           = S.shift_y;
+    S.write.system      = params.system;
     S.write.font        = params.font;
     S.write.font_height = font_get_height(params.font);
     S.write.x_min       = params.port_x;
@@ -2055,10 +2034,7 @@ buffer_render_data(Buffer_Render_State *S_ptr, Buffer_Render_Params params, f32 
                                 
                                 case '\t':
                                 {
-#if 0
-                                    S.ch_width = get_codepoint_advance(params.font, '\t');
-#endif
-                                    S.ch_width = 2.f;
+                                    S.ch_width = font_get_glyph_advance(params.system, params.font, '\t');
                                     
                                     f32 new_x = S.write.x + S.ch_width;
                                     S.write = write_render_item(S.write, I, ' ', 0);

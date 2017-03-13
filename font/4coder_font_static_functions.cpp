@@ -16,6 +16,11 @@ font_get_byte_advance(Render_Font *font){
     return(font->byte_advance);
 }
 
+internal f32*
+font_get_byte_sub_advances(Render_Font *font){
+    return(font->byte_sub_advances);
+}
+
 internal i32
 font_get_height(Render_Font *font){
     return(font->height);
@@ -46,12 +51,37 @@ font_can_render(System_Functions *system, Render_Font *font, u32 codepoint){
     b32 result = false;
     u32 page_number = (codepoint >> 8);
     u32 glyph_index = codepoint & 0xFF;
-    
     Glyph_Page *page = font_get_or_make_page(system, font, page_number);
     if (page != 0 && page->advance[glyph_index] > 0.f){
         result = true;
     }
-    
+    return(result);
+}
+
+internal f32
+font_get_glyph_advance(System_Functions *system, Render_Font *font, u32 codepoint){
+    f32 result = 0.f;
+    u32 page_number = (codepoint >> 8);
+    u32 glyph_index = codepoint & 0xFF;
+    Glyph_Page *page = font_get_or_make_page(system, font, page_number);
+    if (page != 0 && page->advance[glyph_index] > 0.f){
+        result = page->advance[glyph_index];
+    }
+    return(result);
+}
+
+internal Glyph_Data
+font_get_glyph(System_Functions *system, Render_Font *font, u32 codepoint){
+    Glyph_Data result = {0};
+    u32 page_number = (codepoint >> 8);
+    u32 glyph_index = codepoint & 0xFF;
+    Glyph_Page *page = font_get_or_make_page(system, font, page_number);
+    if (page != 0 && page->advance[glyph_index] > 0.f){
+        result.bounds = page->glyphs[glyph_index];
+        result.tex = page->tex;
+        result.tex_width = page->tex_width;
+        result.tex_height = page->tex_height;
+    }
     return(result);
 }
 
@@ -153,14 +183,16 @@ font_get_or_make_page(System_Functions *system, Render_Font *font, u32 page_numb
                     *dest = new_page;
                     font->page_count += new_page_count;
                     result = new_page;
+                    system->font.load_page(font, new_page, page_number);
                 }
             }
+        }
+        else{
+            result = *page_get_result;
         }
     }
     return(result);
 }
 
 // BOTTOM
-
-
 

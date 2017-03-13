@@ -2424,10 +2424,6 @@ LinuxGetXSettingsDPI(Display* dpy, int screen)
 internal b32
 LinuxX11WindowInit(int argc, char** argv, int* WinWidth, int* WinHeight)
 {
-    // NOTE(allen): Here begins the linux screen setup stuff.
-    // Behold the true nature of this wonderful OS:
-    // (thanks again to Casey for providing this stuff)
-    
 #define BASE_W 800
 #define BASE_H 600
     
@@ -2454,17 +2450,10 @@ LinuxX11WindowInit(int argc, char** argv, int* WinWidth, int* WinHeight)
     swa.backing_store = WhenMapped;
     swa.event_mask = StructureNotifyMask;
     swa.bit_gravity = NorthWestGravity;
-    swa.colormap = XCreateColormap(linuxvars.XDisplay,
-                                   RootWindow(linuxvars.XDisplay, Config.BestInfo.screen),
-                                   Config.BestInfo.visual, AllocNone);
+    swa.colormap = XCreateColormap(linuxvars.XDisplay, RootWindow(linuxvars.XDisplay, Config.BestInfo.screen), Config.BestInfo.visual, AllocNone);
     
-    linuxvars.XWindow =
-        XCreateWindow(linuxvars.XDisplay,
-                      RootWindow(linuxvars.XDisplay, Config.BestInfo.screen),
-                      0, 0, *WinWidth, *WinHeight,
-                      0, Config.BestInfo.depth, InputOutput,
-                      Config.BestInfo.visual,
-                      CWBackingStore|CWBitGravity|CWBackPixel|CWBorderPixel|CWColormap|CWEventMask, &swa);
+    linuxvars.XWindow = XCreateWindow(linuxvars.XDisplay, RootWindow(linuxvars.XDisplay, Config.BestInfo.screen),
+                                      0, 0, *WinWidth, *WinHeight, 0, Config.BestInfo.depth, InputOutput, Config.BestInfo.visual, CWBackingStore|CWBitGravity|CWBackPixel|CWBorderPixel|CWColormap|CWEventMask, &swa);
     
     if (!linuxvars.XWindow){
         LinuxFatalErrorMsg("XCreateWindow failed. Make sure your display is set up correctly.");

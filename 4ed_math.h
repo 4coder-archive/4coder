@@ -432,33 +432,9 @@ unlerp(f32 a, f32 x, f32 b){
 }
 
 inline f32
-clamp_bottom(f32 a, f32 n){
-    if (n < a) n = a;
-    return (n);
-}
-
-inline f32
-clamp_top(f32 n, f32 z){
-    if (n  > z) n = z;
-    return (n);
-}
-
-inline f32
 clamp(f32 a, f32 n, f32 z){
     if (n < a) n = a;
     else if (n  > z) n = z;
-    return (n);
-}
-
-inline i32
-clamp_bottom(i32 a, i32 n){
-    if (n < a) n = a;
-    return (n);
-}
-
-inline i32
-clamp_top(i32 n, i32 z){
-    if (n  > z) n = z;
     return (n);
 }
 
@@ -470,35 +446,14 @@ clamp(i32 a, i32 n, i32 z){
 }
 
 inline u32
-clamp_bottom(u32 a, u32 n){
-    if (n < a) n = a;
-    return (n);
-}
-
-inline u64
-clamp_bottom(u64 a, u64 n){
-    if (n < a) n = a;
-    return (n);
-}
-
-inline u32
-clamp_top(u32 n, u32 z){
-    if (n  > z) n = z;
-    return (n);
-}
-
-inline u64
-clamp_top(u64 n, u64 z){
-    if (n  > z) n = z;
-    return (n);
-}
-
-inline u32
 clamp(u32 a, u32 n, u32 z){
     if (n < a) n = a;
     else if (n  > z) n = z;
     return (n);
 }
+
+#define clamp_top(a,b) Min(a,b)
+#define clamp_bottom(a,b) Max(a,b)
 
 /*
  * Color

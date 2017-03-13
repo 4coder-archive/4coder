@@ -1015,7 +1015,7 @@ struct Code_Wrap_State{
 };
 
 internal void
-wrap_state_init(Code_Wrap_State *state, Editing_File *file, Render_Font *font){
+wrap_state_init(System_Functions *system, Code_Wrap_State *state, Editing_File *file, Render_Font *font){
     state->token_array = file->state.token_array;
     state->token_ptr = state->token_array.tokens;
     state->end_token = state->token_ptr + state->token_array.count;
@@ -1031,10 +1031,7 @@ wrap_state_init(Code_Wrap_State *state, Editing_File *file, Render_Font *font){
     
     state->font = font;
     
-#if 0
-    state->tab_indent_amount = get_codepoint_advance(font, '\t');
-#endif
-    state->tab_indent_amount = 2.f;
+    state->tab_indent_amount = font_get_glyph_advance(system, font, '\t');
     state->byte_advance = font_get_byte_advance(font);
     
     state->tran = null_buffer_translating_state;
@@ -1146,10 +1143,7 @@ wrap_state_consume_token(System_Functions *system, Render_Font *font, Code_Wrap_
                     u32 n = state->step.value;
                     f32 adv = 0;
                     if (state->behavior.do_codepoint_advance){
-#if 0
-                        adv = get_codepoint_advance(state->font, n);
-#endif
-                        adv = 2.f;
+                        adv = font_get_glyph_advance(system, state->font, n);
                         
                         if (n != ' ' && n != '\t'){
                             skipping_whitespace = false;
@@ -1406,14 +1400,12 @@ get_current_shift(Code_Wrap_State *wrap_state, i32 next_line_start, b32 *adjust_
         
         if (wrap_state->wrap_x.paren_safe_top != 0 && prev_token.type == CPP_TOKEN_PARENTHESE_OPEN){
             current_shift = wrap_state->wrap_x.paren_nesting[wrap_state->wrap_x.paren_safe_top-1] + wrap_state->tab_indent_amount;
-            
             *adjust_top_to_this = 1;
         }
         
         f32 statement_continuation_indent = 0.f;
         if (current_shift != 0.f && wrap_state->wrap_x.paren_safe_top == 0){
-            if (!(prev_token.flags & CPP_TFLAG_PP_BODY) && !(prev_token.flags & CPP_TFLAG_PP_DIRECTIVE)){
-                
+            if (!(prev_token.flags & (CPP_TFLAG_PP_DIRECTIVE|CPP_TFLAG_PP_BODY))){
                 switch (prev_token.type){
                     case CPP_TOKEN_BRACKET_OPEN:
                     case CPP_TOKEN_BRACE_OPEN:
@@ -1499,7 +1491,7 @@ file_measure_wraps(System_Functions *system, Models *models, Editing_File *file,
     i32 max_wrap_indent_mark = 0;
     
     if (params.virtual_white && file->state.tokens_complete && !file->state.still_lexing){
-        wrap_state_init(&wrap_state, file, font);
+        wrap_state_init(system, &wrap_state, file, font);
         use_tokens = 1;
         
         potential_marks = push_array(part, Potential_Wrap_Indent_Pair, floor32(width));
@@ -1551,10 +1543,7 @@ file_measure_wraps(System_Functions *system, Models *models, Editing_File *file,
                                             word_stage = 1;
                                         }
                                         else{
-#if 0
-                                            f32 adv = get_codepoint_advance(params.font, ch);
-#endif
-                                            f32 adv = 2.f;
+                                            f32 adv = font_get_glyph_advance(params.system, params.font, ch);
                                             
                                             x += adv;
                                             self_x += adv;
@@ -1682,11 +1671,7 @@ file_measure_wraps(System_Functions *system, Models *models, Editing_File *file,
                                                     goto doublebreak_stage1;
                                                 }
                                                 
-#if 0
-                                                f32 adv = get_codepoint_advance(params.font, ch);
-#endif
-                                                f32 adv = 2.f;
-                                                
+                                                f32 adv = font_get_glyph_advance(params.system, params.font, ch);
                                                 x += adv;
                                                 if (!first_word && x > current_width){
                                                     emit_comment_position = 1;
@@ -1713,10 +1698,7 @@ file_measure_wraps(System_Functions *system, Models *models, Editing_File *file,
                                                 }
                                                 
                                                 
-#if 0
-                                                f32 adv = get_codepoint_advance(params.font, ch);
-#endif
-                                                f32 adv = 2.f;
+                                                f32 adv = font_get_glyph_advance(params.system, params.font, ch);
                                                 
                                                 x += adv;
                                             }
@@ -1978,7 +1960,7 @@ file_create_from_string(System_Functions *system, Models *models, Editing_File *
     
     Font_ID font_id = models->global_font_id;
     file->settings.font_id = font_id;
-    Render_Font *font = 0;
+    Render_Font *font = system->font.get_render_data_by_id(font_id);
     
     file_measure_starts(general, &file->state.buffer);
     
@@ -3243,8 +3225,7 @@ file_do_single_edit(System_Functions *system, Models *models, Editing_File *file
     Assert(scratch_size > 0);
     i32 request_amount = 0;
     Assert(end <= buffer_size(&file->state.buffer));
-    while (buffer_replace_range(&file->state.buffer, start, end, str, str_len, &shift_amount,
-                                part->base + part->pos, scratch_size, &request_amount)){
+    while (buffer_replace_range(&file->state.buffer, start, end, str, str_len, &shift_amount, part->base + part->pos, scratch_size, &request_amount)){
         void *new_data = 0;
         if (request_amount > 0){
             new_data = general_memory_allocate(general, request_amount);
@@ -3273,8 +3254,7 @@ file_do_single_edit(System_Functions *system, Models *models, Editing_File *file
     i32 new_line_count = buffer_count_newlines(&file->state.buffer, start, start+str_len);
     i32 line_shift =  new_line_count - replaced_line_count;
     
-    //Render_Font *font = get_font_info(models->font_set, file->settings.font_id)->font;
-    Render_Font *font = 0;
+    Render_Font *font = system->font.get_render_data_by_id(file->settings.font_id);
     file_grow_starts_as_needed(general, buffer, line_shift);
     buffer_remeasure_starts(buffer, line_start, line_end, line_shift, shift_amount);
     
@@ -3396,8 +3376,7 @@ file_do_batch_edit(System_Functions *system, Models *models, Editing_File *file,
     Buffer_Measure_Starts measure_state = {};
     buffer_measure_starts(&measure_state, &file->state.buffer);
     
-    //Render_Font *font = get_font_info(models->font_set, file->settings.font_id)->font;
-    Render_Font *font = 0;
+    Render_Font *font = system->font.get_render_data_by_id(file->settings.font_id);
     
     // TODO(allen): write the remeasurement version
     file_allocate_character_starts_as_needed(&models->mem.general, file);
@@ -3682,9 +3661,7 @@ style_get_color(Style *style, Cpp_Token token){
 internal void
 file_set_font(System_Functions *system, Models *models, Editing_File *file, Font_ID font_id){
     file->settings.font_id = font_id;
-    //Font_Info *font_info = get_font_info(models->font_set, file->settings.font_id);
-    //Render_Font *font = font_info->font;
-    Render_Font *font = 0;
+    Render_Font *font = system->font.get_render_data_by_id(font_id);
     file_measure_wraps_and_fix_cursor(system, models, file, font);
     
     Editing_Layout *layout = &models->layout;
@@ -4148,9 +4125,9 @@ struct File_Bar{
 };
 
 internal void
-intbar_draw_string(Render_Target *target, File_Bar *bar, String str, u32 char_color){
-    draw_string(target, bar->font_id, str, (i32)(bar->pos_x + bar->text_shift_x), (i32)(bar->pos_y + bar->text_shift_y), char_color);
-    bar->pos_x += font_string_width(target, bar->font_id, str);
+intbar_draw_string(System_Functions *system, Render_Target *target, File_Bar *bar, String str, u32 char_color){
+    draw_string(system, target, bar->font_id, str, (i32)(bar->pos_x + bar->text_shift_x), (i32)(bar->pos_y + bar->text_shift_y), char_color);
+    bar->pos_x += font_string_width(system, target, bar->font_id, str);
 }
 
 internal GUI_Scroll_Vars
@@ -5938,8 +5915,7 @@ draw_file_loaded(System_Functions *system, View *view, i32_Rect rect, b32 is_act
     Buffer_Render_Item *items = push_array(part, Buffer_Render_Item, max);
     
     Font_ID font_id = file->settings.font_id;
-    //Render_Font *font = get_font_info(models->font_set, font_id)->font;
-    Render_Font *font = 0;
+    Render_Font *font = system->font.get_render_data_by_id(font_id);
     
     f32 scroll_x = view->edit_pos->scroll.scroll_x;
     f32 scroll_y = view->edit_pos->scroll.scroll_y;
@@ -6145,7 +6121,7 @@ draw_file_loaded(System_Functions *system, View *view, i32_Rect rect, b32 is_act
 }
 
 internal void
-draw_text_field(Render_Target *target, View *view, Font_ID font_id, i32_Rect rect, String p, String t){
+draw_text_field(System_Functions *system, Render_Target *target, View *view, Font_ID font_id, i32_Rect rect, String p, String t){
     Models *models = view->persistent.models;
     Style *style = main_style(models);
     
@@ -6158,13 +6134,13 @@ draw_text_field(Render_Target *target, View *view, Font_ID font_id, i32_Rect rec
     
     if (target){
         draw_rectangle(target, rect, back_color);
-        x = ceil32(draw_string(target, font_id, p, x, y, text2_color));
-        draw_string(target, font_id, t, x, y, text1_color);
+        x = ceil32(draw_string(system, target, font_id, p, x, y, text2_color));
+        draw_string(system, target, font_id, t, x, y, text1_color);
     }
 }
 
 internal void
-draw_text_with_cursor(Render_Target *target, View *view, Font_ID font_id, i32_Rect rect, String s, i32 pos){
+draw_text_with_cursor(System_Functions *system, Render_Target *target, View *view, Font_ID font_id, i32_Rect rect, String s, i32 pos){
     Models *models = view->persistent.models;
     Style *style = main_style(models);
     
@@ -6180,35 +6156,33 @@ draw_text_with_cursor(Render_Target *target, View *view, Font_ID font_id, i32_Re
         draw_rectangle(target, rect, back_color);
         
         if (pos >= 0 && pos <  s.size){
-            //Render_Font *font = get_font_info(models->font_set, font_id)->font;
-            Render_Font *font = 0; AllowLocal(font);
+            Render_Font *font = system->font.get_render_data_by_id(font_id);
             
             String part1 = substr(s, 0, pos);
             String part2 = substr(s, pos, 1);
             String part3 = substr(s, pos+1, s.size-pos-1);
             
-            x = draw_string(target, font_id, part1, floor32(x), y, text_color);
+            x = draw_string(system, target, font_id, part1, floor32(x), y, text_color);
             
-            //f32 adv = get_codepoint_advance(font, s.str[pos]);
-            f32 adv = 2.f;
+            f32 adv = font_get_glyph_advance(system, font, s.str[pos]);
             i32_Rect cursor_rect;
             cursor_rect.x0 = floor32(x);
             cursor_rect.x1 = floor32(x) + ceil32(adv);
             cursor_rect.y0 = y;
             cursor_rect.y1 = y + view->line_height;
             draw_rectangle(target, cursor_rect, cursor_color);
-            x = draw_string(target, font_id, part2, floor32(x), y, at_cursor_color);
+            x = draw_string(system, target, font_id, part2, floor32(x), y, at_cursor_color);
             
-            draw_string(target, font_id, part3, floor32(x), y, text_color);
+            draw_string(system, target, font_id, part3, floor32(x), y, text_color);
         }
         else{
-            draw_string(target, font_id, s, floor32(x), y, text_color);
+            draw_string(system, target, font_id, s, floor32(x), y, text_color);
         }
     }
 }
 
 internal void
-draw_file_bar(Render_Target *target, View *view, Editing_File *file, i32_Rect rect){
+draw_file_bar(System_Functions *system, Render_Target *target, View *view, Editing_File *file, i32_Rect rect){
     File_Bar bar;
     Models *models = view->persistent.models;
     Style *style = main_style(models);
@@ -6232,11 +6206,11 @@ draw_file_bar(Render_Target *target, View *view, Editing_File *file, i32_Rect re
         
         Assert(file);
         
-        intbar_draw_string(target, &bar, file->name.live_name, base_color);
-        intbar_draw_string(target, &bar, make_lit_string(" -"), base_color);
+        intbar_draw_string(system, target, &bar, file->name.live_name, base_color);
+        intbar_draw_string(system, target, &bar, make_lit_string(" -"), base_color);
         
         if (file->is_loading){
-            intbar_draw_string(target, &bar, make_lit_string(" loading"), base_color);
+            intbar_draw_string(system, target, &bar, make_lit_string(" loading"), base_color);
         }
         else{
             char bar_space[526];
@@ -6255,11 +6229,11 @@ draw_file_bar(Render_Target *target, View *view, Editing_File *file, i32_Rect re
                 append_ss(&bar_text, make_lit_string(" nix"));
             }
             
-            intbar_draw_string(target, &bar, bar_text, base_color);
+            intbar_draw_string(system, target, &bar, bar_text, base_color);
             
             
             if (file->state.still_lexing){
-                intbar_draw_string(target, &bar, make_lit_string(" parsing"), pop1_color);
+                intbar_draw_string(system, target, &bar, make_lit_string(" parsing"), pop1_color);
             }
             
             if (!file->settings.unimportant){
@@ -6267,13 +6241,13 @@ draw_file_bar(Render_Target *target, View *view, Editing_File *file, i32_Rect re
                     case DirtyState_UnloadedChanges:
                     {
                         local_persist String out_of_sync = make_lit_string(" !");
-                        intbar_draw_string(target, &bar, out_of_sync, pop2_color);
+                        intbar_draw_string(system, target, &bar, out_of_sync, pop2_color);
                     }break;
                     
                     case DirtyState_UnsavedChanges:
                     {
                         local_persist String out_of_sync = make_lit_string(" *");
-                        intbar_draw_string(target, &bar, out_of_sync, pop2_color);
+                        intbar_draw_string(system, target, &bar, out_of_sync, pop2_color);
                     }break;
                 }
             }
@@ -6303,7 +6277,7 @@ get_margin_color(i32 active_level, Style *style){
 }
 
 internal void
-draw_color_button(GUI_Target *gui_target, Render_Target *target, View *view, Font_ID font_id, i32_Rect rect, GUI_id id, u32 fore, u32 back, String text){
+draw_color_button(System_Functions *system, GUI_Target *gui_target, Render_Target *target, View *view, Font_ID font_id, i32_Rect rect, GUI_id id, u32 fore, u32 back, String text){
     i32 active_level = gui_active_level(gui_target, id);
     
     if (active_level > 0){
@@ -6311,11 +6285,11 @@ draw_color_button(GUI_Target *gui_target, Render_Target *target, View *view, Fon
     }
     
     draw_rectangle(target, rect, back);
-    draw_string(target, font_id, text, rect.x0, rect.y0 + 1, fore);
+    draw_string(system, target, font_id, text, rect.x0, rect.y0 + 1, fore);
 }
 
 internal void
-draw_font_button(GUI_Target *gui_target, Render_Target *target, View *view, i32_Rect rect, GUI_id id, Font_ID font_id, String text){
+draw_font_button(System_Functions *system, GUI_Target *gui_target, Render_Target *target, View *view, i32_Rect rect, GUI_id id, Font_ID font_id, String text){
     Models *models = view->persistent.models;
     Style *style = main_style(models);
     
@@ -6327,12 +6301,11 @@ draw_font_button(GUI_Target *gui_target, Render_Target *target, View *view, i32_
     
     draw_rectangle(target, rect, back_color);
     draw_rectangle_outline(target, rect, margin_color);
-    draw_string(target, font_id, text, rect.x0, rect.y0 + 1, text_color);
+    draw_string(system, target, font_id, text, rect.x0, rect.y0 + 1, text_color);
 }
 
 internal void
-draw_fat_option_block(GUI_Target *gui_target, Render_Target *target, View *view, Font_ID font_id, i32_Rect rect, GUI_id id,
-                      String text, String pop, i8 checkbox = -1){
+draw_fat_option_block(System_Functions *system, GUI_Target *gui_target, Render_Target *target, View *view, Font_ID font_id, i32_Rect rect, GUI_id id, String text, String pop, i8 checkbox = -1){
     Models *models = view->persistent.models;
     Style *style = main_style(models);
     
@@ -6367,12 +6340,12 @@ draw_fat_option_block(GUI_Target *gui_target, Render_Target *target, View *view,
         x = checkbox_rect.x1 + 3;
     }
     
-    x = ceil32(draw_string(target, font_id, text, x, y, text_color));
-    draw_string(target, font_id, pop, x, y, pop_color);
+    x = ceil32(draw_string(system, target, font_id, text, x, y, text_color));
+    draw_string(system, target, font_id, pop, x, y, pop_color);
 }
 
 internal void
-draw_button(GUI_Target *gui_target, Render_Target *target, View *view, Font_ID font_id, i32_Rect rect, GUI_id id, String text){
+draw_button(System_Functions *system, GUI_Target *gui_target, Render_Target *target, View *view, Font_ID font_id, i32_Rect rect, GUI_id id, String text){
     Models *models = view->persistent.models;
     Style *style = main_style(models);
     
@@ -6387,13 +6360,13 @@ draw_button(GUI_Target *gui_target, Render_Target *target, View *view, Font_ID f
     i32 h = view->line_height;
     i32 y = inner.y0 + h/2 - 1;
     
-    i32 w = (i32)font_string_width(target, font_id, text);
+    i32 w = (i32)font_string_width(system, target, font_id, text);
     i32 x = (inner.x1 + inner.x0 - w)/2;
     
     draw_rectangle(target, inner, back);
     draw_rectangle_outline(target, inner, margin);
     
-    draw_string(target, font_id, text, x, y, text_color);
+    draw_string(system, target, font_id, text, x, y, text_color);
 }
 
 internal void
@@ -6401,7 +6374,6 @@ draw_style_preview(System_Functions *system, GUI_Target *gui_target, Render_Targ
     Models *models = view->persistent.models; AllowLocal(models);
     
     i32 active_level = gui_active_level(gui_target, id);
-    //Font_Info *info = get_font_info(models->font_set, font_id);
     char font_name_space[256];
     String font_name = make_fixed_width_string(font_name_space);
     font_name.size = system->font.get_name_by_id(font_id, font_name.str, font_name.memory_size);
@@ -6421,26 +6393,26 @@ draw_style_preview(System_Functions *system, GUI_Target *gui_target, Render_Targ
     
     i32 y = inner.y0;
     i32 x = inner.x0;
-    x = ceil32(draw_string(target, font_id, style->name.str, x, y, text_color));
-    i32 font_x = (i32)(inner.x1 - font_string_width(target, font_id, font_name));
+    x = ceil32(draw_string(system, target, font_id, style->name.str, x, y, text_color));
+    i32 font_x = (i32)(inner.x1 - font_string_width(system, target, font_id, font_name));
     if (font_x > x + 10){
-        draw_string(target, font_id, font_name, font_x, y, text_color);
+        draw_string(system, target, font_id, font_name, font_x, y, text_color);
     }
     
     i32 height = font_get_height(font);
     x = inner.x0;
     y += height;
-    x = ceil32(draw_string(target, font_id, "if", x, y, keyword_color));
-    x = ceil32(draw_string(target, font_id, "(x < ", x, y, text_color));
-    x = ceil32(draw_string(target, font_id, "0", x, y, int_constant_color));
-    x = ceil32(draw_string(target, font_id, ") { x = ", x, y, text_color));
-    x = ceil32(draw_string(target, font_id, "0", x, y, int_constant_color));
-    x = ceil32(draw_string(target, font_id, "; } ", x, y, text_color));
-    x = ceil32(draw_string(target, font_id, "// comment", x, y, comment_color));
+    x = ceil32(draw_string(system, target, font_id, "if", x, y, keyword_color));
+    x = ceil32(draw_string(system, target, font_id, "(x < ", x, y, text_color));
+    x = ceil32(draw_string(system, target, font_id, "0", x, y, int_constant_color));
+    x = ceil32(draw_string(system, target, font_id, ") { x = ", x, y, text_color));
+    x = ceil32(draw_string(system, target, font_id, "0", x, y, int_constant_color));
+    x = ceil32(draw_string(system, target, font_id, "; } ", x, y, text_color));
+    x = ceil32(draw_string(system, target, font_id, "// comment", x, y, comment_color));
     
     x = inner.x0;
     y += height;
-    draw_string(target, font_id, "[] () {}; * -> +-/ <>= ! && || % ^", x, y, text_color);
+    draw_string(system, target, font_id, "[] () {}; * -> +-/ <>= ! && || % ^", x, y, text_color);
 }
 
 internal i32
@@ -6483,7 +6455,7 @@ do_render_file_view(System_Functions *system, View *view, GUI_Scroll_Vars *scrol
                 switch (h->type){
                     case guicom_top_bar:
                     {
-                        draw_file_bar(target, view, file, gui_session.rect);
+                        draw_file_bar(system, target, view, file, gui_session.rect);
                     }break;
                     
                     case guicom_file:
@@ -6498,7 +6470,7 @@ do_render_file_view(System_Functions *system, View *view, GUI_Scroll_Vars *scrol
                         void *ptr = (h+1);
                         String p = gui_read_string(&ptr);
                         String t = gui_read_string(&ptr);
-                        draw_text_field(target, view, font_id, gui_session.rect, p, t);
+                        draw_text_field(system, target, view, font_id, gui_session.rect, p, t);
                     }break;
                     
                     case guicom_text_with_cursor:
@@ -6507,7 +6479,7 @@ do_render_file_view(System_Functions *system, View *view, GUI_Scroll_Vars *scrol
                         String s = gui_read_string(&ptr);
                         i32 pos = gui_read_integer(&ptr);
                         
-                        draw_text_with_cursor(target, view, font_id, gui_session.rect, s, pos);
+                        draw_text_with_cursor(system, target, view, font_id, gui_session.rect, s, pos);
                     }break;
                     
                     case guicom_color_button:
@@ -6518,7 +6490,7 @@ do_render_file_view(System_Functions *system, View *view, GUI_Scroll_Vars *scrol
                         u32 back = (u32)gui_read_integer(&ptr);
                         String t = gui_read_string(&ptr);
                         
-                        draw_color_button(gui_target, target, view, font_id, gui_session.rect, b->id, fore, back, t);
+                        draw_color_button(system, gui_target, target, view, font_id, gui_session.rect, b->id, fore, back, t);
                     }break;
                     
                     case guicom_font_button:
@@ -6528,7 +6500,7 @@ do_render_file_view(System_Functions *system, View *view, GUI_Scroll_Vars *scrol
                         Font_ID font_id = (Font_ID)gui_read_integer(&ptr);
                         String t = gui_read_string(&ptr);
                         
-                        draw_font_button(gui_target, target, view, gui_session.rect, b->id, font_id, t);
+                        draw_font_button(system, gui_target, target, view, gui_session.rect, b->id, font_id, t);
                     }break;
                     
                     case guicom_file_option:
@@ -6543,7 +6515,7 @@ do_render_file_view(System_Functions *system, View *view, GUI_Scroll_Vars *scrol
                             append_s_char(&f, '/');
                         }
                         
-                        draw_fat_option_block(gui_target, target, view, font_id, gui_session.rect, b->id, f, m);
+                        draw_fat_option_block(system, gui_target, target, view, font_id, gui_session.rect, b->id, f, m);
                     }break;
                     
                     case guicom_style_preview:
@@ -6568,7 +6540,7 @@ do_render_file_view(System_Functions *system, View *view, GUI_Scroll_Vars *scrol
                             status = (i8)gui_read_byte(&ptr);
                         }
                         
-                        draw_fat_option_block(gui_target, target, view, font_id, gui_session.rect, b->id, f, m, status);
+                        draw_fat_option_block(system, gui_target, target, view, font_id, gui_session.rect, b->id, f, m, status);
                     }break;
                     
                     case guicom_button:
@@ -6577,7 +6549,7 @@ do_render_file_view(System_Functions *system, View *view, GUI_Scroll_Vars *scrol
                         void *ptr = (b + 1);
                         String t = gui_read_string(&ptr);
                         
-                        draw_button(gui_target, target, view, font_id, gui_session.rect, b->id, t);
+                        draw_button(system, gui_target, target, view, font_id, gui_session.rect, b->id, t);
                     }break;
                     
                     case guicom_scrollable_bar:

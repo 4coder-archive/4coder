@@ -424,10 +424,9 @@ get_exact_render_quad(Glyph_Bounds *b, i32 pw, i32 ph, float xpos, float ypos){
 }
 
 inline void
-private_draw_glyph(Render_Target *target, Render_Font *font, u32 codepoint, f32 x, f32 y, u32 color){
-#if 0
-    Glyph_Data glyph = {0};
-    if (get_codepoint_glyph_data(font, character, &glyph)){
+private_draw_glyph(System_Functions *system, Render_Target *target, Render_Font *font, u32 codepoint, f32 x, f32 y, u32 color){
+    Glyph_Data glyph = font_get_glyph(system, font, codepoint);
+    if (glyph.tex != 0){
         Render_Quad q = get_render_quad(&glyph.bounds, glyph.tex_width, glyph.tex_height, x, y);
         
         draw_set_color(target, color);
@@ -441,14 +440,12 @@ private_draw_glyph(Render_Target *target, Render_Font *font, u32 codepoint, f32 
         }
         glEnd();
     }
-#endif
 }
 
 inline void
-private_draw_glyph_mono(Render_Target *target, Render_Font *font, u32 codepoint, f32 x, f32 y, f32 advance, u32 color){
-#if 0
-    Glyph_Data glyph = {0};
-    if (get_codepoint_glyph_data(font, character, &glyph)){
+private_draw_glyph_mono(System_Functions *system, Render_Target *target, Render_Font *font, u32 codepoint, f32 x, f32 y, f32 advance, u32 color){
+    Glyph_Data glyph = font_get_glyph(system, font, codepoint);
+    if (glyph.tex != 0){
         f32 left = glyph.bounds.x0;
         f32 right = glyph.bounds.x1;
         f32 width = (right - left);
@@ -469,18 +466,16 @@ private_draw_glyph_mono(Render_Target *target, Render_Font *font, u32 codepoint,
         }
         glEnd();
     }
-#endif
-    
 }
 
 inline void
-private_draw_glyph_mono(Render_Target *target, Render_Font *font, u32 character, f32 x, f32 y, u32 color){
+private_draw_glyph_mono(System_Functions *system, Render_Target *target, Render_Font *font, u32 character, f32 x, f32 y, u32 color){
     f32 advance = (f32)font_get_advance(font);
-    private_draw_glyph_mono(target, font, character, x, y, advance, color);
+    private_draw_glyph_mono(system, target, font, character, x, y, advance, color);
 }
 
 internal void
-launch_rendering(Render_Target *target){
+launch_rendering(System_Functions *system, Render_Target *target){
     char *cursor = target->push_buffer;
     char *cursor_end = cursor + target->size;
     
@@ -509,44 +504,34 @@ launch_rendering(Render_Target *target){
             
             case piece_type_glyph:
             {
-#if 0
                 Render_Piece_Glyph *glyph = ExtractStruct(Render_Piece_Glyph);
                 
-                Render_Font *font = get_font_info(&target->font_set, glyph->font_id)->font;
-                if (font){
-                    private_draw_glyph(target, font, glyph->character, glyph->pos.x, glyph->pos.y, glyph->color);
-                }
-#endif
+                Render_Font *font = system->font.get_render_data_by_id(glyph->font_id);
+                Assert(font != 0);
+                private_draw_glyph(system, target, font, glyph->codepoint, glyph->pos.x, glyph->pos.y, glyph->color);
             }break;
             
             case piece_type_mono_glyph:
             {
-#if 0
                 Render_Piece_Glyph *glyph = ExtractStruct(Render_Piece_Glyph);
                 
-                Render_Font *font = get_font_info(&target->font_set, glyph->font_id)->font;
-                if (font){
-                    private_draw_glyph_mono(target, font, glyph->character, glyph->pos.x, glyph->pos.y, glyph->color);
-                }
-#endif
+                Render_Font *font = system->font.get_render_data_by_id(glyph->font_id);
+                Assert(font != 0);
+                private_draw_glyph_mono(system, target, font, glyph->codepoint, glyph->pos.x, glyph->pos.y, glyph->color);
             }break;
             
             case piece_type_mono_glyph_advance:
             {
-#if 0
                 Render_Piece_Glyph_Advance *glyph = ExtractStruct(Render_Piece_Glyph_Advance);
                 
-                Render_Font *font = get_font_info(&target->font_set, glyph->font_id)->font;
-                if (font){
-                    private_draw_glyph_mono(target, font, glyph->character, glyph->pos.x, glyph->pos.y, glyph->advance, glyph->color);
-                }
-#endif
+                Render_Font *font = system->font.get_render_data_by_id(glyph->font_id);
+                Assert(font != 0);
+                private_draw_glyph_mono(system, target, font, glyph->codepoint, glyph->pos.x, glyph->pos.y, glyph->advance, glyph->color);
             }break;
             
             case piece_type_change_clip:
             {
-                Render_Piece_Change_Clip *clip =
-                    ExtractStruct(Render_Piece_Change_Clip);
+                Render_Piece_Change_Clip *clip = ExtractStruct(Render_Piece_Change_Clip);
                 draw_set_clip(target, clip->box);
             }break;
         }
@@ -684,7 +669,9 @@ font_load_page_inner(Partition *part, Render_Font *font, FT_Library ft, FT_Face 
 }
 
 internal b32
-font_load_page(System_Functions *system, Partition *part, Render_Font *font, char *filename, i32 pt_size, i32 tab_width, b32 use_hinting, u32 page_number){
+font_load_page(System_Functions *system, Partition *part, Render_Font *font, Glyph_Page *page, u32 page_number, u32 pt_size,  b32 use_hinting){
+    
+    char *filename = font->filename;
     
     // TODO(allen): Stop redoing all this init for each call.
     FT_Library ft;
@@ -694,8 +681,7 @@ font_load_page(System_Functions *system, Partition *part, Render_Font *font, cha
     FT_New_Face(ft, filename, 0, &face);
     
     // NOTE(allen): set texture and glyph data.
-    Glyph_Page *page = font_get_or_make_page(system, font, page_number);
-    font_load_page_inner(part, font, ft, face, use_hinting, page, page_number, tab_width);
+    font_load_page_inner(part, font, ft, face, use_hinting, page, page_number, 4);
     
     FT_Done_FreeType(ft);
     
@@ -703,9 +689,9 @@ font_load_page(System_Functions *system, Partition *part, Render_Font *font, cha
 }
 
 internal b32
-font_load(System_Functions *system, Partition *part, Render_Font *font, char *filename, i32 pt_size, i32 tab_width, b32 use_hinting){
+font_load(System_Functions *system, Partition *part, Render_Font *font, i32 pt_size, b32 use_hinting){
     
-    memset(font, 0, sizeof(*font));
+    char *filename = font->filename;
     
     // TODO(allen): Stop redoing all this init for each call.
     FT_Library ft;
@@ -731,7 +717,6 @@ font_load(System_Functions *system, Partition *part, Render_Font *font, char *fi
     
     // NOTE(allen): set texture and glyph data.
     Glyph_Page *page = font_get_or_make_page(system, font, 0);
-    font_load_page_inner(part, font, ft, face, use_hinting, page, 0, tab_width);
     
     // NOTE(allen): Setup some basic spacing stuff.
     f32 backslash_adv = page->advance['\\'];
@@ -750,11 +735,62 @@ font_load(System_Functions *system, Partition *part, Render_Font *font, char *fi
     }
     
     font->byte_advance = backslash_adv + max_hex_advance*2;
+    font->byte_sub_advances[0] = backslash_adv;
+    font->byte_sub_advances[1] = max_hex_advance;
+    font->byte_sub_advances[2] = max_hex_advance;
     
     FT_Done_FreeType(ft);
     
     return(true);
 }
+
+internal void
+system_set_page(System_Functions *system, Partition *part, Render_Font *font, Glyph_Page *page, u32 page_number, u32 pt_size, b32 use_hinting){
+    memset(page, 0, sizeof(*page));
+    
+    if (part->base == 0){
+        *part = sysshared_scratch_partition(MB(8));
+    }
+    
+    b32 success = false;
+    for (u32 R = 0; R < 3; ++R){
+        success = font_load_page(system, part, font, page, page_number, pt_size, use_hinting);
+        if (success){
+            break;
+        }
+        else{
+            sysshared_partition_double(part);
+        }
+    }
+}
+
+internal void
+system_set_font(System_Functions *system, Partition *part, Render_Font *font, String filename, String name, u32 pt_size, b32 use_hinting){
+    memset(font, 0, sizeof(*font));
+    
+    copy_partial_cs(font->filename, sizeof(font->filename)-1, filename);
+    font->filename_len = filename.size;
+    font->filename[font->filename_len] = 0;
+    copy_partial_cs(font->name, sizeof(font->name)-1, name);
+    font->name_len = name.size;
+    font->name[font->name_len] = 0;
+    
+    if (part->base == 0){
+        *part = sysshared_scratch_partition(MB(8));
+    }
+    
+    b32 success = false;
+    for (u32 R = 0; R < 3; ++R){
+        success = font_load(system, part, font, pt_size, use_hinting);
+        if (success){
+            break;
+        }
+        else{
+            sysshared_partition_double(part);
+        }
+    }
+}
+
 
 #endif
 

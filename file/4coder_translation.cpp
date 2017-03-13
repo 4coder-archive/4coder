@@ -18,6 +18,7 @@ struct Translation_State{
 global_const Translation_State null_buffer_translating_state = {0};
 
 enum{
+    TranLBH_None,
     TranLBH_Rebuffer,
     TranLBH_EmitAsCP,
 };
@@ -41,6 +42,8 @@ struct Translation_Emits{
     u32 step_count;
 };
 
+#define SINGLE_BYTE_ERROR_CLASS max_u8
+
 internal void
 translating_consume_byte(Translation_State *tran, u8 ch, u32 i, u32 size, Translation_Byte_Description *desc_out){
     desc_out->byte_class = 0;
@@ -48,7 +51,7 @@ translating_consume_byte(Translation_State *tran, u8 ch, u32 i, u32 size, Transl
         desc_out->byte_class = 1;
     }
     else if (ch < 0xC0){
-        desc_out->byte_class = max_u8;
+        desc_out->byte_class = SINGLE_BYTE_ERROR_CLASS;
     }
     else if (ch < 0xE0){
         desc_out->byte_class = 2;
@@ -61,7 +64,7 @@ translating_consume_byte(Translation_State *tran, u8 ch, u32 i, u32 size, Transl
     }
     
     desc_out->prelim_emit_type = BufferModelUnit_None;
-    desc_out->last_byte_handler = 0;
+    desc_out->last_byte_handler = TranLBH_None;
     if (tran->fill_expected == 0){
         tran->fill_buffer[0] = ch;
         tran->fill_start_i = i;
@@ -70,7 +73,7 @@ translating_consume_byte(Translation_State *tran, u8 ch, u32 i, u32 size, Transl
         if (desc_out->byte_class == 1){
             desc_out->prelim_emit_type = BufferModelUnit_Codepoint;
         }
-        else if (desc_out->byte_class == 0 || desc_out->byte_class == 1000){
+        else if (desc_out->byte_class == 0 || desc_out->byte_class == SINGLE_BYTE_ERROR_CLASS){
             desc_out->prelim_emit_type = BufferModelUnit_Numbers;
         }
         else{
@@ -78,7 +81,7 @@ translating_consume_byte(Translation_State *tran, u8 ch, u32 i, u32 size, Transl
         }
     }
     else{
-        if (desc_out->byte_class == 1000){
+        if (desc_out->byte_class == SINGLE_BYTE_ERROR_CLASS){
             tran->fill_buffer[tran->fill_i] = ch;
             ++tran->fill_i;
             

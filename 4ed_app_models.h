@@ -29,6 +29,7 @@ struct App_Settings{
     i32 custom_arg_start;
     i32 custom_arg_end;
 };
+global_const App_Settings null_app_settings = {0};
 
 struct Debug_Input_Event{
     Key_Code key;

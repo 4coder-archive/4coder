@@ -79,6 +79,7 @@ wglGetExtensionsStringARB_Function(HDC hdc);
 typedef void CALL_CONVENTION 
 GLDEBUGPROC_TYPE(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const char * message, const GLvoid * userParam);
 
+// TODO(allen): these don't belong here, but the organizational stuff is not fully in place yet.
 typedef GLDEBUGPROC_TYPE * GLDEBUGPROC;
 typedef void CALL_CONVENTION 
 glDebugMessageControl_type(GLenum source, GLenum type, GLenum severity, GLsizei count, GLuint * ids, GLboolean enabled);
