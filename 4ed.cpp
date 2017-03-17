@@ -247,16 +247,16 @@ do_feedback_message(System_Functions *system, Models *models, String value, b32 
 #define USE_FILE(n,v) Editing_File *n = (v)->file_data.file
 
 
-#define USE_PANEL(n) Panel *n = 0;{                         \
+#define USE_PANEL(n) Panel *n = 0; do{                      \
     i32 panel_index = command->models->layout.active_panel; \
     n = command->models->layout.panels + panel_index;       \
-}
+}while(false)
 
-#define USE_VIEW(n) View *n = 0;{                                 \
-    i32 panel_index = command->models->layout.active_panel;       \
-    Panel *panel = command->models->layout.panels + panel_index;  \
-    n = panel->view;                                              \
-}
+#define USE_VIEW(n) View *n = 0; do{                                  \
+    i32 panel_index = command->models->layout.active_panel;           \
+    Panel *__panel__ = command->models->layout.panels + panel_index;  \
+    n = __panel__->view;                                              \
+}while(false)
 
 #define REQ_OPEN_VIEW(n) USE_VIEW(n); if (view_lock_level(n) > LockLevel_Open) return
 
@@ -1580,7 +1580,7 @@ update_cli_handle_with_file(System_Functions *system, Models *models, CLI_Handle
 
 
 App_Step_Sig(app_step){
-    Application_Step_Result app_result = *result;
+    Application_Step_Result app_result = *app_result_;
     app_result.animating = 0;
     
     App_Vars *vars = (App_Vars*)memory->vars_memory;
@@ -1682,24 +1682,24 @@ App_Step_Sig(app_step){
     // NOTE(allen): detect mouse hover status
     i32 mx = input->mouse.x;
     i32 my = input->mouse.y;
-    b32 mouse_in_edit_area = 0;
-    b32 mouse_in_margin_area = 0;
-    Panel *mouse_panel, *used_panels;
+    b32 mouse_in_edit_area = false;
+    b32 mouse_in_margin_area = false;
     
-    used_panels = &models->layout.used_sentinel;
-    for (dll_items(mouse_panel, used_panels)){
-        if (hit_check(mx, my, mouse_panel->inner)){
-            mouse_in_edit_area = 1;
-            break;
+    Panel *mouse_panel = 0;
+    {
+        Panel *used_panels = &models->layout.used_sentinel, *panel = 0;
+        for (dll_items(panel, used_panels)){
+            if (hit_check(mx, my, panel->inner)){
+                mouse_panel = panel;
+                mouse_in_edit_area = true;
+                break;
+            }
+            else if (hit_check(mx, my, panel->full)){
+                mouse_panel = panel;
+                mouse_in_margin_area = true;
+                break;
+            }
         }
-        else if (hit_check(mx, my, mouse_panel->full)){
-            mouse_in_margin_area = 1;
-            break;
-        }
-    }
-    
-    if (!(mouse_in_edit_area || mouse_in_margin_area)){
-        mouse_panel = 0;
     }
     
     b32 mouse_on_divider = 0;
@@ -2642,7 +2642,7 @@ App_Step_Sig(app_step){
     app_result.lctrl_lalt_is_altgr = models->settings.lctrl_lalt_is_altgr;
     app_result.perform_kill = !models->keep_playing;
     
-    *result = app_result;
+    *app_result_ = app_result;
     
     // end-of-app_step
 }

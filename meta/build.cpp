@@ -351,7 +351,7 @@ buildsuper(char *code_path, char *out_path, char *filename, b32 x86_build){
     }
 #elif defined(IS_GCC)
     {
-        systemf("\"%s/buildsuper.sh\" %s", code_path, filename);
+        systemf("\"%s/buildsuper.sh\" \"%s\"", code_path, filename);
     }
 #else
 #error The build rule for this compiler is not ready
@@ -401,7 +401,7 @@ metagen(char *cdir){
     }
     
     if (prev_error == 0){
-        DECL_STR(cmd, META_DIR"/metagen");
+        DECL_STR(cmd, META_DIR "/metagen");
         BEGIN_TIME_SECTION();
         execute_in_dir(cdir, cmd, 0);
         END_TIME_SECTION("run metagen");

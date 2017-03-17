@@ -647,9 +647,9 @@ buffer_convert_out(Gap_Buffer *buffer, char *dest, i32 max){
     if (buffer_stringify_loop(&stream, buffer, 0, size)){
         b32 still_looping = 0;
         do{
-            i32 size = stream.end - i;
+            i32 chunk_size = stream.end - i;
             i32 out_size = 0;
-            i32 result = eol_convert_out(dest + pos, max - pos, stream.data + i, size, &out_size);
+            i32 result = eol_convert_out(dest + pos, max - pos, stream.data + i, chunk_size, &out_size);
             assert(result);
             i = stream.end;
             pos += out_size;

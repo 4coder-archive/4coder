@@ -1390,21 +1390,27 @@ stickieness_guess(Cpp_Token_Type type, Cpp_Token_Type other_type, u16 flags, u16
     return(guess);
 }
 
-internal f32
-get_current_shift(Code_Wrap_State *wrap_state, i32 next_line_start, b32 *adjust_top_to_this){
-    f32 current_shift = wrap_state->wrap_x.paren_nesting[wrap_state->wrap_x.paren_safe_top];
+struct Wrap_Current_Shift{
+    f32 shift;
+    b32 adjust_top_to_this;
+};
+
+internal Wrap_Current_Shift
+get_current_shift(Code_Wrap_State *wrap_state, i32 next_line_start){
+    Wrap_Current_Shift result = {0};
     
-    Assert(adjust_top_to_this != 0);
+    result.shift = wrap_state->wrap_x.paren_nesting[wrap_state->wrap_x.paren_safe_top];
+    
     if (wrap_state->token_ptr > wrap_state->token_array.tokens){
         Cpp_Token prev_token = *(wrap_state->token_ptr-1);
         
         if (wrap_state->wrap_x.paren_safe_top != 0 && prev_token.type == CPP_TOKEN_PARENTHESE_OPEN){
-            current_shift = wrap_state->wrap_x.paren_nesting[wrap_state->wrap_x.paren_safe_top-1] + wrap_state->tab_indent_amount;
-            *adjust_top_to_this = 1;
+            result.shift = wrap_state->wrap_x.paren_nesting[wrap_state->wrap_x.paren_safe_top-1] + wrap_state->tab_indent_amount;
+            result.adjust_top_to_this = 1;
         }
         
         f32 statement_continuation_indent = 0.f;
-        if (current_shift != 0.f && wrap_state->wrap_x.paren_safe_top == 0){
+        if (result.shift != 0.f && wrap_state->wrap_x.paren_safe_top == 0){
             if (!(prev_token.flags & (CPP_TFLAG_PP_DIRECTIVE|CPP_TFLAG_PP_BODY))){
                 switch (prev_token.type){
                     case CPP_TOKEN_BRACKET_OPEN:
@@ -1421,27 +1427,28 @@ get_current_shift(Code_Wrap_State *wrap_state, i32 next_line_start, b32 *adjust_
         
         switch (wrap_state->token_ptr->type){
             case CPP_TOKEN_BRACE_CLOSE: case CPP_TOKEN_BRACE_OPEN: break;
-            default: current_shift += statement_continuation_indent; break;
+            default: result.shift += statement_continuation_indent; break;
         }
     }
     
     if (wrap_state->token_ptr->start < next_line_start){
         if (wrap_state->token_ptr->flags & CPP_TFLAG_PP_DIRECTIVE){
-            current_shift = 0;
+            result.shift = 0;
         }
         else{
             switch (wrap_state->token_ptr->type){
                 case CPP_TOKEN_BRACE_CLOSE:
                 {
                     if (wrap_state->wrap_x.paren_safe_top == 0){
-                        current_shift -= wrap_state->tab_indent_amount;
+                        result.shift -= wrap_state->tab_indent_amount;
                     }
                 }break;
             }
         }
     }
     
-    return(current_shift);
+    result.shift = clamp_bottom(0.f, result.shift);
+    return(result);
 }
 
 internal void
@@ -1475,7 +1482,7 @@ file_measure_wraps(System_Functions *system, Models *models, Editing_File *file,
         edge_tolerance = width;
     }
     
-    f32 line_shift = 0.f;
+    f32 current_line_shift = 0.f;
     b32 do_wrap = 0;
     i32 wrap_unit_end = 0;
     
@@ -1505,7 +1512,7 @@ file_measure_wraps(System_Functions *system, Models *models, Editing_File *file,
     i32 stage = 0;
     
     do{
-        stop = buffer_measure_wrap_y(&state, params, line_shift, do_wrap, wrap_unit_end);
+        stop = buffer_measure_wrap_y(&state, params, current_line_shift, do_wrap, wrap_unit_end);
         
         switch (stop.status){
             case BLStatus_NeedWrapDetermination:
@@ -1601,15 +1608,15 @@ file_measure_wraps(System_Functions *system, Models *models, Editing_File *file,
                         potential_count = 0;
                         stage = 0;
                         
-                        b32 adjust_top_to_this = 0;
-                        f32 current_shift = get_current_shift(&wrap_state, next_line_start, &adjust_top_to_this);
+                        Wrap_Current_Shift current_shift =  get_current_shift(&wrap_state, next_line_start);
                         
-                        if (adjust_top_to_this){
-                            wrap_state_set_top(&wrap_state, current_shift);
+                        
+                        if (current_shift.adjust_top_to_this){
+                            wrap_state_set_top(&wrap_state, current_shift.shift);
                         }
                         
                         wrap_indent_marks[real_count].wrap_position = 0;
-                        wrap_indent_marks[real_count].line_shift = clamp_bottom(0.f, current_shift);
+                        wrap_indent_marks[real_count].line_shift =current_shift.shift;
                         ++real_count;
                         
                         wrap_state.wrap_x.base_x = wrap_state.wrap_x.paren_nesting[0];
@@ -1727,18 +1734,17 @@ file_measure_wraps(System_Functions *system, Models *models, Editing_File *file,
                                 need_to_choose_a_wrap = 1;
                             }
                             
-                            adjust_top_to_this = 0;
-                            current_shift = get_current_shift(&wrap_state, next_line_start, &adjust_top_to_this);
+                            current_shift = get_current_shift(&wrap_state, next_line_start);
                             
                             b32 next_token_is_on_line = 0;
                             if (wrap_state.token_ptr->start < next_line_start){
                                 next_token_is_on_line = 1;
                             }
                             
-                            i32 wrap_position = step.position_end;
+                            i32 next_wrap_position = step.position_end;
                             f32 wrap_x = step.final_x;
-                            if (wrap_state.token_ptr->start > step.position_start && wrap_position < wrap_state.token_ptr->start && next_token_is_on_line){
-                                wrap_position = wrap_state.token_ptr->start;
+                            if (wrap_state.token_ptr->start > step.position_start && next_wrap_position < wrap_state.token_ptr->start && next_token_is_on_line){
+                                next_wrap_position = wrap_state.token_ptr->start;
                             }
                             
                             if (!need_to_choose_a_wrap){
@@ -1781,18 +1787,18 @@ file_measure_wraps(System_Functions *system, Models *models, Editing_File *file,
                                 wrappable_score = 64*50;
                                 wrappable_score += 101 - general_stickieness - wrap_state.wrap_x.paren_safe_top*80;
                                 
-                                potential_marks[potential_count].wrap_position = wrap_position;
-                                potential_marks[potential_count].line_shift = current_shift;
+                                potential_marks[potential_count].wrap_position = next_wrap_position;
+                                potential_marks[potential_count].line_shift = current_shift.shift;
                                 potential_marks[potential_count].wrappable_score = wrappable_score;
                                 potential_marks[potential_count].wrap_x = wrap_x;
-                                potential_marks[potential_count].adjust_top_to_this = adjust_top_to_this;
+                                potential_marks[potential_count].adjust_top_to_this = current_shift.adjust_top_to_this;
                                 ++potential_count;
                             }
                             
                             if (need_to_choose_a_wrap){
                                 if (potential_count == 0){
-                                    wrap_indent_marks[real_count].wrap_position = wrap_position;
-                                    wrap_indent_marks[real_count].line_shift = current_shift;
+                                    wrap_indent_marks[real_count].wrap_position = next_wrap_position;
+                                    wrap_indent_marks[real_count].line_shift = current_shift.shift;
                                     ++real_count;
                                 }
                                 else{
@@ -1867,30 +1873,25 @@ file_measure_wraps(System_Functions *system, Models *models, Editing_File *file,
                         }
                     }
                     
-                    line_shift = wrap_indent_marks[stage].line_shift;
+                    current_line_shift = wrap_indent_marks[stage].line_shift;
                     
                     if (stage > 0){
                         ++stage;
                     }
                     
-                    if (line_shift < 0){
-                        line_shift = 0;
-                    }
-                    
+                    current_line_shift = clamp_bottom(0.f, current_line_shift);
                 }
                 else{
-                    line_shift = 0.f;
+                    current_line_shift = 0.f;
                 }
                 
-                if (line_shift > current_width - edge_tolerance){
-                    line_shift = current_width - edge_tolerance;
-                }
+                current_line_shift = clamp_top(current_line_shift, current_width - edge_tolerance);
                 
                 if (stop.wrap_line_index >= file->state.line_indent_max){
                     file_allocate_indents_as_needed(general, file, stop.wrap_line_index);
                 }
                 
-                file->state.line_indents[stop.wrap_line_index] = line_shift;
+                file->state.line_indents[stop.wrap_line_index] = current_line_shift;
                 file->state.wrap_line_count = stop.wrap_line_index;
             }break;
         }
@@ -2951,19 +2952,23 @@ file_update_history_before_edit(Mem_Options *mem, Editing_File *file, Edit_Step 
                 Edit_Step *redo_start = redo_end;
                 i32 steps_of_redo = 0;
                 i32 strings_of_redo = 0;
-                i32 undo_count = 0;
-                while (redo_start->type == ED_REDO || redo_start->type == ED_UNDO){
-                    if (redo_start->type == ED_REDO){
-                        if (undo_count > 0) --undo_count;
-                        else{
-                            ++steps_of_redo;
-                            strings_of_redo += redo_start->edit.len;
+                {
+                    i32 undo_count = 0;
+                    while (redo_start->type == ED_REDO || redo_start->type == ED_UNDO){
+                        if (redo_start->type == ED_REDO){
+                            if (undo_count > 0){
+                                --undo_count;
+                            }
+                            else{
+                                ++steps_of_redo;
+                                strings_of_redo += redo_start->edit.len;
+                            }
                         }
+                        else{
+                            ++undo_count;
+                        }
+                        --redo_start;
                     }
-                    else{
-                        ++undo_count;
-                    }
-                    --redo_start;
                 }
                 
                 if (redo_start < redo_end){
@@ -2983,31 +2988,33 @@ file_update_history_before_edit(Mem_Options *mem, Editing_File *file, Edit_Step 
                     Edit_Step *edit_src = redo_end;
                     Edit_Step *edit_dest = file->state.undo.redo.edits + file->state.undo.redo.edit_count + steps_of_redo;
                     
-                    i32 undo_count = 0;
-                    for (i32 i = 0; i < steps_of_redo;){
-                        --edit_src;
-                        str_src -= edit_src->edit.len;
-                        if (edit_src->type == ED_REDO){
-                            if (undo_count > 0){
-                                --undo_count;
+                    {
+                        i32 undo_count = 0;
+                        for (i32 i = 0; i < steps_of_redo;){
+                            --edit_src;
+                            str_src -= edit_src->edit.len;
+                            if (edit_src->type == ED_REDO){
+                                if (undo_count > 0){
+                                    --undo_count;
+                                }
+                                else{
+                                    ++i;
+                                    
+                                    --edit_dest;
+                                    *edit_dest = *edit_src;
+                                    
+                                    str_redo_pos -= edit_dest->edit.len;
+                                    edit_dest->edit.str_start = str_redo_pos;
+                                    
+                                    memcpy(str_dest_base + str_redo_pos, str_src, edit_dest->edit.len);
+                                }
                             }
                             else{
-                                ++i;
-                                
-                                --edit_dest;
-                                *edit_dest = *edit_src;
-                                
-                                str_redo_pos -= edit_dest->edit.len;
-                                edit_dest->edit.str_start = str_redo_pos;
-                                
-                                memcpy(str_dest_base + str_redo_pos, str_src, edit_dest->edit.len);
+                                ++undo_count;
                             }
                         }
-                        else{
-                            ++undo_count;
-                        }
+                        Assert(undo_count == 0);
                     }
-                    Assert(undo_count == 0);
                     
                     file->state.undo.redo.size += strings_of_redo;
                     file->state.undo.redo.edit_count += steps_of_redo;
@@ -4743,10 +4750,7 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                             Editing_File *file = view->file_data.file;
                             Assert(file != 0);
                             
-                            //Font_Set *font_set = models->font_set;
-                            //Font_Info *info = 0;
-                            
-                            String message = make_lit_string("Back");
+                            message = make_lit_string("Back");
                             
                             id.id[0] = 0;
                             if (gui_do_button(target, id, message)){
@@ -4803,7 +4807,7 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                             u32 *fore = 0, *back = 0;
                             i32 i = 0;
                             
-                            String message = make_lit_string("Back");
+                            message = make_lit_string("Back");
                             
                             id.id[0] = 0;
                             if (gui_do_button(target, id, message)){
@@ -4915,7 +4919,7 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                                 autocomplete_with_enter = 0;
                             }
                             
-                            String message = {0};
+                            String message = null_string;
                             switch (view->action){
                                 case IAct_Open: message = make_lit_string("Open: "); break;
                                 case IAct_Save_As: message = make_lit_string("Save As: "); break;
@@ -4927,8 +4931,6 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                             
                             GUI_Item_Update update = {0};
                             Hot_Directory *hdir = &models->hot_directory;
-                            b32 do_new_directory = 0;
-                            i32 i = 0;
                             
                             {
                                 Single_Line_Input_Step step = {0};
@@ -4969,8 +4971,9 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                                 gui_standard_list(target, id, &view->gui_scroll, view->scroll_region, &keys, &view->list_i, &update, user_up_key, user_down_key);
                             }
                             
+                            b32 do_new_directory = false;
                             begin_exhaustive_loop(&loop, hdir);
-                            for (i = 0; i < loop.count; ++i){
+                            for (i32 i = 0; i < loop.count; ++i){
                                 file_info = get_exhaustive_info(system, &models->working_set, &loop, i);
                                 
                                 if (file_info.name_match){
@@ -5013,7 +5016,7 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                             local_persist String message_unsaved = make_lit_string(" *");
                             local_persist String message_unsynced = make_lit_string(" !");
                             
-                            String message = {0};
+                            String message = null_string;
                             switch (view->action){
                                 case IAct_Switch: message = make_lit_string("Switch: "); break;
                                 case IAct_Kill: message = make_lit_string("Kill: "); break;
@@ -6497,10 +6500,10 @@ do_render_file_view(System_Functions *system, View *view, GUI_Scroll_Vars *scrol
                     {
                         GUI_Interactive *b = (GUI_Interactive*)h;
                         void *ptr = (b + 1);
-                        Font_ID font_id = (Font_ID)gui_read_integer(&ptr);
+                        Font_ID this_font_id = (Font_ID)gui_read_integer(&ptr);
                         String t = gui_read_string(&ptr);
                         
-                        draw_font_button(system, gui_target, target, view, gui_session.rect, b->id, font_id, t);
+                        draw_font_button(system, gui_target, target, view, gui_session.rect, b->id, this_font_id, t);
                     }break;
                     
                     case guicom_file_option:

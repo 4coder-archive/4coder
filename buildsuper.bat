@@ -1,5 +1,6 @@
 @echo off
 
+REM TODO(allen): Figure out a way to find vcvarsall for any MSVC version.
 IF NOT DEFINED LIB (call "C:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\vcvarsall.bat" amd64)
 
 SET SRC=%1
@@ -15,9 +16,10 @@ REM This stores the path of the buildsuper.bat script
 REM in CODE_HOME.  This way you can always include the
 REM default files no matter where you store your code.
 REM And no matter how you call buildsuper.bat.
+
 SET CODE_HOME=%~dp0
 
-cl /I%CODE_HOME% %OPTS% %DEBUG% %SRC% /Fecustom_4coder %BUILD_DLL% %EXPORTS%
+cl %OPTS% /I"%CODE_HOME% " %DEBUG% "%SRC%" /Fecustom_4coder %BUILD_DLL% %EXPORTS%
 
 REM file spammation preventation
 del *.exp

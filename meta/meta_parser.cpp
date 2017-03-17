@@ -912,9 +912,9 @@ parameter_parse(Partition *part, char *data, Cpp_Token *args_start_token, Cpp_To
                  param_name_token->start > param_string_start;
                  --param_name_token){
                 if (param_name_token->type == CPP_TOKEN_IDENTIFIER){
-                    int32_t start = param_name_token->start;
-                    int32_t size = param_name_token->size;
-                    breakdown.args[arg_index].param_name = make_string(data + start, size);
+                    int32_t name_start = param_name_token->start;
+                    int32_t name_size = param_name_token->size;
+                    breakdown.args[arg_index].param_name = make_string(data + name_start, name_size);
                     break;
                 }
             }
@@ -1190,7 +1190,7 @@ macro_parse(Partition *part, Parse_Context *context, Item_Node *item){
 }
 
 static Meta_Unit
-compile_meta_unit(Partition *part, char *code_directory, char **files, Meta_Keywords *keywords, int32_t key_count){
+compile_meta_unit(Partition *part, char *code_directory, char **files, Meta_Keywords *meta_keywords, int32_t key_count){
     Meta_Unit unit = {0};
     
     int32_t file_count = 0;
@@ -1232,8 +1232,8 @@ compile_meta_unit(Partition *part, char *code_directory, char **files, Meta_Keyw
                     
                     String lexeme = get_lexeme(*token, context->data);
                     int32_t match_index = 0;
-                    if (string_set_match_table(keywords, sizeof(*keywords), key_count, lexeme, &match_index)){
-                        Item_Type type = keywords[match_index].type;
+                    if (string_set_match_table(meta_keywords, sizeof(*meta_keywords), key_count, lexeme, &match_index)){
+                        Item_Type type = meta_keywords[match_index].type;
                         
                         if (type > Item_Null && type < Item_Type_Count){
                             ++unit.set.count;
@@ -1265,8 +1265,8 @@ compile_meta_unit(Partition *part, char *code_directory, char **files, Meta_Keyw
                     
                     String lexeme = get_lexeme(*token, context->data);
                     int32_t match_index = 0;
-                    if (string_set_match_table(keywords, sizeof(*keywords), key_count, lexeme, &match_index)){
-                        Item_Type type = keywords[match_index].type;
+                    if (string_set_match_table(meta_keywords, sizeof(*meta_keywords), key_count, lexeme, &match_index)){
+                        Item_Type type = meta_keywords[match_index].type;
                         
                         switch (type){
                             case Item_Function:
@@ -1364,9 +1364,9 @@ compile_meta_unit(Partition *part, char *code_directory, char **files, Meta_Keyw
 }
 
 static Meta_Unit
-compile_meta_unit(Partition *part, char *code_directory, char *file, Meta_Keywords *keywords, int32_t key_count){
+compile_meta_unit(Partition *part, char *code_directory, char *file, Meta_Keywords *meta_keywords, int32_t key_count){
     char *file_array[2] = {file, 0};
-    Meta_Unit unit = compile_meta_unit(part, code_directory, file_array, keywords, key_count);
+    Meta_Unit unit = compile_meta_unit(part, code_directory, file_array, meta_keywords, key_count);
     return(unit);
 }
 

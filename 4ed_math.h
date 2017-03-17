@@ -28,15 +28,15 @@ ABS(f32 x){
 
 inline f32
 MOD(f32 x, i32 m){
-    f32 whole, frac, r;
-    frac = modff(x, &whole);
-    r = ((i32)(whole) % m) + frac;
+    f32 whole;
+    f32 frac = modff(x, &whole);
+    f32 r = ((i32)(whole) % m) + frac;
     return(r);
 }
 
 inline f32
 SQRT(f32 x){
-    f32 r = sqrt(x);
+    f32 r = sqrtf(x);
     return(r);
 }
 

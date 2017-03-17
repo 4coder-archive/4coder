@@ -72,7 +72,7 @@ static i32 prev_error = 0;
     int32_t n = snprintf(SF_CMD, sizeof(SF_CMD), __VA_ARGS__); \
     AllowLocal(n);                                             \
     Assert(n < sizeof(SF_CMD));                                \
-    /** printf("%s\n", SF_CMD); /**/                          \
+    /**/ printf("%s\n", SF_CMD); /**/                          \
     prev_error = system(SF_CMD);                               \
     if (prev_error != 0) error_state = 1;                      \
 }while(0)
