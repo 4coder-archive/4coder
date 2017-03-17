@@ -627,8 +627,7 @@ package(char *cdir){
             copy_file(build_dir, "4ed" EXE, dir, 0, 0);
             copy_file(build_dir, "4ed_app" DLL, dir, 0, 0);
             copy_all (pack_data_dir, "*", dir);
-            copy_file(0, "README.txt", dir, 0, 0);
-            copy_file(0, "TODO.txt", dir, 0, 0);
+            //copy_file(0, "TODO.txt", dir, 0, 0);
             copy_file(data_dir, "release-config.4coder", dir, 0, "config.4coder");
             
             get_4coder_dist_name(&str, true, zip_dir, tier, arch, "zip");
@@ -697,8 +696,7 @@ package(char *cdir){
             copy_file(build_dir, "custom_4coder" DLL, dir, 0, 0);
             
             copy_all (pack_data_dir, "*", dir);
-            copy_file(0, "README.txt", dir, 0, 0);
-            copy_file(0, "TODO.txt", dir, 0, 0);
+            //copy_file(0, "TODO.txt", dir, 0, 0);
             copy_file(data_dir, "release-config.4coder", dir, 0, "config.4coder");
             
             copy_all(0, "4coder_*", dir);

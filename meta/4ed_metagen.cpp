@@ -576,7 +576,6 @@ int main(int argc, char **argv){
     generate_keycode_enum();
     generate_style();
     generate_custom_headers();
-    printf("Metagen finished\n");
 }
 
 // BOTTOM
