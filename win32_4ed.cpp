@@ -2155,21 +2155,23 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
         exit(1);
     }
     
-    HDC hdc = GetDC(win32vars.window_handle);
-    
+    {
+        HDC hdc = GetDC(win32vars.window_handle);
+        
 #if SUPPORT_DPI
-    // TODO(allen): not Windows XP compatible, how do I handle that?
-    SetProcessDPIAware();
-    
-    win32vars.dpi_x = GetDeviceCaps(hdc, LOGPIXELSX);
-    win32vars.dpi_y = GetDeviceCaps(hdc, LOGPIXELSY);
+        // TODO(allen): not Windows XP compatible, how do I handle that?
+        SetProcessDPIAware();
+        
+        win32vars.dpi_x = GetDeviceCaps(hdc, LOGPIXELSX);
+        win32vars.dpi_y = GetDeviceCaps(hdc, LOGPIXELSY);
 #else
-    win32vars.dpi_x = 1;
-    win32vars.dpi_y = 1;
+        win32vars.dpi_x = 1;
+        win32vars.dpi_y = 1;
 #endif
-    
-    GetClientRect(win32vars.window_handle, &window_rect);
-    ReleaseDC(win32vars.window_handle, hdc);
+        
+        GetClientRect(win32vars.window_handle, &window_rect);
+        ReleaseDC(win32vars.window_handle, hdc);
+    }
     
     Win32InitGL();
     Win32Resize(window_rect.right - window_rect.left, window_rect.bottom - window_rect.top);

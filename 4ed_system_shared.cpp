@@ -622,12 +622,12 @@ font_load_page_inner(Partition *part, Render_Font *font, FT_Library ft, FT_Face 
             
             // write to texture atlas
             i32 pitch = face->glyph->bitmap.pitch;
-            for(i32 j = 0; j < h; ++j){
-                for(i32 i = 0; i < w; ++i){
-                    i32 x = pen_x + i;
-                    i32 y = pen_y + j;
+            for(i32 Y = 0; Y < h; ++Y){
+                for(i32 X = 0; X < w; ++X){
+                    i32 x = pen_x + X;
+                    i32 y = pen_y + Y;
                     
-                    pixels[y * tex_width + x] = face->glyph->bitmap.buffer[j * pitch + i] * 0x01010101;
+                    pixels[y * tex_width + x] = face->glyph->bitmap.buffer[Y * pitch + X] * 0x01010101;
                 }
             }
             
