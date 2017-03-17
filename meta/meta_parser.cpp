@@ -284,7 +284,7 @@ typedef enum Doc_Note_Type{
 } Doc_Note_Type;
 
 static String
-doc_note_string[] = {
+defined_doc_notes[] = {
     make_lit_string("DOC_PARAM"),
     make_lit_string("DOC_RETURN"),
     make_lit_string("DOC"),
@@ -446,7 +446,7 @@ perform_doc_parse(Partition *part, String doc_string, Documentation *doc){
         }
         else{
             int32_t doc_note_type;
-            if (string_set_match(doc_note_string, ArrayCount(doc_note_string), doc_note, &doc_note_type)){
+            if (string_set_match(defined_doc_notes, ArrayCount(defined_doc_notes), doc_note, &doc_note_type)){
                 
                 doc_parse_note_string(doc_string, &pos);
                 
@@ -480,7 +480,7 @@ perform_doc_parse(Partition *part, String doc_string, Documentation *doc){
         }
         else{
             int32_t doc_note_type;
-            if (string_set_match(doc_note_string, ArrayCount(doc_note_string), doc_note, &doc_note_type)){
+            if (string_set_match(defined_doc_notes, ArrayCount(defined_doc_notes), doc_note, &doc_note_type)){
                 
                 String doc_note_string = doc_parse_note_string(doc_string, &pos);
                 
@@ -760,10 +760,10 @@ static int32_t
 enum_parse(Partition *part, Parse_Context *context, Item_Node *item){
     int32_t result = false;
     
-    String doc_string = {0};
-    get_doc_string_from_prev(context, &doc_string);
+    String parent_doc_string = {0};
+    get_doc_string_from_prev(context, &parent_doc_string);
     
-    Cpp_Token *start_token = get_token(context);
+    Cpp_Token *parent_start_token = get_token(context);
     Cpp_Token *token = 0;
     
     for (; (token = get_token(context)) != 0; get_next_token(context)){
@@ -773,7 +773,7 @@ enum_parse(Partition *part, Parse_Context *context, Item_Node *item){
     }
     
     if (token){
-        String name = {0};
+        String parent_name = {0};
         Cpp_Token *token_j = 0;
         
         for (; (token_j = get_token(context)) != 0; get_prev_token(context)){
@@ -782,10 +782,10 @@ enum_parse(Partition *part, Parse_Context *context, Item_Node *item){
             }
         }
         
-        name = get_lexeme(*token_j, context->data);
+        parent_name = get_lexeme(*token_j, context->data);
         
         set_token(context, token);
-        for (; (token = get_token(context)) > start_token; get_next_token(context)){
+        for (; (token = get_token(context)) > parent_start_token; get_next_token(context)){
             if (token->type == CPP_TOKEN_BRACE_OPEN){
                 break;
             }
@@ -855,8 +855,8 @@ enum_parse(Partition *part, Parse_Context *context, Item_Node *item){
                 get_next_token(context);
                 
                 item->t = Item_Enum;
-                item->name = name;
-                item->doc_string = doc_string;
+                item->name = parent_name;
+                item->doc_string = parent_doc_string;
                 item->first_child = first_member;
                 result = true;
             }
