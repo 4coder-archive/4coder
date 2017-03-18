@@ -680,6 +680,11 @@ font_load_page(System_Functions *system, Partition *part, Render_Font *font, Gly
     FT_Face face;
     FT_New_Face(ft, filename, 0, &face);
     
+    FT_Size_RequestRec_ size = {};
+    size.type   = FT_SIZE_REQUEST_TYPE_NOMINAL;
+    size.height = pt_size << 6;
+    FT_Request_Size(face, &size);
+    
     // NOTE(allen): set texture and glyph data.
     font_load_page_inner(part, font, ft, face, use_hinting, page, page_number, 4);
     
@@ -700,12 +705,12 @@ font_load(System_Functions *system, Partition *part, Render_Font *font, i32 pt_s
     FT_Face face;
     FT_New_Face(ft, filename, 0, &face);
     
-    // set size & metrics
     FT_Size_RequestRec_ size = {};
     size.type   = FT_SIZE_REQUEST_TYPE_NOMINAL;
     size.height = pt_size << 6;
     FT_Request_Size(face, &size);
     
+    // set size & metrics
     font->ascent    = ceil32  (face->size->metrics.ascender    / 64.0f);
     font->descent   = floor32 (face->size->metrics.descender   / 64.0f);
     font->advance   = ceil32  (face->size->metrics.max_advance / 64.0f);
