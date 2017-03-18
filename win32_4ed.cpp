@@ -28,6 +28,12 @@
 // Program setup
 //
 
+#define SUPPORT_DPI 1
+#define UNICODE
+
+#define FPS 60
+#define frame_useconds (1000000 / FPS)
+
 #include <assert.h>
 #include <string.h>
 #include "4tech_defines.h"
@@ -63,20 +69,19 @@
 
 #define GL_TEXTURE_MAX_LEVEL 0x813D
 
-#include "filetrack/4tech_file_track_win32.c"
+//////////////////////////////
+
+#include "4ed_file_track.h"
 #include "4ed_system_shared.h"
 
-#define SUPPORT_DPI 1
-
-#define FPS 60
-#define frame_useconds (1000000 / FPS)
-
-#define WM_4coder_ANIMATE (WM_USER + 0)
-
+#include "4ed_file_track_general.cpp"
+#include "4ed_file_track_win32.cpp"
 
 //
 // Win32_Vars structs
 //
+
+#define WM_4coder_ANIMATE (WM_USER + 0)
 
 struct Thread_Context{
     u32 job_id;

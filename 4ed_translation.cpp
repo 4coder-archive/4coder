@@ -9,6 +9,8 @@
 
 // TOP
 
+#include "4ed_buffer_model.h"
+
 struct Translation_State{
     u8 fill_buffer[4];
     u32 fill_start_i;
@@ -196,17 +198,6 @@ translating_generate_emits(Translation_State *tran, Translation_Emit_Rule emit_r
     skip_all:;
 }
 
-#if 0
-internal void
-translating_fully_process_byte(Translation_State *tran, u8 ch, u32 i, u32 size, Translation_Emits *emits_out){
-    Translation_Byte_Description description = {0};
-    translating_consume_byte(tran, ch, i, size, &description);
-    Translation_Emit_Rule emit_rule = {0};
-    translating_select_emit_rule_ASCII(tran, description, &emit_rule);
-    translating_generate_emits(tran, emit_rule, ch, i, emits_out);
-}
-#endif
-
 internal void
 translating_fully_process_byte(System_Functions *system, Render_Font *font, Translation_State *tran, u8 ch, u32 i, u32 size, Translation_Emits *emits_out){
     Translation_Byte_Description description = {0};
@@ -238,12 +229,12 @@ translation_step_read(Buffer_Model_Step step, Buffer_Model_Behavior *behavior_ou
     }
 }
 
-#define TRANSLATION_DECL_OUTPUT(_j,_emit) u32 _j = 0; _j < (_emit).step_count; ++_j
+#define TRANSLATION_DECL_EMIT_LOOP(_j,_emit) u32 _j = 0; _j < (_emit).step_count; ++_j
 #define TRANSLATION_DECL_GET_STEP(_step,_behav,_j,_emit)                 \
 Buffer_Model_Step _step = _emit.steps[_j]; Buffer_Model_Behavior _behav; \
 translation_step_read(_step, &_behav)
 
-#define TRANSLATION_OUTPUT(_j,_emit) _j = 0; _j < (_emit).step_count; ++_j
+#define TRANSLATION_EMIT_LOOP(_j,_emit) _j = 0; _j < (_emit).step_count; ++_j
 #define TRANSLATION_GET_STEP(_step,_behav,_j,_emit)\
 (_step) = _emit.steps[_j]; translation_step_read((_step), &(_behav))
 

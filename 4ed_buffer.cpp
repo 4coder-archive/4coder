@@ -13,8 +13,8 @@
 // Buffer low level operations
 //
 
-#include "../font/4coder_font_data.h"
-#include "../4coder_helper/4coder_seek_types.h"
+#include "font/4coder_font_data.h"
+#include "4coder_helper/4coder_seek_types.h"
 
 typedef struct Cursor_With_Index{
     i32 pos;
@@ -186,6 +186,8 @@ buffer_batch_edit_update_cursors(Cursor_With_Index *sorted_positions, i32 count,
     return(shift_amount);
 }
 
+//////////////////////////////////////
+
 internal i32
 eol_convert_in(char *dest, char *src, i32 size){
     i32 i = 0, j = 0, k = 0;
@@ -271,80 +273,7 @@ eol_in_place_convert_out(char *data, i32 size, i32 max, i32 *size_out){
     return(result);
 }
 
-// TODO(allen): ditch this shit yo
-inline i32
-is_whitespace(char c){
-    i32 result;
-    result = (c == ' ' || c == '\n' || c == '\r'  || c == '\t' || c == '\f' || c == '\v');
-    return(result);
-}
-
-inline i32
-is_alphanumeric_true(char c){
-    return (c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c >= '0' && c <= '9');
-}
-
-inline i32
-is_alphanumeric(char c){
-    return (c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c >= '0' && c <= '9' || c == '_');
-}
-
-inline i32
-is_upper(char c){
-    return (c >= 'A' && c <= 'Z');
-}
-
-inline i32
-is_lower(char c){
-    return (c >= 'a' && c <= 'z');
-}
-
-inline char
-to_upper(char c){
-    if (is_lower(c)){
-        c += 'A' - 'a';
-    }
-    return(c);
-}
-
-internal i32
-is_match(char *a, char *b, i32 len){
-    i32 result = 1;
-    for (;len > 0; --len, ++a, ++b)
-        if (*a != *b) { result = 0; break; }
-    
-    return(result);
-}
-
-internal i32
-is_match_insensitive(char *a, char *b, i32 len){
-    i32 result = 1;
-    for (;len > 0; --len, ++a, ++b)
-        if (to_upper(*a) != to_upper(*b)) { result = 0; break; }
-    
-    return(result);
-}
-
-struct Buffer_Model_Step{
-    u32 type;
-    u32 value;
-    i32 i;
-    u32 byte_length;
-};
-
-struct Buffer_Model_Behavior{
-    b32 do_newline;
-    b32 do_codepoint_advance;
-    b32 do_number_advance;
-};
-
-enum{
-    BufferModelUnit_None,
-    BufferModelUnit_Codepoint,
-    BufferModelUnit_Numbers,
-};
-
-#include "4coder_translation.cpp"
+//////////////////////////////////////
 
 //
 // Implementation of the gap buffer
@@ -409,31 +338,30 @@ buffer_init_provide_page(Gap_Buffer_Init *init, void *page, i32 page_size){
     buffer->max = page_size;
 }
 
-internal i32
+internal b32
 buffer_end_init(Gap_Buffer_Init *init, void *scratch, i32 scratch_size){
     Gap_Buffer *buffer = init->buffer;
-    i32 osize1 = 0, size1 = 0, size2 = 0, size = init->size;
-    i32 result = 0;
+    b32 result = false;
     
-    if (buffer->data){
-        if (buffer->max >= init->size){
-            size2 = size >> 1;
-            size1 = osize1 = size - size2;
-            
-            if (size1 > 0){
-                size1 = eol_convert_in(buffer->data, init->data, size1);
-                if (size2 > 0){
-                    size2 = eol_convert_in(buffer->data + size1, init->data + osize1, size2);
-                }
+    if (buffer->data && buffer->max >= init->size){
+        i32 size = init->size;
+        i32 size2 = size >> 1;
+        i32 osize1 = size - size2;
+        i32 size1 = osize1;
+        
+        if (size1 > 0){
+            size1 = eol_convert_in(buffer->data, init->data, size1);
+            if (size2 > 0){
+                size2 = eol_convert_in(buffer->data + size1, init->data + osize1, size2);
             }
-            
-            buffer->size1 = size1;
-            buffer->size2 = size2;
-            buffer->gap_size = buffer->max - size1 - size2;
-            memmove(buffer->data + size1 + buffer->gap_size, buffer->data + size1, size2);
-            
-            result = 1;
         }
+        
+        buffer->size1 = size1;
+        buffer->size2 = size2;
+        buffer->gap_size = buffer->max - size1 - size2;
+        memmove(buffer->data + size1 + buffer->gap_size, buffer->data + size1, size2);
+        
+        result = true;
     }
     
     return(result);
@@ -771,7 +699,7 @@ buffer_measure_character_starts(System_Functions *system, Render_Font *font, Gap
                 
                 translating_fully_process_byte(system, font, &tran, ch, i, size, &emits);
                 
-                for (TRANSLATION_DECL_OUTPUT(J, emits)){
+                for (TRANSLATION_DECL_EMIT_LOOP(J, emits)){
                     TRANSLATION_DECL_GET_STEP(step, behavior, J, emits);
                     
                     if (behavior.do_newline){
@@ -898,7 +826,7 @@ buffer_measure_wrap_y(Buffer_Measure_Wrap_State *S_ptr, Buffer_Measure_Wrap_Para
                     translating_fully_process_byte(params.system, params.font, &S.tran, ch, S.i, S.size, &S.emits);
                 }
                 
-                for (TRANSLATION_OUTPUT(S.J, S.emits)){
+                for (TRANSLATION_EMIT_LOOP(S.J, S.emits)){
                     TRANSLATION_GET_STEP(S.step, S.behavior, S.J, S.emits);
                     
                     if (S.behavior.do_newline){
@@ -1107,7 +1035,7 @@ buffer_remeasure_character_starts(System_Functions *system, Render_Font *font, G
                 u8 ch = (u8)stream.data[char_i];
                 translating_fully_process_byte(system, font, &tran, ch, char_i, size, &emits);
                 
-                for (TRANSLATION_DECL_OUTPUT(J, emits)){
+                for (TRANSLATION_DECL_EMIT_LOOP(J, emits)){
                     TRANSLATION_DECL_GET_STEP(step, behavior, J, emits);
                     
                     if (behavior.do_newline){
@@ -1582,7 +1510,7 @@ buffer_cursor_seek(Buffer_Cursor_Seek_State *S_ptr, Buffer_Cursor_Seek_Params pa
                     translating_fully_process_byte(params.system, params.font, &S.tran, ch, S.i, S.size, &S.emits);
                 }
                 
-                for (TRANSLATION_OUTPUT(S.J, S.emits)){
+                for (TRANSLATION_EMIT_LOOP(S.J, S.emits)){
                     TRANSLATION_GET_STEP(S.step, S.behavior, S.J, S.emits);
                     
                     S.prev_cursor = S.this_cursor;
@@ -1945,7 +1873,7 @@ buffer_render_data(Buffer_Render_State *S_ptr, Buffer_Render_Params params, f32 
                     translating_fully_process_byte(params.system, params.font, &S.tran, ch, S.i, S.size, &S.emits);
                 }
                 
-                for (TRANSLATION_OUTPUT(S.J, S.emits)){
+                for (TRANSLATION_EMIT_LOOP(S.J, S.emits)){
                     TRANSLATION_GET_STEP(S.step, S.behavior, S.J, S.emits);
                     
                     if (!S.behavior.do_newline && S.step.i >= S.wrap_unit_end){

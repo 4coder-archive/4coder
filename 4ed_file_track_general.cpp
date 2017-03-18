@@ -1,45 +1,33 @@
 /*
-
-Copy Right FourTech LLC, 2016
-All Rights Are Reserved
-
-The OS agnostic file tracking API for applications
-that want to interact with potentially many files on
-the disk that could be changed by other applications.
-
-Created on: 27.08.2016
-
-*/
-
+ * Mr. 4th Dimention - Allen Webster
+ *
+ * 20.08.2016
+ *
+ * File tracking shared.
+ *
+ */
 
 // TOP
 
-#ifndef Assert
-# define Assert(c) do { if (!(c)) { *((int*)0) = 0xA11E; } } while (0)
-#endif
-
-#ifndef ZeroStruct
-# define ZeroStruct(s) for (int32_t i = 0; i < sizeof(s); ++i) { ((char*)(&(s)))[i] = 0; }
-#endif
-
 typedef struct{
-    uint32_t id[4];
+    u32 id[4];
 } File_Index;
 
-typedef uint32_t rptr32;
+typedef u32 rptr32;
 
 #define to_ptr(b,p) ((void*)((char*)b + p))
 #define to_rptr32(b,p) ((rptr32)((char*)(p) - (char*)(b)))
 
 typedef struct {
     File_Index hash;
-    uint32_t opaque[4];
+    u32 opaque[4];
 } File_Track_Entry;
+global_const File_Track_Entry null_file_track_entry = {0};
 
 typedef struct {
-    int32_t size;
-    uint32_t tracked_count;
-    uint32_t max;
+    i32 size;
+    u32 tracked_count;
+    u32 max;
     rptr32 file_table;
 } File_Track_Tables;
 
@@ -50,13 +38,13 @@ typedef struct DLL_Node {
 
 
 
-static File_Index
+internal File_Index
 zero_file_index(){
     File_Index a = {0};
     return(a);
 }
 
-static int32_t
+internal i32
 file_hash_is_zero(File_Index a){
     return ((a.id[0] == 0) &&
             (a.id[1] == 0) &&
@@ -64,7 +52,7 @@ file_hash_is_zero(File_Index a){
             (a.id[3] == 0));
 }
 
-static int32_t
+internal i32
 file_hash_is_deleted(File_Index a){
     return ((a.id[0] == 0xFFFFFFFF) &&
             (a.id[1] == 0xFFFFFFFF) &&
@@ -72,7 +60,7 @@ file_hash_is_deleted(File_Index a){
             (a.id[3] == 0xFFFFFFFF));
 }
 
-static int32_t
+internal i32
 file_index_eq(File_Index a, File_Index b){
     return ((a.id[0] == b.id[0]) &&
             (a.id[1] == b.id[1]) &&
@@ -80,7 +68,7 @@ file_index_eq(File_Index a, File_Index b){
             (a.id[3] == b.id[3]));
 }
 
-static void
+internal void
 insert_node(DLL_Node *pos, DLL_Node *node){
     node->prev = pos;
     node->next = pos->next;
@@ -88,19 +76,19 @@ insert_node(DLL_Node *pos, DLL_Node *node){
     node->next->prev = node;
 }
 
-static void
+internal void
 remove_node(DLL_Node *node){
     node->next->prev = node->prev;
     node->prev->next = node->next;
 }
 
-static void
+internal void
 init_sentinel_node(DLL_Node *node){
     node->next = node;
     node->prev = node;
 }
 
-static DLL_Node*
+internal DLL_Node*
 allocate_node(DLL_Node *sentinel){
     DLL_Node *result = 0;
     if (sentinel->next != sentinel){
@@ -113,17 +101,17 @@ allocate_node(DLL_Node *sentinel){
 #define FILE_ENTRY_COST (sizeof(File_Track_Entry))
 
 
-static int32_t
-tracking_system_has_space(File_Track_Tables *tables, int32_t new_count){
-    uint32_t count = tables->tracked_count;
-    uint32_t max = tables->max;
-    int32_t result = ((count + new_count)*8 < max*7);
+internal i32
+tracking_system_has_space(File_Track_Tables *tables, i32 new_count){
+    u32 count = tables->tracked_count;
+    u32 max = tables->max;
+    i32 result = ((count + new_count)*8 < max*7);
     return(result);
 }
 
-static int32_t
+internal i32
 entry_is_available(File_Track_Entry *entry){
-    int32_t result = 0;
+    i32 result = 0;
     if (entry){
         result =
             file_hash_is_zero(entry->hash) ||
@@ -132,12 +120,12 @@ entry_is_available(File_Track_Entry *entry){
     return (result);
 }
 
-static File_Track_Entry*
+internal File_Track_Entry*
 tracking_system_lookup_entry(File_Track_Tables *tables, File_Index key){
-    uint32_t hash = key.id[0];
-    uint32_t max = tables->max;
-    uint32_t index = (hash) % max;
-    uint32_t start = index;
+    u32 hash = key.id[0];
+    u32 max = tables->max;
+    u32 index = (hash) % max;
+    u32 start = index;
     
     File_Track_Entry *entries = (File_Track_Entry*)to_ptr(tables, tables->file_table);
     
@@ -169,7 +157,7 @@ tracking_system_lookup_entry(File_Track_Tables *tables, File_Index key){
     return(result);
 }
 
-static File_Track_Entry*
+internal File_Track_Entry*
 get_file_entry(File_Track_Tables *tables, File_Index index){
     File_Track_Entry *entry = 0;
     
@@ -181,11 +169,11 @@ get_file_entry(File_Track_Tables *tables, File_Index index){
     return(entry);
 }
 
-static void
+internal void
 internal_free_slot(File_Track_Tables *tables, File_Track_Entry *entry){
     Assert(!entry_is_available(entry));
     
-    ZeroStruct(*entry);
+    *entry = null_file_track_entry;
     entry->hash.id[0] = 0xFFFFFFFF;
     entry->hash.id[1] = 0xFFFFFFFF;
     entry->hash.id[2] = 0xFFFFFFFF;
@@ -194,27 +182,26 @@ internal_free_slot(File_Track_Tables *tables, File_Track_Entry *entry){
     --tables->tracked_count;
 }
 
-static int32_t
-enough_memory_to_init_table(int32_t table_memory_size){
-    int32_t result = (sizeof(File_Track_Tables) + FILE_ENTRY_COST*8 <= table_memory_size);
+internal i32
+enough_memory_to_init_table(i32 table_memory_size){
+    i32 result = (sizeof(File_Track_Tables) + FILE_ENTRY_COST*8 <= table_memory_size);
     return(result);
 }
 
-static void
-init_table_memory(File_Track_Tables *tables, int32_t table_memory_size){
+internal void
+init_table_memory(File_Track_Tables *tables, i32 table_memory_size){
     tables->size = table_memory_size;
     tables->tracked_count = 0;
     
-    int32_t max_number_of_entries =
-        (table_memory_size - sizeof(*tables)) / FILE_ENTRY_COST;
+    i32 max_number_of_entries = (table_memory_size - sizeof(*tables)) / FILE_ENTRY_COST;
     
     tables->file_table = sizeof(*tables);
     tables->max = max_number_of_entries;
 }
 
-static File_Track_Result
+internal File_Track_Result
 move_table_memory(File_Track_Tables *original_tables,
-                  void *mem, int32_t size){
+                  void *mem, i32 size){
     File_Track_Result result = FileTrack_Good;
     
     if (original_tables->size < size){
@@ -224,24 +211,22 @@ move_table_memory(File_Track_Tables *original_tables,
         {
             tables->size = size;
             
-            int32_t likely_entry_size = FILE_ENTRY_COST;
-            int32_t max_number_of_entries = (size - sizeof(*tables)) / likely_entry_size;
+            i32 likely_entry_size = FILE_ENTRY_COST;
+            i32 max_number_of_entries = (size - sizeof(*tables)) / likely_entry_size;
             
             tables->file_table = sizeof(*tables);
             tables->max = max_number_of_entries;
         }
         
         if (tables->max > original_tables->max){
-            uint32_t original_max = original_tables->max;
+            u32 original_max = original_tables->max;
             
             // NOTE(allen): Rehash the tracking table
             {
                 File_Track_Entry *entries = (File_Track_Entry*)
                     to_ptr(original_tables, original_tables->file_table);
                 
-                for (uint32_t index = 0;
-                     index < original_max;
-                     ++index){
+                for (u32 index = 0; index < original_max; ++index){
                     File_Track_Entry *entry = entries + index;
                     if (!entry_is_available(entry)){
                         File_Index hash = entry->hash;
@@ -268,3 +253,4 @@ move_table_memory(File_Track_Tables *original_tables,
 }
 
 // BOTTOM
+

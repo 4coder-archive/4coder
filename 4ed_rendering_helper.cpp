@@ -139,10 +139,46 @@ draw_string_base(System_Functions *system, Render_Target *target, Font_ID font_i
         x = (f32)x_;
         
         f32 byte_advance = font_get_byte_advance(font);
+        f32 *sub_advances = font_get_byte_sub_advances(font);
         
         u8 *str = (u8*)str_.str;
         u8 *str_end = str + str_.size;
         
+        Translation_State tran = {0};
+        Translation_Emits emits = {0};
+        
+        for (u32 i = 0; str < str_end; ++str, ++i){
+            translating_fully_process_byte(system, font, &tran, *str, i, str_.size, &emits);
+            
+            for (TRANSLATION_DECL_EMIT_LOOP(j, emits)){
+                TRANSLATION_DECL_GET_STEP(step, behavior, j, emits);
+                
+                if (behavior.do_codepoint_advance){
+                    u32 codepoint = step.value;
+                    if (color != 0){
+                        font_draw_glyph(target, font_id, type, codepoint, x, y, color);
+                    }
+                    x += font_get_glyph_advance(system, font, codepoint);
+                }
+                else if (behavior.do_number_advance){
+                    u8 n = (u8)(step.value);
+                    if (color != 0){
+                        u8 cs[3];
+                        cs[0] = '\\';
+                        byte_to_ascii(n, cs+1);
+                        
+                        f32 xx = x;
+                        for (u32 j = 0; j < 3; ++j){
+                            font_draw_glyph(target, font_id, type, cs[j], xx, y, color);
+                            xx += sub_advances[j];
+                        }
+                    }
+                    x += byte_advance;
+                }
+            }
+        }
+        
+#if 0
         for (;str < str_end;){
             u8 *byte = str;
             u32 codepoint = utf8_to_u32(&str, str_end);
@@ -188,6 +224,7 @@ draw_string_base(System_Functions *system, Render_Target *target, Font_ID font_i
                 }
             }
         }
+#endif
     }
     
     return(x);
