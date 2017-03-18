@@ -307,7 +307,7 @@ get_change_event(File_Track_System *system, char *buffer, i32 max, i32 *size){
     DWORD length = 0;
     ULONG_PTR key = 0;
     
-    i32 has_result = 0;
+    b32 has_result = 0;
     
     if (has_buffered_event){
         has_buffered_event = 0;
