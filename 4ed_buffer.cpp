@@ -13,8 +13,8 @@
 // Buffer low level operations
 //
 
-#include "../font/4coder_font_data.h"
-#include "../4coder_helper/4coder_seek_types.h"
+#include "font/4coder_font_data.h"
+#include "4coder_helper/4coder_seek_types.h"
 
 typedef struct Cursor_With_Index{
     i32 pos;
@@ -310,8 +310,12 @@ to_upper(char c){
 internal i32
 is_match(char *a, char *b, i32 len){
     i32 result = 1;
-    for (;len > 0; --len, ++a, ++b)
-        if (*a != *b) { result = 0; break; }
+    for (;len > 0; --len, ++a, ++b){
+        if (*a != *b){
+            result = 0;
+            break;
+        }
+    }
     
     return(result);
 }
@@ -319,8 +323,12 @@ is_match(char *a, char *b, i32 len){
 internal i32
 is_match_insensitive(char *a, char *b, i32 len){
     i32 result = 1;
-    for (;len > 0; --len, ++a, ++b)
-        if (to_upper(*a) != to_upper(*b)) { result = 0; break; }
+    for (;len > 0; --len, ++a, ++b){
+        if (to_upper(*a) != to_upper(*b)){
+            result = 0;
+            break;
+        }
+    }
     
     return(result);
 }
@@ -344,7 +352,7 @@ enum{
     BufferModelUnit_Numbers,
 };
 
-#include "4coder_translation.cpp"
+#include "4ed_translation.cpp"
 
 //
 // Implementation of the gap buffer

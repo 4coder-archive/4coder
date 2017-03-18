@@ -4767,15 +4767,15 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                             u32 total_count = system->font.get_count();
                             u32 count = Min(total_count, 10);
                             
-                            for (u32 font_index = 1; font_index < count; ++font_index){
+                            for (u32 font_index = 0; font_index < count; ++font_index){
                                 Font_ID this_font_id = 0;
-                                system->font.get_ids_by_index(font_index, 1, &font_id);
+                                system->font.get_ids_by_index(font_index, 1, &this_font_id);
                                 
                                 char name_space[256];
                                 String name = make_fixed_width_string(name_space);
                                 name.size = system->font.get_name_by_index(font_index, name.str, name.memory_size);
                                 
-                                id.id[0] = (u64)this_font_id;
+                                id.id[0] = (u64)font_index + 1;
                                 if (this_font_id != font_id){
                                     if (gui_do_font_button(target, id, this_font_id, name)){
                                         new_font_id = this_font_id;

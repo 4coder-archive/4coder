@@ -48,11 +48,11 @@
 #include "4ed_style.cpp"
 #include "4ed_command.cpp"
 
-#include "file/4coder_buffer.cpp"
-#include "file/4coder_undo.cpp"
-#include "file/4coder_file.cpp"
-#include "file/4coder_working_set.cpp"
-#include "file/4coder_hot_directory.cpp"
+#include "4ed_buffer.cpp"
+#include "4ed_undo.cpp"
+#include "4ed_file.cpp"
+#include "4ed_working_set.cpp"
+#include "4ed_hot_directory.cpp"
 
 #include "4ed_gui.h"
 #include "4ed_gui.cpp"

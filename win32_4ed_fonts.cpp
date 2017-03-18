@@ -31,10 +31,10 @@ internal
 Sys_Font_Get_IDs_By_Index_Sig(system_font_get_ids_by_index){
     b32 result = false;
     u32 stop_index = first_index + index_count;
-    if (stop_index < win32_fonts.font_count){
+    if (stop_index <= win32_fonts.font_count){
         result = true;
         for (u32 i = first_index; i < stop_index; ++i){
-            id_out[i] = i;
+            id_out[i-first_index] = i;
         }
     }
     return(result);
@@ -46,8 +46,8 @@ Sys_Font_Get_Name_By_Index_Sig(system_font_get_name_by_index){
     if (font_index < win32_fonts.font_count){
         Render_Font *font = &win32_fonts.fonts[font_index];
         char *name = font->name;
-        u32 name_len = font->name_len;
-        copy_partial_cs(str_out, str_out_cap, make_string(name, name_len));
+        length = font->name_len;
+        copy_partial_cs(str_out, str_out_cap, make_string(name, length));
     }
     return(length);
 }
