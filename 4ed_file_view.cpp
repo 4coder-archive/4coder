@@ -1113,9 +1113,7 @@ wrap_state_consume_token(System_Functions *system, Render_Font *font, Code_Wrap_
         end = fixed_end_point;
     }
     
-    if (i < line_start){
-        i = line_start;
-    }
+    i = clamp_top(i, line_start);
     
     if (i == line_start){
         skipping_whitespace = true;
