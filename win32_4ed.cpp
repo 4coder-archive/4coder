@@ -74,8 +74,7 @@
 #include "4ed_file_track.h"
 #include "4ed_system_shared.h"
 
-#include "4ed_file_track_general.cpp"
-#include "4ed_file_track_win32.cpp"
+#include "win32_4ed_file_track.cpp"
 
 //
 // Win32_Vars structs

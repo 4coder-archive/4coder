@@ -150,8 +150,8 @@ draw_string_base(System_Functions *system, Render_Target *target, Font_ID font_i
         for (u32 i = 0; str < str_end; ++str, ++i){
             translating_fully_process_byte(system, font, &tran, *str, i, str_.size, &emits);
             
-            for (TRANSLATION_DECL_EMIT_LOOP(j, emits)){
-                TRANSLATION_DECL_GET_STEP(step, behavior, j, emits);
+            for (TRANSLATION_DECL_EMIT_LOOP(J, emits)){
+                TRANSLATION_DECL_GET_STEP(step, behavior, J, emits);
                 
                 if (behavior.do_codepoint_advance){
                     u32 codepoint = step.value;

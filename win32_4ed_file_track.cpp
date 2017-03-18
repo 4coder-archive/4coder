@@ -10,12 +10,13 @@
 // TOP
 
 #include "4ed_file_track.h"
+#include "4ed_file_track_general.cpp"
 
 #include <Windows.h>
 
 typedef struct {
     OVERLAPPED overlapped;
-    char result[2048];
+    u16 result[1024];
     HANDLE dir;
     i32 user_count;
 } Win32_Directory_Listener;
@@ -80,21 +81,20 @@ init_track_system(File_Track_System *system, void *table_memory, i32 table_memor
     return(result);
 }
 
-internal i32
-internal_get_parent_name(char *out, i32 max, char *name){
-    char *ptr = name;
+internal umem
+internal_utf8_file_to_utf16_parent(u16 *out, u32 max, u8 *name){
+    u8 *ptr = name;
     for (; *ptr != 0; ++ptr);
-    i32 len = (i32)(ptr - name);
+    umem len = (umem)(ptr - name);
     
     // TODO(allen): make this system real
     Assert(len < max);
     
-    i32 slash_i = len-1;
+    umem slash_i = len-1;
     for (;slash_i > 0 && name[slash_i] != '\\' && name[slash_i] != '/';--slash_i);
     
-    for (i32 i = 0; i < slash_i; ++i){
-        out[i] = name[i];
-    }
+    b32 error = false;
+    slash_i = utf8_to_utf16_minimal_checking(out, max-1, name, len, &error);
     out[slash_i] = 0;
     
     return(slash_i);
@@ -122,7 +122,7 @@ FILE_NOTIFY_CHANGE_CREATION   | \
 0)
 
 FILE_TRACK_LINK File_Track_Result
-add_listener(File_Track_System *system, char *filename){
+add_listener(File_Track_System *system, u8 *filename){
     File_Track_Result result = FileTrack_Good;
     Win32_File_Track_Vars *vars = to_vars(system);
     
@@ -131,10 +131,10 @@ add_listener(File_Track_System *system, char *filename){
         File_Track_Tables *tables = to_tables(vars);
         
         // TODO(allen): make this real!
-        char dir_name[1024];
-        internal_get_parent_name(dir_name, sizeof(dir_name), filename);
+        u16 dir_name[1024];
+        internal_utf8_file_to_utf16_parent(dir_name, ArrayCount(dir_name), filename);
         
-        HANDLE dir = CreateFile(dir_name, FILE_LIST_DIRECTORY, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, 0, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OVERLAPPED, 0);
+        HANDLE dir = CreateFile((LPCWSTR)dir_name, FILE_LIST_DIRECTORY, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, 0, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OVERLAPPED, 0);
         
         if (dir != INVALID_HANDLE_VALUE){
             BY_HANDLE_FILE_INFORMATION dir_info = {0};
@@ -204,7 +204,7 @@ add_listener(File_Track_System *system, char *filename){
 }
 
 FILE_TRACK_LINK File_Track_Result
-remove_listener(File_Track_System *system, char *filename){
+remove_listener(File_Track_System *system, u8 *filename){
     File_Track_Result result = FileTrack_Good;
     Win32_File_Track_Vars *vars = to_vars(system);
     
@@ -213,10 +213,10 @@ remove_listener(File_Track_System *system, char *filename){
     File_Track_Tables *tables = to_tables(vars);
     
     // TODO(allen): make this real!
-    char dir_name[1024];
-    internal_get_parent_name(dir_name, sizeof(dir_name), filename);
+    u16 dir_name[1024];
+    internal_utf8_file_to_utf16_parent(dir_name, ArrayCount(dir_name), filename);
     
-    HANDLE dir = CreateFile(dir_name, FILE_LIST_DIRECTORY, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, 0, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OVERLAPPED, 0);
+    HANDLE dir = CreateFile((LPCWSTR)dir_name, FILE_LIST_DIRECTORY, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, 0, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OVERLAPPED, 0);
     
     if (dir != INVALID_HANDLE_VALUE){
         BY_HANDLE_FILE_INFORMATION dir_info = {0};
@@ -293,13 +293,13 @@ expand_track_system_listeners(File_Track_System *system, void *mem, i32 size){
 }
 
 FILE_TRACK_LINK File_Track_Result
-get_change_event(File_Track_System *system, char *buffer, i32 max, i32 *size){
+get_change_event(File_Track_System *system, u8 *buffer, i32 max, i32 *size){
     File_Track_Result result = FileTrack_NoMoreEvents;
     Win32_File_Track_Vars *vars = to_vars(system);
     
     local_persist i32 has_buffered_event = 0;
     local_persist DWORD offset = 0;
-    local_persist Win32_Directory_Listener listener;
+    local_persist Win32_Directory_Listener listener = {0};
     
     EnterCriticalSection(&vars->table_lock);
     
@@ -339,9 +339,7 @@ get_change_event(File_Track_System *system, char *buffer, i32 max, i32 *size){
         i32 req_size = dir_len + 1 + len;
         *size = req_size;
         if (req_size < max){
-            i32 pos = 0;
-            
-            pos = GetFinalPathNameByHandle(listener.dir, buffer, max, FILE_NAME_NORMALIZED);
+            i32 pos = GetFinalPathNameByHandle(listener.dir, buffer, max, FILE_NAME_NORMALIZED);
             buffer[pos++] = '\\';
             
             for (i32 i = 0; i < len; ++i, ++pos){
