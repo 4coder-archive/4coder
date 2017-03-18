@@ -35,13 +35,14 @@
 
 #include "4ed_rendering.h"
 #include "4ed.h"
+#include "4ed_buffer_model.h"
 
 #define FCPP_FORBID_MALLOC
 #include "4cpp/4cpp_lexer.h"
 
 #include "4ed_doubly_linked_list.cpp"
 
-#include "4ed_font_set.cpp"
+#include "4ed_translation.cpp"
 #include "4ed_rendering_helper.cpp"
 
 #include "4ed_style.h"

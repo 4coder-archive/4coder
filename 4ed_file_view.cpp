@@ -1132,7 +1132,7 @@ wrap_state_consume_token(System_Functions *system, Render_Font *font, Code_Wrap_
             u8 ch = (u8)state->stream.data[i];
             translating_fully_process_byte(system, font, &state->tran, ch, i, state->size, &state->emits);
             
-            for (TRANSLATION_OUTPUT(state->J, state->emits)){
+            for (TRANSLATION_EMIT_LOOP(state->J, state->emits)){
                 TRANSLATION_GET_STEP(state->step, state->behavior, state->J, state->emits);
                 
                 if (state->behavior.do_newline){
