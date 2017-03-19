@@ -1484,7 +1484,7 @@ file_measure_wraps(Models *models, Editing_File *file, Render_Font *font){
     
     Code_Wrap_State wrap_state = {0};
     
-    b32 use_tokens = 0;
+    b32 use_tokens = false;
     
     Wrap_Indent_Pair *wrap_indent_marks = 0;
     Potential_Wrap_Indent_Pair *potential_marks = 0;
@@ -1492,7 +1492,7 @@ file_measure_wraps(Models *models, Editing_File *file, Render_Font *font){
     
     if (params.virtual_white && file->state.tokens_complete && !file->state.still_lexing){
         wrap_state_init(&wrap_state, file, font);
-        use_tokens = 1;
+        use_tokens = true;
         
         potential_marks = push_array(part, Potential_Wrap_Indent_Pair, floor32(width));
         
