@@ -14,6 +14,9 @@
 // the application code, but system_shared.cpp
 // rely on the functions listed here.
 
+#if !defined(FRED_SYSTEM_SHARED_H)
+#define FRED_SYSTEM_SHARED_H
+
 struct File_Data{
     char *data;
     u32 size;
@@ -32,6 +35,8 @@ internal Sys_File_Can_Be_Made_Sig(system_file_can_be_made);
 internal Sys_Get_Binary_Path_Sig(system_get_binary_path);
 
 #define system_get_memory(size) system_get_memory_((size), __LINE__, __FILE__)
+
+#endif
 
 // BOTTOM
 

@@ -970,6 +970,23 @@ This call returns non-zero on a successful copy.) */{
     return 1;
 }
 
+CPP_NAME(copy_checked)
+API_EXPORT FSTRING_LINK b32_4tech
+copy_checked_cs(char *dest, i32_4tech dest_cap, String src)/*
+DOC(This call performs a copy from the src string to the dest string.
+The value dest_cap is checked before any coppying is done.
+This call returns non-zero on a successful copy.)
+*/{
+    i32_4tech i;
+    if (dest_cap < src.size){
+        return 0;
+    }
+    for (i = 0; i < src.size; ++i){
+        dest[i] = src.str[i];
+    }
+    return 1;
+}
+
 CPP_NAME(copy_partial)
 API_EXPORT FSTRING_LINK b32_4tech
 copy_partial_sc(String *dest, char *src)/*
@@ -995,9 +1012,9 @@ CPP_NAME(copy_partial)
 API_EXPORT FSTRING_LINK b32_4tech
 copy_partial_ss(String *dest, String src)/*
 DOC(This call performs a copy from the src string to the dest string.
-The memory_size of dest is checked if the entire copy cannot be performed,
-as many bytes as possible are coppied to dest. This call returns non-zero
-if the entire string is coppied to dest.) */{
+The memory_size of dest is checked. If the entire copy cannot be performed,
+as many bytes as possible are coppied to dest.
+This call returns non-zero if the entire string is coppied to dest.) */{
     char *dest_str = dest->str;
     i32_4tech memory_size = dest->memory_size;
     b32_4tech result = 0;
@@ -1009,7 +1026,28 @@ if the entire string is coppied to dest.) */{
         dest_str[i] = src.str[i];
     }
     dest->size = memory_size;
-    return result;
+    return(result);
+}
+
+CPP_NAME(copy_partial)
+API_EXPORT FSTRING_LINK b32_4tech
+copy_partial_cs(char *dest, i32_4tech dest_cap, String src)/*
+DOC(This call performs a copy from the src string to the dest string.
+The value dest_cap is checked.  If the entire copy cannot be performed,
+as many bytes as possible are coppied to dest.
+This call returns non-zero if the entire string is coppied to dest.)
+*/{
+    b32_4tech result = 0;
+    i32_4tech copy_size = dest_cap;
+    i32_4tech i;
+    if (dest_cap >= src.size){
+        result = 1;
+        copy_size = src.size;
+    }
+    for (i = 0; i < copy_size; ++i){
+        dest[i] = src.str[i];
+    }
+    return(result);
 }
 
 CPP_NAME(copy)

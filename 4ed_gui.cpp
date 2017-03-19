@@ -451,7 +451,7 @@ gui_do_color_button(GUI_Target *target, GUI_id id, u32 fore, u32 back, String te
 }
 
 internal b32
-gui_do_font_button(GUI_Target *target, GUI_id id, i16 font_id, String text){
+gui_do_font_button(GUI_Target *target, GUI_id id, Font_ID font_id, String text){
     b32 result = 0;
     i32 font_id32 = font_id;
     GUI_Interactive *b = gui_push_button_command(target, guicom_font_button, id);

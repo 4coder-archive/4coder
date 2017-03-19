@@ -64,7 +64,7 @@ fill_buffer_summary(Buffer_Summary *buffer, Editing_File *file, Command_Data *cm
 }
 
 internal void
-fill_view_summary(View_Summary *view, View *vptr, Live_Views *live_set, Working_Set *working_set){
+fill_view_summary(System_Functions *system, View_Summary *view, View *vptr, Live_Views *live_set, Working_Set *working_set){
     Buffer_ID buffer_id = 0;
     File_Viewing_Data *data = &vptr->file_data;
     
@@ -84,7 +84,7 @@ fill_view_summary(View_Summary *view, View *vptr, Live_Views *live_set, Working_
         
         view->buffer_id = buffer_id;
         
-        view->mark = view_compute_cursor(vptr, seek_pos(vptr->edit_pos->mark), 0);
+        view->mark = view_compute_cursor(system, vptr, seek_pos(vptr->edit_pos->mark), 0);
         view->cursor = vptr->edit_pos->cursor;
         view->preferred_x = vptr->edit_pos->preferred_x;
         
@@ -96,8 +96,8 @@ fill_view_summary(View_Summary *view, View *vptr, Live_Views *live_set, Working_
 
 
 inline void
-fill_view_summary(View_Summary *view, View *vptr, Command_Data *cmd){
-    fill_view_summary(view, vptr, &cmd->vars->live_set, &cmd->models->working_set);
+fill_view_summary(System_Functions *system, View_Summary *view, View *vptr, Command_Data *cmd){
+    fill_view_summary(system, view, vptr, &cmd->vars->live_set, &cmd->models->working_set);
 }
 
 internal Editing_File*
@@ -195,8 +195,7 @@ DOC_PARAM(command, The command parameter specifies the command that shall be exe
 DOC_PARAM(command_len, The parameter command_len specifies the length of the command string.)
 DOC_PARAM(flags, Flags for the behavior of the call are specified in the flags parameter.)
 DOC_RETURN(This call returns non-zero on success.)
-DOC(
-A call to exec_system_command executes a command as if called from the command line, and sends the output to a buffer. The buffer identifier can name a new buffer that does not exist, name a buffer that does exist, or provide the id of a buffer that does exist.
+DOC(A call to exec_system_command executes a command as if called from the command line, and sends the output to a buffer. The buffer identifier can name a new buffer that does not exist, name a buffer that does exist, or provide the id of a buffer that does exist.
 
 If the buffer is not already in an open view and the view parameter is not NULL,
 then the provided view will display the output buffer.
@@ -316,8 +315,8 @@ DOC_SEE(Command_Line_Interface_Flag)
                 command_string = make_string_terminated(part, command, command_len);
             }
             
-            if (vptr && bind_to_new_view){
-                view_set_file(vptr, file, models);
+            if (vptr != 0 && bind_to_new_view){
+                view_set_file(system, vptr, file, models);
                 view_show_file(vptr);
             }
             
@@ -342,7 +341,7 @@ DOC_SEE(Command_Line_Interface_Flag)
         goto done;
     }
     
-    done:
+    done:;
     end_temp_memory(temp);
     return(result);
 }
@@ -877,10 +876,8 @@ DOC_SEE(Buffer_Setting_ID)
                     new_value = 48;
                 }
                 if (new_value != file->settings.display_width){
-                    i16 font_id = file->settings.font_id;
-                    Font_Info *font_info = get_font_info(models->font_set, font_id);
-                    Render_Font *font = font_info->font;
-                    file_set_width(models, file, new_value, font);
+                    Render_Font *font = system->font.get_render_data_by_id(file->settings.font_id);
+                    file_set_width(system, models, file, new_value, font);
                 }
             }break;
             
@@ -891,9 +888,8 @@ DOC_SEE(Buffer_Setting_ID)
                     new_value = 0;
                 }
                 if (new_value != file->settings.minimum_base_display_width){
-                    i16 font_id = file->settings.font_id;
-                    Render_Font *font = get_font_info(models->font_set, font_id)->font;
-                    file_set_min_base_width(models, file, new_value, font);
+                    Render_Font *font = system->font.get_render_data_by_id(file->settings.font_id);
+                    file_set_min_base_width(system, models, file, new_value, font);
                 }
             }break;
             
@@ -977,13 +973,12 @@ DOC_SEE(Buffer_Setting_ID)
                 }
                 
                 if (full_remeasure){
-                    i16 font_id = file->settings.font_id;
-                    Render_Font *font = get_font_info(models->font_set, font_id)->font;
+                    Render_Font *font = system->font.get_render_data_by_id(file->settings.font_id);
                     
                     file_allocate_character_starts_as_needed(&models->mem.general, file);
-                    buffer_measure_character_starts(&file->state.buffer, file->state.character_starts, 0, file->settings.virtual_white);
-                    file_measure_wraps(models, file, font);
-                    file_update_cursor_positions(models, file);
+                    buffer_measure_character_starts(system, font, &file->state.buffer, file->state.character_starts, 0, file->settings.virtual_white);
+                    file_measure_wraps(system, models, file, font);
+                    file_update_cursor_positions(system, models, file);
                 }
             }break;
             
@@ -1304,25 +1299,25 @@ internal_get_view_first(Command_Data *cmd, View_Summary *view){
     Panel *panel = layout->used_sentinel.next;
     
     Assert(panel != &layout->used_sentinel);
-    fill_view_summary(view, panel->view, cmd);
+    System_Functions *system = cmd->system;
+    fill_view_summary(system, view, panel->view, cmd);
 }
 
 internal void
 internal_get_view_next(Command_Data *cmd, View_Summary *view){
+    System_Functions *system = cmd->system;
     Editing_Layout *layout = &cmd->models->layout;
     Live_Views *live_set = &cmd->vars->live_set;
     int32_t index = view->view_id - 1;
-    View *vptr = 0;
-    Panel *panel = 0;
     
     if (index >= 0 && index < live_set->max){
-        vptr = live_set->views + index;
-        panel = vptr->panel;
+        View *vptr = live_set->views + index;
+        Panel *panel = vptr->panel;
         if (panel){
             panel = panel->next;
         }
         if (panel && panel != &layout->used_sentinel){
-            fill_view_summary(view, panel->view, &cmd->vars->live_set, &cmd->models->working_set);
+            fill_view_summary(system, view, panel->view, &cmd->vars->live_set, &cmd->models->working_set);
         }
         else{
             *view = null_view_summary;
@@ -1390,15 +1385,15 @@ DOC_RETURN(This call returns a summary that describes the indicated view if it i
 DOC_SEE(Access_Flag)
 */{
     Command_Data *cmd = (Command_Data*)app->cmd_context;
+    System_Functions *system = cmd->system;
     View_Summary view = {0};
     Live_Views *live_set = cmd->live_set;
     i32 max = live_set->max;
-    View *vptr = 0;
     
     view_id -= 1;
     if (view_id >= 0 && view_id < max){
-        vptr = live_set->views + view_id;
-        fill_view_summary(&view, vptr, live_set, &cmd->models->working_set);
+        View *vptr = live_set->views + view_id;
+        fill_view_summary(system, &view, vptr, live_set, &cmd->models->working_set);
         if (!access_test(view.lock_flags, access)){
             view = null_view_summary;
         }
@@ -1416,13 +1411,13 @@ DOC_SEE(set_active_view)
 DOC_SEE(Access_Flag)
 */{
     Command_Data *cmd = (Command_Data*)app->cmd_context;
-    
+    System_Functions *system = cmd->system;
     Panel *panel = cmd->models->layout.panels + cmd->models->layout.active_panel;
     
     Assert(panel->view != 0);
     
     View_Summary view = {0};
-    fill_view_summary(&view, panel->view, &cmd->vars->live_set, &cmd->models->working_set);
+    fill_view_summary(system, &view, panel->view, &cmd->vars->live_set, &cmd->models->working_set);
     if (!access_test(view.lock_flags, access)){
         view = null_view_summary;
     }
@@ -1483,7 +1478,7 @@ DOC_SEE(View_Split_Position)
         models->layout.active_panel = (i32)(split.panel - models->layout.panels);
         panel_make_empty(system, cmd->vars, split.panel);
         
-        fill_view_summary(&result, split.panel->view, cmd);
+        fill_view_summary(system, &result, split.panel->view, cmd);
     }
     
     return(result);
@@ -1651,6 +1646,7 @@ DOC_RETURN(This call returns non-zero on success.)
 DOC_SEE(View_Setting_ID)
 */{
     Command_Data *cmd = (Command_Data*)app->cmd_context;
+    System_Functions *system = cmd->system;
     View *vptr = imp_get_view(cmd, view);
     bool32 result = false;
     
@@ -1673,7 +1669,7 @@ DOC_SEE(View_Setting_ID)
             }break;
         }
         
-        fill_view_summary(view, vptr, cmd);
+        fill_view_summary(system, view, vptr, cmd);
     }
     
     return(result);
@@ -1724,16 +1720,16 @@ DOC_SEE(Buffer_Seek)
 DOC_SEE(Full_Cursor)
 */{
     Command_Data *cmd = (Command_Data*)app->cmd_context;
+    System_Functions *system = cmd->system;
     View *vptr = imp_get_view(cmd, view);
-    Editing_File *file = 0;
     bool32 result = false;
     
     if (vptr){
-        file = vptr->file_data.file;
-        if (file && !file->is_loading){
+        Editing_File *file = vptr->file_data.file;
+        if (file != 0 && !file->is_loading){
             result = true;
-            *cursor_out = view_compute_cursor(vptr, seek, 0);
-            fill_view_summary(view, vptr, cmd);
+            *cursor_out = view_compute_cursor(system, vptr, seek, 0);
+            fill_view_summary(system, view, vptr, cmd);
         }
     }
     
@@ -1756,6 +1752,7 @@ cursor in the same column or x position.
 DOC_SEE(Buffer_Seek)
 */{
     Command_Data *cmd = (Command_Data*)app->cmd_context;
+    System_Functions *system = cmd->system;
     View *vptr = imp_get_view(cmd, view);
     Editing_File *file = 0;
     bool32 result = false;
@@ -1765,9 +1762,9 @@ DOC_SEE(Buffer_Seek)
         Assert(file);
         if (!file->is_loading){
             result = true;
-            Full_Cursor cursor = view_compute_cursor(vptr, seek, 0);
+            Full_Cursor cursor = view_compute_cursor(system, vptr, seek, 0);
             view_set_cursor(vptr, cursor, set_preferred_x, file->settings.unwrapped_lines);
-            fill_view_summary(view, vptr, cmd);
+            fill_view_summary(system, view, vptr, cmd);
         }
     }
     
@@ -1781,6 +1778,7 @@ DOC(TODO)
 DOC_SEE(GUI_Scroll_Vars)
 */{
     Command_Data *cmd = (Command_Data*)app->cmd_context;
+    System_Functions *system = cmd->system;
     View *vptr = imp_get_view(cmd, view);
     Editing_File *file = 0;
     bool32 result = false;
@@ -1789,8 +1787,8 @@ DOC_SEE(GUI_Scroll_Vars)
         file = vptr->file_data.file;
         if (file && !file->is_loading){
             result = true;
-            view_set_scroll(vptr, scroll);
-            fill_view_summary(view, vptr, cmd);
+            view_set_scroll(system, vptr, scroll);
+            fill_view_summary(system, view, vptr, cmd);
         }
     }
     
@@ -1807,6 +1805,7 @@ DOC(This call sets the the view's mark position.)
 DOC_SEE(Buffer_Seek)
 */{
     Command_Data *cmd = (Command_Data*)app->cmd_context;
+    System_Functions *system = cmd->system;
     View *vptr = imp_get_view(cmd, view);
     Editing_File *file = 0;
     Full_Cursor cursor = {0};
@@ -1817,14 +1816,14 @@ DOC_SEE(Buffer_Seek)
         if (file && !file->is_loading){
             if (seek.type != buffer_seek_pos){
                 result = true;
-                cursor = view_compute_cursor(vptr, seek, 0);
+                cursor = view_compute_cursor(system, vptr, seek, 0);
                 vptr->edit_pos->mark = cursor.pos;
             }
             else{
                 result = true;
                 vptr->edit_pos->mark = seek.pos;
             }
-            fill_view_summary(view, vptr, cmd);
+            fill_view_summary(system, view, vptr, cmd);
         }
     }
     
@@ -1847,18 +1846,19 @@ and the turn_on set to false, will switch back to showing the cursor.
 )
 */{
     Command_Data *cmd = (Command_Data*)app->cmd_context;
+    System_Functions *system = cmd->system;
     View *vptr = imp_get_view(cmd, view);
     bool32 result = false;
     
     if (vptr){
         result = true;
         if (turn_on){
-            view_set_temp_highlight(vptr, start, end);
+            view_set_temp_highlight(system, vptr, start, end);
         }
         else{
             vptr->file_data.show_temp_highlight = 0;
         }
-        fill_view_summary(view, vptr, cmd);
+        fill_view_summary(system, view, vptr, cmd);
     }
     
     return(result);
@@ -1871,33 +1871,29 @@ DOC_PARAM(view, The view parameter specifies the view in which to display the bu
 DOC_PARAM(buffer_id, The buffer_id parameter specifies which buffer to show in the view.)
 DOC_PARAM(flags, The flags parameter specifies behaviors for setting the buffer.)
 DOC_RETURN(This call returns non-zero on success.)
-DOC
-(
-On success view_set_buffer sets the specified view's current buffer and
-cancels and dialogue shown in the view and displays the file.
-)
+DOC(On success view_set_buffer sets the specified view's current buffer and cancels and dialogue shown in the view and displays the file.)
 DOC_SEE(Set_Buffer_Flag)
 */{
     Command_Data *cmd = (Command_Data*)app->cmd_context;
+    System_Functions *system = cmd->system;
     View *vptr = imp_get_view(cmd, view);
     Models *models = cmd->models;
-    Editing_File *file = 0;
     bool32 result = false;
     
     if (vptr){
-        file = working_set_get_active_file(&models->working_set, buffer_id);
+        Editing_File *file = working_set_get_active_file(&models->working_set, buffer_id);
         
-        if (file){
+        if (file != 0){
             result = true;
             if (file != vptr->file_data.file){
-                view_set_file(vptr, file, models);
+                view_set_file(system, vptr, file, models);
                 if (!(flags & SetBuffer_KeepOriginalGUI)){
                     view_show_file(vptr);
                 }
             }
         }
         
-        fill_view_summary(view, vptr, cmd);
+        fill_view_summary(system, view, vptr, cmd);
     }
     
     return(result);
@@ -2095,6 +2091,8 @@ DOC_PARAM(apply_to_all_files, If this is set all open files change to this font.
 durring the start hook because several files already exist at that time.)
 DOC(This call changes 4coder's default font to one of the built in fonts.)
 */{
+    
+#if 0
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     Font_Set *set = cmd->models->font_set;
     
@@ -2110,6 +2108,8 @@ DOC(This call changes 4coder's default font to one of the built in fonts.)
             global_font->font_id = font_id;
         }
     }
+#endif
+    
 }
 
 API_EXPORT void
@@ -2120,6 +2120,8 @@ DOC_PARAM(name, The name parameter specifies the name of the font to begin using
 DOC_PARAM(len, The len parameter specifies the length of the name string.)
 DOC(This call sets the display font of a particular buffer.)
 */{
+    
+#if 0
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     Models *models = cmd->models;
     Editing_File *file = imp_get_file(cmd, buffer);
@@ -2133,6 +2135,8 @@ DOC(This call sets the display font of a particular buffer.)
             file_set_font(models, file, font_id);
         }
     }
+#endif
+    
 }
 
 API_EXPORT bool32
@@ -2144,18 +2148,21 @@ DOC_PARAM(name_max, the capacity of name_out)
 DOC_RETURN(returns non-zero on success)
 */
 {
+    bool32 result = false;
+    
+#if 0
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     Models *models = cmd->models;
     Editing_File *file = imp_get_file(cmd, buffer);
     
-    bool32 result = 0;
     if (file){
         Font_Set *set = models->font_set;
         String name = make_string_cap(name_out, 0, name_max);
         if (font_set_get_name(set, file->settings.font_id, &name)){
-            result = name.size;
+            result = (name.size > 0);
         }
     }
+#endif
     
     return(result);
 }

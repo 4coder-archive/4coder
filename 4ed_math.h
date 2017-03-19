@@ -28,15 +28,15 @@ ABS(f32 x){
 
 inline f32
 MOD(f32 x, i32 m){
-    f32 whole, frac, r;
-    frac = modff(x, &whole);
-    r = ((i32)(whole) % m) + frac;
+    f32 whole;
+    f32 frac = modff(x, &whole);
+    f32 r = ((i32)(whole) % m) + frac;
     return(r);
 }
 
 inline f32
 SQRT(f32 x){
-    f32 r = sqrt(x);
+    f32 r = sqrtf(x);
     return(r);
 }
 
@@ -432,33 +432,9 @@ unlerp(f32 a, f32 x, f32 b){
 }
 
 inline f32
-clamp_bottom(f32 a, f32 n){
-    if (n < a) n = a;
-    return (n);
-}
-
-inline f32
-clamp_top(f32 n, f32 z){
-    if (n  > z) n = z;
-    return (n);
-}
-
-inline f32
 clamp(f32 a, f32 n, f32 z){
     if (n < a) n = a;
     else if (n  > z) n = z;
-    return (n);
-}
-
-inline i32
-clamp_bottom(i32 a, i32 n){
-    if (n < a) n = a;
-    return (n);
-}
-
-inline i32
-clamp_top(i32 n, i32 z){
-    if (n  > z) n = z;
     return (n);
 }
 
@@ -470,23 +446,14 @@ clamp(i32 a, i32 n, i32 z){
 }
 
 inline u32
-clamp_bottom(u32 a, u32 n){
-    if (n < a) n = a;
-    return (n);
-}
-
-inline u32
-clamp_top(u32 n, u32 z){
-    if (n  > z) n = z;
-    return (n);
-}
-
-inline u32
 clamp(u32 a, u32 n, u32 z){
     if (n < a) n = a;
     else if (n  > z) n = z;
     return (n);
 }
+
+#define clamp_top(a,b) Min(a,b)
+#define clamp_bottom(a,b) Max(a,b)
 
 /*
  * Color

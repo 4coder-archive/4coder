@@ -235,7 +235,7 @@ do_feedback_message(System_Functions *system, Models *models, String value, b32 
         for (View_Iter iter = file_view_iter_init(&models->layout, file, 0);
              file_view_iter_good(iter);
              iter = file_view_iter_next(iter)){
-            view_cursor_move(iter.view, pos);
+            view_cursor_move(system, iter.view, pos);
         }
     }
 }
@@ -247,16 +247,16 @@ do_feedback_message(System_Functions *system, Models *models, String value, b32 
 #define USE_FILE(n,v) Editing_File *n = (v)->file_data.file
 
 
-#define USE_PANEL(n) Panel *n = 0;{                         \
+#define USE_PANEL(n) Panel *n = 0; do{                      \
     i32 panel_index = command->models->layout.active_panel; \
     n = command->models->layout.panels + panel_index;       \
-}
+}while(false)
 
-#define USE_VIEW(n) View *n = 0;{                                 \
-    i32 panel_index = command->models->layout.active_panel;       \
-    Panel *panel = command->models->layout.panels + panel_index;  \
-    n = panel->view;                                              \
-}
+#define USE_VIEW(n) View *n = 0; do{                                  \
+    i32 panel_index = command->models->layout.active_panel;           \
+    Panel *__panel__ = command->models->layout.panels + panel_index;  \
+    n = __panel__->view;                                              \
+}while(false)
 
 #define REQ_OPEN_VIEW(n) USE_VIEW(n); if (view_lock_level(n) > LockLevel_Open) return
 
@@ -274,7 +274,7 @@ panel_make_empty(System_Functions *system, App_Vars *vars, Panel *panel){
     
     Assert(panel->view == 0);
     new_view = live_set_alloc_view(&vars->live_set, panel, models);
-    view_set_file(new_view.view, models->scratch_buffer, models);
+    view_set_file(system, new_view.view, models->scratch_buffer, models);
     new_view.view->map = get_map(models, mapid_file);
     
     return(new_view.view);
@@ -362,16 +362,15 @@ COMMAND_DECL(reopen){
                     init_normal_file(system, models, file, buffer, size);
                     
                     for (i32 i = 0; i < vptr_count; ++i){
-                        view_set_file(vptrs[i], file, models);
+                        view_set_file(system, vptrs[i], file, models);
                         
                         int32_t line = line_number[i];
                         int32_t character = column_number[i];
                         
                         *vptrs[i]->edit_pos = edit_poss[i];
-                        Full_Cursor cursor = view_compute_cursor(vptrs[i], seek_line_char(line, character), 0);
+                        Full_Cursor cursor = view_compute_cursor(system, vptrs[i], seek_line_char(line, character), 0);
                         
-                        view_set_cursor(vptrs[i], cursor, true,
-                                        file->settings.unwrapped_lines);
+                        view_set_cursor(vptrs[i], cursor, true, file->settings.unwrapped_lines);
                     }
                 }
                 else{
@@ -449,12 +448,11 @@ COMMAND_DECL(toggle_line_wrap){
     if (file->settings.unwrapped_lines){
         file->settings.unwrapped_lines = 0;
         view->edit_pos->scroll.target_x = 0;
-        view_cursor_move(view, view->edit_pos->cursor.pos);
     }
     else{
         file->settings.unwrapped_lines = 1;
-        view_cursor_move(view, view->edit_pos->cursor.pos);
     }
+    view_cursor_move(system, view, view->edit_pos->cursor.pos);
     view_set_relative_scrolling(view, scrolling);
 }
 
@@ -520,7 +518,7 @@ COMMAND_DECL(open_menu){
 COMMAND_DECL(open_debug){
     USE_VIEW(view);
     view_show_GUI(view, VUI_Debug);
-    view->debug_vars = debug_vars_zero();
+    view->debug_vars = null_debug_vars;
 }
 
 COMMAND_DECL(user_callback){
@@ -632,9 +630,6 @@ app_hardcode_styles(Models *models){
     Interactive_Style file_info_style = {0};
     Style *styles = models->styles.styles;
     Style *style = styles + 1;
-    
-    i16 fonts = 1;
-    models->global_font.font_id = fonts + 0;
     
     /////////////////
     style_set_name(style, make_lit_string("4coder"));
@@ -967,7 +962,6 @@ enum Command_Line_Action{
     CLAct_WindowStreamMode,
     CLAct_FontSize,
     CLAct_FontStartHinting,
-    CLAct_FontCustom,
     CLAct_Count
 };
 
@@ -1014,8 +1008,6 @@ init_command_line_settings(App_Settings *settings, Plat_Settings *plat_settings,
                             switch (arg[1]){
                                 case 'u': action = CLAct_UserFile; strict = 0;          break;
                                 case 'U': action = CLAct_UserFile; strict = 1;          break;
-                                
-                                case 'c': action = CLAct_FontCustom;                    break;
                                 
                                 case 'd': action = CLAct_CustomDLL; strict = 0;         break;
                                 case 'D': action = CLAct_CustomDLL; strict = 1;         break;
@@ -1120,16 +1112,6 @@ init_command_line_settings(App_Settings *settings, Plat_Settings *plat_settings,
                         action = CLAct_Nothing;
                     }break;
                     
-                    case CLAct_FontCustom:
-                    {
-                        if ((i + 3) <= clparams.argc){
-                            settings->custom_font_file = clparams.argv[i++];
-                            settings->custom_font_name = clparams.argv[i++];
-                            settings->custom_font_size = str_to_int_c(clparams.argv[i]);
-                        }
-                        action = CLAct_Nothing;
-                    }break;
-                    
                     case CLAct_FontStartHinting:
                     {
                         plat_settings->use_hinting = 1;
@@ -1162,8 +1144,6 @@ app_setup_memory(System_Functions *system, Application_Memory *memory){
     
     return(vars);
 }
-
-static App_Settings null_app_settings = {0};
 
 App_Read_Command_Line_Sig(app_read_command_line){
     i32 out_size = 0;
@@ -1215,11 +1195,8 @@ App_Init_Sig(app_init){
     models->app_links.cmd_context = &vars->command_data;
     
     partition = &models->mem.part;
-    target->partition = partition;
     
     {
-        i32 i;
-        
         panel_max_count = models->layout.panel_max_count = MAX_VIEWS;
         divider_max_count = panel_max_count - 1;
         models->layout.panel_count = 0;
@@ -1231,7 +1208,7 @@ App_Init_Sig(app_init){
         dll_init_sentinel(&models->layout.used_sentinel);
         
         panel = panels;
-        for (i = 0; i < panel_max_count; ++i, ++panel){
+        for (i32 i = 0; i < panel_max_count; ++i, ++panel){
             dll_insert(&models->layout.free_sentinel, panel);
         }
         
@@ -1239,7 +1216,7 @@ App_Init_Sig(app_init){
         models->layout.dividers = dividers;
         
         div = dividers;
-        for (i = 0; i < divider_max_count-1; ++i, ++div){
+        for (i32 i = 0; i < divider_max_count-1; ++i, ++div){
             div->next = (div + 1);
         }
         div->next = 0;
@@ -1460,57 +1437,6 @@ App_Init_Sig(app_init){
         setup_ui_commands(&models->map_ui, &models->mem.part, global_map);
     }
     
-    // NOTE(allen): font setup
-    {
-        models->font_set = &target->font_set;
-        
-        struct Font_Setup{
-            char *c_file_name;
-            i32 file_name_len;
-            char *c_name;
-            i32 name_len;
-            i32 pt_size;
-        };
-        
-        i32 font_size = models->settings.font_size;
-        
-        char *custom_font_file = models->settings.custom_font_file;
-        char *custom_font_name = models->settings.custom_font_name;
-        i32 custom_font_size = models->settings.custom_font_size;
-        b32 use_custom_font = true;
-        if (!custom_font_file){
-            use_custom_font = false;
-            custom_font_file = "";
-            custom_font_name = "";
-        }
-        
-        if (font_size < 8) font_size = 8;
-        
-        Font_Setup font_setup[] = {
-            {literal("LiberationSans-Regular.ttf"), literal("Liberation Sans"), font_size},
-            {literal("liberation-mono.ttf"), literal("Liberation Mono"), font_size},
-            {literal("Hack-Regular.ttf"), literal("Hack"), font_size},
-            {literal("CutiveMono-Regular.ttf"), literal("Cutive Mono"), font_size},
-            {literal("Inconsolata-Regular.ttf"), literal("Inconsolata"), font_size},
-            {custom_font_file, str_size(custom_font_file),
-                custom_font_name, str_size(custom_font_name),
-                custom_font_size},
-        };
-        i32 font_count = ArrayCount(font_setup);
-        if (!use_custom_font){
-            --font_count;
-        }
-        
-        font_set_init(models->font_set, partition, 16, 6);
-        
-        for (i32 i = 0; i < font_count; ++i){
-            String file_name = make_string(font_setup[i].c_file_name, font_setup[i].file_name_len);
-            String name = make_string(font_setup[i].c_name, font_setup[i].name_len);
-            i32 pt_size = font_setup[i].pt_size;
-            font_set_add(models->font_set, file_name, name, pt_size);
-        }
-    }
-    
     // NOTE(allen): file setup
     working_set_init(&models->working_set, partition, &vars->models.mem.general);
     models->working_set.default_display_width = DEFAULT_DISPLAY_WIDTH;
@@ -1529,10 +1455,8 @@ App_Init_Sig(app_init){
     }
     
     // NOTE(allen): style setup
+    models->global_font_id = 1;
     app_hardcode_styles(models);
-    
-    models->palette_size = 40;
-    models->palette = push_array(partition, u32, models->palette_size);
     
     // NOTE(allen): init first panel
     Command_Data *cmd = &vars->command_data;
@@ -1556,8 +1480,8 @@ App_Init_Sig(app_init){
     };
     
     File_Init init_files[] = {
-        { make_lit_string("*messages*"), &models->message_buffer, 1, },
-        { make_lit_string("*scratch*"),  &models->scratch_buffer, 0, }
+        { make_lit_string("*messages*"), &models->message_buffer, true , },
+        { make_lit_string("*scratch*"),  &models->scratch_buffer, false, }
     };
     
     for (i32 i = 0; i < ArrayCount(init_files); ++i){
@@ -1622,8 +1546,7 @@ update_cli_handle_without_file(System_Functions *system, Models *models,
 }
 
 internal i32
-update_cli_handle_with_file(System_Functions *system, Models *models,
-                            CLI_Handles *cli, Editing_File *file, char *dest, i32 max, b32 cursor_at_end){
+update_cli_handle_with_file(System_Functions *system, Models *models, CLI_Handles *cli, Editing_File *file, char *dest, i32 max, b32 cursor_at_end){
     i32 result = 0;
     u32 amount = 0;
     
@@ -1648,7 +1571,7 @@ update_cli_handle_with_file(System_Functions *system, Models *models,
         for (View_Iter iter = file_view_iter_init(&models->layout, file, 0);
              file_view_iter_good(iter);
              iter = file_view_iter_next(iter)){
-            view_cursor_move(iter.view, new_cursor);
+            view_cursor_move(system, iter.view, new_cursor);
         }
     }
     
@@ -1657,12 +1580,11 @@ update_cli_handle_with_file(System_Functions *system, Models *models,
 
 
 App_Step_Sig(app_step){
-    Application_Step_Result app_result = *result;
+    Application_Step_Result app_result = *app_result_;
     app_result.animating = 0;
     
     App_Vars *vars = (App_Vars*)memory->vars_memory;
     Models *models = &vars->models;
-    target->partition = &models->mem.part;
     
     // NOTE(allen): OS clipboard event handling
     String clipboard = input->clipboard;
@@ -1760,24 +1682,24 @@ App_Step_Sig(app_step){
     // NOTE(allen): detect mouse hover status
     i32 mx = input->mouse.x;
     i32 my = input->mouse.y;
-    b32 mouse_in_edit_area = 0;
-    b32 mouse_in_margin_area = 0;
-    Panel *mouse_panel, *used_panels;
+    b32 mouse_in_edit_area = false;
+    b32 mouse_in_margin_area = false;
     
-    used_panels = &models->layout.used_sentinel;
-    for (dll_items(mouse_panel, used_panels)){
-        if (hit_check(mx, my, mouse_panel->inner)){
-            mouse_in_edit_area = 1;
-            break;
+    Panel *mouse_panel = 0;
+    {
+        Panel *used_panels = &models->layout.used_sentinel, *panel = 0;
+        for (dll_items(panel, used_panels)){
+            if (hit_check(mx, my, panel->inner)){
+                mouse_panel = panel;
+                mouse_in_edit_area = true;
+                break;
+            }
+            else if (hit_check(mx, my, panel->full)){
+                mouse_panel = panel;
+                mouse_in_margin_area = true;
+                break;
+            }
         }
-        else if (hit_check(mx, my, mouse_panel->full)){
-            mouse_in_margin_area = 1;
-            break;
-        }
-    }
-    
-    if (!(mouse_in_edit_area || mouse_in_margin_area)){
-        mouse_panel = 0;
     }
     
     b32 mouse_on_divider = 0;
@@ -1954,7 +1876,7 @@ App_Step_Sig(app_step){
         }
         
         if (i < models->layout.panel_count){
-            view_set_file(panel->view, models->message_buffer, models);
+            view_set_file(system, panel->view, models->message_buffer, models);
             view_show_file(panel->view);
             ++i;
             panel = panel->next;
@@ -2269,7 +2191,7 @@ App_Step_Sig(app_step){
                 
                 if (!gui_scroll_eq(scroll_vars, &ip_result.vars)){
                     if (file_scroll){
-                        view_set_scroll(view, ip_result.vars);
+                        view_set_scroll(system, view, ip_result.vars);
                     }
                     else{
                         *scroll_vars = ip_result.vars;
@@ -2720,7 +2642,7 @@ App_Step_Sig(app_step){
     app_result.lctrl_lalt_is_altgr = models->settings.lctrl_lalt_is_altgr;
     app_result.perform_kill = !models->keep_playing;
     
-    *result = app_result;
+    *app_result_ = app_result;
     
     // end-of-app_step
 }

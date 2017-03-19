@@ -64,12 +64,7 @@ typedef struct Plat_Settings{
 } Plat_Settings;
 
 #define App_Read_Command_Line_Sig(name)             \
-i32 name(System_Functions *system,                  \
-Application_Memory *memory,                \
-String current_directory,                  \
-Plat_Settings *plat_settings,              \
-char ***files, i32 **file_count,           \
-Command_Line_Parameters clparams)
+i32 name(System_Functions *system, Application_Memory *memory, String current_directory, Plat_Settings *plat_settings, char ***files, i32 **file_count, Command_Line_Parameters clparams)
 
 typedef App_Read_Command_Line_Sig(App_Read_Command_Line);
 
@@ -110,12 +105,12 @@ struct Application_Step_Input{
     String clipboard;
 };
 
-#define App_Step_Sig(name) void      \
-name(System_Functions *system,       \
-Render_Target *target,           \
-Application_Memory *memory,      \
-Application_Step_Input *input,   \
-Application_Step_Result *result, \
+#define App_Step_Sig(name) void            \
+name(System_Functions *system,             \
+Render_Target *target,                \
+Application_Memory *memory,           \
+Application_Step_Input *input,        \
+Application_Step_Result *app_result_, \
 Command_Line_Parameters params)
 
 typedef App_Step_Sig(App_Step);

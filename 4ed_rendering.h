@@ -13,54 +13,6 @@
 #define FRED_RENDERING_H
 
 //
-// Fonts
-//
-
-#include "file/4coder_font_data.h"
-
-struct Font_Table_Entry{
-    u32 hash;
-    String name;
-    i16 font_id;
-};
-
-struct Font_Info{
-    Render_Font *font;
-    String filename;
-    String name;
-    i32 pt_size;
-};
-
-struct Font_Slot{
-    Font_Slot *next, *prev;
-    i16 font_id;
-    u8 padding[6];
-};
-
-#define Font_Load_Sig(name) i32 name(Render_Font *font_out, char *filename, char *fontname, i32 pt_size, i32 tab_width, b32 store_texture)
-typedef Font_Load_Sig(Font_Load);
-
-#define Release_Font_Sig(name) void name(Render_Font *font)
-typedef Release_Font_Sig(Release_Font);
-
-struct Font_Set{
-    Font_Info *info;
-    Font_Table_Entry *entries;
-    u32 count, max;
-    
-    void *font_block;
-    Font_Slot free_slots;
-    Font_Slot used_slots;
-    
-    Font_Load *font_load;
-    Release_Font *release_font;
-    
-    b8 *font_used_flags;
-    i16 used_this_frame;
-    i16 live_max;
-};
-
-//
 // Render Commands
 //
 
@@ -92,16 +44,16 @@ struct Render_Piece_Gradient{
 struct Render_Piece_Glyph{
     Vec2 pos;
     u32 color;
-    i16 font_id;
-    u8 character;
+    Font_ID font_id;
+    u32 codepoint;
 };
 
 struct Render_Piece_Glyph_Advance{
     Vec2 pos;
     u32 color;
     f32 advance;
-    i16 font_id;
-    u8 character;
+    Font_ID font_id;
+    u32 codepoint;
 };
 
 struct Render_Piece_Change_Clip{
@@ -150,10 +102,6 @@ struct Render_Target{
     Draw_Push_Clip *push_clip;
     Draw_Pop_Clip *pop_clip;
     Draw_Push_Piece *push_piece;
-    
-    // TODO(allen): Does the font set really belong here?  Actually, do we still want it at all?
-    Font_Set font_set;
-    Partition *partition;
 };
 
 #define DpiMultiplier(n,dpi) ((n) * (dpi) / 96)
@@ -166,12 +114,6 @@ rect_from_target(Render_Target *target){
     r.x1 = target->width;
     r.y1 = target->height;
     return(r);
-}
-
-inline Font_Info*
-get_font_info(Font_Set *set, i16 font_id){
-    Font_Info *result = set->info + font_id - 1;
-    return(result);
 }
 
 #endif

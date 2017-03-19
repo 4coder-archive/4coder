@@ -1,7 +1,9 @@
 /*
- * Replacements for common memory block managing functions.
+* Mr. 4th Dimention - Allen Webster
  *
- * 30.08.2016 (dd.mm.yyyy)
+ * 30.08.2016
+ *
+ * Replacements for common memory block managing functions.
  */
 
 // TOP

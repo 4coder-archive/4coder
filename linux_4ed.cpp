@@ -103,12 +103,13 @@
 #endif
 
 #define SUPPORT_DPI 1
-#define LINUX_FONTS 1
 
 #define InterlockedCompareExchange(dest, ex, comp) __sync_val_compare_and_swap((dest), (comp), (ex))
 
-#include "filetrack/4tech_file_track_linux.c"
+#include "4ed_file_track.h"
 #include "4ed_system_shared.h"
+
+#include "linux_4ed_file_track.cpp"
 
 //
 // Linux structs / enums
@@ -206,8 +207,6 @@ struct Linux_Vars{
     pthread_mutex_t locks[LOCK_COUNT];
     pthread_cond_t conds[8];
     sem_t thread_semaphore;
-    
-    Partition font_part;
     
 #if SUPPORT_DPI
     i32 dpi_x, dpi_y;
@@ -1337,60 +1336,7 @@ INTERNAL_Sys_Get_Thread_States_Sig(internal_get_thread_states){
 //
 
 #include "4ed_system_shared.cpp"
-#include "linux_font.cpp"
-
-internal f32
-size_change(i32 dpi_x, i32 dpi_y){
-    // TODO(allen): We're just hoping dpi_x == dpi_y for now I guess.
-    f32 size_x = dpi_x / 96.f;
-    f32 size_y = dpi_y / 96.f;
-    f32 size_max = Max(size_x, size_y);
-    return(size_max);
-}
-
-internal
-Font_Load_Sig(system_draw_font_load){
-    b32 success = 0;
-    i32 attempts = 0;
-    
-    LINUX_FN_DEBUG("%s, %dpt, tab_width: %d", filename, pt_size, tab_width);
-    
-    if (linuxvars.font_part.base == 0){
-        linuxvars.font_part = sysshared_scratch_partition(MB(8));
-    }
-    
-    i32 oversample = 2;
-    
-#if SUPPORT_DPI
-    pt_size = round32(pt_size * size_change(linuxvars.dpi_x, linuxvars.dpi_y));
-#endif
-    
-    for(; attempts < 3; ++attempts){
-#if LINUX_FONTS
-        success = linux_font_load(&linuxvars.font_part, font_out, filename, pt_size, tab_width,
-                                  linuxvars.settings.use_hinting);
-#else
-        success = font_load(
-            &linuxvars.font_part,
-            font_out,
-            filename,
-            pt_size,
-            tab_width,
-            oversample,
-            store_texture
-            );
-#endif
-        
-        if(success){
-            break;
-        } else {
-            fprintf(stderr, "draw_font_load failed, %p %d\n", linuxvars.font_part.base, linuxvars.font_part.max);
-            sysshared_partition_double(&linuxvars.font_part);
-        }
-    }
-    
-    return success;
-}
+#include "linux_4ed_fonts.cpp"
 
 //
 // End of system funcs
@@ -1488,9 +1434,6 @@ LinuxLoadRenderCode(){
     linuxvars.target.push_clip = draw_push_clip;
     linuxvars.target.pop_clip = draw_pop_clip;
     linuxvars.target.push_piece = draw_push_piece;
-    
-    linuxvars.target.font_set.font_load = system_draw_font_load;
-    linuxvars.target.font_set.release_font = draw_release_font;
 }
 
 //
@@ -1499,7 +1442,7 @@ LinuxLoadRenderCode(){
 
 internal void
 LinuxRedrawTarget(){
-    launch_rendering(&linuxvars.target);
+    launch_rendering(&linuxvars.system, &linuxvars.target);
     //glFlush();
     glXSwapBuffers(linuxvars.XDisplay, linuxvars.XWindow);
 }
@@ -2435,13 +2378,18 @@ LinuxGetXSettingsDPI(Display* dpy, int screen)
 // X11 window init
 //
 
+internal i32
+size_change(i32 x, i32 y){
+    f32 xs = x/96.f;
+    f32 ys = y/96.f;
+    f32 s = Min(xs, ys);
+    i32 r = floor32(s);
+    return(r);
+}
+
 internal b32
 LinuxX11WindowInit(int argc, char** argv, int* WinWidth, int* WinHeight)
 {
-    // NOTE(allen): Here begins the linux screen setup stuff.
-    // Behold the true nature of this wonderful OS:
-    // (thanks again to Casey for providing this stuff)
-    
 #define BASE_W 800
 #define BASE_H 600
     
@@ -2468,17 +2416,10 @@ LinuxX11WindowInit(int argc, char** argv, int* WinWidth, int* WinHeight)
     swa.backing_store = WhenMapped;
     swa.event_mask = StructureNotifyMask;
     swa.bit_gravity = NorthWestGravity;
-    swa.colormap = XCreateColormap(linuxvars.XDisplay,
-                                   RootWindow(linuxvars.XDisplay, Config.BestInfo.screen),
-                                   Config.BestInfo.visual, AllocNone);
+    swa.colormap = XCreateColormap(linuxvars.XDisplay, RootWindow(linuxvars.XDisplay, Config.BestInfo.screen), Config.BestInfo.visual, AllocNone);
     
-    linuxvars.XWindow =
-        XCreateWindow(linuxvars.XDisplay,
-                      RootWindow(linuxvars.XDisplay, Config.BestInfo.screen),
-                      0, 0, *WinWidth, *WinHeight,
-                      0, Config.BestInfo.depth, InputOutput,
-                      Config.BestInfo.visual,
-                      CWBackingStore|CWBitGravity|CWBackPixel|CWBorderPixel|CWColormap|CWEventMask, &swa);
+    linuxvars.XWindow = XCreateWindow(linuxvars.XDisplay, RootWindow(linuxvars.XDisplay, Config.BestInfo.screen),
+                                      0, 0, *WinWidth, *WinHeight, 0, Config.BestInfo.depth, InputOutput, Config.BestInfo.visual, CWBackingStore|CWBitGravity|CWBackPixel|CWBorderPixel|CWColormap|CWEventMask, &swa);
     
     if (!linuxvars.XWindow){
         LinuxFatalErrorMsg("XCreateWindow failed. Make sure your display is set up correctly.");
@@ -3242,6 +3183,12 @@ main(int argc, char **argv)
     
     
     //
+    // Font System Init
+    //
+    
+    system_font_init(&linuxvars.system.font, 0, 0, 16, true);
+    
+    //
     // Epoll init
     //
     
@@ -3428,6 +3375,8 @@ main(int argc, char **argv)
     
     return 0;
 }
+
+#include "font/4coder_font_static_functions.cpp"
 
 // BOTTOM
 // vim: expandtab:ts=4:sts=4:sw=4

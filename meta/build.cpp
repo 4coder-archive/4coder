@@ -21,8 +21,10 @@
 
 #define IS_64BIT
 
+#define LLU_CAST(n) (long long unsigned int)(n)
+
 #define BEGIN_TIME_SECTION() uint64_t start = get_time()
-#define END_TIME_SECTION(n) uint64_t total = get_time() - start; printf("%-20s: %.2lu.%.6lu\n", (n), total/1000000, total%1000000);
+#define END_TIME_SECTION(n) uint64_t total = get_time() - start; printf("%-20s: %.2llu.%.6llu\n", (n), LLU_CAST(total/1000000), LLU_CAST(total%1000000));
 
 //
 // 4coder specific
@@ -230,7 +232,7 @@ build_cl(u32 flags, char *code_path, char *code_file, char *out_path, char *out_
     swap_ptr(&line_prefix.build_options, &line_prefix.build_options_prev);
     
     Temp_Dir temp = pushdir(out_path);
-    systemf("%scl %s %s\\%s /Fe%s /link /INCREMENTAL:NO %s", line_prefix.build_options, line.build_options, code_path, code_file, out_file, link_line.build_options);
+    systemf("%scl %s \"%s\\%s\" /Fe%s /link /INCREMENTAL:NO %s", line_prefix.build_options, line.build_options, code_path, code_file, out_file, link_line.build_options);
     popdir(temp);
 }
 
@@ -351,7 +353,7 @@ buildsuper(char *code_path, char *out_path, char *filename, b32 x86_build){
     }
 #elif defined(IS_GCC)
     {
-        systemf("\"%s/buildsuper.sh\" %s", code_path, filename);
+        systemf("\"%s/buildsuper.sh\" \"%s\"", code_path, filename);
     }
 #else
 #error The build rule for this compiler is not ready
@@ -401,7 +403,7 @@ metagen(char *cdir){
     }
     
     if (prev_error == 0){
-        DECL_STR(cmd, META_DIR"/metagen");
+        DECL_STR(cmd, META_DIR "/metagen");
         BEGIN_TIME_SECTION();
         execute_in_dir(cdir, cmd, 0);
         END_TIME_SECTION("run metagen");
@@ -468,7 +470,7 @@ build_main(char *cdir, u32 flags){
     {
         DECL_STR(file, "4ed_app_target.cpp");
         BEGIN_TIME_SECTION();
-        build(OPTS | INCLUDES | SHARED_CODE | flags, cdir, file, dir, "4ed_app"DLL, "/EXPORT:app_get_functions");
+        build(OPTS | INCLUDES | SHARED_CODE | flags, cdir, file, dir, "4ed_app" DLL, "/EXPORT:app_get_functions");
         END_TIME_SECTION("build 4ed_app");
     }
     
@@ -624,11 +626,10 @@ package(char *cdir){
             clear_folder(par_dir);
             make_folder_if_missing(dir, "3rdparty");
             make_folder_if_missing(pack_dir, zip_dir);
-            copy_file(build_dir, "4ed"EXE, dir, 0, 0);
-            copy_file(build_dir, "4ed_app"DLL, dir, 0, 0);
+            copy_file(build_dir, "4ed" EXE, dir, 0, 0);
+            copy_file(build_dir, "4ed_app" DLL, dir, 0, 0);
             copy_all (pack_data_dir, "*", dir);
-            copy_file(0, "README.txt", dir, 0, 0);
-            copy_file(0, "TODO.txt", dir, 0, 0);
+            //copy_file(0, "TODO.txt", dir, 0, 0);
             copy_file(data_dir, "release-config.4coder", dir, 0, "config.4coder");
             
             get_4coder_dist_name(&str, true, zip_dir, tier, arch, "zip");
@@ -692,20 +693,17 @@ package(char *cdir){
             make_folder_if_missing(dir, "3rdparty");
             make_folder_if_missing(pack_dir, zip_dir);
             
-            copy_file(build_dir, "4ed"EXE, dir, 0, 0);
-            //ONLY_WINDOWS(copy_file(build_dir, "4ed"PDB, dir, 0, 0));
-            copy_file(build_dir, "4ed_app"DLL, dir, 0, 0);
-            //ONLY_WINDOWS(copy_file(build_dir, "4ed_app"PDB, dir, 0, 0));
-            copy_file(build_dir, "custom_4coder"DLL, dir, 0, 0);
+            copy_file(build_dir, "4ed" EXE, dir, 0, 0);
+            copy_file(build_dir, "4ed_app" DLL, dir, 0, 0);
+            copy_file(build_dir, "custom_4coder" DLL, dir, 0, 0);
             
             copy_all (pack_data_dir, "*", dir);
-            copy_file(0, "README.txt", dir, 0, 0);
-            copy_file(0, "TODO.txt", dir, 0, 0);
+            //copy_file(0, "TODO.txt", dir, 0, 0);
             copy_file(data_dir, "release-config.4coder", dir, 0, "config.4coder");
             
             copy_all(0, "4coder_*", dir);
             
-            copy_file(0, "buildsuper"BAT, dir, 0, 0);
+            copy_file(0, "buildsuper" BAT, dir, 0, 0);
             
             DECL_STR(custom_dir, "4coder_API");
             DECL_STR(custom_helper_dir, "4coder_helper");
@@ -720,18 +718,18 @@ package(char *cdir){
             };
             i32 dir_count = ArrayCount(dir_array);
             
-            for (i32 i = 0; i < dir_count; ++i){
-                char *d = dir_array[i];
+            for (i32 j = 0; j < dir_count; ++j){
+                char *d = dir_array[j];
                 make_folder_if_missing(dir, d);
                 
                 char space[256];
-                String str = make_fixed_width_string(space);
-                append_sc(&str, dir);
-                append_s_char(&str, platform_correct_slash);
-                append_sc(&str, d);
-                terminate_with_null(&str);
+                String copy_name = make_fixed_width_string(space);
+                append_sc(&copy_name, dir);
+                append_s_char(&copy_name, platform_correct_slash);
+                append_sc(&copy_name, d);
+                terminate_with_null(&copy_name);
                 
-                copy_all(d, "*", str.str);
+                copy_all(d, "*", copy_name.str);
             }
             
             get_4coder_dist_name(&str, true, zip_dir, tier, arch, "zip");

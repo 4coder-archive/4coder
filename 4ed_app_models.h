@@ -29,6 +29,7 @@ struct App_Settings{
     i32 custom_arg_start;
     i32 custom_arg_end;
 };
+global_const App_Settings null_app_settings = {0};
 
 struct Debug_Input_Event{
     Key_Code key;
@@ -49,6 +50,8 @@ struct Debug_Data{
 struct Models{
     Mem_Options mem;
     App_Settings settings;
+    
+    Font_ID global_font_id;
     
     Command_Map map_top;
     Command_Map map_file;
@@ -74,11 +77,8 @@ struct Models{
     Input_Filter_Function *input_filter;
     Scroll_Rule_Function *scroll_rule;
     
-    Font_Set *font_set;
-    Style_Font global_font;
     Style_Library styles;
     u32 *palette;
-    i32 palette_size;
     
     Editing_Layout layout;
     Working_Set working_set;

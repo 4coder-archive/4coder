@@ -284,7 +284,7 @@ typedef enum Doc_Note_Type{
 } Doc_Note_Type;
 
 static String
-doc_note_string[] = {
+defined_doc_notes[] = {
     make_lit_string("DOC_PARAM"),
     make_lit_string("DOC_RETURN"),
     make_lit_string("DOC"),
@@ -446,7 +446,7 @@ perform_doc_parse(Partition *part, String doc_string, Documentation *doc){
         }
         else{
             int32_t doc_note_type;
-            if (string_set_match(doc_note_string, ArrayCount(doc_note_string), doc_note, &doc_note_type)){
+            if (string_set_match(defined_doc_notes, ArrayCount(defined_doc_notes), doc_note, &doc_note_type)){
                 
                 doc_parse_note_string(doc_string, &pos);
                 
@@ -480,7 +480,7 @@ perform_doc_parse(Partition *part, String doc_string, Documentation *doc){
         }
         else{
             int32_t doc_note_type;
-            if (string_set_match(doc_note_string, ArrayCount(doc_note_string), doc_note, &doc_note_type)){
+            if (string_set_match(defined_doc_notes, ArrayCount(defined_doc_notes), doc_note, &doc_note_type)){
                 
                 String doc_note_string = doc_parse_note_string(doc_string, &pos);
                 
@@ -760,10 +760,10 @@ static int32_t
 enum_parse(Partition *part, Parse_Context *context, Item_Node *item){
     int32_t result = false;
     
-    String doc_string = {0};
-    get_doc_string_from_prev(context, &doc_string);
+    String parent_doc_string = {0};
+    get_doc_string_from_prev(context, &parent_doc_string);
     
-    Cpp_Token *start_token = get_token(context);
+    Cpp_Token *parent_start_token = get_token(context);
     Cpp_Token *token = 0;
     
     for (; (token = get_token(context)) != 0; get_next_token(context)){
@@ -773,7 +773,7 @@ enum_parse(Partition *part, Parse_Context *context, Item_Node *item){
     }
     
     if (token){
-        String name = {0};
+        String parent_name = {0};
         Cpp_Token *token_j = 0;
         
         for (; (token_j = get_token(context)) != 0; get_prev_token(context)){
@@ -782,10 +782,10 @@ enum_parse(Partition *part, Parse_Context *context, Item_Node *item){
             }
         }
         
-        name = get_lexeme(*token_j, context->data);
+        parent_name = get_lexeme(*token_j, context->data);
         
         set_token(context, token);
-        for (; (token = get_token(context)) > start_token; get_next_token(context)){
+        for (; (token = get_token(context)) > parent_start_token; get_next_token(context)){
             if (token->type == CPP_TOKEN_BRACE_OPEN){
                 break;
             }
@@ -855,8 +855,8 @@ enum_parse(Partition *part, Parse_Context *context, Item_Node *item){
                 get_next_token(context);
                 
                 item->t = Item_Enum;
-                item->name = name;
-                item->doc_string = doc_string;
+                item->name = parent_name;
+                item->doc_string = parent_doc_string;
                 item->first_child = first_member;
                 result = true;
             }
@@ -912,9 +912,9 @@ parameter_parse(Partition *part, char *data, Cpp_Token *args_start_token, Cpp_To
                  param_name_token->start > param_string_start;
                  --param_name_token){
                 if (param_name_token->type == CPP_TOKEN_IDENTIFIER){
-                    int32_t start = param_name_token->start;
-                    int32_t size = param_name_token->size;
-                    breakdown.args[arg_index].param_name = make_string(data + start, size);
+                    int32_t name_start = param_name_token->start;
+                    int32_t name_size = param_name_token->size;
+                    breakdown.args[arg_index].param_name = make_string(data + name_start, name_size);
                     break;
                 }
             }
@@ -1190,7 +1190,7 @@ macro_parse(Partition *part, Parse_Context *context, Item_Node *item){
 }
 
 static Meta_Unit
-compile_meta_unit(Partition *part, char *code_directory, char **files, Meta_Keywords *keywords, int32_t key_count){
+compile_meta_unit(Partition *part, char *code_directory, char **files, Meta_Keywords *meta_keywords, int32_t key_count){
     Meta_Unit unit = {0};
     
     int32_t file_count = 0;
@@ -1232,8 +1232,8 @@ compile_meta_unit(Partition *part, char *code_directory, char **files, Meta_Keyw
                     
                     String lexeme = get_lexeme(*token, context->data);
                     int32_t match_index = 0;
-                    if (string_set_match_table(keywords, sizeof(*keywords), key_count, lexeme, &match_index)){
-                        Item_Type type = keywords[match_index].type;
+                    if (string_set_match_table(meta_keywords, sizeof(*meta_keywords), key_count, lexeme, &match_index)){
+                        Item_Type type = meta_keywords[match_index].type;
                         
                         if (type > Item_Null && type < Item_Type_Count){
                             ++unit.set.count;
@@ -1265,8 +1265,8 @@ compile_meta_unit(Partition *part, char *code_directory, char **files, Meta_Keyw
                     
                     String lexeme = get_lexeme(*token, context->data);
                     int32_t match_index = 0;
-                    if (string_set_match_table(keywords, sizeof(*keywords), key_count, lexeme, &match_index)){
-                        Item_Type type = keywords[match_index].type;
+                    if (string_set_match_table(meta_keywords, sizeof(*meta_keywords), key_count, lexeme, &match_index)){
+                        Item_Type type = meta_keywords[match_index].type;
                         
                         switch (type){
                             case Item_Function:
@@ -1364,9 +1364,9 @@ compile_meta_unit(Partition *part, char *code_directory, char **files, Meta_Keyw
 }
 
 static Meta_Unit
-compile_meta_unit(Partition *part, char *code_directory, char *file, Meta_Keywords *keywords, int32_t key_count){
+compile_meta_unit(Partition *part, char *code_directory, char *file, Meta_Keywords *meta_keywords, int32_t key_count){
     char *file_array[2] = {file, 0};
-    Meta_Unit unit = compile_meta_unit(part, code_directory, file_array, keywords, key_count);
+    Meta_Unit unit = compile_meta_unit(part, code_directory, file_array, meta_keywords, key_count);
     return(unit);
 }
 

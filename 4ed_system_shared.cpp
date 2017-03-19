@@ -9,9 +9,13 @@
 
 // TOP
 
+#if !defined(FCODER_SYSTEM_SHARED_CPP)
+#define FCODER_SYSTEM_SHARED_CPP
+
+#include "font/4coder_font_data.h"
+
 //
-// Standard implementation of file system stuff
-// based on the file track layer.
+// Standard implementation of file system stuff based on the file track layer.
 //
 
 struct Shared_Vars{
@@ -19,19 +23,25 @@ struct Shared_Vars{
     void *track_table;
     u32 track_table_size;
     u32 track_node_size;
+    
+    Partition scratch;
 };
 
-static Shared_Vars shared_vars;
+global Shared_Vars shared_vars;
 
 internal void
 init_shared_vars(){
-    shared_vars.track_table_size = (16 << 10);
+    umem scratch_size = KB(128);
+    void *scratch_memory = system_get_memory(scratch_size);
+    shared_vars.scratch = make_part(scratch_memory, scratch_size);
+    
+    shared_vars.track_table_size = KB(16);
     shared_vars.track_table = system_get_memory(shared_vars.track_table_size);
     
-    shared_vars.track_node_size = (16 << 10);
+    shared_vars.track_node_size = KB(16);
     void *track_nodes = system_get_memory(shared_vars.track_node_size);
     
-    i32 track_result = init_track_system(&shared_vars.track, shared_vars.track_table, shared_vars.track_table_size, track_nodes, shared_vars.track_node_size);
+    i32 track_result = init_track_system(&shared_vars.track, &shared_vars.scratch, shared_vars.track_table, shared_vars.track_table_size, track_nodes, shared_vars.track_node_size);
     
     if (track_result != FileTrack_Good){
         exit(1);
@@ -47,7 +57,7 @@ handle_track_out_of_memory(i32 val){
         {
             u32 new_table_size = shared_vars.track_table_size*2;
             void *new_table = system_get_memory(new_table_size);
-            move_track_system(&shared_vars.track, new_table, new_table_size);
+            move_track_system(&shared_vars.track, &shared_vars.scratch, new_table, new_table_size);
             system_free_memory(shared_vars.track_table);
             shared_vars.track_table_size = new_table_size;
             shared_vars.track_table = new_table;
@@ -57,7 +67,7 @@ handle_track_out_of_memory(i32 val){
         {
             shared_vars.track_node_size *= 2;
             void *node_expansion = system_get_memory(shared_vars.track_node_size);
-            expand_track_system_listeners(&shared_vars.track, node_expansion, shared_vars.track_node_size);
+            expand_track_system_listeners(&shared_vars.track, &shared_vars.scratch, node_expansion, shared_vars.track_node_size);
         }break;
         
         default: result = 1; break;
@@ -71,7 +81,7 @@ Sys_Add_Listener_Sig(system_add_listener){
     b32 result = 0;
     
     for (;;){
-        i32 track_result = add_listener(&shared_vars.track, filename);
+        i32 track_result = add_listener(&shared_vars.track, &shared_vars.scratch, filename);
         if (handle_track_out_of_memory(track_result)){
             if (track_result == FileTrack_Good){
                 result = 1;
@@ -86,7 +96,7 @@ Sys_Add_Listener_Sig(system_add_listener){
 internal
 Sys_Remove_Listener_Sig(system_remove_listener){
     i32 result = 0;
-    i32 track_result = remove_listener(&shared_vars.track, filename);
+    i32 track_result = remove_listener(&shared_vars.track, &shared_vars.scratch, filename);
     if (track_result == FileTrack_Good){
         result = 1;
     }
@@ -95,19 +105,19 @@ Sys_Remove_Listener_Sig(system_remove_listener){
 
 internal
 Sys_Get_File_Change_Sig(system_get_file_change){
-    i32 result = 0;
+    b32 result = false;
     
     i32 size = 0;
-    i32 get_result = get_change_event(&shared_vars.track, buffer, max, &size);
+    i32 get_result = get_change_event(&shared_vars.track, &shared_vars.scratch, buffer, max, &size);
     
     *required_size = size;
-    *mem_too_small = 0;
+    *mem_too_small = false;
     if (get_result == FileTrack_Good){
-        result = 1;
+        result = true;
     }
     else if (get_result == FileTrack_MemoryTooSmall){
-        *mem_too_small = 1;
-        result = 1;
+        *mem_too_small = true;
+        result = true;
     }
     
     return(result);
@@ -182,8 +192,7 @@ internal void
 sysshared_partition_grow(Partition *part, i32 new_size){
     void *data = 0;
     if (new_size > part->max){
-        // TODO(allen): attempt to grow in place by just
-        // acquiring next vpages?!
+        // TODO(allen): attempt to grow in place by just acquiring next vpages?!
         data = system_get_memory(new_size);
         memcpy(data, part->base, part->pos);
         system_free_memory(part->base);
@@ -218,7 +227,7 @@ sysshared_to_binary_path(String *out_filename, char *filename){
             translate_success = 1;
         }
     }
-    return (translate_success);
+    return(translate_success);
 }
 
 //
@@ -421,9 +430,9 @@ get_exact_render_quad(Glyph_Bounds *b, i32 pw, i32 ph, float xpos, float ypos){
 }
 
 inline void
-private_draw_glyph(Render_Target *target, Render_Font *font, u32 character, f32 x, f32 y, u32 color){
-    Glyph_Data glyph = {0};
-    if (get_codepoint_glyph_data(font, character, &glyph)){
+private_draw_glyph(System_Functions *system, Render_Target *target, Render_Font *font, u32 codepoint, f32 x, f32 y, u32 color){
+    Glyph_Data glyph = font_get_glyph(system, font, codepoint);
+    if (glyph.tex != 0){
         Render_Quad q = get_render_quad(&glyph.bounds, glyph.tex_width, glyph.tex_height, x, y);
         
         draw_set_color(target, color);
@@ -440,9 +449,9 @@ private_draw_glyph(Render_Target *target, Render_Font *font, u32 character, f32 
 }
 
 inline void
-private_draw_glyph_mono(Render_Target *target, Render_Font *font, u8 character, f32 x, f32 y, f32 advance, u32 color){
-    Glyph_Data glyph = {0};
-    if (get_codepoint_glyph_data(font, character, &glyph)){
+private_draw_glyph_mono(System_Functions *system, Render_Target *target, Render_Font *font, u32 codepoint, f32 x, f32 y, f32 advance, u32 color){
+    Glyph_Data glyph = font_get_glyph(system, font, codepoint);
+    if (glyph.tex != 0){
         f32 left = glyph.bounds.x0;
         f32 right = glyph.bounds.x1;
         f32 width = (right - left);
@@ -466,12 +475,13 @@ private_draw_glyph_mono(Render_Target *target, Render_Font *font, u8 character, 
 }
 
 inline void
-private_draw_glyph_mono(Render_Target *target, Render_Font *font, u8 character, f32 x, f32 y, u32 color){
-    private_draw_glyph_mono(target, font, character, x, y, (f32)font->advance, color);
+private_draw_glyph_mono(System_Functions *system, Render_Target *target, Render_Font *font, u32 character, f32 x, f32 y, u32 color){
+    f32 advance = (f32)font_get_advance(font);
+    private_draw_glyph_mono(system, target, font, character, x, y, advance, color);
 }
 
 internal void
-launch_rendering(Render_Target *target){
+launch_rendering(System_Functions *system, Render_Target *target){
     char *cursor = target->push_buffer;
     char *cursor_end = cursor + target->size;
     
@@ -502,36 +512,32 @@ launch_rendering(Render_Target *target){
             {
                 Render_Piece_Glyph *glyph = ExtractStruct(Render_Piece_Glyph);
                 
-                Render_Font *font = get_font_info(&target->font_set, glyph->font_id)->font;
-                if (font){
-                    private_draw_glyph(target, font, glyph->character, glyph->pos.x, glyph->pos.y, glyph->color);
-                }
+                Render_Font *font = system->font.get_render_data_by_id(glyph->font_id);
+                Assert(font != 0);
+                private_draw_glyph(system, target, font, glyph->codepoint, glyph->pos.x, glyph->pos.y, glyph->color);
             }break;
             
             case piece_type_mono_glyph:
             {
                 Render_Piece_Glyph *glyph = ExtractStruct(Render_Piece_Glyph);
                 
-                Render_Font *font = get_font_info(&target->font_set, glyph->font_id)->font;
-                if (font){
-                    private_draw_glyph_mono(target, font, glyph->character, glyph->pos.x, glyph->pos.y, glyph->color);
-                }
+                Render_Font *font = system->font.get_render_data_by_id(glyph->font_id);
+                Assert(font != 0);
+                private_draw_glyph_mono(system, target, font, glyph->codepoint, glyph->pos.x, glyph->pos.y, glyph->color);
             }break;
             
             case piece_type_mono_glyph_advance:
             {
                 Render_Piece_Glyph_Advance *glyph = ExtractStruct(Render_Piece_Glyph_Advance);
                 
-                Render_Font *font = get_font_info(&target->font_set, glyph->font_id)->font;
-                if (font){
-                    private_draw_glyph_mono(target, font, glyph->character, glyph->pos.x, glyph->pos.y, glyph->advance, glyph->color);
-                }
+                Render_Font *font = system->font.get_render_data_by_id(glyph->font_id);
+                Assert(font != 0);
+                private_draw_glyph_mono(system, target, font, glyph->codepoint, glyph->pos.x, glyph->pos.y, glyph->advance, glyph->color);
             }break;
             
             case piece_type_change_clip:
             {
-                Render_Piece_Change_Clip *clip =
-                    ExtractStruct(Render_Piece_Change_Clip);
+                Render_Piece_Change_Clip *clip = ExtractStruct(Render_Piece_Change_Clip);
                 draw_set_clip(target, clip->box);
             }break;
         }
@@ -545,77 +551,28 @@ launch_rendering(Render_Target *target){
 #undef internal
 #include <ft2build.h>
 #include FT_FREETYPE_H
-#include FT_LCD_FILTER_H
 #define internal static
 
-internal u32
-next_pow_of_2(u32 v){
-    --v;
-    v |= v >> 1;
-    v |= v >> 2;
-    v |= v >> 4;
-    v |= v >> 8;
-    v |= v >> 16;
-    return ++v;
-}
-
-#define NUM_GLYPHS 256
-#define ENABLE_LCD_FILTER 0
-
-internal b32
-font_load_freetype(Partition *part, Render_Font *rf, char *filename, i32 pt_size, i32 tab_width, b32 use_hinting){
+internal void
+font_load_page_inner(Partition *part, Render_Font *font, FT_Library ft, FT_Face face, b32 use_hinting, Glyph_Page *page, u32 page_number, i32 tab_width){
+    Temp_Memory temp = begin_temp_memory(part);
+    Assert(page != 0);
+    page->page_number = page_number;
     
-    memset(rf, 0, sizeof(*rf));
-    
-    //TODO(inso): put stuff in linuxvars / init in main
-    FT_Library ft;
-    FT_Face face;
-    b32 use_lcd_filter = 0;
-    
-    FT_Init_FreeType(&ft);
-    
-    //NOTE(inso): i'm not sure the LCD filter looks better, and it doesn't work perfectly with the coloring stuff
-    // it will probably need shaders to work properly
-#if ENABLE_LCD_FILTER
-    if(FT_Library_SetLcdFilter(ft, FT_LCD_FILTER_DEFAULT) == 0){
-        puts("LCD Filter on");
-        use_lcd_filter = 1;
-        glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
-    }
-#endif
-    
-    FT_New_Face(ft, filename, 0, &face);
-    
-    // set size & metrics
-    FT_Size_RequestRec_ size = {};
-    size.type   = FT_SIZE_REQUEST_TYPE_NOMINAL;
-    size.height = pt_size << 6;
-    FT_Request_Size(face, &size);
-    
-    rf->loaded    = 1;
-    rf->ascent    = ceil32  (face->size->metrics.ascender    / 64.0f);
-    rf->descent   = floor32 (face->size->metrics.descender   / 64.0f);
-    rf->advance   = ceil32  (face->size->metrics.max_advance / 64.0f);
-    rf->height    = ceil32  (face->size->metrics.height      / 64.0f);
-    rf->line_skip = rf->height - (rf->ascent - rf->descent);
-    
-    rf->height -= rf->line_skip;
-    rf->line_skip = 0;
-    
+    // prepare to read glyphs into a temporary texture buffer
     i32 max_glyph_w = face->size->metrics.x_ppem;
-    i32 max_glyph_h = rf->height;
+    i32 max_glyph_h = font_get_height(font);
     i32 tex_width   = 64;
     i32 tex_height  = 0;
     
-    // estimate upper bound on texture width
     do {
         tex_width *= 2;
         float glyphs_per_row = ceilf(tex_width / (float) max_glyph_w);
-        float rows = ceilf(NUM_GLYPHS / glyphs_per_row);
+        float rows = ceilf(ITEM_PER_FONT_PAGE / glyphs_per_row);
         tex_height = ceil32(rows * (max_glyph_h + 2));
     } while(tex_height > tex_width);
     
-    tex_height = next_pow_of_2(tex_height);
+    tex_height = round_up_pot_u32(tex_height);
     
     i32 pen_x = 0;
     i32 pen_y = 0;
@@ -623,132 +580,75 @@ font_load_freetype(Partition *part, Render_Font *rf, char *filename, i32 pt_size
     u32* pixels = push_array(part, u32, tex_width * tex_height);
     memset(pixels, 0, tex_width * tex_height * sizeof(u32));
     
-    u32 ft_extra_flags = 0;
-    if (use_lcd_filter){
-        ft_extra_flags = FT_LOAD_TARGET_LCD;
+    u32 ft_flags = FT_LOAD_RENDER;
+    if (use_hinting){
+        // NOTE(inso): FT_LOAD_TARGET_LIGHT does hinting only vertically, which looks nicer imo
+        // maybe it could be exposed as an option for hinting, instead of just on/off.
+        ft_flags |= FT_LOAD_FORCE_AUTOHINT | FT_LOAD_TARGET_LIGHT;
     }
     else{
-        if (use_hinting){
-            // NOTE(inso): FT_LOAD_TARGET_LIGHT does hinting only vertically, which looks nicer imo
-            // maybe it could be exposed as an option for hinting, instead of just on/off.
-            ft_extra_flags = FT_LOAD_FORCE_AUTOHINT | FT_LOAD_TARGET_LIGHT;
-        }
-        else{
-            ft_extra_flags = (FT_LOAD_NO_AUTOHINT | FT_LOAD_NO_HINTING);
-        }
+        ft_flags |= (FT_LOAD_NO_AUTOHINT | FT_LOAD_NO_HINTING);
     }
     
-    for(i32 i = 0; i < NUM_GLYPHS; ++i){
-        if(FT_Load_Char(face, i, FT_LOAD_RENDER | ft_extra_flags) != 0) continue;
+    // fill the texture
+    u32 base_codepoint = (page_number << 8);
+    Glyph_Bounds *glyphs = &page->glyphs[0];
+    Glyph_Bounds *glyph_ptr = glyphs;
+    
+    f32 *advances = &page->advance[0];
+    f32 *advance_ptr = advances;
+    for(u32 i = 0; i < ITEM_PER_FONT_PAGE; ++i, ++glyph_ptr, ++advance_ptr){
+        u32 codepoint = i + base_codepoint;
         
-        i32 w = face->glyph->bitmap.width;
-        i32 h = face->glyph->bitmap.rows;
-        
-        // lcd filter produces RGB bitmaps, need to account for the extra components
-        if(use_lcd_filter){
-            w /= 3;
-        }
-        
-        // move to next line if necessary
-        if(pen_x + w >= tex_width){
-            pen_x = 0;
-            pen_y += (max_glyph_h + 2);
-        }
-        
-        // set all this stuff the renderer needs
-        Glyph_Bounds* c = 0;
-        f32 *advance_ptr = 0;
-        get_codepoint_memory(rf, i, &c, &advance_ptr);
-        if (c != 0 && advance_ptr != 0){
-            c->exists = true;
+        if(FT_Load_Char(face, codepoint, ft_flags) == 0){
+            i32 w = face->glyph->bitmap.width;
+            i32 h = face->glyph->bitmap.rows;
             
-            c->x0 = (f32)(pen_x);
-            c->y0 = (f32)(pen_y);
-            c->x1 = (f32)(pen_x + w);
-            c->y1 = (f32)(pen_y + h + 1);
+            i32 ascent = font_get_ascent(font);
             
-            c->xoff = (f32)(face->glyph->bitmap_left);
-            c->yoff = (f32)(rf->ascent - face->glyph->bitmap_top);
+            // move to next line if necessary
+            if(pen_x + w >= tex_width){
+                pen_x = 0;
+                pen_y += (max_glyph_h + 2);
+            }
             
-            c->xoff2 = w + c->xoff;
-            c->yoff2 = h + c->yoff + 1;
+            // set all this stuff the renderer needs
+            glyph_ptr->x0 = (f32)(pen_x);
+            glyph_ptr->y0 = (f32)(pen_y);
+            glyph_ptr->x1 = (f32)(pen_x + w);
+            glyph_ptr->y1 = (f32)(pen_y + h + 1);
             
-            // TODO(allen): maybe advance data should be integers for a while...
-            // I require the actual values to be integers anyway... hmm...
-            f32 advance = (f32)ceil32(face->glyph->advance.x / 64.0f);
-            *advance_ptr = advance;
+            glyph_ptr->xoff = (f32)(face->glyph->bitmap_left);
+            glyph_ptr->yoff = (f32)(ascent - face->glyph->bitmap_top);
+            glyph_ptr->xoff2 = glyph_ptr->xoff + w;
+            glyph_ptr->yoff2 = glyph_ptr->yoff + h + 1;
+            
+            // TODO(allen): maybe advance data should be integers?
+            *advance_ptr = (f32)ceil32(face->glyph->advance.x / 64.0f);
             
             // write to texture atlas
             i32 pitch = face->glyph->bitmap.pitch;
-            for(i32 j = 0; j < h; ++j){
-                for(i32 i = 0; i < w; ++i){
-                    i32 x = pen_x + i;
-                    i32 y = pen_y + j;
+            for(i32 Y = 0; Y < h; ++Y){
+                for(i32 X = 0; X < w; ++X){
+                    i32 x = pen_x + X;
+                    i32 y = pen_y + Y;
                     
-                    if(use_lcd_filter){
-#if 1
-                        u8 a = face->glyph->bitmap.buffer[j * pitch + i * 3 + 1];
-                        u8 r = face->glyph->bitmap.buffer[j * pitch + i * 3 + 0];
-                        u8 b = face->glyph->bitmap.buffer[j * pitch + i * 3 + 2];
-                        
-                        pixels[y * tex_width + x] = (a << 24) | (b << 16) | (a << 8) | r;
-                        
-#else
-                        
-                        u8 r = face->glyph->bitmap.buffer[j * pitch + i * 3];
-                        u8 g = face->glyph->bitmap.buffer[j * pitch + i * 3 + 1];
-                        u8 b = face->glyph->bitmap.buffer[j * pitch + i * 3 + 2];
-                        u8 a = (u8)ROUND32((r + g + b) / 3.0f);
-                        
-                        pixels[y * tex_width + x] = (a << 24) | (r << 16) | (g << 8) | b;
-#endif
-                    } else {
-                        pixels[y * tex_width + x] = face->glyph->bitmap.buffer[j * pitch + i] * 0x1010101;
-                    }
+                    pixels[y * tex_width + x] = face->glyph->bitmap.buffer[Y * pitch + X] * 0x01010101;
                 }
             }
             
-            pen_x = ceil32(c->x1 + 1);
+            pen_x = ceil32(glyph_ptr->x1 + 1);
         }
     }
     
-    // NOTE(allen): Setup some basic spacing stuff.
-    f32 space_adv = get_codepoint_advance(rf, ' ');
-    f32 backslash_adv = get_codepoint_advance(rf, '\\');
-    f32 r_adv = get_codepoint_advance(rf, 'r');
-    
-    set_codepoint_advance(rf, '\n', space_adv);
-    set_codepoint_advance(rf, '\r', backslash_adv + r_adv);
-    set_codepoint_advance(rf, '\t', space_adv*tab_width);
-    
-    f32 max_hex_advance = 0.f;
-    for (u32 i = '0'; i <= '9'; ++i){
-        f32 adv = get_codepoint_advance(rf,  i);
-        max_hex_advance = Max(max_hex_advance, adv);
-    }
-    for (u32 i = 'a'; i <= 'f'; ++i){
-        f32 adv = get_codepoint_advance(rf,  i);
-        max_hex_advance = Max(max_hex_advance, adv);
-    }
-    for (u32 i = 'A'; i <= 'F'; ++i){
-        f32 adv = get_codepoint_advance(rf,  i);
-        max_hex_advance = Max(max_hex_advance, adv);
-    }
-    
-    rf->byte_advance = backslash_adv + max_hex_advance*2;
-    
-    FT_Done_FreeType(ft);
-    
-    tex_height = next_pow_of_2(pen_y + max_glyph_h + 2);
-    
-    u32 page_index = 0;
-    rf->glyph_pages[page_index].tex_width  = tex_width;
-    rf->glyph_pages[page_index].tex_height = tex_height;
-    
     // upload texture
-    u32 tex;
-    glGenTextures(1, &tex);
-    glBindTexture(GL_TEXTURE_2D, tex);
+    tex_height = round_up_pot_u32(pen_y + max_glyph_h + 2);
+    
+    page->tex_width  = tex_width;
+    page->tex_height = tex_height;
+    
+    glGenTextures(1, &page->tex);
+    glBindTexture(GL_TEXTURE_2D, page->tex);
     
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
@@ -756,30 +656,154 @@ font_load_freetype(Partition *part, Render_Font *rf, char *filename, i32 pt_size
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, 0);
     
-    if(use_lcd_filter){
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, tex_width, tex_height, 0, GL_RGBA, GL_UNSIGNED_BYTE, pixels);
-    } else {
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_ALPHA, tex_width, tex_height, 0, GL_ALPHA, GL_UNSIGNED_INT, pixels);
-    }
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_ALPHA, tex_width, tex_height, 0, GL_ALPHA, GL_UNSIGNED_INT, pixels);
     
     glBindTexture(GL_TEXTURE_2D, 0);
-    rf->glyph_pages[page_index].tex = tex;
     
-    rf->glyph_pages[page_index].exists = true;
+    end_temp_memory(temp);
+    
+    // whitespace spacing stuff
+    if (page_number == 0){
+        f32 space_adv = advances[' '];
+        f32 backslash_adv = advances['\\'];
+        f32 r_adv = advances['r'];
+        
+        advances['\n'] = space_adv;
+        advances['\r'] = backslash_adv + r_adv;
+        advances['\t'] = space_adv*tab_width;
+    }
+}
+
+internal b32
+font_load_page(System_Functions *system, Partition *part, Render_Font *font, Glyph_Page *page, u32 page_number, u32 pt_size,  b32 use_hinting){
+    
+    char *filename = font->filename;
+    
+    // TODO(allen): Stop redoing all this init for each call.
+    FT_Library ft;
+    FT_Init_FreeType(&ft);
+    
+    FT_Face face;
+    FT_New_Face(ft, filename, 0, &face);
+    
+    FT_Size_RequestRec_ size = {};
+    size.type   = FT_SIZE_REQUEST_TYPE_NOMINAL;
+    size.height = pt_size << 6;
+    FT_Request_Size(face, &size);
+    
+    // NOTE(allen): set texture and glyph data.
+    font_load_page_inner(part, font, ft, face, use_hinting, page, page_number, 4);
+    
+    FT_Done_FreeType(ft);
     
     return(true);
 }
 
-internal
-Release_Font_Sig(draw_release_font){
-    for (u32 i = 0; i < ArrayCount(font->glyph_pages); ++i){
-        Glyph_Page *page = &font->glyph_pages[i];
-        if (page->exists){
-            glDeleteTextures(1, &page->tex);
+internal b32
+font_load(System_Functions *system, Partition *part, Render_Font *font, i32 pt_size, b32 use_hinting){
+    
+    char *filename = font->filename;
+    
+    // TODO(allen): Stop redoing all this init for each call.
+    FT_Library ft;
+    FT_Init_FreeType(&ft);
+    
+    FT_Face face;
+    FT_New_Face(ft, filename, 0, &face);
+    
+    FT_Size_RequestRec_ size = {};
+    size.type   = FT_SIZE_REQUEST_TYPE_NOMINAL;
+    size.height = pt_size << 6;
+    FT_Request_Size(face, &size);
+    
+    // set size & metrics
+    font->ascent    = ceil32  (face->size->metrics.ascender    / 64.0f);
+    font->descent   = floor32 (face->size->metrics.descender   / 64.0f);
+    font->advance   = ceil32  (face->size->metrics.max_advance / 64.0f);
+    font->height    = ceil32  (face->size->metrics.height      / 64.0f);
+    font->line_skip = font->height - (font->ascent - font->descent);
+    
+    font->height -= font->line_skip;
+    font->line_skip = 0;
+    
+    // NOTE(allen): set texture and glyph data.
+    Glyph_Page *page = font_get_or_make_page(system, font, 0);
+    
+    // NOTE(allen): Setup some basic spacing stuff.
+    f32 backslash_adv = page->advance['\\'];
+    f32 max_hex_advance = 0.f;
+    for (u32 i = '0'; i <= '9'; ++i){
+        f32 adv = page->advance[i];
+        max_hex_advance = Max(max_hex_advance, adv);
+    }
+    for (u32 i = 'a'; i <= 'f'; ++i){
+        f32 adv = page->advance[i];
+        max_hex_advance = Max(max_hex_advance, adv);
+    }
+    for (u32 i = 'A'; i <= 'F'; ++i){
+        f32 adv = page->advance[i];
+        max_hex_advance = Max(max_hex_advance, adv);
+    }
+    
+    font->byte_advance = backslash_adv + max_hex_advance*2;
+    font->byte_sub_advances[0] = backslash_adv;
+    font->byte_sub_advances[1] = max_hex_advance;
+    font->byte_sub_advances[2] = max_hex_advance;
+    
+    FT_Done_FreeType(ft);
+    
+    return(true);
+}
+
+internal void
+system_set_page(System_Functions *system, Partition *part, Render_Font *font, Glyph_Page *page, u32 page_number, u32 pt_size, b32 use_hinting){
+    memset(page, 0, sizeof(*page));
+    
+    if (part->base == 0){
+        *part = sysshared_scratch_partition(MB(8));
+    }
+    
+    b32 success = false;
+    for (u32 R = 0; R < 3; ++R){
+        success = font_load_page(system, part, font, page, page_number, pt_size, use_hinting);
+        if (success){
+            break;
         }
-        page->tex = 0;
+        else{
+            sysshared_partition_double(part);
+        }
     }
 }
+
+internal void
+system_set_font(System_Functions *system, Partition *part, Render_Font *font, String filename, String name, u32 pt_size, b32 use_hinting){
+    memset(font, 0, sizeof(*font));
+    
+    copy_partial_cs(font->filename, sizeof(font->filename)-1, filename);
+    font->filename_len = filename.size;
+    font->filename[font->filename_len] = 0;
+    copy_partial_cs(font->name, sizeof(font->name)-1, name);
+    font->name_len = name.size;
+    font->name[font->name_len] = 0;
+    
+    if (part->base == 0){
+        *part = sysshared_scratch_partition(MB(8));
+    }
+    
+    b32 success = false;
+    for (u32 R = 0; R < 3; ++R){
+        success = font_load(system, part, font, pt_size, use_hinting);
+        if (success){
+            break;
+        }
+        else{
+            sysshared_partition_double(part);
+        }
+    }
+}
+
+
+#endif
 
 // BOTTOM
 

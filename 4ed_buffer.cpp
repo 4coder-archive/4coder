@@ -13,8 +13,8 @@
 // Buffer low level operations
 //
 
-#include "../file/4coder_font_data.h"
-#include "../4coder_helper/4coder_seek_types.h"
+#include "font/4coder_font_data.h"
+#include "4coder_helper/4coder_seek_types.h"
 
 typedef struct Cursor_With_Index{
     i32 pos;
@@ -186,6 +186,8 @@ buffer_batch_edit_update_cursors(Cursor_With_Index *sorted_positions, i32 count,
     return(shift_amount);
 }
 
+//////////////////////////////////////
+
 internal i32
 eol_convert_in(char *dest, char *src, i32 size){
     i32 i = 0, j = 0, k = 0;
@@ -271,256 +273,7 @@ eol_in_place_convert_out(char *data, i32 size, i32 max, i32 *size_out){
     return(result);
 }
 
-// TODO(allen): ditch this shit yo
-inline i32
-is_whitespace(char c){
-    i32 result;
-    result = (c == ' ' || c == '\n' || c == '\r'  || c == '\t' || c == '\f' || c == '\v');
-    return(result);
-}
-
-inline i32
-is_alphanumeric_true(char c){
-    return (c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c >= '0' && c <= '9');
-}
-
-inline i32
-is_alphanumeric(char c){
-    return (c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c >= '0' && c <= '9' || c == '_');
-}
-
-inline i32
-is_upper(char c){
-    return (c >= 'A' && c <= 'Z');
-}
-
-inline i32
-is_lower(char c){
-    return (c >= 'a' && c <= 'z');
-}
-
-inline char
-to_upper(char c){
-    if (is_lower(c)){
-        c += 'A' - 'a';
-    }
-    return(c);
-}
-
-internal i32
-is_match(char *a, char *b, i32 len){
-    i32 result = 1;
-    for (;len > 0; --len, ++a, ++b)
-        if (*a != *b) { result = 0; break; }
-    
-    return(result);
-}
-
-internal i32
-is_match_insensitive(char *a, char *b, i32 len){
-    i32 result = 1;
-    for (;len > 0; --len, ++a, ++b)
-        if (to_upper(*a) != to_upper(*b)) { result = 0; break; }
-    
-    return(result);
-}
-
-//
-// Translation state for turning byte streams into unicode/trash byte streams
-//
-
-struct Buffer_Model_Step{
-    u32 type;
-    u32 value;
-    i32 i;
-    u32 byte_length;
-};
-
-enum{
-    BufferModelUnit_None,
-    BufferModelUnit_Codepoint,
-    BufferModelUnit_Numbers,
-};
-
-struct Buffer_Translating_State{
-    u8 fill_buffer[4];
-    u32 fill_start_i;
-    u32 fill_i;
-    u32 fill_expected;
-    
-    u32 byte_class;
-    b32 emit_type;
-    b32 rebuffer_current;
-    b32 emit_current_as_cp;
-    
-    Buffer_Model_Step steps[5];
-    Buffer_Model_Step step_current;
-    u32 step_count;
-    u32 step_j;
-    
-    u32 codepoint;
-    u32 codepoint_length;
-    b32 do_codepoint;
-    b32 do_numbers;
-    
-    b32 do_newline;
-    b32 do_codepoint_advance;
-    b32 do_number_advance;
-};
-global_const Buffer_Translating_State null_buffer_translating_state = {0};
-
-internal void
-translating_consume_byte(Buffer_Translating_State *tran, u8 ch, u32 i, u32 size){
-    tran->byte_class = 0;
-    if ((ch >= ' ' && ch < 0x7F) || ch == '\t' || ch == '\n' || ch == '\r'){
-        tran->byte_class = 1;
-    }
-    else if (ch < 0xC0){
-        tran->byte_class = 1000;
-    }
-    else if (ch < 0xE0){
-        tran->byte_class = 2;
-    }
-    else if (ch < 0xF0){
-        tran->byte_class = 3;
-    }
-    else{
-        tran->byte_class = 4;
-    }
-    
-    tran->emit_type = BufferModelUnit_None;
-    tran->rebuffer_current = false;
-    tran->emit_current_as_cp = false;
-    if (tran->fill_expected == 0){
-        tran->fill_buffer[0] = ch;
-        tran->fill_start_i = i;
-        tran->fill_i = 1;
-        
-        if (tran->byte_class == 1){
-            tran->emit_type = BufferModelUnit_Codepoint;
-        }
-        else if (tran->byte_class == 0 || tran->byte_class == 1000){
-            tran->emit_type = BufferModelUnit_Numbers;
-        }
-        else{
-            tran->fill_expected = tran->byte_class;
-        }
-    }
-    else{
-        if (tran->byte_class == 1000){
-            tran->fill_buffer[tran->fill_i] = ch;
-            ++tran->fill_i;
-            
-            if (tran->fill_i == tran->fill_expected){
-                tran->emit_type = BufferModelUnit_Codepoint;
-            }
-        }
-        else{
-            if (tran->byte_class >= 2 && tran->byte_class <= 4){
-                tran->rebuffer_current = true;
-            }
-            else if (tran->byte_class == 1){
-                tran->emit_current_as_cp = true;
-            }
-            else{
-                tran->fill_buffer[tran->fill_i] = ch;
-                ++tran->fill_i;
-            }
-            tran->emit_type = BufferModelUnit_Numbers;
-        }
-    }
-    
-    if (tran->emit_type == BufferModelUnit_None && i+1 == size){
-        tran->emit_type = BufferModelUnit_Numbers;
-    }
-    
-    tran->codepoint = 0;
-    tran->codepoint_length = 0;
-    tran->do_codepoint = false;
-    tran->do_numbers = false;
-    if (tran->emit_type == BufferModelUnit_Codepoint){
-        tran->codepoint = utf8_to_u32_length_unchecked(tran->fill_buffer, &tran->codepoint_length);
-        if ((tran->codepoint >= ' ' && tran->codepoint <= 255 && tran->codepoint != 127) || tran->codepoint == '\t' || tran->codepoint == '\n' || tran->codepoint == '\r'){
-            tran->do_codepoint = true;
-        }
-        else{
-            tran->do_numbers = true;
-        }
-    }
-    else if (tran->emit_type == BufferModelUnit_Numbers){
-        tran->do_numbers = true;
-    }
-    
-    Assert((tran->do_codepoint + tran->do_numbers) <= 1);
-    
-    tran->step_count = 0;
-    if (tran->do_codepoint){
-        tran->steps[0].type = 1;
-        tran->steps[0].value = tran->codepoint;
-        tran->steps[0].i = tran->fill_start_i;
-        tran->steps[0].byte_length = tran->codepoint_length;
-        tran->step_count = 1;
-    }
-    else if (tran->do_numbers){
-        for (u32 j = 0; j < tran->fill_i; ++j){
-            tran->steps[j].type = 0;
-            tran->steps[j].value = tran->fill_buffer[j];
-            tran->steps[j].i = tran->fill_start_i + j;
-            tran->steps[j].byte_length = 1;
-        }
-        tran->step_count = tran->fill_i;
-    }
-    
-    if (tran->do_codepoint || tran->do_numbers){
-        tran->fill_start_i = 0;
-        tran->fill_i = 0;
-        tran->fill_expected = 0;
-    }
-    
-    if (tran->rebuffer_current){
-        Assert(tran->do_codepoint || tran->do_numbers);
-        
-        tran->fill_buffer[0] = ch;
-        tran->fill_start_i = i;
-        tran->fill_i = 1;
-        tran->fill_expected = tran->byte_class;
-    }
-    else if (tran->emit_current_as_cp){
-        Assert(tran->do_codepoint || tran->do_numbers);
-        
-        tran->steps[tran->step_count].type = 1;
-        tran->steps[tran->step_count].value = ch;
-        tran->steps[tran->step_count].i = i;
-        tran->steps[tran->step_count].byte_length = 1;
-        ++tran->step_count;
-    }
-}
-
-internal void
-translation_step_read(Buffer_Translating_State *tran){
-    tran->do_newline = false;
-    tran->do_codepoint_advance = false;
-    tran->do_number_advance = false;
-    if (tran->step_current.type == 1){
-        switch (tran->step_current.value){
-            case '\n':
-            {
-                tran->do_newline = true;
-            }break;
-            
-            default:
-            {
-                tran->do_codepoint_advance = true;
-            }break;
-        }
-    }
-    else{
-        tran->do_number_advance = true;
-    }
-}
-
-#define TRANSLATION_OUTPUT(t) (t)->step_j = 0; (t)->step_j < (t)->step_count; ++(t)->step_j 
-#define TRANSLATION_GET_STEP(t) (t)->step_current = (t)->steps[(t)->step_j]; translation_step_read(t)
+//////////////////////////////////////
 
 //
 // Implementation of the gap buffer
@@ -585,31 +338,30 @@ buffer_init_provide_page(Gap_Buffer_Init *init, void *page, i32 page_size){
     buffer->max = page_size;
 }
 
-internal i32
+internal b32
 buffer_end_init(Gap_Buffer_Init *init, void *scratch, i32 scratch_size){
     Gap_Buffer *buffer = init->buffer;
-    i32 osize1 = 0, size1 = 0, size2 = 0, size = init->size;
-    i32 result = 0;
+    b32 result = false;
     
-    if (buffer->data){
-        if (buffer->max >= init->size){
-            size2 = size >> 1;
-            size1 = osize1 = size - size2;
-            
-            if (size1 > 0){
-                size1 = eol_convert_in(buffer->data, init->data, size1);
-                if (size2 > 0){
-                    size2 = eol_convert_in(buffer->data + size1, init->data + osize1, size2);
-                }
+    if (buffer->data && buffer->max >= init->size){
+        i32 size = init->size;
+        i32 size2 = size >> 1;
+        i32 osize1 = size - size2;
+        i32 size1 = osize1;
+        
+        if (size1 > 0){
+            size1 = eol_convert_in(buffer->data, init->data, size1);
+            if (size2 > 0){
+                size2 = eol_convert_in(buffer->data + size1, init->data + osize1, size2);
             }
-            
-            buffer->size1 = size1;
-            buffer->size2 = size2;
-            buffer->gap_size = buffer->max - size1 - size2;
-            memmove(buffer->data + size1 + buffer->gap_size, buffer->data + size1, size2);
-            
-            result = 1;
         }
+        
+        buffer->size1 = size1;
+        buffer->size2 = size2;
+        buffer->gap_size = buffer->max - size1 - size2;
+        memmove(buffer->data + size1 + buffer->gap_size, buffer->data + size1, size2);
+        
+        result = true;
     }
     
     return(result);
@@ -823,9 +575,9 @@ buffer_convert_out(Gap_Buffer *buffer, char *dest, i32 max){
     if (buffer_stringify_loop(&stream, buffer, 0, size)){
         b32 still_looping = 0;
         do{
-            i32 size = stream.end - i;
+            i32 chunk_size = stream.end - i;
             i32 out_size = 0;
-            i32 result = eol_convert_out(dest + pos, max - pos, stream.data + i, size, &out_size);
+            i32 result = eol_convert_out(dest + pos, max - pos, stream.data + i, chunk_size, &out_size);
             assert(result);
             i = stream.end;
             pos += out_size;
@@ -916,7 +668,7 @@ buffer_measure_starts(Buffer_Measure_Starts *state, Gap_Buffer *buffer){
 }
 
 internal void
-buffer_measure_character_starts(Gap_Buffer *buffer, i32 *character_starts, i32 mode, i32 virtual_white){
+buffer_measure_character_starts(System_Functions *system, Render_Font *font, Gap_Buffer *buffer, i32 *character_starts, i32 mode, i32 virtual_white){
     assert(mode == 0);
     
     Gap_Buffer_Stream stream = {0};
@@ -934,7 +686,8 @@ buffer_measure_character_starts(Gap_Buffer *buffer, i32 *character_starts, i32 m
         skipping_whitespace = 1;
     }
     
-    Buffer_Translating_State tran = {0};
+    Translation_State tran = {0};
+    Translation_Emits emits = {0};
     
     stream.use_termination_character = 1;
     stream.terminator = '\n';
@@ -944,19 +697,19 @@ buffer_measure_character_starts(Gap_Buffer *buffer, i32 *character_starts, i32 m
             for (; i < stream.end; ++i){
                 u8 ch = (u8)stream.data[i];
                 
-                translating_consume_byte(&tran, ch, i, size);
+                translating_fully_process_byte(system, font, &tran, ch, i, size, &emits);
                 
-                for (TRANSLATION_OUTPUT(&tran)){
-                    TRANSLATION_GET_STEP(&tran);
+                for (TRANSLATION_DECL_EMIT_LOOP(J, emits)){
+                    TRANSLATION_DECL_GET_STEP(step, behavior, J, emits);
                     
-                    if (tran.do_newline){
+                    if (behavior.do_newline){
                         ++character_index;
                         character_starts[line_index++] = character_index;
                         if (virtual_white){
                             skipping_whitespace = 1;
                         }
                     }
-                    else if (tran.do_codepoint_advance || tran.do_number_advance){
+                    else if (behavior.do_codepoint_advance || behavior.do_number_advance){
                         if (ch != ' ' && ch != '\t'){
                             skipping_whitespace = 0;
                         }
@@ -993,6 +746,7 @@ struct Buffer_Layout_Stop{
 struct Buffer_Measure_Wrap_Params{
     Gap_Buffer *buffer;
     i32 *wrap_line_index;
+    System_Functions *system;
     Render_Font *font;
     b32 virtual_white;
 };
@@ -1014,9 +768,11 @@ struct Buffer_Measure_Wrap_State{
     b32 did_wrap;
     b32 first_of_the_line;
     
-    u8 ch;
-    
-    Buffer_Translating_State tran;
+    Translation_State tran;
+    Translation_Emits emits;
+    u32 J;
+    Buffer_Model_Step step;
+    Buffer_Model_Behavior behavior;
     
     i32 __pc__;
 };
@@ -1060,18 +816,20 @@ buffer_measure_wrap_y(Buffer_Measure_Wrap_State *S_ptr, Buffer_Measure_Wrap_Para
         S.still_looping = 0;
         do{
             for (; S.i < S.stream.end; ++S.i){
-                S.ch = (u8)S.stream.data[S.i];
-                
-                if (S.ch != ' ' && S.ch != '\t'){
-                    S.skipping_whitespace = false;
+                {
+                    u8 ch = (u8)S.stream.data[S.i];
+                    
+                    if (ch != ' ' && ch != '\t'){
+                        S.skipping_whitespace = false;
+                    }
+                    
+                    translating_fully_process_byte(params.system, params.font, &S.tran, ch, S.i, S.size, &S.emits);
                 }
                 
-                translating_consume_byte(&S.tran, S.ch, S.i, S.size);
-                
-                for (TRANSLATION_OUTPUT(&S.tran)){
-                    TRANSLATION_GET_STEP(&S.tran);
+                for (TRANSLATION_EMIT_LOOP(S.J, S.emits)){
+                    TRANSLATION_GET_STEP(S.step, S.behavior, S.J, S.emits);
                     
-                    if (S.tran.do_newline){
+                    if (S.behavior.do_newline){
                         ++S.current_wrap_index;
                         params.wrap_line_index[S.line_index++] = S.current_wrap_index;
                         
@@ -1090,14 +848,13 @@ buffer_measure_wrap_y(Buffer_Measure_Wrap_State *S_ptr, Buffer_Measure_Wrap_Para
                         }
                         S.first_of_the_line = 1;
                     }
-                    else if (S.tran.do_number_advance || S.tran.do_codepoint_advance){
+                    else if (S.behavior.do_number_advance || S.behavior.do_codepoint_advance){
                         if (!S.skipping_whitespace){
-                            
-                            if (S.tran.do_codepoint_advance){
-                                S.current_adv = get_codepoint_advance(params.font, S.tran.step_current.value);
+                            if (S.behavior.do_codepoint_advance){
+                                S.current_adv = font_get_glyph_advance(params.system, params.font, S.step.value);
                             }
                             else{
-                                S.current_adv = params.font->byte_advance;
+                                S.current_adv = font_get_byte_advance(params.font);
                             }
                             
                             S.did_wrap = false;
@@ -1228,7 +985,7 @@ buffer_remeasure_starts(Gap_Buffer *buffer, i32 line_start, i32 line_end, i32 li
 }
 
 internal void
-buffer_remeasure_character_starts(Gap_Buffer *buffer, i32 line_start, i32 line_end, i32 line_shift, i32 *character_starts, i32 mode, i32 virtual_whitespace){
+buffer_remeasure_character_starts(System_Functions *system, Render_Font *font, Gap_Buffer *buffer, i32 line_start, i32 line_end, i32 line_shift, i32 *character_starts, i32 mode, i32 virtual_whitespace){
     assert(mode == 0);
     
     i32 new_line_count = buffer->line_count;
@@ -1266,7 +1023,8 @@ buffer_remeasure_character_starts(Gap_Buffer *buffer, i32 line_start, i32 line_e
     }
     
     // Translation
-    Buffer_Translating_State tran = {0};
+    Translation_State tran = {0};
+    Translation_Emits emits = {0};
     
     stream.use_termination_character = 1;
     stream.terminator = '\n';
@@ -1275,12 +1033,12 @@ buffer_remeasure_character_starts(Gap_Buffer *buffer, i32 line_start, i32 line_e
         do{
             for (; char_i < stream.end; ++char_i){
                 u8 ch = (u8)stream.data[char_i];
-                translating_consume_byte(&tran, ch, char_i, size);
+                translating_fully_process_byte(system, font, &tran, ch, char_i, size, &emits);
                 
-                for (TRANSLATION_OUTPUT(&tran)){
-                    TRANSLATION_GET_STEP(&tran);
+                for (TRANSLATION_DECL_EMIT_LOOP(J, emits)){
+                    TRANSLATION_DECL_GET_STEP(step, behavior, J, emits);
                     
-                    if (tran.do_newline){
+                    if (behavior.do_newline){
                         character_starts[line_i++] = last_char_start;
                         ++current_char_start;
                         last_char_start = current_char_start;
@@ -1292,7 +1050,7 @@ buffer_remeasure_character_starts(Gap_Buffer *buffer, i32 line_start, i32 line_e
                             goto buffer_remeasure_character_starts_end;
                         }
                     }
-                    else if (tran.do_codepoint_advance || tran.do_number_advance){
+                    else if (behavior.do_codepoint_advance || behavior.do_number_advance){
                         if (ch != ' ' && ch != '\t'){
                             skipping_whitespace = 0;
                         }
@@ -1539,6 +1297,7 @@ buffer_partial_from_line_character(Gap_Buffer *buffer, i32 line, i32 character){
 struct Buffer_Cursor_Seek_Params{
     Gap_Buffer *buffer;
     Buffer_Seek seek;
+    System_Functions *system;
     Render_Font *font;
     i32 *wrap_line_index;
     i32 *character_starts;
@@ -1561,9 +1320,15 @@ struct Buffer_Cursor_Seek_State{
     b32 first_of_the_line;
     b32 xy_seek;
     f32 ch_width;
-    u8 ch;
     
-    Buffer_Translating_State tran;
+    i32 font_height;
+    
+    Translation_State tran;
+    Translation_Emits emits;
+    u32 J;
+    Buffer_Model_Step step;
+    Buffer_Model_Behavior behavior;
+    
     
     i32 __pc__;
 };
@@ -1585,6 +1350,8 @@ buffer_cursor_seek(Buffer_Cursor_Seek_State *S_ptr, Buffer_Cursor_Seek_Params pa
         DrCase(4);
     }
     
+    S.font_height = font_get_height(params.font);
+    
     S.xy_seek = (params.seek.type == buffer_seek_wrapped_xy || params.seek.type == buffer_seek_unwrapped_xy);
     S.size = buffer_size(params.buffer);
     
@@ -1594,9 +1361,7 @@ buffer_cursor_seek(Buffer_Cursor_Seek_State *S_ptr, Buffer_Cursor_Seek_Params pa
         switch (params.seek.type){
             case buffer_seek_pos:
             {
-                if (params.seek.pos > S.size){
-                    params.seek.pos = S.size;
-                }
+                params.seek.pos = clamp(0, params.seek.pos, S.size);
                 
                 line_index = buffer_get_line_index(params.buffer, params.seek.pos);
             }break;
@@ -1605,53 +1370,45 @@ buffer_cursor_seek(Buffer_Cursor_Seek_State *S_ptr, Buffer_Cursor_Seek_Params pa
             {
                 i32 line_count = params.buffer->line_count;
                 i32 max_character = params.character_starts[line_count] - 1;
-                if (params.seek.pos > max_character){
-                    params.seek.pos = max_character;
-                }
+                params.seek.pos = clamp(0, params.seek.pos, max_character);
                 
-                line_index = buffer_get_line_index_from_character_pos(params.character_starts, params.seek.pos,
-                                                                      0, params.buffer->line_count);
+                line_index = buffer_get_line_index_from_character_pos(params.character_starts, params.seek.pos, 0, params.buffer->line_count);
             }break;
             
             case buffer_seek_line_char:
             {
                 line_index = params.seek.line - 1;
-                if (line_index >= params.buffer->line_count){
-                    line_index = params.buffer->line_count - 1;
-                }
-                if (line_index < 0){
-                    line_index = 0;
-                }
+                line_index = clamp_bottom(0, line_index);
             }break;
             
             case buffer_seek_unwrapped_xy:
             {
-                line_index = (i32)(params.seek.y / params.font->height);
-                if (line_index >= params.buffer->line_count){
-                    line_index = params.buffer->line_count - 1;
-                }
-                if (line_index < 0){
-                    line_index = 0;
-                }
+                line_index = (i32)(params.seek.y / S.font_height);
+                line_index = clamp_bottom(0, line_index);
             }break;
             
             case buffer_seek_wrapped_xy:
             {
-                line_index = buffer_get_line_index_from_wrapped_y(params.wrap_line_index, params.seek.y, params.font->height, 0, params.buffer->line_count);
+                line_index = buffer_get_line_index_from_wrapped_y(params.wrap_line_index, params.seek.y, S.font_height, 0, params.buffer->line_count);
             }break;
             
             default: InvalidCodePath;
         }
         
+        i32 safe_line_index = line_index;
+        if (line_index >= params.buffer->line_count){
+            safe_line_index = params.buffer->line_count-1;
+        }
+        
         // Build the cursor hint
-        S.next_cursor.pos = params.buffer->line_starts[line_index];
-        S.next_cursor.character_pos = params.character_starts[line_index];
+        S.next_cursor.pos = params.buffer->line_starts[safe_line_index];
+        S.next_cursor.character_pos = params.character_starts[safe_line_index];
         S.next_cursor.line = line_index + 1;
         S.next_cursor.character = 1;
-        S.next_cursor.wrap_line = params.wrap_line_index[line_index] + 1;
-        S.next_cursor.unwrapped_y = (f32)(line_index * params.font->height);
+        S.next_cursor.wrap_line = params.wrap_line_index[safe_line_index] + 1;
+        S.next_cursor.unwrapped_y = (f32)(safe_line_index * S.font_height);
         S.next_cursor.unwrapped_x = 0;
-        S.next_cursor.wrapped_y = (f32)(params.wrap_line_index[line_index] * params.font->height);
+        S.next_cursor.wrapped_y = (f32)(params.wrap_line_index[safe_line_index] * S.font_height);
         S.next_cursor.wrapped_x = 0;
     }
     
@@ -1672,9 +1429,9 @@ buffer_cursor_seek(Buffer_Cursor_Seek_State *S_ptr, Buffer_Cursor_Seek_Params pa
         if (buffer_stringify_loop(&S.stream, params.buffer, S.next_cursor.pos, S.size)){
             do{
                 for (; S.next_cursor.pos < S.stream.end; ++S.next_cursor.pos){
-                    S.ch = (u8)S.stream.data[S.next_cursor.pos];
+                    u8 ch = (u8)S.stream.data[S.next_cursor.pos];
                     
-                    if (S.ch != ' ' && S.ch != '\t'){
+                    if (ch != ' ' && ch != '\t'){
                         goto double_break_vwhite;
                     }
                     else{
@@ -1748,22 +1505,23 @@ buffer_cursor_seek(Buffer_Cursor_Seek_State *S_ptr, Buffer_Cursor_Seek_Params pa
         S.still_looping = 0;
         do{
             for (; S.i < S.stream.end; ++S.i){
-                S.ch = (u8)S.stream.data[S.i];
+                {
+                    u8 ch = (u8)S.stream.data[S.i];
+                    translating_fully_process_byte(params.system, params.font, &S.tran, ch, S.i, S.size, &S.emits);
+                }
                 
-                translating_consume_byte(&S.tran, S.ch, S.i, S.size);
-                
-                for (TRANSLATION_OUTPUT(&S.tran)){
-                    TRANSLATION_GET_STEP(&S.tran);
+                for (TRANSLATION_EMIT_LOOP(S.J, S.emits)){
+                    TRANSLATION_GET_STEP(S.step, S.behavior, S.J, S.emits);
                     
                     S.prev_cursor = S.this_cursor;
                     S.this_cursor = S.next_cursor;
                     
-                    if (S.tran.do_newline){
+                    if (S.behavior.do_newline){
                         ++S.next_cursor.character_pos;
                         ++S.next_cursor.line;
                         ++S.next_cursor.wrap_line;
-                        S.next_cursor.unwrapped_y += params.font->height;
-                        S.next_cursor.wrapped_y += params.font->height;
+                        S.next_cursor.unwrapped_y += S.font_height;
+                        S.next_cursor.wrapped_y += S.font_height;
                         S.next_cursor.character = 1;
                         S.next_cursor.unwrapped_x = 0;
                         
@@ -1777,27 +1535,27 @@ buffer_cursor_seek(Buffer_Cursor_Seek_State *S_ptr, Buffer_Cursor_Seek_Params pa
                         S.next_cursor.wrapped_x = line_shift;
                         S.first_of_the_line = 1;
                     }
-                    else if (S.tran.do_number_advance || S.tran.do_codepoint_advance){
+                    else if (S.behavior.do_number_advance || S.behavior.do_codepoint_advance){
                         
-                        if (S.tran.do_codepoint_advance){
-                            S.ch_width = get_codepoint_advance(params.font, S.tran.step_current.value);
+                        if (S.behavior.do_codepoint_advance){
+                            S.ch_width = font_get_glyph_advance(params.system, params.font, S.step.value);
                         }
                         else{
-                            S.ch_width = params.font->byte_advance;
+                            S.ch_width = font_get_byte_advance(params.font);
                         }
                         
-                        if (S.tran.step_current.i >= S.wrap_unit_end){
+                        if (S.step.i >= S.wrap_unit_end){
                             S_stop.status          = BLStatus_NeedWrapDetermination;
                             S_stop.line_index      = S.next_cursor.line-1;
                             S_stop.wrap_line_index = S.next_cursor.wrap_line-1;
-                            S_stop.pos             = S.tran.step_current.i;
+                            S_stop.pos             = S.step.i;
                             S_stop.x               = S.next_cursor.wrapped_x;
                             DrYield(4, S_stop);
                             
                             S.wrap_unit_end = wrap_unit_end;
                             
                             if (do_wrap && !S.first_of_the_line){
-                                S.next_cursor.wrapped_y += params.font->height;
+                                S.next_cursor.wrapped_y += S.font_height;
                                 
                                 ++S.next_cursor.wrap_line;
                                 if (params.virtual_white){
@@ -1820,7 +1578,7 @@ buffer_cursor_seek(Buffer_Cursor_Seek_State *S_ptr, Buffer_Cursor_Seek_Params pa
                         S.first_of_the_line = 0;
                     }
                     
-                    S.next_cursor.pos += S.tran.step_current.byte_length;
+                    S.next_cursor.pos += S.step.byte_length;
                     
                     f32 x = 0, px = 0, y = 0, py = 0;
                     switch (params.seek.type){
@@ -1866,9 +1624,9 @@ buffer_cursor_seek(Buffer_Cursor_Seek_State *S_ptr, Buffer_Cursor_Seek_Params pa
                             goto buffer_cursor_seek_end;
                         }
                         
-                        if (y > params.seek.y - params.font->height && x >= params.seek.x){
+                        if (y > params.seek.y - S.font_height && x >= params.seek.x){
                             if (!params.seek.round_down){
-                                if (py >= y && S.ch != '\n' && (params.seek.x - px) < (x - params.seek.x)){
+                                if (py >= y && !S.behavior.do_newline && (params.seek.x - px) < (x - params.seek.x)){
                                     S.this_cursor = S.prev_cursor;
                                 }
                                 goto buffer_cursor_seek_end;
@@ -1963,7 +1721,7 @@ enum Buffer_Render_Flag{
 
 typedef struct Buffer_Render_Item{
     i32 index;
-    u32 glyphid;
+    u32 codepoint;
     u32 flags;
     f32 x0, y0;
     f32 x1, y1;
@@ -1972,23 +1730,26 @@ typedef struct Buffer_Render_Item{
 typedef struct Render_Item_Write{
     Buffer_Render_Item *item;
     f32 x, y;
+    System_Functions *system;
     Render_Font *font;
+    i32 font_height;
     f32 x_min;
     f32 x_max;
 } Render_Item_Write;
 
 inline Render_Item_Write
-write_render_item(Render_Item_Write write, i32 index, u32 glyphid, u32 flags){
-    f32 ch_width = get_codepoint_advance(write.font, glyphid);
+write_render_item(Render_Item_Write write, i32 index, u32 codepoint, u32 flags){
+    
+    f32 ch_width = font_get_glyph_advance(write.system, write.font, codepoint);
     
     if (write.x <= write.x_max && write.x + ch_width >= write.x_min){
         write.item->index = index;
-        write.item->glyphid = glyphid;
+        write.item->codepoint = codepoint;
         write.item->flags = flags;
         write.item->x0 = write.x;
         write.item->y0 = write.y;
         write.item->x1 = write.x + ch_width;
-        write.item->y1 = write.y + write.font->height;
+        write.item->y1 = write.y + write.font_height;
         
         ++write.item;
     }
@@ -1998,7 +1759,6 @@ write_render_item(Render_Item_Write write, i32 index, u32 glyphid, u32 flags){
     return(write);
 }
 
-// TODO(allen): Reduce the number of parameters.
 struct Buffer_Render_Params{
     Gap_Buffer *buffer;
     Buffer_Render_Item *items;
@@ -2013,6 +1773,7 @@ struct Buffer_Render_Params{
     f32 height;
     Full_Cursor start_cursor;
     i32 wrapped;
+    System_Functions *system;
     Render_Font *font;
     b32 virtual_white;
     i32 wrap_slashes;
@@ -2028,9 +1789,9 @@ struct Buffer_Render_State{
     f32 shift_y;
     
     f32 ch_width;
-    u8 ch;
     
     Render_Item_Write write;
+    f32 byte_advance;
     
     i32 line;
     i32 wrap_line;
@@ -2038,7 +1799,11 @@ struct Buffer_Render_State{
     b32 first_of_the_line;
     i32 wrap_unit_end;
     
-    Buffer_Translating_State tran;
+    Translation_State tran;
+    Translation_Emits emits;
+    u32 J;
+    Buffer_Model_Step step;
+    Buffer_Model_Behavior behavior;
     
     i32 __pc__;
 };
@@ -2086,9 +1851,13 @@ buffer_render_data(Buffer_Render_State *S_ptr, Buffer_Render_Params params, f32 
     S.write.item        = params.items;
     S.write.x           = S.shift_x + line_shift;
     S.write.y           = S.shift_y;
+    S.write.system      = params.system;
     S.write.font        = params.font;
+    S.write.font_height = font_get_height(params.font);
     S.write.x_min       = params.port_x;
     S.write.x_max       = params.port_x + params.clip_w;
+    
+    S.byte_advance = font_get_byte_advance(params.font);
     
     if (params.virtual_white){
         S.skipping_whitespace = 1;
@@ -2099,17 +1868,19 @@ buffer_render_data(Buffer_Render_State *S_ptr, Buffer_Render_Params params, f32 
     if (buffer_stringify_loop(&S.stream, params.buffer, S.i, S.size)){
         do{
             for (; S.i < S.stream.end; ++S.i){
-                S.ch = (u8)S.stream.data[S.i];
-                translating_consume_byte(&S.tran, S.ch, S.i, S.size);
+                {
+                    u8 ch = (u8)S.stream.data[S.i];
+                    translating_fully_process_byte(params.system, params.font, &S.tran, ch, S.i, S.size, &S.emits);
+                }
                 
-                for (TRANSLATION_OUTPUT(&S.tran)){
-                    TRANSLATION_GET_STEP(&S.tran);
+                for (TRANSLATION_EMIT_LOOP(S.J, S.emits)){
+                    TRANSLATION_GET_STEP(S.step, S.behavior, S.J, S.emits);
                     
-                    if (!S.tran.do_newline && S.tran.step_current.i >= S.wrap_unit_end){
+                    if (!S.behavior.do_newline && S.step.i >= S.wrap_unit_end){
                         S_stop.status          = BLStatus_NeedWrapDetermination;
                         S_stop.line_index      = S.line;
                         S_stop.wrap_line_index = S.wrap_line;
-                        S_stop.pos             = S.tran.step_current.i;
+                        S_stop.pos             = S.step.i;
                         S_stop.x               = S.write.x - S.shift_x;
                         DrYield(4, S_stop);
                         
@@ -2129,7 +1900,7 @@ buffer_render_data(Buffer_Render_State *S_ptr, Buffer_Render_Params params, f32 
                                 switch (params.wrap_slashes){
                                     case WrapIndicator_Show_After_Line:
                                     {
-                                        S.write = write_render_item(S.write, S.tran.step_current.i-1, '\\', BRFlag_Ghost_Character);
+                                        S.write = write_render_item(S.write, S.step.i-1, '\\', BRFlag_Ghost_Character);
                                     }break;
                                     
                                     case WrapIndicator_Show_At_Wrap_Edge:
@@ -2137,12 +1908,12 @@ buffer_render_data(Buffer_Render_State *S_ptr, Buffer_Render_Params params, f32 
                                         if (S.write.x < S.shift_x + params.width){
                                             S.write.x = S.shift_x + params.width;
                                         }
-                                        S.write = write_render_item(S.write, S.tran.step_current.i-1, '\\', BRFlag_Ghost_Character);
+                                        S.write = write_render_item(S.write, S.step.i-1, '\\', BRFlag_Ghost_Character);
                                     }break;
                                 }
                                 
                                 S.write.x = S.shift_x + line_shift;
-                                S.write.y += params.font->height;
+                                S.write.y += S.write.font_height;
                             }
                         }
                     }
@@ -2152,8 +1923,8 @@ buffer_render_data(Buffer_Render_State *S_ptr, Buffer_Render_Params params, f32 
                     }
                     
                     S.first_of_the_line = false;
-                    if (S.tran.do_newline){
-                        S.write = write_render_item(S.write, S.tran.step_current.i, ' ', 0);
+                    if (S.behavior.do_newline){
+                        S.write = write_render_item(S.write, S.step.i, ' ', 0);
                         
                         if (params.virtual_white){
                             S_stop.status          = BLStatus_NeedLineShift;
@@ -2168,18 +1939,18 @@ buffer_render_data(Buffer_Render_State *S_ptr, Buffer_Render_Params params, f32 
                         ++S.wrap_line;
                         
                         S.write.x = S.shift_x + line_shift;
-                        S.write.y += params.font->height;
+                        S.write.y += S.write.font_height;
                         
                         S.first_of_the_line = true;
                     }
-                    else if (S.tran.do_codepoint_advance){
-                        u32 n = S.tran.step_current.value;
+                    else if (S.behavior.do_codepoint_advance){
+                        u32 n = S.step.value;
                         if (n != ' ' && n != '\t'){
                             S.skipping_whitespace = false;
                         }
                         
                         if (!S.skipping_whitespace){
-                            u32 I = S.tran.step_current.i;
+                            u32 I = S.step.i;
                             switch (n){
                                 case '\r':
                                 {
@@ -2191,7 +1962,8 @@ buffer_render_data(Buffer_Render_State *S_ptr, Buffer_Render_Params params, f32 
                                 
                                 case '\t':
                                 {
-                                    S.ch_width = get_codepoint_advance(params.font, '\t');
+                                    S.ch_width = font_get_glyph_advance(params.system, params.font, '\t');
+                                    
                                     f32 new_x = S.write.x + S.ch_width;
                                     S.write = write_render_item(S.write, I, ' ', 0);
                                     S.write.x = new_x;
@@ -2204,12 +1976,12 @@ buffer_render_data(Buffer_Render_State *S_ptr, Buffer_Render_Params params, f32 
                             }
                         }
                     }
-                    else if (S.tran.do_number_advance){
-                        u8 n = (u8)S.tran.step_current.value;
-                        u32 I = S.tran.step_current.i;
+                    else if (S.behavior.do_number_advance){
+                        u8 n = (u8)S.step.value;
+                        u32 I = S.step.i;
                         S.skipping_whitespace = false;
                         
-                        S.ch_width = params.font->byte_advance;
+                        S.ch_width = S.byte_advance;
                         f32 new_x = S.write.x + S.ch_width;
                         
                         u8 cs[3];
@@ -2229,7 +2001,7 @@ buffer_render_data(Buffer_Render_State *S_ptr, Buffer_Render_Params params, f32 
                         S.write.x = new_x;
                     }
                     
-                    if (!S.skipping_whitespace && !S.tran.do_newline){
+                    if (!S.skipping_whitespace && !S.behavior.do_newline){
                         S.first_of_the_line = false;
                     }
                 }

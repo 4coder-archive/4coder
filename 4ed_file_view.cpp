@@ -186,11 +186,7 @@ struct Debug_Vars{
     i32 mode;
     i32 inspecting_view_id;
 };
-inline Debug_Vars
-debug_vars_zero(){
-    Debug_Vars vars = {0};
-    return(vars);
-}
+global_const Debug_Vars null_debug_vars = {0};
 
 struct View{
     View_Persistent persistent;
@@ -229,7 +225,6 @@ struct View{
     // theme stuff
     View *hot_file_view;
     u32 *palette;
-    i32 palette_size;
     Color_View_Mode color_mode;
     Super_Color color;
     b32 p4c_only;
@@ -385,16 +380,18 @@ view_cursor_limits(View *view){
 }
 
 internal Full_Cursor
-view_compute_cursor(View *view, Buffer_Seek seek, b32 return_hint){
+view_compute_cursor(System_Functions *system, View *view, Buffer_Seek seek, b32 return_hint){
     Editing_File *file = view->file_data.file;
-    Models *models = view->persistent.models;
-    Render_Font *font = get_font_info(models->font_set, file->settings.font_id)->font;
+    
+    Render_Font *font = system->font.get_render_data_by_id(file->settings.font_id);
+    Assert(font != 0);
     
     Full_Cursor result = {0};
     
     Buffer_Cursor_Seek_Params params;
     params.buffer           = &file->state.buffer;
     params.seek             = seek;
+    params.system           = system;
     params.font             = font;
     params.wrap_line_index  = file->state.wrap_line_index;
     params.character_starts = file->state.character_starts;
@@ -458,7 +455,7 @@ view_compute_cursor(View *view, Buffer_Seek seek, b32 return_hint){
 }
 
 inline Full_Cursor
-view_compute_cursor_from_xy(View *view, f32 seek_x, f32 seek_y){
+view_compute_cursor_from_xy(System_Functions *system, View *view, f32 seek_x, f32 seek_y){
     Buffer_Seek seek;
     if (view->file_data.file->settings.unwrapped_lines){
         seek = seek_unwrapped_xy(seek_x, seek_y, 0);
@@ -467,7 +464,7 @@ view_compute_cursor_from_xy(View *view, f32 seek_x, f32 seek_y){
         seek = seek_wrapped_xy(seek_x, seek_y, 0);
     }
     
-    Full_Cursor result = view_compute_cursor(view, seek, 0);
+    Full_Cursor result = view_compute_cursor(system, view, seek, 0);
     return(result);
 }
 
@@ -553,8 +550,7 @@ view_move_view_to_cursor(View *view, GUI_Scroll_Vars *scroll, b32 center_view){
 }
 
 internal b32
-view_move_cursor_to_view(View *view, GUI_Scroll_Vars scroll,
-                         Full_Cursor *cursor, f32 preferred_x){
+view_move_cursor_to_view(System_Functions *system, View *view, GUI_Scroll_Vars scroll, Full_Cursor *cursor, f32 preferred_x){
     b32 result = 0;
     
     if (view->edit_pos){
@@ -583,8 +579,7 @@ view_move_cursor_to_view(View *view, GUI_Scroll_Vars scroll,
                 cursor_y -= line_height;
             }
             
-            *cursor = view_compute_cursor_from_xy(
-                view, preferred_x, cursor_y);
+            *cursor = view_compute_cursor_from_xy(system, view, preferred_x, cursor_y);
             
             result = 1;
         }
@@ -605,12 +600,11 @@ view_set_cursor(View *view, Full_Cursor cursor, b32 set_preferred_x, b32 unwrapp
 }
 
 internal void
-view_set_scroll(View *view, GUI_Scroll_Vars scroll){
+view_set_scroll(System_Functions *system, View *view, GUI_Scroll_Vars scroll){
     if (edit_pos_move_to_front(view->file_data.file, view->edit_pos)){
         edit_pos_set_scroll(view->edit_pos, scroll);
         Full_Cursor cursor = view->edit_pos->cursor;
-        if (view_move_cursor_to_view(view, view->edit_pos->scroll,
-                                     &cursor, view->edit_pos->preferred_x)){
+        if (view_move_cursor_to_view(system, view, view->edit_pos->scroll, &cursor, view->edit_pos->preferred_x)){
             view->edit_pos->cursor = cursor;
         }
     }
@@ -627,13 +621,12 @@ view_set_cursor_and_scroll(View *view, Full_Cursor cursor, b32 set_preferred_x, 
 }
 
 inline void
-view_set_temp_highlight(View *view, i32 pos, i32 end_pos){
-    view->file_data.temp_highlight = view_compute_cursor(view, seek_pos(pos), 0);
+view_set_temp_highlight(System_Functions *system, View *view, i32 pos, i32 end_pos){
+    view->file_data.temp_highlight = view_compute_cursor(system, view, seek_pos(pos), 0);
     view->file_data.temp_highlight_end_pos = end_pos;
     view->file_data.show_temp_highlight = 1;
     
-    view_set_cursor(view, view->file_data.temp_highlight,
-                    0, view->file_data.file->settings.unwrapped_lines);
+    view_set_cursor(view, view->file_data.temp_highlight, 0, view->file_data.file->settings.unwrapped_lines);
 }
 
 struct View_And_ID{
@@ -881,7 +874,7 @@ file_grow_starts_as_needed(General_Memory *general, Gap_Buffer *buffer, i32 addi
 }
 
 internal void
-file_update_cursor_positions(Models *models, Editing_File *file){
+file_update_cursor_positions(System_Functions *system, Models *models, Editing_File *file){
     Editing_Layout *layout = &models->layout;
     for (View_Iter iter = file_view_iter_init(layout, file, 0);
          file_view_iter_good(iter);
@@ -889,11 +882,11 @@ file_update_cursor_positions(Models *models, Editing_File *file){
         i32 pos = view_get_cursor_pos(iter.view);
         
         if (!iter.view->file_data.show_temp_highlight){
-            Full_Cursor cursor = view_compute_cursor(iter.view, seek_pos(pos), 0);
+            Full_Cursor cursor = view_compute_cursor(system, iter.view, seek_pos(pos), 0);
             view_set_cursor(iter.view, cursor, 1, iter.view->file_data.file->settings.unwrapped_lines);
         }
         else{
-            view_set_temp_highlight(iter.view, pos, iter.view->file_data.temp_highlight_end_pos);
+            view_set_temp_highlight(system, iter.view, pos, iter.view->file_data.temp_highlight_end_pos);
         }
     }
 }
@@ -957,10 +950,11 @@ file_allocate_character_starts_as_needed(General_Memory *general, Editing_File *
 }
 
 internal void
-file_measure_character_starts(Models *models, Editing_File *file){
+file_measure_character_starts(System_Functions *system, Models *models, Editing_File *file){
     file_allocate_character_starts_as_needed(&models->mem.general, file);
-    buffer_measure_character_starts(&file->state.buffer, file->state.character_starts, 0, file->settings.virtual_white);
-    file_update_cursor_positions(models, file);
+    Render_Font *font = system->font.get_render_data_by_id(file->settings.font_id);
+    buffer_measure_character_starts(system, font, &file->state.buffer, file->state.character_starts, 0, file->settings.virtual_white);
+    file_update_cursor_positions(system, models, file);
 }
 
 internal void
@@ -1011,12 +1005,17 @@ struct Code_Wrap_State{
     
     Render_Font *font;
     f32 tab_indent_amount;
+    f32 byte_advance;
     
-    Buffer_Translating_State tran;
+    Translation_State tran;
+    Translation_Emits emits;
+    u32 J;
+    Buffer_Model_Step step;
+    Buffer_Model_Behavior behavior;
 };
 
 internal void
-wrap_state_init(Code_Wrap_State *state, Editing_File *file, Render_Font *font){
+wrap_state_init(System_Functions *system, Code_Wrap_State *state, Editing_File *file, Render_Font *font){
     state->token_array = file->state.token_array;
     state->token_ptr = state->token_array.tokens;
     state->end_token = state->token_ptr + state->token_array.count;
@@ -1031,7 +1030,9 @@ wrap_state_init(Code_Wrap_State *state, Editing_File *file, Render_Font *font){
     state->i = 0;
     
     state->font = font;
-    state->tab_indent_amount = get_codepoint_advance(font, '\t');
+    
+    state->tab_indent_amount = font_get_glyph_advance(system, font, '\t');
+    state->byte_advance = font_get_byte_advance(font);
     
     state->tran = null_buffer_translating_state;
 }
@@ -1064,7 +1065,7 @@ struct Code_Wrap_Step{
 };
 
 internal Code_Wrap_Step
-wrap_state_consume_token(Code_Wrap_State *state, i32 fixed_end_point){
+wrap_state_consume_token(System_Functions *system, Render_Font *font, Code_Wrap_State *state, i32 fixed_end_point){
     Code_Wrap_Step result = {0};
     i32 i = state->i;
     
@@ -1112,9 +1113,7 @@ wrap_state_consume_token(Code_Wrap_State *state, i32 fixed_end_point){
         end = fixed_end_point;
     }
     
-    if (i < line_start){
-        i = line_start;
-    }
+    i = clamp_top(i, line_start);
     
     if (i == line_start){
         skipping_whitespace = true;
@@ -1129,27 +1128,27 @@ wrap_state_consume_token(Code_Wrap_State *state, i32 fixed_end_point){
             }
             
             u8 ch = (u8)state->stream.data[i];
+            translating_fully_process_byte(system, font, &state->tran, ch, i, state->size, &state->emits);
             
-            translating_consume_byte(&state->tran, ch, i, state->size);
-            
-            for (TRANSLATION_OUTPUT(&state->tran)){
-                TRANSLATION_GET_STEP(&state->tran);
+            for (TRANSLATION_EMIT_LOOP(state->J, state->emits)){
+                TRANSLATION_GET_STEP(state->step, state->behavior, state->J, state->emits);
                 
-                if (state->tran.do_newline){
+                if (state->behavior.do_newline){
                     state->consume_newline = 1;
                     goto doublebreak;
                 }
-                else if(state->tran.do_number_advance || state->tran.do_codepoint_advance){
-                    u32 n = state->tran.step_current.value;
+                else if(state->behavior.do_number_advance || state->behavior.do_codepoint_advance){
+                    u32 n = state->step.value;
                     f32 adv = 0;
-                    if (state->tran.do_codepoint_advance){
-                        adv = get_codepoint_advance(state->font, n);
+                    if (state->behavior.do_codepoint_advance){
+                        adv = font_get_glyph_advance(system, state->font, n);
+                        
                         if (n != ' ' && n != '\t'){
                             skipping_whitespace = false;
                         }
                     }
                     else{
-                        adv = state->font->byte_advance;
+                        adv = state->byte_advance;
                         skipping_whitespace = false;
                     }
                     
@@ -1389,24 +1388,28 @@ stickieness_guess(Cpp_Token_Type type, Cpp_Token_Type other_type, u16 flags, u16
     return(guess);
 }
 
-internal f32
-get_current_shift(Code_Wrap_State *wrap_state, i32 next_line_start, b32 *adjust_top_to_this){
-    f32 current_shift = wrap_state->wrap_x.paren_nesting[wrap_state->wrap_x.paren_safe_top];
+struct Wrap_Current_Shift{
+    f32 shift;
+    b32 adjust_top_to_this;
+};
+
+internal Wrap_Current_Shift
+get_current_shift(Code_Wrap_State *wrap_state, i32 next_line_start){
+    Wrap_Current_Shift result = {0};
     
-    Assert(adjust_top_to_this != 0);
+    result.shift = wrap_state->wrap_x.paren_nesting[wrap_state->wrap_x.paren_safe_top];
+    
     if (wrap_state->token_ptr > wrap_state->token_array.tokens){
         Cpp_Token prev_token = *(wrap_state->token_ptr-1);
         
         if (wrap_state->wrap_x.paren_safe_top != 0 && prev_token.type == CPP_TOKEN_PARENTHESE_OPEN){
-            current_shift = wrap_state->wrap_x.paren_nesting[wrap_state->wrap_x.paren_safe_top-1] + wrap_state->tab_indent_amount;
-            
-            *adjust_top_to_this = 1;
+            result.shift = wrap_state->wrap_x.paren_nesting[wrap_state->wrap_x.paren_safe_top-1] + wrap_state->tab_indent_amount;
+            result.adjust_top_to_this = 1;
         }
         
         f32 statement_continuation_indent = 0.f;
-        if (current_shift != 0.f && wrap_state->wrap_x.paren_safe_top == 0){
-            if (!(prev_token.flags & CPP_TFLAG_PP_BODY) && !(prev_token.flags & CPP_TFLAG_PP_DIRECTIVE)){
-                
+        if (result.shift != 0.f && wrap_state->wrap_x.paren_safe_top == 0){
+            if (!(prev_token.flags & (CPP_TFLAG_PP_DIRECTIVE|CPP_TFLAG_PP_BODY))){
                 switch (prev_token.type){
                     case CPP_TOKEN_BRACKET_OPEN:
                     case CPP_TOKEN_BRACE_OPEN:
@@ -1422,31 +1425,32 @@ get_current_shift(Code_Wrap_State *wrap_state, i32 next_line_start, b32 *adjust_
         
         switch (wrap_state->token_ptr->type){
             case CPP_TOKEN_BRACE_CLOSE: case CPP_TOKEN_BRACE_OPEN: break;
-            default: current_shift += statement_continuation_indent; break;
+            default: result.shift += statement_continuation_indent; break;
         }
     }
     
     if (wrap_state->token_ptr->start < next_line_start){
         if (wrap_state->token_ptr->flags & CPP_TFLAG_PP_DIRECTIVE){
-            current_shift = 0;
+            result.shift = 0;
         }
         else{
             switch (wrap_state->token_ptr->type){
                 case CPP_TOKEN_BRACE_CLOSE:
                 {
                     if (wrap_state->wrap_x.paren_safe_top == 0){
-                        current_shift -= wrap_state->tab_indent_amount;
+                        result.shift -= wrap_state->tab_indent_amount;
                     }
                 }break;
             }
         }
     }
     
-    return(current_shift);
+    result.shift = clamp_bottom(0.f, result.shift);
+    return(result);
 }
 
 internal void
-file_measure_wraps(Models *models, Editing_File *file, Render_Font *font){
+file_measure_wraps(System_Functions *system, Models *models, Editing_File *file, Render_Font *font){
     General_Memory *general = &models->mem.general;
     Partition *part = &models->mem.part;
     
@@ -1459,6 +1463,7 @@ file_measure_wraps(Models *models, Editing_File *file, Render_Font *font){
     Buffer_Measure_Wrap_Params params;
     params.buffer          = &file->state.buffer;
     params.wrap_line_index = file->state.wrap_line_index;
+    params.system          = system;
     params.font            = font;
     params.virtual_white   = file->settings.virtual_white;
     
@@ -1475,7 +1480,7 @@ file_measure_wraps(Models *models, Editing_File *file, Render_Font *font){
         edge_tolerance = width;
     }
     
-    f32 line_shift = 0.f;
+    f32 current_line_shift = 0.f;
     b32 do_wrap = 0;
     i32 wrap_unit_end = 0;
     
@@ -1491,7 +1496,7 @@ file_measure_wraps(Models *models, Editing_File *file, Render_Font *font){
     i32 max_wrap_indent_mark = 0;
     
     if (params.virtual_white && file->state.tokens_complete && !file->state.still_lexing){
-        wrap_state_init(&wrap_state, file, font);
+        wrap_state_init(system, &wrap_state, file, font);
         use_tokens = true;
         
         potential_marks = push_array(part, Potential_Wrap_Indent_Pair, floor32(width));
@@ -1505,7 +1510,7 @@ file_measure_wraps(Models *models, Editing_File *file, Render_Font *font){
     i32 stage = 0;
     
     do{
-        stop = buffer_measure_wrap_y(&state, params, line_shift, do_wrap, wrap_unit_end);
+        stop = buffer_measure_wrap_y(&state, params, current_line_shift, do_wrap, wrap_unit_end);
         
         switch (stop.status){
             case BLStatus_NeedWrapDetermination:
@@ -1543,7 +1548,8 @@ file_measure_wraps(Models *models, Editing_File *file, Render_Font *font){
                                             word_stage = 1;
                                         }
                                         else{
-                                            f32 adv = get_codepoint_advance(params.font, ch);
+                                            f32 adv = font_get_glyph_advance(params.system, params.font, ch);
+                                            
                                             x += adv;
                                             self_x += adv;
                                             if (self_x > width){
@@ -1600,15 +1606,15 @@ file_measure_wraps(Models *models, Editing_File *file, Render_Font *font){
                         potential_count = 0;
                         stage = 0;
                         
-                        b32 adjust_top_to_this = 0;
-                        f32 current_shift = get_current_shift(&wrap_state, next_line_start, &adjust_top_to_this);
+                        Wrap_Current_Shift current_shift =  get_current_shift(&wrap_state, next_line_start);
                         
-                        if (adjust_top_to_this){
-                            wrap_state_set_top(&wrap_state, current_shift);
+                        
+                        if (current_shift.adjust_top_to_this){
+                            wrap_state_set_top(&wrap_state, current_shift.shift);
                         }
                         
                         wrap_indent_marks[real_count].wrap_position = 0;
-                        wrap_indent_marks[real_count].line_shift = clamp_bottom(0.f, current_shift);
+                        wrap_indent_marks[real_count].line_shift =current_shift.shift;
                         ++real_count;
                         
                         wrap_state.wrap_x.base_x = wrap_state.wrap_x.paren_nesting[0];
@@ -1670,7 +1676,7 @@ file_measure_wraps(Models *models, Editing_File *file, Render_Font *font){
                                                     goto doublebreak_stage1;
                                                 }
                                                 
-                                                f32 adv = get_codepoint_advance(params.font, ch);
+                                                f32 adv = font_get_glyph_advance(params.system, params.font, ch);
                                                 x += adv;
                                                 if (!first_word && x > current_width){
                                                     emit_comment_position = 1;
@@ -1696,7 +1702,9 @@ file_measure_wraps(Models *models, Editing_File *file, Render_Font *font){
                                                     goto doublebreak_stage2;
                                                 }
                                                 
-                                                f32 adv = get_codepoint_advance(params.font, ch);
+                                                
+                                                f32 adv = font_get_glyph_advance(params.system, params.font, ch);
+                                                
                                                 x += adv;
                                             }
                                             still_looping = buffer_stringify_next(&stream);
@@ -1716,7 +1724,7 @@ file_measure_wraps(Models *models, Editing_File *file, Render_Font *font){
                             }
                             
                             if (!emit_comment_position){
-                                step = wrap_state_consume_token(&wrap_state, next_line_start-1);
+                                step = wrap_state_consume_token(system, font, &wrap_state, next_line_start-1);
                             }
                             
                             b32 need_to_choose_a_wrap = 0;
@@ -1724,18 +1732,17 @@ file_measure_wraps(Models *models, Editing_File *file, Render_Font *font){
                                 need_to_choose_a_wrap = 1;
                             }
                             
-                            adjust_top_to_this = 0;
-                            current_shift = get_current_shift(&wrap_state, next_line_start, &adjust_top_to_this);
+                            current_shift = get_current_shift(&wrap_state, next_line_start);
                             
                             b32 next_token_is_on_line = 0;
                             if (wrap_state.token_ptr->start < next_line_start){
                                 next_token_is_on_line = 1;
                             }
                             
-                            i32 wrap_position = step.position_end;
+                            i32 next_wrap_position = step.position_end;
                             f32 wrap_x = step.final_x;
-                            if (wrap_state.token_ptr->start > step.position_start && wrap_position < wrap_state.token_ptr->start && next_token_is_on_line){
-                                wrap_position = wrap_state.token_ptr->start;
+                            if (wrap_state.token_ptr->start > step.position_start && next_wrap_position < wrap_state.token_ptr->start && next_token_is_on_line){
+                                next_wrap_position = wrap_state.token_ptr->start;
                             }
                             
                             if (!need_to_choose_a_wrap){
@@ -1778,18 +1785,18 @@ file_measure_wraps(Models *models, Editing_File *file, Render_Font *font){
                                 wrappable_score = 64*50;
                                 wrappable_score += 101 - general_stickieness - wrap_state.wrap_x.paren_safe_top*80;
                                 
-                                potential_marks[potential_count].wrap_position = wrap_position;
-                                potential_marks[potential_count].line_shift = current_shift;
+                                potential_marks[potential_count].wrap_position = next_wrap_position;
+                                potential_marks[potential_count].line_shift = current_shift.shift;
                                 potential_marks[potential_count].wrappable_score = wrappable_score;
                                 potential_marks[potential_count].wrap_x = wrap_x;
-                                potential_marks[potential_count].adjust_top_to_this = adjust_top_to_this;
+                                potential_marks[potential_count].adjust_top_to_this = current_shift.adjust_top_to_this;
                                 ++potential_count;
                             }
                             
                             if (need_to_choose_a_wrap){
                                 if (potential_count == 0){
-                                    wrap_indent_marks[real_count].wrap_position = wrap_position;
-                                    wrap_indent_marks[real_count].line_shift = current_shift;
+                                    wrap_indent_marks[real_count].wrap_position = next_wrap_position;
+                                    wrap_indent_marks[real_count].line_shift = current_shift.shift;
                                     ++real_count;
                                 }
                                 else{
@@ -1834,7 +1841,7 @@ file_measure_wraps(Models *models, Editing_File *file, Render_Font *font){
                                     
                                     wrap_state = original_wrap_state;
                                     for (;;){
-                                        step = wrap_state_consume_token(&wrap_state, wrap_position);
+                                        step = wrap_state_consume_token(system, font, &wrap_state, wrap_position);
                                         if (step.position_end >= wrap_position){
                                             break;
                                         }
@@ -1860,34 +1867,29 @@ file_measure_wraps(Models *models, Editing_File *file, Render_Font *font){
                         ++real_count;
                         
                         for (i32 l = 0; wrap_state.i < next_line_start && l < 3; ++l){
-                            wrap_state_consume_token(&wrap_state, next_line_start);
+                            wrap_state_consume_token(system, font, &wrap_state, next_line_start);
                         }
                     }
                     
-                    line_shift = wrap_indent_marks[stage].line_shift;
+                    current_line_shift = wrap_indent_marks[stage].line_shift;
                     
                     if (stage > 0){
                         ++stage;
                     }
                     
-                    if (line_shift < 0){
-                        line_shift = 0;
-                    }
-                    
+                    current_line_shift = clamp_bottom(0.f, current_line_shift);
                 }
                 else{
-                    line_shift = 0.f;
+                    current_line_shift = 0.f;
                 }
                 
-                if (line_shift > current_width - edge_tolerance){
-                    line_shift = current_width - edge_tolerance;
-                }
+                current_line_shift = clamp_top(current_line_shift, current_width - edge_tolerance);
                 
                 if (stop.wrap_line_index >= file->state.line_indent_max){
                     file_allocate_indents_as_needed(general, file, stop.wrap_line_index);
                 }
                 
-                file->state.line_indents[stop.wrap_line_index] = line_shift;
+                file->state.line_indents[stop.wrap_line_index] = current_line_shift;
                 file->state.wrap_line_count = stop.wrap_line_index;
             }break;
         }
@@ -1903,21 +1905,21 @@ file_measure_wraps(Models *models, Editing_File *file, Render_Font *font){
 }
 
 internal void
-file_measure_wraps_and_fix_cursor(Models *models, Editing_File *file, Render_Font *font){
-    file_measure_wraps(models, file, font);
-    file_update_cursor_positions(models, file);
+file_measure_wraps_and_fix_cursor(System_Functions *system, Models *models, Editing_File *file, Render_Font *font){
+    file_measure_wraps(system, models, file, font);
+    file_update_cursor_positions(system, models, file);
 }
 
 internal void
-file_set_width(Models *models, Editing_File *file, i32 display_width, Render_Font *font){
+file_set_width(System_Functions *system, Models *models, Editing_File *file, i32 display_width, Render_Font *font){
     file->settings.display_width = display_width;
-    file_measure_wraps_and_fix_cursor(models, file, font);
+    file_measure_wraps_and_fix_cursor(system, models, file, font);
 }
 
 internal void
-file_set_min_base_width(Models *models, Editing_File *file, i32 minimum_base_display_width, Render_Font *font){
+file_set_min_base_width(System_Functions *system, Models *models, Editing_File *file, i32 minimum_base_display_width, Render_Font *font){
     file->settings.minimum_base_display_width = minimum_base_display_width;
-    file_measure_wraps_and_fix_cursor(models, file, font);
+    file_measure_wraps_and_fix_cursor(system, models, file, font);
 }
 
 //
@@ -1927,7 +1929,7 @@ file_set_min_base_width(Models *models, Editing_File *file, i32 minimum_base_dis
 internal void
 file_create_from_string(System_Functions *system, Models *models, Editing_File *file, String val, b8 read_only = 0){
     
-    Font_Set *font_set = models->font_set;
+    //Font_Set *font_set = models->font_set;
     General_Memory *general = &models->mem.general;
     Partition *part = &models->mem.part;
     Open_File_Hook_Function *hook_open_file = models->hook_open_file;
@@ -1955,18 +1957,16 @@ file_create_from_string(System_Functions *system, Models *models, Editing_File *
     }
     file_synchronize_times(system, file);
     
-    // TODO(allen): batch some of these together so we can avoid
-    // making so many passes over the buffer?
+    Font_ID font_id = models->global_font_id;
+    file->settings.font_id = font_id;
+    Render_Font *font = system->font.get_render_data_by_id(font_id);
+    
     file_measure_starts(general, &file->state.buffer);
     
     file_allocate_character_starts_as_needed(general, file);
-    buffer_measure_character_starts(&file->state.buffer, file->state.character_starts, 0, file->settings.virtual_white);
+    buffer_measure_character_starts(system, font, &file->state.buffer, file->state.character_starts, 0, file->settings.virtual_white);
     
-    i16 font_id = models->global_font.font_id;
-    file->settings.font_id = font_id;
-    Render_Font *font = get_font_info(font_set, font_id)->font;
-    
-    file_measure_wraps(models, file, font);
+    file_measure_wraps(system, models, file, font);
     
     file->settings.read_only = read_only;
     if (!read_only){
@@ -2774,9 +2774,9 @@ file_view_nullify_file(View *view){
 }
 
 internal void
-update_view_line_height(Models *models, View *view, i16 font_id){
-    Render_Font *font = get_font_info(models->font_set, font_id)->font;
-    view->line_height = font->height;
+update_view_line_height(System_Functions *system, Models *models, View *view, Font_ID font_id){
+    Render_Font *font = system->font.get_render_data_by_id(font_id);
+    view->line_height = font_get_height(font);
 }
 
 inline void
@@ -2786,13 +2786,13 @@ view_cursor_move(View *view, Full_Cursor cursor){
 }
 
 inline void
-view_cursor_move(View *view, i32 pos){
-    Full_Cursor cursor = view_compute_cursor(view, seek_pos(pos), 0);
+view_cursor_move(System_Functions *system, View *view, i32 pos){
+    Full_Cursor cursor = view_compute_cursor(system, view, seek_pos(pos), 0);
     view_cursor_move(view, cursor);
 }
 
 inline void
-view_cursor_move(View *view, f32 x, f32 y, b32 round_down = 0){
+view_cursor_move(System_Functions *system, View *view, f32 x, f32 y, b32 round_down = 0){
     Buffer_Seek seek;
     if (view->file_data.file->settings.unwrapped_lines){
         seek = seek_unwrapped_xy(x, y, round_down);
@@ -2801,13 +2801,13 @@ view_cursor_move(View *view, f32 x, f32 y, b32 round_down = 0){
         seek = seek_wrapped_xy(x, y, round_down);
     }
     
-    Full_Cursor cursor = view_compute_cursor(view, seek, 0);
+    Full_Cursor cursor = view_compute_cursor(system, view, seek, 0);
     view_cursor_move(view, cursor);
 }
 
 inline void
-view_cursor_move(View *view, i32 line, i32 character){
-    Full_Cursor cursor = view_compute_cursor(view, seek_line_char(line, character), 0);
+view_cursor_move(System_Functions *system, View *view, i32 line, i32 character){
+    Full_Cursor cursor = view_compute_cursor(system, view, seek_line_char(line, character), 0);
     view_cursor_move(view, cursor);
 }
 
@@ -2828,7 +2828,7 @@ view_show_file(View *view){
 }
 
 internal void
-view_set_file(View *view, Editing_File *file, Models *models){
+view_set_file(System_Functions *system, View *view, Editing_File *file, Models *models){
     Assert(file);
     
     if (view->file_data.file != 0){
@@ -2848,10 +2848,10 @@ view_set_file(View *view, Editing_File *file, Models *models){
     edit_pos = edit_pos_get_new(file, view->persistent.id);
     view->edit_pos = edit_pos;
     
-    update_view_line_height(models, view, file->settings.font_id);
+    update_view_line_height(system, models, view, file->settings.font_id);
     
     if (edit_pos->cursor.line == 0){
-        view_cursor_move(view, 0);
+        view_cursor_move(system, view, 0);
     }
     
     if (view->showing_ui == VUI_None){
@@ -2950,19 +2950,23 @@ file_update_history_before_edit(Mem_Options *mem, Editing_File *file, Edit_Step 
                 Edit_Step *redo_start = redo_end;
                 i32 steps_of_redo = 0;
                 i32 strings_of_redo = 0;
-                i32 undo_count = 0;
-                while (redo_start->type == ED_REDO || redo_start->type == ED_UNDO){
-                    if (redo_start->type == ED_REDO){
-                        if (undo_count > 0) --undo_count;
-                        else{
-                            ++steps_of_redo;
-                            strings_of_redo += redo_start->edit.len;
+                {
+                    i32 undo_count = 0;
+                    while (redo_start->type == ED_REDO || redo_start->type == ED_UNDO){
+                        if (redo_start->type == ED_REDO){
+                            if (undo_count > 0){
+                                --undo_count;
+                            }
+                            else{
+                                ++steps_of_redo;
+                                strings_of_redo += redo_start->edit.len;
+                            }
                         }
+                        else{
+                            ++undo_count;
+                        }
+                        --redo_start;
                     }
-                    else{
-                        ++undo_count;
-                    }
-                    --redo_start;
                 }
                 
                 if (redo_start < redo_end){
@@ -2982,31 +2986,33 @@ file_update_history_before_edit(Mem_Options *mem, Editing_File *file, Edit_Step 
                     Edit_Step *edit_src = redo_end;
                     Edit_Step *edit_dest = file->state.undo.redo.edits + file->state.undo.redo.edit_count + steps_of_redo;
                     
-                    i32 undo_count = 0;
-                    for (i32 i = 0; i < steps_of_redo;){
-                        --edit_src;
-                        str_src -= edit_src->edit.len;
-                        if (edit_src->type == ED_REDO){
-                            if (undo_count > 0){
-                                --undo_count;
+                    {
+                        i32 undo_count = 0;
+                        for (i32 i = 0; i < steps_of_redo;){
+                            --edit_src;
+                            str_src -= edit_src->edit.len;
+                            if (edit_src->type == ED_REDO){
+                                if (undo_count > 0){
+                                    --undo_count;
+                                }
+                                else{
+                                    ++i;
+                                    
+                                    --edit_dest;
+                                    *edit_dest = *edit_src;
+                                    
+                                    str_redo_pos -= edit_dest->edit.len;
+                                    edit_dest->edit.str_start = str_redo_pos;
+                                    
+                                    memcpy(str_dest_base + str_redo_pos, str_src, edit_dest->edit.len);
+                                }
                             }
                             else{
-                                ++i;
-                                
-                                --edit_dest;
-                                *edit_dest = *edit_src;
-                                
-                                str_redo_pos -= edit_dest->edit.len;
-                                edit_dest->edit.str_start = str_redo_pos;
-                                
-                                memcpy(str_dest_base + str_redo_pos, str_src, edit_dest->edit.len);
+                                ++undo_count;
                             }
                         }
-                        else{
-                            ++undo_count;
-                        }
+                        Assert(undo_count == 0);
                     }
-                    Assert(undo_count == 0);
                     
                     file->state.undo.redo.size += strings_of_redo;
                     file->state.undo.redo.edit_count += steps_of_redo;
@@ -3154,7 +3160,7 @@ file_edit_cursor_fix(System_Functions *system, Models *models, Editing_File *fil
                 Assert(view->edit_pos);
                 
                 i32 cursor_pos = cursors[cursor_count++].pos;
-                Full_Cursor new_cursor = view_compute_cursor(view, seek_pos(cursor_pos), 0);
+                Full_Cursor new_cursor = view_compute_cursor(system, view, seek_pos(cursor_pos), 0);
                 
                 GUI_Scroll_Vars scroll = view->edit_pos->scroll;
                 
@@ -3163,7 +3169,7 @@ file_edit_cursor_fix(System_Functions *system, Models *models, Editing_File *fil
                 if (view->edit_pos->scroll_i != new_scroll_i){
                     view->edit_pos->scroll_i = new_scroll_i;
                     
-                    Full_Cursor temp_cursor = view_compute_cursor(view, seek_pos(view->edit_pos->scroll_i), 0);
+                    Full_Cursor temp_cursor = view_compute_cursor(system, view, seek_pos(view->edit_pos->scroll_i), 0);
                     
                     f32 y_offset = MOD(view->edit_pos->scroll.scroll_y, view->line_height);
                     f32 y_position = temp_cursor.wrapped_y;
@@ -3224,8 +3230,7 @@ file_do_single_edit(System_Functions *system, Models *models, Editing_File *file
     Assert(scratch_size > 0);
     i32 request_amount = 0;
     Assert(end <= buffer_size(&file->state.buffer));
-    while (buffer_replace_range(&file->state.buffer, start, end, str, str_len, &shift_amount,
-                                part->base + part->pos, scratch_size, &request_amount)){
+    while (buffer_replace_range(&file->state.buffer, start, end, str, str_len, &shift_amount, part->base + part->pos, scratch_size, &request_amount)){
         void *new_data = 0;
         if (request_amount > 0){
             new_data = general_memory_allocate(general, request_amount);
@@ -3254,12 +3259,12 @@ file_do_single_edit(System_Functions *system, Models *models, Editing_File *file
     i32 new_line_count = buffer_count_newlines(&file->state.buffer, start, start+str_len);
     i32 line_shift =  new_line_count - replaced_line_count;
     
-    Render_Font *font = get_font_info(models->font_set, file->settings.font_id)->font;
+    Render_Font *font = system->font.get_render_data_by_id(file->settings.font_id);
     file_grow_starts_as_needed(general, buffer, line_shift);
     buffer_remeasure_starts(buffer, line_start, line_end, line_shift, shift_amount);
     
     file_allocate_character_starts_as_needed(general, file);
-    buffer_remeasure_character_starts(buffer, line_start, line_end, line_shift, file->state.character_starts, 0, file->settings.virtual_white);
+    buffer_remeasure_character_starts(system, font, buffer, line_start, line_end, line_shift, file->state.character_starts, 0, file->settings.virtual_white);
     
     // TODO(allen): Redo this as some sort of dialogical API
 #if 0
@@ -3267,7 +3272,7 @@ file_do_single_edit(System_Functions *system, Models *models, Editing_File *file
     buffer_remeasure_wrap_y(buffer, line_start, line_end, line_shift, file->state.wraps, (f32)font->height, font->advance_data, (f32)file->settings.display_width);
 #endif
     
-    file_measure_wraps(models, file, font);
+    file_measure_wraps(system, models, file, font);
     
     // NOTE(allen): cursor fixing
     Cursor_Fix_Descriptor desc = {0};
@@ -3376,12 +3381,13 @@ file_do_batch_edit(System_Functions *system, Models *models, Editing_File *file,
     Buffer_Measure_Starts measure_state = {};
     buffer_measure_starts(&measure_state, &file->state.buffer);
     
+    Render_Font *font = system->font.get_render_data_by_id(file->settings.font_id);
+    
     // TODO(allen): write the remeasurement version
     file_allocate_character_starts_as_needed(&models->mem.general, file);
-    buffer_measure_character_starts(&file->state.buffer, file->state.character_starts, 0, file->settings.virtual_white);
+    buffer_measure_character_starts(system, font, &file->state.buffer, file->state.character_starts, 0, file->settings.virtual_white);
     
-    Render_Font *font = get_font_info(models->font_set, file->settings.font_id)->font;
-    file_measure_wraps(models, file, font);
+    file_measure_wraps(system, models, file, font);
     
     // NOTE(allen): cursor fixing
     Cursor_Fix_Descriptor desc = {0};
@@ -3447,7 +3453,7 @@ apply_history_edit(System_Functions *system, Models *models, Editing_File *file,
         file_do_single_edit(system, models, file, spec, history_mode);
         
         if (view){
-            view_cursor_move(view, step.edit.start + step.edit.len);
+            view_cursor_move(system, view, step.edit.start + step.edit.len);
             view->edit_pos->mark = view->edit_pos->cursor.pos;
             
             Style *style = main_style(models);
@@ -3658,30 +3664,28 @@ style_get_color(Style *style, Cpp_Token token){
 }
 
 internal void
-file_set_font(Models *models, Editing_File *file, i16 font_id){
+file_set_font(System_Functions *system, Models *models, Editing_File *file, Font_ID font_id){
     file->settings.font_id = font_id;
-    Font_Info *font_info = get_font_info(models->font_set, file->settings.font_id);
-    Render_Font *font = font_info->font;
-    file_measure_wraps_and_fix_cursor(models, file, font);
+    Render_Font *font = system->font.get_render_data_by_id(font_id);
+    file_measure_wraps_and_fix_cursor(system, models, file, font);
     
     Editing_Layout *layout = &models->layout;
     for (View_Iter iter = file_view_iter_init(layout, file, 0);
          file_view_iter_good(iter);
          iter = file_view_iter_next(iter)){
-        update_view_line_height(models, iter.view, font_id);
+        update_view_line_height(system, models, iter.view, font_id);
     }
 }
 
 internal void
-global_set_font(Models *models, i16 font_id){
+global_set_font(System_Functions *system, Models *models, Font_ID font_id){
     File_Node *node = 0;
     File_Node *sentinel = &models->working_set.used_sentinel;
     for (dll_items(node, sentinel)){
         Editing_File *file = (Editing_File*)node;
-        file_set_font(models, file, font_id);
+        file_set_font(system, models, file, font_id);
     }
-    
-    models->global_font.font_id = font_id;
+    models->global_font_id = font_id;
 }
 
 inline void
@@ -3817,7 +3821,7 @@ view_open_file(System_Functions *system, Models *models, View *view, String file
     }
     
     if (file){
-        view_set_file(view, file, models);
+        view_set_file(system, view, file, models);
     }
 }
 
@@ -3858,7 +3862,7 @@ view_interactive_new_file(System_Functions *system, Models *models, View *view, 
     }
     
     if (file){
-        view_set_file(view, file, models);
+        view_set_file(system, view, file, models);
     }
 }
 
@@ -3881,12 +3885,12 @@ kill_file(System_Functions *system, Models *models, Editing_File *file){
              iter = file_view_iter_next(iter)){
             if (node != used){
                 iter.view->file_data.file = 0;
-                view_set_file(iter.view, (Editing_File*)node, models);
+                view_set_file(system, iter.view, (Editing_File*)node, models);
                 node = node->next;
             }
             else{
                 iter.view->file_data.file = 0;
-                view_set_file(iter.view, 0, models);
+                view_set_file(system, iter.view, 0, models);
             }
         }
     }
@@ -3988,7 +3992,7 @@ interactive_view_complete(System_Functions *system, View *view, String dest, i32
         {
             Editing_File *file = working_set_name_contains(&models->working_set, dest);
             if (file){
-                view_set_file(view, file, models);
+                view_set_file(system, view, file, models);
             }
             view_show_file(view);
         }break;
@@ -4122,17 +4126,13 @@ struct File_Bar{
     f32 pos_x, pos_y;
     f32 text_shift_x, text_shift_y;
     i32_Rect rect;
-    i16 font_id;
+    Font_ID font_id;
 };
 
 internal void
-intbar_draw_string(Render_Target *target, File_Bar *bar, String str, u32 char_color){
-    i16 font_id = bar->font_id;
-    draw_string(target, font_id, str,
-                (i32)(bar->pos_x + bar->text_shift_x),
-                (i32)(bar->pos_y + bar->text_shift_y),
-                char_color);
-    bar->pos_x += font_string_width(target, font_id, str);
+intbar_draw_string(System_Functions *system, Render_Target *target, File_Bar *bar, String str, u32 char_color){
+    draw_string(system, target, bar->font_id, str, (i32)(bar->pos_x + bar->text_shift_x), (i32)(bar->pos_y + bar->text_shift_y), char_color);
+    bar->pos_x += font_string_width(system, target, bar->font_id, str);
 }
 
 internal GUI_Scroll_Vars
@@ -4696,102 +4696,104 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                     
                     switch (view->color_mode){
                         case CV_Mode_Library:
-                        message = make_lit_string("Current Theme - Click to Edit");
-                        gui_do_text_field(target, message, empty_string);
-                        
-                        id.id[0] = (u64)(main_style(models));
-                        if (gui_do_style_preview(target, id, 0)){
-                            view->color_mode = CV_Mode_Adjusting;
-                        }
-                        
-                        if (view->file_data.file){
-                            message = make_lit_string("Set Font");
-                            id.id[0] = (u64)(&view->file_data.file->settings.font_id);
-                            
-                            if (gui_do_button(target, id, message)){
-                                view->color_mode = CV_Mode_Font;
-                            }
-                        }
-                        
-                        message = make_lit_string("Set Global Font");
-                        id.id[0] = (u64)(&models->global_font);
-                        
-                        if (gui_do_button(target, id, message)){
-                            view->color_mode = CV_Mode_Global_Font;
-                        }
-                        
-                        
-                        
-                        message = make_lit_string("Theme Library - Click to Select");
-                        gui_do_text_field(target, message, empty_string);
-                        
-                        gui_begin_scrollable(target, scroll_context, view->gui_scroll,
-                                             9 * view->line_height, show_scrollbar);
-                        
                         {
-                            i32 count = models->styles.count;
-                            Style *style;
-                            i32 i;
+                            message = make_lit_string("Current Theme - Click to Edit");
+                            gui_do_text_field(target, message, empty_string);
                             
-                            for (i = 1; i < count; ++i, ++style){
-                                style = get_style(models, i);
-                                id.id[0] = (u64)(style);
-                                if (gui_do_style_preview(target, id, i)){
-                                    style_copy(main_style(models), style);
+                            id.id[0] = (u64)(main_style(models));
+                            if (gui_do_style_preview(target, id, 0)){
+                                view->color_mode = CV_Mode_Adjusting;
+                            }
+                            
+                            if (view->file_data.file){
+                                message = make_lit_string("Set Font");
+                                id.id[0] = (u64)(&view->file_data.file->settings.font_id);
+                                
+                                if (gui_do_button(target, id, message)){
+                                    view->color_mode = CV_Mode_Font;
                                 }
                             }
+                            
+                            message = make_lit_string("Set Global Font");
+                            id.id[0] = (u64)(&models->global_font_id);
+                            
+                            if (gui_do_button(target, id, message)){
+                                view->color_mode = CV_Mode_Global_Font;
+                            }
+                            
+                            message = make_lit_string("Theme Library - Click to Select");
+                            gui_do_text_field(target, message, empty_string);
+                            
+                            gui_begin_scrollable(target, scroll_context, view->gui_scroll,
+                                                 9 * view->line_height, show_scrollbar);
+                            
+                            {
+                                i32 count = models->styles.count;
+                                for (i32 i = 1; i < count; ++i){
+                                    Style *style = get_style(models, i);
+                                    id.id[0] = (u64)(style);
+                                    if (gui_do_style_preview(target, id, i)){
+                                        style_copy(main_style(models), style);
+                                    }
+                                }
+                            }
+                            
+                            gui_end_scrollable(target);
                         }
-                        
-                        gui_end_scrollable(target);
                         break;
                         
                         case CV_Mode_Global_Font:
                         case CV_Mode_Font:
                         {
-                            Assert(view->file_data.file);
+                            Editing_File *file = view->file_data.file;
+                            Assert(file != 0);
                             
-                            Font_Set *font_set = models->font_set;
-                            Font_Info *info = 0;
-                            
-                            i16 i = 1, count = (i16)models->font_set->count + 1;
-                            
-                            String message = make_lit_string("Back");
+                            message = make_lit_string("Back");
                             
                             id.id[0] = 0;
                             if (gui_do_button(target, id, message)){
                                 view->color_mode = CV_Mode_Library;
                             }
                             
-                            i16 font_id = models->global_font.font_id;
+                            Font_ID font_id = models->global_font_id;
                             if (view->color_mode == CV_Mode_Font){
-                                font_id = view->file_data.file->settings.font_id;
+                                font_id = file->settings.font_id;
                             }
                             
-                            i16 new_font_id = font_id;
+                            // TODO(allen): paginate the display
+                            Font_ID new_font_id = font_id;
+                            u32 total_count = system->font.get_count();
+                            u32 count = Min(total_count, 10);
                             
-                            for (i = 1; i < count; ++i){
-                                info = get_font_info(font_set, i);
-                                id.id[0] = (u64)i;
-                                if (i != font_id){
-                                    if (gui_do_font_button(target, id, i, info->name)){
-                                        new_font_id = i;
+                            for (u32 font_index = 0; font_index < count; ++font_index){
+                                Font_ID this_font_id = 0;
+                                system->font.get_ids_by_index(font_index, 1, &this_font_id);
+                                
+                                char name_space[256];
+                                String name = make_fixed_width_string(name_space);
+                                name.size = system->font.get_name_by_index(font_index, name.str, name.memory_size);
+                                
+                                id.id[0] = (u64)font_index + 1;
+                                if (this_font_id != font_id){
+                                    if (gui_do_font_button(target, id, this_font_id, name)){
+                                        new_font_id = this_font_id;
                                     }
                                 }
                                 else{
                                     char message_space[256];
                                     message = make_fixed_width_string(message_space);
                                     copy_ss(&message, make_lit_string("currently selected: "));
-                                    append_ss(&message, info->name);
-                                    gui_do_font_button(target, id, i, message);
+                                    append_ss(&message, name);
+                                    gui_do_font_button(target, id, this_font_id, message);
                                 }
                             }
                             
                             if (font_id != new_font_id){
                                 if (view->color_mode == CV_Mode_Font){
-                                    file_set_font(models, view->file_data.file, new_font_id);
+                                    file_set_font(system, models, file, new_font_id);
                                 }
                                 else{
-                                    global_set_font(models, new_font_id);
+                                    global_set_font(system, models, new_font_id);
                                 }
                             }
                         }break;
@@ -4803,7 +4805,7 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                             u32 *fore = 0, *back = 0;
                             i32 i = 0;
                             
-                            String message = make_lit_string("Back");
+                            message = make_lit_string("Back");
                             
                             id.id[0] = 0;
                             if (gui_do_button(target, id, message)){
@@ -4915,7 +4917,7 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                                 autocomplete_with_enter = 0;
                             }
                             
-                            String message = {0};
+                            String message = null_string;
                             switch (view->action){
                                 case IAct_Open: message = make_lit_string("Open: "); break;
                                 case IAct_Save_As: message = make_lit_string("Save As: "); break;
@@ -4927,8 +4929,6 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                             
                             GUI_Item_Update update = {0};
                             Hot_Directory *hdir = &models->hot_directory;
-                            b32 do_new_directory = 0;
-                            i32 i = 0;
                             
                             {
                                 Single_Line_Input_Step step = {0};
@@ -4969,8 +4969,9 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                                 gui_standard_list(target, id, &view->gui_scroll, view->scroll_region, &keys, &view->list_i, &update, user_up_key, user_down_key);
                             }
                             
+                            b32 do_new_directory = false;
                             begin_exhaustive_loop(&loop, hdir);
-                            for (i = 0; i < loop.count; ++i){
+                            for (i32 i = 0; i < loop.count; ++i){
                                 file_info = get_exhaustive_info(system, &models->working_set, &loop, i);
                                 
                                 if (file_info.name_match){
@@ -5013,7 +5014,7 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                             local_persist String message_unsaved = make_lit_string(" *");
                             local_persist String message_unsynced = make_lit_string(" !");
                             
-                            String message = {0};
+                            String message = null_string;
                             switch (view->action){
                                 case IAct_Switch: message = make_lit_string("Switch: "); break;
                                 case IAct_Kill: message = make_lit_string("Kill: "); break;
@@ -5885,7 +5886,7 @@ do_step_file_view(System_Functions *system, View *view, i32_Rect rect, b32 is_ac
 }
 
 internal i32
-draw_file_loaded(View *view, i32_Rect rect, b32 is_active, Render_Target *target){
+draw_file_loaded(System_Functions *system, View *view, i32_Rect rect, b32 is_active, Render_Target *target){
     Models *models = view->persistent.models;
     Editing_File *file = view->file_data.file;
     Style *style = main_style(models);
@@ -5914,8 +5915,8 @@ draw_file_loaded(View *view, i32_Rect rect, b32 is_active, Render_Target *target
     i32 max = partition_remaining(part) / sizeof(Buffer_Render_Item);
     Buffer_Render_Item *items = push_array(part, Buffer_Render_Item, max);
     
-    i16 font_id = file->settings.font_id;
-    Render_Font *font = get_font_info(models->font_set, font_id)->font;
+    Font_ID font_id = file->settings.font_id;
+    Render_Font *font = system->font.get_render_data_by_id(font_id);
     
     f32 scroll_x = view->edit_pos->scroll.scroll_x;
     f32 scroll_y = view->edit_pos->scroll.scroll_y;
@@ -5927,10 +5928,10 @@ draw_file_loaded(View *view, i32_Rect rect, b32 is_active, Render_Target *target
     
     Full_Cursor render_cursor;
     if (!file->settings.unwrapped_lines){
-        render_cursor = view_compute_cursor(view, seek_wrapped_xy(0, scroll_y, 0), 1);
+        render_cursor = view_compute_cursor(system, view, seek_wrapped_xy(0, scroll_y, 0), 1);
     }
     else{
-        render_cursor = view_compute_cursor(view, seek_unwrapped_xy(0, scroll_y, 0), 1);
+        render_cursor = view_compute_cursor(system, view, seek_unwrapped_xy(0, scroll_y, 0), 1);
     }
     
     view->edit_pos->scroll_i = render_cursor.pos;
@@ -5953,6 +5954,7 @@ draw_file_loaded(View *view, i32_Rect rect, b32 is_active, Render_Target *target
         params.height        = (f32)max_y;
         params.start_cursor  = render_cursor;
         params.wrapped       = wrapped;
+        params.system        = system;
         params.font          = font;
         params.virtual_white = file->settings.virtual_white;
         params.wrap_slashes  = file->settings.wrap_indicator;
@@ -6070,8 +6072,7 @@ draw_file_loaded(View *view, i32_Rect rect, b32 is_active, Render_Target *target
         
         f32_Rect char_rect = f32R(item->x0, item->y0, item->x1,  item->y1);
         
-        if (view->file_data.show_whitespace && highlight_color == 0 &&
-            char_is_whitespace((char)item->glyphid)){
+        if (view->file_data.show_whitespace && highlight_color == 0 && codepoint_is_whitespace(item->codepoint)){
             highlight_this_color = style->main.highlight_white_color;
         }
         else{
@@ -6109,8 +6110,8 @@ draw_file_loaded(View *view, i32_Rect rect, b32 is_active, Render_Target *target
         if (ind == view->edit_pos->mark && prev_ind != ind){
             draw_rectangle_outline(target, char_rect, mark_color);
         }
-        if (item->glyphid != 0){
-            font_draw_glyph(target, font_id, (u8)item->glyphid, item->x0, item->y0, char_color);
+        if (item->codepoint != 0){
+            font_draw_glyph(target, font_id, item->codepoint, item->x0, item->y0, char_color);
         }
         prev_ind = ind;
     }
@@ -6121,8 +6122,7 @@ draw_file_loaded(View *view, i32_Rect rect, b32 is_active, Render_Target *target
 }
 
 internal void
-draw_text_field(Render_Target *target, View *view, i16 font_id,
-                i32_Rect rect, String p, String t){
+draw_text_field(System_Functions *system, Render_Target *target, View *view, Font_ID font_id, i32_Rect rect, String p, String t){
     Models *models = view->persistent.models;
     Style *style = main_style(models);
     
@@ -6135,13 +6135,13 @@ draw_text_field(Render_Target *target, View *view, i16 font_id,
     
     if (target){
         draw_rectangle(target, rect, back_color);
-        x = ceil32(draw_string(target, font_id, p, x, y, text2_color));
-        draw_string(target, font_id, t, x, y, text1_color);
+        x = ceil32(draw_string(system, target, font_id, p, x, y, text2_color));
+        draw_string(system, target, font_id, t, x, y, text1_color);
     }
 }
 
 internal void
-draw_text_with_cursor(Render_Target *target, View *view, i16 font_id, i32_Rect rect, String s, i32 pos){
+draw_text_with_cursor(System_Functions *system, Render_Target *target, View *view, Font_ID font_id, i32_Rect rect, String s, i32 pos){
     Models *models = view->persistent.models;
     Style *style = main_style(models);
     
@@ -6157,33 +6157,33 @@ draw_text_with_cursor(Render_Target *target, View *view, i16 font_id, i32_Rect r
         draw_rectangle(target, rect, back_color);
         
         if (pos >= 0 && pos <  s.size){
-            String part1, part2, part3;
+            Render_Font *font = system->font.get_render_data_by_id(font_id);
+            
+            String part1 = substr(s, 0, pos);
+            String part2 = substr(s, pos, 1);
+            String part3 = substr(s, pos+1, s.size-pos-1);
+            
+            x = draw_string(system, target, font_id, part1, floor32(x), y, text_color);
+            
+            f32 adv = font_get_glyph_advance(system, font, s.str[pos]);
             i32_Rect cursor_rect;
-            Render_Font *font = get_font_info(models->font_set, font_id)->font;
-            
-            part1 = substr(s, 0, pos);
-            part2 = substr(s, pos, 1);
-            part3 = substr(s, pos+1, s.size-pos-1);
-            
-            x = draw_string(target, font_id, part1, floor32(x), y, text_color);
-            
             cursor_rect.x0 = floor32(x);
-            cursor_rect.x1 = floor32(x) + ceil32(get_codepoint_advance(font, s.str[pos]));
+            cursor_rect.x1 = floor32(x) + ceil32(adv);
             cursor_rect.y0 = y;
             cursor_rect.y1 = y + view->line_height;
             draw_rectangle(target, cursor_rect, cursor_color);
-            x = draw_string(target, font_id, part2, floor32(x), y, at_cursor_color);
+            x = draw_string(system, target, font_id, part2, floor32(x), y, at_cursor_color);
             
-            draw_string(target, font_id, part3, floor32(x), y, text_color);
+            draw_string(system, target, font_id, part3, floor32(x), y, text_color);
         }
         else{
-            draw_string(target, font_id, s, floor32(x), y, text_color);
+            draw_string(system, target, font_id, s, floor32(x), y, text_color);
         }
     }
 }
 
 internal void
-draw_file_bar(Render_Target *target, View *view, Editing_File *file, i32_Rect rect){
+draw_file_bar(System_Functions *system, Render_Target *target, View *view, Editing_File *file, i32_Rect rect){
     File_Bar bar;
     Models *models = view->persistent.models;
     Style *style = main_style(models);
@@ -6207,11 +6207,11 @@ draw_file_bar(Render_Target *target, View *view, Editing_File *file, i32_Rect re
         
         Assert(file);
         
-        intbar_draw_string(target, &bar, file->name.live_name, base_color);
-        intbar_draw_string(target, &bar, make_lit_string(" -"), base_color);
+        intbar_draw_string(system, target, &bar, file->name.live_name, base_color);
+        intbar_draw_string(system, target, &bar, make_lit_string(" -"), base_color);
         
         if (file->is_loading){
-            intbar_draw_string(target, &bar, make_lit_string(" loading"), base_color);
+            intbar_draw_string(system, target, &bar, make_lit_string(" loading"), base_color);
         }
         else{
             char bar_space[526];
@@ -6230,11 +6230,11 @@ draw_file_bar(Render_Target *target, View *view, Editing_File *file, i32_Rect re
                 append_ss(&bar_text, make_lit_string(" nix"));
             }
             
-            intbar_draw_string(target, &bar, bar_text, base_color);
+            intbar_draw_string(system, target, &bar, bar_text, base_color);
             
             
             if (file->state.still_lexing){
-                intbar_draw_string(target, &bar, make_lit_string(" parsing"), pop1_color);
+                intbar_draw_string(system, target, &bar, make_lit_string(" parsing"), pop1_color);
             }
             
             if (!file->settings.unimportant){
@@ -6242,13 +6242,13 @@ draw_file_bar(Render_Target *target, View *view, Editing_File *file, i32_Rect re
                     case DirtyState_UnloadedChanges:
                     {
                         local_persist String out_of_sync = make_lit_string(" !");
-                        intbar_draw_string(target, &bar, out_of_sync, pop2_color);
+                        intbar_draw_string(system, target, &bar, out_of_sync, pop2_color);
                     }break;
                     
                     case DirtyState_UnsavedChanges:
                     {
                         local_persist String out_of_sync = make_lit_string(" *");
-                        intbar_draw_string(target, &bar, out_of_sync, pop2_color);
+                        intbar_draw_string(system, target, &bar, out_of_sync, pop2_color);
                     }break;
                 }
             }
@@ -6278,8 +6278,7 @@ get_margin_color(i32 active_level, Style *style){
 }
 
 internal void
-draw_color_button(GUI_Target *gui_target, Render_Target *target, View *view,
-                  i16 font_id, i32_Rect rect, GUI_id id, u32 fore, u32 back, String text){
+draw_color_button(System_Functions *system, GUI_Target *gui_target, Render_Target *target, View *view, Font_ID font_id, i32_Rect rect, GUI_id id, u32 fore, u32 back, String text){
     i32 active_level = gui_active_level(gui_target, id);
     
     if (active_level > 0){
@@ -6287,12 +6286,11 @@ draw_color_button(GUI_Target *gui_target, Render_Target *target, View *view,
     }
     
     draw_rectangle(target, rect, back);
-    draw_string(target, font_id, text, rect.x0, rect.y0 + 1, fore);
+    draw_string(system, target, font_id, text, rect.x0, rect.y0 + 1, fore);
 }
 
 internal void
-draw_font_button(GUI_Target *gui_target, Render_Target *target, View *view,
-                 i32_Rect rect, GUI_id id, i16 font_id, String text){
+draw_font_button(System_Functions *system, GUI_Target *gui_target, Render_Target *target, View *view, i32_Rect rect, GUI_id id, Font_ID font_id, String text){
     Models *models = view->persistent.models;
     Style *style = main_style(models);
     
@@ -6304,13 +6302,11 @@ draw_font_button(GUI_Target *gui_target, Render_Target *target, View *view,
     
     draw_rectangle(target, rect, back_color);
     draw_rectangle_outline(target, rect, margin_color);
-    draw_string(target, font_id, text, rect.x0, rect.y0 + 1, text_color);
+    draw_string(system, target, font_id, text, rect.x0, rect.y0 + 1, text_color);
 }
 
 internal void
-draw_fat_option_block(GUI_Target *gui_target, Render_Target *target, View *view,
-                      i16 font_id, i32_Rect rect, GUI_id id,
-                      String text, String pop, i8 checkbox = -1){
+draw_fat_option_block(System_Functions *system, GUI_Target *gui_target, Render_Target *target, View *view, Font_ID font_id, i32_Rect rect, GUI_id id, String text, String pop, i8 checkbox = -1){
     Models *models = view->persistent.models;
     Style *style = main_style(models);
     
@@ -6345,12 +6341,12 @@ draw_fat_option_block(GUI_Target *gui_target, Render_Target *target, View *view,
         x = checkbox_rect.x1 + 3;
     }
     
-    x = ceil32(draw_string(target, font_id, text, x, y, text_color));
-    draw_string(target, font_id, pop, x, y, pop_color);
+    x = ceil32(draw_string(system, target, font_id, text, x, y, text_color));
+    draw_string(system, target, font_id, pop, x, y, pop_color);
 }
 
 internal void
-draw_button(GUI_Target *gui_target, Render_Target *target, View *view, i16 font_id, i32_Rect rect, GUI_id id, String text){
+draw_button(System_Functions *system, GUI_Target *gui_target, Render_Target *target, View *view, Font_ID font_id, i32_Rect rect, GUI_id id, String text){
     Models *models = view->persistent.models;
     Style *style = main_style(models);
     
@@ -6365,21 +6361,24 @@ draw_button(GUI_Target *gui_target, Render_Target *target, View *view, i16 font_
     i32 h = view->line_height;
     i32 y = inner.y0 + h/2 - 1;
     
-    i32 w = (i32)font_string_width(target, font_id, text);
+    i32 w = (i32)font_string_width(system, target, font_id, text);
     i32 x = (inner.x1 + inner.x0 - w)/2;
     
     draw_rectangle(target, inner, back);
     draw_rectangle_outline(target, inner, margin);
     
-    draw_string(target, font_id, text, x, y, text_color);
+    draw_string(system, target, font_id, text, x, y, text_color);
 }
 
 internal void
-draw_style_preview(GUI_Target *gui_target, Render_Target *target, View *view, i16 font_id, i32_Rect rect, GUI_id id, Style *style){
-    Models *models = view->persistent.models;
+draw_style_preview(System_Functions *system, GUI_Target *gui_target, Render_Target *target, View *view, Font_ID font_id, i32_Rect rect, GUI_id id, Style *style){
+    Models *models = view->persistent.models; AllowLocal(models);
     
     i32 active_level = gui_active_level(gui_target, id);
-    Font_Info *info = get_font_info(models->font_set, font_id);
+    char font_name_space[256];
+    String font_name = make_fixed_width_string(font_name_space);
+    font_name.size = system->font.get_name_by_id(font_id, font_name.str, font_name.memory_size);
+    Render_Font *font = system->font.get_render_data_by_id(font_id);
     
     i32_Rect inner = get_inner_rect(rect, 3);
     
@@ -6395,32 +6394,30 @@ draw_style_preview(GUI_Target *gui_target, Render_Target *target, View *view, i1
     
     i32 y = inner.y0;
     i32 x = inner.x0;
-    x = ceil32(draw_string(target, font_id, style->name.str, x, y, text_color));
-    i32 font_x = (i32)(inner.x1 - font_string_width(target, font_id, info->name.str));
+    x = ceil32(draw_string(system, target, font_id, style->name.str, x, y, text_color));
+    i32 font_x = (i32)(inner.x1 - font_string_width(system, target, font_id, font_name));
     if (font_x > x + 10){
-        draw_string(target, font_id, info->name.str, font_x, y, text_color);
+        draw_string(system, target, font_id, font_name, font_x, y, text_color);
     }
     
-    i32 height = info->font->height;
+    i32 height = font_get_height(font);
     x = inner.x0;
     y += height;
-    x = ceil32(draw_string(target, font_id, "if", x, y, keyword_color));
-    x = ceil32(draw_string(target, font_id, "(x < ", x, y, text_color));
-    x = ceil32(draw_string(target, font_id, "0", x, y, int_constant_color));
-    x = ceil32(draw_string(target, font_id, ") { x = ", x, y, text_color));
-    x = ceil32(draw_string(target, font_id, "0", x, y, int_constant_color));
-    x = ceil32(draw_string(target, font_id, "; } ", x, y, text_color));
-    x = ceil32(draw_string(target, font_id, "// comment", x, y, comment_color));
+    x = ceil32(draw_string(system, target, font_id, "if", x, y, keyword_color));
+    x = ceil32(draw_string(system, target, font_id, "(x < ", x, y, text_color));
+    x = ceil32(draw_string(system, target, font_id, "0", x, y, int_constant_color));
+    x = ceil32(draw_string(system, target, font_id, ") { x = ", x, y, text_color));
+    x = ceil32(draw_string(system, target, font_id, "0", x, y, int_constant_color));
+    x = ceil32(draw_string(system, target, font_id, "; } ", x, y, text_color));
+    x = ceil32(draw_string(system, target, font_id, "// comment", x, y, comment_color));
     
     x = inner.x0;
     y += height;
-    draw_string(target, font_id, "[] () {}; * -> +-/ <>= ! && || % ^", x, y, text_color);
+    draw_string(system, target, font_id, "[] () {}; * -> +-/ <>= ! && || % ^", x, y, text_color);
 }
 
 internal i32
-do_render_file_view(System_Functions *system, View *view, GUI_Scroll_Vars *scroll,
-                    View *active, i32_Rect rect, b32 is_active,
-                    Render_Target *target, Input_Summary *user_input){
+do_render_file_view(System_Functions *system, View *view, GUI_Scroll_Vars *scroll, View *active, i32_Rect rect, b32 is_active, Render_Target *target, Input_Summary *user_input){
     
     Editing_File *file = view->file_data.file;
     i32 result = 0;
@@ -6432,11 +6429,10 @@ do_render_file_view(System_Functions *system, View *view, GUI_Scroll_Vars *scrol
     
     f32 v = {0};
     i32 max_y = view_compute_max_target_y(view);
-    i16 font_id = 0;
     
     Assert(file != 0);
     
-    font_id = file->settings.font_id;
+    Font_ID font_id = file->settings.font_id;
     if (gui_target->push.pos > 0){
         gui_session_init(&gui_session, gui_target, rect, view->line_height);
         
@@ -6460,13 +6456,13 @@ do_render_file_view(System_Functions *system, View *view, GUI_Scroll_Vars *scrol
                 switch (h->type){
                     case guicom_top_bar:
                     {
-                        draw_file_bar(target, view, file, gui_session.rect);
+                        draw_file_bar(system, target, view, file, gui_session.rect);
                     }break;
                     
                     case guicom_file:
                     {
                         if (file_is_ready(file)){
-                            result = draw_file_loaded(view, gui_session.rect, is_active, target);
+                            result = draw_file_loaded(system, view, gui_session.rect, is_active, target);
                         }
                     }break;
                     
@@ -6475,7 +6471,7 @@ do_render_file_view(System_Functions *system, View *view, GUI_Scroll_Vars *scrol
                         void *ptr = (h+1);
                         String p = gui_read_string(&ptr);
                         String t = gui_read_string(&ptr);
-                        draw_text_field(target, view, font_id, gui_session.rect, p, t);
+                        draw_text_field(system, target, view, font_id, gui_session.rect, p, t);
                     }break;
                     
                     case guicom_text_with_cursor:
@@ -6484,7 +6480,7 @@ do_render_file_view(System_Functions *system, View *view, GUI_Scroll_Vars *scrol
                         String s = gui_read_string(&ptr);
                         i32 pos = gui_read_integer(&ptr);
                         
-                        draw_text_with_cursor(target, view, font_id, gui_session.rect, s, pos);
+                        draw_text_with_cursor(system, target, view, font_id, gui_session.rect, s, pos);
                     }break;
                     
                     case guicom_color_button:
@@ -6495,17 +6491,17 @@ do_render_file_view(System_Functions *system, View *view, GUI_Scroll_Vars *scrol
                         u32 back = (u32)gui_read_integer(&ptr);
                         String t = gui_read_string(&ptr);
                         
-                        draw_color_button(gui_target, target, view, font_id, gui_session.rect, b->id, fore, back, t);
+                        draw_color_button(system, gui_target, target, view, font_id, gui_session.rect, b->id, fore, back, t);
                     }break;
                     
                     case guicom_font_button:
                     {
                         GUI_Interactive *b = (GUI_Interactive*)h;
                         void *ptr = (b + 1);
-                        i16 font_id = (i16)gui_read_integer(&ptr);
+                        Font_ID this_font_id = (Font_ID)gui_read_integer(&ptr);
                         String t = gui_read_string(&ptr);
                         
-                        draw_font_button(gui_target, target, view, gui_session.rect, b->id, font_id, t);
+                        draw_font_button(system, gui_target, target, view, gui_session.rect, b->id, this_font_id, t);
                     }break;
                     
                     case guicom_file_option:
@@ -6520,7 +6516,7 @@ do_render_file_view(System_Functions *system, View *view, GUI_Scroll_Vars *scrol
                             append_s_char(&f, '/');
                         }
                         
-                        draw_fat_option_block(gui_target, target, view, font_id, gui_session.rect, b->id, f, m);
+                        draw_fat_option_block(system, gui_target, target, view, font_id, gui_session.rect, b->id, f, m);
                     }break;
                     
                     case guicom_style_preview:
@@ -6529,7 +6525,7 @@ do_render_file_view(System_Functions *system, View *view, GUI_Scroll_Vars *scrol
                         i32 style_index = *(i32*)(b + 1);
                         Style *style = get_style(view->persistent.models, style_index);
                         
-                        draw_style_preview(gui_target, target, view, font_id, gui_session.rect, b->id, style);
+                        draw_style_preview(system, gui_target, target, view, font_id, gui_session.rect, b->id, style);
                     }break;
                     
                     case guicom_fixed_option:
@@ -6545,7 +6541,7 @@ do_render_file_view(System_Functions *system, View *view, GUI_Scroll_Vars *scrol
                             status = (i8)gui_read_byte(&ptr);
                         }
                         
-                        draw_fat_option_block(gui_target, target, view, font_id, gui_session.rect, b->id, f, m, status);
+                        draw_fat_option_block(system, gui_target, target, view, font_id, gui_session.rect, b->id, f, m, status);
                     }break;
                     
                     case guicom_button:
@@ -6554,7 +6550,7 @@ do_render_file_view(System_Functions *system, View *view, GUI_Scroll_Vars *scrol
                         void *ptr = (b + 1);
                         String t = gui_read_string(&ptr);
                         
-                        draw_button(gui_target, target, view, font_id, gui_session.rect, b->id, t);
+                        draw_button(system, gui_target, target, view, font_id, gui_session.rect, b->id, t);
                     }break;
                     
                     case guicom_scrollable_bar:

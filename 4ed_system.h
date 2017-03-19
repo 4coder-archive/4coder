@@ -9,33 +9,32 @@
 
 // TOP
 
+#if !defined(FCODER_SYSTEM_INTERFACE_H)
+#define FCODER_SYSTEM_INTERFACE_H
+
+#include "font/4coder_font_interface.h"
+
+// types
 struct Plat_Handle{
     u32 d[4];
 };
 
 static Plat_Handle null_plat_handle = {0};
 
-inline int32_t
+inline b32
 handle_equal(Plat_Handle a, Plat_Handle b){
-    int32_t result = (memcmp(&a, &b, sizeof(a)) == 0);
+    b32 result = (memcmp(&a, &b, sizeof(a)) == 0);
     return(result);
 }
 
+// files
 #define Sys_Set_File_List_Sig(name) void name(File_List *file_list, char *directory, char *canon_directory_out, u32 *canon_directory_size_out, u32 canon_directory_max)
 typedef Sys_Set_File_List_Sig(System_Set_File_List);
 
 #define Sys_Get_Canonical_Sig(name) u32 name(char *filename, u32 len, char *buffer, u32 max)
 typedef Sys_Get_Canonical_Sig(System_Get_Canonical);
 
-#define Sys_Add_Listener_Sig(name) b32 name(char *filename)
-typedef Sys_Add_Listener_Sig(System_Add_Listener);
-
-#define Sys_Remove_Listener_Sig(name) b32 name(char *filename)
-typedef Sys_Remove_Listener_Sig(System_Remove_Listener);
-
-#define Sys_Get_File_Change_Sig(name) i32 name(char *buffer, i32 max, b32 *mem_too_small, i32 *required_size)
-typedef Sys_Get_File_Change_Sig(System_Get_File_Change);
-
+// file load/save
 #define Sys_Load_Handle_Sig(name) b32 name(char *filename, Plat_Handle *handle_out)
 typedef Sys_Load_Handle_Sig(System_Load_Handle);
 
@@ -51,10 +50,21 @@ typedef Sys_Load_Close_Sig(System_Load_Close);
 #define Sys_Save_File_Sig(name) b32 name(char *filename, char *buffer, u32 size)
 typedef Sys_Save_File_Sig(System_Save_File);
 
+// file changes
+#define Sys_Add_Listener_Sig(name) b32 name(char *filename)
+typedef Sys_Add_Listener_Sig(System_Add_Listener);
+
+#define Sys_Remove_Listener_Sig(name) b32 name(char *filename)
+typedef Sys_Remove_Listener_Sig(System_Remove_Listener);
+
+#define Sys_Get_File_Change_Sig(name) i32 name(char *buffer, i32 max, b32 *mem_too_small, i32 *required_size)
+typedef Sys_Get_File_Change_Sig(System_Get_File_Change);
+
+// time
 #define Sys_Now_Time_Sig(name) u64 name()
 typedef Sys_Now_Time_Sig(System_Now_Time);
 
-
+// clipboard
 #define Sys_Post_Clipboard_Sig(name) void name(String str)
 typedef Sys_Post_Clipboard_Sig(System_Post_Clipboard);
 
@@ -80,7 +90,6 @@ typedef Sys_CLI_Update_Step_Sig(System_CLI_Update_Step);
 typedef Sys_CLI_End_Update_Sig(System_CLI_End_Update);
 
 // coroutine
-
 #define Coroutine_Function_Sig(name) void name(struct Coroutine *coroutine)
 typedef Coroutine_Function_Sig(Coroutine_Function);
 
@@ -230,6 +239,8 @@ typedef Sys_Send_Exit_Signal_Sig(System_Send_Exit_Signal);
 typedef INTERNAL_Sys_Get_Thread_States_Sig(INTERNAL_System_Get_Thread_States);
 
 struct System_Functions{
+    Font_Functions font;
+    
     // files (tracked api): 10
     System_Set_File_List *set_file_list;
     System_Get_Canonical *get_canonical;
@@ -283,6 +294,8 @@ struct System_Functions{
     // debug: 1
     INTERNAL_System_Get_Thread_States *internal_get_thread_states;
 };
+
+#endif
 
 // BOTTOM
 
