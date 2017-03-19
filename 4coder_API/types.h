@@ -494,7 +494,7 @@ STRUCT Buffer_Seek{
     UNION{
         STRUCT {
             /* DOC(The pos field specified the pos when the seek is in absolute position.) */
-            int32_t pos;
+            size_t pos;
         };
         STRUCT {
             /* DOC(For xy coordinate seeks, rounding down means that any x in the box of the character lands on that character. For instance when clicking rounding down is the user's expected behavior.  Not rounding down means that the right hand portion of the character's box, which is closer to the next character, will land on that next character.  The unrounded behavior is the expected behavior when moving vertically and keeping the preferred x.) */
@@ -506,9 +506,9 @@ STRUCT Buffer_Seek{
         };
         STRUCT {
             /* DOC(The line number of a line-character type seek.) */
-            int32_t line;
+            size_t line;
             /* DOC(The character number of a line-character type seek.) */
-            int32_t character;
+            size_t character;
         };
     };
 };
@@ -517,15 +517,15 @@ STRUCT Buffer_Seek{
 DOC_SEE(4coder_Buffer_Positioning_System) */
 STRUCT Full_Cursor{
     /* DOC(This field contains the cursor's position in absolute byte index positioning.) */
-    int32_t pos;
+    size_t pos;
     /* DOC(This field contains the cursor's position in apparent character index positioning.) */
-    int32_t character_pos;
+    size_t character_pos;
     /* DOC(This field contains the number of the line where the cursor is located. This field is one based.) */
-    int32_t line;
+    size_t line;
     /* DOC(This field contains the number of the character from the beginninf of the line where the cursor is located. This field is one based.) */
-    int32_t character;
+    size_t character;
     /* DOC(This field contains the number of the line where the cursor is located, taking the line wrapping into account.  This field is one based.) */
-    int32_t wrap_line;
+    size_t wrap_line;
     /* DOC(This field contains the x position measured with unwrapped lines.) */
     float unwrapped_x;
     /* DOC(This field contains the y position measured with unwrapped lines.) */
@@ -540,24 +540,24 @@ STRUCT Full_Cursor{
 DOC_SEE(4coder_Buffer_Positioning_System) */
 STRUCT Partial_Cursor{
     /* DOC(This field contains the cursor's position in absolute byte index positioning.) */
-    int32_t pos;
+    size_t pos;
     /* DOC(This field contains the number of the character from the beginninf of the line
     where the cursor is located. This field is one based.) */
-    int32_t line;
+    size_t line;
     /* DOC(This field contains the number of the column where the cursor is located. This field is one based.) */
-    int32_t character;
+    size_t character;
 };
 
 /* DOC(Buffer_Edit describes a range of a buffer and string to replace that range. A Buffer_Edit has to be paired with a string that contains the actual text that will be replaced into the buffer.) */
 STRUCT Buffer_Edit{
     /* DOC(The str_start field specifies the first character in the accompanying string that corresponds with this edit.) */
-    int32_t str_start;
+    size_t str_start;
     /* DOC(The len field specifies the length of the string being written into the buffer.) */
-    int32_t len;
+    size_t len;
     /* DOC(The start field specifies the start of the range in the buffer to replace in absolute position.) */
-    int32_t start;
+    size_t start;
     /* DOC(The end field specifies one past the end of the range in the buffer to replace in absolute position.) */
-    int32_t end;
+    size_t end;
 };
 
 /* DOC(Buffer_Summary acts as a handle to a buffer and describes the state of the buffer.)
@@ -634,6 +634,15 @@ STRUCT i32_Rect{
 };
 
 GLOBAL_VAR i32_Rect null_i32_rect = {0};
+
+STRUCT pos_Rect{
+    size_t x0;
+    size_t y0;
+    size_t x1;
+    size_t y1;
+};
+
+GLOBAL_VAR pos_Rect null_pos_rect = {0};
 
 STRUCT f32_Rect{
     float x0;

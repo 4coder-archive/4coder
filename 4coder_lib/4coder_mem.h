@@ -44,23 +44,23 @@ typedef int32_t b32_4tech;
 
 struct Partition{
     char *base;
-    i32_4tech pos;
-    i32_4tech max;
+    umem_4tech pos;
+    umem_4tech max;
 };
 
 struct Temp_Memory{
     void *handle;
-    i32_4tech pos;
+    umem_4tech pos;
 };
 
 struct Tail_Temp_Partition{
     Partition part;
     void *handle;
-    i32_4tech old_max;
+    umem_4tech old_max;
 };
 
 inline Partition
-make_part(void *memory, i32_4tech size){
+make_part(void *memory, umem_4tech size){
     Partition partition;
     partition.base = (char*)memory;
     partition.pos = 0;
@@ -69,7 +69,7 @@ make_part(void *memory, i32_4tech size){
 }
 
 inline void*
-partition_allocate(Partition *data, i32_4tech size){
+partition_allocate(Partition *data, umem_4tech size){
     void *ret = 0;
     if (size > 0 && data->pos + size <= data->max){
         ret = data->base + data->pos;
@@ -79,7 +79,7 @@ partition_allocate(Partition *data, i32_4tech size){
 }
 
 inline void
-partition_align(Partition *data, u32_4tech boundary){
+partition_align(Partition *data, umem_4tech boundary){
     --boundary;
     data->pos = (data->pos + boundary) & (~boundary);
 }
@@ -89,7 +89,7 @@ partition_current(Partition *data){
     return(data->base + data->pos);
 }
 
-inline i32_4tech
+inline umem_4tech
 partition_remaining(Partition *data){
     return(data->max - data->pos);
 }
@@ -122,7 +122,7 @@ end_temp_memory(Temp_Memory temp){
 }
 
 inline Tail_Temp_Partition
-begin_tail_part(Partition *data, i32_4tech size){
+begin_tail_part(Partition *data, umem_4tech size){
     Tail_Temp_Partition result = {0};
     if (data->pos + size <= data->max){
         result.handle = data;

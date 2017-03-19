@@ -44,7 +44,7 @@ typedef struct {
 #define to_tables(v) ((File_Track_Tables*)(v->tables))
 
 FILE_TRACK_LINK File_Track_Result
-init_track_system(File_Track_System *system, Partition *scratch, void *table_memory, i32 table_memory_size, void *listener_memory, i32 listener_memory_size){
+init_track_system(File_Track_System *system, Partition *scratch, void *table_memory, umem table_memory_size, void *listener_memory, umem listener_memory_size){
     File_Track_Result result = FileTrack_MemoryTooSmall;
     Win32_File_Track_Vars *vars = to_vars(system);
     
@@ -63,8 +63,9 @@ init_track_system(File_Track_System *system, Partition *scratch, void *table_mem
             init_sentinel_node(&vars->free_sentinel);
             
             Win32_Directory_Listener_Node *listener = (Win32_Directory_Listener_Node*)listener_memory;
-            i32 count = listener_memory_size / sizeof(Win32_Directory_Listener_Node);
-            for (i32 i = 0; i < count; ++i, ++listener){
+            umem node_size = sizeof(Win32_Directory_Listener_Node);
+            u32 count = (u32)(listener_memory_size / node_size);
+            for (u32 i = 0; i < count; ++i, ++listener){
                 insert_node(&vars->free_sentinel, &listener->node);
             }
         }
@@ -254,7 +255,7 @@ remove_listener(File_Track_System *system, Partition *scratch, u8 *filename){
 }
 
 FILE_TRACK_LINK File_Track_Result
-move_track_system(File_Track_System *system, Partition *scratch, void *mem, i32 size){
+move_track_system(File_Track_System *system, Partition *scratch, void *mem, umem size){
     File_Track_Result result = FileTrack_Good;
     Win32_File_Track_Vars *vars = to_vars(system);
     
@@ -270,7 +271,7 @@ move_track_system(File_Track_System *system, Partition *scratch, void *mem, i32 
 }
 
 FILE_TRACK_LINK File_Track_Result
-expand_track_system_listeners(File_Track_System *system, Partition *scratch, void *mem, i32 size){
+expand_track_system_listeners(File_Track_System *system, Partition *scratch, void *mem, umem size){
     File_Track_Result result = FileTrack_Good;
     Win32_File_Track_Vars *vars = to_vars(system);
     
@@ -278,8 +279,9 @@ expand_track_system_listeners(File_Track_System *system, Partition *scratch, voi
     
     if (sizeof(Win32_Directory_Listener_Node) <= size){
         Win32_Directory_Listener_Node *listener = (Win32_Directory_Listener_Node*)mem;
-        i32 count = size / sizeof(Win32_Directory_Listener_Node);
-        for (i32 i = 0; i < count; ++i, ++listener){
+        umem node_size = sizeof(Win32_Directory_Listener_Node);
+        u32 count = (u32)(size / node_size);
+        for (u32 i = 0; i < count; ++i, ++listener){
             insert_node(&vars->free_sentinel, &listener->node);
         }
     }
@@ -293,7 +295,7 @@ expand_track_system_listeners(File_Track_System *system, Partition *scratch, voi
 }
 
 FILE_TRACK_LINK File_Track_Result
-get_change_event(File_Track_System *system, Partition *scratch, u8 *buffer, i32 max, i32 *size){
+get_change_event(File_Track_System *system, Partition *scratch, u8 *buffer, i32 max, umem *size){
     File_Track_Result result = FileTrack_NoMoreEvents;
     Win32_File_Track_Vars *vars = to_vars(system);
     
@@ -301,17 +303,19 @@ get_change_event(File_Track_System *system, Partition *scratch, u8 *buffer, i32 
     local_persist DWORD offset = 0;
     local_persist Win32_Directory_Listener listener = {0};
     
+    Temp_Memory temp = begin_temp_memory(scratch);
+    
     EnterCriticalSection(&vars->table_lock);
     
     OVERLAPPED *overlapped = 0;
     DWORD length = 0;
     ULONG_PTR key = 0;
     
-    b32 has_result = 0;
+    b32 has_result = false;
     
     if (has_buffered_event){
         has_buffered_event = 0;
-        has_result = 1;
+        has_result = true;
     }
     else{
         if (GetQueuedCompletionStatus(vars->iocp, &length, &key, &overlapped, 0)){
@@ -324,7 +328,7 @@ get_change_event(File_Track_System *system, Partition *scratch, u8 *buffer, i32 
             ReadDirectoryChangesW(listener_ptr->dir, listener_ptr->result, sizeof(listener_ptr->result), 1, FLAGS, 0, &listener_ptr->overlapped, 0);
             
             offset = 0;
-            has_result = 1;
+            has_result = true;
         }
     }
     
@@ -335,42 +339,47 @@ get_change_event(File_Track_System *system, Partition *scratch, u8 *buffer, i32 
         i32 dir_len = GetFinalPathNameByHandle(listener.dir, 0, 0, FILE_NAME_NORMALIZED);
         
         i32 req_size = dir_len + 1 + len;
-        *size = req_size;
         if (req_size < max){
-            i32 pos = GetFinalPathNameByHandle(listener.dir, buffer, max, FILE_NAME_NORMALIZED);
-            buffer[pos++] = '\\';
+            u16 *buffer_16 = push_array(scratch, u16, req_size+1);
+            i32 pos = GetFinalPathNameByHandle(listener.dir, (LPWSTR)buffer_16, max, FILE_NAME_NORMALIZED);
             
-            for (i32 i = 0; i < len; ++i, ++pos){
-                buffer[pos] = (char)info->FileName[i];
+            b32 convert_error = false;
+            umem buffer_size = utf16_to_utf8_minimal_checking(buffer, max-1, buffer_16, pos, &convert_error);
+            
+            if (buffer_size > max-1){
+                result = FileTrack_MemoryTooSmall;
             }
-            
-            if (buffer[0] == '\\'){
-                for (i32 i = 0; i+4 < pos; ++i){
-                    buffer[i] = buffer[i+4];
+            else if (!convert_error){
+                buffer[buffer_size++] = '\\';
+                
+                if (buffer[0] == '\\'){
+                    for (i32 i = 0; i+4 < buffer_size; ++i){
+                        buffer[i] = buffer[i+4];
+                    }
+                    buffer_size -= 4;
                 }
-                *size -= 4;
+                *size = buffer_size;
+                result = FileTrack_Good;
             }
-            
-            result = FileTrack_Good;
+            else{
+                result = FileTrack_FileSystemError;
+            }
         }
         else{
-            // TODO(allen): Need some way to stash this result so that if the
-            // user comes back with more memory we can give them the change
-            // notification they missed.
+            // TODO(allen): Need some way to stash this result so that if the user comes back with more memory we can give them the change notification they missed.
             result = FileTrack_MemoryTooSmall;
         }
         
         if (info->NextEntryOffset != 0){
-            // TODO(allen): We're not ready to handle this yet.
-            // For now I am breaking.  In the future, if there
-            // are more results we should stash them and return
-            // them in future calls.
+            // TODO(allen): We're not ready to handle this yet. For now I am breaking.  In the future, if there are more results we should stash them and return them in future calls.
             offset += info->NextEntryOffset;
             has_buffered_event = 1;
         }
     }
     
     LeaveCriticalSection(&vars->table_lock);
+    
+    end_temp_memory(temp);
     
     return(result);
 }

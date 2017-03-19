@@ -1000,8 +1000,8 @@ struct Code_Wrap_State{
     b32 consume_newline;
     
     Gap_Buffer_Stream stream;
-    i32 size;
-    i32 i;
+    umem size;
+    umem i;
     
     Render_Font *font;
     f32 tab_indent_amount;
@@ -1055,8 +1055,8 @@ wrap_state_set_top(Code_Wrap_State *state, f32 line_shift){
 }
 
 struct Code_Wrap_Step{
-    i32 position_start;
-    i32 position_end;
+    umem position_start;
+    umem position_end;
     
     f32 start_x;
     f32 final_x;
@@ -1067,7 +1067,7 @@ struct Code_Wrap_Step{
 internal Code_Wrap_Step
 wrap_state_consume_token(System_Functions *system, Render_Font *font, Code_Wrap_State *state, i32 fixed_end_point){
     Code_Wrap_Step result = {0};
-    i32 i = state->i;
+    umem i = state->i;
     
     result.position_start = i;
     
@@ -1501,7 +1501,9 @@ file_measure_wraps(System_Functions *system, Models *models, Editing_File *file,
         
         potential_marks = push_array(part, Potential_Wrap_Indent_Pair, floor32(width));
         
-        max_wrap_indent_mark = partition_remaining(part)/sizeof(Wrap_Indent_Pair);
+        umem remaining = partition_remaining(part);
+        umem pair_size = sizeof(Wrap_Indent_Pair);
+        max_wrap_indent_mark = (i32)(remaining/pair_size);
         wrap_indent_marks = push_array(part, Wrap_Indent_Pair, max_wrap_indent_mark);
     }
     
@@ -1947,7 +1949,7 @@ file_create_from_string(System_Functions *system, Models *models, Editing_File *
         buffer_init_provide_page(&init, data, page_size);
     }
     
-    i32 scratch_size = partition_remaining(part);
+    umem scratch_size = partition_remaining(part);
     Assert(scratch_size > 0);
     b32 init_success = buffer_end_init(&init, part->base + part->pos, scratch_size);
     AllowLocal(init_success); Assert(init_success);
@@ -2200,10 +2202,10 @@ file_first_lex_serial(Mem_Options *mem, Editing_File *file){
             Gap_Buffer *buffer = &file->state.buffer;
             i32 text_size = buffer_size(buffer);
             
-            i32 mem_size = partition_remaining(part);
+            umem mem_size = partition_remaining(part);
             
             Cpp_Token_Array tokens;
-            tokens.max_count = mem_size / sizeof(Cpp_Token);
+            tokens.max_count = (u32)(mem_size / sizeof(Cpp_Token));
             tokens.count = 0;
             tokens.tokens = push_array(part, Cpp_Token, tokens.max_count);
             

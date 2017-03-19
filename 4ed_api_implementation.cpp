@@ -585,7 +585,7 @@ DOC_SEE(4coder_Buffer_Positioning_System)
 }
 
 API_EXPORT bool32
-Buffer_Replace_Range(Application_Links *app, Buffer_Summary *buffer, int32_t start, int32_t end, char *str, int32_t len)
+Buffer_Replace_Range(Application_Links *app, Buffer_Summary *buffer, size_t start, size_t end, char *str, size_t len)
 /*
 DOC_PARAM(buffer, This parameter specifies the buffer to edit.)
 DOC_PARAM(start, This parameter specifies absolute position of the first character in the replace range.)
@@ -656,7 +656,7 @@ DOC_SEE(Partial_Cursor)
 }
 
 API_EXPORT bool32
-Buffer_Batch_Edit(Application_Links *app, Buffer_Summary *buffer, char *str, int32_t str_len, Buffer_Edit *edits, int32_t edit_count, Buffer_Batch_Edit_Type type)
+Buffer_Batch_Edit(Application_Links *app, Buffer_Summary *buffer, char *str, size_t str_len, Buffer_Edit *edits, uint32_t edit_count, Buffer_Batch_Edit_Type type)
 /*
 DOC_PARAM(buffer, The buffer on which to apply the batch of edits.)
 DOC_PARAM(str, This parameter provides all of the source string for the edits in the batch.)
@@ -2287,7 +2287,7 @@ DOC(This is a temporary ad-hoc solution to allow some customization of the behav
 }
 
 API_EXPORT void*
-Memory_Allocate(Application_Links *app, int32_t size)
+Memory_Allocate(Application_Links *app, size_t size)
 /*
 DOC_PARAM(size, The size in bytes of the block that should be returned.)
 DOC(This calls to a low level OS allocator which means it is best used for infrequent, large allocations.  The size of the block must be remembered if it will be freed or if it's mem protection status will be changed.)
@@ -2300,7 +2300,7 @@ DOC_SEE(memory_free)
 }
 
 API_EXPORT bool32
-Memory_Set_Protection(Application_Links *app, void *ptr, int32_t size, Memory_Protect_Flags flags)
+Memory_Set_Protection(Application_Links *app, void *ptr, size_t size, Memory_Protect_Flags flags)
 /*
 DOC_PARAM(ptr, The base of the block on which to set memory protection flags.)
 DOC_PARAM(size, The size that was originally used to allocate this block.)
@@ -2316,7 +2316,7 @@ DOC_SEE(Memory_Protect_Flags)
 }
 
 API_EXPORT void
-Memory_Free(Application_Links *app, void *ptr, int32_t size)
+Memory_Free(Application_Links *app, void *ptr, size_t size)
 /*
 DOC_PARAM(mem, The base of a block to free.)
 DOC_PARAM(size, The size that was originally used to allocate this block.)

@@ -452,6 +452,13 @@ clamp(u32 a, u32 n, u32 z){
     return (n);
 }
 
+inline umem
+clamp_umem(umem a, umem n, umem z){
+    if (n < a) n = a;
+    else if (n  > z) n = z;
+    return (n);
+}
+
 #define clamp_top(a,b) Min(a,b)
 #define clamp_bottom(a,b) Max(a,b)
 

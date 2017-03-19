@@ -1116,8 +1116,10 @@ CUSTOM_COMMAND_SIG(rename_parameter){
                             String replace_string = with.string;
                             
                             Buffer_Edit *edits = (Buffer_Edit*)partition_current(part);
-                            int32_t edit_max = (partition_remaining(part))/sizeof(Buffer_Edit);
-                            int32_t edit_count = 0;
+                            size_t remaining = partition_remaining(part);
+                            size_t edit_size = sizeof(Buffer_Edit);
+                            uint32_t edit_max = (uint32_t)(remaining/edit_size);
+                            uint32_t edit_count = 0;
                             
                             if (edit_max >= 1){
                                 Buffer_Edit edit;
@@ -1140,7 +1142,7 @@ CUSTOM_COMMAND_SIG(rename_parameter){
                                     switch (token_ptr->type){
                                         case CPP_TOKEN_IDENTIFIER:
                                         {
-                                            if (token_ptr->size == old_lexeme.size){
+                                            if (token_ptr->size == (uint32_t)old_lexeme.size){
                                                 char other_lexeme_base[128];
                                                 String other_lexeme = make_fixed_width_string(other_lexeme_base);
                                                 other_lexeme.size = old_lexeme.size;
@@ -1253,7 +1255,8 @@ CUSTOM_COMMAND_SIG(write_explicit_enum_values){
                         Buffer_Edit *edits = push_array(part, Buffer_Edit, count_estimate);
                         
                         char *string_base = (char*)partition_current(part);
-                        String string = make_string(string_base, 0, partition_remaining(part));
+                        uint32_t remaining = (uint32_t)partition_remaining(part);
+                        String string = make_string(string_base, 0, remaining);
                         
                         closed_correctly = false;
                         still_looping = false;

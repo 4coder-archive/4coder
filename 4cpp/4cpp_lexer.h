@@ -42,6 +42,9 @@ typedef int32_t b32_4tech;
 #endif
 // standard preamble end 
 
+#include "4cpp_lexer_types.h"
+#include "4cpp_lexer_tables.c"
+
 // duff-routine defines
 #define DfrCase(PC) case PC: goto resumespot_##PC
 #define DfrYield(PC, n) { *S_ptr = S; S_ptr->__pc__ = PC; return(n); resumespot_##PC:; }
@@ -50,9 +53,6 @@ typedef int32_t b32_4tech;
 #ifndef FCPP_LINK
 # define FCPP_LINK static
 #endif
-
-#include "4cpp_lexer_types.h"
-#include "4cpp_lexer_tables.c"
 
 // TODO(allen): revisit this keyword data declaration system
 struct String_And_Flag{
@@ -191,7 +191,7 @@ static String_And_Flag keywords[] = {
 static i32_4tech keywords_count = sizeof(keywords)/sizeof(keywords[0]);
 
 API_EXPORT FCPP_LINK Cpp_Get_Token_Result
-cpp_get_token(Cpp_Token_Array array, i32_4tech pos)/*
+cpp_get_token(Cpp_Token_Array array, u32_4tech pos)/*
 DOC_PARAM(array, The array of tokens from which to get a token.)
 DOC_PARAM(pos, The position, measured in bytes, to get the token for.)
 DOC_RETURN(A Cpp_Get_Token_Result struct is returned containing the index of a token and a flag indicating whether the pos is contained in the token or in whitespace after the token.)
@@ -206,14 +206,14 @@ DOC_SEE(Cpp_Get_Token_Result)
     i32_4tech first = 0;
     i32_4tech count = array.count;
     i32_4tech last = count;
-    i32_4tech this_start = 0, next_start = 0;
     
     if (count > 0){
         for (;;){
             result.token_index = (first + last)/2;
             token = token_array + result.token_index;
             
-            this_start = token->start;
+            u32_4tech this_start = token->start;
+            u32_4tech next_start = 0;
             
             if (result.token_index + 1 < count){
                 next_start = (token + 1)->start;
@@ -221,6 +221,7 @@ DOC_SEE(Cpp_Get_Token_Result)
             else{
                 next_start = this_start + token->size;
             }
+            
             if (this_start <= pos && pos < next_start){
                 break;
             }
@@ -230,6 +231,7 @@ DOC_SEE(Cpp_Get_Token_Result)
             else{
                 first = result.token_index + 1;
             }
+            
             if (first == last){
                 result.token_index = first;
                 break;
@@ -307,7 +309,7 @@ cpp_pp_directive_to_state(Cpp_Token_Type type){
 }
 
 FCPP_LINK b32_4tech
-cpp__match(char *a, i32_4tech a_len, char *b, i32_4tech b_len){
+cpp__match(char *a, u32_4tech a_len, char *b, u32_4tech b_len){
     b32_4tech result = false;
     if (a_len == b_len){
         char *a_end = a + a_len;
@@ -323,7 +325,7 @@ cpp__match(char *a, i32_4tech a_len, char *b, i32_4tech b_len){
 }
 
 FCPP_LINK b32_4tech
-cpp__table_match(String_And_Flag *table, i32_4tech count, char *s, i32_4tech len, i32_4tech *index_out){
+cpp__table_match(String_And_Flag *table, i32_4tech count, char *s, u32_4tech len, i32_4tech *index_out){
     b32_4tech result = false;
     String_And_Flag *entry = table;
     *index_out = -1;
@@ -338,7 +340,7 @@ cpp__table_match(String_And_Flag *table, i32_4tech count, char *s, i32_4tech len
 }
 
 FCPP_LINK Cpp_Lex_Result
-cpp_lex_nonalloc_null_end_no_limit(Cpp_Lex_Data *S_ptr, char *chunk, i32_4tech size, Cpp_Token_Array *token_array_out){
+cpp_lex_nonalloc_null_end_no_limit(Cpp_Lex_Data *S_ptr, char *chunk, u32_4tech size, Cpp_Token_Array *token_array_out){
     Cpp_Lex_Data S = *S_ptr;
     
     Cpp_Token *out_tokens = token_array_out->tokens;
@@ -347,7 +349,7 @@ cpp_lex_nonalloc_null_end_no_limit(Cpp_Lex_Data *S_ptr, char *chunk, i32_4tech s
     
     u8_4tech c = 0;
     
-    i32_4tech end_pos = size + S.chunk_pos;
+    u32_4tech end_pos = size + S.chunk_pos;
     chunk -= S.chunk_pos;
     
     switch (S.__pc__){
@@ -968,7 +970,7 @@ cpp_lex_nonalloc_null_end_out_limit(Cpp_Lex_Data *S_ptr, char *chunk, i32_4tech 
 }
 
 FCPP_LINK Cpp_Lex_Result
-cpp_lex_nonalloc_no_null_no_limit(Cpp_Lex_Data *S_ptr, char *chunk, i32_4tech size, i32_4tech full_size,
+cpp_lex_nonalloc_no_null_no_limit(Cpp_Lex_Data *S_ptr, char *chunk, u32_4tech size, u32_4tech full_size,
                                   Cpp_Token_Array *token_array_out){
     Cpp_Lex_Result result = 0;
     if (S_ptr->pos >= full_size){
@@ -1139,7 +1141,7 @@ cpp_shift_token_starts(Cpp_Token_Array *array, i32_4tech from_token_i, i32_4tech
 }
 
 FCPP_LINK Cpp_Token
-cpp_index_array(Cpp_Token_Array *array, i32_4tech file_size, i32_4tech index){
+cpp_index_array(Cpp_Token_Array *array, i32_4tech file_size, u32_4tech index){
     Cpp_Token result;
     if (index < array->count){
         result = array->tokens[index];
@@ -1155,16 +1157,11 @@ cpp_index_array(Cpp_Token_Array *array, i32_4tech file_size, i32_4tech index){
 }
 
 API_EXPORT FCPP_LINK Cpp_Relex_Range
-cpp_get_relex_range(Cpp_Token_Array *array, i32_4tech start_pos, i32_4tech end_pos)
+cpp_get_relex_range(Cpp_Token_Array *array, u32_4tech start_pos, u32_4tech end_pos)
 /*
-DOC_PARAM(array, A pointer to the token array that will be modified by the relex,
-this array should already contain the tokens for the previous state of the file.)
-DOC_PARAM(start_pos, The start position of the edited region of the file.
-The start and end points are based on the edited region of the file before the edit.)
-DOC_PARAM(end_pos, The end position of the edited region of the file.
-In particular, end_pos is the first character after the edited region not effected by the edit.
-Thus if the edited region contained one character end_pos - start_pos should equal 1.
-The start and end points are based on the edited region of the file before the edit.)
+DOC_PARAM(array, A pointer to the token array that will be modified by the relex, this array should already contain the tokens for the previous state of the file.)
+DOC_PARAM(start_pos, The start position of the edited region of the file. The start and end points are based on the edited region of the file before the edit.)
+DOC_PARAM(end_pos, The end position of the edited region of the file. In particular, end_pos is the first character after the edited region not effected by the edit. Thus if the edited region contained one character end_pos - start_pos should equal 1. The start and end points are based on the edited region of the file before the edit.)
 */{
     Cpp_Relex_Range range = {0};
     Cpp_Get_Token_Result get_result = {0};
@@ -1188,27 +1185,18 @@ The start and end points are based on the edited region of the file before the e
 }
 
 API_EXPORT FCPP_LINK Cpp_Relex_Data
-cpp_relex_init(Cpp_Token_Array *array, i32_4tech start_pos, i32_4tech end_pos, i32_4tech character_shift_amount)
+cpp_relex_init(Cpp_Token_Array *array, u32_4tech start_pos, u32_4tech end_pos, i32_4tech character_shift_amount)
 /*
-DOC_PARAM(array, A pointer to the token array that will be modified by the relex,
-this array should already contain the tokens for the previous state of the file.)
-DOC_PARAM(start_pos, The start position of the edited region of the file.
-The start and end points are based on the edited region of the file before the edit.)
-DOC_PARAM(end_pos, The end position of the edited region of the file.
-In particular, end_pos is the first character after the edited region not effected by the edit.
-Thus if the edited region contained one character end_pos - start_pos should equal 1.
-The start and end points are based on the edited region of the file before the edit.)
+DOC_PARAM(array, A pointer to the token array that will be modified by the relex, this array should already contain the tokens for the previous state of the file.)
+DOC_PARAM(start_pos, The start position of the edited region of the file. The start and end points are based on the edited region of the file before the edit.)
+DOC_PARAM(end_pos, The end position of the edited region of the file. In particular, end_pos is the first character after the edited region not effected by the edit.  Thus if the edited region contained one character end_pos - start_pos should equal 1.  The start and end points are based on the edited region of the file before the edit.)
 DOC_PARAM(character_shift_amount, The shift in the characters after the edited region.)
 DOC_RETURN(Returns a partially initialized relex state.)
 
-DOC(This call does the first setup step of initializing a relex state.  To finish initializing the relex state
-you must tell the state about the positioning of the first chunk it will be fed.  There are two methods of doing
-this, the direct method is with cpp_relex_declare_first_chunk_position, the method that is often more convenient
-is with cpp_relex_is_start_chunk.  If the file is not chunked the second step of initialization can be skipped.)
+DOC(This call does the first setup step of initializing a relex state.  To finish initializing the relex state you must tell the state about the positioning of the first chunk it will be fed.  There are two methods of doing this, the direct method is with cpp_relex_declare_first_chunk_position, the method that is often more convenient is with cpp_relex_is_start_chunk.  If the file is not chunked the second step of initialization can be skipped.)
 
 DOC_SEE(cpp_relex_declare_first_chunk_position)
 DOC_SEE(cpp_relex_is_start_chunk)
-
 */{
     Cpp_Relex_Data state = {0};
     
@@ -1536,7 +1524,7 @@ DOC_SEE(cpp_make_token_array)
 }
 
 API_EXPORT FCPP_LINK void
-cpp_resize_token_array(Cpp_Token_Array *token_array, i32_4tech new_max)/*
+cpp_resize_token_array(Cpp_Token_Array *token_array, u32_4tech new_max)/*
 DOC_PARAM(token_array, An array previously allocated by cpp_make_token_array.)
 DOC_PARAM(new_max, The new maximum size the array should support.  If this is not greater
 than the current size of the array the operation is ignored.)

@@ -886,7 +886,7 @@ static Argument_Breakdown
 parameter_parse(Partition *part, char *data, Cpp_Token *args_start_token, Cpp_Token *args_end_token){
     int32_t arg_index = 0;
     Cpp_Token *arg_token = args_start_token + 1;
-    int32_t param_string_start = arg_token->start;
+    uint32_t param_string_start = arg_token->start;
     
     int32_t arg_count = 1;
     arg_token = args_start_token;

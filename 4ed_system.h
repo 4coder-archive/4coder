@@ -169,8 +169,7 @@ struct Full_Job_Data{
 
 struct Unbounded_Work_Queue{
     Full_Job_Data *jobs;
-    i32 count, max, skip;
-    
+    u32 count, max, skip;
     u32 next_job_id;
 };
 
@@ -204,13 +203,13 @@ typedef Sys_Acquire_Lock_Sig(System_Acquire_Lock);
 typedef Sys_Release_Lock_Sig(System_Release_Lock);
 
 // needed for custom layer
-#define Sys_Memory_Allocate_Sig(name) void* name(i32 size)
+#define Sys_Memory_Allocate_Sig(name) void* name(umem size)
 typedef Sys_Memory_Allocate_Sig(System_Memory_Allocate);
 
-#define Sys_Memory_Set_Protection_Sig(name) bool32 name(void *ptr, i32 size, u32 flags)
+#define Sys_Memory_Set_Protection_Sig(name) bool32 name(void *ptr, umem size, u32 flags)
 typedef Sys_Memory_Set_Protection_Sig(System_Memory_Set_Protection);
 
-#define Sys_Memory_Free_Sig(name) void name(void *ptr, i32 size)
+#define Sys_Memory_Free_Sig(name) void name(void *ptr, umem size)
 typedef Sys_Memory_Free_Sig(System_Memory_Free);
 
 #define Sys_File_Exists_Sig(name) b32 name(char *filename, i32 len)

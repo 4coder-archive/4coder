@@ -13,7 +13,7 @@
 
 struct Translation_State{
     u8 fill_buffer[4];
-    u32 fill_start_i;
+    umem fill_start_i;
     u8 fill_i;
     u8 fill_expected;
 };
@@ -47,7 +47,7 @@ struct Translation_Emits{
 #define SINGLE_BYTE_ERROR_CLASS max_u8
 
 internal void
-translating_consume_byte(Translation_State *tran, u8 ch, u32 i, u32 size, Translation_Byte_Description *desc_out){
+translating_consume_byte(Translation_State *tran, u8 ch, umem i, umem size, Translation_Byte_Description *desc_out){
     desc_out->byte_class = 0;
     if ((ch >= ' ' && ch < 0x7F) || ch == '\t' || ch == '\n' || ch == '\r'){
         desc_out->byte_class = 1;
@@ -146,7 +146,7 @@ translating_select_emit_rule_with_font(System_Functions *system, Render_Font *fo
 }
 
 internal void
-translating_generate_emits(Translation_State *tran, Translation_Emit_Rule emit_rule, u8 ch, u32 i, Translation_Emits *emits_out){
+translating_generate_emits(Translation_State *tran, Translation_Emit_Rule emit_rule, u8 ch, umem i, Translation_Emits *emits_out){
     emits_out->step_count = 0;
     switch (emit_rule.emit_type){
         default: goto skip_all;
@@ -199,7 +199,7 @@ translating_generate_emits(Translation_State *tran, Translation_Emit_Rule emit_r
 }
 
 internal void
-translating_fully_process_byte(System_Functions *system, Render_Font *font, Translation_State *tran, u8 ch, u32 i, u32 size, Translation_Emits *emits_out){
+translating_fully_process_byte(System_Functions *system, Render_Font *font, Translation_State *tran, u8 ch, umem i, umem size, Translation_Emits *emits_out){
     Translation_Byte_Description description = {0};
     translating_consume_byte(tran, ch, i, size, &description);
     Translation_Emit_Rule emit_rule = {0};
