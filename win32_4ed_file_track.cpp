@@ -44,7 +44,7 @@ typedef struct {
 #define to_tables(v) ((File_Track_Tables*)(v->tables))
 
 FILE_TRACK_LINK File_Track_Result
-init_track_system(File_Track_System *system, void *table_memory, i32 table_memory_size, void *listener_memory, i32 listener_memory_size){
+init_track_system(File_Track_System *system, Partition *scratch, void *table_memory, i32 table_memory_size, void *listener_memory, i32 listener_memory_size){
     File_Track_Result result = FileTrack_MemoryTooSmall;
     Win32_File_Track_Vars *vars = to_vars(system);
     
@@ -122,7 +122,7 @@ FILE_NOTIFY_CHANGE_CREATION   | \
 0)
 
 FILE_TRACK_LINK File_Track_Result
-add_listener(File_Track_System *system, u8 *filename){
+add_listener(File_Track_System *system, Partition *scratch, u8 *filename){
     File_Track_Result result = FileTrack_Good;
     Win32_File_Track_Vars *vars = to_vars(system);
     
@@ -204,7 +204,7 @@ add_listener(File_Track_System *system, u8 *filename){
 }
 
 FILE_TRACK_LINK File_Track_Result
-remove_listener(File_Track_System *system, u8 *filename){
+remove_listener(File_Track_System *system, Partition *scratch, u8 *filename){
     File_Track_Result result = FileTrack_Good;
     Win32_File_Track_Vars *vars = to_vars(system);
     
@@ -254,7 +254,7 @@ remove_listener(File_Track_System *system, u8 *filename){
 }
 
 FILE_TRACK_LINK File_Track_Result
-move_track_system(File_Track_System *system, void *mem, i32 size){
+move_track_system(File_Track_System *system, Partition *scratch, void *mem, i32 size){
     File_Track_Result result = FileTrack_Good;
     Win32_File_Track_Vars *vars = to_vars(system);
     
@@ -270,7 +270,7 @@ move_track_system(File_Track_System *system, void *mem, i32 size){
 }
 
 FILE_TRACK_LINK File_Track_Result
-expand_track_system_listeners(File_Track_System *system, void *mem, i32 size){
+expand_track_system_listeners(File_Track_System *system, Partition *scratch, void *mem, i32 size){
     File_Track_Result result = FileTrack_Good;
     Win32_File_Track_Vars *vars = to_vars(system);
     
@@ -293,7 +293,7 @@ expand_track_system_listeners(File_Track_System *system, void *mem, i32 size){
 }
 
 FILE_TRACK_LINK File_Track_Result
-get_change_event(File_Track_System *system, u8 *buffer, i32 max, i32 *size){
+get_change_event(File_Track_System *system, Partition *scratch, u8 *buffer, i32 max, i32 *size){
     File_Track_Result result = FileTrack_NoMoreEvents;
     Win32_File_Track_Vars *vars = to_vars(system);
     
@@ -317,8 +317,7 @@ get_change_event(File_Track_System *system, u8 *buffer, i32 max, i32 *size){
         if (GetQueuedCompletionStatus(vars->iocp, &length, &key, &overlapped, 0)){
             Win32_Directory_Listener *listener_ptr = (Win32_Directory_Listener*)overlapped;
             
-            // NOTE(allen): Get a copy of the state of this node so we can set the node
-            // to work listening for changes again right away.
+            // NOTE(allen): Get a copy of the state of this node so we can set the node to work listening for changes again right away.
             listener = *listener_ptr;
             
             listener_ptr->overlapped = null_overlapped;
@@ -330,7 +329,6 @@ get_change_event(File_Track_System *system, u8 *buffer, i32 max, i32 *size){
     }
     
     if (has_result){
-        
         FILE_NOTIFY_INFORMATION *info = (FILE_NOTIFY_INFORMATION*)(listener.result + offset);
         
         i32 len = info->FileNameLength / 2;
@@ -378,7 +376,7 @@ get_change_event(File_Track_System *system, u8 *buffer, i32 max, i32 *size){
 }
 
 FILE_TRACK_LINK File_Track_Result
-shut_down_track_system(File_Track_System *system){
+shut_down_track_system(File_Track_System *system, Partition *scratch){
     File_Track_Result result = FileTrack_Good;
     Win32_File_Track_Vars *vars = to_vars(system);
     
