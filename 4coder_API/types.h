@@ -399,15 +399,15 @@ Throughout the API ranges are thought of in the form [min,max) where max is "one
 UNION Range{
     STRUCT{
         /* DOC(This is the smaller value in the range, it is also the 'start'.) */
-        int32_t min;
+        size_t min;
         /* DOC(This is the larger value in the range, it is also the 'end'.) */
-        int32_t max;
+        size_t max;
     };
     STRUCT{
         /* DOC(This is the start of the range, it is also the 'min'.) */
-        int32_t start;
+        size_t start;
         /* DOC(This is the end of the range, it is also the 'max'.) */
-        int32_t end;
+        size_t end;
     };
 };
 
@@ -482,7 +482,9 @@ ENUM(int32_t, Buffer_Seek_Type){
     buffer_seek_unwrapped_xy,
     /* DOC(This value indicates line-character positioning.
     These coordinates are 1 based to match standard line numbering.) */
-    buffer_seek_line_char
+    buffer_seek_line_char,
+    /* DOC(This value indicates line-character positioning, but with characters counted from the end of the line instead of the beginning, so that 1 is the last character of the line.) */
+    buffer_seek_line_reverse_char,
 };
 
 /* DOC(Buffer_Seek describes the destination of a seek operation.  There are helpers for concisely creating Buffer_Seek structs.  They can be found in 4coder_buffer_types.h.)
@@ -614,7 +616,7 @@ DOC_SEE(buffer_add_markers)
 */
 STRUCT Marker{
     /* DOC(The current position of the marker measure in absolute byte positioning coordinates.) */
-    int32_t pos;
+    size_t pos;
     /* DOC(When a marker is inside a range that gets edited, by default the marker 'leans_left' which means it goes to the beginning of the edited range.  If the field lean_right is set to true, the marker will lean right with edits and will go to the end of edited range.) */
     bool32 lean_right;
 };
@@ -733,12 +735,12 @@ STRUCT Buffer_Batch_Edit{
     /* DOC(The pointer to the edit string buffer.) */
     char *str;
     /* DOC(The length of the edit string buffer.) */
-    int32_t str_len;
+    size_t str_len;
     
     /* DOC(The array of edits to be applied.) */
     Buffer_Edit *edits;
     /* DOC(The number of edits in the array.) */
-    int32_t edit_count;
+    uint32_t edit_count;
 };
 
 

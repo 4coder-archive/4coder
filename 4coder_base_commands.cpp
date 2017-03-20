@@ -33,7 +33,7 @@ CUSTOM_COMMAND_SIG(write_character){
     
     if (length != 0){
         Buffer_Summary buffer = get_buffer(app, view.buffer_id, access);
-        int32_t pos = view.cursor.pos;
+        size_t pos = view.cursor.pos;
         
         Marker next_cursor_marker = {0};
         next_cursor_marker.pos = character_pos_to_pos(app, &view, &buffer, view.cursor.character_pos);
@@ -56,11 +56,12 @@ CUSTOM_COMMAND_SIG(delete_char){
     View_Summary view = get_active_view(app, access);
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, access);
     
-    int32_t start = view.cursor.pos;
-    
+    Buffer_Seek seek = seek_character_pos(view.cursor.character_pos+1);
     Full_Cursor cursor;
-    view_compute_cursor(app, &view, seek_character_pos(view.cursor.character_pos+1), &cursor);
-    int32_t end = cursor.pos;
+    view_compute_cursor(app, &view, seek, &cursor);
+    
+    size_t start = view.cursor.pos;
+    size_t end = cursor.pos;
     
     if (0 <= start && start < buffer.size){
         buffer_replace_range(app, &buffer, start, end, 0, 0);
@@ -72,15 +73,17 @@ CUSTOM_COMMAND_SIG(backspace_char){
     View_Summary view = get_active_view(app, access);
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, access);
     
-    int32_t end = view.cursor.pos;
-    
+    Buffer_Seek seek = seek_character_pos(view.cursor.character_pos-1);
     Full_Cursor cursor;
-    view_compute_cursor(app, &view, seek_character_pos(view.cursor.character_pos-1), &cursor);
-    int32_t start = cursor.pos;
+    view_compute_cursor(app, &view, seek, &cursor);
+    
+    size_t end = view.cursor.pos;
+    size_t start = cursor.pos;
     
     if (0 < end && end <= buffer.size){
         buffer_replace_range(app, &buffer, start, end, 0, 0);
-        view_set_cursor(app, &view, seek_character_pos(view.cursor.character_pos-1), true);
+        seek = seek_character_pos(view.cursor.character_pos-1);
+        view_set_cursor(app, &view, seek, true);
     }
 }
 
@@ -94,8 +97,8 @@ CUSTOM_COMMAND_SIG(set_mark){
 CUSTOM_COMMAND_SIG(cursor_mark_swap){
     View_Summary view = get_active_view(app, AccessProtected);
     
-    int32_t cursor = view.cursor.pos;
-    int32_t mark = view.mark.pos;
+    size_t cursor = view.cursor.pos;
+    size_t mark = view.mark.pos;
     
     view_set_cursor(app, &view, seek_pos(mark), true);
     view_set_mark(app, &view, seek_pos(cursor));
@@ -247,14 +250,14 @@ CUSTOM_COMMAND_SIG(page_down){
 CUSTOM_COMMAND_SIG(move_left){
     uint32_t access = AccessProtected;
     View_Summary view = get_active_view(app, access);
-    int32_t new_pos = view.cursor.character_pos - 1;
+    size_t new_pos = view.cursor.character_pos - 1;
     view_set_cursor(app, &view, seek_character_pos(new_pos), 1);
 }
 
 CUSTOM_COMMAND_SIG(move_right){
     uint32_t access = AccessProtected;
     View_Summary view = get_active_view(app, access);
-    int32_t new_pos = view.cursor.character_pos + 1;
+    size_t new_pos = view.cursor.character_pos + 1;
     view_set_cursor(app, &view, seek_character_pos(new_pos), 1);
 }
 
@@ -274,7 +277,7 @@ CUSTOM_COMMAND_SIG(seek_whitespace_up){
     View_Summary view = get_active_view(app, access);
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, access);
     
-    int32_t new_pos = buffer_seek_whitespace_up(app, &buffer, view.cursor.pos);
+    size_t new_pos = buffer_seek_whitespace_up(app, &buffer, view.cursor.pos);
     view_set_cursor(app, &view, seek_pos(new_pos), true);
 }
 
@@ -283,7 +286,7 @@ CUSTOM_COMMAND_SIG(seek_whitespace_down){
     View_Summary view = get_active_view(app, access);
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, access);
     
-    int32_t new_pos = buffer_seek_whitespace_down(app, &buffer, view.cursor.pos);
+    size_t new_pos = buffer_seek_whitespace_down(app, &buffer, view.cursor.pos);
     view_set_cursor(app, &view, seek_pos(new_pos), true);
 }
 
@@ -292,7 +295,7 @@ CUSTOM_COMMAND_SIG(seek_end_of_textual_line){
     View_Summary view = get_active_view(app, access);
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, access);
     
-    int32_t new_pos = seek_line_end(app, &buffer, view.cursor.pos);
+    size_t new_pos = seek_line_end(app, &buffer, view.cursor.pos);
     view_set_cursor(app, &view, seek_pos(new_pos), true);
 }
 
@@ -301,7 +304,7 @@ CUSTOM_COMMAND_SIG(seek_beginning_of_textual_line){
     View_Summary view = get_active_view(app, access);
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, access);
     
-    int32_t new_pos = seek_line_beginning(app, &buffer, view.cursor.pos);
+    size_t new_pos = seek_line_beginning(app, &buffer, view.cursor.pos);
     view_set_cursor(app, &view, seek_pos(new_pos), true);
 }
 
@@ -347,7 +350,7 @@ CUSTOM_COMMAND_SIG(to_uppercase){
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessOpen);
     
     Range range = get_range(&view);
-    int32_t size = range.max - range.min;
+    size_t size = range.max - range.min;
     if (size <= app->memory_size){
         char *mem = (char*)app->memory;
         
@@ -365,7 +368,7 @@ CUSTOM_COMMAND_SIG(to_lowercase){
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessOpen);
     
     Range range = get_range(&view);
-    int32_t size = range.max - range.min;
+    size_t size = range.max - range.min;
     if (size <= app->memory_size){
         char *mem = (char*)app->memory;
         
@@ -565,7 +568,7 @@ CUSTOM_COMMAND_SIG(search);
 CUSTOM_COMMAND_SIG(reverse_search);
 
 static void
-isearch(Application_Links *app, int32_t start_reversed){
+isearch(Application_Links *app, bool32 start_reversed){
     uint32_t access = AccessProtected;
     
     View_Summary view = get_active_view(app, access);
@@ -576,10 +579,10 @@ isearch(Application_Links *app, int32_t start_reversed){
     Query_Bar bar = {0};
     if (start_query_bar(app, &bar, 0) == 0) return;
     
-    int32_t reverse = start_reversed;
-    int32_t pos = view.cursor.pos;
-    int32_t start_pos = pos;
-    int32_t first_pos = pos;
+    bool32 reverse = start_reversed;
+    size_t pos = view.cursor.pos;
+    size_t start_pos = pos;
+    size_t first_pos = pos;
     Range match = make_range(pos, pos);
     
     char bar_string_space[256];
@@ -642,16 +645,16 @@ isearch(Application_Links *app, int32_t start_reversed){
         }
         
         if (in.key.keycode != key_back){
-            int32_t new_pos;
+            char *str = bar.string.str;
+            size_t str_size = bar.string.size;
+            size_t new_pos = 0;
             if (reverse){
-                buffer_seek_string_insensitive_backward(app, &buffer, start_pos - 1, 0,
-                                                        bar.string.str, bar.string.size, &new_pos);
+                buffer_seek_string_insensitive_backward(app, &buffer, start_pos - 1, 0, str, str_size, &new_pos);
                 if (new_pos >= 0){
                     if (step_backward){
                         pos = new_pos;
                         start_pos = new_pos;
-                        buffer_seek_string_insensitive_backward(app, &buffer, start_pos - 1, 0,
-                                                                bar.string.str, bar.string.size, &new_pos);
+                        buffer_seek_string_insensitive_backward(app, &buffer, start_pos - 1, 0, str, str_size, &new_pos);
                         if (new_pos < 0) new_pos = start_pos;
                     }
                     match.start = new_pos;
@@ -659,14 +662,13 @@ isearch(Application_Links *app, int32_t start_reversed){
                 }
             }
             else{
-                buffer_seek_string_insensitive_forward(app, &buffer, start_pos + 1, 0,
-                                                       bar.string.str, bar.string.size, &new_pos);
+                buffer_seek_string_insensitive_forward(app, &buffer, start_pos + 1, 0, str, str_size, &new_pos);
                 if (new_pos < buffer.size){
                     if (step_forward){
                         pos = new_pos;
                         start_pos = new_pos;
                         buffer_seek_string_insensitive_forward(app, &buffer, start_pos + 1, 0,
-                                                               bar.string.str, bar.string.size, &new_pos);
+                                                               str, str_size, &new_pos);
                         if (new_pos >= buffer.size) new_pos = start_pos;
                     }
                     match.start = new_pos;
@@ -721,9 +723,8 @@ CUSTOM_COMMAND_SIG(replace_in_range){
     
     Range range = get_range(&view);
     
-    int32_t pos, new_pos;
-    pos = range.min;
-    
+    size_t pos = range.min;
+    size_t new_pos = 0;
     buffer_seek_string_forward(app, &buffer, pos, 0, r.str, r.size, &new_pos);
     
     while (new_pos + r.size <= range.end){
@@ -751,25 +752,21 @@ CUSTOM_COMMAND_SIG(query_replace){
     
     if (!query_user_string(app, &with)) return;
     
-    String r, w;
-    r = replace.string;
-    w = with.string;
+    String r = replace.string;
+    String w = with.string;
     
     Query_Bar bar;
-    Buffer_Summary buffer;
-    View_Summary view;
-    int32_t pos, new_pos;
-    
     bar.prompt = make_lit_string("Replace? (y)es, (n)ext, (esc)\n");
     bar.string = null_string;
     
     start_query_bar(app, &bar, 0);
     
     uint32_t access = AccessOpen;
-    view = get_active_view(app, access);
-    buffer = get_buffer(app, view.buffer_id, access);
+    View_Summary view = get_active_view(app, access);
+    Buffer_Summary buffer = get_buffer(app, view.buffer_id, access);
     
-    pos = view.cursor.pos;
+    size_t pos = view.cursor.pos;
+    size_t new_pos = 0;
     buffer_seek_string_forward(app, &buffer, pos, 0, r.str, r.size, &new_pos);
     
     User_Input in = {0};

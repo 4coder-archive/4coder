@@ -148,7 +148,7 @@ query_user_number(Application_Links *app, Query_Bar *bar){
 }
 
 static char
-buffer_get_char(Application_Links *app, Buffer_Summary *buffer, int32_t pos){
+buffer_get_char(Application_Links *app, Buffer_Summary *buffer, size_t pos){
     char result = ' ';
     *buffer = get_buffer(app, buffer->buffer_id, AccessAll);
     if (pos < buffer->size){
@@ -188,7 +188,7 @@ create_buffer(Application_Links *app, char *filename, int32_t filename_len, Buff
 }
 
 static Range
-make_range(int32_t p1, int32_t p2){
+make_range(size_t p1, size_t p2){
     Range range;
     if (p1 < p2){
         range.min = p1;
@@ -267,10 +267,10 @@ get_line_x_rect(View_Summary *view){
     rect.y1 = view->cursor.line;
     
     if (rect.y0 > rect.y1){
-        Swap(int32_t, rect.y0, rect.y1);
+        Swap(size_t, rect.y0, rect.y1);
     }
     if (rect.x0 > rect.x1){
-        Swap(int32_t, rect.x0, rect.x1);
+        Swap(size_t, rect.x0, rect.x1);
     }
     
     return(rect);

@@ -204,7 +204,7 @@ working_set_init(Working_Set *working_set, Partition *partition, General_Memory 
     {
         i32 item_size = sizeof(File_Name_Entry);
         i32 table_size = working_set->file_max;
-        i32 mem_size = table_required_mem_size(table_size, item_size);
+        umem mem_size = table_required_mem_size(table_size, item_size);
         void *mem = general_memory_allocate(general, mem_size);
         memset(mem, 0, mem_size);
         table_init_memory(&working_set->canon_table, mem, table_size, item_size);
@@ -212,9 +212,9 @@ working_set_init(Working_Set *working_set, Partition *partition, General_Memory 
     
     // NOTE(allen): init name table
     {
-        i32 item_size = sizeof(File_Name_Entry);
-        i32 table_size = working_set->file_max;
-        i32 mem_size = table_required_mem_size(table_size, item_size);
+        u32 item_size = sizeof(File_Name_Entry);
+        u32 table_size = working_set->file_max;
+        umem mem_size = table_required_mem_size(table_size, item_size);
         void *mem = general_memory_allocate(general, mem_size);
         memset(mem, 0, mem_size);
         table_init_memory(&working_set->name_table, mem, table_size, item_size);
@@ -225,8 +225,8 @@ inline void
 working_set__grow_if_needed(Table *table, General_Memory *general, void *arg, Hash_Function *hash_func, Compare_Function *comp_func){
     if (table_at_capacity(table)){
         Table btable = {0};
-        i32 new_max = table->max * 2;
-        i32 mem_size = table_required_mem_size(new_max, table->item_size);
+        u32 new_max = table->max * 2;
+        umem mem_size = table_required_mem_size(new_max, table->item_size);
         void *mem = general_memory_allocate(general, mem_size);
         table_init_memory(&btable, mem, new_max, table->item_size);
         table_clear(&btable);

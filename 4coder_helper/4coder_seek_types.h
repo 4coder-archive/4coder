@@ -67,6 +67,15 @@ seek_line_char(size_t line, size_t character){
     return(result);
 }
 
+static Buffer_Seek
+seek_line_reverse_char(size_t line, size_t character){
+    Buffer_Seek result;
+    result.type = buffer_seek_line_reverse_char;
+    result.line = line;
+    result.character = character;
+    return(result);
+}
+
 #endif
 
 // BOTTOM

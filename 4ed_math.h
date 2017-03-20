@@ -432,21 +432,21 @@ unlerp(f32 a, f32 x, f32 b){
 }
 
 inline f32
-clamp(f32 a, f32 n, f32 z){
+clamp_f32(f32 a, f32 n, f32 z){
     if (n < a) n = a;
     else if (n  > z) n = z;
     return (n);
 }
 
 inline i32
-clamp(i32 a, i32 n, i32 z){
+clamp_i32(i32 a, i32 n, i32 z){
     if (n < a) n = a;
     else if (n  > z) n = z;
     return (n);
 }
 
 inline u32
-clamp(u32 a, u32 n, u32 z){
+clamp_u32(u32 a, u32 n, u32 z){
     if (n < a) n = a;
     else if (n  > z) n = z;
     return (n);

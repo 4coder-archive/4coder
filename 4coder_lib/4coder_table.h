@@ -52,20 +52,20 @@ typedef i32_4tech Compare_Function(void *key, void *item, void *arg);
 struct Table{
     u32_4tech *hash_array;
     char *data_array;
-    i32_4tech count, max;
-    i32_4tech item_size;
+    u32_4tech count, max;
+    u32_4tech item_size;
 };
 
-static i32_4tech
-table_required_mem_size(i32_4tech table_size, i32_4tech item_size){
-    i32_4tech hash_size = ((table_size * sizeof(u32_4tech)) + 7) & ~7;
-    i32_4tech mem_size = hash_size + table_size * item_size;
+static umem_4tech
+table_required_mem_size(u32_4tech table_size, u32_4tech item_size){
+    u32_4tech hash_size = ((table_size * sizeof(u32_4tech)) + 7) & ~7;
+    umem_4tech mem_size = hash_size + table_size * item_size;
     return(mem_size);
 }
 
 static void
-table_init_memory(Table *table, void *memory, i32_4tech table_size, i32_4tech item_size){
-    i32_4tech hash_size = table_size * sizeof(u32_4tech);
+table_init_memory(Table *table, void *memory, u32_4tech table_size, u32_4tech item_size){
+    umem_4tech hash_size = table_size * sizeof(u32_4tech);
     hash_size = (hash_size + 7) & ~7;
     
     table->hash_array = (u32_4tech*)memory;
@@ -90,8 +90,8 @@ table_add(Table *table, void *item, void *arg, Hash_Function *hash_func, Compare
     Assert(table->count * 8 < table->max * 7);
     
     u32_4tech hash = (hash_func(item, arg) | TableHashMin);
-    i32_4tech i = hash % table->max;
-    i32_4tech start = i;
+    u32_4tech i = hash % table->max;
+    u32_4tech start = i;
     u32_4tech *inspect = table->hash_array + i;
     
     while (*inspect >= TableHashMin){
@@ -120,8 +120,8 @@ table_find_pos(Table *table, void *search_key, void *arg, i32_4tech *pos, i32_4t
     Assert((table->count - 1) * 8 < table->max * 7);
     
     u32_4tech hash = (hash_func(search_key, arg) | TableHashMin);
-    i32_4tech i = hash % table->max;
-    i32_4tech start = i;
+    u32_4tech i = hash % table->max;
+    u32_4tech start = i;
     u32_4tech *inspect = table->hash_array + i;
     
     while (*inspect != TableHashEmpty){
@@ -254,18 +254,17 @@ tbl_offset_string_compare(void *a, void *b, void *arg){
 
 struct String_Space{
     char *space;
-    i32_4tech pos;
-    i32_4tech new_pos;
-    i32_4tech max;
+    u32_4tech pos;
+    u32_4tech new_pos;
+    u32_4tech max;
 };
 
 static Offset_String
-strspace_append(String_Space *space, char *str, i32_4tech len){
+strspace_append(String_Space *space, char *str, u32_4tech len){
     Offset_String result = {};
     if (space->new_pos + len <= space->max){
         result.offset = space->new_pos;
         result.size = len;
-        
         memcpy(space->space + space->new_pos, str, len);
         space->new_pos = space->pos + len;
     }

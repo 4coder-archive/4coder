@@ -157,9 +157,9 @@ struct Bubble{
     Bubble *next;
     Bubble *prev2;
     Bubble *next2;
-    i32_4tech size;
+    size_t size;
     u32_4tech flags;
-    u32_4tech _unused_[4];
+    u8_4tech _unused_[20 - sizeof(size_t)];
 };
 
 struct General_Memory{
@@ -214,8 +214,8 @@ general_sentinel_init(Bubble *bubble){
 #define BUBBLE_MIN_SIZE 1024
 
 static void
-general_memory_attempt_split(General_Memory *general, Bubble *bubble, i32_4tech wanted_size){
-    i32_4tech remaining_size = bubble->size - wanted_size;
+general_memory_attempt_split(General_Memory *general, Bubble *bubble, size_t wanted_size){
+    size_t remaining_size = bubble->size - wanted_size;
     if (remaining_size >= BUBBLE_MIN_SIZE){
         bubble->size = wanted_size;
         Bubble *new_bubble = (Bubble*)((char*)(bubble + 1) + wanted_size);
@@ -284,7 +284,7 @@ general_memory_check(General_Memory *general){}
 #endif
 
 static void*
-general_memory_allocate(General_Memory *general, i32_4tech size){
+general_memory_allocate(General_Memory *general, size_t size){
     void *result = 0;
     if (size < BUBBLE_MIN_SIZE) size = BUBBLE_MIN_SIZE;
     for (Bubble *bubble = general->free_sentinel.next2;
@@ -320,10 +320,10 @@ general_memory_free(General_Memory *general, void *memory){
 }
 
 static void*
-general_memory_reallocate(General_Memory *general, void *old, i32_4tech old_size, i32_4tech size){
+general_memory_reallocate(General_Memory *general, void *old, size_t old_size, size_t size){
     void *result = old;
     Bubble *bubble = ((Bubble*)old) - 1;
-    i32_4tech additional_space = size - bubble->size;
+    size_t additional_space = size - bubble->size;
     if (additional_space > 0){
         Bubble *next = bubble->next;
         if (!(next->flags & MEM_BUBBLE_USED) &&
@@ -341,7 +341,7 @@ general_memory_reallocate(General_Memory *general, void *old, i32_4tech old_size
 }
 
 inline void*
-general_memory_reallocate_nocopy(General_Memory *general, void *old, i32_4tech size){
+general_memory_reallocate_nocopy(General_Memory *general, void *old, size_t size){
     void *result = general_memory_reallocate(general, old, 0, size);
     return(result);
 }

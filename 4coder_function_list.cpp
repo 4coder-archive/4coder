@@ -245,8 +245,8 @@ list_all_functions(Application_Links *app, Partition *part, Buffer_Summary *buff
                 size_t sig_size = extra_memory->pos;
                 String sig = make_string(extra_memory->base, (int32_t)sig_size);
                 
-                int32_t line_number = buffer_get_line_index(app, buffer, open_paren_pos);
-                int32_t line_number_len = int_to_str_size(line_number);
+                size_t line_number = buffer_get_line_index(app, buffer, open_paren_pos);
+                size_t line_number_len = int_to_str_size((int32_t)line_number);
                 
                 size_t append_len = buffer_name.size + 1 + line_number_len + 1 + 1 + sig_size + 1;
                 
@@ -266,7 +266,7 @@ list_all_functions(Application_Links *app, Partition *part, Buffer_Summary *buff
                 String out = make_string(out_space, 0, (int32_t)append_len);
                 append(&out, buffer_name);
                 append(&out, ':');
-                append_int_to_str(&out, line_number);
+                append_int_to_str(&out, (int32_t)line_number);
                 append(&out, ':');
                 append(&out, ' ');
                 append(&out, sig);

@@ -17,12 +17,12 @@
 #include "4coder_helper/4coder_seek_types.h"
 
 typedef struct Cursor_With_Index{
-    i32 pos;
+    umem pos;
     i32 index;
 } Cursor_With_Index;
 
 inline void
-write_cursor_with_index(Cursor_With_Index *positions, i32 *count, i32 pos){
+write_cursor_with_index(Cursor_With_Index *positions, i32 *count, umem pos){
     positions[(*count)].index = *count;
     positions[(*count)].pos = pos;
     ++(*count);
@@ -33,7 +33,7 @@ write_cursor_with_index(Cursor_With_Index *positions, i32 *count, i32 pos){
 internal void
 buffer_quick_sort_cursors(Cursor_With_Index *positions, i32 start, i32 pivot){
     i32 mid = start;
-    i32 pivot_pos = positions[pivot].pos;
+    umem pivot_pos = positions[pivot].pos;
     for (i32 i = mid; i < pivot; ++i){
         if (positions[i].pos < pivot_pos){
             CursorSwap__(positions[mid], positions[i]);
@@ -100,15 +100,15 @@ buffer_update_cursors(Cursor_With_Index *sorted_positions, i32 count, i32 start,
     }
 }
 
-internal i32
-buffer_batch_debug_sort_check(Buffer_Edit *sorted_edits, i32 edit_count){
-    Buffer_Edit *edit = sorted_edits;
-    i32 i = 0, start_point = 0;
-    i32 result = 1; 
+internal b32
+buffer_batch_debug_sort_check(Buffer_Edit *sorted_edits, u32 edit_count){
+    b32 result = true; 
     
-    for (i = 0; i < edit_count; ++i, ++edit){
+    Buffer_Edit *edit = sorted_edits;
+    size_t start_point = 0;
+    for (u32 i = 0; i < edit_count; ++i, ++edit){
         if (start_point > edit->start){
-            result = 0; break;
+            result = false; break;
         }
         start_point = (edit->end < edit->start + 1)?(edit->start + 1):(edit->end);
     }
@@ -117,13 +117,18 @@ buffer_batch_debug_sort_check(Buffer_Edit *sorted_edits, i32 edit_count){
 }
 
 internal i32
-buffer_batch_edit_max_shift(Buffer_Edit *sorted_edits, i32 edit_count){
-    i32 i = 0;
-    i32 shift_total = 0, shift_max = 0;
-    
+buffer_batch_edit_max_shift(Buffer_Edit *sorted_edits, u32 edit_count){
     Buffer_Edit *edit = sorted_edits;
-    for (i = 0; i < edit_count; ++i, ++edit){
-        shift_total += (edit->len - (edit->end - edit->start));
+    i32 shift_total = 0, shift_max = 0;
+    for (u32 i = 0; i < edit_count; ++i, ++edit){
+        umem target_length = edit->end - edit->start;
+        umem edit_length = edit->len;
+        if (edit_length > target_length){
+            shift_total += (i32)(edit_length - target_length);
+        }
+        else{
+            shift_total -= (i32)(target_length - edit_length);
+        }
         if (shift_total > shift_max){
             shift_max = shift_total;
         }
@@ -142,36 +147,50 @@ buffer_batch_edit_update_cursors(Cursor_With_Index *sorted_positions, i32 count,
     
     if (lean_right){
         for (; edit < end_edit && position < end_position; ++edit){
-            i32 start = edit->start;
-            i32 end = edit->end;
+            umem start = edit->start;
+            umem end = edit->end;
             
             for (; position->pos < start && position < end_position; ++position){
                 position->pos += shift_amount;
             }
             
-            i32 new_end = start + edit->len + shift_amount;
+            umem new_end = start + edit->len + shift_amount;
             for (; position->pos <= end && position < end_position; ++position){
                 position->pos = new_end;
             }
             
-            shift_amount += (edit->len - (end - start));
+            umem target_length = end - start;
+            umem edit_length = edit->len;
+            if (edit_length > target_length){
+                shift_amount += (i32)(edit_length - target_length);
+            }
+            else{
+                shift_amount -= (i32)(target_length - edit_length);
+            }
         }
     }
     else{
         for (; edit < end_edit && position < end_position; ++edit){
-            i32 start = edit->start;
-            i32 end = edit->end;
+            umem start = edit->start;
+            umem end = edit->end;
             
             for (; position->pos < start && position < end_position; ++position){
                 position->pos += shift_amount;
             }
             
-            i32 new_end = start + shift_amount;
+            umem new_end = start + shift_amount;
             for (; position->pos <= end && position < end_position; ++position){
                 position->pos = new_end;
             }
             
-            shift_amount += (edit->len - (end - start));
+            umem target_length = end - start;
+            umem edit_length = edit->len;
+            if (edit_length > target_length){
+                shift_amount += (i32)(edit_length - target_length);
+            }
+            else{
+                shift_amount -= (i32)(target_length - edit_length);
+            }
         }
     }
     
@@ -180,7 +199,14 @@ buffer_batch_edit_update_cursors(Cursor_With_Index *sorted_positions, i32 count,
     }
     
     for (; edit < end_edit; ++edit){
-        shift_amount += (edit->len - (edit->end - edit->start));
+        umem target_length = edit->end - edit->start;
+        umem edit_length = edit->len;
+        if (edit_length > target_length){
+            shift_amount += (i32)(edit_length - target_length);
+        }
+        else{
+            shift_amount -= (i32)(target_length - edit_length);
+        }
     }
     
     return(shift_amount);
@@ -288,9 +314,9 @@ typedef struct Gap_Buffer{
     umem size2;
     umem max;
     
-    umem *line_starts;
-    umem line_count;
-    umem line_max;
+    u32 *line_starts;
+    u32 line_count;
+    u32 line_max;
 } Gap_Buffer;
 
 inline b32
@@ -300,9 +326,15 @@ buffer_good(Gap_Buffer *buffer){
 }
 
 inline umem
-buffer_size(Gap_Buffer *buffer){
+buffer_size_umem(Gap_Buffer *buffer){
     umem size = buffer->size1 + buffer->size2;
     return(size);
+}
+
+inline u32
+buffer_size(Gap_Buffer *buffer){
+    umem size = buffer->size1 + buffer->size2;
+    return(u32)(size);
 }
 
 typedef struct Gap_Buffer_Init{
@@ -336,7 +368,7 @@ buffer_init_page_size(Gap_Buffer_Init *init){
 }
 
 internal void
-buffer_init_provide_page(Gap_Buffer_Init *init, void *page, i32 page_size){
+buffer_init_provide_page(Gap_Buffer_Init *init, void *page, umem page_size){
     Gap_Buffer *buffer = init->buffer;
     buffer->data = (char*)page;
     buffer->max = page_size;
@@ -456,9 +488,9 @@ buffer_stringify_next(Gap_Buffer_Stream *stream){
 }
 
 internal b32
-buffer_replace_range(Gap_Buffer *buffer, umem start, umem end, char *str, umem len, i32 *shift_amount, void *scratch, umem scratch_memory, umem *request_amount){
+buffer_replace_range(Gap_Buffer *buffer, u32 start, u32 end, char *str, u32 len, i32 *shift_amount, void *scratch, umem scratch_memory, umem *request_amount){
     char *data = buffer->data;
-    umem size = buffer_size(buffer);
+    u32 size = buffer_size(buffer);
     b32 result = false;
     
     assert(0 <= start);
@@ -508,7 +540,7 @@ buffer_replace_range(Gap_Buffer *buffer, umem start, umem end, char *str, umem l
 }
 
 typedef struct Buffer_Batch_State{
-    umem i;
+    u32 i;
     i32 shift_total;
 } Buffer_Batch_State;
 
@@ -516,14 +548,18 @@ typedef struct Buffer_Batch_State{
 internal b32
 buffer_batch_edit_step(Buffer_Batch_State *state, Gap_Buffer *buffer, Buffer_Edit *sorted_edits, char *strings, u32 edit_count, void *scratch, umem scratch_size, umem *request_amount){
     Buffer_Edit *edit = 0;
-    umem i = state->i;
+    u32 i = state->i;
     i32 shift_total = state->shift_total;
     i32 shift_amount = 0;
     b32 result = false;
     
     edit = sorted_edits + i;
     for (; i < edit_count; ++i, ++edit){
-        result = buffer_replace_range(buffer, edit->start + shift_total, edit->end + shift_total, strings + edit->str_start, edit->len, &shift_amount, scratch, scratch_size, request_amount);
+        u32 start = (u32)(edit->start + shift_total);
+        u32 end = (u32)(edit->end + shift_total);
+        u32 len = (u32)(edit->len);
+        
+        result = buffer_replace_range(buffer, start, end, strings + edit->str_start, len, &shift_amount, scratch, scratch_size, request_amount);
         if (result){
             break;
         }
@@ -539,7 +575,7 @@ buffer_batch_edit_step(Buffer_Batch_State *state, Gap_Buffer *buffer, Buffer_Edi
 internal void*
 buffer_edit_provide_memory(Gap_Buffer *buffer, void *new_data, umem new_max){
     void *result = buffer->data;
-    umem size = buffer_size(buffer);
+    umem size = buffer_size_umem(buffer);
     umem new_gap_size = new_max - size;
     
     assert(new_max >= size);
@@ -578,7 +614,7 @@ buffer_stringify(Gap_Buffer *buffer, umem start, umem end, char *out){
 internal umem
 buffer_convert_out(Gap_Buffer *buffer, char *dest, umem max){
     Gap_Buffer_Stream stream = {0};
-    umem size = buffer_size(buffer);
+    u32 size = buffer_size(buffer);
     assert(size + buffer->line_count <= max);
     
     umem pos = 0;
@@ -588,7 +624,7 @@ buffer_convert_out(Gap_Buffer *buffer, char *dest, umem max){
         do{
             umem chunk_size = stream.end - i;
             umem out_size = 0;
-            i32 result = eol_convert_out(dest + pos, max - pos, stream.data + i, chunk_size, &out_size);
+            b32 result = eol_convert_out(dest + pos, max - pos, stream.data + i, chunk_size, &out_size);
             assert(result);
             i = stream.end;
             pos += out_size;
@@ -599,11 +635,11 @@ buffer_convert_out(Gap_Buffer *buffer, char *dest, umem max){
     return(pos);
 }
 
-internal i32
-buffer_count_newlines(Gap_Buffer *buffer, i32 start, i32 end){
+internal u32
+buffer_count_newlines(Gap_Buffer *buffer, u32 start, u32 end){
     Gap_Buffer_Stream stream = {0};
-    i32 i = start;
-    i32 count = 0;
+    u32 i = start;
+    u32 count = 0;
     
     assert(0 <= start);
     assert(start <= end);
@@ -623,9 +659,9 @@ buffer_count_newlines(Gap_Buffer *buffer, i32 start, i32 end){
 }
 
 typedef struct Buffer_Measure_Starts{
-    umem i;
-    umem count;
-    umem start;
+    u32 i;
+    u32 count;
+    u32 start;
 } Buffer_Measure_Starts;
 
 // TODO(allen): Rewrite this with a duff routine
@@ -634,10 +670,10 @@ typedef struct Buffer_Measure_Starts{
 internal b32
 buffer_measure_starts(Buffer_Measure_Starts *state, Gap_Buffer *buffer){
     Gap_Buffer_Stream stream = {0};
-    umem size = buffer_size(buffer);
-    umem start = state->start, i = state->i;
-    umem *start_ptr = buffer->line_starts + state->count;
-    umem *start_end = buffer->line_starts + buffer->line_max;
+    u32 size = (u32)buffer_size(buffer);
+    u32 start = state->start, i = state->i;
+    u32 *start_ptr = buffer->line_starts + state->count;
+    u32 *start_end = buffer->line_starts + buffer->line_max;
     b32 result = true;
     
     if (buffer_stringify_loop(&stream, buffer, i, size)){
@@ -677,13 +713,13 @@ buffer_measure_starts(Buffer_Measure_Starts *state, Gap_Buffer *buffer){
 }
 
 internal void
-buffer_measure_character_starts(System_Functions *system, Render_Font *font, Gap_Buffer *buffer, umem *character_starts, i32 mode, b32 virtual_white){
+buffer_measure_character_starts(System_Functions *system, Render_Font *font, Gap_Buffer *buffer, u32 *character_starts, i32 mode, b32 virtual_white){
     assert(mode == 0);
     
     Gap_Buffer_Stream stream = {0};
     
-    umem line_index = 0;
-    umem character_index = 0;
+    u32 line_index = 0;
+    u32 character_index = 0;
     
     character_starts[line_index++] = character_index;
     
@@ -745,16 +781,16 @@ enum{
 
 struct Buffer_Layout_Stop{
     u32 status;
-    i32 line_index;
-    i32 wrap_line_index;
-    umem pos;
-    umem next_line_pos;
+    u32 line_index;
+    u32 wrap_line_index;
+    u32 pos;
+    u32 next_line_pos;
     f32 x;
 };
 
 struct Buffer_Measure_Wrap_Params{
     Gap_Buffer *buffer;
-    i32 *wrap_line_index;
+    u32 *wrap_line_index;
     System_Functions *system;
     Render_Font *font;
     b32 virtual_white;
@@ -762,18 +798,18 @@ struct Buffer_Measure_Wrap_Params{
 
 struct Buffer_Measure_Wrap_State{
     Gap_Buffer_Stream stream;
-    umem i;
-    umem size;
+    u32 i;
+    u32 size;
     b32 still_looping;
     
-    i32 line_index;
+    u32 line_index;
     
-    i32 current_wrap_index;
+    u32 current_wrap_index;
     f32 current_adv;
     f32 x;
     
+    u32 wrap_unit_end;
     b32 skipping_whitespace;
-    i32 wrap_unit_end;
     b32 did_wrap;
     b32 first_of_the_line;
     
@@ -792,7 +828,7 @@ struct Buffer_Measure_Wrap_State{
 #define DrReturn(n) { *S_ptr = S; S_ptr->__pc__ = -1; return(n); }
 
 internal Buffer_Layout_Stop
-buffer_measure_wrap_y(Buffer_Measure_Wrap_State *S_ptr, Buffer_Measure_Wrap_Params params, f32 line_shift, b32 do_wrap, i32 wrap_unit_end){
+buffer_measure_wrap_y(Buffer_Measure_Wrap_State *S_ptr, Buffer_Measure_Wrap_Params params, f32 line_shift, b32 do_wrap, u32 wrap_unit_end){
     Buffer_Measure_Wrap_State S = *S_ptr;
     Buffer_Layout_Stop S_stop;
     
@@ -803,7 +839,7 @@ buffer_measure_wrap_y(Buffer_Measure_Wrap_State *S_ptr, Buffer_Measure_Wrap_Para
         DrCase(4);
     }
     
-    S.size = buffer_size(params.buffer);
+    S.size = (u32)buffer_size(params.buffer);
     
     if (params.virtual_white){
         S_stop.status = BLStatus_NeedLineShift;
@@ -920,9 +956,9 @@ buffer_measure_wrap_y(Buffer_Measure_Wrap_State *S_ptr, Buffer_Measure_Wrap_Para
 #undef DrReturn
 
 internal void
-buffer_remeasure_starts(Gap_Buffer *buffer, umem start_line, umem end_line, i32 line_shift, i32 text_shift){
-    umem *starts = buffer->line_starts;
-    umem line_count = buffer->line_count;
+buffer_remeasure_starts(Gap_Buffer *buffer, u32 start_line, u32 end_line, i32 line_shift, i32 text_shift){
+    u32 *starts = buffer->line_starts;
+    u32 line_count = buffer->line_count;
     
     assert(0 <= start_line);
     assert(start_line <= end_line);
@@ -933,7 +969,7 @@ buffer_remeasure_starts(Gap_Buffer *buffer, umem start_line, umem end_line, i32 
     
     // Adjust
     if (text_shift != 0){
-        umem line_i = end_line;
+        u32 line_i = end_line;
         starts += line_i;
         for (; line_i < line_count; ++line_i, ++starts){
             *starts += text_shift;
@@ -942,8 +978,8 @@ buffer_remeasure_starts(Gap_Buffer *buffer, umem start_line, umem end_line, i32 
     }
     
     // Shift
-    umem new_line_count = line_count;
-    umem new_end_line = end_line;
+    u32 new_line_count = line_count;
+    u32 new_end_line = end_line;
     if (line_shift != 0){
         new_line_count += line_shift;
         new_end_line += line_shift;
@@ -954,12 +990,12 @@ buffer_remeasure_starts(Gap_Buffer *buffer, umem start_line, umem end_line, i32 
     
     // Iteration data (yikes! Need better loop system)
     Gap_Buffer_Stream stream = {0};
-    umem size = buffer_size(buffer);
-    umem char_i = starts[start_line];
-    umem line_i = start_line;
+    u32 size = buffer_size(buffer);
+    u32 char_i = starts[start_line];
+    u32 line_i = start_line;
     
     // Line start measurement
-    umem start = char_i;
+    u32 start = char_i;
     
     if (buffer_stringify_loop(&stream, buffer, char_i, size)){
         b32 still_looping = 0;
@@ -993,10 +1029,10 @@ buffer_remeasure_starts(Gap_Buffer *buffer, umem start_line, umem end_line, i32 
 }
 
 internal void
-buffer_remeasure_character_starts(System_Functions *system, Render_Font *font, Gap_Buffer *buffer, umem start_line, umem end_line, i32 line_shift, umem *character_starts, i32 mode, b32 virtual_whitespace){
+buffer_remeasure_character_starts(System_Functions *system, Render_Font *font, Gap_Buffer *buffer, u32 start_line, u32 end_line, i32 line_shift, u32 *character_starts, i32 mode, b32 virtual_whitespace){
     assert(mode == 0);
     
-    umem new_line_count = buffer->line_count;
+    u32 new_line_count = buffer->line_count;
     
     assert(0 <= start_line);
     assert(start_line <= end_line);
@@ -1005,8 +1041,8 @@ buffer_remeasure_character_starts(System_Functions *system, Render_Font *font, G
     ++end_line;
     
     // Shift
-    umem line_count = new_line_count;
-    umem new_end_line = end_line;
+    u32 line_count = new_line_count;
+    u32 new_end_line = end_line;
     if (line_shift != 0){
         line_count -= line_shift;
         new_end_line += line_shift;
@@ -1016,13 +1052,13 @@ buffer_remeasure_character_starts(System_Functions *system, Render_Font *font, G
     
     // Iteration data
     Gap_Buffer_Stream stream = {0};
-    umem size = buffer_size(buffer);
-    umem char_i = buffer->line_starts[start_line];
-    umem line_i = start_line;
+    u32 size = buffer_size(buffer);
+    u32 char_i = buffer->line_starts[start_line];
+    u32 line_i = start_line;
     
     // Character measurement
-    umem last_char_start = character_starts[line_i];
-    umem current_char_start = last_char_start;
+    u32 last_char_start = character_starts[line_i];
+    u32 current_char_start = last_char_start;
     
     b32 skipping_whitespace = false;
     if (virtual_whitespace){
@@ -1076,8 +1112,8 @@ buffer_remeasure_character_starts(System_Functions *system, Render_Font *font, G
     
     // Adjust
     if (line_i <= new_end_line){
-        umem old_value = character_starts[line_i];
-        umem new_value = current_char_start;
+        u32 old_value = character_starts[line_i];
+        u32 new_value = current_char_start;
         i32 character_shift = 0;
         if (new_value > old_value){
             character_shift = (i32)(new_value - old_value);
@@ -1176,10 +1212,10 @@ buffer_remeasure_wrap_y(Gap_Buffer *buffer, umem start_line, umem end_line, i32 
     }
 }
 
-internal umem
-binary_search(umem *array, umem value, umem l_bound, umem u_bound){
+internal u32
+binary_search(u32 *array, u32 value, u32 l_bound, u32 u_bound){
     value = clamp_bottom(0, value);
-    umem start = l_bound, end = u_bound, i = 0;
+    u32 start = l_bound, end = u_bound, i = 0;
     for (;;){
         i = (start + end) >> 1;
         if (array[i] < value){
@@ -1200,34 +1236,34 @@ binary_search(umem *array, umem value, umem l_bound, umem u_bound){
     return(i);
 }
 
-inline umem
-buffer_get_line_index_range(Gap_Buffer *buffer, umem pos, umem l_bound, umem u_bound){
+inline u32
+buffer_get_line_index_range(Gap_Buffer *buffer, u32 pos, u32 l_bound, u32 u_bound){
     assert(0 <= l_bound);
     assert(l_bound <= u_bound);
     assert(u_bound <= buffer->line_count);
     
     assert(buffer->line_starts != 0);
     
-    umem i = binary_search(buffer->line_starts, pos, l_bound, u_bound);
+    u32 i = binary_search(buffer->line_starts, pos, l_bound, u_bound);
     return(i);
 }
 
-inline umem
-buffer_get_line_index(Gap_Buffer *buffer, umem pos){
-    umem result = buffer_get_line_index_range(buffer, pos, 0, buffer->line_count);
+inline u32
+buffer_get_line_index(Gap_Buffer *buffer, u32 pos){
+    u32 result = buffer_get_line_index_range(buffer, pos, 0, buffer->line_count);
     return(result);
 }
 
-inline umem
-buffer_get_line_index_from_character_pos(umem *character_starts, umem pos, umem l_bound, umem u_bound){
-    umem i = binary_search(character_starts, pos, l_bound, u_bound);
+inline u32
+buffer_get_line_index_from_character_pos(u32 *character_starts, u32 pos, u32 l_bound, u32 u_bound){
+    u32 i = binary_search(character_starts, pos, l_bound, u_bound);
     return(i);
 }
 
-inline umem
-buffer_get_line_index_from_wrapped_y(umem *wrap_line_index, f32 y, umem line_height, umem l_bound, umem u_bound){
-    umem wrap_index = floor32(y/line_height);
-    umem i = binary_search(wrap_line_index, wrap_index, l_bound, u_bound);
+inline u32
+buffer_get_line_index_from_wrapped_y(u32 *wrap_line_index, f32 y, i32 line_height, u32 l_bound, u32 u_bound){
+    u32 wrap_index = floor32(y/line_height);
+    u32 i = binary_search(wrap_line_index, wrap_index, l_bound, u_bound);
     return(i);
 }
 
@@ -1235,10 +1271,10 @@ internal Partial_Cursor
 buffer_partial_from_pos(Gap_Buffer *buffer, umem pos){
     Partial_Cursor result = {0};
     
-    umem size = buffer_size(buffer);
+    u32 size = buffer_size(buffer);
     pos = clamp_umem(0, pos, size);
     
-    umem line_index = buffer_get_line_index_range(buffer, pos, 0, buffer->line_count);
+    u32 line_index = buffer_get_line_index_range(buffer, (u32)pos, 0, (u32)buffer->line_count);
     result.pos = pos;
     result.line = line_index+1;
     result.character = pos - buffer->line_starts[line_index] + 1;
@@ -1247,10 +1283,10 @@ buffer_partial_from_pos(Gap_Buffer *buffer, umem pos){
 }
 
 internal Partial_Cursor
-buffer_partial_from_line_character(Gap_Buffer *buffer, i32 line, i32 character){
+buffer_partial_from_line_character(Gap_Buffer *buffer, umem line, umem character, b32 reversed){
     Partial_Cursor result = {0};
     
-    i32 line_index = line - 1;
+    umem line_index = line - 1;
     if (line_index >= buffer->line_count){
         line_index = buffer->line_count - 1;
     }
@@ -1258,34 +1294,36 @@ buffer_partial_from_line_character(Gap_Buffer *buffer, i32 line, i32 character){
         line_index = 0;
     }
     
-    i32 size = buffer_size(buffer);
+    umem size = buffer_size(buffer);
     
-    i32 this_start = buffer->line_starts[line_index];
-    i32 max_character = (size-this_start) + 1;
+    umem this_start = buffer->line_starts[line_index];
+    umem max_character = (size-this_start) + 1;
     if (line_index+1 < buffer->line_count){
-        i32 next_start = buffer->line_starts[line_index+1];
+        umem next_start = buffer->line_starts[line_index+1];
         max_character = (next_start-this_start);
     }
     
-    i32 adjusted_pos = 0;
+    umem adjusted_pos = 0;
     if (character > 0){
-        if (character > max_character){
-            adjusted_pos = max_character - 1;
+        if (reversed){
+            if (character > max_character){
+                adjusted_pos = 0;
+            }
+            else{
+                adjusted_pos = max_character + character;
+            }
         }
         else{
-            adjusted_pos = character - 1;
+            if (character > max_character){
+                adjusted_pos = max_character - 1;
+            }
+            else{
+                adjusted_pos = character - 1;
+            }
         }
     }
     else if (character == 0){
         adjusted_pos = 0;
-    }
-    else{
-        if (-character > max_character){
-            adjusted_pos = 0;
-        }
-        else{
-            adjusted_pos = max_character + character;
-        }
     }
     
     result.pos = this_start + adjusted_pos;
@@ -1300,8 +1338,8 @@ struct Buffer_Cursor_Seek_Params{
     Buffer_Seek seek;
     System_Functions *system;
     Render_Font *font;
-    i32 *wrap_line_index;
-    i32 *character_starts;
+    u32 *wrap_line_index;
+    u32 *character_starts;
     b32 virtual_white;
     b32 return_hint;
     Full_Cursor *cursor_out;
@@ -1314,9 +1352,9 @@ struct Buffer_Cursor_Seek_State{
     
     Gap_Buffer_Stream stream;
     b32 still_looping;
-    i32 i;
-    i32 size;
-    i32 wrap_unit_end;
+    u32 i;
+    u32 size;
+    u32 wrap_unit_end;
     
     b32 first_of_the_line;
     b32 xy_seek;
@@ -1340,7 +1378,7 @@ struct Buffer_Cursor_Seek_State{
 #define DrReturn(n) { *S_ptr = S; S_ptr->__pc__ = -1; return(n); }
 
 internal Buffer_Layout_Stop
-buffer_cursor_seek(Buffer_Cursor_Seek_State *S_ptr, Buffer_Cursor_Seek_Params params, f32 line_shift, b32 do_wrap, i32 wrap_unit_end){
+buffer_cursor_seek(Buffer_Cursor_Seek_State *S_ptr, Buffer_Cursor_Seek_Params params, f32 line_shift, b32 do_wrap, u32 wrap_unit_end){
     Buffer_Cursor_Seek_State S = *S_ptr;
     Buffer_Layout_Stop S_stop;
     
@@ -1354,37 +1392,40 @@ buffer_cursor_seek(Buffer_Cursor_Seek_State *S_ptr, Buffer_Cursor_Seek_Params pa
     S.font_height = font_get_height(params.font);
     
     S.xy_seek = (params.seek.type == buffer_seek_wrapped_xy || params.seek.type == buffer_seek_unwrapped_xy);
-    S.size = buffer_size(params.buffer);
+    S.size = (u32)buffer_size(params.buffer);
     
     // Get cursor hint
     {
-        i32 line_index = 0;
+        u32 line_index = 0;
         switch (params.seek.type){
             case buffer_seek_pos:
             {
-                params.seek.pos = clamp(0, params.seek.pos, S.size);
+                params.seek.pos = clamp_u32(0, (u32)params.seek.pos, S.size);
                 
-                line_index = buffer_get_line_index(params.buffer, params.seek.pos);
+                line_index = buffer_get_line_index(params.buffer, (u32)params.seek.pos);
             }break;
             
             case buffer_seek_character_pos:
             {
-                i32 line_count = params.buffer->line_count;
-                i32 max_character = params.character_starts[line_count] - 1;
-                params.seek.pos = clamp(0, params.seek.pos, max_character);
+                u32 line_count = params.buffer->line_count;
+                u32 max_character = params.character_starts[line_count] - 1;
+                params.seek.pos = clamp_u32(0, (u32)params.seek.pos, max_character);
                 
-                line_index = buffer_get_line_index_from_character_pos(params.character_starts, params.seek.pos, 0, params.buffer->line_count);
+                u32 *char_starts = params.character_starts;
+                
+                u32 pos = (u32)params.seek.pos;
+                line_index = buffer_get_line_index_from_character_pos(char_starts, pos, 0, line_count);
             }break;
             
             case buffer_seek_line_char:
             {
-                line_index = params.seek.line - 1;
+                line_index = (u32)params.seek.line - 1;
                 line_index = clamp_bottom(0, line_index);
             }break;
             
             case buffer_seek_unwrapped_xy:
             {
-                line_index = (i32)(params.seek.y / S.font_height);
+                line_index = (u32)(params.seek.y / S.font_height);
                 line_index = clamp_bottom(0, line_index);
             }break;
             
@@ -1396,7 +1437,7 @@ buffer_cursor_seek(Buffer_Cursor_Seek_State *S_ptr, Buffer_Cursor_Seek_Params pa
             default: InvalidCodePath;
         }
         
-        i32 safe_line_index = line_index;
+        umem safe_line_index = line_index;
         if (line_index >= params.buffer->line_count){
             safe_line_index = params.buffer->line_count-1;
         }
@@ -1418,8 +1459,8 @@ buffer_cursor_seek(Buffer_Cursor_Seek_State *S_ptr, Buffer_Cursor_Seek_Params pa
     // non-virtual character of the line.
     if (params.virtual_white){
         S_stop.status          = BLStatus_NeedLineShift;
-        S_stop.line_index      = S.next_cursor.line-1;
-        S_stop.wrap_line_index = S.next_cursor.wrap_line-1;
+        S_stop.line_index      = (u32)(S.next_cursor.line-1);
+        S_stop.wrap_line_index = (u32)(S.next_cursor.wrap_line-1);
         DrYield(1, S_stop);
         
         S.next_cursor.unwrapped_x += line_shift;
@@ -1495,7 +1536,7 @@ buffer_cursor_seek(Buffer_Cursor_Seek_State *S_ptr, Buffer_Cursor_Seek_Params pa
     }
     
     // Main seek loop
-    S.i = S.next_cursor.pos;
+    S.i = (u32)S.next_cursor.pos;
     
     S.stream = null_buffer_stream;
     S.stream.use_termination_character = 1;
@@ -1528,8 +1569,8 @@ buffer_cursor_seek(Buffer_Cursor_Seek_State *S_ptr, Buffer_Cursor_Seek_Params pa
                         
                         if (params.virtual_white){
                             S_stop.status          = BLStatus_NeedLineShift;
-                            S_stop.line_index      = S.next_cursor.line-1;
-                            S_stop.wrap_line_index = S.next_cursor.wrap_line-1;
+                            S_stop.line_index      = (u32)(S.next_cursor.line-1);
+                            S_stop.wrap_line_index = (u32)(S.next_cursor.wrap_line-1);
                             DrYield(2, S_stop);
                         }
                         
@@ -1547,9 +1588,9 @@ buffer_cursor_seek(Buffer_Cursor_Seek_State *S_ptr, Buffer_Cursor_Seek_Params pa
                         
                         if (S.step.i >= S.wrap_unit_end){
                             S_stop.status          = BLStatus_NeedWrapDetermination;
-                            S_stop.line_index      = S.next_cursor.line-1;
-                            S_stop.wrap_line_index = S.next_cursor.wrap_line-1;
-                            S_stop.pos             = S.step.i;
+                            S_stop.line_index      = (u32)(S.next_cursor.line-1);
+                            S_stop.wrap_line_index = (u32)(S.next_cursor.wrap_line-1);
+                            S_stop.pos             = (u32)(S.step.i);
                             S_stop.x               = S.next_cursor.wrapped_x;
                             DrYield(4, S_stop);
                             
@@ -1561,8 +1602,8 @@ buffer_cursor_seek(Buffer_Cursor_Seek_State *S_ptr, Buffer_Cursor_Seek_Params pa
                                 ++S.next_cursor.wrap_line;
                                 if (params.virtual_white){
                                     S_stop.status          = BLStatus_NeedWrapLineShift;
-                                    S_stop.line_index      = S.next_cursor.line-1;
-                                    S_stop.wrap_line_index = S.next_cursor.wrap_line-1;
+                                    S_stop.line_index      = (u32)(S.next_cursor.line-1);
+                                    S_stop.wrap_line_index = (u32)(S.next_cursor.wrap_line-1);
                                     DrYield(3, S_stop);
                                 }
                                 
@@ -1662,11 +1703,9 @@ buffer_cursor_seek(Buffer_Cursor_Seek_State *S_ptr, Buffer_Cursor_Seek_Params pa
 #undef DrReturn
 
 internal void
-buffer_invert_edit_shift(Gap_Buffer *buffer, Buffer_Edit edit, Buffer_Edit *inverse, char *strings,
-                         i32 *str_pos, i32 max, i32 shift_amount){
-    i32 pos = *str_pos;
-    i32 len = edit.end - edit.start;
-    assert(pos >= 0);
+buffer_invert_edit_shift(Gap_Buffer *buffer, Buffer_Edit edit, Buffer_Edit *inverse, char *strings, u32 *str_pos, u32 max, i32 shift_amount){
+    u32 pos = *str_pos;
+    u32 len = (u32)(edit.end - edit.start);
     assert(pos + len <= max);
     *str_pos = pos + len;
     
@@ -1678,34 +1717,40 @@ buffer_invert_edit_shift(Gap_Buffer *buffer, Buffer_Edit edit, Buffer_Edit *inve
 }
 
 inline void
-buffer_invert_edit(Gap_Buffer *buffer, Buffer_Edit edit, Buffer_Edit *inverse, char *strings,
-                   i32 *str_pos, i32 max){
+buffer_invert_edit(Gap_Buffer *buffer, Buffer_Edit edit, Buffer_Edit *inverse, char *strings, u32 *str_pos, u32 max){
     buffer_invert_edit_shift(buffer, edit, inverse, strings, str_pos, max, 0);
 }
 
 typedef struct Buffer_Invert_Batch{
-    i32 i;
+    umem i;
     i32 shift_amount;
-    i32 len;
+    u32 len;
 } Buffer_Invert_Batch;
 
-internal i32
-buffer_invert_batch(Buffer_Invert_Batch *state, Gap_Buffer *buffer, Buffer_Edit *edits, i32 count,
-                    Buffer_Edit *inverse, char *strings, i32 *str_pos, i32 max){
+internal b32
+buffer_invert_batch(Buffer_Invert_Batch *state, Gap_Buffer *buffer, Buffer_Edit *edits, u32 count, Buffer_Edit *inverse, char *strings, u32 *str_pos, u32 max){
     i32 shift_amount = state->shift_amount;
-    i32 i = state->i;
+    umem i = state->i;
     Buffer_Edit *edit = edits + i;
     Buffer_Edit *inv_edit = inverse + i;
-    i32 result = 0;
+    b32 result = false;
     
     for (; i < count; ++i, ++edit, ++inv_edit){
         if (*str_pos + edit->end - edit->start <= max){
             buffer_invert_edit_shift(buffer, *edit, inv_edit, strings, str_pos, max, shift_amount);
-            shift_amount += (edit->len - (edit->end - edit->start));
+            
+            umem target_length = edit->end - edit->start;
+            umem edit_length = edit->len;
+            if (edit_length > target_length){
+                shift_amount += (i32)(edit_length - target_length);
+            }
+            else{
+                shift_amount -= (i32)(target_length - edit_length);
+            }
         }
         else{
-            result = 1;
-            state->len = edit->end - edit->start;
+            result = true;
+            state->len = (u32)(edit->end - edit->start);
         }
     }
     
@@ -1762,8 +1807,8 @@ write_render_item(Render_Item_Write write, umem index, u32 codepoint, u32 flags)
 struct Buffer_Render_Params{
     Gap_Buffer *buffer;
     Buffer_Render_Item *items;
-    i32 max;
-    i32 *count;
+    u32 max;
+    u32 *count;
     f32 port_x;
     f32 port_y;
     f32 clip_w;
@@ -1782,8 +1827,8 @@ struct Buffer_Render_Params{
 struct Buffer_Render_State{
     Gap_Buffer_Stream stream;
     b32 still_looping;
-    i32 i;
-    i32 size;
+    umem i;
+    umem size;
     
     f32 shift_x;
     f32 shift_y;
@@ -1793,11 +1838,11 @@ struct Buffer_Render_State{
     Render_Item_Write write;
     f32 byte_advance;
     
-    i32 line;
-    i32 wrap_line;
+    umem line;
+    umem wrap_line;
+    umem wrap_unit_end;
     b32 skipping_whitespace;
     b32 first_of_the_line;
-    i32 wrap_unit_end;
     
     Translation_State tran;
     Translation_Emits emits;
@@ -1843,8 +1888,8 @@ buffer_render_data(Buffer_Render_State *S_ptr, Buffer_Render_Params params, f32 
     
     if (params.virtual_white){
         S_stop.status          = BLStatus_NeedLineShift;
-        S_stop.line_index      = S.line;
-        S_stop.wrap_line_index = S.wrap_line;
+        S_stop.line_index      = (u32)(S.line);
+        S_stop.wrap_line_index = (u32)(S.wrap_line);
         DrYield(1, S_stop);
     }
     
@@ -1878,9 +1923,9 @@ buffer_render_data(Buffer_Render_State *S_ptr, Buffer_Render_Params params, f32 
                     
                     if (!S.behavior.do_newline && S.step.i >= S.wrap_unit_end){
                         S_stop.status          = BLStatus_NeedWrapDetermination;
-                        S_stop.line_index      = S.line;
-                        S_stop.wrap_line_index = S.wrap_line;
-                        S_stop.pos             = S.step.i;
+                        S_stop.line_index      = (u32)(S.line);
+                        S_stop.wrap_line_index = (u32)(S.wrap_line);
+                        S_stop.pos             = (u32)(S.step.i);
                         S_stop.x               = S.write.x - S.shift_x;
                         DrYield(4, S_stop);
                         
@@ -1889,8 +1934,8 @@ buffer_render_data(Buffer_Render_State *S_ptr, Buffer_Render_Params params, f32 
                         if (do_wrap && !S.first_of_the_line){
                             if (params.virtual_white){
                                 S_stop.status          = BLStatus_NeedWrapLineShift;
-                                S_stop.line_index      = S.line;
-                                S_stop.wrap_line_index = S.wrap_line + 1;
+                                S_stop.line_index      = (u32)(S.line);
+                                S_stop.wrap_line_index = (u32)(S.wrap_line + 1);
                                 DrYield(2, S_stop);
                             }
                             
@@ -1928,8 +1973,8 @@ buffer_render_data(Buffer_Render_State *S_ptr, Buffer_Render_Params params, f32 
                         
                         if (params.virtual_white){
                             S_stop.status          = BLStatus_NeedLineShift;
-                            S_stop.line_index      = S.line+1;
-                            S_stop.wrap_line_index = S.wrap_line+1;
+                            S_stop.line_index      = (u32)(S.line+1);
+                            S_stop.wrap_line_index = (u32)(S.wrap_line+1);
                             DrYield(3, S_stop);
                             
                             S.skipping_whitespace = 1;

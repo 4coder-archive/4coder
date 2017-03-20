@@ -9,31 +9,32 @@
 
 #include "4coder_helper/4coder_helper.h"
 
+// TODO(allen): Rewrite the backward seek to get this on size_t instead of int64_t.
 struct Stream_Chunk{
     Application_Links *app;
     Buffer_Summary *buffer;
     
     char *base_data;
-    int32_t start, end;
-    int32_t min_start, max_end;
+    int64_t start, end;
+    int64_t min_start, max_end;
+    int64_t data_size;
     bool32 add_null;
-    uint32_t data_size;
     
     char *data;
 };
 
-static int32_t
-round_down(int32_t x, int32_t b){
-    int32_t r = 0;
+static uint64_t
+round_down(uint64_t x, uint64_t b){
+    uint64_t r = 0;
     if (x >= 0){
         r = x - (x % b);
     }
     return(r);
 }
 
-static int32_t
-round_up(int32_t x, int32_t b){
-    int32_t r = 0;
+static uint64_t
+round_up(uint64_t x, uint64_t b){
+    uint64_t r = 0;
     if (x >= 0){
         r = x - (x % b) + b;
     }
@@ -41,8 +42,7 @@ round_up(int32_t x, int32_t b){
 }
 
 static bool32
-init_stream_chunk(Stream_Chunk *chunk, Application_Links *app, Buffer_Summary *buffer,
-                  int32_t pos, char *data, uint32_t size){
+init_stream_chunk(Stream_Chunk *chunk, Application_Links *app, Buffer_Summary *buffer, size_t pos, char *data, size_t size){
     bool32 result = 0;
     
     refresh_buffer(app, buffer);
@@ -153,12 +153,12 @@ struct Stream_Tokens{
     
     Cpp_Token *base_tokens;
     Cpp_Token *tokens;
-    int32_t start, end;
-    int32_t count, token_count;
+    int64_t start, end;
+    int64_t count, token_count;
 };
 
 static bool32
-init_stream_tokens(Stream_Tokens *stream, Application_Links *app, Buffer_Summary *buffer, int32_t pos, Cpp_Token *data, int32_t count){
+init_stream_tokens(Stream_Tokens *stream, Application_Links *app, Buffer_Summary *buffer, size_t pos, Cpp_Token *data, size_t count){
     bool32 result = 0;
     
     refresh_buffer(app, buffer);
@@ -168,9 +168,9 @@ init_stream_tokens(Stream_Tokens *stream, Application_Links *app, Buffer_Summary
         stream->app = app;
         stream->buffer = buffer;
         stream->base_tokens = data;
-        stream->count = count;
-        stream->start = round_down(pos, count);
-        stream->end = round_up(pos, count);
+        stream->count = (int64_t)count;
+        stream->start = (int64_t)round_down(pos, count);
+        stream->end = (int64_t)round_up(pos, count);
         stream->token_count = token_count;
         
         if (stream->start < 0){

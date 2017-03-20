@@ -47,7 +47,7 @@ typedef Sys_Load_File_Sig(System_Load_File);
 #define Sys_Load_Close_Sig(name) b32 name(Plat_Handle handle)
 typedef Sys_Load_Close_Sig(System_Load_Close);
 
-#define Sys_Save_File_Sig(name) b32 name(char *filename, char *buffer, u32 size)
+#define Sys_Save_File_Sig(name) b32 name(char *filename, char *buffer, umem size)
 typedef Sys_Save_File_Sig(System_Save_File);
 
 // file changes

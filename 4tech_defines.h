@@ -135,6 +135,18 @@ inline u32 round_up_pot_u32(u32 x){
 #define min_u32 ((u32)0)
 #define min_u64 ((u64)0)
 
+#if defined(FTECH_32_BIT)
+#define max_imem max_i64
+#define min_imem min_i64
+#define max_umem max_u64
+#define min_umem min_u64
+#else
+#define max_imem max_i32
+#define min_imem min_i32
+#define max_umem max_u32
+#define min_umem min_u32
+#endif
+
 #define Bit_0 (1 << 0)
 #define Bit_1 (1 << 1)
 #define Bit_2 (1 << 2)

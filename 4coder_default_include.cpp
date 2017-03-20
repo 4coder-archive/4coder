@@ -42,9 +42,9 @@ TYPE: 'major-system-include'
 // Seeks Using Default Framework Memory
 //
 
-static int32_t
-buffer_boundary_seek(Application_Links *app, Buffer_Summary *buffer, int32_t start_pos, bool32 seek_forward, Seek_Boundary_Flag flags){
-    int32_t result = buffer_boundary_seek(app, buffer, &global_part, start_pos, seek_forward, flags);
+static size_t
+buffer_boundary_seek(Application_Links *app, Buffer_Summary *buffer, size_t start_pos, bool32 seek_forward, Seek_Boundary_Flag flags){
+    size_t result = buffer_boundary_seek(app, buffer, &global_part, start_pos, seek_forward, flags);
     return(result);
 }
 
@@ -53,7 +53,7 @@ basic_seek(Application_Links *app, int32_t seek_type, uint32_t flags){
     uint32_t access = AccessProtected;
     View_Summary view = get_active_view(app, access);
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, access);
-    int32_t pos = buffer_boundary_seek(app, &buffer, view.cursor.pos, seek_type, flags);
+    size_t pos = buffer_boundary_seek(app, &buffer, view.cursor.pos, seek_type, flags);
     view_set_cursor(app, &view, seek_pos(pos), true);
 }
 
@@ -85,12 +85,10 @@ CUSTOM_COMMAND_SIG(backspace_word){
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, access);
     
     if (buffer.exists){
-        int32_t pos2 = 0, pos1 = 0;
-        
-        pos2 = view.cursor.pos;
+        size_t pos2 = view.cursor.pos;
         exec_command(app, seek_alphanumeric_left);
         refresh_view(app, &view);
-        pos1 = view.cursor.pos;
+        size_t pos1 = view.cursor.pos;
         
         buffer_replace_range(app, &buffer, pos1, pos2, 0, 0);
     }
@@ -103,12 +101,10 @@ CUSTOM_COMMAND_SIG(delete_word){
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, access);
     
     if (buffer.exists){
-        int32_t pos2 = 0, pos1 = 0;
-        
-        pos1 = view.cursor.pos;
+        size_t pos1 = view.cursor.pos;
         exec_command(app, seek_alphanumeric_right);
         refresh_view(app, &view);
-        pos2 = view.cursor.pos;
+        size_t pos2 = view.cursor.pos;
         
         buffer_replace_range(app, &buffer, pos1, pos2, 0, 0);
     }
@@ -116,12 +112,11 @@ CUSTOM_COMMAND_SIG(delete_word){
 
 CUSTOM_COMMAND_SIG(snipe_token_or_word){
     uint32_t access = AccessOpen;
-    
     View_Summary view = get_active_view(app, access);
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, access);
     
-    int32_t pos1 = buffer_boundary_seek(app, &buffer, view.cursor.pos, 0, BoundaryToken | BoundaryWhitespace);
-    int32_t pos2 = buffer_boundary_seek(app, &buffer, pos1,            1, BoundaryToken | BoundaryWhitespace);
+    size_t pos1 = buffer_boundary_seek(app, &buffer, view.cursor.pos, 0, BoundaryToken | BoundaryWhitespace);
+    size_t pos2 = buffer_boundary_seek(app, &buffer, pos1,            1, BoundaryToken | BoundaryWhitespace);
     
     Range range = make_range(pos1, pos2);
     buffer_replace_range(app, &buffer, range.start, range.end, 0, 0);
@@ -146,7 +141,7 @@ CUSTOM_COMMAND_SIG(duplicate_line){
     ++line_string.memory_size;
     append_s_char(&line_string, '\n');
     
-    int32_t pos = buffer_get_line_end(app, &buffer, view.cursor.line) + 1;
+    size_t pos = buffer_get_line_end(app, &buffer, view.cursor.line) + 1;
     buffer_replace_range(app, &buffer, pos, pos, line_string.str, line_string.size);
     
     end_temp_memory(temp);
@@ -159,8 +154,8 @@ CUSTOM_COMMAND_SIG(delete_line){
     Partition *part = &global_part;
     
     Temp_Memory temp = begin_temp_memory(part);
-    int32_t start = buffer_get_line_start(app, &buffer, view.cursor.line);
-    int32_t end = buffer_get_line_end(app, &buffer, view.cursor.line) + 1;
+    size_t start = buffer_get_line_start(app, &buffer, view.cursor.line);
+    size_t end = buffer_get_line_end(app, &buffer, view.cursor.line) + 1;
     
     buffer_replace_range(app, &buffer, start, end, 0, 0);
     
@@ -206,7 +201,7 @@ long_braces(Application_Links *app, char *text, int32_t size){
     uint32_t access = AccessOpen;
     View_Summary view = get_active_view(app, access);
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, access);
-    int32_t pos = view.cursor.pos;
+    size_t pos = view.cursor.pos;
     
     buffer_replace_range(app, &buffer, pos, pos, text, size);
     view_set_cursor(app, &view, seek_pos(pos + 2), true);
@@ -338,13 +333,13 @@ file_name_in_quotes(Application_Links *app, String *file_name){
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, access);
     
     if (buffer.file_name != 0){
-        int32_t pos = view.cursor.pos;
-        int32_t start = 0, end = 0;
+        size_t pos = view.cursor.pos;
+        size_t start = 0, end = 0;
         buffer_seek_delimiter_forward(app, &buffer, pos, '"', &end);
         buffer_seek_delimiter_backward(app, &buffer, pos, '"', &start);
         ++start;
         
-        int32_t size = end - start;
+        size_t size = end - start;
         
         char short_file_name[128];
         // NOTE(allen): This check is necessary because buffer_read_range
@@ -354,7 +349,7 @@ file_name_in_quotes(Application_Links *app, String *file_name){
                 result = true;
                 copy_ss(file_name, make_string(buffer.file_name, buffer.file_name_len));
                 remove_last_folder(file_name);
-                append_ss(file_name, make_string(short_file_name, size));
+                append_ss(file_name, make_string(short_file_name, (int32_t)size));
             }
         }
     }

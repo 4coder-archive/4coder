@@ -41,20 +41,20 @@ ms_style_verify(String line, int32_t paren_pos){
 }
 
 static int32_t
-parse_jump_location(String line, Name_Based_Jump_Location *location, int32_t skip_sub_errors, int32_t *colon_char){
-    int32_t result = false;
+parse_jump_location(String line, Name_Based_Jump_Location *location, int32_t skip_sub_errors, size_t *colon_char){
+    bool32 result = false;
     
     int32_t whitespace_length = 0;
     String original_line = line;
     line = skip_chop_whitespace(line, &whitespace_length);
     
     int32_t colon_pos = 0;
-    int32_t is_ms_style = 0;
+    bool32 is_ms_style = false;
     
     int32_t paren_pos = find_s_char(line, 0, ')');
     while (!is_ms_style && paren_pos < line.size){
         if (ms_style_verify(line, paren_pos)){
-            is_ms_style = 1;
+            is_ms_style = true;
             colon_pos = find_s_char(line, paren_pos, ':');
             if (colon_pos < line.size){
                 String location_str = substr(line, 0, colon_pos);
@@ -152,14 +152,14 @@ parse_jump_location(String line, Name_Based_Jump_Location *location, int32_t ski
     return(result);
 }
 
-static int32_t
-parse_jump_from_buffer_line(Application_Links *app, Partition *part, int32_t buffer_id, int32_t line, int32_t skip_sub_errors, Name_Based_Jump_Location *location){
+static bool32
+parse_jump_from_buffer_line(Application_Links *app, Partition *part, int32_t buffer_id, size_t line, int32_t skip_sub_errors, Name_Based_Jump_Location *location){
     
-    int32_t result = false;
+    bool32 result = false;
     String line_str = {0};
     Buffer_Summary buffer = get_buffer(app, buffer_id, AccessAll);
     if (read_line(app, part, &buffer, line, &line_str)){
-        int32_t colon_char = 0;
+        size_t colon_char = 0;
         if (parse_jump_location(line_str, location, skip_sub_errors, &colon_char)){
             result = true;
         }
