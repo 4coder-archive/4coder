@@ -726,7 +726,7 @@ Sys_File_Can_Be_Made_Sig(system_file_can_be_made){
     u16 *filename_16 = push_array(scratch, u16, max);
     
     b32 error = false;
-    utf8_to_utf16_minimal_checking(filename_16, max, filename, len, &error);
+    utf8_to_utf16_minimal_checking(filename_16, max, (u8*)filename, len, &error);
     
     if (!error){
         HANDLE file = CreateFile((LPCWSTR)filename_16, FILE_APPEND_DATA, 0, 0, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, 0);
@@ -746,102 +746,120 @@ internal
 Sys_Set_File_List_Sig(system_set_file_list){
     b32 clear_list = true;
     if (directory != 0){
+        Partition *scratch = &shared_vars.scratch;
+        Temp_Memory temp = begin_temp_memory(scratch);
+        
         char dir_space[MAX_PATH + 32];
         String dir = make_string_cap(dir_space, 0, MAX_PATH + 32);
         append_sc(&dir, directory);
         terminate_with_null(&dir);
         
-        HANDLE dir_handle = CreateFile(dir.str, FILE_LIST_DIRECTORY, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, 0, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OVERLAPPED, 0);
+        umem filename_16_max = (dir.size+1)*2;
+        u16 *filename_16 = push_array(scratch, u16, filename_16_max);
+        b32 convert_error = false;
+        umem length = utf8_to_utf16_minimal_checking(filename_16, filename_16_max-1, (u8*)dir.str, dir.size, &convert_error);
         
-        if (dir_handle != INVALID_HANDLE_VALUE){
-            DWORD final_length = GetFinalPathNameByHandle(dir_handle, dir_space, sizeof(dir_space), 0);
-            CloseHandle(dir_handle);
+        if (!convert_error){
+            filename_16[length] = 0;
             
-            if (final_length < sizeof(dir_space)){
-                char *c_str_dir = dir_space;
+            HANDLE dir_handle = CreateFile((LPWSTR)filename_16, FILE_LIST_DIRECTORY, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, 0, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OVERLAPPED, 0);
+            
+            if (dir_handle != INVALID_HANDLE_VALUE){
+                DWORD final_length = GetFinalPathNameByHandle(dir_handle, (LPWSTR)filename_16, (DWORD)filename_16_max, 0);
+                CloseHandle(dir_handle);
                 
-                final_length -= 4;
-                memmove(c_str_dir, c_str_dir+4, final_length);
-                c_str_dir[final_length] = '\\';
-                c_str_dir[final_length+1] = '*';
-                c_str_dir[final_length+2] = 0;
-                
-                if (canon_directory_out != 0){
-                    if (final_length+1 < canon_directory_max){
-                        memcpy(canon_directory_out, c_str_dir, final_length);
-                        if (canon_directory_out[final_length-1] != '\\'){
-                            canon_directory_out[final_length++] = '\\';
-                        }
-                        canon_directory_out[final_length] = 0;
-                        *canon_directory_size_out = final_length;
-                    }
-                    else{
-                        u32 length = copy_fast_unsafe_cc(canon_directory_out, directory);
-                        canon_directory_out[length] = 0;
-                        *canon_directory_size_out = length;
-                    }
-                }
-                
-                WIN32_FIND_DATA find_data;
-                HANDLE search = FindFirstFile(c_str_dir, &find_data);
-                
-                if (search != INVALID_HANDLE_VALUE){            
-                    i32 character_count = 0;
-                    i32 file_count = 0;
-                    BOOL more_files = true;
-                    do{
-                        if (!match_cs(find_data.cFileName, make_lit_string(".")) &&
-                            !match_cs(find_data.cFileName, make_lit_string(".."))){
-                            ++file_count;
-                            i32 size = 0;
-                            for(;find_data.cFileName[size];++size);
-                            character_count += size + 1;
-                        }
-                        more_files = FindNextFile(search, &find_data);
-                    }while(more_files);
-                    FindClose(search);
+                if (final_length < sizeof(dir_space)){
+                    final_length -= 4;
+                    memmove(filename_16, filename_16+4, final_length*sizeof(*filename_16));
+                    filename_16[final_length] = '\\';
+                    filename_16[final_length+1] = '*';
+                    filename_16[final_length+2] = 0;
                     
-                    i32 required_size = character_count + file_count * sizeof(File_Info);
-                    if (file_list->block_size < required_size){
-                        system_free_memory(file_list->block);
-                        file_list->block = system_get_memory(required_size);
-                        file_list->block_size = required_size;
-                    }
-                    
-                    file_list->infos = (File_Info*)file_list->block;
-                    char *name = (char*)(file_list->infos + file_count);
-                    if (file_list->block != 0){
-                        search = FindFirstFile(c_str_dir, &find_data);
+                    if (canon_directory_out != 0){
+                        umem out_length = utf16_to_utf8_minimal_checking((u8*)canon_directory_out, canon_directory_max-1, filename_16, final_length, &convert_error);
                         
-                        if (search != INVALID_HANDLE_VALUE){
-                            File_Info *info = file_list->infos;
-                            more_files = true;
-                            do{
-                                if (!match_cs(find_data.cFileName, make_lit_string(".")) &&
-                                    !match_cs(find_data.cFileName, make_lit_string(".."))){
-                                    info->folder = (find_data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) != 0;
-                                    info->filename = name;
-                                    
-                                    i32 length = copy_fast_unsafe_cc(name, find_data.cFileName);
-                                    name += length;
-                                    
-                                    info->filename_len = length;
-                                    *name++ = 0;
-                                    String fname = make_string_cap(info->filename, info->filename_len, info->filename_len+1);
-                                    replace_char(&fname, '\\', '/');
-                                    ++info;
-                                }
-                                more_files = FindNextFile(search, &find_data);
-                            }while(more_files);
-                            FindClose(search);
+                        if (!convert_error){
+                            if (canon_directory_out[out_length-1] != '\\'){
+                                canon_directory_out[out_length++] = '\\';
+                            }
+                            canon_directory_out[out_length] = 0;
+                            *canon_directory_size_out = (u32)out_length;
+                        }
+                        else{
+                            u32 length = copy_fast_unsafe_cc(canon_directory_out, directory);
+                            canon_directory_out[length] = 0;
+                            *canon_directory_size_out = length;
+                        }
+                    }
+                    
+                    WIN32_FIND_DATA find_data;
+                    HANDLE search = FindFirstFile((LPWSTR)filename_16, &find_data);
+                    
+                    if (search != INVALID_HANDLE_VALUE){            
+                        u32 character_count = 0;
+                        u32 file_count = 0;
+                        BOOL more_files = true;
+                        do{
+                            if (!(find_data.cFileName[0] == '.' && find_data.cFileName[1] == 0) &&
+                                !(find_data.cFileName[0] == '.' && find_data.cFileName[1] == '.' && find_data.cFileName[2] == 0)){
+                                ++file_count;
+                                u32 size = 0;
+                                for(;find_data.cFileName[size];++size);
+                                character_count += size + 1;
+                            }
+                            more_files = FindNextFile(search, &find_data);
+                        }while(more_files);
+                        FindClose(search);
+                        
+                        u32 required_size = character_count*2 + file_count * sizeof(File_Info);
+                        if (file_list->block_size < (i32)required_size){
+                            system_memory_free(file_list->block, 0);
+                            file_list->block = system_memory_allocate(required_size);
+                            file_list->block_size = required_size;
+                        }
+                        
+                        file_list->infos = (File_Info*)file_list->block;
+                        char *name = (char*)(file_list->infos + file_count);
+                        if (file_list->block != 0){
+                            search = FindFirstFile((LPWSTR)filename_16, &find_data);
                             
-                            file_list->count = file_count;
-                            clear_list = false;
+                            if (search != INVALID_HANDLE_VALUE){
+                                File_Info *info = file_list->infos;
+                                more_files = true;
+                                do{
+                                    if (!(find_data.cFileName[0] == '.' && find_data.cFileName[1] == 0) &&
+                                        !(find_data.cFileName[0] == '.' && find_data.cFileName[1] == '.' && find_data.cFileName[2] == 0)){
+                                        info->folder = (find_data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) != 0;
+                                        info->filename = name;
+                                        
+                                        //u32 length = copy_fast_unsafe_cc(name, find_data.cFileName);
+                                        u32 size = 0;
+                                        for(;find_data.cFileName[size];++size);
+                                        umem length = utf16_to_utf8_minimal_checking(info->filename, remaining_size, file_data.cFileName, size, &convert_error);
+                                        if (!convert_error){
+                                            name += length;
+                                            
+                                            info->filename_len = length;
+                                            *name++ = 0;
+                                            String fname = make_string_cap(info->filename, info->filename_len, info->filename_len+1);
+                                            replace_char(&fname, '\\', '/');
+                                            ++info;
+                                        }
+                                    }
+                                    more_files = FindNextFile(search, &find_data);
+                                }while(more_files);
+                                FindClose(search);
+                                
+                                file_list->count = file_count;
+                                clear_list = false;
+                            }
                         }
                     }
                 }
             }
         }
+        
+        end_temp_memory(temp);
     }
     
     if (clear_list){

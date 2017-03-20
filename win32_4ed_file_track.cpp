@@ -135,7 +135,7 @@ add_listener(File_Track_System *system, Partition *scratch, u8 *filename){
         u16 dir_name[1024];
         internal_utf8_file_to_utf16_parent(dir_name, ArrayCount(dir_name), filename);
         
-        HANDLE dir = CreateFile((LPCWSTR)dir_name, FILE_LIST_DIRECTORY, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, 0, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OVERLAPPED, 0);
+        HANDLE dir = CreateFile((LPWSTR)dir_name, FILE_LIST_DIRECTORY, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, 0, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OVERLAPPED, 0);
         
         if (dir != INVALID_HANDLE_VALUE){
             BY_HANDLE_FILE_INFORMATION dir_info = {0};
@@ -217,7 +217,7 @@ remove_listener(File_Track_System *system, Partition *scratch, u8 *filename){
     u16 dir_name[1024];
     internal_utf8_file_to_utf16_parent(dir_name, ArrayCount(dir_name), filename);
     
-    HANDLE dir = CreateFile((LPCWSTR)dir_name, FILE_LIST_DIRECTORY, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, 0, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OVERLAPPED, 0);
+    HANDLE dir = CreateFile((LPWSTR)dir_name, FILE_LIST_DIRECTORY, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, 0, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OVERLAPPED, 0);
     
     if (dir != INVALID_HANDLE_VALUE){
         BY_HANDLE_FILE_INFORMATION dir_info = {0};
