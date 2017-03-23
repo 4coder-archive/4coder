@@ -12,7 +12,6 @@
 typedef struct{
     u32 id[4];
 } File_Index;
-global_const File_Index null_file_index = {0};
 
 typedef u32 rptr32;
 
@@ -26,7 +25,7 @@ typedef struct {
 global_const File_Track_Entry null_file_track_entry = {0};
 
 typedef struct {
-    umem size;
+    i32 size;
     u32 tracked_count;
     u32 max;
     rptr32 file_table;
@@ -36,6 +35,14 @@ typedef struct DLL_Node {
     struct DLL_Node *next;
     struct DLL_Node *prev;
 } DLL_Node;
+
+
+
+internal File_Index
+zero_file_index(){
+    File_Index a = {0};
+    return(a);
+}
 
 internal i32
 file_hash_is_zero(File_Index a){
@@ -175,18 +182,18 @@ internal_free_slot(File_Track_Tables *tables, File_Track_Entry *entry){
     --tables->tracked_count;
 }
 
-internal b32
-enough_memory_to_init_table(umem table_memory_size){
-    b32 result = (sizeof(File_Track_Tables) + FILE_ENTRY_COST*8 <= table_memory_size);
+internal i32
+enough_memory_to_init_table(i32 table_memory_size){
+    i32 result = (sizeof(File_Track_Tables) + FILE_ENTRY_COST*8 <= table_memory_size);
     return(result);
 }
 
 internal void
-init_table_memory(File_Track_Tables *tables, umem table_memory_size){
+init_table_memory(File_Track_Tables *tables, i32 table_memory_size){
     tables->size = table_memory_size;
     tables->tracked_count = 0;
     
-    u32 max_number_of_entries = (u32)(table_memory_size - sizeof(*tables)) / FILE_ENTRY_COST;
+    i32 max_number_of_entries = (table_memory_size - sizeof(*tables)) / FILE_ENTRY_COST;
     
     tables->file_table = sizeof(*tables);
     tables->max = max_number_of_entries;
@@ -194,7 +201,7 @@ init_table_memory(File_Track_Tables *tables, umem table_memory_size){
 
 internal File_Track_Result
 move_table_memory(File_Track_Tables *original_tables,
-                  void *mem, umem size){
+                  void *mem, i32 size){
     File_Track_Result result = FileTrack_Good;
     
     if (original_tables->size < size){
@@ -205,7 +212,7 @@ move_table_memory(File_Track_Tables *original_tables,
             tables->size = size;
             
             i32 likely_entry_size = FILE_ENTRY_COST;
-            u32 max_number_of_entries = (u32)(size - sizeof(*tables)) / likely_entry_size;
+            i32 max_number_of_entries = (size - sizeof(*tables)) / likely_entry_size;
             
             tables->file_table = sizeof(*tables);
             tables->max = max_number_of_entries;

@@ -323,7 +323,7 @@ get_indentation_marks(Application_Links *app, Partition *part, Buffer_Summary *b
             line_index = line_start;
         }
         
-        uint32_t next_line_start_pos = buffer_get_line_start(app, buffer, line_index+1);
+        int32_t next_line_start_pos = buffer_get_line_start(app, buffer, line_index+1);
         
         switch (token_ptr->type){
             case CPP_TOKEN_BRACKET_OPEN: indent.current_indent += tab_width; break;
@@ -353,8 +353,8 @@ get_indentation_marks(Application_Links *app, Partition *part, Buffer_Summary *b
                 {
                     int32_t previous_indent = indent.previous_line_indent;
                     
-                    uint32_t this_line_start = buffer_get_line_start(app, buffer, line_index);
-                    uint32_t next_line_start = buffer_get_line_start(app, buffer, line_index+1);
+                    int32_t this_line_start = buffer_get_line_start(app, buffer, line_index);
+                    int32_t next_line_start = buffer_get_line_start(app, buffer, line_index+1);
                     
                     bool32 did_special_behavior = false;
                     
@@ -523,9 +523,9 @@ get_indent_lines_whole_tokens(Application_Links *app, Buffer_Summary *buffer, Cp
     int32_t line_end = buffer_get_line_index(app, buffer, end_pos);
     
     for (;line_start > 0;){
-        uint32_t line_start_pos = 0;
+        int32_t line_start_pos = 0;
         Cpp_Token *token = get_first_token_at_line(app, buffer, tokens, line_start, &line_start_pos);
-        if (token != 0 && token->start < line_start_pos){
+        if (token && token->start < line_start_pos){
             line_start = buffer_get_line_index(app, buffer, token->start);
         }
         else{
@@ -534,7 +534,7 @@ get_indent_lines_whole_tokens(Application_Links *app, Buffer_Summary *buffer, Cp
     }
     
     for (;line_end+1 < buffer->line_count;){
-        uint32_t next_line_start_pos = 0;
+        int32_t next_line_start_pos = 0;
         Cpp_Token *token = get_first_token_at_line(app, buffer, tokens, line_end+1, &next_line_start_pos);
         if (token && token->start < next_line_start_pos){
             line_end = buffer_get_line_index(app, buffer, token->start+token->size);

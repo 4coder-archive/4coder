@@ -9,7 +9,10 @@
 
 // TOP
 
-// TODO(allen): Find a new name/classification for this.
+// NOTE(allen): This serves as a list of functions to implement
+// in addition to those in 4ed_system.h  These are not exposed to
+// the application code, but system_shared.cpp
+// rely on the functions listed here.
 
 #if !defined(FRED_SYSTEM_SHARED_H)
 #define FRED_SYSTEM_SHARED_H
@@ -21,24 +24,17 @@ struct File_Data{
 };
 global File_Data null_file_data = {0};
 
+#define Sys_Get_Memory_Sig(name) void* name(i32 size, i32 line_number, char *file_name)
+#define Sys_Free_Memory_Sig(name) void name(void *block)
 #define Sys_File_Can_Be_Made_Sig(name) b32 name(char *filename)
-internal Sys_File_Can_Be_Made_Sig(system_file_can_be_made);
-
 #define Sys_Get_Binary_Path_Sig(name) i32 name(String *out)
+
+internal Sys_Get_Memory_Sig(system_get_memory_);
+internal Sys_Free_Memory_Sig(system_free_memory);
+internal Sys_File_Can_Be_Made_Sig(system_file_can_be_made);
 internal Sys_Get_Binary_Path_Sig(system_get_binary_path);
 
-/////////////////////////////////////
-
-struct Shared_Vars{
-    File_Track_System track;
-    void *track_table;
-    u32 track_table_size;
-    u32 track_node_size;
-    
-    Partition scratch;
-};
-
-global Shared_Vars shared_vars;
+#define system_get_memory(size) system_get_memory_((size), __LINE__, __FILE__)
 
 #endif
 

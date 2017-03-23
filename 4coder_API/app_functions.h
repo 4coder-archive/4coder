@@ -10,9 +10,9 @@ struct Application_Links;
 #define GET_BUFFER_SIG(n) Buffer_Summary n(Application_Links *app, Buffer_ID buffer_id, Access_Flag access)
 #define GET_BUFFER_BY_NAME_SIG(n) Buffer_Summary n(Application_Links *app, char *name, int32_t len, Access_Flag access)
 #define BUFFER_READ_RANGE_SIG(n) bool32 n(Application_Links *app, Buffer_Summary *buffer, int32_t start, int32_t end, char *out)
-#define BUFFER_REPLACE_RANGE_SIG(n) bool32 n(Application_Links *app, Buffer_Summary *buffer, size_t start, size_t end, char *str, size_t len)
+#define BUFFER_REPLACE_RANGE_SIG(n) bool32 n(Application_Links *app, Buffer_Summary *buffer, int32_t start, int32_t end, char *str, int32_t len)
 #define BUFFER_COMPUTE_CURSOR_SIG(n) bool32 n(Application_Links *app, Buffer_Summary *buffer, Buffer_Seek seek, Partial_Cursor *cursor_out)
-#define BUFFER_BATCH_EDIT_SIG(n) bool32 n(Application_Links *app, Buffer_Summary *buffer, char *str, size_t str_len, Buffer_Edit *edits, uint32_t edit_count, Buffer_Batch_Edit_Type type)
+#define BUFFER_BATCH_EDIT_SIG(n) bool32 n(Application_Links *app, Buffer_Summary *buffer, char *str, int32_t str_len, Buffer_Edit *edits, int32_t edit_count, Buffer_Batch_Edit_Type type)
 #define BUFFER_ADD_MARKERS_SIG(n) Marker_Handle n(Application_Links *app, Buffer_Summary *buffer, uint32_t marker_count)
 #define BUFFER_SET_MARKERS_SIG(n) bool32 n(Application_Links *app, Buffer_Summary *buffer, Marker_Handle marker, uint32_t first_marker_index, uint32_t marker_count, Marker *source_markers)
 #define BUFFER_GET_MARKERS_SIG(n) bool32 n(Application_Links *app, Buffer_Summary *buffer, Marker_Handle marker, uint32_t first_marker_index, uint32_t marker_count, Marker *markers_out)
@@ -60,9 +60,9 @@ struct Application_Links;
 #define GET_FILE_LIST_SIG(n) File_List n(Application_Links *app, char *dir, int32_t len)
 #define FREE_FILE_LIST_SIG(n) void n(Application_Links *app, File_List list)
 #define SET_GUI_UP_DOWN_KEYS_SIG(n) void n(Application_Links *app, int16_t up_key, int16_t down_key)
-#define MEMORY_ALLOCATE_SIG(n) void* n(Application_Links *app, size_t size)
-#define MEMORY_SET_PROTECTION_SIG(n) bool32 n(Application_Links *app, void *ptr, size_t size, Memory_Protect_Flags flags)
-#define MEMORY_FREE_SIG(n) void n(Application_Links *app, void *ptr, size_t size)
+#define MEMORY_ALLOCATE_SIG(n) void* n(Application_Links *app, int32_t size)
+#define MEMORY_SET_PROTECTION_SIG(n) bool32 n(Application_Links *app, void *ptr, int32_t size, Memory_Protect_Flags flags)
+#define MEMORY_FREE_SIG(n) void n(Application_Links *app, void *ptr, int32_t size)
 #define FILE_EXISTS_SIG(n) bool32 n(Application_Links *app, char *filename, int32_t len)
 #define DIRECTORY_CD_SIG(n) bool32 n(Application_Links *app, char *dir, int32_t *len, int32_t capacity, char *rel_path, int32_t rel_len)
 #define GET_4ED_PATH_SIG(n) int32_t n(Application_Links *app, char *out, int32_t capacity)
@@ -378,9 +378,9 @@ static inline void get_buffer_next(Application_Links *app, Buffer_Summary *buffe
 static inline Buffer_Summary get_buffer(Application_Links *app, Buffer_ID buffer_id, Access_Flag access){return(app->get_buffer(app, buffer_id, access));}
 static inline Buffer_Summary get_buffer_by_name(Application_Links *app, char *name, int32_t len, Access_Flag access){return(app->get_buffer_by_name(app, name, len, access));}
 static inline bool32 buffer_read_range(Application_Links *app, Buffer_Summary *buffer, int32_t start, int32_t end, char *out){return(app->buffer_read_range(app, buffer, start, end, out));}
-static inline bool32 buffer_replace_range(Application_Links *app, Buffer_Summary *buffer, size_t start, size_t end, char *str, size_t len){return(app->buffer_replace_range(app, buffer, start, end, str, len));}
+static inline bool32 buffer_replace_range(Application_Links *app, Buffer_Summary *buffer, int32_t start, int32_t end, char *str, int32_t len){return(app->buffer_replace_range(app, buffer, start, end, str, len));}
 static inline bool32 buffer_compute_cursor(Application_Links *app, Buffer_Summary *buffer, Buffer_Seek seek, Partial_Cursor *cursor_out){return(app->buffer_compute_cursor(app, buffer, seek, cursor_out));}
-static inline bool32 buffer_batch_edit(Application_Links *app, Buffer_Summary *buffer, char *str, size_t str_len, Buffer_Edit *edits, uint32_t edit_count, Buffer_Batch_Edit_Type type){return(app->buffer_batch_edit(app, buffer, str, str_len, edits, edit_count, type));}
+static inline bool32 buffer_batch_edit(Application_Links *app, Buffer_Summary *buffer, char *str, int32_t str_len, Buffer_Edit *edits, int32_t edit_count, Buffer_Batch_Edit_Type type){return(app->buffer_batch_edit(app, buffer, str, str_len, edits, edit_count, type));}
 static inline Marker_Handle buffer_add_markers(Application_Links *app, Buffer_Summary *buffer, uint32_t marker_count){return(app->buffer_add_markers(app, buffer, marker_count));}
 static inline bool32 buffer_set_markers(Application_Links *app, Buffer_Summary *buffer, Marker_Handle marker, uint32_t first_marker_index, uint32_t marker_count, Marker *source_markers){return(app->buffer_set_markers(app, buffer, marker, first_marker_index, marker_count, source_markers));}
 static inline bool32 buffer_get_markers(Application_Links *app, Buffer_Summary *buffer, Marker_Handle marker, uint32_t first_marker_index, uint32_t marker_count, Marker *markers_out){return(app->buffer_get_markers(app, buffer, marker, first_marker_index, marker_count, markers_out));}
@@ -428,9 +428,9 @@ static inline int32_t directory_get_hot(Application_Links *app, char *out, int32
 static inline File_List get_file_list(Application_Links *app, char *dir, int32_t len){return(app->get_file_list(app, dir, len));}
 static inline void free_file_list(Application_Links *app, File_List list){(app->free_file_list(app, list));}
 static inline void set_gui_up_down_keys(Application_Links *app, int16_t up_key, int16_t down_key){(app->set_gui_up_down_keys(app, up_key, down_key));}
-static inline void* memory_allocate(Application_Links *app, size_t size){return(app->memory_allocate(app, size));}
-static inline bool32 memory_set_protection(Application_Links *app, void *ptr, size_t size, Memory_Protect_Flags flags){return(app->memory_set_protection(app, ptr, size, flags));}
-static inline void memory_free(Application_Links *app, void *ptr, size_t size){(app->memory_free(app, ptr, size));}
+static inline void* memory_allocate(Application_Links *app, int32_t size){return(app->memory_allocate(app, size));}
+static inline bool32 memory_set_protection(Application_Links *app, void *ptr, int32_t size, Memory_Protect_Flags flags){return(app->memory_set_protection(app, ptr, size, flags));}
+static inline void memory_free(Application_Links *app, void *ptr, int32_t size){(app->memory_free(app, ptr, size));}
 static inline bool32 file_exists(Application_Links *app, char *filename, int32_t len){return(app->file_exists(app, filename, len));}
 static inline bool32 directory_cd(Application_Links *app, char *dir, int32_t *len, int32_t capacity, char *rel_path, int32_t rel_len){return(app->directory_cd(app, dir, len, capacity, rel_path, rel_len));}
 static inline int32_t get_4ed_path(Application_Links *app, char *out, int32_t capacity){return(app->get_4ed_path(app, out, capacity));}
@@ -450,9 +450,9 @@ static inline void get_buffer_next(Application_Links *app, Buffer_Summary *buffe
 static inline Buffer_Summary get_buffer(Application_Links *app, Buffer_ID buffer_id, Access_Flag access){return(app->get_buffer_(app, buffer_id, access));}
 static inline Buffer_Summary get_buffer_by_name(Application_Links *app, char *name, int32_t len, Access_Flag access){return(app->get_buffer_by_name_(app, name, len, access));}
 static inline bool32 buffer_read_range(Application_Links *app, Buffer_Summary *buffer, int32_t start, int32_t end, char *out){return(app->buffer_read_range_(app, buffer, start, end, out));}
-static inline bool32 buffer_replace_range(Application_Links *app, Buffer_Summary *buffer, size_t start, size_t end, char *str, size_t len){return(app->buffer_replace_range_(app, buffer, start, end, str, len));}
+static inline bool32 buffer_replace_range(Application_Links *app, Buffer_Summary *buffer, int32_t start, int32_t end, char *str, int32_t len){return(app->buffer_replace_range_(app, buffer, start, end, str, len));}
 static inline bool32 buffer_compute_cursor(Application_Links *app, Buffer_Summary *buffer, Buffer_Seek seek, Partial_Cursor *cursor_out){return(app->buffer_compute_cursor_(app, buffer, seek, cursor_out));}
-static inline bool32 buffer_batch_edit(Application_Links *app, Buffer_Summary *buffer, char *str, size_t str_len, Buffer_Edit *edits, uint32_t edit_count, Buffer_Batch_Edit_Type type){return(app->buffer_batch_edit_(app, buffer, str, str_len, edits, edit_count, type));}
+static inline bool32 buffer_batch_edit(Application_Links *app, Buffer_Summary *buffer, char *str, int32_t str_len, Buffer_Edit *edits, int32_t edit_count, Buffer_Batch_Edit_Type type){return(app->buffer_batch_edit_(app, buffer, str, str_len, edits, edit_count, type));}
 static inline Marker_Handle buffer_add_markers(Application_Links *app, Buffer_Summary *buffer, uint32_t marker_count){return(app->buffer_add_markers_(app, buffer, marker_count));}
 static inline bool32 buffer_set_markers(Application_Links *app, Buffer_Summary *buffer, Marker_Handle marker, uint32_t first_marker_index, uint32_t marker_count, Marker *source_markers){return(app->buffer_set_markers_(app, buffer, marker, first_marker_index, marker_count, source_markers));}
 static inline bool32 buffer_get_markers(Application_Links *app, Buffer_Summary *buffer, Marker_Handle marker, uint32_t first_marker_index, uint32_t marker_count, Marker *markers_out){return(app->buffer_get_markers_(app, buffer, marker, first_marker_index, marker_count, markers_out));}
@@ -500,9 +500,9 @@ static inline int32_t directory_get_hot(Application_Links *app, char *out, int32
 static inline File_List get_file_list(Application_Links *app, char *dir, int32_t len){return(app->get_file_list_(app, dir, len));}
 static inline void free_file_list(Application_Links *app, File_List list){(app->free_file_list_(app, list));}
 static inline void set_gui_up_down_keys(Application_Links *app, int16_t up_key, int16_t down_key){(app->set_gui_up_down_keys_(app, up_key, down_key));}
-static inline void* memory_allocate(Application_Links *app, size_t size){return(app->memory_allocate_(app, size));}
-static inline bool32 memory_set_protection(Application_Links *app, void *ptr, size_t size, Memory_Protect_Flags flags){return(app->memory_set_protection_(app, ptr, size, flags));}
-static inline void memory_free(Application_Links *app, void *ptr, size_t size){(app->memory_free_(app, ptr, size));}
+static inline void* memory_allocate(Application_Links *app, int32_t size){return(app->memory_allocate_(app, size));}
+static inline bool32 memory_set_protection(Application_Links *app, void *ptr, int32_t size, Memory_Protect_Flags flags){return(app->memory_set_protection_(app, ptr, size, flags));}
+static inline void memory_free(Application_Links *app, void *ptr, int32_t size){(app->memory_free_(app, ptr, size));}
 static inline bool32 file_exists(Application_Links *app, char *filename, int32_t len){return(app->file_exists_(app, filename, len));}
 static inline bool32 directory_cd(Application_Links *app, char *dir, int32_t *len, int32_t capacity, char *rel_path, int32_t rel_len){return(app->directory_cd_(app, dir, len, capacity, rel_path, rel_len));}
 static inline int32_t get_4ed_path(Application_Links *app, char *out, int32_t capacity){return(app->get_4ed_path_(app, out, capacity));}

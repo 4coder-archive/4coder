@@ -87,10 +87,6 @@ inline u32 l_round_up_u32(u32 x, u32 b){
     return( ((x)+(b)-1) - (((x)+(b)-1)%(b)) );
 }
 
-inline umem l_round_up_umem(umem x, umem b){
-    return( ((x)+(b)-1) - (((x)+(b)-1)%(b)) );
-}
-
 inline u32 round_up_pot_u32(u32 x){
     --x;
     x |= x >> 1;

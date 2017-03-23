@@ -322,16 +322,16 @@ struct Config_Item{
 struct Config_Array_Reader{
     Cpp_Token_Array array;
     char *mem;
-    uint32_t i;
-    uint32_t val_array_end;
+    int32_t i;
+    int32_t val_array_end;
     bool32 good;
 };
 
 static Cpp_Token
-read_config_token(Cpp_Token_Array array, uint32_t *i_ptr){
+read_config_token(Cpp_Token_Array array, int32_t *i_ptr){
     Cpp_Token token = {0};
     
-    uint32_t i = *i_ptr;
+    int32_t i = *i_ptr;
     
     for (; i < array.count; ++i){
         Cpp_Token comment_token = array.tokens[i];
@@ -350,10 +350,10 @@ read_config_token(Cpp_Token_Array array, uint32_t *i_ptr){
 }
 
 static Config_Line
-read_config_line(Cpp_Token_Array array, uint32_t *i_ptr){
+read_config_line(Cpp_Token_Array array, int32_t *i_ptr){
     Config_Line config_line = {0};
     
-    uint32_t i = *i_ptr;
+    int32_t i = *i_ptr;
     
     config_line.id_token = read_config_token(array, &i);
     if (config_line.id_token.type == CPP_TOKEN_IDENTIFIER){
@@ -723,7 +723,7 @@ process_config_file(Application_Links *app){
                 int32_t new_wrap_width = default_wrap_width;
                 int32_t new_min_base_width = default_min_base_width;
                 
-                for (uint32_t i = 0; i < array.count; ++i){
+                for (int32_t i = 0; i < array.count; ++i){
                     Config_Line config_line = read_config_line(array, &i);
                     
                     if (config_line.read_success){

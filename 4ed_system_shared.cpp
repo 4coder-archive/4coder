@@ -18,6 +18,17 @@
 // Standard implementation of file system stuff based on the file track layer.
 //
 
+struct Shared_Vars{
+    File_Track_System track;
+    void *track_table;
+    u32 track_table_size;
+    u32 track_node_size;
+    
+    Partition scratch;
+};
+
+global Shared_Vars shared_vars;
+
 internal void
 init_shared_vars(){
     umem scratch_size = KB(128);

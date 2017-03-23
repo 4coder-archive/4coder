@@ -464,7 +464,7 @@ buffer_seek_alphanumeric_or_camel_left(Application_Links *app, Buffer_Summary *b
 }
 
 static int32_t
-seek_token_left(Cpp_Token_Array *tokens, uint32_t pos){
+seek_token_left(Cpp_Token_Array *tokens, int32_t pos){
     Cpp_Get_Token_Result get = cpp_get_token(*tokens, pos);
     if (get.token_index == -1){
         get.token_index = 0;
@@ -479,18 +479,16 @@ seek_token_left(Cpp_Token_Array *tokens, uint32_t pos){
 }
 
 static int32_t
-seek_token_right(Cpp_Token_Array *tokens, uint32_t pos){
+seek_token_right(Cpp_Token_Array *tokens, int32_t pos){
     Cpp_Get_Token_Result get = cpp_get_token(*tokens, pos);
     if (get.in_whitespace){
         ++get.token_index;
     }
-    uint32_t target_token_index = (uint32_t)(get.token_index);
-    
-    if (target_token_index >= tokens->count){
-        target_token_index = tokens->count-1;
+    if (get.token_index >= tokens->count){
+        get.token_index = tokens->count-1;
     }
     
-    Cpp_Token *token = tokens->tokens + target_token_index;
+    Cpp_Token *token = tokens->tokens + get.token_index;
     return(token->start + token->size);
 }
 
@@ -968,22 +966,21 @@ buffer_get_line_index(Application_Links *app, Buffer_Summary *buffer, int32_t po
 }
 
 static Cpp_Token*
-get_first_token_at_line(Application_Links *app, Buffer_Summary *buffer, Cpp_Token_Array tokens, int32_t line, uint32_t *line_start_out = 0){
+get_first_token_at_line(Application_Links *app, Buffer_Summary *buffer, Cpp_Token_Array tokens, int32_t line, int32_t *line_start_out = 0){
     int32_t line_start = buffer_get_line_start(app, buffer, line);
-    Cpp_Get_Token_Result get = cpp_get_token(tokens, line_start);
+    Cpp_Get_Token_Result get_token = cpp_get_token(tokens, line_start);
     
-    if (get.in_whitespace){
-        get.token_index += 1;
+    if (get_token.in_whitespace){
+        get_token.token_index += 1;
     }
-    uint32_t target_token_index = (uint32_t)(get.token_index);
     
     if (line_start_out){
         *line_start_out = line_start;
     }
     
     Cpp_Token *result = 0;
-    if (target_token_index < tokens.count){
-        result = tokens.tokens + target_token_index;
+    if (get_token.token_index < tokens.count){
+        result = tokens.tokens + get_token.token_index;
     }
     
     return(result);

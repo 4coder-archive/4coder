@@ -283,12 +283,39 @@ Sys_Memory_Free_Sig(system_memory_free){
     VirtualFree(ptr, 0, MEM_RELEASE);
 }
 
-#define Win32GetMemory(size) system_memory_allocate(size)
-#define Win32FreeMemory(ptr) system_memory_free(ptr)
+// TODO(allen): delete
+internal
+Sys_Get_Memory_Sig(system_get_memory_){
+    void *ptr = 0;
+    if (size > 0){
+        ptr = VirtualAlloc(0, size, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
+    }
+    return(ptr);
+}
+
+// TODO(allen): delete
+internal
+Sys_Free_Memory_Sig(system_free_memory){
+    if (block){
+        VirtualFree(block, 0, MEM_RELEASE);
+    }
+}
+
+#define Win32GetMemory(size) system_get_memory_(size, __LINE__, __FILE__)
+#define Win32FreeMemory(ptr) system_free_memory(ptr)
 
 #define Win32ScratchPartition sysshared_scratch_partition
 #define Win32ScratchPartitionGrow sysshared_partition_grow
 #define Win32ScratchPartitionDouble sysshared_partition_double
+
+#if 0
+#if FRED_INTERNAL
+internal void
+INTERNAL_system_debug_message(char *message){
+    OutputDebugStringW(message);
+}
+#endif
+#endif
 
 
 //
@@ -380,8 +407,8 @@ JobThreadProc(LPVOID lpParameter){
 
 internal void
 initialize_unbounded_queue(Unbounded_Work_Queue *source_queue){
-    u32 max = 512;
-    source_queue->jobs = (Full_Job_Data*)system_memory_allocate(max*sizeof(Full_Job_Data));
+    i32 max = 512;
+    source_queue->jobs = (Full_Job_Data*)system_get_memory(max*sizeof(Full_Job_Data));
     source_queue->count = 0;
     source_queue->max = max;
     source_queue->skip = 0;
@@ -493,11 +520,11 @@ Sys_Post_Job_Sig(system_post_job){
     while (queue->count >= queue->max){
         i32 new_max = queue->max*2;
         Full_Job_Data *new_jobs = (Full_Job_Data*)
-            system_memory_allocate(new_max*sizeof(Full_Job_Data));
+            system_get_memory(new_max*sizeof(Full_Job_Data));
         
         memcpy(new_jobs, queue->jobs, queue->count);
         
-        system_memory_free(queue->jobs, 0);
+        system_free_memory(queue->jobs);
         
         queue->jobs = new_jobs;
         queue->max = new_max;
@@ -587,11 +614,11 @@ Sys_Grow_Thread_Memory_Sig(system_grow_thread_memory){
     void *old_data = memory->data;
     i32 old_size = memory->size;
     i32 new_size = l_round_up_i32(memory->size*2, KB(4));
-    memory->data = system_memory_allocate(new_size);
+    memory->data = system_get_memory(new_size);
     memory->size = new_size;
     if (old_data){
         memcpy(memory->data, old_data, old_size);
-        system_memory_free(old_data, 0);
+        system_free_memory(old_data);
     }
     system_release_lock(CANCEL_LOCK0 + memory->id - 1);
 }
@@ -717,29 +744,15 @@ Sys_Yield_Coroutine_Sig(system_yield_coroutine){
 
 internal
 Sys_File_Can_Be_Made_Sig(system_file_can_be_made){
-    b32 result = false;
+    HANDLE file = CreateFile((char*)filename, FILE_APPEND_DATA, 0, 0, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, 0);
     
-    Partition *scratch = &shared_vars.scratch;
-    Temp_Memory temp = begin_temp_memory(scratch);
-    umem len = str_size(filename);
-    umem max = (len+1)*2;
-    u16 *filename_16 = push_array(scratch, u16, max);
-    
-    b32 error = false;
-    utf8_to_utf16_minimal_checking(filename_16, max, filename, len, &error);
-    
-    if (!error){
-        HANDLE file = CreateFile((LPCWSTR)filename_16, FILE_APPEND_DATA, 0, 0, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, 0);
-        
-        if (file != 0 && file != INVALID_HANDLE_VALUE){
-            result = true;
-            CloseHandle(file);
-        }
+    if (!file || file == INVALID_HANDLE_VALUE){
+        return 0;
     }
     
-    end_temp_memory(temp);
+    CloseHandle(file);
     
-    return(result);
+    return(1);
 }
 
 internal
@@ -1372,6 +1385,8 @@ Sys_Send_Exit_Signal_Sig(system_send_exit_signal){
 }
 
 #include "4ed_system_shared.cpp"
+
+#include "win32_4ed_fonts.cpp"
 
 //
 // Linkage to Custom and Application
@@ -2453,9 +2468,6 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
 }
 
 #include "font/4coder_font_static_functions.cpp"
-
-#include "win32_4ed_fonts.cpp"
-//#include "win32_4ed_file_track.cpp"
 
 #if 0
 // NOTE(allen): In case I want to switch back to a console

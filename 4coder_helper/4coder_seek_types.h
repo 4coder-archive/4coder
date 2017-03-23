@@ -13,7 +13,7 @@
 #define FRED_BUFFER_TYPES_H
 
 static Buffer_Seek
-seek_pos(size_t pos){
+seek_pos(int32_t pos){
     Buffer_Seek result;
     result.type = buffer_seek_pos;
     result.pos = pos;
@@ -21,7 +21,7 @@ seek_pos(size_t pos){
 }
 
 static Buffer_Seek
-seek_character_pos(size_t pos){
+seek_character_pos(int32_t pos){
     Buffer_Seek result;
     result.type = buffer_seek_character_pos;
     result.pos = pos;
@@ -29,7 +29,7 @@ seek_character_pos(size_t pos){
 }
 
 static Buffer_Seek
-seek_wrapped_xy(float x, float y, bool32 round_down){
+seek_wrapped_xy(float x, float y, int32_t round_down){
     Buffer_Seek result;
     result.type = buffer_seek_wrapped_xy;
     result.x = x;
@@ -39,7 +39,7 @@ seek_wrapped_xy(float x, float y, bool32 round_down){
 }
 
 static Buffer_Seek
-seek_unwrapped_xy(float x, float y, bool32 round_down){
+seek_unwrapped_xy(float x, float y, int32_t round_down){
     Buffer_Seek result;
     result.type = buffer_seek_unwrapped_xy;
     result.x = x;
@@ -59,7 +59,7 @@ seek_xy(float x, float y, bool32 round_down, bool32 unwrapped){
 }
 
 static Buffer_Seek
-seek_line_char(size_t line, size_t character){
+seek_line_char(int32_t line, int32_t character){
     Buffer_Seek result;
     result.type = buffer_seek_line_char;
     result.line = line;
