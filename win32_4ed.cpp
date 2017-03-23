@@ -284,7 +284,7 @@ Sys_Memory_Free_Sig(system_memory_free){
 }
 
 #define Win32GetMemory(size) system_memory_allocate(size)
-#define Win32FreeMemory(ptr) system_memory_free(ptr, 0)
+#define Win32FreeMemory(ptr) system_memory_free(ptr)
 
 #define Win32ScratchPartition sysshared_scratch_partition
 #define Win32ScratchPartitionGrow sysshared_partition_grow
@@ -721,17 +721,14 @@ Sys_File_Can_Be_Made_Sig(system_file_can_be_made){
     
     Partition *scratch = &shared_vars.scratch;
     Temp_Memory temp = begin_temp_memory(scratch);
-    u32 len = str_size(filename);
-    u32 filename_16_max = (len+1)*2;
-    u16 *filename_16 = push_array(scratch, u16, filename_16_max);
+    umem len = str_size(filename);
+    umem max = (len+1)*2;
+    u16 *filename_16 = push_array(scratch, u16, max);
     
-    b32 convert_error = false;
-    u32 filename_16_len = (u32)utf8_to_utf16_minimal_checking(filename_16, filename_16_max-1, (u8*)filename, len, &convert_error);
-    filename_16[filename_16_len] = 0;;
+    b32 error = false;
+    utf8_to_utf16_minimal_checking(filename_16, max, (u8*)filename, len, &error);
     
-    if (!convert_error){
-        filename_16[filename_16_len] = 0;
-        
+    if (!error){
         HANDLE file = CreateFile((LPCWSTR)filename_16, FILE_APPEND_DATA, 0, 0, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, 0);
         
         if (file != 0 && file != INVALID_HANDLE_VALUE){
@@ -816,14 +813,13 @@ Sys_Set_File_List_Sig(system_set_file_list){
                         
                         u32 required_size = character_count*2 + file_count * sizeof(File_Info);
                         if (file_list->block_size < (i32)required_size){
-                            Win32FreeMemory(file_list->block);
+                            system_memory_free(file_list->block, 0);
                             file_list->block = system_memory_allocate(required_size);
                             file_list->block_size = required_size;
                         }
                         
-                        umem remaining_size = required_size;
                         file_list->infos = (File_Info*)file_list->block;
-                        u8 *name = (u8*)(file_list->infos + file_count);
+                        char *name = (char*)(file_list->infos + file_count);
                         if (file_list->block != 0){
                             search = FindFirstFile((LPWSTR)filename_16, &find_data);
                             
@@ -836,15 +832,14 @@ Sys_Set_File_List_Sig(system_set_file_list){
                                         info->folder = (find_data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) != 0;
                                         info->filename = name;
                                         
+                                        //u32 length = copy_fast_unsafe_cc(name, find_data.cFileName);
                                         u32 size = 0;
                                         for(;find_data.cFileName[size];++size);
-                                        umem length = utf16_to_utf8_minimal_checking(info->filename, remaining_size, (u16*)find_data.cFileName, size, &convert_error);
-                                        
+                                        umem length = utf16_to_utf8_minimal_checking(info->filename, remaining_size, file_data.cFileName, size, &convert_error);
                                         if (!convert_error){
                                             name += length;
-                                            remaining_size += length;
                                             
-                                            info->filename_len = (u32)length;
+                                            info->filename_len = length;
                                             *name++ = 0;
                                             String fname = make_string_cap(info->filename, info->filename_len, info->filename_len+1);
                                             replace_char(&fname, '\\', '/');
@@ -877,54 +872,43 @@ Sys_Set_File_List_Sig(system_set_file_list){
 }
 
 internal u32
-win32_canonical_name(u16 *src, u32 len, u16 *dst, u32 max){
+win32_canonical_ascii_name(char *src, u32 len, char *dst, u32 max){
     u32 result = 0;
     
-    if (len >= 2 && ((src[0] >= 'a' && src[0] <= 'z') || (src[0] >= 'A' && src[0] <= 'Z')) && src[1] == ':'){
+    char src_space[MAX_PATH + 32];
+    if (len < sizeof(src_space) && len >= 2 && ((src[0] >= 'a' && src[0] <= 'z') || (src[0] >= 'A' && src[0] <= 'Z')) && src[1] == ':'){
+        memcpy(src_space, src, len);
+        src_space[len] = 0;
         
-        HANDLE file = CreateFile((LPWSTR)src, GENERIC_READ, 0, 0, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
+        HANDLE file = CreateFile(src_space, GENERIC_READ, 0, 0, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
         
         if (file != INVALID_HANDLE_VALUE){
-            DWORD final_length = GetFinalPathNameByHandle(file, (LPWSTR)dst, max, 0);
+            DWORD final_length = GetFinalPathNameByHandle(file, dst, max, 0);
             
             if (final_length < max && final_length >= 4){
                 if (dst[final_length-1] == 0){
                     --final_length;
                 }
                 final_length -= 4;
-                memmove(dst, dst+4, final_length*sizeof(u16));
+                memmove(dst, dst+4, final_length);
                 dst[final_length] = 0;
-                result = (u32)final_length;
+                result = final_length;
             }
             
             CloseHandle(file);
         }
         else{
-            //String src_str = make_string(src, len);
-            //String path_str = path_of_directory(src_str);
-            //String front_str = front_of_directory(src_str);
+            String src_str = make_string(src, len);
+            String path_str = path_of_directory(src_str);
+            String front_str = front_of_directory(src_str);
             
-            Partition *scratch = &shared_vars.scratch;
-            Temp_Memory temp = begin_temp_memory(scratch);
+            memcpy(src_space, path_str.str, path_str.size);
+            src_space[path_str.size] = 0;
             
-            u16 *path_src = push_array(scratch, u16, len+1);
-            memcpy(path_src, src, len*sizeof(u16));
-            u32 path_end = len;
-            for (u32 j = len; j > 0; --j){
-                if (path_src[j] == '/' || path_src[j] == '\\'){
-                    path_end = j+1;
-                    break;
-                }
-            }
-            path_src[path_end] = 0;
-            
-            u32 front_size = len - path_end;
-            u16 *front_src = path_src + path_end;
-            
-            HANDLE dir = CreateFile((LPWSTR)src, FILE_LIST_DIRECTORY, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, 0, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OVERLAPPED, 0);
+            HANDLE dir = CreateFile(src_space, FILE_LIST_DIRECTORY, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, 0, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OVERLAPPED, 0);
             
             if (dir != INVALID_HANDLE_VALUE){
-                DWORD final_length = GetFinalPathNameByHandle(dir, (LPWSTR)dst, max, 0);
+                DWORD final_length = GetFinalPathNameByHandle(dir, dst, max, 0);
                 
                 if (final_length < max && final_length >= 4){
                     if (dst[final_length-1] == 0){
@@ -933,18 +917,15 @@ win32_canonical_name(u16 *src, u32 len, u16 *dst, u32 max){
                     final_length -= 4;
                     memmove(dst, dst+4, final_length);
                     dst[final_length++] = '\\';
-                    memcpy(dst + final_length, front_src, front_size);
-                    final_length += front_size;
+                    memcpy(dst + final_length, front_str.str, front_str.size);
+                    final_length += front_str.size;
                     dst[final_length] = 0;
-                    result = (u32)final_length;
+                    result = final_length;
                 }
                 
                 CloseHandle(dir);
             }
-            
-            end_temp_memory(temp);
         }
-        
     }
     
     return(result);
@@ -952,57 +933,20 @@ win32_canonical_name(u16 *src, u32 len, u16 *dst, u32 max){
 
 internal
 Sys_Get_Canonical_Sig(system_get_canonical){
-    u32 result = 0;
-    
-    Partition *scratch = &shared_vars.scratch;
-    Temp_Memory temp = begin_temp_memory(scratch);
-    
-    u32 src_16_max = (len+1)*2;
-    u16 *src_16 = push_array(scratch, u16, src_16_max);
-    
-    u32 dst_16_max = (max+1)*2;
-    u16 *dst_16 = push_array(scratch, u16, dst_16_max);
-    
-    b32 convert_error = false;
-    u32 src_16_len = (u32)utf8_to_utf16_minimal_checking(src_16, src_16_max-1, src, len, &convert_error);
-    src_16[src_16_len] = 0;
-    
-    if (!convert_error){
-        u32 dst_16_len = win32_canonical_name(src_16, src_16_len, dst_16, dst_16_max);
-        
-        result = (u32)utf16_to_utf8_minimal_checking(dst, max-1, dst_16, dst_16_len, &convert_error);
-        if (!convert_error){
-            dst[result] = 0;
-        }
-        else{
-            result = 0;
-        }
-    }
-    
-    end_temp_memory(temp);
+    u32 result = win32_canonical_ascii_name(filename, len, buffer, max);
     return(result);
 }
 
 internal
 Sys_Load_Handle_Sig(system_load_handle){
-    b32 result = false;
+    b32 result = 0;
+    HANDLE file = CreateFile(filename, GENERIC_READ, 0, 0, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
     
-    Partition *scratch = &shared_vars.scratch;
-    Temp_Memory temp = begin_temp_memory(scratch);
-    
-    u32 len = 0;
-    for (;filename[len];++len);
-    
-    u32 filename_16_max = (len+1)*2;
-    u16 *filename_16 = push_array(scratch, u16, filename_16_max);
-    
-    HANDLE file = CreateFile((LPWSTR)filename_16, GENERIC_READ, 0, 0, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
     if (file != INVALID_HANDLE_VALUE){
         *(HANDLE*)handle_out = file;
-        result = true;
+        result = 1;
     }
     
-    end_temp_memory(temp);
     return(result);
 }
 
@@ -1039,52 +983,36 @@ Sys_Load_File_Sig(system_load_file){
 
 internal
 Sys_Load_Close_Sig(system_load_close){
-    b32 result = false;
+    b32 result = 0;
     HANDLE file = *(HANDLE*)(&handle);
     if (CloseHandle(file)){
-        result = true;
+        result = 1;
     }
     return(result);
 }
 
 internal
 Sys_Save_File_Sig(system_save_file){
-    b32 result = false;
-    Partition *scratch = &shared_vars.scratch;
-    Temp_Memory temp = begin_temp_memory(scratch);
+    b32 result = 0;
+    HANDLE file = CreateFile(filename, GENERIC_WRITE, 0, 0, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, 0);
     
-    u32 len = 0;
-    for (;filename[len];++len);
-    
-    u32 filename_16_max = (len+1)*2;
-    u16 *filename_16 = push_array(scratch, u16, filename_16_max);
-    
-    b32 convert_error = false;
-    u32 filename_16_len = (u32)utf8_to_utf16_minimal_checking(filename_16, filename_16_max-1, (u8*)filename, len, &convert_error);
-    
-    if (!convert_error){
-        filename_16[filename_16_len] = 0;
+    if (file != INVALID_HANDLE_VALUE){
+        DWORD written_total = 0;
+        DWORD written_size = 0;
         
-        HANDLE file = CreateFile((LPWSTR)filename_16, GENERIC_WRITE, 0, 0, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, 0);
-        if (file != INVALID_HANDLE_VALUE){
-            DWORD written_total = 0;
-            DWORD written_size = 0;
-            
-            result = true;
-            
-            while (written_total < size){
-                if (!WriteFile(file, buffer + written_total, size - written_total, &written_size, 0)){
-                    result = false;
-                    break;
-                }
-                written_total += written_size;
+        result = 1;
+        
+        while (written_total < size){
+            if (!WriteFile(file, buffer + written_total, size - written_total, &written_size, 0)){
+                result = 0;
+                break;
             }
-            
-            CloseHandle(file);
+            written_total += written_size;
         }
+        
+        CloseHandle(file);
     }
     
-    end_temp_memory(temp);
     return(result);
 }
 
@@ -1095,54 +1023,21 @@ Sys_Now_Time_Sig(system_now_time){
 }
 
 internal b32
-Win32DirectoryExists(u8 *path){
-    b32 result = false;
-    Partition *scratch = &shared_vars.scratch;
-    Temp_Memory temp = begin_temp_memory(scratch);
-    
-    u32 len = 0;
-    for(;path[len];++len);
-    
-    u32 path_16_max = (len+1)*2;
-    u16 *path_16 = push_array(scratch, u16, path_16_max);
-    
-    b32 convert_error = false;
-    u32 path_16_len = (u32)utf8_to_utf16_minimal_checking(path_16, path_16_max-1, path, len, &convert_error);
-    
-    if (!convert_error){
-        path_16[path_16_len] = 0;
-        
-        DWORD attrib = GetFileAttributes((LPWSTR)path_16);
-        result = (attrib != INVALID_FILE_ATTRIBUTES && (attrib & FILE_ATTRIBUTE_DIRECTORY));
-    }
-    
-    end_temp_memory(temp);
-    return(result);
+Win32DirectoryExists(char *path){
+    DWORD attrib = GetFileAttributes(path);
+    return (attrib != INVALID_FILE_ATTRIBUTES && (attrib & FILE_ATTRIBUTE_DIRECTORY));
 }
 
 internal
 Sys_Get_Binary_Path_Sig(system_get_binary_path){
     i32 result = 0;
-    
-    Partition *scratch = &shared_vars.scratch;
-    Temp_Memory temp = begin_temp_memory(scratch);
-    
-    u32 filename_16_max = (out->memory_size+1)*2;
-    u16 *filename_16 = push_array(scratch, u16, filename_16_max);
-    
-    u32 length_16 = GetModuleFileName(0, (LPWSTR)filename_16, filename_16_max);
-    
-    b32 convert_error = false;
-    u32 size = (u32)utf16_to_utf8_minimal_checking((u8*)out->str, out->memory_size-1, filename_16, length_16, &convert_error);
-    
-    if (!convert_error){
+    i32 size = GetModuleFileName(0, out->str, out->memory_size);
+    if (size < out->memory_size-1){
         out->size = size;
         remove_last_folder(out);
         terminate_with_null(out);
         result = out->size;
     }
-    
-    end_temp_memory(temp);
     return(result);
 }
 
@@ -1158,7 +1053,8 @@ Sys_File_Exists_Sig(system_file_exists){
         copy_ss(&full_filename, make_string(filename, len));
         terminate_with_null(&full_filename);
         
-        file = CreateFile(full_filename.str, GENERIC_READ, 0, 0, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
+        file = CreateFile(full_filename.str, GENERIC_READ, 0, 0,
+                          OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
         
         if (file != INVALID_HANDLE_VALUE){
             CloseHandle(file);

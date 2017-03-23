@@ -31,7 +31,7 @@ handle_equal(Plat_Handle a, Plat_Handle b){
 #define Sys_Set_File_List_Sig(name) void name(File_List *file_list, char *directory, char *canon_directory_out, u32 *canon_directory_size_out, u32 canon_directory_max)
 typedef Sys_Set_File_List_Sig(System_Set_File_List);
 
-#define Sys_Get_Canonical_Sig(name) u32 name(u8 *src, u32 len, u8 *dst, u32 max)
+#define Sys_Get_Canonical_Sig(name) u32 name(char *filename, u32 len, char *buffer, u32 max)
 typedef Sys_Get_Canonical_Sig(System_Get_Canonical);
 
 // file load/save
@@ -47,7 +47,7 @@ typedef Sys_Load_File_Sig(System_Load_File);
 #define Sys_Load_Close_Sig(name) b32 name(Plat_Handle handle)
 typedef Sys_Load_Close_Sig(System_Load_Close);
 
-#define Sys_Save_File_Sig(name) b32 name(char *filename, char *buffer, u32 size)
+#define Sys_Save_File_Sig(name) b32 name(char *filename, char *buffer, umem size)
 typedef Sys_Save_File_Sig(System_Save_File);
 
 // file changes
@@ -136,8 +136,8 @@ enum Thread_Group_ID{
 
 struct Thread_Memory{
     void *data;
-    u32 size;
-    u32 id;
+    i32 size;
+    i32 id;
 };
 inline Thread_Memory
 thread_memory_zero(){

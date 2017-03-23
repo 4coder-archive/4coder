@@ -1409,8 +1409,11 @@ get_bindings(void *data, int32_t size){
     bind(context, 'k', MDFR_ALT, kill_rect);
     bind(context, ' ', MDFR_ALT | MDFR_CTRL, multi_line_edit);
     
-    bind(context, key_page_up, MDFR_ALT, miblo_increment_basic);
-    bind(context, key_page_down, MDFR_ALT, miblo_decrement_basic);
+    bind(context, key_page_up, MDFR_ALT, miblo_increment_time_stamp);
+    bind(context, key_page_down, MDFR_ALT, miblo_decrement_time_stamp);
+    
+    bind(context, key_home, MDFR_ALT, miblo_increment_time_stamp_minute);
+    bind(context, key_end, MDFR_ALT, miblo_decrement_time_stamp_minute);
     
     end_map(context);
     

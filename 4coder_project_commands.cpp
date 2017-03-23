@@ -102,12 +102,12 @@ open_all_files_with_extension_internal(Application_Links *app, String dir, char 
     File_List list = get_file_list(app, dir.str, dir.size);
     int32_t dir_size = dir.size;
     
-    for (uint32_t i = 0; i < list.count; ++i){
+    for (int32_t i = 0; i < list.count; ++i){
         File_Info *info = list.infos + i;
         if (info->folder){
             if (recursive){
                 dir.size = dir_size;
-                append(&dir, (char*)info->filename);
+                append(&dir, info->filename);
                 append(&dir, "/");
                 open_all_files_with_extension_internal(app, dir, extension_list, extension_count, recursive);
             }
@@ -130,7 +130,7 @@ open_all_files_with_extension_internal(Application_Links *app, String dir, char 
             
             if (is_match){
                 dir.size = dir_size;
-                append(&dir, (char*)info->filename);
+                append(&dir, info->filename);
                 create_buffer(app, dir.str, dir.size, 0);
             }
         }

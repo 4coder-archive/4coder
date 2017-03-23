@@ -146,7 +146,7 @@ struct File_Viewing_Data{
     Editing_File *file;
     
     Full_Cursor temp_highlight;
-    u32 temp_highlight_end_pos;
+    umem temp_highlight_end_pos;
     b32 show_temp_highlight;
     
     b32 show_whitespace;
@@ -289,14 +289,14 @@ view_file_height(View *view){
     return (result);
 }
 
-inline u32
+inline size_t
 view_get_cursor_pos(View *view){
-    u32 result = 0;
+    size_t result = 0;
     if (view->file_data.show_temp_highlight){
-        result = (u32)view->file_data.temp_highlight.pos;
+        result = view->file_data.temp_highlight.pos;
     }
     else if (view->edit_pos){
-        result = (u32)view->edit_pos->cursor.pos;
+        result = view->edit_pos->cursor.pos;
     }
     return(result);
 }
@@ -402,7 +402,7 @@ view_compute_cursor(System_Functions *system, View *view, Buffer_Seek seek, b32 
     Buffer_Cursor_Seek_State state = {0};
     Buffer_Layout_Stop stop = {0};
     
-    u32 size = buffer_size(params.buffer);
+    umem size = buffer_size(params.buffer);
     
     f32 line_shift = 0.f;
     u32 wrap_unit_end = 0;
@@ -619,7 +619,7 @@ view_set_cursor_and_scroll(View *view, Full_Cursor cursor, b32 set_preferred_x, 
 }
 
 inline void
-view_set_temp_highlight(System_Functions *system, View *view, u32 pos, u32 end_pos){
+view_set_temp_highlight(System_Functions *system, View *view, umem pos, umem end_pos){
     view->file_data.temp_highlight = view_compute_cursor(system, view, seek_pos(pos), 0);
     view->file_data.temp_highlight_end_pos = end_pos;
     view->file_data.show_temp_highlight = 1;
@@ -741,7 +741,7 @@ save_file_to_name(System_Functions *system, Models *models, Editing_File *file, 
             models->hook_save_file(&models->app_links, file->id.id);
         }
         
-        u32 max = 0, size = 0;
+        umem max = 0, size = 0;
         b32 dos_write_mode = file->settings.dos_write_mode;
         Gap_Buffer *buffer = &file->state.buffer;
         
@@ -779,7 +779,7 @@ save_file_to_name(System_Functions *system, Models *models, Editing_File *file, 
         if (!using_actual_filename && file->canon.name.str != 0){
             char space[512];
             u32 length = str_size(filename);
-            system->get_canonical((u8*)filename, length, (u8*)space, sizeof(space));
+            system->get_canonical(filename, length, space, sizeof(space));
             
             char *source_path = file->canon.name.str;
             if (match(space, source_path)){
@@ -877,7 +877,7 @@ file_update_cursor_positions(System_Functions *system, Models *models, Editing_F
     for (View_Iter iter = file_view_iter_init(layout, file, 0);
          file_view_iter_good(iter);
          iter = file_view_iter_next(iter)){
-        u32 pos = view_get_cursor_pos(iter.view);
+        umem pos = view_get_cursor_pos(iter.view);
         
         if (!iter.view->file_data.show_temp_highlight){
             Full_Cursor cursor = view_compute_cursor(system, iter.view, seek_pos(pos), 0);
@@ -997,8 +997,8 @@ struct Code_Wrap_State{
     b32 consume_newline;
     
     Gap_Buffer_Stream stream;
-    u32 size;
-    u32 i;
+    umem size;
+    umem i;
     
     Render_Font *font;
     f32 tab_indent_amount;
@@ -1052,8 +1052,8 @@ wrap_state_set_top(Code_Wrap_State *state, f32 line_shift){
 }
 
 struct Code_Wrap_Step{
-    u32 position_start;
-    u32 position_end;
+    umem position_start;
+    umem position_end;
     
     f32 start_x;
     f32 final_x;
@@ -1062,9 +1062,9 @@ struct Code_Wrap_Step{
 };
 
 internal Code_Wrap_Step
-wrap_state_consume_token(System_Functions *system, Render_Font *font, Code_Wrap_State *state, u32 fixed_end_point){
+wrap_state_consume_token(System_Functions *system, Render_Font *font, Code_Wrap_State *state, i32 fixed_end_point){
     Code_Wrap_Step result = {0};
-    u32 i = state->i;
+    umem i = state->i;
     
     result.position_start = i;
     
@@ -1102,9 +1102,9 @@ wrap_state_consume_token(System_Functions *system, Render_Font *font, Code_Wrap_
         state->next_line_start = state->line_starts[state->line_index + 1];
     }
     
-    u32 line_start = state->line_starts[state->line_index];
+    i32 line_start = state->line_starts[state->line_index];
     b32 still_looping = 0;
-    u32 end = state->token_ptr->start + state->token_ptr->size;
+    i32 end = state->token_ptr->start + state->token_ptr->size;
     
     if (fixed_end_point >= 0 && end > fixed_end_point){
         end = fixed_end_point;
@@ -1234,7 +1234,7 @@ struct Wrap_Indent_Pair{
 };
 
 struct Potential_Wrap_Indent_Pair{
-    u32 wrap_position;
+    i32 wrap_position;
     f32 line_shift;
     
     f32 wrap_x;
@@ -1498,8 +1498,8 @@ file_measure_wraps(System_Functions *system, Models *models, Editing_File *file,
         
         potential_marks = push_array(part, Potential_Wrap_Indent_Pair, floor32(width));
         
-        u32 remaining = (u32)partition_remaining(part);
-        u32 pair_size = sizeof(Wrap_Indent_Pair);
+        umem remaining = partition_remaining(part);
+        umem pair_size = sizeof(Wrap_Indent_Pair);
         max_wrap_indent_mark = (i32)(remaining/pair_size);
         wrap_indent_marks = push_array(part, Wrap_Indent_Pair, max_wrap_indent_mark);
     }
@@ -1530,8 +1530,8 @@ file_measure_wraps(System_Functions *system, Models *models, Editing_File *file,
                 else{
                     Gap_Buffer_Stream stream = {0};
                     
-                    u32 word_stage = 0;
-                    u32 i = stop.pos;
+                    i32 word_stage = 0;
+                    i32 i = stop.pos;
                     f32 x = stop.x;
                     f32 self_x = 0;
                     if (buffer_stringify_loop(&stream, params.buffer, i, size)){
@@ -1826,7 +1826,7 @@ file_measure_wraps(System_Functions *system, Models *models, Editing_File *file,
                                         }
                                     }
                                     
-                                    u32 wrap_position = potential_marks[best_i].wrap_position;
+                                    i32 wrap_position = potential_marks[best_i].wrap_position;
                                     f32 line_shift = potential_marks[best_i].line_shift;
                                     b32 adjust_top_to_this = potential_marks[best_i].adjust_top_to_this;
                                     wrap_indent_marks[real_count].wrap_position = wrap_position;
@@ -1931,8 +1931,8 @@ file_create_from_string(System_Functions *system, Models *models, Editing_File *
     file->state = null_editing_file_state;
     Gap_Buffer_Init init = buffer_begin_init(&file->state.buffer, val.str, val.size);
     for (; buffer_init_need_more(&init); ){
-        u32 page_size = buffer_init_page_size(&init);
-        page_size = l_round_up_u32(page_size, KB(4));
+        umem page_size = buffer_init_page_size(&init);
+        page_size = l_round_up_umem(page_size, KB(4));
         if (page_size < KB(4)){
             page_size = KB(4);
         }
@@ -1940,7 +1940,7 @@ file_create_from_string(System_Functions *system, Models *models, Editing_File *
         buffer_init_provide_page(&init, data, page_size);
     }
     
-    u32 scratch_size = (u32)partition_remaining(part);
+    umem scratch_size = partition_remaining(part);
     Assert(scratch_size > 0);
     b32 init_success = buffer_end_init(&init, part->base + part->pos, scratch_size);
     AllowLocal(init_success); Assert(init_success);
@@ -2048,7 +2048,7 @@ Job_Callback_Sig(job_full_lex){
     u32 text_size = buffer_size(buffer);
     u32 aligned_buffer_size = (text_size + 3)&(~3);
     
-    while (memory->size < aligned_buffer_size){
+    while (memory->size < (umem)aligned_buffer_size){
         system->grow_thread_memory(memory);
     }
     
@@ -2063,7 +2063,7 @@ Job_Callback_Sig(job_full_lex){
     
     // TODO(allen): deduplicate this against relex
     char *chunks[3];
-    u32 chunk_sizes[3];
+    umem chunk_sizes[3];
     
     chunks[0] = buffer->data;
     chunk_sizes[0] = buffer->size1;
@@ -2078,7 +2078,7 @@ Job_Callback_Sig(job_full_lex){
     
     do{
         char *chunk = chunks[chunk_index];
-        u32 chunk_size = chunk_sizes[chunk_index];
+        umem chunk_size = chunk_sizes[chunk_index];
         
         i32 result =
             cpp_lex_step(&lex, chunk, (i32)chunk_size, text_size, &tokens, 2048);
@@ -2192,7 +2192,7 @@ file_first_lex_serial(Mem_Options *mem, Editing_File *file){
             Gap_Buffer *buffer = &file->state.buffer;
             i32 text_size = buffer_size(buffer);
             
-            u32 mem_size = (u32)partition_remaining(part);
+            umem mem_size = partition_remaining(part);
             
             Cpp_Token_Array tokens;
             tokens.max_count = (u32)(mem_size / sizeof(Cpp_Token));
@@ -2205,7 +2205,7 @@ file_first_lex_serial(Mem_Options *mem, Editing_File *file){
             
             // TODO(allen): deduplicate this against relex
             char *chunks[3];
-            u32 chunk_sizes[3];
+            umem chunk_sizes[3];
             
             chunks[0] = buffer->data;
             chunk_sizes[0] = buffer->size1;
@@ -2222,7 +2222,7 @@ file_first_lex_serial(Mem_Options *mem, Editing_File *file){
             
             do{
                 char *chunk = chunks[chunk_index];
-                u32 chunk_size = chunk_sizes[chunk_index];
+                umem chunk_size = chunk_sizes[chunk_index];
                 
                 i32 result = cpp_lex_step(&lex, chunk, (i32)chunk_size, text_size, &tokens, NO_OUT_LIMIT);
                 
@@ -2313,7 +2313,7 @@ file_relex_parallel(System_Functions *system, Mem_Options *mem, Editing_File *fi
         Cpp_Relex_Data state = cpp_relex_init(array, start_i, end_i, shift_amount);
         
         char *chunks[3];
-        u32 chunk_sizes[3];
+        umem chunk_sizes[3];
         
         chunks[0] = buffer->data;
         chunk_sizes[0] = buffer->size1;
@@ -2326,7 +2326,7 @@ file_relex_parallel(System_Functions *system, Mem_Options *mem, Editing_File *fi
         
         i32 chunk_index = 0;
         char *chunk = chunks[chunk_index];
-        u32 chunk_size = chunk_sizes[chunk_index];
+        umem chunk_size = chunk_sizes[chunk_index];
         
         while (!cpp_relex_is_start_chunk(&state, chunk, (i32)chunk_size)){
             ++chunk_index;
@@ -2421,8 +2421,8 @@ file_relex_serial(Mem_Options *mem, Editing_File *file, i32 start_i, i32 end_i, 
     Gap_Buffer *buffer = &file->state.buffer;
     Cpp_Token_Array *array = &file->state.token_array;
     
-    u32 remaining = (u32)partition_remaining(part);
-    u32 token_size = sizeof(Cpp_Token);
+    umem remaining = partition_remaining(part);
+    umem token_size = sizeof(Cpp_Token);
     
     Temp_Memory temp = begin_temp_memory(part);
     Cpp_Token_Array relex_array;
@@ -2435,7 +2435,7 @@ file_relex_serial(Mem_Options *mem, Editing_File *file, i32 start_i, i32 end_i, 
     Cpp_Relex_Data state = cpp_relex_init(array, start_i, end_i, shift_amount);
     
     char *chunks[3];
-    u32 chunk_sizes[3];
+    umem chunk_sizes[3];
     
     chunks[0] = buffer->data;
     chunk_sizes[0] = buffer->size1;
@@ -2446,9 +2446,9 @@ file_relex_serial(Mem_Options *mem, Editing_File *file, i32 start_i, i32 end_i, 
     chunks[2] = 0;
     chunk_sizes[2] = 0;
     
-    u32 chunk_index = 0;
+    umem chunk_index = 0;
     char *chunk = chunks[chunk_index];
-    u32 chunk_size = chunk_sizes[chunk_index];
+    umem chunk_size = chunk_sizes[chunk_index];
     
     while (!cpp_relex_is_start_chunk(&state, chunk, (i32)chunk_size)){
         ++chunk_index;
@@ -2488,7 +2488,7 @@ file_relex_serial(Mem_Options *mem, Editing_File *file, i32 start_i, i32 end_i, 
 }
 
 internal void
-undo_stack_grow_string(General_Memory *general, Edit_Stack *stack, u32 extra_size){
+undo_stack_grow_string(General_Memory *general, Edit_Stack *stack, umem extra_size){
     u32 old_max = stack->max;
     u8 *old_str = stack->strings;
     u32 new_max = old_max*2 + (u32)(extra_size);
@@ -2508,27 +2508,27 @@ undo_stack_grow_edits(General_Memory *general, Edit_Stack *stack){
 }
 
 internal void
-child_stack_grow_string(General_Memory *general, Small_Edit_Stack *stack, u32 extra_size){
-    u32 old_max = stack->max;
+child_stack_grow_string(General_Memory *general, Small_Edit_Stack *stack, umem extra_size){
+    umem old_max = stack->max;
     u8 *old_str = stack->strings;
-    u32 new_max = old_max*2 + extra_size;
+    umem new_max = old_max*2 + extra_size;
     u8 *new_str = (u8*)general_memory_reallocate(general, old_str, old_max, new_max);
     stack->strings = new_str;
     stack->max = (u32)new_max;
 }
 
 internal void
-child_stack_grow_edits(General_Memory *general, Small_Edit_Stack *stack, u32 amount){
-    u32 old_max = stack->edit_max;
+child_stack_grow_edits(General_Memory *general, Small_Edit_Stack *stack, umem amount){
+    umem old_max = stack->edit_max;
     Buffer_Edit *old_eds = stack->edits;
-    u32 new_max = old_max*2 + amount;
+    umem new_max = old_max*2 + amount;
     Buffer_Edit *new_eds = (Buffer_Edit*)general_memory_reallocate(general, old_eds, old_max*sizeof(Buffer_Edit), new_max*sizeof(Buffer_Edit));
     stack->edits = new_eds;
     stack->edit_max = (u32)new_max;
 }
 
 internal i32
-undo_children_push(General_Memory *general, Small_Edit_Stack *children, Buffer_Edit *edits, u32 edit_count, u8 *strings, u32 string_size){
+undo_children_push(General_Memory *general, Small_Edit_Stack *children, Buffer_Edit *edits, u32 edit_count, u8 *strings, umem string_size){
     i32 result = children->edit_count;
     if (children->edit_count + edit_count > children->edit_max){
         child_stack_grow_edits(general, children, edit_count);
@@ -2570,7 +2570,7 @@ file_post_undo(General_Memory *general, Editing_File *file, Edit_Step step, b32 
     
     if (step.child_count == 0){
         if (step.edit.end - step.edit.start + undo->size > undo->max){
-            undo_stack_grow_string(general, undo, (u32)(step.edit.end - step.edit.start));
+            undo_stack_grow_string(general, undo, step.edit.end - step.edit.start);
         }
         
         Buffer_Edit inv;
@@ -2639,7 +2639,7 @@ file_post_redo(General_Memory *general, Editing_File *file, Edit_Step step){
     
     if (step.child_count == 0){
         if (step.edit.end - step.edit.start + redo->size > redo->max){
-            undo_stack_grow_string(general, redo, (u32)(step.edit.end - step.edit.start));
+            undo_stack_grow_string(general, redo, step.edit.end - step.edit.start);
         }
         
         Buffer_Edit inv;
@@ -2707,7 +2707,7 @@ file_post_history(General_Memory *general, Editing_File *file, Edit_Step step, b
     
     if (step.child_count == 0){
         if (step.edit.end - step.edit.start + history->size > history->max){
-            undo_stack_grow_string(general, history, (u32)(step.edit.end - step.edit.start));
+            undo_stack_grow_string(general, history, step.edit.end - step.edit.start);
         }
         
         Buffer_Edit inv;
@@ -2780,7 +2780,7 @@ view_cursor_move(View *view, Full_Cursor cursor){
 }
 
 inline void
-view_cursor_move(System_Functions *system, View *view, u32 pos){
+view_cursor_move(System_Functions *system, View *view, umem pos){
     Full_Cursor cursor = view_compute_cursor(system, view, seek_pos(pos), 0);
     view_cursor_move(view, cursor);
 }
@@ -3106,8 +3106,8 @@ file_edit_cursor_fix(System_Functions *system, Models *models, Editing_File *fil
     Cursor_With_Index *r_cursors = push_array(part, Cursor_With_Index, cursor_max);
     Assert(cursors != 0);
     
-    u32 cursor_count = 0;
-    u32 r_cursor_count = 0;
+    i32 cursor_count = 0;
+    i32 r_cursor_count = 0;
     
     View *view = 0;
     Panel *panel = 0, *used_panels = &layout->used_sentinel;
@@ -3115,9 +3115,9 @@ file_edit_cursor_fix(System_Functions *system, Models *models, Editing_File *fil
         view = panel->view;
         if (view->file_data.file == file){
             Assert(view->edit_pos);
-            write_cursor_with_index(cursors, &cursor_count, (u32)view->edit_pos->cursor.pos);
-            write_cursor_with_index(cursors, &cursor_count, (u32)view->edit_pos->mark);
-            write_cursor_with_index(cursors, &cursor_count, (u32)view->edit_pos->scroll_i);
+            write_cursor_with_index(cursors, &cursor_count, view->edit_pos->cursor.pos);
+            write_cursor_with_index(cursors, &cursor_count, view->edit_pos->mark);
+            write_cursor_with_index(cursors, &cursor_count, view->edit_pos->scroll_i);
         }
     }
     
@@ -3128,10 +3128,10 @@ file_edit_cursor_fix(System_Functions *system, Models *models, Editing_File *fil
         Marker *markers = &marker_it->marker_0;
         for (u32 i = 0; i < count; ++i){
             if (markers[i].lean_right){
-                write_cursor_with_index(r_cursors, &r_cursor_count, (u32)markers[i].pos);
+                write_cursor_with_index(r_cursors, &r_cursor_count, markers[i].pos);
             }
             else{
-                write_cursor_with_index(cursors, &cursor_count, (u32)markers[i].pos);
+                write_cursor_with_index(cursors, &cursor_count, markers[i].pos);
             }
         }
     }
@@ -3157,7 +3157,7 @@ file_edit_cursor_fix(System_Functions *system, Models *models, Editing_File *fil
             if (view->file_data.file == file){
                 Assert(view->edit_pos);
                 
-                u32 cursor_pos = cursors[cursor_count++].pos;
+                umem cursor_pos = cursors[cursor_count++].pos;
                 Full_Cursor new_cursor = view_compute_cursor(system, view, seek_pos(cursor_pos), 0);
                 
                 GUI_Scroll_Vars scroll = view->edit_pos->scroll;
@@ -3223,10 +3223,10 @@ file_do_single_edit(System_Functions *system, Models *models, Editing_File *file
     u32 end = (u32)spec.step.edit.end;
     u32 str_len = (u32)spec.step.edit.len;
     
-    u32 scratch_size = (u32)partition_remaining(part);
+    umem scratch_size = partition_remaining(part);
     
     Assert(scratch_size > 0);
-    u32 request_amount = 0;
+    umem request_amount = 0;
     Assert(end <= buffer_size(&file->state.buffer));
     while (buffer_replace_range(&file->state.buffer, start, end, str, str_len, &shift_amount, part->base + part->pos, scratch_size, &request_amount)){
         void *new_data = 0;
@@ -3303,7 +3303,7 @@ file_do_batch_edit(System_Functions *system, Models *models, Editing_File *file,
     
     u32 scratch_size = (u32)partition_remaining(part);
     Buffer_Batch_State state = {0};
-    u32 request_amount = 0;
+    umem request_amount = 0;
     while (buffer_batch_edit_step(&state, &file->state.buffer, batch,
                                   (char*)str_base, batch_size, part->base + part->pos,
                                   scratch_size, &request_amount)){
@@ -3354,8 +3354,8 @@ file_do_batch_edit(System_Functions *system, Models *models, Editing_File *file,
                 for (; token < end_token; ++token){
                     original = *token;
                     for (; edit < end_edit && edit->start <= original.start; ++edit){
-                        u32 target_length = (u32)(edit->end - edit->start);
-                        u32 edit_length = (u32)edit->len;
+                        umem target_length = edit->end - edit->start;
+                        umem edit_length = edit->len;
                         if (edit_length > target_length){
                             local_shift = (i32)(edit_length - target_length);
                         }
@@ -3367,8 +3367,8 @@ file_do_batch_edit(System_Functions *system, Models *models, Editing_File *file,
                     token->start += shift_amount;
                     local_shift = 0;
                     for (; edit < end_edit && edit->start < original.start + original.size; ++edit){
-                        u32 target_length = (u32)(edit->end - edit->start);
-                        u32 edit_length = (u32)edit->len;
+                        umem target_length = edit->end - edit->start;
+                        umem edit_length = edit->len;
                         if (edit_length > target_length){
                             local_shift = (i32)(edit_length - target_length);
                         }
@@ -3464,8 +3464,8 @@ apply_history_edit(System_Functions *system, Models *models, Editing_File *file,
         file_do_single_edit(system, models, file, spec, history_mode);
         
         if (view){
-            view_cursor_move(system, view, (u32)(step.edit.start + step.edit.len));
-            view->edit_pos->mark = (u32)view->edit_pos->cursor.pos;
+            view_cursor_move(system, view, step.edit.start + step.edit.len);
+            view->edit_pos->mark = view->edit_pos->cursor.pos;
             
             Style *style = main_style(models);
             view_post_paste_effect(view, 0.333f, (u32)step.edit.start, (u32)step.edit.len, style->main.undo_color);
@@ -3594,15 +3594,15 @@ working_set_clipboard_roll_down(Working_Set *working){
 
 internal void
 clipboard_copy(System_Functions *system, General_Memory *general, Working_Set *working, Range range, Editing_File *file){
-    u32 size = (u32)(range.end - range.start);
+    umem size = range.end - range.start;
     String *dest = working_set_next_clipboard_string(general, working, (u32)size);
-    buffer_stringify(&file->state.buffer, (u32)range.start, (u32)range.end, dest->str);
+    buffer_stringify(&file->state.buffer, range.start, range.end, dest->str);
     dest->size = (i32)size;
     system->post_clipboard(*dest);
 }
 
 internal Edit_Spec
-file_compute_edit(Mem_Options *mem, Editing_File *file, Buffer_Edit *edits, char *str_base, u32 str_size, Buffer_Edit *inverse_array, char *inv_str, u32 inv_max, u32 edit_count, i32 batch_type){
+file_compute_edit(Mem_Options *mem, Editing_File *file, Buffer_Edit *edits, char *str_base, umem str_size, Buffer_Edit *inverse_array, char *inv_str, u32 inv_max, u32 edit_count, i32 batch_type){
     General_Memory *general = &mem->general;
     
     u32 inv_str_pos = 0;
@@ -4260,7 +4260,7 @@ get_exhaustive_info(System_Functions *system, Working_Set *working_set, Exhausti
     
     result.info = loop->infos + i;
     loop->full_path.size = loop->r;
-    append_sc(&loop->full_path, (char*)result.info->filename);
+    append_sc(&loop->full_path, result.info->filename);
     terminate_with_null(&loop->full_path);
     
     Editing_File *file = working_set_canon_contains(working_set, loop->full_path);
@@ -4494,6 +4494,16 @@ show_gui_u64(GUI_Target *target, String *string, i32 indent_level, i32 h_align, 
 }
 
 internal void
+show_gui_umem(GUI_Target *target, String *string, i32 indent_level, i32 h_align, char *message, umem x){
+    string->size = 0;
+    append_label(string, indent_level, message);
+    append_padding(string, '-', h_align);
+    append_s_char(string, ' ');
+    append_u64_to_str(string, x);
+    gui_do_text_field(target, *string, null_string);
+}
+
+internal void
 show_gui_int_int(GUI_Target *target, String *string, i32 indent_level, i32 h_align, char *message, i32 x, i32 m){
     string->size = 0;
     append_label(string, indent_level, message);
@@ -4546,9 +4556,9 @@ show_gui_scroll(GUI_Target *target, String *string,
 internal void
 show_gui_cursor(GUI_Target *target, String *string, i32 indent_level, i32 h_align, char *message,Full_Cursor cursor){
     show_gui_line (target, string, indent_level  , 0, message, 0);
-    show_gui_u64  (target, string, indent_level+1, h_align, " pos ", cursor.pos);
-    show_gui_u64  (target, string, indent_level+1, h_align, " line ", cursor.line);
-    show_gui_u64  (target, string, indent_level+1, h_align, " column ", cursor.character);
+    show_gui_umem (target, string, indent_level+1, h_align, " pos ", cursor.pos);
+    show_gui_umem (target, string, indent_level+1, h_align, " line ", cursor.line);
+    show_gui_umem (target, string, indent_level+1, h_align, " column ", cursor.character);
     show_gui_float(target, string, indent_level+1, h_align, " unwrapped_x ", cursor.unwrapped_x);
     show_gui_float(target, string, indent_level+1, h_align, " unwrapped_y ", cursor.unwrapped_y);
     show_gui_float(target, string, indent_level+1, h_align, " wrapped_x ", cursor.wrapped_x);
@@ -4983,13 +4993,13 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                                 if (file_info.name_match){
                                     id.id[0] = (u64)(file_info.info);
                                     
-                                    char *str = (char*)file_info.info->filename;
+                                    char *str = file_info.info->filename;
                                     i32 len = file_info.info->filename_len;
                                     String filename = make_string_cap(str, len, len + 1);
                                     
                                     if (gui_do_file_option(target, id, filename, file_info.is_folder, file_info.message)){
                                         if (file_info.is_folder){
-                                            set_last_folder_sc(&hdir->string, (char*)file_info.info->filename, '/');
+                                            set_last_folder_sc(&hdir->string, file_info.info->filename, '/');
                                             do_new_directory = 1;
                                         }
                                         
@@ -5460,6 +5470,7 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
 #define SHOW_GUI_INT(n, h, str, v)   show_gui_int(target, &string, n, h, " " str " ", v)
 #define SHOW_GUI_INT_INT(n, h, str, v, m) show_gui_int_int(target, &string, n, h, " " str " ", v, m)
 #define SHOW_GUI_U64(n, h, str, v)   show_gui_u64(target, &string, n, h, " " str " ", v)
+#define SHOW_GUI_UMEM(n, h, str, v)   show_gui_umem(target, &string, n, h, " " str " ", v)
 #define SHOW_GUI_ID(n, h, str, v)    show_gui_id(target, &string, n, h, " " str, v)
 #define SHOW_GUI_FLOAT(n, h, str, v) show_gui_float(target, &string, n, h, " " str " ", v)
 #define SHOW_GUI_BOOL(n, h, str, v)  do { if (v) { show_gui_line(target, &string, n, h, " " str " ", "true"); }\
@@ -5499,8 +5510,8 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                                     SHOW_GUI_LINE(1, "file data:");
                                     SHOW_GUI_BOOL(2, h_align, "has file", view_ptr->file_data.file);
                                     SHOW_GUI_BOOL(2, h_align, "show temp highlight", view_ptr->file_data.show_temp_highlight);
-                                    SHOW_GUI_U64(2, h_align, "start temp highlight", view_ptr->file_data.temp_highlight.pos);
-                                    SHOW_GUI_U64(2, h_align, "end temp highlight", view_ptr->file_data.temp_highlight_end_pos);
+                                    SHOW_GUI_UMEM(2, h_align, "start temp highlight", view_ptr->file_data.temp_highlight.pos);
+                                    SHOW_GUI_UMEM(2, h_align, "end temp highlight", view_ptr->file_data.temp_highlight_end_pos);
                                     
                                     SHOW_GUI_BOOL(2, h_align, "show whitespace", view_ptr->file_data.show_whitespace);
                                     SHOW_GUI_BOOL(2, h_align, "locked", view_ptr->file_data.file_locked);
@@ -5518,7 +5529,7 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                                             SHOW_GUI_BLANK (2);
                                             SHOW_GUI_CURSOR(2, h_align, "cursor:", edit_pos->cursor);
                                             SHOW_GUI_BLANK (2);
-                                            SHOW_GUI_U64   (2, h_align, "mark", edit_pos->mark);
+                                            SHOW_GUI_UMEM  (2, h_align, "mark", edit_pos->mark);
                                             SHOW_GUI_FLOAT (2, h_align, "preferred_x", edit_pos->preferred_x);
                                             SHOW_GUI_INT   (2, h_align, "scroll_i", edit_pos->scroll_i);
                                         }
@@ -5916,9 +5927,9 @@ draw_file_loaded(System_Functions *system, View *view, i32_Rect rect, b32 is_act
     
     f32 left_side_space = 0;
     
-    u32 remaining = (u32)partition_remaining(part);
-    u32 render_item_size = sizeof(Buffer_Render_Item);
-    u32 max = remaining / render_item_size;
+    umem remaining = partition_remaining(part);
+    umem render_item_size = sizeof(Buffer_Render_Item);
+    u32 max = (u32)(remaining / render_item_size);
     Buffer_Render_Item *items = push_array(part, Buffer_Render_Item, max);
     
     Font_ID font_id = file->settings.font_id;
@@ -6038,12 +6049,12 @@ draw_file_loaded(System_Functions *system, View *view, i32_Rect rect, b32 is_act
     u32 mark_color = style->main.mark_color;
     Buffer_Render_Item *item = items;
     Buffer_Render_Item *item_end = item + count;
-    u32 prev_ind = max_u32;
+    umem prev_ind = max_umem;
     u32 highlight_color = 0;
     u32 highlight_this_color = 0;
     
     for (; item < item_end; ++item){
-        u32 ind = item->index;
+        umem ind = item->index;
         highlight_this_color = 0;
         if (tokens_use && ind != prev_ind){
             Cpp_Token current_token = token_array.tokens[token_i-1];

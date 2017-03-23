@@ -21,7 +21,7 @@ enum Edit_Pos_Set_Type{
 struct File_Edit_Positions{
     GUI_Scroll_Vars scroll;
     Full_Cursor cursor;
-    u32 mark;
+    umem mark;
     f32 preferred_x;
     i32 scroll_i;
     i32 last_set_type;
@@ -385,13 +385,13 @@ edit_pos_get_new(Editing_File *file, i32 index){
 //
 
 inline Partial_Cursor
-file_compute_cursor_from_pos(Editing_File *file, u32 pos){
+file_compute_cursor_from_pos(Editing_File *file, umem pos){
     Partial_Cursor result = buffer_partial_from_pos(&file->state.buffer, pos);
     return(result);
 }
 
 inline Partial_Cursor
-file_compute_cursor_from_line_character(Editing_File *file, u32 line, u32 character, b32 reversed){
+file_compute_cursor_from_line_character(Editing_File *file, umem line, umem character, b32 reversed){
     Partial_Cursor result = buffer_partial_from_line_character(&file->state.buffer, line, character, reversed);
     return(result);
 }
@@ -402,17 +402,17 @@ file_compute_partial_cursor(Editing_File *file, Buffer_Seek seek, Partial_Cursor
     switch (seek.type){
         case buffer_seek_pos:
         {
-            *cursor = file_compute_cursor_from_pos(file, (u32)seek.pos);
+            *cursor = file_compute_cursor_from_pos(file, seek.pos);
         }break;
         
         case buffer_seek_line_char:
         {
-            *cursor = file_compute_cursor_from_line_character(file, (u32)seek.line, (u32)seek.character, true);
+            *cursor = file_compute_cursor_from_line_character(file, seek.line, seek.character, true);
         }break;
         
         case buffer_seek_line_reverse_char:
         {
-            *cursor = file_compute_cursor_from_line_character(file, (u32)seek.line, (u32)seek.character, false);
+            *cursor = file_compute_cursor_from_line_character(file, seek.line, seek.character, false);
         }break;
         
         default:

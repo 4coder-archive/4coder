@@ -417,11 +417,11 @@ DOC_SEE(File_List)
 */
 STRUCT File_Info{
     /* DOC(This field is a null terminated string specifying the name of the file.) */
-    uint8_t *filename;
+    char *filename;
     /* DOC(This field specifies the length of the filename string not counting the null terminator.) */
-    uint32_t filename_len;
+    int32_t filename_len;
     /* DOC(This field indicates that the description is for a folder not a file.) */
-    bool32 folder;
+    int32_t folder;
 };
 
 /* DOC(File_List is a list of File_Info structs.) */
@@ -431,9 +431,9 @@ STRUCT File_List{
     /* DOC(This field is an array of File_Info structs.) */
     File_Info *infos;
     /* DOC(This field specifies the number of struts in the info array.) */
-    uint32_t count;
+    int32_t count;
     /* DOC(This field is for internal use.) */
-    uint32_t block_size;
+    int32_t block_size;
 };
 
 /* DOC(Buffer_Identifier acts as a loosely typed description of a buffer that can either be a name or an id.) */
