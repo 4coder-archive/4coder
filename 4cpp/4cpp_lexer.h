@@ -349,7 +349,7 @@ cpp_lex_nonalloc_null_end_no_limit(Cpp_Lex_Data *S_ptr, char *chunk, u32_4tech s
     
     u8_4tech c = 0;
     
-    u32_4tech end_pos = size + S.chunk_pos;
+    i32_4tech end_pos = size + S.chunk_pos;
     chunk -= S.chunk_pos;
     
     switch (S.__pc__){
@@ -970,7 +970,7 @@ cpp_lex_nonalloc_null_end_out_limit(Cpp_Lex_Data *S_ptr, char *chunk, i32_4tech 
 }
 
 FCPP_LINK Cpp_Lex_Result
-cpp_lex_nonalloc_no_null_no_limit(Cpp_Lex_Data *S_ptr, char *chunk, u32_4tech size, u32_4tech full_size,
+cpp_lex_nonalloc_no_null_no_limit(Cpp_Lex_Data *S_ptr, char *chunk, i32_4tech size, i32_4tech full_size,
                                   Cpp_Token_Array *token_array_out){
     Cpp_Lex_Result result = 0;
     if (S_ptr->pos >= full_size){
@@ -1157,7 +1157,7 @@ cpp_index_array(Cpp_Token_Array *array, i32_4tech file_size, u32_4tech index){
 }
 
 API_EXPORT FCPP_LINK Cpp_Relex_Range
-cpp_get_relex_range(Cpp_Token_Array *array, u32_4tech start_pos, u32_4tech end_pos)
+cpp_get_relex_range(Cpp_Token_Array *array, i32_4tech start_pos, i32_4tech end_pos)
 /*
 DOC_PARAM(array, A pointer to the token array that will be modified by the relex, this array should already contain the tokens for the previous state of the file.)
 DOC_PARAM(start_pos, The start position of the edited region of the file. The start and end points are based on the edited region of the file before the edit.)

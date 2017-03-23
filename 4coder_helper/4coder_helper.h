@@ -148,7 +148,7 @@ query_user_number(Application_Links *app, Query_Bar *bar){
 }
 
 static char
-buffer_get_char(Application_Links *app, Buffer_Summary *buffer, size_t pos){
+buffer_get_char(Application_Links *app, Buffer_Summary *buffer, int32_t pos){
     char result = ' ';
     *buffer = get_buffer(app, buffer->buffer_id, AccessAll);
     if (pos < buffer->size){
@@ -188,7 +188,7 @@ create_buffer(Application_Links *app, char *filename, int32_t filename_len, Buff
 }
 
 static Range
-make_range(size_t p1, size_t p2){
+make_range(int32_t p1, int32_t p2){
     Range range;
     if (p1 < p2){
         range.min = p1;
@@ -212,9 +212,9 @@ adjust_all_buffer_wrap_widths(Application_Links *app, int32_t wrap_width, int32_
 }
 
 // TODO(allen): Setup buffer seeking to do character_pos and get View_Summary out of this parameter list.
-static size_t
-character_pos_to_pos(Application_Links *app, View_Summary *view, Buffer_Summary *buffer, size_t character_pos){
-    size_t result = 0;
+static int32_t
+character_pos_to_pos(Application_Links *app, View_Summary *view, Buffer_Summary *buffer, int32_t character_pos){
+    int32_t result = 0;
     Full_Cursor cursor = {0};
     if (view_compute_cursor(app, view, seek_character_pos(character_pos), &cursor)){
         result = cursor.pos;
@@ -223,8 +223,8 @@ character_pos_to_pos(Application_Links *app, View_Summary *view, Buffer_Summary 
 }
 
 struct Buffer_Rect{
-    size_t char0, line0;
-    size_t char1, line1;
+    int32_t char0, line0;
+    int32_t char1, line1;
 };
 
 #ifndef Swap
@@ -242,10 +242,10 @@ get_rect(View_Summary *view){
     rect.line1 = view->cursor.line;
     
     if (rect.line0 > rect.line1){
-        Swap(size_t, rect.line0, rect.line1);
+        Swap(int32_t, rect.line0, rect.line1);
     }
     if (rect.char0 > rect.char1){
-        Swap(size_t, rect.char0, rect.char1);
+        Swap(int32_t, rect.char0, rect.char1);
     }
     
     return(rect);
@@ -256,21 +256,21 @@ get_line_x_rect(View_Summary *view){
     pos_Rect rect = {0};
     
     if (view->unwrapped_lines){
-        rect.x0 = (size_t)view->mark.unwrapped_x;
-        rect.x1 = (size_t)view->cursor.unwrapped_x;
+        rect.x0 = (int32_t)view->mark.unwrapped_x;
+        rect.x1 = (int32_t)view->cursor.unwrapped_x;
     }
     else{
-        rect.x0 = (size_t)view->mark.wrapped_x;
-        rect.x1 = (size_t)view->cursor.wrapped_x;
+        rect.x0 = (int32_t)view->mark.wrapped_x;
+        rect.x1 = (int32_t)view->cursor.wrapped_x;
     }
     rect.y0 = view->mark.line;
     rect.y1 = view->cursor.line;
     
     if (rect.y0 > rect.y1){
-        Swap(size_t, rect.y0, rect.y1);
+        Swap(int32_t, rect.y0, rect.y1);
     }
     if (rect.x0 > rect.x1){
-        Swap(size_t, rect.x0, rect.x1);
+        Swap(int32_t, rect.x0, rect.x1);
     }
     
     return(rect);

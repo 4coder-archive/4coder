@@ -46,7 +46,7 @@ FILE_TRACK_LINK File_Track_Result
 expand_track_system_listeners(File_Track_System *system, Partition *scratch, void *mem, umem size);
 
 FILE_TRACK_LINK File_Track_Result
-get_change_event(File_Track_System *system, Partition *scratch, u8 *buffer, umem max);
+get_change_event(File_Track_System *system, Partition *scratch, u8 *buffer, umem max, umem *size);
 
 FILE_TRACK_LINK File_Track_Result
 shut_down_track_system(File_Track_System *system, Partition *scratch);

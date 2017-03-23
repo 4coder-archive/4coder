@@ -343,8 +343,8 @@ COMMAND_DECL(reopen){
                     General_Memory *general = &models->mem.general;
                     
                     File_Edit_Positions edit_poss[16];
-                    umem line_number[16];
-                    umem column_number[16];
+                    i32 line_number[16];
+                    i32 column_number[16];
                     View *vptrs[16];
                     i32 vptr_count = 0;
                     for (View_Iter iter = file_view_iter_init(&models->layout, file, 0);
@@ -364,8 +364,8 @@ COMMAND_DECL(reopen){
                     for (i32 i = 0; i < vptr_count; ++i){
                         view_set_file(system, vptrs[i], file, models);
                         
-                        umem line = line_number[i];
-                        umem character = column_number[i];
+                        i32 line = line_number[i];
+                        i32 character = column_number[i];
                         
                         *vptrs[i]->edit_pos = edit_poss[i];
                         Full_Cursor cursor = view_compute_cursor(system, vptrs[i], seek_line_char(line, character), 0);
@@ -1597,8 +1597,8 @@ App_Step_Sig(app_step){
     // NOTE(allen): check files are up to date
     {
         b32 mem_too_small = 0;
-        i32 size = 0;
-        i32 buffer_size = KB(32);
+        umem size = 0;
+        umem buffer_size = KB(32);
         
         Partition *part = &models->mem.part;
         Temp_Memory temp = begin_temp_memory(part);
@@ -1612,7 +1612,7 @@ App_Step_Sig(app_step){
         for (;system->get_file_change(buffer, buffer_size, &mem_too_small, &size);){
             Assert(!mem_too_small);
             Editing_File_Canon_Name canon;
-            if (get_canon_name(system, &canon, make_string(buffer, size))){
+            if (get_canon_name(system, &canon, make_string(buffer, (i32)size))){
                 Editing_File *file = working_set_canon_contains(working_set, canon.name);
                 if (file){
                     if (file->state.ignore_behind_os == 0){

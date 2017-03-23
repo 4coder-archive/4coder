@@ -117,7 +117,7 @@ table_add(Table *table, void *item, void *arg, Hash_Function *hash_func, Compare
 
 static i32_4tech
 table_find_pos(Table *table, void *search_key, void *arg, i32_4tech *pos, i32_4tech *index, Hash_Function *hash_func, Compare_Function *comp_func){
-    Assert((table->count - 1) * 8 < table->max * 7);
+    Assert(((table->count!=0)?(table->count - 1):0) * 8 < table->max * 7);
     
     u32_4tech hash = (hash_func(search_key, arg) | TableHashMin);
     u32_4tech i = hash % table->max;

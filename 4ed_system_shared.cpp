@@ -12,7 +12,7 @@
 #if !defined(FCODER_SYSTEM_SHARED_CPP)
 #define FCODER_SYSTEM_SHARED_CPP
 
-#include "font/4coder_font_data.h"
+#include "4ed_font_data.h"
 
 //
 // Standard implementation of file system stuff based on the file track layer.
@@ -21,14 +21,14 @@
 internal void
 init_shared_vars(){
     umem scratch_size = KB(128);
-    void *scratch_memory = system_get_memory(scratch_size);
+    void *scratch_memory = system_memory_allocate(scratch_size);
     shared_vars.scratch = make_part(scratch_memory, scratch_size);
     
     shared_vars.track_table_size = KB(16);
-    shared_vars.track_table = system_get_memory(shared_vars.track_table_size);
+    shared_vars.track_table = system_memory_allocate(shared_vars.track_table_size);
     
     shared_vars.track_node_size = KB(16);
-    void *track_nodes = system_get_memory(shared_vars.track_node_size);
+    void *track_nodes = system_memory_allocate(shared_vars.track_node_size);
     
     i32 track_result = init_track_system(&shared_vars.track, &shared_vars.scratch, shared_vars.track_table, shared_vars.track_table_size, track_nodes, shared_vars.track_node_size);
     
@@ -45,9 +45,10 @@ handle_track_out_of_memory(i32 val){
         case FileTrack_OutOfTableMemory:
         {
             u32 new_table_size = shared_vars.track_table_size*2;
-            void *new_table = system_get_memory(new_table_size);
+            u32 old_table_size = shared_vars.track_table_size;
+            void *new_table = system_memory_allocate(new_table_size);
             move_track_system(&shared_vars.track, &shared_vars.scratch, new_table, new_table_size);
-            system_free_memory(shared_vars.track_table);
+            system_memory_free(shared_vars.track_table, old_table_size);
             shared_vars.track_table_size = new_table_size;
             shared_vars.track_table = new_table;
         }break;
@@ -55,7 +56,7 @@ handle_track_out_of_memory(i32 val){
         case FileTrack_OutOfListenerMemory:
         {
             shared_vars.track_node_size *= 2;
-            void *node_expansion = system_get_memory(shared_vars.track_node_size);
+            void *node_expansion = system_memory_allocate(shared_vars.track_node_size);
             expand_track_system_listeners(&shared_vars.track, &shared_vars.scratch, node_expansion, shared_vars.track_node_size);
         }break;
         
@@ -67,13 +68,13 @@ handle_track_out_of_memory(i32 val){
 
 internal
 Sys_Add_Listener_Sig(system_add_listener){
-    b32 result = 0;
+    b32 result = false;
     
     for (;;){
-        i32 track_result = add_listener(&shared_vars.track, &shared_vars.scratch, filename);
+        File_Track_Result track_result = add_listener(&shared_vars.track, &shared_vars.scratch, (u8*)filename);
         if (handle_track_out_of_memory(track_result)){
             if (track_result == FileTrack_Good){
-                result = 1;
+                result = true;
             }
             break;
         }
@@ -84,10 +85,10 @@ Sys_Add_Listener_Sig(system_add_listener){
 
 internal
 Sys_Remove_Listener_Sig(system_remove_listener){
-    i32 result = 0;
-    i32 track_result = remove_listener(&shared_vars.track, &shared_vars.scratch, filename);
+    b32 result = false;
+    File_Track_Result track_result = remove_listener(&shared_vars.track, &shared_vars.scratch, (u8*)filename);
     if (track_result == FileTrack_Good){
-        result = 1;
+        result = true;
     }
     return(result);
 }
@@ -96,8 +97,8 @@ internal
 Sys_Get_File_Change_Sig(system_get_file_change){
     b32 result = false;
     
-    i32 size = 0;
-    i32 get_result = get_change_event(&shared_vars.track, &shared_vars.scratch, buffer, max, &size);
+    umem size = 0;
+    File_Track_Result get_result = get_change_event(&shared_vars.track, &shared_vars.scratch, (u8*)buffer, max, &size);
     
     *required_size = size;
     *mem_too_small = false;
@@ -127,14 +128,14 @@ sysshared_load_file(char *filename){
         result.got_file = 1;
         if (size > 0){
             result.size = size;
-            result.data = (char*)system_get_memory(size+1);
+            result.data = (char*)system_memory_allocate(size+1);
             
             if (!result.data){
                 result = null_file_data;
             }
             else{
                 if (!system_load_file(handle, result.data, size)){
-                    system_free_memory(result.data);
+                    system_memory_free(result.data, size+1);
                     result = null_file_data;
                 }
             }
@@ -157,11 +158,9 @@ usable_ascii(char c){
 
 internal void
 sysshared_filter_real_files(char **files, i32 *file_count){
-    i32 i, j;
-    i32 end;
-    
-    end = *file_count;
-    for (i = 0, j = 0; i < end; ++i){
+    i32 end = *file_count;
+    i32 i = 0, j = 0;
+    for (; i < end; ++i){
         if (system_file_can_be_made(files[i])){
             files[j] = files[i];
             ++j;
@@ -172,20 +171,20 @@ sysshared_filter_real_files(char **files, i32 *file_count){
 
 internal Partition
 sysshared_scratch_partition(i32 size){
-    void *data = system_get_memory(size);
+    void *data = system_memory_allocate(size);
     Partition part = make_part(data, size);
     return(part);
 }
 
+// TODO(allen): attempt to grow in place by just acquiring next vpages?!
 internal void
-sysshared_partition_grow(Partition *part, i32 new_size){
-    void *data = 0;
+sysshared_partition_grow(Partition *part, umem new_size){
     if (new_size > part->max){
-        // TODO(allen): attempt to grow in place by just acquiring next vpages?!
-        data = system_get_memory(new_size);
+        void *data = system_memory_allocate(new_size);
         memcpy(data, part->base, part->pos);
-        system_free_memory(part->base);
+        system_memory_free(part->base, part->max);
         part->base = (char*)data;
+        part->max = new_size;
     }
 }
 

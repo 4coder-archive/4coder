@@ -281,10 +281,10 @@ utf8_to_utf16_minimal_checking(u16_4tech *dst, umem_4tech max_wchars, u8_4tech *
 static umem_4tech
 utf16_to_utf8_minimal_checking(u8_4tech *dst, umem_4tech max_chars, u16_4tech *src, umem_4tech length, b32_4tech *error){
     u16_4tech *s = src;
-    u16_4tech *s_end = s + max_chars;
+    u16_4tech *s_end = s + length;
     
     u8_4tech *d = dst;
-    u8_4tech *d_end = d + length;
+    u8_4tech *d_end = d + max_chars;
     umem_4tech limit = length;
     
     umem_4tech needed_max = 0;

@@ -15,8 +15,8 @@
 struct Buffer_Model_Step{
     u32 type;
     u32 value;
-    u32 i;
-    u32 byte_length;
+    i32 i;
+    i32 byte_length;
 };
 
 struct Buffer_Model_Behavior{
