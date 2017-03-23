@@ -74,10 +74,8 @@
 #include "win32_utf8.h"
 
 #include "4ed_file_track.h"
-#include "font/4coder_font_interface_to_os.h"
+#include "4ed_font_interface_to_os.h"
 #include "4ed_system_shared.h"
-
-#include "win32_4ed_file_track.cpp"
 
 //
 // Win32_Vars structs
@@ -187,6 +185,9 @@ typedef struct Win32_Vars{
     HCURSOR cursor_arrow;
     HCURSOR cursor_leftright;
     HCURSOR cursor_updown;
+    
+    u8 *clip_buffer;
+    u32 clip_max;
     String clipboard_contents;
     b32 next_clipboard_is_self;
     DWORD clipboard_sequence;
@@ -1122,6 +1123,7 @@ Win32ToggleFullscreen(void){
     }
 }
 
+
 //
 // Clipboard
 //
@@ -1144,20 +1146,41 @@ Sys_Post_Clipboard_Sig(system_post_clipboard){
 }
 
 internal b32
-Win32ReadClipboardContents(){
-    b32 result = 0;
+win32_read_clipboard_contents(){
+    b32 result = false;
     
-    if (IsClipboardFormatAvailable(CF_TEXT)){
-        result = 1;
+    if (IsClipboardFormatAvailable(CF_UNICODETEXT)){
+        result = true;
         if (OpenClipboard(win32vars.window_handle)){
-            HANDLE clip_data;
-            clip_data = GetClipboardData(CF_TEXT);
-            if (clip_data){
-                win32vars.clipboard_contents.str = (char*)GlobalLock(clip_data);
-                if (win32vars.clipboard_contents.str){
-                    win32vars.clipboard_contents.size = str_size((char*)win32vars.clipboard_contents.str);
+            HANDLE clip_data = GetClipboardData(CF_UNICODETEXT);
+            if (clip_data != 0){
+                Partition *scratch = &shared_vars.scratch;
+                Temp_Memory temp = begin_temp_memory(scratch);
+                
+                u16 *clip_16 = (u16*)GlobalLock(clip_data);
+                
+                if (clip_16 != 0){
+                    u32 clip_16_len = 0;
+                    for(;clip_16[clip_16_len];++clip_16_len);
+                    
+                    // TODO(allen): Extend the buffer if it is too small.
+                    b32 error = false;
+                    u32 clip_8_len = (u32)utf16_to_utf8_minimal_checking(win32vars.clip_buffer, win32vars.clip_max-1, clip_16, clip_16_len, &error);
+                    
+                    if (clip_8_len < win32vars.clip_max && !error){
+                        win32vars.clip_buffer[clip_8_len] = 0;
+                        
+                        win32vars.clipboard_contents = make_string_cap(win32vars.clip_buffer, clip_8_len, win32vars.clip_max);
+                    }
+                    
                     GlobalUnlock(clip_data);
                 }
+                
+                if (win32vars.clipboard_contents.str){
+                    win32vars.clipboard_contents.size = str_size((char*)win32vars.clipboard_contents.str);
+                }
+                
+                end_temp_memory(temp);
             }
             CloseClipboard();
         }
@@ -1362,32 +1385,30 @@ Sys_Send_Exit_Signal_Sig(system_send_exit_signal){
     win32vars.send_exit_signal = 1;
 }
 
-#include "4ed_system_shared.cpp"
-
-#include "win32_4ed_fonts.cpp"
-
 //
 // Linkage to Custom and Application
 //
 
 internal b32
 Win32LoadAppCode(){
-    b32 result = 0;
+    b32 result = false;
     App_Get_Functions *get_funcs = 0;
     
     win32vars.app_code = LoadLibraryA("4ed_app.dll");
     if (win32vars.app_code){
-        get_funcs = (App_Get_Functions*)
-            GetProcAddress(win32vars.app_code, "app_get_functions");
+        get_funcs = (App_Get_Functions*)GetProcAddress(win32vars.app_code, "app_get_functions");
     }
     
     if (get_funcs){
-        result = 1;
-        win32vars.app = get_funcs();        
+        result = true;
+        win32vars.app = get_funcs();
     }
     
-    return result;
+    return(result);
 }
+
+#include "4ed_font_data.h"
+#include "4ed_system_shared.cpp"
 
 internal void
 Win32LoadSystemCode(){
@@ -2167,6 +2188,9 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
     // Misc System Initializations
     //
     
+    win32vars.clip_max = KB(16);
+    win32vars.clip_buffer = (u8*)system_memory_allocate(win32vars.clip_max);
+    
     win32vars.clipboard_sequence = GetClipboardSequenceNumber();
     if (win32vars.clipboard_sequence == 0){
         system_post_clipboard(make_lit_string(""));
@@ -2179,7 +2203,7 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
         }
     }
     else{
-        Win32ReadClipboardContents();
+        win32_read_clipboard_contents();
     }
     
     Win32KeycodeInit();
@@ -2360,7 +2384,7 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
                     win32vars.next_clipboard_is_self = 0;
                 }
                 else{
-                    Win32ReadClipboardContents();
+                    win32_read_clipboard_contents();
                 }
             }
         }
@@ -2444,7 +2468,10 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
     return(0);
 }
 
-#include "font/4coder_font_static_functions.cpp"
+#include "win32_4ed_fonts.cpp"
+
+#include "win32_4ed_file_track.cpp"
+#include "4ed_font_static_functions.cpp"
 #include "win32_utf8.cpp"
 
 #if 0

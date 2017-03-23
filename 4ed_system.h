@@ -12,7 +12,7 @@
 #if !defined(FCODER_SYSTEM_INTERFACE_H)
 #define FCODER_SYSTEM_INTERFACE_H
 
-#include "font/4coder_font_interface.h"
+#include "4ed_font_interface.h"
 
 // types
 struct Plat_Handle{

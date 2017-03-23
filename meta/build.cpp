@@ -433,11 +433,7 @@ do_buildsuper(char *cdir, i32 custom_option, u32 flags){
         
         case Custom_Experiments:
         {
-#if defined(IS_WINDOWS)
-            copy_sc(&str, "../code/internal_4coder_tests.cpp");
-#else
             copy_sc(&str, "../code/power/4coder_experiments.cpp");
-#endif
         }break;
         
         case Custom_Casey:

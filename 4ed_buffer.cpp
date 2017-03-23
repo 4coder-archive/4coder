@@ -13,7 +13,7 @@
 // Buffer low level operations
 //
 
-#include "font/4coder_font_data.h"
+#include "4ed_font_data.h"
 #include "4coder_helper/4coder_seek_types.h"
 
 typedef struct Cursor_With_Index{

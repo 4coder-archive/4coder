@@ -30,6 +30,17 @@ global File_Data null_file_data = {0};
 internal Sys_File_Can_Be_Made_Sig(system_file_can_be_made);
 internal Sys_Get_Binary_Path_Sig(system_get_binary_path);
 
+struct Shared_Vars{
+    File_Track_System track;
+    void *track_table;
+    u32 track_table_size;
+    u32 track_node_size;
+    
+    Partition scratch;
+};
+
+global Shared_Vars shared_vars;
+
 #endif
 
 // BOTTOM
