@@ -343,8 +343,8 @@ COMMAND_DECL(reopen){
                     General_Memory *general = &models->mem.general;
                     
                     File_Edit_Positions edit_poss[16];
-                    umem line_number[16];
-                    umem column_number[16];
+                    int32_t line_number[16];
+                    int32_t column_number[16];
                     View *vptrs[16];
                     i32 vptr_count = 0;
                     for (View_Iter iter = file_view_iter_init(&models->layout, file, 0);
@@ -364,8 +364,8 @@ COMMAND_DECL(reopen){
                     for (i32 i = 0; i < vptr_count; ++i){
                         view_set_file(system, vptrs[i], file, models);
                         
-                        umem line = line_number[i];
-                        umem character = column_number[i];
+                        int32_t line = line_number[i];
+                        int32_t character = column_number[i];
                         
                         *vptrs[i]->edit_pos = edit_poss[i];
                         Full_Cursor cursor = view_compute_cursor(system, vptrs[i], seek_line_char(line, character), 0);
@@ -488,14 +488,14 @@ case_change_range(System_Functions *system, Mem_Options *mem, View *view, Editin
         file_update_history_before_edit(mem, file, step, 0, hist_normal);
         
         u8 *data = (u8*)file->state.buffer.data;
-        for (umem i = range.start; i < range.end; ++i){
+        for (i32 i = range.start; i < range.end; ++i){
             if (data[i] >= a && data[i] <= z){
                 data[i] += char_delta;
             }
         }
         
         if (file->state.token_array.tokens){
-            file_relex_parallel(system, mem, file, (u32)range.start, (u32)range.end, 0);
+            file_relex_parallel(system, mem, file, range.start, range.end, 0);
         }
     }
 }
@@ -1552,7 +1552,7 @@ update_cli_handle_with_file(System_Functions *system, Models *models, CLI_Handle
     
     system->cli_begin_update(cli);
     if (system->cli_update_step(cli, dest, max, &amount)){
-        amount = (u32)eol_in_place_convert_in(dest, amount);
+        amount = eol_in_place_convert_in(dest, amount);
         output_file_append(system, models, file, make_string(dest, amount), cursor_at_end);
         result = 1;
     }
@@ -1591,7 +1591,7 @@ App_Step_Sig(app_step){
     
     if (clipboard.str){
         String *dest =working_set_next_clipboard_string(&models->mem.general, &models->working_set, clipboard.size);
-        dest->size = (i32)eol_convert_in(dest->str, clipboard.str, clipboard.size);
+        dest->size = eol_convert_in(dest->str, clipboard.str, clipboard.size);
     }
     
     // NOTE(allen): check files are up to date
@@ -2503,16 +2503,16 @@ App_Step_Sig(app_step){
                     layout_compute_absolute_positions(&models->layout, absolute_positions);
                     mouse_position = (divider->v_divider)?(mx):(my);
                     layout_get_min_max(&models->layout, divider, absolute_positions, &min, &max);
-                    absolute_positions[div_id] = clamp_i32(min, mouse_position, max);
+                    absolute_positions[div_id] = clamp(min, mouse_position, max);
                     layout_update_all_positions(&models->layout, absolute_positions);
                 }
                 
                 else{
                     if (divider->v_divider){
-                        mouse_position = clamp_i32(0, mx, models->layout.full_width);
+                        mouse_position = clamp(0, mx, models->layout.full_width);
                     }
                     else{
-                        mouse_position = clamp_i32(0, my, models->layout.full_height);
+                        mouse_position = clamp(0, my, models->layout.full_height);
                     }
                     divider->pos = layout_compute_position(&models->layout, divider, mouse_position);
                 }

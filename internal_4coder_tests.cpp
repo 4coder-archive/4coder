@@ -16,7 +16,6 @@ Allen Webster
 
 #include "4coder_default_include.cpp"
 
-#if 0
 #include <assert.h>
 #include <stdio.h>
 
@@ -225,17 +224,12 @@ CUSTOM_COMMAND_SIG(run_all_tests){
     exec_command(app, load_unicode_file);
     exec_command(app, edit_giant_file);
 }
-#endif
 
 static void
 test_get_bindings(Bind_Helper *context){
-    
-#if 0
     begin_map(context, mapid_global);
     bind(context, key_f3, MDFR_NONE, run_all_tests);
     end_map(context);
-#endif
-    
 }
 
 #define BIND_4CODER_TESTS(context) test_get_bindings(context)

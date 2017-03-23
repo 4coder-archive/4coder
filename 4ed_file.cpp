@@ -21,7 +21,7 @@ enum Edit_Pos_Set_Type{
 struct File_Edit_Positions{
     GUI_Scroll_Vars scroll;
     Full_Cursor cursor;
-    umem mark;
+    i32 mark;
     f32 preferred_x;
     i32 scroll_i;
     i32 last_set_type;
@@ -54,7 +54,7 @@ edit_pos_set_scroll(File_Edit_Positions *edit_pos, GUI_Scroll_Vars scroll){
 //
 
 struct Text_Effect{
-    u32 start, end;
+    i32 start, end;
     u32 color;
     f32 seconds_down, seconds_max;
 };
@@ -109,20 +109,20 @@ global_const Editing_File_Settings null_editing_file_settings = {0};
 struct Editing_File_State{
     Gap_Buffer buffer;
     
-    u32 *wrap_line_index;
-    u32 wrap_max;
+    i32 *wrap_line_index;
+    i32 wrap_max;
     
-    u32 *character_starts;
-    u32 character_start_max;
+    i32 *character_starts;
+    i32 character_start_max;
     
     f32 *line_indents;
-    u32 line_indent_max;
+    i32 line_indent_max;
     
-    u32 wrap_line_count;
+    i32 wrap_line_count;
     
-    u32 *wrap_positions;
-    u32 wrap_position_count;
-    u32 wrap_position_max;
+    i32 *wrap_positions;
+    i32 wrap_position_count;
+    i32 wrap_position_max;
     
     Undo_Data undo;
     
@@ -385,14 +385,14 @@ edit_pos_get_new(Editing_File *file, i32 index){
 //
 
 inline Partial_Cursor
-file_compute_cursor_from_pos(Editing_File *file, umem pos){
+file_compute_cursor_from_pos(Editing_File *file, i32 pos){
     Partial_Cursor result = buffer_partial_from_pos(&file->state.buffer, pos);
     return(result);
 }
 
 inline Partial_Cursor
-file_compute_cursor_from_line_character(Editing_File *file, umem line, umem character, b32 reversed){
-    Partial_Cursor result = buffer_partial_from_line_character(&file->state.buffer, line, character, reversed);
+file_compute_cursor_from_line_character(Editing_File *file, i32 line, i32 character){
+    Partial_Cursor result = buffer_partial_from_line_character(&file->state.buffer, line, character);
     return(result);
 }
 
@@ -407,12 +407,7 @@ file_compute_partial_cursor(Editing_File *file, Buffer_Seek seek, Partial_Cursor
         
         case buffer_seek_line_char:
         {
-            *cursor = file_compute_cursor_from_line_character(file, seek.line, seek.character, true);
-        }break;
-        
-        case buffer_seek_line_reverse_char:
-        {
-            *cursor = file_compute_cursor_from_line_character(file, seek.line, seek.character, false);
+            *cursor = file_compute_cursor_from_line_character(file, seek.line, seek.character);
         }break;
         
         default:

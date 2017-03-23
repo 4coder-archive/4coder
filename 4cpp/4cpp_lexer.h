@@ -191,7 +191,7 @@ static String_And_Flag keywords[] = {
 static i32_4tech keywords_count = sizeof(keywords)/sizeof(keywords[0]);
 
 API_EXPORT FCPP_LINK Cpp_Get_Token_Result
-cpp_get_token(Cpp_Token_Array array, umem_4tech pos)/*
+cpp_get_token(Cpp_Token_Array array, u32_4tech pos)/*
 DOC_PARAM(array, The array of tokens from which to get a token.)
 DOC_PARAM(pos, The position, measured in bytes, to get the token for.)
 DOC_RETURN(A Cpp_Get_Token_Result struct is returned containing the index of a token and a flag indicating whether the pos is contained in the token or in whitespace after the token.)

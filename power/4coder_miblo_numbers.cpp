@@ -14,9 +14,9 @@ TYPE: 'drop-in-command-pack'
 #include "4coder_helper/4coder_helper.h"
 #include "4coder_helper/4coder_streaming.h"
 
-static bool32
-get_numeric_string_at_cursor(Application_Links *app, Buffer_Summary *buffer, size_t start_pos, size_t *numeric_start, size_t *numeric_end){
-    bool32 result = false;
+static int32_t
+get_numeric_string_at_cursor(Application_Links *app, Buffer_Summary *buffer, int32_t start_pos, int32_t *numeric_start, int32_t *numeric_end){
+    int32_t result = 0;
     
     char current = buffer_get_char(app, buffer, start_pos);
     
@@ -25,16 +25,16 @@ get_numeric_string_at_cursor(Application_Links *app, Buffer_Summary *buffer, siz
         int32_t chunk_size = sizeof(chunk);
         Stream_Chunk stream = {0};
         
-        size_t pos = start_pos;
+        int32_t pos = start_pos;
         
-        size_t pos1 = 0;
-        size_t pos2 = 0;
+        int32_t pos1 = 0;
+        int32_t pos2 = 0;
         
         if (init_stream_chunk(&stream, app, buffer, start_pos, chunk, chunk_size)){
             
             int32_t still_looping = 1;
             while (still_looping){
-                for (; pos >= (size_t)stream.start; --pos){
+                for (; pos >= stream.start; --pos){
                     char at_pos = stream.data[pos];
                     if (!char_is_numeric(at_pos)){
                         ++pos;
@@ -50,7 +50,7 @@ get_numeric_string_at_cursor(Application_Links *app, Buffer_Summary *buffer, siz
                 
                 still_looping = 1;
                 while (still_looping){
-                    for (; pos < (size_t)stream.end; ++pos){
+                    for (; pos < stream.end; ++pos){
                         char at_pos = stream.data[pos];
                         if (!char_is_numeric(at_pos)){
                             goto double_break_2;
@@ -61,7 +61,7 @@ get_numeric_string_at_cursor(Application_Links *app, Buffer_Summary *buffer, siz
                 double_break_2:;
                 pos2 = pos;
                 
-                result = true;
+                result = 1;
                 *numeric_start = pos1;
                 *numeric_end = pos2;
             }
@@ -72,19 +72,18 @@ get_numeric_string_at_cursor(Application_Links *app, Buffer_Summary *buffer, siz
 }
 
 struct Miblo_Number_Info{
-    size_t start, end;
+    int32_t start, end;
     int32_t x;
 };
 
-static bool32
-get_numeric_at_cursor(Application_Links *app, Buffer_Summary *buffer, size_t pos, Miblo_Number_Info *info){
-    bool32 result = false;
+static int32_t
+get_numeric_at_cursor(Application_Links *app, Buffer_Summary *buffer, int32_t pos, Miblo_Number_Info *info){
+    int32_t result = 0;
     
-    size_t numeric_start = 0, numeric_end = 0;
+    int32_t numeric_start = 0, numeric_end = 0;
     if (get_numeric_string_at_cursor(app, buffer, pos, &numeric_start, &numeric_end)){
-        int32_t string_length = (int32_t)(numeric_end - numeric_start);
         char numeric_string[1024];
-        String str = make_string(numeric_string, string_length, sizeof(numeric_string));
+        String str = make_string(numeric_string, numeric_end - numeric_start, sizeof(numeric_string));
         if (str.size < str.memory_size){
             buffer_read_range(app, buffer, numeric_start, numeric_end, numeric_string);
             
@@ -94,7 +93,7 @@ get_numeric_at_cursor(Application_Links *app, Buffer_Summary *buffer, size_t pos
             info->start = numeric_start;
             info->end = numeric_end;
             info->x = x;
-            result = true;
+            result = 1;
         }
     }
     
@@ -132,9 +131,9 @@ CUSTOM_COMMAND_SIG(miblo_decrement_basic){
 // NOTE(allen): miblo time stamp format
 // (h+:)?m?m:ss
 
-static bool32
-get_timestamp_string_at_cursor(Application_Links *app, Buffer_Summary *buffer, size_t start_pos, size_t *timestamp_start, size_t *timestamp_end){
-    bool32 result = false;
+static int32_t
+get_timestamp_string_at_cursor(Application_Links *app, Buffer_Summary *buffer, int32_t start_pos, int32_t *timestamp_start, int32_t *timestamp_end){
+    int32_t result = 0;
     
     char current = buffer_get_char(app, buffer, start_pos);
     
@@ -143,16 +142,16 @@ get_timestamp_string_at_cursor(Application_Links *app, Buffer_Summary *buffer, s
         int32_t chunk_size = sizeof(chunk);
         Stream_Chunk stream = {0};
         
-        size_t pos = start_pos;
+        int32_t pos = start_pos;
         
-        size_t pos1 = 0;
-        size_t pos2 = 0;
+        int32_t pos1 = 0;
+        int32_t pos2 = 0;
         
         if (init_stream_chunk(&stream, app, buffer, start_pos, chunk, chunk_size)){
             
             int32_t still_looping = 1;
             while (still_looping){
-                for (; pos >= (size_t)stream.start; --pos){
+                for (; pos >= stream.start; --pos){
                     char at_pos = stream.data[pos];
                     if (!(char_is_numeric(at_pos) || at_pos == ':')){
                         ++pos;
@@ -168,7 +167,7 @@ get_timestamp_string_at_cursor(Application_Links *app, Buffer_Summary *buffer, s
                 
                 still_looping = 1;
                 while (still_looping){
-                    for (; pos < (size_t)stream.end; ++pos){
+                    for (; pos < stream.end; ++pos){
                         char at_pos = stream.data[pos];
                         if (!(char_is_numeric(at_pos) || at_pos == ':')){
                             goto double_break_2;
@@ -179,7 +178,7 @@ get_timestamp_string_at_cursor(Application_Links *app, Buffer_Summary *buffer, s
                 double_break_2:;
                 pos2 = pos;
                 
-                result = true;
+                result = 1;
                 *timestamp_start = pos1;
                 *timestamp_end = pos2;
             }
@@ -272,19 +271,18 @@ timestamp_to_str(String *dest, Miblo_Timestamp t){
 }
 
 struct Miblo_Timestamp_Info{
-    size_t start, end;
+    int32_t start, end;
     Miblo_Timestamp time;
 };
 
-static bool32
-get_timestamp_at_cursor(Application_Links *app, Buffer_Summary *buffer, size_t pos, Miblo_Timestamp_Info *info){
-    bool32 result = false;
+static int32_t
+get_timestamp_at_cursor(Application_Links *app, Buffer_Summary *buffer, int32_t pos, Miblo_Timestamp_Info *info){
+    int32_t result = 0;
     
-    size_t timestamp_start = 0, timestamp_end = 0;
+    int32_t timestamp_start = 0, timestamp_end = 0;
     if (get_timestamp_string_at_cursor(app, buffer, pos, &timestamp_start, &timestamp_end)){
-        int32_t string_length = (int32_t)(timestamp_end - timestamp_start);
         char timestamp_string[1024];
-        String str = make_string(timestamp_string, string_length, sizeof(timestamp_string));
+        String str = make_string(timestamp_string, timestamp_end - timestamp_start, sizeof(timestamp_string));
         if (str.size < str.memory_size){
             buffer_read_range(app, buffer, timestamp_start, timestamp_end, timestamp_string);
             
@@ -298,10 +296,10 @@ get_timestamp_at_cursor(Application_Links *app, Buffer_Summary *buffer, size_t p
             if (count_colons == 1 || count_colons == 2){
                 Miblo_Timestamp t = {0};
                 
-                bool32 success = false;
+                int32_t success = 0;
                 
-                size_t i = 0;
-                size_t number_start[3], number_end[3];
+                int32_t i = 0;
+                int32_t number_start[3], number_end[3];
                 for (int32_t k = 0; k < 3; ++k){
                     number_start[k] = i;
                     for (; i <= str.size; ++i){
@@ -317,42 +315,27 @@ get_timestamp_at_cursor(Application_Links *app, Buffer_Summary *buffer, size_t p
                 }
                 
                 if (count_colons == 2){
+                    t.hour = str_to_int(make_string(str.str + number_start[0], number_end[0] - number_start[0]));
                     
-                    int32_t number_length = (int32_t)(number_end[0] - number_start[0]);
-                    String number_string = make_string(str.str + number_start[0], number_length);
-                    t.hour = str_to_int(number_string);
-                    
-                    number_length = (int32_t)(number_end[1] - number_start[1]);
-                    if (number_length == 2){
+                    if (number_end[1] - number_start[1] == 2){
                         
-                        number_string = make_string(str.str + number_start[1], number_length);
-                        t.minute = str_to_int(number_string);
+                        t.minute = str_to_int(make_string(str.str + number_start[1], number_end[1] - number_start[1]));
                         
-                        number_length = (int32_t)(number_end[2] - number_start[2]);
-                        if (number_length == 2){
+                        if (number_end[2] - number_start[2] == 2){
+                            t.second = str_to_int(make_string(str.str + number_start[2], number_end[2] - number_start[2]));
                             
-                            number_string = make_string(str.str + number_start[2], number_length);
-                            t.second = str_to_int(number_string);
-                            
-                            success = true;
+                            success = 1;
                         }
                     }
                 }
                 else{
-                    
-                    int32_t number_length = (int32_t)(number_end[0] - number_start[0]);
-                    if (number_length == 2 || number_length == 1){
+                    if (number_end[0] - number_start[0] == 2 || number_end[0] - number_start[0] == 1){
+                        t.minute = str_to_int(make_string(str.str + number_start[0], number_end[0] - number_start[0]));
                         
-                        String number_string = make_string(str.str + number_start[0], number_length);
-                        t.minute = str_to_int(number_string);
-                        
-                        number_length = (int32_t)(number_end[1] - number_start[1]);
-                        if (number_length == 2){
+                        if (number_end[1] - number_start[1] == 2){
+                            t.second = str_to_int(make_string(str.str + number_start[1], number_end[1] - number_start[1]));
                             
-                            number_string = make_string(str.str + number_start[1], number_length);
-                            t.second = str_to_int(number_string);
-                            
-                            success = true;
+                            success = 1;
                         }
                     }
                 }
@@ -361,7 +344,7 @@ get_timestamp_at_cursor(Application_Links *app, Buffer_Summary *buffer, size_t p
                     info->start = timestamp_start;
                     info->end = timestamp_end;
                     info->time = t;
-                    result = true;
+                    result = 1;
                 }
             }
         }
