@@ -15,7 +15,7 @@ TYPE: 'drop-in-command-pack'
 #include "4coder_helper/4coder_streaming.h"
 
 static bool32
-get_numeric_string_at_cursor(Application_Links *app, Buffer_Summary *buffer, int32_t start_pos, int32_t *numeric_start, int32_t *numeric_end){
+get_numeric_string_at_cursor(Application_Links *app, Buffer_Summary *buffer, size_t start_pos, size_t *numeric_start, size_t *numeric_end){
     bool32 result = false;
     
     char current = buffer_get_char(app, buffer, start_pos);
@@ -25,10 +25,10 @@ get_numeric_string_at_cursor(Application_Links *app, Buffer_Summary *buffer, int
         int32_t chunk_size = sizeof(chunk);
         Stream_Chunk stream = {0};
         
-        int32_t pos = start_pos;
+        size_t pos = start_pos;
         
-        int32_t pos1 = 0;
-        int32_t pos2 = 0;
+        size_t pos1 = 0;
+        size_t pos2 = 0;
         
         if (init_stream_chunk(&stream, app, buffer, start_pos, chunk, chunk_size)){
             
@@ -72,15 +72,15 @@ get_numeric_string_at_cursor(Application_Links *app, Buffer_Summary *buffer, int
 }
 
 struct Miblo_Number_Info{
-    int32_t start, end;
+    size_t start, end;
     int32_t x;
 };
 
 static bool32
-get_numeric_at_cursor(Application_Links *app, Buffer_Summary *buffer, int32_t pos, Miblo_Number_Info *info){
+get_numeric_at_cursor(Application_Links *app, Buffer_Summary *buffer, size_t pos, Miblo_Number_Info *info){
     bool32 result = false;
     
-    int32_t numeric_start = 0, numeric_end = 0;
+    size_t numeric_start = 0, numeric_end = 0;
     if (get_numeric_string_at_cursor(app, buffer, pos, &numeric_start, &numeric_end)){
         int32_t string_length = (int32_t)(numeric_end - numeric_start);
         char numeric_string[1024];
@@ -133,7 +133,7 @@ CUSTOM_COMMAND_SIG(miblo_decrement_basic){
 // (h+:)?m?m:ss
 
 static bool32
-get_timestamp_string_at_cursor(Application_Links *app, Buffer_Summary *buffer, int32_t start_pos, int32_t *timestamp_start, int32_t *timestamp_end){
+get_timestamp_string_at_cursor(Application_Links *app, Buffer_Summary *buffer, size_t start_pos, size_t *timestamp_start, size_t *timestamp_end){
     bool32 result = false;
     
     char current = buffer_get_char(app, buffer, start_pos);
@@ -143,10 +143,10 @@ get_timestamp_string_at_cursor(Application_Links *app, Buffer_Summary *buffer, i
         int32_t chunk_size = sizeof(chunk);
         Stream_Chunk stream = {0};
         
-        int32_t pos = start_pos;
+        size_t pos = start_pos;
         
-        int32_t pos1 = 0;
-        int32_t pos2 = 0;
+        size_t pos1 = 0;
+        size_t pos2 = 0;
         
         if (init_stream_chunk(&stream, app, buffer, start_pos, chunk, chunk_size)){
             
@@ -272,15 +272,15 @@ timestamp_to_str(String *dest, Miblo_Timestamp t){
 }
 
 struct Miblo_Timestamp_Info{
-    int32_t start, end;
+    size_t start, end;
     Miblo_Timestamp time;
 };
 
 static bool32
-get_timestamp_at_cursor(Application_Links *app, Buffer_Summary *buffer, int32_t pos, Miblo_Timestamp_Info *info){
+get_timestamp_at_cursor(Application_Links *app, Buffer_Summary *buffer, size_t pos, Miblo_Timestamp_Info *info){
     bool32 result = false;
     
-    int32_t timestamp_start = 0, timestamp_end = 0;
+    size_t timestamp_start = 0, timestamp_end = 0;
     if (get_timestamp_string_at_cursor(app, buffer, pos, &timestamp_start, &timestamp_end)){
         int32_t string_length = (int32_t)(timestamp_end - timestamp_start);
         char timestamp_string[1024];

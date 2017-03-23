@@ -15,16 +15,16 @@
 // Whitespace Based Seeks
 //
 
-static int32_t
-seek_line_end(Application_Links *app, Buffer_Summary *buffer, int32_t pos){
+static size_t
+seek_line_end(Application_Links *app, Buffer_Summary *buffer, size_t pos){
     char chunk[1024];
-    int32_t chunk_size = sizeof(chunk);
+    size_t chunk_size = sizeof(chunk);
     Stream_Chunk stream = {0};
     
     if (init_stream_chunk(&stream, app, buffer, pos, chunk, chunk_size)){
         bool32 still_looping = true;
         do{
-            for (; pos < (int32_t)stream.end; ++pos){
+            for (; pos < (size_t)stream.end; ++pos){
                 char at_pos = stream.data[pos];
                 if (at_pos == '\n'){
                     goto double_break;
@@ -42,17 +42,17 @@ seek_line_end(Application_Links *app, Buffer_Summary *buffer, int32_t pos){
     return(pos);
 }
 
-static int32_t
-seek_line_beginning(Application_Links *app, Buffer_Summary *buffer, int32_t pos){
+static size_t
+seek_line_beginning(Application_Links *app, Buffer_Summary *buffer, size_t pos){
     char chunk[1024];
-    int32_t chunk_size = sizeof(chunk);
+    size_t chunk_size = sizeof(chunk);
     Stream_Chunk stream = {0};
     
     --pos;
     if (init_stream_chunk(&stream, app, buffer, pos, chunk, chunk_size)){
         bool32 still_looping = false;
         do{
-            for (; pos >= (int32_t)stream.start; --pos){
+            for (; pos >= (size_t)stream.start; --pos){
                 char at_pos = stream.data[pos];
                 if (at_pos == '\n'){
                     goto double_break;
@@ -80,12 +80,12 @@ move_past_lead_whitespace(Application_Links *app, View_Summary *view, Buffer_Sum
     char space[1024];
     Stream_Chunk chunk = {0};
     
-    int32_t new_pos = seek_line_beginning(app, buffer, view->cursor.pos);
-    int32_t i = new_pos;
+    size_t new_pos = seek_line_beginning(app, buffer, view->cursor.pos);
+    size_t i = new_pos;
     if (init_stream_chunk(&chunk, app, buffer, i, space, sizeof(space))){
         bool32 still_looping = false;
         do{
-            for (; i < (int32_t)chunk.end; ++i){
+            for (; i < (size_t)chunk.end; ++i){
                 char at_pos = chunk.data[i];
                 if (at_pos == '\n' || !char_is_whitespace(at_pos)){
                     goto break2;
@@ -101,10 +101,10 @@ move_past_lead_whitespace(Application_Links *app, View_Summary *view, Buffer_Sum
     }
 }
 
-static int32_t
-buffer_seek_whitespace_up(Application_Links *app, Buffer_Summary *buffer, int32_t pos){
+static size_t
+buffer_seek_whitespace_up(Application_Links *app, Buffer_Summary *buffer, size_t pos){
     char chunk[1024];
-    int32_t chunk_size = sizeof(chunk);
+    size_t chunk_size = sizeof(chunk);
     Stream_Chunk stream = {0};
     
     --pos;
@@ -113,7 +113,7 @@ buffer_seek_whitespace_up(Application_Links *app, Buffer_Summary *buffer, int32_
         // behind the current position.
         bool32 still_looping = true;
         while (still_looping){
-            for (; pos >= (int32_t)stream.start; --pos){
+            for (; pos >= (size_t)stream.start; --pos){
                 char at_pos = stream.data[pos];
                 if (!char_is_whitespace(at_pos)){
                     goto double_break_1;
@@ -130,7 +130,7 @@ buffer_seek_whitespace_up(Application_Links *app, Buffer_Summary *buffer, int32_
         // the next '\n'
         int32_t no_hard = false;
         while (still_looping){
-            for (; pos >= (int32_t)stream.start; --pos){
+            for (; pos >= (size_t)stream.start; --pos){
                 char at_pos = stream.data[pos];
                 if (at_pos == '\n'){
                     if (no_hard){
@@ -156,10 +156,10 @@ buffer_seek_whitespace_up(Application_Links *app, Buffer_Summary *buffer, int32_
     return(pos);
 }
 
-static int32_t
-buffer_seek_whitespace_down(Application_Links *app, Buffer_Summary *buffer, int32_t pos){
+static size_t
+buffer_seek_whitespace_down(Application_Links *app, Buffer_Summary *buffer, size_t pos){
     char chunk[1024];
-    int32_t chunk_size = sizeof(chunk);
+    size_t chunk_size = sizeof(chunk);
     Stream_Chunk stream = {0};
     
     if (init_stream_chunk(&stream, app, buffer, pos, chunk, chunk_size)){
@@ -167,7 +167,7 @@ buffer_seek_whitespace_down(Application_Links *app, Buffer_Summary *buffer, int3
         // ahead of the current position.
         bool32 still_looping = true;
         do{
-            for (; pos < (int32_t)stream.end; ++pos){
+            for (; pos < (size_t)stream.end; ++pos){
                 char at_pos = stream.data[pos];
                 if (!char_is_whitespace(at_pos)){
                     goto double_break_1;
@@ -184,9 +184,9 @@ buffer_seek_whitespace_down(Application_Links *app, Buffer_Summary *buffer, int3
         // all whitespace.
         bool32 no_hard = false;
         bool32 was_at_end = true;
-        int32_t prev_endline = 0;
+        size_t prev_endline = 0;
         while(still_looping){
-            for (; pos < (int32_t)stream.end; ++pos){
+            for (; pos < (size_t)stream.end; ++pos){
                 char at_pos = stream.data[pos];
                 if (at_pos == '\n'){
                     if (no_hard){
@@ -216,8 +216,8 @@ buffer_seek_whitespace_down(Application_Links *app, Buffer_Summary *buffer, int3
     
     return(pos);
 }
-static int32_t
-buffer_seek_whitespace_right(Application_Links *app, Buffer_Summary *buffer, int32_t pos){
+static size_t
+buffer_seek_whitespace_right(Application_Links *app, Buffer_Summary *buffer, size_t pos){
     char data_chunk[1024];
     Stream_Chunk stream = {0};
     
@@ -226,7 +226,7 @@ buffer_seek_whitespace_right(Application_Links *app, Buffer_Summary *buffer, int
         
         bool32 still_looping = 1;
         do{
-            for (; pos < (int32_t)stream.end; ++pos){
+            for (; pos < (size_t)stream.end; ++pos){
                 if (!char_is_whitespace(stream.data[pos])){
                     goto double_break1;
                 }
@@ -237,7 +237,7 @@ buffer_seek_whitespace_right(Application_Links *app, Buffer_Summary *buffer, int
         
         still_looping = 1;
         do{
-            for (; pos < (int32_t)stream.end; ++pos){
+            for (; pos < (size_t)stream.end; ++pos){
                 if (char_is_whitespace(stream.data[pos])){
                     goto double_break2;
                 }
@@ -250,8 +250,8 @@ buffer_seek_whitespace_right(Application_Links *app, Buffer_Summary *buffer, int
     return(pos);
 }
 
-static int32_t
-buffer_seek_whitespace_left(Application_Links *app, Buffer_Summary *buffer, int32_t pos){
+static size_t
+buffer_seek_whitespace_left(Application_Links *app, Buffer_Summary *buffer, size_t pos){
     char data_chunk[1024];
     Stream_Chunk stream = {0};
     
@@ -262,7 +262,7 @@ buffer_seek_whitespace_left(Application_Links *app, Buffer_Summary *buffer, int3
             
             bool32 still_looping = 1;
             do{
-                for (; pos >= (int32_t)stream.start; --pos){
+                for (; pos >= (size_t)stream.start; --pos){
                     if (!char_is_whitespace(stream.data[pos])){
                         goto double_break1;
                     }
@@ -273,7 +273,7 @@ buffer_seek_whitespace_left(Application_Links *app, Buffer_Summary *buffer, int3
             
             still_looping = 1;
             do{
-                for (; pos >= (int32_t)stream.start; --pos){
+                for (; pos >= (size_t)stream.start; --pos){
                     if (char_is_whitespace(stream.data[pos])){
                         ++pos;
                         goto double_break2;
@@ -295,8 +295,8 @@ buffer_seek_whitespace_left(Application_Links *app, Buffer_Summary *buffer, int3
 // Boundary Type Seeks
 //
 
-static int32_t
-buffer_seek_alphanumeric_right(Application_Links *app, Buffer_Summary *buffer, int32_t pos){
+static size_t
+buffer_seek_alphanumeric_right(Application_Links *app, Buffer_Summary *buffer, size_t pos){
     char data_chunk[1024];
     Stream_Chunk stream = {0};
     
@@ -305,7 +305,7 @@ buffer_seek_alphanumeric_right(Application_Links *app, Buffer_Summary *buffer, i
         
         bool32 still_looping = 1;
         do{
-            for (; pos < (int32_t)stream.end; ++pos){
+            for (; pos < (size_t)stream.end; ++pos){
                 if (char_is_alpha_numeric_true(stream.data[pos])){
                     goto double_break1;
                 }
@@ -316,7 +316,7 @@ buffer_seek_alphanumeric_right(Application_Links *app, Buffer_Summary *buffer, i
         
         still_looping = 1;
         do{
-            for (; pos < (int32_t)stream.end; ++pos){
+            for (; pos < (size_t)stream.end; ++pos){
                 if (!char_is_alpha_numeric_true(stream.data[pos])){
                     goto double_break2;
                 }
@@ -329,8 +329,8 @@ buffer_seek_alphanumeric_right(Application_Links *app, Buffer_Summary *buffer, i
     return(pos);
 }
 
-static int32_t
-buffer_seek_alphanumeric_left(Application_Links *app, Buffer_Summary *buffer, int32_t pos){
+static size_t
+buffer_seek_alphanumeric_left(Application_Links *app, Buffer_Summary *buffer, size_t pos){
     char data_chunk[1024];
     Stream_Chunk stream = {0};
     
@@ -341,7 +341,7 @@ buffer_seek_alphanumeric_left(Application_Links *app, Buffer_Summary *buffer, in
             
             bool32 still_looping = 1;
             do{
-                for (; pos >= (int32_t)stream.start; --pos){
+                for (; pos >= (size_t)stream.start; --pos){
                     if (char_is_alpha_numeric_true(stream.data[pos])){
                         goto double_break1;
                     }
@@ -352,7 +352,7 @@ buffer_seek_alphanumeric_left(Application_Links *app, Buffer_Summary *buffer, in
             
             still_looping = 1;
             do{
-                for (; pos >= (int32_t)stream.start; --pos){
+                for (; pos >= (size_t)stream.start; --pos){
                     if (!char_is_alpha_numeric_true(stream.data[pos])){
                         ++pos;
                         goto double_break2;
@@ -370,8 +370,8 @@ buffer_seek_alphanumeric_left(Application_Links *app, Buffer_Summary *buffer, in
     return(pos);
 }
 
-static int32_t
-buffer_seek_range_camel_right(Application_Links *app, Buffer_Summary *buffer, int32_t pos, int32_t an_pos){
+static size_t
+buffer_seek_range_camel_right(Application_Links *app, Buffer_Summary *buffer, size_t pos, size_t an_pos){
     char data_chunk[1024];
     Stream_Chunk stream = {0};
     
@@ -386,7 +386,7 @@ buffer_seek_range_camel_right(Application_Links *app, Buffer_Summary *buffer, in
             
             bool32 still_looping = 1;
             do{
-                for (; pos < (int32_t)stream.end; ++pos){
+                for (; pos < (size_t)stream.end; ++pos){
                     c = stream.data[pos];
                     if (char_is_upper(c) && char_is_lower(pc)){
                         goto double_break1;
@@ -405,8 +405,8 @@ buffer_seek_range_camel_right(Application_Links *app, Buffer_Summary *buffer, in
     return(pos);
 }
 
-static int32_t
-buffer_seek_range_camel_left(Application_Links *app, Buffer_Summary *buffer, int32_t pos, int32_t an_pos){
+static size_t
+buffer_seek_range_camel_left(Application_Links *app, Buffer_Summary *buffer, size_t pos, size_t an_pos){
     char data_chunk[1024];
     Stream_Chunk stream = {0};
     
@@ -419,7 +419,7 @@ buffer_seek_range_camel_left(Application_Links *app, Buffer_Summary *buffer, int
             
             bool32 still_looping = 1;
             do{
-                for (; pos >= (int32_t)stream.start; --pos){
+                for (; pos >= (size_t)stream.start; --pos){
                     c = stream.data[pos];
                     if (char_is_upper(c) && char_is_lower(pc)){
                         goto double_break1;
@@ -438,22 +438,22 @@ buffer_seek_range_camel_left(Application_Links *app, Buffer_Summary *buffer, int
     return(pos);
 }
 
-static int32_t
-buffer_seek_alphanumeric_or_camel_right(Application_Links *app, Buffer_Summary *buffer, int32_t pos){
-    int32_t an_pos = buffer_seek_alphanumeric_right(app, buffer, pos);
-    int32_t result = buffer_seek_range_camel_right(app, buffer, pos, an_pos);
+static size_t
+buffer_seek_alphanumeric_or_camel_right(Application_Links *app, Buffer_Summary *buffer, size_t pos){
+    size_t an_pos = buffer_seek_alphanumeric_right(app, buffer, pos);
+    size_t result = buffer_seek_range_camel_right(app, buffer, pos, an_pos);
     return(result);
 }
 
-static int32_t
-buffer_seek_alphanumeric_or_camel_left(Application_Links *app, Buffer_Summary *buffer, int32_t pos){
-    int32_t an_pos = buffer_seek_alphanumeric_left(app, buffer, pos);
-    int32_t result = buffer_seek_range_camel_left(app, buffer, pos, an_pos);
+static size_t
+buffer_seek_alphanumeric_or_camel_left(Application_Links *app, Buffer_Summary *buffer, size_t pos){
+    size_t an_pos = buffer_seek_alphanumeric_left(app, buffer, pos);
+    size_t result = buffer_seek_range_camel_left(app, buffer, pos, an_pos);
     return(result);
 }
 
-static int32_t
-seek_token_left(Cpp_Token_Array *tokens, int32_t pos){
+static size_t
+seek_token_left(Cpp_Token_Array *tokens, size_t pos){
     Cpp_Get_Token_Result get = cpp_get_token(*tokens, pos);
     if (get.token_index == -1){
         get.token_index = 0;
@@ -467,8 +467,8 @@ seek_token_left(Cpp_Token_Array *tokens, int32_t pos){
     return(token->start);
 }
 
-static int32_t
-seek_token_right(Cpp_Token_Array *tokens, int32_t pos){
+static size_t
+seek_token_right(Cpp_Token_Array *tokens, size_t pos){
     Cpp_Get_Token_Result get = cpp_get_token(*tokens, pos);
     if (get.in_whitespace){
         ++get.token_index;
@@ -497,8 +497,8 @@ buffer_get_all_tokens(Application_Links *app, Partition *part, Buffer_Summary *b
     return(array);
 }
 
-static int32_t
-buffer_boundary_seek(Application_Links *app, Buffer_Summary *buffer, Partition *part, int32_t start_pos, bool32 seek_forward, Seek_Boundary_Flag flags)/*
+static size_t
+buffer_boundary_seek(Application_Links *app, Buffer_Summary *buffer, Partition *part, size_t start_pos, bool32 seek_forward, Seek_Boundary_Flag flags)/*
 DOC_PARAM(buffer, The buffer parameter specifies the buffer through which to seek.)
 DOC_PARAM(start_pos, The beginning position of the seek is specified by start_pos measured in absolute position.)
 DOC_PARAM(seek_forward, If this parameter is non-zero it indicates that the seek should move foward through the buffer.)
@@ -509,14 +509,14 @@ DOC_RETURN(This call returns the absolute position where the seek stopped. If th
 DOC_SEE(Seek_Boundary_Flag)
 DOC_SEE(4coder_Buffer_Positioning_System)
 */{
-    int32_t result = 0;
+    size_t result = 0;
     
     // TODO(allen): reduce duplication?
     Temp_Memory temp = begin_temp_memory(part);
     if (buffer->exists){
-        int32_t pos[4];
-        int32_t size = buffer->size;
-        int32_t new_pos = 0;
+        size_t pos[4];
+        size_t size = buffer->size;
+        size_t new_pos = 0;
         
         if (start_pos < 0){
             start_pos = 0;
@@ -613,7 +613,7 @@ DOC_SEE(4coder_Buffer_Positioning_System)
 //
 
 static void
-buffer_seek_delimiter_forward(Application_Links *app, Buffer_Summary *buffer, int32_t pos, char delim, int32_t *result){
+buffer_seek_delimiter_forward(Application_Links *app, Buffer_Summary *buffer, size_t pos, char delim, size_t *result){
     if (buffer->exists){
         char chunk[1024];
         int32_t size = sizeof(chunk);
@@ -622,7 +622,7 @@ buffer_seek_delimiter_forward(Application_Links *app, Buffer_Summary *buffer, in
         if (init_stream_chunk(&stream, app, buffer, pos, chunk, size)){
             int32_t still_looping = 1;
             do{
-                for(; pos < (int32_t)stream.end; ++pos){
+                for(; pos < (size_t)stream.end; ++pos){
                     char at_pos = stream.data[pos];
                     if (at_pos == delim){
                         *result = pos;
@@ -640,7 +640,7 @@ buffer_seek_delimiter_forward(Application_Links *app, Buffer_Summary *buffer, in
 }
 
 static void
-buffer_seek_delimiter_backward(Application_Links *app, Buffer_Summary *buffer, int32_t pos, char delim, int32_t *result){
+buffer_seek_delimiter_backward(Application_Links *app, Buffer_Summary *buffer, size_t pos, char delim, size_t *result){
     if (buffer->exists){
         char chunk[1024];
         int32_t size = sizeof(chunk);
@@ -649,7 +649,7 @@ buffer_seek_delimiter_backward(Application_Links *app, Buffer_Summary *buffer, i
         if (init_stream_chunk(&stream, app, buffer, pos, chunk, size)){
             int32_t still_looping = 1;
             do{
-                for(; pos >= (int32_t)stream.start; --pos){
+                for(; pos >= (size_t)stream.start; --pos){
                     char at_pos = stream.data[pos];
                     if (at_pos == delim){
                         *result = pos;
@@ -677,7 +677,7 @@ buffer_seek_delimiter_backward(Application_Links *app, Buffer_Summary *buffer, i
 // You can push it up or do something more clever by just
 // replacing char read_buffer[512]; with more memory.
 static void
-buffer_seek_string_forward(Application_Links *app, Buffer_Summary *buffer, int32_t pos, int32_t end, char *str, int32_t size, int32_t *result){
+buffer_seek_string_forward(Application_Links *app, Buffer_Summary *buffer, size_t pos, size_t end, char *str, size_t size, size_t *result){
     char read_buffer[512];
     
     if (buffer->size > end){
@@ -702,7 +702,7 @@ buffer_seek_string_forward(Application_Links *app, Buffer_Summary *buffer, int32
             if (init_stream_chunk(&stream, app, buffer, pos, chunk, sizeof(chunk))){
                 bool32 still_looping = 1;
                 do{
-                    for(; pos < (int32_t)stream.end; ++pos){
+                    for(; pos < (size_t)stream.end; ++pos){
                         char at_pos = stream.data[pos];
                         if (at_pos == first_char){
                             buffer_read_range(app, buffer, pos, pos+size, read_buffer);
@@ -732,7 +732,7 @@ buffer_seek_string_forward(Application_Links *app, Buffer_Summary *buffer, int32
 // You can push it up or do something more clever by just
 // replacing char read_buffer[512]; with more memory.
 static void
-buffer_seek_string_backward(Application_Links *app, Buffer_Summary *buffer, int32_t pos, int32_t min, char *str, int32_t size, int32_t *result){
+buffer_seek_string_backward(Application_Links *app, Buffer_Summary *buffer, size_t pos, size_t min, char *str, size_t size, size_t *result){
     char read_buffer[512];
     
     *result = min-1;
@@ -751,7 +751,7 @@ buffer_seek_string_backward(Application_Links *app, Buffer_Summary *buffer, int3
             if (init_stream_chunk(&stream, app, buffer, pos, chunk, sizeof(chunk))){
                 int32_t still_looping = 1;
                 do{
-                    for(; pos >= (int32_t)stream.start; --pos){
+                    for(; pos >= (size_t)stream.start; --pos){
                         char at_pos = stream.data[pos];
                         if (at_pos == first_char){
                             buffer_read_range(app, buffer, pos, pos+size, read_buffer);
@@ -774,7 +774,7 @@ buffer_seek_string_backward(Application_Links *app, Buffer_Summary *buffer, int3
 // You can push it up or do something more clever by just
 // replacing char read_buffer[512]; with more memory.
 static void
-buffer_seek_string_insensitive_forward(Application_Links *app, Buffer_Summary *buffer, int32_t pos, int32_t end, char *str, int32_t size, int32_t *result){
+buffer_seek_string_insensitive_forward(Application_Links *app, Buffer_Summary *buffer, size_t pos, size_t end, char *str, size_t size, size_t *result){
     char read_buffer[512];
     char chunk[1024];
     int32_t chunk_size = sizeof(chunk);
@@ -798,7 +798,7 @@ buffer_seek_string_insensitive_forward(Application_Links *app, Buffer_Summary *b
         if (init_stream_chunk(&stream, app, buffer, pos, chunk, chunk_size)){
             bool32 still_looping = true;
             do{
-                for(; pos < (int32_t)stream.end; ++pos){
+                for(; pos < (size_t)stream.end; ++pos){
                     char at_pos = char_to_upper(stream.data[pos]);
                     if (at_pos == first_char){
                         buffer_read_range(app, buffer, pos, pos+size, read_buffer);
@@ -819,7 +819,7 @@ buffer_seek_string_insensitive_forward(Application_Links *app, Buffer_Summary *b
 // You can push it up or do something more clever by just
 // replacing char read_buffer[512]; with more memory.
 static void
-buffer_seek_string_insensitive_backward(Application_Links *app, Buffer_Summary *buffer, int32_t pos, int32_t min, char *str, int32_t size, int32_t *result){
+buffer_seek_string_insensitive_backward(Application_Links *app, Buffer_Summary *buffer, size_t pos, size_t min, char *str, size_t size, size_t *result){
     char read_buffer[512];
     char chunk[1024];
     int32_t chunk_size = sizeof(chunk);
@@ -837,7 +837,7 @@ buffer_seek_string_insensitive_backward(Application_Links *app, Buffer_Summary *
         if (init_stream_chunk(&stream, app, buffer, pos, chunk, chunk_size)){
             int32_t still_looping = 1;
             do{
-                for(; pos >= (int32_t)stream.start; --pos){
+                for(; pos >= (size_t)stream.start; --pos){
                     char at_pos = char_to_upper(stream.data[pos]);
                     if (at_pos == first_char){
                         buffer_read_range(app, buffer, pos, pos+size, read_buffer);
@@ -860,7 +860,7 @@ buffer_seek_string_insensitive_backward(Application_Links *app, Buffer_Summary *
 //
 
 static bool32
-read_line(Application_Links *app, Partition *part, Buffer_Summary *buffer, int32_t line, String *str){
+read_line(Application_Links *app, Partition *part, Buffer_Summary *buffer, size_t line, String *str){
     bool32 success = false;
     
     Buffer_Seek seek_begin = seek_line_char(line, 1);
@@ -872,7 +872,7 @@ read_line(Application_Links *app, Partition *part, Buffer_Summary *buffer, int32
         if (begin.line == line){
             if (buffer_compute_cursor(app, buffer, seek_end, &end)){
                 if (0 <= begin.pos && begin.pos <= end.pos && end.pos <= buffer->size){
-                    int32_t size = (end.pos - begin.pos);
+                    size_t size = (end.pos - begin.pos);
                     *str = make_string(push_array(part, char, size+1), (int32_t)(size+1));
                     if (str->str){
                         success = true;
@@ -888,10 +888,10 @@ read_line(Application_Links *app, Partition *part, Buffer_Summary *buffer, int32
     return(success);
 }
 
-static int32_t
-buffer_get_line_start(Application_Links *app, Buffer_Summary *buffer, int32_t line){
+static size_t
+buffer_get_line_start(Application_Links *app, Buffer_Summary *buffer, size_t line){
     Partial_Cursor partial_cursor;
-    int32_t result = buffer->size;
+    size_t result = buffer->size;
     if (line <= buffer->line_count){
         buffer_compute_cursor(app, buffer, seek_line_char(line, 1), &partial_cursor);
         result = partial_cursor.pos;
@@ -899,10 +899,10 @@ buffer_get_line_start(Application_Links *app, Buffer_Summary *buffer, int32_t li
     return(result);
 }
 
-static int32_t
-buffer_get_line_end(Application_Links *app, Buffer_Summary *buffer, int32_t line){
+static size_t
+buffer_get_line_end(Application_Links *app, Buffer_Summary *buffer, size_t line){
     Partial_Cursor partial_cursor;
-    int32_t result = buffer->size;
+    size_t result = buffer->size;
     if (line <= buffer->line_count){
         buffer_compute_cursor(app, buffer, seek_line_reverse_char(line, 1), &partial_cursor);
         result = partial_cursor.pos;
@@ -911,7 +911,7 @@ buffer_get_line_end(Application_Links *app, Buffer_Summary *buffer, int32_t line
 }
 
 static bool32
-buffer_line_is_blank(Application_Links *app, Buffer_Summary *buffer, int32_t line){
+buffer_line_is_blank(Application_Links *app, Buffer_Summary *buffer, size_t line){
     Partial_Cursor start, end;
     bool32 result = 0;
     if (line <= buffer->line_count){
@@ -921,17 +921,17 @@ buffer_line_is_blank(Application_Links *app, Buffer_Summary *buffer, int32_t lin
         buffer_compute_cursor(app, buffer, seek_start, &start);
         buffer_compute_cursor(app, buffer, seek_end, &end);
         
-        static const int32_t chunk_size = 1024;
+        static const size_t chunk_size = 1024;
         char chunk[chunk_size];
         Stream_Chunk stream = {0};
-        int32_t i = start.pos;
+        size_t i = start.pos;
         stream.max_end = end.pos;
         
         result = true;
         if (init_stream_chunk(&stream, app, buffer, i, chunk, chunk_size)){
             bool32 still_looping = false;
             do{
-                for (;i < (int32_t)stream.end; ++i){
+                for (;i < (size_t)stream.end; ++i){
                     char c = stream.data[i];
                     if (!(c == ' ' || c == '\t' || c == '\r' || c == '\v' || c == '\n')){
                         result = false;
@@ -946,16 +946,16 @@ buffer_line_is_blank(Application_Links *app, Buffer_Summary *buffer, int32_t lin
     return(result);
 }
 
-static int32_t
-buffer_get_line_index(Application_Links *app, Buffer_Summary *buffer, int32_t pos){
+static size_t
+buffer_get_line_index(Application_Links *app, Buffer_Summary *buffer, size_t pos){
     Partial_Cursor partial_cursor;
     buffer_compute_cursor(app, buffer, seek_pos(pos), &partial_cursor);
     return(partial_cursor.line);
 }
 
 static Cpp_Token*
-get_first_token_at_line(Application_Links *app, Buffer_Summary *buffer, Cpp_Token_Array tokens, int32_t line, int32_t *line_start_out = 0){
-    int32_t line_start = buffer_get_line_start(app, buffer, line);
+get_first_token_at_line(Application_Links *app, Buffer_Summary *buffer, Cpp_Token_Array tokens, size_t line, size_t *line_start_out = 0){
+    size_t line_start = buffer_get_line_start(app, buffer, line);
     Cpp_Get_Token_Result get = cpp_get_token(tokens, line_start);
     
     if (get.in_whitespace){

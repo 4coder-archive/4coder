@@ -72,8 +72,9 @@
 //////////////////////////////
 
 #include "4ed_file_track.h"
-#include "4ed_font_interface_to_os.h"
 #include "4ed_system_shared.h"
+
+#include "win32_4ed_file_track.cpp"
 
 //
 // Win32_Vars structs
@@ -1147,27 +1148,23 @@ Sys_Get_Binary_Path_Sig(system_get_binary_path){
 
 internal
 Sys_File_Exists_Sig(system_file_exists){
-    b32 result = false;
+    char full_filename_space[1024];
+    String full_filename;
+    HANDLE file;
+    b32 result = 0;
     
-    Partition *scratch = &shared_vars.scratch;
-    Temp_Memory temp = begin_temp_memory(scratch);
-    u32 filename_16_max = (len+1)*2;
-    u16 *filename_16 = push_array(scratch, u16, filename_16_max);
-    
-    b32 convert_error = false;
-    u32 filename_16_len = (u32)utf8_to_utf16_minimal_checking(filename_16, filename_16_max, (u8*)filename, len, &convert_error);
-    
-    if (!convert_error){
-        filename_16[filename_16_len] = 0;
+    if (len < sizeof(full_filename_space)){
+        full_filename = make_fixed_width_string(full_filename_space);
+        copy_ss(&full_filename, make_string(filename, len));
+        terminate_with_null(&full_filename);
         
-        HANDLE file = CreateFile((LPWSTR)filename_16, GENERIC_READ, 0, 0, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
+        file = CreateFile(full_filename.str, GENERIC_READ, 0, 0, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
+        
         if (file != INVALID_HANDLE_VALUE){
             CloseHandle(file);
-            result = true;
+            result = 1;
         }
     }
-    
-    end_temp_memory(temp);
     
     return(result);
 }
@@ -1175,7 +1172,7 @@ Sys_File_Exists_Sig(system_file_exists){
 internal
 Sys_Directory_CD_Sig(system_directory_cd){
     String directory = make_string_cap(dir, *len, cap);
-    b32 result = false;
+    b32 result = 0;
     i32 old_size;
     
     char rel_path_space[1024];
@@ -1185,7 +1182,7 @@ Sys_Directory_CD_Sig(system_directory_cd){
     
     if (rel_path[0] != 0){
         if (rel_path[0] == '.' && rel_path[1] == 0){
-            result = true;
+            result = 1;
         }
         else if (rel_path[0] == '.' && rel_path[1] == '.' && rel_path[2] == 0){
             result = remove_last_folder(&directory);
@@ -1196,8 +1193,8 @@ Sys_Directory_CD_Sig(system_directory_cd){
                 old_size = directory.size;
                 append_partial_sc(&directory, rel_path);
                 append_s_char(&directory, '\\');
-                if (Win32DirectoryExists((u8*)directory.str)){
-                    result = true;
+                if (Win32DirectoryExists(directory.str)){
+                    result = 1;
                 }
                 else{
                     directory.size = old_size;
@@ -1302,57 +1299,10 @@ Win32ReadClipboardContents(){
 // Command Line Exectuion
 //
 
-internal b32
-win32_create_process_utf8(char *cmd, char *command_line, char *path, STARTUPINFO *startup, PROCESS_INFORMATION *info){
-    b32 result = false;
-    LPWSTR env_variables = 0;
-    
-    Partition *scratch = &shared_vars.scratch;
-    Temp_Memory temp = begin_temp_memory(scratch);
-    
-    u32 cmd_len = 0;
-    for (;cmd[cmd_len];++cmd_len);
-    
-    u32 command_line_len = 0;
-    for (;command_line[command_line_len];++command_line_len);
-    
-    u32 path_len = 0;
-    for (;path[path_len];++path_len);
-    
-    u32 cmd_16_max = (cmd_len+1)*2;
-    u32 command_line_16_max = (command_line_len+1)*2;
-    u32 path_16_max = (path_len+1)*2;
-    
-    u16 *cmd_16 = push_array(scratch, u16, cmd_16_max);
-    u16 *command_line_16 = push_array(scratch, u16, command_line_16_max);
-    u16 *path_16 = push_array(scratch, u16, path_16_max);
-    
-    b32 convert_error = false;
-    u32 cmd_16_len = (u32)utf8_to_utf16_minimal_checking(cmd_16, cmd_16_max - 1, (u8*)cmd, cmd_len, &convert_error);
-    if (!convert_error){
-        u32 command_line_16_len = (u32)utf8_to_utf16_minimal_checking(command_line_16, command_line_16_max - 1, (u8*)command_line, command_line_len, &convert_error);
-        
-        if (!convert_error){
-            u32 path_16_len = (u32)utf8_to_utf16_minimal_checking(path_16, path_16_max - 1, (u8*)path, path_len, &convert_error);
-            
-            if (!convert_error){
-                cmd_16[cmd_16_len] = 0;
-                command_line_16[command_line_16_len] = 0;
-                path_16[path_16_len] = 0;
-                
-                result = CreateProcess((LPWSTR)cmd_16, (LPWSTR)command_line_16, 0, 0, TRUE, 0, env_variables, (LPWSTR)path_16, startup, info);
-            }
-        }
-    }
-    
-    end_temp_memory(temp);
-    
-    return(result);
-}
-
 internal
 Sys_CLI_Call_Sig(system_cli_call){
     char cmd[] = "c:\\windows\\system32\\cmd.exe";
+    char *env_variables = 0;
     char command_line[2048];
     
     String s = make_fixed_width_string(command_line);
@@ -1382,7 +1332,10 @@ Sys_CLI_Call_Sig(system_cli_call){
                 PROCESS_INFORMATION info = {};
                 
                 Assert(sizeof(Plat_Handle) >= sizeof(HANDLE));
-                if (win32_create_process_utf8(cmd, command_line, path, &startup, &info)){
+                if (CreateProcess(cmd, command_line,
+                                  0, 0, TRUE, 0,
+                                  env_variables, path,
+                                  &startup, &info)){
                     success = 1;
                     CloseHandle(info.hThread);
                     *(HANDLE*)&cli_out->proc = info.hProcess;
@@ -2177,7 +2130,7 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
     memory_vars.user_memory = VirtualAlloc(base, memory_vars.target_memory_size, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
     
     win32vars.target.max = MB(1);
-    win32vars.target.push_buffer = (char*)system_memory_allocate(win32vars.target.max);
+    win32vars.target.push_buffer = (char*)system_get_memory(win32vars.target.max);
     
     if (memory_vars.vars_memory == 0 || memory_vars.target_memory == 0 || memory_vars.user_memory == 0 || win32vars.target.push_buffer == 0){
         exit(1);
@@ -2204,16 +2157,11 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
     // Read Command Line
     //
     
-    DWORD cd_required = (GetCurrentDirectory(0, 0)*4) + 1;
-    u16 *current_directory_16 = (u16*)system_memory_allocate(cd_required*4);
-    DWORD written_16 = GetCurrentDirectory(cd_required, (LPWSTR)current_directory_16);
+    DWORD required = (GetCurrentDirectory(0, 0)*4) + 1;
+    char *current_directory_mem = (char*)system_get_memory(required);
+    DWORD written = GetCurrentDirectory(required, current_directory_mem);
     
-    u8 *current_directory_mem = (u8*)(current_directory_16 + cd_required);
-    
-    b32 convert_error = false;
-    u32 current_directory_len = (u32)utf16_to_utf8_minimal_checking(current_directory_mem, cd_required*2, current_directory_16, written_16, &convert_error);
-    
-    String current_directory = make_string_cap(current_directory_mem, current_directory_len, cd_required*2);
+    String current_directory = make_string_cap(current_directory_mem, written, required);
     terminate_with_null(&current_directory);
     replace_char(&current_directory, '\\', '/');
     
@@ -2251,7 +2199,7 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
         
         if (win32vars.custom_api.get_alpha_4coder_version == 0 ||
             win32vars.custom_api.get_alpha_4coder_version(MAJOR, MINOR, PATCH) == 0){
-            MessageBox(0, L"Error: The application and custom version numbers don't match.\n", L"Error", 0);
+            MessageBox(0,"Error: The application and custom version numbers don't match.\n", "Error",0);
             exit(1);
         }
         win32vars.custom_api.get_bindings = (Get_Binding_Data_Function*)
@@ -2259,7 +2207,7 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
     }
     
     if (win32vars.custom_api.get_bindings == 0){
-        MessageBox(0, L"Error: The custom dll is missing.\n", L"Error", 0);
+        MessageBox(0,"Error: The custom dll is missing.\n", "Error",0);
         exit(1);
     }
     
@@ -2275,8 +2223,8 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
     window_class.style = CS_HREDRAW|CS_VREDRAW;
     window_class.lpfnWndProc = (WNDPROC)(Win32Callback);
     window_class.hInstance = hInstance;
-    window_class.lpszClassName = L"4coder-win32-wndclass";
-    window_class.hIcon = LoadIcon(hInstance, L"main");
+    window_class.lpszClassName = "4coder-win32-wndclass";
+    window_class.hIcon = LoadIcon(hInstance, "main");
     
     if (!RegisterClass(&window_class)){
         exit(1);
@@ -2297,7 +2245,7 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
         // TODO(allen): non-fatal diagnostics
     }
     
-#define WINDOW_NAME L"4coder-window: " L_VERSION
+#define WINDOW_NAME "4coder-window: " VERSION
     
     i32 window_x = CW_USEDEFAULT;
     i32 window_y = CW_USEDEFAULT;
@@ -2386,7 +2334,7 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
     
     win32vars.app.init(&win32vars.system, &win32vars.target, &memory_vars, win32vars.clipboard_contents, current_directory, win32vars.custom_api);
     
-    system_memory_free(current_directory_16, 0);
+    system_free_memory(current_directory.str);
     
     b32 keep_playing = 1;
     win32vars.first = 1;
@@ -2626,10 +2574,10 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
     return(0);
 }
 
-#include "4ed_font_static_functions.cpp"
+#include "font/4coder_font_static_functions.cpp"
 
 #include "win32_4ed_fonts.cpp"
-#include "win32_4ed_file_track.cpp"
+//#include "win32_4ed_file_track.cpp"
 
 #if 0
 // NOTE(allen): In case I want to switch back to a console

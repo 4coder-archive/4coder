@@ -237,10 +237,10 @@ STRUCT Cpp_Token{
     Cpp_Token_Type type;
     
     /* DOC(The start field indicates the index of the first character of this token's lexeme.) */
-    int32_t start;
+    uint32_t start;
     
     /* DOC(The size field indicates the number of bytes in this token's lexeme.) */
-    int32_t size;
+    uint32_t size;
     
     /* DOC(The state_flags should not be used outside of the lexer's implementation.) */
     uint16_t state_flags;
@@ -291,10 +291,10 @@ STRUCT Cpp_Get_Token_Result{
     uint32_t in_whitespace;
     
     /* DOC(If the token_index refers to an actual token, this is the start value of the token. Otherwise this is zero.) */
-    int32_t token_start;
+    uint32_t token_start;
     
     /* DOC(If the token_index refers to an actual token, this is the start+size value of the token. Otherwise this is zero.) */
-    int32_t token_end;
+    uint32_t token_end;
 };
 
 /* DOC(Cpp_Relex_Range is the return result of the cpp_get_relex_range call.)
@@ -321,12 +321,12 @@ DOC_SEE(cpp_lex_data_init)
 HIDE_MEMBERS() */
 STRUCT Cpp_Lex_Data{
     char tb[32];
-    int32_t tb_pos;
-    int32_t token_start;
+    uint32_t tb_pos;
+    uint32_t token_start;
     
-    int32_t pos;
-    int32_t pos_overide;
-    int32_t chunk_pos;
+    uint32_t pos;
+    uint32_t pos_overide;
+    uint32_t chunk_pos;
     
     Cpp_Lex_FSM fsm;
     uint8_t white_done;

@@ -40,10 +40,10 @@ struct Search_Range{
     int32_t type;
     uint32_t flags;
     int32_t buffer;
-    int32_t start;
-    int32_t size;
-    int32_t mid_start;
-    int32_t mid_size;
+    size_t start;
+    size_t size;
+    size_t mid_start;
+    size_t mid_size;
 };
 
 struct Search_Set{
@@ -54,22 +54,22 @@ struct Search_Set{
 
 struct Search_Iter{
     String word;
-    int32_t pos;
-    int32_t back_pos;
-    int32_t i;
+    size_t pos;
+    size_t back_pos;
+    size_t i;
     bool32 range_initialized;
 };
 
 struct Search_Match{
     Buffer_Summary buffer;
-    int32_t start;
-    int32_t end;
+    size_t start;
+    size_t end;
     bool32 found_match;
 };
 
 static void
-search_iter_init(General_Memory *general, Search_Iter *iter, int32_t size){
-    int32_t str_max = size*2;
+search_iter_init(General_Memory *general, Search_Iter *iter, size_t size){
+    size_t str_max = size*2;
     if (iter->word.str == 0){
         iter->word.str = (char*)general_memory_allocate(general, str_max);
         iter->word.memory_size = (int32_t)str_max;
@@ -91,7 +91,7 @@ search_set_init(General_Memory *general, Search_Set *set, int32_t range_count){
         set->max = max;
     }
     else if (set->max < range_count){
-        int32_t mem_size = sizeof(Search_Range)*max;;
+        size_t mem_size = sizeof(Search_Range)*max;;
         set->ranges = (Search_Range*)general_memory_reallocate_nocopy(general, set->ranges, mem_size);
         set->max = max;
     }
@@ -174,14 +174,14 @@ search_hit_add(General_Memory *general, Table *hits, String_Space *space, char *
     return(result);
 }
 
-static int32_t
-buffer_seek_alpha_numeric_end(Application_Links *app, Buffer_Summary *buffer, int32_t pos){
+static size_t
+buffer_seek_alpha_numeric_end(Application_Links *app, Buffer_Summary *buffer, size_t pos){
     char space[1024];
     Stream_Chunk chunk = {0};
     if (init_stream_chunk(&chunk, app, buffer, pos, space, sizeof(space))){
         bool32 still_looping = true;
         do{
-            for (; pos < (int32_t)chunk.end; ++pos){
+            for (; pos < (size_t)chunk.end; ++pos){
                 char at_pos = chunk.data[pos];
                 if (!char_is_alpha_numeric(at_pos)) goto double_break;
             }
@@ -207,11 +207,11 @@ enum{
 };
 
 static int32_t
-match_check(Application_Links *app, Search_Range *range, int32_t *pos, Search_Match *result_ptr, String word){
+match_check(Application_Links *app, Search_Range *range, size_t *pos, Search_Match *result_ptr, String word){
     int32_t found_match = FindResult_None;
     
     Search_Match result = *result_ptr;
-    int32_t end_pos = range->start + range->size;
+    size_t end_pos = range->start + range->size;
     
     uint32_t type = (range->flags & SearchFlag_MatchMask);
     
@@ -281,14 +281,14 @@ match_check(Application_Links *app, Search_Range *range, int32_t *pos, Search_Ma
 }
 
 static int32_t
-search_front_to_back_step(Application_Links *app, Search_Range *range, String word, int32_t *pos, Search_Match *result_ptr){
+search_front_to_back_step(Application_Links *app, Search_Range *range, String word, size_t *pos, Search_Match *result_ptr){
     int32_t found_match = FindResult_None;
     
     Search_Match result = *result_ptr;
     
-    int32_t end_pos = range->start + range->size;
+    size_t end_pos = range->start + range->size;
     if (*pos + word.size < end_pos){
-        int32_t start_pos = *pos;
+        size_t start_pos = *pos;
         if (start_pos < range->start){
             start_pos = range->start;
         }
@@ -298,7 +298,7 @@ search_front_to_back_step(Application_Links *app, Search_Range *range, String wo
         result.buffer = get_buffer(app, range->buffer, AccessAll);
         
         char *word_str = word.str;
-        int32_t word_size = (int32_t)word.size;
+        size_t word_size = (size_t)word.size;
         if (case_insensitive){
             buffer_seek_string_insensitive_forward(app, &result.buffer, start_pos, end_pos, word_str, word_size, &result.start);
         }
@@ -329,7 +329,7 @@ search_front_to_back_step(Application_Links *app, Search_Range *range, String wo
 }
 
 static int32_t
-search_front_to_back(Application_Links *app, Search_Range *range, String word, int32_t *pos, Search_Match *result_ptr){
+search_front_to_back(Application_Links *app, Search_Range *range, String word, size_t *pos, Search_Match *result_ptr){
     int32_t found_match = FindResult_None;
     for (;found_match == FindResult_None;){
         found_match = search_front_to_back_step(app, range, word, pos, result_ptr);
@@ -338,13 +338,13 @@ search_front_to_back(Application_Links *app, Search_Range *range, String word, i
 }
 
 static int32_t
-search_back_to_front_step(Application_Links *app, Search_Range *range, String word, int32_t *pos, Search_Match *result_ptr){
+search_back_to_front_step(Application_Links *app, Search_Range *range, String word, size_t *pos, Search_Match *result_ptr){
     int32_t found_match = FindResult_None;
     
     Search_Match result = *result_ptr;
     
     if (*pos > range->start){
-        int32_t start_pos = *pos;
+        size_t start_pos = *pos;
         
         result.buffer = get_buffer(app, range->buffer, AccessAll);
         buffer_seek_string_backward(app, &result.buffer,
@@ -374,7 +374,7 @@ search_back_to_front_step(Application_Links *app, Search_Range *range, String wo
 }
 
 static int32_t
-search_back_to_front(Application_Links *app, Search_Range *range, String word, int32_t *pos, Search_Match *result_ptr){
+search_back_to_front(Application_Links *app, Search_Range *range, String word, size_t *pos, Search_Match *result_ptr){
     int32_t found_match = FindResult_None;
     for (;found_match == FindResult_None;){
         found_match = search_back_to_front_step(app, range, word, pos, result_ptr);
@@ -440,9 +440,9 @@ search_next_match(Application_Links *app, Search_Set *set, Search_Iter *it_ptr){
                     if (backward_result == FindResult_FoundMatch){
                         find_result = FindResult_FoundMatch;
                         
-                        int32_t forward_start = range->mid_start + range->mid_size;
-                        int32_t forward_distance = forward_match.start - forward_start;
-                        int32_t backward_distance = range->mid_start - backward_match.end;
+                        size_t forward_start = range->mid_start + range->mid_size;
+                        size_t forward_distance = forward_match.start - forward_start;
+                        size_t backward_distance = range->mid_start - backward_match.end;
                         
                         if (backward_distance < forward_distance){
                             iter.pos = forward_match.start;
@@ -713,8 +713,8 @@ struct Word_Complete_State{
     Search_Iter iter;
     Table hits;
     String_Space str;
-    int32_t word_start;
-    int32_t word_end;
+    size_t word_start;
+    size_t word_end;
     bool32 initialized;
 };
 
@@ -737,10 +737,10 @@ CUSTOM_COMMAND_SIG(word_complete){
             do_init = true;
         }
         
-        int32_t word_end = 0;
-        int32_t word_start = 0;
-        int32_t cursor_pos = 0;
-        int32_t size = 0;
+        size_t word_end = 0;
+        size_t word_start = 0;
+        size_t cursor_pos = 0;
+        size_t size = 0;
         
         if (do_init){
             // NOTE(allen): Get the range where the partial word is written.
@@ -753,7 +753,7 @@ CUSTOM_COMMAND_SIG(word_complete){
             if (init_stream_chunk(&chunk, app, &buffer, cursor_pos, space, sizeof(space))){
                 int32_t still_looping = true;
                 do{
-                    for (; cursor_pos >= (int32_t)chunk.start; --cursor_pos){
+                    for (; cursor_pos >= (size_t)chunk.start; --cursor_pos){
                         char c = chunk.data[cursor_pos];
                         if (char_is_alpha(c)){
                             word_start = cursor_pos;

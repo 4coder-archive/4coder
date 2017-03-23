@@ -402,11 +402,11 @@ view_compute_cursor(System_Functions *system, View *view, Buffer_Seek seek, b32 
     Buffer_Cursor_Seek_State state = {0};
     Buffer_Layout_Stop stop = {0};
     
-    i32 size = buffer_size(params.buffer);
+    u32 size = buffer_size(params.buffer);
     
     f32 line_shift = 0.f;
-    i32 wrap_unit_end = 0;
-    i32 wrap_array_index = 0;
+    u32 wrap_unit_end = 0;
+    u32 wrap_array_index = 0;
     
     b32 do_wrap = false;
     b32 first_wrap_determination = true;
@@ -849,14 +849,14 @@ enum{
 internal i32
 file_grow_starts_as_needed(General_Memory *general, Gap_Buffer *buffer, i32 additional_lines){
     b32 result = GROW_NOT_NEEDED;
-    i32 max = buffer->line_max;
-    i32 count = buffer->line_count;
-    i32 target_lines = count + additional_lines;
+    u32 max = buffer->line_max;
+    u32 count = buffer->line_count;
+    u32 target_lines = count + additional_lines;
     
     if (target_lines > max || max == 0){
         max = l_round_up_u32(target_lines + max, KB(1));
         
-        i32 *new_lines = (i32*)general_memory_reallocate(general, buffer->line_starts, sizeof(i32)*count, sizeof(i32)*max);
+        u32 *new_lines = (u32*)general_memory_reallocate(general, buffer->line_starts, sizeof(u32)*count, sizeof(u32)*max);
         
         if (new_lines){
             result = GROW_SUCCESS;
@@ -896,20 +896,20 @@ file_update_cursor_positions(System_Functions *system, Models *models, Editing_F
 internal void
 file_measure_starts(General_Memory *general, Gap_Buffer *buffer){
     if (!buffer->line_starts){
-        i32 max = buffer->line_max = KB(1);
-        buffer->line_starts = (i32*)general_memory_allocate(general, max*sizeof(i32));
+        u32 max = buffer->line_max = KB(1);
+        buffer->line_starts = (u32*)general_memory_allocate(general, max*sizeof(u32));
         TentativeAssert(buffer->line_starts != 0);
         // TODO(allen): when unable to allocate?
     }
     
     Buffer_Measure_Starts state = {0};
     while (buffer_measure_starts(&state, buffer)){
-        i32 count = state.count;
-        i32 max = buffer->line_max;
+        u32 count = state.count;
+        u32 max = buffer->line_max;
         max = ((max + 1) << 1);
         
         {
-            i32 *new_lines = (i32*)general_memory_reallocate(general, buffer->line_starts, sizeof(i32)*count, sizeof(i32)*max);
+            u32 *new_lines = (u32*)general_memory_reallocate(general, buffer->line_starts, sizeof(u32)*count, sizeof(u32)*max);
             
             // TODO(allen): when unable to grow?
             TentativeAssert(new_lines);
@@ -921,16 +921,16 @@ file_measure_starts(General_Memory *general, Gap_Buffer *buffer){
 
 // NOTE(allen): These calls assumes that the buffer's line starts are already correct, and that the buffer's line_count is correct.
 internal void
-file_allocate_metadata_as_needed(General_Memory *general, Gap_Buffer *buffer, void **mem, i32 *mem_max_count, i32 count, i32 item_size){
+file_allocate_metadata_as_needed(General_Memory *general, Gap_Buffer *buffer, void **mem, u32 *mem_max_count, u32 count, u32 item_size){
     if (*mem == 0){
-        i32 max = ((count+1)*2);
+        u32 max = ((count+1)*2);
         max = (max+(0x3FF))&(~(0x3FF));
         *mem = general_memory_allocate(general, max*item_size);
         *mem_max_count = max;
     }
     else if (*mem_max_count < count){
-        i32 old_max = *mem_max_count;
-        i32 max = ((count+1)*2);
+        u32 old_max = *mem_max_count;
+        u32 max = ((count+1)*2);
         max = (max+(0x3FF))&(~(0x3FF));
         
         void *new_mem = general_memory_reallocate(general, *mem, item_size*old_max, item_size*max);
@@ -989,16 +989,16 @@ struct Code_Wrap_State{
     b32 in_pp_body;
     Code_Wrap_X plane_wrap_x;
     
-    i32 *line_starts;
-    i32 line_index;
-    i32 next_line_start;
+    u32 *line_starts;
+    u32 line_index;
+    u32 next_line_start;
     
     f32 x;
     b32 consume_newline;
     
     Gap_Buffer_Stream stream;
-    i32 size;
-    i32 i;
+    u32 size;
+    u32 i;
     
     Render_Font *font;
     f32 tab_indent_amount;
@@ -1052,8 +1052,8 @@ wrap_state_set_top(Code_Wrap_State *state, f32 line_shift){
 }
 
 struct Code_Wrap_Step{
-    i32 position_start;
-    i32 position_end;
+    u32 position_start;
+    u32 position_end;
     
     f32 start_x;
     f32 final_x;
@@ -1062,9 +1062,9 @@ struct Code_Wrap_Step{
 };
 
 internal Code_Wrap_Step
-wrap_state_consume_token(System_Functions *system, Render_Font *font, Code_Wrap_State *state, i32 fixed_end_point){
+wrap_state_consume_token(System_Functions *system, Render_Font *font, Code_Wrap_State *state, u32 fixed_end_point){
     Code_Wrap_Step result = {0};
-    i32 i = state->i;
+    u32 i = state->i;
     
     result.position_start = i;
     
@@ -1102,9 +1102,9 @@ wrap_state_consume_token(System_Functions *system, Render_Font *font, Code_Wrap_
         state->next_line_start = state->line_starts[state->line_index + 1];
     }
     
-    i32 line_start = state->line_starts[state->line_index];
+    u32 line_start = state->line_starts[state->line_index];
     b32 still_looping = 0;
-    i32 end = state->token_ptr->start + state->token_ptr->size;
+    u32 end = state->token_ptr->start + state->token_ptr->size;
     
     if (fixed_end_point >= 0 && end > fixed_end_point){
         end = fixed_end_point;
@@ -1391,7 +1391,7 @@ struct Wrap_Current_Shift{
 };
 
 internal Wrap_Current_Shift
-get_current_shift(Code_Wrap_State *wrap_state, i32 next_line_start){
+get_current_shift(Code_Wrap_State *wrap_state, u32 next_line_start){
     Wrap_Current_Shift result = {0};
     
     result.shift = wrap_state->wrap_x.paren_nesting[wrap_state->wrap_x.paren_safe_top];
@@ -1531,7 +1531,7 @@ file_measure_wraps(System_Functions *system, Models *models, Editing_File *file,
                     Gap_Buffer_Stream stream = {0};
                     
                     u32 word_stage = 0;
-                    i32 i = stop.pos;
+                    u32 i = stop.pos;
                     f32 x = stop.x;
                     f32 self_x = 0;
                     if (buffer_stringify_loop(&stream, params.buffer, i, size)){
@@ -1589,7 +1589,7 @@ file_measure_wraps(System_Functions *system, Models *models, Editing_File *file,
                 
                 if (use_tokens){
                     Code_Wrap_State original_wrap_state = wrap_state;
-                    i32 next_line_start = buffer_size(params.buffer);
+                    u32 next_line_start = buffer_size(params.buffer);
                     if (stop.line_index+1 < params.buffer->line_count){
                         next_line_start = params.buffer->line_starts[stop.line_index+1];
                     }
@@ -1626,11 +1626,11 @@ file_measure_wraps(System_Functions *system, Models *models, Editing_File *file,
                             if (wrap_state.token_ptr->type == CPP_TOKEN_COMMENT || 
                                 wrap_state.token_ptr->type == CPP_TOKEN_STRING_CONSTANT){
                                 
-                                i32 i = wrap_state.token_ptr->start;
-                                i32 end_i = i + wrap_state.token_ptr->size;
+                                u32 i = wrap_state.token_ptr->start;
+                                u32 end_i = i + wrap_state.token_ptr->size;
                                 
-                                i = clamp_bottom(wrap_state.i, i);
-                                end_i = clamp_top(end_i, wrap_state.next_line_start);
+                                i = clamp_bottom((u32)wrap_state.i, i);
+                                end_i = clamp_top(end_i, (u32)wrap_state.next_line_start);
                                 
                                 f32 x = wrap_state.x;
                                 
@@ -1734,7 +1734,7 @@ file_measure_wraps(System_Functions *system, Models *models, Editing_File *file,
                                 next_token_is_on_line = true;
                             }
                             
-                            i32 next_wrap_position = step.position_end;
+                            u32 next_wrap_position = (u32)step.position_end;
                             f32 wrap_x = step.final_x;
                             if (wrap_state.token_ptr->start > step.position_start && next_wrap_position < wrap_state.token_ptr->start && next_token_is_on_line){
                                 next_wrap_position = wrap_state.token_ptr->start;
@@ -1826,7 +1826,7 @@ file_measure_wraps(System_Functions *system, Models *models, Editing_File *file,
                                         }
                                     }
                                     
-                                    i32 wrap_position = potential_marks[best_i].wrap_position;
+                                    u32 wrap_position = potential_marks[best_i].wrap_position;
                                     f32 line_shift = potential_marks[best_i].line_shift;
                                     b32 adjust_top_to_this = potential_marks[best_i].adjust_top_to_this;
                                     wrap_indent_marks[real_count].wrap_position = wrap_position;
@@ -1924,6 +1924,7 @@ file_set_min_base_width(System_Functions *system, Models *models, Editing_File *
 internal void
 file_create_from_string(System_Functions *system, Models *models, Editing_File *file, String val, b8 read_only = 0){
     General_Memory *general = &models->mem.general;
+    Partition *part = &models->mem.part;
     Open_File_Hook_Function *hook_open_file = models->hook_open_file;
     Application_Links *app_links = &models->app_links;
     
@@ -1939,7 +1940,9 @@ file_create_from_string(System_Functions *system, Models *models, Editing_File *
         buffer_init_provide_page(&init, data, page_size);
     }
     
-    b32 init_success = buffer_end_init(&init);
+    u32 scratch_size = (u32)partition_remaining(part);
+    Assert(scratch_size > 0);
+    b32 init_success = buffer_end_init(&init, part->base + part->pos, scratch_size);
     AllowLocal(init_success); Assert(init_success);
     
     if (buffer_size(&file->state.buffer) < (u32)val.size){
@@ -2278,7 +2281,7 @@ file_first_lex_serial(Mem_Options *mem, Editing_File *file){
 }
 
 internal b32
-file_relex_parallel(System_Functions *system, Mem_Options *mem, Editing_File *file, i32 start_i, i32 end_i, i32 shift_amount){
+file_relex_parallel(System_Functions *system, Mem_Options *mem, Editing_File *file, u32 start_i, u32 end_i, i32 shift_amount){
     General_Memory *general = &mem->general;
     Partition *part = &mem->part;
     
@@ -3429,7 +3432,7 @@ view_replace_range(System_Functions *system, Models *models, View *view,
 }
 
 inline void
-view_post_paste_effect(View *view, f32 seconds, i32 start, i32 size, i32 color){
+view_post_paste_effect(View *view, f32 seconds, u32 start, u32 size, u32 color){
     Editing_File *file = view->file_data.file;
     
     file->state.paste_effect.start = start;
@@ -5967,7 +5970,7 @@ draw_file_loaded(System_Functions *system, View *view, i32_Rect rect, b32 is_act
         
         f32 line_shift = 0.f;
         b32 do_wrap = false;
-        i32 wrap_unit_end = 0;
+        u32 wrap_unit_end = 0;
         
         b32 first_wrap_determination = true;
         u32 wrap_array_index = 0;
@@ -6007,7 +6010,7 @@ draw_file_loaded(System_Functions *system, View *view, i32_Rect rect, b32 is_act
         }while(stop.status != BLStatus_Finished);
     }
     
-    i32 cursor_begin = 0, cursor_end = 0;
+    u32 cursor_begin = 0, cursor_end = 0;
     u32 cursor_color = 0, at_cursor_color = 0;
     if (view->file_data.show_temp_highlight){
         cursor_begin = (u32)view->file_data.temp_highlight.pos;
@@ -6035,12 +6038,12 @@ draw_file_loaded(System_Functions *system, View *view, i32_Rect rect, b32 is_act
     u32 mark_color = style->main.mark_color;
     Buffer_Render_Item *item = items;
     Buffer_Render_Item *item_end = item + count;
-    i32 prev_ind = max_i32;
+    u32 prev_ind = max_u32;
     u32 highlight_color = 0;
     u32 highlight_this_color = 0;
     
     for (; item < item_end; ++item){
-        i32 ind = item->index;
+        u32 ind = item->index;
         highlight_this_color = 0;
         if (tokens_use && ind != prev_ind){
             Cpp_Token current_token = token_array.tokens[token_i-1];
@@ -6100,7 +6103,9 @@ draw_file_loaded(System_Functions *system, View *view, i32_Rect rect, b32 is_act
         u32 fade_color = 0xFFFF00FF;
         f32 fade_amount = 0.f;
         
-        if (file->state.paste_effect.seconds_down > 0.f && file->state.paste_effect.start <= ind && ind < file->state.paste_effect.end){
+        if (file->state.paste_effect.seconds_down > 0.f &&
+            file->state.paste_effect.start <= ind &&
+            ind < file->state.paste_effect.end){
             fade_color = file->state.paste_effect.color;
             fade_amount = file->state.paste_effect.seconds_down;
             fade_amount /= file->state.paste_effect.seconds_max;

@@ -10,9 +10,9 @@
 // TOP
 
 #include "4ed_system_shared.h"
-#include "4ed_font_interface.h"
-#include "4ed_font_interface_to_os.h"
-#include "4ed_font_data.h"
+#include "font/4coder_font_interface.h"
+#include "font/4coder_font_interface_to_os.h"
+#include "font/4coder_font_data.h"
 
 struct Win32_Fonts{
     Partition part;

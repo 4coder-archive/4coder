@@ -1,9 +1,9 @@
 struct Application_Links;
 #define EXEC_COMMAND_SIG(n) bool32 n(Application_Links *app, Command_ID command_id)
 #define EXEC_SYSTEM_COMMAND_SIG(n) bool32 n(Application_Links *app, View_Summary *view, Buffer_Identifier buffer, char *path, int32_t path_len, char *command, int32_t command_len, Command_Line_Interface_Flag flags)
-#define CLIPBOARD_POST_SIG(n) void n(Application_Links *app, int32_t clipboard_id, char *str, uint32_t len)
+#define CLIPBOARD_POST_SIG(n) void n(Application_Links *app, int32_t clipboard_id, char *str, size_t len)
 #define CLIPBOARD_COUNT_SIG(n) uint32_t n(Application_Links *app, uint32_t clipboard_id)
-#define CLIPBOARD_INDEX_SIG(n) uint32_t n(Application_Links *app, uint32_t clipboard_id, uint32_t item_index, char *out, uint32_t len)
+#define CLIPBOARD_INDEX_SIG(n) size_t n(Application_Links *app, uint32_t clipboard_id, uint32_t item_index, char *out, size_t len)
 #define GET_BUFFER_COUNT_SIG(n) int32_t n(Application_Links *app)
 #define GET_BUFFER_FIRST_SIG(n) Buffer_Summary n(Application_Links *app, Access_Flag access)
 #define GET_BUFFER_NEXT_SIG(n) void n(Application_Links *app, Buffer_Summary *buffer, Access_Flag  access)
@@ -369,9 +369,9 @@ app_links->send_exit_signal_ = Send_Exit_Signal;} while(false)
 #if defined(ALLOW_DEP_4CODER)
 static inline bool32 exec_command(Application_Links *app, Command_ID command_id){return(app->exec_command(app, command_id));}
 static inline bool32 exec_system_command(Application_Links *app, View_Summary *view, Buffer_Identifier buffer, char *path, int32_t path_len, char *command, int32_t command_len, Command_Line_Interface_Flag flags){return(app->exec_system_command(app, view, buffer, path, path_len, command, command_len, flags));}
-static inline void clipboard_post(Application_Links *app, int32_t clipboard_id, char *str, uint32_t len){(app->clipboard_post(app, clipboard_id, str, len));}
+static inline void clipboard_post(Application_Links *app, int32_t clipboard_id, char *str, size_t len){(app->clipboard_post(app, clipboard_id, str, len));}
 static inline uint32_t clipboard_count(Application_Links *app, uint32_t clipboard_id){return(app->clipboard_count(app, clipboard_id));}
-static inline uint32_t clipboard_index(Application_Links *app, uint32_t clipboard_id, uint32_t item_index, char *out, uint32_t len){return(app->clipboard_index(app, clipboard_id, item_index, out, len));}
+static inline size_t clipboard_index(Application_Links *app, uint32_t clipboard_id, uint32_t item_index, char *out, size_t len){return(app->clipboard_index(app, clipboard_id, item_index, out, len));}
 static inline int32_t get_buffer_count(Application_Links *app){return(app->get_buffer_count(app));}
 static inline Buffer_Summary get_buffer_first(Application_Links *app, Access_Flag access){return(app->get_buffer_first(app, access));}
 static inline void get_buffer_next(Application_Links *app, Buffer_Summary *buffer, Access_Flag  access){(app->get_buffer_next(app, buffer, access));}
@@ -441,9 +441,9 @@ static inline void send_exit_signal(Application_Links *app){(app->send_exit_sign
 #else
 static inline bool32 exec_command(Application_Links *app, Command_ID command_id){return(app->exec_command_(app, command_id));}
 static inline bool32 exec_system_command(Application_Links *app, View_Summary *view, Buffer_Identifier buffer, char *path, int32_t path_len, char *command, int32_t command_len, Command_Line_Interface_Flag flags){return(app->exec_system_command_(app, view, buffer, path, path_len, command, command_len, flags));}
-static inline void clipboard_post(Application_Links *app, int32_t clipboard_id, char *str, uint32_t len){(app->clipboard_post_(app, clipboard_id, str, len));}
+static inline void clipboard_post(Application_Links *app, int32_t clipboard_id, char *str, size_t len){(app->clipboard_post_(app, clipboard_id, str, len));}
 static inline uint32_t clipboard_count(Application_Links *app, uint32_t clipboard_id){return(app->clipboard_count_(app, clipboard_id));}
-static inline uint32_t clipboard_index(Application_Links *app, uint32_t clipboard_id, uint32_t item_index, char *out, uint32_t len){return(app->clipboard_index_(app, clipboard_id, item_index, out, len));}
+static inline size_t clipboard_index(Application_Links *app, uint32_t clipboard_id, uint32_t item_index, char *out, size_t len){return(app->clipboard_index_(app, clipboard_id, item_index, out, len));}
 static inline int32_t get_buffer_count(Application_Links *app){return(app->get_buffer_count_(app));}
 static inline Buffer_Summary get_buffer_first(Application_Links *app, Access_Flag access){return(app->get_buffer_first_(app, access));}
 static inline void get_buffer_next(Application_Links *app, Buffer_Summary *buffer, Access_Flag  access){(app->get_buffer_next_(app, buffer, access));}

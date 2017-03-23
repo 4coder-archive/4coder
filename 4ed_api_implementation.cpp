@@ -347,7 +347,7 @@ DOC_SEE(Command_Line_Interface_Flag)
 }
 
 API_EXPORT void
-Clipboard_Post(Application_Links *app, int32_t clipboard_id, char *str, uint32_t len)
+Clipboard_Post(Application_Links *app, int32_t clipboard_id, char *str, size_t len)
 /*
 DOC_PARAM(clipboard_id, This parameter is set up to prepare for future features, it should always be 0 for now.)
 DOC_PARAM(str, The str parameter specifies the string to be posted to the clipboard, it need not be null terminated.)
@@ -379,8 +379,8 @@ DOC_SEE(The_4coder_Clipboard)
     return(count);
 }
 
-API_EXPORT uint32_t
-Clipboard_Index(Application_Links *app, uint32_t clipboard_id, uint32_t item_index, char *out, uint32_t len)
+API_EXPORT size_t
+Clipboard_Index(Application_Links *app, uint32_t clipboard_id, uint32_t item_index, char *out, size_t len)
 /*
 DOC_PARAM(clipboard_id, This parameter is set up to prepare for future features, it should always be 0 for now.)
 DOC_PARAM(item_index, This parameter specifies which item to read, 0 is the most recent copy, 1 is the second most recent copy, etc.)
@@ -395,7 +395,7 @@ DOC_SEE(The_4coder_Clipboard)
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     Working_Set *working = &cmd->models->working_set;
     
-    u32 size = 0;
+    size_t size = 0;
     String *str = working_set_clipboard_index(working, item_index);
     if (str){
         size = str->size;

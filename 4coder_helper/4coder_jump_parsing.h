@@ -41,7 +41,7 @@ ms_style_verify(String line, int32_t paren_pos){
 }
 
 static int32_t
-parse_jump_location(String line, Name_Based_Jump_Location *location, int32_t skip_sub_errors, int32_t *colon_char){
+parse_jump_location(String line, Name_Based_Jump_Location *location, int32_t skip_sub_errors, size_t *colon_char){
     bool32 result = false;
     
     int32_t whitespace_length = 0;
@@ -153,13 +153,13 @@ parse_jump_location(String line, Name_Based_Jump_Location *location, int32_t ski
 }
 
 static bool32
-parse_jump_from_buffer_line(Application_Links *app, Partition *part, int32_t buffer_id, int32_t line, int32_t skip_sub_errors, Name_Based_Jump_Location *location){
+parse_jump_from_buffer_line(Application_Links *app, Partition *part, int32_t buffer_id, size_t line, int32_t skip_sub_errors, Name_Based_Jump_Location *location){
     
     bool32 result = false;
     String line_str = {0};
     Buffer_Summary buffer = get_buffer(app, buffer_id, AccessAll);
     if (read_line(app, part, &buffer, line, &line_str)){
-        int32_t colon_char = 0;
+        size_t colon_char = 0;
         if (parse_jump_location(line_str, location, skip_sub_errors, &colon_char)){
             result = true;
         }

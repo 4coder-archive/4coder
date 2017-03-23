@@ -21,7 +21,7 @@ enum Edit_Pos_Set_Type{
 struct File_Edit_Positions{
     GUI_Scroll_Vars scroll;
     Full_Cursor cursor;
-    i32 mark;
+    u32 mark;
     f32 preferred_x;
     i32 scroll_i;
     i32 last_set_type;
@@ -54,7 +54,7 @@ edit_pos_set_scroll(File_Edit_Positions *edit_pos, GUI_Scroll_Vars scroll){
 //
 
 struct Text_Effect{
-    i32 start, end;
+    u32 start, end;
     u32 color;
     f32 seconds_down, seconds_max;
 };
@@ -109,20 +109,20 @@ global_const Editing_File_Settings null_editing_file_settings = {0};
 struct Editing_File_State{
     Gap_Buffer buffer;
     
-    i32 *wrap_line_index;
-    i32 wrap_max;
+    u32 *wrap_line_index;
+    u32 wrap_max;
     
-    i32 *character_starts;
-    i32 character_start_max;
+    u32 *character_starts;
+    u32 character_start_max;
     
     f32 *line_indents;
-    i32 line_indent_max;
+    u32 line_indent_max;
     
-    i32 wrap_line_count;
+    u32 wrap_line_count;
     
-    i32 *wrap_positions;
-    i32 wrap_position_count;
-    i32 wrap_position_max;
+    u32 *wrap_positions;
+    u32 wrap_position_count;
+    u32 wrap_position_max;
     
     Undo_Data undo;
     

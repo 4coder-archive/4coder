@@ -295,7 +295,7 @@ expand_track_system_listeners(File_Track_System *system, Partition *scratch, voi
 }
 
 FILE_TRACK_LINK File_Track_Result
-get_change_event(File_Track_System *system, Partition *scratch, u8 *buffer, umem max, umem *size){
+get_change_event(File_Track_System *system, Partition *scratch, u8 *buffer, i32 max, umem *size){
     File_Track_Result result = FileTrack_NoMoreEvents;
     Win32_File_Track_Vars *vars = to_vars(system);
     
@@ -341,7 +341,7 @@ get_change_event(File_Track_System *system, Partition *scratch, u8 *buffer, umem
         i32 req_size = dir_len + 1 + len;
         if (req_size < max){
             u16 *buffer_16 = push_array(scratch, u16, req_size+1);
-            i32 pos = GetFinalPathNameByHandle(listener.dir, (LPWSTR)buffer_16, (DWORD)max, FILE_NAME_NORMALIZED);
+            i32 pos = GetFinalPathNameByHandle(listener.dir, (LPWSTR)buffer_16, max, FILE_NAME_NORMALIZED);
             
             b32 convert_error = false;
             umem buffer_size = utf16_to_utf8_minimal_checking(buffer, max-1, buffer_16, pos, &convert_error);

@@ -12,7 +12,7 @@
 #if !defined(FCODER_SYSTEM_INTERFACE_H)
 #define FCODER_SYSTEM_INTERFACE_H
 
-#include "4ed_font_interface.h"
+#include "font/4coder_font_interface.h"
 
 // types
 struct Plat_Handle{
@@ -57,7 +57,7 @@ typedef Sys_Add_Listener_Sig(System_Add_Listener);
 #define Sys_Remove_Listener_Sig(name) b32 name(char *filename)
 typedef Sys_Remove_Listener_Sig(System_Remove_Listener);
 
-#define Sys_Get_File_Change_Sig(name) i32 name(char *buffer, umem max, b32 *mem_too_small, umem *required_size)
+#define Sys_Get_File_Change_Sig(name) i32 name(char *buffer, i32 max, b32 *mem_too_small, i32 *required_size)
 typedef Sys_Get_File_Change_Sig(System_Get_File_Change);
 
 // time
@@ -212,7 +212,7 @@ typedef Sys_Memory_Set_Protection_Sig(System_Memory_Set_Protection);
 #define Sys_Memory_Free_Sig(name) void name(void *ptr, umem size)
 typedef Sys_Memory_Free_Sig(System_Memory_Free);
 
-#define Sys_File_Exists_Sig(name) b32 name(char *filename, u32 len)
+#define Sys_File_Exists_Sig(name) b32 name(char *filename, i32 len)
 typedef Sys_File_Exists_Sig(System_File_Exists);
 
 #define Sys_Directory_CD_Sig(name) bool32 name(char *dir, i32 *len, i32 cap, char *rel_path, i32 rel_len)

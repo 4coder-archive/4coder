@@ -62,7 +62,7 @@
 #include "4ed_file_view.cpp"
 #include "4ed.cpp"
 
-#include "4ed_font_static_functions.cpp"
+#include "font/4coder_font_static_functions.cpp"
 
 // BOTTOM
 

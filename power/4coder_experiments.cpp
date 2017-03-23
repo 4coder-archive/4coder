@@ -23,7 +23,7 @@ TYPE: 'build-target'
 #include <string.h>
 
 static float
-get_line_y(Application_Links *app, View_Summary *view, int32_t line){
+get_line_y(Application_Links *app, View_Summary *view, size_t line){
     Full_Cursor cursor = {0};
     view_compute_cursor(app, view, seek_line_char(line, 1), &cursor);
     float y = cursor.wrapped_y;
@@ -43,9 +43,9 @@ CUSTOM_COMMAND_SIG(kill_rect){
     
     int32_t line_count = (int32_t)(rect.y1 - rect.y0 + 1);
     for (int32_t line_i = line_count; line_i >= 0; --line_i){
-        int32_t line = rect.y0 + line_i;
-        int32_t start = 0;
-        int32_t end = 0;
+        size_t line = rect.y0 + line_i;
+        size_t start = 0;
+        size_t end = 0;
         
         bool32 success = true;
         Full_Cursor cursor = {0};
@@ -71,7 +71,7 @@ CUSTOM_COMMAND_SIG(kill_rect){
 }
 
 static void
-pad_buffer_line(Application_Links *app, Partition *part, Buffer_Summary *buffer, int32_t line, char padchar, int32_t target){
+pad_buffer_line(Application_Links *app, Partition *part, Buffer_Summary *buffer, size_t line, char padchar, size_t target){
     Partial_Cursor start = {0};
     Partial_Cursor end = {0};
     
@@ -83,7 +83,7 @@ pad_buffer_line(Application_Links *app, Partition *part, Buffer_Summary *buffer,
             if (buffer_compute_cursor(app, buffer, seek_end, &end)){
                 if (end.character-1 < target){
                     Temp_Memory temp = begin_temp_memory(part);
-                    int32_t size = target - (end.character-1);
+                    size_t size = target - (end.character-1);
                     char *str = push_array(part, char, size);
                     memset(str, ' ', size);
                     buffer_replace_range(app, buffer, end.pos, end.pos, str, size);
@@ -137,10 +137,10 @@ CUSTOM_COMMAND_SIG(multi_line_edit){
     
     Buffer_Rect rect = get_rect(&view);
     
-    int32_t start_line = view.cursor.line;
-    int32_t pos = view.cursor.character-1;
+    size_t start_line = view.cursor.line;
+    size_t pos = view.cursor.character-1;
     
-    for (int32_t i = rect.line0; i <= rect.line1; ++i){
+    for (size_t i = rect.line0; i <= rect.line1; ++i){
         pad_buffer_line(app, &global_part, &buffer, i, ' ', pos);
     }
     
@@ -158,7 +158,7 @@ CUSTOM_COMMAND_SIG(multi_line_edit){
             Buffer_Edit *edits = edit;
             
             for (int32_t i = 0; i <= line_count; ++i){
-                int32_t line = i + rect.line0;
+                size_t line = i + rect.line0;
                 Partial_Cursor cursor = {0};
                 
                 Buffer_Seek seek = seek_line_char(line, pos+1);
@@ -188,7 +188,7 @@ CUSTOM_COMMAND_SIG(multi_line_edit){
                 Buffer_Edit *edits = edit;
                 
                 for (int32_t i = 0; i <= line_count; ++i){
-                    int32_t line = i + rect.line0;
+                    size_t line = i + rect.line0;
                     Partial_Cursor cursor = {0};
                     
                     Buffer_Seek seek = seek_line_char(line, pos+1);
@@ -227,11 +227,11 @@ enum{
 };
 
 static bool32
-find_scope_top(Application_Links *app, Buffer_Summary *buffer, int32_t start_pos, uint32_t flags, int32_t *end_pos_out){
+find_scope_top(Application_Links *app, Buffer_Summary *buffer, size_t start_pos, uint32_t flags, size_t *end_pos_out){
     Cpp_Get_Token_Result get_result = {0};
     
     bool32 success = 0;
-    int32_t position = 0;
+    size_t position = 0;
     
     if (buffer_get_token_index(app, buffer, start_pos, &get_result)){
         int32_t token_index = get_result.token_index;
@@ -287,11 +287,11 @@ find_scope_top(Application_Links *app, Buffer_Summary *buffer, int32_t start_pos
 }
 
 static bool32
-find_scope_bottom(Application_Links *app, Buffer_Summary *buffer, int32_t start_pos, uint32_t flags, int32_t *end_pos_out){
+find_scope_bottom(Application_Links *app, Buffer_Summary *buffer, size_t start_pos, uint32_t flags, size_t *end_pos_out){
     Cpp_Get_Token_Result get_result = {0};
     
     bool32 success = 0;
-    int32_t position = 0;
+    size_t position = 0;
     
     if (buffer_get_token_index(app, buffer, start_pos, &get_result)){
         int32_t token_index = get_result.token_index+1;
@@ -348,11 +348,11 @@ find_scope_bottom(Application_Links *app, Buffer_Summary *buffer, int32_t start_
 }
 
 static bool32
-find_next_scope(Application_Links *app, Buffer_Summary *buffer, int32_t start_pos, uint32_t flags, int32_t *end_pos_out){
+find_next_scope(Application_Links *app, Buffer_Summary *buffer, size_t start_pos, uint32_t flags, size_t *end_pos_out){
     Cpp_Get_Token_Result get_result = {0};
     
     bool32 success = 0;
-    int32_t position = 0;
+    size_t position = 0;
     
     if (buffer_get_token_index(app, buffer, start_pos, &get_result)){
         int32_t token_index = get_result.token_index+1;
@@ -428,11 +428,11 @@ find_next_scope(Application_Links *app, Buffer_Summary *buffer, int32_t start_po
 }
 
 static bool32
-find_prev_scope(Application_Links *app, Buffer_Summary *buffer, int32_t start_pos, uint32_t flags, int32_t *end_pos_out){
+find_prev_scope(Application_Links *app, Buffer_Summary *buffer, size_t start_pos, uint32_t flags, size_t *end_pos_out){
     Cpp_Get_Token_Result get_result = {0};
     
     bool32 success = 0;
-    int32_t position = 0;
+    size_t position = 0;
     
     if (buffer_get_token_index(app, buffer, start_pos, &get_result)){
         int32_t token_index = get_result.token_index-1;
@@ -507,7 +507,7 @@ find_prev_scope(Application_Links *app, Buffer_Summary *buffer, int32_t start_po
 }
 
 static void
-view_set_to_region(Application_Links *app, View_Summary *view, int32_t major_pos, int32_t minor_pos, float normalized_threshold){
+view_set_to_region(Application_Links *app, View_Summary *view, size_t major_pos, size_t minor_pos, float normalized_threshold){
     Range range = make_range(major_pos, minor_pos);
     bool32 bottom_major = false;
     if (major_pos == range.max){
@@ -562,8 +562,8 @@ CUSTOM_COMMAND_SIG(highlight_surrounding_scope){
     View_Summary view = get_active_view(app, access);
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, access);
     
-    int32_t start_pos = view.cursor.pos;
-    int32_t top = 0, bottom = 0;
+    size_t start_pos = view.cursor.pos;
+    size_t top = 0, bottom = 0;
     if (find_scope_top(app, &buffer, start_pos, FindScope_Parent, &top)){
         view_set_cursor(app, &view, seek_pos(top), true);
         if (find_scope_bottom(app, &buffer, start_pos, FindScope_Parent | FindScope_EndOfToken, &bottom)){
@@ -582,8 +582,8 @@ CUSTOM_COMMAND_SIG(highlight_first_child_scope){
     View_Summary view = get_active_view(app, access);
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, access);
     
-    int32_t start_pos = view.cursor.pos;
-    int32_t top = 0, bottom = 0;
+    size_t start_pos = view.cursor.pos;
+    size_t top = 0, bottom = 0;
     if (find_next_scope(app, &buffer, start_pos, 0, &top)){
         if (find_scope_bottom(app, &buffer, top, FindScope_EndOfToken, &bottom)){
             view_set_cursor(app, &view, seek_pos(top), true);
@@ -598,8 +598,8 @@ CUSTOM_COMMAND_SIG(highlight_next_sibling_scope){
     View_Summary view = get_active_view(app, access);
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, access);
     
-    int32_t start_pos = view.cursor.pos;
-    int32_t top = 0, bottom = 0;
+    size_t start_pos = view.cursor.pos;
+    size_t top = 0, bottom = 0;
     if (find_next_scope(app, &buffer, start_pos, FindScope_NextSibling, &top)){
         if (find_scope_bottom(app, &buffer, top, FindScope_EndOfToken, &bottom)){
             view_set_cursor(app, &view, seek_pos(top), true);
@@ -614,8 +614,8 @@ CUSTOM_COMMAND_SIG(highlight_prev_sibling_scope){
     View_Summary view = get_active_view(app, access);
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, access);
     
-    int32_t start_pos = view.cursor.pos;
-    int32_t top = 0, bottom = 0;
+    size_t start_pos = view.cursor.pos;
+    size_t top = 0, bottom = 0;
     if (find_prev_scope(app, &buffer, start_pos, FindScope_NextSibling, &top)){
         if (find_scope_bottom(app, &buffer, top, FindScope_EndOfToken, &bottom)){
             view_set_cursor(app, &view, seek_pos(top), true);
@@ -630,8 +630,8 @@ CUSTOM_COMMAND_SIG(highlight_next_scope_absolute){
     View_Summary view = get_active_view(app, access);
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, access);
     
-    int32_t start_pos = view.cursor.pos;
-    int32_t top = 0, bottom = 0;
+    size_t start_pos = view.cursor.pos;
+    size_t top = 0, bottom = 0;
     if (find_next_scope(app, &buffer, start_pos, 0, &top)){
         if (find_scope_bottom(app, &buffer, top, FindScope_EndOfToken, &bottom)){
             view_set_cursor(app, &view, seek_pos(top), true);
@@ -646,8 +646,8 @@ CUSTOM_COMMAND_SIG(highlight_prev_scope_absolute){
     View_Summary view = get_active_view(app, access);
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, access);
     
-    int32_t start_pos = view.cursor.pos;
-    int32_t top = 0, bottom = 0;
+    size_t start_pos = view.cursor.pos;
+    size_t top = 0, bottom = 0;
     if (find_prev_scope(app, &buffer, start_pos, 0, &top)){
         if (find_scope_bottom(app, &buffer, top, FindScope_EndOfToken, &bottom)){
             view_set_cursor(app, &view, seek_pos(top), true);
@@ -697,11 +697,11 @@ CUSTOM_COMMAND_SIG(place_in_scope){
             --max_adjustment;
         }
         
-        int32_t min_pos = range.min + min_adjustment;
-        int32_t max_pos = range.max + max_adjustment;
+        size_t min_pos = range.min + min_adjustment;
+        size_t max_pos = range.max + max_adjustment;
         
-        int32_t cursor_pos = min_pos;
-        int32_t mark_pos = max_pos;
+        size_t cursor_pos = min_pos;
+        size_t mark_pos = max_pos;
         
         if (view.cursor.pos > view.mark.pos){
             cursor_pos = max_pos;
@@ -735,11 +735,11 @@ CUSTOM_COMMAND_SIG(delete_current_scope){
     View_Summary view = get_active_view(app, access);
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, access);
     
-    int32_t top = view.cursor.pos;
-    int32_t bottom = view.mark.pos;
+    size_t top = view.cursor.pos;
+    size_t bottom = view.mark.pos;
     
     if (top > bottom){
-        Swap(int32_t, top, bottom);
+        Swap(size_t, top, bottom);
     }
     
     if (buffer_get_char(app, &buffer, top) == '{' && buffer_get_char(app, &buffer, bottom-1) == '}'){
@@ -948,10 +948,10 @@ parse_statement_down(Application_Links *app, Statement_Parser *parser, Cpp_Token
 }
 
 static bool32
-find_whole_statement_down(Application_Links *app, Buffer_Summary *buffer, int32_t pos, int32_t *start_out, int32_t *end_out){
+find_whole_statement_down(Application_Links *app, Buffer_Summary *buffer, size_t pos, size_t *start_out, size_t *end_out){
     bool32 result = false;
-    int32_t start = pos;
-    int32_t end = start;
+    size_t start = pos;
+    size_t end = start;
     
     Cpp_Get_Token_Result get_result = {0};
     
@@ -990,11 +990,11 @@ CUSTOM_COMMAND_SIG(scope_absorb_down){
     View_Summary view = get_active_view(app, access);
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, access);
     
-    int32_t top = view.cursor.pos;
-    int32_t bottom = view.mark.pos;
+    size_t top = view.cursor.pos;
+    size_t bottom = view.mark.pos;
     
     if (top > bottom){
-        Swap(int32_t, top, bottom);
+        Swap(size_t, top, bottom);
     }
     
     Partition *part = &global_part;
@@ -1123,9 +1123,9 @@ CUSTOM_COMMAND_SIG(rename_parameter){
                             String replace_string = with.string;
                             
                             Buffer_Edit *edits = (Buffer_Edit*)partition_current(part);
-                            uint32_t remaining = (uint32_t)partition_remaining(part);
-                            uint32_t edit_size = sizeof(Buffer_Edit);
-                            uint32_t edit_max = remaining/edit_size;
+                            size_t remaining = partition_remaining(part);
+                            size_t edit_size = sizeof(Buffer_Edit);
+                            uint32_t edit_max = (uint32_t)(remaining/edit_size);
                             uint32_t edit_count = 0;
                             
                             if (edit_max >= 1){
@@ -1149,7 +1149,7 @@ CUSTOM_COMMAND_SIG(rename_parameter){
                                     switch (token_ptr->type){
                                         case CPP_TOKEN_IDENTIFIER:
                                         {
-                                            if (token_ptr->size == old_lexeme.size){
+                                            if (token_ptr->size == (uint32_t)old_lexeme.size){
                                                 char other_lexeme_base[128];
                                                 String other_lexeme = make_fixed_width_string(other_lexeme_base);
                                                 other_lexeme.size = old_lexeme.size;
