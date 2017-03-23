@@ -431,9 +431,9 @@ STRUCT File_List{
     /* DOC(This field is an array of File_Info structs.) */
     File_Info *infos;
     /* DOC(This field specifies the number of struts in the info array.) */
-    int32_t count;
+    uint32_t count;
     /* DOC(This field is for internal use.) */
-    int32_t block_size;
+    uint32_t block_size;
 };
 
 /* DOC(Buffer_Identifier acts as a loosely typed description of a buffer that can either be a name or an id.) */

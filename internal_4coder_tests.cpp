@@ -47,7 +47,7 @@ CUSTOM_COMMAND_SIG(load_lots_of_files){
     append_s_char(&str, '/');
     int32_t size = str.size;
     
-    for (int32_t i = 0; i < list.count; ++i, ++info){
+    for (uint32_t i = 0; i < list.count; ++i, ++info){
         if (!info->folder){
             append_ss(&str, make_string(info->filename, info->filename_len));
             Buffer_Summary buffer = create_buffer(app, str.str, str.size,

@@ -81,20 +81,19 @@ init_track_system(File_Track_System *system, Partition *scratch, void *table_mem
     return(result);
 }
 
-internal umem
-internal_utf8_file_to_utf16_parent(u16 *out, u32 max, u8 *name){
+internal i32
+internal_get_parent_name(u8 *out, i32 max, u8 *name){
     u8 *ptr = name;
     for (; *ptr != 0; ++ptr);
-    umem len = (umem)(ptr - name);
+    i32 len = (i32)(ptr - name);
     
     // TODO(allen): make this system real
     Assert(len < max);
     
-    umem slash_i = len-1;
+    i32 slash_i = len-1;
     for (;slash_i > 0 && name[slash_i] != '\\' && name[slash_i] != '/';--slash_i);
     
-    b32 error = false;
-    slash_i = utf8_to_utf16_minimal_checking(out, max-1, name, len, &error);
+    for (i32 i = 0; i < slash_i; ++i) out[i] = name[i];
     out[slash_i] = 0;
     
     return(slash_i);
@@ -130,11 +129,10 @@ add_listener(File_Track_System *system, Partition *scratch, u8 *filename){
     {
         File_Track_Tables *tables = to_tables(vars);
         
-        // TODO(allen): make this real!
-        u16 dir_name[1024];
-        internal_utf8_file_to_utf16_parent(dir_name, ArrayCount(dir_name), filename);
+        u8 dir_name[1024];
+        internal_get_parent_name(dir_name, ArrayCount(dir_name), filename);
         
-        HANDLE dir = CreateFile((LPCWSTR)dir_name, FILE_LIST_DIRECTORY, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, 0, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OVERLAPPED, 0);
+        HANDLE dir = CreateFile_utf8(dir_name, FILE_LIST_DIRECTORY, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, 0, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OVERLAPPED, 0);
         
         if (dir != INVALID_HANDLE_VALUE){
             BY_HANDLE_FILE_INFORMATION dir_info = {0};
@@ -213,10 +211,10 @@ remove_listener(File_Track_System *system, Partition *scratch, u8 *filename){
     File_Track_Tables *tables = to_tables(vars);
     
     // TODO(allen): make this real!
-    u16 dir_name[1024];
-    internal_utf8_file_to_utf16_parent(dir_name, ArrayCount(dir_name), filename);
+    u8 dir_name[1024];
+    internal_get_parent_name(dir_name, ArrayCount(dir_name), filename);
     
-    HANDLE dir = CreateFile((LPCWSTR)dir_name, FILE_LIST_DIRECTORY, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, 0, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OVERLAPPED, 0);
+    HANDLE dir = CreateFile_utf8(dir_name, FILE_LIST_DIRECTORY, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, 0, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OVERLAPPED, 0);
     
     if (dir != INVALID_HANDLE_VALUE){
         BY_HANDLE_FILE_INFORMATION dir_info = {0};
@@ -332,12 +330,14 @@ get_change_event(File_Track_System *system, Partition *scratch, u8 *buffer, i32 
         FILE_NOTIFY_INFORMATION *info = (FILE_NOTIFY_INFORMATION*)(listener.result + offset);
         
         i32 len = info->FileNameLength / 2;
-        i32 dir_len = GetFinalPathNameByHandle(listener.dir, 0, 0, FILE_NAME_NORMALIZED);
+        i32 dir_len = GetFinalPathNameByHandle_utf8(listener.dir, 0, 0, FILE_NAME_NORMALIZED);
         
         i32 req_size = dir_len + 1 + len;
         *size = req_size;
+        
+        // TODO(allen): This check isn't really right, it should rely on the result from GetFinalPathNameByHandle_utf8.
         if (req_size < max){
-            i32 pos = GetFinalPathNameByHandle(listener.dir, buffer, max, FILE_NAME_NORMALIZED);
+            i32 pos = GetFinalPathNameByHandle_utf8(listener.dir, buffer, max, FILE_NAME_NORMALIZED);
             buffer[pos++] = '\\';
             
             for (i32 i = 0; i < len; ++i, ++pos){
