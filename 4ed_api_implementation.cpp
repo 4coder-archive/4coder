@@ -571,7 +571,7 @@ DOC_SEE(4coder_Buffer_Positioning_System)
         size = buffer_size(&file->state.buffer);
         if (0 <= start && start <= end && end <= size){
             result = true;
-            buffer_stringify(&file->state.buffer, start, end, out);
+            buffer_stringify(&file->state.buffer, (u32)start, (u32)end, out);
         }
         fill_buffer_summary(buffer, file, cmd);
     }
@@ -672,7 +672,7 @@ DOC_SEE(Buffer_Batch_Edit_Type)
             char *inv_str = (char*)part->base + part->pos;
             umem inv_str_max = part->max - part->pos;
             
-            Edit_Spec spec = file_compute_edit(mem, file, edits, str, str_len, inverse_edits, inv_str, (u32)inv_str_max, (u32)edit_count, type);
+            Edit_Spec spec = file_compute_edit(mem, file, edits, str, (u32)str_len, inverse_edits, inv_str, (u32)inv_str_max, (u32)edit_count, type);
             
             file_do_batch_edit(system, models, file, spec, hist_normal, type);
             
@@ -1802,11 +1802,11 @@ DOC_SEE(Buffer_Seek)
             if (seek.type != buffer_seek_pos){
                 result = true;
                 cursor = view_compute_cursor(system, vptr, seek, 0);
-                vptr->edit_pos->mark = cursor.pos;
+                vptr->edit_pos->mark = (u32)cursor.pos;
             }
             else{
                 result = true;
-                vptr->edit_pos->mark = seek.pos;
+                vptr->edit_pos->mark = (u32)seek.pos;
             }
             fill_view_summary(system, view, vptr, cmd);
         }
@@ -1832,7 +1832,7 @@ DOC(The highlight is mutually exclusive to the cursor.  When the turn_on paramet
     if (vptr != 0){
         result = true;
         if (turn_on){
-            view_set_temp_highlight(system, vptr, start, end);
+            view_set_temp_highlight(system, vptr, (u32)start, (u32)end);
         }
         else{
             vptr->file_data.show_temp_highlight = false;

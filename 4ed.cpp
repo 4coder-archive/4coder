@@ -452,7 +452,7 @@ COMMAND_DECL(toggle_line_wrap){
     else{
         file->settings.unwrapped_lines = 1;
     }
-    view_cursor_move(system, view, view->edit_pos->cursor.pos);
+    view_cursor_move(system, view, (u32)view->edit_pos->cursor.pos);
     view_set_relative_scrolling(view, scrolling);
 }
 

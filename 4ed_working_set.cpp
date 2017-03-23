@@ -360,7 +360,7 @@ internal b32
 get_canon_name(System_Functions *system, Editing_File_Canon_Name *canon_name, String filename){
     canon_name->name = make_fixed_width_string(canon_name->name_);
     
-    canon_name->name.size = system->get_canonical(filename.str, filename.size, canon_name->name.str, canon_name->name.memory_size);
+    canon_name->name.size = system->get_canonical((u8*)filename.str, filename.size, (u8*)canon_name->name.str, canon_name->name.memory_size);
     terminate_with_null(&canon_name->name);
     
     b32 result = (canon_name->name.size != 0);

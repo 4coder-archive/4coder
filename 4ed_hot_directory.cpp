@@ -34,7 +34,7 @@ hot_directory_quick_partition(File_Info *infos, i32 start, i32 pivot){
         i32 comp = 0;
         comp = p->folder - a->folder;
         if (comp == 0){
-            comp = compare_cc(a->filename, p->filename);
+            comp = compare_cc((char*)a->filename, (char*)p->filename);
         }
         if (comp < 0){
             Swap(File_Info, *a, infos[start]);

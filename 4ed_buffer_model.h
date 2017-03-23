@@ -15,7 +15,7 @@
 struct Buffer_Model_Step{
     u32 type;
     u32 value;
-    umem i;
+    u32 i;
     u32 byte_length;
 };
 
