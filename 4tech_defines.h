@@ -8,6 +8,7 @@ Created 21.01.2017 (dd.mm.yyyy)
 
 #if !defined(FTECH_DEFINES)
 #define FTECH_DEFINES
+
 #include <stdint.h>
 
 typedef int8_t i8;
@@ -23,7 +24,6 @@ typedef uint64_t u64;
 typedef i8 b8;
 typedef i32 b32;
 
-// TODO(allen): Find a real way to detect 32 bit ness.
 #if defined(FTECH_32_BIT)
 typedef u32 umem;
 typedef i32 imem;

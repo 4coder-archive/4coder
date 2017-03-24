@@ -858,11 +858,11 @@ buffer_measure_wrap_y(Buffer_Measure_Wrap_State *S_ptr, Buffer_Measure_Wrap_Para
                             }
                             
                             S.did_wrap = false;
-                            if (S.i >= S.wrap_unit_end){
+                            if (S.step.i >= S.wrap_unit_end){
                                 S_stop.status          = BLStatus_NeedWrapDetermination;
                                 S_stop.line_index      = S.line_index - 1;
                                 S_stop.wrap_line_index = S.current_wrap_index;
-                                S_stop.pos             = S.i;
+                                S_stop.pos             = S.step.i;
                                 S_stop.x               = S.x;
                                 DrYield(4, S_stop);
                                 
@@ -876,7 +876,7 @@ buffer_measure_wrap_y(Buffer_Measure_Wrap_State *S_ptr, Buffer_Measure_Wrap_Para
                                         S_stop.status          = BLStatus_NeedWrapLineShift;
                                         S_stop.line_index      = S.line_index - 1;
                                         S_stop.wrap_line_index = S.current_wrap_index;
-                                        S_stop.pos             = S.i;
+                                        S_stop.pos             = S.step.i;
                                         DrYield(3, S_stop);
                                     }
                                     
@@ -1403,7 +1403,7 @@ buffer_cursor_seek(Buffer_Cursor_Seek_State *S_ptr, Buffer_Cursor_Seek_Params pa
         // Build the cursor hint
         S.next_cursor.pos = params.buffer->line_starts[safe_line_index];
         S.next_cursor.character_pos = params.character_starts[safe_line_index];
-        S.next_cursor.line = line_index + 1;
+        S.next_cursor.line = safe_line_index + 1;
         S.next_cursor.character = 1;
         S.next_cursor.wrap_line = params.wrap_line_index[safe_line_index] + 1;
         S.next_cursor.unwrapped_y = (f32)(safe_line_index * S.font_height);

@@ -53,16 +53,16 @@ static u32_4tech
 utf8_to_u32_length_unchecked(u8_4tech *buffer, u32_4tech *length_out){
     u32_4tech result = 0;
     
-    if (buffer[0] <= 0x7F){
+    if (buffer[0] < 0x80){
         result = (u32_4tech)buffer[0];
         *length_out = 1;
     }
-    else if (buffer[0] <= 0xE0){
+    else if (buffer[0] < 0xE0){
         result = ((u32_4tech)((buffer[0])&0x1F)) << 6;
         result |= ((u32_4tech)((buffer[1])&0x3F));
         *length_out = 2;
     }
-    else if (buffer[0] <= 0xF0){
+    else if (buffer[0] < 0xF0){
         result = ((u32_4tech)((buffer[0])&0x0F)) << 12;
         result |= ((u32_4tech)((buffer[1])&0x3F)) << 6;
         result |= ((u32_4tech)((buffer[2])&0x3F));
@@ -198,11 +198,11 @@ utf8_to_utf16_minimal_checking(u16_4tech *dst, umem_4tech max_wchars, u8_4tech *
         u32_4tech codepoint = 0;
         u32_4tech utf8_size = 0;
         
-        if (s[0] <= 0x7F){
+        if (s[0] < 0x80){
             codepoint = (u32_4tech)s[0];
             utf8_size = 1;
         }
-        else if (s[0] <= 0xE0){
+        else if (s[0] < 0xE0){
             if (limit <= 1){
                 *error = true;
                 break;
@@ -212,7 +212,7 @@ utf8_to_utf16_minimal_checking(u16_4tech *dst, umem_4tech max_wchars, u8_4tech *
             codepoint |= ((u32_4tech)((s[1])&0x3F));
             utf8_size = 2;
         }
-        else if (s[0] <= 0xF0){
+        else if (s[0] < 0xF0){
             if (limit <= 2){
                 *error = true;
                 break;

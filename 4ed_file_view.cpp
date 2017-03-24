@@ -1476,9 +1476,7 @@ file_measure_wraps(System_Functions *system, Models *models, Editing_File *file,
     Buffer_Layout_Stop stop = {0};
     
     f32 edge_tolerance = 50.f;
-    if (edge_tolerance > width){
-        edge_tolerance = width;
-    }
+    edge_tolerance = clamp_top(edge_tolerance, 50.f);
     
     f32 current_line_shift = 0.f;
     b32 do_wrap = 0;
@@ -1509,6 +1507,9 @@ file_measure_wraps(System_Functions *system, Models *models, Editing_File *file,
     i32 potential_count = 0;
     i32 stage = 0;
     
+    Translation_State tran = {0};
+    Translation_Emits emits = {0};
+    
     do{
         stop = buffer_measure_wrap_y(&state, params, current_line_shift, do_wrap, wrap_unit_end);
         
@@ -1535,35 +1536,46 @@ file_measure_wraps(System_Functions *system, Models *models, Editing_File *file,
                     i32 i = stop.pos;
                     f32 x = stop.x;
                     f32 self_x = 0;
+                    i32 wrap_end_result = size;
                     if (buffer_stringify_loop(&stream, params.buffer, i, size)){
                         b32 still_looping = 0;
                         do{
                             for (; i < stream.end; ++i){
-                                u8 ch = stream.data[i];
+                                {
+                                    u8 ch = stream.data[i];
+                                    translating_fully_process_byte(system, font, &tran, ch, i, size, &emits);
+                                }
                                 
-                                switch (word_stage){
-                                    case 0:
-                                    {
-                                        if (char_is_whitespace(ch)){
-                                            word_stage = 1;
-                                        }
-                                        else{
-                                            f32 adv = font_get_glyph_advance(params.system, params.font, ch);
-                                            
-                                            x += adv;
-                                            self_x += adv;
-                                            if (self_x > width){
+                                for (TRANSLATION_DECL_EMIT_LOOP(J, emits)){
+                                    TRANSLATION_DECL_GET_STEP(step, behavior, J, emits);
+                                    
+                                    u32 codepoint = step.value;
+                                    switch (word_stage){
+                                        case 0:
+                                        {
+                                            if (codepoint_is_whitespace(codepoint)){
+                                                word_stage = 1;
+                                            }
+                                            else{
+                                                f32 adv = font_get_glyph_advance(params.system, params.font, codepoint);
+                                                
+                                                x += adv;
+                                                self_x += adv;
+                                                if (self_x > width){
+                                                    wrap_end_result = step.i;
+                                                    goto doublebreak;
+                                                }
+                                            }
+                                        }break;
+                                        
+                                        case 1:
+                                        {
+                                            if (!codepoint_is_whitespace(codepoint)){
+                                                wrap_end_result = step.i;
                                                 goto doublebreak;
                                             }
-                                        }
-                                    }break;
-                                    
-                                    case 1:
-                                    {
-                                        if (!char_is_whitespace(ch)){
-                                            goto doublebreak;
-                                        }
-                                    }break;
+                                        }break;
+                                    }
                                 }
                             }
                             still_looping = buffer_stringify_next(&stream);
@@ -1571,7 +1583,7 @@ file_measure_wraps(System_Functions *system, Models *models, Editing_File *file,
                     }
                     
                     doublebreak:;
-                    wrap_unit_end = i;
+                    wrap_unit_end = wrap_end_result;
                     if (x > width){
                         do_wrap = 1;
                         file_allocate_wrap_positions_as_needed(general, file, wrap_position_index);
@@ -1607,7 +1619,6 @@ file_measure_wraps(System_Functions *system, Models *models, Editing_File *file,
                         stage = 0;
                         
                         Wrap_Current_Shift current_shift =  get_current_shift(&wrap_state, next_line_start);
-                        
                         
                         if (current_shift.adjust_top_to_this){
                             wrap_state_set_top(&wrap_state, current_shift.shift);
@@ -1701,7 +1712,6 @@ file_measure_wraps(System_Functions *system, Models *models, Editing_File *file,
                                                 if (!char_is_whitespace(ch)){
                                                     goto doublebreak_stage2;
                                                 }
-                                                
                                                 
                                                 f32 adv = font_get_glyph_advance(params.system, params.font, ch);
                                                 

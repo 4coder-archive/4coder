@@ -16,7 +16,7 @@
 
 struct Win32_Fonts{
     Partition part;
-    Render_Font fonts[5];
+    Render_Font fonts[32];
     u32 font_count;
 };
 
@@ -87,6 +87,9 @@ Sys_Font_Free_Sig(system_font_free){
 
 internal
 Sys_Font_Init_Sig(system_font_init){
+    Partition *scratch = &shared_vars.scratch;
+    Temp_Memory temp = begin_temp_memory(scratch);
+    
     font->get_count = system_font_get_count;
     font->get_ids_by_index = system_font_get_ids_by_index;
     font->get_name_by_index = system_font_get_name_by_index;
@@ -98,36 +101,77 @@ Sys_Font_Init_Sig(system_font_init){
     
     font_size = clamp_bottom(8, font_size);
     
-    struct Font_Setup{
+    struct TEST_DATA{
         char *c_filename;
         i32 filename_len;
         char *c_name;
         i32 name_len;
-        u32 pt_size;
     };
-    Font_Setup font_setup[] = {
-        {literal("LiberationSans-Regular.ttf"), literal("Liberation Sans"), font_size},
-        {literal("liberation-mono.ttf"),        literal("Liberation Mono"), font_size},
-        {literal("Hack-Regular.ttf"),           literal("Hack"),            font_size},
-        {literal("CutiveMono-Regular.ttf"),     literal("Cutive Mono"),     font_size},
-        {literal("Inconsolata-Regular.ttf"),    literal("Inconsolata"),     font_size},
+    TEST_DATA TEST_SETUP[] = {
+        {literal("fonts/LiberationSans-Regular.ttf"), literal("Liberation Sans"), },
+        {literal("fonts/liberation-mono.ttf"),        literal("Liberation Mono"), },
+        {literal("fonts/Hack-Regular.ttf"),           literal("Hack"),            },
+        {literal("fonts/CutiveMono-Regular.ttf"),     literal("Cutive Mono"),     },
+        {literal("fonts/Inconsolata-Regular.ttf"),    literal("Inconsolata"),     },
     };
     
-    u32 font_count = Min(ArrayCount(win32_fonts.fonts), ArrayCount(font_setup));
-    for (u32 i = 0; i < font_count; ++i){
-        String filename = make_string(font_setup[i].c_filename, font_setup[i].filename_len);
-        String name = make_string(font_setup[i].c_name, font_setup[i].name_len);
-        u32 pt_size = font_setup[i].pt_size;
-        Render_Font *render_font = &win32_fonts.fonts[i];
+    struct Font_Setup{
+        Font_Setup *next_font;
+        char *c_filename;
+        char *c_name;
+        i32 filename_len;
+        i32 name_len;
+    };
+    
+    Font_Setup *first_setup = 0;
+    Font_Setup *head_setup = 0;
+    
+    u32 TEST_COUNT = ArrayCount(TEST_SETUP);
+    for (u32 i = 0; i < TEST_COUNT; ++i){
+        if (first_setup == 0){
+            head_setup = push_struct(scratch, Font_Setup);
+            first_setup = head_setup;
+        }
+        else{
+            head_setup->next_font = push_struct(scratch, Font_Setup);
+            head_setup = head_setup->next_font;
+        }
         
-        char full_filename_space[256];
-        String full_filename = make_fixed_width_string(full_filename_space);
-        sysshared_to_binary_path(&full_filename, filename.str);
+        TEST_DATA *TEST = &TEST_SETUP[i];
         
-        system_set_font(&win32vars.system, &win32_fonts.part, render_font, full_filename, name, pt_size, use_hinting);
+        head_setup->c_filename = push_array(scratch, char, TEST->filename_len+1);
+        memcpy(head_setup->c_filename, TEST->c_filename, TEST->filename_len+1);
+        head_setup->filename_len = TEST->filename_len;
+        
+        head_setup->c_name = push_array(scratch, char, TEST->name_len+1);
+        memcpy(head_setup->c_name, TEST->c_name, TEST->name_len+1);
+        head_setup->name_len = TEST->name_len;
+        
+        partition_align(scratch, 8);
     }
     
-    win32_fonts.font_count = font_count;
+    u32 font_count_max = ArrayCount(win32_fonts.fonts);
+    u32 font_count = 0;
+    u32 i = 0;
+    for (Font_Setup *ptr = first_setup; ptr != 0; ptr = ptr->next_font, ++i){
+        if (i < font_count_max){
+            String filename = make_string(ptr->c_filename, ptr->filename_len);
+            String name = make_string(ptr->c_name, ptr->name_len);
+            Render_Font *render_font = &win32_fonts.fonts[i];
+            
+            char full_filename_space[256];
+            String full_filename = make_fixed_width_string(full_filename_space);
+            sysshared_to_binary_path(&full_filename, filename.str);
+            
+            system_set_font(&win32vars.system, &win32_fonts.part, render_font, full_filename, name, font_size, use_hinting);
+        }
+        
+        ++font_count;
+    }
+    
+    win32_fonts.font_count = clamp_top(font_count, font_count_max);
+    
+    end_temp_memory(temp);
 }
 
 // BOTTOM
