@@ -703,6 +703,14 @@ font_load(System_Functions *system, Partition *part, Render_Font *font, i32 pt_s
     FT_Request_Size(face, &size);
     
     // set size & metrics
+    char *name = face->family_name;
+    u32 name_len = 0;
+    for (;name[name_len];++name_len);
+    name_len = clamp_top(name_len, sizeof(font->name)-1);
+    memcpy(font->name, name, name_len);
+    font->name[name_len] = 0;
+    font->name_len = name_len;
+    
     font->ascent    = ceil32  (face->size->metrics.ascender    / 64.0f);
     font->descent   = floor32 (face->size->metrics.descender   / 64.0f);
     font->advance   = ceil32  (face->size->metrics.max_advance / 64.0f);
@@ -762,28 +770,30 @@ system_set_page(System_Functions *system, Partition *part, Render_Font *font, Gl
 }
 
 internal void
-system_set_font(System_Functions *system, Partition *part, Render_Font *font, String filename, String name, u32 pt_size, b32 use_hinting){
+system_set_font(System_Functions *system, Partition *part, Render_Font *font, char *filename, u32 pt_size, b32 use_hinting){
     memset(font, 0, sizeof(*font));
     
-    copy_partial_cs(font->filename, sizeof(font->filename)-1, filename);
-    font->filename_len = filename.size;
-    font->filename[font->filename_len] = 0;
-    copy_partial_cs(font->name, sizeof(font->name)-1, name);
-    font->name_len = name.size;
-    font->name[font->name_len] = 0;
+    u32 filename_len = 0;
+    for (;filename[filename_len];++filename_len);
     
-    if (part->base == 0){
-        *part = sysshared_scratch_partition(MB(8));
-    }
-    
-    b32 success = false;
-    for (u32 R = 0; R < 3; ++R){
-        success = font_load(system, part, font, pt_size, use_hinting);
-        if (success){
-            break;
+    if (filename_len <= sizeof(font->filename)-1){
+        memcpy(font->filename, filename, filename_len);
+        font->filename[filename_len] = 0;
+        font->filename_len = filename_len;
+        
+        if (part->base == 0){
+            *part = sysshared_scratch_partition(MB(8));
         }
-        else{
-            sysshared_partition_double(part);
+        
+        b32 success = false;
+        for (u32 R = 0; R < 3; ++R){
+            success = font_load(system, part, font, pt_size, use_hinting);
+            if (success){
+                break;
+            }
+            else{
+                sysshared_partition_double(part);
+            }
         }
     }
 }

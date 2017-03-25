@@ -1833,7 +1833,7 @@ Win32Callback(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
         case WM_MOUSEWHEEL:
         {
             win32vars.got_useful_event = 1;
-            Font_ID rotation = GET_WHEEL_DELTA_WPARAM(wParam);
+            i32 rotation = GET_WHEEL_DELTA_WPARAM(wParam);
             if (rotation > 0){
                 win32vars.input_chunk.trans.mouse_wheel = 1;
             }

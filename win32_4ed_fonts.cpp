@@ -24,7 +24,7 @@ global Win32_Fonts win32_fonts = {0};
 
 internal
 Sys_Font_Get_Count_Sig(system_font_get_count){
-    return(5);
+    return(win32_fonts.font_count);
 }
 
 internal
@@ -101,6 +101,7 @@ Sys_Font_Init_Sig(system_font_init){
     
     font_size = clamp_bottom(8, font_size);
     
+#if 0
     struct TEST_DATA{
         char *c_filename;
         i32 filename_len;
@@ -114,17 +115,6 @@ Sys_Font_Init_Sig(system_font_init){
         {literal("fonts/CutiveMono-Regular.ttf"),     literal("Cutive Mono"),     },
         {literal("fonts/Inconsolata-Regular.ttf"),    literal("Inconsolata"),     },
     };
-    
-    struct Font_Setup{
-        Font_Setup *next_font;
-        char *c_filename;
-        char *c_name;
-        i32 filename_len;
-        i32 name_len;
-    };
-    
-    Font_Setup *first_setup = 0;
-    Font_Setup *head_setup = 0;
     
     u32 TEST_COUNT = ArrayCount(TEST_SETUP);
     for (u32 i = 0; i < TEST_COUNT; ++i){
@@ -149,21 +139,68 @@ Sys_Font_Init_Sig(system_font_init){
         
         partition_align(scratch, 8);
     }
+#endif
+    
+    struct Font_Setup{
+        Font_Setup *next_font;
+        char *c_filename;
+    };
+    
+    Font_Setup *first_setup = 0;
+    Font_Setup *head_setup = 0;
+    
+    u32 dir_max = KB(32);
+    u8 *directory = push_array(scratch, u8, dir_max);
+    DWORD dir_len = GetModuleFileName_utf8(0, directory, dir_max-1);
+    Assert(dir_len < dir_max);
+    
+    {
+        String dir_str = make_string_cap(directory, dir_len, dir_max);
+        remove_last_folder(&dir_str);
+        set_last_folder_sc(&dir_str, "fonts", '\\');
+        terminate_with_null(&dir_str);
+        dir_len = dir_str.size;
+    }
+    
+    partition_reduce(scratch, dir_max - dir_len - 1);
+    partition_align(scratch, 8);
+    
+    File_List file_list = {0};
+    system_set_file_list(&file_list, (char*)directory, 0, 0, 0);
+    
+    for (u32 i = 0; i < file_list.count; ++i){
+        File_Info *info = &file_list.infos[i];
+        if (first_setup == 0){
+            first_setup = push_struct(scratch, Font_Setup);
+            head_setup = first_setup;
+        }
+        else{
+            head_setup->next_font = push_struct(scratch, Font_Setup);
+            head_setup = head_setup->next_font;
+        }
+        head_setup->next_font = 0;
+        
+        char *filename = info->filename;
+        u32 len = 0;
+        for (;filename[len];++len);
+        
+        head_setup->c_filename = push_array(scratch, char, dir_len+len+1);
+        memcpy(head_setup->c_filename, directory, dir_len);
+        memcpy(head_setup->c_filename + dir_len, filename, len+1);
+        
+        partition_align(scratch, 8);
+    }
+    
+    system_set_file_list(&file_list, 0, 0, 0, 0);
     
     u32 font_count_max = ArrayCount(win32_fonts.fonts);
     u32 font_count = 0;
     u32 i = 0;
     for (Font_Setup *ptr = first_setup; ptr != 0; ptr = ptr->next_font, ++i){
         if (i < font_count_max){
-            String filename = make_string(ptr->c_filename, ptr->filename_len);
-            String name = make_string(ptr->c_name, ptr->name_len);
             Render_Font *render_font = &win32_fonts.fonts[i];
             
-            char full_filename_space[256];
-            String full_filename = make_fixed_width_string(full_filename_space);
-            sysshared_to_binary_path(&full_filename, filename.str);
-            
-            system_set_font(&win32vars.system, &win32_fonts.part, render_font, full_filename, name, font_size, use_hinting);
+            system_set_font(&win32vars.system, &win32_fonts.part, render_font, ptr->c_filename, font_size, use_hinting);
         }
         
         ++font_count;

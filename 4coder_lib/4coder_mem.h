@@ -79,6 +79,13 @@ partition_allocate(Partition *data, i32_4tech size){
 }
 
 inline void
+partition_reduce(Partition *data, i32_4tech size){
+    if (size > 0 && size <= data->pos){
+        data->pos -= size;
+    }
+}
+
+inline void
 partition_align(Partition *data, u32_4tech boundary){
     --boundary;
     data->pos = (data->pos + boundary) & (~boundary);
