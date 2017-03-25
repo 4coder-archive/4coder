@@ -12,7 +12,7 @@
 #include "4ed_buffer_model.h"
 
 struct Translation_State{
-    u8 fill_buffer[6];
+    u8 fill_buffer[4];
     u32 fill_start_i;
     u8 fill_i;
     u8 fill_expected;
@@ -40,20 +40,20 @@ struct Translation_Emit_Rule{
 };
 
 struct Translation_Emits{
-    Buffer_Model_Step steps[7];
+    Buffer_Model_Step steps[5];
     u32 step_count;
 };
 
-#define CONTINUATION_BYTE max_u8
+#define SINGLE_BYTE_ERROR_CLASS max_u8
 
 internal void
 translating_consume_byte(Translation_State *tran, u8 ch, u32 i, u32 size, Translation_Byte_Description *desc_out){
     desc_out->byte_class = 0;
-    if (ch < 0x80){
+    if ((ch >= ' ' && ch < 0x7F) || ch == '\t' || ch == '\n' || ch == '\r'){
         desc_out->byte_class = 1;
     }
     else if (ch < 0xC0){
-        desc_out->byte_class = CONTINUATION_BYTE;
+        desc_out->byte_class = SINGLE_BYTE_ERROR_CLASS;
     }
     else if (ch < 0xE0){
         desc_out->byte_class = 2;
@@ -61,14 +61,8 @@ translating_consume_byte(Translation_State *tran, u8 ch, u32 i, u32 size, Transl
     else if (ch < 0xF0){
         desc_out->byte_class = 3;
     }
-    else if (ch < 0xF8){
-        desc_out->byte_class = 4;
-    }
-    else if (ch < 0xFC){
-        desc_out->byte_class = 5;
-    }
     else{
-        desc_out->byte_class = 6;
+        desc_out->byte_class = 4;
     }
     
     desc_out->prelim_emit_type = BufferModelUnit_None;
@@ -81,7 +75,7 @@ translating_consume_byte(Translation_State *tran, u8 ch, u32 i, u32 size, Transl
         if (desc_out->byte_class == 1){
             desc_out->prelim_emit_type = BufferModelUnit_Codepoint;
         }
-        else if (desc_out->byte_class == 0 || desc_out->byte_class == CONTINUATION_BYTE){
+        else if (desc_out->byte_class == 0 || desc_out->byte_class == SINGLE_BYTE_ERROR_CLASS){
             desc_out->prelim_emit_type = BufferModelUnit_Numbers;
         }
         else{
@@ -89,7 +83,7 @@ translating_consume_byte(Translation_State *tran, u8 ch, u32 i, u32 size, Transl
         }
     }
     else{
-        if (desc_out->byte_class == CONTINUATION_BYTE){
+        if (desc_out->byte_class == SINGLE_BYTE_ERROR_CLASS){
             tran->fill_buffer[tran->fill_i] = ch;
             ++tran->fill_i;
             
@@ -98,7 +92,7 @@ translating_consume_byte(Translation_State *tran, u8 ch, u32 i, u32 size, Transl
             }
         }
         else{
-            if (desc_out->byte_class >= 2 && desc_out->byte_class <= 6){
+            if (desc_out->byte_class >= 2 && desc_out->byte_class <= 4){
                 desc_out->last_byte_handler = TranLBH_Rebuffer;
             }
             else if (desc_out->byte_class == 1){
