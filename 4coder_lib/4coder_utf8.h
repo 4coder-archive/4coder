@@ -90,7 +90,7 @@ utf8_to_u32_length_unchecked(u8_4tech *buffer, u32_4tech *length_out){
         *length_out = 4;
     }
     
-    if (result < cp_min_by_utf8_length[*length_out] || (result >= surrogate_min && result <= surrogate_max) || (result >= nonchar_min && result <= nonchar_max) || ((result & 0xFFFF) >= 0xFE)){
+    if (result < cp_min_by_utf8_length[*length_out] || (result >= surrogate_min && result <= surrogate_max)){
         result = 0;
         *length_out = 0;
     }
@@ -167,7 +167,7 @@ utf8_to_u32(u8_4tech **buffer_ptr, u8_4tech *end){
             }break;
         }
         
-        if (result < cp_min_by_utf8_length[length] || (result >= surrogate_min && result <= surrogate_max) || (result >= nonchar_min && result <= nonchar_max) || ((result & 0xFFFF) >= 0xFE)){
+        if (result < cp_min_by_utf8_length[length] || (result >= surrogate_min && result <= surrogate_max)){
             result = 0;
             length = 0;
         }

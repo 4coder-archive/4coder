@@ -344,7 +344,7 @@ CUSTOM_COMMAND_SIG(load_project){
                                             
                                             if (read_bool){
                                                 if (config_bool_var(array_item, 0, 0, dest_bool)){
-                                                    if (dest_bool){
+                                                    if (*dest_bool){
                                                         append(&msg, "true, ");
                                                     }
                                                     else{

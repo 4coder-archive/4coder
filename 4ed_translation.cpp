@@ -143,9 +143,14 @@ translating_select_emit_rule_with_font(System_Functions *system, Render_Font *fo
     if (desc.prelim_emit_type == BufferModelUnit_Codepoint){
         u32 cp = utf8_to_u32_length_unchecked(tran->fill_buffer, &type_out->codepoint_length);
         if (type_out->codepoint_length != 0){
-            type_out->codepoint = cp;
-            if (!font_can_render(system, font, cp)){
+            if ((cp >= nonchar_min && cp <= nonchar_max) || ((cp & 0xFFFF) >= 0xFE)){
                 type_out->emit_type = BufferModelUnit_Numbers;
+            }
+            else{
+                type_out->codepoint = cp;
+                if (!font_can_render(system, font, cp)){
+                    type_out->emit_type = BufferModelUnit_Numbers;
+                }
             }
         }
         else{

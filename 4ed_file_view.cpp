@@ -1113,7 +1113,7 @@ wrap_state_consume_token(System_Functions *system, Render_Font *font, Code_Wrap_
         end = fixed_end_point;
     }
     
-    i = clamp_top(i, line_start);
+    i = clamp_bottom(i, line_start);
     
     if (i == line_start){
         skipping_whitespace = true;
@@ -1507,9 +1507,6 @@ file_measure_wraps(System_Functions *system, Models *models, Editing_File *file,
     i32 potential_count = 0;
     i32 stage = 0;
     
-    Translation_State tran = {0};
-    Translation_Emits emits = {0};
-    
     do{
         stop = buffer_measure_wrap_y(&state, params, current_line_shift, do_wrap, wrap_unit_end);
         
@@ -1530,6 +1527,8 @@ file_measure_wraps(System_Functions *system, Models *models, Editing_File *file,
                     }
                 }
                 else{
+                    Translation_State tran = {0};
+                    Translation_Emits emits = {0};
                     Gap_Buffer_Stream stream = {0};
                     
                     i32 word_stage = 0;
@@ -1655,6 +1654,8 @@ file_measure_wraps(System_Functions *system, Models *models, Editing_File *file,
                                 step.this_token = wrap_state.token_ptr;
                                 
                                 Gap_Buffer_Stream stream = {0};
+                                Translation_State tran = {0};
+                                Translation_Emits emits = {0};
                                 
                                 Potential_Wrap_Indent_Pair potential_wrap = {0};
                                 potential_wrap.wrap_position = i;
@@ -1668,10 +1669,16 @@ file_measure_wraps(System_Functions *system, Models *models, Editing_File *file,
                                     
                                     while(still_looping){
                                         for (; i < stream.end; ++i){
-                                            u8 ch = stream.data[i];
+                                            {
+                                                u8 ch = stream.data[i];
+                                                translating_fully_process_byte(system, font, &tran, ch, i, end_i, &emits);
+                                            }
                                             
-                                            if (!char_is_whitespace(ch)){
-                                                goto doublebreak_stage_vspace;
+                                            for (TRANSLATION_DECL_EMIT_LOOP(J, emits)){
+                                                TRANSLATION_DECL_GET_STEP(buffer_step, behav, J, emits);
+                                                if (!codepoint_is_whitespace(buffer_step.value)){
+                                                    goto doublebreak_stage_vspace;
+                                                }
                                             }
                                         }
                                         still_looping = buffer_stringify_next(&stream);
@@ -1679,19 +1686,29 @@ file_measure_wraps(System_Functions *system, Models *models, Editing_File *file,
                                     doublebreak_stage_vspace:;
                                     
                                     do{
+                                        i32 pos_end_i = end_i;
                                         while (still_looping){
                                             for (; i < stream.end; ++i){
-                                                u8 ch = stream.data[i];
-                                                
-                                                if (char_is_whitespace(ch)){
-                                                    goto doublebreak_stage1;
+                                                {
+                                                    u8 ch = stream.data[i];
+                                                    translating_fully_process_byte(system, font, &tran, ch, i, end_i, &emits);
                                                 }
                                                 
-                                                f32 adv = font_get_glyph_advance(params.system, params.font, ch);
-                                                x += adv;
-                                                if (!first_word && x > current_width){
-                                                    emit_comment_position = 1;
-                                                    goto doublebreak_stage1;
+                                                for (TRANSLATION_DECL_EMIT_LOOP(J, emits)){
+                                                    TRANSLATION_DECL_GET_STEP(buffer_step, behav, J, emits);
+                                                    if (codepoint_is_whitespace(buffer_step.value)){
+                                                        pos_end_i = buffer_step.i;
+                                                        goto doublebreak_stage1;
+                                                    }
+                                                    
+                                                    f32 adv = font_get_glyph_advance(params.system, params.font, buffer_step.value);
+                                                    x += adv;
+                                                    
+                                                    if (!first_word && x > current_width){
+                                                        pos_end_i = buffer_step.i;
+                                                        emit_comment_position = true;
+                                                        goto doublebreak_stage1;
+                                                    }
                                                 }
                                             }
                                             still_looping = buffer_stringify_next(&stream);
@@ -1700,28 +1717,35 @@ file_measure_wraps(System_Functions *system, Models *models, Editing_File *file,
                                         first_word = 0;
                                         
                                         if (emit_comment_position){
-                                            step.position_end = i;
+                                            step.position_end = pos_end_i;
                                             step.final_x = x;
                                             goto finished_comment_split;
                                         }
                                         
                                         while(still_looping){
                                             for (; i < stream.end; ++i){
-                                                u8 ch = stream.data[i];
-                                                
-                                                if (!char_is_whitespace(ch)){
-                                                    goto doublebreak_stage2;
+                                                {
+                                                    u8 ch = stream.data[i];
+                                                    translating_fully_process_byte(system, font, &tran, ch, i, end_i, &emits);
                                                 }
                                                 
-                                                f32 adv = font_get_glyph_advance(params.system, params.font, ch);
-                                                
-                                                x += adv;
+                                                for (TRANSLATION_DECL_EMIT_LOOP(J, emits)){
+                                                    TRANSLATION_DECL_GET_STEP(buffer_step, behav, J, emits);
+                                                    
+                                                    if (!codepoint_is_whitespace(buffer_step.value)){
+                                                        pos_end_i = buffer_step.i;
+                                                        goto doublebreak_stage2;
+                                                    }
+                                                    
+                                                    f32 adv = font_get_glyph_advance(params.system, params.font, buffer_step.value);
+                                                    x += adv;
+                                                }
                                             }
                                             still_looping = buffer_stringify_next(&stream);
                                         }
                                         doublebreak_stage2:;
                                         
-                                        potential_wrap.wrap_position = i;
+                                        potential_wrap.wrap_position = pos_end_i;
                                         potential_wrap.wrap_x = x;
                                     }while(still_looping);
                                 }
