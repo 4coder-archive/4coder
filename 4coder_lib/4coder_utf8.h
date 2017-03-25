@@ -58,22 +58,39 @@ utf8_to_u32_length_unchecked(u8_4tech *buffer, u32_4tech *length_out){
         *length_out = 1;
     }
     else if (buffer[0] < 0xE0){
-        result = ((u32_4tech)((buffer[0])&0x1F)) << 6;
+        result =  ((u32_4tech)((buffer[0])&0x1F)) << 6;
         result |= ((u32_4tech)((buffer[1])&0x3F));
         *length_out = 2;
     }
     else if (buffer[0] < 0xF0){
-        result = ((u32_4tech)((buffer[0])&0x0F)) << 12;
+        result =  ((u32_4tech)((buffer[0])&0x0F)) << 12;
         result |= ((u32_4tech)((buffer[1])&0x3F)) << 6;
         result |= ((u32_4tech)((buffer[2])&0x3F));
         *length_out = 3;
     }
-    else{
-        result = ((u32_4tech)((buffer[0])&0x07)) << 18;
+    else if (buffer[0] < 0xF8){
+        result =  ((u32_4tech)((buffer[0])&0x07)) << 18;
         result |= ((u32_4tech)((buffer[1])&0x3F)) << 12;
         result |= ((u32_4tech)((buffer[2])&0x3F)) << 6;
         result |= ((u32_4tech)((buffer[3])&0x3F));
         *length_out = 4;
+    }
+    else if (buffer[0] < 0xFC){
+        result =  ((u32_4tech)((buffer[0])&0x03)) << 24;
+        result |= ((u32_4tech)((buffer[1])&0x3F)) << 18;
+        result |= ((u32_4tech)((buffer[2])&0x3F)) << 12;
+        result |= ((u32_4tech)((buffer[3])&0x3F)) << 6;
+        result |= ((u32_4tech)((buffer[4])&0x3F));
+        *length_out = 5;
+    }
+    else{
+        result =  ((u32_4tech)((buffer[0])&0x01)) << 30;
+        result |= ((u32_4tech)((buffer[1])&0x03)) << 24;
+        result |= ((u32_4tech)((buffer[2])&0x3F)) << 18;
+        result |= ((u32_4tech)((buffer[3])&0x3F)) << 12;
+        result |= ((u32_4tech)((buffer[4])&0x3F)) << 6;
+        result |= ((u32_4tech)((buffer[5])&0x3F));
+        *length_out = 6;
     }
     
     return(result);
@@ -208,7 +225,7 @@ utf8_to_utf16_minimal_checking(u16_4tech *dst, umem_4tech max_wchars, u8_4tech *
                 break;
             }
             
-            codepoint = ((u32_4tech)((s[0])&0x1F)) << 6;
+            codepoint =  ((u32_4tech)((s[0])&0x1F)) << 6;
             codepoint |= ((u32_4tech)((s[1])&0x3F));
             utf8_size = 2;
         }
@@ -218,22 +235,49 @@ utf8_to_utf16_minimal_checking(u16_4tech *dst, umem_4tech max_wchars, u8_4tech *
                 break;
             }
             
-            codepoint = ((u32_4tech)((s[0])&0x0F)) << 12;
+            codepoint =  ((u32_4tech)((s[0])&0x0F)) << 12;
             codepoint |= ((u32_4tech)((s[1])&0x3F)) << 6;
             codepoint |= ((u32_4tech)((s[2])&0x3F));
             utf8_size = 3;
         }
-        else{
-            if (limit > 3){
+        else if (s[0] < 0xF8){
+            if (limit <= 3){
                 *error = true;
                 break;
             }
             
-            codepoint = ((u32_4tech)((s[0])&0x07)) << 18;
+            codepoint =  ((u32_4tech)((s[0])&0x07)) << 18;
             codepoint |= ((u32_4tech)((s[1])&0x3F)) << 12;
             codepoint |= ((u32_4tech)((s[2])&0x3F)) << 6;
             codepoint |= ((u32_4tech)((s[3])&0x3F));
             utf8_size = 4;
+        }
+        else if (s[0] < 0xFC){
+            if (limit <= 4){
+                *error = true;
+                break;
+            }
+            
+            codepoint =  ((u32_4tech)((s[0])&0x03)) << 24;
+            codepoint |= ((u32_4tech)((s[1])&0x3F)) << 18;
+            codepoint |= ((u32_4tech)((s[2])&0x3F)) << 12;
+            codepoint |= ((u32_4tech)((s[3])&0x3F)) << 6;
+            codepoint |= ((u32_4tech)((s[4])&0x3F));
+            utf8_size = 5;
+        }
+        else if (s[0] < 0xFE){
+            if (limit <= 5){
+                *error = true;
+                break;
+            }
+            
+            codepoint =  ((u32_4tech)((s[0])&0x01)) << 30;
+            codepoint |= ((u32_4tech)((s[1])&0x3F)) << 24;
+            codepoint |= ((u32_4tech)((s[2])&0x3F)) << 18;
+            codepoint |= ((u32_4tech)((s[3])&0x3F)) << 12;
+            codepoint |= ((u32_4tech)((s[4])&0x3F)) << 6;
+            codepoint |= ((u32_4tech)((s[5])&0x3F));
+            utf8_size = 6;
         }
         
         s += utf8_size;
@@ -320,7 +364,7 @@ utf16_to_utf8_minimal_checking(u8_4tech *dst, umem_4tech max_chars, u16_4tech *s
         s += utf16_size;
         limit -= utf16_size;
         
-        u8_4tech d_fill[4];
+        u8_4tech d_fill[6];
         u32_4tech d_fill_count = 0;
         
         if (codepoint <= 0x7F){
@@ -333,17 +377,34 @@ utf16_to_utf8_minimal_checking(u8_4tech *dst, umem_4tech max_chars, u16_4tech *s
             d_fill_count = 2;
         }
         else if (codepoint <= 0xFFFF){
-            d_fill[0] = (u8_4tech)(0xE0 | (codepoint >> 12));
-            d_fill[1] = (u8_4tech)(0x80 | ((codepoint >> 6) & 0x3F));
-            d_fill[2] = (u8_4tech)(0x80 | (codepoint & 0x3F));
+            d_fill[0] = (u8_4tech)(0xE0 | ( codepoint >> 12));
+            d_fill[1] = (u8_4tech)(0x80 | ((codepoint >> 6 ) & 0x3F));
+            d_fill[2] = (u8_4tech)(0x80 | ((codepoint)       & 0x3F));
             d_fill_count = 3;
         }
-        else if (codepoint <= 0x10FFFF){
-            d_fill[0] = (u8_4tech)(0xF0 | (codepoint >> 18));
+        else if (codepoint <= 0x1FFFFF){
+            d_fill[0] = (u8_4tech)(0xF0 | ( codepoint >> 18));
             d_fill[1] = (u8_4tech)(0x80 | ((codepoint >> 12) & 0x3F));
-            d_fill[2] = (u8_4tech)(0x80 | ((codepoint >> 6) & 0x3F));
-            d_fill[3] = (u8_4tech)(0x80 | (codepoint & 0x3F));
+            d_fill[2] = (u8_4tech)(0x80 | ((codepoint >> 6 ) & 0x3F));
+            d_fill[3] = (u8_4tech)(0x80 | ((codepoint)       & 0x3F));
             d_fill_count = 4;
+        }
+        else if (codepoint <= 0x3FFFFFF){
+            d_fill[0] = (u8_4tech)(0xF8 | ( codepoint >> 24));
+            d_fill[1] = (u8_4tech)(0x80 | ((codepoint >> 18) & 0x3F));
+            d_fill[2] = (u8_4tech)(0x80 | ((codepoint >> 12) & 0x3F));
+            d_fill[3] = (u8_4tech)(0x80 | ((codepoint >> 6 ) & 0x3F));
+            d_fill[4] = (u8_4tech)(0x80 | ((codepoint)       & 0x3F));
+            d_fill_count = 5;
+        }
+        else if (codepoint <= 0x7FFFFFFF){
+            d_fill[0] = (u8_4tech)(0xFC | ( codepoint >> 30));
+            d_fill[1] = (u8_4tech)(0x80 | ((codepoint >> 24) & 0x3F));
+            d_fill[2] = (u8_4tech)(0x80 | ((codepoint >> 18) & 0x3F));
+            d_fill[3] = (u8_4tech)(0x80 | ((codepoint >> 12) & 0x3F));
+            d_fill[4] = (u8_4tech)(0x80 | ((codepoint >> 6 ) & 0x3F));
+            d_fill[5] = (u8_4tech)(0x80 | ((codepoint)       & 0x3F));
+            d_fill_count = 6;
         }
         else{
             *error = true;
