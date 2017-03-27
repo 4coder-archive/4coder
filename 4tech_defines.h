@@ -8,6 +8,7 @@ Created 21.01.2017 (dd.mm.yyyy)
 
 #if !defined(FTECH_DEFINES)
 #define FTECH_DEFINES
+
 #include <stdint.h>
 
 typedef int8_t i8;
@@ -23,7 +24,6 @@ typedef uint64_t u64;
 typedef i8 b8;
 typedef i32 b32;
 
-// TODO(allen): Find a real way to detect 32 bit ness.
 #if defined(FTECH_32_BIT)
 typedef u32 umem;
 typedef i32 imem;
@@ -87,10 +87,6 @@ inline u32 l_round_up_u32(u32 x, u32 b){
     return( ((x)+(b)-1) - (((x)+(b)-1)%(b)) );
 }
 
-inline umem l_round_up_umem(umem x, umem b){
-    return( ((x)+(b)-1) - (((x)+(b)-1)%(b)) );
-}
-
 inline u32 round_up_pot_u32(u32 x){
     --x;
     x |= x >> 1;
@@ -134,18 +130,6 @@ inline u32 round_up_pot_u32(u32 x){
 #define min_u16 ((u16)0)
 #define min_u32 ((u32)0)
 #define min_u64 ((u64)0)
-
-#if defined(FTECH_32_BIT)
-#define max_imem max_i64
-#define min_imem min_i64
-#define max_umem max_u64
-#define min_umem min_u64
-#else
-#define max_imem max_i32
-#define min_imem min_i32
-#define max_umem max_u32
-#define min_umem min_u32
-#endif
 
 #define Bit_0 (1 << 0)
 #define Bit_1 (1 << 1)

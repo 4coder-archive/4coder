@@ -14,14 +14,14 @@ TYPE: 'drop-in-command-pack'
 #include "4coder_helper/4coder_helper.h"
 
 static bool32
-clipboard_copy(Application_Links *app, size_t start, size_t end, Buffer_Summary *buffer_out, uint32_t access){
+clipboard_copy(Application_Links *app, int32_t start, int32_t end, Buffer_Summary *buffer_out, uint32_t access){
     View_Summary view = get_active_view(app, access);
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, access);
     bool32 result = 0;
     
     if (buffer.exists){
         if (0 <= start && start <= end && end <= buffer.size){
-            size_t size = (end - start);
+            int32_t size = (end - start);
             char *str = (char*)app->memory;
             
             if (size <= app->memory_size){
@@ -36,16 +36,14 @@ clipboard_copy(Application_Links *app, size_t start, size_t end, Buffer_Summary 
     return(result);
 }
 
-static bool32
-clipboard_cut(Application_Links *app, size_t start, size_t end, Buffer_Summary *buffer_out, uint32_t access){
+static int32_t
+clipboard_cut(Application_Links *app, int32_t start, int32_t end, Buffer_Summary *buffer_out, uint32_t access){
     Buffer_Summary buffer = {0};
-    bool32 result = false;
+    int32_t result = false;
     
     if (clipboard_copy(app, start, end, &buffer, access)){
         buffer_replace_range(app, &buffer, start, end, 0, 0);
-        if (buffer_out){
-            *buffer_out = buffer;
-        }
+        if (buffer_out){*buffer_out = buffer;}
     }
     
     return(result);
@@ -76,7 +74,7 @@ CUSTOM_COMMAND_SIG(paste){
         int32_t paste_index = 0;
         view_paste_index[view.view_id].index = paste_index;
         
-        size_t len = clipboard_index(app, 0, paste_index, 0, 0);
+        int32_t len = clipboard_index(app, 0, paste_index, 0, 0);
         char *str = 0;
         
         if (len <= app->memory_size){
@@ -87,7 +85,7 @@ CUSTOM_COMMAND_SIG(paste){
             clipboard_index(app, 0, paste_index, str, len);
             
             Buffer_Summary buffer = get_buffer(app, view.buffer_id, access);
-            size_t pos = view.cursor.pos;
+            int32_t pos = view.cursor.pos;
             buffer_replace_range(app, &buffer, pos, pos, str, len);
             view_set_mark(app, &view, seek_pos(pos));
             view_set_cursor(app, &view, seek_pos(pos + len), true);
@@ -113,7 +111,7 @@ CUSTOM_COMMAND_SIG(paste_next){
             int32_t paste_index = view_paste_index[view.view_id].index + 1;
             view_paste_index[view.view_id].index = paste_index;
             
-            size_t len = clipboard_index(app, 0, paste_index, 0, 0);
+            int32_t len = clipboard_index(app, 0, paste_index, 0, 0);
             char *str = 0;
             
             if (len <= app->memory_size){
@@ -125,7 +123,7 @@ CUSTOM_COMMAND_SIG(paste_next){
                 
                 Buffer_Summary buffer = get_buffer(app, view.buffer_id, access);
                 Range range = get_range(&view);
-                size_t pos = range.min;
+                int32_t pos = range.min;
                 
                 buffer_replace_range(app, &buffer, range.min, range.max, str, len);
                 view_set_cursor(app, &view, seek_pos(pos + len), true);

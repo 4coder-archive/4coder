@@ -1,7 +1,7 @@
 
 // TOP
 
-#if !defined(FCPP_LEXER_TYPES_INC)
+#ifndef FCPP_LEXER_TYPES_INC
 #define FCPP_LEXER_TYPES_INC
 
 #ifndef ENUM
@@ -237,10 +237,10 @@ STRUCT Cpp_Token{
     Cpp_Token_Type type;
     
     /* DOC(The start field indicates the index of the first character of this token's lexeme.) */
-    uint32_t start;
+    int32_t start;
     
     /* DOC(The size field indicates the number of bytes in this token's lexeme.) */
-    uint32_t size;
+    int32_t size;
     
     /* DOC(The state_flags should not be used outside of the lexer's implementation.) */
     uint16_t state_flags;
@@ -273,10 +273,10 @@ STRUCT Cpp_Token_Array{
     Cpp_Token *tokens;
     
     /* DOC(The count field counts how many tokens in the array are currently used.) */
-    uint32_t count;
+    int32_t count;
     
     /* DOC(The max_count field specifies the maximum size the count field may grow to before the tokens array is out of space.) */
-    uint32_t max_count;
+    int32_t max_count;
 };
 
 static Cpp_Token_Array null_cpp_token_array = {0};
@@ -288,13 +288,13 @@ STRUCT Cpp_Get_Token_Result{
     int32_t token_index;
     
     /* DOC(The in_whitespace field is true when the query position was actually in whitespace after the result token.) */
-    uint32_t in_whitespace;
+    int32_t in_whitespace;
     
     /* DOC(If the token_index refers to an actual token, this is the start value of the token. Otherwise this is zero.) */
-    uint32_t token_start;
+    int32_t token_start;
     
     /* DOC(If the token_index refers to an actual token, this is the start+size value of the token. Otherwise this is zero.) */
-    uint32_t token_end;
+    int32_t token_end;
 };
 
 /* DOC(Cpp_Relex_Range is the return result of the cpp_get_relex_range call.)
@@ -321,12 +321,12 @@ DOC_SEE(cpp_lex_data_init)
 HIDE_MEMBERS() */
 STRUCT Cpp_Lex_Data{
     char tb[32];
-    uint32_t tb_pos;
-    uint32_t token_start;
+    int32_t tb_pos;
+    int32_t token_start;
     
-    uint32_t pos;
-    uint32_t pos_overide;
-    uint32_t chunk_pos;
+    int32_t pos;
+    int32_t pos_overide;
+    int32_t chunk_pos;
     
     Cpp_Lex_FSM fsm;
     uint8_t white_done;
@@ -361,10 +361,10 @@ STRUCT Cpp_Relex_Data{
     
     Cpp_Token end_token;
     
-    uint32_t relex_start_position;
-    uint32_t start_token_index;
-    uint32_t end_token_index;
-    uint32_t original_end_token_index;
+    int32_t relex_start_position;
+    int32_t start_token_index;
+    int32_t end_token_index;
+    int32_t original_end_token_index;
     
     int32_t character_shift_amount;
     

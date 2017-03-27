@@ -504,16 +504,16 @@ layout_update_pos_step(Editing_Layout *layout, i32 divider_id, i32_Rect rect, i3
     i32 pos = abs_pos[divider_id];
     i32_Rect r1 = rect, r2 = rect;
     f32 lpos = unlerp((f32)p0, (f32)pos, (f32)p1);
-    lpos = clamp_f32(0.f, lpos, 1.f);
+    lpos = clamp(0.f, lpos, 1.f);
     
     div->pos = lpos;
     
     if (div->v_divider){
-        pos = clamp_i32(r1.x0, pos, r2.x1);
+        pos = clamp(r1.x0, pos, r2.x1);
         r1.x1 = pos; r2.x0 = pos;
     }
     else{
-        pos = clamp_i32(r1.y0, pos, r2.y1);
+        pos = clamp(r1.y0, pos, r2.y1);
         r1.y1 = pos; r2.y0 = pos;
     }
     

@@ -13,7 +13,7 @@
 
 struct Translation_State{
     u8 fill_buffer[4];
-    umem fill_start_i;
+    u32 fill_start_i;
     u8 fill_i;
     u8 fill_expected;
 };
@@ -44,16 +44,17 @@ struct Translation_Emits{
     u32 step_count;
 };
 
-#define SINGLE_BYTE_ERROR_CLASS max_u8
+#define ERROR_BYTE (max_u8-1)
+#define CONTINUATION_BYTE max_u8
 
 internal void
-translating_consume_byte(Translation_State *tran, u8 ch, umem i, umem size, Translation_Byte_Description *desc_out){
+translating_consume_byte(Translation_State *tran, u8 ch, u32 i, u32 size, Translation_Byte_Description *desc_out){
     desc_out->byte_class = 0;
-    if ((ch >= ' ' && ch < 0x7F) || ch == '\t' || ch == '\n' || ch == '\r'){
+    if (ch < 0x80){
         desc_out->byte_class = 1;
     }
     else if (ch < 0xC0){
-        desc_out->byte_class = SINGLE_BYTE_ERROR_CLASS;
+        desc_out->byte_class = CONTINUATION_BYTE;
     }
     else if (ch < 0xE0){
         desc_out->byte_class = 2;
@@ -61,8 +62,11 @@ translating_consume_byte(Translation_State *tran, u8 ch, umem i, umem size, Tran
     else if (ch < 0xF0){
         desc_out->byte_class = 3;
     }
-    else{
+    else if (ch < 0xF8){
         desc_out->byte_class = 4;
+    }
+    else{
+        desc_out->byte_class = ERROR_BYTE;
     }
     
     desc_out->prelim_emit_type = BufferModelUnit_None;
@@ -75,7 +79,7 @@ translating_consume_byte(Translation_State *tran, u8 ch, umem i, umem size, Tran
         if (desc_out->byte_class == 1){
             desc_out->prelim_emit_type = BufferModelUnit_Codepoint;
         }
-        else if (desc_out->byte_class == 0 || desc_out->byte_class == SINGLE_BYTE_ERROR_CLASS){
+        else if (desc_out->byte_class == 0 || desc_out->byte_class == CONTINUATION_BYTE || desc_out->byte_class == ERROR_BYTE){
             desc_out->prelim_emit_type = BufferModelUnit_Numbers;
         }
         else{
@@ -83,7 +87,7 @@ translating_consume_byte(Translation_State *tran, u8 ch, umem i, umem size, Tran
         }
     }
     else{
-        if (desc_out->byte_class == SINGLE_BYTE_ERROR_CLASS){
+        if (desc_out->byte_class == CONTINUATION_BYTE){
             tran->fill_buffer[tran->fill_i] = ch;
             ++tran->fill_i;
             
@@ -138,15 +142,25 @@ translating_select_emit_rule_with_font(System_Functions *system, Render_Font *fo
     type_out->codepoint_length = 0;
     if (desc.prelim_emit_type == BufferModelUnit_Codepoint){
         u32 cp = utf8_to_u32_length_unchecked(tran->fill_buffer, &type_out->codepoint_length);
-        type_out->codepoint = cp;
-        if (!font_can_render(system, font, cp)){
+        if (type_out->codepoint_length != 0){
+            if ((cp >= nonchar_min && cp <= nonchar_max) || ((cp & 0xFFFF) >= 0xFFFE)){
+                type_out->emit_type = BufferModelUnit_Numbers;
+            }
+            else{
+                type_out->codepoint = cp;
+                if (!font_can_render(system, font, cp)){
+                    type_out->emit_type = BufferModelUnit_Numbers;
+                }
+            }
+        }
+        else{
             type_out->emit_type = BufferModelUnit_Numbers;
         }
     }
 }
 
 internal void
-translating_generate_emits(Translation_State *tran, Translation_Emit_Rule emit_rule, u8 ch, umem i, Translation_Emits *emits_out){
+translating_generate_emits(Translation_State *tran, Translation_Emit_Rule emit_rule, u8 ch, u32 i, Translation_Emits *emits_out){
     emits_out->step_count = 0;
     switch (emit_rule.emit_type){
         default: goto skip_all;
@@ -199,7 +213,7 @@ translating_generate_emits(Translation_State *tran, Translation_Emit_Rule emit_r
 }
 
 internal void
-translating_fully_process_byte(System_Functions *system, Render_Font *font, Translation_State *tran, u8 ch, umem i, umem size, Translation_Emits *emits_out){
+translating_fully_process_byte(System_Functions *system, Render_Font *font, Translation_State *tran, u8 ch, u32 i, u32 size, Translation_Emits *emits_out){
     Translation_Byte_Description description = {0};
     translating_consume_byte(tran, ch, i, size, &description);
     Translation_Emit_Rule emit_rule = {0};

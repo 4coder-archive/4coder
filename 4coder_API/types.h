@@ -399,15 +399,15 @@ Throughout the API ranges are thought of in the form [min,max) where max is "one
 UNION Range{
     STRUCT{
         /* DOC(This is the smaller value in the range, it is also the 'start'.) */
-        size_t min;
+        int32_t min;
         /* DOC(This is the larger value in the range, it is also the 'end'.) */
-        size_t max;
+        int32_t max;
     };
     STRUCT{
         /* DOC(This is the start of the range, it is also the 'min'.) */
-        size_t start;
+        int32_t start;
         /* DOC(This is the end of the range, it is also the 'max'.) */
-        size_t end;
+        int32_t end;
     };
 };
 
@@ -431,9 +431,9 @@ STRUCT File_List{
     /* DOC(This field is an array of File_Info structs.) */
     File_Info *infos;
     /* DOC(This field specifies the number of struts in the info array.) */
-    int32_t count;
+    uint32_t count;
     /* DOC(This field is for internal use.) */
-    int32_t block_size;
+    uint32_t block_size;
 };
 
 /* DOC(Buffer_Identifier acts as a loosely typed description of a buffer that can either be a name or an id.) */
@@ -482,9 +482,7 @@ ENUM(int32_t, Buffer_Seek_Type){
     buffer_seek_unwrapped_xy,
     /* DOC(This value indicates line-character positioning.
     These coordinates are 1 based to match standard line numbering.) */
-    buffer_seek_line_char,
-    /* DOC(This value indicates line-character positioning, but with characters counted from the end of the line instead of the beginning, so that 1 is the last character of the line.) */
-    buffer_seek_line_reverse_char,
+    buffer_seek_line_char
 };
 
 /* DOC(Buffer_Seek describes the destination of a seek operation.  There are helpers for concisely creating Buffer_Seek structs.  They can be found in 4coder_buffer_types.h.)
@@ -496,7 +494,7 @@ STRUCT Buffer_Seek{
     UNION{
         STRUCT {
             /* DOC(The pos field specified the pos when the seek is in absolute position.) */
-            size_t pos;
+            int32_t pos;
         };
         STRUCT {
             /* DOC(For xy coordinate seeks, rounding down means that any x in the box of the character lands on that character. For instance when clicking rounding down is the user's expected behavior.  Not rounding down means that the right hand portion of the character's box, which is closer to the next character, will land on that next character.  The unrounded behavior is the expected behavior when moving vertically and keeping the preferred x.) */
@@ -508,9 +506,9 @@ STRUCT Buffer_Seek{
         };
         STRUCT {
             /* DOC(The line number of a line-character type seek.) */
-            size_t line;
+            int32_t line;
             /* DOC(The character number of a line-character type seek.) */
-            size_t character;
+            int32_t character;
         };
     };
 };
@@ -519,15 +517,15 @@ STRUCT Buffer_Seek{
 DOC_SEE(4coder_Buffer_Positioning_System) */
 STRUCT Full_Cursor{
     /* DOC(This field contains the cursor's position in absolute byte index positioning.) */
-    size_t pos;
+    int32_t pos;
     /* DOC(This field contains the cursor's position in apparent character index positioning.) */
-    size_t character_pos;
+    int32_t character_pos;
     /* DOC(This field contains the number of the line where the cursor is located. This field is one based.) */
-    size_t line;
+    int32_t line;
     /* DOC(This field contains the number of the character from the beginninf of the line where the cursor is located. This field is one based.) */
-    size_t character;
+    int32_t character;
     /* DOC(This field contains the number of the line where the cursor is located, taking the line wrapping into account.  This field is one based.) */
-    size_t wrap_line;
+    int32_t wrap_line;
     /* DOC(This field contains the x position measured with unwrapped lines.) */
     float unwrapped_x;
     /* DOC(This field contains the y position measured with unwrapped lines.) */
@@ -542,24 +540,24 @@ STRUCT Full_Cursor{
 DOC_SEE(4coder_Buffer_Positioning_System) */
 STRUCT Partial_Cursor{
     /* DOC(This field contains the cursor's position in absolute byte index positioning.) */
-    size_t pos;
+    int32_t pos;
     /* DOC(This field contains the number of the character from the beginninf of the line
     where the cursor is located. This field is one based.) */
-    size_t line;
+    int32_t line;
     /* DOC(This field contains the number of the column where the cursor is located. This field is one based.) */
-    size_t character;
+    int32_t character;
 };
 
 /* DOC(Buffer_Edit describes a range of a buffer and string to replace that range. A Buffer_Edit has to be paired with a string that contains the actual text that will be replaced into the buffer.) */
 STRUCT Buffer_Edit{
     /* DOC(The str_start field specifies the first character in the accompanying string that corresponds with this edit.) */
-    size_t str_start;
+    int32_t str_start;
     /* DOC(The len field specifies the length of the string being written into the buffer.) */
-    size_t len;
+    int32_t len;
     /* DOC(The start field specifies the start of the range in the buffer to replace in absolute position.) */
-    size_t start;
+    int32_t start;
     /* DOC(The end field specifies one past the end of the range in the buffer to replace in absolute position.) */
-    size_t end;
+    int32_t end;
 };
 
 /* DOC(Buffer_Summary acts as a handle to a buffer and describes the state of the buffer.)
@@ -616,7 +614,7 @@ DOC_SEE(buffer_add_markers)
 */
 STRUCT Marker{
     /* DOC(The current position of the marker measure in absolute byte positioning coordinates.) */
-    size_t pos;
+    int32_t pos;
     /* DOC(When a marker is inside a range that gets edited, by default the marker 'leans_left' which means it goes to the beginning of the edited range.  If the field lean_right is set to true, the marker will lean right with edits and will go to the end of edited range.) */
     bool32 lean_right;
 };
@@ -636,15 +634,6 @@ STRUCT i32_Rect{
 };
 
 GLOBAL_VAR i32_Rect null_i32_rect = {0};
-
-STRUCT pos_Rect{
-    size_t x0;
-    size_t y0;
-    size_t x1;
-    size_t y1;
-};
-
-GLOBAL_VAR pos_Rect null_pos_rect = {0};
 
 STRUCT f32_Rect{
     float x0;
@@ -735,12 +724,12 @@ STRUCT Buffer_Batch_Edit{
     /* DOC(The pointer to the edit string buffer.) */
     char *str;
     /* DOC(The length of the edit string buffer.) */
-    size_t str_len;
+    int32_t str_len;
     
     /* DOC(The array of edits to be applied.) */
     Buffer_Edit *edits;
     /* DOC(The number of edits in the array.) */
-    uint32_t edit_count;
+    int32_t edit_count;
 };
 
 

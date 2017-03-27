@@ -164,6 +164,10 @@ build_cl(u32 flags, char *code_path, char *code_file, char *out_path, char *out_
         build_ap(line, CL_OPTS);
     }
     
+    if (flags & X86){
+        build_ap(line, "/DFTECH_32_BIT");
+    }
+    
     if (flags & INCLUDES){
         build_ap(line, CL_INCLUDES);
     }
@@ -433,11 +437,7 @@ do_buildsuper(char *cdir, i32 custom_option, u32 flags){
         
         case Custom_Experiments:
         {
-#if defined(IS_WINDOWS)
-            copy_sc(&str, "../code/internal_4coder_tests.cpp");
-#else
             copy_sc(&str, "../code/power/4coder_experiments.cpp");
-#endif
         }break;
         
         case Custom_Casey:

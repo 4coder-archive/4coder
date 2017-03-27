@@ -1,18 +1,18 @@
 struct Application_Links;
 #define EXEC_COMMAND_SIG(n) bool32 n(Application_Links *app, Command_ID command_id)
 #define EXEC_SYSTEM_COMMAND_SIG(n) bool32 n(Application_Links *app, View_Summary *view, Buffer_Identifier buffer, char *path, int32_t path_len, char *command, int32_t command_len, Command_Line_Interface_Flag flags)
-#define CLIPBOARD_POST_SIG(n) void n(Application_Links *app, int32_t clipboard_id, char *str, size_t len)
-#define CLIPBOARD_COUNT_SIG(n) uint32_t n(Application_Links *app, uint32_t clipboard_id)
-#define CLIPBOARD_INDEX_SIG(n) size_t n(Application_Links *app, uint32_t clipboard_id, uint32_t item_index, char *out, size_t len)
+#define CLIPBOARD_POST_SIG(n) void n(Application_Links *app, int32_t clipboard_id, char *str, int32_t len)
+#define CLIPBOARD_COUNT_SIG(n) int32_t n(Application_Links *app, int32_t clipboard_id)
+#define CLIPBOARD_INDEX_SIG(n) int32_t n(Application_Links *app, int32_t clipboard_id, int32_t item_index, char *out, int32_t len)
 #define GET_BUFFER_COUNT_SIG(n) int32_t n(Application_Links *app)
 #define GET_BUFFER_FIRST_SIG(n) Buffer_Summary n(Application_Links *app, Access_Flag access)
 #define GET_BUFFER_NEXT_SIG(n) void n(Application_Links *app, Buffer_Summary *buffer, Access_Flag  access)
 #define GET_BUFFER_SIG(n) Buffer_Summary n(Application_Links *app, Buffer_ID buffer_id, Access_Flag access)
 #define GET_BUFFER_BY_NAME_SIG(n) Buffer_Summary n(Application_Links *app, char *name, int32_t len, Access_Flag access)
-#define BUFFER_READ_RANGE_SIG(n) bool32 n(Application_Links *app, Buffer_Summary *buffer, size_t start, size_t end, char *out)
-#define BUFFER_REPLACE_RANGE_SIG(n) bool32 n(Application_Links *app, Buffer_Summary *buffer, size_t start, size_t end, char *str, size_t len)
+#define BUFFER_READ_RANGE_SIG(n) bool32 n(Application_Links *app, Buffer_Summary *buffer, int32_t start, int32_t end, char *out)
+#define BUFFER_REPLACE_RANGE_SIG(n) bool32 n(Application_Links *app, Buffer_Summary *buffer, int32_t start, int32_t end, char *str, int32_t len)
 #define BUFFER_COMPUTE_CURSOR_SIG(n) bool32 n(Application_Links *app, Buffer_Summary *buffer, Buffer_Seek seek, Partial_Cursor *cursor_out)
-#define BUFFER_BATCH_EDIT_SIG(n) bool32 n(Application_Links *app, Buffer_Summary *buffer, char *str, size_t str_len, Buffer_Edit *edits, uint32_t edit_count, Buffer_Batch_Edit_Type type)
+#define BUFFER_BATCH_EDIT_SIG(n) bool32 n(Application_Links *app, Buffer_Summary *buffer, char *str, int32_t str_len, Buffer_Edit *edits, int32_t edit_count, Buffer_Batch_Edit_Type type)
 #define BUFFER_ADD_MARKERS_SIG(n) Marker_Handle n(Application_Links *app, Buffer_Summary *buffer, uint32_t marker_count)
 #define BUFFER_SET_MARKERS_SIG(n) bool32 n(Application_Links *app, Buffer_Summary *buffer, Marker_Handle marker, uint32_t first_marker_index, uint32_t marker_count, Marker *source_markers)
 #define BUFFER_GET_MARKERS_SIG(n) bool32 n(Application_Links *app, Buffer_Summary *buffer, Marker_Handle marker, uint32_t first_marker_index, uint32_t marker_count, Marker *markers_out)
@@ -20,8 +20,8 @@ struct Application_Links;
 #define BUFFER_GET_SETTING_SIG(n) bool32 n(Application_Links *app, Buffer_Summary *buffer, Buffer_Setting_ID setting, int32_t *value_out)
 #define BUFFER_SET_SETTING_SIG(n) bool32 n(Application_Links *app, Buffer_Summary *buffer, Buffer_Setting_ID setting, int32_t value)
 #define BUFFER_TOKEN_COUNT_SIG(n) int32_t n(Application_Links *app, Buffer_Summary *buffer)
-#define BUFFER_READ_TOKENS_SIG(n) bool32 n(Application_Links *app, Buffer_Summary *buffer, size_t start_token, size_t end_token, Cpp_Token *tokens_out)
-#define BUFFER_GET_TOKEN_INDEX_SIG(n) bool32 n(Application_Links *app, Buffer_Summary *buffer, size_t pos, Cpp_Get_Token_Result *get_result)
+#define BUFFER_READ_TOKENS_SIG(n) bool32 n(Application_Links *app, Buffer_Summary *buffer, int32_t start_token, int32_t end_token, Cpp_Token *tokens_out)
+#define BUFFER_GET_TOKEN_INDEX_SIG(n) bool32 n(Application_Links *app, Buffer_Summary *buffer, int32_t pos, Cpp_Get_Token_Result *get_result)
 #define BEGIN_BUFFER_CREATION_SIG(n) bool32 n(Application_Links *app, Buffer_Creation_Data *data, Buffer_Create_Flag flags)
 #define BUFFER_CREATION_NAME_SIG(n) bool32 n(Application_Links *app, Buffer_Creation_Data *data, char *filename, int32_t filename_len, uint32_t flags)
 #define END_BUFFER_CREATION_SIG(n) Buffer_Summary n(Application_Links *app, Buffer_Creation_Data *data)
@@ -41,9 +41,9 @@ struct Application_Links;
 #define VIEW_SET_CURSOR_SIG(n) bool32 n(Application_Links *app, View_Summary *view, Buffer_Seek seek, bool32 set_preferred_x)
 #define VIEW_SET_SCROLL_SIG(n) bool32 n(Application_Links *app, View_Summary *view, GUI_Scroll_Vars scroll)
 #define VIEW_SET_MARK_SIG(n) bool32 n(Application_Links *app, View_Summary *view, Buffer_Seek seek)
-#define VIEW_SET_HIGHLIGHT_SIG(n) bool32 n(Application_Links *app, View_Summary *view, size_t start, size_t end, bool32 turn_on)
+#define VIEW_SET_HIGHLIGHT_SIG(n) bool32 n(Application_Links *app, View_Summary *view, int32_t start, int32_t end, bool32 turn_on)
 #define VIEW_SET_BUFFER_SIG(n) bool32 n(Application_Links *app, View_Summary *view, Buffer_ID buffer_id, Set_Buffer_Flag flags)
-#define VIEW_POST_FADE_SIG(n) bool32 n(Application_Links *app, View_Summary *view, float seconds, size_t start, size_t end, int_color color)
+#define VIEW_POST_FADE_SIG(n) bool32 n(Application_Links *app, View_Summary *view, float seconds, int32_t start, int32_t end, int_color color)
 #define GET_USER_INPUT_SIG(n) User_Input n(Application_Links *app, Input_Type_Flag get_type, Input_Type_Flag abort_type)
 #define GET_COMMAND_INPUT_SIG(n) User_Input n(Application_Links *app)
 #define GET_MOUSE_STATE_SIG(n) Mouse_State n(Application_Links *app)
@@ -60,9 +60,9 @@ struct Application_Links;
 #define GET_FILE_LIST_SIG(n) File_List n(Application_Links *app, char *dir, int32_t len)
 #define FREE_FILE_LIST_SIG(n) void n(Application_Links *app, File_List list)
 #define SET_GUI_UP_DOWN_KEYS_SIG(n) void n(Application_Links *app, int16_t up_key, int16_t down_key)
-#define MEMORY_ALLOCATE_SIG(n) void* n(Application_Links *app, size_t size)
-#define MEMORY_SET_PROTECTION_SIG(n) bool32 n(Application_Links *app, void *ptr, size_t size, Memory_Protect_Flags flags)
-#define MEMORY_FREE_SIG(n) void n(Application_Links *app, void *ptr, size_t size)
+#define MEMORY_ALLOCATE_SIG(n) void* n(Application_Links *app, int32_t size)
+#define MEMORY_SET_PROTECTION_SIG(n) bool32 n(Application_Links *app, void *ptr, int32_t size, Memory_Protect_Flags flags)
+#define MEMORY_FREE_SIG(n) void n(Application_Links *app, void *ptr, int32_t size)
 #define FILE_EXISTS_SIG(n) bool32 n(Application_Links *app, char *filename, int32_t len)
 #define DIRECTORY_CD_SIG(n) bool32 n(Application_Links *app, char *dir, int32_t *len, int32_t capacity, char *rel_path, int32_t rel_len)
 #define GET_4ED_PATH_SIG(n) int32_t n(Application_Links *app, char *out, int32_t capacity)
@@ -369,18 +369,18 @@ app_links->send_exit_signal_ = Send_Exit_Signal;} while(false)
 #if defined(ALLOW_DEP_4CODER)
 static inline bool32 exec_command(Application_Links *app, Command_ID command_id){return(app->exec_command(app, command_id));}
 static inline bool32 exec_system_command(Application_Links *app, View_Summary *view, Buffer_Identifier buffer, char *path, int32_t path_len, char *command, int32_t command_len, Command_Line_Interface_Flag flags){return(app->exec_system_command(app, view, buffer, path, path_len, command, command_len, flags));}
-static inline void clipboard_post(Application_Links *app, int32_t clipboard_id, char *str, size_t len){(app->clipboard_post(app, clipboard_id, str, len));}
-static inline uint32_t clipboard_count(Application_Links *app, uint32_t clipboard_id){return(app->clipboard_count(app, clipboard_id));}
-static inline size_t clipboard_index(Application_Links *app, uint32_t clipboard_id, uint32_t item_index, char *out, size_t len){return(app->clipboard_index(app, clipboard_id, item_index, out, len));}
+static inline void clipboard_post(Application_Links *app, int32_t clipboard_id, char *str, int32_t len){(app->clipboard_post(app, clipboard_id, str, len));}
+static inline int32_t clipboard_count(Application_Links *app, int32_t clipboard_id){return(app->clipboard_count(app, clipboard_id));}
+static inline int32_t clipboard_index(Application_Links *app, int32_t clipboard_id, int32_t item_index, char *out, int32_t len){return(app->clipboard_index(app, clipboard_id, item_index, out, len));}
 static inline int32_t get_buffer_count(Application_Links *app){return(app->get_buffer_count(app));}
 static inline Buffer_Summary get_buffer_first(Application_Links *app, Access_Flag access){return(app->get_buffer_first(app, access));}
 static inline void get_buffer_next(Application_Links *app, Buffer_Summary *buffer, Access_Flag  access){(app->get_buffer_next(app, buffer, access));}
 static inline Buffer_Summary get_buffer(Application_Links *app, Buffer_ID buffer_id, Access_Flag access){return(app->get_buffer(app, buffer_id, access));}
 static inline Buffer_Summary get_buffer_by_name(Application_Links *app, char *name, int32_t len, Access_Flag access){return(app->get_buffer_by_name(app, name, len, access));}
-static inline bool32 buffer_read_range(Application_Links *app, Buffer_Summary *buffer, size_t start, size_t end, char *out){return(app->buffer_read_range(app, buffer, start, end, out));}
-static inline bool32 buffer_replace_range(Application_Links *app, Buffer_Summary *buffer, size_t start, size_t end, char *str, size_t len){return(app->buffer_replace_range(app, buffer, start, end, str, len));}
+static inline bool32 buffer_read_range(Application_Links *app, Buffer_Summary *buffer, int32_t start, int32_t end, char *out){return(app->buffer_read_range(app, buffer, start, end, out));}
+static inline bool32 buffer_replace_range(Application_Links *app, Buffer_Summary *buffer, int32_t start, int32_t end, char *str, int32_t len){return(app->buffer_replace_range(app, buffer, start, end, str, len));}
 static inline bool32 buffer_compute_cursor(Application_Links *app, Buffer_Summary *buffer, Buffer_Seek seek, Partial_Cursor *cursor_out){return(app->buffer_compute_cursor(app, buffer, seek, cursor_out));}
-static inline bool32 buffer_batch_edit(Application_Links *app, Buffer_Summary *buffer, char *str, size_t str_len, Buffer_Edit *edits, uint32_t edit_count, Buffer_Batch_Edit_Type type){return(app->buffer_batch_edit(app, buffer, str, str_len, edits, edit_count, type));}
+static inline bool32 buffer_batch_edit(Application_Links *app, Buffer_Summary *buffer, char *str, int32_t str_len, Buffer_Edit *edits, int32_t edit_count, Buffer_Batch_Edit_Type type){return(app->buffer_batch_edit(app, buffer, str, str_len, edits, edit_count, type));}
 static inline Marker_Handle buffer_add_markers(Application_Links *app, Buffer_Summary *buffer, uint32_t marker_count){return(app->buffer_add_markers(app, buffer, marker_count));}
 static inline bool32 buffer_set_markers(Application_Links *app, Buffer_Summary *buffer, Marker_Handle marker, uint32_t first_marker_index, uint32_t marker_count, Marker *source_markers){return(app->buffer_set_markers(app, buffer, marker, first_marker_index, marker_count, source_markers));}
 static inline bool32 buffer_get_markers(Application_Links *app, Buffer_Summary *buffer, Marker_Handle marker, uint32_t first_marker_index, uint32_t marker_count, Marker *markers_out){return(app->buffer_get_markers(app, buffer, marker, first_marker_index, marker_count, markers_out));}
@@ -388,8 +388,8 @@ static inline bool32 buffer_remove_markers(Application_Links *app, Buffer_Summar
 static inline bool32 buffer_get_setting(Application_Links *app, Buffer_Summary *buffer, Buffer_Setting_ID setting, int32_t *value_out){return(app->buffer_get_setting(app, buffer, setting, value_out));}
 static inline bool32 buffer_set_setting(Application_Links *app, Buffer_Summary *buffer, Buffer_Setting_ID setting, int32_t value){return(app->buffer_set_setting(app, buffer, setting, value));}
 static inline int32_t buffer_token_count(Application_Links *app, Buffer_Summary *buffer){return(app->buffer_token_count(app, buffer));}
-static inline bool32 buffer_read_tokens(Application_Links *app, Buffer_Summary *buffer, size_t start_token, size_t end_token, Cpp_Token *tokens_out){return(app->buffer_read_tokens(app, buffer, start_token, end_token, tokens_out));}
-static inline bool32 buffer_get_token_index(Application_Links *app, Buffer_Summary *buffer, size_t pos, Cpp_Get_Token_Result *get_result){return(app->buffer_get_token_index(app, buffer, pos, get_result));}
+static inline bool32 buffer_read_tokens(Application_Links *app, Buffer_Summary *buffer, int32_t start_token, int32_t end_token, Cpp_Token *tokens_out){return(app->buffer_read_tokens(app, buffer, start_token, end_token, tokens_out));}
+static inline bool32 buffer_get_token_index(Application_Links *app, Buffer_Summary *buffer, int32_t pos, Cpp_Get_Token_Result *get_result){return(app->buffer_get_token_index(app, buffer, pos, get_result));}
 static inline bool32 begin_buffer_creation(Application_Links *app, Buffer_Creation_Data *data, Buffer_Create_Flag flags){return(app->begin_buffer_creation(app, data, flags));}
 static inline bool32 buffer_creation_name(Application_Links *app, Buffer_Creation_Data *data, char *filename, int32_t filename_len, uint32_t flags){return(app->buffer_creation_name(app, data, filename, filename_len, flags));}
 static inline Buffer_Summary end_buffer_creation(Application_Links *app, Buffer_Creation_Data *data){return(app->end_buffer_creation(app, data));}
@@ -409,9 +409,9 @@ static inline bool32 view_compute_cursor(Application_Links *app, View_Summary *v
 static inline bool32 view_set_cursor(Application_Links *app, View_Summary *view, Buffer_Seek seek, bool32 set_preferred_x){return(app->view_set_cursor(app, view, seek, set_preferred_x));}
 static inline bool32 view_set_scroll(Application_Links *app, View_Summary *view, GUI_Scroll_Vars scroll){return(app->view_set_scroll(app, view, scroll));}
 static inline bool32 view_set_mark(Application_Links *app, View_Summary *view, Buffer_Seek seek){return(app->view_set_mark(app, view, seek));}
-static inline bool32 view_set_highlight(Application_Links *app, View_Summary *view, size_t start, size_t end, bool32 turn_on){return(app->view_set_highlight(app, view, start, end, turn_on));}
+static inline bool32 view_set_highlight(Application_Links *app, View_Summary *view, int32_t start, int32_t end, bool32 turn_on){return(app->view_set_highlight(app, view, start, end, turn_on));}
 static inline bool32 view_set_buffer(Application_Links *app, View_Summary *view, Buffer_ID buffer_id, Set_Buffer_Flag flags){return(app->view_set_buffer(app, view, buffer_id, flags));}
-static inline bool32 view_post_fade(Application_Links *app, View_Summary *view, float seconds, size_t start, size_t end, int_color color){return(app->view_post_fade(app, view, seconds, start, end, color));}
+static inline bool32 view_post_fade(Application_Links *app, View_Summary *view, float seconds, int32_t start, int32_t end, int_color color){return(app->view_post_fade(app, view, seconds, start, end, color));}
 static inline User_Input get_user_input(Application_Links *app, Input_Type_Flag get_type, Input_Type_Flag abort_type){return(app->get_user_input(app, get_type, abort_type));}
 static inline User_Input get_command_input(Application_Links *app){return(app->get_command_input(app));}
 static inline Mouse_State get_mouse_state(Application_Links *app){return(app->get_mouse_state(app));}
@@ -428,9 +428,9 @@ static inline int32_t directory_get_hot(Application_Links *app, char *out, int32
 static inline File_List get_file_list(Application_Links *app, char *dir, int32_t len){return(app->get_file_list(app, dir, len));}
 static inline void free_file_list(Application_Links *app, File_List list){(app->free_file_list(app, list));}
 static inline void set_gui_up_down_keys(Application_Links *app, int16_t up_key, int16_t down_key){(app->set_gui_up_down_keys(app, up_key, down_key));}
-static inline void* memory_allocate(Application_Links *app, size_t size){return(app->memory_allocate(app, size));}
-static inline bool32 memory_set_protection(Application_Links *app, void *ptr, size_t size, Memory_Protect_Flags flags){return(app->memory_set_protection(app, ptr, size, flags));}
-static inline void memory_free(Application_Links *app, void *ptr, size_t size){(app->memory_free(app, ptr, size));}
+static inline void* memory_allocate(Application_Links *app, int32_t size){return(app->memory_allocate(app, size));}
+static inline bool32 memory_set_protection(Application_Links *app, void *ptr, int32_t size, Memory_Protect_Flags flags){return(app->memory_set_protection(app, ptr, size, flags));}
+static inline void memory_free(Application_Links *app, void *ptr, int32_t size){(app->memory_free(app, ptr, size));}
 static inline bool32 file_exists(Application_Links *app, char *filename, int32_t len){return(app->file_exists(app, filename, len));}
 static inline bool32 directory_cd(Application_Links *app, char *dir, int32_t *len, int32_t capacity, char *rel_path, int32_t rel_len){return(app->directory_cd(app, dir, len, capacity, rel_path, rel_len));}
 static inline int32_t get_4ed_path(Application_Links *app, char *out, int32_t capacity){return(app->get_4ed_path(app, out, capacity));}
@@ -441,18 +441,18 @@ static inline void send_exit_signal(Application_Links *app){(app->send_exit_sign
 #else
 static inline bool32 exec_command(Application_Links *app, Command_ID command_id){return(app->exec_command_(app, command_id));}
 static inline bool32 exec_system_command(Application_Links *app, View_Summary *view, Buffer_Identifier buffer, char *path, int32_t path_len, char *command, int32_t command_len, Command_Line_Interface_Flag flags){return(app->exec_system_command_(app, view, buffer, path, path_len, command, command_len, flags));}
-static inline void clipboard_post(Application_Links *app, int32_t clipboard_id, char *str, size_t len){(app->clipboard_post_(app, clipboard_id, str, len));}
-static inline uint32_t clipboard_count(Application_Links *app, uint32_t clipboard_id){return(app->clipboard_count_(app, clipboard_id));}
-static inline size_t clipboard_index(Application_Links *app, uint32_t clipboard_id, uint32_t item_index, char *out, size_t len){return(app->clipboard_index_(app, clipboard_id, item_index, out, len));}
+static inline void clipboard_post(Application_Links *app, int32_t clipboard_id, char *str, int32_t len){(app->clipboard_post_(app, clipboard_id, str, len));}
+static inline int32_t clipboard_count(Application_Links *app, int32_t clipboard_id){return(app->clipboard_count_(app, clipboard_id));}
+static inline int32_t clipboard_index(Application_Links *app, int32_t clipboard_id, int32_t item_index, char *out, int32_t len){return(app->clipboard_index_(app, clipboard_id, item_index, out, len));}
 static inline int32_t get_buffer_count(Application_Links *app){return(app->get_buffer_count_(app));}
 static inline Buffer_Summary get_buffer_first(Application_Links *app, Access_Flag access){return(app->get_buffer_first_(app, access));}
 static inline void get_buffer_next(Application_Links *app, Buffer_Summary *buffer, Access_Flag  access){(app->get_buffer_next_(app, buffer, access));}
 static inline Buffer_Summary get_buffer(Application_Links *app, Buffer_ID buffer_id, Access_Flag access){return(app->get_buffer_(app, buffer_id, access));}
 static inline Buffer_Summary get_buffer_by_name(Application_Links *app, char *name, int32_t len, Access_Flag access){return(app->get_buffer_by_name_(app, name, len, access));}
-static inline bool32 buffer_read_range(Application_Links *app, Buffer_Summary *buffer, size_t start, size_t end, char *out){return(app->buffer_read_range_(app, buffer, start, end, out));}
-static inline bool32 buffer_replace_range(Application_Links *app, Buffer_Summary *buffer, size_t start, size_t end, char *str, size_t len){return(app->buffer_replace_range_(app, buffer, start, end, str, len));}
+static inline bool32 buffer_read_range(Application_Links *app, Buffer_Summary *buffer, int32_t start, int32_t end, char *out){return(app->buffer_read_range_(app, buffer, start, end, out));}
+static inline bool32 buffer_replace_range(Application_Links *app, Buffer_Summary *buffer, int32_t start, int32_t end, char *str, int32_t len){return(app->buffer_replace_range_(app, buffer, start, end, str, len));}
 static inline bool32 buffer_compute_cursor(Application_Links *app, Buffer_Summary *buffer, Buffer_Seek seek, Partial_Cursor *cursor_out){return(app->buffer_compute_cursor_(app, buffer, seek, cursor_out));}
-static inline bool32 buffer_batch_edit(Application_Links *app, Buffer_Summary *buffer, char *str, size_t str_len, Buffer_Edit *edits, uint32_t edit_count, Buffer_Batch_Edit_Type type){return(app->buffer_batch_edit_(app, buffer, str, str_len, edits, edit_count, type));}
+static inline bool32 buffer_batch_edit(Application_Links *app, Buffer_Summary *buffer, char *str, int32_t str_len, Buffer_Edit *edits, int32_t edit_count, Buffer_Batch_Edit_Type type){return(app->buffer_batch_edit_(app, buffer, str, str_len, edits, edit_count, type));}
 static inline Marker_Handle buffer_add_markers(Application_Links *app, Buffer_Summary *buffer, uint32_t marker_count){return(app->buffer_add_markers_(app, buffer, marker_count));}
 static inline bool32 buffer_set_markers(Application_Links *app, Buffer_Summary *buffer, Marker_Handle marker, uint32_t first_marker_index, uint32_t marker_count, Marker *source_markers){return(app->buffer_set_markers_(app, buffer, marker, first_marker_index, marker_count, source_markers));}
 static inline bool32 buffer_get_markers(Application_Links *app, Buffer_Summary *buffer, Marker_Handle marker, uint32_t first_marker_index, uint32_t marker_count, Marker *markers_out){return(app->buffer_get_markers_(app, buffer, marker, first_marker_index, marker_count, markers_out));}
@@ -460,8 +460,8 @@ static inline bool32 buffer_remove_markers(Application_Links *app, Buffer_Summar
 static inline bool32 buffer_get_setting(Application_Links *app, Buffer_Summary *buffer, Buffer_Setting_ID setting, int32_t *value_out){return(app->buffer_get_setting_(app, buffer, setting, value_out));}
 static inline bool32 buffer_set_setting(Application_Links *app, Buffer_Summary *buffer, Buffer_Setting_ID setting, int32_t value){return(app->buffer_set_setting_(app, buffer, setting, value));}
 static inline int32_t buffer_token_count(Application_Links *app, Buffer_Summary *buffer){return(app->buffer_token_count_(app, buffer));}
-static inline bool32 buffer_read_tokens(Application_Links *app, Buffer_Summary *buffer, size_t start_token, size_t end_token, Cpp_Token *tokens_out){return(app->buffer_read_tokens_(app, buffer, start_token, end_token, tokens_out));}
-static inline bool32 buffer_get_token_index(Application_Links *app, Buffer_Summary *buffer, size_t pos, Cpp_Get_Token_Result *get_result){return(app->buffer_get_token_index_(app, buffer, pos, get_result));}
+static inline bool32 buffer_read_tokens(Application_Links *app, Buffer_Summary *buffer, int32_t start_token, int32_t end_token, Cpp_Token *tokens_out){return(app->buffer_read_tokens_(app, buffer, start_token, end_token, tokens_out));}
+static inline bool32 buffer_get_token_index(Application_Links *app, Buffer_Summary *buffer, int32_t pos, Cpp_Get_Token_Result *get_result){return(app->buffer_get_token_index_(app, buffer, pos, get_result));}
 static inline bool32 begin_buffer_creation(Application_Links *app, Buffer_Creation_Data *data, Buffer_Create_Flag flags){return(app->begin_buffer_creation_(app, data, flags));}
 static inline bool32 buffer_creation_name(Application_Links *app, Buffer_Creation_Data *data, char *filename, int32_t filename_len, uint32_t flags){return(app->buffer_creation_name_(app, data, filename, filename_len, flags));}
 static inline Buffer_Summary end_buffer_creation(Application_Links *app, Buffer_Creation_Data *data){return(app->end_buffer_creation_(app, data));}
@@ -481,9 +481,9 @@ static inline bool32 view_compute_cursor(Application_Links *app, View_Summary *v
 static inline bool32 view_set_cursor(Application_Links *app, View_Summary *view, Buffer_Seek seek, bool32 set_preferred_x){return(app->view_set_cursor_(app, view, seek, set_preferred_x));}
 static inline bool32 view_set_scroll(Application_Links *app, View_Summary *view, GUI_Scroll_Vars scroll){return(app->view_set_scroll_(app, view, scroll));}
 static inline bool32 view_set_mark(Application_Links *app, View_Summary *view, Buffer_Seek seek){return(app->view_set_mark_(app, view, seek));}
-static inline bool32 view_set_highlight(Application_Links *app, View_Summary *view, size_t start, size_t end, bool32 turn_on){return(app->view_set_highlight_(app, view, start, end, turn_on));}
+static inline bool32 view_set_highlight(Application_Links *app, View_Summary *view, int32_t start, int32_t end, bool32 turn_on){return(app->view_set_highlight_(app, view, start, end, turn_on));}
 static inline bool32 view_set_buffer(Application_Links *app, View_Summary *view, Buffer_ID buffer_id, Set_Buffer_Flag flags){return(app->view_set_buffer_(app, view, buffer_id, flags));}
-static inline bool32 view_post_fade(Application_Links *app, View_Summary *view, float seconds, size_t start, size_t end, int_color color){return(app->view_post_fade_(app, view, seconds, start, end, color));}
+static inline bool32 view_post_fade(Application_Links *app, View_Summary *view, float seconds, int32_t start, int32_t end, int_color color){return(app->view_post_fade_(app, view, seconds, start, end, color));}
 static inline User_Input get_user_input(Application_Links *app, Input_Type_Flag get_type, Input_Type_Flag abort_type){return(app->get_user_input_(app, get_type, abort_type));}
 static inline User_Input get_command_input(Application_Links *app){return(app->get_command_input_(app));}
 static inline Mouse_State get_mouse_state(Application_Links *app){return(app->get_mouse_state_(app));}
@@ -500,9 +500,9 @@ static inline int32_t directory_get_hot(Application_Links *app, char *out, int32
 static inline File_List get_file_list(Application_Links *app, char *dir, int32_t len){return(app->get_file_list_(app, dir, len));}
 static inline void free_file_list(Application_Links *app, File_List list){(app->free_file_list_(app, list));}
 static inline void set_gui_up_down_keys(Application_Links *app, int16_t up_key, int16_t down_key){(app->set_gui_up_down_keys_(app, up_key, down_key));}
-static inline void* memory_allocate(Application_Links *app, size_t size){return(app->memory_allocate_(app, size));}
-static inline bool32 memory_set_protection(Application_Links *app, void *ptr, size_t size, Memory_Protect_Flags flags){return(app->memory_set_protection_(app, ptr, size, flags));}
-static inline void memory_free(Application_Links *app, void *ptr, size_t size){(app->memory_free_(app, ptr, size));}
+static inline void* memory_allocate(Application_Links *app, int32_t size){return(app->memory_allocate_(app, size));}
+static inline bool32 memory_set_protection(Application_Links *app, void *ptr, int32_t size, Memory_Protect_Flags flags){return(app->memory_set_protection_(app, ptr, size, flags));}
+static inline void memory_free(Application_Links *app, void *ptr, int32_t size){(app->memory_free_(app, ptr, size));}
 static inline bool32 file_exists(Application_Links *app, char *filename, int32_t len){return(app->file_exists_(app, filename, len));}
 static inline bool32 directory_cd(Application_Links *app, char *dir, int32_t *len, int32_t capacity, char *rel_path, int32_t rel_len){return(app->directory_cd_(app, dir, len, capacity, rel_path, rel_len));}
 static inline int32_t get_4ed_path(Application_Links *app, char *out, int32_t capacity){return(app->get_4ed_path_(app, out, capacity));}

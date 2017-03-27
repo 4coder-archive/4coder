@@ -347,12 +347,17 @@ DOC_SEE(Command_Line_Interface_Flag)
 }
 
 API_EXPORT void
-Clipboard_Post(Application_Links *app, int32_t clipboard_id, char *str, size_t len)
+Clipboard_Post(Application_Links *app, int32_t clipboard_id, char *str, int32_t len)
 /*
 DOC_PARAM(clipboard_id, This parameter is set up to prepare for future features, it should always be 0 for now.)
 DOC_PARAM(str, The str parameter specifies the string to be posted to the clipboard, it need not be null terminated.)
 DOC_PARAM(len, The len parameter specifies the length of the str string.)
-DOC(Stores the string str in the clipboard initially with index 0. Also reports the copy to the operating system, so that it may be pasted into other applications.)
+DOC
+(
+Stores the string str in the clipboard initially with index 0.
+Also reports the copy to the operating system, so that it may
+be pasted into other applications.
+)
 DOC_SEE(The_4coder_Clipboard)
 */{
     Command_Data *cmd = (Command_Data*)app->cmd_context;
@@ -361,13 +366,13 @@ DOC_SEE(The_4coder_Clipboard)
     General_Memory *general = &models->mem.general;
     Working_Set *working = &models->working_set;
     
-    String *dest = working_set_next_clipboard_string(general, working, (u32)len);
-    copy_ss(dest, make_string(str, (i32)len));
+    String *dest = working_set_next_clipboard_string(general, working, len);
+    copy_ss(dest, make_string(str, len));
     system->post_clipboard(*dest);
 }
 
-API_EXPORT uint32_t
-Clipboard_Count(Application_Links *app, uint32_t clipboard_id)
+API_EXPORT int32_t
+Clipboard_Count(Application_Links *app, int32_t clipboard_id)
 /*
 DOC_PARAM(clipboard_id, This parameter is set up to prepare for future features, it should always be 0 for now.)
 DOC(This call returns the number of items in the clipboard.)
@@ -375,12 +380,12 @@ DOC_SEE(The_4coder_Clipboard)
 */{
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     Working_Set *working = &cmd->models->working_set;
-    uint32_t count = working->clipboard_size;
+    int32_t count = working->clipboard_size;
     return(count);
 }
 
-API_EXPORT size_t
-Clipboard_Index(Application_Links *app, uint32_t clipboard_id, uint32_t item_index, char *out, size_t len)
+API_EXPORT int32_t
+Clipboard_Index(Application_Links *app, int32_t clipboard_id, int32_t item_index, char *out, int32_t len)
 /*
 DOC_PARAM(clipboard_id, This parameter is set up to prepare for future features, it should always be 0 for now.)
 DOC_PARAM(item_index, This parameter specifies which item to read, 0 is the most recent copy, 1 is the second most recent copy, etc.)
@@ -395,12 +400,12 @@ DOC_SEE(The_4coder_Clipboard)
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     Working_Set *working = &cmd->models->working_set;
     
-    size_t size = 0;
+    int32_t size = 0;
     String *str = working_set_clipboard_index(working, item_index);
     if (str){
         size = str->size;
         if (out){
-            String out_str = make_string_cap(out, 0, (i32)len);
+            String out_str = make_string_cap(out, 0, len);
             copy_ss(&out_str, *str);
         }
     }
@@ -545,7 +550,7 @@ DOC_SEE(Access_Flag)
 }
 
 API_EXPORT bool32
-Buffer_Read_Range(Application_Links *app, Buffer_Summary *buffer, size_t start, size_t end, char *out)
+Buffer_Read_Range(Application_Links *app, Buffer_Summary *buffer, int32_t start, int32_t end, char *out)
 /*
 DOC_PARAM(buffer, This parameter specifies the buffer to read.)
 DOC_PARAM(start, This parameter specifies absolute position of the first character in the read range.)
@@ -580,7 +585,7 @@ DOC_SEE(4coder_Buffer_Positioning_System)
 }
 
 API_EXPORT bool32
-Buffer_Replace_Range(Application_Links *app, Buffer_Summary *buffer, size_t start, size_t end, char *str, size_t len)
+Buffer_Replace_Range(Application_Links *app, Buffer_Summary *buffer, int32_t start, int32_t end, char *str, int32_t len)
 /*
 DOC_PARAM(buffer, This parameter specifies the buffer to edit.)
 DOC_PARAM(start, This parameter specifies absolute position of the first character in the replace range.)
@@ -588,22 +593,32 @@ DOC_PARAM(end, This parameter specifies the absolute position of the the charact
 DOC_PARAM(str, This parameter specifies the the string to write into the range; it need not be null terminated.)
 DOC_PARAM(len, This parameter specifies the length of the str string.)
 DOC_RETURN(This call returns non-zero if the replacement succeeds.)
-DOC(If this call succeeds it deletes the range from start to end and writes str in the same position.  If end == start then this call is equivalent to inserting the string at start. If len == 0 this call is equivalent to deleteing the range from start to end.
+DOC
+(
+If this call succeeds it deletes the range from start to end
+and writes str in the same position.  If end == start then
+this call is equivalent to inserting the string at start.
+If len == 0 this call is equivalent to deleteing the range
+from start to end.
 
-This call fails if the buffer does not exist, or if the replace range is not within the bounds of the buffer.)
+This call fails if the buffer does not exist, or if the replace
+range is not within the bounds of the buffer.
+)
 DOC_SEE(4coder_Buffer_Positioning_System)
 */{
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     Editing_File *file = imp_get_file(cmd, buffer);
     
     bool32 result = false;
+    int32_t size = 0;
     
     if (file){
-        u32 size = buffer_size(&file->state.buffer);
+        size = buffer_size(&file->state.buffer);
         if (0 <= start && start <= end && end <= size){
             result = true;
             
-            file_replace_range(cmd->system, cmd->models, file, (u32)start, (u32)end, str, (u32)len);
+            file_replace_range(cmd->system, cmd->models,
+                               file, start, end, str, len);
         }
         fill_buffer_summary(buffer, file, cmd);
     }
@@ -641,7 +656,7 @@ DOC_SEE(Partial_Cursor)
 }
 
 API_EXPORT bool32
-Buffer_Batch_Edit(Application_Links *app, Buffer_Summary *buffer, char *str, size_t str_len, Buffer_Edit *edits, uint32_t edit_count, Buffer_Batch_Edit_Type type)
+Buffer_Batch_Edit(Application_Links *app, Buffer_Summary *buffer, char *str, int32_t str_len, Buffer_Edit *edits, int32_t edit_count, Buffer_Batch_Edit_Type type)
 /*
 DOC_PARAM(buffer, The buffer on which to apply the batch of edits.)
 DOC_PARAM(str, This parameter provides all of the source string for the edits in the batch.)
@@ -670,9 +685,9 @@ DOC_SEE(Buffer_Batch_Edit_Type)
             Assert(inverse_edits);
             
             char *inv_str = (char*)part->base + part->pos;
-            umem inv_str_max = part->max - part->pos;
+            int32_t inv_str_max = part->max - part->pos;
             
-            Edit_Spec spec = file_compute_edit(mem, file, edits, str, str_len, inverse_edits, inv_str, (u32)inv_str_max, (u32)edit_count, type);
+            Edit_Spec spec = file_compute_edit(mem, file, edits, str, str_len, inverse_edits, inv_str, inv_str_max, edit_count, type);
             
             file_do_batch_edit(system, models, file, spec, hist_normal, type);
             
@@ -995,7 +1010,7 @@ If the buffer does not exist or if it is not a lexed buffer, the return is zero.
 }
 
 API_EXPORT bool32
-Buffer_Read_Tokens(Application_Links *app, Buffer_Summary *buffer, size_t start_token, size_t end_token, Cpp_Token *tokens_out)
+Buffer_Read_Tokens(Application_Links *app, Buffer_Summary *buffer, int32_t start_token, int32_t end_token, Cpp_Token *tokens_out)
 /*
 DOC_PARAM(buffer, Specifies the buffer from which to read tokens.)
 DOC_PARAM(first_token, Specifies the index of the first token to read.)
@@ -1022,7 +1037,7 @@ The number of output tokens will be end_token - start_token.)
 }
 
 API_EXPORT bool32
-Buffer_Get_Token_Index(Application_Links *app, Buffer_Summary *buffer, size_t pos, Cpp_Get_Token_Result *get_result)
+Buffer_Get_Token_Index(Application_Links *app, Buffer_Summary *buffer, int32_t pos, Cpp_Get_Token_Result *get_result)
 /*
 DOC_PARAM(buffer, The buffer from which to get a token.)
 DOC_PARAM(pos, The position in the buffer in absolute coordinates.)
@@ -1816,26 +1831,32 @@ DOC_SEE(Buffer_Seek)
 }
 
 API_EXPORT bool32
-View_Set_Highlight(Application_Links *app, View_Summary *view, size_t start, size_t end, bool32 turn_on)/*
+View_Set_Highlight(Application_Links *app, View_Summary *view, int32_t start, int32_t end, bool32 turn_on)/*
 DOC_PARAM(view, The view parameter specifies the view in which to set the highlight.)
 DOC_PARAM(start, This parameter specifies the absolute position of the first character of the highlight range.)
 DOC_PARAM(end, This parameter specifies the absolute position of the character one past the end of the highlight range.)
 DOC_PARAM(turn_on, This parameter indicates whether the highlight is being turned on or off.)
 DOC_RETURN(This call returns non-zero on success.)
-DOC(The highlight is mutually exclusive to the cursor.  When the turn_on parameter is set to true the highlight will be shown and the cursor will be hidden.  After that either setting the cursor with view_set_cursor or calling view_set_highlight and the turn_on set to false, will switch back to showing the cursor.)
+DOC
+(
+The highlight is mutually exclusive to the cursor.  When the turn_on parameter
+is set to true the highlight will be shown and the cursor will be hidden.  After
+that either setting the cursor with view_set_cursor or calling view_set_highlight
+and the turn_on set to false, will switch back to showing the cursor.
+)
 */{
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     System_Functions *system = cmd->system;
     View *vptr = imp_get_view(cmd, view);
     bool32 result = false;
     
-    if (vptr != 0){
+    if (vptr){
         result = true;
         if (turn_on){
             view_set_temp_highlight(system, vptr, start, end);
         }
         else{
-            vptr->file_data.show_temp_highlight = false;
+            vptr->file_data.show_temp_highlight = 0;
         }
         fill_view_summary(system, view, vptr, cmd);
     }
@@ -1879,7 +1900,7 @@ DOC_SEE(Set_Buffer_Flag)
 }
 
 API_EXPORT bool32
-View_Post_Fade(Application_Links *app, View_Summary *view, float seconds, size_t start, size_t end, int_color color)
+View_Post_Fade(Application_Links *app, View_Summary *view, float seconds, int32_t start, int32_t end, int_color color)
 /*
 DOC_PARAM(view, The view parameter specifies the view onto which the fade effect shall be posted.)
 DOC_PARAM(seconds, This parameter specifies the number of seconds the fade effect should last.)
@@ -1893,10 +1914,13 @@ DOC_SEE(int_color)
     View *vptr = imp_get_view(cmd, view);
     
     bool32 result = false;
-    size_t size = end - start;
-    if (vptr != 0 && size > 0){
-        result = true;
-        view_post_paste_effect(vptr, seconds, (u32)start, (u32)size, color | 0xFF000000);
+    
+    int32_t size = end - start;
+    if (vptr){
+        if (size > 0){
+            result = true;
+            view_post_paste_effect(vptr, seconds, start, size, color | 0xFF000000);
+        }
     }
     
     return(result);
@@ -2263,7 +2287,7 @@ DOC(This is a temporary ad-hoc solution to allow some customization of the behav
 }
 
 API_EXPORT void*
-Memory_Allocate(Application_Links *app, size_t size)
+Memory_Allocate(Application_Links *app, int32_t size)
 /*
 DOC_PARAM(size, The size in bytes of the block that should be returned.)
 DOC(This calls to a low level OS allocator which means it is best used for infrequent, large allocations.  The size of the block must be remembered if it will be freed or if it's mem protection status will be changed.)
@@ -2276,7 +2300,7 @@ DOC_SEE(memory_free)
 }
 
 API_EXPORT bool32
-Memory_Set_Protection(Application_Links *app, void *ptr, size_t size, Memory_Protect_Flags flags)
+Memory_Set_Protection(Application_Links *app, void *ptr, int32_t size, Memory_Protect_Flags flags)
 /*
 DOC_PARAM(ptr, The base of the block on which to set memory protection flags.)
 DOC_PARAM(size, The size that was originally used to allocate this block.)
@@ -2292,7 +2316,7 @@ DOC_SEE(Memory_Protect_Flags)
 }
 
 API_EXPORT void
-Memory_Free(Application_Links *app, void *ptr, size_t size)
+Memory_Free(Application_Links *app, void *ptr, int32_t size)
 /*
 DOC_PARAM(mem, The base of a block to free.)
 DOC_PARAM(size, The size that was originally used to allocate this block.)

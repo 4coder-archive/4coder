@@ -50,7 +50,7 @@ static void
 close_all_files_with_extension(Application_Links *app, Partition *scratch_part, char **extension_list, int32_t extension_count){
     Temp_Memory temp = begin_temp_memory(scratch_part);
     
-    size_t buffers_to_close_max = partition_remaining(scratch_part)/sizeof(int32_t);
+    int32_t buffers_to_close_max = partition_remaining(scratch_part)/sizeof(int32_t);
     int32_t *buffers_to_close = push_array(scratch_part, int32_t, buffers_to_close_max);
     
     int32_t buffers_to_close_count = 0;
@@ -102,7 +102,7 @@ open_all_files_with_extension_internal(Application_Links *app, String dir, char 
     File_List list = get_file_list(app, dir.str, dir.size);
     int32_t dir_size = dir.size;
     
-    for (int32_t i = 0; i < list.count; ++i){
+    for (uint32_t i = 0; i < list.count; ++i){
         File_Info *info = list.infos + i;
         if (info->folder){
             if (recursive){
@@ -225,7 +225,7 @@ CUSTOM_COMMAND_SIG(load_project){
                     }
                     
                     // Read the settings from project.4coder
-                    for (uint32_t i = 0; i < array.count; ++i){
+                    for (int32_t i = 0; i < array.count; ++i){
                         Config_Line config_line = read_config_line(array, &i);
                         if (config_line.read_success){
                             Config_Item item = get_config_item(config_line, mem, array);
@@ -344,7 +344,7 @@ CUSTOM_COMMAND_SIG(load_project){
                                             
                                             if (read_bool){
                                                 if (config_bool_var(array_item, 0, 0, dest_bool)){
-                                                    if (dest_bool){
+                                                    if (*dest_bool){
                                                         append(&msg, "true, ");
                                                     }
                                                     else{

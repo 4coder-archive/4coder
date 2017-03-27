@@ -40,6 +40,20 @@ typedef int32_t b32_4tech;
 #endif
 // standard preamble end 
 
+static u32_4tech cp_min_by_utf8_length[] = {
+    0x0,
+    0x0,
+    0x80,
+    0x800,
+    0x10000,
+};
+
+static u32_4tech surrogate_min = 0xD800;
+static u32_4tech surrogate_max = 0xDFFF;
+
+static u32_4tech nonchar_min = 0xFDD0;
+static u32_4tech nonchar_max = 0xFDEF;
+
 static b32_4tech
 codepoint_is_whitespace(u32_4tech codepoint){
     b32_4tech result = false;
@@ -53,16 +67,16 @@ static u32_4tech
 utf8_to_u32_length_unchecked(u8_4tech *buffer, u32_4tech *length_out){
     u32_4tech result = 0;
     
-    if (buffer[0] <= 0x7F){
+    if (buffer[0] < 0x80){
         result = (u32_4tech)buffer[0];
         *length_out = 1;
     }
-    else if (buffer[0] <= 0xE0){
+    else if (buffer[0] < 0xE0){
         result = ((u32_4tech)((buffer[0])&0x1F)) << 6;
         result |= ((u32_4tech)((buffer[1])&0x3F));
         *length_out = 2;
     }
-    else if (buffer[0] <= 0xF0){
+    else if (buffer[0] < 0xF0){
         result = ((u32_4tech)((buffer[0])&0x0F)) << 12;
         result |= ((u32_4tech)((buffer[1])&0x3F)) << 6;
         result |= ((u32_4tech)((buffer[2])&0x3F));
@@ -74,6 +88,11 @@ utf8_to_u32_length_unchecked(u8_4tech *buffer, u32_4tech *length_out){
         result |= ((u32_4tech)((buffer[2])&0x3F)) << 6;
         result |= ((u32_4tech)((buffer[3])&0x3F));
         *length_out = 4;
+    }
+    
+    if (result < cp_min_by_utf8_length[*length_out] || (result >= surrogate_min && result <= surrogate_max)){
+        result = 0;
+        *length_out = 0;
     }
     
     return(result);
@@ -104,8 +123,11 @@ utf8_to_u32(u8_4tech **buffer_ptr, u8_4tech *end){
     else if (buffer[0] < 0xF0){
         length = 3;
     }
-    else{
+    else if (buffer[0] < 0xF8){
         length = 4;
+    }
+    else{
+        length = 0;
     }
     
     for (u32_4tech i = 1; i < length; ++i){
@@ -145,6 +167,11 @@ utf8_to_u32(u8_4tech **buffer_ptr, u8_4tech *end){
             }break;
         }
         
+        if (result < cp_min_by_utf8_length[length] || (result >= surrogate_min && result <= surrogate_max)){
+            result = 0;
+            length = 0;
+        }
+        
         *buffer_ptr = buffer + length;
     }
     else{
@@ -171,13 +198,16 @@ u32_to_utf8_unchecked(u32_4tech codepoint, u8_4tech *buffer, u32_4tech *length_o
         buffer[2] = (u8_4tech)(0x80 | (codepoint & 0x3F));
         *length_out = 3;
     }
-    else{
+    else if (codepoint <= 0x10FFFF){
         codepoint &= 0x001FFFFF;
         buffer[0] = (u8_4tech)(0xF0 | (codepoint >> 18));
         buffer[1] = (u8_4tech)(0x80 | ((codepoint >> 12) & 0x3F));
         buffer[2] = (u8_4tech)(0x80 | ((codepoint >> 6) & 0x3F));
         buffer[3] = (u8_4tech)(0x80 | (codepoint & 0x3F));
         *length_out = 4;
+    }
+    else{
+        *length_out = 0;
     }
 }
 
@@ -198,11 +228,11 @@ utf8_to_utf16_minimal_checking(u16_4tech *dst, umem_4tech max_wchars, u8_4tech *
         u32_4tech codepoint = 0;
         u32_4tech utf8_size = 0;
         
-        if (s[0] <= 0x7F){
+        if (s[0] < 0x80){
             codepoint = (u32_4tech)s[0];
             utf8_size = 1;
         }
-        else if (s[0] <= 0xE0){
+        else if (s[0] < 0xE0){
             if (limit <= 1){
                 *error = true;
                 break;
@@ -212,7 +242,7 @@ utf8_to_utf16_minimal_checking(u16_4tech *dst, umem_4tech max_wchars, u8_4tech *
             codepoint |= ((u32_4tech)((s[1])&0x3F));
             utf8_size = 2;
         }
-        else if (s[0] <= 0xF0){
+        else if (s[0] < 0xF0){
             if (limit <= 2){
                 *error = true;
                 break;
@@ -223,7 +253,7 @@ utf8_to_utf16_minimal_checking(u16_4tech *dst, umem_4tech max_wchars, u8_4tech *
             codepoint |= ((u32_4tech)((s[2])&0x3F));
             utf8_size = 3;
         }
-        else{
+        else if (s[0] < 0xF8){
             if (limit > 3){
                 *error = true;
                 break;
@@ -234,6 +264,15 @@ utf8_to_utf16_minimal_checking(u16_4tech *dst, umem_4tech max_wchars, u8_4tech *
             codepoint |= ((u32_4tech)((s[2])&0x3F)) << 6;
             codepoint |= ((u32_4tech)((s[3])&0x3F));
             utf8_size = 4;
+        }
+        else{
+            *error = true;
+            break;
+        }
+        
+        if (codepoint < cp_min_by_utf8_length[utf8_size]){
+            *error = true;
+            break;
         }
         
         s += utf8_size;
@@ -281,10 +320,10 @@ utf8_to_utf16_minimal_checking(u16_4tech *dst, umem_4tech max_wchars, u8_4tech *
 static umem_4tech
 utf16_to_utf8_minimal_checking(u8_4tech *dst, umem_4tech max_chars, u16_4tech *src, umem_4tech length, b32_4tech *error){
     u16_4tech *s = src;
-    u16_4tech *s_end = s + max_chars;
+    u16_4tech *s_end = s + length;
     
     u8_4tech *d = dst;
-    u8_4tech *d_end = d + length;
+    u8_4tech *d_end = d + max_chars;
     umem_4tech limit = length;
     
     umem_4tech needed_max = 0;

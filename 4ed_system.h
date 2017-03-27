@@ -12,7 +12,7 @@
 #if !defined(FCODER_SYSTEM_INTERFACE_H)
 #define FCODER_SYSTEM_INTERFACE_H
 
-#include "font/4coder_font_interface.h"
+#include "4ed_font_interface.h"
 
 // types
 struct Plat_Handle{
@@ -47,7 +47,7 @@ typedef Sys_Load_File_Sig(System_Load_File);
 #define Sys_Load_Close_Sig(name) b32 name(Plat_Handle handle)
 typedef Sys_Load_Close_Sig(System_Load_Close);
 
-#define Sys_Save_File_Sig(name) b32 name(char *filename, char *buffer, umem size)
+#define Sys_Save_File_Sig(name) b32 name(char *filename, char *buffer, u32 size)
 typedef Sys_Save_File_Sig(System_Save_File);
 
 // file changes
@@ -169,7 +169,8 @@ struct Full_Job_Data{
 
 struct Unbounded_Work_Queue{
     Full_Job_Data *jobs;
-    u32 count, max, skip;
+    i32 count, max, skip;
+    
     u32 next_job_id;
 };
 
