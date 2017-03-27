@@ -101,46 +101,6 @@ Sys_Font_Init_Sig(system_font_init){
     
     font_size = clamp_bottom(8, font_size);
     
-#if 0
-    struct TEST_DATA{
-        char *c_filename;
-        i32 filename_len;
-        char *c_name;
-        i32 name_len;
-    };
-    TEST_DATA TEST_SETUP[] = {
-        {literal("fonts/LiberationSans-Regular.ttf"), literal("Liberation Sans"), },
-        {literal("fonts/liberation-mono.ttf"),        literal("Liberation Mono"), },
-        {literal("fonts/Hack-Regular.ttf"),           literal("Hack"),            },
-        {literal("fonts/CutiveMono-Regular.ttf"),     literal("Cutive Mono"),     },
-        {literal("fonts/Inconsolata-Regular.ttf"),    literal("Inconsolata"),     },
-    };
-    
-    u32 TEST_COUNT = ArrayCount(TEST_SETUP);
-    for (u32 i = 0; i < TEST_COUNT; ++i){
-        if (first_setup == 0){
-            head_setup = push_struct(scratch, Font_Setup);
-            first_setup = head_setup;
-        }
-        else{
-            head_setup->next_font = push_struct(scratch, Font_Setup);
-            head_setup = head_setup->next_font;
-        }
-        
-        TEST_DATA *TEST = &TEST_SETUP[i];
-        
-        head_setup->c_filename = push_array(scratch, char, TEST->filename_len+1);
-        memcpy(head_setup->c_filename, TEST->c_filename, TEST->filename_len+1);
-        head_setup->filename_len = TEST->filename_len;
-        
-        head_setup->c_name = push_array(scratch, char, TEST->name_len+1);
-        memcpy(head_setup->c_name, TEST->c_name, TEST->name_len+1);
-        head_setup->name_len = TEST->name_len;
-        
-        partition_align(scratch, 8);
-    }
-#endif
-    
     struct Font_Setup{
         Font_Setup *next_font;
         char *c_filename;
@@ -151,12 +111,12 @@ Sys_Font_Init_Sig(system_font_init){
     
     u32 dir_max = KB(32);
     u8 *directory = push_array(scratch, u8, dir_max);
-    DWORD dir_len = GetModuleFileName_utf8(0, directory, dir_max-1);
+    String dir_str = make_string_cap(directory, 0, dir_max);
+    i32 dir_len = system_get_binary_path(&dir_str);
     Assert(dir_len < dir_max);
     
     {
         String dir_str = make_string_cap(directory, dir_len, dir_max);
-        remove_last_folder(&dir_str);
         set_last_folder_sc(&dir_str, "fonts", '\\');
         terminate_with_null(&dir_str);
         dir_len = dir_str.size;

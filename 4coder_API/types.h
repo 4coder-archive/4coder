@@ -424,7 +424,8 @@ STRUCT File_Info{
     int32_t folder;
 };
 
-/* DOC(File_List is a list of File_Info structs.) */
+/* DOC(File_List is a list of File_Info structs.)
+DOC_SEE(File_Info) */
 STRUCT File_List{
     /* DOC(This field is for inernal use.) */
     void *block;

@@ -64,7 +64,7 @@ init_track_system(File_Track_System *system, Partition *scratch, void *table_mem
 }
 
 FILE_TRACK_LINK File_Track_Result
-add_listener(File_Track_System *system, Partition *scratch, char *filename){
+add_listener(File_Track_System *system, Partition *scratch, u8 *filename){
     File_Track_Result result = FileTrack_Good;
     Linux_File_Track_Vars *vars = to_vars(system);
     File_Track_Tables *tables = to_tables(vars);
@@ -72,7 +72,7 @@ add_listener(File_Track_System *system, Partition *scratch, char *filename){
     pthread_mutex_lock(&vars->lock);
     
     if(tracking_system_has_space(tables, 1)){
-        char *dir = dirname(strdupa(filename));
+        char *dir = dirname(strdupa((char*)filename));
         size_t dir_len = strlen(dir) + 1;
         
         if(vars->string_mem_end - vars->string_mem_begin >= dir_len){
@@ -114,7 +114,7 @@ add_listener(File_Track_System *system, Partition *scratch, char *filename){
 }
 
 FILE_TRACK_LINK File_Track_Result
-remove_listener(File_Track_System *system, Partition *scratch, char *filename){
+remove_listener(File_Track_System *system, Partition *scratch, u8 *filename){
     File_Track_Result result = FileTrack_Good;
     Linux_File_Track_Vars *vars = to_vars(system);
     File_Track_Tables *tables = to_tables(vars);
@@ -122,7 +122,7 @@ remove_listener(File_Track_System *system, Partition *scratch, char *filename){
     
     pthread_mutex_lock(&vars->lock);
     
-    char *dir = dirname(strdupa(filename));
+    char *dir = dirname(strdupa((char*)filename));
     // NOTE(inso): this assumes the filename was previously added
     
     for(uint32_t i = 0; i < tables->max; ++i){
@@ -199,7 +199,7 @@ expand_track_system_listeners(File_Track_System *system, Partition *scratch, voi
 }
 
 FILE_TRACK_LINK File_Track_Result
-get_change_event(File_Track_System *system, Partition *scratch, char *buffer, int32_t max, int32_t *size){
+get_change_event(File_Track_System *system, Partition *scratch, u8 *buffer, int32_t max, int32_t *size){
     File_Track_Result result = FileTrack_NoMoreEvents;
     Linux_File_Track_Vars *vars = to_vars(system);
     File_Track_Tables *tables = to_tables(vars);

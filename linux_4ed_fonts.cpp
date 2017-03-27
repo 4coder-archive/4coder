@@ -10,9 +10,9 @@
 // TOP
 
 #include "4ed_system_shared.h"
-#include "font/4coder_font_interface.h"
-#include "font/4coder_font_interface_to_os.h"
-#include "font/4coder_font_data.h"
+#include "4ed_font_interface.h"
+#include "4ed_font_interface_to_os.h"
+#include "4ed_font_data.h"
 
 struct Linux_Fonts{
     Partition part;
@@ -24,7 +24,7 @@ global Linux_Fonts linux_fonts = {0};
 
 internal
 Sys_Font_Get_Count_Sig(system_font_get_count){
-    return(5);
+    return(linux_fonts.font_count);
 }
 
 internal
@@ -87,6 +87,9 @@ Sys_Font_Free_Sig(system_font_free){
 
 internal
 Sys_Font_Init_Sig(system_font_init){
+    Partition *scratch = &shared_vars.scratch;
+    Temp_Memory temp = begin_temp_memory(scratch);
+    
     font->get_count = system_font_get_count;
     font->get_ids_by_index = system_font_get_ids_by_index;
     font->get_name_by_index = system_font_get_name_by_index;
@@ -99,35 +102,73 @@ Sys_Font_Init_Sig(system_font_init){
     font_size = clamp_bottom(8, font_size);
     
     struct Font_Setup{
+        Font_Setup *next_font;
         char *c_filename;
-        i32 filename_len;
-        char *c_name;
-        i32 name_len;
-        u32 pt_size;
-    };
-    Font_Setup font_setup[] = {
-        {literal("LiberationSans-Regular.ttf"), literal("Liberation Sans"), font_size},
-        {literal("liberation-mono.ttf"),        literal("Liberation Mono"), font_size},
-        {literal("Hack-Regular.ttf"),           literal("Hack"),            font_size},
-        {literal("CutiveMono-Regular.ttf"),     literal("Cutive Mono"),     font_size},
-        {literal("Inconsolata-Regular.ttf"),    literal("Inconsolata"),     font_size},
     };
     
-    u32 font_count = Min(ArrayCount(linux_fonts.fonts), ArrayCount(font_setup));
-    for (u32 i = 0; i < font_count; ++i){
-        String filename = make_string(font_setup[i].c_filename, font_setup[i].filename_len);
-        String name = make_string(font_setup[i].c_name, font_setup[i].name_len);
-        u32 pt_size = font_setup[i].pt_size;
-        Render_Font *render_font = &linux_fonts.fonts[i];
-        
-        char full_filename_space[256];
-        String full_filename = make_fixed_width_string(full_filename_space);
-        sysshared_to_binary_path(&full_filename, filename.str);
-        
-        system_set_font(&linuxvars.system, &linux_fonts.part, render_font, full_filename, name, pt_size, use_hinting);
+    Font_Setup *first_setup = 0;
+    Font_Setup *head_setup = 0;
+    
+    u32 dir_max = KB(32);
+    u8 *directory = push_array(scratch, u8, dir_max);
+    String dir_str = make_string_cap(directory, 0, dir_max);
+    i32 dir_len = system_get_binary_path(&dir_str);
+    Assert(dir_len < dir_max);
+    
+    {
+        String dir_str = make_string_cap(directory, dir_len, dir_max);
+        set_last_folder_sc(&dir_str, "fonts", '/');
+        terminate_with_null(&dir_str);
+        dir_len = dir_str.size;
     }
     
-    linux_fonts.font_count = font_count;
+    partition_reduce(scratch, dir_max - dir_len - 1);
+    partition_align(scratch, 8);
+    
+    File_List file_list = {0};
+    system_set_file_list(&file_list, (char*)directory, 0, 0, 0);
+    
+    for (u32 i = 0; i < file_list.count; ++i){
+        File_Info *info = &file_list.infos[i];
+        if (first_setup == 0){
+            first_setup = push_struct(scratch, Font_Setup);
+            head_setup = first_setup;
+        }
+        else{
+            head_setup->next_font = push_struct(scratch, Font_Setup);
+            head_setup = head_setup->next_font;
+        }
+        head_setup->next_font = 0;
+        
+        char *filename = info->filename;
+        u32 len = 0;
+        for (;filename[len];++len);
+        
+        head_setup->c_filename = push_array(scratch, char, dir_len+len+1);
+        memcpy(head_setup->c_filename, directory, dir_len);
+        memcpy(head_setup->c_filename + dir_len, filename, len+1);
+        
+        partition_align(scratch, 8);
+    }
+    
+    system_set_file_list(&file_list, 0, 0, 0, 0);
+    
+    u32 font_count_max = ArrayCount(linux_fonts.fonts);
+    u32 font_count = 0;
+    u32 i = 0;
+    for (Font_Setup *ptr = first_setup; ptr != 0; ptr = ptr->next_font, ++i){
+        if (i < font_count_max){
+            Render_Font *render_font = &linux_fonts.fonts[i];
+            
+            system_set_font(&linuxvars.system, &linux_fonts.part, render_font, ptr->c_filename, font_size, use_hinting);
+        }
+        
+        ++font_count;
+    }
+    
+    linux_fonts.font_count = clamp_top(font_count, font_count_max);
+    
+    end_temp_memory(temp);
 }
 
 // BOTTOM

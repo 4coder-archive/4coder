@@ -2469,14 +2469,12 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
 }
 
 #include "win32_4ed_fonts.cpp"
-
 #include "win32_4ed_file_track.cpp"
 #include "4ed_font_static_functions.cpp"
 #include "win32_utf8.cpp"
 
 #if 0
-// NOTE(allen): In case I want to switch back to a console
-// application at some point.
+// NOTE(allen): In case I want to switch back to a console application at some point.
 int main(int argc, char **argv){
     HINSTANCE hInstance = GetModuleHandle(0);
 }

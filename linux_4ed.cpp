@@ -98,18 +98,13 @@
 #define LINUX_FN_DEBUG(fmt, ...)
 #endif
 
-#if (__cplusplus <= 199711L)
-#define static_assert(x, ...)
-#endif
-
 #define SUPPORT_DPI 1
 
 #define InterlockedCompareExchange(dest, ex, comp) __sync_val_compare_and_swap((dest), (comp), (ex))
 
 #include "4ed_file_track.h"
+#include "4ed_font_interface_to_os.h"
 #include "4ed_system_shared.h"
-
-#include "linux_4ed_file_track.cpp"
 
 //
 // Linux structs / enums
@@ -252,14 +247,6 @@ internal void        system_wait_cv(i32, i32);
 internal void        system_signal_cv(i32, i32);
 
 //
-// Linux static assertions
-//
-
-static_assert(sizeof(Plat_Handle) >= sizeof(ucontext_t*), "Plat_Handle not big enough");
-static_assert(sizeof(Plat_Handle) >= sizeof(sem_t*),      "Plat_Handle not big enough");
-static_assert(sizeof(Plat_Handle) >= sizeof(int),         "Plat_Handle not big enough");
-
-//
 // Shared system functions (system_shared.h)
 //
 
@@ -292,19 +279,8 @@ LinuxFreeMemory(void *block){
 }
 
 internal
-Sys_Get_Memory_Sig(system_get_memory_){
-    return(LinuxGetMemory_(size, line_number, file_name));
-}
-
-internal
-Sys_Free_Memory_Sig(system_free_memory){
-    LinuxFreeMemory(block);
-}
-
-
-internal
 Sys_File_Can_Be_Made_Sig(system_file_can_be_made){
-    b32 result = access(filename, W_OK) == 0;
+    b32 result = access((char*)filename, W_OK) == 0;
     LINUX_FN_DEBUG("%s = %d", filename, result);
     return(result);
 }
@@ -325,6 +301,69 @@ Sys_Get_Binary_Path_Sig(system_get_binary_path){
 }
 
 //
+// custom.h
+//
+
+internal
+Sys_Memory_Allocate_Sig(system_memory_allocate){
+    // NOTE(allen): This must return the exact base of the vpage.
+    // We will count on the user to keep track of size themselves.
+    void *result = mmap(0, size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+    if(result == MAP_FAILED){
+        perror("mmap");
+        result = NULL;
+    }
+    return(result);
+}
+
+internal 
+Sys_Memory_Set_Protection_Sig(system_memory_set_protection){
+    // NOTE(allen):
+    // There is no such thing as "write only" in windows
+    // so I just made write = write + read in all cases.
+    bool32 result = 1;
+    int protect = 0;
+    
+    flags = flags & 0x7;
+    
+    switch (flags){
+        case 0:
+        protect = PROT_NONE; break;
+        
+        case MemProtect_Read:
+        protect = PROT_READ; break;
+        
+        case MemProtect_Write:
+        case MemProtect_Read|MemProtect_Write:
+        protect = PROT_READ | PROT_WRITE; break;
+        
+        case MemProtect_Execute:
+        protect = PROT_EXEC; break;
+        
+        case MemProtect_Execute|MemProtect_Read:
+        protect = PROT_READ | PROT_EXEC; break;
+        
+        // NOTE(inso): some W^X protection things might be unhappy about this one
+        case MemProtect_Execute|MemProtect_Write:
+        case MemProtect_Execute|MemProtect_Write|MemProtect_Read:
+        protect = PROT_READ | PROT_WRITE | PROT_EXEC; break;
+    }
+    
+    if(mprotect(ptr, size, protect) == -1){
+        result = 0;
+        perror("mprotect");
+    }
+    
+    return(result);
+}
+
+internal
+Sys_Memory_Free_Sig(system_memory_free){
+    // NOTE(allen): This must take the exact base of the vpage.
+    munmap(ptr, size);
+}
+
+//
 // System Functions (4ed_system.h)
 //
 
@@ -342,7 +381,7 @@ Sys_Set_File_List_Sig(system_set_file_list){
     b32 clear_list = false;
     
     if(directory == 0){
-        system_free_memory(file_list->block);
+        system_memory_free(file_list->block, file_list->block_size);
         file_list->block = 0;
         file_list->block_size = 0;
         file_list->infos = 0;
@@ -379,8 +418,8 @@ Sys_Set_File_List_Sig(system_set_file_list){
         
         required_size = character_count + file_count * sizeof(File_Info);
         if (file_list->block_size < required_size){
-            system_free_memory(file_list->block);
-            file_list->block = system_get_memory(required_size);
+            system_memory_free(file_list->block, file_list->block_size);
+            file_list->block = system_memory_allocate(required_size);
             file_list->block_size = required_size;
         }
         
@@ -423,7 +462,7 @@ Sys_Set_File_List_Sig(system_set_file_list){
         
         closedir(d);
     } else {
-        system_free_memory(file_list->block);
+        system_memory_free(file_list->block, file_list->block_size);
         file_list->block = 0;
         file_list->block_size = 0;
         file_list->infos = 0;
@@ -595,69 +634,6 @@ Sys_Now_Time_Sig(system_now_time){
     //LINUX_FN_DEBUG("ts: %" PRIu64, result);
     
     return(result);
-}
-
-//
-// custom.h
-//
-
-internal
-Sys_Memory_Allocate_Sig(system_memory_allocate){
-    // NOTE(allen): This must return the exact base of the vpage.
-    // We will count on the user to keep track of size themselves.
-    void *result = mmap(0, size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-    if(result == MAP_FAILED){
-        perror("mmap");
-        result = NULL;
-    }
-    return(result);
-}
-
-internal 
-Sys_Memory_Set_Protection_Sig(system_memory_set_protection){
-    // NOTE(allen):
-    // There is no such thing as "write only" in windows
-    // so I just made write = write + read in all cases.
-    bool32 result = 1;
-    int protect = 0;
-    
-    flags = flags & 0x7;
-    
-    switch (flags){
-        case 0:
-        protect = PROT_NONE; break;
-        
-        case MemProtect_Read:
-        protect = PROT_READ; break;
-        
-        case MemProtect_Write:
-        case MemProtect_Read|MemProtect_Write:
-        protect = PROT_READ | PROT_WRITE; break;
-        
-        case MemProtect_Execute:
-        protect = PROT_EXEC; break;
-        
-        case MemProtect_Execute|MemProtect_Read:
-        protect = PROT_READ | PROT_EXEC; break;
-        
-        // NOTE(inso): some W^X protection things might be unhappy about this one
-        case MemProtect_Execute|MemProtect_Write:
-        case MemProtect_Execute|MemProtect_Write|MemProtect_Read:
-        protect = PROT_READ | PROT_WRITE | PROT_EXEC; break;
-    }
-    
-    if(mprotect(ptr, size, protect) == -1){
-        result = 0;
-        perror("mprotect");
-    }
-    
-    return(result);
-}
-
-internal
-Sys_Memory_Free_Sig(system_memory_free){
-    // NOTE(allen): This must take the exact base of the vpage.
-    munmap(ptr, size);
 }
 
 internal
@@ -1075,7 +1051,7 @@ JobThreadProc(void* lpParameter){
 internal void
 initialize_unbounded_queue(Unbounded_Work_Queue *source_queue){
     i32 max = 512;
-    source_queue->jobs = (Full_Job_Data*)system_get_memory(max*sizeof(Full_Job_Data));
+    source_queue->jobs = (Full_Job_Data*)system_memory_allocate(max*sizeof(Full_Job_Data));
     source_queue->count = 0;
     source_queue->max = max;
     source_queue->skip = 0;
@@ -1184,12 +1160,12 @@ Sys_Post_Job_Sig(system_post_job){
     
     while (queue->count >= queue->max){
         i32 new_max = queue->max*2;
-        Full_Job_Data *new_jobs = (Full_Job_Data*)
-            system_get_memory(new_max*sizeof(Full_Job_Data));
+        u32 job_size = sizeof(Full_Job_Data);
+        Full_Job_Data *new_jobs = (Full_Job_Data*)system_memory_allocate(new_max*job_size);
         
         memcpy(new_jobs, queue->jobs, queue->count);
         
-        system_free_memory(queue->jobs);
+        system_memory_free(queue->jobs, queue->max*job_size);
         
         queue->jobs = new_jobs;
         queue->max = new_max;
@@ -1283,11 +1259,11 @@ Sys_Grow_Thread_Memory_Sig(system_grow_thread_memory){
     old_data = memory->data;
     old_size = memory->size;
     new_size = l_round_up_i32(memory->size*2, KB(4));
-    memory->data = system_get_memory(new_size);
+    memory->data = system_memory_allocate(new_size);
     memory->size = new_size;
     if (old_data){
         memcpy(memory->data, old_data, old_size);
-        system_free_memory(old_data);
+        system_memory_free(old_data, old_size);
     }
     system_release_lock(CANCEL_LOCK0 + memory->id - 1);
 }
@@ -1335,8 +1311,8 @@ INTERNAL_Sys_Get_Thread_States_Sig(internal_get_thread_states){
 // Linux rendering/font system functions
 //
 
+#include "4ed_font_data.h"
 #include "4ed_system_shared.cpp"
-#include "linux_4ed_fonts.cpp"
 
 //
 // End of system funcs
@@ -2912,14 +2888,14 @@ main(int argc, char **argv)
     LinuxLoadRenderCode();
     
     memory_vars.vars_memory_size   = MB(2);
-    memory_vars.vars_memory        = system_get_memory(memory_vars.vars_memory_size);
+    memory_vars.vars_memory        = system_memory_allocate(memory_vars.vars_memory_size);
     memory_vars.target_memory_size = MB(512);
-    memory_vars.target_memory      = system_get_memory(memory_vars.target_memory_size);
+    memory_vars.target_memory      = system_memory_allocate(memory_vars.target_memory_size);
     memory_vars.user_memory_size   = MB(2);
-    memory_vars.user_memory        = system_get_memory(memory_vars.user_memory_size);
+    memory_vars.user_memory        = system_memory_allocate(memory_vars.user_memory_size);
     
     linuxvars.target.max         = MB(1);
-    linuxvars.target.push_buffer = (char*)system_get_memory(linuxvars.target.max);
+    linuxvars.target.push_buffer = (char*)system_memory_allocate(linuxvars.target.max);
     
     if(memory_vars.vars_memory == NULL || memory_vars.target_memory == NULL || memory_vars.user_memory == NULL || linuxvars.target.push_buffer == NULL){
         LinuxFatalErrorMsg("Could not allocate sufficient memory. Please make sure you have atleast 512Mb of RAM free. (This requirement will be relaxed in the future).");
@@ -3041,7 +3017,7 @@ main(int argc, char **argv)
     const size_t stack_size = MB(2);
     for (i32 i = 0; i < ArrayCount(linuxvars.coroutine_data); ++i){
         linuxvars.coroutine_data[i].stack.ss_size = stack_size;
-        linuxvars.coroutine_data[i].stack.ss_sp = system_get_memory(stack_size);
+        linuxvars.coroutine_data[i].stack.ss_sp = system_memory_allocate(stack_size);
     }
     
     Thread_Context background[4] = {};
@@ -3376,7 +3352,9 @@ main(int argc, char **argv)
     return 0;
 }
 
-#include "font/4coder_font_static_functions.cpp"
+#include "linux_4ed_fonts.cpp"
+#include "linux_4ed_file_track.cpp"
+#include "4ed_font_static_functions.cpp"
 
 // BOTTOM
 // vim: expandtab:ts=4:sts=4:sw=4
