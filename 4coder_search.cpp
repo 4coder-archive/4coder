@@ -148,8 +148,7 @@ search_hit_add(General_Memory *general, Table *hits, String_Space *space, char *
         if (new_size < space->max + len){
             new_size = space->max + len;
         }
-        space->space = (char*)general_memory_reallocate(
-            general, space->space, space->new_pos, new_size);
+        space->space = (char*)general_memory_reallocate(general, space->space, space->new_pos, new_size);
         ostring = strspace_append(space, str, len);
     }
     
@@ -183,8 +182,8 @@ buffer_seek_alpha_numeric_end(Application_Links *app, Buffer_Summary *buffer, in
         int32_t still_looping = true;
         do{
             for (; pos < chunk.end; ++pos){
-                char at_pos = chunk.data[pos];
-                if (!char_is_alpha_numeric(at_pos)) goto double_break;
+                uint8_t at_pos = (uint8_t)chunk.data[pos];
+                if (!char_is_alpha_numeric_utf8(at_pos)) goto double_break;
             }
             still_looping = forward_stream_chunk(&chunk);
         }while(still_looping);
@@ -222,21 +221,21 @@ match_check(Application_Links *app, Search_Range *range, int32_t *pos, Search_Ma
             char first = word.str[0];
             
             char prev = ' ';
-            if (char_is_alpha_numeric(first)){
+            if (char_is_alpha_numeric_utf8(first)){
                 prev = buffer_get_char(app, &result.buffer, result.start - 1);
             }
             
-            if (!char_is_alpha_numeric(prev)){
+            if (!char_is_alpha_numeric_utf8(prev)){
                 result.end = result.start + word.size;
                 if (result.end <= end_pos){
                     char last = word.str[word.size-1];
                     
                     char next = ' ';
-                    if (char_is_alpha_numeric(last)){
+                    if (char_is_alpha_numeric_utf8(last)){
                         next = buffer_get_char(app, &result.buffer, result.end);
                     }
                     
-                    if (!char_is_alpha_numeric(next)){
+                    if (!char_is_alpha_numeric_utf8(next)){
                         result.found_match = true;
                         found_match = FindResult_FoundMatch;
                     }
@@ -250,7 +249,7 @@ match_check(Application_Links *app, Search_Range *range, int32_t *pos, Search_Ma
         case SearchFlag_MatchWordPrefix:
         {
             char prev = buffer_get_char(app, &result.buffer, result.start - 1);
-            if (!char_is_alpha_numeric(prev)){
+            if (!char_is_alpha_numeric_utf8(prev)){
                 result.end =
                     buffer_seek_alpha_numeric_end(
                     app, &result.buffer, result.start);
@@ -770,7 +769,7 @@ CUSTOM_COMMAND_SIG(word_complete){
                 do{
                     for (; cursor_pos >= chunk.start; --cursor_pos){
                         char c = chunk.data[cursor_pos];
-                        if (char_is_alpha(c)){
+                        if (char_is_alpha_utf8(c)){
                             word_start = cursor_pos;
                         }
                         else if (!char_is_numeric(c)){

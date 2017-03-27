@@ -11,10 +11,15 @@ TYPE: 'internal-for-default-system'
 
 #include "4coder_default_framework.h"
 #include "4coder_helper/4coder_bind_helper.h"
+#include "4coder_project_commands.cpp"
 
 HOOK_SIG(default_start){
     default_4coder_initialize(app);
     default_4coder_side_by_side_panels(app);
+    
+    if (automatically_load_project){
+        load_project(app);
+    }
     
     // no meaning for return
     return(0);

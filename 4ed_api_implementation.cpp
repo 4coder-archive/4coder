@@ -1629,6 +1629,7 @@ DOC_RETURN(returns non-zero on success)
         switch (setting){
             case ViewSetting_ShowWhitespace: *value_out = vptr->file_data.show_whitespace; break;
             case ViewSetting_ShowScrollbar: *value_out = !vptr->hide_scrollbar; break;
+            case ViewSetting_ShowFileBar: *value_out = !vptr->hide_file_bar; break;
             default: result = 0; break;
         }
     }
@@ -1661,6 +1662,11 @@ DOC_SEE(View_Setting_ID)
             case ViewSetting_ShowScrollbar:
             {
                 vptr->hide_scrollbar = !value;
+            }break;
+            
+            case ViewSetting_ShowFileBar:
+            {
+                vptr->hide_file_bar = !value;
             }break;
             
             default:

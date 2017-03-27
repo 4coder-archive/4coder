@@ -64,9 +64,21 @@ char_is_upper(char c)
 }
 
 API_EXPORT_INLINE FSTRING_INLINE b32_4tech
+char_is_upper_utf8(char c)
+/* DOC(If c is an uppercase letter this call returns true.) */{
+    return (c >= 'A' && c <= 'Z' || c >= 128);
+}
+
+API_EXPORT_INLINE FSTRING_INLINE b32_4tech
 char_is_lower(char c)
 /* DOC(If c is a lower letter this call returns true.) */{
     return (c >= 'a' && c <= 'z');
+}
+
+API_EXPORT_INLINE FSTRING_INLINE b32_4tech
+char_is_lower_utf8(u8_4tech c)
+/* DOC(If c is a lower letter this call returns true.) */{
+    return (c >= 'a' && c <= 'z' || c >= 128);
 }
 
 API_EXPORT_INLINE FSTRING_INLINE char
@@ -94,9 +106,21 @@ char_is_alpha_numeric(char c)
 }
 
 API_EXPORT_INLINE FSTRING_INLINE b32_4tech
+char_is_alpha_numeric_utf8(u8_4tech c)
+/* DOC(This call returns non-zero if c is any alphanumeric character including underscore, or is a part of a UTF8 sequence outside of ASCII.) */{
+    return (c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c >= '0' && c <= '9' || c == '_' || c >= 128);
+}
+
+API_EXPORT_INLINE FSTRING_INLINE b32_4tech
 char_is_alpha_numeric_true(char c)
 /* DOC(This call returns non-zero if c is any alphanumeric character no including underscore.) */{
     return (c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c >= '0' && c <= '9');
+}
+
+API_EXPORT_INLINE FSTRING_INLINE b32_4tech
+char_is_alpha_numeric_true_utf8(u8_4tech c)
+/* DOC(This call returns non-zero if c is any alphanumeric character no including underscore.) */{
+    return (c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c >= '0' && c <= '9' || c >= 128);
 }
 
 API_EXPORT_INLINE FSTRING_INLINE b32_4tech
@@ -106,9 +130,21 @@ char_is_alpha(char c)
 }
 
 API_EXPORT_INLINE FSTRING_INLINE b32_4tech
+char_is_alpha_utf8(u8_4tech c)
+/* DOC(This call returns non-zero if c is any alphabetic character including underscore, or is a part of a UTF8 sequence outside of ASCII.) */{
+    return (c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c == '_' || c >= 128);
+}
+
+API_EXPORT_INLINE FSTRING_INLINE b32_4tech
 char_is_alpha_true(char c)
 /* DOC(This call returns non-zero if c is any alphabetic character.) */{
     return (c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z');
+}
+
+API_EXPORT_INLINE FSTRING_INLINE b32_4tech
+char_is_alpha_true_utf8(u8_4tech c)
+/* DOC(This call returns non-zero if c is any alphabetic character, or is a part of a UTF8 sequence outside of ASCII.) */{
+    return (c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c >= 128);
 }
 
 API_EXPORT_INLINE FSTRING_INLINE b32_4tech
@@ -118,9 +154,21 @@ char_is_hex(char c)
 }
 
 API_EXPORT_INLINE FSTRING_INLINE b32_4tech
+char_is_hex_utf8(u8_4tech c)
+/* DOC(This call returns non-zero if c is any valid hexadecimal digit, or is a part of a UTF8 sequence outside of ASCII.) */{
+    return (c >= '0' && c <= '9' || c >= 'A' && c <= 'F' || c >= 'a' && c <= 'f' || c >= 128);
+}
+
+API_EXPORT_INLINE FSTRING_INLINE b32_4tech
 char_is_numeric(char c)
 /* DOC(This call returns non-zero if c is any valid decimal digit.) */{
     return (c >= '0' && c <= '9');
+}
+
+API_EXPORT_INLINE FSTRING_INLINE b32_4tech
+char_is_numeric_utf8(u8_4tech c)
+/* DOC(This call returns non-zero if c is any valid decimal digit, or is a part of a UTF8 sequence outside of ASCII.) */{
+    return (c >= '0' && c <= '9' || c >= 128);
 }
 
 

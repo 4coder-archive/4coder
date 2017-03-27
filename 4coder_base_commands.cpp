@@ -473,13 +473,23 @@ CUSTOM_COMMAND_SIG(open_panel_hsplit){
 //
 
 CUSTOM_COMMAND_SIG(show_scrollbar){
-    View_Summary view = get_active_view(app, AccessProtected);
+    View_Summary view = get_active_view(app, AccessAll);
     view_set_setting(app, &view, ViewSetting_ShowScrollbar, true);
 }
 
 CUSTOM_COMMAND_SIG(hide_scrollbar){
-    View_Summary view = get_active_view(app, AccessProtected);
+    View_Summary view = get_active_view(app, AccessAll);
     view_set_setting(app, &view, ViewSetting_ShowScrollbar, false);
+}
+
+CUSTOM_COMMAND_SIG(show_file_bar){
+    View_Summary view = get_active_view(app, AccessAll);
+    view_set_setting(app, &view, ViewSetting_ShowFileBar, true);
+}
+
+CUSTOM_COMMAND_SIG(hide_file_bar){
+    View_Summary view = get_active_view(app, AccessAll);
+    view_set_setting(app, &view, ViewSetting_ShowFileBar, false);
 }
 
 //toggle_fullscreen can be used as a command
@@ -833,6 +843,10 @@ CUSTOM_COMMAND_SIG(interactive_new){
 
 CUSTOM_COMMAND_SIG(interactive_open){
     exec_command(app, cmdid_interactive_open);
+}
+
+CUSTOM_COMMAND_SIG(interactive_open_or_new){
+    exec_command(app, cmdid_interactive_open_or_new);
 }
 
 CUSTOM_COMMAND_SIG(save_as){

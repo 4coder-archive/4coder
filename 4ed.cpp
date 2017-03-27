@@ -306,14 +306,17 @@ COMMAND_DECL(redo){
 
 COMMAND_DECL(interactive_new){
     USE_VIEW(view);
-    
     view_show_interactive(system, view, IAct_New, IInt_Sys_File_List, make_lit_string("New: "));
 }
 
 COMMAND_DECL(interactive_open){
     USE_VIEW(view);
-    
     view_show_interactive(system, view, IAct_Open, IInt_Sys_File_List,make_lit_string("Open: "));
+}
+
+COMMAND_DECL(interactive_open_or_new){
+    USE_VIEW(view);
+    view_show_interactive(system, view, IAct_OpenOrNew, IInt_Sys_File_List,make_lit_string("Open: "));
 }
 
 // TODO(allen): Improvements to reopen
@@ -608,6 +611,7 @@ setup_command_table(){
     
     SET(interactive_new);
     SET(interactive_open);
+    SET(interactive_open_or_new);
     SET(interactive_switch_buffer);
     SET(interactive_kill_buffer);
     SET(save_as);

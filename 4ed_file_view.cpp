@@ -107,6 +107,7 @@ enum Interactive_Action{
     IAct_Open,
     IAct_Save_As,
     IAct_New,
+    IAct_OpenOrNew,
     IAct_Switch,
     IAct_Kill,
     IAct_Sure_To_Kill,
@@ -212,6 +213,7 @@ struct View{
     i32 list_i;
     
     b32 hide_scrollbar;
+    b32 hide_file_bar;
     
     // interactive stuff
     Interactive_Interaction interaction;
@@ -1665,7 +1667,7 @@ file_measure_wraps(System_Functions *system, Models *models, Editing_File *file,
                                 potential_wrap.adjust_top_to_this = 0;
                                 
                                 if (buffer_stringify_loop(&stream, params.buffer, i, end_i)){
-                                    b32 still_looping = 1;
+                                    b32 still_looping = true;
                                     
                                     while(still_looping){
                                         for (; i < stream.end; ++i){
@@ -1677,6 +1679,7 @@ file_measure_wraps(System_Functions *system, Models *models, Editing_File *file,
                                             for (TRANSLATION_DECL_EMIT_LOOP(J, emits)){
                                                 TRANSLATION_DECL_GET_STEP(buffer_step, behav, J, emits);
                                                 if (!codepoint_is_whitespace(buffer_step.value)){
+                                                    i = buffer_step.i;
                                                     goto doublebreak_stage_vspace;
                                                 }
                                             }
@@ -3946,9 +3949,7 @@ save_file_by_name(System_Functions *system, Models *models, String name){
 
 internal void
 interactive_begin_sure_to_kill(System_Functions *system, View *view, Editing_File *file){
-    view_show_interactive(system, view,
-                          IAct_Sure_To_Kill, IInt_Sure_To_Kill,
-                          make_lit_string("Are you sure?"));
+    view_show_interactive(system, view, IAct_Sure_To_Kill, IInt_Sure_To_Kill, make_lit_string("Are you sure?"));
     copy_ss(&view->dest, file->name.live_name);
 }
 
@@ -4003,14 +4004,16 @@ interactive_view_complete(System_Functions *system, View *view, String dest, i32
     
     switch (view->action){
         case IAct_Open:
-        view_open_file(system, models, view, dest);
-        view_show_file(view);
-        break;
+        {
+            view_open_file(system, models, view, dest);
+            view_show_file(view);
+        }break;
         
         case IAct_Save_As:
-        view_interactive_save_as(system, models, view->file_data.file, dest);
-        view_show_file(view);
-        break;
+        {
+            view_interactive_save_as(system, models, view->file_data.file, dest);
+            view_show_file(view);
+        }break;
         
         case IAct_New:
         if (dest.size > 0 && !char_is_slash(dest.str[dest.size-1])){
@@ -4020,6 +4023,11 @@ interactive_view_complete(System_Functions *system, View *view, String dest, i32
                 Editing_File *file = view->file_data.file;
                 models->hook_new_file(&models->app_links, file->id.id);
             }
+        }break;
+        
+        case IAct_OpenOrNew:
+        {
+            InvalidCodePath;
         }break;
         
         case IAct_Switch:
@@ -4039,122 +4047,41 @@ interactive_view_complete(System_Functions *system, View *view, String dest, i32
         case IAct_Sure_To_Close:
         switch (user_action){
             case 0:
-            models->keep_playing = 0;
-            break;
+            {
+                models->keep_playing = 0;
+            }break;
             
             case 1:
-            view_show_file(view);
-            break;
+            {
+                view_show_file(view);
+            }break;
             
-            case 2:
-            // TODO(allen): Save all and close.
+            case 2: // TODO(allen): Save all and close.
             break;
-        }
-        break;
+        }break;
         
         case IAct_Sure_To_Kill:
         switch (user_action){
             case 0:
-            kill_file_by_name(system, models, dest);
-            view_show_file(view);
-            break;
+            {
+                kill_file_by_name(system, models, dest);
+                view_show_file(view);
+            }break;
             
             case 1:
-            view_show_file(view);
-            break;
+            {
+                view_show_file(view);
+            }break;
             
             case 2:
-            save_file_by_name(system, models, dest);
-            kill_file_by_name(system, models, dest);
-            view_show_file(view);
-            break;
-        }
-        break;
+            {
+                save_file_by_name(system, models, dest);
+                kill_file_by_name(system, models, dest);
+                view_show_file(view);
+            }break;
+        }break;
     }
 }
-
-#if 0
-internal void
-update_highlighting(View *view){
-    View *file_view = view->hot_file_view;
-    if (!file_view){
-        view->highlight = {};
-        return;
-    }
-    
-    Editing_File *file = file_view->file;
-    if (!file || !file_is_ready(file)){
-        view->highlight = {};
-        return;
-    }
-    
-    Models *models = view->persistent.models;
-    
-    Style *style = &models->style;
-    i32 pos = view_get_cursor_pos(file_view);
-    char c = buffer_get_char(&file->state.buffer, pos);
-    
-    if (c == '\r'){
-        view->highlight.ids[0] =
-            raw_ptr_dif(&style->main.special_character_color, style);
-    }
-    
-    else if (file->state.tokens_complete){
-        Cpp_Token_Stack *tokens = &file->state.token_array;
-        Cpp_Get_Token_Result result = cpp_get_token(tokens, pos);
-        Cpp_Token token = tokens->tokens[result.token_index];
-        if (!result.in_whitespace){
-            u32 *color = style_get_color(style, token);
-            view->highlight.ids[0] = raw_ptr_dif(color, style);
-            if (token.type == CPP_TOKEN_JUNK){
-                view->highlight.ids[1] =
-                    raw_ptr_dif(&style->main.highlight_junk_color, style);
-            }
-            else if (char_is_whitespace(c)){
-                view->highlight.ids[1] =
-                    raw_ptr_dif(&style->main.highlight_white_color, style);
-            }
-            else{
-                view->highlight.ids[1] = 0;
-            }
-        }
-        else{
-            view->highlight.ids[0] = 0;
-            view->highlight.ids[1] =
-                raw_ptr_dif(&style->main.highlight_white_color, style);
-        }
-    }
-    
-    else{
-        if (char_is_whitespace(c)){
-            view->highlight.ids[0] = 0;
-            view->highlight.ids[1] =
-                raw_ptr_dif(&style->main.highlight_white_color, style);
-        }
-        else{
-            view->highlight.ids[0] =
-                raw_ptr_dif(&style->main.default_color, style);
-            view->highlight.ids[1] = 0;
-        }
-    }
-    
-    if (file_view->show_temp_highlight){
-        view->highlight.ids[2] =
-            raw_ptr_dif(&style->main.highlight_color, style);
-        view->highlight.ids[3] =
-            raw_ptr_dif(&style->main.at_highlight_color, style);
-    }
-    else if (file->state.paste_effect.tick_down > 0){
-        view->highlight.ids[2] =
-            raw_ptr_dif(&style->main.paste_color, style);
-        view->highlight.ids[3] = 0;
-    }
-    else{
-        view->highlight.ids[2] = 0;
-        view->highlight.ids[3] = 0;
-    }
-}
-#endif
 
 struct File_Bar{
     f32 pos_x, pos_y;
@@ -4207,15 +4134,14 @@ view_reinit_scrolling(View *view){
 
 internal b32
 file_step(View *view, i32_Rect region, Input_Summary *user_input, b32 is_active, b32 *consumed_l){
-    i32 is_animating = 0;
+    b32 is_animating = false;
     Editing_File *file = view->file_data.file;
     if (file && !file->is_loading){
         if (file->state.paste_effect.seconds_down > 0.f){
             file->state.paste_effect.seconds_down -= user_input->dt;
-            is_animating = 1;
+            is_animating = true;
         }
     }
-    
     return(is_animating);
 }
 
@@ -4642,7 +4568,7 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
     
     gui_begin_top_level(target, input);
     {
-        if (view->showing_ui != VUI_Debug){
+        if (view->showing_ui != VUI_Debug && !view->hide_file_bar){
             gui_do_top_bar(target);
         }
         do_widget(view, target);
@@ -4944,69 +4870,68 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                     switch (view->interaction){
                         case IInt_Sys_File_List:
                         {
-                            b32 autocomplete_with_enter = 1;
-                            b32 activate_directly = 0;
+                            b32 autocomplete_with_enter = true;
+                            b32 activate_directly = false;
                             
                             if (view->action == IAct_Save_As || view->action == IAct_New){
-                                autocomplete_with_enter = 0;
+                                autocomplete_with_enter = false;
                             }
                             
                             String message = null_string;
                             switch (view->action){
+                                case IAct_OpenOrNew:
                                 case IAct_Open: message = make_lit_string("Open: "); break;
                                 case IAct_Save_As: message = make_lit_string("Save As: "); break;
                                 case IAct_New: message = make_lit_string("New: "); break;
                             }
                             
-                            Exhaustive_File_Loop loop;
-                            Exhaustive_File_Info file_info;
-                            
                             GUI_Item_Update update = {0};
                             Hot_Directory *hdir = &models->hot_directory;
                             
-                            {
-                                Single_Line_Input_Step step = {0};
-                                Key_Event_Data key = {0};
-                                i32 i;
+                            b32 do_open_or_new = false;
+                            for (i32 i = 0; i < keys.count; ++i){
+                                Key_Event_Data key = get_single_key(&keys, i);
+                                Single_Line_Input_Step step = app_single_file_input_step(system, &models->working_set, key,
+                                                                                         &hdir->string, hdir, 1, 0);
                                 
-                                for (i = 0; i < keys.count; ++i){
-                                    key = get_single_key(&keys, i);
-                                    step = app_single_file_input_step(system, &models->working_set, key,
-                                                                      &hdir->string, hdir, 1, 0);
-                                    if (step.made_a_change){
-                                        view->list_i = 0;
-                                        result.consume_keys = 1;
+                                if (step.made_a_change){
+                                    view->list_i = 0;
+                                    result.consume_keys = true;
+                                }
+                                
+                                if (key.keycode == '\n'){
+                                    if (!autocomplete_with_enter){
+                                        activate_directly = true;
+                                        result.consume_keys = true;
                                     }
-                                    
-                                    if (!autocomplete_with_enter && key.keycode == '\n'){
-                                        activate_directly = 1;
-                                        result.consume_keys = 1;
+                                    else if (view->action == IAct_OpenOrNew){
+                                        do_open_or_new = true;
+                                        result.consume_keys = true;
                                     }
                                 }
                             }
                             
                             gui_do_text_field(target, message, hdir->string);
                             
-                            b32 snap_into_view = 0;
+                            b32 snap_into_view = false;
                             scroll_context.id[0] = (u64)(hdir);
                             if (gui_scroll_was_activated(target, scroll_context)){
-                                snap_into_view = 1;
+                                snap_into_view = true;
                             }
-                            gui_begin_scrollable(target, scroll_context, view->gui_scroll,
-                                                 9 * view->line_height, show_scrollbar);
+                            gui_begin_scrollable(target, scroll_context, view->gui_scroll, 9 * view->line_height, show_scrollbar);
                             
                             id.id[0] = (u64)(hdir) + 1;
                             
-                            if (gui_begin_list(target, id, view->list_i, 0,
-                                               snap_into_view, &update)){
+                            if (gui_begin_list(target, id, view->list_i, 0, snap_into_view, &update)){
                                 // TODO(allen): Allow me to handle key consumption correctly here!
                                 gui_standard_list(target, id, &view->gui_scroll, view->scroll_region, &keys, &view->list_i, &update, user_up_key, user_down_key);
                             }
                             
                             b32 do_new_directory = false;
+                            Exhaustive_File_Loop loop;
                             begin_exhaustive_loop(&loop, hdir);
                             for (i32 i = 0; i < loop.count; ++i){
-                                file_info = get_exhaustive_info(system, &models->working_set, &loop, i);
+                                Exhaustive_File_Info file_info = get_exhaustive_info(system, &models->working_set, &loop, i);
                                 
                                 if (file_info.name_match){
                                     id.id[0] = (u64)(file_info.info);
@@ -5018,22 +4943,32 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                                     if (gui_do_file_option(target, id, filename, file_info.is_folder, file_info.message)){
                                         if (file_info.is_folder){
                                             set_last_folder_sc(&hdir->string, file_info.info->filename, '/');
-                                            do_new_directory = 1;
+                                            do_new_directory = true;
                                         }
                                         
                                         else if (autocomplete_with_enter){
-                                            complete = 1;
+                                            complete = true;
                                             copy_ss(&comp_dest, loop.full_path);
+                                            if (view->action == IAct_OpenOrNew){
+                                                view->action = IAct_Open;
+                                            }
                                         }
+                                    }
+                                    
+                                    if (do_open_or_new){
+                                        do_open_or_new = false;
                                     }
                                 }
                             }
                             
                             gui_end_list(target);
                             
-                            if (activate_directly){
-                                complete = 1;
+                            if (activate_directly || do_open_or_new){
+                                complete = true;
                                 copy_ss(&comp_dest, hdir->string);
+                                if (do_open_or_new){
+                                    view->action = IAct_New;
+                                }
                             }
                             
                             if (do_new_directory){

@@ -317,7 +317,7 @@ buffer_seek_alphanumeric_right(Application_Links *app, Buffer_Summary *buffer, i
         bool32 still_looping = 1;
         do{
             for (; pos < stream.end; ++pos){
-                if (char_is_alpha_numeric_true(stream.data[pos])){
+                if (char_is_alpha_numeric_true_utf8(stream.data[pos])){
                     goto double_break1;
                 }
             }
@@ -328,7 +328,7 @@ buffer_seek_alphanumeric_right(Application_Links *app, Buffer_Summary *buffer, i
         still_looping = 1;
         do{
             for (; pos < stream.end; ++pos){
-                if (!char_is_alpha_numeric_true(stream.data[pos])){
+                if (!char_is_alpha_numeric_true_utf8(stream.data[pos])){
                     goto double_break2;
                 }
             }
@@ -347,13 +347,12 @@ buffer_seek_alphanumeric_left(Application_Links *app, Buffer_Summary *buffer, in
     
     --pos;
     if (pos > 0){
-        if (init_stream_chunk(&stream, app, buffer,
-                              pos, data_chunk, sizeof(data_chunk))){
+        if (init_stream_chunk(&stream, app, buffer, pos, data_chunk, sizeof(data_chunk))){
             
             bool32 still_looping = 1;
             do{
                 for (; pos >= stream.start; --pos){
-                    if (char_is_alpha_numeric_true(stream.data[pos])){
+                    if (char_is_alpha_numeric_true_utf8(stream.data[pos])){
                         goto double_break1;
                     }
                 }
@@ -364,7 +363,7 @@ buffer_seek_alphanumeric_left(Application_Links *app, Buffer_Summary *buffer, in
             still_looping = 1;
             do{
                 for (; pos >= stream.start; --pos){
-                    if (!char_is_alpha_numeric_true(stream.data[pos])){
+                    if (!char_is_alpha_numeric_true_utf8(stream.data[pos])){
                         ++pos;
                         goto double_break2;
                     }
@@ -389,20 +388,18 @@ buffer_seek_range_camel_right(Application_Links *app, Buffer_Summary *buffer, in
     ++pos;
     if (pos < an_pos){
         stream.max_end = an_pos;
-        if (init_stream_chunk(&stream, app, buffer,
-                              pos, data_chunk, sizeof(data_chunk))){
+        if (init_stream_chunk(&stream, app, buffer, pos, data_chunk, sizeof(data_chunk))){
             
-            char c = 0, pc = stream.data[pos];
+            uint8_t c = 0;
             ++pos;
             
             bool32 still_looping = 1;
             do{
                 for (; pos < stream.end; ++pos){
                     c = stream.data[pos];
-                    if (char_is_upper(c) && char_is_lower(pc)){
+                    if (char_is_upper(c)){
                         goto double_break1;
                     }
-                    pc = c;
                 }
                 still_looping = forward_stream_chunk(&stream);
             }while(still_looping);
@@ -426,16 +423,15 @@ buffer_seek_range_camel_left(Application_Links *app, Buffer_Summary *buffer, int
         stream.min_start = an_pos+1;
         if (init_stream_chunk(&stream, app, buffer, pos, data_chunk, sizeof(data_chunk))){
             
-            char c = 0, pc = stream.data[pos];
+            char c = 0;
             
             bool32 still_looping = 1;
             do{
                 for (; pos >= stream.start; --pos){
                     c = stream.data[pos];
-                    if (char_is_upper(c) && char_is_lower(pc)){
+                    if (char_is_upper(c)){
                         goto double_break1;
                     }
-                    pc = c;
                 }
                 still_looping = backward_stream_chunk(&stream);
             }while(still_looping);

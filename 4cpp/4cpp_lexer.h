@@ -363,7 +363,7 @@ cpp_lex_nonalloc_null_end_no_limit(Cpp_Lex_Data *S_ptr, char *chunk, i32_4tech s
         S.white_done = 0;
         for(;;){
             for (; S.pp_state < LSPP_count && S.pos < end_pos;){
-                c = chunk[S.pos++];
+                c = (u8_4tech)chunk[S.pos++];
                 i32_4tech i = S.pp_state + whitespace_fsm_eq_classes[c];
                 S.pp_state = whitespace_fsm_table[i];
             }
