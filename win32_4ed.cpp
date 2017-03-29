@@ -2032,9 +2032,11 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
     memory_vars.target_memory_size = MB(512);
     memory_vars.target_memory = VirtualAlloc(base, memory_vars.target_memory_size, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
     
-    base = (LPVOID)0;
     memory_vars.user_memory_size = MB(2);
-    memory_vars.user_memory = VirtualAlloc(base, memory_vars.target_memory_size, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
+    memory_vars.user_memory = system_memory_allocate(memory_vars.user_memory_size);
+    
+    memory_vars.debug_memory_size = MB(512);
+    memory_vars.debug_memory = system_memory_allocate(memory_vars.debug_memory_size);
     
     win32vars.target.max = MB(1);
     win32vars.target.push_buffer = (char*)system_memory_allocate(win32vars.target.max);

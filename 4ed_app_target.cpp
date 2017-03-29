@@ -20,6 +20,7 @@
 
 #include "4ed_math.h"
 #include "4ed_system.h"
+#include "4ed_profile.h"
 
 //#define USE_DEBUG_MEMORY
 

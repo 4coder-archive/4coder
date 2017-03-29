@@ -899,6 +899,8 @@ file_update_cursor_positions(System_Functions *system, Models *models, Editing_F
 
 internal void
 file_measure_starts(General_Memory *general, Gap_Buffer *buffer){
+    PRFL_FUNC_GROUP();
+    
     if (!buffer->line_starts){
         i32 max = buffer->line_max = KB(1);
         buffer->line_starts = (i32*)general_memory_allocate(general, max*sizeof(i32));
@@ -1453,6 +1455,8 @@ get_current_shift(Code_Wrap_State *wrap_state, i32 next_line_start){
 
 internal void
 file_measure_wraps(System_Functions *system, Models *models, Editing_File *file, Render_Font *font){
+    PRFL_FUNC_GROUP();
+    
     General_Memory *general = &models->mem.general;
     Partition *part = &models->mem.part;
     
@@ -1509,12 +1513,20 @@ file_measure_wraps(System_Functions *system, Models *models, Editing_File *file,
     i32 potential_count = 0;
     i32 stage = 0;
     
+    PRFL_BEGIN_RESUMABLE(buffer_measure_wrap_y);
+    PRFL_BEGIN_RESUMABLE(NeedWrapDetermination);
+    PRFL_BEGIN_RESUMABLE(NeedLineShift);
+    PRFL_BEGIN_RESUMABLE(LongTokenParsing);
+    
     do{
+        PRFL_START_RESUMABLE(buffer_measure_wrap_y);
         stop = buffer_measure_wrap_y(&state, params, current_line_shift, do_wrap, wrap_unit_end);
+        PRFL_STOP_RESUMABLE(buffer_measure_wrap_y);
         
         switch (stop.status){
             case BLStatus_NeedWrapDetermination:
             {
+                PRFL_START_RESUMABLE(NeedWrapDetermination);
                 if (use_tokens){
                     if (stage == 0){
                         do_wrap = 0;
@@ -1539,7 +1551,7 @@ file_measure_wraps(System_Functions *system, Models *models, Editing_File *file,
                     f32 self_x = 0;
                     i32 wrap_end_result = size;
                     if (buffer_stringify_loop(&stream, params.buffer, i, size)){
-                        b32 still_looping = 0;
+                        b32 still_looping = false;
                         do{
                             for (; i < stream.end; ++i){
                                 {
@@ -1594,11 +1606,13 @@ file_measure_wraps(System_Functions *system, Models *models, Editing_File *file,
                         do_wrap = 0;
                     }
                 }
+                PRFL_STOP_RESUMABLE(NeedWrapDetermination);
             }break;
             
             case BLStatus_NeedWrapLineShift:
             case BLStatus_NeedLineShift:
             {
+                PRFL_START_RESUMABLE(NeedLineShift);
                 f32 current_width = width;
                 
                 if (use_tokens){
@@ -1636,8 +1650,8 @@ file_measure_wraps(System_Functions *system, Models *models, Editing_File *file,
                             b32 emit_comment_position = 0;
                             b32 first_word = 1;
                             
-                            if (wrap_state.token_ptr->type == CPP_TOKEN_COMMENT || 
-                                wrap_state.token_ptr->type == CPP_TOKEN_STRING_CONSTANT){
+                            if (wrap_state.token_ptr->type == CPP_TOKEN_COMMENT || wrap_state.token_ptr->type == CPP_TOKEN_STRING_CONSTANT){
+                                PRFL_START_RESUMABLE(LongTokenParsing);
                                 i32 i = wrap_state.token_ptr->start;
                                 i32 end_i = i + wrap_state.token_ptr->size;
                                 
@@ -1758,6 +1772,8 @@ file_measure_wraps(System_Functions *system, Models *models, Editing_File *file,
                                     potential_marks[potential_count] = potential_wrap;
                                     ++potential_count;
                                 }
+                                
+                                PRFL_STOP_RESUMABLE(LongTokenParsing);
                             }
                             
                             if (!emit_comment_position){
@@ -1928,9 +1944,16 @@ file_measure_wraps(System_Functions *system, Models *models, Editing_File *file,
                 
                 file->state.line_indents[stop.wrap_line_index] = current_line_shift;
                 file->state.wrap_line_count = stop.wrap_line_index;
+                
+                PRFL_STOP_RESUMABLE(NeedLineShift);
             }break;
         }
     }while(stop.status != BLStatus_Finished);
+    
+    PRFL_END_RESUMABLE(buffer_measure_wrap_y);
+    PRFL_END_RESUMABLE(NeedWrapDetermination);
+    PRFL_END_RESUMABLE(NeedLineShift);
+    PRFL_END_RESUMABLE(LongTokenParsing);
     
     ++file->state.wrap_line_count;
     
@@ -1939,12 +1962,23 @@ file_measure_wraps(System_Functions *system, Models *models, Editing_File *file,
     file->state.wrap_position_count = wrap_position_index;
     
     end_temp_memory(temp);
+    
+    if (file->state.hacks.needs_wraps_and_fix_cursor){
+        file->state.hacks.needs_wraps_and_fix_cursor = false;
+        file_update_cursor_positions(system, models, file);
+    }
 }
 
 internal void
 file_measure_wraps_and_fix_cursor(System_Functions *system, Models *models, Editing_File *file, Render_Font *font){
-    file_measure_wraps(system, models, file, font);
-    file_update_cursor_positions(system, models, file);
+    if (file->state.hacks.suppression_mode){
+        file->state.hacks.needs_wraps_and_fix_cursor = true;
+    }
+    else{
+        file->state.hacks.needs_wraps_and_fix_cursor = false;
+        file_measure_wraps(system, models, file, font);
+        file_update_cursor_positions(system, models, file);
+    }
 }
 
 internal void
@@ -1965,6 +1999,7 @@ file_set_min_base_width(System_Functions *system, Models *models, Editing_File *
 
 internal void
 file_create_from_string(System_Functions *system, Models *models, Editing_File *file, String val, b8 read_only = 0){
+    PRFL_FUNC_GROUP();
     
     General_Memory *general = &models->mem.general;
     Partition *part = &models->mem.part;
@@ -1997,12 +2032,15 @@ file_create_from_string(System_Functions *system, Models *models, Editing_File *
     file->settings.font_id = font_id;
     Render_Font *font = system->font.get_render_data_by_id(font_id);
     
-    file_measure_starts(general, &file->state.buffer);
-    
-    file_allocate_character_starts_as_needed(general, file);
-    buffer_measure_character_starts(system, font, &file->state.buffer, file->state.character_starts, 0, file->settings.virtual_white);
-    
-    file_measure_wraps(system, models, file, font);
+    {
+        PRFL_SCOPE_GROUP(measurements);
+        file_measure_starts(general, &file->state.buffer);
+        
+        file_allocate_character_starts_as_needed(general, file);
+        buffer_measure_character_starts(system, font, &file->state.buffer, file->state.character_starts, 0, file->settings.virtual_white);
+        
+        file_measure_wraps(system, models, file, font);
+    }
     
     file->settings.read_only = read_only;
     if (!read_only){
@@ -2034,7 +2072,13 @@ file_create_from_string(System_Functions *system, Models *models, Editing_File *
     }
     
     if (hook_open_file){
+        PRFL_SCOPE_GROUP(open_hook);
+        file->state.hacks.suppression_mode = true;
         hook_open_file(app_links, file->id.id);
+        file->state.hacks.suppression_mode = false;
+        if (file->state.hacks.needs_wraps_and_fix_cursor){
+            file_measure_wraps_and_fix_cursor(system, models, file, font);
+        }
     }
     file->settings.is_initialized = true;
 }
@@ -3218,9 +3262,7 @@ file_edit_cursor_fix(System_Functions *system, Models *models, Editing_File *fil
                     scroll.scroll_y = y_position;
                 }
                 
-                view_set_cursor_and_scroll(view, new_cursor,
-                                           1, view->file_data.file->settings.unwrapped_lines,
-                                           scroll);
+                view_set_cursor_and_scroll(view, new_cursor, 1, view->file_data.file->settings.unwrapped_lines, scroll);
             }
         }
         
@@ -3319,8 +3361,7 @@ file_do_single_edit(System_Functions *system, Models *models, Editing_File *file
 }
 
 internal void
-file_do_batch_edit(System_Functions *system, Models *models, Editing_File *file,
-                   Edit_Spec spec, History_Mode history_mode, i32 batch_type){
+file_do_batch_edit(System_Functions *system, Models *models, Editing_File *file, Edit_Spec spec, History_Mode history_mode, i32 batch_type){
     
     Mem_Options *mem = &models->mem;
     General_Memory *general = &mem->general;
@@ -3771,6 +3812,8 @@ make_string_terminated(Partition *part, char *str, i32 len){
 
 internal void
 init_normal_file(System_Functions *system, Models *models, Editing_File *file, char *buffer, i32 size){
+    PRFL_FUNC_GROUP();
+    
     String val = make_string(buffer, size);
     file_create_from_string(system, models, file, val);
     

@@ -606,6 +606,8 @@ range is not within the bounds of the buffer.
 )
 DOC_SEE(4coder_Buffer_Positioning_System)
 */{
+    PRFL_FUNC_GROUP();
+    
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     Editing_File *file = imp_get_file(cmd, buffer);
     
@@ -1114,6 +1116,8 @@ DOC_RETURN(returns a summary of the newly created buffer or of the existing buff
 
 DOC_SEE(begin_buffer_creation)
 */{
+    PRFL_FUNC_GROUP();
+    
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     System_Functions *system = cmd->system;
     Models *models = cmd->models;
