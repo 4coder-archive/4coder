@@ -684,14 +684,14 @@ list_all_locations_of_identifier_parameters(Application_Links *app, bool32 subst
     bool32 success = buffer_get_token_index(app, &buffer, view.cursor.pos, &get_result);
     
     if (success && !get_result.in_whitespace){
-        char space[128];
+        char space[256];
         int32_t size = get_result.token_end - get_result.token_start;
         
         if (size > 0 && size <= sizeof(space)){
             success = buffer_read_range(app, &buffer, get_result.token_start, get_result.token_end, space);
             if (success){
                 String str = make_string(space, size);
-                exec_command(app, change_active_panel);
+                change_active_panel(app);
                 
                 uint32_t flags = 0;
                 if (substrings){

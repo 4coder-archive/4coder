@@ -562,13 +562,11 @@ STRUCT Buffer_Edit{
 DOC_SEE(Access_Flag)
 DOC_SEE(Dirty_State) */
 STRUCT Buffer_Summary{
-    /* DOC(This field indicates whether the Buffer_Summary describes a buffer that is open in 4coder.
-    When this field is false the summary is referred to as a "null summary".) */
+    /* DOC(This field indicates whether the Buffer_Summary describes a buffer that is open in 4coder. When this field is false the summary is referred to as a "null summary".) */
     bool32 exists;
     /* DOC(If this is not a null summary, this field indicates whether the buffer has finished loading.) */
     bool32 ready;
-    /* DOC(If this is not a null summary this field is the id of the associated buffer.
-    If this is a null summary then buffer_id is 0.) */
+    /* DOC(If this is not a null summary this field is the id of the associated buffer. If this is a null summary then buffer_id is 0.) */
     int32_t buffer_id;
     /*DOC(If this is not a null summary, this field contains flags describing the protection status of the buffer.)*/
     Access_Flag lock_flags;
@@ -593,10 +591,7 @@ STRUCT Buffer_Summary{
     
     /* DOC(If this is not a null summary, this field indicates whether the buffer is set to lex tokens.) */
     bool32 is_lexed;
-    /* DOC(If this is not a null summary, this field indicates whether the buffer has up to date tokens available.
-    If this field is false, it may simply mean the tokens are still being generated in a background task and will
-    be available later.  If that is the case, is_lexed will be true to indicate that the buffer is trying to get
-    it's tokens up to date.) */
+    /* DOC(If this is not a null summary, this field indicates whether the buffer has up to date tokens available. If this field is false, it may simply mean the tokens are still being generated in a background task and will be available later.  If that is the case, is_lexed will be true to indicate that the buffer is trying to get it's tokens up to date.) */
     bool32 tokens_are_ready;
     /* DOC(If this is not a null summary, this field specifies the id of the command map for this buffer.) */
     int32_t map_id;

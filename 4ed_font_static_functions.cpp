@@ -11,6 +11,22 @@
 
 #include "4ed_font_data.h"
 
+internal u32
+font_get_id_by_name(System_Functions *system, String name){
+    u32 id = 0;
+    u32 count = system->font.get_count();
+    for (u32 index = 0; index < count; ++index){
+        char str[256];
+        u32 str_len = system->font.get_name_by_index(index, str, sizeof(str));
+        String font_name = make_string(str, str_len);
+        if (match_ss(font_name, name)){
+            system->font.get_ids_by_index(index, 1, &id);
+            break;
+        }
+    }
+    return(id);
+}
+
 internal f32
 font_get_byte_advance(Render_Font *font){
     return(font->byte_advance);

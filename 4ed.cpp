@@ -275,7 +275,7 @@ panel_make_empty(System_Functions *system, App_Vars *vars, Panel *panel){
     Assert(panel->view == 0);
     new_view = live_set_alloc_view(&vars->live_set, panel, models);
     view_set_file(system, new_view.view, models->scratch_buffer, models);
-    new_view.view->map = get_map(models, mapid_file);
+    new_view.view->map = get_map(models, models->scratch_buffer->settings.base_map_id);
     
     return(new_view.view);
 }
@@ -965,7 +965,7 @@ enum Command_Line_Action{
     CLAct_WindowFullscreen,
     CLAct_WindowStreamMode,
     CLAct_FontSize,
-    CLAct_FontStartHinting,
+    CLAct_FontUseHinting,
     CLAct_Count
 };
 
@@ -1010,9 +1010,6 @@ init_command_line_settings(App_Settings *settings, Plat_Settings *plat_settings,
                         if (arg[0] == '-'){
                             action = CLAct_Ignore;
                             switch (arg[1]){
-                                case 'u': action = CLAct_UserFile; strict = 0;          break;
-                                case 'U': action = CLAct_UserFile; strict = 1;          break;
-                                
                                 case 'd': action = CLAct_CustomDLL; strict = 0;         break;
                                 case 'D': action = CLAct_CustomDLL; strict = 1;         break;
                                 
@@ -1025,7 +1022,7 @@ init_command_line_settings(App_Settings *settings, Plat_Settings *plat_settings,
                                 case 'S': action = CLAct_WindowStreamMode;              break;
                                 
                                 case 'f': action = CLAct_FontSize;                      break;
-                                case 'h': action = CLAct_FontStartHinting; --i;         break;
+                                case 'h': action = CLAct_FontUseHinting; --i;         break;
                             }
                         }
                         else if (arg[0] != 0){
@@ -1036,18 +1033,9 @@ init_command_line_settings(App_Settings *settings, Plat_Settings *plat_settings,
                         }
                     }break;
                     
-                    case CLAct_UserFile:
-                    {
-                        settings->user_file_is_strict = strict;
-                        if (i < clparams.argc){
-                            settings->user_file = clparams.argv[i];
-                        }
-                        action = CLAct_Nothing;
-                    }break;
-                    
                     case CLAct_CustomDLL:
                     {
-                        plat_settings->custom_dll_is_strict = strict;
+                        plat_settings->custom_dll_is_strict = (b8)strict;
                         if (i < clparams.argc){
                             plat_settings->custom_dll = clparams.argv[i];
                         }
@@ -1065,7 +1053,7 @@ init_command_line_settings(App_Settings *settings, Plat_Settings *plat_settings,
                     case CLAct_WindowSize:
                     {
                         if (i + 1 < clparams.argc){
-                            plat_settings->set_window_size = 1;
+                            plat_settings->set_window_size = true;
                             plat_settings->window_w = str_to_int_c(clparams.argv[i]);
                             plat_settings->window_h = str_to_int_c(clparams.argv[i+1]);
                             
@@ -1077,14 +1065,14 @@ init_command_line_settings(App_Settings *settings, Plat_Settings *plat_settings,
                     case CLAct_WindowMaximize:
                     {
                         --i;
-                        plat_settings->maximize_window = 1;
+                        plat_settings->maximize_window = true;
                         action = CLAct_Nothing;
                     }break;
                     
                     case CLAct_WindowPosition:
                     {
                         if (i + 1 < clparams.argc){
-                            plat_settings->set_window_pos = 1;
+                            plat_settings->set_window_pos = true;
                             plat_settings->window_x = str_to_int_c(clparams.argv[i]);
                             plat_settings->window_y = str_to_int_c(clparams.argv[i+1]);
                             
@@ -1096,29 +1084,29 @@ init_command_line_settings(App_Settings *settings, Plat_Settings *plat_settings,
                     case CLAct_WindowFullscreen:
                     {
                         --i;
-                        plat_settings->fullscreen_window = 1;
-                        plat_settings->stream_mode = 1;
+                        plat_settings->fullscreen_window = true;
+                        plat_settings->stream_mode = true;
                         action = CLAct_Nothing;
                     }break;
                     
                     case CLAct_WindowStreamMode:
                     {
                         --i;
-                        plat_settings->stream_mode = 1;
+                        plat_settings->stream_mode = true;
                         action = CLAct_Nothing;
                     }break;
                     
                     case CLAct_FontSize:
                     {
                         if (i < clparams.argc){
-                            settings->font_size = str_to_int_c(clparams.argv[i]);
+                            plat_settings->font_size = str_to_int_c(clparams.argv[i]);
                         }
                         action = CLAct_Nothing;
                     }break;
                     
-                    case CLAct_FontStartHinting:
+                    case CLAct_FontUseHinting:
                     {
-                        plat_settings->use_hinting = 1;
+                        plat_settings->use_hinting = true;
                         action = CLAct_Nothing;
                     }break;
                 }
@@ -1155,7 +1143,7 @@ App_Read_Command_Line_Sig(app_read_command_line){
     App_Settings *settings = &vars->models.settings;
     
     *settings = null_app_settings;
-    settings->font_size = 16;
+    plat_settings->font_size = 16;
     
     if (clparams.argc > 1){
         init_command_line_settings(&vars->models.settings, plat_settings, clparams);
@@ -1480,7 +1468,7 @@ App_Init_Sig(app_init){
     struct File_Init{
         String name;
         Editing_File **ptr;
-        i32 type;
+        b32 read_only;
     };
     
     File_Init init_files[] = {
@@ -1492,16 +1480,11 @@ App_Init_Sig(app_init){
         Editing_File *file = working_set_alloc_always(&models->working_set, general);
         buffer_bind_name(general, &models->working_set, file, init_files[i].name);
         
-        switch (init_files[i].type){
-            case 0:
-            {
-                init_normal_file(system, models, file, 0, 0);
-            }break;
-            
-            case 1:
-            {
-                init_read_only_file(system, models, file);
-            }break;
+        if (init_files[i].read_only){
+            init_read_only_file(system, models, file);
+        }
+        else{
+            init_normal_file(system, models, file, 0, 0);
         }
         
         file->settings.never_kill = true;

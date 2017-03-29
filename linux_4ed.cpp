@@ -3162,7 +3162,7 @@ main(int argc, char **argv)
     // Font System Init
     //
     
-    system_font_init(&linuxvars.system.font, 0, 0, 16, true);
+    system_font_init(&linuxvars.system.font, 0, 0, linuxvars.settings.font_size, linuxvars.settings.use_hinting);
     
     //
     // Epoll init

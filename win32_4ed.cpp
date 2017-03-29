@@ -2197,7 +2197,7 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
     // Font System Init
     //
     
-    system_font_init(&win32vars.system.font, 0, 0, 16, true);
+    system_font_init(&win32vars.system.font, 0, 0, win32vars.settings.font_size, win32vars.settings.use_hinting);
     
     //
     // Misc System Initializations

@@ -900,13 +900,7 @@ DOC_SEE(Buffer_Setting_ID)
             
             case BufferSetting_MapID:
             {
-                if (value == mapid_global){
-                    file->settings.base_map_id = mapid_global;
-                }
-                else if (value == mapid_file){
-                    file->settings.base_map_id = mapid_file;
-                }
-                else if (value < mapid_global){
+                if (value < mapid_global){
                     new_mapid = get_map_index(models, value);
                     if (new_mapid  < models->user_map_count){
                         file->settings.base_map_id = value;
@@ -914,6 +908,9 @@ DOC_SEE(Buffer_Setting_ID)
                     else{
                         file->settings.base_map_id = mapid_file;
                     }
+                }
+                else if (value <= mapid_nomap){
+                    file->settings.base_map_id = value;
                 }
                 
                 for (View_Iter iter = file_view_iter_init(&models->layout, file, 0);
@@ -2076,11 +2073,9 @@ DOC(This call changes 4coder's color pallet to one of the built in themes.)
     Style_Library *styles = &cmd->models->styles;
     String theme_name = make_string(name, len);
     
-    i32 i = 0;
     i32 count = styles->count;
     Style *s = styles->styles;
-    
-    for (i = 0; i < count; ++i, ++s){
+    for (i32 i = 0; i < count; ++i, ++s){
         if (match_ss(s->name, theme_name)){
             style_copy(main_style(cmd->models), s);
             break;
@@ -2093,29 +2088,22 @@ Change_Font(Application_Links *app, char *name, int32_t len, bool32 apply_to_all
 /*
 DOC_PARAM(name, The name parameter specifies the name of the font to begin using; it need not be null terminated.)
 DOC_PARAM(len, The len parameter specifies the length of the name string.)
-DOC_PARAM(apply_to_all_files, If this is set all open files change to this font.  Usually this should be true
-durring the start hook because several files already exist at that time.)
+DOC_PARAM(apply_to_all_files, If this is set all open files change to this font.  Usually this should be true durring the start hook because several files already exist at that time.)
 DOC(This call changes 4coder's default font to one of the built in fonts.)
 */{
-    
-#if 0
     Command_Data *cmd = (Command_Data*)app->cmd_context;
-    Font_Set *set = cmd->models->font_set;
+    Models *models = cmd->models;
+    System_Functions *system = cmd->system;
     
-    Style_Font *global_font = &cmd->models->global_font;
     String font_name = make_string(name, len);
-    i16 font_id = 0;
+    Font_ID font_id = font_get_id_by_name(system, font_name);
     
-    if (font_set_extract(set, font_name, &font_id)){
-        if (apply_to_all_files){
-            global_set_font(cmd->models, font_id);
-        }
-        else{
-            global_font->font_id = font_id;
-        }
+    if (apply_to_all_files){
+        global_set_font(system, models, font_id);
     }
-#endif
-    
+    else{
+        models->global_font_id = font_id;
+    }
 }
 
 API_EXPORT void
@@ -2127,22 +2115,16 @@ DOC_PARAM(len, The len parameter specifies the length of the name string.)
 DOC(This call sets the display font of a particular buffer.)
 */{
     
-#if 0
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     Models *models = cmd->models;
+    System_Functions *system = cmd->system;
     Editing_File *file = imp_get_file(cmd, buffer);
     
-    if (file){
-        Font_Set *set = models->font_set;
+    if (file != 0){
         String font_name = make_string(name, len);
-        i16 font_id = 0;
-        
-        if (font_set_extract(set, font_name, &font_id)){
-            file_set_font(models, file, font_id);
-        }
+        Font_ID font_id = font_get_id_by_name(system, font_name);
+        file_set_font(system, models, file, font_id);
     }
-#endif
-    
 }
 
 API_EXPORT bool32
@@ -2152,23 +2134,21 @@ DOC_PARAM(buffer, the buffer from which to get the font name)
 DOC_PARAM(name_out, a character array in which to write the name of the font)
 DOC_PARAM(name_max, the capacity of name_out)
 DOC_RETURN(returns non-zero on success)
-*/
-{
-    bool32 result = false;
-    
-#if 0
+*/{
     Command_Data *cmd = (Command_Data*)app->cmd_context;
-    Models *models = cmd->models;
+    System_Functions *system = cmd->system;
     Editing_File *file = imp_get_file(cmd, buffer);
     
-    if (file){
-        Font_Set *set = models->font_set;
+    bool32 result = false;
+    
+    if (file != 0){
         String name = make_string_cap(name_out, 0, name_max);
-        if (font_set_get_name(set, file->settings.font_id, &name)){
-            result = (name.size > 0);
+        Font_ID font_id = file->settings.font_id;
+        name.size = system->font.get_name_by_id(font_id, name_out, name_max);
+        if (name.size > 0){
+            result = true;
         }
     }
-#endif
     
     return(result);
 }
@@ -2178,8 +2158,7 @@ Set_Theme_Colors(Application_Links *app, Theme_Color *colors, int32_t count)
 /*
 DOC_PARAM(colors, The colors pointer provides an array of color structs pairing differet style tags to color codes.)
 DOC_PARAM(count, The count parameter specifies the number of Theme_Color structs in the colors array.)
-DOC(
-For each struct in the array, the slot in the main color pallet specified by the struct's tag is set to the color code in the struct. If the tag value is invalid no change is made to the color pallet.)
+DOC(For each struct in the array, the slot in the main color pallet specified by the struct's tag is set to the color code in the struct. If the tag value is invalid no change is made to the color pallet.)
 DOC_SEE(Theme_Color)
 */{
     Command_Data *cmd = (Command_Data*)app->cmd_context;

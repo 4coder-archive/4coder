@@ -20,16 +20,16 @@ struct Glyph_Page;
 #define Sys_Font_Get_Count_Sig(name_) u32 (name_)(void)
 typedef Sys_Font_Get_Count_Sig(Font_Get_Count_Function);
 
-#define Sys_Font_Get_IDs_By_Index_Sig(name_) b32 (name_)(u32 first_index, u32 index_count, u32 *id_out)
+#define Sys_Font_Get_IDs_By_Index_Sig(name_) b32 (name_)(Font_ID first_index, u32 index_count, u32 *id_out)
 typedef Sys_Font_Get_IDs_By_Index_Sig(Font_Get_IDs_By_Index_Function);
 
 #define Sys_Font_Get_Name_By_Index_Sig(name_) u32 (name_)(u32 font_index, char *str_out, u32 str_out_cap)
 typedef Sys_Font_Get_Name_By_Index_Sig(Font_Get_Name_By_Index_Function);
 
-#define Sys_Font_Get_Name_By_ID_Sig(name_) u32 (name_)(u32 font_id, char *str_out, u32 str_out_cap)
+#define Sys_Font_Get_Name_By_ID_Sig(name_) u32 (name_)(Font_ID font_id, char *str_out, u32 str_out_cap)
 typedef Sys_Font_Get_Name_By_ID_Sig(Font_Get_Name_By_ID_Function);
 
-#define Sys_Font_Get_Render_Data_By_ID_Sig(name_) Render_Font* (name_)(u32 font_id)
+#define Sys_Font_Get_Render_Data_By_ID_Sig(name_) Render_Font* (name_)(Font_ID font_id)
 typedef Sys_Font_Get_Render_Data_By_ID_Sig(Font_Get_Render_Data_By_ID_Function);
 
 #define Sys_Font_Load_Page_Sig(name_) void (name_)(Render_Font *font, Glyph_Page *page, u32 page_number)
@@ -52,6 +52,8 @@ struct Font_Functions{
     Font_Allocate_Function *allocate;
     Font_Free_Function *free;
 };
+
+internal u32 font_get_id_by_name(struct System_Functions *system, String name);
 
 internal f32 font_get_byte_advance(Render_Font *font);
 internal f32*font_get_byte_sub_advances(Render_Font *font);

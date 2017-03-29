@@ -49,11 +49,10 @@ buffer_boundary_seek(Application_Links *app, Buffer_Summary *buffer, int32_t sta
 }
 
 static void
-basic_seek(Application_Links *app, int32_t seek_type, uint32_t flags){
-    uint32_t access = AccessProtected;
-    View_Summary view = get_active_view(app, access);
-    Buffer_Summary buffer = get_buffer(app, view.buffer_id, access);
-    int32_t pos = buffer_boundary_seek(app, &buffer, view.cursor.pos, seek_type, flags);
+basic_seek(Application_Links *app, bool32 seek_forward, uint32_t flags){
+    View_Summary view = get_active_view(app, AccessProtected);
+    Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessProtected);
+    int32_t pos = buffer_boundary_seek(app, &buffer, view.cursor.pos, seek_forward, flags);
     view_set_cursor(app, &view, seek_pos(pos), true);
 }
 

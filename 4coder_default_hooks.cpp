@@ -75,12 +75,11 @@ OPEN_FILE_HOOK_SIG(default_file_settings){
     // NOTE(allen|a4.0.8): The get_parameter_buffer was eliminated
     // and instead the buffer is passed as an explicit parameter through
     // the function call.  That is where buffer_id comes from here.
-    uint32_t access = AccessAll;
-    Buffer_Summary buffer = get_buffer(app, buffer_id, access);
+    Buffer_Summary buffer = get_buffer(app, buffer_id, AccessAll);
     Assert(buffer.exists);
     
-    int32_t treat_as_code = false;
-    int32_t wrap_lines = true;
+    bool32 treat_as_code = false;
+    bool32 wrap_lines = true;
     
     int32_t extension_count = 0;
     char **extension_list = get_current_code_extensions(&extension_count);
@@ -102,9 +101,11 @@ OPEN_FILE_HOOK_SIG(default_file_settings){
         wrap_lines = false;
     }
     
+    int32_t map_id = (treat_as_code)?((int32_t)default_code_map):((int32_t)mapid_file);
+    
     buffer_set_setting(app, &buffer, BufferSetting_WrapPosition, default_wrap_width);
     buffer_set_setting(app, &buffer, BufferSetting_MinimumBaseWrapPosition, default_min_base_width);
-    buffer_set_setting(app, &buffer, BufferSetting_MapID, (treat_as_code)?((int32_t)default_code_map):((int32_t)mapid_file));
+    buffer_set_setting(app, &buffer, BufferSetting_MapID, map_id);
     
     if (treat_as_code && enable_code_wrapping && buffer.size < (1 << 18)){
         // NOTE(allen|a4.0.12): There is a little bit of grossness going on here.

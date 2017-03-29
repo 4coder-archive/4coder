@@ -36,6 +36,12 @@ static General_Memory global_general;
 // Jump Buffer Locking
 //
 
+#if !defined(AUTO_CENTER_AFTER_JUMPS)
+static bool32 auto_center_after_jumps = true;
+#else
+static bool32 auto_center_after_jumps = AUTO_CENTER_AFTER_JUMPS;
+#endif
+
 static char locked_buffer_space[256];
 static String locked_buffer = make_fixed_width_string(locked_buffer_space);
 
@@ -361,9 +367,9 @@ read_config_line(Cpp_Token_Array array, int32_t *i_ptr){
         if (i < array.count){
             Cpp_Token token = read_config_token(array, &i);
             
-            bool32 subscript_success = 1;
+            bool32 subscript_success = true;
             if (token.type == CPP_TOKEN_BRACKET_OPEN){
-                subscript_success = 0;
+                subscript_success = false;
                 ++i;
                 if (i < array.count){
                     config_line.subscript_token = read_config_token(array, &i);
@@ -375,7 +381,7 @@ read_config_line(Cpp_Token_Array array, int32_t *i_ptr){
                                 ++i;
                                 if (i < array.count){
                                     token = read_config_token(array, &i);
-                                    subscript_success = 1;
+                                    subscript_success = true;
                                 }
                             }
                         }
@@ -390,9 +396,9 @@ read_config_line(Cpp_Token_Array array, int32_t *i_ptr){
                     if (i < array.count){
                         Cpp_Token val_token = read_config_token(array, &i);
                         
-                        bool32 array_success = 1;
+                        bool32 array_success = true;
                         if (val_token.type == CPP_TOKEN_BRACE_OPEN){
-                            array_success = 0;
+                            array_success = false;
                             ++i;
                             if (i < array.count){
                                 config_line.val_array_start = i;
@@ -405,13 +411,13 @@ read_config_line(Cpp_Token_Array array, int32_t *i_ptr){
                                     }
                                     if (array_token.type == CPP_TOKEN_BRACE_CLOSE){
                                         config_line.val_array_end = i;
-                                        array_success = 1;
+                                        array_success = true;
                                         break;
                                     }
                                     else{
                                         if (array_token.type == CPP_TOKEN_COMMA){
                                             if (!expecting_array_item){
-                                                expecting_array_item = 1;
+                                                expecting_array_item = true;
                                             }
                                             else{
                                                 break;
@@ -419,7 +425,7 @@ read_config_line(Cpp_Token_Array array, int32_t *i_ptr){
                                         }
                                         else{
                                             if (expecting_array_item){
-                                                expecting_array_item = 0;
+                                                expecting_array_item = false;
                                                 ++config_line.val_array_count;
                                             }
                                         }

@@ -10,17 +10,12 @@
 // TOP
 
 struct App_Settings{
-    char *user_file;
-    b32 user_file_is_strict;
-    
     char *init_files[8];
     i32 init_files_count;
     i32 init_files_max;
     
     i32 initial_line;
     b32 lctrl_lalt_is_altgr;
-    
-    i32 font_size;
     
     char *custom_font_file;
     char *custom_font_name;

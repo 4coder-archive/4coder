@@ -71,7 +71,7 @@ Sys_Font_Get_Render_Data_By_ID_Sig(system_font_get_render_data_by_id){
 
 internal
 Sys_Font_Load_Page_Sig(system_font_load_page){
-    system_set_page(&linuxvars.system, &linux_fonts.part, font, page, page_number, 16, true);
+    system_set_page(&linuxvars.system, &linux_fonts.part, font, page, page_number, linuxvars.settings.font_size, linuxvars.settings.use_hinting);
 }
 
 internal

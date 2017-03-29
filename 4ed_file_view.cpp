@@ -1966,7 +1966,6 @@ file_set_min_base_width(System_Functions *system, Models *models, Editing_File *
 internal void
 file_create_from_string(System_Functions *system, Models *models, Editing_File *file, String val, b8 read_only = 0){
     
-    //Font_Set *font_set = models->font_set;
     General_Memory *general = &models->mem.general;
     Partition *part = &models->mem.part;
     Open_File_Hook_Function *hook_open_file = models->hook_open_file;
@@ -2037,7 +2036,7 @@ file_create_from_string(System_Functions *system, Models *models, Editing_File *
     if (hook_open_file){
         hook_open_file(app_links, file->id.id);
     }
-    file->settings.is_initialized = 1;
+    file->settings.is_initialized = true;
 }
 
 internal void
@@ -5437,9 +5436,7 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                                     SHOW_GUI_BLANK(0);
                                     {
                                         Command_Map *map = view_ptr->map;
-                                        
 #define MAP_LABEL "command map"
-                                        
                                         if (map == &models->map_top){
                                             SHOW_GUI_STRING(1, h_align, MAP_LABEL, "global");
                                         }
@@ -5449,10 +5446,12 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                                         else if (map == &models->map_ui){
                                             SHOW_GUI_STRING(1, h_align, MAP_LABEL, "gui");
                                         }
-                                        else{
+                                        else if (map == 0){
+                                            SHOW_GUI_STRING(1, h_align, MAP_LABEL, "nomap");
+                                        }
+                                        else if (map >= models->user_maps){
                                             i32 map_index = (i32)(view_ptr->map - models->user_maps);
                                             i32 map_id = models->map_id_table[map_index];
-                                            
                                             SHOW_GUI_STRING(1, h_align, MAP_LABEL, "user");
                                             SHOW_GUI_INT(2, h_align, "custom map id", map_id);
                                         }

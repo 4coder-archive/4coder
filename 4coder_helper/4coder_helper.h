@@ -22,29 +22,6 @@ exec_command(Application_Links *app, Generic_Command cmd){
     }
 }
 
-static View_Summary
-get_first_view_with_buffer(Application_Links *app, int32_t buffer_id){
-    View_Summary result = {};
-    View_Summary test = {};
-    
-    if (buffer_id != 0){
-        uint32_t access = AccessAll;
-        for(test = get_view_first(app, access);
-            test.exists;
-            get_view_next(app, &test, access)){
-            
-            Buffer_Summary buffer = get_buffer(app, test.buffer_id, access);
-            
-            if(buffer.buffer_id == buffer_id){
-                result = test;
-                break;
-            }
-        }
-    }
-    
-    return(result);
-}
-
 static int32_t
 key_is_unmodified(Key_Event_Data *key){
     char *mods = key->modifiers;
@@ -69,10 +46,9 @@ to_writable_char(Key_Code long_character){
     return(character);
 }
 
-static int32_t
+static bool32
 query_user_general(Application_Links *app, Query_Bar *bar, bool32 force_number){
-    User_Input in;
-    int32_t success = 1;
+    bool32 success = true;
     
     // NOTE(allen|a3.4.4): It will not cause an *error* if we continue on after failing to.
     // start a query bar, but it will be unusual behavior from the point of view of the
@@ -86,12 +62,12 @@ query_user_general(Application_Links *app, Query_Bar *bar, bool32 force_number){
         // types specified in the flags.  The first set of flags are inputs you'd like to intercept
         // that you don't want to abort on.  The second set are inputs that you'd like to cause
         // the command to abort.  If an event satisfies both flags, it is treated as an abort.
-        in = get_user_input(app, EventOnAnyKey, EventOnEsc | EventOnButton);
+        User_Input in = get_user_input(app, EventOnAnyKey, EventOnEsc | EventOnButton);
         
         // NOTE(allen|a3.4.4): The responsible thing to do on abort is to end the command
         // without waiting on get_user_input again.
         if (in.abort){
-            success = 0;
+            success = false;
             break;
         }
         
@@ -276,13 +252,38 @@ get_line_x_rect(View_Summary *view){
     return(rect);
 }
 
+static View_Summary
+get_first_view_with_buffer(Application_Links *app, int32_t buffer_id){
+    View_Summary result = {0};
+    View_Summary test = {0};
+    
+    if (buffer_id != 0){
+        uint32_t access = AccessAll;
+        for(test = get_view_first(app, access);
+            test.exists;
+            get_view_next(app, &test, access)){
+            
+            Buffer_Summary buffer = get_buffer(app, test.buffer_id, access);
+            
+            if(buffer.buffer_id == buffer_id){
+                result = test;
+                break;
+            }
+        }
+    }
+    
+    return(result);
+}
+
 static bool32
 open_file(Application_Links *app, Buffer_Summary *buffer_out, char *filename, int32_t filename_len, bool32 background, bool32 never_new){
     bool32 result = false;
     Buffer_Summary buffer = get_buffer_by_name(app, filename, filename_len, AccessProtected|AccessHidden);
     
     if (buffer.exists){
-        if (buffer_out) *buffer_out = buffer;
+        if (buffer_out){
+            *buffer_out = buffer;
+        }
         result = true;
     }
     else{
@@ -295,7 +296,9 @@ open_file(Application_Links *app, Buffer_Summary *buffer_out, char *filename, in
         }
         buffer = create_buffer(app, filename, filename_len, flags);
         if (buffer.exists){
-            if (buffer_out) *buffer_out = buffer;
+            if (buffer_out){
+                *buffer_out = buffer;
+            }
             result = true;
         }
     }
@@ -303,15 +306,15 @@ open_file(Application_Links *app, Buffer_Summary *buffer_out, char *filename, in
     return(result);
 }
 
-static int32_t
-view_open_file(Application_Links *app, View_Summary *view, char *filename, int32_t filename_len, int32_t never_new){
-    int32_t result = 0;
+static bool32
+view_open_file(Application_Links *app, View_Summary *view, char *filename, int32_t filename_len, bool32 never_new){
+    bool32 result = false;
     
-    if (view){
+    if (view != 0){
         Buffer_Summary buffer = {0};
         if (open_file(app, &buffer, filename, filename_len, false, never_new)){
             view_set_buffer(app, view, buffer.buffer_id, 0);
-            result = 1;
+            result = true;
         }
     }
     
