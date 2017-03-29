@@ -22,9 +22,7 @@ CUSTOM_COMMAND_SIG(goto_jump_at_cursor){
     View_Summary view = get_active_view(app, AccessProtected);
     
     Name_Based_Jump_Location location = {0};
-    if (parse_jump_from_buffer_line(app, &global_part,
-                                    view.buffer_id, view.cursor.line, false,
-                                    &location)){
+    if (parse_jump_from_buffer_line(app, &global_part, view.buffer_id, view.cursor.line, false, &location)){
         
         exec_command(app, change_active_panel);
         view = get_active_view(app, AccessAll);

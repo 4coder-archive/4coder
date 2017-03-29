@@ -1989,8 +1989,7 @@ LinuxScheduleStep(void)
 //
 
 internal void
-LinuxSetWMState(Display* d, Window w, Atom one, Atom two, int mode)
-{
+LinuxSetWMState(Display* d, Window w, Atom one, Atom two, int mode){
     //NOTE(inso): this will only work after it is mapped
     
     enum { STATE_REMOVE, STATE_ADD, STATE_TOGGLE };
@@ -2006,23 +2005,13 @@ LinuxSetWMState(Display* d, Window w, Atom one, Atom two, int mode)
     e.xclient.data.l[2] = two;
     e.xclient.data.l[3] = 1L;
     
-    XSendEvent(
-        d,
-        RootWindow(d, 0),
-        0,
-        SubstructureNotifyMask | SubstructureRedirectMask,
-        &e
-        );
+    XSendEvent(d, RootWindow(d, 0), 0, SubstructureNotifyMask | SubstructureRedirectMask, &e);
 }
 
 internal void
 LinuxMaximizeWindow(Display* d, Window w, b32 maximize)
 {
-    LinuxSetWMState(d,
-                    w,
-                    linuxvars.atom__NET_WM_STATE_MAXIMIZED_HORZ,
-                    linuxvars.atom__NET_WM_STATE_MAXIMIZED_VERT,
-                    maximize != 0);
+    LinuxSetWMState(d, w, linuxvars.atom__NET_WM_STATE_MAXIMIZED_HORZ, linuxvars.atom__NET_WM_STATE_MAXIMIZED_VERT, maximize != 0);
 }
 
 internal void
@@ -2036,17 +2025,7 @@ internal void
 LinuxSetIcon(Display* d, Window w)
 {
     Atom WM_ICON = XInternAtom(d, "_NET_WM_ICON", False);
-    
-    XChangeProperty(
-        d,
-        w,
-        WM_ICON,
-        XA_CARDINAL,
-        32,
-        PropModeReplace,
-        (unsigned char*)linux_icon,
-        sizeof(linux_icon) / sizeof(long)
-        );
+    XChangeProperty(d, w, WM_ICON, XA_CARDINAL, 32, PropModeReplace, (unsigned char*)linux_icon, sizeof(linux_icon) / sizeof(long));
 }
 
 internal void
@@ -2394,8 +2373,7 @@ LinuxX11WindowInit(int argc, char** argv, int* WinWidth, int* WinHeight)
     swa.bit_gravity = NorthWestGravity;
     swa.colormap = XCreateColormap(linuxvars.XDisplay, RootWindow(linuxvars.XDisplay, Config.BestInfo.screen), Config.BestInfo.visual, AllocNone);
     
-    linuxvars.XWindow = XCreateWindow(linuxvars.XDisplay, RootWindow(linuxvars.XDisplay, Config.BestInfo.screen),
-                                      0, 0, *WinWidth, *WinHeight, 0, Config.BestInfo.depth, InputOutput, Config.BestInfo.visual, CWBackingStore|CWBitGravity|CWBackPixel|CWBorderPixel|CWColormap|CWEventMask, &swa);
+    linuxvars.XWindow = XCreateWindow(linuxvars.XDisplay, RootWindow(linuxvars.XDisplay, Config.BestInfo.screen), 0, 0, *WinWidth, *WinHeight, 0, Config.BestInfo.depth, InputOutput, Config.BestInfo.visual, CWBackingStore|CWBitGravity|CWBackPixel|CWBorderPixel|CWColormap|CWEventMask, &swa);
     
     if (!linuxvars.XWindow){
         LinuxFatalErrorMsg("XCreateWindow failed. Make sure your display is set up correctly.");
@@ -2403,29 +2381,11 @@ LinuxX11WindowInit(int argc, char** argv, int* WinWidth, int* WinHeight)
     }
     
     //NOTE(inso): Set the window's type to normal
-    XChangeProperty(
-        linuxvars.XDisplay,
-        linuxvars.XWindow,
-        linuxvars.atom__NET_WM_WINDOW_TYPE,
-        XA_ATOM,
-        32,
-        PropModeReplace,
-        (unsigned char*)&linuxvars.atom__NET_WM_WINDOW_TYPE_NORMAL,
-        1
-        );
+    XChangeProperty(linuxvars.XDisplay, linuxvars.XWindow, linuxvars.atom__NET_WM_WINDOW_TYPE, XA_ATOM, 32, PropModeReplace, (unsigned char*)&linuxvars.atom__NET_WM_WINDOW_TYPE_NORMAL, 1);
     
     //NOTE(inso): window managers want the PID as a window property for some reason.
     pid_t pid = getpid();
-    XChangeProperty(
-        linuxvars.XDisplay,
-        linuxvars.XWindow,
-        linuxvars.atom__NET_WM_PID,
-        XA_CARDINAL,
-        32,
-        PropModeReplace,
-        (unsigned char*)&pid,
-        1
-        );
+    XChangeProperty(linuxvars.XDisplay, linuxvars.XWindow, linuxvars.atom__NET_WM_PID, XA_CARDINAL, 32, PropModeReplace, (unsigned char*)&pid, 1);
     
 #define WINDOW_NAME "4coder 4linux: " VERSION
     
@@ -2466,13 +2426,7 @@ LinuxX11WindowInit(int argc, char** argv, int* WinWidth, int* WinHeight)
     XTextProperty win_name;
     XStringListToTextProperty(win_name_list, 1, &win_name);
     
-    XSetWMProperties(
-        linuxvars.XDisplay,
-        linuxvars.XWindow,
-        &win_name, NULL,
-        argv, argc,
-        sz_hints, wm_hints, cl_hints
-        );
+    XSetWMProperties(linuxvars.XDisplay, linuxvars.XWindow, &win_name, NULL, argv, argc, sz_hints, wm_hints, cl_hints);
     
     XFree(win_name.value);
     
@@ -2492,12 +2446,7 @@ LinuxX11WindowInit(int argc, char** argv, int* WinWidth, int* WinHeight)
     XRaiseWindow(linuxvars.XDisplay, linuxvars.XWindow);
     
     if (linuxvars.settings.set_window_pos){
-        XMoveWindow(
-            linuxvars.XDisplay,
-            linuxvars.XWindow,
-            linuxvars.settings.window_x,
-            linuxvars.settings.window_y
-            );
+        XMoveWindow(linuxvars.XDisplay, linuxvars.XWindow, linuxvars.settings.window_x, linuxvars.settings.window_y);
     }
     
     if (linuxvars.settings.maximize_window){
@@ -2926,13 +2875,7 @@ main(int argc, char **argv)
     i32 *file_count;
     i32 output_size;
     
-    output_size =
-        linuxvars.app.read_command_line(&linuxvars.system,
-                                        &memory_vars,
-                                        current_directory,
-                                        &linuxvars.settings,
-                                        &files, &file_count,
-                                        clparams);
+    output_size = linuxvars.app.read_command_line(&linuxvars.system, &memory_vars, current_directory, &linuxvars.settings, &files, &file_count, clparams);
     
     if (output_size > 0){
         // TODO(allen): crt free version
