@@ -114,7 +114,7 @@ main_fsm(Cpp_Lex_FSM fsm, uint8_t pp_state, uint8_t c){
             default:
             switch (fsm.state){
                 case LS_default:
-                if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_' || c == '$'){
+                if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_' || c == '$' || c >= 128){
                     fsm.state = LS_identifier;
                 }
                 else if (c >= '1' && c <= '9'){
@@ -192,40 +192,41 @@ main_fsm(Cpp_Lex_FSM fsm, uint8_t pp_state, uint8_t c){
                 break;
                 
                 case LS_identifier:
-                if (!((c >= '0' && c <= '9') ||
-                      (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
-                      c == '_' || c == '$')){
-                    fsm.emit_token = 1;
+                {
+                    int is_ident = (c >= '0' && c <= '9') || (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_' || c == '$' || c >= 128;
+                    if (!is_ident){
+                        fsm.emit_token = 1;
+                    }
                 }
                 break;
                 
                 case LS_pound:
-                switch (c){
-                    case '#': fsm.emit_token = 1; break;
-                    default: fsm.emit_token = 1; break;
-                }
-                break;
+                {
+                    fsm.emit_token = 1;
+                }break;
                 
                 case LS_pp:
-                if (c == ' ' || c == '\r' || c == '\v' || c == '\f'){
-                    // NOTE(allen): do nothing
-                }
-                else if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')){
-                    fsm.state = LS_ppdef;
-                }
-                else{
-                    fsm.emit_token = 1;
-                }
-                break;
+                {
+                    if (c == ' ' || c == '\r' || c == '\v' || c == '\f'){
+                        // NOTE(allen): do nothing
+                    }
+                    else if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c >= 128){
+                        fsm.state = LS_ppdef;
+                    }
+                    else{
+                        fsm.emit_token = 1;
+                    }
+                }break;
                 
                 case LS_ppdef:
-                if (!((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z'))){
-                    fsm.emit_token = 1;
-                }
-                break;
+                {
+                    int is_ident = (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c >= 128;
+                    if (!is_ident){
+                        fsm.emit_token = 1;
+                    }
+                }break;
                 
-                case LS_char:
-                case LS_char_multiline:
+                case LS_char: case LS_char_multiline:
                 switch(c){
                     case '\n': case '\'': fsm.emit_token = 1; break;
                     case '\\': fsm.state = LS_char_slashed; break;
@@ -317,22 +318,26 @@ main_fsm(Cpp_Lex_FSM fsm, uint8_t pp_state, uint8_t c){
                 break;
                 
                 case LS_hex:
-                if (!(c >= '0' && c <= '9' || c >= 'a' && c <= 'f' || c >= 'A' && c <= 'F')){
-                    fsm.emit_token = 1;
-                }
-                break;
+                {
+                    int is_hex = c >= '0' && c <= '9' || c >= 'a' && c <= 'f' || c >= 'A' && c <= 'F' || c >= 128;
+                    if (!is_hex){
+                        fsm.emit_token = 1;
+                    }
+                }break;
                 
                 case LS_dot:
-                if (c >= '0' && c <= '9'){
-                    fsm.state = LS_float;
-                }
-                else
-                    switch (c){
-                    case '.': fsm.state = LS_ellipsis; break;
-                    case '*': fsm.emit_token = 1; break;
-                    default: fsm.emit_token = 1; break;
-                }
-                break;
+                {
+                    if (c >= '0' && c <= '9'){
+                        fsm.state = LS_float;
+                    }
+                    else{
+                        switch (c){
+                            case '.': fsm.state = LS_ellipsis; break;
+                            case '*': fsm.emit_token = 1; break;
+                            default: fsm.emit_token = 1; break;
+                        }
+                    }
+                }break;
                 
                 case LS_ellipsis: fsm.emit_token = 1; break;
                 

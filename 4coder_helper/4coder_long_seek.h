@@ -170,18 +170,13 @@ buffer_seek_whitespace_down(Application_Links *app, Buffer_Summary *buffer, int3
     int32_t chunk_size = sizeof(chunk);
     Stream_Chunk stream = {0};
     
-    int32_t no_hard;
-    int32_t prev_endline;
-    int32_t still_looping;
-    char at_pos;
-    
     if (init_stream_chunk(&stream, app, buffer, pos, chunk, chunk_size)){
         // step 1: find the first non-whitespace character
         // ahead of the current position.
-        still_looping = true;
+        bool32 still_looping = true;
         do{
             for (; pos < stream.end; ++pos){
-                at_pos = stream.data[pos];
+                char at_pos = stream.data[pos];
                 if (!char_is_whitespace(at_pos)){
                     goto double_break_1;
                 }
@@ -195,11 +190,11 @@ buffer_seek_whitespace_down(Application_Links *app, Buffer_Summary *buffer, int3
         // the prev_endline value.  if another '\n' is found
         // with non-whitespace then the previous line was
         // all whitespace.
-        no_hard = false;
-        prev_endline = -1;
+        bool32 no_hard = false;
+        int32_t prev_endline = -1;
         while(still_looping){
             for (; pos < stream.end; ++pos){
-                at_pos = stream.data[pos];
+                char at_pos = stream.data[pos];
                 if (at_pos == '\n'){
                     if (no_hard){
                         goto double_break_2;
@@ -232,10 +227,9 @@ buffer_seek_whitespace_right(Application_Links *app, Buffer_Summary *buffer, int
     char data_chunk[1024];
     Stream_Chunk stream = {0};
     
-    if (init_stream_chunk(&stream, app, buffer,
-                          pos, data_chunk, sizeof(data_chunk))){
+    if (init_stream_chunk(&stream, app, buffer, pos, data_chunk, sizeof(data_chunk))){
         
-        bool32 still_looping = 1;
+        bool32 still_looping = true;
         do{
             for (; pos < stream.end; ++pos){
                 if (!char_is_whitespace(stream.data[pos])){
@@ -246,7 +240,7 @@ buffer_seek_whitespace_right(Application_Links *app, Buffer_Summary *buffer, int
         }while(still_looping);
         double_break1:;
         
-        still_looping = 1;
+        still_looping = true;
         do{
             for (; pos < stream.end; ++pos){
                 if (char_is_whitespace(stream.data[pos])){
@@ -311,13 +305,12 @@ buffer_seek_alphanumeric_right(Application_Links *app, Buffer_Summary *buffer, i
     char data_chunk[1024];
     Stream_Chunk stream = {0};
     
-    if (init_stream_chunk(&stream, app, buffer,
-                          pos, data_chunk, sizeof(data_chunk))){
+    if (init_stream_chunk(&stream, app, buffer, pos, data_chunk, sizeof(data_chunk))){
         
-        bool32 still_looping = 1;
+        bool32 still_looping = true;
         do{
             for (; pos < stream.end; ++pos){
-                if (char_is_alpha_numeric_true(stream.data[pos])){
+                if (char_is_alpha_numeric_true_utf8(stream.data[pos])){
                     goto double_break1;
                 }
             }
@@ -325,10 +318,10 @@ buffer_seek_alphanumeric_right(Application_Links *app, Buffer_Summary *buffer, i
         }while(still_looping);
         double_break1:;
         
-        still_looping = 1;
+        still_looping = true;
         do{
             for (; pos < stream.end; ++pos){
-                if (!char_is_alpha_numeric_true(stream.data[pos])){
+                if (!char_is_alpha_numeric_true_utf8(stream.data[pos])){
                     goto double_break2;
                 }
             }
@@ -347,13 +340,11 @@ buffer_seek_alphanumeric_left(Application_Links *app, Buffer_Summary *buffer, in
     
     --pos;
     if (pos > 0){
-        if (init_stream_chunk(&stream, app, buffer,
-                              pos, data_chunk, sizeof(data_chunk))){
-            
-            bool32 still_looping = 1;
+        if (init_stream_chunk(&stream, app, buffer, pos, data_chunk, sizeof(data_chunk))){
+            bool32 still_looping = true;
             do{
                 for (; pos >= stream.start; --pos){
-                    if (char_is_alpha_numeric_true(stream.data[pos])){
+                    if (char_is_alpha_numeric_true_utf8(stream.data[pos])){
                         goto double_break1;
                     }
                 }
@@ -361,10 +352,82 @@ buffer_seek_alphanumeric_left(Application_Links *app, Buffer_Summary *buffer, in
             }while(still_looping);
             double_break1:;
             
-            still_looping = 1;
+            still_looping = true;
             do{
                 for (; pos >= stream.start; --pos){
-                    if (!char_is_alpha_numeric_true(stream.data[pos])){
+                    if (!char_is_alpha_numeric_true_utf8(stream.data[pos])){
+                        ++pos;
+                        goto double_break2;
+                    }
+                }
+                still_looping = backward_stream_chunk(&stream);
+            }while(still_looping);
+            double_break2:;
+        }
+    }
+    else{
+        pos = 0;
+    }
+    
+    return(pos);
+}
+
+static int32_t
+buffer_seek_alphanumeric_or_underscore_right(Application_Links *app, Buffer_Summary *buffer, int32_t pos){
+    char data_chunk[1024];
+    Stream_Chunk stream = {0};
+    
+    if (init_stream_chunk(&stream, app, buffer, pos, data_chunk, sizeof(data_chunk))){
+        bool32 still_looping = true;
+        do{
+            for (; pos < stream.end; ++pos){
+                if (char_is_alpha_numeric_utf8(stream.data[pos])){
+                    goto double_break1;
+                }
+            }
+            still_looping = forward_stream_chunk(&stream);
+        }while(still_looping);
+        double_break1:;
+        
+        still_looping = true;
+        do{
+            for (; pos < stream.end; ++pos){
+                if (!char_is_alpha_numeric_utf8(stream.data[pos])){
+                    goto double_break2;
+                }
+            }
+            still_looping = forward_stream_chunk(&stream);
+        }while(still_looping);
+        double_break2:;
+    }
+    
+    return(pos);
+}
+
+static int32_t
+buffer_seek_alphanumeric_or_underscore_left(Application_Links *app, Buffer_Summary *buffer, int32_t pos){
+    char data_chunk[1024];
+    Stream_Chunk stream = {0};
+    
+    --pos;
+    if (pos > 0){
+        if (init_stream_chunk(&stream, app, buffer, pos, data_chunk, sizeof(data_chunk))){
+            
+            bool32 still_looping = true;
+            do{
+                for (; pos >= stream.start; --pos){
+                    if (char_is_alpha_numeric_utf8(stream.data[pos])){
+                        goto double_break1;
+                    }
+                }
+                still_looping = backward_stream_chunk(&stream);
+            }while(still_looping);
+            double_break1:;
+            
+            still_looping = true;
+            do{
+                for (; pos >= stream.start; --pos){
+                    if (!char_is_alpha_numeric_utf8(stream.data[pos])){
                         ++pos;
                         goto double_break2;
                     }
@@ -389,20 +452,18 @@ buffer_seek_range_camel_right(Application_Links *app, Buffer_Summary *buffer, in
     ++pos;
     if (pos < an_pos){
         stream.max_end = an_pos;
-        if (init_stream_chunk(&stream, app, buffer,
-                              pos, data_chunk, sizeof(data_chunk))){
+        if (init_stream_chunk(&stream, app, buffer, pos, data_chunk, sizeof(data_chunk))){
             
-            char c = 0, pc = stream.data[pos];
+            uint8_t c = 0;
             ++pos;
             
             bool32 still_looping = 1;
             do{
                 for (; pos < stream.end; ++pos){
                     c = stream.data[pos];
-                    if (char_is_upper(c) && char_is_lower(pc)){
+                    if (char_is_upper(c)){
                         goto double_break1;
                     }
-                    pc = c;
                 }
                 still_looping = forward_stream_chunk(&stream);
             }while(still_looping);
@@ -426,16 +487,15 @@ buffer_seek_range_camel_left(Application_Links *app, Buffer_Summary *buffer, int
         stream.min_start = an_pos+1;
         if (init_stream_chunk(&stream, app, buffer, pos, data_chunk, sizeof(data_chunk))){
             
-            char c = 0, pc = stream.data[pos];
+            char c = 0;
             
             bool32 still_looping = 1;
             do{
                 for (; pos >= stream.start; --pos){
                     c = stream.data[pos];
-                    if (char_is_upper(c) && char_is_lower(pc)){
+                    if (char_is_upper(c)){
                         goto double_break1;
                     }
-                    pc = c;
                 }
                 still_looping = backward_stream_chunk(&stream);
             }while(still_looping);
@@ -986,6 +1046,31 @@ get_first_token_at_line(Application_Links *app, Buffer_Summary *buffer, Cpp_Toke
     return(result);
 }
 
+static String
+read_identifier_at_pos(Application_Links *app, Buffer_Summary *buffer, int32_t pos, char *space, int32_t max, Range *range_out){
+    String query = {0};
+    
+    int32_t start = buffer_seek_alphanumeric_or_underscore_left(app, buffer, pos);
+    int32_t end = buffer_seek_alphanumeric_or_underscore_right(app, buffer, start);
+    
+    if (!(start <= pos && pos < end)){
+        end = buffer_seek_alphanumeric_or_underscore_right(app, buffer, pos);
+        start = buffer_seek_alphanumeric_or_underscore_left(app, buffer, end);
+    }
+    
+    if (start <= pos && pos < end){
+        int32_t size = end - start;
+        if (size <= max){
+            if (range_out != 0){
+                *range_out = make_range(start, end);
+            }
+            buffer_read_range(app, buffer, start, end, space);
+            query = make_string_cap(space, size, max);
+        }
+    }
+    
+    return(query);
+}
 
 #endif
 

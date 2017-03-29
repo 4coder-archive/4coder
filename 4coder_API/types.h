@@ -63,6 +63,8 @@ ENUM(uint64_t, Command_ID){
     cmdid_interactive_new,
     /* DOC(cmdid_interactive_open begins an interactive dialogue to open a file into a buffer.) */
     cmdid_interactive_open,
+    /* DOC(cmdid_interactive_open_or_new begins an interactive dialogue to open a file into a buffer, if the name specified does not match any existing buffer, a new buffer is created instead.) */
+    cmdid_interactive_open_or_new,
     /* DOC(cmdid_save_as does not currently work and is likely to be removed rather that fixed.) */
     cmdid_save_as,
     /* DOC(cmdid_interactive_switch_buffer begins an interactive dialogue to choose an open buffer to swap into the active view.) */
@@ -187,14 +189,14 @@ ENUM(int32_t, View_Setting_ID){
     /* DOC(ViewSetting_Null is not a valid setting, it is reserved to detect errors.) */
     ViewSetting_Null,
     
-    /* DOC(The ViewSetting_ShowWhitespace setting determines whether the view highlights
-    whitespace in a file.  Whenever the view switches to a new buffer this setting is turned off.) */
+    /* DOC(The ViewSetting_ShowWhitespace setting determines whether the view highlights whitespace in a file.  Whenever the view switches to a new buffer this setting is turned off.) */
     ViewSetting_ShowWhitespace,
     
-    /* DOC(The ViewSetting_ShowScrollbar setting determines whether a scroll bar is
-    attached to a view in it's scrollable section.) */
+    /* DOC(The ViewSetting_ShowScrollbar setting determines whether a scroll bar is attached to a view in it's scrollable section.) */
     ViewSetting_ShowScrollbar,
     
+    /* DOC(The ViewSetting_ShowFileBar settings determines whether to show the file bar.) */
+    ViewSetting_ShowFileBar,
 };
 
 /* DOC(A Buffer_Create_Flag field specifies how a buffer should be created.) */
@@ -230,18 +232,13 @@ ENUM(uint32_t, Buffer_Kill_Flag){
 
 /* DOC(An Access_Flag field specifies what sort of permission you grant to an access call.  An access call is usually one the returns a summary struct.  If a 4coder object has a particular protection flag set and the corresponding bit is not set in the access field, that 4coder object is hidden.  On the other hand if a protection flag is set in the access parameter and the object does not have that protection flag, the object is still returned from the access call.) */
 ENUM(uint32_t, Access_Flag){
-    /* DOC(AccessOpen does not include any bits, it indicates that the access should
-    only return objects that have no protection flags set.) */
+    /* DOC(AccessOpen does not include any bits, it indicates that the access should only return objects that have no protection flags set.) */
     AccessOpen      = 0x0,
-    /* DOC(AccessProtected is set on buffers and views that are "read only" such as
-    the output from an app->exec_system_command call into *build*. This is to prevent
-    the user from accidentally editing output that they might prefer to keep in tact.) */
+    /* DOC(AccessProtected is set on buffers and views that are "read only" such as the output from an exec_system_command call into *build*. This is to prevent the user from accidentally editing output that they might prefer to keep in tact.) */
     AccessProtected = 0x1,
-    /* DOC(AccessHidden is set on any view that is not currently showing it's file, for
-    instance because it is navigating the file system to open a file.) */
+    /* DOC(AccessHidden is set on any view that is not currently showing it's file, for instance because it is navigating the file system to open a file.) */
     AccessHidden    = 0x2,
-    /* DOC(AccessAll is a catchall access for cases where an access call should always
-    return an object no matter what it's protection flags are.) */
+    /* DOC(AccessAll is a catchall access for cases where an access call should always return an object no matter what it's protection flags are.) */
     AccessAll       = 0xFF
 };
 
@@ -565,13 +562,11 @@ STRUCT Buffer_Edit{
 DOC_SEE(Access_Flag)
 DOC_SEE(Dirty_State) */
 STRUCT Buffer_Summary{
-    /* DOC(This field indicates whether the Buffer_Summary describes a buffer that is open in 4coder.
-    When this field is false the summary is referred to as a "null summary".) */
+    /* DOC(This field indicates whether the Buffer_Summary describes a buffer that is open in 4coder. When this field is false the summary is referred to as a "null summary".) */
     bool32 exists;
     /* DOC(If this is not a null summary, this field indicates whether the buffer has finished loading.) */
     bool32 ready;
-    /* DOC(If this is not a null summary this field is the id of the associated buffer.
-    If this is a null summary then buffer_id is 0.) */
+    /* DOC(If this is not a null summary this field is the id of the associated buffer. If this is a null summary then buffer_id is 0.) */
     int32_t buffer_id;
     /*DOC(If this is not a null summary, this field contains flags describing the protection status of the buffer.)*/
     Access_Flag lock_flags;
@@ -596,10 +591,7 @@ STRUCT Buffer_Summary{
     
     /* DOC(If this is not a null summary, this field indicates whether the buffer is set to lex tokens.) */
     bool32 is_lexed;
-    /* DOC(If this is not a null summary, this field indicates whether the buffer has up to date tokens available.
-    If this field is false, it may simply mean the tokens are still being generated in a background task and will
-    be available later.  If that is the case, is_lexed will be true to indicate that the buffer is trying to get
-    it's tokens up to date.) */
+    /* DOC(If this is not a null summary, this field indicates whether the buffer has up to date tokens available. If this field is false, it may simply mean the tokens are still being generated in a background task and will be available later.  If that is the case, is_lexed will be true to indicate that the buffer is trying to get it's tokens up to date.) */
     bool32 tokens_are_ready;
     /* DOC(If this is not a null summary, this field specifies the id of the command map for this buffer.) */
     int32_t map_id;

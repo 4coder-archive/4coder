@@ -45,6 +45,14 @@ struct Render_Font{
     u32 name_len;
     char filename[256];
     char name[256];
+    
+    // Hack optimizations
+    struct Page_Cache{
+        u32 page_number;
+        Glyph_Page *page;
+    };
+    
+    Page_Cache cache[16];
 };
 
 struct Glyph_Data{

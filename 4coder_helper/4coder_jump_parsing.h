@@ -20,15 +20,27 @@ struct Name_Based_Jump_Location{
 
 static void
 jump_to_location(Application_Links *app, View_Summary *view, Name_Based_Jump_Location *l){
+    Buffer_Summary buffer = {0};
+    if (open_file(app, &buffer, l->file.str, l->file.size, false, true)){
+        View_Summary target_view = get_first_view_with_buffer(app, buffer.buffer_id);
+        if (!target_view.exists){
+            view_set_buffer(app, view, buffer.buffer_id, 0);
+            target_view = *view;
+        }
+        view_set_cursor(app, &target_view, seek_line_char(l->line, l->column), true);
+    }
+}
+
+static void
+jump_to_location_always_use_view(Application_Links *app, View_Summary *view, Name_Based_Jump_Location *l){
     if (view_open_file(app, view, l->file.str, l->file.size, true)){
         view_set_cursor(app, view, seek_line_char(l->line, l->column), true);
     }
 }
 
-static int32_t
+static bool32
 ms_style_verify(String line, int32_t paren_pos){
     int32_t result = false;
-    
     String line_part = substr_tail(line, paren_pos);
     if (match_part_sc(line_part, ") : ")){
         result = true;
@@ -36,7 +48,6 @@ ms_style_verify(String line, int32_t paren_pos){
     else if (match_part_sc(line_part, "): ")){
         result = true;
     }
-    
     return(result);
 }
 

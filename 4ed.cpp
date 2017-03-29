@@ -275,7 +275,7 @@ panel_make_empty(System_Functions *system, App_Vars *vars, Panel *panel){
     Assert(panel->view == 0);
     new_view = live_set_alloc_view(&vars->live_set, panel, models);
     view_set_file(system, new_view.view, models->scratch_buffer, models);
-    new_view.view->map = get_map(models, mapid_file);
+    new_view.view->map = get_map(models, models->scratch_buffer->settings.base_map_id);
     
     return(new_view.view);
 }
@@ -306,14 +306,17 @@ COMMAND_DECL(redo){
 
 COMMAND_DECL(interactive_new){
     USE_VIEW(view);
-    
     view_show_interactive(system, view, IAct_New, IInt_Sys_File_List, make_lit_string("New: "));
 }
 
 COMMAND_DECL(interactive_open){
     USE_VIEW(view);
-    
     view_show_interactive(system, view, IAct_Open, IInt_Sys_File_List,make_lit_string("Open: "));
+}
+
+COMMAND_DECL(interactive_open_or_new){
+    USE_VIEW(view);
+    view_show_interactive(system, view, IAct_OpenOrNew, IInt_Sys_File_List,make_lit_string("Open: "));
 }
 
 // TODO(allen): Improvements to reopen
@@ -546,12 +549,11 @@ command_caller(Coroutine *coroutine){
         Generic_Command generic;
         if (cmd_in->bind.function == command_user_callback){
             generic.command = cmd_in->bind.custom;
-            models->command_caller(&models->app_links, generic);
         }
         else{
             generic.cmdid = (Command_ID)cmd_in->bind.custom_id;
-            models->command_caller(&models->app_links, generic);
         }
+        models->command_caller(&models->app_links, generic);
     }
     else{
         cmd_in->bind.function(command->system, command, cmd_in->bind);
@@ -608,6 +610,7 @@ setup_command_table(){
     
     SET(interactive_new);
     SET(interactive_open);
+    SET(interactive_open_or_new);
     SET(interactive_switch_buffer);
     SET(interactive_kill_buffer);
     SET(save_as);
@@ -961,7 +964,7 @@ enum Command_Line_Action{
     CLAct_WindowFullscreen,
     CLAct_WindowStreamMode,
     CLAct_FontSize,
-    CLAct_FontStartHinting,
+    CLAct_FontUseHinting,
     CLAct_Count
 };
 
@@ -1006,9 +1009,6 @@ init_command_line_settings(App_Settings *settings, Plat_Settings *plat_settings,
                         if (arg[0] == '-'){
                             action = CLAct_Ignore;
                             switch (arg[1]){
-                                case 'u': action = CLAct_UserFile; strict = 0;          break;
-                                case 'U': action = CLAct_UserFile; strict = 1;          break;
-                                
                                 case 'd': action = CLAct_CustomDLL; strict = 0;         break;
                                 case 'D': action = CLAct_CustomDLL; strict = 1;         break;
                                 
@@ -1021,7 +1021,7 @@ init_command_line_settings(App_Settings *settings, Plat_Settings *plat_settings,
                                 case 'S': action = CLAct_WindowStreamMode;              break;
                                 
                                 case 'f': action = CLAct_FontSize;                      break;
-                                case 'h': action = CLAct_FontStartHinting; --i;         break;
+                                case 'h': action = CLAct_FontUseHinting; --i;         break;
                             }
                         }
                         else if (arg[0] != 0){
@@ -1032,18 +1032,9 @@ init_command_line_settings(App_Settings *settings, Plat_Settings *plat_settings,
                         }
                     }break;
                     
-                    case CLAct_UserFile:
-                    {
-                        settings->user_file_is_strict = strict;
-                        if (i < clparams.argc){
-                            settings->user_file = clparams.argv[i];
-                        }
-                        action = CLAct_Nothing;
-                    }break;
-                    
                     case CLAct_CustomDLL:
                     {
-                        plat_settings->custom_dll_is_strict = strict;
+                        plat_settings->custom_dll_is_strict = (b8)strict;
                         if (i < clparams.argc){
                             plat_settings->custom_dll = clparams.argv[i];
                         }
@@ -1061,7 +1052,7 @@ init_command_line_settings(App_Settings *settings, Plat_Settings *plat_settings,
                     case CLAct_WindowSize:
                     {
                         if (i + 1 < clparams.argc){
-                            plat_settings->set_window_size = 1;
+                            plat_settings->set_window_size = true;
                             plat_settings->window_w = str_to_int_c(clparams.argv[i]);
                             plat_settings->window_h = str_to_int_c(clparams.argv[i+1]);
                             
@@ -1073,14 +1064,14 @@ init_command_line_settings(App_Settings *settings, Plat_Settings *plat_settings,
                     case CLAct_WindowMaximize:
                     {
                         --i;
-                        plat_settings->maximize_window = 1;
+                        plat_settings->maximize_window = true;
                         action = CLAct_Nothing;
                     }break;
                     
                     case CLAct_WindowPosition:
                     {
                         if (i + 1 < clparams.argc){
-                            plat_settings->set_window_pos = 1;
+                            plat_settings->set_window_pos = true;
                             plat_settings->window_x = str_to_int_c(clparams.argv[i]);
                             plat_settings->window_y = str_to_int_c(clparams.argv[i+1]);
                             
@@ -1092,29 +1083,29 @@ init_command_line_settings(App_Settings *settings, Plat_Settings *plat_settings,
                     case CLAct_WindowFullscreen:
                     {
                         --i;
-                        plat_settings->fullscreen_window = 1;
-                        plat_settings->stream_mode = 1;
+                        plat_settings->fullscreen_window = true;
+                        plat_settings->stream_mode = true;
                         action = CLAct_Nothing;
                     }break;
                     
                     case CLAct_WindowStreamMode:
                     {
                         --i;
-                        plat_settings->stream_mode = 1;
+                        plat_settings->stream_mode = true;
                         action = CLAct_Nothing;
                     }break;
                     
                     case CLAct_FontSize:
                     {
                         if (i < clparams.argc){
-                            settings->font_size = str_to_int_c(clparams.argv[i]);
+                            plat_settings->font_size = str_to_int_c(clparams.argv[i]);
                         }
                         action = CLAct_Nothing;
                     }break;
                     
-                    case CLAct_FontStartHinting:
+                    case CLAct_FontUseHinting:
                     {
-                        plat_settings->use_hinting = 1;
+                        plat_settings->use_hinting = true;
                         action = CLAct_Nothing;
                     }break;
                 }
@@ -1151,7 +1142,7 @@ App_Read_Command_Line_Sig(app_read_command_line){
     App_Settings *settings = &vars->models.settings;
     
     *settings = null_app_settings;
-    settings->font_size = 16;
+    plat_settings->font_size = 16;
     
     if (clparams.argc > 1){
         init_command_line_settings(&vars->models.settings, plat_settings, clparams);
@@ -1179,56 +1170,46 @@ extern "C" SCROLL_RULE_SIG(fallback_scroll_rule){
 }
 
 App_Init_Sig(app_init){
-    Partition *partition;
-    Panel *panels, *panel;
-    Panel_Divider *dividers, *div;
-    i32 panel_max_count;
-    i32 divider_max_count;
-    
     App_Vars *vars = (App_Vars*)memory->vars_memory;
     Models *models = &vars->models;
-    models->keep_playing = 1;
+    models->keep_playing = true;
     
     app_links_init(system, &models->app_links, memory->user_memory, memory->user_memory_size);
     
     models->config_api = api;
     models->app_links.cmd_context = &vars->command_data;
     
-    partition = &models->mem.part;
+    Partition *partition = &models->mem.part;
     
-    {
-        panel_max_count = models->layout.panel_max_count = MAX_VIEWS;
-        divider_max_count = panel_max_count - 1;
-        models->layout.panel_count = 0;
-        
-        panels = push_array(partition, Panel, panel_max_count);
-        models->layout.panels = panels;
-        
-        dll_init_sentinel(&models->layout.free_sentinel);
-        dll_init_sentinel(&models->layout.used_sentinel);
-        
-        panel = panels;
-        for (i32 i = 0; i < panel_max_count; ++i, ++panel){
-            dll_insert(&models->layout.free_sentinel, panel);
-        }
-        
-        dividers = push_array(partition, Panel_Divider, divider_max_count);
-        models->layout.dividers = dividers;
-        
-        div = dividers;
-        for (i32 i = 0; i < divider_max_count-1; ++i, ++div){
-            div->next = (div + 1);
-        }
-        div->next = 0;
-        models->layout.free_divider = dividers;
+    PRFL_INIT(memory->debug_memory, memory->debug_memory_size);
+    
+    i32 panel_max_count = models->layout.panel_max_count = MAX_VIEWS;
+    i32 divider_max_count = panel_max_count - 1;
+    models->layout.panel_count = 0;
+    
+    Panel *panels = push_array(partition, Panel, panel_max_count);
+    models->layout.panels = panels;
+    
+    dll_init_sentinel(&models->layout.free_sentinel);
+    dll_init_sentinel(&models->layout.used_sentinel);
+    
+    Panel *panel = panels;
+    for (i32 i = 0; i < panel_max_count; ++i, ++panel){
+        dll_insert(&models->layout.free_sentinel, panel);
     }
     
+    Panel_Divider *dividers = push_array(partition, Panel_Divider, divider_max_count);
+    models->layout.dividers = dividers;
+    
+    Panel_Divider *div = dividers;
+    for (i32 i = 0; i < divider_max_count-1; ++i, ++div){
+        div->next = (div + 1);
+    }
+    div->next = 0;
+    models->layout.free_divider = dividers;
+    
+    
     {
-        View *view = 0;
-        View_Persistent *persistent = 0;
-        i32 i = 0;
-        i32 max = 0;
-        
         models->live_set = &vars->live_set;
         
         vars->live_set.count = 0;
@@ -1238,12 +1219,12 @@ App_Init_Sig(app_init){
         
         dll_init_sentinel(&vars->live_set.free_sentinel);
         
-        max = vars->live_set.max;
-        view = vars->live_set.views;
-        for (i = 0; i < max; ++i, ++view){
+        i32 max = vars->live_set.max;
+        View *view = vars->live_set.views;
+        for (i32 i = 0; i < max; ++i, ++view){
             dll_insert(&vars->live_set.free_sentinel, view);
             
-            persistent = &view->persistent;
+            View_Persistent *persistent = &view->persistent;
             persistent->id = i;
             persistent->models = models;
         }
@@ -1476,7 +1457,7 @@ App_Init_Sig(app_init){
     struct File_Init{
         String name;
         Editing_File **ptr;
-        i32 type;
+        b32 read_only;
     };
     
     File_Init init_files[] = {
@@ -1488,16 +1469,11 @@ App_Init_Sig(app_init){
         Editing_File *file = working_set_alloc_always(&models->working_set, general);
         buffer_bind_name(general, &models->working_set, file, init_files[i].name);
         
-        switch (init_files[i].type){
-            case 0:
-            {
-                init_normal_file(system, models, file, 0, 0);
-            }break;
-            
-            case 1:
-            {
-                init_read_only_file(system, models, file);
-            }break;
+        if (init_files[i].read_only){
+            init_read_only_file(system, models, file);
+        }
+        else{
+            init_normal_file(system, models, file, 0, 0);
         }
         
         file->settings.never_kill = true;
@@ -1528,8 +1504,7 @@ App_Init_Sig(app_init){
 }
 
 internal i32
-update_cli_handle_without_file(System_Functions *system, Models *models,
-                               CLI_Handles *cli, char *dest, i32 max){
+update_cli_handle_without_file(System_Functions *system, Models *models, CLI_Handles *cli, char *dest, i32 max){
     i32 result = 0;
     u32 amount = 0;
     
@@ -1580,6 +1555,8 @@ update_cli_handle_with_file(System_Functions *system, Models *models, CLI_Handle
 
 
 App_Step_Sig(app_step){
+    PRFL_BEGIN_FRAME();
+    
     Application_Step_Result app_result = *app_result_;
     app_result.animating = 0;
     
@@ -2645,6 +2622,8 @@ App_Step_Sig(app_step){
     *app_result_ = app_result;
     
     // end-of-app_step
+    
+    PRFL_END_FRAME("profile.data");
 }
 
 extern "C" App_Get_Functions_Sig(app_get_functions){

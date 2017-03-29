@@ -22,7 +22,7 @@ default_keys(Bind_Helper *context){
     bind(context, '<', MDFR_CTRL, change_active_panel_backwards);
     
     bind(context, 'n', MDFR_CTRL, interactive_new);
-    bind(context, 'o', MDFR_CTRL, interactive_open);
+    bind(context, 'o', MDFR_CTRL, interactive_open_or_new);
     bind(context, 'o', MDFR_ALT, open_in_other);
     bind(context, 'k', MDFR_CTRL, interactive_kill_buffer);
     bind(context, 'i', MDFR_CTRL, interactive_switch_buffer);
@@ -177,8 +177,10 @@ default_keys(Bind_Helper *context){
     bind(context, 'm', MDFR_CTRL, cursor_mark_swap);
     bind(context, 'O', MDFR_CTRL, reopen);
     bind(context, 'q', MDFR_CTRL, query_replace);
+    bind(context, 'Q', MDFR_CTRL, query_replace_identifier);
     bind(context, 'r', MDFR_CTRL, reverse_search);
     bind(context, 's', MDFR_CTRL, save);
+    bind(context, 't', MDFR_CTRL, search_identifier);
     bind(context, 'T', MDFR_CTRL, list_all_locations_of_identifier);
     bind(context, 'u', MDFR_CTRL, to_uppercase);
     bind(context, 'v', MDFR_CTRL, paste_and_indent);
@@ -194,7 +196,7 @@ default_keys(Bind_Helper *context){
     bind(context, '?', MDFR_CTRL, toggle_show_whitespace);
     bind(context, '~', MDFR_CTRL, clean_all_lines);
     bind(context, '\n', MDFR_NONE, newline_or_goto_position);
-    bind(context, '\n', MDFR_SHIFT, newline_or_goto_position);
+    bind(context, '\n', MDFR_SHIFT, newline_or_goto_position_same_panel);
     bind(context, ' ', MDFR_SHIFT, write_character);
     
     end_map(context);

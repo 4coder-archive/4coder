@@ -1100,9 +1100,8 @@ Win32ToggleFullscreen(void){
     HWND Window = win32vars.window_handle;
     LONG_PTR Style = GetWindowLongPtr(Window, GWL_STYLE);
     if (Style & WS_OVERLAPPEDWINDOW){
-        MONITORINFO MonitorInfo = {sizeof(MonitorInfo)};
-        if(GetWindowPlacement(Window, &win32vars.GlobalWindowPosition) &&
-           GetMonitorInfo(MonitorFromWindow(Window, MONITOR_DEFAULTTOPRIMARY), &MonitorInfo))
+        MONITORINFO MonitorInfo = {sizeof(MONITORINFO)};
+        if(GetWindowPlacement(Window, &win32vars.GlobalWindowPosition) && GetMonitorInfo(MonitorFromWindow(Window, MONITOR_DEFAULTTOPRIMARY), &MonitorInfo))
         {
             SetWindowLongPtr(Window, GWL_STYLE, Style & ~WS_OVERLAPPEDWINDOW);
             SetWindowPos(Window, HWND_TOP,
@@ -1110,16 +1109,14 @@ Win32ToggleFullscreen(void){
                          MonitorInfo.rcMonitor.right - MonitorInfo.rcMonitor.left,
                          MonitorInfo.rcMonitor.bottom - MonitorInfo.rcMonitor.top,
                          SWP_NOOWNERZORDER | SWP_FRAMECHANGED);
-            win32vars.full_screen = 1;
+            win32vars.full_screen = true;
         }
     }
     else{
         SetWindowLongPtr(Window, GWL_STYLE, Style | WS_OVERLAPPEDWINDOW);
         SetWindowPlacement(Window, &win32vars.GlobalWindowPosition);
-        SetWindowPos(Window, 0, 0, 0, 0, 0,
-                     SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER |
-                     SWP_NOOWNERZORDER | SWP_FRAMECHANGED);
-        win32vars.full_screen = 0;
+        SetWindowPos(Window, 0, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOOWNERZORDER | SWP_FRAMECHANGED);
+        win32vars.full_screen = false;
     }
 }
 
@@ -1892,6 +1889,24 @@ Win32Callback(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
             Win32Resize(new_width, new_height);
         }break;
         
+        case WM_DISPLAYCHANGE:
+        {
+            win32vars.got_useful_event = 1;
+            
+            LONG_PTR style = GetWindowLongPtr(hwnd, GWL_STYLE);
+            if (!(style & WS_OVERLAPPEDWINDOW)){
+                MONITORINFO monitor_info = {sizeof(MONITORINFO)};
+                if(GetMonitorInfo(MonitorFromWindow(hwnd, MONITOR_DEFAULTTOPRIMARY), &monitor_info))
+                {
+                    SetWindowPos(hwnd, HWND_TOP,
+                                 monitor_info.rcMonitor.left, monitor_info.rcMonitor.top,
+                                 monitor_info.rcMonitor.right - monitor_info.rcMonitor.left,
+                                 monitor_info.rcMonitor.bottom - monitor_info.rcMonitor.top,
+                                 SWP_NOOWNERZORDER | SWP_FRAMECHANGED);
+                }
+            }
+        }break;
+        
         case WM_PAINT:
         {
             win32vars.got_useful_event = 1;
@@ -2017,9 +2032,11 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
     memory_vars.target_memory_size = MB(512);
     memory_vars.target_memory = VirtualAlloc(base, memory_vars.target_memory_size, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
     
-    base = (LPVOID)0;
     memory_vars.user_memory_size = MB(2);
-    memory_vars.user_memory = VirtualAlloc(base, memory_vars.target_memory_size, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
+    memory_vars.user_memory = system_memory_allocate(memory_vars.user_memory_size);
+    
+    memory_vars.debug_memory_size = MB(512);
+    memory_vars.debug_memory = system_memory_allocate(memory_vars.debug_memory_size);
     
     win32vars.target.max = MB(1);
     win32vars.target.push_buffer = (char*)system_memory_allocate(win32vars.target.max);
@@ -2182,7 +2199,7 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
     // Font System Init
     //
     
-    system_font_init(&win32vars.system.font, 0, 0, 16, true);
+    system_font_init(&win32vars.system.font, 0, 0, win32vars.settings.font_size, win32vars.settings.use_hinting);
     
     //
     // Misc System Initializations

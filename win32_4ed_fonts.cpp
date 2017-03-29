@@ -71,7 +71,7 @@ Sys_Font_Get_Render_Data_By_ID_Sig(system_font_get_render_data_by_id){
 
 internal
 Sys_Font_Load_Page_Sig(system_font_load_page){
-    system_set_page(&win32vars.system, &win32_fonts.part, font, page, page_number, 16, true);
+    system_set_page(&win32vars.system, &win32_fonts.part, font, page, page_number, win32vars.settings.font_size, win32vars.settings.use_hinting);
 }
 
 internal
@@ -112,7 +112,7 @@ Sys_Font_Init_Sig(system_font_init){
     u32 dir_max = KB(32);
     u8 *directory = push_array(scratch, u8, dir_max);
     String dir_str = make_string_cap(directory, 0, dir_max);
-    i32 dir_len = system_get_binary_path(&dir_str);
+    u32 dir_len = system_get_binary_path(&dir_str);
     Assert(dir_len < dir_max);
     
     {

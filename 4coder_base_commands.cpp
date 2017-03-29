@@ -473,13 +473,23 @@ CUSTOM_COMMAND_SIG(open_panel_hsplit){
 //
 
 CUSTOM_COMMAND_SIG(show_scrollbar){
-    View_Summary view = get_active_view(app, AccessProtected);
+    View_Summary view = get_active_view(app, AccessAll);
     view_set_setting(app, &view, ViewSetting_ShowScrollbar, true);
 }
 
 CUSTOM_COMMAND_SIG(hide_scrollbar){
-    View_Summary view = get_active_view(app, AccessProtected);
+    View_Summary view = get_active_view(app, AccessAll);
     view_set_setting(app, &view, ViewSetting_ShowScrollbar, false);
+}
+
+CUSTOM_COMMAND_SIG(show_file_bar){
+    View_Summary view = get_active_view(app, AccessAll);
+    view_set_setting(app, &view, ViewSetting_ShowFileBar, true);
+}
+
+CUSTOM_COMMAND_SIG(hide_file_bar){
+    View_Summary view = get_active_view(app, AccessAll);
+    view_set_setting(app, &view, ViewSetting_ShowFileBar, false);
 }
 
 //toggle_fullscreen can be used as a command
@@ -565,7 +575,7 @@ CUSTOM_COMMAND_SIG(search);
 CUSTOM_COMMAND_SIG(reverse_search);
 
 static void
-isearch(Application_Links *app, int32_t start_reversed){
+isearch(Application_Links *app, int32_t start_reversed, String query_init){
     uint32_t access = AccessProtected;
     
     View_Summary view = get_active_view(app, access);
@@ -576,98 +586,123 @@ isearch(Application_Links *app, int32_t start_reversed){
     Query_Bar bar = {0};
     if (start_query_bar(app, &bar, 0) == 0) return;
     
-    int32_t reverse = start_reversed;
-    int32_t pos = view.cursor.pos;
+    bool32 reverse = start_reversed;
+    int32_t first_pos = view.cursor.pos;
+    
+    int32_t pos = first_pos;
+    if (query_init.size != 0){
+        pos += 2;
+    }
+    
     int32_t start_pos = pos;
-    int32_t first_pos = pos;
     Range match = make_range(pos, pos);
     
     char bar_string_space[256];
     bar.string = make_fixed_width_string(bar_string_space);
+    copy_ss(&bar.string, query_init);
     
     String isearch_str = make_lit_string("I-Search: ");
     String rsearch_str = make_lit_string("Reverse-I-Search: ");
+    
+    bool32 first_step = true;
     
     User_Input in = {0};
     for (;;){
         view_set_highlight(app, &view, match.start, match.end, true);
         
         // NOTE(allen): Change the bar's prompt to match the current direction.
-        if (reverse) bar.prompt = rsearch_str;
-        else bar.prompt = isearch_str;
-        
-        in = get_user_input(app, EventOnAnyKey, EventOnEsc | EventOnButton);
-        if (in.abort) break;
-        
-        // NOTE(allen): If we're getting mouse events here it's a 4coder bug, because we
-        // only asked to intercept key events.
-        Assert(in.type == UserInputKey);
-        
-        char character = to_writable_char(in.key.character);
-        int32_t made_change = 0;
-        if (in.key.keycode == '\n' || in.key.keycode == '\t'){
-            break;
+        if (reverse){
+            bar.prompt = rsearch_str;
         }
-        else if (character && key_is_unmodified(&in.key)){
-            append_s_char(&bar.string, character);
-            made_change = 1;
+        else{
+            bar.prompt = isearch_str;
         }
-        else if (in.key.keycode == key_back){
-            if (bar.string.size > 0){
-                --bar.string.size;
-                made_change = 1;
+        
+        bool32 step_forward = false;
+        bool32 step_backward = false;
+        bool32 backspace = false;
+        
+        if (!first_step){
+            in = get_user_input(app, EventOnAnyKey, EventOnEsc | EventOnButton);
+            if (in.abort) break;
+            
+            // NOTE(allen): If we're getting mouse events here it's a 4coder bug, because we only asked to intercept key events.
+            Assert(in.type == UserInputKey);
+            
+            char character = to_writable_char(in.key.character);
+            bool32 made_change = false;
+            if (in.key.keycode == '\n' || in.key.keycode == '\t'){
+                break;
+            }
+            else if (character && key_is_unmodified(&in.key)){
+                append_s_char(&bar.string, character);
+                made_change = true;
+            }
+            else if (in.key.keycode == key_back){
+                if (bar.string.size > 0){
+                    --bar.string.size;
+                    made_change = true;
+                }
+                backspace = true;
+            }
+            
+            if ((in.command.command == search) || in.key.keycode == key_page_down || in.key.keycode == key_down){
+                step_forward = true;
+            }
+            
+            if ((in.command.command == reverse_search) || in.key.keycode == key_page_up || in.key.keycode == key_up){
+                step_backward = true;
             }
         }
-        
-        int32_t step_forward = 0;
-        int32_t step_backward = 0;
-        
-        if ((in.command.command == search) ||
-            in.key.keycode == key_page_down || in.key.keycode == key_down) step_forward = 1;
-        if ((in.command.command == reverse_search) ||
-            in.key.keycode == key_page_up || in.key.keycode == key_up) step_backward = 1;
+        else{
+            if (bar.string.size != 0){
+                step_backward = true;
+            }
+            first_step = false;
+        }
         
         start_pos = pos;
         if (step_forward && reverse){
             start_pos = match.start + 1;
             pos = start_pos;
-            reverse = 0;
-            step_forward = 0;
+            reverse = false;
+            step_forward = false;
         }
         if (step_backward && !reverse){
             start_pos = match.start - 1;
             pos = start_pos;
-            reverse = 1;
-            step_backward = 0;
+            reverse = true;
+            step_backward = false;
         }
         
-        if (in.key.keycode != key_back){
-            int32_t new_pos;
+        if (!backspace){
             if (reverse){
-                buffer_seek_string_insensitive_backward(app, &buffer, start_pos - 1, 0,
-                                                        bar.string.str, bar.string.size, &new_pos);
+                int32_t new_pos = 0;
+                buffer_seek_string_insensitive_backward(app, &buffer, start_pos - 1, 0, bar.string.str, bar.string.size, &new_pos);
                 if (new_pos >= 0){
                     if (step_backward){
                         pos = new_pos;
                         start_pos = new_pos;
-                        buffer_seek_string_insensitive_backward(app, &buffer, start_pos - 1, 0,
-                                                                bar.string.str, bar.string.size, &new_pos);
-                        if (new_pos < 0) new_pos = start_pos;
+                        buffer_seek_string_insensitive_backward(app, &buffer, start_pos - 1, 0, bar.string.str, bar.string.size, &new_pos);
+                        if (new_pos < 0){
+                            new_pos = start_pos;
+                        }
                     }
                     match.start = new_pos;
                     match.end = match.start + bar.string.size;
                 }
             }
             else{
-                buffer_seek_string_insensitive_forward(app, &buffer, start_pos + 1, 0,
-                                                       bar.string.str, bar.string.size, &new_pos);
+                int32_t new_pos = 0;
+                buffer_seek_string_insensitive_forward(app, &buffer, start_pos + 1, 0, bar.string.str, bar.string.size, &new_pos);
                 if (new_pos < buffer.size){
                     if (step_forward){
                         pos = new_pos;
                         start_pos = new_pos;
-                        buffer_seek_string_insensitive_forward(app, &buffer, start_pos + 1, 0,
-                                                               bar.string.str, bar.string.size, &new_pos);
-                        if (new_pos >= buffer.size) new_pos = start_pos;
+                        buffer_seek_string_insensitive_forward(app, &buffer, start_pos + 1, 0, bar.string.str, bar.string.size, &new_pos);
+                        if (new_pos >= buffer.size){
+                            new_pos = start_pos;
+                        }
                     }
                     match.start = new_pos;
                     match.end = match.start + bar.string.size;
@@ -680,6 +715,7 @@ isearch(Application_Links *app, int32_t start_reversed){
             }
         }
     }
+    
     view_set_highlight(app, &view, 0, 0, false);
     if (in.abort){
         view_set_cursor(app, &view, seek_pos(first_pos), true);
@@ -690,11 +726,31 @@ isearch(Application_Links *app, int32_t start_reversed){
 }
 
 CUSTOM_COMMAND_SIG(search){
-    isearch(app, false);
+    String query = {0};
+    isearch(app, false, query);
 }
 
 CUSTOM_COMMAND_SIG(reverse_search){
-    isearch(app, true);
+    String query = {0};
+    isearch(app, true, query);
+}
+
+CUSTOM_COMMAND_SIG(search_identifier){
+    View_Summary view = get_active_view(app, AccessProtected);
+    Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessProtected);
+    
+    char space[256];
+    String query = read_identifier_at_pos(app, &buffer, view.cursor.pos, space, sizeof(space), 0);
+    isearch(app, false, query);
+}
+
+CUSTOM_COMMAND_SIG(reverse_search_identifier){
+    View_Summary view = get_active_view(app, AccessProtected);
+    Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessProtected);
+    
+    char space[256];
+    String query = read_identifier_at_pos(app, &buffer, view.cursor.pos, space, sizeof(space), 0);
+    isearch(app, true, query);
 }
 
 CUSTOM_COMMAND_SIG(replace_in_range){
@@ -735,6 +791,36 @@ CUSTOM_COMMAND_SIG(replace_in_range){
     }
 }
 
+static void
+query_replace(Application_Links *app, View_Summary *view, Buffer_Summary *buffer, int32_t pos, String r, String w){
+    int32_t new_pos = 0;
+    buffer_seek_string_forward(app, buffer, pos, 0, r.str, r.size, &new_pos);
+    
+    User_Input in = {0};
+    while (new_pos < buffer->size){
+        Range match = make_range(new_pos, new_pos + r.size);
+        view_set_highlight(app, view, match.min, match.max, 1);
+        
+        in = get_user_input(app, EventOnAnyKey, EventOnButton);
+        if (in.abort || in.key.keycode == key_esc || !key_is_unmodified(&in.key))  break;
+        
+        if (in.key.character == 'y' || in.key.character == 'Y' || in.key.character == '\n' || in.key.character == '\t'){
+            buffer_replace_range(app, buffer, match.min, match.max, w.str, w.size);
+            pos = match.start + w.size;
+        }
+        else{
+            pos = match.max;
+        }
+        
+        buffer_seek_string_forward(app, buffer, pos, 0, r.str, r.size, &new_pos);
+    }
+    
+    view_set_highlight(app, view, 0, 0, 0);
+    if (in.abort) return;
+    
+    view_set_cursor(app, view, seek_pos(pos), true);
+}
+
 CUSTOM_COMMAND_SIG(query_replace){
     Query_Bar replace;
     char replace_space[1024];
@@ -751,55 +837,57 @@ CUSTOM_COMMAND_SIG(query_replace){
     
     if (!query_user_string(app, &with)) return;
     
-    String r, w;
-    r = replace.string;
-    w = with.string;
+    String r = replace.string;
+    String w = with.string;
+    
+    View_Summary view = get_active_view(app, AccessOpen);
+    Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessOpen);
+    int32_t pos = view.cursor.pos;
     
     Query_Bar bar;
-    Buffer_Summary buffer;
-    View_Summary view;
-    int32_t pos, new_pos;
-    
     bar.prompt = make_lit_string("Replace? (y)es, (n)ext, (esc)\n");
     bar.string = null_string;
-    
     start_query_bar(app, &bar, 0);
     
-    uint32_t access = AccessOpen;
-    view = get_active_view(app, access);
-    buffer = get_buffer(app, view.buffer_id, access);
-    
-    pos = view.cursor.pos;
-    buffer_seek_string_forward(app, &buffer, pos, 0, r.str, r.size, &new_pos);
-    
-    User_Input in = {0};
-    while (new_pos < buffer.size){
-        Range match = make_range(new_pos, new_pos + r.size);
-        view_set_highlight(app, &view, match.min, match.max, 1);
-        
-        in = get_user_input(app, EventOnAnyKey, EventOnButton);
-        if (in.abort || in.key.keycode == key_esc || !key_is_unmodified(&in.key))  break;
-        
-        if (in.key.character == 'y' ||
-            in.key.character == 'Y' ||
-            in.key.character == '\n' ||
-            in.key.character == '\t'){
-            buffer_replace_range(app, &buffer, match.min, match.max, w.str, w.size);
-            pos = match.start + w.size;
-        }
-        else{
-            pos = match.max;
-        }
-        
-        buffer_seek_string_forward(app, &buffer, pos, 0, r.str, r.size, &new_pos);
-    }
-    
-    view_set_highlight(app, &view, 0, 0, 0);
-    if (in.abort) return;
-    
-    view_set_cursor(app, &view, seek_pos(pos), 1);
+    query_replace(app, &view, &buffer, pos, r, w);
 }
 
+CUSTOM_COMMAND_SIG(query_replace_identifier){
+    View_Summary view = get_active_view(app, AccessProtected);
+    Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessProtected);
+    
+    Range range = {0};
+    char space[256];
+    String query = read_identifier_at_pos(app, &buffer, view.cursor.pos, space, sizeof(space), &range);
+    
+    if (query.size != 0){
+        Query_Bar replace;
+        replace.prompt = make_lit_string("Replace: ");
+        replace.string = query;
+        if (start_query_bar(app, &replace, 0) == 0) return;
+        
+        Query_Bar with;
+        char with_space[1024];
+        with.prompt = make_lit_string("With: ");
+        with.string = make_fixed_width_string(with_space);
+        
+        if (!query_user_string(app, &with)) return;
+        
+        String r = replace.string;
+        String w = with.string;
+        
+        View_Summary view = get_active_view(app, AccessOpen);
+        Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessOpen);
+        int32_t pos = range.start;
+        
+        Query_Bar bar;
+        bar.prompt = make_lit_string("Replace? (y)es, (n)ext, (esc)\n");
+        bar.string = null_string;
+        start_query_bar(app, &bar, 0);
+        
+        query_replace(app, &view, &buffer, pos, r, w);
+    }
+}
 
 //
 // File Handling Commands
@@ -833,6 +921,10 @@ CUSTOM_COMMAND_SIG(interactive_new){
 
 CUSTOM_COMMAND_SIG(interactive_open){
     exec_command(app, cmdid_interactive_open);
+}
+
+CUSTOM_COMMAND_SIG(interactive_open_or_new){
+    exec_command(app, cmdid_interactive_open_or_new);
 }
 
 CUSTOM_COMMAND_SIG(save_as){

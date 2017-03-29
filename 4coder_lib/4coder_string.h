@@ -1,5 +1,5 @@
 /*
-4coder_string.h - Version 1.0.66
+4coder_string.h - Version 1.0.72
 no warranty implied; use at your own risk
 
 This software is in the public domain. Where that dedication is not
@@ -70,16 +70,24 @@ static String null_string = {0};
 
 FSTRING_INLINE b32_4tech           char_is_slash(char c);
 FSTRING_INLINE b32_4tech           char_is_upper(char c);
+FSTRING_INLINE b32_4tech           char_is_upper_utf8(char c);
 FSTRING_INLINE b32_4tech           char_is_lower(char c);
+FSTRING_INLINE b32_4tech           char_is_lower_utf8(u8_4tech c);
 FSTRING_INLINE char                char_to_upper(char c);
 FSTRING_INLINE char                char_to_lower(char c);
 FSTRING_INLINE b32_4tech           char_is_whitespace(char c);
 FSTRING_INLINE b32_4tech           char_is_alpha_numeric(char c);
+FSTRING_INLINE b32_4tech           char_is_alpha_numeric_utf8(u8_4tech c);
 FSTRING_INLINE b32_4tech           char_is_alpha_numeric_true(char c);
+FSTRING_INLINE b32_4tech           char_is_alpha_numeric_true_utf8(u8_4tech c);
 FSTRING_INLINE b32_4tech           char_is_alpha(char c);
+FSTRING_INLINE b32_4tech           char_is_alpha_utf8(u8_4tech c);
 FSTRING_INLINE b32_4tech           char_is_alpha_true(char c);
+FSTRING_INLINE b32_4tech           char_is_alpha_true_utf8(u8_4tech c);
 FSTRING_INLINE b32_4tech           char_is_hex(char c);
+FSTRING_INLINE b32_4tech           char_is_hex_utf8(u8_4tech c);
 FSTRING_INLINE b32_4tech           char_is_numeric(char c);
+FSTRING_INLINE b32_4tech           char_is_numeric_utf8(u8_4tech c);
 FSTRING_INLINE String              make_string_cap(void *str, i32_4tech size, i32_4tech mem_size);
 FSTRING_INLINE String              make_string(void *str, i32_4tech size);
 #ifndef   make_lit_string
@@ -302,9 +310,25 @@ char_is_upper(char c)
 
 #if !defined(FSTRING_GUARD)
  FSTRING_INLINE b32_4tech
+char_is_upper_utf8(char c)
+{
+    return (c >= 'A' && c <= 'Z' || c >= 128);
+}
+#endif
+
+#if !defined(FSTRING_GUARD)
+ FSTRING_INLINE b32_4tech
 char_is_lower(char c)
 {
     return (c >= 'a' && c <= 'z');
+}
+#endif
+
+#if !defined(FSTRING_GUARD)
+ FSTRING_INLINE b32_4tech
+char_is_lower_utf8(u8_4tech c)
+{
+    return (c >= 'a' && c <= 'z' || c >= 128);
 }
 #endif
 
@@ -342,9 +366,25 @@ char_is_alpha_numeric(char c)
 
 #if !defined(FSTRING_GUARD)
  FSTRING_INLINE b32_4tech
+char_is_alpha_numeric_utf8(u8_4tech c)
+{
+    return (c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c >= '0' && c <= '9' || c == '_' || c >= 128);
+}
+#endif
+
+#if !defined(FSTRING_GUARD)
+ FSTRING_INLINE b32_4tech
 char_is_alpha_numeric_true(char c)
 {
     return (c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c >= '0' && c <= '9');
+}
+#endif
+
+#if !defined(FSTRING_GUARD)
+ FSTRING_INLINE b32_4tech
+char_is_alpha_numeric_true_utf8(u8_4tech c)
+{
+    return (c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c >= '0' && c <= '9' || c >= 128);
 }
 #endif
 
@@ -358,9 +398,25 @@ char_is_alpha(char c)
 
 #if !defined(FSTRING_GUARD)
  FSTRING_INLINE b32_4tech
+char_is_alpha_utf8(u8_4tech c)
+{
+    return (c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c == '_' || c >= 128);
+}
+#endif
+
+#if !defined(FSTRING_GUARD)
+ FSTRING_INLINE b32_4tech
 char_is_alpha_true(char c)
 {
     return (c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z');
+}
+#endif
+
+#if !defined(FSTRING_GUARD)
+ FSTRING_INLINE b32_4tech
+char_is_alpha_true_utf8(u8_4tech c)
+{
+    return (c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c >= 128);
 }
 #endif
 
@@ -374,9 +430,25 @@ char_is_hex(char c)
 
 #if !defined(FSTRING_GUARD)
  FSTRING_INLINE b32_4tech
+char_is_hex_utf8(u8_4tech c)
+{
+    return (c >= '0' && c <= '9' || c >= 'A' && c <= 'F' || c >= 'a' && c <= 'f' || c >= 128);
+}
+#endif
+
+#if !defined(FSTRING_GUARD)
+ FSTRING_INLINE b32_4tech
 char_is_numeric(char c)
 {
     return (c >= '0' && c <= '9');
+}
+#endif
+
+#if !defined(FSTRING_GUARD)
+ FSTRING_INLINE b32_4tech
+char_is_numeric_utf8(u8_4tech c)
+{
+    return (c >= '0' && c <= '9' || c >= 128);
 }
 #endif
 

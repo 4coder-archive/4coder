@@ -21,6 +21,8 @@ struct Application_Memory{
     i32 target_memory_size;
     void *user_memory;
     i32 user_memory_size;
+    void *debug_memory;
+    i32 debug_memory_size;
 };
 
 #define KEY_INPUT_BUFFER_SIZE 8
@@ -38,30 +40,32 @@ get_single_key(Key_Input_Data *data, i32 index){
     return(key);
 }
 
-typedef struct Input_Summary{
+struct Input_Summary{
     Mouse_State mouse;
     Key_Input_Data keys;
     f32 dt;
-} Input_Summary;
+};
 
-typedef struct Command_Line_Parameters{
+struct Command_Line_Parameters{
     char **argv;
     int32_t argc;
-} Command_Line_Parameters;
+};
 
-typedef struct Plat_Settings{
+struct Plat_Settings{
     char *custom_dll;
-    b32 custom_dll_is_strict;
-    b32 fullscreen_window;
-    b32 stream_mode;
+    b8 custom_dll_is_strict;
+    b8 fullscreen_window;
+    b8 stream_mode;
     
     i32 window_w, window_h;
     i32 window_x, window_y;
     b8 set_window_pos;
     b8 set_window_size;
     b8 maximize_window;
+    
     b8 use_hinting;
-} Plat_Settings;
+    i32 font_size;
+};
 
 #define App_Read_Command_Line_Sig(name)             \
 i32 name(System_Functions *system, Application_Memory *memory, String current_directory, Plat_Settings *plat_settings, char ***files, i32 **file_count, Command_Line_Parameters clparams)

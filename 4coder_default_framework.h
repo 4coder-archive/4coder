@@ -36,6 +36,12 @@ static General_Memory global_general;
 // Jump Buffer Locking
 //
 
+#if !defined(AUTO_CENTER_AFTER_JUMPS)
+static bool32 auto_center_after_jumps = true;
+#else
+static bool32 auto_center_after_jumps = AUTO_CENTER_AFTER_JUMPS;
+#endif
+
 static char locked_buffer_space[256];
 static String locked_buffer = make_fixed_width_string(locked_buffer_space);
 
@@ -361,9 +367,9 @@ read_config_line(Cpp_Token_Array array, int32_t *i_ptr){
         if (i < array.count){
             Cpp_Token token = read_config_token(array, &i);
             
-            bool32 subscript_success = 1;
+            bool32 subscript_success = true;
             if (token.type == CPP_TOKEN_BRACKET_OPEN){
-                subscript_success = 0;
+                subscript_success = false;
                 ++i;
                 if (i < array.count){
                     config_line.subscript_token = read_config_token(array, &i);
@@ -375,7 +381,7 @@ read_config_line(Cpp_Token_Array array, int32_t *i_ptr){
                                 ++i;
                                 if (i < array.count){
                                     token = read_config_token(array, &i);
-                                    subscript_success = 1;
+                                    subscript_success = true;
                                 }
                             }
                         }
@@ -390,9 +396,9 @@ read_config_line(Cpp_Token_Array array, int32_t *i_ptr){
                     if (i < array.count){
                         Cpp_Token val_token = read_config_token(array, &i);
                         
-                        bool32 array_success = 1;
+                        bool32 array_success = true;
                         if (val_token.type == CPP_TOKEN_BRACE_OPEN){
-                            array_success = 0;
+                            array_success = false;
                             ++i;
                             if (i < array.count){
                                 config_line.val_array_start = i;
@@ -405,13 +411,13 @@ read_config_line(Cpp_Token_Array array, int32_t *i_ptr){
                                     }
                                     if (array_token.type == CPP_TOKEN_BRACE_CLOSE){
                                         config_line.val_array_end = i;
-                                        array_success = 1;
+                                        array_success = true;
                                         break;
                                     }
                                     else{
                                         if (array_token.type == CPP_TOKEN_COMMA){
                                             if (!expecting_array_item){
-                                                expecting_array_item = 1;
+                                                expecting_array_item = true;
                                             }
                                             else{
                                                 break;
@@ -419,7 +425,7 @@ read_config_line(Cpp_Token_Array array, int32_t *i_ptr){
                                         }
                                         else{
                                             if (expecting_array_item){
-                                                expecting_array_item = 0;
+                                                expecting_array_item = false;
                                                 ++config_line.val_array_count;
                                             }
                                         }
@@ -621,6 +627,8 @@ static String user_name = make_fixed_width_string(user_name_space);
 
 static Extension_List treat_as_code_exts = {0};
 
+static bool32 automatically_load_project = false;
+
 static bool32
 get_current_name(char **name_out, int32_t *len_out){
     bool32 result = false;
@@ -748,6 +756,8 @@ process_config_file(Application_Links *app){
                                 set_extensions(&treat_as_code_exts, str);
                             }
                         }
+                        
+                        config_bool_var(item, "automatically_load_project", 0, &automatically_load_project);
                     }
                 }
                 adjust_all_buffer_wrap_widths(app, new_wrap_width, new_min_base_width);
@@ -780,8 +790,11 @@ init_memory(Application_Links *app){
     general_memory_open(&global_general, general_mem, general_size);
 }
 
+static bool32 default_use_scrollbars = false;
+static bool32 default_use_file_bars = true;
+
 static void
-default_4coder_initialize(Application_Links *app){
+default_4coder_initialize(Application_Links *app, bool32 use_scrollbars, bool32 use_file_bars){
     init_memory(app);
     process_config_file(app);
     
@@ -790,28 +803,48 @@ default_4coder_initialize(Application_Links *app){
     
     change_theme(app, theme.str, theme.size);
     change_font(app, font.str, font.size, 1);
+    
+    default_use_scrollbars = use_scrollbars;
+    default_use_file_bars = use_file_bars;
+}
+
+static void
+default_4coder_initialize(Application_Links *app){
+    default_4coder_initialize(app, false, true);
 }
 
 static void
 default_4coder_side_by_side_panels(Application_Links *app){
-    exec_command(app, open_panel_vsplit);
-    exec_command(app, hide_scrollbar);
-    exec_command(app, change_active_panel);
-    exec_command(app, hide_scrollbar);
+    open_panel_vsplit(app);
+    if (!default_use_scrollbars){
+        hide_scrollbar(app);
+    }
+    if (!default_use_file_bars){
+        hide_file_bar(app);
+    }
+    change_active_panel(app);
+    if (!default_use_scrollbars){
+        hide_scrollbar(app);
+    }
+    if (!default_use_file_bars){
+        hide_file_bar(app);
+    }
 }
 
 static void
 default_4coder_one_panel(Application_Links *app){
-    exec_command(app, hide_scrollbar);
+    if (!default_use_scrollbars){
+        hide_scrollbar(app);
+    }
+    if (!default_use_file_bars){
+        hide_file_bar(app);
+    }
 }
 
 static void
 default_4coder_full_width_bottom_side_by_side_panels(Application_Links *app){
     open_special_note_view(app);
-    exec_command(app, open_panel_vsplit);
-    exec_command(app, hide_scrollbar);
-    exec_command(app, change_active_panel);
-    exec_command(app, hide_scrollbar);
+    default_4coder_side_by_side_panels(app);
 }
 
 #endif
