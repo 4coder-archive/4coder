@@ -482,14 +482,21 @@ CUSTOM_COMMAND_SIG(hide_scrollbar){
     view_set_setting(app, &view, ViewSetting_ShowScrollbar, false);
 }
 
-CUSTOM_COMMAND_SIG(show_file_bar){
+CUSTOM_COMMAND_SIG(show_filebar){
     View_Summary view = get_active_view(app, AccessAll);
     view_set_setting(app, &view, ViewSetting_ShowFileBar, true);
 }
 
-CUSTOM_COMMAND_SIG(hide_file_bar){
+CUSTOM_COMMAND_SIG(hide_filebar){
     View_Summary view = get_active_view(app, AccessAll);
     view_set_setting(app, &view, ViewSetting_ShowFileBar, false);
+}
+
+CUSTOM_COMMAND_SIG(toggle_filebar){
+    View_Summary view = get_active_view(app, AccessAll);
+    bool32 value;
+    view_get_setting(app, &view, ViewSetting_ShowFileBar, &value);
+    view_set_setting(app, &view, ViewSetting_ShowFileBar, !value);
 }
 
 //toggle_fullscreen can be used as a command

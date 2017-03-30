@@ -820,14 +820,14 @@ default_4coder_side_by_side_panels(Application_Links *app){
         hide_scrollbar(app);
     }
     if (!default_use_file_bars){
-        hide_file_bar(app);
+        hide_filebar(app);
     }
     change_active_panel(app);
     if (!default_use_scrollbars){
         hide_scrollbar(app);
     }
     if (!default_use_file_bars){
-        hide_file_bar(app);
+        hide_filebar(app);
     }
 }
 
@@ -837,7 +837,7 @@ default_4coder_one_panel(Application_Links *app){
         hide_scrollbar(app);
     }
     if (!default_use_file_bars){
-        hide_file_bar(app);
+        hide_filebar(app);
     }
 }
 

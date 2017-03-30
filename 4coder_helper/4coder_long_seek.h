@@ -454,16 +454,17 @@ buffer_seek_range_camel_right(Application_Links *app, Buffer_Summary *buffer, in
         stream.max_end = an_pos;
         if (init_stream_chunk(&stream, app, buffer, pos, data_chunk, sizeof(data_chunk))){
             
-            uint8_t c = 0;
+            uint8_t c = 0, pc = stream.data[pos];
             ++pos;
             
-            bool32 still_looping = 1;
+            bool32 still_looping = false;
             do{
                 for (; pos < stream.end; ++pos){
                     c = stream.data[pos];
-                    if (char_is_upper(c)){
+                    if (char_is_upper(c) && char_is_lower_utf8(pc)){
                         goto double_break1;
                     }
+                    pc = c;
                 }
                 still_looping = forward_stream_chunk(&stream);
             }while(still_looping);
@@ -487,15 +488,16 @@ buffer_seek_range_camel_left(Application_Links *app, Buffer_Summary *buffer, int
         stream.min_start = an_pos+1;
         if (init_stream_chunk(&stream, app, buffer, pos, data_chunk, sizeof(data_chunk))){
             
-            char c = 0;
+            char c = 0, pc = stream.data[pos];
             
-            bool32 still_looping = 1;
+            bool32 still_looping = false;
             do{
                 for (; pos >= stream.start; --pos){
                     c = stream.data[pos];
-                    if (char_is_upper(c)){
+                    if (char_is_upper(c) && char_is_lower_utf8(pc)){
                         goto double_break1;
                     }
+                    pc = c;
                 }
                 still_looping = backward_stream_chunk(&stream);
             }while(still_looping);

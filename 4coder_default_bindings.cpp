@@ -45,6 +45,7 @@ default_keys(Bind_Helper *context){
     
     bind(context, 's', MDFR_ALT, show_scrollbar);
     bind(context, 'w', MDFR_ALT, hide_scrollbar);
+    bind(context, 'b', MDFR_ALT, toggle_filebar);
     
     bind(context, '@', MDFR_ALT, toggle_mouse);
     bind(context, key_page_up, MDFR_CTRL, toggle_fullscreen);

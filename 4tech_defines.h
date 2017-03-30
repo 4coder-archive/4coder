@@ -10,9 +10,9 @@ Created 21.01.2017 (dd.mm.yyyy)
 #define FTECH_DEFINES
 
 #if defined(_MSC_VER)
-#define IS_MSVC 1
+#define IS_CL
 #elif __GNUC__
-#define IS_GCC 1
+#define IS_GCC
 #else
 #error unknown compiler
 #endif

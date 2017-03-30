@@ -15,7 +15,10 @@ By Allen Webster
 // NOTE(allen): Compiler/OS cracking.
 #if defined(_MSC_VER)
 
-# define IS_CL
+# if !defined(IS_CL)
+#  define IS_CL
+# endif
+
 # define snprintf _snprintf
 
 # if defined(_WIN32)
@@ -27,7 +30,9 @@ By Allen Webster
 
 #elif defined(__GNUC__) || defined(__GNUG__)
 
-# define IS_GCC
+# if !defined(IS_GCC)
+#  define IS_GCC
+# endif
 
 # if defined(__gnu_linux__)
 #  define IS_LINUX
