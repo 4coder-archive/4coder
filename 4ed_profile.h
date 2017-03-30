@@ -12,7 +12,7 @@
 #if !defined(FRED_PROFILE_H)
 #define FRED_PROFILE_H
 
-#if FRED_INTERNAL
+#if FRED_INTERNAL && IS_MSVC
 
 #include <intrin.h>
 #include <stdio.h>

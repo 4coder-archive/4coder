@@ -9,6 +9,14 @@ Created 21.01.2017 (dd.mm.yyyy)
 #if !defined(FTECH_DEFINES)
 #define FTECH_DEFINES
 
+#if defined(_MSC_VER)
+#define IS_MSVC 1
+#elif __GNUC__
+#define IS_GCC 1
+#else
+#error unknown compiler
+#endif
+
 #include <stdint.h>
 
 typedef int8_t i8;

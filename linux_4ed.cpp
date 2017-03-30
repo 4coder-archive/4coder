@@ -41,8 +41,9 @@
 
 #include <stdio.h>
 #include <math.h>
-#include <time.h>
 #include <stdlib.h>
+
+#include <time.h>
 #include <locale.h>
 #include <memory.h>
 #include <dirent.h>
@@ -631,8 +632,6 @@ Sys_Now_Time_Sig(system_now_time){
     clock_gettime(CLOCK_REALTIME, &spec);
     result = (spec.tv_sec * UINT64_C(1000000)) + (spec.tv_nsec / UINT64_C(1000));
     
-    //LINUX_FN_DEBUG("ts: %" PRIu64, result);
-    
     return(result);
 }
 
@@ -715,24 +714,16 @@ Sys_Toggle_Fullscreen_Sig(system_toggle_fullscreen){
 
 internal
 Sys_Is_Fullscreen_Sig(system_is_fullscreen){
-    b32 result = 0;
+    b32 result = false;
     
     Atom type, *prop;
     unsigned long nitems, pad;
     int fmt;
     
-    int ret = XGetWindowProperty(linuxvars.XDisplay,
-                                 linuxvars.XWindow,
-                                 linuxvars.atom__NET_WM_STATE,
-                                 0, 32, False, XA_ATOM,
-                                 &type,
-                                 &fmt,
-                                 &nitems,
-                                 &pad,
-                                 (unsigned char**)&prop);
+    int ret = XGetWindowProperty(linuxvars.XDisplay, linuxvars.XWindow, linuxvars.atom__NET_WM_STATE, 0, 32, False, XA_ATOM, &type, &fmt, &nitems, &pad, (unsigned char**)&prop);
     
-    if(ret == Success && prop){
-        result = *prop == linuxvars.atom__NET_WM_STATE_FULLSCREEN;
+    if (ret == Success && prop){
+        result = (*prop == linuxvars.atom__NET_WM_STATE_FULLSCREEN);
         XFree((unsigned char*)prop);
     }
     
@@ -1739,21 +1730,14 @@ struct Init_Input_Result{
     XIMStyle best_style;
     XIC xic;
 };
-
-inline Init_Input_Result
-init_input_result_zero(){
-    Init_Input_Result result={0};
-    return(result);
-}
+static Init_Input_Result null_init_input_result = {0};
 
 internal Init_Input_Result
-LinuxInputInit(Display *dpy, Window XWindow)
-{
+LinuxInputInit(Display *dpy, Window XWindow){
     Init_Input_Result result = {};
     XIMStyles *styles = 0;
     XIMStyle style;
     unsigned long xim_event_mask = 0;
-    i32 i;
     
     setlocale(LC_ALL, "");
     XSetLocaleModifiers("");
@@ -1771,7 +1755,7 @@ LinuxInputInit(Display *dpy, Window XWindow)
     
     if (result.input_method){
         if (!XGetIMValues(result.input_method, XNQueryInputStyle, &styles, NULL) && styles){
-            for (i = 0; i < styles->count_styles; ++i){
+            for (i32 i = 0; i < styles->count_styles; ++i){
                 style = styles->supported_styles[i];
                 if (style == (XIMPreeditNothing | XIMStatusNothing)){
                     result.best_style = style;
@@ -1783,43 +1767,25 @@ LinuxInputInit(Display *dpy, Window XWindow)
         if (result.best_style){
             XFree(styles);
             
-            result.xic = XCreateIC(
-                result.input_method,
-                XNInputStyle, result.best_style,
-                XNClientWindow, XWindow,
-                XNFocusWindow, XWindow,
-                NULL
-                );
+            result.xic = XCreateIC(result.input_method, XNInputStyle, result.best_style, XNClientWindow, XWindow, XNFocusWindow, XWindow, NULL);
             
             if (XGetICValues(result.xic, XNFilterEvents, &xim_event_mask, NULL)){
                 xim_event_mask = 0;
             }
         }
         else{
-            result = init_input_result_zero();
+            result = null_init_input_result;
             fputs("Could not get minimum required input style.\n", stderr);
         }
     }
     else{
-        result = init_input_result_zero();
-        fputs("Could not open X Input Method.\n", stderr);
+        result = null_init_input_result;
+        fprintf(stderr, "Could not open X Input Method.\n");
     }
     
-    XSelectInput(
-        linuxvars.XDisplay,
-        linuxvars.XWindow,
-        ExposureMask |
-        KeyPressMask | KeyReleaseMask |
-        ButtonPressMask | ButtonReleaseMask |
-        EnterWindowMask | LeaveWindowMask |
-        PointerMotionMask |
-        FocusChangeMask |
-        StructureNotifyMask |
-        MappingNotify |
-        ExposureMask |
-        VisibilityChangeMask |
-        xim_event_mask
-        );
+    u32 flags = ExposureMask | KeyPressMask | KeyReleaseMask | ButtonPressMask | ButtonReleaseMask | EnterWindowMask | LeaveWindowMask | PointerMotionMask | FocusChangeMask | StructureNotifyMask | MappingNotify | ExposureMask | VisibilityChangeMask | xim_event_mask;
+    
+    XSelectInput(linuxvars.XDisplay, linuxvars.XWindow, flags);
     
     return(result);
 }
@@ -1964,20 +1930,20 @@ LinuxStringDup(String* str, void* data, size_t size){
 }
 
 internal void
-LinuxScheduleStep(void)
-{
+LinuxScheduleStep(void){
     u64 now  = system_now_time();
     u64 diff = (now - linuxvars.last_step);
     
-    if(diff > (u64)frame_useconds){
+    if (diff > (u64)frame_useconds){
         u64 ev = 1;
         ssize_t size = write(linuxvars.step_event_fd, &ev, sizeof(ev));
         (void)size;
-    } else {
+    }
+    else{
         struct itimerspec its = {};
         timerfd_gettime(linuxvars.step_timer_fd, &its);
         
-        if(its.it_value.tv_sec == 0 && its.it_value.tv_nsec == 0){
+        if (its.it_value.tv_sec == 0 && its.it_value.tv_nsec == 0){
             its.it_value.tv_nsec = (frame_useconds - diff) * 1000UL;
             timerfd_settime(linuxvars.step_timer_fd, 0, &its, NULL);
         }
@@ -2113,7 +2079,7 @@ LinuxFatalErrorMsg(const char* msg)
     int button_hi = 0;
     
     XEvent ev;
-    while(1){
+    while (1){
         XNextEvent(dpy, &ev);
         
         int redraw = 0;
@@ -2512,14 +2478,7 @@ LinuxHandleX11Events(void)
                 KeySym keysym = NoSymbol;
                 u8 buff[32] = {};
                 
-                Xutf8LookupString(
-                    linuxvars.input_context,
-                    &Event.xkey,
-                    (char*)buff,
-                    sizeof(buff) - 1,
-                    &keysym,
-                    &status
-                    );
+                Xutf8LookupString(linuxvars.input_context, &Event.xkey, (char*)buff, sizeof(buff) - 1, &keysym, &status);
                 
                 if(status == XBufferOverflow){
                     //TODO(inso): handle properly
@@ -2535,13 +2494,7 @@ LinuxHandleX11Events(void)
                     u8 buff_no_caps[32] = {0};
                     Event.xkey.state &= ~(LockMask);
                     
-                    XLookupString(
-                        &Event.xkey,
-                        (char*)buff_no_caps,
-                        sizeof(buff_no_caps) - 1,
-                        NULL,
-                        NULL
-                        );
+                    XLookupString(&Event.xkey, (char*)buff_no_caps, sizeof(buff_no_caps) - 1, NULL, NULL);
                     
                     if(*buff_no_caps){
                         key_no_caps = utf8_to_u32_unchecked(buff_no_caps);
@@ -2639,10 +2592,11 @@ LinuxHandleX11Events(void)
             
             case ConfigureNotify: {
                 should_step = 1;
-                i32 w = Event.xconfigure.width, h = Event.xconfigure.height;
+                i32 w = Event.xconfigure.width;
+                i32 h = Event.xconfigure.height;
                 
                 if(w != linuxvars.target.width || h != linuxvars.target.height){
-                    LinuxResizeTarget(Event.xconfigure.width, Event.xconfigure.height);
+                    LinuxResizeTarget(w, h);
                 }
             }break;
             
@@ -2749,30 +2703,13 @@ LinuxHandleX11Events(void)
             // NOTE(inso): A program is giving us the clipboard data we asked for.
             case SelectionNotify: {
                 XSelectionEvent* e = (XSelectionEvent*)&Event;
-                if(
-                    e->selection == linuxvars.atom_CLIPBOARD &&
-                    e->target == linuxvars.atom_UTF8_STRING &&
-                    e->property != None
-                    ){
+                if(e->selection == linuxvars.atom_CLIPBOARD && e->target == linuxvars.atom_UTF8_STRING && e->property != None){
                     Atom type;
                     int fmt;
                     unsigned long nitems, bytes_left;
                     u8 *data;
                     
-                    int result = XGetWindowProperty(
-                        linuxvars.XDisplay,
-                        linuxvars.XWindow,
-                        linuxvars.atom_CLIPBOARD,
-                        0L,
-                        LINUX_MAX_PASTE_CHARS/4L,
-                        False,
-                        linuxvars.atom_UTF8_STRING,
-                        &type,
-                        &fmt,
-                        &nitems,
-                        &bytes_left,
-                        &data
-                        );
+                    int result = XGetWindowProperty(linuxvars.XDisplay, linuxvars.XWindow, linuxvars.atom_CLIPBOARD, 0L, LINUX_MAX_PASTE_CHARS/4L, False, linuxvars.atom_UTF8_STRING, &type, &fmt, &nitems, &bytes_left, &data);
                     
                     if(result == Success && fmt == 8){
                         LinuxStringDup(&linuxvars.clipboard_contents, data, nitems);
@@ -2793,14 +2730,7 @@ LinuxHandleX11Events(void)
                 if(Event.type == linuxvars.xfixes_selection_event){
                     XFixesSelectionNotifyEvent* sne = (XFixesSelectionNotifyEvent*)&Event;
                     if(sne->subtype == XFixesSelectionNotify && sne->owner != linuxvars.XWindow){
-                        XConvertSelection(
-                            linuxvars.XDisplay,
-                            linuxvars.atom_CLIPBOARD,
-                            linuxvars.atom_UTF8_STRING,
-                            linuxvars.atom_CLIPBOARD,
-                            linuxvars.XWindow,
-                            CurrentTime
-                            );
+                        XConvertSelection(linuxvars.XDisplay, linuxvars.atom_CLIPBOARD, linuxvars.atom_UTF8_STRING, linuxvars.atom_CLIPBOARD, linuxvars.XWindow, CurrentTime);
                     }
                 }
             }break;
@@ -2819,8 +2749,7 @@ LinuxHandleX11Events(void)
 //
 
 int
-main(int argc, char **argv)
-{
+main(int argc, char **argv){
     //
     // System & Memory init
     //
@@ -3043,38 +2972,29 @@ main(int argc, char **argv)
         linuxvars.dpi_y = dh_mm ? dh / (dh_mm / 25.4) : 96;
         
         fprintf(stderr, "%dx%d - %dmmx%dmm DPI: %dx%d\n", dw, dh, dw_mm, dh_mm, linuxvars.dpi_x, linuxvars.dpi_y);
-    } else {
+    }
+    else{
         fprintf(stderr, "DPI from XSETTINGS: %d\n", linuxvars.dpi_x);
     }
 #endif
     
     int WinWidth, WinHeight;
-    if(!LinuxX11WindowInit(argc, argv, &WinWidth, &WinHeight)){
+    if (!LinuxX11WindowInit(argc, argv, &WinWidth, &WinHeight)){
         return 1;
     }
     
     int xfixes_version_unused, xfixes_err_unused;
-    linuxvars.has_xfixes = XQueryExtension(
-        linuxvars.XDisplay,
-        "XFIXES",
-        &xfixes_version_unused,
-        &linuxvars.xfixes_selection_event,
-        &xfixes_err_unused
-        ) == True;
+    b32 xquery_extension_r = XQueryExtension(linuxvars.XDisplay, "XFIXES", &xfixes_version_unused, &linuxvars.xfixes_selection_event, &xfixes_err_unused);
+    linuxvars.has_xfixes = (xquery_extension_r == True);
     
-    if(linuxvars.has_xfixes){
-        XFixesSelectSelectionInput(
-            linuxvars.XDisplay,
-            linuxvars.XWindow,
-            linuxvars.atom_CLIPBOARD,
-            XFixesSetSelectionOwnerNotifyMask
-            );
-    } else {
-        fputs("Your X server doesn't support XFIXES, mention this fact if you report any clipboard-related issues.\n", stderr);
+    if (linuxvars.has_xfixes){
+        XFixesSelectSelectionInput(linuxvars.XDisplay, linuxvars.XWindow, linuxvars.atom_CLIPBOARD, XFixesSetSelectionOwnerNotifyMask);
+    }
+    else{
+        fprintf(stderr, "Your X server doesn't support XFIXES, mention this fact if you report any clipboard-related issues.\n");
     }
     
-    Init_Input_Result input_result =
-        LinuxInputInit(linuxvars.XDisplay, linuxvars.XWindow);
+    Init_Input_Result input_result = LinuxInputInit(linuxvars.XDisplay, linuxvars.XWindow);
     
     linuxvars.input_method = input_result.input_method;
     linuxvars.input_style = input_result.best_style;
@@ -3138,12 +3058,7 @@ main(int argc, char **argv)
     
     XAddConnectionWatch(linuxvars.XDisplay, &LinuxX11ConnectionWatch, NULL);
     
-    linuxvars.app.init(&linuxvars.system,
-                       &linuxvars.target,
-                       &memory_vars,
-                       linuxvars.clipboard_contents,
-                       current_directory,
-                       linuxvars.custom_api);
+    linuxvars.app.init(&linuxvars.system, &linuxvars.target, &memory_vars, linuxvars.clipboard_contents, current_directory, linuxvars.custom_api);
     
     LinuxResizeTarget(WinWidth, WinHeight);
     
@@ -3159,9 +3074,8 @@ main(int argc, char **argv)
     linuxvars.input.first_step = 1;
     linuxvars.input.dt = (frame_useconds / 1000000.f);
     
-    while(1){
-        
-        if(XEventsQueued(linuxvars.XDisplay, QueuedAlready)){
+    while (1){
+        if (XEventsQueued(linuxvars.XDisplay, QueuedAlready)){
             LinuxHandleX11Events();
         }
         
@@ -3172,9 +3086,9 @@ main(int argc, char **argv)
         
         system_acquire_lock(FRAME_LOCK);
         
-        if(num_events == -1){
-            if(errno != EINTR){
-                perror("epoll_wait");
+        if (num_events == -1){
+            if (errno != EINTR){
+                fprintf(stderr, "epoll_wait\n");
             }
             continue;
         }
@@ -3182,7 +3096,6 @@ main(int argc, char **argv)
         b32 do_step = 0;
         
         for(int i = 0; i < num_events; ++i){
-            
             int fd   = events[i].data.u64 & UINT32_MAX;
             u64 type = events[i].data.u64 & ~fd;
             
