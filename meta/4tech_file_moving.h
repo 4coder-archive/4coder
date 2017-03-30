@@ -421,10 +421,10 @@ copy_file(char *path, char *file, char *folder1, char *folder2, char *newname){
 static void
 copy_all(char *source, char *tag, char *folder){
     if (source){
-        systemf("cp -rf %s/%s %s", source, tag, folder);
+        systemf("cp -f %s/%s %s", source, tag, folder);
     }
     else{
-        systemf("cp -rf %s %s", tag, folder);
+        systemf("cp -f %s %s", tag, folder);
     }
 }
 

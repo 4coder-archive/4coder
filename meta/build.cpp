@@ -556,31 +556,37 @@ get_4coder_dist_name(String *zip_file, b32 OS_specific, char *folder, char *tier
 static void
 package(char *cdir){
     char str_space[1024];
-    String str = make_fixed_width_string(str_space), str2 = {0};
+    String str = make_fixed_width_string(str_space);
     
     // NOTE(allen): meta
     fsm_generator(cdir);
     metagen(cdir);
     
 #define SITE_DIR "../site"
-#define PACK_DATA_DIR "../data/dist_files"
+#define PACK_DATA_DIR  "../data/dist_files"
+#define PACK_FONTS_DIR PACK_DATA_DIR"/fonts"
 #define DATA_DIR "../data/test"
     
     DECL_STR(build_dir, BUILD_DIR);
     DECL_STR(site_dir, SITE_DIR);
     DECL_STR(pack_dir, PACK_DIR);
     DECL_STR(pack_data_dir, PACK_DATA_DIR);
+    DECL_STR(pack_fonts_dir, PACK_FONTS_DIR);
     DECL_STR(data_dir, DATA_DIR);
     
-#define PACK_ALPHA_PAR_DIR "../current_dist"
-#define PACK_ALPHA_DIR PACK_ALPHA_PAR_DIR"/4coder"
+#define PACK_ALPHA_PAR_DIR   "../current_dist"
+#define PACK_ALPHA_DIR       PACK_ALPHA_PAR_DIR"/4coder"
+#define PACK_ALPHA_FONTS_DIR PACK_ALPHA_DIR"/fonts"
     DECL_STR(pack_alpha_par_dir, PACK_ALPHA_PAR_DIR);
     DECL_STR(pack_alpha_dir, PACK_ALPHA_DIR);
+    DECL_STR(pack_alpha_fonts_dir, PACK_ALPHA_FONTS_DIR);
     
-#define PACK_ALPHA_X86_PAR_DIR "../current_dist_x86"
-#define PACK_ALPHA_X86_DIR PACK_ALPHA_X86_PAR_DIR"/4coder"
+#define PACK_ALPHA_X86_PAR_DIR   "../current_dist_x86"
+#define PACK_ALPHA_X86_DIR       PACK_ALPHA_X86_PAR_DIR"/4coder"
+#define PACK_ALPHA_X86_FONTS_DIR PACK_ALPHA_X86_DIR"/fonts"
     DECL_STR(pack_alpha_x86_par_dir, PACK_ALPHA_X86_PAR_DIR);
     DECL_STR(pack_alpha_x86_dir, PACK_ALPHA_X86_DIR);
+    DECL_STR(pack_alpha_x86_fonts_dir, PACK_ALPHA_X86_FONTS_DIR);
     
     // NOTE(allen): alpha
     {
@@ -592,6 +598,11 @@ package(char *cdir){
         char *dest_par_dirs[] = {
             pack_alpha_par_dir,
             pack_alpha_x86_par_dir,
+        };
+        
+        char *dest_fonts_dirs[] = {
+            pack_alpha_fonts_dir,
+            pack_alpha_x86_fonts_dir,
         };
         
         char *zip_dirs[] = {
@@ -618,17 +629,19 @@ package(char *cdir){
         for (u32 i = 0; i < count; ++i){
             char *dir = dest_dirs[i];
             char *par_dir = dest_par_dirs[i];
+            char *fonts_dir = dest_fonts_dirs[i];
             char *zip_dir = zip_dirs[i];
             char *arch = archs[i];
             
             build_main(cdir, base_flags | flags[i]);
             
             clear_folder(par_dir);
-            make_folder_if_missing(dir, "3rdparty");
+            make_folder_if_missing(dir, 0);
+            make_folder_if_missing(dir, "fonts");
             make_folder_if_missing(pack_dir, zip_dir);
             copy_file(build_dir, "4ed" EXE, dir, 0, 0);
             copy_file(build_dir, "4ed_app" DLL, dir, 0, 0);
-            copy_all (pack_data_dir, "*", dir);
+            copy_all(pack_fonts_dir, "*", fonts_dir);
             copy_file(data_dir, "release-config.4coder", dir, 0, "config.4coder");
             
             get_4coder_dist_name(&str, true, zip_dir, tier, arch, "zip");
@@ -637,15 +650,19 @@ package(char *cdir){
     }
     
     // NOTE(allen): super
-#define PACK_SUPER_PAR_DIR "../current_dist_super"
-#define PACK_SUPER_DIR PACK_SUPER_PAR_DIR"/4coder"
+#define PACK_SUPER_PAR_DIR   "../current_dist_super"
+#define PACK_SUPER_DIR       PACK_SUPER_PAR_DIR"/4coder"
+#define PACK_SUPER_FONTS_DIR PACK_SUPER_DIR"/fonts"
     DECL_STR(pack_super_par_dir, PACK_SUPER_PAR_DIR);
     DECL_STR(pack_super_dir, PACK_SUPER_DIR);
+    DECL_STR(pack_super_fonts_dir, PACK_SUPER_FONTS_DIR);
     
-#define PACK_SUPER_X86_PAR_DIR "../current_dist_super_x86"
-#define PACK_SUPER_X86_DIR PACK_SUPER_X86_PAR_DIR"/4coder"
+#define PACK_SUPER_X86_PAR_DIR   "../current_dist_super_x86"
+#define PACK_SUPER_X86_DIR       PACK_SUPER_X86_PAR_DIR"/4coder"
+#define PACK_SUPER_X86_FONTS_DIR PACK_SUPER_X86_DIR"/fonts"
     DECL_STR(pack_super_x86_par_dir, PACK_SUPER_X86_PAR_DIR);
     DECL_STR(pack_super_x86_dir, PACK_SUPER_X86_DIR);
+    DECL_STR(pack_super_x86_fonts_dir, PACK_SUPER_X86_FONTS_DIR);
     
     {
         char *dest_dirs[] = {
@@ -656,6 +673,11 @@ package(char *cdir){
         char *dest_par_dirs[] = {
             pack_super_par_dir,
             pack_super_x86_par_dir,
+        };
+        
+        char *dest_fonts_dirs[] = {
+            pack_super_fonts_dir,
+            pack_super_x86_fonts_dir,
         };
         
         char *zip_dirs[] = {
@@ -682,6 +704,7 @@ package(char *cdir){
         for (u32 i = 0; i < count; ++i){
             char *dir = dest_dirs[i];
             char *par_dir = dest_par_dirs[i];
+            char *fonts_dir = dest_fonts_dirs[i];
             char *zip_dir = zip_dirs[i];
             char *arch = archs[i];
             
@@ -689,15 +712,14 @@ package(char *cdir){
             do_buildsuper(cdir, Custom_Default, flags[i]);
             
             clear_folder(par_dir);
-            make_folder_if_missing(dir, "3rdparty");
+            make_folder_if_missing(dir, 0);
+            make_folder_if_missing(dir, "fonts");
             make_folder_if_missing(pack_dir, zip_dir);
             
             copy_file(build_dir, "4ed" EXE, dir, 0, 0);
             copy_file(build_dir, "4ed_app" DLL, dir, 0, 0);
             copy_file(build_dir, "custom_4coder" DLL, dir, 0, 0);
-            
-            copy_all (pack_data_dir, "*", dir);
-            //copy_file(0, "TODO.txt", dir, 0, 0);
+            copy_all(pack_fonts_dir, "*", fonts_dir);
             copy_file(data_dir, "release-config.4coder", dir, 0, "config.4coder");
             
             copy_all(0, "4coder_*", dir);
@@ -737,7 +759,7 @@ package(char *cdir){
         
         make_folder_if_missing(pack_dir, "super-docs");
         get_4coder_dist_name(&str, false, "super-docs", "API", 0, "html");
-        str2 = front_of_directory(str);
+        String str2 = front_of_directory(str);
         copy_file(site_dir, "custom_docs.html", pack_dir, "super-docs", str2.str);
     }
     
