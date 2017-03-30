@@ -14,12 +14,12 @@
 
 #include <Windows.h>
 
-typedef struct {
+struct Win32_Directory_Listener{
     OVERLAPPED overlapped;
-    u16 result[1024];
+    u8 result[2048];
     HANDLE dir;
     i32 user_count;
-} Win32_Directory_Listener;
+};
 global_const OVERLAPPED null_overlapped = {0};
 
 typedef struct {
@@ -327,7 +327,7 @@ get_change_event(File_Track_System *system, Partition *scratch, u8 *buffer, i32 
     }
     
     if (has_result){
-        FILE_NOTIFY_INFORMATION *info = (FILE_NOTIFY_INFORMATION*)(((u8*)listener.result) + offset);
+        FILE_NOTIFY_INFORMATION *info = (FILE_NOTIFY_INFORMATION*)(listener.result + offset);
         
         i32 len = info->FileNameLength / 2;
         i32 dir_len = GetFinalPathNameByHandle_utf8(listener.dir, 0, 0, FILE_NAME_NORMALIZED);
