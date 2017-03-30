@@ -43,6 +43,7 @@ GetFinalPathNameByHandle_utf8(HANDLE file, u8 *file_path_out, DWORD path_max, DW
     
     if (file_path_out == 0){
         result = GetFinalPathNameByHandleW(file, 0, 0, flags);
+        result *= 2;
     }
     else{
         Partition *scratch = &shared_vars.scratch;

@@ -327,31 +327,45 @@ get_change_event(File_Track_System *system, Partition *scratch, u8 *buffer, i32 
     }
     
     if (has_result){
-        FILE_NOTIFY_INFORMATION *info = (FILE_NOTIFY_INFORMATION*)(listener.result + offset);
+        FILE_NOTIFY_INFORMATION *info = (FILE_NOTIFY_INFORMATION*)(((u8*)listener.result) + offset);
         
         i32 len = info->FileNameLength / 2;
         i32 dir_len = GetFinalPathNameByHandle_utf8(listener.dir, 0, 0, FILE_NAME_NORMALIZED);
         
-        i32 req_size = dir_len + 1 + len;
+        i32 req_size = dir_len + (len + 1)*2;
         *size = req_size;
         
         // TODO(allen): This check isn't really right, it should rely on the result from GetFinalPathNameByHandle_utf8.
         if (req_size < max){
-            i32 pos = GetFinalPathNameByHandle_utf8(listener.dir, buffer, max, FILE_NAME_NORMALIZED);
-            buffer[pos++] = '\\';
+            u32 path_pos = GetFinalPathNameByHandle_utf8(listener.dir, buffer, max, FILE_NAME_NORMALIZED);
+            buffer[path_pos++] = '\\';
             
-            for (i32 i = 0; i < len; ++i, ++pos){
-                buffer[pos] = (char)info->FileName[i];
-            }
+            u32 name_max = max - path_pos;
+            u8 *name_buffer = buffer + path_pos;
             
-            if (buffer[0] == '\\'){
-                for (i32 i = 0; i+4 < pos; ++i){
-                    buffer[i] = buffer[i+4];
+            b32 convert_error = false;
+            u32 name_pos = (u32)utf16_to_utf8_minimal_checking(name_buffer, name_max, (u16*)info->FileName, len, &convert_error);
+            
+            if (name_pos < name_max){
+                if (!convert_error){
+                    u32 pos = path_pos + name_pos;
+                    *size = pos;
+                    if (buffer[0] == '\\'){
+                        for (u32 i = 0; i+4 < pos; ++i){
+                            buffer[i] = buffer[i+4];
+                        }
+                        *size -= 4;
+                    }
+                    result = FileTrack_Good;
                 }
-                *size -= 4;
+                else{
+                    result = FileTrack_FileSystemError;
+                }
+            }
+            else{
+                result = FileTrack_MemoryTooSmall;
             }
             
-            result = FileTrack_Good;
         }
         else{
             // TODO(allen): Need some way to stash this result so that if the
