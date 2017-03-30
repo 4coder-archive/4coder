@@ -11,7 +11,7 @@ Setting up and navigating your project with 4coder:
 
 \VIDEO{youtube:https://www.youtube.com/embed/glPEpaT6GH0}
 
-Extending your project with a project file:
+Extending your project with a project.4coder file:
 
 \VIDEO{youtube:https://www.youtube.com/embed/iZLtS3IoatE}
 

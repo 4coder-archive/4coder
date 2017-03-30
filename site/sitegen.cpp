@@ -308,6 +308,18 @@ generate_feature_list(Document_System *doc_system, Partition *part, char *src_di
 }
 
 static Abstract_Item*
+generate_binding_list(Document_System *doc_system, Partition *part, char *src_directory){
+    Enriched_Text *binding_list = push_struct(part, Enriched_Text);
+    *binding_list = load_enriched_text(part, src_directory, "binding_list.txt");
+    
+    Abstract_Item *doc = begin_document_description(doc_system, "4coder Feature List", "bindings", 0);
+    add_enriched_text(doc, binding_list);
+    end_document_description(doc);
+    
+    return(doc);
+}
+
+static Abstract_Item*
 generate_roadmap(Document_System *doc_system, Partition *part, char *src_directory){
     Enriched_Text *roadmap = push_struct(part, Enriched_Text);
     *roadmap = load_enriched_text(part, src_directory, "roadmap.txt");
@@ -369,39 +381,54 @@ generate_site(char *code_directory, char *asset_directory, char *src_directory, 
     Document_System doc_system = create_document_system(part);
     
     // TODO(allen): code compression here
-    str = push_string(part, 256);
-    append_sc(&str, asset_directory);
-    append_sc(&str, "/4coder_logo_low_green.png");
-    terminate_with_null(&str);
-    add_image_description(&doc_system, str.str, "png", "4coder_logo");
+    struct Site_Asset{
+        char *filename;
+        char *extension;
+        char *name;
+        u32 type;
+    };
+    enum Site_Asset_Type{
+        SiteAsset_None,
+        SiteAsset_Generic,
+        SiteAsset_Image,
+    };
     
-    str = push_string(part, 256);
-    append_sc(&str, asset_directory);
-    append_sc(&str, "/screen_1.png");
-    terminate_with_null(&str);
-    add_image_description(&doc_system, str.str, "png", "screen_1");
+    Site_Asset asset_list[] = {
+        {"4coder_logo_low_green.png", "png", "4coder_logo", SiteAsset_Image},
+        {"screen_1.png",              "png", "screen_1",    SiteAsset_Image},
+        {"screen_2.png",              "png", "screen_2",    SiteAsset_Image},
+        {"screen_3.png",              "png", "screen_3",    SiteAsset_Image},
+        {"4coder_icon.ico",           "ico", "4coder_icon", SiteAsset_Generic},
+    };
     
-    str = push_string(part, 256);
-    append_sc(&str, asset_directory);
-    append_sc(&str, "/screen_2.png");
-    terminate_with_null(&str);
-    add_image_description(&doc_system, str.str, "png", "screen_2");
-    
-    str = push_string(part, 256);
-    append_sc(&str, asset_directory);
-    append_sc(&str, "/screen_3.png");
-    terminate_with_null(&str);
-    add_image_description(&doc_system, str.str, "png", "screen_3");
-    
-    str = push_string(part, 256);
-    append_sc(&str, asset_directory);
-    append_sc(&str, "/4coder_icon.ico");
-    terminate_with_null(&str);
-    add_generic_file(&doc_system, str.str, "ico", "4coder_icon");
+    for (u32 i = 0; i < ArrayCount(asset_list); ++i){
+        Site_Asset *asset = &asset_list[i];
+        
+        str = push_string(part, 256);
+        append_sc(&str, asset_directory);
+        append_sc(&str, "/");
+        append_sc(&str, asset->filename);
+        terminate_with_null(&str);
+        
+        switch (asset_list[i].type){
+            case SiteAsset_Generic:
+            {
+                add_generic_file(&doc_system, str.str, asset->extension, asset->name);
+            }break;
+            
+            case SiteAsset_Image:
+            {
+                add_image_description(&doc_system, str.str, asset->extension, asset->name);
+            }break;
+            
+            default: InvalidCodePath;
+        }
+    }
     
     generate_homepage(&doc_system, part, src_directory);
     generate_4coder_docs(&doc_system, part, code_directory, src_directory);
     generate_feature_list(&doc_system, part, src_directory);
+    generate_binding_list(&doc_system, part, src_directory);
     generate_roadmap(&doc_system, part, src_directory);
     generate_tutorials(&doc_system, part, src_directory);
     

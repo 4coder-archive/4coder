@@ -3,10 +3,11 @@
 \IMAGE{image:4coder_logo}{width:200}
 \END_LINK
 
-This page provides a list of 4coder features for anyone trying to determine whether 4coder is the right editor for them.  If a feature is missing here you should check out the \BEGIN_LINK{document:roadmap} roadmap \END_LINK page to see what is coming in the future.  If the feature you want is on neither, you should contact \BEGIN_STYLE{code} editor@4coder.net \END_STYLE.  Some features that are already in 4coder might be missing from this list, if you want to be sure you should contact \BEGIN_STYLE{code} editor@4coder.net \END_STYLE.
+This page provides a list of 4coder features for anyone trying to determine whether 4coder is the right editor for them.  To find a complete list of every default key binding visit \BEGIN_LINK{document:bindings} binding list \END_LINK. If a feature is missing here you should check out the \BEGIN_LINK{document:roadmap} roadmap \END_LINK page to see what is coming in the future.  If the feature you want is on neither, you should contact \BEGIN_STYLE{code} editor@4coder.net \END_STYLE.  Some features that are already in 4coder might be missing from this list, if you want to be sure you should contact \BEGIN_STYLE{code} editor@4coder.net \END_STYLE.
 
 \SECTION{Text Editing}
  \BEGIN_LIST
+ \BEGIN_ITEM Support for UTF8 encoded files \END_ITEM
  \BEGIN_ITEM Cursor-Mark editing paradigm \END_ITEM
  \BEGIN_ITEM Navigation by characters, words, tokens, lines, and blank lines \END_ITEM
  \BEGIN_ITEM Modern style undo and redo \END_ITEM
@@ -23,6 +24,13 @@ This page provides a list of 4coder features for anyone trying to determine whet
  \BEGIN_ITEM Text level auto-indenting \END_ITEM
  \BEGIN_ITEM Build in editor \END_ITEM
  \BEGIN_ITEM Jump to error \END_ITEM
+ \END_LIST
+
+\SECTION{Project Organization}
+ \BEGIN_LIST
+ \BEGIN_ITEM List file extensions you care about in your project type to automatically open all code files \END_ITEM
+ \BEGIN_ITEM Set shell/terminal commands to various fkeys for build scripts, test scripts etc \END_ITEM
+ \BEGIN_ITEM project.4coder is a text file so it works painlessly with source control and can it is easy to start working with an existing project on a new machine. \END_ITEM
  \END_LIST
 
 \SECTION{The Customization API}
@@ -43,6 +51,7 @@ This page provides a list of 4coder features for anyone trying to determine whet
  \BEGIN_ITEM Multi-line editing
  \BEGIN_ITEM Rename a parameter
  \BEGIN_ITEM Write in explicit enum values from 0 to n
+ \BEGIN_ITEM Scope aware features: scope navigation & scope absorb down
  \END_LIST
 
 \SECTION{Transition From Emacs}

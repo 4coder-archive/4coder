@@ -3,29 +3,28 @@
 \IMAGE{image:4coder_logo}{width:200}
 \END_LINK
 
-The 4coder TODO list, in the rough order of priority and with very speculative time to completion estimates.
+Right now I am working on upgrading some core internal systems that should buy me the flexibility I need before I can move forward to any of the remaining features on this list.  These time projections assume the new system is ready sometime in May 2017, but it is hard to predict this sort of experimental stuff, so it could be longer than that.
 
 \SECTION{Improve the Core Buffer Systems}
  \BEGIN_LIST
- \BEGIN_ITEM utf8 buffer mode. Target completion: March 2017. \END_ITEM
- \BEGIN_ITEM binary buffer mode. Target completion: March 2017. \END_ITEM
- \BEGIN_ITEM Fix up the undo/redo system. Target completion: March 2017. \END_ITEM
- \BEGIN_ITEM Expose undo/redo system in the custom layer. Target completion: April 2017. \END_ITEM
+ \BEGIN_ITEM Programmable code wrapping: May 2017. \END_ITEM
+ \BEGIN_ITEM Virtual/Ghost text for features such as word complete. Target completion: May 2017. \END_ITEM
+ \BEGIN_ITEM Binary buffer mode. Target completion: June 2017. \END_ITEM
+ \BEGIN_ITEM Fix up the undo/redo system. Target completion: July 2017. \END_ITEM
+ \BEGIN_ITEM Expose undo/redo system in the custom layer. Target completion: July 2017. \END_ITEM
  \END_LIST
 
 \SECTION{Provide Customizations for Multiple Editing Paradgims}
  \BEGIN_LIST
- \BEGIN_ITEM Restructure custom layer to work as an event loop.  Target completion: May 2017. \END_ITEM
- \BEGIN_ITEM Custom layer reloading at runtime.  Target completion: May 2017. \END_ITEM
- \BEGIN_ITEM Virtual/Ghost text for features such as word complete. Target completion: May 2017. \END_ITEM
- \BEGIN_ITEM New frameworks for vim like and sublime like editing.  Target completion: June 2017. \END_ITEM
+ \BEGIN_ITEM Restructure custom layer to work as an event loop.  Target completion: July 2017. \END_ITEM
+ \BEGIN_ITEM Custom layer reloading at runtime.  Target completion: August 2017. \END_ITEM
+ \BEGIN_ITEM New frameworks for vim like and sublime like editing.  Target completion: August 2017. \END_ITEM
  \END_LIST
 
 \SECTION{Platform Layer Features and Porting Issues}
  \BEGIN_LIST
  \BEGIN_ITEM Upgrade to worker thread system to better support async and parallel systems. Target completion: ??? \END_ITEM
  \BEGIN_ITEM Support for double click opening files in an existing window.  Target completion: ??? \END_ITEM
- \BEGIN_ITEM Support for multi-window single process.  Target completion: ??? \END_ITEM
  \BEGIN_ITEM Make the rendeirng system modular.  Target completion: ??? \END_ITEM
  \END_LIST
 
@@ -35,5 +34,4 @@ The 4coder TODO list, in the rough order of priority and with very speculative t
  \BEGIN_ITEM Tables.  Target completion: ??? \END_ITEM
  \BEGIN_ITEM IMGUI helper wrapper. Target completion: ??? \END_ITEM
  \END_LIST
-
 
