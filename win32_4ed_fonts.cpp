@@ -115,12 +115,9 @@ Sys_Font_Init_Sig(system_font_init){
     u32 dir_len = system_get_binary_path(&dir_str);
     Assert(dir_len < dir_max);
     
-    {
-        String dir_str = make_string_cap(directory, dir_len, dir_max);
-        set_last_folder_sc(&dir_str, "fonts", '\\');
-        terminate_with_null(&dir_str);
-        dir_len = dir_str.size;
-    }
+    set_last_folder_sc(&dir_str, "fonts", '\\');
+    terminate_with_null(&dir_str);
+    dir_len = dir_str.size;
     
     partition_reduce(scratch, dir_max - dir_len - 1);
     partition_align(scratch, 8);

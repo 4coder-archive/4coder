@@ -883,8 +883,8 @@ CUSTOM_COMMAND_SIG(query_replace_identifier){
         String r = replace.string;
         String w = with.string;
         
-        View_Summary view = get_active_view(app, AccessOpen);
-        Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessOpen);
+        view = get_active_view(app, AccessOpen);
+        buffer = get_buffer(app, view.buffer_id, AccessOpen);
         int32_t pos = range.start;
         
         Query_Bar bar;
