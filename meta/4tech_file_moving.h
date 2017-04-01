@@ -9,41 +9,10 @@ By Allen Webster
 #if !defined(FTECH_FILE_MOVING_H)
 #define FTECH_FILE_MOVING_H
 
+#include "../4ed_os_comp_cracking.h"
+
 #include <stdio.h>  // include system for windows
 #include <stdlib.h> // include system for linux   (YAY!)
-
-// NOTE(allen): Compiler/OS cracking.
-#if defined(_MSC_VER)
-
-# if !defined(IS_CL)
-#  define IS_CL
-# endif
-
-# define snprintf _snprintf
-
-# if defined(_WIN32)
-#  define IS_WINDOWS
-#  pragma comment(lib, "Kernel32.lib")
-# else
-#  error This compiler/platform combo is not supported yet
-# endif
-
-#elif defined(__GNUC__) || defined(__GNUG__)
-
-# if !defined(IS_GCC)
-#  define IS_GCC
-# endif
-
-# if defined(__gnu_linux__)
-#  define IS_LINUX
-# else
-#  error This compiler/platform combo is not supported yet
-# endif
-
-#else
-#error This compiler is not supported yet
-#endif
-
 
 #if defined(IS_WINDOWS)
 #  define ONLY_WINDOWS(x) x
