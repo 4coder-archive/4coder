@@ -11,7 +11,7 @@ If you cannot find what you are looking for please contact \BEGIN_STYLE{code} ed
 
 \BEGIN_LINK{document:features} The official 4coder feature list \END_LINK
 
-\BEGIN_LINK{documents:binding_list} The list of default 4coder bindings \END_LINK
+\BEGIN_LINK{document:bindings} The list of default 4coder bindings \END_LINK
 
 \BEGIN_LINK{document:roadmap} The official 4coder road map \END_LINK
 

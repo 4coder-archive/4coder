@@ -5,180 +5,182 @@
 
 These are the default key bindings in 4coder version \VERSION
 
-The following bindings apply in all situations:
 \SECTION{Global Bindings}
+The following bindings apply in all situations.
  \BEGIN_LIST
- \BEGIN_ITEM <ctrl p> - Create a new panel with a vertical split \END_ITEM
- \BEGIN_ITEM <ctrl _> - Create a new panel with a horizontal split \END_ITEM
- \BEGIN_ITEM <ctrl P> - Close a panel \END_ITEM
- \BEGIN_ITEM <ctrl ,> - Change active panel \END_ITEM
- \BEGIN_ITEM <ctrl <> - change active panel backwards \END_ITEM
+ \BEGIN_ITEM \BEGIN_STYLE{code} <ctrl p> \END_STYLE Create a new panel with a vertical split \END_ITEM
+ \BEGIN_ITEM \BEGIN_STYLE{code} <ctrl _> \END_STYLE Create a new panel with a horizontal split \END_ITEM
+ \BEGIN_ITEM \BEGIN_STYLE{code} <ctrl P> \END_STYLE Close a panel \END_ITEM
+ \BEGIN_ITEM \BEGIN_STYLE{code} <ctrl ,> \END_STYLE Change active panel \END_ITEM
+ \BEGIN_ITEM \BEGIN_STYLE{code} <ctrl <> \END_STYLE change active panel backwards \END_ITEM
  
- \BEGIN_ITEM <ctrl n> - New file dialogue \END_ITEM
- \BEGIN_ITEM <ctrl o> - Open file dialogue \END_ITEM
- \BEGIN_ITEM <alt  o> - Open file dialogue in other panel \END_ITEM
- \BEGIN_ITEM <ctrl k> - Kill buffer dialogue \END_ITEM
- \BEGIN_ITEM <ctrl i> - Switch open buffer dialogue \END_ITEM
+ \BEGIN_ITEM \BEGIN_STYLE{code} <ctrl n> \END_STYLE New file dialogue \END_ITEM
+ \BEGIN_ITEM \BEGIN_STYLE{code} <ctrl o> \END_STYLE Open file dialogue \END_ITEM
+ \BEGIN_ITEM \BEGIN_STYLE{code} <alt  o> \END_STYLE Open file dialogue in other panel \END_ITEM
+ \BEGIN_ITEM \BEGIN_STYLE{code} <ctrl k> \END_STYLE Kill buffer dialogue \END_ITEM
+ \BEGIN_ITEM \BEGIN_STYLE{code} <ctrl i> \END_STYLE Switch open buffer dialogue \END_ITEM
  
- \BEGIN_ITEM <alt  c> - Open color and font selection GUI \END_ITEM
- \BEGIN_ITEM <alt  d> - Open a debug information GUI \END_ITEM
+ \BEGIN_ITEM \BEGIN_STYLE{code} <alt  c> \END_STYLE Open color and font selection GUI \END_ITEM
+ \BEGIN_ITEM \BEGIN_STYLE{code} <alt  d> \END_STYLE Open a debug information GUI \END_ITEM
  
+ \BEGIN_ITEM \BEGIN_STYLE{code} <alt  .> \END_STYLE Change to footer build panel \END_ITEM
+ \BEGIN_ITEM \BEGIN_STYLE{code} <alt  ,> \END_STYLE Close footer build panel \END_ITEM
+ \BEGIN_ITEM \BEGIN_STYLE{code} <alt  n> \END_STYLE Goto next error/jump location \END_ITEM
+ \BEGIN_ITEM \BEGIN_STYLE{code} <alt  N> \END_STYLE Goto previous error/jump location \END_ITEM
+ \BEGIN_ITEM \BEGIN_STYLE{code} <alt  M> \END_STYLE Goto first error/jump location \END_ITEM
+ \BEGIN_ITEM \BEGIN_STYLE{code} <alt  m> \END_STYLE Launch basic build (calls build.bat, build.sh, or Makefile) \END_ITEM
  
- \BEGIN_ITEM <alt  .> - Change to footer build panel \END_ITEM
- \BEGIN_ITEM <alt  ,> - Close footer build panel \END_ITEM
- \BEGIN_ITEM <alt  n> - Goto next error/jump location \END_ITEM
- \BEGIN_ITEM <alt  N> - Goto previous error/jump location \END_ITEM
- \BEGIN_ITEM <alt  M> - Goto first error/jump location \END_ITEM
- \BEGIN_ITEM <alt  m> - Launch basic build (calls build.bat, build.sh, or Makefile) \END_ITEM
+ \BEGIN_ITEM \BEGIN_STYLE{code} <alt  z> \END_STYLE Execute arbitrary shell/terminal command in arbitrary buffer \END_ITEM
+ \BEGIN_ITEM \BEGIN_STYLE{code} <alt  Z> \END_STYLE Repeat previous shell/terminal command \END_ITEM
  
- \BEGIN_ITEM <alt  z> - Execute arbitrary shell/terminal command in arbitrary buffer \END_ITEM
- \BEGIN_ITEM <alt  Z> - Repeat previous shell/terminal command \END_ITEM
+ \BEGIN_ITEM \BEGIN_STYLE{code} <alt  x> \END_STYLE Execute 4coder internal command \END_ITEM
  
- \BEGIN_ITEM <alt  x> - Execute 4coder internal command \END_ITEM
+ \BEGIN_ITEM \BEGIN_STYLE{code} <alt  s> \END_STYLE Show scrollbar \END_ITEM
+ \BEGIN_ITEM \BEGIN_STYLE{code} <alt  w> \END_STYLE Hide scrollbar \END_ITEM
+ \BEGIN_ITEM \BEGIN_STYLE{code} <alt  b> \END_STYLE Toggle filebar \END_ITEM
  
- \BEGIN_ITEM <alt  s> - Show scrollbar \END_ITEM
- \BEGIN_ITEM <alt  w> - Hide scrollbar \END_ITEM
- \BEGIN_ITEM <alt  b> - Toggle filebar \END_ITEM
+ \BEGIN_ITEM \BEGIN_STYLE{code} <alt  @> \END_STYLE Toggle mouse input \END_ITEM
+ \BEGIN_ITEM \BEGIN_STYLE{code} <ctrl page up> \END_STYLE Toggle fullscreen mode \END_ITEM
+ \BEGIN_ITEM \BEGIN_STYLE{code} <alt  E> \END_STYLE Exit 4coder \END_ITEM
  
- \BEGIN_ITEM <alt  @> - Toggle mouse input);
- \BEGIN_ITEM <ctrl page up> - Toggle fullscreen mode);
- \BEGIN_ITEM <alt  E> - Exit 4coder);
+ \BEGIN_ITEM \BEGIN_STYLE{code} <f1> \END_STYLE Launch shell command set in a loaded project \END_ITEM
+ \BEGIN_ITEM \BEGIN_STYLE{code} <f2> \END_STYLE Launch shell command set in a loaded project \END_ITEM
+ \BEGIN_ITEM \BEGIN_STYLE{code} <f3> \END_STYLE Launch shell command set in a loaded project \END_ITEM
+ \BEGIN_ITEM \BEGIN_STYLE{code} <f4> \END_STYLE Launch shell command set in a loaded project \END_ITEM
  
- \BEGIN_ITEM <f1> - Launch shell command set in a loaded project \END_ITEM
- \BEGIN_ITEM <f2> - Launch shell command set in a loaded project \END_ITEM
- \BEGIN_ITEM <f3> - Launch shell command set in a loaded project \END_ITEM
- \BEGIN_ITEM <f4> - Launch shell command set in a loaded project \END_ITEM
+ \BEGIN_ITEM \BEGIN_STYLE{code} <f5> \END_STYLE Launch shell command set in a loaded project \END_ITEM
+ \BEGIN_ITEM \BEGIN_STYLE{code} <f6> \END_STYLE Launch shell command set in a loaded project \END_ITEM
+ \BEGIN_ITEM \BEGIN_STYLE{code} <f7> \END_STYLE Launch shell command set in a loaded project \END_ITEM
+ \BEGIN_ITEM \BEGIN_STYLE{code} <f8> \END_STYLE Launch shell command set in a loaded project \END_ITEM
  
- \BEGIN_ITEM <f5> - Launch shell command set in a loaded project \END_ITEM
- \BEGIN_ITEM <f6> - Launch shell command set in a loaded project \END_ITEM
- \BEGIN_ITEM <f7> - Launch shell command set in a loaded project \END_ITEM
- \BEGIN_ITEM <f8> - Launch shell command set in a loaded project \END_ITEM
+ \BEGIN_ITEM \BEGIN_STYLE{code} <f9> \END_STYLE Launch shell command set in a loaded project \END_ITEM
+ \BEGIN_ITEM \BEGIN_STYLE{code} <f10> \END_STYLE Launch shell command set in a loaded project \END_ITEM
+ \BEGIN_ITEM \BEGIN_STYLE{code} <f11> \END_STYLE Launch shell command set in a loaded project \END_ITEM
+ \BEGIN_ITEM \BEGIN_STYLE{code} <f12> \END_STYLE Launch shell command set in a loaded project \END_ITEM
  
- \BEGIN_ITEM <f9> - Launch shell command set in a loaded project \END_ITEM
- \BEGIN_ITEM <f10> - Launch shell command set in a loaded project \END_ITEM
- \BEGIN_ITEM <f11> - Launch shell command set in a loaded project \END_ITEM
- \BEGIN_ITEM <f12> - Launch shell command set in a loaded project \END_ITEM
- 
- \BEGIN_ITEM <f13> - Launch shell command set in a loaded project \END_ITEM
- \BEGIN_ITEM <f14> - Launch shell command set in a loaded project \END_ITEM
- \BEGIN_ITEM <f15> - Launch shell command set in a loaded project \END_ITEM
- \BEGIN_ITEM <f16> - Launch shell command set in a loaded project \END_ITEM
+ \BEGIN_ITEM \BEGIN_STYLE{code} <f13> \END_STYLE Launch shell command set in a loaded project \END_ITEM
+ \BEGIN_ITEM \BEGIN_STYLE{code} <f14> \END_STYLE Launch shell command set in a loaded project \END_ITEM
+ \BEGIN_ITEM \BEGIN_STYLE{code} <f15> \END_STYLE Launch shell command set in a loaded project \END_ITEM
+ \BEGIN_ITEM \BEGIN_STYLE{code} <f16> \END_STYLE Launch shell command set in a loaded project \END_ITEM
  
  \END_LIST
 
-Long name commands that can be typed in after <alt x> for infrequently triggered commands.
-\SECTION{4coder Internal Command <alt x>}
+\SECTION{4coder Internal Command}
+Long name commands that can be typed in after \BEGIN_STYLE{code} <alt x> \END_STYLE for infrequently triggered commands.
  \BEGIN_LIST
- \BEGIN_ITEM "load project" - Load a project.4coder file, ditching any previously loaded project \END_ITEM
- \BEGIN_ITEM "open all code" - Open all code files in the current directory, extensions set in config.4coder, default to C/C++ extensions \END_ITEM
- \BEGIN_ITEM "open all code recursive" - Like "open all code" but recurses through folders \END_ITEM
- \BEGIN_ITEM "dos lines" - Switch the bufer to 'dos' line ending mode CRLF \END_ITEM
- \BEGIN_ITEM "nix lines" - Switch the bufer to 'nix' line ending mode LF \END_ITEM
+ \BEGIN_ITEM \BEGIN_STYLE{code} "load project" \END_STYLE
+ Load a project.4coder file, ditching any previously loaded project \END_ITEM
+ \BEGIN_ITEM \BEGIN_STYLE{code} "open all code" \END_STYLE
+ Open all code files in the current directory, extensions set in config.4coder, default to C/C++ extensions \END_ITEM
+ \BEGIN_ITEM \BEGIN_STYLE{code} "open all code recursive" \END_STYLE
+ Like \BEGIN_STYLE{code} "open all code" \END_STYLE but recurses through folders \END_ITEM
+ \BEGIN_ITEM \BEGIN_STYLE{code} "dos lines" \END_STYLE
+ Switch the bufer to 'dos' line ending mode CRLF \END_ITEM
+ \BEGIN_ITEM \BEGIN_STYLE{code} "nix lines" \END_STYLE
+ Switch the bufer to 'nix' line ending mode LF \END_ITEM
  \END_LIST
 
-The following bindings apply in general text files and most apply in code files, but some are overriden by other commands.
 \SECTION{Text File Bindings}
+The following bindings apply in general text files and most apply in code files, but some are overriden by other commands.
  \BEGIN_LIST
- \BEGIN_ITEM <any character> - Insert character \END_ITEM
+ \BEGIN_ITEM \BEGIN_STYLE{code} <any character> \END_STYLE Insert character \END_ITEM
  
- \BEGIN_ITEM <left click> - Set cursor position to mouse position \END_ITEM
- \BEGIN_ITEM <left release> - Set mark position to mouse position \END_ITEM
- \BEGIN_ITEM <right click> - Set mark position to mouse position \END_ITEM
+ \BEGIN_ITEM \BEGIN_STYLE{code} <left click> \END_STYLE Set cursor position to mouse position \END_ITEM
+ \BEGIN_ITEM \BEGIN_STYLE{code} <left release> \END_STYLE Set mark position to mouse position \END_ITEM
+ \BEGIN_ITEM \BEGIN_STYLE{code} <right click> \END_STYLE Set mark position to mouse position \END_ITEM
  
- \BEGIN_ITEM <left> - Move left \END_ITEM
- \BEGIN_ITEM <right> - Move right \END_ITEM
- \BEGIN_ITEM <del> - Delete character \END_ITEM
- \BEGIN_ITEM <shift del> - Delete character \END_ITEM
- \BEGIN_ITEM <back> - Backspace character \END_ITEM
- \BEGIN_ITEM <shift back> - Backspace character \END_ITEM
- \BEGIN_ITEM <up> - Move up \END_ITEM
- \BEGIN_ITEM <down> - Move up \END_ITEM
- \BEGIN_ITEM <end> - Move to end of line \END_ITEM
- \BEGIN_ITEM <home> - Move to beginning of line \END_ITEM
- \BEGIN_ITEM <page up> - Move up one whole page \END_ITEM
- \BEGIN_ITEM <page down> - Move down one whole page \END_ITEM
+ \BEGIN_ITEM \BEGIN_STYLE{code} <left> \END_STYLE Move left \END_ITEM
+ \BEGIN_ITEM \BEGIN_STYLE{code} <right> \END_STYLE Move right \END_ITEM
+ \BEGIN_ITEM \BEGIN_STYLE{code} <del> \END_STYLE Delete character \END_ITEM
+ \BEGIN_ITEM \BEGIN_STYLE{code} <shift del> \END_STYLE Delete character \END_ITEM
+ \BEGIN_ITEM \BEGIN_STYLE{code} <back> \END_STYLE Backspace character \END_ITEM
+ \BEGIN_ITEM \BEGIN_STYLE{code} <shift back> \END_STYLE Backspace character \END_ITEM
+ \BEGIN_ITEM \BEGIN_STYLE{code} <up> \END_STYLE Move up \END_ITEM
+ \BEGIN_ITEM \BEGIN_STYLE{code} <down> \END_STYLE Move up \END_ITEM
+ \BEGIN_ITEM \BEGIN_STYLE{code} <end> \END_STYLE Move to end of line \END_ITEM
+ \BEGIN_ITEM \BEGIN_STYLE{code} <home> \END_STYLE Move to beginning of line \END_ITEM
+ \BEGIN_ITEM \BEGIN_STYLE{code} <page up> \END_STYLE Move up one whole page \END_ITEM
+ \BEGIN_ITEM \BEGIN_STYLE{code} <page down> \END_STYLE Move down one whole page \END_ITEM
  
- \BEGIN_ITEM <ctrl right> - Seek right, stop at whitespace \END_ITEM
- \BEGIN_ITEM <ctrl left> - Seek left, stop at whitespace \END_ITEM
- \BEGIN_ITEM <ctrl up> - Seek up, stop at blank line \END_ITEM
- \BEGIN_ITEM <ctrl down> - Seek down, stop at blank line \END_ITEM
+ \BEGIN_ITEM \BEGIN_STYLE{code} <ctrl right> \END_STYLE Seek right, stop at whitespace \END_ITEM
+ \BEGIN_ITEM \BEGIN_STYLE{code} <ctrl left> \END_STYLE Seek left, stop at whitespace \END_ITEM
+ \BEGIN_ITEM \BEGIN_STYLE{code} <ctrl up> \END_STYLE Seek up, stop at blank line \END_ITEM
+ \BEGIN_ITEM \BEGIN_STYLE{code} <ctrl down> \END_STYLE Seek down, stop at blank line \END_ITEM
  
- \BEGIN_ITEM <alt up> - Move up ten lines \END_ITEM
- \BEGIN_ITEM <alt down> - Move down ten lines \END_ITEM
+ \BEGIN_ITEM \BEGIN_STYLE{code} <alt up> \END_STYLE Move up ten lines \END_ITEM
+ \BEGIN_ITEM \BEGIN_STYLE{code} <alt down> \END_STYLE Move down ten lines \END_ITEM
  
- \BEGIN_ITEM <ctrl back> - Delete word backwards \END_ITEM
- \BEGIN_ITEM <ctrl del> - Delete word forwards \END_ITEM
- \BEGIN_ITEM <alt  back> - snipe_token_or_word \END_ITEM
+ \BEGIN_ITEM \BEGIN_STYLE{code} <ctrl back> \END_STYLE Delete word backwards \END_ITEM
+ \BEGIN_ITEM \BEGIN_STYLE{code} <ctrl del> \END_STYLE Delete word forwards \END_ITEM
+ \BEGIN_ITEM \BEGIN_STYLE{code} <alt  back> \END_STYLE snipe_token_or_word \END_ITEM
  
  \BEGIN_ITEM Note: 'the range' in the following commands refers to the text between the mark and cursor. \END_ITEM
- \BEGIN_ITEM <ctrl space> - Set mark to the cursor position \END_ITEM
- \BEGIN_ITEM <ctrl a> - Replace a substring in the range \END_ITEM
- \BEGIN_ITEM <ctrl c> - Copy text from the range \END_ITEM
- \BEGIN_ITEM <ctrl d> - Delete the text in the range \END_ITEM
- \BEGIN_ITEM <ctrl e> - Center the active view on the cursor \END_ITEM
- \BEGIN_ITEM <ctrl E> - Move the view so that it's left edge is near the cursor's current x position \END_ITEM
- \BEGIN_ITEM <ctrl f> - Begin an incremental search through the current buffer \END_ITEM
- \BEGIN_ITEM <ctrl F> - Create a jump location list of all loaded exact matches of a string \END_ITEM
- \BEGIN_ITEM <alt  F> - Create a jump location list of all loaded substring matches of a string without case sensitivity \END_ITEM
- \BEGIN_ITEM <ctrl g> - Goto a specific line number \END_ITEM
- \BEGIN_ITEM <ctrl j> - Convert text in the range to lowercase \END_ITEM
- \BEGIN_ITEM <ctrl K> - Kill the current buffer \END_ITEM
- \BEGIN_ITEM <ctrl l> - Toggle line wrapping on the current buffer \END_ITEM
- \BEGIN_ITEM <ctrl m> - Swap the cursor and mark positions \END_ITEM
- \BEGIN_ITEM <ctrl O> - Reload the current buffer from the file system \END_ITEM
- \BEGIN_ITEM <ctrl q> - Begin an iterative query replace \END_ITEM
- \BEGIN_ITEM <ctrl Q> - Begin an iterative query replace to replace the word under the cursor \END_ITEM
- \BEGIN_ITEM <ctrl r> - Begin a reversed incremental search through the current buffer  \END_ITEM
- \BEGIN_ITEM <ctrl s> - Save the current buffer with it's given filename \END_ITEM
- \BEGIN_ITEM <ctrl t> - Begin an incremenal search through the current buffer for the word under the cursor \END_ITEM
- \BEGIN_ITEM <ctrl T> - Create a jump location list of all loaded exact matches of the word under the cursor \END_ITEM
- \BEGIN_ITEM <ctrl u> - Convert text in the range to uppercase \END_ITEM
- \BEGIN_ITEM <ctrl v> - Paste from the clipboard \END_ITEM
- \BEGIN_ITEM <alt  v> - Toggle the virtual whitespace system \END_ITEM
- \BEGIN_ITEM <ctrl V> - Paste the next item on the clipboard, 4coder keeps a finite history of past 64 copies \END_ITEM
- \BEGIN_ITEM <ctrl x> - Copy text from the range and delete the range (aka cut) \END_ITEM
- \BEGIN_ITEM <ctrl y> - Redo \END_ITEM
- \BEGIN_ITEM <ctrl z> - Undo \END_ITEM
+ \BEGIN_ITEM \BEGIN_STYLE{code} <ctrl space> \END_STYLE Set mark to the cursor position \END_ITEM
+ \BEGIN_ITEM \BEGIN_STYLE{code} <ctrl a> \END_STYLE Replace a substring in the range \END_ITEM
+ \BEGIN_ITEM \BEGIN_STYLE{code} <ctrl c> \END_STYLE Copy text from the range \END_ITEM
+ \BEGIN_ITEM \BEGIN_STYLE{code} <ctrl d> \END_STYLE Delete the text in the range \END_ITEM
+ \BEGIN_ITEM \BEGIN_STYLE{code} <ctrl e> \END_STYLE Center the active view on the cursor \END_ITEM
+ \BEGIN_ITEM \BEGIN_STYLE{code} <ctrl E> \END_STYLE Move the view so that it's left edge is near the cursor's current x position \END_ITEM
+ \BEGIN_ITEM \BEGIN_STYLE{code} <ctrl f> \END_STYLE Begin an incremental search through the current buffer \END_ITEM
+ \BEGIN_ITEM \BEGIN_STYLE{code} <ctrl F> \END_STYLE Create a jump location list of all loaded exact matches of a string \END_ITEM
+ \BEGIN_ITEM \BEGIN_STYLE{code} <alt  F> \END_STYLE Create a jump location list of all loaded substring matches of a string without case sensitivity \END_ITEM
+ \BEGIN_ITEM \BEGIN_STYLE{code} <ctrl g> \END_STYLE Goto a specific line number \END_ITEM
+ \BEGIN_ITEM \BEGIN_STYLE{code} <ctrl j> \END_STYLE Convert text in the range to lowercase \END_ITEM
+ \BEGIN_ITEM \BEGIN_STYLE{code} <ctrl K> \END_STYLE Kill the current buffer \END_ITEM
+ \BEGIN_ITEM \BEGIN_STYLE{code} <ctrl l> \END_STYLE Toggle line wrapping on the current buffer \END_ITEM
+ \BEGIN_ITEM \BEGIN_STYLE{code} <ctrl m> \END_STYLE Swap the cursor and mark positions \END_ITEM
+ \BEGIN_ITEM \BEGIN_STYLE{code} <ctrl O> \END_STYLE Reload the current buffer from the file system \END_ITEM
+ \BEGIN_ITEM \BEGIN_STYLE{code} <ctrl q> \END_STYLE Begin an iterative query replace \END_ITEM
+ \BEGIN_ITEM \BEGIN_STYLE{code} <ctrl Q> \END_STYLE Begin an iterative query replace to replace the word under the cursor \END_ITEM
+ \BEGIN_ITEM \BEGIN_STYLE{code} <ctrl r> \END_STYLE Begin a reversed incremental search through the current buffer  \END_ITEM
+ \BEGIN_ITEM \BEGIN_STYLE{code} <ctrl s> \END_STYLE Save the current buffer with it's given filename \END_ITEM
+ \BEGIN_ITEM \BEGIN_STYLE{code} <ctrl t> \END_STYLE Begin an incremenal search through the current buffer for the word under the cursor \END_ITEM
+ \BEGIN_ITEM \BEGIN_STYLE{code} <ctrl T> \END_STYLE Create a jump location list of all loaded exact matches of the word under the cursor \END_ITEM
+ \BEGIN_ITEM \BEGIN_STYLE{code} <ctrl u> \END_STYLE Convert text in the range to uppercase \END_ITEM
+ \BEGIN_ITEM \BEGIN_STYLE{code} <ctrl v> \END_STYLE Paste from the clipboard \END_ITEM
+ \BEGIN_ITEM \BEGIN_STYLE{code} <alt  v> \END_STYLE Toggle the virtual whitespace system \END_ITEM
+ \BEGIN_ITEM \BEGIN_STYLE{code} <ctrl V> \END_STYLE Paste the next item on the clipboard, 4coder keeps a finite history of past 64 copies \END_ITEM
+ \BEGIN_ITEM \BEGIN_STYLE{code} <ctrl x> \END_STYLE Copy text from the range and delete the range (aka cut) \END_ITEM
+ \BEGIN_ITEM \BEGIN_STYLE{code} <ctrl y> \END_STYLE Redo \END_ITEM
+ \BEGIN_ITEM \BEGIN_STYLE{code} <ctrl z> \END_STYLE Undo \END_ITEM
  
- \BEGIN_ITEM <ctrl 2> - Decrease the line wrap width for the current buffer \END_ITEM
- \BEGIN_ITEM <ctrl 3> - Increase the line wrap width for the current buffer \END_ITEM
+ \BEGIN_ITEM \BEGIN_STYLE{code} <ctrl 2> \END_STYLE Decrease the line wrap width for the current buffer \END_ITEM
+ \BEGIN_ITEM \BEGIN_STYLE{code} <ctrl 3> \END_STYLE Increase the line wrap width for the current buffer \END_ITEM
  
- \BEGIN_ITEM <ctrl ?> - Toggle the show whitespace option \END_ITEM
- \BEGIN_ITEM <ctrl ~> - Clean trailing whitespace from all lines \END_ITEM
- \BEGIN_ITEM <return> - Interpret jump location under cursor and jump to it, lock the next/prev jump commands to this jump location list (only in read only files) \END_ITEM
- \BEGIN_ITEM <shift return> - Like previous command but tries to open the jump location in the view that currently holds the jump location list \END_ITEM
+ \BEGIN_ITEM \BEGIN_STYLE{code} <ctrl ?> \END_STYLE Toggle the show whitespace option \END_ITEM
+ \BEGIN_ITEM \BEGIN_STYLE{code} <ctrl ~> \END_STYLE Clean trailing whitespace from all lines \END_ITEM
+ \BEGIN_ITEM \BEGIN_STYLE{code} <return> \END_STYLE Interpret jump location under cursor and jump to it, lock the next/prev jump commands to this jump location list (only in read only files) \END_ITEM
+ \BEGIN_ITEM \BEGIN_STYLE{code} <shift return> \END_STYLE Like previous command but tries to open the jump location in the view that currently holds the jump location list \END_ITEM
  
  \END_LIST
 
+\SECTION{Code File Bindings}
 The following commands only apply in C/C++ files where the lexer (syntax highlighting) is turned on.
-\SECTION{Text File Bindings}
  \BEGIN_LIST
  
- bind(context, key_right, MDFR_CTRL, seek_alphanumeric_or_camel_right);
- bind(context, key_left, MDFR_CTRL, seek_alphanumeric_or_camel_left);
+ \BEGIN_ITEM \BEGIN_STYLE{code} <ctrl right> \END_STYLE Seek right stop at alphanumeric or camel case \END_ITEM
+ \BEGIN_ITEM \BEGIN_STYLE{code} <ctrl left> \END_STYLE Seek left stop at alphanumeric or camel case \END_ITEM
  
- bind(context, '\n', MDFR_NONE, write_and_auto_tab);
- bind(context, '\n', MDFR_SHIFT, write_and_auto_tab);
- bind(context, '}', MDFR_NONE, write_and_auto_tab);
- bind(context, ')', MDFR_NONE, write_and_auto_tab);
- bind(context, ']', MDFR_NONE, write_and_auto_tab);
- bind(context, ';', MDFR_NONE, write_and_auto_tab);
- bind(context, '#', MDFR_NONE, write_and_auto_tab);
+ \BEGIN_ITEM \BEGIN_STYLE{code} <}> \END_STYLE Insert character and trigger auto indentation \END_ITEM
+ \BEGIN_ITEM \BEGIN_STYLE{code} <)> \END_STYLE Insert character and trigger auto indentation \END_ITEM
+ \BEGIN_ITEM \BEGIN_STYLE{code} <]> \END_STYLE Insert character and trigger auto indentation \END_ITEM
+ \BEGIN_ITEM \BEGIN_STYLE{code} <;> \END_STYLE Insert character and trigger auto indentation \END_ITEM
+ \BEGIN_ITEM \BEGIN_STYLE{code} <#> \END_STYLE Insert character and trigger auto indentation \END_ITEM
  
- bind(context, '\t', MDFR_NONE, word_complete);
- bind(context, '\t', MDFR_CTRL, auto_tab_range);
- bind(context, '\t', MDFR_SHIFT, auto_tab_line_at_cursor);
+ \BEGIN_ITEM \BEGIN_STYLE{code} <tab> \END_STYLE Automatically complete partial word \END_ITEM
+ \BEGIN_ITEM \BEGIN_STYLE{code} <ctrl tab> \END_STYLE Auto indent the range \END_ITEM
+ \BEGIN_ITEM \BEGIN_STYLE{code} <shift tab> \END_STYLE Auto indent the line at the cursor \END_ITEM
  
- bind(context, 't', MDFR_ALT, write_todo);
- bind(context, 'y', MDFR_ALT, write_note);
- bind(context, 'r', MDFR_ALT, write_block);
- bind(context, '[', MDFR_CTRL, open_long_braces);
- bind(context, '{', MDFR_CTRL, open_long_braces_semicolon);
- bind(context, '}', MDFR_CTRL, open_long_braces_break);
- bind(context, 'i', MDFR_ALT, if0_off);
- bind(context, '1', MDFR_ALT, open_file_in_quotes);
- bind(context, '2', MDFR_ALT, open_matching_file_cpp);
- bind(context, '0', MDFR_CTRL, write_zero_struct);
- bind(context, 'I', MDFR_CTRL, list_all_functions_current_buffer);
-    
+ \BEGIN_ITEM \BEGIN_STYLE{code} <alt  t> \END_STYLE Insert a TODO comment  \END_ITEM
+ \BEGIN_ITEM \BEGIN_STYLE{code} <alt  y> \END_STYLE Insert a NOTE comment \END_ITEM
+ \BEGIN_ITEM \BEGIN_STYLE{code} <alt  r> \END_STYLE Insert a block comment \END_ITEM
+ \BEGIN_ITEM \BEGIN_STYLE{code} <ctrl [> \END_STYLE Open a pair of braces \END_ITEM
+ \BEGIN_ITEM \BEGIN_STYLE{code} <ctrl {> \END_STYLE Open a pair of braces ended with a semicolon \END_ITEM
+ \BEGIN_ITEM \BEGIN_STYLE{code} <ctrl }> \END_STYLE Open a pair of braces ended with a break \END_ITEM
+ \BEGIN_ITEM \BEGIN_STYLE{code} <alt  i> \END_STYLE Surround the range with #if 0 and #endif \END_ITEM
+ \BEGIN_ITEM \BEGIN_STYLE{code} <alt  1> \END_STYLE Try to open a file named by the string surrounded by quotes under the cursor \END_ITEM
+ \BEGIN_ITEM \BEGIN_STYLE{code} <alt  2> \END_STYLE Switch from .cpp \BEGIN_STYLE{code} <-> \END_STYLE .h \END_ITEM
+ \BEGIN_ITEM \BEGIN_STYLE{code} <ctrl 0> \END_STYLE Insert the characters " = {0};"  \END_ITEM
+ \BEGIN_ITEM \BEGIN_STYLE{code} <ctrl I> \END_STYLE List all function signatures in the current buffer \END_ITEM
+ 
  \END_LIST

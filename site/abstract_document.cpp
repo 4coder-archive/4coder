@@ -617,277 +617,294 @@ write_enriched_text_html(String *out, Partition *part, Enriched_Text *text, Docu
         String l  = skip_chop_whitespace(line);
         append_sc(out, "<p>");
         
-        //append_ss(out, l);
         i32 start = 0, i = 0;
         for (; i < l.size; ++i){
-            if (l.str[i] == '\\'){
-                append_ss(out, substr(l, start, i-start));
+            char ch = l.str[i];
+            switch (ch){
+                case '<':
+                {
+                    append_ss(out, substr(l, start, i-start));
+                    append_sc(out, "&lt;");
+                    start = i+1;
+                }break;
                 
-                i32 command_start = i+1;
-                i32 command_end = command_start;
-                for (; command_end < l.size; ++command_end){
-                    if (!char_is_alpha_numeric(l.str[command_end])){
-                        break;
+                case '>':
+                {
+                    append_ss(out, substr(l, start, i-start));
+                    append_sc(out, "&gt;");
+                    start = i+1;
+                }break;
+                
+                case '\\':
+                {
+                    append_ss(out, substr(l, start, i-start));
+                    
+                    i32 command_start = i+1;
+                    i32 command_end = command_start;
+                    for (; command_end < l.size; ++command_end){
+                        if (!char_is_alpha_numeric(l.str[command_end])){
+                            break;
+                        }
                     }
-                }
-                
-                if (command_end == command_start){
-                    if (command_end < l.size && l.str[command_end] == '\\'){
-                        ++command_end;
+                    
+                    if (command_end == command_start){
+                        if (command_end < l.size && l.str[command_end] == '\\'){
+                            ++command_end;
+                        }
                     }
-                }
-                
-                String command_string = substr(l, command_start, command_end - command_start);
-                
-                enum Command_Types{
-                    Cmd_BackSlash,
-                    Cmd_Version,
-                    Cmd_BeginStyle,
-                    Cmd_EndStyle,
-                    Cmd_DocLink,
-                    Cmd_BeginList,
-                    Cmd_EndList,
-                    Cmd_BeginItem,
-                    Cmd_EndItem,
-                    Cmd_BoldFace,
-                    Cmd_Section,
-                    Cmd_BeginLink,
-                    Cmd_EndLink,
-                    Cmd_Image,
-                    Cmd_Video,
-                    // never below this
-                    Cmd_COUNT,
-                };
-                
-                static String enriched_commands[Cmd_COUNT];
-                
-                enriched_commands[Cmd_BackSlash]  = make_lit_string("\\");
-                enriched_commands[Cmd_Version]    = make_lit_string("VERSION");
-                enriched_commands[Cmd_BeginStyle] = make_lit_string("BEGIN_STYLE");
-                enriched_commands[Cmd_EndStyle]   = make_lit_string("END_STYLE");
-                enriched_commands[Cmd_DocLink]    = make_lit_string("DOC_LINK");
-                enriched_commands[Cmd_BeginList]  = make_lit_string("BEGIN_LIST");
-                enriched_commands[Cmd_EndList]    = make_lit_string("END_LIST");
-                enriched_commands[Cmd_BeginItem]  = make_lit_string("BEGIN_ITEM");
-                enriched_commands[Cmd_EndItem]    = make_lit_string("END_ITEM");
-                enriched_commands[Cmd_BoldFace]   = make_lit_string("BOLD_FACE");
-                enriched_commands[Cmd_Section]    = make_lit_string("SECTION");
-                enriched_commands[Cmd_BeginLink]  = make_lit_string("BEGIN_LINK");
-                enriched_commands[Cmd_EndLink]    = make_lit_string("END_LINK");
-                enriched_commands[Cmd_Image]      = make_lit_string("IMAGE");
-                enriched_commands[Cmd_Video]      = make_lit_string("VIDEO");
-                
-                i = command_end;
-                
-                i32 match_index = 0;
-                if (string_set_match(enriched_commands, ArrayCount(enriched_commands), command_string, &match_index)){
-                    switch (match_index){
-                        case Cmd_BackSlash: append_sc(out, "\\"); break;
-                        case Cmd_Version: append_sc(out, VERSION); break;
-                        
-                        case Cmd_BeginStyle:
-                        {
-                            i32 body_start = 0, body_end = 0;
-                            i32 has_body = extract_command_body(out, l, &i, &body_start, &body_end, command_string, 1);
-                            if (has_body){
-                                String body_text = substr(l, body_start, body_end - body_start);
-                                body_text = skip_chop_whitespace(body_text);
-                                if (match_sc(body_text, "code")){
-                                    append_sc(out, "<span style='"HTML_CODE_STYLE"'>");
-                                }
-                            }
-                        }break;
-                        
-                        case Cmd_EndStyle:
-                        {
-                            append_sc(out, "</span>");
-                        }break;
-                        
-                        // TODO(allen): upgrade this bs
-                        case Cmd_DocLink:
-                        {
-                            i32 body_start = 0, body_end = 0;
-                            i32 has_body = extract_command_body(out, l, &i, &body_start, &body_end, command_string, 1);
-                            if (has_body){
-                                String body_text = substr(l, body_start, body_end - body_start);
-                                body_text = skip_chop_whitespace(body_text);
-                                append_sc(out, "<a href='#");
-                                append_ss(out, body_text);
-                                append_sc(out, "_doc'>");
-                                append_ss(out, body_text);
-                                append_sc(out, "</a>");
-                            }
-                        }break;
-                        
-                        case Cmd_BeginList:
-                        {
-                            append_sc(out,"<ul style='margin-top: 5mm; margin-left: 1mm;'>");
-                        }break;
-                        
-                        case Cmd_EndList:
-                        {
-                            append_sc(out, "</ul>");
-                        }break;
-                        
-                        case Cmd_BeginItem:
-                        {
-                            if (item_counter == 0){
-                                append_sc(out, "<li style='font-size: 95%; background: #EFEFDF;'>");
-                                ++item_counter;
-                            }
-                            else{
-                                append_sc(out, "<li style='font-size: 95%;'>");
-                                item_counter = 0;
-                            }
-                        }break;
-                        
-                        case Cmd_EndItem:
-                        {
-                            append_sc(out, "</li>");
-                        }break;
-                        
-                        case Cmd_Section:
-                        {
-                            // TODO(allen): undo the duplication of this body extraction code.
-                            i32 body_start = 0, body_end = 0;
-                            i32 has_body = extract_command_body(out, l, &i, &body_start, &body_end, command_string, 1);
-                            if (has_body){
-                                String body_text = substr(l, body_start, body_end - body_start);
-                                body_text = skip_chop_whitespace(body_text);
-                                
-                                html_render_section_header(out, body_text, null_string, section_counter);
-                                ++section_counter->counter[section_counter->nest_level];
-                                item_counter = 0;
-                            }
-                        }break;
-                        
-                        case Cmd_BeginLink:
-                        {
-                            i32 body_start = 0, body_end = 0;
-                            i32 has_body = extract_command_body(out, l, &i, &body_start, &body_end, command_string, 1);
-                            if (has_body){
-                                String body_text = substr(l, body_start, body_end - body_start);
-                                body_text = skip_chop_whitespace(body_text);
-                                
-                                append_sc(out, "<a ");
-                                if (body_text.str[0] == '!'){
-                                    append_sc(out, "target='_blank' ");
-                                    body_text.str++;
-                                    body_text.size--;
-                                }
-                                append_sc(out, "href='");
-                                if (match_part_sc(body_text, "document:")){
-                                    String doc_name = substr_tail(body_text, sizeof("document:")-1);
-                                    Abstract_Item *doc_lookup = get_item_by_name(doc_system->doc_list, doc_name);
-                                    if (doc_lookup){
-                                        char space[256];
-                                        if (doc_get_link_string(doc_lookup, space, sizeof(space))){
-                                            append_sc(out, space);
-                                        }
-                                        else{
-                                            NotImplemented;
-                                        }
+                    
+                    String command_string = substr(l, command_start, command_end - command_start);
+                    
+                    enum Command_Types{
+                        Cmd_BackSlash,
+                        Cmd_Version,
+                        Cmd_BeginStyle,
+                        Cmd_EndStyle,
+                        Cmd_DocLink,
+                        Cmd_BeginList,
+                        Cmd_EndList,
+                        Cmd_BeginItem,
+                        Cmd_EndItem,
+                        Cmd_BoldFace,
+                        Cmd_Section,
+                        Cmd_BeginLink,
+                        Cmd_EndLink,
+                        Cmd_Image,
+                        Cmd_Video,
+                        // never below this
+                        Cmd_COUNT,
+                    };
+                    
+                    static String enriched_commands[Cmd_COUNT];
+                    
+                    enriched_commands[Cmd_BackSlash]  = make_lit_string("\\");
+                    enriched_commands[Cmd_Version]    = make_lit_string("VERSION");
+                    enriched_commands[Cmd_BeginStyle] = make_lit_string("BEGIN_STYLE");
+                    enriched_commands[Cmd_EndStyle]   = make_lit_string("END_STYLE");
+                    enriched_commands[Cmd_DocLink]    = make_lit_string("DOC_LINK");
+                    enriched_commands[Cmd_BeginList]  = make_lit_string("BEGIN_LIST");
+                    enriched_commands[Cmd_EndList]    = make_lit_string("END_LIST");
+                    enriched_commands[Cmd_BeginItem]  = make_lit_string("BEGIN_ITEM");
+                    enriched_commands[Cmd_EndItem]    = make_lit_string("END_ITEM");
+                    enriched_commands[Cmd_BoldFace]   = make_lit_string("BOLD_FACE");
+                    enriched_commands[Cmd_Section]    = make_lit_string("SECTION");
+                    enriched_commands[Cmd_BeginLink]  = make_lit_string("BEGIN_LINK");
+                    enriched_commands[Cmd_EndLink]    = make_lit_string("END_LINK");
+                    enriched_commands[Cmd_Image]      = make_lit_string("IMAGE");
+                    enriched_commands[Cmd_Video]      = make_lit_string("VIDEO");
+                    
+                    i = command_end;
+                    
+                    i32 match_index = 0;
+                    if (string_set_match(enriched_commands, ArrayCount(enriched_commands), command_string, &match_index)){
+                        switch (match_index){
+                            case Cmd_BackSlash: append_sc(out, "\\"); break;
+                            case Cmd_Version: append_sc(out, VERSION); break;
+                            
+                            case Cmd_BeginStyle:
+                            {
+                                i32 body_start = 0, body_end = 0;
+                                i32 has_body = extract_command_body(out, l, &i, &body_start, &body_end, command_string, 1);
+                                if (has_body){
+                                    String body_text = substr(l, body_start, body_end - body_start);
+                                    body_text = skip_chop_whitespace(body_text);
+                                    if (match_sc(body_text, "code")){
+                                        append_sc(out, "<span style='"HTML_CODE_STYLE"'>");
                                     }
+                                }
+                            }break;
+                            
+                            case Cmd_EndStyle:
+                            {
+                                append_sc(out, "</span>");
+                            }break;
+                            
+                            // TODO(allen): upgrade this bs
+                            case Cmd_DocLink:
+                            {
+                                i32 body_start = 0, body_end = 0;
+                                i32 has_body = extract_command_body(out, l, &i, &body_start, &body_end, command_string, 1);
+                                if (has_body){
+                                    String body_text = substr(l, body_start, body_end - body_start);
+                                    body_text = skip_chop_whitespace(body_text);
+                                    append_sc(out, "<a href='#");
+                                    append_ss(out, body_text);
+                                    append_sc(out, "_doc'>");
+                                    append_ss(out, body_text);
+                                    append_sc(out, "</a>");
+                                }
+                            }break;
+                            
+                            case Cmd_BeginList:
+                            {
+                                append_sc(out,"<ul style='margin-top: 5mm; margin-left: 1mm;'>");
+                            }break;
+                            
+                            case Cmd_EndList:
+                            {
+                                append_sc(out, "</ul>");
+                            }break;
+                            
+                            case Cmd_BeginItem:
+                            {
+                                if (item_counter == 0){
+                                    append_sc(out, "<li style='font-size: 95%; background: #EFEFDF;'>");
+                                    ++item_counter;
                                 }
                                 else{
-                                    append_ss(out, body_text);
+                                    append_sc(out, "<li style='font-size: 95%;'>");
+                                    item_counter = 0;
                                 }
-                                append_sc(out, "'>");
-                            }
-                        }break;
-                        
-                        case Cmd_EndLink:
-                        {
-                            append_sc(out, "</a>");
-                        }break;
-                        
-                        case Cmd_Image:
-                        {
-                            // TODO(allen): generalize this
-                            i32 body_start = 0, body_end = 0;
-                            i32 has_body = extract_command_body(out, l, &i, &body_start, &body_end, command_string, 1);
+                            }break;
                             
-                            if (has_body){
-                                String body_text = substr(l, body_start, body_end - body_start);
-                                body_text = skip_chop_whitespace(body_text);
-                                
-                                i32 pixel_height = 10;
-                                i32 pixel_width = HTML_WIDTH;
-                                
-                                body_start = 0, body_end = 0;
-                                has_body = extract_command_body(out, l, &i, &body_start, &body_end, command_string, 0);
+                            case Cmd_EndItem:
+                            {
+                                append_sc(out, "</li>");
+                            }break;
+                            
+                            case Cmd_Section:
+                            {
+                                // TODO(allen): undo the duplication of this body extraction code.
+                                i32 body_start = 0, body_end = 0;
+                                i32 has_body = extract_command_body(out, l, &i, &body_start, &body_end, command_string, 1);
                                 if (has_body){
-                                    String size_parameter = substr(l, body_start, body_end - body_start);
-                                    if (match_part_sc(size_parameter, "width:")){
-                                        String width_string = substr_tail(size_parameter, sizeof("width:")-1);
-                                        if (str_is_int_s(width_string)){
-                                            pixel_width = str_to_int_s(width_string);
+                                    String body_text = substr(l, body_start, body_end - body_start);
+                                    body_text = skip_chop_whitespace(body_text);
+                                    
+                                    html_render_section_header(out, body_text, null_string, section_counter);
+                                    ++section_counter->counter[section_counter->nest_level];
+                                    item_counter = 0;
+                                }
+                            }break;
+                            
+                            case Cmd_BeginLink:
+                            {
+                                i32 body_start = 0, body_end = 0;
+                                i32 has_body = extract_command_body(out, l, &i, &body_start, &body_end, command_string, 1);
+                                if (has_body){
+                                    String body_text = substr(l, body_start, body_end - body_start);
+                                    body_text = skip_chop_whitespace(body_text);
+                                    
+                                    append_sc(out, "<a ");
+                                    if (body_text.str[0] == '!'){
+                                        append_sc(out, "target='_blank' ");
+                                        body_text.str++;
+                                        body_text.size--;
+                                    }
+                                    append_sc(out, "href='");
+                                    if (match_part_sc(body_text, "document:")){
+                                        String doc_name = substr_tail(body_text, sizeof("document:")-1);
+                                        Abstract_Item *doc_lookup = get_item_by_name(doc_system->doc_list, doc_name);
+                                        if (doc_lookup){
+                                            char space[256];
+                                            if (doc_get_link_string(doc_lookup, space, sizeof(space))){
+                                                append_sc(out, space);
+                                            }
+                                            else{
+                                                NotImplemented;
+                                            }
+                                        }
+                                    }
+                                    else{
+                                        append_ss(out, body_text);
+                                    }
+                                    append_sc(out, "'>");
+                                }
+                            }break;
+                            
+                            case Cmd_EndLink:
+                            {
+                                append_sc(out, "</a>");
+                            }break;
+                            
+                            case Cmd_Image:
+                            {
+                                // TODO(allen): generalize this
+                                i32 body_start = 0, body_end = 0;
+                                i32 has_body = extract_command_body(out, l, &i, &body_start, &body_end, command_string, 1);
+                                
+                                if (has_body){
+                                    String body_text = substr(l, body_start, body_end - body_start);
+                                    body_text = skip_chop_whitespace(body_text);
+                                    
+                                    i32 pixel_height = 10;
+                                    i32 pixel_width = HTML_WIDTH;
+                                    
+                                    body_start = 0, body_end = 0;
+                                    has_body = extract_command_body(out, l, &i, &body_start, &body_end, command_string, 0);
+                                    if (has_body){
+                                        String size_parameter = substr(l, body_start, body_end - body_start);
+                                        if (match_part_sc(size_parameter, "width:")){
+                                            String width_string = substr_tail(size_parameter, sizeof("width:")-1);
+                                            if (str_is_int_s(width_string)){
+                                                pixel_width = str_to_int_s(width_string);
+                                            }
+                                        }
+                                    }
+                                    
+                                    if (match_part_sc(body_text, "image:")){
+                                        String img_name = substr_tail(body_text, sizeof("image:")-1);
+                                        Abstract_Item *img_lookup = get_item_by_name(doc_system->img_list, img_name);
+                                        
+                                        if (img_lookup){
+                                            pixel_height = ceil32(pixel_width*img_lookup->h_w_ratio);
+                                            
+                                            append_sc(out, "<img src='");
+                                            
+                                            char space[256];
+                                            if (img_get_link_string(img_lookup, space, sizeof(space), pixel_width, pixel_height)){
+                                                append_sc(out, space);
+                                                add_image_instantiation(part, &img_lookup->img_instantiations, pixel_width, pixel_height);
+                                            }
+                                            else{
+                                                NotImplemented;
+                                            }
+                                            
+                                            append_sc(out, "' style='width: ");
+                                            append_int_to_str(out, pixel_width);
+                                            append_sc(out, "px; height: ");
+                                            append_int_to_str(out, pixel_height);
+                                            append_sc(out, "px;'>");
                                         }
                                     }
                                 }
+                            }break;
+                            
+                            case Cmd_Video:
+                            {
+                                // TODO(allen): generalize this
+                                i32 body_start = 0, body_end = 0;
+                                i32 has_body = extract_command_body(out, l, &i, &body_start, &body_end, command_string, 1);
                                 
-                                if (match_part_sc(body_text, "image:")){
-                                    String img_name = substr_tail(body_text, sizeof("image:")-1);
-                                    Abstract_Item *img_lookup = get_item_by_name(doc_system->img_list, img_name);
+                                i32 pixel_width = HTML_WIDTH;
+                                i32 pixel_height = (i32)(pixel_width * 0.5625);
+                                
+                                if (has_body){
+                                    String body_text = substr(l, body_start, body_end - body_start);
+                                    body_text = skip_chop_whitespace(body_text);
                                     
-                                    if (img_lookup){
-                                        pixel_height = ceil32(pixel_width*img_lookup->h_w_ratio);
+                                    if (match_part_sc(body_text, "youtube:")){
+                                        String youtube_str = substr_tail(body_text, sizeof("youtube:")-1);
                                         
-                                        append_sc(out, "<img src='");
-                                        
-                                        char space[256];
-                                        if (img_get_link_string(img_lookup, space, sizeof(space), pixel_width, pixel_height)){
-                                            append_sc(out, space);
-                                            add_image_instantiation(part, &img_lookup->img_instantiations, pixel_width, pixel_height);
-                                        }
-                                        else{
-                                            NotImplemented;
-                                        }
-                                        
-                                        append_sc(out, "' style='width: ");
+                                        append_sc(out, "<iframe  width='");
                                         append_int_to_str(out, pixel_width);
-                                        append_sc(out, "px; height: ");
+                                        append_sc(out, "' height='");
                                         append_int_to_str(out, pixel_height);
-                                        append_sc(out, "px;'>");
+                                        append_sc(out, "' src='");
+                                        append_ss(out, youtube_str);
+                                        append_sc(out, "' allowfullscreen> </iframe>");
                                     }
                                 }
-                            }
-                        }break;
-                        
-                        case Cmd_Video:
-                        {
-                            // TODO(allen): generalize this
-                            i32 body_start = 0, body_end = 0;
-                            i32 has_body = extract_command_body(out, l, &i, &body_start, &body_end, command_string, 1);
-                            
-                            i32 pixel_width = HTML_WIDTH;
-                            i32 pixel_height = (i32)(pixel_width * 0.5625);
-                            
-                            if (has_body){
-                                String body_text = substr(l, body_start, body_end - body_start);
-                                body_text = skip_chop_whitespace(body_text);
-                                
-                                if (match_part_sc(body_text, "youtube:")){
-                                    String youtube_str = substr_tail(body_text, sizeof("youtube:")-1);
-                                    
-                                    append_sc(out, "<iframe  width='");
-                                    append_int_to_str(out, pixel_width);
-                                    append_sc(out, "' height='");
-                                    append_int_to_str(out, pixel_height);
-                                    append_sc(out, "' src='");
-                                    append_ss(out, youtube_str);
-                                    append_sc(out, "' allowfullscreen> </iframe>");
-                                }
-                            }
-                        }break;
+                            }break;
+                        }
                     }
+                    else{
+                        append_sc(out, "<span style='color:#F00'>! Doc generator error: unrecognized command !</span>");
+                        fprintf(stderr, "error: unrecognized command %.*s\n", command_string.size, command_string.str);
+                    }
+                    
+                    start = i;
                 }
-                else{
-                    append_sc(out, "<span style='color:#F00'>! Doc generator error: unrecognized command !</span>");
-                    fprintf(stderr, "error: unrecognized command %.*s\n", command_string.size, command_string.str);
-                }
-                
-                start = i;
             }
         }
         

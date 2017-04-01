@@ -803,7 +803,8 @@ Sys_Set_File_List_Sig(system_set_file_list){
                                     (find_data.cFileName[0] == '.' && find_data.cFileName[1] == 0) ||(find_data.cFileName[0] == '.' && find_data.cFileName[1] == '.' && find_data.cFileName[2] == 0);
                                 
                                 if (!nav_dir){
-                                    info->folder = (find_data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) != 0;
+                                    u32 attibs = find_data.dwFileAttributes;
+                                    info->folder = (attribs & FILE_ATTRIBUTE_DIRECTORY) != 0;
                                     info->filename = (char*)name;
                                     
                                     u16 *src = (u16*)find_data.cFileName;

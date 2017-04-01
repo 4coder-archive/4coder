@@ -10,7 +10,7 @@ fkey_command_win[6]  = {"run_profile.bat", "*profile*", false, true };
 fkey_command_win[12] = {"package.bat", "*package*", false, true };
 
 fkey_command_linux[1]  = {"echo build: x64 & ./build.sh", "*compilation*", true , true };
-fkey_command_linux[2]  = {"site/build.sh", "*compilation*", true , true };
+fkey_command_linux[2]  = {"site/build.sh", "*site*", false , true };
 fkey_command_linux[4]  = {"echo build: x86 & ./build.sh -DDEV_BUILD_X86", "*compilation*", true, true };
 fkey_command_linux[5]  = {"../build/4ed",  "*run*", false, false};
 fkey_command_linux[12] = {"./package.sh",  "*package*", false, true };

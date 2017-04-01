@@ -312,7 +312,7 @@ generate_binding_list(Document_System *doc_system, Partition *part, char *src_di
     Enriched_Text *binding_list = push_struct(part, Enriched_Text);
     *binding_list = load_enriched_text(part, src_directory, "binding_list.txt");
     
-    Abstract_Item *doc = begin_document_description(doc_system, "4coder Feature List", "bindings", 0);
+    Abstract_Item *doc = begin_document_description(doc_system, "4coder Binding List", "bindings", 0);
     add_enriched_text(doc, binding_list);
     end_document_description(doc);
     

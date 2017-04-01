@@ -1,5 +1,10 @@
 /*
-The implementation for the custom API
+* Mr. 4th Dimention - Allen Webster
+ *
+ * ??.??.????
+ *
+ * Implementation of the API functions.
+ *
 */
 
 // TOP
@@ -188,8 +193,8 @@ API_EXPORT bool32
 Exec_System_Command(Application_Links *app, View_Summary *view, Buffer_Identifier buffer, char *path, int32_t path_len, char *command, int32_t command_len, Command_Line_Interface_Flag flags)
 /*
 DOC_PARAM(view, If the view parameter is non-null it specifies a view to display the command's output buffer, otherwise the command will still work but if there is a buffer capturing the output it will not automatically be displayed.)
-DOC_PARAM(buffer, The buffer the command will output to is specified by the buffer parameter. See Buffer_Identifier for information on how this type specifies a buffer.  The command will cause a crash if no file is specified.)
-DOC_PARAM(path, The path parameter specifies the path in which the command shall be executed. The string need not be null terminated.)
+DOC_PARAM(buffer, The buffer the command will output to is specified by the buffer parameter. See Buffer_Identifier for information on how this type specifies a buffer.  The command will cause a crash if no buffer is specified.)
+DOC_PARAM(path, The path parameter specifies the current working directory in which the command shall be executed. The string need not be null terminated.)
 DOC_PARAM(path_len, The parameter path_len specifies the length of the path string.)
 DOC_PARAM(command, The command parameter specifies the command that shall be executed. The string need not be null terminated.)
 DOC_PARAM(command_len, The parameter command_len specifies the length of the command string.)
