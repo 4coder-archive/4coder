@@ -1,5 +1,5 @@
 /*
-4coder development build rule.
+The 4coder build and package rules.
 */
 
 // TOP
@@ -21,10 +21,12 @@
 
 #define IS_64BIT
 
+#if 0
 #define LLU_CAST(n) (long long unsigned int)(n)
 
 #define BEGIN_TIME_SECTION() uint64_t start = get_time()
 #define END_TIME_SECTION(n) uint64_t total = get_time() - start; printf("%-20s: %.2llu.%.6llu\n", (n), LLU_CAST(total/1000000), LLU_CAST(total%1000000));
+#endif
 
 //
 // 4coder specific
@@ -145,6 +147,7 @@ init_build_line(Build_Line *line){
 
 #define CL_X86 "-MACHINE:X86"
 
+#if 0
 static void
 build_cl(u32 flags, char *code_path, char *code_file, char *out_path, char *out_file, char *exports){
     Build_Line line;
@@ -239,7 +242,107 @@ build_cl(u32 flags, char *code_path, char *code_file, char *out_path, char *out_
     systemf("%scl %s \"%s\\%s\" /Fe%s /link /INCREMENTAL:NO %s", line_prefix.build_options, line.build_options, code_path, code_file, out_file, link_line.build_options);
     popdir(temp);
 }
+#endif
 
+static void
+build_cl(u32 flags){
+    push_fm(reg_fm(0));
+    push_fm(reg_fm(1));
+    push_fm(reg_fm(2));
+    
+    mov_fm(0, lit_fm(""));
+    mov_fm(1, lit_fm(""));
+    mov_fm(2, lit_fm(""));
+    
+    // line prefix
+    if (flags & X86){
+        cat_fm(0, lit_fm("SETUP_CLX86 & "));
+    }
+    
+    // line
+    if (flags & OPTS){
+        cat_fm(1, lit_fm(" "CL_OPTS));
+    }
+    if (flags & X86){
+        cat_fm(1, lit_fm(" /DFTECH_32_BIT"));
+    }
+    if (flags & INCLUDES){
+        cat_fm(1, lit_fm(" "CL_INCLUDES));
+    }
+    if (flags & SITE_INCLUDES){
+        cat_fm(1, lit_fm(" "CL_SITE_INCLUDES));
+    }
+    if (flags & LIBS){
+        if (flags & X86){
+            cat_fm(1, lit_fm(" "CL_LIBS_X86));
+        }
+        else{
+            cat_fm(1, lit_fm(" "CL_LIBS_X64));
+        }
+    }
+    if (flags & ICON){
+        cat_fm(1, lit_fm(" "CL_ICON));
+    }
+    if (flags & DEBUG_INFO){
+        cat_fm(1, lit_fm(" /Zi"));
+    }
+    if (flags & OPTIMIZATION){
+        cat_fm(1, lit_fm(" /O2"));
+    }
+    if (flags & SHARED_CODE){
+        cat_fm(1, lit_fm(" /LD"));
+    }
+    if (flags & SUPER){
+        cat_fm(1, lit_fm(" /DFRED_SUPER"));
+    }
+    if (flags & INTERNAL){
+        cat_fm(1, lit_fm(" /DFRED_INTERNAL"));
+    }
+    if (flags & KEEP_ASSERT){
+        cat_fm(1, lit_fm(" /DFRED_KEEP_ASSERT"));
+    }
+    
+    // link line
+    if (flags & X86){
+        cat_fm(2, lit_fm(" "CL_X86));
+    }
+    if (flags & DEBUG_INFO){
+        cat_fm(2, lit_fm(" /DEBUG"));
+    }
+    if (flags & SHARED_CODE){
+        stack_load_fm(3, 1);
+        cat_fm(2, lit_fm(" /OPT:REF "));
+        cat_fm(2, reg_fm(3));
+    }
+    
+    stack_load_fm(4, 2);
+    leaf_fm(4, reg_fm(4));
+    
+    // prefix
+    mov_fm(3, reg_fm(0));
+    // compiler
+    cat_fm(3, lit_fm("cl "));
+    cat_fm(3, reg_fm(1));
+    // input file
+    cat_fm(3, lit_fm(" \""));
+    stack_load_fm(0, 3);
+    cat_fm(3, reg_fm(0));
+    // output name
+    cat_fm(3, lit_fm("\" /Fe"));
+    cat_fm(3, reg_fm(4));
+    // linker
+    cat_fm(3, lit_fm(" /link /INCREMENTAL:NO "));
+    cat_fm(3, reg_fm(2));
+    
+    stack_load_fm(4, 2);
+    path_fm(4, reg_fm(4));
+    mov_cwd_fm(0);
+    cd_fm(reg_fm(4));
+    command_fm(reg_fm(3));
+    cd_fm(reg_fm(0));
+    
+    pop_fm(3);
+}
 
 #define GCC_OPTS                             \
 "-Wno-write-strings -D_GNU_SOURCE -fPIC "    \
@@ -257,6 +360,7 @@ build_cl(u32 flags, char *code_path, char *code_file, char *out_path, char *out_
 "-L/usr/local/lib -lX11 -lpthread -lm -lrt "   \
 "-lGL -ldl -lXfixes -lfreetype -lfontconfig"
 
+#if 0
 static void
 build_gcc(u32 flags, char *code_path, char *code_file, char *out_path, char *out_file, char *exports){
     Build_Line line;
@@ -330,18 +434,129 @@ build_gcc(u32 flags, char *code_path, char *code_file, char *out_path, char *out
     systemf("g++ %s -o %s", line.build_options, out_file);
     popdir(temp);
 }
+#endif
 
 static void
-build(u32 flags, char *code_path, char *code_file, char *out_path, char *out_file, char *exports){
-#if defined(IS_CL)
-    build_cl(flags, code_path, code_file, out_path, out_file, exports);
-#elif defined(IS_GCC)
-    build_gcc(flags, code_path, code_file, out_path, out_file, exports);
-#else
-#error The build rule for this compiler is not ready
+build_gcc(u32 flags){
+    push_fm(reg_fm(0));
+    push_fm(reg_fm(1));
+    push_fm(reg_fm(2));
+    
+    mov_fm(0, lit_fm("g++ "));
+    
+    if (flags & X86){
+        cat_fm(0, lit_fm(GCC_X86));
+    }
+    else{
+        cat_fm(0, lit_fm(GCC_X64));
+    }
+    if (flags & OPTS){
+        cat_fm(0, lit_fm(GCC_OPTS));
+    }
+    if (flags & INCLUDES){
+        // TODO(allen): Abstract this out.
+#if defined(IS_LINUX)
+        i32 size = 0;
+        char freetype_include[512];
+        FILE *file = popen("pkg-config --cflags freetype2", "r");
+        if (file != 0){
+            fgets(freetype_include, sizeof(freetype_include), file);
+            size = strlen(freetype_include);
+            freetype_include[--size] = 0;
+            pclose(file);
+        }
+        
+        cat_fm(0, lit_fm(GCC_INCLUDES" "));
+        cat_fm(0, litn_fm(freetype_include, size));
 #endif
+    }
+    if (flags & SITE_INCLUDES){
+        cat_fm(0, lit_fm(GCC_SITE_INCLUDES));
+    }
+    if (flags & DEBUG_INFO){
+        cat_fm(0, lit_fm("-g -O0"));
+    }
+    if (flags & OPTIMIZATION){
+        cat_fm(0, lit_fm("-O3"));
+    }
+    if (flags & SHARED_CODE){
+        cat_fm(0, lit_fm("-shared"));
+    }
+    if (flags & SUPER){
+        cat_fm(0, lit_fm("-DFRED_SUPER"));
+    }
+    if (flags & INTERNAL){
+        cat_fm(0, lit_fm("-DFRED_INTERNAL"));
+    }
+    if (flags & KEEP_ASSERT){
+        cat_fm(0, lit_fm("-DFRED_KEEP_ASSERT"));
+    }
+    
+    cat_fm(0, lit_fm(" "));
+    stack_load_fm(1, 3);
+    cat_fm(0, reg_fm(1));
+    
+    if (flags & LIBS){
+        cat_fm(0, lit_fm(GCC_LIBS));
+    }
+    
+    stack_load_fm(1, 2);
+    leaf_fm(1, reg_fm(1));
+    cat_fm(0, lit_fm(" -o "));
+    cat_fm(0, reg_fm(1));
+    
+    pop_fm(3);
 }
 
+#if defined(IS_CL)
+#define build build_cl
+#elif defined(IS_GCC)
+#define build build_gcc
+#else
+#error The build rule for this compiler is not ready.
+#endif
+
+static void
+buildsuper(b32 x86_build){
+    mov_cwd_fm(3);
+    cd_fm(reg_fm(1));
+#if defined(IS_CL)
+    {
+        if (x86_build){
+            mov_fm(4, lit_fm("setup_clx86 & "));
+        }
+        else{
+            mov_fm(4, lit_fm(""));
+        }
+        cat_fm(4, lit_fm("call \""));
+        cat_fm(4, reg_fm(0));
+        if (x86_build){
+            cat_fm(4, lit_fm("buildsuper_x86.bat\" "));
+        }
+        else{
+            cat_fm(4, lit_fm("buildsuper.bat\" \""));
+        }
+        cat_fm(4, reg_fm(2));
+        cat_fm(4, lit_fm("\""));
+        command_fm(reg_fm(4));
+    }
+#elif defined(IS_GCC)
+    {
+        mov_fm(4, lit_fm("\""));
+        cat_fm(4, reg_fm(0));
+        cat_fm(4, lit_fm("/buildsuper.sh\" \""));
+        cat_fm(4, reg_fm(2));
+        cat_fm(4, lit_fm("\""));
+        command_fm(reg_fm(4));
+    }
+#else
+#error The build rule for this compiler is not ready.
+#endif
+    
+    cd_fm(reg_fm(3));
+}
+
+#if 0
 static void
 buildsuper(char *code_path, char *out_path, char *filename, b32 x86_build){
     Temp_Dir temp = pushdir(out_path);
@@ -364,6 +579,7 @@ buildsuper(char *code_path, char *out_path, char *filename, b32 x86_build){
 #endif
     popdir(temp);
 }
+#endif
 
 #if defined(IS_WINDOWS)
 #define PLAT_LAYER "win32_4ed.cpp"
@@ -379,39 +595,54 @@ buildsuper(char *code_path, char *out_path, char *filename, b32 x86_build){
 static void
 fsm_generator(char *cdir){
     {
-        DECL_STR(file, "meta/fsm_table_generator.cpp");
-        DECL_STR(dir, META_DIR);
-        
-        BEGIN_TIME_SECTION();
-        build(OPTS | DEBUG_INFO, cdir, file, dir, "fsmgen", 0);
-        END_TIME_SECTION("build fsm generator");
+        begin_time_fm();
+        mov_fm(0, lit_fm(cdir));
+        cat_fm(0, lit_fm("/meta/fsm_table_generator.cpp"));
+        slash_fix_fm(0, reg_fm(0));
+        slash_fix_fm(1, lit_fm(META_DIR));
+        mov_fm(2, lit_fm(""));
+        build(OPTS | DEBUG_INFO);
+        end_time_fm(lit_fm("build fsm generator"));
     }
     
     if (prev_error == 0){
-        DECL_STR(cmd, META_DIR"/fsmgen");
-        BEGIN_TIME_SECTION();
-        execute_in_dir(cdir, cmd, 0);
-        END_TIME_SECTION("run fsm generator");
+        begin_time_fm();
+        mov_fm(1, lit_fm(cdir));
+        mov_cwd_fm(0);
+        cd_fm(reg_fm(1));
+        mov_fm(2, lit_fm(META_DIR"/fsmgen"));
+        command_fm(reg_fm(2));
+        cd_fm(reg_fm(0));
+        end_time_fm(lit_fm("run fsm generator"));
     }
+    execute_fm();
 }
 
 static void
 metagen(char *cdir){
     {
-        DECL_STR(file, "meta/4ed_metagen.cpp");
-        DECL_STR(dir, META_DIR);
-        
-        BEGIN_TIME_SECTION();
-        build(OPTS | INCLUDES | DEBUG_INFO, cdir, file, dir, "metagen", 0);
-        END_TIME_SECTION("build metagen");
+        begin_time_fm();
+        mov_fm(0, lit_fm(cdir));
+        cat_fm(0, lit_fm("/meta/4ed_metagen.cpp"));
+        slash_fix_fm(0, reg_fm(0));
+        slash_fix_fm(1, lit_fm(META_DIR));
+        mov_fm(2, lit_fm(""));
+        build(OPTS | INCLUDES | DEBUG_INFO);
+        end_time_fm(lit_fm("build metagen"));
     }
     
-    if (prev_error == 0){
-        DECL_STR(cmd, META_DIR "/metagen");
-        BEGIN_TIME_SECTION();
-        execute_in_dir(cdir, cmd, 0);
-        END_TIME_SECTION("run metagen");
+    {
+        begin_time_fm();
+        mov_fm(1, lit_fm(cdir));
+        mov_cwd_fm(0);
+        cd_fm(reg_fm(1));
+        mov_fm(2, lit_fm(META_DIR"/metagen"));
+        command_fm(reg_fm(2));
+        cd_fm(reg_fm(0));
+        end_time_fm(lit_fm("run metagen"));
     }
+    
+    execute_fm();
 }
 
 enum{
@@ -424,43 +655,40 @@ enum{
 
 static void
 do_buildsuper(char *cdir, i32 custom_option, u32 flags){
-    char space[1024];
-    String str = make_fixed_width_string(space);
+    begin_time_fm();
     
-    BEGIN_TIME_SECTION();
+    b32 x86_build = ((flags & X86) != 0);
+    
+    mov_fm(0, lit_fm(cdir));
     
     switch (custom_option){
         case Custom_Default:
         {
-            copy_sc(&str, "../code/4coder_default_bindings.cpp");
+            slash_fix_fm(2, lit_fm("../code/4coder_default_bindings.cpp"));
         }break;
         
         case Custom_Experiments:
         {
-            copy_sc(&str, "../code/power/4coder_experiments.cpp");
+            slash_fix_fm(2, lit_fm("../code/power/4coder_experiments.cpp"));
         }break;
         
         case Custom_Casey:
         {
-            copy_sc(&str, "../code/power/4coder_casey.cpp");
+            slash_fix_fm(2, lit_fm("../code/power/4coder_casey.cpp"));
         }break;
         
         case Custom_ChronalVim:
         {
-            copy_sc(&str, "../4vim/4coder_chronal.cpp");
+            slash_fix_fm(2, lit_fm("../4vim/4coder_chronal.cpp"));
         }break;
     }
-    terminate_with_null(&str);
     
-    b32 x86_build = false;
-    if (flags & X86){
-        x86_build = true;
-    }
     
     DECL_STR(dir, BUILD_DIR);
     buildsuper(cdir, dir, str.str, x86_build);
     
-    END_TIME_SECTION("build custom");
+    end_time_fm("build custom");
+    execute_fm();
 }
 
 static void
