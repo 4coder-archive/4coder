@@ -26,11 +26,7 @@ CUSTOM_COMMAND_SIG(write_character){
     User_Input in = get_command_input(app);
     
     uint8_t character[4];
-    uint32_t length = 0;
-    if (in.type == UserInputKey){
-        u32_to_utf8_unchecked(in.key.character, character, &length);
-    }
-    
+    uint32_t length = to_writable_character(in, character);
     if (length != 0){
         Buffer_Summary buffer = get_buffer(app, view.buffer_id, access);
         int32_t pos = view.cursor.pos;
@@ -630,26 +626,26 @@ isearch(Application_Links *app, int32_t start_reversed, String query_init){
         bool32 backspace = false;
         
         if (!first_step){
-            in = get_user_input(app, EventOnAnyKey, EventOnEsc | EventOnButton);
+            //in = get_user_input(app, EventOnAnyKey, EventOnEsc | EventOnButton);
+            in = get_user_input(app, EventOnAnyKey, EventOnEsc);
             if (in.abort) break;
             
             // NOTE(allen): If we're getting mouse events here it's a 4coder bug, because we only asked to intercept key events.
             Assert(in.type == UserInputKey);
             
-            char character = to_writable_char(in.key.character);
+            uint8_t character[4];
+            uint32_t length = to_writable_character(in, character);
+            
             bool32 made_change = false;
             if (in.key.keycode == '\n' || in.key.keycode == '\t'){
                 break;
             }
-            else if (character && key_is_unmodified(&in.key)){
-                append_s_char(&bar.string, character);
+            else if (length != 0 && key_is_unmodified(&in.key)){
+                append_ss(&bar.string, make_string(character, length));
                 made_change = true;
             }
             else if (in.key.keycode == key_back){
-                if (bar.string.size > 0){
-                    --bar.string.size;
-                    made_change = true;
-                }
+                made_change = backspace_utf8(&bar.string);
                 backspace = true;
             }
             

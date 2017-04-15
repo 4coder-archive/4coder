@@ -2147,7 +2147,7 @@ Job_Callback_Sig(job_full_lex){
     
     b32 still_lexing = 1;
     
-    Cpp_Lex_Data lex = cpp_lex_data_init();
+    Cpp_Lex_Data lex = cpp_lex_data_init(file->settings.tokens_without_strings);
     
     // TODO(allen): deduplicate this against relex
     char *chunks[3];
@@ -2289,7 +2289,7 @@ file_first_lex_serial(Mem_Options *mem, Editing_File *file){
             
             b32 still_lexing = 1;
             
-            Cpp_Lex_Data lex = cpp_lex_data_init();
+            Cpp_Lex_Data lex = cpp_lex_data_init(file->settings.tokens_without_strings);
             
             // TODO(allen): deduplicate this against relex
             char *chunks[3];
@@ -2398,7 +2398,7 @@ file_relex_parallel(System_Functions *system, Mem_Options *mem, Editing_File *fi
         
         i32 size = buffer_size(buffer);
         
-        Cpp_Relex_Data state = cpp_relex_init(array, start_i, end_i, shift_amount);
+        Cpp_Relex_Data state = cpp_relex_init(array, start_i, end_i, shift_amount, file->settings.tokens_without_strings);
         
         char *chunks[3];
         i32 chunk_sizes[3];
@@ -2518,7 +2518,7 @@ file_relex_serial(Mem_Options *mem, Editing_File *file, i32 start_i, i32 end_i, 
     
     i32 size = buffer_size(buffer);
     
-    Cpp_Relex_Data state = cpp_relex_init(array, start_i, end_i, shift_amount);
+    Cpp_Relex_Data state = cpp_relex_init(array, start_i, end_i, shift_amount, file->settings.tokens_without_strings);
     
     char *chunks[3];
     i32 chunk_sizes[3];
@@ -4908,6 +4908,8 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                     
                     Key_Code user_up_key = models->user_up_key;
                     Key_Code user_down_key = models->user_down_key;
+                    Key_Modifier user_up_key_modifier = models->user_up_key_modifier;
+                    Key_Modifier user_down_key_modifier = models->user_down_key_modifier;
                     
                     switch (view->interaction){
                         case IInt_Sys_File_List:
@@ -4966,7 +4968,7 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                             
                             if (gui_begin_list(target, id, view->list_i, 0, snap_into_view, &update)){
                                 // TODO(allen): Allow me to handle key consumption correctly here!
-                                gui_standard_list(target, id, &view->gui_scroll, view->scroll_region, &keys, &view->list_i, &update, user_up_key, user_down_key);
+                                gui_standard_list(target, id, &view->gui_scroll, view->scroll_region, &keys, &view->list_i, &update, user_up_key, user_up_key_modifier, user_down_key, user_down_key_modifier);
                             }
                             
                             b32 do_new_directory = false;
@@ -5063,7 +5065,7 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                             
                             id.id[0] = (u64)(working_set) + 1;
                             if (gui_begin_list(target, id, view->list_i, 0, snap_into_view, &update)){
-                                gui_standard_list(target, id, &view->gui_scroll, view->scroll_region, &keys, &view->list_i, &update, user_up_key, user_down_key);
+                                gui_standard_list(target, id, &view->gui_scroll, view->scroll_region, &keys, &view->list_i, &update, user_up_key, user_up_key_modifier, user_down_key, user_down_key_modifier);
                             }
                             
                             {
@@ -5648,21 +5650,13 @@ struct Input_Process_Result{
     i32 max_y;
 };
 
-static char
-to_writable_char(Key_Code long_character){
-    char character = 0;
-    if (long_character < ' '){
-        if (long_character == '\n'){
-            character = '\n';
-        }
-        else if (long_character == '\t'){
-            character = '\t';
-        }
+static u32
+to_writable_character(Key_Code long_character, u8 *character){
+    u32 result = 0;
+    if (long_character != 0){
+        u32_to_utf8_unchecked(long_character, character, &result);
     }
-    else if (long_character >= ' ' && long_character <= 255 && long_character != 127){
-        character = (char)long_character;
-    }
-    return(character);
+    return(result);
 }
 
 internal Input_Process_Result
@@ -5775,11 +5769,15 @@ do_step_file_view(System_Functions *system, View *view, i32_Rect rect, b32 is_ac
                                 i32 count = keys->count;
                                 for (i32 i = 0; i < count; ++i){
                                     Key_Event_Data key = get_single_key(keys, i);
-                                    char character = to_writable_char(key.character);
-                                    if (char_to_upper(character) == activation_key){
-                                        target->active = b->id;
-                                        result.is_animating = 1;
-                                        break;
+                                    
+                                    u8 character[4];
+                                    u32 length = to_writable_character(key.character, character);
+                                    if (length == 1){
+                                        if (char_to_upper(character[0]) == activation_key){
+                                            target->active = b->id;
+                                            result.is_animating = 1;
+                                            break;
+                                        }
                                     }
                                 }
                             }

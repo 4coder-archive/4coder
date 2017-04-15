@@ -64,7 +64,7 @@ struct Text_Effect{
 //
 
 union Buffer_Slot_ID{
-    i32 id;
+    Buffer_ID id;
     i16 part[2];
 };
 inline Buffer_Slot_ID
@@ -98,11 +98,12 @@ struct Editing_File_Settings{
     Font_ID font_id;
     b8 unwrapped_lines;
     b8 tokens_exist;
+    b8 tokens_without_strings;
     b8 is_initialized;
     b8 unimportant;
     b8 read_only;
     b8 never_kill;
-    u8 pad[2];
+    u8 pad[1];
 };
 global_const Editing_File_Settings null_editing_file_settings = {0};
 
@@ -227,6 +228,13 @@ allocate_markers_state(General_Memory *general, Editing_File *file, u32 new_arra
     ++file->markers.array_count;
     
     return(array);
+}
+
+internal Buffer_ID
+get_buffer_id_from_marker_handle(void *handle){
+    Marker_Array *markers = (Marker_Array*)handle;
+    Buffer_Slot_ID result = markers->buffer_id;
+    return(result.id);
 }
 
 internal b32

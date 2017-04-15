@@ -938,12 +938,12 @@ buffer_seek_string_insensitive_backward(Application_Links *app, Buffer_Summary *
 // Buffer Line Positioning
 //
 
-static int32_t
+static bool32
 read_line(Application_Links *app, Partition *part, Buffer_Summary *buffer, int32_t line, String *str){
     Partial_Cursor begin = {0};
     Partial_Cursor end = {0};
     
-    int32_t success = 0;
+    bool32 success = false;
     
     if (buffer_compute_cursor(app, buffer, seek_line_char(line, 1), &begin)){
         if (buffer_compute_cursor(app, buffer, seek_line_char(line, -1), &end)){
@@ -952,7 +952,7 @@ read_line(Application_Links *app, Partition *part, Buffer_Summary *buffer, int32
                     int32_t size = (end.pos - begin.pos);
                     *str = make_string(push_array(part, char, size+1), size+1);
                     if (str->str){
-                        success = 1;
+                        success = true;
                         buffer_read_range(app, buffer, begin.pos, end.pos, str->str);
                         str->size = size;
                         terminate_with_null(str);

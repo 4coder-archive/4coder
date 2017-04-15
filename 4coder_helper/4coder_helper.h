@@ -6,6 +6,7 @@
 #define FCODER_HELPER_H
 
 #include "4coder_seek_types.h"
+#include "4coder_lib/4coder_utf8.h"
 
 static void
 exec_command(Application_Links *app, Custom_Command_Function *func){
@@ -24,26 +25,46 @@ exec_command(Application_Links *app, Generic_Command cmd){
 
 static int32_t
 key_is_unmodified(Key_Event_Data *key){
-    char *mods = key->modifiers;
-    int32_t unmodified = !mods[MDFR_CONTROL_INDEX] && !mods[MDFR_ALT_INDEX];
+    int8_t *mods = key->modifiers;
+    int32_t unmodified = (!mods[MDFR_CONTROL_INDEX] && !mods[MDFR_ALT_INDEX]);
     return(unmodified);
 }
 
-static char
-to_writable_char(Key_Code long_character){
-    char character = 0;
-    if (long_character < ' '){
-        if (long_character == '\n'){
-            character = '\n';
-        }
-        else if (long_character == '\t'){
-            character = '\t';
+static uint32_t
+to_writable_character(User_Input in, uint8_t *character){
+    uint32_t result = 0;
+    if (in.type == UserInputKey){
+        if (in.key.character != 0){
+            u32_to_utf8_unchecked(in.key.character, character, &result);
         }
     }
-    else if (long_character <= 255 && long_character != 127){
-        character = (char)long_character;
+    return(result);
+}
+
+static uint32_t
+to_writable_character(Key_Event_Data key, uint8_t *character){
+    uint32_t result = 0;
+    if (key.character != 0){
+        u32_to_utf8_unchecked(key.character, character, &result);
     }
-    return(character);
+    return(result);
+}
+
+static bool32
+backspace_utf8(String *str){
+    bool32 result = false;
+    uint8_t *s = (uint8_t*)str->str;
+    if (str->size > 0){
+        uint32_t i = str->size-1;
+        for (; i > 0; --i){
+            if (s[i] <= 0x7F || s[i] >= 0xC0){
+                break;
+            }
+        }
+        str->size = i;
+        result = true;
+    }
+    return(result);
 }
 
 static bool32
@@ -71,18 +92,19 @@ query_user_general(Application_Links *app, Query_Bar *bar, bool32 force_number){
             break;
         }
         
-        char character = 0;
+        uint8_t character[4];
+        uint32_t length = 0;
         bool32 good_character = false;
         if (key_is_unmodified(&in.key)){
             if (force_number){
                 if (in.key.character >= '0' && in.key.character <= '9'){
                     good_character = true;
-                    character = (char)(in.key.character);
+                    length = to_writable_character(in, character);
                 }
             }
             else{
-                character = to_writable_char(in.key.character);
-                if (character != 0){
+                length = to_writable_character(in, character);
+                if (length != 0){
                     good_character = true;
                 }
             }
@@ -96,12 +118,10 @@ query_user_general(Application_Links *app, Query_Bar *bar, bool32 force_number){
                 break;
             }
             else if (in.key.keycode == key_back){
-                if (bar->string.size > 0){
-                    --bar->string.size;
-                }
+                backspace_utf8(&bar->string);
             }
             else if (good_character){
-                append_s_char(&bar->string, character);
+                append_ss(&bar->string, make_string(character, length));
             }
         }
     }
@@ -204,7 +224,7 @@ struct Buffer_Rect{
 };
 
 #ifndef Swap
-#define Swap(T,a,b) do{ T t = a; a = b; b = t; } while(0)
+# define Swap(T,a,b) do{ T t = a; a = b; b = t; } while(0)
 #endif
 
 static Buffer_Rect

@@ -148,6 +148,8 @@ end_tail_part(Tail_Temp_Partition temp){
     }
 }
 
+#define reset_temp_memory end_temp_memory
+
 /*
 NOTE(allen):
 This is a very week general purpose allocator system.
@@ -339,8 +341,7 @@ general_memory_reallocate(General_Memory *general, void *old, i32_4tech old_size
     i32_4tech additional_space = size - bubble->size;
     if (additional_space > 0){
         Bubble *next = bubble->next;
-        if (!(next->flags & MEM_BUBBLE_USED) &&
-            next->size + (i32_4tech)sizeof(Bubble) >= additional_space){
+        if (!(next->flags & MEM_BUBBLE_USED) && next->size + (i32_4tech)sizeof(Bubble) >= additional_space){
             general_memory_do_merge(bubble, next);
             general_memory_attempt_split(general, bubble, size);
         }
@@ -359,10 +360,11 @@ general_memory_reallocate_nocopy(General_Memory *general, void *old, i32_4tech s
     return(result);
 }
 
-#define reset_temp_memory end_temp_memory
 #define gen_struct(g, T) (T*)general_memory_allocate(g, sizeof(T), 0)
 #define gen_array(g, T, size) (T*)general_memory_allocate(g, sizeof(T)*(size))
 #define gen_block(g, size) general_memory_open(g, size, 0)
+#define gen_realloc_array(g, T, old, old_size, size)\
+(T*)general_memory_reallocate(g, old, old_size*sizeof(T), size*sizeof(T))
 
 #endif
 

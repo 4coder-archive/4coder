@@ -1,6 +1,5 @@
 /*
-4coder_default_framework.cpp - Sets up the basics of the framework that is used 
-for default 4coder behaviour.
+4coder_default_framework.cpp - Sets up the basics of the framework that is used for default 4coder behaviour.
 
 TYPE: 'internal-for-default-system'
 */
@@ -291,11 +290,11 @@ get_current_project_extensions(int32_t *extension_count_out){
 // Location Jumping State
 //
 
-typedef struct ID_Based_Jump_Location{
+struct ID_Based_Jump_Location{
     int32_t buffer_id;
     int32_t line;
     int32_t column;
-} ID_Based_Jump_Location;
+};
 
 static ID_Based_Jump_Location null_location = {0};
 static ID_Based_Jump_Location prev_location = {0};
@@ -724,7 +723,7 @@ process_config_file(Application_Links *app){
             array.max_count = (1 << 20)/sizeof(Cpp_Token);
             array.tokens = push_array(&global_part, Cpp_Token, array.max_count);
             
-            Cpp_Lex_Data S = cpp_lex_data_init();
+            Cpp_Lex_Data S = cpp_lex_data_init(false);
             Cpp_Lex_Result result = cpp_lex_step(&S, mem, size+1, HAS_NULL_TERM, &array, NO_OUT_LIMIT);
             
             if (result == LexResult_Finished){

@@ -514,10 +514,9 @@ DOC_SEE(Buffer_ID)
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     Working_Set *working_set = &cmd->models->working_set;
     Buffer_Summary buffer = {};
-    Editing_File *file;
     
-    file = working_set_get_active_file(working_set, buffer_id);
-    if (file){
+    Editing_File *file = working_set_get_active_file(working_set, buffer_id);
+    if (file != 0){
         fill_buffer_summary(&buffer, file, working_set);
         if (!access_test(buffer.lock_flags, access)){
             buffer = null_buffer_summary;
@@ -539,11 +538,9 @@ DOC_SEE(Access_Flag)
 */{
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     Buffer_Summary buffer = {};
-    Editing_File *file;
     Working_Set *working_set = &cmd->models->working_set;
     
-    String str = make_string(name, len);
-    file = working_set_name_contains(working_set, str);
+    Editing_File *file = working_set_name_contains(working_set, make_string(name, len));
     if (file && !file->is_dummy){
         fill_buffer_summary(&buffer, file, working_set);
         if (!access_test(buffer.lock_flags, access)){
@@ -728,6 +725,18 @@ DOC_SEE(Marker)
     return(result);
 }
 
+API_EXPORT Buffer_Summary
+Get_Buffer_By_Marker_Handle(Application_Links *app, Marker_Handle marker, Access_Flag access)
+/*
+DOC_PARAM(marker, The marker handle to query.)
+DOC_PARAM(access, The access parameter determines what levels of protection this call can access.)
+DOC_SEE(Marker)
+*/{
+    Buffer_ID buffer_id = get_buffer_id_from_marker_handle(marker);
+    Buffer_Summary buffer = Get_Buffer(app, buffer_id, access);
+    return(buffer);
+}
+
 API_EXPORT bool32
 Buffer_Set_Markers(Application_Links *app, Buffer_Summary *buffer, Marker_Handle marker, uint32_t first_marker_index, uint32_t marker_count, Marker *source_markers)
 /*
@@ -817,6 +826,7 @@ DOC_RETURN(returns non-zero on success)
         result = 1;
         switch (setting){
             case BufferSetting_Lex: *value_out = file->settings.tokens_exist; break;
+            case BufferSetting_LexWithoutStrings: *value_out = file->settings.tokens_without_strings; break;
             case BufferSetting_WrapLine: *value_out = !file->settings.unwrapped_lines; break;
             case BufferSetting_WrapPosition: *value_out = file->settings.display_width; break;
             case BufferSetting_MinimumBaseWrapPosition: *value_out = file->settings.minimum_base_display_width; break;
@@ -845,12 +855,12 @@ DOC_SEE(Buffer_Setting_ID)
     Models *models = cmd->models;
     Editing_File *file = imp_get_file(cmd, buffer);
     
-    bool32 result = 0;
+    bool32 result = false;
     
     i32 new_mapid = 0;
     
-    if (file){
-        result = 11;
+    if (file != 0){
+        result = true;
         switch (setting){
             case BufferSetting_Lex:
             {
@@ -868,6 +878,25 @@ DOC_SEE(Buffer_Setting_ID)
                             file_first_lex_serial(&models->mem, file);
                         }
                     }
+                }
+            }break;
+            
+            case BufferSetting_LexWithoutStrings:
+            {
+                if (file->settings.tokens_exist){
+                    if ((b8)value != file->settings.tokens_without_strings){
+                        file_kill_tokens(system, &models->mem.general, file);
+                        file->settings.tokens_without_strings = (b8)value;
+                        if (!file->settings.virtual_white){
+                            file_first_lex_parallel(system, &models->mem, file);
+                        }
+                        else{
+                            file_first_lex_serial(&models->mem, file);
+                        }
+                    }
+                }
+                else{
+                    file->settings.tokens_without_strings = (b8)value;
                 }
             }break;
             
@@ -2267,17 +2296,21 @@ DOC(After this call the file list passed in should not be read or written to.)
 }
 
 API_EXPORT void
-Set_GUI_Up_Down_Keys(Application_Links *app, int16_t up_key, int16_t down_key)
+Set_GUI_Up_Down_Keys(Application_Links *app, Key_Code up_key, Key_Modifier up_key_modifier, Key_Code down_key, Key_Modifier down_key_modifier)
 /*
 DOC_PARAM(up_key, the code of the key that should be interpreted as an up key)
+DOC_PARAM(up_key_modifier, the modifier for the key that should be interpreted as an up key)
 DOC_PARAM(down_key, the code of the key that should be interpreted as a down key)
+DOC_PARAM(down_key_modifier, the modifier for the key that should be interpreted as a down key)
 
 DOC(This is a temporary ad-hoc solution to allow some customization of the behavior of the built in GUI. There is a high chance that it will be removed and not replaced at some point, so it is not recommended that it be heavily used.) */
 {
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     Models *models = cmd->models;
     models->user_up_key = up_key;
+    models->user_up_key_modifier = up_key_modifier;
     models->user_down_key = down_key;
+    models->user_down_key_modifier = down_key_modifier;
 }
 
 API_EXPORT void*

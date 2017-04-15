@@ -11,6 +11,8 @@
 #include <stdio.h>
 #include <stdint.h>
 
+typedef int32_t bool32;
+
 #define Assert(n) do{ if (!(n)) { *(int*)0 = 0xA11E; } }while(0)
 #define ArrayCount(a) (sizeof(a)/sizeof(*a))
 
@@ -100,7 +102,7 @@ int_fsm(Cpp_Lex_FSM fsm, char c){
 }
 
 Cpp_Lex_FSM
-main_fsm(Cpp_Lex_FSM fsm, uint8_t pp_state, uint8_t c){
+main_fsm(Cpp_Lex_FSM fsm, uint8_t pp_state, uint8_t c, bool32 ignore_string_delims){
     if (c == 0){
         fsm.emit_token = 1;
     }
@@ -125,15 +127,32 @@ main_fsm(Cpp_Lex_FSM fsm, uint8_t pp_state, uint8_t c){
                 }
                 else{
                     switch (c){
-                        case '\'': fsm.state = LS_char; break;
-                        case '"': fsm.state = LS_string; break;
+                        case '\'':
+                        {
+                            if (ignore_string_delims){
+                                fsm.state = LS_identifier;
+                            }
+                            else{
+                                fsm.state = LS_char;
+                            }
+                        }break;
+                        
+                        case '"':
+                        {
+                            if (ignore_string_delims){
+                                fsm.state = LS_identifier;
+                            }
+                            else{
+                                fsm.state = LS_string;
+                            }
+                        }break;
                         
                         case '/': fsm.state = LS_comment_pre; break;
                         
                         case '.': fsm.state = LS_dot; break;
                         
                         case '<':
-                        if (pp_state == LSPP_include){
+                        if (pp_state == LSPP_include && !ignore_string_delims){
                             fsm.state = LS_string;
                         }
                         else{
@@ -193,7 +212,8 @@ main_fsm(Cpp_Lex_FSM fsm, uint8_t pp_state, uint8_t c){
                 
                 case LS_identifier:
                 {
-                    int is_ident = (c >= '0' && c <= '9') || (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_' || c == '$' || c >= 128;
+                    int is_ident = (c >= '0' && c <= '9') || (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_' || c == '$' || c >= 128 || (ignore_string_delims && (c == '\'' || c == '"'));
+                    
                     if (!is_ident){
                         fsm.emit_token = 1;
                     }
@@ -210,7 +230,7 @@ main_fsm(Cpp_Lex_FSM fsm, uint8_t pp_state, uint8_t c){
                     if (c == ' ' || c == '\r' || c == '\v' || c == '\f'){
                         // NOTE(allen): do nothing
                     }
-                    else if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c >= 128){
+                    else if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c >= 128 || (ignore_string_delims && (c == '\'' || c == '"'))){
                         fsm.state = LS_ppdef;
                     }
                     else{
@@ -220,47 +240,75 @@ main_fsm(Cpp_Lex_FSM fsm, uint8_t pp_state, uint8_t c){
                 
                 case LS_ppdef:
                 {
-                    int is_ident = (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c >= 128;
+                    int is_ident = (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c >= 128 || (ignore_string_delims && (c == '\'' || c == '"'));
                     if (!is_ident){
                         fsm.emit_token = 1;
                     }
                 }break;
                 
                 case LS_char: case LS_char_multiline:
-                switch(c){
-                    case '\n': case '\'': fsm.emit_token = 1; break;
-                    case '\\': fsm.state = LS_char_slashed; break;
-                }
-                break;
+                {
+                    if (ignore_string_delims){
+                        fsm.state = LS_string;
+                        fsm.emit_token = 1;
+                    }
+                    else{
+                        switch(c){
+                            case '\n': case '\'': fsm.emit_token = 1; break;
+                            case '\\': fsm.state = LS_char_slashed; break;
+                        }
+                    }
+                }break;
                 
                 case LS_char_slashed:
-                switch (c){
-                    case '\r': case '\f': case '\v': break;
-                    case '\n': fsm.state = LS_char_multiline; break;
-                    default: fsm.state = LS_char; break;
-                }
-                break;
+                {
+                    if (ignore_string_delims){
+                        fsm.state = LS_string;
+                        fsm.emit_token = 1;
+                    }
+                    else{
+                        switch (c){
+                            case '\r': case '\f': case '\v': break;
+                            case '\n': fsm.state = LS_char_multiline; break;
+                            default: fsm.state = LS_char; break;
+                        }
+                    }
+                }break;
                 
                 case LS_string:
                 case LS_string_multiline:
-                switch(c){
-                    case '\n': case '\"': fsm.emit_token = 1; break;
-                    case '>':
-                    if (pp_state == LSPP_include){
+                {
+                    if (ignore_string_delims){
+                        fsm.state = LS_string;
                         fsm.emit_token = 1;
                     }
-                    break;
-                    case '\\': fsm.state = LS_string_slashed; break;
-                } 
-                break;
+                    else{
+                        switch(c){
+                            case '\n': case '"': fsm.emit_token = 1; break;
+                            case '>':
+                            if (pp_state == LSPP_include){
+                                fsm.emit_token = 1;
+                            }
+                            break;
+                            case '\\': fsm.state = LS_string_slashed; break;
+                        }
+                    }
+                }break;
                 
                 case LS_string_slashed:
-                switch (c){
-                    case '\r': case '\f': case '\v': break;
-                    case '\n': fsm.state = LS_string_multiline; break;
-                    default: fsm.state = LS_string; break;
-                }
-                break;
+                {
+                    if (ignore_string_delims){
+                        fsm.state = LS_string;
+                        fsm.emit_token = 1;
+                    }
+                    else{
+                        switch (c){
+                            case '\r': case '\f': case '\v': break;
+                            case '\n': fsm.state = LS_string_multiline; break;
+                            default: fsm.state = LS_string; break;
+                        }
+                    }
+                }break;
                 
                 case LS_number:
                 if (c >= '0' && c <= '9'){
@@ -633,7 +681,7 @@ generate_int_table(){
 }
 
 static FSM_Tables
-generate_fsm_table(uint8_t pp_state){
+generate_fsm_table(uint8_t pp_state, bool32 ignore_string_delims){
     uint8_t state_count = LS_count;
     FSM_Tables table;
     allocate_full_tables(&table, state_count);
@@ -645,7 +693,7 @@ generate_fsm_table(uint8_t pp_state){
         for (uint8_t state = 0; state < state_count; ++state){
             fsm.state = state;
             fsm.emit_token = 0;
-            new_fsm = main_fsm(fsm, pp_state, (uint8_t)c);
+            new_fsm = main_fsm(fsm, pp_state, (uint8_t)c, ignore_string_delims);
             table.full_transition_table[i++] = new_fsm.state + state_count*new_fsm.emit_token;
         }
     }
@@ -690,24 +738,25 @@ render_comment(FILE *file, char *comment){
 typedef struct PP_Names{
     uint8_t pp_state;
     char *name;
+    bool32 ignore_string_delims;
 }  PP_Names;
 
 static PP_Names pp_names[] = {
-    {LSPP_default,          "main_fsm"},
-    {LSPP_include,          "pp_include_fsm"},
-    {LSPP_macro_identifier, "pp_macro_fsm"},
-    {LSPP_identifier,       "pp_identifier_fsm"},
-    {LSPP_body_if,          "pp_body_if_fsm"},
-    {LSPP_body,             "pp_body_fsm"},
-    {LSPP_number,           "pp_number_fsm"},
-    {LSPP_error,            "pp_error_fsm"},
-    {LSPP_junk,             "pp_junk_fsm"},
+    {LSPP_default,          "main_fsm",          false},
+    {LSPP_include,          "pp_include_fsm",    false},
+    {LSPP_macro_identifier, "pp_macro_fsm",      false},
+    {LSPP_identifier,       "pp_identifier_fsm", false},
+    {LSPP_body_if,          "pp_body_if_fsm",    false},
+    {LSPP_body,             "pp_body_fsm",       false},
+    {LSPP_number,           "pp_number_fsm",     false},
+    {LSPP_error,            "pp_error_fsm",      false},
+    {LSPP_junk,             "pp_junk_fsm",       false},
+    {LSPP_default,          "no_string_fsm",     true},
 };
 
 int
 main(){
-    FILE *file;
-    file = fopen(LEXER_TABLE_FILE, "wb");
+    FILE *file = fopen(LEXER_TABLE_FILE, "wb");
     
     FSM_Tables wtables = generate_whitespace_skip_table();
     render_fsm_table(file, wtables, "whitespace_fsm");
@@ -723,8 +772,7 @@ main(){
     end_table(file);
     
     for (int32_t i = 0; i < ArrayCount(pp_names); ++i){
-        Assert(i == pp_names[i].pp_state);
-        FSM_Tables tables = generate_fsm_table(pp_names[i].pp_state);
+        FSM_Tables tables = generate_fsm_table(pp_names[i].pp_state, pp_names[i].ignore_string_delims);
         render_fsm_table(file, tables, pp_names[i].name);
     }
     

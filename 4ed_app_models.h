@@ -91,6 +91,8 @@ struct Models{
     
     Key_Code user_up_key;
     Key_Code user_down_key;
+    Key_Modifier user_up_key_modifier;
+    Key_Modifier user_down_key_modifier;
 };
 
 // BOTTOM

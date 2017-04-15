@@ -79,17 +79,26 @@ OPEN_FILE_HOOK_SIG(default_file_settings){
     Assert(buffer.exists);
     
     bool32 treat_as_code = false;
+    bool32 treat_as_todo = false;
     bool32 wrap_lines = true;
     
     int32_t extension_count = 0;
     char **extension_list = get_current_code_extensions(&extension_count);
     
     if (buffer.file_name != 0 && buffer.size < (16 << 20)){
-        String ext = file_extension(make_string(buffer.file_name, buffer.file_name_len));
+        String name = make_string(buffer.file_name, buffer.file_name_len);
+        String ext = file_extension(name);
         for (int32_t i = 0; i < extension_count; ++i){
             if (match(ext, extension_list[i])){
                 treat_as_code = true;
                 break;
+            }
+        }
+        
+        if (!treat_as_code){
+            String lead_name = front_of_directory(name);
+            if (match_insensitive(lead_name, "todo.txt")){
+                treat_as_todo = true;
             }
         }
     }
@@ -107,7 +116,12 @@ OPEN_FILE_HOOK_SIG(default_file_settings){
     buffer_set_setting(app, &buffer, BufferSetting_MinimumBaseWrapPosition, default_min_base_width);
     buffer_set_setting(app, &buffer, BufferSetting_MapID, map_id);
     
-    if (treat_as_code && enable_code_wrapping && buffer.size < (1 << 18)){
+    if (treat_as_todo){
+        buffer_set_setting(app, &buffer, BufferSetting_WrapLine, true);
+        buffer_set_setting(app, &buffer, BufferSetting_LexWithoutStrings, true);
+        buffer_set_setting(app, &buffer, BufferSetting_VirtualWhitespace, true);
+    }
+    else if (treat_as_code && enable_code_wrapping && buffer.size < (1 << 18)){
         // NOTE(allen|a4.0.12): There is a little bit of grossness going on here.
         // If we set BufferSetting_Lex to true, it will launch a lexing job.
         // If a lexing job is active when we set BufferSetting_VirtualWhitespace, the call can fail.

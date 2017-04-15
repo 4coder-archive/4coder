@@ -1,5 +1,5 @@
 /*
-4cpp_lexer.h - Preversioning
+4cpp_lexer.h - 1.0.2
 no warranty implied; use at your own risk
 
 This software is in the public domain. Where that dedication is not
@@ -66,6 +66,8 @@ struct String_And_Flag{
 static String_And_Flag preprops[] = {
     {make_stafl("include" , CPP_PP_INCLUDE )} ,
     {make_stafl("INCLUDE" , CPP_PP_INCLUDE )} ,
+    {make_stafl("version" , CPP_PP_VERSION )} ,
+    {make_stafl("VERSION" , CPP_PP_VERSION )} ,
     {make_stafl("ifndef"  , CPP_PP_IFNDEF  )} ,
     {make_stafl("IFNDEF"  , CPP_PP_IFNDEF  )} ,
     {make_stafl("define"  , CPP_PP_DEFINE  )} ,
@@ -185,7 +187,7 @@ static String_And_Flag keywords[] = {
     {make_stafl("thread_local" , CPP_TOKEN_KEY_OTHER)},
     
 #if defined(FCPP_LEXER_EXTRA_KEYWORDS)
-    FCPP_LEXER_EXTRA_KEYWORDS
+#include FCPP_LEXER_EXTRA_KEYWORDS
 #endif
 };
 static i32_4tech keywords_count = sizeof(keywords)/sizeof(keywords[0]);
@@ -289,6 +291,7 @@ cpp_pp_directive_to_state(Cpp_Token_Type type){
         result = LSPP_body;
         break;
         
+        case CPP_PP_VERSION:
         case CPP_PP_LINE:
         result = LSPP_number;
         break;
@@ -383,6 +386,9 @@ cpp_lex_nonalloc_null_end_no_limit(Cpp_Lex_Data *S_ptr, char *chunk, i32_4tech s
             S.pp_state -= LSPP_count;
         }
         
+        if (S.pp_state == LSPP_default && S.ignore_string_delims){
+            S.pp_state = LSPP_no_strings;
+        }
         S.token.state_flags = S.pp_state;
         
         S.token_start = S.pos;
@@ -448,7 +454,7 @@ cpp_lex_nonalloc_null_end_no_limit(Cpp_Lex_Data *S_ptr, char *chunk, i32_4tech s
 #undef OperCase
                 
                 case '\\':
-                if (S.pp_state == LSPP_default){
+                if (S.pp_state == LSPP_default || S.pp_state == LSPP_no_strings){
                     S.token.type = CPP_TOKEN_JUNK;
                 }
                 else{
@@ -873,6 +879,9 @@ cpp_lex_nonalloc_null_end_no_limit(Cpp_Lex_Data *S_ptr, char *chunk, i32_4tech s
             --S.pos;
         }
         
+        if (S.pp_state == LSPP_default && S.ignore_string_delims){
+            S.pp_state = LSPP_no_strings;
+        }
         if ((S.token.flags & CPP_TFLAG_PP_DIRECTIVE) == 0){
             switch (S.pp_state){
                 case LSPP_macro_identifier:
@@ -921,7 +930,7 @@ cpp_lex_nonalloc_null_end_no_limit(Cpp_Lex_Data *S_ptr, char *chunk, i32_4tech s
                 S.token.size = S.pos - S.token_start;
             }
             if ((S.token.flags & CPP_TFLAG_PP_DIRECTIVE) == 0){
-                if (S.pp_state != LSPP_default){
+                if (S.pp_state != LSPP_default && S.pp_state){
                     S.token.flags |= CPP_TFLAG_PP_BODY;
                 }
             }
@@ -1035,19 +1044,14 @@ CODE_EXAMPLE(
 Cpp_Token_Array lex_file(char *file_name){
 File_Data file = read_whole_file(file_name);
 
-char *temp = (char*)malloc(4096); // hopefully big enough
-Cpp_Lex_Data lex_state = cpp_lex_data_init(temp); 
+Cpp_Lex_Data lex_state = cpp_lex_data_init(false); 
 
 Cpp_Token_Array array = {0};
 array.tokens = (Cpp_Token*)malloc(1 << 20); // hopefully big enough
 array.max_count = (1 << 20)/sizeof(Cpp_Token);
 
-Cpp_Lex_Result result = 
-cpp_lex_step(&lex_state, file.data, file.size, file.size,
-&array, NO_OUT_LIMIT);
+Cpp_Lex_Result result =  cpp_lex_step(&lex_state, file.data, file.size, file.size, &array, NO_OUT_LIMIT);
 Assert(result == LexResult_Finished);
-
-free(temp);
 
 return(array);
 })
@@ -1078,7 +1082,8 @@ DOC_SEE(Cpp_Lex_Result)
 }
 
 API_EXPORT FCPP_LINK Cpp_Lex_Data
-cpp_lex_data_init()/*
+cpp_lex_data_init(b32_4tech ignore_string_delims)/*
+DOC_PARAM(ignore_string_delims, TODO)
 DOC_RETURN(A brand new lex state ready to begin lexing a file from the beginning.)
 
 DOC(Creates a new lex state in the form of a Cpp_Lex_Data struct and returns the struct.
@@ -1087,6 +1092,7 @@ enough but the buffer is not checked, so to be 100% bullet proof it has to be th
 as the file being lexed.)
 */{
     Cpp_Lex_Data data = {0};
+    data.ignore_string_delims = ignore_string_delims;
     return(data);
 }
 
@@ -1119,10 +1125,6 @@ DOC_SEE(cpp_lex_data_new_temp)
         *out_buffer = *src;
     }
 }
-
-API_EXPORT FCPP_LINK void
-cpp_lex_data_new_temp_DEP(Cpp_Lex_Data *lex_data, char *new_buffer)
-/*DOC(Deprecated in 4cpp Lexer 1.0.1*/{}
 
 FCPP_LINK char
 cpp_token_get_pp_state(u16_4tech bitfield){
@@ -1188,7 +1190,7 @@ The start and end points are based on the edited region of the file before the e
 }
 
 API_EXPORT FCPP_LINK Cpp_Relex_Data
-cpp_relex_init(Cpp_Token_Array *array, i32_4tech start_pos, i32_4tech end_pos, i32_4tech character_shift_amount)
+cpp_relex_init(Cpp_Token_Array *array, i32_4tech start_pos, i32_4tech end_pos, i32_4tech character_shift_amount, b32_4tech ignore_string_delims)
 /*
 DOC_PARAM(array, A pointer to the token array that will be modified by the relex,
 this array should already contain the tokens for the previous state of the file.)
@@ -1199,6 +1201,7 @@ In particular, end_pos is the first character after the edited region not effect
 Thus if the edited region contained one character end_pos - start_pos should equal 1.
 The start and end points are based on the edited region of the file before the edit.)
 DOC_PARAM(character_shift_amount, The shift in the characters after the edited region.)
+DOC_PARAM(ignore_string_delims, TODO)
 DOC_RETURN(Returns a partially initialized relex state.)
 
 DOC(This call does the first setup step of initializing a relex state.  To finish initializing the relex state
@@ -1224,7 +1227,7 @@ DOC_SEE(cpp_relex_is_start_chunk)
     
     state.character_shift_amount = character_shift_amount;
     
-    state.lex = cpp_lex_data_init();
+    state.lex = cpp_lex_data_init(ignore_string_delims);
     state.lex.pp_state = cpp_token_get_pp_state(array->tokens[state.start_token_index].state_flags);
     state.lex.pos = state.relex_start_position;
     
@@ -1581,7 +1584,7 @@ return(array);
 )
 DOC_SEE(cpp_make_token_array)
 */{
-    Cpp_Lex_Data S = cpp_lex_data_init();
+    Cpp_Lex_Data S = cpp_lex_data_init(false);
     i32_4tech quit = 0;
     
     char empty = 0;

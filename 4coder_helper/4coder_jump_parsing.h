@@ -12,31 +12,16 @@
 
 #include "4coder_lib/4coder_mem.h"
 
+struct ID_Pos_Jump_Location{
+    Buffer_ID buffer_id;
+    int32_t pos;
+};
+
 struct Name_Based_Jump_Location{
     String file;
     int32_t line;
     int32_t column;
 };
-
-static void
-jump_to_location(Application_Links *app, View_Summary *view, Name_Based_Jump_Location *l){
-    Buffer_Summary buffer = {0};
-    if (open_file(app, &buffer, l->file.str, l->file.size, false, true)){
-        View_Summary target_view = get_first_view_with_buffer(app, buffer.buffer_id);
-        if (!target_view.exists){
-            view_set_buffer(app, view, buffer.buffer_id, 0);
-            target_view = *view;
-        }
-        view_set_cursor(app, &target_view, seek_line_char(l->line, l->column), true);
-    }
-}
-
-static void
-jump_to_location_always_use_view(Application_Links *app, View_Summary *view, Name_Based_Jump_Location *l){
-    if (view_open_file(app, view, l->file.str, l->file.size, true)){
-        view_set_cursor(app, view, seek_line_char(l->line, l->column), true);
-    }
-}
 
 static bool32
 ms_style_verify(String line, int32_t paren_pos){

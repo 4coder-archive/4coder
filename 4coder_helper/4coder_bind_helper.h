@@ -226,6 +226,13 @@ end_bind_helper(Bind_Helper *helper){
     return(result);
 }
 
+static u32_4tech
+get_key_code(char *buffer){
+    u32_4tech ignore;
+    u32_4tech result = utf8_to_u32_length_unchecked((u8_4tech*)buffer, &ignore);
+    return(result);
+}
+
 #endif
 
 // BOTTOM

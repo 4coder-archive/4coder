@@ -1254,31 +1254,50 @@ gui_do_jump(GUI_Target *target, GUI_View_Jump jump, GUI_Scroll_Vars vars){
 }
 
 internal void
-gui_standard_list(GUI_Target *target, GUI_id id, GUI_Scroll_Vars *vars, i32_Rect scroll_region,  Key_Input_Data *keys, i32 *list_i, GUI_Item_Update *update, Key_Code user_up_key, Key_Code user_down_key){
-    
+gui_standard_list(GUI_Target *target, GUI_id id, GUI_Scroll_Vars *vars, i32_Rect scroll_region,  Key_Input_Data *keys, i32 *list_i, GUI_Item_Update *update, Key_Code user_up_key, Key_Modifier user_up_key_modifier, Key_Code user_down_key, Key_Modifier user_down_key_modifier){
     if (update->has_adjustment){
         *list_i = update->adjustment_value;
     }
     
     if (update->has_index_position){
-        GUI_View_Jump jump =
-            gui_compute_view_jump(scroll_region, update->index_position);
+        GUI_View_Jump jump = gui_compute_view_jump(scroll_region, update->index_position);
         jump.view_min = jump.view_min + 45;
         jump.view_max = jump.view_max - 45;
         *vars = gui_do_jump(target, jump, *vars);
     }
     
+    i8 modifiers_up[3];
+    modifiers_up[0] = ((user_up_key_modifier & MDFR_CTRL) != 0);
+    modifiers_up[1] = ((user_up_key_modifier & MDFR_ALT) != 0);
+    modifiers_up[2] = ((user_up_key_modifier & MDFR_SHIFT) != 0);
+    
+    i8 modifiers_down[3];
+    modifiers_down[0] = ((user_down_key_modifier & MDFR_CTRL) != 0);
+    modifiers_down[1] = ((user_down_key_modifier & MDFR_ALT) != 0);
+    modifiers_down[2] = ((user_down_key_modifier & MDFR_SHIFT) != 0);
+    
     b32 indirectly_activate = 0;
     for (i32 j = 0; j < keys->count; ++j){
-        Key_Code key = keys->keys[j].keycode;
+        Key_Event_Data key = keys->keys[j];
+        b32 modifiers_match_up = false;
+        b32 modifiers_match_down = false;
         
-        if (key == user_up_key){
+        if (modifiers_up[0] == key.modifiers[MDFR_CONTROL_INDEX] && modifiers_up[1] == key.modifiers[MDFR_ALT_INDEX] && modifiers_up[2] == key.modifiers[MDFR_SHIFT_INDEX]){
+            modifiers_match_up = true;
+        }
+        
+        if (modifiers_down[0] == key.modifiers[MDFR_CONTROL_INDEX] && modifiers_down[1] == key.modifiers[MDFR_ALT_INDEX] && modifiers_down[2] == key.modifiers[MDFR_SHIFT_INDEX]){
+            modifiers_match_down = true;
+        }
+        
+        if (key.keycode == user_up_key && modifiers_match_up){
             --*list_i;
         }
-        else if (key == user_down_key){
+        else if (key.keycode == user_down_key && modifiers_match_down){
             ++*list_i;
         }
-        else if (key == '\n' || key == '\t'){
+        
+        else if (key.keycode == '\n' || key.keycode == '\t'){
             indirectly_activate = 1;
         }
     }

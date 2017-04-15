@@ -27,8 +27,8 @@ TYPEDEF int32_t Buffer_ID;
 /* DOC(View_ID is used to name a 4coder view.  Each view has a unique id in the interval [1,16].) */
 TYPEDEF int32_t View_ID;
 
-/* DOC(A Key_Modifier acts as an index for specifying modifiers in arrays.) */
-ENUM(int32_t, Key_Modifier){
+/* DOC(A Key_Modifier_Index acts as an index for specifying modifiers in arrays.) */
+ENUM(int32_t, Key_Modifier_Index){
     MDFR_SHIFT_INDEX,
     MDFR_CONTROL_INDEX,
     MDFR_ALT_INDEX,
@@ -144,6 +144,9 @@ ENUM(int32_t, Buffer_Setting_ID){
     /* DOC(The BufferSetting_Lex setting is used to determine whether to store C++ tokens
     from with the buffer.) */
     BufferSetting_Lex,
+    
+    /* DOC(The BufferSetting_LexWithoutStrings tells the system to treat string and character marks as identifiers instead of strings.  This settings does nothing if the buffer does not have lexing turned on.) */
+    BufferSetting_LexWithoutStrings,
     
     /* DOC(The BufferSetting_WrapLine setting is used to determine whether a buffer prefers
     to be viewed with wrapped lines, individual views can be set to override this value after
@@ -340,6 +343,10 @@ ENUM(int32_t, View_Split_Position){
 /* DOC(Key_Code is the alias for key codes including raw codes and codes translated to textual input that takes modifiers into account.) */
 TYPEDEF uint32_t Key_Code;
 
+/* DOC(Key_Modifier is the alias for flags that represent keyboard modifiers, ctrl, alt, shift, etc.)
+DOC_SEE(Key_Modifier_Flag) */
+TYPEDEF uint8_t Key_Modifier;
+
 /* DOC(Key_Event_Data describes a key event, including the translation to a character, the translation to a character ignoring the state of caps lock, and an array of all the modifiers that were pressed at the time of the event.) */
 STRUCT Key_Event_Data{
     /* DOC(This field is the raw keycode which is always non-zero in valid key events.) */
@@ -351,11 +358,11 @@ STRUCT Key_Event_Data{
     /* DOC(This field is like the field character, except that the state of caps lock is ignored in the translation.) */
     Key_Code character_no_caps_lock;
     
-    /* DOC(This field is an array indicating the state of modifiers at the time of the key press. The array is indexed using the values of Key_Modifier.  1 indicates that the corresponding modifier was held, and a 0 indicates that it was not held.)
+    /* DOC(This field is an array indicating the state of modifiers at the time of the key press. The array is indexed using the values of Key_Modifier_Index.  1 indicates that the corresponding modifier was held, and a 0 indicates that it was not held.)
     
     DOC_SEE(Key_Modifier)
     */
-    char modifiers[MDFR_INDEX_COUNT];
+    int8_t modifiers[MDFR_INDEX_COUNT];
 };
 
 // TODO(allen): GLOBAL_VAR meta parsing

@@ -1679,15 +1679,15 @@ App_Step_Sig(app_step){
         }
     }
     
-    b32 mouse_on_divider = 0;
-    b32 mouse_divider_vertical = 0;
+    b32 mouse_on_divider = false;
+    b32 mouse_divider_vertical = false;
     i32 mouse_divider_id = 0;
     i32 mouse_divider_side = 0;
     
     if (mouse_in_margin_area){
         Panel *panel = mouse_panel;
         if (mx >= panel->inner.x0 && mx < panel->inner.x1){
-            mouse_divider_vertical = 0;
+            mouse_divider_vertical = false;
             if (my > panel->inner.y0){
                 mouse_divider_side = -1;
             }
@@ -1696,7 +1696,7 @@ App_Step_Sig(app_step){
             }
         }
         else{
-            mouse_divider_vertical = 1;
+            mouse_divider_vertical = true;
             if (mx > panel->inner.x0){
                 mouse_divider_side = -1;
             }
@@ -1706,15 +1706,14 @@ App_Step_Sig(app_step){
         }
         
         if (models->layout.panel_count > 1){
-            i32 which_child;
             mouse_divider_id = panel->parent;
-            which_child = panel->which_child;
+            i32 which_child = panel->which_child;
             for (;;){
                 Divider_And_ID div =layout_get_divider(&models->layout, mouse_divider_id);
                 
                 if (which_child == mouse_divider_side &&
                     div.divider->v_divider == mouse_divider_vertical){
-                    mouse_on_divider = 1;
+                    mouse_on_divider = true;
                     break;
                 }
                 
@@ -1774,8 +1773,6 @@ App_Step_Sig(app_step){
     cmd->screen_height = target->height;
     
     cmd->key = null_key_event_data;
-    
-    Temp_Memory param_stack_temp = begin_temp_memory(&models->mem.part);
     
     if (input->first_step){
         
@@ -1887,12 +1884,9 @@ App_Step_Sig(app_step){
             
             for (i32 i = 0; i < 128 && command_coroutine; ++i){
                 User_Input user_in = {0};
-                user_in.abort = 1;
+                user_in.abort = true;
                 
-                command_coroutine =
-                    app_resume_coroutine(system, &models->app_links, Co_Command,
-                                         command_coroutine, &user_in,
-                                         models->command_coroutine_flags);
+                command_coroutine = app_resume_coroutine(system, &models->app_links, Co_Command, command_coroutine, &user_in, models->command_coroutine_flags);
             }
             if (command_coroutine != 0){
                 // TODO(allen): post grave warning
@@ -1970,35 +1964,33 @@ App_Step_Sig(app_step){
                 if (map == 0) map = &models->map_top;
                 Command_Binding cmd_bind = map_extract_recursive(map, key);
                 
-                User_Input user_in;
+                User_Input user_in = {0};
                 user_in.type = UserInputKey;
                 user_in.key = key;
                 user_in.command.command = cmd_bind.custom;
-                user_in.abort = 0;
                 
                 if ((EventOnEsc & abort_flags) && key.keycode == key_esc){
-                    user_in.abort = 1;
+                    user_in.abort = true;
                 }
                 else if (EventOnAnyKey & abort_flags){
-                    user_in.abort = 1;
+                    user_in.abort = true;
                 }
                 
                 if (EventOnAnyKey & get_flags){
-                    pass_in = 1;
+                    pass_in = true;
                     consume_input(&vars->available_input, Input_AnyKey, "command coroutine");
                 }
                 if (key.keycode == key_esc){
                     if (EventOnEsc & get_flags){
-                        pass_in = 1;
+                        pass_in = true;
                     }
                     consume_input(&vars->available_input, Input_Esc, "command coroutine");
                 }
                 
                 if (pass_in){
-                    models->command_coroutine =
-                        app_resume_coroutine(system, &models->app_links, Co_Command, command_coroutine, &user_in, models->command_coroutine_flags);
+                    models->command_coroutine = app_resume_coroutine(system, &models->app_links, Co_Command, command_coroutine, &user_in, models->command_coroutine_flags);
                     
-                    app_result.animating = 1;
+                    app_result.animating = true;
                     
                     // TOOD(allen): Deduplicate
                     // TODO(allen): Should I somehow allow a view to clean up however it wants after a
@@ -2017,55 +2009,52 @@ App_Step_Sig(app_step){
             USE_VIEW(view);
             b32 pass_in = 0;
             
-            User_Input user_in;
+            User_Input user_in = {0};
             user_in.type = UserInputMouse;
             user_in.mouse = input->mouse;
-            user_in.command.cmdid = 0;
-            user_in.abort = 0;
             
             if (abort_flags & EventOnMouseMove){
-                user_in.abort = 1;
+                user_in.abort = true;
             }
             if (get_flags & EventOnMouseMove){
-                pass_in = 1;
+                pass_in = true;
                 consume_input(&vars->available_input, Input_MouseMove, "command coroutine");
             }
             
             if (input->mouse.press_l || input->mouse.release_l || input->mouse.l){
                 if (abort_flags & EventOnLeftButton){
-                    user_in.abort = 1;
+                    user_in.abort = true;
                 }
                 if (get_flags & EventOnLeftButton){
-                    pass_in = 1;
+                    pass_in = true;
                     consume_input(&vars->available_input, Input_MouseLeftButton, "command coroutine");
                 }
             }
             
             if (input->mouse.press_r || input->mouse.release_r || input->mouse.r){
                 if (abort_flags & EventOnRightButton){
-                    user_in.abort = 1;
+                    user_in.abort = true;
                 }
                 if (get_flags & EventOnRightButton){
-                    pass_in = 1;
+                    pass_in = true;
                     consume_input(&vars->available_input, Input_MouseRightButton, "command coroutine");
                 }
             }
             
             if (input->mouse.wheel != 0){
                 if (abort_flags & EventOnWheel){
-                    user_in.abort = 1;
+                    user_in.abort = true;
                 }
                 if (get_flags & EventOnWheel){
-                    pass_in = 1;
+                    pass_in = true;
                     consume_input(&vars->available_input, Input_MouseWheel, "command coroutine");
                 }
             }
             
             if (pass_in){
-                models->command_coroutine = 
-                    app_resume_coroutine(system, &models->app_links, Co_Command, command_coroutine, &user_in, models->command_coroutine_flags);
+                models->command_coroutine =  app_resume_coroutine(system, &models->app_links, Co_Command, command_coroutine, &user_in, models->command_coroutine_flags);
                 
-                app_result.animating = 1;
+                app_result.animating = true;
                 
                 // TOOD(allen): Deduplicate
                 // TODO(allen): Should I somehow allow a view to clean up however it wants after a
@@ -2514,10 +2503,30 @@ App_Step_Sig(app_step){
     }
     
     if (mouse_in_edit_area && mouse_panel != 0 && input->mouse.press_l){
-        models->layout.active_panel = (i32)(mouse_panel - models->layout.panels);
+        i32 new_panel_id = (i32)(mouse_panel - models->layout.panels);
+        if (models->layout.active_panel != new_panel_id){
+            if (models->command_coroutine != 0){
+                User_Input user_in = {0};
+                user_in.abort = true;
+                
+                for (u32 j = 0; j < 10 && models->command_coroutine != 0; ++j){
+                    models->command_coroutine = app_resume_coroutine(system, &models->app_links, Co_Command, models->command_coroutine, &user_in, models->command_coroutine_flags);
+                }
+                
+                if (models->command_coroutine != 0){
+                    // TODO(allen): post grave warning
+                    models->command_coroutine = 0;
+                }
+                
+                Panel *active_panel = &models->layout.panels[models->layout.active_panel];
+                View *view = active_panel->view;
+                init_query_set(&view->query_set);
+            }
+            
+            models->layout.active_panel = new_panel_id;
+            app_result.animating = true;
+        }
     }
-    
-    end_temp_memory(param_stack_temp);
     
     // NOTE(allen): on the first frame there should be no scrolling
     if (input->first_step){
