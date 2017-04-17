@@ -75,32 +75,25 @@ ENUM(uint32_t, Cpp_Token_Type){
     CPP_TOKEN_SEMICOLON = 46,
     CPP_TOKEN_ELLIPSIS = 47,
     
-    /* DOC(This is an 'ambiguous' token type because it requires
-    parsing to determine the full nature of the token.) */
+    /* DOC(This is an 'ambiguous' token type because it requires parsing to determine the full nature of the token.) */
     CPP_TOKEN_STAR = 48,
     
-    /* DOC(This is an 'ambiguous' token type because it requires
-    parsing to determine the full nature of the token.) */
+    /* DOC(This is an 'ambiguous' token type because it requires parsing to determine the full nature of the token.) */
     CPP_TOKEN_AMPERSAND = 49,
     
-    /* DOC(This is an 'ambiguous' token type because it requires
-    parsing to determine the full nature of the token.) */
+    /* DOC(This is an 'ambiguous' token type because it requires parsing to determine the full nature of the token.) */
     CPP_TOKEN_TILDE = 50,
     
-    /* DOC(This is an 'ambiguous' token type because it requires
-    parsing to determine the full nature of the token.) */
+    /* DOC(This is an 'ambiguous' token type because it requires parsing to determine the full nature of the token.) */
     CPP_TOKEN_PLUS = 51,
     
-    /* DOC(This is an 'ambiguous' token type because it requires
-    parsing to determine the full nature of the token.) */
+    /* DOC(This is an 'ambiguous' token type because it requires parsing to determine the full nature of the token.) */
     CPP_TOKEN_MINUS = 52,
     
-    /* DOC(This is an 'ambiguous' token type because it requires
-    parsing to determine the full nature of the token.) */
+    /* DOC(This is an 'ambiguous' token type because it requires parsing to determine the full nature of the token.) */
     CPP_TOKEN_INCREMENT = 53,
     
-    /* DOC(This is an 'ambiguous' token type because it requires
-    parsing to determine the full nature of the token.) */
+    /* DOC(This is an 'ambiguous' token type because it requires parsing to determine the full nature of the token.) */
     CPP_TOKEN_DECREMENT = 54,
     
     // NOTE(allen): Precedence 1, LtoR
@@ -309,9 +302,8 @@ STRUCT Cpp_Relex_Range{
 
 struct Cpp_Lex_FSM{
     uint8_t state;
-    uint8_t int_state;
     uint8_t emit_token;
-    uint8_t multi_line;
+    uint8_t flags;
 };
 static Cpp_Lex_FSM null_lex_fsm = {0};
 
@@ -322,23 +314,29 @@ DOC_SEE(cpp_lex_data_init)
 HIDE_MEMBERS() */
 STRUCT Cpp_Lex_Data{
     char tb[32];
-    int32_t tb_pos;
-    int32_t token_start;
+    i32_4tech tb_pos;
+    i32_4tech token_start;
     
-    int32_t pos;
-    int32_t pos_overide;
-    int32_t chunk_pos;
+    i32_4tech pos;
+    i32_4tech pos_overide;
+    i32_4tech chunk_pos;
     
     Cpp_Lex_FSM fsm;
-    uint8_t white_done;
-    uint8_t pp_state;
-    uint8_t completed;
+    u8_4tech white_done;
+    u8_4tech pp_state;
+    u8_4tech completed;
     
     Cpp_Token token;
     
-    int32_t ignore_string_delims;
+    char raw_delim[16];
+    i32_4tech delim_length;
     
-    int32_t __pc__;
+    b8_4tech str_raw;
+    b8_4tech str_include;
+    
+    i32_4tech ignore_string_delims;
+    
+    i32_4tech __pc__;
 };
 
 /* DOC(Cpp_Lex_Result is returned from the lexing engine to indicate why it stopped lexing.) */
@@ -395,44 +393,43 @@ ENUM_INTERNAL(uint8_t, Cpp_Lex_State){
     LS_pound = 2,
     LS_pp = 3,
     LS_ppdef = 4,
-    LS_char = 5,
-    LS_char_multiline = 6,
-    LS_char_slashed = 7,
-    LS_string = 8,
-    LS_string_multiline = 9,
-    LS_string_slashed = 10,
-    LS_number = 11,
-    LS_number0 = 12,
-    LS_float = 13,
-    LS_crazy_float0 = 14,
-    LS_crazy_float1 = 15,
-    LS_hex = 16,
-    LS_comment_pre = 17,
-    LS_comment = 18,
-    LS_comment_slashed = 19,
-    LS_comment_block = 20,
-    LS_comment_block_ending = 21,
-    LS_dot = 22,
-    LS_ellipsis = 23,
-    LS_less = 24,
-    LS_less_less = 25,
-    LS_more = 26,
-    LS_more_more = 27,
-    LS_minus = 28,
-    LS_arrow = 29,
-    LS_and = 30,
-    LS_or = 31,
-    LS_plus = 32,
-    LS_colon = 33,
-    LS_star = 34,
-    LS_modulo = 35,
-    LS_caret = 36,
-    LS_eq = 37,
-    LS_bang = 38,
-    LS_error_message = 39,
+    LS_string_R = 5,
+    LS_string_LUu8 = 6,
+    LS_string_u = 7,
+    LS_number = 8,
+    LS_number0 = 9,
+    LS_float = 10,
+    LS_crazy_float0 = 11,
+    LS_crazy_float1 = 12,
+    LS_hex = 13,
+    LS_comment_pre = 14,
+    LS_comment = 15,
+    LS_comment_slashed = 16,
+    LS_comment_block = 17,
+    LS_comment_block_ending = 18,
+    LS_dot = 19,
+    LS_ellipsis = 20,
+    LS_less = 21,
+    LS_less_less = 22,
+    LS_more = 23,
+    LS_more_more = 24,
+    LS_minus = 25,
+    LS_arrow = 26,
+    LS_and = 27,
+    LS_or = 28,
+    LS_plus = 29,
+    LS_colon = 30,
+    LS_single_op = 31,
+    LS_error_message = 32,
     //
-    LS_count = 40
+    LS_count = 33,
+    LS_char = 34,
 };
+
+// NOTE(allen): These provide names that match the overloaded meanings of string states.
+#define LS_string_raw LS_string_R
+#define LS_string_normal LS_string_LUu8
+#define LS_string_include LS_string_u
 
 ENUM_INTERNAL(uint8_t, Cpp_Lex_Int_State){
     LSINT_default,
@@ -446,6 +443,19 @@ ENUM_INTERNAL(uint8_t, Cpp_Lex_Int_State){
     //
     LSINT_count
 };
+
+ENUM_INTERNAL(uint8_t, Cpp_Lex_Str_State){
+    LSSTR_default,
+    LSSTR_escape,
+    LSSTR_multiline,
+    //
+    LSSTR_count
+};
+
+#define LSSTR_include_count 1
+#define LSSTR_error LSSTR_escape
+#define LSSTR_get_delim LSSTR_escape
+#define LSSTR_check_delim LSSTR_count
 
 ENUM_INTERNAL(uint8_t, Cpp_Lex_PP_State){
     LSPP_default,

@@ -7,13 +7,42 @@
 
 // TOP
 
+// 4tech_standard_preamble.h
+#if !defined(FTECH_INTEGERS)
+#define FTECH_INTEGERS
+#include <stdint.h>
+typedef int8_t i8_4tech;
+typedef int16_t i16_4tech;
+typedef int32_t i32_4tech;
+typedef int64_t i64_4tech;
+
+typedef uint8_t u8_4tech;
+typedef uint16_t u16_4tech;
+typedef uint32_t u32_4tech;
+typedef uint64_t u64_4tech;
+
+typedef float f32_4tech;
+typedef double f64_4tech;
+
+typedef int8_t b8_4tech;
+typedef int32_t b32_4tech;
+#endif
+
+#if !defined(Assert)
+# define Assert(n) do{ if (!(n)) *(int*)0 = 0xA11E; }while(0)
+#endif
+
+#if !defined(API_EXPORT)
+# define API_EXPORT
+#endif
+// standard preamble end 
+
+#include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
-#include <stdint.h>
 
 typedef int32_t bool32;
 
-#define Assert(n) do{ if (!(n)) { *(int*)0 = 0xA11E; } }while(0)
 #define ArrayCount(a) (sizeof(a)/sizeof(*a))
 
 #define LEXER_TABLE_FILE "4cpp/4cpp_lexer_tables.c"
@@ -37,86 +66,247 @@ whitespace_skip_fsm(Whitespace_FSM wfsm, char c){
     return(wfsm);
 }
 
-Cpp_Lex_FSM
-int_fsm(Cpp_Lex_FSM fsm, char c){
-    switch (fsm.int_state){
+#define FSM_SIG(n) Cpp_Lex_FSM n(Cpp_Lex_FSM fsm, char c, b32_4tech get_flags)
+typedef FSM_SIG(FSM_Function);
+
+FSM_SIG(int_fsm){
+    switch (fsm.state){
         case LSINT_default:
-        switch (c){
-            case 'u': case 'U': fsm.int_state = LSINT_u; break;
-            case 'l': fsm.int_state = LSINT_l; break;
-            case 'L': fsm.int_state = LSINT_L; break;
-            default: fsm.emit_token = 1; break;
-        }
-        break;
+        {
+            switch (c){
+                case 'u': case 'U': fsm.state = LSINT_u; break;
+                case 'l': fsm.state = LSINT_l; break;
+                case 'L': fsm.state = LSINT_L; break;
+                default: fsm.emit_token = true; break;
+            }
+        }break;
         
         case LSINT_u:
-        switch (c){
-            case 'l': fsm.int_state = LSINT_ul; break;
-            case 'L': fsm.int_state = LSINT_uL; break;
-            default: fsm.emit_token = 1; break;
-        }
-        break;
+        {
+            switch (c){
+                case 'l': fsm.state = LSINT_ul; break;
+                case 'L': fsm.state = LSINT_uL; break;
+                default: fsm.emit_token = true; break;
+            }
+        }break;
         
         case LSINT_l:
-        switch (c){
-            case 'l': fsm.int_state = LSINT_ll; break;
-            case 'U': case 'u': fsm.int_state = LSINT_extra; break;
-            default: fsm.emit_token = 1; break;
-        }
-        break;
+        {
+            switch (c){
+                case 'l': fsm.state = LSINT_ll; break;
+                case 'U': case 'u': fsm.state = LSINT_extra; break;
+                default: fsm.emit_token = true; break;
+            }
+        }break;
         
         case LSINT_L:
-        switch (c){
-            case 'L': fsm.int_state = LSINT_ll; break;
-            case 'U': case 'u': fsm.int_state = LSINT_extra; break;
-            default: fsm.emit_token = 1; break;
-        }
-        break;
+        {
+            switch (c){
+                case 'L': fsm.state = LSINT_ll; break;
+                case 'U': case 'u': fsm.state = LSINT_extra; break;
+                default: fsm.emit_token = true; break;
+            }
+        }break;
         
         case LSINT_ul:
-        switch (c){
-            case 'l': fsm.int_state = LSINT_extra; break;
-            default: fsm.emit_token = 1; break;
-        }
-        break;
+        {
+            switch (c){
+                case 'l': fsm.state = LSINT_extra; break;
+                default: fsm.emit_token = true; break;
+            }
+        }break;
         
         case LSINT_uL:
-        switch (c){
-            case 'L': fsm.int_state = LSINT_extra; break;
-            default: fsm.emit_token = 1; break;
-        }
-        break;
+        {
+            switch (c){
+                case 'L': fsm.state = LSINT_extra; break;
+                default: fsm.emit_token = true; break;
+            }
+        }break;
         
         case LSINT_ll:
-        switch (c){
-            case 'u': case 'U': fsm.int_state = LSINT_extra; break;
-            default: fsm.emit_token = 1; break;
-        }
-        break;
+        {
+            switch (c){
+                case 'u': case 'U': fsm.state = LSINT_extra; break;
+                default: fsm.emit_token = true; break;
+            }
+        }break;
         
         case LSINT_extra:
-        fsm.emit_token = 1;
+        fsm.emit_token = true;
         break;
     }
     return(fsm);
 }
 
+FSM_SIG(normal_str_fsm){
+    
+    if (!get_flags){
+        switch (fsm.state){
+            case LSSTR_default:
+            case LSSTR_multiline:
+            {
+                switch (c){
+                    case '\n': case 0: fsm.state = LSSTR_error; fsm.emit_token = true; break;
+                    case '\\': fsm.state = LSSTR_escape; break;
+                    case '"': fsm.emit_token = true; break;
+                    default: break;
+                }
+            }break;
+            
+            case LSSTR_escape:
+            {
+                switch (c){
+                    case '\n': fsm.state = LSSTR_multiline; break;
+                    default: fsm.state = LSSTR_default; break;
+                }
+            }break;
+        }
+    }
+    else{
+        switch (fsm.state){
+            case LSSTR_multiline:
+            {
+                fsm.flags = 1;
+            }break;
+        }
+    }
+    
+    return(fsm);
+}
+
+FSM_SIG(normal_char_fsm){
+    
+    if (!get_flags){
+        switch (fsm.state){
+            case LSSTR_default:
+            case LSSTR_multiline:
+            {
+                switch (c){
+                    case '\n': case 0: fsm.state = LSSTR_error; fsm.emit_token = true; break;
+                    case '\\': fsm.state = LSSTR_escape; break;
+                    case '\'': fsm.emit_token = true; break;
+                    default: break;
+                }
+            }break;
+            
+            case LSSTR_escape:
+            {
+                switch (c){
+                    case '\n': fsm.state = LSSTR_multiline; break;
+                    default: fsm.state = LSSTR_default; break;
+                }
+            }break;
+        }
+    }
+    else{
+        switch (fsm.state){
+            case LSSTR_multiline:
+            {
+                fsm.flags = 1;
+            }break;
+        }
+    }
+    
+    return(fsm);
+}
+
+FSM_SIG(raw_str_fsm){
+    
+    if (!get_flags){
+        switch (fsm.state){
+            case LSSTR_default:
+            {
+                switch (c){
+                    case ')': case '\\': case ' ': case '\n': fsm.emit_token = true; break;
+                    case '(': fsm.state = LSSTR_get_delim; fsm.emit_token = true; break;
+                    default: break;
+                }
+            }break;
+            
+            case LSSTR_get_delim:
+            case LSSTR_multiline:
+            {
+                switch (c){
+                    case '\n': fsm.state = LSSTR_multiline; break;
+                    case 0: case '"': fsm.state = LSSTR_check_delim; fsm.emit_token = true; break;
+                    default: break;
+                }
+            }break;
+        }
+    }
+    else{
+        switch (fsm.state){
+            case LSSTR_multiline:
+            {
+                fsm.flags = 1;
+            }break;
+        }
+    }
+    
+    return(fsm);
+}
+
+FSM_SIG(include_str_fsm){
+    switch (fsm.state){
+        case LSSTR_default:
+        {
+            switch (c){
+                case '\n': case 0: fsm.state = LSSTR_error; fsm.emit_token = true; break;
+                case '>': fsm.emit_token = true; break;
+                default: break;
+            }
+        }break;
+    }
+    return(fsm);
+}
+
+b32_4tech
+is_identifier_char(u8_4tech c, b32_4tech ignore_string_delims){
+    b32_4tech result = (c >= '0' && c <= '9') || (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_' || c == '$' || c >= 128 || (ignore_string_delims && (c == '\'' || c == '"'));
+    return(result);
+}
+
+b32_4tech
+is_identifier_char_restricted(u8_4tech c, b32_4tech ignore_string_delims){
+    b32_4tech result = (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c >= 128 || (ignore_string_delims && (c == '\'' || c == '"'));
+    return(result);
+}
+
+b32_4tech
+is_identifier_char_non_numeric(u8_4tech c, b32_4tech ignore_string_delims){
+    b32_4tech result = (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_' || c == '$' || c >= 128 || (ignore_string_delims && (c == '\'' || c == '"'));
+    return(result);
+}
+
 Cpp_Lex_FSM
 main_fsm(Cpp_Lex_FSM fsm, uint8_t pp_state, uint8_t c, bool32 ignore_string_delims){
     if (c == 0){
-        fsm.emit_token = 1;
+        fsm.emit_token = true;
     }
     else{
         switch (pp_state){
             case LSPP_error:
-            fsm.state = LS_error_message;
-            if (c == '\n') fsm.emit_token = 1;
-            break;
+            {
+                fsm.state = LS_error_message;
+                if (c == '\n'){
+                    fsm.emit_token = true;
+                }
+            }break;
             
             default:
             switch (fsm.state){
                 case LS_default:
-                if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_' || c == '$' || c >= 128){
+                if (c == 'R'){
+                    fsm.state = LS_string_R;
+                }
+                else if (c == 'U' || c == 'L'){
+                    fsm.state = LS_string_LUu8;
+                }
+                else if (c == 'u'){
+                    fsm.state = LS_string_u;
+                }
+                else if (is_identifier_char_non_numeric(c, ignore_string_delims)){
                     fsm.state = LS_identifier;
                 }
                 else if (c >= '1' && c <= '9'){
@@ -134,6 +324,7 @@ main_fsm(Cpp_Lex_FSM fsm, uint8_t pp_state, uint8_t c, bool32 ignore_string_deli
                             }
                             else{
                                 fsm.state = LS_char;
+                                fsm.emit_token = true;
                             }
                         }break;
                         
@@ -143,7 +334,8 @@ main_fsm(Cpp_Lex_FSM fsm, uint8_t pp_state, uint8_t c, bool32 ignore_string_deli
                                 fsm.state = LS_identifier;
                             }
                             else{
-                                fsm.state = LS_string;
+                                fsm.state = LS_string_normal;
+                                fsm.emit_token = true;
                             }
                         }break;
                         
@@ -153,7 +345,8 @@ main_fsm(Cpp_Lex_FSM fsm, uint8_t pp_state, uint8_t c, bool32 ignore_string_deli
                         
                         case '<':
                         if (pp_state == LSPP_include && !ignore_string_delims){
-                            fsm.state = LS_string;
+                            fsm.state = LS_string_include;
+                            fsm.emit_token = true;
                         }
                         else{
                             fsm.state = LS_less;
@@ -171,13 +364,8 @@ main_fsm(Cpp_Lex_FSM fsm, uint8_t pp_state, uint8_t c, bool32 ignore_string_deli
                         
                         case ':': fsm.state = LS_colon; break;
                         
-                        case '*': fsm.state = LS_star; break;
-                        
-                        case '%': fsm.state = LS_modulo; break;
-                        case '^': fsm.state = LS_caret; break;
-                        
-                        case '=': fsm.state = LS_eq; break;
-                        case '!': fsm.state = LS_bang; break;
+                        case '*': case '%': case '^': case '=':
+                        case '!': fsm.state = LS_single_op; break;
                         
                         case '#':
                         if (pp_state == LSPP_default){
@@ -188,7 +376,7 @@ main_fsm(Cpp_Lex_FSM fsm, uint8_t pp_state, uint8_t c, bool32 ignore_string_deli
                         }
                         break;
                         
-#define OperCase(op,type) case op: fsm.emit_token = 1; break;
+#define OperCase(op,type) case op: fsm.emit_token = true; break;
                         OperCase('{', CPP_TOKEN_BRACE_OPEN);
                         OperCase('}', CPP_TOKEN_BRACE_CLOSE);
                         
@@ -212,17 +400,16 @@ main_fsm(Cpp_Lex_FSM fsm, uint8_t pp_state, uint8_t c, bool32 ignore_string_deli
                 
                 case LS_identifier:
                 {
-                    int is_ident = (c >= '0' && c <= '9') || (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_' || c == '$' || c >= 128 || (ignore_string_delims && (c == '\'' || c == '"'));
-                    
+                    b32_4tech is_ident = is_identifier_char(c, ignore_string_delims);
                     if (!is_ident){
-                        fsm.emit_token = 1;
+                        fsm.emit_token = true;
                     }
                 }
                 break;
                 
                 case LS_pound:
                 {
-                    fsm.emit_token = 1;
+                    fsm.emit_token = true;
                 }break;
                 
                 case LS_pp:
@@ -230,82 +417,86 @@ main_fsm(Cpp_Lex_FSM fsm, uint8_t pp_state, uint8_t c, bool32 ignore_string_deli
                     if (c == ' ' || c == '\r' || c == '\v' || c == '\f'){
                         // NOTE(allen): do nothing
                     }
-                    else if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c >= 128 || (ignore_string_delims && (c == '\'' || c == '"'))){
+                    else if (is_identifier_char_restricted(c, ignore_string_delims)){
                         fsm.state = LS_ppdef;
                     }
                     else{
-                        fsm.emit_token = 1;
+                        fsm.emit_token = true;
                     }
                 }break;
                 
                 case LS_ppdef:
                 {
-                    int is_ident = (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c >= 128 || (ignore_string_delims && (c == '\'' || c == '"'));
+                    int is_ident = is_identifier_char_restricted(c, ignore_string_delims);
                     if (!is_ident){
-                        fsm.emit_token = 1;
+                        fsm.emit_token = true;
                     }
                 }break;
                 
-                case LS_char: case LS_char_multiline:
+                case LS_string_R:
                 {
                     if (ignore_string_delims){
-                        fsm.state = LS_string;
-                        fsm.emit_token = 1;
-                    }
-                    else{
-                        switch(c){
-                            case '\n': case '\'': fsm.emit_token = 1; break;
-                            case '\\': fsm.state = LS_char_slashed; break;
-                        }
-                    }
-                }break;
-                
-                case LS_char_slashed:
-                {
-                    if (ignore_string_delims){
-                        fsm.state = LS_string;
-                        fsm.emit_token = 1;
+                        fsm.state = LS_count;
+                        fsm.emit_token = true;
                     }
                     else{
                         switch (c){
-                            case '\r': case '\f': case '\v': break;
-                            case '\n': fsm.state = LS_char_multiline; break;
-                            default: fsm.state = LS_char; break;
+                            case '"': fsm.state = LS_string_raw; fsm.emit_token = true; break;
+                            default:
+                            {
+                                fsm.state = LS_identifier;
+                                b32_4tech is_ident = is_identifier_char(c, ignore_string_delims);
+                                if (!is_ident){
+                                    fsm.emit_token = true;
+                                }
+                            }break;
                         }
                     }
                 }break;
                 
-                case LS_string:
-                case LS_string_multiline:
+                case LS_string_LUu8:
                 {
                     if (ignore_string_delims){
-                        fsm.state = LS_string;
-                        fsm.emit_token = 1;
-                    }
-                    else{
-                        switch(c){
-                            case '\n': case '"': fsm.emit_token = 1; break;
-                            case '>':
-                            if (pp_state == LSPP_include){
-                                fsm.emit_token = 1;
-                            }
-                            break;
-                            case '\\': fsm.state = LS_string_slashed; break;
-                        }
-                    }
-                }break;
-                
-                case LS_string_slashed:
-                {
-                    if (ignore_string_delims){
-                        fsm.state = LS_string;
-                        fsm.emit_token = 1;
+                        fsm.state = LS_count;
+                        fsm.emit_token = true;
                     }
                     else{
                         switch (c){
-                            case '\r': case '\f': case '\v': break;
-                            case '\n': fsm.state = LS_string_multiline; break;
-                            default: fsm.state = LS_string; break;
+                            case '"':  fsm.state = LS_string_normal; fsm.emit_token = true; break;
+                            case '\'': fsm.state = LS_char; fsm.emit_token = true; break;
+                            case 'R':  fsm.state = LS_string_R; break;
+                            default:
+                            {
+                                fsm.state = LS_identifier;
+                                b32_4tech is_ident = is_identifier_char(c, ignore_string_delims);
+                                if (!is_ident){
+                                    fsm.emit_token = true;
+                                }
+                            }break;
+                        }
+                    }
+                }break;
+                
+                case LS_string_u:
+                {
+                    if (ignore_string_delims){
+                        fsm.state = LS_count;
+                        fsm.emit_token = true;
+                    }
+                    else{
+                        switch (c){
+                            case '"':  fsm.state = LS_string_normal; fsm.emit_token = true; break;
+                            case '\'': fsm.state = LS_char; fsm.emit_token = true; break;
+                            case '8':  fsm.state = LS_string_LUu8; break;
+                            case 'R':  fsm.state = LS_string_R; break;
+                            default:
+                            {
+                                fsm.state = LS_identifier;
+                                b32_4tech is_ident = is_identifier_char(c, ignore_string_delims);
+                                if (!is_ident){
+                                    fsm.emit_token = true;
+                                }
+                            }break;
                         }
                     }
                 }break;
@@ -317,7 +508,7 @@ main_fsm(Cpp_Lex_FSM fsm, uint8_t pp_state, uint8_t c, bool32 ignore_string_deli
                 else{
                     switch (c){
                         case '.': fsm.state = LS_float; break;
-                        default: fsm.emit_token = 1; break;
+                        default: fsm.emit_token = true; break;
                     }
                 }
                 break;
@@ -333,7 +524,7 @@ main_fsm(Cpp_Lex_FSM fsm, uint8_t pp_state, uint8_t c, bool32 ignore_string_deli
                     fsm.state = LS_float;
                 }
                 else{
-                    fsm.emit_token = 1;
+                    fsm.emit_token = true;
                 }
                 break;
                 
@@ -341,7 +532,7 @@ main_fsm(Cpp_Lex_FSM fsm, uint8_t pp_state, uint8_t c, bool32 ignore_string_deli
                 if (!(c >= '0' && c <= '9')){
                     switch (c){
                         case 'e': fsm.state = LS_crazy_float0; break;
-                        default: fsm.emit_token = 1; break;
+                        default: fsm.emit_token = true; break;
                     }
                 }
                 break;
@@ -352,7 +543,7 @@ main_fsm(Cpp_Lex_FSM fsm, uint8_t pp_state, uint8_t c, bool32 ignore_string_deli
                         fsm.state = LS_crazy_float1;
                     }
                     else{
-                        fsm.emit_token = 1;
+                        fsm.emit_token = true;
                     }
                 }
                 break;
@@ -360,7 +551,7 @@ main_fsm(Cpp_Lex_FSM fsm, uint8_t pp_state, uint8_t c, bool32 ignore_string_deli
                 case LS_crazy_float1:
                 {
                     if (!(c >= '0' && c <= '9')){
-                        fsm.emit_token = 1;
+                        fsm.emit_token = true;
                     }
                 }
                 break;
@@ -369,7 +560,7 @@ main_fsm(Cpp_Lex_FSM fsm, uint8_t pp_state, uint8_t c, bool32 ignore_string_deli
                 {
                     int is_hex = c >= '0' && c <= '9' || c >= 'a' && c <= 'f' || c >= 'A' && c <= 'F' || c >= 128;
                     if (!is_hex){
-                        fsm.emit_token = 1;
+                        fsm.emit_token = true;
                     }
                 }break;
                 
@@ -381,162 +572,149 @@ main_fsm(Cpp_Lex_FSM fsm, uint8_t pp_state, uint8_t c, bool32 ignore_string_deli
                     else{
                         switch (c){
                             case '.': fsm.state = LS_ellipsis; break;
-                            case '*': fsm.emit_token = 1; break;
-                            default: fsm.emit_token = 1; break;
+                            case '*': fsm.emit_token = true; break;
+                            default: fsm.emit_token = true; break;
                         }
                     }
                 }break;
                 
-                case LS_ellipsis: fsm.emit_token = 1; break;
+                case LS_ellipsis: fsm.emit_token = true; break;
                 
                 case LS_less:
-                switch (c){
-                    case '<': fsm.state = LS_less_less; break;
-                    case '=': fsm.emit_token = 1; break;
-                    default: fsm.emit_token = 1; break;
-                }
-                break;
+                {
+                    switch (c){
+                        case '<': fsm.state = LS_less_less; break;
+                        case '=': fsm.emit_token = true; break;
+                        default: fsm.emit_token = true; break;
+                    }
+                }break;
                 
                 case LS_less_less:
-                switch (c){
-                    case '=': fsm.emit_token = 1; break;
-                    default: fsm.emit_token = 1; break;
-                }
-                break;
+                {
+                    switch (c){
+                        case '=': fsm.emit_token = true; break;
+                        default: fsm.emit_token = true; break;
+                    }
+                }break;
                 
                 case LS_more:
-                switch (c){
-                    case '>': fsm.state = LS_more_more; break;
-                    case '=': fsm.emit_token = 1; break;
-                    default: fsm.emit_token = 1; break;
-                }
-                break;
+                {
+                    switch (c){
+                        case '>': fsm.state = LS_more_more; break;
+                        case '=': fsm.emit_token = true; break;
+                        default: fsm.emit_token = true; break;
+                    }
+                }break;
                 
                 case LS_more_more:
-                switch (c){
-                    case '=': fsm.emit_token = 1; break;
-                    default: fsm.emit_token = 1; break;
-                }
-                break;
+                {
+                    switch (c){
+                        case '=': fsm.emit_token = true; break;
+                        default: fsm.emit_token = true; break;
+                    }
+                }break;
                 
                 case LS_comment_pre:
-                switch (c){
-                    case '/': fsm.state = LS_comment; break;
-                    case '*': fsm.state = LS_comment_block; break;
-                    case '=': fsm.emit_token = 1; break;
-                    default: fsm.emit_token = 1; break;
-                }
-                break;
+                {
+                    switch (c){
+                        case '/': fsm.state = LS_comment; break;
+                        case '*': fsm.state = LS_comment_block; break;
+                        case '=': fsm.emit_token = true; break;
+                        default: fsm.emit_token = true; break;
+                    }
+                }break;
                 
                 case LS_comment:
-                switch (c){
-                    case '\\': fsm.state = LS_comment_slashed; break;
-                    case '\n': fsm.emit_token = 1; break;
-                }
-                break;
+                {
+                    switch (c){
+                        case '\\': fsm.state = LS_comment_slashed; break;
+                        case '\n': fsm.emit_token = true; break;
+                    }
+                }break;
                 
                 case LS_comment_slashed:
-                switch (c){
-                    case '\r': case '\f': case '\v': break;
-                    default: fsm.state = LS_comment; break;
-                }
-                break;
+                {
+                    switch (c){
+                        case '\r': case '\f': case '\v': break;
+                        default: fsm.state = LS_comment; break;
+                    }
+                }break;
                 
                 case LS_comment_block:
-                switch (c){
-                    case '*': fsm.state = LS_comment_block_ending; break;
-                }
-                break;
+                {
+                    switch (c){
+                        case '*': fsm.state = LS_comment_block_ending; break;
+                    }
+                }break;
                 
                 case LS_comment_block_ending:
-                switch (c){
-                    case '*': fsm.state = LS_comment_block_ending; break;
-                    case '/': fsm.emit_token = 1; break;
-                    default: fsm.state = LS_comment_block; break;
-                }
-                break;
+                {
+                    switch (c){
+                        case '*': fsm.state = LS_comment_block_ending; break;
+                        case '/': fsm.emit_token = true; break;
+                        default: fsm.state = LS_comment_block; break;
+                    }
+                }break;
                 
                 case LS_minus:
-                switch (c){
-                    case '>': fsm.state = LS_arrow; break;
-                    case '-': fsm.emit_token = 1; break;
-                    case '=': fsm.emit_token = 1; break;
-                    default: fsm.emit_token = 1; break;
-                }
-                break;
+                {
+                    switch (c){
+                        case '>': fsm.state = LS_arrow; break;
+                        case '-': fsm.emit_token = true; break;
+                        case '=': fsm.emit_token = true; break;
+                        default: fsm.emit_token = true; break;
+                    }
+                }break;
                 
                 case LS_arrow:
-                switch (c){
-                    case '*': fsm.emit_token = 1; break;
-                    default: fsm.emit_token = 1; break;
-                }
-                break;
+                {
+                    switch (c){
+                        case '*': fsm.emit_token = true; break;
+                        default: fsm.emit_token = true; break;
+                    }
+                }break;
                 
                 case LS_and:
                 switch (c){
-                    case '&': fsm.emit_token = 1; break;
-                    case '=': fsm.emit_token = 1; break;
-                    default: fsm.emit_token = 1; break;
+                    case '&': fsm.emit_token = true; break;
+                    case '=': fsm.emit_token = true; break;
+                    default: fsm.emit_token = true; break;
                 }
                 break;
                 
                 case LS_or:
-                switch (c){
-                    case '|': fsm.emit_token = 1; break;
-                    case '=': fsm.emit_token = 1; break;
-                    default: fsm.emit_token = 1; break;
-                }
-                break;
+                {
+                    switch (c){
+                        case '|': fsm.emit_token = true; break;
+                        case '=': fsm.emit_token = true; break;
+                        default: fsm.emit_token = true; break;
+                    }
+                }break;
                 
                 case LS_plus:
-                switch (c){
-                    case '+': fsm.emit_token = 1; break;
-                    case '=': fsm.emit_token = 1; break;
-                    default: fsm.emit_token = 1; break;
-                }
-                break;
+                {
+                    switch (c){
+                        case '+': fsm.emit_token = true; break;
+                        case '=': fsm.emit_token = true; break;
+                        default: fsm.emit_token = true; break;
+                    }
+                }break;
                 
                 case LS_colon:
-                switch (c){
-                    case ':': fsm.emit_token = 1; break;
-                    default: fsm.emit_token = 1; break;
-                }
-                break;
+                {
+                    switch (c){
+                        case ':': fsm.emit_token = true; break;
+                        default: fsm.emit_token = true; break;
+                    }
+                }break;
                 
-                case LS_star:
-                switch (c){
-                    case '=': fsm.emit_token = 1; break;
-                    default: fsm.emit_token = 1; break;
-                }
-                break;
-                
-                case LS_modulo:
-                switch (c){
-                    case '=': fsm.emit_token = 1; break;
-                    default: fsm.emit_token = 1; break;
-                }
-                break;
-                
-                case LS_caret:
-                switch (c){
-                    case '=': fsm.emit_token = 1; break;
-                    default: fsm.emit_token = 1; break;
-                }
-                break;
-                
-                case LS_eq:
-                switch (c){
-                    case '=': fsm.emit_token = 1; break;
-                    default: fsm.emit_token = 1; break;
-                }
-                break;
-                
-                case LS_bang:
-                switch (c){
-                    case '=': fsm.emit_token = 1; break;
-                    default: fsm.emit_token = 1; break;
-                }
-                break;
+                case LS_single_op:
+                {
+                    switch (c){
+                        case '=': fsm.emit_token = true; break;
+                        default: fsm.emit_token = true; break;
+                    }
+                }break;
             }
             break;
         }
@@ -561,7 +739,17 @@ begin_ptr_table(FILE *file, char *type, char *table_name){
 
 static void
 do_table_item(FILE *file, uint16_t item){
-    fprintf(file, "%2d,", (int32_t)item);
+    fprintf(file, "%3d,", (int32_t)item);
+}
+
+static void
+do_table_item_binary(FILE *file, uint16_t item){
+    if (item == 0){
+        fprintf(file, "0x00,");
+    }
+    else{
+        fprintf(file, "%#04x,", item);
+    }
 }
 
 static void
@@ -580,14 +768,15 @@ end_table(FILE *file){
 }
 
 typedef struct FSM_Tables{
-    uint8_t *full_transition_table;
-    uint8_t *marks;
-    uint8_t *eq_class;
-    uint8_t *eq_class_rep;
-    uint8_t *reduced_transition_table;
+    u8_4tech *full_transition_table;
+    u8_4tech *marks;
+    u8_4tech *eq_class;
+    u8_4tech *eq_class_rep;
+    u8_4tech *reduced_transition_table;
+    u8_4tech *flags;
     
-    uint8_t eq_class_counter;
-    uint16_t state_count;
+    u8_4tech eq_class_counter;
+    u16_4tech state_count;
 } FSM_Tables;
 
 static void
@@ -637,7 +826,7 @@ do_table_reduction(FSM_Tables *table, uint16_t state_count){
 static FSM_Tables
 generate_whitespace_skip_table(){
     uint8_t state_count = LSPP_count;
-    FSM_Tables table;
+    FSM_Tables table = {0};
     allocate_full_tables(&table, state_count);
     
     int32_t i = 0;
@@ -658,20 +847,33 @@ generate_whitespace_skip_table(){
 }
 
 static FSM_Tables
-generate_int_table(){
-    uint8_t state_count = LSINT_count;
-    FSM_Tables table;
+generate_table(u8_4tech state_count, FSM_Function *fsm_call){
+    FSM_Tables table = {0};
     allocate_full_tables(&table, state_count);
     
-    int32_t i = 0;
+    i32_4tech i = 0;
     Cpp_Lex_FSM fsm = {0};
     Cpp_Lex_FSM new_fsm = {0};
     for (uint16_t c = 0; c < 256; ++c){
-        for (uint8_t state = 0; state < state_count; ++state){
-            fsm.int_state = state;
-            fsm.emit_token = 0;
-            new_fsm = int_fsm(fsm, (uint8_t)c);
-            table.full_transition_table[i++] = new_fsm.int_state + state_count*new_fsm.emit_token;
+        for (u8_4tech state = 0; state < state_count; ++state){
+            fsm.state = state;
+            fsm.emit_token = false;
+            new_fsm = fsm_call(fsm, (u8_4tech)c, false);
+            table.full_transition_table[i++] = new_fsm.state + state_count*new_fsm.emit_token;
+        }
+    }
+    
+    for (u8_4tech state = 0; state < state_count; ++state){
+        fsm.state = state;
+        fsm.emit_token = false;
+        fsm.flags = 0;
+        new_fsm = fsm_call(fsm, 0, true);
+        if (new_fsm.flags != 0){
+            if (table.flags == 0){
+                table.flags = (u8_4tech*)malloc(state_count);
+                memset(table.flags, 0, state_count);
+            }
+            table.flags[state] = new_fsm.flags;
         }
     }
     
@@ -683,7 +885,7 @@ generate_int_table(){
 static FSM_Tables
 generate_fsm_table(uint8_t pp_state, bool32 ignore_string_delims){
     uint8_t state_count = LS_count;
-    FSM_Tables table;
+    FSM_Tables table = {0};
     allocate_full_tables(&table, state_count);
     
     int32_t i = 0;
@@ -692,7 +894,7 @@ generate_fsm_table(uint8_t pp_state, bool32 ignore_string_delims){
     for (uint16_t c = 0; c < 256; ++c){
         for (uint8_t state = 0; state < state_count; ++state){
             fsm.state = state;
-            fsm.emit_token = 0;
+            fsm.emit_token = false;
             new_fsm = main_fsm(fsm, pp_state, (uint8_t)c, ignore_string_delims);
             table.full_transition_table[i++] = new_fsm.state + state_count*new_fsm.emit_token;
         }
@@ -705,24 +907,39 @@ generate_fsm_table(uint8_t pp_state, bool32 ignore_string_delims){
 
 static void
 render_fsm_table(FILE *file, FSM_Tables tables, char *group_name){
-    begin_table(file, "uint16_t", group_name, "eq_classes");
-    for (uint16_t c = 0; c < 256; ++c){
+    begin_table(file, "u16_4tech", group_name, "eq_classes");
+    for (u16_4tech c = 0; c < 256; ++c){
+        if ((c % 16) == 0 && c > 0){
+            end_row(file);
+        }
         do_table_item(file, tables.eq_class[c]*tables.state_count);
     }
     end_row(file);
     end_table(file);
     
-    fprintf(file, "const int32_t num_%s_eq_classes = %d;\n\n", group_name, tables.eq_class_counter);
+    fprintf(file, "const i32_4tech num_%s_eq_classes = %d;\n\n", group_name, tables.eq_class_counter);
     
-    int32_t i = 0;
-    begin_table(file, "uint8_t", group_name, "table");
-    for (uint16_t c = 0; c < tables.eq_class_counter; ++c){
-        for (uint8_t state = 0; state < tables.state_count; ++state){
+    i32_4tech i = 0;
+    begin_table(file, "u8_4tech", group_name, "table");
+    for (u16_4tech c = 0; c < tables.eq_class_counter; ++c){
+        for (u8_4tech state = 0; state < tables.state_count; ++state){
             do_table_item(file, tables.reduced_transition_table[i++]);
         }
         end_row(file);
     }
     end_table(file);
+    
+    if (tables.flags != 0){
+        begin_table(file, "u8_4tech", group_name, "flags");
+        for (u8_4tech state = 0; state < tables.state_count; ++state){
+            if ((state % 4) == 0 && state > 0){
+                end_row(file);
+            }
+            do_table_item_binary(file, tables.flags[state]);
+        }
+        end_row(file);
+        end_table(file);
+    }
 }
 
 static void
@@ -751,7 +968,7 @@ static PP_Names pp_names[] = {
     {LSPP_number,           "pp_number_fsm",     false},
     {LSPP_error,            "pp_error_fsm",      false},
     {LSPP_junk,             "pp_junk_fsm",       false},
-    {LSPP_default,          "no_string_fsm",     true},
+    {LSPP_default,          "no_string_fsm",     true },
 };
 
 int
@@ -761,15 +978,26 @@ main(){
     FSM_Tables wtables = generate_whitespace_skip_table();
     render_fsm_table(file, wtables, "whitespace_fsm");
     
-    FSM_Tables itables = generate_int_table();
+    FSM_Tables itables = generate_table(LSINT_count, int_fsm);
     render_fsm_table(file, itables, "int_fsm");
     
-    begin_table(file, "uint8_t", "multiline_state_table");
-    for (uint8_t state = 0; state < LS_count*2; ++state){
-        do_table_item(file, (state == LS_string_multiline || state == LS_char_multiline));
+    {
+        struct{
+            char *name;
+            uint8_t count;
+            FSM_Function *fsm_call;
+        } static tables[] = {
+            {"raw_str",     LSSTR_count,         raw_str_fsm     },
+            {"normal_str",  LSSTR_count,         normal_str_fsm  },
+            {"include_str", LSSTR_include_count, include_str_fsm },
+            {"normal_char", LSSTR_count,         normal_char_fsm }
+        };
+        
+        for (u32_4tech i = 0; i < ArrayCount(tables); ++i){
+            FSM_Tables str_tables = generate_table(tables[i].count, tables[i].fsm_call);
+            render_fsm_table(file, str_tables, tables[i].name);
+        }
     }
-    end_row(file);
-    end_table(file);
     
     for (int32_t i = 0; i < ArrayCount(pp_names); ++i){
         FSM_Tables tables = generate_fsm_table(pp_names[i].pp_state, pp_names[i].ignore_string_delims);

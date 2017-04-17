@@ -340,6 +340,8 @@ cpp__table_match(String_And_Flag *table, i32_4tech count, char *s, i32_4tech len
     return(result);
 }
 
+#define LEXER_TB(n) ((n) & (sizeof(S.tb)-1))
+
 FCPP_LINK Cpp_Lex_Result
 cpp_lex_nonalloc_null_end_no_limit(Cpp_Lex_Data *S_ptr, char *chunk, i32_4tech size, Cpp_Token_Array *token_array_out){
     Cpp_Lex_Data S = *S_ptr;
@@ -359,7 +361,11 @@ cpp_lex_nonalloc_null_end_no_limit(Cpp_Lex_Data *S_ptr, char *chunk, i32_4tech s
         DfrCase(3);
         DfrCase(4);
         DfrCase(5);
+        DfrCase(6);
         DfrCase(7);
+        DfrCase(8);
+        DfrCase(9);
+        DfrCase(10);
     }
     
     for (;;){
@@ -401,11 +407,10 @@ cpp_lex_nonalloc_null_end_no_limit(Cpp_Lex_Data *S_ptr, char *chunk, i32_4tech s
                 
                 for (; S.fsm.state < LS_count && S.pos < end_pos;){
                     c = chunk[S.pos++];
-                    S.tb[(S.tb_pos++) & (sizeof(S.tb)-1)] = c;
+                    S.tb[LEXER_TB(S.tb_pos++)] = c;
                     
                     i32_4tech i = S.fsm.state + eq_classes[c];
                     S.fsm.state = fsm_table[i];
-                    S.fsm.multi_line |= multiline_state_table[S.fsm.state];
                 }
                 S.fsm.emit_token = (S.fsm.state >= LS_count);
             }
@@ -432,65 +437,68 @@ cpp_lex_nonalloc_null_end_no_limit(Cpp_Lex_Data *S_ptr, char *chunk, i32_4tech s
         
         switch (S.fsm.state){
             case LS_default:
-            switch (c){
-                case 0: S.fsm.emit_token = 0; break;
-                
+            {
+                switch (c){
+                    case 0: S.fsm.emit_token = 0; break;
+                    
 #define OperCase(op,t) case op: S.token.type = t; break;
-                OperCase('{', CPP_TOKEN_BRACE_OPEN);
-                OperCase('}', CPP_TOKEN_BRACE_CLOSE);
-                
-                OperCase('[', CPP_TOKEN_BRACKET_OPEN);
-                OperCase(']', CPP_TOKEN_BRACKET_CLOSE);
-                
-                OperCase('(', CPP_TOKEN_PARENTHESE_OPEN);
-                OperCase(')', CPP_TOKEN_PARENTHESE_CLOSE);
-                
-                OperCase('~', CPP_TOKEN_TILDE);
-                OperCase(',', CPP_TOKEN_COMMA);
-                OperCase(';', CPP_TOKEN_SEMICOLON);
-                OperCase('?', CPP_TOKEN_TERNARY_QMARK);
-                
-                OperCase('@', CPP_TOKEN_JUNK);
+                    OperCase('{', CPP_TOKEN_BRACE_OPEN);
+                    OperCase('}', CPP_TOKEN_BRACE_CLOSE);
+                    
+                    OperCase('[', CPP_TOKEN_BRACKET_OPEN);
+                    OperCase(']', CPP_TOKEN_BRACKET_CLOSE);
+                    
+                    OperCase('(', CPP_TOKEN_PARENTHESE_OPEN);
+                    OperCase(')', CPP_TOKEN_PARENTHESE_CLOSE);
+                    
+                    OperCase('~', CPP_TOKEN_TILDE);
+                    OperCase(',', CPP_TOKEN_COMMA);
+                    OperCase(';', CPP_TOKEN_SEMICOLON);
+                    OperCase('?', CPP_TOKEN_TERNARY_QMARK);
+                    
+                    OperCase('@', CPP_TOKEN_JUNK);
 #undef OperCase
-                
-                case '\\':
-                if (S.pp_state == LSPP_default || S.pp_state == LSPP_no_strings){
-                    S.token.type = CPP_TOKEN_JUNK;
-                }
-                else{
-                    S.pos_overide = S.pos;
-                    S.white_done = 0;
-                    for (;;){
-                        for (; S.white_done == 0 && S.pos < end_pos;){
-                            c = chunk[S.pos++];
-                            if (!(c == ' ' || c == '\t' || c == '\r' || c == '\v' || c == '\f')){
-                                S.white_done = 1;
+                    
+                    case '\\':
+                    if (S.pp_state == LSPP_default || S.pp_state == LSPP_no_strings){
+                        S.token.type = CPP_TOKEN_JUNK;
+                    }
+                    else{
+                        S.pos_overide = S.pos;
+                        S.white_done = false;
+                        for (;;){
+                            for (; !S.white_done && S.pos < end_pos;){
+                                c = chunk[S.pos++];
+                                if (!(c == ' ' || c == '\t' || c == '\r' || c == '\v' || c == '\f')){
+                                    S.white_done = true;
+                                }
+                            }
+                            
+                            if (!S.white_done){
+                                S.chunk_pos += size;
+                                token_array_out->count = token_i;
+                                DfrYield(1, LexResult_NeedChunk);
+                            }
+                            else{
+                                break;
                             }
                         }
                         
-                        if (S.white_done == 0){
-                            S.chunk_pos += size;
-                            token_array_out->count = token_i;
-                            DfrYield(1, LexResult_NeedChunk);
+                        if (c == '\n'){
+                            S.fsm.emit_token = 0;
+                            S.pos_overide = 0;
                         }
-                        else break;
+                        else{
+                            S.token.type = CPP_TOKEN_JUNK;
+                        }
                     }
-                    
-                    if (c == '\n'){
-                        S.fsm.emit_token = 0;
-                        S.pos_overide = 0;
-                    }
-                    else{
-                        S.token.type = CPP_TOKEN_JUNK;
-                    }
+                    break;
                 }
-                break;
-            }
-            
-            if (c != '@' && c != '\\'){
-                S.token.flags = CPP_TFLAG_IS_OPERATOR;
-            }
-            break;
+                
+                if (c != '@' && c != '\\'){
+                    S.token.flags = CPP_TFLAG_IS_OPERATOR;
+                }
+            }break;
             
             case LS_identifier:
             {
@@ -523,15 +531,16 @@ cpp_lex_nonalloc_null_end_no_limit(Cpp_Lex_Data *S_ptr, char *chunk, i32_4tech s
             }break;
             
             case LS_pound:
-            S.token.flags = 0;
-            switch (c){
-                case '#': S.token.type = CPP_PP_CONCAT; break;
-                default:
-                S.token.type = CPP_PP_STRINGIFY;
-                --S.pos;
-                break;
-            }
-            break;
+            {
+                S.token.flags = 0;
+                switch (c){
+                    case '#': S.token.type = CPP_PP_CONCAT; break;
+                    default:
+                    S.token.type = CPP_PP_STRINGIFY;
+                    --S.pos;
+                    break;
+                }
+            }break;
             
             case LS_pp:
             {
@@ -572,307 +581,423 @@ cpp_lex_nonalloc_null_end_no_limit(Cpp_Lex_Data *S_ptr, char *chunk, i32_4tech s
             case LS_number:
             case LS_number0:
             case LS_hex:
-            S.fsm.int_state = LSINT_default;
-            S.fsm.emit_token = 0;
-            --S.pos;
-            for (;;){
-                for (; S.fsm.int_state < LSINT_count && S.pos < end_pos;){
-                    c = chunk[S.pos++];
-                    S.fsm.int_state = int_fsm_table[S.fsm.int_state + int_fsm_eq_classes[c]];
+            {
+                S.fsm.state = LSINT_default;
+                S.fsm.emit_token = 0;
+                --S.pos;
+                for (;;){
+                    for (; S.fsm.state < LSINT_count && S.pos < end_pos;){
+                        c = chunk[S.pos++];
+                        S.fsm.state = int_fsm_table[S.fsm.state + int_fsm_eq_classes[c]];
+                    }
+                    S.fsm.emit_token = (S.fsm.state >= LSINT_count);
+                    
+                    if (S.fsm.emit_token == 0){
+                        S.chunk_pos += size;
+                        token_array_out->count = token_i;
+                        DfrYield(5, LexResult_NeedChunk);
+                    }
+                    else{
+                        break;
+                    }
                 }
-                S.fsm.emit_token = (S.fsm.int_state >= LSINT_count);
+                --S.pos;
                 
-                if (S.fsm.emit_token == 0){
-                    S.chunk_pos += size;
-                    token_array_out->count = token_i;
-                    DfrYield(5, LexResult_NeedChunk);
-                }
-                else break;
-            }
-            --S.pos;
-            
-            S.token.type = CPP_TOKEN_INTEGER_CONSTANT;
-            S.token.flags = 0;
-            break;
+                S.token.type = CPP_TOKEN_INTEGER_CONSTANT;
+                S.token.flags = 0;
+            }break;
             
             case LS_float:
             case LS_crazy_float0:
             case LS_crazy_float1:
-            S.token.type = CPP_TOKEN_FLOATING_CONSTANT;
-            S.token.flags = 0;
-            switch (c){
-                case 'f': case 'F':
-                case 'l': case 'L':break;
-                default:
-                --S.pos;
-                break;
-            }
-            break;
+            {
+                S.token.type = CPP_TOKEN_FLOATING_CONSTANT;
+                S.token.flags = 0;
+                switch (c){
+                    case 'f': case 'F': case 'l': case 'L': break;
+                    default: --S.pos; break;
+                }
+            }break;
             
-            case LS_char:
-            case LS_char_slashed:
-            S.token.type = CPP_TOKEN_JUNK;
-            if (c == '\''){
-                S.token.type = CPP_TOKEN_CHARACTER_CONSTANT;
-            }
-            S.token.flags = 0;
-            break;
+            case LS_string_raw:
+            {
+                S.tb_pos = 0;
+                S.delim_length = 0;
+                
+                S.token.type = CPP_TOKEN_STRING_CONSTANT;
+                
+                S.fsm.state = LSSTR_default;
+                S.fsm.flags = 0;
+                for (;;){
+                    for (; S.fsm.state < LSSTR_count && S.pos < end_pos;){
+                        c = chunk[S.pos++];
+                        S.tb[LEXER_TB(S.tb_pos++)] = c;
+                        S.fsm.state = raw_str_table[S.fsm.state + raw_str_eq_classes[c]];
+                        S.fsm.flags |= raw_str_flags[S.fsm.state];
+                    }
+                    S.fsm.emit_token = (S.fsm.state >= LSSTR_count);
+                    
+                    if (S.fsm.emit_token == 0){
+                        S.chunk_pos += size;
+                        token_array_out->count = token_i;
+                        DfrYield(7, LexResult_NeedChunk);
+                    }
+                    else{
+                        u8_4tech emit_state = S.fsm.state - LSSTR_count;
+                        switch (emit_state){
+                            case LSSTR_default:
+                            {
+                                S.token.type = CPP_TOKEN_JUNK;
+                                goto doublebreak;
+                            }break;
+                            
+                            case LSSTR_get_delim:
+                            {
+                                if (S.tb_pos <= 17){
+                                    S.delim_length = S.tb_pos-1;
+                                    for (i32_4tech n = 0; n < S.delim_length; ++n){
+                                        S.raw_delim[n] = S.tb[n];
+                                    }
+                                    S.tb_pos = 0;
+                                }
+                                else{
+                                    S.token.type = CPP_TOKEN_JUNK;
+                                    --S.pos;
+                                    goto doublebreak;
+                                }
+                            }break;
+                            
+                            case LSSTR_check_delim:
+                            {
+                                if (c == 0){
+                                    goto doublebreak;
+                                }
+                                else if (S.tb_pos >= S.delim_length){
+                                    u32_4tech m = S.tb_pos - S.delim_length - 2;
+                                    if (S.tb[LEXER_TB(m)] == ')'){
+                                        b32_4tech is_match = true;
+                                        ++m;
+                                        for (i32_4tech n = 0; n < S.delim_length; ++n, ++m){
+                                            if (S.tb[LEXER_TB(m)] != S.raw_delim[n]){
+                                                is_match = false;
+                                                break;
+                                            }
+                                        }
+                                        
+                                        if (is_match){
+                                            goto doublebreak;
+                                        }
+                                    }
+                                }
+                            }break;
+                        }
+                        S.fsm.state = LSSTR_get_delim;
+                    }
+                }
+                doublebreak:;
+                
+                S.token.flags = (S.fsm.flags)?(CPP_TFLAG_MULTILINE):(0);
+            }break;
             
-            case LS_char_multiline:
-            S.token.type = CPP_TOKEN_JUNK;
-            if (c == '\''){
-                S.token.type = CPP_TOKEN_CHARACTER_CONSTANT;
-            }
-            S.token.flags = CPP_TFLAG_MULTILINE;
-            break;
+            case LS_string_normal:
+            {
+                S.fsm.state = LSSTR_default;
+                S.fsm.flags = 0;
+                for (;;){
+                    for (; S.fsm.state < LSSTR_count && S.pos < end_pos;){
+                        c = chunk[S.pos++];
+                        S.fsm.state = normal_str_table[S.fsm.state + normal_str_eq_classes[c]];
+                        S.fsm.flags |= normal_str_flags[S.fsm.state];
+                    }
+                    S.fsm.emit_token = (S.fsm.state >= LSSTR_count);
+                    
+                    if (S.fsm.emit_token == 0){
+                        S.chunk_pos += size;
+                        token_array_out->count = token_i;
+                        DfrYield(8, LexResult_NeedChunk);
+                    }
+                    else{
+                        break;
+                    }
+                }
+                
+                S.token.type = CPP_TOKEN_STRING_CONSTANT;
+                S.token.flags = (S.fsm.flags)?(CPP_TFLAG_MULTILINE):(0);
+                
+                if (c == '\n'){
+                    --S.pos;
+                }
+            }break;
             
-            case LS_string:
-            case LS_string_slashed:
-            S.token.type = CPP_TOKEN_JUNK;
-            if (S.pp_state == LSPP_include){
-                if (c == '>' || c == '"'){
+            case LS_string_include:
+            {
+                S.fsm.state = LSSTR_default;
+                for (;;){
+                    for (; S.fsm.state < LSSTR_include_count && S.pos < end_pos;){
+                        c = chunk[S.pos++];
+                        S.fsm.state = include_str_table[S.fsm.state + include_str_eq_classes[c]];
+                    }
+                    S.fsm.emit_token = (S.fsm.state >= LSSTR_include_count);
+                    
+                    if (S.fsm.emit_token == 0){
+                        S.chunk_pos += size;
+                        token_array_out->count = token_i;
+                        DfrYield(6, LexResult_NeedChunk);
+                    }
+                    else{
+                        break;
+                    }
+                }
+                
+                S.fsm.state -= LSSTR_include_count;
+                
+                if (S.fsm.state == LSSTR_default){
                     S.token.type = CPP_PP_INCLUDE_FILE;
                 }
-            }
-            else{
-                if (c == '"'){
-                    S.token.type = CPP_TOKEN_STRING_CONSTANT;
+                else{
+                    S.token.type = CPP_TOKEN_JUNK;
                 }
-            }
-            S.token.flags = 0;
-            break;
+                S.token.flags = 0;
+                
+                if (c == '\n'){
+                    --S.pos;
+                }
+            }break;
             
-            case LS_string_multiline:
-            S.token.type = CPP_TOKEN_JUNK;
-            if (c == '"'){
-                S.token.type = CPP_TOKEN_STRING_CONSTANT;
-            }
-            S.token.flags = CPP_TFLAG_MULTILINE;
-            break;
+            case LS_char:
+            {
+                S.fsm.state = LSSTR_default;
+                S.fsm.flags = 0;
+                for (;;){
+                    for (; S.fsm.state < LSSTR_count && S.pos < end_pos;){
+                        c = chunk[S.pos++];
+                        S.fsm.state = normal_char_table[S.fsm.state + normal_char_eq_classes[c]];
+                        S.fsm.flags |= normal_char_flags[S.fsm.state];
+                    }
+                    S.fsm.emit_token = (S.fsm.state >= LSSTR_count);
+                    
+                    if (S.fsm.emit_token == 0){
+                        S.chunk_pos += size;
+                        token_array_out->count = token_i;
+                        DfrYield(9, LexResult_NeedChunk);
+                    }
+                    else{
+                        break;
+                    }
+                }
+                
+                S.token.type = CPP_TOKEN_CHARACTER_CONSTANT;
+                S.token.flags = (S.fsm.flags)?(CPP_TFLAG_MULTILINE):(0);
+                
+                if (c == '\n'){
+                    --S.pos;
+                }
+            }break;
             
             case LS_comment_pre:
-            S.token.flags = CPP_TFLAG_IS_OPERATOR;
-            switch (c){
-                case '=': S.token.type = CPP_TOKEN_DIVEQ; break;
-                default:
-                S.token.type = CPP_TOKEN_DIV;
-                --S.pos;
-                break;
-            }
-            break;
+            {
+                S.token.flags = CPP_TFLAG_IS_OPERATOR;
+                switch (c){
+                    case '=': S.token.type = CPP_TOKEN_DIVEQ; break;
+                    default:
+                    S.token.type = CPP_TOKEN_DIV;
+                    --S.pos;
+                    break;
+                }
+            }break;
             
             case LS_comment:
             case LS_comment_slashed:
-            S.token.type = CPP_TOKEN_COMMENT;
-            S.token.flags = 0;
-            --S.pos;
-            break;
+            {
+                S.token.type = CPP_TOKEN_COMMENT;
+                S.token.flags = 0;
+                --S.pos;
+            }break;
             
             case LS_comment_block:
             case LS_comment_block_ending:
-            S.token.type = CPP_TOKEN_COMMENT;
-            S.token.flags = 0;
-            break;
+            {
+                S.token.type = CPP_TOKEN_COMMENT;
+                S.token.flags = 0;
+            }break;
             
             case LS_error_message:
-            S.token.type = CPP_PP_ERROR_MESSAGE;
-            S.token.flags = 0;
-            --S.pos;
-            break;
+            {
+                S.token.type = CPP_PP_ERROR_MESSAGE;
+                S.token.flags = 0;
+                --S.pos;
+            }break;
             
             case LS_dot:
-            S.token.flags = CPP_TFLAG_IS_OPERATOR;
-            switch (c){
-                case '*': S.token.type = CPP_TOKEN_PTRDOT; break;
-                default:
-                S.token.type = CPP_TOKEN_DOT;
-                --S.pos;
-                break;
-            }
-            break;
+            {
+                S.token.flags = CPP_TFLAG_IS_OPERATOR;
+                switch (c){
+                    case '*': S.token.type = CPP_TOKEN_PTRDOT; break;
+                    default:
+                    S.token.type = CPP_TOKEN_DOT;
+                    --S.pos;
+                    break;
+                }
+            }break;
             
             case LS_ellipsis:
-            switch (c){
-                case '.':
-                S.token.flags = CPP_TFLAG_IS_OPERATOR;
-                S.token.type = CPP_TOKEN_ELLIPSIS;
-                break;
-                
-                default:
-                S.token.type = CPP_TOKEN_JUNK;
-                --S.pos;
-                break;
-            }
-            break;
+            {
+                switch (c){
+                    case '.':
+                    S.token.flags = CPP_TFLAG_IS_OPERATOR;
+                    S.token.type = CPP_TOKEN_ELLIPSIS;
+                    break;
+                    
+                    default:
+                    S.token.type = CPP_TOKEN_JUNK;
+                    --S.pos;
+                    break;
+                }
+            }break;
             
             case LS_less:
-            S.token.flags = CPP_TFLAG_IS_OPERATOR;
-            switch (c){
-                case '=': S.token.type = CPP_TOKEN_LESSEQ; break;
-                default:
-                S.token.type = CPP_TOKEN_LESS;
-                --S.pos;
-                break;
-            }
-            break;
+            {
+                S.token.flags = CPP_TFLAG_IS_OPERATOR;
+                switch (c){
+                    case '=': S.token.type = CPP_TOKEN_LESSEQ; break;
+                    default:
+                    S.token.type = CPP_TOKEN_LESS;
+                    --S.pos;
+                    break;
+                }
+            }break;
             
             case LS_less_less:
-            S.token.flags = CPP_TFLAG_IS_OPERATOR;
-            switch (c){
-                case '=': S.token.type = CPP_TOKEN_LSHIFTEQ; break;
-                default:
-                S.token.type = CPP_TOKEN_LSHIFT;
-                --S.pos;
-                break;
-            }
-            break;
+            {
+                S.token.flags = CPP_TFLAG_IS_OPERATOR;
+                switch (c){
+                    case '=': S.token.type = CPP_TOKEN_LSHIFTEQ; break;
+                    default:
+                    S.token.type = CPP_TOKEN_LSHIFT;
+                    --S.pos;
+                    break;
+                }
+            }break;
             
             case LS_more:
-            S.token.flags = CPP_TFLAG_IS_OPERATOR;
-            switch (c){
-                case '=': S.token.type = CPP_TOKEN_GRTREQ; break;
-                default:
-                S.token.type = CPP_TOKEN_GRTR;
-                --S.pos;
-                break;
-            }
-            break;
+            {
+                S.token.flags = CPP_TFLAG_IS_OPERATOR;
+                switch (c){
+                    case '=': S.token.type = CPP_TOKEN_GRTREQ; break;
+                    default:
+                    S.token.type = CPP_TOKEN_GRTR;
+                    --S.pos;
+                    break;
+                }
+            }break;
             
             case LS_more_more:
-            S.token.flags = CPP_TFLAG_IS_OPERATOR;
-            switch (c){
-                case '=': S.token.type = CPP_TOKEN_RSHIFTEQ; break;
-                default:
-                S.token.type = CPP_TOKEN_RSHIFT;
-                --S.pos;
-                break;
-            }
-            break;
+            {
+                S.token.flags = CPP_TFLAG_IS_OPERATOR;
+                switch (c){
+                    case '=': S.token.type = CPP_TOKEN_RSHIFTEQ; break;
+                    default:
+                    S.token.type = CPP_TOKEN_RSHIFT;
+                    --S.pos;
+                    break;
+                }
+            }break;
             
             case LS_minus:
-            S.token.flags = CPP_TFLAG_IS_OPERATOR;
-            switch (c){
-                case '-': S.token.type = CPP_TOKEN_DECREMENT; break;
-                case '=': S.token.type = CPP_TOKEN_SUBEQ; break;
-                default:
-                S.token.type = CPP_TOKEN_MINUS;
-                --S.pos;
-                break;
-            }
-            break;
+            {
+                S.token.flags = CPP_TFLAG_IS_OPERATOR;
+                switch (c){
+                    case '-': S.token.type = CPP_TOKEN_DECREMENT; break;
+                    case '=': S.token.type = CPP_TOKEN_SUBEQ; break;
+                    default:
+                    S.token.type = CPP_TOKEN_MINUS;
+                    --S.pos;
+                    break;
+                }
+            }break;
             
             case LS_arrow:
-            S.token.flags = CPP_TFLAG_IS_OPERATOR;
-            switch (c){
-                case '*': S.token.type = CPP_TOKEN_PTRARROW; break;
-                default:
-                S.token.type = CPP_TOKEN_ARROW;
-                --S.pos;
-                break;
-            }
-            break;
+            {
+                S.token.flags = CPP_TFLAG_IS_OPERATOR;
+                switch (c){
+                    case '*': S.token.type = CPP_TOKEN_PTRARROW; break;
+                    default:
+                    S.token.type = CPP_TOKEN_ARROW;
+                    --S.pos;
+                    break;
+                }
+            }break;
             
             case LS_and:
-            S.token.flags = CPP_TFLAG_IS_OPERATOR;
-            switch (c){
-                case '&': S.token.type = CPP_TOKEN_AND; break;
-                case '=': S.token.type = CPP_TOKEN_ANDEQ; break;
-                default:
-                S.token.type = CPP_TOKEN_AMPERSAND;
-                --S.pos;
-                break;
-            }
-            break;
+            {
+                S.token.flags = CPP_TFLAG_IS_OPERATOR;
+                switch (c){
+                    case '&': S.token.type = CPP_TOKEN_AND; break;
+                    case '=': S.token.type = CPP_TOKEN_ANDEQ; break;
+                    default:
+                    S.token.type = CPP_TOKEN_AMPERSAND;
+                    --S.pos;
+                    break;
+                }
+            }break;
             
             case LS_or:
-            S.token.flags = CPP_TFLAG_IS_OPERATOR;
-            switch (c){
-                case '|': S.token.type = CPP_TOKEN_OR; break;
-                case '=': S.token.type = CPP_TOKEN_OREQ; break;
-                default:
-                S.token.type = CPP_TOKEN_BIT_OR;
-                --S.pos;
-                break;
-            }
-            break;
+            {
+                S.token.flags = CPP_TFLAG_IS_OPERATOR;
+                switch (c){
+                    case '|': S.token.type = CPP_TOKEN_OR; break;
+                    case '=': S.token.type = CPP_TOKEN_OREQ; break;
+                    default:
+                    S.token.type = CPP_TOKEN_BIT_OR;
+                    --S.pos;
+                    break;
+                }
+            }break;
             
             case LS_plus:
-            S.token.flags = CPP_TFLAG_IS_OPERATOR;
-            switch (c){
-                case '+': S.token.type = CPP_TOKEN_INCREMENT; break;
-                case '=': S.token.type = CPP_TOKEN_ADDEQ; break;
-                default:
-                S.token.type = CPP_TOKEN_PLUS;
-                --S.pos;
-                break;
-            }
-            break;
+            {
+                S.token.flags = CPP_TFLAG_IS_OPERATOR;
+                switch (c){
+                    case '+': S.token.type = CPP_TOKEN_INCREMENT; break;
+                    case '=': S.token.type = CPP_TOKEN_ADDEQ; break;
+                    default:
+                    S.token.type = CPP_TOKEN_PLUS;
+                    --S.pos;
+                    break;
+                }
+            }break;
             
             case LS_colon:
-            S.token.flags = CPP_TFLAG_IS_OPERATOR;
-            switch (c){
-                case ':': S.token.type = CPP_TOKEN_SCOPE; break;
-                default:
-                S.token.type = CPP_TOKEN_COLON;
-                --S.pos;
-                break;
-            }
-            break;
+            {
+                S.token.flags = CPP_TFLAG_IS_OPERATOR;
+                switch (c){
+                    case ':': S.token.type = CPP_TOKEN_SCOPE; break;
+                    default:
+                    S.token.type = CPP_TOKEN_COLON;
+                    --S.pos;
+                    break;
+                }
+            }break;
             
-            case LS_star:
-            S.token.flags = CPP_TFLAG_IS_OPERATOR;
-            switch (c){
-                case '=': S.token.type = CPP_TOKEN_MULEQ; break;
-                default:
-                S.token.type = CPP_TOKEN_STAR;
-                --S.pos;
-                break;
-            }
-            break;
-            
-            case LS_modulo:
-            S.token.flags = CPP_TFLAG_IS_OPERATOR;
-            switch (c){
-                case '=': S.token.type = CPP_TOKEN_MODEQ; break;
-                default:
-                S.token.type = CPP_TOKEN_MOD;
-                --S.pos;
-                break;
-            }
-            break;
-            
-            case LS_caret:
-            S.token.flags = CPP_TFLAG_IS_OPERATOR;
-            switch (c){
-                case '=': S.token.type = CPP_TOKEN_XOREQ; break;
-                default:
-                S.token.type = CPP_TOKEN_BIT_XOR;
-                --S.pos;
-                break;
-            }
-            break;
-            
-            case LS_eq:
-            S.token.flags = CPP_TFLAG_IS_OPERATOR;
-            switch (c){
-                case '=': S.token.type = CPP_TOKEN_EQEQ; break;
-                default:
-                S.token.type = CPP_TOKEN_EQ;
-                --S.pos;
-                break;
-            }
-            break;
-            
-            case LS_bang:
-            S.token.flags = CPP_TFLAG_IS_OPERATOR;
-            switch (c){
-                case '=': S.token.type = CPP_TOKEN_NOTEQ; break;
-                default:
-                S.token.type = CPP_TOKEN_NOT;
-                --S.pos;
-                break;
-            }
-            break;
+            case LS_single_op:
+            {
+                u32_4tech plain_version = 0;
+                u32_4tech eq_version = 0;
+                S.token.flags = CPP_TFLAG_IS_OPERATOR;
+                switch (S.tb[0]){
+                    case '*': plain_version = CPP_TOKEN_STAR;    eq_version = CPP_TOKEN_MULEQ; break;
+                    case '%': plain_version = CPP_TOKEN_MOD;     eq_version = CPP_TOKEN_MODEQ; break;
+                    case '^': plain_version = CPP_TOKEN_BIT_XOR; eq_version = CPP_TOKEN_XOREQ; break;
+                    case '=': plain_version = CPP_TOKEN_EQ;      eq_version = CPP_TOKEN_EQEQ;  break;
+                    case '!': plain_version = CPP_TOKEN_NOT;     eq_version = CPP_TOKEN_NOTEQ; break;
+                }
+                
+                S.token.type = eq_version;
+                if (c != '='){
+                    S.token.type = plain_version;
+                    --S.pos;
+                }
+            }break;
         }
         
         if (S.pos > S.chunk_pos && chunk[S.pos-1] == 0){
@@ -940,7 +1065,7 @@ cpp_lex_nonalloc_null_end_no_limit(Cpp_Lex_Data *S_ptr, char *chunk, i32_4tech s
                 if (S.pos == end_pos){
                     S.chunk_pos += size;
                     token_array_out->count = token_i;
-                    DfrYield(7, LexResult_NeedChunk);
+                    DfrYield(10, LexResult_NeedChunk);
                 }
                 token_array_out->count = token_i;
                 DfrYield(2, LexResult_NeedTokenMemory);
@@ -1182,6 +1307,7 @@ The start and end points are based on the edited region of the file before the e
     if (end_pos > array->tokens[range.end_token_index].start){
         ++range.end_token_index;
     }
+    ++range.end_token_index;
     if (range.end_token_index < 0){
         range.end_token_index = 0;
     }
