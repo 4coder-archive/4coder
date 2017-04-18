@@ -9,7 +9,7 @@ distribute, and modify this file as you see fit.
 
 // TOP
 
-#ifndef FCPP_NEW_LEXER_INC
+#if !defined(FCPP_NEW_LEXER_INC)
 #define FCPP_NEW_LEXER_INC
 
 // 4tech_standard_preamble.h
@@ -867,18 +867,6 @@ cpp_lex_nonalloc_null_end_no_limit(Cpp_Lex_Data *S_ptr, char *chunk, i32_4tech s
                 }
             }break;
             
-            case LS_less_less:
-            {
-                S.token.flags = CPP_TFLAG_IS_OPERATOR;
-                switch (c){
-                    case '=': S.token.type = CPP_TOKEN_LSHIFTEQ; break;
-                    default:
-                    S.token.type = CPP_TOKEN_LSHIFT;
-                    --S.pos;
-                    break;
-                }
-            }break;
-            
             case LS_more:
             {
                 S.token.flags = CPP_TFLAG_IS_OPERATOR;
@@ -886,6 +874,41 @@ cpp_lex_nonalloc_null_end_no_limit(Cpp_Lex_Data *S_ptr, char *chunk, i32_4tech s
                     case '=': S.token.type = CPP_TOKEN_GRTREQ; break;
                     default:
                     S.token.type = CPP_TOKEN_GRTR;
+                    --S.pos;
+                    break;
+                }
+            }break;
+            
+            case LS_bit_shift:
+            {
+                S.token.flags = CPP_TFLAG_IS_OPERATOR;
+                
+                u32_4tech plain_version = 0;
+                u32_4tech eq_version = 0;
+                if (S.tb[0] == '<'){
+                    plain_version = CPP_TOKEN_LSHIFT;
+                    eq_version = CPP_TOKEN_LSHIFTEQ;
+                }
+                else{
+                    plain_version = CPP_TOKEN_RSHIFT;
+                    eq_version = CPP_TOKEN_RSHIFTEQ;
+                }
+                
+                S.token.type = eq_version;
+                if (S.tb_pos != 3){
+                    S.token.type = plain_version;
+                    --S.pos;
+                }
+            }break;
+            
+#if 0
+            case LS_less_less:
+            {
+                S.token.flags = CPP_TFLAG_IS_OPERATOR;
+                switch (c){
+                    case '=': S.token.type = CPP_TOKEN_LSHIFTEQ; break;
+                    default:
+                    S.token.type = CPP_TOKEN_LSHIFT;
                     --S.pos;
                     break;
                 }
@@ -902,6 +925,7 @@ cpp_lex_nonalloc_null_end_no_limit(Cpp_Lex_Data *S_ptr, char *chunk, i32_4tech s
                     break;
                 }
             }break;
+#endif
             
             case LS_minus:
             {
@@ -993,7 +1017,7 @@ cpp_lex_nonalloc_null_end_no_limit(Cpp_Lex_Data *S_ptr, char *chunk, i32_4tech s
                 }
                 
                 S.token.type = eq_version;
-                if (c != '='){
+                if (S.tb_pos != 2){
                     S.token.type = plain_version;
                     --S.pos;
                 }

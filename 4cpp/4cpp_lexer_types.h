@@ -1,7 +1,15 @@
+/*
+4cpp_lexer_types.h
+no warranty implied; use at your own risk
+
+This software is in the public domain. Where that dedication is not
+recognized, you are granted a perpetual, irrevocable license to copy,
+distribute, and modify this file as you see fit.
+*/
 
 // TOP
 
-#ifndef FCPP_LEXER_TYPES_INC
+#if !defined(FCPP_LEXER_TYPES_INC)
 #define FCPP_LEXER_TYPES_INC
 
 #ifndef ENUM
@@ -410,21 +418,25 @@ ENUM_INTERNAL(uint8_t, Cpp_Lex_State){
     LS_dot = 19,
     LS_ellipsis = 20,
     LS_less = 21,
-    LS_less_less = 22,
-    LS_more = 23,
-    LS_more_more = 24,
-    LS_minus = 25,
-    LS_arrow = 26,
-    LS_and = 27,
-    LS_or = 28,
-    LS_plus = 29,
-    LS_colon = 30,
-    LS_single_op = 31,
-    LS_error_message = 32,
+    LS_more = 22,
+    LS_bit_shift = 23,
+    LS_minus = 24,
+    LS_arrow = 25,
+    LS_and = 26,
+    LS_or = 27,
+    LS_plus = 28,
+    LS_colon = 29,
+    LS_single_op = 30,
+    LS_error_message = 31,
     //
-    LS_count = 33,
-    LS_char = 34,
+    LS_count = 32,
+    LS_char = 33,
 };
+
+#if 0
+LS_less_less = 22,
+LS_more_more = 24,
+#endif
 
 // NOTE(allen): These provide names that match the overloaded meanings of string states.
 #define LS_string_raw LS_string_R
