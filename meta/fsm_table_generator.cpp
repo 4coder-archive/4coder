@@ -583,7 +583,15 @@ main_fsm(Cpp_Lex_FSM fsm, uint8_t pp_state, uint8_t c, bool32 ignore_string_deli
                 case LS_less:
                 {
                     switch (c){
-                        case '<': fsm.state = LS_bit_shift; break;
+                        case '<': fsm.state = LS_less_less; break;
+                        case '=': fsm.emit_token = true; break;
+                        default: fsm.emit_token = true; break;
+                    }
+                }break;
+                
+                case LS_less_less:
+                {
+                    switch (c){
                         case '=': fsm.emit_token = true; break;
                         default: fsm.emit_token = true; break;
                     }
@@ -592,21 +600,7 @@ main_fsm(Cpp_Lex_FSM fsm, uint8_t pp_state, uint8_t c, bool32 ignore_string_deli
                 case LS_more:
                 {
                     switch (c){
-                        case '>': fsm.state = LS_bit_shift; break;
-                        case '=': fsm.emit_token = true; break;
-                        default: fsm.emit_token = true; break;
-                    }
-                }break;
-                
-                case LS_bit_shift:
-                {
-                    fsm.emit_token = true;
-                }break;
-                
-#if 0
-                case LS_less_less:
-                {
-                    switch (c){
+                        case '>': fsm.state = LS_more_more; break;
                         case '=': fsm.emit_token = true; break;
                         default: fsm.emit_token = true; break;
                     }
@@ -619,7 +613,6 @@ main_fsm(Cpp_Lex_FSM fsm, uint8_t pp_state, uint8_t c, bool32 ignore_string_deli
                         default: fsm.emit_token = true; break;
                     }
                 }break;
-#endif
                 
                 case LS_comment_pre:
                 {
