@@ -150,8 +150,7 @@ OPEN_FILE_HOOK_SIG(default_new_file){
 }
 
 OPEN_FILE_HOOK_SIG(default_file_save){
-    uint32_t access = AccessAll;
-    Buffer_Summary buffer = get_buffer(app, buffer_id, access);
+    Buffer_Summary buffer = get_buffer(app, buffer_id, AccessAll);
     Assert(buffer.exists);
     
 #if defined(FCODER_AUTO_INDENT_CPP)
@@ -162,6 +161,22 @@ OPEN_FILE_HOOK_SIG(default_file_save){
         }
     }
 #endif
+    
+    // no meaning for return
+    return(0);
+}
+
+OPEN_FILE_HOOK_SIG(default_end_file){
+    Buffer_Summary buffer = get_buffer(app, buffer_id, AccessAll);
+    Assert(buffer.exists);
+    
+    char space[1024];
+    String str = make_fixed_width_string(space);
+    append(&str, "Ending file: ");
+    append(&str, make_string(buffer.buffer_name, buffer.buffer_name_len));
+    append(&str, "\n");
+    
+    print_message(app, str.str, str.size);
     
     // no meaning for return
     return(0);
@@ -276,6 +291,8 @@ set_all_default_hooks(Bind_Helper *context){
     set_open_file_hook(context, default_file_settings);
     set_new_file_hook(context, default_new_file);
     set_save_file_hook(context, default_file_save);
+    set_end_file_hook(context, default_end_file);
+    
     set_command_caller(context, default_command_caller);
     set_input_filter(context, default_suppress_mouse_filter);
     set_scroll_rule(context, smooth_scroll_rule);

@@ -512,6 +512,22 @@ CUSTOM_COMMAND_SIG(newline_or_goto_position_same_panel){
 #define goto_next_error_no_skips    goto_next_jump_no_skips
 #define goto_first_error            goto_first_jump
 
+//
+// End File Hook
+//
+
+OPEN_FILE_HOOK_SIG(end_file_close_jump_list){
+    Marker_List *list = get_marker_list_for_buffer(buffer_id);
+    if (list != 0){
+        free_marker_list(&global_general, *list);
+        set_marker_list_for_buffer(buffer_id, 0);
+    }
+    
+    default_end_file(app, buffer_id);
+    
+    return(0);
+}
+
 #endif
 
 // BOTTOM

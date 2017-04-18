@@ -797,6 +797,8 @@ ENUM(int32_t, Special_Hook_ID){
     /* DOC(TODO) */
     special_hook_save_file,
     /* DOC(TODO) */
+    special_hook_end_file,
+    /* DOC(TODO) */
     special_hook_command_caller,
     /* DOC(TODO) */
     special_hook_input_filter,

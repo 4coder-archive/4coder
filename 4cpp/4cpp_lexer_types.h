@@ -424,11 +424,6 @@ ENUM_INTERNAL(uint8_t, Cpp_Lex_State){
     LS_char = 32,
 };
 
-#if 0
-LS_less_less = 23,
-LS_more_more = 24,
-#endif
-
 // NOTE(allen): These provide names that match the overloaded meanings of string states.
 #define LS_string_raw LS_string_R
 #define LS_string_normal LS_string_LUu8

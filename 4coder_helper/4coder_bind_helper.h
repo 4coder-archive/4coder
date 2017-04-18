@@ -196,6 +196,16 @@ set_save_file_hook(Bind_Helper *helper, Open_File_Hook_Function *func){
 }
 
 inline void
+set_end_file_hook(Bind_Helper *helper, Open_File_Hook_Function *func){
+    Binding_Unit unit;
+    unit.type = unit_hook;
+    unit.hook.hook_id = special_hook_end_file;
+    unit.hook.func = (void*) func;
+    
+    write_unit(helper, unit);
+}
+
+inline void
 set_command_caller(Bind_Helper *helper, Command_Caller_Hook_Function *func){
     Binding_Unit unit;
     unit.type = unit_hook;

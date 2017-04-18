@@ -3487,14 +3487,10 @@ file_replace_range(System_Functions *system, Models *models, Editing_File *file,
 
 inline void
 file_clear(System_Functions *system, Models *models, Editing_File *file){
+    if (models->hook_end_file != 0){
+        models->hook_end_file(&models->app_links, file->id.id);
+    }
     file_replace_range(system, models, file, 0, buffer_size(&file->state.buffer), 0, 0);
-}
-
-// TODO(allen): get rid of this
-inline void
-view_replace_range(System_Functions *system, Models *models, View *view,
-                   i32 start, i32 end, char *str, i32 len){
-    file_replace_range(system, models, view->file_data.file, start, end, str, len);
 }
 
 inline void
@@ -3926,7 +3922,6 @@ view_interactive_new_file(System_Functions *system, Models *models, View *view, 
                 file_clear(system, models, file);
             }
             else{
-                
                 Mem_Options *mem = &models->mem;
                 General_Memory *general = &mem->general;
                 
@@ -3950,6 +3945,10 @@ kill_file(System_Functions *system, Models *models, Editing_File *file){
     Working_Set *working_set = &models->working_set;
     
     if (file != 0 && !file->settings.never_kill){
+        if (models->hook_end_file != 0){
+            models->hook_end_file(&models->app_links, file->id.id);
+        }
+        
         buffer_unbind_name(working_set, file);
         if (file->canon.name.size != 0){
             buffer_unbind_file(system, working_set, file);

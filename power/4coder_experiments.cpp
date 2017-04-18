@@ -1380,6 +1380,8 @@ get_bindings(void *data, int32_t size){
     set_open_file_hook(context, default_file_settings);
     set_new_file_hook(context, default_new_file);
     set_save_file_hook(context, default_file_save);
+    set_end_file_hook(context, end_file_close_jump_list);
+    
     set_input_filter(context, default_suppress_mouse_filter);
     set_command_caller(context, default_command_caller);
     

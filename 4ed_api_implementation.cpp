@@ -188,7 +188,7 @@ DOC_SEE(Command_ID)
     return(result);
 }
 
-// TODO(allen): This is a bit of a mess and needs to be fixed soon.
+// TODO(allen): This is a bit of a mess and needs to be fixed.
 API_EXPORT bool32
 Exec_System_Command(Application_Links *app, View_Summary *view, Buffer_Identifier buffer, char *path, int32_t path_len, char *command, int32_t command_len, Command_Line_Interface_Flag flags)
 /*
@@ -273,8 +273,7 @@ DOC_SEE(Command_Line_Interface_Flag)
                     }
                     else{
                         file = 0;
-                    }
-                    break;
+                    }break;
                 }
             }
             
@@ -290,8 +289,10 @@ DOC_SEE(Command_Line_Interface_Flag)
                 }
             }
             else{
-                append_ss(&feedback_str,
-                          make_lit_string("did not begin command-line command because the target buffer is already in use\n"));
+#define MSG "did not begin command-line command because the target buffer is already in use\n"
+                String msg = make_lit_string(MSG);
+#undef MSG
+                append_ss(&feedback_str, msg);
                 do_feedback_message(system, models, feedback_str);
                 result = false;
                 goto done;

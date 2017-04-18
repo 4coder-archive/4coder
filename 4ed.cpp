@@ -420,17 +420,13 @@ COMMAND_DECL(change_active_panel){
 COMMAND_DECL(interactive_switch_buffer){
     USE_VIEW(view);
     
-    view_show_interactive(system, view,
-                          IAct_Switch, IInt_Live_File_List,
-                          make_lit_string("Switch Buffer: "));
+    view_show_interactive(system, view, IAct_Switch, IInt_Live_File_List, make_lit_string("Switch Buffer: "));
 }
 
 COMMAND_DECL(interactive_kill_buffer){
     USE_VIEW(view);
     
-    view_show_interactive(system, view,
-                          IAct_Kill, IInt_Live_File_List,
-                          make_lit_string("Kill Buffer: "));
+    view_show_interactive(system, view, IAct_Kill, IInt_Live_File_List, make_lit_string("Kill Buffer: "));
 }
 
 COMMAND_DECL(kill_buffer){
@@ -439,37 +435,6 @@ COMMAND_DECL(kill_buffer){
     REQ_FILE(file, view);
     
     interactive_try_kill_file(system, models, view, file);
-}
-
-COMMAND_DECL(toggle_line_wrap){
-    REQ_READABLE_VIEW(view);
-    REQ_FILE(file, view);
-    
-    Assert(view->edit_pos);
-    
-    Relative_Scrolling scrolling = view_get_relative_scrolling(view);
-    if (file->settings.unwrapped_lines){
-        file->settings.unwrapped_lines = 0;
-        view->edit_pos->scroll.target_x = 0;
-    }
-    else{
-        file->settings.unwrapped_lines = 1;
-    }
-    view_cursor_move(system, view, view->edit_pos->cursor.pos);
-    view_set_relative_scrolling(view, scrolling);
-}
-
-COMMAND_DECL(toggle_tokens){
-    USE_MODELS(models);
-    REQ_OPEN_VIEW(view);
-    REQ_FILE(file, view);
-    
-    if (file->settings.tokens_exist){
-        file_kill_tokens(system, &models->mem.general, file);
-    }
-    else{
-        file_first_lex_parallel(system, &models->mem, file);
-    }
 }
 
 internal void
@@ -1235,6 +1200,7 @@ App_Init_Sig(app_init){
         models->hook_open_file = 0;
         models->hook_new_file = 0;
         models->hook_save_file = 0;
+        models->hook_end_file = 0;
         models->command_caller = 0;
         models->input_filter = 0;
         
@@ -1386,6 +1352,11 @@ App_Init_Sig(app_init){
                                         case special_hook_save_file:
                                         {
                                             models->hook_save_file = (Open_File_Hook_Function*)unit->hook.func;
+                                        }break;
+                                        
+                                        case special_hook_end_file:
+                                        {
+                                            models->hook_end_file = (Open_File_Hook_Function*)unit->hook.func;
                                         }break;
                                         
                                         case special_hook_command_caller:
