@@ -867,18 +867,6 @@ cpp_lex_nonalloc_null_end_no_limit(Cpp_Lex_Data *S_ptr, char *chunk, i32_4tech s
                 }
             }break;
             
-            case LS_less_less:
-            {
-                S.token.flags = CPP_TFLAG_IS_OPERATOR;
-                switch (c){
-                    case '=': S.token.type = CPP_TOKEN_LSHIFTEQ; break;
-                    default:
-                    S.token.type = CPP_TOKEN_LSHIFT;
-                    --S.pos;
-                    break;
-                }
-            }break;
-            
             case LS_more:
             {
                 S.token.flags = CPP_TFLAG_IS_OPERATOR;
@@ -886,18 +874,6 @@ cpp_lex_nonalloc_null_end_no_limit(Cpp_Lex_Data *S_ptr, char *chunk, i32_4tech s
                     case '=': S.token.type = CPP_TOKEN_GRTREQ; break;
                     default:
                     S.token.type = CPP_TOKEN_GRTR;
-                    --S.pos;
-                    break;
-                }
-            }break;
-            
-            case LS_more_more:
-            {
-                S.token.flags = CPP_TFLAG_IS_OPERATOR;
-                switch (c){
-                    case '=': S.token.type = CPP_TOKEN_RSHIFTEQ; break;
-                    default:
-                    S.token.type = CPP_TOKEN_RSHIFT;
                     --S.pos;
                     break;
                 }
@@ -985,11 +961,13 @@ cpp_lex_nonalloc_null_end_no_limit(Cpp_Lex_Data *S_ptr, char *chunk, i32_4tech s
                 u32_4tech eq_version = 0;
                 S.token.flags = CPP_TFLAG_IS_OPERATOR;
                 switch (S.tb[0]){
-                    case '*': plain_version = CPP_TOKEN_STAR;    eq_version = CPP_TOKEN_MULEQ; break;
-                    case '%': plain_version = CPP_TOKEN_MOD;     eq_version = CPP_TOKEN_MODEQ; break;
-                    case '^': plain_version = CPP_TOKEN_BIT_XOR; eq_version = CPP_TOKEN_XOREQ; break;
-                    case '=': plain_version = CPP_TOKEN_EQ;      eq_version = CPP_TOKEN_EQEQ;  break;
-                    case '!': plain_version = CPP_TOKEN_NOT;     eq_version = CPP_TOKEN_NOTEQ; break;
+                    case '*': plain_version = CPP_TOKEN_STAR;    eq_version = CPP_TOKEN_MULEQ;    break;
+                    case '%': plain_version = CPP_TOKEN_MOD;     eq_version = CPP_TOKEN_MODEQ;    break;
+                    case '^': plain_version = CPP_TOKEN_BIT_XOR; eq_version = CPP_TOKEN_XOREQ;    break;
+                    case '=': plain_version = CPP_TOKEN_EQ;      eq_version = CPP_TOKEN_EQEQ;     break;
+                    case '!': plain_version = CPP_TOKEN_NOT;     eq_version = CPP_TOKEN_NOTEQ;    break;
+                    case '<': plain_version = CPP_TOKEN_LSHIFT;  eq_version = CPP_TOKEN_LSHIFTEQ; break;
+                    case '>': plain_version = CPP_TOKEN_RSHIFT;  eq_version = CPP_TOKEN_RSHIFTEQ; break;
                 }
                 
                 S.token.type = eq_version;

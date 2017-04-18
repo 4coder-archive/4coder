@@ -410,21 +410,24 @@ ENUM_INTERNAL(uint8_t, Cpp_Lex_State){
     LS_dot = 19,
     LS_ellipsis = 20,
     LS_less = 21,
-    LS_less_less = 22,
-    LS_more = 23,
-    LS_more_more = 24,
-    LS_minus = 25,
-    LS_arrow = 26,
-    LS_and = 27,
-    LS_or = 28,
-    LS_plus = 29,
-    LS_colon = 30,
-    LS_single_op = 31,
-    LS_error_message = 32,
+    LS_more = 22,
+    LS_minus = 23,
+    LS_arrow = 24,
+    LS_and = 25,
+    LS_or = 26,
+    LS_plus = 27,
+    LS_colon = 28,
+    LS_single_op = 29,
+    LS_error_message = 30,
     //
-    LS_count = 33,
-    LS_char = 34,
+    LS_count = 31,
+    LS_char = 32,
 };
+
+#if 0
+LS_less_less = 23,
+LS_more_more = 24,
+#endif
 
 // NOTE(allen): These provide names that match the overloaded meanings of string states.
 #define LS_string_raw LS_string_R
