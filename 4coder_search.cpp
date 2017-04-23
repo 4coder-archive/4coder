@@ -535,6 +535,7 @@ generic_search_all_buffers(Application_Links *app, General_Memory *general, Part
         buffer_set_setting(app, &search_buffer, BufferSetting_WrapLine, false);
     }
     else{
+        buffer_send_end_signal(app, &search_buffer);
         buffer_replace_range(app, &search_buffer, 0, search_buffer.size, 0, 0);
     }
     
@@ -559,12 +560,14 @@ generic_search_all_buffers(Application_Links *app, General_Memory *general, Part
              get_buffer_next(app, &buffer_it, AccessAll)){
             if (buffer.buffer_id != buffer_it.buffer_id){
                 if (search_buffer.buffer_id != buffer_it.buffer_id){
-                    ranges[j].type = SearchRange_FrontToBack;
-                    ranges[j].flags = match_flags;
-                    ranges[j].buffer = buffer_it.buffer_id;
-                    ranges[j].start = 0;
-                    ranges[j].size = buffer_it.size;
-                    ++j;
+                    if (buffer_it.buffer_name[0] != '*'){
+                        ranges[j].type = SearchRange_FrontToBack;
+                        ranges[j].flags = match_flags;
+                        ranges[j].buffer = buffer_it.buffer_id;
+                        ranges[j].start = 0;
+                        ranges[j].size = buffer_it.size;
+                        ++j;
+                    }
                 }
             }
         }

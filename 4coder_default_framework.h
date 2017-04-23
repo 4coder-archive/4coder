@@ -84,6 +84,19 @@ get_view_for_locked_jump_buffer(Application_Links *app){
 
 static View_ID special_note_view_id = 0;
 
+static bool32 default_use_scrollbars = false;
+static bool32 default_use_file_bars = true;
+
+static void
+new_view_settings(Application_Links *app, View_Summary *view){
+    if (!default_use_scrollbars){
+        view_set_setting(app, view, ViewSetting_ShowScrollbar, false);
+    }
+    if (!default_use_file_bars){
+        view_set_setting(app, view, ViewSetting_ShowFileBar, false);
+    }
+}
+
 static void
 close_special_note_view(Application_Links *app){
     View_Summary special_view = get_view(app, special_note_view_id, AccessAll);
@@ -100,7 +113,7 @@ open_special_note_view(Application_Links *app, bool32 create_if_not_exist = true
     if (create_if_not_exist && !special_view.exists){
         View_Summary view = get_active_view(app, AccessAll);
         special_view = open_view(app, &view, ViewSplit_Bottom);
-        view_set_setting(app, &special_view, ViewSetting_ShowScrollbar, false);
+        new_view_settings(app, &special_view);
         view_set_split_proportion(app, &special_view, .2f);
         set_active_view(app, &view);
         special_note_view_id = special_view.view_id;
@@ -139,6 +152,18 @@ CUSTOM_COMMAND_SIG(change_active_panel_backwards){
     if (view.exists){
         set_active_view(app, &view);
     }
+}
+
+CUSTOM_COMMAND_SIG(open_panel_vsplit){
+    View_Summary view = get_active_view(app, AccessAll);
+    View_Summary new_view = open_view(app, &view, ViewSplit_Right);
+    new_view_settings(app, &new_view);
+}
+
+CUSTOM_COMMAND_SIG(open_panel_hsplit){
+    View_Summary view = get_active_view(app, AccessAll);
+    View_Summary new_view = open_view(app, &view, ViewSplit_Bottom);
+    new_view_settings(app, &new_view);
 }
 
 //
@@ -789,9 +814,6 @@ init_memory(Application_Links *app){
     general_memory_open(&global_general, general_mem, general_size);
 }
 
-static bool32 default_use_scrollbars = false;
-static bool32 default_use_file_bars = true;
-
 static void
 default_4coder_initialize(Application_Links *app, bool32 use_scrollbars, bool32 use_file_bars){
     init_memory(app);
@@ -814,30 +836,16 @@ default_4coder_initialize(Application_Links *app){
 
 static void
 default_4coder_side_by_side_panels(Application_Links *app){
+    View_Summary view = get_active_view(app, AccessAll);
+    new_view_settings(app, &view);
     open_panel_vsplit(app);
-    if (!default_use_scrollbars){
-        hide_scrollbar(app);
-    }
-    if (!default_use_file_bars){
-        hide_filebar(app);
-    }
-    change_active_panel(app);
-    if (!default_use_scrollbars){
-        hide_scrollbar(app);
-    }
-    if (!default_use_file_bars){
-        hide_filebar(app);
-    }
+    set_active_view(app, &view);
 }
 
 static void
 default_4coder_one_panel(Application_Links *app){
-    if (!default_use_scrollbars){
-        hide_scrollbar(app);
-    }
-    if (!default_use_file_bars){
-        hide_filebar(app);
-    }
+    View_Summary view = get_active_view(app, AccessAll);
+    new_view_settings(app, &view);
 }
 
 static void

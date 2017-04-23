@@ -451,18 +451,6 @@ CUSTOM_COMMAND_SIG(close_panel){
     close_view(app, &view);
 }
 
-CUSTOM_COMMAND_SIG(open_panel_vsplit){
-    View_Summary view = get_active_view(app, AccessAll);
-    View_Summary new_view = open_view(app, &view, ViewSplit_Right);
-    view_set_setting(app, &new_view, ViewSetting_ShowScrollbar, false);
-}
-
-CUSTOM_COMMAND_SIG(open_panel_hsplit){
-    View_Summary view = get_active_view(app, AccessAll);
-    View_Summary new_view = open_view(app, &view, ViewSplit_Bottom);
-    view_set_setting(app, &new_view, ViewSetting_ShowScrollbar, false);
-}
-
 
 //
 // Common Settings Commands

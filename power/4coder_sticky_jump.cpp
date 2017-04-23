@@ -46,10 +46,15 @@ binary_search(uint32_t *array, uint32_t count, uint32_t x){
     return(i);
 }
 
+enum Jump_Location_Flag{
+    JumpFlag_IsSubJump = 0x1,
+};
+
 struct Marker_List{
     uint32_t *handle_starts;
     Marker_Handle *handles;
     uint32_t *jump_line_numbers;
+    uint32_t *jump_flags;
     uint32_t handle_count;
     uint32_t handle_max;
     int32_t jump_max;
@@ -60,6 +65,7 @@ static void
 double_jump_max(General_Memory *general, Marker_List *list){
     uint32_t new_jump_max = list->jump_max*2;
     list->jump_line_numbers = gen_realloc_array(general, uint32_t, list->jump_line_numbers, list->jump_max, new_jump_max);
+    list->jump_flags = gen_realloc_array(general, uint32_t, list->jump_flags, list->jump_max, new_jump_max);
     list->jump_max = new_jump_max;
 }
 
@@ -74,9 +80,9 @@ double_handle_max(General_Memory *general, Marker_List *list){
 // TODO(allen): what to do when a push returns 0?
 static Marker_List
 make_marker_list(Application_Links *app, Partition *part, General_Memory *general, int32_t buffer_id){
-    Marker_List list = {0};
+    Buffer_Summary buffer = get_buffer(app, buffer_id, AccessAll);
     
-    int32_t line = 1;
+    Marker_List list = {0};
     
     Temp_Memory temp = begin_temp_memory(part);
     ID_Based_Jump_Location *location_list = (ID_Based_Jump_Location*)partition_current(part);
@@ -88,15 +94,31 @@ make_marker_list(Application_Links *app, Partition *part, General_Memory *genera
     
     list.jump_max = 64;
     list.jump_line_numbers = gen_array(general, uint32_t, list.jump_max);
+    list.jump_flags = gen_array(general, uint32_t, list.jump_max);
     
     uint32_t prev_jump_count = 0;
-    for (;;){
-        int32_t this_jump_line = 0;
-        int32_t colon_index = 0;
+    for (int32_t this_jump_line = 1;; ++this_jump_line){
+        bool32 output_jump = false;
         Name_Based_Jump_Location location = {0};
+        bool32 is_sub_error = false;
         
         Temp_Memory temp_name = begin_temp_memory(part);
-        if (seek_next_jump_in_buffer(app, part, buffer_id, line, false, 1, &this_jump_line, &colon_index, &location)){
+        String line_str = {0};
+        if (read_line(app, part, &buffer, this_jump_line, &line_str)){
+            int32_t colon_index = 0;
+            if (parse_jump_location(line_str, &location, &colon_index, &is_sub_error)){
+                output_jump = true;
+            }
+            else{
+                end_temp_memory(temp_name);
+            }
+        }
+        else{
+            end_temp_memory(temp_name);
+            break;
+        }
+        
+        if (output_jump){
             Buffer_Summary jump_buffer = {0};
             if (open_file(app, &jump_buffer, location.file.str, location.file.size, false, true)){
                 ID_Based_Jump_Location id_location = {0};
@@ -151,18 +173,19 @@ make_marker_list(Application_Links *app, Partition *part, General_Memory *genera
                         double_jump_max(general, &list);
                     }
                     list.jump_line_numbers[list.jump_count] = this_jump_line;
+                    
+                    uint32_t flags = 0;
+                    if (is_sub_error){
+                        flags |= JumpFlag_IsSubJump;
+                    }
+                    
+                    list.jump_flags[list.jump_count] = flags;
                     ++list.jump_count;
                 }
             }
             else{
                 end_temp_memory(temp_name);
             }
-            
-            line = this_jump_line+1;
-        }
-        else{
-            end_temp_memory(temp_name);
-            break;
         }
     }
     
@@ -382,35 +405,87 @@ CUSTOM_COMMAND_SIG(goto_jump_at_cursor_same_panel){
     end_temp_memory(temp);
 }
 
-// TODO(allen): MASSIVELY DEDUPLICATE THIS PLEASE.
+static void
+goto_jump_in_order(Application_Links *app, Marker_List *list, View_Summary *jump_view, ID_Pos_Jump_Location location){
+    Buffer_Summary buffer = {0};
+    if (get_jump_buffer(app, &buffer, &location)){
+        View_Summary target_view = get_active_view(app, AccessAll);
+        if (target_view.view_id == jump_view->view_id){
+            change_active_panel(app);
+            target_view = get_active_view(app, AccessAll);
+        }
+        switch_to_existing_view(app, &target_view, &buffer);
+        jump_to_location(app, &target_view, &buffer, location);
+        prev_location.buffer_id = location.buffer_id;
+        prev_location.line = location.pos;
+        prev_location.column = 0;
+    }
+}
+
+static bool32
+skip_this_jump(ID_Based_Jump_Location prev, ID_Pos_Jump_Location location){
+    bool32 skip = false;
+    if (prev.buffer_id == location.buffer_id && prev.line == location.pos){
+        skip = true;
+    }
+    return(skip);
+}
+
+static void
+goto_next_filtered_jump(Application_Links *app, Marker_List *list, View_Summary *jump_view, int32_t list_index, int32_t direction, bool32 skip_repeats, bool32 skip_sub_errors){
+    Assert(direction == 1 || direction == -1);
+    
+    while (list_index >= 0 && list_index < list->jump_count){
+        ID_Pos_Jump_Location location = {0};
+        if (get_jump_from_list(app, list, list_index, &location)){
+            bool32 skip_this = false;
+            if (skip_repeats && skip_this_jump(prev_location, location)){
+                skip_this = true;
+            }
+            else if (skip_sub_errors && (list->jump_flags[list_index] & JumpFlag_IsSubJump)){
+                skip_this = true;
+            }
+            
+            if (!skip_this){
+                goto_jump_in_order(app, list, jump_view, location);
+                int32_t updated_line = get_line_from_list(list, list_index);
+                view_set_cursor(app, jump_view, seek_line_char(updated_line, 1), true);
+                break;
+            }
+        }
+        
+        list_index += direction;
+    }
+}
+
+struct Locked_Jump_State{
+    View_Summary view;
+    Marker_List *list;
+    int32_t list_index;
+};
+
+static Locked_Jump_State
+get_locked_jump_state(Application_Links *app, Partition *part, General_Memory *general){
+    Locked_Jump_State result = {0};
+    result.view = get_view_for_locked_jump_buffer(app);
+    if (result.view.exists){
+        result.list = get_or_make_list_for_buffer(app, part, general, result.view.buffer_id);
+        result.list_index = get_index_nearest_from_list(result.list, result.view.cursor.line);
+    }
+    return(result);
+}
+
 CUSTOM_COMMAND_SIG(goto_next_jump){
     General_Memory *general = &global_general;
     Partition *part = &global_part;
     
-    View_Summary view = get_view_for_locked_jump_buffer(app);
-    if (view.exists){
-        Marker_List *list = get_or_make_list_for_buffer(app, part, general, view.buffer_id);
-        int32_t list_index = get_index_nearest_from_list(list, view.cursor.line);
-        ++list_index;
-        
-        if (list_index >= 0 && list_index < list->jump_count){
-            ID_Pos_Jump_Location location = {0};
-            if (get_jump_from_list(app, list, list_index, &location)){
-                Buffer_Summary buffer = {0};
-                if (get_jump_buffer(app, &buffer, &location)){
-                    View_Summary target_view = get_active_view(app, AccessAll);
-                    if (target_view.view_id == view.view_id){
-                        change_active_panel(app);
-                        target_view = get_active_view(app, AccessAll);
-                    }
-                    switch_to_existing_view(app, &target_view, &buffer);
-                    jump_to_location(app, &target_view, &buffer, location);
-                }
-                
-                int32_t updated_line = get_line_from_list(list, list_index);
-                view_set_cursor(app, &view, seek_line_char(updated_line, 1), true);
-            }
+    Locked_Jump_State jump_state = get_locked_jump_state(app, part, general);
+    if (jump_state.view.exists){
+        int32_t line = get_line_from_list(jump_state.list, jump_state.list_index);
+        if (line <= jump_state.view.cursor.line){
+            ++jump_state.list_index;
         }
+        goto_next_filtered_jump(app, jump_state.list, &jump_state.view, jump_state.list_index, 1, true, true);
     }
 }
 
@@ -418,30 +493,39 @@ CUSTOM_COMMAND_SIG(goto_prev_jump){
     General_Memory *general = &global_general;
     Partition *part = &global_part;
     
-    View_Summary view = get_view_for_locked_jump_buffer(app);
-    if (view.exists){
-        Marker_List *list = get_or_make_list_for_buffer(app, part, general, view.buffer_id);
-        int32_t list_index = get_index_nearest_from_list(list, view.cursor.line);
-        --list_index;
-        
-        if (list_index >= 0 && list_index < list->jump_count){
-            ID_Pos_Jump_Location location = {0};
-            if (get_jump_from_list(app, list, list_index, &location)){
-                Buffer_Summary buffer = {0};
-                if (get_jump_buffer(app, &buffer, &location)){
-                    View_Summary target_view = get_active_view(app, AccessAll);
-                    if (target_view.view_id == view.view_id){
-                        change_active_panel(app);
-                        target_view = get_active_view(app, AccessAll);
-                    }
-                    switch_to_existing_view(app, &target_view, &buffer);
-                    jump_to_location(app, &target_view, &buffer, location);
-                }
-                
-                int32_t updated_line = get_line_from_list(list, list_index);
-                view_set_cursor(app, &view, seek_line_char(updated_line, 1), true);
-            }
+    Locked_Jump_State jump_state = get_locked_jump_state(app, part, general);
+    if (jump_state.view.exists){
+        if (jump_state.list_index > 0){
+            --jump_state.list_index;
         }
+        goto_next_filtered_jump(app, jump_state.list, &jump_state.view, jump_state.list_index, -1, true, true);
+    }
+}
+
+CUSTOM_COMMAND_SIG(goto_next_jump_no_skips){
+    General_Memory *general = &global_general;
+    Partition *part = &global_part;
+    
+    Locked_Jump_State jump_state = get_locked_jump_state(app, part, general);
+    if (jump_state.view.exists){
+        int32_t line = get_line_from_list(jump_state.list, jump_state.list_index);
+        if (line <= jump_state.view.cursor.line){
+            ++jump_state.list_index;
+        }
+        goto_next_filtered_jump(app, jump_state.list, &jump_state.view, jump_state.list_index, 1, true, false);
+    }
+}
+
+CUSTOM_COMMAND_SIG(goto_prev_jump_no_skips){
+    General_Memory *general = &global_general;
+    Partition *part = &global_part;
+    
+    Locked_Jump_State jump_state = get_locked_jump_state(app, part, general);
+    if (jump_state.view.exists){
+        if (jump_state.list_index > 0){
+            --jump_state.list_index;
+        }
+        goto_next_filtered_jump(app, jump_state.list, &jump_state.view, jump_state.list_index, -1, true, false);
     }
 }
 
@@ -449,26 +533,14 @@ CUSTOM_COMMAND_SIG(goto_first_jump){
     General_Memory *general = &global_general;
     Partition *part = &global_part;
     
-    View_Summary view = get_view_for_locked_jump_buffer(app);
-    if (view.exists){
-        Marker_List *list = get_or_make_list_for_buffer(app, part, general, view.buffer_id);
+    Locked_Jump_State jump_state = get_locked_jump_state(app, part, general);
+    if (jump_state.view.exists){
         int32_t list_index = 0;
-        
         ID_Pos_Jump_Location location = {0};
-        if (get_jump_from_list(app, list, list_index, &location)){
-            Buffer_Summary buffer = {0};
-            if (get_jump_buffer(app, &buffer, &location)){
-                View_Summary target_view = get_active_view(app, AccessAll);
-                if (target_view.view_id == view.view_id){
-                    change_active_panel(app);
-                    target_view = get_active_view(app, AccessAll);
-                }
-                switch_to_existing_view(app, &target_view, &buffer);
-                jump_to_location(app, &target_view, &buffer, location);
-            }
-            
-            int32_t updated_line = get_line_from_list(list, list_index);
-            view_set_cursor(app, &view, seek_line_char(updated_line, 1), true);
+        if (get_jump_from_list(app, jump_state.list, list_index, &location)){
+            goto_jump_in_order(app, jump_state.list, &jump_state.view, location);
+            int32_t updated_line = get_line_from_list(jump_state.list, list_index);
+            view_set_cursor(app, &jump_state.view, seek_line_char(updated_line, 1), true);
         }
     }
 }
@@ -504,12 +576,11 @@ CUSTOM_COMMAND_SIG(newline_or_goto_position_same_panel){
 }
 
 
-#define goto_next_jump_no_skips     goto_next_jump
-#define goto_prev_jump_no_skips     goto_prev_jump
 #define seek_error                  seek_jump
 #define goto_next_error             goto_next_jump
 #define goto_prev_error             goto_prev_jump
 #define goto_next_error_no_skips    goto_next_jump_no_skips
+#define goto_prev_error_no_skips    goto_prev_jump_no_skips
 #define goto_first_error            goto_first_jump
 
 //

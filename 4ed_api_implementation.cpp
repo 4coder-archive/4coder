@@ -1085,12 +1085,27 @@ DOC_SEE(cpp_get_token)
     Editing_File *file = imp_get_file(cmd, buffer);
     Cpp_Token_Array token_array = file->state.token_array;
     
-    bool32 result = 0;
-    if (file && token_array.tokens && file->state.tokens_complete){
-        result = 1;
-        Cpp_Get_Token_Result get = {0};
-        get = cpp_get_token(token_array, pos);
-        *get_result = get;
+    bool32 result = false;
+    if (file != 0 && token_array.tokens != 0 && file->state.tokens_complete){
+        result = true;
+        *get_result = cpp_get_token(token_array, pos);
+    }
+    
+    return(result);
+}
+
+API_EXPORT bool32
+Buffer_Send_End_Signal(Application_Links *app, Buffer_Summary *buffer){
+    Command_Data *cmd = (Command_Data*)app->cmd_context;
+    Models *models = cmd->models;
+    Editing_File *file = imp_get_file(cmd, buffer);
+    
+    bool32 result = false;
+    if (file != 0){
+        Open_File_Hook_Function *hook_end_file = models->hook_end_file;
+        if (hook_end_file != 0){
+            hook_end_file(app, file->id.id);
+        }
     }
     
     return(result);

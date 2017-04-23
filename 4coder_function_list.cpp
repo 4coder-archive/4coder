@@ -315,6 +315,7 @@ list_all_functions(Application_Links *app, Partition *part, Buffer_Summary *buff
         buffer_set_setting(app, &decls_buffer, BufferSetting_WrapLine, false);
     }
     else{
+        buffer_send_end_signal(app, &decls_buffer);
         buffer_replace_range(app, &decls_buffer, 0, decls_buffer.size, 0, 0);
     }
     
