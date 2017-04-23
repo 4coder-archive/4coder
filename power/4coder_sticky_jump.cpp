@@ -129,9 +129,9 @@ make_marker_list(Application_Links *app, Partition *part, General_Memory *genera
                 
                 if (id_location.buffer_id != 0){
                     if (location_count > 0){
-                        ID_Based_Jump_Location *prev_location = &location_list[location_count-1];
-                        if (prev_location->buffer_id != id_location.buffer_id){
-                            Buffer_Summary location_buffer = get_buffer(app, prev_location->buffer_id, AccessAll);
+                        ID_Based_Jump_Location *prev_parsed_loc = &location_list[location_count-1];
+                        if (prev_parsed_loc->buffer_id != id_location.buffer_id){
+                            Buffer_Summary location_buffer = get_buffer(app, prev_parsed_loc->buffer_id, AccessAll);
                             
                             if (location_buffer.exists){
                                 if (list.handle_count >= list.handle_max){
@@ -148,9 +148,9 @@ make_marker_list(Application_Links *app, Partition *part, General_Memory *genera
                                 
                                 Marker *markers = push_array(part, Marker, location_count);
                                 for (uint32_t i = 0; i < location_count; ++i){
-                                    ID_Based_Jump_Location *location = &location_list[i];
+                                    ID_Based_Jump_Location *write_loc = &location_list[i];
                                     Partial_Cursor cursor = {0};
-                                    Buffer_Seek seek = seek_line_char(location->line, location->column);
+                                    Buffer_Seek seek = seek_line_char(write_loc->line, write_loc->column);
                                     if (buffer_compute_cursor(app, &location_buffer, seek, &cursor)){
                                         markers[i].pos = cursor.pos;
                                         markers[i].lean_right = false;
@@ -190,8 +190,8 @@ make_marker_list(Application_Links *app, Partition *part, General_Memory *genera
     }
     
     if (location_count > 0){
-        ID_Based_Jump_Location *prev_location = &location_list[location_count-1];
-        Buffer_Summary location_buffer = get_buffer(app, prev_location->buffer_id, AccessAll);
+        ID_Based_Jump_Location *prev_parsed_loc = &location_list[location_count-1];
+        Buffer_Summary location_buffer = get_buffer(app, prev_parsed_loc->buffer_id, AccessAll);
         
         if (list.handle_count >= list.handle_max){
             double_handle_max(general, &list);

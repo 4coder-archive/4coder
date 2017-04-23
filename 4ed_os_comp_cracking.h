@@ -16,7 +16,10 @@
 
 # define IS_CL
 
+// NOTE(allen): I suspect snprintf is defined in VS 2015 (I test on 2017)
+#if _MSC_VER <= 1800
 # define snprintf _snprintf
+#endif
 
 # if defined(_WIN32)
 #  define IS_WINDOWS
