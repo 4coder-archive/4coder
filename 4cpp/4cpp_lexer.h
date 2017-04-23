@@ -1285,7 +1285,6 @@ The start and end points are based on the edited region of the file before the e
     if (end_pos > array->tokens[range.end_token_index].start){
         ++range.end_token_index;
     }
-    //++range.end_token_index;
     if (range.end_token_index < 0){
         range.end_token_index = 0;
     }

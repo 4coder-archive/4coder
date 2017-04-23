@@ -2,7 +2,7 @@
    around to put in features I want in advance of 4coder having them properly.
    Most of the time I haven't even taken enough time to read the 4coder API
    to know what I'm actually even doing.  So if you decide to use the code in
-   here, be advised that it might be super crashy or break something or cause you 
+   here, be advised that it might be super crashy or break something or cause you
    to lose work or who knows what else!
    
    DON'T SAY I WE DIDN'T WARN YA: This custom extension provided "as is" without
@@ -14,49 +14,32 @@
 /* TODO(casey): Here are our current issues
 
    - High priority:
-     - Buffer switching still seems a little bit broken.  I find I can't reliably hit switch-return
-       and switch to the most recently viewed file that wasn't one of the two currently viewed buffers?
-       
-     - High-DPI settings break rendering and all fonts just show up as solid squares <<< Check this again
-     
-     - Pretty sure auto-indent has some bugs.  Things that should be pretty easy to indent
-       properly even from only a few surrounding lines seem to be indented improperly at the moment
-     - Multi-line comments should default to indenting to the indentation of the line prior?
-     - Replace:
-       - Needs to be case-insensitive, or at least have the option to be
-       - Needs to replace using the case of the thing being replaced, or at least have the option to do so
-     - Auto-complete doesn't pick nearby words first, it seems, which makes it much slower to use?
-     - Bug with not being able to switch-to-corresponding-file in another buffer
-       without accidentally bringing up the file open dialog?
-     - Up/down arrows and mouse clicks on wrapped lines don't seem to work properly with several wraps.
-       (eg., a line wrapped to more than 2 physical lines on the screen often doesn't work anymore,
-        with up or down jumping to totally wrong places, and mouse clicking jumping to wrong places
-        as well - similarly, scrolling breaks, in that it thinks it has "hit the end" of the buffer
-        when you cursor down, but the cursor and the rest of the wrapped lines are actually off
-        the bottom of the screen)
-        
-   - Search:
-     - Should highlight all matches in the buffer
      - Seems to buggily break out of the search sometimes for no reason?  (eg., you hit the end and it just drops out of the search instead of stopping?)
        - Tracked this one down: I think it is because spurious mousewheel or other inputs break
          out of the search.  How can this be prevented?
-         
+     - Replace:
+       - Needs to be case-insensitive, or at least have the option to be
+       - Needs to replace using the case of the thing being replaced, or at least have the option to do so
+     - Deleting lines in comments is busted right now, probably because of the way I implemented my D command.
+       This is probably something I need to fix for myself, but it's basically a problem whereby deleting a line
+       sucks the next line up and indents it weirdly.
+     - I'd prefer it if file-open deleted per-character instead of deleting entire path sections.  Deleting a whole path segment should be a different key, maybe?
+       - Simimlarly, it'd be nice to get another Emacs behavior in here, which is that if you start a new path name anywhere in the path, it
+         discards the initial part.  This was where you'd have w:/temp/foo/whatever/p:/foo it would just lop off everything before the p:,
+         similarly in unix you would have w:/temp/foo/whatever//foo it would lop off everything before the /foo.  This is to make it so
+         you don't have to erase the whole current path that comes up just to start typing a new path from scratch.  It's nice!
+     - Real, robust jump-to-function (eg., no crashes and supports filtering by substring like the file picker does)
+     
+   - Search:
+     - Should highlight all matches in the buffer
+     
    - Display:
+     - Dialogs like query-replace can lead to obscuring the cursor position if it happened to be on the top lines of the display
      - When switching _back_ to a buffer, it seems like it loses the scroll position, instead preferring
        to center the cursor?  This is undesirable IMO... <<< Check this again
-       
      - I'd like to be able to hide the mark in text entry mode, and show the whole highlighted
        region in edit mode - perhaps even with a magic split at the top or bottom that shows where the mark
        is if it's off screen?
-     - There are often repaint bugs with 4coder coming to the front / unminimizing, etc.
-       I think this might have something to do with the way you're doing lots of semaphore
-       locking but I haven't investigated yet. <<< How are we doing on this bug? It might be fixed but I haven't heard from anyone.
-       
-     - Need a word-wrap mode that wraps at word boundaries instead of characters
-     - Need to be able to set a word wrap length at something other than the window
-     - First go-to-line for a file seems to still just go to the beginning of the buffer?
-       Not sure Allen's right about the slash problem, but either way, we need some
-       way to fix it.
      - NOTE / IMPORTANT / TODO highlighting?  Ability to customize?  Whatever.
      - Some kind of parentheses highlighting?  I can write this myself, but I
        would need some way of adding highlight information to the buffer.
@@ -66,29 +49,22 @@
        what they match (maybe draw it directly into the buffer?)
        
    - Indentation:
-     - Multiple // lines don't seem to indent properly.  The first one will go to the correct place, but the subsequent ones will go to the first column regardless?
-     - Need to have better indentation / wrapping control for typing in comments. 
+     - Need to have better indentation / wrapping control for typing in comments.
        Right now it's a bit worse than Emacs, which does automatically put you at
        the same margin as the prev. line (4coder just goes back to column 1).  It'd
        be nice if it go _better_ than Emacs, with no need to manually flow comments,
        etc.
-     - It should never reindent text in comments that it doesn't know how to indent - eg., in a comment block, it shouldn't decide to move things around if it doesn't know what they are
-     - Sometimes when I hit [ it inserts a [ _and_ a space?  I think this is related to the auto-indent? <<< Check this again
-     
-   - Buffer management: 
+       
+   - Buffer management:
      - I'd like to be able to set a buffer to "auto-revert", so it reloads automatically whenever it changes externally
      - If you undo back to where there are no changes, the "buffer changed" flag should be cleared
-     - Seems like there's no way to switch to buffers whose names are substrings of other
-       buffers' names without using the mouse? <<< Check this again
-       
+     
    - File system
      - When switching to a buffer that has changed on disk, notify?  Really this can just
        be some way to query the modification flag and then the customization layer can do it?
-     - Still can't seem to open a zero-length file? <<< Check this again
      - I'd prefer it if file-open could create new files, and that I could get called on that
        so I can insert my boilerplate headers on new files
-     - I'd prefer it if file-open deleted per-character instead of deleting entire path sections
-     
+       
    - Need auto-complete for things like "arbitrary command", with options listed, etc.,
      so this should either be built into 4ed, or the custom DLL should have the ability
      to display possible completions and iterate over internal cmdid's, etc.  Possibly
@@ -97,7 +73,7 @@
    - Macro recording/playback
    
    - Arbitrary cool features:
-     - Once you can highlight things in 4coder buffers, I could make it so that my 
+     - Once you can highlight things in 4coder buffers, I could make it so that my
        metacompiler output _ranges_ for errors, so it highlights the whole token rather
        than putting the cursor in a spot.
      - Highlight on the screen what the completion would be if you hit TAB now (eg., if the string appears elsewhere on the screen)
@@ -111,7 +87,6 @@
    - Things I should write:
      - Ability to do "file open from same directory as the current buffer"
      - Spell-checker
-     - To-do list dependent on project?
      - Repeat last replace?
      - Maybe search could be a permanent thing, so instead of initiating a search,
        you're just _changing_ the search term with MODAL-S, and then there's _always_
@@ -125,16 +100,13 @@
 #include <string.h>
 #include <stdlib.h>
 
+#define FCODER_JUMP_COMMANDS
 #include "4coder_default_include.cpp"
 #include "4coder_jump_parsing.cpp"
+#undef FCODER_JUMP_COMMANDS
+#include "4coder_sticky_jump.cpp"
 
-#if !defined(Assert)
-#define Assert assert 
-#endif
-
-#if !defined(internal)
 #define internal static
-#endif
 
 struct Parsed_Error
 {
@@ -149,6 +121,7 @@ struct Parsed_Error
 };
 
 static bool GlobalEditMode;
+static bool GlobalBrightMode;
 static char *GlobalCompilationBufferName = "*compilation*";
 
 // TODO(casey): If 4coder gets variables at some point, this would go in a variable.
@@ -158,8 +131,8 @@ enum token_type
 {
     Token_Unknown,
     
-    Token_OpenParen,    
-    Token_CloseParen,    
+    Token_OpenParen,
+    Token_CloseParen,
     Token_Asterisk,
     Token_Minus,
     Token_Plus,
@@ -305,7 +278,7 @@ GetToken(tokenizer *Tokenizer)
             {
                 Token.Type = Token_Unknown;
             }
-        } break;        
+        } break;
     }
     
     return(Token);
@@ -340,6 +313,26 @@ IsCPP(String extension)
 }
 
 inline bool
+IsBee(String extension)
+{
+    bool Result = (match(extension, make_lit_string("bee")) != 0);
+    
+    return(Result);
+}
+
+inline bool
+IsShader(String extension)
+{
+    bool Result = (match(extension, make_lit_string("ps")) ||
+                   match(extension, make_lit_string("vs")) ||
+                   match(extension, make_lit_string("cs")) ||
+                   match(extension, make_lit_string("ts")) ||
+                   match(extension, make_lit_string("gs")));
+    
+    return(Result);
+}
+
+inline bool
 IsINL(String extension)
 {
     bool Result = (match(extension, make_lit_string("inl")) != 0);
@@ -348,18 +341,65 @@ IsINL(String extension)
 }
 
 inline bool
-IsCode(String extension)
+IsBAT(String extension)
 {
-    bool Result = (IsH(extension) || IsCPP(extension) || IsINL(extension));
+    bool Result = (match(extension, make_lit_string("bat")) != 0);
     
     return(Result);
 }
 
+inline bool
+IsTXT(String extension)
+{
+    bool Result = (match(extension, make_lit_string("txt")) != 0);
+    
+    return(Result);
+}
+
+inline bool
+IsCMirror(String extension)
+{
+    bool Result = (match(extension, make_lit_string("cmirror")) != 0);
+    
+    return(Result);
+}
+
+inline bool
+IsMTD(String extension)
+{
+    bool Result = (match(extension, make_lit_string("mtd")) != 0);
+    
+    return(Result);
+}
+
+inline bool
+IsOutline(String extension)
+{
+    bool Result = (match(extension, make_lit_string("tol")) != 0);
+    
+    return(Result);
+}
+
+inline bool
+IsCode(String extension)
+{
+    bool Result = (IsBee(extension) || IsH(extension) || IsCPP(extension) || IsINL(extension) || IsBAT(extension) || IsCMirror(extension) || IsShader(extension) || IsMTD(extension));
+    
+    return(Result);
+}
+
+inline bool
+IsDoc(String extension)
+{
+    bool Result = (IsTXT(extension));
+    
+    return(Result);
+}
 
 CUSTOM_COMMAND_SIG(casey_open_in_other)
 {
     exec_command(app, change_active_panel);
-    exec_command(app, cmdid_interactive_open);
+    exec_command(app, cmdid_interactive_open_or_new);
 }
 
 CUSTOM_COMMAND_SIG(casey_clean_and_save)
@@ -390,7 +430,7 @@ CUSTOM_COMMAND_SIG(casey_newline_and_indent)
 CUSTOM_COMMAND_SIG(casey_open_file_other_window)
 {
     exec_command(app, change_active_panel);
-    exec_command(app, cmdid_interactive_open);
+    exec_command(app, cmdid_interactive_open_or_new);
 }
 
 CUSTOM_COMMAND_SIG(casey_switch_buffer_other_window)
@@ -400,35 +440,48 @@ CUSTOM_COMMAND_SIG(casey_switch_buffer_other_window)
 }
 
 internal void
-DeleteAfterCommand(struct Application_Links *app, unsigned long long CommandID)
+DeleteAfterMotion(struct Application_Links *app, Custom_Command_Function *motion)
 {
     unsigned int access = AccessOpen;
     View_Summary view = get_active_view(app, access);
     
     int pos2 = view.cursor.pos;
-    if (CommandID < cmdid_count){
-        exec_command(app, (Command_ID)CommandID);
-    }
-    else{
-        exec_command(app, (Custom_Command_Function*)CommandID);
-    }
+    motion(app);
     refresh_view(app, &view);
     int pos1 = view.cursor.pos;
     
     Range range = make_range(pos1, pos2);
     
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, access);
+    
+    // NOTE(allen|a4.0.19): This 'paragraph' should fix 85% of whitespace problems, but if 
+    // it has some issue, you can get the old behavior by just removing it. Doing it by 
+    // cursor motion always seemed to introduce other problems spots.
+    if (range.min > 0 && range.max < buffer.size){
+        char before = buffer_get_char(app, &buffer, range.min - 1);
+        char after  = buffer_get_char(app, &buffer, range.max);
+        
+        if ((IsWhitespace(before) || before == '(') && IsWhitespace(after)){
+            if (after == ' '){
+                range.max += 1;
+            }
+            else if (before == ' '){
+                range.min -= 1;
+            }
+        }
+    }
+    
     buffer_replace_range(app, &buffer, range.min, range.max, 0, 0);
 }
 
 CUSTOM_COMMAND_SIG(casey_delete_token_left)
 {
-    DeleteAfterCommand(app, (unsigned long long)seek_white_or_token_left);
+    DeleteAfterMotion(app, seek_white_or_token_left);
 }
 
 CUSTOM_COMMAND_SIG(casey_delete_token_right)
 {
-    DeleteAfterCommand(app, (unsigned long long)seek_white_or_token_right);
+    DeleteAfterMotion(app, seek_white_or_token_right);
 }
 
 CUSTOM_COMMAND_SIG(casey_kill_to_end_of_line)
@@ -517,9 +570,9 @@ SwitchToOrLoadFile(struct Application_Links *app, String FileName, bool CreateIf
         {
             // NOTE(allen): This opens the file and puts it in &view
             // This returns false if the open fails.
-            view_open_file(app, &view, FileName.str, FileName.size, true);
+            view_open_file(app, &view, expand_str(FileName), false);
             
-            Result.buffer = get_buffer_by_name(app, FileName.str, FileName.size, access);            
+            Result.buffer = get_buffer_by_name(app, FileName.str, FileName.size, access);
             
             Result.Loaded = true;
             Result.Switched = true;
@@ -531,8 +584,27 @@ SwitchToOrLoadFile(struct Application_Links *app, String FileName, bool CreateIf
 
 CUSTOM_COMMAND_SIG(casey_load_todo)
 {
-    String ToDoFileName = make_lit_string("w:/handmade/code/todo.txt");
-    SwitchToOrLoadFile(app, ToDoFileName, true);
+    int size = app->memory_size/2;
+    String dir = make_string(app->memory, 0, size);
+    String command = make_string((char*)app->memory + size, 0, size);
+    
+    append(&dir, BuildDirectory);
+    for(int At = 0;
+        At < dir.size;
+        ++At)
+    {
+        if(dir.str[At] == '/')
+        {
+            dir.str[At] = '\\';
+        }
+    }
+    
+    append(&command, dir);
+    
+    if(append(&command, "todo.tol"))
+    {
+        SwitchToOrLoadFile(app, command, true);
+    }
 }
 
 CUSTOM_COMMAND_SIG(casey_build_search)
@@ -582,7 +654,7 @@ CUSTOM_COMMAND_SIG(casey_find_corresponding_file)
     
     String extension = file_extension(make_string(buffer.file_name, buffer.file_name_len));
     if (extension.str)
-    {       
+    {
         char *HExtensions[] =
         {
             "hpp",
@@ -613,7 +685,7 @@ CUSTOM_COMMAND_SIG(casey_find_corresponding_file)
         int MaxExtensionLength = 3;
         int Space = (int)(buffer.file_name_len + MaxExtensionLength);
         String FileNameStem = make_string(buffer.file_name, (int)(extension.str - buffer.file_name), 0);
-        String TestFileName = make_string(app->memory, 0, Space);   
+        String TestFileName = make_string(app->memory, 0, Space);
         for(int ExtensionIndex = 0;
             ExtensionCount;
             ++ExtensionIndex)
@@ -657,6 +729,11 @@ CUSTOM_COMMAND_SIG(casey_save_and_make_without_asking)
         save_buffer(app, &buffer, buffer.file_name, buffer.file_name_len, 0);
     }
     
+    // NOTE(allen): The parameter pushing made it a little easier
+    // to deal with this particular pattern where two similar strings
+    // were both used.  Now both strings need to exist at the same
+    // time on the users side.
+    
     int size = app->memory_size/2;
     String dir = make_string(app->memory, 0, size);
     String command = make_string((char*)app->memory + size, 0, size);
@@ -678,180 +755,26 @@ CUSTOM_COMMAND_SIG(casey_save_and_make_without_asking)
     {
         unsigned int access = AccessAll;
         View_Summary view = get_active_view(app, access);
-        char *BufferName = GlobalCompilationBufferName;
-        int BufferNameLength = (int)strlen(GlobalCompilationBufferName);
         exec_system_command(app, &view,
-                            buffer_identifier(BufferName, BufferNameLength),
+                            buffer_identifier(GlobalCompilationBufferName, (int)strlen(GlobalCompilationBufferName)),
                             dir.str, dir.size,
                             command.str, command.size,
                             CLI_OverlapWithConflict);
-        lock_jump_buffer(BufferName, BufferNameLength);
+        lock_jump_buffer(GlobalCompilationBufferName, str_size(GlobalCompilationBufferName));
     }
-    
     exec_command(app, change_active_panel);
+    
     prev_location = null_location;
 }
 
-#if 0
-internal bool
-casey_errors_are_the_same(Parsed_Error a, Parsed_Error b)
-{
-    bool result = ((a.exists == b.exists) && compare(a.target_file_name, b.target_file_name) && (a.target_line_number == b.target_line_number));
-    
-    return(result);
-}
-
-internal void
-casey_goto_error(Application_Links *app, Parsed_Error e)
-{
-    if(e.exists)
-    {
-        switch_to_result Switch = SwitchToOrLoadFile(app, e.target_file_name, false);
-        if(Switch.Switched)
-        {
-            app->view_set_cursor(app, &Switch.view, seek_line_char(e.target_line_number, e.target_column_number), 1);
-        }
-        
-        View_Summary compilation_view = get_first_view_with_buffer(app, e.source_buffer_id);
-        if(compilation_view.exists)
-        {
-            app->view_set_cursor(app, &compilation_view, seek_pos(e.source_position), 1);
-        }
-    }
-}
-
-internal Parsed_Error
-casey_parse_error(Application_Links *app, Buffer_Summary buffer, View_Summary view)
-{
-    Parsed_Error result = {};
-    
-    refresh_view(app, &view);
-    int restore_pos = view.cursor.pos;
-    
-    // TODO(allen): view_compute_cursor can get these
-    // positions without ever changing the position of the cursor.
-    app->view_set_cursor(app, &view, seek_line_char(view.cursor.line, 1), 1);
-    int start = view.cursor.pos;
-    
-    app->view_set_cursor(app, &view, seek_line_char(view.cursor.line, 65536), 1);
-    int end = view.cursor.pos;
-    
-    app->view_set_cursor(app, &view, seek_pos(restore_pos), 1);
-    
-    int size = end - start;
-    
-    char *ParsingRegion = (char *)malloc(size + 1);
-    //    char *ParsingRegion = (char *)app->push_memory(app, size + 1);
-    app->buffer_read_range(app, &buffer, start, end, ParsingRegion);
-    ParsingRegion[size] = 0;
-    tokenizer Tokenizer = {ParsingRegion};
-    for(;;)
-    {
-        token Token = GetToken(&Tokenizer);
-        if(Token.Type == Token_OpenParen)
-        {
-            token LineToken = GetToken(&Tokenizer);
-            if(LineToken.Type == Token_Number)
-            {
-                token CloseToken = GetToken(&Tokenizer);
-                
-                int column_number = 0;
-                if(CloseToken.Type == Token_Comma)
-                {
-                    token ColumnToken = GetToken(&Tokenizer);
-                    if(ColumnToken.Type == Token_Number)
-                    {
-                        column_number = atoi(ColumnToken.Text);
-                        CloseToken = GetToken(&Tokenizer);
-                    }
-                }
-                
-                if(CloseToken.Type == Token_CloseParen)
-                {
-                    token ColonToken = GetToken(&Tokenizer);
-                    if(ColonToken.Type == Token_Colon)
-                    {
-                        // NOTE(casey): We maybe found an error!
-                        int line_number = atoi(LineToken.Text);
-                        
-                        char *Seek = Token.Text;
-                        while(Seek != ParsingRegion)
-                        {
-                            if(IsEndOfLine(*Seek))
-                            {
-                                while(IsWhitespace(*Seek))
-                                {
-                                    ++Seek;
-                                }
-                                break;
-                            }
-                            
-                            --Seek;
-                        }
-                        
-                        result.exists = true;
-                        result.target_file_name = make_string(Seek, (int)(Token.Text - Seek));;
-                        result.target_line_number = line_number;
-                        result.target_column_number = column_number;
-                        result.source_buffer_id = buffer.buffer_id;
-                        result.source_position = start + (int)(ColonToken.Text - ParsingRegion);
-                        
-                        break;
-                    }
-                }
-            }
-        }
-        else if(Token.Type == Token_EndOfStream)
-        {
-            break;
-        }
-    }
-    free(ParsingRegion);
-    
-    return(result);
-}
-
-internal void
-casey_seek_error_dy(Application_Links *app, int dy)
-{
-    Buffer_Summary Buffer = app->get_buffer_by_name(app, GlobalCompilationBufferName, (int)strlen(GlobalCompilationBufferName), AccessAll);
-    View_Summary compilation_view = get_first_view_with_buffer(app, Buffer.buffer_id);
-    
-    // NOTE(casey): First get the current error (which may be none, if we've never parsed before)
-    Parsed_Error StartingError = casey_parse_error(app, Buffer, compilation_view);
-    
-    // NOTE(casey): Now hunt for the previous distinct error
-    for(;;)
-    {
-        int prev_pos = compilation_view.cursor.pos;
-        app->view_set_cursor(app, &compilation_view, seek_line_char(compilation_view.cursor.line + dy, 0), 1);
-        if(compilation_view.cursor.pos != prev_pos)
-        {
-            Parsed_Error Error = casey_parse_error(app, Buffer, compilation_view);
-            if(Error.exists && !casey_errors_are_the_same(StartingError, Error))
-            {
-                casey_goto_error(app, Error);
-                break;
-            }
-        }
-        else
-        {
-            break;
-        }
-    }
-}
-#endif
-
 CUSTOM_COMMAND_SIG(casey_goto_previous_error)
 {
-    //    casey_seek_error_dy(app, -1);
-    seek_error(app, &global_part, true, false, -1);
+    goto_prev_error_no_skips(app);
 }
 
 CUSTOM_COMMAND_SIG(casey_goto_next_error)
 {
-    //    casey_seek_error_dy(app, 1);
-    seek_error(app, &global_part, true, false, 1);
+    goto_next_error_no_skips(app);
 }
 
 CUSTOM_COMMAND_SIG(casey_imenu)
@@ -944,7 +867,7 @@ AddNode(calc_node_type Type, calc_node *Left = 0, calc_node *Right = 0)
     Node->Type = Type;
     Node->Value = 0;
     Node->Left = Left;
-    Node->Right = Right;    
+    Node->Right = Right;
     return(Node);
 }
 
@@ -1066,15 +989,42 @@ CUSTOM_COMMAND_SIG(casey_quick_calc)
     free(Stuff);
 }
 
+internal char *
+GetNextString(char *Dest, int DestSize, char *&At)
+{
+    char *Result = 0;
+    
+    if(*At)
+    {
+        Result = Dest;
+        while((--DestSize > 0) && *At && (*At != '\n'))
+        {
+            *Dest++ = *At++;
+        }
+        *Dest = 0;
+        
+        while(*At && (*At != '\n'))
+        {
+            ++At;
+        }
+        
+        while(*At && (*At == '\n'))
+        {
+            ++At;
+        }
+    }
+    
+    return(Result);
+}
+
 internal void
-OpenProject(Application_Links *app, char *ProjectFileName)
+OpenProject(Application_Links *app, char *Contents)
 {
     int TotalOpenAttempts = 0;
+    char *At = Contents;
     
-    FILE *ProjectFile = fopen(ProjectFileName, "r");
-    if(ProjectFile)
+    if(GetNextString(BuildDirectory, sizeof(BuildDirectory) - 1, At))
     {
-        fgets(BuildDirectory, sizeof(BuildDirectory) - 1, ProjectFile);
         size_t BuildDirSize = strlen(BuildDirectory);
         if((BuildDirSize) && (BuildDirectory[BuildDirSize - 1] == '\n'))
         {
@@ -1086,56 +1036,54 @@ OpenProject(Application_Links *app, char *ProjectFileName)
             BuildDirectory[BuildDirSize++] = '/';
             BuildDirectory[BuildDirSize] = 0;
         }
-        
-        char SourceFileDirectoryName[4096];
-        char FileDirectoryName[4096];
-        while(fgets(SourceFileDirectoryName, sizeof(SourceFileDirectoryName) - 1, ProjectFile))
+    }
+    
+    char SourceFileDirectoryName[4096];
+    char FileDirectoryName[4096];
+    while(GetNextString(SourceFileDirectoryName, sizeof(SourceFileDirectoryName) - 1, At))
+    {
+        // NOTE(allen|a3.4.4): Here we get the list of files in this directory.
+        // Notice that we free_file_list at the end.
+        String dir = make_string(FileDirectoryName, 0, sizeof(FileDirectoryName));
+        append(&dir, SourceFileDirectoryName);
+        if(dir.size && dir.str[dir.size-1] == '\n')
         {
-            // NOTE(allen|a3.4.4): Here we get the list of files in this directory.
-            // Notice that we free_file_list at the end.
-            String dir = make_string(FileDirectoryName, 0, sizeof(FileDirectoryName));
-            append(&dir, SourceFileDirectoryName);
-            if(dir.size && dir.str[dir.size-1] == '\n')
-            {
-                --dir.size;
-            }
-            
-            if(dir.size && dir.str[dir.size-1] != '/')
-            {
-                dir.str[dir.size++] = '/';
-            }
-            
-            File_List list = get_file_list(app, dir.str, dir.size);
-            int dir_size = dir.size;
-            
-            for (int i = 0; i < list.count; ++i)
-            {
-                File_Info *info = list.infos + i;
-                if (!info->folder)
-                {
-                    String filename = make_string(info->filename, info->filename_len);
-                    String extension = file_extension(filename);
-                    if (IsCode(extension))
-                    {
-                        // NOTE(allen): There's no way in the 4coder API to use relative
-                        // paths at the moment, so everything should be full paths.  Which is
-                        // managable.  Here simply set the dir string size back to where it
-                        // was originally, so that new appends overwrite old ones.
-                        dir.size = dir_size;
-                        append(&dir, info->filename);
-                        
-                        open_file(app, 0, dir.str, dir.size, true, true);
-                        ++TotalOpenAttempts;
-                    }
-                }
-            }
-            
-            free_file_list(app, list);
+            --dir.size;
         }
         
-        fclose(ProjectFile);
+        if(dir.size && dir.str[dir.size-1] != '/')
+        {
+            dir.str[dir.size++] = '/';
+        }
+        
+        File_List list = get_file_list(app, dir.str, dir.size);
+        int dir_size = dir.size;
+        
+        for (int unsigned i = 0; i < list.count; ++i)
+        {
+            File_Info *info = list.infos + i;
+            if (!info->folder)
+            {
+                String filename = make_string(info->filename, info->filename_len);
+                String extension = file_extension(filename);
+                if (IsCode(extension))
+                {
+                    // NOTE(allen): There's no way in the 4coder API to use relative
+                    // paths at the moment, so everything should be full paths.  Which is
+                    // managable.  Here simply set the dir string size back to where it
+                    // was originally, so that new appends overwrite old ones.
+                    dir.size = dir_size;
+                    append(&dir, info->filename);
+                    
+                    open_file(app, 0, dir.str, dir.size, true, true);
+                    ++TotalOpenAttempts;
+                }
+            }
+        }
+        
+        free_file_list(app, list);
     }
-}    
+}
 
 CUSTOM_COMMAND_SIG(casey_execute_arbitrary_command)
 {
@@ -1167,38 +1115,360 @@ CUSTOM_COMMAND_SIG(casey_execute_arbitrary_command)
     }
 }
 
+static void
+casey_list_all_functions(Application_Links *app, Partition *part, Buffer_Summary *buffer, Buffer_Summary *decls_buffer){
+    
+    Temp_Memory temp = begin_temp_memory(part);
+    
+    struct Function_Positions{
+        int32_t sig_start_index;
+        int32_t sig_end_index;
+        int32_t open_paren_pos;
+    };
+    
+    Function_Positions *positions_array = push_array(part, Function_Positions, (4<<10)/sizeof(Function_Positions));
+    int32_t positions_count = 0;
+    
+    Partition extra_memory_ = partition_sub_part(part, (4<<10));
+    Partition *extra_memory = &extra_memory_;
+    char *str = (char*)partition_current(part);
+    int32_t part_size = 0;
+    int32_t size = 0;
+    
+    static const int32_t token_chunk_size = 512;
+    Cpp_Token token_chunk[token_chunk_size];
+    Stream_Tokens token_stream = {0};
+    
+    if (init_stream_tokens(&token_stream, app, buffer, 0, token_chunk, token_chunk_size)){
+        Stream_Tokens start_position_stream_temp = begin_temp_stream_token(&token_stream);
+        
+        int32_t token_index = 0;
+        int32_t nest_level = 0;
+        int32_t paren_nest_level = 0;
+        
+        int32_t first_paren_index = 0;
+        int32_t first_paren_position = 0;
+        int32_t last_paren_index = 0;
+        
+        bool32 still_looping = false;
+        
+        // Look for the next token at global scope that might need to be printed.
+        mode1: do{
+            for (; token_index < token_stream.end; ++token_index){
+                Cpp_Token *token = &token_stream.tokens[token_index];
+                
+                if (!(token->flags & CPP_TFLAG_PP_BODY)){
+                    switch (token->type){
+                        case CPP_TOKEN_BRACE_OPEN:
+                        {
+                            ++nest_level;
+                        }break;
+                        
+                        case CPP_TOKEN_BRACE_CLOSE:
+                        {
+                            if (nest_level > 0){
+                                --nest_level;
+                            }
+                        }break;
+                        
+                        case CPP_TOKEN_PARENTHESE_OPEN:
+                        {
+                            if (nest_level == 0){
+                                first_paren_index = token_index;
+                                first_paren_position = token->start;
+                                goto paren_mode1;
+                            }
+                        }break;
+                    }
+                }
+            }
+            still_looping = forward_stream_tokens(&token_stream);
+        }while(still_looping);
+        goto end;
+        
+        // Look for a closing parenthese to mark the end of a function signature.
+        paren_mode1:
+        paren_nest_level = 0;
+        do{
+            for (; token_index < token_stream.end; ++token_index){
+                Cpp_Token *token = &token_stream.tokens[token_index];
+                
+                if (!(token->flags & CPP_TFLAG_PP_BODY)){
+                    switch (token->type){
+                        case CPP_TOKEN_PARENTHESE_OPEN:
+                        {
+                            ++paren_nest_level;
+                        }break;
+                        
+                        case CPP_TOKEN_PARENTHESE_CLOSE:
+                        {
+                            --paren_nest_level;
+                            if (paren_nest_level == 0){
+                                last_paren_index = token_index;
+                                goto paren_mode2;
+                            }
+                        }break;
+                    }
+                }
+            }
+            still_looping = forward_stream_tokens(&token_stream);
+        }while(still_looping);
+        goto end;
+        
+        // Look backwards from an open parenthese to find the start of a function signature.
+        paren_mode2: {
+            Stream_Tokens backward_stream_temp = begin_temp_stream_token(&token_stream);
+            int32_t local_index = first_paren_index;
+            int32_t signature_start_index = 0;
+            
+            do{
+                for (; local_index >= token_stream.start; --local_index){
+                    Cpp_Token *token = &token_stream.tokens[local_index];
+                    if ((token->flags & CPP_TFLAG_PP_BODY) || (token->flags & CPP_TFLAG_PP_DIRECTIVE) || token->type == CPP_TOKEN_BRACE_CLOSE || token->type == CPP_TOKEN_SEMICOLON || token->type == CPP_TOKEN_PARENTHESE_CLOSE){
+                        ++local_index;
+                        signature_start_index = local_index;
+                        goto paren_mode2_done;
+                    }
+                }
+                still_looping = backward_stream_tokens(&token_stream);
+            }while(still_looping);
+            // When this loop ends by going all the way back to the beginning set the signature start to 0 and fall through to the printing phase.
+            signature_start_index = 0;
+            
+            paren_mode2_done:;
+            {
+                Function_Positions positions;
+                positions.sig_start_index = signature_start_index;
+                positions.sig_end_index = last_paren_index;
+                positions.open_paren_pos = first_paren_position;
+                positions_array[positions_count++] = positions;
+            }
+            
+            end_temp_stream_token(&token_stream, backward_stream_temp);
+            goto mode1;
+        }
+        
+        end:;
+        end_temp_stream_token(&token_stream, start_position_stream_temp);
+        // Print the results
+        String buffer_name = make_string(buffer->buffer_name, buffer->buffer_name_len);
+        for (int32_t i = 0; i < positions_count; ++i){
+            Function_Positions *positions = &positions_array[i];
+            Temp_Memory extra_temp = begin_temp_memory(extra_memory);
+            
+            int32_t local_index = positions->sig_start_index;
+            int32_t end_index = positions->sig_end_index;
+            int32_t open_paren_pos = positions->open_paren_pos;
+            
+            do{
+                for (; local_index < token_stream.end; ++local_index){
+                    Cpp_Token *token = &token_stream.tokens[local_index];
+                    if (!(token->flags & CPP_TFLAG_PP_BODY)){
+                        if (token->type != CPP_TOKEN_COMMENT){
+                            bool32 delete_space_before = false;
+                            bool32 space_after = false;
+                            
+                            switch (token->type){
+                                case CPP_TOKEN_COMMA:
+                                case CPP_TOKEN_PARENTHESE_OPEN:
+                                case CPP_TOKEN_PARENTHESE_CLOSE:
+                                {
+                                    delete_space_before = true;
+                                }break;
+                            }
+                            
+                            switch (token->type){
+                                case CPP_TOKEN_IDENTIFIER:
+                                case CPP_TOKEN_COMMA:
+                                case CPP_TOKEN_STAR:
+                                {
+                                    space_after = true;
+                                }break;
+                            }
+                            if (token->flags & CPP_TFLAG_IS_KEYWORD){
+                                space_after = true;
+                            }
+                            
+                            if (delete_space_before){
+                                int32_t pos = extra_memory->pos - 1;
+                                char *base = ((char*)(extra_memory->base));
+                                if (pos >= 0 && base[pos] == ' '){
+                                    extra_memory->pos = pos;
+                                }
+                            }
+                            
+                            char *token_str = push_array(extra_memory, char, token->size + space_after);
+                            
+                            buffer_read_range(app, buffer, token->start, token->start + token->size, token_str);
+                            if (space_after){
+                                token_str[token->size] = ' ';
+                            }
+                        }
+                    }
+                    
+                    if (local_index == end_index){
+                        goto finish_print;
+                    }
+                }
+                still_looping = forward_stream_tokens(&token_stream);
+            }while(still_looping);
+            
+            finish_print:;
+            {
+                int32_t sig_size = extra_memory->pos;
+                String sig = make_string(extra_memory->base, sig_size);
+                
+                int32_t line_number = buffer_get_line_index(app, buffer, open_paren_pos);
+                int32_t line_number_len = int_to_str_size(line_number);
+                
+                int32_t append_len = buffer_name.size + 1 + line_number_len + 1 + 1 + sig_size + 1;
+                
+                char *out_space = push_array(part, char, append_len);
+                if (out_space == 0){
+                    buffer_replace_range(app, decls_buffer, size, size, str, part_size);
+                    size += part_size;
+                    
+                    end_temp_memory(temp);
+                    temp = begin_temp_memory(part);
+                    
+                    part_size = 0;
+                    out_space = push_array(part, char, append_len);
+                }
+                
+                part_size += append_len;
+                String out = make_string(out_space, 0, append_len);
+                append(&out, buffer_name);
+                append(&out, ':');
+                append_int_to_str(&out, line_number);
+                append(&out, ':');
+                append(&out, ' ');
+                append(&out, sig);
+                append(&out, '\n');
+            }
+            
+            end_temp_memory(extra_temp);
+        }
+        
+        buffer_replace_range(app, decls_buffer, size, size, str, part_size);
+        
+        View_Summary view = get_active_view(app, AccessAll);
+        view_set_buffer(app, &view, decls_buffer->buffer_id, 0);
+        
+        lock_jump_buffer(decls_buffer->buffer_name, decls_buffer->buffer_name_len);
+        
+        end_temp_memory(temp);
+    }
+}
+
+internal void
+ClearDeclsBuffer(Application_Links *app, Buffer_Summary *decls_buffer)
+{
+    String search_name = make_lit_string("*decls*");
+    *decls_buffer = get_buffer_by_name(app, search_name.str, search_name.size, AccessAll);
+    if (!decls_buffer->exists){
+        *decls_buffer = create_buffer(app, search_name.str, search_name.size, BufferCreate_AlwaysNew);
+        buffer_set_setting(app, decls_buffer, BufferSetting_Unimportant, true);
+        buffer_set_setting(app, decls_buffer, BufferSetting_ReadOnly, true);
+        buffer_set_setting(app, decls_buffer, BufferSetting_WrapLine, false);
+    }
+    else{
+        buffer_replace_range(app, decls_buffer, 0, decls_buffer->size, 0, 0);
+    }
+}
+
+CUSTOM_COMMAND_SIG(casey_list_all_functions_current_buffer){
+    uint32_t access = AccessProtected;
+    View_Summary view = get_active_view(app, access);
+    Buffer_Summary buffer = get_buffer(app, view.buffer_id, access);
+    
+    Buffer_Summary decls_buffer;
+    ClearDeclsBuffer(app, &decls_buffer);
+    casey_list_all_functions(app, &global_part, &buffer, &decls_buffer);
+}
+
+CUSTOM_COMMAND_SIG(casey_list_all_functions_globally){
+    uint32_t access = AccessProtected;
+    
+    Buffer_Summary decls_buffer;
+    ClearDeclsBuffer(app, &decls_buffer);
+    
+    for (Buffer_Summary buffer_it = get_buffer_first(app, access);
+         buffer_it.exists;
+         get_buffer_next(app, &buffer_it, access))
+    {
+        casey_list_all_functions(app, &global_part, &buffer_it, &decls_buffer);
+    }
+}
+
 internal void
 UpdateModalIndicator(Application_Links *app)
 {
-    Theme_Color normal_colors[] = 
+    // TODO(casey): Need more colors...
+#if 0
+    Theme_Color shared_colors[] =
+    {
+        {Stag_Comment, },
+        {Stag_Keyword, },
+        {Stag_Str_Constant, }
+        {Stag_Char_Constant, }
+        {Stag_Int_Constant, }
+        {Stag_Float_Constant, }
+        {Stag_Bool_Constant, }
+        {Stag_Preproc, }
+        {Stag_Include, }
+    };
+#endif
+    
+    int unsigned Background = (GlobalBrightMode ? 0xFFFFFF : 0x161616);
+    int unsigned Default = (GlobalBrightMode ? 0x000000 : 0xA08563);
+    
+    Theme_Color normal_colors[] =
     {
         {Stag_Cursor, 0x40FF40},
         {Stag_At_Cursor, 0x161616},
         {Stag_Mark, 0x808080},
-        {Stag_Margin, 0x262626},
-        {Stag_Margin_Hover, 0x333333},
-        {Stag_Margin_Active, 0x404040},
+        //{Stag_Margin, 0x262626},
+        //{Stag_Margin_Hover, 0x333333},
+        //{Stag_Margin_Active, 0x404040},
         {Stag_Bar, 0xCACACA}
     };
     
-    Theme_Color edit_colors[] = 
+    Theme_Color edit_colors[] =
     {
         {Stag_Cursor, 0xFF0000},
         {Stag_At_Cursor, 0x00FFFF},
         {Stag_Mark, 0xFF6F1A},
-        {Stag_Margin, 0x33170B},
-        {Stag_Margin_Hover, 0x49200F},
-        {Stag_Margin_Active, 0x934420},
-        {Stag_Bar, 0x934420}
+        //{Stag_Margin, 0x33170B},
+        //{Stag_Margin_Hover, 0x49200F},
+        //{Stag_Margin_Active, 0x934420},
+        {Stag_Bar, 0xCACACA}
+        // {Stag_Bar, 0x934420}
     };
     
-    if (GlobalEditMode){
+    if (GlobalEditMode)
+    {
         set_theme_colors(app, edit_colors, ArrayCount(edit_colors));
     }
-    else{
+    else
+    {
         set_theme_colors(app, normal_colors, ArrayCount(normal_colors));
     }
+    
+    Theme_Color common_colors[] =
+    {
+        {Stag_Comment, 0x7D7D7D},
+        {Stag_Keyword, 0xCD950C},
+        {Stag_Preproc, 0xDAB98F},
+        {Stag_Include, 0x6B8E23},
+        {Stag_Back, Background},
+        {Stag_Margin, Background},
+        {Stag_Margin_Hover, Background},
+        {Stag_Margin_Active, 0x934420},
+        {Stag_Default, Default},
+    };
+    set_theme_colors(app, common_colors, ArrayCount(common_colors));
 }
+
 CUSTOM_COMMAND_SIG(begin_free_typing)
 {
     GlobalEditMode = false;
@@ -1208,6 +1478,12 @@ CUSTOM_COMMAND_SIG(begin_free_typing)
 CUSTOM_COMMAND_SIG(end_free_typing)
 {
     GlobalEditMode = true;
+    UpdateModalIndicator(app);
+}
+
+CUSTOM_COMMAND_SIG(toggle_bright_mode)
+{
+    GlobalBrightMode = !GlobalBrightMode;
     UpdateModalIndicator(app);
 }
 
@@ -1235,26 +1511,26 @@ CUSTOM_COMMAND_SIG(binding_name) \
 DEFINE_MODAL_KEY(modal_space, set_mark);
 DEFINE_MODAL_KEY(modal_back_slash, casey_clean_and_save);
 DEFINE_MODAL_KEY(modal_single_quote, casey_call_keyboard_macro);
-DEFINE_MODAL_KEY(modal_comma, casey_goto_previous_error);
+DEFINE_MODAL_KEY(modal_comma, seek_whitespace_down);
 DEFINE_MODAL_KEY(modal_period, casey_fill_paragraph);
 DEFINE_MODAL_KEY(modal_forward_slash, change_active_panel);
-DEFINE_MODAL_KEY(modal_semicolon, cursor_mark_swap); // TODO(casey): Maybe cmdid_history_backward?
+DEFINE_MODAL_KEY(modal_semicolon, seek_white_or_token_right);
 DEFINE_BIMODAL_KEY(modal_open_bracket, casey_begin_keyboard_macro_recording, write_and_auto_tab);
 DEFINE_BIMODAL_KEY(modal_close_bracket, casey_end_keyboard_macro_recording, write_and_auto_tab);
 DEFINE_MODAL_KEY(modal_a, write_character); // TODO(casey): Arbitrary command + casey_quick_calc
 DEFINE_MODAL_KEY(modal_b, cmdid_interactive_switch_buffer);
 DEFINE_MODAL_KEY(modal_c, casey_find_corresponding_file);
 DEFINE_MODAL_KEY(modal_d, casey_kill_to_end_of_line);
-DEFINE_MODAL_KEY(modal_e, list_all_locations); // TODO(casey): Available // NOTE(allen): I put list_all_locations here for testing.
+DEFINE_MODAL_KEY(modal_e, write_character);
 DEFINE_MODAL_KEY(modal_f, casey_paste_and_tab);
 DEFINE_MODAL_KEY(modal_g, goto_line);
-DEFINE_MODAL_KEY(modal_h, auto_tab_range);
+DEFINE_MODAL_KEY(modal_h, seek_white_or_token_left);
 DEFINE_MODAL_KEY(modal_i, move_up);
-DEFINE_MODAL_KEY(modal_j, seek_white_or_token_left);
-DEFINE_MODAL_KEY(modal_k, move_down);
-DEFINE_MODAL_KEY(modal_l, seek_white_or_token_right);
+DEFINE_MODAL_KEY(modal_j, casey_list_all_functions_globally);
+DEFINE_MODAL_KEY(modal_k, list_all_locations);
+DEFINE_MODAL_KEY(modal_l, list_all_substring_locations_case_insensitive);
 DEFINE_MODAL_KEY(modal_m, casey_save_and_make_without_asking);
-DEFINE_MODAL_KEY(modal_n, casey_goto_next_error);
+DEFINE_MODAL_KEY(modal_n, goto_next_error);
 DEFINE_MODAL_KEY(modal_o, query_replace);
 DEFINE_MODAL_KEY(modal_p, replace_in_range);
 DEFINE_MODAL_KEY(modal_q, copy);
@@ -1266,16 +1542,16 @@ DEFINE_MODAL_KEY(modal_v, casey_switch_buffer_other_window);
 DEFINE_MODAL_KEY(modal_w, cut);
 DEFINE_MODAL_KEY(modal_x, casey_find_corresponding_file_other_window);
 DEFINE_MODAL_KEY(modal_y, cmdid_redo);
-DEFINE_MODAL_KEY(modal_z, cmdid_interactive_open);
+DEFINE_MODAL_KEY(modal_z, cmdid_interactive_open_or_new);
 
 DEFINE_MODAL_KEY(modal_1, casey_build_search); // TODO(casey): Shouldn't need to bind a key for this?
 DEFINE_MODAL_KEY(modal_2, write_character); // TODO(casey): Available
 DEFINE_MODAL_KEY(modal_3, write_character); // TODO(casey): Available
 DEFINE_MODAL_KEY(modal_4, write_character); // TODO(casey): Available
-DEFINE_MODAL_KEY(modal_5, write_character); // TODO(casey): Available
-DEFINE_MODAL_KEY(modal_6, write_character); // TODO(casey): Available
+DEFINE_MODAL_KEY(modal_5, toggle_bright_mode); // TODO(casey): Available
+DEFINE_MODAL_KEY(modal_6, auto_tab_range); // TODO(casey): Available
 DEFINE_MODAL_KEY(modal_7, write_character); // TODO(casey): Available
-DEFINE_MODAL_KEY(modal_8, write_character); // TODO(casey): Available
+DEFINE_MODAL_KEY(modal_8, seek_whitespace_up); // TODO(casey): Available
 DEFINE_MODAL_KEY(modal_9, write_character); // TODO(casey): Available
 DEFINE_MODAL_KEY(modal_0, cmdid_kill_buffer);
 DEFINE_MODAL_KEY(modal_minus, write_character); // TODO(casey): Available
@@ -1284,7 +1560,7 @@ DEFINE_MODAL_KEY(modal_equals, casey_execute_arbitrary_command);
 DEFINE_BIMODAL_KEY(modal_backspace, casey_delete_token_left, backspace_char);
 DEFINE_BIMODAL_KEY(modal_up, move_up, move_up);
 DEFINE_BIMODAL_KEY(modal_down, move_down, move_down);
-DEFINE_BIMODAL_KEY(modal_left, seek_white_or_token_left, move_left); 
+DEFINE_BIMODAL_KEY(modal_left, seek_white_or_token_left, move_left);
 DEFINE_BIMODAL_KEY(modal_right, seek_white_or_token_right, move_right);
 DEFINE_BIMODAL_KEY(modal_delete, casey_delete_token_right, delete_char);
 DEFINE_BIMODAL_KEY(modal_home, casey_seek_beginning_of_line, casey_seek_beginning_of_line_and_tab);
@@ -1296,33 +1572,60 @@ DEFINE_BIMODAL_KEY(modal_tab, word_complete, word_complete);
 OPEN_FILE_HOOK_SIG(casey_file_settings)
 {
     // NOTE(allen|a4): As of alpha 4 hooks can have parameters which are
-    // received through functions like this app->get_parameter_buffer.
+    // received through functions like this get_parameter_buffer.
     // This is different from the past where this hook got a buffer
-    // from app->get_active_buffer.
+    // from get_active_buffer.
     unsigned int access = AccessAll;
-    //Buffer_Summary buffer = app->get_parameter_buffer(app, 0, access);
+    //Buffer_Summary buffer = get_parameter_buffer(app, 0, access);
     Buffer_Summary buffer = get_buffer(app, buffer_id, access);
     
     int treat_as_code = 0;
     int treat_as_project = 0;
+    int treat_as_doc = 0;
+    int treat_as_outline = 0;
+    int wrap_lines = 1;
+    int WrapPosition = 1200;
     
     if (buffer.file_name && buffer.size < (16 << 20))
     {
         String ext = file_extension(make_string(buffer.file_name, buffer.file_name_len));
         treat_as_code = IsCode(ext);
         treat_as_project = match(ext, make_lit_string("prj"));
+        treat_as_doc = IsDoc(ext);
+        treat_as_outline = IsOutline(ext);
     }
     
-    buffer_set_setting(app, &buffer, BufferSetting_Lex, treat_as_code);
-    buffer_set_setting(app, &buffer, BufferSetting_WrapLine, !treat_as_code);
+    if(treat_as_outline)
+    {
+        buffer_set_setting(app, &buffer, BufferSetting_VirtualWhitespace, 1);
+    }
+    else if(treat_as_code)
+    {
+        buffer_set_setting(app, &buffer, BufferSetting_Lex, treat_as_code);
+        buffer_set_setting(app, &buffer, BufferSetting_WrapLine, 0);
+    }
+    else if(treat_as_doc)
+    {
+        buffer_set_setting(app, &buffer, BufferSetting_WrapIndicator, WrapIndicator_Hide);
+        buffer_set_setting(app, &buffer, BufferSetting_WrapLine, 1);
+        WrapPosition = 600;
+    }
+    else
+    {
+        buffer_set_setting(app, &buffer, BufferSetting_WrapLine, wrap_lines);
+    }
+    
     buffer_set_setting(app, &buffer, BufferSetting_MapID, mapid_file);
+    buffer_set_setting(app, &buffer, BufferSetting_WrapPosition, WrapPosition);
     
     if(treat_as_project)
     {
-        OpenProject(app, buffer.file_name);
-        // NOTE(casey): Don't actually want to kill this, or you can never edit the project.
-        //        exec_command(app, cmdid_kill_buffer);
-        
+        int size = buffer.size;
+        char *ParsingRegion = (char *)malloc(size + 1);
+        buffer_read_range(app, &buffer, 0, size, ParsingRegion);
+        ParsingRegion[size] = 0;
+        OpenProject(app, ParsingRegion);
+        free(ParsingRegion);
     }
     
     return(0);
@@ -1406,63 +1709,6 @@ SCROLL_RULE_SIG(casey_smooth_scroll_rule){
     return(result);
 }
 
-#include <windows.h>
-#pragma comment(lib, "user32.lib")
-static HWND GlobalWindowHandle;
-static WINDOWPLACEMENT GlobalWindowPosition = {sizeof(GlobalWindowPosition)};
-internal BOOL CALLBACK win32_find_4coder_window(HWND Window, LPARAM LParam)
-{
-    BOOL Result = TRUE;
-    
-    char TestClassName[256];
-    GetClassName(Window, TestClassName, sizeof(TestClassName));
-    if((strcmp("4coder-win32-wndclass", TestClassName) == 0) && 
-       ((HINSTANCE)GetWindowLongPtr(Window, GWLP_HINSTANCE) == GetModuleHandle(0)))
-    {
-        GlobalWindowHandle = Window;
-        Result = FALSE;
-    }
-    
-    return(Result);
-}
-
-internal void
-win32_toggle_fullscreen(void)
-{
-#if 0
-    // NOTE(casey): This follows Raymond Chen's prescription
-    // for fullscreen toggling, see:
-    // http://blogs.msdn.com/b/oldnewthing/archive/2010/04/12/9994016.aspx
-    
-    HWND Window = GlobalWindowHandle;
-    DWORD Style = GetWindowLong(Window, GWL_STYLE);
-    if(Style & WS_OVERLAPPEDWINDOW)
-    {
-        MONITORINFO MonitorInfo = {sizeof(MonitorInfo)};
-        if(GetWindowPlacement(Window, &GlobalWindowPosition) &&
-           GetMonitorInfo(MonitorFromWindow(Window, MONITOR_DEFAULTTOPRIMARY), &MonitorInfo))
-        {
-            SetWindowLong(Window, GWL_STYLE, Style & ~WS_OVERLAPPEDWINDOW);
-            SetWindowPos(Window, HWND_TOP,
-                         MonitorInfo.rcMonitor.left, MonitorInfo.rcMonitor.top,
-                         MonitorInfo.rcMonitor.right - MonitorInfo.rcMonitor.left,
-                         MonitorInfo.rcMonitor.bottom - MonitorInfo.rcMonitor.top,
-                         SWP_NOOWNERZORDER | SWP_FRAMECHANGED);
-        }
-    }
-    else
-    {
-        SetWindowLong(Window, GWL_STYLE, Style | WS_OVERLAPPEDWINDOW);
-        SetWindowPlacement(Window, &GlobalWindowPosition);
-        SetWindowPos(Window, 0, 0, 0, 0, 0,
-                     SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER |
-                     SWP_NOOWNERZORDER | SWP_FRAMECHANGED);
-    }
-#else
-    ShowWindow(GlobalWindowHandle, SW_MAXIMIZE);
-#endif
-}
-
 HOOK_SIG(casey_start)
 {
     // NOTE(allen): This initializes a couple of global memory
@@ -1472,48 +1718,15 @@ HOOK_SIG(casey_start)
     init_memory(app);
     
     exec_command(app, hide_scrollbar);
+    exec_command(app, hide_filebar);
     exec_command(app, open_panel_vsplit);
     exec_command(app, hide_scrollbar);
+    exec_command(app, hide_filebar);
     exec_command(app, change_active_panel);
     
     change_theme(app, literal("Handmade Hero"));
-    change_font(app, literal("Liberation Mono"), true);
-    
-    Theme_Color colors[] =
-    {
-        {Stag_Default, 0xA08563},
-        // {Stag_Bar, },
-        // {Stag_Bar_Active, },
-        // {Stag_Base, },
-        // {Stag_Pop1, },
-        // {Stag_Pop2, },
-        // {Stag_Back, },
-        // {Stag_Margin, },
-        // {Stag_Margin_Hover, },
-        // {Stag_Margin_Active, },
-        // {Stag_Cursor, },
-        // {Stag_At_Cursor, },
-        // {Stag_Highlight, },
-        // {Stag_At_Highlight, },
-        {Stag_Comment, 0x7D7D7D},
-        {Stag_Keyword, 0xCD950C},
-        // {Stag_Str_Constant, },
-        // {Stag_Char_Constant, },
-        // {Stag_Int_Constant, },
-        // {Stag_Float_Constant, },
-        // {Stag_Bool_Constant, },
-        {Stag_Preproc, 0xDAB98F},
-        {Stag_Include, 0x6B8E23},
-        // {Stag_Special_Character, },
-        // {Stag_Highlight_Junk, },
-        // {Stag_Highlight_White, },
-        // {Stag_Paste, },
-        // {Stag_Undo, },
-        // {Stag_Next_Undo, },
-    };
-    set_theme_colors(app, colors, ArrayCount(colors));
-    
-    win32_toggle_fullscreen();
+    change_font(app, literal("Droid Sans Mono"), true);
+    UpdateModalIndicator(app);
     
     return(0);
 }
@@ -1528,11 +1741,9 @@ extern "C" GET_BINDING_DATA(get_bindings)
     set_open_file_hook(context, casey_file_settings);
     set_scroll_rule(context, casey_smooth_scroll_rule);
     
-    EnumWindows(win32_find_4coder_window, 0);
-    
     begin_map(context, mapid_global);
     {
-        bind(context, 'z', MDFR_NONE, cmdid_interactive_open);
+        bind(context, 'z', MDFR_NONE, cmdid_interactive_open_or_new);
         bind(context, 'x', MDFR_NONE, casey_open_in_other);
         bind(context, 't', MDFR_NONE, casey_load_todo);
         bind(context, '/', MDFR_NONE, change_active_panel);
@@ -1545,7 +1756,7 @@ extern "C" GET_BINDING_DATA(get_bindings)
         // Of course now there could be a modal click behavior if that will be useful.
         // As well as right click.
         bind(context, key_mouse_left, MDFR_NONE, click_set_cursor);
-    }        
+    }
     end_map(context);
     
     begin_map(context, mapid_file);
@@ -1644,6 +1855,8 @@ extern "C" GET_BINDING_DATA(get_bindings)
     
     bind(context, '\t', MDFR_NONE, modal_tab);
     bind(context, '\t', MDFR_SHIFT, modal_tab);
+    
+    bind(context, key_f4, MDFR_ALT, exit_4coder);
     
     end_map(context);
     

@@ -5738,9 +5738,8 @@ do_step_file_view(System_Functions *system, View *view, i32_Rect rect, b32 is_ac
                     {
                         GUI_Interactive *b = (GUI_Interactive*)h;
                         
-                        if (click_button_input(target, &gui_session, user_input,
-                                               b, &result.is_animating)){
-                            result.consumed_l = 1;
+                        if (click_button_input(target, &gui_session, user_input, b, &result.is_animating)){
+                            result.consumed_l = true;
                         }
                     }break;
                     
@@ -5749,9 +5748,8 @@ do_step_file_view(System_Functions *system, View *view, i32_Rect rect, b32 is_ac
                     {
                         GUI_Interactive *b = (GUI_Interactive*)h;
                         
-                        if (click_button_input(target, &gui_session, user_input,
-                                               b, &result.is_animating)){
-                            result.consumed_l = 1;
+                        if (click_button_input(target, &gui_session, user_input, b, &result.is_animating)){
+                            result.consumed_l = true;
                         }
                         
                         {
@@ -6270,15 +6268,15 @@ get_margin_color(i32 active_level, Style *style){
     
     switch (active_level){
         default:
-        margin = style->main.margin_color;
+        margin = style->main.list_item_color;
         break;
         
         case 1: case 2:
-        margin = style->main.margin_hover_color;
+        margin = style->main.list_item_hover_color;
         break;
         
         case 3: case 4:
-        margin = style->main.margin_active_color;
+        margin = style->main.list_item_active_color;
         break;
     }
     

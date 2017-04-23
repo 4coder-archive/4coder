@@ -606,6 +606,9 @@ app_hardcode_styles(Models *models){
     style->main.margin_color = 0xFF181818;
     style->main.margin_hover_color = 0xFF252525;
     style->main.margin_active_color = 0xFF323232;
+    style->main.list_item_color = style->main.margin_color;
+    style->main.list_item_hover_color = style->main.margin_hover_color;
+    style->main.list_item_active_color = style->main.margin_active_color;
     style->main.cursor_color = 0xFF00EE00;
     style->main.highlight_color = 0xFFDDEE00;
     style->main.mark_color = 0xFF494949;
@@ -645,6 +648,9 @@ app_hardcode_styles(Models *models){
     style->main.margin_color = 0xFF262626;
     style->main.margin_hover_color = 0xFF333333;
     style->main.margin_active_color = 0xFF404040;
+    style->main.list_item_color = style->main.margin_color;
+    style->main.list_item_hover_color = style->main.margin_hover_color;
+    style->main.list_item_active_color = style->main.margin_active_color;
     style->main.cursor_color = 0xFF40FF40;
     style->main.at_cursor_color = style->main.back_color;
     style->main.mark_color = 0xFF808080;
@@ -684,6 +690,9 @@ app_hardcode_styles(Models *models){
     style->main.margin_color = 0xFF1A2634;
     style->main.margin_hover_color = 0xFF2D415B;
     style->main.margin_active_color = 0xFF405D82;
+    style->main.list_item_color = style->main.margin_color;
+    style->main.list_item_hover_color = style->main.margin_hover_color;
+    style->main.list_item_active_color = style->main.margin_active_color;
     style->main.cursor_color = 0xFFEEE800;
     style->main.at_cursor_color = style->main.back_color;
     style->main.mark_color = 0xFF8BA8CC;
@@ -723,6 +732,9 @@ app_hardcode_styles(Models *models){
     style->main.margin_color = 0xFF111168;
     style->main.margin_hover_color = 0xFF191996;
     style->main.margin_active_color = 0xFF2121C3;
+    style->main.list_item_color = style->main.margin_color;
+    style->main.list_item_hover_color = style->main.margin_hover_color;
+    style->main.list_item_active_color = style->main.margin_active_color;
     style->main.cursor_color = 0xFF7082F9;
     style->main.at_cursor_color = 0xFF000014;
     style->main.mark_color = 0xFF4b5028;
@@ -762,6 +774,9 @@ app_hardcode_styles(Models *models){
     style->main.margin_color = 0xFF9E9E9E;
     style->main.margin_hover_color = 0xFF7E7E7E;
     style->main.margin_active_color = 0xFF5C5C5C;
+    style->main.list_item_color = style->main.margin_color;
+    style->main.list_item_hover_color = style->main.margin_hover_color;
+    style->main.list_item_active_color = style->main.margin_active_color;
     style->main.cursor_color = 0xFF000000;
     style->main.at_cursor_color = 0xFFD6D6D6;
     style->main.mark_color = 0xFF525252;
@@ -801,6 +816,9 @@ app_hardcode_styles(Models *models){
     style->main.margin_color = 0xFF383838;
     style->main.margin_hover_color = 0xFF404040;
     style->main.margin_active_color = 0xFF484848;
+    style->main.list_item_color = style->main.margin_color;
+    style->main.list_item_hover_color = style->main.margin_hover_color;
+    style->main.list_item_active_color = style->main.margin_active_color;
     style->main.cursor_color = 0xFFDDDDDD;
     style->main.at_cursor_color = 0xFF303030;
     style->main.mark_color = 0xFF808080;
@@ -840,6 +858,9 @@ app_hardcode_styles(Models *models){
     style->main.margin_color = 0xFF9E9E9E;
     style->main.margin_hover_color = 0xFF7E7E7E;
     style->main.margin_active_color = 0xFF5C5C5C;
+    style->main.list_item_color = style->main.margin_color;
+    style->main.list_item_hover_color = style->main.margin_hover_color;
+    style->main.list_item_active_color = style->main.margin_active_color;
     style->main.cursor_color = 0xFF000000;
     style->main.at_cursor_color = 0xFFD6D6D6;
     style->main.mark_color = 0xFF525252;
@@ -879,6 +900,9 @@ app_hardcode_styles(Models *models){
     style->main.margin_color = 0xFF606590;
     style->main.margin_hover_color = 0xFF606590;
     style->main.margin_active_color = 0xFF9a99e7;
+    style->main.list_item_color = style->main.margin_color;
+    style->main.list_item_hover_color = style->main.margin_hover_color;
+    style->main.list_item_active_color = style->main.margin_active_color;
     style->main.cursor_color = 0xFFd96e26;
     style->main.at_cursor_color = style->main.back_color;
     style->main.mark_color = 0xFF808080;
