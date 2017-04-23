@@ -2282,10 +2282,16 @@ App_Step_Sig(app_step){
     // NOTE(allen): initialize message
     if (input->first_step){
         String welcome =
-            make_lit_string("Welcome to " VERSION "\n"
+            make_lit_string("----------------------------------------------------------------\n"
+                            "Welcome to " VERSION "\n"
                             "If you're new to 4coder there are some tutorials at http://4coder.net/tutorials.html\n"
                             "\n"
                             "Newest features:\n"
+                            "-Lexer now handles string literal prefixes and is more optimized\n"
+                            "-Fixes for lingering unicode bugs\n"
+                            "-Power users have an experimental new jump to error that positions through edits (coming to all tiers soon)\n"
+                            "\n"
+                            "New in alpha 4.0.18:\n"
                             "-Support for rendering unicode characters\n"
                             "-<ctrl t> isearch alpha-numeric word under cursor\n"
                             "-<ctrl Q> query replace alpha-numeric word under cursor\n"
