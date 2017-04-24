@@ -778,7 +778,7 @@ package(char *cdir){
     zip(pack_power_par_dir, "power", str.str);
 }
 
-#if defined(DEV_BUILD)
+#if defined(DEV_BUILD) || defined(OPT_BUILD)
 
 int main(int argc, char **argv){
     init_time_system();
@@ -790,7 +790,12 @@ int main(int argc, char **argv){
     assert(n < sizeof(cdir));
     END_TIME_SECTION("current directory");
     
-    standard_build(cdir, DEBUG_INFO | SUPER | INTERNAL);
+    u32 flags = DEBUG_INFO | SUPER | INTERNAL;
+#if defined(OPT_BUILD)
+    flags |= OPTIMIZATION;
+#endif
+    
+    standard_build(cdir, flags);
     
     return(error_state);
 }
