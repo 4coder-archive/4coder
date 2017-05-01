@@ -2428,17 +2428,18 @@ file_relex_parallel(System_Functions *system, Mem_Options *mem, Editing_File *fi
             
             switch (lex_result){
                 case LexResult_NeedChunk:
-                ++chunk_index;
-                chunk = chunks[chunk_index];
-                chunk_size = chunk_sizes[chunk_index];
-                break;
+                {
+                    ++chunk_index;
+                    chunk = chunks[chunk_index];
+                    chunk_size = chunk_sizes[chunk_index];
+                }break;
                 
                 case LexResult_NeedTokenMemory:
-                inline_lex = 0;
-                goto doublebreak;
+                {
+                    inline_lex = 0;
+                }goto doublebreak;
                 
-                case LexResult_Finished:
-                goto doublebreak;
+                case LexResult_Finished: goto doublebreak;
             }
         }
         doublebreak:;
@@ -2447,8 +2448,8 @@ file_relex_parallel(System_Functions *system, Mem_Options *mem, Editing_File *fi
             i32 new_count = cpp_relex_get_new_count(&state, array->count, &relex_array);
             if (new_count > array->max_count){
                 i32 new_max = l_round_up_i32(new_count, KB(1));
-                array->tokens = (Cpp_Token*)
-                    general_memory_reallocate(general, array->tokens, array->count*sizeof(Cpp_Token), new_max*sizeof(Cpp_Token));
+                void *memory = general_memory_reallocate(general, array->tokens, array->count*sizeof(Cpp_Token), new_max*sizeof(Cpp_Token));
+                array->tokens = (Cpp_Token*)memory;
                 array->max_count = new_max;
             }
             
