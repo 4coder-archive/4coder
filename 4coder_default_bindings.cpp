@@ -220,4 +220,3 @@ get_bindings(void *data, int32_t size){
 
 // BOTTOM
 
-R"
