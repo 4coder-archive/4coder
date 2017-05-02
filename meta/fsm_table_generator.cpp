@@ -285,6 +285,7 @@ main_fsm(Cpp_Lex_FSM fsm, uint8_t pp_state, uint8_t c, bool32 ignore_string_deli
         switch (fsm.state){
             case LS_string_R:
             case LS_string_LUu8:
+            case LS_string_u:
             {
                 fsm.state = LS_identifier;
             }break;
