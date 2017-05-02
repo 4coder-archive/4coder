@@ -18,7 +18,6 @@
 
 /* DOC(A Cpp_Token_Type classifies a token to make parsing easier. Some types are not actually output by the lexer, but exist because parsers will also make use of token types in their own output.) */
 ENUM(uint32_t, Cpp_Token_Type){
-    
     CPP_TOKEN_JUNK = 0,
     CPP_TOKEN_COMMENT = 1,
     

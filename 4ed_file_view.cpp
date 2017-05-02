@@ -2152,13 +2152,10 @@ Job_Callback_Sig(job_full_lex){
     // TODO(allen): deduplicate this against relex
     char *chunks[3];
     i32 chunk_sizes[3];
-    
     chunks[0] = buffer->data;
     chunk_sizes[0] = buffer->size1;
-    
     chunks[1] = buffer->data + buffer->size1 + buffer->gap_size;
     chunk_sizes[1] = buffer->size2;
-    
     chunks[2] = 0;
     chunk_sizes[2] = 0;
     
@@ -2172,22 +2169,27 @@ Job_Callback_Sig(job_full_lex){
             cpp_lex_step(&lex, chunk, chunk_size, text_size, &tokens, 2048);
         
         switch (result){
-            case LexResult_NeedChunk: ++chunk_index; break;
+            case LexResult_NeedChunk:
+            {
+                ++chunk_index;
+                Assert(chunk_index < ArrayCount(chunks));
+            }break;
             
             case LexResult_NeedTokenMemory:
-            if (system->check_cancel(thread)){
-                return;
-            }
-            system->grow_thread_memory(memory);
-            tokens.tokens = (Cpp_Token*)(memory->data);
-            tokens.max_count = memory->size / sizeof(Cpp_Token);
-            break;
-            
-            case LexResult_HitTokenLimit:
-            if (system->check_cancel(thread)){
-                return;
-            }
-            break;
+            {
+                if (system->check_cancel(thread)){
+                    return;
+                }
+                system->grow_thread_memory(memory);
+                tokens.tokens = (Cpp_Token*)(memory->data);
+                tokens.max_count = memory->size / sizeof(Cpp_Token);
+                break;
+                
+                case LexResult_HitTokenLimit:
+                if (system->check_cancel(thread)){
+                    return;
+                }
+            }break;
             
             case LexResult_Finished: still_lexing = 0; break;
         }
@@ -2294,13 +2296,10 @@ file_first_lex_serial(Mem_Options *mem, Editing_File *file){
             // TODO(allen): deduplicate this against relex
             char *chunks[3];
             i32 chunk_sizes[3];
-            
             chunks[0] = buffer->data;
             chunk_sizes[0] = buffer->size1;
-            
             chunks[1] = buffer->data + buffer->size1 + buffer->gap_size;
             chunk_sizes[1] = buffer->size2;
-            
             chunks[2] = 0;
             chunk_sizes[2] = 0;
             
@@ -2315,8 +2314,11 @@ file_first_lex_serial(Mem_Options *mem, Editing_File *file){
                 i32 result = cpp_lex_step(&lex, chunk, chunk_size, text_size, &tokens, NO_OUT_LIMIT);
                 
                 switch (result){
-                    case LexResult_NeedChunk: ++chunk_index; break;
-                    
+                    case LexResult_NeedChunk:
+                    {
+                        ++chunk_index;
+                        Assert(chunk_index < ArrayCount(chunks));
+                    }break;
                     
                     case LexResult_Finished:
                     case LexResult_NeedTokenMemory:
@@ -2418,6 +2420,7 @@ file_relex_parallel(System_Functions *system, Mem_Options *mem, Editing_File *fi
         
         while (!cpp_relex_is_start_chunk(&state, chunk, chunk_size)){
             ++chunk_index;
+            Assert(chunk_index < ArrayCount(chunks));
             chunk = chunks[chunk_index];
             chunk_size = chunk_sizes[chunk_index];
         }
@@ -2430,6 +2433,7 @@ file_relex_parallel(System_Functions *system, Mem_Options *mem, Editing_File *fi
                 case LexResult_NeedChunk:
                 {
                     ++chunk_index;
+                    Assert(chunk_index < ArrayCount(chunks));
                     chunk = chunks[chunk_index];
                     chunk_size = chunk_sizes[chunk_index];
                 }break;
@@ -2539,6 +2543,7 @@ file_relex_serial(Mem_Options *mem, Editing_File *file, i32 start_i, i32 end_i, 
     
     while (!cpp_relex_is_start_chunk(&state, chunk, chunk_size)){
         ++chunk_index;
+        Assert(chunk_index < ArrayCount(chunks));
         chunk = chunks[chunk_index];
         chunk_size = chunk_sizes[chunk_index];
     }
@@ -2548,10 +2553,12 @@ file_relex_serial(Mem_Options *mem, Editing_File *file, i32 start_i, i32 end_i, 
         
         switch (lex_result){
             case LexResult_NeedChunk:
-            ++chunk_index;
-            chunk = chunks[chunk_index];
-            chunk_size = chunk_sizes[chunk_index];
-            break;
+            {
+                ++chunk_index;
+                Assert(chunk_index < ArrayCount(chunks));
+                chunk = chunks[chunk_index];
+                chunk_size = chunk_sizes[chunk_index];
+            }break;
             
             case LexResult_NeedTokenMemory: InvalidCodePath;
             
