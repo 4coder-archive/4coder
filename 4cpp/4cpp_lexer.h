@@ -266,9 +266,7 @@ FCPP_LINK Cpp_Lex_PP_State
 cpp_pp_directive_to_state(Cpp_Token_Type type){
     Cpp_Lex_PP_State result = LSPP_default;
     switch (type){
-        case CPP_PP_INCLUDE:
-        case CPP_PP_IMPORT:
-        case CPP_PP_USING:
+        case CPP_PP_INCLUDE: case CPP_PP_IMPORT: case CPP_PP_USING:
         result = LSPP_include;
         break;
         
@@ -276,14 +274,11 @@ cpp_pp_directive_to_state(Cpp_Token_Type type){
         result = LSPP_macro_identifier;
         break;
         
-        case CPP_PP_UNDEF:
-        case CPP_PP_IFDEF:
-        case CPP_PP_IFNDEF:
+        case CPP_PP_UNDEF: case CPP_PP_IFDEF: case CPP_PP_IFNDEF:
         result = LSPP_identifier;
         break;
         
-        case CPP_PP_IF:
-        case CPP_PP_ELIF:
+        case CPP_PP_IF: case CPP_PP_ELIF:
         result = LSPP_body_if;
         break;
         
@@ -291,8 +286,7 @@ cpp_pp_directive_to_state(Cpp_Token_Type type){
         result = LSPP_body;
         break;
         
-        case CPP_PP_VERSION:
-        case CPP_PP_LINE:
+        case CPP_PP_VERSION: case CPP_PP_LINE:
         result = LSPP_number;
         break;
         
@@ -300,9 +294,7 @@ cpp_pp_directive_to_state(Cpp_Token_Type type){
         result = LSPP_error;
         break;
         
-        case CPP_PP_UNKNOWN:
-        case CPP_PP_ELSE:
-        case CPP_PP_ENDIF:
+        case CPP_PP_UNKNOWN: case CPP_PP_ELSE: case CPP_PP_ENDIF:
         result = LSPP_junk;
         break;
     }
@@ -621,6 +613,8 @@ cpp_lex_nonalloc_null_end_no_limit(Cpp_Lex_Data *S_ptr, char *chunk, i32_4tech s
             
             case LS_string_raw:
             {
+                Assert(c != 0);
+                
                 S.tb_pos = 0;
                 S.delim_length = 0;
                 
@@ -701,6 +695,8 @@ cpp_lex_nonalloc_null_end_no_limit(Cpp_Lex_Data *S_ptr, char *chunk, i32_4tech s
             
             case LS_string_normal:
             {
+                Assert(c != 0);
+                
                 S.fsm.state = LSSTR_default;
                 S.fsm.flags = 0;
                 for (;;){

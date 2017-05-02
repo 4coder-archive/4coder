@@ -218,7 +218,7 @@ FSM_SIG(raw_str_fsm){
             case LSSTR_default:
             {
                 switch (c){
-                    case ')': case '\\': case ' ': case '\n': fsm.emit_token = true; break;
+                    case 0: case ')': case '\\': case ' ': case '\n': fsm.emit_token = true; break;
                     case '(': fsm.state = LSSTR_get_delim; fsm.emit_token = true; break;
                     default: break;
                 }
@@ -282,6 +282,13 @@ is_identifier_char_non_numeric(u8_4tech c, b32_4tech ignore_string_delims){
 Cpp_Lex_FSM
 main_fsm(Cpp_Lex_FSM fsm, uint8_t pp_state, uint8_t c, bool32 ignore_string_delims){
     if (c == 0){
+        switch (fsm.state){
+            case LS_string_R:
+            case LS_string_LUu8:
+            {
+                fsm.state = LS_identifier;
+            }break;
+        }
         fsm.emit_token = true;
     }
     else{
