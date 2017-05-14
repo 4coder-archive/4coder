@@ -1095,13 +1095,19 @@ DOC_SEE(cpp_get_token)
 }
 
 API_EXPORT bool32
-Buffer_Send_End_Signal(Application_Links *app, Buffer_Summary *buffer){
+Buffer_Send_End_Signal(Application_Links *app, Buffer_Summary *buffer)
+/*
+DOC_PARAM(buffer, The buffer to which to send the end signal.)
+DOC_RETURN(Returns non-zero on success.  This call can fail if the buffer doesn't exist.)
+DOC(Whenever a buffer is killed an end signal is sent which triggers the end file hook.  This call sends the end signal to the buffer without killing the buffer.  This is useful in cases such as clearing a buffer and refilling it with new contents.)
+*/{
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     Models *models = cmd->models;
     Editing_File *file = imp_get_file(cmd, buffer);
     
     bool32 result = false;
     if (file != 0){
+        result = true;
         Open_File_Hook_Function *hook_end_file = models->hook_end_file;
         if (hook_end_file != 0){
             hook_end_file(app, file->id.id);
