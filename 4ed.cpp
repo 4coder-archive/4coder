@@ -473,16 +473,6 @@ COMMAND_DECL(open_color_tweaker){
     view_show_theme(view);
 }
 
-COMMAND_DECL(open_config){
-    USE_VIEW(view);
-    view_show_GUI(view, VUI_Config);
-}
-
-COMMAND_DECL(open_menu){
-    USE_VIEW(view);
-    view_show_GUI(view, VUI_Menu);
-}
-
 COMMAND_DECL(open_debug){
     USE_VIEW(view);
     view_show_GUI(view, VUI_Debug);
@@ -585,8 +575,6 @@ setup_command_table(){
     SET(kill_buffer);
     
     SET(open_color_tweaker);
-    SET(open_config);
-    SET(open_menu);
     SET(open_debug);
 #undef SET
 }

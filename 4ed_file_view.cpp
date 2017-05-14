@@ -125,8 +125,6 @@ enum View_UI{
     VUI_None,
     VUI_Theme,
     VUI_Interactive,
-    VUI_Menu,
-    VUI_Config,
     VUI_Debug
 };
 
@@ -4649,44 +4647,6 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
         }
         else{
             switch (view->showing_ui){
-                case VUI_Menu:
-                {
-                    String message = make_lit_string("Menu");
-                    String empty_string = {0};
-                    GUI_id id = {0};
-                    id.id[1] = VUI_Menu;
-                    
-                    gui_do_text_field(target, message, empty_string);
-                    
-                    id.id[0] = 0;
-                    message = make_lit_string("Theme");
-                    if (gui_do_fixed_option(target, id, message, 0)){
-                        view_show_theme(view);
-                    }
-                    
-                    id.id[0] = 1;
-                    message = make_lit_string("Config");
-                    if (gui_do_fixed_option(target, id, message, 0)){
-                        view_show_GUI(view, VUI_Config);
-                    }
-                }break;
-                
-                case VUI_Config:
-                {
-                    String message = make_lit_string("Config");
-                    String empty_string = {0};
-                    GUI_id id = {0};
-                    id.id[1] = VUI_Config;
-                    
-                    gui_do_text_field(target, message, empty_string);
-                    
-                    id.id[0] = 0;
-                    message = make_lit_string("Left Ctrl + Left Alt = AltGr");
-                    if (gui_do_fixed_option_checkbox(target, id, message, 0, (b8)models->settings.lctrl_lalt_is_altgr)){
-                        models->settings.lctrl_lalt_is_altgr = !models->settings.lctrl_lalt_is_altgr;
-                    }
-                }break;
-                
                 case VUI_Theme:
                 {
                     if (view != active_view){

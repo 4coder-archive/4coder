@@ -81,10 +81,6 @@ ENUM(uint64_t, Command_ID){
     
     /* DOC(cmdid_open_color_tweaker opens the theme editing GUI.) */
     cmdid_open_color_tweaker,
-    /* DOC(cmdid_open_config opens the configuration menu.) */
-    cmdid_open_config,
-    /* DOC(cmdid_open_menu opens the top level menu. ) */
-    cmdid_open_menu,
     /* DOC(cmdid_open_debug opens the debug information viewer mode.) */
     cmdid_open_debug,
     
@@ -136,29 +132,30 @@ ENUM(int32_t, Wrap_Indicator_Mode){
     WrapIndicator_Show_At_Wrap_Edge,
 };
 
+/* DOC(A Global_Setting_ID names a setting.) */
+ENUM(int32_t, Global_Setting_ID){
+    /* DOC(GlobalSetting_Null is not a valid setting, it is reserved to detect errors.) */
+    GlobalSetting_Null,
+    
+    /* DOC(When GlobalSetting_LAltLCtrlIsAltGr is enabled, keyboard layouts with AltGr will also interpret the left alt and control keys as AltGr.  If you do not use a keyboard with AltGr you should have this turned off.  This setting is only relevant on Windows and has no effect on other systems.) */
+    GlobalSetting_LAltLCtrlIsAltGr,
+};
+
 /* DOC(A Buffer_Setting_ID names a setting in a buffer.) */
 ENUM(int32_t, Buffer_Setting_ID){
     /* DOC(BufferSetting_Null is not a valid setting, it is reserved to detect errors.) */
     BufferSetting_Null,
     
-    /* DOC(The BufferSetting_Lex setting is used to determine whether to store C++ tokens
-    from with the buffer.) */
+    /* DOC(The BufferSetting_Lex setting is used to determine whether to store C++ tokens from with the buffer.) */
     BufferSetting_Lex,
     
     /* DOC(The BufferSetting_LexWithoutStrings tells the system to treat string and character marks as identifiers instead of strings.  This settings does nothing if the buffer does not have lexing turned on.) */
     BufferSetting_LexWithoutStrings,
     
-    /* DOC(The BufferSetting_WrapLine setting is used to determine whether a buffer prefers
-    to be viewed with wrapped lines, individual views can be set to override this value after
-    being tied to the buffer.) */
+    /* DOC(The BufferSetting_WrapLine setting is used to determine whether a buffer prefers to be viewed with wrapped lines, individual views can be set to override this value after being tied to the buffer.) */
     BufferSetting_WrapLine,
     
-    /* DOC(The BufferSetting_WrapPosition setting determines after how many pixels
-    a line will wrap.  A view set's this value from the global default value
-    when the view is created.  This value cannot be set to less than 48, any value passed
-    below 48 will cause the position to be set to 48.  This is a potentially expensive
-    operation because the wrap positions of the file have to be reindexed. For
-    best behavior try to only set this setting once per frame, if possible.) */
+    /* DOC(The BufferSetting_WrapPosition setting determines after how many pixels a line will wrap.  A view set's this value from the global default value when the view is created.  This value cannot be set to less than 48, any value passed below 48 will cause the position to be set to 48.  This is a potentially expensive operation because the wrap positions of the file have to be reindexed. For best behavior try to only set this setting once per frame, if possible.) */
     BufferSetting_WrapPosition,
     
     /* DOC(The BufferSetting_MinimumBaseWrapPosition setting is used to increase the with in pixels allotted to a line for wrapping, by setting a minimum position away from the base of the line.  The base of a line is always 0, or the left hand side of the view, in text files.  In code files the base of a line is the amount the line is shifted to the right due to brace nesting.  This setting allows for deeply nested code to remain readable by ensuring lines deep in the nesting get some minimum base width which may be more wrapping space than the non base adjusted wrap position would have allowed.  In any case where the (default wrapping position) is greater than (the base + minimum base position), the larger ) the default will still be used. */
@@ -167,12 +164,10 @@ ENUM(int32_t, Buffer_Setting_ID){
     /* DOC(The BufferSetting_WrapIndicator setting is used to specify how wrapped lines should be marked so the user can see that they have been wrapped.  The value should be one of the values in the Wrap_Indicator_Mode enum.) DOC_SEE(Wrap_Indicator_Mode) */
     BufferSetting_WrapIndicator,
     
-    /* DOC(The BufferSetting_MapID setting specifies the id of the command map that should be
-    active when a buffer is active.) */
+    /* DOC(The BufferSetting_MapID setting specifies the id of the command map that should be active when a buffer is active.) */
     BufferSetting_MapID,
     
-    /* DOC(The BufferSetting_Eol setting specifies how line ends should be saved to the backing file. 
-    A 1 indicates dos endings "\r\n" and a 0 indicates nix endings "\n".) */
+    /* DOC(The BufferSetting_Eol setting specifies how line ends should be saved to the backing file.  A 1 indicates dos endings "\r\n" and a 0 indicates nix endings "\n".) */
     BufferSetting_Eol,
     
     /* DOC(The BufferSetting_Unimportant setting marks a buffer so that its dirty state will be forced to stay at DirtyState_UpToDate when the buffer is edited or when the buffer's paired file, if it has one, is edited.) */
@@ -181,9 +176,7 @@ ENUM(int32_t, Buffer_Setting_ID){
     /* DOC(The BufferSetting_ReadOnly setting marks a buffer so that it can only be returned from buffer access calls that include an AccessProtected flag.  By convention this means that edit commands that should not be applied to read only buffers will not edit this buffer.) */
     BufferSetting_ReadOnly,
     
-    /* DOC(The BufferSetting_VirtualWhitespace settings enables virtual whitespace on a buffer.
-    Text buffers with virtual whitespace will set the indentation of every line to zero.
-    Buffers with lexing enabled will use virtual white space to present the code with appealing indentation.) */
+    /* DOC(The BufferSetting_VirtualWhitespace settings enables virtual whitespace on a buffer. Text buffers with virtual whitespace will set the indentation of every line to zero. Buffers with lexing enabled will use virtual white space to present the code with appealing indentation.) */
     BufferSetting_VirtualWhitespace,
 };
 

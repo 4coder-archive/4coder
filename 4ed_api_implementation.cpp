@@ -163,6 +163,32 @@ imp_get_view(Command_Data *cmd, View_Summary *view){
 }
 
 API_EXPORT bool32
+Global_Set_Setting(Application_Links *app, Global_Setting_ID setting, int32_t value)
+/*
+DOC_PARAM(setting, Which setting to change.)
+DOC_PARAM(value, The new value to set ont he specified setting.)
+DOC_SEE(Global_Setting_ID)
+*/{
+    Command_Data *cmd = (Command_Data*)app->cmd_context;
+    Models *models = cmd->models;
+    
+    b32 result = true;
+    switch (setting){
+        case GlobalSetting_LAltLCtrlIsAltGr:
+        {
+            models->settings.lctrl_lalt_is_altgr = value;
+        }break;
+        
+        default:
+        {
+            result = false;
+        }break;
+    }
+    
+    return(result);
+}
+
+API_EXPORT bool32
 Exec_Command(Application_Links *app, Command_ID command_id)
 /*
 DOC_PARAM(command_id, The command_id parameter specifies which internal command to execute.)

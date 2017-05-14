@@ -946,14 +946,6 @@ CUSTOM_COMMAND_SIG(open_color_tweaker){
     exec_command(app, cmdid_open_color_tweaker);
 }
 
-CUSTOM_COMMAND_SIG(open_config){
-    exec_command(app, cmdid_open_config);
-}
-
-CUSTOM_COMMAND_SIG(open_menu){
-    exec_command(app, cmdid_open_menu);
-}
-
 CUSTOM_COMMAND_SIG(open_debug){
     exec_command(app, cmdid_open_debug);
 }

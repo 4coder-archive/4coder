@@ -483,9 +483,6 @@ CUSTOM_COMMAND_SIG(execute_arbitrary_command){
     else if(match_ss(bar.string, make_lit_string("close all code"))){
         exec_command(app, close_all_code);
     }
-    else if (match_ss(bar.string, make_lit_string("open menu"))){
-        exec_command(app, cmdid_open_menu);
-    }
     else if (match_ss(bar.string, make_lit_string("dos lines")) ||
              match_ss(bar.string, make_lit_string("dosify"))){
         exec_command(app, eol_dosify);
