@@ -626,9 +626,6 @@ DOC_SEE(buffer_add_markers)
 */
 TYPEDEF void* Marker_Handle;
 
-/*
-DOC(A four corner axis aligned rectangle, with integer coordinates.)
-*/
 STRUCT i32_Rect{
     int32_t x0;
     int32_t y0;
@@ -638,9 +635,6 @@ STRUCT i32_Rect{
 
 GLOBAL_VAR i32_Rect null_i32_rect = {0};
 
-/*
-DOC(A four corner axis aligned rectangle, with floating point coordinates.)
-*/
 STRUCT f32_Rect{
     float x0;
     float y0;
@@ -830,12 +824,8 @@ TYPEDEF_FUNC int32_t Get_Binding_Data_Function(void *data, int32_t size);
 #define GET_BINDING_DATA(name) int32_t name(void *data, int32_t size)
 
 // NOTE(allen): Definitions for the format that Get_Binding_Data uses to launch 4coder.
-// TODO(allen): Transition to a more dynamic Command_Map system.
+// TODO(allen): Find a way to transition to a more dynamic Command_Map system.
 
-/*
-DOC(Values for the type field in the discriminated union Binding_Unit.)
-DOC_SEE(Binding_Unit)
-*/
 ENUM(int32_t, Binding_Unit_Type){
     unit_header,
     unit_map_begin,
@@ -845,18 +835,12 @@ ENUM(int32_t, Binding_Unit_Type){
     unit_hook
 };
 
-/*
-DOC(Values for built in command maps.)
-*/
 ENUM(int32_t, Map_ID){
     mapid_global = (1 << 24),
     mapid_file,
     mapid_nomap
 };
 
-/*
-DOC(Describes a unit of information for setting up key bindings.  A unit can set a key binding, switch the active map, set the inherited map, or set a hook.)
-*/
 STRUCT Binding_Unit{
     Binding_Unit_Type type;
     UNION{
