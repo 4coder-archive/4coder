@@ -3,35 +3,35 @@
 \IMAGE{image:4coder_logo}{width:200}
 \END_LINK
 
-Right now I am working on upgrading some core internal systems that should buy me the flexibility I need before I can move forward to any of the remaining features on this list.  These time projections assume the new system is ready sometime in May 2017, but it is hard to predict this sort of experimental stuff, so it could be longer than that.
+Right now I am working on upgrading some core internal systems that should buy me the flexibility I need to get the rest of the envisioned features done.  Because these core upgrades are experimental in nature, it's hard to predict how long it will take before they are ready.
 
 \SECTION{Improve the Core Buffer Systems}
  \BEGIN_LIST
- \BEGIN_ITEM Programmable code wrapping: May 2017. \END_ITEM
- \BEGIN_ITEM Virtual/Ghost text for features such as word complete. Target completion: May 2017. \END_ITEM
- \BEGIN_ITEM Binary buffer mode. Target completion: June 2017. \END_ITEM
- \BEGIN_ITEM Fix up the undo/redo system. Target completion: July 2017. \END_ITEM
- \BEGIN_ITEM Expose undo/redo system in the custom layer. Target completion: July 2017. \END_ITEM
+ \BEGIN_ITEM Programmable code wrapping. \END_ITEM
+ \BEGIN_ITEM Virtual/Ghost text for features such as word complete and code folding. \END_ITEM
+ \BEGIN_ITEM Binary buffer mode. \END_ITEM
+ \BEGIN_ITEM Fix up the undo/redo system. \END_ITEM
+ \BEGIN_ITEM Expose undo/redo system in the custom layer. \END_ITEM
  \END_LIST
 
 \SECTION{Provide Customizations for Multiple Editing Paradgims}
  \BEGIN_LIST
- \BEGIN_ITEM Restructure custom layer to work as an event loop.  Target completion: July 2017. \END_ITEM
- \BEGIN_ITEM Custom layer reloading at runtime.  Target completion: August 2017. \END_ITEM
- \BEGIN_ITEM New frameworks for vim like and sublime like editing.  Target completion: August 2017. \END_ITEM
+ \BEGIN_ITEM Restructure custom layer to work as an event loop. \END_ITEM
+ \BEGIN_ITEM Custom layer reloading at runtime. \END_ITEM
+ \BEGIN_ITEM New frameworks for vim like and sublime like editing. \END_ITEM
  \END_LIST
 
 \SECTION{Platform Layer Features and Porting Issues}
  \BEGIN_LIST
- \BEGIN_ITEM Upgrade to worker thread system to better support async and parallel systems. Target completion: ??? \END_ITEM
- \BEGIN_ITEM Support for double click opening files in an existing window.  Target completion: ??? \END_ITEM
- \BEGIN_ITEM Make the rendeirng system modular.  Target completion: ??? \END_ITEM
+ \BEGIN_ITEM Upgrade the worker thread system to better support async and parallel solutions. \END_ITEM
+ \BEGIN_ITEM Support for double click opening files in an existing window. \END_ITEM
+ \BEGIN_ITEM Make the rendeirng system modular. \END_ITEM
  \END_LIST
 
 \SECTION{Buffer Driven GUI}
  \BEGIN_LIST
- \BEGIN_ITEM Labels, clickable buttons, text fields.  Target completion: ??? \END_ITEM
- \BEGIN_ITEM Tables.  Target completion: ??? \END_ITEM
- \BEGIN_ITEM IMGUI helper wrapper. Target completion: ??? \END_ITEM
+ \BEGIN_ITEM Labels, clickable buttons, text fields. \END_ITEM
+ \BEGIN_ITEM Tables. \END_ITEM
+ \BEGIN_ITEM IMGUI helper wrapper. \END_ITEM
  \END_LIST
 

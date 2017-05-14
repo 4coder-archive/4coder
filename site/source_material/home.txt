@@ -3,7 +3,7 @@
 \IMAGE{image:4coder_logo}{width:200}
 \END_LINK
 
-4coder is a code editor that first and foremost targets the needs of C/C++ developers so they can be as efficient as possible. Here you can learn about the features of 4coder, how to get started with 4coder, and how to get the absolute most out of 4coder.
+4coder is a code editor that lives in a space between an IDE and a power editor such as Emacs or Vim.  It targets maximum ease of customization, extension, and cross platform reliability.  Earlier versions of 4coder focussed entirely on C/C++ but it is now transitioning to be a more general purpose editor. Here you can learn about the features of 4coder, how to get started with 4coder, and how to get the absolute most out of 4coder.
 
 If you cannot find what you are looking for please contact \BEGIN_STYLE{code} editor@4coder.net \END_STYLE with questions.
 
