@@ -754,6 +754,7 @@ process_config_file(Application_Links *app){
             if (result == LexResult_Finished){
                 int32_t new_wrap_width = default_wrap_width;
                 int32_t new_min_base_width = default_min_base_width;
+                bool32 lalt_lctrl_is_altgr = false;
                 
                 for (int32_t i = 0; i < array.count; ++i){
                     Config_Line config_line = read_config_line(array, &i);
@@ -782,11 +783,14 @@ process_config_file(Application_Links *app){
                         }
                         
                         config_bool_var(item, "automatically_load_project", 0, &automatically_load_project);
+                        
+                        config_bool_var(item, "lalt_lctrl_is_altgr", 0, &lalt_lctrl_is_altgr);
                     }
                 }
                 adjust_all_buffer_wrap_widths(app, new_wrap_width, new_min_base_width);
                 default_wrap_width = new_wrap_width;
                 default_min_base_width = new_min_base_width;
+                global_set_setting(app, GlobalSetting_LAltLCtrlIsAltGr, lalt_lctrl_is_altgr);
             }
         }
         
