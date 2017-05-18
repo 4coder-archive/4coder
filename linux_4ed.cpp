@@ -2308,18 +2308,18 @@ size_change(i32 x, i32 y){
     return(r);
 }
 
-internal b32
-LinuxX11WindowInit(int argc, char** argv, int* WinWidth, int* WinHeight)
-{
 #define BASE_W 800
 #define BASE_H 600
-    
+
+internal b32
+LinuxX11WindowInit(int argc, char** argv, int* window_width, int* window_height){
     if (linuxvars.settings.set_window_size){
-        *WinWidth = linuxvars.settings.window_w;
-        *WinHeight = linuxvars.settings.window_h;
+        *window_width = linuxvars.settings.window_w;
+        *window_height = linuxvars.settings.window_h;
     } else {
-        *WinWidth = BASE_W * size_change(linuxvars.dpi_x, linuxvars.dpi_y);
-        *WinHeight = BASE_H * size_change(linuxvars.dpi_x, linuxvars.dpi_y);
+        i32 schange = size_change(linuxvars.dpi_x, linuxvars.dpi_y);
+        *window_width = BASE_W * schange;
+        *window_height = BASE_H * schange;
     }
     
     if (!GLXCanUseFBConfig(linuxvars.XDisplay)){
@@ -2339,7 +2339,8 @@ LinuxX11WindowInit(int argc, char** argv, int* WinWidth, int* WinHeight)
     swa.bit_gravity = NorthWestGravity;
     swa.colormap = XCreateColormap(linuxvars.XDisplay, RootWindow(linuxvars.XDisplay, Config.BestInfo.screen), Config.BestInfo.visual, AllocNone);
     
-    linuxvars.XWindow = XCreateWindow(linuxvars.XDisplay, RootWindow(linuxvars.XDisplay, Config.BestInfo.screen), 0, 0, *WinWidth, *WinHeight, 0, Config.BestInfo.depth, InputOutput, Config.BestInfo.visual, CWBackingStore|CWBitGravity|CWBackPixel|CWBorderPixel|CWColormap|CWEventMask, &swa);
+    u32 CWflags = CWBackingStore|CWBitGravity|CWBackPixel|CWBorderPixel|CWColormap|CWEventMask;
+    linuxvars.XWindow = XCreateWindow(linuxvars.XDisplay, RootWindow(linuxvars.XDisplay, Config.BestInfo.screen), 0, 0, *window_width, *window_height, 0, Config.BestInfo.depth, InputOutput, Config.BestInfo.visual, CWflags, &swa);
     
     if (!linuxvars.XWindow){
         LinuxFatalErrorMsg("XCreateWindow failed. Make sure your display is set up correctly.");
@@ -2427,8 +2428,8 @@ LinuxX11WindowInit(int argc, char** argv, int* WinWidth, int* WinHeight)
     XWindowAttributes WinAttribs;
     if (XGetWindowAttributes(linuxvars.XDisplay, linuxvars.XWindow, &WinAttribs))
     {
-        *WinWidth = WinAttribs.width;
-        *WinHeight = WinAttribs.height;
+        *window_width = WinAttribs.width;
+        *window_height = WinAttribs.height;
     }
     
     Atom wm_protos[] = {
@@ -2978,8 +2979,8 @@ main(int argc, char **argv){
     }
 #endif
     
-    int WinWidth, WinHeight;
-    if (!LinuxX11WindowInit(argc, argv, &WinWidth, &WinHeight)){
+    int window_width, window_height;
+    if (!LinuxX11WindowInit(argc, argv, &window_width, &window_height)){
         return 1;
     }
     
@@ -3060,7 +3061,7 @@ main(int argc, char **argv){
     
     linuxvars.app.init(&linuxvars.system, &linuxvars.target, &memory_vars, linuxvars.clipboard_contents, current_directory, linuxvars.custom_api);
     
-    LinuxResizeTarget(WinWidth, WinHeight);
+    LinuxResizeTarget(window_width, window_height);
     
     //
     // Main loop
