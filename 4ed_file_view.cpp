@@ -2123,29 +2123,40 @@ struct Shift_Information{
     i32 start, end, amount;
 };
 
-// TODO(allen): I want this code audited soon
 internal
 Job_Callback_Sig(job_full_lex){
     Editing_File *file = (Editing_File*)data[0];
     General_Memory *general = (General_Memory*)data[1];
+    Models *models = (Models*)data[2];
+    
+    Parse_Context parse_context = parse_context_get(&models->parse_context_memory, file->settings.parse_context_id, memory->data, memory->size);
+    if (!parse_context.valid){
+        return;
+    }
     
     Gap_Buffer *buffer = &file->state.buffer;
     i32 text_size = buffer_size(buffer);
     
     i32 aligned_buffer_size = (text_size + 3)&(~3);
     
-    while (memory->size < aligned_buffer_size){
+    for (;memory->size < aligned_buffer_size + parse_context.memory_size;){
         system->grow_thread_memory(memory);
     }
     
-    Cpp_Token_Array tokens;
-    tokens.tokens = (Cpp_Token*)(memory->data);
-    tokens.max_count = memory->size / sizeof(Cpp_Token);
+    u8 *data_ptr = (u8*)memory->data;
+    umem data_size = memory->size;
+    
+    data_ptr += parse_context.memory_size;
+    data_size -= parse_context.memory_size;
+    
+    Cpp_Token_Array tokens = {0};
+    tokens.tokens = (Cpp_Token*)(data_ptr);
+    tokens.max_count = (u32)(data_size / sizeof(Cpp_Token));
     tokens.count = 0;
     
-    b32 still_lexing = 1;
+    b32 still_lexing = true;
     
-    Cpp_Lex_Data lex = cpp_lex_data_init(file->settings.tokens_without_strings);
+    Cpp_Lex_Data lex = cpp_lex_data_init(file->settings.tokens_without_strings, parse_context.kw_table, parse_context.pp_table);
     
     // TODO(allen): deduplicate this against relex
     char *chunks[3];
@@ -2189,7 +2200,7 @@ Job_Callback_Sig(job_full_lex){
                 }
             }break;
             
-            case LexResult_Finished: still_lexing = 0; break;
+            case LexResult_Finished: still_lexing = false; break;
         }
     } while (still_lexing);
     
@@ -2223,8 +2234,8 @@ Job_Callback_Sig(job_full_lex){
     // NOTE(allen): These are outside the locked section because I don't
     // think getting these out of order will cause critical bugs, and I
     // want to minimize what's done in locked sections.
-    file->state.tokens_complete = 1;
-    file->state.still_lexing = 0;
+    file->state.tokens_complete = true;
+    file->state.still_lexing = false;
 }
 
 internal void
@@ -2245,37 +2256,43 @@ file_kill_tokens(System_Functions *system, General_Memory *general, Editing_File
 }
 
 internal void
-file_first_lex_parallel(System_Functions *system, Mem_Options *mem, Editing_File *file){
-    General_Memory *general = &mem->general;
-    file->settings.tokens_exist = 1;
+file_first_lex_parallel(System_Functions *system, Models *models, Editing_File *file){
+    General_Memory *general = &models->mem.general;
+    file->settings.tokens_exist = true;
     
     if (file->is_loading == 0 && file->state.still_lexing == 0){
         Assert(file->state.token_array.tokens == 0);
         
-        file->state.tokens_complete = 0;
-        file->state.still_lexing = 1;
+        file->state.tokens_complete = false;
+        file->state.still_lexing = true;
         
         Job_Data job;
         job.callback = job_full_lex;
         job.data[0] = file;
         job.data[1] = general;
+        job.data[2] = models;
         file->state.lex_job = system->post_job(BACKGROUND_THREADS, job);
     }
 }
 
 internal void
-file_first_lex_serial(Mem_Options *mem, Editing_File *file){
+file_first_lex_serial(Models *models, Editing_File *file){
+    Mem_Options *mem = &models->mem;
     Partition *part = &mem->part;
     General_Memory *general = &mem->general;
-    file->settings.tokens_exist = 1;
+    file->settings.tokens_exist = true;
     
-    Assert(file->state.still_lexing == 0);
+    Assert(!file->state.still_lexing);
     
     if (file->is_loading == 0){
         Assert(file->state.token_array.tokens == 0);
         
         {
             Temp_Memory temp = begin_temp_memory(part);
+            
+            Parse_Context parse_context = parse_context_get(&models->parse_context_memory, file->settings.parse_context_id, partition_current(part), partition_remaining(part));
+            Assert(parse_context.valid);
+            push_block(part, (i32)parse_context.memory_size);
             
             Gap_Buffer *buffer = &file->state.buffer;
             i32 text_size = buffer_size(buffer);
@@ -2287,9 +2304,9 @@ file_first_lex_serial(Mem_Options *mem, Editing_File *file){
             tokens.count = 0;
             tokens.tokens = push_array(part, Cpp_Token, tokens.max_count);
             
-            b32 still_lexing = 1;
+            b32 still_lexing = true;
             
-            Cpp_Lex_Data lex = cpp_lex_data_init(file->settings.tokens_without_strings);
+            Cpp_Lex_Data lex = cpp_lex_data_init(file->settings.tokens_without_strings, parse_context.kw_table, parse_context.pp_table);
             
             // TODO(allen): deduplicate this against relex
             char *chunks[3];
@@ -2338,7 +2355,7 @@ file_first_lex_serial(Mem_Options *mem, Editing_File *file){
                         tokens.count = 0;
                         
                         if (result == LexResult_Finished){
-                            still_lexing = 0;
+                            still_lexing = false;
                         }
                     }break;
                     
@@ -2364,21 +2381,22 @@ file_first_lex_serial(Mem_Options *mem, Editing_File *file){
             end_temp_memory(temp);
         }
         
-        file->state.tokens_complete = 1;
+        file->state.tokens_complete = true;
     }
 }
 
 internal b32
-file_relex_parallel(System_Functions *system, Mem_Options *mem, Editing_File *file, i32 start_i, i32 end_i, i32 shift_amount){
+file_relex_parallel(System_Functions *system, Models *models, Editing_File *file, i32 start_i, i32 end_i, i32 shift_amount){
+    Mem_Options *mem = &models->mem;
     General_Memory *general = &mem->general;
     Partition *part = &mem->part;
     
     if (file->state.token_array.tokens == 0){
-        file_first_lex_parallel(system, mem, file);
-        return(0);
+        file_first_lex_parallel(system, models, file);
+        return(false);
     }
     
-    b32 result = 1;
+    b32 result = true;
     b32 inline_lex = !file->state.still_lexing;
     if (inline_lex){
         Gap_Buffer *buffer = &file->state.buffer;
@@ -2391,6 +2409,10 @@ file_relex_parallel(System_Functions *system, Mem_Options *mem, Editing_File *fi
             relex_range.end_token_index - relex_range.start_token_index + extra_tolerance;
         
         Temp_Memory temp = begin_temp_memory(part);
+        Parse_Context parse_context = parse_context_get(&models->parse_context_memory, file->settings.parse_context_id, partition_current(part), partition_remaining(part));
+        Assert(parse_context.valid);
+        push_block(part, (i32)parse_context.memory_size);
+        
         Cpp_Token_Array relex_array;
         relex_array.count = 0;
         relex_array.max_count = relex_space_size;
@@ -2398,7 +2420,7 @@ file_relex_parallel(System_Functions *system, Mem_Options *mem, Editing_File *fi
         
         i32 size = buffer_size(buffer);
         
-        Cpp_Relex_Data state = cpp_relex_init(array, start_i, end_i, shift_amount, file->settings.tokens_without_strings);
+        Cpp_Relex_Data state = cpp_relex_init(array, start_i, end_i, shift_amount, file->settings.tokens_without_strings, parse_context.kw_table, parse_context.pp_table);
         
         char *chunks[3];
         i32 chunk_sizes[3];
@@ -2438,7 +2460,7 @@ file_relex_parallel(System_Functions *system, Mem_Options *mem, Editing_File *fi
                 
                 case LexResult_NeedTokenMemory:
                 {
-                    inline_lex = 0;
+                    inline_lex = false;
                 }goto doublebreak;
                 
                 case LexResult_Finished: goto doublebreak;
@@ -2485,26 +2507,28 @@ file_relex_parallel(System_Functions *system, Mem_Options *mem, Editing_File *fi
             }
         }
         
-        file->state.still_lexing = 1;
+        file->state.still_lexing = true;
         
         Job_Data job;
         job.callback = job_full_lex;
         job.data[0] = file;
         job.data[1] = general;
+        job.data[2] = models;
         file->state.lex_job = system->post_job(BACKGROUND_THREADS, job);
-        result = 0;
+        result = false;
     }
     
     return(result);
 }
 
 internal b32
-file_relex_serial(Mem_Options *mem, Editing_File *file, i32 start_i, i32 end_i, i32 shift_amount){
+file_relex_serial(Models *models, Editing_File *file, i32 start_i, i32 end_i, i32 shift_amount){
+    Mem_Options *mem = &models->mem;
     General_Memory *general = &mem->general;
     Partition *part = &mem->part;
     
     if (file->state.token_array.tokens == 0){
-        file_first_lex_serial(mem, file);
+        file_first_lex_serial(models, file);
         return(1);
     }
     
@@ -2514,6 +2538,10 @@ file_relex_serial(Mem_Options *mem, Editing_File *file, i32 start_i, i32 end_i, 
     Cpp_Token_Array *array = &file->state.token_array;
     
     Temp_Memory temp = begin_temp_memory(part);
+    Parse_Context parse_context = parse_context_get(&models->parse_context_memory, file->settings.parse_context_id, partition_current(part), partition_remaining(part));
+    Assert(parse_context.valid);
+    push_block(part, (i32)parse_context.memory_size);
+    
     Cpp_Token_Array relex_array;
     relex_array.count = 0;
     relex_array.max_count = partition_remaining(part) / sizeof(Cpp_Token);
@@ -2521,7 +2549,7 @@ file_relex_serial(Mem_Options *mem, Editing_File *file, i32 start_i, i32 end_i, 
     
     i32 size = buffer_size(buffer);
     
-    Cpp_Relex_Data state = cpp_relex_init(array, start_i, end_i, shift_amount, file->settings.tokens_without_strings);
+    Cpp_Relex_Data state = cpp_relex_init(array, start_i, end_i, shift_amount, file->settings.tokens_without_strings, parse_context.kw_table, parse_context.pp_table);
     
     char *chunks[3];
     i32 chunk_sizes[3];
@@ -3328,10 +3356,10 @@ file_do_single_edit(System_Functions *system, Models *models, Editing_File *file
     // NOTE(allen): token fixing
     if (file->settings.tokens_exist){
         if (!file->settings.virtual_white){
-            file_relex_parallel(system, mem, file, start, end, shift_amount);
+            file_relex_parallel(system, models, file, start, end, shift_amount);
         }
         else{
-            file_relex_serial(mem, file, start, end, shift_amount);
+            file_relex_serial(models, file, start, end, shift_amount);
         }
     }
     
@@ -3415,10 +3443,10 @@ file_do_batch_edit(System_Functions *system, Models *models, Editing_File *file,
                 Buffer_Edit *last_edit = batch + batch_size - 1;
                 
                 if (!file->settings.virtual_white){
-                    file_relex_parallel(system, mem, file, first_edit->start, last_edit->end, shift_total);
+                    file_relex_parallel(system, models, file, first_edit->start, last_edit->end, shift_total);
                 }
                 else{
-                    file_relex_serial(mem, file, first_edit->start, last_edit->end, shift_total);
+                    file_relex_serial(models, file, first_edit->start, last_edit->end, shift_total);
                 }
             }
         }break;
@@ -3819,13 +3847,12 @@ init_normal_file(System_Functions *system, Models *models, Editing_File *file, c
     String val = make_string(buffer, size);
     file_create_from_string(system, models, file, val);
     
-    Mem_Options *mem = &models->mem;
     if (file->settings.tokens_exist && file->state.token_array.tokens == 0){
         if (!file->settings.virtual_white){
-            file_first_lex_parallel(system, mem, file);
+            file_first_lex_parallel(system, models, file);
         }
         else{
-            file_first_lex_serial(mem, file);
+            file_first_lex_serial(models, file);
         }
     }
 }
@@ -3835,17 +3862,15 @@ init_read_only_file(System_Functions *system, Models *models, Editing_File *file
     String val = null_string;
     file_create_from_string(system, models, file, val, 1);
     
-    Mem_Options *mem = &models->mem;
     if (file->settings.tokens_exist && file->state.token_array.tokens == 0){
         if (!file->settings.virtual_white){
-            file_first_lex_parallel(system, mem, file);
+            file_first_lex_parallel(system, models, file);
         }
         else{
-            file_first_lex_serial(mem, file);
+            file_first_lex_serial(models, file);
         }
     }
 }
-
 
 internal void
 view_open_file(System_Functions *system, Models *models, View *view, String filename){

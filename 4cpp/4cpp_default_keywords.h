@@ -2,6 +2,11 @@
 // For a quick way to extend the default keywords:
 // #define FCPP_LEXER_EXTRA_KEYWORDS "my_keywords.h"
 // And in the file "my_keywords.h", list the keywords you want.
+
+// For a quick way to extend the default preprocessor 
+// directives do the same thing with the macro:
+// #define FCPP_LEXER_EXTRA_PREPROPS
+
 // TOP
 
 #if !defined(FCPP_DEFAULT_KEYWORDS_H)
@@ -15,7 +20,7 @@ struct String_And_Flag{
     u32_4tech flags;
 };
 
-static String_And_Flag preprops[] = {
+static String_And_Flag default_preprops[] = {
     {make_stafl("include" , CPP_PP_INCLUDE )} ,
     {make_stafl("INCLUDE" , CPP_PP_INCLUDE )} ,
     {make_stafl("version" , CPP_PP_VERSION )} ,
@@ -46,10 +51,14 @@ static String_And_Flag preprops[] = {
     {make_stafl("LINE"    , CPP_PP_LINE    )} ,
     {make_stafl("if"      , CPP_PP_IF      )} ,
     {make_stafl("IF"      , CPP_PP_IF      )} ,
+    
+#if defined(FCPP_LEXER_EXTRA_PREPROPS)
+#include FCPP_LEXER_EXTRA_PREPROPS
+#endif
 };
-static i32_4tech preprops_count = sizeof(preprops)/sizeof(preprops[0]);
+static i32_4tech default_preprops_count = sizeof(default_preprops)/sizeof(default_preprops[0]);
 
-static String_And_Flag keywords[] = {
+static String_And_Flag default_keywords[] = {
     {make_stafl("true"  , CPP_TOKEN_BOOLEAN_CONSTANT)},
     {make_stafl("false" , CPP_TOKEN_BOOLEAN_CONSTANT)},
     
@@ -142,7 +151,7 @@ static String_And_Flag keywords[] = {
 #include FCPP_LEXER_EXTRA_KEYWORDS
 #endif
 };
-static i32_4tech keywords_count = sizeof(keywords)/sizeof(keywords[0]);
+static i32_4tech default_keywords_count = sizeof(default_keywords)/sizeof(default_keywords[0]);
 
 #endif
 

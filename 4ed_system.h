@@ -139,11 +139,7 @@ struct Thread_Memory{
     i32 size;
     i32 id;
 };
-inline Thread_Memory
-thread_memory_zero(){
-    Thread_Memory memory={0};
-    return(memory);
-}
+global Thread_Memory null_thread_memory = {0};
 
 struct Thread_Exchange;
 struct System_Functions;
@@ -152,12 +148,12 @@ struct System_Functions;
 System_Functions *system,                \
 Thread_Context *thread,                  \
 Thread_Memory *memory,                   \
-void *data[2])
+void *data[4])
 typedef Job_Callback_Sig(Job_Callback);
 
 struct Job_Data{
     Job_Callback *callback;
-    void *data[2];
+    void *data[4];
 };
 
 struct Full_Job_Data{

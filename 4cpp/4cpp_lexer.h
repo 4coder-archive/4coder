@@ -1,5 +1,5 @@
 /*
-4cpp_lexer.h - 1.0.2
+4cpp_lexer.h - 1.0.3
 no warranty implied; use at your own risk
 
 This software is in the public domain. Where that dedication is not
@@ -25,6 +25,8 @@ typedef uint8_t u8_4tech;
 typedef uint16_t u16_4tech;
 typedef uint32_t u32_4tech;
 typedef uint64_t u64_4tech;
+
+typedef u64_4tech umem_4tech;
 
 typedef float f32_4tech;
 typedef double f64_4tech;
@@ -57,22 +59,14 @@ typedef int32_t b32_4tech;
 
 ////////////////
 
-struct Keyword_Table{
-    void *mem;
-    umem_4tech memsize;
-    void **keywords;
-    u32_4tech max;
-};
-
 FCPP_LINK umem_4tech
-cpp_keyword_table_memory_size_null_terminated(char **str_array, u32_4tech str_count){
+cpp_get_table_memory_size_null_terminated(char **str_array, u32_4tech str_count){
     umem_4tech memsize = 0;
     for (u32_4tech i = 0; i < str_count; ++i){
         char *str = str_array[i];
         u32_4tech len = 0;
         for (; str[len]; ++len);
-        memsize += 8 + len;
-        memsize = (memsize+3)&(~3);
+        memsize += 8 + (len+3)&(~3);
     }
     u32_4tech table_count = (str_count * 3) / 2;
     memsize += table_count*sizeof(void*);
@@ -80,17 +74,31 @@ cpp_keyword_table_memory_size_null_terminated(char **str_array, u32_4tech str_co
 }
 
 FCPP_LINK umem_4tech
-cpp_keyword_table_memory_size_string_lengths(u32_4tech *str_len, u32_4tech byte_stride, u32_4tech str_count){
+cpp_get_table_memory_size_string_lengths(u32_4tech *str_len, u32_4tech byte_stride, u32_4tech str_count){
     umem_4tech memsize = 0;
     u8_4tech *length_data = (u8_4tech*)str_len;
     for (u32_4tech i = 0; i < str_count; ++i, length_data += byte_stride){
         u32_4tech len = *(u32_4tech*)(length_data);
-        memsize += 8 + len;
-        memsize = (memsize+3)&(~3);
+        memsize += 8 + (len+3)&(~3);
     }
     u32_4tech table_count = (str_count * 3)/2;
     memsize += table_count*sizeof(void*);
     return(memsize);
+}
+
+FCPP_LINK void
+cpp__write_word_data(char **out_ptr, u32_4tech len, u32_4tech type, char *str){
+    char *out = *out_ptr;
+    *(u32_4tech*)out = len;
+    out += 4;
+    *(u32_4tech*)out = type;
+    out += 4;
+    for (u32_4tech j = 0; str[j]; ++j){
+        out[j] = str[j];
+    }
+    len = (len+3)&(~3);
+    out += len;
+    *out_ptr = out;
 }
 
 FCPP_LINK b32_4tech
@@ -109,40 +117,12 @@ cpp__match(char *a, i32_4tech a_len, char *b, i32_4tech b_len){
     return(result);
 }
 
-FCPP_LINK Keyword_Table
-cpp_keyword_table_make_table_null_terminated(char **str_array, u32_4tech str_count, void *memory, umem_4tech memsize){
-    Keyword_Table table = {0};
-    table.mem = memory;
-    table.memsize = memsize;
+FCPP_LINK void
+cpp__fill_table(Cpp_Keyword_Table *table, char *str, u32_4tech str_count){
+    u64_4tech *keywords = table->keywords;
+    u8_4tech *base = (u8_4tech*)keywords;
+    u32_4tech max = table->max;
     
-    {
-        u8_4tech *ptr = (u8_4tech*)memory;
-        for (umem_4tech i = memsize; i > 0; ++i, ++ptr){
-            *ptr = 0;
-        }
-    }
-    
-    char *str_base = (char*)memory;
-    char *str = str_base;
-    for (u32_4tech i = 0; i < str_count; ++i){
-        u32_4tech len = 0;
-        for (; str[len]; ++len);
-        *(u32_4tech*)str = len;
-        str += 4;
-        *(u32_4tech*)str = CPP_TOKEN_KEY_OTHER;
-        str += 4;
-        char *str_item = str_array[i];
-        for (u32_4tech j = 0; str[j]; ++j){
-            str[j] += str_item[j];
-        }
-        len = (len+3)%(~3);
-        str += len;
-    }
-    
-    void **keywords = (void**)str;
-    table.keywords = keywords;
-    table.max = (str_count * 3)/2;
-    str = str_base;
     for (u32_4tech i = 0; i < str_count; ++i){
         u32_4tech str_len = *(u32_4tech*)str;
         str += 8;
@@ -152,17 +132,17 @@ cpp_keyword_table_make_table_null_terminated(char **str_array, u32_4tech str_cou
             hash = (hash << 5) + (u32_4tech)(str[i]);
         }
         
-        u32_4tech max = table.max;
         u32_4tech first_index = hash % max;
         u32_4tech index = first_index;
         for (;;){
-            void **keyword_ptr = table.keywords + index;
-            if (keyword_ptr == 0){
-                *keyword_ptr = str - 8;
+            u64_4tech *keyword_ptr = keywords + index;
+            if (*keyword_ptr == 0){
+                *keyword_ptr = (u64_4tech)((str - 8) - (char*)base);
+                break;
             }
             else{
-                u32_4tech *table_str_len = (u32_4tech*)*keyword_ptr;
-                char *table_str = (char*)(str_len + 2);
+                u32_4tech *table_str_len = (u32_4tech*)(*keyword_ptr + base);
+                char *table_str = (char*)(table_str_len + 2);
                 if (cpp__match(table_str, *table_str_len, str, str_len)){
                     break;
                 }
@@ -180,27 +160,104 @@ cpp_keyword_table_make_table_null_terminated(char **str_array, u32_4tech str_cou
         str_len = (str_len+3)&(~3);
         str += str_len;
     }
+}
+
+FCPP_LINK Cpp_Keyword_Table
+cpp_make_table(char **str_array, u32_4tech str_stride, u32_4tech *len_array, u32_4tech len_stride, u32_4tech *type_array, u32_4tech type_stride, u32_4tech str_count, void *memory, umem_4tech memsize){
+    Cpp_Keyword_Table table = {0};
+    table.mem = memory;
+    table.memsize = memsize;
+    table.keywords = (u64_4tech*)memory;
+    table.max = (str_count * 3)/2;
+    umem_4tech size_of_table = sizeof(*table.keywords)*table.max;
+    
+    {
+        u8_4tech *ptr = (u8_4tech*)memory;
+        for (umem_4tech i = memsize; i > 0; --i, ++ptr){
+            *ptr = 0;
+        }
+    }
+    
+    char *out_base = ((char*)memory) + size_of_table;
+    char *out_ptr = out_base;
+    
+    u8_4tech *str_ptr = (u8_4tech*)str_array;
+    u8_4tech *len_ptr = (u8_4tech*)len_array;
+    u8_4tech *type_ptr = (u8_4tech*)type_array;
+    
+    if (len_ptr == 0){
+        if (type_ptr == 0){
+            for (u32_4tech i = 0; i < str_count; ++i){
+                char *str_item = *(char**)str_ptr;
+                str_ptr += str_stride;
+                u32_4tech len = 0;
+                for (; str_item[len]; ++len);
+                cpp__write_word_data(&out_ptr, len, CPP_TOKEN_KEY_OTHER, str_item);
+            }
+        }
+        else{
+            for (u32_4tech i = 0; i < str_count; ++i){
+                char *str_item = *(char**)str_ptr;
+                str_ptr += str_stride;
+                u32_4tech len = 0;
+                for (; str_item[len]; ++len);
+                u32_4tech type = *(u32_4tech*)(type_ptr);
+                cpp__write_word_data(&out_ptr, len, type, str_item);
+            }
+        }
+    }
+    else{
+        if (type_ptr == 0){
+            for (u32_4tech i = 0; i < str_count; ++i){
+                char *str_item = *(char**)str_ptr;
+                str_ptr += str_stride;
+                u32_4tech len = *(u32_4tech*)(len_ptr);
+                len_ptr += len_stride;
+                cpp__write_word_data(&out_ptr, len, CPP_TOKEN_KEY_OTHER, str_item);
+            }
+        }
+        else{
+            for (u32_4tech i = 0; i < str_count; ++i){
+                char *str_item = *(char**)str_ptr;
+                str_ptr += str_stride;
+                u32_4tech len = *(u32_4tech*)(len_ptr);
+                len_ptr += len_stride;
+                u32_4tech type = *(u32_4tech*)(type_ptr);
+                type_ptr += type_stride;
+                cpp__write_word_data(&out_ptr, len, type, str_item);
+            }
+        }
+    }
+    
+    cpp__fill_table(&table, out_base, str_count);
     
     return(table);
 }
 
 FCPP_LINK b32_4tech
-cpp__table_match(Keyword_Table *table, char *s, u32_4tech s_len, u32_4tech *index_out){
+cpp__table_match(Cpp_Keyword_Table *table, char *s, u32_4tech s_len, u32_4tech **item_ptr_out){
     u32_4tech hash = 0;
     for (u32_4tech i = 0; i < s_len; ++i){
         hash = (hash << 5) + (u32_4tech)(s[i]);
     }
     
+    u64_4tech *keywords = table->keywords;
+    u8_4tech *base = (u8_4tech*)keywords;
+    
     b32_4tech result = false;
     u32_4tech max = table->max;
     u32_4tech first_index = hash % max;
     u32_4tech index = first_index;
-    void **keywords = table->keywords;
     for (;;){
-        void **keyword_ptr = keywords + index;
-        u32_4tech *str_len = (u32_4tech*)*keyword_ptr;
-        char *str = (char*)(str_len + 1);
+        u64_4tech *keyword_ptr = keywords + index;
+        if (*keyword_ptr == 0){
+            break;
+        }
+        
+        u32_4tech *str_len = (u32_4tech*)(*keyword_ptr + base);
+        char *str = (char*)(str_len + 2);
         if (cpp__match(str, *str_len, s, s_len)){
+            *item_ptr_out = (u32_4tech*)(*keyword_ptr + base);
             result = true;
             break;
         }
@@ -215,6 +272,60 @@ cpp__table_match(Keyword_Table *table, char *s, u32_4tech s_len, u32_4tech *inde
     }
     
     return(result);
+}
+
+FCPP_LINK umem_4tech
+cpp_get_table_memory_size_default(Cpp_Word_Table_Type type){
+    u32_4tech *ptr = 0;
+    u32_4tech count = 0;
+    
+    switch (type){
+        case CPP_TABLE_KEYWORDS:
+        {
+            ptr = &default_keywords->length;
+            count = default_keywords_count;
+        }break;
+        
+        case CPP_TABLE_PREPROCESSOR_DIRECTIVES:
+        {
+            ptr = &default_preprops->length;
+            count = default_preprops_count;
+        }break;
+    }
+    
+    u32_4tech stride = sizeof(String_And_Flag);
+    umem_4tech size = cpp_get_table_memory_size_string_lengths(ptr, stride, count);
+    return(size);
+}
+
+FCPP_LINK Cpp_Keyword_Table
+cpp_make_table_default(Cpp_Word_Table_Type type, void *mem, umem_4tech memsize){
+    char **str_ptr = 0;
+    u32_4tech *len_ptr = 0;
+    u32_4tech *type_ptr = 0;
+    u32_4tech count = 0;
+    
+    switch (type){
+        case CPP_TABLE_KEYWORDS:
+        {
+            str_ptr = &default_keywords->str;
+            len_ptr = &default_keywords->length;
+            type_ptr = &default_keywords->flags;
+            count = default_keywords_count;
+        }break;
+        
+        case CPP_TABLE_PREPROCESSOR_DIRECTIVES:
+        {
+            str_ptr = &default_preprops->str;
+            len_ptr = &default_preprops->length;
+            type_ptr = &default_preprops->flags;
+            count = default_preprops_count;
+        }break;
+    }
+    
+    u32_4tech stride = sizeof(String_And_Flag);
+    Cpp_Keyword_Table table = cpp_make_table(str_ptr, stride, len_ptr, stride, type_ptr, stride, count, mem, memsize);
+    return(table);
 }
 
 ////////////////
@@ -289,8 +400,9 @@ DOC_SEE(Cpp_Get_Token_Result)
     return(result);
 }
 
+// TODO(allen): eliminate this and just make a table.
 FCPP_LINK Cpp_Lex_PP_State
-cpp_pp_directive_to_state(Cpp_Token_Type type){
+cpp__pp_directive_to_state(Cpp_Token_Type type){
     Cpp_Lex_PP_State result = LSPP_default;
     switch (type){
         case CPP_PP_INCLUDE: case CPP_PP_IMPORT: case CPP_PP_USING:
@@ -355,6 +467,9 @@ cpp_lex_nonalloc_null_end_no_limit(Cpp_Lex_Data *S_ptr, char *chunk, i32_4tech s
         DfrCase(9);
         DfrCase(10);
     }
+    
+    Assert(S.keyword_table.keywords != 0);
+    Assert(S.preprops_table.keywords != 0);
     
     for (;;){
         S.white_done = 0;
@@ -503,12 +618,11 @@ cpp_lex_nonalloc_null_end_no_limit(Cpp_Lex_Data *S_ptr, char *chunk, i32_4tech s
                         }
                     }
                     
-                    i32_4tech sub_match = -1;
-                    cpp__table_match(keywords, keywords_count, S.tb, S.tb_pos-1, &sub_match);
+                    u32_4tech *item_ptr = 0;
+                    cpp__table_match(&S.keyword_table, S.tb, S.tb_pos-1, &item_ptr);
                     
-                    if (sub_match != -1){
-                        String_And_Flag data = keywords[sub_match];
-                        S.token.type = (Cpp_Token_Type)data.flags;
+                    if (item_ptr != 0){
+                        S.token.type = (Cpp_Token_Type)(item_ptr[1]);
                         S.token.flags = CPP_TFLAG_IS_KEYWORD;
                         break;
                     }
@@ -550,14 +664,13 @@ cpp_lex_nonalloc_null_end_no_limit(Cpp_Lex_Data *S_ptr, char *chunk, i32_4tech s
                         }
                     }
                     
-                    i32_4tech sub_match = -1;
-                    cpp__table_match(preprops, preprops_count, S.tb+i, pos-i, &sub_match);
+                    u32_4tech *item_ptr = 0;
+                    cpp__table_match(&S.preprops_table, S.tb+i, S.tb_pos-i-1, &item_ptr);
                     
-                    if (sub_match != -1){
-                        String_And_Flag data = preprops[sub_match];
-                        S.token.type = (Cpp_Token_Type)data.flags;
+                    if (item_ptr != 0){
+                        S.token.type = (Cpp_Token_Type)(item_ptr[1]);
                         S.token.flags = CPP_TFLAG_PP_DIRECTIVE;
-                        S.pp_state = (u8_4tech)cpp_pp_directive_to_state(S.token.type);
+                        S.pp_state = (u8_4tech)cpp__pp_directive_to_state(S.token.type);
                         break;
                     }
                 }
@@ -1177,48 +1290,19 @@ DOC_SEE(Cpp_Lex_Result)
 }
 
 API_EXPORT FCPP_LINK Cpp_Lex_Data
-cpp_lex_data_init(b32_4tech ignore_string_delims)/*
+cpp_lex_data_init(b32_4tech ignore_string_delims, Cpp_Keyword_Table keywords, Cpp_Keyword_Table preprocessor_words)/*
 DOC_PARAM(ignore_string_delims, TODO)
-DOC_RETURN(A brand new lex state ready to begin lexing a file from the beginning.)
+DOC_PARAM(keywords, TODO)
+DOC_PARAM(preprocessor_words, TODO)
+DOC_RETURN(A brand new lex state setup to lex from the beginning of the file.)
 
-DOC(Creates a new lex state in the form of a Cpp_Lex_Data struct and returns the struct.
-The system needs a temporary buffer that is as long as the longest token.  4096 is usually
-enough but the buffer is not checked, so to be 100% bullet proof it has to be the same length
-as the file being lexed.)
+DOC(Creates a new lex state in the form of a Cpp_Lex_Data struct and returns the struct.)
 */{
     Cpp_Lex_Data data = {0};
-    data.ignore_string_delims = ignore_string_delims;
+    data.ignore_string_delims = (b8_4tech)ignore_string_delims;
+    data.keyword_table = keywords;
+    data.preprops_table = preprocessor_words;
     return(data);
-}
-
-API_EXPORT FCPP_LINK i32_4tech
-cpp_lex_data_temp_size(Cpp_Lex_Data *lex_data)/*
-DOC_PARAM(lex_data, The lex state from which to get the temporary buffer size.)
-DOC(This call gets the current size of the temporary buffer in the lexer state so
-that you can move to a new temporary buffer by copying the data over.)
-DOC_SEE(cpp_lex_data_temp_read)
-DOC_SEE(cpp_lex_data_new_temp)
-*/{
-    i32_4tech result = lex_data->tb_pos;
-    Assert(lex_data->tb != 0);
-    return(result);
-}
-
-API_EXPORT FCPP_LINK void
-cpp_lex_data_temp_read(Cpp_Lex_Data *lex_data, char *out_buffer)/*
-DOC_PARAM(lex_data, The lex state from which to read the temporary buffer.)
-DOC_PARAM(out_buffer, The buffer into which the contents of the temporary buffer will be written.
-The size of the buffer must be at least the size as returned by cpp_lex_data_temp_size.)
-DOC(This call reads the current contents of the temporary buffer.)
-DOC_SEE(cpp_lex_data_temp_size)
-DOC_SEE(cpp_lex_data_new_temp)
-*/{
-    i32_4tech size = lex_data->tb_pos;
-    char *src = lex_data->tb;
-    char *end = src + size;
-    for (; src < end; ++src, ++out_buffer){
-        *out_buffer = *src;
-    }
 }
 
 FCPP_LINK char
@@ -1285,24 +1369,18 @@ The start and end points are based on the edited region of the file before the e
 }
 
 API_EXPORT FCPP_LINK Cpp_Relex_Data
-cpp_relex_init(Cpp_Token_Array *array, i32_4tech start_pos, i32_4tech end_pos, i32_4tech character_shift_amount, b32_4tech ignore_string_delims)
+cpp_relex_init(Cpp_Token_Array *array, i32_4tech start_pos, i32_4tech end_pos, i32_4tech character_shift_amount, b32_4tech ignore_string_delims, Cpp_Keyword_Table keywords, Cpp_Keyword_Table preprocessor_words)
 /*
-DOC_PARAM(array, A pointer to the token array that will be modified by the relex,
-this array should already contain the tokens for the previous state of the file.)
-DOC_PARAM(start_pos, The start position of the edited region of the file.
-The start and end points are based on the edited region of the file before the edit.)
-DOC_PARAM(end_pos, The end position of the edited region of the file.
-In particular, end_pos is the first character after the edited region not effected by the edit.
-Thus if the edited region contained one character end_pos - start_pos should equal 1.
-The start and end points are based on the edited region of the file before the edit.)
+DOC_PARAM(array, A pointer to the token array that will be modified by the relex, this array should already contain the tokens for the previous state of the file.)
+DOC_PARAM(start_pos, The start position of the edited region of the file. The start and end points are based on the edited region of the file before the edit.)
+DOC_PARAM(end_pos, The end position of the edited region of the file. In particular, end_pos is the first character after the edited region not effected by the edit. Thus if the edited region contained one character end_pos - start_pos should equal 1. The start and end points are based on the edited region of the file before the edit.)
 DOC_PARAM(character_shift_amount, The shift in the characters after the edited region.)
 DOC_PARAM(ignore_string_delims, TODO)
+DOC_PARAM(keywords, TODO)
+DOC_PARAM(preprocessor_words, TODO)
 DOC_RETURN(Returns a partially initialized relex state.)
 
-DOC(This call does the first setup step of initializing a relex state.  To finish initializing the relex state
-you must tell the state about the positioning of the first chunk it will be fed.  There are two methods of doing
-this, the direct method is with cpp_relex_declare_first_chunk_position, the method that is often more convenient
-is with cpp_relex_is_start_chunk.  If the file is not chunked the second step of initialization can be skipped.)
+DOC(This call does the first setup step of initializing a relex state.  To finish initializing the relex state you must tell the state about the positioning of the first chunk it will be fed.  There are two methods of doing this, the direct method is with cpp_relex_declare_first_chunk_position, the method that is often more convenient is with cpp_relex_is_start_chunk.  If the file is not chunked the second step of initialization can be skipped.)
 
 DOC_SEE(cpp_relex_declare_first_chunk_position)
 DOC_SEE(cpp_relex_is_start_chunk)
@@ -1322,7 +1400,7 @@ DOC_SEE(cpp_relex_is_start_chunk)
     
     state.character_shift_amount = character_shift_amount;
     
-    state.lex = cpp_lex_data_init(ignore_string_delims);
+    state.lex = cpp_lex_data_init(ignore_string_delims, keywords, preprocessor_words);
     state.lex.pp_state = cpp_token_get_pp_state(array->tokens[state.start_token_index].state_flags);
     state.lex.pos = state.relex_start_position;
     
@@ -1585,8 +1663,7 @@ does the necessary replacement of tokens in the array to make it match the new f
         array->count += shift_amount;
     }
     
-    cpp__block_move(array->tokens + S_ptr->start_token_index, relex_array->tokens,
-                    sizeof(Cpp_Token)*relex_array->count);
+    cpp__block_move(array->tokens + S_ptr->start_token_index, relex_array->tokens, sizeof(Cpp_Token)*relex_array->count);
 }
 
 API_EXPORT FCPP_LINK void
@@ -1679,7 +1756,16 @@ return(array);
 )
 DOC_SEE(cpp_make_token_array)
 */{
-    Cpp_Lex_Data S = cpp_lex_data_init(false);
+    umem_4tech keywords_memsize = cpp_get_table_memory_size_default(CPP_TABLE_KEYWORDS);
+    umem_4tech preprocessor_words_memsize = cpp_get_table_memory_size_default(CPP_TABLE_PREPROCESSOR_DIRECTIVES);
+    
+    void *keywords_mem = malloc(keywords_memsize);
+    void *preprocessor_words_mem = malloc(preprocessor_words_memsize);
+    
+    Cpp_Keyword_Table keywords = cpp_make_table_default(CPP_TABLE_KEYWORDS, keywords_mem, keywords_memsize);
+    Cpp_Keyword_Table preprocessor_words = cpp_make_table_default(CPP_TABLE_PREPROCESSOR_DIRECTIVES, preprocessor_words_mem, preprocessor_words_memsize);
+    
+    Cpp_Lex_Data S = cpp_lex_data_init(false, keywords, preprocessor_words);
     i32_4tech quit = 0;
     
     char empty = 0;
@@ -1714,6 +1800,9 @@ DOC_SEE(cpp_make_token_array)
             }break;
         }
     }
+    
+    free(keywords_mem);
+    free(preprocessor_words_mem);
 }
 
 #endif

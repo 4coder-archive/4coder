@@ -7,6 +7,8 @@
  *
  */
 
+// TOP
+
 // NOTE(allen): These macros are setup to work on structs
 // with a next and prev pointer where the type of the struct
 // is the same as the type of the next/prev pointers.
@@ -18,6 +20,13 @@
 
 // for(dll_items(iterator, sentinel_ptr)){...}
 #define dll_items(it, st) ((it) = (st)->next); ((it) != (st)); ((it) = (it)->next)
+
+#define sll_init_sentinel(s) do{ (s)->next=(s); }while(0)
+#define sll_insert(p,v) do{ (v)->next=(p)->next; (p)->next = (v); }while(0)
+#define sll_remove(p,v) do{ Assert((p)->next == (v)); (p)->next = (v)->next; }while(0)
+
+// for(sll_items(iterator, sentinel_ptr)){...}
+#define sll_items(it, st) ((it) = (st)->next); ((it) != (st)); ((it) = (it)->next)
 
 // BOTTOM
 

@@ -1975,10 +1975,7 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
     Thread_Memory thread_memory[ArrayCount(background)];
     win32vars.thread_memory = thread_memory;
     
-    win32vars.queues[BACKGROUND_THREADS].semaphore =
-        Win32Handle(CreateSemaphore(0, 0,
-                                    win32vars.groups[BACKGROUND_THREADS].count,
-                                    0));
+    win32vars.queues[BACKGROUND_THREADS].semaphore =Win32Handle(CreateSemaphore(0, 0, win32vars.groups[BACKGROUND_THREADS].count, 0));
     
     u32 creation_flag = 0;
     for (i32 i = 0; i < win32vars.groups[BACKGROUND_THREADS].count; ++i){
@@ -1987,7 +1984,7 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
         thread->group_id = BACKGROUND_THREADS;
         
         Thread_Memory *memory = win32vars.thread_memory + i;
-        *memory = thread_memory_zero();
+        *memory = null_thread_memory;
         memory->id = thread->id;
         
         thread->queue = &win32vars.queues[BACKGROUND_THREADS];

@@ -93,6 +93,7 @@ struct Editing_File_Settings{
     i32 display_width;
     i32 minimum_base_display_width;
     i32 wrap_indicator;
+    u32 parse_context_id;
     b32 dos_write_mode;
     b32 virtual_white;
     Font_ID font_id;

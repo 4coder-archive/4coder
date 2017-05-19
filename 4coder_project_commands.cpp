@@ -199,7 +199,11 @@ load_project_from_file(Application_Links *app, Partition *part, FILE *file, Stri
         array.max_count = (1 << 20)/sizeof(Cpp_Token);
         array.tokens = push_array(&global_part, Cpp_Token, array.max_count);
         
-        Cpp_Lex_Data S = cpp_lex_data_init(false);
+        Cpp_Keyword_Table kw_table = {0};
+        Cpp_Keyword_Table pp_table = {0};
+        lexer_keywords_default_init(part, &kw_table, &pp_table);
+        
+        Cpp_Lex_Data S = cpp_lex_data_init(false, kw_table, pp_table);
         Cpp_Lex_Result result = cpp_lex_step(&S, mem, size+1, HAS_NULL_TERM, &array, NO_OUT_LIMIT);
         
         if (result == LexResult_Finished){

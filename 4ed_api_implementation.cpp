@@ -899,10 +899,10 @@ DOC_SEE(Buffer_Setting_ID)
                 else{
                     if (value){
                         if (!file->settings.virtual_white){
-                            file_first_lex_parallel(system, &models->mem, file);
+                            file_first_lex_parallel(system, models, file);
                         }
                         else{
-                            file_first_lex_serial(&models->mem, file);
+                            file_first_lex_serial(models, file);
                         }
                     }
                 }
@@ -915,10 +915,10 @@ DOC_SEE(Buffer_Setting_ID)
                         file_kill_tokens(system, &models->mem.general, file);
                         file->settings.tokens_without_strings = (b8)value;
                         if (!file->settings.virtual_white){
-                            file_first_lex_parallel(system, &models->mem, file);
+                            file_first_lex_parallel(system, models, file);
                         }
                         else{
-                            file_first_lex_serial(&models->mem, file);
+                            file_first_lex_serial(models, file);
                         }
                     }
                 }
@@ -1001,34 +1001,34 @@ DOC_SEE(Buffer_Setting_ID)
             case BufferSetting_ReadOnly:
             {
                 if (value){
-                    file->settings.read_only = 1;
+                    file->settings.read_only = true;
                 }
                 else{
-                    file->settings.read_only = 0;
+                    file->settings.read_only = false;
                 }
             }break;
             
             case BufferSetting_VirtualWhitespace:
             {
-                b32 full_remeasure = 0;
+                b32 full_remeasure = false;
                 if (value){
                     if (!file->settings.virtual_white){
                         if (!file->settings.tokens_exist){
-                            file_first_lex_serial(&models->mem, file);
+                            file_first_lex_serial(models, file);
                         }
                         if (!file->state.still_lexing){
-                            file->settings.virtual_white = 1;
-                            full_remeasure = 1;
+                            file->settings.virtual_white = true;
+                            full_remeasure = true;
                         }
                         else{
-                            result = 0;
+                            result = false;
                         }
                     }
                 }
                 else{
                     if (file->settings.virtual_white){
-                        file->settings.virtual_white = 0;
-                        full_remeasure = 1;
+                        file->settings.virtual_white = false;
+                        full_remeasure = true;
                     }
                 }
                 
