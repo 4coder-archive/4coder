@@ -53,144 +53,171 @@ typedef int32_t b32_4tech;
 
 #include "4cpp_lexer_types.h"
 #include "4cpp_lexer_tables.c"
+#include "4cpp_default_keywords.h"
 
-// TODO(allen): revisit this keyword data declaration system
-struct String_And_Flag{
-    char *str;
-    u32_4tech length;
-    u32_4tech flags;
+////////////////
+
+struct Keyword_Table{
+    void *mem;
+    umem_4tech memsize;
+    void **keywords;
+    u32_4tech max;
 };
 
-#define make_stafl(s,f) (s), sizeof(s)-1, f
+FCPP_LINK umem_4tech
+cpp_keyword_table_memory_size_null_terminated(char **str_array, u32_4tech str_count){
+    umem_4tech memsize = 0;
+    for (u32_4tech i = 0; i < str_count; ++i){
+        char *str = str_array[i];
+        u32_4tech len = 0;
+        for (; str[len]; ++len);
+        memsize += 8 + len;
+        memsize = (memsize+3)&(~3);
+    }
+    u32_4tech table_count = (str_count * 3) / 2;
+    memsize += table_count*sizeof(void*);
+    return(memsize);
+}
 
-static String_And_Flag preprops[] = {
-    {make_stafl("include" , CPP_PP_INCLUDE )} ,
-    {make_stafl("INCLUDE" , CPP_PP_INCLUDE )} ,
-    {make_stafl("version" , CPP_PP_VERSION )} ,
-    {make_stafl("VERSION" , CPP_PP_VERSION )} ,
-    {make_stafl("ifndef"  , CPP_PP_IFNDEF  )} ,
-    {make_stafl("IFNDEF"  , CPP_PP_IFNDEF  )} ,
-    {make_stafl("define"  , CPP_PP_DEFINE  )} ,
-    {make_stafl("DEFINE"  , CPP_PP_DEFINE  )} ,
-    {make_stafl("import"  , CPP_PP_IMPORT  )} ,
-    {make_stafl("IMPORT"  , CPP_PP_IMPORT  )} ,
-    {make_stafl("pragma"  , CPP_PP_PRAGMA  )} ,
-    {make_stafl("PRAGMA"  , CPP_PP_PRAGMA  )} ,
-    {make_stafl("undef"   , CPP_PP_UNDEF   )} ,
-    {make_stafl("UNDEF"   , CPP_PP_UNDEF   )} ,
-    {make_stafl("endif"   , CPP_PP_ENDIF   )} ,
-    {make_stafl("ENDIF"   , CPP_PP_ENDIF   )} ,
-    {make_stafl("error"   , CPP_PP_ERROR   )} ,
-    {make_stafl("ERROR"   , CPP_PP_ERROR   )} ,
-    {make_stafl("ifdef"   , CPP_PP_IFDEF   )} ,
-    {make_stafl("IFDEF"   , CPP_PP_IFDEF   )} ,
-    {make_stafl("using"   , CPP_PP_USING   )} ,
-    {make_stafl("USING"   , CPP_PP_USING   )} ,
-    {make_stafl("else"    , CPP_PP_ELSE    )} ,
-    {make_stafl("ELSE"    , CPP_PP_ELSE    )} ,
-    {make_stafl("elif"    , CPP_PP_ELIF    )} ,
-    {make_stafl("ELIF"    , CPP_PP_ELIF    )} ,
-    {make_stafl("line"    , CPP_PP_LINE    )} ,
-    {make_stafl("LINE"    , CPP_PP_LINE    )} ,
-    {make_stafl("if"      , CPP_PP_IF      )} ,
-    {make_stafl("IF"      , CPP_PP_IF      )} ,
-};
-static i32_4tech preprops_count = sizeof(preprops)/sizeof(preprops[0]);
+FCPP_LINK umem_4tech
+cpp_keyword_table_memory_size_string_lengths(u32_4tech *str_len, u32_4tech byte_stride, u32_4tech str_count){
+    umem_4tech memsize = 0;
+    u8_4tech *length_data = (u8_4tech*)str_len;
+    for (u32_4tech i = 0; i < str_count; ++i, length_data += byte_stride){
+        u32_4tech len = *(u32_4tech*)(length_data);
+        memsize += 8 + len;
+        memsize = (memsize+3)&(~3);
+    }
+    u32_4tech table_count = (str_count * 3)/2;
+    memsize += table_count*sizeof(void*);
+    return(memsize);
+}
 
-static String_And_Flag keywords[] = {
-    {make_stafl("true"  , CPP_TOKEN_BOOLEAN_CONSTANT)},
-    {make_stafl("false" , CPP_TOKEN_BOOLEAN_CONSTANT)},
+FCPP_LINK b32_4tech
+cpp__match(char *a, i32_4tech a_len, char *b, i32_4tech b_len){
+    b32_4tech result = false;
+    if (a_len == b_len){
+        char *a_end = a + a_len;
+        result = true;
+        for (; a < a_end; ++a, ++b){
+            if (*a != *b){
+                result = false;
+                break;
+            }
+        }
+    }
+    return(result);
+}
+
+FCPP_LINK Keyword_Table
+cpp_keyword_table_make_table_null_terminated(char **str_array, u32_4tech str_count, void *memory, umem_4tech memsize){
+    Keyword_Table table = {0};
+    table.mem = memory;
+    table.memsize = memsize;
     
-    {make_stafl("and"      , CPP_TOKEN_AND)},
-    {make_stafl("and_eq"   , CPP_TOKEN_ANDEQ)},
-    {make_stafl("bitand"   , CPP_TOKEN_BIT_AND)},
-    {make_stafl("bitor"    , CPP_TOKEN_BIT_OR)},
-    {make_stafl("or"       , CPP_TOKEN_OR)},
-    {make_stafl("or_eq"    , CPP_TOKEN_OREQ)},
-    {make_stafl("sizeof"   , CPP_TOKEN_SIZEOF)},
-    {make_stafl("alignof"  , CPP_TOKEN_ALIGNOF)},
-    {make_stafl("decltype" , CPP_TOKEN_DECLTYPE)},
-    {make_stafl("throw"    , CPP_TOKEN_THROW)},
-    {make_stafl("new"      , CPP_TOKEN_NEW)},
-    {make_stafl("delete"   , CPP_TOKEN_DELETE)},
-    {make_stafl("xor"      , CPP_TOKEN_BIT_XOR)},
-    {make_stafl("xor_eq"   , CPP_TOKEN_XOREQ)},
-    {make_stafl("not"      , CPP_TOKEN_NOT)},
-    {make_stafl("not_eq"   , CPP_TOKEN_NOTEQ)},
-    {make_stafl("typeid"   , CPP_TOKEN_TYPEID)},
-    {make_stafl("compl"    , CPP_TOKEN_BIT_NOT)},
+    {
+        u8_4tech *ptr = (u8_4tech*)memory;
+        for (umem_4tech i = memsize; i > 0; ++i, ++ptr){
+            *ptr = 0;
+        }
+    }
     
-    {make_stafl("void"   , CPP_TOKEN_KEY_TYPE)},
-    {make_stafl("bool"   , CPP_TOKEN_KEY_TYPE)},
-    {make_stafl("char"   , CPP_TOKEN_KEY_TYPE)},
-    {make_stafl("int"    , CPP_TOKEN_KEY_TYPE)},
-    {make_stafl("float"  , CPP_TOKEN_KEY_TYPE)},
-    {make_stafl("double" , CPP_TOKEN_KEY_TYPE)},
+    char *str_base = (char*)memory;
+    char *str = str_base;
+    for (u32_4tech i = 0; i < str_count; ++i){
+        u32_4tech len = 0;
+        for (; str[len]; ++len);
+        *(u32_4tech*)str = len;
+        str += 4;
+        *(u32_4tech*)str = CPP_TOKEN_KEY_OTHER;
+        str += 4;
+        char *str_item = str_array[i];
+        for (u32_4tech j = 0; str[j]; ++j){
+            str[j] += str_item[j];
+        }
+        len = (len+3)%(~3);
+        str += len;
+    }
     
-    {make_stafl("long"     , CPP_TOKEN_KEY_MODIFIER)},
-    {make_stafl("short"    , CPP_TOKEN_KEY_MODIFIER)},
-    {make_stafl("unsigned" , CPP_TOKEN_KEY_MODIFIER)},
+    void **keywords = (void**)str;
+    table.keywords = keywords;
+    table.max = (str_count * 3)/2;
+    str = str_base;
+    for (u32_4tech i = 0; i < str_count; ++i){
+        u32_4tech str_len = *(u32_4tech*)str;
+        str += 8;
+        
+        u32_4tech hash = 0;
+        for (u32_4tech i = 0; i < str_len; ++i){
+            hash = (hash << 5) + (u32_4tech)(str[i]);
+        }
+        
+        u32_4tech max = table.max;
+        u32_4tech first_index = hash % max;
+        u32_4tech index = first_index;
+        for (;;){
+            void **keyword_ptr = table.keywords + index;
+            if (keyword_ptr == 0){
+                *keyword_ptr = str - 8;
+            }
+            else{
+                u32_4tech *table_str_len = (u32_4tech*)*keyword_ptr;
+                char *table_str = (char*)(str_len + 2);
+                if (cpp__match(table_str, *table_str_len, str, str_len)){
+                    break;
+                }
+            }
+            
+            ++index;
+            if (index >= max){
+                index = 0;
+            }
+            if (index == first_index){
+                break;
+            }
+        }
+        
+        str_len = (str_len+3)&(~3);
+        str += str_len;
+    }
     
-    {make_stafl("const"    , CPP_TOKEN_KEY_QUALIFIER)},
-    {make_stafl("volatile" , CPP_TOKEN_KEY_QUALIFIER)},
+    return(table);
+}
+
+FCPP_LINK b32_4tech
+cpp__table_match(Keyword_Table *table, char *s, u32_4tech s_len, u32_4tech *index_out){
+    u32_4tech hash = 0;
+    for (u32_4tech i = 0; i < s_len; ++i){
+        hash = (hash << 5) + (u32_4tech)(s[i]);
+    }
     
-    {make_stafl("asm"           , CPP_TOKEN_KEY_CONTROL_FLOW)},
-    {make_stafl("break"         , CPP_TOKEN_KEY_CONTROL_FLOW)},
-    {make_stafl("case"          , CPP_TOKEN_KEY_CONTROL_FLOW)},
-    {make_stafl("catch"         , CPP_TOKEN_KEY_CONTROL_FLOW)},
-    {make_stafl("continue"      , CPP_TOKEN_KEY_CONTROL_FLOW)},
-    {make_stafl("default"       , CPP_TOKEN_KEY_CONTROL_FLOW)},
-    {make_stafl("do"            , CPP_TOKEN_KEY_CONTROL_FLOW)},
-    {make_stafl("else"          , CPP_TOKEN_KEY_CONTROL_FLOW)},
-    {make_stafl("for"           , CPP_TOKEN_KEY_CONTROL_FLOW)},
-    {make_stafl("goto"          , CPP_TOKEN_KEY_CONTROL_FLOW)},
-    {make_stafl("if"            , CPP_TOKEN_KEY_CONTROL_FLOW)},
-    {make_stafl("return"        , CPP_TOKEN_KEY_CONTROL_FLOW)},
-    {make_stafl("switch"        , CPP_TOKEN_KEY_CONTROL_FLOW)},
-    {make_stafl("try"           , CPP_TOKEN_KEY_CONTROL_FLOW)},
-    {make_stafl("while"         , CPP_TOKEN_KEY_CONTROL_FLOW)},
-    {make_stafl("static_assert" , CPP_TOKEN_KEY_CONTROL_FLOW)},
+    b32_4tech result = false;
+    u32_4tech max = table->max;
+    u32_4tech first_index = hash % max;
+    u32_4tech index = first_index;
+    void **keywords = table->keywords;
+    for (;;){
+        void **keyword_ptr = keywords + index;
+        u32_4tech *str_len = (u32_4tech*)*keyword_ptr;
+        char *str = (char*)(str_len + 1);
+        if (cpp__match(str, *str_len, s, s_len)){
+            result = true;
+            break;
+        }
+        
+        ++index;
+        if (index >= max){
+            index = 0;
+        }
+        if (index == first_index){
+            break;
+        }
+    }
     
-    {make_stafl("const_cast"       , CPP_TOKEN_KEY_CAST)},
-    {make_stafl("dynamic_cast"     , CPP_TOKEN_KEY_CAST)},
-    {make_stafl("reinterpret_cast" , CPP_TOKEN_KEY_CAST)},
-    {make_stafl("static_cast"      , CPP_TOKEN_KEY_CAST)},
-    
-    {make_stafl("class"    , CPP_TOKEN_KEY_TYPE_DECLARATION)},
-    {make_stafl("enum"     , CPP_TOKEN_KEY_TYPE_DECLARATION)},
-    {make_stafl("struct"   , CPP_TOKEN_KEY_TYPE_DECLARATION)},
-    {make_stafl("typedef"  , CPP_TOKEN_KEY_TYPE_DECLARATION)},
-    {make_stafl("union"    , CPP_TOKEN_KEY_TYPE_DECLARATION)},
-    {make_stafl("template" , CPP_TOKEN_KEY_TYPE_DECLARATION)},
-    {make_stafl("typename" , CPP_TOKEN_KEY_TYPE_DECLARATION)},
-    
-    {make_stafl("friend"    , CPP_TOKEN_KEY_ACCESS)},
-    {make_stafl("namespace" , CPP_TOKEN_KEY_ACCESS)},
-    {make_stafl("private"   , CPP_TOKEN_KEY_ACCESS)},
-    {make_stafl("protected" , CPP_TOKEN_KEY_ACCESS)},
-    {make_stafl("public"    , CPP_TOKEN_KEY_ACCESS)},
-    {make_stafl("using"     , CPP_TOKEN_KEY_ACCESS)},
-    
-    {make_stafl("extern"  , CPP_TOKEN_KEY_LINKAGE)},
-    {make_stafl("export"  , CPP_TOKEN_KEY_LINKAGE)},
-    {make_stafl("inline"  , CPP_TOKEN_KEY_LINKAGE)},
-    {make_stafl("static"  , CPP_TOKEN_KEY_LINKAGE)},
-    {make_stafl("virtual" , CPP_TOKEN_KEY_LINKAGE)},
-    
-    {make_stafl("alignas"      , CPP_TOKEN_KEY_OTHER)},
-    {make_stafl("explicit"     , CPP_TOKEN_KEY_OTHER)},
-    {make_stafl("noexcept"     , CPP_TOKEN_KEY_OTHER)},
-    {make_stafl("nullptr"      , CPP_TOKEN_KEY_OTHER)},
-    {make_stafl("operator"     , CPP_TOKEN_KEY_OTHER)},
-    {make_stafl("register"     , CPP_TOKEN_KEY_OTHER)},
-    {make_stafl("this"         , CPP_TOKEN_KEY_OTHER)},
-    {make_stafl("thread_local" , CPP_TOKEN_KEY_OTHER)},
-    
-#if defined(FCPP_LEXER_EXTRA_KEYWORDS)
-#include FCPP_LEXER_EXTRA_KEYWORDS
-#endif
-};
-static i32_4tech keywords_count = sizeof(keywords)/sizeof(keywords[0]);
+    return(result);
+}
+
+////////////////
 
 API_EXPORT FCPP_LINK Cpp_Get_Token_Result
 cpp_get_token(Cpp_Token_Array array, i32_4tech pos)/*
@@ -297,37 +324,6 @@ cpp_pp_directive_to_state(Cpp_Token_Type type){
         case CPP_PP_UNKNOWN: case CPP_PP_ELSE: case CPP_PP_ENDIF:
         result = LSPP_junk;
         break;
-    }
-    return(result);
-}
-
-FCPP_LINK b32_4tech
-cpp__match(char *a, i32_4tech a_len, char *b, i32_4tech b_len){
-    b32_4tech result = false;
-    if (a_len == b_len){
-        char *a_end = a + a_len;
-        result = true;
-        for (; a < a_end; ++a, ++b){
-            if (*a != *b){
-                result = false;
-                break;
-            }
-        }
-    }
-    return(result);
-}
-
-FCPP_LINK b32_4tech
-cpp__table_match(String_And_Flag *table, i32_4tech count, char *s, i32_4tech len, i32_4tech *index_out){
-    b32_4tech result = false;
-    String_And_Flag *entry = table;
-    *index_out = -1;
-    for (i32_4tech i = 0; i < count; ++i, ++entry){
-        if (cpp__match(entry->str, entry->length, s, len)){
-            result = true;
-            *index_out = i;
-            break;
-        }
     }
     return(result);
 }
