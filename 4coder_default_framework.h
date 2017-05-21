@@ -235,7 +235,8 @@ static char *default_extensions[] = {
     "hpp",
     "c",
     "h",
-    "cc"
+    "cc",
+    "cs"
 };
 
 struct Extension_List{
@@ -822,12 +823,11 @@ process_config_file(Application_Links *app){
     }
 }
 
-
 //
 // Framework Init Functions
 //
 
-void
+static void
 init_memory(Application_Links *app){
     int32_t part_size = (32 << 20);
     int32_t general_size = (4 << 20);

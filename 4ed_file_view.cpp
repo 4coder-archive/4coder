@@ -1979,18 +1979,6 @@ file_measure_wraps_and_fix_cursor(System_Functions *system, Models *models, Edit
     }
 }
 
-internal void
-file_set_width(System_Functions *system, Models *models, Editing_File *file, i32 display_width, Render_Font *font){
-    file->settings.display_width = display_width;
-    file_measure_wraps_and_fix_cursor(system, models, file, font);
-}
-
-internal void
-file_set_min_base_width(System_Functions *system, Models *models, Editing_File *file, i32 minimum_base_display_width, Render_Font *font){
-    file->settings.minimum_base_display_width = minimum_base_display_width;
-    file_measure_wraps_and_fix_cursor(system, models, file, font);
-}
-
 //
 //
 //
@@ -2140,12 +2128,13 @@ Job_Callback_Sig(job_full_lex){
     i32 aligned_buffer_size = (text_size + 3)&(~3);
     
     for (;memory->size < aligned_buffer_size + parse_context.memory_size;){
+        void *old_base = memory->data;
         system->grow_thread_memory(memory);
+        parse_context_rebase(&parse_context, old_base, memory->data);
     }
     
     u8 *data_ptr = (u8*)memory->data;
     umem data_size = memory->size;
-    
     data_ptr += parse_context.memory_size;
     data_size -= parse_context.memory_size;
     
@@ -2189,20 +2178,33 @@ Job_Callback_Sig(job_full_lex){
                 if (system->check_cancel(thread)){
                     return;
                 }
-                system->grow_thread_memory(memory);
-                tokens.tokens = (Cpp_Token*)(memory->data);
-                tokens.max_count = memory->size / sizeof(Cpp_Token);
-                break;
                 
-                case LexResult_HitTokenLimit:
+                void *old_base = memory->data;
+                system->grow_thread_memory(memory);
+                cpp_rebase_tables(&lex, old_base, memory->data);
+                
+                data_ptr = (u8*)memory->data;
+                data_size = memory->size;
+                data_ptr += parse_context.memory_size;
+                data_size -= parse_context.memory_size;
+                tokens.tokens = (Cpp_Token*)(data_ptr);
+                tokens.max_count = (u32)(data_size / sizeof(Cpp_Token));
+            }
+            break;
+            
+            case LexResult_HitTokenLimit:
+            {
                 if (system->check_cancel(thread)){
                     return;
                 }
             }break;
             
-            case LexResult_Finished: still_lexing = false; break;
+            case LexResult_Finished:
+            {
+                still_lexing = false;
+            }break;
         }
-    } while (still_lexing);
+    }while(still_lexing);
     
     i32 new_max = l_round_up_i32(tokens.count+1, KB(1));
     

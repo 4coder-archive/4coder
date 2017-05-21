@@ -9,12 +9,6 @@
 
 // TOP
 
-struct Parser_String_And_Type{
-    char *str;
-    u32 length;
-    u32 type;
-};
-
 struct Stored_Parse_Context{
     umem memsize;
     u64 *kw_keywords;
@@ -48,7 +42,16 @@ parse_context_init_memory(Parse_Context_Memory *parse_mem, void *mem, umem memsi
     parse_mem->parse_context_max = (u32)(memsize / sizeof(*parse_mem->parse_context_array));
 }
 
-internal u32
+internal Parse_Context_ID
+parse_context_valid_id(Parse_Context_Memory *parse_mem, Parse_Context_ID id){
+    Parse_Context_ID valid_id = 0;
+    if (id > parse_mem->parse_context_max && id < parse_mem->parse_context_max*2){
+        valid_id = id;
+    }
+    return(valid_id);
+}
+
+internal Parse_Context_ID
 parse_context_add(Parse_Context_Memory *parse_mem, General_Memory *general, Parser_String_And_Type *kw_sats, u32 kw_count, Parser_String_And_Type *pp_sats, u32 pp_count){
     Stored_Parse_Context_Slot *slot = 0;
     if (parse_mem->free_sentinel.next != &parse_mem->free_sentinel){
@@ -138,7 +141,7 @@ struct Parse_Context{
 };
 
 internal Parse_Context
-parse_context_get(Parse_Context_Memory *parse_mem, u32 id, void *mem, umem memsize){
+parse_context_get(Parse_Context_Memory *parse_mem, Parse_Context_ID id, void *mem, umem memsize){
     Parse_Context result = {0};
     
     Stored_Parse_Context_Slot *slot = 0;
@@ -173,6 +176,18 @@ parse_context_get(Parse_Context_Memory *parse_mem, u32 id, void *mem, umem memsi
     }
     
     return(result);
+}
+
+internal void
+parse_context_rebase(Parse_Context *parse_mem, void *old_base, void *new_base){
+    u8 *old_base_ptr = (u8*)old_base;
+    u8 *new_base_ptr = (u8*)new_base;
+    
+    u8 *ptr = (u8*)parse_mem->kw_table.keywords;
+    parse_mem->kw_table.keywords = (u64*)(ptr + (new_base_ptr - old_base_ptr));
+    
+    ptr = (u8*)parse_mem->pp_table.keywords;
+    parse_mem->pp_table.keywords = (u64*)(ptr + (new_base_ptr - old_base_ptr));
 }
 
 // BOTTOM

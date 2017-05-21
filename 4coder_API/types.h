@@ -21,6 +21,9 @@ TYPEDEF int32_t bool32;
 /* DOC(int_color is an alias name to signal that an integer parameter or field is for a color value, colors are specified as 32 bit integers (8 bit + 24 bit) with 3 channels: 0x**RRGGBB.) */
 TYPEDEF uint32_t int_color;
 
+/* DOC(Parse_Context_ID identifies a parse context, which is a guiding rule for the parser.  Each buffer sets which parse context to use when it is parsed.) */
+TYPEDEF uint32_t Parse_Context_ID;
+
 /* DOC(Buffer_ID is used to name a 4coder buffer.  Each buffer has a unique id but when a buffer is closed it's id may be recycled by future, different buffers.) */
 TYPEDEF int32_t Buffer_ID;
 
@@ -152,6 +155,9 @@ ENUM(int32_t, Buffer_Setting_ID){
     /* DOC(The BufferSetting_LexWithoutStrings tells the system to treat string and character marks as identifiers instead of strings.  This settings does nothing if the buffer does not have lexing turned on.) */
     BufferSetting_LexWithoutStrings,
     
+    /* DOC(The BufferSetting_ParserContext setting determines the parser context that guides the parser for the contents of this buffer.  By default the value is 0, which represents the default C++ context.) */
+    BufferSetting_ParserContext,
+    
     /* DOC(The BufferSetting_WrapLine setting is used to determine whether a buffer prefers to be viewed with wrapped lines, individual views can be set to override this value after being tied to the buffer.) */
     BufferSetting_WrapLine,
     
@@ -176,7 +182,7 @@ ENUM(int32_t, Buffer_Setting_ID){
     /* DOC(The BufferSetting_ReadOnly setting marks a buffer so that it can only be returned from buffer access calls that include an AccessProtected flag.  By convention this means that edit commands that should not be applied to read only buffers will not edit this buffer.) */
     BufferSetting_ReadOnly,
     
-    /* DOC(The BufferSetting_VirtualWhitespace settings enables virtual whitespace on a buffer. Text buffers with virtual whitespace will set the indentation of every line to zero. Buffers with lexing enabled will use virtual white space to present the code with appealing indentation.) */
+    /* DOC(The BufferSetting_VirtualWhitespace setting enables virtual whitespace on a buffer. Text buffers with virtual whitespace will set the indentation of every line to zero. Buffers with lexing enabled will use virtual white space to present the code with appealing indentation.) */
     BufferSetting_VirtualWhitespace,
 };
 
@@ -389,8 +395,7 @@ STRUCT Mouse_State{
 
 GLOBAL_VAR Mouse_State null_mouse_state = {0};
 
-/* DOC(
-Range describes an integer range typically used for ranges within a buffer. Ranges tend are usually not passed as a Range struct into the API, but this struct is used to return ranges.
+/* DOC(Range describes an integer range typically used for ranges within a buffer. Ranges tend are usually not passed as a Range struct into the API, but this struct is used to return ranges.
 
 Throughout the API ranges are thought of in the form [min,max) where max is "one past the end" of the range that is actually read/edited/modified.) */
 UNION Range{
@@ -406,6 +411,12 @@ UNION Range{
         /* DOC(This is the end of the range, it is also the 'max'.) */
         int32_t end;
     };
+};
+
+STRUCT Parser_String_And_Type{
+    char *str;
+    uint32_t length;
+    uint32_t type;
 };
 
 /*

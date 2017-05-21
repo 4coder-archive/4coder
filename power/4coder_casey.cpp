@@ -1101,7 +1101,7 @@ CUSTOM_COMMAND_SIG(casey_execute_arbitrary_command)
     }
     else if(match(bar.string, make_lit_string("open menu")))
     {
-        exec_command(app, cmdid_open_menu);
+        //        exec_command(app, cmdid_open_menu);
     }
     else
     {

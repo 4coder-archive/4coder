@@ -495,10 +495,10 @@ cpp_lex_nonalloc_null_end_no_limit(Cpp_Lex_Data *S_ptr, char *chunk, i32_4tech s
             S.pp_state -= LSPP_count;
         }
         
+        S.token.state_flags = S.pp_state;
         if (S.pp_state == LSPP_default && S.ignore_string_delims){
             S.pp_state = LSPP_no_strings;
         }
-        S.token.state_flags = S.pp_state;
         
         S.token_start = S.pos;
         S.tb_pos = 0;
@@ -1093,40 +1093,43 @@ cpp_lex_nonalloc_null_end_no_limit(Cpp_Lex_Data *S_ptr, char *chunk, i32_4tech s
         if ((S.token.flags & CPP_TFLAG_PP_DIRECTIVE) == 0){
             switch (S.pp_state){
                 case LSPP_macro_identifier:
-                if (S.fsm.state != LS_identifier){
-                    S.token.type = CPP_TOKEN_JUNK;
-                    S.pp_state = LSPP_junk;
-                }
-                else{
-                    S.pp_state = LSPP_body;
-                }
-                break;
+                {
+                    if (S.fsm.state != LS_identifier){
+                        S.token.type = CPP_TOKEN_JUNK;
+                        S.pp_state = LSPP_junk;
+                    }
+                    else{
+                        S.pp_state = LSPP_body;
+                    }
+                }break;
                 
                 case LSPP_identifier:
-                if (S.fsm.state != LS_identifier){
-                    S.token.type = CPP_TOKEN_JUNK;
-                }
-                S.pp_state = LSPP_junk;
-                break;
+                {
+                    if (S.fsm.state != LS_identifier){
+                        S.token.type = CPP_TOKEN_JUNK;
+                    }
+                    S.pp_state = LSPP_junk;
+                }break;
                 
                 case LSPP_number:
-                if (S.token.type != CPP_TOKEN_INTEGER_CONSTANT){
-                    S.token.type = CPP_TOKEN_JUNK;
-                    S.pp_state = LSPP_junk;
-                }
-                else{
-                    S.pp_state = LSPP_include;
-                }
-                break;
+                {
+                    if (S.token.type != CPP_TOKEN_INTEGER_CONSTANT){
+                        S.token.type = CPP_TOKEN_JUNK;
+                        S.pp_state = LSPP_junk;
+                    }
+                    else{
+                        S.pp_state = LSPP_include;
+                    }
+                }break;
                 
                 case LSPP_junk:
-                if (S.token.type != CPP_TOKEN_COMMENT){
-                    S.token.type = CPP_TOKEN_JUNK;
-                }
-                break;
+                {
+                    if (S.token.type != CPP_TOKEN_COMMENT){
+                        S.token.type = CPP_TOKEN_JUNK;
+                    }
+                }break;
             }
         }
-        
         
         if (S.fsm.emit_token){
             S.token.start = S.token_start;
@@ -1138,7 +1141,7 @@ cpp_lex_nonalloc_null_end_no_limit(Cpp_Lex_Data *S_ptr, char *chunk, i32_4tech s
                 S.token.size = S.pos - S.token_start;
             }
             if ((S.token.flags & CPP_TFLAG_PP_DIRECTIVE) == 0){
-                if (S.pp_state != LSPP_default && S.pp_state){
+                if (S.token.state_flags != LSPP_default && S.pp_state){
                     S.token.flags |= CPP_TFLAG_PP_BODY;
                 }
             }
@@ -1303,6 +1306,18 @@ DOC(Creates a new lex state in the form of a Cpp_Lex_Data struct and returns the
     data.keyword_table = keywords;
     data.preprops_table = preprocessor_words;
     return(data);
+}
+
+API_EXPORT FCPP_LINK void
+cpp_rebase_tables(Cpp_Lex_Data *data, void *old_base, void *new_base){
+    u8_4tech *old_base_ptr = (u8_4tech*)old_base;
+    u8_4tech *new_base_ptr = (u8_4tech*)new_base;
+    
+    u8_4tech *ptr = (u8_4tech*)data->keyword_table.keywords;
+    data->keyword_table.keywords = (u64_4tech*)(ptr + (new_base_ptr - old_base_ptr));
+    
+    ptr = (u8_4tech*)data->preprops_table.keywords;
+    data->preprops_table.keywords = (u64_4tech*)(ptr + (new_base_ptr - old_base_ptr));
 }
 
 FCPP_LINK char

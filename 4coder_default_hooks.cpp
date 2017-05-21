@@ -13,6 +13,10 @@ TYPE: 'internal-for-default-system'
 #include "4coder_helper/4coder_bind_helper.h"
 #include "4coder_project_commands.cpp"
 
+#include "languages/4coder_language_rust.h"
+#include "languages/4coder_language_cs.h"
+#include "languages/4coder_language_java.h"
+
 HOOK_SIG(default_start){
     default_4coder_initialize(app);
     default_4coder_side_by_side_panels(app);
@@ -85,12 +89,36 @@ OPEN_FILE_HOOK_SIG(default_file_settings){
     int32_t extension_count = 0;
     char **extension_list = get_current_code_extensions(&extension_count);
     
+    Parse_Context_ID parse_context_id = 0;
+    
     if (buffer.file_name != 0 && buffer.size < (16 << 20)){
         String name = make_string(buffer.file_name, buffer.file_name_len);
         String ext = file_extension(name);
         for (int32_t i = 0; i < extension_count; ++i){
             if (match(ext, extension_list[i])){
                 treat_as_code = true;
+                
+                if (match(ext, "cs")){
+                    if (parse_context_language_cs == 0){
+                        init_language_cs(app);
+                    }
+                    parse_context_id = parse_context_language_cs;
+                }
+                
+                if (match(ext, "java")){
+                    if (parse_context_language_java == 0){
+                        init_language_java(app);
+                    }
+                    parse_context_id = parse_context_language_java;
+                }
+                
+                if (match(ext, "rs")){
+                    if (parse_context_language_rust == 0){
+                        init_language_rust(app);
+                    }
+                    parse_context_id = parse_context_language_rust;
+                }
+                
                 break;
             }
         }
@@ -115,6 +143,7 @@ OPEN_FILE_HOOK_SIG(default_file_settings){
     buffer_set_setting(app, &buffer, BufferSetting_WrapPosition, default_wrap_width);
     buffer_set_setting(app, &buffer, BufferSetting_MinimumBaseWrapPosition, default_min_base_width);
     buffer_set_setting(app, &buffer, BufferSetting_MapID, map_id);
+    buffer_set_setting(app, &buffer, BufferSetting_ParserContext, parse_context_id);
     
     if (treat_as_todo){
         buffer_set_setting(app, &buffer, BufferSetting_WrapLine, true);

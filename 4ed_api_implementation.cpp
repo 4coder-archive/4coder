@@ -425,7 +425,7 @@ DOC_PARAM(out, This parameter provides a buffer where the clipboard contents are
 DOC_PARAM(len, This parameter specifies the length of the out buffer.)
 DOC_RETURN(This call returns the size of the item associated with item_index.)
 
-DOC(This function always returns the size of the item even if the output buffer is NULL. If the output buffer is too small to contain the whole string, it is filled with the first len character of the clipboard contents.  The output string is not null terminated. )
+DOC(This function always returns the size of the item even if the output buffer is NULL. If the output buffer is too small to contain the whole string, it is filled with the first len character of the clipboard contents.  The output string is not null terminated.)
 
 DOC_SEE(The_4coder_Clipboard)
 */{
@@ -443,6 +443,17 @@ DOC_SEE(The_4coder_Clipboard)
     }
     
     return(size);
+}
+
+API_EXPORT Parse_Context_ID
+Create_Parse_Context(Application_Links *app, Parser_String_And_Type *kw, uint32_t kw_count, Parser_String_And_Type *pp, uint32_t pp_count)
+{
+    Command_Data *cmd = (Command_Data*)app->cmd_context;
+    Models *models = cmd->models;
+    
+    Parse_Context_ID id = parse_context_add(&models->parse_context_memory, &models->mem.general, kw, kw_count, pp, pp_count);
+    
+    return(id);
 }
 
 API_EXPORT int32_t
@@ -854,6 +865,7 @@ DOC_RETURN(returns non-zero on success)
         switch (setting){
             case BufferSetting_Lex: *value_out = file->settings.tokens_exist; break;
             case BufferSetting_LexWithoutStrings: *value_out = file->settings.tokens_without_strings; break;
+            case BufferSetting_ParserContext: *value_out = file->settings.parse_context_id; break;
             case BufferSetting_WrapLine: *value_out = !file->settings.unwrapped_lines; break;
             case BufferSetting_WrapPosition: *value_out = file->settings.display_width; break;
             case BufferSetting_MinimumBaseWrapPosition: *value_out = file->settings.minimum_base_display_width; break;
@@ -927,6 +939,27 @@ DOC_SEE(Buffer_Setting_ID)
                 }
             }break;
             
+            case BufferSetting_ParserContext:
+            {
+                u32 fixed_value = parse_context_valid_id(&models->parse_context_memory, (u32)value);
+                
+                if (file->settings.tokens_exist){
+                    if (fixed_value != file->settings.parse_context_id){
+                        file_kill_tokens(system, &models->mem.general, file);
+                        file->settings.parse_context_id = fixed_value;
+                        if (!file->settings.virtual_white){
+                            file_first_lex_parallel(system, models, file);
+                        }
+                        else{
+                            file_first_lex_serial(models, file);
+                        }
+                    }
+                }
+                else{
+                    file->settings.parse_context_id = fixed_value;
+                }
+            }break;
+            
             case BufferSetting_WrapLine:
             {
                 file->settings.unwrapped_lines = !value;
@@ -940,7 +973,8 @@ DOC_SEE(Buffer_Setting_ID)
                 }
                 if (new_value != file->settings.display_width){
                     Render_Font *font = system->font.get_render_data_by_id(file->settings.font_id);
-                    file_set_width(system, models, file, new_value, font);
+                    file->settings.display_width = new_value;
+                    file_measure_wraps_and_fix_cursor(system, models, file, font);
                 }
             }break;
             
@@ -952,7 +986,8 @@ DOC_SEE(Buffer_Setting_ID)
                 }
                 if (new_value != file->settings.minimum_base_display_width){
                     Render_Font *font = system->font.get_render_data_by_id(file->settings.font_id);
-                    file_set_min_base_width(system, models, file, new_value, font);
+                    file->settings.minimum_base_display_width = new_value;
+                    file_measure_wraps_and_fix_cursor(system, models, file, font);
                 }
             }break;
             

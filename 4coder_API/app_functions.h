@@ -5,6 +5,7 @@ struct Application_Links;
 #define CLIPBOARD_POST_SIG(n) void n(Application_Links *app, int32_t clipboard_id, char *str, int32_t len)
 #define CLIPBOARD_COUNT_SIG(n) int32_t n(Application_Links *app, int32_t clipboard_id)
 #define CLIPBOARD_INDEX_SIG(n) int32_t n(Application_Links *app, int32_t clipboard_id, int32_t item_index, char *out, int32_t len)
+#define CREATE_PARSE_CONTEXT_SIG(n) Parse_Context_ID n(Application_Links *app, Parser_String_And_Type *kw, uint32_t kw_count, Parser_String_And_Type *pp, uint32_t pp_count)
 #define GET_BUFFER_COUNT_SIG(n) int32_t n(Application_Links *app)
 #define GET_BUFFER_FIRST_SIG(n) Buffer_Summary n(Application_Links *app, Access_Flag access)
 #define GET_BUFFER_NEXT_SIG(n) void n(Application_Links *app, Buffer_Summary *buffer, Access_Flag  access)
@@ -79,6 +80,7 @@ typedef EXEC_SYSTEM_COMMAND_SIG(Exec_System_Command_Function);
 typedef CLIPBOARD_POST_SIG(Clipboard_Post_Function);
 typedef CLIPBOARD_COUNT_SIG(Clipboard_Count_Function);
 typedef CLIPBOARD_INDEX_SIG(Clipboard_Index_Function);
+typedef CREATE_PARSE_CONTEXT_SIG(Create_Parse_Context_Function);
 typedef GET_BUFFER_COUNT_SIG(Get_Buffer_Count_Function);
 typedef GET_BUFFER_FIRST_SIG(Get_Buffer_First_Function);
 typedef GET_BUFFER_NEXT_SIG(Get_Buffer_Next_Function);
@@ -155,6 +157,7 @@ Exec_System_Command_Function *exec_system_command;
 Clipboard_Post_Function *clipboard_post;
 Clipboard_Count_Function *clipboard_count;
 Clipboard_Index_Function *clipboard_index;
+Create_Parse_Context_Function *create_parse_context;
 Get_Buffer_Count_Function *get_buffer_count;
 Get_Buffer_First_Function *get_buffer_first;
 Get_Buffer_Next_Function *get_buffer_next;
@@ -230,6 +233,7 @@ Exec_System_Command_Function *exec_system_command_;
 Clipboard_Post_Function *clipboard_post_;
 Clipboard_Count_Function *clipboard_count_;
 Clipboard_Index_Function *clipboard_index_;
+Create_Parse_Context_Function *create_parse_context_;
 Get_Buffer_Count_Function *get_buffer_count_;
 Get_Buffer_First_Function *get_buffer_first_;
 Get_Buffer_Next_Function *get_buffer_next_;
@@ -313,6 +317,7 @@ app_links->exec_system_command_ = Exec_System_Command;\
 app_links->clipboard_post_ = Clipboard_Post;\
 app_links->clipboard_count_ = Clipboard_Count;\
 app_links->clipboard_index_ = Clipboard_Index;\
+app_links->create_parse_context_ = Create_Parse_Context;\
 app_links->get_buffer_count_ = Get_Buffer_Count;\
 app_links->get_buffer_first_ = Get_Buffer_First;\
 app_links->get_buffer_next_ = Get_Buffer_Next;\
@@ -388,6 +393,7 @@ static inline bool32 exec_system_command(Application_Links *app, View_Summary *v
 static inline void clipboard_post(Application_Links *app, int32_t clipboard_id, char *str, int32_t len){(app->clipboard_post(app, clipboard_id, str, len));}
 static inline int32_t clipboard_count(Application_Links *app, int32_t clipboard_id){return(app->clipboard_count(app, clipboard_id));}
 static inline int32_t clipboard_index(Application_Links *app, int32_t clipboard_id, int32_t item_index, char *out, int32_t len){return(app->clipboard_index(app, clipboard_id, item_index, out, len));}
+static inline Parse_Context_ID create_parse_context(Application_Links *app, Parser_String_And_Type *kw, uint32_t kw_count, Parser_String_And_Type *pp, uint32_t pp_count){return(app->create_parse_context(app, kw, kw_count, pp, pp_count));}
 static inline int32_t get_buffer_count(Application_Links *app){return(app->get_buffer_count(app));}
 static inline Buffer_Summary get_buffer_first(Application_Links *app, Access_Flag access){return(app->get_buffer_first(app, access));}
 static inline void get_buffer_next(Application_Links *app, Buffer_Summary *buffer, Access_Flag  access){(app->get_buffer_next(app, buffer, access));}
@@ -463,6 +469,7 @@ static inline bool32 exec_system_command(Application_Links *app, View_Summary *v
 static inline void clipboard_post(Application_Links *app, int32_t clipboard_id, char *str, int32_t len){(app->clipboard_post_(app, clipboard_id, str, len));}
 static inline int32_t clipboard_count(Application_Links *app, int32_t clipboard_id){return(app->clipboard_count_(app, clipboard_id));}
 static inline int32_t clipboard_index(Application_Links *app, int32_t clipboard_id, int32_t item_index, char *out, int32_t len){return(app->clipboard_index_(app, clipboard_id, item_index, out, len));}
+static inline Parse_Context_ID create_parse_context(Application_Links *app, Parser_String_And_Type *kw, uint32_t kw_count, Parser_String_And_Type *pp, uint32_t pp_count){return(app->create_parse_context_(app, kw, kw_count, pp, pp_count));}
 static inline int32_t get_buffer_count(Application_Links *app){return(app->get_buffer_count_(app));}
 static inline Buffer_Summary get_buffer_first(Application_Links *app, Access_Flag access){return(app->get_buffer_first_(app, access));}
 static inline void get_buffer_next(Application_Links *app, Buffer_Summary *buffer, Access_Flag  access){(app->get_buffer_next_(app, buffer, access));}
