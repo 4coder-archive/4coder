@@ -1,5 +1,5 @@
 /*
-4cpp_lexer.h - 1.0.2
+4cpp_lexer.h - 1.0.3
 no warranty implied; use at your own risk
 
 This software is in the public domain. Where that dedication is not
@@ -25,6 +25,8 @@ typedef uint8_t u8_4tech;
 typedef uint16_t u16_4tech;
 typedef uint32_t u32_4tech;
 typedef uint64_t u64_4tech;
+
+typedef u64_4tech umem_4tech;
 
 typedef float f32_4tech;
 typedef double f64_4tech;
@@ -53,144 +55,280 @@ typedef int32_t b32_4tech;
 
 #include "4cpp_lexer_types.h"
 #include "4cpp_lexer_tables.c"
+#include "4cpp_default_keywords.h"
 
-// TODO(allen): revisit this keyword data declaration system
-struct String_And_Flag{
-    char *str;
-    u32_4tech length;
-    u32_4tech flags;
-};
+////////////////
 
-#define make_stafl(s,f) (s), sizeof(s)-1, f
+FCPP_LINK umem_4tech
+cpp_get_table_memory_size_null_terminated(char **str_array, u32_4tech str_count){
+    umem_4tech memsize = 0;
+    for (u32_4tech i = 0; i < str_count; ++i){
+        char *str = str_array[i];
+        u32_4tech len = 0;
+        for (; str[len]; ++len);
+        memsize += 8 + (len+3)&(~3);
+    }
+    u32_4tech table_count = (str_count * 3) / 2;
+    memsize += table_count*sizeof(void*);
+    return(memsize);
+}
 
-static String_And_Flag preprops[] = {
-    {make_stafl("include" , CPP_PP_INCLUDE )} ,
-    {make_stafl("INCLUDE" , CPP_PP_INCLUDE )} ,
-    {make_stafl("version" , CPP_PP_VERSION )} ,
-    {make_stafl("VERSION" , CPP_PP_VERSION )} ,
-    {make_stafl("ifndef"  , CPP_PP_IFNDEF  )} ,
-    {make_stafl("IFNDEF"  , CPP_PP_IFNDEF  )} ,
-    {make_stafl("define"  , CPP_PP_DEFINE  )} ,
-    {make_stafl("DEFINE"  , CPP_PP_DEFINE  )} ,
-    {make_stafl("import"  , CPP_PP_IMPORT  )} ,
-    {make_stafl("IMPORT"  , CPP_PP_IMPORT  )} ,
-    {make_stafl("pragma"  , CPP_PP_PRAGMA  )} ,
-    {make_stafl("PRAGMA"  , CPP_PP_PRAGMA  )} ,
-    {make_stafl("undef"   , CPP_PP_UNDEF   )} ,
-    {make_stafl("UNDEF"   , CPP_PP_UNDEF   )} ,
-    {make_stafl("endif"   , CPP_PP_ENDIF   )} ,
-    {make_stafl("ENDIF"   , CPP_PP_ENDIF   )} ,
-    {make_stafl("error"   , CPP_PP_ERROR   )} ,
-    {make_stafl("ERROR"   , CPP_PP_ERROR   )} ,
-    {make_stafl("ifdef"   , CPP_PP_IFDEF   )} ,
-    {make_stafl("IFDEF"   , CPP_PP_IFDEF   )} ,
-    {make_stafl("using"   , CPP_PP_USING   )} ,
-    {make_stafl("USING"   , CPP_PP_USING   )} ,
-    {make_stafl("else"    , CPP_PP_ELSE    )} ,
-    {make_stafl("ELSE"    , CPP_PP_ELSE    )} ,
-    {make_stafl("elif"    , CPP_PP_ELIF    )} ,
-    {make_stafl("ELIF"    , CPP_PP_ELIF    )} ,
-    {make_stafl("line"    , CPP_PP_LINE    )} ,
-    {make_stafl("LINE"    , CPP_PP_LINE    )} ,
-    {make_stafl("if"      , CPP_PP_IF      )} ,
-    {make_stafl("IF"      , CPP_PP_IF      )} ,
-};
-static i32_4tech preprops_count = sizeof(preprops)/sizeof(preprops[0]);
+FCPP_LINK umem_4tech
+cpp_get_table_memory_size_string_lengths(u32_4tech *str_len, u32_4tech byte_stride, u32_4tech str_count){
+    umem_4tech memsize = 0;
+    u8_4tech *length_data = (u8_4tech*)str_len;
+    for (u32_4tech i = 0; i < str_count; ++i, length_data += byte_stride){
+        u32_4tech len = *(u32_4tech*)(length_data);
+        memsize += 8 + (len+3)&(~3);
+    }
+    u32_4tech table_count = (str_count * 3)/2;
+    memsize += table_count*sizeof(void*);
+    return(memsize);
+}
 
-static String_And_Flag keywords[] = {
-    {make_stafl("true"  , CPP_TOKEN_BOOLEAN_CONSTANT)},
-    {make_stafl("false" , CPP_TOKEN_BOOLEAN_CONSTANT)},
+FCPP_LINK void
+cpp__write_word_data(char **out_ptr, u32_4tech len, u32_4tech type, char *str){
+    char *out = *out_ptr;
+    *(u32_4tech*)out = len;
+    out += 4;
+    *(u32_4tech*)out = type;
+    out += 4;
+    for (u32_4tech j = 0; str[j]; ++j){
+        out[j] = str[j];
+    }
+    len = (len+3)&(~3);
+    out += len;
+    *out_ptr = out;
+}
+
+FCPP_LINK b32_4tech
+cpp__match(char *a, i32_4tech a_len, char *b, i32_4tech b_len){
+    b32_4tech result = false;
+    if (a_len == b_len){
+        char *a_end = a + a_len;
+        result = true;
+        for (; a < a_end; ++a, ++b){
+            if (*a != *b){
+                result = false;
+                break;
+            }
+        }
+    }
+    return(result);
+}
+
+FCPP_LINK void
+cpp__fill_table(Cpp_Keyword_Table *table, char *str, u32_4tech str_count){
+    u64_4tech *keywords = table->keywords;
+    u8_4tech *base = (u8_4tech*)keywords;
+    u32_4tech max = table->max;
     
-    {make_stafl("and"      , CPP_TOKEN_AND)},
-    {make_stafl("and_eq"   , CPP_TOKEN_ANDEQ)},
-    {make_stafl("bitand"   , CPP_TOKEN_BIT_AND)},
-    {make_stafl("bitor"    , CPP_TOKEN_BIT_OR)},
-    {make_stafl("or"       , CPP_TOKEN_OR)},
-    {make_stafl("or_eq"    , CPP_TOKEN_OREQ)},
-    {make_stafl("sizeof"   , CPP_TOKEN_SIZEOF)},
-    {make_stafl("alignof"  , CPP_TOKEN_ALIGNOF)},
-    {make_stafl("decltype" , CPP_TOKEN_DECLTYPE)},
-    {make_stafl("throw"    , CPP_TOKEN_THROW)},
-    {make_stafl("new"      , CPP_TOKEN_NEW)},
-    {make_stafl("delete"   , CPP_TOKEN_DELETE)},
-    {make_stafl("xor"      , CPP_TOKEN_BIT_XOR)},
-    {make_stafl("xor_eq"   , CPP_TOKEN_XOREQ)},
-    {make_stafl("not"      , CPP_TOKEN_NOT)},
-    {make_stafl("not_eq"   , CPP_TOKEN_NOTEQ)},
-    {make_stafl("typeid"   , CPP_TOKEN_TYPEID)},
-    {make_stafl("compl"    , CPP_TOKEN_BIT_NOT)},
+    for (u32_4tech i = 0; i < str_count; ++i){
+        u32_4tech str_len = *(u32_4tech*)str;
+        str += 8;
+        
+        u32_4tech hash = 0;
+        for (u32_4tech i = 0; i < str_len; ++i){
+            hash = (hash << 5) + (u32_4tech)(str[i]);
+        }
+        
+        u32_4tech first_index = hash % max;
+        u32_4tech index = first_index;
+        for (;;){
+            u64_4tech *keyword_ptr = keywords + index;
+            if (*keyword_ptr == 0){
+                *keyword_ptr = (u64_4tech)((str - 8) - (char*)base);
+                break;
+            }
+            else{
+                u32_4tech *table_str_len = (u32_4tech*)(*keyword_ptr + base);
+                char *table_str = (char*)(table_str_len + 2);
+                if (cpp__match(table_str, *table_str_len, str, str_len)){
+                    break;
+                }
+            }
+            
+            ++index;
+            if (index >= max){
+                index = 0;
+            }
+            if (index == first_index){
+                break;
+            }
+        }
+        
+        str_len = (str_len+3)&(~3);
+        str += str_len;
+    }
+}
+
+FCPP_LINK Cpp_Keyword_Table
+cpp_make_table(char **str_array, u32_4tech str_stride, u32_4tech *len_array, u32_4tech len_stride, u32_4tech *type_array, u32_4tech type_stride, u32_4tech str_count, void *memory, umem_4tech memsize){
+    Cpp_Keyword_Table table = {0};
+    table.mem = memory;
+    table.memsize = memsize;
+    table.keywords = (u64_4tech*)memory;
+    table.max = (str_count * 3)/2;
+    umem_4tech size_of_table = sizeof(*table.keywords)*table.max;
     
-    {make_stafl("void"   , CPP_TOKEN_KEY_TYPE)},
-    {make_stafl("bool"   , CPP_TOKEN_KEY_TYPE)},
-    {make_stafl("char"   , CPP_TOKEN_KEY_TYPE)},
-    {make_stafl("int"    , CPP_TOKEN_KEY_TYPE)},
-    {make_stafl("float"  , CPP_TOKEN_KEY_TYPE)},
-    {make_stafl("double" , CPP_TOKEN_KEY_TYPE)},
+    {
+        u8_4tech *ptr = (u8_4tech*)memory;
+        for (umem_4tech i = memsize; i > 0; --i, ++ptr){
+            *ptr = 0;
+        }
+    }
     
-    {make_stafl("long"     , CPP_TOKEN_KEY_MODIFIER)},
-    {make_stafl("short"    , CPP_TOKEN_KEY_MODIFIER)},
-    {make_stafl("unsigned" , CPP_TOKEN_KEY_MODIFIER)},
+    char *out_base = ((char*)memory) + size_of_table;
+    char *out_ptr = out_base;
     
-    {make_stafl("const"    , CPP_TOKEN_KEY_QUALIFIER)},
-    {make_stafl("volatile" , CPP_TOKEN_KEY_QUALIFIER)},
+    u8_4tech *str_ptr = (u8_4tech*)str_array;
+    u8_4tech *len_ptr = (u8_4tech*)len_array;
+    u8_4tech *type_ptr = (u8_4tech*)type_array;
     
-    {make_stafl("asm"           , CPP_TOKEN_KEY_CONTROL_FLOW)},
-    {make_stafl("break"         , CPP_TOKEN_KEY_CONTROL_FLOW)},
-    {make_stafl("case"          , CPP_TOKEN_KEY_CONTROL_FLOW)},
-    {make_stafl("catch"         , CPP_TOKEN_KEY_CONTROL_FLOW)},
-    {make_stafl("continue"      , CPP_TOKEN_KEY_CONTROL_FLOW)},
-    {make_stafl("default"       , CPP_TOKEN_KEY_CONTROL_FLOW)},
-    {make_stafl("do"            , CPP_TOKEN_KEY_CONTROL_FLOW)},
-    {make_stafl("else"          , CPP_TOKEN_KEY_CONTROL_FLOW)},
-    {make_stafl("for"           , CPP_TOKEN_KEY_CONTROL_FLOW)},
-    {make_stafl("goto"          , CPP_TOKEN_KEY_CONTROL_FLOW)},
-    {make_stafl("if"            , CPP_TOKEN_KEY_CONTROL_FLOW)},
-    {make_stafl("return"        , CPP_TOKEN_KEY_CONTROL_FLOW)},
-    {make_stafl("switch"        , CPP_TOKEN_KEY_CONTROL_FLOW)},
-    {make_stafl("try"           , CPP_TOKEN_KEY_CONTROL_FLOW)},
-    {make_stafl("while"         , CPP_TOKEN_KEY_CONTROL_FLOW)},
-    {make_stafl("static_assert" , CPP_TOKEN_KEY_CONTROL_FLOW)},
+    if (len_ptr == 0){
+        if (type_ptr == 0){
+            for (u32_4tech i = 0; i < str_count; ++i){
+                char *str_item = *(char**)str_ptr;
+                str_ptr += str_stride;
+                u32_4tech len = 0;
+                for (; str_item[len]; ++len);
+                cpp__write_word_data(&out_ptr, len, CPP_TOKEN_KEY_OTHER, str_item);
+            }
+        }
+        else{
+            for (u32_4tech i = 0; i < str_count; ++i){
+                char *str_item = *(char**)str_ptr;
+                str_ptr += str_stride;
+                u32_4tech len = 0;
+                for (; str_item[len]; ++len);
+                u32_4tech type = *(u32_4tech*)(type_ptr);
+                cpp__write_word_data(&out_ptr, len, type, str_item);
+            }
+        }
+    }
+    else{
+        if (type_ptr == 0){
+            for (u32_4tech i = 0; i < str_count; ++i){
+                char *str_item = *(char**)str_ptr;
+                str_ptr += str_stride;
+                u32_4tech len = *(u32_4tech*)(len_ptr);
+                len_ptr += len_stride;
+                cpp__write_word_data(&out_ptr, len, CPP_TOKEN_KEY_OTHER, str_item);
+            }
+        }
+        else{
+            for (u32_4tech i = 0; i < str_count; ++i){
+                char *str_item = *(char**)str_ptr;
+                str_ptr += str_stride;
+                u32_4tech len = *(u32_4tech*)(len_ptr);
+                len_ptr += len_stride;
+                u32_4tech type = *(u32_4tech*)(type_ptr);
+                type_ptr += type_stride;
+                cpp__write_word_data(&out_ptr, len, type, str_item);
+            }
+        }
+    }
     
-    {make_stafl("const_cast"       , CPP_TOKEN_KEY_CAST)},
-    {make_stafl("dynamic_cast"     , CPP_TOKEN_KEY_CAST)},
-    {make_stafl("reinterpret_cast" , CPP_TOKEN_KEY_CAST)},
-    {make_stafl("static_cast"      , CPP_TOKEN_KEY_CAST)},
+    cpp__fill_table(&table, out_base, str_count);
     
-    {make_stafl("class"    , CPP_TOKEN_KEY_TYPE_DECLARATION)},
-    {make_stafl("enum"     , CPP_TOKEN_KEY_TYPE_DECLARATION)},
-    {make_stafl("struct"   , CPP_TOKEN_KEY_TYPE_DECLARATION)},
-    {make_stafl("typedef"  , CPP_TOKEN_KEY_TYPE_DECLARATION)},
-    {make_stafl("union"    , CPP_TOKEN_KEY_TYPE_DECLARATION)},
-    {make_stafl("template" , CPP_TOKEN_KEY_TYPE_DECLARATION)},
-    {make_stafl("typename" , CPP_TOKEN_KEY_TYPE_DECLARATION)},
+    return(table);
+}
+
+FCPP_LINK b32_4tech
+cpp__table_match(Cpp_Keyword_Table *table, char *s, u32_4tech s_len, u32_4tech **item_ptr_out){
+    u32_4tech hash = 0;
+    for (u32_4tech i = 0; i < s_len; ++i){
+        hash = (hash << 5) + (u32_4tech)(s[i]);
+    }
     
-    {make_stafl("friend"    , CPP_TOKEN_KEY_ACCESS)},
-    {make_stafl("namespace" , CPP_TOKEN_KEY_ACCESS)},
-    {make_stafl("private"   , CPP_TOKEN_KEY_ACCESS)},
-    {make_stafl("protected" , CPP_TOKEN_KEY_ACCESS)},
-    {make_stafl("public"    , CPP_TOKEN_KEY_ACCESS)},
-    {make_stafl("using"     , CPP_TOKEN_KEY_ACCESS)},
+    u64_4tech *keywords = table->keywords;
+    u8_4tech *base = (u8_4tech*)keywords;
     
-    {make_stafl("extern"  , CPP_TOKEN_KEY_LINKAGE)},
-    {make_stafl("export"  , CPP_TOKEN_KEY_LINKAGE)},
-    {make_stafl("inline"  , CPP_TOKEN_KEY_LINKAGE)},
-    {make_stafl("static"  , CPP_TOKEN_KEY_LINKAGE)},
-    {make_stafl("virtual" , CPP_TOKEN_KEY_LINKAGE)},
+    b32_4tech result = false;
+    u32_4tech max = table->max;
+    u32_4tech first_index = hash % max;
+    u32_4tech index = first_index;
+    for (;;){
+        u64_4tech *keyword_ptr = keywords + index;
+        if (*keyword_ptr == 0){
+            break;
+        }
+        
+        u32_4tech *str_len = (u32_4tech*)(*keyword_ptr + base);
+        char *str = (char*)(str_len + 2);
+        if (cpp__match(str, *str_len, s, s_len)){
+            *item_ptr_out = (u32_4tech*)(*keyword_ptr + base);
+            result = true;
+            break;
+        }
+        
+        ++index;
+        if (index >= max){
+            index = 0;
+        }
+        if (index == first_index){
+            break;
+        }
+    }
     
-    {make_stafl("alignas"      , CPP_TOKEN_KEY_OTHER)},
-    {make_stafl("explicit"     , CPP_TOKEN_KEY_OTHER)},
-    {make_stafl("noexcept"     , CPP_TOKEN_KEY_OTHER)},
-    {make_stafl("nullptr"      , CPP_TOKEN_KEY_OTHER)},
-    {make_stafl("operator"     , CPP_TOKEN_KEY_OTHER)},
-    {make_stafl("register"     , CPP_TOKEN_KEY_OTHER)},
-    {make_stafl("this"         , CPP_TOKEN_KEY_OTHER)},
-    {make_stafl("thread_local" , CPP_TOKEN_KEY_OTHER)},
+    return(result);
+}
+
+FCPP_LINK umem_4tech
+cpp_get_table_memory_size_default(Cpp_Word_Table_Type type){
+    u32_4tech *ptr = 0;
+    u32_4tech count = 0;
     
-#if defined(FCPP_LEXER_EXTRA_KEYWORDS)
-#include FCPP_LEXER_EXTRA_KEYWORDS
-#endif
-};
-static i32_4tech keywords_count = sizeof(keywords)/sizeof(keywords[0]);
+    switch (type){
+        case CPP_TABLE_KEYWORDS:
+        {
+            ptr = &default_keywords->length;
+            count = default_keywords_count;
+        }break;
+        
+        case CPP_TABLE_PREPROCESSOR_DIRECTIVES:
+        {
+            ptr = &default_preprops->length;
+            count = default_preprops_count;
+        }break;
+    }
+    
+    u32_4tech stride = sizeof(String_And_Flag);
+    umem_4tech size = cpp_get_table_memory_size_string_lengths(ptr, stride, count);
+    return(size);
+}
+
+FCPP_LINK Cpp_Keyword_Table
+cpp_make_table_default(Cpp_Word_Table_Type type, void *mem, umem_4tech memsize){
+    char **str_ptr = 0;
+    u32_4tech *len_ptr = 0;
+    u32_4tech *type_ptr = 0;
+    u32_4tech count = 0;
+    
+    switch (type){
+        case CPP_TABLE_KEYWORDS:
+        {
+            str_ptr = &default_keywords->str;
+            len_ptr = &default_keywords->length;
+            type_ptr = &default_keywords->flags;
+            count = default_keywords_count;
+        }break;
+        
+        case CPP_TABLE_PREPROCESSOR_DIRECTIVES:
+        {
+            str_ptr = &default_preprops->str;
+            len_ptr = &default_preprops->length;
+            type_ptr = &default_preprops->flags;
+            count = default_preprops_count;
+        }break;
+    }
+    
+    u32_4tech stride = sizeof(String_And_Flag);
+    Cpp_Keyword_Table table = cpp_make_table(str_ptr, stride, len_ptr, stride, type_ptr, stride, count, mem, memsize);
+    return(table);
+}
+
+////////////////
 
 API_EXPORT FCPP_LINK Cpp_Get_Token_Result
 cpp_get_token(Cpp_Token_Array array, i32_4tech pos)/*
@@ -262,8 +400,9 @@ DOC_SEE(Cpp_Get_Token_Result)
     return(result);
 }
 
+// TODO(allen): eliminate this and just make a table.
 FCPP_LINK Cpp_Lex_PP_State
-cpp_pp_directive_to_state(Cpp_Token_Type type){
+cpp__pp_directive_to_state(Cpp_Token_Type type){
     Cpp_Lex_PP_State result = LSPP_default;
     switch (type){
         case CPP_PP_INCLUDE: case CPP_PP_IMPORT: case CPP_PP_USING:
@@ -301,37 +440,6 @@ cpp_pp_directive_to_state(Cpp_Token_Type type){
     return(result);
 }
 
-FCPP_LINK b32_4tech
-cpp__match(char *a, i32_4tech a_len, char *b, i32_4tech b_len){
-    b32_4tech result = false;
-    if (a_len == b_len){
-        char *a_end = a + a_len;
-        result = true;
-        for (; a < a_end; ++a, ++b){
-            if (*a != *b){
-                result = false;
-                break;
-            }
-        }
-    }
-    return(result);
-}
-
-FCPP_LINK b32_4tech
-cpp__table_match(String_And_Flag *table, i32_4tech count, char *s, i32_4tech len, i32_4tech *index_out){
-    b32_4tech result = false;
-    String_And_Flag *entry = table;
-    *index_out = -1;
-    for (i32_4tech i = 0; i < count; ++i, ++entry){
-        if (cpp__match(entry->str, entry->length, s, len)){
-            result = true;
-            *index_out = i;
-            break;
-        }
-    }
-    return(result);
-}
-
 #define LEXER_TB(n) ((n) & (sizeof(S.tb)-1))
 
 FCPP_LINK Cpp_Lex_Result
@@ -359,6 +467,9 @@ cpp_lex_nonalloc_null_end_no_limit(Cpp_Lex_Data *S_ptr, char *chunk, i32_4tech s
         DfrCase(9);
         DfrCase(10);
     }
+    
+    Assert(S.keyword_table.keywords != 0);
+    Assert(S.preprops_table.keywords != 0);
     
     for (;;){
         S.white_done = 0;
@@ -507,12 +618,11 @@ cpp_lex_nonalloc_null_end_no_limit(Cpp_Lex_Data *S_ptr, char *chunk, i32_4tech s
                         }
                     }
                     
-                    i32_4tech sub_match = -1;
-                    cpp__table_match(keywords, keywords_count, S.tb, S.tb_pos-1, &sub_match);
+                    u32_4tech *item_ptr = 0;
+                    cpp__table_match(&S.keyword_table, S.tb, S.tb_pos-1, &item_ptr);
                     
-                    if (sub_match != -1){
-                        String_And_Flag data = keywords[sub_match];
-                        S.token.type = (Cpp_Token_Type)data.flags;
+                    if (item_ptr != 0){
+                        S.token.type = (Cpp_Token_Type)(item_ptr[1]);
                         S.token.flags = CPP_TFLAG_IS_KEYWORD;
                         break;
                     }
@@ -554,14 +664,13 @@ cpp_lex_nonalloc_null_end_no_limit(Cpp_Lex_Data *S_ptr, char *chunk, i32_4tech s
                         }
                     }
                     
-                    i32_4tech sub_match = -1;
-                    cpp__table_match(preprops, preprops_count, S.tb+i, pos-i, &sub_match);
+                    u32_4tech *item_ptr = 0;
+                    cpp__table_match(&S.preprops_table, S.tb+i, S.tb_pos-i-1, &item_ptr);
                     
-                    if (sub_match != -1){
-                        String_And_Flag data = preprops[sub_match];
-                        S.token.type = (Cpp_Token_Type)data.flags;
+                    if (item_ptr != 0){
+                        S.token.type = (Cpp_Token_Type)(item_ptr[1]);
                         S.token.flags = CPP_TFLAG_PP_DIRECTIVE;
-                        S.pp_state = (u8_4tech)cpp_pp_directive_to_state(S.token.type);
+                        S.pp_state = (u8_4tech)cpp__pp_directive_to_state(S.token.type);
                         break;
                     }
                 }
@@ -1181,48 +1290,19 @@ DOC_SEE(Cpp_Lex_Result)
 }
 
 API_EXPORT FCPP_LINK Cpp_Lex_Data
-cpp_lex_data_init(b32_4tech ignore_string_delims)/*
+cpp_lex_data_init(b32_4tech ignore_string_delims, Cpp_Keyword_Table keywords, Cpp_Keyword_Table preprocessor_words)/*
 DOC_PARAM(ignore_string_delims, TODO)
-DOC_RETURN(A brand new lex state ready to begin lexing a file from the beginning.)
+DOC_PARAM(keywords, TODO)
+DOC_PARAM(preprocessor_words, TODO)
+DOC_RETURN(A brand new lex state setup to lex from the beginning of the file.)
 
-DOC(Creates a new lex state in the form of a Cpp_Lex_Data struct and returns the struct.
-The system needs a temporary buffer that is as long as the longest token.  4096 is usually
-enough but the buffer is not checked, so to be 100% bullet proof it has to be the same length
-as the file being lexed.)
+DOC(Creates a new lex state in the form of a Cpp_Lex_Data struct and returns the struct.)
 */{
     Cpp_Lex_Data data = {0};
-    data.ignore_string_delims = ignore_string_delims;
+    data.ignore_string_delims = (b8_4tech)ignore_string_delims;
+    data.keyword_table = keywords;
+    data.preprops_table = preprocessor_words;
     return(data);
-}
-
-API_EXPORT FCPP_LINK i32_4tech
-cpp_lex_data_temp_size(Cpp_Lex_Data *lex_data)/*
-DOC_PARAM(lex_data, The lex state from which to get the temporary buffer size.)
-DOC(This call gets the current size of the temporary buffer in the lexer state so
-that you can move to a new temporary buffer by copying the data over.)
-DOC_SEE(cpp_lex_data_temp_read)
-DOC_SEE(cpp_lex_data_new_temp)
-*/{
-    i32_4tech result = lex_data->tb_pos;
-    Assert(lex_data->tb != 0);
-    return(result);
-}
-
-API_EXPORT FCPP_LINK void
-cpp_lex_data_temp_read(Cpp_Lex_Data *lex_data, char *out_buffer)/*
-DOC_PARAM(lex_data, The lex state from which to read the temporary buffer.)
-DOC_PARAM(out_buffer, The buffer into which the contents of the temporary buffer will be written.
-The size of the buffer must be at least the size as returned by cpp_lex_data_temp_size.)
-DOC(This call reads the current contents of the temporary buffer.)
-DOC_SEE(cpp_lex_data_temp_size)
-DOC_SEE(cpp_lex_data_new_temp)
-*/{
-    i32_4tech size = lex_data->tb_pos;
-    char *src = lex_data->tb;
-    char *end = src + size;
-    for (; src < end; ++src, ++out_buffer){
-        *out_buffer = *src;
-    }
 }
 
 FCPP_LINK char
@@ -1289,24 +1369,18 @@ The start and end points are based on the edited region of the file before the e
 }
 
 API_EXPORT FCPP_LINK Cpp_Relex_Data
-cpp_relex_init(Cpp_Token_Array *array, i32_4tech start_pos, i32_4tech end_pos, i32_4tech character_shift_amount, b32_4tech ignore_string_delims)
+cpp_relex_init(Cpp_Token_Array *array, i32_4tech start_pos, i32_4tech end_pos, i32_4tech character_shift_amount, b32_4tech ignore_string_delims, Cpp_Keyword_Table keywords, Cpp_Keyword_Table preprocessor_words)
 /*
-DOC_PARAM(array, A pointer to the token array that will be modified by the relex,
-this array should already contain the tokens for the previous state of the file.)
-DOC_PARAM(start_pos, The start position of the edited region of the file.
-The start and end points are based on the edited region of the file before the edit.)
-DOC_PARAM(end_pos, The end position of the edited region of the file.
-In particular, end_pos is the first character after the edited region not effected by the edit.
-Thus if the edited region contained one character end_pos - start_pos should equal 1.
-The start and end points are based on the edited region of the file before the edit.)
+DOC_PARAM(array, A pointer to the token array that will be modified by the relex, this array should already contain the tokens for the previous state of the file.)
+DOC_PARAM(start_pos, The start position of the edited region of the file. The start and end points are based on the edited region of the file before the edit.)
+DOC_PARAM(end_pos, The end position of the edited region of the file. In particular, end_pos is the first character after the edited region not effected by the edit. Thus if the edited region contained one character end_pos - start_pos should equal 1. The start and end points are based on the edited region of the file before the edit.)
 DOC_PARAM(character_shift_amount, The shift in the characters after the edited region.)
 DOC_PARAM(ignore_string_delims, TODO)
+DOC_PARAM(keywords, TODO)
+DOC_PARAM(preprocessor_words, TODO)
 DOC_RETURN(Returns a partially initialized relex state.)
 
-DOC(This call does the first setup step of initializing a relex state.  To finish initializing the relex state
-you must tell the state about the positioning of the first chunk it will be fed.  There are two methods of doing
-this, the direct method is with cpp_relex_declare_first_chunk_position, the method that is often more convenient
-is with cpp_relex_is_start_chunk.  If the file is not chunked the second step of initialization can be skipped.)
+DOC(This call does the first setup step of initializing a relex state.  To finish initializing the relex state you must tell the state about the positioning of the first chunk it will be fed.  There are two methods of doing this, the direct method is with cpp_relex_declare_first_chunk_position, the method that is often more convenient is with cpp_relex_is_start_chunk.  If the file is not chunked the second step of initialization can be skipped.)
 
 DOC_SEE(cpp_relex_declare_first_chunk_position)
 DOC_SEE(cpp_relex_is_start_chunk)
@@ -1326,7 +1400,7 @@ DOC_SEE(cpp_relex_is_start_chunk)
     
     state.character_shift_amount = character_shift_amount;
     
-    state.lex = cpp_lex_data_init(ignore_string_delims);
+    state.lex = cpp_lex_data_init(ignore_string_delims, keywords, preprocessor_words);
     state.lex.pp_state = cpp_token_get_pp_state(array->tokens[state.start_token_index].state_flags);
     state.lex.pos = state.relex_start_position;
     
@@ -1589,8 +1663,7 @@ does the necessary replacement of tokens in the array to make it match the new f
         array->count += shift_amount;
     }
     
-    cpp__block_move(array->tokens + S_ptr->start_token_index, relex_array->tokens,
-                    sizeof(Cpp_Token)*relex_array->count);
+    cpp__block_move(array->tokens + S_ptr->start_token_index, relex_array->tokens, sizeof(Cpp_Token)*relex_array->count);
 }
 
 API_EXPORT FCPP_LINK void
@@ -1683,7 +1756,16 @@ return(array);
 )
 DOC_SEE(cpp_make_token_array)
 */{
-    Cpp_Lex_Data S = cpp_lex_data_init(false);
+    umem_4tech keywords_memsize = cpp_get_table_memory_size_default(CPP_TABLE_KEYWORDS);
+    umem_4tech preprocessor_words_memsize = cpp_get_table_memory_size_default(CPP_TABLE_PREPROCESSOR_DIRECTIVES);
+    
+    void *keywords_mem = malloc(keywords_memsize);
+    void *preprocessor_words_mem = malloc(preprocessor_words_memsize);
+    
+    Cpp_Keyword_Table keywords = cpp_make_table_default(CPP_TABLE_KEYWORDS, keywords_mem, keywords_memsize);
+    Cpp_Keyword_Table preprocessor_words = cpp_make_table_default(CPP_TABLE_PREPROCESSOR_DIRECTIVES, preprocessor_words_mem, preprocessor_words_memsize);
+    
+    Cpp_Lex_Data S = cpp_lex_data_init(false, keywords, preprocessor_words);
     i32_4tech quit = 0;
     
     char empty = 0;
@@ -1718,6 +1800,9 @@ DOC_SEE(cpp_make_token_array)
             }break;
         }
     }
+    
+    free(keywords_mem);
+    free(preprocessor_words_mem);
 }
 
 #endif

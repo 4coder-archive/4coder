@@ -16,6 +16,11 @@
 #define STRUCT struct
 #endif
 
+ENUM(uint32_t, Cpp_Word_Table_Type){
+    CPP_TABLE_KEYWORDS,
+    CPP_TABLE_PREPROCESSOR_DIRECTIVES,
+};
+
 /* DOC(A Cpp_Token_Type classifies a token to make parsing easier. Some types are not actually output by the lexer, but exist because parsers will also make use of token types in their own output.) */
 ENUM(uint32_t, Cpp_Token_Type){
     CPP_TOKEN_JUNK = 0,
@@ -306,6 +311,13 @@ struct Cpp_Lex_FSM{
 };
 static Cpp_Lex_FSM null_lex_fsm = {0};
 
+STRUCT Cpp_Keyword_Table{
+    void *mem;
+    umem_4tech memsize;
+    u64_4tech *keywords;
+    u32_4tech max;
+};
+
 /* DOC(Cpp_Lex_Data represents the state of the lexer so that the system may be resumable and the user can manage the lexer state and decide when to resume lexing with it.  To create a new lexer state call cpp_lex_data_init.
 
 The internals of the lex state should not be treated as a part of the public API.)
@@ -332,8 +344,10 @@ STRUCT Cpp_Lex_Data{
     
     b8_4tech str_raw;
     b8_4tech str_include;
+    b8_4tech ignore_string_delims;
     
-    i32_4tech ignore_string_delims;
+    Cpp_Keyword_Table keyword_table;
+    Cpp_Keyword_Table preprops_table;
     
     i32_4tech __pc__;
 };

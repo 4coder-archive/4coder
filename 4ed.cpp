@@ -438,7 +438,7 @@ COMMAND_DECL(kill_buffer){
 }
 
 internal void
-case_change_range(System_Functions *system, Mem_Options *mem, View *view, Editing_File *file, u8 a, u8 z, u8 char_delta){
+case_change_range(System_Functions *system, Models *models, View *view, Editing_File *file, u8 a, u8 z, u8 char_delta){
     Range range  = {0};
     range.min = Min(view->edit_pos->cursor.pos, view->edit_pos->mark);
     range.max = Max(view->edit_pos->cursor.pos, view->edit_pos->mark);
@@ -453,7 +453,7 @@ case_change_range(System_Functions *system, Mem_Options *mem, View *view, Editin
             system->cancel_job(BACKGROUND_THREADS, file->state.lex_job);
         }
         
-        file_update_history_before_edit(mem, file, step, 0, hist_normal);
+        file_update_history_before_edit(&models->mem, file, step, 0, hist_normal);
         
         u8 *data = (u8*)file->state.buffer.data;
         for (i32 i = range.start; i < range.end; ++i){
@@ -463,7 +463,7 @@ case_change_range(System_Functions *system, Mem_Options *mem, View *view, Editin
         }
         
         if (file->state.token_array.tokens){
-            file_relex_parallel(system, mem, file, range.start, range.end, 0);
+            file_relex_parallel(system, models, file, range.start, range.end, 0);
         }
     }
 }
@@ -1131,16 +1131,16 @@ App_Read_Command_Line_Sig(app_read_command_line){
     return(out_size);
 }
 
-extern "C" SCROLL_RULE_SIG(fallback_scroll_rule){
-    i32 result = 0;
+SCROLL_RULE_SIG(fallback_scroll_rule){
+    b32 result = false;
     
     if (target_x != *scroll_x){
         *scroll_x = target_x;
-        result = 1;
+        result = true;
     }
     if (target_y != *scroll_y){
         *scroll_y = target_y;
-        result = 1;
+        result = true;
     }
     
     return(result);
@@ -1185,7 +1185,6 @@ App_Init_Sig(app_init){
     div->next = 0;
     models->layout.free_divider = dividers;
     
-    
     {
         models->live_set = &vars->live_set;
         
@@ -1205,6 +1204,13 @@ App_Init_Sig(app_init){
             persistent->id = i;
             persistent->models = models;
         }
+    }
+    
+    {
+        umem memsize = KB(8);
+        void *mem = push_block(partition, (i32)memsize);
+        parse_context_init_memory(&models->parse_context_memory, mem, memsize);
+        parse_context_add_default(&models->parse_context_memory, &models->mem.general);
     }
     
     {

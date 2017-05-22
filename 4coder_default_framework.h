@@ -628,6 +628,23 @@ config_array_good(Config_Array_Reader *array_reader){
 
 
 //
+// Lexer Helper
+//
+
+static void
+lexer_keywords_default_init(Partition *part, Cpp_Keyword_Table *kw_out, Cpp_Keyword_Table *pp_out){
+    size_t kw_size = cpp_get_table_memory_size_default(CPP_TABLE_KEYWORDS);
+    size_t pp_size = cpp_get_table_memory_size_default(CPP_TABLE_PREPROCESSOR_DIRECTIVES);
+    
+    void *kw_mem = push_block(part, (i32_4tech)kw_size);
+    void *pp_mem = push_block(part, (i32_4tech)pp_size);
+    
+    *kw_out = cpp_make_table_default(CPP_TABLE_KEYWORDS, kw_mem, kw_size);
+    *pp_out = cpp_make_table_default(CPP_TABLE_PREPROCESSOR_DIRECTIVES, pp_mem, pp_size);
+}
+
+
+//
 // Configuration
 //
 
@@ -748,7 +765,11 @@ process_config_file(Application_Links *app){
             array.max_count = (1 << 20)/sizeof(Cpp_Token);
             array.tokens = push_array(&global_part, Cpp_Token, array.max_count);
             
-            Cpp_Lex_Data S = cpp_lex_data_init(false);
+            Cpp_Keyword_Table kw_table = {0};
+            Cpp_Keyword_Table pp_table = {0};
+            lexer_keywords_default_init(part, &kw_table, &pp_table);
+            
+            Cpp_Lex_Data S = cpp_lex_data_init(false, kw_table, pp_table);
             Cpp_Lex_Result result = cpp_lex_step(&S, mem, size+1, HAS_NULL_TERM, &array, NO_OUT_LIMIT);
             
             if (result == LexResult_Finished){

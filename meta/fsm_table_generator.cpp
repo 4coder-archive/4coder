@@ -21,6 +21,8 @@ typedef uint16_t u16_4tech;
 typedef uint32_t u32_4tech;
 typedef uint64_t u64_4tech;
 
+typedef u64_4tech umem_4tech;
+
 typedef float f32_4tech;
 typedef double f64_4tech;
 
