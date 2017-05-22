@@ -2911,7 +2911,7 @@ main(int argc, char **argv){
         thread->group_id = BACKGROUND_THREADS;
         
         Thread_Memory *memory = linuxvars.thread_memory + i;
-        *memory = thread_memory_zero();
+        *memory = null_thread_memory;
         memory->id = thread->id;
         
         thread->queue = &linuxvars.queues[BACKGROUND_THREADS];
