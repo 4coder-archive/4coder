@@ -2299,13 +2299,12 @@ LinuxGetXSettingsDPI(Display* dpy, int screen)
 // X11 window init
 //
 
-internal i32
+internal f32
 size_change(i32 x, i32 y){
     f32 xs = x/96.f;
     f32 ys = y/96.f;
     f32 s = Min(xs, ys);
-    i32 r = floor32(s);
-    return(r);
+    return(s);
 }
 
 #define BASE_W 800
@@ -2317,10 +2316,12 @@ LinuxX11WindowInit(int argc, char** argv, int* window_width, int* window_height)
         *window_width = linuxvars.settings.window_w;
         *window_height = linuxvars.settings.window_h;
     } else {
-        i32 schange = size_change(linuxvars.dpi_x, linuxvars.dpi_y);
-        *window_width = BASE_W * schange;
-        *window_height = BASE_H * schange;
+        f32 schange = size_change(linuxvars.dpi_x, linuxvars.dpi_y);
+        *window_width = ceil32(BASE_W * schange);
+        *window_height = ceil32(BASE_H * schange);
     }
+    *window_width = Max(*window_width, 1);
+    *window_height = Max(*window_height, 1);
     
     if (!GLXCanUseFBConfig(linuxvars.XDisplay)){
         LinuxFatalErrorMsg("Your XServer's GLX version is too old. GLX 1.3+ is required.");
