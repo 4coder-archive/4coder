@@ -2299,28 +2299,29 @@ LinuxGetXSettingsDPI(Display* dpy, int screen)
 // X11 window init
 //
 
-internal i32
+internal f32
 size_change(i32 x, i32 y){
     f32 xs = x/96.f;
     f32 ys = y/96.f;
     f32 s = Min(xs, ys);
-    i32 r = floor32(s);
-    return(r);
+    return(s);
 }
 
-internal b32
-LinuxX11WindowInit(int argc, char** argv, int* WinWidth, int* WinHeight)
-{
 #define BASE_W 800
 #define BASE_H 600
-    
+
+internal b32
+LinuxX11WindowInit(int argc, char** argv, int* window_width, int* window_height){
     if (linuxvars.settings.set_window_size){
-        *WinWidth = linuxvars.settings.window_w;
-        *WinHeight = linuxvars.settings.window_h;
+        *window_width = linuxvars.settings.window_w;
+        *window_height = linuxvars.settings.window_h;
     } else {
-        *WinWidth = BASE_W * size_change(linuxvars.dpi_x, linuxvars.dpi_y);
-        *WinHeight = BASE_H * size_change(linuxvars.dpi_x, linuxvars.dpi_y);
+        f32 schange = size_change(linuxvars.dpi_x, linuxvars.dpi_y);
+        *window_width = ceil32(BASE_W * schange);
+        *window_height = ceil32(BASE_H * schange);
     }
+    *window_width = Max(*window_width, 1);
+    *window_height = Max(*window_height, 1);
     
     if (!GLXCanUseFBConfig(linuxvars.XDisplay)){
         LinuxFatalErrorMsg("Your XServer's GLX version is too old. GLX 1.3+ is required.");
@@ -2339,7 +2340,8 @@ LinuxX11WindowInit(int argc, char** argv, int* WinWidth, int* WinHeight)
     swa.bit_gravity = NorthWestGravity;
     swa.colormap = XCreateColormap(linuxvars.XDisplay, RootWindow(linuxvars.XDisplay, Config.BestInfo.screen), Config.BestInfo.visual, AllocNone);
     
-    linuxvars.XWindow = XCreateWindow(linuxvars.XDisplay, RootWindow(linuxvars.XDisplay, Config.BestInfo.screen), 0, 0, *WinWidth, *WinHeight, 0, Config.BestInfo.depth, InputOutput, Config.BestInfo.visual, CWBackingStore|CWBitGravity|CWBackPixel|CWBorderPixel|CWColormap|CWEventMask, &swa);
+    u32 CWflags = CWBackingStore|CWBitGravity|CWBackPixel|CWBorderPixel|CWColormap|CWEventMask;
+    linuxvars.XWindow = XCreateWindow(linuxvars.XDisplay, RootWindow(linuxvars.XDisplay, Config.BestInfo.screen), 0, 0, *window_width, *window_height, 0, Config.BestInfo.depth, InputOutput, Config.BestInfo.visual, CWflags, &swa);
     
     if (!linuxvars.XWindow){
         LinuxFatalErrorMsg("XCreateWindow failed. Make sure your display is set up correctly.");
@@ -2427,8 +2429,8 @@ LinuxX11WindowInit(int argc, char** argv, int* WinWidth, int* WinHeight)
     XWindowAttributes WinAttribs;
     if (XGetWindowAttributes(linuxvars.XDisplay, linuxvars.XWindow, &WinAttribs))
     {
-        *WinWidth = WinAttribs.width;
-        *WinHeight = WinAttribs.height;
+        *window_width = WinAttribs.width;
+        *window_height = WinAttribs.height;
     }
     
     Atom wm_protos[] = {
@@ -2910,7 +2912,7 @@ main(int argc, char **argv){
         thread->group_id = BACKGROUND_THREADS;
         
         Thread_Memory *memory = linuxvars.thread_memory + i;
-        *memory = thread_memory_zero();
+        *memory = null_thread_memory;
         memory->id = thread->id;
         
         thread->queue = &linuxvars.queues[BACKGROUND_THREADS];
@@ -2978,8 +2980,8 @@ main(int argc, char **argv){
     }
 #endif
     
-    int WinWidth, WinHeight;
-    if (!LinuxX11WindowInit(argc, argv, &WinWidth, &WinHeight)){
+    int window_width, window_height;
+    if (!LinuxX11WindowInit(argc, argv, &window_width, &window_height)){
         return 1;
     }
     
@@ -3060,7 +3062,7 @@ main(int argc, char **argv){
     
     linuxvars.app.init(&linuxvars.system, &linuxvars.target, &memory_vars, linuxvars.clipboard_contents, current_directory, linuxvars.custom_api);
     
-    LinuxResizeTarget(WinWidth, WinHeight);
+    LinuxResizeTarget(window_width, window_height);
     
     //
     // Main loop
