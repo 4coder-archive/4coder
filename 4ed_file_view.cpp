@@ -995,6 +995,7 @@ struct Code_Wrap_State{
     Code_Wrap_X plane_wrap_x;
     
     i32 *line_starts;
+    i32 line_count;
     i32 line_index;
     i32 next_line_start;
     
@@ -1023,6 +1024,7 @@ wrap_state_init(System_Functions *system, Code_Wrap_State *state, Editing_File *
     state->end_token = state->token_ptr + state->token_array.count;
     
     state->line_starts = file->state.buffer.line_starts;
+    state->line_count = file->state.buffer.line_count;
     state->next_line_start = state->line_starts[1];
     
     Gap_Buffer *buffer = &file->state.buffer;
@@ -1102,9 +1104,17 @@ wrap_state_consume_token(System_Functions *system, Render_Font *font, Code_Wrap_
     }
     
     // TODO(allen): exponential search this shit!
-    while (i >= state->next_line_start){
-        ++state->line_index;
-        state->next_line_start = state->line_starts[state->line_index + 1];
+    for (;i >= state->next_line_start;){
+        state->next_line_start = state->size;
+        if (state->line_index < state->line_count){
+            ++state->line_index;
+            if (state->line_index + 1 < state->line_count){
+                state->next_line_start = state->line_starts[state->line_index + 1];
+            }
+        }
+        else{
+            break;
+        }
     }
     
     i32 line_start = state->line_starts[state->line_index];
@@ -1220,6 +1230,9 @@ wrap_state_consume_token(System_Functions *system, Render_Font *font, Code_Wrap_
         }
         
         ++state->token_ptr;
+        if (state->token_ptr > state->end_token){
+            state->token_ptr = state->end_token;
+        }
     }
     
     result.position_end = state->i;
@@ -2125,7 +2138,7 @@ Job_Callback_Sig(job_full_lex){
     Gap_Buffer *buffer = &file->state.buffer;
     i32 text_size = buffer_size(buffer);
     
-    i32 aligned_buffer_size = (text_size + 3)&(~3);
+    u32 aligned_buffer_size = (text_size + 3)&(~3);
     
     for (;memory->size < aligned_buffer_size + parse_context.memory_size;){
         void *old_base = memory->data;
@@ -2189,8 +2202,7 @@ Job_Callback_Sig(job_full_lex){
                 data_size -= parse_context.memory_size;
                 tokens.tokens = (Cpp_Token*)(data_ptr);
                 tokens.max_count = (u32)(data_size / sizeof(Cpp_Token));
-            }
-            break;
+            }break;
             
             case LexResult_HitTokenLimit:
             {

@@ -22,7 +22,7 @@
 #include "4ed_system.h"
 #include "4ed_profile.h"
 
-//#define USE_DEBUG_MEMORY
+#define USE_DEBUG_MEMORY
 
 #define FSTRING_IMPLEMENTATION
 #define FSTRING_C

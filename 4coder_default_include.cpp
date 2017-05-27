@@ -13,6 +13,8 @@ TYPE: 'major-system-include'
 
 #include "4coder_helper/4coder_jump_parsing.h"
 
+#define FCODER_JUMP_COMMANDS
+
 #include "4coder_default_framework.h"
 #include "4coder_base_commands.cpp"
 #include "4coder_auto_indent.cpp"
@@ -24,6 +26,9 @@ TYPE: 'major-system-include'
 #include "4coder_project_commands.cpp"
 #include "4coder_default_hooks.cpp"
 #include "4coder_function_list.cpp"
+
+#undef FCODER_JUMP_COMMANDS
+#include "4coder_sticky_jump.cpp"
 
 #include "4coder_helper/4coder_bind_helper.h"
 #include "4coder_helper/4coder_helper.h"

@@ -634,8 +634,8 @@ config_array_good(Config_Array_Reader *array_reader){
 
 static void
 lexer_keywords_default_init(Partition *part, Cpp_Keyword_Table *kw_out, Cpp_Keyword_Table *pp_out){
-    size_t kw_size = cpp_get_table_memory_size_default(CPP_TABLE_KEYWORDS);
-    size_t pp_size = cpp_get_table_memory_size_default(CPP_TABLE_PREPROCESSOR_DIRECTIVES);
+    umem_4tech kw_size = cpp_get_table_memory_size_default(CPP_TABLE_KEYWORDS);
+    umem_4tech pp_size = cpp_get_table_memory_size_default(CPP_TABLE_PREPROCESSOR_DIRECTIVES);
     
     void *kw_mem = push_block(part, (i32_4tech)kw_size);
     void *pp_mem = push_block(part, (i32_4tech)pp_size);

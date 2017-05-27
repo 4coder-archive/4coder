@@ -31,17 +31,17 @@ debug_gm_open(System_Functions *system, Debug_GM *general, void *memory, i32 siz
 static void*
 debug_gm_allocate(Debug_GM *general, int32_t size){
     System_Functions *system = general->system;
-    persist u32 round_val = OS_PAGE_SIZE-1;
+    local_persist u32 round_val = OS_PAGE_SIZE-1;
     size = (size + round_val) & (~round_val);
-    void *result = system->memory_allocate(0, size + OS_PAGE_SIZE);
-    system->memory_set_protection(0, (u8*)result + size, OS_PAGE_SIZE, 0);
+    void *result = system->memory_allocate(size + OS_PAGE_SIZE);
+    system->memory_set_protection((u8*)result + size, OS_PAGE_SIZE, 0);
     return(result);
 }
 
 static void
 debug_gm_free(Debug_GM *general, void *memory){
     System_Functions *system = general->system;
-    system->memory_free(0, memory, 0);
+    system->memory_free(memory, 0);
 }
 
 static void*

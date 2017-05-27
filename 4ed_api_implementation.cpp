@@ -476,12 +476,15 @@ internal_get_buffer_first(Working_Set *working_set, Buffer_Summary *buffer){
 
 internal void
 internal_get_buffer_next(Working_Set *working_set, Buffer_Summary *buffer){
-    Editing_File *file;
-    
-    file = working_set_get_active_file(working_set, buffer->buffer_id);
+    Editing_File *file = working_set_get_active_file(working_set, buffer->buffer_id);
     if (file){
         file = (Editing_File*)file->node.next;
-        fill_buffer_summary(buffer, file, working_set);
+        if (file != (Editing_File*)&working_set->used_sentinel){
+            fill_buffer_summary(buffer, file, working_set);
+        }
+        else{
+            *buffer = null_buffer_summary;
+        }
     }
     else{
         *buffer = null_buffer_summary;

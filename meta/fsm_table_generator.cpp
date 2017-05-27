@@ -21,7 +21,11 @@ typedef uint16_t u16_4tech;
 typedef uint32_t u32_4tech;
 typedef uint64_t u64_4tech;
 
+#if defined(FTECH_32_BIT)
+typedef u32_4tech umem_4tech;
+#else
 typedef u64_4tech umem_4tech;
+#endif
 
 typedef float f32_4tech;
 typedef double f64_4tech;

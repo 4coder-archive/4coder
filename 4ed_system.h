@@ -136,8 +136,8 @@ enum Thread_Group_ID{
 
 struct Thread_Memory{
     void *data;
-    i32 size;
-    i32 id;
+    u32 size;
+    u32 id;
 };
 global Thread_Memory null_thread_memory = {0};
 

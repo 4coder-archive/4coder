@@ -26,7 +26,11 @@ typedef uint16_t u16_4tech;
 typedef uint32_t u32_4tech;
 typedef uint64_t u64_4tech;
 
+#if defined(FTECH_32_BIT)
+typedef u32_4tech umem_4tech;
+#else
 typedef u64_4tech umem_4tech;
+#endif
 
 typedef float f32_4tech;
 typedef double f64_4tech;
@@ -1774,8 +1778,8 @@ DOC_SEE(cpp_make_token_array)
     umem_4tech keywords_memsize = cpp_get_table_memory_size_default(CPP_TABLE_KEYWORDS);
     umem_4tech preprocessor_words_memsize = cpp_get_table_memory_size_default(CPP_TABLE_PREPROCESSOR_DIRECTIVES);
     
-    void *keywords_mem = malloc(keywords_memsize);
-    void *preprocessor_words_mem = malloc(preprocessor_words_memsize);
+    void *keywords_mem = malloc((size_t)keywords_memsize);
+    void *preprocessor_words_mem = malloc((size_t)preprocessor_words_memsize);
     
     Cpp_Keyword_Table keywords = cpp_make_table_default(CPP_TABLE_KEYWORDS, keywords_mem, keywords_memsize);
     Cpp_Keyword_Table preprocessor_words = cpp_make_table_default(CPP_TABLE_PREPROCESSOR_DIRECTIVES, preprocessor_words_mem, preprocessor_words_memsize);

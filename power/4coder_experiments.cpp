@@ -9,11 +9,8 @@ TYPE: 'build-target'
 #if !defined(FCODER_EXPERIMENTS_CPP)
 #define FCODER_EXPERIMENTS_CPP
 
-#define FCODER_JUMP_COMMANDS
 #include "4coder_default_include.cpp"
 #include "4coder_miblo_numbers.cpp"
-#undef FCODER_JUMP_COMMANDS
-#include "4coder_sticky_jump.cpp"
 
 #define NO_BINDING
 #include "4coder_default_bindings.cpp"
