@@ -731,12 +731,14 @@ package(char *cdir){
             DECL_STR(custom_helper_dir, "4coder_helper");
             DECL_STR(custom_lib_dir, "4coder_lib");
             DECL_STR(fcpp_dir, "4cpp");
+            DECL_STR(languages, "languages");
             
             char *dir_array[] = {
                 custom_dir,
                 custom_helper_dir,
                 custom_lib_dir,
                 fcpp_dir,
+                languages,
             };
             i32 dir_count = ArrayCount(dir_array);
             
