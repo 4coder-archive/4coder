@@ -16,8 +16,11 @@
 #define STRUCT struct
 #endif
 
+/* DOC(A Cpp_Word_Table_Type names one of the keyword table slots in a parse context.) */
 ENUM(uint32_t, Cpp_Word_Table_Type){
+    /* DOC(The Cpp_Keyword_Table used to list the typical keywords.) */
     CPP_TABLE_KEYWORDS,
+    /* DOC(The Cpp_Keyword_Table used to list preprocessor directives.) */
     CPP_TABLE_PREPROCESSOR_DIRECTIVES,
 };
 
@@ -311,6 +314,9 @@ struct Cpp_Lex_FSM{
 };
 static Cpp_Lex_FSM null_lex_fsm = {0};
 
+/* DOC(A Cpp_Keyword_Table contains a list of keywords and a hashed lookup table for the keywords.  They are used to setup a parse context.)
+DOC_SEE(cpp_make_token_array)
+HIDE_MEMBERS() */
 STRUCT Cpp_Keyword_Table{
     void *mem;
     umem_4tech memsize;

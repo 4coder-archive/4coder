@@ -413,9 +413,13 @@ UNION Range{
     };
 };
 
+/* DOC(Parser_String_And_Type contains a string and type integer used to specify information about keywords to the parser.) */
 STRUCT Parser_String_And_Type{
+    /* DOC(The string specified by the pair, it need not be null terminated.) */
     char *str;
+    /* DOC(The number of bytes in the string str.) */
     uint32_t length;
+    /* DOC(The type integer.) */
     uint32_t type;
 };
 

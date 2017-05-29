@@ -447,7 +447,13 @@ DOC_SEE(The_4coder_Clipboard)
 
 API_EXPORT Parse_Context_ID
 Create_Parse_Context(Application_Links *app, Parser_String_And_Type *kw, uint32_t kw_count, Parser_String_And_Type *pp, uint32_t pp_count)
-{
+/*
+DOC_PARAM(kw, The list of keywords and type of each.)
+DOC_PARAM(kw_count, The number of keywords in the list.)
+DOC_PARAM(pp, The list of preprocessor directives and the type of each.)
+DOC_PARAM(pp_count, The number of preprocessor directives in the list.)
+DOC_RETURN(On success returns an id for the new parse context.  If id == 0, then the maximum number of parse contexts has been reached.)
+*/{
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     Models *models = cmd->models;
     

@@ -63,7 +63,7 @@ typedef int32_t b32_4tech;
 
 ////////////////
 
-FCPP_LINK umem_4tech
+API_EXPORT FCPP_LINK umem_4tech
 cpp_get_table_memory_size_null_terminated(char **str_array, u32_4tech str_count){
     umem_4tech memsize = 0;
     for (u32_4tech i = 0; i < str_count; ++i){
@@ -77,7 +77,7 @@ cpp_get_table_memory_size_null_terminated(char **str_array, u32_4tech str_count)
     return(memsize);
 }
 
-FCPP_LINK umem_4tech
+API_EXPORT FCPP_LINK umem_4tech
 cpp_get_table_memory_size_string_lengths(u32_4tech *str_len, u32_4tech byte_stride, u32_4tech str_count){
     umem_4tech memsize = 0;
     u8_4tech *length_data = (u8_4tech*)str_len;
@@ -166,7 +166,7 @@ cpp__fill_table(Cpp_Keyword_Table *table, char *str, u32_4tech str_count){
     }
 }
 
-FCPP_LINK Cpp_Keyword_Table
+API_EXPORT FCPP_LINK Cpp_Keyword_Table
 cpp_make_table(char **str_array, u32_4tech str_stride, u32_4tech *len_array, u32_4tech len_stride, u32_4tech *type_array, u32_4tech type_stride, u32_4tech str_count, void *memory, umem_4tech memsize){
     Cpp_Keyword_Table table = {0};
     table.mem = memory;
@@ -278,7 +278,7 @@ cpp__table_match(Cpp_Keyword_Table *table, char *s, u32_4tech s_len, u32_4tech *
     return(result);
 }
 
-FCPP_LINK umem_4tech
+API_EXPORT FCPP_LINK umem_4tech
 cpp_get_table_memory_size_default(Cpp_Word_Table_Type type){
     u32_4tech *ptr = 0;
     u32_4tech count = 0;
@@ -302,7 +302,7 @@ cpp_get_table_memory_size_default(Cpp_Word_Table_Type type){
     return(size);
 }
 
-FCPP_LINK Cpp_Keyword_Table
+API_EXPORT FCPP_LINK Cpp_Keyword_Table
 cpp_make_table_default(Cpp_Word_Table_Type type, void *mem, umem_4tech memsize){
     char **str_ptr = 0;
     u32_4tech *len_ptr = 0;
