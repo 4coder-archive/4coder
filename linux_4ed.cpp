@@ -1739,10 +1739,23 @@ LinuxInputInit(Display *dpy, Window XWindow){
     XIMStyle style;
     unsigned long xim_event_mask = 0;
     
-    setlocale(LC_ALL, "");
-    XSetLocaleModifiers("");
-    fprintf(stderr, "Supported locale?: %s.\n", XSupportsLocale() ? "Yes" : "No");
-    // TODO(inso): handle the case where it isn't supported somehow?
+    char *prev_locale = setlocale(LC_ALL, "");
+    char *prev_modifiers = XSetLocaleModifiers("");
+    b32 locale_supported = XSupportsLocale();
+    fprintf(stderr, "Supported locale?: %s.\n", locale_supported ? "Yes" : "No");
+    if (!locale_supported){
+        fprintf(stderr, "Previous locale was %s\n", prev_locale);
+        fprintf(stderr, "Previous modifiers were %s\n", prev_modifiers);
+        fprintf(stderr, "Reverting to previous locale setup ... ");
+        if (prev_locale != 0){
+            setlocale(LC_ALL, prev_locale);
+        }
+        if (prev_modifiers != 0){
+            XSetLocaleModifiers(prev_modifiers);
+        }
+        locale_supported = XSupportsLocale();
+        fprintf(stderr, "Previous is supported? %s.\n", locale_supported ? "Yes" : "No");
+    }
     
     result.input_method = XOpenIM(dpy, 0, 0, 0);
     if (!result.input_method){
@@ -1776,11 +1789,13 @@ LinuxInputInit(Display *dpy, Window XWindow){
         else{
             result = null_init_input_result;
             fputs("Could not get minimum required input style.\n", stderr);
+            exit(1);
         }
     }
     else{
         result = null_init_input_result;
         fprintf(stderr, "Could not open X Input Method.\n");
+        exit(1);
     }
     
     u32 flags = ExposureMask | KeyPressMask | KeyReleaseMask | ButtonPressMask | ButtonReleaseMask | EnterWindowMask | LeaveWindowMask | PointerMotionMask | FocusChangeMask | StructureNotifyMask | MappingNotify | ExposureMask | VisibilityChangeMask | xim_event_mask;
