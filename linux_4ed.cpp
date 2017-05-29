@@ -1739,22 +1739,15 @@ LinuxInputInit(Display *dpy, Window XWindow){
     XIMStyle style;
     unsigned long xim_event_mask = 0;
     
-    char *prev_locale = setlocale(LC_ALL, "");
-    char *prev_modifiers = XSetLocaleModifiers("");
+    setlocale(LC_ALL, "");
+    XSetLocaleModifiers("");
     b32 locale_supported = XSupportsLocale();
     fprintf(stderr, "Supported locale?: %s.\n", locale_supported ? "Yes" : "No");
     if (!locale_supported){
-        fprintf(stderr, "Previous locale was %s\n", prev_locale);
-        fprintf(stderr, "Previous modifiers were %s\n", prev_modifiers);
-        fprintf(stderr, "Reverting to previous locale setup ... ");
-        if (prev_locale != 0){
-            setlocale(LC_ALL, prev_locale);
-        }
-        if (prev_modifiers != 0){
-            XSetLocaleModifiers(prev_modifiers);
-        }
+        fprintf(stderr, "Reverting to 'C' ... ");
+        setlocale(LC_ALL, "C");
         locale_supported = XSupportsLocale();
-        fprintf(stderr, "Previous is supported? %s.\n", locale_supported ? "Yes" : "No");
+        fprintf(stderr, "C is supported? %s.\n", locale_supported ? "Yes" : "No");
     }
     
     result.input_method = XOpenIM(dpy, 0, 0, 0);
