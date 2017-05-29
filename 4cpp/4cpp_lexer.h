@@ -64,7 +64,12 @@ typedef int32_t b32_4tech;
 ////////////////
 
 API_EXPORT FCPP_LINK umem_4tech
-cpp_get_table_memory_size_null_terminated(char **str_array, u32_4tech str_count){
+cpp_get_table_memory_size_null_terminated(char **str_array, u32_4tech str_count)
+/*
+DOC_PARAM(str_array, An array of null terminated strings that specifies every string that will be put in the table.)
+DOC_PARAM(str_count, The number of strings in str_array.)
+DOC_RETURN(Returns the memory size, in bytes, needed to allocate a table for the given strings.)
+*/{
     umem_4tech memsize = 0;
     for (u32_4tech i = 0; i < str_count; ++i){
         char *str = str_array[i];
@@ -78,7 +83,13 @@ cpp_get_table_memory_size_null_terminated(char **str_array, u32_4tech str_count)
 }
 
 API_EXPORT FCPP_LINK umem_4tech
-cpp_get_table_memory_size_string_lengths(u32_4tech *str_len, u32_4tech byte_stride, u32_4tech str_count){
+cpp_get_table_memory_size_string_lengths(u32_4tech *str_len, u32_4tech byte_stride, u32_4tech str_count)
+/*
+DOC_PARAM(str_len, An array specifying the length of every string that will be put in the table.)
+DOC_PARAM(byte_stride, The distance in bytes between each length element.)
+DOC_PARAM(str_count, The number of length elements in the array.)
+DOC_RETURN(Returns the memory size, in bytes, needed to allocate a table for the given strings.)
+*/{
     umem_4tech memsize = 0;
     u8_4tech *length_data = (u8_4tech*)str_len;
     for (u32_4tech i = 0; i < str_count; ++i, length_data += byte_stride){
@@ -167,7 +178,25 @@ cpp__fill_table(Cpp_Keyword_Table *table, char *str, u32_4tech str_count){
 }
 
 API_EXPORT FCPP_LINK Cpp_Keyword_Table
-cpp_make_table(char **str_array, u32_4tech str_stride, u32_4tech *len_array, u32_4tech len_stride, u32_4tech *type_array, u32_4tech type_stride, u32_4tech str_count, void *memory, umem_4tech memsize){
+cpp_make_table(char **str_array, u32_4tech str_stride, u32_4tech *len_array, u32_4tech len_stride, u32_4tech *type_array, u32_4tech type_stride, u32_4tech str_count, void *memory, umem_4tech memsize)
+/*
+DOC_PARAM(str_array, An array of strings to be put in the new table.)
+DOC_PARAM(str_stride, The number of bytes separating each string pointer in the array.)
+DOC_PARAM(len_array, An optional array of string lengths.  If this array is specified it should have the same number of elements as str_array.  If this is not specified the strings in str_array should be null terminated.)
+DOC_PARAM(len_stride, If len_array is specified this indicates the number of bytes separating each length element in the array.)
+DOC_PARAM(type_array, An optional array of type values.  If this array is specified it should have the same number of elements as str_array.  If this is not specified the value of each keyword type integer will default to CPP_TOKEN_KEY_OTHER.)
+DOC_PARAM(type_stride, If type_array is specified this indicates the number of bytes separating each type integer element in the array.)
+DOC_PARAM(str_count, Specifies the number of strings in str_array, and any of the used optional arrays.)
+DOC_PARAM(memory, A chunk of memory set aside for this table.  This should have at least as much memory as returned by one of the cpp_get_table_memory_size functions.)
+DOC_PARAM(memsize, The number of bytes reserved at the memory address for the keyword table.)
+
+DOC_RETURN(On success returns a keyword table struct built on the memory chunk.)
+
+DOC(This call reads in an array of strings, either null terminated or not, and optionally an array of types, and constructs a compact list of the strings and types, and a hashed lookup table.  As long as the table will be in use by the lexer the memory chunk passed in is used by the table.  The memory may be free or otherwise recycled if the table will not be used again.)
+
+DOC_SEE(cpp_get_table_memory_size_null_terminated)
+DOC_SEE(cpp_get_table_memory_size_string_lengths)
+*/{
     Cpp_Keyword_Table table = {0};
     table.mem = memory;
     table.memsize = memsize;
@@ -279,7 +308,12 @@ cpp__table_match(Cpp_Keyword_Table *table, char *s, u32_4tech s_len, u32_4tech *
 }
 
 API_EXPORT FCPP_LINK umem_4tech
-cpp_get_table_memory_size_default(Cpp_Word_Table_Type type){
+cpp_get_table_memory_size_default(Cpp_Word_Table_Type type)
+/*
+DOC_PARAM(type, Specifies for which slot of the parser context to get a default result.)
+DOC_RETURN(Returns the memory size, in bytes, needed to allocate a table for the given default slot.)
+DOC_SEE(Cpp_Word_Table_Type)
+*/{
     u32_4tech *ptr = 0;
     u32_4tech count = 0;
     
@@ -303,7 +337,19 @@ cpp_get_table_memory_size_default(Cpp_Word_Table_Type type){
 }
 
 API_EXPORT FCPP_LINK Cpp_Keyword_Table
-cpp_make_table_default(Cpp_Word_Table_Type type, void *mem, umem_4tech memsize){
+cpp_make_table_default(Cpp_Word_Table_Type type, void *memory, umem_4tech memsize)
+/*
+DOC_PARAM(type, Specifies for which slot of the parser context to get a default result.)
+DOC_PARAM(memory, A chunk of memory set aside for this table.  This should have at least as much memory as returned by one of the cpp_get_table_memory_size functions.)
+DOC_PARAM(memsize, The number of bytes reserved at the memory address for the keyword table.)
+
+DOC_RETURN(On success returns a keyword table struct built on the memory chunk.)
+
+DOC(Works as cpp_make_table for a default C++ keyword set.)
+
+DOC_SEE(Cpp_Word_Table_Type)
+DOC_SEE(cpp_make_table)
+*/{
     char **str_ptr = 0;
     u32_4tech *len_ptr = 0;
     u32_4tech *type_ptr = 0;
@@ -328,7 +374,7 @@ cpp_make_table_default(Cpp_Word_Table_Type type, void *mem, umem_4tech memsize){
     }
     
     u32_4tech stride = sizeof(String_And_Flag);
-    Cpp_Keyword_Table table = cpp_make_table(str_ptr, stride, len_ptr, stride, type_ptr, stride, count, mem, memsize);
+    Cpp_Keyword_Table table = cpp_make_table(str_ptr, stride, len_ptr, stride, type_ptr, stride, count, memory, memsize);
     return(table);
 }
 
@@ -1313,7 +1359,13 @@ DOC(Creates a new lex state in the form of a Cpp_Lex_Data struct and returns the
 }
 
 API_EXPORT FCPP_LINK void
-cpp_rebase_tables(Cpp_Lex_Data *data, void *old_base, void *new_base){
+cpp_rebase_tables(Cpp_Lex_Data *data, void *old_base, void *new_base)
+/*
+DOC_PARAM(data, The lex data in which to perform the rebase.)
+DOC_PARAM(old_base, The old base memory address in which the tables were stored.)
+DOC_PARAM(new_base, The new base memory address in which the tables are or will be stored.)
+DOC(Updates the base address pointers for the all the tables in the lex data as if the data in the original memory chunk old_base was copied to new_base.)
+*/{
     u8_4tech *old_base_ptr = (u8_4tech*)old_base;
     u8_4tech *new_base_ptr = (u8_4tech*)new_base;
     
@@ -1751,6 +1803,34 @@ DOC_SEE(cpp_make_token_array)
     }
 }
 
+API_EXPORT FCPP_LINK Cpp_Keyword_Table
+cpp_alloc_make_table_default(Cpp_Word_Table_Type type)
+/*
+DOC_PARAM(type, Specifies for which slot of the parser context to get a default result.)
+DOC_RETURN(On success returns a keyword table struct built on a memory chunk created by malloc.)
+DOC(Works as cpp_make_table for a default keyword list but takes the further liberty of using malloc and getting the memory it needs itself.)
+DOC_SEE(cpp_free_table)
+DOC_SEE(Cpp_Word_Table_Type)
+DOC_SEE(cpp_make_table)
+*/{
+    Cpp_Keyword_Table result = {0};
+    umem_4tech size = cpp_get_table_memory_size_default(type);
+    if (size > 0){
+        void *mem = malloc((size_t)size);
+        result = cpp_make_table_default(type, mem, size);
+    }
+    return(result);
+}
+
+API_EXPORT FCPP_LINK void
+cpp_free_table(Cpp_Keyword_Table table)
+/*
+DOC_PARAM(table, A table previously allocated by cpp_alloc_make_table_default.)
+DOC(Frees the memory allocated in a cpp_alloc_make_table call.)
+*/{
+    free(table.keywords);
+}
+
 API_EXPORT FCPP_LINK void
 cpp_lex_file(char *data, i32_4tech size, Cpp_Token_Array *token_array_out)/*
 DOC_PARAM(data, The file data to be lexed in a single contiguous block.)
@@ -1776,14 +1856,8 @@ return(array);
 )
 DOC_SEE(cpp_make_token_array)
 */{
-    umem_4tech keywords_memsize = cpp_get_table_memory_size_default(CPP_TABLE_KEYWORDS);
-    umem_4tech preprocessor_words_memsize = cpp_get_table_memory_size_default(CPP_TABLE_PREPROCESSOR_DIRECTIVES);
-    
-    void *keywords_mem = malloc((size_t)keywords_memsize);
-    void *preprocessor_words_mem = malloc((size_t)preprocessor_words_memsize);
-    
-    Cpp_Keyword_Table keywords = cpp_make_table_default(CPP_TABLE_KEYWORDS, keywords_mem, keywords_memsize);
-    Cpp_Keyword_Table preprocessor_words = cpp_make_table_default(CPP_TABLE_PREPROCESSOR_DIRECTIVES, preprocessor_words_mem, preprocessor_words_memsize);
+    Cpp_Keyword_Table keywords = cpp_alloc_make_table_default(CPP_TABLE_KEYWORDS);
+    Cpp_Keyword_Table preprocessor_words = cpp_alloc_make_table_default(CPP_TABLE_PREPROCESSOR_DIRECTIVES);
     
     Cpp_Lex_Data S = cpp_lex_data_init(false, keywords, preprocessor_words);
     i32_4tech quit = 0;
@@ -1821,8 +1895,8 @@ DOC_SEE(cpp_make_token_array)
         }
     }
     
-    free(keywords_mem);
-    free(preprocessor_words_mem);
+    cpp_free_table(keywords);
+    cpp_free_table(preprocessor_words);
 }
 
 #endif
