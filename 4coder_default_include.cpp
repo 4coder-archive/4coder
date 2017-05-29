@@ -13,7 +13,10 @@ TYPE: 'major-system-include'
 
 #include "4coder_helper/4coder_jump_parsing.h"
 
+// NOTE(allen): Define USE_OLD_STYLE_JUMPS before including to get the old jumps (instead of sticky jumps).
+#if !defined(USE_OLD_STYLE_JUMPS)
 #define FCODER_JUMP_COMMANDS
+#endif
 
 #include "4coder_default_framework.h"
 #include "4coder_base_commands.cpp"
@@ -27,8 +30,10 @@ TYPE: 'major-system-include'
 #include "4coder_default_hooks.cpp"
 #include "4coder_function_list.cpp"
 
+#if !defined(USE_OLD_STYLE_JUMPS)
 #undef FCODER_JUMP_COMMANDS
 #include "4coder_sticky_jump.cpp"
+#endif
 
 #include "4coder_helper/4coder_bind_helper.h"
 #include "4coder_helper/4coder_helper.h"
