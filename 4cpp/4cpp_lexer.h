@@ -1361,10 +1361,7 @@ DOC_PARAM(array, A pointer to the token array that will be modified by the relex
 this array should already contain the tokens for the previous state of the file.)
 DOC_PARAM(start_pos, The start position of the edited region of the file.
 The start and end points are based on the edited region of the file before the edit.)
-DOC_PARAM(end_pos, The end position of the edited region of the file.
-In particular, end_pos is the first character after the edited region not effected by the edit.
-Thus if the edited region contained one character end_pos - start_pos should equal 1.
-The start and end points are based on the edited region of the file before the edit.)
+DOC_PARAM(end_pos, The end position of the edited region of the file. In particular, end_pos is the first character after the edited region not effected by the edit. Thus if the edited region contained one character end_pos - start_pos should equal 1. The start and end points are based on the edited region of the file before the edit.)
 */{
     Cpp_Relex_Range range = {0};
     Cpp_Get_Token_Result get_result = {0};
@@ -1377,7 +1374,11 @@ The start and end points are based on the edited region of the file before the e
     
     get_result = cpp_get_token(*array, end_pos);
     range.end_token_index = get_result.token_index;
-    if (end_pos > array->tokens[range.end_token_index].start){
+    i32_4tech token_start = 0;
+    if (range.end_token_index >= 0){
+        token_start = array->tokens[range.end_token_index].start;
+    }
+    if (end_pos > token_start){
         ++range.end_token_index;
     }
     if (range.end_token_index < 0){
