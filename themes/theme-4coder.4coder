@@ -1,0 +1,39 @@
+name = "4coder";
+
+Back = 0xFF0C0C0C;
+Margin = 0xFF181818;
+Margin_Hover = 0xFF252525;
+Margin_Active = 0xFF323232;
+List_Item = Margin;
+List_Item_Hover = Margin_Hover;
+List_Item_Active = Margin_Active;
+Cursor = 0xFF00EE00;
+Highlight = 0xFFDDEE00;
+Mark = 0xFF494949;
+Default = 0xFF90B080;
+At_Cursor = Back;
+At_Highlight = 0xFFFF44DD;
+Comment = 0xFF2090F0;
+Keyword = 0xFFD08F20;
+Str_Constant = 0xFF50FF30;
+Char_Constant = Str_Constant;
+Int_Constant = Str_Constant;
+Float_Constant = Str_Constant;
+Bool_Constant = Str_Constant;
+Include = Str_Constant;
+Preproc = Default;
+Special_Character = 0xFFFF0000;
+Ghost_Character = 0xFF4E5E46;
+
+Paste = 0xFFDDEE00;
+
+Undo = 0xFF00DDEE;
+
+Highlight_Junk = 0xff3a0000;
+Highlight_White = 0xff003a3a;
+
+Bar = 0xFF888888;
+Bar_Active = 0xFF666666;
+Base = 0xFF000000;
+Pop1 = 0xFF3C57DC;
+Pop2 = 0xFFFF0000;

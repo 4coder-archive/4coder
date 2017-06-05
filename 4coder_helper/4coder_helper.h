@@ -143,6 +143,13 @@ query_user_number(Application_Links *app, Query_Bar *bar){
     return(success);
 }
 
+static void
+init_theme_zero(Theme *theme){
+    for (int32_t i = 0; i < Stag_COUNT; ++i){
+        theme->colors[i] = 0;
+    }
+}
+
 static char
 buffer_get_char(Application_Links *app, Buffer_Summary *buffer, int32_t pos){
     char result = ' ';

@@ -433,7 +433,7 @@ STRUCT File_Info{
     /* DOC(This field specifies the length of the filename string not counting the null terminator.) */
     int32_t filename_len;
     /* DOC(This field indicates that the description is for a folder not a file.) */
-    int32_t folder;
+    bool32 folder;
 };
 
 /* DOC(File_List is a list of File_Info structs.)
@@ -453,10 +453,8 @@ STRUCT File_List{
 STRUCT Buffer_Identifier{
     /* DOC(This field is the name of the buffer; it need not be null terminated. If id is specified this pointer should be NULL.) */
     char *name;
-    
     /* DOC(This field specifies the length of the name string.) */
     int32_t name_len;
-    
     /* DOC(This field is the id of the buffer.  If name is specified this should be 0.) */
     Buffer_ID id;
 };
@@ -720,6 +718,10 @@ STRUCT Theme_Color{
     Style_Tag tag;
     /* DOC(The color in the slot.) */
     int_color color;
+};
+
+STRUCT Theme{
+    int_color colors[Stag_COUNT];
 };
 
 /* DOC(A Buffer_Batch_Edit_Type is a type of batch operation.) */

@@ -632,6 +632,7 @@ app_hardcode_styles(Models *models){
     /////////////////
     style_set_name(style, make_lit_string("Handmade Hero"));
     
+#if 0
     style->main.back_color = 0xFF161616;
     style->main.margin_color = 0xFF262626;
     style->main.margin_hover_color = 0xFF333333;
@@ -669,6 +670,8 @@ app_hardcode_styles(Models *models){
     file_info_style.pop1_color = 0xFF03CF0C;
     file_info_style.pop2_color = 0xFFFF0000;
     style->main.file_info_style = file_info_style;
+#endif
+    
     ++style;
     
     /////////////////

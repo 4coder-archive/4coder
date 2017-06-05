@@ -38,5 +38,22 @@ struct Style_Library{
     i32 count, max;
 };
 
+internal void
+style_set_colors(Style *style, Theme *theme){
+    for (u32 i = 0; i < Stag_COUNT; ++i){
+        u32 *color_ptr = style_index_by_tag(&style->main, i);
+        *color_ptr = theme->colors[i];
+    }
+}
+
+internal void
+style_add(Style_Library *library, Theme *theme, String name){
+    if (library->count < library->max){
+        Style *style = &library->styles[library->count++];
+        style_set_colors(style, theme);
+        style_set_name(style, name);
+    }
+}
+
 // BOTTOM
 

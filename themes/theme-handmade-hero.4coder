@@ -1,0 +1,39 @@
+name = "Handmade Hero";
+
+Back = 0xFF161616;
+Margin = 0xFF262626;
+Margin_Hover = 0xFF333333;
+Margin_Active = 0xFF404040;
+List_Item = Margin;
+List_Item_Hover = Margin_Hover;
+List_Item_Active = Margin_Active;
+Cursor = 0xFF40FF40;
+Highlight = 0xFF703419;
+Mark = 0xFF808080;
+Default = 0xFFA08563;
+At_Cursor = Back;
+At_Highlight = 0xFFCDAA7D;
+Comment = 0xFF7D7D7D;
+Keyword = 0xFFCD950C;
+Str_Constant = 0xFF6B8E23;
+Char_Constant = Str_Constant;
+Int_Constant = Str_Constant;
+Float_Constant = Str_Constant;
+Bool_Constant = Str_Constant;
+Include = Str_Constant;
+Preproc = 0xFFDAB98F;
+Special_Character = 0xFFFF0000;
+Ghost_Character = 0xFF5B4D3C;
+
+Paste = 0xFFFFBB00;
+
+Undo = 0xFF80005D;
+
+Highlight_Junk = 0xFF3A0000;
+Highlight_White = 0xFF003A3A;
+
+Bar = 0xFFCACACA;
+Bar_Active = FFA8A8A8;
+Base = 0xFF000000;
+Pop1 = 0xFF03CF0C;
+Pop2 = 0xFFFF0000;

@@ -479,6 +479,17 @@ build_main(char *cdir, u32 flags){
         build(OPTS | INCLUDES | LIBS | ICON | flags, cdir, PLAT_LAYER, dir, "4ed", 0);
         END_TIME_SECTION("build 4ed");
     }
+    
+    {
+        BEGIN_TIME_SECTION();
+        DECL_STR(themes_folder, "../build/themes");
+        
+        DECL_STR(source_themes_folder, "themes");
+        clear_folder(themes_folder);
+        make_folder_if_missing(themes_folder, 0);
+        copy_all(source_themes_folder, "*", themes_folder);
+        END_TIME_SECTION("move files");
+    }
 }
 
 static void

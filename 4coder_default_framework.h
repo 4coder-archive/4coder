@@ -510,8 +510,8 @@ get_config_item(Config_Line line, char *mem, Cpp_Token_Array array){
 
 static bool32
 config_var(Config_Item item, char *var_name, int32_t *subscript, uint32_t token_type, void *var_out){
-    bool32 result = 0;
-    bool32 subscript_succes = 1;
+    bool32 result = false;
+    bool32 subscript_success = true;
     if (item.line.val_token.type == token_type){
         if ((var_name == 0 && item.id.size == 0) || match(item.id, var_name)){
             if (subscript){
@@ -519,11 +519,11 @@ config_var(Config_Item item, char *var_name, int32_t *subscript, uint32_t token_
                     *subscript = item.subscript_index;
                 }
                 else{
-                    subscript_succes = 0;
+                    subscript_success = false;
                 }
             }
             
-            if (subscript_succes){
+            if (subscript_success){
                 if (var_out){
                     switch (token_type){
                         case CPP_TOKEN_BOOLEAN_CONSTANT:
@@ -533,13 +533,27 @@ config_var(Config_Item item, char *var_name, int32_t *subscript, uint32_t token_
                         
                         case CPP_TOKEN_INTEGER_CONSTANT:
                         {
-                            String val = make_string(item.mem + item.line.val_token.start, item.line.val_token.size);
-                            *(int32_t*)var_out = str_to_int(val);
+                            if (match(make_string(item.mem + item.line.val_token.start, 2), "0x")){
+                                // Hex Integer
+                                String val = make_string(item.mem + item.line.val_token.start + 2, item.line.val_token.size - 2);
+                                *(uint32_t*)var_out = hexstr_to_int(val);
+                            }
+                            else{
+                                // Integer
+                                String val = make_string(item.mem + item.line.val_token.start, item.line.val_token.size);
+                                *(int32_t*)var_out = str_to_int(val);
+                            }
                         }break;
                         
                         case CPP_TOKEN_STRING_CONSTANT:
                         {
                             String str = make_string(item.mem + item.line.val_token.start + 1,item.line.val_token.size - 2);
+                            copy((String*)var_out, str);
+                        }break;
+                        
+                        case CPP_TOKEN_IDENTIFIER:
+                        {
+                            String str = make_string(item.mem + item.line.val_token.start,item.line.val_token.size);
                             copy((String*)var_out, str);
                         }break;
                         
@@ -554,7 +568,7 @@ config_var(Config_Item item, char *var_name, int32_t *subscript, uint32_t token_
                         }break;
                     }
                 }
-                result = 1;
+                result = true;
             }
         }
     }
@@ -574,8 +588,20 @@ config_int_var(Config_Item item, char *var_name, int32_t *subscript, int32_t *va
 }
 
 static bool32
+config_uint_var(Config_Item item, char *var_name, int32_t *subscript, uint32_t *var_out){
+    bool32 result = config_var(item, var_name, subscript, CPP_TOKEN_INTEGER_CONSTANT, var_out);
+    return(result);
+}
+
+static bool32
 config_string_var(Config_Item item, char *var_name, int32_t *subscript, String *var_out){
     bool32 result = config_var(item, var_name, subscript, CPP_TOKEN_STRING_CONSTANT, var_out);
+    return(result);
+}
+
+static bool32
+config_identifier_var(Config_Item item, char *var_name, int32_t *subscript, String *var_out){
+    bool32 result = config_var(item, var_name, subscript, CPP_TOKEN_IDENTIFIER, var_out);
     return(result);
 }
 
@@ -587,7 +613,7 @@ config_array_var(Config_Item item, char *var_name, int32_t *subscript, Config_Ar
 
 static bool32
 config_array_next_item(Config_Array_Reader *array_reader, Config_Item *item){
-    bool32 result = 0;
+    bool32 result = false;
     
     for (;array_reader->i < array_reader->val_array_end;
          ++array_reader->i){
@@ -609,7 +635,7 @@ config_array_next_item(Config_Array_Reader *array_reader, Config_Item *item){
                 line.val_token = array_token;
                 line.read_success = 1;
                 *item = get_config_item(line, array_reader->mem, array_reader->array);
-                result = 1;
+                result = true;
                 ++array_reader->i;
                 goto doublebreak;
             }break;
@@ -824,6 +850,140 @@ process_config_file(Application_Links *app){
 }
 
 //
+// Color Scheme
+//
+
+static void
+process_color_scheme_file(Application_Links *app, char *file_name){
+    Partition *part = &global_part;
+    FILE *file = fopen(file_name, "rb");
+    
+    if (!file){
+        char space[256];
+        int32_t size = get_4ed_path(app, space, sizeof(space));
+        String str = make_string_cap(space, size, sizeof(space));
+        append_sc(&str, "/");
+        append_sc(&str, file_name);
+        terminate_with_null(&str);
+        file = fopen(str.str, "rb");
+    }
+    
+    if (file){
+        Temp_Memory temp = begin_temp_memory(part);
+        
+        char *mem = 0;
+        int32_t size = 0;
+        bool32 file_read_success = file_handle_dump(part, file, &mem, &size);
+        fclose(file);
+        bool32 success = false;
+        
+        if (file_read_success){
+            Cpp_Token_Array array;
+            array.count = 0;
+            array.max_count = (1 << 20)/sizeof(Cpp_Token);
+            array.tokens = push_array(&global_part, Cpp_Token, array.max_count);
+            
+            Cpp_Keyword_Table kw_table = {0};
+            Cpp_Keyword_Table pp_table = {0};
+            lexer_keywords_default_init(part, &kw_table, &pp_table);
+            
+            Cpp_Lex_Data S = cpp_lex_data_init(false, kw_table, pp_table);
+            Cpp_Lex_Result result = cpp_lex_step(&S, mem, size+1, HAS_NULL_TERM, &array, NO_OUT_LIMIT);
+            
+            if (result == LexResult_Finished){
+                success = true;
+                
+                char name_space[512];
+                String name_str = make_fixed_width_string(name_space);
+                Theme theme;
+                init_theme_zero(&theme);
+                
+                for (int32_t i = 0; i < array.count; ++i){
+                    Config_Line config_line = read_config_line(array, &i);
+                    if (config_line.read_success){
+                        Config_Item item = get_config_item(config_line, mem, array);
+                        config_string_var(item, "name", 0, &name_str);
+                        
+                        for (int32_t tag = 0; tag < ArrayCount(style_tag_names); ++tag){
+                            char *name = style_tag_names[tag];
+                            int_color color = 0;
+                            if (config_uint_var(item, name, 0, &color)){
+                                int_color *color_slot = &theme.colors[tag];
+                                *color_slot = color;
+                            }
+                            else{
+                                char var_space[512];
+                                String var_str = make_fixed_width_string(var_space);
+                                if (config_identifier_var(item, name, 0, &var_str)){
+                                    for (int32_t eq_tag = 0; eq_tag < ArrayCount(style_tag_names); ++eq_tag){
+                                        if (match(var_str, style_tag_names[eq_tag])){
+                                            int_color *color_slot = &theme.colors[tag];
+                                            *color_slot = theme.colors[eq_tag];
+                                            break;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                
+                if (name_str.size == 0){
+                    copy(&name_str, file_name);
+                }
+                
+                create_theme(app, &theme, name_str.str, name_str.size);
+            }
+        }
+        end_temp_memory(temp);
+        
+        if (!success){
+            char space[256];
+            String str = make_fixed_width_string(space);
+            append_sc(&str, "Could not parse ");
+            append_sc(&str, file_name);
+            append_sc(&str, ", color scheme not loaded");
+            print_message(app, str.str, str.size);
+        }
+    }
+    else{
+        char space[256];
+        String str = make_fixed_width_string(space);
+        append_sc(&str, "Did not find ");
+        append_sc(&str, file_name);
+        append_sc(&str, ", color scheme not loaded");
+        print_message(app, str.str, str.size);
+    }
+}
+
+static void
+load_color_themes(Application_Links *app){
+    char folder_name_space[512];
+    String folder_name = make_fixed_width_string(folder_name_space);
+    folder_name.size = get_4ed_path(app, folder_name_space, sizeof(folder_name_space));
+    append(&folder_name, "themes");
+    
+    if (folder_name.size < folder_name.memory_size){
+        File_List list = get_file_list(app, folder_name.str, folder_name.size);
+        for (uint32_t i = 0; i < list.count; ++i){
+            File_Info *info = &list.infos[i];
+            if (!info->folder){
+                char file_name_space[512];
+                String file_name = make_fixed_width_string(file_name_space);
+                copy(&file_name, folder_name);
+                append(&file_name, "/");
+                append(&file_name, make_string(info->filename, info->filename_len));
+                if (file_name.size < file_name.memory_size){
+                    terminate_with_null(&file_name);
+                    process_color_scheme_file(app, file_name.str);
+                }
+            }
+        }
+        free_file_list(app, list);
+    }
+}
+
+//
 // Framework Init Functions
 //
 
@@ -843,6 +1003,7 @@ static void
 default_4coder_initialize(Application_Links *app, bool32 use_scrollbars, bool32 use_file_bars){
     init_memory(app);
     process_config_file(app);
+    load_color_themes(app);
     
     String theme = get_default_theme_name();
     String font = get_default_font_name();

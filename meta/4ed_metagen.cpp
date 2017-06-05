@@ -194,8 +194,6 @@ static void
 generate_style(){
     char filename_4coder[] = STYLE_FILE;
     char filename_4ed[] = "4ed_style.h";
-    char *tag = 0;
-    int32_t count = 0, i = 0;
     
     String out = make_out_string(10 << 20);
     Out_Context context = {0};
@@ -204,9 +202,9 @@ generate_style(){
         
         enum_begin(&out, "Style_Tag");
         {
-            count = ArrayCount(bar_style_fields);
-            for (i = 0; i < count; ++i){
-                tag = make_style_tag(bar_style_fields[i]);
+            int32_t count = ArrayCount(bar_style_fields);
+            for (int32_t i = 0; i < count; ++i){
+                char *tag = make_style_tag(bar_style_fields[i]);
                 append_sc(&out, "Stag_");
                 append_sc(&out, tag);
                 append_sc(&out, ",\n");
@@ -214,15 +212,39 @@ generate_style(){
             }
             
             count = ArrayCount(main_style_fields);
-            for (i = 0; i < count; ++i){
-                tag = make_style_tag(main_style_fields[i]);
+            for (int32_t i = 0; i < count; ++i){
+                char *tag = make_style_tag(main_style_fields[i]);
                 append_sc(&out, "Stag_");
                 append_sc(&out, tag);
                 append_sc(&out, ",\n");
                 free(tag);
             }
+            
+            append_sc(&out, "Stag_COUNT\n");
         }
         struct_end(&out);
+        
+        append_sc(&out, "static char *style_tag_names[] = {\n");
+        {
+            int32_t count = ArrayCount(bar_style_fields);
+            for (int32_t i = 0; i < count; ++i){
+                char *tag = make_style_tag(bar_style_fields[i]);
+                append_sc(&out, "\"");
+                append_sc(&out, tag);
+                append_sc(&out, "\",\n");
+                free(tag);
+            }
+            
+            count = ArrayCount(main_style_fields);
+            for (int32_t i = 0; i < count; ++i){
+                char *tag = make_style_tag(main_style_fields[i]);
+                append_sc(&out, "\"");
+                append_sc(&out, tag);
+                append_sc(&out, "\",\n");
+                free(tag);
+            }
+        }
+        append_sc(&out, "};\n");
         
         end_file_out(context);
     }
@@ -231,8 +253,8 @@ generate_style(){
         
         struct_begin(&out, "Interactive_Style");
         {
-            count = ArrayCount(bar_style_fields);
-            for (i = 0; i < count; ++i){
+            int32_t count = ArrayCount(bar_style_fields);
+            for (int32_t i = 0; i < count; ++i){
                 append_sc(&out, "u32 ");
                 append_sc(&out, bar_style_fields[i]);
                 append_sc(&out, "_color;\n");
@@ -242,8 +264,8 @@ generate_style(){
         
         struct_begin(&out, "Style_Main_Data");
         {
-            count = ArrayCount(main_style_fields);
-            for (i = 0; i < count; ++i){
+            int32_t count = ArrayCount(main_style_fields);
+            for (int32_t i = 0; i < count; ++i){
                 append_sc(&out, "u32 ");
                 append_sc(&out, main_style_fields[i]);
                 append_sc(&out, "_color;\n");
@@ -259,9 +281,9 @@ generate_style(){
                       "u32 *result = 0;\n"
                       "switch (tag){\n");
             
-            count = ArrayCount(bar_style_fields);
-            for (i = 0; i < count; ++i){
-                tag = make_style_tag(bar_style_fields[i]);
+            int32_t count = ArrayCount(bar_style_fields);
+            for (int32_t i = 0; i < count; ++i){
+                char *tag = make_style_tag(bar_style_fields[i]);
                 append_sc(&out, "case Stag_");
                 append_sc(&out, tag);
                 append_sc(&out, ": result = &s->file_info_style.");
@@ -271,8 +293,8 @@ generate_style(){
             }
             
             count = ArrayCount(main_style_fields);
-            for (i = 0; i < count; ++i){
-                tag = make_style_tag(main_style_fields[i]);
+            for (int32_t i = 0; i < count; ++i){
+                char *tag = make_style_tag(main_style_fields[i]);
                 append_sc(&out, "case Stag_");
                 append_sc(&out, tag);
                 append_sc(&out, ": result = &s->");

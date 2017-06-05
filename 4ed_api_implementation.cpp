@@ -2190,7 +2190,33 @@ DOC(This call posts a string to the *messages* buffer.)
     do_feedback_message(cmd->system, models, make_string(str, len));
 }
 
-// TODO(allen): List the names of built in themes and fonts.
+API_EXPORT void
+Create_Theme(Application_Links *app, Theme *theme, char *name, int32_t len)
+/*
+DOC_PARAM(theme, The color data of the new theme.)
+DOC_PARAM(name, The name of the new theme. This string need not be null terminated.)
+DOC_PARAM(len, The length of the name string.)
+DOC(This call creates a new theme.  If the given name is already the name of a string, the old string will be replaced with the new one.  This call does not set the current theme.)
+*/{
+    Command_Data *cmd = (Command_Data*)app->cmd_context;
+    Style_Library *styles = &cmd->models->styles;
+    String theme_name = make_string(name, len);
+    
+    b32 hit_existing_theme = false;
+    i32 count = styles->count;
+    Style *s = styles->styles;
+    for (i32 i = 0; i < count; ++i, ++s){
+        if (match_ss(s->name, theme_name)){
+            style_set_colors(s, theme);
+            hit_existing_theme = true;
+            break;
+        }
+    }
+    
+    if (!hit_existing_theme){
+        style_add(styles, theme, make_string(name, len));
+    }
+}
 
 API_EXPORT void
 Change_Theme(Application_Links *app, char *name, int32_t len)
@@ -2364,6 +2390,7 @@ Get_File_List(Application_Links *app, char *dir, int32_t len)
 DOC_PARAM(dir, This parameter specifies the directory whose files will be enumerated in the returned list; it need not be null terminated.)
 DOC_PARAM(len, This parameter the length of the dir string.)
 DOC_RETURN(This call returns a File_List struct containing pointers to the names of the files in the specified directory.  The File_List returned should be passed to free_file_list when it is no longer in use.)
+DOC_SEE(File_List)
 */{
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     System_Functions *system = cmd->system;
@@ -2381,6 +2408,7 @@ Free_File_List(Application_Links *app, File_List list)
 /*
 DOC_PARAM(list, This parameter provides the file list to be freed.)
 DOC(After this call the file list passed in should not be read or written to.)
+DOC_SEE(File_List)
 */{
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     System_Functions *system = cmd->system;

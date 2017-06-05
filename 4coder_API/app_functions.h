@@ -54,6 +54,7 @@ struct Application_Links;
 #define START_QUERY_BAR_SIG(n) bool32 n(Application_Links *app, Query_Bar *bar, uint32_t flags)
 #define END_QUERY_BAR_SIG(n) void n(Application_Links *app, Query_Bar *bar, uint32_t flags)
 #define PRINT_MESSAGE_SIG(n) void n(Application_Links *app, char *str, int32_t len)
+#define CREATE_THEME_SIG(n) void n(Application_Links *app, Theme *theme, char *name, int32_t len)
 #define CHANGE_THEME_SIG(n) void n(Application_Links *app, char *name, int32_t len)
 #define CHANGE_FONT_SIG(n) void n(Application_Links *app, char *name, int32_t len, bool32 apply_to_all_files)
 #define BUFFER_SET_FONT_SIG(n) void n(Application_Links *app, Buffer_Summary *buffer, char *name, int32_t len)
@@ -129,6 +130,7 @@ typedef GET_MOUSE_STATE_SIG(Get_Mouse_State_Function);
 typedef START_QUERY_BAR_SIG(Start_Query_Bar_Function);
 typedef END_QUERY_BAR_SIG(End_Query_Bar_Function);
 typedef PRINT_MESSAGE_SIG(Print_Message_Function);
+typedef CREATE_THEME_SIG(Create_Theme_Function);
 typedef CHANGE_THEME_SIG(Change_Theme_Function);
 typedef CHANGE_FONT_SIG(Change_Font_Function);
 typedef BUFFER_SET_FONT_SIG(Buffer_Set_Font_Function);
@@ -206,6 +208,7 @@ Get_Mouse_State_Function *get_mouse_state;
 Start_Query_Bar_Function *start_query_bar;
 End_Query_Bar_Function *end_query_bar;
 Print_Message_Function *print_message;
+Create_Theme_Function *create_theme;
 Change_Theme_Function *change_theme;
 Change_Font_Function *change_font;
 Buffer_Set_Font_Function *buffer_set_font;
@@ -282,6 +285,7 @@ Get_Mouse_State_Function *get_mouse_state_;
 Start_Query_Bar_Function *start_query_bar_;
 End_Query_Bar_Function *end_query_bar_;
 Print_Message_Function *print_message_;
+Create_Theme_Function *create_theme_;
 Change_Theme_Function *change_theme_;
 Change_Font_Function *change_font_;
 Buffer_Set_Font_Function *buffer_set_font_;
@@ -366,6 +370,7 @@ app_links->get_mouse_state_ = Get_Mouse_State;\
 app_links->start_query_bar_ = Start_Query_Bar;\
 app_links->end_query_bar_ = End_Query_Bar;\
 app_links->print_message_ = Print_Message;\
+app_links->create_theme_ = Create_Theme;\
 app_links->change_theme_ = Change_Theme;\
 app_links->change_font_ = Change_Font;\
 app_links->buffer_set_font_ = Buffer_Set_Font;\
@@ -442,6 +447,7 @@ static inline Mouse_State get_mouse_state(Application_Links *app){return(app->ge
 static inline bool32 start_query_bar(Application_Links *app, Query_Bar *bar, uint32_t flags){return(app->start_query_bar(app, bar, flags));}
 static inline void end_query_bar(Application_Links *app, Query_Bar *bar, uint32_t flags){(app->end_query_bar(app, bar, flags));}
 static inline void print_message(Application_Links *app, char *str, int32_t len){(app->print_message(app, str, len));}
+static inline void create_theme(Application_Links *app, Theme *theme, char *name, int32_t len){(app->create_theme(app, theme, name, len));}
 static inline void change_theme(Application_Links *app, char *name, int32_t len){(app->change_theme(app, name, len));}
 static inline void change_font(Application_Links *app, char *name, int32_t len, bool32 apply_to_all_files){(app->change_font(app, name, len, apply_to_all_files));}
 static inline void buffer_set_font(Application_Links *app, Buffer_Summary *buffer, char *name, int32_t len){(app->buffer_set_font(app, buffer, name, len));}
@@ -518,6 +524,7 @@ static inline Mouse_State get_mouse_state(Application_Links *app){return(app->ge
 static inline bool32 start_query_bar(Application_Links *app, Query_Bar *bar, uint32_t flags){return(app->start_query_bar_(app, bar, flags));}
 static inline void end_query_bar(Application_Links *app, Query_Bar *bar, uint32_t flags){(app->end_query_bar_(app, bar, flags));}
 static inline void print_message(Application_Links *app, char *str, int32_t len){(app->print_message_(app, str, len));}
+static inline void create_theme(Application_Links *app, Theme *theme, char *name, int32_t len){(app->create_theme_(app, theme, name, len));}
 static inline void change_theme(Application_Links *app, char *name, int32_t len){(app->change_theme_(app, name, len));}
 static inline void change_font(Application_Links *app, char *name, int32_t len, bool32 apply_to_all_files){(app->change_font_(app, name, len, apply_to_all_files));}
 static inline void buffer_set_font(Application_Links *app, Buffer_Summary *buffer, char *name, int32_t len){(app->buffer_set_font_(app, buffer, name, len));}
