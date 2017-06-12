@@ -945,6 +945,7 @@ enum Command_Line_Action{
     CLAct_WindowStreamMode,
     CLAct_FontSize,
     CLAct_FontUseHinting,
+    CLAct_Log,
     CLAct_Count
 };
 
@@ -958,11 +959,10 @@ init_command_line_settings(App_Settings *settings, Plat_Settings *plat_settings,
     char *arg = 0;
     Command_Line_Mode mode = CLMode_App;
     Command_Line_Action action = CLAct_Nothing;
-    i32 i = 0, index = 0;
-    b32 strict = 0;
+    b32 strict = false;
     
     settings->init_files_max = ArrayCount(settings->init_files);
-    for (i = 1; i <= clparams.argc; ++i){
+    for (i32 i = 1; i <= clparams.argc; ++i){
         if (i == clparams.argc){
             arg = "";
         }
@@ -989,8 +989,8 @@ init_command_line_settings(App_Settings *settings, Plat_Settings *plat_settings,
                         if (arg[0] == '-'){
                             action = CLAct_Ignore;
                             switch (arg[1]){
-                                case 'd': action = CLAct_CustomDLL; strict = 0;         break;
-                                case 'D': action = CLAct_CustomDLL; strict = 1;         break;
+                                case 'd': action = CLAct_CustomDLL; strict = false;     break;
+                                case 'D': action = CLAct_CustomDLL; strict = true;      break;
                                 
                                 case 'i': action = CLAct_InitialFilePosition;           break;
                                 
@@ -1001,12 +1001,14 @@ init_command_line_settings(App_Settings *settings, Plat_Settings *plat_settings,
                                 case 'S': action = CLAct_WindowStreamMode;              break;
                                 
                                 case 'f': action = CLAct_FontSize;                      break;
-                                case 'h': action = CLAct_FontUseHinting; --i;         break;
+                                case 'h': action = CLAct_FontUseHinting; --i;           break;
+                                
+                                case 'L': action = CLAct_Log; --i;                      break;
                             }
                         }
                         else if (arg[0] != 0){
                             if (settings->init_files_count < settings->init_files_max){
-                                index = settings->init_files_count++;
+                                i32 index = settings->init_files_count++;
                                 settings->init_files[index] = arg;
                             }
                         }
@@ -1086,6 +1088,12 @@ init_command_line_settings(App_Settings *settings, Plat_Settings *plat_settings,
                     case CLAct_FontUseHinting:
                     {
                         plat_settings->use_hinting = true;
+                        action = CLAct_Nothing;
+                    }break;
+                    
+                    case CLAct_Log:
+                    {
+                        plat_settings->use_log = true;
                         action = CLAct_Nothing;
                     }break;
                 }

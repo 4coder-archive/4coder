@@ -231,6 +231,9 @@ typedef Sys_Is_Fullscreen_Sig(System_Is_Fullscreen);
 typedef Sys_Send_Exit_Signal_Sig(System_Send_Exit_Signal);
 
 // debug
+#define Sys_Log_Sig(name) void name(char *message, u32 length)
+typedef Sys_Log_Sig(System_Log);
+
 #define INTERNAL_Sys_Get_Thread_States_Sig(name) void name(Thread_Group_ID id, b8 *running, i32 *pending)
 typedef INTERNAL_Sys_Get_Thread_States_Sig(INTERNAL_System_Get_Thread_States);
 
@@ -288,6 +291,7 @@ struct System_Functions{
     System_Send_Exit_Signal       *send_exit_signal;
     
     // debug: 1
+    System_Log *log;
     INTERNAL_System_Get_Thread_States *internal_get_thread_states;
 };
 

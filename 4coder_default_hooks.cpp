@@ -13,6 +13,7 @@ TYPE: 'internal-for-default-system'
 #include "4coder_helper/4coder_bind_helper.h"
 #include "4coder_project_commands.cpp"
 
+#include "languages/4coder_language_cpp.h"
 #include "languages/4coder_language_rust.h"
 #include "languages/4coder_language_cs.h"
 #include "languages/4coder_language_java.h"
@@ -117,6 +118,13 @@ OPEN_FILE_HOOK_SIG(default_file_settings){
                         init_language_rust(app);
                     }
                     parse_context_id = parse_context_language_rust;
+                }
+                
+                if (match(ext, "cpp") || match(ext, "h") || match(ext, "c") || match(ext, "hpp") || match(ext, "cc")){
+                    if (parse_context_language_cpp == 0){
+                        init_language_cpp(app);
+                    }
+                    parse_context_id = parse_context_language_cpp;
                 }
                 
                 break;

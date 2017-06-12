@@ -202,6 +202,8 @@ typedef struct Win32_Vars{
     b32 first;
     i32 running_cli;
     
+    u32 log_position;
+    
 } Win32_Vars;
 
 global Win32_Vars win32vars;
@@ -1089,6 +1091,28 @@ Sys_Get_4ed_Path_Sig(system_get_4ed_path){
     return(size);
 }
 
+internal
+Sys_Log_Sig(system_log){
+    if (win32vars.settings.use_log){
+        u8 space[4096];
+        String str = make_fixed_width_string(space);
+        system_get_binary_path(&str);
+        append_sc(&str, "4coder_log.txt");
+        terminate_with_null(&str);
+        HANDLE file = CreateFile_utf8(space, GENERIC_WRITE, 0, 0, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, 0);
+        if (file != INVALID_HANDLE_VALUE){
+            SetFilePointer(file, win32vars.log_position, 0, FILE_BEGIN);
+            win32vars.log_position += length;
+            DWORD written = 0;
+            DWORD total_written = 0;
+            do{
+                WriteFile(file, message + total_written, length - total_written, &written, 0);
+                total_written += written;
+            }while(total_written < length);
+            CloseHandle(file);
+        }
+    }
+}
 
 /*
 NOTE(casey): This follows Raymond Chen's prescription
@@ -1452,6 +1476,7 @@ Win32LoadSystemCode(){
     win32vars.system.is_fullscreen = system_is_fullscreen;win32vars.system.show_mouse_cursor = system_show_mouse_cursor;
     win32vars.system.send_exit_signal = system_send_exit_signal;
     
+    win32vars.system.log = system_log;
 #if FRED_INTERNAL
     win32vars.system.internal_get_thread_states = INTERNAL_get_thread_states;
 #endif
@@ -2236,6 +2261,7 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
         // NOTE(allen): Just guess.
         win32vars.count_per_usecond = 1;
     }
+    Assert(win32vars.count_per_usecond != 0);
     
     //
     // Main Loop

@@ -57,6 +57,8 @@ struct Plat_Settings{
     b8 fullscreen_window;
     b8 stream_mode;
     
+    b8 use_log;
+    
     i32 window_w, window_h;
     i32 window_x, window_y;
     b8 set_window_pos;
