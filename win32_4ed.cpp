@@ -60,6 +60,7 @@
 #include "4ed_math.h"
 
 #include "4ed_system.h"
+#include "4ed_log.h"
 #include "4ed_rendering.h"
 #include "4ed.h"
 
@@ -154,7 +155,7 @@ enum CV_ID{
     CV_COUNT
 };
 
-typedef struct Win32_Vars{
+struct Win32_Vars{
     System_Functions system;
     App_Functions app;
     Custom_API custom_api;
@@ -204,11 +205,37 @@ typedef struct Win32_Vars{
     
     u32 log_position;
     
-} Win32_Vars;
+};
 
 global Win32_Vars win32vars;
 global Application_Memory memory_vars;
 
+//
+// Logging
+//
+
+internal
+Sys_Log_Sig(system_log){
+    if (win32vars.settings.use_log){
+        u8 space[4096];
+        String str = make_fixed_width_string(space);
+        system_get_binary_path(&str);
+        append_sc(&str, "4coder_log.txt");
+        terminate_with_null(&str);
+        HANDLE file = CreateFile_utf8(space, GENERIC_WRITE, 0, 0, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, 0);
+        if (file != INVALID_HANDLE_VALUE){
+            SetFilePointer(file, win32vars.log_position, 0, FILE_BEGIN);
+            win32vars.log_position += length;
+            DWORD written = 0;
+            DWORD total_written = 0;
+            do{
+                WriteFile(file, message + total_written, length - total_written, &written, 0);
+                total_written += written;
+            }while(total_written < length);
+            CloseHandle(file);
+        }
+    }
+}
 
 //
 // Helpers
@@ -1091,29 +1118,6 @@ Sys_Get_4ed_Path_Sig(system_get_4ed_path){
     return(size);
 }
 
-internal
-Sys_Log_Sig(system_log){
-    if (win32vars.settings.use_log){
-        u8 space[4096];
-        String str = make_fixed_width_string(space);
-        system_get_binary_path(&str);
-        append_sc(&str, "4coder_log.txt");
-        terminate_with_null(&str);
-        HANDLE file = CreateFile_utf8(space, GENERIC_WRITE, 0, 0, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, 0);
-        if (file != INVALID_HANDLE_VALUE){
-            SetFilePointer(file, win32vars.log_position, 0, FILE_BEGIN);
-            win32vars.log_position += length;
-            DWORD written = 0;
-            DWORD total_written = 0;
-            do{
-                WriteFile(file, message + total_written, length - total_written, &written, 0);
-                total_written += written;
-            }while(total_written < length);
-            CloseHandle(file);
-        }
-    }
-}
-
 /*
 NOTE(casey): This follows Raymond Chen's prescription
 for fullscreen toggling, see:
@@ -1989,7 +1993,6 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
         InitializeConditionVariable(&win32vars.condition_vars[i]);
     }
     
-    
     Thread_Context background[4];
     memset(background, 0, sizeof(background));
     win32vars.groups[BACKGROUND_THREADS].threads = background;
@@ -2076,8 +2079,11 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
         exit(1);
     }
     
+    
     Win32LoadSystemCode();
     Win32LoadRenderCode();
+    
+    System_Functions *system = &win32vars.system;
     
     //
     // Shared Systems Init
@@ -2089,6 +2095,7 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
     // Read Command Line
     //
     
+    LOG(system, "Reading command line\n");
     DWORD required = (GetCurrentDirectory(0, 0)*4) + 1;
     u8 *current_directory_mem = (u8*)system_memory_allocate(required);
     DWORD written = GetCurrentDirectory_utf8(required, current_directory_mem);
@@ -2104,9 +2111,10 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
     char **files = 0;
     i32 *file_count = 0;
     
-    win32vars.app.read_command_line(&win32vars.system, &memory_vars, current_directory, &win32vars.settings, &files, &file_count, clparams);
+    win32vars.app.read_command_line(system, &memory_vars, current_directory, &win32vars.settings, &files, &file_count, clparams);
     
     sysshared_filter_real_files(files, file_count);
+    LOG(system, "Loaded system code, read command line.\n");
     
     //
     // Custom Layer Linkage
@@ -2222,7 +2230,7 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
     // Font System Init
     //
     
-    system_font_init(&win32vars.system.font, 0, 0, win32vars.settings.font_size, win32vars.settings.use_hinting);
+    system_font_init(&system->font, 0, 0, win32vars.settings.font_size, win32vars.settings.use_hinting);
     
     //
     // Misc System Initializations
@@ -2267,7 +2275,7 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
     // Main Loop
     //
     
-    win32vars.app.init(&win32vars.system, &win32vars.target, &memory_vars, win32vars.clipboard_contents, current_directory, win32vars.custom_api);
+    win32vars.app.init(system, &win32vars.target, &memory_vars, win32vars.clipboard_contents, current_directory, win32vars.custom_api);
     
     system_memory_free(current_directory.str, 0);
     
@@ -2467,7 +2475,7 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
             win32vars.send_exit_signal = 0;
         }
         
-        win32vars.app.step(&win32vars.system, &win32vars.target, &memory_vars, &input, &result, clparams);
+        win32vars.app.step(system, &win32vars.target, &memory_vars, &input, &result, clparams);
         
         if (result.perform_kill){
             keep_playing = 0;

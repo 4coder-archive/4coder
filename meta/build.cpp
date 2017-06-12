@@ -83,6 +83,7 @@ enum{
     KEEP_ASSERT = 0x200,
     SITE_INCLUDES = 0x400,
     X86 = 0x800,
+    LOG = 0x1000,
 };
 
 
@@ -166,6 +167,10 @@ build_cl(u32 flags, char *code_path, char *code_file, char *out_path, char *out_
     
     if (flags & X86){
         build_ap(line, "/DFTECH_32_BIT");
+    }
+    
+    if (flags & LOG){
+        build_ap(line, "/DUSE_LOG /DUSE_LOGF");
     }
     
     if (flags & INCLUDES){
@@ -304,6 +309,10 @@ build_gcc(u32 flags, char *code_path, char *code_file, char *out_path, char *out
     
     if (flags & SHARED_CODE){
         build_ap(line, "-shared");
+    }
+    
+    if (flags & LOG){
+        build_ap(line, "-DUSE_LOG -DUSE_LOGF");
     }
     
     if (flags & SUPER){
@@ -632,7 +641,7 @@ package(char *cdir){
         Assert(ArrayCount(dest_dirs) == ArrayCount(dest_par_dirs));
         u32 count = ArrayCount(dest_dirs);
         
-        u32 base_flags = OPTIMIZATION | KEEP_ASSERT | DEBUG_INFO;
+        u32 base_flags = OPTIMIZATION | KEEP_ASSERT | DEBUG_INFO | LOG;
         u32 flags[] = {
             0,
             X86,
@@ -707,7 +716,7 @@ package(char *cdir){
         Assert(ArrayCount(dest_dirs) == ArrayCount(dest_par_dirs));
         u32 count = ArrayCount(dest_dirs);
         
-        u32 base_flags = OPTIMIZATION | KEEP_ASSERT | DEBUG_INFO | SUPER;
+        u32 base_flags = OPTIMIZATION | KEEP_ASSERT | DEBUG_INFO | SUPER | LOG;
         u32 flags[] = {
             0,
             X86,
@@ -804,7 +813,7 @@ int main(int argc, char **argv){
     assert(n < sizeof(cdir));
     END_TIME_SECTION("current directory");
     
-    u32 flags = DEBUG_INFO | SUPER | INTERNAL;
+    u32 flags = DEBUG_INFO | SUPER | INTERNAL | LOG;
 #if defined(OPT_BUILD)
     flags |= OPTIMIZATION;
 #endif
@@ -826,7 +835,9 @@ int main(int argc, char **argv){
     assert(n < sizeof(cdir));
     END_TIME_SECTION("current directory");
     
-    standard_build(cdir, DEBUG_INFO | SUPER | INTERNAL | X86);
+    u32 floags = DEBUG_INFO | SUPER | INTERNAL | X86 | LOG;
+    
+    standard_build(cdir, flags);
     
     return(error_state);
 }
