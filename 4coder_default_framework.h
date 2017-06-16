@@ -850,11 +850,11 @@ process_config_file(Application_Links *app){
 }
 
 //
-// Color Scheme
+// Color Theme
 //
 
 static void
-process_color_scheme_file(Application_Links *app, char *file_name){
+load_color_theme_file(Application_Links *app, char *file_name){
     Partition *part = &global_part;
     FILE *file = fopen(file_name, "rb");
     
@@ -957,7 +957,7 @@ process_color_scheme_file(Application_Links *app, char *file_name){
 }
 
 static void
-load_color_themes(Application_Links *app){
+load_themes_folder(Application_Links *app){
     char folder_name_space[512];
     String folder_name = make_fixed_width_string(folder_name_space);
     folder_name.size = get_4ed_path(app, folder_name_space, sizeof(folder_name_space));
@@ -975,7 +975,7 @@ load_color_themes(Application_Links *app){
                 append(&file_name, make_string(info->filename, info->filename_len));
                 if (file_name.size < file_name.memory_size){
                     terminate_with_null(&file_name);
-                    process_color_scheme_file(app, file_name.str);
+                    load_color_theme_file(app, file_name.str);
                 }
             }
         }
@@ -1003,7 +1003,7 @@ static void
 default_4coder_initialize(Application_Links *app, bool32 use_scrollbars, bool32 use_file_bars){
     init_memory(app);
     process_config_file(app);
-    load_color_themes(app);
+    load_themes_folder(app);
     
     String theme = get_default_theme_name();
     String font = get_default_font_name();

@@ -12,7 +12,7 @@
 #ifndef FED_DEBUG_MEM_H
 #define FED_DEBUG_MEM_H
 
-// NOTE(allen): revent any future instantiation of 4coder_mem.h
+// NOTE(allen): Prevent any future instantiation of 4coder_mem.h
 #define FCODER_MEM_H
 
 #if !defined(OS_PAGE_SIZE)
@@ -31,17 +31,30 @@ debug_gm_open(System_Functions *system, Debug_GM *general, void *memory, i32 siz
 static void*
 debug_gm_allocate(Debug_GM *general, int32_t size){
     System_Functions *system = general->system;
-    local_persist u32 round_val = OS_PAGE_SIZE-1;
-    size = (size + round_val) & (~round_val);
-    void *result = system->memory_allocate(size + OS_PAGE_SIZE);
-    system->memory_set_protection((u8*)result + size, OS_PAGE_SIZE, 0);
-    return(result);
+    
+    local_persist u32 page_round_val = OS_PAGE_SIZE-1;
+    int32_t page_rounded_size = (size + page_round_val) & (~page_round_val);
+    u8 *result = (u8*)system->memory_allocate(page_rounded_size + OS_PAGE_SIZE);
+    system->memory_set_protection(result + page_rounded_size, OS_PAGE_SIZE, 0);
+    
+    local_persist u32 align_round_val = PREFERRED_ALIGNMENT-1;
+    int32_t align_rounded_size = (size + align_round_val) & (~align_round_val);
+    int32_t offset = page_rounded_size - align_rounded_size;
+    
+    return(result + offset);
 }
 
 static void
 debug_gm_free(Debug_GM *general, void *memory){
+    u8 *ptr = (u8*)memory;
+    umem val = *(umem*)(&ptr);
+    val &= ~(0xFFF);
+    ptr = *(u8**)(&val);
+    
+    Assert(sizeof(val) == sizeof(ptr));
+    
     System_Functions *system = general->system;
-    system->memory_free(memory, 0);
+    system->memory_free(ptr, 0);
 }
 
 static void*

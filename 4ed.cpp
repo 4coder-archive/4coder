@@ -582,7 +582,7 @@ setup_command_table(){
 // App Functions
 
 internal void
-app_hardcode_styles(Models *models){
+app_hardcode_default_style(Models *models){
     Interactive_Style file_info_style = {0};
     Style *styles = models->styles.styles;
     Style *style = styles + 1;
@@ -1140,7 +1140,7 @@ App_Init_Sig(app_init){
     
     // NOTE(allen): style setup
     models->global_font_id = 1;
-    app_hardcode_styles(models);
+    app_hardcode_default_style(models);
     
     // NOTE(allen): init first panel
     Command_Data *cmd = &vars->command_data;

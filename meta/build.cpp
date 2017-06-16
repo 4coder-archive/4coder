@@ -575,6 +575,20 @@ get_4coder_dist_name(String *zip_file, b32 OS_specific, char *folder, char *tier
 }
 
 static void
+copy_folder(char *dst_dir, char *src_folder){
+    make_folder_if_missing(dst_dir, src_folder);
+    
+    char space[256];
+    String copy_name = make_fixed_width_string(space);
+    append_sc(&copy_name, dst_dir);
+    append_s_char(&copy_name, platform_correct_slash);
+    append_sc(&copy_name, src_folder);
+    terminate_with_null(&copy_name);
+    
+    copy_all(src_folder, "*", copy_name.str);
+}
+
+static void
 package(char *cdir){
     char str_space[1024];
     String str = make_fixed_width_string(str_space);
@@ -665,6 +679,8 @@ package(char *cdir){
             copy_all(pack_fonts_dir, "*", fonts_dir);
             copy_file(data_dir, "release-config.4coder", dir, 0, "config.4coder");
             
+            copy_folder(dir, "themes");
+            
             get_4coder_dist_name(&str, true, zip_dir, tier, arch, "zip");
             zip(par_dir, "4coder", str.str);
         }
@@ -747,11 +763,20 @@ package(char *cdir){
             
             copy_file(0, "buildsuper" BAT, dir, 0, 0);
             
+            copy_folder(dir, "4coder_API");
+            copy_folder(dir, "4coder_helper");
+            copy_folder(dir, "4coder_lib");
+            copy_folder(dir, "4cpp");
+            copy_folder(dir, "languages");
+            copy_folder(dir, "themes");
+            
+#if 0
             DECL_STR(custom_dir, "4coder_API");
             DECL_STR(custom_helper_dir, "4coder_helper");
             DECL_STR(custom_lib_dir, "4coder_lib");
             DECL_STR(fcpp_dir, "4cpp");
             DECL_STR(languages, "languages");
+            DECL_STR(themes, "themes");
             
             char *dir_array[] = {
                 custom_dir,
@@ -759,6 +784,7 @@ package(char *cdir){
                 custom_lib_dir,
                 fcpp_dir,
                 languages,
+                themes,
             };
             i32 dir_count = ArrayCount(dir_array);
             
@@ -775,6 +801,7 @@ package(char *cdir){
                 
                 copy_all(d, "*", copy_name.str);
             }
+#endif
             
             get_4coder_dist_name(&str, true, zip_dir, tier, arch, "zip");
             zip(par_dir, "4coder", str.str);
@@ -835,7 +862,7 @@ int main(int argc, char **argv){
     assert(n < sizeof(cdir));
     END_TIME_SECTION("current directory");
     
-    u32 floags = DEBUG_INFO | SUPER | INTERNAL | X86 | LOG;
+    u32 flags = DEBUG_INFO | SUPER | INTERNAL | X86 | LOG;
     
     standard_build(cdir, flags);
     

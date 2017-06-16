@@ -328,7 +328,12 @@ set_all_default_hooks(Bind_Helper *context){
     set_open_file_hook(context, default_file_settings);
     set_new_file_hook(context, default_new_file);
     set_save_file_hook(context, default_file_save);
+    
+#if defined(FCODER_STICKY_JUMP)
+    set_end_file_hook(context, end_file_close_jump_list);
+#else
     set_end_file_hook(context, default_end_file);
+#endif
     
     set_command_caller(context, default_command_caller);
     set_input_filter(context, default_suppress_mouse_filter);

@@ -27,13 +27,14 @@ TYPE: 'major-system-include'
 #include "4coder_system_command.cpp"
 #include "4coder_build_commands.cpp"
 #include "4coder_project_commands.cpp"
-#include "4coder_default_hooks.cpp"
 #include "4coder_function_list.cpp"
 
 #if !defined(USE_OLD_STYLE_JUMPS)
 #undef FCODER_JUMP_COMMANDS
 #include "4coder_sticky_jump.cpp"
 #endif
+
+#include "4coder_default_hooks.cpp"
 
 #include "4coder_helper/4coder_bind_helper.h"
 #include "4coder_helper/4coder_helper.h"

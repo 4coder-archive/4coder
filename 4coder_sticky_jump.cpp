@@ -9,7 +9,6 @@ TYPE: 'drop-in-command-pack'
 
 #if !defined(FCODER_STICKY_JUMP) && !defined(FCODER_JUMP_COMMANDS)
 #define FCODER_STICKY_JUMP
-
 #define FCODER_JUMP_COMMANDS
 
 #include "4coder_default_framework.h"
@@ -587,6 +586,7 @@ CUSTOM_COMMAND_SIG(newline_or_goto_position_same_panel){
 // End File Hook
 //
 
+OPEN_FILE_HOOK_SIG(default_end_file);
 OPEN_FILE_HOOK_SIG(end_file_close_jump_list){
     Marker_List *list = get_marker_list_for_buffer(buffer_id);
     if (list != 0){
