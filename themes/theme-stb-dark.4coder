@@ -1,0 +1,38 @@
+name = "stb-dark";
+
+Back = 0xFF303030;
+Margin = 0xFF383838;
+Margin_Hover = 0xFF404040;
+Margin_Active = 0xFF484848;
+List_Item = Margin;
+List_Item_Hover = Margin_Hover;
+List_Item_Active = Margin_Active;
+Cursor = 0xFFDDDDDD;
+At_Cursor = Back;
+Mark = 0xFF808080;
+Highlight = 0xFF006080;
+At_Highlight = Back;
+Default = 0xFFAAAAAA;
+Comment = 0xFF6AC000;
+Keyword = Default;
+Str_Constant = Default;
+Char_Constant = Str_Constant;
+Int_Constant = Str_Constant;
+Float_Constant = Str_Constant;
+Bool_Constant = Str_Constant;
+Include = Str_Constant;
+Preproc = Default;
+Special_Character = 0xFFFF0000;
+Ghost_Character = 0xFF181818;
+
+Paste = 0xFF00FFFF;
+Undo = 0xFFFF00FF;
+
+Highlight_Junk = 0xFF482020;
+Highlight_White = 0xFF383838;
+
+Bar = 0xFF606060;
+Bar_Active = 0xFF3E3E3E;
+Base = 0xFF000000;
+Pop1 = 0xFF00B0D0;
+Pop2 = 0xFFFF3A00;

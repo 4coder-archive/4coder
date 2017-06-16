@@ -1,0 +1,38 @@
+name = "Twilight";
+
+Back = 0xFF090D12;
+Margin = 0xFF1A2634;
+Margin_Hover = 0xFF2D415B;
+Margin_Active = 0xFF405D82;
+List_Item = Margin;
+List_Item_Hover = Margin_Hover;
+List_Item_Active = Margin_Active;
+Cursor = 0xFFEEE800;
+At_Cursor = Back;
+Mark = 0xFF8BA8CC;
+Highlight = 0xFF037A7B;
+At_Highlight = Back;
+Default = 0xFFB7C19E;
+Comment = 0xFF20ECF0;
+Keyword = 0xFFD86909;
+Str_Constant = 0xFFC4EA5D;
+Char_Constant = Str_Constant;
+Int_Constant = Str_Constant;
+Float_Constant = Str_Constant;
+Bool_Constant = Str_Constant;
+Include = Str_Constant;
+Preproc = Default;
+Special_Character = 0xFFFF0000;
+Ghost_Character = 0xFF46494D;
+
+Paste = 0xFFDDEE00;
+Undo = 0xFF00DDEE;
+
+Highlight_Junk = 0xFF3A0000;
+Highlight_White = 0xFF151F2A;
+
+Bar = 0xFF315E68;
+Bar_Active = 0xFF0F3C46;
+Base = 0xFF000000;
+Pop1 = 0xFF1BFF0C;
+Pop2 = 0xFFFF200D;

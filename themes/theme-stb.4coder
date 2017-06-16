@@ -1,0 +1,38 @@
+name = "stb";
+
+Back = 0xFFD6D6D6;
+Margin = 0xFF9E9E9E;
+Margin_Hover = 0xFF7E7E7E;
+Margin_Active = 0xFF5C5C5C;
+List_Item = Margin;
+List_Item_Hover = Margin_Hover;
+List_Item_Active = Margin_Active;
+Cursor = 0xFF000000;
+At_Cursor = Back;
+Mark = 0xFF525252;
+Highlight = 0xFF0044FF;
+At_Highlight = Back;
+Default = 0xFF000000;
+Comment = 0xFF005800;
+Keyword = Default;
+Str_Constant = Default;
+Char_Constant = Str_Constant;
+Int_Constant = Str_Constant;
+Float_Constant = Str_Constant;
+Bool_Constant = Str_Constant;
+Include = Str_Constant;
+Preproc = Default;
+Special_Character = 0xFF9A0000;
+Ghost_Character = 0xFF6B6B6B;
+
+Paste = 0xFF00B8B8;
+Undo = 0xFFB800B8;
+
+Highlight_Junk = 0xFFFF7878;
+Highlight_White = 0xFFBCBCBC;
+
+Bar = 0xFF606060;
+Bar_Active = 0xFF3E3E3E;
+Base = 0xFF000000;
+Pop1 = 0xFF1111DC;
+Pop2 = 0xFFE80505;

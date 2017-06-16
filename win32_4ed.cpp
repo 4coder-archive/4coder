@@ -28,7 +28,6 @@
 // Program setup
 //
 
-#define SUPPORT_DPI 1
 #define UNICODE
 
 #define FPS 60
@@ -195,11 +194,9 @@ struct Win32_Vars{
     
     HWND window_handle;
     Render_Target target;
-#if SUPPORT_DPI
     i32 dpi_x, dpi_y;
-#endif
     
-    u64 count_per_usecond;
+    f64 count_per_usecond;
     b32 first;
     i32 running_cli;
     
@@ -1712,7 +1709,7 @@ Win32HighResolutionTime(){
     u64 result = 0;
     LARGE_INTEGER t;
     if (QueryPerformanceCounter(&t)){
-        result = (u64)t.QuadPart / win32vars.count_per_usecond;
+        result = (u64) (t.QuadPart / win32vars.count_per_usecond);
     }
     return(result);
 }
@@ -2123,25 +2120,30 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
 #if defined(FRED_SUPER)
     char *custom_file_default = "custom_4coder.dll";
     char *custom_file = 0;
-    if (win32vars.settings.custom_dll) custom_file = win32vars.settings.custom_dll;
-    else custom_file = custom_file_default;
+    if (win32vars.settings.custom_dll){
+        custom_file = win32vars.settings.custom_dll;
+    }
+    else{
+        custom_file = custom_file_default;
+    }
     
+    LOGF(system, "Trying to load custom DLL: %s\n", custom_file);
     win32vars.custom = LoadLibraryA(custom_file);
     if (!win32vars.custom && custom_file != custom_file_default){
         if (!win32vars.settings.custom_dll_is_strict){
+            LOGF(system, "Trying to load custom DLL: %s\n", custom_file_default);
             win32vars.custom = LoadLibraryA(custom_file_default);
         }
     }
     
     if (win32vars.custom){
-        win32vars.custom_api.get_alpha_4coder_version = (_Get_Version_Function*)
-            GetProcAddress(win32vars.custom, "get_alpha_4coder_version");
+        win32vars.custom_api.get_alpha_4coder_version = (_Get_Version_Function*)GetProcAddress(win32vars.custom, "get_alpha_4coder_version");
         
-        if (win32vars.custom_api.get_alpha_4coder_version == 0 ||
-            win32vars.custom_api.get_alpha_4coder_version(MAJOR, MINOR, PATCH) == 0){
+        if (win32vars.custom_api.get_alpha_4coder_version == 0 || win32vars.custom_api.get_alpha_4coder_version(MAJOR, MINOR, PATCH) == 0){
             MessageBox_utf8(0, (u8*)"Error: The application and custom version numbers don't match.\n", (u8*)"Error",0);
             exit(1);
         }
+        
         win32vars.custom_api.get_bindings = (Get_Binding_Data_Function*)GetProcAddress(win32vars.custom, "get_bindings");
     }
     
@@ -2158,7 +2160,7 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
     // Window and GL Initialization
     //
     
-    WNDCLASS window_class = {};
+    WNDCLASS window_class = {0};
     window_class.style = CS_HREDRAW|CS_VREDRAW;
     window_class.lpfnWndProc = (WNDPROC)(Win32Callback);
     window_class.hInstance = hInstance;
@@ -2169,8 +2171,7 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
         exit(1);
     }
     
-    RECT window_rect = {};
-    
+    RECT window_rect = {0};
     if (win32vars.settings.set_window_size){
         window_rect.right = win32vars.settings.window_w;
         window_rect.bottom = win32vars.settings.window_h;
@@ -2181,7 +2182,7 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
     }
     
     if (!AdjustWindowRect(&window_rect, WS_OVERLAPPEDWINDOW, false)){
-        // TODO(allen): non-fatal diagnostics
+        LOG(system, "Could not get adjusted window.\n");
     }
     
     i32 window_x = CW_USEDEFAULT;
@@ -2190,6 +2191,7 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
     if (win32vars.settings.set_window_pos){
         window_x = win32vars.settings.window_x;
         window_y = win32vars.settings.window_y;
+        LOGF(system, "Setting window position (%d, %d)\n", window_x, window_y);
     }
     
     i32 window_style = WS_OVERLAPPEDWINDOW;
@@ -2199,25 +2201,24 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
     
 #define WINDOW_NAME L"4coder-window: " L_VERSION
     
+    LOG(system, "Creating window... ");
     win32vars.window_handle = CreateWindow(window_class.lpszClassName, WINDOW_NAME, window_style, window_x, window_y, window_rect.right - window_rect.left, window_rect.bottom - window_rect.top, 0, 0, hInstance, 0);
     
     if (win32vars.window_handle == 0){
+        LOG(system, "Failed\n");
         exit(1);
+    }
+    else{
+        LOG(system, "Success\n");
     }
     
     {
         HDC hdc = GetDC(win32vars.window_handle);
         
-#if SUPPORT_DPI
         // TODO(allen): not Windows XP compatible, how do I handle that?
         SetProcessDPIAware();
-        
         win32vars.dpi_x = GetDeviceCaps(hdc, LOGPIXELSX);
         win32vars.dpi_y = GetDeviceCaps(hdc, LOGPIXELSY);
-#else
-        win32vars.dpi_x = 1;
-        win32vars.dpi_y = 1;
-#endif
         
         GetClientRect(win32vars.window_handle, &window_rect);
         ReleaseDC(win32vars.window_handle, hdc);
@@ -2230,12 +2231,14 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
     // Font System Init
     //
     
+    LOG(system, "Initializing fonts\n");
     system_font_init(&system->font, 0, 0, win32vars.settings.font_size, win32vars.settings.use_hinting);
     
     //
     // Misc System Initializations
     //
     
+    LOG(system, "Initializing clipboard\n");
     win32vars.clip_max = KB(16);
     win32vars.clip_buffer = (u8*)system_memory_allocate(win32vars.clip_max);
     
@@ -2263,24 +2266,27 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
     
     LARGE_INTEGER f;
     if (QueryPerformanceFrequency(&f)){
-        win32vars.count_per_usecond = (u64)f.QuadPart / 1000000;
+        win32vars.count_per_usecond = (f32)f.QuadPart / 1000000.f;
+        LOGF(system, "Got performance frequency %f\n", win32vars.count_per_usecond);
     }
     else{
         // NOTE(allen): Just guess.
-        win32vars.count_per_usecond = 1;
+        win32vars.count_per_usecond = 1.f;
+        LOG(system, "Did not get performance frequency, just guessing with 1.\n");
     }
-    Assert(win32vars.count_per_usecond != 0);
+    Assert(win32vars.count_per_usecond > 0.f);
     
     //
     // Main Loop
     //
     
+    LOG(system, "Initializing application variables\n");
     win32vars.app.init(system, &win32vars.target, &memory_vars, win32vars.clipboard_contents, current_directory, win32vars.custom_api);
     
     system_memory_free(current_directory.str, 0);
     
-    b32 keep_playing = 1;
-    win32vars.first = 1;
+    b32 keep_playing = true;
+    win32vars.first = true;
     timeBeginPeriod(1);
     
     if (win32vars.settings.fullscreen_window){
@@ -2291,6 +2297,7 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
     SetActiveWindow(win32vars.window_handle);
     ShowWindow(win32vars.window_handle, SW_SHOW);
     
+    LOG(system, "Beginning main loop\n");
     u64 timer_start = Win32HighResolutionTime();
     system_acquire_lock(FRAME_LOCK);
     MSG msg;
