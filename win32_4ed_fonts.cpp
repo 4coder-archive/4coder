@@ -87,6 +87,8 @@ Sys_Font_Free_Sig(system_font_free){
 
 internal
 Sys_Font_Init_Sig(system_font_init){
+    Assert(font_size >= 8);
+    
     Partition *scratch = &shared_vars.scratch;
     Temp_Memory temp = begin_temp_memory(scratch);
     
@@ -98,8 +100,6 @@ Sys_Font_Init_Sig(system_font_init){
     font->load_page = system_font_load_page;
     font->allocate = system_font_allocate;
     font->free = system_font_free;
-    
-    font_size = clamp_bottom(8, font_size);
     
     struct Font_Setup{
         Font_Setup *next_font;

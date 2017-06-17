@@ -738,8 +738,15 @@ init_command_line_settings(App_Settings *settings, Plat_Settings *plat_settings,
                     {
                         if (i + 1 < clparams.argc){
                             plat_settings->set_window_size = true;
-                            plat_settings->window_w = str_to_int_c(clparams.argv[i]);
-                            plat_settings->window_h = str_to_int_c(clparams.argv[i+1]);
+                            
+                            i32 w = str_to_int_c(clparams.argv[i]);
+                            i32 h = str_to_int_c(clparams.argv[i+1]);
+                            if (w > 0){
+                                plat_settings->window_w = w;
+                            }
+                            if (h > 0){
+                                plat_settings->window_h = h;
+                            }
                             
                             ++i;
                         }
@@ -757,8 +764,15 @@ init_command_line_settings(App_Settings *settings, Plat_Settings *plat_settings,
                     {
                         if (i + 1 < clparams.argc){
                             plat_settings->set_window_pos = true;
-                            plat_settings->window_x = str_to_int_c(clparams.argv[i]);
-                            plat_settings->window_y = str_to_int_c(clparams.argv[i+1]);
+                            
+                            i32 x = str_to_int_c(clparams.argv[i]);
+                            i32 y = str_to_int_c(clparams.argv[i+1]);
+                            if (x > 0){
+                                plat_settings->window_x = x;
+                            }
+                            if (y > 0){
+                                plat_settings->window_y = y;
+                            }
                             
                             ++i;
                         }
@@ -784,6 +798,7 @@ init_command_line_settings(App_Settings *settings, Plat_Settings *plat_settings,
                     {
                         if (i < clparams.argc){
                             plat_settings->font_size = str_to_int_c(clparams.argv[i]);
+                            plat_settings->font_size = clamp_bottom(8, plat_settings->font_size);
                         }
                         action = CLAct_Nothing;
                     }break;
@@ -847,7 +862,6 @@ App_Read_Command_Line_Sig(app_read_command_line){
 
 SCROLL_RULE_SIG(fallback_scroll_rule){
     b32 result = false;
-    
     if (target_x != *scroll_x){
         *scroll_x = target_x;
         result = true;
@@ -856,7 +870,6 @@ SCROLL_RULE_SIG(fallback_scroll_rule){
         *scroll_y = target_y;
         result = true;
     }
-    
     return(result);
 }
 

@@ -1181,7 +1181,7 @@ wrap_state_consume_token(System_Functions *system, Render_Font *font, Code_Wrap_
     state->i = i;
     
     b32 consume_token = 0;
-    if (i >= state->token_ptr->start + state->token_ptr->size){
+    if (state->token_ptr < state->end_token && i >= state->token_ptr->start + state->token_ptr->size){
         consume_token = 1;
     }
     
@@ -3503,13 +3503,12 @@ file_do_batch_edit(System_Functions *system, Models *models, Editing_File *file,
     // it from cursor fixing is because you're a lazy asshole.
     
     // NOTE(allen): meta data
-    Buffer_Measure_Starts measure_state = {};
-    buffer_measure_starts(&measure_state, &file->state.buffer);
+    file_measure_starts(general, &file->state.buffer);
     
     Render_Font *font = system->font.get_render_data_by_id(file->settings.font_id);
     
     // TODO(allen): write the remeasurement version
-    file_allocate_character_starts_as_needed(&models->mem.general, file);
+    file_allocate_character_starts_as_needed(general, file);
     buffer_measure_character_starts(system, font, &file->state.buffer, file->state.character_starts, 0, file->settings.virtual_white);
     
     file_measure_wraps(system, models, file, font);

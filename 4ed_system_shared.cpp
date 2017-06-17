@@ -751,6 +751,8 @@ font_load(System_Functions *system, Partition *part, Render_Font *font, i32 pt_s
 
 internal void
 system_set_page(System_Functions *system, Partition *part, Render_Font *font, Glyph_Page *page, u32 page_number, u32 pt_size, b32 use_hinting){
+    Assert(pt_size >= 8);
+    
     memset(page, 0, sizeof(*page));
     
     if (part->base == 0){
