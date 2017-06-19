@@ -1,7 +1,7 @@
 @echo off
 
-REM TODO(allen): Figure out a way to find vcvarsall for any MSVC version.
 IF NOT DEFINED LIB (call "C:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\vcvarsall.bat" amd64)
+IF NOT DEFINED LIB (call "C:\Program Files (x86)\Microsoft Visual Studio\2017\Community\VC\Auxiliary\Build\vcvarsall.bat" amd64)
 
 SET SRC=%1
 if "%SRC%" == "" SET SRC=4coder_default_bindings.cpp
