@@ -62,6 +62,7 @@ struct Application_Links;
 #define SET_THEME_COLORS_SIG(n) void n(Application_Links *app, Theme_Color *colors, int32_t count)
 #define GET_THEME_COLORS_SIG(n) void n(Application_Links *app, Theme_Color *colors, int32_t count)
 #define DIRECTORY_GET_HOT_SIG(n) int32_t n(Application_Links *app, char *out, int32_t capacity)
+#define DIRECTORY_SET_HOT_SIG(n) bool32 n(Application_Links *app, char *str, int32_t len)
 #define GET_FILE_LIST_SIG(n) File_List n(Application_Links *app, char *dir, int32_t len)
 #define FREE_FILE_LIST_SIG(n) void n(Application_Links *app, File_List list)
 #define SET_GUI_UP_DOWN_KEYS_SIG(n) void n(Application_Links *app, Key_Code up_key, Key_Modifier up_key_modifier, Key_Code down_key, Key_Modifier down_key_modifier)
@@ -138,6 +139,7 @@ typedef BUFFER_GET_FONT_SIG(Buffer_Get_Font_Function);
 typedef SET_THEME_COLORS_SIG(Set_Theme_Colors_Function);
 typedef GET_THEME_COLORS_SIG(Get_Theme_Colors_Function);
 typedef DIRECTORY_GET_HOT_SIG(Directory_Get_Hot_Function);
+typedef DIRECTORY_SET_HOT_SIG(Directory_Set_Hot_Function);
 typedef GET_FILE_LIST_SIG(Get_File_List_Function);
 typedef FREE_FILE_LIST_SIG(Free_File_List_Function);
 typedef SET_GUI_UP_DOWN_KEYS_SIG(Set_GUI_Up_Down_Keys_Function);
@@ -216,6 +218,7 @@ Buffer_Get_Font_Function *buffer_get_font;
 Set_Theme_Colors_Function *set_theme_colors;
 Get_Theme_Colors_Function *get_theme_colors;
 Directory_Get_Hot_Function *directory_get_hot;
+Directory_Set_Hot_Function *directory_set_hot;
 Get_File_List_Function *get_file_list;
 Free_File_List_Function *free_file_list;
 Set_GUI_Up_Down_Keys_Function *set_gui_up_down_keys;
@@ -293,6 +296,7 @@ Buffer_Get_Font_Function *buffer_get_font_;
 Set_Theme_Colors_Function *set_theme_colors_;
 Get_Theme_Colors_Function *get_theme_colors_;
 Directory_Get_Hot_Function *directory_get_hot_;
+Directory_Set_Hot_Function *directory_set_hot_;
 Get_File_List_Function *get_file_list_;
 Free_File_List_Function *free_file_list_;
 Set_GUI_Up_Down_Keys_Function *set_gui_up_down_keys_;
@@ -378,6 +382,7 @@ app_links->buffer_get_font_ = Buffer_Get_Font;\
 app_links->set_theme_colors_ = Set_Theme_Colors;\
 app_links->get_theme_colors_ = Get_Theme_Colors;\
 app_links->directory_get_hot_ = Directory_Get_Hot;\
+app_links->directory_set_hot_ = Directory_Set_Hot;\
 app_links->get_file_list_ = Get_File_List;\
 app_links->free_file_list_ = Free_File_List;\
 app_links->set_gui_up_down_keys_ = Set_GUI_Up_Down_Keys;\
@@ -455,6 +460,7 @@ static inline bool32 buffer_get_font(Application_Links *app, Buffer_Summary *buf
 static inline void set_theme_colors(Application_Links *app, Theme_Color *colors, int32_t count){(app->set_theme_colors(app, colors, count));}
 static inline void get_theme_colors(Application_Links *app, Theme_Color *colors, int32_t count){(app->get_theme_colors(app, colors, count));}
 static inline int32_t directory_get_hot(Application_Links *app, char *out, int32_t capacity){return(app->directory_get_hot(app, out, capacity));}
+static inline bool32 directory_set_hot(Application_Links *app, char *str, int32_t len){return(app->directory_set_hot(app, str, len));}
 static inline File_List get_file_list(Application_Links *app, char *dir, int32_t len){return(app->get_file_list(app, dir, len));}
 static inline void free_file_list(Application_Links *app, File_List list){(app->free_file_list(app, list));}
 static inline void set_gui_up_down_keys(Application_Links *app, Key_Code up_key, Key_Modifier up_key_modifier, Key_Code down_key, Key_Modifier down_key_modifier){(app->set_gui_up_down_keys(app, up_key, up_key_modifier, down_key, down_key_modifier));}
@@ -532,6 +538,7 @@ static inline bool32 buffer_get_font(Application_Links *app, Buffer_Summary *buf
 static inline void set_theme_colors(Application_Links *app, Theme_Color *colors, int32_t count){(app->set_theme_colors_(app, colors, count));}
 static inline void get_theme_colors(Application_Links *app, Theme_Color *colors, int32_t count){(app->get_theme_colors_(app, colors, count));}
 static inline int32_t directory_get_hot(Application_Links *app, char *out, int32_t capacity){return(app->directory_get_hot_(app, out, capacity));}
+static inline bool32 directory_set_hot(Application_Links *app, char *str, int32_t len){return(app->directory_set_hot_(app, str, len));}
 static inline File_List get_file_list(Application_Links *app, char *dir, int32_t len){return(app->get_file_list_(app, dir, len));}
 static inline void free_file_list(Application_Links *app, File_List list){(app->free_file_list_(app, list));}
 static inline void set_gui_up_down_keys(Application_Links *app, Key_Code up_key, Key_Modifier up_key_modifier, Key_Code down_key, Key_Modifier down_key_modifier){(app->set_gui_up_down_keys_(app, up_key, up_key_modifier, down_key, down_key_modifier));}

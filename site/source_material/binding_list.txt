@@ -19,6 +19,8 @@ The following bindings apply in all situations.
  \BEGIN_ITEM \BEGIN_STYLE{code} <alt  o> \END_STYLE Open file dialogue in other panel \END_ITEM
  \BEGIN_ITEM \BEGIN_STYLE{code} <ctrl k> \END_STYLE Kill buffer dialogue \END_ITEM
  \BEGIN_ITEM \BEGIN_STYLE{code} <ctrl i> \END_STYLE Switch open buffer dialogue \END_ITEM
+ \BEGIN_ITEM \BEGIN_STYLE{code} <ctrl w> \END_STYLE 'Save As' - save file into new name \END_ITEM
+ \BEGIN_ITEM \BEGIN_STYLE{code} <ctrl h> \END_STYLE Set hot directory to projet root directory \END_ITEM
  
  \BEGIN_ITEM \BEGIN_STYLE{code} <alt  c> \END_STYLE Open color and font selection GUI \END_ITEM
  \BEGIN_ITEM \BEGIN_STYLE{code} <alt  d> \END_STYLE Open a debug information GUI \END_ITEM

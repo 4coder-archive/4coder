@@ -294,6 +294,8 @@ struct Project{
     bool32 close_all_files_when_project_opens;
     
     bool32 open_recursively;
+    
+    bool32 loaded;
 };
 
 static Project null_project = {0};

@@ -27,6 +27,7 @@ default_keys(Bind_Helper *context){
     bind(context, 'k', MDFR_CTRL, interactive_kill_buffer);
     bind(context, 'i', MDFR_CTRL, interactive_switch_buffer);
     bind(context, 'w', MDFR_CTRL, save_as);
+    bind(context, 'h', MDFR_CTRL, project_go_to_root_directory);
     
     bind(context, 'c', MDFR_ALT, open_color_tweaker);
     bind(context, 'd', MDFR_ALT, open_debug);
@@ -132,7 +133,7 @@ default_keys(Bind_Helper *context){
     bind(context, key_mouse_right, MDFR_NONE, click_set_mark);
     
     // NOTE(allen|a4.0.11): You can now bind left and right mouse
-    // button releases.  Modifiers do work so control+click shift+click
+    // button releases.  Modifiers do work so control+release shift+release
     // etc can now have special meanings.
     bind(context, key_mouse_left_release, MDFR_NONE, click_set_mark);
     

@@ -1792,7 +1792,7 @@ Win32Callback(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
                             memcpy(data[*count].modifiers, control_keys, control_keys_size);
                             ++(*count);
                             
-                            win32vars.got_useful_event = 1;
+                            win32vars.got_useful_event = true;
                         }
                     }
                 }break;
@@ -1838,7 +1838,7 @@ Win32Callback(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
             memcpy(data[*count].modifiers, control_keys, control_keys_size);
             ++(*count);
             
-            win32vars.got_useful_event = 1;
+            win32vars.got_useful_event = true;
         }break;
         
         case WM_MOUSEMOVE:
@@ -1850,13 +1850,13 @@ Win32Callback(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
                 win32vars.input_chunk.pers.mouse_x = new_x;
                 win32vars.input_chunk.pers.mouse_y = new_y;
                 
-                win32vars.got_useful_event = 1;
+                win32vars.got_useful_event = true;
             }
         }break;
         
         case WM_MOUSEWHEEL:
         {
-            win32vars.got_useful_event = 1;
+            win32vars.got_useful_event = true;
             i32 rotation = GET_WHEEL_DELTA_WPARAM(wParam);
             if (rotation > 0){
                 win32vars.input_chunk.trans.mouse_wheel = 1;
@@ -1868,28 +1868,28 @@ Win32Callback(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
         
         case WM_LBUTTONDOWN:
         {
-            win32vars.got_useful_event = 1;
+            win32vars.got_useful_event = true;
             win32vars.input_chunk.trans.mouse_l_press = 1;
             win32vars.input_chunk.pers.mouse_l = 1;
         }break;
         
         case WM_RBUTTONDOWN:
         {
-            win32vars.got_useful_event = 1;
+            win32vars.got_useful_event = true;
             win32vars.input_chunk.trans.mouse_r_press = 1;
             win32vars.input_chunk.pers.mouse_r = 1;
         }break;
         
         case WM_LBUTTONUP:
         {
-            win32vars.got_useful_event = 1;
+            win32vars.got_useful_event = true;
             win32vars.input_chunk.trans.mouse_l_release = 1;
             win32vars.input_chunk.pers.mouse_l = 0;
         }break;
         
         case WM_RBUTTONUP:
         {
-            win32vars.got_useful_event = 1;
+            win32vars.got_useful_event = true;
             win32vars.input_chunk.trans.mouse_r_release = 1;
             win32vars.input_chunk.pers.mouse_r = 0;
         }break;
@@ -1897,7 +1897,7 @@ Win32Callback(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
         case WM_KILLFOCUS:
         case WM_SETFOCUS:
         {
-            win32vars.got_useful_event = 1;
+            win32vars.got_useful_event = true;
             win32vars.input_chunk.pers.mouse_l = 0;
             win32vars.input_chunk.pers.mouse_r = 0;
             
@@ -1909,7 +1909,7 @@ Win32Callback(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
         
         case WM_SIZE:
         {
-            win32vars.got_useful_event = 1;
+            win32vars.got_useful_event = true;
             i32 new_width = LOWORD(lParam);
             i32 new_height = HIWORD(lParam);
             
@@ -1918,7 +1918,7 @@ Win32Callback(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
         
         case WM_DISPLAYCHANGE:
         {
-            win32vars.got_useful_event = 1;
+            win32vars.got_useful_event = true;
             
             LONG_PTR style = GetWindowLongPtr(hwnd, GWL_STYLE);
             if (!(style & WS_OVERLAPPEDWINDOW)){
@@ -1936,7 +1936,7 @@ Win32Callback(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
         
         case WM_PAINT:
         {
-            win32vars.got_useful_event = 1;
+            win32vars.got_useful_event = true;
             PAINTSTRUCT ps;
             HDC hdc = BeginPaint(hwnd, &ps);
             Win32RedrawScreen(hdc);
@@ -1946,13 +1946,13 @@ Win32Callback(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
         case WM_CLOSE:
         case WM_DESTROY:
         {
-            win32vars.got_useful_event = 1;
+            win32vars.got_useful_event = true;
             win32vars.input_chunk.trans.trying_to_kill = 1;
         }break;
         
         case WM_4coder_ANIMATE:
         {
-            win32vars.got_useful_event = 1;
+            win32vars.got_useful_event = true;
         }break;
         
         case WM_CANCELMODE:

@@ -2364,13 +2364,8 @@ Directory_Get_Hot(Application_Links *app, char *out, int32_t capacity)
 DOC_PARAM(out, This parameter provides a character buffer that receives the 4coder 'hot directory'.)
 DOC_PARAM(capacity, This parameter specifies the maximum size to be output to the out buffer.)
 DOC_RETURN(This call returns the size of the string written into the buffer.)
-DOC(
-4coder has a concept of a 'hot directory' which is the directory most recently
-accessed in the GUI.  Whenever the GUI is opened it shows the hot directory.
-
-In the future this will be deprecated and eliminated in favor of more flexible
-directories controlled on the custom side.
-)
+DOC(4coder has a concept of a 'hot directory' which is the directory most recently accessed in the GUI.  Whenever the GUI is opened it shows the hot directory. In the future this will be deprecated and eliminated in favor of more flexible directories controlled on the custom side.)
+DOC_SEE(directory_set_hot)
 */{
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     Hot_Directory *hot = &cmd->models->hot_directory;
@@ -2382,6 +2377,25 @@ directories controlled on the custom side.
     memcpy(out, hot->string.str, copy_max);
     out[copy_max] = 0;
     return(hot->string.size);
+}
+
+API_EXPORT bool32
+Directory_Set_Hot(Application_Links *app, char *str, int32_t len)
+/*
+DOC_PARAM(str, The new value of the hot directory.  This does not need to be a null terminated string.)
+DOC_PARAM(len, The length of str in bytes.)
+DOC_RETURN(Returns non-zero on success.)
+DOC(4coder has a concept of a 'hot directory' which is the directory most recently accessed in the GUI.  Whenever the GUI is opened it shows the hot directory. In the future this will be deprecated and eliminated in favor of more flexible directories controlled on the custom side.)
+DOC_SEE(directory_get_hot)
+*/{
+    Command_Data *cmd = (Command_Data*)app->cmd_context;
+    Hot_Directory *hot = &cmd->models->hot_directory;
+    b32 success = false;
+    if (len < hot->string.memory_size){
+        hot_directory_set(cmd->system, hot, make_string(str, len));
+        success = true;
+    }
+    return(success);
 }
 
 API_EXPORT File_List

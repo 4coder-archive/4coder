@@ -187,70 +187,70 @@ CUSTOM_COMMAND_SIG(close_all_code){
 }
 
 static void
-load_project_from_file(Application_Links *app, Partition *part, FILE *file, String project_dir){
+load_project_from_config_data(Application_Links *app, Partition *part, char *config_data, int32_t config_data_size, String project_dir){
     Temp_Memory temp = begin_temp_memory(part);
     
-    char *mem = 0;
-    int32_t size = 0;
-    bool32 file_read_success = file_handle_dump(part, file, &mem, &size);
-    if (file_read_success){
-        Cpp_Token_Array array;
-        array.count = 0;
-        array.max_count = (1 << 20)/sizeof(Cpp_Token);
-        array.tokens = push_array(&global_part, Cpp_Token, array.max_count);
+    char *mem = config_data;
+    int32_t size = config_data_size;
+    
+    Cpp_Token_Array array;
+    array.count = 0;
+    array.max_count = (1 << 20)/sizeof(Cpp_Token);
+    array.tokens = push_array(part, Cpp_Token, array.max_count);
+    
+    Cpp_Keyword_Table kw_table = {0};
+    Cpp_Keyword_Table pp_table = {0};
+    lexer_keywords_default_init(part, &kw_table, &pp_table);
+    
+    Cpp_Lex_Data S = cpp_lex_data_init(false, kw_table, pp_table);
+    Cpp_Lex_Result result = cpp_lex_step(&S, mem, size+1, HAS_NULL_TERM, &array, NO_OUT_LIMIT);
+    
+    if (result == LexResult_Finished){
+        // Clear out current project
+        if (current_project.close_all_code_when_this_project_closes){
+            exec_command(app, close_all_code);
+        }
+        current_project = null_project;
+        current_project.loaded = true;
         
-        Cpp_Keyword_Table kw_table = {0};
-        Cpp_Keyword_Table pp_table = {0};
-        lexer_keywords_default_init(part, &kw_table, &pp_table);
+        // Set new project directory
+        {
+            current_project.dir = current_project.dir_space;
+            String str = make_fixed_width_string(current_project.dir_space);
+            copy(&str, project_dir);
+            terminate_with_null(&str);
+            current_project.dir_len = str.size;
+        }
         
-        Cpp_Lex_Data S = cpp_lex_data_init(false, kw_table, pp_table);
-        Cpp_Lex_Result result = cpp_lex_step(&S, mem, size+1, HAS_NULL_TERM, &array, NO_OUT_LIMIT);
-        
-        if (result == LexResult_Finished){
-            // Clear out current project
-            if (current_project.close_all_code_when_this_project_closes){
-                exec_command(app, close_all_code);
-            }
-            current_project = null_project;
-            
-            // Set new project directory
-            {
-                current_project.dir = current_project.dir_space;
-                String str = make_fixed_width_string(current_project.dir_space);
-                copy(&str, project_dir);
-                terminate_with_null(&str);
-                current_project.dir_len = str.size;
-            }
-            
-            // Read the settings from project.4coder
-            for (int32_t i = 0; i < array.count; ++i){
-                Config_Line config_line = read_config_line(array, &i);
-                if (config_line.read_success){
-                    Config_Item item = get_config_item(config_line, mem, array);
-                    
-                    {
-                        char str_space[512];
-                        String str = make_fixed_width_string(str_space);
-                        if (config_string_var(item, "extensions", 0, &str)){
-                            if (str.size < sizeof(current_project.extension_list.extension_space)){
-                                set_extensions(&current_project.extension_list, str);
-                                print_message(app, str.str, str.size);
-                                print_message(app, "\n", 1);
-                            }
-                            else{
-                                print_message(app, literal("STRING TOO LONG!\n"));
-                            }
+        // Read the settings from project.4coder
+        for (int32_t i = 0; i < array.count; ++i){
+            Config_Line config_line = read_config_line(array, &i);
+            if (config_line.read_success){
+                Config_Item item = get_config_item(config_line, mem, array);
+                
+                {
+                    char str_space[512];
+                    String str = make_fixed_width_string(str_space);
+                    if (config_string_var(item, "extensions", 0, &str)){
+                        if (str.size < sizeof(current_project.extension_list.extension_space)){
+                            set_extensions(&current_project.extension_list, str);
+                            print_message(app, str.str, str.size);
+                            print_message(app, "\n", 1);
+                        }
+                        else{
+                            print_message(app, literal("STRING TOO LONG!\n"));
                         }
                     }
-                    
-                    {
-                        bool32 open_recursively = false;
-                        if (config_bool_var(item, "open_recursively", 0, &open_recursively)){
-                            current_project.open_recursively = open_recursively;
-                        }
+                }
+                
+                {
+                    bool32 open_recursively = false;
+                    if (config_bool_var(item, "open_recursively", 0, &open_recursively)){
+                        current_project.open_recursively = open_recursively;
                     }
-                    
-                    {
+                }
+                
+                {
 #if defined(_WIN32)
 #define FKEY_COMMAND "fkey_command_win"
 #elif defined(__linux__)
@@ -258,121 +258,120 @@ load_project_from_file(Application_Links *app, Partition *part, FILE *file, Stri
 #else
 #error no project configuration names for this platform
 #endif
-                        
-                        int32_t index = 0;
-                        Config_Array_Reader array_reader = {0};
-                        if (config_array_var(item, FKEY_COMMAND, &index, &array_reader)){
-                            if (index >= 1 && index <= 16){
-                                Config_Item array_item = {0};
-                                int32_t item_index = 0;
+                    
+                    int32_t index = 0;
+                    Config_Array_Reader array_reader = {0};
+                    if (config_array_var(item, FKEY_COMMAND, &index, &array_reader)){
+                        if (index >= 1 && index <= 16){
+                            Config_Item array_item = {0};
+                            int32_t item_index = 0;
+                            
+                            char space[256];
+                            String msg = make_fixed_width_string(space);
+                            append(&msg, FKEY_COMMAND"[");
+                            append_int_to_str(&msg, index);
+                            append(&msg, "] = {");
+                            
+                            for (config_array_next_item(&array_reader, &array_item);
+                                 config_array_good(&array_reader);
+                                 config_array_next_item(&array_reader, &array_item)){
                                 
-                                char space[256];
-                                String msg = make_fixed_width_string(space);
-                                append(&msg, FKEY_COMMAND"[");
-                                append_int_to_str(&msg, index);
-                                append(&msg, "] = {");
-                                
-                                for (config_array_next_item(&array_reader, &array_item);
-                                     config_array_good(&array_reader);
-                                     config_array_next_item(&array_reader, &array_item)){
-                                    
-                                    if (item_index >= 4){
-                                        break;
-                                    }
-                                    
-                                    append(&msg, "[");
-                                    append_int_to_str(&msg, item_index);
-                                    append(&msg, "] = ");
-                                    
-                                    bool32 read_string = false;
-                                    bool32 read_bool = false;
-                                    
-                                    char *dest_str = 0;
-                                    int32_t dest_str_size = 0;
-                                    
-                                    bool32 *dest_bool = 0;
-                                    
-                                    switch (item_index){
-                                        case 0:
-                                        {
-                                            dest_str = current_project.fkey_commands[index-1].command;
-                                            dest_str_size = sizeof(current_project.fkey_commands[index-1].command);
-                                            read_string = true;
-                                        }break;
-                                        
-                                        case 1:
-                                        {
-                                            dest_str = current_project.fkey_commands[index-1].out;
-                                            dest_str_size = sizeof(current_project.fkey_commands[index-1].out);
-                                            read_string = true;
-                                        }break;
-                                        
-                                        case 2:
-                                        {
-                                            dest_bool = &current_project.fkey_commands[index-1].use_build_panel;
-                                            read_bool = true;
-                                        }break;
-                                        
-                                        case 3:
-                                        {
-                                            dest_bool = &current_project.fkey_commands[index-1].save_dirty_buffers;
-                                            read_bool = true;
-                                        }break;
-                                    }
-                                    
-                                    if (read_string){
-                                        if (config_int_var(array_item, 0, 0, 0)){
-                                            append(&msg, "NULL, ");
-                                            dest_str[0] = 0;
-                                        }
-                                        
-                                        char str_space[512];
-                                        String str = make_fixed_width_string(str_space);
-                                        if (config_string_var(array_item, 0, 0, &str)){
-                                            if (str.size < dest_str_size){
-                                                interpret_escaped_string(dest_str, str);
-                                                append(&msg, dest_str);
-                                                append(&msg, ", ");
-                                            }
-                                            else{
-                                                append(&msg, "STRING TOO LONG!, ");
-                                            }
-                                        }
-                                    }
-                                    
-                                    if (read_bool){
-                                        if (config_bool_var(array_item, 0, 0, dest_bool)){
-                                            if (*dest_bool){
-                                                append(&msg, "true, ");
-                                            }
-                                            else{
-                                                append(&msg, "false, ");
-                                            }
-                                        }
-                                    }
-                                    
-                                    item_index++;
+                                if (item_index >= 4){
+                                    break;
                                 }
                                 
-                                append(&msg, "}\n");
-                                print_message(app, msg.str, msg.size);
+                                append(&msg, "[");
+                                append_int_to_str(&msg, item_index);
+                                append(&msg, "] = ");
+                                
+                                bool32 read_string = false;
+                                bool32 read_bool = false;
+                                
+                                char *dest_str = 0;
+                                int32_t dest_str_size = 0;
+                                
+                                bool32 *dest_bool = 0;
+                                
+                                switch (item_index){
+                                    case 0:
+                                    {
+                                        dest_str = current_project.fkey_commands[index-1].command;
+                                        dest_str_size = sizeof(current_project.fkey_commands[index-1].command);
+                                        read_string = true;
+                                    }break;
+                                    
+                                    case 1:
+                                    {
+                                        dest_str = current_project.fkey_commands[index-1].out;
+                                        dest_str_size = sizeof(current_project.fkey_commands[index-1].out);
+                                        read_string = true;
+                                    }break;
+                                    
+                                    case 2:
+                                    {
+                                        dest_bool = &current_project.fkey_commands[index-1].use_build_panel;
+                                        read_bool = true;
+                                    }break;
+                                    
+                                    case 3:
+                                    {
+                                        dest_bool = &current_project.fkey_commands[index-1].save_dirty_buffers;
+                                        read_bool = true;
+                                    }break;
+                                }
+                                
+                                if (read_string){
+                                    if (config_int_var(array_item, 0, 0, 0)){
+                                        append(&msg, "NULL, ");
+                                        dest_str[0] = 0;
+                                    }
+                                    
+                                    char str_space[512];
+                                    String str = make_fixed_width_string(str_space);
+                                    if (config_string_var(array_item, 0, 0, &str)){
+                                        if (str.size < dest_str_size){
+                                            interpret_escaped_string(dest_str, str);
+                                            append(&msg, dest_str);
+                                            append(&msg, ", ");
+                                        }
+                                        else{
+                                            append(&msg, "STRING TOO LONG!, ");
+                                        }
+                                    }
+                                }
+                                
+                                if (read_bool){
+                                    if (config_bool_var(array_item, 0, 0, dest_bool)){
+                                        if (*dest_bool){
+                                            append(&msg, "true, ");
+                                        }
+                                        else{
+                                            append(&msg, "false, ");
+                                        }
+                                    }
+                                }
+                                
+                                item_index++;
                             }
+                            
+                            append(&msg, "}\n");
+                            print_message(app, msg.str, msg.size);
                         }
                     }
                 }
             }
-            
-            if (current_project.close_all_files_when_project_opens){
-                close_all_files_with_extension(app, &global_part, 0, 0);
-            }
-            
-            // Open all project files
-            if (current_project.open_recursively){
-                open_all_code_recursive(app, project_dir);
-            }
-            else{
-                open_all_code(app, project_dir);
-            }
+        }
+        
+        if (current_project.close_all_files_when_project_opens){
+            close_all_files_with_extension(app, part, 0, 0);
+        }
+        
+        // Open all project files
+        if (current_project.open_recursively){
+            open_all_code_recursive(app, project_dir);
+        }
+        else{
+            open_all_code(app, project_dir);
         }
     }
     
@@ -382,6 +381,8 @@ load_project_from_file(Application_Links *app, Partition *part, FILE *file, Stri
 CUSTOM_COMMAND_SIG(load_project){
     Partition *part = &global_part;
     
+    Temp_Memory temp = begin_temp_memory(part);
+    
     char project_file_space[512];
     String project_name = make_fixed_width_string(project_file_space);
     project_name.size = directory_get_hot(app, project_name.str, project_name.memory_size);
@@ -390,7 +391,6 @@ CUSTOM_COMMAND_SIG(load_project){
     }
     
     if (project_name.size != 0){
-        
         bool32 load_failed = false;
         for(;;){
             int32_t original_size = project_name.size;
@@ -401,8 +401,15 @@ CUSTOM_COMMAND_SIG(load_project){
             if (file){
                 project_name.size = original_size;
                 terminate_with_null(&project_name);
-                load_project_from_file(app, part, file, project_name);
+                
+                char *mem = 0;
+                int32_t size = 0;
+                bool32 file_read_success = file_handle_dump(part, file, &mem, &size);
                 fclose(file);
+                
+                if (file_read_success){
+                    load_project_from_config_data(app, part, mem, size, project_name);
+                }
                 break;
             }
             else{
@@ -434,6 +441,8 @@ CUSTOM_COMMAND_SIG(load_project){
     else{
         print_message(app, literal("Failed trying to get project file name"));
     }
+    
+    end_temp_memory(temp);
 }
 
 static void
@@ -511,6 +520,12 @@ CUSTOM_COMMAND_SIG(project_fkey_command){
         if (got_ind){
             exec_project_fkey_command(app, ind);
         }
+    }
+}
+
+CUSTOM_COMMAND_SIG(project_go_to_root_directory){
+    if (current_project.loaded){
+        directory_set_hot(app, current_project.dir, current_project.dir_len);
     }
 }
 
