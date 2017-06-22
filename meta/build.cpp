@@ -158,7 +158,10 @@ build_cl(u32 flags, char *code_path, char *code_file, char *out_path, char *out_
     init_build_line(&line_prefix);
     
     if (flags & X86){
-        build_ap(line_prefix, "SETUP_CLX86 & ");
+        build_ap(line_prefix, "BUILD_SCRIPTS\\SETUP_CL_X86 & ");
+    }
+    else{
+        build_ap(line_prefix, "BUILD_SCRIPTS\\SETUP_CL_X64 & ");
     }
     
     if (flags & OPTS){
