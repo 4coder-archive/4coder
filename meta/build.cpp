@@ -382,14 +382,13 @@ buildsuper(char *code_path, char *out_path, char *filename, b32 x86_build){
 #error No platform layer defined for this OS.
 #endif
 
-#define META_DIR "../meta"
 #define BUILD_DIR "../build"
 
 static void
 fsm_generator(char *cdir){
     {
         DECL_STR(file, "meta/fsm_table_generator.cpp");
-        DECL_STR(dir, META_DIR);
+        DECL_STR(dir, BUILD_DIR);
         
         BEGIN_TIME_SECTION();
         build(OPTS | DEBUG_INFO, cdir, file, dir, "fsmgen", 0);
@@ -397,7 +396,7 @@ fsm_generator(char *cdir){
     }
     
     if (prev_error == 0){
-        DECL_STR(cmd, META_DIR"/fsmgen");
+        DECL_STR(cmd, BUILD_DIR"/fsmgen");
         BEGIN_TIME_SECTION();
         execute_in_dir(cdir, cmd, 0);
         END_TIME_SECTION("run fsm generator");
@@ -408,7 +407,7 @@ static void
 metagen(char *cdir){
     {
         DECL_STR(file, "meta/4ed_metagen.cpp");
-        DECL_STR(dir, META_DIR);
+        DECL_STR(dir, BUILD_DIR);
         
         BEGIN_TIME_SECTION();
         build(OPTS | INCLUDES | DEBUG_INFO, cdir, file, dir, "metagen", 0);
@@ -416,7 +415,7 @@ metagen(char *cdir){
     }
     
     if (prev_error == 0){
-        DECL_STR(cmd, META_DIR "/metagen");
+        DECL_STR(cmd, BUILD_DIR"/metagen");
         BEGIN_TIME_SECTION();
         execute_in_dir(cdir, cmd, 0);
         END_TIME_SECTION("run metagen");
