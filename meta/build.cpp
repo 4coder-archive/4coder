@@ -158,10 +158,10 @@ build_cl(u32 flags, char *code_path, char *code_file, char *out_path, char *out_
     init_build_line(&line_prefix);
     
     if (flags & X86){
-        build_ap(line_prefix, "BUILD_SCRIPTS\\SETUP_CL_X86 & ");
+        build_ap(line_prefix, "%s\\build_scripts\\setup_cl_x86.bat & ", code_path);
     }
     else{
-        build_ap(line_prefix, "BUILD_SCRIPTS\\SETUP_CL_X64 & ");
+        build_ap(line_prefix, "%s\\build_scripts\\setup_cl_x64.bat & ", code_path);
     }
     
     if (flags & OPTS){
