@@ -143,8 +143,8 @@ cpp__fill_table(Cpp_Keyword_Table *table, char *str, u32_4tech str_count){
         str += 8;
         
         u32_4tech hash = 0;
-        for (u32_4tech i = 0; i < str_len; ++i){
-            hash = (hash << 5) + (u32_4tech)(str[i]);
+        for (u32_4tech j = 0; j < str_len; ++j){
+            hash = (hash << 5) + (u32_4tech)(str[j]);
         }
         
         u32_4tech first_index = hash % max;
