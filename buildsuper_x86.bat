@@ -6,10 +6,10 @@ REM default files no matter where you store your code.
 REM And no matter how you call buildsuper.bat.
 SET CODE_HOME=%~dp0
 
-IF NOT DEFINED LIB (call "%CODE_HOME%\\build_scripts\\setup_cl_x86.bat")
+IF NOT "%Platform%" == "X86" (call "%CODE_HOME%\\build_scripts\\setup_cl_x86.bat")
 
 SET SRC=%1
-if "%SRC%" == "" SET SRC=4coder_default_bindings.cpp
+if "%SRC%" == "" (SET SRC=4coder_default_bindings.cpp)
 
 SET OPTS=/W4 /wd4310 /wd4100 /wd4201 /wd4505 /wd4996 /wd4127 /wd4510 /wd4512 /wd4610 /wd4457 /WX
 SET OPTS=%OPTS% /GR- /nologo /FC
