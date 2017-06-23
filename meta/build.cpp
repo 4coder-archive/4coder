@@ -158,7 +158,7 @@ build_cl(u32 flags, char *code_path, char *code_file, char *out_path, char *out_
     init_build_line(&line_prefix);
     
     if (flags & X86){
-        build_ap(line_prefix, "%s\\build_scripts\\setup_cl_x86.bat & ", code_path);
+        build_ap(line_prefix, "%s\\windows_scripts\\setup_cl_x86.bat & ", code_path);
     }
     
     if (flags & OPTS){
@@ -361,7 +361,7 @@ buildsuper(char *code_path, char *out_path, char *filename, b32 x86_build){
         char *build_script = "buildsuper.bat";
         if (x86_build){
             prefix_1 = code_path;
-            prefix_2 = "\\build_script\\setup_cl_x86.bat & ";
+            prefix_2 = "\\windows_scripts\\setup_cl_x86.bat & ";
             build_script = "buildsuper_x86.bat";
         }
         systemf("%s%scall \"%s\\%s\" %s", prefix_1, prefix_2, code_path, build_script, filename);
@@ -759,6 +759,10 @@ package(char *cdir){
             copy_all(0, "4coder_*", dir);
             
             copy_file(0, "buildsuper" BAT, dir, 0, 0);
+            
+#if defined(IS_WINDOWS)
+            copy_folder(dir, "windows_scripts");
+#endif
             
             copy_folder(dir, "4coder_API");
             copy_folder(dir, "4coder_helper");
