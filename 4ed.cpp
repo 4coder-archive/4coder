@@ -1505,8 +1505,7 @@ App_Step_Sig(app_step){
                 persistent = &view->persistent;
                 
                 persistent->coroutine =
-                    system->create_coroutine(view_caller);		wrap_indent_marks,10	identifier "wrap_indent_marks" is undefined	
-
+                    system->create_coroutine(view_caller);
                 
                 persistent->coroutine =
                     app_launch_coroutine(system, &models->app_links, Co_View,
@@ -2014,7 +2013,7 @@ App_Step_Sig(app_step){
                             "  Rust, C#, Java\n"
                             "  Arbitrary keyword customization available in custom code (super users)\n"
                             "\n"
-                            "New in alpha 4.0.18:\n"
+                            "New in alpha 4.0.19:\n"
                             "-Lexer now handles string literal prefixes and is more optimized\n"
                             "-Fixes for lingering unicode bugs\n"
                             "-Power users have an experimental new jump to error that positions through edits (coming to all tiers soon)\n"
