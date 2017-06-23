@@ -361,7 +361,7 @@ buildsuper(char *code_path, char *out_path, char *filename, b32 x86_build){
         char *build_script = "buildsuper.bat";
         if (x86_build){
             prefix_1 = code_path;
-            prefix_2 = "\\setup_cl_x86.bat & ";
+            prefix_2 = "\\build_script\\setup_cl_x86.bat & ";
             build_script = "buildsuper_x86.bat";
         }
         systemf("%s%scall \"%s\\%s\" %s", prefix_1, prefix_2, code_path, build_script, filename);
