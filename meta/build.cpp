@@ -356,13 +356,15 @@ buildsuper(char *code_path, char *out_path, char *filename, b32 x86_build){
     Temp_Dir temp = pushdir(out_path);
 #if defined(IS_CL)
     {
-        char *prefix = "";
+        char *prefix_1 = "";
+        char *prefix_2 = "";
         char *build_script = "buildsuper.bat";
         if (x86_build){
-            prefix = "setup_clx86 & ";
+            prefix_1 = code_path;
+            prefix_2 = "\\setup_cl_x86.bat & ";
             build_script = "buildsuper_x86.bat";
         }
-        systemf("%scall \"%s\\%s\" %s", prefix, code_path, build_script, filename);
+        systemf("%s%scall \"%s\\%s\" %s", prefix_1, prefix_2, code_path, build_script, filename);
     }
 #elif defined(IS_GCC)
     {
@@ -597,8 +599,7 @@ package(char *cdir){
     metagen(cdir);
     
 #define SITE_DIR "../site"
-#define PACK_DATA_DIR  "../data/dist_files"
-#define PACK_FONTS_DIR PACK_DATA_DIR"/fonts"
+#define PACK_FONTS_DIR "../code/dist_files/fonts"
     
     DECL_STR(build_dir, BUILD_DIR);
     DECL_STR(site_dir, SITE_DIR);
