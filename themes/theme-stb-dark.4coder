@@ -1,4 +1,4 @@
-name = "stb-dark";
+name = "stb dark";
 
 Back = 0xFF303030;
 Margin = 0xFF383838;

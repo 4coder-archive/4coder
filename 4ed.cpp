@@ -1505,7 +1505,8 @@ App_Step_Sig(app_step){
                 persistent = &view->persistent;
                 
                 persistent->coroutine =
-                    system->create_coroutine(view_caller);
+                    system->create_coroutine(view_caller);		wrap_indent_marks,10	identifier "wrap_indent_marks" is undefined	
+
                 
                 persistent->coroutine =
                     app_launch_coroutine(system, &models->app_links, Co_View,
