@@ -1,0 +1,28 @@
+// Code Wrapping
+enable_code_wrapping = true;
+automatically_adjust_wrapping = true;
+default_wrap_width = 672;
+default_min_base_width = 550;
+
+// This only applies to code files in code-wrapping mode.
+// Plain text and code files without virtual-whitespace will not be effected.
+automatically_indent_text_on_save = true;
+
+// When set to true, all unsaved changes will be saved on a build.
+automatically_save_changes_on_build = true;
+
+// Theme
+default_theme_name = "4coder";
+default_font_name = "Liberation Mono";
+
+// User
+user_name = "NAME";
+
+// Extensions
+treat_as_code = ".cpp.c.hpp.h.cc.cs.java.rs";
+
+// Load project on startup
+automatically_load_project = false;
+
+// Keyboard AltGr setting
+lalt_lctrl_is_altgr = false;

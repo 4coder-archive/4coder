@@ -160,9 +160,6 @@ build_cl(u32 flags, char *code_path, char *code_file, char *out_path, char *out_
     if (flags & X86){
         build_ap(line_prefix, "%s\\build_scripts\\setup_cl_x86.bat & ", code_path);
     }
-    else{
-        build_ap(line_prefix, "%s\\build_scripts\\setup_cl_x64.bat & ", code_path);
-    }
     
     if (flags & OPTS){
         build_ap(line, CL_OPTS);
@@ -602,14 +599,11 @@ package(char *cdir){
 #define SITE_DIR "../site"
 #define PACK_DATA_DIR  "../data/dist_files"
 #define PACK_FONTS_DIR PACK_DATA_DIR"/fonts"
-#define DATA_DIR "../data/test"
     
     DECL_STR(build_dir, BUILD_DIR);
     DECL_STR(site_dir, SITE_DIR);
     DECL_STR(pack_dir, PACK_DIR);
-    DECL_STR(pack_data_dir, PACK_DATA_DIR);
     DECL_STR(pack_fonts_dir, PACK_FONTS_DIR);
-    DECL_STR(data_dir, DATA_DIR);
     
 #define PACK_ALPHA_PAR_DIR   "../current_dist"
 #define PACK_ALPHA_DIR       PACK_ALPHA_PAR_DIR"/4coder"
@@ -679,7 +673,7 @@ package(char *cdir){
             copy_file(build_dir, "4ed" EXE, dir, 0, 0);
             copy_file(build_dir, "4ed_app" DLL, dir, 0, 0);
             copy_all(pack_fonts_dir, "*", fonts_dir);
-            copy_file(data_dir, "release-config.4coder", dir, 0, "config.4coder");
+            copy_file(cdir, "release-config.4coder", dir, 0, "config.4coder");
             
             copy_folder(dir, "themes");
             
@@ -759,7 +753,7 @@ package(char *cdir){
             copy_file(build_dir, "4ed_app" DLL, dir, 0, 0);
             copy_file(build_dir, "custom_4coder" DLL, dir, 0, 0);
             copy_all(pack_fonts_dir, "*", fonts_dir);
-            copy_file(data_dir, "release-config.4coder", dir, 0, "config.4coder");
+            copy_file(cdir, "release-config.4coder", dir, 0, "config.4coder");
             
             copy_all(0, "4coder_*", dir);
             
@@ -771,39 +765,6 @@ package(char *cdir){
             copy_folder(dir, "4cpp");
             copy_folder(dir, "languages");
             copy_folder(dir, "themes");
-            
-#if 0
-            DECL_STR(custom_dir, "4coder_API");
-            DECL_STR(custom_helper_dir, "4coder_helper");
-            DECL_STR(custom_lib_dir, "4coder_lib");
-            DECL_STR(fcpp_dir, "4cpp");
-            DECL_STR(languages, "languages");
-            DECL_STR(themes, "themes");
-            
-            char *dir_array[] = {
-                custom_dir,
-                custom_helper_dir,
-                custom_lib_dir,
-                fcpp_dir,
-                languages,
-                themes,
-            };
-            i32 dir_count = ArrayCount(dir_array);
-            
-            for (i32 j = 0; j < dir_count; ++j){
-                char *d = dir_array[j];
-                make_folder_if_missing(dir, d);
-                
-                char space[256];
-                String copy_name = make_fixed_width_string(space);
-                append_sc(&copy_name, dir);
-                append_s_char(&copy_name, platform_correct_slash);
-                append_sc(&copy_name, d);
-                terminate_with_null(&copy_name);
-                
-                copy_all(d, "*", copy_name.str);
-            }
-#endif
             
             get_4coder_dist_name(&str, true, zip_dir, tier, arch, "zip");
             zip(par_dir, "4coder", str.str);
