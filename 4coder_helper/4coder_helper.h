@@ -170,12 +170,25 @@ buffer_identifier(char *str, int32_t len){
 }
 
 static Buffer_Identifier
-buffer_identifier(int32_t id){
+buffer_identifier(Buffer_ID id){
     Buffer_Identifier identifier;
     identifier.name = 0;
     identifier.name_len = 0;
     identifier.id = id;
     return(identifier);
+}
+
+static Buffer_ID
+buffer_identifier_to_id(Application_Links *app, Buffer_Identifier identifier){
+    Buffer_ID id = 0;
+    if (identifier.id != 0){
+        id = identifier.id;
+    }
+    else{
+        Buffer_Summary buffer = get_buffer_by_name(app, identifier.name, identifier.name_len, AccessAll);
+        id = buffer.buffer_id;
+    }
+    return(id);
 }
 
 static Buffer_Summary

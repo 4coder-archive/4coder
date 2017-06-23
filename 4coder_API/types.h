@@ -791,8 +791,6 @@ STRUCT User_Input{
 DOC_SEE(Hook_Function) */
 ENUM(int32_t, Hook_ID){
     /* DOC(TODO) */
-    hook_start,
-    /* DOC(TODO) */
     hook_file_out_of_sync,
     /* DOC(TODO) */
     hook_exit,
@@ -818,6 +816,8 @@ ENUM(int32_t, Special_Hook_ID){
     special_hook_command_caller,
     /* DOC(TODO) */
     special_hook_input_filter,
+    /* DOC(TODO) */
+    special_hook_start,
 };
 
 TYPEDEF_FUNC int32_t Command_Caller_Hook_Function(struct Application_Links *app, Generic_Command cmd);
@@ -835,6 +835,10 @@ TYPEDEF_FUNC void Input_Filter_Function(Mouse_State *mouse);
 TYPEDEF_FUNC int32_t Scroll_Rule_Function(float target_x, float target_y, float *scroll_x, float *scroll_y, int32_t view_id, int32_t is_new_target, float dt);
 #define SCROLL_RULE_SIG(name) \
 int32_t name(float target_x, float target_y, float *scroll_x, float *scroll_y, int32_t view_id, int32_t is_new_target, float dt)
+
+TYPEDEF_FUNC int32_t Start_Hook_Function(struct Application_Links *app, char **files, int32_t file_count, char **flags, int32_t flag_count);
+#define START_HOOK_SIG(name) \
+int32_t name(struct Application_Links *app, char **files, int32_t file_count, char **flags, int32_t flag_count)
 
 TYPEDEF_FUNC int32_t Get_Binding_Data_Function(void *data, int32_t size);
 #define GET_BINDING_DATA(name) int32_t name(void *data, int32_t size)

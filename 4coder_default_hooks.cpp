@@ -18,9 +18,9 @@ TYPE: 'internal-for-default-system'
 #include "languages/4coder_language_cs.h"
 #include "languages/4coder_language_java.h"
 
-HOOK_SIG(default_start){
+START_HOOK_SIG(default_start){
     default_4coder_initialize(app);
-    default_4coder_side_by_side_panels(app);
+    default_4coder_side_by_side_panels(app, files, file_count);
     
     if (automatically_load_project){
         load_project(app);
@@ -321,10 +321,10 @@ SCROLL_RULE_SIG(smooth_scroll_rule){
 
 static void
 set_all_default_hooks(Bind_Helper *context){
-    set_hook(context, hook_start, default_start);
     set_hook(context, hook_exit, default_exit);
     set_hook(context, hook_view_size_change, default_view_adjust);
     
+    set_start_hook(context, default_start);
     set_open_file_hook(context, default_file_settings);
     set_new_file_hook(context, default_new_file);
     set_save_file_hook(context, default_file_save);

@@ -260,7 +260,7 @@ get_view_size(){
     return(sizeof(View) - sizeof(View_Persistent));
 }
 
-// TODO(past-allen): Switch over to using an i32 for these.
+// TODO(allen): Switch over to using an i32 for these.
 inline f32
 view_width(View *view){
     i32_Rect file_rect = view->file_region;
@@ -1788,7 +1788,7 @@ file_measure_wraps(System_Functions *system, Models *models, Editing_File *file,
                             }
                             
                             if (!emit_comment_position){
-                                step = wrap_state_consume_token(system, font, &wrap_state, next_line_start-1);
+                                step = wrap_state_consume_token(system, font, &wrap_state, next_line_start);
                             }
                             
                             b32 need_to_choose_a_wrap = 0;
@@ -3885,8 +3885,8 @@ init_read_only_file(System_Functions *system, Models *models, Editing_File *file
     }
 }
 
-internal void
-view_open_file(System_Functions *system, Models *models, View *view, String filename){
+internal Editing_File*
+open_file(System_Functions *system, Models *models, String filename){
     Working_Set *working_set = &models->working_set;
     Editing_File *file = 0;
     
@@ -3896,7 +3896,6 @@ view_open_file(System_Functions *system, Models *models, View *view, String file
             file = working_set_canon_contains(working_set, canon_name.name);
             
             if (!file){
-                
                 Plat_Handle handle;
                 if (system->load_handle(canon_name.name.str, &handle)){
                     Mem_Options *mem = &models->mem;
@@ -3939,6 +3938,12 @@ view_open_file(System_Functions *system, Models *models, View *view, String file
         }
     }
     
+    return(file);
+}
+
+internal void
+view_open_file(System_Functions *system, Models *models, View *view, String filename){
+    Editing_File *file = open_file(system, models, filename);
     if (file){
         view_set_file(system, view, file, models);
     }

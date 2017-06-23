@@ -176,6 +176,16 @@ set_new_file_hook(Bind_Helper *helper, Open_File_Hook_Function *func){
 }
 
 inline void
+set_start_hook(Bind_Helper *helper, Start_Hook_Function *func){
+    Binding_Unit unit;
+    unit.type = unit_hook;
+    unit.hook.hook_id = special_hook_start;
+    unit.hook.func = (void*) func;
+    
+    write_unit(helper, unit);
+}
+
+inline void
 set_open_file_hook(Bind_Helper *helper, Open_File_Hook_Function *func){
     Binding_Unit unit;
     unit.type = unit_hook;

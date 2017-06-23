@@ -657,7 +657,7 @@ enum Command_Line_Mode{
     CLMode_Custom
 };
 
-void
+internal void
 init_command_line_settings(App_Settings *settings, Plat_Settings *plat_settings, Command_Line_Parameters clparams){
     char *arg = 0;
     Command_Line_Mode mode = CLMode_App;
@@ -677,8 +677,6 @@ init_command_line_settings(App_Settings *settings, Plat_Settings *plat_settings,
             char *long_arg_name = arg+2;
             if (match_cc(long_arg_name, "custom")){
                 mode = CLMode_Custom;
-                settings->custom_arg_start = i+1;
-                settings->custom_arg_end = i+1;
                 continue;
             }
         }
@@ -819,7 +817,10 @@ init_command_line_settings(App_Settings *settings, Plat_Settings *plat_settings,
             
             case CLMode_Custom:
             {
-                settings->custom_arg_end = i+1;
+                settings->custom_flags = clparams.argv + i;
+                settings->custom_flags_count = clparams.argc - i;
+                i = clparams.argc;
+                mode = CLMode_App;
             }break;
         }
     }
@@ -1117,6 +1118,11 @@ App_Init_Sig(app_init){
                                         case special_hook_input_filter:
                                         {
                                             models->input_filter = (Input_Filter_Function*)unit->hook.func;
+                                        }break;
+                                        
+                                        case special_hook_start:
+                                        {
+                                            models->hook_start = (Start_Hook_Function*)unit->hook.func;
                                         }break;
                                     }
                                 }
@@ -1491,51 +1497,15 @@ App_Step_Sig(app_step){
     cmd->key = null_key_event_data;
     
     if (input->first_step){
-        
-#if 0
-        {
-            View *view = 0;
-            View_Persistent *persistent = 0;
-            i32 i = 0;
-            i32 max = 0;
-            
-            max = vars->live_set.max;
-            view = vars->live_set.views;
-            for (i = 1; i <= max; ++i, ++view){
-                persistent = &view->persistent;
-                
-                persistent->coroutine =
-                    system->create_coroutine(view_caller);
-                
-                persistent->coroutine =
-                    app_launch_coroutine(system, &models->app_links, Co_View,
-                                         persistent->coroutine, view, 0);
-                
-                if (!persistent->coroutine){
-                    // TODO(allen): Error message and recover
-                    NotImplemented;
-                }
-            }
-        }
-#endif
-        
-        if (models->hooks[hook_start]){
-            models->hooks[hook_start](&models->app_links);
-        }
-        
+        // Open command line files.
         char space[512];
         String cl_filename = make_fixed_width_string(space);
         copy_ss(&cl_filename, models->hot_directory.string);
-        
         i32 cl_filename_len = cl_filename.size;
-        
-        i32 i = 0;
-        Panel *panel = models->layout.used_sentinel.next;
-        for (; i < models->settings.init_files_count; ++i, panel = panel->next){
+        for (i32 i = 0; i < models->settings.init_files_count; ++i){
             cl_filename.size = cl_filename_len;
             
             String filename = {0};
-            
             Editing_File_Canon_Name canon_name;
             if (get_canon_name(system, &canon_name, make_string_slowly(models->settings.init_files[i]))){
                 filename = canon_name.name;
@@ -1545,35 +1515,21 @@ App_Step_Sig(app_step){
                 filename = cl_filename;
             }
             
-            if (i < models->layout.panel_count){
-                view_open_file(system, models, panel->view, filename);
-                view_show_file(panel->view);
-                Assert("Earlier" && panel->view->file_data.file != 0);
-#if 0
-                if (i == 0){
-                    if (panel->view->file_data.file){
-                        // TODO(allen): How to set the cursor of a file on the first frame?
-                        view_compute_cursor_from_line_pos(panel->view, models->settings.initial_line, 1);
-                        view_move_view_to_cursor(panel->view, &panel->view->recent.scroll);
-                    }
-                }
-#endif
-            }
-            else{
-                view_open_file(system, models, 0, filename);
-            }
+            open_file(system, models, filename);
+        }
+        
+        if (models->hook_start != 0){
+            char **files = models->settings.init_files;
+            i32 files_count = models->settings.init_files_count;
             
+            char **flags = models->settings.custom_flags;
+            i32 flags_count = models->settings.custom_flags_count;
+            
+            models->hook_start(&models->app_links, files, files_count, flags, flags_count);
         }
         
-        if (i < models->layout.panel_count){
-            view_set_file(system, panel->view, models->message_buffer, models);
-            view_show_file(panel->view);
-            ++i;
-            panel = panel->next;
-        }
-        
-        panel = models->layout.used_sentinel.next;
-        for (i = 0; i < models->settings.init_files_count; ++i, panel = panel->next){
+        Panel *panel = models->layout.used_sentinel.next;
+        for (i32 i = 0; i < models->settings.init_files_count; ++i, panel = panel->next){
             Assert(panel->view->file_data.file != 0);
         }
     }

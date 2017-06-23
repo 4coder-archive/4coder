@@ -14,15 +14,15 @@ struct App_Settings{
     i32 init_files_count;
     i32 init_files_max;
     
+    char **custom_flags;
+    i32 custom_flags_count;
+    
     i32 initial_line;
     b32 lctrl_lalt_is_altgr;
     
     char *custom_font_file;
     char *custom_font_name;
     i32 custom_font_size;
-    
-    i32 custom_arg_start;
-    i32 custom_arg_end;
 };
 global_const App_Settings null_app_settings = {0};
 
@@ -65,6 +65,7 @@ struct Models{
     
     Custom_API config_api;
     
+    Start_Hook_Function *hook_start;
     Open_File_Hook_Function *hook_open_file;
     Open_File_Hook_Function *hook_new_file;
     Open_File_Hook_Function *hook_save_file;

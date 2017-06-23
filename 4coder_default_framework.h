@@ -1023,23 +1023,74 @@ default_4coder_initialize(Application_Links *app){
 }
 
 static void
-default_4coder_side_by_side_panels(Application_Links *app){
+default_4coder_side_by_side_panels(Application_Links *app, Buffer_Identifier left_buffer, Buffer_Identifier right_buffer){
+    Buffer_ID left_id = buffer_identifier_to_id(app, left_buffer);
+    Buffer_ID right_id = buffer_identifier_to_id(app, right_buffer);
+    
+    // Left Panel
     View_Summary view = get_active_view(app, AccessAll);
     new_view_settings(app, &view);
+    view_set_buffer(app, &view, left_id, 0);
+    
+    // Right Panel
     open_panel_vsplit(app);
+    View_Summary right_view = get_active_view(app, AccessAll);
+    view_set_buffer(app, &right_view, right_id, 0);
+    
+    // Restore Active to Left
     set_active_view(app, &view);
 }
 
 static void
-default_4coder_one_panel(Application_Links *app){
-    View_Summary view = get_active_view(app, AccessAll);
-    new_view_settings(app, &view);
+default_4coder_side_by_side_panels(Application_Links *app, char **command_line_files, int32_t file_count){
+    Buffer_Identifier left = buffer_identifier(literal("*scratch*"));
+    Buffer_Identifier right = buffer_identifier(literal("*messages*"));
+    
+    if (file_count > 0){
+        char *name = command_line_files[0];
+        int32_t len = str_size(name);
+        left = buffer_identifier(name, len);
+        
+        if (file_count > 1){
+            char *name = command_line_files[1];
+            int32_t len = str_size(name);
+            right = buffer_identifier(name, len);
+        }
+    }
+    
+    default_4coder_side_by_side_panels(app, left, right);
 }
 
 static void
-default_4coder_full_width_bottom_side_by_side_panels(Application_Links *app){
-    open_special_note_view(app);
-    default_4coder_side_by_side_panels(app);
+default_4coder_side_by_side_panels(Application_Links *app){
+    default_4coder_side_by_side_panels(app, 0, 0);
+}
+
+static void
+default_4coder_one_panel(Application_Links *app, Buffer_Identifier buffer){
+    Buffer_ID id = buffer_identifier_to_id(app, buffer);
+    
+    View_Summary view = get_active_view(app, AccessAll);
+    new_view_settings(app, &view);
+    view_set_buffer(app, &view, id, 0);
+}
+
+static void
+default_4coder_one_panel(Application_Links *app, char **command_line_files, int32_t file_count){
+    Buffer_Identifier buffer = buffer_identifier(literal("*messages*"));
+    
+    if (file_count > 0){
+        char *name = command_line_files[0];
+        int32_t len = str_size(name);
+        buffer = buffer_identifier(name, len);
+    }
+    
+    default_4coder_one_panel(app, buffer);
+}
+
+static void
+default_4coder_one_panel(Application_Links *app){
+    default_4coder_one_panel(app, 0, 0);
 }
 
 #endif
