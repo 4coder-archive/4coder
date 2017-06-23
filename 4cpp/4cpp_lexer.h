@@ -78,7 +78,7 @@ DOC_RETURN(Returns the memory size, in bytes, needed to allocate a table for the
         memsize += 8 + (len+3)&(~3);
     }
     u32_4tech table_count = (str_count * 3) / 2;
-    memsize += table_count*sizeof(void*);
+    memsize += table_count*sizeof(u64_4tech);
     return(memsize);
 }
 
@@ -97,7 +97,7 @@ DOC_RETURN(Returns the memory size, in bytes, needed to allocate a table for the
         memsize += 8 + (len+3)&(~3);
     }
     u32_4tech table_count = (str_count * 3)/2;
-    memsize += table_count*sizeof(void*);
+    memsize += table_count*sizeof(u64_4tech);
     return(memsize);
 }
 

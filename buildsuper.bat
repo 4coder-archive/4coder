@@ -6,7 +6,7 @@ REM default files no matter where you store your code.
 REM And no matter how you call buildsuper.bat.
 SET CODE_HOME=%~dp0
 
-IF NOT "%Platform%" == "X64" (call "%CODE_HOME%\\build_scripts\\setup_cl_x64.bat")
+IF NOT "%Platform%" == "X64" (call "%CODE_HOME%\\windows_scripts\\setup_cl_x64.bat")
 
 SET SRC=%1
 if "%SRC%" == "" SET SRC=4coder_default_bindings.cpp
