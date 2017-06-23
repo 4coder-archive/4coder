@@ -43,6 +43,10 @@ typedef int32_t b32_4tech;
 # define Assert(n) do{ if (!(n)) *(int*)0 = 0xA11E; }while(0)
 #endif
 
+#if !defined(Member)
+# define Member(T, m) (((T*)0)->m)
+#endif
+
 #if !defined(API_EXPORT)
 # define API_EXPORT
 #endif
@@ -78,7 +82,7 @@ DOC_RETURN(Returns the memory size, in bytes, needed to allocate a table for the
         memsize += 8 + (len+3)&(~3);
     }
     u32_4tech table_count = (str_count * 3) / 2;
-    memsize += table_count*sizeof(u64_4tech);
+    memsize += table_count*sizeof(*Member(Cpp_Keyword_Table, keywords));
     return(memsize);
 }
 
@@ -97,7 +101,7 @@ DOC_RETURN(Returns the memory size, in bytes, needed to allocate a table for the
         memsize += 8 + (len+3)&(~3);
     }
     u32_4tech table_count = (str_count * 3)/2;
-    memsize += table_count*sizeof(u64_4tech);
+    memsize += table_count*sizeof(*Member(Cpp_Keyword_Table, keywords));
     return(memsize);
 }
 

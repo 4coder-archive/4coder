@@ -46,6 +46,7 @@ typedef double f64;
 #define ArrayCount(a) ((sizeof(a))/(sizeof(*a)))
 #define ExpandArray(a) (a), (ArrayCount(a))
 #define AllowLocal(c) (void)(c)
+#define Member(T, m) (((T*)0)->m)
 
 #if defined(Assert)
 # undef Assert
