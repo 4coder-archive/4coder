@@ -1709,7 +1709,7 @@ SCROLL_RULE_SIG(casey_smooth_scroll_rule){
     return(result);
 }
 
-HOOK_SIG(casey_start)
+START_HOOK_SIG(casey_start)
 {
     // NOTE(allen): This initializes a couple of global memory
     // management structs on the custom side that are used in
@@ -1736,7 +1736,7 @@ extern "C" GET_BINDING_DATA(get_bindings)
     Bind_Helper context_actual = begin_bind_helper(data, size);
     Bind_Helper *context = &context_actual;
     
-    set_hook(context, hook_start, casey_start);
+    set_start_hook(context, casey_start);
     set_command_caller(context, default_command_caller);
     set_open_file_hook(context, casey_file_settings);
     set_scroll_rule(context, casey_smooth_scroll_rule);

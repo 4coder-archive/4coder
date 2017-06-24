@@ -506,9 +506,9 @@ static void
 standard_build(char *cdir, u32 flags){
     fsm_generator(cdir);
     metagen(cdir);
-    do_buildsuper(cdir, Custom_Default, flags);
+    //do_buildsuper(cdir, Custom_Default, flags);
     //do_buildsuper(cdir, Custom_Experiments, flags);
-    //do_buildsuper(cdir, Custom_Casey, flags);
+    do_buildsuper(cdir, Custom_Casey, flags);
     //do_buildsuper(cdir, Custom_ChronalVim, flags);
     build_main(cdir, flags);
 }
@@ -678,6 +678,9 @@ package(char *cdir){
             
             copy_folder(dir, "themes");
             
+            copy_file(cdir, "LICENSE.txt", dir, 0, 0);
+            copy_file(cdir, "README.txt", dir, 0, 0);
+            
             get_4coder_dist_name(&str, true, zip_dir, tier, arch, "zip");
             zip(par_dir, "4coder", str.str);
         }
@@ -758,7 +761,12 @@ package(char *cdir){
             
             copy_all(0, "4coder_*", dir);
             
-            copy_file(0, "buildsuper" BAT, dir, 0, 0);
+            if (!(flags[i] & X86)){
+                copy_file(0, "buildsuper" BAT, dir, 0, 0);
+            }
+            else{
+                copy_file(0, "buildsuper_x86" BAT, dir, 0, "buildsuper" BAT);
+            }
             
 #if defined(IS_WINDOWS)
             copy_folder(dir, "windows_scripts");
@@ -770,6 +778,9 @@ package(char *cdir){
             copy_folder(dir, "4cpp");
             copy_folder(dir, "languages");
             copy_folder(dir, "themes");
+            
+            copy_file(cdir, "LICENSE.txt", dir, 0, 0);
+            copy_file(cdir, "README.txt", dir, 0, 0);
             
             get_4coder_dist_name(&str, true, zip_dir, tier, arch, "zip");
             zip(par_dir, "4coder", str.str);

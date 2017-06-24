@@ -1,0 +1,34 @@
+4coder-alpha License
+
+The Software ("4coder", "4ed.exe") is Copyright 2015 by Four Tech LLC, all
+rights are reserved. Anyone who has purchased a copy of the Software,
+("The User"), is granted a personal, non-assignable, non-transferable,
+license to use the Software for personal or commercial uses.
+
+The User may not redistribute, sub-license, or resell the Software. The User is
+permitted to make an unlimited number of copies of the Software which are subject
+to the aforementioned restrictions.
+
+The Software is provided "as is" without warranty of any kind, either express or
+implied, including without limitation any implied warranties of condition,
+uninterrupted use, merchantability, fitness for a particular purpose, or
+non-infringement.
+
+
+
+The following parts of the Software are separately licensed as follows:
+
+- The Liberation font family is licensed under the SIL Open Font License (version 2 onwards).
+  The full text of this license is available in the accompanying 3rdparty/sil.txt file
+
+- The Hack font family is licensed under the a modified SIL license
+  The full text of this license is available in the accompanying 3rdparty/hacksil.txt file
+
+- The Inconsolata font family is licensed under the SIL Open Font License
+  Copyright (c) 2011, Raph Levien (firstname.lastname@gmail.com), Copyright (c) 2012, Cyreal (cyreal.org)
+  The full text of this license is available in the accompanying 3rdpart/sil.txt
+
+- The Cutive font family is licensed under the SIL Open Font License
+  Copyright (c) 2012 by vernon adams (vern@newtypography.co.uk)
+  The full text of this license is available in the accompanying 3rdpart/sil.txt
+
