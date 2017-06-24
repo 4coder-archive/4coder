@@ -23,7 +23,7 @@ Float_Constant = Int_Constant;
 Bool_Constant = Int_Constant;
 Preproc = 0xFF0000FF;
 Special_Character = 0xFF9A0000;
-Ghost_Character = 0xFF181818;
+Ghost_Character = 0xFF6B6B6B;
 
 Paste = 0xFF00FFFF;
 Undo = 0xFFFF00FF;

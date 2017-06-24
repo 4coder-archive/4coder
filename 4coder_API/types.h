@@ -91,13 +91,13 @@ ENUM(uint64_t, Command_ID){
     cmdid_count
 };
 
-/* DOC(TODO) */
+/* DOC(Flags for describing the memory protection status of pages that come back from memory allocate.  Some combinations may not be available on some platforms, but you are gauranteed to get back a page with at least the permissions you requested.  For example if you request just write permission, you may get back a page with read and write permission, but you will never get back a page that doesn't have write permission.) */
 ENUM(uint32_t, Memory_Protect_Flags){
-    /* DOC(TODO) */
+    /* DOC(Allows the page to be read.) */
     MemProtect_Read    = 0x1,
-    /* DOC(TODO) */
+    /* DOC(Allows the page to be written.) */
     MemProtect_Write   = 0x2,
-    /* DOC(TODO) */
+    /* DOC(Allows the page to be executed.) */
     MemProtect_Execute = 0x4,
 };
 
@@ -109,18 +109,6 @@ ENUM(int32_t, User_Input_Type_ID){
     UserInputKey,
     /* DOC(UserInputMouse indicates an event which can be described by a Mouse_State struct.) */
     UserInputMouse
-};
-
-/* DOC(Event_Message_Type_ID is a part of an unfinished feature.) */
-ENUM(int32_t, Event_Message_Type_ID){
-    /* DOC( TODO. ) */
-    EventMessage_NoMessage,
-    /* DOC( TODO. ) */
-    EventMessage_OpenView,
-    /* DOC( TODO. ) */
-    EventMessage_Frame,
-    /* DOC( TODO. ) */
-    EventMessage_CloseView
 };
 
 /* DOC(A Wrap_Indicator_Mode is used in the buffer setting BufferSetting_WrapIndicator to specify how to indicate that line has been wrapped.) */
@@ -459,20 +447,20 @@ STRUCT Buffer_Identifier{
     Buffer_ID id;
 };
 
-/* DOC(This struct is a part of an incomplete feature.) */
+/* DOC(Describes the various coordinate locations associated with the view's scroll position within it's buffer.) */
 STRUCT GUI_Scroll_Vars{
-    /* DOC(TODO) */
+    /* DOC(The current actual y position of the view scroll.) */
     float   scroll_y;
-    /* DOC(TODO) */
+    /* DOC(The target y position to which the view is moving.  If scroll_y is not the same value, then it is still sliding to the target by the smooth scroll rule.) */
     int32_t target_y;
-    /* DOC(TODO) */
+    /* DOC(The previous value of target y.  This value should be ignored as it is the "vestigial" remain of a system that will not be around much longer.) */
     int32_t prev_target_y;
     
-    /* DOC(TODO) */
+    /* DOC(The current actual x position of the view scroll.) */
     float   scroll_x;
-    /* DOC(TODO) */
+    /* DOC(The target x position to which the view is moving.  If scroll_x is not the same value, then it is still sliding to the target by the smooth scroll rule.) */
     int32_t target_x;
-    /* DOC(TODO) */
+    /* DOC(The previous value of target x.  This value should be ignored as it is the "vestigial" remain of a system that will not be around much longer.) */
     int32_t prev_target_x;
 };
 
@@ -660,33 +648,33 @@ GLOBAL_VAR f32_Rect null_f32_rect = {0};
 DOC_SEE(Access_Flag)
 DOC_SEE(Full_Cursor) */
 STRUCT View_Summary{
-    /* DOC( This field indicates whether the View_Summary describes a view that is open in 4coder. When this field is false the summary is referred to as a "null summary". ) */
+    /* DOC(This field indicates whether the View_Summary describes a view that is open in 4coder. When this field is false the summary is referred to as a "null summary". ) */
     bool32 exists;
-    /* DOC(If this is not a null summary, this field is the id of the associated view. If this is a null summary then view_id is 0. ) */
+    /* DOC(This field is the id of the associated view. If this is a null summary then view_id is 0. ) */
     int32_t view_id;
-    /* DOC(If this is not a null summary, then this is the id of the buffer this view currently sees.) */
+    /* DOC(Then this is the id of the buffer this view currently sees.) */
     int32_t buffer_id;
-    /* DOC(If this is not a null summary, this field contains flags describing the protection status of the view.) */
+    /* DOC(This field contains flags describing the protection status of the view.) */
     Access_Flag lock_flags;
     
-    /* DOC(If this is not a null summary, this describes the position of the cursor.) */
+    /* DOC(This describes the position of the cursor.) */
     Full_Cursor cursor;
-    /* DOC(If this is not a null summary, this describes the position of the mark.) */
+    /* DOC(This describes the position of the mark.) */
     Full_Cursor mark;
-    /* DOC(If this is not a null summary, this is the x position that is maintained in vertical navigation.) */
+    /* DOC(This is the x position that is maintained in vertical navigation.) */
     float preferred_x;
-    /* DOC(If this is not a null summary, this specifies the height of a line rendered in the view.) */
+    /* DOC(This specifies the height of a line rendered in the view.) */
     float line_height;
-    /* DOC(If this is not a null summary, this indicates that the view is set to render with unwrapped lines.) */
+    /* DOC(This indicates that the view is set to render with unwrapped lines.) */
     bool32 unwrapped_lines;
-    /* DOC(If this is not a null summary, this indicates that the view is set to highlight white space.) */
+    /* DOC(This indicates that the view is set to highlight white space.) */
     bool32 show_whitespace;
     
-    /* DOC(If this is not a null summary, this describes the screen position in which this view's is displayed.) */
+    /* DOC(This describes the screen position in which this view is displayed.) */
     i32_Rect view_region;
-    /* DOC(If this is not a null summary, this describes the screen position in which this view's buffer is displayed.  This is different from view_region, because it does not include any fixed height GUI at the top of the view.) */
+    /* DOC(This describes the screen position in which this view's buffer is displayed.  This is different from view_region, because it does not include any fixed height GUI at the top of the view.) */
     i32_Rect file_region;
-    /* DOC(If this is not a null summary, this describes the scrolling position inside the view.) */
+    /* DOC(This describes the scrolling position inside the view.) */
     GUI_Scroll_Vars scroll_vars;
 };
 
@@ -720,7 +708,12 @@ STRUCT Theme_Color{
     int_color color;
 };
 
+/*
+DOC(Theme lists ever color that makes up a standard color scheme.)
+DOC_SEE(int_color)
+*/
 STRUCT Theme{
+    /* DOC(The colors array.  Every style tag, beginning with "Stag", is an index into it's corresponding color in the array.) */
     int_color colors[Stag_COUNT];
 };
 
