@@ -1,6 +1,6 @@
 4coder-alpha License
 
-The Software ("4coder", "4ed.exe") is Copyright 2015 by Four Tech LLC, all
+The Software ("4coder", "4ed.exe") is Copyright 2017 by Four Tech LLC, all
 rights are reserved. Anyone who has purchased a copy of the Software,
 ("The User"), is granted a personal, non-assignable, non-transferable,
 license to use the Software for personal or commercial uses.
