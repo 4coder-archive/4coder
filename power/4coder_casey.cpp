@@ -1740,6 +1740,7 @@ extern "C" GET_BINDING_DATA(get_bindings)
     set_command_caller(context, default_command_caller);
     set_open_file_hook(context, casey_file_settings);
     set_scroll_rule(context, casey_smooth_scroll_rule);
+    set_end_file_hook(context, end_file_close_jump_list);
     
     begin_map(context, mapid_global);
     {
