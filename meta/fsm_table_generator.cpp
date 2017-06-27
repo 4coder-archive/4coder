@@ -572,7 +572,7 @@ main_fsm(Cpp_Lex_FSM fsm, uint8_t pp_state, uint8_t c, bool32 ignore_string_deli
                 
                 case LS_hex:
                 {
-                    int is_hex = c >= '0' && c <= '9' || c >= 'a' && c <= 'f' || c >= 'A' && c <= 'F' || c >= 128;
+                    int is_hex = (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F') || c >= 128;
                     if (!is_hex){
                         fsm.emit_token = true;
                     }

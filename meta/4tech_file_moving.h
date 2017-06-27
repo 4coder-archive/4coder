@@ -216,8 +216,7 @@ make_folder_if_missing(char *dir, char *folder){
 
 static void
 clear_folder(char *folder){
-    systemf("del /S /Q /F %s\\* & rmdir /S /Q %s & mkdir %s",
-            folder, folder, folder);
+    systemf("del /S /Q /F %s\\* & rmdir /S /Q %s & mkdir %s", folder, folder, folder);
 }
 
 static void
@@ -276,7 +275,7 @@ zip(char *parent, char *folder, char *dest){
     systemf("copy %s\\4tech_gobble.zip %s & del %s\\4tech_gobble.zip", cdir, dest, cdir);
 }
 
-#elif defined(IS_LINUX)
+#elif defined(IS_LINUX) || defined(IS_MAC)
 
 #include <time.h>
 #include <unistd.h>
@@ -410,142 +409,6 @@ zip(char *parent, char *folder, char *file){
     printf("PARENT DIR: %s\n", parent);
     systemf("zip -r %s %s", file, folder);
 
-    popdir(temp);
-}
-
-#elif defined(IS_MAC)
-
-#include <time.h>
-#include <unistd.h>
-
-static Temp_Dir
-pushdir(char *dir){
-    Temp_Dir temp;
-    char *result = getcwd(temp.dir, sizeof(temp.dir));
-    int32_t chresult = chdir(dir);
-    if (result == 0 || chresult != 0){
-        printf("trying pushdir %s\n", dir);
-        Assert(result != 0);
-        Assert(chresult == 0);
-    }
-    return(temp);
-}
-
-static void
-popdir(Temp_Dir temp){
-    chdir(temp.dir);
-}
-
-static void
-init_time_system(){
-    // NOTE(allen): do nothing
-}
-
-static uint64_t
-get_time(){
-    struct timespec spec;
-    uint64_t result;
-    clock_gettime(CLOCK_MONOTONIC, &spec);
-    result = (spec.tv_sec * (uint64_t)(1000000)) + (spec.tv_nsec / (uint64_t)(1000));
-    return(result);
-}
-
-static int32_t
-get_current_directory(char *buffer, int32_t max){
-    int32_t result = 0;
-    char *d = getcwd(buffer, max);
-    if (d == buffer){
-        result = strlen(buffer);
-    }
-    return(result);
-}
-
-static void
-execute_in_dir(char *dir, char *str, char *args){
-    if (dir){
-        if (args){
-            Temp_Dir temp = pushdir(dir);
-            systemf("%s %s", str, args);
-            popdir(temp);
-        }
-        else{
-            Temp_Dir temp = pushdir(dir);
-            systemf("%s", str);
-            popdir(temp);
-        }
-    }
-    else{
-        if (args){
-            systemf("%s %s", str, args);
-        }
-        else{
-            systemf("%s", str);
-        }
-    }
-}
-
-static void
-slash_fix(char *path){}
-
-static void
-make_folder_if_missing(char *dir, char *folder){
-    if (folder){
-        systemf("mkdir -p %s/%s", dir, folder);
-    }
-    else{
-        systemf("mkdir -p %s", dir);
-    }
-}
-
-static void
-clear_folder(char *folder){
-    systemf("rm -rf %s*", folder);
-}
-
-static void
-delete_file(char *file){
-    systemf("rm %s", file);
-}
-
-static void
-copy_file(char *path, char *file, char *folder1, char *folder2, char *newname){
-    if (!newname){
-        newname = file;
-    }
-    
-    if (path){
-        if (folder2){
-            systemf("cp %s/%s %s/%s/%s", path, file, folder1, folder2, newname);
-        }
-        else{
-            systemf("cp %s/%s %s/%s", path, file, folder1, newname);
-        }
-    }
-    else{
-        if (folder2){
-            systemf("cp %s %s/%s/%s", file, folder1, folder2, newname);
-        }
-        else{
-            systemf("cp %s %s/%s", file, folder1, newname);
-        }
-    }
-}
-
-static void
-copy_all(char *source, char *tag, char *folder){
-    if (source){
-        systemf("cp -f %s/%s %s", source, tag, folder);
-    }
-    else{
-        systemf("cp -f %s %s", tag, folder);
-    }
-}
-
-static void
-zip(char *parent, char *folder, char *file){
-    Temp_Dir temp = pushdir(parent);
-    printf("PARENT DIR: %s\n", parent);
-    systemf("zip -r %s %s", file, folder);
     popdir(temp);
 }
 

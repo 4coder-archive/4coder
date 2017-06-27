@@ -252,11 +252,13 @@ load_project_from_config_data(Application_Links *app, Partition *part, char *con
                 
                 {
 #if defined(_WIN32)
-#define FKEY_COMMAND "fkey_command_win"
+# define FKEY_COMMAND "fkey_command_win"
 #elif defined(__linux__)
-#define FKEY_COMMAND "fkey_command_linux"
+# define FKEY_COMMAND "fkey_command_linux"
+#elif defined(__APPLE__) && defined(__MACH__)
+# define FKEY_COMMAND "fkey_command_mac"
 #else
-#error no project configuration names for this platform
+# error no project configuration names for this platform
 #endif
                     
                     int32_t index = 0;
