@@ -15,9 +15,6 @@ TYPE: 'drop-in-command-pack'
 #include "4coder_lib/4coder_mem.h"
 #include "4coder_default_framework.h"
 
-#define DEFAULT_INDENT_FLAGS AutoIndent_ClearLine
-#define DEF_TAB_WIDTH 2
-
 #if !defined(DEFAULT_INDENT_FLAGS)
 # define DEFAULT_INDENT_FLAGS 0
 #endif
