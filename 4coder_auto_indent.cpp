@@ -15,6 +15,9 @@ TYPE: 'drop-in-command-pack'
 #include "4coder_lib/4coder_mem.h"
 #include "4coder_default_framework.h"
 
+#define DEFAULT_INDENT_FLAGS AutoIndent_ClearLine
+#define DEF_TAB_WIDTH 2
+
 #if !defined(DEFAULT_INDENT_FLAGS)
 # define DEFAULT_INDENT_FLAGS 0
 #endif
@@ -164,18 +167,17 @@ set_line_indents(Application_Links *app, Partition *part, Buffer_Summary *buffer
         make_batch_from_indent_marks(app, part, buffer, line_start, line_end, indent_marks, opts);
     
     if (batch.edit_count > 0){
-        buffer_batch_edit(app, buffer, batch.str, batch.str_len,
-                          batch.edits, batch.edit_count, BatchEdit_PreserveTokens);
+        buffer_batch_edit(app, buffer, batch.str, batch.str_len, batch.edits, batch.edit_count, BatchEdit_PreserveTokens);
     }
 }
 
 static Cpp_Token*
 seek_matching_token_backwards(Cpp_Token_Array tokens, Cpp_Token *token, Cpp_Token_Type open_type, Cpp_Token_Type close_type){
-    int32_t nesting_level = 0;
     if (token <= tokens.tokens){
         token = tokens.tokens;
     }
     else{
+        int32_t nesting_level = 0;
         for (; token > tokens.tokens; --token){
             if (!(token->flags & CPP_TFLAG_PP_BODY)){
                 if (token->type == close_type){
@@ -455,10 +457,10 @@ get_indentation_marks(Application_Links *app, Partition *part, Buffer_Summary *b
             
             // Update indent state.
             switch (token.type){
-                case CPP_TOKEN_BRACKET_OPEN: indent.current_indent += 4; break;
-                case CPP_TOKEN_BRACKET_CLOSE: indent.current_indent -= 4; break;
-                case CPP_TOKEN_BRACE_OPEN: indent.current_indent += 4; break;
-                case CPP_TOKEN_BRACE_CLOSE: indent.current_indent -= 4; break;
+                case CPP_TOKEN_BRACKET_OPEN: indent.current_indent += tab_width; break;
+                case CPP_TOKEN_BRACKET_CLOSE: indent.current_indent -= tab_width; break;
+                case CPP_TOKEN_BRACE_OPEN: indent.current_indent += tab_width; break;
+                case CPP_TOKEN_BRACE_CLOSE: indent.current_indent -= tab_width; break;
                 
                 case CPP_TOKEN_COMMENT:
                 {
@@ -522,7 +524,7 @@ get_indent_lines_whole_tokens(Application_Links *app, Buffer_Summary *buffer, Cp
     int32_t line_start = buffer_get_line_index(app, buffer, start_pos);
     int32_t line_end = buffer_get_line_index(app, buffer, end_pos);
     
-    for (;line_start > 0;){
+    for (;line_start > 1;){
         int32_t line_start_pos = 0;
         Cpp_Token *token = get_first_token_at_line(app, buffer, tokens, line_start, &line_start_pos);
         if (token && token->start < line_start_pos){
@@ -533,7 +535,7 @@ get_indent_lines_whole_tokens(Application_Links *app, Buffer_Summary *buffer, Cp
         }
     }
     
-    for (;line_end+1 < buffer->line_count;){
+    for (;line_end < buffer->line_count;){
         int32_t next_line_start_pos = 0;
         Cpp_Token *token = get_first_token_at_line(app, buffer, tokens, line_end+1, &next_line_start_pos);
         if (token && token->start < next_line_start_pos){
@@ -543,8 +545,9 @@ get_indent_lines_whole_tokens(Application_Links *app, Buffer_Summary *buffer, Cp
             break;
         }
     }
-    if (line_end >= buffer->line_count){
-        line_end = buffer->line_count;
+    
+    if (line_end > buffer->line_count){
+        line_end = buffer->line_count + 1;
     }
     else{
         line_end += 1;
