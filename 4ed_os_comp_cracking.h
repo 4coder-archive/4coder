@@ -34,7 +34,9 @@
 
 # if defined(__gnu_linux__)
 #  define IS_LINUX
-# else
+# elif defined(__APPLE__) && defined(__MACH__)
+#  define IS_MAC
+#else
 #  error This compiler/platform combo is not supported yet
 # endif
 

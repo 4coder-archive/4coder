@@ -32,7 +32,7 @@
 
 #if defined(IS_WINDOWS)
 #define EXE ".exe"
-#elif defined(IS_LINUX)
+#elif defined(IS_LINUX) || defined(IS_MAC)
 #define EXE ""
 #else
 #error No EXE format specified for this OS
@@ -40,26 +40,26 @@
 
 #if defined(IS_WINDOWS)
 #define PDB ".pdb"
-#elif defined(IS_LINUX)
+#elif defined(IS_LINUX) || defined(IS_MAC)
 #define PDB ""
 #else
-#error No EXE format specified for this OS
+#error No PDB format specified for this OS
 #endif
 
 #if defined(IS_WINDOWS)
 #define DLL ".dll"
-#elif defined(IS_LINUX)
+#elif defined(IS_LINUX) || defined(IS_MAC)
 #define DLL ".so"
 #else
-#error No EXE format specified for this OS
+#error No DLL format specified for this OS
 #endif
 
 #if defined(IS_WINDOWS)
 #define BAT ".bat"
-#elif defined(IS_LINUX)
+#elif defined(IS_LINUX) || defined(IS_MAC)
 #define BAT ".sh"
 #else
-#error No EXE format specified for this OS
+#error No BAT format specified for this OS
 #endif
 
 static void
@@ -246,8 +246,10 @@ build_cl(u32 flags, char *code_path, char *code_file, char *out_path, char *out_
 }
 
 
-#define GCC_OPTS                             \
-"-Wno-write-strings -D_GNU_SOURCE -fPIC "    \
+#define GCC_OPTS                               \
+"-Wno-write-strings -Wno-comment -Wno-switch " \
+"-Wno-null-dereference "                       \
+"-D_GNU_SOURCE -fPIC "                         \
 "-fno-threadsafe-statics -pthread"
 
 #define GCC_X86 "-m32"
@@ -327,7 +329,8 @@ build_gcc(u32 flags, char *code_path, char *code_file, char *out_path, char *out
         build_ap(line, "-DFRED_KEEP_ASSERT");
     }
     
-    build_ap(line, "%s/%s", code_path, code_file);
+    build_ap(line, "-I\"%s\"", code_path);
+    build_ap(line, "\"%s/%s\"", code_path, code_file);
     
     if (flags & LIBS){
         build_ap(line, GCC_LIBS);
@@ -380,6 +383,8 @@ buildsuper(char *code_path, char *out_path, char *filename, b32 x86_build){
 #define PLAT_LAYER "win32_4ed.cpp"
 #elif defined(IS_LINUX)
 #define PLAT_LAYER "linux_4ed.cpp"
+#elif defined(IS_MAC)
+#define PLAT_LAYER "mac_4ed.m"
 #else
 #error No platform layer defined for this OS.
 #endif
@@ -560,6 +565,8 @@ get_4coder_dist_name(String *zip_file, b32 OS_specific, char *folder, char *tier
         append_sc(zip_file, "-win");
 #elif defined(IS_LINUX) && defined(IS_64BIT)
         append_sc(zip_file, "-linux");
+#elif defined(IS_MAC) && defined(IS_64BIT)
+        append_sc(zip_file, "-mac");
 #else
 #error No OS string for zips on this OS
 #endif

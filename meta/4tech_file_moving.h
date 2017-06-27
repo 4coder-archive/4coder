@@ -28,6 +28,13 @@ static char platform_correct_slash = '\\';
 #define SLASH "/"
 static char platform_correct_slash = '/';
 
+#elif defined(IS_MAC)
+#  define ONLY_WINDOWS(x) (void)0
+#  define ONLY_LINUX(x) (void)0
+
+#define SLASH "/"
+static char platform_correct_slash = '/';
+
 #else
 #  define ONLY_WINDOWS(x) (void)0
 #  define ONLY_LINUX(x) (void)0
@@ -209,8 +216,7 @@ make_folder_if_missing(char *dir, char *folder){
 
 static void
 clear_folder(char *folder){
-    systemf("del /S /Q /F %s\\* & rmdir /S /Q %s & mkdir %s",
-            folder, folder, folder);
+    systemf("del /S /Q /F %s\\* & rmdir /S /Q %s & mkdir %s", folder, folder, folder);
 }
 
 static void
@@ -269,7 +275,7 @@ zip(char *parent, char *folder, char *dest){
     systemf("copy %s\\4tech_gobble.zip %s & del %s\\4tech_gobble.zip", cdir, dest, cdir);
 }
 
-#elif defined(IS_LINUX)
+#elif defined(IS_LINUX) || defined(IS_MAC)
 
 #include <time.h>
 #include <unistd.h>
@@ -281,8 +287,8 @@ pushdir(char *dir){
     int32_t chresult = chdir(dir);
     if (result == 0 || chresult != 0){
         printf("trying pushdir %s\n", dir);
-        assert(result != 0);
-        assert(chresult == 0);
+        Assert(result != 0);
+        Assert(chresult == 0);
     }
     return(temp);
 }
@@ -402,6 +408,7 @@ zip(char *parent, char *folder, char *file){
     Temp_Dir temp = pushdir(parent);
     printf("PARENT DIR: %s\n", parent);
     systemf("zip -r %s %s", file, folder);
+
     popdir(temp);
 }
 

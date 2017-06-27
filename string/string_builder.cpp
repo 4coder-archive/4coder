@@ -425,9 +425,8 @@ int main(){
             
             else if (token->type == CPP_PP_INCLUDE){
                 token = get_next_token(&pcontext);
-                
                 if (token && token->type == CPP_PP_INCLUDE_FILE){
-                    lexeme = get_lexeme(*token, pcontext.data);;
+                    lexeme = get_lexeme(*token, pcontext.data);
                     lexeme.size -= 2;
                     lexeme.str += 1;
                     
@@ -481,7 +480,7 @@ int main(){
 }
 
 #define FTECH_FILE_MOVING_IMPLEMENTATION
-#include "..\meta\4tech_file_moving.h"
+#include "../meta/4tech_file_moving.h"
 
 // BOTTOM
 
