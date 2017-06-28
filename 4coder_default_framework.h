@@ -1047,14 +1047,14 @@ default_4coder_side_by_side_panels(Application_Links *app, char **command_line_f
     Buffer_Identifier right = buffer_identifier(literal("*messages*"));
     
     if (file_count > 0){
-        char *name = command_line_files[0];
-        int32_t len = str_size(name);
-        left = buffer_identifier(name, len);
+        char *left_name = command_line_files[0];
+        int32_t left_len = str_size(name);
+        left = buffer_identifier(left_name, left_len);
         
         if (file_count > 1){
-            char *name = command_line_files[1];
-            int32_t len = str_size(name);
-            right = buffer_identifier(name, len);
+            char *right_name = command_line_files[1];
+            int32_t right_len = str_size(name);
+            right = buffer_identifier(right_name, right_len);
         }
     }
     

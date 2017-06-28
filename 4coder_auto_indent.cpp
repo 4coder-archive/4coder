@@ -104,8 +104,7 @@ make_batch_from_indent_marks(Application_Links *app, Partition *part, Buffer_Sum
     
     for (int32_t line_i = line_start; line_i < line_end; ++line_i){
         int32_t line_start_pos = buffer_get_line_start(app, buffer, line_i);
-        Hard_Start_Result hard_start = 
-            buffer_find_hard_start(app, buffer, line_start_pos, opts.tab_width);
+        Hard_Start_Result hard_start = buffer_find_hard_start(app, buffer, line_start_pos, opts.tab_width);
         
         int32_t correct_indentation = indent_marks[line_i];
         if (hard_start.all_whitespace && opts.empty_blank_lines){
@@ -158,8 +157,7 @@ make_batch_from_indent_marks(Application_Links *app, Partition *part, Buffer_Sum
 
 static void
 set_line_indents(Application_Links *app, Partition *part, Buffer_Summary *buffer, int32_t line_start, int32_t line_end, int32_t *indent_marks, Indent_Options opts){
-    Buffer_Batch_Edit batch =
-        make_batch_from_indent_marks(app, part, buffer, line_start, line_end, indent_marks, opts);
+    Buffer_Batch_Edit batch = make_batch_from_indent_marks(app, part, buffer, line_start, line_end, indent_marks, opts);
     
     if (batch.edit_count > 0){
         buffer_batch_edit(app, buffer, batch.str, batch.str_len, batch.edits, batch.edit_count, BatchEdit_PreserveTokens);
@@ -252,26 +250,28 @@ find_anchor_token(Application_Links *app, Buffer_Summary *buffer, Cpp_Token_Arra
                 }
                 out_of_loop2:;
                 
+                Cpp_Token_Type open_type = CPP_TOKEN_JUNK;
+                Cpp_Token_Type close_type = CPP_TOKEN_JUNK;
                 switch (close){
-                    case 0: token = start_token; found_safe_start_position = 1; break;
+                    case 0: token = start_token; found_safe_start_position = true; break;
                     
                     case CPP_TOKEN_PARENTHESE_CLOSE:
-                    token = seek_matching_token_backwards(tokens, token-1,
-                                                          CPP_TOKEN_PARENTHESE_OPEN,
-                                                          CPP_TOKEN_PARENTHESE_CLOSE);
+                    open_type = CPP_TOKEN_PARENTHESE_OPEN;
+                    close_type = CPP_TOKEN_PARENTHESE_CLOSE;
                     break;
                     
                     case CPP_TOKEN_BRACKET_CLOSE:
-                    token = seek_matching_token_backwards(tokens, token-1,
-                                                          CPP_TOKEN_BRACKET_OPEN,
-                                                          CPP_TOKEN_BRACKET_CLOSE);
+                    open_type = CPP_TOKEN_BRACKET_OPEN;
+                    close_type = CPP_TOKEN_BRACKET_CLOSE;
                     break;
                     
                     case CPP_TOKEN_BRACE_CLOSE:
-                    token = seek_matching_token_backwards(tokens, token-1,
-                                                          CPP_TOKEN_BRACE_OPEN,
-                                                          CPP_TOKEN_BRACE_CLOSE);
+                    open_type = CPP_TOKEN_BRACE_OPEN;
+                    close_type = CPP_TOKEN_BRACE_CLOSE;
                     break;
+                }
+                if (open_type != CPP_TOKEN_JUNK){
+                    token = seek_matching_token_backwards(tokens, token-1, open_type, close_type);
                 }
             }
         } while(found_safe_start_position == 0);

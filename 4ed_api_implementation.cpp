@@ -513,14 +513,14 @@ DOC_SEE(get_buffer_next)
 */{
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     Working_Set *working_set = &cmd->models->working_set;
-    Buffer_Summary result = {};
+    Buffer_Summary buffer = {0};
     
-    internal_get_buffer_first(working_set, &result);
-    while (result.exists && !access_test(result.lock_flags, access)){
-        internal_get_buffer_next(working_set, &result);
+    internal_get_buffer_first(working_set, &buffer);
+    while (buffer.exists && !access_test(buffer.lock_flags, access)){
+        internal_get_buffer_next(working_set, &buffer);
     }
     
-    return(result);
+    return(buffer);
 }
 
 API_EXPORT void
@@ -560,10 +560,10 @@ DOC_SEE(Buffer_ID)
 */{
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     Working_Set *working_set = &cmd->models->working_set;
-    Buffer_Summary buffer = {};
+    Buffer_Summary buffer = {0};
     
     Editing_File *file = working_set_get_active_file(working_set, buffer_id);
-    if (file != 0){
+    if (file != 0 && !file->is_dummy){
         fill_buffer_summary(&buffer, file, working_set);
         if (!access_test(buffer.lock_flags, access)){
             buffer = null_buffer_summary;
@@ -584,11 +584,32 @@ DOC_SEE(Buffer_Summary)
 DOC_SEE(Access_Flag)
 */{
     Command_Data *cmd = (Command_Data*)app->cmd_context;
-    Buffer_Summary buffer = {};
+    Buffer_Summary buffer = {0};
     Working_Set *working_set = &cmd->models->working_set;
     
     Editing_File *file = working_set_name_contains(working_set, make_string(name, len));
-    if (file && !file->is_dummy){
+    if (file != 0 && !file->is_dummy){
+        fill_buffer_summary(&buffer, file, working_set);
+        if (!access_test(buffer.lock_flags, access)){
+            buffer = null_buffer_summary;
+        }
+    }
+    
+    return(buffer);
+}
+
+API_EXPORT Buffer_Summary
+Get_Buffer_By_File_Name(Application_Links *app, char *name, int32_t len, Access_Flag access){
+    Command_Data *cmd = (Command_Data*)app->cmd_context;
+    Buffer_Summary buffer = {0};
+    System_Functions *system = cmd->system;
+    Models *models = cmd->models;
+    Working_Set *working_set = &models->working_set;
+    
+    String fname = make_string(name, len);
+    Editing_File_Canon_Name canon = {0};
+    if (get_canon_name(system, &canon, fname)){
+        Editing_File *file = working_set_canon_contains(working_set, canon.name);
         fill_buffer_summary(&buffer, file, working_set);
         if (!access_test(buffer.lock_flags, access)){
             buffer = null_buffer_summary;
@@ -1238,7 +1259,7 @@ End_Buffer_Creation(Application_Links *app, Buffer_Creation_Data *data)
 /*
 DOC_PARAM(data, a local user handle for buffer creation that has already been initialized by begin_buffer_creation and used in subsequent buffer creation flags)
 
-DOC_RETURN(returns a summary of the newly created buffer or of the existing buffer that already has the specified name.  If there is not enough creation data to make the buffer the returned summary will be null.)
+DOC_RETURN(Returns a summary of the newly created buffer or of the existing buffer that already has the specified name.  If there is not enough creation data to make the buffer the returned summary will be null.)
 
 DOC_SEE(begin_buffer_creation)
 */{
@@ -1253,11 +1274,11 @@ DOC_SEE(begin_buffer_creation)
     
     Buffer_Summary result = {0};
     
-    if (data && data->fname_len > 0){
+    if (data != 0 && data->fname_len > 0){
         String fname = make_string(data->fname_space, data->fname_len);
         
         Editing_File *file = 0;
-        b32 do_new_file = 0;
+        b32 do_new_file = false;
         Plat_Handle handle = {0};
         
         Temp_Memory temp = begin_temp_memory(part);
@@ -1267,23 +1288,23 @@ DOC_SEE(begin_buffer_creation)
             file = working_set_canon_contains(working_set, canon.name);
         }
         else{
-            do_new_file = 1;
+            do_new_file = true;
         }
         
-        if (!file){
+        if (file == 0){
             file = working_set_name_contains(working_set, fname);
         }
         
         u32 flags = data->flags;
         
-        if (!file){
+        if (file == 0){
             if (!do_new_file){
                 if (flags & BufferCreate_AlwaysNew){
-                    do_new_file = 1;
+                    do_new_file = true;
                 }
                 else{
                     if (!system->load_handle(canon.name.str, &handle)){
-                        do_new_file = 1;
+                        do_new_file = true;
                     }
                 }
             }
@@ -1292,13 +1313,13 @@ DOC_SEE(begin_buffer_creation)
                 Assert(!handle_equal(handle, null_plat_handle));
                 
                 i32 size = system->load_size(handle);
-                b32 in_general_mem = 0;
+                b32 in_general_mem = false;
                 char *buffer = push_array(part, char, size);
                 
                 if (buffer == 0){
                     buffer = (char*)general_memory_allocate(general, size);
                     Assert(buffer != 0);
-                    in_general_mem = 1;
+                    in_general_mem = true;
                 }
                 
                 if (system->load_file(handle, buffer, size)){

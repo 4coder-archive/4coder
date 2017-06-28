@@ -19,16 +19,12 @@ non-infringement.
 The following parts of the Software are separately licensed as follows:
 
 - The Liberation font family is licensed under the SIL Open Font License (version 2 onwards).
-  The full text of this license is available in the accompanying 3rdparty/sil.txt file
 
 - The Hack font family is licensed under the a modified SIL license
-  The full text of this license is available in the accompanying 3rdparty/hacksil.txt file
 
 - The Inconsolata font family is licensed under the SIL Open Font License
-  Copyright (c) 2011, Raph Levien (firstname.lastname@gmail.com), Copyright (c) 2012, Cyreal (cyreal.org)
-  The full text of this license is available in the accompanying 3rdpart/sil.txt
+  Copyright (c) 2011, Raph Levien (raph.levien@gmail.com), Copyright (c) 2012, Cyreal (cyreal.org)
 
 - The Cutive font family is licensed under the SIL Open Font License
   Copyright (c) 2012 by vernon adams (vern@newtypography.co.uk)
-  The full text of this license is available in the accompanying 3rdpart/sil.txt
 

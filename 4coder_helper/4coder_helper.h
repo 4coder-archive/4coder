@@ -178,19 +178,6 @@ buffer_identifier(Buffer_ID id){
     return(identifier);
 }
 
-static Buffer_ID
-buffer_identifier_to_id(Application_Links *app, Buffer_Identifier identifier){
-    Buffer_ID id = 0;
-    if (identifier.id != 0){
-        id = identifier.id;
-    }
-    else{
-        Buffer_Summary buffer = get_buffer_by_name(app, identifier.name, identifier.name_len, AccessAll);
-        id = buffer.buffer_id;
-    }
-    return(id);
-}
-
 static Buffer_Summary
 create_buffer(Application_Links *app, char *filename, int32_t filename_len, Buffer_Create_Flag flags){
     Buffer_Summary buffer = {0};
@@ -344,6 +331,23 @@ open_file(Application_Links *app, Buffer_Summary *buffer_out, char *filename, in
     }
     
     return(result);
+}
+
+static Buffer_ID
+buffer_identifier_to_id(Application_Links *app, Buffer_Identifier identifier){
+    Buffer_ID id = 0;
+    if (identifier.id != 0){
+        id = identifier.id;
+    }
+    else{
+        Buffer_Summary buffer = get_buffer_by_name(app, identifier.name, identifier.name_len, AccessAll);
+        id = buffer.buffer_id;
+        if (id == 0){
+            buffer = get_buffer_by_file_name(app, identifier.name, identifier.name_len, AccessAll);
+            id = buffer.buffer_id;
+        }
+    }
+    return(id);
 }
 
 static bool32

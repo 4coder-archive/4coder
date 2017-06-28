@@ -11,6 +11,7 @@ struct Application_Links;
 #define GET_BUFFER_NEXT_SIG(n) void n(Application_Links *app, Buffer_Summary *buffer, Access_Flag  access)
 #define GET_BUFFER_SIG(n) Buffer_Summary n(Application_Links *app, Buffer_ID buffer_id, Access_Flag access)
 #define GET_BUFFER_BY_NAME_SIG(n) Buffer_Summary n(Application_Links *app, char *name, int32_t len, Access_Flag access)
+#define GET_BUFFER_BY_FILE_NAME_SIG(n) Buffer_Summary n(Application_Links *app, char *name, int32_t len, Access_Flag access)
 #define BUFFER_READ_RANGE_SIG(n) bool32 n(Application_Links *app, Buffer_Summary *buffer, int32_t start, int32_t end, char *out)
 #define BUFFER_REPLACE_RANGE_SIG(n) bool32 n(Application_Links *app, Buffer_Summary *buffer, int32_t start, int32_t end, char *str, int32_t len)
 #define BUFFER_COMPUTE_CURSOR_SIG(n) bool32 n(Application_Links *app, Buffer_Summary *buffer, Buffer_Seek seek, Partial_Cursor *cursor_out)
@@ -88,6 +89,7 @@ typedef GET_BUFFER_FIRST_SIG(Get_Buffer_First_Function);
 typedef GET_BUFFER_NEXT_SIG(Get_Buffer_Next_Function);
 typedef GET_BUFFER_SIG(Get_Buffer_Function);
 typedef GET_BUFFER_BY_NAME_SIG(Get_Buffer_By_Name_Function);
+typedef GET_BUFFER_BY_FILE_NAME_SIG(Get_Buffer_By_File_Name_Function);
 typedef BUFFER_READ_RANGE_SIG(Buffer_Read_Range_Function);
 typedef BUFFER_REPLACE_RANGE_SIG(Buffer_Replace_Range_Function);
 typedef BUFFER_COMPUTE_CURSOR_SIG(Buffer_Compute_Cursor_Function);
@@ -167,6 +169,7 @@ Get_Buffer_First_Function *get_buffer_first;
 Get_Buffer_Next_Function *get_buffer_next;
 Get_Buffer_Function *get_buffer;
 Get_Buffer_By_Name_Function *get_buffer_by_name;
+Get_Buffer_By_File_Name_Function *get_buffer_by_file_name;
 Buffer_Read_Range_Function *buffer_read_range;
 Buffer_Replace_Range_Function *buffer_replace_range;
 Buffer_Compute_Cursor_Function *buffer_compute_cursor;
@@ -245,6 +248,7 @@ Get_Buffer_First_Function *get_buffer_first_;
 Get_Buffer_Next_Function *get_buffer_next_;
 Get_Buffer_Function *get_buffer_;
 Get_Buffer_By_Name_Function *get_buffer_by_name_;
+Get_Buffer_By_File_Name_Function *get_buffer_by_file_name_;
 Buffer_Read_Range_Function *buffer_read_range_;
 Buffer_Replace_Range_Function *buffer_replace_range_;
 Buffer_Compute_Cursor_Function *buffer_compute_cursor_;
@@ -331,6 +335,7 @@ app_links->get_buffer_first_ = Get_Buffer_First;\
 app_links->get_buffer_next_ = Get_Buffer_Next;\
 app_links->get_buffer_ = Get_Buffer;\
 app_links->get_buffer_by_name_ = Get_Buffer_By_Name;\
+app_links->get_buffer_by_file_name_ = Get_Buffer_By_File_Name;\
 app_links->buffer_read_range_ = Buffer_Read_Range;\
 app_links->buffer_replace_range_ = Buffer_Replace_Range;\
 app_links->buffer_compute_cursor_ = Buffer_Compute_Cursor;\
@@ -409,6 +414,7 @@ static inline Buffer_Summary get_buffer_first(Application_Links *app, Access_Fla
 static inline void get_buffer_next(Application_Links *app, Buffer_Summary *buffer, Access_Flag  access){(app->get_buffer_next(app, buffer, access));}
 static inline Buffer_Summary get_buffer(Application_Links *app, Buffer_ID buffer_id, Access_Flag access){return(app->get_buffer(app, buffer_id, access));}
 static inline Buffer_Summary get_buffer_by_name(Application_Links *app, char *name, int32_t len, Access_Flag access){return(app->get_buffer_by_name(app, name, len, access));}
+static inline Buffer_Summary get_buffer_by_file_name(Application_Links *app, char *name, int32_t len, Access_Flag access){return(app->get_buffer_by_file_name(app, name, len, access));}
 static inline bool32 buffer_read_range(Application_Links *app, Buffer_Summary *buffer, int32_t start, int32_t end, char *out){return(app->buffer_read_range(app, buffer, start, end, out));}
 static inline bool32 buffer_replace_range(Application_Links *app, Buffer_Summary *buffer, int32_t start, int32_t end, char *str, int32_t len){return(app->buffer_replace_range(app, buffer, start, end, str, len));}
 static inline bool32 buffer_compute_cursor(Application_Links *app, Buffer_Summary *buffer, Buffer_Seek seek, Partial_Cursor *cursor_out){return(app->buffer_compute_cursor(app, buffer, seek, cursor_out));}
@@ -487,6 +493,7 @@ static inline Buffer_Summary get_buffer_first(Application_Links *app, Access_Fla
 static inline void get_buffer_next(Application_Links *app, Buffer_Summary *buffer, Access_Flag  access){(app->get_buffer_next_(app, buffer, access));}
 static inline Buffer_Summary get_buffer(Application_Links *app, Buffer_ID buffer_id, Access_Flag access){return(app->get_buffer_(app, buffer_id, access));}
 static inline Buffer_Summary get_buffer_by_name(Application_Links *app, char *name, int32_t len, Access_Flag access){return(app->get_buffer_by_name_(app, name, len, access));}
+static inline Buffer_Summary get_buffer_by_file_name(Application_Links *app, char *name, int32_t len, Access_Flag access){return(app->get_buffer_by_file_name_(app, name, len, access));}
 static inline bool32 buffer_read_range(Application_Links *app, Buffer_Summary *buffer, int32_t start, int32_t end, char *out){return(app->buffer_read_range_(app, buffer, start, end, out));}
 static inline bool32 buffer_replace_range(Application_Links *app, Buffer_Summary *buffer, int32_t start, int32_t end, char *str, int32_t len){return(app->buffer_replace_range_(app, buffer, start, end, str, len));}
 static inline bool32 buffer_compute_cursor(Application_Links *app, Buffer_Summary *buffer, Buffer_Seek seek, Partial_Cursor *cursor_out){return(app->buffer_compute_cursor_(app, buffer, seek, cursor_out));}

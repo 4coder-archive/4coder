@@ -15,6 +15,10 @@ Extending your project with a project.4coder file:
 
 \VIDEO{youtube:https://www.youtube.com/embed/iZLtS3IoatE}
 
+Using customizable keywords in the 4coder custom API:
+
+\VIDEO{youtube:https://www.youtube.com/watch?v=qoEvc4uC9Uw}
+
 More tutorials coming soon.
 
 
