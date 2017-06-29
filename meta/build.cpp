@@ -246,20 +246,28 @@ build_cl(u32 flags, char *code_path, char *code_file, char *out_path, char *out_
 }
 
 #if defined(IS_LINUX)
+
+# error IS_LINUX
+
 # define GCC_OPTS                     \
 "-Wno-write-strings "                 \
 "-D_GNU_SOURCE -fPIC "                \
 "-fno-threadsafe-statics -pthread"
+
 #define GCC_LIBS                               \
 "-L/usr/local/lib -lX11 -lpthread -lm -lrt "   \
 "-lGL -ldl -lXfixes -lfreetype -lfontconfig"
+
 #elif defined(IS_MAC)
+
 # define GCC_OPTS                                   \
 "-Wno-write-strings -Wno-deprecated-declarations "  \
 "-Wno-comment -Wno-switch -Wno-null-dereference "
+
 #define GCC_LIBS                          \
 "-framework Cocoa -framework QuartzCore " \
 "-framework OpenGL -framework IOKit"
+
 #else
 # error gcc options not set for this platform
 #endif

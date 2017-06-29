@@ -1,7 +1,5 @@
 #!/bin/bash
 
-echo "Building custom_4coders.so from $SOURCE ..."
-
 # Find the code home folder
 
 # NOTE(allen): Copied from stack exchange, hope it's reasonable -- readlink doesn't work on mac
@@ -38,6 +36,7 @@ done
 PHYS_DIR=`pwd -P`
 SOURCE=$PHYS_DIR/$TARGET_FILE
 
+echo "Building custom_4coders.so from $SOURCE"
 FLAGS="-Wno-write-strings -Wno-null-dereference -Wno-comment -Wno-switch -Wno-writable-strings"
 g++ -I"$CODE_HOME" $FLAGS -std=gnu++0x "$SOURCE" -shared -o custom_4coder.so -fPIC
 
