@@ -245,12 +245,24 @@ build_cl(u32 flags, char *code_path, char *code_file, char *out_path, char *out_
     popdir(temp);
 }
 
-
-#define GCC_OPTS                               \
-"-Wno-write-strings -Wno-comment -Wno-switch " \
-"-Wno-null-dereference "                       \
-"-D_GNU_SOURCE -fPIC "                         \
+#if defined(IS_LINUX)
+# define GCC_OPTS                     \
+"-Wno-write-strings "                 \
+"-D_GNU_SOURCE -fPIC "                \
 "-fno-threadsafe-statics -pthread"
+#define GCC_LIBS                               \
+"-L/usr/local/lib -lX11 -lpthread -lm -lrt "   \
+"-lGL -ldl -lXfixes -lfreetype -lfontconfig"
+#elif defined(IS_MAC)
+# define GCC_OPTS                                   \
+"-Wno-write-strings -Wno-deprecated-declarations "  \
+"-Wno-comment -Wno-switch -Wno-null-dereference "
+#define GCC_LIBS                          \
+"-framework Cocoa -framework QuartzCore " \
+"-framework OpenGL -framework IOKit"
+#else
+# error gcc options not set for this platform
+#endif
 
 #define GCC_X86 "-m32"
 
@@ -259,10 +271,6 @@ build_cl(u32 flags, char *code_path, char *code_file, char *out_path, char *out_
 #define GCC_INCLUDES "-I../foreign -I../code"
 
 #define GCC_SITE_INCLUDES "-I../../foreign -I../../code"
-
-#define GCC_LIBS                               \
-"-L/usr/local/lib -lX11 -lpthread -lm -lrt "   \
-"-lGL -ldl -lXfixes -lfreetype -lfontconfig"
 
 static void
 build_gcc(u32 flags, char *code_path, char *code_file, char *out_path, char *out_file, char *exports){
@@ -330,11 +338,12 @@ build_gcc(u32 flags, char *code_path, char *code_file, char *out_path, char *out
     }
     
     build_ap(line, "-I\"%s\"", code_path);
-    build_ap(line, "\"%s/%s\"", code_path, code_file);
     
     if (flags & LIBS){
         build_ap(line, GCC_LIBS);
     }
+    
+    build_ap(line, "\"%s/%s\"", code_path, code_file);
     
     swap_ptr(&line.build_options, &line.build_options_prev);
     
