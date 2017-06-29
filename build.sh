@@ -11,7 +11,7 @@ os=$("./detect_os.sh")
 if [[ "$os" == "linux" ]]; then
 WARNINGS="-Wno-write-strings -Wno-comment "
 elif [[ "$os" == "mac" ]]; then
-WARNINGS="-Wno-comment -Wno-logical-op-parentheses -Wno-null-dereference -Wno-switch"
+WARNINGS="-Wno-write-strings -Wno-comment -Wno-logical-op-parentheses -Wno-null-dereference -Wno-switch"
 fi
 
 FLAGS="-D_GNU_SOURCE -fPIC -fpermissive $BUILD_MODE"
