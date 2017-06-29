@@ -247,8 +247,6 @@ build_cl(u32 flags, char *code_path, char *code_file, char *out_path, char *out_
 
 #if defined(IS_LINUX)
 
-# error IS_LINUX
-
 # define GCC_OPTS                     \
 "-Wno-write-strings "                 \
 "-D_GNU_SOURCE -fPIC "                \
@@ -346,12 +344,11 @@ build_gcc(u32 flags, char *code_path, char *code_file, char *out_path, char *out
     }
     
     build_ap(line, "-I\"%s\"", code_path);
+    build_ap(line, "\"%s/%s\"", code_path, code_file);
     
     if (flags & LIBS){
         build_ap(line, GCC_LIBS);
     }
-    
-    build_ap(line, "\"%s/%s\"", code_path, code_file);
     
     swap_ptr(&line.build_options, &line.build_options_prev);
     
