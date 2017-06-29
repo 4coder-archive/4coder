@@ -260,7 +260,8 @@ build_cl(u32 flags, char *code_path, char *code_file, char *out_path, char *out_
 
 # define GCC_OPTS                                   \
 "-Wno-write-strings -Wno-deprecated-declarations "  \
-"-Wno-comment -Wno-switch -Wno-null-dereference "
+"-Wno-comment -Wno-switch -Wno-null-dereference "   \
+"-Wno-c++11-compat-deprecated-writable-strings "
 
 #define GCC_LIBS                          \
 "-framework Cocoa -framework QuartzCore " \
