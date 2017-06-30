@@ -468,8 +468,7 @@ exec_project_fkey_command(Application_Links *app, int32_t command_ind){
         Buffer_Identifier buffer_id = {0};
         uint32_t flags = 0;
         
-        bool32 set_fancy_font = 0;
-        
+        bool32 set_fancy_font = false;
         if (out[0] != 0){
             int32_t out_len = str_size(out);
             buffer_id = buffer_identifier(out, out_len);
@@ -479,7 +478,7 @@ exec_project_fkey_command(Application_Links *app, int32_t command_ind){
             if (use_build_panel){
                 view_ = get_or_open_build_panel(app);
                 if (match(out, "*compilation*")){
-                    set_fancy_font = 1;
+                    set_fancy_font = true;
                 }
             }
             else{
