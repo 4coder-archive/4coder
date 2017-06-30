@@ -12,8 +12,6 @@
 #include "4tech_defines.h"
 #include "4coder_API/version.h"
 
-#define WINDOW_TITLE "4coder" VERSION
-
 #include "osx_objective_c_to_cpp_links.h"
 
 OSX_Vars osx;

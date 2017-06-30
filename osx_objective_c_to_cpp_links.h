@@ -41,9 +41,6 @@ typedef struct OSX_Vars{
 // In C++ layer.
 extern OSX_Vars osx;
 
-void
-osx_post_to_clipboard(char *str);
-
 internal void*
 osx_allocate(umem size);
 
@@ -64,6 +61,10 @@ osx_step();
 
 internal void
 osx_init();
+
+// In Objective-C layer.
+void
+osx_post_to_clipboard(char *str);
 
 #endif
 

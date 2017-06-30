@@ -10,10 +10,14 @@
 // TOP
 
 #include "4tech_defines.h"
-#include "osx_objective_c_to_cpp_links.h"
+#include "4coder_API/version.h"
+
+#define WINDOW_NAME "4coder" VERSION
 
 #undef internal
 #undef global
+
+#include "osx_objective_c_to_cpp_links.h"
 
 #import <Cocoa/Cocoa.h>
 #import <CoreVideo/CVDisplayLink.h>
@@ -21,7 +25,7 @@
 #import <OpenGL/OpenGL.h>
 #import <OpenGL/gl.h>
 
-static void
+void
 osx_post_to_clipboard(char *str){
     NSPasteboard *board = [NSPasteboard generalPasteboard];
 	NSString *utf8_type = @"public.utf8-plain-text";
@@ -299,7 +303,7 @@ main(int argc, char **argv){
 
 		[[window contentView] addSubview:view];
 		[window setMinSize:NSMakeSize(100, 100)];
-		[window setTitle:@WINDOW_TITLE];
+		[window setTitle:@WINDOW_NAME];
 		[window makeKeyAndOrderFront:nil];
 
 		[NSApp run];
