@@ -290,7 +290,7 @@ build(u32 flags, char *code_path, char *code_file, char *out_path, char *out_fil
 #define GCC_SITE_INCLUDES "-I../../foreign -I../../code"
 
 static void
-build(u32 flags, char *code_path, char *code_file, char *out_path, char *out_file, char *exports, char *inc_flags){
+build(u32 flags, char *code_path, char **code_files, char *out_path, char *out_file, char *exports, char *inc_flags){
     Build_Line line;
     init_build_line(&line);
     
@@ -360,7 +360,9 @@ build(u32 flags, char *code_path, char *code_file, char *out_path, char *out_fil
     }
     
     build_ap(line, "-I\"%s\"", code_path);
-    build_ap(line, "\"%s/%s\"", code_path, code_file);
+    for (u32 i = 0; code_files[i] != 0; ++i){
+        build_ap(line, "\"%s/%s\"", code_path, code_files[i]);
+    }
     
     if (flags & LIBS){
         build_ap(line, GCC_LIBS);
@@ -376,6 +378,15 @@ build(u32 flags, char *code_path, char *code_file, char *out_path, char *out_fil
 #else
 # error build function not defined for this compiler
 #endif
+
+static void
+build(u32 flags, char *code_path, char *code_file, char *out_path, char *out_file, char *exports, char *inc_flags){
+    char *code_files[2];
+    code_files[0] = code_file;
+    code_files[1] = 0;
+    
+    build(flags, code_path, code_files, out_path, out_file, exports, inc_flags);
+}
 
 static void
 buildsuper(char *code_path, char *out_path, char *filename, b32 x86_build){
@@ -404,7 +415,7 @@ buildsuper(char *code_path, char *out_path, char *filename, b32 x86_build){
 
 #if defined(IS_WINDOWS)
 
-# define PLAT_LAYER "win32_4ed.cpp"
+char *PLAT_LAYER[] = { "win32_4ed.cpp", 0 };
 # if defined(IS_CL)
 #  define PLAT_INC "/I..\\code\\platform_all"
 # else
@@ -413,7 +424,7 @@ buildsuper(char *code_path, char *out_path, char *filename, b32 x86_build){
 
 #elif defined(IS_LINUX)
 
-# define PLAT_LAYER "platform_linux/linux_4ed.cpp"
+char *PLAT_LAYER[] = { "platform_linux/linux_4ed.cpp", 0 };
 # if defined(IS_GCC)
 #  define PLAT_INC "-I../code/platform_all -I../code/platform_unix"
 # else
@@ -422,7 +433,12 @@ buildsuper(char *code_path, char *out_path, char *filename, b32 x86_build){
 
 #elif defined(IS_MAC)
 
-# define PLAT_LAYER "platform_mac/mac_4ed.m platform_mac/mac_4ed.cpp"
+char *PLAT_LAYER[] = {
+    "platform_mac/mac_4ed.m",
+    "platform_mac/mac_4ed.cpp",
+    0
+};
+
 # if defined(IS_GCC)
 #  define PLAT_INC "-I../code/platform_all -I../code/platform_unix"
 # else
