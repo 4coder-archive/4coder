@@ -51,7 +51,6 @@
 #include <math.h>
 #include <stdlib.h>
 
-#include <time.h>
 #include <locale.h>
 #include <memory.h>
 #include <dlfcn.h>
@@ -242,19 +241,8 @@ internal void        system_wait_cv(i32, i32);
 internal void        system_signal_cv(i32, i32);
 
 //
-// Time
+// File System
 //
-
-internal
-Sys_Now_Time_Sig(system_now_time){
-    struct timespec spec;
-    u64 result;
-    
-    clock_gettime(CLOCK_REALTIME, &spec);
-    result = (spec.tv_sec * UINT64_C(1000000)) + (spec.tv_nsec / UINT64_C(1000));
-    
-    return(result);
-}
 
 internal
 Sys_File_Exists_Sig(system_file_exists){

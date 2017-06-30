@@ -19,6 +19,7 @@
 #include <dirent.h>
 #include <alloca.h>
 #include <errno.h>
+#include <time.h>
 
 #if defined(USE_LOG)
 # include <stdio.h>
@@ -380,6 +381,18 @@ Sys_Save_File_Sig(system_save_file){
     }
     
     return (size == 0);
+}
+
+//
+// Time
+//
+
+internal
+Sys_Now_Time_Sig(system_now_time){
+    struct timespec spec;
+    clock_gettime(CLOCK_REALTIME, &spec);
+    u64 result = (spec.tv_sec * UINT64_C(1000000)) + (spec.tv_nsec / UINT64_C(1000));
+    return(result);
 }
 
 // BOTTOM
