@@ -14,6 +14,8 @@
 #include "4tech_defines.h"
 #include "4coder_API/version.h"
 
+#include "unix_4ed_functions.cpp"
+
 #include "osx_objective_c_to_cpp_links.h"
 
 OSX_Vars osx;
