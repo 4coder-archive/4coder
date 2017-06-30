@@ -111,8 +111,7 @@ init_build_line(Build_Line *line){
     snprintf(line.build_options,            \
     line.build_max, "%s "str,               \
     line.build_options_prev, __VA_ARGS__);  \
-    swap_ptr(&line.build_options,           \
-    &line.build_options_prev);              \
+    swap_ptr(&line.build_options, &line.build_options_prev); \
 }while(0)
 
 #elif defined(IS_GCC)
@@ -124,6 +123,12 @@ init_build_line(Build_Line *line){
 }while(0)
 
 #endif
+
+#if defined(IS_CL)
+
+//
+// cl build
+//
 
 #define CL_OPTS                                  \
 "-W4 -wd4310 -wd4100 -wd4201 -wd4505 -wd4996 "   \
@@ -147,7 +152,7 @@ init_build_line(Build_Line *line){
 #define CL_X86 "-MACHINE:X86"
 
 static void
-build_cl(u32 flags, char *code_path, char *code_file, char *out_path, char *out_file, char *exports){
+build(u32 flags, char *code_path, char *code_file, char *out_path, char *out_file, char *exports){
     Build_Line line;
     init_build_line(&line);
     
@@ -245,6 +250,12 @@ build_cl(u32 flags, char *code_path, char *code_file, char *out_path, char *out_
     popdir(temp);
 }
 
+#elif defined(IS_GCC)
+
+//
+// gcc build
+//
+
 #if defined(IS_LINUX)
 
 # define GCC_OPTS                     \
@@ -279,7 +290,7 @@ build_cl(u32 flags, char *code_path, char *code_file, char *out_path, char *out_
 #define GCC_SITE_INCLUDES "-I../../foreign -I../../code"
 
 static void
-build_gcc(u32 flags, char *code_path, char *code_file, char *out_path, char *out_file, char *exports){
+build(u32 flags, char *code_path, char *code_file, char *out_path, char *out_file, char *exports, char *inc_flags){
     Build_Line line;
     init_build_line(&line);
     
@@ -295,7 +306,6 @@ build_gcc(u32 flags, char *code_path, char *code_file, char *out_path, char *out
     }
     
     if (flags & INCLUDES){
-        // TODO(allen): Abstract this out.
 #if defined(IS_LINUX)
         i32 size = 0;
         char freetype_include[512];
@@ -308,11 +318,17 @@ build_gcc(u32 flags, char *code_path, char *code_file, char *out_path, char *out
         }
         
         build_ap(line, GCC_INCLUDES" %s", freetype_include);
+#else
+        build_ap(line, GCC_INCLUDES);
 #endif
     }
     
     if (flags & SITE_INCLUDES){
         build_ap(line, GCC_SITE_INCLUDES);
+    }
+    
+    if (inc_flags != 0 && inc_flags[0] != 0){
+        build_ap(line, "%s", inc_flags);
     }
     
     if (flags & DEBUG_INFO){
@@ -357,16 +373,9 @@ build_gcc(u32 flags, char *code_path, char *code_file, char *out_path, char *out
     popdir(temp);
 }
 
-static void
-build(u32 flags, char *code_path, char *code_file, char *out_path, char *out_file, char *exports){
-#if defined(IS_CL)
-    build_cl(flags, code_path, code_file, out_path, out_file, exports);
-#elif defined(IS_GCC)
-    build_gcc(flags, code_path, code_file, out_path, out_file, exports);
 #else
-#error The build rule for this compiler is not ready
+# error build function not defined for this compiler
 #endif
-}
 
 static void
 buildsuper(char *code_path, char *out_path, char *filename, b32 x86_build){
@@ -394,13 +403,34 @@ buildsuper(char *code_path, char *out_path, char *filename, b32 x86_build){
 }
 
 #if defined(IS_WINDOWS)
-#define PLAT_LAYER "win32_4ed.cpp"
+
+# define PLAT_LAYER "win32_4ed.cpp"
+# if defined(IS_CL)
+#  define PLAT_INC "/I..\\code\\platform_all"
+# else
+#  error PLAT_INC not defines for this compiler/platform combo
+# endif
+
 #elif defined(IS_LINUX)
-#define PLAT_LAYER "platform_linux/linux_4ed.cpp"
+
+# define PLAT_LAYER "platform_linux/linux_4ed.cpp"
+# if defined(IS_GCC)
+#  define PLAT_INC "-I../code/platform_all -I../code/platform_unix"
+# else
+#  error PLAT_INC not defines for this compiler/platform combo
+# endif
+
 #elif defined(IS_MAC)
-#define PLAT_LAYER "platform_mac/mac_4ed.m"
+
+# define PLAT_LAYER "platform_mac/mac_4ed.m"
+# if defined(IS_GCC)
+#  define PLAT_INC "-I../code/platform_all -I../code/platform_unix"
+# else
+#  error PLAT_INC not defines for this compiler/platform combo
+# endif
+
 #else
-#error No platform layer defined for this OS.
+# error No platform layer defined for this OS.
 #endif
 
 #define BUILD_DIR "../build"
@@ -412,7 +442,7 @@ fsm_generator(char *cdir){
         DECL_STR(dir, BUILD_DIR);
         
         BEGIN_TIME_SECTION();
-        build(OPTS | DEBUG_INFO, cdir, file, dir, "fsmgen", 0);
+        build(OPTS | DEBUG_INFO, cdir, file, dir, "fsmgen", 0, 0);
         END_TIME_SECTION("build fsm generator");
     }
     
@@ -431,7 +461,7 @@ metagen(char *cdir){
         DECL_STR(dir, BUILD_DIR);
         
         BEGIN_TIME_SECTION();
-        build(OPTS | INCLUDES | DEBUG_INFO, cdir, file, dir, "metagen", 0);
+        build(OPTS | INCLUDES | DEBUG_INFO, cdir, file, dir, "metagen", 0, 0);
         END_TIME_SECTION("build metagen");
     }
     
@@ -499,13 +529,13 @@ build_main(char *cdir, u32 flags){
     {
         DECL_STR(file, "4ed_app_target.cpp");
         BEGIN_TIME_SECTION();
-        build(OPTS | INCLUDES | SHARED_CODE | flags, cdir, file, dir, "4ed_app" DLL, "/EXPORT:app_get_functions");
+        build(OPTS | INCLUDES | SHARED_CODE | flags, cdir, file, dir, "4ed_app" DLL, "/EXPORT:app_get_functions", 0);
         END_TIME_SECTION("build 4ed_app");
     }
     
     {
         BEGIN_TIME_SECTION();
-        build(OPTS | INCLUDES | LIBS | ICON | flags, cdir, PLAT_LAYER, dir, "4ed", 0);
+        build(OPTS | INCLUDES | LIBS | ICON | flags, cdir, PLAT_LAYER, dir, "4ed", 0, PLAT_INC);
         END_TIME_SECTION("build 4ed");
     }
     
@@ -538,7 +568,7 @@ site_build(char *cdir, u32 flags){
         DECL_STR(file, "site/sitegen.cpp");
         DECL_STR(dir, BUILD_DIR"/site");
         BEGIN_TIME_SECTION();
-        build(OPTS | SITE_INCLUDES | flags, cdir, file, dir, "sitegen", 0);
+        build(OPTS | SITE_INCLUDES | flags, cdir, file, dir, "sitegen", 0, 0);
         END_TIME_SECTION("build sitegen");
     }
     
