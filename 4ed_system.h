@@ -199,7 +199,7 @@ typedef Sys_Acquire_Lock_Sig(System_Acquire_Lock);
 #define Sys_Release_Lock_Sig(name) void name(i32 id)
 typedef Sys_Release_Lock_Sig(System_Release_Lock);
 
-// needed for custom layer
+// memory
 #define Sys_Memory_Allocate_Sig(name) void* name(umem size)
 typedef Sys_Memory_Allocate_Sig(System_Memory_Allocate);
 
@@ -209,6 +209,7 @@ typedef Sys_Memory_Set_Protection_Sig(System_Memory_Set_Protection);
 #define Sys_Memory_Free_Sig(name) void name(void *ptr, umem size)
 typedef Sys_Memory_Free_Sig(System_Memory_Free);
 
+// file system
 #define Sys_File_Exists_Sig(name) b32 name(char *filename, i32 len)
 typedef Sys_File_Exists_Sig(System_File_Exists);
 
@@ -218,6 +219,7 @@ typedef Sys_Directory_CD_Sig(System_Directory_CD);
 #define Sys_Get_4ed_Path_Sig(name) int32_t name(char *out, i32 capacity)
 typedef Sys_Get_4ed_Path_Sig(System_Get_4ed_Path);
 
+// behavior and appearance options
 #define Sys_Show_Mouse_Cursor_Sig(name) void name(i32 show)
 typedef Sys_Show_Mouse_Cursor_Sig(System_Show_Mouse_Cursor);
 

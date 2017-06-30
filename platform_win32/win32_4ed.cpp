@@ -212,6 +212,23 @@ global Win32_Vars win32vars;
 global Application_Memory memory_vars;
 
 //
+// 4ed path
+//
+
+internal
+Sys_Get_4ed_Path_Sig(system_get_4ed_path){
+    i32 result_size = 0;
+    i32 size = GetModuleFileName_utf8(0, (u8*)out, capacity);
+    if (size < capacity - 1){
+        String str = make_string(out, size);
+        remove_last_folder(&str);
+        terminate_with_null(&str);
+        result_size = str.size;
+    }
+    return(result_size);
+}
+
+//
 // Logging
 //
 
@@ -220,7 +237,7 @@ Sys_Log_Sig(system_log){
     if (win32vars.settings.use_log){
         u8 space[4096];
         String str = make_fixed_width_string(space);
-        system_get_binary_path(&str);
+        str.size = system_get_4ed_path(str.str, str.memory_size);
         append_sc(&str, "4coder_log.txt");
         terminate_with_null(&str);
         HANDLE file = CreateFile_utf8(space, GENERIC_WRITE, 0, 0, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, 0);
@@ -1038,19 +1055,6 @@ Win32DirectoryExists(char *path){
 }
 
 internal
-Sys_Get_Binary_Path_Sig(system_get_binary_path){
-    i32 result = 0;
-    i32 size = GetModuleFileName_utf8(0, (u8*)out->str, out->memory_size);
-    if (size < out->memory_size-1){
-        out->size = size;
-        remove_last_folder(out);
-        terminate_with_null(out);
-        result = out->size;
-    }
-    return(result);
-}
-
-internal
 Sys_File_Exists_Sig(system_file_exists){
     char full_filename_space[1024];
     String full_filename;
@@ -1110,13 +1114,6 @@ Sys_Directory_CD_Sig(system_directory_cd){
     *len = directory.size;
     
     return(result);
-}
-
-internal
-Sys_Get_4ed_Path_Sig(system_get_4ed_path){
-    String str = make_string_cap(out, 0, capacity);
-    int32_t size = system_get_binary_path(&str);
-    return(size);
 }
 
 /*

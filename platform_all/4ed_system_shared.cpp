@@ -16,6 +16,12 @@
 // Standard implementation of file system stuff based on the file track layer.
 //
 
+internal i32
+system_get_binary_path_string(String *out){
+    out->size = system_get_4ed_path(out->str, out->memory_size);
+    return(out->size);
+}
+
 internal void
 init_shared_vars(){
     umem scratch_size = KB(128);
@@ -206,7 +212,7 @@ internal b32
 sysshared_to_binary_path(String *out_filename, char *filename){
     b32 translate_success = 0;
     i32 max = out_filename->memory_size;
-    i32 size = system_get_binary_path(out_filename);
+    i32 size = system_get_binary_path_string(out_filename);
     if (size > 0 && size < max-1){
         out_filename->size = size;
         if (append_sc(out_filename, filename) && terminate_with_null(out_filename)){
