@@ -385,11 +385,10 @@ buildsuper(char *code_path, char *out_path, char *filename, b32 x86_build){
     }
 #elif defined(IS_GCC)
     {
-        fprintf(stdout, "out_path: %s\n", out_path);
         systemf("\"%s/buildsuper.sh\" \"%s\"", code_path, filename);
     }
 #else
-#error The build rule for this compiler is not ready
+# error The build rule for this compiler is not ready
 #endif
     popdir(temp);
 }
@@ -397,9 +396,9 @@ buildsuper(char *code_path, char *out_path, char *filename, b32 x86_build){
 #if defined(IS_WINDOWS)
 #define PLAT_LAYER "win32_4ed.cpp"
 #elif defined(IS_LINUX)
-#define PLAT_LAYER "linux_4ed.cpp"
+#define PLAT_LAYER "platform_linux/linux_4ed.cpp"
 #elif defined(IS_MAC)
-#define PLAT_LAYER "mac_4ed.m"
+#define PLAT_LAYER "platform_mac/mac_4ed.m"
 #else
 #error No platform layer defined for this OS.
 #endif
