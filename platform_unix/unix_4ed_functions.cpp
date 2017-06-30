@@ -32,6 +32,25 @@ struct Unix_Vars{
 static Unix_Vars unixvars;
 
 //
+// 4ed Path
+//
+
+internal
+Sys_Get_4ed_Path_Sig(system_get_4ed_path){
+    ssize_t size = readlink("/proc/self/exe", out, capacity - 1);
+    if (size != -1 && size < capacity - 1){
+        String str = make_string(out, size);
+        remove_last_folder(&str);
+        terminate_with_null(&str);
+        size = str.size;
+    }
+    else{
+        size = 0;
+    }
+    return(size);
+}
+
+//
 // Logging
 //
 
@@ -61,21 +80,6 @@ Sys_File_Can_Be_Made_Sig(system_file_can_be_made){
     b32 result = access((char*)filename, W_OK) == 0;
     LOGF("%s = %d", filename, result);
     return(result);
-}
-
-internal
-Sys_Get_Binary_Path_Sig(system_get_binary_path){
-    ssize_t size = readlink("/proc/self/exe", out->str, out->memory_size - 1);
-    if(size != -1 && size < out->memory_size - 1){
-        out->size = size;
-        remove_last_folder(out);
-        terminate_with_null(out);
-        size = out->size;
-    } else {
-        size = 0;
-    }
-    
-    return size;
 }
 
 //

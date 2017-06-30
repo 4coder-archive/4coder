@@ -217,15 +217,14 @@ global Application_Memory memory_vars;
 
 internal
 Sys_Get_4ed_Path_Sig(system_get_4ed_path){
-    i32 result_size = 0;
     i32 size = GetModuleFileName_utf8(0, (u8*)out, capacity);
     if (size < capacity - 1){
         String str = make_string(out, size);
         remove_last_folder(&str);
         terminate_with_null(&str);
-        result_size = str.size;
+        size = str.size;
     }
-    return(result_size);
+    return(size);
 }
 
 //

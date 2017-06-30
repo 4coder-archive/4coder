@@ -303,12 +303,6 @@ Sys_Directory_CD_Sig(system_directory_cd){
 }
 
 internal
-Sys_Get_4ed_Path_Sig(system_get_4ed_path){
-    String str = make_string_cap(out, 0, capacity);
-    return(system_get_binary_path(&str));
-}
-
-internal
 Sys_Show_Mouse_Cursor_Sig(system_show_mouse_cursor){
     linuxvars.hide_cursor = !show;
     XDefineCursor(linuxvars.XDisplay, linuxvars.XWindow, show ? None : linuxvars.hidden_cursor);
