@@ -9,6 +9,8 @@
 
 // TOP
 
+#define IS_PLAT_LAYER
+
 #include "4tech_defines.h"
 #include "4coder_API/version.h"
 

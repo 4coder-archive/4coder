@@ -152,7 +152,7 @@ init_build_line(Build_Line *line){
 #define CL_X86 "-MACHINE:X86"
 
 static void
-build(u32 flags, char *code_path, char **code_files, char *out_path, char *out_file, char *exports, char *inc_flags){
+build(u32 flags, char *code_path, char **code_files, char *out_path, char *out_file, char *exports, char **inc_folders){
     Build_Line line;
     init_build_line(&line);
     
@@ -298,7 +298,7 @@ build(u32 flags, char *code_path, char **code_files, char *out_path, char *out_f
 #define GCC_SITE_INCLUDES "-I../../foreign -I../../code"
 
 static void
-build(u32 flags, char *code_path, char **code_files, char *out_path, char *out_file, char *exports, char *inc_flags){
+build(u32 flags, char *code_path, char **code_files, char *out_path, char *out_file, char *exports, char **inc_folders){
     Build_Line line;
     init_build_line(&line);
     
@@ -335,8 +335,10 @@ build(u32 flags, char *code_path, char **code_files, char *out_path, char *out_f
         build_ap(line, GCC_SITE_INCLUDES);
     }
     
-    if (inc_flags != 0 && inc_flags[0] != 0){
-        build_ap(line, "%s", inc_flags);
+    if (inc_folders != 0){
+        for (u32 i = 0; inc_folders[i] != 0; ++i){
+            build_ap(line, "-I%s/%s", code_path, inc_folders[i]);
+        }
     }
     
     if (flags & DEBUG_INFO){
@@ -388,12 +390,12 @@ build(u32 flags, char *code_path, char **code_files, char *out_path, char *out_f
 #endif
 
 static void
-build(u32 flags, char *code_path, char *code_file, char *out_path, char *out_file, char *exports, char *inc_flags){
+build(u32 flags, char *code_path, char *code_file, char *out_path, char *out_file, char *exports, char **inc_folders){
     char *code_files[2];
     code_files[0] = code_file;
     code_files[1] = 0;
     
-    build(flags, code_path, code_files, out_path, out_file, exports, inc_flags);
+    build(flags, code_path, code_files, out_path, out_file, exports, inc_folders);
 }
 
 static void
@@ -425,7 +427,11 @@ buildsuper(char *code_path, char *out_path, char *filename, b32 x86_build){
 
 char *PLAT_LAYER[] = { "platform_win32\\win32_4ed.cpp", 0 };
 # if defined(IS_CL)
-#  define PLAT_INC "/I..\\code /I..\\code\\platform_all"
+char *PLAT_INC[] = {
+    ".",
+    "platform_all",
+    0
+};
 # else
 #  error PLAT_INC not defines for this compiler/platform combo
 # endif
@@ -434,7 +440,11 @@ char *PLAT_LAYER[] = { "platform_win32\\win32_4ed.cpp", 0 };
 
 char *PLAT_LAYER[] = { "platform_linux/linux_4ed.cpp", 0 };
 # if defined(IS_GCC)
-#  define PLAT_INC "-I../code/platform_all -I../code/platform_unix"
+char *PLAT_INC[] = {
+    "platform_all",
+    "platform_unix",
+    0
+};
 # else
 #  error PLAT_INC not defines for this compiler/platform combo
 # endif
@@ -446,9 +456,12 @@ char *PLAT_LAYER[] = {
     "platform_mac/mac_4ed.cpp",
     0
 };
-
 # if defined(IS_GCC)
-#  define PLAT_INC "-I../code/platform_all -I../code/platform_unix"
+char *PLAT_INC[] = {
+    "platform_all",
+    "platform_unix",
+    0
+};
 # else
 #  error PLAT_INC not defines for this compiler/platform combo
 # endif

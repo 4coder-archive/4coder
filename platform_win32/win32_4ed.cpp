@@ -9,6 +9,8 @@
 
 // TOP
 
+#define IS_PLAT_LAYER
+
 //
 // Architecture cracking
 //

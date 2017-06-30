@@ -10,6 +10,8 @@
 
 // TOP
 
+#define IS_PLAT_LAYER
+
 #include <assert.h>
 #include <string.h>
 #include "4tech_defines.h"
@@ -40,6 +42,8 @@
 #include "4ed_rendering.h"
 #include "4ed.h"
 
+#include "unix_4ed_functions.cpp"
+
 #include <stdio.h>
 #include <math.h>
 #include <stdlib.h>
@@ -63,7 +67,6 @@
 #include <sys/time.h>
 #include <sys/wait.h>
 #include <sys/stat.h>
-#include <sys/mman.h>
 #include <sys/timerfd.h>
 #include <sys/eventfd.h>
 #include <sys/epoll.h>
@@ -269,67 +272,6 @@ Sys_Get_Binary_Path_Sig(system_get_binary_path){
     
     return size;
 }
-
-//
-// custom.h
-//
-
-internal
-Sys_Memory_Allocate_Sig(system_memory_allocate){
-    // NOTE(allen): This must return the exact base of the vpage.
-    // We will count on the user to keep track of size themselves.
-    void *result = mmap(0, size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-    if(result == MAP_FAILED){
-        perror("mmap");
-        result = NULL;
-    }
-    return(result);
-}
-
-internal 
-Sys_Memory_Set_Protection_Sig(system_memory_set_protection){
-    bool32 result = true;
-    
-    int protect = 0;
-    switch (flags & 0x7){
-        case 0: protect = PROT_NONE; break;
-        
-        case MemProtect_Read:
-        protect = PROT_READ; break;
-        
-        case MemProtect_Write:
-        case MemProtect_Read|MemProtect_Write:
-        protect = PROT_READ | PROT_WRITE; break;
-        
-        case MemProtect_Execute:
-        protect = PROT_EXEC; break;
-        
-        case MemProtect_Execute|MemProtect_Read:
-        protect = PROT_READ | PROT_EXEC; break;
-        
-        // NOTE(inso): some W^X protection things might be unhappy about this one
-        case MemProtect_Execute|MemProtect_Write:
-        case MemProtect_Execute|MemProtect_Write|MemProtect_Read:
-        protect = PROT_READ | PROT_WRITE | PROT_EXEC; break;
-    }
-    
-    if(mprotect(ptr, size, protect) == -1){
-        result = 0;
-        perror("mprotect");
-    }
-    
-    return(result);
-}
-
-internal
-Sys_Memory_Free_Sig(system_memory_free){
-    // NOTE(allen): This must take the exact base of the vpage.
-    munmap(ptr, size);
-}
-
-//
-// System Functions (4ed_system.h)
-//
 
 //
 // Files
@@ -556,14 +498,12 @@ Sys_Load_Close_Sig(system_load_close){
 
 internal
 Sys_Save_File_Sig(system_save_file){
-    b32 result = 0;
     int fd = open(filename, O_WRONLY | O_TRUNC | O_CREAT, 00640);
-    
     LINUX_FN_DEBUG("%s %d", filename, size);
-    
     if(fd < 0){
         fprintf(stderr, "system_save_file: open '%s': %s\n", filename, strerror(errno));
-    } else {
+    }
+    else{
         do {
             ssize_t written = write(fd, buffer, size);
             if(written == -1){
@@ -576,7 +516,6 @@ Sys_Save_File_Sig(system_save_file){
                 buffer += written;
             }
         } while(size);
-        
         close(fd);
     }
     
