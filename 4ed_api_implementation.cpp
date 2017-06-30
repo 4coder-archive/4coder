@@ -580,6 +580,10 @@ DOC_PARAM(name, The name parameter specifies the buffer name to try to get. The 
 DOC_PARAM(len, The len parameter specifies the length of the name string.)
 DOC_PARAM(access, The access parameter determines what levels of protection this call can access.)
 DOC_RETURN(This call returns a summary that describes the indicated buffer if it exists and is accessible.)
+
+DOC(This call searches the buffers by their buffer name.  The buffer name is the short name in the file bar.  The name must match exactly including any alterations put on the buffer name to avoid duplicates.)
+
+DOC_SEE(get_buffer_by_file_name)
 DOC_SEE(Buffer_Summary)
 DOC_SEE(Access_Flag)
 */{
@@ -599,7 +603,20 @@ DOC_SEE(Access_Flag)
 }
 
 API_EXPORT Buffer_Summary
-Get_Buffer_By_File_Name(Application_Links *app, char *name, int32_t len, Access_Flag access){
+Get_Buffer_By_File_Name(Application_Links *app, char *name, int32_t len, Access_Flag access)
+/*
+DOC_PARAM(name, The name parameter specifies the buffer name to try to get. The string need not be null terminated.)
+DOC_PARAM(len, The len parameter specifies the length of the name string.)
+DOC_PARAM(access, The access parameter determines what levels of protection this call can access.)
+DOC_RETURN(This call returns a summary that describes the indicated buffer if it exists and is accessible.)
+
+DOC(This call searches the buffers by their canonicalized file names.  Not all buffers have file names, only buffers that are tied to files.  For instance *scratch* does not have a file name.  Every file has one canonicalized file name.  For instance on windows this involves converting w:/a/b into W:\a\b.  If the name passed is not canonicalized a canonicalized copy is made first.  This includes turning relative paths to files that exist into full paths.  So the passed in name can be relative to the working directory.)
+
+DOC_SEE(get_buffer_by_name)
+DOC_SEE(Buffer_Summary)
+DOC_SEE(Access_Flag)
+*/
+{
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     Buffer_Summary buffer = {0};
     System_Functions *system = cmd->system;

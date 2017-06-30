@@ -152,7 +152,7 @@ init_build_line(Build_Line *line){
 #define CL_X86 "-MACHINE:X86"
 
 static void
-build(u32 flags, char *code_path, char *code_file, char *out_path, char *out_file, char *exports){
+build(u32 flags, char *code_path, char **code_files, char *out_path, char *out_file, char *exports, char *inc_flags){
     Build_Line line;
     init_build_line(&line);
     
@@ -184,6 +184,10 @@ build(u32 flags, char *code_path, char *code_file, char *out_path, char *out_fil
     
     if (flags & SITE_INCLUDES){
         build_ap(line, CL_SITE_INCLUDES);
+    }
+    
+    if (inc_flags != 0 && inc_flags[0] != 0){
+        build_ap(line, "%s", inc_flags);
     }
     
     if (flags & LIBS){
@@ -241,12 +245,16 @@ build(u32 flags, char *code_path, char *code_file, char *out_path, char *out_fil
     }
     build_ap(link_line, "%s", link_type_string);
     
+    for (u32 i = 0; code_files[i]; ++i){
+        build_ap(line, "\"%s\\%s\"", code_path, code_files[i]);
+    }
+    
     swap_ptr(&line.build_options, &line.build_options_prev);
     swap_ptr(&link_line.build_options, &link_line.build_options_prev);
     swap_ptr(&line_prefix.build_options, &line_prefix.build_options_prev);
     
     Temp_Dir temp = pushdir(out_path);
-    systemf("%scl %s \"%s\\%s\" /Fe%s /link /INCREMENTAL:NO %s", line_prefix.build_options, line.build_options, code_path, code_file, out_file, link_line.build_options);
+    systemf("%scl %s /Fe%s /link /INCREMENTAL:NO %s", line_prefix.build_options, line.build_options, out_file, link_line.build_options);
     popdir(temp);
 }
 
@@ -415,9 +423,9 @@ buildsuper(char *code_path, char *out_path, char *filename, b32 x86_build){
 
 #if defined(IS_WINDOWS)
 
-char *PLAT_LAYER[] = { "win32_4ed.cpp", 0 };
+char *PLAT_LAYER[] = { "platform_win32\\win32_4ed.cpp", 0 };
 # if defined(IS_CL)
-#  define PLAT_INC "/I..\\code\\platform_all"
+#  define PLAT_INC "/I..\\code /I..\\code\\platform_all"
 # else
 #  error PLAT_INC not defines for this compiler/platform combo
 # endif
