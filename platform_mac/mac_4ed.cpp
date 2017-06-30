@@ -46,14 +46,11 @@
 #include "unix_4ed_functions.cpp"
 
 #include "osx_objective_c_to_cpp_links.h"
-
 OSX_Vars osx;
 
-// TODO(allen): Implement a real allocate
-#include <stdlib.h>
 external void*
 osx_allocate(umem size){
-    void *result = malloc(size);
+    void *result = system_memory_allocate(size);
     return(result);
 }
 

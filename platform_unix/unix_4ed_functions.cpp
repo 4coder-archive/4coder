@@ -13,9 +13,12 @@
 
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <fcntl.h>
 
+#include <fcntl.h>
 #include <unistd.h>
+#include <dirent.h>
+#include <alloca.h>
+#include <errno.h>
 
 #if defined(USE_LOG)
 # include <stdio.h>
@@ -129,6 +132,254 @@ internal
 Sys_Memory_Free_Sig(system_memory_free){
     // NOTE(allen): This must take the exact base of the vpage.
     munmap(ptr, size);
+}
+
+//
+// Files
+//
+
+internal
+Sys_Set_File_List_Sig(system_set_file_list){
+    DIR *d;
+    struct dirent *entry;
+    char *fname, *cursor, *cursor_start;
+    File_Info *info_ptr;
+    i32 character_count, file_count, size, required_size, length;
+    b32 clear_list = false;
+    
+    if(directory == 0){
+        system_memory_free(file_list->block, file_list->block_size);
+        file_list->block = 0;
+        file_list->block_size = 0;
+        file_list->infos = 0;
+        file_list->count = 0;
+        return;
+    }
+    
+    LOGF("%s", directory);
+    
+    d = opendir(directory);
+    if (d){
+        if (canon_directory_out != 0){
+            u32 length = copy_fast_unsafe_cc(canon_directory_out, directory);
+            if (canon_directory_out[length-1] != '/'){
+                canon_directory_out[length++] = '/';
+            }
+            canon_directory_out[length] = 0;
+            *canon_directory_size_out = length;
+        }
+        
+        character_count = 0;
+        file_count = 0;
+        for (entry = readdir(d);
+             entry != 0;
+             entry = readdir(d)){
+            fname = entry->d_name;
+            if (match_cc(fname, ".") || match_cc(fname, "..")){
+                continue;
+            }
+            ++file_count;            
+            for (size = 0; fname[size]; ++size);
+            character_count += size + 1;
+        }
+        
+        required_size = character_count + file_count * sizeof(File_Info);
+        if (file_list->block_size < required_size){
+            system_memory_free(file_list->block, file_list->block_size);
+            file_list->block = system_memory_allocate(required_size);
+            file_list->block_size = required_size;
+        }
+        
+        file_list->infos = (File_Info*)file_list->block;
+        cursor = (char*)(file_list->infos + file_count);
+        
+        if (file_list->block != 0){
+            rewinddir(d);
+            info_ptr = file_list->infos;
+            for (entry = readdir(d);
+                 entry != 0;
+                 entry = readdir(d)){
+                fname = entry->d_name;
+                if (match_cc(fname, ".") || match_cc(fname, "..")){
+                    continue;
+                }
+                cursor_start = cursor;
+                length = copy_fast_unsafe_cc(cursor_start, fname);
+                cursor += length;
+                
+                if(entry->d_type == DT_LNK){
+                    struct stat st;
+                    if(stat(entry->d_name, &st) != -1){
+                        info_ptr->folder = S_ISDIR(st.st_mode);
+                    } else {
+                        info_ptr->folder = 0;
+                    }
+                } else {
+                    info_ptr->folder = (entry->d_type == DT_DIR);
+                }
+                
+                info_ptr->filename = cursor_start;
+                info_ptr->filename_len = length;
+                *cursor++ = 0;
+                ++info_ptr;
+            }
+        }
+        
+        file_list->count = file_count;
+        
+        closedir(d);
+    } else {
+        system_memory_free(file_list->block, file_list->block_size);
+        file_list->block = 0;
+        file_list->block_size = 0;
+        file_list->infos = 0;
+        file_list->count = 0;
+    }
+}
+
+internal
+Sys_Get_Canonical_Sig(system_get_canonical){
+    char* path = (char*) alloca(len + 1);
+    char* write_p = path;
+    const char* read_p = filename;
+    
+    // return 0 for relative paths (e.g. cmdline args)
+    if(len > 0 && filename[0] != '/'){
+        return 0;
+    }
+    
+    if (max == 0){
+        return 0;
+    }
+    
+    max -= 1;
+    
+    while(read_p < filename + len){
+        if(read_p == filename || read_p[0] == '/'){
+            if(read_p[1] == '/'){
+                ++read_p;
+            } else if(read_p[1] == '.'){
+                if(read_p[2] == '/' || !read_p[2]){
+                    read_p += 2;
+                } else if(read_p[2] == '.' && (read_p[3] == '/' || !read_p[3])){
+                    while(write_p > path && *--write_p != '/');
+                    read_p += 3;
+                } else {
+                    *write_p++ = *read_p++;
+                }
+            } else {
+                *write_p++ = *read_p++;
+            }
+        } else {
+            *write_p++ = *read_p++;
+        }
+    }
+    if(write_p == path) *write_p++ = '/';
+    
+    if(max >= (write_p - path)){
+        memcpy(buffer, path, write_p - path);
+    } else {
+        write_p = path;
+    }
+    
+#if FRED_INTERNAL
+    if(len != (write_p - path) || memcmp(filename, path, len) != 0){
+        LOGF("[%.*s] -> [%.*s]", len, filename, (int)(write_p - path), path);
+    }
+#endif
+    
+    u32 length = (i32)(write_p - path);
+    buffer[length] = 0;
+    return(length);
+}
+
+internal
+Sys_Load_Handle_Sig(system_load_handle){
+    b32 result = 0;
+    
+    int fd = open(filename, O_RDONLY);
+    if(fd == -1){
+        LOG("open");
+    } else {
+        *(int*)handle_out = fd;
+        result = 1;
+    }
+    
+    return result;
+}
+
+internal
+Sys_Load_Size_Sig(system_load_size){
+    u32 result = 0;
+    
+    int fd = *(int*)&handle;
+    struct stat st;
+    
+    if(fstat(fd, &st) == -1){
+        LOG("fstat");
+    } else {
+        result = st.st_size;
+    }
+    
+    return result;
+}
+
+internal
+Sys_Load_File_Sig(system_load_file){
+    int fd = *(int*)&handle;
+    do {
+        ssize_t n = read(fd, buffer, size);
+        if(n == -1){
+            if(errno != EINTR){
+                LOG("read");
+                break;
+            }
+        } else {
+            size -= n;
+            buffer += n;
+        }
+    } while(size);
+    
+    return size == 0;
+}
+
+internal
+Sys_Load_Close_Sig(system_load_close){
+    b32 result = 1;
+    
+    int fd = *(int*)&handle;
+    if(close(fd) == -1){
+        LOG("close");
+        result = 0;
+    }
+    
+    return result;
+}
+
+internal
+Sys_Save_File_Sig(system_save_file){
+    int fd = open(filename, O_WRONLY | O_TRUNC | O_CREAT, 00640);
+    LOGF("%s %d", filename, size);
+    if(fd < 0){
+        LOGF("system_save_file: open '%s': %s\n", filename, strerror(errno));
+    }
+    else{
+        do {
+            ssize_t written = write(fd, buffer, size);
+            if(written == -1){
+                if(errno != EINTR){
+                    LOG("system_save_file: write");
+                    break;
+                }
+            } else {
+                size -= written;
+                buffer += written;
+            }
+        } while(size);
+        close(fd);
+    }
+    
+    return (size == 0);
 }
 
 // BOTTOM
