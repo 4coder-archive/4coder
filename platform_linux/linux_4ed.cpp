@@ -36,6 +36,7 @@
 #include "4ed_math.h"
 
 #include "4ed_system.h"
+#include "4ed_log.h"
 #include "4ed_rendering.h"
 #include "4ed.h"
 
@@ -88,8 +89,6 @@
 #define LINUX_MAX_PASTE_CHARS 0x10000L
 #define FPS 60L
 #define frame_useconds (1000000UL / FPS)
-
-#define LinuxGetMemory(size) LinuxGetMemory_(size, __LINE__, __FILE__)
 
 #if FRED_INTERNAL
 #define LINUX_FN_DEBUG(fmt, ...) do { \
@@ -216,6 +215,8 @@ struct Linux_Vars{
     
     Linux_Coroutine coroutine_data[18];
     Linux_Coroutine *coroutine_free;
+    
+    u32 log_position;
 };
 
 //
@@ -250,34 +251,6 @@ internal void        system_signal_cv(i32, i32);
 //
 // Shared system functions (system_shared.h)
 //
-
-internal void*
-LinuxGetMemory_(i32 size, i32 line_number, char *file_name){
-    void *result = 0;
-    
-    Assert(size != 0);
-    
-    size_t real_size = size + sizeof(size_t);
-    result = mmap(0, real_size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-    if(result == MAP_FAILED){
-        perror("mmap");
-        result = NULL;
-    } else {
-        memcpy(result, &real_size, sizeof(size_t));
-        result = (char*)result + sizeof(size_t);
-    }
-    
-    return(result);
-}
-
-internal void
-LinuxFreeMemory(void *block){
-    if (block){
-        block = (char*)block - sizeof(size_t);
-        size_t size = *(size_t*)block;
-        munmap(block, size);
-    }
-}
 
 internal
 Sys_File_Can_Be_Made_Sig(system_file_can_be_made){
@@ -319,17 +292,11 @@ Sys_Memory_Allocate_Sig(system_memory_allocate){
 
 internal 
 Sys_Memory_Set_Protection_Sig(system_memory_set_protection){
-    // NOTE(allen):
-    // There is no such thing as "write only" in windows
-    // so I just made write = write + read in all cases.
-    bool32 result = 1;
+    bool32 result = true;
+    
     int protect = 0;
-    
-    flags = flags & 0x7;
-    
-    switch (flags){
-        case 0:
-        protect = PROT_NONE; break;
+    switch (flags & 0x7){
+        case 0: protect = PROT_NONE; break;
         
         case MemProtect_Read:
         protect = PROT_READ; break;
@@ -987,7 +954,7 @@ JobThreadProc(void* lpParameter){
     
     if (thread_memory->size == 0){
         i32 new_size = KB(64);
-        thread_memory->data = LinuxGetMemory(new_size);
+        thread_memory->data = system_memory_allocate(new_size);
         thread_memory->size = new_size;
     }
     
@@ -1924,12 +1891,12 @@ LinuxHandleToFD(Plat_Handle h){
 
 internal void
 LinuxStringDup(String* str, void* data, size_t size){
-    if(str->memory_size < size){
-        if(str->str){
-            LinuxFreeMemory(str->str);
+    if (str->memory_size < size){
+        if (str->str){
+            system_memory_free(str->str, str->memory_size);
         }
         str->memory_size = size;
-        str->str = (char*)LinuxGetMemory(size);
+        str->str = (char*)system_memory_allocate(size);
         //TODO(inso): handle alloc failure case
     }
     
