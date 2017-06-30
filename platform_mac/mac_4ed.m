@@ -16,6 +16,8 @@
 
 #undef internal
 #undef global
+#undef external
+#define external
 
 #include "osx_objective_c_to_cpp_links.h"
 
