@@ -17,5 +17,3 @@ popd
 ..\build\build
 if %ERRORLEVEL% neq 0 (set FirstError=1)
 
-:END
-

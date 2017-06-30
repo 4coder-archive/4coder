@@ -385,6 +385,7 @@ buildsuper(char *code_path, char *out_path, char *filename, b32 x86_build){
     }
 #elif defined(IS_GCC)
     {
+        fprintf(stdout, "out_path: %s\n", out_path);
         systemf("\"%s/buildsuper.sh\" \"%s\"", code_path, filename);
     }
 #else
