@@ -1,7 +1,7 @@
 /*
  * Mr. 4th Dimention - Allen Webster
  *
- * 06.30.2017
+ * 30.06.2017
  *
  * General unix functions
  *
@@ -16,6 +16,10 @@
 #include <fcntl.h>
 
 #include <unistd.h>
+
+#if defined(USE_LOG)
+# include <stdio.h>
+#endif
 
 struct Unix_Vars{
     b32 do_logging;
@@ -42,6 +46,32 @@ Sys_Log_Sig(system_log){
             close(fd);
         }
     }
+}
+
+//
+// Shared system functions (system_shared.h)
+//
+
+internal
+Sys_File_Can_Be_Made_Sig(system_file_can_be_made){
+    b32 result = access((char*)filename, W_OK) == 0;
+    LOGF("%s = %d", filename, result);
+    return(result);
+}
+
+internal
+Sys_Get_Binary_Path_Sig(system_get_binary_path){
+    ssize_t size = readlink("/proc/self/exe", out->str, out->memory_size - 1);
+    if(size != -1 && size < out->memory_size - 1){
+        out->size = size;
+        remove_last_folder(out);
+        terminate_with_null(out);
+        size = out->size;
+    } else {
+        size = 0;
+    }
+    
+    return size;
 }
 
 //

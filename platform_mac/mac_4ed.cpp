@@ -1,7 +1,7 @@
 /*
  * Mr. 4th Dimention - Allen Webster
  *
- * 06.28.2017
+ * 28.06.2017
  *
  * Mac C++ layer for 4coder
  *
@@ -38,6 +38,10 @@
 #include "4ed_log.h"
 #include "4ed_rendering.h"
 #include "4ed.h"
+
+#include "4ed_file_track.h"
+#include "4ed_font_interface_to_os.h"
+#include "4ed_system_shared.h"
 
 #include "unix_4ed_functions.cpp"
 

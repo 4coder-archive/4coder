@@ -42,9 +42,12 @@
 #include "4ed_rendering.h"
 #include "4ed.h"
 
+#include "4ed_file_track.h"
+#include "4ed_font_interface_to_os.h"
+#include "4ed_system_shared.h"
+
 #include "unix_4ed_functions.cpp"
 
-#include <stdio.h>
 #include <math.h>
 #include <stdlib.h>
 
@@ -102,10 +105,6 @@
 #endif
 
 #define InterlockedCompareExchange(dest, ex, comp) __sync_val_compare_and_swap((dest), (comp), (ex))
-
-#include "4ed_file_track.h"
-#include "4ed_font_interface_to_os.h"
-#include "4ed_system_shared.h"
 
 //
 // Linux structs / enums
@@ -247,6 +246,7 @@ internal             Sys_Release_Lock_Sig(system_release_lock);
 internal void        system_wait_cv(i32, i32);
 internal void        system_signal_cv(i32, i32);
 
+#if 0
 //
 // Shared system functions (system_shared.h)
 //
@@ -272,6 +272,7 @@ Sys_Get_Binary_Path_Sig(system_get_binary_path){
     
     return size;
 }
+#endif
 
 //
 // Files
