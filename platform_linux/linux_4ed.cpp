@@ -99,8 +99,6 @@
 #define LINUX_FN_DEBUG(fmt, ...)
 #endif
 
-#define SUPPORT_DPI 1
-
 #define InterlockedCompareExchange(dest, ex, comp) __sync_val_compare_and_swap((dest), (comp), (ex))
 
 #include "4ed_file_track.h"
@@ -204,9 +202,7 @@ struct Linux_Vars{
     pthread_cond_t conds[8];
     sem_t thread_semaphore;
     
-#if SUPPORT_DPI
     i32 dpi_x, dpi_y;
-#endif
     
     Plat_Settings settings;
     System_Functions system;
@@ -2965,7 +2961,6 @@ main(int argc, char **argv){
     
 #undef LOAD_ATOM
     
-#if SUPPORT_DPI
     linuxvars.dpi_x = linuxvars.dpi_y = LinuxGetXSettingsDPI(linuxvars.XDisplay, DefaultScreen(linuxvars.XDisplay));
     
     // fallback
@@ -2986,7 +2981,6 @@ main(int argc, char **argv){
     else{
         fprintf(stderr, "DPI from XSETTINGS: %d\n", linuxvars.dpi_x);
     }
-#endif
     
     int window_width, window_height;
     if (!LinuxX11WindowInit(argc, argv, &window_width, &window_height)){
