@@ -18,40 +18,40 @@ OSX_Vars osx;
 
 // TODO(allen): Implement a real allocate
 #include <stdlib.h>
-internal void*
+void*
 osx_allocate(umem size){
     void *result = malloc(size);
     return(result);
 }
 
-internal void
+void
 osx_resize(int width, int height){
     osx.width = width;
     osx.height = height;
     // TODO
 }
 
-internal void
+void
 osx_character_input(u32 code, OSX_Keyboard_Modifiers modifier_flags){
     // TODO
 }
 
-internal void
+void
 osx_mouse(i32 mx, i32 my, u32 type){
     // TODO
 }
 
-internal void
+void
 osx_mouse_wheel(float dx, float dy){
     // TODO
 }
 
-internal void
+void
 osx_step(){
     // TODO
 }
 
-internal void
+void
 osx_init(){
     // TODO
 }
