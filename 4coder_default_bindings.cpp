@@ -28,6 +28,7 @@ default_keys(Bind_Helper *context){
     bind(context, 'i', MDFR_CTRL, interactive_switch_buffer);
     bind(context, 'w', MDFR_CTRL, save_as);
     bind(context, 'h', MDFR_CTRL, project_go_to_root_directory);
+    bind(context, 'S', MDFR_CTRL, save_dirty_buffers);
     
     bind(context, 'c', MDFR_ALT, open_color_tweaker);
     bind(context, 'd', MDFR_ALT, open_debug);
