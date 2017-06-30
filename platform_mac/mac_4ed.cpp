@@ -14,6 +14,31 @@
 #include "4tech_defines.h"
 #include "4coder_API/version.h"
 
+#include "4coder_lib/4coder_utf8.h"
+
+#if defined(FRED_SUPER)
+# include "4coder_API/keycodes.h"
+# include "4coder_API/style.h"
+
+# define FSTRING_IMPLEMENTATION
+# define FSTRING_C
+# include "4coder_lib/4coder_string.h"
+# include "4coder_lib/4coder_mem.h"
+
+# include "4coder_API/types.h"
+# include "4ed_os_custom_api.h"
+
+#else
+# include "4coder_default_bindings.cpp"
+#endif
+
+#include "4ed_math.h"
+
+#include "4ed_system.h"
+#include "4ed_log.h"
+#include "4ed_rendering.h"
+#include "4ed.h"
+
 #include "unix_4ed_functions.cpp"
 
 #include "osx_objective_c_to_cpp_links.h"
