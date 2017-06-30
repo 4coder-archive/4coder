@@ -127,6 +127,14 @@ OPEN_FILE_HOOK_SIG(default_file_settings){
                     parse_context_id = parse_context_language_cpp;
                 }
                 
+                // TODO(NAME): Real Objective-C highlighting
+                if (match(ext, "m")){
+                    if (parse_context_language_cpp == 0){
+                        init_language_cpp(app);
+                    }
+                    parse_context_id = parse_context_language_cpp;
+                }
+                
                 break;
             }
         }

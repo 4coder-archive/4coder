@@ -1,4 +1,4 @@
-extensions=".c.cpp.h.hpp.bat.sh.4coder";
+extensions=".c.cpp.h.m.bat.sh.4coder";
 open_recursively=true;
 
 fkey_command_win[1]  = {"echo build: x64 & build.bat", "*compilation*", true , true };

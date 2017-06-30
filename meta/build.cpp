@@ -422,7 +422,7 @@ buildsuper(char *code_path, char *out_path, char *filename, b32 x86_build){
 
 #elif defined(IS_MAC)
 
-# define PLAT_LAYER "platform_mac/mac_4ed.m"
+# define PLAT_LAYER "platform_mac/mac_4ed.m platform_mac/mac_4ed.cpp"
 # if defined(IS_GCC)
 #  define PLAT_INC "-I../code/platform_all -I../code/platform_unix"
 # else

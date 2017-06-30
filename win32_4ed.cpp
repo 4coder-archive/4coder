@@ -33,11 +33,13 @@
 #define FPS 60
 #define frame_useconds (1000000 / FPS)
 
-#include <assert.h>
-#include <string.h>
 #include "4tech_defines.h"
 #include "4coder_API/version.h"
 
+#define WINDOW_NAME L"4coder: " L_VERSION
+
+#include <assert.h>
+#include <string.h>
 #include "4coder_lib/4coder_utf8.h"
 
 #if defined(FRED_SUPER)
@@ -2198,8 +2200,6 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
     if (!win32vars.settings.fullscreen_window && win32vars.settings.maximize_window){
         window_style |= WS_MAXIMIZE;
     }
-    
-#define WINDOW_NAME L"4coder-window: " L_VERSION
     
     LOG(system, "Creating window... ");
     win32vars.window_handle = CreateWindow(window_class.lpszClassName, WINDOW_NAME, window_style, window_x, window_y, window_rect.right - window_rect.left, window_rect.bottom - window_rect.top, 0, 0, hInstance, 0);

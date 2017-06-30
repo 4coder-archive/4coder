@@ -9,7 +9,8 @@
 
 // TOP
 
-#include "mac_4ed.c"
+#include "4tech_defines.h"
+#include "osx_objective_c_to_cpp_links.h"
 
 #undef internal
 #undef global
@@ -22,7 +23,7 @@
 
 static void
 osx_post_to_clipboard(char *str){
-	NSPasteboard *board = [NSPasteboard generalPasteboard];
+    NSPasteboard *board = [NSPasteboard generalPasteboard];
 	NSString *utf8_type = @"public.utf8-plain-text";
 	NSArray<NSString*> *typesArray = [NSArray arrayWithObjects: utf8_type, nil]; 
 	[board declareTypes:typesArray owner:nil];
