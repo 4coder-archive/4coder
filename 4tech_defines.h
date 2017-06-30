@@ -42,6 +42,7 @@ typedef double f64;
 #define global static
 #define local_const static const
 #define global_const static const
+#define external extern "C"
 
 #define ArrayCount(a) ((sizeof(a))/(sizeof(*a)))
 #define ExpandArray(a) (a), (ArrayCount(a))

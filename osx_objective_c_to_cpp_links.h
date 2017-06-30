@@ -41,29 +41,29 @@ typedef struct OSX_Vars{
 // In C++ layer.
 extern OSX_Vars osx;
 
-void*
+external void*
 osx_allocate(umem size);
 
-void
+external void
 osx_resize(int width, int height);
 
-void
+external void
 osx_character_input(u32 code, OSX_Keyboard_Modifiers modifier_flags);
 
-void
+external void
 osx_mouse(i32 mx, i32 my, u32 type);
 
-void
+external void
 osx_mouse_wheel(float dx, float dy);
 
-void
+external void
 osx_step();
 
-void
+external void
 osx_init();
 
 // In Objective-C layer.
-void
+external void
 osx_post_to_clipboard(char *str);
 
 #endif
