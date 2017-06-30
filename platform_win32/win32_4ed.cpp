@@ -2096,7 +2096,7 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
     // Read Command Line
     //
     
-    LOG(system, "Reading command line\n");
+    LOG("Reading command line\n");
     DWORD required = (GetCurrentDirectory(0, 0)*4) + 1;
     u8 *current_directory_mem = (u8*)system_memory_allocate(required);
     DWORD written = GetCurrentDirectory_utf8(required, current_directory_mem);
@@ -2115,7 +2115,7 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
     win32vars.app.read_command_line(system, &memory_vars, current_directory, &win32vars.settings, &files, &file_count, clparams);
     
     sysshared_filter_real_files(files, file_count);
-    LOG(system, "Loaded system code, read command line.\n");
+    LOG("Loaded system code, read command line.\n");
     
     //
     // Custom Layer Linkage
@@ -2131,11 +2131,11 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
         custom_file = custom_file_default;
     }
     
-    LOGF(system, "Trying to load custom DLL: %s\n", custom_file);
+    LOGF("Trying to load custom DLL: %s\n", custom_file);
     win32vars.custom = LoadLibraryA(custom_file);
     if (!win32vars.custom && custom_file != custom_file_default){
         if (!win32vars.settings.custom_dll_is_strict){
-            LOGF(system, "Trying to load custom DLL: %s\n", custom_file_default);
+            LOGF("Trying to load custom DLL: %s\n", custom_file_default);
             win32vars.custom = LoadLibraryA(custom_file_default);
         }
     }
@@ -2186,7 +2186,7 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
     }
     
     if (!AdjustWindowRect(&window_rect, WS_OVERLAPPEDWINDOW, false)){
-        LOG(system, "Could not get adjusted window.\n");
+        LOG("Could not get adjusted window.\n");
     }
     
     i32 window_x = CW_USEDEFAULT;
@@ -2195,7 +2195,7 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
     if (win32vars.settings.set_window_pos){
         window_x = win32vars.settings.window_x;
         window_y = win32vars.settings.window_y;
-        LOGF(system, "Setting window position (%d, %d)\n", window_x, window_y);
+        LOGF("Setting window position (%d, %d)\n", window_x, window_y);
     }
     
     i32 window_style = WS_OVERLAPPEDWINDOW;
@@ -2203,15 +2203,15 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
         window_style |= WS_MAXIMIZE;
     }
     
-    LOG(system, "Creating window... ");
+    LOG("Creating window... ");
     win32vars.window_handle = CreateWindow(window_class.lpszClassName, WINDOW_NAME, window_style, window_x, window_y, window_rect.right - window_rect.left, window_rect.bottom - window_rect.top, 0, 0, hInstance, 0);
     
     if (win32vars.window_handle == 0){
-        LOG(system, "Failed\n");
+        LOG("Failed\n");
         exit(1);
     }
     else{
-        LOG(system, "Success\n");
+        LOG("Success\n");
     }
     
     {
@@ -2233,14 +2233,14 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
     // Font System Init
     //
     
-    LOG(system, "Initializing fonts\n");
+    LOG("Initializing fonts\n");
     system_font_init(&system->font, 0, 0, win32vars.settings.font_size, win32vars.settings.use_hinting);
     
     //
     // Misc System Initializations
     //
     
-    LOG(system, "Initializing clipboard\n");
+    LOG("Initializing clipboard\n");
     win32vars.clip_max = KB(16);
     win32vars.clip_buffer = (u8*)system_memory_allocate(win32vars.clip_max);
     
@@ -2269,12 +2269,12 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
     LARGE_INTEGER f;
     if (QueryPerformanceFrequency(&f)){
         win32vars.count_per_usecond = (f32)f.QuadPart / 1000000.f;
-        LOGF(system, "Got performance frequency %f\n", win32vars.count_per_usecond);
+        LOGF("Got performance frequency %f\n", win32vars.count_per_usecond);
     }
     else{
         // NOTE(allen): Just guess.
         win32vars.count_per_usecond = 1.f;
-        LOG(system, "Did not get performance frequency, just guessing with 1.\n");
+        LOG("Did not get performance frequency, just guessing with 1.\n");
     }
     Assert(win32vars.count_per_usecond > 0.f);
     
@@ -2282,7 +2282,7 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
     // Main Loop
     //
     
-    LOG(system, "Initializing application variables\n");
+    LOG("Initializing application variables\n");
     win32vars.app.init(system, &win32vars.target, &memory_vars, win32vars.clipboard_contents, current_directory, win32vars.custom_api);
     
     system_memory_free(current_directory.str, 0);
@@ -2299,7 +2299,7 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
     SetActiveWindow(win32vars.window_handle);
     ShowWindow(win32vars.window_handle, SW_SHOW);
     
-    LOG(system, "Beginning main loop\n");
+    LOG("Beginning main loop\n");
     u64 timer_start = Win32HighResolutionTime();
     system_acquire_lock(FRAME_LOCK);
     MSG msg;

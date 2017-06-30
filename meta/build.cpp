@@ -186,8 +186,10 @@ build(u32 flags, char *code_path, char **code_files, char *out_path, char *out_f
         build_ap(line, CL_SITE_INCLUDES);
     }
     
-    if (inc_flags != 0 && inc_flags[0] != 0){
-        build_ap(line, "%s", inc_flags);
+    if (inc_folders != 0){
+        for (u32 i = 0; inc_folders[i] != 0; ++i){
+            build_ap(line, "/I%s\\%s", code_path, inc_folders[i]);
+        }
     }
     
     if (flags & LIBS){
