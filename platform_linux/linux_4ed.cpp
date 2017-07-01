@@ -2744,11 +2744,11 @@ main(int argc, char **argv){
         XCloseDisplay(linuxvars.XDisplay);
     }
     
-    return 0;
+    return(0);
 }
 
 #include "linux_4ed_fonts.cpp"
-#include "unix_4ed_file_track.cpp"
+#include "linux_4ed_file_track.cpp"
 #include "4ed_font_static_functions.cpp"
 
 // BOTTOM
