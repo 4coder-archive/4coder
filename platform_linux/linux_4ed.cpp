@@ -383,13 +383,13 @@ Sys_CLI_Call_Sig(system_cli_call){
     LINUX_FN_DEBUG("%s %s", path, script_name);
     
     int pipe_fds[2];
-    if(pipe(pipe_fds) == -1){
+    if (pipe(pipe_fds) == -1){
         perror("system_cli_call: pipe");
         return 0;
     }
     
     pid_t child_pid = fork();
-    if(child_pid == -1){
+    if (child_pid == -1){
         perror("system_cli_call: fork");
         return 0;
     }
@@ -397,7 +397,7 @@ Sys_CLI_Call_Sig(system_cli_call){
     enum { PIPE_FD_READ, PIPE_FD_WRITE };
     
     // child
-    if(child_pid == 0){
+    if (child_pid == 0){
         close(pipe_fds[PIPE_FD_READ]);
         dup2(pipe_fds[PIPE_FD_WRITE], STDOUT_FILENO);
         dup2(pipe_fds[PIPE_FD_WRITE], STDERR_FILENO);
@@ -413,7 +413,8 @@ Sys_CLI_Call_Sig(system_cli_call){
             perror("system_cli_call: execv");
         }
         exit(1);
-    } else {
+    }
+    else{
         close(pipe_fds[PIPE_FD_WRITE]);
         
         *(pid_t*)&cli_out->proc = child_pid;
@@ -426,7 +427,7 @@ Sys_CLI_Call_Sig(system_cli_call){
         epoll_ctl(linuxvars.epoll, EPOLL_CTL_ADD, pipe_fds[PIPE_FD_READ], &e);
     }
     
-    return 1;
+    return(true);
 }
 
 internal
@@ -436,7 +437,6 @@ Sys_CLI_Begin_Update_Sig(system_cli_begin_update){
 
 internal
 Sys_CLI_Update_Step_Sig(system_cli_update_step){
-    
     int pipe_read_fd = *(int*)&cli->out_read;
     
     fd_set fds;
@@ -462,17 +462,17 @@ Sys_CLI_Update_Step_Sig(system_cli_update_step){
     }
     
     *amount = (ptr - dest);
-    return (ptr - dest) > 0;
+    return((ptr - dest) > 0);
 }
 
 internal
 Sys_CLI_End_Update_Sig(system_cli_end_update){
     pid_t pid = *(pid_t*)&cli->proc;
-    b32 close_me = 0;
+    b32 close_me = false;
     
     int status;
     if(pid && waitpid(pid, &status, WNOHANG) > 0){
-        close_me = 1;
+        close_me = true;
         
         cli->exit = WEXITSTATUS(status);
         
@@ -483,7 +483,7 @@ Sys_CLI_End_Update_Sig(system_cli_end_update){
         close(*(int*)&cli->out_write);
     }
     
-    return close_me;
+    return(close_me);
 }
 
 //
@@ -559,7 +559,6 @@ JobThreadProc(void* lpParameter){
                     full_job->job.callback(&linuxvars.system,
                                            thread, thread_memory, full_job->job.data);
                     LinuxScheduleStep();
-                    //full_job->running_thread = 0;
                     thread->running = 0;
                     
                     system_acquire_lock(cancel_lock);
@@ -735,9 +734,7 @@ Sys_Cancel_Job_Sig(system_cancel_job){
         Full_Job_Data *job = queue->jobs + (job_id % QUEUE_WRAP);
         Assert(job->id == job_id);
         
-        u32 thread_id =
-            InterlockedCompareExchange(&job->running_thread,
-                                       0, THREAD_NOT_ASSIGNED);
+        u32 thread_id = InterlockedCompareExchange(&job->running_thread, 0, THREAD_NOT_ASSIGNED);
         
         if (thread_id != THREAD_NOT_ASSIGNED && thread_id != 0){
             i32 thread_index = thread_id - 1;
@@ -745,7 +742,6 @@ Sys_Cancel_Job_Sig(system_cancel_job){
             i32 cancel_lock = group->cancel_lock0 + thread_index;
             i32 cancel_cv = group->cancel_cv0 + thread_index;
             Thread_Context *thread = group->threads + thread_index;
-            
             
             system_acquire_lock(cancel_lock);
             
@@ -764,7 +760,7 @@ Sys_Cancel_Job_Sig(system_cancel_job){
 
 internal
 Sys_Check_Cancel_Sig(system_check_cancel){
-    b32 result = 0;
+    b32 result = false;
     
     Thread_Group *group = linuxvars.groups + thread->group_id;
     i32 thread_index = thread->id - 1;
@@ -772,7 +768,7 @@ Sys_Check_Cancel_Sig(system_check_cancel){
     
     system_acquire_lock(cancel_lock);
     if (thread->cancel){
-        result = 1;
+        result = true;
     }
     system_release_lock(cancel_lock);
     
@@ -781,13 +777,10 @@ Sys_Check_Cancel_Sig(system_check_cancel){
 
 internal
 Sys_Grow_Thread_Memory_Sig(system_grow_thread_memory){
-    void *old_data;
-    i32 old_size, new_size;
-    
     system_acquire_lock(CANCEL_LOCK0 + memory->id - 1);
-    old_data = memory->data;
-    old_size = memory->size;
-    new_size = l_round_up_i32(memory->size*2, KB(4));
+    void *old_data = memory->data;
+    i32 old_size = memory->size;
+    i32 new_size = l_round_up_i32(memory->size*2, KB(4));
     memory->data = system_memory_allocate(new_size);
     memory->size = new_size;
     if (old_data){
@@ -803,7 +796,7 @@ Sys_Grow_Thread_Memory_Sig(system_grow_thread_memory){
 
 #if FRED_INTERNAL
 
-#ifdef OLD_JOB_QUEUE
+#if defined(OLD_JOB_QUEUE)
 internal
 INTERNAL_Sys_Get_Thread_States_Sig(internal_get_thread_states){
     Work_Queue *queue = linuxvars.queues + id;
@@ -2755,7 +2748,7 @@ main(int argc, char **argv){
 }
 
 #include "linux_4ed_fonts.cpp"
-#include "linux_4ed_file_track.cpp"
+#include "unix_4ed_file_track.cpp"
 #include "4ed_font_static_functions.cpp"
 
 // BOTTOM
