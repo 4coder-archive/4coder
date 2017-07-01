@@ -13,6 +13,8 @@
 
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/epoll.h>
+#include <sys/wait.h>
 
 #include <fcntl.h>
 #include <unistd.h>
@@ -21,15 +23,35 @@
 #include <errno.h>
 #include <time.h>
 
+#include <stdlib.h>
 #if defined(USE_LOG)
 # include <stdio.h>
 #endif
 
+//
+// Unix Structs / Enums
+//
+
 struct Unix_Vars{
     b32 do_logging;
+    
+    int epoll;
 };
 
 static Unix_Vars unixvars;
+
+enum{
+    UNIX_4ED_EVENT_CLI = (UINT64_C(1) << 32),
+};
+
+//
+// Vars Init
+//
+
+internal void
+unixvars_init(){
+    unixvars.epoll = epoll_create(16);
+}
 
 //
 // 4ed Path
@@ -458,6 +480,120 @@ Sys_Now_Time_Sig(system_now_time){
     clock_gettime(CLOCK_REALTIME, &spec);
     u64 result = (spec.tv_sec * UINT64_C(1000000)) + (spec.tv_nsec / UINT64_C(1000));
     return(result);
+}
+
+//
+// CLI
+//
+
+internal
+Sys_CLI_Call_Sig(system_cli_call){
+    LOGF("%s %s", path, script_name);
+    
+    int pipe_fds[2];
+    if (pipe(pipe_fds) == -1){
+        perror("system_cli_call: pipe");
+        return 0;
+    }
+    
+    pid_t child_pid = fork();
+    if (child_pid == -1){
+        perror("system_cli_call: fork");
+        return 0;
+    }
+    
+    enum { PIPE_FD_READ, PIPE_FD_WRITE };
+    
+    // child
+    if (child_pid == 0){
+        close(pipe_fds[PIPE_FD_READ]);
+        dup2(pipe_fds[PIPE_FD_WRITE], STDOUT_FILENO);
+        dup2(pipe_fds[PIPE_FD_WRITE], STDERR_FILENO);
+        
+        if (chdir(path) == -1){
+            LOG("system_cli_call: chdir");
+            exit(1);
+        }
+        
+        char* argv[] = { "sh", "-c", script_name, NULL };
+        
+        if (execv("/bin/sh", argv) == -1){
+            LOG("system_cli_call: execv");
+        }
+        exit(1);
+    }
+    else{
+        close(pipe_fds[PIPE_FD_WRITE]);
+        
+        *(pid_t*)&cli_out->proc = child_pid;
+        *(int*)&cli_out->out_read = pipe_fds[PIPE_FD_READ];
+        *(int*)&cli_out->out_write = pipe_fds[PIPE_FD_WRITE];
+        
+        struct epoll_event e = {};
+        e.events = EPOLLIN | EPOLLET;
+        e.data.u64 = UNIX_4ED_EVENT_CLI;
+        epoll_ctl(unixvars.epoll, EPOLL_CTL_ADD, pipe_fds[PIPE_FD_READ], &e);
+    }
+    
+    return(1);
+}
+
+internal
+Sys_CLI_Begin_Update_Sig(system_cli_begin_update){
+    // NOTE(inso): I don't think anything needs to be done here.
+}
+
+internal
+Sys_CLI_Update_Step_Sig(system_cli_update_step){
+    int pipe_read_fd = *(int*)&cli->out_read;
+    
+    fd_set fds;
+    FD_ZERO(&fds);
+    FD_SET(pipe_read_fd, &fds);
+    
+    struct timeval tv = {};
+    
+    size_t space_left = max;
+    char* ptr = dest;
+    
+    while(space_left > 0 && select(pipe_read_fd + 1, &fds, NULL, NULL, &tv) == 1){
+        ssize_t num = read(pipe_read_fd, ptr, space_left);
+        if (num == -1){
+            perror("system_cli_update_step: read");
+        }
+        else if (num == 0){
+            // NOTE(inso): EOF
+            break;
+        }
+        else{
+            ptr += num;
+            space_left -= num;
+        }
+    }
+    
+    *amount = (ptr - dest);
+    return (ptr - dest) > 0;
+}
+
+internal
+Sys_CLI_End_Update_Sig(system_cli_end_update){
+    pid_t pid = *(pid_t*)&cli->proc;
+    b32 close_me = false;
+    
+    int status;
+    if (pid && waitpid(pid, &status, WNOHANG) > 0){
+        close_me = true;
+        
+        cli->exit = WEXITSTATUS(status);
+        
+        struct epoll_event e = {};
+        epoll_ctl(unixvars.epoll, EPOLL_CTL_DEL, *(int*)&cli->out_read, &e);
+        
+        close(*(int*)&cli->out_read);
+        close(*(int*)&cli->out_write);
+    }
+    
+    return(close_me);
 }
 
 // BOTTOM

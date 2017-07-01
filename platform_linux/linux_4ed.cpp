@@ -49,7 +49,6 @@
 #include "unix_4ed_functions.cpp"
 
 #include <math.h>
-#include <stdlib.h>
 
 #include <locale.h>
 #include <dlfcn.h>
@@ -62,10 +61,8 @@
 #include <sys/types.h>
 #include <sys/ioctl.h>
 #include <sys/time.h>
-#include <sys/wait.h>
 #include <sys/timerfd.h>
 #include <sys/eventfd.h>
-#include <sys/epoll.h>
 #include <sys/inotify.h>
 
 #include <X11/Xlib.h>
@@ -105,11 +102,10 @@ __sync_val_compare_and_swap((dest), (comp), (ex))
 //
 
 enum {
-    LINUX_4ED_EVENT_X11          = (UINT64_C(1) << 32),
-    LINUX_4ED_EVENT_X11_INTERNAL = (UINT64_C(2) << 32),
-    LINUX_4ED_EVENT_STEP         = (UINT64_C(3) << 32),
-    LINUX_4ED_EVENT_STEP_TIMER   = (UINT64_C(4) << 32),
-    LINUX_4ED_EVENT_CLI          = (UINT64_C(5) << 32),
+    LINUX_4ED_EVENT_X11          = (UINT64_C(2) << 32),
+    LINUX_4ED_EVENT_X11_INTERNAL = (UINT64_C(3) << 32),
+    LINUX_4ED_EVENT_STEP         = (UINT64_C(4) << 32),
+    LINUX_4ED_EVENT_STEP_TIMER   = (UINT64_C(5) << 32),
 };
 
 struct Linux_Coroutine {
@@ -171,8 +167,6 @@ struct Linux_Vars{
     
     b32 has_xfixes;
     int xfixes_selection_event;
-    
-    int epoll;
     
     int step_timer_fd;
     int step_event_fd;
@@ -239,6 +233,10 @@ internal             Sys_Release_Lock_Sig(system_release_lock);
 
 internal void        system_wait_cv(i32, i32);
 internal void        system_signal_cv(i32, i32);
+
+//
+// Application Behavior and Appearance
+//
 
 internal
 Sys_Show_Mouse_Cursor_Sig(system_show_mouse_cursor){
@@ -375,118 +373,6 @@ Sys_Resume_Coroutine_Sig(system_resume_coroutine){
 internal
 Sys_Yield_Coroutine_Sig(system_yield_coroutine){
     swapcontext(*(ucontext_t**)&coroutine->plat_handle, (ucontext*)coroutine->yield_handle);
-}
-
-//
-// CLI
-//
-
-internal
-Sys_CLI_Call_Sig(system_cli_call){
-    LINUX_FN_DEBUG("%s %s", path, script_name);
-    
-    int pipe_fds[2];
-    if(pipe(pipe_fds) == -1){
-        perror("system_cli_call: pipe");
-        return 0;
-    }
-    
-    pid_t child_pid = fork();
-    if(child_pid == -1){
-        perror("system_cli_call: fork");
-        return 0;
-    }
-    
-    enum { PIPE_FD_READ, PIPE_FD_WRITE };
-    
-    // child
-    if(child_pid == 0){
-        close(pipe_fds[PIPE_FD_READ]);
-        dup2(pipe_fds[PIPE_FD_WRITE], STDOUT_FILENO);
-        dup2(pipe_fds[PIPE_FD_WRITE], STDERR_FILENO);
-        
-        if(chdir(path) == -1){
-            perror("system_cli_call: chdir");
-            exit(1);
-        };
-        
-        char* argv[] = { "sh", "-c", script_name, NULL };
-        
-        if(execv("/bin/sh", argv) == -1){
-            perror("system_cli_call: execv");
-        }
-        exit(1);
-    } else {
-        close(pipe_fds[PIPE_FD_WRITE]);
-        
-        *(pid_t*)&cli_out->proc = child_pid;
-        *(int*)&cli_out->out_read = pipe_fds[PIPE_FD_READ];
-        *(int*)&cli_out->out_write = pipe_fds[PIPE_FD_WRITE];
-        
-        struct epoll_event e = {};
-        e.events = EPOLLIN | EPOLLET;
-        e.data.u64 = LINUX_4ED_EVENT_CLI;
-        epoll_ctl(linuxvars.epoll, EPOLL_CTL_ADD, pipe_fds[PIPE_FD_READ], &e);
-    }
-    
-    return 1;
-}
-
-internal
-Sys_CLI_Begin_Update_Sig(system_cli_begin_update){
-    // NOTE(inso): I don't think anything needs to be done here.
-}
-
-internal
-Sys_CLI_Update_Step_Sig(system_cli_update_step){
-    
-    int pipe_read_fd = *(int*)&cli->out_read;
-    
-    fd_set fds;
-    FD_ZERO(&fds);
-    FD_SET(pipe_read_fd, &fds);
-    
-    struct timeval tv = {};
-    
-    size_t space_left = max;
-    char* ptr = dest;
-    
-    while(space_left > 0 && select(pipe_read_fd + 1, &fds, NULL, NULL, &tv) == 1){
-        ssize_t num = read(pipe_read_fd, ptr, space_left);
-        if(num == -1){
-            perror("system_cli_update_step: read");
-        } else if(num == 0){
-            // NOTE(inso): EOF
-            break;
-        } else {
-            ptr += num;
-            space_left -= num;
-        }
-    }
-    
-    *amount = (ptr - dest);
-    return (ptr - dest) > 0;
-}
-
-internal
-Sys_CLI_End_Update_Sig(system_cli_end_update){
-    pid_t pid = *(pid_t*)&cli->proc;
-    b32 close_me = 0;
-    
-    int status;
-    if(pid && waitpid(pid, &status, WNOHANG) > 0){
-        close_me = 1;
-        
-        cli->exit = WEXITSTATUS(status);
-        
-        struct epoll_event e = {};
-        epoll_ctl(linuxvars.epoll, EPOLL_CTL_DEL, *(int*)&cli->out_read, &e);
-        
-        close(*(int*)&cli->out_read);
-        close(*(int*)&cli->out_write);
-    }
-    
-    return close_me;
 }
 
 //
@@ -1551,7 +1437,7 @@ LinuxX11ConnectionWatch(Display* dpy, XPointer cdata, int fd, Bool opening, XPoi
     e.data.u64 = LINUX_4ED_EVENT_X11_INTERNAL | fd;
     
     int op = opening ? EPOLL_CTL_ADD : EPOLL_CTL_DEL;
-    epoll_ctl(linuxvars.epoll, op, fd, &e);
+    epoll_ctl(unixvars.epoll, op, fd, &e);
 }
 
 // NOTE(inso): this was a quick hack, might need some cleanup.
@@ -2585,20 +2471,20 @@ main(int argc, char **argv){
     linuxvars.step_event_fd = eventfd(0, EFD_NONBLOCK);
     linuxvars.step_timer_fd = timerfd_create(CLOCK_MONOTONIC, TFD_NONBLOCK);
     
-    linuxvars.epoll = epoll_create(16);
+    unixvars_init();
     
     {
         struct epoll_event e = {};
         e.events = EPOLLIN | EPOLLET;
         
         e.data.u64 = LINUX_4ED_EVENT_X11;
-        epoll_ctl(linuxvars.epoll, EPOLL_CTL_ADD, linuxvars.x11_fd, &e);
+        epoll_ctl(unixvars.epoll, EPOLL_CTL_ADD, linuxvars.x11_fd, &e);
         
         e.data.u64 = LINUX_4ED_EVENT_STEP;
-        epoll_ctl(linuxvars.epoll, EPOLL_CTL_ADD, linuxvars.step_event_fd, &e);
+        epoll_ctl(unixvars.epoll, EPOLL_CTL_ADD, linuxvars.step_event_fd, &e);
         
         e.data.u64 = LINUX_4ED_EVENT_STEP_TIMER;
-        epoll_ctl(linuxvars.epoll, EPOLL_CTL_ADD, linuxvars.step_timer_fd, &e);
+        epoll_ctl(unixvars.epoll, EPOLL_CTL_ADD, linuxvars.step_timer_fd, &e);
     }
     
     //
@@ -2631,7 +2517,7 @@ main(int argc, char **argv){
         system_release_lock(FRAME_LOCK);
         
         struct epoll_event events[16];
-        int num_events = epoll_wait(linuxvars.epoll, events, ArrayCount(events), -1);
+        int num_events = epoll_wait(unixvars.epoll, events, ArrayCount(events), -1);
         
         system_acquire_lock(FRAME_LOCK);
         
@@ -2675,7 +2561,7 @@ main(int argc, char **argv){
                     do_step = 1;
                 } break;
                 
-                case LINUX_4ED_EVENT_CLI: {
+                case UNIX_4ED_EVENT_CLI: {
                     LinuxScheduleStep();
                 } break;
             }
