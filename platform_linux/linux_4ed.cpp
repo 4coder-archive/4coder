@@ -52,7 +52,6 @@
 #include <stdlib.h>
 
 #include <locale.h>
-#include <memory.h>
 #include <dlfcn.h>
 #include <xmmintrin.h>
 #include <pthread.h>
@@ -98,7 +97,8 @@
 #define LINUX_FN_DEBUG(fmt, ...)
 #endif
 
-#define InterlockedCompareExchange(dest, ex, comp) __sync_val_compare_and_swap((dest), (comp), (ex))
+#define InterlockedCompareExchange(dest, ex, comp) \
+__sync_val_compare_and_swap((dest), (comp), (ex))
 
 //
 // Linux structs / enums
@@ -239,68 +239,6 @@ internal             Sys_Release_Lock_Sig(system_release_lock);
 
 internal void        system_wait_cv(i32, i32);
 internal void        system_signal_cv(i32, i32);
-
-//
-// File System
-//
-
-internal
-Sys_File_Exists_Sig(system_file_exists){
-    int result = 0;
-    char buff[PATH_MAX] = {};
-    
-    if(len + 1 > PATH_MAX){
-        fputs("system_directory_has_file: path too long\n", stderr);
-    } else {
-        memcpy(buff, filename, len);
-        buff[len] = 0;
-        struct stat st;
-        result = stat(buff, &st) == 0 && S_ISREG(st.st_mode);
-    }
-    
-    LINUX_FN_DEBUG("%s: %d", buff, result);
-    
-    return(result);
-}
-
-internal
-Sys_Directory_CD_Sig(system_directory_cd){
-    String directory = make_string_cap(dir, *len, cap);
-    b32 result = 0;
-    i32 old_size;
-    
-    if (rel_path[0] != 0){
-        if (rel_path[0] == '.' && rel_path[1] == 0){
-            result = 1;
-        }
-        else if (rel_path[0] == '.' && rel_path[1] == '.' && rel_path[2] == 0){
-            result = remove_last_folder(&directory);
-            terminate_with_null(&directory);
-        }
-        else{
-            if (directory.size + rel_len + 1 > directory.memory_size){
-                old_size = directory.size;
-                append_partial_sc(&directory, rel_path);
-                append_s_char(&directory, '/');
-                terminate_with_null(&directory);
-                
-                struct stat st;
-                if (stat(directory.str, &st) == 0 && S_ISDIR(st.st_mode)){
-                    result = 1;
-                }
-                else{
-                    directory.size = old_size;
-                }
-            }
-        }
-    }
-    
-    *len = directory.size;
-    
-    LINUX_FN_DEBUG("%.*s: %d", directory.size, directory.str, result);
-    
-    return(result);
-}
 
 internal
 Sys_Show_Mouse_Cursor_Sig(system_show_mouse_cursor){

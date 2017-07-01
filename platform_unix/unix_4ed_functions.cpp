@@ -145,14 +145,7 @@ Sys_Memory_Free_Sig(system_memory_free){
 
 internal
 Sys_Set_File_List_Sig(system_set_file_list){
-    DIR *d;
-    struct dirent *entry;
-    char *fname, *cursor, *cursor_start;
-    File_Info *info_ptr;
-    i32 character_count, file_count, size, required_size, length;
-    b32 clear_list = false;
-    
-    if(directory == 0){
+    if (directory == 0){
         system_memory_free(file_list->block, file_list->block_size);
         file_list->block = 0;
         file_list->block_size = 0;
@@ -163,8 +156,8 @@ Sys_Set_File_List_Sig(system_set_file_list){
     
     LOGF("%s", directory);
     
-    d = opendir(directory);
-    if (d){
+    DIR *d = opendir(directory);
+    if (d != 0){
         if (canon_directory_out != 0){
             u32 length = copy_fast_unsafe_cc(canon_directory_out, directory);
             if (canon_directory_out[length-1] != '/'){
@@ -174,21 +167,22 @@ Sys_Set_File_List_Sig(system_set_file_list){
             *canon_directory_size_out = length;
         }
         
-        character_count = 0;
-        file_count = 0;
-        for (entry = readdir(d);
+        i32 character_count = 0;
+        i32 file_count = 0;
+        for (struct dirent *entry = readdir(d);
              entry != 0;
              entry = readdir(d)){
-            fname = entry->d_name;
+            char *fname = entry->d_name;
             if (match_cc(fname, ".") || match_cc(fname, "..")){
                 continue;
             }
-            ++file_count;            
-            for (size = 0; fname[size]; ++size);
+            ++file_count;
+            i32 size = 0;
+            for (; fname[size]; ++size);
             character_count += size + 1;
         }
         
-        required_size = character_count + file_count * sizeof(File_Info);
+        i32 required_size = character_count + file_count * sizeof(File_Info);
         if (file_list->block_size < required_size){
             system_memory_free(file_list->block, file_list->block_size);
             file_list->block = system_memory_allocate(required_size);
@@ -196,30 +190,32 @@ Sys_Set_File_List_Sig(system_set_file_list){
         }
         
         file_list->infos = (File_Info*)file_list->block;
-        cursor = (char*)(file_list->infos + file_count);
+        char *cursor = (char*)(file_list->infos + file_count);
         
         if (file_list->block != 0){
             rewinddir(d);
-            info_ptr = file_list->infos;
-            for (entry = readdir(d);
+            File_Info *info_ptr = file_list->infos;
+            for (struct dirent *entry = readdir(d);
                  entry != 0;
                  entry = readdir(d)){
-                fname = entry->d_name;
+                char *fname = entry->d_name;
                 if (match_cc(fname, ".") || match_cc(fname, "..")){
                     continue;
                 }
-                cursor_start = cursor;
-                length = copy_fast_unsafe_cc(cursor_start, fname);
+                char *cursor_start = cursor;
+                i32 length = copy_fast_unsafe_cc(cursor_start, fname);
                 cursor += length;
                 
                 if(entry->d_type == DT_LNK){
                     struct stat st;
                     if(stat(entry->d_name, &st) != -1){
                         info_ptr->folder = S_ISDIR(st.st_mode);
-                    } else {
+                    }
+                    else{
                         info_ptr->folder = 0;
                     }
-                } else {
+                }
+                else{
                     info_ptr->folder = (entry->d_type == DT_DIR);
                 }
                 
@@ -233,7 +229,8 @@ Sys_Set_File_List_Sig(system_set_file_list){
         file_list->count = file_count;
         
         closedir(d);
-    } else {
+    }
+    else{
         system_memory_free(file_list->block, file_list->block_size);
         file_list->block = 0;
         file_list->block_size = 0;
@@ -322,7 +319,8 @@ Sys_Load_Size_Sig(system_load_size){
     
     if(fstat(fd, &st) == -1){
         LOG("fstat");
-    } else {
+    }
+    else{
         result = st.st_size;
     }
     
@@ -332,14 +330,16 @@ Sys_Load_Size_Sig(system_load_size){
 internal
 Sys_Load_File_Sig(system_load_file){
     int fd = *(int*)&handle;
-    do {
+    
+    do{
         ssize_t n = read(fd, buffer, size);
         if(n == -1){
             if(errno != EINTR){
                 LOG("read");
                 break;
             }
-        } else {
+        }
+        else{
             size -= n;
             buffer += n;
         }
@@ -385,6 +385,67 @@ Sys_Save_File_Sig(system_save_file){
     }
     
     return (size == 0);
+}
+
+//
+// File System
+//
+
+internal
+Sys_File_Exists_Sig(system_file_exists){
+    int result = 0;
+    char buff[PATH_MAX] = {};
+    
+    if (len + 1 > PATH_MAX){
+        LOG("system_directory_has_file: path too long\n");
+    }
+    else{
+        memcpy(buff, filename, len);
+        buff[len] = 0;
+        struct stat st;
+        result = stat(buff, &st) == 0 && S_ISREG(st.st_mode);
+    }
+    
+    LOGF("%s: %d", buff, result);
+    
+    return(result);
+}
+
+internal
+Sys_Directory_CD_Sig(system_directory_cd){
+    String directory = make_string_cap(dir, *len, cap);
+    b32 result = false;
+    
+    if (rel_path[0] != 0){
+        if (rel_path[0] == '.' && rel_path[1] == 0){
+            result = true;
+        }
+        else if (rel_path[0] == '.' && rel_path[1] == '.' && rel_path[2] == 0){
+            result = remove_last_folder(&directory);
+            terminate_with_null(&directory);
+        }
+        else{
+            if (directory.size + rel_len + 1 > directory.memory_size){
+                i32 old_size = directory.size;
+                append_partial_sc(&directory, rel_path);
+                append_s_char(&directory, '/');
+                terminate_with_null(&directory);
+                
+                struct stat st;
+                if (stat(directory.str, &st) == 0 && S_ISDIR(st.st_mode)){
+                    result = true;
+                }
+                else{
+                    directory.size = old_size;
+                }
+            }
+        }
+    }
+    
+    *len = directory.size;
+    LOGF("%.*s: %d", directory.size, directory.str, result);
+    
+    return(result);
 }
 
 //
