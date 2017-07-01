@@ -54,9 +54,6 @@
 #include <locale.h>
 #include <dlfcn.h>
 #include <xmmintrin.h>
-#include <pthread.h>
-#include <semaphore.h>
-#include <signal.h>
 #include <ucontext.h>
 
 #include <sys/types.h>

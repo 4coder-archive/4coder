@@ -10,7 +10,6 @@
 // TOP
 
 #include <sys/mman.h>
-
 #include <sys/types.h>
 #include <sys/stat.h>
 
@@ -20,6 +19,9 @@
 #include <alloca.h>
 #include <errno.h>
 #include <time.h>
+#include <pthread.h>
+#include <semaphore.h>
+#include <signal.h>
 
 #if defined(USE_LOG)
 # include <stdio.h>
