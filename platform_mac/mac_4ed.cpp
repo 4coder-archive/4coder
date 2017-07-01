@@ -43,6 +43,8 @@
 #include "4ed_font_interface_to_os.h"
 #include "4ed_system_shared.h"
 
+#include <sys/syslimits.h>
+
 #include "unix_4ed_functions.cpp"
 
 #include "osx_objective_c_to_cpp_links.h"

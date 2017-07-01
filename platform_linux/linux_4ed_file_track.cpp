@@ -184,11 +184,12 @@ expand_track_system_listeners(File_Track_System *system, Partition *scratch, voi
     
     // NOTE(inso): assuming PATH_MAX is a reasonable lower bound of extra memory to get
     
-    if(size < PATH_MAX){
+    if (size < PATH_MAX){
         result = FileTrack_MemoryTooSmall;
-    } else {
-        vars->string_mem_begin = (char*) mem;
-        vars->string_mem_end   = (char*) mem + size;;
+    }
+    else{
+        vars->string_mem_begin = (char*)mem;
+        vars->string_mem_end   = (char*)mem + size;;
     }
     
     pthread_mutex_unlock(&vars->lock);
