@@ -51,13 +51,21 @@ struct Command_Line_Parameters{
     int32_t argc;
 };
 
+typedef u8 Log_To_Type;
+enum{
+    LogTo_Nothing,
+    LogTo_Stdout,
+    LogTo_LogFile,
+    LogTo_COUNT
+};
+
 struct Plat_Settings{
     char *custom_dll;
     b8 custom_dll_is_strict;
     b8 fullscreen_window;
     b8 stream_mode;
     
-    b8 use_log;
+    u8 use_log;
     
     i32 window_w, window_h;
     i32 window_x, window_y;

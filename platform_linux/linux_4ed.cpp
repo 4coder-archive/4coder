@@ -86,13 +86,9 @@
 #define FPS 60L
 #define frame_useconds (1000000UL / FPS)
 
-#if FRED_INTERNAL
 #define LINUX_FN_DEBUG(fmt, ...) do { \
-    fprintf(stderr, "%s: " fmt "\n", __func__, ##__VA_ARGS__); \
+    LOGF("%s: " fmt "\n", __func__, ##__VA_ARGS__); \
 } while(0)
-#else
-#define LINUX_FN_DEBUG(fmt, ...)
-#endif
 
 #define InterlockedCompareExchange(dest, ex, comp) \
 __sync_val_compare_and_swap((dest), (comp), (ex))
@@ -204,8 +200,6 @@ struct Linux_Vars{
     
     Linux_Coroutine coroutine_data[18];
     Linux_Coroutine *coroutine_free;
-    
-    u32 log_position;
 };
 
 //
@@ -922,6 +916,7 @@ LinuxLoadSystemCode(){
     linuxvars.system.release_lock = system_release_lock;
     
     // debug
+    linuxvars.system.log = system_log;
 #if FRED_INTERNAL
     linuxvars.system.internal_get_thread_states = internal_get_thread_states;
 #endif
@@ -2353,8 +2348,10 @@ main(int argc, char **argv){
     }
     if (output_size != 0){
         LinuxFatalErrorMsg("Error reading command-line arguments.");
-        return 1;
+        return(1);
     }
+    
+    unixvars.use_log = linuxvars.settings.use_log;
     
     sysshared_filter_real_files(files, file_count);
     

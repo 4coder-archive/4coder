@@ -28,7 +28,8 @@
 #endif
 
 struct Unix_Vars{
-    b32 do_logging;
+    u32 use_log;
+    b32 did_first_log;
 };
 
 static Unix_Vars unixvars;
@@ -58,8 +59,22 @@ Sys_Get_4ed_Path_Sig(system_get_4ed_path){
 
 internal
 Sys_Log_Sig(system_log){
-    if (unixvars.do_logging){
-        i32 fd = open("4coder_log.txt", O_WRONLY | O_CREAT, 00640);
+    if (unixvars.use_log == LogTo_LogFile){
+        char file_path_space[1024];
+        String file_path = make_fixed_width_string(file_path_space);
+        file_path.size = system_get_4ed_path(file_path.str, file_path.memory_size);
+        append_sc(&file_path, "4coder_log.txt");
+        terminate_with_null(&file_path);
+        
+        i32 fd = -1;
+        if (unixvars.did_first_log){
+            fd = open(file_path.str, O_WRONLY | O_CREAT | O_APPEND, 00640);
+        }
+        else{
+            fd = open(file_path.str, O_WRONLY | O_CREAT | O_TRUNC, 00640);
+            unixvars.did_first_log = true;
+        }
+        
         if (fd >= 0){
             do{
                 ssize_t written = write(fd, message, length);
@@ -71,6 +86,9 @@ Sys_Log_Sig(system_log){
             close(fd);
         }
     }
+    else if (unixvars.use_log == LogTo_Stdout){
+        fwrite(message, 1, length, stdout);
+    }
 }
 
 //
@@ -80,7 +98,7 @@ Sys_Log_Sig(system_log){
 internal
 Sys_File_Can_Be_Made_Sig(system_file_can_be_made){
     b32 result = access((char*)filename, W_OK) == 0;
-    LOGF("%s = %d", filename, result);
+    LOGF("%s = %d\n", filename, result);
     return(result);
 }
 
@@ -94,7 +112,7 @@ Sys_Memory_Allocate_Sig(system_memory_allocate){
     // We will count on the user to keep track of size themselves.
     void *result = mmap(0, size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
     if(result == MAP_FAILED){
-        LOG("mmap failed\n");
+        LOG("error: mmap failed\n");
         result = NULL;
     }
     return(result);
@@ -129,7 +147,7 @@ Sys_Memory_Set_Protection_Sig(system_memory_set_protection){
     
     if(mprotect(ptr, size, protect) == -1){
         result = 0;
-        LOG("mprotect");
+        LOG("error: mprotect\n");
     }
     
     return(result);
@@ -156,7 +174,7 @@ Sys_Set_File_List_Sig(system_set_file_list){
         return;
     }
     
-    LOGF("%s", directory);
+    LOGF("set_file_list: %s\n", directory);
     
     DIR *d = opendir(directory);
     if (d != 0){
@@ -288,7 +306,7 @@ Sys_Get_Canonical_Sig(system_get_canonical){
     
 #if FRED_INTERNAL
     if(len != (write_p - path) || memcmp(filename, path, len) != 0){
-        LOGF("[%.*s] -> [%.*s]", len, filename, (int)(write_p - path), path);
+        LOGF("[%.*s] -> [%.*s]\n", len, filename, (int)(write_p - path), path);
     }
 #endif
     
@@ -299,14 +317,14 @@ Sys_Get_Canonical_Sig(system_get_canonical){
 
 internal
 Sys_Load_Handle_Sig(system_load_handle){
-    b32 result = 0;
+    b32 result = false;
     
-    int fd = open(filename, O_RDONLY);
+    i32 fd = open(filename, O_RDONLY);
     if(fd == -1){
-        LOG("open");
+        LOG("error: open\n");
     } else {
         *(int*)handle_out = fd;
-        result = 1;
+        result = true;
     }
     
     return result;
@@ -320,7 +338,7 @@ Sys_Load_Size_Sig(system_load_size){
     struct stat st;
     
     if(fstat(fd, &st) == -1){
-        LOG("fstat");
+        LOG("error: fstat\n");
     }
     else{
         result = st.st_size;
@@ -337,7 +355,7 @@ Sys_Load_File_Sig(system_load_file){
         ssize_t n = read(fd, buffer, size);
         if(n == -1){
             if(errno != EINTR){
-                LOG("read");
+                LOG("error: read\n");
                 break;
             }
         }
@@ -356,7 +374,7 @@ Sys_Load_Close_Sig(system_load_close){
     
     int fd = *(int*)&handle;
     if(close(fd) == -1){
-        LOG("close");
+        LOG("error: close\n");
         result = 0;
     }
     
@@ -366,16 +384,16 @@ Sys_Load_Close_Sig(system_load_close){
 internal
 Sys_Save_File_Sig(system_save_file){
     int fd = open(filename, O_WRONLY | O_TRUNC | O_CREAT, 00640);
-    LOGF("%s %d", filename, size);
+    LOGF("%s %d\n", filename, size);
     if(fd < 0){
-        LOGF("system_save_file: open '%s': %s\n", filename, strerror(errno));
+        LOGF("error: open '%s': %s\n", filename, strerror(errno));
     }
     else{
         do {
             ssize_t written = write(fd, buffer, size);
             if(written == -1){
                 if(errno != EINTR){
-                    LOG("system_save_file: write");
+                    LOG("error: write\n");
                     break;
                 }
             } else {
@@ -408,7 +426,7 @@ Sys_File_Exists_Sig(system_file_exists){
         result = stat(buff, &st) == 0 && S_ISREG(st.st_mode);
     }
     
-    LOGF("%s: %d", buff, result);
+    LOGF("%s: %d\n", buff, result);
     
     return(result);
 }
@@ -445,7 +463,7 @@ Sys_Directory_CD_Sig(system_directory_cd){
     }
     
     *len = directory.size;
-    LOGF("%.*s: %d", directory.size, directory.str, result);
+    LOGF("%.*s: %d\n", directory.size, directory.str, result);
     
     return(result);
 }

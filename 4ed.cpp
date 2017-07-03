@@ -648,7 +648,8 @@ enum Command_Line_Action{
     CLAct_WindowStreamMode,
     CLAct_FontSize,
     CLAct_FontUseHinting,
-    CLAct_Log,
+    CLAct_LogStdout,
+    CLAct_LogFile,
     CLAct_Count
 };
 
@@ -704,7 +705,8 @@ init_command_line_settings(App_Settings *settings, Plat_Settings *plat_settings,
                                 case 'f': action = CLAct_FontSize;                      break;
                                 case 'h': action = CLAct_FontUseHinting; --i;           break;
                                 
-                                case 'L': action = CLAct_Log; --i;                      break;
+                                case 'l': action = CLAct_LogStdout; --i;                break;
+                                case 'L': action = CLAct_LogFile; --i;                  break;
                             }
                         }
                         else if (arg[0] != 0){
@@ -807,9 +809,15 @@ init_command_line_settings(App_Settings *settings, Plat_Settings *plat_settings,
                         action = CLAct_Nothing;
                     }break;
                     
-                    case CLAct_Log:
+                    case CLAct_LogStdout:
                     {
-                        plat_settings->use_log = true;
+                        plat_settings->use_log = LogTo_Stdout;
+                        action = CLAct_Nothing;
+                    }break;
+                    
+                    case CLAct_LogFile:
+                    {
+                        plat_settings->use_log = LogTo_LogFile;
                         action = CLAct_Nothing;
                     }break;
                 }
