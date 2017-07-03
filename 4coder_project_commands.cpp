@@ -105,7 +105,7 @@ open_all_files_with_extension_internal(Application_Links *app, String dir, char 
     for (uint32_t i = 0; i < list.count; ++i){
         File_Info *info = list.infos + i;
         if (info->folder){
-            if (recursive){
+            if (recursive && info->filename[0] != '.'){
                 dir.size = dir_size;
                 append(&dir, info->filename);
                 append(&dir, "/");

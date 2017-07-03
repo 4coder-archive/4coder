@@ -285,7 +285,7 @@ internal Linux_Coroutine*
 LinuxAllocCoroutine(){
     Linux_Coroutine *result = linuxvars.coroutine_free;
     Assert(result != 0);
-    if(getcontext(&result->ctx) == -1){
+    if (getcontext(&result->ctx) == -1){
         perror("getcontext");
     }
     result->ctx.uc_stack = result->stack;
@@ -396,14 +396,14 @@ Sys_CLI_Call_Sig(system_cli_call){
         dup2(pipe_fds[PIPE_FD_WRITE], STDOUT_FILENO);
         dup2(pipe_fds[PIPE_FD_WRITE], STDERR_FILENO);
         
-        if(chdir(path) == -1){
+        if (chdir(path) == -1){
             perror("system_cli_call: chdir");
             exit(1);
-        };
+        }
         
         char* argv[] = { "sh", "-c", script_name, NULL };
         
-        if(execv("/bin/sh", argv) == -1){
+        if (execv("/bin/sh", argv) == -1){
             perror("system_cli_call: execv");
         }
         exit(1);
@@ -444,9 +444,9 @@ Sys_CLI_Update_Step_Sig(system_cli_update_step){
     
     while(space_left > 0 && select(pipe_read_fd + 1, &fds, NULL, NULL, &tv) == 1){
         ssize_t num = read(pipe_read_fd, ptr, space_left);
-        if(num == -1){
+        if (num == -1){
             perror("system_cli_update_step: read");
-        } else if(num == 0){
+        } else if (num == 0){
             // NOTE(inso): EOF
             break;
         } else {
@@ -465,7 +465,7 @@ Sys_CLI_End_Update_Sig(system_cli_end_update){
     b32 close_me = false;
     
     int status;
-    if(pid && waitpid(pid, &status, WNOHANG) > 0){
+    if (pid && waitpid(pid, &status, WNOHANG) > 0){
         close_me = true;
         
         cli->exit = WEXITSTATUS(status);
@@ -843,7 +843,7 @@ LinuxLoadAppCode(String* base_dir){
     b32 result = 0;
     App_Get_Functions *get_funcs = 0;
     
-    if(!sysshared_to_binary_path(base_dir, "4ed_app.so")){
+    if (!sysshared_to_binary_path(base_dir, "4ed_app.so")){
         return 0;
     }
     
@@ -852,7 +852,7 @@ LinuxLoadAppCode(String* base_dir){
         get_funcs = (App_Get_Functions*)
             dlsym(linuxvars.app_code, "app_get_functions");
     } else {
-        fprintf(stderr, "dlopen failed: %s\n", dlerror());
+        LOGF("dlopen failed: %s\n", dlerror());
     }
     
     if (get_funcs){
@@ -979,7 +979,7 @@ GLsizei length,
 const GLchar* message,
 const void* userParam
 ){
-    fprintf(stderr, "GL DEBUG: %s\n", message);
+    LOGF("GL DEBUG: %s\n", message);
 }
 
 #endif
@@ -1008,7 +1008,7 @@ InitializeOpenGLContext(Display *XDisplay, Window XWindow, GLXFBConfig &bestFbc,
     
     if (!glXCreateContextAttribsARB)
     {
-        fprintf(stderr,  "glXCreateContextAttribsARB() not found, using old-style GLX context\n" );
+        LOG("glXCreateContextAttribsARB() not found, using old-style GLX context\n" );
         ctx = glXCreateNewContext( XDisplay, bestFbc, GLX_RGBA_TYPE, 0, True );
     } 
     else
@@ -1024,13 +1024,13 @@ InitializeOpenGLContext(Display *XDisplay, Window XWindow, GLXFBConfig &bestFbc,
             None
         };
         
-        fprintf(stderr,  "Creating GL 4.3 context...\n");
+        LOG("Creating GL 4.3 context...\n");
         ctx = glXCreateContextAttribsARB(XDisplay, bestFbc, 0, True, context_attribs);
         
         XSync( XDisplay, False );
         if (!ctxErrorOccurred && ctx)
         {
-            fprintf(stderr,  "Created GL 4.3 context.\n" );
+            LOG("Created GL 4.3 context.\n" );
         }
         else
         {
@@ -1039,14 +1039,14 @@ InitializeOpenGLContext(Display *XDisplay, Window XWindow, GLXFBConfig &bestFbc,
             context_attribs[1] = 3;
             context_attribs[3] = 2;
             
-            fprintf(stderr,  "GL 4.3 unavailable, creating GL 3.2 context...\n" );
+            LOG("GL 4.3 unavailable, creating GL 3.2 context...\n" );
             ctx = glXCreateContextAttribsARB( XDisplay, bestFbc, 0, True, context_attribs );
             
             XSync(XDisplay, False);
             
             if (!ctxErrorOccurred && ctx)
             {
-                fprintf(stderr,  "Created GL 3.2 context.\n" );
+                LOG("Created GL 3.2 context.\n" );
             }
             else
             {
@@ -1055,7 +1055,7 @@ InitializeOpenGLContext(Display *XDisplay, Window XWindow, GLXFBConfig &bestFbc,
                 
                 ctxErrorOccurred = false;
                 
-                fprintf(stderr, "Failed to create GL 3.2 context, using old-style GLX context\n");
+                LOG("Failed to create GL 3.2 context, using old-style GLX context\n");
                 ctx = glXCreateContextAttribsARB(XDisplay, bestFbc, 0, True, context_attribs);
                 
                 IsLegacy = true;
@@ -1066,25 +1066,23 @@ InitializeOpenGLContext(Display *XDisplay, Window XWindow, GLXFBConfig &bestFbc,
     XSync(XDisplay, False);
     XSetErrorHandler(oldHandler);
     
-    if (ctxErrorOccurred || !ctx)
-    {
-        fprintf(stderr,  "Failed to create an OpenGL context\n");
+    if (ctxErrorOccurred || !ctx){
+        LOG("Failed to create an OpenGL context\n");
         exit(1);
     }
     
     b32 Direct;
     if (!glXIsDirect(XDisplay, ctx))
     {
-        fprintf(stderr,  "Indirect GLX rendering context obtained\n");
-        Direct = 0;
+        LOG("Indirect GLX rendering context obtained\n");
+        Direct = false;
     }
-    else
-    {
-        fprintf(stderr,  "Direct GLX rendering context obtained\n");
-        Direct = 1;
+    else{
+        LOG("Direct GLX rendering context obtained\n");
+        Direct = true;
     }
     
-    fprintf(stderr,  "Making context current\n");
+    LOG("Making context current\n");
     glXMakeCurrent( XDisplay, XWindow, ctx );
     
     char *Vendor   = (char *)glGetString(GL_VENDOR);
@@ -1094,58 +1092,59 @@ InitializeOpenGLContext(Display *XDisplay, Window XWindow, GLXFBConfig &bestFbc,
     //TODO(inso): glGetStringi is required in core profile if the GL version is >= 3.0
     char *Extensions = (char *)glGetString(GL_EXTENSIONS);
     
-    fprintf(stderr, "GL_VENDOR: %s\n", Vendor);
-    fprintf(stderr, "GL_RENDERER: %s\n", Renderer);
-    fprintf(stderr, "GL_VERSION: %s\n", Version);
-    //  fprintf(stderr, "GL_EXTENSIONS: %s\n", Extensions);
+    LOGF("GL_VENDOR: %s\n", Vendor);
+    LOGF("GL_RENDERER: %s\n", Renderer);
+    LOGF("GL_VERSION: %s\n", Version);
     
     //NOTE(inso): enable vsync if available. this should probably be optional
-    if(Direct && strstr(glxExts, "GLX_EXT_swap_control ")){
-        
+    if (Direct && strstr(glxExts, "GLX_EXT_swap_control ")){
         GLXLOAD(glXSwapIntervalEXT);
         
-        if(glXSwapIntervalEXT){
+        if (glXSwapIntervalEXT){
             glXSwapIntervalEXT(XDisplay, XWindow, 1);
             
             unsigned int swap_val = 0;
             glXQueryDrawable(XDisplay, XWindow, GLX_SWAP_INTERVAL_EXT, &swap_val);
             
             linuxvars.vsync = swap_val == 1;
-            fprintf(stderr, "VSync enabled? %s.\n", linuxvars.vsync ? "Yes" : "No");
+            LOGF("VSync enabled? %s.\n", linuxvars.vsync ? "Yes" : "No");
         }
         
-    } else if(Direct && strstr(glxExts, "GLX_MESA_swap_control ")){
+    }
+    else if (Direct && strstr(glxExts, "GLX_MESA_swap_control ")){
         
         GLXLOAD(glXSwapIntervalMESA);
         GLXLOAD(glXGetSwapIntervalMESA);
         
-        if(glXSwapIntervalMESA){
+        if (glXSwapIntervalMESA){
             glXSwapIntervalMESA(1);
             
-            if(glXGetSwapIntervalMESA){
+            if (glXGetSwapIntervalMESA){
                 linuxvars.vsync = glXGetSwapIntervalMESA();
-                fprintf(stderr, "VSync enabled? %s (MESA)\n", linuxvars.vsync ? "Yes" : "No");
+                LOGF("VSync enabled? %s (MESA)\n", linuxvars.vsync ? "Yes" : "No");
             } else {
                 // NOTE(inso): assume it worked?
                 linuxvars.vsync = 1;
-                fputs("VSync enabled? possibly (MESA)\n", stderr);
+                LOG("VSync enabled? possibly (MESA)\n");
             }
         }
         
-    } else if(Direct && strstr(glxExts, "GLX_SGI_swap_control ")){
+    }
+    else if (Direct && strstr(glxExts, "GLX_SGI_swap_control ")){
         
         GLXLOAD(glXSwapIntervalSGI);
         
-        if(glXSwapIntervalSGI){
+        if (glXSwapIntervalSGI){
             glXSwapIntervalSGI(1);
             
             //NOTE(inso): The SGI one doesn't seem to have a way to confirm we got it...
             linuxvars.vsync = 1;
-            fputs("VSync enabled? hopefully (SGI)\n", stderr);
+            LOG("VSync enabled? hopefully (SGI)\n");
         }
         
-    } else {
-        fputs("VSync enabled? nope, no suitable extension\n", stderr);
+    }
+    else{
+        LOG("VSync enabled? nope, no suitable extension\n");
     }
     
 #if FRED_INTERNAL
@@ -1153,8 +1152,8 @@ InitializeOpenGLContext(Display *XDisplay, Window XWindow, GLXFBConfig &bestFbc,
     
     GLXLOAD(glDebugMessageCallback);
     
-    if(glDebugMessageCallback){
-        fputs("Enabling GL Debug Callback\n", stderr);
+    if (glDebugMessageCallback){
+        LOG("Enabling GL Debug Callback\n");
         glDebugMessageCallback(&LinuxGLDebugCallback, 0);
         glEnable(GL_DEBUG_OUTPUT);
     }
@@ -1178,11 +1177,11 @@ GLXCanUseFBConfig(Display *XDisplay)
     int GLXMajor, GLXMinor;
     
     char *XVendor = ServerVendor(XDisplay);
-    fprintf(stderr, "XWindows vendor: %s\n", XVendor);
-    if(glXQueryVersion(XDisplay, &GLXMajor, &GLXMinor))
+    LOGF("XWindows vendor: %s\n", XVendor);
+    if (glXQueryVersion(XDisplay, &GLXMajor, &GLXMinor))
     {
-        fprintf(stderr, "GLX version %d.%d\n", GLXMajor, GLXMinor);
-        if(((GLXMajor == 1 ) && (GLXMinor >= 3)) || (GLXMajor > 1))
+        LOGF("GLX version %d.%d\n", GLXMajor, GLXMinor);
+        if (((GLXMajor == 1 ) && (GLXMinor >= 3)) || (GLXMajor > 1))
         {
             Result = true;
         }
@@ -1225,10 +1224,10 @@ ChooseGLXConfig(Display *XDisplay, int XScreenIndex)
                                              XScreenIndex,
                                              DesiredAttributes,
                                              &ConfigCount);
-    if(Configs && ConfigCount > 0)
+    if (Configs && ConfigCount > 0)
     {
         XVisualInfo* VI = glXGetVisualFromFBConfig(XDisplay, Configs[0]);
-        if(VI)
+        if (VI)
         {
             Result.Found = true;
             Result.BestConfig = Configs[0];
@@ -1236,7 +1235,7 @@ ChooseGLXConfig(Display *XDisplay, int XScreenIndex)
             
             int id = 0;
             glXGetFBConfigAttrib(XDisplay, Result.BestConfig, GLX_FBCONFIG_ID, &id);
-            fprintf(stderr, "Using FBConfig: %d (0x%x)\n", id, id);
+            LOGF("Using FBConfig: %d (0x%x)\n", id, id);
             
             XFree(VI);
         }
@@ -1268,12 +1267,12 @@ LinuxInputInit(Display *dpy, Window XWindow){
     setlocale(LC_ALL, "");
     XSetLocaleModifiers("");
     b32 locale_supported = XSupportsLocale();
-    fprintf(stderr, "Supported locale?: %s.\n", locale_supported ? "Yes" : "No");
+    LOGF("Supported locale?: %s.\n", locale_supported ? "Yes" : "No");
     if (!locale_supported){
-        fprintf(stderr, "Reverting to 'C' ... ");
+        LOG("Reverting to 'C' ... ");
         setlocale(LC_ALL, "C");
         locale_supported = XSupportsLocale();
-        fprintf(stderr, "C is supported? %s.\n", locale_supported ? "Yes" : "No");
+        LOGF("C is supported? %s.\n", locale_supported ? "Yes" : "No");
     }
     
     result.input_method = XOpenIM(dpy, 0, 0, 0);
@@ -1307,13 +1306,13 @@ LinuxInputInit(Display *dpy, Window XWindow){
         }
         else{
             result = null_init_input_result;
-            fputs("Could not get minimum required input style.\n", stderr);
+            LOG("Could not get minimum required input style.\n");
             exit(1);
         }
     }
     else{
         result = null_init_input_result;
-        fprintf(stderr, "Could not open X Input Method.\n");
+        LOG("Could not open X Input Method.\n");
         exit(1);
     }
     
@@ -1391,12 +1390,12 @@ LinuxKeycodeInit(Display* dpy){
         &syms_per_code
         );
     
-    if(!syms) return;
+    if (!syms) return;
     
     int key = key_min;
     for(int i = 0; i < key_count * syms_per_code; ++i){
         for(int j = 0; j < table_size; ++j){
-            if(sym_table[j].sym == syms[i]){
+            if (sym_table[j].sym == syms[i]){
                 keycode_lookup_table[key + (i/syms_per_code)] = sym_table[j].code;
                 break;
             }
@@ -1413,7 +1412,7 @@ LinuxPushKey(Key_Code code, Key_Code chr, Key_Code chr_nocaps, b8 (*mods)[MDFR_I
     i32 *count = &linuxvars.input.keys.count;
     Key_Event_Data *data = linuxvars.input.keys.keys;
     
-    if(*count < KEY_INPUT_BUFFER_SIZE){
+    if (*count < KEY_INPUT_BUFFER_SIZE){
         data[*count].keycode = code;
         data[*count].character = chr;
         data[*count].character_no_caps_lock = chr_nocaps;
@@ -1543,10 +1542,10 @@ LinuxX11ConnectionWatch(Display* dpy, XPointer cdata, int fd, Bool opening, XPoi
 internal void
 LinuxFatalErrorMsg(const char* msg)
 {
-    fprintf(stderr, "Fatal Error: %s\n", msg);
+    LOGF("Fatal Error: %s\n", msg);
     
     Display *dpy = XOpenDisplay(0);
-    if(!dpy){
+    if (!dpy){
         exit(1);
     }
     
@@ -1557,8 +1556,8 @@ LinuxFatalErrorMsg(const char* msg)
     {
         const char *start_p = msg, *space_p = NULL;
         for(const char* p = msg; *p; ++p){
-            if(*p == ' ') space_p = p;
-            if(*p == '\n' || p - start_p > num_cols){
+            if (*p == ' ') space_p = p;
+            if (*p == '\n' || p - start_p > num_cols){
                 win_h += 18;
                 start_p = space_p ? space_p + 1 : p;
                 space_p = NULL;
@@ -1596,7 +1595,7 @@ LinuxFatalErrorMsg(const char* msg)
     XSelectInput(dpy, w, ExposureMask | StructureNotifyMask | PointerMotionMask | ButtonPressMask | ButtonReleaseMask | KeyPressMask);
     
     XFontStruct* font = XLoadQueryFont(dpy, "-*-fixed-bold-*-*-*-*-140-*-*-*-*-iso8859-1");
-    if(!font){
+    if (!font){
         exit(1);
     }
     
@@ -1618,9 +1617,9 @@ LinuxFatalErrorMsg(const char* msg)
         
         int redraw = 0;
         
-        if(ev.type == Expose) redraw = 1;
+        if (ev.type == Expose) redraw = 1;
         
-        if(ev.type == ConfigureNotify){
+        if (ev.type == ConfigureNotify){
             redraw = 1;
             win_w = ev.xconfigure.width;
             win_h = ev.xconfigure.height;
@@ -1628,33 +1627,33 @@ LinuxFatalErrorMsg(const char* msg)
         
         XRectangle button_rect = { win_w/2-40, win_h*0.8f, 80, 20 };
         
-        if(ev.type == MotionNotify){
+        if (ev.type == MotionNotify){
             int new_hi = (ev.xmotion.x > button_rect.x &&
                           ev.xmotion.y > button_rect.y &&
                           ev.xmotion.x < button_rect.x + button_rect.width &&
                           ev.xmotion.y < button_rect.y + button_rect.height);
             
-            if(new_hi != button_hi){
+            if (new_hi != button_hi){
                 button_hi = new_hi;
                 redraw = 1;
             }
         }
         
-        if(ev.type == KeyPress){
+        if (ev.type == KeyPress){
             KeySym sym = XLookupKeysym(&ev.xkey, 0);
-            if(sym == XK_Escape || sym == XK_Return){
+            if (sym == XK_Escape || sym == XK_Return){
                 exit(1);
             }
         }
         
-        if(ev.type == ButtonPress && ev.xbutton.button == Button1){
-            if(button_hi) button_trigger = 1;
+        if (ev.type == ButtonPress && ev.xbutton.button == Button1){
+            if (button_hi) button_trigger = 1;
             redraw = 1;
         }
         
-        if(ev.type == ButtonRelease && ev.xbutton.button == Button1){
-            if(button_trigger){
-                if(button_hi){
+        if (ev.type == ButtonRelease && ev.xbutton.button == Button1){
+            if (button_trigger){
+                if (button_hi){
                     exit(1);
                 } else {
                     button_trigger = 0;
@@ -1663,7 +1662,7 @@ LinuxFatalErrorMsg(const char* msg)
             redraw = 1;
         }
         
-        if(ev.type == ClientMessage && ev.xclient.window == w && (Atom)ev.xclient.data.l[0] == WM_DELETE_WINDOW){
+        if (ev.type == ClientMessage && ev.xclient.window == w && (Atom)ev.xclient.data.l[0] == WM_DELETE_WINDOW){
             exit(1);
         }
         
@@ -1671,7 +1670,7 @@ LinuxFatalErrorMsg(const char* msg)
         XDrawString(dpy, w, gc2, (x)+1, (y)+1, (str), (len)); \
         XDrawString(dpy, w, gc1, (x)  , (y)  , (str), (len))
         
-        if(redraw){
+        if (redraw){
             XClearWindow(dpy, w);
             
             const char* line_start = msg;
@@ -1690,11 +1689,11 @@ LinuxFatalErrorMsg(const char* msg)
             int x = (win_w/2) - (width/2);
             
             for(const char* p = line_start; *p; ++p){
-                if(*p == ' ') last_space = p;
-                if(p - line_start > num_cols || *p == '\n' || !p[1]){
+                if (*p == ' ') last_space = p;
+                if (p - line_start > num_cols || *p == '\n' || !p[1]){
                     
                     const char* new_line_start = last_space + 1;
-                    if(!last_space || *p == '\n' || !p[1]){
+                    if (!last_space || *p == '\n' || !p[1]){
                         new_line_start = last_space = (p + !p[1]);
                     }
                     
@@ -1707,7 +1706,7 @@ LinuxFatalErrorMsg(const char* msg)
             }
             
             XDrawRectangles(dpy, w, gc1, &button_rect, 1);
-            if(button_hi || button_trigger){
+            if (button_hi || button_trigger){
                 XDrawRectangle(dpy, w, gc2, button_rect.x+1, button_rect.y+1, button_rect.width-2, button_rect.height-2);
             }
             
@@ -1747,13 +1746,13 @@ LinuxGetXSettingsDPI(Display* dpy, int screen)
     Atom XSET_SEL = XInternAtom(dpy, sel_buffer, True);
     Atom XSET_SET = XInternAtom(dpy, "_XSETTINGS_SETTINGS", True);
     
-    if(XSET_SEL == None || XSET_SET == None){
-        fputs("XSETTINGS unavailable.\n", stderr);
-        return dpi;
+    if (XSET_SEL == None || XSET_SET == None){
+        LOG("XSETTINGS unavailable.\n");
+        return(dpi);
     }
     
     Window xset_win = XGetSelectionOwner(dpy, XSET_SEL);
-    if(xset_win == None){
+    if (xset_win == None){
         // TODO(inso): listen for the ClientMessage about it becoming available?
         //             there's not much point atm if DPI scaling is only done at startup 
         goto out;
@@ -1764,13 +1763,13 @@ LinuxGetXSettingsDPI(Display* dpy, int screen)
         int fmt;
         unsigned long pad, num;
         
-        if(XGetWindowProperty(dpy, xset_win, XSET_SET, 0, 1024, False, XSET_SET, &type, &fmt, &num, &pad, &prop) != Success){
-            fputs("XSETTINGS: GetWindowProperty failed.\n", stderr);
+        if (XGetWindowProperty(dpy, xset_win, XSET_SET, 0, 1024, False, XSET_SET, &type, &fmt, &num, &pad, &prop) != Success){
+            LOG("XSETTINGS: GetWindowProperty failed.\n");
             goto out;
         }
         
-        if(fmt != 8){
-            fputs("XSETTINGS: Wrong format.\n", stderr);
+        if (fmt != 8){
+            LOG("XSETTINGS: Wrong format.\n");
             goto out;
         }
     }
@@ -1778,27 +1777,24 @@ LinuxGetXSettingsDPI(Display* dpy, int screen)
     xs = (struct XSettings*)prop;
     p  = (char*)(xs + 1);
     
-    if(xs->byte_order != 0){
-        fputs("FIXME: XSETTINGS not host byte order?\n", stderr);
+    if (xs->byte_order != 0){
+        LOG("FIXME: XSETTINGS not host byte order?\n");
         goto out;
     }
     
-    for(int i = 0; i < xs->num_settings; ++i){
+    for (int i = 0; i < xs->num_settings; ++i){
         struct XSettingHeader* h = (struct XSettingHeader*)p;
-        
-        // const char* strs[] = { "Int", "String", "Color" };
-        // printf("%s:\t\"%.*s\"\n", strs[h->type], h->name_len, h->name);
         
         p += sizeof(struct XSettingHeader);
         p += h->name_len;
         p += ((4 - (h->name_len & 3)) & 3);
         p += 4; // serial
         
-        switch(h->type){
+        switch (h->type){
             case XSettingsTypeInt: {
-                if(strncmp(h->name, "Xft/DPI", h->name_len) == 0){
+                if (strncmp(h->name, "Xft/DPI", h->name_len) == 0){
                     dpi = *(i32*)p;
-                    if(dpi != -1) dpi /= 1024;
+                    if (dpi != -1) dpi /= 1024;
                 }
                 p += 4;
             } break;
@@ -1815,14 +1811,14 @@ LinuxGetXSettingsDPI(Display* dpy, int screen)
             } break;
             
             default: {
-                fputs("XSETTINGS: Got invalid type...\n", stderr);
+                LOG("XSETTINGS: Got invalid type...\n");
                 goto out;
             } break;
         }
     }
     
     out:
-    if(prop){
+    if (prop){
         XFree(prop);
     }
     
@@ -1954,7 +1950,7 @@ LinuxX11WindowInit(int argc, char** argv, int* window_width, int* window_height)
     if (linuxvars.settings.maximize_window){
         LinuxMaximizeWindow(linuxvars.XDisplay, linuxvars.XWindow, 1);
     }
-    else if(linuxvars.settings.fullscreen_window){
+    else if (linuxvars.settings.fullscreen_window){
         LinuxToggleFullscreen(linuxvars.XDisplay, linuxvars.XWindow);
     }
     
@@ -2003,10 +1999,10 @@ LinuxHandleX11Events(void)
                 b8 mods[MDFR_INDEX_COUNT] = {};
                 mods[MDFR_HOLD_INDEX] = is_hold;
                 
-                if(Event.xkey.state & ShiftMask) mods[MDFR_SHIFT_INDEX] = 1;
-                if(Event.xkey.state & ControlMask) mods[MDFR_CONTROL_INDEX] = 1;
-                if(Event.xkey.state & LockMask) mods[MDFR_CAPS_INDEX] = 1;
-                if(Event.xkey.state & Mod1Mask) mods[MDFR_ALT_INDEX] = 1;
+                if (Event.xkey.state & ShiftMask) mods[MDFR_SHIFT_INDEX] = 1;
+                if (Event.xkey.state & ControlMask) mods[MDFR_CONTROL_INDEX] = 1;
+                if (Event.xkey.state & LockMask) mods[MDFR_CAPS_INDEX] = 1;
+                if (Event.xkey.state & Mod1Mask) mods[MDFR_ALT_INDEX] = 1;
                 
                 Event.xkey.state &= ~(ControlMask);
                 
@@ -2016,45 +2012,45 @@ LinuxHandleX11Events(void)
                 
                 Xutf8LookupString(linuxvars.input_context, &Event.xkey, (char*)buff, sizeof(buff) - 1, &keysym, &status);
                 
-                if(status == XBufferOverflow){
+                if (status == XBufferOverflow){
                     //TODO(inso): handle properly
                     Xutf8ResetIC(linuxvars.input_context);
                     XSetICFocus(linuxvars.input_context);
-                    fputs("FIXME: XBufferOverflow from LookupString.\n", stderr);
+                    LOG("FIXME: XBufferOverflow from LookupString.\n");
                 }
                 
                 u32 key = utf8_to_u32_unchecked(buff);
                 u32 key_no_caps = key;
                 
-                if(mods[MDFR_CAPS_INDEX] && status == XLookupBoth && Event.xkey.keycode){
+                if (mods[MDFR_CAPS_INDEX] && status == XLookupBoth && Event.xkey.keycode){
                     u8 buff_no_caps[32] = {0};
                     Event.xkey.state &= ~(LockMask);
                     
                     XLookupString(&Event.xkey, (char*)buff_no_caps, sizeof(buff_no_caps) - 1, NULL, NULL);
                     
-                    if(*buff_no_caps){
+                    if (*buff_no_caps){
                         key_no_caps = utf8_to_u32_unchecked(buff_no_caps);
                     }
                 }
                 
-                if(key         == '\r') key         = '\n';
-                if(key_no_caps == '\r') key_no_caps = '\n';
+                if (key         == '\r') key         = '\n';
+                if (key_no_caps == '\r') key_no_caps = '\n';
                 
                 // don't push modifiers
-                if(keysym >= XK_Shift_L && keysym <= XK_Hyper_R){
+                if (keysym >= XK_Shift_L && keysym <= XK_Hyper_R){
                     break;
                 }
                 
-                if(keysym == XK_ISO_Left_Tab){
+                if (keysym == XK_ISO_Left_Tab){
                     key = key_no_caps = '\t';
                     mods[MDFR_SHIFT_INDEX] = 1;
                 }
                 
                 Key_Code special_key = keycode_lookup_table[(u8)Event.xkey.keycode];
                 
-                if(special_key){
+                if (special_key){
                     LinuxPushKey(special_key, 0, 0, &mods);
-                } else if(key < 256){
+                } else if (key < 256){
                     LinuxPushKey(key, key, key_no_caps, &mods);
                 } else {
                     LinuxPushKey(0, 0, 0, &mods);
@@ -2131,13 +2127,13 @@ LinuxHandleX11Events(void)
                 i32 w = Event.xconfigure.width;
                 i32 h = Event.xconfigure.height;
                 
-                if(w != linuxvars.target.width || h != linuxvars.target.height){
+                if (w != linuxvars.target.width || h != linuxvars.target.height){
                     LinuxResizeTarget(w, h);
                 }
             }break;
             
             case MappingNotify: {
-                if(Event.xmapping.request == MappingModifier || Event.xmapping.request == MappingKeyboard){
+                if (Event.xmapping.request == MappingModifier || Event.xmapping.request == MappingKeyboard){
                     XRefreshKeyboardMapping(&Event.xmapping);
                     LinuxKeycodeInit(linuxvars.XDisplay);
                 }
@@ -2184,7 +2180,7 @@ LinuxHandleX11Events(void)
                         linuxvars.atom_UTF8_STRING
                     };
                     
-                    if(request.target == linuxvars.atom_TARGETS){
+                    if (request.target == linuxvars.atom_TARGETS){
                         
                         XChangeProperty(
                             request.display,
@@ -2202,13 +2198,13 @@ LinuxHandleX11Events(void)
                     } else {
                         b32 found = false;
                         for(int i = 0; i < ArrayCount(atoms); ++i){
-                            if(request.target == atoms[i]){
+                            if (request.target == atoms[i]){
                                 found = true;
                                 break;
                             }
                         }
                         
-                        if(found){
+                        if (found){
                             XChangeProperty(
                                 request.display,
                                 request.requestor,
@@ -2231,7 +2227,7 @@ LinuxHandleX11Events(void)
             
             // NOTE(inso): Another program is now the clipboard owner.
             case SelectionClear: {
-                if(Event.xselectionclear.selection == linuxvars.atom_CLIPBOARD){
+                if (Event.xselectionclear.selection == linuxvars.atom_CLIPBOARD){
                     linuxvars.clipboard_outgoing.size = 0;
                 }
             }break;
@@ -2239,7 +2235,7 @@ LinuxHandleX11Events(void)
             // NOTE(inso): A program is giving us the clipboard data we asked for.
             case SelectionNotify: {
                 XSelectionEvent* e = (XSelectionEvent*)&Event;
-                if(e->selection == linuxvars.atom_CLIPBOARD && e->target == linuxvars.atom_UTF8_STRING && e->property != None){
+                if (e->selection == linuxvars.atom_CLIPBOARD && e->target == linuxvars.atom_UTF8_STRING && e->property != None){
                     Atom type;
                     int fmt;
                     unsigned long nitems, bytes_left;
@@ -2247,7 +2243,7 @@ LinuxHandleX11Events(void)
                     
                     int result = XGetWindowProperty(linuxvars.XDisplay, linuxvars.XWindow, linuxvars.atom_CLIPBOARD, 0L, LINUX_MAX_PASTE_CHARS/4L, False, linuxvars.atom_UTF8_STRING, &type, &fmt, &nitems, &bytes_left, &data);
                     
-                    if(result == Success && fmt == 8){
+                    if (result == Success && fmt == 8){
                         LinuxStringDup(&linuxvars.clipboard_contents, data, nitems);
                         should_step = 1;
                         linuxvars.new_clipboard = 1;
@@ -2263,9 +2259,9 @@ LinuxHandleX11Events(void)
             }break;
             
             default: {
-                if(Event.type == linuxvars.xfixes_selection_event){
+                if (Event.type == linuxvars.xfixes_selection_event){
                     XFixesSelectionNotifyEvent* sne = (XFixesSelectionNotifyEvent*)&Event;
-                    if(sne->subtype == XFixesSelectionNotify && sne->owner != linuxvars.XWindow){
+                    if (sne->subtype == XFixesSelectionNotify && sne->owner != linuxvars.XWindow){
                         XConvertSelection(linuxvars.XDisplay, linuxvars.atom_CLIPBOARD, linuxvars.atom_UTF8_STRING, linuxvars.atom_CLIPBOARD, linuxvars.XWindow, CurrentTime);
                     }
                 }
@@ -2275,7 +2271,7 @@ LinuxHandleX11Events(void)
         PrevEvent = Event;
     }
     
-    if(should_step){
+    if (should_step){
         LinuxScheduleStep();
     }
 }
@@ -2311,7 +2307,7 @@ main(int argc, char **argv){
     linuxvars.target.max         = MB(1);
     linuxvars.target.push_buffer = (char*)system_memory_allocate(linuxvars.target.max);
     
-    if(memory_vars.vars_memory == NULL || memory_vars.target_memory == NULL || memory_vars.user_memory == NULL || linuxvars.target.push_buffer == NULL){
+    if (memory_vars.vars_memory == NULL || memory_vars.target_memory == NULL || memory_vars.user_memory == NULL || linuxvars.target.push_buffer == NULL){
         LinuxFatalErrorMsg("Could not allocate sufficient memory. Please make sure you have atleast 512Mb of RAM free. (This requirement will be relaxed in the future).");
         exit(1);
     }
@@ -2323,7 +2319,7 @@ main(int argc, char **argv){
     //
     
     char* cwd = get_current_dir_name();
-    if(!cwd){
+    if (!cwd){
         char buf[1024];
         snprintf(buf, sizeof(buf), "Call to get_current_dir_name failed: %s", strerror(errno));
         LinuxFatalErrorMsg(buf);
@@ -2343,8 +2339,7 @@ main(int argc, char **argv){
     output_size = linuxvars.app.read_command_line(&linuxvars.system, &memory_vars, current_directory, &linuxvars.settings, &files, &file_count, clparams);
     
     if (output_size > 0){
-        // TODO(allen): crt free version
-        fprintf(stdout, "%.*s", output_size, (char*)memory_vars.target_memory);
+        LOGF("%.*s", output_size, (char*)memory_vars.target_memory);
     }
     if (output_size != 0){
         LinuxFatalErrorMsg("Error reading command-line arguments.");
@@ -2399,7 +2394,7 @@ main(int argc, char **argv){
                 exit(1);
             }
             else{
-                fprintf(stderr, "Successfully loaded custom_4coder.so\n");
+                LOG("Successfully loaded custom_4coder.so\n");
             }
         }
     } else {
@@ -2470,10 +2465,10 @@ main(int argc, char **argv){
     //
     
     linuxvars.XDisplay = XOpenDisplay(0);
-    if(!linuxvars.XDisplay){
+    if (!linuxvars.XDisplay){
         // NOTE(inso): probably not worth trying the popup in this case...
-        fprintf(stderr, "Can't open display!\n");
-        return 1;
+        LOG("Can't open display!\n");
+        return(1);
     }
     
 #define LOAD_ATOM(x) linuxvars.atom_##x = XInternAtom(linuxvars.XDisplay, #x, False);
@@ -2496,7 +2491,7 @@ main(int argc, char **argv){
     linuxvars.dpi_x = linuxvars.dpi_y = LinuxGetXSettingsDPI(linuxvars.XDisplay, DefaultScreen(linuxvars.XDisplay));
     
     // fallback
-    if(linuxvars.dpi_x == -1){
+    if (linuxvars.dpi_x == -1){
         int scr = DefaultScreen(linuxvars.XDisplay);
         
         int dw = DisplayWidth(linuxvars.XDisplay, scr);
@@ -2508,10 +2503,10 @@ main(int argc, char **argv){
         linuxvars.dpi_x = dw_mm ? dw / (dw_mm / 25.4) : 96;
         linuxvars.dpi_y = dh_mm ? dh / (dh_mm / 25.4) : 96;
         
-        fprintf(stderr, "%dx%d - %dmmx%dmm DPI: %dx%d\n", dw, dh, dw_mm, dh_mm, linuxvars.dpi_x, linuxvars.dpi_y);
+        LOGF("%dx%d - %dmmx%dmm DPI: %dx%d\n", dw, dh, dw_mm, dh_mm, linuxvars.dpi_x, linuxvars.dpi_y);
     }
     else{
-        fprintf(stderr, "DPI from XSETTINGS: %d\n", linuxvars.dpi_x);
+        LOGF("DPI from XSETTINGS: %d\n", linuxvars.dpi_x);
     }
     
     int window_width, window_height;
@@ -2527,7 +2522,7 @@ main(int argc, char **argv){
         XFixesSelectSelectionInput(linuxvars.XDisplay, linuxvars.XWindow, linuxvars.atom_CLIPBOARD, XFixesSetSelectionOwnerNotifyMask);
     }
     else{
-        fprintf(stderr, "Your X server doesn't support XFIXES, mention this fact if you report any clipboard-related issues.\n");
+        LOG("Your X server doesn't support XFIXES, mention this fact if you report any clipboard-related issues.\n");
     }
     
     Init_Input_Result input_result = LinuxInputInit(linuxvars.XDisplay, linuxvars.XWindow);
@@ -2624,7 +2619,7 @@ main(int argc, char **argv){
         
         if (num_events == -1){
             if (errno != EINTR){
-                fprintf(stderr, "epoll_wait\n");
+                LOG("epoll_wait\n");
             }
             continue;
         }
@@ -2668,10 +2663,10 @@ main(int argc, char **argv){
             }
         }
         
-        if(do_step){
+        if (do_step){
             linuxvars.last_step = system_now_time();
             
-            if(linuxvars.input.first_step || !linuxvars.has_xfixes){
+            if (linuxvars.input.first_step || !linuxvars.has_xfixes){
                 XConvertSelection(
                     linuxvars.XDisplay,
                     linuxvars.atom_CLIPBOARD,
@@ -2686,7 +2681,7 @@ main(int argc, char **argv){
             result.mouse_cursor_type = APP_MOUSE_CURSOR_DEFAULT;
             result.trying_to_kill = !linuxvars.keep_running;
             
-            if(linuxvars.new_clipboard){
+            if (linuxvars.new_clipboard){
                 linuxvars.input.clipboard = linuxvars.clipboard_contents;
                 linuxvars.new_clipboard = 0;
             } else {
@@ -2704,21 +2699,21 @@ main(int argc, char **argv){
                 clparams
                 );
             
-            if(result.perform_kill){
+            if (result.perform_kill){
                 break;
-            } else if(!keep_running && !linuxvars.keep_running){
+            } else if (!keep_running && !linuxvars.keep_running){
                 linuxvars.keep_running = 1;
             }
             
-            if(result.animating){
+            if (result.animating){
                 LinuxScheduleStep();
             }
             
             LinuxRedrawTarget();
             
-            if(result.mouse_cursor_type != linuxvars.cursor && !linuxvars.input.mouse.l){
+            if (result.mouse_cursor_type != linuxvars.cursor && !linuxvars.input.mouse.l){
                 Cursor c = xcursors[result.mouse_cursor_type];
-                if(!linuxvars.hide_cursor){
+                if (!linuxvars.hide_cursor){
                     XDefineCursor(linuxvars.XDisplay, linuxvars.XWindow, c);
                 }
                 linuxvars.cursor = result.mouse_cursor_type;
@@ -2736,8 +2731,10 @@ main(int argc, char **argv){
         }
     }
     
-    if(linuxvars.XDisplay){
-        if(linuxvars.XWindow) XDestroyWindow(linuxvars.XDisplay, linuxvars.XWindow);
+    if (linuxvars.XDisplay){
+        if (linuxvars.XWindow){
+            XDestroyWindow(linuxvars.XDisplay, linuxvars.XWindow);
+        }
         XCloseDisplay(linuxvars.XDisplay);
     }
     
