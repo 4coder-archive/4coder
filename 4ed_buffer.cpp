@@ -941,8 +941,7 @@ buffer_remeasure_starts(Gap_Buffer *buffer, i32 line_start, i32 line_end, i32 li
         new_line_count += line_shift;
         new_line_end += line_shift;
         
-        memmove(starts + line_end + line_shift, starts + line_end,
-                sizeof(i32)*(line_count - line_end));
+        memmove(starts + line_end + line_shift, starts + line_end, sizeof(i32)*(line_count - line_end));
     }
     
     // Iteration data (yikes! Need better loop system)

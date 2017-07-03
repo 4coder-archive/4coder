@@ -24,7 +24,7 @@
 
 // TODO(allen): set in compilation line
 #define PREFERRED_ALIGNMENT 8
-//#define USE_DEBUG_MEMORY
+#define USE_DEBUG_MEMORY
 
 #define FSTRING_IMPLEMENTATION
 #define FSTRING_C
