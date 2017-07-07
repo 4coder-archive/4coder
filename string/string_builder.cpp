@@ -11,9 +11,9 @@ Created 21.01.2017 (dd.mm.yyyy)
 #define FSTRING_IMPLEMENTATION
 #include "../4coder_lib/4coder_string.h"
 
-#include "../4tech_defines.h"
-#include "../meta/4tech_meta_defines.h"
-#include "../meta/4tech_file_moving.h"
+#include "../4ed_defines.h"
+#include "../meta/4ed_meta_defines.h"
+#include "../meta/4ed_file_moving.h"
 
 
 #define BUILD_NUMBER_FILE "4coder_string_build_num.txt"
@@ -480,7 +480,7 @@ int main(){
 }
 
 #define FTECH_FILE_MOVING_IMPLEMENTATION
-#include "../meta/4tech_file_moving.h"
+#include "../meta/4ed_file_moving.h"
 
 // BOTTOM
 

@@ -15,7 +15,7 @@
 #define API_H "4coder_API/app_functions.h"
 #define OS_API_H "4ed_os_custom_api.h"
 
-#include "4tech_meta_defines.h"
+#include "4ed_meta_defines.h"
 #include "../4coder_API/version.h"
 
 #define FSTRING_IMPLEMENTATION

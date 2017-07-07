@@ -9,7 +9,7 @@
 
 // TOP
 
-#include "4tech_defines.h"
+#include "4ed_defines.h"
 #include "4coder_API/version.h"
 
 #define WINDOW_NAME "4coder" VERSION

@@ -20,8 +20,8 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "../4tech_defines.h"
-#include "../meta/4tech_meta_defines.h"
+#include "../4ed_defines.h"
+#include "../meta/4ed_meta_defines.h"
 
 #include "../4coder_API/version.h"
 #define FSTRING_IMPLEMENTATION

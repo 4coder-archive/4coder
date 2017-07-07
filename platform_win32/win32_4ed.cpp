@@ -35,7 +35,7 @@
 #define FPS 60
 #define frame_useconds (1000000 / FPS)
 
-#include "4tech_defines.h"
+#include "4ed_defines.h"
 #include "4coder_API/version.h"
 
 #define WINDOW_NAME L"4coder: " L_VERSION

@@ -9,7 +9,7 @@ Created 21.01.2017 (dd.mm.yyyy)
 #if !defined(FTECH_META_DEFINES_H)
 #define FTECH_META_DEFINES_H
 
-#include "../4tech_defines.h"
+#include "../4ed_defines.h"
 
 #include <setjmp.h>
 #include <stdio.h>

@@ -14,7 +14,7 @@
 
 #include <assert.h>
 #include <string.h>
-#include "4tech_defines.h"
+#include "4ed_defines.h"
 #include "4coder_API/version.h"
 
 #include "4coder_lib/4coder_utf8.h"
