@@ -21,38 +21,6 @@
 // reusable
 //
 
-#if defined(IS_WINDOWS)
-#define EXE ".exe"
-#elif defined(IS_LINUX) || defined(IS_MAC)
-#define EXE ""
-#else
-#error No EXE format specified for this OS
-#endif
-
-#if defined(IS_WINDOWS)
-#define PDB ".pdb"
-#elif defined(IS_LINUX) || defined(IS_MAC)
-#define PDB ""
-#else
-#error No PDB format specified for this OS
-#endif
-
-#if defined(IS_WINDOWS)
-#define DLL ".dll"
-#elif defined(IS_LINUX) || defined(IS_MAC)
-#define DLL ".so"
-#else
-#error No DLL format specified for this OS
-#endif
-
-#if defined(IS_WINDOWS)
-#define BAT ".bat"
-#elif defined(IS_LINUX) || defined(IS_MAC)
-#define BAT ".sh"
-#else
-#error No BAT format specified for this OS
-#endif
-
 static void
 swap_ptr(char **A, char **B){
     char *a = *A;
@@ -431,9 +399,9 @@ build(u32 flags, char *code_path, char **code_files, char *out_path, char *out_f
     
     swap_ptr(&line.build_options, &line.build_options_prev);
     
-    Temp_Dir temp = pushdir(out_path);
+    Temp_Dir temp = fm_pushdir(out_path);
     systemf("g++ %s -o %s", line.build_options, out_file);
-    popdir(temp);
+    fm_popdir(temp);
 }
 
 #else

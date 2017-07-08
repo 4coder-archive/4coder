@@ -93,6 +93,39 @@ static char platform_correct_slash = '/';
 #error Slash not set for this platform.
 #endif
 
+// File Extensions
+#if defined(IS_WINDOWS)
+#define EXE ".exe"
+#elif defined(IS_LINUX) || defined(IS_MAC)
+#define EXE ""
+#else
+#error No EXE format specified for this OS
+#endif
+
+#if defined(IS_WINDOWS)
+#define PDB ".pdb"
+#elif defined(IS_LINUX) || defined(IS_MAC)
+#define PDB ""
+#else
+#error No PDB format specified for this OS
+#endif
+
+#if defined(IS_WINDOWS)
+#define DLL ".dll"
+#elif defined(IS_LINUX) || defined(IS_MAC)
+#define DLL ".so"
+#else
+#error No DLL format specified for this OS
+#endif
+
+#if defined(IS_WINDOWS)
+#define BAT ".bat"
+#elif defined(IS_LINUX) || defined(IS_MAC)
+#define BAT ".sh"
+#else
+#error No BAT format specified for this OS
+#endif
+
 #endif
 
 //
@@ -349,7 +382,7 @@ fm_popdir(Temp_Dir temp){
 }
 
 static void
-fm_init_time_system(){
+fm_init_system(){
     // NOTE(allen): do nothing
 }
 
@@ -378,12 +411,12 @@ fm_execute_in_dir(char *dir, char *str, char *args){
         if (args){
             Temp_Dir temp = fm_pushdir(dir);
             systemf("%s %s", str, args);
-            popdir(temp);
+            fm_popdir(temp);
         }
         else{
             Temp_Dir temp = fm_pushdir(dir);
             systemf("%s", str);
-            popdir(temp);
+            fm_popdir(temp);
         }
     }
     else{
@@ -458,8 +491,7 @@ fm_zip(char *parent, char *folder, char *file){
     Temp_Dir temp = fm_pushdir(parent);
     printf("PARENT DIR: %s\n", parent);
     systemf("zip -r %s %s", file, folder);
-    
-    popdir(temp);
+    fm_popdir(temp);
 }
 
 #else
