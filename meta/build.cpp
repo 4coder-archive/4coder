@@ -342,15 +342,20 @@ build(u32 flags, u32 arch, char *code_path, char **code_files, char *out_path, c
 #define GCC_SITE_INCLUDES "-I../../foreign -I../../code"
 
 static void
-build(u32 flags, char *code_path, char **code_files, char *out_path, char *out_file, char *exports, char **inc_folders){
+build(u32 flags, u32 arch, char *code_path, char **code_files, char *out_path, char *out_file, char *exports, char **inc_folders){
     Build_Line line;
     fm_init_build_line(&line);
     
-    if (flags & X86){
-        fm_add_to_line(line, GCC_X86);
-    }
-    else{
+    switch (arch){
+        case Arch_X64:
         fm_add_to_line(line, GCC_X64);
+        fm_add_to_line(line, "-DFTECH_64_BIT"); break;
+        
+        case Arch_X86:
+        fm_add_to_line(line, GCC_X86);
+        fm_add_to_line(line, "-DFTECH_32_BIT"); break;
+        
+        default: InvalidCodePath;
     }
     
     if (flags & OPTS){
@@ -501,7 +506,7 @@ do_buildsuper(char *cdir, char *file, u32 arch){
     if (This_OS == Platform_Windows){
         build_command = fm_str("call ", build_command);
     }
-    systemf(build_command);
+    systemf("%s", build_command);
     
     fm_popdir(temp);
     END_TIME_SECTION("build custom");
