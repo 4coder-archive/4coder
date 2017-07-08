@@ -14,6 +14,7 @@ By Allen Webster
 #include <stdio.h>  // include system for windows
 #include <stdlib.h> // include system for linux   (YAY!)
 #include <stdarg.h>
+#include <string.h>
 
 //
 // API
@@ -57,7 +58,7 @@ internal void fm_clear_folder(char *folder);
 internal void fm_delete_file(char *file);
 internal void fm_copy_file(char *file, char *newname);
 internal void fm_copy_all(char *source, char *tag, char *folder);
-internal void fm_copy_folder(char *dst_dir, char *src_folder);
+internal void fm_copy_folder(char *src_dir, char *dst_dir, char *src_folder);
 
 // Zip
 internal void fm_zip(char *parent, char *folder, char *dest);
@@ -303,7 +304,7 @@ fm_execute_in_dir(char *dir, char *str, char *args){
 
 static void
 fm_slash_fix(char *path){
-    if (path){
+    if (path != 0){
         for (int32_t i = 0; path[i]; ++i){
             if (path[i] == '/') path[i] = '\\';
         }
@@ -312,20 +313,16 @@ fm_slash_fix(char *path){
 
 static void
 fm_make_folder_if_missing(char *dir){
-    char space[1024];
-    String path = make_fixed_width_string(space);
-    append_sc(&path, dir);
-    terminate_with_null(&path);
-    
-    char *p = path.str;
+    char *path = fm_str(dir);
+    char *p = path;
     for (; *p; ++p){
         if (*p == '\\'){
             *p = 0;
-            CreateDirectoryA(path.str, 0);
+            CreateDirectoryA(path, 0);
             *p = '\\';
         }
     }
-    CreateDirectoryA(path.str, 0);
+    CreateDirectoryA(path, 0);
 }
 
 static void
@@ -482,22 +479,17 @@ fm_zip(char *parent, char *folder, char *file){
 #endif
 
 internal void
-fm_copy_folder(char *dst_dir, char *src_folder){
+fm_copy_folder(char *src_dir, char *dst_dir, char *src_folder){
+    Temp_Dir temp = fm_pushdir(src_dir);
     fm_make_folder_if_missing(fm_str(dst_dir, "/", src_folder));
-    
-    char space[256];
-    String copy_name = make_fixed_width_string(space);
-    append_sc(&copy_name, dst_dir);
-    append_s_char(&copy_name, platform_correct_slash);
-    append_sc(&copy_name, src_folder);
-    terminate_with_null(&copy_name);
-    
-    fm_copy_all(src_folder, "*", copy_name.str);
+    char *copy_name = fm_str(dst_dir, "/", src_folder);
+    fm_copy_all(src_folder, "*", copy_name);
+    fm_popdir(temp);
 }
 
 internal char*
 fm_prepare_string_internal(char *s1, ...){
-    i32 len = str_size(s1);
+    umem len = strlen(s1);
     char *result = (char*)fm__push(len);
     memcpy(result, s1, len);
     
@@ -509,7 +501,7 @@ fm_prepare_string_internal(char *s1, ...){
             break;
         }
         else{
-            len = str_size(sn);
+            len = strlen(sn);
             char *new_str = (char*)fm__push(len);
             memcpy(new_str, sn, len);
         }

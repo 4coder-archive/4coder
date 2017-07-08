@@ -8,6 +8,12 @@
 #define VERSION_NUMBER VN_(MAJOR,MINOR,PATCH)
 #define VERSION_STRING "alpha " VERSION_NUMBER
 
+#define ST__(s) #s
+#define ST_(s) ST__(s)
+#define MAJOR_STR ST_(MAJOR)
+#define MINOR_STR ST_(MINOR)
+#define PATCH_STR ST_(PATCH)
+
 #if defined(FRED_SUPER)
 #define VERSION_TYPE " super!"
 #else
