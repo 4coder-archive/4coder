@@ -52,10 +52,10 @@ internal u64  fm_get_time();
 #define END_TIME_SECTION(n) uint64_t total = fm_get_time() - start; printf("%-20s: %.2llu.%.6llu\n", (n), LLU_CAST(total/1000000), LLU_CAST(total%1000000));
 
 // Files and Folders Manipulation
-internal void fm_make_folder_if_missing(char *dir, char *folder);
+internal void fm_make_folder_if_missing(char *dir);
 internal void fm_clear_folder(char *folder);
 internal void fm_delete_file(char *file);
-internal void fm_copy_file(char *path, char *file, char *folder1, char *folder2, char *newname);
+internal void fm_copy_file(char *file, char *newname);
 internal void fm_copy_all(char *source, char *tag, char *folder);
 internal void fm_copy_folder(char *dst_dir, char *src_folder);
 
@@ -66,7 +66,7 @@ internal void fm_zip(char *parent, char *folder, char *dest);
 internal void fm_slash_fix(char *path);
 
 internal char *fm_prepare_string_internal(char *s1, ...);
-#define fm_prepare_string(...) fm_prepare_string_internal(__VA_ARGS__, 0)
+#define fm_str(...) fm_prepare_string_internal(__VA_ARGS__, 0)
 
 typedef umem Temp_Memory;
 internal Temp_Memory fm_begin_temp();
@@ -82,6 +82,41 @@ typedef struct Temp_Dir{
 internal Temp_Dir fm_pushdir(char *dir);
 internal void fm_popdir(Temp_Dir temp);
 
+// Build Line
+
+#define BUILD_LINE_MAX 4096
+typedef struct Build_Line{
+    char build_optionsA[BUILD_LINE_MAX];
+    char build_optionsB[BUILD_LINE_MAX];
+    char *build_options;
+    char *build_options_prev;
+    i32 build_max;
+} Build_Line;
+
+internal void fm_init_build_line(Build_Line *line);
+internal void fm_finish_build_line(Build_Line *line);
+
+internal void fm__swap_ptr(char **A, char **B);
+
+#if defined(IS_CL)
+
+#define fm_add_to_line(line, str, ...) do{  \
+    snprintf(line.build_options,            \
+    line.build_max, "%s "str,               \
+    line.build_options_prev, __VA_ARGS__);  \
+    fm__swap_ptr(&line.build_options, &line.build_options_prev); \
+}while(0)
+
+#elif defined(IS_GCC)
+
+#define fm_add_to_line(line, str, ...) do{                   \
+    snprintf(line.build_options, line.build_max, "%s "str,   \
+    line.build_options_prev, ##__VA_ARGS__);                 \
+    fm__swap_ptr(&line.build_options, &line.build_options_prev); \
+}while(0)
+
+#endif
+
 // Slashes
 #if defined(IS_WINDOWS)
 #define SLASH "\\"
@@ -95,35 +130,35 @@ static char platform_correct_slash = '/';
 
 // File Extensions
 #if defined(IS_WINDOWS)
-#define EXE ".exe"
+# define EXE ".exe"
 #elif defined(IS_LINUX) || defined(IS_MAC)
-#define EXE ""
+# define EXE ""
 #else
-#error No EXE format specified for this OS
+# error No EXE format specified for this OS
 #endif
 
 #if defined(IS_WINDOWS)
-#define PDB ".pdb"
+# define PDB ".pdb"
 #elif defined(IS_LINUX) || defined(IS_MAC)
-#define PDB ""
+# define PDB ""
 #else
-#error No PDB format specified for this OS
+# error No PDB format specified for this OS
 #endif
 
 #if defined(IS_WINDOWS)
-#define DLL ".dll"
+# define DLL ".dll"
 #elif defined(IS_LINUX) || defined(IS_MAC)
-#define DLL ".so"
+# define DLL ".so"
 #else
-#error No DLL format specified for this OS
+# error No DLL format specified for this OS
 #endif
 
 #if defined(IS_WINDOWS)
-#define BAT ".bat"
+# define BAT ".bat"
 #elif defined(IS_LINUX) || defined(IS_MAC)
-#define BAT ".sh"
+# define BAT ".sh"
 #else
-#error No BAT format specified for this OS
+# error No BAT format specified for this OS
 #endif
 
 #endif
@@ -276,14 +311,10 @@ fm_slash_fix(char *path){
 }
 
 static void
-fm_make_folder_if_missing(char *dir, char *folder){
+fm_make_folder_if_missing(char *dir){
     char space[1024];
     String path = make_fixed_width_string(space);
     append_sc(&path, dir);
-    if (folder){
-        append_sc(&path, "\\");
-        append_sc(&path, folder);
-    }
     terminate_with_null(&path);
     
     char *p = path.str;
@@ -308,32 +339,8 @@ fm_delete_file(char *file){
 }
 
 static void
-fm_copy_file(char *path, char *file, char *folder1, char *folder2, char *newname){
-    char src[256], dst[256];
-    String b = make_fixed_width_string(src);
-    if (path){
-        append_sc(&b, path);
-        append_sc(&b, "\\");
-    }
-    append_sc(&b, file);
-    terminate_with_null(&b);
-    
-    b = make_fixed_width_string(dst);
-    append_sc(&b, folder1);
-    append_sc(&b, "\\");
-    if (folder2){
-        append_sc(&b, folder2);
-        append_sc(&b, "\\");
-    }
-    if (newname){
-        append_sc(&b, newname);
-    }
-    else{
-        append_sc(&b, file);
-    }
-    terminate_with_null(&b);
-    
-    CopyFileA(src, dst, 0);
+fm_copy_file(char *file, char *newname){
+    CopyFileA(file, newname, 0);
 }
 
 static void
@@ -383,7 +390,7 @@ fm_popdir(Temp_Dir temp){
 
 static void
 fm_init_system(){
-    // NOTE(allen): do nothing
+    fm__init_memory();
 }
 
 static uint64_t
@@ -433,13 +440,8 @@ static void
 fm_slash_fix(char *path){}
 
 static void
-fm_make_folder_if_missing(char *dir, char *folder){
-    if (folder){
-        systemf("mkdir -p %s/%s", dir, folder);
-    }
-    else{
-        systemf("mkdir -p %s", dir);
-    }
+fm_make_folder_if_missing(char *dir){
+    systemf("mkdir -p %s", dir);
 }
 
 static void
@@ -453,27 +455,8 @@ fm_delete_file(char *file){
 }
 
 static void
-fm_copy_file(char *path, char *file, char *folder1, char *folder2, char *newname){
-    if (!newname){
-        newname = file;
-    }
-    
-    if (path){
-        if (folder2){
-            systemf("cp %s/%s %s/%s/%s", path, file, folder1, folder2, newname);
-        }
-        else{
-            systemf("cp %s/%s %s/%s", path, file, folder1, newname);
-        }
-    }
-    else{
-        if (folder2){
-            systemf("cp %s %s/%s/%s", file, folder1, folder2, newname);
-        }
-        else{
-            systemf("cp %s %s/%s", file, folder1, newname);
-        }
-    }
+fm_copy_file(char *file, char *newname){
+    systemf("cp %s %s", file, newname);
 }
 
 static void
@@ -500,7 +483,7 @@ fm_zip(char *parent, char *folder, char *file){
 
 internal void
 fm_copy_folder(char *dst_dir, char *src_folder){
-    fm_make_folder_if_missing(dst_dir, src_folder);
+    fm_make_folder_if_missing(fm_str(dst_dir, "/", src_folder));
     
     char space[256];
     String copy_name = make_fixed_width_string(space);
@@ -538,6 +521,28 @@ fm_prepare_string_internal(char *s1, ...){
     
     fm_slash_fix(result);
     return(result);
+}
+
+internal void
+fm_init_build_line(Build_Line *line){
+    line->build_options = line->build_optionsA;
+    line->build_options_prev = line->build_optionsB;
+    line->build_optionsA[0] = 0;
+    line->build_optionsB[0] = 0;
+    line->build_max = BUILD_LINE_MAX;
+}
+
+internal void
+fm_finish_build_line(Build_Line *line){
+    fm__swap_ptr(&line->build_options, &line->build_options_prev);
+}
+
+internal void
+fm__swap_ptr(char **A, char **B){
+    char *a = *A;
+    char *b = *B;
+    *A = b;
+    *B = a;
 }
 
 #endif

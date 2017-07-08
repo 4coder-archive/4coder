@@ -9,7 +9,7 @@ SET CODE_HOME=%~dp0
 IF NOT "%Platform%" == "X86" IF NOT "%Platform%" == "x86" (call "%CODE_HOME%\\windows_scripts\\setup_cl_x86.bat")
 
 SET SRC=%1
-if "%SRC%" == "" (SET SRC=4coder_default_bindings.cpp)
+if "%SRC%" == "" SET SRC=4coder_default_bindings.cpp
 
 SET OPTS=/W4 /wd4310 /wd4100 /wd4201 /wd4505 /wd4996 /wd4127 /wd4510 /wd4512 /wd4610 /wd4457 /WX
 SET OPTS=%OPTS% /GR- /nologo /FC
@@ -17,7 +17,7 @@ SET DEBUG=/Zi
 SET BUILD_DLL=/LD /link /INCREMENTAL:NO /OPT:REF
 SET EXPORTS=/EXPORT:get_bindings /EXPORT:get_alpha_4coder_version
 
-cl /I%CODE_HOME% %OPTS% %DEBUG% %SRC% /Fecustom_4coder %BUILD_DLL% %EXPORTS%
+cl %OPTS% /I"%CODE_HOME% " %DEBUG% "%SRC%" /Fecustom_4coder %BUILD_DLL% %EXPORTS%
 
 REM file spammation preventation
 del *.exp
