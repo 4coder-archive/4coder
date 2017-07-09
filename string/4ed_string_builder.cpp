@@ -1,20 +1,15 @@
 /*
-Builder for the 4coder_string.h header.
-By Allen Webster
-Created 21.01.2017 (dd.mm.yyyy)
-*/
+ * Mr. 4th Dimention - Allen Webster
+ *
+ * 21.01.2017
+ *
+ * Builder for the 4coder_string.h header.
+ *
+ */
 
 // TOP
 
-#include "../4cpp/4cpp_lexer.h"
 // TODO(allen): Make sure to only publish the 4coder_string.h if it builds and passes a series of tests.
-#define FSTRING_IMPLEMENTATION
-#include "../4coder_lib/4coder_string.h"
-
-#include "../4ed_defines.h"
-#include "../meta/4ed_meta_defines.h"
-#include "../meta/4ed_file_moving.h"
-
 
 #define BUILD_NUMBER_FILE "4coder_string_build_num.txt"
 
@@ -24,21 +19,28 @@ Created 21.01.2017 (dd.mm.yyyy)
 #define BACKUP_FOLDER ".." SLASH ".." SLASH "string_backup"
 #define PUBLISH_FOLDER ".." SLASH "4coder_helper"
 
+#include "../4cpp/4cpp_lexer.h"
+#define FSTRING_IMPLEMENTATION
+#include "../4coder_lib/4coder_string.h"
+
+#include "../4ed_defines.h"
+#include "../meta/4ed_meta_defines.h"
+#include "../meta/4ed_file_moving.h"
+
+#include "../4coder_lib/4coder_mem.h"
+
+#include "../meta/4ed_meta_parser.cpp"
+#include "../meta/4ed_out_context.cpp"
 
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
-
-#include "../4coder_lib/4coder_mem.h"
 
 #define V_MAJ_NUM 1
 #define V_MIN_NUM 0
 
 #define V_MAJ STR_(V_MAJ_NUM)
 #define V_MIN STR_(V_MIN_NUM)
-
-#include "../meta/4ed_meta_parser.cpp"
-#include "../meta/4ed_out_context.cpp"
 
 static b32
 parse_build_number(char *file_name, i32 *major_out, i32 *minor_out, i32 *build_out){
@@ -162,6 +164,7 @@ file_move(char *path, char *file_name){
 
 int main(){
     META_BEGIN();
+    fm_init_system();
     
     i32 size = (512 << 20);
     void *mem = malloc(size);
