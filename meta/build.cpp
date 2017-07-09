@@ -211,12 +211,8 @@ build(u32 flags, u32 arch, char *code_path, char **code_files, char *out_path, c
     }
     
     switch (arch){
-        case Arch_X64:
-        fm_add_to_line(line, "/DFTECH_64_BIT"); break;
-        
-        case Arch_X86:
-        fm_add_to_line(line, "/DFTECH_32_BIT"); break;
-        
+        case Arch_X64: fm_add_to_line(line, "/DFTECH_64_BIT"); break;
+        case Arch_X86: fm_add_to_line(line, "/DFTECH_32_BIT"); break;
         default: InvalidCodePath;
     }
     
@@ -230,12 +226,8 @@ build(u32 flags, u32 arch, char *code_path, char **code_files, char *out_path, c
     
     if (flags & LIBS){
         switch (arch){
-            case Arch_X64:
-            fm_add_to_line(line, CL_LIBS_X64); break;
-            
-            case Arch_X86:
-            fm_add_to_line(line, CL_LIBS_X86); break;
-            
+            case Arch_X64: fm_add_to_line(line, CL_LIBS_X64); break;
+            case Arch_X86: fm_add_to_line(line, CL_LIBS_X86); break;
             default: InvalidCodePath;
         }
     }
@@ -393,8 +385,7 @@ build(u32 flags, u32 arch, char *code_path, char **code_files, char *out_path, c
     if (defines != 0){
         for (u32 i = 0; defines[i]; ++i){
             char *define_flag = fm_str("-D", defines[i]);
-            fm_add_to_line(line, "%s", 
-                define_flag);
+            fm_add_to_line(line, "%s", define_flag);
         }
     }
 
