@@ -37,7 +37,8 @@ Created 21.01.2017 (dd.mm.yyyy)
 #define V_MAJ STR_(V_MAJ_NUM)
 #define V_MIN STR_(V_MIN_NUM)
 
-#include "../meta/meta_parser.cpp"
+#include "../meta/4ed_meta_parser.cpp"
+#include "../meta/4ed_out_context.cpp"
 
 static b32
 parse_build_number(char *file_name, i32 *major_out, i32 *minor_out, i32 *build_out){
@@ -95,8 +96,6 @@ save_build_number(char *file_name, i32 major, i32 minor, i32 build){
 }
 
 ///////////////////////////////
-
-#include "../meta/out_context.cpp"
 
 //
 // Meta Parse Rules
@@ -158,7 +157,7 @@ print_function_body_code(String *out, Parse_Context *context, int32_t start){
 
 internal void
 file_move(char *path, char *file_name){
-    copy_file(0, file_name, path, 0, file_name);
+    fm_copy_file(fm_str(file_name), fm_str(path, "/", file_name));
 }
 
 int main(){
@@ -467,11 +466,11 @@ int main(){
     
     // NOTE(allen): Publish the new file.  (Would like to be able to automatically test the result before publishing).
     {
-        make_folder_if_missing(BACKUP_FOLDER SLASH V_MAJ SLASH V_MIN, 0);
+        fm_make_folder_if_missing(BACKUP_FOLDER SLASH V_MAJ SLASH V_MIN);
         file_move(BACKUP_FOLDER SLASH V_MAJ SLASH V_MIN, INTERNAL_STRING);
         file_move(BACKUP_FOLDER SLASH V_MAJ SLASH V_MIN, GENERATED_FILE);
         //file_move(PUBLISH_FOLDER, GENERATED_FILE);
-        delete_file(GENERATED_FILE);
+        fm_delete_file(GENERATED_FILE);
         printf("published "GENERATED_FILE": v%d.%d.%d\n", major_number, minor_number, build_number);
         save_build_number(BUILD_NUMBER_FILE, major_number, minor_number, build_number + 1);
     }

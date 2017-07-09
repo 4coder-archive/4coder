@@ -29,9 +29,9 @@
 #include "../4coder_lib/4coder_mem.h"
 #include "../4cpp/4cpp_lexer.h"
 
-#include "../meta/meta_parser.cpp"
-#include "../meta/out_context.cpp"
-#include "abstract_document.cpp"
+#include "../meta/4ed_meta_parser.cpp"
+#include "../meta/4ed_out_context.cpp"
+#include "4ed_abstract_document.cpp"
 
 ///////////////////////////////////////////////////////////////////////////
 

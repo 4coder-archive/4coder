@@ -28,8 +28,8 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "meta_parser.cpp"
-#include "out_context.cpp"
+#include "4ed_meta_parser.cpp"
+#include "4ed_out_context.cpp"
 
 //////////////////////////////////////////////////////////////////////////////////////////////////
 char *keys_that_need_codes[] = {
