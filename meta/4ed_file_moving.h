@@ -76,9 +76,9 @@ internal char **fm_prepare_list_internal(char **l1, ...);
 internal char **fm_list_one_item(char *item);
 
 // File System Navigation
-typedef umem Temp_Memory;
-internal Temp_Memory fm_begin_temp();
-internal void fm_end_temp(Temp_Memory temp);
+typedef umem String_Temp;
+internal String_Temp fm_begin_temp();
+internal void fm_end_temp(String_Temp temp);
 
 internal i32  fm_get_current_directory(char *buffer, i32 max);
 
@@ -186,13 +186,13 @@ fm__init_memory(){
     fm_arena_memory = (char*)malloc(fm_arena_max);
 }
 
-internal Temp_Memory
+internal String_Temp
 fm_begin_temp(){
     return(fm_arena_pos);
 }
 
 internal void
-fm_end_temp(Temp_Memory temp){
+fm_end_temp(String_Temp temp){
     fm_arena_pos = temp;
 }
 
@@ -503,7 +503,7 @@ fm__prepare(umem item_size, void *i1, va_list list){
     umem size = listsize(i1, item_size);
     void *result = (void*)fm__push(size);
     memcpy(result, i1, size);
-
+    
     void *ln = va_arg(list, void*);
     for (;ln != 0;){
         size = listsize(ln, item_size);
@@ -511,7 +511,7 @@ fm__prepare(umem item_size, void *i1, va_list list){
         memcpy(new_str, ln, size);
         ln = va_arg(list, void*);
     }
-
+    
     void *terminator = (void*)fm__push(item_size);
     memset(terminator, 0, item_size);
     return(result);
