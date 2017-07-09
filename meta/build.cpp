@@ -71,11 +71,13 @@ char *compiler_names[] = {
 #define PACK_DIR "../distributions"
 #define SITE_DIR "../site"
 
+char *includes[] = { "../foreign", "../foreign/freetype2", 0, };
+
 //
 // Platform layer file tables
 //
 
-char *windows_platform_layer[] = { "platform_win32\\win32_4ed.cpp", 0 };
+char *windows_platform_layer[] = { "platform_win32/win32_4ed.cpp", 0 };
 char *linux_platform_layer[] = { "platform_linux/linux_4ed.cpp", 0 };
 char *mac_platform_layer[] = { "platform_mac/mac_4ed.m", "platform_mac/mac_4ed.cpp", 0 };
 
@@ -85,7 +87,7 @@ char **platform_layers[Platform_COUNT] = {
     mac_platform_layer    ,
 };
 
-char *windows_cl_platform_inc[] = { ".", "platform_all", 0 };
+char *windows_cl_platform_inc[] = { "platform_all", 0 };
 char *linux_gcc_platform_inc[] = { "platform_all", "platform_unix", 0 };
 char *mac_gcc_platform_inc[] = { "platform_all", "platform_unix", 0 };
 
@@ -138,18 +140,35 @@ char *arch_names[] = {
 
 enum{
     OPTS = 0x1,
-    INCLUDES = 0x2,
-    LIBS = 0x4,
-    ICON = 0x8,
-    SHARED_CODE = 0x10,
-    DEBUG_INFO = 0x20,
+    LIBS = 0x2,
+    ICON = 0x4,
+    SHARED_CODE = 0x8,
+    DEBUG_INFO = 0x10,
+    OPTIMIZATION = 0x20,
     SUPER = 0x40,
     INTERNAL = 0x80,
-    OPTIMIZATION = 0x100,
-    KEEP_ASSERT = 0x200,
-    SITE_INCLUDES = 0x400,
-    LOG = 0x800,
+    KEEP_ASSERT = 0x100,
+    LOG = 0x200,
 };
+
+internal char**
+get_defines_from_flags(u32 flags){
+    char **result = 0;
+    if (flags & KEEP_ASSERT){
+        result = fm_list(fm_list_one_item("FRED_KEEP_ASSERT"), result);
+    }
+    if (flags & INTERNAL){
+        result = fm_list(fm_list_one_item("FRED_INTERNAL"), result);
+    }
+    if (flags & SUPER){
+        result = fm_list(fm_list_one_item("FRED_SUPER"), result);
+    }
+    if (flags & LOG){
+        char *log_defines[] = { "USE_LOG", "USE_LOGF", 0};
+        result = fm_list(log_defines, result);
+    }
+    return(result);
+}
 
 //
 // build implementation: cl
@@ -162,10 +181,6 @@ enum{
 "-wd4127 -wd4510 -wd4512 -wd4610 -wd4390 "       \
 "-wd4611 -WX -GR- -EHa- -nologo -FC"
 
-#define CL_INCLUDES "/I..\\foreign /I..\\foreign\\freetype2"
-
-#define CL_SITE_INCLUDES "/I..\\..\\foreign /I..\\..\\code"
-
 #define CL_LIBS_X64                              \
 "user32.lib winmm.lib gdi32.lib opengl32.lib "   \
 "..\\foreign_x64\\freetype.lib"
@@ -174,13 +189,11 @@ enum{
 "user32.lib winmm.lib gdi32.lib opengl32.lib "   \
 "..\\foreign_x86\\freetype.lib"
 
+
 #define CL_ICON "..\\res\\icon.res"
 
-#define CL_X64 "-MACHINE:X64"
-#define CL_X86 "-MACHINE:X86"
-
 static void
-build(u32 flags, u32 arch, char *code_path, char **code_files, char *out_path, char *out_file, char *exports, char **inc_folders){
+build(u32 flags, u32 arch, char *code_path, char **code_files, char *out_path, char *out_file, char **defines, char **exports, char **inc_folders){
     Build_Line line;
     Build_Line link_line;
     Build_Line line_prefix;
@@ -207,21 +220,11 @@ build(u32 flags, u32 arch, char *code_path, char **code_files, char *out_path, c
         default: InvalidCodePath;
     }
     
-    if (flags & LOG){
-        fm_add_to_line(line, "/DUSE_LOG /DUSE_LOGF");
-    }
-    
-    if (flags & INCLUDES){
-        fm_add_to_line(line, CL_INCLUDES);
-    }
-    
-    if (flags & SITE_INCLUDES){
-        fm_add_to_line(line, CL_SITE_INCLUDES);
-    }
-    
+    fm_add_to_line(line, "-I%s", code_path);
     if (inc_folders != 0){
         for (u32 i = 0; inc_folders[i] != 0; ++i){
-            fm_add_to_line(line, "/I%s\\%s", code_path, inc_folders[i]);
+            char *str = fm_str(code_path, "/", inc_folders[i]);
+            fm_add_to_line(line, "/I%s", str);
         }
     }
     
@@ -253,25 +256,16 @@ build(u32 flags, u32 arch, char *code_path, char **code_files, char *out_path, c
         fm_add_to_line(line, "/LD");
     }
     
-    if (flags & SUPER){
-        fm_add_to_line(line, "/DFRED_SUPER");
+    if (defines != 0){
+        for (u32 i = 0; defines[i] != 0; ++i){
+            char *define_flag = fm_str("/D", defines[i]);
+            fm_add_to_line(line, define_flag);
+        }
     }
-    
-    if (flags & INTERNAL){
-        fm_add_to_line(line, "/DFRED_INTERNAL");
-    }
-    
-    if (flags & KEEP_ASSERT){
-        fm_add_to_line(line, "/DFRED_KEEP_ASSERT");
-    }
-    
+
     switch (arch){
-        case Arch_X64:
-        fm_add_to_line(link_line, CL_X64); break;
-        
-        case Arch_X86:
-        fm_add_to_line(link_line, CL_X86); break;
-        
+        case Arch_X64: fm_add_to_line(link_line, "/MACHINE:X64"); break;
+        case Arch_X86: fm_add_to_line(link_line, "/MACHINE:X86"); break;
         default: InvalidCodePath;
     }
     
@@ -279,15 +273,17 @@ build(u32 flags, u32 arch, char *code_path, char **code_files, char *out_path, c
         fm_add_to_line(link_line, "/DEBUG");
     }
     
-    char link_type_string[1024];
     if (flags & SHARED_CODE){
-        Assert(exports);
-        snprintf(link_type_string, sizeof(link_type_string), "/OPT:REF %s", exports);
+        Assert(exports != 0);
+        fm_add_to_line(link_line, "/OPT:REF");
+        for (u32 i = 0; exports[i] != 0; ++i){
+            char *str = fm_str("/EXPORT:", exports[i]);
+            fm_add_to_line(link_line, "%s", str);
+        }
     }
     else{
-        snprintf(link_type_string, sizeof(link_type_string), "/NODEFAULTLIB:library");
+        fm_add_to_line(link_line, "/NODEFAULTLIB:library");
     }
-    fm_add_to_line(link_line, "%s", link_type_string);
     
     for (u32 i = 0; code_files[i]; ++i){
         fm_add_to_line(line, "\"%s\\%s\"", code_path, code_files[i]);
@@ -333,26 +329,18 @@ build(u32 flags, u32 arch, char *code_path, char **code_files, char *out_path, c
 # error gcc options not set for this platform
 #endif
 
-#define GCC_X86 "-m32"
-
-#define GCC_X64 "-m64"
-
-#define GCC_INCLUDES "-I../foreign -I../code"
-
-#define GCC_SITE_INCLUDES "-I../../foreign -I../../code"
-
 static void
-build(u32 flags, u32 arch, char *code_path, char **code_files, char *out_path, char *out_file, char *exports, char **inc_folders){
+build(u32 flags, u32 arch, char *code_path, char **code_files, char *out_path, char *out_file, char **defines, char **exports, char **inc_folders){
     Build_Line line;
     fm_init_build_line(&line);
     
     switch (arch){
         case Arch_X64:
-        fm_add_to_line(line, GCC_X64);
+        fm_add_to_line(line, "-m64");
         fm_add_to_line(line, "-DFTECH_64_BIT"); break;
         
         case Arch_X86:
-        fm_add_to_line(line, GCC_X86);
+        fm_add_to_line(line, "-m32");
         fm_add_to_line(line, "-DFTECH_32_BIT"); break;
         
         default: InvalidCodePath;
@@ -362,6 +350,7 @@ build(u32 flags, u32 arch, char *code_path, char **code_files, char *out_path, c
         fm_add_to_line(line, GCC_OPTS);
     }
     
+#if 0
     if (flags & INCLUDES){
 #if defined(IS_LINUX)
         i32 size = 0;
@@ -379,14 +368,13 @@ build(u32 flags, u32 arch, char *code_path, char **code_files, char *out_path, c
         fm_add_to_line(line, GCC_INCLUDES);
 #endif
     }
+#endif
     
-    if (flags & SITE_INCLUDES){
-        fm_add_to_line(line, GCC_SITE_INCLUDES);
-    }
-    
+    fm_add_to_line(line, "-I%s", code_path);
     if (inc_folders != 0){
         for (u32 i = 0; inc_folders[i] != 0; ++i){
-            fm_add_to_line(line, "-I%s/%s", code_path, inc_folders[i]);
+            char *str = fm_str(code_path, "/", inc_folders[i]);
+            fm_add_to_line(line, "-I%s", str);
         }
     }
     
@@ -402,22 +390,14 @@ build(u32 flags, u32 arch, char *code_path, char **code_files, char *out_path, c
         fm_add_to_line(line, "-shared");
     }
     
-    if (flags & LOG){
-        fm_add_to_line(line, "-DUSE_LOG -DUSE_LOGF");
+    if (defines != 0){
+        for (u32 i = 0; defines[i]; ++i){
+            char *define_flag = fm_str("-D", defines[i]);
+            fm_add_to_line(line, "%s", 
+                define_flag);
+        }
     }
-    
-    if (flags & SUPER){
-        fm_add_to_line(line, "-DFRED_SUPER");
-    }
-    
-    if (flags & INTERNAL){
-        fm_add_to_line(line, "-DFRED_INTERNAL");
-    }
-    
-    if (flags & KEEP_ASSERT){
-        fm_add_to_line(line, "-DFRED_KEEP_ASSERT");
-    }
-    
+
     fm_add_to_line(line, "-I\"%s\"", code_path);
     for (u32 i = 0; code_files[i] != 0; ++i){
         fm_add_to_line(line, "\"%s/%s\"", code_path, code_files[i]);
@@ -439,12 +419,12 @@ build(u32 flags, u32 arch, char *code_path, char **code_files, char *out_path, c
 #endif
 
 static void
-build(u32 flags, u32 arch, char *code_path, char *code_file, char *out_path, char *out_file, char *exports, char **inc_folders){
+build(u32 flags, u32 arch, char *code_path, char *code_file, char *out_path, char *out_file, char **defines, char **exports, char **inc_folders){
     char *code_files[2];
     code_files[0] = code_file;
     code_files[1] = 0;
     
-    build(flags, arch, code_path, code_files, out_path, out_file, exports, inc_folders);
+    build(flags, arch, code_path, code_files, out_path, out_file, defines, exports, inc_folders);
 }
 
 static void
@@ -453,7 +433,7 @@ site_build(char *cdir, u32 flags){
         char *file = fm_str("site/sitegen.cpp");
         char *dir = fm_str(BUILD_DIR);
         BEGIN_TIME_SECTION();
-        build(OPTS | SITE_INCLUDES | flags, Arch_X64, cdir, file, dir, "sitegen", 0, 0);
+        build(OPTS | flags, Arch_X64, cdir, file, dir, "sitegen", get_defines_from_flags(flags), 0, includes);
         END_TIME_SECTION("build sitegen");
     }
     
@@ -473,7 +453,7 @@ build_and_run(char *cdir, char *filename, char *name, u32 flags){
     {
         char *file = fm_str(filename);
         BEGIN_TIME_SECTION();
-        build(flags, Arch_X64, cdir, file, dir, name, 0, 0);
+        build(flags, Arch_X64, cdir, file, dir, name, get_defines_from_flags(flags), 0, includes);
         END_TIME_SECTION(fm_str("build ", name));
     }
     
@@ -492,7 +472,7 @@ fsm_generator(char *cdir){
 
 static void
 metagen(char *cdir){
-    build_and_run(cdir, "meta/4ed_metagen.cpp", "metagen", OPTS | DEBUG_INFO | INCLUDES);
+    build_and_run(cdir, "meta/4ed_metagen.cpp", "metagen", OPTS | DEBUG_INFO);
 }
 
 static void
@@ -518,14 +498,16 @@ build_main(char *cdir, b32 update_local_theme, u32 flags, u32 arch){
     
     {
         char *file = fm_str("4ed_app_target.cpp");
+        char **exports = fm_list_one_item("app_get_functions");
         BEGIN_TIME_SECTION();
-        build(OPTS | INCLUDES | SHARED_CODE | flags, arch, cdir, file, dir, "4ed_app" DLL, "/EXPORT:app_get_functions", 0);
+        build(OPTS | SHARED_CODE | flags, arch, cdir, file, dir, "4ed_app" DLL, get_defines_from_flags(flags), exports, includes);
         END_TIME_SECTION("build 4ed_app");
     }
     
     {
         BEGIN_TIME_SECTION();
-        build(OPTS | INCLUDES | LIBS | ICON | flags, arch, cdir, platform_layers[This_OS], dir, "4ed", 0, platform_includes[This_OS][This_Compiler]);
+        char **inc = (char**)fm_list(includes, platform_includes[This_OS][This_Compiler]);
+        build(OPTS | LIBS | ICON | flags, arch, cdir, platform_layers[This_OS], dir, "4ed", get_defines_from_flags(flags), 0, inc);
         END_TIME_SECTION("build 4ed");
     }
     
@@ -695,9 +677,6 @@ int main(int argc, char **argv){
     
     return(error_state);
 }
-
-
-//#include "4ed_file_moving.h"
 
 // BOTTOM
 

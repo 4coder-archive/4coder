@@ -63,17 +63,23 @@ internal void fm_copy_folder(char *src_dir, char *dst_dir, char *src_folder);
 // Zip
 internal void fm_zip(char *parent, char *folder, char *dest);
 
-// File Name Manipulation
+// Slash Correction
 internal void fm_slash_fix(char *path);
 
+// Memory concat helpers
 internal char *fm_prepare_string_internal(char *s1, ...);
 #define fm_str(...) fm_prepare_string_internal(__VA_ARGS__, 0)
 
+internal char **fm_prepare_list_internal(char **l1, ...);
+#define fm_list(...) fm_prepare_list_internal(__VA_ARGS__, 0)
+
+internal char **fm_list_one_item(char *item);
+
+// File System Navigation
 typedef umem Temp_Memory;
 internal Temp_Memory fm_begin_temp();
 internal void fm_end_temp(Temp_Memory temp);
 
-// File System Navigation
 internal i32  fm_get_current_directory(char *buffer, i32 max);
 
 typedef struct Temp_Dir{
@@ -84,7 +90,6 @@ internal Temp_Dir fm_pushdir(char *dir);
 internal void fm_popdir(Temp_Dir temp);
 
 // Build Line
-
 #define BUILD_LINE_MAX 4096
 typedef struct Build_Line{
     char build_optionsA[BUILD_LINE_MAX];
@@ -229,13 +234,9 @@ typedef union    _LARGE_INTEGER {
 extern "C"{
     DWORD WINAPI GetCurrentDirectoryA(_In_  DWORD  nBufferLength, _Out_ LPTSTR lpBuffer);
     BOOL WINAPI SetCurrentDirectoryA(_In_ LPCTSTR lpPathName);
-    
     BOOL WINAPI QueryPerformanceCounter(_Out_ LARGE_INTEGER *lpPerformanceCount);
-    
     BOOL WINAPI QueryPerformanceFrequency(_Out_ LARGE_INTEGER *lpFrequency);
-    
     BOOL WINAPI CreateDirectoryA(_In_ LPCTSTR lpPathName, _In_opt_ LPSECURITY_ATTRIBUTES lpSecurityAttributes);
-    
     BOOL WINAPI CopyFileA(_In_ LPCTSTR lpExistingFileName, _In_ LPCTSTR lpNewFileName, _In_ BOOL bFailIfExists);
 }
 
@@ -487,34 +488,65 @@ fm_copy_folder(char *src_dir, char *dst_dir, char *src_folder){
     fm_popdir(temp);
 }
 
+// List Helpers
+internal umem
+listsize(void *p, umem item_size){
+    u64 zero = 0;
+    u8 *ptr = (u8*)p;
+    for (;memcmp(ptr, &zero, item_size) != 0; ptr += item_size);
+    umem size = (ptr - (u8*)p);
+    return(size);
+}
+
+internal void*
+fm__prepare(umem item_size, void *i1, va_list list){
+    umem size = listsize(i1, item_size);
+    void *result = (void*)fm__push(size);
+    memcpy(result, i1, size);
+
+    void *ln = va_arg(list, void*);
+    for (;ln != 0;){
+        size = listsize(ln, item_size);
+        void *new_str = (void*)fm__push(size);
+        memcpy(new_str, ln, size);
+        ln = va_arg(list, void*);
+    }
+
+    void *terminator = (void*)fm__push(item_size);
+    memset(terminator, 0, item_size);
+    return(result);
+}
+
 internal char*
 fm_prepare_string_internal(char *s1, ...){
-    umem len = strlen(s1);
-    char *result = (char*)fm__push(len);
-    memcpy(result, s1, len);
-    
+    umem item_size = sizeof(*s1);
     va_list list;
     va_start(list, s1);
-    for (;;){
-        char *sn = va_arg(list, char*);
-        if (sn == 0){
-            break;
-        }
-        else{
-            len = strlen(sn);
-            char *new_str = (char*)fm__push(len);
-            memcpy(new_str, sn, len);
-        }
-    }
+    char *result = (char*)fm__prepare(item_size, s1, list);
     va_end(list);
-    
-    char *terminator = (char*)fm__push(1);
-    *terminator = 0;
-    
     fm_slash_fix(result);
     return(result);
 }
 
+internal char**
+fm_prepare_list_internal(char **p1, ...){
+    umem item_size = sizeof(*p1);
+    va_list list;
+    va_start(list, p1);
+    char **result = (char**)fm__prepare(item_size, p1, list);
+    va_end(list);
+    return(result);
+}
+
+internal char**
+fm_list_one_item(char *item){
+    char **result = (char**)fm__push(sizeof(char*)*2);
+    result[0] = item;
+    result[1] = 0;
+    return(result);
+}
+
+// Build Line
 internal void
 fm_init_build_line(Build_Line *line){
     line->build_options = line->build_optionsA;
