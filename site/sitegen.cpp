@@ -96,33 +96,6 @@ allocate_app_api(Partition *part, i32 count){
 }
 
 static void
-assert_files_are_equal(char *directory, char *filename1, char *filename2){
-    char space[256];
-    String name = make_fixed_width_string(space);
-    append_sc(&name, directory);
-    append_sc(&name, "/");
-    append_sc(&name, filename1);
-    terminate_with_null(&name);
-    
-    String file1 = file_dump(name.str);
-    
-    name.size = 0;
-    append_sc(&name, directory);
-    append_sc(&name, "/");
-    append_sc(&name, filename2);
-    terminate_with_null(&name);
-    
-    String file2 = file_dump(name.str);
-    
-    if (!match_ss(file1, file2)){
-        fprintf(stderr, "Failed transitional test: %s != %s\n", filename1, filename2);
-    }
-    else{
-        fprintf(stderr, "Passed transitional test: %s == %s\n", filename1, filename2);
-    }
-}
-
-static void
 do_html_output(Document_System *doc_system, Partition *part, char *dst_directory, Abstract_Item *doc){
     // NOTE(allen): Output
     i32 out_size = 10 << 20;

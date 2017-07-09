@@ -195,7 +195,7 @@ get_defines_from_flags(u32 flags){
 static void
 build(u32 flags, u32 arch, char *code_path, char **code_files, char *out_path, char *out_file, char **defines, char **exports, char **inc_folders){
     Temp_Dir temp = fm_pushdir(out_path);
-    
+
     Build_Line line;
     fm_init_build_line(&line);
     
@@ -413,7 +413,6 @@ build(u32 flags, u32 arch, char *code_path, char *code_file, char *out_path, cha
     char *code_files[2];
     code_files[0] = code_file;
     code_files[1] = 0;
-    
     build(flags, arch, code_path, code_files, out_path, out_file, defines, exports, inc_folders);
 }
 
@@ -430,8 +429,12 @@ site_build(char *cdir, u32 flags){
     {
         BEGIN_TIME_SECTION();
         char *cmd = fm_str(BUILD_DIR"/sitegen");
-        char *args = fm_str(". ../site_resources site/source_material ../site");
-        systemf("%s %s", cmd, args);
+        char *code_dir = fm_str(".");
+        char *asset_dir = fm_str("../site_resources");
+        char *site_source_dir = fm_str("site/source_material");
+        char *dest_dir = fm_str("../site");
+        fm_make_folder_if_missing(dest_dir);
+        systemf("%s %s %s %s %s", cmd, code_dir, asset_dir, site_source_dir, dest_dir);
         END_TIME_SECTION("run sitegen");
     }
 }

@@ -87,19 +87,16 @@ do_file_copy(Partition *part, char *src_file, char *dst_dir, char *dst_file){
     if (in){
         fseek(in, 0, SEEK_END);
         int32_t file_size = ftell(in);
-        
         if (mem_size >= file_size){
-        fseek(in, 0, SEEK_SET);
-    fread(mem, 1, file_size, in);
-    
-    FILE *out = fopen(dst, "wb");
-        if (out){
-    fwrite(mem, 1, file_size, out);
-    fclose(out);
-            success = 1;
+            fseek(in, 0, SEEK_SET);
+            fread(mem, 1, file_size, in);
+            FILE *out = fopen(dst, "wb");
+            if (out){
+                fwrite(mem, 1, file_size, out);
+                fclose(out);
+                success = 1;
+            }
         }
-    }
-    
         fclose(in);
     }
     end_temp_memory(temp);
