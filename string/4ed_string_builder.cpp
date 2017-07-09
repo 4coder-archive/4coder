@@ -6,16 +6,6 @@ Created 21.01.2017 (dd.mm.yyyy)
 
 // TOP
 
-#include "../4cpp/4cpp_lexer.h"
-// TODO(allen): Make sure to only publish the 4coder_string.h if it builds and passes a series of tests.
-#define FSTRING_IMPLEMENTATION
-#include "../4coder_lib/4coder_string.h"
-
-#include "../4ed_defines.h"
-#include "../meta/4ed_meta_defines.h"
-#include "../meta/4ed_file_moving.h"
-
-
 #define BUILD_NUMBER_FILE "4coder_string_build_num.txt"
 
 #define GENERATED_FILE "4coder_string.h"
@@ -24,6 +14,16 @@ Created 21.01.2017 (dd.mm.yyyy)
 #define BACKUP_FOLDER ".." SLASH ".." SLASH "string_backup"
 #define PUBLISH_FOLDER ".." SLASH "4coder_helper"
 
+#include "../4cpp/4cpp_lexer.h"
+// TODO(allen): Make sure to only publish the 4coder_string.h if it builds and passes a series of tests.
+#define FSTRING_IMPLEMENTATION
+#include "../4coder_lib/4coder_string.h"
+
+#include "../4ed_defines.h"
+#include "../meta/4ed_meta_defines.h"
+
+#define FTECH_FILE_MOVING_IMPLEMENTATION
+#include "../meta/4ed_file_moving.h"
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -37,7 +37,8 @@ Created 21.01.2017 (dd.mm.yyyy)
 #define V_MAJ STR_(V_MAJ_NUM)
 #define V_MIN STR_(V_MIN_NUM)
 
-#include "../meta/meta_parser.cpp"
+#include "../meta/4ed_meta_parser.cpp"
+#include "../meta/4ed_out_context.cpp"
 
 static b32
 parse_build_number(char *file_name, i32 *major_out, i32 *minor_out, i32 *build_out){
@@ -95,8 +96,6 @@ save_build_number(char *file_name, i32 major, i32 minor, i32 build){
 }
 
 ///////////////////////////////
-
-#include "../meta/out_context.cpp"
 
 //
 // Meta Parse Rules
@@ -158,12 +157,14 @@ print_function_body_code(String *out, Parse_Context *context, int32_t start){
 
 internal void
 file_move(char *path, char *file_name){
-    copy_file(0, file_name, path, 0, file_name);
+    fm_copy_file(fm_str(file_name), fm_str(path, "/", file_name));
 }
 
 int main(){
     META_BEGIN();
     
+    fm_init_system();
+
     i32 size = (512 << 20);
     void *mem = malloc(size);
     memset(mem, 0, size);
@@ -467,20 +468,17 @@ int main(){
     
     // NOTE(allen): Publish the new file.  (Would like to be able to automatically test the result before publishing).
     {
-        make_folder_if_missing(BACKUP_FOLDER SLASH V_MAJ SLASH V_MIN, 0);
+        fm_make_folder_if_missing(BACKUP_FOLDER SLASH V_MAJ SLASH V_MIN);
         file_move(BACKUP_FOLDER SLASH V_MAJ SLASH V_MIN, INTERNAL_STRING);
         file_move(BACKUP_FOLDER SLASH V_MAJ SLASH V_MIN, GENERATED_FILE);
         //file_move(PUBLISH_FOLDER, GENERATED_FILE);
-        delete_file(GENERATED_FILE);
+        fm_delete_file(GENERATED_FILE);
         printf("published "GENERATED_FILE": v%d.%d.%d\n", major_number, minor_number, build_number);
         save_build_number(BUILD_NUMBER_FILE, major_number, minor_number, build_number + 1);
     }
     
     META_FINISH();
 }
-
-#define FTECH_FILE_MOVING_IMPLEMENTATION
-#include "../meta/4ed_file_moving.h"
 
 // BOTTOM
 

@@ -76,9 +76,9 @@ internal char **fm_prepare_list_internal(char **l1, ...);
 internal char **fm_list_one_item(char *item);
 
 // File System Navigation
-typedef umem Temp_Memory;
-internal Temp_Memory fm_begin_temp();
-internal void fm_end_temp(Temp_Memory temp);
+typedef umem String_Temp;
+internal String_Temp fm_begin_temp();
+internal void fm_end_temp(String_Temp temp);
 
 internal i32  fm_get_current_directory(char *buffer, i32 max);
 
@@ -186,13 +186,13 @@ fm__init_memory(){
     fm_arena_memory = (char*)malloc(fm_arena_max);
 }
 
-internal Temp_Memory
+internal String_Temp
 fm_begin_temp(){
     return(fm_arena_pos);
 }
 
 internal void
-fm_end_temp(Temp_Memory temp){
+fm_end_temp(String_Temp temp){
     fm_arena_pos = temp;
 }
 

@@ -39,7 +39,7 @@ fi
 FLAGS="-D_GNU_SOURCE -fPIC -fpermissive $BUILD_MODE"
 
 # Execute
-g++ $WARNINGS $FLAGS $CODE_HOME/meta/build.cpp -g -o ../build/build
+g++ $WARNINGS $FLAGS $CODE_HOME/meta/4ed_build.cpp -g -o ../build/build
 ../build/build
 
 

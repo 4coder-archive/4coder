@@ -419,7 +419,7 @@ build(u32 flags, u32 arch, char *code_path, char *code_file, char *out_path, cha
 static void
 site_build(char *cdir, u32 flags){
     {
-        char *file = fm_str("site/sitegen.cpp");
+        char *file = fm_str("site/4ed_sitegen.cpp");
         char *dir = fm_str(BUILD_DIR);
         BEGIN_TIME_SECTION();
         build(OPTS | flags, Arch_X64, cdir, file, dir, "sitegen", get_defines_from_flags(flags), 0, includes);
@@ -460,7 +460,7 @@ build_and_run(char *cdir, char *filename, char *name, u32 flags){
 
 static void
 fsm_generator(char *cdir){
-    build_and_run(cdir, "meta/fsm_table_generator.cpp", "fsmgen", OPTS | DEBUG_INFO);
+    build_and_run(cdir, "meta/4ed_fsm_table_generator.cpp", "fsmgen", OPTS | DEBUG_INFO);
 }
 
 static void
@@ -568,7 +568,7 @@ package(char *cdir){
         char *tier = tiers[tier_index];
         u32 flags = base_flags | tier_flags[tier_index];
         
-        Temp_Memory temp = fm_begin_temp();
+        String_Temp temp = fm_begin_temp();
         char *tier_package_root = fm_str(base_package_root, "_", tier);
         for (u32 arch = 0; arch < Arch_COUNT; ++arch){
             char *par_dir      = fm_str(tier_package_root, "_", arch_names[arch]);
@@ -622,7 +622,7 @@ package(char *cdir){
     
     // NOTE(allen): power
     {
-        Temp_Memory temp = fm_begin_temp();
+        String_Temp temp = fm_begin_temp();
         char *pack_power_par_dir = fm_str("../current_dist_power");
         char *pack_power_dir = fm_str(pack_power_par_dir, "/power");
         

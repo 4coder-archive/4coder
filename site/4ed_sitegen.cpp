@@ -23,15 +23,16 @@
 #include "../4ed_defines.h"
 #include "../meta/4ed_meta_defines.h"
 
+
 #include "../4coder_API/version.h"
 #define FSTRING_IMPLEMENTATION
 #include "../4coder_lib/4coder_string.h"
 #include "../4coder_lib/4coder_mem.h"
 #include "../4cpp/4cpp_lexer.h"
 
-#include "../meta/meta_parser.cpp"
-#include "../meta/out_context.cpp"
-#include "abstract_document.cpp"
+#include "../meta/4ed_meta_parser.cpp"
+#include "../meta/4ed_out_context.cpp"
+#include "4ed_abstract_document.cpp"
 
 ///////////////////////////////////////////////////////////////////////////
 
@@ -85,14 +86,6 @@ print_function_body_code(String *out, Parse_Context *context, i32 start){
             break;
         }
     }
-}
-
-static Alternate_Names_Array
-allocate_app_api(Partition *part, i32 count){
-    Alternate_Names_Array app_api = {0};
-    app_api.names = push_array(part, Alternate_Name, count);
-    memset(app_api.names, 0, sizeof(Alternate_Name)*count);
-    return(app_api);
 }
 
 static void
@@ -155,8 +148,6 @@ generate_4coder_docs(Document_System *doc_system, Partition *part, char *code_di
     Meta_Unit *string_unit = push_struct(part, Meta_Unit);
     Meta_Unit *custom_funcs_unit = push_struct(part, Meta_Unit);
     
-    Alternate_Names_Array *custom_func_names = push_struct(part, Alternate_Names_Array);
-    
     Enriched_Text *introduction = push_struct(part, Enriched_Text);
     Enriched_Text *lexer_introduction = push_struct(part, Enriched_Text);
     
@@ -176,9 +167,11 @@ generate_4coder_docs(Document_System *doc_system, Partition *part, char *code_di
     *custom_funcs_unit = compile_meta_unit(part, code_directory, "4ed_api_implementation.cpp", ExpandArray(meta_keywords));
     Assert(custom_funcs_unit->count != 0);
     
-    
     // NOTE(allen): Compute and store variations of the custom function names
-    *custom_func_names = allocate_app_api(part, custom_funcs_unit->set.count);
+    Alternate_Names_Array *custom_func_names = push_struct(part, Alternate_Names_Array);
+    i32 name_count = custom_funcs_unit->set.count;
+    custom_func_names->names = push_array(part, Alternate_Name, name_count);
+    memset(custom_func_names->names, 0, sizeof(*custom_func_names->names)*name_count);
     
     for (i32 i = 0; i < custom_funcs_unit->set.count; ++i){
         String name_string = custom_funcs_unit->set.items[i].name;

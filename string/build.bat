@@ -6,7 +6,7 @@ SET OPTS=%OPTS% -wd4611 -GR- -EHa- -nologo -FC
 SET FirstError=0
 
 pushd ..\build
-cl %OPTS% ..\code\string\string_builder.cpp /Zi /Festring_builder
+cl %OPTS% ..\code\string\4ed_string_builder.cpp /Zi /Festring_builder
 if %ERRORLEVEL% neq 0 (set FirstError=1)
 if %ERRORLEVEL% neq 0 (goto END)
 popd
