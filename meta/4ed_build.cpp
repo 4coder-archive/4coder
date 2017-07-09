@@ -430,7 +430,7 @@ site_build(char *cdir, u32 flags){
         END_TIME_SECTION("build sitegen");
     }
     
-    {
+    if (prev_error == 0){
         BEGIN_TIME_SECTION();
         char *cmd = fm_str(BUILD_DIR"/sitegen");
         char *code_dir = fm_str(".");
@@ -470,6 +470,25 @@ fsm_generator(char *cdir){
 internal void
 metagen(char *cdir){
     build_and_run(cdir, "meta/4ed_metagen.cpp", "metagen", OPTS | DEBUG_INFO);
+}
+
+internal void
+string_build(char *cdir){
+    char *dir = fm_str(BUILD_DIR);
+    
+    {
+        char *file = fm_str("string/4ed_string_builder.cpp");
+        BEGIN_TIME_SECTION();
+        build(OPTS | DEBUG_INFO, Arch_X64, cdir, file, dir, "string_builder", 0, 0, includes);
+        END_TIME_SECTION("build string_builder");
+    }
+    
+    if (prev_error == 0){
+        char *cmd = fm_str(cdir, "/", dir, "/string_builder");
+        BEGIN_TIME_SECTION();
+        fm_execute_in_dir(fm_str(cdir, "/string"), cmd, 0);
+        END_TIME_SECTION("run string_builder");
+    }
 }
 
 internal void
@@ -667,6 +686,9 @@ int main(int argc, char **argv){
     
 #elif defined(SITE_BUILD)
     site_build(cdir, DEBUG_INFO);
+    
+#elif defined(STRING_BUILD)
+    string_build(cdir);
     
 #else
 # error No build type specified.

@@ -281,8 +281,6 @@ int main(){
                     Item_Node *item = string_unit.set.items + j;
                     
                     if (item->t == Item_Function){
-                        //append_ss       (&line, item->marker);
-                        //append_padding  (&line, ' ', RETURN_PADDING);
                         append_ss       (&line, item->ret);
                         append_padding  (&line, ' ', SIG_PADDING);
                         append_ss       (&line, item->name);
