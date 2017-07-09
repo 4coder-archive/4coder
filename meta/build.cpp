@@ -194,17 +194,16 @@ get_defines_from_flags(u32 flags){
 
 static void
 build(u32 flags, u32 arch, char *code_path, char **code_files, char *out_path, char *out_file, char **defines, char **exports, char **inc_folders){
-    Build_Line line;
-    Build_Line link_line;
-    Build_Line line_prefix;
+    Temp_Dir temp = fm_pushdir(out_path);
     
+    Build_Line line;
     fm_init_build_line(&line);
-    fm_init_build_line(&link_line);
-    fm_init_build_line(&line_prefix);
     
     if (arch == Arch_X86){
-        fm_add_to_line(line_prefix, "%s\\windows_scripts\\setup_cl_x86.bat & ", code_path);
+        fm_add_to_line(line, "%s\\windows_scripts\\setup_cl_x86.bat &", code_path);
     }
+
+    fm_add_to_line(line, "cl");
     
     if (flags & OPTS){
         fm_add_to_line(line, CL_OPTS);
@@ -255,38 +254,38 @@ build(u32 flags, u32 arch, char *code_path, char **code_files, char *out_path, c
         }
     }
 
+    for (u32 i = 0; code_files[i]; ++i){
+        fm_add_to_line(line, "\"%s\\%s\"", code_path, code_files[i]);
+    }
+
+    fm_add_to_line(line, "/Fe%s", out_file);
+
+    fm_add_to_line(line, "/link /INCREMENTAL:NO");
     switch (arch){
-        case Arch_X64: fm_add_to_line(link_line, "/MACHINE:X64"); break;
-        case Arch_X86: fm_add_to_line(link_line, "/MACHINE:X86"); break;
+        case Arch_X64: fm_add_to_line(line, "/MACHINE:X64"); break;
+        case Arch_X86: fm_add_to_line(line, "/MACHINE:X86"); break;
         default: InvalidCodePath;
     }
     
     if (flags & DEBUG_INFO){
-        fm_add_to_line(link_line, "/DEBUG");
+        fm_add_to_line(line, "/DEBUG");
     }
     
     if (flags & SHARED_CODE){
         Assert(exports != 0);
-        fm_add_to_line(link_line, "/OPT:REF");
+        fm_add_to_line(line, "/OPT:REF");
         for (u32 i = 0; exports[i] != 0; ++i){
             char *str = fm_str("/EXPORT:", exports[i]);
-            fm_add_to_line(link_line, "%s", str);
+            fm_add_to_line(line, "%s", str);
         }
     }
     else{
-        fm_add_to_line(link_line, "/NODEFAULTLIB:library");
-    }
-    
-    for (u32 i = 0; code_files[i]; ++i){
-        fm_add_to_line(line, "\"%s\\%s\"", code_path, code_files[i]);
+        fm_add_to_line(line, "/NODEFAULTLIB:library");
     }
     
     fm_finish_build_line(&line);
-    fm_finish_build_line(&link_line);
-    fm_finish_build_line(&line_prefix);
     
-    Temp_Dir temp = fm_pushdir(out_path);
-    systemf("%scl %s /Fe%s /link /INCREMENTAL:NO %s", line_prefix.build_options, line.build_options, out_file, link_line.build_options);
+    systemf("%s", line.build_options);
     fm_popdir(temp);
 }
 
