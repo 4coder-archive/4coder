@@ -3,7 +3,7 @@
  *
  * 25.02.2016
  *
- * File editing view for 4coder
+ * Site generator for 4coder.
  *
  */
 

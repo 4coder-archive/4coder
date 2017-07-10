@@ -3,7 +3,7 @@
  *
  * 19.08.2015
  *
- * File editing view for 4coder
+ * File editing view for 4coder.
  *
  */
 
