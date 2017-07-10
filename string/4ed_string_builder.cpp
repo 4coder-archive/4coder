@@ -160,9 +160,11 @@ int main(){
     META_BEGIN();
     fm_init_system();
     
+#if 0
     i32 size = (512 << 20);
     void *mem = malloc(size);
     memset(mem, 0, size);
+#endif
     
     // NOTE(allen): Parse the internal string file.
     char *string_files[] = { INTERNAL_STRING, 0 };
