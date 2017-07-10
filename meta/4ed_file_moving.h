@@ -188,7 +188,7 @@ umem fm_arena_max = 0;
 internal void
 fm__init_memory(){
     Assert(fm_arena_memory == 0);
-    fm_arena_max = MB(16);
+    fm_arena_max = MB(512);
     fm_arena_memory = (char*)malloc(fm_arena_max);
 }
 

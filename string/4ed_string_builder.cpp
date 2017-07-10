@@ -25,7 +25,6 @@
 
 #include "../4ed_defines.h"
 #include "../meta/4ed_meta_defines.h"
-#include "../4coder_lib/4coder_mem.h"
 
 #define FTECH_FILE_MOVING_IMPLEMENTATION
 #include "../meta/4ed_file_moving.h"
@@ -165,12 +164,9 @@ int main(){
     void *mem = malloc(size);
     memset(mem, 0, size);
     
-    Partition part_ = make_part(mem, size);
-    //Partition *part = &part_;
-    
     // NOTE(allen): Parse the internal string file.
     char *string_files[] = { INTERNAL_STRING, 0 };
-    Meta_Unit string_unit = compile_meta_unit(part, ".", string_files, ExpandArray(meta_keywords));
+    Meta_Unit string_unit = compile_meta_unit(".", string_files, ExpandArray(meta_keywords));
     
     if (string_unit.parse == 0){
         Assert(!"Missing one or more input files!");
@@ -202,7 +198,7 @@ int main(){
     }
     
     // NOTE(allen): Output
-    String out = str_alloc(part, 10 << 20);
+    String out = str_alloc(10 << 20);
     Out_Context context = {0};
     
     // NOTE(allen): String Library
