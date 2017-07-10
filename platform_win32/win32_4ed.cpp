@@ -40,7 +40,6 @@
 
 #define WINDOW_NAME L"4coder: " L_VERSION
 
-#include <assert.h>
 #include <string.h>
 #include "4coder_lib/4coder_utf8.h"
 

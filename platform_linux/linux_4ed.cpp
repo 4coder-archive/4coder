@@ -12,7 +12,6 @@
 
 #define IS_PLAT_LAYER
 
-#include <assert.h>
 #include <string.h>
 #include "4ed_defines.h"
 #include "4coder_API/version.h"

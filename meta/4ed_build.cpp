@@ -591,7 +591,7 @@ package(char *cdir){
         char *tier = tiers[tier_index];
         u32 flags = base_flags | tier_flags[tier_index];
         
-        String_Temp temp = fm_begin_temp();
+        Temp temp = fm_begin_temp();
         char *tier_package_root = fm_str(base_package_root, "_", tier);
         for (u32 arch = 0; arch < Arch_COUNT; ++arch){
             char *par_dir      = fm_str(tier_package_root, "_", arch_names[arch]);
@@ -645,7 +645,7 @@ package(char *cdir){
     
     // NOTE(allen): power
     {
-        String_Temp temp = fm_begin_temp();
+        Temp temp = fm_begin_temp();
         char *pack_power_par_dir = fm_str("../current_dist_power");
         char *pack_power_dir = fm_str(pack_power_par_dir, "/power");
         

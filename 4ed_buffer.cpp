@@ -67,13 +67,13 @@ buffer_quick_unsort_cursors(Cursor_With_Index *positions, i32 start, i32 pivot){
 
 inline void
 buffer_sort_cursors(Cursor_With_Index *positions, i32 count){
-    assert(count > 0);
+    Assert(count > 0);
     buffer_quick_sort_cursors(positions, 0, count-1);
 }
 
 inline void
 buffer_unsort_cursors(Cursor_With_Index *positions, i32 count){
-    assert(count > 0);
+    Assert(count > 0);
     buffer_quick_unsort_cursors(positions, 0, count-1);
 }
 
@@ -460,9 +460,9 @@ buffer_replace_range(Gap_Buffer *buffer, i32 start, i32 end, char *str, i32 len,
     i32 result = 0;
     i32 move_size = 0;
     
-    assert(0 <= start);
-    assert(start <= end);
-    assert(end <= size);
+    Assert(0 <= start);
+    Assert(start <= end);
+    Assert(end <= size);
     
     *shift_amount = (len - (end - start));
     if (*shift_amount + size <= buffer->max){
@@ -484,8 +484,8 @@ buffer_replace_range(Gap_Buffer *buffer, i32 start, i32 end, char *str, i32 len,
         buffer->size1 = start + len;
         buffer->gap_size -= *shift_amount;
         
-        assert(buffer->size1 + buffer->size2 == size + *shift_amount);
-        assert(buffer->size1 + buffer->gap_size + buffer->size2 == buffer->max);
+        Assert(buffer->size1 + buffer->size2 == size + *shift_amount);
+        Assert(buffer->size1 + buffer->gap_size + buffer->size2 == buffer->max);
     }
     else{
         *request_amount = l_round_up_i32(2*(*shift_amount + size), 4 << 10);
@@ -531,7 +531,7 @@ buffer_edit_provide_memory(Gap_Buffer *buffer, void *new_data, i32 new_max){
     i32 size = buffer_size(buffer);
     i32 new_gap_size = new_max - size;
     
-    assert(new_max >= size);
+    Assert(new_max >= size);
     
     memcpy(new_data, buffer->data, buffer->size1);
     memcpy((char*)new_data + buffer->size1 + new_gap_size, buffer->data + buffer->size1 + buffer->gap_size, buffer->size2);
@@ -569,7 +569,7 @@ buffer_convert_out(Gap_Buffer *buffer, char *dest, i32 max){
     Gap_Buffer_Stream stream = {0};
     i32 i = 0;
     i32 size = buffer_size(buffer);
-    assert(size + buffer->line_count <= max);
+    Assert(size + buffer->line_count <= max);
     
     i32 pos = 0;
     if (buffer_stringify_loop(&stream, buffer, 0, size)){
@@ -578,7 +578,7 @@ buffer_convert_out(Gap_Buffer *buffer, char *dest, i32 max){
             i32 chunk_size = stream.end - i;
             i32 out_size = 0;
             i32 result = eol_convert_out(dest + pos, max - pos, stream.data + i, chunk_size, &out_size);
-            assert(result);
+            Assert(result);
             i = stream.end;
             pos += out_size;
             still_looping = buffer_stringify_next(&stream);
@@ -594,9 +594,9 @@ buffer_count_newlines(Gap_Buffer *buffer, i32 start, i32 end){
     i32 i = start;
     i32 count = 0;
     
-    assert(0 <= start);
-    assert(start <= end);
-    assert(end <= buffer_size(buffer));
+    Assert(0 <= start);
+    Assert(start <= end);
+    Assert(end <= buffer_size(buffer));
     
     if (buffer_stringify_loop(&stream, buffer, i, end)){
         b32 still_looping = 0;
@@ -647,7 +647,7 @@ buffer_measure_starts(Buffer_Measure_Starts *state, Gap_Buffer *buffer){
         }while(still_looping);
     }
     
-    assert(i == size);
+    Assert(i == size);
     
     if (start_ptr == start_end){
         goto buffer_measure_starts_widths_end;
@@ -671,7 +671,7 @@ internal void
 buffer_measure_character_starts(System_Functions *system, Render_Font *font, Gap_Buffer *buffer, i32 *character_starts, i32 mode, i32 virtual_white){
     PRFL_FUNC_GROUP();
     
-    assert(mode == 0);
+    Assert(mode == 0);
     
     Gap_Buffer_Stream stream = {0};
     i32 i = 0;
@@ -726,7 +726,7 @@ buffer_measure_character_starts(System_Functions *system, Render_Font *font, Gap
         }while(still_looping);
     }
     
-    assert(line_index-1 == buffer->line_count);
+    Assert(line_index-1 == buffer->line_count);
 }
 
 enum{
@@ -902,7 +902,7 @@ buffer_measure_wrap_y(Buffer_Measure_Wrap_State *S_ptr, Buffer_Measure_Wrap_Para
     ++S.current_wrap_index;
     params.wrap_line_index[S.line_index++] = S.current_wrap_index;
     
-    assert(S.line_index-1 == params.buffer->line_count);
+    Assert(S.line_index-1 == params.buffer->line_count);
     
     S_stop.status = BLStatus_Finished;
     DrReturn(S_stop);
@@ -917,10 +917,10 @@ buffer_remeasure_starts(Gap_Buffer *buffer, i32 line_start, i32 line_end, i32 li
     i32 *starts = buffer->line_starts;
     i32 line_count = buffer->line_count;
     
-    assert(0 <= line_start);
-    assert(line_start <= line_end);
-    assert(line_end < line_count);
-    assert(line_count + line_shift <= buffer->line_max);
+    Assert(0 <= line_start);
+    Assert(line_start <= line_end);
+    Assert(line_end < line_count);
+    Assert(line_count + line_shift <= buffer->line_max);
     
     ++line_end;
     
@@ -981,19 +981,19 @@ buffer_remeasure_starts(Gap_Buffer *buffer, i32 line_start, i32 line_end, i32 li
     }
     
     buffer_remeasure_starts_end:;
-    assert(line_count >= 1);
+    Assert(line_count >= 1);
     buffer->line_count = new_line_count;
 }
 
 internal void
 buffer_remeasure_character_starts(System_Functions *system, Render_Font *font, Gap_Buffer *buffer, i32 line_start, i32 line_end, i32 line_shift, i32 *character_starts, i32 mode, i32 virtual_whitespace){
-    assert(mode == 0);
+    Assert(mode == 0);
     
     i32 new_line_count = buffer->line_count;
     
-    assert(0 <= line_start);
-    assert(line_start <= line_end);
-    assert(line_end < new_line_count - line_shift);
+    Assert(0 <= line_start);
+    Assert(line_start <= line_end);
+    Assert(line_end < new_line_count - line_shift);
     
     ++line_end;
     
@@ -1066,7 +1066,7 @@ buffer_remeasure_character_starts(System_Functions *system, Render_Font *font, G
         }while(still_looping);
     }
     
-    assert(line_i >= new_line_end);
+    Assert(line_i >= new_line_end);
     
     buffer_remeasure_character_starts_end:;
     
@@ -1088,9 +1088,9 @@ buffer_remeasure_wrap_y(Gap_Buffer *buffer, i32 line_start, i32 line_end, i32 li
                         f32 *wraps, f32 font_height, f32 *adv, f32 max_width){
     i32 new_line_count = buffer->line_count;
     
-    assert(0 <= line_start);
-    assert(line_start <= line_end);
-    assert(line_end < new_line_count - line_shift);
+    Assert(0 <= line_start);
+    Assert(line_start <= line_end);
+    Assert(line_end < new_line_count - line_shift);
     
     ++line_end;
     
@@ -1185,7 +1185,7 @@ binary_search(i32 *array, i32 value, i32 l_bound, i32 u_bound){
         else{
             break;
         }
-        assert(start < end);
+        Assert(start < end);
         if (start == end - 1){
             i = start;
             break;
@@ -1197,11 +1197,11 @@ binary_search(i32 *array, i32 value, i32 l_bound, i32 u_bound){
 
 inline i32
 buffer_get_line_index_range(Gap_Buffer *buffer, i32 pos, i32 l_bound, i32 u_bound){
-    assert(0 <= l_bound);
-    assert(l_bound <= u_bound);
-    assert(u_bound <= buffer->line_count);
+    Assert(0 <= l_bound);
+    Assert(l_bound <= u_bound);
+    Assert(u_bound <= buffer->line_count);
     
-    assert(buffer->line_starts != 0);
+    Assert(buffer->line_starts != 0);
     
     i32 i = binary_search(buffer->line_starts, pos, l_bound, u_bound);
     return(i);
@@ -1666,8 +1666,8 @@ buffer_invert_edit_shift(Gap_Buffer *buffer, Buffer_Edit edit, Buffer_Edit *inve
                          i32 *str_pos, i32 max, i32 shift_amount){
     i32 pos = *str_pos;
     i32 len = edit.end - edit.start;
-    assert(pos >= 0);
-    assert(pos + len <= max);
+    Assert(pos >= 0);
+    Assert(pos + len <= max);
     *str_pos = pos + len;
     
     inverse->str_start = pos;
@@ -2019,7 +2019,7 @@ buffer_render_data(Buffer_Render_State *S_ptr, Buffer_Render_Params params, f32 
     }
     
     *params.count = (i32)(S.write.item - params.items);
-    assert(*params.count <= params.max);
+    Assert(*params.count <= params.max);
     
     S_stop.status = BLStatus_Finished;
     DrReturn(S_stop);

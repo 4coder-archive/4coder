@@ -435,7 +435,7 @@ view_compute_cursor(System_Functions *system, View *view, Buffer_Seek seek, b32 
                         first_wrap_determination = 0;
                     }
                     else{
-                        assert(stop.pos == wrap_unit_end);
+                        Assert(stop.pos == wrap_unit_end);
                         do_wrap = 1;
                         ++wrap_array_index;
                         wrap_unit_end = file->state.wrap_positions[wrap_array_index];
@@ -6005,7 +6005,7 @@ draw_file_loaded(System_Functions *system, View *view, i32_Rect rect, b32 is_act
                         first_wrap_determination = 0;
                     }
                     else{
-                        assert(stop.pos == wrap_unit_end);
+                        Assert(stop.pos == wrap_unit_end);
                         do_wrap = 1;
                         ++wrap_array_index;
                         wrap_unit_end = file->state.wrap_positions[wrap_array_index];

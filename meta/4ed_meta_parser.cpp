@@ -9,37 +9,37 @@
 
 // TOP
 
-#if !defined(META_PARSER_CPP)
-#define META_PARSER_CPP
+#if !defined(FRED_META_PARSER_CPP)
+#define FRED_META_PARSER_CPP
 
-typedef struct Parse_Context{
+struct Parse_Context{
     Cpp_Token *token_s;
     Cpp_Token *token_e;
     Cpp_Token *token;
     char *data;
-} Parse_Context;
+};
 
-typedef struct Argument{
+struct Argument{
     String param_string;
     String param_name;
-} Argument;
+};
 
-typedef struct Argument_Breakdown{
-    int32_t count;
+struct Argument_Breakdown{
+    i32 count;
     Argument *args;
-} Argument_Breakdown;
+};
 
-typedef struct Documentation{
-    int32_t param_count;
+struct Documentation{
+    i32 param_count;
     String *param_name;
     String *param_docs;
     String return_doc;
     String main_doc;
-    int32_t see_also_count;
+    i32 see_also_count;
     String *see_also;
-} Documentation;
+};
 
-typedef enum Item_Type{
+enum Item_Type{
     Item_Null,
     Item_Function,
     Item_CppName,
@@ -50,10 +50,10 @@ typedef enum Item_Type{
     Item_Enum,
     Item_Type_Count,
 #define Item_Type_User0 Item_Type_Count
-} Item_Type;
+};
 
-typedef struct Item_Node{
-    int32_t t;
+struct Item_Node{
+    i32 t;
     
     String cpp_name;
     String name;
@@ -72,50 +72,49 @@ typedef struct Item_Node{
     
     Item_Node *first_child;
     Item_Node *next_sibling;
-} Item_Node;
+};
 
-typedef struct Item_Set{
+struct Item_Set{
     Item_Node *items;
-    int32_t count;
-} Item_Set;
+    i32 count;
+};
 
-typedef struct Parse{
+struct Parse{
     String code;
     Cpp_Token_Array tokens;
-    int32_t item_count;
-} Parse;
+    i32 item_count;
+};
 
-typedef struct Meta_Unit{
+struct Meta_Unit{
     Item_Set set;
-    
     Parse *parse;
-    int32_t count;
-} Meta_Unit;
+    i32 count;
+};
 
-typedef struct Meta_Keywords{
+struct Meta_Keywords{
     String key;
     Item_Type type;
-} Meta_Keywords;
+};
 
-typedef struct Used_Links{
+struct Used_Links{
     String *strs;
-    int32_t count, max;
-} Used_Links;
+    i32 count, max;
+};
 
-static Item_Node null_item_node = {0};
+internal Item_Node null_item_node = {0};
 
-static String
-str_start_end(char *data, int32_t start, int32_t end){
+internal String
+str_start_end(char *data, i32 start, i32 end){
     return(make_string(data + start, end - start));
 }
 
-static String
+internal String
 get_lexeme(Cpp_Token token, char *code){
     String str = make_string(code + token.start, token.size);
     return(str);
 }
 
-static Parse_Context
+internal Parse_Context
 setup_parse_context(char *data, Cpp_Token_Array array){
     Parse_Context context;
     context.token_s = array.tokens;
@@ -125,7 +124,7 @@ setup_parse_context(char *data, Cpp_Token_Array array){
     return(context);
 }
 
-static Parse_Context
+internal Parse_Context
 setup_parse_context(Parse parse){
     Parse_Context context;
     context.token_s = parse.tokens.tokens;
@@ -135,7 +134,7 @@ setup_parse_context(Parse parse){
     return(context);
 }
 
-static Cpp_Token*
+internal Cpp_Token*
 get_token(Parse_Context *context){
     Cpp_Token *result = context->token;
     if (result >= context->token_e){
@@ -144,7 +143,7 @@ get_token(Parse_Context *context){
     return(result);
 }
 
-static Cpp_Token*
+internal Cpp_Token*
 get_next_token(Parse_Context *context){
     Cpp_Token *result = context->token+1;
     context->token = result;
@@ -155,7 +154,7 @@ get_next_token(Parse_Context *context){
     return(result);
 }
 
-static Cpp_Token*
+internal Cpp_Token*
 get_prev_token(Parse_Context *context){
     Cpp_Token *result = context->token-1;
     if (result < context->token_s){
@@ -167,7 +166,7 @@ get_prev_token(Parse_Context *context){
     return(result);
 }
 
-static Cpp_Token*
+internal Cpp_Token*
 can_back_step(Parse_Context *context){
     Cpp_Token *result = context->token-1;
     if (result < context->token_s){
@@ -176,7 +175,7 @@ can_back_step(Parse_Context *context){
     return(result);
 }
 
-static Cpp_Token*
+internal Cpp_Token*
 set_token(Parse_Context *context, Cpp_Token *token){
     Cpp_Token *result = 0;
     if (token >= context->token_s && token < context->token_e){
@@ -186,23 +185,23 @@ set_token(Parse_Context *context, Cpp_Token *token){
     return(result);
 }
 
-static String
-str_alloc(Partition *part, int32_t cap){
-    return(make_string_cap(push_array(part, char, cap), 0, cap));
+internal String
+str_alloc(i32 cap){
+    return(make_string_cap(fm_push_array(char, cap), 0, cap));
 }
 
-static Item_Set
-allocate_item_set(Partition *part, int32_t count){
+internal Item_Set
+allocate_item_set(i32 count){
     Item_Set item_set = {0};
     if (count > 0){
-        item_set.items = push_array(part, Item_Node, count);
+        item_set.items = fm_push_array(Item_Node, count);
         item_set.count = count;
         memset(item_set.items, 0, sizeof(Item_Node)*count);
     }
     return(item_set);
 }
 
-static String
+internal String
 file_dump(char *filename){
     String result = {0};
     FILE *file = fopen(filename, "rb");
@@ -224,7 +223,7 @@ file_dump(char *filename){
     return(result);
 }
 
-static Parse
+internal Parse
 meta_lex(char *filename){
     Parse result = {0};
     result.code = file_dump(filename);
@@ -235,19 +234,19 @@ meta_lex(char *filename){
     return(result);
 }
 
-static String
+internal String
 get_first_line(String source){
     String line = {0};
-    int32_t pos = find_s_char(source, 0, '\n');
+    i32 pos = find_s_char(source, 0, '\n');
     line = substr(source, 0, pos);
     return(line);
 }
 
-static String
+internal String
 get_next_line(String source, String line){
     String next = {0};
-    int32_t pos = (int32_t)(line.str - source.str) + line.size;
-    int32_t start = 0;
+    i32 pos = (i32)(line.str - source.str) + line.size;
+    i32 start = 0;
     
     if (pos < source.size){
         Assert(source.str[pos] == '\n');
@@ -262,9 +261,9 @@ get_next_line(String source, String line){
     return(next);
 }
 
-static int32_t
+internal i32
 is_comment(String str){
-    int32_t result = 0;
+    i32 result = 0;
     if (str.size >= 2){
         if (str.str[0] == '/' &&
             str.str[1] == '/'){
@@ -283,7 +282,7 @@ typedef enum Doc_Note_Type{
     HIDE_MEMBERS,
 } Doc_Note_Type;
 
-static String
+internal String
 defined_doc_notes[] = {
     make_lit_string("DOC_PARAM"),
     make_lit_string("DOC_RETURN"),
@@ -293,9 +292,9 @@ defined_doc_notes[] = {
     make_lit_string("HIDE_MEMBERS"),
 };
 
-static int32_t
+internal i32
 check_and_fix_docs(String *doc_string){
-    int32_t result = false;
+    i32 result = false;
     
     if (doc_string->size > 4){
         if (doc_string->str[0] == '/'){
@@ -314,9 +313,9 @@ check_and_fix_docs(String *doc_string){
     return(result);
 }
 
-static int32_t
+internal i32
 get_doc_string_from_prev(Parse_Context *context, String *doc_string){
-    int32_t result = false;
+    i32 result = false;
     
     if (can_back_step(context)){
         Cpp_Token *prev_token = get_token(context) - 1;
@@ -334,12 +333,12 @@ get_doc_string_from_prev(Parse_Context *context, String *doc_string){
     return(result);
 }
 
-static String
-doc_parse_note(String source, int32_t *pos){
+internal String
+doc_parse_note(String source, i32 *pos){
     String result = {0};
     
-    int32_t p = *pos;
-    int32_t start = p;
+    i32 p = *pos;
+    i32 start = p;
     for (; p < source.size; ++p){
         if (source.str[p] == '('){
             break;
@@ -354,16 +353,16 @@ doc_parse_note(String source, int32_t *pos){
     return(result);
 }
 
-static String
-doc_parse_note_string(String source, int32_t *pos){
+internal String
+doc_parse_note_string(String source, i32 *pos){
     String result = {0};
     
     Assert(source.str[*pos] == '(');
     
-    int32_t p = *pos + 1;
-    int32_t start = p;
+    i32 p = *pos + 1;
+    i32 start = p;
     
-    int32_t nest_level = 0;
+    i32 nest_level = 0;
     
     for (; p < source.size; ++p){
         if (source.str[p] == ')'){
@@ -388,12 +387,12 @@ doc_parse_note_string(String source, int32_t *pos){
     return(result);
 }
 
-static String
-doc_parse_parameter(String source, int32_t *pos){
+internal String
+doc_parse_parameter(String source, i32 *pos){
     String result = {0};
     
-    int32_t p = *pos;
-    int32_t start = p;
+    i32 p = *pos;
+    i32 start = p;
     
     for (; p < source.size; ++p){
         if (source.str[p] == ','){
@@ -410,12 +409,12 @@ doc_parse_parameter(String source, int32_t *pos){
     return(result);
 }
 
-static String
-doc_parse_last_parameter(String source, int32_t *pos){
+internal String
+doc_parse_last_parameter(String source, i32 *pos){
     String result = {0};
     
-    int32_t p = *pos;
-    int32_t start = p;
+    i32 p = *pos;
+    i32 start = p;
     
     for (; p < source.size; ++p){
         if (source.str[p] == ')'){
@@ -431,13 +430,13 @@ doc_parse_last_parameter(String source, int32_t *pos){
     return(result);
 }
 
-static void
-perform_doc_parse(Partition *part, String doc_string, Documentation *doc){
-    int32_t keep_parsing = true;
-    int32_t pos = 0;
+internal void
+perform_doc_parse(String doc_string, Documentation *doc){
+    i32 keep_parsing = true;
+    i32 pos = 0;
     
-    int32_t param_count = 0;
-    int32_t see_count = 0;
+    i32 param_count = 0;
+    i32 see_count = 0;
     
     do{
         String doc_note = doc_parse_note(doc_string, &pos);
@@ -445,7 +444,7 @@ perform_doc_parse(Partition *part, String doc_string, Documentation *doc){
             keep_parsing = false;
         }
         else{
-            int32_t doc_note_type;
+            i32 doc_note_type;
             if (string_set_match(defined_doc_notes, ArrayCount(defined_doc_notes), doc_note, &doc_note_type)){
                 
                 doc_parse_note_string(doc_string, &pos);
@@ -459,8 +458,8 @@ perform_doc_parse(Partition *part, String doc_string, Documentation *doc){
     }while(keep_parsing);
     
     if (param_count + see_count > 0){
-        int32_t memory_size = sizeof(String)*(2*param_count + see_count);
-        doc->param_name = push_array(part, String, memory_size);
+        i32 memory_size = sizeof(String)*(2*param_count + see_count);
+        doc->param_name = fm_push_array(String, memory_size);
         doc->param_docs = doc->param_name + param_count;
         doc->see_also   = doc->param_docs + param_count;
         
@@ -468,8 +467,8 @@ perform_doc_parse(Partition *part, String doc_string, Documentation *doc){
         doc->see_also_count = see_count;
     }
     
-    int32_t param_index = 0;
-    int32_t see_index = 0;
+    i32 param_index = 0;
+    i32 see_index = 0;
     
     keep_parsing = true;
     pos = 0;
@@ -479,7 +478,7 @@ perform_doc_parse(Partition *part, String doc_string, Documentation *doc){
             keep_parsing = false;
         }
         else{
-            int32_t doc_note_type;
+            i32 doc_note_type;
             if (string_set_match(defined_doc_notes, ArrayCount(defined_doc_notes), doc_note, &doc_note_type)){
                 
                 String doc_note_string = doc_parse_note_string(doc_string, &pos);
@@ -488,7 +487,7 @@ perform_doc_parse(Partition *part, String doc_string, Documentation *doc){
                     case DOC_PARAM:
                     {
                         Assert(param_index < param_count);
-                        int32_t param_pos = 0;
+                        i32 param_pos = 0;
                         String param_name = doc_parse_parameter(doc_note_string, &param_pos);
                         String param_docs = doc_parse_last_parameter(doc_note_string, &param_pos);
                         doc->param_name[param_index] = param_name;
@@ -520,13 +519,12 @@ perform_doc_parse(Partition *part, String doc_string, Documentation *doc){
     }while(keep_parsing);
 }
 
-static int32_t
-struct_parse(Partition *part, int32_t is_struct,
-             Parse_Context *context, Item_Node *top_member);
+internal i32
+struct_parse(i32 is_struct, Parse_Context *context, Item_Node *top_member);
 
-static int32_t
-struct_parse_member(Partition *part, Parse_Context *context, Item_Node *member){
-    int32_t result = false;
+internal i32
+struct_parse_member(Parse_Context *context, Item_Node *member){
+    i32 result = false;
     
     Cpp_Token *token = get_token(context);
     
@@ -544,7 +542,7 @@ struct_parse_member(Partition *part, Parse_Context *context, Item_Node *member){
     if (token){
         String name = {0};
         Cpp_Token *token_j = 0;
-        int32_t nest_level = 0;
+        i32 nest_level = 0;
         
         for (; (token_j = get_token(context)) > start_token; get_prev_token(context)){
             if (token_j->type == CPP_TOKEN_BRACKET_CLOSE){
@@ -584,8 +582,8 @@ struct_parse_member(Partition *part, Parse_Context *context, Item_Node *member){
     return(result);
 }
 
-static Item_Node*
-struct_parse_next_member(Partition *part, Parse_Context *context){
+internal Item_Node*
+struct_parse_next_member(Parse_Context *context){
     Item_Node *result = 0;
     
     Cpp_Token *token = 0;
@@ -595,9 +593,9 @@ struct_parse_next_member(Partition *part, Parse_Context *context){
             (token->flags & CPP_TFLAG_IS_KEYWORD)){
             String lexeme = get_lexeme(*token, context->data);
             
-            if (match_ss(lexeme, make_lit_string("STRUCT"))){
-                Item_Node *member = push_struct(part, Item_Node);
-                if (struct_parse(part, true, context, member)){
+            if (match(lexeme, "STRUCT")){
+                Item_Node *member = fm_push_array(Item_Node, 1);
+                if (struct_parse(true, context, member)){
                     result = member;
                     break;
                 }
@@ -605,9 +603,9 @@ struct_parse_next_member(Partition *part, Parse_Context *context){
                     Assert(!"unhandled error");
                 }
             }
-            else if (match_ss(lexeme, make_lit_string("UNION"))){
-                Item_Node *member = push_struct(part, Item_Node);
-                if (struct_parse(part, false, context, member)){
+            else if (match(lexeme, "UNION")){
+                Item_Node *member = fm_push_array(Item_Node, 1);
+                if (struct_parse(false, context, member)){
                     result = member;
                     break;
                 }
@@ -616,8 +614,8 @@ struct_parse_next_member(Partition *part, Parse_Context *context){
                 }
             }
             else{
-                Item_Node *member = push_struct(part, Item_Node);
-                if (struct_parse_member(part, context, member)){
+                Item_Node *member = fm_push_array(Item_Node, 1);
+                if (struct_parse_member(context, member)){
                     result = member;
                     break;
                 }
@@ -634,9 +632,9 @@ struct_parse_next_member(Partition *part, Parse_Context *context){
     return(result);
 }
 
-static int32_t
-struct_parse(Partition *part, int32_t is_struct, Parse_Context *context, Item_Node *top_member){
-    int32_t result = false;
+internal i32
+struct_parse(i32 is_struct, Parse_Context *context, Item_Node *top_member){
+    i32 result = false;
     
     Cpp_Token *start_token = get_token(context);
     Cpp_Token *token = 0;
@@ -673,14 +671,14 @@ struct_parse(Partition *part, int32_t is_struct, Parse_Context *context, Item_No
         }
         
         set_token(context, token+1);
-        Item_Node *new_member = struct_parse_next_member(part, context);
+        Item_Node *new_member = struct_parse_next_member(context);
         
         if (new_member){
             top_member->first_child = new_member;
             
             Item_Node *head_member = new_member;
             for(;;){
-                new_member = struct_parse_next_member(part, context);
+                new_member = struct_parse_next_member(context);
                 if (new_member){
                     head_member->next_sibling = new_member;
                     head_member = new_member;
@@ -715,9 +713,9 @@ struct_parse(Partition *part, int32_t is_struct, Parse_Context *context, Item_No
     return(result);
 }
 
-static int32_t
+internal i32
 typedef_parse(Parse_Context *context, Item_Node *item){
-    int32_t result = false;
+    i32 result = false;
     
     Cpp_Token *token = get_token(context);
     String doc_string = {0};
@@ -756,9 +754,9 @@ typedef_parse(Parse_Context *context, Item_Node *item){
     return(result);
 }
 
-static int32_t
-enum_parse(Partition *part, Parse_Context *context, Item_Node *item){
-    int32_t result = false;
+internal i32
+enum_parse(Parse_Context *context, Item_Node *item){
+    i32 result = false;
     
     String parent_doc_string = {0};
     get_doc_string_from_prev(context, &parent_doc_string);
@@ -829,7 +827,7 @@ enum_parse(Partition *part, Parse_Context *context, Item_Node *item){
                         }
                     }
                     
-                    Item_Node *new_member = push_struct(part, Item_Node);
+                    Item_Node *new_member = fm_push_array(Item_Node, 1);
                     if (first_member == 0){
                         first_member = new_member;
                     }
@@ -866,12 +864,12 @@ enum_parse(Partition *part, Parse_Context *context, Item_Node *item){
     return(result);
 }
 
-static Argument_Breakdown
-allocate_argument_breakdown(Partition *part, int32_t count){
+internal Argument_Breakdown
+allocate_argument_breakdown(i32 count){
     Argument_Breakdown breakdown = {0};
     if (count > 0){
         breakdown.count = count;
-        breakdown.args = push_array(part, Argument, count);
+        breakdown.args = fm_push_array(Argument, count);
         memset(breakdown.args, 0, sizeof(Argument)*count);
     }
     return(breakdown);
@@ -882,13 +880,13 @@ Parse arguments by giving pointers to the tokens:
 foo(a, ... , z)
    ^          ^
 */
-static Argument_Breakdown
-parameter_parse(Partition *part, char *data, Cpp_Token *args_start_token, Cpp_Token *args_end_token){
-    int32_t arg_index = 0;
+internal Argument_Breakdown
+parameter_parse(char *data, Cpp_Token *args_start_token, Cpp_Token *args_end_token){
+    i32 arg_index = 0;
     Cpp_Token *arg_token = args_start_token + 1;
-    int32_t param_string_start = arg_token->start;
+    i32 param_string_start = arg_token->start;
     
-    int32_t arg_count = 1;
+    i32 arg_count = 1;
     arg_token = args_start_token;
     for (; arg_token < args_end_token; ++arg_token){
         if (arg_token->type == CPP_TOKEN_COMMA){
@@ -896,14 +894,14 @@ parameter_parse(Partition *part, char *data, Cpp_Token *args_start_token, Cpp_To
         }
     }
     
-    Argument_Breakdown breakdown = allocate_argument_breakdown(part, arg_count);
+    Argument_Breakdown breakdown = allocate_argument_breakdown(arg_count);
     
     arg_token = args_start_token + 1;
     for (; arg_token <= args_end_token; ++arg_token){
         if (arg_token->type == CPP_TOKEN_COMMA ||
             arg_token->type == CPP_TOKEN_PARENTHESE_CLOSE){
             
-            int32_t size = arg_token->start - param_string_start;
+            i32 size = arg_token->start - param_string_start;
             String param_string = make_string(data + param_string_start, size);
             param_string = chop_whitespace(param_string);
             breakdown.args[arg_index].param_string = param_string;
@@ -912,8 +910,8 @@ parameter_parse(Partition *part, char *data, Cpp_Token *args_start_token, Cpp_To
                  param_name_token->start > param_string_start;
                  --param_name_token){
                 if (param_name_token->type == CPP_TOKEN_IDENTIFIER){
-                    int32_t name_start = param_name_token->start;
-                    int32_t name_size = param_name_token->size;
+                    i32 name_start = param_name_token->start;
+                    i32 name_size = param_name_token->size;
                     breakdown.args[arg_index].param_name = make_string(data + name_start, name_size);
                     break;
                 }
@@ -935,9 +933,9 @@ Moves the context in the following way:
 ~~~~~~~ name( ~~~~~~~
  ^  ->  ^
 */
-static int32_t
+internal i32
 function_parse_goto_name(Parse_Context *context){
-    int32_t result = false;
+    i32 result = false;
     
     Cpp_Token *token = 0;
     
@@ -967,9 +965,9 @@ Moves the context in the following way:
 ~~~~~~~ name( ~~~~~~~ /* XXX //
  ^  --------------->  ^
 */
-static int32_t
+internal i32
 function_get_doc(Parse_Context *context, char *data, String *doc_string){
-    int32_t result = false;
+    i32 result = false;
     
     Cpp_Token *token = get_token(context);
     String lexeme = {0};
@@ -995,9 +993,9 @@ function_get_doc(Parse_Context *context, char *data, String *doc_string){
     return(result);
 }
 
-static int32_t
+internal i32
 cpp_name_parse(Parse_Context *context, String *name){
-    int32_t result = false;
+    i32 result = false;
     
     Cpp_Token *token = 0;
     Cpp_Token *token_start = get_token(context);
@@ -1026,9 +1024,9 @@ Moves the context in the following way:
  RETTY~ name( ~~~~~~~ )
  ^  --------------->  ^
 */
-static int32_t
-function_sig_parse(Partition *part, Parse_Context *context, Item_Node *item, String cpp_name){
-    int32_t result = false;
+internal i32
+function_sig_parse(Parse_Context *context, Item_Node *item, String cpp_name){
+    i32 result = false;
     
     Cpp_Token *token = 0;
     Cpp_Token *args_start_token = 0;
@@ -1051,7 +1049,7 @@ function_sig_parse(Partition *part, Parse_Context *context, Item_Node *item, Str
             item->args = str_start_end(context->data, args_start_token->start, token->start + token->size);
             item->t = Item_Function;
             item->cpp_name = cpp_name;
-            item->breakdown = parameter_parse(part, context->data, args_start_token, token);
+            item->breakdown = parameter_parse(context->data, args_start_token, token);
             
             Assert(get_token(context)->type == CPP_TOKEN_PARENTHESE_CLOSE);
             result = true;
@@ -1066,9 +1064,9 @@ Moves the context in the following way:
  MARKER ~~~ name( ~~~~~~~ )
  ^  ------------------->  ^
 */
-static int32_t
-function_parse(Partition *part, Parse_Context *context, Item_Node *item, String cpp_name){
-    int32_t result = false;
+internal i32
+function_parse(Parse_Context *context, Item_Node *item, String cpp_name){
+    i32 result = false;
     
     String doc_string = {0};
     Cpp_Token *token = get_token(context);
@@ -1081,7 +1079,7 @@ function_parse(Partition *part, Parse_Context *context, Item_Node *item, String 
     
     set_token(context, token);
     if (get_next_token(context)){
-        if (function_sig_parse(part, context, item, cpp_name)){
+        if (function_sig_parse(context, item, cpp_name)){
             Assert(get_token(context)->type == CPP_TOKEN_PARENTHESE_CLOSE);
             result = true;
         }
@@ -1095,9 +1093,9 @@ Moves the context in the following way:
  /* ~~~ // #define
  ^  ---->  ^
 */
-static int32_t
+internal i32
 macro_parse_check(Parse_Context *context){
-    int32_t result = false;
+    i32 result = false;
     
     Cpp_Token *token = 0;
     
@@ -1119,9 +1117,9 @@ Moves the context in the following way:
  /* ~~~ // #define ~~~~~~~~~~~~~~~~~   NOT_IN_MACRO_BODY
  ^  ---------------------------->  ^
 */
-static int32_t
-macro_parse(Partition *part, Parse_Context *context, Item_Node *item){
-    int32_t result = false;
+internal i32
+macro_parse(Parse_Context *context, Item_Node *item){
+    i32 result = false;
     
     Cpp_Token *token = 0;
     Cpp_Token *doc_token = 0;
@@ -1159,7 +1157,7 @@ macro_parse(Partition *part, Parse_Context *context, Item_Node *item){
                         if (token){
                             item->args = str_start_end(context->data, args_start_token->start, token->start + token->size);
                             
-                            item->breakdown = parameter_parse(part, context->data, args_start_token, token);
+                            item->breakdown = parameter_parse(context->data, args_start_token, token);
                             
                             if ((token = get_next_token(context)) != 0){
                                 Cpp_Token *body_start = token;
@@ -1189,18 +1187,18 @@ macro_parse(Partition *part, Parse_Context *context, Item_Node *item){
     return(result);
 }
 
-static Meta_Unit
-compile_meta_unit(Partition *part, char *code_directory, char **files, Meta_Keywords *meta_keywords, int32_t key_count){
+internal Meta_Unit
+compile_meta_unit(char *code_directory, char **files, Meta_Keywords *meta_keywords, i32 key_count){
     Meta_Unit unit = {0};
     
-    int32_t file_count = 0;
+    i32 file_count = 0;
     for (char **file_ptr = files; *file_ptr; ++file_ptr, ++file_count);
     
     unit.count = file_count;
-    unit.parse = push_array(part, Parse, file_count);
+    unit.parse = fm_push_array(Parse, file_count);
     
     b32 all_files_lexed = true;
-    int32_t i = 0;
+    i32 i = 0;
     for (char **file_ptr = files; *file_ptr; ++file_ptr, ++i){
         char str_space[512];
         String name = make_fixed_width_string(str_space);
@@ -1222,7 +1220,7 @@ compile_meta_unit(Partition *part, char *code_directory, char **files, Meta_Keyw
     
     if (all_files_lexed){
         // TODO(allen): This stage counts nested structs and unions which is not correct.  Luckily it only means we over allocate by a few items, but fixing it to be exactly correct would be nice.
-        for (int32_t J = 0; J < unit.count; ++J){
+        for (i32 J = 0; J < unit.count; ++J){
             Cpp_Token *token = 0;
             Parse_Context context_ = setup_parse_context(unit.parse[J]);
             Parse_Context *context = &context_;
@@ -1231,7 +1229,7 @@ compile_meta_unit(Partition *part, char *code_directory, char **files, Meta_Keyw
                 if (!(token->flags & CPP_TFLAG_PP_BODY)){
                     
                     String lexeme = get_lexeme(*token, context->data);
-                    int32_t match_index = 0;
+                    i32 match_index = 0;
                     if (string_set_match_table(meta_keywords, sizeof(*meta_keywords), key_count, lexeme, &match_index)){
                         Item_Type type = meta_keywords[match_index].type;
                         
@@ -1247,31 +1245,31 @@ compile_meta_unit(Partition *part, char *code_directory, char **files, Meta_Keyw
         }
         
         if (unit.set.count >  0){
-            unit.set = allocate_item_set(part, unit.set.count);
+            unit.set = allocate_item_set(unit.set.count);
         }
         
-        int32_t index = 0;
+        i32 index = 0;
         
-        for (int32_t J = 0; J < unit.count; ++J){
+        for (i32 J = 0; J < unit.count; ++J){
             Cpp_Token *token = 0;
             Parse_Context context_ = setup_parse_context(unit.parse[J]);
             Parse_Context *context = &context_;
             
             String cpp_name = {0};
-            int32_t has_cpp_name = 0;
+            i32 has_cpp_name = 0;
             
             for (; (token = get_token(context)) != 0; get_next_token(context)){
                 if (!(token->flags & CPP_TFLAG_PP_BODY)){
                     
                     String lexeme = get_lexeme(*token, context->data);
-                    int32_t match_index = 0;
+                    i32 match_index = 0;
                     if (string_set_match_table(meta_keywords, sizeof(*meta_keywords), key_count, lexeme, &match_index)){
                         Item_Type type = meta_keywords[match_index].type;
                         
                         switch (type){
                             case Item_Function:
                             {
-                                if (function_parse(part, context, unit.set.items + index, cpp_name)){
+                                if (function_parse(context, unit.set.items + index, cpp_name)){
                                     Assert(unit.set.items[index].t == Item_Function);
                                     ++index;
                                 }
@@ -1292,7 +1290,7 @@ compile_meta_unit(Partition *part, char *code_directory, char **files, Meta_Keyw
                             
                             case Item_Macro:
                             {
-                                if (macro_parse(part, context, unit.set.items + index)){
+                                if (macro_parse(context, unit.set.items + index)){
                                     Assert(unit.set.items[index].t == Item_Macro);
                                     ++index;
                                 }
@@ -1314,9 +1312,8 @@ compile_meta_unit(Partition *part, char *code_directory, char **files, Meta_Keyw
                             
                             case Item_Struct: case Item_Union: //struct/union
                             {
-                                if (struct_parse(part, (type == Item_Struct), context, unit.set.items + index)){
-                                    Assert(unit.set.items[index].t == Item_Struct ||
-                                           unit.set.items[index].t == Item_Union);
+                                if (struct_parse((type == Item_Struct), context, unit.set.items + index)){
+                                    Assert(unit.set.items[index].t == Item_Struct ||unit.set.items[index].t == Item_Union);
                                     ++index;
                                 }
                                 else{
@@ -1326,7 +1323,7 @@ compile_meta_unit(Partition *part, char *code_directory, char **files, Meta_Keyw
                             
                             case Item_Enum: //ENUM
                             {
-                                if (enum_parse(part, context, unit.set.items + index)){
+                                if (enum_parse(context, unit.set.items + index)){
                                     Assert(unit.set.items[index].t == Item_Enum);
                                     ++index;
                                 }
@@ -1363,10 +1360,10 @@ compile_meta_unit(Partition *part, char *code_directory, char **files, Meta_Keyw
     return(unit);
 }
 
-static Meta_Unit
-compile_meta_unit(Partition *part, char *code_directory, char *file, Meta_Keywords *meta_keywords, int32_t key_count){
+internal Meta_Unit
+compile_meta_unit(char *code_directory, char *file, Meta_Keywords *meta_keywords, i32 key_count){
     char *file_array[2] = {file, 0};
-    Meta_Unit unit = compile_meta_unit(part, code_directory, file_array, meta_keywords, key_count);
+    Meta_Unit unit = compile_meta_unit(code_directory, file_array, meta_keywords, key_count);
     return(unit);
 }
 

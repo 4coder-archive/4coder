@@ -9,9 +9,7 @@
 
 // TOP
 
-// TODO(allen): get away from assert.h
 // TODO(allen): get away from string.h
-#include <assert.h>
 #include <string.h>
 
 #include "4ed_defines.h"

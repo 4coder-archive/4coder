@@ -75,10 +75,15 @@ internal char **fm_prepare_list_internal(char **l1, ...);
 
 internal char **fm_list_one_item(char *item);
 
+internal void *fm__push(umem size);
+internal void fm_align();
+
+#define fm_push_array(T,c) (T*)fm__push(sizeof(T)*c)
+
 // File System Navigation
-typedef umem String_Temp;
-internal String_Temp fm_begin_temp();
-internal void fm_end_temp(String_Temp temp);
+typedef umem Temp;
+internal Temp fm_begin_temp();
+internal void fm_end_temp(Temp temp);
 
 internal i32  fm_get_current_directory(char *buffer, i32 max);
 
@@ -182,17 +187,18 @@ umem fm_arena_max = 0;
 
 internal void
 fm__init_memory(){
+    Assert(fm_arena_memory == 0);
     fm_arena_max = MB(16);
     fm_arena_memory = (char*)malloc(fm_arena_max);
 }
 
-internal String_Temp
+internal Temp
 fm_begin_temp(){
     return(fm_arena_pos);
 }
 
 internal void
-fm_end_temp(String_Temp temp){
+fm_end_temp(Temp temp){
     fm_arena_pos = temp;
 }
 
@@ -206,6 +212,11 @@ fm__push(umem size){
         fm_arena_pos += size;
     }
     return(result);
+}
+
+internal void
+fm_align(){
+    fm_arena_pos = (fm_arena_pos+7)&(~7);
 }
 
 #if defined(IS_WINDOWS)
