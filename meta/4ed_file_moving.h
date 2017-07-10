@@ -60,6 +60,9 @@ internal void fm_copy_file(char *file, char *newname);
 internal void fm_copy_all(char *source, char *tag, char *folder);
 internal void fm_copy_folder(char *src_dir, char *dst_dir, char *src_folder);
 
+// File Reading and Writing
+internal void fm_write_file(char *file_name, char *data, u32 size);
+
 // Zip
 internal void fm_zip(char *parent, char *folder, char *dest);
 
@@ -219,6 +222,10 @@ fm_align(){
     fm_arena_pos = (fm_arena_pos+7)&(~7);
 }
 
+//
+// Windows implementation
+//
+
 #if defined(IS_WINDOWS)
 
 typedef uint32_t DWORD;
@@ -239,6 +246,28 @@ typedef union    _LARGE_INTEGER {
     } u;
     LONGLONG QuadPart;
 } LARGE_INTEGER, *PLARGE_INTEGER;
+typedef void*    HANDLE;
+typedef void*    PVOID;
+typedef void*    LPVOID;
+typedef void*    LPCVOID;
+typedef DWORD*   LPDWORD;
+#if defined(_WIN64)
+typedef unsigned __int64 ULONG_PTR;
+#else
+typedef unsigned long ULONG_PTR;
+#endif
+typedef struct _OVERLAPPED {
+    ULONG_PTR Internal;
+    ULONG_PTR InternalHigh;
+    union {
+        struct {
+            DWORD Offset;
+            DWORD OffsetHigh;
+        };
+        PVOID  Pointer;
+    };
+    HANDLE    hEvent;
+} OVERLAPPED, *LPOVERLAPPED;
 
 #define WINAPI
 
@@ -249,7 +278,29 @@ extern "C"{
     BOOL WINAPI QueryPerformanceFrequency(_Out_ LARGE_INTEGER *lpFrequency);
     BOOL WINAPI CreateDirectoryA(_In_ LPCTSTR lpPathName, _In_opt_ LPSECURITY_ATTRIBUTES lpSecurityAttributes);
     BOOL WINAPI CopyFileA(_In_ LPCTSTR lpExistingFileName, _In_ LPCTSTR lpNewFileName, _In_ BOOL bFailIfExists);
+    
+    HANDLE WINAPI CreateFileA(_In_ LPCTSTR lpFileName, _In_ DWORD dwDesiredAccess, _In_ DWORD dwShareMode,_In_opt_ LPSECURITY_ATTRIBUTES lpSecurityAttributes, _In_ DWORD dwCreationDisposition, _In_ DWORD dwFlagsAndAttributes, _In_opt_ HANDLE hTemplateFile);
+    BOOL WINAPI WriteFile(_In_ HANDLE hFile, _In_ LPCVOID lpBuffer, _In_ DWORD nNumberOfBytesToWrite, _Out_opt_ LPDWORD lpNumberOfBytesWritten, _Inout_opt_ LPOVERLAPPED lpOverlapped);
+    BOOL WINAPI ReadFile(_In_ HANDLE hFile, _Out_ LPVOID lpBuffer, _In_ DWORD nNumberOfBytesToRead, _Out_opt_ LPDWORD lpNumberOfBytesRead, _Inout_opt_ LPOVERLAPPED lpOverlapped);
+    BOOL WINAPI CloseHandle(_In_ HANDLE hObject);
 }
+
+#define INVALID_HANDLE_VALUE ((HANDLE) -1)
+
+#define GENERIC_READ                     0x80000000
+#define GENERIC_WRITE                    0x40000000
+#define GENERIC_EXECUTE                  0x20000000
+#define GENERIC_ALL                      0x10000000
+
+#define CREATE_NEW                       1
+#define CREATE_ALWAYS                    2
+#define OPEN_EXISTING                    3
+#define OPEN_ALWAYS                      4
+#define TRUNCATE_EXISTING                5
+
+#define FILE_ATTRIBUTE_READONLY          0x00000001  
+#define FILE_ATTRIBUTE_NORMAL            0x00000080  
+#define FILE_ATTRIBUTE_TEMPORARY         0x00000100 
 
 static uint64_t perf_frequency;
 
@@ -362,6 +413,23 @@ fm_copy_all(char *source, char *tag, char *folder){
     }
 }
 
+internal void
+fm_write_file(char *file_name, char *data, u32 size){
+    HANDLE file = CreateFileA(file_name, GENERIC_WRITE, 0, 0, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, 0);
+    if (file != INVALID_HANDLE_VALUE){
+        DWORD written = 0;
+        for (;written < size;){
+            DWORD newly_written = 0;
+            if (!WriteFile(file, data + written, size - written, &newly_written, 0)){
+                break;
+            }
+            written += newly_written;
+        }
+        Assert(written == size);
+        CloseHandle(file);
+    }
+}
+
 static void
 fm_zip(char *parent, char *folder, char *dest){
     char cdir[512];
@@ -373,6 +441,10 @@ fm_zip(char *parent, char *folder, char *dest){
     
     systemf("copy %s\\4ed_gobble.zip %s & del %s\\4ed_gobble.zip", cdir, dest, cdir);
 }
+
+//
+// Unix implementation
+//
 
 #elif defined(IS_LINUX) || defined(IS_MAC)
 
@@ -475,6 +547,16 @@ fm_copy_all(char *source, char *tag, char *folder){
     }
     else{
         systemf("cp -f %s %s", tag, folder);
+    }
+}
+
+internal void
+fm_write_file(char *file_name, char *data, u32 size){
+    // TODO(allen): Real unix version?
+    FILE *file = fopen(file_name, "wb");
+    if (file != 0){
+        fwrite(data, 1, size, file);
+        fclose(file);
     }
 }
 

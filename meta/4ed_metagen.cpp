@@ -115,7 +115,8 @@ generate_keycode_enum(){
            "return(result);\n"
            "}\n");
     
-    end_file_out(filename_keycodes, &out);
+    fm_write_file(filename_keycodes, out.str, out.size);
+    out.size = 0;
     
     fm_end_temp(temp);
 }
@@ -240,7 +241,8 @@ generate_style(){
     }
     append(&out, "};\n");
     
-    end_file_out(filename_4coder, &out);
+    fm_write_file(filename_4coder, out.str, out.size);
+    out.size = 0;
     
     struct_begin(&out, "Interactive_Style");
     {
@@ -298,7 +300,8 @@ generate_style(){
                "}\n\n");
     }
     
-    end_file_out(filename_4ed, &out);
+    fm_write_file(filename_4ed, out.str, out.size);
+    out.size = 0;
     
     fm_end_temp(temp);
 }
@@ -400,11 +403,11 @@ generate_custom_headers(){
         String *public_name = &func_4ed_names.names[i].public_name;
         
         *macro = str_alloc(name_string.size+4);
-        to_upper_ss(macro, name_string);
+        to_upper(macro, name_string);
         append(macro, make_lit_string("_SIG"));
         
         *public_name = str_alloc(name_string.size);
-        to_lower_ss(public_name, name_string);
+        to_lower(public_name, name_string);
         
         fm_align();
     }
@@ -435,7 +438,8 @@ generate_custom_headers(){
         append(&out, "_Function);\n");
     }
     
-    end_file_out(OS_API_H, &out);
+    fm_write_file(OS_API_H, out.str, out.size);
+    out.size = 0;
     
     append(&out, "struct Application_Links;\n");
     
@@ -518,7 +522,7 @@ generate_custom_headers(){
             }
             append(&out, "){");
             
-            if (match_ss(ret, make_lit_string("void"))){
+            if (match(ret, make_lit_string("void"))){
                 append(&out, "(");
             }
             else{
@@ -548,7 +552,8 @@ generate_custom_headers(){
     }
     append(&out, "#endif\n");
     
-    end_file_out(API_H, &out);
+    fm_write_file(API_H, out.str, out.size);
+    out.size = 0;
     
     fm_end_temp(temp);
 }

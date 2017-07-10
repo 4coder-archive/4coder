@@ -98,7 +98,8 @@ do_html_output(Document_System *doc_system, char *dst_directory, Abstract_Item *
     if (doc_get_link_string(doc, doc_link, sizeof(doc_link))){
         generate_document_html(&out, doc_system, doc);
         char *name = fm_str(dst_directory, "/", doc_link);
-        end_file_out(name, &out);
+        fm_write_file(name, out.str, out.size);
+        out.size = 0;
     }
 }
 

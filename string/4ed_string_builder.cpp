@@ -433,7 +433,8 @@ int main(){
     pstr = str_start_end(pcontext.data, start, parse.code.size);
     append(&out, pstr);
     
-    end_file_out(GENERATED_FILE, &out);
+    fm_write_file(GENERATED_FILE, out.str, out.size);
+    out.size = 0;
     
     // NOTE(allen): Publish the new file.  (Would like to be able to automatically test the result before publishing).
     {
