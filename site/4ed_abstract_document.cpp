@@ -667,28 +667,30 @@ write_enriched_text_html(String *out, Enriched_Text *text, Document_System *doc_
                         Cmd_Image,
                         Cmd_Video,
                         Cmd_EndSection,
+                        Cmd_DoMetaParse,
                         // never below this
                         Cmd_COUNT,
                     };
                     
                     local_persist String enriched_commands[Cmd_COUNT];
                     
-                    enriched_commands[Cmd_BackSlash]  = make_lit_string("\\");
-                    enriched_commands[Cmd_Version]    = make_lit_string("VERSION");
-                    enriched_commands[Cmd_BeginStyle] = make_lit_string("BEGIN_STYLE");
-                    enriched_commands[Cmd_EndStyle]   = make_lit_string("END_STYLE");
-                    enriched_commands[Cmd_DocLink]    = make_lit_string("DOC_LINK");
-                    enriched_commands[Cmd_BeginList]  = make_lit_string("BEGIN_LIST");
-                    enriched_commands[Cmd_EndList]    = make_lit_string("END_LIST");
-                    enriched_commands[Cmd_BeginItem]  = make_lit_string("BEGIN_ITEM");
-                    enriched_commands[Cmd_EndItem]    = make_lit_string("END_ITEM");
-                    enriched_commands[Cmd_BoldFace]   = make_lit_string("BOLD_FACE");
-                    enriched_commands[Cmd_Section]    = make_lit_string("SECTION");
-                    enriched_commands[Cmd_BeginLink]  = make_lit_string("BEGIN_LINK");
-                    enriched_commands[Cmd_EndLink]    = make_lit_string("END_LINK");
-                    enriched_commands[Cmd_Image]      = make_lit_string("IMAGE");
-                    enriched_commands[Cmd_Video]      = make_lit_string("VIDEO");
-                    enriched_commands[Cmd_EndSection] = make_lit_string("END_SECTION");
+                    enriched_commands[Cmd_BackSlash]   = make_lit_string("\\");
+                    enriched_commands[Cmd_Version]     = make_lit_string("VERSION");
+                    enriched_commands[Cmd_BeginStyle]  = make_lit_string("BEGIN_STYLE");
+                    enriched_commands[Cmd_EndStyle]    = make_lit_string("END_STYLE");
+                    enriched_commands[Cmd_DocLink]     = make_lit_string("DOC_LINK");
+                    enriched_commands[Cmd_BeginList]   = make_lit_string("BEGIN_LIST");
+                    enriched_commands[Cmd_EndList]     = make_lit_string("END_LIST");
+                    enriched_commands[Cmd_BeginItem]   = make_lit_string("BEGIN_ITEM");
+                    enriched_commands[Cmd_EndItem]     = make_lit_string("END_ITEM");
+                    enriched_commands[Cmd_BoldFace]    = make_lit_string("BOLD_FACE");
+                    enriched_commands[Cmd_Section]     = make_lit_string("SECTION");
+                    enriched_commands[Cmd_BeginLink]   = make_lit_string("BEGIN_LINK");
+                    enriched_commands[Cmd_EndLink]     = make_lit_string("END_LINK");
+                    enriched_commands[Cmd_Image]       = make_lit_string("IMAGE");
+                    enriched_commands[Cmd_Video]       = make_lit_string("VIDEO");
+                    enriched_commands[Cmd_EndSection]  = make_lit_string("END_SECTION");
+                    enriched_commands[Cmd_DoMetaParse] = make_lit_string("META_PARSE");
                     
                     i = command_end;
                     

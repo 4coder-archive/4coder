@@ -225,13 +225,18 @@ generate_4coder_docs(Document_System *doc_system, char *code_directory, char *sr
 }
 
 internal Abstract_Item*
-generate_page(Document_System *doc_system, char *src_directory, char *source_text, char *big_title, char *small_name){
+generate_page(Document_System *doc_system, char *code_directory, char *src_directory, char *source_text, char *big_title, char *small_name){
     Enriched_Text *home = fm_push_array(Enriched_Text, 1);
     *home = load_enriched_text(src_directory, source_text);
     
     Abstract_Item *doc = begin_document_description(doc_system, big_title, small_name, 0);
-    add_enriched_text(doc, home);
-    end_document_description(doc);
+    if (doc != 0){
+        add_enriched_text(doc, home);
+        end_document_description(doc);
+    }
+    else{
+        fprintf(stdout, "warning: could not create document %s from file %s\n", small_name, source_text);
+    }
     
     return(doc);
 }
@@ -308,11 +313,17 @@ generate_site(char *code_directory, char *asset_directory, char *src_directory, 
     
     generate_4coder_docs(&doc_system, code_directory, src_directory);
     
-    generate_page(&doc_system, src_directory, "home.txt"        , "4coder Home"        , "home"      );
-    generate_page(&doc_system, src_directory, "feature_list.txt", "4coder Feature List", "features"  );
-    generate_page(&doc_system, src_directory, "binding_list.txt", "4coder Binding List", "bindings"  );
-    generate_page(&doc_system, src_directory, "roadmap.txt"     , "4coder Roadmap"     , "roadmap"   );
-    generate_page(&doc_system, src_directory, "tutorials.txt"   , "4coder Tutorials"   , "tutorials" );
+    char *cdir = code_directory;
+    char *sdir = src_directory;
+    Document_System *docs = &doc_system;
+    
+    // TODO(allen): From the text file get the          "Big Title" and        "smallname".
+    generate_page(docs, cdir, sdir, "home.txt"        , "4coder Home"        , "home"        );
+    generate_page(docs, cdir, sdir, "docs.txt"        , "4coder API Docs"    , "custom_docs_2" );
+    generate_page(docs, cdir, sdir, "feature_list.txt", "4coder Feature List", "features"    );
+    generate_page(docs, cdir, sdir, "binding_list.txt", "4coder Binding List", "bindings"    );
+    generate_page(docs, cdir, sdir, "roadmap.txt"     , "4coder Roadmap"     , "roadmap"     );
+    generate_page(docs, cdir, sdir, "tutorials.txt"   , "4coder Tutorials"   , "tutorials"   );
     
     for (Basic_Node *node = doc_system.doc_list.head;
          node != 0;
