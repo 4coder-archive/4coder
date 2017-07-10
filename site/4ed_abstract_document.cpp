@@ -666,6 +666,7 @@ write_enriched_text_html(String *out, Enriched_Text *text, Document_System *doc_
                         Cmd_EndLink,
                         Cmd_Image,
                         Cmd_Video,
+                        Cmd_EndSection,
                         // never below this
                         Cmd_COUNT,
                     };
@@ -687,6 +688,7 @@ write_enriched_text_html(String *out, Enriched_Text *text, Document_System *doc_
                     enriched_commands[Cmd_EndLink]    = make_lit_string("END_LINK");
                     enriched_commands[Cmd_Image]      = make_lit_string("IMAGE");
                     enriched_commands[Cmd_Video]      = make_lit_string("VIDEO");
+                    enriched_commands[Cmd_EndSection] = make_lit_string("END_SECTION");
                     
                     i = command_end;
                     
@@ -767,7 +769,8 @@ write_enriched_text_html(String *out, Enriched_Text *text, Document_System *doc_
                                     body_text = skip_chop_whitespace(body_text);
                                     
                                     html_render_section_header(out, body_text, null_string, section_counter);
-                                    ++section_counter->counter[section_counter->nest_level];
+                                    section_counter->counter[section_counter->nest_level];
+                                    ++section_counter->nest_level;
                                     item_counter = 0;
                                 }
                             }break;
@@ -889,6 +892,18 @@ write_enriched_text_html(String *out, Enriched_Text *text, Document_System *doc_
                                         append(out, youtube_str);
                                         append(out, "' allowfullscreen> </iframe>");
                                     }
+                                }
+                            }break;
+                            
+                            case Cmd_EndSection:
+                            {
+                                if (section_counter->nest_level > 0){
+                                    --section_counter->nest_level;
+                                    ++section_counter->counter[section_counter->nest_level];
+                                }
+                                else{
+                                    append(out, "<span style='color:#F00'>! Doc generator error: unmatched section end !</span>");
+                                    fprintf(stderr, "error: unmatched section end\n");
                                 }
                             }break;
                         }

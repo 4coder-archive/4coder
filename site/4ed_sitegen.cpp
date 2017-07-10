@@ -32,7 +32,6 @@
 #include "../meta/4ed_file_moving.h"
 #include "../meta/4ed_meta_parser.cpp"
 #include "../meta/4ed_meta_keywords.h"
-#include "../meta/4ed_out_context.cpp"
 #include "4ed_abstract_document.cpp"
 
 ///////////////////////////////////////////////////////////////////////////
