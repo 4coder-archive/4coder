@@ -1,6 +1,11 @@
 /*
-4coder development build rule.
-*/
+ * Mr. 4th Dimention - Allen Webster
+ *
+ * ??.??.????
+ *
+ * 4coder development build rule.
+ *
+ */
 
 // TOP
 
@@ -189,20 +194,19 @@ get_defines_from_flags(u32 flags){
 "user32.lib winmm.lib gdi32.lib opengl32.lib "   \
 "..\\foreign_x86\\freetype.lib"
 
-
 #define CL_ICON "..\\res\\icon.res"
 
-static void
+internal void
 build(u32 flags, u32 arch, char *code_path, char **code_files, char *out_path, char *out_file, char **defines, char **exports, char **inc_folders){
     Temp_Dir temp = fm_pushdir(out_path);
-
+    
     Build_Line line;
     fm_init_build_line(&line);
     
     if (arch == Arch_X86){
         fm_add_to_line(line, "%s\\windows_scripts\\setup_cl_x86.bat &", code_path);
     }
-
+    
     fm_add_to_line(line, "cl");
     
     if (flags & OPTS){
@@ -210,8 +214,8 @@ build(u32 flags, u32 arch, char *code_path, char **code_files, char *out_path, c
     }
     
     switch (arch){
-        case Arch_X64: fm_add_to_line(line, "/DFTECH_64_BIT"); break;
-        case Arch_X86: fm_add_to_line(line, "/DFTECH_32_BIT"); break;
+        case Arch_X64: fm_add_to_line(line, "-DFTECH_64_BIT"); break;
+        case Arch_X86: fm_add_to_line(line, "-DFTECH_32_BIT"); break;
         default: InvalidCodePath;
     }
     
@@ -219,7 +223,7 @@ build(u32 flags, u32 arch, char *code_path, char **code_files, char *out_path, c
     if (inc_folders != 0){
         for (u32 i = 0; inc_folders[i] != 0; ++i){
             char *str = fm_str(code_path, "/", inc_folders[i]);
-            fm_add_to_line(line, "/I%s", str);
+            fm_add_to_line(line, "-I%s", str);
         }
     }
     
@@ -236,51 +240,51 @@ build(u32 flags, u32 arch, char *code_path, char **code_files, char *out_path, c
     }
     
     if (flags & DEBUG_INFO){
-        fm_add_to_line(line, "/Zi");
+        fm_add_to_line(line, "-Zi");
     }
     
     if (flags & OPTIMIZATION){
-        fm_add_to_line(line, "/O2");
+        fm_add_to_line(line, "-O2");
     }
     
     if (flags & SHARED_CODE){
-        fm_add_to_line(line, "/LD");
+        fm_add_to_line(line, "-LD");
     }
     
     if (defines != 0){
         for (u32 i = 0; defines[i] != 0; ++i){
-            char *define_flag = fm_str("/D", defines[i]);
-            fm_add_to_line(line, define_flag);
+            char *define_flag = fm_str("-D", defines[i]);
+            fm_add_to_line(line, "%s", define_flag);
         }
     }
-
+    
     for (u32 i = 0; code_files[i]; ++i){
         fm_add_to_line(line, "\"%s\\%s\"", code_path, code_files[i]);
     }
-
-    fm_add_to_line(line, "/Fe%s", out_file);
-
-    fm_add_to_line(line, "/link /INCREMENTAL:NO");
+    
+    fm_add_to_line(line, "-Fe%s", out_file);
+    
+    fm_add_to_line(line, "-link -INCREMENTAL:NO");
     switch (arch){
-        case Arch_X64: fm_add_to_line(line, "/MACHINE:X64"); break;
-        case Arch_X86: fm_add_to_line(line, "/MACHINE:X86"); break;
+        case Arch_X64: fm_add_to_line(line, "-MACHINE:X64"); break;
+        case Arch_X86: fm_add_to_line(line, "-MACHINE:X86"); break;
         default: InvalidCodePath;
     }
     
     if (flags & DEBUG_INFO){
-        fm_add_to_line(line, "/DEBUG");
+        fm_add_to_line(line, "-DEBUG");
     }
     
     if (flags & SHARED_CODE){
         Assert(exports != 0);
-        fm_add_to_line(line, "/OPT:REF");
+        fm_add_to_line(line, "-OPT:REF");
         for (u32 i = 0; exports[i] != 0; ++i){
-            char *str = fm_str("/EXPORT:", exports[i]);
+            char *str = fm_str("-EXPORT:", exports[i]);
             fm_add_to_line(line, "%s", str);
         }
     }
     else{
-        fm_add_to_line(line, "/NODEFAULTLIB:library");
+        fm_add_to_line(line, "-NODEFAULTLIB:library");
     }
     
     fm_finish_build_line(&line);
@@ -320,7 +324,7 @@ build(u32 flags, u32 arch, char *code_path, char **code_files, char *out_path, c
 # error gcc options not set for this platform
 #endif
 
-static void
+internal void
 build(u32 flags, u32 arch, char *code_path, char **code_files, char *out_path, char *out_file, char **defines, char **exports, char **inc_folders){
     Build_Line line;
     fm_init_build_line(&line);
@@ -387,7 +391,7 @@ build(u32 flags, u32 arch, char *code_path, char **code_files, char *out_path, c
             fm_add_to_line(line, "%s", define_flag);
         }
     }
-
+    
     fm_add_to_line(line, "-I\"%s\"", code_path);
     for (u32 i = 0; code_files[i] != 0; ++i){
         fm_add_to_line(line, "\"%s/%s\"", code_path, code_files[i]);
@@ -408,7 +412,7 @@ build(u32 flags, u32 arch, char *code_path, char **code_files, char *out_path, c
 # error build function not defined for this compiler
 #endif
 
-static void
+internal void
 build(u32 flags, u32 arch, char *code_path, char *code_file, char *out_path, char *out_file, char **defines, char **exports, char **inc_folders){
     char *code_files[2];
     code_files[0] = code_file;
@@ -416,7 +420,7 @@ build(u32 flags, u32 arch, char *code_path, char *code_file, char *out_path, cha
     build(flags, arch, code_path, code_files, out_path, out_file, defines, exports, inc_folders);
 }
 
-static void
+internal void
 site_build(char *cdir, u32 flags){
     {
         char *file = fm_str("site/4ed_sitegen.cpp");
@@ -426,7 +430,7 @@ site_build(char *cdir, u32 flags){
         END_TIME_SECTION("build sitegen");
     }
     
-    {
+    if (prev_error == 0){
         BEGIN_TIME_SECTION();
         char *cmd = fm_str(BUILD_DIR"/sitegen");
         char *code_dir = fm_str(".");
@@ -439,7 +443,7 @@ site_build(char *cdir, u32 flags){
     }
 }
 
-static void
+internal void
 build_and_run(char *cdir, char *filename, char *name, u32 flags){
     char *dir = fm_str(BUILD_DIR);
     
@@ -458,17 +462,36 @@ build_and_run(char *cdir, char *filename, char *name, u32 flags){
     }
 }
 
-static void
+internal void
 fsm_generator(char *cdir){
     build_and_run(cdir, "meta/4ed_fsm_table_generator.cpp", "fsmgen", OPTS | DEBUG_INFO);
 }
 
-static void
+internal void
 metagen(char *cdir){
     build_and_run(cdir, "meta/4ed_metagen.cpp", "metagen", OPTS | DEBUG_INFO);
 }
 
-static void
+internal void
+string_build(char *cdir){
+    char *dir = fm_str(BUILD_DIR);
+    
+    {
+        char *file = fm_str("string/4ed_string_builder.cpp");
+        BEGIN_TIME_SECTION();
+        build(OPTS | DEBUG_INFO, Arch_X64, cdir, file, dir, "string_builder", 0, 0, includes);
+        END_TIME_SECTION("build string_builder");
+    }
+    
+    if (prev_error == 0){
+        char *cmd = fm_str(cdir, "/", dir, "/string_builder");
+        BEGIN_TIME_SECTION();
+        fm_execute_in_dir(fm_str(cdir, "/string"), cmd, 0);
+        END_TIME_SECTION("run string_builder");
+    }
+}
+
+internal void
 do_buildsuper(char *cdir, char *file, u32 arch){
     BEGIN_TIME_SECTION();
     Temp_Dir temp = fm_pushdir(fm_str(BUILD_DIR));
@@ -485,7 +508,7 @@ do_buildsuper(char *cdir, char *file, u32 arch){
     END_TIME_SECTION("build custom");
 }
 
-static void
+internal void
 build_main(char *cdir, b32 update_local_theme, u32 flags, u32 arch){
     char *dir = fm_str(BUILD_DIR);
     
@@ -515,7 +538,7 @@ build_main(char *cdir, b32 update_local_theme, u32 flags, u32 arch){
     }
 }
 
-static void
+internal void
 standard_build(char *cdir, u32 flags, u32 arch){
     fsm_generator(cdir);
     metagen(cdir);
@@ -541,7 +564,7 @@ get_4coder_dist_name(u32 platform, char *tier, u32 arch){
     return(name);
 }
 
-static void
+internal void
 package(char *cdir){
     // NOTE(allen): meta
     fsm_generator(cdir);
@@ -663,6 +686,9 @@ int main(int argc, char **argv){
     
 #elif defined(SITE_BUILD)
     site_build(cdir, DEBUG_INFO);
+    
+#elif defined(STRING_BUILD)
+    string_build(cdir);
     
 #else
 # error No build type specified.

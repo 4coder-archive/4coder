@@ -503,7 +503,7 @@ fm__prepare(umem item_size, void *i1, va_list list){
     umem size = listsize(i1, item_size);
     void *result = (void*)fm__push(size);
     memcpy(result, i1, size);
-
+    
     void *ln = va_arg(list, void*);
     for (;ln != 0;){
         size = listsize(ln, item_size);
@@ -511,7 +511,7 @@ fm__prepare(umem item_size, void *i1, va_list list){
         memcpy(new_str, ln, size);
         ln = va_arg(list, void*);
     }
-
+    
     void *terminator = (void*)fm__push(item_size);
     memset(terminator, 0, item_size);
     return(result);
