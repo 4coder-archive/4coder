@@ -6,8 +6,8 @@ By Allen Webster
 
 // TOP
 
-#if !defined(FTECH_FILE_MOVING_H)
-#define FTECH_FILE_MOVING_H
+#if !defined(FRED_FILE_MOVING_H)
+#define FRED_FILE_MOVING_H
 
 #include "../4ed_os_comp_cracking.h"
 

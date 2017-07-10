@@ -21,9 +21,9 @@ load_enriched_text(char *directory, char *filename){
     
     char space[256];
     String fname = make_fixed_width_string(space);
-    append_sc(&fname, directory);
-    append_sc(&fname, "/");
-    append_sc(&fname, filename);
+    append(&fname, directory);
+    append(&fname, "/");
+    append(&fname, filename);
     terminate_with_null(&fname);
     
     result.source = file_dump(fname.str);
@@ -235,7 +235,7 @@ set_section_name(Document_Item *item, char *name, i32 show_title){
     i32 name_len = str_size(name);
     item->section.name = make_string_cap(fm_push_array(char, name_len+1), 0, name_len+1);
     fm_align();
-    append_sc(&item->section.name, name);
+    append(&item->section.name, name);
     item->section.show_title = show_title;
 }
 
@@ -244,7 +244,7 @@ set_section_id(Document_Item *item, char *id){
     i32 id_len = str_size(id);
     item->section.id = make_string_cap(fm_push_array(char, id_len+1), 0, id_len+1);
     fm_align();
-    append_sc(&item->section.id, id);
+    append(&item->section.id, id);
 }
 
 internal void
@@ -474,28 +474,28 @@ struct Section_Counter{
     i32 nest_level;
 };
 
-internal i32
+internal b32
 doc_get_link_string(Abstract_Item *doc, char *space, i32 capacity){
     String str = make_string_cap(space, 0, capacity);
-    append_sc(&str, doc->name);
-    append_sc(&str, ".html");
-    i32 result = terminate_with_null(&str);
+    append(&str, doc->name);
+    append(&str, ".html");
+    b32 result = terminate_with_null(&str);
     return(result);
 }
 
-internal i32
+internal b32
 img_get_link_string(Abstract_Item *img, char *space, i32 capacity, i32 w, i32 h){
     String str = make_string_cap(space, 0, capacity);
-    append_sc(&str, img->name);
+    append(&str, img->name);
     
-    append_sc(&str, "_");
+    append(&str, "_");
     append_int_to_str(&str, w);
-    append_sc(&str, "_");
+    append(&str, "_");
     append_int_to_str(&str, h);
     
-    append_sc(&str, ".");
-    append_sc(&str, img->extension);
-    i32 result = terminate_with_null(&str);
+    append(&str, ".");
+    append(&str, img->extension);
+    b32 result = terminate_with_null(&str);
     return(result);
 }
 
@@ -505,7 +505,7 @@ append_section_number_reduced(String *out, Section_Counter *section_counter, i32
     for (i32 i = 1; i <= level; ++i){
         append_int_to_str(out, section_counter->counter[i]);
         if (i != level){
-            append_sc(out, ".");
+            append(out, ".");
         }
     }
 }
@@ -549,11 +549,10 @@ extract_command_body(String *out, String l, i32 *i_in_out, i32 *body_start_out, 
         if (require_body){
 #define STR_START "<span style='color:#F00'>! Doc generator error: missing body for "
 #define STR_SLOW " !</span>"
-            append_sc(out, STR_START);
-            append_ss(out, command_name);
-            append_sc(out, STR_SLOW);
+            append(out, STR_START);
+            append(out, command_name);
+            append(out, STR_SLOW);
 #undef STR
-            
             fprintf(stderr, "error: missing body for %.*s\n", command_name.size, command_name.str);
         }
     }
@@ -569,31 +568,31 @@ internal void
 html_render_section_header(String *out, String section_name, String section_id, Section_Counter *section_counter){
     if (section_counter->nest_level <= 1){
         if (section_id.size > 0){
-            append_sc(out, "\n<h2 id='section_");
-            append_ss(out, section_id);
-            append_sc(out, "'>&sect;");
+            append(out, "\n<h2 id='section_");
+            append(out, section_id);
+            append(out, "'>&sect;");
         }
         else{
-            append_sc(out, "\n<h2>&sect;");
+            append(out, "\n<h2>&sect;");
         }
         append_section_number(out, section_counter);
-        append_sc(out, " ");
-        append_ss(out, section_name);
-        append_sc(out, "</h2>");
+        append(out, " ");
+        append(out, section_name);
+        append(out, "</h2>");
     }
     else{
         if (section_id.size > 0){
-            append_sc(out, "<h3 id='section_");
-            append_ss(out, section_id);
-            append_sc(out, "'>&sect;");
+            append(out, "<h3 id='section_");
+            append(out, section_id);
+            append(out, "'>&sect;");
         }
         else{
-            append_sc(out, "<h3>&sect;");
+            append(out, "<h3>&sect;");
         }
         append_section_number(out, section_counter);
-        append_sc(out, " ");
-        append_ss(out, section_name);
-        append_sc(out, "</h3>");
+        append(out, " ");
+        append(out, section_name);
+        append(out, "</h3>");
     }
 }
 
@@ -603,7 +602,7 @@ internal void
 write_enriched_text_html(String *out, Enriched_Text *text, Document_System *doc_system,  Section_Counter *section_counter){
     String source = text->source;
     
-    append_sc(out, "<div>");
+    append(out, "<div>");
     
     i32 item_counter = 0;
     
@@ -611,7 +610,7 @@ write_enriched_text_html(String *out, Enriched_Text *text, Document_System *doc_
          line.str;
          line = get_next_double_line(source, line)){
         String l  = skip_chop_whitespace(line);
-        append_sc(out, "<p>");
+        append(out, "<p>");
         
         i32 start = 0, i = 0;
         for (; i < l.size; ++i){
@@ -619,21 +618,21 @@ write_enriched_text_html(String *out, Enriched_Text *text, Document_System *doc_
             switch (ch){
                 case '<':
                 {
-                    append_ss(out, substr(l, start, i-start));
-                    append_sc(out, "&lt;");
+                    append(out, substr(l, start, i-start));
+                    append(out, "&lt;");
                     start = i+1;
                 }break;
                 
                 case '>':
                 {
-                    append_ss(out, substr(l, start, i-start));
-                    append_sc(out, "&gt;");
+                    append(out, substr(l, start, i-start));
+                    append(out, "&gt;");
                     start = i+1;
                 }break;
                 
                 case '\\':
                 {
-                    append_ss(out, substr(l, start, i-start));
+                    append(out, substr(l, start, i-start));
                     
                     i32 command_start = i+1;
                     i32 command_end = command_start;
@@ -694,8 +693,8 @@ write_enriched_text_html(String *out, Enriched_Text *text, Document_System *doc_
                     i32 match_index = 0;
                     if (string_set_match(enriched_commands, ArrayCount(enriched_commands), command_string, &match_index)){
                         switch (match_index){
-                            case Cmd_BackSlash: append_sc(out, "\\"); break;
-                            case Cmd_Version: append_sc(out, VERSION); break;
+                            case Cmd_BackSlash: append(out, "\\"); break;
+                            case Cmd_Version: append(out, VERSION); break;
                             
                             case Cmd_BeginStyle:
                             {
@@ -705,14 +704,14 @@ write_enriched_text_html(String *out, Enriched_Text *text, Document_System *doc_
                                     String body_text = substr(l, body_start, body_end - body_start);
                                     body_text = skip_chop_whitespace(body_text);
                                     if (match_sc(body_text, "code")){
-                                        append_sc(out, "<span style='"HTML_CODE_STYLE"'>");
+                                        append(out, "<span style='"HTML_CODE_STYLE"'>");
                                     }
                                 }
                             }break;
                             
                             case Cmd_EndStyle:
                             {
-                                append_sc(out, "</span>");
+                                append(out, "</span>");
                             }break;
                             
                             // TODO(allen): upgrade this bs
@@ -723,39 +722,39 @@ write_enriched_text_html(String *out, Enriched_Text *text, Document_System *doc_
                                 if (has_body){
                                     String body_text = substr(l, body_start, body_end - body_start);
                                     body_text = skip_chop_whitespace(body_text);
-                                    append_sc(out, "<a href='#");
-                                    append_ss(out, body_text);
-                                    append_sc(out, "_doc'>");
-                                    append_ss(out, body_text);
-                                    append_sc(out, "</a>");
+                                    append(out, "<a href='#");
+                                    append(out, body_text);
+                                    append(out, "_doc'>");
+                                    append(out, body_text);
+                                    append(out, "</a>");
                                 }
                             }break;
                             
                             case Cmd_BeginList:
                             {
-                                append_sc(out,"<ul style='margin-top: 5mm; margin-left: 1mm;'>");
+                                append(out,"<ul style='margin-top: 5mm; margin-left: 1mm;'>");
                             }break;
                             
                             case Cmd_EndList:
                             {
-                                append_sc(out, "</ul>");
+                                append(out, "</ul>");
                             }break;
                             
                             case Cmd_BeginItem:
                             {
                                 if (item_counter == 0){
-                                    append_sc(out, "<li style='font-size: 95%; background: #EFEFDF;'>");
+                                    append(out, "<li style='font-size: 95%; background: #EFEFDF;'>");
                                     ++item_counter;
                                 }
                                 else{
-                                    append_sc(out, "<li style='font-size: 95%;'>");
+                                    append(out, "<li style='font-size: 95%;'>");
                                     item_counter = 0;
                                 }
                             }break;
                             
                             case Cmd_EndItem:
                             {
-                                append_sc(out, "</li>");
+                                append(out, "</li>");
                             }break;
                             
                             case Cmd_Section:
@@ -781,20 +780,20 @@ write_enriched_text_html(String *out, Enriched_Text *text, Document_System *doc_
                                     String body_text = substr(l, body_start, body_end - body_start);
                                     body_text = skip_chop_whitespace(body_text);
                                     
-                                    append_sc(out, "<a ");
+                                    append(out, "<a ");
                                     if (body_text.str[0] == '!'){
-                                        append_sc(out, "target='_blank' ");
+                                        append(out, "target='_blank' ");
                                         body_text.str++;
                                         body_text.size--;
                                     }
-                                    append_sc(out, "href='");
+                                    append(out, "href='");
                                     if (match_part_sc(body_text, "document:")){
                                         String doc_name = substr_tail(body_text, sizeof("document:")-1);
                                         Abstract_Item *doc_lookup = get_item_by_name(doc_system->doc_list, doc_name);
                                         if (doc_lookup){
                                             char space[256];
                                             if (doc_get_link_string(doc_lookup, space, sizeof(space))){
-                                                append_sc(out, space);
+                                                append(out, space);
                                             }
                                             else{
                                                 NotImplemented;
@@ -802,15 +801,15 @@ write_enriched_text_html(String *out, Enriched_Text *text, Document_System *doc_
                                         }
                                     }
                                     else{
-                                        append_ss(out, body_text);
+                                        append(out, body_text);
                                     }
-                                    append_sc(out, "'>");
+                                    append(out, "'>");
                                 }
                             }break;
                             
                             case Cmd_EndLink:
                             {
-                                append_sc(out, "</a>");
+                                append(out, "</a>");
                             }break;
                             
                             case Cmd_Image:
@@ -845,22 +844,22 @@ write_enriched_text_html(String *out, Enriched_Text *text, Document_System *doc_
                                         if (img_lookup){
                                             pixel_height = ceil32(pixel_width*img_lookup->h_w_ratio);
                                             
-                                            append_sc(out, "<img src='");
+                                            append(out, "<img src='");
                                             
                                             char space[256];
                                             if (img_get_link_string(img_lookup, space, sizeof(space), pixel_width, pixel_height)){
-                                                append_sc(out, space);
+                                                append(out, space);
                                                 add_image_instantiation(&img_lookup->img_instantiations, pixel_width, pixel_height);
                                             }
                                             else{
                                                 NotImplemented;
                                             }
                                             
-                                            append_sc(out, "' style='width: ");
+                                            append(out, "' style='width: ");
                                             append_int_to_str(out, pixel_width);
-                                            append_sc(out, "px; height: ");
+                                            append(out, "px; height: ");
                                             append_int_to_str(out, pixel_height);
-                                            append_sc(out, "px;'>");
+                                            append(out, "px;'>");
                                         }
                                     }
                                 }
@@ -882,20 +881,20 @@ write_enriched_text_html(String *out, Enriched_Text *text, Document_System *doc_
                                     if (match_part_sc(body_text, "youtube:")){
                                         String youtube_str = substr_tail(body_text, sizeof("youtube:")-1);
                                         
-                                        append_sc(out, "<iframe  width='");
+                                        append(out, "<iframe  width='");
                                         append_int_to_str(out, pixel_width);
-                                        append_sc(out, "' height='");
+                                        append(out, "' height='");
                                         append_int_to_str(out, pixel_height);
-                                        append_sc(out, "' src='");
-                                        append_ss(out, youtube_str);
-                                        append_sc(out, "' allowfullscreen> </iframe>");
+                                        append(out, "' src='");
+                                        append(out, youtube_str);
+                                        append(out, "' allowfullscreen> </iframe>");
                                     }
                                 }
                             }break;
                         }
                     }
                     else{
-                        append_sc(out, "<span style='color:#F00'>! Doc generator error: unrecognized command !</span>");
+                        append(out, "<span style='color:#F00'>! Doc generator error: unrecognized command !</span>");
                         fprintf(stderr, "error: unrecognized command %.*s\n", command_string.size, command_string.str);
                     }
                     
@@ -905,23 +904,23 @@ write_enriched_text_html(String *out, Enriched_Text *text, Document_System *doc_
         }
         
         if (start != i){
-            append_ss(out, substr(l, start, i-start));
+            append(out, substr(l, start, i-start));
         }
         
-        append_sc(out, "</p>");
+        append(out, "</p>");
     }
     
-    append_sc(out, "</div>");
+    append(out, "</div>");
 }
 
 internal void
 print_item_in_list(String *out, String name, char *id_postfix){
-    append_sc(out, "<li><a href='#");
-    append_ss(out, name);
-    append_sc(out, id_postfix);
-    append_sc(out, "'>");
-    append_ss(out, name);
-    append_sc(out, "</a></li>");
+    append(out, "<li><a href='#");
+    append(out, name);
+    append(out, id_postfix);
+    append(out, "'>");
+    append(out, name);
+    append(out, "</a></li>");
 }
 
 internal void
@@ -931,18 +930,17 @@ init_used_links(Used_Links *used, i32 count){
     used->max = count;
 }
 
-internal i32
-try_to_use(Used_Links *used, String str){
-    i32 result = 1;
+internal b32
+try_to_use_link(Used_Links *used, String str){
+    b32 result = true;
     i32 index = 0;
-    
     if (string_set_match(used->strs, used->count, str, &index)){
-        result = 0;
+        result = false;
     }
     else{
+        Assert(used->count < used->max);
         used->strs[used->count++] = str;
     }
-    
     return(result);
 }
 
@@ -952,19 +950,19 @@ print_struct_html(String *out, Item_Node *member, i32 hide_children){
     String type = member->type;
     String type_postfix = member->type_postfix;
     
-    append_ss     (out, type);
+    append     (out, type);
     append_s_char (out, ' ');
-    append_ss     (out, name);
-    append_ss     (out, type_postfix);
+    append     (out, name);
+    append     (out, type_postfix);
     
     if (match_ss(type, make_lit_string("struct")) ||
         match_ss(type, make_lit_string("union"))){
         
         if (hide_children){
-            append_sc(out, " { /* non-public internals */ } ;");
+            append(out, " { /* non-public internals */ } ;");
         }
         else{
-            append_sc(out, " {<br><div style='margin-left: 8mm;'>");
+            append(out, " {<br><div style='margin-left: 8mm;'>");
             
             for (Item_Node *member_iter = member->first_child;
                  member_iter != 0;
@@ -972,71 +970,71 @@ print_struct_html(String *out, Item_Node *member, i32 hide_children){
                 print_struct_html(out, member_iter, hide_children);
             }
             
-            append_sc(out, "</div>};<br>");
+            append(out, "</div>};<br>");
         }
     }
     else{
-        append_sc(out, ";<br>");
+        append(out, ";<br>");
     }
 }
 
 internal void
 print_function_html(String *out, Used_Links *used, String cpp_name, String ret, char *function_call_head, String name, Argument_Breakdown breakdown){
     
-    append_ss     (out, ret);
+    append     (out, ret);
     append_s_char (out, ' ');
-    append_sc     (out, function_call_head);
-    append_ss     (out, name);
+    append     (out, function_call_head);
+    append     (out, name);
     
     if (breakdown.count == 0){
-        append_sc(out, "()");
+        append(out, "()");
     }
     else if (breakdown.count == 1){
-        append_sc(out, "(");
-        append_ss(out, breakdown.args[0].param_string);
-        append_sc(out, ")");
+        append(out, "(");
+        append(out, breakdown.args[0].param_string);
+        append(out, ")");
     }
     else{
-        append_sc(out, "(<div style='margin-left: 4mm;'>");
+        append(out, "(<div style='margin-left: 4mm;'>");
         
         for (i32 j = 0; j < breakdown.count; ++j){
-            append_ss(out, breakdown.args[j].param_string);
+            append(out, breakdown.args[j].param_string);
             if (j < breakdown.count - 1){
                 append_s_char(out, ',');
             }
-            append_sc(out, "<br>");
+            append(out, "<br>");
         }
         
-        append_sc(out, "</div>)");
+        append(out, "</div>)");
     }
 }
 
 internal void
 print_macro_html(String *out, String name, Argument_Breakdown breakdown){
     
-    append_sc (out, "#define ");
-    append_ss (out, name);
+    append (out, "#define ");
+    append (out, name);
     
     if (breakdown.count == 0){
-        append_sc(out, "()");
+        append(out, "()");
     }
     else if (breakdown.count == 1){
         append_s_char  (out, '(');
-        append_ss      (out, breakdown.args[0].param_string);
+        append      (out, breakdown.args[0].param_string);
         append_s_char  (out, ')');
     }
     else{
-        append_sc (out, "(<div style='margin-left: 4mm;'>");
+        append (out, "(<div style='margin-left: 4mm;'>");
         
         for (i32 j = 0; j < breakdown.count; ++j){
-            append_ss(out, breakdown.args[j].param_string);
+            append(out, breakdown.args[j].param_string);
             if (j < breakdown.count - 1){
                 append_s_char(out, ',');
             }
-            append_sc(out, "<br>");
+            append(out, "<br>");
         }
         
-        append_sc(out, ")</div>)");
+        append(out, ")</div>)");
     }
 }
 
@@ -1138,8 +1136,8 @@ print_doc_description(String *out, String src){
                 for (String line = get_first_double_line(chunk);
                      line.str;
                      line = get_next_double_line(chunk, line)){
-                    append_ss(out, line);
-                    append_sc(out, "<br><br>");
+                    append(out, line);
+                    append(out, "<br><br>");
                 }
             }break;
             
@@ -1152,7 +1150,7 @@ print_doc_description(String *out, String src){
                 while (end > start && chunk.str[end] != ')') --end;
                 
                 
-                append_sc(out, HTML_EXAMPLE_CODE_OPEN);
+                append(out, HTML_EXAMPLE_CODE_OPEN);
                 
                 if (start < end){
                     String code_example = substr(chunk, start, end - start);
@@ -1166,7 +1164,7 @@ print_doc_description(String *out, String src){
                             i32 space_i = 0;
                             for (; space_i < line.size; ++space_i){
                                 if (line.str[space_i] == ' '){
-                                    append_sc(out, "&nbsp;");
+                                    append(out, "&nbsp;");
                                 }
                                 else{
                                     break;
@@ -1174,14 +1172,14 @@ print_doc_description(String *out, String src){
                             }
                             
                             String line_tail = substr_tail(line, space_i);
-                            append_ss(out, line_tail);
-                            append_sc(out, "<br>");
+                            append(out, line_tail);
+                            append(out, "<br>");
                         }
                         first_line = 0;
                     }
                 }
                 
-                append_sc(out, HTML_EXAMPLE_CODE_CLOSE);
+                append(out, HTML_EXAMPLE_CODE_CLOSE);
             }break;
         }
     }
@@ -1201,17 +1199,17 @@ print_struct_docs(String *out, Item_Node *member){
             Documentation doc = {0};
             perform_doc_parse(member_iter->doc_string, &doc);
             
-            append_sc(out, "<div>");
+            append(out, "<div>");
             
-            append_sc(out, "<div style='"HTML_CODE_STYLE"'>"HTML_DOC_ITEM_HEAD_INL_OPEN);
-            append_ss(out, member_iter->name);
-            append_sc(out, HTML_DOC_ITEM_HEAD_INL_CLOSE"</div>");
+            append(out, "<div style='"HTML_CODE_STYLE"'>"HTML_DOC_ITEM_HEAD_INL_OPEN);
+            append(out, member_iter->name);
+            append(out, HTML_DOC_ITEM_HEAD_INL_CLOSE"</div>");
             
-            append_sc(out, "<div style='margin-bottom: 6mm;'>"HTML_DOC_ITEM_OPEN);
+            append(out, "<div style='margin-bottom: 6mm;'>"HTML_DOC_ITEM_OPEN);
             print_doc_description(out, doc.main_doc);
-            append_sc(out, HTML_DOC_ITEM_CLOSE"</div>");
+            append(out, HTML_DOC_ITEM_CLOSE"</div>");
             
-            append_sc(out, "</div>");
+            append(out, "</div>");
         }
     }
 }
@@ -1220,15 +1218,15 @@ internal void
 print_see_also(String *out, Documentation *doc){
     i32 doc_see_count = doc->see_also_count;
     if (doc_see_count > 0){
-        append_sc(out, HTML_DOC_HEAD_OPEN"See Also"HTML_DOC_HEAD_CLOSE);
+        append(out, HTML_DOC_HEAD_OPEN"See Also"HTML_DOC_HEAD_CLOSE);
         
         for (i32 j = 0; j < doc_see_count; ++j){
             String see_also = doc->see_also[j];
-            append_sc(out, HTML_DOC_ITEM_OPEN"<a href='#");
-            append_ss(out, see_also);
-            append_sc(out, "_doc'>");
-            append_ss(out, see_also);
-            append_sc(out, "</a>"HTML_DOC_ITEM_CLOSE);
+            append(out, HTML_DOC_ITEM_OPEN"<a href='#");
+            append(out, see_also);
+            append(out, "_doc'>");
+            append(out, see_also);
+            append(out, "</a>"HTML_DOC_ITEM_CLOSE);
         }
     }
 }
@@ -1236,7 +1234,7 @@ print_see_also(String *out, Documentation *doc){
 internal void
 print_function_docs(String *out, String name, String doc_string){
     if (doc_string.size == 0){
-        append_sc(out, "No documentation generated for this function.");
+        append(out, "No documentation generated for this function.");
         fprintf(stderr, "warning: no documentation string for %.*s\n", name.size, name.str);
     }
     
@@ -1248,35 +1246,34 @@ print_function_docs(String *out, String name, String doc_string){
     
     i32 doc_param_count = doc.param_count;
     if (doc_param_count > 0){
-        append_sc(out, HTML_DOC_HEAD_OPEN"Parameters"HTML_DOC_HEAD_CLOSE);
+        append(out, HTML_DOC_HEAD_OPEN"Parameters"HTML_DOC_HEAD_CLOSE);
         
         for (i32 j = 0; j < doc_param_count; ++j){
             String param_name = doc.param_name[j];
             String param_docs = doc.param_docs[j];
             
-            // TODO(allen): check that param_name is actually
-            // a parameter to this function!
+            // TODO(allen): check that param_name is actually a parameter to this function!
             
-            append_sc(out, "<div>"HTML_DOC_ITEM_HEAD_OPEN);
-            append_ss(out, param_name);
-            append_sc(out, HTML_DOC_ITEM_HEAD_CLOSE"<div style='margin-bottom: 6mm;'>"HTML_DOC_ITEM_OPEN);
-            append_ss(out, param_docs);
-            append_sc(out, HTML_DOC_ITEM_CLOSE"</div></div>");
+            append(out, "<div>"HTML_DOC_ITEM_HEAD_OPEN);
+            append(out, param_name);
+            append(out, HTML_DOC_ITEM_HEAD_CLOSE"<div style='margin-bottom: 6mm;'>"HTML_DOC_ITEM_OPEN);
+            append(out, param_docs);
+            append(out, HTML_DOC_ITEM_CLOSE"</div></div>");
         }
     }
     
     String ret_doc = doc.return_doc;
     if (ret_doc.size != 0){
-        append_sc(out, HTML_DOC_HEAD_OPEN"Return"HTML_DOC_HEAD_CLOSE HTML_DOC_ITEM_OPEN);
-        append_ss(out, ret_doc);
-        append_sc(out, HTML_DOC_ITEM_CLOSE);
+        append(out, HTML_DOC_HEAD_OPEN"Return"HTML_DOC_HEAD_CLOSE HTML_DOC_ITEM_OPEN);
+        append(out, ret_doc);
+        append(out, HTML_DOC_ITEM_CLOSE);
     }
     
     String main_doc = doc.main_doc;
     if (main_doc.size != 0){
-        append_sc(out, HTML_DOC_HEAD_OPEN"Description"HTML_DOC_HEAD_CLOSE HTML_DOC_ITEM_OPEN);
+        append(out, HTML_DOC_HEAD_OPEN"Description"HTML_DOC_HEAD_CLOSE HTML_DOC_ITEM_OPEN);
         print_doc_description(out, main_doc);
-        append_sc(out, HTML_DOC_ITEM_CLOSE);
+        append(out, HTML_DOC_ITEM_CLOSE);
     }
     
     print_see_also(out, &doc);
@@ -1307,31 +1304,31 @@ print_item_html(String *out, Used_Links *used, Item_Node *item, char *id_postfix
     Put a heading in it with the name and section.
     Open a "descriptive" box for the display of the code interface.
     */
-    append_sc(out, "<div id='");
-    append_ss(out, name);
-    append_sc(out, id_postfix);
-    append_sc(out, "' style='margin-bottom: 1cm;'>");
+    append(out, "<div id='");
+    append(out, name);
+    append(out, id_postfix);
+    append(out, "' style='margin-bottom: 1cm;'>");
     
     i32 has_cpp_name = 0;
     if (item->cpp_name.str != 0){
-        if (try_to_use(used, item->cpp_name)){
-            append_sc(out, "<div id='");
-            append_ss(out, item->cpp_name);
-            append_sc(out, id_postfix);
-            append_sc(out, "'>");
+        if (try_to_use_link(used, item->cpp_name)){
+            append(out, "<div id='");
+            append(out, item->cpp_name);
+            append(out, id_postfix);
+            append(out, "'>");
             has_cpp_name = 1;
         }
     }
     
-    append_sc         (out, "<h4>&sect;");
-    append_sc         (out, section);
+    append         (out, "<h4>&sect;");
+    append         (out, section);
     append_s_char     (out, '.');
     append_int_to_str (out, I);
-    append_sc         (out, ": ");
-    append_ss         (out, name);
-    append_sc         (out, "</h4>");
+    append         (out, ": ");
+    append         (out, name);
+    append         (out, "</h4>");
     
-    append_sc(out, "<div style='"HTML_CODE_STYLE" "HTML_DESCRIPT_SECTION_STYLE"'>");
+    append(out, "<div style='"HTML_CODE_STYLE" "HTML_DESCRIPT_SECTION_STYLE"'>");
     
     switch (item->t){
         case Item_Function:
@@ -1340,7 +1337,7 @@ print_item_html(String *out, Used_Links *used, Item_Node *item, char *id_postfix
             print_function_html(out, used, item->cpp_name, item->ret, "", name, item->breakdown);
             
             // NOTE(allen): Close the code box
-            append_sc(out, "</div>");
+            append(out, "</div>");
             
             // NOTE(allen): Descriptive section
             print_function_docs(out, name, item->doc_string);
@@ -1352,7 +1349,7 @@ print_item_html(String *out, Used_Links *used, Item_Node *item, char *id_postfix
             print_macro_html(out, name, item->breakdown);
             
             // NOTE(allen): Close the code box
-            append_sc(out, "</div>");
+            append(out, "</div>");
             
             // NOTE(allen): Descriptive section
             print_function_docs(out, name, item->doc_string);
@@ -1363,14 +1360,14 @@ print_item_html(String *out, Used_Links *used, Item_Node *item, char *id_postfix
             String type = item->type;
             
             // NOTE(allen): Code box
-            append_sc     (out, "typedef ");
-            append_ss     (out, type);
+            append     (out, "typedef ");
+            append     (out, type);
             append_s_char (out, ' ');
-            append_ss     (out, name);
+            append     (out, name);
             append_s_char (out, ';');
             
             // NOTE(allen): Close the code box
-            append_sc(out, "</div>");
+            append(out, "</div>");
             
             // NOTE(allen): Descriptive section
             String doc_string = item->doc_string;
@@ -1379,11 +1376,11 @@ print_item_html(String *out, Used_Links *used, Item_Node *item, char *id_postfix
             
             String main_doc = doc.main_doc;
             if (main_doc.size != 0){
-                append_sc(out, HTML_DOC_HEAD_OPEN"Description"HTML_DOC_HEAD_CLOSE);
+                append(out, HTML_DOC_HEAD_OPEN"Description"HTML_DOC_HEAD_CLOSE);
                 
-                append_sc(out, HTML_DOC_ITEM_OPEN);
+                append(out, HTML_DOC_ITEM_OPEN);
                 print_doc_description(out, main_doc);
-                append_sc(out, HTML_DOC_ITEM_CLOSE);
+                append(out, HTML_DOC_ITEM_CLOSE);
             }
             else{
                 fprintf(stderr, "warning: no documentation string for %.*s\n", name.size, name.str);
@@ -1396,12 +1393,12 @@ print_item_html(String *out, Used_Links *used, Item_Node *item, char *id_postfix
         case Item_Enum:
         {
             // NOTE(allen): Code box
-            append_sc     (out, "enum ");
-            append_ss     (out, name);
+            append     (out, "enum ");
+            append     (out, name);
             append_s_char (out, ';');
             
             // NOTE(allen): Close the code box
-            append_sc(out, "</div>");
+            append(out, "</div>");
             
             // NOTE(allen): Descriptive section
             String doc_string = item->doc_string;
@@ -1410,18 +1407,18 @@ print_item_html(String *out, Used_Links *used, Item_Node *item, char *id_postfix
             
             String main_doc = doc.main_doc;
             if (main_doc.size != 0){
-                append_sc(out, HTML_DOC_HEAD_OPEN"Description"HTML_DOC_HEAD_CLOSE);
+                append(out, HTML_DOC_HEAD_OPEN"Description"HTML_DOC_HEAD_CLOSE);
                 
-                append_sc(out, HTML_DOC_ITEM_OPEN);
+                append(out, HTML_DOC_ITEM_OPEN);
                 print_doc_description(out, main_doc);
-                append_sc(out, HTML_DOC_ITEM_CLOSE);
+                append(out, HTML_DOC_ITEM_CLOSE);
             }
             else{
                 fprintf(stderr, "warning: no documentation string for %.*s\n", name.size, name.str);
             }
             
             if (item->first_child){
-                append_sc(out, HTML_DOC_HEAD_OPEN"Values"HTML_DOC_HEAD_CLOSE);
+                append(out, HTML_DOC_HEAD_OPEN"Values"HTML_DOC_HEAD_CLOSE);
                 
                 for (Item_Node *member = item->first_child;
                      member;
@@ -1429,25 +1426,25 @@ print_item_html(String *out, Used_Links *used, Item_Node *item, char *id_postfix
                     Documentation doc = {0};
                     perform_doc_parse(member->doc_string, &doc);
                     
-                    append_sc(out, "<div>");
+                    append(out, "<div>");
                     
                     // NOTE(allen): Dafuq is this all?
-                    append_sc(out, "<div><span style='"HTML_CODE_STYLE"'>"HTML_DOC_ITEM_HEAD_INL_OPEN);
-                    append_ss(out, member->name);
-                    append_sc(out, HTML_DOC_ITEM_HEAD_INL_CLOSE);
+                    append(out, "<div><span style='"HTML_CODE_STYLE"'>"HTML_DOC_ITEM_HEAD_INL_OPEN);
+                    append(out, member->name);
+                    append(out, HTML_DOC_ITEM_HEAD_INL_CLOSE);
                     
                     if (member->value.str){
-                        append_sc(out, " = ");
-                        append_ss(out, member->value);
+                        append(out, " = ");
+                        append(out, member->value);
                     }
                     
-                    append_sc(out, "</span></div>");
+                    append(out, "</span></div>");
                     
-                    append_sc(out, "<div style='margin-bottom: 6mm;'>"HTML_DOC_ITEM_OPEN);
+                    append(out, "<div style='margin-bottom: 6mm;'>"HTML_DOC_ITEM_OPEN);
                     print_doc_description(out, doc.main_doc);
-                    append_sc(out, HTML_DOC_ITEM_CLOSE"</div>");
+                    append(out, HTML_DOC_ITEM_CLOSE"</div>");
                     
-                    append_sc(out, "</div>");
+                    append(out, "</div>");
                 }
             }
             
@@ -1479,7 +1476,7 @@ print_item_html(String *out, Used_Links *used, Item_Node *item, char *id_postfix
             print_struct_html(out, item, hide_members);
             
             // NOTE(allen): Close the code box
-            append_sc(out, "</div>");
+            append(out, "</div>");
             
             // NOTE(allen): Descriptive section
             {
@@ -1488,11 +1485,11 @@ print_item_html(String *out, Used_Links *used, Item_Node *item, char *id_postfix
                 
                 String main_doc = doc.main_doc;
                 if (main_doc.size != 0){
-                    append_sc(out, HTML_DOC_HEAD_OPEN"Description"HTML_DOC_HEAD_CLOSE);
+                    append(out, HTML_DOC_HEAD_OPEN"Description"HTML_DOC_HEAD_CLOSE);
                     
-                    append_sc(out, HTML_DOC_ITEM_OPEN);
+                    append(out, HTML_DOC_ITEM_OPEN);
                     print_doc_description(out, main_doc);
-                    append_sc(out, HTML_DOC_ITEM_CLOSE);
+                    append(out, HTML_DOC_ITEM_CLOSE);
                 }
                 else{
                     fprintf(stderr, "warning: no documentation string for %.*s\n", name.size, name.str);
@@ -1500,7 +1497,7 @@ print_item_html(String *out, Used_Links *used, Item_Node *item, char *id_postfix
                 
                 if (!hide_members){
                     if (item->first_child){
-                        append_sc(out, HTML_DOC_HEAD_OPEN"Fields"HTML_DOC_HEAD_CLOSE);
+                        append(out, HTML_DOC_HEAD_OPEN"Fields"HTML_DOC_HEAD_CLOSE);
                         print_struct_docs(out, item);
                     }
                 }
@@ -1511,210 +1508,214 @@ print_item_html(String *out, Used_Links *used, Item_Node *item, char *id_postfix
     }
     
     if (has_cpp_name){
-        append_sc(out, "</div>");
+        append(out, "</div>");
     }
     
     // NOTE(allen): Close the item box
-    append_sc(out, "</div><hr>");
+    append(out, "</div><hr>");
     
     fm_end_temp(temp);
 }
 
+global char* html_css =
+"<style>"
+"body { "
+"background: " HTML_BACK_COLOR "; "
+"color: " HTML_TEXT_COLOR "; "
+"}"
+
+// H things
+"h1,h2,h3,h4 { "
+"color: " HTML_POP_COLOR_1 "; "
+"margin: 0; "
+"}"
+
+"h2 { "
+"margin-top: 6mm; "
+"}"
+
+"h3 { "
+"margin-top: 5mm; margin-bottom: 5mm; "
+"}"
+
+"h4 { "
+"font-size: 1.1em; "
+"}"
+
+// ANCHORS
+"a { "
+"color: " HTML_POP_COLOR_1 "; "
+"text-decoration: none; "
+"}"
+"a:visited { "
+"color: " HTML_VISITED_LINK "; "
+"}"
+"a:hover { "
+"background: " HTML_POP_BACK_1 "; "
+"}"
+
+// LIST
+"ul { "
+"list-style: none; "
+"padding: 0; "
+"margin: 0; "
+"}"
+"</style>";
+
 internal void
-doc_item_head_html(String *out, Document_System *doc_system, Used_Links *used_links, Document_Item *item, Section_Counter *section_counter){
+doc_item_html(String *out, Document_System *doc_system, Used_Links *used_links, Document_Item *item, Section_Counter *section_counter, b32 head){
     switch (item->type){
         case Doc_Root:
         {
-            append_sc(out,
-                      "<html lang=\"en-US\">"
-                      "<head>"
-                      "<link rel='shortcut icon' type='image/x-icon' href='4coder_icon.ico' />"
-                      "<title>");
-            
-            append_ss(out, item->section.name);
-            
-            append_sc(out,
-                      "</title>"
-                      "<style>"
-                      
-                      "body { "
-                      "background: " HTML_BACK_COLOR "; "
-                      "color: " HTML_TEXT_COLOR "; "
-                      "}"
-                      
-                      // H things
-                      "h1,h2,h3,h4 { "
-                      "color: " HTML_POP_COLOR_1 "; "
-                      "margin: 0; "
-                      "}"
-                      
-                      "h2 { "
-                      "margin-top: 6mm; "
-                      "}"
-                      
-                      "h3 { "
-                      "margin-top: 5mm; margin-bottom: 5mm; "
-                      "}"
-                      
-                      "h4 { "
-                      "font-size: 1.1em; "
-                      "}"
-                      
-                      // ANCHORS
-                      "a { "
-                      "color: " HTML_POP_COLOR_1 "; "
-                      "text-decoration: none; "
-                      "}"
-                      "a:visited { "
-                      "color: " HTML_VISITED_LINK "; "
-                      "}"
-                      "a:hover { "
-                      "background: " HTML_POP_BACK_1 "; "
-                      "}"
-                      
-                      // LIST
-                      "ul { "
-                      "list-style: none; "
-                      "padding: 0; "
-                      "margin: 0; "
-                      "}"
-                      
-                      "</style>"
-                      "</head>\n"
-                      "<body>"
-                      "<div style='font-family:Arial; margin: 0 auto; "
-                      "width: ");
-            append_int_to_str(out, HTML_WIDTH);
-            append_sc(out, "px; text-align: justify; line-height: 1.25;'>");
-            
-            if (item->section.show_title){
-                append_sc(out, "<h1 style='margin-top: 5mm; margin-bottom: 5mm;'>");
-                append_ss(out, item->section.name);
-                append_sc(out, "</h1>");
+            if (head){
+                append(out,
+                       "<html lang=\"en-US\">"
+                       "<head>"
+                       "<link rel='shortcut icon' type='image/x-icon' href='4coder_icon.ico' />"
+                       "<title>");
+                append(out, item->section.name);
+                append(out, "</title>");
+                
+                append(out, html_css);
+                
+                append(out,
+                       "</head>\n"
+                       "<body>"
+                       "<div style='font-family:Arial; margin: 0 auto; "
+                       "width: ");
+                append_int_to_str(out, HTML_WIDTH);
+                append(out, "px; text-align: justify; line-height: 1.25;'>");
+                
+                if (item->section.show_title){
+                    append(out, "<h1 style='margin-top: 5mm; margin-bottom: 5mm;'>");
+                    append(out, item->section.name);
+                    append(out, "</h1>");
+                }
+            }
+            else{
+                append(out, "</div></body></html>");
             }
         }break;
         
         case Doc_Section:
         {
-            html_render_section_header(out, item->section.name, item->section.id, section_counter);
+            if (head){
+                html_render_section_header(out, item->section.name, item->section.id, section_counter);
+            }
         }break;
         
         case Doc_Todo:
         {
-            append_sc(out, "<div><i>Coming Soon</i><div>");
+            if (head){
+                append(out, "<div><i>Coming Soon</i><div>");
+            }
         }break;
         
         case Doc_Enriched_Text:
         {
-            write_enriched_text_html(out, item->text.text, doc_system, section_counter);
+            if (head){
+                write_enriched_text_html(out, item->text.text, doc_system, section_counter);
+            }
         }break;
         
         case Doc_Element_List:
         {
-            append_sc(out, "<ul>");
-            
-            Meta_Unit *unit = item->unit_elements.unit;
-            Alternate_Names_Array *alt_names = item->unit_elements.alt_names;
-            i32 count = unit->set.count;
-            
-            switch (item->unit_elements.alt_name_type){
-                case AltName_Standard:
-                {
-                    for (i32 i = 0; i < count; ++i){
-                        print_item_in_list(out, unit->set.items[i].name, "_doc");
-                    }
-                }break;
+            if (head){
+                append(out, "<ul>");
                 
-                case AltName_Macro:
-                {
-                    for (i32 i = 0; i < count; ++i){
-                        print_item_in_list(out, alt_names->names[i].macro, "_doc");
-                    }
-                }break;
+                Meta_Unit *unit = item->unit_elements.unit;
+                Alternate_Names_Array *alt_names = item->unit_elements.alt_names;
+                i32 count = unit->set.count;
                 
-                case AltName_Public_Name:
-                {
-                    for (i32 i = 0; i < count; ++i){
-                        print_item_in_list(out, alt_names->names[i].public_name, "_doc");
-                    }
-                }break;
+                switch (item->unit_elements.alt_name_type){
+                    case AltName_Standard:
+                    {
+                        for (i32 i = 0; i < count; ++i){
+                            print_item_in_list(out, unit->set.items[i].name, "_doc");
+                        }
+                    }break;
+                    
+                    case AltName_Macro:
+                    {
+                        for (i32 i = 0; i < count; ++i){
+                            print_item_in_list(out, alt_names->names[i].macro, "_doc");
+                        }
+                    }break;
+                    
+                    case AltName_Public_Name:
+                    {
+                        for (i32 i = 0; i < count; ++i){
+                            print_item_in_list(out, alt_names->names[i].public_name, "_doc");
+                        }
+                    }break;
+                }
+                
+                append(out, "</ul>");
             }
-            
-            append_sc(out, "</ul>");
         }break;
         
         case Doc_Full_Elements:
         {
-            Meta_Unit *unit = item->unit_elements.unit;
-            Alternate_Names_Array *alt_names = item->unit_elements.alt_names;
-            i32 count = unit->set.count;
-            
-            char section_space[32];
-            String section_str = make_fixed_width_string(section_space);
-            append_section_number_reduced(&section_str, section_counter, 1);
-            terminate_with_null(&section_str);
-            
-            if (alt_names){
-                i32 I = 1;
-                for (i32 i = 0; i < count; ++i, ++I){
-                    print_item_html(out, used_links, &unit->set.items[i], "_doc", section_str.str, I, &alt_names->names[i], item->unit_elements.alt_name_type);
+            if (head){
+                Meta_Unit *unit = item->unit_elements.unit;
+                Alternate_Names_Array *alt_names = item->unit_elements.alt_names;
+                i32 count = unit->set.count;
+                
+                char section_space[32];
+                String section_str = make_fixed_width_string(section_space);
+                append_section_number_reduced(&section_str, section_counter, 1);
+                terminate_with_null(&section_str);
+                
+                if (alt_names){
+                    i32 I = 1;
+                    for (i32 i = 0; i < count; ++i, ++I){
+                        print_item_html(out, used_links, &unit->set.items[i], "_doc", section_str.str, I, &alt_names->names[i], item->unit_elements.alt_name_type);
+                    }
                 }
-            }
-            else{
-                i32 I = 1;
-                for (i32 i = 0; i < count; ++i, ++I){
-                    print_item_html(out, used_links, &unit->set.items[i], "_doc", section_str.str, I, 0, 0);
+                else{
+                    i32 I = 1;
+                    for (i32 i = 0; i < count; ++i, ++I){
+                        print_item_html(out, used_links, &unit->set.items[i], "_doc", section_str.str, I, 0, 0);
+                    }
                 }
             }
         }break;
         
         case Doc_Table_Of_Contents:
         {
-            append_sc(out, "<h3 style='margin:0;'>Table of Contents</h3><ul>");
-            
-            i32 i = 1;
-            for (Document_Item *toc_item = item->parent->section.first_child;
-                 toc_item != 0;
-                 toc_item = toc_item->next){
-                if (toc_item->type == Doc_Section){
-                    if (toc_item->section.id.size > 0){
-                        append_sc(out, "<li><a href='#section_");
-                        append_ss(out, toc_item->section.id);
-                        append_sc(out, "'>&sect;");
+            if (head){
+                append(out, "<h3 style='margin:0;'>Table of Contents</h3><ul>");
+                
+                i32 i = 1;
+                for (Document_Item *toc_item = item->parent->section.first_child;
+                     toc_item != 0;
+                     toc_item = toc_item->next){
+                    if (toc_item->type == Doc_Section){
+                        if (toc_item->section.id.size > 0){
+                            append(out, "<li><a href='#section_");
+                            append(out, toc_item->section.id);
+                            append(out, "'>&sect;");
+                        }
+                        else{
+                            append(out, "<li>&sect;");
+                        }
+                        append_int_to_str (out, i);
+                        append_s_char     (out, ' ');
+                        append            (out, toc_item->section.name);
+                        append            (out, "</a></li>");
+                        ++i;
                     }
-                    else{
-                        append_sc(out, "<li>&sect;");
-                    }
-                    append_int_to_str (out, i);
-                    append_s_char     (out, ' ');
-                    append_ss         (out, toc_item->section.name);
-                    append_sc         (out, "</a></li>");
-                    ++i;
                 }
+                
+                append(out, "</ul>");
             }
-            
-            append_sc(out, "</ul>");
         }break;
-    }
-}
-
-internal void
-doc_item_foot_html(String *out, Document_System *doc_system, Used_Links *used_links, Document_Item *item, Section_Counter *section_counter){
-    switch (item->type){
-        case Doc_Root:
-        {
-            append_sc(out, "</div></body></html>");
-        }break;
-        
-        case Doc_Section: break;
-        
-        case Doc_Table_Of_Contents: break;
     }
 }
 
 internal void
 generate_item_html(String *out, Document_System *doc_system, Used_Links *used_links, Document_Item *item, Section_Counter *section_counter){
-    doc_item_head_html(out, doc_system, used_links, item, section_counter);
+    doc_item_html(out, doc_system, used_links, item, section_counter, true);
     
     if (item->type == Doc_Root || item->type == Doc_Section){
         i32 level = ++section_counter->nest_level;
@@ -1728,7 +1729,7 @@ generate_item_html(String *out, Document_System *doc_system, Used_Links *used_li
         ++section_counter->counter[section_counter->nest_level];
     }
     
-    doc_item_foot_html(out, doc_system, used_links, item, section_counter);
+    doc_item_html(out, doc_system, used_links, item, section_counter, false);
 }
 
 internal void

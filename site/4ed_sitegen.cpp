@@ -115,18 +115,6 @@ do_html_output(Document_System *doc_system, char *dst_directory, Abstract_Item *
     free(mem);
 }
 
-static Abstract_Item*
-generate_homepage(Document_System *doc_system, char *src_directory){
-    Enriched_Text *home = fm_push_array(Enriched_Text, 1);
-    *home = load_enriched_text(src_directory, "home.txt");
-    
-    Abstract_Item *doc = begin_document_description(doc_system, "4coder Home", "home", 0);
-    add_enriched_text(doc, home);
-    end_document_description(doc);
-    
-    return(doc);
-}
-
 // TODO(allen): replace the documentation declaration system with a straight up enriched text system
 static Abstract_Item*
 generate_4coder_docs(Document_System *doc_system, char *code_directory, char *src_directory){
@@ -251,49 +239,13 @@ generate_4coder_docs(Document_System *doc_system, char *code_directory, char *sr
     return(doc);
 }
 
-static Abstract_Item*
-generate_feature_list(Document_System *doc_system, char *src_directory){
-    Enriched_Text *feature_list = fm_push_array(Enriched_Text, 1);
-    *feature_list = load_enriched_text(src_directory, "feature_list.txt");
+internal Abstract_Item*
+generate_page(Document_System *doc_system, char *src_directory, char *source_text, char *big_title, char *small_name){
+    Enriched_Text *home = fm_push_array(Enriched_Text, 1);
+    *home = load_enriched_text(src_directory, source_text);
     
-    Abstract_Item *doc = begin_document_description(doc_system, "4coder Feature List", "features", 0);
-    add_enriched_text(doc, feature_list);
-    end_document_description(doc);
-    
-    return(doc);
-}
-
-static Abstract_Item*
-generate_binding_list(Document_System *doc_system, char *src_directory){
-    Enriched_Text *binding_list = fm_push_array(Enriched_Text, 1);
-    *binding_list = load_enriched_text(src_directory, "binding_list.txt");
-    
-    Abstract_Item *doc = begin_document_description(doc_system, "4coder Binding List", "bindings", 0);
-    add_enriched_text(doc, binding_list);
-    end_document_description(doc);
-    
-    return(doc);
-}
-
-static Abstract_Item*
-generate_roadmap(Document_System *doc_system, char *src_directory){
-    Enriched_Text *roadmap = fm_push_array(Enriched_Text, 1);
-    *roadmap = load_enriched_text(src_directory, "roadmap.txt");
-    
-    Abstract_Item *doc = begin_document_description(doc_system, "4coder Roadmap", "roadmap", 0);
-    add_enriched_text(doc, roadmap);
-    end_document_description(doc);
-    
-    return(doc);
-}
-
-static Abstract_Item*
-generate_tutorials(Document_System *doc_system, char *src_directory){
-    Enriched_Text *roadmap = fm_push_array(Enriched_Text, 1);
-    *roadmap = load_enriched_text(src_directory, "tutorials.txt");
-    
-    Abstract_Item *doc = begin_document_description(doc_system, "4coder Tutorials", "tutorials", 0);
-    add_enriched_text(doc, roadmap);
+    Abstract_Item *doc = begin_document_description(doc_system, big_title, small_name, 0);
+    add_enriched_text(doc, home);
     end_document_description(doc);
     
     return(doc);
@@ -310,10 +262,11 @@ push_string(i32 size){
 
 static void
 do_image_resize(char *src_file, char *dst_file, char *extension, i32 w, i32 h){
+    Temp temp = fm_begin_temp();
+    
     i32 x = 0, y = 0, channels = 0;
     stbi_uc *image = stbi_load(src_file, &x, &y, &channels, 0);
-    
-    stbi_uc *resized_image = (stbi_uc*)malloc(w*h*channels);
+    stbi_uc *resized_image = fm_push_array(stbi_uc, w*h*channels);
     stbir_resize_uint8(image, x, y, x*channels, resized_image, w, h, w*channels, channels);
     
     if (match_cc(extension, "png")){
@@ -321,16 +274,13 @@ do_image_resize(char *src_file, char *dst_file, char *extension, i32 w, i32 h){
     }
     
     free(image);
-    free(resized_image);
+    fm_end_temp(temp);
 }
 
 static void
 generate_site(char *code_directory, char *asset_directory, char *src_directory, char *dst_directory){
-    String str;
-    
     Document_System doc_system = create_document_system();
     
-    // TODO(allen): code compression here
     struct Site_Asset{
         char *filename;
         char *extension;
@@ -354,33 +304,30 @@ generate_site(char *code_directory, char *asset_directory, char *src_directory, 
     for (u32 i = 0; i < ArrayCount(asset_list); ++i){
         Site_Asset *asset = &asset_list[i];
         
-        str = push_string(256);
-        append_sc(&str, asset_directory);
-        append_sc(&str, "/");
-        append_sc(&str, asset->filename);
-        terminate_with_null(&str);
+        char *name = fm_str(asset_directory, "/", asset->filename);
         
         switch (asset_list[i].type){
             case SiteAsset_Generic:
             {
-                add_generic_file(&doc_system, str.str, asset->extension, asset->name);
+                add_generic_file(&doc_system, name, asset->extension, asset->name);
             }break;
             
             case SiteAsset_Image:
             {
-                add_image_description(&doc_system, str.str, asset->extension, asset->name);
+                add_image_description(&doc_system, name, asset->extension, asset->name);
             }break;
             
             default: InvalidCodePath;
         }
     }
     
-    generate_homepage(&doc_system, src_directory);
     generate_4coder_docs(&doc_system, code_directory, src_directory);
-    generate_feature_list(&doc_system, src_directory);
-    generate_binding_list(&doc_system, src_directory);
-    generate_roadmap(&doc_system, src_directory);
-    generate_tutorials(&doc_system, src_directory);
+    
+    generate_page(&doc_system, src_directory, "home.txt"        , "4coder Home"        , "home"      );
+    generate_page(&doc_system, src_directory, "feature_list.txt", "4coder Feature List", "features"  );
+    generate_page(&doc_system, src_directory, "binding_list.txt", "4coder Binding List", "bindings"  );
+    generate_page(&doc_system, src_directory, "roadmap.txt"     , "4coder Roadmap"     , "roadmap"   );
+    generate_page(&doc_system, src_directory, "tutorials.txt"   , "4coder Tutorials"   , "tutorials" );
     
     for (Basic_Node *node = doc_system.doc_list.head;
          node != 0;
@@ -411,17 +358,10 @@ generate_site(char *code_directory, char *asset_directory, char *src_directory, 
              node = node->next){
             Image_Instantiation *inst = NodeGetData(node, Image_Instantiation);
             
-            char space[256];
-            if (img_get_link_string(img, space, sizeof(space), inst->w, inst->h)){
-                char space2[256];
-                String str = make_fixed_width_string(space2);
-                
-                append_sc(&str, dst_directory);
-                append_sc(&str, "/");
-                append_sc(&str, space);
-                terminate_with_null(&str);
-                
-                do_image_resize(img->source_file, space2, img->extension, inst->w, inst->h);
+            char img_link[256];
+            if (img_get_link_string(img, img_link, sizeof(img_link), inst->w, inst->h)){
+                char *dest_file = fm_str(dst_directory, "/", img_link);
+                do_image_resize(img->source_file, dest_file, img->extension, inst->w, inst->h);
             }
         }
     }
