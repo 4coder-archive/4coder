@@ -15,12 +15,12 @@
 #define API_H "4coder_API/app_functions.h"
 #define OS_API_H "4ed_os_custom_api.h"
 
+#include "../4ed_defines.h"
 #include "4ed_meta_defines.h"
 #include "../4coder_API/version.h"
 
 #define FSTRING_IMPLEMENTATION
 #include "../4coder_lib/4coder_string.h"
-//#include "../4coder_lib/4coder_mem.h"
 
 #include "../4cpp/4cpp_lexer.h"
 
@@ -75,67 +75,67 @@ char *keys_that_need_codes[] = {
 
 internal void
 generate_keycode_enum(){
+    Temp temp = fm_begin_temp();
+    
     char *filename_keycodes = KEYCODES_FILE;
     
-    uint16_t code = 0xD800;
+    u16 code = 0xD800;
+    String out = str_alloc(10 << 20);
     
-    String out = make_out_string(10 << 20);
+    i32 count = ArrayCount(keys_that_need_codes);
     
-    Out_Context context = {0};
-    if (begin_file_out(&context, filename_keycodes, &out)){
-        int32_t count = ArrayCount(keys_that_need_codes);
-        
-        append(&out, "enum{\n");
-        for (int32_t i = 0; i < count;){
-            append(&out, "key_");
-            append(&out, keys_that_need_codes[i++]);
-            append(&out, " = ");
-            append_int_to_str(&out, code++);
-            append(&out, ",\n");
-        }
-        append(&out, "};\n");
-        
-        append(&out,
-               "static char*\n"
-               "global_key_name(uint32_t key_code, int32_t *size){\n"
-               "char *result = 0;\n"
-               "switch(key_code){\n");
-        
-        for (int32_t i = 0; i < count; ++i){
-            append(&out, "case key_");
-            append(&out, keys_that_need_codes[i]);
-            append(&out, ": result = \"");
-            append(&out, keys_that_need_codes[i]);
-            append(&out, "\"; *size = sizeof(\"");
-            append(&out, keys_that_need_codes[i]);
-            append(&out, "\")-1; break;\n");
-        }
-        
-        append(&out,
-               "}\n"
-               "return(result);\n"
-               "}\n");
-        
-        end_file_out(context);
+    append(&out, "enum{\n");
+    for (i32 i = 0; i < count;){
+        append(&out, "key_");
+        append(&out, keys_that_need_codes[i++]);
+        append(&out, " = ");
+        append_int_to_str(&out, code++);
+        append(&out, ",\n");
     }
+    append(&out, "};\n");
+    
+    append(&out,
+           "static char*\n"
+           "global_key_name(uint32_t key_code, int32_t *size){\n"
+           "char *result = 0;\n"
+           "switch(key_code){\n");
+    
+    for (i32 i = 0; i < count; ++i){
+        append(&out, "case key_");
+        append(&out, keys_that_need_codes[i]);
+        append(&out, ": result = \"");
+        append(&out, keys_that_need_codes[i]);
+        append(&out, "\"; *size = sizeof(\"");
+        append(&out, keys_that_need_codes[i]);
+        append(&out, "\")-1; break;\n");
+    }
+    
+    append(&out,
+           "}\n"
+           "return(result);\n"
+           "}\n");
+    
+    end_file_out(filename_keycodes, &out);
+    
+    fm_end_temp(temp);
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////
-static void
+internal void
 struct_begin(String *str, char *name){
     append(str, "struct ");
     append(str, name);
     append(str, "{\n"); //}
 }
 
-static void
+internal void
 enum_begin(String *str, char *name){
     append(str, "enum ");
     append(str, name);
     append(str, "{\n"); //}
 }
 
-static void
+internal void
 struct_end(String *str){ //{
     append(str, "};\n\n");
 }
@@ -180,142 +180,127 @@ static char* main_style_fields[] = {
     "next_undo",
 };
 
-static char*
+internal char*
 make_style_tag(char *tag){
-    char *str;
-    int32_t len;
-    
-    len = (int32_t)strlen(tag);
-    str = (char*)malloc(len + 1);
-    to_camel_cc(tag, str);
+    i32 len = (i32)strlen(tag);
+    char *str = fm_push_array(char, len + 1);
+    to_camel(tag, str);
     str[len] = 0;
-    
     return(str);
 }
 
-static void
+internal void
 generate_style(){
+    Temp temp = fm_begin_temp();
+    
     char filename_4coder[] = STYLE_FILE;
     char filename_4ed[] = "4ed_style.h";
     
-    String out = make_out_string(10 << 20);
-    Out_Context context = {0};
+    String out = str_alloc(10 << 20);;
     
-    if (begin_file_out(&context, filename_4coder, &out)){
-        
-        enum_begin(&out, "Style_Tag");
-        {
-            int32_t count = ArrayCount(bar_style_fields);
-            for (int32_t i = 0; i < count; ++i){
-                char *tag = make_style_tag(bar_style_fields[i]);
-                append(&out, "Stag_");
-                append(&out, tag);
-                append(&out, ",\n");
-                free(tag);
-            }
-            
-            count = ArrayCount(main_style_fields);
-            for (int32_t i = 0; i < count; ++i){
-                char *tag = make_style_tag(main_style_fields[i]);
-                append(&out, "Stag_");
-                append(&out, tag);
-                append(&out, ",\n");
-                free(tag);
-            }
-            
-            append(&out, "Stag_COUNT\n");
+    enum_begin(&out, "Style_Tag");
+    {
+        i32 count = ArrayCount(bar_style_fields);
+        for (i32 i = 0; i < count; ++i){
+            char *tag = make_style_tag(bar_style_fields[i]);
+            append(&out, "Stag_");
+            append(&out, tag);
+            append(&out, ",\n");
         }
-        struct_end(&out);
         
-        append(&out, "static char *style_tag_names[] = {\n");
-        {
-            int32_t count = ArrayCount(bar_style_fields);
-            for (int32_t i = 0; i < count; ++i){
-                char *tag = make_style_tag(bar_style_fields[i]);
-                append(&out, "\"");
-                append(&out, tag);
-                append(&out, "\",\n");
-                free(tag);
-            }
-            
-            count = ArrayCount(main_style_fields);
-            for (int32_t i = 0; i < count; ++i){
-                char *tag = make_style_tag(main_style_fields[i]);
-                append(&out, "\"");
-                append(&out, tag);
-                append(&out, "\",\n");
-                free(tag);
-            }
+        count = ArrayCount(main_style_fields);
+        for (i32 i = 0; i < count; ++i){
+            char *tag = make_style_tag(main_style_fields[i]);
+            append(&out, "Stag_");
+            append(&out, tag);
+            append(&out, ",\n");
         }
-        append(&out, "};\n");
         
-        end_file_out(context);
+        append(&out, "Stag_COUNT\n");
+    }
+    struct_end(&out);
+    
+    append(&out, "static char *style_tag_names[] = {\n");
+    {
+        i32 count = ArrayCount(bar_style_fields);
+        for (i32 i = 0; i < count; ++i){
+            char *tag = make_style_tag(bar_style_fields[i]);
+            append(&out, "\"");
+            append(&out, tag);
+            append(&out, "\",\n");
+        }
+        
+        count = ArrayCount(main_style_fields);
+        for (i32 i = 0; i < count; ++i){
+            char *tag = make_style_tag(main_style_fields[i]);
+            append(&out, "\"");
+            append(&out, tag);
+            append(&out, "\",\n");
+        }
+    }
+    append(&out, "};\n");
+    
+    end_file_out(filename_4coder, &out);
+    
+    struct_begin(&out, "Interactive_Style");
+    {
+        i32 count = ArrayCount(bar_style_fields);
+        for (i32 i = 0; i < count; ++i){
+            append(&out, "u32 ");
+            append(&out, bar_style_fields[i]);
+            append(&out, "_color;\n");
+        }
+    }
+    struct_end(&out);
+    
+    struct_begin(&out, "Style_Main_Data");
+    {
+        i32 count = ArrayCount(main_style_fields);
+        for (i32 i = 0; i < count; ++i){
+            append(&out, "u32 ");
+            append(&out, main_style_fields[i]);
+            append(&out, "_color;\n");
+        }
+        append(&out, "Interactive_Style file_info_style;\n");
+    }
+    struct_end(&out);
+    
+    {
+        append(&out,
+               "inline u32*\n"
+               "style_index_by_tag(Style_Main_Data *s, u32 tag){\n"
+               "u32 *result = 0;\n"
+               "switch (tag){\n");
+        
+        i32 count = ArrayCount(bar_style_fields);
+        for (i32 i = 0; i < count; ++i){
+            char *tag = make_style_tag(bar_style_fields[i]);
+            append(&out, "case Stag_");
+            append(&out, tag);
+            append(&out, ": result = &s->file_info_style.");
+            append(&out, bar_style_fields[i]);
+            append(&out, "_color; break;\n");
+        }
+        
+        count = ArrayCount(main_style_fields);
+        for (i32 i = 0; i < count; ++i){
+            char *tag = make_style_tag(main_style_fields[i]);
+            append(&out, "case Stag_");
+            append(&out, tag);
+            append(&out, ": result = &s->");
+            append(&out, main_style_fields[i]);
+            append(&out, "_color; break;\n");
+        }
+        
+        append(&out,
+               "}\n"
+               "return(result);\n"
+               "}\n\n");
     }
     
-    if (begin_file_out(&context, filename_4ed, &out)){
-        
-        struct_begin(&out, "Interactive_Style");
-        {
-            int32_t count = ArrayCount(bar_style_fields);
-            for (int32_t i = 0; i < count; ++i){
-                append(&out, "u32 ");
-                append(&out, bar_style_fields[i]);
-                append(&out, "_color;\n");
-            }
-        }
-        struct_end(&out);
-        
-        struct_begin(&out, "Style_Main_Data");
-        {
-            int32_t count = ArrayCount(main_style_fields);
-            for (int32_t i = 0; i < count; ++i){
-                append(&out, "u32 ");
-                append(&out, main_style_fields[i]);
-                append(&out, "_color;\n");
-            }
-            append(&out, "Interactive_Style file_info_style;\n");
-        }
-        struct_end(&out);
-        
-        {
-            append(&out,
-                   "inline u32*\n"
-                   "style_index_by_tag(Style_Main_Data *s, u32 tag){\n"
-                   "u32 *result = 0;\n"
-                   "switch (tag){\n");
-            
-            int32_t count = ArrayCount(bar_style_fields);
-            for (int32_t i = 0; i < count; ++i){
-                char *tag = make_style_tag(bar_style_fields[i]);
-                append(&out, "case Stag_");
-                append(&out, tag);
-                append(&out, ": result = &s->file_info_style.");
-                append(&out, bar_style_fields[i]);
-                append(&out, "_color; break;\n");
-                free(tag);
-            }
-            
-            count = ArrayCount(main_style_fields);
-            for (int32_t i = 0; i < count; ++i){
-                char *tag = make_style_tag(main_style_fields[i]);
-                append(&out, "case Stag_");
-                append(&out, tag);
-                append(&out, ": result = &s->");
-                append(&out, main_style_fields[i]);
-                append(&out, "_color; break;\n");
-                free(tag);
-            }
-            
-            append(&out,
-                   "}\n"
-                   "return(result);\n"
-                   "}\n\n");
-        }
-        
-        end_file_out(context);
-    }
+    end_file_out(filename_4ed, &out);
     
-    free(out.str);
+    fm_end_temp(temp);
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////
@@ -324,16 +309,16 @@ generate_style(){
 // Meta Parse Rules
 //
 
-static void
-print_function_body_code(String *out, Parse_Context *context, int32_t start){
+internal void
+print_function_body_code(String *out, Parse_Context *context, i32 start){
     String pstr = {0}, lexeme = {0};
     Cpp_Token *token = 0;
     
-    int32_t do_print = 0;
-    int32_t nest_level = 0;
-    int32_t finish = false;
-    int32_t do_whitespace_print = false;
-    int32_t is_first = true;
+    i32 do_print = 0;
+    i32 nest_level = 0;
+    i32 finish = false;
+    i32 do_whitespace_print = false;
+    i32 is_first = true;
     
     for (; (token = get_token(context)) != 0; get_next_token(context)){
         if (do_whitespace_print){
@@ -378,30 +363,26 @@ print_function_body_code(String *out, Parse_Context *context, int32_t start){
     }
 }
 
-typedef struct App_API_Name{
+struct App_API_Name{
     String macro;
     String public_name;
-} App_API_Name;
+};
 
-typedef struct App_API{
+struct App_API{
     App_API_Name *names;
-} App_API;
+};
 
-static App_API
-allocate_app_api(int32_t count){
+internal App_API
+allocate_app_api(i32 count){
     App_API app_api = {0};
     app_api.names = fm_push_array(App_API_Name, count);
     memset(app_api.names, 0, sizeof(App_API_Name)*count);
     return(app_api);
 }
 
-static void
+internal void
 generate_custom_headers(){
-    META_BEGIN();
-    
-    int32_t size = (512 << 20);
-    void *mem = malloc(size);
-    memset(mem, 0, size);
+    Temp temp = fm_begin_temp();
     
     // NOTE(allen): Parse the customization API files
     static char *functions_files[] = { "4ed_api_implementation.cpp", 0 };
@@ -413,7 +394,7 @@ generate_custom_headers(){
     // NOTE(allen): Compute and store variations of the function names
     App_API func_4ed_names = allocate_app_api(unit_custom.set.count);
     
-    for (int32_t i = 0; i < unit_custom.set.count; ++i){
+    for (i32 i = 0; i < unit_custom.set.count; ++i){
         String name_string = unit_custom.set.items[i].name;
         String *macro = &func_4ed_names.names[i].macro;
         String *public_name = &func_4ed_names.names[i].public_name;
@@ -430,164 +411,157 @@ generate_custom_headers(){
     
     // NOTE(allen): Output
     String out = str_alloc(10 << 20);
-    Out_Context context = {0};
     
     // NOTE(allen): Custom API headers
-    if (begin_file_out(&context, OS_API_H, &out)){
-        int32_t main_api_count = unit_custom.parse[0].item_count;
-        int32_t os_api_count = unit_custom.parse[1].item_count;
-        append(&out, "struct Application_Links;\n");
-        
-        for (int32_t i = main_api_count; i < os_api_count; ++i){
-            append(&out, "#define ");
-            append(&out, func_4ed_names.names[i].macro);
-            append(&out, "(n) ");
-            append(&out, unit_custom.set.items[i].ret);
-            append(&out, " n");
-            append(&out, unit_custom.set.items[i].args);
-            append_s_char(&out, '\n');
-        }
-        
-        for (int32_t i = main_api_count; i < os_api_count; ++i){
-            append(&out, "typedef ");
-            append(&out, func_4ed_names.names[i].macro);
-            append_s_char(&out, '(');
-            append(&out, unit_custom.set.items[i].name);
-            append(&out, "_Function);\n");
-        }
-        
-        end_file_out(context);
-    }
-    else{
-        // TODO(allen): warning
+    i32 main_api_count = unit_custom.parse[0].item_count;
+    i32 os_api_count = unit_custom.parse[1].item_count;
+    append(&out, "struct Application_Links;\n");
+    
+    for (i32 i = main_api_count; i < os_api_count; ++i){
+        append(&out, "#define ");
+        append(&out, func_4ed_names.names[i].macro);
+        append(&out, "(n) ");
+        append(&out, unit_custom.set.items[i].ret);
+        append(&out, " n");
+        append(&out, unit_custom.set.items[i].args);
+        append_s_char(&out, '\n');
     }
     
-    if (begin_file_out(&context, API_H, &out)){
-        append(&out, "struct Application_Links;\n");
-        
-        for (int32_t i = 0; i < unit_custom.set.count; ++i){
-            append(&out, "#define ");
-            append(&out, func_4ed_names.names[i].macro);
-            append(&out, "(n) ");
-            append(&out, unit_custom.set.items[i].ret);
-            append(&out, " n");
-            append(&out, unit_custom.set.items[i].args);
-            append_s_char(&out, '\n');
-        }
-        
-        for (int32_t i = 0; i < unit_custom.set.count; ++i){
-            append(&out, "typedef ");
-            append(&out, func_4ed_names.names[i].macro);
-            append_s_char(&out, '(');
-            append(&out, unit_custom.set.items[i].name);
-            append(&out, "_Function);\n");
-        }
-        
-        append(&out, "struct Application_Links{\n");
-        
-        
-        append(&out, "#if defined(ALLOW_DEP_4CODER)\n");
-        for (int32_t i = 0; i < unit_custom.set.count; ++i){
-            append(&out, unit_custom.set.items[i].name);
-            append(&out, "_Function *");
-            append(&out, func_4ed_names.names[i].public_name);
-            append(&out, ";\n");
-        }
-        
-        append(&out, "#else\n");
-        
-        for (int32_t i = 0; i < unit_custom.set.count; ++i){
-            append(&out, unit_custom.set.items[i].name);
-            append(&out, "_Function *");
-            append(&out, func_4ed_names.names[i].public_name);
-            append(&out, "_;\n");
-        }
-        append(&out, "#endif\n");
-        
-        append(&out,
-               "void *memory;\n"
-               "int32_t memory_size;\n"
-               "void *cmd_context;\n"
-               "void *system_links;\n"
-               "void *current_coroutine;\n"
-               "int32_t type_coroutine;\n"
-               "};\n");
-        
-        append(&out, "#define FillAppLinksAPI(app_links) do{");
-        for (int32_t i = 0; i < unit_custom.set.count; ++i){
-            append(&out, "\\\napp_links->");
-            append(&out, func_4ed_names.names[i].public_name);
-            append(&out, "_ = ");
-            append(&out, unit_custom.set.items[i].name);
-            append_s_char(&out, ';');
-        }
-        append(&out, "} while(false)\n");
-        
-        append(&out, "#if defined(ALLOW_DEP_4CODER)\n");
-        for (int32_t use_dep = 1; use_dep >= 0; --use_dep){
-            for (int32_t i = 0; i < unit_custom.set.count; ++i){
-                Argument_Breakdown breakdown = unit_custom.set.items[i].breakdown;
-                String ret = unit_custom.set.items[i].ret;
-                String public_name = func_4ed_names.names[i].public_name;
-                
-                append(&out, "static inline ");
-                append(&out, ret);
-                append(&out, " ");
-                append(&out, public_name);
-                
-                append(&out, "(");
-                for (int32_t j = 0; j < breakdown.count; ++j){
-                    append(&out, breakdown.args[j].param_string);
-                    if (j+1 != breakdown.count){
-                        append(&out, ", ");
-                    }
-                }
-                append(&out, "){");
-                
-                if (match_ss(ret, make_lit_string("void"))){
-                    append(&out, "(");
-                }
-                else{
-                    append(&out, "return(");
-                }
-                
-                append(&out, "app->");
-                append(&out, public_name);
-                if (!use_dep){
-                    append(&out, "_");
-                }
-                
-                append(&out, "(");
-                for (int32_t j = 0; j < breakdown.count; ++j){
-                    append(&out, breakdown.args[j].param_name);
-                    if (j+1 != breakdown.count){
-                        append(&out, ", ");
-                    }
-                }
-                append(&out, ")");
-                
-                append(&out, ");}\n");
-            }
-            if (use_dep == 1){
-                append(&out, "#else\n");
-            }
-        }
-        append(&out, "#endif\n");
-        
-        end_file_out(context);
-    }
-    else{
-        // TODO(allen): warning
+    for (i32 i = main_api_count; i < os_api_count; ++i){
+        append(&out, "typedef ");
+        append(&out, func_4ed_names.names[i].macro);
+        append_s_char(&out, '(');
+        append(&out, unit_custom.set.items[i].name);
+        append(&out, "_Function);\n");
     }
     
-    META_FINISH();
+    end_file_out(OS_API_H, &out);
+    
+    append(&out, "struct Application_Links;\n");
+    
+    for (i32 i = 0; i < unit_custom.set.count; ++i){
+        append(&out, "#define ");
+        append(&out, func_4ed_names.names[i].macro);
+        append(&out, "(n) ");
+        append(&out, unit_custom.set.items[i].ret);
+        append(&out, " n");
+        append(&out, unit_custom.set.items[i].args);
+        append_s_char(&out, '\n');
+    }
+    
+    for (i32 i = 0; i < unit_custom.set.count; ++i){
+        append(&out, "typedef ");
+        append(&out, func_4ed_names.names[i].macro);
+        append_s_char(&out, '(');
+        append(&out, unit_custom.set.items[i].name);
+        append(&out, "_Function);\n");
+    }
+    
+    append(&out, "struct Application_Links{\n");
+    
+    
+    append(&out, "#if defined(ALLOW_DEP_4CODER)\n");
+    for (i32 i = 0; i < unit_custom.set.count; ++i){
+        append(&out, unit_custom.set.items[i].name);
+        append(&out, "_Function *");
+        append(&out, func_4ed_names.names[i].public_name);
+        append(&out, ";\n");
+    }
+    
+    append(&out, "#else\n");
+    
+    for (i32 i = 0; i < unit_custom.set.count; ++i){
+        append(&out, unit_custom.set.items[i].name);
+        append(&out, "_Function *");
+        append(&out, func_4ed_names.names[i].public_name);
+        append(&out, "_;\n");
+    }
+    append(&out, "#endif\n");
+    
+    append(&out,
+           "void *memory;\n"
+           "int32_t memory_size;\n"
+           "void *cmd_context;\n"
+           "void *system_links;\n"
+           "void *current_coroutine;\n"
+           "int32_t type_coroutine;\n"
+           "};\n");
+    
+    append(&out, "#define FillAppLinksAPI(app_links) do{");
+    for (i32 i = 0; i < unit_custom.set.count; ++i){
+        append(&out, "\\\napp_links->");
+        append(&out, func_4ed_names.names[i].public_name);
+        append(&out, "_ = ");
+        append(&out, unit_custom.set.items[i].name);
+        append_s_char(&out, ';');
+    }
+    append(&out, "} while(false)\n");
+    
+    append(&out, "#if defined(ALLOW_DEP_4CODER)\n");
+    for (i32 use_dep = 1; use_dep >= 0; --use_dep){
+        for (i32 i = 0; i < unit_custom.set.count; ++i){
+            Argument_Breakdown breakdown = unit_custom.set.items[i].breakdown;
+            String ret = unit_custom.set.items[i].ret;
+            String public_name = func_4ed_names.names[i].public_name;
+            
+            append(&out, "static inline ");
+            append(&out, ret);
+            append(&out, " ");
+            append(&out, public_name);
+            
+            append(&out, "(");
+            for (i32 j = 0; j < breakdown.count; ++j){
+                append(&out, breakdown.args[j].param_string);
+                if (j+1 != breakdown.count){
+                    append(&out, ", ");
+                }
+            }
+            append(&out, "){");
+            
+            if (match_ss(ret, make_lit_string("void"))){
+                append(&out, "(");
+            }
+            else{
+                append(&out, "return(");
+            }
+            
+            append(&out, "app->");
+            append(&out, public_name);
+            if (!use_dep){
+                append(&out, "_");
+            }
+            
+            append(&out, "(");
+            for (i32 j = 0; j < breakdown.count; ++j){
+                append(&out, breakdown.args[j].param_name);
+                if (j+1 != breakdown.count){
+                    append(&out, ", ");
+                }
+            }
+            append(&out, ")");
+            
+            append(&out, ");}\n");
+        }
+        if (use_dep == 1){
+            append(&out, "#else\n");
+        }
+    }
+    append(&out, "#endif\n");
+    
+    end_file_out(API_H, &out);
+    
+    fm_end_temp(temp);
 }
 
 int main(int argc, char **argv){
+    META_BEGIN();
+    
     fm_init_system();
     generate_keycode_enum();
     generate_style();
     generate_custom_headers();
+    
+    META_FINISH();
 }
 
 // BOTTOM

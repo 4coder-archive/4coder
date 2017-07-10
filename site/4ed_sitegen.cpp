@@ -91,28 +91,15 @@ print_function_body_code(String *out, Parse_Context *context, i32 start){
 
 static void
 do_html_output(Document_System *doc_system, char *dst_directory, Abstract_Item *doc){
-    // NOTE(allen): Output
-    i32 out_size = 10 << 20;
-    void *mem = malloc(out_size);
-    Assert(mem != 0);
-    String out = make_string_cap(mem, 0, out_size);
+    String out = make_string_cap(fm__push(10 << 20), 0, 10 << 20);
+    Assert(out.str != 0);
     
-    Out_Context context = {0};
-    set_context_directory(&context, dst_directory);
-    
-    // Output Docs
-    char space[256];
-    if (doc_get_link_string(doc, space, sizeof(space))){
-        if (begin_file_out(&context, space, &out)){
-            generate_document_html(&out, doc_system, doc);
-            end_file_out(context);
-        }
-        else{
-            fprintf(stderr, "Failed to open %s\n", space);
-        }
+    char doc_link[256];
+    if (doc_get_link_string(doc, doc_link, sizeof(doc_link))){
+        generate_document_html(&out, doc_system, doc);
+        char *name = fm_str(dst_directory, "/", doc_link);
+        end_file_out(name, &out);
     }
-    
-    free(mem);
 }
 
 // TODO(allen): replace the documentation declaration system with a straight up enriched text system
