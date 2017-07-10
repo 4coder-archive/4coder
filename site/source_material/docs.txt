@@ -1,0 +1,79 @@
+
+\META_PARSE{custom_funcs}{4ed_api_implementation.cpp}
+\META_PARSE{custom_types}{4coder_API/types.h}
+\META_PARSE{string}      {string/internal_4coder_string.cpp}
+\META_PARSE{lexer_funcs} {4cpp/4cpp_lexer.h}
+\META_PARSE{lexer_types} {4cpp/4cpp_lexer_types.h}
+
+\BEGIN_LINK{document:home}
+\IMAGE{image:4coder_logo}{width:200}
+\END_LINK
+
+\TABLE_OF_CONTENTS
+
+\SECTION{Introduction}
+ \SECTION_LINK{introduction}
+ \INCLUDE{introduction.txt}
+\END_SECTION
+
+\SECTION{4coder Systems}
+ \SECTION_LINK{4coder_systems}
+ \TODO
+\END_SECTION
+
+\SECTION{Types and Functions}
+ \SECTION_LINK{types_and_functions}
+
+ \SECTION{Function List}
+  \DOC_LIST{custom_funcs}
+ \END_SECTION
+
+ \SECTION{Type List}
+  \DOC_LIST{custom_types}
+ \END_SECTION
+
+ \SECTION{Function Descriptions}
+  \DOC_FULL{custom_funcs}
+ \END_SECTION
+
+ \SECTION{Type Descriptions}
+  \DOC_FULL{custom_types}
+ \END_SECTION
+\END_SECTION
+
+\SECTION{String Library}
+ \SECTION{String Library Intro}
+  \TODO
+ \END_SECTION
+
+ \SECTION{String Function List}
+  \DOC_LIST{string}
+ \END_SECTION
+
+ \SECTION{String Function Descriptions}
+  \DOC_FULL{string}
+ \END_SECTION
+\END_SECTION
+
+\SECTION{Lexer Library}
+ \SECTION{Lexer Intro}
+  \INCLUDE{lexer_introduction.txt}
+ \END_SECTION
+
+ \SECTION{Lexer Function List}
+  \DOC_LIST{lexer_funcs}
+ \END_SECTION
+
+ \SECTION{Lexer Type List}
+  \DOC_LIST{lexer_types}
+ \END_SECTION
+
+ \SECTION{Lexer Function Descriptions}
+  \DOC_FULL{lexer_funcs}
+ \END_SECTION
+
+ \SECTION{Lexer Type Descriptions}
+  \DOC_FULL{lexer_types}
+ \END_SECTION
+\END_SECTION
+

@@ -118,8 +118,6 @@ do_html_output(Document_System *doc_system, char *dst_directory, Abstract_Item *
 // TODO(allen): replace the documentation declaration system with a straight up enriched text system
 static Abstract_Item*
 generate_4coder_docs(Document_System *doc_system, char *code_directory, char *src_directory){
-#define ExpandArray(a) (a), (ArrayCount(a))
-    
     Meta_Unit *custom_types_unit = fm_push_array(Meta_Unit, 1);
     Meta_Unit *lexer_funcs_unit = fm_push_array(Meta_Unit, 1);
     Meta_Unit *lexer_types_unit = fm_push_array(Meta_Unit, 1);

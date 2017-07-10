@@ -1,8 +1,11 @@
 /*
-4tech_meta_defines.h - Header to setup metaprograms.
-By Allen Webster
-Created 21.01.2017 (dd.mm.yyyy)
-*/
+ * Mr. 4th Dimention - Allen Webster
+ *
+ * 21.01.2017
+ *
+ * Header to setup metaprograms.
+ *
+ */
 
 // TOP
 

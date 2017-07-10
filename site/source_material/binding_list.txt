@@ -66,6 +66,7 @@ The following bindings apply in all situations.
  \BEGIN_ITEM \BEGIN_STYLE{code} <f16> \END_STYLE Launch shell command set in a loaded project \END_ITEM
  
  \END_LIST
+\END_SECTION
 
 \SECTION{4coder Internal Command}
 Long name commands that can be typed in after \BEGIN_STYLE{code} <alt x> \END_STYLE for infrequently triggered commands.
@@ -81,6 +82,7 @@ Long name commands that can be typed in after \BEGIN_STYLE{code} <alt x> \END_ST
  \BEGIN_ITEM \BEGIN_STYLE{code} "nix lines" \END_STYLE
  Switch the bufer to 'nix' line ending mode LF \END_ITEM
  \END_LIST
+\END_SECTION
 
 \SECTION{Text File Bindings}
 The following bindings apply in general text files and most apply in code files, but some are overriden by other commands.
@@ -155,6 +157,7 @@ The following bindings apply in general text files and most apply in code files,
  \BEGIN_ITEM \BEGIN_STYLE{code} <shift return> \END_STYLE Like previous command but tries to open the jump location in the view that currently holds the jump location list \END_ITEM
  
  \END_LIST
+\END_SECTION
 
 \SECTION{Code File Bindings}
 The following commands only apply in C/C++ files where the lexer (syntax highlighting) is turned on.
@@ -186,3 +189,4 @@ The following commands only apply in C/C++ files where the lexer (syntax highlig
  \BEGIN_ITEM \BEGIN_STYLE{code} <ctrl I> \END_STYLE List all function signatures in the current buffer \END_ITEM
  
  \END_LIST
+\END_SECTION

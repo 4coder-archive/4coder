@@ -13,6 +13,7 @@ Right now I am working on upgrading some core internal systems that should buy m
  \BEGIN_ITEM Fix up the undo/redo system. \END_ITEM
  \BEGIN_ITEM Expose undo/redo system in the custom layer. \END_ITEM
  \END_LIST
+\END_SECTION
 
 \SECTION{Provide Customizations for Multiple Editing Paradgims}
  \BEGIN_LIST
@@ -20,6 +21,7 @@ Right now I am working on upgrading some core internal systems that should buy m
  \BEGIN_ITEM Custom layer reloading at runtime. \END_ITEM
  \BEGIN_ITEM New frameworks for vim like and sublime like editing. \END_ITEM
  \END_LIST
+\END_SECTION
 
 \SECTION{Platform Layer Features and Porting Issues}
  \BEGIN_LIST
@@ -27,6 +29,7 @@ Right now I am working on upgrading some core internal systems that should buy m
  \BEGIN_ITEM Support for double click opening files in an existing window. \END_ITEM
  \BEGIN_ITEM Make the rendeirng system modular. \END_ITEM
  \END_LIST
+\END_SECTION
 
 \SECTION{Buffer Driven GUI}
  \BEGIN_LIST
@@ -34,4 +37,4 @@ Right now I am working on upgrading some core internal systems that should buy m
  \BEGIN_ITEM Tables. \END_ITEM
  \BEGIN_ITEM IMGUI helper wrapper. \END_ITEM
  \END_LIST
-
+\END_SECTION

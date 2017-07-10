@@ -1,8 +1,11 @@
 /*
-4tech_defines.h - Standard defines across all 4tech projects.
-By Allen Webster
-Created 21.01.2017 (dd.mm.yyyy)
-*/
+ * Mr. 4th Dimention - Allen Webster
+ *
+ * 21.01.2017
+ *
+ * Standard defines across 4coder code base.
+ *
+ */
 
 // TOP
 

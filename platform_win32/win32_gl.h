@@ -1,8 +1,11 @@
 /*
-WGL declarations for 4coder.
-By Allen Webster
-Created 27.01.2017 (dd.mm.yyyy)
-*/
+ * Mr. 4th Dimention - Allen Webster
+ *
+ * 27.01.2017
+ *
+ * WGL declarations for 4coder.
+ *
+ */
 
 // TOP
 
