@@ -290,40 +290,39 @@ CUSTOM_COMMAND_SIG(if0_off){
     }
 }
 
-CUSTOM_COMMAND_SIG(write_todo){
+static void
+write_named_comment_string(Application_Links *app, char *type_string){
     char space[512];
     String str = make_fixed_width_string(space);
     
     char *name = 0;
     int32_t name_len = 0;
     if (get_current_name(&name, &name_len)){
-        append(&str, "// TODO(");
+        append(&str, "// ");
+        append(&str, type_string);
+        append(&str, "(");
         append(&str, make_string(name, name_len));
         append(&str, "): ");
     }
     else{
-        append(&str, "// TODO: ");
+        append(&str, "// ");
+        append(&str, type_string);
+        append(&str, ": ");
     }
     
     write_string(app, str);
 }
 
+CUSTOM_COMMAND_SIG(write_todo){
+    write_named_comment_string(app, "TODO");
+}
+
+CUSTOM_COMMAND_SIG(write_hack){
+    write_named_comment_string(app, "HACK");
+}
+
 CUSTOM_COMMAND_SIG(write_note){
-    char space[512];
-    String str = make_fixed_width_string(space);
-    
-    char *name = 0;
-    int32_t name_len = 0;
-    if (get_current_name(&name, &name_len)){
-        append(&str, "// NOTE(");
-        append(&str, make_string(name, name_len));
-        append(&str, "): ");
-    }
-    else{
-        append(&str, "// NOTE: ");
-    }
-    
-    write_string(app, str);
+    write_named_comment_string(app, "NOTE");
 }
 
 CUSTOM_COMMAND_SIG(write_block){

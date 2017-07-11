@@ -103,9 +103,10 @@ default_keys(Bind_Helper *context){
     bind(context, '\t', MDFR_CTRL, auto_tab_range);
     bind(context, '\t', MDFR_SHIFT, auto_tab_line_at_cursor);
     
+    bind(context, 'h', MDFR_ALT, write_hack);
+    bind(context, 'r', MDFR_ALT, write_block);
     bind(context, 't', MDFR_ALT, write_todo);
     bind(context, 'y', MDFR_ALT, write_note);
-    bind(context, 'r', MDFR_ALT, write_block);
     bind(context, '[', MDFR_CTRL, open_long_braces);
     bind(context, '{', MDFR_CTRL, open_long_braces_semicolon);
     bind(context, '}', MDFR_CTRL, open_long_braces_break);
