@@ -1,3 +1,4 @@
+
 /*
  * Mr. 4th Dimention - Allen Webster
  *
@@ -40,7 +41,7 @@
 // Meta Parse Rules
 //
 
-static void
+internal void
 print_function_body_code(String *out, Parse_Context *context, i32 start){
     String pstr = {0}, lexeme = {0};
     Cpp_Token *token = 0;
@@ -52,7 +53,7 @@ print_function_body_code(String *out, Parse_Context *context, i32 start){
     for (; (token = get_token(context)) != 0; get_next_token(context)){
         if (do_whitespace_print){
             pstr = str_start_end(context->data, start, token->start);
-            append_ss(out, pstr);
+            append(out, pstr);
         }
         else{
             do_whitespace_print = 1;
@@ -77,7 +78,7 @@ print_function_body_code(String *out, Parse_Context *context, i32 start){
         
         if (do_print){
             pstr = get_lexeme(*token, context->data);
-            append_ss(out, pstr);
+            append(out, pstr);
         }
         
         start = token->start + token->size;
@@ -88,7 +89,7 @@ print_function_body_code(String *out, Parse_Context *context, i32 start){
     }
 }
 
-static void
+internal void
 do_html_output(Document_System *doc_system, char *dst_directory, Abstract_Item *doc){
     String out = make_string_cap(fm__push(10 << 20), 0, 10 << 20);
     Assert(out.str != 0);
@@ -103,7 +104,7 @@ do_html_output(Document_System *doc_system, char *dst_directory, Abstract_Item *
 }
 
 // TODO(allen): replace the documentation declaration system with a straight up enriched text system
-static Abstract_Item*
+internal Abstract_Item*
 generate_4coder_docs(Document_System *doc_system, char *code_directory, char *src_directory){
     Meta_Unit *custom_types_unit = fm_push_array(Meta_Unit, 1);
     Meta_Unit *lexer_funcs_unit = fm_push_array(Meta_Unit, 1);
@@ -241,7 +242,7 @@ generate_page(Document_System *doc_system, char *code_directory, char *src_direc
     return(doc);
 }
 
-static String
+internal String
 push_string(i32 size){
     String str = {0};
     str.memory_size = size;
@@ -250,24 +251,27 @@ push_string(i32 size){
     return(str);
 }
 
-static void
+internal void
 do_image_resize(char *src_file, char *dst_file, char *extension, i32 w, i32 h){
     Temp temp = fm_begin_temp();
     
     i32 x = 0, y = 0, channels = 0;
     stbi_uc *image = stbi_load(src_file, &x, &y, &channels, 0);
-    stbi_uc *resized_image = fm_push_array(stbi_uc, w*h*channels);
-    stbir_resize_uint8(image, x, y, x*channels, resized_image, w, h, w*channels, channels);
-    
-    if (match_cc(extension, "png")){
-        stbi_write_png(dst_file, w, h, channels, resized_image, w*channels);
+    if (image != 0){
+        stbi_uc *resized_image = fm_push_array(stbi_uc, w*h*channels);
+        stbir_resize_uint8(image, x, y, x*channels, resized_image, w, h, w*channels, channels);
+        
+        if (match_cc(extension, "png")){
+            stbi_write_png(dst_file, w, h, channels, resized_image, w*channels);
+        }
+        
+        free(image);
     }
-    
-    free(image);
+
     fm_end_temp(temp);
 }
 
-static void
+internal void
 generate_site(char *code_directory, char *asset_directory, char *src_directory, char *dst_directory){
     Document_System doc_system = create_document_system();
     
@@ -284,11 +288,11 @@ generate_site(char *code_directory, char *asset_directory, char *src_directory, 
     };
     
     Site_Asset asset_list[] = {
-        {"4coder_logo_low_green.png", "png", "4coder_logo", SiteAsset_Image},
-        {"screen_1.png",              "png", "screen_1",    SiteAsset_Image},
-        {"screen_2.png",              "png", "screen_2",    SiteAsset_Image},
-        {"screen_3.png",              "png", "screen_3",    SiteAsset_Image},
-        {"4coder_icon.ico",           "ico", "4coder_icon", SiteAsset_Generic},
+        {"4coder_logo_low_green.png", "png", "4coder_logo", SiteAsset_Image   },
+        {"screen_1.png",              "png", "screen_1",    SiteAsset_Image   },
+        {"screen_2.png",              "png", "screen_2",    SiteAsset_Image   },
+        {"screen_3.png",              "png", "screen_3",    SiteAsset_Image   },
+        {"4coder_icon.ico",           "ico", "4coder_icon", SiteAsset_Generic },
     };
     
     for (u32 i = 0; i < ArrayCount(asset_list); ++i){
@@ -330,7 +334,7 @@ generate_site(char *code_directory, char *asset_directory, char *src_directory, 
          node = node->next){
         Abstract_Item *doc = NodeGetData(node, Abstract_Item);
         Assert(doc->item_type == ItemType_Document);
-        do_html_output(&doc_system, dst_directory, doc);
+        do_html_output(&doc_system, dst_directory,  doc);
     }
     
     for (Basic_Node *node = doc_system.file_list.head;
