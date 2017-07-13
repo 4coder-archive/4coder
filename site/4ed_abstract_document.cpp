@@ -41,7 +41,9 @@ enum{
     Doc_Full_Elements,
     Doc_Table_Of_Contents,
     Doc_Plain_Old_Text,
-
+    Doc_Version,
+    Doc_BeginStyle,
+    Doc_EndStyle,
     //
     Doc_COUNT,
 };
@@ -81,9 +83,9 @@ struct Document_Item{
         } unit_elements;
         
         struct{
-            String text;
-        } text;
-
+            String string;
+        } string;
+        
         struct{
             Enriched_Text *text;
         } enriched_text;
@@ -438,9 +440,9 @@ add_plain_old_text(Abstract_Item *doc, String text){
     Document_Item *item = fm_push_array(Document_Item, 1);
     *item = null_document_item;
     item->type = Doc_Plain_Old_Text;
-    item->text.text = str_alloc(text.size);
-    copy(&item->text.text, text);
-
+    item->string.string = str_alloc(text.size);
+    copy(&item->string.string, text);
+    
     append_child(parent, item);
 }
 
@@ -452,6 +454,41 @@ add_enriched_text(Abstract_Item *doc, Enriched_Text *text){
     *item = null_document_item;
     item->type = Doc_Enriched_Text;
     item->enriched_text.text = text;
+    
+    append_child(parent, item);
+}
+
+internal void
+add_version(Abstract_Item *doc){
+    Assert(doc->section_top + 1 < ArrayCount(doc->section_stack));
+    Document_Item *parent = doc->section_stack[doc->section_top];
+    Document_Item *item = fm_push_array(Document_Item, 1);
+    *item = null_document_item;
+    item->type = Doc_Version;
+    
+    append_child(parent, item);
+}
+
+internal void
+add_begin_style(Abstract_Item *doc, String text){
+    Assert(doc->section_top + 1 < ArrayCount(doc->section_stack));
+    Document_Item *parent = doc->section_stack[doc->section_top];
+    Document_Item *item = fm_push_array(Document_Item, 1);
+    *item = null_document_item;
+    item->type = Doc_BeginStyle;
+    item->string.string = str_alloc(text.size);
+    copy(&item->string.string, text);
+    
+    append_child(parent, item);
+}
+
+internal void
+add_end_style(Abstract_Item *doc){
+    Assert(doc->section_top + 1 < ArrayCount(doc->section_stack));
+    Document_Item *parent = doc->section_stack[doc->section_top];
+    Document_Item *item = fm_push_array(Document_Item, 1);
+    *item = null_document_item;
+    item->type = Doc_BeginStyle;
     
     append_child(parent, item);
 }
@@ -715,6 +752,22 @@ output_plain_old_text(String *out, char *text, u32 length){
 }
 
 internal void
+output_begin_style(String *out, char *name, u32 length){
+    String l = make_string(name, length);
+    if (match(l, "code")){
+        append(out, "<span style='"HTML_CODE_STYLE"'>");
+    }
+    else{
+        fprintf(stdout, "error: unrecognized style\n");
+    }
+}
+
+internal void
+output_end_style(String *out){
+    append(out, "</span>");
+}
+
+internal void
 write_enriched_text_html(String *out, Enriched_Text *text, Document_System *doc_system,  Section_Counter *section_counter){
     String source = text->source;
     
@@ -733,7 +786,7 @@ write_enriched_text_html(String *out, Enriched_Text *text, Document_System *doc_
             char ch = l.str[i];
             if (ch == '\\'){
                 output_plain_old_text(out, l.str + start, i - start);
-
+                
                 i32 command_start = i + 1;
                 i32 command_end = command_start;
                 for (; command_end < l.size; ++command_end){
@@ -759,15 +812,15 @@ write_enriched_text_html(String *out, Enriched_Text *text, Document_System *doc_
                 if (!string_set_match(enriched_commands, enriched_commands_count, command_string, &match_index)){
                     match_index = -1;
                 }
-
+                
                 switch (match_index){
                     case Cmd_BackSlash: append(out, "\\"); break;
-
+                    
                     case Cmd_DoMetaParse:
                     {
                         fprintf(stdout, "Cmd_DoMetaParse: not implemented\n");
                     }break;
-
+                    
                     case Cmd_Version: append(out, VERSION); break;
                     
                     case Cmd_BeginStyle:
@@ -775,16 +828,13 @@ write_enriched_text_html(String *out, Enriched_Text *text, Document_System *doc_
                         String body_text = {0};
                         b32 has_body = extract_command_body(out, l, &i, &body_text, command_string, true);
                         if (has_body){
-                            if (match_sc(body_text, "code")){
-                                append(out, "<span style='"HTML_CODE_STYLE"'>");
-                            }
+                            output_begin_style(out, body_text.str, body_text.size);
                         }
                     }break;
                     
                     case Cmd_EndStyle:
                     {
-                        append(out, "</span>");
-
+                        output_end_style(out);
                     }break;
                     
                     // TODO(allen): upgrade this bs
@@ -920,7 +970,7 @@ write_enriched_text_html(String *out, Enriched_Text *text, Document_System *doc_
                             if (match_part_sc(body_text, "youtube:")){
                                 i32 pixel_width = HTML_WIDTH;
                                 i32 pixel_height = (i32)(pixel_width * 0.5625);
-
+                                
                                 String youtube_str = substr_tail(body_text, sizeof("youtube:")-1);
                                 
                                 append(out, "<iframe  width='");
@@ -956,19 +1006,19 @@ write_enriched_text_html(String *out, Enriched_Text *text, Document_System *doc_
                             fprintf(stdout, "error: unmatched section end\n");
                         }
                     }break;
-
+                    
                     case Cmd_TableOfContents:
                     {
                         fprintf(stdout, "Cmd_TableOfContents: not implemented\n");
                     }break;
-
+                    
                     default:
                     {
                         append(out, "<span style='color:#F00'>! Doc generator error: unrecognized command !</span>");
                         fprintf(stdout, "error: unrecognized command %.*s\n", command_string.size, command_string.str);
                     }break;
                 }
-
+                
                 start = i;
             }
         }
@@ -1685,8 +1735,8 @@ doc_item_html(String *out, Document_System *doc_system, Used_Links *used_links, 
         {
             if (head){
                 write_enriched_text_html(out, item->enriched_text
-
-                    .text, doc_system, section_counter);
+                                         
+                                         .text, doc_system, section_counter);
             }
         }break;
         
@@ -1782,10 +1832,22 @@ doc_item_html(String *out, Document_System *doc_system, Used_Links *used_links, 
                 append(out, "</ul>");
             }
         }break;
-
+        
         case Doc_Plain_Old_Text:
         {
-            output_plain_old_text(out, item->text.text.str, item->text.text.size);
+            output_plain_old_text(out, item->string.string.str, item->string.string.size);
+        }break;
+        
+        case Doc_Version: append(out, VERSION); break;
+        
+        case Doc_BeginStyle:
+        {
+            output_begin_style(out, item->string.string.str, item->string.string.size);
+        }break;
+        
+        case Doc_EndStyle:
+        {
+            output_end_style(out);
         }break;
     }
 }
