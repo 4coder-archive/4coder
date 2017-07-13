@@ -76,7 +76,10 @@ char *compiler_names[] = {
 #define PACK_DIR "../distributions"
 #define SITE_DIR "../site"
 
-char *includes[] = { "../foreign", "../foreign/freetype2", 0, };
+#define FOREIGN "../4coder-non-source/foreign"
+#define FOREIGN_WIN "..\\4coder-non-source\\foreign"
+
+char *includes[] = { FOREIGN, FOREIGN"/freetype2", 0, };
 
 //
 // Platform layer file tables
@@ -188,11 +191,11 @@ get_defines_from_flags(u32 flags){
 
 #define CL_LIBS_X64                              \
 "user32.lib winmm.lib gdi32.lib opengl32.lib "   \
-"..\\foreign_x64\\freetype.lib"
+FOREIGN_WIN"\\x64\\freetype.lib"
 
 #define CL_LIBS_X86                              \
 "user32.lib winmm.lib gdi32.lib opengl32.lib "   \
-"..\\foreign_x86\\freetype.lib"
+FOREIGN_WIN"\\x86\\freetype.lib"
 
 #define CL_ICON "..\\res\\icon.res"
 
@@ -572,7 +575,7 @@ package(char *cdir){
     
     char *build_dir = fm_str(BUILD_DIR);
     char *pack_dir = fm_str(PACK_DIR);
-    char *fonts_source_dir = fm_str("../code/dist_files/fonts");
+    char *fonts_source_dir = fm_str("../4coder-non-source/dist_files/fonts");
     
     char *base_package_root = "../current_dist";
     
