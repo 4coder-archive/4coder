@@ -36,14 +36,26 @@ enum{
     Doc_Root,
     Doc_Section,
     Doc_Todo,
-    Doc_Enriched_Text,
-    Doc_Element_List,
-    Doc_Full_Elements,
-    Doc_Table_Of_Contents,
-    Doc_Plain_Old_Text,
+    Doc_Include,
+    Doc_DocList,
+    Doc_DocFull,
+    Doc_TableOfContents,
+    Doc_PlainOldText,
     Doc_Version,
     Doc_BeginStyle,
     Doc_EndStyle,
+    Doc_BeginLink,
+    Doc_EndLink,
+    Doc_Image,
+    Doc_Video,
+    Doc_BeginParagraph,
+    Doc_EndParagraph,
+    Doc_BeginSection,
+    Doc_EndSection,
+    Doc_BeginList,
+    Doc_EndList,
+    Doc_BeginItem,
+    Doc_EndItem,
     //
     Doc_COUNT,
 };
@@ -84,6 +96,7 @@ struct Document_Item{
         
         struct{
             String string;
+            String string2;
         } string;
         
         struct{
@@ -376,7 +389,7 @@ add_element_list(Abstract_Item *doc, Meta_Unit *unit){
     Document_Item *parent = doc->section_stack[doc->section_top];
     Document_Item *item = fm_push_array(Document_Item, 1);
     *item = null_document_item;
-    item->type = Doc_Element_List;
+    item->type = Doc_DocList;
     item->unit_elements.unit = unit;
     
     append_child(parent, item);
@@ -388,7 +401,7 @@ add_element_list(Abstract_Item *doc, Meta_Unit *unit, Alternate_Names_Array *alt
     Document_Item *parent = doc->section_stack[doc->section_top];
     Document_Item *item = fm_push_array(Document_Item, 1);
     *item = null_document_item;
-    item->type = Doc_Element_List;
+    item->type = Doc_DocList;
     item->unit_elements.unit = unit;
     item->unit_elements.alt_names = alt_names;
     item->unit_elements.alt_name_type = alt_name_type;
@@ -402,7 +415,7 @@ add_full_elements(Abstract_Item *doc, Meta_Unit *unit){
     Document_Item *parent = doc->section_stack[doc->section_top];
     Document_Item *item = fm_push_array(Document_Item, 1);
     *item = null_document_item;
-    item->type = Doc_Full_Elements;
+    item->type = Doc_DocFull;
     item->unit_elements.unit = unit;
     
     append_child(parent, item);
@@ -414,7 +427,7 @@ add_full_elements(Abstract_Item *doc, Meta_Unit *unit, Alternate_Names_Array *al
     Document_Item *parent = doc->section_stack[doc->section_top];
     Document_Item *item = fm_push_array(Document_Item, 1);
     *item = null_document_item;
-    item->type = Doc_Full_Elements;
+    item->type = Doc_DocFull;
     item->unit_elements.unit = unit;
     item->unit_elements.alt_names = alt_names;
     item->unit_elements.alt_name_type = alt_name_type;
@@ -428,7 +441,7 @@ add_table_of_contents(Abstract_Item *doc){
     Document_Item *parent = doc->section_stack[doc->section_top];
     Document_Item *item = fm_push_array(Document_Item, 1);
     *item = null_document_item;
-    item->type = Doc_Table_Of_Contents;
+    item->type = Doc_TableOfContents;
     
     append_child(parent, item);
 }
@@ -439,7 +452,7 @@ add_plain_old_text(Abstract_Item *doc, String text){
     Document_Item *parent = doc->section_stack[doc->section_top];
     Document_Item *item = fm_push_array(Document_Item, 1);
     *item = null_document_item;
-    item->type = Doc_Plain_Old_Text;
+    item->type = Doc_PlainOldText;
     item->string.string = str_alloc(text.size);
     copy(&item->string.string, text);
     
@@ -452,7 +465,7 @@ add_enriched_text(Abstract_Item *doc, Enriched_Text *text){
     Document_Item *parent = doc->section_stack[doc->section_top];
     Document_Item *item = fm_push_array(Document_Item, 1);
     *item = null_document_item;
-    item->type = Doc_Enriched_Text;
+    item->type = Doc_Include;
     item->enriched_text.text = text;
     
     append_child(parent, item);
@@ -488,7 +501,151 @@ add_end_style(Abstract_Item *doc){
     Document_Item *parent = doc->section_stack[doc->section_top];
     Document_Item *item = fm_push_array(Document_Item, 1);
     *item = null_document_item;
-    item->type = Doc_BeginStyle;
+    item->type = Doc_EndStyle;
+    
+    append_child(parent, item);
+}
+
+internal void
+add_begin_link(Abstract_Item *doc, String text){
+    Assert(doc->section_top + 1 < ArrayCount(doc->section_stack));
+    Document_Item *parent = doc->section_stack[doc->section_top];
+    Document_Item *item = fm_push_array(Document_Item, 1);
+    *item = null_document_item;
+    item->type = Doc_BeginLink;
+    item->string.string = str_alloc(text.size);
+    copy(&item->string.string, text);
+    
+    append_child(parent, item);
+}
+
+internal void
+add_end_link(Abstract_Item *doc){
+    Assert(doc->section_top + 1 < ArrayCount(doc->section_stack));
+    Document_Item *parent = doc->section_stack[doc->section_top];
+    Document_Item *item = fm_push_array(Document_Item, 1);
+    *item = null_document_item;
+    item->type = Doc_EndLink;
+    
+    append_child(parent, item);
+}
+
+internal void
+add_image(Abstract_Item *doc, String text, String extra_text){
+    Assert(doc->section_top + 1 < ArrayCount(doc->section_stack));
+    Document_Item *parent = doc->section_stack[doc->section_top];
+    Document_Item *item = fm_push_array(Document_Item, 1);
+    *item = null_document_item;
+    item->type = Doc_Image;
+    item->string.string = str_alloc(text.size);
+    copy(&item->string.string, text);
+    if (extra_text.size > 0){
+        item->string.string2 = str_alloc(extra_text.size);
+        copy(&item->string.string2, extra_text);
+    }
+    
+    append_child(parent, item);
+}
+
+internal void
+add_video(Abstract_Item *doc, String text){
+    Assert(doc->section_top + 1 < ArrayCount(doc->section_stack));
+    Document_Item *parent = doc->section_stack[doc->section_top];
+    Document_Item *item = fm_push_array(Document_Item, 1);
+    *item = null_document_item;
+    item->type = Doc_Video;
+    item->string.string = str_alloc(text.size);
+    copy(&item->string.string, text);
+    
+    append_child(parent, item);
+}
+
+internal void
+add_begin_paragraph(Abstract_Item *doc){
+    Assert(doc->section_top + 1 < ArrayCount(doc->section_stack));
+    Document_Item *parent = doc->section_stack[doc->section_top];
+    Document_Item *item = fm_push_array(Document_Item, 1);
+    *item = null_document_item;
+    item->type = Doc_BeginParagraph;
+    
+    append_child(parent, item);
+}
+
+internal void
+add_end_paragraph(Abstract_Item *doc){
+    Assert(doc->section_top + 1 < ArrayCount(doc->section_stack));
+    Document_Item *parent = doc->section_stack[doc->section_top];
+    Document_Item *item = fm_push_array(Document_Item, 1);
+    *item = null_document_item;
+    item->type = Doc_EndParagraph;
+    
+    append_child(parent, item);
+}
+
+internal void
+add_begin_section(Abstract_Item *doc, String text){
+    Assert(doc->section_top + 1 < ArrayCount(doc->section_stack));
+    Document_Item *parent = doc->section_stack[doc->section_top];
+    Document_Item *item = fm_push_array(Document_Item, 1);
+    *item = null_document_item;
+    item->type = Doc_BeginSection;
+    item->string.string = str_alloc(text.size);
+    copy(&item->string.string, text);
+    
+    append_child(parent, item);
+}
+
+internal void
+add_end_section(Abstract_Item *doc){
+    Assert(doc->section_top + 1 < ArrayCount(doc->section_stack));
+    Document_Item *parent = doc->section_stack[doc->section_top];
+    Document_Item *item = fm_push_array(Document_Item, 1);
+    *item = null_document_item;
+    item->type = Doc_EndSection;
+    
+    append_child(parent, item);
+}
+
+internal void
+add_begin_list(Abstract_Item *doc){
+    Assert(doc->section_top + 1 < ArrayCount(doc->section_stack));
+    Document_Item *parent = doc->section_stack[doc->section_top];
+    Document_Item *item = fm_push_array(Document_Item, 1);
+    *item = null_document_item;
+    item->type = Doc_BeginList;
+    
+    append_child(parent, item);
+}
+
+internal void
+add_end_list(Abstract_Item *doc){
+    Assert(doc->section_top + 1 < ArrayCount(doc->section_stack));
+    Document_Item *parent = doc->section_stack[doc->section_top];
+    Document_Item *item = fm_push_array(Document_Item, 1);
+    *item = null_document_item;
+    item->type = Doc_EndList;
+    
+    append_child(parent, item);
+}
+
+internal void
+add_begin_item(Abstract_Item *doc){
+    Assert(doc->section_top + 1 < ArrayCount(doc->section_stack));
+    Document_Item *parent = doc->section_stack[doc->section_top];
+    Document_Item *item = fm_push_array(Document_Item, 1);
+    *item = null_document_item;
+    item->type = Doc_BeginItem;
+    
+    append_child(parent, item);
+}
+
+internal void
+add_end_item(Abstract_Item *doc){
+    Assert(doc->section_top + 1 < ArrayCount(doc->section_stack));
+    Document_Item *parent = doc->section_stack[doc->section_top];
+    Document_Item *item = fm_push_array(Document_Item, 1);
+    *item = null_document_item;
+    item->type = Doc_EndItem;
     
     append_child(parent, item);
 }
@@ -535,6 +692,7 @@ add_end_style(Abstract_Item *doc){
 struct Section_Counter{
     i32 counter[16];
     i32 nest_level;
+    i32 list_item_counter;
 };
 
 internal b32
@@ -613,9 +771,11 @@ extract_command_body(String *out, String l, i32 *i_in_out, i32 *body_start_out, 
         fprintf(stdout, "error: missing body for %.*s\n", command_name.size, command_name.str);
     }
     
-    *i_in_out = i;
-    *body_start_out = body_start;
-    *body_end_out = body_end;
+    if (result){
+        *i_in_out = i;
+        *body_start_out = body_start;
+        *body_end_out = body_end;
+    }
     
     return(result);
 }
@@ -677,7 +837,6 @@ enum Command_Types{
     Cmd_EndList,
     Cmd_BeginItem,
     Cmd_EndItem,
-    Cmd_BoldFace,
     Cmd_BeginLink,
     Cmd_EndLink,
     Cmd_Image,
@@ -706,7 +865,6 @@ get_enriched_commands(){
         enriched_commands_global_array[Cmd_EndList]         = make_lit_string("END_LIST");
         enriched_commands_global_array[Cmd_BeginItem]       = make_lit_string("BEGIN_ITEM");
         enriched_commands_global_array[Cmd_EndItem]         = make_lit_string("END_ITEM");
-        enriched_commands_global_array[Cmd_BoldFace]        = make_lit_string("BOLD_FACE");
         enriched_commands_global_array[Cmd_BeginLink]       = make_lit_string("BEGIN_LINK");
         enriched_commands_global_array[Cmd_EndLink]         = make_lit_string("END_LINK");
         enriched_commands_global_array[Cmd_Image]           = make_lit_string("IMAGE");
@@ -768,18 +926,175 @@ output_end_style(String *out){
 }
 
 internal void
+output_begin_link(Document_System *doc_system, String *out, char *name, u32 length){
+    String l = make_string(name, length);
+    append(out, "<a ");
+    if (l.str[0] == '!'){
+        append(out, "target='_blank' ");
+        l.str++;
+        l.size--;
+    }
+    append(out, "href='");
+    if (match_part_sc(l, "document:")){
+        String doc_name = substr_tail(l, sizeof("document:")-1);
+        Abstract_Item *doc_lookup = get_item_by_name(doc_system->doc_list, doc_name);
+        if (doc_lookup){
+            char space[256];
+            if (doc_get_link_string(doc_lookup, space, sizeof(space))){
+                append(out, space);
+            }
+            else{
+                NotImplemented;
+            }
+        }
+    }
+    else{
+        append(out, l);
+    }
+    append(out, "'>");
+}
+
+internal void
+output_end_link(String *out){
+    append(out, "</a>");
+}
+
+internal void
+output_image(Document_System *doc_system, String *out, char *name, u32 length, char *name2, u32 length2){
+    String l = make_string(name, length);
+    String l2 = make_string(name2, length2);
+    
+    i32 pixel_height = 10;
+    i32 pixel_width = HTML_WIDTH;
+    
+    if (l2.size > 0){
+        if (match_part(l2, "width:")){
+            String width_string = substr_tail(l2, sizeof("width:")-1);
+            if (str_is_int(width_string)){
+                pixel_width = str_to_int(width_string);
+            }
+        }
+    }
+    
+    if (match_part_sc(l, "image:")){
+        String img_name = substr_tail(l, sizeof("image:")-1);
+        Abstract_Item *img_lookup = get_item_by_name(doc_system->img_list, img_name);
+        
+        if (img_lookup){
+            pixel_height = ceil32(pixel_width*img_lookup->h_w_ratio);
+            
+            append(out, "<img src='");
+            
+            char space[256];
+            if (img_get_link_string(img_lookup, space, sizeof(space), pixel_width, pixel_height)){
+                append(out, space);
+                add_image_instantiation(&img_lookup->img_instantiations, pixel_width, pixel_height);
+            }
+            else{
+                NotImplemented;
+            }
+            
+            append(out, "' style='width: ");
+            append_int_to_str(out, pixel_width);
+            append(out, "px; height: ");
+            append_int_to_str(out, pixel_height);
+            append(out, "px;'>");
+        }
+    }
+}
+
+internal void
+output_video(String *out, char *name, u32 length){
+    String l = make_string(name, length);
+    
+    if (match_part_sc(l, "youtube:")){
+        i32 pixel_width = HTML_WIDTH;
+        i32 pixel_height = (i32)(pixel_width * 0.5625f);
+        
+        String youtube_str = substr_tail(l, sizeof("youtube:")-1);
+        
+        append(out, "<iframe  width='");
+        append_int_to_str(out, pixel_width);
+        append(out, "' height='");
+        append_int_to_str(out, pixel_height);
+        append(out, "' src='");
+        append(out, youtube_str);
+        append(out, "' allowfullscreen> </iframe>");
+    }
+    else{
+        append(out, "<span style='color:#F00'>! Doc generator error: unrecognized video type !</span>");
+        fprintf(stdout, "error: unrecognized video type %.*s\n", l.size, l.str);
+    }
+}
+
+internal void
+output_begin_paragraph(String *out){
+    append(out, "<p>");
+}
+
+internal void
+output_end_paragraph(String *out){
+    append(out, "</p>");
+}
+
+internal void
+output_begin_section(String *out, Section_Counter *section_counter, char *name, u32 length){
+    String l = make_string(name, length);
+    html_render_section_header(out, l, null_string, section_counter);
+    ++section_counter->nest_level;
+    section_counter->list_item_counter = 0;
+}
+
+internal void
+output_end_section(String *out, Section_Counter *section_counter){
+    if (section_counter->nest_level > 0){
+        --section_counter->nest_level;
+        ++section_counter->counter[section_counter->nest_level];
+    }
+    else{
+        append(out, "<span style='color:#F00'>! Doc generator error: unmatched section end !</span>");
+        fprintf(stdout, "error: unmatched section end\n");
+    }
+}
+
+internal void
+output_begin_list(String *out){
+    append(out,"<ul style='margin-top: 5mm; margin-left: 1mm;'>");
+}
+
+internal void
+output_end_list(String *out){
+    append(out, "</ul>");
+}
+
+internal void
+output_begin_item(String *out, Section_Counter *section_counter){
+    if (section_counter->list_item_counter == 0){
+        append(out, "<li style='font-size: 95%; background: #EFEFDF;'>");
+        ++section_counter->list_item_counter;
+    }
+    else{
+        append(out, "<li style='font-size: 95%;'>");
+        section_counter->list_item_counter = 0;
+    }
+}
+
+internal void
+output_end_item(String *out){
+    append(out, "</li>");
+}
+
+internal void
 write_enriched_text_html(String *out, Enriched_Text *text, Document_System *doc_system,  Section_Counter *section_counter){
     String source = text->source;
     
     append(out, "<div>");
     
-    i32 item_counter = 0;
-    
     for (String line = get_first_double_line(source);
          line.str;
          line = get_next_double_line(source, line)){
         String l  = skip_chop_whitespace(line);
-        append(out, "<p>");
+        output_begin_paragraph(out);
         
         i32 start = 0, i = 0;
         for (; i < l.size; ++i){
@@ -853,29 +1168,22 @@ write_enriched_text_html(String *out, Enriched_Text *text, Document_System *doc_
                     
                     case Cmd_BeginList:
                     {
-                        append(out,"<ul style='margin-top: 5mm; margin-left: 1mm;'>");
+                        output_begin_list(out);
                     }break;
                     
                     case Cmd_EndList:
                     {
-                        append(out, "</ul>");
+                        output_end_list(out);
                     }break;
                     
                     case Cmd_BeginItem:
                     {
-                        if (item_counter == 0){
-                            append(out, "<li style='font-size: 95%; background: #EFEFDF;'>");
-                            ++item_counter;
-                        }
-                        else{
-                            append(out, "<li style='font-size: 95%;'>");
-                            item_counter = 0;
-                        }
+                        output_begin_item(out, section_counter);
                     }break;
                     
                     case Cmd_EndItem:
                     {
-                        append(out, "</li>");
+                        output_end_item(out);
                     }break;
                     
                     case Cmd_BeginLink:
@@ -883,36 +1191,13 @@ write_enriched_text_html(String *out, Enriched_Text *text, Document_System *doc_
                         String body_text = {0};
                         b32 has_body = extract_command_body(out, l, &i, &body_text, command_string, true);
                         if (has_body){
-                            append(out, "<a ");
-                            if (body_text.str[0] == '!'){
-                                append(out, "target='_blank' ");
-                                body_text.str++;
-                                body_text.size--;
-                            }
-                            append(out, "href='");
-                            if (match_part_sc(body_text, "document:")){
-                                String doc_name = substr_tail(body_text, sizeof("document:")-1);
-                                Abstract_Item *doc_lookup = get_item_by_name(doc_system->doc_list, doc_name);
-                                if (doc_lookup){
-                                    char space[256];
-                                    if (doc_get_link_string(doc_lookup, space, sizeof(space))){
-                                        append(out, space);
-                                    }
-                                    else{
-                                        NotImplemented;
-                                    }
-                                }
-                            }
-                            else{
-                                append(out, body_text);
-                            }
-                            append(out, "'>");
+                            output_begin_link(doc_system, out, body_text.str, body_text.size);
                         }
                     }break;
                     
                     case Cmd_EndLink:
                     {
-                        append(out, "</a>");
+                        output_end_link(out);
                     }break;
                     
                     case Cmd_Image:
@@ -920,45 +1205,10 @@ write_enriched_text_html(String *out, Enriched_Text *text, Document_System *doc_
                         String body_text = {0};
                         b32 has_body = extract_command_body(out, l, &i, &body_text, command_string, true);
                         if (has_body){
-                            i32 pixel_height = 10;
-                            i32 pixel_width = HTML_WIDTH;
-                            
                             String size_parameter = {0};
-                            b32 has_body = extract_command_body(out, l, &i, &size_parameter, command_string, false);
-                            if (has_body){
-                                if (match_part_sc(size_parameter, "width:")){
-                                    String width_string = substr_tail(size_parameter, sizeof("width:")-1);
-                                    if (str_is_int_s(width_string)){
-                                        pixel_width = str_to_int_s(width_string);
-                                    }
-                                }
-                            }
+                            extract_command_body(out, l, &i, &size_parameter, command_string, false);
                             
-                            if (match_part_sc(body_text, "image:")){
-                                String img_name = substr_tail(body_text, sizeof("image:")-1);
-                                Abstract_Item *img_lookup = get_item_by_name(doc_system->img_list, img_name);
-                                
-                                if (img_lookup){
-                                    pixel_height = ceil32(pixel_width*img_lookup->h_w_ratio);
-                                    
-                                    append(out, "<img src='");
-                                    
-                                    char space[256];
-                                    if (img_get_link_string(img_lookup, space, sizeof(space), pixel_width, pixel_height)){
-                                        append(out, space);
-                                        add_image_instantiation(&img_lookup->img_instantiations, pixel_width, pixel_height);
-                                    }
-                                    else{
-                                        NotImplemented;
-                                    }
-                                    
-                                    append(out, "' style='width: ");
-                                    append_int_to_str(out, pixel_width);
-                                    append(out, "px; height: ");
-                                    append_int_to_str(out, pixel_height);
-                                    append(out, "px;'>");
-                                }
-                            }
+                            output_image(doc_system, out, body_text.str, body_text.size, size_parameter.str, size_parameter.size);
                         }
                     }break;
                     
@@ -967,20 +1217,7 @@ write_enriched_text_html(String *out, Enriched_Text *text, Document_System *doc_
                         String body_text = {0};
                         b32 has_body = extract_command_body(out, l, &i, &body_text, command_string, true);
                         if (has_body){
-                            if (match_part_sc(body_text, "youtube:")){
-                                i32 pixel_width = HTML_WIDTH;
-                                i32 pixel_height = (i32)(pixel_width * 0.5625);
-                                
-                                String youtube_str = substr_tail(body_text, sizeof("youtube:")-1);
-                                
-                                append(out, "<iframe  width='");
-                                append_int_to_str(out, pixel_width);
-                                append(out, "' height='");
-                                append_int_to_str(out, pixel_height);
-                                append(out, "' src='");
-                                append(out, youtube_str);
-                                append(out, "' allowfullscreen> </iframe>");
-                            }
+                            output_video(out, body_text.str, body_text.size);
                         }
                     }break;
                     
@@ -989,22 +1226,15 @@ write_enriched_text_html(String *out, Enriched_Text *text, Document_System *doc_
                         String body_text = {0};
                         b32 has_body = extract_command_body(out, l, &i, &body_text, command_string, true);
                         if (has_body){
-                            html_render_section_header(out, body_text, null_string, section_counter);
-                            ++section_counter->nest_level;
-                            item_counter = 0;
+                            String extra_text = {0};
+                            extract_command_body(out, l, &i, &extra_text, command_string, false);
+                            output_begin_section(out, section_counter, body_text.str, body_text.size);
                         }
                     }break;
                     
                     case Cmd_EndSection:
                     {
-                        if (section_counter->nest_level > 0){
-                            --section_counter->nest_level;
-                            ++section_counter->counter[section_counter->nest_level];
-                        }
-                        else{
-                            append(out, "<span style='color:#F00'>! Doc generator error: unmatched section end !</span>");
-                            fprintf(stdout, "error: unmatched section end\n");
-                        }
+                        output_end_section(out, section_counter);
                     }break;
                     
                     case Cmd_TableOfContents:
@@ -1027,7 +1257,7 @@ write_enriched_text_html(String *out, Enriched_Text *text, Document_System *doc_
             output_plain_old_text(out, l.str + start, i - start);
         }
         
-        append(out, "</p>");
+        output_end_paragraph(out);
     }
     
     append(out, "</div>");
@@ -1731,16 +1961,14 @@ doc_item_html(String *out, Document_System *doc_system, Used_Links *used_links, 
             }
         }break;
         
-        case Doc_Enriched_Text:
+        case Doc_Include:
         {
             if (head){
-                write_enriched_text_html(out, item->enriched_text
-                                         
-                                         .text, doc_system, section_counter);
+                write_enriched_text_html(out, item->enriched_text.text, doc_system, section_counter);
             }
         }break;
         
-        case Doc_Element_List:
+        case Doc_DocList:
         {
             if (head){
                 append(out, "<ul>");
@@ -1776,7 +2004,7 @@ doc_item_html(String *out, Document_System *doc_system, Used_Links *used_links, 
             }
         }break;
         
-        case Doc_Full_Elements:
+        case Doc_DocFull:
         {
             if (head){
                 Meta_Unit *unit = item->unit_elements.unit;
@@ -1803,7 +2031,7 @@ doc_item_html(String *out, Document_System *doc_system, Used_Links *used_links, 
             }
         }break;
         
-        case Doc_Table_Of_Contents:
+        case Doc_TableOfContents:
         {
             if (head){
                 append(out, "<h3 style='margin:0;'>Table of Contents</h3><ul>");
@@ -1833,21 +2061,117 @@ doc_item_html(String *out, Document_System *doc_system, Used_Links *used_links, 
             }
         }break;
         
-        case Doc_Plain_Old_Text:
+        case Doc_PlainOldText:
         {
-            output_plain_old_text(out, item->string.string.str, item->string.string.size);
+            if (head){
+                output_plain_old_text(out, item->string.string.str, item->string.string.size);
+            }
         }break;
         
-        case Doc_Version: append(out, VERSION); break;
+        case Doc_Version:
+        {
+            if (head){
+                append(out, VERSION);
+            }
+        }break;
         
         case Doc_BeginStyle:
         {
-            output_begin_style(out, item->string.string.str, item->string.string.size);
+            if (head){
+                output_begin_style(out, item->string.string.str, item->string.string.size);
+            }
         }break;
         
         case Doc_EndStyle:
         {
-            output_end_style(out);
+            if (head){
+                output_end_style(out);
+            }
+        }break;
+        
+        case Doc_BeginLink:
+        {
+            if (head){
+                output_begin_link(doc_system, out, item->string.string.str, item->string.string.size);
+            }
+        }break;
+        
+        case Doc_EndLink:
+        {
+            if (head){
+                output_end_link(out);
+            }
+        }break;
+        
+        case Doc_Image:
+        {
+            if (head){
+                output_image(doc_system, out, item->string.string.str, item->string.string.size, item->string.string2.str, item->string.string2.size);
+            }
+        }break;
+        
+        case Doc_Video:
+        {
+            if (head){
+                output_video(out, item->string.string.str, item->string.string.size);
+            }
+        }break;
+        
+        case Doc_BeginParagraph:
+        {
+            if (head){
+                output_begin_paragraph(out);
+            }
+        }break;
+        
+        case Doc_EndParagraph:
+        {
+            if (head){
+                output_end_paragraph(out);
+            }
+        }break;
+        
+        // HACK(allen): There is also a Doc_Section type item where the section is actually a parent to the children and begin/end are handled by the one item.  That should be the only type.
+        case Doc_BeginSection:
+        {
+            if (head){
+                output_begin_section(out, section_counter, item->string.string.str, item->string.string.size);
+            }
+        }break;
+        
+        case Doc_EndSection:
+        {
+            if (head){
+                output_end_section(out, section_counter);
+            }
+        }break;
+        
+        case Doc_BeginList:
+        {
+            if (head){
+                output_begin_list(out);
+            }
+        }break;
+        
+        case Doc_EndList:
+        {
+            if (head){
+                output_end_list(out);
+            }
+        }break;
+        
+        case Doc_BeginItem:
+        {
+            if (head){
+                output_begin_item(out, section_counter);
+            }
+        }break;
+        
+        case Doc_EndItem:
+        {
+            if (head){
+                output_end_item(out);
+            }
         }break;
     }
 }

@@ -11,18 +11,15 @@
 
 \TABLE_OF_CONTENTS
 
-\SECTION{Introduction}
- \SECTION_LINK{introduction}
+\SECTION{Introduction}{introduction}
  \INCLUDE{introduction.txt}
 \END_SECTION
 
-\SECTION{4coder Systems}
- \SECTION_LINK{4coder_systems}
+\SECTION{4coder Systems}{4coder_systems}
  \TODO
 \END_SECTION
 
-\SECTION{Types and Functions}
- \SECTION_LINK{types_and_functions}
+\SECTION{Types and Functions}{types_and_functions}
 
  \SECTION{Function List}
   \DOC_LIST{custom_funcs}

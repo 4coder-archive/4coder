@@ -267,7 +267,7 @@ do_image_resize(char *src_file, char *dst_file, char *extension, i32 w, i32 h){
         
         free(image);
     }
-
+    
     fm_end_temp(temp);
 }
 
@@ -315,11 +315,11 @@ generate_site(char *code_directory, char *asset_directory, char *src_directory, 
         }
     }
     
-    generate_4coder_docs(&doc_system, code_directory, src_directory);
-    
     char *cdir = code_directory;
     char *sdir = src_directory;
     Document_System *docs = &doc_system;
+    
+    generate_4coder_docs(docs, cdir, sdir);
     
     // TODO(allen): From the text file get the          "Big Title" and        "smallname".
     generate_page(docs, cdir, sdir, "home.txt"        , "4coder Home"        , "home"        );
