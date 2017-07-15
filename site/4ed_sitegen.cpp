@@ -109,7 +109,7 @@ generate_4coder_docs(Document_System *doc_system, char *code_directory, char *sr
     *lexer_introduction = load_enriched_text(src_directory, "lexer_introduction.txt");
     
     // NOTE(allen): Put together the abstract document
-    Abstract_Item *doc = begin_document_description(doc_system, "4coder API Docs", "custom_docs", 1);
+    Abstract_Item *doc = begin_document_description(doc_system, "4coder API Docs", "custom_docs", true);
     
     add_table_of_contents(doc);
     

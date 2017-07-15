@@ -38,7 +38,7 @@
  \END_SECTION
 \END_SECTION
 
-\SECTION{String Library}
+\SECTION{String Library}{string_library}
  \SECTION{String Library Intro}
   \TODO
  \END_SECTION
@@ -52,7 +52,7 @@
  \END_SECTION
 \END_SECTION
 
-\SECTION{Lexer Library}
+\SECTION{Lexer Library}{lexer_library}
  \SECTION{Lexer Intro}
   \INCLUDE{lexer_introduction.txt}
  \END_SECTION
