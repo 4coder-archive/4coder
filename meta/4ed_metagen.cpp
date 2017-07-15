@@ -311,60 +311,6 @@ generate_style(){
 // Meta Parse Rules
 //
 
-internal void
-print_function_body_code(String *out, Parse_Context *context, i32 start){
-    String pstr = {0}, lexeme = {0};
-    Cpp_Token *token = 0;
-    
-    i32 do_print = 0;
-    i32 nest_level = 0;
-    i32 finish = false;
-    i32 do_whitespace_print = false;
-    i32 is_first = true;
-    
-    for (; (token = get_token(context)) != 0; get_next_token(context)){
-        if (do_whitespace_print){
-            pstr = str_start_end(context->data, start, token->start);
-            append(out, pstr);
-        }
-        else{
-            do_whitespace_print = true;
-        }
-        
-        do_print = true;
-        if (token->type == CPP_TOKEN_COMMENT){
-            lexeme = get_lexeme(*token, context->data);
-            if (check_and_fix_docs(&lexeme)){
-                do_print = false;
-            }
-        }
-        else if (token->type == CPP_TOKEN_BRACE_OPEN){
-            ++nest_level;
-        }
-        else if (token->type == CPP_TOKEN_BRACE_CLOSE){
-            --nest_level;
-            if (nest_level == 0){
-                finish = true;
-            }
-        }
-        if (is_first){
-            do_print = false;
-            is_first = false;
-        }
-        
-        if (do_print){
-            pstr = get_lexeme(*token, context->data);
-            append(out, pstr);
-        }
-        
-        start = token->start + token->size;
-        
-        if (finish){
-            break;
-        }
-    }
-}
-
 struct App_API_Name{
     String macro;
     String public_name;

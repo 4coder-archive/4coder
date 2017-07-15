@@ -42,54 +42,6 @@
 //
 
 internal void
-print_function_body_code(String *out, Parse_Context *context, i32 start){
-    String pstr = {0}, lexeme = {0};
-    Cpp_Token *token = 0;
-    
-    i32 do_print = 0;
-    i32 nest_level = 0;
-    i32 finish = 0;
-    i32 do_whitespace_print = 0;
-    for (; (token = get_token(context)) != 0; get_next_token(context)){
-        if (do_whitespace_print){
-            pstr = str_start_end(context->data, start, token->start);
-            append(out, pstr);
-        }
-        else{
-            do_whitespace_print = 1;
-        }
-        
-        do_print = 1;
-        if (token->type == CPP_TOKEN_COMMENT){
-            lexeme = get_lexeme(*token, context->data);
-            if (check_and_fix_docs(&lexeme)){
-                do_print = 0;
-            }
-        }
-        else if (token->type == CPP_TOKEN_BRACE_OPEN){
-            ++nest_level;
-        }
-        else if (token->type == CPP_TOKEN_BRACE_CLOSE){
-            --nest_level;
-            if (nest_level == 0){
-                finish = 1;
-            }
-        }
-        
-        if (do_print){
-            pstr = get_lexeme(*token, context->data);
-            append(out, pstr);
-        }
-        
-        start = token->start + token->size;
-        
-        if (finish){
-            break;
-        }
-    }
-}
-
-internal void
 do_html_output(Document_System *doc_system, char *dst_directory, Abstract_Item *doc){
     String out = make_string_cap(fm__push(10 << 20), 0, 10 << 20);
     Assert(out.str != 0);
