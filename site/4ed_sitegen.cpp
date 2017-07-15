@@ -230,12 +230,8 @@ generate_page(Document_System *doc_system, char *code_directory, char *src_direc
     Enriched_Text *home = fm_push_array(Enriched_Text, 1);
     *home = load_enriched_text(src_directory, source_text);
     
-    Abstract_Item *doc = begin_document_description(doc_system, big_title, small_name, 0);
-    if (doc != 0){
-        add_enriched_text(doc, home);
-        end_document_description(doc);
-    }
-    else{
+    Abstract_Item *doc = make_document_from_text(doc_system, big_title, small_name, home);
+    if (doc == 0){
         fprintf(stdout, "warning: could not create document %s from file %s\n", small_name, source_text);
     }
     
