@@ -221,6 +221,8 @@ do_image_resize(char *src_file, char *dst_file, char *extension, i32 w, i32 h){
 
 internal void
 generate_site(char *code_directory, char *asset_directory, char *src_directory, char *dst_directory){
+    fm_clear_folder(dst_directory);
+    
     Document_System doc_system = create_document_system();
     
     struct Site_Asset{
@@ -245,9 +247,7 @@ generate_site(char *code_directory, char *asset_directory, char *src_directory, 
     
     for (u32 i = 0; i < ArrayCount(asset_list); ++i){
         Site_Asset *asset = &asset_list[i];
-        
         char *name = fm_str(asset_directory, "/", asset->filename);
-        
         switch (asset_list[i].type){
             case SiteAsset_Generic:
             {
@@ -277,26 +277,31 @@ generate_site(char *code_directory, char *asset_directory, char *src_directory, 
     generate_page(docs, cdir, sdir, "roadmap.txt"     , "4coder Roadmap"     , "roadmap"     );
     generate_page(docs, cdir, sdir, "tutorials.txt"   , "4coder Tutorials"   , "tutorials"   );
     
-    //resolve_all_includes(&doc_system);
+    // NOTE(allen): Create a list of the documents we want to generate.
+    Abstract_Item_Array original_documents = get_abstract_item_array(&doc_system.doc_list);
     
-    for (Basic_Node *node = doc_system.doc_list.head;
-         node != 0;
-         node = node->next){
-        Abstract_Item *doc = NodeGetData(node, Abstract_Item);
+    // NOTE(allen): Cross link all the includes and pull in any non-primary documents.
+    resolve_all_includes(&doc_system, src_directory);
+    
+    // NOTE(allen): Generate the html from the documents and publish them
+    Abstract_Item **doc_ptr = original_documents.items;
+    for (u32 j = 0; j < original_documents.count; ++j, ++doc_ptr){
+        Abstract_Item *doc = *doc_ptr;
         Assert(doc->item_type == ItemType_Document);
         do_html_output(&doc_system, dst_directory,  doc);
     }
     
+    // NOTE(allen): Publish files
     for (Basic_Node *node = doc_system.file_list.head;
          node != 0;
          node = node->next){
         Abstract_Item *file = NodeGetData(node, Abstract_Item);
         Assert(file->item_type == ItemType_GenericFile);
-        
         char *file_name = fm_str(file->name, ".", file->extension);
         fm_copy_file(fm_str(file_name), fm_str(dst_directory, "/", file_name));
     }
     
+    // NOTE(allen): Publish images
     for (Basic_Node *node = doc_system.img_list.head;
          node != 0;
          node = node->next){
