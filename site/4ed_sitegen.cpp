@@ -109,72 +109,72 @@ generate_4coder_docs(Document_System *doc_system, char *code_directory, char *sr
     *lexer_introduction = load_enriched_text(src_directory, "lexer_introduction.txt");
     
     // NOTE(allen): Put together the abstract document
-    Abstract_Item *doc = begin_document_description(doc_system, "4coder API Docs", "custom_docs", true);
+    Document_Builder builder = begin_document_description(doc_system, "4coder API Docs", "custom_docs", true);
     
-    add_table_of_contents(doc);
+    add_table_of_contents(&builder);
     
-    begin_section(doc, "Introduction", "introduction");
-    add_enriched_text(doc, introduction);
-    end_section(doc);
+    begin_section(&builder, "Introduction", "introduction");
+    add_enriched_text(&builder, introduction);
+    end_section(&builder);
     
-    begin_section(doc, "4coder Systems", "4coder_systems");
-    add_todo(doc);
-    end_section(doc);
+    begin_section(&builder, "4coder Systems", "4coder_systems");
+    add_todo(&builder);
+    end_section(&builder);
     
-    begin_section(doc, "Types and Functions", "types_and_functions");
+    begin_section(&builder, "Types and Functions", "types_and_functions");
     {
-        begin_section(doc, "Function List", 0);
-        add_element_list(doc, custom_funcs_unit, custom_func_names, AltName_Public_Name);
-        end_section(doc);
-        begin_section(doc, "Type List", 0);
-        add_element_list(doc, custom_types_unit);
-        end_section(doc);
-        begin_section(doc, "Function Descriptions", 0);
-        add_full_elements(doc, custom_funcs_unit, custom_func_names, AltName_Public_Name);
-        end_section(doc);
-        begin_section(doc, "Type Descriptions", 0);
-        add_full_elements(doc, custom_types_unit);
-        end_section(doc);
+        begin_section(&builder, "Function List", 0);
+        add_element_list(&builder, custom_funcs_unit, custom_func_names, AltName_Public_Name);
+        end_section(&builder);
+        begin_section(&builder, "Type List", 0);
+        add_element_list(&builder, custom_types_unit);
+        end_section(&builder);
+        begin_section(&builder, "Function Descriptions", 0);
+        add_full_elements(&builder, custom_funcs_unit, custom_func_names, AltName_Public_Name);
+        end_section(&builder);
+        begin_section(&builder, "Type Descriptions", 0);
+        add_full_elements(&builder, custom_types_unit);
+        end_section(&builder);
     }
-    end_section(doc);
+    end_section(&builder);
     
-    begin_section(doc, "String Library", "string_library");
+    begin_section(&builder, "String Library", "string_library");
     {
-        begin_section(doc, "String Library Intro", 0);
-        add_todo(doc);
-        end_section(doc);
-        begin_section(doc, "String Function List", 0);
-        add_element_list(doc, string_unit);
-        end_section(doc);
-        begin_section(doc, "String Function Descriptions", 0);
-        add_full_elements(doc, string_unit);
-        end_section(doc);
+        begin_section(&builder, "String Library Intro", 0);
+        add_todo(&builder);
+        end_section(&builder);
+        begin_section(&builder, "String Function List", 0);
+        add_element_list(&builder, string_unit);
+        end_section(&builder);
+        begin_section(&builder, "String Function Descriptions", 0);
+        add_full_elements(&builder, string_unit);
+        end_section(&builder);
     }
-    end_section(doc);
+    end_section(&builder);
     
-    begin_section(doc, "Lexer Library", "lexer_library");
+    begin_section(&builder, "Lexer Library", "lexer_library");
     {
-        begin_section(doc, "Lexer Intro", 0);
-        add_enriched_text(doc, lexer_introduction);
-        end_section(doc);
-        begin_section(doc, "Lexer Function List", 0);
-        add_element_list(doc, lexer_funcs_unit);
-        end_section(doc);
-        begin_section(doc, "Lexer Type List", 0);
-        add_element_list(doc, lexer_types_unit);
-        end_section(doc);
-        begin_section(doc, "Lexer Function Descriptions", 0);
-        add_full_elements(doc, lexer_funcs_unit);
-        end_section(doc);
-        begin_section(doc, "Lexer Type Descriptions", 0);
-        add_full_elements(doc, lexer_types_unit);
-        end_section(doc);
+        begin_section(&builder, "Lexer Intro", 0);
+        add_enriched_text(&builder, lexer_introduction);
+        end_section(&builder);
+        begin_section(&builder, "Lexer Function List", 0);
+        add_element_list(&builder, lexer_funcs_unit);
+        end_section(&builder);
+        begin_section(&builder, "Lexer Type List", 0);
+        add_element_list(&builder, lexer_types_unit);
+        end_section(&builder);
+        begin_section(&builder, "Lexer Function Descriptions", 0);
+        add_full_elements(&builder, lexer_funcs_unit);
+        end_section(&builder);
+        begin_section(&builder, "Lexer Type Descriptions", 0);
+        add_full_elements(&builder, lexer_types_unit);
+        end_section(&builder);
     }
-    end_section(doc);
+    end_section(&builder);
     
-    end_document_description(doc);
+    end_document_description(&builder);
     
-    return(doc);
+    return(builder.doc);
 }
 
 internal Abstract_Item*
@@ -276,6 +276,8 @@ generate_site(char *code_directory, char *asset_directory, char *src_directory, 
     generate_page(docs, cdir, sdir, "binding_list.txt", "4coder Binding List", "bindings"    );
     generate_page(docs, cdir, sdir, "roadmap.txt"     , "4coder Roadmap"     , "roadmap"     );
     generate_page(docs, cdir, sdir, "tutorials.txt"   , "4coder Tutorials"   , "tutorials"   );
+    
+    //resolve_all_includes(&doc_system);
     
     for (Basic_Node *node = doc_system.doc_list.head;
          node != 0;

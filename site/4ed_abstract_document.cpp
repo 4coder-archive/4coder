@@ -99,14 +99,6 @@ struct Document_Item{
 };
 global Document_Item null_document_item = {0};
 
-enum{
-    ItemType_Document,
-    ItemType_Image,
-    ItemType_GenericFile,
-    // never below this
-    ItemType_COUNT,
-};
-
 struct Basic_Node{
     Basic_Node *next;
 };
@@ -117,43 +109,6 @@ struct Basic_List{
     Basic_Node *head;
     Basic_Node *tail;
 };
-
-struct Abstract_Item{
-    i32 item_type;
-    char *name;
-    
-    // Document value members
-    Document_Item *root_item;
-    
-    // TODO(allen): make these external
-    // Document building members
-    Document_Item *section_stack[16];
-    i32 section_top;
-    
-    // Image value members
-    char *source_file;
-    char *extension;
-    float w_h_ratio;
-    float h_w_ratio;
-    Basic_List img_instantiations;
-};
-global Abstract_Item null_abstract_item = {0};
-
-struct Image_Instantiation{
-    i32 w, h;
-};
-
-struct Document_System{
-    Basic_List doc_list;
-    Basic_List img_list;
-    Basic_List file_list;
-};
-
-internal Document_System
-create_document_system(){
-    Document_System system = {0};
-    return(system);
-}
 
 internal void*
 push_item_on_list(Basic_List *list, i32 item_size){
@@ -172,8 +127,55 @@ push_item_on_list(Basic_List *list, i32 item_size){
         list->tail = node;
     }
     
-    void *result = (node+1);
+    void *result = (node + 1);
     return(result);
+}
+
+enum{
+    ItemType_Document,
+    ItemType_Image,
+    ItemType_GenericFile,
+    // never below this
+    ItemType_COUNT,
+};
+
+struct Abstract_Item{
+    i32 item_type;
+    char *name;
+    
+    // Document value members
+    Document_Item *root_item;
+    
+    // Image value members
+    char *source_file;
+    char *extension;
+    float w_h_ratio;
+    float h_w_ratio;
+    Basic_List img_instantiations;
+};
+global Abstract_Item null_abstract_item = {0};
+
+struct Document_Builder{
+    Abstract_Item *doc;
+    
+    Document_Item *section_stack[16];
+    i32 section_top;
+};
+
+struct Image_Instantiation{
+    i32 w, h;
+};
+
+struct Document_System{
+    Basic_List doc_list;
+    Basic_List img_list;
+    Basic_List file_list;
+};
+
+internal Document_System
+create_document_system(){
+    Document_System system = {0};
+    return(system);
 }
 
 internal Abstract_Item*
@@ -299,32 +301,47 @@ set_section_id(Document_Item *item, char *id){
     append(&item->section.id, id);
 }
 
+#if 0
 internal void
-begin_document_description(Abstract_Item *doc, char *title, b32 show_title){
+begin_document_description(Document_Builder *builder, char *title, b32 show_title){
+    Abstract_Item *doc = builder->doc;
+    
     *doc = null_abstract_item;
     doc->item_type = ItemType_Document;
     
     doc->root_item = fm_push_array(Document_Item, 1);
     *doc->root_item = null_document_item;
-    doc->section_stack[doc->section_top] = doc->root_item;
+    set_section_name(doc->root_item, title, show_title);
     doc->root_item->type = Doc_Root;
     
-    set_section_name(doc->root_item, title, show_title);
+    builder->section_stack[builder->section_top] = doc->root_item;
 }
+#endif
 
-internal Abstract_Item*
+internal Document_Builder
 begin_document_description(Document_System *system, char *title, char *name, b32 show_title){
-    Abstract_Item *item = create_item(&system->doc_list, name);
-    if (item){
-        begin_document_description(item, title, show_title);
-        item->name = name;
+    Document_Builder builder = {0};
+    Abstract_Item *doc = create_item(&system->doc_list, name);
+    if (doc != 0){
+        builder.doc = doc;
+        
+        *doc = null_abstract_item;
+        doc->item_type = ItemType_Document;
+        
+        doc->root_item = fm_push_array(Document_Item, 1);
+        *doc->root_item = null_document_item;
+        set_section_name(doc->root_item, title, show_title);
+        doc->name = name;
+        doc->root_item->type = Doc_Root;
+        
+        builder.section_stack[builder.section_top] = doc->root_item;
     }
-    return(item);
+    return(builder);
 }
 
 internal void
-end_document_description(Abstract_Item *item){
-    Assert(item->section_top == 0);
+end_document_description(Document_Builder *builder){
+    Assert(builder->section_top == 0);
 }
 
 internal void
@@ -340,236 +357,145 @@ append_child(Document_Item *parent, Document_Item *item){
     item->parent = parent;
 }
 
+internal Document_Item*
+doc_new_item(Document_Builder *builder, u32 type){
+    Assert(builder->section_top + 1 < ArrayCount(builder->section_stack));
+    Document_Item *parent = builder->section_stack[builder->section_top];
+    Document_Item *item = fm_push_array(Document_Item, 1);
+    *item = null_document_item;
+    item->type = type;
+    append_child(parent, item);
+    return(item);
+}
+
 internal void
-begin_section(Abstract_Item *item, char *title, char *id){
-    Assert(item->section_top + 1 < ArrayCount(item->section_stack));
-    
-    Document_Item *parent = item->section_stack[item->section_top];
-    Document_Item *section = fm_push_array(Document_Item, 1);
-    *section = null_document_item;
-    item->section_stack[++item->section_top] = section;
-    
-    section->type = Doc_Section;
-    
+begin_section(Document_Builder *builder, char *title, char *id){
+    Document_Item *section = doc_new_item(builder, Doc_Section);
+    builder->section_stack[++builder->section_top] = section;
     set_section_name(section, title, true);
     if (id != 0){
         set_section_id(section, id);
     }
-    
-    append_child(parent, section);
 }
 
 internal void
-end_section(Abstract_Item *doc){
-    Assert(doc->section_top > 0);
-    --doc->section_top;
+end_section(Document_Builder *builder){
+    Assert(builder->section_top > 0);
+    --builder->section_top;
 }
 
 internal void
-add_error(Abstract_Item *doc, String text){
-    Assert(doc->section_top + 1 < ArrayCount(doc->section_stack));
-    Document_Item *parent = doc->section_stack[doc->section_top];
-    Document_Item *item = fm_push_array(Document_Item, 1);
-    *item = null_document_item;
-    item->type = Doc_Error;
+add_error(Document_Builder *builder, String text){
+    Assert(builder->section_top + 1 < ArrayCount(builder->section_stack));
+    Document_Item *item = doc_new_item(builder, Doc_Error);
     item->string.string = str_alloc(text.size);
     fm_align();
     copy(&item->string.string, text);
-    
-    append_child(parent, item);
 }
 
 internal void
-report_error_missing_body(Abstract_Item *doc, String command_body){
+report_error_missing_body(Document_Builder *builder, String command_body){
     char space[512];
     String error_string = make_fixed_width_string(space);
     append(&error_string, "missing body for ");
     append(&error_string, command_body);
-    add_error(doc, error_string);
+    add_error(builder, error_string);
 }
 
 internal void
-add_todo(Abstract_Item *doc){
-    Assert(doc->section_top + 1 < ArrayCount(doc->section_stack));
-    Document_Item *parent = doc->section_stack[doc->section_top];
-    Document_Item *item = fm_push_array(Document_Item, 1);
-    *item = null_document_item;
-    item->type = Doc_Todo;
-    
-    append_child(parent, item);
+add_todo(Document_Builder *builder){
+    doc_new_item(builder, Doc_Todo);
 }
 
 internal void
-add_element_list(Abstract_Item *doc, Meta_Unit *unit){
-    Assert(doc->section_top + 1 < ArrayCount(doc->section_stack));
-    Document_Item *parent = doc->section_stack[doc->section_top];
-    Document_Item *item = fm_push_array(Document_Item, 1);
-    *item = null_document_item;
-    item->type = Doc_DocList;
+add_element_list(Document_Builder *builder, Meta_Unit *unit){
+    Document_Item *item = doc_new_item(builder, Doc_DocList);
     item->unit_elements.unit = unit;
-    
-    append_child(parent, item);
 }
 
 internal void
-add_element_list(Abstract_Item *doc, Meta_Unit *unit, Alternate_Names_Array *alt_names, i32 alt_name_type){
-    Assert(doc->section_top + 1 < ArrayCount(doc->section_stack));
-    Document_Item *parent = doc->section_stack[doc->section_top];
-    Document_Item *item = fm_push_array(Document_Item, 1);
-    *item = null_document_item;
-    item->type = Doc_DocList;
+add_element_list(Document_Builder *builder, Meta_Unit *unit, Alternate_Names_Array *alt_names, i32 alt_name_type){
+    Document_Item *item = doc_new_item(builder, Doc_DocList);
     item->unit_elements.unit = unit;
     item->unit_elements.alt_names = alt_names;
     item->unit_elements.alt_name_type = alt_name_type;
-    
-    append_child(parent, item);
 }
 
 internal void
-add_full_elements(Abstract_Item *doc, Meta_Unit *unit){
-    Assert(doc->section_top + 1 < ArrayCount(doc->section_stack));
-    Document_Item *parent = doc->section_stack[doc->section_top];
-    Document_Item *item = fm_push_array(Document_Item, 1);
-    *item = null_document_item;
-    item->type = Doc_DocFull;
+add_full_elements(Document_Builder *builder, Meta_Unit *unit){
+    Document_Item *item = doc_new_item(builder, Doc_DocFull);
     item->unit_elements.unit = unit;
-    
-    append_child(parent, item);
 }
 
 internal void
-add_full_elements(Abstract_Item *doc, Meta_Unit *unit, Alternate_Names_Array *alt_names, i32 alt_name_type){
-    Assert(doc->section_top + 1 < ArrayCount(doc->section_stack));
-    Document_Item *parent = doc->section_stack[doc->section_top];
-    Document_Item *item = fm_push_array(Document_Item, 1);
-    *item = null_document_item;
-    item->type = Doc_DocFull;
+add_full_elements(Document_Builder *builder, Meta_Unit *unit, Alternate_Names_Array *alt_names, i32 alt_name_type){
+    Document_Item *item = doc_new_item(builder, Doc_DocFull);
     item->unit_elements.unit = unit;
     item->unit_elements.alt_names = alt_names;
     item->unit_elements.alt_name_type = alt_name_type;
-    
-    append_child(parent, item);
 }
 
 internal void
-add_table_of_contents(Abstract_Item *doc){
-    Assert(doc->section_top + 1 < ArrayCount(doc->section_stack));
-    Document_Item *parent = doc->section_stack[doc->section_top];
-    Document_Item *item = fm_push_array(Document_Item, 1);
-    *item = null_document_item;
-    item->type = Doc_TableOfContents;
-    
-    append_child(parent, item);
+add_table_of_contents(Document_Builder *builder){
+    doc_new_item(builder, Doc_TableOfContents);
 }
 
 internal void
-add_plain_old_text(Abstract_Item *doc, String text){
-    Assert(doc->section_top + 1 < ArrayCount(doc->section_stack));
-    Document_Item *parent = doc->section_stack[doc->section_top];
-    Document_Item *item = fm_push_array(Document_Item, 1);
-    *item = null_document_item;
-    item->type = Doc_PlainOldText;
+add_plain_old_text(Document_Builder *builder, String text){
+    Document_Item *item = doc_new_item(builder, Doc_PlainOldText);
     item->string.string = str_alloc(text.size);
     fm_align();
     copy(&item->string.string, text);
-    
-    append_child(parent, item);
 }
 
 internal void
-add_enriched_text(Abstract_Item *doc, Enriched_Text *text){
-    Assert(doc->section_top + 1 < ArrayCount(doc->section_stack));
-    Document_Item *parent = doc->section_stack[doc->section_top];
-    Document_Item *item = fm_push_array(Document_Item, 1);
-    *item = null_document_item;
-    item->type = Doc_Include;
+add_enriched_text(Document_Builder *builder, Enriched_Text *text){
+    Document_Item *item = doc_new_item(builder, Doc_PlainOldText);
     item->enriched_text.text = text;
-    
-    append_child(parent, item);
 }
 
 internal void
-add_version(Abstract_Item *doc){
-    Assert(doc->section_top + 1 < ArrayCount(doc->section_stack));
-    Document_Item *parent = doc->section_stack[doc->section_top];
-    Document_Item *item = fm_push_array(Document_Item, 1);
-    *item = null_document_item;
-    item->type = Doc_Version;
-    
-    append_child(parent, item);
+add_version(Document_Builder *builder){
+    doc_new_item(builder, Doc_Version);
 }
 
 internal void
-add_begin_style(Abstract_Item *doc, String text){
-    Assert(doc->section_top + 1 < ArrayCount(doc->section_stack));
-    Document_Item *parent = doc->section_stack[doc->section_top];
-    Document_Item *item = fm_push_array(Document_Item, 1);
-    *item = null_document_item;
-    item->type = Doc_BeginStyle;
+add_begin_style(Document_Builder *builder, String text){
+    Document_Item *item = doc_new_item(builder, Doc_BeginStyle);
     item->string.string = str_alloc(text.size);
     fm_align();
     copy(&item->string.string, text);
-    
-    append_child(parent, item);
 }
 
 internal void
-add_end_style(Abstract_Item *doc){
-    Assert(doc->section_top + 1 < ArrayCount(doc->section_stack));
-    Document_Item *parent = doc->section_stack[doc->section_top];
-    Document_Item *item = fm_push_array(Document_Item, 1);
-    *item = null_document_item;
-    item->type = Doc_EndStyle;
-    
-    append_child(parent, item);
+add_end_style(Document_Builder *builder){
+    doc_new_item(builder, Doc_EndStyle);
 }
 
 internal void
-add_document_link(Abstract_Item *doc, String text){
-    Assert(doc->section_top + 1 < ArrayCount(doc->section_stack));
-    Document_Item *parent = doc->section_stack[doc->section_top];
-    Document_Item *item = fm_push_array(Document_Item, 1);
-    *item = null_document_item;
-    item->type = Doc_DocumentLink;
+add_document_link(Document_Builder *builder, String text){
+    Document_Item *item = doc_new_item(builder, Doc_BeginStyle);
     item->string.string = str_alloc(text.size);
     fm_align();
     copy(&item->string.string, text);
-    
-    append_child(parent, item);
 }
 
 internal void
-add_begin_link(Abstract_Item *doc, String text){
-    Assert(doc->section_top + 1 < ArrayCount(doc->section_stack));
-    Document_Item *parent = doc->section_stack[doc->section_top];
-    Document_Item *item = fm_push_array(Document_Item, 1);
-    *item = null_document_item;
-    item->type = Doc_BeginLink;
+add_begin_link(Document_Builder *builder, String text){
+    Document_Item *item = doc_new_item(builder, Doc_BeginLink);
     item->string.string = str_alloc(text.size);
     fm_align();
     copy(&item->string.string, text);
-    
-    append_child(parent, item);
 }
 
 internal void
-add_end_link(Abstract_Item *doc){
-    Assert(doc->section_top + 1 < ArrayCount(doc->section_stack));
-    Document_Item *parent = doc->section_stack[doc->section_top];
-    Document_Item *item = fm_push_array(Document_Item, 1);
-    *item = null_document_item;
-    item->type = Doc_EndLink;
-    
-    append_child(parent, item);
+add_end_link(Document_Builder *builder){
+    doc_new_item(builder, Doc_EndLink);
 }
 
 internal void
-add_image(Abstract_Item *doc, String text, String extra_text){
-    Assert(doc->section_top + 1 < ArrayCount(doc->section_stack));
-    Document_Item *parent = doc->section_stack[doc->section_top];
-    Document_Item *item = fm_push_array(Document_Item, 1);
-    *item = null_document_item;
-    item->type = Doc_Image;
+add_image(Document_Builder *builder, String text, String extra_text){
+    Document_Item *item = doc_new_item(builder, Doc_Image);
     item->string.string = str_alloc(text.size);
     fm_align();
     copy(&item->string.string, text);
@@ -578,88 +504,44 @@ add_image(Abstract_Item *doc, String text, String extra_text){
         fm_align();
         copy(&item->string.string2, extra_text);
     }
-    
-    append_child(parent, item);
 }
 
 internal void
-add_video(Abstract_Item *doc, String text){
-    Assert(doc->section_top + 1 < ArrayCount(doc->section_stack));
-    Document_Item *parent = doc->section_stack[doc->section_top];
-    Document_Item *item = fm_push_array(Document_Item, 1);
-    *item = null_document_item;
-    item->type = Doc_Video;
+add_video(Document_Builder *builder, String text){
+    Document_Item *item = doc_new_item(builder, Doc_Video);
     item->string.string = str_alloc(text.size);
     fm_align();
     copy(&item->string.string, text);
-    
-    append_child(parent, item);
 }
 
 internal void
-add_begin_paragraph(Abstract_Item *doc){
-    Assert(doc->section_top + 1 < ArrayCount(doc->section_stack));
-    Document_Item *parent = doc->section_stack[doc->section_top];
-    Document_Item *item = fm_push_array(Document_Item, 1);
-    *item = null_document_item;
-    item->type = Doc_BeginParagraph;
-    
-    append_child(parent, item);
+add_begin_paragraph(Document_Builder *builder){
+    doc_new_item(builder, Doc_BeginParagraph);
 }
 
 internal void
-add_end_paragraph(Abstract_Item *doc){
-    Assert(doc->section_top + 1 < ArrayCount(doc->section_stack));
-    Document_Item *parent = doc->section_stack[doc->section_top];
-    Document_Item *item = fm_push_array(Document_Item, 1);
-    *item = null_document_item;
-    item->type = Doc_EndParagraph;
-    
-    append_child(parent, item);
+add_end_paragraph(Document_Builder *builder){
+    doc_new_item(builder, Doc_EndParagraph);
 }
 
 internal void
-add_begin_list(Abstract_Item *doc){
-    Assert(doc->section_top + 1 < ArrayCount(doc->section_stack));
-    Document_Item *parent = doc->section_stack[doc->section_top];
-    Document_Item *item = fm_push_array(Document_Item, 1);
-    *item = null_document_item;
-    item->type = Doc_BeginList;
-    
-    append_child(parent, item);
+add_begin_list(Document_Builder *builder){
+    doc_new_item(builder, Doc_BeginList);
 }
 
 internal void
-add_end_list(Abstract_Item *doc){
-    Assert(doc->section_top + 1 < ArrayCount(doc->section_stack));
-    Document_Item *parent = doc->section_stack[doc->section_top];
-    Document_Item *item = fm_push_array(Document_Item, 1);
-    *item = null_document_item;
-    item->type = Doc_EndList;
-    
-    append_child(parent, item);
+add_end_list(Document_Builder *builder){
+    doc_new_item(builder, Doc_EndList);
 }
 
 internal void
-add_begin_item(Abstract_Item *doc){
-    Assert(doc->section_top + 1 < ArrayCount(doc->section_stack));
-    Document_Item *parent = doc->section_stack[doc->section_top];
-    Document_Item *item = fm_push_array(Document_Item, 1);
-    *item = null_document_item;
-    item->type = Doc_BeginItem;
-    
-    append_child(parent, item);
+add_begin_item(Document_Builder *builder){
+    doc_new_item(builder, Doc_BeginItem);
 }
 
 internal void
-add_end_item(Abstract_Item *doc){
-    Assert(doc->section_top + 1 < ArrayCount(doc->section_stack));
-    Document_Item *parent = doc->section_stack[doc->section_top];
-    Document_Item *item = fm_push_array(Document_Item, 1);
-    *item = null_document_item;
-    item->type = Doc_EndItem;
-    
-    append_child(parent, item);
+add_end_item(Document_Builder *builder){
+    doc_new_item(builder, Doc_EndItem);
 }
 
 // Document Generation from Enriched Text
@@ -767,7 +649,7 @@ extract_command_body(String l, i32 *i_in_out, String *body_text_out){
 internal Abstract_Item*
 make_document_from_text(Document_System *doc_system, char *title, char *name, Enriched_Text *text){
     String source = text->source;
-    Abstract_Item *doc = begin_document_description(doc_system, title, name, false);
+    Document_Builder builder = begin_document_description(doc_system, title, name, false);
     
     for (String line = get_first_double_line(source);
          line.str;
@@ -775,13 +657,13 @@ make_document_from_text(Document_System *doc_system, char *title, char *name, En
         String l = skip_chop_whitespace(line);
         if (l.size == 0) continue;
         
-        add_begin_paragraph(doc);
+        add_begin_paragraph(&builder);
         
         i32 start = 0, i = 0;
         for (; i < l.size; ++i){
             char ch = l.str[i];
             if (ch == '\\'){
-                add_plain_old_text(doc, substr(l, start, i - start));
+                add_plain_old_text(&builder, substr(l, start, i - start));
                 
                 i32 command_start = i + 1;
                 i32 command_end = command_start;
@@ -812,7 +694,7 @@ make_document_from_text(Document_System *doc_system, char *title, char *name, En
                 switch (match_index){
                     case Cmd_BackSlash:
                     {
-                        add_plain_old_text(doc, make_lit_string("\\"));
+                        add_plain_old_text(&builder, make_lit_string("\\"));
                     }break;
                     
                     case Cmd_BeginStyle:
@@ -820,16 +702,16 @@ make_document_from_text(Document_System *doc_system, char *title, char *name, En
                         String body_text = {0};
                         b32 has_body = extract_command_body(l, &i, &body_text);
                         if (has_body){
-                            add_begin_style(doc, body_text);
+                            add_begin_style(&builder, body_text);
                         }
                         else{
-                            report_error_missing_body(doc, command_string);
+                            report_error_missing_body(&builder, command_string);
                         }
                     }break;
                     
                     case Cmd_EndStyle:
                     {
-                        add_end_style(doc);
+                        add_end_style(&builder);
                     }break;
                     
                     // TODO(allen): upgrade this bs
@@ -838,31 +720,31 @@ make_document_from_text(Document_System *doc_system, char *title, char *name, En
                         String body_text = {0};
                         b32 has_body = extract_command_body(l, &i, &body_text);
                         if (has_body){
-                            add_document_link(doc, body_text);
+                            add_document_link(&builder, body_text);
                         }
                         else{
-                            report_error_missing_body(doc, command_string);
+                            report_error_missing_body(&builder, command_string);
                         }
                     }break;
                     
                     case Cmd_BeginList:
                     {
-                        add_begin_list(doc);
+                        add_begin_list(&builder);
                     }break;
                     
                     case Cmd_EndList:
                     {
-                        add_end_list(doc);
+                        add_end_list(&builder);
                     }break;
                     
                     case Cmd_BeginItem:
                     {
-                        add_begin_item(doc);
+                        add_begin_item(&builder);
                     }break;
                     
                     case Cmd_EndItem:
                     {
-                        add_end_item(doc);
+                        add_end_item(&builder);
                     }break;
                     
                     case Cmd_BeginLink:
@@ -870,16 +752,16 @@ make_document_from_text(Document_System *doc_system, char *title, char *name, En
                         String body_text = {0};
                         b32 has_body = extract_command_body(l, &i, &body_text);
                         if (has_body){
-                            add_begin_link(doc, body_text);
+                            add_begin_link(&builder, body_text);
                         }
                         else{
-                            report_error_missing_body(doc, command_string);
+                            report_error_missing_body(&builder, command_string);
                         }
                     }break;
                     
                     case Cmd_EndLink:
                     {
-                        add_end_link(doc);
+                        add_end_link(&builder);
                     }break;
                     
                     case Cmd_Image:
@@ -889,10 +771,10 @@ make_document_from_text(Document_System *doc_system, char *title, char *name, En
                         if (has_body){
                             String size_parameter = {0};
                             extract_command_body(l, &i, &size_parameter);
-                            add_image(doc, body_text, size_parameter);
+                            add_image(&builder, body_text, size_parameter);
                         }
                         else{
-                            report_error_missing_body(doc, command_string);
+                            report_error_missing_body(&builder, command_string);
                         }
                     }break;
                     
@@ -901,10 +783,10 @@ make_document_from_text(Document_System *doc_system, char *title, char *name, En
                         String body_text = {0};
                         b32 has_body = extract_command_body(l, &i, &body_text);
                         if (has_body){
-                            add_video(doc, body_text);
+                            add_video(&builder, body_text);
                         }
                         else{
-                            report_error_missing_body(doc, command_string);
+                            report_error_missing_body(&builder, command_string);
                         }
                     }break;
                     
@@ -924,31 +806,31 @@ make_document_from_text(Document_System *doc_system, char *title, char *name, En
                             copy(&id, extra_text);
                             terminate_with_null(&id);
                             
-                            begin_section(doc, title.str, id.str);
+                            begin_section(&builder, title.str, id.str);
                         }
                         else{
-                            report_error_missing_body(doc, command_string);
+                            report_error_missing_body(&builder, command_string);
                         }
                     }break;
                     
                     case Cmd_EndSection:
                     {
-                        end_section(doc);
+                        end_section(&builder);
                     }break;
                     
                     case Cmd_Version:
                     {
-                        add_version(doc);
+                        add_version(&builder);
                     }break;
                     
                     case Cmd_TableOfContents:
                     {
-                        add_table_of_contents(doc);
+                        add_table_of_contents(&builder);
                     }break;
                     
                     case Cmd_Todo:
                     {
-                        add_todo(doc);
+                        add_todo(&builder);
                     }break;
                     
                     default:
@@ -957,7 +839,7 @@ make_document_from_text(Document_System *doc_system, char *title, char *name, En
                         String error = make_fixed_width_string(space);
                         append(&error, "unrecognized command ");
                         append(&error, command_string);
-                        add_error(doc, error);
+                        add_error(&builder, error);
                     }break;
                 }
                 
@@ -966,14 +848,14 @@ make_document_from_text(Document_System *doc_system, char *title, char *name, En
         }
         
         if (start != i){
-            add_plain_old_text(doc, substr(l, start, i - start));
+            add_plain_old_text(&builder, substr(l, start, i - start));
         }
         
-        add_end_paragraph(doc);
+        add_end_paragraph(&builder);
     }
     
-    end_document_description(doc);
-    return(doc);
+    end_document_description(&builder);
+    return(builder.doc);
 }
 
 // HTML Document Generation
