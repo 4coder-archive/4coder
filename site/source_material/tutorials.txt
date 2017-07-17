@@ -1,7 +1,5 @@
 
-\BEGIN_LINK{document:home}
-\IMAGE{image:4coder_logo}{width:200}
-\END_LINK
+\INCLUDE{site_header.txt}
 
 Getting started with 4coder and navigating your files:
 

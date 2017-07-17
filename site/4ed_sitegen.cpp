@@ -63,11 +63,9 @@ do_image_resize(char *src_file, char *dst_file, char *extension, i32 w, i32 h){
     if (image != 0){
         stbi_uc *resized_image = fm_push_array(stbi_uc, w*h*channels);
         stbir_resize_uint8(image, x, y, x*channels, resized_image, w, h, w*channels, channels);
-        
         if (match_cc(extension, "png")){
             stbi_write_png(dst_file, w, h, channels, resized_image, w*channels);
         }
-        
         free(image);
     }
     
@@ -79,18 +77,18 @@ generate_site(char *code_directory, char *asset_directory, char *src_directory, 
     fm_clear_folder(dst_directory);
     
     Document_System doc_system = create_document_system(code_directory, asset_directory, src_directory);
-    
-    add_image_description(&doc_system, "4coder_logo_low_green.png", "png", "4coder_logo");
-    add_image_description(&doc_system, "screen_1.png",              "png", "screen_1");
-    add_image_description(&doc_system, "screen_2.png",              "png", "screen_2");
-    add_image_description(&doc_system, "screen_3.png",              "png", "screen_3");
-    add_generic_file     (&doc_system, "4coder_icon.ico",           "ico", "4coder_icon");
-    
     Document_System *docs = &doc_system;
     
+    // TODO(allen): Declare these in the source files.
+    add_image_description(docs, "4coder_logo_low_green.png", "png", "4coder_logo" );
+    add_image_description(docs, "screen_1.png",              "png", "screen_1"    );
+    add_image_description(docs, "screen_2.png",              "png", "screen_2"    );
+    add_image_description(docs, "screen_3.png",              "png", "screen_3"    );
+    add_generic_file     (docs, "4coder_icon.ico",           "ico", "4coder_icon" );
+    
     // TODO(allen): From the text file get  "Big Title" and        "smallname".
-    generate_page(docs, "home.txt"        , "4coder Home"        , "home"        );
     generate_page(docs, "docs.txt"        , "4coder API Docs"    , "custom_docs" );
+    generate_page(docs, "home.txt"        , "4coder Home"        , "home"        );
     generate_page(docs, "feature_list.txt", "4coder Feature List", "features"    );
     generate_page(docs, "binding_list.txt", "4coder Binding List", "bindings"    );
     generate_page(docs, "roadmap.txt"     , "4coder Roadmap"     , "roadmap"     );

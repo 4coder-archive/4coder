@@ -178,6 +178,7 @@ buffer_identifier(Buffer_ID id){
     return(identifier);
 }
 
+#if 0
 static Buffer_Summary
 create_buffer(Application_Links *app, char *filename, int32_t filename_len, Buffer_Create_Flag flags){
     Buffer_Summary buffer = {0};
@@ -189,6 +190,7 @@ create_buffer(Application_Links *app, char *filename, int32_t filename_len, Buff
     
     return(buffer);
 }
+#endif
 
 static Range
 make_range(int32_t p1, int32_t p2){

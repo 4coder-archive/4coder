@@ -1,73 +1,71 @@
 
-\BEGIN_LINK{document:home}
-\IMAGE{image:4coder_logo}{width:200}
-\END_LINK
+\INCLUDE{site_header.txt}
 
-This page provides a list of 4coder features for anyone trying to determine whether 4coder is the right editor for them.  To find a complete list of every default key binding visit \BEGIN_LINK{document:bindings} binding list \END_LINK. If a feature is missing here you should check out the \BEGIN_LINK{document:roadmap} roadmap \END_LINK page to see what is coming in the future.  If the feature you want is on neither, it might be missing from this list, or it might actually be missing from 4coder, you should contact \BEGIN_STYLE{code} editor@4coder.net \END_STYLE to ask questions and make requests.
+This page provides a list of 4coder features for anyone trying to determine whether 4coder is the right editor for them.  To find a complete list of every default key binding visit \LINK{document:bindings} binding list \END. If a feature is missing here you should check out the \LINK{document:roadmap} roadmap \END page to see what is coming in the future.  If the feature you want is on neither, it might be missing from this list, or it might actually be missing from 4coder, you should contact \STYLE{code} editor@4coder.net \END to ask questions and make requests.
 
 \SECTION{Text Editing}
- \BEGIN_LIST
- \BEGIN_ITEM Support for UTF8 encoded files \END_ITEM
- \BEGIN_ITEM Cursor-Mark editing paradigm \END_ITEM
- \BEGIN_ITEM Navigation by characters, words, tokens, lines, and blank lines \END_ITEM
- \BEGIN_ITEM Modern style undo and redo \END_ITEM
- \BEGIN_ITEM Incremental word complete with matching words in open files \END_ITEM
- \BEGIN_ITEM Incremental word search \END_ITEM
- \BEGIN_ITEM Word replace \END_ITEM
- \BEGIN_ITEM List all occurences of words in open buffers \END_ITEM
- \BEGIN_ITEM Clipboard history and "paste-next" to copy multiple chunks of text around easily \END_ITEM
- \END_LIST
-\END_SECTION
+ \LIST
+ \ITEM Support for UTF8 encoded files
+ \ITEM Cursor-Mark editing paradigm
+ \ITEM Navigation by characters, words, tokens, lines, and blank lines
+ \ITEM Modern style undo and redo
+ \ITEM Incremental word complete with matching words in open files
+ \ITEM Incremental word search
+ \ITEM Word replace
+ \ITEM List all occurences of words in open buffers
+ \ITEM Clipboard history and "paste-next" to copy multiple chunks of text around easily
+ \END
+\END
 
 \SECTION{C/C++ Editing}
- \BEGIN_LIST
- \BEGIN_ITEM Code highlighting for C/C++ code \END_ITEM
- \BEGIN_ITEM Code auto-layout rendering engine \END_ITEM
- \BEGIN_ITEM Text level auto-indenting \END_ITEM
- \BEGIN_ITEM Run scripts and command line commands in editor \END_ITEM
- \BEGIN_ITEM Jump to error \END_ITEM
- \END_LIST
-\END_SECTION
+ \LIST
+ \ITEM Code highlighting for C/C++ code
+ \ITEM Code auto-layout rendering engine
+ \ITEM Text level auto-indenting
+ \ITEM Run scripts and command line commands in editor
+ \ITEM Jump to error
+ \END
+\END
 
 \SECTION{Project Organization}
- \BEGIN_LIST
- \BEGIN_ITEM Set file extensions you care about in your project type to automatically open all code files \END_ITEM
- \BEGIN_ITEM Set shell/terminal commands to various fkeys for build scripts, test scripts etc \END_ITEM
- \BEGIN_ITEM project.4coder is a text file so it works painlessly with source control and can it is easy to start working with an existing project on a new machine \END_ITEM
- \END_LIST
-\END_SECTION
+ \LIST
+ \ITEM Set file extensions you care about in your project type to automatically open all code files
+ \ITEM Set shell/terminal commands to various fkeys for build scripts, test scripts etc
+ \ITEM project.4coder is a text file so it works painlessly with source control and can it is easy to start working with an existing project on a new machine
+ \END
+\END
 
 \SECTION{The Customization API}
  These features are included in the alpha builds for supporters at the $5 tier and above.
- \BEGIN_LIST
- \BEGIN_ITEM Easy key rebinding \END_ITEM
- \BEGIN_ITEM Create custom commands \END_ITEM
- \BEGIN_ITEM Buffer reading and editing \END_ITEM
- \BEGIN_ITEM View opening, closing, positioning \END_ITEM
- \BEGIN_ITEM Access to the code intelligence engine \END_ITEM
- \BEGIN_ITEM Access to the clipboard \END_ITEM
- \END_LIST
-\END_SECTION
+ \LIST
+ \ITEM Easy key rebinding
+ \ITEM Create custom commands
+ \ITEM Buffer reading and editing
+ \ITEM View opening, closing, positioning
+ \ITEM Access to the code intelligence engine
+ \ITEM Access to the clipboard
+ \END
+\END
 
 \SECTION{The Experimental Features}
  These features are included in the alpha builds for supporters at the $10 tier and above and are generally only partially implemented, hence not being fully upgraded to the standard build.
- \BEGIN_LIST
- \BEGIN_ITEM Moving cursor and mark to surrounding and matching braces
- \BEGIN_ITEM Rectangular delete
- \BEGIN_ITEM Multi-line editing
- \BEGIN_ITEM Rename a parameter
- \BEGIN_ITEM Write in explicit enum values from 0 to n
- \BEGIN_ITEM Scope aware features: scope navigation & scope absorb down
- \END_LIST
-\END_SECTION
+ \LIST
+ \ITEM Moving cursor and mark to surrounding and matching braces
+ \ITEM Rectangular delete
+ \ITEM Multi-line editing
+ \ITEM Rename a parameter
+ \ITEM Write in explicit enum values from 0 to n
+ \ITEM Scope aware features: scope navigation & scope absorb down
+ \END
+\END
 
 \SECTION{Transition From Emacs}
 4coder's current setup and editing paradigm is modeled after emacs, so it is very natural to transition to 4coder from emacs for many users.  4coder customization is quite different from emacs though, so anyone who wants to keep their current keybinds will have to take the time to rewrite the keybinding code.  Once the initial transition is done, any user who prefers C++ to Lisp will have a much better time in their 4coder configuration code.
-\END_SECTION
+\END
 
 \SECTION{Transition From Vim}
-For vim users the built-in editing paradigm will not line up with editing habits, but thanks to the open customization model, a vim paradigm and default vim key bindings can be used in 4coder.  The vim customization \BEGIN_LINK{!https://github.com/Chronister/4vim} here \END_LINK is an early example of this with many basic vim systems up and running.
+For vim users the built-in editing paradigm will not line up with editing habits, but thanks to the open customization model, a vim paradigm and default vim key bindings can be used in 4coder.  The vim customization \LINK{!https://github.com/Chronister/4vim} here \END is an early example of this with many basic vim systems up and running.
 
 Right now 4coder is admittedly not great for vim users, but the transition path exists so keep your eyes on 4coder as better vim emulation is still on the way.
-\END_SECTION
+\END
 

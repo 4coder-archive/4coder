@@ -1,40 +1,38 @@
 
-\BEGIN_LINK{document:home}
-\IMAGE{image:4coder_logo}{width:200}
-\END_LINK
+\INCLUDE{site_header.txt}
 
 Right now I am working on upgrading some core internal systems that should buy me the flexibility I need to get the rest of the envisioned features done.  Because these core upgrades are experimental in nature, it's hard to predict how long it will take before they are ready.
 
 \SECTION{Improve the Core Buffer Systems}
- \BEGIN_LIST
- \BEGIN_ITEM Programmable code wrapping. \END_ITEM
- \BEGIN_ITEM Virtual/Ghost text for features such as word complete and code folding. \END_ITEM
- \BEGIN_ITEM Binary buffer mode. \END_ITEM
- \BEGIN_ITEM Fix up the undo/redo system. \END_ITEM
- \BEGIN_ITEM Expose undo/redo system in the custom layer. \END_ITEM
- \END_LIST
-\END_SECTION
+ \LIST
+ \ITEM Programmable code wrapping.
+ \ITEM Virtual/Ghost text for features such as word complete and code folding.
+ \ITEM Binary buffer mode.
+ \ITEM Fix up the undo/redo system.
+ \ITEM Expose undo/redo system in the custom layer.
+ \END
+\END
 
 \SECTION{Provide Customizations for Multiple Editing Paradgims}
- \BEGIN_LIST
- \BEGIN_ITEM Restructure custom layer to work as an event loop. \END_ITEM
- \BEGIN_ITEM Custom layer reloading at runtime. \END_ITEM
- \BEGIN_ITEM New frameworks for vim like and sublime like editing. \END_ITEM
- \END_LIST
-\END_SECTION
+ \LIST
+ \ITEM Restructure custom layer to work as an event loop.
+ \ITEM Custom layer reloading at runtime.
+ \ITEM New frameworks for vim like and sublime like editing.
+ \END
+\END
 
 \SECTION{Platform Layer Features and Porting Issues}
- \BEGIN_LIST
- \BEGIN_ITEM Upgrade the worker thread system to better support async and parallel solutions. \END_ITEM
- \BEGIN_ITEM Support for double click opening files in an existing window. \END_ITEM
- \BEGIN_ITEM Make the rendeirng system modular. \END_ITEM
- \END_LIST
-\END_SECTION
+ \LIST
+ \ITEM Upgrade the worker thread system to better support async and parallel solutions.
+ \ITEM Support for double click opening files in an existing window.
+ \ITEM Make the rendeirng system modular.
+ \END
+\END
 
 \SECTION{Buffer Driven GUI}
- \BEGIN_LIST
- \BEGIN_ITEM Labels, clickable buttons, text fields. \END_ITEM
- \BEGIN_ITEM Tables. \END_ITEM
- \BEGIN_ITEM IMGUI helper wrapper. \END_ITEM
- \END_LIST
-\END_SECTION
+ \LIST
+ \ITEM Labels, clickable buttons, text fields.
+ \ITEM Tables.
+ \ITEM IMGUI helper wrapper.
+ \END
+\END

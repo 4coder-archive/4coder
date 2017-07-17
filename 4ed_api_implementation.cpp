@@ -754,7 +754,7 @@ DOC_PARAM(edits, This parameter provides about the source string and destination
 DOC_PARAM(edit_count, This parameter specifies the number of Buffer_Edit structs in edits.)
 DOC_PARAM(type, This prameter specifies what type of batch edit to execute.)
 DOC_RETURN(This call returns non-zero if the batch edit succeeds.  This call can fail if the provided buffer summary does not refer to an actual buffer in 4coder.)
-DOC(TODO)
+DOC(Apply an array of edits all at once.  This combines all the edits into one undo operation.)
 DOC_SEE(Buffer_Edit)
 DOC_SEE(Buffer_Batch_Edit_Type)
 */{
@@ -1225,61 +1225,8 @@ DOC(Whenever a buffer is killed an end signal is sent which triggers the end fil
     return(result);
 }
 
-// TODO(allen): Buffer_Creation_Flag
-API_EXPORT bool32
-Begin_Buffer_Creation(Application_Links *app, Buffer_Creation_Data *data, Buffer_Create_Flag flags)
-/*
-DOC_PARAM(data, a local user handle for the buffer creation process)
-DOC_PARAM(flags, flags defining the buffer creation behavior)
-
-DOC(Begins a buffer creation by initializing a Buffer_Creation_Data struct.  The buffer is not actually created until end_buffer_creation is called.)
-
-DOC_SEE(buffer_creation_name)
-DOC_SEE(end_buffer_creation)
-
-DOC_SEE(Buffer_Creation_Data)
-DOC_SEE(Buffer_Create_Flag)
-*/{
-    bool32 result = 0;
-    if (data){
-        data->flags = flags;
-        result = 1;
-    }
-    return(result);
-}
-
-API_EXPORT bool32
-Buffer_Creation_Name(Application_Links *app, Buffer_Creation_Data *data, char *filename, int32_t filename_len, uint32_t flags)
-/* 
-DOC_PARAM(data, a local user handle for buffer creation that has already been initialized by begin_buffer_creation)
-DOC_PARAM(filename, the name to associate to the buffer; This string need not be null terminated.)
-DOC_PARAM(filename_len, the length of the filename string)
-DOC_PARAM(flags, not currently used this should be 0)
-
-DOC(This call sets the name associated to the buffer.  If the name is a filename, that filename will be used for loading and saving with the disk, and the buffer name will be extracted from the filename.  If the name is not a filename it will be an unassociated buffer and the buffer name will be exactly set to filename.)
-
-DOC_SEE(begin_buffer_creation)
-DOC_SEE(end_buffer_creation)
-*/{
-    bool32 result = 0;
-    if (data){
-        String fname = make_fixed_width_string(data->fname_space);
-        copy_ss(&fname, make_string(filename, filename_len));
-        data->fname_len = filename_len;
-        result = 1;
-    }
-    return(result);
-}
-
 API_EXPORT Buffer_Summary
-End_Buffer_Creation(Application_Links *app, Buffer_Creation_Data *data)
-/*
-DOC_PARAM(data, a local user handle for buffer creation that has already been initialized by begin_buffer_creation and used in subsequent buffer creation flags)
-
-DOC_RETURN(Returns a summary of the newly created buffer or of the existing buffer that already has the specified name.  If there is not enough creation data to make the buffer the returned summary will be null.)
-
-DOC_SEE(begin_buffer_creation)
-*/{
+Create_Buffer(Application_Links *app, char *filename, int32_t filename_len, Buffer_Create_Flag flags){
     PRFL_FUNC_GROUP();
     
     Command_Data *cmd = (Command_Data*)app->cmd_context;
@@ -1291,8 +1238,8 @@ DOC_SEE(begin_buffer_creation)
     
     Buffer_Summary result = {0};
     
-    if (data != 0 && data->fname_len > 0){
-        String fname = make_string(data->fname_space, data->fname_len);
+    if (filename_len > 0){
+        String fname = make_string(filename, filename_len);
         
         Editing_File *file = 0;
         b32 do_new_file = false;
@@ -1311,8 +1258,6 @@ DOC_SEE(begin_buffer_creation)
         if (file == 0){
             file = working_set_name_contains(working_set, fname);
         }
-        
-        u32 flags = data->flags;
         
         if (file == 0){
             if (!do_new_file){
@@ -1914,12 +1859,7 @@ DOC_PARAM(view, The view parameter specifies the view in which to set the cursor
 DOC_PARAM(seek, The seek parameter specifies the target position for the seek.)
 DOC_PARAM(set_preferred_x, If this parameter is true the preferred x is updated to match the new cursor x.)
 DOC_RETURN(This call returns non-zero on success.)
-DOC
-(
-This call sets the the view's cursor position.  set_preferred_x should usually be true
-unless the change in cursor position is is a vertical motion that tries to keep the
-cursor in the same column or x position.
-)
+DOC(This call sets the the view's cursor position.  set_preferred_x should usually be true unless the change in cursor position is is a vertical motion that tries to keep the cursor in the same column or x position.)
 DOC_SEE(Buffer_Seek)
 */{
     Command_Data *cmd = (Command_Data*)app->cmd_context;
@@ -1945,7 +1885,9 @@ DOC_SEE(Buffer_Seek)
 API_EXPORT bool32
 View_Set_Scroll(Application_Links *app, View_Summary *view, GUI_Scroll_Vars scroll)
 /*
-DOC(TODO)
+DOC_PARAM(view, The view on which to change the scroll state.)
+DOC_PARAM(scroll, The new scroll position for the view.)
+DOC(Set the scrolling state of the view.)
 DOC_SEE(GUI_Scroll_Vars)
 */{
     Command_Data *cmd = (Command_Data*)app->cmd_context;
