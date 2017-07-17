@@ -37,8 +37,7 @@ CUSTOM_COMMAND_SIG(execute_any_cli){
     bar_cmd.string = make_fixed_width_string(command_space);
     if (!query_user_string(app, &bar_cmd)) return;
     
-    String hot_directory = make_fixed_width_string(hot_directory_space);
-    hot_directory.size = directory_get_hot(app, hot_directory.str, hot_directory.memory_size);
+    directory_get_hot(app, hot_directory_space, sizeof(hot_directory_space));
     
     execute_previous_cli(app);
 }

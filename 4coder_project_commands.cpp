@@ -466,7 +466,7 @@ exec_project_fkey_command(Application_Links *app, int32_t command_ind){
         View_Summary view_ = {0};
         View_Summary *view = 0;
         Buffer_Identifier buffer_id = {0};
-        uint32_t flags = 0;
+        uint32_t flags = CLI_OverlapWithConflict;
         
         bool32 set_fancy_font = false;
         if (out[0] != 0){
