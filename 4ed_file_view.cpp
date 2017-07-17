@@ -103,152 +103,6 @@ map_get_max_count(Models *models, i32 mapid){
     return(count);
 }
 
-enum Interactive_Action{
-    IAct_Open,
-    IAct_Save_As,
-    IAct_New,
-    IAct_OpenOrNew,
-    IAct_Switch,
-    IAct_Kill,
-    IAct_Sure_To_Kill,
-    IAct_Sure_To_Close
-};
-
-enum Interactive_Interaction{
-    IInt_Sys_File_List,
-    IInt_Live_File_List,
-    IInt_Sure_To_Kill,
-    IInt_Sure_To_Close
-};
-
-enum View_UI{
-    VUI_None,
-    VUI_Theme,
-    VUI_Interactive,
-    VUI_Debug
-};
-
-enum Debug_Mode{
-    DBG_Input,
-    DBG_Threads_And_Memory,
-    DBG_View_Inspection
-};
-
-enum Color_View_Mode{
-    CV_Mode_Library,
-    CV_Mode_Font,
-    CV_Mode_Global_Font,
-    CV_Mode_Adjusting
-};
-
-struct File_Viewing_Data{
-    Editing_File *file;
-    
-    Full_Cursor temp_highlight;
-    i32 temp_highlight_end_pos;
-    b32 show_temp_highlight;
-    
-    b32 show_whitespace;
-    b32 file_locked;
-};
-static File_Viewing_Data null_file_viewing_data = {0};
-
-struct Scroll_Context{
-    Editing_File *file;
-    GUI_id scroll;
-    View_UI mode;
-};
-inline b32
-context_eq(Scroll_Context a, Scroll_Context b){
-    b32 result = 0;
-    if (gui_id_eq(a.scroll, b.scroll)){
-        if (a.file == b.file){
-            if (a.mode == b.mode){
-                result = 1;
-            }
-        }
-    }
-    return(result);
-}
-
-struct View_Persistent{
-    i32 id;
-    
-    Coroutine *coroutine;
-    Event_Message message_passing_slot;
-    
-    // TODO(allen): eliminate this models pointer: explicitly parameterize.
-    Models *models;
-};
-
-struct Debug_Vars{
-    i32 mode;
-    i32 inspecting_view_id;
-};
-global_const Debug_Vars null_debug_vars = {0};
-
-struct View{
-    View_Persistent persistent;
-    
-    View *next, *prev;
-    Panel *panel;
-    b32 in_use;
-    Command_Map *map;
-    
-    File_Viewing_Data file_data;
-    
-    i32_Rect file_region_prev;
-    i32_Rect file_region;
-    
-    i32_Rect scroll_region;
-    File_Edit_Positions *edit_pos;
-    
-    View_UI showing_ui;
-    GUI_Target gui_target;
-    void *gui_mem;
-    GUI_Scroll_Vars gui_scroll;
-    i32 gui_max_y;
-    i32 list_i;
-    
-    b32 hide_scrollbar;
-    b32 hide_file_bar;
-    
-    // interactive stuff
-    Interactive_Interaction interaction;
-    Interactive_Action action;
-    
-    char dest_[256];
-    String dest;
-    
-    b32 changed_context_in_step;
-    
-    // theme stuff
-    View *hot_file_view;
-    u32 *palette;
-    Color_View_Mode color_mode;
-    Super_Color color;
-    b32 p4c_only;
-    Style_Library inspecting_styles;
-    b8 import_export_check[64];
-    i32 import_file_id;
-    i32 current_color_editing;
-    i32 color_cursor;
-    
-    // misc
-    
-    // TODO(allen): Can we burn line_height to the ground now?
-    // It's what I've always wanted!!!! :D
-    i32 line_height;
-    
-    // TODO(allen): Do I still use mode?
-    Query_Set query_set;
-    f32 widget_height;
-    
-    b32 reinit_scrolling;
-    
-    Debug_Vars debug_vars;
-};
-
 inline void*
 get_view_body(View *view){
     char *result = (char*)view;
@@ -632,12 +486,6 @@ view_set_temp_highlight(System_Functions *system, View *view, i32 pos, i32 end_p
 struct View_And_ID{
     View *view;
     i32 id;
-};
-
-struct Live_Views{
-    View *views;
-    View free_sentinel;
-    i32 count, max;
 };
 
 enum Lock_Level{
@@ -2940,13 +2788,13 @@ view_cursor_move(System_Functions *system, View *view, i32 line, i32 character){
 }
 
 inline void
-view_show_file(View *view){
+view_show_file(View *view, Models *models){
     Editing_File *file = view->file_data.file;
     if (file){
-        view->map = get_map(view->persistent.models, file->settings.base_map_id);
+        view->map = get_map(models, file->settings.base_map_id);
     }
     else{
-        view->map = get_map(view->persistent.models, mapid_global);
+        view->map = get_map(models, mapid_global);
     }
     
     if (view->showing_ui != VUI_None){
@@ -2983,7 +2831,7 @@ view_set_file(System_Functions *system, View *view, Editing_File *file, Models *
     }
     
     if (view->showing_ui == VUI_None){
-        view_show_file(view);
+        view_show_file(view, models);
     }
 }
 
@@ -3809,17 +3657,14 @@ global_set_font(System_Functions *system, Models *models, Font_ID font_id){
 }
 
 inline void
-view_show_GUI(View *view, View_UI ui){
-    view->map = &view->persistent.models->map_ui;
+view_show_GUI(View *view, Models *models, View_UI ui){
+    view->map = &models->map_ui;
     view->showing_ui = ui;
-    view->changed_context_in_step = 1;
+    view->changed_context_in_step = true;
 }
 
 inline void
-view_show_interactive(System_Functions *system, View *view, Interactive_Action action, Interactive_Interaction interaction, String query){
-    
-    Models *models = view->persistent.models;
-    
+view_show_interactive(System_Functions *system, View *view, Models *models, Interactive_Action action, Interactive_Interaction interaction, String query){
     view->showing_ui = VUI_Interactive;
     view->action = action;
     view->interaction = interaction;
@@ -3834,8 +3679,8 @@ view_show_interactive(System_Functions *system, View *view, Interactive_Action a
 }
 
 inline void
-view_show_theme(View *view){
-    view->map = &view->persistent.models->map_ui;
+view_show_theme(View *view, Models *models){
+    view->map = &models->map_ui;
     view->showing_ui = VUI_Theme;
     view->color_mode = CV_Mode_Library;
     view->color = super_color_create(0xFF000000);
@@ -4038,8 +3883,8 @@ save_file_by_name(System_Functions *system, Models *models, String name){
 }
 
 internal void
-interactive_begin_sure_to_kill(System_Functions *system, View *view, Editing_File *file){
-    view_show_interactive(system, view, IAct_Sure_To_Kill, IInt_Sure_To_Kill, make_lit_string("Are you sure?"));
+interactive_begin_sure_to_kill(System_Functions *system, View *view, Models *models, Editing_File *file){
+    view_show_interactive(system, view, models, IAct_Sure_To_Kill, IInt_Sure_To_Kill, make_lit_string("Are you sure?"));
     copy_ss(&view->dest, file->name.live_name);
 }
 
@@ -4071,7 +3916,7 @@ interactive_try_kill_file(System_Functions *system, Models *models, View *view, 
     Try_Kill_Result kill_result = interactive_try_kill_file(system, models, file);
     b32 result = (kill_result == TryKill_NeedDialogue);
     if (result){
-        interactive_begin_sure_to_kill(system, view, file);
+        interactive_begin_sure_to_kill(system, view, models, file);
     }
     return(result);
 }
@@ -4089,26 +3934,24 @@ interactive_try_kill_file_by_name(System_Functions *system, Models *models, View
 }
 
 internal void
-interactive_view_complete(System_Functions *system, View *view, String dest, i32 user_action){
-    Models *models = view->persistent.models;
-    
+interactive_view_complete(System_Functions *system, View *view, Models *models, String dest, i32 user_action){
     switch (view->action){
         case IAct_Open:
         {
             view_open_file(system, models, view, dest);
-            view_show_file(view);
+            view_show_file(view, models);
         }break;
         
         case IAct_Save_As:
         {
             view_interactive_save_as(system, models, view->file_data.file, dest);
-            view_show_file(view);
+            view_show_file(view, models);
         }break;
         
         case IAct_New:
         if (dest.size > 0 && !char_is_slash(dest.str[dest.size-1])){
             view_interactive_new_file(system, models, view, dest);
-            view_show_file(view);
+            view_show_file(view, models);
             if (models->hook_new_file != 0){
                 Editing_File *file = view->file_data.file;
                 models->hook_new_file(&models->app_links, file->id.id);
@@ -4126,12 +3969,12 @@ interactive_view_complete(System_Functions *system, View *view, String dest, i32
             if (file){
                 view_set_file(system, view, file, models);
             }
-            view_show_file(view);
+            view_show_file(view, models);
         }break;
         
         case IAct_Kill:
         if (!interactive_try_kill_file_by_name(system, models, view, dest)){
-            view_show_file(view);
+            view_show_file(view, models);
         }break;
         
         case IAct_Sure_To_Close:
@@ -4143,7 +3986,7 @@ interactive_view_complete(System_Functions *system, View *view, String dest, i32
             
             case 1:
             {
-                view_show_file(view);
+                view_show_file(view, models);
             }break;
             
             case 2: // TODO(allen): Save all and close.
@@ -4155,19 +3998,19 @@ interactive_view_complete(System_Functions *system, View *view, String dest, i32
             case 0:
             {
                 kill_file_by_name(system, models, dest);
-                view_show_file(view);
+                view_show_file(view, models);
             }break;
             
             case 1:
             {
-                view_show_file(view);
+                view_show_file(view, models);
             }break;
             
             case 2:
             {
                 save_file_by_name(system, models, dest);
                 kill_file_by_name(system, models, dest);
-                view_show_file(view);
+                view_show_file(view, models);
             }break;
         }break;
     }
@@ -4629,10 +4472,9 @@ gui_show_mouse(GUI_Target *target, String *string, i32 mx, i32 my){
 }
 
 internal View_Step_Result
-step_file_view(System_Functions *system, View *view, View *active_view, Input_Summary input){
+step_file_view(System_Functions *system, View *view, Models *models, View *active_view, Input_Summary input){
     View_Step_Result result = {0};
     GUI_Target *target = &view->gui_target;
-    Models *models = view->persistent.models;
     Key_Input_Data keys = input.keys;
     
     b32 show_scrollbar = !view->hide_scrollbar;
@@ -4651,8 +4493,8 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
         }
         
         if (did_esc){
-            view_show_file(view);
-            result.consume_esc = 1;
+            view_show_file(view, models);
+            result.consume_esc = true;
         }
     }
     
@@ -5212,7 +5054,7 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                     
                     if (complete){
                         terminate_with_null(&comp_dest);
-                        interactive_view_complete(system, view, comp_dest, comp_action);
+                        interactive_view_complete(system, view, models, comp_dest, comp_action);
                     }
                 }break;
                 
@@ -5281,7 +5123,7 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                     {
                         case DBG_Input:
                         {
-                            Debug_Data *debug = &view->persistent.models->debug;
+                            Debug_Data *debug = &models->debug;
                             
                             gui_show_mouse(target, &string, input.mouse.x, input.mouse.y);
                             
@@ -5429,7 +5271,7 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                                 }
                             }
                             else if (inspecting_id >= 1 && inspecting_id <= 16){
-                                Live_Views *live_set = models->live_set;
+                                Live_Views *live_set = &models->live_set;
                                 View *view_ptr = live_set->views + inspecting_id - 1;
                                 views_to_inspect[view_count++] = view_ptr;
                                 low_detail = 0;
@@ -5670,7 +5512,7 @@ to_writable_character(Key_Code long_character, u8 *character){
 }
 
 internal Input_Process_Result
-do_step_file_view(System_Functions *system, View *view, i32_Rect rect, b32 is_active, Input_Summary *user_input, GUI_Scroll_Vars vars, i32_Rect region, i32 max_y){
+do_step_file_view(System_Functions *system, View *view, Models *models, i32_Rect rect, b32 is_active, Input_Summary *user_input, GUI_Scroll_Vars vars, i32_Rect region, i32 max_y){
     Input_Process_Result result = {0};
     b32 is_file_scroll = 0;
     
@@ -5886,10 +5728,8 @@ do_step_file_view(System_Functions *system, View *view, i32_Rect rect, b32 is_ac
             f32 target_x = (f32)scroll_vars.target_x;
             f32 target_y = (f32)scroll_vars.target_y;
             
-            if (view->persistent.models->scroll_rule(target_x, target_y,
-                                                     &scroll_vars.scroll_x, &scroll_vars.scroll_y,
-                                                     (view->persistent.id) + 1, is_new_target, user_input->dt)){
-                result.is_animating = 1;
+            if (models->scroll_rule(target_x, target_y, &scroll_vars.scroll_x, &scroll_vars.scroll_y, (view->persistent.id) + 1, is_new_target, user_input->dt)){
+                result.is_animating = true;
             }
             
             scroll_vars.prev_target_x = scroll_vars.target_x;
@@ -5903,8 +5743,7 @@ do_step_file_view(System_Functions *system, View *view, i32_Rect rect, b32 is_ac
 }
 
 internal i32
-draw_file_loaded(System_Functions *system, View *view, i32_Rect rect, b32 is_active, Render_Target *target){
-    Models *models = view->persistent.models;
+draw_file_loaded(System_Functions *system, View *view, Models *models, i32_Rect rect, b32 is_active, Render_Target *target){
     Editing_File *file = view->file_data.file;
     Style *style = main_style(models);
     i32 line_height = view->line_height;
@@ -6139,8 +5978,7 @@ draw_file_loaded(System_Functions *system, View *view, i32_Rect rect, b32 is_act
 }
 
 internal void
-draw_text_field(System_Functions *system, Render_Target *target, View *view, Font_ID font_id, i32_Rect rect, String p, String t){
-    Models *models = view->persistent.models;
+draw_text_field(System_Functions *system, Render_Target *target, View *view, Models *models, Font_ID font_id, i32_Rect rect, String p, String t){
     Style *style = main_style(models);
     
     u32 back_color = style->main.margin_color;
@@ -6158,8 +5996,7 @@ draw_text_field(System_Functions *system, Render_Target *target, View *view, Fon
 }
 
 internal void
-draw_text_with_cursor(System_Functions *system, Render_Target *target, View *view, Font_ID font_id, i32_Rect rect, String s, i32 pos){
-    Models *models = view->persistent.models;
+draw_text_with_cursor(System_Functions *system, Render_Target *target, View *view, Models *models, Font_ID font_id, i32_Rect rect, String s, i32 pos){
     Style *style = main_style(models);
     
     u32 back_color = style->main.margin_color;
@@ -6200,9 +6037,8 @@ draw_text_with_cursor(System_Functions *system, Render_Target *target, View *vie
 }
 
 internal void
-draw_file_bar(System_Functions *system, Render_Target *target, View *view, Editing_File *file, i32_Rect rect){
+draw_file_bar(System_Functions *system, Render_Target *target, View *view, Models *models, Editing_File *file, i32_Rect rect){
     File_Bar bar;
-    Models *models = view->persistent.models;
     Style *style = main_style(models);
     Interactive_Style bar_style = style->main.file_info_style;
     
@@ -6307,8 +6143,7 @@ draw_color_button(System_Functions *system, GUI_Target *gui_target, Render_Targe
 }
 
 internal void
-draw_font_button(System_Functions *system, GUI_Target *gui_target, Render_Target *target, View *view, i32_Rect rect, GUI_id id, Font_ID font_id, String text){
-    Models *models = view->persistent.models;
+draw_font_button(System_Functions *system, GUI_Target *gui_target, Render_Target *target, View *view, Models *models, i32_Rect rect, GUI_id id, Font_ID font_id, String text){
     Style *style = main_style(models);
     
     i32 active_level = gui_active_level(gui_target, id);
@@ -6323,8 +6158,7 @@ draw_font_button(System_Functions *system, GUI_Target *gui_target, Render_Target
 }
 
 internal void
-draw_fat_option_block(System_Functions *system, GUI_Target *gui_target, Render_Target *target, View *view, Font_ID font_id, i32_Rect rect, GUI_id id, String text, String pop, i8 checkbox = -1){
-    Models *models = view->persistent.models;
+draw_fat_option_block(System_Functions *system, GUI_Target *gui_target, Render_Target *target, View *view, Models *models, Font_ID font_id, i32_Rect rect, GUI_id id, String text, String pop, i8 checkbox = -1){
     Style *style = main_style(models);
     
     i32 active_level = gui_active_level(gui_target, id);
@@ -6363,8 +6197,7 @@ draw_fat_option_block(System_Functions *system, GUI_Target *gui_target, Render_T
 }
 
 internal void
-draw_button(System_Functions *system, GUI_Target *gui_target, Render_Target *target, View *view, Font_ID font_id, i32_Rect rect, GUI_id id, String text){
-    Models *models = view->persistent.models;
+draw_button(System_Functions *system, GUI_Target *gui_target, Render_Target *target, View *view, Models *models, Font_ID font_id, i32_Rect rect, GUI_id id, String text){
     Style *style = main_style(models);
     
     i32 active_level = gui_active_level(gui_target, id);
@@ -6388,9 +6221,7 @@ draw_button(System_Functions *system, GUI_Target *gui_target, Render_Target *tar
 }
 
 internal void
-draw_style_preview(System_Functions *system, GUI_Target *gui_target, Render_Target *target, View *view, Font_ID font_id, i32_Rect rect, GUI_id id, Style *style){
-    Models *models = view->persistent.models; AllowLocal(models);
-    
+draw_style_preview(System_Functions *system, GUI_Target *gui_target, Render_Target *target, View *view, Models *models, Font_ID font_id, i32_Rect rect, GUI_id id, Style *style){
     i32 active_level = gui_active_level(gui_target, id);
     char font_name_space[256];
     String font_name = make_fixed_width_string(font_name_space);
@@ -6434,7 +6265,7 @@ draw_style_preview(System_Functions *system, GUI_Target *gui_target, Render_Targ
 }
 
 internal i32
-do_render_file_view(System_Functions *system, View *view, GUI_Scroll_Vars *scroll, View *active, i32_Rect rect, b32 is_active, Render_Target *target, Input_Summary *user_input){
+do_render_file_view(System_Functions *system, View *view, Models *models, GUI_Scroll_Vars *scroll, View *active, i32_Rect rect, b32 is_active, Render_Target *target, Input_Summary *user_input){
     
     Editing_File *file = view->file_data.file;
     i32 result = 0;
@@ -6473,13 +6304,13 @@ do_render_file_view(System_Functions *system, View *view, GUI_Scroll_Vars *scrol
                 switch (h->type){
                     case guicom_top_bar:
                     {
-                        draw_file_bar(system, target, view, file, gui_session.rect);
+                        draw_file_bar(system, target, view, models, file, gui_session.rect);
                     }break;
                     
                     case guicom_file:
                     {
                         if (file_is_ready(file)){
-                            result = draw_file_loaded(system, view, gui_session.rect, is_active, target);
+                            result = draw_file_loaded(system, view, models, gui_session.rect, is_active, target);
                         }
                     }break;
                     
@@ -6488,7 +6319,7 @@ do_render_file_view(System_Functions *system, View *view, GUI_Scroll_Vars *scrol
                         void *ptr = (h+1);
                         String p = gui_read_string(&ptr);
                         String t = gui_read_string(&ptr);
-                        draw_text_field(system, target, view, font_id, gui_session.rect, p, t);
+                        draw_text_field(system, target, view, models, font_id, gui_session.rect, p, t);
                     }break;
                     
                     case guicom_text_with_cursor:
@@ -6497,7 +6328,7 @@ do_render_file_view(System_Functions *system, View *view, GUI_Scroll_Vars *scrol
                         String s = gui_read_string(&ptr);
                         i32 pos = gui_read_integer(&ptr);
                         
-                        draw_text_with_cursor(system, target, view, font_id, gui_session.rect, s, pos);
+                        draw_text_with_cursor(system, target, view, models, font_id, gui_session.rect, s, pos);
                     }break;
                     
                     case guicom_color_button:
@@ -6518,7 +6349,7 @@ do_render_file_view(System_Functions *system, View *view, GUI_Scroll_Vars *scrol
                         Font_ID this_font_id = (Font_ID)gui_read_integer(&ptr);
                         String t = gui_read_string(&ptr);
                         
-                        draw_font_button(system, gui_target, target, view, gui_session.rect, b->id, this_font_id, t);
+                        draw_font_button(system, gui_target, target, view, models, gui_session.rect, b->id, this_font_id, t);
                     }break;
                     
                     case guicom_file_option:
@@ -6533,16 +6364,16 @@ do_render_file_view(System_Functions *system, View *view, GUI_Scroll_Vars *scrol
                             append_s_char(&f, '/');
                         }
                         
-                        draw_fat_option_block(system, gui_target, target, view, font_id, gui_session.rect, b->id, f, m);
+                        draw_fat_option_block(system, gui_target, target, view, models, font_id, gui_session.rect, b->id, f, m);
                     }break;
                     
                     case guicom_style_preview:
                     {
                         GUI_Interactive *b = (GUI_Interactive*)h;
                         i32 style_index = *(i32*)(b + 1);
-                        Style *style = get_style(view->persistent.models, style_index);
+                        Style *style = get_style(models, style_index);
                         
-                        draw_style_preview(system, gui_target, target, view, font_id, gui_session.rect, b->id, style);
+                        draw_style_preview(system, gui_target, target, view, models, font_id, gui_session.rect, b->id, style);
                     }break;
                     
                     case guicom_fixed_option:
@@ -6558,7 +6389,7 @@ do_render_file_view(System_Functions *system, View *view, GUI_Scroll_Vars *scrol
                             status = (i8)gui_read_byte(&ptr);
                         }
                         
-                        draw_fat_option_block(system, gui_target, target, view, font_id, gui_session.rect, b->id, f, m, status);
+                        draw_fat_option_block(system, gui_target, target, view, models, font_id, gui_session.rect, b->id, f, m, status);
                     }break;
                     
                     case guicom_button:
@@ -6567,12 +6398,11 @@ do_render_file_view(System_Functions *system, View *view, GUI_Scroll_Vars *scrol
                         void *ptr = (b + 1);
                         String t = gui_read_string(&ptr);
                         
-                        draw_button(system, gui_target, target, view, font_id, gui_session.rect, b->id, t);
+                        draw_button(system, gui_target, target, view, models, font_id, gui_session.rect, b->id, t);
                     }break;
                     
                     case guicom_scrollable_bar:
                     {
-                        Models *models = view->persistent.models;
                         Style *style = main_style(models);
                         
                         u32 back;
@@ -6597,7 +6427,6 @@ do_render_file_view(System_Functions *system, View *view, GUI_Scroll_Vars *scrol
                     case guicom_scrollable_bottom:
                     {
                         GUI_id id;
-                        Models *models = view->persistent.models;
                         Style *style = main_style(models);
                         i32_Rect box = gui_session.rect;
                         
@@ -6650,8 +6479,8 @@ do_render_file_view(System_Functions *system, View *view, GUI_Scroll_Vars *scrol
 }
 
 inline void
-file_view_free_buffers(View *view){
-    General_Memory *general = &view->persistent.models->mem.general;
+file_view_free_buffers(View *view, Models *models){
+    General_Memory *general = &models->mem.general;
     general_memory_free(general, view->gui_mem);
     view->gui_mem = 0;
 }
@@ -6674,8 +6503,6 @@ live_set_alloc_view(Live_Views *live_set, Panel *panel, Models *models){
     panel->view = result.view;
     result.view->panel = panel;
     
-    result.view->persistent.models = models;
-    
     init_query_set(&result.view->query_set);
     
     {
@@ -6690,10 +6517,10 @@ live_set_alloc_view(Live_Views *live_set, Panel *panel, Models *models){
 }
 
 inline void
-live_set_free_view(Live_Views *live_set, View *view){
+live_set_free_view(Live_Views *live_set, View *view, Models *models){
     Assert(live_set->count > 0);
     --live_set->count;
-    file_view_free_buffers(view);
+    file_view_free_buffers(view, models);
     dll_insert(&live_set->free_sentinel, view);
     view->in_use = 0;
 }

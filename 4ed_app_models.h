@@ -79,9 +79,9 @@ struct Models{
     
     Editing_Layout layout;
     Working_Set working_set;
+    Live_Views live_set;
     Parse_Context_Memory parse_context_memory;
     
-    struct Live_Views *live_set;
     Editing_File *message_buffer;
     Editing_File *scratch_buffer;
     

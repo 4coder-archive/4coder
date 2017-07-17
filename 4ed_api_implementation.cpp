@@ -102,7 +102,7 @@ fill_view_summary(System_Functions *system, View_Summary *view, View *vptr, Live
 
 inline void
 fill_view_summary(System_Functions *system, View_Summary *view, View *vptr, Command_Data *cmd){
-    fill_view_summary(system, view, vptr, &cmd->vars->live_set, &cmd->models->working_set);
+    fill_view_summary(system, view, vptr, &cmd->models->live_set, &cmd->models->working_set);
 }
 
 internal Editing_File*
@@ -335,7 +335,7 @@ DOC_SEE(Command_Line_Interface_Flag)
                 View *vptr = imp_get_view(cmd, view);
                 if (vptr != 0){
                     view_set_file(system, vptr, file, models);
-                    view_show_file(vptr);
+                    view_show_file(vptr, models);
                 }
             }
         }
@@ -1396,7 +1396,7 @@ DOC_SEE(Buffer_Identifier)
             Try_Kill_Result kill_result = interactive_try_kill_file(system, models, file);
             if (kill_result == TryKill_NeedDialogue){
                 if (vptr){
-                    interactive_begin_sure_to_kill(system, vptr, file);
+                    interactive_begin_sure_to_kill(system, vptr, models, file);
                 }
                 else{
 #define MESSAGE "CUSTOM WARNING: the buffer is dirty and no view was specified for a dialogue.\n"
@@ -1429,17 +1429,17 @@ internal void
 internal_get_view_next(Command_Data *cmd, View_Summary *view){
     System_Functions *system = cmd->system;
     Editing_Layout *layout = &cmd->models->layout;
-    Live_Views *live_set = &cmd->vars->live_set;
+    Live_Views *live_set = &cmd->models->live_set;
     int32_t index = view->view_id - 1;
     
     if (index >= 0 && index < live_set->max){
         View *vptr = live_set->views + index;
         Panel *panel = vptr->panel;
-        if (panel){
+        if (panel != 0){
             panel = panel->next;
         }
-        if (panel && panel != &layout->used_sentinel){
-            fill_view_summary(system, view, panel->view, &cmd->vars->live_set, &cmd->models->working_set);
+        if (panel != 0 && panel != &layout->used_sentinel){
+            fill_view_summary(system, view, panel->view, live_set, &cmd->models->working_set);
         }
         else{
             *view = null_view_summary;
@@ -1534,12 +1534,13 @@ DOC_SEE(Access_Flag)
 */{
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     System_Functions *system = cmd->system;
-    Panel *panel = cmd->models->layout.panels + cmd->models->layout.active_panel;
+    Models *models = cmd->models;
+    Panel *panel = models->layout.panels + models->layout.active_panel;
     
     Assert(panel->view != 0);
     
     View_Summary view = {0};
-    fill_view_summary(system, &view, panel->view, &cmd->vars->live_set, &cmd->models->working_set);
+    fill_view_summary(system, &view, panel->view, &models->live_set, &models->working_set);
     if (!access_test(view.lock_flags, access)){
         view = null_view_summary;
     }
@@ -1598,7 +1599,7 @@ DOC_SEE(View_Split_Position)
         split.panel->prev_inner = split.panel->inner;
         
         models->layout.active_panel = (i32)(split.panel - models->layout.panels);
-        panel_make_empty(system, cmd->vars, split.panel);
+        panel_make_empty(system, cmd->models, split.panel);
         
         fill_view_summary(system, &result, split.panel->view, cmd);
     }
@@ -1634,7 +1635,7 @@ in the system, the call will fail.)
             i32 which_child;
             i32 active;
             
-            live_set_free_view(models->live_set, vptr);
+            live_set_free_view(&models->live_set, vptr, models);
             panel->view = 0;
             
             div = layout_get_divider(&models->layout, panel->parent);
@@ -2013,7 +2014,7 @@ DOC_SEE(Set_Buffer_Flag)
             if (file != vptr->file_data.file){
                 view_set_file(system, vptr, file, models);
                 if (!(flags & SetBuffer_KeepOriginalGUI)){
-                    view_show_file(vptr);
+                    view_show_file(vptr, models);
                 }
             }
         }

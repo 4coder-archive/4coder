@@ -34,7 +34,7 @@ ms_style_verify(String line, int32_t left_paren_pos, int32_t right_paren_pos){
         result = true;
     }
     if (result){
-        String number = substr(line, left_paren_pos, right_paren_pos - left_paren_pos);
+        String number = substr(line, left_paren_pos + 1, right_paren_pos - left_paren_pos - 2);
         if (!str_is_int_s(number)){
             result = false;
         }

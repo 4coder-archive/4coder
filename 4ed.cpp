@@ -270,10 +270,6 @@ consume_input(Available_Input *available, i32 input_type, char *consumer){
 
 struct App_Vars{
     Models models;
-    // TODO(allen): This wants to live in
-    // models with everyone else but the order
-    // of declaration is a little bit off...
-    Live_Views live_set;
     
     CLI_List cli_processes;
     
@@ -388,15 +384,11 @@ do_feedback_message(System_Functions *system, Models *models, String value, b32 
 #define COMMAND_DECL(n) internal void command_##n(System_Functions *system, Command_Data *command, Command_Binding binding)
 
 internal View*
-panel_make_empty(System_Functions *system, App_Vars *vars, Panel *panel){
-    Models *models = &vars->models;
-    View_And_ID new_view;
-    
+panel_make_empty(System_Functions *system, Models *models, Panel *panel){
     Assert(panel->view == 0);
-    new_view = live_set_alloc_view(&vars->live_set, panel, models);
+    View_And_ID new_view = live_set_alloc_view(&models->live_set, panel, models);
     view_set_file(system, new_view.view, models->scratch_buffer, models);
     new_view.view->map = get_map(models, models->scratch_buffer->settings.base_map_id);
-    
     return(new_view.view);
 }
 
@@ -425,18 +417,21 @@ COMMAND_DECL(redo){
 }
 
 COMMAND_DECL(interactive_new){
+    USE_MODELS(models);
     USE_VIEW(view);
-    view_show_interactive(system, view, IAct_New, IInt_Sys_File_List, make_lit_string("New: "));
+    view_show_interactive(system, view, models, IAct_New, IInt_Sys_File_List, make_lit_string("New: "));
 }
 
 COMMAND_DECL(interactive_open){
+    USE_MODELS(models);
     USE_VIEW(view);
-    view_show_interactive(system, view, IAct_Open, IInt_Sys_File_List,make_lit_string("Open: "));
+    view_show_interactive(system, view, models, IAct_Open, IInt_Sys_File_List,make_lit_string("Open: "));
 }
 
 COMMAND_DECL(interactive_open_or_new){
+    USE_MODELS(models);
     USE_VIEW(view);
-    view_show_interactive(system, view, IAct_OpenOrNew, IInt_Sys_File_List,make_lit_string("Open: "));
+    view_show_interactive(system, view, models, IAct_OpenOrNew, IInt_Sys_File_List,make_lit_string("Open: "));
 }
 
 // TODO(allen): Improvements to reopen
@@ -520,10 +515,11 @@ COMMAND_DECL(save){
 }
 
 COMMAND_DECL(save_as){
+    USE_MODELS(models);
     USE_VIEW(view);
     REQ_FILE(file, view);
     
-    view_show_interactive(system, view, IAct_Save_As, IInt_Sys_File_List, make_lit_string("Save As: "));
+    view_show_interactive(system, view, models, IAct_Save_As, IInt_Sys_File_List, make_lit_string("Save As: "));
 }
 
 COMMAND_DECL(change_active_panel){
@@ -538,15 +534,17 @@ COMMAND_DECL(change_active_panel){
 }
 
 COMMAND_DECL(interactive_switch_buffer){
+    USE_MODELS(models);
     USE_VIEW(view);
     
-    view_show_interactive(system, view, IAct_Switch, IInt_Live_File_List, make_lit_string("Switch Buffer: "));
+    view_show_interactive(system, view, models, IAct_Switch, IInt_Live_File_List, make_lit_string("Switch Buffer: "));
 }
 
 COMMAND_DECL(interactive_kill_buffer){
+    USE_MODELS(models);
     USE_VIEW(view);
     
-    view_show_interactive(system, view, IAct_Kill, IInt_Live_File_List, make_lit_string("Kill Buffer: "));
+    view_show_interactive(system, view, models, IAct_Kill, IInt_Live_File_List, make_lit_string("Kill Buffer: "));
 }
 
 COMMAND_DECL(kill_buffer){
@@ -590,12 +588,14 @@ case_change_range(System_Functions *system, Models *models, View *view, Editing_
 
 COMMAND_DECL(open_color_tweaker){
     USE_VIEW(view);
-    view_show_theme(view);
+    USE_MODELS(models);
+    view_show_theme(view, models);
 }
 
 COMMAND_DECL(open_debug){
     USE_VIEW(view);
-    view_show_GUI(view, VUI_Debug);
+    USE_MODELS(models);
+    view_show_GUI(view, models, VUI_Debug);
     view->debug_vars = null_debug_vars;
 }
 
@@ -1042,23 +1042,20 @@ App_Init_Sig(app_init){
     models->layout.free_divider = dividers;
     
     {
-        models->live_set = &vars->live_set;
+        models->live_set.count = 0;
+        models->live_set.max = panel_max_count;
         
-        vars->live_set.count = 0;
-        vars->live_set.max = panel_max_count;
+        models->live_set.views = push_array(partition, View, models->live_set.max);
         
-        vars->live_set.views = push_array(partition, View, vars->live_set.max);
+        dll_init_sentinel(&models->live_set.free_sentinel);
         
-        dll_init_sentinel(&vars->live_set.free_sentinel);
-        
-        i32 max = vars->live_set.max;
-        View *view = vars->live_set.views;
+        i32 max = models->live_set.max;
+        View *view = models->live_set.views;
         for (i32 i = 0; i < max; ++i, ++view){
-            dll_insert(&vars->live_set.free_sentinel, view);
+            dll_insert(&models->live_set.free_sentinel, view);
             
             View_Persistent *persistent = &view->persistent;
             persistent->id = i;
-            persistent->models = models;
         }
     }
     
@@ -1295,7 +1292,7 @@ App_Init_Sig(app_init){
     cmd->models = models;
     cmd->vars = vars;
     cmd->system = system;
-    cmd->live_set = &vars->live_set;
+    cmd->live_set = &models->live_set;
     
     cmd->screen_width = target->width;
     cmd->screen_height = target->height;
@@ -1336,7 +1333,7 @@ App_Init_Sig(app_init){
     }
     
     Panel_And_ID p = layout_alloc_panel(&models->layout);
-    panel_make_empty(system, vars, p.panel);
+    panel_make_empty(system, models, p.panel);
     models->layout.active_panel = p.id;
     
     hot_directory_init(&models->hot_directory, current_directory);
@@ -1566,7 +1563,7 @@ App_Step_Sig(app_step){
             }
         }
         
-        for (i32 i = proc_free_count - 1; i >= 0; ++i){
+        for (i32 i = proc_free_count - 1; i >= 0; --i){
             cli_list_free_proc(list, procs_to_free[i]);
         }
         
@@ -1579,7 +1576,7 @@ App_Step_Sig(app_step){
     cmd->models = models;
     cmd->vars = vars;
     cmd->system = system;
-    cmd->live_set = &vars->live_set;
+    cmd->live_set = &models->live_set;
     
     cmd->screen_width = target->width;
     cmd->screen_height = target->height;
@@ -1663,9 +1660,7 @@ App_Step_Sig(app_step){
                 view = panel->view;
             }
             
-            view_show_interactive(system, view,
-                                  IAct_Sure_To_Close, IInt_Sure_To_Close,
-                                  make_lit_string("Are you sure?"));
+            view_show_interactive(system, view, models, IAct_Sure_To_Close, IInt_Sure_To_Close, make_lit_string("Are you sure?"));
             
             models->command_coroutine = command_coroutine;
         }
@@ -1861,7 +1856,7 @@ App_Step_Sig(app_step){
             
             view->changed_context_in_step = 0;
             
-            View_Step_Result result = step_file_view(system, view, active_view, summary);
+            View_Step_Result result = step_file_view(system, view, models, active_view, summary);
             
             if (result.animating){
                 app_result.animating = 1;
@@ -1901,7 +1896,7 @@ App_Step_Sig(app_step){
                     max_y = view->gui_max_y;
                 }
                 
-                Input_Process_Result ip_result = do_step_file_view(system, view, panel->inner, active, &summary, *scroll_vars, view->scroll_region, max_y);
+                Input_Process_Result ip_result = do_step_file_view(system, view, models, panel->inner, active, &summary, *scroll_vars, view->scroll_region, max_y);
                 
                 if (ip_result.is_animating){
                     app_result.animating = 1;
@@ -2244,7 +2239,7 @@ App_Step_Sig(app_step){
                 }
             }
             
-            do_render_file_view(system, view, scroll_vars, active_view,  panel->inner, active, target, &dead_input);
+            do_render_file_view(system, view, models, scroll_vars, active_view,  panel->inner, active, target, &dead_input);
             
             draw_pop_clip(target);
             
