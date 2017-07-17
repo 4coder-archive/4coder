@@ -145,29 +145,18 @@ global_const char messages[] =
 #define DEFAULT_DISPLAY_WIDTH 672
 #define DEFAULT_MINIMUM_BASE_DISPLAY_WIDTH 550
 
-typedef enum App_State{
+enum App_State{
     APP_STATE_EDIT,
     APP_STATE_RESIZING,
     // never below this
     APP_STATE_COUNT
-} App_State;
+};
 
-typedef struct App_State_Resizing{
+struct App_State_Resizing{
     Panel_Divider *divider;
-} App_State_Resizing;
+};
 
-typedef struct CLI_Process{
-    CLI_Handles cli;
-    Editing_File *out_file;
-    b32 cursor_at_end;
-} CLI_Process;
-
-typedef struct CLI_List{
-    CLI_Process *procs;
-    i32 count, max;
-} CLI_List;
-
-typedef struct Command_Data{
+struct Command_Data{
     Models *models;
     struct App_Vars *vars;
     System_Functions *system;
@@ -175,9 +164,9 @@ typedef struct Command_Data{
     
     i32 screen_width, screen_height;
     Key_Event_Data key;
-} Command_Data;
+};
 
-typedef enum Input_Types{
+enum Input_Types{
     Input_AnyKey,
     Input_Esc,
     Input_MouseMove,
@@ -185,18 +174,18 @@ typedef enum Input_Types{
     Input_MouseRightButton,
     Input_MouseWheel,
     Input_Count
-} Input_Types;
+};
 
-typedef struct Consumption_Record{
+struct Consumption_Record{
     b32 consumed;
     char consumer[32];
-} Consumption_Record;
+};
 
-typedef struct Available_Input{
+struct Available_Input{
     Key_Input_Data *keys;
     Mouse_State *mouse;
     Consumption_Record records[Input_Count];
-} Available_Input;
+};
 
 internal Available_Input
 init_available_input(Key_Input_Data *keys, Mouse_State *mouse){
@@ -297,14 +286,14 @@ struct App_Vars{
 };
 global_const App_Vars null_app_vars = {0};
 
-typedef enum Coroutine_Type{
+enum Coroutine_Type{
     Co_View,
     Co_Command
-} Coroutine_Type;
-typedef struct App_Coroutine_State{
+};
+struct App_Coroutine_State{
     void *co;
     i32 type;
-} App_Coroutine_State;
+};
 
 inline App_Coroutine_State
 get_state(Application_Links *app){
@@ -1353,67 +1342,12 @@ App_Init_Sig(app_init){
     hot_directory_init(&models->hot_directory, current_directory);
     
     // NOTE(allen): child proc list setup
-    i32 max_children = 16;
-    partition_align(partition, 8);
-    vars->cli_processes.procs = push_array(partition, CLI_Process, max_children);
-    vars->cli_processes.max = max_children;
-    vars->cli_processes.count = 0;
+    vars->cli_processes = make_cli_list(partition, 16);
     
     // NOTE(allen): init GUI keys
     models->user_up_key = key_up;
     models->user_down_key = key_down;
 }
-
-internal i32
-update_cli_handle_without_file(System_Functions *system, Models *models, CLI_Handles *cli, char *dest, i32 max){
-    i32 result = 0;
-    u32 amount = 0;
-    
-    system->cli_begin_update(cli);
-    if (system->cli_update_step(cli, dest, max, &amount)){
-        result = 1;
-    }
-    
-    if (system->cli_end_update(cli)){
-        result = -1;
-    }
-    
-    return(result);
-}
-
-internal i32
-update_cli_handle_with_file(System_Functions *system, Models *models, CLI_Handles *cli, Editing_File *file, char *dest, i32 max, b32 cursor_at_end){
-    i32 result = 0;
-    u32 amount = 0;
-    
-    system->cli_begin_update(cli);
-    if (system->cli_update_step(cli, dest, max, &amount)){
-        amount = eol_in_place_convert_in(dest, amount);
-        output_file_append(system, models, file, make_string(dest, amount), cursor_at_end);
-        result = 1;
-    }
-    
-    if (system->cli_end_update(cli)){
-        char str_space[256];
-        String str = make_fixed_width_string(str_space);
-        append_ss(&str, make_lit_string("exited with code "));
-        append_int_to_str(&str, cli->exit);
-        output_file_append(system, models, file, str, cursor_at_end);
-        result = -1;
-    }
-    
-    if (cursor_at_end){
-        i32 new_cursor = buffer_size(&file->state.buffer);
-        for (View_Iter iter = file_view_iter_init(&models->layout, file, 0);
-             file_view_iter_good(iter);
-             iter = file_view_iter_next(iter)){
-            view_cursor_move(system, iter.view, new_cursor);
-        }
-    }
-    
-    return(result);
-}
-
 
 App_Step_Sig(app_step){
     PRFL_BEGIN_FRAME();
@@ -1595,30 +1529,48 @@ App_Step_Sig(app_step){
     
     // NOTE(allen): update child processes
     if (input->dt > 0){
-        Temp_Memory temp = begin_temp_memory(&models->mem.part);
-        u32 max = KB(128);
-        char *dest = push_array(&models->mem.part, char, max);
+        Partition *scratch = &models->mem.part;
         
-        i32 count = vars->cli_processes.count;
-        for (i32 i = 0; i < count; ++i){
-            CLI_Process *proc = vars->cli_processes.procs + i;
-            Editing_File *file = proc->out_file;
+        CLI_List *list = &vars->cli_processes;
+        
+        Temp_Memory temp = begin_temp_memory(&models->mem.part);
+        CLI_Process **procs_to_free = push_array(scratch, CLI_Process*, list->count);
+        u32 proc_free_count = 0;
+        
+        u32 max = KB(128);
+        char *dest = push_array(scratch, char, max);
+        
+        CLI_Process *proc_ptr = list->procs;
+        for (u32 i = 0; i < list->count; ++i, ++proc_ptr){
+            Editing_File *file = proc_ptr->out_file;
             
-            if (file != 0){
-                i32 r = update_cli_handle_with_file(
-                    system, models, &proc->cli, file, dest, max, proc->cursor_at_end);
-                if (r < 0){
-                    *proc = vars->cli_processes.procs[--count];
-                    --i;
+            CLI_Handles *cli = &proc_ptr->cli;
+            
+            u32 amount = 0;
+            system->cli_begin_update(cli);
+            if (system->cli_update_step(cli, dest, max, &amount)){
+                if (file != 0){
+                    amount = eol_in_place_convert_in(dest, amount);
+                    output_file_append(system, models, file, make_string(dest, amount), proc_ptr->cursor_at_end);
                 }
             }
-            else{
-                update_cli_handle_without_file(
-                    system, models, &proc->cli, dest, max);
+            
+            if (system->cli_end_update(cli)){
+                if (file != 0){
+                    char str_space[256];
+                    String str = make_fixed_width_string(str_space);
+                    append(&str, make_lit_string("exited with code "));
+                    append_int_to_str(&str, cli->exit);
+                    output_file_append(system, models, file, str, proc_ptr->cursor_at_end);
+                }
+                procs_to_free[proc_free_count++] = proc_ptr;
             }
         }
         
-        vars->cli_processes.count = count;
+        for (u32 i = 0; i < proc_free_count; ++i){
+            cli_list_free_proc(list, procs_to_free[i]);
+        }
+        
         end_temp_memory(temp);
     }
     

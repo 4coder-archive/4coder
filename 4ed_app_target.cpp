@@ -57,6 +57,8 @@
 #include "4ed_hot_directory.cpp"
 #include "4ed_parse_contexts.cpp"
 
+#include "4ed_cli.cpp"
+
 #include "4ed_gui.h"
 #include "4ed_gui.cpp"
 #include "4ed_layout.cpp"

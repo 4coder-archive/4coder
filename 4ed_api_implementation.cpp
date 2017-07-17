@@ -216,10 +216,10 @@ DOC_SEE(Command_ID)
 
 // TODO(allen): This is a bit of a mess and needs to be fixed.
 API_EXPORT bool32
-Exec_System_Command(Application_Links *app, View_Summary *view, Buffer_Identifier buffer, char *path, int32_t path_len, char *command, int32_t command_len, Command_Line_Interface_Flag flags)
+Exec_System_Command(Application_Links *app, View_Summary *view, Buffer_Identifier buffer_id, char *path, int32_t path_len, char *command, int32_t command_len, Command_Line_Interface_Flag flags)
 /*
 DOC_PARAM(view, If the view parameter is non-null it specifies a view to display the command's output buffer, otherwise the command will still work but if there is a buffer capturing the output it will not automatically be displayed.)
-DOC_PARAM(buffer, The buffer the command will output to is specified by the buffer parameter. See Buffer_Identifier for information on how this type specifies a buffer.  The command will cause a crash if no buffer is specified.)
+DOC_PARAM(buffer_id, The buffer the command will output to is specified by the buffer parameter. See Buffer_Identifier for information on how this type specifies a buffer.  The command will cause a crash if no buffer is specified.)
 DOC_PARAM(path, The path parameter specifies the current working directory in which the command shall be executed. The string need not be null terminated.)
 DOC_PARAM(path_len, The parameter path_len specifies the length of the path string.)
 DOC_PARAM(command, The command parameter specifies the command that shall be executed. The string need not be null terminated.)
@@ -239,63 +239,67 @@ DOC_SEE(Command_Line_Interface_Flag)
     System_Functions *system = cmd->system;
     App_Vars *vars = cmd->vars;
     Models *models = cmd->models;
+    Partition *part = &models->mem.part;
+    General_Memory *general = &models->mem.general;
+    Working_Set *working_set = &models->working_set;
     
+    bool32 result = true;
     char feedback_space[256];
     String feedback_str = make_fixed_width_string(feedback_space);
     
-    Working_Set *working_set = &models->working_set;
-    CLI_Process *procs = vars->cli_processes.procs, *proc = 0;
-    Editing_File *file = 0;
-    b32 bind_to_new_view = true;
-    General_Memory *general = &models->mem.general;
-    
-    Partition *part = &models->mem.part;
     Temp_Memory temp = begin_temp_memory(part);
     
-    bool32 result = true;
-    
-    View *vptr = imp_get_view(cmd, view);
-    
-    if (vars->cli_processes.count < vars->cli_processes.max){
-        file = get_file_from_identifier(system, working_set, buffer);
+    {    
+        // NOTE(allen): Check that it is possible to store a new child process.
+        if (!cli_list_has_space(&vars->cli_processes)){
+            append(&feedback_str, make_lit_string("ERROR: no available process slot\n"));
+            result = false;
+            goto done;
+        }
         
-        if (file){
+        // NOTE(allen): Try to get the buffer that was specified if it exists.
+        Editing_File *file = get_file_from_identifier(system, working_set, buffer_id);
+        
+        // NOTE(allen): If the file exists check that it is legal.
+        if (file != 0){
             if (file->settings.read_only == 0){
-                append_ss(&feedback_str, make_lit_string("ERROR: "));
-                append_ss(&feedback_str, file->name.live_name);
-                append_ss(&feedback_str, make_lit_string(" is not a read-only buffer\n"));
-                do_feedback_message(system, models, feedback_str);
+                append(&feedback_str, make_lit_string("ERROR: "));
+                append(&feedback_str, file->name.live_name);
+                append(&feedback_str, make_lit_string(" is not a read-only buffer\n"));
                 result = false;
                 goto done;
             }
             if (file->settings.never_kill){
-                append_ss(&feedback_str, make_lit_string("The buffer "));
-                append_ss(&feedback_str, file->name.live_name);
-                append_ss(&feedback_str, make_lit_string(" is not killable"));
-                do_feedback_message(system, models, feedback_str);
+                append(&feedback_str, make_lit_string("ERROR: The buffer "));
+                append(&feedback_str, file->name.live_name);
+                append(&feedback_str, make_lit_string(" is not killable"));
                 result = false;
                 goto done;
             }
         }
-        else if (buffer.name){
+        
+        // NOTE(allen): If the buffer is specified by name but does not already exist, then create it.
+        if (file == 0 && buffer_id.name){
             file = working_set_alloc_always(working_set, general);
             if (file == 0){
-                append_ss(&feedback_str, make_lit_string("ERROR: unable to allocate a new buffer\n"));
-                do_feedback_message(system, models, feedback_str);
+                append(&feedback_str, make_lit_string("ERROR: unable to allocate a new buffer\n"));
                 result = false;
                 goto done;
             }
-            String name = make_string_terminated(part, buffer.name, buffer.name_len);
+            
+            String name = make_string_terminated(part, buffer_id.name, buffer_id.name_len);
             buffer_bind_name(general, working_set, file, name);
             init_read_only_file(system, models, file);
         }
         
+        // NOTE(allen): If there are conflicts in output buffer with an existing child process resolve it.
         if (file != 0){
-            i32 proc_count = vars->cli_processes.count;
-            for (i32 i = 0; i < proc_count; ++i){
-                if (procs[i].out_file == file){
+            CLI_List *list = &vars->cli_processes;
+            CLI_Process *proc_ptr = list->procs;
+            for (u32 i = 0; i < list->count; ++i, ++proc_ptr){
+                if (proc_ptr->out_file == file){
                     if (flags & CLI_OverlapWithConflict){
-                        procs[i].out_file = 0;
+                        proc_ptr->out_file = 0;
                     }
                     else{
                         file = 0;
@@ -304,30 +308,41 @@ DOC_SEE(Command_Line_Interface_Flag)
                 }
             }
             
-            if (file){
-                file_clear(system, models, file);
-                file->settings.unimportant = true;
-                
-                if (!(flags & CLI_AlwaysBindToView)){
-                    View_Iter iter = file_view_iter_init(&models->layout, file, 0);
-                    if (file_view_iter_good(iter)){
-                        bind_to_new_view = false;
-                    }
-                }
-            }
-            else{
-#define MSG "did not begin command-line command because the target buffer is already in use\n"
-                String msg = make_lit_string(MSG);
-#undef MSG
-                append_ss(&feedback_str, msg);
-                do_feedback_message(system, models, feedback_str);
+            if (file == 0){
+                append(&feedback_str, "did not begin command-line command because the target buffer is already in use\n");
                 result = false;
                 goto done;
             }
         }
         
+        // NOTE(allen): If we have an output file, prepare it for child proc output.
+        if (file != 0){
+            file_clear(system, models, file);
+            file->settings.unimportant = true;
+        }
+        
+        // NOTE(allen): If we have an output file and we need to bring it up in a new view, do so.
+        if (file != 0){
+            b32 bind_to_new_view = true;
+            if (!(flags & CLI_AlwaysBindToView)){
+                View_Iter iter = file_view_iter_init(&models->layout, file, 0);
+                if (file_view_iter_good(iter)){
+                    bind_to_new_view = false;
+                }
+            }
+            
+            if (bind_to_new_view){
+                View *vptr = imp_get_view(cmd, view);
+                if (vptr != 0){
+                    view_set_file(system, vptr, file, models);
+                    view_show_file(vptr);
+                }
+            }
+        }
+        
+        // NOTE(allen): Figure out the root path for the command.
         String path_string = {0};
-        if (!path){
+        if (path == 0){
             terminate_with_null(&models->hot_directory.string);
             path_string = models->hot_directory.string;
         }
@@ -335,46 +350,27 @@ DOC_SEE(Command_Line_Interface_Flag)
             path_string = make_string_terminated(part, path, path_len);
         }
         
-        {
-            String command_string = {0};
-            
-            if (!command){
-#define NO_SCRIPT " echo no script specified"
-                command_string.str = NO_SCRIPT;
-                command_string.size = sizeof(NO_SCRIPT)-1;
-#undef NO_SCRIPT
-            }
-            else{
-                command_string = make_string_terminated(part, command, command_len);
-            }
-            
-            if (vptr != 0 && bind_to_new_view){
-                view_set_file(system, vptr, file, models);
-                view_show_file(vptr);
-            }
-            
-            proc = procs + vars->cli_processes.count++;
-            proc->out_file = file;
-            if (flags & CLI_CursorAtEnd){
-                proc->cursor_at_end = 1;
-            }
-            else{
-                proc->cursor_at_end = 0;
-            }
-            
-            if (!system->cli_call(path_string.str, command_string.str, &proc->cli)){
-                --vars->cli_processes.count;
-            }
+        // NOTE(allen): Figure out the command string.
+        String command_string = {0};
+        if (command == 0){
+            command_string = make_lit_string(" echo no script specified");
         }
-    }
-    else{
-        append_ss(&feedback_str, make_lit_string("ERROR: no available process slot\n"));
-        do_feedback_message(system, models, feedback_str);
-        result = false;
-        goto done;
+        else{
+            command_string = make_string_terminated(part, command, command_len);
+        }
+        
+        // NOTE(allen): Attept to execute the command.
+        if (!cli_list_call(system, &vars->cli_processes, path_string.str, command_string.str, file, ((flags & CLI_CursorAtEnd) != 0))){
+            append(&feedback_str, "ERROR: Failed to make the cli call\n");
+            result = false;
+        }
     }
     
     done:;
+    if (!result){
+        do_feedback_message(system, models, feedback_str);
+    }
+    
     end_temp_memory(temp);
     return(result);
 }
