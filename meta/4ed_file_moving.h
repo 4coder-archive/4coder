@@ -390,7 +390,8 @@ fm_make_folder_if_missing(char *dir){
 
 static void
 fm_clear_folder(char *folder){
-    systemf("del /S /Q /F %s\\* & rmdir /S /Q %s & mkdir %s", folder, folder, folder);
+    fprintf(stdout, "clearing folder %s\n", folder);
+    systemf("del /S /Q /F %s\\* > nul & rmdir /S /Q %s > nul & mkdir %s > nul", folder, folder, folder);
 }
 
 static void
@@ -527,7 +528,8 @@ fm_make_folder_if_missing(char *dir){
 
 static void
 fm_clear_folder(char *folder){
-    systemf("rm -rf %s*", folder);
+    fprintf(stdout, "clearing folder %s\n", folder);
+    systemf("rm -rf %s* > /dev/null", folder);
 }
 
 static void
