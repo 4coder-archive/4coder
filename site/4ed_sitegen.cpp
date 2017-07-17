@@ -41,146 +41,10 @@
 // Meta Parse Rules
 //
 
-internal void
-do_html_output(Document_System *doc_system, char *dst_directory, Abstract_Item *doc){
-    String out = make_string_cap(fm__push(10 << 20), 0, 10 << 20);
-    Assert(out.str != 0);
-    
-    char doc_link[256];
-    if (doc_get_link_string(doc, doc_link, sizeof(doc_link))){
-        generate_document_html(&out, doc_system, doc);
-        char *name = fm_str(dst_directory, "/", doc_link);
-        fm_write_file(name, out.str, out.size);
-        out.size = 0;
-    }
-}
-
-// TODO(allen): replace the documentation declaration system with a straight up enriched text system
 internal Abstract_Item*
-generate_4coder_docs(Document_System *doc_system, char *code_directory, char *src_directory){
-    Meta_Unit *custom_types_unit = fm_push_array(Meta_Unit, 1);
-    Meta_Unit *lexer_funcs_unit = fm_push_array(Meta_Unit, 1);
-    Meta_Unit *lexer_types_unit = fm_push_array(Meta_Unit, 1);
-    Meta_Unit *string_unit = fm_push_array(Meta_Unit, 1);
-    Meta_Unit *custom_funcs_unit = fm_push_array(Meta_Unit, 1);
-    
-    Enriched_Text *introduction = fm_push_array(Enriched_Text, 1);
-    Enriched_Text *lexer_introduction = fm_push_array(Enriched_Text, 1);
-    
-    // NOTE(allen): Parse the code.
-    *custom_types_unit = compile_meta_unit(code_directory, "4coder_API/types.h", ExpandArray(meta_keywords));
-    Assert(custom_types_unit->count != 0);
-    
-    *lexer_funcs_unit = compile_meta_unit(code_directory, "4cpp/4cpp_lexer.h", ExpandArray(meta_keywords));
-    Assert(lexer_funcs_unit->count != 0);
-    
-    *lexer_types_unit = compile_meta_unit(code_directory, "4cpp/4cpp_lexer_types.h", ExpandArray(meta_keywords));
-    Assert(lexer_types_unit->count != 0);
-    
-    *string_unit = compile_meta_unit(code_directory, "string/internal_4coder_string.cpp", ExpandArray(meta_keywords));
-    Assert(string_unit->count != 0);
-    
-    *custom_funcs_unit = compile_meta_unit(code_directory, "4ed_api_implementation.cpp", ExpandArray(meta_keywords));
-    Assert(custom_funcs_unit->count != 0);
-    
-    // NOTE(allen): Compute and store variations of the custom function names
-    Alternate_Names_Array *custom_func_names = fm_push_array(Alternate_Names_Array, 1);
-    i32 name_count = custom_funcs_unit->set.count;
-    custom_func_names->names = fm_push_array(Alternate_Name, name_count);
-    memset(custom_func_names->names, 0, sizeof(*custom_func_names->names)*name_count);
-    
-    for (i32 i = 0; i < custom_funcs_unit->set.count; ++i){
-        String name_string = custom_funcs_unit->set.items[i].name;
-        String *macro = &custom_func_names->names[i].macro;
-        String *public_name = &custom_func_names->names[i].public_name;
-        
-        *macro = str_alloc(name_string.size+4);
-        to_upper_ss(macro, name_string);
-        append_ss(macro, make_lit_string("_SIG"));
-        
-        *public_name = str_alloc(name_string.size);
-        to_lower_ss(public_name, name_string);
-        
-        fm_align();
-    }
-    
-    // NOTE(allen): Load enriched text materials
-    *introduction = load_enriched_text(src_directory, "introduction.txt");
-    *lexer_introduction = load_enriched_text(src_directory, "lexer_introduction.txt");
-    
-    // NOTE(allen): Put together the abstract document
-    Document_Builder builder = begin_document_description(doc_system, "4coder API Docs", "custom_docs", true);
-    
-    add_table_of_contents(&builder);
-    
-    begin_section(&builder, "Introduction", "introduction");
-    add_enriched_text(&builder, introduction);
-    end_section(&builder);
-    
-    begin_section(&builder, "4coder Systems", "4coder_systems");
-    add_todo(&builder);
-    end_section(&builder);
-    
-    begin_section(&builder, "Types and Functions", "types_and_functions");
-    {
-        begin_section(&builder, "Function List", 0);
-        add_element_list(&builder, custom_funcs_unit, custom_func_names, AltName_Public_Name);
-        end_section(&builder);
-        begin_section(&builder, "Type List", 0);
-        add_element_list(&builder, custom_types_unit);
-        end_section(&builder);
-        begin_section(&builder, "Function Descriptions", 0);
-        add_full_elements(&builder, custom_funcs_unit, custom_func_names, AltName_Public_Name);
-        end_section(&builder);
-        begin_section(&builder, "Type Descriptions", 0);
-        add_full_elements(&builder, custom_types_unit);
-        end_section(&builder);
-    }
-    end_section(&builder);
-    
-    begin_section(&builder, "String Library", "string_library");
-    {
-        begin_section(&builder, "String Library Intro", 0);
-        add_todo(&builder);
-        end_section(&builder);
-        begin_section(&builder, "String Function List", 0);
-        add_element_list(&builder, string_unit);
-        end_section(&builder);
-        begin_section(&builder, "String Function Descriptions", 0);
-        add_full_elements(&builder, string_unit);
-        end_section(&builder);
-    }
-    end_section(&builder);
-    
-    begin_section(&builder, "Lexer Library", "lexer_library");
-    {
-        begin_section(&builder, "Lexer Intro", 0);
-        add_enriched_text(&builder, lexer_introduction);
-        end_section(&builder);
-        begin_section(&builder, "Lexer Function List", 0);
-        add_element_list(&builder, lexer_funcs_unit);
-        end_section(&builder);
-        begin_section(&builder, "Lexer Type List", 0);
-        add_element_list(&builder, lexer_types_unit);
-        end_section(&builder);
-        begin_section(&builder, "Lexer Function Descriptions", 0);
-        add_full_elements(&builder, lexer_funcs_unit);
-        end_section(&builder);
-        begin_section(&builder, "Lexer Type Descriptions", 0);
-        add_full_elements(&builder, lexer_types_unit);
-        end_section(&builder);
-    }
-    end_section(&builder);
-    
-    end_document_description(&builder);
-    
-    return(builder.doc);
-}
-
-internal Abstract_Item*
-generate_page(Document_System *doc_system, char *code_directory, char *src_directory, char *source_text, char *big_title, char *small_name){
+generate_page(Document_System *doc_system, char *source_text, char *big_title, char *small_name){
     Enriched_Text *home = fm_push_array(Enriched_Text, 1);
-    *home = load_enriched_text(src_directory, source_text);
+    *home = load_enriched_text(doc_system->src_dir, source_text);
     
     Abstract_Item *doc = make_document_from_text(doc_system, big_title, small_name, home);
     if (doc == 0){
@@ -188,15 +52,6 @@ generate_page(Document_System *doc_system, char *code_directory, char *src_direc
     }
     
     return(doc);
-}
-
-internal String
-push_string(i32 size){
-    String str = {0};
-    str.memory_size = size;
-    str.str = fm_push_array(char, size);
-    fm_align();
-    return(str);
 }
 
 internal void
@@ -223,72 +78,47 @@ internal void
 generate_site(char *code_directory, char *asset_directory, char *src_directory, char *dst_directory){
     fm_clear_folder(dst_directory);
     
-    Document_System doc_system = create_document_system();
+    Document_System doc_system = create_document_system(code_directory, asset_directory, src_directory);
     
-    struct Site_Asset{
-        char *filename;
-        char *extension;
-        char *name;
-        u32 type;
-    };
-    enum Site_Asset_Type{
-        SiteAsset_None,
-        SiteAsset_Generic,
-        SiteAsset_Image,
-    };
+    add_image_description(&doc_system, "4coder_logo_low_green.png", "png", "4coder_logo");
+    add_image_description(&doc_system, "screen_1.png",              "png", "screen_1");
+    add_image_description(&doc_system, "screen_2.png",              "png", "screen_2");
+    add_image_description(&doc_system, "screen_3.png",              "png", "screen_3");
+    add_generic_file     (&doc_system, "4coder_icon.ico",           "ico", "4coder_icon");
     
-    Site_Asset asset_list[] = {
-        {"4coder_logo_low_green.png", "png", "4coder_logo", SiteAsset_Image   },
-        {"screen_1.png",              "png", "screen_1",    SiteAsset_Image   },
-        {"screen_2.png",              "png", "screen_2",    SiteAsset_Image   },
-        {"screen_3.png",              "png", "screen_3",    SiteAsset_Image   },
-        {"4coder_icon.ico",           "ico", "4coder_icon", SiteAsset_Generic },
-    };
-    
-    for (u32 i = 0; i < ArrayCount(asset_list); ++i){
-        Site_Asset *asset = &asset_list[i];
-        char *name = fm_str(asset_directory, "/", asset->filename);
-        switch (asset_list[i].type){
-            case SiteAsset_Generic:
-            {
-                add_generic_file(&doc_system, name, asset->extension, asset->name);
-            }break;
-            
-            case SiteAsset_Image:
-            {
-                add_image_description(&doc_system, name, asset->extension, asset->name);
-            }break;
-            
-            default: InvalidCodePath;
-        }
-    }
-    
-    char *cdir = code_directory;
-    char *sdir = src_directory;
     Document_System *docs = &doc_system;
     
-    generate_4coder_docs(docs, cdir, sdir);
+    // TODO(allen): From the text file get  "Big Title" and        "smallname".
+    generate_page(docs, "home.txt"        , "4coder Home"        , "home"        );
+    generate_page(docs, "docs.txt"        , "4coder API Docs"    , "custom_docs" );
+    generate_page(docs, "feature_list.txt", "4coder Feature List", "features"    );
+    generate_page(docs, "binding_list.txt", "4coder Binding List", "bindings"    );
+    generate_page(docs, "roadmap.txt"     , "4coder Roadmap"     , "roadmap"     );
+    generate_page(docs, "tutorials.txt"   , "4coder Tutorials"   , "tutorials"   );
     
-    // TODO(allen): From the text file get the          "Big Title" and        "smallname".
-    generate_page(docs, cdir, sdir, "home.txt"        , "4coder Home"        , "home"        );
-    generate_page(docs, cdir, sdir, "docs.txt"        , "4coder API Docs"    , "custom_docs_2" );
-    generate_page(docs, cdir, sdir, "feature_list.txt", "4coder Feature List", "features"    );
-    generate_page(docs, cdir, sdir, "binding_list.txt", "4coder Binding List", "bindings"    );
-    generate_page(docs, cdir, sdir, "roadmap.txt"     , "4coder Roadmap"     , "roadmap"     );
-    generate_page(docs, cdir, sdir, "tutorials.txt"   , "4coder Tutorials"   , "tutorials"   );
-    
-    // NOTE(allen): Create a list of the documents we want to generate.
+    // NOTE(allen): Create a list of the primary documents to generate.
     Abstract_Item_Array original_documents = get_abstract_item_array(&doc_system.doc_list);
     
     // NOTE(allen): Cross link all the includes and pull in any non-primary documents.
-    resolve_all_includes(&doc_system, src_directory);
+    resolve_all_includes(&doc_system);
     
-    // NOTE(allen): Generate the html from the documents and publish them
+    // NOTE(allen): Generate the html from the primary documents and publish them.
+    String out = make_string_cap(fm__push(10 << 20), 0, 10 << 20);
+    Assert(out.str != 0);
+    
     Abstract_Item **doc_ptr = original_documents.items;
     for (u32 j = 0; j < original_documents.count; ++j, ++doc_ptr){
         Abstract_Item *doc = *doc_ptr;
         Assert(doc->item_type == ItemType_Document);
-        do_html_output(&doc_system, dst_directory,  doc);
+        
+        char doc_link[256];
+        if (doc_get_link_string(doc, doc_link, sizeof(doc_link))){
+            generate_document_html(&out, &doc_system, doc);
+            
+            char *name = fm_str(dst_directory, "/", doc_link);
+            fm_write_file(name, out.str, out.size);
+            out.size = 0;
+        }
     }
     
     // NOTE(allen): Publish files

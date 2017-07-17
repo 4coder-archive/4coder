@@ -19,7 +19,7 @@ internal_4coder_string.cpp - Base file for generating 4coder_string.h
 FSTRING_BEGIN
 // TOP
 
-#include "4tech_standard_preamble.h"
+#include "4ed_standard_preamble.h"
 
 #if !defined(FSTRING_LINK)
 # define FSTRING_LINK static
@@ -393,14 +393,21 @@ match_part_ccl(char *a, char *b, i32_4tech *len)/*
 DOC_PARAM(len, If this call returns non-zero this parameter is used to output the length of b.)
 DOC(This call is similar to a match call, except that it is permitted for a to be longer than b.
 In other words this call returns non-zero if b is a prefix of a.) */{
+    if (a == 0){
+        a = "";
+    }
+    if (b == 0){
+        b = "";
+    }
+    
     i32_4tech i;
     for (i = 0; b[i] != 0; ++i){
         if (a[i] != b[i]){
-            return 0;
+            return(0);
         }
     }
     *len = i;
-    return 1;
+    return(1);
 }
 
 CPP_NAME(match_part)
@@ -409,14 +416,17 @@ match_part_scl(String a, char *b, i32_4tech *len)/*
 DOC_PARAM(len, If this call returns non-zero this parameter is used to output the length of b.)
 DOC(This call is similar to a match call, except that it is permitted for a to be longer than b.
 In other words this call returns non-zero if b is a prefix of a.) */{
+    if (b == 0){
+        b = "";
+    }
     i32_4tech i;
     for (i = 0; b[i] != 0; ++i){
-        if (a.str[i] != b[i] || i == a.size){
-            return 0;
+        if (i == a.size || a.str[i] != b[i]){
+            return(0);
         }
     }
     *len = i;
-    return 1;
+    return(1);
 }
 
 CPP_NAME(match_part)
@@ -457,14 +467,14 @@ match_part_ss(String a, String b)/*
 DOC(This call is similar to a match call, except that it is permitted for a to be longer than b.
 In other words this call returns non-zero if b is a prefix of a.) */{
     if (a.size < b.size){
-        return 0;
+        return(0);
     }
     for (i32_4tech i = 0; i < b.size; ++i){
         if (a.str[i] != b.str[i]){
-            return 0;
+            return(0);
         }
     }
-    return 1;
+    return(1);
 }
 
 CPP_NAME(match_insensitive)

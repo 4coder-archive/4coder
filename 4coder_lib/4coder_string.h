@@ -1,5 +1,5 @@
 /*
-4coder_string.h - Version 1.0.80
+4coder_string.h - Version 1.0.102
 no warranty implied; use at your own risk
 
 This software is in the public domain. Where that dedication is not
@@ -42,7 +42,7 @@ typedef int32_t b32_4tech;
 #if !defined(Assert)
 # define Assert(n) do{ if (!(n)) *(int*)0 = 0xA11E; }while(0)
 #endif
-// standard preamble end 
+// standard preamble end
 
 #if !defined(FSTRING_LINK)
 # define FSTRING_LINK static
@@ -296,7 +296,7 @@ FSTRING_LINK b32_4tech             string_set_match(void *str_set, i32_4tech ite
 //
 
 #if !defined(FSTRING_GUARD)
- FSTRING_INLINE b32_4tech
+FSTRING_INLINE b32_4tech
 char_is_slash(char c)
 {
     return (c == '\\' || c == '/');
@@ -304,7 +304,7 @@ char_is_slash(char c)
 #endif
 
 #if !defined(FSTRING_GUARD)
- FSTRING_INLINE b32_4tech
+FSTRING_INLINE b32_4tech
 char_is_upper(char c)
 {
     return (c >= 'A' && c <= 'Z');
@@ -312,7 +312,7 @@ char_is_upper(char c)
 #endif
 
 #if !defined(FSTRING_GUARD)
- FSTRING_INLINE b32_4tech
+FSTRING_INLINE b32_4tech
 char_is_upper_utf8(char c)
 {
     return ((c >= 'A' && c <= 'Z') || (unsigned char)c >= 128);
@@ -320,7 +320,7 @@ char_is_upper_utf8(char c)
 #endif
 
 #if !defined(FSTRING_GUARD)
- FSTRING_INLINE b32_4tech
+FSTRING_INLINE b32_4tech
 char_is_lower(char c)
 {
     return (c >= 'a' && c <= 'z');
@@ -328,7 +328,7 @@ char_is_lower(char c)
 #endif
 
 #if !defined(FSTRING_GUARD)
- FSTRING_INLINE b32_4tech
+FSTRING_INLINE b32_4tech
 char_is_lower_utf8(u8_4tech c)
 {
     return ((c >= 'a' && c <= 'z') || (unsigned char)c >= 128);
@@ -336,7 +336,7 @@ char_is_lower_utf8(u8_4tech c)
 #endif
 
 #if !defined(FSTRING_GUARD)
- FSTRING_INLINE char
+FSTRING_INLINE char
 char_to_upper(char c)
 {
     return (c >= 'a' && c <= 'z') ? c + (char)('A' - 'a') : c;
@@ -344,7 +344,7 @@ char_to_upper(char c)
 #endif
 
 #if !defined(FSTRING_GUARD)
- FSTRING_INLINE char
+FSTRING_INLINE char
 char_to_lower(char c)
 {
     return (c >= 'A' && c <= 'Z') ? c - (char)('A' - 'a') : c;
@@ -352,7 +352,7 @@ char_to_lower(char c)
 #endif
 
 #if !defined(FSTRING_GUARD)
- FSTRING_INLINE b32_4tech
+FSTRING_INLINE b32_4tech
 char_is_whitespace(char c)
 {
     return (c == ' ' || c == '\n' || c == '\r' || c == '\t');
@@ -360,7 +360,7 @@ char_is_whitespace(char c)
 #endif
 
 #if !defined(FSTRING_GUARD)
- FSTRING_INLINE b32_4tech
+FSTRING_INLINE b32_4tech
 char_is_alpha_numeric(char c)
 {
     return ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_');
@@ -368,7 +368,7 @@ char_is_alpha_numeric(char c)
 #endif
 
 #if !defined(FSTRING_GUARD)
- FSTRING_INLINE b32_4tech
+FSTRING_INLINE b32_4tech
 char_is_alpha_numeric_utf8(u8_4tech c)
 {
     return ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_' || (unsigned char)c >= 128);
@@ -376,7 +376,7 @@ char_is_alpha_numeric_utf8(u8_4tech c)
 #endif
 
 #if !defined(FSTRING_GUARD)
- FSTRING_INLINE b32_4tech
+FSTRING_INLINE b32_4tech
 char_is_alpha_numeric_true(char c)
 {
     return ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9'));
@@ -384,7 +384,7 @@ char_is_alpha_numeric_true(char c)
 #endif
 
 #if !defined(FSTRING_GUARD)
- FSTRING_INLINE b32_4tech
+FSTRING_INLINE b32_4tech
 char_is_alpha_numeric_true_utf8(u8_4tech c)
 {
     return ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || (unsigned char)c >= 128);
@@ -392,7 +392,7 @@ char_is_alpha_numeric_true_utf8(u8_4tech c)
 #endif
 
 #if !defined(FSTRING_GUARD)
- FSTRING_INLINE b32_4tech
+FSTRING_INLINE b32_4tech
 char_is_alpha(char c)
 {
     return ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_');
@@ -400,7 +400,7 @@ char_is_alpha(char c)
 #endif
 
 #if !defined(FSTRING_GUARD)
- FSTRING_INLINE b32_4tech
+FSTRING_INLINE b32_4tech
 char_is_alpha_utf8(u8_4tech c)
 {
     return ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_' || (unsigned char)c >= 128);
@@ -408,7 +408,7 @@ char_is_alpha_utf8(u8_4tech c)
 #endif
 
 #if !defined(FSTRING_GUARD)
- FSTRING_INLINE b32_4tech
+FSTRING_INLINE b32_4tech
 char_is_alpha_true(char c)
 {
     return ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z'));
@@ -416,7 +416,7 @@ char_is_alpha_true(char c)
 #endif
 
 #if !defined(FSTRING_GUARD)
- FSTRING_INLINE b32_4tech
+FSTRING_INLINE b32_4tech
 char_is_alpha_true_utf8(u8_4tech c)
 {
     return ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (unsigned char)c >= 128);
@@ -424,7 +424,7 @@ char_is_alpha_true_utf8(u8_4tech c)
 #endif
 
 #if !defined(FSTRING_GUARD)
- FSTRING_INLINE b32_4tech
+FSTRING_INLINE b32_4tech
 char_is_hex(char c)
 {
     return ((c >= '0' && c <= '9') || (c >= 'A' && c <= 'F') || (c >= 'a' && c <= 'f'));
@@ -432,7 +432,7 @@ char_is_hex(char c)
 #endif
 
 #if !defined(FSTRING_GUARD)
- FSTRING_INLINE b32_4tech
+FSTRING_INLINE b32_4tech
 char_is_hex_utf8(u8_4tech c)
 {
     return ((c >= '0' && c <= '9') || (c >= 'A' && c <= 'F') || (c >= 'a' && c <= 'f') || (unsigned char)c >= 128);
@@ -440,7 +440,7 @@ char_is_hex_utf8(u8_4tech c)
 #endif
 
 #if !defined(FSTRING_GUARD)
- FSTRING_INLINE b32_4tech
+FSTRING_INLINE b32_4tech
 char_is_numeric(char c)
 {
     return (c >= '0' && c <= '9');
@@ -448,7 +448,7 @@ char_is_numeric(char c)
 #endif
 
 #if !defined(FSTRING_GUARD)
- FSTRING_INLINE b32_4tech
+FSTRING_INLINE b32_4tech
 char_is_numeric_utf8(u8_4tech c)
 {
     return ((c >= '0' && c <= '9') || (unsigned char)c >= 128);
@@ -462,7 +462,7 @@ char_is_numeric_utf8(u8_4tech c)
 
 
 #if !defined(FSTRING_GUARD)
- FSTRING_INLINE String
+FSTRING_INLINE String
 make_string_cap(void *str, i32_4tech size, i32_4tech mem_size){
     String result;
     result.str = (char*)str;
@@ -473,7 +473,7 @@ make_string_cap(void *str, i32_4tech size, i32_4tech mem_size){
 #endif
 
 #if !defined(FSTRING_GUARD)
- FSTRING_INLINE String
+FSTRING_INLINE String
 make_string(void *str, i32_4tech size){
     String result;
     result.str = (char*)str;
@@ -484,7 +484,7 @@ make_string(void *str, i32_4tech size){
 #endif
 
 #if defined(FSTRING_IMPLEMENTATION)
- FSTRING_LINK i32_4tech
+FSTRING_LINK i32_4tech
 str_size(char *str)
 {
     i32_4tech i = 0;
@@ -494,7 +494,7 @@ str_size(char *str)
 #endif
 
 #if !defined(FSTRING_GUARD)
- FSTRING_INLINE String
+FSTRING_INLINE String
 make_string_slowly(void *str)
 {
     String result;
@@ -507,7 +507,7 @@ make_string_slowly(void *str)
 
 
 #if !defined(FSTRING_GUARD)
- FSTRING_INLINE String
+FSTRING_INLINE String
 substr_tail(String str, i32_4tech start)
 {
     String result;
@@ -519,7 +519,7 @@ substr_tail(String str, i32_4tech start)
 #endif
 
 #if !defined(FSTRING_GUARD)
- FSTRING_INLINE String
+FSTRING_INLINE String
 substr(String str, i32_4tech start, i32_4tech size)
 {
     String result;
@@ -534,7 +534,7 @@ substr(String str, i32_4tech start, i32_4tech size)
 #endif
 
 #if defined(FSTRING_IMPLEMENTATION)
- FSTRING_LINK String
+FSTRING_LINK String
 skip_whitespace(String str)
 {
     String result = {0};
@@ -547,7 +547,7 @@ skip_whitespace(String str)
 
 
 #if defined(FSTRING_IMPLEMENTATION)
- FSTRING_LINK String
+FSTRING_LINK String
 skip_whitespace_measure(String str, i32_4tech *skip_length)
 {
     String result = {0};
@@ -560,7 +560,7 @@ skip_whitespace_measure(String str, i32_4tech *skip_length)
 #endif
 
 #if defined(FSTRING_IMPLEMENTATION)
- FSTRING_LINK String
+FSTRING_LINK String
 chop_whitespace(String str)
 {
     String result = {0};
@@ -572,7 +572,7 @@ chop_whitespace(String str)
 #endif
 
 #if defined(FSTRING_IMPLEMENTATION)
- FSTRING_LINK String
+FSTRING_LINK String
 skip_chop_whitespace(String str)
 {
     str = skip_whitespace(str);
@@ -583,7 +583,7 @@ skip_chop_whitespace(String str)
 
 
 #if defined(FSTRING_IMPLEMENTATION)
- FSTRING_LINK String
+FSTRING_LINK String
 skip_chop_whitespace_measure(String str, i32_4tech *skip_length)
 {
     str = skip_whitespace_measure(str, skip_length);
@@ -593,7 +593,7 @@ skip_chop_whitespace_measure(String str, i32_4tech *skip_length)
 #endif
 
 #if !defined(FSTRING_GUARD)
- FSTRING_INLINE String
+FSTRING_INLINE String
 tailstr(String str)
 {
     String result;
@@ -611,7 +611,7 @@ tailstr(String str)
 
 
 #if defined(FSTRING_IMPLEMENTATION)
- FSTRING_LINK b32_4tech
+FSTRING_LINK b32_4tech
 match_cc(char *a, char *b){
     for (i32_4tech i = 0;; ++i){
         if (a[i] != b[i]){
@@ -626,7 +626,7 @@ match_cc(char *a, char *b){
 
 
 #if defined(FSTRING_IMPLEMENTATION)
- FSTRING_LINK b32_4tech
+FSTRING_LINK b32_4tech
 match_sc(String a, char *b){
     i32_4tech i = 0;
     for (; i < a.size; ++i){
@@ -643,7 +643,7 @@ match_sc(String a, char *b){
 
 
 #if !defined(FSTRING_GUARD)
- FSTRING_INLINE b32_4tech
+FSTRING_INLINE b32_4tech
 match_cs(char *a, String b){
     return(match_sc(b,a));
 }
@@ -651,7 +651,7 @@ match_cs(char *a, String b){
 
 
 #if defined(FSTRING_IMPLEMENTATION)
- FSTRING_LINK b32_4tech
+FSTRING_LINK b32_4tech
 match_ss(String a, String b){
     if (a.size != b.size){
         return 0;
@@ -667,37 +667,47 @@ match_ss(String a, String b){
 
 
 #if defined(FSTRING_IMPLEMENTATION)
- FSTRING_LINK b32_4tech
+FSTRING_LINK b32_4tech
 match_part_ccl(char *a, char *b, i32_4tech *len){
+    if (a == 0){
+        a = "";
+    }
+    if (b == 0){
+        b = "";
+    }
+    
     i32_4tech i;
     for (i = 0; b[i] != 0; ++i){
         if (a[i] != b[i]){
-            return 0;
+            return(0);
         }
     }
     *len = i;
-    return 1;
+    return(1);
 }
 #endif
 
 
 #if defined(FSTRING_IMPLEMENTATION)
- FSTRING_LINK b32_4tech
+FSTRING_LINK b32_4tech
 match_part_scl(String a, char *b, i32_4tech *len){
+    if (b == 0){
+        b = "";
+    }
     i32_4tech i;
     for (i = 0; b[i] != 0; ++i){
-        if (a.str[i] != b[i] || i == a.size){
-            return 0;
+        if (i == a.size || a.str[i] != b[i]){
+            return(0);
         }
     }
     *len = i;
-    return 1;
+    return(1);
 }
 #endif
 
 
 #if !defined(FSTRING_GUARD)
- FSTRING_INLINE b32_4tech
+FSTRING_INLINE b32_4tech
 match_part_cc(char *a, char *b){
     i32_4tech x;
     return match_part_ccl(a,b,&x);
@@ -706,7 +716,7 @@ match_part_cc(char *a, char *b){
 
 
 #if !defined(FSTRING_GUARD)
- FSTRING_INLINE b32_4tech
+FSTRING_INLINE b32_4tech
 match_part_sc(String a, char *b){
     i32_4tech x;
     return match_part_scl(a,b,&x);
@@ -715,7 +725,7 @@ match_part_sc(String a, char *b){
 
 
 #if defined(FSTRING_IMPLEMENTATION)
- FSTRING_LINK b32_4tech
+FSTRING_LINK b32_4tech
 match_part_cs(char *a, String b){
     for (i32_4tech i = 0; i != b.size; ++i){
         if (a[i] != b.str[i]){
@@ -728,23 +738,23 @@ match_part_cs(char *a, String b){
 
 
 #if defined(FSTRING_IMPLEMENTATION)
- FSTRING_LINK b32_4tech
+FSTRING_LINK b32_4tech
 match_part_ss(String a, String b){
     if (a.size < b.size){
-        return 0;
+        return(0);
     }
     for (i32_4tech i = 0; i < b.size; ++i){
         if (a.str[i] != b.str[i]){
-            return 0;
+            return(0);
         }
     }
-    return 1;
+    return(1);
 }
 #endif
 
 
 #if defined(FSTRING_IMPLEMENTATION)
- FSTRING_LINK b32_4tech
+FSTRING_LINK b32_4tech
 match_insensitive_cc(char *a, char *b){
     for (i32_4tech i = 0;; ++i){
         if (char_to_upper(a[i]) !=
@@ -760,7 +770,7 @@ match_insensitive_cc(char *a, char *b){
 
 
 #if defined(FSTRING_IMPLEMENTATION)
- FSTRING_LINK b32_4tech
+FSTRING_LINK b32_4tech
 match_insensitive_sc(String a, char *b){
     i32_4tech i = 0;
     for (; i < a.size; ++i){
@@ -778,7 +788,7 @@ match_insensitive_sc(String a, char *b){
 
 
 #if !defined(FSTRING_GUARD)
- FSTRING_INLINE b32_4tech
+FSTRING_INLINE b32_4tech
 match_insensitive_cs(char *a, String b){
     return match_insensitive_sc(b,a);
 }
@@ -786,7 +796,7 @@ match_insensitive_cs(char *a, String b){
 
 
 #if defined(FSTRING_IMPLEMENTATION)
- FSTRING_LINK b32_4tech
+FSTRING_LINK b32_4tech
 match_insensitive_ss(String a, String b){
     if (a.size != b.size){
         return 0;
@@ -803,7 +813,7 @@ match_insensitive_ss(String a, String b){
 
 
 #if defined(FSTRING_IMPLEMENTATION)
- FSTRING_LINK b32_4tech
+FSTRING_LINK b32_4tech
 match_part_insensitive_ccl(char *a, char *b, i32_4tech *len){
     i32_4tech i;
     for (i = 0; b[i] != 0; ++i){
@@ -818,7 +828,7 @@ match_part_insensitive_ccl(char *a, char *b, i32_4tech *len){
 
 
 #if defined(FSTRING_IMPLEMENTATION)
- FSTRING_LINK b32_4tech
+FSTRING_LINK b32_4tech
 match_part_insensitive_scl(String a, char *b, i32_4tech *len){
     i32_4tech i;
     for (i = 0; b[i] != 0; ++i){
@@ -834,7 +844,7 @@ match_part_insensitive_scl(String a, char *b, i32_4tech *len){
 
 
 #if !defined(FSTRING_GUARD)
- FSTRING_INLINE b32_4tech
+FSTRING_INLINE b32_4tech
 match_part_insensitive_cc(char *a, char *b){
     i32_4tech x;
     return match_part_insensitive_ccl(a,b,&x);
@@ -843,7 +853,7 @@ match_part_insensitive_cc(char *a, char *b){
 
 
 #if !defined(FSTRING_GUARD)
- FSTRING_INLINE b32_4tech
+FSTRING_INLINE b32_4tech
 match_part_insensitive_sc(String a, char *b){
     i32_4tech x;
     return match_part_insensitive_scl(a,b,&x);
@@ -852,7 +862,7 @@ match_part_insensitive_sc(String a, char *b){
 
 
 #if defined(FSTRING_IMPLEMENTATION)
- FSTRING_LINK b32_4tech
+FSTRING_LINK b32_4tech
 match_part_insensitive_cs(char *a, String b){
     for (i32_4tech i = 0; i != b.size; ++i){
         if (char_to_upper(a[i]) != char_to_upper(b.str[i])){
@@ -865,7 +875,7 @@ match_part_insensitive_cs(char *a, String b){
 
 
 #if defined(FSTRING_IMPLEMENTATION)
- FSTRING_LINK b32_4tech
+FSTRING_LINK b32_4tech
 match_part_insensitive_ss(String a, String b){
     if (a.size < b.size){
         return(0);
@@ -881,7 +891,7 @@ match_part_insensitive_ss(String a, String b){
 
 
 #if defined(FSTRING_IMPLEMENTATION)
- FSTRING_LINK i32_4tech
+FSTRING_LINK i32_4tech
 compare_cc(char *a, char *b){
     i32_4tech i = 0, r = 0;
     while (a[i] == b[i] && a[i] != 0){
@@ -894,7 +904,7 @@ compare_cc(char *a, char *b){
 
 
 #if defined(FSTRING_IMPLEMENTATION)
- FSTRING_LINK i32_4tech
+FSTRING_LINK i32_4tech
 compare_sc(String a, char *b){
     i32_4tech i = 0, r = 0;
     while (i < a.size && a.str[i] == b[i]){
@@ -917,7 +927,7 @@ compare_sc(String a, char *b){
 
 
 #if !defined(FSTRING_GUARD)
- FSTRING_INLINE i32_4tech
+FSTRING_INLINE i32_4tech
 compare_cs(char *a, String b){
     i32_4tech r = -compare_sc(b,a);
     return(r);
@@ -926,7 +936,7 @@ compare_cs(char *a, String b){
 
 
 #if defined(FSTRING_IMPLEMENTATION)
- FSTRING_LINK i32_4tech
+FSTRING_LINK i32_4tech
 compare_ss(String a, String b){
     i32_4tech i = 0, r = 0;
     i32_4tech m = a.size;
@@ -954,7 +964,7 @@ compare_ss(String a, String b){
 
 
 #if defined(FSTRING_IMPLEMENTATION)
- FSTRING_LINK i32_4tech
+FSTRING_LINK i32_4tech
 find_c_char(char *str, i32_4tech start, char character){
     i32_4tech i = start;
     while (str[i] != character && str[i] != 0) ++i;
@@ -964,7 +974,7 @@ find_c_char(char *str, i32_4tech start, char character){
 
 
 #if defined(FSTRING_IMPLEMENTATION)
- FSTRING_LINK i32_4tech
+FSTRING_LINK i32_4tech
 find_s_char(String str, i32_4tech start, char character){
     i32_4tech i = start;
     while (i < str.size && str.str[i] != character) ++i;
@@ -974,7 +984,7 @@ find_s_char(String str, i32_4tech start, char character){
 
 
 #if defined(FSTRING_IMPLEMENTATION)
- FSTRING_LINK i32_4tech
+FSTRING_LINK i32_4tech
 rfind_s_char(String str, i32_4tech start, char character){
     i32_4tech i = start;
     while (i >= 0 && str.str[i] != character) --i;
@@ -984,7 +994,7 @@ rfind_s_char(String str, i32_4tech start, char character){
 
 
 #if defined(FSTRING_IMPLEMENTATION)
- FSTRING_LINK i32_4tech
+FSTRING_LINK i32_4tech
 find_c_chars(char *str, i32_4tech start, char *characters){
     i32_4tech i = start, j;
     while (str[i] != 0){
@@ -1001,7 +1011,7 @@ find_c_chars(char *str, i32_4tech start, char *characters){
 
 
 #if defined(FSTRING_IMPLEMENTATION)
- FSTRING_LINK i32_4tech
+FSTRING_LINK i32_4tech
 find_s_chars(String str, i32_4tech start, char *characters){
     i32_4tech i = start, j;
     while (i < str.size){
@@ -1018,7 +1028,7 @@ find_s_chars(String str, i32_4tech start, char *characters){
 
 
 #if defined(FSTRING_IMPLEMENTATION)
- FSTRING_LINK i32_4tech
+FSTRING_LINK i32_4tech
 find_substr_c(char *str, i32_4tech start, String seek){
     i32_4tech i, j, k;
     b32_4tech hit;
@@ -1047,7 +1057,7 @@ find_substr_c(char *str, i32_4tech start, String seek){
 
 
 #if defined(FSTRING_IMPLEMENTATION)
- FSTRING_LINK i32_4tech
+FSTRING_LINK i32_4tech
 find_substr_s(String str, i32_4tech start, String seek){
     i32_4tech stop_at, i, j, k;
     b32_4tech hit;
@@ -1076,7 +1086,7 @@ find_substr_s(String str, i32_4tech start, String seek){
 
 
 #if defined(FSTRING_IMPLEMENTATION)
- FSTRING_LINK i32_4tech
+FSTRING_LINK i32_4tech
 rfind_substr_s(String str, i32_4tech start, String seek){
     i32_4tech i, j, k;
     b32_4tech hit;
@@ -1107,7 +1117,7 @@ rfind_substr_s(String str, i32_4tech start, String seek){
 
 
 #if defined(FSTRING_IMPLEMENTATION)
- FSTRING_LINK i32_4tech
+FSTRING_LINK i32_4tech
 find_substr_insensitive_c(char *str, i32_4tech start, String seek){
     i32_4tech i, j, k;
     b32_4tech hit;
@@ -1141,7 +1151,7 @@ find_substr_insensitive_c(char *str, i32_4tech start, String seek){
 
 
 #if defined(FSTRING_IMPLEMENTATION)
- FSTRING_LINK i32_4tech
+FSTRING_LINK i32_4tech
 find_substr_insensitive_s(String str, i32_4tech start, String seek){
     i32_4tech i, j, k;
     i32_4tech stop_at;
@@ -1177,7 +1187,7 @@ find_substr_insensitive_s(String str, i32_4tech start, String seek){
 
 
 #if !defined(FSTRING_GUARD)
- FSTRING_INLINE b32_4tech
+FSTRING_INLINE b32_4tech
 has_substr_c(char *s, String seek){
     return (s[find_substr_c(s, 0, seek)] != 0);
 }
@@ -1185,7 +1195,7 @@ has_substr_c(char *s, String seek){
 
 
 #if !defined(FSTRING_GUARD)
- FSTRING_INLINE b32_4tech
+FSTRING_INLINE b32_4tech
 has_substr_s(String s, String seek){
     return (find_substr_s(s, 0, seek) < s.size);
 }
@@ -1193,7 +1203,7 @@ has_substr_s(String s, String seek){
 
 
 #if !defined(FSTRING_GUARD)
- FSTRING_INLINE b32_4tech
+FSTRING_INLINE b32_4tech
 has_substr_insensitive_c(char *s, String seek){
     return (s[find_substr_insensitive_c(s, 0, seek)] != 0);
 }
@@ -1201,7 +1211,7 @@ has_substr_insensitive_c(char *s, String seek){
 
 
 #if !defined(FSTRING_GUARD)
- FSTRING_INLINE b32_4tech
+FSTRING_INLINE b32_4tech
 has_substr_insensitive_s(String s, String seek){
     return (find_substr_insensitive_s(s, 0, seek) < s.size);
 }
@@ -1213,7 +1223,7 @@ has_substr_insensitive_s(String s, String seek){
 
 
 #if defined(FSTRING_IMPLEMENTATION)
- FSTRING_LINK i32_4tech
+FSTRING_LINK i32_4tech
 copy_fast_unsafe_cc(char *dest, char *src){
     char *start = dest;
     while (*src != 0){
@@ -1227,7 +1237,7 @@ copy_fast_unsafe_cc(char *dest, char *src){
 
 
 #if defined(FSTRING_IMPLEMENTATION)
- FSTRING_LINK i32_4tech
+FSTRING_LINK i32_4tech
 copy_fast_unsafe_cs(char *dest, String src){
     i32_4tech i = 0;
     while (i != src.size){
@@ -1240,7 +1250,7 @@ copy_fast_unsafe_cs(char *dest, String src){
 
 
 #if defined(FSTRING_IMPLEMENTATION)
- FSTRING_LINK b32_4tech
+FSTRING_LINK b32_4tech
 copy_checked_ss(String *dest, String src){
     char *dest_str;
     i32_4tech i;
@@ -1258,7 +1268,7 @@ copy_checked_ss(String *dest, String src){
 
 
 #if defined(FSTRING_IMPLEMENTATION)
- FSTRING_LINK b32_4tech
+FSTRING_LINK b32_4tech
 copy_checked_cs(char *dest, i32_4tech dest_cap, String src){
     i32_4tech i;
     if (dest_cap < src.size){
@@ -1273,7 +1283,7 @@ copy_checked_cs(char *dest, i32_4tech dest_cap, String src){
 
 
 #if defined(FSTRING_IMPLEMENTATION)
- FSTRING_LINK b32_4tech
+FSTRING_LINK b32_4tech
 copy_partial_sc(String *dest, char *src){
     i32_4tech i = 0;
     i32_4tech memory_size = dest->memory_size;
@@ -1292,7 +1302,7 @@ copy_partial_sc(String *dest, char *src){
 
 
 #if defined(FSTRING_IMPLEMENTATION)
- FSTRING_LINK b32_4tech
+FSTRING_LINK b32_4tech
 copy_partial_ss(String *dest, String src){
     char *dest_str = dest->str;
     i32_4tech memory_size = dest->memory_size;
@@ -1311,7 +1321,7 @@ copy_partial_ss(String *dest, String src){
 
 
 #if defined(FSTRING_IMPLEMENTATION)
- FSTRING_LINK b32_4tech
+FSTRING_LINK b32_4tech
 copy_partial_cs(char *dest, i32_4tech dest_cap, String src){
     b32_4tech result = 0;
     i32_4tech copy_size = dest_cap;
@@ -1329,7 +1339,7 @@ copy_partial_cs(char *dest, i32_4tech dest_cap, String src){
 
 
 #if !defined(FSTRING_GUARD)
- FSTRING_INLINE i32_4tech
+FSTRING_INLINE i32_4tech
 copy_cc(char *dest, char *src){
     return copy_fast_unsafe_cc(dest, src);
 }
@@ -1337,7 +1347,7 @@ copy_cc(char *dest, char *src){
 
 
 #if !defined(FSTRING_GUARD)
- FSTRING_INLINE void
+FSTRING_INLINE void
 copy_ss(String *dest, String src){
     copy_checked_ss(dest, src);
 }
@@ -1345,7 +1355,7 @@ copy_ss(String *dest, String src){
 
 
 #if !defined(FSTRING_GUARD)
- FSTRING_INLINE void
+FSTRING_INLINE void
 copy_sc(String *dest, char *src){
     copy_partial_sc(dest, src);
 }
@@ -1353,7 +1363,7 @@ copy_sc(String *dest, char *src){
 
 
 #if defined(FSTRING_IMPLEMENTATION)
- FSTRING_LINK b32_4tech
+FSTRING_LINK b32_4tech
 append_checked_ss(String *dest, String src){
     String end;
     end = tailstr(*dest);
@@ -1367,7 +1377,7 @@ append_checked_ss(String *dest, String src){
 
 
 #if defined(FSTRING_IMPLEMENTATION)
- FSTRING_LINK b32_4tech
+FSTRING_LINK b32_4tech
 append_partial_sc(String *dest, char *src){
     String end = tailstr(*dest);
     b32_4tech result = copy_partial_sc(&end, src);
@@ -1378,7 +1388,7 @@ append_partial_sc(String *dest, char *src){
 
 
 #if defined(FSTRING_IMPLEMENTATION)
- FSTRING_LINK b32_4tech
+FSTRING_LINK b32_4tech
 append_partial_ss(String *dest, String src){
     String end = tailstr(*dest);
     b32_4tech result = copy_partial_ss(&end, src);
@@ -1389,7 +1399,7 @@ append_partial_ss(String *dest, String src){
 
 
 #if defined(FSTRING_IMPLEMENTATION)
- FSTRING_LINK b32_4tech
+FSTRING_LINK b32_4tech
 append_s_char(String *dest, char c){
     b32_4tech result = 0;
     if (dest->size < dest->memory_size){
@@ -1402,7 +1412,7 @@ append_s_char(String *dest, char c){
 
 
 #if !defined(FSTRING_GUARD)
- FSTRING_INLINE b32_4tech
+FSTRING_INLINE b32_4tech
 append_ss(String *dest, String src){
     return append_partial_ss(dest, src);
 }
@@ -1410,14 +1420,14 @@ append_ss(String *dest, String src){
 
 
 #if !defined(FSTRING_GUARD)
- FSTRING_INLINE b32_4tech
+FSTRING_INLINE b32_4tech
 append_sc(String *dest, char *src){
     return append_partial_sc(dest, src);
 }
 #endif
 
 #if defined(FSTRING_IMPLEMENTATION)
- FSTRING_LINK b32_4tech
+FSTRING_LINK b32_4tech
 terminate_with_null(String *str){
     b32_4tech result = 0;
     if (str->size < str->memory_size){
@@ -1429,7 +1439,7 @@ terminate_with_null(String *str){
 #endif
 
 #if defined(FSTRING_IMPLEMENTATION)
- FSTRING_LINK b32_4tech
+FSTRING_LINK b32_4tech
 append_padding(String *dest, char c, i32_4tech target_size){
     b32_4tech result = 1;
     i32_4tech offset = target_size - dest->size;
@@ -1452,7 +1462,7 @@ append_padding(String *dest, char c, i32_4tech target_size){
 //
 
 #if defined(FSTRING_IMPLEMENTATION)
- FSTRING_LINK void
+FSTRING_LINK void
 replace_char(String *str, char replace, char with){
     char *s = str->str;
     i32_4tech i = 0;
@@ -1464,7 +1474,7 @@ replace_char(String *str, char replace, char with){
 
 
 #if defined(FSTRING_IMPLEMENTATION)
- FSTRING_LINK void
+FSTRING_LINK void
 to_lower_cc(char *src, char *dst){
     for (; *src != 0; ++src){
         *dst++ = char_to_lower(*src);
@@ -1475,7 +1485,7 @@ to_lower_cc(char *src, char *dst){
 
 
 #if defined(FSTRING_IMPLEMENTATION)
- FSTRING_LINK void
+FSTRING_LINK void
 to_lower_ss(String *dst, String src){
     i32_4tech i = 0;
     i32_4tech size = src.size;
@@ -1493,7 +1503,7 @@ to_lower_ss(String *dst, String src){
 
 
 #if defined(FSTRING_IMPLEMENTATION)
- FSTRING_LINK void
+FSTRING_LINK void
 to_lower_s(String *str){
     i32_4tech i = 0;
     i32_4tech size = str->size;
@@ -1506,7 +1516,7 @@ to_lower_s(String *str){
 
 
 #if defined(FSTRING_IMPLEMENTATION)
- FSTRING_LINK void
+FSTRING_LINK void
 to_upper_cc(char *src, char *dst){
     for (; *src != 0; ++src){
         *dst++ = char_to_upper(*src);
@@ -1517,7 +1527,7 @@ to_upper_cc(char *src, char *dst){
 
 
 #if defined(FSTRING_IMPLEMENTATION)
- FSTRING_LINK void
+FSTRING_LINK void
 to_upper_ss(String *dst, String src){
     i32_4tech i = 0;
     i32_4tech size = src.size;
@@ -1535,7 +1545,7 @@ to_upper_ss(String *dst, String src){
 
 
 #if defined(FSTRING_IMPLEMENTATION)
- FSTRING_LINK void
+FSTRING_LINK void
 to_upper_s(String *str){
     i32_4tech i = 0;
     i32_4tech size = str->size;
@@ -1548,7 +1558,7 @@ to_upper_s(String *str){
 
 
 #if defined(FSTRING_IMPLEMENTATION)
- FSTRING_LINK void
+FSTRING_LINK void
 to_camel_cc(char *src, char *dst){
     char *c, ch;
     i32_4tech is_first = 1;
@@ -1578,7 +1588,7 @@ to_camel_cc(char *src, char *dst){
 //
 
 #if defined(FSTRING_IMPLEMENTATION)
- FSTRING_LINK i32_4tech
+FSTRING_LINK i32_4tech
 int_to_str_size(i32_4tech x){
     i32_4tech size = 1;
     if (x < 0){
@@ -1594,7 +1604,7 @@ int_to_str_size(i32_4tech x){
 #endif
 
 #if defined(FSTRING_IMPLEMENTATION)
- FSTRING_LINK b32_4tech
+FSTRING_LINK b32_4tech
 int_to_str(String *dest, i32_4tech x){
     b32_4tech result = 1;
     char *str = dest->str;
@@ -1641,7 +1651,7 @@ int_to_str(String *dest, i32_4tech x){
 #endif
 
 #if defined(FSTRING_IMPLEMENTATION)
- FSTRING_LINK b32_4tech
+FSTRING_LINK b32_4tech
 append_int_to_str(String *dest, i32_4tech x){
     String last_part = tailstr(*dest);
     b32_4tech result = int_to_str(&last_part, x);
@@ -1653,7 +1663,7 @@ append_int_to_str(String *dest, i32_4tech x){
 #endif
 
 #if defined(FSTRING_IMPLEMENTATION)
- FSTRING_LINK i32_4tech
+FSTRING_LINK i32_4tech
 u64_to_str_size(uint64_t x){
     i32_4tech size = 1;
     x /= 10;
@@ -1666,7 +1676,7 @@ u64_to_str_size(uint64_t x){
 #endif
 
 #if defined(FSTRING_IMPLEMENTATION)
- FSTRING_LINK b32_4tech
+FSTRING_LINK b32_4tech
 u64_to_str(String *dest, uint64_t x){
     b32_4tech result = 1;
     char *str = dest->str;
@@ -1705,7 +1715,7 @@ u64_to_str(String *dest, uint64_t x){
 #endif
 
 #if defined(FSTRING_IMPLEMENTATION)
- FSTRING_LINK b32_4tech
+FSTRING_LINK b32_4tech
 append_u64_to_str(String *dest, uint64_t x){
     String last_part = tailstr(*dest);
     b32_4tech result = u64_to_str(&last_part, x);
@@ -1740,7 +1750,7 @@ get_float_vars(float x){
 #endif
 
 #if defined(FSTRING_IMPLEMENTATION)
- FSTRING_LINK i32_4tech
+FSTRING_LINK i32_4tech
 float_to_str_size(float x){
     Float_To_Str_Variables vars = get_float_vars(x);
     i32_4tech size = vars.negative + int_to_str_size(vars.int_part) + 1 + int_to_str_size(vars.dec_part);
@@ -1749,7 +1759,7 @@ float_to_str_size(float x){
 #endif
 
 #if defined(FSTRING_IMPLEMENTATION)
- FSTRING_LINK b32_4tech
+FSTRING_LINK b32_4tech
 append_float_to_str(String *dest, float x){
     b32_4tech result = 1;
     Float_To_Str_Variables vars = get_float_vars(x);
@@ -1767,7 +1777,7 @@ append_float_to_str(String *dest, float x){
 #endif
 
 #if defined(FSTRING_IMPLEMENTATION)
- FSTRING_LINK b32_4tech
+FSTRING_LINK b32_4tech
 float_to_str(String *dest, float x){
     b32_4tech result = 1;
     dest->size = 0;
@@ -1778,7 +1788,7 @@ float_to_str(String *dest, float x){
 
 
 #if defined(FSTRING_IMPLEMENTATION)
- FSTRING_LINK i32_4tech
+FSTRING_LINK i32_4tech
 str_is_int_c(char *str){
     b32_4tech result = 1;
     for (; *str; ++str){
@@ -1793,7 +1803,7 @@ str_is_int_c(char *str){
 
 
 #if defined(FSTRING_IMPLEMENTATION)
- FSTRING_LINK b32_4tech
+FSTRING_LINK b32_4tech
 str_is_int_s(String str){
     b32_4tech result = 1;
     for (i32_4tech i = 0; i < str.size; ++i){
@@ -1808,7 +1818,7 @@ str_is_int_s(String str){
 
 
 #if defined(FSTRING_IMPLEMENTATION)
- FSTRING_LINK i32_4tech
+FSTRING_LINK i32_4tech
 str_to_int_c(char *str){
     i32_4tech x = 0;
     for (; *str; ++str){
@@ -1827,7 +1837,7 @@ str_to_int_c(char *str){
 
 
 #if defined(FSTRING_IMPLEMENTATION)
- FSTRING_LINK i32_4tech
+FSTRING_LINK i32_4tech
 str_to_int_s(String str){
     i32_4tech x, i;
     if (str.size == 0){
@@ -1845,7 +1855,7 @@ str_to_int_s(String str){
 #endif
 
 #if defined(FSTRING_IMPLEMENTATION)
- FSTRING_LINK i32_4tech
+FSTRING_LINK i32_4tech
 hexchar_to_int(char c){
     i32_4tech x = 0;
     if (c >= '0' && c <= '9'){
@@ -1862,14 +1872,14 @@ hexchar_to_int(char c){
 #endif
 
 #if defined(FSTRING_IMPLEMENTATION)
- FSTRING_LINK char
+FSTRING_LINK char
 int_to_hexchar(i32_4tech x){
     return (x<10)?((char)x+'0'):((char)x+'a'-10);
 }
 #endif
 
 #if defined(FSTRING_IMPLEMENTATION)
- FSTRING_LINK u32_4tech
+FSTRING_LINK u32_4tech
 hexstr_to_int(String str){
     u32_4tech x;
     i32_4tech i;
@@ -1888,7 +1898,7 @@ hexstr_to_int(String str){
 #endif
 
 #if defined(FSTRING_IMPLEMENTATION)
- FSTRING_LINK b32_4tech
+FSTRING_LINK b32_4tech
 color_to_hexstr(String *s, u32_4tech color){
     b32_4tech result = 0;
     i32_4tech i;
@@ -1917,7 +1927,7 @@ color_to_hexstr(String *s, u32_4tech color){
 #endif
 
 #if defined(FSTRING_IMPLEMENTATION)
- FSTRING_LINK b32_4tech
+FSTRING_LINK b32_4tech
 hexstr_to_color(String s, u32_4tech *out){
     b32_4tech result = 0;
     u32_4tech color = 0;
@@ -1942,7 +1952,7 @@ hexstr_to_color(String s, u32_4tech *out){
 
 
 #if defined(FSTRING_IMPLEMENTATION)
- FSTRING_LINK i32_4tech
+FSTRING_LINK i32_4tech
 reverse_seek_slash_pos(String str, i32_4tech pos){
     i32_4tech i = str.size - 1 - pos;
     while (i >= 0 && !char_is_slash(str.str[i])){
@@ -1953,21 +1963,21 @@ reverse_seek_slash_pos(String str, i32_4tech pos){
 #endif
 
 #if !defined(FSTRING_GUARD)
- FSTRING_INLINE i32_4tech
+FSTRING_INLINE i32_4tech
 reverse_seek_slash(String str){
     return(reverse_seek_slash_pos(str, 0));
 }
 #endif
 
 #if !defined(FSTRING_GUARD)
- FSTRING_INLINE String
+FSTRING_INLINE String
 front_of_directory(String dir){
     return substr_tail(dir, reverse_seek_slash(dir) + 1);
 }
 #endif
 
 #if !defined(FSTRING_GUARD)
- FSTRING_INLINE String
+FSTRING_INLINE String
 path_of_directory(String dir){
     return substr(dir, 0, reverse_seek_slash(dir) + 1);
 }
@@ -1975,7 +1985,7 @@ path_of_directory(String dir){
 
 
 #if defined(FSTRING_IMPLEMENTATION)
- FSTRING_LINK b32_4tech
+FSTRING_LINK b32_4tech
 set_last_folder_sc(String *dir, char *folder_name, char slash){
     b32_4tech result = 0;
     i32_4tech size = reverse_seek_slash(*dir) + 1;
@@ -1994,7 +2004,7 @@ set_last_folder_sc(String *dir, char *folder_name, char slash){
 
 
 #if defined(FSTRING_IMPLEMENTATION)
- FSTRING_LINK b32_4tech
+FSTRING_LINK b32_4tech
 set_last_folder_ss(String *dir, String folder_name, char slash){
     b32_4tech result = 0;
     i32_4tech size = reverse_seek_slash(*dir) + 1;
@@ -2012,7 +2022,7 @@ set_last_folder_ss(String *dir, String folder_name, char slash){
 #endif
 
 #if defined(FSTRING_IMPLEMENTATION)
- FSTRING_LINK String
+FSTRING_LINK String
 file_extension(String str){
     i32_4tech i;
     for (i = str.size - 1; i >= 0; --i){
@@ -2024,7 +2034,7 @@ file_extension(String str){
 #endif
 
 #if defined(FSTRING_IMPLEMENTATION)
- FSTRING_LINK b32_4tech
+FSTRING_LINK b32_4tech
 remove_extension(String *str){
     b32_4tech result = 0;
     i32_4tech i;
@@ -2040,7 +2050,7 @@ remove_extension(String *str){
 #endif
 
 #if defined(FSTRING_IMPLEMENTATION)
- FSTRING_LINK b32_4tech
+FSTRING_LINK b32_4tech
 remove_last_folder(String *str){
     b32_4tech result = 0;
     i32_4tech end = reverse_seek_slash_pos(*str, 1);
@@ -2055,7 +2065,7 @@ remove_last_folder(String *str){
 // TODO(allen): Add hash-table extension to string sets.
 
 #if defined(FSTRING_IMPLEMENTATION)
- FSTRING_LINK b32_4tech
+FSTRING_LINK b32_4tech
 string_set_match_table(void *str_set, i32_4tech item_size, i32_4tech count, String str, i32_4tech *match_index){
     b32_4tech result = 0;
     i32_4tech i = 0;
@@ -2072,7 +2082,7 @@ string_set_match_table(void *str_set, i32_4tech item_size, i32_4tech count, Stri
 #endif
 
 #if defined(FSTRING_IMPLEMENTATION)
- FSTRING_LINK b32_4tech
+FSTRING_LINK b32_4tech
 string_set_match(String *str_set, i32_4tech count, String str, i32_4tech *match_index){
     b32_4tech result = string_set_match_table(str_set, sizeof(String), count, str, match_index);
     return(result);
@@ -2080,7 +2090,7 @@ string_set_match(String *str_set, i32_4tech count, String str, i32_4tech *match_
 #endif
 
 #if defined(FSTRING_IMPLEMENTATION)
- FSTRING_LINK String
+FSTRING_LINK String
 get_first_double_line(String source){
     String line = {0};
     i32_4tech pos0 = find_substr_s(source, 0, make_lit_string("\n\n"));
@@ -2094,7 +2104,7 @@ get_first_double_line(String source){
 #endif
 
 #if defined(FSTRING_IMPLEMENTATION)
- FSTRING_LINK String
+FSTRING_LINK String
 get_next_double_line(String source, String line){
     String next = {0};
     i32_4tech pos = (i32_4tech)(line.str - source.str) + line.size;
@@ -2119,7 +2129,7 @@ get_next_double_line(String source, String line){
 #endif
 
 #if defined(FSTRING_IMPLEMENTATION)
- FSTRING_LINK String
+FSTRING_LINK String
 get_next_word(String source, String prev_word){
     
     String word = {0};
@@ -2150,7 +2160,7 @@ get_next_word(String source, String prev_word){
 #endif
 
 #if defined(FSTRING_IMPLEMENTATION)
- FSTRING_LINK String
+FSTRING_LINK String
 get_first_word(String source){
     String start_str = make_string(source.str, 0);
     String word = get_next_word(source, start_str);

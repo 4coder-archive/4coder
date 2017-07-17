@@ -22,7 +22,7 @@
 \SECTION{Types and Functions}{types_and_functions}
 
  \SECTION{Function List}
-  \DOC_LIST{custom_funcs}
+  \DOC_LIST{custom_funcs}{mangle:to lower}
  \END_SECTION
 
  \SECTION{Type List}
@@ -30,7 +30,7 @@
  \END_SECTION
 
  \SECTION{Function Descriptions}
-  \DOC_FULL{custom_funcs}
+  \DOC_FULL{custom_funcs}{mangle:to lower}
  \END_SECTION
 
  \SECTION{Type Descriptions}

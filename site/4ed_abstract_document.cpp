@@ -28,20 +28,56 @@ load_enriched_text(char *directory, char *filename){
 
 ////////////////////////////////
 
-struct Alternate_Name{
-    String macro;
-    String public_name;
-};
-
-struct Alternate_Names_Array{
-    Alternate_Name *names;
-};
-
+typedef u32 Mangle_Rule;
 enum{
-    AltName_Standard,
-    AltName_Macro,
-    AltName_Public_Name,
+    MangleRule_None,
+    MangleRule_MacroSig,
+    MangleRule_ToLower,
 };
+
+internal Mangle_Rule
+get_mangle_rule(String mangle){
+    Mangle_Rule result = MangleRule_None;
+    if (match(mangle, "macro sig")){
+        result = MangleRule_MacroSig;
+    }
+    else if (match(mangle, "to lower")){
+        result = MangleRule_ToLower;
+    }
+    return(result);
+}
+
+internal String
+apply_mangle_rule(String name, u32 mangle_rule){
+    String result = {0};
+    switch (mangle_rule){
+        case MangleRule_MacroSig:
+        {
+            result = str_alloc(name.size + 5);
+            fm_align();
+            copy(&result, name);
+            to_upper(&result);
+            append(&result, "_SIG");
+            terminate_with_null(&result);
+        }break;
+        
+        case MangleRule_ToLower:
+        {
+            result = str_alloc(name.size + 1);
+            fm_align();
+            copy(&result, name);
+            to_lower(&result);
+            terminate_with_null(&result);
+        }break;
+        
+        default:
+        {
+            result = name;
+        }break;
+    }
+    
+    return(result);
+}
 
 ////////////////////////////////
 
@@ -88,8 +124,8 @@ struct Document_Item{
         
         struct{
             Meta_Unit *unit;
-            Alternate_Names_Array *alt_names;
-            i32 alt_name_type;
+            //Alternate_Names_Array *alt_names;
+            u32 mangle_rule;
         } unit_elements;
         
         struct{
@@ -156,6 +192,7 @@ enum{
     ItemType_Document,
     ItemType_Image,
     ItemType_GenericFile,
+    ItemType_MetaUnit,
     //
     ItemType_COUNT,
 };
@@ -173,6 +210,9 @@ struct Abstract_Item{
     float w_h_ratio;
     float h_w_ratio;
     Basic_List img_instantiations;
+    
+    // Meta parse members
+    Meta_Unit *unit;
 };
 global Abstract_Item null_abstract_item = {0};
 
@@ -210,16 +250,24 @@ struct Image_Instantiation{
 };
 
 struct Document_System{
+    char *code_dir;
+    char *asset_dir;
+    char *src_dir;
+    
     Basic_List doc_list;
     Basic_List img_list;
     Basic_List file_list;
+    Basic_List meta_list;
     
     Basic_List unresolved_includes;
 };
 
 internal Document_System
-create_document_system(){
+create_document_system(char *code_dir, char *asset_dir, char *src_dir){
     Document_System system = {0};
+    system.code_dir = code_dir;
+    system.asset_dir = asset_dir;
+    system.src_dir = src_dir;
     return(system);
 }
 
@@ -280,13 +328,53 @@ create_abstract_item(Basic_List *list, char *name){
     return(result);
 }
 
+internal char*
+get_null_terminated_version(String str){
+    char *ptr = 0;
+    if (terminate_with_null(&str)){
+        ptr = str.str;
+    }
+    else{
+        String b = str_alloc(str.size + 1);
+        copy(&b, str);
+        terminate_with_null(&b);
+        ptr = b.str;
+    }
+    return(ptr);
+}
+
+internal b32
+create_meta_unit(Document_System *doc_system, String name_str, String file_str){
+    char *name = get_null_terminated_version(name_str);
+    char *file = get_null_terminated_version(file_str);
+    
+    Abstract_Item *item = create_abstract_item(&doc_system->meta_list, name);
+    
+    b32 result = false;
+    if (item != 0){
+        Meta_Unit *unit = fm_push_array(Meta_Unit, 1);
+        *unit = compile_meta_unit(doc_system->code_dir, file, ExpandArray(meta_keywords));
+        
+        if (unit->count != 0){
+            result = true;
+            item->item_type = ItemType_MetaUnit;
+            item->name = name;
+            item->unit = unit;
+        }
+    }
+    
+    return(result);
+}
+
 internal Abstract_Item*
 add_generic_file(Document_System *system, char *source_file, char *extension, char *name){
     Abstract_Item *item = create_abstract_item(&system->file_list, name);
     if (item){
+        char *full_file = fm_str(system->asset_dir, "/", source_file);
+        
         item->item_type = ItemType_GenericFile;
         item->extension = extension;
-        item->source_file = source_file;
+        item->source_file = full_file;
         item->name = name;
     }
     return(item);
@@ -296,15 +384,17 @@ internal Abstract_Item*
 add_image_description(Document_System *system, char *source_file, char *extension, char *name){
     Abstract_Item *item = create_abstract_item(&system->img_list, name);
     if (item != 0){
+        char *full_file = fm_str(system->asset_dir, "/", source_file);
+        
         item->item_type = ItemType_Image;
-        item->extension = extension;
-        item->source_file = source_file;
         item->name = name;
+        item->extension = extension;
+        item->source_file = full_file;
         
         i32 w = 0, h = 0, comp = 0;
-        i32 stbi_r = stbi_info(source_file, &w, &h, &comp);
+        i32 stbi_r = stbi_info(full_file, &w, &h, &comp);
         if (!stbi_r){
-            fprintf(stdout, "Did not find file %s\n", source_file);
+            fprintf(stdout, "Did not find file %s\n", full_file);
             item->w_h_ratio = 1.f;
             item->h_w_ratio = 1.f;
         }
@@ -440,31 +530,17 @@ add_include(Document_System *doc_system, Document_Builder *builder, String text)
 }
 
 internal void
-add_element_list(Document_Builder *builder, Meta_Unit *unit){
+add_doc_list(Document_Builder *builder, Meta_Unit *unit, Mangle_Rule mangle_rule){
     Document_Item *item = doc_new_item(builder, Doc_DocList);
     item->unit_elements.unit = unit;
+    item->unit_elements.mangle_rule = mangle_rule;
 }
 
 internal void
-add_element_list(Document_Builder *builder, Meta_Unit *unit, Alternate_Names_Array *alt_names, i32 alt_name_type){
-    Document_Item *item = doc_new_item(builder, Doc_DocList);
-    item->unit_elements.unit = unit;
-    item->unit_elements.alt_names = alt_names;
-    item->unit_elements.alt_name_type = alt_name_type;
-}
-
-internal void
-add_full_elements(Document_Builder *builder, Meta_Unit *unit){
+add_doc_full(Document_Builder *builder, Meta_Unit *unit, Mangle_Rule mangle_rule){
     Document_Item *item = doc_new_item(builder, Doc_DocFull);
     item->unit_elements.unit = unit;
-}
-
-internal void
-add_full_elements(Document_Builder *builder, Meta_Unit *unit, Alternate_Names_Array *alt_names, i32 alt_name_type){
-    Document_Item *item = doc_new_item(builder, Doc_DocFull);
-    item->unit_elements.unit = unit;
-    item->unit_elements.alt_names = alt_names;
-    item->unit_elements.alt_name_type = alt_name_type;
+    item->unit_elements.mangle_rule = mangle_rule;
 }
 
 internal void
@@ -500,10 +576,7 @@ add_end_style(Document_Builder *builder){
 
 internal void
 add_document_link(Document_Builder *builder, String text){
-    Document_Item *item = doc_new_item(builder, Doc_BeginStyle);
-    item->string.string = str_alloc(text.size);
-    fm_align();
-    copy(&item->string.string, text);
+    doc_new_item_strings(builder, Doc_DocumentLink, text, null_string);
 }
 
 internal void
@@ -577,6 +650,9 @@ enum Command_Types{
     Cmd_TableOfContents,
     Cmd_Todo,
     Cmd_Include,
+    Cmd_MetaParse,
+    Cmd_DocList,
+    Cmd_DocFull,
     // never below this
     Cmd_COUNT,
 };
@@ -606,6 +682,9 @@ get_enriched_commands(){
         enriched_commands_global_array[Cmd_TableOfContents] = make_lit_string("TABLE_OF_CONTENTS");
         enriched_commands_global_array[Cmd_Todo]            = make_lit_string("TODO");
         enriched_commands_global_array[Cmd_Include]         = make_lit_string("INCLUDE");
+        enriched_commands_global_array[Cmd_MetaParse]       = make_lit_string("META_PARSE");
+        enriched_commands_global_array[Cmd_DocList]         = make_lit_string("DOC_LIST");
+        enriched_commands_global_array[Cmd_DocFull]         = make_lit_string("DOC_FULL");
     }
     return(enriched_commands_global_array);
 }
@@ -867,6 +946,59 @@ make_document_from_text(Document_System *doc_system, char *title, char *name, En
                             }
                         }break;
                         
+                        case Cmd_MetaParse:
+                        {
+                            String name = {0};
+                            String file = {0};
+                            if (extract_command_body(l, &i, &name)){
+                                if (extract_command_body(l, &i, &file)){
+                                    if (!create_meta_unit(doc_system, name, file)){
+                                        char space[512];
+                                        String str = make_fixed_width_string(space);
+                                        append(&str, "parse failed for ");
+                                        append(&str, file);
+                                        add_error(&builder, str);
+                                    }
+                                }
+                                else{
+                                    report_error_missing_body(&builder, command_string);
+                                }
+                            }
+                            else{
+                                report_error_missing_body(&builder, command_string);
+                            }
+                        }break;
+                        
+                        case Cmd_DocList:
+                        case Cmd_DocFull:
+                        {
+                            String name = {0};
+                            if (extract_command_body(l, &i, &name)){
+                                String mangle = {0};
+                                extract_command_body(l, &i, &mangle);
+                                
+                                Abstract_Item *item = get_item_by_name(doc_system->meta_list, name);
+                                if (item != 0){
+                                    u32 mangle_rule = MangleRule_None;
+                                    if (match_part(mangle, "mangle:")){
+                                        String mangle_name = substr_tail(mangle, sizeof("mangle:")-1);
+                                        mangle_name = skip_chop_whitespace(mangle_name);
+                                        mangle_rule = get_mangle_rule(mangle_name);
+                                    }
+                                    
+                                    if (match_index == Cmd_DocList){
+                                        add_doc_list(&builder, item->unit, mangle_rule);
+                                    }
+                                    else{
+                                        add_doc_full(&builder, item->unit, mangle_rule);
+                                    }
+                                }
+                            }
+                            else{
+                                report_error_missing_body(&builder, command_string);
+                            }
+                        }break;
+                        
                         default:
                         {
                             char space[512];
@@ -919,7 +1051,7 @@ get_unresolved_includes(Document_System *doc_system){
 }
 
 internal void
-resolve_all_includes(Document_System *doc_system, char *src_directory){
+resolve_all_includes(Document_System *doc_system){
     for (;doc_system->unresolved_includes.count > 0;){
         Unresolved_Include_Array includes = get_unresolved_includes(doc_system);
         clear_list(&doc_system->unresolved_includes);
@@ -932,7 +1064,7 @@ resolve_all_includes(Document_System *doc_system, char *src_directory){
             if (inc_doc == 0){
                 String source_text = item->include.name;
                 Enriched_Text *text = fm_push_array(Enriched_Text, 1);
-                *text = load_enriched_text(src_directory, source_text.str);
+                *text = load_enriched_text(doc_system->src_dir, source_text.str);
                 inc_doc = make_document_from_text(doc_system, source_text.str, source_text.str, text);
             }
             item->include.document = inc_doc;
@@ -1143,7 +1275,7 @@ output_begin_link(Document_System *doc_system, String *out, String l){
         l.size--;
     }
     append(out, "href='");
-    if (match_part_sc(l, "document:")){
+    if (match_part(l, "document:")){
         String doc_name = substr_tail(l, sizeof("document:")-1);
         Abstract_Item *doc_lookup = get_item_by_name(doc_system->doc_list, doc_name);
         if (doc_lookup){
@@ -1181,7 +1313,7 @@ output_image(Document_System *doc_system, String *out, String l, String l2){
         }
     }
     
-    if (match_part_sc(l, "image:")){
+    if (match_part(l, "image:")){
         String img_name = substr_tail(l, sizeof("image:")-1);
         Abstract_Item *img_lookup = get_item_by_name(doc_system->img_list, img_name);
         
@@ -1210,7 +1342,7 @@ output_image(Document_System *doc_system, String *out, String l, String l2){
 
 internal void
 output_video(String *out, String l){
-    if (match_part_sc(l, "youtube:")){
+    if (match_part(l, "youtube:")){
         i32 pixel_width = HTML_WIDTH;
         i32 pixel_height = (i32)(pixel_width * 0.5625f);
         
@@ -1286,200 +1418,6 @@ output_begin_item(String *out, Section_Counter *section_counter){
 internal void
 output_end_item(String *out){
     append(out, "</li>");
-}
-
-internal void
-write_enriched_text_html(String *out, Enriched_Text *text, Document_System *doc_system,  Section_Counter *section_counter){
-    String source = text->source;
-    
-    append(out, "<div>");
-    
-    for (String line = get_first_double_line(source);
-         line.str;
-         line = get_next_double_line(source, line)){
-        String l = skip_chop_whitespace(line);
-        output_begin_paragraph(out);
-        
-        i32 start = 0, i = 0;
-        for (; i < l.size; ++i){
-            char ch = l.str[i];
-            if (ch == '\\'){
-                output_plain_old_text(out, substr(l, start, i - start));
-                
-                i32 command_start = i + 1;
-                i32 command_end = command_start;
-                for (; command_end < l.size; ++command_end){
-                    if (!char_is_alpha_numeric(l.str[command_end])){
-                        break;
-                    }
-                }
-                
-                if (command_end == command_start){
-                    if (command_end < l.size && l.str[command_end] == '\\'){
-                        ++command_end;
-                    }
-                }
-                
-                String command_string = substr(l, command_start, command_end - command_start);
-                
-                String *enriched_commands = get_enriched_commands();
-                u32 enriched_commands_count = get_enriched_commands_count();
-                
-                i = command_end;
-                
-                i32 match_index = 0;
-                if (!string_set_match(enriched_commands, enriched_commands_count, command_string, &match_index)){
-                    match_index = -1;
-                }
-                
-                switch (match_index){
-                    case Cmd_BackSlash: append(out, "\\"); break;
-                    
-                    case Cmd_BeginStyle:
-                    {
-                        String body_text = {0};
-                        b32 has_body = extract_command_body(l, &i, &body_text);
-                        if (has_body){
-                            output_begin_style(out, body_text);
-                        }
-                        else{
-                            report_error_html_missing_body(out, command_string);
-                        }
-                    }break;
-                    
-                    case Cmd_EndStyle:
-                    {
-                        output_end_style(out);
-                    }break;
-                    
-                    // TODO(allen): upgrade this bs
-                    case Cmd_DocumentLink:
-                    {
-                        String body_text = {0};
-                        b32 has_body = extract_command_body(l, &i, &body_text);
-                        if (has_body){
-                            output_document_link(out, body_text);
-                        }
-                        else{
-                            report_error_html_missing_body(out, command_string);
-                        }
-                    }break;
-                    
-                    case Cmd_BeginList:
-                    {
-                        output_begin_list(out);
-                    }break;
-                    
-                    case Cmd_EndList:
-                    {
-                        output_end_list(out);
-                    }break;
-                    
-                    case Cmd_BeginItem:
-                    {
-                        output_begin_item(out, section_counter);
-                    }break;
-                    
-                    case Cmd_EndItem:
-                    {
-                        output_end_item(out);
-                    }break;
-                    
-                    case Cmd_BeginLink:
-                    {
-                        String body_text = {0};
-                        b32 has_body = extract_command_body(l, &i, &body_text);
-                        if (has_body){
-                            output_begin_link(doc_system, out, body_text);
-                        }
-                        else{
-                            report_error_html_missing_body(out, command_string);
-                        }
-                    }break;
-                    
-                    case Cmd_EndLink:
-                    {
-                        output_end_link(out);
-                    }break;
-                    
-                    case Cmd_Image:
-                    {
-                        String body_text = {0};
-                        b32 has_body = extract_command_body(l, &i, &body_text);
-                        if (has_body){
-                            String size_parameter = {0};
-                            extract_command_body(l, &i, &size_parameter);
-                            output_image(doc_system, out, body_text, size_parameter);
-                        }
-                        else{
-                            report_error_html_missing_body(out, command_string);
-                        }
-                    }break;
-                    
-                    case Cmd_Video:
-                    {
-                        String body_text = {0};
-                        b32 has_body = extract_command_body(l, &i, &body_text);
-                        if (has_body){
-                            output_video(out, body_text);
-                        }
-                        else{
-                            report_error_html_missing_body(out, command_string);
-                        }
-                    }break;
-                    
-                    case Cmd_Section:
-                    {
-                        String body_text = {0};
-                        b32 has_body = extract_command_body(l, &i, &body_text);
-                        if (has_body){
-                            String extra_text = {0};
-                            extract_command_body(l, &i, &extra_text);
-                            output_begin_section(out, section_counter, body_text, extra_text);
-                        }
-                        else{
-                            report_error_html_missing_body(out, command_string);
-                        }
-                    }break;
-                    
-                    case Cmd_EndSection:
-                    {
-                        output_end_section(out, section_counter);
-                    }break;
-                    
-                    case Cmd_Version:
-                    {
-                        append(out, VERSION);
-                    }break;
-                    
-                    case Cmd_TableOfContents:
-                    {
-                        String str = make_lit_string("Cmd_TableOfContents does not work in this system");
-                        output_error(out, str);
-                    }break;
-                    
-                    default:
-                    {
-                        char space[512];
-                        String str = make_fixed_width_string(space);
-                        append(&str, "unrecognized command ");
-                        append(&str, command_string);
-                        output_error(out, str);
-                    }break;
-                }
-                
-                start = i;
-            }
-        }
-        
-        if (start != i){
-            output_plain_old_text(out, substr(l, start, i - start));
-        }
-        
-        output_end_paragraph(out);
-    }
-    
-    append(out, "</div>");
 }
 
 internal void
@@ -1851,22 +1789,10 @@ print_function_docs(String *out, String name, String doc_string){
 }
 
 internal void
-print_item_html(String *out, Used_Links *used, Item_Node *item, char *id_postfix, char *section, i32 I, Alternate_Name *alt_name, i32 alt_name_type){
+print_item_html(String *out, Used_Links *used, Item_Node *item, char *id_postfix, char *section, i32 I, u32 mangle_rule){
     Temp temp = fm_begin_temp();
     
-    String name = item->name;
-    
-    switch (alt_name_type){
-        case AltName_Macro:
-        {
-            name = alt_name->macro;
-        }break;
-        
-        case AltName_Public_Name:
-        {
-            name = alt_name->public_name;
-        }break;
-    }
+    String name = apply_mangle_rule(item->name, mangle_rule);
     
     /* NOTE(allen):
     Open a div for the whole item.
@@ -2221,31 +2147,13 @@ doc_item_html(Document_Output_System sys, Document_Item *item, b32 head){
             if (head){
                 append(sys.out, "<ul>");
                 
+                Mangle_Rule mangle_rule = item->unit_elements.mangle_rule;
                 Meta_Unit *unit = item->unit_elements.unit;
-                Alternate_Names_Array *alt_names = item->unit_elements.alt_names;
                 i32 count = unit->set.count;
                 
-                switch (item->unit_elements.alt_name_type){
-                    case AltName_Standard:
-                    {
-                        for (i32 i = 0; i < count; ++i){
-                            print_item_in_list(sys.out, unit->set.items[i].name, "_doc");
-                        }
-                    }break;
-                    
-                    case AltName_Macro:
-                    {
-                        for (i32 i = 0; i < count; ++i){
-                            print_item_in_list(sys.out, alt_names->names[i].macro, "_doc");
-                        }
-                    }break;
-                    
-                    case AltName_Public_Name:
-                    {
-                        for (i32 i = 0; i < count; ++i){
-                            print_item_in_list(sys.out, alt_names->names[i].public_name, "_doc");
-                        }
-                    }break;
+                for (i32 i = 0; i < count; ++i){
+                    String name = apply_mangle_rule(unit->set.items[i].name, mangle_rule);
+                    print_item_in_list(sys.out, name, "_doc");
                 }
                 
                 append(sys.out, "</ul>");
@@ -2255,8 +2163,8 @@ doc_item_html(Document_Output_System sys, Document_Item *item, b32 head){
         case Doc_DocFull:
         {
             if (head){
+                Mangle_Rule mangle_rule = item->unit_elements.mangle_rule;
                 Meta_Unit *unit = item->unit_elements.unit;
-                Alternate_Names_Array *alt_names = item->unit_elements.alt_names;
                 i32 count = unit->set.count;
                 
                 char section_space[32];
@@ -2264,17 +2172,9 @@ doc_item_html(Document_Output_System sys, Document_Item *item, b32 head){
                 append_section_number_reduced(&section_str, sys.section_counter, 1);
                 terminate_with_null(&section_str);
                 
-                if (alt_names){
-                    i32 I = 1;
-                    for (i32 i = 0; i < count; ++i, ++I){
-                        print_item_html(sys.out, sys.used_links, &unit->set.items[i], "_doc", section_str.str, I, &alt_names->names[i], item->unit_elements.alt_name_type);
-                    }
-                }
-                else{
-                    i32 I = 1;
-                    for (i32 i = 0; i < count; ++i, ++I){
-                        print_item_html(sys.out, sys.used_links, &unit->set.items[i], "_doc", section_str.str, I, 0, 0);
-                    }
+                i32 I = 1;
+                for (i32 i = 0; i < count; ++i, ++I){
+                    print_item_html(sys.out, sys.used_links, &unit->set.items[i], "_doc", section_str.str, I, mangle_rule);
                 }
             }
         }break;
