@@ -290,7 +290,7 @@ DOC_SEE(Command_Line_Interface_Flag)
             init_read_only_file(system, models, file);
         }
         
-        if (file){
+        if (file != 0){
             i32 proc_count = vars->cli_processes.count;
             for (i32 i = 0; i < proc_count; ++i){
                 if (procs[i].out_file == file){
@@ -299,7 +299,8 @@ DOC_SEE(Command_Line_Interface_Flag)
                     }
                     else{
                         file = 0;
-                    }break;
+                    }
+                    break;
                 }
             }
             
@@ -1228,10 +1229,13 @@ DOC(Whenever a buffer is killed an end signal is sent which triggers the end fil
 API_EXPORT Buffer_Summary
 Create_Buffer(Application_Links *app, char *filename, int32_t filename_len, Buffer_Create_Flag flags)
 /*
-DOC_PARAM(filename, The name of the file to associate to the new buffer.  If the file is not found, the buffer will be created empty and will not be associated to a file until it is saved.)
+DOC_PARAM(filename, The name of the file to associate to the new buffer.)
 DOC_PARAM(filename_len, The length of the filename string.)
 DOC_PARAM(flags, Flags controlling the buffer creation behavior.)
-DOC()
+DOC_RETURN(Returns the newly created buffer or an already existing buffer with the given name.)
+DOC(Try to create a new buffer.  This call first checks to see if a buffer already exists that goes by the given name, if so, that buffer is returned.
+
+If no buffer exists with the given name, then a new buffer is created.  If a file that matches the given filename exists, the file is loaded as the contents of the new buffer.  Otherwise a buffer is created without a matching file until the buffer is saved and the buffer is left blank.)
 DOC_SEE(Buffer_Create_Flag)
 */{
     PRFL_FUNC_GROUP();

@@ -11,6 +11,20 @@ TYPE: 'drop-in-command-pack'
 
 #include "4coder_default_framework.h"
 
+CUSTOM_COMMAND_SIG(execute_previous_cli){
+    String out_buffer = make_string_slowly(out_buffer_space);
+    String cmd = make_string_slowly(command_space);
+    String hot_directory = make_string_slowly(hot_directory_space);
+    
+    if (out_buffer.size > 0 && cmd.size > 0 && hot_directory.size > 0){
+        uint32_t access = AccessAll;
+        View_Summary view = get_active_view(app, access);
+        
+        exec_system_command(app, &view, buffer_identifier(out_buffer.str, out_buffer.size), hot_directory.str, hot_directory.size, cmd.str, cmd.size, CLI_OverlapWithConflict | CLI_CursorAtEnd);
+        lock_jump_buffer(out_buffer.str, out_buffer.size);
+    }
+}
+
 CUSTOM_COMMAND_SIG(execute_any_cli){
     Query_Bar bar_out = {0};
     Query_Bar bar_cmd = {0};
@@ -26,25 +40,7 @@ CUSTOM_COMMAND_SIG(execute_any_cli){
     String hot_directory = make_fixed_width_string(hot_directory_space);
     hot_directory.size = directory_get_hot(app, hot_directory.str, hot_directory.memory_size);
     
-    uint32_t access = AccessAll;
-    View_Summary view = get_active_view(app, access);
-    
-    exec_system_command(app, &view, buffer_identifier(bar_out.string.str, bar_out.string.size), hot_directory.str, hot_directory.size, bar_cmd.string.str, bar_cmd.string.size, CLI_OverlapWithConflict | CLI_CursorAtEnd);
-    lock_jump_buffer(bar_out.string.str, bar_out.string.size);
-}
-
-CUSTOM_COMMAND_SIG(execute_previous_cli){
-    String out_buffer = make_string_slowly(out_buffer_space);
-    String cmd = make_string_slowly(command_space);
-    String hot_directory = make_string_slowly(hot_directory_space);
-    
-    if (out_buffer.size > 0 && cmd.size > 0 && hot_directory.size > 0){
-        uint32_t access = AccessAll;
-        View_Summary view = get_active_view(app, access);
-        
-        exec_system_command(app, &view, buffer_identifier(out_buffer.str, out_buffer.size), hot_directory.str, hot_directory.size, cmd.str, cmd.size, CLI_OverlapWithConflict | CLI_CursorAtEnd);
-        lock_jump_buffer(out_buffer.str, out_buffer.size);
-    }
+    execute_previous_cli(app);
 }
 
 #endif
