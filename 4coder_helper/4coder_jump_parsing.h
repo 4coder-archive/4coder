@@ -24,14 +24,20 @@ struct Name_Based_Jump_Location{
 };
 
 static bool32
-ms_style_verify(String line, int32_t paren_pos){
+ms_style_verify(String line, int32_t left_paren_pos, int32_t right_paren_pos){
     int32_t result = false;
-    String line_part = substr_tail(line, paren_pos);
+    String line_part = substr_tail(line, right_paren_pos);
     if (match_part_sc(line_part, ") : ")){
         result = true;
     }
     else if (match_part_sc(line_part, "): ")){
         result = true;
+    }
+    if (result){
+        String number = substr(line, left_paren_pos, right_paren_pos - left_paren_pos);
+        if (!str_is_int_s(number)){
+            result = false;
+        }
     }
     return(result);
 }
@@ -39,31 +45,27 @@ ms_style_verify(String line, int32_t paren_pos){
 static bool32
 parse_jump_location(String line, Name_Based_Jump_Location *location, int32_t *colon_char, bool32 *is_sub_error){
     bool32 result = false;
+    *is_sub_error = (line.str[0] == ' ');
     
     int32_t whitespace_length = 0;
-    String original_line = line;
     line = skip_chop_whitespace(line, &whitespace_length);
     
     int32_t colon_pos = 0;
     bool32 is_ms_style = false;
     
-    *is_sub_error = false;
-    if (original_line.str[0] == ' '){
-        *is_sub_error = true;
-    }
-    
-    int32_t paren_pos = find_s_char(line, 0, ')');
-    while (!is_ms_style && paren_pos < line.size){
-        if (ms_style_verify(line, paren_pos)){
+    int32_t left_paren_pos = find_s_char(line, 0, '(');
+    int32_t right_paren_pos = find_s_char(line, left_paren_pos, ')');
+    while (!is_ms_style && right_paren_pos < line.size){
+        if (ms_style_verify(line, left_paren_pos, right_paren_pos)){
             is_ms_style = true;
-            colon_pos = find_s_char(line, paren_pos, ':');
+            colon_pos = find_s_char(line, right_paren_pos, ':');
             if (colon_pos < line.size){
                 String location_str = substr(line, 0, colon_pos);
                 
                 location_str = skip_chop_whitespace(location_str);
                 
-                int32_t close_pos = paren_pos;
-                int32_t open_pos = rfind_s_char(location_str, close_pos, '(');
+                int32_t close_pos = right_paren_pos;
+                int32_t open_pos = left_paren_pos;
                 
                 if (0 < open_pos && open_pos < location_str.size){
                     String file = substr(location_str, 0, open_pos);
@@ -100,7 +102,8 @@ parse_jump_location(String line, Name_Based_Jump_Location *location, int32_t *co
             }
         }
         else{
-            paren_pos = find_s_char(line, paren_pos+1, ')');
+            left_paren_pos = find_s_char(line, left_paren_pos + 1, '(');
+            right_paren_pos = find_s_char(line, left_paren_pos, ')');
         }
     }
     

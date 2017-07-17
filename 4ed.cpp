@@ -1360,7 +1360,6 @@ App_Step_Sig(app_step){
     
     // NOTE(allen): OS clipboard event handling
     String clipboard = input->clipboard;
-    
     if (clipboard.str){
         String *dest =working_set_next_clipboard_string(&models->mem.general, &models->working_set, clipboard.size);
         dest->size = eol_convert_in(dest->str, clipboard.str, clipboard.size);
@@ -1567,7 +1566,7 @@ App_Step_Sig(app_step){
             }
         }
         
-        for (u32 i = 0; i < proc_free_count; ++i){
+        for (i32 i = proc_free_count - 1; i >= 0; ++i){
             cli_list_free_proc(list, procs_to_free[i]);
         }
         
