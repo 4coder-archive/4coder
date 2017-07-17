@@ -407,10 +407,12 @@ fm_copy_file(char *file, char *newname){
 static void
 fm_copy_all(char *source, char *tag, char *folder){
     if (source){
-        systemf("copy %s\\%s %s\\*", source, tag, folder);
+        fprintf(stdout, "copy %s\\%s to %s\n", source, tag, folder);
+        systemf("copy %s\\%s %s\\* > nul", source, tag, folder);
     }
     else{
-        systemf("copy %s %s\\*", tag, folder);
+        fprintf(stdout, "copy %s to %s\n", tag, folder);
+        systemf("copy %s %s\\* > nul", tag, folder);
     }
 }
 
@@ -545,10 +547,12 @@ fm_copy_file(char *file, char *newname){
 static void
 fm_copy_all(char *source, char *tag, char *folder){
     if (source){
-        systemf("cp -f %s/%s %s", source, tag, folder);
+        fprintf(stdout, "copy %s/%s to %s\n", source, tag, folder);
+        systemf("cp -f %s/%s %s > /dev/null", source, tag, folder);
     }
     else{
-        systemf("cp -f %s %s", tag, folder);
+        fprintf(stdout, "copy %s to %s\n", tag, folder);
+        systemf("cp -f %s %s > /dev/null", tag, folder);
     }
 }
 

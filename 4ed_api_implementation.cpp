@@ -1226,7 +1226,14 @@ DOC(Whenever a buffer is killed an end signal is sent which triggers the end fil
 }
 
 API_EXPORT Buffer_Summary
-Create_Buffer(Application_Links *app, char *filename, int32_t filename_len, Buffer_Create_Flag flags){
+Create_Buffer(Application_Links *app, char *filename, int32_t filename_len, Buffer_Create_Flag flags)
+/*
+DOC_PARAM(filename, The name of the file to associate to the new buffer.  If the file is not found, the buffer will be created empty and will not be associated to a file until it is saved.)
+DOC_PARAM(filename_len, The length of the filename string.)
+DOC_PARAM(flags, Flags controlling the buffer creation behavior.)
+DOC()
+DOC_SEE(Buffer_Create_Flag)
+*/{
     PRFL_FUNC_GROUP();
     
     Command_Data *cmd = (Command_Data*)app->cmd_context;
@@ -1239,14 +1246,12 @@ Create_Buffer(Application_Links *app, char *filename, int32_t filename_len, Buff
     Buffer_Summary result = {0};
     
     if (filename_len > 0){
-        String fname = make_string(filename, filename_len);
-        
-        Editing_File *file = 0;
-        b32 do_new_file = false;
-        Plat_Handle handle = {0};
-        
         Temp_Memory temp = begin_temp_memory(part);
         
+        // NOTE(allen): Try to get the file by canon name.
+        String fname = make_string(filename, filename_len);
+        Editing_File *file = 0;
+        b32 do_new_file = false;
         Editing_File_Canon_Name canon = {0};
         if (get_canon_name(system, &canon, fname)){
             file = working_set_canon_contains(working_set, canon.name);
@@ -1255,11 +1260,16 @@ Create_Buffer(Application_Links *app, char *filename, int32_t filename_len, Buff
             do_new_file = true;
         }
         
+        // NOTE(allen): Try to get the file by buffer name.
         if (file == 0){
             file = working_set_name_contains(working_set, fname);
         }
         
+        // NOTE(allen): If there is still no file, create a new buffer.
         if (file == 0){
+            Plat_Handle handle = {0};
+            
+            // NOTE(allen): Figure out whether this is a new file, or an existing file.
             if (!do_new_file){
                 if (flags & BufferCreate_AlwaysNew){
                     do_new_file = true;
@@ -1271,7 +1281,17 @@ Create_Buffer(Application_Links *app, char *filename, int32_t filename_len, Buff
                 }
             }
             
-            if (!do_new_file){
+            if (do_new_file){
+                if (!(flags & BufferCreate_NeverNew)){
+                    file = working_set_alloc_always(working_set, general);
+                    if (file != 0){
+                        buffer_bind_name(general, working_set, file, fname);
+                        init_normal_file(system, models, file, 0, 0);
+                        fill_buffer_summary(&result, file, cmd);
+                    }
+                }
+            }
+            else{
                 Assert(!handle_equal(handle, null_plat_handle));
                 
                 i32 size = system->load_size(handle);
@@ -1300,14 +1320,6 @@ Create_Buffer(Application_Links *app, char *filename, int32_t filename_len, Buff
                 
                 if (in_general_mem){
                     general_memory_free(general, buffer);
-                }
-            }
-            else if (!(flags & BufferCreate_NeverNew)){
-                file = working_set_alloc_always(working_set, general);
-                if (file){
-                    buffer_bind_name(general, working_set, file, fname);
-                    init_normal_file(system, models, file, 0, 0);
-                    fill_buffer_summary(&result, file, cmd);
                 }
             }
         }

@@ -193,12 +193,9 @@ ENUM(int32_t, View_Setting_ID){
 ENUM(uint32_t, Buffer_Create_Flag){
     /* DOC(BufferCreate_Background is not currently implemented.) */
     BufferCreate_Background = 0x1,
-    /* DOC(When BufferCreate_AlwaysNew is set it indicates the buffer should be
-    cleared to empty even if it's associated file already has content.) */
+    /* DOC(When BufferCreate_AlwaysNew is set it indicates the buffer should be cleared to empty even if it's associated file already has content.) */
     BufferCreate_AlwaysNew  = 0x2,
-    /* DOC(When BufferCreate_NeverNew is set it indicates that the buffer should
-    only be created if it is an existing file or if a buffer with the given name
-    is already open.) */
+    /* DOC(When BufferCreate_NeverNew is set it indicates that the buffer should only be created if it is an existing file or if a buffer with the given name is already open.) */
     BufferCreate_NeverNew   = 0x4,
 };
 
