@@ -335,7 +335,6 @@ get_change_event(File_Track_System *system, Partition *scratch, u8 *buffer, i32 
         i32 req_size = dir_len + (len + 1)*2;
         *size = req_size;
         
-        // TODO(allen): This check isn't really right, it should rely on the result from GetFinalPathNameByHandle_utf8.
         if (req_size < max){
             u32 path_pos = GetFinalPathNameByHandle_utf8(listener.dir, buffer, max, FILE_NAME_NORMALIZED);
             buffer[path_pos++] = '\\';

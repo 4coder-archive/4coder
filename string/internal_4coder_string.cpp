@@ -1857,7 +1857,6 @@ This call returns non-zero on success.) */{
     return(result);
 }
 
-// TODO(allen): Add hash-table extension to string sets.
 CPP_NAME(string_set_match)
 API_EXPORT FSTRING_LINK b32_4tech
 string_set_match_table(void *str_set, i32_4tech item_size, i32_4tech count, String str, i32_4tech *match_index)/*

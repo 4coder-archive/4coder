@@ -806,7 +806,6 @@ system_set_font(System_Functions *system, Partition *part, Render_Font *font, ch
     }
 }
 
-
 #endif
 
 // BOTTOM

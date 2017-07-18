@@ -189,7 +189,9 @@ get_timestamp_string_at_cursor(Application_Links *app, Buffer_Summary *buffer, i
 }
 
 struct Miblo_Timestamp{
-    int32_t hour, minute, second;
+    int32_t second;
+    int32_t minute;
+    int32_t hour;
 };
 static Miblo_Timestamp null_miblo_timestamp = {0};
 
@@ -203,38 +205,45 @@ static Miblo_Timestamp
 increment_timestamp(Miblo_Timestamp t, int32_t type, int32_t amt){
     Miblo_Timestamp r = t;
     switch (type){
-        case MIBLO_SECOND:
+        case MIBLO_SECOND: /* CASE second */
         r.second += amt;
+        
+        // 1. Modulo r.second into [0,59]
+        // 2. What is thrown away by (1) store in amt, divide by 60, round down even when negative.
         amt = 0;
-        
-        // TODO(allen): someday do the math, instead of being lazy.
-        while (r.second < 0){
-            --amt;
-            r.second += 60;
+        if (r.second < 0){
+            int32_t pos_second = -r.second;
+            amt = -((pos_second + 59)/60);
+            r.second = 60 - (pos_second % 60);
+        }
+        else if (r.second >= 60){
+            amt = r.second/60;
+            r.second = (r.second % 60);
         }
         
-        while (r.second >= 60){
-            ++amt;
-            r.second -= 60;
-        }
-        
-        case MIBLO_MINUTE:
+        case MIBLO_MINUTE:  /* CASE minute */
         r.minute += amt;
+        
+        // 1. Modulo r.minute into [0,59]
+        // 2. What is thrown away by (1) store in amt, divide by 60, round down even when negative.
         amt = 0;
-        
-        // TODO(allen): someday do the math, instead of being lazy.
-        while (r.minute < 0){
-            --amt;
-            r.minute += 60;
+        if (r.minute < 0){
+            int32_t pos_minute = -r.minute;
+            amt = -((pos_minute + 59)/60);
+            r.minute = 60 - (pos_minute % 60);
+        }
+        else if (r.minute >= 60){
+            amt = r.minute/60;
+            r.minute = (r.minute % 60);
         }
         
-        while (r.minute >= 60){
-            ++amt;
-            r.minute -= 60;
-        }
-        
-        case MIBLO_HOUR:
+        case MIBLO_HOUR:  /* CASE hour */
         r.hour += amt;
+        if (r.hour < 0){
+            r.second = 0;
+            r.minute = 0;
+            r.hour = 0;
+        }
     }
     
     return(r);
