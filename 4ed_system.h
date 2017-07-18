@@ -202,8 +202,8 @@ typedef Sys_Get_4ed_Path_Sig(System_Get_4ed_Path);
 #define Sys_Show_Mouse_Cursor_Sig(name) void name(i32 show)
 typedef Sys_Show_Mouse_Cursor_Sig(System_Show_Mouse_Cursor);
 
-#define Sys_Toggle_Fullscreen_Sig(name) b32 name()
-typedef Sys_Toggle_Fullscreen_Sig(System_Toggle_Fullscreen);
+#define Sys_Set_Fullscreen_Sig(name) b32 name(b32 full_screen)
+typedef Sys_Set_Fullscreen_Sig(System_Set_Fullscreen);
 
 #define Sys_Is_Fullscreen_Sig(name) bool32 name()
 typedef Sys_Is_Fullscreen_Sig(System_Is_Fullscreen);
@@ -267,7 +267,7 @@ struct System_Functions{
     System_Directory_CD           *directory_cd;
     System_Get_4ed_Path           *get_4ed_path;
     System_Show_Mouse_Cursor      *show_mouse_cursor;
-    System_Toggle_Fullscreen      *toggle_fullscreen;
+    System_Set_Fullscreen         *set_fullscreen;
     System_Is_Fullscreen          *is_fullscreen;
     System_Send_Exit_Signal       *send_exit_signal;
     

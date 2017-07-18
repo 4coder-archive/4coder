@@ -53,7 +53,7 @@ link_system_code(System_Functions *system){
     SYSLINK(file_exists);
     SYSLINK(directory_cd);
     SYSLINK(get_4ed_path);
-    SYSLINK(toggle_fullscreen);
+    SYSLINK(set_fullscreen);
     SYSLINK(is_fullscreen);
     SYSLINK(show_mouse_cursor);
     SYSLINK(send_exit_signal);

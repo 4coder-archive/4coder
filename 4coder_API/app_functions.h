@@ -72,7 +72,7 @@ struct Application_Links;
 #define DIRECTORY_CD_SIG(n) bool32 n(Application_Links *app, char *dir, int32_t *len, int32_t capacity, char *rel_path, int32_t rel_len)
 #define GET_4ED_PATH_SIG(n) int32_t n(Application_Links *app, char *out, int32_t capacity)
 #define SHOW_MOUSE_CURSOR_SIG(n) void n(Application_Links *app, Mouse_Cursor_Show_Type show)
-#define TOGGLE_FULLSCREEN_SIG(n) void n(Application_Links *app)
+#define SET_FULLSCREEN_SIG(n) bool32 n(Application_Links *app, bool32 full_screen)
 #define IS_FULLSCREEN_SIG(n) bool32 n(Application_Links *app)
 #define SEND_EXIT_SIGNAL_SIG(n) void n(Application_Links *app)
 typedef GLOBAL_SET_SETTING_SIG(Global_Set_Setting_Function);
@@ -148,7 +148,7 @@ typedef FILE_EXISTS_SIG(File_Exists_Function);
 typedef DIRECTORY_CD_SIG(Directory_CD_Function);
 typedef GET_4ED_PATH_SIG(Get_4ed_Path_Function);
 typedef SHOW_MOUSE_CURSOR_SIG(Show_Mouse_Cursor_Function);
-typedef TOGGLE_FULLSCREEN_SIG(Toggle_Fullscreen_Function);
+typedef SET_FULLSCREEN_SIG(Set_Fullscreen_Function);
 typedef IS_FULLSCREEN_SIG(Is_Fullscreen_Function);
 typedef SEND_EXIT_SIGNAL_SIG(Send_Exit_Signal_Function);
 struct Application_Links{
@@ -226,7 +226,7 @@ File_Exists_Function *file_exists;
 Directory_CD_Function *directory_cd;
 Get_4ed_Path_Function *get_4ed_path;
 Show_Mouse_Cursor_Function *show_mouse_cursor;
-Toggle_Fullscreen_Function *toggle_fullscreen;
+Set_Fullscreen_Function *set_fullscreen;
 Is_Fullscreen_Function *is_fullscreen;
 Send_Exit_Signal_Function *send_exit_signal;
 #else
@@ -303,7 +303,7 @@ File_Exists_Function *file_exists_;
 Directory_CD_Function *directory_cd_;
 Get_4ed_Path_Function *get_4ed_path_;
 Show_Mouse_Cursor_Function *show_mouse_cursor_;
-Toggle_Fullscreen_Function *toggle_fullscreen_;
+Set_Fullscreen_Function *set_fullscreen_;
 Is_Fullscreen_Function *is_fullscreen_;
 Send_Exit_Signal_Function *send_exit_signal_;
 #endif
@@ -388,7 +388,7 @@ app_links->file_exists_ = File_Exists;\
 app_links->directory_cd_ = Directory_CD;\
 app_links->get_4ed_path_ = Get_4ed_Path;\
 app_links->show_mouse_cursor_ = Show_Mouse_Cursor;\
-app_links->toggle_fullscreen_ = Toggle_Fullscreen;\
+app_links->set_fullscreen_ = Set_Fullscreen;\
 app_links->is_fullscreen_ = Is_Fullscreen;\
 app_links->send_exit_signal_ = Send_Exit_Signal;} while(false)
 #if defined(ALLOW_DEP_4CODER)
@@ -465,7 +465,7 @@ static inline bool32 file_exists(Application_Links *app, char *filename, int32_t
 static inline bool32 directory_cd(Application_Links *app, char *dir, int32_t *len, int32_t capacity, char *rel_path, int32_t rel_len){return(app->directory_cd(app, dir, len, capacity, rel_path, rel_len));}
 static inline int32_t get_4ed_path(Application_Links *app, char *out, int32_t capacity){return(app->get_4ed_path(app, out, capacity));}
 static inline void show_mouse_cursor(Application_Links *app, Mouse_Cursor_Show_Type show){(app->show_mouse_cursor(app, show));}
-static inline void toggle_fullscreen(Application_Links *app){(app->toggle_fullscreen(app));}
+static inline bool32 set_fullscreen(Application_Links *app, bool32 full_screen){return(app->set_fullscreen(app, full_screen));}
 static inline bool32 is_fullscreen(Application_Links *app){return(app->is_fullscreen(app));}
 static inline void send_exit_signal(Application_Links *app){(app->send_exit_signal(app));}
 #else
@@ -542,7 +542,7 @@ static inline bool32 file_exists(Application_Links *app, char *filename, int32_t
 static inline bool32 directory_cd(Application_Links *app, char *dir, int32_t *len, int32_t capacity, char *rel_path, int32_t rel_len){return(app->directory_cd_(app, dir, len, capacity, rel_path, rel_len));}
 static inline int32_t get_4ed_path(Application_Links *app, char *out, int32_t capacity){return(app->get_4ed_path_(app, out, capacity));}
 static inline void show_mouse_cursor(Application_Links *app, Mouse_Cursor_Show_Type show){(app->show_mouse_cursor_(app, show));}
-static inline void toggle_fullscreen(Application_Links *app){(app->toggle_fullscreen_(app));}
+static inline bool32 set_fullscreen(Application_Links *app, bool32 full_screen){return(app->set_fullscreen_(app, full_screen));}
 static inline bool32 is_fullscreen(Application_Links *app){return(app->is_fullscreen_(app));}
 static inline void send_exit_signal(Application_Links *app){(app->send_exit_signal_(app));}
 #endif

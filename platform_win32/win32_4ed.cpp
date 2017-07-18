@@ -150,7 +150,6 @@ struct Win32_Vars{
     i32 running_cli;
     
     u32 log_position;
-    
 };
 
 ////////////////////////////////
@@ -192,11 +191,73 @@ system_schedule_step(){
 
 ////////////////////////////////
 
-//
-// Threads
-//
-
 #include "4ed_work_queues.cpp"
+
+////////////////////////////////
+
+// HACK(allen): Get this shit working more properly (look at pens)
+internal void
+win32_toggle_fullscreen(){
+    HWND Window = win32vars.window_handle;
+    LONG_PTR Style = GetWindowLongPtr(Window, GWL_STYLE);
+    if (Style & WS_OVERLAPPEDWINDOW){
+        MONITORINFO MonitorInfo = {sizeof(MONITORINFO)};
+        if(GetWindowPlacement(Window, &win32vars.GlobalWindowPosition) && GetMonitorInfo(MonitorFromWindow(Window, MONITOR_DEFAULTTOPRIMARY), &MonitorInfo))
+        {
+            SetWindowLongPtr(Window, GWL_STYLE, Style & ~WS_OVERLAPPEDWINDOW);
+            SetWindowPos(Window, HWND_TOP,
+                         MonitorInfo.rcMonitor.left, MonitorInfo.rcMonitor.top,
+                         MonitorInfo.rcMonitor.right - MonitorInfo.rcMonitor.left,
+                         MonitorInfo.rcMonitor.bottom - MonitorInfo.rcMonitor.top,
+                         SWP_NOOWNERZORDER | SWP_FRAMECHANGED);
+            win32vars.full_screen = true;
+        }
+    }
+    else{
+        SetWindowLongPtr(Window, GWL_STYLE, Style | WS_OVERLAPPEDWINDOW);
+        SetWindowPlacement(Window, &win32vars.GlobalWindowPosition);
+        SetWindowPos(Window, 0, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOOWNERZORDER | SWP_FRAMECHANGED);
+        win32vars.full_screen = false;
+    }
+}
+
+// TODO(allen): add a "shown but auto-hides on timer" setting here.
+internal
+Sys_Show_Mouse_Cursor_Sig(system_show_mouse_cursor){
+    switch (show){
+        case MouseCursorShow_Never: ShowCursor(false); break;
+        case MouseCursorShow_Always: ShowCursor(true); break;
+        // TODO(allen): MouseCursor_HideWhenStill
+    }
+}
+
+internal
+Sys_Set_Fullscreen_Sig(system_set_fullscreen){
+    b32 success = false;
+    // HACK(allen): Fix this shit.
+    // NOTE(allen): On windows we must be in stream mode to go fullscreen.
+    if (plat_settings.stream_mode){
+        // NOTE(allen): If the new value of full_screen does not match the current value,
+        // set toggle to true.
+        win32vars.do_toggle = (win32vars.full_screen != full_screen);
+        success = true;
+    }
+    return(success);
+}
+
+internal
+Sys_Is_Fullscreen_Sig(system_is_fullscreen){
+    // NOTE(allen): Report the fullscreen status as it would be set at the beginning of the next frame.
+    // That is, take into account all fullscreen toggle requests that have come in already this frame.
+    // Read: "full_screen XOR do_toggle"
+    b32 result = (win32vars.full_screen != win32vars.do_toggle);
+    return(result);
+}
+
+internal
+Sys_Send_Exit_Signal_Sig(system_send_exit_signal){
+    win32vars.send_exit_signal = true;
+}
 
 //
 // Coroutines
@@ -291,43 +352,6 @@ Sys_Resume_Coroutine_Sig(system_resume_coroutine){
 Sys_Yield_Coroutine_Sig(system_yield_coroutine){
     SwitchToFiber(coroutine->yield_handle);
 }
-
-
-//
-// Files
-//
-
-/*
-NOTE(casey): This follows Raymond Chen's prescription
-for fullscreen toggling, see:
-http://blogs.msdn.com/b/oldnewthing/archive/2010/04/12/9994016.aspx
-*/
-
-internal void
-Win32ToggleFullscreen(void){
-    HWND Window = win32vars.window_handle;
-    LONG_PTR Style = GetWindowLongPtr(Window, GWL_STYLE);
-    if (Style & WS_OVERLAPPEDWINDOW){
-        MONITORINFO MonitorInfo = {sizeof(MONITORINFO)};
-        if(GetWindowPlacement(Window, &win32vars.GlobalWindowPosition) && GetMonitorInfo(MonitorFromWindow(Window, MONITOR_DEFAULTTOPRIMARY), &MonitorInfo))
-        {
-            SetWindowLongPtr(Window, GWL_STYLE, Style & ~WS_OVERLAPPEDWINDOW);
-            SetWindowPos(Window, HWND_TOP,
-                         MonitorInfo.rcMonitor.left, MonitorInfo.rcMonitor.top,
-                         MonitorInfo.rcMonitor.right - MonitorInfo.rcMonitor.left,
-                         MonitorInfo.rcMonitor.bottom - MonitorInfo.rcMonitor.top,
-                         SWP_NOOWNERZORDER | SWP_FRAMECHANGED);
-            win32vars.full_screen = true;
-        }
-    }
-    else{
-        SetWindowLongPtr(Window, GWL_STYLE, Style | WS_OVERLAPPEDWINDOW);
-        SetWindowPlacement(Window, &win32vars.GlobalWindowPosition);
-        SetWindowPos(Window, 0, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOOWNERZORDER | SWP_FRAMECHANGED);
-        win32vars.full_screen = false;
-    }
-}
-
 
 //
 // Clipboard
@@ -535,59 +559,6 @@ Sys_CLI_End_Update_Sig(system_cli_end_update){
         --win32vars.running_cli;
     }
     return(close_me);
-}
-
-//
-// Appearence Settings
-//
-
-// TODO(allen): add a "shown but auto-hides on timer" setting here.
-internal
-Sys_Show_Mouse_Cursor_Sig(system_show_mouse_cursor){
-    switch (show){
-        case MouseCursorShow_Never:
-        ShowCursor(false);
-        break;
-        
-        case MouseCursorShow_Always:
-        ShowCursor(true);
-        break;
-        
-        // TODO(allen): MouseCursor_HideWhenStill
-    }
-}
-
-internal
-Sys_Toggle_Fullscreen_Sig(system_toggle_fullscreen){
-    /* NOTE(allen): Don't actually change window size now!
-    Tell the platform layer to do the toggle (or to cancel the toggle)
-    later when the app.step function isn't running. If the size changes
-    mid step, it messes up the rendering rules and stuff. */
-    
-    b32 success = false;
-    
-    // NOTE(allen): On windows we must be in stream mode to go fullscreen.
-    if (plat_settings.stream_mode){
-        win32vars.do_toggle = !win32vars.do_toggle;
-        success = true;
-    }
-    
-    return(success);
-}
-
-internal
-Sys_Is_Fullscreen_Sig(system_is_fullscreen){
-    /* NOTE(allen): This is a fancy way to say 'full_screen XOR do_toggle'
-    This way this function can always report the state the fullscreen
-    will have when the next frame runs, given the number of toggles
-    that have occurred this frame and the original value. */
-    bool32 result = (win32vars.full_screen + win32vars.do_toggle) & 1;
-    return(result);
-}
-
-internal
-Sys_Send_Exit_Signal_Sig(system_send_exit_signal){
-    win32vars.send_exit_signal = 1;
 }
 
 //
@@ -1380,12 +1351,12 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
     
     system_memory_free(current_directory.str, 0);
     
-    b32 keep_playing = true;
+    b32 keep_running = true;
     win32vars.first = true;
     timeBeginPeriod(1);
     
     if (plat_settings.fullscreen_window){
-        Win32ToggleFullscreen();
+        win32_toggle_fullscreen();
     }
     
     SetForegroundWindow(win32vars.window_handle);
@@ -1396,7 +1367,7 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
     u64 timer_start = Win32HighResolutionTime();
     system_acquire_lock(FRAME_LOCK);
     MSG msg;
-    for (;keep_playing;){
+    for (;keep_running;){
         // TODO(allen): Find a good way to wait on a pipe
         // without interfering with the reading process
         //  Looks like we can ReadFile with a size of zero
@@ -1425,7 +1396,7 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
                 
                 if (get_more_messages){
                     if (msg.message == WM_QUIT){
-                        keep_playing = 0;
+                        keep_running = false;
                     }else{
                         b32 treat_normally = true;
                         if (msg.message == WM_KEYDOWN || msg.message == WM_SYSKEYDOWN){
@@ -1573,19 +1544,19 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
         result.perform_kill = 0;
         
         if (win32vars.send_exit_signal){
-            result.trying_to_kill = 1;
-            win32vars.send_exit_signal = 0;
+            result.trying_to_kill = true;
+            win32vars.send_exit_signal = false;
         }
         
         win32vars.app.step(&sysfunc, &win32vars.target, &memory_vars, &input, &result, clparams);
         
         if (result.perform_kill){
-            keep_playing = 0;
+            keep_running = false;
         }
         
         if (win32vars.do_toggle){
-            Win32ToggleFullscreen();
-            win32vars.do_toggle = 0;
+            win32_toggle_fullscreen();
+            win32vars.do_toggle = false;
         }
         
         Win32SetCursorFromUpdate(result.mouse_cursor_type);

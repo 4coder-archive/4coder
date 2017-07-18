@@ -10,11 +10,9 @@
 // TOP
 
 struct Unix_Vars{
-    u32 use_log;
     b32 did_first_log;
 };
-
-static Unix_Vars unixvars;
+global Unix_Vars unixvars;
 
 //
 // 4ed Path
@@ -41,7 +39,7 @@ Sys_Get_4ed_Path_Sig(system_get_4ed_path){
 
 internal
 Sys_Log_Sig(system_log){
-    if (unixvars.use_log == LogTo_LogFile){
+    if (plat_settings.use_log == LogTo_LogFile){
         char file_path_space[1024];
         String file_path = make_fixed_width_string(file_path_space);
         file_path.size = system_get_4ed_path(file_path.str, file_path.memory_size);
@@ -68,7 +66,7 @@ Sys_Log_Sig(system_log){
             close(fd);
         }
     }
-    else if (unixvars.use_log == LogTo_Stdout){
+    else if (plat_settings.use_log == LogTo_Stdout){
         fwrite(message, 1, length, stdout);
     }
 }

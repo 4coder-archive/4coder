@@ -162,6 +162,8 @@ struct Linux_Vars{
     
     u64 last_step;
     
+    b32 full_screen;
+    b32 do_toggle;
     b32 keep_running;
     
     Application_Mouse_Cursor cursor;
@@ -194,24 +196,14 @@ global Plat_Settings plat_settings;
 
 #define SLASH '/'
 
-internal Plat_Handle
-handle_sem(sem_t *sem){
-    return(*(Plat_Handle*)&sem);
-}
-
 internal sem_t*
 handle_sem(Plat_Handle h){
     return(*(sem_t**)&h);
 }
 
 internal Plat_Handle
-handle_fd(int fd){
-    return(*(Plat_Handle*)&fd);
-}
-
-internal int
-handle_fd(Plat_Handle h){
-    return(*(int*)&h);
+handle_sem(sem_t *sem){
+    return(*(Plat_Handle*)&sem);
 }
 
 ////////////////////////////////
@@ -244,8 +236,12 @@ system_schedule_step(){
 
 ////////////////////////////////
 
+#include "4ed_work_queues.cpp"
+
+////////////////////////////////
+
 internal void
-LinuxSetWMState(Display* d, Window w, Atom one, Atom two, int mode){
+linux_set_wm_state(Display* d, Window w, Atom one, Atom two, int mode){
     //NOTE(inso): this will only work after it is mapped
     
     enum { STATE_REMOVE, STATE_ADD, STATE_TOGGLE };
@@ -264,42 +260,40 @@ LinuxSetWMState(Display* d, Window w, Atom one, Atom two, int mode){
     XSendEvent(d, RootWindow(d, 0), 0, SubstructureNotifyMask | SubstructureRedirectMask, &e);
 }
 
-////////////////////////////////
+internal void
+linux_maximize_window(b32 maximize){
+    linux_set_wm_state(linuxvars.XDisplay, linuxvars.XWindow, linuxvars.atom__NET_WM_STATE_MAXIMIZED_HORZ, linuxvars.atom__NET_WM_STATE_MAXIMIZED_VERT, maximize?1:0);
+}
+
+internal void
+linux_toggle_fullscreen(){
+    linuxvars.full_screen = !linuxvars.full_screen;
+    linux_set_wm_state(linuxvars.XDisplay, linuxvars.XWindow, linuxvars.atom__NET_WM_STATE_FULLSCREEN, 0, linuxvars.full_screen?1:0);
+}
 
 internal
 Sys_Show_Mouse_Cursor_Sig(system_show_mouse_cursor){
     linuxvars.hide_cursor = !show;
-    XDefineCursor(linuxvars.XDisplay, linuxvars.XWindow, show ? None : linuxvars.hidden_cursor);
+    XDefineCursor(linuxvars.XDisplay, linuxvars.XWindow, show?None:linuxvars.hidden_cursor);
 }
 
 internal
-Sys_Toggle_Fullscreen_Sig(system_toggle_fullscreen){
+Sys_Set_Fullscreen_Sig(system_set_fullscreen){
     b32 success = true;
-    LinuxSetWMState(linuxvars.XDisplay, linuxvars.XWindow, linuxvars.atom__NET_WM_STATE_FULLSCREEN, 0, 2);
+    linuxvars.do_toggle = (linuxvars.full_screen != full_screen);
     return(success);
 }
 
 internal
 Sys_Is_Fullscreen_Sig(system_is_fullscreen){
-    b32 result = false;
-    
-    Atom type, *prop;
-    unsigned long nitems, pad;
-    int fmt;
-    
-    int ret = XGetWindowProperty(linuxvars.XDisplay, linuxvars.XWindow, linuxvars.atom__NET_WM_STATE, 0, 32, False, XA_ATOM, &type, &fmt, &nitems, &pad, (unsigned char**)&prop);
-    
-    if (ret == Success && prop){
-        result = (*prop == linuxvars.atom__NET_WM_STATE_FULLSCREEN);
-        XFree((unsigned char*)prop);
-    }
-    
-    return result;
+    b32 result = (linuxvars.full_screen != linuxvars.do_toggle);
+    return(result);
 }
 
+// HACK(allen): Why does this work differently from the win32 version!?
 internal
 Sys_Send_Exit_Signal_Sig(system_send_exit_signal){
-    linuxvars.keep_running = 0;
+    linuxvars.keep_running = false;
 }
 
 //
@@ -514,8 +508,6 @@ Sys_CLI_End_Update_Sig(system_cli_end_update){
     
     return(close_me);
 }
-
-#include "4ed_work_queues.cpp"
 
 //
 // Linux rendering/font system functions
@@ -1081,12 +1073,6 @@ LinuxStringDup(String* str, void* data, size_t size){
 // X11 utility funcs
 //
 
-internal void
-LinuxMaximizeWindow(Display* d, Window w, b32 maximize)
-{
-    LinuxSetWMState(d, w, linuxvars.atom__NET_WM_STATE_MAXIMIZED_HORZ, linuxvars.atom__NET_WM_STATE_MAXIMIZED_VERT, maximize != 0);
-}
-
 #include "linux_icon.h"
 internal void
 LinuxSetIcon(Display* d, Window w)
@@ -1503,7 +1489,7 @@ LinuxX11WindowInit(int argc, char** argv, int* window_width, int* window_height)
     
     LinuxSetIcon(linuxvars.XDisplay, linuxvars.XWindow);
     
-    //NOTE(inso): make the window visible
+    // NOTE(inso): make the window visible
     XMapWindow(linuxvars.XDisplay, linuxvars.XWindow);
     
     b32 IsLegacy = false;
@@ -1517,7 +1503,7 @@ LinuxX11WindowInit(int argc, char** argv, int* window_width, int* window_height)
     }
     
     if (plat_settings.maximize_window){
-        LinuxMaximizeWindow(linuxvars.XDisplay, linuxvars.XWindow, 1);
+        linux_maximize_window(true);
     }
     else if (plat_settings.fullscreen_window){
         system_toggle_fullscreen();
@@ -1539,7 +1525,7 @@ LinuxX11WindowInit(int argc, char** argv, int* window_width, int* window_height)
     
     XSetWMProtocols(linuxvars.XDisplay, linuxvars.XWindow, wm_protos, 2);
     
-    return true;
+    return(true);
 }
 
 internal void
@@ -1917,8 +1903,6 @@ main(int argc, char **argv){
         return(1);
     }
     
-    unixvars.use_log = plat_settings.use_log;
-    
     sysshared_filter_real_files(files, file_count);
     
     //
@@ -2230,7 +2214,12 @@ main(int argc, char **argv){
             if (result.perform_kill){
                 break;
             } else if (!keep_running && !linuxvars.keep_running){
-                linuxvars.keep_running = 1;
+                linuxvars.keep_running = true;
+            }
+            
+            if (linuxvars.do_toggle){
+                linux_toggle_fullscreen();
+                linuxvars.do_toggle = false;
             }
             
             if (result.animating){

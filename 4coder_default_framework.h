@@ -225,6 +225,10 @@ CUSTOM_COMMAND_SIG(toggle_mouse){
     set_mouse_suppression(app, !suppressing_mouse);
 }
 
+CUSTOM_COMMAND_SIG(toggle_fullscreen){
+    set_fullscreen(app, !is_fullscreen(app));
+}
+
 
 //
 // Projects

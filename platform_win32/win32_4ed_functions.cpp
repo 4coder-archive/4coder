@@ -46,7 +46,7 @@ Sys_Log_Sig(system_log){
             do{
                 WriteFile(file, message + total_written, length - total_written, &written, 0);
                 total_written += written;
-            }while(total_written < length);
+            }while (total_written < length);
             CloseHandle(file);
         }
     }
