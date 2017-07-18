@@ -76,8 +76,6 @@
 #include <linux/fs.h>
 #include <linux/input.h>
 
-#include "4ed_link_system_functions.cpp"
-
 //
 // Linux macros
 //
@@ -231,22 +229,22 @@ struct Condition_Variable{
 
 internal void
 system_acquire_lock(Mutex *m){
-    pthread_mutex_lock(m->crit);
+    pthread_mutex_lock(&m->crit);
 }
 
 internal void
 system_release_lock(Mutex *m){
-    pthread_mutex_unlock(m->crit);
+    pthread_mutex_unlock(&m->crit);
 }
 
 internal void
 system_wait_cv(Condition_Variable *cv, Mutex *m){
-    pthread_cond_wait(cv->cv, m->crit);
+    pthread_cond_wait(&cv->cv, &m->crit);
 }
 
 internal void
 system_signal_cv(Condition_Variable *cv, Mutex *m){
-    pthread_cond_signal(cv->cv);
+    pthread_cond_signal(&cv->cv);
 }
 
 // HACK(allen): Reduce this down to just one layer of call.
@@ -2055,7 +2053,7 @@ main(int argc, char **argv){
     threadvars.thread_memory = thread_memory;
     
     sem_init(&linuxvars.thread_semaphore, 0, 0);
-    threadvars.queues[BACKGROUND_THREADS].semaphore = LinuxSemToHandle(&linuxvars.thread_semaphore);
+    threadvars.queues[BACKGROUND_THREADS].semaphore = handle_sem(&linuxvars.thread_semaphore);
     
     for(i32 i = 0; i < threadvars.groups[BACKGROUND_THREADS].count; ++i){
         Thread_Context *thread = threadvars.groups[BACKGROUND_THREADS].threads + i;

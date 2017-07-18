@@ -9,7 +9,7 @@
 
 // TOP
 
-//#define FM_PRINT_COMMANDS
+#define FM_PRINT_COMMANDS
 
 #include "../4ed_defines.h"
 
@@ -327,6 +327,22 @@ build(u32 flags, u32 arch, char *code_path, char **code_files, char *out_path, c
 # error gcc options not set for this platform
 #endif
 
+internal i32
+get_freetype_include(char *out, u32 max){
+    i32 size = 0;
+#if defined(IS_LINUX)
+    char freetype_include[512];
+    FILE *file = popen("pkg-config --cflags freetype2", "r");
+    if (file != 0){
+        fgets(freetype_include, sizeof(freetype_include), file);
+        size = strlen(freetype_include);
+        freetype_include[size-1] = 0;
+        pclose(file);
+    }
+#endif
+    return(size);
+}
+
 internal void
 build(u32 flags, u32 arch, char *code_path, char **code_files, char *out_path, char *out_file, char **defines, char **exports, char **inc_folders){
     Build_Line line;
@@ -347,26 +363,6 @@ build(u32 flags, u32 arch, char *code_path, char **code_files, char *out_path, c
     if (flags & OPTS){
         fm_add_to_line(line, GCC_OPTS);
     }
-    
-#if 0
-    if (flags & INCLUDES){
-#if defined(IS_LINUX)
-        i32 size = 0;
-        char freetype_include[512];
-        FILE *file = popen("pkg-config --cflags freetype2", "r");
-        if (file != 0){
-            fgets(freetype_include, sizeof(freetype_include), file);
-            size = strlen(freetype_include);
-            freetype_include[size-1] = 0;
-            pclose(file);
-        }
-        
-        fm_add_to_line(line, GCC_INCLUDES" %s", freetype_include);
-#else
-        fm_add_to_line(line, GCC_INCLUDES);
-#endif
-    }
-#endif
     
     fm_add_to_line(line, "-I%s", code_path);
     if (inc_folders != 0){
@@ -518,8 +514,18 @@ build_main(char *cdir, b32 update_local_theme, u32 flags, u32 arch){
     {
         char *file = fm_str("4ed_app_target.cpp");
         char **exports = fm_list_one_item("app_get_functions");
+        
+        char **build_includes = includes;
+        
+        char ft_include[512];
+        i32 ft_size = get_freetype_include(ft_include, sizeof(ft_include) - 1);
+        if (ft_size > 0){
+            ft_include[ft_size] = 0;
+            build_includes = fm_list(build_includes, fm_list_one_item(ft_include));
+        }
+        
         BEGIN_TIME_SECTION();
-        build(OPTS | SHARED_CODE | flags, arch, cdir, file, dir, "4ed_app" DLL, get_defines_from_flags(flags), exports, includes);
+        build(OPTS | SHARED_CODE | flags, arch, cdir, file, dir, "4ed_app" DLL, get_defines_from_flags(flags), exports, build_includes);
         END_TIME_SECTION("build 4ed_app");
     }
     

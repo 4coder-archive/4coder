@@ -9,6 +9,18 @@
 
 // TOP
 
+enum CV_ID{
+    CANCEL_CV0,
+    CANCEL_CV1,
+    CANCEL_CV2,
+    CANCEL_CV3,
+    CANCEL_CV4,
+    CANCEL_CV5,
+    CANCEL_CV6,
+    CANCEL_CV7,
+    CV_COUNT
+};
+
 struct Thread_Context{
     u32 job_id;
     b32 running;

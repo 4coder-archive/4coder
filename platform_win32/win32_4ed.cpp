@@ -123,18 +123,6 @@ struct Win32_Coroutine{
     i32 done;
 };
 
-enum CV_ID{
-    CANCEL_CV0,
-    CANCEL_CV1,
-    CANCEL_CV2,
-    CANCEL_CV3,
-    CANCEL_CV4,
-    CANCEL_CV5,
-    CANCEL_CV6,
-    CANCEL_CV7,
-    CV_COUNT
-};
-
 struct Win32_Vars{
     App_Functions app;
     Custom_API custom_api;
