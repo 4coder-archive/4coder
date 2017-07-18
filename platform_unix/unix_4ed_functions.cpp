@@ -86,15 +86,21 @@ Sys_File_Can_Be_Made_Sig(system_file_can_be_made){
 // Memory
 //
 
-internal
-Sys_Memory_Allocate_Sig(system_memory_allocate){
+internal void*
+system_memory_allocate_extended(void *base, umem size){
     // NOTE(allen): This must return the exact base of the vpage.
     // We will count on the user to keep track of size themselves.
-    void *result = mmap(0, size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-    if(result == MAP_FAILED){
+    void *result = mmap(base, size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+    if (result == MAP_FAILED){
         LOG("error: mmap failed\n");
-        result = NULL;
+        result = 0;
     }
+    return(result);
+}
+
+internal
+Sys_Memory_Allocate_Sig(system_memory_allocate){
+    void *result = system_memory_allocate_extended(0, size);
     return(result);
 }
 

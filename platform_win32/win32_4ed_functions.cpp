@@ -71,9 +71,15 @@ Sys_File_Can_Be_Made_Sig(system_file_can_be_made){
 // Memory
 //
 
+internal void*
+system_memory_allocate_extended(void *base, umem size){
+    void *result = VirtualAlloc(base, size, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
+    return(result);
+}
+
 internal
 Sys_Memory_Allocate_Sig(system_memory_allocate){
-    void *result = VirtualAlloc(0, size, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
+    void *result = system_memory_allocate_extended(0, size);
     return(result);
 }
 

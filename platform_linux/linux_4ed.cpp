@@ -120,12 +120,10 @@ struct Linux_Coroutine {
 
 internal void        LinuxStringDup(String*, void*, size_t);
 internal void        LinuxToggleFullscreen(Display*, Window);
-internal void        LinuxFatalErrorMsg(const char* msg);
 
 struct Linux_Vars{
     Display *XDisplay;
     Window XWindow;
-    Render_Target target;
     
     XIM input_method;
     XIMStyle input_style;
@@ -188,6 +186,7 @@ struct Linux_Vars{
 ////////////////////////////////
 
 global Linux_Vars linuxvars;
+global Render_Target target;
 global System_Functions sysfunc;
 global Application_Memory memory_vars;
 global Plat_Settings plat_settings;
@@ -551,9 +550,9 @@ LinuxLoadAppCode(String* base_dir){
 
 internal void
 LinuxLoadRenderCode(){
-    linuxvars.target.push_clip = draw_push_clip;
-    linuxvars.target.pop_clip = draw_pop_clip;
-    linuxvars.target.push_piece = draw_push_piece;
+    target.push_clip = draw_push_clip;
+    target.pop_clip = draw_pop_clip;
+    target.push_piece = draw_push_piece;
 }
 
 //
@@ -562,7 +561,7 @@ LinuxLoadRenderCode(){
 
 internal void
 LinuxRedrawTarget(){
-    launch_rendering(&sysfunc, &linuxvars.target);
+    launch_rendering(&sysfunc, &target);
     //glFlush();
     glXSwapBuffers(linuxvars.XDisplay, linuxvars.XWindow);
 }
@@ -576,8 +575,8 @@ LinuxResizeTarget(i32 width, i32 height){
         glOrtho(0, width, height, 0, -1, 1);
         glScissor(0, 0, width, height);
         
-        linuxvars.target.width = width;
-        linuxvars.target.height = height;
+        target.width = width;
+        target.height = height;
     }
 }
 
@@ -1682,7 +1681,7 @@ LinuxHandleX11Events(void)
                 i32 w = Event.xconfigure.width;
                 i32 h = Event.xconfigure.height;
                 
-                if (w != linuxvars.target.width || h != linuxvars.target.height){
+                if (w != target.width || h != target.height){
                     LinuxResizeTarget(w, h);
                 }
             }break;
@@ -1831,11 +1830,8 @@ LinuxHandleX11Events(void)
     }
 }
 
-//
-// Entry point
-//
-
 #include "4ed_link_system_functions.cpp"
+#include "4ed_shared_init_logic.cpp"
 
 int
 main(int argc, char **argv){
@@ -1847,25 +1843,19 @@ main(int argc, char **argv){
     String base_dir = make_fixed_width_string(base_dir_mem);
     
     if (!LinuxLoadAppCode(&base_dir)){
-        LinuxFatalErrorMsg("Could not load '4ed_app.so'. This file should be in the same directory as the main '4ed' executable.");
+        char msg[] = "Could not load '4ed_app.so'. This file should be in the same directory as the main '4ed' executable.";
+        LinuxFatalErrorMsg(msg);
         return 99;
     }
     
     link_system_code(&sysfunc);
     LinuxLoadRenderCode();
     
-    memory_vars.vars_memory_size   = MB(2);
-    memory_vars.vars_memory        = system_memory_allocate(memory_vars.vars_memory_size);
-    memory_vars.target_memory_size = MB(512);
-    memory_vars.target_memory      = system_memory_allocate(memory_vars.target_memory_size);
-    memory_vars.user_memory_size   = MB(2);
-    memory_vars.user_memory        = system_memory_allocate(memory_vars.user_memory_size);
+    b32 alloc_success = system_memory_init();
     
-    linuxvars.target.max         = MB(1);
-    linuxvars.target.push_buffer = (char*)system_memory_allocate(linuxvars.target.max);
-    
-    if (memory_vars.vars_memory == NULL || memory_vars.target_memory == NULL || memory_vars.user_memory == NULL || linuxvars.target.push_buffer == NULL){
-        LinuxFatalErrorMsg("Could not allocate sufficient memory. Please make sure you have atleast 512Mb of RAM free. (This requirement will be relaxed in the future).");
+    if (!alloc_success){
+        char msg[] = "Could not allocate sufficient memory. Please make sure you have atleast 512Mb of RAM free. (This requirement will be relaxed in the future).";
+        LinuxFatalErrorMsg(msg);
         exit(1);
     }
     
@@ -2115,7 +2105,7 @@ main(int argc, char **argv){
     
     XAddConnectionWatch(linuxvars.XDisplay, &LinuxX11ConnectionWatch, NULL);
     
-    linuxvars.app.init(&sysfunc, &linuxvars.target, &memory_vars, linuxvars.clipboard_contents, current_directory, linuxvars.custom_api);
+    linuxvars.app.init(&sysfunc, &target, &memory_vars, linuxvars.clipboard_contents, current_directory, linuxvars.custom_api);
     
     LinuxResizeTarget(window_width, window_height);
     
@@ -2209,7 +2199,7 @@ main(int argc, char **argv){
             
             b32 keep_running = linuxvars.keep_running;
             
-            linuxvars.app.step(&sysfunc, &linuxvars.target, &memory_vars, &linuxvars.input, &result, clparams);
+            linuxvars.app.step(&sysfunc, &target, &memory_vars, &linuxvars.input, &result, clparams);
             
             if (result.perform_kill){
                 break;

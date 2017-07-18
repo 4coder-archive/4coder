@@ -142,7 +142,6 @@ struct Win32_Vars{
     DWORD clipboard_sequence;
     
     HWND window_handle;
-    Render_Target target;
     i32 dpi_x, dpi_y;
     
     f64 count_per_usecond;
@@ -155,6 +154,7 @@ struct Win32_Vars{
 ////////////////////////////////
 
 global Win32_Vars win32vars;
+global Render_Target target;
 global System_Functions sysfunc;
 global Application_Memory memory_vars;
 global Plat_Settings plat_settings;
@@ -585,9 +585,9 @@ Win32LoadAppCode(){
 
 internal void
 Win32LoadRenderCode(){
-    win32vars.target.push_clip = draw_push_clip;
-    win32vars.target.pop_clip = draw_pop_clip;
-    win32vars.target.push_piece = draw_push_piece;
+    target.push_clip = draw_push_clip;
+    target.pop_clip = draw_pop_clip;
+    target.push_piece = draw_push_piece;
 }
 
 //
@@ -632,7 +632,7 @@ Win32KeycodeInit(){
 
 internal void
 Win32RedrawScreen(HDC hdc){
-    launch_rendering(&sysfunc, &win32vars.target);
+    launch_rendering(&sysfunc, &target);
     glFlush();
     SwapBuffers(hdc);
 }
@@ -646,8 +646,8 @@ Win32Resize(i32 width, i32 height){
         glOrtho(0, width, height, 0, -1, 1);
         glScissor(0, 0, width, height);
         
-        win32vars.target.width = width;
-        win32vars.target.height = height;
+        target.width = width;
+        target.height = height;
     }
 }
 
@@ -1070,6 +1070,7 @@ Win32Callback(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
 }
 
 #include "4ed_link_system_functions.cpp"
+#include "4ed_shared_init_logic.cpp"
 
 int CALL_CONVENTION
 WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow){
@@ -1096,42 +1097,10 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
     // Memory Initialization
     //
     
-    LPVOID base;
-#if defined(FRED_INTERNAL)
-#if defined(BUILD_X64)
-    base = (LPVOID)TB(1);
-#elif defined(BUILD_X86)
-    base = (LPVOID)MB(96);
-#endif
-#else
-    base = (LPVOID)0;
-#endif
-    
-    memory_vars.vars_memory_size = MB(2);
-    memory_vars.vars_memory = VirtualAlloc(base, memory_vars.vars_memory_size, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
-    
-#if defined(FRED_INTERNAL)
-#if defined(BUILD_X64)
-    base = (LPVOID)TB(2);
-#elif defined(BUILD_X86)
-    base = (LPVOID)MB(98);
-#endif
-#else
-    base = (LPVOID)0;
-#endif
-    memory_vars.target_memory_size = MB(512);
-    memory_vars.target_memory = VirtualAlloc(base, memory_vars.target_memory_size, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
-    
-    memory_vars.user_memory_size = MB(2);
-    memory_vars.user_memory = system_memory_allocate(memory_vars.user_memory_size);
-    
-    memory_vars.debug_memory_size = MB(512);
-    memory_vars.debug_memory = system_memory_allocate(memory_vars.debug_memory_size);
-    
-    win32vars.target.max = MB(1);
-    win32vars.target.push_buffer = (char*)system_memory_allocate(win32vars.target.max);
-    
-    if (memory_vars.vars_memory == 0 || memory_vars.target_memory == 0 || memory_vars.user_memory == 0 || win32vars.target.push_buffer == 0){
+    b32 alloc_success = system_memory_init();
+    if (!alloc_success){
+        // HACK(allen): 
+        LOGF("Failed thingy");
         exit(1);
     }
     
@@ -1343,7 +1312,7 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
     //
     
     LOG("Initializing application variables\n");
-    win32vars.app.init(&sysfunc, &win32vars.target, &memory_vars, win32vars.clipboard_contents, current_directory, win32vars.custom_api);
+    win32vars.app.init(&sysfunc, &target, &memory_vars, win32vars.clipboard_contents, current_directory, win32vars.custom_api);
     
     system_memory_free(current_directory.str, 0);
     
@@ -1460,8 +1429,8 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
             i32_Rect screen;
             screen.x0 = 0;
             screen.y0 = 0;
-            screen.x1 = win32vars.target.width;
-            screen.y1 = win32vars.target.height;
+            screen.x1 = target.width;
+            screen.y1 = target.height;
             
             i32 mx = mouse_point.x;
             i32 my = mouse_point.y;
@@ -1538,7 +1507,7 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
             win32vars.send_exit_signal = false;
         }
         
-        win32vars.app.step(&sysfunc, &win32vars.target, &memory_vars, &input, &result, clparams);
+        win32vars.app.step(&sysfunc, &target, &memory_vars, &input, &result, clparams);
         
         if (result.perform_kill){
             keep_running = false;
