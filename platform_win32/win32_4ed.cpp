@@ -674,112 +674,110 @@ OpenGLDebugCallback(GLenum source, GLenum type, GLuint id, GLenum severity, GLsi
 internal void
 Win32InitGL(){
     // GL context initialization
-    {
-        PIXELFORMATDESCRIPTOR format;
-        format.nSize = sizeof(format);
-        format.nVersion = 1;
-        format.dwFlags = PFD_SUPPORT_OPENGL | PFD_DRAW_TO_WINDOW;
-        format.iPixelType = PFD_TYPE_RGBA;
-        format.cColorBits = 32;
-        format.cRedBits = 0;
-        format.cRedShift = 0;
-        format.cGreenBits = 0;
-        format.cGreenShift = 0;
-        format.cBlueBits = 0;
-        format.cBlueShift = 0;
-        format.cAlphaBits = 0;
-        format.cAlphaShift = 0;
-        format.cAccumBits = 0;
-        format.cAccumRedBits = 0;
-        format.cAccumGreenBits = 0;
-        format.cAccumBlueBits = 0;
-        format.cAccumAlphaBits = 0;
-        format.cDepthBits = 24;
-        format.cStencilBits = 8;
-        format.cAuxBuffers = 0;
-        format.iLayerType = PFD_MAIN_PLANE;
-        format.bReserved = 0;
-        format.dwLayerMask = 0;
-        format.dwVisibleMask = 0;
-        format.dwDamageMask = 0;
+    PIXELFORMATDESCRIPTOR format;
+    format.nSize = sizeof(format);
+    format.nVersion = 1;
+    format.dwFlags = PFD_SUPPORT_OPENGL | PFD_DRAW_TO_WINDOW;
+    format.iPixelType = PFD_TYPE_RGBA;
+    format.cColorBits = 32;
+    format.cRedBits = 0;
+    format.cRedShift = 0;
+    format.cGreenBits = 0;
+    format.cGreenShift = 0;
+    format.cBlueBits = 0;
+    format.cBlueShift = 0;
+    format.cAlphaBits = 0;
+    format.cAlphaShift = 0;
+    format.cAccumBits = 0;
+    format.cAccumRedBits = 0;
+    format.cAccumGreenBits = 0;
+    format.cAccumBlueBits = 0;
+    format.cAccumAlphaBits = 0;
+    format.cDepthBits = 24;
+    format.cStencilBits = 8;
+    format.cAuxBuffers = 0;
+    format.iLayerType = PFD_MAIN_PLANE;
+    format.bReserved = 0;
+    format.dwLayerMask = 0;
+    format.dwVisibleMask = 0;
+    format.dwDamageMask = 0;
+    
+    HDC dc = GetDC(win32vars.window_handle);
+    Assert(dc);
+    int format_id = ChoosePixelFormat(dc, &format);
+    Assert(format_id != 0);
+    BOOL success = SetPixelFormat(dc, format_id, &format);
+    Assert(success == TRUE); AllowLocal(success);
+    
+    HGLRC glcontext = wglCreateContext(dc);
+    wglMakeCurrent(dc, glcontext);
+    
+    HMODULE module = LoadLibraryA("opengl32.dll");
+    AllowLocal(module);
+    
+    wglCreateContextAttribsARB_Function *wglCreateContextAttribsARB = 0;
+    wglCreateContextAttribsARB = (wglCreateContextAttribsARB_Function*)
+        win32_load_gl_always("wglCreateContextAttribsARB", module);
+    
+    wglChoosePixelFormatARB_Function *wglChoosePixelFormatARB = 0;
+    wglChoosePixelFormatARB = (wglChoosePixelFormatARB_Function*)
+        win32_load_gl_always("wglChoosePixelFormatARB", module);
+    
+    if (wglCreateContextAttribsARB != 0 && wglChoosePixelFormatARB != 0){
+        const int choosePixel_attribList[] =
+        {
+            WGL_DRAW_TO_WINDOW_ARB, TRUE,
+            WGL_SUPPORT_OPENGL_ARB, TRUE,
+            WGL_DOUBLE_BUFFER_ARB, GL_TRUE,
+            WGL_PIXEL_TYPE_ARB, WGL_TYPE_RGBA_ARB,
+            WGL_COLOR_BITS_ARB, 32,
+            WGL_DEPTH_BITS_ARB, 24,
+            WGL_STENCIL_BITS_ARB, 8,
+            0,
+        };
         
-        HDC dc = GetDC(win32vars.window_handle);
-        Assert(dc);
-        int format_id = ChoosePixelFormat(dc, &format);
-        Assert(format_id != 0);
-        BOOL success = SetPixelFormat(dc, format_id, &format);
-        Assert(success == TRUE); AllowLocal(success);
+        i32 extended_format_id = 0;
+        u32 num_formats = 0;
+        BOOL result =  wglChoosePixelFormatARB(dc, choosePixel_attribList, 0, 1, &extended_format_id, &num_formats);
         
-        HGLRC glcontext = wglCreateContext(dc);
-        wglMakeCurrent(dc, glcontext);
-        
-        HMODULE module = LoadLibraryA("opengl32.dll");
-        AllowLocal(module);
-        
-        wglCreateContextAttribsARB_Function *wglCreateContextAttribsARB = 0;
-        wglCreateContextAttribsARB = (wglCreateContextAttribsARB_Function*)
-            win32_load_gl_always("wglCreateContextAttribsARB", module);
-        
-        wglChoosePixelFormatARB_Function *wglChoosePixelFormatARB = 0;
-        wglChoosePixelFormatARB = (wglChoosePixelFormatARB_Function*)
-            win32_load_gl_always("wglChoosePixelFormatARB", module);
-        
-        if (wglCreateContextAttribsARB != 0 && wglChoosePixelFormatARB != 0){
-            const int choosePixel_attribList[] =
-            {
-                WGL_DRAW_TO_WINDOW_ARB, TRUE,
-                WGL_SUPPORT_OPENGL_ARB, TRUE,
-                WGL_DOUBLE_BUFFER_ARB, GL_TRUE,
-                WGL_PIXEL_TYPE_ARB, WGL_TYPE_RGBA_ARB,
-                WGL_COLOR_BITS_ARB, 32,
-                WGL_DEPTH_BITS_ARB, 24,
-                WGL_STENCIL_BITS_ARB, 8,
-                0,
+        if (result != 0 && num_formats > 0){
+            const int createContext_attribList[] = {
+                WGL_CONTEXT_MAJOR_VERSION_ARB, 3,
+                WGL_CONTEXT_MINOR_VERSION_ARB, 2,
+                WGL_CONTEXT_PROFILE_MASK_ARB, WGL_CONTEXT_COMPATIBILITY_PROFILE_BIT_ARB,
+                0
             };
             
-            i32 extended_format_id = 0;
-            u32 num_formats = 0;
-            BOOL result =  wglChoosePixelFormatARB(dc, choosePixel_attribList, 0, 1, &extended_format_id, &num_formats);
-            
-            if (result != 0 && num_formats > 0){
-                const int createContext_attribList[] = {
-                    WGL_CONTEXT_MAJOR_VERSION_ARB, 3,
-                    WGL_CONTEXT_MINOR_VERSION_ARB, 2,
-                    WGL_CONTEXT_PROFILE_MASK_ARB, WGL_CONTEXT_COMPATIBILITY_PROFILE_BIT_ARB,
-                    0
-                };
-                
-                if (extended_format_id == format_id){
-                    HGLRC extended_context = wglCreateContextAttribsARB(dc, 0, createContext_attribList);
-                    if (extended_context){
-                        wglMakeCurrent(dc, extended_context);
-                        wglDeleteContext(glcontext);
-                        glcontext = extended_context;
-                    }
+            if (extended_format_id == format_id){
+                HGLRC extended_context = wglCreateContextAttribsARB(dc, 0, createContext_attribList);
+                if (extended_context){
+                    wglMakeCurrent(dc, extended_context);
+                    wglDeleteContext(glcontext);
+                    glcontext = extended_context;
                 }
             }
         }
-        
+    }
+    
 #if (defined(BUILD_X64) && 1) || (defined(BUILD_X86) && 0)
 #if defined(FRED_INTERNAL)
-        // NOTE(casey): This slows down GL but puts error messages to
-        // the debug console immediately whenever you do something wrong
-        glDebugMessageCallback_type *glDebugMessageCallback = 
-            (glDebugMessageCallback_type *)win32_load_gl_always("glDebugMessageCallback", module);
-        glDebugMessageControl_type *glDebugMessageControl = 
-            (glDebugMessageControl_type *)win32_load_gl_always("glDebugMessageControl", module);
-        if(glDebugMessageCallback != 0 && glDebugMessageControl != 0)
-        {
-            glDebugMessageCallback(OpenGLDebugCallback, 0);
-            glDebugMessageControl(GL_DONT_CARE, GL_DONT_CARE, GL_DONT_CARE, 0, 0, GL_TRUE);
-            glEnable(GL_DEBUG_OUTPUT);
-            glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
-        }
-#endif
-#endif
-        
-        ReleaseDC(win32vars.window_handle, dc);
+    // NOTE(casey): This slows down GL but puts error messages to
+    // the debug console immediately whenever you do something wrong
+    glDebugMessageCallback_type *glDebugMessageCallback = 
+        (glDebugMessageCallback_type *)win32_load_gl_always("glDebugMessageCallback", module);
+    glDebugMessageControl_type *glDebugMessageControl = 
+        (glDebugMessageControl_type *)win32_load_gl_always("glDebugMessageControl", module);
+    if(glDebugMessageCallback != 0 && glDebugMessageControl != 0)
+    {
+        glDebugMessageCallback(OpenGLDebugCallback, 0);
+        glDebugMessageControl(GL_DONT_CARE, GL_DONT_CARE, GL_DONT_CARE, 0, 0, GL_TRUE);
+        glEnable(GL_DEBUG_OUTPUT);
+        glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
     }
+#endif
+#endif
+    
+    ReleaseDC(win32vars.window_handle, dc);
     
     glEnable(GL_TEXTURE_2D);
     glEnable(GL_SCISSOR_TEST);
@@ -1111,7 +1109,6 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
     if (!Win32LoadAppCode()){
         exit(1);
     }
-    
     
     link_system_code(&sysfunc);
     Win32LoadRenderCode();
