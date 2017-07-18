@@ -11,6 +11,7 @@
 // TOP
 
 #define IS_PLAT_LAYER
+#include "4ed_os_comp_cracking.h"
 
 #include <string.h>
 #include "4ed_defines.h"
@@ -44,8 +45,6 @@
 #include "4ed_file_track.h"
 #include "4ed_font_interface_to_os.h"
 #include "4ed_system_shared.h"
-
-#include "unix_4ed_functions.cpp"
 
 #include <math.h>
 #include <stdlib.h>
@@ -175,7 +174,6 @@ struct Linux_Vars{
     
     i32 dpi_x, dpi_y;
     
-    Plat_Settings settings;
     App_Functions app;
     Custom_API custom_api;
     b32 vsync;
@@ -189,8 +187,11 @@ struct Linux_Vars{
 global Linux_Vars linuxvars;
 global System_Functions sysfunc;
 global Application_Memory memory_vars;
+global Plat_Settings plat_settings;
 
 ////////////////////////////////
+
+#define SLASH '/'
 
 internal Plat_Handle
 handle_sem(sem_t *sem){
@@ -234,6 +235,11 @@ system_schedule_step(){
         }
     }
 }
+
+////////////////////////////////
+
+#include "unix_4ed_functions.cpp"
+#include "4ed_shared_file_handling.cpp"
 
 ////////////////////////////////
 
@@ -765,7 +771,7 @@ InitializeOpenGLContext(Display *XDisplay, Window XWindow, GLXFBConfig &bestFbc,
         if (glXSwapIntervalSGI){
             glXSwapIntervalSGI(1);
             
-            //NOTE(inso): The SGI one doesn't seem to have a way to confirm we got it...
+            // NOTE(inso): The SGI one doesn't seem to have a way to confirm we got it...
             linuxvars.vsync = 1;
             LOG("VSync enabled? hopefully (SGI)\n");
         }
@@ -1404,9 +1410,9 @@ size_change(i32 x, i32 y){
 
 internal b32
 LinuxX11WindowInit(int argc, char** argv, int* window_width, int* window_height){
-    if (linuxvars.settings.set_window_size){
-        *window_width = linuxvars.settings.window_w;
-        *window_height = linuxvars.settings.window_h;
+    if (plat_settings.set_window_size){
+        *window_width = plat_settings.window_w;
+        *window_height = plat_settings.window_h;
     } else {
         f32 schange = size_change(linuxvars.dpi_x, linuxvars.dpi_y);
         *window_width = ceil32(BASE_W * schange);
@@ -1469,10 +1475,10 @@ LinuxX11WindowInit(int argc, char** argv, int* window_width, int* window_height)
     */
     sz_hints->win_gravity = NorthWestGravity;
     
-    if (linuxvars.settings.set_window_pos){
+    if (plat_settings.set_window_pos){
         sz_hints->flags |= USPosition;
-        sz_hints->x = linuxvars.settings.window_x;
-        sz_hints->y = linuxvars.settings.window_y;
+        sz_hints->x = plat_settings.window_x;
+        sz_hints->y = plat_settings.window_y;
     }
     
     wm_hints->flags |= InputHint | StateHint;
@@ -1505,14 +1511,14 @@ LinuxX11WindowInit(int argc, char** argv, int* window_width, int* window_height)
     
     XRaiseWindow(linuxvars.XDisplay, linuxvars.XWindow);
     
-    if (linuxvars.settings.set_window_pos){
-        XMoveWindow(linuxvars.XDisplay, linuxvars.XWindow, linuxvars.settings.window_x, linuxvars.settings.window_y);
+    if (plat_settings.set_window_pos){
+        XMoveWindow(linuxvars.XDisplay, linuxvars.XWindow, plat_settings.window_x, plat_settings.window_y);
     }
     
-    if (linuxvars.settings.maximize_window){
+    if (plat_settings.maximize_window){
         LinuxMaximizeWindow(linuxvars.XDisplay, linuxvars.XWindow, 1);
     }
-    else if (linuxvars.settings.fullscreen_window){
+    else if (plat_settings.fullscreen_window){
         system_toggle_fullscreen();
     }
     
@@ -1900,7 +1906,7 @@ main(int argc, char **argv){
     i32 *file_count;
     i32 output_size;
     
-    output_size = linuxvars.app.read_command_line(&sysfunc, &memory_vars, current_directory, &linuxvars.settings, &files, &file_count, clparams);
+    output_size = linuxvars.app.read_command_line(&sysfunc, &memory_vars, current_directory, &plat_settings, &files, &file_count, clparams);
     
     if (output_size > 0){
         LOGF("%.*s", output_size, (char*)memory_vars.target_memory);
@@ -1910,7 +1916,7 @@ main(int argc, char **argv){
         return(1);
     }
     
-    unixvars.use_log = linuxvars.settings.use_log;
+    unixvars.use_log = plat_settings.use_log;
     
     sysshared_filter_real_files(files, file_count);
     
@@ -1925,15 +1931,15 @@ main(int argc, char **argv){
     custom_file_default = base_dir.str;
     
     char *custom_file;
-    if (linuxvars.settings.custom_dll){
-        custom_file = linuxvars.settings.custom_dll;
+    if (plat_settings.custom_dll){
+        custom_file = plat_settings.custom_dll;
     } else {
         custom_file = custom_file_default;
     }
     
     linuxvars.custom = dlopen(custom_file, RTLD_LAZY);
     if (!linuxvars.custom && custom_file != custom_file_default){
-        if (!linuxvars.settings.custom_dll_is_strict){
+        if (!plat_settings.custom_dll_is_strict){
             linuxvars.custom = dlopen(custom_file_default, RTLD_LAZY);
         }
     }
@@ -2091,7 +2097,7 @@ main(int argc, char **argv){
     // Font System Init
     //
     
-    system_font_init(&sysfunc.font, 0, 0, linuxvars.settings.font_size, linuxvars.settings.use_hinting);
+    system_font_init(&sysfunc.font, 0, 0, plat_settings.font_size, plat_settings.use_hinting);
     
     //
     // Epoll init
@@ -2262,7 +2268,7 @@ main(int argc, char **argv){
     return(0);
 }
 
-#include "linux_4ed_fonts.cpp"
+#include "4ed_shared_fonts.cpp"
 #include "linux_4ed_file_track.cpp"
 #include "4ed_font_static_functions.cpp"
 

@@ -18,7 +18,6 @@
 
 #include "4ed_math.h"
 #include "4ed_system.h"
-#include "4ed_profile.h"
 
 // TODO(allen): set in compilation line
 #define PREFERRED_ALIGNMENT 8

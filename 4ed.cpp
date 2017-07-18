@@ -1014,8 +1014,6 @@ App_Init_Sig(app_init){
     
     Partition *partition = &models->mem.part;
     
-    PRFL_INIT(memory->debug_memory, memory->debug_memory_size);
-    
     i32 panel_max_count = models->layout.panel_max_count = MAX_VIEWS;
     i32 divider_max_count = panel_max_count - 1;
     models->layout.panel_count = 0;
@@ -1347,8 +1345,6 @@ App_Init_Sig(app_init){
 }
 
 App_Step_Sig(app_step){
-    PRFL_BEGIN_FRAME();
-    
     Application_Step_Result app_result = *app_result_;
     app_result.animating = 0;
     
@@ -2309,8 +2305,6 @@ App_Step_Sig(app_step){
     *app_result_ = app_result;
     
     // end-of-app_step
-    
-    PRFL_END_FRAME("profile.data");
 }
 
 extern "C" App_Get_Functions_Sig(app_get_functions){

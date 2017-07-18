@@ -10,9 +10,7 @@
 // TOP
 
 #define IS_PLAT_LAYER
-
 #include "4ed_os_comp_cracking.h"
-
 
 //
 // Program setup
@@ -119,7 +117,6 @@ struct Win32_Vars{
     Custom_API custom_api;
     HMODULE app_code;
     HMODULE custom;
-    Plat_Settings settings;
     
     Win32_Coroutine coroutine_data[18];
     Win32_Coroutine *coroutine_free;
@@ -161,8 +158,11 @@ struct Win32_Vars{
 global Win32_Vars win32vars;
 global System_Functions sysfunc;
 global Application_Memory memory_vars;
+global Plat_Settings plat_settings;
 
 ////////////////////////////////
+
+#define SLASH '\\'
 
 internal HANDLE
 handle_type(Plat_Handle h){
@@ -209,7 +209,7 @@ Sys_Get_4ed_Path_Sig(system_get_4ed_path){
 
 internal
 Sys_Log_Sig(system_log){
-    if (win32vars.settings.use_log){
+    if (plat_settings.use_log){
         u8 space[4096];
         String str = make_fixed_width_string(space);
         str.size = system_get_4ed_path(str.str, str.memory_size);
@@ -586,14 +586,6 @@ system_directory_exists(char *path){
     return(attrib != INVALID_FILE_ATTRIBUTES && (attrib & FILE_ATTRIBUTE_DIRECTORY));
 }
 
-#include "4ed_shared_file_handling.cpp"
-
-internal
-Sys_Directory_CD_Sig(system_directory_cd){
-    u32 result = directory_cd(dir, len, cap, rel_path, rel_len, '\\');
-    return(result);
-}
-
 //
 // Time
 //
@@ -603,6 +595,10 @@ Sys_Now_Time_Sig(system_now_time){
     u64 result = __rdtsc();
     return(result);
 }
+
+////////////////////////////////
+
+#include "4ed_shared_file_handling.cpp"
 
 ////////////////////////////////
 
@@ -981,7 +977,7 @@ Sys_Toggle_Fullscreen_Sig(system_toggle_fullscreen){
     b32 success = false;
     
     // NOTE(allen): On windows we must be in stream mode to go fullscreen.
-    if (win32vars.settings.stream_mode){
+    if (plat_settings.stream_mode){
         win32vars.do_toggle = !win32vars.do_toggle;
         success = true;
     }
@@ -1619,7 +1615,7 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
     char **files = 0;
     i32 *file_count = 0;
     
-    win32vars.app.read_command_line(&sysfunc, &memory_vars, current_directory, &win32vars.settings, &files, &file_count, clparams);
+    win32vars.app.read_command_line(&sysfunc, &memory_vars, current_directory, &plat_settings, &files, &file_count, clparams);
     
     sysshared_filter_real_files(files, file_count);
     LOG("Loaded system code, read command line.\n");
@@ -1631,8 +1627,8 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
 #if defined(FRED_SUPER)
     char *custom_file_default = "custom_4coder.dll";
     char *custom_file = 0;
-    if (win32vars.settings.custom_dll){
-        custom_file = win32vars.settings.custom_dll;
+    if (plat_settings.custom_dll){
+        custom_file = plat_settings.custom_dll;
     }
     else{
         custom_file = custom_file_default;
@@ -1641,7 +1637,7 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
     LOGF("Trying to load custom DLL: %s\n", custom_file);
     win32vars.custom = LoadLibraryA(custom_file);
     if (!win32vars.custom && custom_file != custom_file_default){
-        if (!win32vars.settings.custom_dll_is_strict){
+        if (!plat_settings.custom_dll_is_strict){
             LOGF("Trying to load custom DLL: %s\n", custom_file_default);
             win32vars.custom = LoadLibraryA(custom_file_default);
         }
@@ -1683,9 +1679,9 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
     }
     
     RECT window_rect = {0};
-    if (win32vars.settings.set_window_size){
-        window_rect.right = win32vars.settings.window_w;
-        window_rect.bottom = win32vars.settings.window_h;
+    if (plat_settings.set_window_size){
+        window_rect.right = plat_settings.window_w;
+        window_rect.bottom = plat_settings.window_h;
     }
     else{
         window_rect.right = 800;
@@ -1699,14 +1695,14 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
     i32 window_x = CW_USEDEFAULT;
     i32 window_y = CW_USEDEFAULT;
     
-    if (win32vars.settings.set_window_pos){
-        window_x = win32vars.settings.window_x;
-        window_y = win32vars.settings.window_y;
+    if (plat_settings.set_window_pos){
+        window_x = plat_settings.window_x;
+        window_y = plat_settings.window_y;
         LOGF("Setting window position (%d, %d)\n", window_x, window_y);
     }
     
     i32 window_style = WS_OVERLAPPEDWINDOW;
-    if (!win32vars.settings.fullscreen_window && win32vars.settings.maximize_window){
+    if (!plat_settings.fullscreen_window && plat_settings.maximize_window){
         window_style |= WS_MAXIMIZE;
     }
     
@@ -1741,7 +1737,7 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
     //
     
     LOG("Initializing fonts\n");
-    system_font_init(&sysfunc.font, 0, 0, win32vars.settings.font_size, win32vars.settings.use_hinting);
+    system_font_init(&sysfunc.font, 0, 0, plat_settings.font_size, plat_settings.use_hinting);
     
     //
     // Misc System Initializations
@@ -1798,7 +1794,7 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
     win32vars.first = true;
     timeBeginPeriod(1);
     
-    if (win32vars.settings.fullscreen_window){
+    if (plat_settings.fullscreen_window){
         Win32ToggleFullscreen();
     }
     
@@ -1821,7 +1817,7 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
         // the first step right away so it will render into the
         // window. With double buffering this is not an issue
         // for reasons I cannot at all comprehend.
-        if (!(win32vars.first && win32vars.settings.stream_mode)){
+        if (!(win32vars.first && plat_settings.stream_mode)){
             system_release_lock(FRAME_LOCK);
             
             if (win32vars.running_cli == 0){
@@ -2033,7 +2029,7 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
     return(0);
 }
 
-#include "win32_4ed_fonts.cpp"
+#include "4ed_shared_fonts.cpp"
 #include "win32_4ed_file_track.cpp"
 #include "4ed_font_static_functions.cpp"
 #include "win32_utf8.cpp"

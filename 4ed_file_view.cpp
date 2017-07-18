@@ -1372,20 +1372,12 @@ file_measure_wraps(System_Functions *system, Models *models, Editing_File *file,
     i32 potential_count = 0;
     i32 stage = 0;
     
-    PRFL_BEGIN_RESUMABLE(buffer_measure_wrap_y);
-    PRFL_BEGIN_RESUMABLE(NeedWrapDetermination);
-    PRFL_BEGIN_RESUMABLE(NeedLineShift);
-    PRFL_BEGIN_RESUMABLE(LongTokenParsing);
-    
     do{
-        PRFL_START_RESUMABLE(buffer_measure_wrap_y);
         stop = buffer_measure_wrap_y(&state, params, current_line_shift, do_wrap, wrap_unit_end);
-        PRFL_STOP_RESUMABLE(buffer_measure_wrap_y);
         
         switch (stop.status){
             case BLStatus_NeedWrapDetermination:
             {
-                PRFL_START_RESUMABLE(NeedWrapDetermination);
                 if (use_tokens){
                     if (stage == 0){
                         do_wrap = 0;
@@ -1465,13 +1457,11 @@ file_measure_wraps(System_Functions *system, Models *models, Editing_File *file,
                         do_wrap = 0;
                     }
                 }
-                PRFL_STOP_RESUMABLE(NeedWrapDetermination);
             }break;
             
             case BLStatus_NeedWrapLineShift:
             case BLStatus_NeedLineShift:
             {
-                PRFL_START_RESUMABLE(NeedLineShift);
                 f32 current_width = width;
                 
                 if (use_tokens){
@@ -1510,7 +1500,6 @@ file_measure_wraps(System_Functions *system, Models *models, Editing_File *file,
                             b32 first_word = 1;
                             
                             if (wrap_state.token_ptr->type == CPP_TOKEN_COMMENT || wrap_state.token_ptr->type == CPP_TOKEN_STRING_CONSTANT){
-                                PRFL_START_RESUMABLE(LongTokenParsing);
                                 i32 i = wrap_state.token_ptr->start;
                                 i32 end_i = i + wrap_state.token_ptr->size;
                                 
@@ -1631,8 +1620,6 @@ file_measure_wraps(System_Functions *system, Models *models, Editing_File *file,
                                     potential_marks[potential_count] = potential_wrap;
                                     ++potential_count;
                                 }
-                                
-                                PRFL_STOP_RESUMABLE(LongTokenParsing);
                             }
                             
                             if (!emit_comment_position){
@@ -1803,16 +1790,9 @@ file_measure_wraps(System_Functions *system, Models *models, Editing_File *file,
                 
                 file->state.line_indents[stop.wrap_line_index] = current_line_shift;
                 file->state.wrap_line_count = stop.wrap_line_index;
-                
-                PRFL_STOP_RESUMABLE(NeedLineShift);
             }break;
         }
     }while(stop.status != BLStatus_Finished);
-    
-    PRFL_END_RESUMABLE(buffer_measure_wrap_y);
-    PRFL_END_RESUMABLE(NeedWrapDetermination);
-    PRFL_END_RESUMABLE(NeedLineShift);
-    PRFL_END_RESUMABLE(LongTokenParsing);
     
     ++file->state.wrap_line_count;
     
@@ -1880,7 +1860,6 @@ file_create_from_string(System_Functions *system, Models *models, Editing_File *
     Render_Font *font = system->font.get_render_data_by_id(font_id);
     
     {
-        PRFL_SCOPE_GROUP(measurements);
         file_measure_starts(general, &file->state.buffer);
         
         file_allocate_character_starts_as_needed(general, file);
@@ -1919,7 +1898,6 @@ file_create_from_string(System_Functions *system, Models *models, Editing_File *
     }
     
     if (hook_open_file){
-        PRFL_SCOPE_GROUP(open_hook);
         file->state.hacks.suppression_mode = true;
         hook_open_file(app_links, file->id.id);
         file->state.hacks.suppression_mode = false;

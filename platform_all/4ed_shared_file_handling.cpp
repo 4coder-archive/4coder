@@ -9,8 +9,8 @@
 
 // TOP
 
-internal u32
-directory_cd(char *dir, i32 *len, i32 cap, char *rel_path, i32 rel_len, char slash){
+internal
+Sys_Directory_CD_Sig(system_directory_cd){
     String directory = make_string_cap(dir, *len, cap);
     b32 result = false;
     
@@ -26,7 +26,7 @@ directory_cd(char *dir, i32 *len, i32 cap, char *rel_path, i32 rel_len, char sla
             if (directory.size + rel_len + 1 > directory.memory_size){
                 i32 old_size = directory.size;
                 append_partial_sc(&directory, rel_path);
-                append_s_char(&directory, slash);
+                append_s_char(&directory, SLASH);
                 terminate_with_null(&directory);
                 
                 if (system_directory_exists(directory.str)){

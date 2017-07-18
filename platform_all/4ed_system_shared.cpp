@@ -43,7 +43,7 @@ init_shared_vars(){
 
 internal b32
 handle_track_out_of_memory(i32 val){
-    b32 result = 0;
+    b32 result = false;
     
     switch (val){
         case FileTrack_OutOfTableMemory:
@@ -63,7 +63,7 @@ handle_track_out_of_memory(i32 val){
             expand_track_system_listeners(&shared_vars.track, &shared_vars.scratch, node_expansion, shared_vars.track_node_size);
         }break;
         
-        default: result = 1; break;
+        default: result = true; break;
     }
     
     return(result);
@@ -212,7 +212,7 @@ internal b32
 sysshared_to_binary_path(String *out_filename, char *filename){
     b32 translate_success = 0;
     i32 max = out_filename->memory_size;
-    i32 size = system_get_binary_path_string(out_filename);
+    i32 size = out_filename->size = system_get_4ed_path(out_filename->str, out_filename->memory_size);
     if (size > 0 && size < max-1){
         out_filename->size = size;
         if (append_sc(out_filename, filename) && terminate_with_null(out_filename)){

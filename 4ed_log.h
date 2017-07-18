@@ -29,20 +29,25 @@
 # define LOGF(...)
 # endif
 
-#else
+#else /* Not platform layer */
 
 # if defined(USE_LOG)
-# define LOG(s,m) GEN_LOG((s)->log, m)
+#  define LOG(s,m) GEN_LOG((s)->log, m)
 # else
-# define LOG(s,m)
+#  define LOG(s,m)
 # endif
 
 # if defined(USE_LOGF)
-# define LOGF(s,...) GEN_LOGF((s)->log, __VA_ARGS__)
+#  define LOGF(s,...) GEN_LOGF((s)->log, __VA_ARGS__)
 # else
-# define LOGF(s,...)
+#  define LOGF(s,...)
 # endif
 
+#endif
+
+// HACK(allen): Get rid of this dependency. Implement snprintf ourself or something.
+#if defined(USE_LOG)
+# include <stdio.h>
 #endif
 
 // BOTTOM
