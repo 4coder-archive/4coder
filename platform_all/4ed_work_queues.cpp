@@ -92,7 +92,7 @@ get_work_queue_available_space(i32 write, i32 read){
 #define UNBOUNDED_SKIP_MAX 128
 
 internal i32
-flush_unbounded_queue_to_main(Unbounded_Work_Queue *source_queue, Work_Queue *queue, i32 thread_count){
+flush_to_direct_queue(Unbounded_Work_Queue *source_queue, Work_Queue *queue, i32 thread_count){
     // NOTE(allen): It is understood that read_position may be changed by other
     // threads but it will only make more space in the queue if it is changed.
     // Meanwhile write_position should not ever be changed by anything but the
@@ -144,7 +144,126 @@ flush_unbounded_queue_to_main(Unbounded_Work_Queue *source_queue, Work_Queue *qu
         semaphore_release_count = thread_count;
     }
     
+    for (i32 i = 0; i < semaphore_release_count; ++i){
+        system_release_semaphore(queue->semaphore);
+    }
+    
     return(semaphore_release_count);
+}
+
+// Note(allen): post_job puts the job on the unbounded queue.
+// The unbounded queue is entirely managed by the main thread.
+// The thread safe queue is bounded in size so the unbounded
+// queue is periodically flushed into the direct work queue.
+internal u32
+post_job(Thread_Group *group, Work_Queue *direct_queue, Job_Data job){
+    Unbounded_Work_Queue *queue = &group->queue;
+    
+    u32 result = queue->next_job_id++;
+    
+    if (queue->count >= queue->max){
+        u32 new_max = round_up_pot_u32(queue->count + 1);
+        Full_Job_Data *new_jobs = (Full_Job_Data*)system_memory_allocate(new_max*sizeof(Full_Job_Data));
+        memcpy(new_jobs, queue->jobs, queue->count);
+        system_memory_free(queue->jobs, queue->max*sizeof(Full_Job_Data));
+        queue->jobs = new_jobs;
+        queue->max = new_max;
+    }
+    
+    Full_Job_Data full_job = {0};
+    full_job.job = job;
+    full_job.running_thread = THREAD_NOT_ASSIGNED;
+    full_job.id = result;
+    
+    queue->jobs[queue->count++] = full_job;
+    flush_to_direct_queue(queue, direct_queue, group->count);
+    
+    return(result);
+}
+
+internal void
+cancel_job(Thread_Group *group, Work_Queue *queue, u32 job_id){
+    Unbounded_Work_Queue *source_queue = &group->queue;
+    
+    b32 handled_in_unbounded = false;
+    if (source_queue->skip < source_queue->count){
+        Full_Job_Data *first_job = source_queue->jobs + source_queue->skip;
+        if (first_job->id <= job_id){
+            u32 index = source_queue->skip + (job_id - first_job->id);
+            Full_Job_Data *job = source_queue->jobs + index;
+            job->running_thread = 0;
+            handled_in_unbounded = true;
+        }
+    }
+    
+    if (!handled_in_unbounded){
+        Full_Job_Data *job = queue->jobs + (job_id % QUEUE_WRAP);
+        Assert(job->id == job_id);
+        
+        u32 thread_id = InterlockedCompareExchange(&job->running_thread, 0, THREAD_NOT_ASSIGNED);
+        
+        if (thread_id != THREAD_NOT_ASSIGNED && thread_id != 0){
+            i32 thread_index = thread_id - 1;
+            
+            i32 cancel_lock = group->cancel_lock0 + thread_index;
+            i32 cancel_cv = group->cancel_cv0 + thread_index;
+            Thread_Context *thread = group->threads + thread_index;
+            
+            system_acquire_lock(cancel_lock);
+            thread->cancel = true;
+            system_release_lock(FRAME_LOCK);
+            
+            do{
+                system_wait_cv(cancel_lock, cancel_cv);
+            }while (thread->cancel);
+            
+            system_acquire_lock(FRAME_LOCK);
+            system_release_lock(cancel_lock);
+        }
+    }
+}
+
+internal b32
+check_cancel_status(Thread_Group *group, Thread_Context *thread){
+    b32 result = false;
+    i32 thread_index = thread->id - 1;
+    i32 cancel_lock = group->cancel_lock0 + thread_index;
+    system_acquire_lock(cancel_lock);
+    if (thread->cancel){
+        result = true;
+    }
+    system_release_lock(cancel_lock);
+    return(result);
+}
+
+internal void
+grow_thread_memory(Thread_Memory *memory){
+    system_acquire_lock(CANCEL_LOCK0 + memory->id - 1);
+    void *old_data = memory->data;
+    i32 old_size = memory->size;
+    i32 new_size = l_round_up_i32(memory->size*2, KB(4));
+    memory->data = system_memory_allocate(new_size);
+    memory->size = new_size;
+    if (old_data != 0){
+        memcpy(memory->data, old_data, old_size);
+        system_memory_free(old_data, old_size);
+    }
+    system_release_lock(CANCEL_LOCK0 + memory->id - 1);
+}
+
+internal void
+dbg_get_thread_states(Thread_Group *group, Work_Queue *queue, b8 *running, i32 *pending){
+    Unbounded_Work_Queue *source_queue = &group->queue;
+    u32 write = queue->write_position;
+    u32 read = queue->read_position;
+    if (write < read){
+        write += QUEUE_WRAP;
+    }
+    *pending = (i32)(write - read) + source_queue->count - source_queue->skip;
+    
+    for (i32 i = 0; i < group->count; ++i){
+        running[i] = (group->threads[i].running != 0);
+    }
 }
 
 // BOTTOM

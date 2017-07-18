@@ -133,6 +133,14 @@ struct Thread_Group{
     i32 cancel_cv0;
 };
 
+struct Mutex{
+    pthread_mutex_t crit;
+};
+
+struct Condition_Variable{
+    pthread_cond_t cv;
+};
+
 struct Linux_Vars{
     Display *XDisplay;
     Window XWindow;
@@ -185,8 +193,8 @@ struct Linux_Vars{
     Thread_Memory *thread_memory;
     Thread_Group groups[THREAD_GROUP_COUNT];
     Work_Queue queues[THREAD_GROUP_COUNT];
-    pthread_mutex_t locks[LOCK_COUNT];
-    pthread_cond_t conds[8];
+    Mutex locks[LOCK_COUNT];
+    Condition_Variable conds[8];
     sem_t thread_semaphore;
     
     i32 dpi_x, dpi_y;
@@ -483,14 +491,24 @@ Sys_CLI_End_Update_Sig(system_cli_end_update){
 // Threads
 //
 
+internal void
+system_internal_acquire_lock(Mutex *m){
+    pthread_mutex_lock(m->crit);
+}
+
+internal void
+system_internal_release_lock(Mutex *m){
+    pthread_mutex_unlock(m->crit);
+}
+
 internal
 Sys_Acquire_Lock_Sig(system_acquire_lock){
-    pthread_mutex_lock(linuxvars.locks + id);
+    system_internal_acquire_lock(&linuxvars.locks[id]);
 }
 
 internal
 Sys_Release_Lock_Sig(system_release_lock){
-    pthread_mutex_unlock(linuxvars.locks + id);
+    system_internal_release_lock(&linuxvars.locks[id]);
 }
 
 internal void
@@ -514,6 +532,11 @@ system_wait_on(Plat_Handle handle){
     sem_wait(LinuxHandleToSem(handle));
 }
 
+internal void
+system_release_semaphore(Plat_Handle handle){
+    sem_post(LinuxHandleToSem(handle));
+}
+
 #include "4ed_work_queues.cpp"
 
 internal void*
@@ -528,22 +551,6 @@ JobThreadProc(void* lpParameter){
     return(0);
 }
 
-internal void
-flush_to_direct_queue(Unbounded_Work_Queue *source_queue, Work_Queue *queue, i32 thread_count){
-    i32 semaphore_release_count = flush_to_direct_queue(source_queue, queue,  thread_count);
-    for (i32 i = 0; i < semaphore_release_count; ++i){
-        sem_post(LinuxHandleToSem(queue->semaphore));
-    }
-}
-
-internal void
-flush_thread_group(i32 group_id){
-    Thread_Group *group = linuxvars.groups + group_id;
-    Work_Queue *queue = linuxvars.queues + group_id;
-    Unbounded_Work_Queue *source_queue = &group->queue;
-    flush_to_direct_queue(source_queue, queue, group->count);
-}
-
 // Note(allen): post_job puts the job on the unbounded queue.
 // The unbounded queue is entirely managed by the main thread.
 // The thread safe queue is bounded in size so the unbounded
@@ -551,152 +558,36 @@ flush_thread_group(i32 group_id){
 internal
 Sys_Post_Job_Sig(system_post_job){
     Thread_Group *group = linuxvars.groups + group_id;
-    Unbounded_Work_Queue *queue = &group->queue;
-    
-    u32 result = queue->next_job_id++;
-    
-    while (queue->count >= queue->max){
-        i32 new_max = queue->max*2;
-        u32 job_size = sizeof(Full_Job_Data);
-        Full_Job_Data *new_jobs = (Full_Job_Data*)system_memory_allocate(new_max*job_size);
-        
-        memcpy(new_jobs, queue->jobs, queue->count);
-        
-        system_memory_free(queue->jobs, queue->max*job_size);
-        
-        queue->jobs = new_jobs;
-        queue->max = new_max;
-    }
-    
-    Full_Job_Data full_job;
-    
-    full_job.job = job;
-    full_job.running_thread = THREAD_NOT_ASSIGNED;
-    full_job.id = result;
-    
-    queue->jobs[queue->count++] = full_job;
-    
     Work_Queue *direct_queue = linuxvars.queues + group_id;
-    flush_to_direct_queue(queue, direct_queue, group->count);
-    
+    u32 result = post_job(group, direct_queue, job);
     return(result);
 }
 
 internal
 Sys_Cancel_Job_Sig(system_cancel_job){
     Thread_Group *group = linuxvars.groups + group_id;
-    Unbounded_Work_Queue *source_queue = &group->queue;
-    
-    b32 handled_in_unbounded = false;
-    if (source_queue->skip < source_queue->count){
-        Full_Job_Data *first_job = source_queue->jobs + source_queue->skip;
-        if (first_job->id <= job_id){
-            u32 index = source_queue->skip + (job_id - first_job->id);
-            Full_Job_Data *job = source_queue->jobs + index;
-            job->running_thread = 0;
-            handled_in_unbounded = true;
-        }
-    }
-    
-    if (!handled_in_unbounded){
-        Work_Queue *queue = linuxvars.queues + group_id;
-        Full_Job_Data *job = queue->jobs + (job_id % QUEUE_WRAP);
-        Assert(job->id == job_id);
-        
-        u32 thread_id = InterlockedCompareExchange(&job->running_thread, 0, THREAD_NOT_ASSIGNED);
-        
-        if (thread_id != THREAD_NOT_ASSIGNED && thread_id != 0){
-            i32 thread_index = thread_id - 1;
-            
-            i32 cancel_lock = group->cancel_lock0 + thread_index;
-            i32 cancel_cv = group->cancel_cv0 + thread_index;
-            Thread_Context *thread = group->threads + thread_index;
-            
-            system_acquire_lock(cancel_lock);
-            
-            thread->cancel = 1;
-            
-            system_release_lock(FRAME_LOCK);
-            do{
-                system_wait_cv(cancel_lock, cancel_cv);
-            }while (thread->cancel == 1);
-            system_acquire_lock(FRAME_LOCK);
-            
-            system_release_lock(cancel_lock);
-        }
-    }
+    Work_Queue *queue = linuxvars.queues + group_id;
+    cancel_job(group, queue, job_id);
 }
 
 internal
 Sys_Check_Cancel_Sig(system_check_cancel){
-    b32 result = false;
-    
     Thread_Group *group = linuxvars.groups + thread->group_id;
-    i32 thread_index = thread->id - 1;
-    i32 cancel_lock = group->cancel_lock0 + thread_index;
-    
-    system_acquire_lock(cancel_lock);
-    if (thread->cancel){
-        result = true;
-    }
-    system_release_lock(cancel_lock);
-    
+    b32 result = check_cancel_status(group, thread);
     return(result);
 }
 
 internal
 Sys_Grow_Thread_Memory_Sig(system_grow_thread_memory){
-    system_acquire_lock(CANCEL_LOCK0 + memory->id - 1);
-    void *old_data = memory->data;
-    i32 old_size = memory->size;
-    i32 new_size = l_round_up_i32(memory->size*2, KB(4));
-    memory->data = system_memory_allocate(new_size);
-    memory->size = new_size;
-    if (old_data){
-        memcpy(memory->data, old_data, old_size);
-        system_memory_free(old_data, old_size);
-    }
-    system_release_lock(CANCEL_LOCK0 + memory->id - 1);
+    grow_thread_memory(memory);
 }
 
-//
-// Debug
-//
-
-#if FRED_INTERNAL
-
-#if defined(OLD_JOB_QUEUE)
 internal
-INTERNAL_Sys_Get_Thread_States_Sig(internal_get_thread_states){
-    Work_Queue *queue = linuxvars.queues + id;
-    u32 write = queue->write_position;
-    u32 read = queue->read_position;
-    if (write < read) write += QUEUE_WRAP;
-    *pending = (i32)(write - read);
-    
+INTERNAL_Sys_Get_Thread_States_Sig(system_internal_get_thread_states){
     Thread_Group *group = linuxvars.groups + id;
-    for (i32 i = 0; i < group->count; ++i){
-        running[i] = (group->threads[i].running != 0);
-    }
-}
-#else
-internal
-INTERNAL_Sys_Get_Thread_States_Sig(internal_get_thread_states){
-    Thread_Group *group = linuxvars.groups + id;
-    Unbounded_Work_Queue *source_queue = &group->queue;
     Work_Queue *queue = linuxvars.queues + id;
-    u32 write = queue->write_position;
-    u32 read = queue->read_position;
-    if (write < read) write += QUEUE_WRAP;
-    *pending = (i32)(write - read) + source_queue->count - source_queue->skip;
-    
-    for (i32 i = 0; i < group->count; ++i){
-        running[i] = (group->threads[i].running != 0);
-    }
+    dbg_get_thread_states(group, queue, running, pending);
 }
-#endif
-
-#endif
 
 //
 // Linux rendering/font system functions
@@ -738,63 +629,11 @@ LinuxLoadAppCode(String* base_dir){
     return(result);
 }
 
+#include "4ed_link_system_functions.cpp"
+
 internal void
 LinuxLoadSystemCode(){
-    // files
-    linuxvars.system.set_file_list = system_set_file_list;
-    linuxvars.system.get_canonical = system_get_canonical;
-    linuxvars.system.add_listener = system_add_listener;
-    linuxvars.system.remove_listener = system_remove_listener;
-    linuxvars.system.get_file_change = system_get_file_change;
-    linuxvars.system.load_handle = system_load_handle;
-    linuxvars.system.load_size = system_load_size;
-    linuxvars.system.load_file = system_load_file;
-    linuxvars.system.load_close = system_load_close;
-    linuxvars.system.save_file = system_save_file;
-    
-    // time
-    linuxvars.system.now_time = system_now_time;
-    
-    // custom.h
-    linuxvars.system.memory_allocate = system_memory_allocate;
-    linuxvars.system.memory_set_protection = system_memory_set_protection;
-    linuxvars.system.memory_free = system_memory_free;
-    linuxvars.system.file_exists = system_file_exists;
-    linuxvars.system.directory_cd = system_directory_cd;
-    linuxvars.system.get_4ed_path = system_get_4ed_path;
-    linuxvars.system.show_mouse_cursor = system_show_mouse_cursor;
-    linuxvars.system.toggle_fullscreen = system_toggle_fullscreen;
-    linuxvars.system.is_fullscreen = system_is_fullscreen;
-    linuxvars.system.send_exit_signal = system_send_exit_signal;
-    
-    // clipboard
-    linuxvars.system.post_clipboard = system_post_clipboard;
-    
-    // coroutine
-    linuxvars.system.create_coroutine = system_create_coroutine;
-    linuxvars.system.launch_coroutine = system_launch_coroutine;
-    linuxvars.system.resume_coroutine = system_resume_coroutine;
-    linuxvars.system.yield_coroutine = system_yield_coroutine;
-    
-    // cli
-    linuxvars.system.cli_call = system_cli_call;
-    linuxvars.system.cli_begin_update = system_cli_begin_update;
-    linuxvars.system.cli_update_step = system_cli_update_step;
-    linuxvars.system.cli_end_update = system_cli_end_update;
-    
-    // threads
-    linuxvars.system.post_job = system_post_job;
-    linuxvars.system.cancel_job = system_cancel_job;
-    linuxvars.system.check_cancel = system_check_cancel;
-    linuxvars.system.grow_thread_memory = system_grow_thread_memory;
-    linuxvars.system.acquire_lock = system_acquire_lock;
-    linuxvars.system.release_lock = system_release_lock;
-    
-    // debug
-    linuxvars.system.log = system_log;
-#if FRED_INTERNAL
-    linuxvars.system.internal_get_thread_states = internal_get_thread_states;
-#endif
+    link_system_code(&linuxvars.system);
 }
 
 internal void

@@ -86,6 +86,55 @@
 
 #define WM_4coder_ANIMATE (WM_USER + 0)
 
+struct Control_Keys{
+    b8 l_ctrl;
+    b8 r_ctrl;
+    b8 l_alt;
+    b8 r_alt;
+};
+global Control_Keys null_control_keys = {0};
+
+struct Win32_Input_Chunk_Transient{
+    Key_Input_Data key_data;
+    b8 mouse_l_press, mouse_l_release;
+    b8 mouse_r_press, mouse_r_release;
+    b8 out_of_window;
+    i8 mouse_wheel;
+    b8 trying_to_kill;
+};
+global Win32_Input_Chunk_Transient null_input_chunk_transient = {0};
+
+struct Win32_Input_Chunk_Persistent{
+    i32 mouse_x, mouse_y;
+    b8 mouse_l, mouse_r;
+    
+    Control_Keys controls;
+    b8 control_keys[MDFR_INDEX_COUNT];
+};
+
+struct Win32_Input_Chunk{
+    Win32_Input_Chunk_Transient trans;
+    Win32_Input_Chunk_Persistent pers;
+};
+
+struct Win32_Coroutine{
+    Coroutine coroutine;
+    Win32_Coroutine *next;
+    i32 done;
+};
+
+enum CV_ID{
+    CANCEL_CV0,
+    CANCEL_CV1,
+    CANCEL_CV2,
+    CANCEL_CV3,
+    CANCEL_CV4,
+    CANCEL_CV5,
+    CANCEL_CV6,
+    CANCEL_CV7,
+    CV_COUNT
+};
+
 struct Thread_Context{
     u32 job_id;
     b32 running;
@@ -108,53 +157,12 @@ struct Thread_Group{
     i32 cancel_cv0;
 };
 
-struct Control_Keys{
-    b8 l_ctrl;
-    b8 r_ctrl;
-    b8 l_alt;
-    b8 r_alt;
-};
-static Control_Keys null_control_keys = {0};
-
-struct Win32_Input_Chunk_Transient{
-    Key_Input_Data key_data;
-    b8 mouse_l_press, mouse_l_release;
-    b8 mouse_r_press, mouse_r_release;
-    b8 out_of_window;
-    i8 mouse_wheel;
-    b8 trying_to_kill;
-};
-static Win32_Input_Chunk_Transient null_input_chunk_transient = {0};
-
-struct Win32_Input_Chunk_Persistent{
-    i32 mouse_x, mouse_y;
-    b8 mouse_l, mouse_r;
-    
-    Control_Keys controls;
-    b8 control_keys[MDFR_INDEX_COUNT];
+struct Mutex{
+    CRITICAL_SECTION crit;
 };
 
-typedef struct Win32_Input_Chunk{
-    Win32_Input_Chunk_Transient trans;
-    Win32_Input_Chunk_Persistent pers;
-} Win32_Input_Chunk;
-
-typedef struct Win32_Coroutine{
-    Coroutine coroutine;
-    Win32_Coroutine *next;
-    i32 done;
-} Win32_Coroutine;
-
-enum CV_ID{
-    CANCEL_CV0,
-    CANCEL_CV1,
-    CANCEL_CV2,
-    CANCEL_CV3,
-    CANCEL_CV4,
-    CANCEL_CV5,
-    CANCEL_CV6,
-    CANCEL_CV7,
-    CV_COUNT
+struct Condition_Variable{
+    CONDITION_VARIABLE cv;
 };
 
 struct Win32_Vars{
@@ -165,15 +173,14 @@ struct Win32_Vars{
     HMODULE custom;
     Plat_Settings settings;
     
-    
+    Thread_Memory *thread_memory;
     Work_Queue queues[THREAD_GROUP_COUNT];
     Thread_Group groups[THREAD_GROUP_COUNT];
-    CRITICAL_SECTION locks[LOCK_COUNT];
-    CONDITION_VARIABLE condition_vars[CV_COUNT];
-    Thread_Memory *thread_memory;
+    Mutex locks[LOCK_COUNT];
+    Condition_Variable condition_vars[CV_COUNT];
+    
     Win32_Coroutine coroutine_data[18];
     Win32_Coroutine *coroutine_free;
-    
     
     Win32_Input_Chunk input_chunk;
     b32 lctrl_lalt_is_altgr;
@@ -336,25 +343,34 @@ Sys_Memory_Free_Sig(system_memory_free){
 // Multithreading
 //
 
+internal void
+system_internal_acquire_lock(Mutex *m){
+    EnterCriticalSection(&m->crit);
+}
+
+internal void
+system_internal_release_lock(Mutex *m){
+    LeaveCriticalSection(&m->crit);
+}
+
 internal
 Sys_Acquire_Lock_Sig(system_acquire_lock){
-    EnterCriticalSection(&win32vars.locks[id]);
+    system_internal_acquire_lock(&win32vars.locks[id]);
 }
 
 internal
 Sys_Release_Lock_Sig(system_release_lock){
-    LeaveCriticalSection(&win32vars.locks[id]);
+    system_internal_release_lock(&win32vars.locks[id]);
 }
 
 internal void
 system_wait_cv(i32 crit_id, i32 cv_id){
-    SleepConditionVariableCS(win32vars.condition_vars + cv_id, win32vars.locks + crit_id, INFINITE);
+    SleepConditionVariableCS(&win32vars.condition_vars[cv_id].cv, &win32vars.locks[crit_id].crit, INFINITE);
 }
 
 internal void
 system_signal_cv(i32 crit_id, i32 cv_id){
-    AllowLocal(crit_id);
-    WakeConditionVariable(win32vars.condition_vars + cv_id);
+    WakeConditionVariable(&win32vars.condition_vars[cv_id].cv);
 }
 
 internal void
@@ -365,6 +381,11 @@ system_schedule_step(){
 internal void
 system_wait_on(Plat_Handle handle){
     WaitForSingleObject(Win32Handle(handle), INFINITE);
+}
+
+internal void
+system_release_semaphore(Plat_Handle handle){
+    ReleaseSemaphore(Win32Handle(handle), 1, 0);
 }
 
 #include "4ed_work_queues.cpp"
@@ -382,14 +403,6 @@ JobThreadProc(LPVOID lpParameter){
 }
 
 internal void
-flush_to_direct_queue(Unbounded_Work_Queue *source_queue, Work_Queue *queue, i32 thread_count){
-    i32 semaphore_release_count = flush_unbounded_queue_to_main(source_queue, queue, thread_count);
-    for (i32 i = 0; i < semaphore_release_count; ++i){
-        ReleaseSemaphore(Win32Handle(queue->semaphore), 1, 0);
-    }
-}
-
-internal void
 flush_thread_group(i32 group_id){
     Thread_Group *group = win32vars.groups + group_id;
     Work_Queue *queue = win32vars.queues + group_id;
@@ -397,141 +410,39 @@ flush_thread_group(i32 group_id){
     flush_to_direct_queue(source_queue, queue, group->count);
 }
 
-// Note(allen): post_job puts the job on the unbounded queue.
-// The unbounded queue is entirely managed by the main thread.
-// The thread safe queue is bounded in size so the unbounded
-// queue is periodically flushed into the direct work queue.
 internal
 Sys_Post_Job_Sig(system_post_job){
     Thread_Group *group = win32vars.groups + group_id;
-    Unbounded_Work_Queue *queue = &group->queue;
-    
-    u32 result = queue->next_job_id++;
-    
-    while (queue->count >= queue->max){
-        u32 new_max = queue->max*2;
-        Full_Job_Data *new_jobs = (Full_Job_Data*)system_memory_allocate(new_max*sizeof(Full_Job_Data));
-        
-        memcpy(new_jobs, queue->jobs, queue->count);
-        
-        system_memory_free(queue->jobs, 0);
-        
-        queue->jobs = new_jobs;
-        queue->max = new_max;
-    }
-    
-    Full_Job_Data full_job;
-    
-    full_job.job = job;
-    full_job.running_thread = THREAD_NOT_ASSIGNED;
-    full_job.id = result;
-    
-    queue->jobs[queue->count++] = full_job;
-    
     Work_Queue *direct_queue = win32vars.queues + group_id;
-    flush_to_direct_queue(queue, direct_queue, group->count);
-    
+    u32 result = post_job(group, direct_queue, job);
     return(result);
 }
 
 internal
 Sys_Cancel_Job_Sig(system_cancel_job){
     Thread_Group *group = win32vars.groups + group_id;
-    Unbounded_Work_Queue *source_queue = &group->queue;
-    
-    b32 handled_in_unbounded = false;
-    if (source_queue->skip < source_queue->count){
-        Full_Job_Data *first_job = source_queue->jobs + source_queue->skip;
-        if (first_job->id <= job_id){
-            u32 index = source_queue->skip + (job_id - first_job->id);
-            Full_Job_Data *job = source_queue->jobs + index;
-            job->running_thread = 0;
-            handled_in_unbounded = true;
-        }
-    }
-    
-    if (!handled_in_unbounded){
-        Work_Queue *queue = win32vars.queues + group_id;
-        Full_Job_Data *job = queue->jobs + (job_id % QUEUE_WRAP);
-        Assert(job->id == job_id);
-        
-        u32 thread_id =
-            InterlockedCompareExchange(&job->running_thread,
-                                       0, THREAD_NOT_ASSIGNED);
-        
-        if (thread_id != THREAD_NOT_ASSIGNED && thread_id != 0){
-            i32 thread_index = thread_id - 1;
-            
-            i32 cancel_lock = group->cancel_lock0 + thread_index;
-            i32 cancel_cv = group->cancel_cv0 + thread_index;
-            Thread_Context *thread = group->threads + thread_index;
-            
-            system_acquire_lock(cancel_lock);
-            
-            thread->cancel = 1;
-            
-            system_release_lock(FRAME_LOCK);
-            do{
-                system_wait_cv(cancel_lock, cancel_cv);
-            }while (thread->cancel == 1);
-            system_acquire_lock(FRAME_LOCK);
-            
-            system_release_lock(cancel_lock);
-        }
-    }
+    Work_Queue *queue = win32vars.queues + group_id;
+    cancel_job(group, queue, job_id);
 }
 
 internal
 Sys_Check_Cancel_Sig(system_check_cancel){
-    b32 result = 0;
-    
     Thread_Group *group = win32vars.groups + thread->group_id;
-    i32 thread_index = thread->id - 1;
-    i32 cancel_lock = group->cancel_lock0 + thread_index;
-    
-    system_acquire_lock(cancel_lock);
-    if (thread->cancel){
-        result = 1;
-    }
-    system_release_lock(cancel_lock);
-    
+    b32 result = check_cancel_status(group, thread);
     return(result);
 }
 
 internal
 Sys_Grow_Thread_Memory_Sig(system_grow_thread_memory){
-    system_acquire_lock(CANCEL_LOCK0 + memory->id - 1);
-    void *old_data = memory->data;
-    i32 old_size = memory->size;
-    i32 new_size = l_round_up_i32(memory->size*2, KB(4));
-    memory->data = system_memory_allocate(new_size);
-    memory->size = new_size;
-    if (old_data){
-        memcpy(memory->data, old_data, old_size);
-        system_memory_free(old_data, 0);
-    }
-    system_release_lock(CANCEL_LOCK0 + memory->id - 1);
+    grow_thread_memory(memory);
 }
 
-#if FRED_INTERNAL
-internal void
-INTERNAL_get_thread_states(Thread_Group_ID id, b8 *running, i32 *pending){
+internal
+INTERNAL_Sys_Get_Thread_States_Sig(system_internal_get_thread_states){
     Thread_Group *group = win32vars.groups + id;
-    Unbounded_Work_Queue *source_queue = &group->queue;
     Work_Queue *queue = win32vars.queues + id;
-    u32 write = queue->write_position;
-    u32 read = queue->read_position;
-    if (write < read){
-        write += QUEUE_WRAP;
-    }
-    *pending = (i32)(write - read) + source_queue->count - source_queue->skip;
-    
-    for (i32 i = 0; i < group->count; ++i){
-        running[i] = (group->threads[i].running != 0);
-    }
+    dbg_get_thread_states(group, queue, running, pending);
 }
-#endif
-
 
 //
 // Coroutines
@@ -1309,54 +1220,11 @@ Win32LoadAppCode(){
 #include "4ed_font_data.h"
 #include "4ed_system_shared.cpp"
 
+#include "4ed_link_system_functions.cpp"
+
 internal void
 Win32LoadSystemCode(){
-    win32vars.system.set_file_list = system_set_file_list;
-    win32vars.system.get_canonical = system_get_canonical;
-    win32vars.system.add_listener = system_add_listener;
-    win32vars.system.remove_listener = system_remove_listener;
-    win32vars.system.get_file_change = system_get_file_change;
-    win32vars.system.load_handle = system_load_handle;
-    win32vars.system.load_size = system_load_size;
-    win32vars.system.load_file = system_load_file;
-    win32vars.system.load_close = system_load_close;
-    win32vars.system.save_file = system_save_file;
-    
-    win32vars.system.now_time = system_now_time;
-    
-    win32vars.system.post_clipboard = system_post_clipboard;
-    
-    win32vars.system.create_coroutine = system_create_coroutine;
-    win32vars.system.launch_coroutine = system_launch_coroutine;
-    win32vars.system.resume_coroutine = system_resume_coroutine;
-    win32vars.system.yield_coroutine = system_yield_coroutine;
-    
-    win32vars.system.cli_call = system_cli_call;
-    win32vars.system.cli_begin_update = system_cli_begin_update;
-    win32vars.system.cli_update_step = system_cli_update_step;
-    win32vars.system.cli_end_update = system_cli_end_update;
-    
-    win32vars.system.post_job = system_post_job;
-    win32vars.system.cancel_job = system_cancel_job;
-    win32vars.system.check_cancel = system_check_cancel;
-    win32vars.system.grow_thread_memory = system_grow_thread_memory;
-    win32vars.system.acquire_lock = system_acquire_lock;
-    win32vars.system.release_lock = system_release_lock;
-    
-    win32vars.system.memory_allocate = system_memory_allocate;
-    win32vars.system.memory_set_protection = system_memory_set_protection;
-    win32vars.system.memory_free = system_memory_free;
-    win32vars.system.file_exists = system_file_exists;
-    win32vars.system.directory_cd = system_directory_cd;
-    win32vars.system.get_4ed_path = system_get_4ed_path;
-    win32vars.system.toggle_fullscreen = system_toggle_fullscreen;
-    win32vars.system.is_fullscreen = system_is_fullscreen;win32vars.system.show_mouse_cursor = system_show_mouse_cursor;
-    win32vars.system.send_exit_signal = system_send_exit_signal;
-    
-    win32vars.system.log = system_log;
-#if FRED_INTERNAL
-    win32vars.system.internal_get_thread_states = INTERNAL_get_thread_states;
-#endif
+    link_system_code(&win32vars.system);
 }
 
 internal void
@@ -1859,11 +1727,11 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
     //
     
     for (i32 i = 0; i < LOCK_COUNT; ++i){
-        InitializeCriticalSection(&win32vars.locks[i]);
+        InitializeCriticalSection(&win32vars.locks[i].crit);
     }
     
     for (i32 i = 0; i < CV_COUNT; ++i){
-        InitializeConditionVariable(&win32vars.condition_vars[i]);
+        InitializeConditionVariable(&win32vars.condition_vars[i].cv);
     }
     
     Thread_Context background[4];
