@@ -10,17 +10,10 @@
 // TOP
 
 internal void
-job_proc(System_Functions *system, void *lpParameter){
-    Thread_Context *thread = (Thread_Context*)lpParameter;
-    Work_Queue *queue = win32vars.queues + thread->group_id;
-    Thread_Group *group = win32vars.groups + thread->group_id;
-    
+job_proc(System_Functions *system, Thread_Context *thread, Work_Queue *queue, Thread_Group *group, Thread_Memory *thread_memory){
     i32 thread_index = thread->id - 1;
-    
     i32 cancel_lock = group->cancel_lock0 + thread_index;
     i32 cancel_cv = group->cancel_cv0 + thread_index;
-    
-    Thread_Memory *thread_memory = win32vars.thread_memory + thread_index;
     
     if (thread_memory->size == 0){
         i32 new_size = KB(64);

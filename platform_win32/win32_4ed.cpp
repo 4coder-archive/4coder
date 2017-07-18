@@ -371,8 +371,12 @@ system_wait_on(Plat_Handle handle){
 
 internal DWORD CALL_CONVENTION
 JobThreadProc(LPVOID lpParameter){
-    System_Functions *system = &win32vars.system;
-    job_proc(system, lpParameter);
+    Thread_Context *thread = (Thread_Context*)lpParameter;
+    Work_Queue *queue = win32vars.queues + thread->group_id;
+    Thread_Group *group = win32vars.groups + thread->group_id;
+    i32 thread_index = thread->id - 1;
+    Thread_Memory *memory = win32vars.thread_memory + thread_index;
+    job_proc(&win32vars.system, thread, queue, group, memory);
     InvalidCodePath;
     return(0);
 }

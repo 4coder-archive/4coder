@@ -518,8 +518,12 @@ system_wait_on(Plat_Handle handle){
 
 internal void*
 JobThreadProc(void* lpParameter){
-    System_Functions *system = &win32vars.system;
-    job_proc(system, lpParameter);
+    Thread_Context *thread = (Thread_Context*)lpParameter;
+    Work_Queue *queue = linuxvars.queues + thread->group_id;
+    Thread_Group *group = linuxvars.groups + thread->group_id;
+    i32 thread_index = thread->id - 1;
+    Thread_Memory *memory = linuxvars.thread_memory + thread_index;
+    job_proc(&linuxvars.system, thread, queue, group, memory);
     InvalidCodePath;
     return(0);
 }
