@@ -12,9 +12,9 @@
 internal b32
 system_memory_init(){
 #if defined(FRED_INTERNAL)
-# if defined(BUILD_X64)
+# if defined(FTECH_64_BIT)
     void *bases[] = { (void*)TB(1), (void*)TB(2), };
-# elif defined(BUILD_X86)
+# elif defined(FTECH_32_BIT)
     void *bases[] = { (void*)MB(96), (void*)MB(98), };
 # endif
 #else
