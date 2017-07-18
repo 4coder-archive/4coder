@@ -66,6 +66,8 @@ typedef double f64;
 #define Max(a,b) (((a)>(b))?(a):(b))
 #define Min(a,b) (((a)<(b))?(a):(b))
 
+#define FixSize(s) struct{ u8 __size_fixer__[s]; }
+
 inline i32 ceil32(f32 v){
     return(((v)>0)?( (v == (i32)(v))?((i32)(v)):((i32)((v)+1.f)) ):( ((i32)(v)) ));
 }

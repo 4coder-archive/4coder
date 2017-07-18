@@ -327,22 +327,6 @@ build(u32 flags, u32 arch, char *code_path, char **code_files, char *out_path, c
 # error gcc options not set for this platform
 #endif
 
-internal i32
-get_freetype_include(char *out, u32 max){
-    i32 size = 0;
-#if defined(IS_LINUX)
-    char freetype_include[512];
-    FILE *file = popen("pkg-config --cflags freetype2", "r");
-    if (file != 0){
-        fgets(freetype_include, sizeof(freetype_include), file);
-        size = strlen(freetype_include);
-        freetype_include[size-1] = 0;
-        pclose(file);
-    }
-#endif
-    return(size);
-}
-
 internal void
 build(u32 flags, u32 arch, char *code_path, char **code_files, char *out_path, char *out_file, char **defines, char **exports, char **inc_folders){
     Build_Line line;
@@ -505,6 +489,22 @@ do_buildsuper(char *cdir, char *file, u32 arch){
     
     fm_popdir(temp);
     END_TIME_SECTION("build custom");
+}
+
+internal i32
+get_freetype_include(char *out, u32 max){
+    i32 size = 0;
+#if defined(IS_LINUX)
+    char freetype_include[512];
+    FILE *file = popen("pkg-config --cflags freetype2", "r");
+    if (file != 0){
+        fgets(freetype_include, sizeof(freetype_include), file);
+        size = strlen(freetype_include);
+        freetype_include[size-1] = 0;
+        pclose(file);
+    }
+#endif
+    return(size);
 }
 
 internal void

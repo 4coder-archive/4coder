@@ -80,6 +80,9 @@
 #include "4ed_font_interface_to_os.h"
 #include "4ed_system_shared.h"
 
+#include "4ed_shared_thread_constants.h"
+#include "win32_threading_wrapper.h"
+
 //
 // Win32_Vars structs
 //
@@ -193,79 +196,6 @@ internal void
 system_schedule_step(){
     PostMessage(win32vars.window_handle, WM_4coder_ANIMATE, 0, 0);
 }
-
-////////////////////////////////
-
-#define PLAT_THREAD_SIG(n) DWORD CALL_CONVENTION n(LPVOID ptr)
-typedef PLAT_THREAD_SIG(Thread_Function);
-
-struct Thread{
-    HANDLE t;
-};
-
-struct Mutex{
-    CRITICAL_SECTION crit;
-};
-
-struct Condition_Variable{
-    CONDITION_VARIABLE cv;
-};
-
-struct Semaphore{
-    HANDLE s;
-};
-
-internal void
-system_init_and_launch_thread(Thread *t, Thread_Function *proc, void *ptr){
-    t->t = CreateThread(0, 0, proc, ptr, 0, 0);
-}
-
-internal void
-system_init_lock(Mutex *m){
-    InitializeCriticalSection(&m->crit);
-}
-
-internal void
-system_acquire_lock(Mutex *m){
-    EnterCriticalSection(&m->crit);
-}
-
-internal void
-system_release_lock(Mutex *m){
-    LeaveCriticalSection(&m->crit);
-}
-
-internal void
-system_init_cv(Condition_Variable *cv){
-    InitializeConditionVariable(&cv->cv);
-}
-
-internal void
-system_wait_cv(Condition_Variable *cv, Mutex *lock){
-    SleepConditionVariableCS(&cv->cv, &lock->crit, INFINITE);
-}
-
-internal void
-system_signal_cv(Condition_Variable *cv, Mutex *lock){
-    WakeConditionVariable(&cv->cv);
-}
-
-internal void
-system_init_semaphore(Semaphore *s, u32 max){
-    s->s = CreateSemaphore(0, 0, max, 0);
-}
-
-internal void
-system_wait_on_semaphore(Semaphore *s){
-    WaitForSingleObject(s->s, INFINITE);
-}
-
-internal void
-system_release_semaphore(Semaphore *s){
-    ReleaseSemaphore(s->s, 1, 0);
-}
-
-////////////////////////////////
 
 //
 // 4ed path

@@ -9,10 +9,6 @@
 
 // TOP
 
-#if !defined(CORE_COUNT)
-#define CORE_COUNT 8
-#endif
-
 enum CV_ID{
     CANCEL_CV0,
     CANCEL_CV1,
@@ -374,6 +370,8 @@ INTERNAL_Sys_Get_Thread_States_Sig(system_internal_get_thread_states){
 
 internal void
 system_init_threaded_work_system(){
+    AssertThreadSizes();
+    
     u32 core_count = CORE_COUNT;
     i32 thread_system_memory_size = core_count*(sizeof(Thread_Context) + sizeof(Thread_Memory));
     void *thread_system_memory = system_memory_allocate(thread_system_memory_size);

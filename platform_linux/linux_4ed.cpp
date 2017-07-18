@@ -76,6 +76,9 @@
 #include <linux/fs.h>
 #include <linux/input.h>
 
+#include "4ed_shared_thread_constants.h"
+#include "linux_threading_wrapper.h"
+
 //
 // Linux macros
 //
@@ -234,77 +237,6 @@ system_schedule_step(){
 
 ////////////////////////////////
 
-#define PLAT_THREAD_SIG(n) void* n(void *ptr)
-typedef PLAT_THREAD_SIG(Thread_Function);
-
-struct Thread{
-    pthread_t t;
-};
-
-struct Mutex{
-    pthread_mutex_t crit;
-};
-
-struct Condition_Variable{
-    pthread_cond_t cv;
-};
-
-struct Semaphore{
-    sem_t s;
-};
-
-internal void
-system_init_and_launch_thread(Thread *t, Thread_Function *proc, void *ptr){
-    pthread_create(&t->t, 0, proc, ptr);
-}
-
-internal void
-system_init_lock(Mutex *m){
-    pthread_mutex_init(&m->crit, NULL);
-}
-
-internal void
-system_acquire_lock(Mutex *m){
-    pthread_mutex_lock(&m->crit);
-}
-
-internal void
-system_release_lock(Mutex *m){
-    pthread_mutex_unlock(&m->crit);
-}
-
-internal void
-system_init_cv(Condition_Variable *cv){
-    pthread_cond_init(&cv->cv, NULL);
-}
-
-internal void
-system_wait_cv(Condition_Variable *cv, Mutex *m){
-    pthread_cond_wait(&cv->cv, &m->crit);
-}
-
-internal void
-system_signal_cv(Condition_Variable *cv, Mutex *m){
-    pthread_cond_signal(&cv->cv);
-}
-
-internal void
-system_init_semaphore(Semaphore *s, u32 count){
-    sem_init(&s->s, 0, 0);
-}
-
-internal void
-system_wait_on_semaphore(Semaphore *s){
-    sem_wait(&s->s);
-}
-
-internal void
-system_release_semaphore(Semaphore *s){
-    sem_post(&s->s);
-}
-
-////////////////////////////////
-
 internal
 Sys_Show_Mouse_Cursor_Sig(system_show_mouse_cursor){
     linuxvars.hide_cursor = !show;
@@ -314,7 +246,7 @@ Sys_Show_Mouse_Cursor_Sig(system_show_mouse_cursor){
 internal
 Sys_Toggle_Fullscreen_Sig(system_toggle_fullscreen){
     b32 success = true;
-    LinuxToggleFullscreen(linuxvars.XDisplay, linuxvars.XWindow);
+    LinuxSetWMState(linuxvars.XDisplay, linuxvars.XWindow, linuxvars.atom__NET_WM_STATE_FULLSCREEN, 0, 2);
     return(success);
 }
 
@@ -1146,12 +1078,6 @@ LinuxMaximizeWindow(Display* d, Window w, b32 maximize)
     LinuxSetWMState(d, w, linuxvars.atom__NET_WM_STATE_MAXIMIZED_HORZ, linuxvars.atom__NET_WM_STATE_MAXIMIZED_VERT, maximize != 0);
 }
 
-internal void
-LinuxToggleFullscreen(Display* d, Window w)
-{
-    LinuxSetWMState(d, w, linuxvars.atom__NET_WM_STATE_FULLSCREEN, 0, 2);
-}
-
 #include "linux_icon.h"
 internal void
 LinuxSetIcon(Display* d, Window w)
@@ -1585,7 +1511,7 @@ LinuxX11WindowInit(int argc, char** argv, int* window_width, int* window_height)
         LinuxMaximizeWindow(linuxvars.XDisplay, linuxvars.XWindow, 1);
     }
     else if (linuxvars.settings.fullscreen_window){
-        LinuxToggleFullscreen(linuxvars.XDisplay, linuxvars.XWindow);
+        system_toggle_fullscreen();
     }
     
     XSync(linuxvars.XDisplay, False);
