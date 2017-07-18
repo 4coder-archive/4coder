@@ -22,23 +22,23 @@ struct Win32_Directory_Listener{
 };
 global_const OVERLAPPED null_overlapped = {0};
 
-typedef struct {
+struct Win32_Directory_Listener_Node{
     DLL_Node node;
     Win32_Directory_Listener listener;
-} Win32_Directory_Listener_Node;
+};
 
-typedef struct {
+struct Win32_File_Track_Vars{
     HANDLE iocp;
     CRITICAL_SECTION table_lock;
     void *tables;
     DLL_Node free_sentinel;
-} Win32_File_Track_Vars;
+};
 
-typedef struct {
+struct Win32_File_Track_Entry{
     File_Index hash;
     HANDLE dir;
     Win32_Directory_Listener_Node *listener_node;
-} Win32_File_Track_Entry;
+};
 
 #define to_vars(s) ((Win32_File_Track_Vars*)(s))
 #define to_tables(v) ((File_Track_Tables*)(v->tables))

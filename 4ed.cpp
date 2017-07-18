@@ -765,7 +765,6 @@ enum Command_Line_Action{
     CLAct_WindowMaximize,
     CLAct_WindowPosition,
     CLAct_WindowFullscreen,
-    CLAct_WindowStreamMode,
     CLAct_FontSize,
     CLAct_FontUseHinting,
     CLAct_LogStdout,
@@ -820,7 +819,6 @@ init_command_line_settings(App_Settings *settings, Plat_Settings *plat_settings,
                                 case 'W': action = CLAct_WindowMaximize;                break;
                                 case 'p': action = CLAct_WindowPosition;                break;
                                 case 'F': action = CLAct_WindowFullscreen;              break;
-                                case 'S': action = CLAct_WindowStreamMode;              break;
                                 
                                 case 'f': action = CLAct_FontSize;                      break;
                                 case 'h': action = CLAct_FontUseHinting; --i;           break;
@@ -903,14 +901,6 @@ init_command_line_settings(App_Settings *settings, Plat_Settings *plat_settings,
                     {
                         --i;
                         plat_settings->fullscreen_window = true;
-                        plat_settings->stream_mode = true;
-                        action = CLAct_Nothing;
-                    }break;
-                    
-                    case CLAct_WindowStreamMode:
-                    {
-                        --i;
-                        plat_settings->stream_mode = true;
                         action = CLAct_Nothing;
                     }break;
                     

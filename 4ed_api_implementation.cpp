@@ -2542,19 +2542,13 @@ API_EXPORT bool32
 Set_Fullscreen(Application_Links *app, bool32 full_screen)
 /*
 DOC_PARAM(full_screen, The new value of the global full_screen setting.)
-DOC(This call tells 4coder to set the full_screen mode.
-The changes of full screen mode do not take effect until the end of the current frame.
-On Windows this call will not work unless 4coder was started in "stream mode".
-Stream mode can be enabled with -S or -F flags on the command line to 4ed.)
+DOC(This call tells 4coder to set the full_screen mode.  The change to full screen mode does not take effect until the end of the current frame.  But is_fullscreen does report the new state.)
 */{
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     System_Functions *system = cmd->system;
     bool32 success = system->set_fullscreen(full_screen);
     if (!success){
-        char msg[] = 
-            "ERROR: Failed to go fullscreen.\n"
-            "You can try using 'stream mode' by launching with the -S flag.\n";
-        print_message(app, literal(msg));
+        print_message(app, literal("ERROR: Failed to go fullscreen.\n"));
     }
     return(success);
 }

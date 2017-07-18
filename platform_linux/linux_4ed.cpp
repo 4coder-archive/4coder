@@ -817,11 +817,11 @@ GLXCanUseFBConfig(Display *XDisplay)
     return(Result);
 }
 
-typedef struct glx_config_result{
+struct glx_config_result{
     b32 Found;
     GLXFBConfig BestConfig;
     XVisualInfo BestInfo;
-} glx_config_result;
+};
 
 internal glx_config_result
 ChooseGLXConfig(Display *XDisplay, int XScreenIndex)

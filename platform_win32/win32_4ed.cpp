@@ -127,7 +127,7 @@ struct Win32_Vars{
     
     b32 full_screen;
     b32 do_toggle;
-    WINDOWPLACEMENT GlobalWindowPosition;
+    WINDOWPLACEMENT bordered_win_pos;
     b32 send_exit_signal;
     
     HCURSOR cursor_ibeam;
@@ -198,25 +198,27 @@ system_schedule_step(){
 // HACK(allen): Get this shit working more properly (look at pens)
 internal void
 win32_toggle_fullscreen(){
-    HWND Window = win32vars.window_handle;
-    LONG_PTR Style = GetWindowLongPtr(Window, GWL_STYLE);
-    if (Style & WS_OVERLAPPEDWINDOW){
-        MONITORINFO MonitorInfo = {sizeof(MONITORINFO)};
-        if(GetWindowPlacement(Window, &win32vars.GlobalWindowPosition) && GetMonitorInfo(MonitorFromWindow(Window, MONITOR_DEFAULTTOPRIMARY), &MonitorInfo))
-        {
-            SetWindowLongPtr(Window, GWL_STYLE, Style & ~WS_OVERLAPPEDWINDOW);
-            SetWindowPos(Window, HWND_TOP,
-                         MonitorInfo.rcMonitor.left, MonitorInfo.rcMonitor.top,
-                         MonitorInfo.rcMonitor.right - MonitorInfo.rcMonitor.left,
-                         MonitorInfo.rcMonitor.bottom - MonitorInfo.rcMonitor.top,
-                         SWP_NOOWNERZORDER | SWP_FRAMECHANGED);
+    HWND win = win32vars.window_handle;
+    DWORD style = GetWindowLongW(win, GWL_STYLE);
+    b32 is_full = ((style & WS_OVERLAPPEDWINDOW) != 0);
+    if (is_full){
+        MONITORINFO info = {sizeof(MONITORINFO)};
+        if (GetWindowPlacement(win, &win32vars.bordered_win_pos) && GetMonitorInfo(MonitorFromWindow(win, MONITOR_DEFAULTTOPRIMARY), &info)){
+            SetWindowLongW(win, GWL_STYLE, style & ~WS_OVERLAPPEDWINDOW);
+            
+            i32 x = info.rcMonitor.left;
+            i32 y = info.rcMonitor.top;
+            i32 w = info.rcMonitor.right - info.rcMonitor.left;
+            i32 h = info.rcMonitor.bottom - info.rcMonitor.top;
+            
+            SetWindowPos(win, HWND_TOP, x, y, w, h, SWP_NOOWNERZORDER | SWP_FRAMECHANGED | SWP_SHOWWINDOW);
             win32vars.full_screen = true;
         }
     }
     else{
-        SetWindowLongPtr(Window, GWL_STYLE, Style | WS_OVERLAPPEDWINDOW);
-        SetWindowPlacement(Window, &win32vars.GlobalWindowPosition);
-        SetWindowPos(Window, 0, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOOWNERZORDER | SWP_FRAMECHANGED);
+        SetWindowLongW(win, GWL_STYLE, style | WS_OVERLAPPEDWINDOW);
+        SetWindowPlacement(win, &win32vars.bordered_win_pos);
+        SetWindowPos(win, 0, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOOWNERZORDER | SWP_FRAMECHANGED);
         win32vars.full_screen = false;
     }
 }
@@ -233,15 +235,10 @@ Sys_Show_Mouse_Cursor_Sig(system_show_mouse_cursor){
 
 internal
 Sys_Set_Fullscreen_Sig(system_set_fullscreen){
-    b32 success = false;
-    // HACK(allen): Fix this shit.
-    // NOTE(allen): On windows we must be in stream mode to go fullscreen.
-    if (plat_settings.stream_mode){
-        // NOTE(allen): If the new value of full_screen does not match the current value,
-        // set toggle to true.
-        win32vars.do_toggle = (win32vars.full_screen != full_screen);
-        success = true;
-    }
+    // NOTE(allen): If the new value of full_screen does not match the current value,
+    // set toggle to true.
+    win32vars.do_toggle = (win32vars.full_screen != full_screen);
+    b32 success = true;
     return(success);
 }
 
@@ -732,7 +729,7 @@ Win32InitGL(){
             {
                 WGL_DRAW_TO_WINDOW_ARB, TRUE,
                 WGL_SUPPORT_OPENGL_ARB, TRUE,
-                //WGL_DOUBLE_BUFFER_ARB, GL_TRUE,
+                WGL_DOUBLE_BUFFER_ARB, GL_TRUE,
                 WGL_PIXEL_TYPE_ARB, WGL_TYPE_RGBA_ARB,
                 WGL_COLOR_BITS_ARB, 32,
                 WGL_DEPTH_BITS_ARB, 24,
@@ -1081,7 +1078,7 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
     
     memset(&win32vars, 0, sizeof(win32vars));
     
-    win32vars.GlobalWindowPosition.length = sizeof(win32vars.GlobalWindowPosition);
+    win32vars.bordered_win_pos.length = sizeof(win32vars.bordered_win_pos);
     
     system_init_threaded_work_system();
     
@@ -1262,13 +1259,12 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
         LOGF("Setting window position (%d, %d)\n", window_x, window_y);
     }
     
-    i32 window_style = WS_OVERLAPPEDWINDOW;
+    LOG("Creating window... ");
+    i32 window_style = WS_CAPTION|WS_MINIMIZEBOX|WS_BORDER;
     if (!plat_settings.fullscreen_window && plat_settings.maximize_window){
         window_style |= WS_MAXIMIZE;
     }
-    
-    LOG("Creating window... ");
-    win32vars.window_handle = CreateWindow(window_class.lpszClassName, WINDOW_NAME, window_style, window_x, window_y, window_rect.right - window_rect.left, window_rect.bottom - window_rect.top, 0, 0, hInstance, 0);
+    win32vars.window_handle = CreateWindowEx(0, window_class.lpszClassName, WINDOW_NAME, window_style, window_x, window_y, window_rect.right - window_rect.left, window_rect.bottom - window_rect.top, 0, 0, hInstance, 0);
     
     if (win32vars.window_handle == 0){
         LOG("Failed\n");
@@ -1372,13 +1368,7 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
         // without interfering with the reading process
         //  Looks like we can ReadFile with a size of zero
         // in an IOCP for this effect.
-        
-        // NOTE(allen): When we're in stream mode we don't have
-        // double buffering so we need to move ahead and call
-        // the first step right away so it will render into the
-        // window. With double buffering this is not an issue
-        // for reasons I cannot at all comprehend.
-        if (!(win32vars.first && plat_settings.stream_mode)){
+        if (!win32vars.first){
             system_release_lock(FRAME_LOCK);
             
             if (win32vars.running_cli == 0){
@@ -1458,7 +1448,7 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
                         }
                     }
                 }
-            }while(get_more_messages);
+            }while (get_more_messages);
             
             system_acquire_lock(FRAME_LOCK);
         }

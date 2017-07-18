@@ -9,34 +9,32 @@
 
 // TOP
 
-typedef struct{
+struct File_Index{
     u32 id[4];
-} File_Index;
+};
 
 typedef u32 rptr32;
 
 #define to_ptr(b,p) ((void*)((char*)b + p))
 #define to_rptr32(b,p) ((rptr32)((char*)(p) - (char*)(b)))
 
-typedef struct {
+struct File_Track_Entry{
     File_Index hash;
     u32 opaque[4];
-} File_Track_Entry;
+};
 global_const File_Track_Entry null_file_track_entry = {0};
 
-typedef struct {
+struct File_Track_Tables{
     i32 size;
     u32 tracked_count;
     u32 max;
     rptr32 file_table;
-} File_Track_Tables;
+};
 
-typedef struct DLL_Node {
-    struct DLL_Node *next;
-    struct DLL_Node *prev;
-} DLL_Node;
-
-
+struct DLL_Node {
+    DLL_Node *next;
+    DLL_Node *prev;
+};
 
 internal File_Index
 zero_file_index(){

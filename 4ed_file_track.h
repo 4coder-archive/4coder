@@ -16,9 +16,9 @@
 # define FILE_TRACK_LINK static
 #endif
 
-typedef struct{
+struct File_Track_System{
     u8 opaque[128];
-} File_Track_System;
+};
 
 typedef i32 File_Track_Result;
 enum{

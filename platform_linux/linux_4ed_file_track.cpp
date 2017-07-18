@@ -14,19 +14,19 @@
 
 #include <libgen.h> // dirname
 
-typedef struct {
+struct Linux_File_Track_Vars{
     void *tables;
     int inotify;
     pthread_mutex_t lock;
     char *string_mem_begin;
     char *string_mem_end;
-} Linux_File_Track_Vars;
+};
 
-typedef struct {
+struct Linux_File_Track_Entry{
     File_Index hash;
     char* dir;
     int ref_count;
-} Linux_File_Track_Entry;
+};
 
 #define to_vars(s) ((Linux_File_Track_Vars*)(s))
 #define to_tables(v) ((File_Track_Tables*)(v->tables))

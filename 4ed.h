@@ -63,7 +63,6 @@ struct Plat_Settings{
     char *custom_dll;
     b8 custom_dll_is_strict;
     b8 fullscreen_window;
-    b8 stream_mode;
     
     u8 use_log;
     

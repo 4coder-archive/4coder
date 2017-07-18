@@ -56,10 +56,10 @@ typedef int32_t bool32;
 #include "../4cpp/4cpp_lexer_types.h"
 #include "../4ed_mem_ansi.c"
 
-typedef struct Whitespace_FSM{
+struct Whitespace_FSM{
     unsigned char pp_state;
     unsigned char white_done;
-} Whitespace_FSM;
+};
 
 Whitespace_FSM
 whitespace_skip_fsm(Whitespace_FSM wfsm, char c){
@@ -765,7 +765,7 @@ end_table(FILE *file){
     fprintf(file, "};\n\n");
 }
 
-typedef struct FSM_Tables{
+struct FSM_Tables{
     u8_4tech *full_transition_table;
     u8_4tech *marks;
     u8_4tech *eq_class;
@@ -775,7 +775,7 @@ typedef struct FSM_Tables{
     
     u8_4tech eq_class_counter;
     u16_4tech state_count;
-} FSM_Tables;
+};
 
 static void
 allocate_full_tables(FSM_Tables *table, uint8_t state_count){
@@ -950,11 +950,11 @@ render_comment(FILE *file, char *comment){
     fprintf(file, "/*\n%s*/\n", comment);
 }
 
-typedef struct PP_Names{
+struct PP_Names{
     uint8_t pp_state;
     char *name;
     bool32 ignore_string_delims;
-}  PP_Names;
+};
 
 static PP_Names pp_names[] = {
     {LSPP_default,          "main_fsm",          false},

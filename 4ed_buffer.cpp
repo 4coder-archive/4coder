@@ -16,10 +16,10 @@
 #include "4ed_font_data.h"
 #include "4coder_helper/4coder_seek_types.h"
 
-typedef struct Cursor_With_Index{
+struct Cursor_With_Index{
     i32 pos;
     i32 index;
-} Cursor_With_Index;
+};
 
 inline void
 write_cursor_with_index(Cursor_With_Index *positions, i32 *count, i32 pos){
@@ -279,7 +279,7 @@ eol_in_place_convert_out(char *data, i32 size, i32 max, i32 *size_out){
 // Implementation of the gap buffer
 //
 
-typedef struct Gap_Buffer{
+struct Gap_Buffer{
     char *data;
     i32 size1;
     i32 gap_size;
@@ -289,7 +289,7 @@ typedef struct Gap_Buffer{
     i32 *line_starts;
     i32 line_count;
     i32 line_max;
-} Gap_Buffer;
+};
 
 inline i32
 buffer_good(Gap_Buffer *buffer){
@@ -303,11 +303,11 @@ buffer_size(Gap_Buffer *buffer){
     return(size);
 }
 
-typedef struct Gap_Buffer_Init{
+struct Gap_Buffer_Init{
     Gap_Buffer *buffer;
     char *data;
     i32 size;
-} Gap_Buffer_Init;
+};
 
 internal Gap_Buffer_Init
 buffer_begin_init(Gap_Buffer *buffer, char *data, i32 size){
@@ -367,7 +367,7 @@ buffer_end_init(Gap_Buffer_Init *init, void *scratch, i32 scratch_size){
     return(result);
 }
 
-typedef struct Gap_Buffer_Stream{
+struct Gap_Buffer_Stream{
     Gap_Buffer *buffer;
     char *data;
     i32 end;
@@ -376,8 +376,8 @@ typedef struct Gap_Buffer_Stream{
     
     b32 use_termination_character;
     char terminator;
-} Gap_Buffer_Stream;
-static Gap_Buffer_Stream null_buffer_stream = {0};
+};
+global Gap_Buffer_Stream null_buffer_stream = {0};
 
 internal b32
 buffer_stringify_loop(Gap_Buffer_Stream *stream, Gap_Buffer *buffer, i32 start, i32 end){
@@ -495,10 +495,10 @@ buffer_replace_range(Gap_Buffer *buffer, i32 start, i32 end, char *str, i32 len,
     return(result);
 }
 
-typedef struct Buffer_Batch_State{
+struct Buffer_Batch_State{
     i32 i;
     i32 shift_total;
-} Buffer_Batch_State;
+};
 
 // TODO(allen): Now that we are just using Gap_Buffer we could afford to improve
 // this for the Gap_Buffer's behavior.
@@ -611,11 +611,11 @@ buffer_count_newlines(Gap_Buffer *buffer, i32 start, i32 end){
     return(count);
 }
 
-typedef struct Buffer_Measure_Starts{
+struct Buffer_Measure_Starts{
     i32 i;
     i32 count;
     i32 start;
-} Buffer_Measure_Starts;
+};
 
 // TODO(allen): Rewrite this with a duff routine
 // Also make it so that the array goes one past the end
@@ -1683,11 +1683,11 @@ buffer_invert_edit(Gap_Buffer *buffer, Buffer_Edit edit, Buffer_Edit *inverse, c
     buffer_invert_edit_shift(buffer, edit, inverse, strings, str_pos, max, 0);
 }
 
-typedef struct Buffer_Invert_Batch{
+struct Buffer_Invert_Batch{
     i32 i;
     i32 shift_amount;
     i32 len;
-} Buffer_Invert_Batch;
+};
 
 internal i32
 buffer_invert_batch(Buffer_Invert_Batch *state, Gap_Buffer *buffer, Buffer_Edit *edits, i32 count,
@@ -1720,15 +1720,15 @@ enum Buffer_Render_Flag{
     BRFlag_Ghost_Character = (1 << 1)
 };
 
-typedef struct Buffer_Render_Item{
+struct Buffer_Render_Item{
     i32 index;
     u32 codepoint;
     u32 flags;
     f32 x0, y0;
     f32 x1, y1;
-} Buffer_Render_Item;
+};
 
-typedef struct Render_Item_Write{
+struct Render_Item_Write{
     Buffer_Render_Item *item;
     f32 x, y;
     System_Functions *system;
@@ -1736,7 +1736,7 @@ typedef struct Render_Item_Write{
     i32 font_height;
     f32 x_min;
     f32 x_max;
-} Render_Item_Write;
+};
 
 inline Render_Item_Write
 write_render_item(Render_Item_Write write, i32 index, u32 codepoint, u32 flags){

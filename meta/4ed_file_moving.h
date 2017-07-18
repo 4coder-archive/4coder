@@ -90,22 +90,22 @@ internal void fm_end_temp(Temp temp);
 
 internal i32  fm_get_current_directory(char *buffer, i32 max);
 
-typedef struct Temp_Dir{
+struct Temp_Dir{
     char dir[512];
-} Temp_Dir;
+};
 
 internal Temp_Dir fm_pushdir(char *dir);
 internal void fm_popdir(Temp_Dir temp);
 
 // Build Line
 #define BUILD_LINE_MAX 4096
-typedef struct Build_Line{
+struct Build_Line{
     char build_optionsA[BUILD_LINE_MAX];
     char build_optionsB[BUILD_LINE_MAX];
     char *build_options;
     char *build_options_prev;
     i32 build_max;
-} Build_Line;
+};
 
 internal void fm_init_build_line(Build_Line *line);
 internal void fm_finish_build_line(Build_Line *line);
