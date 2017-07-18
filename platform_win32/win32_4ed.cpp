@@ -161,6 +161,10 @@ global Plat_Settings plat_settings;
 
 ////////////////////////////////
 
+#include "win32_error_box.cpp"
+
+////////////////////////////////
+
 #define SLASH '\\'
 
 internal HANDLE
@@ -1095,12 +1099,7 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
     // Memory Initialization
     //
     
-    b32 alloc_success = system_memory_init();
-    if (!alloc_success){
-        // HACK(allen): 
-        LOGF("Failed thingy");
-        exit(1);
-    }
+    system_memory_init();
     
     //
     // System and Application Layer Linkage
@@ -1171,16 +1170,14 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
         win32vars.custom_api.get_alpha_4coder_version = (_Get_Version_Function*)GetProcAddress(win32vars.custom, "get_alpha_4coder_version");
         
         if (win32vars.custom_api.get_alpha_4coder_version == 0 || win32vars.custom_api.get_alpha_4coder_version(MAJOR, MINOR, PATCH) == 0){
-            MessageBox_utf8(0, (u8*)"Error: The application and custom version numbers don't match.\n", (u8*)"Error",0);
-            exit(1);
+            system_error_box("The application and custom version numbers don't match.");
         }
         
         win32vars.custom_api.get_bindings = (Get_Binding_Data_Function*)GetProcAddress(win32vars.custom, "get_bindings");
     }
     
     if (win32vars.custom_api.get_bindings == 0){
-        MessageBox_utf8(0, (u8*)"Error: The custom dll is missing.\n", (u8*)"Error", 0);
-        exit(1);
+        system_error_box("The custom dll is missing.");
     }
     
 #else

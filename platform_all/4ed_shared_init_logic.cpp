@@ -9,7 +9,7 @@
 
 // TOP
 
-internal b32
+internal void
 system_memory_init(){
 #if defined(FRED_INTERNAL)
 # if defined(FTECH_64_BIT)
@@ -37,7 +37,10 @@ system_memory_init(){
         alloc_success = false;
     }
     
-    return(alloc_success);
+    if (!alloc_success){
+        char msg[] = "Could not allocate sufficient memory. Please make sure you have atleast 512Mb of RAM free. (This requirement will be relaxed in the future).";
+        system_error_box(msg);
+    }
 }
 
 // BOTTOM

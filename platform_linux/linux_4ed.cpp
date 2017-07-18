@@ -195,188 +195,12 @@ global Plat_Settings plat_settings;
 
 #include "linux_icon.h"
 internal void
-LinuxSetIcon(Display* d, Window w){
+linux_set_icon(Display* d, Window w){
     Atom WM_ICON = XInternAtom(d, "_NET_WM_ICON", False);
     XChangeProperty(d, w, WM_ICON, XA_CARDINAL, 32, PropModeReplace, (unsigned char*)linux_icon, sizeof(linux_icon) / sizeof(long));
 }
 
-// HACK(allen): 
-// NOTE(inso): this was a quick hack, might need some cleanup.
-internal void
-LinuxFatalErrorMsg(const char* msg){
-    LOGF("Fatal Error: %s\n", msg);
-    
-    Display *dpy = XOpenDisplay(0);
-    if (!dpy){
-        exit(1);
-    }
-    
-    const int num_cols = 50;
-    int win_w = (num_cols + 10) * 9;
-    int win_h = 140;
-    
-    {
-        const char *start_p = msg, *space_p = NULL;
-        for(const char* p = msg; *p; ++p){
-            if (*p == ' ') space_p = p;
-            if (*p == '\n' || p - start_p > num_cols){
-                win_h += 18;
-                start_p = space_p ? space_p + 1 : p;
-                space_p = NULL;
-            }
-        }
-    }
-    
-    Window w = XCreateSimpleWindow(dpy, DefaultRootWindow(dpy), 0, 0, win_w, win_h, 0, 0, 0x227A3B);
-    XStoreName(dpy, w, "4coder Error");
-    
-    XSizeHints* sh = XAllocSizeHints();
-    sh->flags = PMinSize;
-    sh->min_width = win_w;
-    sh->min_height = win_h;
-    XSetWMNormalHints(dpy, w, sh);
-    
-    Atom type = XInternAtom(dpy, "_NET_WM_WINDOW_TYPE_DIALOG", False);
-    
-    XChangeProperty(dpy, w,
-                    XInternAtom(dpy, "_NET_WM_WINDOW_TYPE", False),
-                    XA_ATOM,
-                    32,
-                    PropModeReplace,
-                    (unsigned char*) &type,
-                    1);
-    
-    Atom WM_DELETE_WINDOW = XInternAtom(dpy, "WM_DELETE_WINDOW", False);
-    XSetWMProtocols(dpy, w, &WM_DELETE_WINDOW, 1);
-    
-    LinuxSetIcon(dpy, w);
-    
-    XMapRaised(dpy, w);
-    XSync(dpy, False);
-    
-    XSelectInput(dpy, w, ExposureMask | StructureNotifyMask | PointerMotionMask | ButtonPressMask | ButtonReleaseMask | KeyPressMask);
-    
-    XFontStruct* font = XLoadQueryFont(dpy, "-*-fixed-bold-*-*-*-*-140-*-*-*-*-iso8859-1");
-    if (!font){
-        exit(1);
-    }
-    
-    XGCValues gcv;
-    gcv.foreground = WhitePixel(dpy, 0);
-    gcv.line_width = 2;
-    gcv.font = font->fid;
-    
-    GC gc1 = XCreateGC(dpy, w, GCForeground | GCFont | GCLineWidth, &gcv);
-    gcv.foreground = BlackPixel(dpy, 0);
-    GC gc2 = XCreateGC(dpy, w, GCForeground | GCFont | GCLineWidth, &gcv);
-    
-    int button_trigger = 0;
-    int button_hi = 0;
-    
-    XEvent ev;
-    while (1){
-        XNextEvent(dpy, &ev);
-        
-        int redraw = 0;
-        
-        if (ev.type == Expose) redraw = 1;
-        
-        if (ev.type == ConfigureNotify){
-            redraw = 1;
-            win_w = ev.xconfigure.width;
-            win_h = ev.xconfigure.height;
-        }
-        
-        XRectangle button_rect = { win_w/2-40, win_h*0.8f, 80, 20 };
-        
-        if (ev.type == MotionNotify){
-            int new_hi = (ev.xmotion.x > button_rect.x &&
-                          ev.xmotion.y > button_rect.y &&
-                          ev.xmotion.x < button_rect.x + button_rect.width &&
-                          ev.xmotion.y < button_rect.y + button_rect.height);
-            
-            if (new_hi != button_hi){
-                button_hi = new_hi;
-                redraw = 1;
-            }
-        }
-        
-        if (ev.type == KeyPress){
-            KeySym sym = XLookupKeysym(&ev.xkey, 0);
-            if (sym == XK_Escape || sym == XK_Return){
-                exit(1);
-            }
-        }
-        
-        if (ev.type == ButtonPress && ev.xbutton.button == Button1){
-            if (button_hi) button_trigger = 1;
-            redraw = 1;
-        }
-        
-        if (ev.type == ButtonRelease && ev.xbutton.button == Button1){
-            if (button_trigger){
-                if (button_hi){
-                    exit(1);
-                } else {
-                    button_trigger = 0;
-                }
-            }
-            redraw = 1;
-        }
-        
-        if (ev.type == ClientMessage && ev.xclient.window == w && (Atom)ev.xclient.data.l[0] == WM_DELETE_WINDOW){
-            exit(1);
-        }
-        
-#define DRAW_STR(x, y, str, len) \
-        XDrawString(dpy, w, gc2, (x)+1, (y)+1, (str), (len)); \
-        XDrawString(dpy, w, gc1, (x)  , (y)  , (str), (len))
-        
-        if (redraw){
-            XClearWindow(dpy, w);
-            
-            const char* line_start = msg;
-            const char* last_space = NULL;
-            int y = 30;
-            
-            {
-                const char title[] = "4coder - Fatal Error";
-                int width = XTextWidth(font, title, sizeof(title)-1);
-                int x = (win_w/2) - (width/2);
-                DRAW_STR(x, y, title, sizeof(title)-1);
-            }
-            
-            y += 36;
-            int width = XTextWidth(font, "x", 1) * num_cols;
-            int x = (win_w/2) - (width/2);
-            
-            for(const char* p = line_start; *p; ++p){
-                if (*p == ' ') last_space = p;
-                if (p - line_start > num_cols || *p == '\n' || !p[1]){
-                    
-                    const char* new_line_start = last_space + 1;
-                    if (!last_space || *p == '\n' || !p[1]){
-                        new_line_start = last_space = (p + !p[1]);
-                    }
-                    
-                    DRAW_STR(x, y, line_start, last_space - line_start);
-                    
-                    line_start = new_line_start;
-                    last_space = NULL;
-                    y += 18;
-                }
-            }
-            
-            XDrawRectangles(dpy, w, gc1, &button_rect, 1);
-            if (button_hi || button_trigger){
-                XDrawRectangle(dpy, w, gc2, button_rect.x+1, button_rect.y+1, button_rect.width-2, button_rect.height-2);
-            }
-            
-            DRAW_STR(button_rect.x + 20, button_rect.y + 15, "Drat!", 5);
-        }
-    }
-#undef DRAW_STR
-}
+#include "linux_error_box.cpp"
 
 ////////////////////////////////
 
@@ -1407,14 +1231,12 @@ LinuxX11WindowInit(int argc, char** argv, int* window_width, int* window_height)
     *window_height = Max(*window_height, 1);
     
     if (!GLXCanUseFBConfig(linuxvars.XDisplay)){
-        LinuxFatalErrorMsg("Your XServer's GLX version is too old. GLX 1.3+ is required.");
-        return false;
+        system_error_box("Your XServer's GLX version is too old. GLX 1.3+ is required.");
     }
     
     glx_config_result Config = ChooseGLXConfig(linuxvars.XDisplay, DefaultScreen(linuxvars.XDisplay));
     if (!Config.Found){
-        LinuxFatalErrorMsg("Could not get a matching GLX FBConfig. Check your OpenGL drivers are installed correctly.");
-        return false;
+        system_error_box("Could not get a matching GLX FBConfig. Check your OpenGL drivers are installed correctly.");
     }
     
     XSetWindowAttributes swa = {};
@@ -1427,8 +1249,7 @@ LinuxX11WindowInit(int argc, char** argv, int* window_width, int* window_height)
     linuxvars.XWindow = XCreateWindow(linuxvars.XDisplay, RootWindow(linuxvars.XDisplay, Config.BestInfo.screen), 0, 0, *window_width, *window_height, 0, Config.BestInfo.depth, InputOutput, Config.BestInfo.visual, CWflags, &swa);
     
     if (!linuxvars.XWindow){
-        LinuxFatalErrorMsg("XCreateWindow failed. Make sure your display is set up correctly.");
-        return false;
+        system_error_box("XCreateWindow failed. Make sure your display is set up correctly.");
     }
     
     //NOTE(inso): Set the window's type to normal
@@ -1485,7 +1306,7 @@ LinuxX11WindowInit(int argc, char** argv, int* window_width, int* window_height)
     XFree(wm_hints);
     XFree(cl_hints);
     
-    LinuxSetIcon(linuxvars.XDisplay, linuxvars.XWindow);
+    linux_set_icon(linuxvars.XDisplay, linuxvars.XWindow);
     
     // NOTE(inso): make the window visible
     XMapWindow(linuxvars.XDisplay, linuxvars.XWindow);
@@ -1842,20 +1663,13 @@ main(int argc, char **argv){
     
     if (!LinuxLoadAppCode(&base_dir)){
         char msg[] = "Could not load '4ed_app.so'. This file should be in the same directory as the main '4ed' executable.";
-        LinuxFatalErrorMsg(msg);
-        return 99;
+        system_error_box(msg);
     }
     
     link_system_code(&sysfunc);
     LinuxLoadRenderCode();
     
-    b32 alloc_success = system_memory_init();
-    
-    if (!alloc_success){
-        char msg[] = "Could not allocate sufficient memory. Please make sure you have atleast 512Mb of RAM free. (This requirement will be relaxed in the future).";
-        LinuxFatalErrorMsg(msg);
-        exit(1);
-    }
+    system_memory_init();
     
     init_shared_vars();
     
@@ -1867,8 +1681,7 @@ main(int argc, char **argv){
     if (!cwd){
         char buf[1024];
         snprintf(buf, sizeof(buf), "Call to get_current_dir_name failed: %s", strerror(errno));
-        LinuxFatalErrorMsg(buf);
-        return 1;
+        system_error_box(buf);
     }
     
     String current_directory = make_string_slowly(cwd);
@@ -1887,8 +1700,7 @@ main(int argc, char **argv){
         LOGF("%.*s", output_size, (char*)memory_vars.target_memory);
     }
     if (output_size != 0){
-        LinuxFatalErrorMsg("Error reading command-line arguments.");
-        return(1);
+        system_error_box("Error reading command-line arguments.");
     }
     
     sysshared_filter_real_files(files, file_count);
@@ -1906,7 +1718,8 @@ main(int argc, char **argv){
     char *custom_file;
     if (plat_settings.custom_dll){
         custom_file = plat_settings.custom_dll;
-    } else {
+    } 
+    else{
         custom_file = custom_file_default;
     }
     
@@ -1923,31 +1736,29 @@ main(int argc, char **argv){
         
         if (linuxvars.custom_api.get_alpha_4coder_version == 0 ||
             linuxvars.custom_api.get_alpha_4coder_version(MAJOR, MINOR, PATCH) == 0){
-            LinuxFatalErrorMsg("Failed to load 'custom_4coder.so': Version mismatch. Try rebuilding it with 'buildsuper.sh'.");
-            exit(1);
+            system_error_box("Failed to load 'custom_4coder.so': Version mismatch. Try rebuilding it with 'buildsuper.sh'.");
         }
         else{
             linuxvars.custom_api.get_bindings = (Get_Binding_Data_Function*)
                 dlsym(linuxvars.custom, "get_bindings");
             
             if (linuxvars.custom_api.get_bindings == 0){
-                LinuxFatalErrorMsg("Failed to load 'custom_4coder.so': "
-                                   "It does not export the required 'get_bindings' function. "
-                                   "Try rebuilding it with 'buildsuper.sh'.");
-                exit(1);
+                system_error_box("Failed to load 'custom_4coder.so': "
+                                 "It does not export the required 'get_bindings' function. "
+                                 "Try rebuilding it with 'buildsuper.sh'.");
             }
             else{
                 LOG("Successfully loaded custom_4coder.so\n");
             }
         }
-    } else {
+    }
+    else{
         char buf[4096];
         const char* error = dlerror();
         snprintf(buf, sizeof(buf), "Error loading custom: %s. "
                  "Make sure this file is in the same directory as the main '4ed' executable.",
                  error ? error : "'custom_4coder.so' missing");
-        LinuxFatalErrorMsg(buf);
-        exit(1);
+        system_error_box(buf);
     }
 #else
     linuxvars.custom_api.get_bindings = get_bindings;
