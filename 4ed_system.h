@@ -156,28 +156,7 @@ struct Job_Data{
     void *data[4];
 };
 
-struct Full_Job_Data{
-    Job_Data job;
-    
-    u32 running_thread;
-    u32 id;
-};
-
-struct Unbounded_Work_Queue{
-    Full_Job_Data *jobs;
-    i32 count, max, skip;
-    
-    u32 next_job_id;
-};
-
 #define QUEUE_WRAP 256
-
-struct Work_Queue{
-    Full_Job_Data jobs[QUEUE_WRAP];
-    Plat_Handle semaphore;
-    volatile u32 write_position;
-    volatile u32 read_position;
-};
 
 #define THREAD_NOT_ASSIGNED 0xFFFFFFFF
 

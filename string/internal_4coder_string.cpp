@@ -19,7 +19,7 @@ internal_4coder_string.cpp - Base file for generating 4coder_string.h
 FSTRING_BEGIN
 // TOP
 
-#include "4ed_standard_preamble.h"
+#include "4tech_standard_preamble.h"
 
 #if !defined(FSTRING_LINK)
 # define FSTRING_LINK static

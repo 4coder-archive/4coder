@@ -9,6 +9,10 @@
 
 // TOP
 
+#if !defined(CORE_COUNT)
+#define CORE_COUNT 8
+#endif
+
 enum CV_ID{
     CANCEL_CV0,
     CANCEL_CV1,
@@ -19,6 +23,25 @@ enum CV_ID{
     CANCEL_CV6,
     CANCEL_CV7,
     CV_COUNT
+};
+
+struct Full_Job_Data{
+    Job_Data job;
+    u32 running_thread;
+    u32 id;
+};
+
+struct Unbounded_Work_Queue{
+    Full_Job_Data *jobs;
+    i32 count, max, skip;
+    u32 next_job_id;
+};
+
+struct Work_Queue{
+    Full_Job_Data jobs[QUEUE_WRAP];
+    Semaphore semaphore;
+    volatile u32 write_position;
+    volatile u32 read_position;
 };
 
 struct Thread_Context{
@@ -45,6 +68,7 @@ struct Thread_Group{
 
 struct Threading_Vars{
     Thread_Memory *thread_memory;
+    
     Work_Queue queues[THREAD_GROUP_COUNT];
     Thread_Group groups[THREAD_GROUP_COUNT];
     Mutex locks[LOCK_COUNT];
@@ -116,7 +140,7 @@ PLAT_THREAD_SIG(job_thread_proc){
             }
         }
         else{
-            system_wait_on(queue->semaphore);
+            system_wait_on_semaphore(&queue->semaphore);
         }
     }
 }
@@ -212,7 +236,7 @@ flush_thread_group(Thread_Group_ID group_id){
     }
     
     for (i32 i = 0; i < semaphore_release_count; ++i){
-        system_release_semaphore(queue->semaphore);
+        system_release_semaphore(&queue->semaphore);
     }
     
     return(semaphore_release_count);
@@ -345,6 +369,49 @@ INTERNAL_Sys_Get_Thread_States_Sig(system_internal_get_thread_states){
     
     for (i32 i = 0; i < group->count; ++i){
         running[i] = (group->threads[i].running != 0);
+    }
+}
+
+internal void
+system_init_threaded_work_system(){
+    u32 core_count = CORE_COUNT;
+    i32 thread_system_memory_size = core_count*(sizeof(Thread_Context) + sizeof(Thread_Memory));
+    void *thread_system_memory = system_memory_allocate(thread_system_memory_size);
+    Partition thread_part = make_part(thread_system_memory, thread_system_memory_size);
+    
+    for (i32 i = 0; i < LOCK_COUNT; ++i){
+        system_init_lock(&threadvars.locks[i]);
+    }
+    
+    for (i32 i = 0; i < CV_COUNT; ++i){
+        system_init_cv(&threadvars.conds[i]);
+    }
+    
+    threadvars.thread_memory = push_array(&thread_part, Thread_Memory, core_count);
+    
+    for (u32 group_i = 0; group_i < THREAD_GROUP_COUNT; ++group_i){
+        Thread_Context *threads = push_array(&thread_part, Thread_Context, core_count);
+        threadvars.groups[group_i].threads = threads;
+        threadvars.groups[group_i].count = core_count;
+        threadvars.groups[group_i].cancel_lock0 = CANCEL_LOCK0;
+        threadvars.groups[group_i].cancel_cv0 = CANCEL_CV0;
+        
+        system_init_semaphore(&threadvars.queues[group_i].semaphore, core_count);
+        
+        for (u32 i = 0; i < core_count; ++i){
+            Thread_Context *thread = threads + i;
+            thread->id = i + 1;
+            thread->group_id = group_i;
+            
+            Thread_Memory *memory = &threadvars.thread_memory[i];
+            memset(memory, 0, sizeof(*memory));
+            memory->id = thread->id;
+            
+            thread->queue = &threadvars.queues[group_i];
+            system_init_and_launch_thread(&thread->thread, job_thread_proc, thread);
+        }
+        
+        initialize_unbounded_queue(&threadvars.groups[group_i].queue);
     }
 }
 

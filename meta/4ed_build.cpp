@@ -9,7 +9,7 @@
 
 // TOP
 
-#define FM_PRINT_COMMANDS
+//#define FM_PRINT_COMMANDS
 
 #include "../4ed_defines.h"
 

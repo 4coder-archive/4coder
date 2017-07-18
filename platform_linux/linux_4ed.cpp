@@ -115,8 +115,6 @@ struct Linux_Coroutine {
 // Linux forward declarations
 //
 
-internal void        LinuxScheduleStep(void);
-
 internal void        LinuxStringDup(String*, void*, size_t);
 internal void        LinuxToggleFullscreen(Display*, Window);
 internal void        LinuxFatalErrorMsg(const char* msg);
@@ -183,12 +181,10 @@ struct Linux_Vars{
     Linux_Coroutine *coroutine_free;
 };
 
-//
-// Linux globals
-//
+////////////////////////////////
 
-global System_Functions sysfunc;
 global Linux_Vars linuxvars;
+global System_Functions sysfunc;
 global Application_Memory memory_vars;
 
 ////////////////////////////////
@@ -215,6 +211,32 @@ handle_fd(Plat_Handle h){
 
 ////////////////////////////////
 
+internal void
+system_schedule_step(){
+    u64 now  = system_now_time();
+    u64 diff = (now - linuxvars.last_step);
+    
+    if (diff > (u64)frame_useconds){
+        u64 ev = 1;
+        ssize_t size = write(linuxvars.step_event_fd, &ev, sizeof(ev));
+        AllowLocal(size);
+    }
+    else{
+        struct itimerspec its = {};
+        timerfd_gettime(linuxvars.step_timer_fd, &its);
+        
+        if (its.it_value.tv_sec == 0 && its.it_value.tv_nsec == 0){
+            its.it_value.tv_nsec = (frame_useconds - diff) * 1000UL;
+            timerfd_settime(linuxvars.step_timer_fd, 0, &its, NULL);
+        }
+    }
+}
+
+////////////////////////////////
+
+#define PLAT_THREAD_SIG(n) void* n(void *ptr)
+typedef PLAT_THREAD_SIG(Thread_Function);
+
 struct Thread{
     pthread_t t;
 };
@@ -227,6 +249,20 @@ struct Condition_Variable{
     pthread_cond_t cv;
 };
 
+struct Semaphore{
+    sem_t s;
+};
+
+internal void
+system_init_and_launch_thread(Thread *t, Thread_Function *proc, void *ptr){
+    pthread_create(&t->t, 0, proc, ptr);
+}
+
+internal void
+system_init_lock(Mutex *m){
+    pthread_mutex_init(&m->crit, NULL);
+}
+
 internal void
 system_acquire_lock(Mutex *m){
     pthread_mutex_lock(&m->crit);
@@ -235,6 +271,11 @@ system_acquire_lock(Mutex *m){
 internal void
 system_release_lock(Mutex *m){
     pthread_mutex_unlock(&m->crit);
+}
+
+internal void
+system_init_cv(Condition_Variable *cv){
+    pthread_cond_init(&cv->cv, NULL);
 }
 
 internal void
@@ -247,23 +288,20 @@ system_signal_cv(Condition_Variable *cv, Mutex *m){
     pthread_cond_signal(&cv->cv);
 }
 
-// HACK(allen): Reduce this down to just one layer of call.
 internal void
-system_schedule_step(){
-    LinuxScheduleStep();
+system_init_semaphore(Semaphore *s, u32 count){
+    sem_init(&s->s, 0, 0);
 }
 
 internal void
-system_wait_on(Plat_Handle handle){
-    sem_wait(handle_sem(handle));
+system_wait_on_semaphore(Semaphore *s){
+    sem_wait(&s->s);
 }
 
 internal void
-system_release_semaphore(Plat_Handle handle){
-    sem_post(handle_sem(handle));
+system_release_semaphore(Semaphore *s){
+    sem_post(&s->s);
 }
-
-#define PLAT_THREAD_SIG(n) void* n(void *ptr)
 
 ////////////////////////////////
 
@@ -1078,27 +1116,6 @@ LinuxStringDup(String* str, void* data, size_t size){
     memcpy(str->str, data, size);
 }
 
-internal void
-LinuxScheduleStep(void){
-    u64 now  = system_now_time();
-    u64 diff = (now - linuxvars.last_step);
-    
-    if (diff > (u64)frame_useconds){
-        u64 ev = 1;
-        ssize_t size = write(linuxvars.step_event_fd, &ev, sizeof(ev));
-        (void)size;
-    }
-    else{
-        struct itimerspec its = {};
-        timerfd_gettime(linuxvars.step_timer_fd, &its);
-        
-        if (its.it_value.tv_sec == 0 && its.it_value.tv_nsec == 0){
-            its.it_value.tv_nsec = (frame_useconds - diff) * 1000UL;
-            timerfd_settime(linuxvars.step_timer_fd, 0, &its, NULL);
-        }
-    }
-}
-
 //
 // X11 utility funcs
 //
@@ -1154,6 +1171,7 @@ LinuxX11ConnectionWatch(Display* dpy, XPointer cdata, int fd, Bool opening, XPoi
     epoll_ctl(linuxvars.epoll, op, fd, &e);
 }
 
+// HACK(allen): 
 // NOTE(inso): this was a quick hack, might need some cleanup.
 internal void
 LinuxFatalErrorMsg(const char* msg)
@@ -1888,7 +1906,7 @@ LinuxHandleX11Events(void)
     }
     
     if (should_step){
-        LinuxScheduleStep();
+        system_schedule_step();
     }
 }
 
@@ -2029,7 +2047,7 @@ main(int argc, char **argv){
 #endif
     
     //
-    // Coroutine / Thread / Semaphore / Mutex init
+    // Coroutines
     //
     
     linuxvars.coroutine_free = linuxvars.coroutine_data;
@@ -2043,40 +2061,11 @@ main(int argc, char **argv){
         linuxvars.coroutine_data[i].stack.ss_sp = system_memory_allocate(stack_size);
     }
     
-    Thread_Context background[4] = {};
-    threadvars.groups[BACKGROUND_THREADS].threads = background;
-    threadvars.groups[BACKGROUND_THREADS].count = ArrayCount(background);
-    threadvars.groups[BACKGROUND_THREADS].cancel_lock0 = CANCEL_LOCK0;
-    threadvars.groups[BACKGROUND_THREADS].cancel_cv0 = 0;
+    //
+    // Threads
+    //
+    system_init_threaded_work_system();
     
-    Thread_Memory thread_memory[ArrayCount(background)];
-    threadvars.thread_memory = thread_memory;
-    
-    sem_init(&linuxvars.thread_semaphore, 0, 0);
-    threadvars.queues[BACKGROUND_THREADS].semaphore = handle_sem(&linuxvars.thread_semaphore);
-    
-    for(i32 i = 0; i < threadvars.groups[BACKGROUND_THREADS].count; ++i){
-        Thread_Context *thread = threadvars.groups[BACKGROUND_THREADS].threads + i;
-        thread->id = i + 1;
-        thread->group_id = BACKGROUND_THREADS;
-        
-        Thread_Memory *memory = threadvars.thread_memory + i;
-        *memory = null_thread_memory;
-        memory->id = thread->id;
-        
-        thread->queue = &threadvars.queues[BACKGROUND_THREADS];
-        pthread_create(&thread->handle, NULL, &job_thread_proc, thread);
-    }
-    
-    initialize_unbounded_queue(&threadvars.groups[BACKGROUND_THREADS].queue);
-    
-    for(i32 i = 0; i < LOCK_COUNT; ++i){
-        pthread_mutex_init(linuxvars.locks + i, NULL);
-    }
-    
-    for(i32 i = 0; i < ArrayCount(linuxvars.conds); ++i){
-        pthread_cond_init(linuxvars.conds + i, NULL);
-    }
     
     //
     // X11 init
@@ -2217,7 +2206,7 @@ main(int argc, char **argv){
     
     system_acquire_lock(FRAME_LOCK);
     
-    LinuxScheduleStep();
+    system_schedule_step();
     
     linuxvars.keep_running = 1;
     linuxvars.input.first_step = 1;
@@ -2276,7 +2265,7 @@ main(int argc, char **argv){
                 } break;
                 
                 case LINUX_4ED_EVENT_CLI: {
-                    LinuxScheduleStep();
+                    system_schedule_step();
                 } break;
             }
         }
@@ -2310,7 +2299,7 @@ main(int argc, char **argv){
             }
             
             if (result.animating){
-                LinuxScheduleStep();
+                system_schedule_step();
             }
             
             LinuxRedrawTarget();

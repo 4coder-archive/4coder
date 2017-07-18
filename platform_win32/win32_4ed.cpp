@@ -165,8 +165,10 @@ struct Win32_Vars{
     
 };
 
-global System_Functions sysfunc;
+////////////////////////////////
+
 global Win32_Vars win32vars;
+global System_Functions sysfunc;
 global Application_Memory memory_vars;
 
 ////////////////////////////////
@@ -187,6 +189,16 @@ handle_type(HANDLE h){
 
 ////////////////////////////////
 
+internal void
+system_schedule_step(){
+    PostMessage(win32vars.window_handle, WM_4coder_ANIMATE, 0, 0);
+}
+
+////////////////////////////////
+
+#define PLAT_THREAD_SIG(n) DWORD CALL_CONVENTION n(LPVOID ptr)
+typedef PLAT_THREAD_SIG(Thread_Function);
+
 struct Thread{
     HANDLE t;
 };
@@ -199,6 +211,20 @@ struct Condition_Variable{
     CONDITION_VARIABLE cv;
 };
 
+struct Semaphore{
+    HANDLE s;
+};
+
+internal void
+system_init_and_launch_thread(Thread *t, Thread_Function *proc, void *ptr){
+    t->t = CreateThread(0, 0, proc, ptr, 0, 0);
+}
+
+internal void
+system_init_lock(Mutex *m){
+    InitializeCriticalSection(&m->crit);
+}
+
 internal void
 system_acquire_lock(Mutex *m){
     EnterCriticalSection(&m->crit);
@@ -207,6 +233,11 @@ system_acquire_lock(Mutex *m){
 internal void
 system_release_lock(Mutex *m){
     LeaveCriticalSection(&m->crit);
+}
+
+internal void
+system_init_cv(Condition_Variable *cv){
+    InitializeConditionVariable(&cv->cv);
 }
 
 internal void
@@ -220,21 +251,19 @@ system_signal_cv(Condition_Variable *cv, Mutex *lock){
 }
 
 internal void
-system_schedule_step(){
-    PostMessage(win32vars.window_handle, WM_4coder_ANIMATE, 0, 0);
+system_init_semaphore(Semaphore *s, u32 max){
+    s->s = CreateSemaphore(0, 0, max, 0);
 }
 
 internal void
-system_wait_on(Plat_Handle handle){
-    WaitForSingleObject(handle_type(handle), INFINITE);
+system_wait_on_semaphore(Semaphore *s){
+    WaitForSingleObject(s->s, INFINITE);
 }
 
 internal void
-system_release_semaphore(Plat_Handle handle){
-    ReleaseSemaphore(handle_type(handle), 1, 0);
+system_release_semaphore(Semaphore *s){
+    ReleaseSemaphore(s->s, 1, 0);
 }
-
-#define PLAT_THREAD_SIG(n) DWORD CALL_CONVENTION n(LPVOID ptr)
 
 ////////////////////////////////
 
@@ -282,7 +311,7 @@ Sys_Log_Sig(system_log){
 }
 
 //
-// Memory (not exposed to application, but needed in system_shared.cpp)
+// Memory
 //
 
 internal
@@ -297,24 +326,15 @@ Sys_Memory_Set_Protection_Sig(system_memory_set_protection){
     DWORD old_protect = 0;
     DWORD protect = 0;
     
-    flags = flags & 0x7;
-    
-    switch (flags){
-        case 0: protect = PAGE_NOACCESS; break;
-        
-        case MemProtect_Read: protect = PAGE_READONLY; break;
-        
-        case MemProtect_Write:
-        case MemProtect_Read|MemProtect_Write:
-        protect = PAGE_READWRITE; break;
-        
-        case MemProtect_Execute: protect = PAGE_EXECUTE; break;
-        
-        case MemProtect_Execute|MemProtect_Read: protect = PAGE_EXECUTE_READ; break;
-        
-        case MemProtect_Execute|MemProtect_Write:
-        case MemProtect_Execute|MemProtect_Write|MemProtect_Read:
-        protect = PAGE_EXECUTE_READWRITE; break;
+    switch (flags & 0x7){
+        case 0:                                                   protect = PAGE_NOACCESS; break;
+        case MemProtect_Read:                                     protect = PAGE_READONLY; break;
+        case MemProtect_Write:                                    /* below */
+        case MemProtect_Write|MemProtect_Read:                    protect = PAGE_READWRITE; break;
+        case MemProtect_Execute:                                  protect = PAGE_EXECUTE; break;
+        case MemProtect_Execute|MemProtect_Read:                  protect = PAGE_EXECUTE_READ; break;
+        case MemProtect_Execute|MemProtect_Write:                 /* below */
+        case MemProtect_Execute|MemProtect_Write|MemProtect_Read: protect = PAGE_EXECUTE_READWRITE; break;
     }
     
     VirtualProtect(ptr, size, protect, &old_protect);
@@ -325,6 +345,10 @@ internal
 Sys_Memory_Free_Sig(system_memory_free){
     VirtualFree(ptr, 0, MEM_RELEASE);
 }
+
+//
+// Threads
+//
 
 #include "4ed_work_queues.cpp"
 
@@ -1601,51 +1625,16 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
     
     win32vars.GlobalWindowPosition.length = sizeof(win32vars.GlobalWindowPosition);
     
+    system_init_threaded_work_system();
+    
     //
-    // Threads and Coroutines
+    // Coroutines
     //
-    
-    for (i32 i = 0; i < LOCK_COUNT; ++i){
-        InitializeCriticalSection(&threadvars.locks[i].crit);
-    }
-    
-    for (i32 i = 0; i < CV_COUNT; ++i){
-        InitializeConditionVariable(&threadvars.conds[i].cv);
-    }
-    
-    Thread_Context background[4];
-    memset(background, 0, sizeof(background));
-    threadvars.groups[BACKGROUND_THREADS].threads = background;
-    threadvars.groups[BACKGROUND_THREADS].count = ArrayCount(background);
-    threadvars.groups[BACKGROUND_THREADS].cancel_lock0 = CANCEL_LOCK0;
-    threadvars.groups[BACKGROUND_THREADS].cancel_cv0 = CANCEL_CV0;
-    
-    Thread_Memory thread_memory[ArrayCount(background)];
-    threadvars.thread_memory = thread_memory;
-    
-    threadvars.queues[BACKGROUND_THREADS].semaphore =handle_type(CreateSemaphore(0, 0, threadvars.groups[BACKGROUND_THREADS].count, 0));
-    
-    u32 creation_flag = 0;
-    for (i32 i = 0; i < threadvars.groups[BACKGROUND_THREADS].count; ++i){
-        Thread_Context *thread = threadvars.groups[BACKGROUND_THREADS].threads + i;
-        thread->id = i + 1;
-        thread->group_id = BACKGROUND_THREADS;
-        
-        Thread_Memory *memory = threadvars.thread_memory + i;
-        *memory = null_thread_memory;
-        memory->id = thread->id;
-        
-        thread->queue = &threadvars.queues[BACKGROUND_THREADS];
-        
-        thread->thread.t = CreateThread(0, 0, job_thread_proc, thread, creation_flag, (LPDWORD)&thread->windows_id);
-    }
-    
-    initialize_unbounded_queue(&threadvars.groups[BACKGROUND_THREADS].queue);
     
     ConvertThreadToFiber(0);
     win32vars.coroutine_free = win32vars.coroutine_data;
     for (i32 i = 0; i+1 < ArrayCount(win32vars.coroutine_data); ++i){
-        win32vars.coroutine_data[i].next = win32vars.coroutine_data + i + 1;
+        win32vars.coroutine_data[i].next = &win32vars.coroutine_data[i + 1];
     }
     
     //
@@ -2122,7 +2111,7 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
         win32vars.first = 0;
         
         if (result.animating){
-            PostMessage(win32vars.window_handle, WM_4coder_ANIMATE, 0, 0);
+            system_schedule_step();
         }
         
         flush_thread_group(BACKGROUND_THREADS);
