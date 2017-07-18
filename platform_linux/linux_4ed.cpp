@@ -237,6 +237,28 @@ system_schedule_step(){
 
 ////////////////////////////////
 
+internal void
+LinuxSetWMState(Display* d, Window w, Atom one, Atom two, int mode){
+    //NOTE(inso): this will only work after it is mapped
+    
+    enum { STATE_REMOVE, STATE_ADD, STATE_TOGGLE };
+    
+    XEvent e = {};
+    
+    e.xany.type = ClientMessage;
+    e.xclient.message_type = linuxvars.atom__NET_WM_STATE;
+    e.xclient.format = 32;
+    e.xclient.window = w;
+    e.xclient.data.l[0] = mode;
+    e.xclient.data.l[1] = one;
+    e.xclient.data.l[2] = two;
+    e.xclient.data.l[3] = 1L;
+    
+    XSendEvent(d, RootWindow(d, 0), 0, SubstructureNotifyMask | SubstructureRedirectMask, &e);
+}
+
+////////////////////////////////
+
 internal
 Sys_Show_Mouse_Cursor_Sig(system_show_mouse_cursor){
     linuxvars.hide_cursor = !show;
@@ -1051,26 +1073,6 @@ LinuxStringDup(String* str, void* data, size_t size){
 //
 // X11 utility funcs
 //
-
-internal void
-LinuxSetWMState(Display* d, Window w, Atom one, Atom two, int mode){
-    //NOTE(inso): this will only work after it is mapped
-    
-    enum { STATE_REMOVE, STATE_ADD, STATE_TOGGLE };
-    
-    XEvent e = {};
-    
-    e.xany.type = ClientMessage;
-    e.xclient.message_type = linuxvars.atom__NET_WM_STATE;
-    e.xclient.format = 32;
-    e.xclient.window = w;
-    e.xclient.data.l[0] = mode;
-    e.xclient.data.l[1] = one;
-    e.xclient.data.l[2] = two;
-    e.xclient.data.l[3] = 1L;
-    
-    XSendEvent(d, RootWindow(d, 0), 0, SubstructureNotifyMask | SubstructureRedirectMask, &e);
-}
 
 internal void
 LinuxMaximizeWindow(Display* d, Window w, b32 maximize)
