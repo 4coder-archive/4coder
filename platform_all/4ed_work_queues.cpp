@@ -9,11 +9,37 @@
 
 // TOP
 
+struct Threading_Vars{
+    Thread_Memory *thread_memory;
+    Work_Queue queues[THREAD_GROUP_COUNT];
+    Thread_Group groups[THREAD_GROUP_COUNT];
+    Mutex locks[LOCK_COUNT];
+    Condition_Variable conds[CV_COUNT];
+};
+global Threading_Vars threadvars;
+
+internal
+Sys_Acquire_Lock_Sig(system_acquire_lock){
+    system_acquire_lock(&threadvars.locks[id]);
+}
+
+internal
+Sys_Release_Lock_Sig(system_release_lock){
+    system_release_lock(&threadvars.locks[id]);
+}
+
 internal void
-job_proc(System_Functions *system, Thread_Context *thread, Work_Queue *queue, Thread_Group *group, Thread_Memory *thread_memory){
+job_thread_proc(System_Functions *system, Thread_Context *thread){
+    Work_Queue *queue = threadvars.queues + thread->group_id;
+    Thread_Group *group = threadvars.groups + thread->group_id;
+    
     i32 thread_index = thread->id - 1;
-    i32 cancel_lock = group->cancel_lock0 + thread_index;
-    i32 cancel_cv = group->cancel_cv0 + thread_index;
+    Thread_Memory *thread_memory = threadvars.thread_memory + thread_index;
+    
+    i32 cancel_lock_id = group->cancel_lock0 + thread_index;
+    i32 cancel_cv_id = group->cancel_cv0 + thread_index;
+    Mutex *cancel_lock = &threadvars.locks[cancel_lock_id];
+    Condition_Variable *cancel_cv = &threadvars.conds[cancel_cv_id];
     
     if (thread_memory->size == 0){
         i32 new_size = KB(64);
@@ -47,7 +73,7 @@ job_proc(System_Functions *system, Thread_Context *thread, Work_Queue *queue, Th
                     system_acquire_lock(cancel_lock);
                     if (thread->cancel){
                         thread->cancel = 0;
-                        system_signal_cv(cancel_lock, cancel_cv);
+                        system_signal_cv(cancel_cv, cancel_lock);
                     }
                     system_release_lock(cancel_lock);
                 }
@@ -92,7 +118,12 @@ get_work_queue_available_space(i32 write, i32 read){
 #define UNBOUNDED_SKIP_MAX 128
 
 internal i32
-flush_to_direct_queue(Unbounded_Work_Queue *source_queue, Work_Queue *queue, i32 thread_count){
+flush_thread_group(Thread_Group_ID group_id){
+    Thread_Group *group = threadvars.groups + group_id;
+    Work_Queue *queue = threadvars.queues + group_id;
+    Unbounded_Work_Queue *source_queue = &group->queue;
+    i32 thread_count = group->count;
+    
     // NOTE(allen): It is understood that read_position may be changed by other
     // threads but it will only make more space in the queue if it is changed.
     // Meanwhile write_position should not ever be changed by anything but the
@@ -155,8 +186,9 @@ flush_to_direct_queue(Unbounded_Work_Queue *source_queue, Work_Queue *queue, i32
 // The unbounded queue is entirely managed by the main thread.
 // The thread safe queue is bounded in size so the unbounded
 // queue is periodically flushed into the direct work queue.
-internal u32
-post_job(Thread_Group *group, Work_Queue *direct_queue, Job_Data job){
+internal
+Sys_Post_Job_Sig(system_post_job){
+    Thread_Group *group = threadvars.groups + group_id;
     Unbounded_Work_Queue *queue = &group->queue;
     
     u32 result = queue->next_job_id++;
@@ -176,13 +208,16 @@ post_job(Thread_Group *group, Work_Queue *direct_queue, Job_Data job){
     full_job.id = result;
     
     queue->jobs[queue->count++] = full_job;
-    flush_to_direct_queue(queue, direct_queue, group->count);
+    flush_thread_group(group_id);
     
     return(result);
 }
 
-internal void
-cancel_job(Thread_Group *group, Work_Queue *queue, u32 job_id){
+internal
+Sys_Cancel_Job_Sig(system_cancel_job){
+    Thread_Group *group = threadvars.groups + group_id;
+    Work_Queue *queue = threadvars.queues + group_id;
+    
     Unbounded_Work_Queue *source_queue = &group->queue;
     
     b32 handled_in_unbounded = false;
@@ -205,29 +240,36 @@ cancel_job(Thread_Group *group, Work_Queue *queue, u32 job_id){
         if (thread_id != THREAD_NOT_ASSIGNED && thread_id != 0){
             i32 thread_index = thread_id - 1;
             
-            i32 cancel_lock = group->cancel_lock0 + thread_index;
-            i32 cancel_cv = group->cancel_cv0 + thread_index;
+            i32 cancel_lock_id = group->cancel_lock0 + thread_index;
+            i32 cancel_cv_id = group->cancel_cv0 + thread_index;
+            Mutex *cancel_lock = &threadvars.locks[cancel_lock_id];
+            Condition_Variable *cancel_cv = &threadvars.conds[cancel_cv_id];
+            
             Thread_Context *thread = group->threads + thread_index;
             
             system_acquire_lock(cancel_lock);
             thread->cancel = true;
-            system_release_lock(FRAME_LOCK);
+            system_release_lock(&threadvars.locks[FRAME_LOCK]);
             
             do{
-                system_wait_cv(cancel_lock, cancel_cv);
+                system_wait_cv(cancel_cv, cancel_lock);
             }while (thread->cancel);
             
-            system_acquire_lock(FRAME_LOCK);
+            system_acquire_lock(&threadvars.locks[FRAME_LOCK]);
             system_release_lock(cancel_lock);
         }
     }
 }
 
-internal b32
-check_cancel_status(Thread_Group *group, Thread_Context *thread){
+internal
+Sys_Check_Cancel_Sig(system_check_cancel){
+    Thread_Group *group = threadvars.groups + thread->group_id;
+    
     b32 result = false;
     i32 thread_index = thread->id - 1;
-    i32 cancel_lock = group->cancel_lock0 + thread_index;
+    i32 cancel_lock_id = group->cancel_lock0 + thread_index;
+    Mutex *cancel_lock = &threadvars.locks[cancel_lock_id];
+    
     system_acquire_lock(cancel_lock);
     if (thread->cancel){
         result = true;
@@ -236,9 +278,11 @@ check_cancel_status(Thread_Group *group, Thread_Context *thread){
     return(result);
 }
 
-internal void
-grow_thread_memory(Thread_Memory *memory){
-    system_acquire_lock(CANCEL_LOCK0 + memory->id - 1);
+internal
+Sys_Grow_Thread_Memory_Sig(system_grow_thread_memory){
+    Mutex *cancel_lock = &threadvars.locks[CANCEL_LOCK0 + memory->id - 1];
+    
+    system_acquire_lock(cancel_lock);
     void *old_data = memory->data;
     i32 old_size = memory->size;
     i32 new_size = l_round_up_i32(memory->size*2, KB(4));
@@ -248,11 +292,13 @@ grow_thread_memory(Thread_Memory *memory){
         memcpy(memory->data, old_data, old_size);
         system_memory_free(old_data, old_size);
     }
-    system_release_lock(CANCEL_LOCK0 + memory->id - 1);
+    system_release_lock(cancel_lock);
 }
 
-internal void
-dbg_get_thread_states(Thread_Group *group, Work_Queue *queue, b8 *running, i32 *pending){
+internal
+INTERNAL_Sys_Get_Thread_States_Sig(system_internal_get_thread_states){
+    Thread_Group *group = threadvars.groups + id;
+    Work_Queue *queue = threadvars.queues + id;
     Unbounded_Work_Queue *source_queue = &group->queue;
     u32 write = queue->write_position;
     u32 read = queue->read_position;

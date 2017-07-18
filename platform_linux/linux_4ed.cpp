@@ -190,11 +190,6 @@ struct Linux_Vars{
     void *app_code;
     void *custom;
     
-    Thread_Memory *thread_memory;
-    Thread_Group groups[THREAD_GROUP_COUNT];
-    Work_Queue queues[THREAD_GROUP_COUNT];
-    Mutex locks[LOCK_COUNT];
-    Condition_Variable conds[8];
     sem_t thread_semaphore;
     
     i32 dpi_x, dpi_y;
@@ -488,37 +483,27 @@ Sys_CLI_End_Update_Sig(system_cli_end_update){
 }
 
 //
-// Threads
+// Multithreading
 //
 
 internal void
-system_internal_acquire_lock(Mutex *m){
+system_acquire_lock(Mutex *m){
     pthread_mutex_lock(m->crit);
 }
 
 internal void
-system_internal_release_lock(Mutex *m){
+system_release_lock(Mutex *m){
     pthread_mutex_unlock(m->crit);
 }
 
-internal
-Sys_Acquire_Lock_Sig(system_acquire_lock){
-    system_internal_acquire_lock(&linuxvars.locks[id]);
-}
-
-internal
-Sys_Release_Lock_Sig(system_release_lock){
-    system_internal_release_lock(&linuxvars.locks[id]);
+internal void
+system_wait_cv(Condition_Variable *cv, Mutex *m){
+    pthread_cond_wait(cv->cv, m->crit);
 }
 
 internal void
-system_wait_cv(i32 lock_id, i32 cv_id){
-    pthread_cond_wait(linuxvars.conds + cv_id, linuxvars.locks + lock_id);
-}
-
-internal void
-system_signal_cv(i32 lock_id, i32 cv_id){
-    pthread_cond_signal(linuxvars.conds + cv_id);
+system_signal_cv(Condition_Variable *cv, Mutex *m){
+    pthread_cond_signal(cv->cv);
 }
 
 // HACK(allen): Reduce this down to just one layer of call.
@@ -542,51 +527,9 @@ system_release_semaphore(Plat_Handle handle){
 internal void*
 JobThreadProc(void* lpParameter){
     Thread_Context *thread = (Thread_Context*)lpParameter;
-    Work_Queue *queue = linuxvars.queues + thread->group_id;
-    Thread_Group *group = linuxvars.groups + thread->group_id;
-    i32 thread_index = thread->id - 1;
-    Thread_Memory *memory = linuxvars.thread_memory + thread_index;
-    job_proc(&linuxvars.system, thread, queue, group, memory);
+    job_thread_proc(&linuxvars.system, thread);
     InvalidCodePath;
     return(0);
-}
-
-// Note(allen): post_job puts the job on the unbounded queue.
-// The unbounded queue is entirely managed by the main thread.
-// The thread safe queue is bounded in size so the unbounded
-// queue is periodically flushed into the direct work queue.
-internal
-Sys_Post_Job_Sig(system_post_job){
-    Thread_Group *group = linuxvars.groups + group_id;
-    Work_Queue *direct_queue = linuxvars.queues + group_id;
-    u32 result = post_job(group, direct_queue, job);
-    return(result);
-}
-
-internal
-Sys_Cancel_Job_Sig(system_cancel_job){
-    Thread_Group *group = linuxvars.groups + group_id;
-    Work_Queue *queue = linuxvars.queues + group_id;
-    cancel_job(group, queue, job_id);
-}
-
-internal
-Sys_Check_Cancel_Sig(system_check_cancel){
-    Thread_Group *group = linuxvars.groups + thread->group_id;
-    b32 result = check_cancel_status(group, thread);
-    return(result);
-}
-
-internal
-Sys_Grow_Thread_Memory_Sig(system_grow_thread_memory){
-    grow_thread_memory(memory);
-}
-
-internal
-INTERNAL_Sys_Get_Thread_States_Sig(system_internal_get_thread_states){
-    Thread_Group *group = linuxvars.groups + id;
-    Work_Queue *queue = linuxvars.queues + id;
-    dbg_get_thread_states(group, queue, running, pending);
 }
 
 //
@@ -627,13 +570,6 @@ LinuxLoadAppCode(String* base_dir){
     }
     
     return(result);
-}
-
-#include "4ed_link_system_functions.cpp"
-
-internal void
-LinuxLoadSystemCode(){
-    link_system_code(&linuxvars.system);
 }
 
 internal void
@@ -1994,6 +1930,8 @@ LinuxHandleX11Events(void)
 // Entry point
 //
 
+#include "4ed_link_system_functions.cpp"
+
 int
 main(int argc, char **argv){
     //
@@ -2008,7 +1946,7 @@ main(int argc, char **argv){
         return 99;
     }
     
-    LinuxLoadSystemCode();
+    link_system_code(&linuxvars.system);
     LinuxLoadRenderCode();
     
     memory_vars.vars_memory_size   = MB(2);
@@ -2140,31 +2078,31 @@ main(int argc, char **argv){
     }
     
     Thread_Context background[4] = {};
-    linuxvars.groups[BACKGROUND_THREADS].threads = background;
-    linuxvars.groups[BACKGROUND_THREADS].count = ArrayCount(background);
-    linuxvars.groups[BACKGROUND_THREADS].cancel_lock0 = CANCEL_LOCK0;
-    linuxvars.groups[BACKGROUND_THREADS].cancel_cv0 = 0;
+    threadvars.groups[BACKGROUND_THREADS].threads = background;
+    threadvars.groups[BACKGROUND_THREADS].count = ArrayCount(background);
+    threadvars.groups[BACKGROUND_THREADS].cancel_lock0 = CANCEL_LOCK0;
+    threadvars.groups[BACKGROUND_THREADS].cancel_cv0 = 0;
     
     Thread_Memory thread_memory[ArrayCount(background)];
-    linuxvars.thread_memory = thread_memory;
+    threadvars.thread_memory = thread_memory;
     
     sem_init(&linuxvars.thread_semaphore, 0, 0);
-    linuxvars.queues[BACKGROUND_THREADS].semaphore = LinuxSemToHandle(&linuxvars.thread_semaphore);
+    threadvars.queues[BACKGROUND_THREADS].semaphore = LinuxSemToHandle(&linuxvars.thread_semaphore);
     
-    for(i32 i = 0; i < linuxvars.groups[BACKGROUND_THREADS].count; ++i){
-        Thread_Context *thread = linuxvars.groups[BACKGROUND_THREADS].threads + i;
+    for(i32 i = 0; i < threadvars.groups[BACKGROUND_THREADS].count; ++i){
+        Thread_Context *thread = threadvars.groups[BACKGROUND_THREADS].threads + i;
         thread->id = i + 1;
         thread->group_id = BACKGROUND_THREADS;
         
-        Thread_Memory *memory = linuxvars.thread_memory + i;
+        Thread_Memory *memory = threadvars.thread_memory + i;
         *memory = null_thread_memory;
         memory->id = thread->id;
         
-        thread->queue = &linuxvars.queues[BACKGROUND_THREADS];
+        thread->queue = &threadvars.queues[BACKGROUND_THREADS];
         pthread_create(&thread->handle, NULL, &JobThreadProc, thread);
     }
     
-    initialize_unbounded_queue(&linuxvars.groups[BACKGROUND_THREADS].queue);
+    initialize_unbounded_queue(&threadvars.groups[BACKGROUND_THREADS].queue);
     
     for(i32 i = 0; i < LOCK_COUNT; ++i){
         pthread_mutex_init(linuxvars.locks + i, NULL);
