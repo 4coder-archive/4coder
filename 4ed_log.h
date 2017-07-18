@@ -18,13 +18,13 @@
 #if defined(IS_PLAT_LAYER)
 
 # if defined(USE_LOG)
-# define LOG(m) GEN_LOG(system_log, m)
+# define LOG(m) GEN_LOG(sysfunc.log, m)
 # else
 # define LOG(m)
 # endif
 
 # if defined(USE_LOGF)
-# define LOGF(...) GEN_LOGF(system_log, __VA_ARGS__)
+# define LOGF(...) GEN_LOGF(sysfunc.log, __VA_ARGS__)
 # else
 # define LOGF(...)
 # endif
