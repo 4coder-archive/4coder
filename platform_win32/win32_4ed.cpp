@@ -11,19 +11,7 @@
 
 #define IS_PLAT_LAYER
 
-//
-// Architecture cracking
-//
-
-#if defined(_M_AMD64)
-# define CALL_CONVENTION
-# define BUILD_X64
-#elif defined(_M_IX86)
-# define CALL_CONVENTION __stdcall
-# define BUILD_X86
-#else
-# error architecture not supported yet
-#endif
+#include "4ed_os_comp_cracking.h"
 
 
 //
@@ -197,6 +185,8 @@ system_schedule_step(){
     PostMessage(win32vars.window_handle, WM_4coder_ANIMATE, 0, 0);
 }
 
+////////////////////////////////
+
 //
 // 4ed path
 //
@@ -241,6 +231,21 @@ Sys_Log_Sig(system_log){
 }
 
 //
+// Shared system functions (system_shared.h)
+//
+
+internal
+Sys_File_Can_Be_Made_Sig(system_file_can_be_made){
+    HANDLE file = CreateFile_utf8(filename, FILE_APPEND_DATA, 0, 0, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, 0);
+    b32 result = false;
+    if (file != 0 && file != INVALID_HANDLE_VALUE){
+        CloseHandle(file);
+        result = true;
+    }
+    return(result);
+}
+
+//
 // Memory
 //
 
@@ -277,120 +282,8 @@ Sys_Memory_Free_Sig(system_memory_free){
 }
 
 //
-// Threads
-//
-
-#include "4ed_work_queues.cpp"
-
-//
-// Coroutines
-//
-
-internal Win32_Coroutine*
-Win32AllocCoroutine(){
-    Win32_Coroutine *result = win32vars.coroutine_free;
-    Assert(result != 0);
-    win32vars.coroutine_free = result->next;
-    return(result);
-}
-
-internal void
-Win32FreeCoroutine(Win32_Coroutine *data){
-    data->next = win32vars.coroutine_free;
-    win32vars.coroutine_free = data;
-}
-
-internal void CALL_CONVENTION
-Win32CoroutineMain(void *arg_){
-    Win32_Coroutine *c = (Win32_Coroutine*)arg_;
-    c->coroutine.func(&c->coroutine);
-    c->done = 1;
-    Win32FreeCoroutine(c);
-    SwitchToFiber(c->coroutine.yield_handle);
-}
-
-internal
-Sys_Create_Coroutine_Sig(system_create_coroutine){
-    Win32_Coroutine *c;
-    Coroutine *coroutine;
-    void *fiber;
-    
-    c = Win32AllocCoroutine();
-    c->done = 0;
-    
-    coroutine = &c->coroutine;
-    
-    fiber = CreateFiber(0, Win32CoroutineMain, coroutine);
-    
-    coroutine->plat_handle = handle_type(fiber);
-    coroutine->func = func;
-    
-    return(coroutine);
-}
-
-internal
-Sys_Launch_Coroutine_Sig(system_launch_coroutine){
-    Win32_Coroutine *c = (Win32_Coroutine*)coroutine;
-    void *fiber;
-    
-    fiber = handle_type(coroutine->plat_handle);
-    coroutine->yield_handle = GetCurrentFiber();
-    coroutine->in = in;
-    coroutine->out = out;
-    
-    SwitchToFiber(fiber);
-    
-    if (c->done){
-        DeleteFiber(fiber);
-        Win32FreeCoroutine(c);
-        coroutine = 0;
-    }
-    
-    return(coroutine);
-}
-
-Sys_Resume_Coroutine_Sig(system_resume_coroutine){
-    Win32_Coroutine *c = (Win32_Coroutine*)coroutine;
-    void *fiber;
-    
-    Assert(c->done == 0);
-    
-    coroutine->yield_handle = GetCurrentFiber();
-    coroutine->in = in;
-    coroutine->out = out;
-    
-    fiber = handle_type(coroutine->plat_handle);
-    
-    SwitchToFiber(fiber);
-    
-    if (c->done){
-        DeleteFiber(fiber);
-        Win32FreeCoroutine(c);
-        coroutine = 0;
-    }
-    
-    return(coroutine);
-}
-
-Sys_Yield_Coroutine_Sig(system_yield_coroutine){
-    SwitchToFiber(coroutine->yield_handle);
-}
-
-
-//
 // Files
 //
-
-internal
-Sys_File_Can_Be_Made_Sig(system_file_can_be_made){
-    HANDLE file = CreateFile_utf8(filename, FILE_APPEND_DATA, 0, 0, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, 0);
-    b32 result = false;
-    if (file != 0 && file != INVALID_HANDLE_VALUE){
-        CloseHandle(file);
-        result = true;
-    }
-    return(result);
-}
 
 internal
 Sys_Set_File_List_Sig(system_set_file_list){
@@ -521,34 +414,34 @@ Sys_Set_File_List_Sig(system_set_file_list){
     }
 }
 
-internal u32
-win32_canonical_ascii_name(char *src, u32 len, char *dst, u32 max){
+internal
+Sys_Get_Canonical_Sig(system_get_canonical){
     u32 result = 0;
     
     char src_space[MAX_PATH + 32];
-    if (len < sizeof(src_space) && len >= 2 && ((src[0] >= 'a' && src[0] <= 'z') || (src[0] >= 'A' && src[0] <= 'Z')) && src[1] == ':'){
-        memcpy(src_space, src, len);
+    if (len < sizeof(src_space) && len >= 2 && ((filename[0] >= 'a' && filename[0] <= 'z') || (filename[0] >= 'A' && filename[0] <= 'Z')) && filename[1] == ':'){
+        memcpy(src_space, filename, len);
         src_space[len] = 0;
         
         HANDLE file = CreateFile_utf8((u8*)src_space, GENERIC_READ, 0, 0, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
         
         if (file != INVALID_HANDLE_VALUE){
-            DWORD final_length = GetFinalPathNameByHandle_utf8(file, (u8*)dst, max, 0);
+            DWORD final_length = GetFinalPathNameByHandle_utf8(file, (u8*)buffer, max, 0);
             
             if (final_length < max && final_length >= 4){
-                if (dst[final_length-1] == 0){
+                if (buffer[final_length-1] == 0){
                     --final_length;
                 }
                 final_length -= 4;
-                memmove(dst, dst+4, final_length);
-                dst[final_length] = 0;
+                memmove(buffer, buffer+4, final_length);
+                buffer[final_length] = 0;
                 result = final_length;
             }
             
             CloseHandle(file);
         }
         else{
-            String src_str = make_string(src, len);
+            String src_str = make_string(filename, len);
             String path_str = path_of_directory(src_str);
             String front_str = front_of_directory(src_str);
             
@@ -558,18 +451,18 @@ win32_canonical_ascii_name(char *src, u32 len, char *dst, u32 max){
             HANDLE dir = CreateFile_utf8((u8*)src_space, FILE_LIST_DIRECTORY, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, 0, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OVERLAPPED, 0);
             
             if (dir != INVALID_HANDLE_VALUE){
-                DWORD final_length = GetFinalPathNameByHandle_utf8(dir, (u8*)dst, max, 0);
+                DWORD final_length = GetFinalPathNameByHandle_utf8(dir, (u8*)buffer, max, 0);
                 
                 if (final_length < max && final_length >= 4){
-                    if (dst[final_length-1] == 0){
+                    if (buffer[final_length-1] == 0){
                         --final_length;
                     }
                     final_length -= 4;
-                    memmove(dst, dst+4, final_length);
-                    dst[final_length++] = '\\';
-                    memcpy(dst + final_length, front_str.str, front_str.size);
+                    memmove(buffer, buffer+4, final_length);
+                    buffer[final_length++] = '\\';
+                    memcpy(buffer + final_length, front_str.str, front_str.size);
                     final_length += front_str.size;
-                    dst[final_length] = 0;
+                    buffer[final_length] = 0;
                     result = final_length;
                 }
                 
@@ -578,12 +471,6 @@ win32_canonical_ascii_name(char *src, u32 len, char *dst, u32 max){
         }
     }
     
-    return(result);
-}
-
-internal
-Sys_Get_Canonical_Sig(system_get_canonical){
-    u32 result = win32_canonical_ascii_name(filename, len, buffer, max);
     return(result);
 }
 
@@ -666,17 +553,9 @@ Sys_Save_File_Sig(system_save_file){
     return(result);
 }
 
-internal
-Sys_Now_Time_Sig(system_now_time){
-    u64 result = __rdtsc();
-    return(result);
-}
-
-internal b32
-Win32DirectoryExists(char *path){
-    DWORD attrib = GetFileAttributes_utf8((u8*)path);
-    return(attrib != INVALID_FILE_ATTRIBUTES && (attrib & FILE_ATTRIBUTE_DIRECTORY));
-}
+//
+// File System
+//
 
 internal
 Sys_File_Exists_Sig(system_file_exists){
@@ -701,44 +580,136 @@ Sys_File_Exists_Sig(system_file_exists){
     return(result);
 }
 
+internal b32
+system_directory_exists(char *path){
+    DWORD attrib = GetFileAttributes_utf8((u8*)path);
+    return(attrib != INVALID_FILE_ATTRIBUTES && (attrib & FILE_ATTRIBUTE_DIRECTORY));
+}
+
+#include "4ed_shared_file_handling.cpp"
+
 internal
 Sys_Directory_CD_Sig(system_directory_cd){
-    String directory = make_string_cap(dir, *len, cap);
-    b32 result = 0;
-    i32 old_size;
-    
-    char rel_path_space[1024];
-    String rel_path_string = make_fixed_width_string(rel_path_space);
-    copy_ss(&rel_path_string, make_string(rel_path, rel_len));
-    terminate_with_null(&rel_path_string);
-    
-    if (rel_path[0] != 0){
-        if (rel_path[0] == '.' && rel_path[1] == 0){
-            result = 1;
-        }
-        else if (rel_path[0] == '.' && rel_path[1] == '.' && rel_path[2] == 0){
-            result = remove_last_folder(&directory);
-            terminate_with_null(&directory);
-        }
-        else{
-            if (directory.size + rel_len + 1 > directory.memory_size){
-                old_size = directory.size;
-                append_partial_sc(&directory, rel_path);
-                append_s_char(&directory, '\\');
-                if (Win32DirectoryExists(directory.str)){
-                    result = 1;
-                }
-                else{
-                    directory.size = old_size;
-                }
-            }
-        }
-    }
-    
-    *len = directory.size;
-    
+    u32 result = directory_cd(dir, len, cap, rel_path, rel_len, '\\');
     return(result);
 }
+
+//
+// Time
+//
+
+internal
+Sys_Now_Time_Sig(system_now_time){
+    u64 result = __rdtsc();
+    return(result);
+}
+
+////////////////////////////////
+
+//
+// Threads
+//
+
+#include "4ed_work_queues.cpp"
+
+//
+// Coroutines
+//
+
+internal Win32_Coroutine*
+Win32AllocCoroutine(){
+    Win32_Coroutine *result = win32vars.coroutine_free;
+    Assert(result != 0);
+    win32vars.coroutine_free = result->next;
+    return(result);
+}
+
+internal void
+Win32FreeCoroutine(Win32_Coroutine *data){
+    data->next = win32vars.coroutine_free;
+    win32vars.coroutine_free = data;
+}
+
+internal void CALL_CONVENTION
+Win32CoroutineMain(void *arg_){
+    Win32_Coroutine *c = (Win32_Coroutine*)arg_;
+    c->coroutine.func(&c->coroutine);
+    c->done = 1;
+    Win32FreeCoroutine(c);
+    SwitchToFiber(c->coroutine.yield_handle);
+}
+
+internal
+Sys_Create_Coroutine_Sig(system_create_coroutine){
+    Win32_Coroutine *c;
+    Coroutine *coroutine;
+    void *fiber;
+    
+    c = Win32AllocCoroutine();
+    c->done = 0;
+    
+    coroutine = &c->coroutine;
+    
+    fiber = CreateFiber(0, Win32CoroutineMain, coroutine);
+    
+    coroutine->plat_handle = handle_type(fiber);
+    coroutine->func = func;
+    
+    return(coroutine);
+}
+
+internal
+Sys_Launch_Coroutine_Sig(system_launch_coroutine){
+    Win32_Coroutine *c = (Win32_Coroutine*)coroutine;
+    void *fiber;
+    
+    fiber = handle_type(coroutine->plat_handle);
+    coroutine->yield_handle = GetCurrentFiber();
+    coroutine->in = in;
+    coroutine->out = out;
+    
+    SwitchToFiber(fiber);
+    
+    if (c->done){
+        DeleteFiber(fiber);
+        Win32FreeCoroutine(c);
+        coroutine = 0;
+    }
+    
+    return(coroutine);
+}
+
+Sys_Resume_Coroutine_Sig(system_resume_coroutine){
+    Win32_Coroutine *c = (Win32_Coroutine*)coroutine;
+    void *fiber;
+    
+    Assert(c->done == 0);
+    
+    coroutine->yield_handle = GetCurrentFiber();
+    coroutine->in = in;
+    coroutine->out = out;
+    
+    fiber = handle_type(coroutine->plat_handle);
+    
+    SwitchToFiber(fiber);
+    
+    if (c->done){
+        DeleteFiber(fiber);
+        Win32FreeCoroutine(c);
+        coroutine = 0;
+    }
+    
+    return(coroutine);
+}
+
+Sys_Yield_Coroutine_Sig(system_yield_coroutine){
+    SwitchToFiber(coroutine->yield_handle);
+}
+
+
+//
+// Files
+//
 
 /*
 NOTE(casey): This follows Raymond Chen's prescription
@@ -1236,7 +1207,7 @@ Win32InitGL(){
         }
         
 #if (defined(BUILD_X64) && 1) || (defined(BUILD_X86) && 0)
-#if FRED_INTERNAL
+#if defined(FRED_INTERNAL)
         // NOTE(casey): This slows down GL but puts error messages to
         // the debug console immediately whenever you do something wrong
         glDebugMessageCallback_type *glDebugMessageCallback = 
@@ -1572,7 +1543,7 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
     //
     
     LPVOID base;
-#if FRED_INTERNAL
+#if defined(FRED_INTERNAL)
 #if defined(BUILD_X64)
     base = (LPVOID)TB(1);
 #elif defined(BUILD_X86)
@@ -1585,7 +1556,7 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
     memory_vars.vars_memory_size = MB(2);
     memory_vars.vars_memory = VirtualAlloc(base, memory_vars.vars_memory_size, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
     
-#if FRED_INTERNAL
+#if defined(FRED_INTERNAL)
 #if defined(BUILD_X64)
     base = (LPVOID)TB(2);
 #elif defined(BUILD_X86)

@@ -596,7 +596,7 @@ ctxErrorHandler( Display *dpy, XErrorEvent *ev )
     return 0;
 }
 
-#if FRED_INTERNAL
+#if defined(FRED_INTERNAL)
 
 static void LinuxGLDebugCallback(
 GLenum source,
@@ -646,7 +646,7 @@ InitializeOpenGLContext(Display *XDisplay, Window XWindow, GLXFBConfig &bestFbc,
             GLX_CONTEXT_MAJOR_VERSION_ARB, 4,
             GLX_CONTEXT_MINOR_VERSION_ARB, 3,
             GLX_CONTEXT_PROFILE_MASK_ARB , GLX_CONTEXT_COMPATIBILITY_PROFILE_BIT_ARB,
-#if FRED_INTERNAL
+#if defined(FRED_INTERNAL)
             GLX_CONTEXT_FLAGS_ARB        , GLX_CONTEXT_DEBUG_BIT_ARB,
 #endif
             None
@@ -775,7 +775,7 @@ InitializeOpenGLContext(Display *XDisplay, Window XWindow, GLXFBConfig &bestFbc,
         LOG("VSync enabled? nope, no suitable extension\n");
     }
     
-#if FRED_INTERNAL
+#if defined(FRED_INTERNAL)
     typedef PFNGLDEBUGMESSAGECALLBACKARBPROC glDebugMessageCallbackProc;
     
     GLXLOAD(glDebugMessageCallback);

@@ -59,7 +59,7 @@ link_system_code(System_Functions *system){
     SYSLINK(send_exit_signal);
     
     SYSLINK(log);
-#if FRED_INTERNAL
+#if defined(FRED_INTERNAL)
     SYSLINK(internal_get_thread_states);
 #endif
 }

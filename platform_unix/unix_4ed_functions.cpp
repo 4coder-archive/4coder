@@ -304,7 +304,7 @@ Sys_Get_Canonical_Sig(system_get_canonical){
         write_p = path;
     }
     
-#if FRED_INTERNAL
+#if defined(FRED_INTERNAL)
     if(len != (write_p - path) || memcmp(filename, path, len) != 0){
         LOGF("[%.*s] -> [%.*s]\n", len, filename, (int)(write_p - path), path);
     }
@@ -320,14 +320,15 @@ Sys_Load_Handle_Sig(system_load_handle){
     b32 result = false;
     
     i32 fd = open(filename, O_RDONLY);
-    if(fd == -1){
+    if (fd == -1){
         LOG("error: open\n");
-    } else {
+    }
+    else{
         *(int*)handle_out = fd;
         result = true;
     }
     
-    return result;
+    return(result);
 }
 
 internal
@@ -431,6 +432,13 @@ Sys_File_Exists_Sig(system_file_exists){
     return(result);
 }
 
+internal b32
+system_directory_exists(char *path){
+    struct stat st;
+    b32 result = (stat(directory.str, &st) == 0 && S_ISDIR(st.st_mode));
+    return(result);
+}
+
 internal
 Sys_Directory_CD_Sig(system_directory_cd){
     String directory = make_string_cap(dir, *len, cap);
@@ -451,8 +459,7 @@ Sys_Directory_CD_Sig(system_directory_cd){
                 append_s_char(&directory, '/');
                 terminate_with_null(&directory);
                 
-                struct stat st;
-                if (stat(directory.str, &st) == 0 && S_ISDIR(st.st_mode)){
+                if (system_directory_exists(directory.str)){
                     result = true;
                 }
                 else{

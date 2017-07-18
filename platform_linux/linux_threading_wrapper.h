@@ -1,13 +1,11 @@
 /*
  * Mr. 4th Dimention - Allen Webster
  *
- * 17.07.2017
+ * 18.07.2017
  *
  * Linux threading wrapper
  *
  */
-
-// TODO(allen): Can this just be placed in UNIX?  If so do that.
 
 // TOP
 
