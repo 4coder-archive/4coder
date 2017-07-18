@@ -16,7 +16,7 @@
 
 #define THREAD_TYPE_SIZE             32
 #define MUTEX_TYPE_SIZE              40
-#define CONDITION_VARIABLE_TYPE_SIZE 32
+#define CONDITION_VARIABLE_TYPE_SIZE 48
 #define SEMAPHORE_TYPE_SIZE          32
 
 #define AssertThreadSizes()                                         \
