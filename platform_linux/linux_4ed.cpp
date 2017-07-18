@@ -89,7 +89,7 @@
 
 #define LINUX_FN_DEBUG(fmt, ...) do { \
     LOGF("%s: " fmt "\n", __func__, ##__VA_ARGS__); \
-} while(0)
+} while (0)
 
 #define InterlockedCompareExchange(dest, ex, comp) \
 __sync_val_compare_and_swap((dest), (comp), (ex))
@@ -471,7 +471,7 @@ Sys_CLI_Update_Step_Sig(system_cli_update_step){
     size_t space_left = max;
     char* ptr = dest;
     
-    while(space_left > 0 && select(pipe_read_fd + 1, &fds, NULL, NULL, &tv) == 1){
+    while (space_left > 0 && select(pipe_read_fd + 1, &fds, NULL, NULL, &tv) == 1){
         ssize_t num = read(pipe_read_fd, ptr, space_left);
         if (num == -1){
             perror("system_cli_update_step: read");
@@ -1506,14 +1506,13 @@ LinuxX11WindowInit(int argc, char** argv, int* window_width, int* window_height)
         linux_maximize_window(true);
     }
     else if (plat_settings.fullscreen_window){
-        system_toggle_fullscreen();
+        linux_toggle_fullscreen();
     }
     
     XSync(linuxvars.XDisplay, False);
     
     XWindowAttributes WinAttribs;
-    if (XGetWindowAttributes(linuxvars.XDisplay, linuxvars.XWindow, &WinAttribs))
-    {
+    if (XGetWindowAttributes(linuxvars.XDisplay, linuxvars.XWindow, &WinAttribs)){
         *window_width = WinAttribs.width;
         *window_height = WinAttribs.height;
     }
@@ -1534,7 +1533,7 @@ LinuxHandleX11Events(void)
     static XEvent PrevEvent = {};
     b32 should_step = 0;
     
-    while(XPending(linuxvars.XDisplay))
+    while (XPending(linuxvars.XDisplay))
     {
         XEvent Event;
         XNextEvent(linuxvars.XDisplay, &Event);
@@ -2170,7 +2169,7 @@ main(int argc, char **argv){
                     int ret;
                     do {
                         ret = read(linuxvars.step_event_fd, &ev, 8);
-                    } while(ret != -1 || errno != EAGAIN);
+                    } while (ret != -1 || errno != EAGAIN);
                     do_step = 1;
                 } break;
                 
@@ -2179,7 +2178,7 @@ main(int argc, char **argv){
                     int ret;
                     do {
                         ret = read(linuxvars.step_timer_fd, &count, 8);
-                    } while(ret != -1 || errno != EAGAIN);
+                    } while (ret != -1 || errno != EAGAIN);
                     do_step = 1;
                 } break;
                 
