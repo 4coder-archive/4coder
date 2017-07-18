@@ -9,24 +9,6 @@
 
 // TOP
 
-#include <sys/mman.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-
-#include <fcntl.h>
-#include <unistd.h>
-#include <dirent.h>
-#include <alloca.h>
-#include <errno.h>
-#include <time.h>
-#include <pthread.h>
-#include <semaphore.h>
-#include <signal.h>
-
-#if defined(USE_LOG)
-# include <stdio.h>
-#endif
-
 struct Unix_Vars{
     u32 use_log;
     b32 did_first_log;
@@ -435,7 +417,7 @@ Sys_File_Exists_Sig(system_file_exists){
 internal b32
 system_directory_exists(char *path){
     struct stat st;
-    b32 result = (stat(directory.str, &st) == 0 && S_ISDIR(st.st_mode));
+    b32 result = (stat(path, &st) == 0 && S_ISDIR(st.st_mode));
     return(result);
 }
 

@@ -46,6 +46,7 @@
 #include "4ed_font_interface_to_os.h"
 #include "4ed_system_shared.h"
 
+#include "unix_4ed_headers.h"
 #include <math.h>
 #include <stdlib.h>
 
@@ -215,6 +216,11 @@ handle_fd(Plat_Handle h){
 
 ////////////////////////////////
 
+#include "unix_4ed_functions.cpp"
+#include "4ed_shared_file_handling.cpp"
+
+////////////////////////////////
+
 internal void
 system_schedule_step(){
     u64 now  = system_now_time();
@@ -235,11 +241,6 @@ system_schedule_step(){
         }
     }
 }
-
-////////////////////////////////
-
-#include "unix_4ed_functions.cpp"
-#include "4ed_shared_file_handling.cpp"
 
 ////////////////////////////////
 
