@@ -214,7 +214,6 @@ DOC_SEE(Command_ID)
     return(result);
 }
 
-// TODO(allen): This is a bit of a mess and needs to be fixed.
 API_EXPORT bool32
 Exec_System_Command(Application_Links *app, View_Summary *view, Buffer_Identifier buffer_id, char *path, int32_t path_len, char *command, int32_t command_len, Command_Line_Interface_Flag flags)
 /*
@@ -2096,7 +2095,6 @@ DOC_SEE(User_Input)
     result.type = UserInputKey;
     result.abort = 0;
     result.key = cmd->key;
-    // TODO(allen): It would be nice to fill this.
     result.command.cmdid = 0;
     
     return(result);

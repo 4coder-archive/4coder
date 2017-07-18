@@ -1698,7 +1698,7 @@ App_Step_Sig(app_step){
         }
     }
     
-    // NOTE(allen): Keyboard input to command coroutine.
+    // NOTE(allen): Keyboard and Mouse input to command coroutine.
     if (models->command_coroutine != 0){
         Coroutine *command_coroutine = models->command_coroutine;
         u32 get_flags = models->command_coroutine_flags[0];
@@ -1706,106 +1706,126 @@ App_Step_Sig(app_step){
         
         get_flags |= abort_flags;
         
+        Command_Data *command = cmd;
+        USE_VIEW(view);
+        
+        Partition *part = &models->mem.part;
+        Temp_Memory temp = begin_temp_memory(part);
+        
+        // HACK(allen): This can be simplified a lot more.
+        enum{
+            Event_Keyboard,
+            Event_Mouse,
+        };
+        struct Coroutine_Event{
+            u32 type;
+            u32 key_i;
+        };
+        
+        Coroutine_Event *events = push_array(part, Coroutine_Event, 32);
+        u32 event_count = 0;
+        
+        Key_Input_Data key_data = get_key_data(&vars->available_input);
+        
         if ((get_flags & EventOnAnyKey) || (get_flags & EventOnEsc)){
-            Key_Input_Data key_data = get_key_data(&vars->available_input);
-            
             for (i32 key_i = 0; key_i < key_data.count; ++key_i){
-                Key_Event_Data key = get_single_key(&key_data, key_i);
-                Command_Data *command = cmd;
-                USE_VIEW(view);
-                b32 pass_in = 0;
-                cmd->key = key;
-                
-                Command_Map *map = 0;
-                if (view) map = view->map;
-                if (map == 0) map = &models->map_top;
-                Command_Binding cmd_bind = map_extract_recursive(map, key);
-                
-                User_Input user_in = {0};
-                user_in.type = UserInputKey;
-                user_in.key = key;
-                user_in.command.command = cmd_bind.custom;
-                
-                if ((EventOnEsc & abort_flags) && key.keycode == key_esc){
-                    user_in.abort = true;
-                }
-                else if (EventOnAnyKey & abort_flags){
-                    user_in.abort = true;
-                }
-                
-                if (EventOnAnyKey & get_flags){
-                    pass_in = true;
-                    consume_input(&vars->available_input, Input_AnyKey, "command coroutine");
-                }
-                if (key.keycode == key_esc){
-                    if (EventOnEsc & get_flags){
-                        pass_in = true;
-                    }
-                    consume_input(&vars->available_input, Input_Esc, "command coroutine");
-                }
-                
-                if (pass_in){
-                    models->command_coroutine = app_resume_coroutine(system, &models->app_links, Co_Command, command_coroutine, &user_in, models->command_coroutine_flags);
-                    
-                    app_result.animating = true;
-                    
-                    // TOOD(allen): Deduplicate
-                    // TODO(allen): Should I somehow allow a view to clean up however it wants after a
-                    // command finishes, or after transfering to another view mid command?
-                    if (view != 0 && models->command_coroutine == 0){
-                        init_query_set(&view->query_set);
-                    }
-                    if (models->command_coroutine == 0) break;
-                }
+                Coroutine_Event *new_event = &events[event_count++];
+                new_event->type = Event_Keyboard;
+                new_event->key_i = key_i;
             }
         }
         
-        // NOTE(allen): Mouse input to command coroutine
         if (models->command_coroutine != 0 && (get_flags & EventOnMouse)){
-            Command_Data *command = cmd;
-            USE_VIEW(view);
-            b32 pass_in = 0;
-            
+            Coroutine_Event *new_event = &events[event_count++];
+            new_event->type = Event_Mouse;
+        }
+        
+        Coroutine_Event *event = events;
+        for (u32 event_i = 0; event_i < event_count; ++event_i, ++event){
+            b32 pass_in = false;
             User_Input user_in = {0};
-            user_in.type = UserInputMouse;
-            user_in.mouse = input->mouse;
             
-            if (abort_flags & EventOnMouseMove){
-                user_in.abort = true;
-            }
-            if (get_flags & EventOnMouseMove){
-                pass_in = true;
-                consume_input(&vars->available_input, Input_MouseMove, "command coroutine");
-            }
-            
-            if (input->mouse.press_l || input->mouse.release_l || input->mouse.l){
-                if (abort_flags & EventOnLeftButton){
-                    user_in.abort = true;
-                }
-                if (get_flags & EventOnLeftButton){
-                    pass_in = true;
-                    consume_input(&vars->available_input, Input_MouseLeftButton, "command coroutine");
-                }
-            }
-            
-            if (input->mouse.press_r || input->mouse.release_r || input->mouse.r){
-                if (abort_flags & EventOnRightButton){
-                    user_in.abort = true;
-                }
-                if (get_flags & EventOnRightButton){
-                    pass_in = true;
-                    consume_input(&vars->available_input, Input_MouseRightButton, "command coroutine");
-                }
-            }
-            
-            if (input->mouse.wheel != 0){
-                if (abort_flags & EventOnWheel){
-                    user_in.abort = true;
-                }
-                if (get_flags & EventOnWheel){
-                    pass_in = true;
-                    consume_input(&vars->available_input, Input_MouseWheel, "command coroutine");
-                }
+            switch (event->type){
+                case Event_Keyboard:
+                {
+                    Key_Event_Data key = get_single_key(&key_data, event->key_i);
+                    cmd->key = key;
+                    
+                    Command_Map *map = 0;
+                    if (view){
+                        map = view->map;
+                    }
+                    if (map == 0){
+                        map = &models->map_top;
+                    }
+                    Command_Binding cmd_bind = map_extract_recursive(map, key);
+                    
+                    user_in.type = UserInputKey;
+                    user_in.key = key;
+                    user_in.command.command = cmd_bind.custom;
+                    
+                    if ((abort_flags & EventOnEsc) && key.keycode == key_esc){
+                        user_in.abort = true;
+                    }
+                    else if (abort_flags & EventOnAnyKey){
+                        user_in.abort = true;
+                    }
+                    
+                    if (get_flags & EventOnAnyKey){
+                        pass_in = true;
+                        consume_input(&vars->available_input, Input_AnyKey, "command coroutine");
+                    }
+                    if (key.keycode == key_esc){
+                        if (get_flags & EventOnEsc){
+                            pass_in = true;
+                        }
+                        consume_input(&vars->available_input, Input_Esc, "command coroutine");
+                    }
+                }break;
+                
+                case Event_Mouse:
+                {
+                    user_in.type = UserInputMouse;
+                    user_in.mouse = input->mouse;
+                    
+                    if (abort_flags & EventOnMouseMove){
+                        user_in.abort = true;
+                    }
+                    if (get_flags & EventOnMouseMove){
+                        pass_in = true;
+                        consume_input(&vars->available_input, Input_MouseMove, "command coroutine");
+                    }
+                    
+                    if (input->mouse.press_l || input->mouse.release_l || input->mouse.l){
+                        if (abort_flags & EventOnLeftButton){
+                            user_in.abort = true;
+                        }
+                        if (get_flags & EventOnLeftButton){
+                            pass_in = true;
+                            consume_input(&vars->available_input, Input_MouseLeftButton, "command coroutine");
+                        }
+                    }
+                    
+                    if (input->mouse.press_r || input->mouse.release_r || input->mouse.r){
+                        if (abort_flags & EventOnRightButton){
+                            user_in.abort = true;
+                        }
+                        if (get_flags & EventOnRightButton){
+                            pass_in = true;
+                            consume_input(&vars->available_input, Input_MouseRightButton, "command coroutine");
+                        }
+                    }
+                    
+                    if (input->mouse.wheel != 0){
+                        if (abort_flags & EventOnWheel){
+                            user_in.abort = true;
+                        }
+                        if (get_flags & EventOnWheel){
+                            pass_in = true;
+                            consume_input(&vars->available_input, Input_MouseWheel, "command coroutine");
+                        }
+                    }
+                }break;
             }
             
             if (pass_in){
@@ -1813,14 +1833,16 @@ App_Step_Sig(app_step){
                 
                 app_result.animating = true;
                 
-                // TOOD(allen): Deduplicate
                 // TODO(allen): Should I somehow allow a view to clean up however it wants after a
                 // command finishes, or after transfering to another view mid command?
                 if (view != 0 && models->command_coroutine == 0){
                     init_query_set(&view->query_set);
                 }
+                if (models->command_coroutine == 0) break;
             }
         }
+        
+        end_temp_memory(temp);
     }
     
     // NOTE(allen): pass raw input to the panels
