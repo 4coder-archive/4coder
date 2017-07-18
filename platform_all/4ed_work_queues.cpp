@@ -9,6 +9,28 @@
 
 // TOP
 
+struct Thread_Context{
+    u32 job_id;
+    b32 running;
+    b32 cancel;
+    
+    Work_Queue *queue;
+    u32 id;
+    u32 group_id;
+    u32 windows_id;
+    Thread thread;
+};
+
+struct Thread_Group{
+    Thread_Context *threads;
+    i32 count;
+    
+    Unbounded_Work_Queue queue;
+    
+    i32 cancel_lock0;
+    i32 cancel_cv0;
+};
+
 struct Threading_Vars{
     Thread_Memory *thread_memory;
     Work_Queue queues[THREAD_GROUP_COUNT];
@@ -28,8 +50,10 @@ Sys_Release_Lock_Sig(system_release_lock){
     system_release_lock(&threadvars.locks[id]);
 }
 
-internal void
-job_thread_proc(System_Functions *system, Thread_Context *thread){
+internal
+PLAT_THREAD_SIG(job_thread_proc){
+    Thread_Context *thread = (Thread_Context*)ptr;
+    
     Work_Queue *queue = threadvars.queues + thread->group_id;
     Thread_Group *group = threadvars.groups + thread->group_id;
     
@@ -66,7 +90,7 @@ job_thread_proc(System_Functions *system, Thread_Context *thread){
                 if (safe_running_thread == THREAD_NOT_ASSIGNED){
                     thread->job_id = full_job->id;
                     thread->running = true;
-                    full_job->job.callback(system, thread, thread_memory, full_job->job.data);
+                    full_job->job.callback(&sysfunc, thread, thread_memory, full_job->job.data);
                     system_schedule_step();
                     thread->running = false;
                     

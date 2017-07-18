@@ -71,7 +71,7 @@ Sys_Font_Get_Render_Data_By_ID_Sig(system_font_get_render_data_by_id){
 
 internal
 Sys_Font_Load_Page_Sig(system_font_load_page){
-    system_set_page(&linuxvars.system, &linux_fonts.part, font, page, page_number, linuxvars.settings.font_size, linuxvars.settings.use_hinting);
+    system_set_page(&sysfunc, &linux_fonts.part, font, page, page_number, linuxvars.settings.font_size, linuxvars.settings.use_hinting);
 }
 
 internal
@@ -157,7 +157,7 @@ Sys_Font_Init_Sig(system_font_init){
         if (i < font_count_max){
             Render_Font *render_font = &linux_fonts.fonts[i];
             
-            system_set_font(&linuxvars.system, &linux_fonts.part, render_font, ptr->c_filename, font_size, use_hinting);
+            system_set_font(&sysfunc, &linux_fonts.part, render_font, ptr->c_filename, font_size, use_hinting);
         }
         
         ++font_count;

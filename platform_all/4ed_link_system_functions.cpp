@@ -11,7 +11,7 @@
 
 // TODO(allen): Should auto-gen this!
 
-#define SYSLINK(name) system->name = system_##name
+#define SYSLINK(name) sysfunc.name = system_##name
 
 internal void
 link_system_code(System_Functions *system){

@@ -71,7 +71,7 @@ Sys_Font_Get_Render_Data_By_ID_Sig(system_font_get_render_data_by_id){
 
 internal
 Sys_Font_Load_Page_Sig(system_font_load_page){
-    system_set_page(&win32vars.system, &win32_fonts.part, font, page, page_number, win32vars.settings.font_size, win32vars.settings.use_hinting);
+    system_set_page(&sysfunc, &win32_fonts.part, font, page, page_number, win32vars.settings.font_size, win32vars.settings.use_hinting);
 }
 
 internal
@@ -157,7 +157,7 @@ Sys_Font_Init_Sig(system_font_init){
         if (i < font_count_max){
             Render_Font *render_font = &win32_fonts.fonts[i];
             
-            system_set_font(&win32vars.system, &win32_fonts.part, render_font, ptr->c_filename, font_size, use_hinting);
+            system_set_font(&sysfunc, &win32_fonts.part, render_font, ptr->c_filename, font_size, use_hinting);
         }
         
         ++font_count;

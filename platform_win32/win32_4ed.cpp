@@ -135,38 +135,7 @@ enum CV_ID{
     CV_COUNT
 };
 
-struct Thread_Context{
-    u32 job_id;
-    b32 running;
-    b32 cancel;
-    
-    Work_Queue *queue;
-    u32 id;
-    u32 group_id;
-    u32 windows_id;
-    HANDLE handle;
-};
-
-struct Thread_Group{
-    Thread_Context *threads;
-    i32 count;
-    
-    Unbounded_Work_Queue queue;
-    
-    i32 cancel_lock0;
-    i32 cancel_cv0;
-};
-
-struct Mutex{
-    CRITICAL_SECTION crit;
-};
-
-struct Condition_Variable{
-    CONDITION_VARIABLE cv;
-};
-
 struct Win32_Vars{
-    System_Functions system;
     App_Functions app;
     Custom_API custom_api;
     HMODULE app_code;
@@ -208,8 +177,78 @@ struct Win32_Vars{
     
 };
 
+global System_Functions sysfunc;
 global Win32_Vars win32vars;
 global Application_Memory memory_vars;
+
+////////////////////////////////
+
+internal HANDLE
+handle_type(Plat_Handle h){
+    HANDLE result;
+    memcpy(&result, &h, sizeof(result));
+    return(result);
+}
+
+internal Plat_Handle
+handle_type(HANDLE h){
+    Plat_Handle result = {0};
+    memcpy(&result, &h, sizeof(h));
+    return(result);
+}
+
+////////////////////////////////
+
+struct Thread{
+    HANDLE t;
+};
+
+struct Mutex{
+    CRITICAL_SECTION crit;
+};
+
+struct Condition_Variable{
+    CONDITION_VARIABLE cv;
+};
+
+internal void
+system_acquire_lock(Mutex *m){
+    EnterCriticalSection(&m->crit);
+}
+
+internal void
+system_release_lock(Mutex *m){
+    LeaveCriticalSection(&m->crit);
+}
+
+internal void
+system_wait_cv(Condition_Variable *cv, Mutex *lock){
+    SleepConditionVariableCS(&cv->cv, &lock->crit, INFINITE);
+}
+
+internal void
+system_signal_cv(Condition_Variable *cv, Mutex *lock){
+    WakeConditionVariable(&cv->cv);
+}
+
+internal void
+system_schedule_step(){
+    PostMessage(win32vars.window_handle, WM_4coder_ANIMATE, 0, 0);
+}
+
+internal void
+system_wait_on(Plat_Handle handle){
+    WaitForSingleObject(handle_type(handle), INFINITE);
+}
+
+internal void
+system_release_semaphore(Plat_Handle handle){
+    ReleaseSemaphore(handle_type(handle), 1, 0);
+}
+
+#define PLAT_THREAD_SIG(n) DWORD CALL_CONVENTION n(LPVOID ptr)
+
+////////////////////////////////
 
 //
 // 4ed path
@@ -253,40 +292,6 @@ Sys_Log_Sig(system_log){
         }
     }
 }
-
-//
-// Helpers
-//
-
-internal HANDLE
-Win32Handle(Plat_Handle h){
-    HANDLE result;
-    memcpy(&result, &h, sizeof(result));
-    return(result);
-}
-
-internal Plat_Handle
-Win32Handle(HANDLE h){
-    Plat_Handle result = {0};
-    Assert(sizeof(Plat_Handle) >= sizeof(h));
-    memcpy(&result, &h, sizeof(h));
-    return(result);
-}
-
-internal void*
-Win32Ptr(Plat_Handle h){
-    void *result;
-    memcpy(&result, &h, sizeof(result));
-    return(result);
-}
-
-internal Plat_Handle
-Win32Ptr(void *h){
-    Plat_Handle result = {0};
-    memcpy(&result, &h, sizeof(h));
-    return(result);
-}
-
 
 //
 // Memory (not exposed to application, but needed in system_shared.cpp)
@@ -333,54 +338,7 @@ Sys_Memory_Free_Sig(system_memory_free){
     VirtualFree(ptr, 0, MEM_RELEASE);
 }
 
-//
-// Multithreading
-//
-
-internal void
-system_acquire_lock(Mutex *m){
-    EnterCriticalSection(&m->crit);
-}
-
-internal void
-system_release_lock(Mutex *m){
-    LeaveCriticalSection(&m->crit);
-}
-
-internal void
-system_wait_cv(Condition_Variable *cv, Mutex *lock){
-    SleepConditionVariableCS(&cv->cv, &lock->crit, INFINITE);
-}
-
-internal void
-system_signal_cv(Condition_Variable *cv, Mutex *lock){
-    WakeConditionVariable(&cv->cv);
-}
-
-internal void
-system_schedule_step(){
-    PostMessage(win32vars.window_handle, WM_4coder_ANIMATE, 0, 0);
-}
-
-internal void
-system_wait_on(Plat_Handle handle){
-    WaitForSingleObject(Win32Handle(handle), INFINITE);
-}
-
-internal void
-system_release_semaphore(Plat_Handle handle){
-    ReleaseSemaphore(Win32Handle(handle), 1, 0);
-}
-
 #include "4ed_work_queues.cpp"
-
-internal DWORD CALL_CONVENTION
-JobThreadProc(LPVOID lpParameter){
-    Thread_Context *thread = (Thread_Context*)lpParameter;
-    job_thread_proc(&win32vars.system, thread);
-    InvalidCodePath;
-    return(0);
-}
 
 //
 // Coroutines
@@ -422,7 +380,7 @@ Sys_Create_Coroutine_Sig(system_create_coroutine){
     
     fiber = CreateFiber(0, Win32CoroutineMain, coroutine);
     
-    coroutine->plat_handle = Win32Handle(fiber);
+    coroutine->plat_handle = handle_type(fiber);
     coroutine->func = func;
     
     return(coroutine);
@@ -433,7 +391,7 @@ Sys_Launch_Coroutine_Sig(system_launch_coroutine){
     Win32_Coroutine *c = (Win32_Coroutine*)coroutine;
     void *fiber;
     
-    fiber = Win32Handle(coroutine->plat_handle);
+    fiber = handle_type(coroutine->plat_handle);
     coroutine->yield_handle = GetCurrentFiber();
     coroutine->in = in;
     coroutine->out = out;
@@ -459,7 +417,7 @@ Sys_Resume_Coroutine_Sig(system_resume_coroutine){
     coroutine->in = in;
     coroutine->out = out;
     
-    fiber = Win32Ptr(coroutine->plat_handle);
+    fiber = handle_type(coroutine->plat_handle);
     
     SwitchToFiber(fiber);
     
@@ -1207,7 +1165,7 @@ Win32KeycodeInit(){
 
 internal void
 Win32RedrawScreen(HDC hdc){
-    launch_rendering(&win32vars.system, &win32vars.target);
+    launch_rendering(&sysfunc, &win32vars.target);
     glFlush();
     SwapBuffers(hdc);
 }
@@ -1677,7 +1635,7 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
     Thread_Memory thread_memory[ArrayCount(background)];
     threadvars.thread_memory = thread_memory;
     
-    threadvars.queues[BACKGROUND_THREADS].semaphore =Win32Handle(CreateSemaphore(0, 0, threadvars.groups[BACKGROUND_THREADS].count, 0));
+    threadvars.queues[BACKGROUND_THREADS].semaphore =handle_type(CreateSemaphore(0, 0, threadvars.groups[BACKGROUND_THREADS].count, 0));
     
     u32 creation_flag = 0;
     for (i32 i = 0; i < threadvars.groups[BACKGROUND_THREADS].count; ++i){
@@ -1691,7 +1649,7 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
         
         thread->queue = &threadvars.queues[BACKGROUND_THREADS];
         
-        thread->handle = CreateThread(0, 0, JobThreadProc, thread, creation_flag, (LPDWORD)&thread->windows_id);
+        thread->thread.t = CreateThread(0, 0, job_thread_proc, thread, creation_flag, (LPDWORD)&thread->windows_id);
     }
     
     initialize_unbounded_queue(&threadvars.groups[BACKGROUND_THREADS].queue);
@@ -1754,10 +1712,8 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
     }
     
     
-    link_system_code(&win32vars.system);
+    link_system_code(&sysfunc);
     Win32LoadRenderCode();
-    
-    System_Functions *system = &win32vars.system;
     
     //
     // Shared Systems Init
@@ -1785,7 +1741,7 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
     char **files = 0;
     i32 *file_count = 0;
     
-    win32vars.app.read_command_line(system, &memory_vars, current_directory, &win32vars.settings, &files, &file_count, clparams);
+    win32vars.app.read_command_line(&sysfunc, &memory_vars, current_directory, &win32vars.settings, &files, &file_count, clparams);
     
     sysshared_filter_real_files(files, file_count);
     LOG("Loaded system code, read command line.\n");
@@ -1907,7 +1863,7 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
     //
     
     LOG("Initializing fonts\n");
-    system_font_init(&system->font, 0, 0, win32vars.settings.font_size, win32vars.settings.use_hinting);
+    system_font_init(&sysfunc.font, 0, 0, win32vars.settings.font_size, win32vars.settings.use_hinting);
     
     //
     // Misc System Initializations
@@ -1956,7 +1912,7 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
     //
     
     LOG("Initializing application variables\n");
-    win32vars.app.init(system, &win32vars.target, &memory_vars, win32vars.clipboard_contents, current_directory, win32vars.custom_api);
+    win32vars.app.init(&sysfunc, &win32vars.target, &memory_vars, win32vars.clipboard_contents, current_directory, win32vars.custom_api);
     
     system_memory_free(current_directory.str, 0);
     
@@ -2157,7 +2113,7 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
             win32vars.send_exit_signal = 0;
         }
         
-        win32vars.app.step(system, &win32vars.target, &memory_vars, &input, &result, clparams);
+        win32vars.app.step(&sysfunc, &win32vars.target, &memory_vars, &input, &result, clparams);
         
         if (result.perform_kill){
             keep_playing = 0;

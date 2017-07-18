@@ -76,6 +76,7 @@
 #include <linux/fs.h>
 #include <linux/input.h>
 
+#include "4ed_link_system_functions.cpp"
 
 //
 // Linux macros
@@ -112,34 +113,15 @@ struct Linux_Coroutine {
     b32 done;
 };
 
-struct Thread_Context{
-    u32 job_id;
-    b32 running;
-    b32 cancel;
-    
-    Work_Queue *queue;
-    u32 id;
-    u32 group_id;
-    pthread_t handle;
-};
+//
+// Linux forward declarations
+//
 
-struct Thread_Group{
-    Thread_Context *threads;
-    i32 count;
-    
-    Unbounded_Work_Queue queue;
-    
-    i32 cancel_lock0;
-    i32 cancel_cv0;
-};
+internal void        LinuxScheduleStep(void);
 
-struct Mutex{
-    pthread_mutex_t crit;
-};
-
-struct Condition_Variable{
-    pthread_cond_t cv;
-};
+internal void        LinuxStringDup(String*, void*, size_t);
+internal void        LinuxToggleFullscreen(Display*, Window);
+internal void        LinuxFatalErrorMsg(const char* msg);
 
 struct Linux_Vars{
     Display *XDisplay;
@@ -195,7 +177,6 @@ struct Linux_Vars{
     i32 dpi_x, dpi_y;
     
     Plat_Settings settings;
-    System_Functions system;
     App_Functions app;
     Custom_API custom_api;
     b32 vsync;
@@ -208,30 +189,85 @@ struct Linux_Vars{
 // Linux globals
 //
 
+global System_Functions sysfunc;
 global Linux_Vars linuxvars;
 global Application_Memory memory_vars;
 
-//
-// Linux forward declarations
-//
+////////////////////////////////
 
-internal void        LinuxScheduleStep(void);
+internal Plat_Handle
+handle_sem(sem_t *sem){
+    return(*(Plat_Handle*)&sem);
+}
 
-internal Plat_Handle LinuxSemToHandle(sem_t*);
-internal sem_t*      LinuxHandleToSem(Plat_Handle);
+internal sem_t*
+handle_sem(Plat_Handle h){
+    return(*(sem_t**)&h);
+}
 
-internal Plat_Handle LinuxFDToHandle(int);
-internal int         LinuxHandleToFD(Plat_Handle);
+internal Plat_Handle
+handle_fd(int fd){
+    return(*(Plat_Handle*)&fd);
+}
 
-internal void        LinuxStringDup(String*, void*, size_t);
-internal void        LinuxToggleFullscreen(Display*, Window);
-internal void        LinuxFatalErrorMsg(const char* msg);
+internal int
+handle_fd(Plat_Handle h){
+    return(*(int*)&h);
+}
 
-internal             Sys_Acquire_Lock_Sig(system_acquire_lock);
-internal             Sys_Release_Lock_Sig(system_release_lock);
+////////////////////////////////
 
-internal void        system_wait_cv(i32, i32);
-internal void        system_signal_cv(i32, i32);
+struct Thread{
+    pthread_t t;
+};
+
+struct Mutex{
+    pthread_mutex_t crit;
+};
+
+struct Condition_Variable{
+    pthread_cond_t cv;
+};
+
+internal void
+system_acquire_lock(Mutex *m){
+    pthread_mutex_lock(m->crit);
+}
+
+internal void
+system_release_lock(Mutex *m){
+    pthread_mutex_unlock(m->crit);
+}
+
+internal void
+system_wait_cv(Condition_Variable *cv, Mutex *m){
+    pthread_cond_wait(cv->cv, m->crit);
+}
+
+internal void
+system_signal_cv(Condition_Variable *cv, Mutex *m){
+    pthread_cond_signal(cv->cv);
+}
+
+// HACK(allen): Reduce this down to just one layer of call.
+internal void
+system_schedule_step(){
+    LinuxScheduleStep();
+}
+
+internal void
+system_wait_on(Plat_Handle handle){
+    sem_wait(handle_sem(handle));
+}
+
+internal void
+system_release_semaphore(Plat_Handle handle){
+    sem_post(handle_sem(handle));
+}
+
+#define PLAT_THREAD_SIG(n) void* n(void *ptr)
+
+////////////////////////////////
 
 internal
 Sys_Show_Mouse_Cursor_Sig(system_show_mouse_cursor){
@@ -482,55 +518,7 @@ Sys_CLI_End_Update_Sig(system_cli_end_update){
     return(close_me);
 }
 
-//
-// Multithreading
-//
-
-internal void
-system_acquire_lock(Mutex *m){
-    pthread_mutex_lock(m->crit);
-}
-
-internal void
-system_release_lock(Mutex *m){
-    pthread_mutex_unlock(m->crit);
-}
-
-internal void
-system_wait_cv(Condition_Variable *cv, Mutex *m){
-    pthread_cond_wait(cv->cv, m->crit);
-}
-
-internal void
-system_signal_cv(Condition_Variable *cv, Mutex *m){
-    pthread_cond_signal(cv->cv);
-}
-
-// HACK(allen): Reduce this down to just one layer of call.
-internal void
-system_schedule_step(){
-    LinuxScheduleStep();
-}
-
-internal void
-system_wait_on(Plat_Handle handle){
-    sem_wait(LinuxHandleToSem(handle));
-}
-
-internal void
-system_release_semaphore(Plat_Handle handle){
-    sem_post(LinuxHandleToSem(handle));
-}
-
 #include "4ed_work_queues.cpp"
-
-internal void*
-JobThreadProc(void* lpParameter){
-    Thread_Context *thread = (Thread_Context*)lpParameter;
-    job_thread_proc(&linuxvars.system, thread);
-    InvalidCodePath;
-    return(0);
-}
 
 //
 // Linux rendering/font system functions
@@ -585,7 +573,7 @@ LinuxLoadRenderCode(){
 
 internal void
 LinuxRedrawTarget(){
-    launch_rendering(&linuxvars.system, &linuxvars.target);
+    launch_rendering(&sysfunc, &linuxvars.target);
     //glFlush();
     glXSwapBuffers(linuxvars.XDisplay, linuxvars.XWindow);
 }
@@ -1076,26 +1064,6 @@ LinuxPushKey(Key_Code code, Key_Code chr, Key_Code chr_nocaps, b8 (*mods)[MDFR_I
 //
 // Misc utility funcs
 //
-
-internal Plat_Handle
-LinuxSemToHandle(sem_t* sem){
-    return *(Plat_Handle*)&sem;
-}
-
-internal sem_t*
-LinuxHandleToSem(Plat_Handle h){
-    return *(sem_t**)&h;
-}
-
-internal Plat_Handle
-LinuxFDToHandle(int fd){
-    return *(Plat_Handle*)&fd;
-}
-
-internal int
-LinuxHandleToFD(Plat_Handle h){
-    return *(int*)&h;
-}
 
 internal void
 LinuxStringDup(String* str, void* data, size_t size){
@@ -1946,7 +1914,7 @@ main(int argc, char **argv){
         return 99;
     }
     
-    link_system_code(&linuxvars.system);
+    link_system_code(&sysfunc);
     LinuxLoadRenderCode();
     
     memory_vars.vars_memory_size   = MB(2);
@@ -1988,7 +1956,7 @@ main(int argc, char **argv){
     i32 *file_count;
     i32 output_size;
     
-    output_size = linuxvars.app.read_command_line(&linuxvars.system, &memory_vars, current_directory, &linuxvars.settings, &files, &file_count, clparams);
+    output_size = linuxvars.app.read_command_line(&sysfunc, &memory_vars, current_directory, &linuxvars.settings, &files, &file_count, clparams);
     
     if (output_size > 0){
         LOGF("%.*s", output_size, (char*)memory_vars.target_memory);
@@ -2099,7 +2067,7 @@ main(int argc, char **argv){
         memory->id = thread->id;
         
         thread->queue = &threadvars.queues[BACKGROUND_THREADS];
-        pthread_create(&thread->handle, NULL, &JobThreadProc, thread);
+        pthread_create(&thread->handle, NULL, &job_thread_proc, thread);
     }
     
     initialize_unbounded_queue(&threadvars.groups[BACKGROUND_THREADS].queue);
@@ -2208,7 +2176,7 @@ main(int argc, char **argv){
     // Font System Init
     //
     
-    system_font_init(&linuxvars.system.font, 0, 0, linuxvars.settings.font_size, linuxvars.settings.use_hinting);
+    system_font_init(&sysfunc.font, 0, 0, linuxvars.settings.font_size, linuxvars.settings.use_hinting);
     
     //
     // Epoll init
@@ -2241,7 +2209,7 @@ main(int argc, char **argv){
     
     XAddConnectionWatch(linuxvars.XDisplay, &LinuxX11ConnectionWatch, NULL);
     
-    linuxvars.app.init(&linuxvars.system, &linuxvars.target, &memory_vars, linuxvars.clipboard_contents, current_directory, linuxvars.custom_api);
+    linuxvars.app.init(&sysfunc, &linuxvars.target, &memory_vars, linuxvars.clipboard_contents, current_directory, linuxvars.custom_api);
     
     LinuxResizeTarget(window_width, window_height);
     
@@ -2319,14 +2287,7 @@ main(int argc, char **argv){
             linuxvars.last_step = system_now_time();
             
             if (linuxvars.input.first_step || !linuxvars.has_xfixes){
-                XConvertSelection(
-                    linuxvars.XDisplay,
-                    linuxvars.atom_CLIPBOARD,
-                    linuxvars.atom_UTF8_STRING,
-                    linuxvars.atom_CLIPBOARD,
-                    linuxvars.XWindow,
-                    CurrentTime
-                    );
+                XConvertSelection(linuxvars.XDisplay, linuxvars.atom_CLIPBOARD, linuxvars.atom_UTF8_STRING, linuxvars.atom_CLIPBOARD, linuxvars.XWindow, CurrentTime);
             }
             
             Application_Step_Result result = {};
@@ -2342,14 +2303,7 @@ main(int argc, char **argv){
             
             b32 keep_running = linuxvars.keep_running;
             
-            linuxvars.app.step(
-                &linuxvars.system,
-                &linuxvars.target,
-                &memory_vars,
-                &linuxvars.input,
-                &result,
-                clparams
-                );
+            linuxvars.app.step(&sysfunc, &linuxvars.target, &memory_vars, &linuxvars.input, &result, clparams);
             
             if (result.perform_kill){
                 break;
