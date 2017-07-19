@@ -1185,7 +1185,7 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
     Assert(win32vars.count_per_usecond > 0.f);
     
     //
-    // Main Loop
+    // App init
     //
     
     char cwd[4096];
@@ -1199,6 +1199,10 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
     
     LOG("Initializing application variables\n");
     app.init(&sysfunc, &target, &memory_vars, win32vars.clipboard_contents, curdir, custom_api);
+    
+    //
+    // Main loop
+    //
     
     b32 keep_running = true;
     win32vars.first = true;

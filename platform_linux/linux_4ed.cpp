@@ -1760,6 +1760,16 @@ main(int argc, char **argv){
     
     XAddConnectionWatch(linuxvars.XDisplay, &LinuxX11ConnectionWatch, NULL);
     
+    char cwd[4096];
+    u32 size = sysfunc.get_current_path(cwd, sizeof(cwd));
+    if (size == 0 || size >= sizeof(cwd)){
+        system_error_box("Could not get current directory at launch.");
+    }
+    String curdir = make_string(cwd, size);
+    terminate_with_null(&curdir);
+    replace_char(&curdir, '\\', '/');
+    
+    LOG("Initializing application variables\n");
     app.init(&sysfunc, &target, &memory_vars, linuxvars.clipboard_contents, current_directory, custom_api);
     
     LinuxResizeTarget(window_width, window_height);
