@@ -51,12 +51,13 @@ linux_get_sys_font(char* name, i32 pt_size){
     
     FcPatternDestroy(pat);
     
-    if(!result){
+    if (!result){
         char space[1024];
         String str = make_fixed_width_string(space);
-        if(sysshared_to_binary_path(&str, name)){
+        if (sysshared_to_binary_path(&str, name)){
             result =  strdup(space);
-        } else {
+        } 
+        else{
             result = strdup(name);
         }
     }

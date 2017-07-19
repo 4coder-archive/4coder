@@ -119,7 +119,13 @@ struct Linux_Coroutine {
 //
 
 internal void        LinuxStringDup(String*, void*, size_t);
-internal void        LinuxToggleFullscreen(Display*, Window);
+
+////////////////////////////////
+
+#include "linux_4ed_libraries.cpp"
+#include "4ed_standard_libraries.cpp"
+
+////////////////////////////////
 
 struct Linux_Vars{
     Display *XDisplay;
@@ -168,14 +174,13 @@ struct Linux_Vars{
     b32 hide_cursor;
     Cursor hidden_cursor;
     
-    void *app_code;
+    Library app_code;
     void *custom;
     
     sem_t thread_semaphore;
     
     i32 dpi_x, dpi_y;
     
-    App_Functions app;
     Custom_API custom_api;
     b32 vsync;
     
@@ -190,6 +195,7 @@ global Render_Target target;
 global System_Functions sysfunc;
 global Application_Memory memory_vars;
 global Plat_Settings plat_settings;
+global App_Functions app;
 
 ////////////////////////////////
 
@@ -205,6 +211,7 @@ linux_set_icon(Display* d, Window w){
 ////////////////////////////////
 
 #define SLASH '/'
+#define DLL "so"
 
 internal sem_t*
 handle_sem(Plat_Handle h){
@@ -533,31 +540,6 @@ Sys_CLI_End_Update_Sig(system_cli_end_update){
 //
 // Linux init functions
 //
-
-internal b32
-LinuxLoadAppCode(String* base_dir){
-    b32 result = 0;
-    App_Get_Functions *get_funcs = 0;
-    
-    if (!sysshared_to_binary_path(base_dir, "4ed_app.so")){
-        return 0;
-    }
-    
-    linuxvars.app_code = dlopen(base_dir->str, RTLD_LAZY);
-    if (linuxvars.app_code){
-        get_funcs = (App_Get_Functions*)
-            dlsym(linuxvars.app_code, "app_get_functions");
-    } else {
-        LOGF("dlopen failed: %s\n", dlerror());
-    }
-    
-    if (get_funcs){
-        result = 1;
-        linuxvars.app = get_funcs();
-    }
-    
-    return(result);
-}
 
 internal void
 LinuxLoadRenderCode(){
@@ -1658,14 +1640,7 @@ main(int argc, char **argv){
     // System & Memory init
     //
     
-    char base_dir_mem[PATH_MAX];
-    String base_dir = make_fixed_width_string(base_dir_mem);
-    
-    if (!LinuxLoadAppCode(&base_dir)){
-        char msg[] = "Could not load '4ed_app.so'. This file should be in the same directory as the main '4ed' executable.";
-        system_error_box(msg);
-    }
-    
+    load_app_code();
     link_system_code(&sysfunc);
     LinuxLoadRenderCode();
     
@@ -1694,7 +1669,7 @@ main(int argc, char **argv){
     i32 *file_count;
     i32 output_size;
     
-    output_size = linuxvars.app.read_command_line(&sysfunc, &memory_vars, current_directory, &plat_settings, &files, &file_count, clparams);
+    output_size = app.read_command_line(&sysfunc, &memory_vars, current_directory, &plat_settings, &files, &file_count, clparams);
     
     if (output_size > 0){
         LOGF("%.*s", output_size, (char*)memory_vars.target_memory);
@@ -1710,6 +1685,9 @@ main(int argc, char **argv){
     //
     
 #ifdef FRED_SUPER
+    
+    char base_dir_mem[PATH_MAX];
+    String base_dir = make_fixed_width_string(base_dir_mem);
     
     char *custom_file_default = "custom_4coder.so";
     sysshared_to_binary_path(&base_dir, custom_file_default);
@@ -1914,7 +1892,7 @@ main(int argc, char **argv){
     
     XAddConnectionWatch(linuxvars.XDisplay, &LinuxX11ConnectionWatch, NULL);
     
-    linuxvars.app.init(&sysfunc, &target, &memory_vars, linuxvars.clipboard_contents, current_directory, linuxvars.custom_api);
+    app.init(&sysfunc, &target, &memory_vars, linuxvars.clipboard_contents, current_directory, linuxvars.custom_api);
     
     LinuxResizeTarget(window_width, window_height);
     
@@ -2008,7 +1986,7 @@ main(int argc, char **argv){
             
             b32 keep_running = linuxvars.keep_running;
             
-            linuxvars.app.step(&sysfunc, &target, &memory_vars, &linuxvars.input, &result, clparams);
+            app.step(&sysfunc, &target, &memory_vars, &linuxvars.input, &result, clparams);
             
             if (result.perform_kill){
                 break;

@@ -43,5 +43,26 @@ system_memory_init(){
     }
 }
 
+internal void
+load_app_code(){
+    App_Get_Functions *get_funcs = 0;
+    
+    if (system_load_library(&libraries.app_code, "4ed_app")){
+        get_funcs = (App_Get_Functions*)system_get_proc(&libraries.app_code, "app_get_functions");
+    }
+    else{
+        char msg[] = "Could not load '4ed_app." DLL "'. This file should be in the same directory as the main '4ed' executable.";
+        system_error_box(msg);
+    }
+    
+    if (get_funcs != 0){
+        app = get_funcs();
+    }
+    else{
+        char msg[] = "Failed to get application code from '4ed_app." DLL "'.";
+        system_error_box(msg);
+    }
+}
+
 // BOTTOM
 

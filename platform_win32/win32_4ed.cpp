@@ -34,7 +34,6 @@
 # include "4coder_API/style.h"
 
 # define FSTRING_IMPLEMENTATION
-# define FSTRING_C
 # include "4coder_lib/4coder_string.h"
 # include "4coder_lib/4coder_mem.h"
 
@@ -112,10 +111,15 @@ struct Win32_Coroutine{
     i32 done;
 };
 
+////////////////////////////////
+
+#include "win32_4ed_libraries.cpp"
+#include "4ed_standard_libraries.cpp"
+
+////////////////////////////////
+
 struct Win32_Vars{
-    App_Functions app;
     Custom_API custom_api;
-    HMODULE app_code;
     HMODULE custom;
     
     Win32_Coroutine coroutine_data[18];
@@ -159,6 +163,9 @@ global System_Functions sysfunc;
 global Application_Memory memory_vars;
 global Plat_Settings plat_settings;
 
+global Libraries libraries;
+global App_Functions app;
+
 ////////////////////////////////
 
 #include "win32_error_box.cpp"
@@ -166,6 +173,7 @@ global Plat_Settings plat_settings;
 ////////////////////////////////
 
 #define SLASH '\\'
+#define DLL "dll"
 
 internal HANDLE
 handle_type(Plat_Handle h){
@@ -565,24 +573,6 @@ Sys_CLI_End_Update_Sig(system_cli_end_update){
 //
 // Linkage to Custom and Application
 //
-
-internal b32
-Win32LoadAppCode(){
-    b32 result = false;
-    App_Get_Functions *get_funcs = 0;
-    
-    win32vars.app_code = LoadLibraryA("4ed_app.dll");
-    if (win32vars.app_code){
-        get_funcs = (App_Get_Functions*)GetProcAddress(win32vars.app_code, "app_get_functions");
-    }
-    
-    if (get_funcs){
-        result = true;
-        win32vars.app = get_funcs();
-    }
-    
-    return(result);
-}
 
 #include "4ed_font_data.h"
 #include "4ed_system_shared.cpp"
@@ -1105,10 +1095,7 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
     // System and Application Layer Linkage
     //
     
-    if (!Win32LoadAppCode()){
-        exit(1);
-    }
-    
+    load_app_code();
     link_system_code(&sysfunc);
     Win32LoadRenderCode();
     
@@ -1138,7 +1125,7 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
     char **files = 0;
     i32 *file_count = 0;
     
-    win32vars.app.read_command_line(&sysfunc, &memory_vars, current_directory, &plat_settings, &files, &file_count, clparams);
+    app.read_command_line(&sysfunc, &memory_vars, current_directory, &plat_settings, &files, &file_count, clparams);
     
     sysshared_filter_real_files(files, file_count);
     LOG("Loaded system code, read command line.\n");
@@ -1306,7 +1293,7 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
     //
     
     LOG("Initializing application variables\n");
-    win32vars.app.init(&sysfunc, &target, &memory_vars, win32vars.clipboard_contents, current_directory, win32vars.custom_api);
+    app.init(&sysfunc, &target, &memory_vars, win32vars.clipboard_contents, current_directory, win32vars.custom_api);
     
     system_memory_free(current_directory.str, 0);
     
@@ -1501,7 +1488,7 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
             win32vars.send_exit_signal = false;
         }
         
-        win32vars.app.step(&sysfunc, &target, &memory_vars, &input, &result, clparams);
+        app.step(&sysfunc, &target, &memory_vars, &input, &result, clparams);
         
         if (result.perform_kill){
             keep_running = false;
