@@ -1770,7 +1770,7 @@ main(int argc, char **argv){
     replace_char(&curdir, '\\', '/');
     
     LOG("Initializing application variables\n");
-    app.init(&sysfunc, &target, &memory_vars, win32vars.clipboard_contents, curdir, custom_api);
+    app.init(&sysfunc, &target, &memory_vars, linuxvars.clipboard_contents, curdir, custom_api);
     
     LinuxResizeTarget(window_width, window_height);
     
