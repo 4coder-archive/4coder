@@ -121,6 +121,7 @@ internal void        LinuxStringDup(String*, void*, size_t);
 
 ////////////////////////////////
 
+global System_Functions sysfunc;
 #include "linux_4ed_libraries.cpp"
 #include "4ed_standard_libraries.cpp"
 
@@ -190,7 +191,6 @@ struct Linux_Vars{
 
 global Linux_Vars linuxvars;
 global Render_Target target;
-global System_Functions sysfunc;
 global Application_Memory memory_vars;
 global Plat_Settings plat_settings;
 
