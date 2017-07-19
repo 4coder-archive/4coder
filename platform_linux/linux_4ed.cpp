@@ -1629,16 +1629,7 @@ main(int argc, char **argv){
     // Coroutines
     //
     
-    linuxvars.coroutine_free = linuxvars.coroutine_data;
-    for (i32 i = 0; i+1 < ArrayCount(linuxvars.coroutine_data); ++i){
-        linuxvars.coroutine_data[i].next = &linuxvars.coroutine_data[i + 1];
-    }
-    
-    const size_t stack_size = MB(2);
-    for (i32 i = 0; i < ArrayCount(linuxvars.coroutine_data); ++i){
-        linuxvars.coroutine_data[i].stack.ss_size = stack_size;
-        linuxvars.coroutine_data[i].stack.ss_sp = system_memory_allocate(stack_size);
-    }
+    coroutines_init();
     
     //
     // X11 init

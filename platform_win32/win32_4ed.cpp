@@ -1065,14 +1065,7 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
     // Coroutines
     //
     
-    {
-        init_coroutine_system(&coroutines);
-        
-        umem size = COROUTINE_SLOT_SIZE*18;
-        void *mem = system_memory_allocate(size);
-        coroutine_system_provide_memory(&coroutines, mem, size);
-        coroutine_system_force_init(&coroutines, 4);
-    }
+    coroutines_init();
     
     //
     // Window and GL Initialization
