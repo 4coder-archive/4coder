@@ -24,7 +24,6 @@
 # include "4coder_API/style.h"
 
 # define FSTRING_IMPLEMENTATION
-# define FSTRING_C
 # include "4coder_lib/4coder_string.h"
 # include "4coder_lib/4coder_mem.h"
 
@@ -174,7 +173,6 @@ struct Linux_Vars{
     b32 hide_cursor;
     Cursor hidden_cursor;
     
-    Library app_code;
     void *custom;
     
     sem_t thread_semaphore;
@@ -195,6 +193,8 @@ global Render_Target target;
 global System_Functions sysfunc;
 global Application_Memory memory_vars;
 global Plat_Settings plat_settings;
+
+global Libraries libraries;
 global App_Functions app;
 
 ////////////////////////////////

@@ -32,7 +32,7 @@ system_load_library(Library *library, char *name){
     append(&full_path, name);
     terminate_with_null(&full_path);
     
-    library->lib = dlopen(path, RTLD_LAZY);
+    library->lib = dlopen(full_path.str, RTLD_LAZY);
     b32 success = (library->lib != 0);
     return(success);
 }
