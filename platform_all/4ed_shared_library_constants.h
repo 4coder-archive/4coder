@@ -85,7 +85,8 @@ system_load_library(Library *library, char *name, Load_Library_Location location
 
 internal b32
 system_load_library(Library *library, char *name, Load_Library_Location location){
-    system_load_library(library, name, location, 0, 0);
+    b32 result = system_load_library(library, name, location, 0, 0);
+    return(result);
 }
 
 #endif

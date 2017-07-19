@@ -10,7 +10,7 @@
 // TOP
 
 internal void
-system_memory_init(){
+memory_init(){
 #if defined(FRED_INTERNAL)
 # if defined(FTECH_64_BIT)
     void *bases[] = { (void*)TB(1), (void*)TB(2), };
@@ -118,6 +118,26 @@ load_custom_code(){
     }
     
     LOGF("Loaded custom file: %s\n", success_file);
+}
+
+internal void
+read_command_line(i32 argc, char **argv){
+    LOG("Reading command line\n");
+    char cwd[4096];
+    u32 size = sysfunc.get_current_path(cwd, sizeof(cwd));
+    if (size == 0 || size >= sizeof(cwd)){
+        system_error_box("Could not get current directory at launch.");
+    }
+    
+    String curdir = make_string_cap(cwd, size, sizeof(cwd));
+    terminate_with_null(&curdir);
+    replace_char(&curdir, '\\', '/');
+    
+    char **files = 0;
+    i32 *file_count = 0;
+    app.read_command_line(&sysfunc, &memory_vars, curdir, &plat_settings, &files, &file_count, argc, argv);
+    sysshared_filter_real_files(files, file_count);
+    LOG("Read command line.\n");
 }
 
 // BOTTOM

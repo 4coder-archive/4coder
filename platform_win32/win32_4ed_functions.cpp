@@ -14,6 +14,12 @@
 //
 
 internal
+Sys_Get_Current_Path_Sig(system_get_current_path){
+    i32 result = GetCurrentDirectory_utf8(capacity, (u8*)out);
+    return(result);
+}
+
+internal
 Sys_Get_4ed_Path_Sig(system_get_4ed_path){
     i32 size = GetModuleFileName_utf8(0, (u8*)out, capacity);
     if (size < capacity - 1){

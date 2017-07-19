@@ -369,7 +369,7 @@ INTERNAL_Sys_Get_Thread_States_Sig(system_internal_get_thread_states){
 }
 
 internal void
-system_init_threaded_work_system(){
+work_system_init(){
     AssertThreadSizes();
     
     u32 core_count = CORE_COUNT;

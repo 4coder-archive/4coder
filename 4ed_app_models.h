@@ -57,7 +57,7 @@ struct Models{
     
     Command_Binding prev_command;
     
-    Coroutine *command_coroutine;
+    Coroutine_Head *command_coroutine;
     u32 command_coroutine_flags[2];
     
     Hook_Function *hooks[hook_type_count];

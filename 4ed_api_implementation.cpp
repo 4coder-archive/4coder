@@ -2069,11 +2069,11 @@ DOC_SEE(User_Input)
 */{
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     System_Functions *system = cmd->system;
-    Coroutine *coroutine = (Coroutine*)app->current_coroutine;
+    Coroutine_Head *coroutine = (Coroutine_Head*)app->current_coroutine;
     User_Input result = {0};
     
     if (app->type_coroutine == Co_Command){
-        Assert(coroutine);
+        Assert(coroutine != 0);
         *((u32*)coroutine->out+0) = get_type;
         *((u32*)coroutine->out+1) = abort_type;
         system->yield_coroutine(coroutine);

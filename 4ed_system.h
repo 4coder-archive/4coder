@@ -90,27 +90,25 @@ typedef Sys_CLI_Update_Step_Sig(System_CLI_Update_Step);
 typedef Sys_CLI_End_Update_Sig(System_CLI_End_Update);
 
 // coroutine
-#define Coroutine_Function_Sig(name) void name(struct Coroutine *coroutine)
-typedef Coroutine_Function_Sig(Coroutine_Function);
 
-struct Coroutine{
-    Plat_Handle plat_handle;
-    Coroutine_Function *func;
-    void *yield_handle;
+struct Coroutine_Head{
     void *in;
     void *out;
 };
 
-#define Sys_Create_Coroutine_Sig(name) Coroutine *name(Coroutine_Function *func)
+#define COROUTINE_SIG(n) void n(Coroutine_Head *coroutine)
+typedef COROUTINE_SIG(Coroutine_Function);
+
+#define Sys_Create_Coroutine_Sig(name) Coroutine_Head *name(Coroutine_Function *func)
 typedef Sys_Create_Coroutine_Sig(System_Create_Coroutine);
 
-#define Sys_Launch_Coroutine_Sig(name) Coroutine *name(Coroutine *coroutine, void *in, void *out)
+#define Sys_Launch_Coroutine_Sig(name) Coroutine_Head *name(Coroutine_Head *head, void *in, void *out)
 typedef Sys_Launch_Coroutine_Sig(System_Launch_Coroutine);
 
-#define Sys_Resume_Coroutine_Sig(name) Coroutine *name(Coroutine *coroutine, void *in, void *out)
+#define Sys_Resume_Coroutine_Sig(name) Coroutine_Head *name(Coroutine_Head *head, void *in, void *out)
 typedef Sys_Resume_Coroutine_Sig(System_Resume_Coroutine);
 
-#define Sys_Yield_Coroutine_Sig(name) void name(Coroutine *coroutine)
+#define Sys_Yield_Coroutine_Sig(name) void name(Coroutine_Head *head)
 typedef Sys_Yield_Coroutine_Sig(System_Yield_Coroutine);
 
 // thread

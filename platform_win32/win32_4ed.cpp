@@ -105,12 +105,6 @@ struct Win32_Input_Chunk{
     Win32_Input_Chunk_Persistent pers;
 };
 
-struct Win32_Coroutine{
-    Coroutine coroutine;
-    Win32_Coroutine *next;
-    i32 done;
-};
-
 ////////////////////////////////
 
 #define SLASH '\\'
@@ -121,14 +115,11 @@ global System_Functions sysfunc;
 #include "win32_library_wrapper.h"
 #include "4ed_standard_libraries.cpp"
 
+#include "4ed_coroutine.cpp"
+
 ////////////////////////////////
 
 struct Win32_Vars{
-    Custom_API custom_api;
-    
-    Win32_Coroutine coroutine_data[18];
-    Win32_Coroutine *coroutine_free;
-    
     Win32_Input_Chunk input_chunk;
     b32 lctrl_lalt_is_altgr;
     b32 got_useful_event;
@@ -168,6 +159,9 @@ global Plat_Settings plat_settings;
 
 global Libraries libraries;
 global App_Functions app;
+global Custom_API custom_api;
+
+global Coroutine_System_Auto_Alloc coroutines;
 
 ////////////////////////////////
 
@@ -272,94 +266,57 @@ Sys_Send_Exit_Signal_Sig(system_send_exit_signal){
 // Coroutines
 //
 
-internal Win32_Coroutine*
-Win32AllocCoroutine(){
-    Win32_Coroutine *result = win32vars.coroutine_free;
-    Assert(result != 0);
-    win32vars.coroutine_free = result->next;
-    return(result);
-}
-
-internal void
-Win32FreeCoroutine(Win32_Coroutine *data){
-    data->next = win32vars.coroutine_free;
-    win32vars.coroutine_free = data;
-}
-
-internal void CALL_CONVENTION
-Win32CoroutineMain(void *arg_){
-    Win32_Coroutine *c = (Win32_Coroutine*)arg_;
-    c->coroutine.func(&c->coroutine);
-    c->done = 1;
-    Win32FreeCoroutine(c);
-    SwitchToFiber(c->coroutine.yield_handle);
-}
-
 internal
 Sys_Create_Coroutine_Sig(system_create_coroutine){
-    Win32_Coroutine *c;
-    Coroutine *coroutine;
-    void *fiber;
-    
-    c = Win32AllocCoroutine();
-    c->done = 0;
-    
-    coroutine = &c->coroutine;
-    
-    fiber = CreateFiber(0, Win32CoroutineMain, coroutine);
-    
-    coroutine->plat_handle = handle_type(fiber);
-    coroutine->func = func;
-    
-    return(coroutine);
+    Coroutine *coroutine = coroutine_system_alloc(&coroutines);
+    Coroutine_Head *result = 0;
+    if (coroutine != 0){
+        coroutine_set_function(coroutine, func);
+        result = &coroutine->head;
+    }
+    return(result);
 }
 
 internal
 Sys_Launch_Coroutine_Sig(system_launch_coroutine){
-    Win32_Coroutine *c = (Win32_Coroutine*)coroutine;
-    void *fiber;
+    Coroutine *coroutine = (Coroutine*)head;
+    coroutine->head.in = in;
+    coroutine->head.out = out;
     
-    fiber = handle_type(coroutine->plat_handle);
-    coroutine->yield_handle = GetCurrentFiber();
-    coroutine->in = in;
-    coroutine->out = out;
+    Coroutine *active = coroutine->sys->active;
+    Assert(active != 0);
+    coroutine_launch(active, coroutine);
+    Assert(active == coroutine->sys->active);
     
-    SwitchToFiber(fiber);
-    
-    if (c->done){
-        DeleteFiber(fiber);
-        Win32FreeCoroutine(c);
-        coroutine = 0;
+    Coroutine_Head *result = &coroutine->head;
+    if (coroutine->state == CoroutineState_Dead){
+        coroutine_system_free(&coroutines, coroutine);
+        result = 0;
     }
-    
-    return(coroutine);
+    return(result);
 }
 
 Sys_Resume_Coroutine_Sig(system_resume_coroutine){
-    Win32_Coroutine *c = (Win32_Coroutine*)coroutine;
-    void *fiber;
+    Coroutine *coroutine = (Coroutine*)head;
+    coroutine->head.in = in;
+    coroutine->head.out = out;
     
-    Assert(c->done == 0);
+    Coroutine *active = coroutine->sys->active;
+    Assert(active != 0);
+    coroutine_resume(active, coroutine);
+    Assert(active == coroutine->sys->active);
     
-    coroutine->yield_handle = GetCurrentFiber();
-    coroutine->in = in;
-    coroutine->out = out;
-    
-    fiber = handle_type(coroutine->plat_handle);
-    
-    SwitchToFiber(fiber);
-    
-    if (c->done){
-        DeleteFiber(fiber);
-        Win32FreeCoroutine(c);
-        coroutine = 0;
+    Coroutine_Head *result = &coroutine->head;
+    if (coroutine->state == CoroutineState_Dead){
+        coroutine_system_free(&coroutines, coroutine);
+        result = 0;
     }
-    
-    return(coroutine);
+    return(result);
 }
 
 Sys_Yield_Coroutine_Sig(system_yield_coroutine){
-    SwitchToFiber(coroutine->yield_handle);
+    Coroutine *coroutine = (Coroutine*)head;
+    coroutine_yield(coroutine);
 }
 
 //
@@ -1062,7 +1019,7 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
     i32 argc = __argc;
     char **argv = __argv;
     
-    memset(&linuxvars, 0, sizeof(linuxvars));
+    memset(&win32vars, 0, sizeof(win32vars));
     memset(&target, 0, sizeof(target));
     memset(&memory_vars, 0, sizeof(memory_vars));
     memset(&plat_settings, 0, sizeof(plat_settings));
@@ -1087,51 +1044,35 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
 #endif
     
     //
-    // Memory Initialization
+    // Memory init
     //
     
-    system_memory_init();
-    
-    //
-    // Threads
-    //
-    
-    system_init_threaded_work_system();
-    
-    //
-    // Coroutines
-    //
-    
-    ConvertThreadToFiber(0);
-    win32vars.coroutine_free = win32vars.coroutine_data;
-    for (i32 i = 0; i+1 < ArrayCount(win32vars.coroutine_data); ++i){
-        win32vars.coroutine_data[i].next = &win32vars.coroutine_data[i + 1];
-    }
+    memory_init();
     
     //
     // Read Command Line
     //
     
-    LOG("Reading command line\n");
-    DWORD required = (GetCurrentDirectory(0, 0)*4) + 1;
-    u8 *current_directory_mem = (u8*)system_memory_allocate(required);
-    DWORD written = GetCurrentDirectory_utf8(required, current_directory_mem);
+    read_command_line(argc, argv);
     
-    String current_directory = make_string_cap(current_directory_mem, written, required);
-    terminate_with_null(&current_directory);
-    replace_char(&current_directory, '\\', '/');
+    //
+    // Threads
+    //
     
-    Command_Line_Parameters clparams;
-    clparams.argv = argv;
-    clparams.argc = argc;
+    work_system_init();
     
-    char **files = 0;
-    i32 *file_count = 0;
+    //
+    // Coroutines
+    //
     
-    app.read_command_line(&sysfunc, &memory_vars, current_directory, &plat_settings, &files, &file_count, clparams);
-    
-    sysshared_filter_real_files(files, file_count);
-    LOG("Loaded system code, read command line.\n");
+    {
+        init_coroutine_system(&coroutines);
+        
+        umem size = COROUTINE_SLOT_SIZE*18;
+        void *mem = system_memory_allocate(size);
+        coroutine_system_provide_memory(&coroutines, mem, size);
+        coroutine_system_force_init(&coroutines, 4);
+    }
     
     //
     // Window and GL Initialization
@@ -1254,10 +1195,17 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
     // Main Loop
     //
     
-    LOG("Initializing application variables\n");
-    app.init(&sysfunc, &target, &memory_vars, win32vars.clipboard_contents, current_directory, win32vars.custom_api);
+    char cwd[4096];
+    u32 size = sysfunc.get_current_path(cwd, sizeof(cwd));
+    if (size == 0 || size >= sizeof(cwd)){
+        system_error_box("Could not get current directory at launch.");
+    }
+    String curdir = make_string(cwd, size);
+    terminate_with_null(&curdir);
+    replace_char(&curdir, '\\', '/');
     
-    system_memory_free(current_directory.str, 0);
+    LOG("Initializing application variables\n");
+    app.init(&sysfunc, &target, &memory_vars, win32vars.clipboard_contents, curdir, custom_api);
     
     b32 keep_running = true;
     win32vars.first = true;
@@ -1450,7 +1398,7 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
             win32vars.send_exit_signal = false;
         }
         
-        app.step(&sysfunc, &target, &memory_vars, &input, &result, clparams);
+        app.step(&sysfunc, &target, &memory_vars, &input, &result);
         
         if (result.perform_kill){
             keep_running = false;

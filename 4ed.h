@@ -46,11 +46,6 @@ struct Input_Summary{
     f32 dt;
 };
 
-struct Command_Line_Parameters{
-    char **argv;
-    int32_t argc;
-};
-
 typedef u8 Log_To_Type;
 enum{
     LogTo_Nothing,
@@ -77,7 +72,7 @@ struct Plat_Settings{
 };
 
 #define App_Read_Command_Line_Sig(name)             \
-i32 name(System_Functions *system, Application_Memory *memory, String current_directory, Plat_Settings *plat_settings, char ***files, i32 **file_count, Command_Line_Parameters clparams)
+i32 name(System_Functions *system, Application_Memory *memory, String current_directory, Plat_Settings *plat_settings, char ***files, i32 **file_count, i32  argc, char **argv)
 
 typedef App_Read_Command_Line_Sig(App_Read_Command_Line);
 
@@ -123,8 +118,7 @@ name(System_Functions *system,             \
 Render_Target *target,                \
 Application_Memory *memory,           \
 Application_Step_Input *input,        \
-Application_Step_Result *app_result_, \
-Command_Line_Parameters params)
+Application_Step_Result *app_result_)
 
 typedef App_Step_Sig(App_Step);
 

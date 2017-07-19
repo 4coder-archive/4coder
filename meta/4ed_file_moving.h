@@ -1,8 +1,11 @@
 /*
-4tech_file_moving.h - Code for moving files around on the file system.
-By Allen Webster
-21.01.2017 (dd.mm.yyyy)
-*/
+ * Mr. 4th Dimention - Allen Webster
+ *
+ * 21.01.2017
+ *
+ * Moving files around on the file system.
+ *
+ */
 
 // TOP
 
@@ -302,9 +305,9 @@ extern "C"{
 #define FILE_ATTRIBUTE_NORMAL            0x00000080  
 #define FILE_ATTRIBUTE_TEMPORARY         0x00000100 
 
-static u64 perf_frequency;
+global u64 perf_frequency;
 
-static void
+internal void
 fm_init_system(){
     LARGE_INTEGER lint;
     if (QueryPerformanceFrequency(&lint)){
@@ -313,7 +316,7 @@ fm_init_system(){
     fm__init_memory();
 }
 
-static Temp_Dir
+internal Temp_Dir
 fm_pushdir(char *dir){
     Temp_Dir temp = {0};
     GetCurrentDirectoryA(sizeof(temp.dir), temp.dir);
@@ -321,12 +324,12 @@ fm_pushdir(char *dir){
     return(temp);
 }
 
-static void
+internal void
 fm_popdir(Temp_Dir temp){
     SetCurrentDirectoryA(temp.dir);
 }
 
-static u64
+internal u64
 fm_get_time(){
     u64 time = 0;
     LARGE_INTEGER lint;
@@ -337,13 +340,13 @@ fm_get_time(){
     return(time);
 }
 
-static i32
+internal i32
 fm_get_current_directory(char *buffer, i32 max){
     i32 result = GetCurrentDirectoryA(max, buffer);
     return(result);
 }
 
-static void
+internal void
 fm_execute_in_dir(char *dir, char *str, char *args){
     if (dir){
         Temp_Dir temp = fm_pushdir(dir);
@@ -365,7 +368,7 @@ fm_execute_in_dir(char *dir, char *str, char *args){
     }
 }
 
-static void
+internal void
 fm_slash_fix(char *path){
     if (path != 0){
         for (i32 i = 0; path[i]; ++i){
@@ -374,7 +377,7 @@ fm_slash_fix(char *path){
     }
 }
 
-static void
+internal void
 fm_make_folder_if_missing(char *dir){
     char *path = fm_str(dir);
     char *p = path;
@@ -388,23 +391,23 @@ fm_make_folder_if_missing(char *dir){
     CreateDirectoryA(path, 0);
 }
 
-static void
+internal void
 fm_clear_folder(char *folder){
     fprintf(stdout, "clearing folder %s\n", folder);
     systemf("del /S /Q /F %s\\* > nul & rmdir /S /Q %s > nul & mkdir %s > nul", folder, folder, folder);
 }
 
-static void
+internal void
 fm_delete_file(char *file){
     systemf("del %s", file);
 }
 
-static void
+internal void
 fm_copy_file(char *file, char *newname){
     CopyFileA(file, newname, 0);
 }
 
-static void
+internal void
 fm_copy_all(char *source, char *tag, char *folder){
     if (source){
         fprintf(stdout, "copy %s\\%s to %s\n", source, tag, folder);
@@ -433,7 +436,7 @@ fm_write_file(char *file_name, char *data, u32 size){
     }
 }
 
-static void
+internal void
 fm_zip(char *parent, char *folder, char *dest){
     char cdir[512];
     fm_get_current_directory(cdir, sizeof(cdir));
@@ -454,7 +457,7 @@ fm_zip(char *parent, char *folder, char *dest){
 #include <time.h>
 #include <unistd.h>
 
-static Temp_Dir
+internal Temp_Dir
 fm_pushdir(char *dir){
     Temp_Dir temp;
     char *result = getcwd(temp.dir, sizeof(temp.dir));
@@ -467,17 +470,17 @@ fm_pushdir(char *dir){
     return(temp);
 }
 
-static void
+internal void
 fm_popdir(Temp_Dir temp){
     chdir(temp.dir);
 }
 
-static void
+internal void
 fm_init_system(){
     fm__init_memory();
 }
 
-static u64
+internal u64
 fm_get_time(){
     struct timespec spec;
     u64 result;
@@ -486,7 +489,7 @@ fm_get_time(){
     return(result);
 }
 
-static i32
+internal i32
 fm_get_current_directory(char *buffer, i32 max){
     i32 result = 0;
     char *d = getcwd(buffer, max);
@@ -496,7 +499,7 @@ fm_get_current_directory(char *buffer, i32 max){
     return(result);
 }
 
-static void
+internal void
 fm_execute_in_dir(char *dir, char *str, char *args){
     if (dir){
         if (args){
@@ -520,31 +523,31 @@ fm_execute_in_dir(char *dir, char *str, char *args){
     }
 }
 
-static void
+internal void
 fm_slash_fix(char *path){}
 
-static void
+internal void
 fm_make_folder_if_missing(char *dir){
     systemf("mkdir -p %s", dir);
 }
 
-static void
+internal void
 fm_clear_folder(char *folder){
     fprintf(stdout, "clearing folder %s\n", folder);
     systemf("rm -rf %s* > /dev/null", folder);
 }
 
-static void
+internal void
 fm_delete_file(char *file){
     systemf("rm %s", file);
 }
 
-static void
+internal void
 fm_copy_file(char *file, char *newname){
     systemf("cp %s %s", file, newname);
 }
 
-static void
+internal void
 fm_copy_all(char *source, char *tag, char *folder){
     if (source){
         fprintf(stdout, "copy %s/%s to %s\n", source, tag, folder);
@@ -566,7 +569,7 @@ fm_write_file(char *file_name, char *data, u32 size){
     }
 }
 
-static void
+internal void
 fm_zip(char *parent, char *folder, char *file){
     Temp_Dir temp = fm_pushdir(parent);
     printf("PARENT DIR: %s\n", parent);

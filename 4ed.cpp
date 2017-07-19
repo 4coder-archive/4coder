@@ -304,9 +304,9 @@ restore_state(Application_Links *app, App_Coroutine_State state){
     app->type_coroutine = state.type;
 }
 
-inline Coroutine*
-app_launch_coroutine(System_Functions *system, Application_Links *app, Coroutine_Type type, Coroutine *co, void *in, void *out){
-    Coroutine* result = 0;
+inline Coroutine_Head*
+app_launch_coroutine(System_Functions *system, Application_Links *app, Coroutine_Type type, Coroutine_Head *co, void *in, void *out){
+    Coroutine_Head *result = 0;
     
     App_Coroutine_State prev_state = get_state(app);
     
@@ -318,9 +318,9 @@ app_launch_coroutine(System_Functions *system, Application_Links *app, Coroutine
     return(result);
 }
 
-inline Coroutine*
-app_resume_coroutine(System_Functions *system, Application_Links *app, Coroutine_Type type, Coroutine *co, void *in, void *out){
-    Coroutine* result = 0;
+inline Coroutine_Head*
+app_resume_coroutine(System_Functions *system, Application_Links *app, Coroutine_Type type, Coroutine_Head *co, void *in, void *out){
+    Coroutine_Head *result = 0;
     
     App_Coroutine_State prev_state = get_state(app);
     
@@ -614,7 +614,7 @@ struct Command_In{
 };
 
 internal void
-command_caller(Coroutine *coroutine){
+command_caller(Coroutine_Head *coroutine){
     Command_In *cmd_in = (Command_In*)coroutine->in;
     Command_Data *command = cmd_in->cmd;
     Models *models = command->models;
@@ -778,19 +778,19 @@ enum Command_Line_Mode{
 };
 
 internal void
-init_command_line_settings(App_Settings *settings, Plat_Settings *plat_settings, Command_Line_Parameters clparams){
+init_command_line_settings(App_Settings *settings, Plat_Settings *plat_settings, i32 argc, char **argv){
     char *arg = 0;
     Command_Line_Mode mode = CLMode_App;
     Command_Line_Action action = CLAct_Nothing;
     b32 strict = false;
     
     settings->init_files_max = ArrayCount(settings->init_files);
-    for (i32 i = 1; i <= clparams.argc; ++i){
-        if (i == clparams.argc){
+    for (i32 i = 1; i <= argc; ++i){
+        if (i == argc){
             arg = "";
         }
         else{
-            arg = clparams.argv[i];
+            arg = argv[i];
         }
         
         if (arg[0] == '-' && arg[1] == '-'){
@@ -838,27 +838,27 @@ init_command_line_settings(App_Settings *settings, Plat_Settings *plat_settings,
                     case CLAct_CustomDLL:
                     {
                         plat_settings->custom_dll_is_strict = (b8)strict;
-                        if (i < clparams.argc){
-                            plat_settings->custom_dll = clparams.argv[i];
+                        if (i < argc){
+                            plat_settings->custom_dll = argv[i];
                         }
                         action = CLAct_Nothing;
                     }break;
                     
                     case CLAct_InitialFilePosition:
                     {
-                        if (i < clparams.argc){
-                            settings->initial_line = str_to_int_c(clparams.argv[i]);
+                        if (i < argc){
+                            settings->initial_line = str_to_int_c(argv[i]);
                         }
                         action = CLAct_Nothing;
                     }break;
                     
                     case CLAct_WindowSize:
                     {
-                        if (i + 1 < clparams.argc){
+                        if (i + 1 < argc){
                             plat_settings->set_window_size = true;
                             
-                            i32 w = str_to_int_c(clparams.argv[i]);
-                            i32 h = str_to_int_c(clparams.argv[i+1]);
+                            i32 w = str_to_int_c(argv[i]);
+                            i32 h = str_to_int_c(argv[i+1]);
                             if (w > 0){
                                 plat_settings->window_w = w;
                             }
@@ -880,11 +880,11 @@ init_command_line_settings(App_Settings *settings, Plat_Settings *plat_settings,
                     
                     case CLAct_WindowPosition:
                     {
-                        if (i + 1 < clparams.argc){
+                        if (i + 1 < argc){
                             plat_settings->set_window_pos = true;
                             
-                            i32 x = str_to_int_c(clparams.argv[i]);
-                            i32 y = str_to_int_c(clparams.argv[i+1]);
+                            i32 x = str_to_int_c(argv[i]);
+                            i32 y = str_to_int_c(argv[i+1]);
                             if (x > 0){
                                 plat_settings->window_x = x;
                             }
@@ -906,8 +906,8 @@ init_command_line_settings(App_Settings *settings, Plat_Settings *plat_settings,
                     
                     case CLAct_FontSize:
                     {
-                        if (i < clparams.argc){
-                            plat_settings->font_size = str_to_int_c(clparams.argv[i]);
+                        if (i < argc){
+                            plat_settings->font_size = str_to_int_c(argv[i]);
                             plat_settings->font_size = clamp_bottom(8, plat_settings->font_size);
                         }
                         action = CLAct_Nothing;
@@ -935,9 +935,9 @@ init_command_line_settings(App_Settings *settings, Plat_Settings *plat_settings,
             
             case CLMode_Custom:
             {
-                settings->custom_flags = clparams.argv + i;
-                settings->custom_flags_count = clparams.argc - i;
-                i = clparams.argc;
+                settings->custom_flags = argv + i;
+                settings->custom_flags_count = argc - i;
+                i = argc;
                 mode = CLMode_App;
             }break;
         }
@@ -969,8 +969,8 @@ App_Read_Command_Line_Sig(app_read_command_line){
     *settings = null_app_settings;
     plat_settings->font_size = 16;
     
-    if (clparams.argc > 1){
-        init_command_line_settings(&vars->models.settings, plat_settings, clparams);
+    if (argc > 1){
+        init_command_line_settings(&vars->models.settings, plat_settings, argc, argv);
     }
     
     *files = vars->models.settings.init_files;
@@ -1623,11 +1623,11 @@ App_Step_Sig(app_step){
         }
         
         if (there_is_unsaved){
-            Coroutine *command_coroutine = models->command_coroutine;
+            Coroutine_Head *command_coroutine = models->command_coroutine;
             Command_Data *command = cmd;
             USE_VIEW(view);
             
-            for (i32 i = 0; i < 128 && command_coroutine; ++i){
+            for (i32 i = 0; i < 128 && command_coroutine != 0; ++i){
                 User_Input user_in = {0};
                 user_in.abort = true;
                 
@@ -1686,7 +1686,7 @@ App_Step_Sig(app_step){
     
     // NOTE(allen): Keyboard and Mouse input to command coroutine.
     if (models->command_coroutine != 0){
-        Coroutine *command_coroutine = models->command_coroutine;
+        Coroutine_Head *command_coroutine = models->command_coroutine;
         u32 get_flags = models->command_coroutine_flags[0];
         u32 abort_flags = models->command_coroutine_flags[1];
         
@@ -1969,7 +1969,7 @@ App_Step_Sig(app_step){
                         }
                         
                         Assert(models->command_coroutine == 0);
-                        Coroutine *command_coroutine = system->create_coroutine(command_caller);
+                        Coroutine_Head *command_coroutine = system->create_coroutine(command_caller);
                         models->command_coroutine = command_coroutine;
                         
                         Command_In cmd_in;

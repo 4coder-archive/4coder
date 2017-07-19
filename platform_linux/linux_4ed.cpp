@@ -105,14 +105,6 @@ enum {
     LINUX_4ED_EVENT_CLI          = (UINT64_C(5) << 32),
 };
 
-struct Linux_Coroutine {
-    Coroutine coroutine;
-    Linux_Coroutine *next;
-    ucontext_t ctx, yield_ctx;
-    stack_t stack;
-    b32 done;
-};
-
 //
 // Linux forward declarations
 //
@@ -128,6 +120,8 @@ global System_Functions sysfunc;
 #include "4ed_shared_library_constants.h"
 #include "linux_library_wrapper.h"
 #include "4ed_standard_libraries.cpp"
+
+#include "4ed_coroutine.cpp"
 
 ////////////////////////////////
 
@@ -183,9 +177,6 @@ struct Linux_Vars{
     i32 dpi_x, dpi_y;
     
     b32 vsync;
-    
-    Linux_Coroutine coroutine_data[18];
-    Linux_Coroutine *coroutine_free;
 };
 
 ////////////////////////////////
@@ -198,6 +189,8 @@ global Plat_Settings plat_settings;
 global Libraries libraries;
 global App_Functions app;
 global Custom_API custom_api;
+
+global Coroutine_System_Auto_Alloc coroutines;
 
 ////////////////////////////////
 
@@ -326,91 +319,57 @@ Sys_Post_Clipboard_Sig(system_post_clipboard){
 // Coroutine
 //
 
-internal Linux_Coroutine*
-LinuxAllocCoroutine(){
-    Linux_Coroutine *result = linuxvars.coroutine_free;
-    Assert(result != 0);
-    if (getcontext(&result->ctx) == -1){
-        perror("getcontext");
-    }
-    result->ctx.uc_stack = result->stack;
-    linuxvars.coroutine_free = result->next;
-    return(result);
-}
-
-internal void
-LinuxFreeCoroutine(Linux_Coroutine *data){
-    data->next = linuxvars.coroutine_free;
-    linuxvars.coroutine_free = data;
-}
-
-internal void
-LinuxCoroutineMain(void *arg_){
-    Linux_Coroutine *c = (Linux_Coroutine*)arg_;
-    c->coroutine.func(&c->coroutine);
-    c->done = 1;
-    LinuxFreeCoroutine(c);
-    setcontext((ucontext_t*)c->coroutine.yield_handle);
-}
-
 internal
 Sys_Create_Coroutine_Sig(system_create_coroutine){
-    Linux_Coroutine *c = LinuxAllocCoroutine();
-    c->done = 0;
-    
-    makecontext(&c->ctx, (void (*)())LinuxCoroutineMain, 1, &c->coroutine);
-    
-    *(ucontext_t**)&c->coroutine.plat_handle = &c->ctx;
-    c->coroutine.func = func;
-    
-    return(&c->coroutine);
+    Coroutine *coroutine = coroutine_system_alloc(&coroutines);
+    Coroutine_Head *result = 0;
+    if (coroutine != 0){
+        coroutine_set_function(coroutine, func);
+        result = &coroutine->head;
+    }
+    return(result);
 }
 
 internal
 Sys_Launch_Coroutine_Sig(system_launch_coroutine){
-    Linux_Coroutine *c = (Linux_Coroutine*)coroutine;
-    ucontext_t* ctx = *(ucontext**)&coroutine->plat_handle;
+    Coroutine *coroutine = (Coroutine*)head;
+    coroutine->head.in = in;
+    coroutine->head.out = out;
     
-    coroutine->yield_handle = &c->yield_ctx;
-    coroutine->in = in;
-    coroutine->out = out;
+    Coroutine *active = coroutine->sys->active;
+    Assert(active != 0);
+    coroutine_launch(active, coroutine);
+    Assert(active == coroutine->sys->active);
     
-    swapcontext(&c->yield_ctx, ctx); 
-    
-    if (c->done){
-        LinuxFreeCoroutine(c);
-        coroutine = 0;
+    Coroutine_Head *result = &coroutine->head;
+    if (coroutine->state == CoroutineState_Dead){
+        coroutine_system_free(&coroutines, coroutine);
+        result = 0;
     }
-    
-    return(coroutine);
+    return(result);
 }
 
-internal
 Sys_Resume_Coroutine_Sig(system_resume_coroutine){
-    Linux_Coroutine *c = (Linux_Coroutine*)coroutine;
-    void *fiber;
+    Coroutine *coroutine = (Coroutine*)head;
+    coroutine->head.in = in;
+    coroutine->head.out = out;
     
-    Assert(!c->done);
+    Coroutine *active = coroutine->sys->active;
+    Assert(active != 0);
+    coroutine_resume(active, coroutine);
+    Assert(active == coroutine->sys->active);
     
-    coroutine->yield_handle = &c->yield_ctx;
-    coroutine->in = in;
-    coroutine->out = out;
-    
-    ucontext *ctx = *(ucontext**)&coroutine->plat_handle;
-    
-    swapcontext(&c->yield_ctx, ctx);
-    
-    if (c->done){
-        LinuxFreeCoroutine(c);
-        coroutine = 0;
+    Coroutine_Head *result = &coroutine->head;
+    if (coroutine->state == CoroutineState_Dead){
+        coroutine_system_free(&coroutines, coroutine);
+        result = 0;
     }
-    
-    return(coroutine);
+    return(result);
 }
 
-internal
 Sys_Yield_Coroutine_Sig(system_yield_coroutine){
-    swapcontext(*(ucontext_t**)&coroutine->plat_handle, (ucontext*)coroutine->yield_handle);
+    Coroutine *coroutine = (Coroutine*)head;
+    coroutine_yield(coroutine);
 }
 
 //
@@ -1652,39 +1611,19 @@ main(int argc, char **argv){
     // Memory init
     //
     
-    system_memory_init();
+    memory_init();
     
     //
     // Read command line
     //
     
-    char* cwd = get_current_dir_name();
-    if (!cwd){
-        char buf[1024];
-        snprintf(buf, sizeof(buf), "Call to get_current_dir_name failed: %s", strerror(errno));
-        system_error_box(buf);
-    }
+    read_command_line(argc, argv);
     
-    String current_directory = make_string_slowly(cwd);
+    //
+    // Threads
+    //
     
-    Command_Line_Parameters clparams;
-    clparams.argv = argv;
-    clparams.argc = argc;
-    
-    char **files;
-    i32 *file_count;
-    i32 output_size;
-    
-    output_size = app.read_command_line(&sysfunc, &memory_vars, current_directory, &plat_settings, &files, &file_count, clparams);
-    
-    if (output_size > 0){
-        LOGF("%.*s", output_size, (char*)memory_vars.target_memory);
-    }
-    if (output_size != 0){
-        system_error_box("Error reading command-line arguments.");
-    }
-    
-    sysshared_filter_real_files(files, file_count);
+    work_system_init();
     
     //
     // Coroutines
@@ -1692,7 +1631,7 @@ main(int argc, char **argv){
     
     linuxvars.coroutine_free = linuxvars.coroutine_data;
     for (i32 i = 0; i+1 < ArrayCount(linuxvars.coroutine_data); ++i){
-        linuxvars.coroutine_data[i].next = linuxvars.coroutine_data + i + 1;
+        linuxvars.coroutine_data[i].next = &linuxvars.coroutine_data[i + 1];
     }
     
     const size_t stack_size = MB(2);
@@ -1702,12 +1641,6 @@ main(int argc, char **argv){
     }
     
     //
-    // Threads
-    //
-    
-    system_init_threaded_work_system();
-    
-    //
     // X11 init
     //
     
@@ -1715,7 +1648,7 @@ main(int argc, char **argv){
     if (!linuxvars.XDisplay){
         // NOTE(inso): probably not worth trying the popup in this case...
         LOG("Can't open display!\n");
-        return(1);
+        exit(1);
     }
     
 #define LOAD_ATOM(x) linuxvars.atom_##x = XInternAtom(linuxvars.XDisplay, #x, False);
@@ -1930,7 +1863,7 @@ main(int argc, char **argv){
             
             b32 keep_running = linuxvars.keep_running;
             
-            app.step(&sysfunc, &target, &memory_vars, &linuxvars.input, &result, clparams);
+            app.step(&sysfunc, &target, &memory_vars, &linuxvars.input, &result);
             
             if (result.perform_kill){
                 break;

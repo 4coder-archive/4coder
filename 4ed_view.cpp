@@ -14,7 +14,7 @@
 
 struct View_Persistent{
     i32 id;
-    Coroutine *coroutine;
+    Coroutine_Head *coroutine;
     Event_Message message_passing_slot;
 };
 
