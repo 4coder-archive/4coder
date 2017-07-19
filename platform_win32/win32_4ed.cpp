@@ -1019,6 +1019,16 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
     i32 argc = __argc;
     char **argv = __argv;
     
+    //
+    // System Linkage
+    //
+    
+    link_system_code();
+    
+    //
+    // Memory init
+    //
+    
     memset(&win32vars, 0, sizeof(win32vars));
     memset(&target, 0, sizeof(target));
     memset(&memory_vars, 0, sizeof(memory_vars));
@@ -1028,13 +1038,19 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
     memset(&app, 0, sizeof(app));
     memset(&custom_api, 0, sizeof(custom_api));
     
+    memory_init();
+    
+    //
+    // HACK(allen): 
+    // Previously zipped stuff is here, it should be zipped in the new pattern now.
+    //
+    
     init_shared_vars();
     
     //
-    // Linkage
+    // Dynamic Linkage
     //
     
-    link_system_code();
     load_app_code();
     link_rendering();
 #if defined(FRED_SUPER)
@@ -1042,12 +1058,6 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
 #else
     custom_api.get_bindings = get_bindings;
 #endif
-    
-    //
-    // Memory init
-    //
-    
-    memory_init();
     
     //
     // Read Command Line
