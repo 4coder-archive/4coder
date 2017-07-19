@@ -113,15 +113,18 @@ struct Win32_Coroutine{
 
 ////////////////////////////////
 
+#define SLASH '\\'
+#define DLL "dll"
+
 global System_Functions sysfunc;
-#include "win32_4ed_libraries.cpp"
+#include "4ed_shared_library_constants.h"
+#include "win32_library_wrapper.h"
 #include "4ed_standard_libraries.cpp"
 
 ////////////////////////////////
 
 struct Win32_Vars{
     Custom_API custom_api;
-    HMODULE custom;
     
     Win32_Coroutine coroutine_data[18];
     Win32_Coroutine *coroutine_free;
@@ -171,9 +174,6 @@ global App_Functions app;
 #include "win32_error_box.cpp"
 
 ////////////////////////////////
-
-#define SLASH '\\'
-#define DLL "dll"
 
 internal HANDLE
 handle_type(Plat_Handle h){
@@ -576,13 +576,6 @@ Sys_CLI_End_Update_Sig(system_cli_end_update){
 
 #include "4ed_font_data.h"
 #include "4ed_system_shared.cpp"
-
-internal void
-Win32LoadRenderCode(){
-    target.push_clip = draw_push_clip;
-    target.pop_clip = draw_pop_clip;
-    target.push_piece = draw_push_piece;
-}
 
 //
 // Helpers
@@ -1069,9 +1062,39 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
     i32 argc = __argc;
     char **argv = __argv;
     
-    memset(&win32vars, 0, sizeof(win32vars));
+    memset(&linuxvars, 0, sizeof(linuxvars));
+    memset(&target, 0, sizeof(target));
+    memset(&memory_vars, 0, sizeof(memory_vars));
+    memset(&plat_settings, 0, sizeof(plat_settings));
     
-    win32vars.bordered_win_pos.length = sizeof(win32vars.bordered_win_pos);
+    memset(&libraries, 0, sizeof(libraries));
+    memset(&app, 0, sizeof(app));
+    memset(&custom_api, 0, sizeof(custom_api));
+    
+    init_shared_vars();
+    
+    //
+    // Linkage
+    //
+    
+    link_system_code();
+    load_app_code();
+    link_rendering();
+#if defined(FRED_SUPER)
+    load_custom_code();
+#else
+    custom_api.get_bindings = get_bindings;
+#endif
+    
+    //
+    // Memory Initialization
+    //
+    
+    system_memory_init();
+    
+    //
+    // Threads
+    //
     
     system_init_threaded_work_system();
     
@@ -1084,26 +1107,6 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
     for (i32 i = 0; i+1 < ArrayCount(win32vars.coroutine_data); ++i){
         win32vars.coroutine_data[i].next = &win32vars.coroutine_data[i + 1];
     }
-    
-    //
-    // Memory Initialization
-    //
-    
-    system_memory_init();
-    
-    //
-    // System and Application Layer Linkage
-    //
-    
-    load_app_code();
-    link_system_code(&sysfunc);
-    Win32LoadRenderCode();
-    
-    //
-    // Shared Systems Init
-    //
-    
-    init_shared_vars();
     
     //
     // Read Command Line
@@ -1129,47 +1132,6 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
     
     sysshared_filter_real_files(files, file_count);
     LOG("Loaded system code, read command line.\n");
-    
-    //
-    // Custom Layer Linkage
-    //
-    
-#if defined(FRED_SUPER)
-    char *custom_file_default = "custom_4coder.dll";
-    char *custom_file = 0;
-    if (plat_settings.custom_dll){
-        custom_file = plat_settings.custom_dll;
-    }
-    else{
-        custom_file = custom_file_default;
-    }
-    
-    LOGF("Trying to load custom DLL: %s\n", custom_file);
-    win32vars.custom = LoadLibraryA(custom_file);
-    if (!win32vars.custom && custom_file != custom_file_default){
-        if (!plat_settings.custom_dll_is_strict){
-            LOGF("Trying to load custom DLL: %s\n", custom_file_default);
-            win32vars.custom = LoadLibraryA(custom_file_default);
-        }
-    }
-    
-    if (win32vars.custom){
-        win32vars.custom_api.get_alpha_4coder_version = (_Get_Version_Function*)GetProcAddress(win32vars.custom, "get_alpha_4coder_version");
-        
-        if (win32vars.custom_api.get_alpha_4coder_version == 0 || win32vars.custom_api.get_alpha_4coder_version(MAJOR, MINOR, PATCH) == 0){
-            system_error_box("The application and custom version numbers don't match.");
-        }
-        
-        win32vars.custom_api.get_bindings = (Get_Binding_Data_Function*)GetProcAddress(win32vars.custom, "get_bindings");
-    }
-    
-    if (win32vars.custom_api.get_bindings == 0){
-        system_error_box("The custom dll is missing.");
-    }
-    
-#else
-    win32vars.custom_api.get_bindings = (Get_Binding_Data_Function*)get_bindings;
-#endif
     
     //
     // Window and GL Initialization

@@ -223,30 +223,8 @@ sysshared_to_binary_path(String *out_filename, char *filename){
 }
 
 //
-// Rendering
+// Rendering Interface
 //
-
-inline void
-draw_set_clip(Render_Target *target, i32_Rect clip_box){
-    glScissor(clip_box.x0, target->height - clip_box.y1, clip_box.x1 - clip_box.x0, clip_box.y1 - clip_box.y0);
-}
-
-inline void
-draw_bind_texture(Render_Target *target, i32 texid){
-    if (target->bound_texture != texid){
-        glBindTexture(GL_TEXTURE_2D, texid);
-        target->bound_texture = texid;
-    }
-}
-
-inline void
-draw_set_color(Render_Target *target, u32 color){
-    if (target->color != color){
-        target->color = color;
-        Vec4 c = unpack_color4(color);
-        glColor4f(c.r, c.g, c.b, c.a);
-    }
-}
 
 inline void
 draw_safe_push(Render_Target *target, i32 size, void *x){
@@ -327,7 +305,40 @@ draw_pop_clip(Render_Target *target){
     return(result);
 }
 
+internal void
+link_rendering(){
+    target.push_clip = draw_push_clip;
+    target.pop_clip = draw_pop_clip;
+    target.push_piece = draw_push_piece;
+}
+
+//
+// OpenGL
+//
+
 #define ExtractStruct(s) ((s*)cursor); cursor += sizeof(s)
+
+inline void
+draw_set_clip(Render_Target *target, i32_Rect clip_box){
+    glScissor(clip_box.x0, target->height - clip_box.y1, clip_box.x1 - clip_box.x0, clip_box.y1 - clip_box.y0);
+}
+
+inline void
+draw_bind_texture(Render_Target *target, i32 texid){
+    if (target->bound_texture != texid){
+        glBindTexture(GL_TEXTURE_2D, texid);
+        target->bound_texture = texid;
+    }
+}
+
+inline void
+draw_set_color(Render_Target *target, u32 color){
+    if (target->color != color){
+        target->color = color;
+        Vec4 c = unpack_color4(color);
+        glColor4f(c.r, c.g, c.b, c.a);
+    }
+}
 
 inline void
 private_draw_rectangle(Render_Target *target, f32_Rect rect, u32 color){

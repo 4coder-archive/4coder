@@ -47,7 +47,7 @@ internal void
 load_app_code(){
     App_Get_Functions *get_funcs = 0;
     
-    if (system_load_library(&libraries.app_code, "4ed_app")){
+    if (system_load_library(&libraries.app_code, "4ed_app", LoadLibrary_BinaryDirectory)){
         get_funcs = (App_Get_Functions*)system_get_proc(&libraries.app_code, "app_get_functions");
     }
     else{
@@ -62,6 +62,62 @@ load_app_code(){
         char msg[] = "Failed to get application code from '4ed_app." DLL "'.";
         system_error_box(msg);
     }
+}
+
+global char custom_fail_version_msg[] = "Failed to load custom code due to missing version information or a version mismatch.  Try rebuilding with buildsuper.";
+
+global char custom_fail_missing_get_bindings_msg[] = "Failed to load custom code due to missing 'get_bindings' symbol.  Try rebuilding with buildsuper.";
+
+internal void
+load_custom_code(){
+    local_persist char *default_file = "custom_4coder";
+    local_persist Load_Library_Location locations[] = {
+        LoadLibrary_CurrentDirectory,
+        LoadLibrary_BinaryDirectory,
+    };
+    
+    char *custom_files[3] = {0};
+    if (plat_settings.custom_dll != 0){
+        custom_files[0] = plat_settings.custom_dll;
+        if (!plat_settings.custom_dll_is_strict){
+            custom_files[1] = default_file;
+        }
+    }
+    else{
+        custom_files[0] = default_file;
+    }
+    
+    char success_file[4096];
+    b32 has_library = false;
+    for (u32 i = 0; custom_files[i] != 0 && !has_library; ++i){
+        char *file = custom_files[i];
+        for (u32 j = 0; j < ArrayCount(locations) && !has_library; ++j){
+            if (system_load_library(&libraries.custom, file, locations[j], success_file, sizeof(success_file))){
+                has_library = true;
+                success_file[sizeof(success_file) - 1] = 0;
+            }
+        }
+    }
+    
+    if (!has_library){
+        system_error_box("Did not find a library for the custom layer.");
+    }
+    
+    custom_api.get_alpha_4coder_version = (_Get_Version_Function*)
+        system_get_proc(&libraries.custom, "get_alpha_4coder_version");
+    
+    if (custom_api.get_alpha_4coder_version == 0 || custom_api.get_alpha_4coder_version(MAJOR, MINOR, PATCH) == 0){
+        system_error_box(custom_fail_version_msg);
+    }
+    
+    custom_api.get_bindings = (Get_Binding_Data_Function*)
+        system_get_proc(&libraries.custom, "get_bindings");
+    
+    if (custom_api.get_bindings == 0){
+        system_error_box(custom_fail_missing_get_bindings_msg);
+    }
+    
+    LOGF("Loaded custom file: %s\n", success_file);
 }
 
 // BOTTOM

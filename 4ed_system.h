@@ -195,6 +195,9 @@ typedef Sys_File_Exists_Sig(System_File_Exists);
 #define Sys_Directory_CD_Sig(name) bool32 name(char *dir, i32 *len, i32 cap, char *rel_path, i32 rel_len)
 typedef Sys_Directory_CD_Sig(System_Directory_CD);
 
+#define Sys_Get_Current_Path_Sig(name) int32_t name(char *out, i32 capacity)
+typedef Sys_Get_Current_Path_Sig(System_Get_Current_Path);
+
 #define Sys_Get_4ed_Path_Sig(name) int32_t name(char *out, i32 capacity)
 typedef Sys_Get_4ed_Path_Sig(System_Get_4ed_Path);
 
@@ -222,16 +225,16 @@ struct System_Functions{
     Font_Functions font;
     
     // files (tracked api): 10
-    System_Set_File_List *set_file_list;
-    System_Get_Canonical *get_canonical;
-    System_Add_Listener *add_listener;  
+    System_Set_File_List   *set_file_list;
+    System_Get_Canonical   *get_canonical;
+    System_Add_Listener    *add_listener;  
     System_Remove_Listener *remove_listener;
     System_Get_File_Change *get_file_change;
-    System_Load_Handle *load_handle;
-    System_Load_Size *load_size;
-    System_Load_File *load_file;
-    System_Load_Close *load_close;
-    System_Save_File *save_file;
+    System_Load_Handle     *load_handle;
+    System_Load_Size       *load_size;
+    System_Load_File       *load_file;
+    System_Load_Close      *load_close;
+    System_Save_File       *save_file;
     
     // time: 1
     System_Now_Time *now_time;
@@ -243,21 +246,21 @@ struct System_Functions{
     System_Create_Coroutine *create_coroutine;
     System_Launch_Coroutine *launch_coroutine;
     System_Resume_Coroutine *resume_coroutine;
-    System_Yield_Coroutine *yield_coroutine;
+    System_Yield_Coroutine  *yield_coroutine;
     
     // cli: 4
-    System_CLI_Call *cli_call;
+    System_CLI_Call         *cli_call;
     System_CLI_Begin_Update *cli_begin_update;
-    System_CLI_Update_Step *cli_update_step;
-    System_CLI_End_Update *cli_end_update;
+    System_CLI_Update_Step  *cli_update_step;
+    System_CLI_End_Update   *cli_end_update;
     
     // threads: 6
-    System_Post_Job *post_job;
-    System_Cancel_Job *cancel_job;
-    System_Check_Cancel *check_cancel;
+    System_Post_Job           *post_job;
+    System_Cancel_Job         *cancel_job;
+    System_Check_Cancel       *check_cancel;
     System_Grow_Thread_Memory *grow_thread_memory;
-    System_Acquire_Lock *acquire_lock;
-    System_Release_Lock *release_lock;
+    System_Acquire_Lock       *acquire_lock;
+    System_Release_Lock       *release_lock;
     
     // custom: 10
     System_Memory_Allocate        *memory_allocate;
@@ -265,6 +268,7 @@ struct System_Functions{
     System_Memory_Free            *memory_free;
     System_File_Exists            *file_exists;
     System_Directory_CD           *directory_cd;
+    System_Get_Current_Path       *get_current_path;
     System_Get_4ed_Path           *get_4ed_path;
     System_Show_Mouse_Cursor      *show_mouse_cursor;
     System_Set_Fullscreen         *set_fullscreen;

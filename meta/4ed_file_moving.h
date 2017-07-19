@@ -32,7 +32,7 @@ static i32 prev_error = 0;
 #endif
 
 #define systemf(...) do{                                       \
-    int32_t n = snprintf(SF_CMD, sizeof(SF_CMD), __VA_ARGS__); \
+    i32 n = snprintf(SF_CMD, sizeof(SF_CMD), __VA_ARGS__); \
     AllowLocal(n);                                             \
     Assert(n < sizeof(SF_CMD));                                \
     SYSTEMF_PRINTF("%s\n", SF_CMD);                            \
@@ -49,8 +49,8 @@ internal void fm_init_system();
 internal u64  fm_get_time();
 
 #define LLU_CAST(n) (long long unsigned int)(n)
-#define BEGIN_TIME_SECTION() uint64_t start = fm_get_time()
-#define END_TIME_SECTION(n) uint64_t total = fm_get_time() - start; printf("%-20s: %.2llu.%.6llu\n", (n), LLU_CAST(total/1000000), LLU_CAST(total%1000000));
+#define BEGIN_TIME_SECTION() u64 start = fm_get_time()
+#define END_TIME_SECTION(n) u64 total = fm_get_time() - start; printf("%-20s: %.2llu.%.6llu\n", (n), LLU_CAST(total/1000000), LLU_CAST(total%1000000));
 
 // Files and Folders Manipulation
 internal void fm_make_folder_if_missing(char *dir);
@@ -228,12 +228,12 @@ fm_align(){
 
 #if defined(IS_WINDOWS)
 
-typedef uint32_t DWORD;
-typedef int32_t  LONG;
-typedef int64_t  LONGLONG;
+typedef u32 DWORD;
+typedef i32  LONG;
+typedef i64  LONGLONG;
 typedef char*    LPTSTR;
 typedef char*    LPCTSTR;
-typedef int32_t  BOOL;
+typedef i32  BOOL;
 typedef void*    LPSECURITY_ATTRIBUTES;
 typedef union    _LARGE_INTEGER {
     struct {
@@ -302,7 +302,7 @@ extern "C"{
 #define FILE_ATTRIBUTE_NORMAL            0x00000080  
 #define FILE_ATTRIBUTE_TEMPORARY         0x00000100 
 
-static uint64_t perf_frequency;
+static u64 perf_frequency;
 
 static void
 fm_init_system(){
@@ -326,9 +326,9 @@ fm_popdir(Temp_Dir temp){
     SetCurrentDirectoryA(temp.dir);
 }
 
-static uint64_t
+static u64
 fm_get_time(){
-    uint64_t time = 0;
+    u64 time = 0;
     LARGE_INTEGER lint;
     if (QueryPerformanceCounter(&lint)){
         time = lint.QuadPart;
@@ -337,9 +337,9 @@ fm_get_time(){
     return(time);
 }
 
-static int32_t
-fm_get_current_directory(char *buffer, int32_t max){
-    int32_t result = GetCurrentDirectoryA(max, buffer);
+static i32
+fm_get_current_directory(char *buffer, i32 max){
+    i32 result = GetCurrentDirectoryA(max, buffer);
     return(result);
 }
 
@@ -368,7 +368,7 @@ fm_execute_in_dir(char *dir, char *str, char *args){
 static void
 fm_slash_fix(char *path){
     if (path != 0){
-        for (int32_t i = 0; path[i]; ++i){
+        for (i32 i = 0; path[i]; ++i){
             if (path[i] == '/') path[i] = '\\';
         }
     }
@@ -458,7 +458,7 @@ static Temp_Dir
 fm_pushdir(char *dir){
     Temp_Dir temp;
     char *result = getcwd(temp.dir, sizeof(temp.dir));
-    int32_t chresult = chdir(dir);
+    i32 chresult = chdir(dir);
     if (result == 0 || chresult != 0){
         printf("trying pushdir %s\n", dir);
         Assert(result != 0);
@@ -477,18 +477,18 @@ fm_init_system(){
     fm__init_memory();
 }
 
-static uint64_t
+static u64
 fm_get_time(){
     struct timespec spec;
-    uint64_t result;
+    u64 result;
     clock_gettime(CLOCK_MONOTONIC, &spec);
-    result = (spec.tv_sec * (uint64_t)(1000000)) + (spec.tv_nsec / (uint64_t)(1000));
+    result = (spec.tv_sec * (u64)(1000000)) + (spec.tv_nsec / (u64)(1000));
     return(result);
 }
 
-static int32_t
-fm_get_current_directory(char *buffer, int32_t max){
-    int32_t result = 0;
+static i32
+fm_get_current_directory(char *buffer, i32 max){
+    i32 result = 0;
     char *d = getcwd(buffer, max);
     if (d == buffer){
         result = strlen(buffer);

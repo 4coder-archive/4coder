@@ -14,7 +14,7 @@
 #define SYSLINK(name) sysfunc.name = system_##name
 
 internal void
-link_system_code(System_Functions *system){
+link_system_code(){
     SYSLINK(set_file_list);
     SYSLINK(get_canonical);
     SYSLINK(add_listener);
@@ -52,6 +52,7 @@ link_system_code(System_Functions *system){
     SYSLINK(memory_free);
     SYSLINK(file_exists);
     SYSLINK(directory_cd);
+    SYSLINK(get_current_path);
     SYSLINK(get_4ed_path);
     SYSLINK(set_fullscreen);
     SYSLINK(is_fullscreen);

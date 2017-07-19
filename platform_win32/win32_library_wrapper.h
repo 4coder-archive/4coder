@@ -9,22 +9,14 @@
 
 // TOP
 
-struct Library{
+union Library{
     HMODULE lib;
+    FixSize(LIBRARY_TYPE_SIZE);
 };
 
 internal b32
-system_load_library(Library *library, char *name){
-    String extension = file_extension(make_string_slowly(name));
-    char space[4096];
-    if (!match(extension, "dll")){
-        String full_name = make_fixed_width_string(space);
-        append(&full_name, name);
-        append(&full_name, ".dll");
-        terminate_with_null(&full_name);
-        name = space;
-    }
-    
+system_load_library_direct(Library *library, char *name){
+    AssertLibrarySizes();
     library->lib = LoadLibraryA(name);
     b32 success = (library->lib != 0);
     return(success);

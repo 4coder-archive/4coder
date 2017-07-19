@@ -121,8 +121,12 @@ internal void        LinuxStringDup(String*, void*, size_t);
 
 ////////////////////////////////
 
+#define SLASH '/'
+#define DLL "so"
+
 global System_Functions sysfunc;
-#include "linux_4ed_libraries.cpp"
+#include "4ed_shared_library_constants.h"
+#include "linux_library_wrapper.h"
 #include "4ed_standard_libraries.cpp"
 
 ////////////////////////////////
@@ -174,13 +178,10 @@ struct Linux_Vars{
     b32 hide_cursor;
     Cursor hidden_cursor;
     
-    void *custom;
-    
     sem_t thread_semaphore;
     
     i32 dpi_x, dpi_y;
     
-    Custom_API custom_api;
     b32 vsync;
     
     Linux_Coroutine coroutine_data[18];
@@ -196,6 +197,7 @@ global Plat_Settings plat_settings;
 
 global Libraries libraries;
 global App_Functions app;
+global Custom_API custom_api;
 
 ////////////////////////////////
 
@@ -209,9 +211,6 @@ linux_set_icon(Display* d, Window w){
 #include "linux_error_box.cpp"
 
 ////////////////////////////////
-
-#define SLASH '/'
-#define DLL "so"
 
 internal sem_t*
 handle_sem(Plat_Handle h){
@@ -536,17 +535,6 @@ Sys_CLI_End_Update_Sig(system_cli_end_update){
 //
 // End of system funcs
 //
-
-//
-// Linux init functions
-//
-
-internal void
-LinuxLoadRenderCode(){
-    target.push_clip = draw_push_clip;
-    target.pop_clip = draw_pop_clip;
-    target.push_piece = draw_push_piece;
-}
 
 //
 // Renderer
@@ -1636,17 +1624,35 @@ LinuxHandleX11Events(void)
 
 int
 main(int argc, char **argv){
-    //
-    // System & Memory init
-    //
+    memset(&linuxvars, 0, sizeof(linuxvars));
+    memset(&target, 0, sizeof(target));
+    memset(&memory_vars, 0, sizeof(memory_vars));
+    memset(&plat_settings, 0, sizeof(plat_settings));
     
-    load_app_code();
-    link_system_code(&sysfunc);
-    LinuxLoadRenderCode();
-    
-    system_memory_init();
+    memset(&libraries, 0, sizeof(libraries));
+    memset(&app, 0, sizeof(app));
+    memset(&custom_api, 0, sizeof(custom_api));
     
     init_shared_vars();
+    
+    //
+    // Linkage
+    //
+    
+    link_system_code();
+    load_app_code();
+    link_rendering();
+#if defined(FRED_SUPER)
+    load_custom_code();
+#else
+    custom_api.get_bindings = get_bindings;
+#endif
+    
+    //
+    // Memory init
+    //
+    
+    system_memory_init();
     
     //
     // Read command line
@@ -1681,68 +1687,6 @@ main(int argc, char **argv){
     sysshared_filter_real_files(files, file_count);
     
     //
-    // Custom layer linkage
-    //
-    
-#ifdef FRED_SUPER
-    
-    char base_dir_mem[PATH_MAX];
-    String base_dir = make_fixed_width_string(base_dir_mem);
-    
-    char *custom_file_default = "custom_4coder.so";
-    sysshared_to_binary_path(&base_dir, custom_file_default);
-    custom_file_default = base_dir.str;
-    
-    char *custom_file;
-    if (plat_settings.custom_dll){
-        custom_file = plat_settings.custom_dll;
-    } 
-    else{
-        custom_file = custom_file_default;
-    }
-    
-    linuxvars.custom = dlopen(custom_file, RTLD_LAZY);
-    if (!linuxvars.custom && custom_file != custom_file_default){
-        if (!plat_settings.custom_dll_is_strict){
-            linuxvars.custom = dlopen(custom_file_default, RTLD_LAZY);
-        }
-    }
-    
-    if (linuxvars.custom){
-        linuxvars.custom_api.get_alpha_4coder_version = (_Get_Version_Function*)
-            dlsym(linuxvars.custom, "get_alpha_4coder_version");
-        
-        if (linuxvars.custom_api.get_alpha_4coder_version == 0 ||
-            linuxvars.custom_api.get_alpha_4coder_version(MAJOR, MINOR, PATCH) == 0){
-            system_error_box("Failed to load 'custom_4coder.so': Version mismatch. Try rebuilding it with 'buildsuper.sh'.");
-        }
-        else{
-            linuxvars.custom_api.get_bindings = (Get_Binding_Data_Function*)
-                dlsym(linuxvars.custom, "get_bindings");
-            
-            if (linuxvars.custom_api.get_bindings == 0){
-                system_error_box("Failed to load 'custom_4coder.so': "
-                                 "It does not export the required 'get_bindings' function. "
-                                 "Try rebuilding it with 'buildsuper.sh'.");
-            }
-            else{
-                LOG("Successfully loaded custom_4coder.so\n");
-            }
-        }
-    }
-    else{
-        char buf[4096];
-        const char* error = dlerror();
-        snprintf(buf, sizeof(buf), "Error loading custom: %s. "
-                 "Make sure this file is in the same directory as the main '4ed' executable.",
-                 error ? error : "'custom_4coder.so' missing");
-        system_error_box(buf);
-    }
-#else
-    linuxvars.custom_api.get_bindings = get_bindings;
-#endif
-    
-    //
     // Coroutines
     //
     
@@ -1760,8 +1704,8 @@ main(int argc, char **argv){
     //
     // Threads
     //
-    system_init_threaded_work_system();
     
+    system_init_threaded_work_system();
     
     //
     // X11 init
@@ -1892,7 +1836,7 @@ main(int argc, char **argv){
     
     XAddConnectionWatch(linuxvars.XDisplay, &LinuxX11ConnectionWatch, NULL);
     
-    app.init(&sysfunc, &target, &memory_vars, linuxvars.clipboard_contents, current_directory, linuxvars.custom_api);
+    app.init(&sysfunc, &target, &memory_vars, linuxvars.clipboard_contents, current_directory, custom_api);
     
     LinuxResizeTarget(window_width, window_height);
     

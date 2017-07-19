@@ -19,6 +19,16 @@ global Unix_Vars unixvars;
 //
 
 internal
+Sys_Get_Current_Path_Sig(system_get_current_path){
+    i32 result = 0;
+    char *d = getcwd(out, capacity);
+    if (d == out){
+        result = strlen(out);
+    }
+    return(result);
+}
+
+internal
 Sys_Get_4ed_Path_Sig(system_get_4ed_path){
     ssize_t size = readlink("/proc/self/exe", out, capacity - 1);
     if (size != -1 && size < capacity - 1){
