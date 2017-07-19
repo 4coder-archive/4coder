@@ -113,6 +113,7 @@ struct Win32_Coroutine{
 
 ////////////////////////////////
 
+global System_Functions sysfunc;
 #include "win32_4ed_libraries.cpp"
 #include "4ed_standard_libraries.cpp"
 
@@ -159,7 +160,6 @@ struct Win32_Vars{
 
 global Win32_Vars win32vars;
 global Render_Target target;
-global System_Functions sysfunc;
 global Application_Memory memory_vars;
 global Plat_Settings plat_settings;
 
