@@ -21,7 +21,6 @@
 # include "4coder_API/style.h"
 
 # define FSTRING_IMPLEMENTATION
-# define FSTRING_C
 # include "4coder_lib/4coder_string.h"
 # include "4coder_lib/4coder_mem.h"
 
@@ -43,7 +42,34 @@
 #include "4ed_font_interface_to_os.h"
 #include "4ed_system_shared.h"
 
+#include "unix_4ed_headers.h"
 #include <sys/syslimits.h>
+
+////////////////////////////////
+
+#define SLASH '/'
+#define DLL "so"
+
+global System_Functions sysfunc;
+#include "4ed_shared_library_constants.h"
+#include "mac_library_wrapper.h"
+#include "4ed_standard_libraries.cpp"
+
+#include "4ed_coroutine.cpp"
+
+////////////////////////////////
+
+global Render_Target target;
+global Application_Memory memory_vars;
+global Plat_Settings plat_settings;
+
+global Libraries libraries;
+global App_Functions app;
+global Custom_API custom_api;
+
+global Coroutine_System_Auto_Alloc coroutines;
+
+////////////////////////////////
 
 #include "unix_4ed_functions.cpp"
 
