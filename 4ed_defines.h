@@ -89,11 +89,13 @@ inline i32 div_ceil(i32 n, i32 d){
 }
 
 inline i32 l_round_up_i32(i32 x, i32 b){
-    return( ((x)+(b)-1) - (((x)+(b)-1)%(b)) );
+    i32 t = x + b - 1;
+    return(t - (t%b));
 }
 
 inline u32 l_round_up_u32(u32 x, u32 b){
-    return( ((x)+(b)-1) - (((x)+(b)-1)%(b)) );
+    i32 t = x + b - 1;
+    return(t - (t%b));
 }
 
 inline u32 round_up_pot_u32(u32 x){

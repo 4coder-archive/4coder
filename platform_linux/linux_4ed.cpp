@@ -1465,20 +1465,17 @@ LinuxHandleX11Events(void)
                 response.time = request.time;
                 response.property = None;
                 
-                if (
-                    linuxvars.clipboard_outgoing.size &&
+                if (linuxvars.clipboard_outgoing.size &&
                     request.selection == linuxvars.atom_CLIPBOARD &&
                     request.property != None &&
                     request.display &&
-                    request.requestor
-                    ){
+                    request.requestor){
                     Atom atoms[] = {
                         XA_STRING,
                         linuxvars.atom_UTF8_STRING
                     };
                     
                     if (request.target == linuxvars.atom_TARGETS){
-                        
                         XChangeProperty(
                             request.display,
                             request.requestor,
@@ -1487,8 +1484,7 @@ LinuxHandleX11Events(void)
                             32,
                             PropModeReplace,
                             (u8*)atoms,
-                            ArrayCount(atoms)
-                            );
+                            ArrayCount(atoms));
                         
                         response.property = request.property;
                         

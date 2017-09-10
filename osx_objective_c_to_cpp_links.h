@@ -36,6 +36,9 @@ typedef struct OSX_Vars{
     void *clipboard_data;
     umem clipboard_size, clipboard_max;
     b32 just_posted_to_clipboard;
+
+    char *clipboard_space;
+    umem clipboard_space_max;
 } OSX_Vars;
 
 // In C++ layer.

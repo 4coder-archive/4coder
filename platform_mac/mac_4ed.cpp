@@ -89,6 +89,32 @@ OSX_Vars osx;
 #include "4ed_font_data.h"
 #include "4ed_system_shared.cpp"
 
+////////////////////////////////
+
+//
+// Clipboard
+//
+
+internal
+Sys_Post_Clipboard_Sig(system_post_clipboard){
+    char *string = str.str;
+    if (!terminate_with_null(&str)){
+        if (osx.clipboard_space_max <= str.size + 1){
+            if (osx.clipboard_space != 0){
+                system_memory_free(osx.clipboard_space, osx.clipboard_space_max);
+            }
+            osx.clipboard_space_max = l_round_up_u32(str.size*2 + 1, KB(4096));
+            osx.clipboard_space = (char*)system_memory_allocate(osx.clipboard_space_max);
+        }
+        memcpy(osx.clipboard_space, str.str, str.size);
+        osx.clipboard_space[str.size] = 0;
+        string = osx.clipboard_space;
+    }
+    osx_post_to_clipboard(string);
+}
+
+////////////////////////////////
+
 #include "4ed_link_system_functions.cpp"
 #include "4ed_shared_init_logic.cpp"
 
