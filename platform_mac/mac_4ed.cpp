@@ -45,6 +45,14 @@
 #include "unix_4ed_headers.h"
 #include <sys/syslimits.h>
 
+#include <OpenGL/OpenGL.h>
+#include <OpenGL/gl.h>
+
+////////////////////////////////
+
+#include "4ed_shared_thread_constants.h"
+#include "unix_threading_wrapper.h"
+
 ////////////////////////////////
 
 #define SLASH '/'
@@ -52,7 +60,7 @@
 
 global System_Functions sysfunc;
 #include "4ed_shared_library_constants.h"
-#include "mac_library_wrapper.h"
+#include "unix_library_wrapper.h"
 #include "4ed_standard_libraries.cpp"
 
 #include "4ed_coroutine.cpp"
@@ -75,6 +83,14 @@ global Coroutine_System_Auto_Alloc coroutines;
 
 #include "osx_objective_c_to_cpp_links.h"
 OSX_Vars osx;
+
+#include <stdlib.h>
+
+#include "4ed_font_data.h"
+#include "4ed_system_shared.cpp"
+
+#include "4ed_link_system_functions.cpp"
+#include "4ed_shared_init_logic.cpp"
 
 external void*
 osx_allocate(umem size){
@@ -111,6 +127,64 @@ osx_step(){
 
 external void
 osx_init(){
+    //
+    // System Linkage
+    //
+    
+    link_system_code();
+    
+    //
+    // Memory init
+    //
+    
+    memset(&linuxvars, 0, sizeof(linuxvars));
+    memset(&target, 0, sizeof(target));
+    memset(&memory_vars, 0, sizeof(memory_vars));
+    memset(&plat_settings, 0, sizeof(plat_settings));
+    
+    memset(&libraries, 0, sizeof(libraries));
+    memset(&app, 0, sizeof(app));
+    memset(&custom_api, 0, sizeof(custom_api));
+    
+    memory_init();
+    
+    //
+    // HACK(allen): 
+    // Previously zipped stuff is here, it should be zipped in the new pattern now.
+    //
+    
+    init_shared_vars();
+    
+    //
+    // Dynamic Linkage
+    //
+    
+    load_app_code();
+    link_rendering();
+#if defined(FRED_SUPER)
+    load_custom_code();
+#else
+    custom_api.get_bindings = get_bindings;
+#endif
+    
+    //
+    // Read command line
+    //
+    
+    read_command_line(argc, argv);
+    
+    //
+    // Threads
+    //
+    
+    work_system_init();
+    
+    //
+    // Coroutines
+    //
+    
+    coroutines_init();
+
     // TODO
 }
 

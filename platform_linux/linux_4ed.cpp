@@ -50,7 +50,6 @@
 #include <stdlib.h>
 
 #include <locale.h>
-#include <dlfcn.h>
 #include <xmmintrin.h>
 #include <ucontext.h>
 
@@ -76,7 +75,7 @@
 #include <linux/input.h>
 
 #include "4ed_shared_thread_constants.h"
-#include "linux_threading_wrapper.h"
+#include "unix_threading_wrapper.h"
 
 //
 // Linux macros
@@ -118,7 +117,7 @@ internal void        LinuxStringDup(String*, void*, size_t);
 
 global System_Functions sysfunc;
 #include "4ed_shared_library_constants.h"
-#include "linux_library_wrapper.h"
+#include "unix_library_wrapper.h"
 #include "4ed_standard_libraries.cpp"
 
 #include "4ed_coroutine.cpp"
@@ -483,10 +482,6 @@ Sys_CLI_End_Update_Sig(system_cli_end_update){
     
     return(close_me);
 }
-
-//
-// Linux rendering/font system functions
-//
 
 #include "4ed_font_data.h"
 #include "4ed_system_shared.cpp"

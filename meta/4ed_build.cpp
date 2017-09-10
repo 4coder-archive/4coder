@@ -491,18 +491,26 @@ do_buildsuper(char *cdir, char *file, u32 arch){
     END_TIME_SECTION("build custom");
 }
 
+// TODO(allen): Remove this
 internal i32
 get_freetype_include(char *out, u32 max){
     i32 size = 0;
+#if 0
 #if defined(IS_LINUX)
     char freetype_include[512];
     FILE *file = popen("pkg-config --cflags freetype2", "r");
     if (file != 0){
         fgets(freetype_include, sizeof(freetype_include), file);
         size = strlen(freetype_include);
-        freetype_include[size-1] = 0;
+        memcpy(out, freetype_include, size);
         pclose(file);
     }
+#elif defined(IS_MAC)
+    char *freetype_include = "/usr/local/include/freetype2";
+    size = strlen(freetype_include);
+    memcpy(out, freetype_include, size
+        );
+#endif
 #endif
     return(size);
 }
@@ -521,6 +529,7 @@ build_main(char *cdir, b32 update_local_theme, u32 flags, u32 arch){
         i32 ft_size = get_freetype_include(ft_include, sizeof(ft_include) - 1);
         if (ft_size > 0){
             ft_include[ft_size] = 0;
+            fprintf(stdout, "FREETYPE: %s\n", ft_include);
             build_includes = fm_list(build_includes, fm_list_one_item(ft_include));
         }
         
