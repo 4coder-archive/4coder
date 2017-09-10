@@ -91,6 +91,8 @@ OSX_Vars osx;
 
 ////////////////////////////////
 
+#include "4ed_coroutine_functions.cpp"
+
 //
 // Clipboard
 //
@@ -108,7 +110,8 @@ Sys_Post_Clipboard_Sig(system_post_clipboard){
         }
         memcpy(osx.clipboard_space, str.str, str.size);
         osx.clipboard_space[str.size] = 0;
-        string = osx.clipboard_space;
+        string = osx.clipboard_space
+        ;
     }
     osx_post_to_clipboard(string);
 }
