@@ -86,9 +86,6 @@ OSX_Vars osx;
 
 #include <stdlib.h>
 
-#include "4ed_font_data.h"
-#include "4ed_system_shared.cpp"
-
 ////////////////////////////////
 
 #include "4ed_coroutine_functions.cpp"
@@ -115,6 +112,40 @@ Sys_Post_Clipboard_Sig(system_post_clipboard){
     }
     osx_post_to_clipboard(string);
 }
+
+//
+// CLI
+//
+
+internal
+Sys_CLI_Call_Sig(system_cli_call){
+    // b32 #(char *path, char *script_name, CLI_Handles *cli_out)
+    // TODO
+    return(true);
+}
+
+internal
+Sys_CLI_Begin_Update_Sig(system_cli_begin_update){
+    // void #(CLI_Handles *cli)
+    // TODO
+}
+
+internal
+Sys_CLI_Update_Step_Sig(system_cli_update_step){
+    // b32 #(CLI_Handles *cli, char *dest, u32 max, u32 *amount)
+    // TODO
+    return(0);
+}
+
+internal
+Sys_CLI_End_Update_Sig(system_cli_end_update){
+    // b32 #(CLI_Handles *cli)
+    // TODO
+    return(false);
+}
+
+#include "4ed_font_data.h"
+#include "4ed_system_shared.cpp"
 
 ////////////////////////////////
 
