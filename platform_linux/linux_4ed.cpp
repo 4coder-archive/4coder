@@ -89,6 +89,7 @@
     LOGF("%s: " fmt "\n", __func__, ##__VA_ARGS__); \
 } while (0)
 
+// TODO(allen): Make an intrinsics header that uses the cracked OS to define a single set of intrinsic names.
 #define InterlockedCompareExchange(dest, ex, comp) \
 __sync_val_compare_and_swap((dest), (comp), (ex))
 

@@ -39,6 +39,9 @@ typedef struct OSX_Vars{
 
     char *clipboard_space;
     umem clipboard_space_max;
+
+    b32 full_screen;
+    b32 do_toggle;
 } OSX_Vars;
 
 // In C++ layer.
@@ -68,6 +71,9 @@ osx_init();
 // In Objective-C layer.
 external void
 osx_post_to_clipboard(char *str);
+
+external void
+osx_error_dialogue(char *str);
 
 #endif
 

@@ -38,6 +38,16 @@ osx_post_to_clipboard(char *str){
 	osx.just_posted_to_clipboard = true;
 }
 
+void
+osx_error_dialogue(char *str){
+	NSAlert *alert = [[NSAlert alloc] init];
+	[alert addButtonWithTitle:@"OK"];
+	NSString *text = [NSString stringWithUTF8String:str];
+	[alert setMessageText:text];
+	[alert setAlertStyle:NSCriticalAlertStyle];
+	[alert runModal];
+}
+
 //
 // Entry point, OpenGL window setup.
 //

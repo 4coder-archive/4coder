@@ -48,10 +48,16 @@
 #include <OpenGL/OpenGL.h>
 #include <OpenGL/gl.h>
 
+#include <stdlib.h>
+
 ////////////////////////////////
 
 #include "4ed_shared_thread_constants.h"
 #include "unix_threading_wrapper.h"
+
+// TODO(allen): Make an intrinsics header that uses the cracked OS to define a single set of intrinsic names.
+#define InterlockedCompareExchange(dest, ex, comp) \
+__sync_val_compare_and_swap((dest), (comp), (ex))
 
 ////////////////////////////////
 
@@ -67,6 +73,8 @@ global System_Functions sysfunc;
 
 ////////////////////////////////
 
+#include "osx_objective_c_to_cpp_links.h"
+OSX_Vars osx;
 global Render_Target target;
 global Application_Memory memory_vars;
 global Plat_Settings plat_settings;
@@ -79,14 +87,51 @@ global Coroutine_System_Auto_Alloc coroutines;
 
 ////////////////////////////////
 
-#include "unix_4ed_functions.cpp"
-
-#include "osx_objective_c_to_cpp_links.h"
-OSX_Vars osx;
-
-#include <stdlib.h>
+#include "mac_error_box.cpp"
 
 ////////////////////////////////
+
+#include "unix_4ed_functions.cpp"
+#include "4ed_shared_file_handling.cpp"
+
+////////////////////////////////
+
+internal void
+system_schedule_step(){
+    // NOTE(allen): It is unclear to me right now what we might need to actually do here.
+    // The run loop in a Cocoa app will keep rendering the app anyway, I might just need to set a
+    // "do_new_frame" variable of some kind to true here.
+}
+
+////////////////////////////////
+
+#include "4ed_work_queues.cpp"
+
+////////////////////////////////
+
+// TODO(allen): add a "shown but auto-hides on timer" setting here.
+internal
+Sys_Show_Mouse_Cursor_Sig(system_show_mouse_cursor){
+    // TODO(allen)
+}
+
+internal
+Sys_Set_Fullscreen_Sig(system_set_fullscreen){
+    osx.do_toggle = (osx.full_screen != full_screen);
+    return(true);
+}
+
+internal
+Sys_Is_Fullscreen_Sig(system_is_fullscreen){
+    b32 result = (osx.full_screen != osx.do_toggle);
+    return(result);
+}
+
+// HACK(allen): Why does this work differently from the win32 version!?
+internal
+Sys_Send_Exit_Signal_Sig(system_send_exit_signal){
+    osx.running = false;
+}
 
 #include "4ed_coroutine_functions.cpp"
 
@@ -107,8 +152,7 @@ Sys_Post_Clipboard_Sig(system_post_clipboard){
         }
         memcpy(osx.clipboard_space, str.str, str.size);
         osx.clipboard_space[str.size] = 0;
-        string = osx.clipboard_space
-        ;
+        string = osx.clipboard_space;
     }
     osx_post_to_clipboard(string);
 }
@@ -120,27 +164,27 @@ Sys_Post_Clipboard_Sig(system_post_clipboard){
 internal
 Sys_CLI_Call_Sig(system_cli_call){
     // b32 #(char *path, char *script_name, CLI_Handles *cli_out)
-    // TODO
+    NotImplemented;
     return(true);
 }
 
 internal
 Sys_CLI_Begin_Update_Sig(system_cli_begin_update){
     // void #(CLI_Handles *cli)
-    // TODO
+    NotImplemented;
 }
 
 internal
 Sys_CLI_Update_Step_Sig(system_cli_update_step){
     // b32 #(CLI_Handles *cli, char *dest, u32 max, u32 *amount)
-    // TODO
+    NotImplemented;
     return(0);
 }
 
 internal
 Sys_CLI_End_Update_Sig(system_cli_end_update){
     // b32 #(CLI_Handles *cli)
-    // TODO
+    NotImplemented;
     return(false);
 }
 
@@ -197,7 +241,7 @@ osx_init(){
     // Memory init
     //
     
-    memset(&linuxvars, 0, sizeof(linuxvars));
+    memset(&osx, 0, sizeof(osx));
     memset(&target, 0, sizeof(target));
     memset(&memory_vars, 0, sizeof(memory_vars));
     memset(&plat_settings, 0, sizeof(plat_settings));

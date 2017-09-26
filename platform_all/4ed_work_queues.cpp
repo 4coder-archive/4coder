@@ -117,7 +117,7 @@ PLAT_THREAD_SIG(job_thread_proc){
                 // with the cancel job routine, which may try to cancel this job
                 // at the same time that we try to run it
                 
-                i32 safe_running_thread =InterlockedCompareExchange(&full_job->running_thread, thread->id, THREAD_NOT_ASSIGNED);
+                i32 safe_running_thread = InterlockedCompareExchange(&full_job->running_thread, thread->id, THREAD_NOT_ASSIGNED);
                 
                 if (safe_running_thread == THREAD_NOT_ASSIGNED){
                     thread->job_id = full_job->id;
