@@ -291,6 +291,8 @@ main(int argc, char **argv){
 	umem clipboard_size = MB(4);
 	osx.clipboard_data = osx_allocate(clipboard_size);
 	osx.clipboard_max = clipboard_size;
+	osx.argc = argc;
+	osx.argv = argv;
 
 	osx_init();
 

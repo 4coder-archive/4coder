@@ -109,7 +109,6 @@ system_schedule_step(){
 
 ////////////////////////////////
 
-// TODO(allen): add a "shown but auto-hides on timer" setting here.
 internal
 Sys_Show_Mouse_Cursor_Sig(system_show_mouse_cursor){
     // TODO(allen)
@@ -241,7 +240,6 @@ osx_init(){
     // Memory init
     //
     
-    memset(&osx, 0, sizeof(osx));
     memset(&target, 0, sizeof(target));
     memset(&memory_vars, 0, sizeof(memory_vars));
     memset(&plat_settings, 0, sizeof(plat_settings));
@@ -275,7 +273,7 @@ osx_init(){
     // Read command line
     //
     
-    read_command_line(argc, argv);
+    read_command_line(osx.argc, osx.argv);
     
     //
     // Threads
@@ -289,8 +287,37 @@ osx_init(){
     
     coroutines_init();
 
-    // TODO
+    //
+    // Font System Init
+    //
+    
+    system_font_init(&sysfunc.font, 0, 0, plat_settings.font_size, plat_settings.use_hinting);
+    
+    //
+    // App Init
+    //
+    
+    char cwd[4096];
+    u32 size = sysfunc.get_current_path(cwd, sizeof(cwd));
+    if (size == 0 || size >= sizeof(cwd)){
+        system_error_box("Could not get current directory at launch.");
+    }
+    String curdir = make_string(cwd, size);
+    terminate_with_null(&curdir);
+    replace_char(&curdir, '\\', '/');
+
+    String clipboard_string = {0};
+    if (osx.has_clipboard_item){
+        clipboard_string = make_string(osx.clipboard_data, osx.clipboard_size);
+    }
+
+    LOG("Initializing application variables\n");
+    app.init(&sysfunc, &target, &memory_vars, clipboard_string, curdir, custom_api);
 }
+
+#include "4ed_shared_fonts.cpp"
+#include "mac_4ed_file_track.cpp"
+#include "4ed_font_static_functions.cpp"
 
 // BOTTOM
 

@@ -42,6 +42,9 @@ typedef struct OSX_Vars{
 
     b32 full_screen;
     b32 do_toggle;
+
+    i32 argc;
+    char **argv;
 } OSX_Vars;
 
 // In C++ layer.
