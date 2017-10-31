@@ -206,8 +206,8 @@ internal void
 win32_toggle_fullscreen(){
     HWND win = win32vars.window_handle;
     DWORD style = GetWindowLongW(win, GWL_STYLE);
-    b32 is_full = ((style & WS_OVERLAPPEDWINDOW) != 0);
-    if (is_full){
+    b32 is_full = ((style & WS_OVERLAPPEDWINDOW) == 0);
+    if (!is_full){
         MONITORINFO info = {sizeof(MONITORINFO)};
         if (GetWindowPlacement(win, &win32vars.bordered_win_pos) && GetMonitorInfo(MonitorFromWindow(win, MONITOR_DEFAULTTOPRIMARY), &info)){
             SetWindowLongW(win, GWL_STYLE, style & ~WS_OVERLAPPEDWINDOW);
@@ -703,6 +703,8 @@ Win32InitGL(){
         }
     }
     
+    ReleaseDC(win32vars.window_handle, dc);
+    
 #if (defined(BUILD_X64) && 1) || (defined(BUILD_X86) && 0)
 #if defined(FRED_INTERNAL)
     // NOTE(casey): This slows down GL but puts error messages to
@@ -720,8 +722,6 @@ Win32InitGL(){
     }
 #endif
 #endif
-    
-    ReleaseDC(win32vars.window_handle, dc);
     
     glEnable(GL_TEXTURE_2D);
     glEnable(GL_SCISSOR_TEST);
