@@ -923,22 +923,30 @@ wrap_state_consume_token(System_Functions *system, Render_Font *font, Code_Wrap_
     
     result.position_start = i;
     
+    Cpp_Token token = {0};
+    
+    token.start = state->size;
+    if (state->token_ptr < state->end_token){
+        token = *state->token_ptr;
+    }
+    
     if (state->consume_newline){
         ++i;
         state->x = 0;
         state->consume_newline = 0;
     }
     
+    
     if (state->in_pp_body){
-        if (!(state->token_ptr->flags & CPP_TFLAG_PP_BODY)){
-            state->in_pp_body = 0;
+        if (!(token.flags & CPP_TFLAG_PP_BODY)){
+            state->in_pp_body = false;
             state->wrap_x = state->plane_wrap_x;
         }
     }
     
     if (!state->in_pp_body){
-        if (state->token_ptr->flags & CPP_TFLAG_PP_DIRECTIVE){
-            state->in_pp_body = 1;
+        if (token.flags & CPP_TFLAG_PP_DIRECTIVE){
+            state->in_pp_body = true;
             state->plane_wrap_x = state->wrap_x;
             state->wrap_x = null_wrap_x;
         }
@@ -967,8 +975,7 @@ wrap_state_consume_token(System_Functions *system, Render_Font *font, Code_Wrap_
     
     i32 line_start = state->line_starts[state->line_index];
     b32 still_looping = 0;
-    i32 end = state->token_ptr->start + state->token_ptr->size;
-    
+    i32 end = token.start + token.size;
     if (fixed_end_point >= 0 && end > fixed_end_point){
         end = fixed_end_point;
     }
@@ -1015,7 +1022,7 @@ wrap_state_consume_token(System_Functions *system, Render_Font *font, Code_Wrap_
                     if (!skipping_whitespace){
                         if (!recorded_start_x){
                             result.start_x = state->x;
-                            recorded_start_x = 1;
+                            recorded_start_x = true;
                         }
                         state->x += adv;
                     }
@@ -1028,13 +1035,14 @@ wrap_state_consume_token(System_Functions *system, Render_Font *font, Code_Wrap_
     
     state->i = i;
     
-    b32 consume_token = 0;
-    if (state->token_ptr < state->end_token && i >= state->token_ptr->start + state->token_ptr->size){
-        consume_token = 1;
+    b32 consume_token = false;
+    if (state->token_ptr < state->end_token && i >= token.start + token.size){
+        consume_token = true;
     }
     
     result.this_token = state->token_ptr;
     if (consume_token){
+        Assert(state->token_ptr < state->end_token);
         switch (state->token_ptr->type){
             case CPP_TOKEN_BRACE_OPEN:
             {
@@ -1088,7 +1096,7 @@ wrap_state_consume_token(System_Functions *system, Render_Font *font, Code_Wrap_
     
     if (!recorded_start_x){
         result.start_x = state->x;
-        recorded_start_x = 1;
+        recorded_start_x = true;
     }
     
     return(result);
@@ -1262,6 +1270,11 @@ get_current_shift(Code_Wrap_State *wrap_state, i32 next_line_start){
     
     result.shift = wrap_state->wrap_x.paren_nesting[wrap_state->wrap_x.paren_safe_top];
     
+    Cpp_Token next_token = {0};
+    if (wrap_state->token_ptr < wrap_state->end_token){
+        next_token = *wrap_state->token_ptr;
+    }
+    
     if (wrap_state->token_ptr > wrap_state->token_array.tokens){
         Cpp_Token prev_token = *(wrap_state->token_ptr-1);
         
@@ -1286,18 +1299,18 @@ get_current_shift(Code_Wrap_State *wrap_state, i32 next_line_start){
             }
         }
         
-        switch (wrap_state->token_ptr->type){
+        switch (next_token.type){
             case CPP_TOKEN_BRACE_CLOSE: case CPP_TOKEN_BRACE_OPEN: break;
             default: result.shift += statement_continuation_indent; break;
         }
     }
     
-    if (wrap_state->token_ptr->start < next_line_start){
-        if (wrap_state->token_ptr->flags & CPP_TFLAG_PP_DIRECTIVE){
+    if (next_token.start < next_line_start){
+        if (next_token.flags & CPP_TFLAG_PP_DIRECTIVE){
             result.shift = 0;
         }
         else{
-            switch (wrap_state->token_ptr->type){
+            switch (next_token.type){
                 case CPP_TOKEN_BRACE_CLOSE:
                 {
                     if (wrap_state->wrap_x.paren_safe_top == 0){
@@ -1496,8 +1509,8 @@ file_measure_wraps(System_Functions *system, Models *models, Editing_File *file,
                         
                         for (; wrap_state.token_ptr < wrap_state.end_token; ){
                             Code_Wrap_Step step = {0};
-                            b32 emit_comment_position = 0;
-                            b32 first_word = 1;
+                            b32 emit_comment_position = false;
+                            b32 first_word = true;
                             
                             if (wrap_state.token_ptr->type == CPP_TOKEN_COMMENT || wrap_state.token_ptr->type == CPP_TOKEN_STRING_CONSTANT){
                                 i32 i = wrap_state.token_ptr->start;
@@ -1626,29 +1639,39 @@ file_measure_wraps(System_Functions *system, Models *models, Editing_File *file,
                                 step = wrap_state_consume_token(system, font, &wrap_state, next_line_start);
                             }
                             
-                            b32 need_to_choose_a_wrap = 0;
+                            b32 need_to_choose_a_wrap = false;
                             if (step.final_x > current_width){
-                                need_to_choose_a_wrap = 1;
+                                need_to_choose_a_wrap = true;
                             }
                             
                             current_shift = get_current_shift(&wrap_state, next_line_start);
                             
-                            b32 next_token_is_on_line = 0;
-                            if (wrap_state.token_ptr->start < next_line_start){
-                                next_token_is_on_line = 1;
+                            b32 next_token_is_on_line = false;
+                            if (wrap_state.token_ptr < wrap_state.end_token){
+                                if (wrap_state.token_ptr->start < next_line_start){
+                                    next_token_is_on_line = true;
+                                }
                             }
                             
                             i32 next_wrap_position = step.position_end;
                             f32 wrap_x = step.final_x;
-                            if (wrap_state.token_ptr->start > step.position_start && next_wrap_position < wrap_state.token_ptr->start && next_token_is_on_line){
-                                next_wrap_position = wrap_state.token_ptr->start;
+                            if (next_token_is_on_line){
+                                if (wrap_state.token_ptr < wrap_state.end_token){
+                                    i32 pos_i = wrap_state.token_ptr->start;
+                                    if (pos_i > step.position_start && next_wrap_position < pos_i){
+                                        next_wrap_position = pos_i;
+                                    }
+                                }
                             }
                             
                             if (!need_to_choose_a_wrap){
                                 i32 wrappable_score = 1;
                                 
                                 Cpp_Token *this_token = step.this_token;
-                                Cpp_Token *next_token = wrap_state.token_ptr;
+                                Cpp_Token *next_token = 0;
+                                if (wrap_state.token_ptr < wrap_state.end_token){
+                                    next_token = wrap_state.token_ptr;
+                                }
                                 
                                 Cpp_Token_Type this_type = this_token->type;
                                 Cpp_Token_Type next_type = CPP_TOKEN_JUNK;

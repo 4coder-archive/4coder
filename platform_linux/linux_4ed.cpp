@@ -50,7 +50,6 @@
 #include <stdlib.h>
 
 #include <locale.h>
-#include <dlfcn.h>
 #include <xmmintrin.h>
 #include <ucontext.h>
 
@@ -76,7 +75,7 @@
 #include <linux/input.h>
 
 #include "4ed_shared_thread_constants.h"
-#include "linux_threading_wrapper.h"
+#include "unix_threading_wrapper.h"
 
 //
 // Linux macros
@@ -90,6 +89,7 @@
     LOGF("%s: " fmt "\n", __func__, ##__VA_ARGS__); \
 } while (0)
 
+// TODO(allen): Make an intrinsics header that uses the cracked OS to define a single set of intrinsic names.
 #define InterlockedCompareExchange(dest, ex, comp) \
 __sync_val_compare_and_swap((dest), (comp), (ex))
 
@@ -118,7 +118,7 @@ internal void        LinuxStringDup(String*, void*, size_t);
 
 global System_Functions sysfunc;
 #include "4ed_shared_library_constants.h"
-#include "linux_library_wrapper.h"
+#include "unix_library_wrapper.h"
 #include "4ed_standard_libraries.cpp"
 
 #include "4ed_coroutine.cpp"
@@ -305,6 +305,8 @@ Sys_Send_Exit_Signal_Sig(system_send_exit_signal){
     linuxvars.keep_running = false;
 }
 
+#include "4ed_coroutine_functions.cpp"
+
 //
 // Clipboard
 //
@@ -313,63 +315,6 @@ internal
 Sys_Post_Clipboard_Sig(system_post_clipboard){
     LinuxStringDup(&linuxvars.clipboard_outgoing, str.str, str.size);
     XSetSelectionOwner(linuxvars.XDisplay, linuxvars.atom_CLIPBOARD, linuxvars.XWindow, CurrentTime);
-}
-
-//
-// Coroutine
-//
-
-internal
-Sys_Create_Coroutine_Sig(system_create_coroutine){
-    Coroutine *coroutine = coroutine_system_alloc(&coroutines);
-    Coroutine_Head *result = 0;
-    if (coroutine != 0){
-        coroutine_set_function(coroutine, func);
-        result = &coroutine->head;
-    }
-    return(result);
-}
-
-internal
-Sys_Launch_Coroutine_Sig(system_launch_coroutine){
-    Coroutine *coroutine = (Coroutine*)head;
-    coroutine->head.in = in;
-    coroutine->head.out = out;
-    
-    Coroutine *active = coroutine->sys->active;
-    Assert(active != 0);
-    coroutine_launch(active, coroutine);
-    Assert(active == coroutine->sys->active);
-    
-    Coroutine_Head *result = &coroutine->head;
-    if (coroutine->state == CoroutineState_Dead){
-        coroutine_system_free(&coroutines, coroutine);
-        result = 0;
-    }
-    return(result);
-}
-
-Sys_Resume_Coroutine_Sig(system_resume_coroutine){
-    Coroutine *coroutine = (Coroutine*)head;
-    coroutine->head.in = in;
-    coroutine->head.out = out;
-    
-    Coroutine *active = coroutine->sys->active;
-    Assert(active != 0);
-    coroutine_resume(active, coroutine);
-    Assert(active == coroutine->sys->active);
-    
-    Coroutine_Head *result = &coroutine->head;
-    if (coroutine->state == CoroutineState_Dead){
-        coroutine_system_free(&coroutines, coroutine);
-        result = 0;
-    }
-    return(result);
-}
-
-Sys_Yield_Coroutine_Sig(system_yield_coroutine){
-    Coroutine *coroutine = (Coroutine*)head;
-    coroutine_yield(coroutine);
 }
 
 //
@@ -483,10 +428,6 @@ Sys_CLI_End_Update_Sig(system_cli_end_update){
     
     return(close_me);
 }
-
-//
-// Linux rendering/font system functions
-//
 
 #include "4ed_font_data.h"
 #include "4ed_system_shared.cpp"
@@ -1470,20 +1411,17 @@ LinuxHandleX11Events(void)
                 response.time = request.time;
                 response.property = None;
                 
-                if (
-                    linuxvars.clipboard_outgoing.size &&
+                if (linuxvars.clipboard_outgoing.size &&
                     request.selection == linuxvars.atom_CLIPBOARD &&
                     request.property != None &&
                     request.display &&
-                    request.requestor
-                    ){
+                    request.requestor){
                     Atom atoms[] = {
                         XA_STRING,
                         linuxvars.atom_UTF8_STRING
                     };
                     
                     if (request.target == linuxvars.atom_TARGETS){
-                        
                         XChangeProperty(
                             request.display,
                             request.requestor,
@@ -1492,8 +1430,7 @@ LinuxHandleX11Events(void)
                             32,
                             PropModeReplace,
                             (u8*)atoms,
-                            ArrayCount(atoms)
-                            );
+                            ArrayCount(atoms));
                         
                         response.property = request.property;
                         

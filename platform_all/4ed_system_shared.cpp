@@ -227,18 +227,18 @@ sysshared_to_binary_path(String *out_filename, char *filename){
 //
 
 inline void
-draw_safe_push(Render_Target *target, i32 size, void *x){
-    if (size + target->size <= target->max){
-        memcpy(target->push_buffer + target->size, x, size);
-        target->size += size;
+draw_safe_push(Render_Target *t, i32 size, void *x){
+    if (size + t->size <= t->max){
+        memcpy(t->push_buffer + t->size, x, size);
+        t->size += size;
     }
 }
 
-#define PutStruct(s,x) draw_safe_push(target, sizeof(s), &x)
+#define PutStruct(s,x) draw_safe_push(t, sizeof(s), &x)
 
 internal void
-draw_push_piece(Render_Target *target, Render_Piece_Combined piece){
-    if (!target->clip_all){
+draw_push_piece(Render_Target *t, Render_Piece_Combined piece){
+    if (!t->clip_all){
         PutStruct(Render_Piece_Header, piece.header);
         
         switch (piece.header.type){
@@ -263,13 +263,13 @@ draw_push_piece(Render_Target *target, Render_Piece_Combined piece){
             }break;
         }
         
-        Assert(target->size <= target->max);
+        Assert(t->size <= t->max);
     }
 }
 
 internal void
-draw_push_piece_clip(Render_Target *target, i32_Rect clip_box){
-    if (!target->clip_all){
+draw_push_piece_clip(Render_Target *t, i32_Rect clip_box){
+    if (!t->clip_all){
         // TODO(allen): optimize out if there are two clip box changes in a row
         Render_Piece_Change_Clip clip;
         Render_Piece_Header header;
@@ -283,24 +283,24 @@ draw_push_piece_clip(Render_Target *target, i32_Rect clip_box){
 }
 
 internal void
-draw_push_clip(Render_Target *target, i32_Rect clip_box){
-    Assert(target->clip_top == -1 || fits_inside(clip_box, target->clip_boxes[target->clip_top]));
-    Assert(target->clip_top+1 < ArrayCount(target->clip_boxes));
-    target->clip_boxes[++target->clip_top] = clip_box;
+draw_push_clip(Render_Target *t, i32_Rect clip_box){
+    Assert(t->clip_top == -1 || fits_inside(clip_box, t->clip_boxes[t->clip_top]));
+    Assert(t->clip_top+1 < ArrayCount(t->clip_boxes));
+    t->clip_boxes[++t->clip_top] = clip_box;
     
-    target->clip_all = (clip_box.x0 >= clip_box.x1 || clip_box.y0 >= clip_box.y1);
-    draw_push_piece_clip(target, clip_box);
+    t->clip_all = (clip_box.x0 >= clip_box.x1 || clip_box.y0 >= clip_box.y1);
+    draw_push_piece_clip(t, clip_box);
 }
 
 internal i32_Rect
-draw_pop_clip(Render_Target *target){
-    Assert(target->clip_top > 0);
-    i32_Rect result = target->clip_boxes[target->clip_top];
-    --target->clip_top;
-    i32_Rect clip_box = target->clip_boxes[target->clip_top];
+draw_pop_clip(Render_Target *t){
+    Assert(t->clip_top > 0);
+    i32_Rect result = t->clip_boxes[t->clip_top];
+    --t->clip_top;
+    i32_Rect clip_box = t->clip_boxes[t->clip_top];
     
-    target->clip_all = (clip_box.x0 >= clip_box.x1 || clip_box.y0 >= clip_box.y1);
-    draw_push_piece_clip(target, clip_box);
+    t->clip_all = (clip_box.x0 >= clip_box.x1 || clip_box.y0 >= clip_box.y1);
+    draw_push_piece_clip(t, clip_box);
     
     return(result);
 }
@@ -319,31 +319,31 @@ link_rendering(){
 #define ExtractStruct(s) ((s*)cursor); cursor += sizeof(s)
 
 inline void
-draw_set_clip(Render_Target *target, i32_Rect clip_box){
-    glScissor(clip_box.x0, target->height - clip_box.y1, clip_box.x1 - clip_box.x0, clip_box.y1 - clip_box.y0);
+draw_set_clip(Render_Target *t, i32_Rect clip_box){
+    glScissor(clip_box.x0, t->height - clip_box.y1, clip_box.x1 - clip_box.x0, clip_box.y1 - clip_box.y0);
 }
 
 inline void
-draw_bind_texture(Render_Target *target, i32 texid){
-    if (target->bound_texture != texid){
+draw_bind_texture(Render_Target *t, i32 texid){
+    if (t->bound_texture != texid){
         glBindTexture(GL_TEXTURE_2D, texid);
-        target->bound_texture = texid;
+        t->bound_texture = texid;
     }
 }
 
 inline void
-draw_set_color(Render_Target *target, u32 color){
-    if (target->color != color){
-        target->color = color;
+draw_set_color(Render_Target *t, u32 color){
+    if (t->color != color){
+        t->color = color;
         Vec4 c = unpack_color4(color);
         glColor4f(c.r, c.g, c.b, c.a);
     }
 }
 
 inline void
-private_draw_rectangle(Render_Target *target, f32_Rect rect, u32 color){
-    draw_set_color(target, color);
-    draw_bind_texture(target, 0);
+private_draw_rectangle(Render_Target *t, f32_Rect rect, u32 color){
+    draw_set_color(t, color);
+    draw_bind_texture(t, 0);
     glBegin(GL_QUADS);
     {
         glVertex2f(rect.x0, rect.y0);
@@ -355,10 +355,10 @@ private_draw_rectangle(Render_Target *target, f32_Rect rect, u32 color){
 }
 
 inline void
-private_draw_rectangle_outline(Render_Target *target, f32_Rect rect, u32 color){
+private_draw_rectangle_outline(Render_Target *t, f32_Rect rect, u32 color){
     f32_Rect r = get_inner_rect(rect, .5f);
-    draw_set_color(target, color);
-    draw_bind_texture(target, 0);
+    draw_set_color(t, color);
+    draw_bind_texture(t, 0);
     glBegin(GL_LINE_STRIP);
     {
         glVertex2f(r.x0, r.y0);
@@ -371,11 +371,11 @@ private_draw_rectangle_outline(Render_Target *target, f32_Rect rect, u32 color){
 }
 
 inline void
-private_draw_gradient(Render_Target *target, f32_Rect rect, Vec4 color_left, Vec4 color_right){
+private_draw_gradient(Render_Target *t, f32_Rect rect, Vec4 color_left, Vec4 color_right){
     Vec4 cl = color_left;
     Vec4 cr = color_right;
     
-    draw_bind_texture(target, 0);
+    draw_bind_texture(t, 0);
     glBegin(GL_QUADS);
     {
         glColor4f(cl.r, cl.g, cl.b, cl.a);
@@ -433,13 +433,13 @@ get_exact_render_quad(Glyph_Bounds *b, i32 pw, i32 ph, float xpos, float ypos){
 }
 
 inline void
-private_draw_glyph(System_Functions *system, Render_Target *target, Render_Font *font, u32 codepoint, f32 x, f32 y, u32 color){
+private_draw_glyph(System_Functions *system, Render_Target *t, Render_Font *font, u32 codepoint, f32 x, f32 y, u32 color){
     Glyph_Data glyph = font_get_glyph(system, font, codepoint);
     if (glyph.tex != 0){
         Render_Quad q = get_render_quad(&glyph.bounds, glyph.tex_width, glyph.tex_height, x, y);
         
-        draw_set_color(target, color);
-        draw_bind_texture(target, glyph.tex);
+        draw_set_color(t, color);
+        draw_bind_texture(t, glyph.tex);
         glBegin(GL_QUADS);
         {
             glTexCoord2f(q.s0, q.t1); glVertex2f(q.x0, q.y1);
@@ -452,7 +452,7 @@ private_draw_glyph(System_Functions *system, Render_Target *target, Render_Font 
 }
 
 inline void
-private_draw_glyph_mono(System_Functions *system, Render_Target *target, Render_Font *font, u32 codepoint, f32 x, f32 y, f32 advance, u32 color){
+private_draw_glyph_mono(System_Functions *system, Render_Target *t, Render_Font *font, u32 codepoint, f32 x, f32 y, f32 advance, u32 color){
     Glyph_Data glyph = font_get_glyph(system, font, codepoint);
     if (glyph.tex != 0){
         f32 left = glyph.bounds.x0;
@@ -464,8 +464,8 @@ private_draw_glyph_mono(System_Functions *system, Render_Target *target, Render_
         
         Render_Quad q = get_exact_render_quad(&glyph.bounds, glyph.tex_width, glyph.tex_height, x, y);
         
-        draw_set_color(target, color);
-        draw_bind_texture(target, glyph.tex);
+        draw_set_color(t, color);
+        draw_bind_texture(t, glyph.tex);
         glBegin(GL_QUADS);
         {
             glTexCoord2f(q.s0, q.t1); glVertex2f(q.x0, q.y1);
@@ -478,15 +478,15 @@ private_draw_glyph_mono(System_Functions *system, Render_Target *target, Render_
 }
 
 inline void
-private_draw_glyph_mono(System_Functions *system, Render_Target *target, Render_Font *font, u32 character, f32 x, f32 y, u32 color){
+private_draw_glyph_mono(System_Functions *system, Render_Target *t, Render_Font *font, u32 character, f32 x, f32 y, u32 color){
     f32 advance = (f32)font_get_advance(font);
-    private_draw_glyph_mono(system, target, font, character, x, y, advance, color);
+    private_draw_glyph_mono(system, t, font, character, x, y, advance, color);
 }
 
 internal void
-launch_rendering(System_Functions *system, Render_Target *target){
-    char *cursor = target->push_buffer;
-    char *cursor_end = cursor + target->size;
+launch_rendering(System_Functions *system, Render_Target *t){
+    char *cursor = t->push_buffer;
+    char *cursor_end = cursor + t->size;
     
     for (; cursor < cursor_end;){
         Render_Piece_Header *header = ExtractStruct(Render_Piece_Header);
@@ -496,19 +496,19 @@ launch_rendering(System_Functions *system, Render_Target *target){
             case piece_type_rectangle:
             {
                 Render_Piece_Rectangle *rectangle = ExtractStruct(Render_Piece_Rectangle);
-                private_draw_rectangle(target, rectangle->rect, rectangle->color);
+                private_draw_rectangle(t, rectangle->rect, rectangle->color);
             }break;
             
             case piece_type_outline:
             {
                 Render_Piece_Rectangle *rectangle = ExtractStruct(Render_Piece_Rectangle);
-                private_draw_rectangle_outline(target, rectangle->rect, rectangle->color);
+                private_draw_rectangle_outline(t, rectangle->rect, rectangle->color);
             }break;
             
             case piece_type_gradient:
             {
                 Render_Piece_Gradient *gradient = ExtractStruct(Render_Piece_Gradient);
-                private_draw_gradient(target, gradient->rect, unpack_color4(gradient->left_color), unpack_color4(gradient->right_color));
+                private_draw_gradient(t, gradient->rect, unpack_color4(gradient->left_color), unpack_color4(gradient->right_color));
             }break;
             
             case piece_type_glyph:
@@ -517,7 +517,7 @@ launch_rendering(System_Functions *system, Render_Target *target){
                 
                 Render_Font *font = system->font.get_render_data_by_id(glyph->font_id);
                 Assert(font != 0);
-                private_draw_glyph(system, target, font, glyph->codepoint, glyph->pos.x, glyph->pos.y, glyph->color);
+                private_draw_glyph(system, t, font, glyph->codepoint, glyph->pos.x, glyph->pos.y, glyph->color);
             }break;
             
             case piece_type_mono_glyph:
@@ -526,7 +526,7 @@ launch_rendering(System_Functions *system, Render_Target *target){
                 
                 Render_Font *font = system->font.get_render_data_by_id(glyph->font_id);
                 Assert(font != 0);
-                private_draw_glyph_mono(system, target, font, glyph->codepoint, glyph->pos.x, glyph->pos.y, glyph->color);
+                private_draw_glyph_mono(system, t, font, glyph->codepoint, glyph->pos.x, glyph->pos.y, glyph->color);
             }break;
             
             case piece_type_mono_glyph_advance:
@@ -535,13 +535,13 @@ launch_rendering(System_Functions *system, Render_Target *target){
                 
                 Render_Font *font = system->font.get_render_data_by_id(glyph->font_id);
                 Assert(font != 0);
-                private_draw_glyph_mono(system, target, font, glyph->codepoint, glyph->pos.x, glyph->pos.y, glyph->advance, glyph->color);
+                private_draw_glyph_mono(system, t, font, glyph->codepoint, glyph->pos.x, glyph->pos.y, glyph->advance, glyph->color);
             }break;
             
             case piece_type_change_clip:
             {
                 Render_Piece_Change_Clip *clip = ExtractStruct(Render_Piece_Change_Clip);
-                draw_set_clip(target, clip->box);
+                draw_set_clip(t, clip->box);
             }break;
         }
     }

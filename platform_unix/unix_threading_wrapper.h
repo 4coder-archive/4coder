@@ -9,8 +9,8 @@
 
 // TOP
 
-#if !defined(LINUX_THREADING_WRAPPER)
-#define LINUX_THREADING_WRAPPER
+#if !defined(MAC_THREADING_WRAPPER)
+#define MAC_THREADING_WRAPPER
 
 #define PLAT_THREAD_SIG(n) void* n(void *ptr)
 typedef PLAT_THREAD_SIG(Thread_Function);
@@ -34,7 +34,6 @@ union Semaphore{
     sem_t s;
     FixSize(SEMAPHORE_TYPE_SIZE);
 };
-
 
 internal void
 system_init_and_launch_thread(Thread *t, Thread_Function *proc, void *ptr){

@@ -13,6 +13,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 
+#include <dlfcn.h>
 #include <fcntl.h>
 #include <unistd.h>
 #include <dirent.h>

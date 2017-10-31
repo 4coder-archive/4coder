@@ -35,7 +35,7 @@ static i32 prev_error = 0;
 #endif
 
 #define systemf(...) do{                                       \
-    i32 n = snprintf(SF_CMD, sizeof(SF_CMD), __VA_ARGS__); \
+    i32 n = snprintf(SF_CMD, sizeof(SF_CMD), __VA_ARGS__);     \
     AllowLocal(n);                                             \
     Assert(n < sizeof(SF_CMD));                                \
     SYSTEMF_PRINTF("%s\n", SF_CMD);                            \
@@ -136,13 +136,13 @@ internal void fm__swap_ptr(char **A, char **B);
 
 // Slashes
 #if defined(IS_WINDOWS)
-#define SLASH "\\"
+# define SLASH "\\"
 static char platform_correct_slash = '\\';
 #elif defined(IS_LINUX) || defined(IS_MAC)
-#define SLASH "/"
+# define SLASH "/"
 static char platform_correct_slash = '/';
 #else
-#error Slash not set for this platform.
+# error Slash not set for this platform.
 #endif
 
 // File Extensions
