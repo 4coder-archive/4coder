@@ -42,7 +42,7 @@ system_load_library(Library *library, char *name, Load_Library_Location location
     if (!match(extension, DLL)){
         String full_name = make_fixed_width_string(space);
         append(&full_name, name);
-        append(&full_name, "."DLL);
+        append(&full_name, "." DLL);
         if (terminate_with_null(&full_name)){
             name = space;
         }
