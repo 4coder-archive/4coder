@@ -133,6 +133,8 @@ struct Win32_Vars{
     HCURSOR cursor_arrow;
     HCURSOR cursor_leftright;
     HCURSOR cursor_updown;
+    i32 cursor_show;
+    i32 prev_cursor_show;
     
     u8 *clip_buffer;
     u32 clip_max;
@@ -232,11 +234,7 @@ win32_toggle_fullscreen(){
 // TODO(allen): add a "shown but auto-hides on timer" setting here.
 internal
 Sys_Show_Mouse_Cursor_Sig(system_show_mouse_cursor){
-    switch (show){
-        case MouseCursorShow_Never: ShowCursor(false); break;
-        case MouseCursorShow_Always: ShowCursor(true); break;
-        // TODO(allen): MouseCursor_HideWhenStill
-    }
+    win32vars.cursor_show = show;
 }
 
 internal
@@ -678,16 +676,24 @@ internal void
 Win32SetCursorFromUpdate(Application_Mouse_Cursor cursor){
     switch (cursor){
         case APP_MOUSE_CURSOR_ARROW:
-        SetCursor(win32vars.cursor_arrow); break;
+        {
+            SetCursor(win32vars.cursor_arrow);
+        }break;
         
         case APP_MOUSE_CURSOR_IBEAM:
-        SetCursor(win32vars.cursor_ibeam); break;
+        {
+            SetCursor(win32vars.cursor_ibeam);
+        }break;
         
         case APP_MOUSE_CURSOR_LEFTRIGHT:
-        SetCursor(win32vars.cursor_leftright); break;
+        {
+            SetCursor(win32vars.cursor_leftright);
+        }break;
         
         case APP_MOUSE_CURSOR_UPDOWN:
-        SetCursor(win32vars.cursor_updown); break;
+        {
+            SetCursor(win32vars.cursor_updown);
+        }break;
     }
 }
 
@@ -984,6 +990,9 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
     memset(&custom_api, 0, sizeof(custom_api));
     
     memory_init();
+    
+    win32vars.cursor_show = MouseCursorShow_Always;
+    win32vars.prev_cursor_show = MouseCursorShow_Always;
     
     //
     // HACK(allen): 
@@ -1362,6 +1371,28 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
         }
         
         Win32SetCursorFromUpdate(result.mouse_cursor_type);
+        if (win32vars.cursor_show != win32vars.prev_cursor_show){
+            win32vars.prev_cursor_show = win32vars.cursor_show;
+            switch (win32vars.cursor_show){
+                case MouseCursorShow_Never:
+                {
+                    i32 counter = 0;
+                    do{
+                        counter = ShowCursor(false);
+                    }while(counter >= 0);
+                }break;
+                
+                case MouseCursorShow_Always:
+                {
+                    i32 counter = 0;
+                    do{
+                        counter = ShowCursor(true);
+                    }while(counter <= 0);
+                }break;
+                
+                // TODO(allen): MouseCursorShow_HideWhenStill
+            }
+        }
         win32vars.lctrl_lalt_is_altgr = result.lctrl_lalt_is_altgr;
         
         HDC hdc = GetDC(win32vars.window_handle);
