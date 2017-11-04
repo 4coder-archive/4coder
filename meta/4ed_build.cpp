@@ -321,7 +321,7 @@ build(u32 flags, u32 arch, char *code_path, char **code_files, char *out_path, c
 
 #define GCC_LIBS                          \
 "-framework Cocoa -framework QuartzCore " \
-"-framework OpenGL -framework IOKit"
+"-framework OpenGL -framework IOKit -lfreetype"
 
 #else
 # error gcc options not set for this platform

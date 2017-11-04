@@ -24,18 +24,23 @@ system_get_binary_path_string(String *out){
 
 internal void
 init_shared_vars(){
+    DBG_POINT();
     umem scratch_size = KB(128);
     void *scratch_memory = system_memory_allocate(scratch_size);
     shared_vars.scratch = make_part(scratch_memory, (i32)scratch_size);
     
+    DBG_POINT();
     shared_vars.track_table_size = KB(16);
     shared_vars.track_table = system_memory_allocate(shared_vars.track_table_size);
     
+    DBG_POINT();
     shared_vars.track_node_size = KB(16);
     void *track_nodes = system_memory_allocate(shared_vars.track_node_size);
     
+    DBG_POINT();
     i32 track_result = init_track_system(&shared_vars.track, &shared_vars.scratch, shared_vars.track_table, shared_vars.track_table_size, track_nodes, shared_vars.track_node_size);
     
+    DBG_POINT();
     if (track_result != FileTrack_Good){
         exit(1);
     }

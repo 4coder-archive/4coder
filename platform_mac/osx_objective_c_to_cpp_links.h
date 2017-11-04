@@ -78,6 +78,15 @@ osx_post_to_clipboard(char *str);
 external void
 osx_error_dialogue(char *str);
 
+external void
+osx_add_file_listener(char *file_name);
+
+external void
+osx_remove_file_listener(char *file_name);
+
+external i32
+osx_get_file_change_event(char *buffer, i32 max, i32 *size);
+
 #endif
 
 // BOTTOM

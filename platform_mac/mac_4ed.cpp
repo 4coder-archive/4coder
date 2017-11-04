@@ -11,6 +11,9 @@
 
 #define IS_PLAT_LAYER
 
+#include <stdio.h>
+#define DBG_POINT() fprintf(stdout, "%s\n", __FILE__ ":" LINE_STR ":")
+
 #include "4ed_defines.h"
 #include "4coder_API/version.h"
 
@@ -47,6 +50,8 @@
 
 #include <OpenGL/OpenGL.h>
 #include <OpenGL/gl.h>
+
+#include <mach-o/dyld.h>
 
 #include <stdlib.h>
 
@@ -90,6 +95,20 @@ global Coroutine_System_Auto_Alloc coroutines;
 #include "mac_error_box.cpp"
 
 ////////////////////////////////
+
+internal
+Sys_Get_4ed_Path_Sig(system_get_4ed_path){
+    u32 buf_size = capacity;
+    i32 status = _NSGetExecutablePath(out, &buf_size);
+    i32 size = 0;
+    if (status == 0){
+        String str = make_string_slowly(out);
+        remove_last_folder(&str);
+        terminate_with_null(&str);
+        size = str.size;
+    }
+    return(size);
+}
 
 #include "unix_4ed_functions.cpp"
 #include "4ed_shared_file_handling.cpp"
@@ -197,12 +216,14 @@ Sys_CLI_End_Update_Sig(system_cli_end_update){
 
 external void*
 osx_allocate(umem size){
+    DBG_POINT();
     void *result = system_memory_allocate(size);
     return(result);
 }
 
 external void
 osx_resize(int width, int height){
+    DBG_POINT();
     osx.width = width;
     osx.height = height;
     // TODO
@@ -210,21 +231,25 @@ osx_resize(int width, int height){
 
 external void
 osx_character_input(u32 code, OSX_Keyboard_Modifiers modifier_flags){
+    DBG_POINT();
     // TODO
 }
 
 external void
 osx_mouse(i32 mx, i32 my, u32 type){
+    DBG_POINT();
     // TODO
 }
 
 external void
 osx_mouse_wheel(float dx, float dy){
+    DBG_POINT();
     // TODO
 }
 
 external void
 osx_step(){
+    DBG_POINT();
     // TODO
 }
 
@@ -234,12 +259,14 @@ osx_init(){
     // System Linkage
     //
     
+    DBG_POINT();
     link_system_code();
     
     //
     // Memory init
     //
     
+    DBG_POINT();
     memset(&target, 0, sizeof(target));
     memset(&memory_vars, 0, sizeof(memory_vars));
     memset(&plat_settings, 0, sizeof(plat_settings));
@@ -255,12 +282,14 @@ osx_init(){
     // Previously zipped stuff is here, it should be zipped in the new pattern now.
     //
     
+    DBG_POINT();
     init_shared_vars();
     
     //
     // Dynamic Linkage
     //
     
+    DBG_POINT();
     load_app_code();
     link_rendering();
 #if defined(FRED_SUPER)
@@ -273,32 +302,38 @@ osx_init(){
     // Read command line
     //
     
+    DBG_POINT();
     read_command_line(osx.argc, osx.argv);
     
     //
     // Threads
     //
     
+    DBG_POINT();
     work_system_init();
     
     //
     // Coroutines
     //
     
+    DBG_POINT();
     coroutines_init();
 
     //
     // Font System Init
     //
     
+    DBG_POINT();
     system_font_init(&sysfunc.font, 0, 0, plat_settings.font_size, plat_settings.use_hinting);
     
     //
     // App Init
     //
     
+    DBG_POINT();
     char cwd[4096];
     u32 size = sysfunc.get_current_path(cwd, sizeof(cwd));
+    fprintf(stdout, "cwd = \"%.*s\"\n", size, cwd);
     if (size == 0 || size >= sizeof(cwd)){
         system_error_box("Could not get current directory at launch.");
     }
@@ -306,13 +341,20 @@ osx_init(){
     terminate_with_null(&curdir);
     replace_char(&curdir, '\\', '/');
 
+    DBG_POINT();
+
     String clipboard_string = {0};
     if (osx.has_clipboard_item){
         clipboard_string = make_string(osx.clipboard_data, osx.clipboard_size);
     }
 
+    DBG_POINT();
+    fprintf(stdout, "%p\n", app.init);
+    
     LOG("Initializing application variables\n");
     app.init(&sysfunc, &target, &memory_vars, clipboard_string, curdir, custom_api);
+
+    DBG_POINT();
 }
 
 #include "4ed_shared_fonts.cpp"

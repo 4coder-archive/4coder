@@ -284,6 +284,23 @@ DISPLINK_SIG(osx_display_link){
 }
 @end
 
+void
+osx_add_file_listener(char *file_name){
+	NotImplemented;
+}
+
+void
+osx_remove_file_listener(char *file_name){
+	NotImplemented;
+}
+
+i32
+osx_get_file_change_event(char *buffer, i32 max, i32 *size){
+	i32 result = 0;
+	NotImplemented;
+	return(result);
+}
+
 int
 main(int argc, char **argv){
 	memset(&osx, 0, sizeof(osx));

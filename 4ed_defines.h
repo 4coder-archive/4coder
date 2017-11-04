@@ -52,6 +52,10 @@ typedef double f64;
 #define AllowLocal(c) (void)(c)
 #define Member(T, m) (((T*)0)->m)
 
+#define STR__(s) #s
+#define STR_(s) STR__(s)
+#define LINE_STR STR_(__LINE__)
+
 #if defined(Assert)
 # undef Assert
 #endif
@@ -108,9 +112,6 @@ inline u32 round_up_pot_u32(u32 x){
     ++x;
     return(x);
 }
-
-#define STR__(s) #s
-#define STR_(s) STR__(s)
 
 #define DrCase(PC) case PC: goto resumespot_##PC
 #define DrYield(PC, n) { *S_ptr = S; S_ptr->__pc__ = PC; return(n); resumespot_##PC:; }

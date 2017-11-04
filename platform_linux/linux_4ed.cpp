@@ -217,6 +217,21 @@ handle_sem(sem_t *sem){
 
 ////////////////////////////////
 
+internal
+Sys_Get_4ed_Path_Sig(system_get_4ed_path){
+    ssize_t size = readlink("/proc/self/exe", out, capacity - 1);
+    if (size != -1 && size < capacity - 1){
+        String str = make_string(out, size);
+        remove_last_folder(&str);
+        terminate_with_null(&str);
+        size = str.size;
+    }
+    else{
+        size = 0;
+    }
+    return(size);
+}
+
 #include "unix_4ed_functions.cpp"
 #include "4ed_shared_file_handling.cpp"
 
