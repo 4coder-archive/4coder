@@ -23,9 +23,10 @@ typedef struct OSX_Keyboard_Modifiers{
     b32 command;
     b32 control;
     b32 option;
+    b32 caps;
 } OSX_Keyboard_Modifiers;
 
-typedef struct OSX_Vars{
+typedef struct OSX_Objective_C_Vars{
     i32 width, height;
     b32 running;
     u32 key_count;
@@ -45,10 +46,10 @@ typedef struct OSX_Vars{
 
     i32 argc;
     char **argv;
-} OSX_Vars;
+} OSX_Objective_C_Vars;
 
 // In C++ layer.
-extern OSX_Vars osx;
+extern OSX_Objective_C_Vars osx_objc;
 
 external void*
 osx_allocate(umem size);

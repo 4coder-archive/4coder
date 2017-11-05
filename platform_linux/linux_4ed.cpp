@@ -929,7 +929,7 @@ LinuxKeycodeInit(Display* dpy){
 }
 
 internal void
-LinuxPushKey(Key_Code code, Key_Code chr, Key_Code chr_nocaps, b8 (*mods)[MDFR_INDEX_COUNT])
+LinuxPushKey(Key_Code code, Key_Code chr, Key_Code chr_nocaps, b8 *mods)
 {
     i32 *count = &linuxvars.input.keys.count;
     Key_Event_Data *data = linuxvars.input.keys.keys;
@@ -939,7 +939,7 @@ LinuxPushKey(Key_Code code, Key_Code chr, Key_Code chr_nocaps, b8 (*mods)[MDFR_I
         data[*count].character = chr;
         data[*count].character_no_caps_lock = chr_nocaps;
         
-        memcpy(data[*count].modifiers, *mods, sizeof(*mods));
+        memcpy(data[*count].modifiers, mods, sizeof(*mods)*MDFR_INDEX_COUNT);
         
         ++(*count);
     }
@@ -1307,11 +1307,11 @@ LinuxHandleX11Events(void)
                 Key_Code special_key = keycode_lookup_table[(u8)Event.xkey.keycode];
                 
                 if (special_key){
-                    LinuxPushKey(special_key, 0, 0, &mods);
+                    LinuxPushKey(special_key, 0, 0, mods);
                 } else if (key < 256){
-                    LinuxPushKey(key, key, key_no_caps, &mods);
+                    LinuxPushKey(key, key, key_no_caps, mods);
                 } else {
-                    LinuxPushKey(0, 0, 0, &mods);
+                    LinuxPushKey(0, 0, 0, mods);
                 }
             }break;
             
@@ -1748,7 +1748,7 @@ main(int argc, char **argv){
     linuxvars.input.first_step = 1;
     linuxvars.input.dt = (frame_useconds / 1000000.f);
     
-    while (1){
+    for (;;){
         if (XEventsQueued(linuxvars.XDisplay, QueuedAlready)){
             LinuxHandleX11Events();
         }
@@ -1825,7 +1825,7 @@ main(int argc, char **argv){
             }
             
             b32 keep_running = linuxvars.keep_running;
-            
+
             app.step(&sysfunc, &target, &memory_vars, &linuxvars.input, &result);
             
             if (result.perform_kill){

@@ -11,6 +11,7 @@
 
 #include "4ed_defines.h"
 #include "4coder_API/version.h"
+#include "4coder_API/keycodes.h"
 
 #define WINDOW_NAME "4coder" VERSION
 
@@ -35,7 +36,7 @@ osx_post_to_clipboard(char *str){
 	[board declareTypes:typesArray owner:nil];
 	NSString *paste_string = [NSString stringWithUTF8String:str];
 	[board setString:paste_string forType:utf8_type];
-	osx.just_posted_to_clipboard = true;
+	osx_objc.just_posted_to_clipboard = true;
 }
 
 void
@@ -81,6 +82,7 @@ static DISPLINK_SIG(osx_display_link);
 	mods.command = ((flags & NSEventModifierFlagCommand) != 0);
 	mods.control = ((flags & NSEventModifierFlagControl) != 0);
 	mods.option = ((flags & NSEventModifierFlagOption) != 0);
+	mods.caps = ((flags & NSEventModifierFlagCapsLock) != 0);
 	
 	u32 length = real.length;
 	for (u32 i = 0; i < length; ++i){
@@ -118,10 +120,10 @@ static DISPLINK_SIG(osx_display_link);
 - (CVReturn)getFrameForTime:(const CVTimeStamp*)time{
     @autoreleasepool
     {
-	if (osx.running){
+	if (osx_objc.running){
 		NSPasteboard *board = [NSPasteboard generalPasteboard];
-		if (board.changeCount != osx.prev_clipboard_change_count){
-			if (!osx.just_posted_to_clipboard){
+		if (board.changeCount != osx_objc.prev_clipboard_change_count){
+			if (!osx_objc.just_posted_to_clipboard){
 				NSString *utf8_type = @"public.utf8-plain-text";
 				NSArray *array = [NSArray arrayWithObjects: utf8_type, nil];
 				NSString *has_string = [board availableTypeFromArray:array];
@@ -131,20 +133,20 @@ static DISPLINK_SIG(osx_display_link);
 						u32 copy_length = data.length;
 						if (copy_length > 0){
 							// TODO(allen): Grow clipboard memory if needed.
-							if (copy_length+1 < osx.clipboard_max){
-								osx.clipboard_size = copy_length;
-								[data getBytes: osx.clipboard_data length: copy_length];
-								((char*)osx.clipboard_data)[copy_length] = 0;
-								osx.has_clipboard_item = true;
+							if (copy_length+1 < osx_objc.clipboard_max){
+								osx_objc.clipboard_size = copy_length;
+								[data getBytes: osx_objc.clipboard_data length: copy_length];
+								((char*)osx_objc.clipboard_data)[copy_length] = 0;
+								osx_objc.has_clipboard_item = true;
 							}
 						}
 					}
 				}
 			}
 			else{
-				osx.just_posted_to_clipboard = false;
+				osx_objc.just_posted_to_clipboard = false;
 			}
-			osx.prev_clipboard_change_count = board.changeCount;
+			osx_objc.prev_clipboard_change_count = board.changeCount;
 		}
 		
 		CGLLockContext([[self openGLContext] CGLContextObj]);
@@ -167,7 +169,7 @@ static DISPLINK_SIG(osx_display_link);
 
 - (void)init_gl
 {
-    if(osx.running)
+    if(osx_objc.running)
     {
         return;
     }
@@ -201,7 +203,7 @@ static DISPLINK_SIG(osx_display_link);
 
     [context makeCurrentContext];
 
-    osx.running = true;
+    osx_objc.running = true;
 }
 
 - (id)init
@@ -284,6 +286,15 @@ DISPLINK_SIG(osx_display_link){
 }
 @end
 
+typedef struct File_Change_Queue{
+	char *buffer;
+	char *read_ptr;
+	char *write_ptr;
+	char *end;
+} File_Change_Queue;
+
+static File_Change_Queue file_change_queue = {0};
+
 void
 osx_add_file_listener(char *file_name){
 	NotImplemented;
@@ -294,24 +305,47 @@ osx_remove_file_listener(char *file_name){
 	NotImplemented;
 }
 
+void
+block_split_copy(void *dst, void *src1, i32 size1, void *src2, i32 size2){
+	memcpy(dst, src1, size1);
+	memcpy((u8*)dst + size1, src2, size2);
+}
+
 i32
 osx_get_file_change_event(char *buffer, i32 max, i32 *size){
 	i32 result = 0;
-	NotImplemented;
+	if (file_change_queue.read_ptr != file_change_queue.write_ptr){
+		i32 change_size = *(i32*)file_change_queue.read_ptr;
+		if (max <= change_size){
+            char *b1 = file_change_queue.read_ptr + 4;
+		    char *b2 = file_change_queue.buffer;
+		    i32 b1_size = Min(change_size, (i32)(file_change_queue.end - b1));
+            i32 b2_size = change_size - b1_size;
+		    block_split_copy(buffer, b1, b1_size, b2, b2_size);
+		    if (b1 < file_change_queue.end){
+		    	file_change_queue.read_ptr = b1 + change_size;
+		    }
+		    else{
+		    	file_change_queue.read_ptr = b2 + b2_size;
+		    }
+		    result = 1;
+		}
+		else{
+			result = -1;
+		}
+	}
 	return(result);
 }
 
 int
 main(int argc, char **argv){
-	memset(&osx, 0, sizeof(osx));
+	memset(&osx_objc, 0, sizeof(osx_objc));
 
 	umem clipboard_size = MB(4);
-	osx.clipboard_data = osx_allocate(clipboard_size);
-	osx.clipboard_max = clipboard_size;
-	osx.argc = argc;
-	osx.argv = argv;
-
-	osx_init();
+	osx_objc.clipboard_data = osx_allocate(clipboard_size);
+	osx_objc.clipboard_max = clipboard_size;
+	osx_objc.argc = argc;
+	osx_objc.argv = argv;
 
 	@autoreleasepool{
 		NSApplication *app = [NSApplication sharedApplication];
@@ -336,6 +370,8 @@ main(int argc, char **argv){
 		[window setMinSize:NSMakeSize(100, 100)];
 		[window setTitle:@WINDOW_NAME];
 		[window makeKeyAndOrderFront:nil];
+
+		osx_init();
 
 		[NSApp run];
 	}
