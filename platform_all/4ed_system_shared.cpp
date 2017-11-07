@@ -490,7 +490,6 @@ private_draw_glyph_mono(System_Functions *system, Render_Target *t, Render_Font 
 
 internal void
 launch_rendering(System_Functions *system, Render_Target *t){
-    DBG_POINT();
     char *cursor = t->push_buffer;
     char *cursor_end = cursor + t->size;
     

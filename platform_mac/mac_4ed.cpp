@@ -11,14 +11,6 @@
 
 #define IS_PLAT_LAYER
 
-#include <stdio.h>
-
-#if 0
-#define DBG_POINT() fprintf(stdout, "%s\n", __FILE__ ":" LINE_STR ":")
-#else
-#define DBG_POINT()
-#endif
-
 #include "4ed_defines.h"
 #include "4coder_API/version.h"
 
@@ -87,6 +79,9 @@ struct OSX_Vars{
     Application_Step_Input input;
     String clipboard_contents;
     b32 keep_running;
+    
+    b32 has_prev_time;
+    u64 prev_time_u;
 };
 
 ////////////////////////////////
@@ -162,7 +157,8 @@ Sys_Is_Fullscreen_Sig(system_is_fullscreen){
 // HACK(allen): Why does this work differently from the win32 version!?
 internal
 Sys_Send_Exit_Signal_Sig(system_send_exit_signal){
-    osx_objc.running = false;
+    DBG_POINT();
+    osxvars.keep_running = false;
 }
 
 #include "4ed_coroutine_functions.cpp"
@@ -193,31 +189,108 @@ Sys_Post_Clipboard_Sig(system_post_clipboard){
 // CLI
 //
 
+// HACK(allen): ALMOST an exact duplicate from the Linux version.  Just epoll doesn't port.  deduplicate.
 internal
 Sys_CLI_Call_Sig(system_cli_call){
-    // b32 #(char *path, char *script_name, CLI_Handles *cli_out)
-    NotImplemented;
+    i32 pipe_fds[2];
+    if (pipe(pipe_fds) == -1){
+        DBG_POINT();
+        return 0;
+    }
+    
+    i32 child_pid = fork();
+    if (child_pid == -1){
+        DBG_POINT();
+        return 0;
+    }
+    
+    enum { PIPE_FD_READ, PIPE_FD_WRITE };
+    
+    // child
+    if (child_pid == 0){
+        close(pipe_fds[PIPE_FD_READ]);
+        dup2(pipe_fds[PIPE_FD_WRITE], STDOUT_FILENO);
+        dup2(pipe_fds[PIPE_FD_WRITE], STDERR_FILENO);
+        
+        if (chdir(path) == -1){
+            DBG_POINT();
+            exit(1);
+        }
+        
+        char* argv[] = { "sh", "-c", script_name, NULL };
+        
+        if (execv("/bin/sh", argv) == -1){
+            DBG_POINT();
+        }
+        exit(1);
+    }
+    else{
+        close(pipe_fds[PIPE_FD_WRITE]);
+        
+        *(pid_t*)&cli_out->proc = child_pid;
+        *(int*)&cli_out->out_read = pipe_fds[PIPE_FD_READ];
+        *(int*)&cli_out->out_write = pipe_fds[PIPE_FD_WRITE];
+        
+        // TODO(allen): Getting updates when there is new something new on the pipe!?
+    }
+    
     return(true);
 }
 
 internal
 Sys_CLI_Begin_Update_Sig(system_cli_begin_update){
-    // void #(CLI_Handles *cli)
-    NotImplemented;
+    // NOTE(inso): I don't think anything needs to be done here.
 }
 
 internal
 Sys_CLI_Update_Step_Sig(system_cli_update_step){
-    // b32 #(CLI_Handles *cli, char *dest, u32 max, u32 *amount)
-    NotImplemented;
-    return(0);
+    i32 pipe_read_fd = *(i32*)&cli->out_read;
+    
+    fd_set fds;
+    FD_ZERO(&fds);
+    FD_SET(pipe_read_fd, &fds);
+    
+    struct timeval tv = {};
+    
+    size_t space_left = max;
+    char* ptr = dest;
+    
+    while (space_left > 0 && select(pipe_read_fd + 1, &fds, NULL, NULL, &tv) == 1){
+        ssize_t num = read(pipe_read_fd, ptr, space_left);
+        if (num == -1){
+            DBG_POINT();
+        } else if (num == 0){
+            // NOTE(inso): EOF
+            break;
+        } else {
+            ptr += num;
+            space_left -= num;
+        }
+    }
+    
+    *amount = (ptr - dest);
+    return((ptr - dest) > 0);
 }
 
 internal
 Sys_CLI_End_Update_Sig(system_cli_end_update){
-    // b32 #(CLI_Handles *cli)
-    NotImplemented;
-    return(false);
+    pid_t pid = *(pid_t*)&cli->proc;
+    b32 close_me = false;
+    
+    int status;
+    if (pid && waitpid(pid, &status, WNOHANG) > 0){
+        close_me = true;
+        
+        cli->exit = WEXITSTATUS(status);
+        
+        //struct epoll_event e = {};
+        //epoll_ctl(linuxvars.epoll, EPOLL_CTL_DEL, *(int*)&cli->out_read, &e);
+        
+        close(*(int*)&cli->out_read);
+        close(*(int*)&cli->out_write);
+    }
+    
+    return(close_me);
 }
 
 #include "4ed_font_data.h"
@@ -230,17 +303,20 @@ Sys_CLI_End_Update_Sig(system_cli_end_update){
 
 external void*
 osx_allocate(umem size){
-    DBG_POINT();
     void *result = system_memory_allocate(size);
     return(result);
 }
 
 external void
+osx_free(void *ptr, umem size){
+    system_memory_free(ptr, size);
+}
+
+external void
 osx_resize(int width, int height){
-    DBG_POINT();
     osx_objc.width = width;
     osx_objc.height = height;
-
+    
     if (width > 0 && height > 0){
         glViewport(0, 0, width, height);
         glMatrixMode(GL_PROJECTION);
@@ -260,7 +336,7 @@ osx_push_key(Key_Code code, Key_Code chr, Key_Code chr_nocaps, b8 *mods)
     
     if (count < KEY_INPUT_BUFFER_SIZE){
         Key_Event_Data *data = osxvars.input.keys.keys;
-
+        
         data[count].keycode = code;
         data[count].character = chr;
         data[count].character_no_caps_lock = chr_nocaps;
@@ -273,7 +349,6 @@ osx_push_key(Key_Code code, Key_Code chr, Key_Code chr_nocaps, b8 *mods)
 
 external void
 osx_character_input(u32 code, OSX_Keyboard_Modifiers modifier_flags){
-    DBG_POINT();
     Key_Code c = 0;
     switch (code){
         // TODO(allen): Find the canonical list of these things.
@@ -283,34 +358,36 @@ osx_character_input(u32 code, OSX_Keyboard_Modifiers modifier_flags){
         case 0xF702: c = key_left; break;
         case 0xF703: c = key_right; break;
         case 0x001B: c = key_esc; break;
-
+        
         case 0xF704: c = key_f1; break;
         case 0xF705: c = key_f2; break;
         case 0xF706: c = key_f3; break;
         case 0xF707: c = key_f4; break;
-
+        
         case 0xF708: c = key_f5; break;
         case 0xF709: c = key_f6; break;
         case 0xF70A: c = key_f7; break;
         case 0xF70B: c = key_f8; break;
-
+        
         case 0xF70C: c = key_f9; break;
         case 0xF70D: c = key_f10; break;
         case 0xF70E: c = key_f11; break;
         case 0xF70F: c = key_f12; break;
-
+        
         case 0xF710: c = key_f13; break;
         case 0xF711: c = key_f14; break;
         case 0xF712: c = key_f15; break;
         case 0xF713: c = key_f16; break;
     }
-
+    fprintf(stdout, "INPUT: %c\n", (char)code);
+    
     b8 mods[MDFR_INDEX_COUNT] = {0};
     
-    if (modifier_flags.shift)   mods[MDFR_SHIFT_INDEX] = 1;
-    if (modifier_flags.command) mods[MDFR_CONTROL_INDEX] = 1;
-    if (modifier_flags.caps)    mods[MDFR_CAPS_INDEX] = 1;
-    if (modifier_flags.control) mods[MDFR_ALT_INDEX] = 1;
+    if (modifier_flags.shift)   mods[MDFR_SHIFT_INDEX] = true;
+    if (modifier_flags.control) mods[MDFR_CONTROL_INDEX] = true;
+    if (modifier_flags.option)  mods[MDFR_ALT_INDEX] = true;
+    if (modifier_flags.command) mods[MDFR_COMMAND_INDEX] = true;
+    if (modifier_flags.caps)    mods[MDFR_CAPS_INDEX] = true;
     
     if (c != 0){
         osx_push_key(c, 0, 0, mods);
@@ -319,16 +396,17 @@ osx_character_input(u32 code, OSX_Keyboard_Modifiers modifier_flags){
         if (code == '\r'){
             code = '\n';
         }
+        Key_Code chr = code;
         Key_Code nocaps = code;
         if (modifier_flags.caps){
-            if ('a' <= nocaps && nocaps <= 'z'){
-                nocaps += 'A' - 'a';
+            if ('a' <= chr && chr <= 'z'){
+                chr += 'A' - 'a';
             }
-            else if ('A' <= nocaps && nocaps <= 'Z'){
-                nocaps += 'a' - 'A';
+            else if ('A' <= chr && chr <= 'Z'){
+                chr += 'a' - 'A';
             }
         }
-        osx_push_key(code, code, nocaps, mods);
+        osx_push_key(code, chr, nocaps, mods);
     }
     else{
         osx_push_key(0, 0, 0, mods);
@@ -337,21 +415,20 @@ osx_character_input(u32 code, OSX_Keyboard_Modifiers modifier_flags){
 
 external void
 osx_mouse(i32 mx, i32 my, u32 type){
-    DBG_POINT();
     osxvars.input.mouse.x = mx;
-    osxvars.input.mouse.y = my;
+    osxvars.input.mouse.y = osx_objc.height - my;
     if (type == MouseType_Press){
         osxvars.input.mouse.press_l = true;
         osxvars.input.mouse.l = true;
     }
     if (type == MouseType_Release){
+        osxvars.input.mouse.release_l = true;
         osxvars.input.mouse.l = false;
     }
 }
 
 external void
 osx_mouse_wheel(float dx, float dy){
-    DBG_POINT();
     if (dy > 0){
         osxvars.input.mouse.wheel = 1;
     }
@@ -361,16 +438,38 @@ osx_mouse_wheel(float dx, float dy){
 }
 
 external void
-osx_step(){
+osx_try_to_close(void){
+    system_send_exit_signal();
+}
+
+external void
+osx_step(void){
     Application_Step_Result result = {};
     result.mouse_cursor_type = APP_MOUSE_CURSOR_DEFAULT;
     result.trying_to_kill = !osxvars.keep_running;
     
-    osxvars.input.clipboard = null_string;
-
-    app.step(&sysfunc, &target, &memory_vars, &osxvars.input, &result);
-    launch_rendering(&sysfunc, &target);
-
+    if (osx_objc.has_clipboard_item){
+        //void *clipboard_data;
+        //umem clipboard_size, clipboard_max;
+        osxvars.input.clipboard = make_string(osx_objc.clipboard_data, (i32)osx_objc.clipboard_size);
+    }
+    else{
+        osxvars.input.clipboard = null_string;
+    }
+    
+    osxvars.input.dt = 1.f/60.f;
+    if (osxvars.has_prev_time){
+        u64 time_u = system_now_time();
+        u64 time_elapsed_u = time_u - osxvars.prev_time_u;
+        osxvars.input.dt = time_elapsed_u/1000000.f;
+        osxvars.prev_time_u = time_u;
+    }
+    else{
+        osxvars.has_prev_time = true;
+        osxvars.prev_time_u = system_now_time();
+    }
+    
+    Application_Step_Input frame_input = osxvars.input;
     osxvars.input.first_step = false;
     osxvars.input.keys = null_key_input_data;
     osxvars.input.mouse.press_l = false;
@@ -378,6 +477,20 @@ osx_step(){
     osxvars.input.mouse.press_r = false;
     osxvars.input.mouse.release_r = false;
     osxvars.input.mouse.wheel = 0;
+    
+    // HACK(allen): THIS SHIT IS FUCKED (happens on linux too)
+    b32 keep_running = osxvars.keep_running;
+    
+    app.step(&sysfunc, &target, &memory_vars, &frame_input, &result);
+    
+    if (result.perform_kill){
+        osx_close_app();
+    }
+    else if (!keep_running && !osxvars.keep_running){
+        osxvars.keep_running = true;
+    }
+    
+    launch_rendering(&sysfunc, &target);
 }
 
 external void
@@ -387,7 +500,7 @@ osx_init(){
     //
     // OpenGL Init
     //
-
+    
     typedef PFNGLDEBUGMESSAGECALLBACKARBPROC glDebugMessageCallbackProc;
     
     GLXLOAD(glDebugMessageCallback);
@@ -403,7 +516,7 @@ osx_init(){
     glEnable(GL_SCISSOR_TEST);
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-
+    
     //
     // System Linkage
     //
@@ -425,7 +538,7 @@ osx_init(){
     memset(&custom_api, 0, sizeof(custom_api));
     
     memory_init();
-
+    
     osxvars.keep_running = true;
     osxvars.input.first_step = true;
     
@@ -470,7 +583,7 @@ osx_init(){
     
     DBG_POINT();
     coroutines_init();
-
+    
     //
     // Font System Init
     //
@@ -492,20 +605,19 @@ osx_init(){
     String curdir = make_string(cwd, size);
     terminate_with_null(&curdir);
     replace_char(&curdir, '\\', '/');
-
+    
     DBG_POINT();
-
+    
     String clipboard_string = {0};
     if (osx_objc.has_clipboard_item){
         clipboard_string = make_string(osx_objc.clipboard_data, osx_objc.clipboard_size);
     }
-
+    
     DBG_POINT();
-    fprintf(stdout, "%p\n", app.init);
-
+    
     LOG("Initializing application variables\n");
     app.init(&sysfunc, &target, &memory_vars, clipboard_string, curdir, custom_api);
-
+    
     DBG_POINT();
 }
 

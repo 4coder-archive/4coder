@@ -130,13 +130,25 @@ CUSTOM_COMMAND_SIG(snipe_token_or_word){
     View_Summary view = get_active_view(app, access);
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, access);
     
-    int32_t pos1 = buffer_boundary_seek(app, &buffer, view.cursor.pos, 0, BoundaryToken | BoundaryWhitespace);
-    int32_t pos2 = buffer_boundary_seek(app, &buffer, pos1,            1, BoundaryToken | BoundaryWhitespace);
+    int32_t pos1 = buffer_boundary_seek(app, &buffer, view.cursor.pos, false, BoundaryToken | BoundaryWhitespace);
+    int32_t pos2 = buffer_boundary_seek(app, &buffer, pos1,            true,  BoundaryToken | BoundaryWhitespace);
     
     Range range = make_range(pos1, pos2);
     buffer_replace_range(app, &buffer, range.start, range.end, 0, 0);
 }
 
+CUSTOM_COMMAND_SIG(snipe_token_or_word_right){
+    uint32_t access = AccessOpen;
+    
+    View_Summary view = get_active_view(app, access);
+    Buffer_Summary buffer = get_buffer(app, view.buffer_id, access);
+    
+    int32_t pos2 = buffer_boundary_seek(app, &buffer, view.cursor.pos, true,  BoundaryToken | BoundaryWhitespace);
+    int32_t pos1 = buffer_boundary_seek(app, &buffer, pos2,            false, BoundaryToken | BoundaryWhitespace);
+    
+    Range range = make_range(pos1, pos2);
+    buffer_replace_range(app, &buffer, range.start, range.end, 0, 0);
+}
 
 //
 // Line Manipulation

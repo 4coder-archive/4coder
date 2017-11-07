@@ -905,12 +905,7 @@ LinuxKeycodeInit(Display* dpy){
     
     int key_count = (key_max - key_min) + 1;
     
-    KeySym* syms = XGetKeyboardMapping(
-        dpy,
-        key_min,
-        key_count,
-        &syms_per_code
-        );
+    KeySym* syms = XGetKeyboardMapping(dpy, key_min, key_count, &syms_per_code);
     
     if (!syms) return;
     
@@ -1824,6 +1819,7 @@ main(int argc, char **argv){
                 linuxvars.input.clipboard = null_string;
             }
             
+            // HACK(allen): THIS SHIT IS FUCKED (happens on mac too)
             b32 keep_running = linuxvars.keep_running;
 
             app.step(&sysfunc, &target, &memory_vars, &linuxvars.input, &result);

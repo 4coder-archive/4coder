@@ -19,14 +19,29 @@ init_track_system(File_Track_System *system, Partition *scratch, void *table_mem
 File_Track_Result
 add_listener(File_Track_System *system, Partition *scratch, u8 *filename){
     File_Track_Result result = FileTrack_Good;
+#if 1
+#if 0
+    // HACK(allen) HACK(allen) HACK(allen)
+    char strspace[1024];
+    String str = make_fixed_width_string(strspace);
+    copy(&str, (char*)filename);
+    remove_last_folder(&str);
+    --str.size;
+    terminate_with_null(&str);
+    osx_add_file_listener(str.str);
+#else
     osx_add_file_listener((char*)filename);
+#endif
+#endif
     return(result);
 }
 
 File_Track_Result
 remove_listener(File_Track_System *system, Partition *scratch, u8 *filename){
     File_Track_Result result = FileTrack_Good;
+#if 1
     osx_remove_file_listener((char*)filename);
+#endif
     return(result);
 }
 

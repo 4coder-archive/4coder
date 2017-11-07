@@ -12,6 +12,14 @@
 #if !defined(OSX_OBJECTIVE_C_TO_CPP_LINKS_H)
 #define OSX_OBJECTIVE_C_TO_CPP_LINKS_H
 
+#include <stdio.h>
+
+#if 0
+#define DBG_POINT() fprintf(stdout, "%s\n", __FILE__ ":" LINE_STR ":")
+#else
+#define DBG_POINT()
+#endif
+
 typedef enum OSX_Mouse_Event_Type{
     MouseType_Move,
     MouseType_Press,
@@ -37,13 +45,13 @@ typedef struct OSX_Objective_C_Vars{
     void *clipboard_data;
     umem clipboard_size, clipboard_max;
     b32 just_posted_to_clipboard;
-
+    
     char *clipboard_space;
     umem clipboard_space_max;
-
+    
     b32 full_screen;
     b32 do_toggle;
-
+    
     i32 argc;
     char **argv;
 } OSX_Objective_C_Vars;
@@ -53,6 +61,9 @@ extern OSX_Objective_C_Vars osx_objc;
 
 external void*
 osx_allocate(umem size);
+
+external void
+osx_free(void *ptr, umem size);
 
 external void
 osx_resize(int width, int height);
@@ -65,6 +76,9 @@ osx_mouse(i32 mx, i32 my, u32 type);
 
 external void
 osx_mouse_wheel(float dx, float dy);
+
+external void
+osx_try_to_close(void);
 
 external void
 osx_step();
@@ -87,6 +101,9 @@ osx_remove_file_listener(char *file_name);
 
 external i32
 osx_get_file_change_event(char *buffer, i32 max, i32 *size);
+
+external void
+osx_close_app(void);
 
 #endif
 

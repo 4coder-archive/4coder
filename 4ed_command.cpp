@@ -168,27 +168,29 @@ internal Command_Binding
 map_extract(Command_Map *map, Key_Event_Data key){
     Command_Binding bind = {0};
     
-    b32 ctrl = key.modifiers[MDFR_CONTROL_INDEX];
-    b32 alt = key.modifiers[MDFR_ALT_INDEX];
-    b32 shift = key.modifiers[MDFR_SHIFT_INDEX];
-    u8 command = MDFR_NONE;
+    b32 ctrl    = key.modifiers[MDFR_CONTROL_INDEX];
+    b32 alt     = key.modifiers[MDFR_ALT_INDEX];
+    b32 command = key.modifiers[MDFR_COMMAND_INDEX];
+    b32 shift   = key.modifiers[MDFR_SHIFT_INDEX];
     
-    if (shift) command |= MDFR_SHIFT;
-    if (ctrl) command |= MDFR_CTRL;
-    if (alt) command |= MDFR_ALT;
+    u8 mod_flags = MDFR_NONE;
+    if (ctrl)    mod_flags |= MDFR_CTRL;
+    if (command) mod_flags |= MDFR_COMMAND;
+    if (alt)     mod_flags |= MDFR_ALT;
+    if (shift)   mod_flags |= MDFR_SHIFT;
     
     Key_Code code = key.character_no_caps_lock;
     if (code == 0){
         code = key.keycode;
-        map_find(map, code, command, &bind);
+        map_find(map, code, mod_flags, &bind);
     }
     else{
         if (code != '\n' && code != '\t' && code != ' '){
-            command &= ~(MDFR_SHIFT);
+            mod_flags &= ~(MDFR_SHIFT);
         }
-        map_find(map, code, command, &bind);
+        map_find(map, code, mod_flags, &bind);
         if (bind.function == 0){
-            map_get_vanilla_keyboard_default(map, command, &bind);
+            map_get_vanilla_keyboard_default(map, mod_flags, &bind);
         }
     }
     

@@ -319,8 +319,9 @@ build(u32 flags, u32 arch, char *code_path, char **code_files, char *out_path, c
 "-Wno-write-strings -Wno-deprecated-declarations "  \
 "-Wno-comment -Wno-switch -Wno-null-dereference "
 
-#define GCC_LIBS                          \
+#define GCC_LIBS \
 "-framework Cocoa -framework QuartzCore " \
+"-framework CoreServices " \
 "-framework OpenGL -framework IOKit -lfreetype"
 
 #else

@@ -62,8 +62,8 @@ struct Table{
 
 static i32_4tech
 table_required_mem_size(i32_4tech table_size, i32_4tech item_size){
-    i32_4tech hash_size = ((table_size * sizeof(u32_4tech)) + 7) & ~7;
-    i32_4tech mem_size = hash_size + table_size * item_size;
+    i32_4tech hash_size = ((table_size*sizeof(u32_4tech)) + 7) & ~7;
+    i32_4tech mem_size = hash_size + table_size*item_size;
     return(mem_size);
 }
 

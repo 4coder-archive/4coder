@@ -940,7 +940,7 @@ Win32Callback(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
         case WM_DESTROY:
         {
             win32vars.got_useful_event = true;
-            win32vars.input_chunk.trans.trying_to_kill = 1;
+            win32vars.input_chunk.trans.trying_to_kill = true;
         }break;
         
         case WM_4coder_ANIMATE:

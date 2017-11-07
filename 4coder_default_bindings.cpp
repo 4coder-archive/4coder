@@ -163,6 +163,7 @@ default_keys(Bind_Helper *context){
     bind(context, key_back, MDFR_CTRL, backspace_word);
     bind(context, key_del, MDFR_CTRL, delete_word);
     bind(context, key_back, MDFR_ALT, snipe_token_or_word);
+    bind(context, key_del, MDFR_ALT, snipe_token_or_word_right);
     
     bind(context, ' ', MDFR_CTRL, set_mark);
     bind(context, 'a', MDFR_CTRL, replace_in_range);
