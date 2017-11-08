@@ -98,7 +98,8 @@ struct View{
     View *next, *prev;
     Panel *panel;
     b32 in_use;
-    Command_Map *map;
+    i32 map;
+    //Command_Map *map;
     
     File_Viewing_Data file_data;
     

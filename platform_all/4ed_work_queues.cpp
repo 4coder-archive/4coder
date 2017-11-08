@@ -370,29 +370,23 @@ INTERNAL_Sys_Get_Thread_States_Sig(system_internal_get_thread_states){
 
 internal void
 work_system_init(){
-    DBG_POINT();
     AssertThreadSizes();
     
-    DBG_POINT();
     u32 core_count = CORE_COUNT;
     i32 thread_system_memory_size = core_count*(sizeof(Thread_Context) + sizeof(Thread_Memory));
     void *thread_system_memory = system_memory_allocate(thread_system_memory_size);
     Partition thread_part = make_part(thread_system_memory, thread_system_memory_size);
     
-    DBG_POINT();
     for (i32 i = 0; i < LOCK_COUNT; ++i){
         system_init_lock(&threadvars.locks[i]);
     }
     
-    DBG_POINT();
     for (i32 i = 0; i < CV_COUNT; ++i){
         system_init_cv(&threadvars.conds[i]);
     }
     
-    DBG_POINT();
     threadvars.thread_memory = push_array(&thread_part, Thread_Memory, core_count);
     
-    DBG_POINT();
     for (u32 group_i = 0; group_i < THREAD_GROUP_COUNT; ++group_i){
         Thread_Context *threads = push_array(&thread_part, Thread_Context, core_count);
         threadvars.groups[group_i].threads = threads;
@@ -400,10 +394,8 @@ work_system_init(){
         threadvars.groups[group_i].cancel_lock0 = CANCEL_LOCK0;
         threadvars.groups[group_i].cancel_cv0 = CANCEL_CV0;
         
-        DBG_POINT();
         system_init_semaphore(&threadvars.queues[group_i].semaphore, core_count);
         
-        DBG_POINT();
         for (u32 i = 0; i < core_count; ++i){
             Thread_Context *thread = threads + i;
             thread->id = i + 1;
@@ -417,7 +409,6 @@ work_system_init(){
             system_init_and_launch_thread(&thread->thread, job_thread_proc, thread);
         }
         
-        DBG_POINT();
         initialize_unbounded_queue(&threadvars.groups[group_i].queue);
     }
 }

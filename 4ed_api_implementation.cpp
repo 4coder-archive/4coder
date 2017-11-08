@@ -189,6 +189,20 @@ DOC_SEE(Global_Setting_ID)
 }
 
 API_EXPORT bool32
+Global_Set_Mapping(Application_Links *app, void *data, int32_t size)
+/*
+DOC_PARAM(data, The beginning of a binding buffer.  Bind_Helper is designed to make it easy to produce such a buffer.)
+DOC_PARAM(size, The size of the binding buffer in bytes.)
+DOC_RETURN(Returns non-zero if no errors occurred while interpretting the binding buffer.  A return value of zero does not indicate that the old mappings are still in place.)
+DOC(Dumps away the previous mappings and instantiates the mappings described in the binding buffer.  If any of the open buffers were bound to a command map that used to exist, but no command map with the same id exist after the new mappings are instantiated, the buffer's command map will be set to mapid_file and a warning will be posted to *messages*.)
+*/{
+    Command_Data *cmd = (Command_Data*)app->cmd_context;
+    Models *models = cmd->models;
+    bool32 result = interpret_binding_buffer(models, data, size);
+    return(result);
+}
+
+API_EXPORT bool32
 Exec_Command(Application_Links *app, Command_ID command_id)
 /*
 DOC_PARAM(command_id, The command_id parameter specifies which internal command to execute.)
@@ -200,7 +214,7 @@ DOC_SEE(Command_ID)
     
     if (command_id < cmdid_count){
         Command_Data *cmd = (Command_Data*)app->cmd_context;
-        Command_Function function = command_table[command_id];
+        Command_Function *function = command_table[command_id];
         Command_Binding binding = {};
         binding.function = function;
         if (function) function(cmd->system, cmd, binding);
@@ -1042,8 +1056,8 @@ DOC_SEE(Buffer_Setting_ID)
             case BufferSetting_MapID:
             {
                 if (value < mapid_global){
-                    new_mapid = get_map_index(models, value);
-                    if (new_mapid  < models->user_map_count){
+                    new_mapid = get_map_index(&models->mapping, value);
+                    if (new_mapid < models->mapping.user_map_count){
                         file->settings.base_map_id = value;
                     }
                     else{
@@ -1057,7 +1071,7 @@ DOC_SEE(Buffer_Setting_ID)
                 for (View_Iter iter = file_view_iter_init(&models->layout, file, 0);
                      file_view_iter_good(iter);
                      iter = file_view_iter_next(iter)){
-                    iter.view->map = get_map(models, file->settings.base_map_id);
+                    iter.view->map = file->settings.base_map_id;
                 }
             }break;
             

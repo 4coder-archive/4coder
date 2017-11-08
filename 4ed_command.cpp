@@ -12,10 +12,10 @@
 #define Command_Function_Sig(name) \
 void (name)(System_Functions *system, struct Command_Data *command, struct Command_Binding binding)
 
-typedef Command_Function_Sig(*Command_Function);
+typedef Command_Function_Sig(Command_Function);
 
 struct Command_Binding{
-    Command_Function function;
+    Command_Function *function;
     union{
         Custom_Command_Function *custom;
         u64 custom_id;
@@ -25,11 +25,94 @@ struct Command_Binding{
 static Command_Binding null_command_binding = {0};
 
 struct Command_Map{
-    Command_Map *parent;
+    i32 parent;
     Command_Binding vanilla_keyboard_default[8];
     Command_Binding *commands;
     u32 count, max;
 };
+
+struct Mapping{
+    Command_Map map_top;
+    Command_Map map_file;
+    Command_Map map_ui;
+    
+    i32 *map_id_table;
+    Command_Map *user_maps;
+    i32 user_map_count;
+};
+
+internal i32
+get_or_add_map_index(Mapping *mapping, i32 mapid){
+    i32 result = 0;
+    i32 user_map_count = mapping->user_map_count;
+    i32 *map_id_table = mapping->map_id_table;
+    for (result = 0; result < user_map_count; ++result){
+        if (map_id_table[result] == mapid){
+            break;
+        }
+        if (map_id_table[result] == -1){
+            map_id_table[result] = mapid;
+            break;
+        }
+    }
+    return(result);
+}
+
+internal i32
+get_map_index(Mapping *mapping, i32 mapid){
+    i32 result = 0;
+    i32 user_map_count = mapping->user_map_count;
+    i32 *map_id_table = mapping->map_id_table;
+    for (result = 0; result < user_map_count; ++result){
+        if (map_id_table[result] == mapid){
+            break;
+        }
+        if (map_id_table[result] == 0){
+            result = user_map_count;
+            break;
+        }
+    }
+    return(result);
+}
+
+internal Command_Map*
+get_map_base(Mapping *mapping, i32 mapid, b32 add){
+    Command_Map *map = 0;
+    if (mapid < mapid_global){
+        i32 map_index = 0;
+        if (add){
+            map_index = get_or_add_map_index(mapping, mapid);
+        }
+        else{
+            map_index = get_map_index(mapping, mapid);
+        }
+        if (map_index < mapping->user_map_count){
+            map = &mapping->user_maps[map_index];
+        }
+    }
+    else if (mapid == mapid_global){
+        map = &mapping->map_top;
+    }
+    else if (mapid == mapid_file){
+        map = &mapping->map_file;
+    }
+    else if (mapid == mapid_ui){
+        map = &mapping->map_ui;
+    }
+    return(map);
+}
+
+internal Command_Map*
+get_or_add_map(Mapping *mapping, i32 mapid){
+    Command_Map *map = get_map_base(mapping, mapid, true);
+    return(map);
+}
+
+internal Command_Map*
+get_map(Mapping *mapping, i32 mapid){
+    Command_Map *map = get_map_base(mapping, mapid, false);
+    return(map);
+}
 
 #define COMMAND_HASH_EMPTY 0
 #define COMMAND_HASH_ERASED max_u64
@@ -43,7 +126,7 @@ map_hash(Key_Code event_code, u8 modifiers){
 }
 
 internal b32
-map_add(Command_Map *map, Key_Code event_code, u8 modifiers, Command_Function function, Custom_Command_Function *custom = 0, b32 override_original = true){
+map_add(Command_Map *map, Key_Code event_code, u8 modifiers, Command_Function *function, Custom_Command_Function *custom = 0, b32 override_original = true){
     b32 result = false;
     Assert(map->count * 8 < map->max * 7);
     u64 hash = map_hash(event_code, modifiers);
@@ -73,7 +156,7 @@ map_add(Command_Map *map, Key_Code event_code, u8 modifiers, Command_Function fu
 }
 
 inline b32
-map_add(Command_Map *map, Key_Code event_code, u8 modifiers, Command_Function function, u64 custom_id, b32 override_original = true){
+map_add(Command_Map *map, Key_Code event_code, u8 modifiers, Command_Function *function, u64 custom_id, b32 override_original = true){
     return (map_add(map, event_code, modifiers, function, (Custom_Command_Function*)custom_id, override_original));
 }
 
@@ -126,7 +209,7 @@ map_clear(Command_Map *commands){
 }
 
 internal b32
-map_init(Command_Map *commands, Partition *part, u32 max, Command_Map *parent){
+map_init(Command_Map *commands, Partition *part, u32 max, i32 parent){
     b32 result = false;
     if (commands->commands == 0){
         max = clamp_bottom((u32)6, max);
@@ -198,7 +281,12 @@ map_extract(Command_Map *map, Key_Event_Data key){
 }
 
 internal Command_Binding
-map_extract_recursive(Command_Map *map, Key_Event_Data key){
+map_extract_recursive(Mapping *mapping, i32 map_id, Key_Event_Data key){
+    Command_Map *map = get_map(mapping, map_id);
+    if (map == 0){
+        map = &mapping->map_top;
+    }
+    
     Command_Binding cmd_bind = {0};
     Command_Map *visited_maps[16] = {0};
     i32 visited_top = 0;
@@ -208,7 +296,7 @@ map_extract_recursive(Command_Map *map, Key_Event_Data key){
         if (cmd_bind.function == 0){
             if (visited_top < ArrayCount(visited_maps)){
                 visited_maps[visited_top++] = map;
-                map = map->parent;
+                map = get_map(mapping, map->parent);
                 for (i32 i = 0; i < visited_top; ++i){
                     if (map == visited_maps[i]){
                         map = 0;

@@ -18,7 +18,22 @@ TYPE: 'internal-for-default-system'
 #include "languages/4coder_language_cs.h"
 #include "languages/4coder_language_java.h"
 
+CUSTOM_COMMAND_SIG(set_bindings_choose);
+CUSTOM_COMMAND_SIG(set_bindings_default);
+CUSTOM_COMMAND_SIG(set_bindings_mac_4coder_like);
+CUSTOM_COMMAND_SIG(set_bindings_mac_default);
+
+static Named_Mapping named_maps_values[] = {
+    {make_lit_string("choose")         , set_bindings_choose         },
+    {make_lit_string("default")        , set_bindings_default        },
+    {make_lit_string("mac_4coder_like"), set_bindings_mac_4coder_like},
+    {make_lit_string("mac_default")    , set_bindings_mac_default    },
+};
+
 START_HOOK_SIG(default_start){
+    named_maps = named_maps_values;
+    named_map_count = ArrayCount(named_maps_values);
+    
     default_4coder_initialize(app);
     default_4coder_side_by_side_panels(app, files, file_count);
     

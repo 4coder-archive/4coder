@@ -518,6 +518,8 @@ CUSTOM_COMMAND_SIG(execute_arbitrary_command){
     }
 }
 
+#include "4coder_remapping_commands.cpp"
+
 #endif
 
 // BOTTOM

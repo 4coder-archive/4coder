@@ -24,23 +24,18 @@ system_get_binary_path_string(String *out){
 
 internal void
 init_shared_vars(){
-    DBG_POINT();
     umem scratch_size = KB(128);
     void *scratch_memory = system_memory_allocate(scratch_size);
     shared_vars.scratch = make_part(scratch_memory, (i32)scratch_size);
     
-    DBG_POINT();
     shared_vars.track_table_size = KB(16);
     shared_vars.track_table = system_memory_allocate(shared_vars.track_table_size);
     
-    DBG_POINT();
     shared_vars.track_node_size = KB(16);
     void *track_nodes = system_memory_allocate(shared_vars.track_node_size);
     
-    DBG_POINT();
     i32 track_result = init_track_system(&shared_vars.track, &shared_vars.scratch, shared_vars.track_table, shared_vars.track_table_size, track_nodes, shared_vars.track_node_size);
     
-    DBG_POINT();
     if (track_result != FileTrack_Good){
         exit(1);
     }
@@ -563,21 +558,17 @@ launch_rendering(System_Functions *system, Render_Target *t){
 
 internal void
 font_load_page_inner(Partition *part, Render_Font *font, FT_Library ft, FT_Face face, b32 use_hinting, Glyph_Page *page, u32 page_number, i32 tab_width){
-    DBG_POINT();
     Temp_Memory temp = begin_temp_memory(part);
     Assert(page != 0);
     page->page_number = page_number;
     
-    DBG_POINT();
     // prepare to read glyphs into a temporary texture buffer
     i32 max_glyph_w = face->size->metrics.x_ppem;
-
-    DBG_POINT();
+    
     i32 max_glyph_h = font_get_height(font);
     i32 tex_width   = 64;
     i32 tex_height  = 0;
     
-    DBG_POINT();
     do {
         tex_width *= 2;
         float glyphs_per_row = ceilf(tex_width / (float) max_glyph_w);
@@ -585,13 +576,11 @@ font_load_page_inner(Partition *part, Render_Font *font, FT_Library ft, FT_Face 
         tex_height = ceil32(rows * (max_glyph_h + 2));
     } while(tex_height > tex_width);
     
-    DBG_POINT();
     tex_height = round_up_pot_u32(tex_height);
     
     i32 pen_x = 0;
     i32 pen_y = 0;
     
-    DBG_POINT();
     u32* pixels = push_array(part, u32, tex_width * tex_height);
     memset(pixels, 0, tex_width * tex_height * sizeof(u32));
     
@@ -662,21 +651,14 @@ font_load_page_inner(Partition *part, Render_Font *font, FT_Library ft, FT_Face 
     page->tex_width  = tex_width;
     page->tex_height = tex_height;
     
-    DBG_POINT();
     glGenTextures(1, &page->tex);
-
-    DBG_POINT();
     glBindTexture(GL_TEXTURE_2D, page->tex);
-    
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, 0);
-    
     glTexImage2D(GL_TEXTURE_2D, 0, GL_ALPHA, tex_width, tex_height, 0, GL_ALPHA, GL_UNSIGNED_INT, pixels);
-    
-    glBindTexture(GL_TEXTURE_2D, 0);
     
     end_temp_memory(temp);
     

@@ -72,8 +72,8 @@ Long name commands that can be typed in after \STYLE{code} <alt x> \END for infr
  \ITEM \STYLE{code} "load project" \END Load a project.4coder file, ditching any previously loaded project
  \ITEM \STYLE{code} "open all code" \END Open all code files in the current directory, extensions set in config.4coder, default to C/C++ extensions
  \ITEM \STYLE{code} "open all code recursive" \END Like \STYLE{code} "open all code" \END but recurses through folders
- \ITEM \STYLE{code} "dos lines" \END Switch the bufer to 'dos' line ending mode CRLF
- \ITEM \STYLE{code} "nix lines" \END Switch the bufer to 'nix' line ending mode LF
+ \ITEM \STYLE{code} "dos lines" \END Switch the buffer to 'dos' line ending mode CRLF
+ \ITEM \STYLE{code} "nix lines" \END Switch the buffer to 'nix' line ending mode LF
  \END
 \END
 

@@ -9,78 +9,9 @@
 
 // TOP
 
-internal i32
-get_or_add_map_index(Models *models, i32 mapid){
-    i32 result = 0;
-    i32 user_map_count = models->user_map_count;
-    i32 *map_id_table = models->map_id_table;
-    for (result = 0; result < user_map_count; ++result){
-        if (map_id_table[result] == mapid){
-            break;
-        }
-        if (map_id_table[result] == -1){
-            map_id_table[result] = mapid;
-            break;
-        }
-    }
-    return(result);
-}
-
-internal i32
-get_map_index(Models *models, i32 mapid){
-    i32 result = 0;
-    i32 user_map_count = models->user_map_count;
-    i32 *map_id_table = models->map_id_table;
-    for (result = 0; result < user_map_count; ++result){
-        if (map_id_table[result] == mapid){
-            break;
-        }
-        if (map_id_table[result] == 0){
-            result = user_map_count;
-            break;
-        }
-    }
-    return(result);
-}
-
-internal Command_Map*
-get_map_base(Models *models, i32 mapid, b32 add){
-    Command_Map *map = 0;
-    if (mapid < mapid_global){
-        if (add){
-            mapid = get_or_add_map_index(models, mapid);
-        }
-        else{
-            mapid = get_map_index(models, mapid);
-        }
-        if (mapid < models->user_map_count){
-            map = models->user_maps + mapid;
-        }
-    }
-    else if (mapid == mapid_global){
-        map = &models->map_top;
-    }
-    else if (mapid == mapid_file){
-        map = &models->map_file;
-    }
-    return(map);
-}
-
-internal Command_Map*
-get_or_add_map(Models *models, i32 mapid){
-    Command_Map *map = get_map_base(models, mapid, 1);
-    return(map);
-}
-
-internal Command_Map*
-get_map(Models *models, i32 mapid){
-    Command_Map *map = get_map_base(models, mapid, 0);
-    return(map);
-}
-
 internal void
-map_set_count(Models *models, i32 mapid, u32 count){
-    Command_Map *map = get_or_add_map(models, mapid);
+map_set_count(Mapping *mapping, i32 mapid, u32 count){
+    Command_Map *map = get_or_add_map(mapping, mapid);
     Assert(map->commands == 0);
     map->count = count;
     if (map->max < count){
@@ -89,19 +20,21 @@ map_set_count(Models *models, i32 mapid, u32 count){
 }
 
 internal u32
-map_get_count(Models *models, i32 mapid){
-    Command_Map *map = get_or_add_map(models, mapid);
+map_get_count(Mapping *mapping, i32 mapid){
+    Command_Map *map = get_or_add_map(mapping, mapid);
     u32 count = map->count;
     Assert(map->commands == 0);
     return(count);
 }
 
 internal u32
-map_get_max_count(Models *models, i32 mapid){
-    Command_Map *map = get_or_add_map(models, mapid);
+map_get_max_count(Mapping *mapping, i32 mapid){
+    Command_Map *map = get_or_add_map(mapping, mapid);
     u32 count = map->max;
     return(count);
 }
+
+/////////////////
 
 inline void*
 get_view_body(View *view){
@@ -2788,14 +2721,17 @@ view_cursor_move(System_Functions *system, View *view, i32 line, i32 character){
     view_cursor_move(view, cursor);
 }
 
+// TODO(allen): Eliminate models.
 inline void
 view_show_file(View *view, Models *models){
     Editing_File *file = view->file_data.file;
-    if (file){
-        view->map = get_map(models, file->settings.base_map_id);
+    if (file != 0){
+        //view->map = get_map(&models->mapping, file->settings.base_map_id);
+        view->map = file->settings.base_map_id;
     }
     else{
-        view->map = get_map(models, mapid_global);
+        //view->map = get_map(&models->mapping, mapid_global);
+        view->map = mapid_global;
     }
     
     if (view->showing_ui != VUI_None){
@@ -3659,7 +3595,7 @@ global_set_font(System_Functions *system, Models *models, Font_ID font_id){
 
 inline void
 view_show_GUI(View *view, Models *models, View_UI ui){
-    view->map = &models->map_ui;
+    view->map = mapid_ui;
     view->showing_ui = ui;
     view->changed_context_in_step = true;
 }
@@ -3672,7 +3608,7 @@ view_show_interactive(System_Functions *system, View *view, Models *models, Inte
     view->dest = make_fixed_width_string(view->dest_);
     view->list_i = 0;
     
-    view->map = &models->map_ui;
+    view->map = mapid_ui;
     
     hot_directory_clean_end(&models->hot_directory);
     hot_directory_reload(system, &models->hot_directory);
@@ -3681,7 +3617,7 @@ view_show_interactive(System_Functions *system, View *view, Models *models, Inte
 
 inline void
 view_show_theme(View *view, Models *models){
-    view->map = &models->map_ui;
+    view->map = mapid_ui;
     view->showing_ui = VUI_Theme;
     view->color_mode = CV_Mode_Library;
     view->color = super_color_create(0xFF000000);
@@ -5333,25 +5269,23 @@ step_file_view(System_Functions *system, View *view, Models *models, View *activ
                                     
                                     SHOW_GUI_BLANK(0);
                                     {
-                                        Command_Map *map = view_ptr->map;
+                                        i32 map = view_ptr->map;
 #define MAP_LABEL "command map"
-                                        if (map == &models->map_top){
+                                        if (map == mapid_global){
                                             SHOW_GUI_STRING(1, h_align, MAP_LABEL, "global");
                                         }
-                                        else if (map == &models->map_file){
+                                        else if (map == mapid_file){
                                             SHOW_GUI_STRING(1, h_align, MAP_LABEL, "file");
                                         }
-                                        else if (map == &models->map_ui){
+                                        else if (map == mapid_ui){
                                             SHOW_GUI_STRING(1, h_align, MAP_LABEL, "gui");
                                         }
-                                        else if (map == 0){
+                                        else if (map == mapid_nomap){
                                             SHOW_GUI_STRING(1, h_align, MAP_LABEL, "nomap");
                                         }
-                                        else if (map >= models->user_maps){
-                                            i32 map_index = (i32)(view_ptr->map - models->user_maps);
-                                            i32 map_id = models->map_id_table[map_index];
+                                        else{
                                             SHOW_GUI_STRING(1, h_align, MAP_LABEL, "user");
-                                            SHOW_GUI_INT(2, h_align, "custom map id", map_id);
+                                            SHOW_GUI_INT(2, h_align, "custom map id", map);
                                         }
                                     }
                                     

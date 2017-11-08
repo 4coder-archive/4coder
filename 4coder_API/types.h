@@ -857,6 +857,7 @@ DOC(Values for built in command maps.)
 ENUM(int32_t, Map_ID){
     mapid_global = (1 << 24),
     mapid_file,
+    mapid_ui,
     mapid_nomap
 };
 

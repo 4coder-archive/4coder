@@ -1,5 +1,6 @@
 struct Application_Links;
 #define GLOBAL_SET_SETTING_SIG(n) bool32 n(Application_Links *app, Global_Setting_ID setting, int32_t value)
+#define GLOBAL_SET_MAPPING_SIG(n) bool32 n(Application_Links *app, void *data, int32_t size)
 #define EXEC_COMMAND_SIG(n) bool32 n(Application_Links *app, Command_ID command_id)
 #define EXEC_SYSTEM_COMMAND_SIG(n) bool32 n(Application_Links *app, View_Summary *view, Buffer_Identifier buffer_id, char *path, int32_t path_len, char *command, int32_t command_len, Command_Line_Interface_Flag flags)
 #define CLIPBOARD_POST_SIG(n) void n(Application_Links *app, int32_t clipboard_id, char *str, int32_t len)
@@ -76,6 +77,7 @@ struct Application_Links;
 #define IS_FULLSCREEN_SIG(n) bool32 n(Application_Links *app)
 #define SEND_EXIT_SIGNAL_SIG(n) void n(Application_Links *app)
 typedef GLOBAL_SET_SETTING_SIG(Global_Set_Setting_Function);
+typedef GLOBAL_SET_MAPPING_SIG(Global_Set_Mapping_Function);
 typedef EXEC_COMMAND_SIG(Exec_Command_Function);
 typedef EXEC_SYSTEM_COMMAND_SIG(Exec_System_Command_Function);
 typedef CLIPBOARD_POST_SIG(Clipboard_Post_Function);
@@ -154,6 +156,7 @@ typedef SEND_EXIT_SIGNAL_SIG(Send_Exit_Signal_Function);
 struct Application_Links{
 #if defined(ALLOW_DEP_4CODER)
 Global_Set_Setting_Function *global_set_setting;
+Global_Set_Mapping_Function *global_set_mapping;
 Exec_Command_Function *exec_command;
 Exec_System_Command_Function *exec_system_command;
 Clipboard_Post_Function *clipboard_post;
@@ -231,6 +234,7 @@ Is_Fullscreen_Function *is_fullscreen;
 Send_Exit_Signal_Function *send_exit_signal;
 #else
 Global_Set_Setting_Function *global_set_setting_;
+Global_Set_Mapping_Function *global_set_mapping_;
 Exec_Command_Function *exec_command_;
 Exec_System_Command_Function *exec_system_command_;
 Clipboard_Post_Function *clipboard_post_;
@@ -316,6 +320,7 @@ int32_t type_coroutine;
 };
 #define FillAppLinksAPI(app_links) do{\
 app_links->global_set_setting_ = Global_Set_Setting;\
+app_links->global_set_mapping_ = Global_Set_Mapping;\
 app_links->exec_command_ = Exec_Command;\
 app_links->exec_system_command_ = Exec_System_Command;\
 app_links->clipboard_post_ = Clipboard_Post;\
@@ -393,6 +398,7 @@ app_links->is_fullscreen_ = Is_Fullscreen;\
 app_links->send_exit_signal_ = Send_Exit_Signal;} while(false)
 #if defined(ALLOW_DEP_4CODER)
 static inline bool32 global_set_setting(Application_Links *app, Global_Setting_ID setting, int32_t value){return(app->global_set_setting(app, setting, value));}
+static inline bool32 global_set_mapping(Application_Links *app, void *data, int32_t size){return(app->global_set_mapping(app, data, size));}
 static inline bool32 exec_command(Application_Links *app, Command_ID command_id){return(app->exec_command(app, command_id));}
 static inline bool32 exec_system_command(Application_Links *app, View_Summary *view, Buffer_Identifier buffer_id, char *path, int32_t path_len, char *command, int32_t command_len, Command_Line_Interface_Flag flags){return(app->exec_system_command(app, view, buffer_id, path, path_len, command, command_len, flags));}
 static inline void clipboard_post(Application_Links *app, int32_t clipboard_id, char *str, int32_t len){(app->clipboard_post(app, clipboard_id, str, len));}
@@ -470,6 +476,7 @@ static inline bool32 is_fullscreen(Application_Links *app){return(app->is_fullsc
 static inline void send_exit_signal(Application_Links *app){(app->send_exit_signal(app));}
 #else
 static inline bool32 global_set_setting(Application_Links *app, Global_Setting_ID setting, int32_t value){return(app->global_set_setting_(app, setting, value));}
+static inline bool32 global_set_mapping(Application_Links *app, void *data, int32_t size){return(app->global_set_mapping_(app, data, size));}
 static inline bool32 exec_command(Application_Links *app, Command_ID command_id){return(app->exec_command_(app, command_id));}
 static inline bool32 exec_system_command(Application_Links *app, View_Summary *view, Buffer_Identifier buffer_id, char *path, int32_t path_len, char *command, int32_t command_len, Command_Line_Interface_Flag flags){return(app->exec_system_command_(app, view, buffer_id, path, path_len, command, command_len, flags));}
 static inline void clipboard_post(Application_Links *app, int32_t clipboard_id, char *str, int32_t len){(app->clipboard_post_(app, clipboard_id, str, len));}

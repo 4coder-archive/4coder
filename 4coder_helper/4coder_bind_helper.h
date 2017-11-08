@@ -237,12 +237,25 @@ set_input_filter(Bind_Helper *helper, Input_Filter_Function *func){
 
 inline int32_t
 end_bind_helper(Bind_Helper *helper){
-    int32_t result;
     if (helper->header){
         helper->header->header.total_size = (int32_t)(helper->cursor - helper->start);
         helper->header->header.error = helper->error;
     }
-    result = helper->write_total;
+    int32_t result = helper->write_total;
+    return(result);
+}
+
+struct Bind_Buffer{
+    void *data;
+    int32_t size;
+};
+
+inline Bind_Buffer
+end_bind_helper_get_buffer(Bind_Helper *helper){
+    int32_t size = end_bind_helper(helper);
+    Bind_Buffer result = {0};
+    result.data = helper->start;
+    result.size = size;
     return(result);
 }
 

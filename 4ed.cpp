@@ -388,7 +388,7 @@ panel_make_empty(System_Functions *system, Models *models, Panel *panel){
     Assert(panel->view == 0);
     View_And_ID new_view = live_set_alloc_view(&models->live_set, panel, models);
     view_set_file(system, new_view.view, models->scratch_buffer, models);
-    new_view.view->map = get_map(models, models->scratch_buffer->settings.base_map_id);
+    new_view.view->map = models->scratch_buffer->settings.base_map_id;
     return(new_view.view);
 }
 
@@ -604,7 +604,266 @@ COMMAND_DECL(user_callback){
     if (binding.custom) binding.custom(&models->app_links);
 }
 
-global Command_Function command_table[cmdid_count];
+global Command_Function *command_table[cmdid_count];
+
+SCROLL_RULE_SIG(fallback_scroll_rule){
+    b32 result = false;
+    if (target_x != *scroll_x){
+        *scroll_x = target_x;
+        result = true;
+    }
+    if (target_y != *scroll_y){
+        *scroll_y = target_y;
+        result = true;
+    }
+    return(result);
+}
+
+internal void
+setup_ui_commands(Command_Map *commands, Partition *part, i32 parent){
+    map_init(commands, part, 32, parent);
+    map_clear(commands);
+    
+    // TODO(allen): This is hacky, when the new UI stuff happens, let's fix it,
+    // and by that I mean actually fix it, don't just say you fixed it with
+    // something stupid again.
+    u8 mdfr_array[] = {MDFR_NONE, MDFR_SHIFT, MDFR_CTRL, MDFR_SHIFT | MDFR_CTRL};
+    for (i32 i = 0; i < 4; ++i){
+        u8 mdfr = mdfr_array[i];
+        map_add(commands, key_left, mdfr, command_null);
+        map_add(commands, key_right, mdfr, command_null);
+        map_add(commands, key_up, mdfr, command_null);
+        map_add(commands, key_down, mdfr, command_null);
+        map_add(commands, key_back, mdfr, command_null);
+    }
+}
+
+internal void
+setup_file_commands(Command_Map *commands, Partition *part, i32 parent){
+    map_init(commands, part, 10, parent);
+}
+
+internal void
+setup_top_commands(Command_Map *commands, Partition *part, i32 parent){
+    map_init(commands, part, 10, parent);
+}
+
+internal b32
+interpret_binding_buffer(Models *models, void *buffer, i32 size){
+    b32 result = true;
+    
+    //General_Memory *gen = &models->mem.general;
+    Partition *part = &models->mem.part;
+    
+    Mapping new_mapping = {0};
+    
+    models->scroll_rule = fallback_scroll_rule;
+    models->hook_open_file = 0;
+    models->hook_new_file = 0;
+    models->hook_save_file = 0;
+    models->hook_end_file = 0;
+    models->command_caller = 0;
+    models->input_filter = 0;
+    
+    b32 did_top = false;
+    b32 did_file = false;
+    
+    Command_Map *map_ptr = 0;
+    
+    Binding_Unit *unit = (Binding_Unit*)models->app_links.memory;
+    if (unit->type == unit_header && unit->header.error == 0){
+        Binding_Unit *end = unit + unit->header.total_size;
+        
+        i32 user_map_count = unit->header.user_map_count;
+        
+        new_mapping.map_id_table = push_array(part, i32, user_map_count);
+        
+        memset(new_mapping.map_id_table, -1, user_map_count*sizeof(i32));
+        
+        new_mapping.user_maps = push_array(part, Command_Map, user_map_count);
+        
+        new_mapping.user_map_count = user_map_count;
+        
+        for (++unit; unit < end; ++unit){
+            switch (unit->type){
+                case unit_map_begin:
+                {
+                    i32 mapid = unit->map_begin.mapid;
+                    i32 count = map_get_count(&new_mapping, mapid);
+                    if (unit->map_begin.replace){
+                        map_set_count(&new_mapping, mapid, unit->map_begin.bind_count);
+                    }
+                    else{
+                        map_set_count(&new_mapping, mapid, unit->map_begin.bind_count + count);
+                    }
+                }break;
+            }
+        }
+        
+        unit = (Binding_Unit*)models->app_links.memory;
+        for (++unit; unit < end; ++unit){
+            switch (unit->type){
+                case unit_map_begin:
+                {
+                    i32 mapid = unit->map_begin.mapid;
+                    i32 count = map_get_max_count(&new_mapping, mapid);
+                    i32 table_max = count * 3 / 2;
+                    b32 auto_clear = false;
+                    if (mapid == mapid_global){
+                        map_ptr = &new_mapping.map_top;
+                        auto_clear = map_init(map_ptr, part, table_max, mapid_global);
+                        did_top = true;
+                    }
+                    else if (mapid == mapid_file){
+                        map_ptr = &new_mapping.map_file;
+                        auto_clear = map_init(map_ptr, part, table_max, mapid_global);
+                        did_file = true;
+                    }
+                    else if (mapid < mapid_global){
+                        i32 index = get_or_add_map_index(&new_mapping, mapid);
+                        Assert(index < user_map_count);
+                        map_ptr = new_mapping.user_maps + index;
+                        auto_clear = map_init(map_ptr, part, table_max, mapid_global);
+                    }
+                    else{
+                        map_ptr = 0;
+                    }
+                    
+                    if (map_ptr && (unit->map_begin.replace || auto_clear)){
+                        map_clear(map_ptr);
+                    }
+                }break;
+                
+                case unit_inherit:
+                if (map_ptr){
+#if 0
+                    Command_Map *parent = 0;
+                    i32 mapid = unit->map_inherit.mapid;
+                    if (mapid == mapid_global){
+                        parent = &new_mapping.map_top;
+                    }
+                    else if (mapid == mapid_file){
+                        parent = &new_mapping.map_file;
+                    }
+                    else if (mapid < mapid_global){
+                        i32 index = get_or_add_map_index(&new_mapping, mapid);
+                        if (index < user_map_count){
+                            parent = new_mapping.user_maps + index;
+                        }
+                        else{
+                            parent = 0;
+                        }
+                    }
+                    map_ptr->parent = parent;
+#endif
+                    map_ptr->parent = unit->map_inherit.mapid;
+                }break;
+                
+                case unit_binding:
+                if (map_ptr){
+                    Command_Function *func = 0;
+                    if (unit->binding.command_id >= 0 && unit->binding.command_id < cmdid_count)
+                        func = command_table[unit->binding.command_id];
+                    if (func){
+                        if (unit->binding.code == 0){
+                            u32 index = 0;
+                            if (map_get_modifiers_hash(unit->binding.modifiers, &index)){
+                                map_ptr->vanilla_keyboard_default[index].function = func;
+                                map_ptr->vanilla_keyboard_default[index].custom_id = unit->binding.command_id;
+                            }
+                        }
+                        else{
+                            map_add(map_ptr, unit->binding.code, unit->binding.modifiers, func, unit->binding.command_id);
+                        }
+                    }
+                }break;
+                
+                case unit_callback:
+                if (map_ptr){
+                    Command_Function *func = command_user_callback;
+                    Custom_Command_Function *custom = unit->callback.func;
+                    if (func){
+                        if (unit->callback.code == 0){
+                            u32 index = 0;
+                            if (map_get_modifiers_hash(unit->binding.modifiers, &index)){
+                                map_ptr->vanilla_keyboard_default[index].function = func;
+                                map_ptr->vanilla_keyboard_default[index].custom = custom;
+                            }
+                        }
+                        else{
+                            map_add(map_ptr, unit->callback.code, unit->callback.modifiers, func, custom);
+                        }
+                    }
+                }break;
+                
+                case unit_hook:
+                {
+                    i32 hook_id = unit->hook.hook_id;
+                    if (hook_id >= 0){
+                        if (hook_id < hook_type_count){
+                            models->hooks[hook_id] = (Hook_Function*)unit->hook.func;
+                        }
+                        else{
+                            switch (hook_id){
+                                case special_hook_open_file:
+                                {
+                                    models->hook_open_file = (Open_File_Hook_Function*)unit->hook.func;
+                                }break;
+                                
+                                case special_hook_new_file:
+                                {
+                                    models->hook_new_file = (Open_File_Hook_Function*)unit->hook.func;
+                                }break;
+                                
+                                case special_hook_save_file:
+                                {
+                                    models->hook_save_file = (Open_File_Hook_Function*)unit->hook.func;
+                                }break;
+                                
+                                case special_hook_end_file:
+                                {
+                                    models->hook_end_file = (Open_File_Hook_Function*)unit->hook.func;
+                                }break;
+                                
+                                case special_hook_command_caller:
+                                {
+                                    models->command_caller = (Command_Caller_Hook_Function*)unit->hook.func;
+                                }break;
+                                
+                                case special_hook_scroll_rule:
+                                {
+                                    models->scroll_rule = (Scroll_Rule_Function*)unit->hook.func;
+                                }break;
+                                
+                                case special_hook_input_filter:
+                                {
+                                    models->input_filter = (Input_Filter_Function*)unit->hook.func;
+                                }break;
+                                
+                                case special_hook_start:
+                                {
+                                    models->hook_start = (Start_Hook_Function*)unit->hook.func;
+                                }break;
+                            }
+                        }
+                    }
+                }break;
+            }
+        }
+    }
+    
+    if (!did_top){
+        setup_top_commands(&new_mapping.map_top, part, mapid_global);
+    }
+    if (!did_file){
+        setup_file_commands(&new_mapping.map_file, part, mapid_global);
+    }
+    setup_ui_commands(&new_mapping.map_ui, part, mapid_global);
+    
+    models->mapping = new_mapping;
+    
+    return(result);
+}
 
 #include "4ed_api_implementation.cpp"
 
@@ -644,35 +903,6 @@ app_links_init(System_Functions *system, Application_Links *app_links, void *dat
     
     app_links->current_coroutine = 0;
     app_links->system_links = system;
-}
-
-internal void
-setup_ui_commands(Command_Map *commands, Partition *part, Command_Map *parent){
-    map_init(commands, part, 32, parent);
-    map_clear(commands);
-    
-    // TODO(allen): This is hacky, when the new UI stuff happens, let's fix it,
-    // and by that I mean actually fix it, don't just say you fixed it with
-    // something stupid again.
-    u8 mdfr_array[] = {MDFR_NONE, MDFR_SHIFT, MDFR_CTRL, MDFR_SHIFT | MDFR_CTRL};
-    for (i32 i = 0; i < 4; ++i){
-        u8 mdfr = mdfr_array[i];
-        map_add(commands, key_left, mdfr, command_null);
-        map_add(commands, key_right, mdfr, command_null);
-        map_add(commands, key_up, mdfr, command_null);
-        map_add(commands, key_down, mdfr, command_null);
-        map_add(commands, key_back, mdfr, command_null);
-    }
-}
-
-internal void
-setup_file_commands(Command_Map *commands, Partition *part, Command_Map *parent){
-    map_init(commands, part, 10, parent);
-}
-
-internal void
-setup_top_commands(Command_Map *commands, Partition *part, Command_Map *parent){
-    map_init(commands, part, 10, parent);
 }
 
 internal void
@@ -979,19 +1209,6 @@ App_Read_Command_Line_Sig(app_read_command_line){
     return(out_size);
 }
 
-SCROLL_RULE_SIG(fallback_scroll_rule){
-    b32 result = false;
-    if (target_x != *scroll_x){
-        *scroll_x = target_x;
-        result = true;
-    }
-    if (target_y != *scroll_y){
-        *scroll_y = target_y;
-        result = true;
-    }
-    return(result);
-}
-
 App_Init_Sig(app_init){
     App_Vars *vars = (App_Vars*)memory->vars_memory;
     Models *models = &vars->models;
@@ -1055,202 +1272,14 @@ App_Init_Sig(app_init){
     }
     
     {
-        models->scroll_rule = fallback_scroll_rule;
-        models->hook_open_file = 0;
-        models->hook_new_file = 0;
-        models->hook_save_file = 0;
-        models->hook_end_file = 0;
-        models->command_caller = 0;
-        models->input_filter = 0;
-        
         setup_command_table();
         
-        Command_Map *global_map = &models->map_top;
         Assert(models->config_api.get_bindings != 0);
-        
         i32 wanted_size = models->config_api.get_bindings(models->app_links.memory, models->app_links.memory_size);
-        
-        b32 did_top = false;
-        b32 did_file = false;
-        if (wanted_size <= models->app_links.memory_size){
-            Command_Map *map_ptr = 0;
-            
-            Binding_Unit *unit = (Binding_Unit*)models->app_links.memory;
-            if (unit->type == unit_header && unit->header.error == 0){
-                Binding_Unit *end = unit + unit->header.total_size;
-                
-                i32 user_map_count = unit->header.user_map_count;
-                
-                models->map_id_table = push_array(&models->mem.part, i32, user_map_count);
-                memset(models->map_id_table, -1, user_map_count*sizeof(i32));
-                
-                models->user_maps = push_array(&models->mem.part, Command_Map, user_map_count);
-                
-                models->user_map_count = user_map_count;
-                
-                for (++unit; unit < end; ++unit){
-                    switch (unit->type){
-                        case unit_map_begin:
-                        {
-                            i32 mapid = unit->map_begin.mapid;
-                            i32 count = map_get_count(models, mapid);
-                            if (unit->map_begin.replace){
-                                map_set_count(models, mapid, unit->map_begin.bind_count);
-                            }
-                            else{
-                                map_set_count(models, mapid, unit->map_begin.bind_count + count);
-                            }
-                        };
-                    }
-                }
-                
-                unit = (Binding_Unit*)models->app_links.memory;
-                for (++unit; unit < end; ++unit){
-                    switch (unit->type){
-                        case unit_map_begin:
-                        {
-                            i32 mapid = unit->map_begin.mapid;
-                            i32 count = map_get_max_count(models, mapid);
-                            i32 table_max = count * 3 / 2;
-                            b32 auto_clear = false;
-                            if (mapid == mapid_global){
-                                map_ptr = &models->map_top;
-                                auto_clear = map_init(map_ptr, &models->mem.part, table_max, global_map);
-                                did_top = true;
-                            }
-                            else if (mapid == mapid_file){
-                                map_ptr = &models->map_file;
-                                auto_clear = map_init(map_ptr, &models->mem.part, table_max, global_map);
-                                did_file = true;
-                            }
-                            else if (mapid < mapid_global){
-                                i32 index = get_or_add_map_index(models, mapid);
-                                Assert(index < user_map_count);
-                                map_ptr = models->user_maps + index;
-                                auto_clear = map_init(map_ptr, &models->mem.part, table_max, global_map);
-                            }
-                            else{
-                                map_ptr = 0;
-                            }
-                            
-                            if (map_ptr && (unit->map_begin.replace || auto_clear)){
-                                map_clear(map_ptr);
-                            }
-                        }break;
-                        
-                        case unit_inherit:
-                        if (map_ptr){
-                            Command_Map *parent = 0;
-                            i32 mapid = unit->map_inherit.mapid;
-                            if (mapid == mapid_global) parent = &models->map_top;
-                            else if (mapid == mapid_file) parent = &models->map_file;
-                            else if (mapid < mapid_global){
-                                i32 index = get_or_add_map_index(models, mapid);
-                                if (index < user_map_count) parent = models->user_maps + index;
-                                else parent = 0;
-                            }
-                            map_ptr->parent = parent;
-                        }break;
-                        
-                        case unit_binding:
-                        if (map_ptr){
-                            Command_Function func = 0;
-                            if (unit->binding.command_id >= 0 && unit->binding.command_id < cmdid_count)
-                                func = command_table[unit->binding.command_id];
-                            if (func){
-                                if (unit->binding.code == 0){
-                                    u32 index = 0;
-                                    if (map_get_modifiers_hash(unit->binding.modifiers, &index)){
-                                        map_ptr->vanilla_keyboard_default[index].function = func;
-                                        map_ptr->vanilla_keyboard_default[index].custom_id = unit->binding.command_id;
-                                    }
-                                }
-                                else{
-                                    map_add(map_ptr, unit->binding.code, unit->binding.modifiers, func, unit->binding.command_id);
-                                }
-                            }
-                        }break;
-                        
-                        case unit_callback:
-                        if (map_ptr){
-                            Command_Function func = command_user_callback;
-                            Custom_Command_Function *custom = unit->callback.func;
-                            if (func){
-                                if (unit->callback.code == 0){
-                                    u32 index = 0;
-                                    if (map_get_modifiers_hash(unit->binding.modifiers, &index)){
-                                        map_ptr->vanilla_keyboard_default[index].function = func;
-                                        map_ptr->vanilla_keyboard_default[index].custom = custom;
-                                    }
-                                }
-                                else{
-                                    map_add(map_ptr, unit->callback.code, unit->callback.modifiers, func, custom);
-                                }
-                            }
-                        }break;
-                        
-                        case unit_hook:
-                        {
-                            i32 hook_id = unit->hook.hook_id;
-                            if (hook_id >= 0){
-                                if (hook_id < hook_type_count){
-                                    models->hooks[hook_id] = (Hook_Function*)unit->hook.func;
-                                }
-                                else{
-                                    switch (hook_id){
-                                        case special_hook_open_file:
-                                        {
-                                            models->hook_open_file = (Open_File_Hook_Function*)unit->hook.func;
-                                        }break;
-                                        
-                                        case special_hook_new_file:
-                                        {
-                                            models->hook_new_file = (Open_File_Hook_Function*)unit->hook.func;
-                                        }break;
-                                        
-                                        case special_hook_save_file:
-                                        {
-                                            models->hook_save_file = (Open_File_Hook_Function*)unit->hook.func;
-                                        }break;
-                                        
-                                        case special_hook_end_file:
-                                        {
-                                            models->hook_end_file = (Open_File_Hook_Function*)unit->hook.func;
-                                        }break;
-                                        
-                                        case special_hook_command_caller:
-                                        {
-                                            models->command_caller = (Command_Caller_Hook_Function*)unit->hook.func;
-                                        }break;
-                                        
-                                        case special_hook_scroll_rule:
-                                        {
-                                            models->scroll_rule = (Scroll_Rule_Function*)unit->hook.func;
-                                        }break;
-                                        
-                                        case special_hook_input_filter:
-                                        {
-                                            models->input_filter = (Input_Filter_Function*)unit->hook.func;
-                                        }break;
-                                        
-                                        case special_hook_start:
-                                        {
-                                            models->hook_start = (Start_Hook_Function*)unit->hook.func;
-                                        }break;
-                                    }
-                                }
-                            }
-                        }break;
-                    }
-                }
-            }
-        }
+        Assert(wanted_size <= models->app_links.memory_size);
+        interpret_binding_buffer(models, models->app_links.memory, wanted_size);
         
         memset(models->app_links.memory, 0, wanted_size);
-        if (!did_top) setup_top_commands(&models->map_top, &models->mem.part, global_map);
-        if (!did_file) setup_file_commands(&models->map_file, &models->mem.part, global_map);
-        
-        setup_ui_commands(&models->map_ui, &models->mem.part, global_map);
     }
     
     // NOTE(allen): file setup
@@ -1737,14 +1766,11 @@ App_Step_Sig(app_step){
                     Key_Event_Data key = get_single_key(&key_data, event->key_i);
                     cmd->key = key;
                     
-                    Command_Map *map = 0;
-                    if (view){
+                    i32 map = mapid_global;
+                    if (view != 0){
                         map = view->map;
                     }
-                    if (map == 0){
-                        map = &models->map_top;
-                    }
-                    Command_Binding cmd_bind = map_extract_recursive(map, key);
+                    Command_Binding cmd_bind = map_extract_recursive(&models->mapping, map, key);
                     
                     user_in.type = UserInputKey;
                     user_in.key = key;
@@ -1951,14 +1977,9 @@ App_Step_Sig(app_step){
                     
                     Command_Data *command = cmd;
                     USE_VIEW(view);
-                    Assert(view);
+                    Assert(view != 0);
                     
-                    Command_Map *map = view->map;
-                    if (map == 0){
-                        map = &models->map_top;
-                    }
-                    
-                    Command_Binding cmd_bind = map_extract_recursive(map, key);
+                    Command_Binding cmd_bind = map_extract_recursive(&models->mapping, view->map, key);
                     
                     if (cmd_bind.function){
                         if (key.keycode == key_esc){

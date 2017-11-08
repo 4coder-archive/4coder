@@ -75,7 +75,10 @@ make_part(void *memory, i32_4tech size){
 inline void*
 partition_allocate(Partition *data, i32_4tech size){
     void *ret = 0;
-    if (size > 0 && data->pos + size <= data->max){
+    if (size < 0){
+        size = 0;
+    }
+    if (data->pos + size <= data->max){
         ret = data->base + data->pos;
         data->pos += size;
     }
@@ -109,7 +112,7 @@ inline Partition
 partition_sub_part(Partition *data, i32_4tech size){
     Partition result = {};
     void *d = partition_allocate(data, size);
-    if (d){
+    if (d != 0){
         result = make_part(d, size);
     }
     return(result);

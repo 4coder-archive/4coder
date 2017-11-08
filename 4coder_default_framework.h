@@ -678,6 +678,30 @@ lexer_keywords_default_init(Partition *part, Cpp_Keyword_Table *kw_out, Cpp_Keyw
 
 
 //
+// Dynamic Mapping Changes
+//
+
+struct Named_Mapping{
+    String name;
+    Custom_Command_Function *remap_command;
+};
+
+static Named_Mapping *named_maps = 0;
+static int32_t named_map_count = 0;
+
+static void
+change_mapping(Application_Links *app, String mapping){
+    for (int32_t i = 0; i < named_map_count; ++i){
+        if (match(mapping, named_maps[i].name)){
+            exec_command(app, named_maps[i].remap_command);
+            break;
+        }
+    }
+    print_message(app, literal("Leaving bindings unaltered.\n"));
+}
+
+
+//
 // Configuration
 //
 
@@ -774,7 +798,7 @@ process_config_file(Application_Links *app){
     Partition *part = &global_part;
     FILE *file = fopen("config.4coder", "rb");
     
-    if (!file){
+    if (file == 0){
         char space[256];
         int32_t size = get_4ed_path(app, space, sizeof(space));
         String str = make_string_cap(space, size, sizeof(space));
@@ -783,7 +807,7 @@ process_config_file(Application_Links *app){
         file = fopen(str.str, "rb");
     }
     
-    if (file){
+    if (file != 0){
         Temp_Memory temp = begin_temp_memory(part);
         
         char *mem = 0;
@@ -793,58 +817,67 @@ process_config_file(Application_Links *app){
         if (file_read_success){
             fclose(file);
             
-            Cpp_Token_Array array;
+            Cpp_Token_Array array = {0};
             array.count = 0;
             array.max_count = (1 << 20)/sizeof(Cpp_Token);
-            array.tokens = push_array(&global_part, Cpp_Token, array.max_count);
+            array.tokens = push_array(part, Cpp_Token, array.max_count);
             
-            Cpp_Keyword_Table kw_table = {0};
-            Cpp_Keyword_Table pp_table = {0};
-            lexer_keywords_default_init(part, &kw_table, &pp_table);
-            
-            Cpp_Lex_Data S = cpp_lex_data_init(false, kw_table, pp_table);
-            Cpp_Lex_Result result = cpp_lex_step(&S, mem, size+1, HAS_NULL_TERM, &array, NO_OUT_LIMIT);
-            
-            if (result == LexResult_Finished){
-                int32_t new_wrap_width = default_wrap_width;
-                int32_t new_min_base_width = default_min_base_width;
-                bool32 lalt_lctrl_is_altgr = false;
+            if (array.tokens != 0){
+                Cpp_Keyword_Table kw_table = {0};
+                Cpp_Keyword_Table pp_table = {0};
+                lexer_keywords_default_init(part, &kw_table, &pp_table);
                 
-                for (int32_t i = 0; i < array.count; ++i){
-                    Config_Line config_line = read_config_line(array, &i);
+                Cpp_Lex_Data S = cpp_lex_data_init(false, kw_table, pp_table);
+                Cpp_Lex_Result result = cpp_lex_step(&S, mem, size+1, HAS_NULL_TERM, &array, NO_OUT_LIMIT);
+                
+                if (result == LexResult_Finished){
+                    int32_t new_wrap_width = default_wrap_width;
+                    int32_t new_min_base_width = default_min_base_width;
+                    bool32 lalt_lctrl_is_altgr = false;
                     
-                    if (config_line.read_success){
-                        Config_Item item = get_config_item(config_line, mem, array);
+                    for (int32_t i = 0; i < array.count; ++i){
+                        Config_Line config_line = read_config_line(array, &i);
                         
-                        config_bool_var(item, "enable_code_wrapping", 0, &enable_code_wrapping);
-                        config_bool_var(item, "automatically_adjust_wrapping", 0, &automatically_adjust_wrapping);
-                        config_bool_var(item, "automatically_indent_text_on_save", 0, &automatically_indent_text_on_save);
-                        config_bool_var(item, "automatically_save_changes_on_build", 0, &automatically_save_changes_on_build);
-                        
-                        config_int_var(item, "default_wrap_width", 0, &new_wrap_width);
-                        config_int_var(item, "default_min_base_width", 0, &new_min_base_width);
-                        
-                        config_string_var(item, "default_theme_name", 0, &default_theme_name);
-                        config_string_var(item, "default_font_name", 0, &default_font_name);
-                        config_string_var(item, "user_name", 0, &user_name);
-                        
-                        {
+                        if (config_line.read_success){
+                            Config_Item item = get_config_item(config_line, mem, array);
+                            
+                            config_bool_var(item, "enable_code_wrapping", 0, &enable_code_wrapping);
+                            config_bool_var(item, "automatically_adjust_wrapping", 0, &automatically_adjust_wrapping);
+                            config_bool_var(item, "automatically_indent_text_on_save", 0, &automatically_indent_text_on_save);
+                            config_bool_var(item, "automatically_save_changes_on_build", 0, &automatically_save_changes_on_build);
+                            
+                            config_int_var(item, "default_wrap_width", 0, &new_wrap_width);
+                            config_int_var(item, "default_min_base_width", 0, &new_min_base_width);
+                            
+                            config_string_var(item, "default_theme_name", 0, &default_theme_name);
+                            config_string_var(item, "default_font_name", 0, &default_font_name);
+                            config_string_var(item, "user_name", 0, &user_name);
+                            
+                            
                             char str_space[512];
                             String str = make_fixed_width_string(str_space);
+                            if (config_string_var(item, "mapping", 0, &str)){
+                                change_mapping(app, str);
+                            }
+                            
                             if (config_string_var(item, "treat_as_code", 0, &str)){
                                 set_extensions(&treat_as_code_exts, str);
                             }
+                            
+                            config_bool_var(item, "automatically_load_project", 0, &automatically_load_project);
+                            
+                            config_bool_var(item, "lalt_lctrl_is_altgr", 0, &lalt_lctrl_is_altgr);
                         }
-                        
-                        config_bool_var(item, "automatically_load_project", 0, &automatically_load_project);
-                        
-                        config_bool_var(item, "lalt_lctrl_is_altgr", 0, &lalt_lctrl_is_altgr);
                     }
+                    
+                    adjust_all_buffer_wrap_widths(app, new_wrap_width, new_min_base_width);
+                    default_wrap_width = new_wrap_width;
+                    default_min_base_width = new_min_base_width;
+                    global_set_setting(app, GlobalSetting_LAltLCtrlIsAltGr, lalt_lctrl_is_altgr);
                 }
-                adjust_all_buffer_wrap_widths(app, new_wrap_width, new_min_base_width);
-                default_wrap_width = new_wrap_width;
-                default_min_base_width = new_min_base_width;
-                global_set_setting(app, GlobalSetting_LAltLCtrlIsAltGr, lalt_lctrl_is_altgr);
+            }
+            else{
+                print_message(app, literal("Ran out of memory processing config.4coder\n"));
             }
         }
         

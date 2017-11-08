@@ -48,12 +48,7 @@ struct Models{
     
     Font_ID global_font_id;
     
-    Command_Map map_top;
-    Command_Map map_file;
-    Command_Map map_ui;
-    Command_Map *user_maps;
-    i32 *map_id_table;
-    i32 user_map_count;
+    Mapping mapping;
     
     Command_Binding prev_command;
     
