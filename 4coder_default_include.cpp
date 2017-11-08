@@ -480,7 +480,7 @@ CUSTOM_COMMAND_SIG(execute_arbitrary_command){
     // upon it so that it has all the cmdid_* commands by default.  However, with this
     // as an example you have everything you need to make it work already. You could
     // even use app->memory to create a hash table in the start hook.
-    Query_Bar bar;
+    Query_Bar bar = {0};
     char space[1024];
     bar.prompt = make_lit_string("Command: ");
     bar.string = make_fixed_width_string(space);
@@ -512,6 +512,9 @@ CUSTOM_COMMAND_SIG(execute_arbitrary_command){
     else if (match_ss(bar.string, make_lit_string("nix lines")) ||
              match_ss(bar.string, make_lit_string("nixify"))){
         exec_command(app, eol_nixify);
+    }
+    else if (match_ss(bar.string, make_lit_string("remap"))){
+        exec_command(app, remap_interactive);
     }
     else{
         print_message(app, literal("unrecognized command\n"));

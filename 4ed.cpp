@@ -619,10 +619,12 @@ SCROLL_RULE_SIG(fallback_scroll_rule){
     return(result);
 }
 
+#define DEFAULT_MAP_SIZE 10
+#define DEFAULT_UI_MAP_SIZE 32
+
 internal void
 setup_ui_commands(Command_Map *commands, Partition *part, i32 parent){
-    map_init(commands, part, 32, parent);
-    map_clear(commands);
+    map_init(commands, part, DEFAULT_UI_MAP_SIZE, parent);
     
     // TODO(allen): This is hacky, when the new UI stuff happens, let's fix it,
     // and by that I mean actually fix it, don't just say you fixed it with
@@ -640,20 +642,23 @@ setup_ui_commands(Command_Map *commands, Partition *part, i32 parent){
 
 internal void
 setup_file_commands(Command_Map *commands, Partition *part, i32 parent){
-    map_init(commands, part, 10, parent);
+    map_init(commands, part, DEFAULT_MAP_SIZE, parent);
 }
 
 internal void
 setup_top_commands(Command_Map *commands, Partition *part, i32 parent){
-    map_init(commands, part, 10, parent);
+    map_init(commands, part, DEFAULT_MAP_SIZE, parent);
 }
 
 internal b32
 interpret_binding_buffer(Models *models, void *buffer, i32 size){
     b32 result = true;
     
-    //General_Memory *gen = &models->mem.general;
+    General_Memory *gen = &models->mem.general;
     Partition *part = &models->mem.part;
+    Temp_Memory temp = begin_temp_memory(part);
+    
+    Partition local_part = {0};
     
     Mapping new_mapping = {0};
     
@@ -670,128 +675,188 @@ interpret_binding_buffer(Models *models, void *buffer, i32 size){
     
     Command_Map *map_ptr = 0;
     
-    Binding_Unit *unit = (Binding_Unit*)models->app_links.memory;
+    Binding_Unit *unit = (Binding_Unit*)buffer;
     if (unit->type == unit_header && unit->header.error == 0){
         Binding_Unit *end = unit + unit->header.total_size;
         
         i32 user_map_count = unit->header.user_map_count;
+        new_mapping.user_map_count = user_map_count;
         
+        // Initialize Table and User Maps in Temp Buffer
         new_mapping.map_id_table = push_array(part, i32, user_map_count);
-        
         memset(new_mapping.map_id_table, -1, user_map_count*sizeof(i32));
         
         new_mapping.user_maps = push_array(part, Command_Map, user_map_count);
         
-        new_mapping.user_map_count = user_map_count;
-        
+        // Find the Size of Each Map
         for (++unit; unit < end; ++unit){
             switch (unit->type){
                 case unit_map_begin:
                 {
                     i32 mapid = unit->map_begin.mapid;
-                    i32 count = map_get_count(&new_mapping, mapid);
+                    
+                    if (mapid == mapid_ui || mapid == mapid_nomap){
+                        break;
+                    }
+                    else if (mapid == mapid_global){
+                        did_top = true;
+                    }
+                    else if (mapid == mapid_file){
+                        did_file = true;
+                    }
+                    
+                    Command_Map *map = get_or_add_map(&new_mapping, mapid);
+                    i32 count = map->count;
+                    i32 new_count = 0;
                     if (unit->map_begin.replace){
-                        map_set_count(&new_mapping, mapid, unit->map_begin.bind_count);
+                        map->real_beginning = unit;
+                        new_count = unit->map_begin.bind_count;
                     }
                     else{
-                        map_set_count(&new_mapping, mapid, unit->map_begin.bind_count + count);
+                        if (map->real_beginning == 0){
+                            map->real_beginning = unit;
+                        }
+                        new_count = unit->map_begin.bind_count + count;
+                    }
+                    
+                    map->count = new_count;
+                    if (map->max < new_count){
+                        map->max = new_count;
                     }
                 }break;
             }
         }
         
-        unit = (Binding_Unit*)models->app_links.memory;
+        // Add up the Map Counts
+        i32 count_global = DEFAULT_MAP_SIZE;
+        if (did_top){
+            count_global = clamp_bottom(6, new_mapping.map_top.count*3/2);
+        }
+        
+        i32 count_file = DEFAULT_MAP_SIZE;
+        if (did_file){
+            count_file = clamp_bottom(6, new_mapping.map_file.count*3/2);
+        }
+        
+        i32 count_ui = DEFAULT_UI_MAP_SIZE;
+        
+        i32 count_user = 0;
+        for (i32 i = 0; i < user_map_count; ++i){
+            Command_Map *map = &new_mapping.user_maps[i];
+            count_user += clamp_bottom(6, map->max*3/2);
+        }
+        
+        i32 binding_memsize = (count_global + count_file + count_ui + count_user)*sizeof(Command_Binding);
+        
+        // Allocate Needed Memory
+        i32 map_id_table_memsize = user_map_count*sizeof(i32);
+        i32 user_maps_memsize = user_map_count*sizeof(Command_Map);
+        
+        i32 map_id_table_rounded_memsize = l_round_up_i32(map_id_table_memsize, 8);
+        i32 user_maps_rounded_memsize = l_round_up_i32(user_maps_memsize, 8);
+        
+        i32 binding_rounded_memsize = l_round_up_i32(binding_memsize, 8);
+        
+        i32 needed_memsize = map_id_table_rounded_memsize + user_maps_rounded_memsize + binding_rounded_memsize;
+        new_mapping.memory = general_memory_allocate(gen, needed_memsize);
+        local_part = make_part(new_mapping.memory, needed_memsize);
+        
+        // Move ID Table Memory and Pointer
+        i32 *old_table = new_mapping.map_id_table;
+        new_mapping.map_id_table = push_array(&local_part, i32, user_map_count);
+        memmove(new_mapping.map_id_table, old_table, map_id_table_memsize);
+        
+        // Move User Maps Memory and Pointer
+        Command_Map *old_maps = new_mapping.user_maps;
+        new_mapping.user_maps = push_array(&local_part, Command_Map, user_map_count);
+        memmove(new_mapping.user_maps, old_maps, user_maps_memsize);
+        
+        // Fill in Command Maps
+        unit = (Binding_Unit*)buffer;
         for (++unit; unit < end; ++unit){
             switch (unit->type){
                 case unit_map_begin:
                 {
                     i32 mapid = unit->map_begin.mapid;
-                    i32 count = map_get_max_count(&new_mapping, mapid);
-                    i32 table_max = count * 3 / 2;
-                    b32 auto_clear = false;
-                    if (mapid == mapid_global){
-                        map_ptr = &new_mapping.map_top;
-                        auto_clear = map_init(map_ptr, part, table_max, mapid_global);
-                        did_top = true;
-                    }
-                    else if (mapid == mapid_file){
-                        map_ptr = &new_mapping.map_file;
-                        auto_clear = map_init(map_ptr, part, table_max, mapid_global);
-                        did_file = true;
-                    }
-                    else if (mapid < mapid_global){
-                        i32 index = get_or_add_map_index(&new_mapping, mapid);
-                        Assert(index < user_map_count);
-                        map_ptr = new_mapping.user_maps + index;
-                        auto_clear = map_init(map_ptr, part, table_max, mapid_global);
-                    }
-                    else{
+                    
+                    if (mapid == mapid_ui || mapid == mapid_nomap){
                         map_ptr = 0;
+                        break;
                     }
                     
-                    if (map_ptr && (unit->map_begin.replace || auto_clear)){
-                        map_clear(map_ptr);
+                    Command_Map *map = get_or_add_map(&new_mapping, mapid);
+                    if (unit >= map->real_beginning){
+                        if (mapid == mapid_global){
+                            map_ptr = &new_mapping.map_top;
+                        }
+                        else if (mapid == mapid_file){
+                            map_ptr = &new_mapping.map_file;
+                        }
+                        else if (mapid < mapid_global){
+                            i32 index = get_or_add_map_index(&new_mapping, mapid);
+                            Assert(index < user_map_count);
+                            map_ptr = &new_mapping.user_maps[index];
+                        }
+                        else{
+                            map_ptr = 0;
+                            break;
+                        }
+                        
+                        Assert(map_ptr != 0);
+                        
+                        // NOTE(allen): Map can begin multiple times, only alloc and clear when we first see it.
+                        if (map_ptr->commands == 0){
+                            i32 count = map->max;
+                            i32 table_max = clamp_bottom(6, count*3/2);
+                            map_init(map_ptr, &local_part, table_max, mapid_global);
+                        }
                     }
                 }break;
                 
                 case unit_inherit:
-                if (map_ptr){
-#if 0
-                    Command_Map *parent = 0;
-                    i32 mapid = unit->map_inherit.mapid;
-                    if (mapid == mapid_global){
-                        parent = &new_mapping.map_top;
+                {
+                    if (map_ptr != 0){
+                        map_ptr->parent = unit->map_inherit.mapid;
                     }
-                    else if (mapid == mapid_file){
-                        parent = &new_mapping.map_file;
-                    }
-                    else if (mapid < mapid_global){
-                        i32 index = get_or_add_map_index(&new_mapping, mapid);
-                        if (index < user_map_count){
-                            parent = new_mapping.user_maps + index;
-                        }
-                        else{
-                            parent = 0;
-                        }
-                    }
-                    map_ptr->parent = parent;
-#endif
-                    map_ptr->parent = unit->map_inherit.mapid;
                 }break;
                 
                 case unit_binding:
-                if (map_ptr){
-                    Command_Function *func = 0;
-                    if (unit->binding.command_id >= 0 && unit->binding.command_id < cmdid_count)
-                        func = command_table[unit->binding.command_id];
-                    if (func){
-                        if (unit->binding.code == 0){
-                            u32 index = 0;
-                            if (map_get_modifiers_hash(unit->binding.modifiers, &index)){
-                                map_ptr->vanilla_keyboard_default[index].function = func;
-                                map_ptr->vanilla_keyboard_default[index].custom_id = unit->binding.command_id;
+                {
+                    if (map_ptr != 0){
+                        Command_Function *func = 0;
+                        if (unit->binding.command_id >= 0 && unit->binding.command_id < cmdid_count)
+                            func = command_table[unit->binding.command_id];
+                        if (func){
+                            if (unit->binding.code == 0){
+                                u32 index = 0;
+                                if (map_get_modifiers_hash(unit->binding.modifiers, &index)){
+                                    map_ptr->vanilla_keyboard_default[index].function = func;
+                                    map_ptr->vanilla_keyboard_default[index].custom_id = unit->binding.command_id;
+                                }
                             }
-                        }
-                        else{
-                            map_add(map_ptr, unit->binding.code, unit->binding.modifiers, func, unit->binding.command_id);
+                            else{
+                                map_add(map_ptr, unit->binding.code, unit->binding.modifiers, func, unit->binding.command_id);
+                            }
                         }
                     }
                 }break;
                 
                 case unit_callback:
-                if (map_ptr){
-                    Command_Function *func = command_user_callback;
-                    Custom_Command_Function *custom = unit->callback.func;
-                    if (func){
-                        if (unit->callback.code == 0){
-                            u32 index = 0;
-                            if (map_get_modifiers_hash(unit->binding.modifiers, &index)){
-                                map_ptr->vanilla_keyboard_default[index].function = func;
-                                map_ptr->vanilla_keyboard_default[index].custom = custom;
+                {
+                    if (map_ptr != 0){
+                        Command_Function *func = command_user_callback;
+                        Custom_Command_Function *custom = unit->callback.func;
+                        if (func){
+                            if (unit->callback.code == 0){
+                                u32 index = 0;
+                                if (map_get_modifiers_hash(unit->binding.modifiers, &index)){
+                                    map_ptr->vanilla_keyboard_default[index].function = func;
+                                    map_ptr->vanilla_keyboard_default[index].custom = custom;
+                                }
                             }
-                        }
-                        else{
-                            map_add(map_ptr, unit->callback.code, unit->callback.modifiers, func, custom);
+                            else{
+                                map_add(map_ptr, unit->callback.code, unit->callback.modifiers, func, custom);
+                            }
                         }
                     }
                 }break;
@@ -850,17 +915,28 @@ interpret_binding_buffer(Models *models, void *buffer, i32 size){
                 }break;
             }
         }
+        
+        if (!did_top){
+            setup_top_commands(&new_mapping.map_top, &local_part, mapid_global);
+        }
+        if (!did_file){
+            setup_file_commands(&new_mapping.map_file, &local_part, mapid_global);
+        }
+        setup_ui_commands(&new_mapping.map_ui, &local_part, mapid_global);
+    }
+    else{
+        // TODO(allen): Probably should have some recovery plan here.
+        InvalidCodePath;
     }
     
-    if (!did_top){
-        setup_top_commands(&new_mapping.map_top, part, mapid_global);
+    Mapping old_mapping = models->mapping;
+    if (old_mapping.memory != 0){
+        // TODO(allen): Do I need to explicity work on recovering the old ids of buffers?
+        general_memory_free(gen, old_mapping.memory);
     }
-    if (!did_file){
-        setup_file_commands(&new_mapping.map_file, part, mapid_global);
-    }
-    setup_ui_commands(&new_mapping.map_ui, part, mapid_global);
     
     models->mapping = new_mapping;
+    end_temp_memory(temp);
     
     return(result);
 }
@@ -1967,7 +2043,9 @@ App_Step_Sig(app_step){
         b32 hit_esc = 0;
         
         for (i32 key_i = 0; key_i < key_data.count; ++key_i){
-            if (models->command_coroutine != 0) break;
+            if (models->command_coroutine != 0){
+                break;
+            }
             
             switch (vars->state){
                 case APP_STATE_EDIT:
@@ -1983,10 +2061,10 @@ App_Step_Sig(app_step){
                     
                     if (cmd_bind.function){
                         if (key.keycode == key_esc){
-                            hit_esc = 1;
+                            hit_esc = true;
                         }
                         else{
-                            hit_something = 1;
+                            hit_something = true;
                         }
                         
                         Assert(models->command_coroutine == 0);
@@ -2001,7 +2079,7 @@ App_Step_Sig(app_step){
                         
                         models->prev_command = cmd_bind;
                         
-                        app_result.animating = 1;
+                        app_result.animating = true;
                     }
                 }break;
                 

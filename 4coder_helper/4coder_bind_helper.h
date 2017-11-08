@@ -47,7 +47,7 @@ begin_bind_helper(void *data, int32_t size){
     result.start = result.cursor;
     result.end = result.start + size / sizeof(*result.cursor);
     
-    Binding_Unit unit;
+    Binding_Unit unit = {0};
     unit.type = unit_header;
     unit.header.total_size = sizeof(*result.header);
     result.header = write_unit(&result, unit);

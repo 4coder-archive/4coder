@@ -65,7 +65,7 @@ struct Tail_Temp_Partition{
 
 inline Partition
 make_part(void *memory, i32_4tech size){
-    Partition partition;
+    Partition partition = {0};
     partition.base = (char*)memory;
     partition.pos = 0;
     partition.max = size;

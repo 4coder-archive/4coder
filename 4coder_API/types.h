@@ -47,11 +47,11 @@ ENUM(int32_t, Key_Modifier_Index){
 Flags can be combined with bit or to specify a state with multiple modifiers.) */
 ENUM(uint32_t, Key_Modifier_Flag){
     /* DOC(MDFR_NONE specifies that no modifiers are pressed.) */
-    MDFR_NONE    = 0x0,
-    MDFR_CTRL    = 0x1,
-    MDFR_ALT     = 0x2,
-    MDFR_COMMAND = 0x4,
-    MDFR_SHIFT   = 0x8,
+    MDFR_NONE  = 0x0,
+    MDFR_CTRL  = 0x1,
+    MDFR_ALT   = 0x2,
+    MDFR_CMND  = 0x4,
+    MDFR_SHIFT = 0x8,
 };
 
 /* DOC(A Command_ID is used as a name for commands implemented internally in 4coder.) */

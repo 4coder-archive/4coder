@@ -28,10 +28,13 @@ struct Command_Map{
     i32 parent;
     Command_Binding vanilla_keyboard_default[8];
     Command_Binding *commands;
-    u32 count, max;
+    i32 count, max;
+    void *real_beginning;
 };
 
 struct Mapping{
+    void *memory;
+    
     Command_Map map_top;
     Command_Map map_file;
     Command_Map map_ui;
@@ -43,10 +46,10 @@ struct Mapping{
 
 internal i32
 get_or_add_map_index(Mapping *mapping, i32 mapid){
-    i32 result = 0;
     i32 user_map_count = mapping->user_map_count;
     i32 *map_id_table = mapping->map_id_table;
-    for (result = 0; result < user_map_count; ++result){
+    i32 result = 0;
+    for (; result < user_map_count; ++result){
         if (map_id_table[result] == mapid){
             break;
         }
@@ -58,12 +61,13 @@ get_or_add_map_index(Mapping *mapping, i32 mapid){
     return(result);
 }
 
+// HACK(allen): This seems busted, investigate.
 internal i32
 get_map_index(Mapping *mapping, i32 mapid){
-    i32 result = 0;
     i32 user_map_count = mapping->user_map_count;
     i32 *map_id_table = mapping->map_id_table;
-    for (result = 0; result < user_map_count; ++result){
+    i32 result = 0;
+    for (; result < user_map_count; ++result){
         if (map_id_table[result] == mapid){
             break;
         }
@@ -201,25 +205,16 @@ map_drop(Command_Map *map, Key_Code event_code, u8 modifiers){
 }
 
 internal void
-map_clear(Command_Map *commands){
-    u32 max = commands->max;
-    memset(commands->commands, 0, max*sizeof(*commands->commands));
-    memset(commands->vanilla_keyboard_default, 0, sizeof(commands->vanilla_keyboard_default));
-    commands->count = 0;
-}
-
-internal b32
-map_init(Command_Map *commands, Partition *part, u32 max, i32 parent){
-    b32 result = false;
-    if (commands->commands == 0){
-        max = clamp_bottom((u32)6, max);
-        commands->parent = parent;
-        commands->commands = push_array(part, Command_Binding, max);
-        commands->count = 0;
-        commands->max = max;
-        result = true;
-    }
-    return(result);
+map_init(Command_Map *map, Partition *part, i32 max, i32 parent){
+    Assert(max >= 6);
+    Assert(map->commands == 0);
+    map->parent = parent;
+    map->commands = push_array(part, Command_Binding, max);
+    map->count = 0;
+    map->max = max;
+    
+    memset(map->commands, 0, max*sizeof(*map->commands));
+    memset(map->vanilla_keyboard_default, 0, sizeof(map->vanilla_keyboard_default));
 }
 
 internal b32
@@ -258,7 +253,7 @@ map_extract(Command_Map *map, Key_Event_Data key){
     
     u8 mod_flags = MDFR_NONE;
     if (ctrl)    mod_flags |= MDFR_CTRL;
-    if (command) mod_flags |= MDFR_COMMAND;
+    if (command) mod_flags |= MDFR_CMND;
     if (alt)     mod_flags |= MDFR_ALT;
     if (shift)   mod_flags |= MDFR_SHIFT;
     
@@ -287,11 +282,11 @@ map_extract_recursive(Mapping *mapping, i32 map_id, Key_Event_Data key){
         map = &mapping->map_top;
     }
     
-    Command_Binding cmd_bind = {0};
     Command_Map *visited_maps[16] = {0};
     i32 visited_top = 0;
     
-    while (map){
+    Command_Binding cmd_bind = {0};
+    for (; map != 0; ){
         cmd_bind = map_extract(map, key);
         if (cmd_bind.function == 0){
             if (visited_top < ArrayCount(visited_maps)){

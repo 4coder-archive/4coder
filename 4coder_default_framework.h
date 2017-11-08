@@ -700,6 +700,17 @@ change_mapping(Application_Links *app, String mapping){
     print_message(app, literal("Leaving bindings unaltered.\n"));
 }
 
+CUSTOM_COMMAND_SIG(remap_interactive){
+    Query_Bar bar = {0};
+    char space[1024];
+    bar.prompt = make_lit_string("Map Name: ");
+    bar.string = make_fixed_width_string(space);
+    
+    if (!query_user_string(app, &bar)) return;
+    
+    change_mapping(app, bar.string);
+}
+
 
 //
 // Configuration

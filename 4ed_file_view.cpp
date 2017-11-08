@@ -9,33 +9,6 @@
 
 // TOP
 
-internal void
-map_set_count(Mapping *mapping, i32 mapid, u32 count){
-    Command_Map *map = get_or_add_map(mapping, mapid);
-    Assert(map->commands == 0);
-    map->count = count;
-    if (map->max < count){
-        map->max = count;
-    }
-}
-
-internal u32
-map_get_count(Mapping *mapping, i32 mapid){
-    Command_Map *map = get_or_add_map(mapping, mapid);
-    u32 count = map->count;
-    Assert(map->commands == 0);
-    return(count);
-}
-
-internal u32
-map_get_max_count(Mapping *mapping, i32 mapid){
-    Command_Map *map = get_or_add_map(mapping, mapid);
-    u32 count = map->max;
-    return(count);
-}
-
-/////////////////
-
 inline void*
 get_view_body(View *view){
     char *result = (char*)view;

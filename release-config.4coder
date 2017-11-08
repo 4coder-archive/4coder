@@ -28,7 +28,7 @@ default_font_name = "Liberation Mono";
 user_name = "NAME";
 
 // Extensions
-treat_as_code = ".cpp.c.hpp.h.cc.cs.java.rs";
+treat_as_code = ".cpp.c.hpp.h.cc.cs.java.rs.glsl.m";
 
 // Load project on startup
 automatically_load_project = false;

@@ -15,10 +15,6 @@ TYPE: 'build-target'
 #define NO_BINDING
 #include "4coder_default_bindings.cpp"
 
-#ifndef BIND_4CODER_TESTS
-# define BIND_4CODER_TESTS(context) ((void)context)
-#endif
-
 #include <string.h>
 
 static float
@@ -1390,9 +1386,6 @@ get_bindings(void *data, int32_t size){
     // You can also use the helper "restart_map" instead of
     // begin_map to clear everything that was in the map and
     // bind new things instead.
-    begin_map(context, mapid_global);
-    end_map(context);
-    
     begin_map(context, mapid_file);
     bind(context, 's', MDFR_CTRL, punishment);
     bind(context, 's', MDFR_ALT, save);
@@ -1420,8 +1413,6 @@ get_bindings(void *data, int32_t size){
     bind(context, key_insert, MDFR_CTRL, write_explicit_enum_values);
     bind(context, 'p', MDFR_ALT, rename_parameter);
     end_map(context);
-    
-    BIND_4CODER_TESTS(context);
     
     int32_t result = end_bind_helper(context);
     return(result);
