@@ -15,6 +15,8 @@
 #include "4coder_API/version.h"
 #include "4coder_API/keycodes.h"
 
+#include "4ed_cursor_codes.h"
+
 #define WINDOW_NAME "4coder " VERSION
 
 #undef internal
@@ -256,27 +258,11 @@ static DISPLINK_SIG(osx_display_link);
 
     GLint swapInt = 1;
     [[self openGLContext] setValues:&swapInt forParameter:NSOpenGLCPSwapInterval];
-
-#if 0
-    CVReturn cvreturn = CVDisplayLinkCreateWithActiveCGDisplays(&displayLink);
-    cvreturn = CVDisplayLinkSetOutputCallback(displayLink, &osx_display_link, (__bridge void*)(self));
-
-    CGLContextObj cglContext         = [[self openGLContext] CGLContextObj];
-    CGLPixelFormatObj cglPixelFormat = [[self pixelFormat] CGLPixelFormatObj];
-    cvreturn = CVDisplayLinkSetCurrentCGDisplayFromOpenGLContext(displayLink, cglContext, cglPixelFormat);
-
-    CVDisplayLinkStart(displayLink);
-#endif
 }
 
 - (void)dealloc
 {
     [super dealloc];
-
-#if 0
-    CVDisplayLinkStop(displayLink);
-    CVDisplayLinkRelease(displayLink);
-#endif
 }
 
 - (BOOL)acceptsFirstResponder
@@ -605,7 +591,49 @@ osx_get_file_change_event(char *buffer, i32 max, i32 *size){
     return(result);
 }
 
+void
+osx_show_cursor(i32 show, i32 cursor_type){
+    local_persist b32 cursor_is_shown = 1;
+    if (show == 1){
+        if (!cursor_is_shown){
+            [NSCursor unhide];
+            cursor_is_shown = true;
+        }
+    }
+    else if (show == -1){
+        if (cursor_is_shown){
+            [NSCursor hide];
+            cursor_is_shown = false;
+        }
+    }
+    
+    if (cursor_type > 0){
+        switch (cursor_type){
+            case APP_MOUSE_CURSOR_ARROW:
+            {
+                [[NSCursor arrowCursor] set];
+            }break;
+            
+            case APP_MOUSE_CURSOR_IBEAM:
+            {
+                [[NSCursor IBeamCursor] set];
+            }break;
+            
+            case APP_MOUSE_CURSOR_LEFTRIGHT:
+            {
+                [[NSCursor resizeLeftRightCursor] set];
+            }break;
+            
+            case APP_MOUSE_CURSOR_UPDOWN:
+            {
+                [[NSCursor resizeUpDownCursor] set];
+            }break;
+        }
+    }
+}
+
 My4coderView* view = 0;
+NSWindow* window = 0;
 
 void
 osx_schedule_step(void){
@@ -618,6 +646,17 @@ osx_schedule_step(void){
 #else
     [view requestDisplay];
 #endif
+}
+
+void
+osx_toggle_fullscreen(void){
+    [window toggleFullScreen:nil];
+}
+
+b32
+osx_is_fullscreen(void){
+    b32 result = (([window styleMask] & NSFullScreenWindowMask) != 0);
+    return(result);
 }
 
 void
@@ -648,7 +687,7 @@ main(int argc, char **argv){
 		NSRect frame      = NSMakeRect((screenRect.size.width - w) * 0.5, (screenRect.size.height - h) * 0.5, w, h);
 
 		u32 flags = NSTitledWindowMask | NSClosableWindowMask | NSMiniaturizableWindowMask | NSResizableWindowMask;
-		NSWindow* window = [[NSWindow alloc] initWithContentRect:frame styleMask:flags backing:NSBackingStoreBuffered defer:NO];
+		window = [[NSWindow alloc] initWithContentRect:frame styleMask:flags backing:NSBackingStoreBuffered defer:NO];
 
 		[window setAcceptsMouseMovedEvents:YES];
 

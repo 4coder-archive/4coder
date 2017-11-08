@@ -120,7 +120,15 @@ OPEN_FILE_HOOK_SIG(default_file_settings){
                     parse_context_id = parse_context_language_rust;
                 }
                 
-                if (match(ext, "cpp") || match(ext, "h") || match(ext, "c") || match(ext, "hpp") || match(ext, "cc") || match(ext, "glsl") || match(ext, "m")){
+                if (match(ext, "cpp") || match(ext, "h") || match(ext, "c") || match(ext, "hpp") || match(ext, "cc")){
+                    if (parse_context_language_cpp == 0){
+                        init_language_cpp(app);
+                    }
+                    parse_context_id = parse_context_language_cpp;
+                }
+                
+                // TODO(NAME): Real GLSL highlighting
+                if (match(ext, "glsl")){
                     if (parse_context_language_cpp == 0){
                         init_language_cpp(app);
                     }

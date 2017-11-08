@@ -144,7 +144,17 @@ system_schedule_step(void){
 
 internal
 Sys_Show_Mouse_Cursor_Sig(system_show_mouse_cursor){
-    // TODO(allen)
+    switch (show){
+        case MouseCursorShow_Never:
+        {
+            osx_show_cursor(-1, 0);
+        }break;
+        
+        case MouseCursorShow_Always:
+        {
+            osx_show_cursor(1, 0);
+        }break;
+    }
 }
 
 internal
@@ -290,9 +300,6 @@ Sys_CLI_End_Update_Sig(system_cli_end_update){
         
         cli->exit = WEXITSTATUS(status);
         
-        //struct epoll_event e = {};
-        //epoll_ctl(linuxvars.epoll, EPOLL_CTL_DEL, *(int*)&cli->out_read, &e);
-        
         close(*(int*)&cli->out_read);
         close(*(int*)&cli->out_write);
         
@@ -368,6 +375,11 @@ osx_character_input(u32 code, OSX_Keyboard_Modifiers modifier_flags){
         case 0xF701: c = key_down; break;
         case 0xF702: c = key_left; break;
         case 0xF703: c = key_right; break;
+        case 0xF728: c = key_del; break;
+        case 0xF729: c = key_home; break;
+        case 0xF72B: c = key_end; break;
+        case 0xF72C: c = key_page_up; break;
+        case 0xF72D: c = key_page_down; break;
         case 0x001B: c = key_esc; break;
         
         case 0xF704: c = key_f1; break;
@@ -403,20 +415,25 @@ osx_character_input(u32 code, OSX_Keyboard_Modifiers modifier_flags){
         osx_push_key(c, 0, 0, mods);
     }
     else if (code != 0){
-        if (code == '\r'){
-            code = '\n';
-        }
-        Key_Code chr = code;
-        Key_Code nocaps = code;
-        if (modifier_flags.caps){
-            if ('a' <= chr && chr <= 'z'){
-                chr += 'A' - 'a';
+        if (code < 0xE000 || code > 0xF8FF){
+            if (code == '\r'){
+                code = '\n';
             }
-            else if ('A' <= chr && chr <= 'Z'){
-                chr += 'a' - 'A';
+            Key_Code chr = code;
+            Key_Code nocaps = code;
+            if (modifier_flags.caps){
+                if ('a' <= chr && chr <= 'z'){
+                    chr += 'A' - 'a';
+                }
+                else if ('A' <= chr && chr <= 'Z'){
+                    chr += 'a' - 'A';
+                }
             }
+            osx_push_key(code, chr, nocaps, mods);
         }
-        osx_push_key(code, chr, nocaps, mods);
+        else{
+            fprintf(stdout, "unhandled private code %x\n", code);
+        }
     }
     else{
         osx_push_key(0, 0, 0, mods);
@@ -429,7 +446,7 @@ external void
 osx_mouse(i32 mx, i32 my, u32 type){
     i32 new_x = mx;
     i32 new_y = osx_objc.height - my;
-    if (new_x != osxvars.input.mouse.x && new_y != osxvars.input.mouse.y){
+    if (new_x != osxvars.input.mouse.x || new_y != osxvars.input.mouse.y){
         osxvars.input.mouse.x = new_x;
         osxvars.input.mouse.y = new_y;
         osx_schedule_step();
@@ -501,6 +518,9 @@ osx_step(void){
     osxvars.input.mouse.release_r = false;
     osxvars.input.mouse.wheel = 0;
     
+    osx_objc.do_toggle = false;
+    osx_objc.full_screen = osx_is_fullscreen();
+    
     // HACK(allen): THIS SHIT IS FUCKED (happens on linux too)
     b32 keep_running = osxvars.keep_running;
     
@@ -512,6 +532,12 @@ osx_step(void){
     else if (!keep_running && !osxvars.keep_running){
         osxvars.keep_running = true;
     }
+    
+    if (osx_objc.do_toggle){
+        osx_toggle_fullscreen();
+    }
+    
+    osx_show_cursor(0, result.mouse_cursor_type);
     
     launch_rendering(&sysfunc, &target);
     

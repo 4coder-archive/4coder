@@ -86,16 +86,7 @@ void name(System_Functions *system, Render_Target *target, Application_Memory *m
 
 typedef App_Init_Sig(App_Init);
 
-
-enum Application_Mouse_Cursor{
-    APP_MOUSE_CURSOR_DEFAULT,
-    APP_MOUSE_CURSOR_ARROW,
-    APP_MOUSE_CURSOR_IBEAM,
-    APP_MOUSE_CURSOR_LEFTRIGHT,
-    APP_MOUSE_CURSOR_UPDOWN,
-    // never below this
-    APP_MOUSE_CURSOR_COUNT
-};
+#include "4ed_cursor_codes.h"
 
 struct Application_Step_Result{
     Application_Mouse_Cursor mouse_cursor_type;

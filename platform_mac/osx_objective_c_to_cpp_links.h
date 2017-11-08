@@ -103,7 +103,16 @@ external i32
 osx_get_file_change_event(char *buffer, i32 max, i32 *size);
 
 external void
+osx_show_cursor(i32 show_inc, i32 cursor_type);
+
+external void
 osx_schedule_step(void);
+
+external void
+osx_toggle_fullscreen(void);
+
+external b32
+osx_is_fullscreen(void);
 
 external void
 osx_close_app(void);
