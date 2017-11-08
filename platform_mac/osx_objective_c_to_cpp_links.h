@@ -14,7 +14,7 @@
 
 #include <stdio.h>
 
-#if 0
+#if 1
 #define DBG_POINT() fprintf(stdout, "%s\n", __FILE__ ":" LINE_STR ":")
 #else
 #define DBG_POINT()
@@ -101,6 +101,9 @@ osx_remove_file_listener(char *file_name);
 
 external i32
 osx_get_file_change_event(char *buffer, i32 max, i32 *size);
+
+external void
+osx_schedule_step(void);
 
 external void
 osx_close_app(void);

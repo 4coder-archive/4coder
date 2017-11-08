@@ -125,10 +125,8 @@ Sys_Get_4ed_Path_Sig(system_get_4ed_path){
 ////////////////////////////////
 
 internal void
-system_schedule_step(){
-    // NOTE(allen): It is unclear to me right now what we might need to actually do here.
-    // The run loop in a Cocoa app will keep rendering the app anyway, I might just need to set a
-    // "do_new_frame" variable of some kind to true here.
+system_schedule_step(void){
+    osx_schedule_step();
 }
 
 ////////////////////////////////
@@ -189,7 +187,9 @@ Sys_Post_Clipboard_Sig(system_post_clipboard){
 // CLI
 //
 
-// HACK(allen): ALMOST an exact duplicate from the Linux version.  Just epoll doesn't port.  deduplicate.
+// HACK(allen): ALMOST an exact duplicate from the Linux version.  Just epoll doesn't port.  deduplicate or switch to NSTask.
+global i32 cli_count = 0;
+
 internal
 Sys_CLI_Call_Sig(system_cli_call){
     i32 pipe_fds[2];
@@ -231,7 +231,7 @@ Sys_CLI_Call_Sig(system_cli_call){
         *(int*)&cli_out->out_read = pipe_fds[PIPE_FD_READ];
         *(int*)&cli_out->out_write = pipe_fds[PIPE_FD_WRITE];
         
-        // TODO(allen): Getting updates when there is new something new on the pipe!?
+        ++cli_count;
     }
     
     return(true);
@@ -288,6 +288,8 @@ Sys_CLI_End_Update_Sig(system_cli_end_update){
         
         close(*(int*)&cli->out_read);
         close(*(int*)&cli->out_write);
+        
+        --cli_count;
     }
     
     return(close_me);
@@ -314,10 +316,10 @@ osx_free(void *ptr, umem size){
 
 external void
 osx_resize(int width, int height){
-    osx_objc.width = width;
-    osx_objc.height = height;
-    
     if (width > 0 && height > 0){
+        osx_objc.width = width;
+        osx_objc.height = height;
+        
         glViewport(0, 0, width, height);
         glMatrixMode(GL_PROJECTION);
         glLoadIdentity();
@@ -326,6 +328,8 @@ osx_resize(int width, int height){
         
         target.width = width;
         target.height = height;
+        
+        osx_schedule_step();
     }
 }
 
@@ -379,7 +383,6 @@ osx_character_input(u32 code, OSX_Keyboard_Modifiers modifier_flags){
         case 0xF712: c = key_f15; break;
         case 0xF713: c = key_f16; break;
     }
-    fprintf(stdout, "INPUT: %c\n", (char)code);
     
     b8 mods[MDFR_INDEX_COUNT] = {0};
     
@@ -411,19 +414,29 @@ osx_character_input(u32 code, OSX_Keyboard_Modifiers modifier_flags){
     else{
         osx_push_key(0, 0, 0, mods);
     }
+    
+    osx_schedule_step();
 }
 
 external void
 osx_mouse(i32 mx, i32 my, u32 type){
-    osxvars.input.mouse.x = mx;
-    osxvars.input.mouse.y = osx_objc.height - my;
+    i32 new_x = mx;
+    i32 new_y = osx_objc.height - my;
+    if (new_x != osxvars.input.mouse.x && new_y != osxvars.input.mouse.y){
+        osxvars.input.mouse.x = new_x;
+        osxvars.input.mouse.y = new_y;
+        osx_schedule_step();
+    }
+    
     if (type == MouseType_Press){
         osxvars.input.mouse.press_l = true;
         osxvars.input.mouse.l = true;
+        osx_schedule_step();
     }
     if (type == MouseType_Release){
         osxvars.input.mouse.release_l = true;
         osxvars.input.mouse.l = false;
+        osx_schedule_step();
     }
 }
 
@@ -435,15 +448,18 @@ osx_mouse_wheel(float dx, float dy){
     else if (dy < 0){
         osxvars.input.mouse.wheel = -1;
     }
+    osx_schedule_step();
 }
 
 external void
 osx_try_to_close(void){
     system_send_exit_signal();
+    osx_schedule_step();
 }
 
 external void
 osx_step(void){
+    DBG_POINT();
     Application_Step_Result result = {};
     result.mouse_cursor_type = APP_MOUSE_CURSOR_DEFAULT;
     result.trying_to_kill = !osxvars.keep_running;
@@ -491,6 +507,10 @@ osx_step(void){
     }
     
     launch_rendering(&sysfunc, &target);
+    
+    if (result.animating || cli_count > 0){
+        osx_schedule_step();
+    }
 }
 
 external void
@@ -598,7 +618,6 @@ osx_init(){
     DBG_POINT();
     char cwd[4096];
     u32 size = sysfunc.get_current_path(cwd, sizeof(cwd));
-    fprintf(stdout, "cwd = \"%.*s\"\n", size, cwd);
     if (size == 0 || size >= sizeof(cwd)){
         system_error_box("Could not get current directory at launch.");
     }

@@ -15,7 +15,7 @@
 #include "4coder_API/version.h"
 #include "4coder_API/keycodes.h"
 
-#define WINDOW_NAME "4coder" VERSION
+#define WINDOW_NAME "4coder " VERSION
 
 #undef internal
 #undef global
@@ -42,7 +42,7 @@ void
 osx_post_to_clipboard(char *str){
     NSPasteboard *board = [NSPasteboard generalPasteboard];
 	NSString *utf8_type = @"public.utf8-plain-text";
-	NSArray<NSString*> *typesArray = [NSArray arrayWithObjects: utf8_type, nil]; 
+	NSArray<NSString*> *typesArray = [NSArray arrayWithObjects: utf8_type, nil];
 	[board declareTypes:typesArray owner:nil];
 	NSString *paste_string = [NSString stringWithUTF8String:str];
 	[board setString:paste_string forType:utf8_type];
@@ -68,10 +68,12 @@ osx_error_dialogue(char *str){
 
 @interface My4coderView : NSOpenGLView{
 	@public
-	CVDisplayLinkRef displayLink;
+	//CVDisplayLinkRef displayLink;
 }
 
-- (CVReturn)getFrameForTime:(const CVTimeStamp*)time;
+- (void)requestDisplay;
+- (CVReturn)getFrame;
+- (void)drawRect:(NSRect)bounds;
 @end
 
 #define DISPLINK_SIG(n) CVReturn n(CVDisplayLinkRef link, const CVTimeStamp *now, const CVTimeStamp *output, CVOptionFlags flags_in, CVOptionFlags *flags_out, void *context)
@@ -103,7 +105,7 @@ static DISPLINK_SIG(osx_display_link);
 
 - (void)mouseDown:(NSEvent*)event{
 	NSPoint m = [event locationInWindow];
-	osx_mouse(m.x, m.y, MouseType_Press);	
+	osx_mouse(m.x, m.y, MouseType_Press);
 }
 
 - (void)mouseDragged:(NSEvent*)event{
@@ -132,7 +134,12 @@ static DISPLINK_SIG(osx_display_link);
 	return(NO);
 }
 
-- (CVReturn)getFrameForTime:(const CVTimeStamp*)time{
+- (void)requestDisplay{
+    NSRect rect = CGRectMake(0, 0, osx_objc.width, osx_objc.height);
+    [self setNeedsDisplayInRect:rect];
+}
+
+- (CVReturn)getFrame{
     @autoreleasepool
     {
 	if (osx_objc.running){
@@ -232,6 +239,10 @@ static DISPLINK_SIG(osx_display_link);
     return self;
 }
 
+- (void)drawRect: (NSRect) bounds{
+    [self getFrame];
+}
+
 - (void)awakeFromNib
 {
     [self init_gl];
@@ -246,6 +257,7 @@ static DISPLINK_SIG(osx_display_link);
     GLint swapInt = 1;
     [[self openGLContext] setValues:&swapInt forParameter:NSOpenGLCPSwapInterval];
 
+#if 0
     CVReturn cvreturn = CVDisplayLinkCreateWithActiveCGDisplays(&displayLink);
     cvreturn = CVDisplayLinkSetOutputCallback(displayLink, &osx_display_link, (__bridge void*)(self));
 
@@ -254,14 +266,17 @@ static DISPLINK_SIG(osx_display_link);
     cvreturn = CVDisplayLinkSetCurrentCGDisplayFromOpenGLContext(displayLink, cglContext, cglPixelFormat);
 
     CVDisplayLinkStart(displayLink);
+#endif
 }
 
 - (void)dealloc
 {
     [super dealloc];
 
+#if 0
     CVDisplayLinkStop(displayLink);
     CVDisplayLinkRelease(displayLink);
+#endif
 }
 
 - (BOOL)acceptsFirstResponder
@@ -280,12 +295,14 @@ static DISPLINK_SIG(osx_display_link);
 }
 @end
 
+#if 0
 static
 DISPLINK_SIG(osx_display_link){
     My4coderView* view = (__bridge My4coderView*)context;
-    CVReturn result = [view getFrameForTime:output];
+    CVReturn result = [view getFrame];
     return result;
 }
+#endif
 
 @implementation AppDelegate
 - (void)applicationDidFinishLaunching:(id)sender
@@ -507,7 +524,7 @@ osx_file_listener_hash_always(u64 hash, void *name, i32 fd){
 
 void
 osx_file_listener_init(void){
-	memset(&file_change_queue, 0, sizeof(file_change_queue));
+    memset(&file_change_queue, 0, sizeof(file_change_queue));
     file_change_queue.kq = kqueue();
     osx_file_listener_grow_table(1024);
 }
@@ -519,7 +536,7 @@ osx_add_file_listener(char *dir_name){
         return;
     }
 
-    fprintf(stdout, "ADD_FILE_LISTENER: %s\n", dir_name);
+    //fprintf(stdout, "ADD_FILE_LISTENER: %s\n", dir_name);
 
     i32 fd = open(dir_name, O_EVTONLY);
     if (fd <= 0){
@@ -588,6 +605,21 @@ osx_get_file_change_event(char *buffer, i32 max, i32 *size){
     return(result);
 }
 
+My4coderView* view = 0;
+
+void
+osx_schedule_step(void){
+    //DBG_POINT();
+#if 1
+    [NSTimer scheduledTimerWithTimeInterval: 0.0
+             target: view
+             selector: @selector(requestDisplay)
+             userInfo: nil repeats:NO];
+#else
+    [view requestDisplay];
+#endif
+}
+
 void
 osx_close_app(void){
     [NSApp terminate: nil];
@@ -620,7 +652,7 @@ main(int argc, char **argv){
 
 		[window setAcceptsMouseMovedEvents:YES];
 
-		My4coderView* view = [[My4coderView alloc] init];
+		view = [[My4coderView alloc] init];
 		[view setFrame:[[window contentView] bounds]];
 		[view setAutoresizingMask:NSViewWidthSizable | NSViewHeightSizable];
 

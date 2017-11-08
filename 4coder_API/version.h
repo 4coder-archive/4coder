@@ -3,7 +3,7 @@
 #define PATCH 22
 
 // string
-#define VN__(a,b,c) #a"."#b"."#c
+#define VN__(a,b,c) #a "." #b "." #c
 #define VN_(a,b,c) VN__(a,b,c)
 #define VERSION_NUMBER VN_(MAJOR,MINOR,PATCH)
 #define VERSION_STRING "alpha " VERSION_NUMBER
