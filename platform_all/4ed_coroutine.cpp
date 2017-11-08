@@ -80,6 +80,7 @@ PLAT_THREAD_SIG(coroutine_main){
         Assert(me->yield_ctx != 0);
         Assert(me->function != 0);
         
+        DBG_POINT();
         me->function(&me->head);
         
         // NOTE(allen): Wake up the caller and set this coroutine back to being dead.

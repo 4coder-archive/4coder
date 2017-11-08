@@ -30,11 +30,6 @@ union Condition_Variable{
     FixSize(CONDITION_VARIABLE_TYPE_SIZE);
 };
 
-union Semaphore{
-    sem_t s;
-    FixSize(SEMAPHORE_TYPE_SIZE);
-};
-
 internal void
 system_init_and_launch_thread(Thread *t, Thread_Function *proc, void *ptr){
     pthread_create(&t->t, 0, proc, ptr);
@@ -68,21 +63,6 @@ system_wait_cv(Condition_Variable *cv, Mutex *m){
 internal void
 system_signal_cv(Condition_Variable *cv, Mutex *m){
     pthread_cond_signal(&cv->cv);
-}
-
-internal void
-system_init_semaphore(Semaphore *s, u32 count){
-    sem_init(&s->s, 0, 0);
-}
-
-internal void
-system_wait_on_semaphore(Semaphore *s){
-    sem_wait(&s->s);
-}
-
-internal void
-system_release_semaphore(Semaphore *s){
-    sem_post(&s->s);
 }
 
 #endif

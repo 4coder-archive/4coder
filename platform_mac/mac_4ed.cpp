@@ -31,6 +31,8 @@
 # include "4coder_default_bindings.cpp"
 #endif
 
+#include "osx_objective_c_to_cpp_links.h"
+
 #include "4ed_math.h"
 
 #include "4ed_system.h"
@@ -48,6 +50,11 @@
 #include <OpenGL/OpenGL.h>
 #include <OpenGL/gl.h>
 
+#undef external
+#undef internal
+#include <mach/mach.h>
+#define external extern "C"
+#define internal static
 #include <mach-o/dyld.h>
 
 #include <stdlib.h>
@@ -56,6 +63,7 @@
 
 #include "4ed_shared_thread_constants.h"
 #include "unix_threading_wrapper.h"
+#include "mac_semaphore_wrapper.h"
 
 // TODO(allen): Make an intrinsics header that uses the cracked OS to define a single set of intrinsic names.
 #define InterlockedCompareExchange(dest, ex, comp) \
@@ -86,7 +94,6 @@ struct OSX_Vars{
 
 ////////////////////////////////
 
-#include "osx_objective_c_to_cpp_links.h"
 OSX_Objective_C_Vars osx_objc;
 OSX_Vars osxvars;
 global Render_Target target;

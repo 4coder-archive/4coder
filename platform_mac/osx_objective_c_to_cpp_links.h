@@ -14,7 +14,7 @@
 
 #include <stdio.h>
 
-#if 1
+#if 0
 #define DBG_POINT() fprintf(stdout, "%s\n", __FILE__ ":" LINE_STR ":")
 #else
 #define DBG_POINT()

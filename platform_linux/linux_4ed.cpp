@@ -76,6 +76,7 @@
 
 #include "4ed_shared_thread_constants.h"
 #include "unix_threading_wrapper.h"
+#include "linux_semaphore_wrapper.h"
 
 //
 // Linux macros
@@ -1821,7 +1822,7 @@ main(int argc, char **argv){
             
             // HACK(allen): THIS SHIT IS FUCKED (happens on mac too)
             b32 keep_running = linuxvars.keep_running;
-
+            
             app.step(&sysfunc, &target, &memory_vars, &linuxvars.input, &result);
             
             if (result.perform_kill){

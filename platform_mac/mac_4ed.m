@@ -582,13 +582,13 @@ osx_get_file_change_event(char *buffer, i32 max, i32 *size){
     struct kevent event_out;
     i32 count = kevent(file_change_queue.kq, 0, 0, &event_out, 1, &t);
     if (count < 0 || (count > 0 && event_out.flags == EV_ERROR)){
-        fprintf(stdout, "count: %4d error: %s\n", count, strerror(errno));
+        //fprintf(stdout, "count: %4d error: %s\n", count, strerror(errno));
     }
     else if (count > 0){
         if (event_out.udata != 0){
             i32 len = *(i32*)event_out.udata;
             char *str = (char*)((i32*)event_out.udata + 1);
-            fprintf(stdout, "got an event for file: %.*s\n", len, str);
+            //fprintf(stdout, "got an event for file: %.*s\n", len, str);
             if (len <= max){
                 *size = len;
                 memcpy(buffer, str, len);
