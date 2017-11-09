@@ -36,7 +36,11 @@ ENUM(int32_t, Key_Modifier_Index){
     MDFR_CONTROL_INDEX,
     MDFR_ALT_INDEX,
     MDFR_COMMAND_INDEX,
-    MDFR_CAPS_INDEX,
+    
+    /* DOC(MDFR_INDEX_BINDABLE_COUNT is used to specify the number of supported modifiers that can be used in key bindings.) */
+    MDFR_INDEX_BINDABLE_COUNT,
+    
+    MDFR_CAPS_INDEX = MDFR_INDEX_BINDABLE_COUNT,
     MDFR_HOLD_INDEX,
     
     /* DOC(MDFR_INDEX_COUNT is used to specify the number of modifiers supported.) */

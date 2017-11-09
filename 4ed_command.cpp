@@ -26,7 +26,7 @@ static Command_Binding null_command_binding = {0};
 
 struct Command_Map{
     i32 parent;
-    Command_Binding vanilla_keyboard_default[8];
+    Command_Binding vanilla_keyboard_default[1 << MDFR_INDEX_BINDABLE_COUNT];
     Command_Binding *commands;
     i32 count, max;
     void *real_beginning;
