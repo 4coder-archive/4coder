@@ -516,6 +516,9 @@ CUSTOM_COMMAND_SIG(execute_arbitrary_command){
     else if (match_ss(bar.string, make_lit_string("remap"))){
         exec_command(app, remap_interactive);
     }
+    else if (match_ss(bar.string, make_lit_string("new project"))){
+        exec_command(app, setup_new_project);
+    }
     else{
         print_message(app, literal("unrecognized command\n"));
     }

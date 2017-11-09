@@ -1,20 +1,20 @@
 /*
-4coder_project_commands.cpp - Commands for loading and using a project.
+4coder_project_commands.cpp - commands for loading and using a project.
 
-TYPE: 'drop-in-command-pack'
+type: 'drop-in-command-pack'
 */
 
-// TOP
+// top
 
-#if !defined(FCODER_PROJECT_COMMANDS_CPP)
-#define FCODER_PROJECT_COMMANDS_CPP
+#if !defined(fcoder_project_commands_cpp)
+#define fcoder_project_commands_cpp
 
 #include "4coder_default_framework.h"
 #include "4coder_lib/4coder_mem.h"
 
 #include "4coder_build_commands.cpp"
 
-// TODO(allen): make this a string operation or a lexer operation or something
+// TODO(allen): Make this a string operation or a lexer operation or something
 static void
 interpret_escaped_string(char *dst, String src){
     int32_t mode = 0;
@@ -45,6 +45,8 @@ interpret_escaped_string(char *dst, String src){
     }
     dst[j] = 0;
 }
+
+///////////////////////////////
 
 static void
 close_all_files_with_extension(Application_Links *app, Partition *scratch_part, char **extension_list, int32_t extension_count){
@@ -91,8 +93,7 @@ close_all_files_with_extension(Application_Links *app, Partition *scratch_part, 
         for (int32_t i = 0; i < buffers_to_close_count; ++i){
             kill_buffer(app, buffer_identifier(buffers_to_close[i]), true, 0);
         }
-    }
-    while(do_repeat);
+    }while(do_repeat);
     
     end_temp_memory(temp);
 }
@@ -185,6 +186,8 @@ CUSTOM_COMMAND_SIG(close_all_code){
     char **extension_list = get_current_project_extensions(&extension_count);
     close_all_files_with_extension(app, &global_part, extension_list, extension_count);
 }
+
+///////////////////////////////
 
 static void
 load_project_from_config_data(Application_Links *app, Partition *part, char *config_data, int32_t config_data_size, String project_dir){
@@ -447,6 +450,8 @@ CUSTOM_COMMAND_SIG(load_project){
     end_temp_memory(temp);
 }
 
+///////////////////////////////
+
 static void
 exec_project_fkey_command(Application_Links *app, int32_t command_ind){
     Fkey_Command *fkey = &current_project.fkey_commands[command_ind];
@@ -527,6 +532,238 @@ CUSTOM_COMMAND_SIG(project_fkey_command){
 CUSTOM_COMMAND_SIG(project_go_to_root_directory){
     if (current_project.loaded){
         directory_set_hot(app, current_project.dir, current_project.dir_len);
+    }
+}
+
+///////////////////////////////
+
+struct Project_Setup_Status{
+    bool32 bat_exists;
+    bool32 sh_exists;
+    bool32 project_exists;
+    
+    bool32 everything_exists;
+};
+
+static Project_Setup_Status
+project_is_setup(Application_Links *app, char *dir, int32_t dir_len, int32_t dir_capacity){
+    Project_Setup_Status result = {0};
+    
+    Temp_Memory temp = begin_temp_memory(&global_part);
+    
+    static int32_t needed_extra_space = 15;
+    
+    String str = {0};
+    if (dir_capacity >= dir_len + needed_extra_space){
+        str = make_string_cap(dir, dir_len, dir_capacity);
+    }
+    else{
+        char *space = push_array(&global_part, char, dir_len + needed_extra_space);
+        str = make_string_cap(space, 0, dir_len + needed_extra_space);
+        copy(&str, make_string(dir, dir_len));
+    }
+    
+    str.size = dir_len;
+    append(&str, "/build.bat");
+    result.bat_exists = file_exists(app, str.str, str.size);
+    
+    str.size = dir_len;
+    append(&str, "/build.sh");
+    result.sh_exists = file_exists(app, str.str, str.size);
+    
+    str.size = dir_len;
+    append(&str, "/project.4coder");
+    result.project_exists = file_exists(app, str.str, str.size);
+    
+    result.everything_exists = result.bat_exists && result.sh_exists && result.project_exists;
+    
+    end_temp_memory(temp);
+    
+    return(result);
+}
+
+// TODO(allen): For this purpose we shouldn't go this far.
+// Instead just let the CWD of the running script be the code home.
+static char get_code_home[] = 
+"# Store the real CWD\n"
+"REAL_PWD=\"$PWD\"\n\n"
+"# Find the code home folder\n"
+"TARGET_FILE=\"$0\"\n"
+"cd `dirname $TARGET_FILE`\n"
+"TARGET_FILE=`basename $TARGET_FILE`\n"
+"while [ -L \"$TARGET_FILE\" ]\n"
+"do\n"
+"TARGET_FILE=`readlink $TARGET_FILE`\n"
+"cd `dirname $TARGET_FILE`\n"
+"TARGET_FILE=`basename $TARGET_FILE`\n"
+"done\n"
+"PHYS_DIR=`pwd -P`\n"
+"SCRIPT_FILE=$PHYS_DIR/$TARGET_FILE\n"
+"CODE_HOME=$(dirname \"$SCRIPT_FILE\")\n\n"
+"# Restore the PWD\n"
+"cd \"$REAL_PWD\"\n\n";
+
+// TODO(allen): Stop using stdio.h, switch to a 4coder buffer API for all file manipulation.
+#include <stdio.h>
+CUSTOM_COMMAND_SIG(setup_new_project){
+    char space[4096];
+    String str = make_fixed_width_string(space);
+    str.size = directory_get_hot(app, str.str, str.memory_size);
+    int32_t dir_size = str.size;
+    
+    Project_Setup_Status status = project_is_setup(app, str.str, dir_size, str.memory_size);
+    if (!status.everything_exists){
+        // Query the User for Key File Names
+        Query_Bar code_file_bar = {0};
+        Query_Bar output_dir_bar = {0};
+        Query_Bar binary_file_bar = {0};
+        char code_file_space[1024];
+        char output_dir_space[1024];
+        char binary_file_space[1024];
+        
+        if (!status.bat_exists || !status.sh_exists){
+            code_file_bar.prompt = make_lit_string("Build Target: ");
+            code_file_bar.string = make_fixed_width_string(code_file_space);
+            
+            if (!query_user_string(app, &code_file_bar)) return;
+            if (code_file_bar.string.size == 0) return;
+        }
+        
+        output_dir_bar.prompt = make_lit_string("Output Directory: ");
+        output_dir_bar.string = make_fixed_width_string(output_dir_space);
+        
+        if (!query_user_string(app, &output_dir_bar)) return;
+        if (output_dir_bar.string.size == 0){
+            copy(&output_dir_bar.string, ".");
+        }
+        
+        
+        binary_file_bar.prompt = make_lit_string("Binary Output: ");
+        binary_file_bar.string = make_fixed_width_string(binary_file_space);
+        
+        if (!query_user_string(app, &binary_file_bar)) return;
+        if (binary_file_bar.string.size == 0) return;
+        
+        
+        String code_file = code_file_bar.string;
+        String output_dir = output_dir_bar.string;
+        String binary_file = binary_file_bar.string;
+        
+        // Generate Scripts
+        if (!status.bat_exists){
+            replace_char(&code_file, '/', '\\');
+            replace_char(&output_dir, '/', '\\');
+            replace_char(&binary_file, '/', '\\');
+            
+            str.size = dir_size;
+            append(&str, "/build.bat");
+            terminate_with_null(&str);
+            FILE *bat_script = fopen(str.str, "wb");
+            if (bat_script != 0){
+                fprintf(bat_script, "@echo off\n\n");
+                fprintf(bat_script, "SET OPTS=%.*s\n", 
+                        default_flags_bat.size, default_flags_bat.str);
+                fprintf(bat_script, "SET CODE_HOME=%%cd%%\n");
+                
+                fprintf(bat_script, "pushd %.*s\n", 
+                        output_dir.size, output_dir.str);
+                fprintf(bat_script, "%.*s %%OPTS%% %%CODE_HOME%%\\%.*s -Fe%.*s\n",
+                        default_compiler_bat.size, default_compiler_bat.str,
+                        code_file.size, code_file.str,
+                        binary_file.size, binary_file.str);
+                fprintf(bat_script, "popd\n");
+                
+                fclose(bat_script);
+            }
+            else{
+                print_message(app, literal("could not create build.bat for new project\n"));
+            }
+            
+            replace_char(&code_file, '\\', '/');
+            replace_char(&output_dir, '\\', '/');
+            replace_char(&binary_file, '\\', '/');
+        }
+        else{
+            print_message(app, literal("build.bat already exists, no changes made to it\n"));
+        }
+        
+        if (!status.sh_exists){
+            str.size = dir_size;
+            append(&str, "/build.sh");
+            terminate_with_null(&str);
+            FILE *sh_script = fopen(str.str, "wb");
+            if (sh_script != 0){
+                fprintf(sh_script, "#!/bin/bash\n\n");
+                
+                fprintf(sh_script, get_code_home);
+                
+                fprintf(sh_script, "OPTS=%.*s\n", 
+                        default_flags_sh.size, default_flags_sh.str);
+                
+                fprintf(sh_script, "pushd %.*s\n", 
+                        output_dir.size, output_dir.str);
+                fprintf(sh_script, "%.*s $OPTS $CODE_HOME/%.*s -o %.*s\n",
+                        default_compiler_sh.size, default_compiler_sh.str,
+                        code_file.size, code_file.str,
+                        binary_file.size, binary_file.str);
+                fprintf(sh_script, "popd\n");
+                
+                fclose(sh_script);
+            }
+            else{
+                print_message(app, literal("could not create build.sh for new project\n"));
+            }
+        }
+        else{
+            print_message(app, literal("build.sh already exists, no changes made to it\n"));
+        }
+        
+        if (!status.project_exists){
+            str.size = dir_size;
+            append(&str, "/project.4coder");
+            terminate_with_null(&str);
+            FILE *project_script = fopen(str.str, "wb");
+            if (project_script != 0){
+                fprintf(project_script, "extensions = \".c.cpp.h.m.bat.sh.4coder\";\n");
+                fprintf(project_script, "open_recursively = true;\n\n");
+                
+                replace_str(&code_file, "/", "\\\\");
+                replace_str(&output_dir, "/", "\\\\");
+                replace_str(&binary_file, "/", "\\\\");
+                fprintf(project_script, 
+                        "fkey_command_win[1] = {\"build.bat\", \"*compilation*\", true , true };\n");
+                fprintf(project_script, 
+                        "fkey_command_win[2] = {\"%.*s\\\\%.*s\", \"*run*\", false , true };\n", 
+                        output_dir.size, output_dir.str,
+                        binary_file.size, binary_file.str);
+                replace_str(&code_file, "\\\\", "/");
+                replace_str(&output_dir, "\\\\", "/");
+                replace_str(&binary_file, "\\\\", "/");
+                
+                fprintf(project_script, "fkey_command_linux[1] = {\"build.sh\", \"*compilation*\", true , true };\n");
+                fprintf(project_script, 
+                        "fkey_command_linux[2] = {\"%.*s/%.*s\", \"*run*\", false , true };\n", 
+                        output_dir.size, output_dir.str,
+                        binary_file.size, binary_file.str);
+                
+                fprintf(project_script, "fkey_command_mac[1] = {\"build.sh\", \"*compilation*\", true , true };\n");
+                fprintf(project_script, 
+                        "fkey_command_mac[2] = {\"%.*s/%.*s\", \"*run*\", false , true };\n", 
+                        output_dir.size, output_dir.str,
+                        binary_file.size, binary_file.str);
+                fclose(project_script);
+            }
+            else{
+                print_message(app, literal("could not create project.4coder for new project\n"));
+            }
+        }
+        else{
+            print_message(app, literal("project.4coder already exists, no changes made to it\n"));
+        }
+        
+    }
+    else{
+        print_message(app, literal("project already setup, no changes made\n"));
     }
 }
 

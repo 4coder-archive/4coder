@@ -1,5 +1,5 @@
 /*
-4coder_string.h - Version 1.0.102
+4coder_string.h - Version 1.0.107
 no warranty implied; use at your own risk
 
 This software is in the public domain. Where that dedication is not
@@ -42,7 +42,7 @@ typedef int32_t b32_4tech;
 #if !defined(Assert)
 # define Assert(n) do{ if (!(n)) *(int*)0 = 0xA11E; }while(0)
 #endif
-// standard preamble end
+// standard preamble end 
 
 #if !defined(FSTRING_LINK)
 # define FSTRING_LINK static
@@ -169,6 +169,10 @@ FSTRING_INLINE b32_4tech           append_sc(String *dest, char *src);
 FSTRING_LINK b32_4tech             terminate_with_null(String *str);
 FSTRING_LINK b32_4tech             append_padding(String *dest, char c, i32_4tech target_size);
 FSTRING_LINK void                  replace_char(String *str, char replace, char with);
+FSTRING_LINK void                  replace_str_ss(String *str, String replace, String with);
+FSTRING_LINK void                  replace_str_sc(String *str, String replace, char *with);
+FSTRING_LINK void                  replace_str_cs(String *str, char *replace, String with);
+FSTRING_LINK void                  replace_str_cc(String *str, char *replace, char *with);
 FSTRING_LINK void                  to_lower_cc(char *src, char *dst);
 FSTRING_LINK void                  to_lower_ss(String *dst, String src);
 FSTRING_LINK void                  to_lower_s(String *str);
@@ -272,6 +276,10 @@ FSTRING_LINK b32_4tech             append_partial(String *dest, String src){retu
 FSTRING_LINK b32_4tech             append(String *dest, char c){return(append_s_char(dest,c));}
 FSTRING_INLINE b32_4tech           append(String *dest, String src){return(append_ss(dest,src));}
 FSTRING_INLINE b32_4tech           append(String *dest, char *src){return(append_sc(dest,src));}
+FSTRING_LINK void                  replace_str(String *str, String replace, String with){return(replace_str_ss(str,replace,with));}
+FSTRING_LINK void                  replace_str(String *str, String replace, char *with){return(replace_str_sc(str,replace,with));}
+FSTRING_LINK void                  replace_str(String *str, char *replace, String with){return(replace_str_cs(str,replace,with));}
+FSTRING_LINK void                  replace_str(String *str, char *replace, char *with){return(replace_str_cc(str,replace,with));}
 FSTRING_LINK void                  to_lower(char *src, char *dst){return(to_lower_cc(src,dst));}
 FSTRING_LINK void                  to_lower(String *dst, String src){return(to_lower_ss(dst,src));}
 FSTRING_LINK void                  to_lower(String *str){return(to_lower_s(str));}
@@ -1472,6 +1480,85 @@ replace_char(String *str, char replace, char with){
 }
 #endif
 
+#if !defined(FSTRING_GUARD)
+void
+block_move(void *a_ptr, void *b_ptr, i32_4tech s){
+    u8_4tech *a = (u8_4tech*)a_ptr;
+    u8_4tech *b = (u8_4tech*)b_ptr;
+    if (a < b){
+        for (i32_4tech i = 0; i < s; ++i, ++a, ++b){
+            *a = *b;
+        }
+    }
+    else if (a > b){
+        a = a + s - 1;
+        b = b + s - 1;
+        for (i32_4tech i = 0; i < s; ++i, --a, --b){
+            *a = *b;
+        }
+    }
+}
+
+void
+replace_range_str(String *str, i32_4tech first, i32_4tech one_past_last, String with){
+    i32_4tech shift = with.size - (one_past_last - first);
+    i32_4tech new_size = str->size + shift;
+    if (new_size <= str->memory_size){
+        if (shift != 0){
+            char *tail = str->str + one_past_last;
+            char *new_tail_pos = tail + shift;
+            block_move(new_tail_pos, tail, str->size - one_past_last);
+        }
+        block_move(str->str + first, with.str, with.size);
+        str->size += shift;
+    }
+}
+#endif
+
+
+#if defined(FSTRING_IMPLEMENTATION)
+FSTRING_LINK void
+replace_str_ss(String *str, String replace, String with){
+    i32_4tech i = 0;
+    for (;;){
+        i = find_substr_s(*str, i, replace);
+        if (i >= str->size){
+            break;
+        }
+        replace_range_str(str, i, i + replace.size, with);
+        i += with.size;
+    }
+}
+#endif
+
+
+#if defined(FSTRING_IMPLEMENTATION)
+FSTRING_LINK void
+replace_str_sc(String *str, String replace, char *with){
+    String w = make_string_slowly(with);
+    replace_str_ss(str, replace, w);
+}
+#endif
+
+
+#if defined(FSTRING_IMPLEMENTATION)
+FSTRING_LINK void
+replace_str_cs(String *str, char *replace, String with){
+    String r = make_string_slowly(replace);
+    replace_str_ss(str, r, with);
+}
+#endif
+
+
+#if defined(FSTRING_IMPLEMENTATION)
+FSTRING_LINK void
+replace_str_cc(String *str, char *replace, char *with){
+    String r = make_string_slowly(replace);
+    String w = make_string_slowly(with);
+    replace_str_ss(str, r, w);
+}
+#endif
+
 
 #if defined(FSTRING_IMPLEMENTATION)
 FSTRING_LINK void
@@ -2062,7 +2149,6 @@ remove_last_folder(String *str){
 }
 #endif
 
-// TODO(allen): Add hash-table extension to string sets.
 
 #if defined(FSTRING_IMPLEMENTATION)
 FSTRING_LINK b32_4tech

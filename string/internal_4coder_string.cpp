@@ -1246,6 +1246,77 @@ DOC(This call replaces all occurances of character in str with another character
     }
 }
 
+#if !defined(FSTRING_GUARD)
+void
+block_move(void *a_ptr, void *b_ptr, i32_4tech s){
+    u8_4tech *a = (u8_4tech*)a_ptr;
+    u8_4tech *b = (u8_4tech*)b_ptr;
+    if (a < b){
+        for (i32_4tech i = 0; i < s; ++i, ++a, ++b){
+            *a = *b;
+        }
+    }
+    else if (a > b){
+        a = a + s - 1;
+        b = b + s - 1;
+        for (i32_4tech i = 0; i < s; ++i, --a, --b){
+            *a = *b;
+        }
+    }
+}
+
+void
+replace_range_str(String *str, i32_4tech first, i32_4tech one_past_last, String with){
+    i32_4tech shift = with.size - (one_past_last - first);
+    i32_4tech new_size = str->size + shift;
+    if (new_size <= str->memory_size){
+        if (shift != 0){
+            char *tail = str->str + one_past_last;
+            char *new_tail_pos = tail + shift;
+            block_move(new_tail_pos, tail, str->size - one_past_last);
+        }
+        block_move(str->str + first, with.str, with.size);
+        str->size += shift;
+    }
+}
+#endif
+
+CPP_NAME(replace_str)
+API_EXPORT FSTRING_LINK void
+replace_str_ss(String *str, String replace, String with){
+    i32_4tech i = 0;
+    for (;;){
+        i = find_substr_s(*str, i, replace);
+        if (i >= str->size){
+            break;
+        }
+        replace_range_str(str, i, i + replace.size, with);
+        i += with.size;
+    }
+}
+
+CPP_NAME(replace_str)
+API_EXPORT FSTRING_LINK void
+replace_str_sc(String *str, String replace, char *with){
+    String w = make_string_slowly(with);
+    replace_str_ss(str, replace, w);
+}
+
+CPP_NAME(replace_str)
+API_EXPORT FSTRING_LINK void
+replace_str_cs(String *str, char *replace, String with){
+    String r = make_string_slowly(replace);
+    replace_str_ss(str, r, with);
+}
+
+CPP_NAME(replace_str)
+API_EXPORT FSTRING_LINK void
+replace_str_cc(String *str, char *replace, char *with){
+    String r = make_string_slowly(replace);
+    String w = make_string_slowly(with);
+    replace_str_ss(str, r, w);
+}
+
 CPP_NAME(to_lower)
 API_EXPORT FSTRING_LINK void
 to_lower_cc(char *src, char *dst)/*

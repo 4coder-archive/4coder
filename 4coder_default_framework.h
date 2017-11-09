@@ -742,6 +742,18 @@ static Extension_List treat_as_code_exts = {0};
 
 static bool32 automatically_load_project = false;
 
+static char default_compiler_bat_space[256];
+static String default_compiler_bat = make_fixed_width_string(default_compiler_bat_space);
+
+static char default_flags_bat_space[1024];
+static String default_flags_bat = make_fixed_width_string(default_flags_bat_space);
+
+static char default_compiler_sh_space[256];
+static String default_compiler_sh = make_fixed_width_string(default_compiler_sh_space);
+
+static char default_flags_sh_space[1024];
+static String default_flags_sh = make_fixed_width_string(default_flags_sh_space);
+
 static bool32
 get_current_name(char **name_out, int32_t *len_out){
     bool32 result = false;
@@ -813,6 +825,15 @@ process_config_file(Application_Links *app){
     Partition *part = &global_part;
     FILE *file = fopen("config.4coder", "rb");
     
+    static bool32 has_initialized = false;
+    if (!has_initialized){
+        has_initialized = true;
+        copy(&default_compiler_bat, "cl");
+        copy(&default_flags_bat, "");
+        copy(&default_compiler_sh, "g++");
+        copy(&default_flags_bat, "");
+    }
+    
     if (file == 0){
         char space[256];
         int32_t size = get_4ed_path(app, space, sizeof(space));
@@ -868,6 +889,10 @@ process_config_file(Application_Links *app){
                             config_string_var(item, "default_font_name", 0, &default_font_name);
                             config_string_var(item, "user_name", 0, &user_name);
                             
+                            config_string_var(item, "default_compiler_bat", 0, &default_compiler_bat);
+                            config_string_var(item, "default_flags_bat", 0, &default_flags_bat);
+                            config_string_var(item, "default_compiler_sh", 0, &default_compiler_sh);
+                            config_string_var(item, "default_flags_sh", 0, &default_flags_sh);
                             
                             char str_space[512];
                             String str = make_fixed_width_string(str_space);
