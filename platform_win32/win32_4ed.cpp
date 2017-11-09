@@ -1070,7 +1070,7 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
     }
     
     LOG("Creating window... ");
-    i32 window_style = WS_CAPTION|WS_MINIMIZEBOX|WS_BORDER;
+    i32 window_style = WS_OVERLAPPEDWINDOW;
     if (!plat_settings.fullscreen_window && plat_settings.maximize_window){
         window_style |= WS_MAXIMIZE;
     }

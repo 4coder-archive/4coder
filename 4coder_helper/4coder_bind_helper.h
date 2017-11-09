@@ -86,7 +86,7 @@ end_map(Bind_Helper *helper){
 }
 
 inline void
-bind(Bind_Helper *helper, Key_Code code, uint8_t modifiers, int32_t cmdid){
+bind(Bind_Helper *helper, Key_Code code, uint8_t modifiers, Command_ID cmdid){
     if (helper->group == 0 && helper->error == 0) helper->error = BH_ERR_MISSING_BEGIN;
     if (!helper->error) ++helper->group->map_begin.bind_count;
     
@@ -111,6 +111,16 @@ bind(Bind_Helper *helper, Key_Code code, uint8_t modifiers, Custom_Command_Funct
     unit.callback.modifiers = modifiers;
     
     write_unit(helper, unit);
+}
+
+inline void
+bind(Bind_Helper *helper, Key_Code code, uint8_t modifiers, Generic_Command cmd){
+    if (cmd.cmdid < cmdid_count){
+        bind(helper, code, modifiers, cmd.cmdid);
+    }
+    else{
+        bind(helper, code, modifiers, cmd.command);
+    }
 }
 
 inline void

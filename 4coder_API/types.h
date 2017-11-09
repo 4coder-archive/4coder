@@ -870,7 +870,7 @@ STRUCT Binding_Unit{
         STRUCT{ int32_t total_size; int32_t user_map_count; int32_t error; } header;
         STRUCT{ int32_t mapid; int32_t replace; int32_t bind_count; } map_begin;
         STRUCT{ int32_t mapid; } map_inherit;
-        STRUCT{ Key_Code code; uint8_t modifiers; int32_t command_id; } binding;
+        STRUCT{ Key_Code code; uint8_t modifiers; Command_ID command_id; } binding;
         STRUCT{ Key_Code code; uint8_t modifiers; Custom_Command_Function *func; } callback;
         STRUCT{ int32_t hook_id; void *func; } hook;
     };
