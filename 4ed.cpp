@@ -825,7 +825,7 @@ interpret_binding_buffer(Models *models, void *buffer, i32 size){
                 {
                     if (map_ptr != 0){
                         Command_Function *func = 0;
-                        if (unit->binding.command_id >= 0 && unit->binding.command_id < cmdid_count){
+                        if (unit->binding.command_id < cmdid_count){
                             func = command_table[unit->binding.command_id];
                         }
                         if (func != 0){
