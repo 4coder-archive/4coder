@@ -2098,7 +2098,7 @@ DOC_SEE(User_Input)
 }
 
 API_EXPORT User_Input
-Get_Command_Input (Application_Links *app)
+Get_Command_Input(Application_Links *app)
 /*
 DOC_RETURN(This call returns the input that triggered the currently executing command.)
 DOC_SEE(User_Input)

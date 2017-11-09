@@ -138,7 +138,7 @@ map_add(Command_Map *map, Key_Code event_code, u8 modifiers, Command_Function *f
     u32 max = map->max;
     u32 index = hash % max;
     Command_Binding entry = map->commands[index];
-    while (entry.function != 0 && entry.hash != COMMAND_HASH_ERASED){
+    for (; entry.function != 0 && entry.hash != COMMAND_HASH_ERASED;){
         if (entry.hash == hash){
             result = true;
             break;
@@ -148,12 +148,14 @@ map_add(Command_Map *map, Key_Code event_code, u8 modifiers, Command_Function *f
     }
     
     if (override_original || !result){
-        Command_Binding bind;
+        Command_Binding bind = {0};
         bind.function = function;
         bind.custom = custom;
         bind.hash = hash;
         map->commands[index] = bind;
-        ++map->count;
+        if (!result){
+            ++map->count;
+        }
     }
     
     return(result);
@@ -171,7 +173,7 @@ map_find_entry(Command_Map *map, Key_Code event_code, u8 modifiers, u32 *index_o
     u32 index = hash % max;
     b32 result = false;
     Command_Binding entry = map->commands[index];
-    while (entry.function != 0){
+    for (; entry.function != 0;){
         if (entry.hash == hash){
             *index_out = index;
             result = true;
@@ -222,13 +224,16 @@ map_get_modifiers_hash(u8 modifiers, u32 *hash_out){
     b32 result = true;
     u32 hash = 0;
     if (modifiers & MDFR_SHIFT){
-        hash += 0x1;
+        hash += MDFR_SHIFT;
     }
     if (modifiers & MDFR_CTRL){
-        hash += 0x2;
+        hash += MDFR_CTRL;
+    }
+    if (modifiers & MDFR_CMND){
+        hash += MDFR_CMND;
     }
     if (modifiers & MDFR_ALT){
-        hash += 0x4;
+        hash += MDFR_ALT;
     }
     *hash_out = hash;
     return(result);
@@ -253,8 +258,8 @@ map_extract(Command_Map *map, Key_Event_Data key){
     
     u8 mod_flags = MDFR_NONE;
     if (ctrl)    mod_flags |= MDFR_CTRL;
-    if (command) mod_flags |= MDFR_CMND;
     if (alt)     mod_flags |= MDFR_ALT;
+    if (command) mod_flags |= MDFR_CMND;
     if (shift)   mod_flags |= MDFR_SHIFT;
     
     Key_Code code = key.character_no_caps_lock;

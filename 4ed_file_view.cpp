@@ -4146,10 +4146,14 @@ internal Single_Line_Input_Step
 app_single_line_input_core(System_Functions *system, Working_Set *working_set, Key_Event_Data key, Single_Line_Mode mode){
     Single_Line_Input_Step result = {0};
     
+    b8 ctrl = key.modifiers[MDFR_CONTROL_INDEX];
+    b8 cmnd = key.modifiers[MDFR_COMMAND_INDEX];
+    b8 alt  = key.modifiers[MDFR_ALT_INDEX];
+    
     if (key.keycode == key_back){
-        result.hit_backspace = 1;
+        result.hit_backspace = true;
         if (mode.string->size > 0){
-            result.made_a_change = 1;
+            result.made_a_change = true;
             --mode.string->size;
             switch (mode.type){
                 case SINGLE_LINE_STRING:
@@ -4159,7 +4163,7 @@ app_single_line_input_core(System_Functions *system, Working_Set *working_set, K
                 
                 case SINGLE_LINE_FILE:
                 {
-                    if (!key.modifiers[MDFR_CONTROL_INDEX]){
+                    if (!ctrl && !cmnd && !alt){
                         char end_character = mode.string->str[mode.string->size];
                         if (char_is_slash(end_character)){
                             mode.string->size = reverse_seek_slash(*mode.string) + 1;
@@ -4183,14 +4187,14 @@ app_single_line_input_core(System_Functions *system, Working_Set *working_set, K
     }
     
     else if (key.keycode == key_esc){
-        result.hit_esc = 1;
-        result.made_a_change = 1;
+        result.hit_esc = true;
+        result.made_a_change = true;
     }
     
     else if (key.character){
-        result.hit_a_character = 1;
-        if (!key.modifiers[MDFR_CONTROL_INDEX] && !key.modifiers[MDFR_ALT_INDEX]){
-            if (mode.string->size+1 < mode.string->memory_size){
+        result.hit_a_character = true;
+        if (!ctrl && !cmnd && !alt){
+            if (mode.string->size + 1 < mode.string->memory_size){
                 u8 new_character = (u8)key.character;
                 mode.string->str[mode.string->size] = new_character;
                 mode.string->size++;
@@ -4198,11 +4202,11 @@ app_single_line_input_core(System_Functions *system, Working_Set *working_set, K
                 if (mode.type == SINGLE_LINE_FILE && char_is_slash(new_character)){
                     hot_directory_set(system, mode.hot_directory, *mode.string);
                 }
-                result.made_a_change = 1;
+                result.made_a_change = true;
             }
         }
         else{
-            result.did_command = 1;
+            result.did_command = true;
         }
     }
     

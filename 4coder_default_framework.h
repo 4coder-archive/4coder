@@ -691,13 +691,17 @@ static int32_t named_map_count = 0;
 
 static void
 change_mapping(Application_Links *app, String mapping){
+    bool32 did_remap = false;
     for (int32_t i = 0; i < named_map_count; ++i){
         if (match(mapping, named_maps[i].name)){
+            did_remap = true;
             exec_command(app, named_maps[i].remap_command);
             break;
         }
     }
-    print_message(app, literal("Leaving bindings unaltered.\n"));
+    if (!did_remap){
+        print_message(app, literal("Leaving bindings unaltered.\n"));
+    }
 }
 
 CUSTOM_COMMAND_SIG(remap_interactive){

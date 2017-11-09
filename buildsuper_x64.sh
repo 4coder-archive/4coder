@@ -37,7 +37,9 @@ SOURCE=$PHYS_DIR/$TARGET_FILE
 
 FLAGS="-Wno-write-strings -Wno-null-dereference -Wno-comment -Wno-switch -Wno-writable-strings"
 
+DEBUG=-g
+
 cd "$REAL_PWD"
 echo "Building custom_4coders.so from $SOURCE"
-g++ -I"$CODE_HOME" $FLAGS -std=gnu++0x "$SOURCE" -shared -o custom_4coder.so -fPIC
+g++ -I"$CODE_HOME" $FLAGS $DEBUG -std=gnu++0x "$SOURCE" -shared -o custom_4coder.so -fPIC
 

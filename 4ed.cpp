@@ -687,6 +687,7 @@ interpret_binding_buffer(Models *models, void *buffer, i32 size){
         memset(new_mapping.map_id_table, -1, user_map_count*sizeof(i32));
         
         new_mapping.user_maps = push_array(part, Command_Map, user_map_count);
+        memset(new_mapping.user_maps, 0, user_map_count*sizeof(Command_Map));
         
         // Find the Size of Each Map
         for (++unit; unit < end; ++unit){
@@ -824,9 +825,10 @@ interpret_binding_buffer(Models *models, void *buffer, i32 size){
                 {
                     if (map_ptr != 0){
                         Command_Function *func = 0;
-                        if (unit->binding.command_id >= 0 && unit->binding.command_id < cmdid_count)
+                        if (unit->binding.command_id >= 0 && unit->binding.command_id < cmdid_count){
                             func = command_table[unit->binding.command_id];
-                        if (func){
+                        }
+                        if (func != 0){
                             if (unit->binding.code == 0){
                                 u32 index = 0;
                                 if (map_get_modifiers_hash(unit->binding.modifiers, &index)){
@@ -846,7 +848,7 @@ interpret_binding_buffer(Models *models, void *buffer, i32 size){
                     if (map_ptr != 0){
                         Command_Function *func = command_user_callback;
                         Custom_Command_Function *custom = unit->callback.func;
-                        if (func){
+                        if (func != 0){
                             if (unit->callback.code == 0){
                                 u32 index = 0;
                                 if (map_get_modifiers_hash(unit->binding.modifiers, &index)){
