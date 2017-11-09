@@ -54,7 +54,8 @@ START_HOOK_SIG(default_start){
 COMMAND_CALLER_HOOK(default_command_caller){
     View_Summary view = get_active_view(app, AccessAll);
     
-#if 1
+#if 0
+    // NOTE(allen): Debugging input.
 #include <stdio.h>
     User_Input in = get_command_input(app);
     if (in.type == UserInputKey){
