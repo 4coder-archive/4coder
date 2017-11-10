@@ -2313,7 +2313,12 @@ App_Step_Sig(app_step){
         begin_render_section(target, system);
         
         target->clip_top = -1;
-        draw_push_clip(target, rect_from_target(target));
+        i32_Rect target_rect = {0};
+        target_rect.x0 = 0;
+        target_rect.y0 = 0;
+        target_rect.x1 = target->width;
+        target_rect.y1 = target->height;
+        draw_push_clip(target, target_rect);
         
         Command_Data *command = cmd;
         USE_PANEL(active_panel);

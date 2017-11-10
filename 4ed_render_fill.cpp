@@ -1,9 +1,9 @@
 /*
  * Mr. 4th Dimention - Allen Webster
  *
- * 12.17.2014
+ * 10.11.2017
  *
- * Rendering layer for project codename "4ed"
+ * Render buffer fill helpers.
  *
  */
 
@@ -11,19 +11,19 @@
 
 inline void
 draw_push_clip(Render_Target *target, i32_Rect clip_box){
-    target->push_clip(target, clip_box);
+    render_push_clip(target, clip_box);
 }
 
 inline i32_Rect
 draw_pop_clip(Render_Target *target){
-    i32_Rect result = target->pop_clip(target);
+    i32_Rect result = render_pop_clip(target);
     return(result);
 }
 
 inline void
 draw_change_clip(Render_Target *target, i32_Rect clip_box){
-    target->pop_clip(target);
-    target->push_clip(target, clip_box);
+    render_pop_clip(target);
+    render_push_clip(target, clip_box);
 }
 
 internal void
@@ -50,7 +50,7 @@ draw_rectangle(Render_Target *target, i32_Rect rect, u32 color){
     piece.header.type = piece_type_rectangle;
     piece.rectangle.rect = f32R(rect);
     piece.rectangle.color = color;
-    target->push_piece(target, piece);
+    render_push_piece(target, piece);
 }
 
 internal void
@@ -59,24 +59,7 @@ draw_rectangle(Render_Target *target, f32_Rect rect, u32 color){
     piece.header.type = piece_type_rectangle;
     piece.rectangle.rect = rect;
     piece.rectangle.color = color;
-    target->push_piece(target, piece);
-}
-
-internal void
-draw_gradient_2corner_clipped(Render_Target *target, f32_Rect rect,
-                              Vec4 left_color, Vec4 right_color){
-    Render_Piece_Combined piece;
-    piece.header.type = piece_type_gradient;
-    piece.gradient.rect = rect;
-    piece.gradient.left_color = pack_color4(left_color);
-    piece.gradient.right_color = pack_color4(right_color);
-    target->push_piece(target, piece);
-}
-
-inline void
-draw_gradient_2corner_clipped(Render_Target *target, f32 l, f32 t, f32 r, f32 b,
-                              Vec4 color_left, Vec4 color_right){
-    draw_gradient_2corner_clipped(target, f32R(l,t,r,b), color_left, color_right);
+    render_push_piece(target, piece);
 }
 
 internal void
@@ -85,7 +68,7 @@ draw_rectangle_outline(Render_Target *target, f32_Rect rect, u32 color){
     piece.header.type = piece_type_outline;
     piece.rectangle.rect = rect;
     piece.rectangle.color = color;
-    target->push_piece(target, piece);
+    render_push_piece(target, piece);
 }
 
 inline void
@@ -107,13 +90,8 @@ draw_margin(Render_Target *target, i32_Rect outer, i32 width, u32 color){
     draw_margin(target, outer, inner, color);
 }
 
-inline internal i32
-font_predict_size(i32 pt_size){
-    return pt_size*pt_size*128;
-}
-
 internal void
-font_draw_glyph(Render_Target *target, Font_ID font_id, i32 type, u32 codepoint, f32 x, f32 y, u32 color){
+draw_font_glyph(Render_Target *target, Font_ID font_id, i32 type, u32 codepoint, f32 x, f32 y, u32 color){
     Render_Piece_Combined piece;
     piece.header.type = type;
     piece.glyph.pos.x = x;
@@ -121,12 +99,12 @@ font_draw_glyph(Render_Target *target, Font_ID font_id, i32 type, u32 codepoint,
     piece.glyph.color = color;
     piece.glyph.font_id = font_id;
     piece.glyph.codepoint = codepoint;
-    target->push_piece(target, piece);
+    render_push_piece(target, piece);
 }
 
 internal void
-font_draw_glyph(Render_Target *target, Font_ID font_id, u32 codepoint, f32 x, f32 y, u32 color){
-    font_draw_glyph(target, font_id, piece_type_glyph, codepoint, x, y, color);
+draw_font_glyph(Render_Target *target, Font_ID font_id, u32 codepoint, f32 x, f32 y, u32 color){
+    draw_font_glyph(target, font_id, piece_type_glyph, codepoint, x, y, color);
 }
 
 internal f32
@@ -156,7 +134,7 @@ draw_string_base(System_Functions *system, Render_Target *target, Font_ID font_i
                 if (behavior.do_codepoint_advance){
                     u32 codepoint = step.value;
                     if (color != 0){
-                        font_draw_glyph(target, font_id, type, codepoint, x, y, color);
+                        draw_font_glyph(target, font_id, type, codepoint, x, y, color);
                     }
                     x += font_get_glyph_advance(system, font, codepoint);
                 }
@@ -169,7 +147,7 @@ draw_string_base(System_Functions *system, Render_Target *target, Font_ID font_i
                         
                         f32 xx = x;
                         for (u32 j = 0; j < 3; ++j){
-                            font_draw_glyph(target, font_id, type, cs[j], xx, y, color);
+                            draw_font_glyph(target, font_id, type, cs[j], xx, y, color);
                             xx += sub_advances[j];
                         }
                     }
@@ -177,54 +155,6 @@ draw_string_base(System_Functions *system, Render_Target *target, Font_ID font_i
                 }
             }
         }
-        
-#if 0
-        for (;str < str_end;){
-            u8 *byte = str;
-            u32 codepoint = utf8_to_u32(&str, str_end);
-            
-            b32 do_codepoint = false;
-            b32 do_numbers = false;
-            if (codepoint){
-                if (codepoint >= ' ' && codepoint <= 0xFF && codepoint != 127){
-                    do_codepoint = true;
-                }
-                else{
-                    do_numbers = true;
-                }
-            }
-            else{
-                do_numbers = true;
-            }
-            
-            if (do_codepoint){
-                if (color != 0){
-                    font_draw_glyph(target, font_id, type, (u8)codepoint, x, y, color);
-                }
-                x += font_get_glyph_advance(system, font, codepoint);
-            }
-            else if (do_numbers){
-                for (;byte < str; ++byte){
-                    u8_4tech n = *byte;
-                    if (color != 0){
-                        u8 cs[3];
-                        cs[0] = '\\';
-                        byte_to_ascii(n, cs+1);
-                        
-                        f32 *advances = font_get_byte_sub_advances(font);
-                        
-                        f32 xx = x;
-                        for (u32 j = 0; j < 3; ++j){
-                            font_draw_glyph(target, font_id, type, cs[j], xx, y, color);
-                            xx += advances[j];
-                        }
-                    }
-                    
-                    x += byte_advance;
-                }
-            }
-        }
-#endif
     }
     
     return(x);
@@ -240,19 +170,6 @@ internal f32
 draw_string(System_Functions *system, Render_Target *target, Font_ID font_id, char *str, i32 x, i32 y, u32 color){
     String string = make_string_slowly(str);
     f32 w = draw_string_base(system, target, font_id, piece_type_glyph, string, x, y, color);
-    return(w);
-}
-
-internal f32
-draw_string_mono(System_Functions *system, Render_Target *target, Font_ID font_id, String str, i32 x, i32 y, f32 advance, u32 color){
-    f32 w = draw_string_base(system, target, font_id, piece_type_mono_glyph, str, x, y, color);
-    return(w);
-}
-
-internal f32
-draw_string_mono(System_Functions *system, Render_Target *target, Font_ID font_id, char *str, i32 x, i32 y, f32 advance, u32 color){
-    String string = make_string_slowly(str);
-    f32 w = draw_string_base(system, target, font_id, piece_type_mono_glyph, string, x, y, color);
     return(w);
 }
 

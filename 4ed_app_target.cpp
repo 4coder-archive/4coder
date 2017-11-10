@@ -19,7 +19,6 @@
 #include "4ed_math.h"
 #include "4ed_system.h"
 
-// TODO(allen): set in compilation line
 #define PREFERRED_ALIGNMENT 8
 #define USE_DEBUG_MEMORY
 
@@ -33,7 +32,8 @@
 # include "4ed_debug_mem.h"
 #endif
 
-#include "4ed_rendering.h"
+#include "4ed_render_format.h"
+#include "4ed_render_target.h"
 #include "4ed.h"
 #include "4ed_buffer_model.h"
 
@@ -43,7 +43,9 @@
 #include "4ed_doubly_linked_list.cpp"
 
 #include "4ed_translation.cpp"
-#include "4ed_rendering_helper.cpp"
+
+#include "4ed_render_target.cpp"
+#include "4ed_render_fill.cpp"
 
 #include "4ed_style.h"
 #include "4ed_style.cpp"

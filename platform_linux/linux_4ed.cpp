@@ -38,7 +38,8 @@
 
 #include "4ed_system.h"
 #include "4ed_log.h"
-#include "4ed_rendering.h"
+#include "4ed_render_format.h"
+#include "4ed_render_target.h"
 #include "4ed.h"
 
 #include "4ed_file_track.h"
@@ -431,15 +432,14 @@ Sys_CLI_End_Update_Sig(system_cli_end_update){
     
     int status;
     if (pid && waitpid(pid, &status, WNOHANG) > 0){
-        close_me = true;
-        
         cli->exit = WEXITSTATUS(status);
+        
+        close_me = true;
+        close(*(int*)&cli->out_read);
+        close(*(int*)&cli->out_write);
         
         struct epoll_event e = {};
         epoll_ctl(linuxvars.epoll, EPOLL_CTL_DEL, *(int*)&cli->out_read, &e);
-        
-        close(*(int*)&cli->out_read);
-        close(*(int*)&cli->out_write);
     }
     
     return(close_me);
@@ -447,6 +447,7 @@ Sys_CLI_End_Update_Sig(system_cli_end_update){
 
 #include "4ed_font_data.h"
 #include "4ed_system_shared.cpp"
+#include "4ed_render_opengl.cpp"
 
 //
 // End of system funcs
@@ -455,13 +456,6 @@ Sys_CLI_End_Update_Sig(system_cli_end_update){
 //
 // Renderer
 //
-
-internal void
-LinuxRedrawTarget(){
-    launch_rendering(&sysfunc, &target);
-    //glFlush();
-    glXSwapBuffers(linuxvars.XDisplay, linuxvars.XWindow);
-}
 
 internal void
 LinuxResizeTarget(i32 width, i32 height){
@@ -1564,7 +1558,6 @@ main(int argc, char **argv){
     //
     
     load_app_code();
-    link_rendering();
 #if defined(FRED_SUPER)
     load_custom_code();
 #else
@@ -1840,7 +1833,8 @@ main(int argc, char **argv){
                 system_schedule_step();
             }
             
-            LinuxRedrawTarget();
+            interpret_render_buffer(&sysfunc, &target);
+            glXSwapBuffers(linuxvars.XDisplay, linuxvars.XWindow);
             
             if (result.mouse_cursor_type != linuxvars.cursor && !linuxvars.input.mouse.l){
                 Cursor c = xcursors[result.mouse_cursor_type];

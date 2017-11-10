@@ -5879,7 +5879,7 @@ draw_file_loaded(System_Functions *system, View *view, Models *models, i32_Rect 
             draw_rectangle_outline(target, char_rect, mark_color);
         }
         if (item->codepoint != 0){
-            font_draw_glyph(target, font_id, item->codepoint, item->x0, item->y0, char_color);
+            draw_font_glyph(target, font_id, item->codepoint, item->x0, item->y0, char_color);
         }
         prev_ind = ind;
     }

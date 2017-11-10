@@ -37,7 +37,8 @@
 
 #include "4ed_system.h"
 #include "4ed_log.h"
-#include "4ed_rendering.h"
+#include "4ed_render_format.h"
+#include "4ed_render_target.h"
 #include "4ed.h"
 
 #include "4ed_file_track.h"
@@ -311,6 +312,7 @@ Sys_CLI_End_Update_Sig(system_cli_end_update){
 
 #include "4ed_font_data.h"
 #include "4ed_system_shared.cpp"
+#include "4ed_render_opengl.cpp"
 
 ////////////////////////////////
 
@@ -539,7 +541,7 @@ osx_step(void){
     
     osx_show_cursor(0, result.mouse_cursor_type);
     
-    launch_rendering(&sysfunc, &target);
+    interpret_render_buffer(&sysfunc, &target);
     
     if (result.animating || cli_count > 0){
         osx_schedule_step();
@@ -609,7 +611,6 @@ osx_init(){
     
     DBG_POINT();
     load_app_code();
-    link_rendering();
 #if defined(FRED_SUPER)
     load_custom_code();
 #else

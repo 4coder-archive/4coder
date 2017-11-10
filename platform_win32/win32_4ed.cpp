@@ -48,7 +48,8 @@
 
 #include "4ed_system.h"
 #include "4ed_log.h"
-#include "4ed_rendering.h"
+#include "4ed_render_format.h"
+#include "4ed_render_target.h"
 #include "4ed.h"
 
 #include <Windows.h>
@@ -448,7 +449,7 @@ Sys_CLI_Update_Step_Sig(system_cli_update_step){
 
 internal
 Sys_CLI_End_Update_Sig(system_cli_end_update){
-    b32 close_me = 0;
+    b32 close_me = false;
     HANDLE proc = *(HANDLE*)&cli->proc;
     DWORD result = 0;
     
@@ -460,22 +461,20 @@ Sys_CLI_End_Update_Sig(system_cli_end_update){
             cli->exit = (i32)result;
         }
         
-        close_me = 1;
+        close_me = true;
         CloseHandle(*(HANDLE*)&cli->proc);
         CloseHandle(*(HANDLE*)&cli->out_read);
         CloseHandle(*(HANDLE*)&cli->out_write);
         
         --win32vars.running_cli;
     }
+    
     return(close_me);
 }
 
-//
-// Linkage to Custom and Application
-//
-
 #include "4ed_font_data.h"
 #include "4ed_system_shared.cpp"
+#include "4ed_render_opengl.cpp"
 
 //
 // Helpers
@@ -515,13 +514,6 @@ Win32KeycodeInit(){
     keycode_lookup_table[VK_F14] = key_f14;
     keycode_lookup_table[VK_F15] = key_f15;
     keycode_lookup_table[VK_F16] = key_f16;
-}
-
-internal void
-Win32RedrawScreen(HDC hdc){
-    launch_rendering(&sysfunc, &target);
-    glFlush();
-    SwapBuffers(hdc);
 }
 
 internal void
@@ -932,7 +924,8 @@ Win32Callback(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
             win32vars.got_useful_event = true;
             PAINTSTRUCT ps;
             HDC hdc = BeginPaint(hwnd, &ps);
-            Win32RedrawScreen(hdc);
+            // NOTE(allen): Do nothing?
+            AllowLocal(hdc);
             EndPaint(hwnd, &ps);
         }break;
         
@@ -946,11 +939,6 @@ Win32Callback(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
         case WM_4coder_ANIMATE:
         {
             win32vars.got_useful_event = true;
-        }break;
-        
-        case WM_CANCELMODE:
-        {
-            result = DefWindowProc(hwnd, uMsg, wParam, lParam);
         }break;
         
         default:
@@ -1006,7 +994,6 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
     //
     
     load_app_code();
-    link_rendering();
 #if defined(FRED_SUPER)
     load_custom_code();
 #else
@@ -1396,7 +1383,8 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
         win32vars.lctrl_lalt_is_altgr = result.lctrl_lalt_is_altgr;
         
         HDC hdc = GetDC(win32vars.window_handle);
-        Win32RedrawScreen(hdc);
+        interpret_render_buffer(&sysfunc, &target);
+        SwapBuffers(hdc);
         ReleaseDC(win32vars.window_handle, hdc);
         
         win32vars.first = 0;

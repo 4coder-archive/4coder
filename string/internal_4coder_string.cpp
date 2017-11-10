@@ -1283,7 +1283,12 @@ replace_range_str(String *str, i32_4tech first, i32_4tech one_past_last, String 
 
 CPP_NAME(replace_str)
 API_EXPORT FSTRING_LINK void
-replace_str_ss(String *str, String replace, String with){
+replace_str_ss(String *str, String replace, String with)/*
+DOC_PARAM(str, The string to modify.)
+DOC_PARAM(replace, A string matching the zero or more substring to be replaced within str.)
+DOC_PARAM(with, The string to be placed into str in place of occurrences of replace.)
+DOC(Modifies str so that every occurence of replace that was within str is gone and the string in with has taken their places.)
+*/{
     i32_4tech i = 0;
     for (;;){
         i = find_substr_s(*str, i, replace);
@@ -1297,21 +1302,36 @@ replace_str_ss(String *str, String replace, String with){
 
 CPP_NAME(replace_str)
 API_EXPORT FSTRING_LINK void
-replace_str_sc(String *str, String replace, char *with){
+replace_str_sc(String *str, String replace, char *with)/*
+DOC_PARAM(str, The string to modify.)
+DOC_PARAM(replace, A string matching the zero or more substring to be replaced within str.  Must be null terminated, and will be counted, it is always faster to use a String parameter here when possible.)
+DOC_PARAM(with, The string to be placed into str in place of occurrences of replace.)
+DOC(Modifies str so that every occurence of replace that was within str is gone and the string in with has taken their places.)
+*/{
     String w = make_string_slowly(with);
     replace_str_ss(str, replace, w);
 }
 
 CPP_NAME(replace_str)
 API_EXPORT FSTRING_LINK void
-replace_str_cs(String *str, char *replace, String with){
+replace_str_cs(String *str, char *replace, String with)/*
+DOC_PARAM(str, The string to modify.)
+DOC_PARAM(replace, A string matching the zero or more substring to be replaced within str.)
+DOC_PARAM(with, The string to be placed into str in place of occurrences of replace. Must be null terminated, and will be counted, it is always faster to use a String parameter here when possible.)
+DOC(Modifies str so that every occurence of replace that was within str is gone and the string in with has taken their places.)
+*/{
     String r = make_string_slowly(replace);
     replace_str_ss(str, r, with);
 }
 
 CPP_NAME(replace_str)
 API_EXPORT FSTRING_LINK void
-replace_str_cc(String *str, char *replace, char *with){
+replace_str_cc(String *str, char *replace, char *with)/*
+DOC_PARAM(str, The string to modify.)
+DOC_PARAM(replace, A string matching the zero or more substring to be replaced within str.  Must be null terminated, and will be counted, it is always faster to use a String parameter here when possible.)
+DOC_PARAM(with, The string to be placed into str in place of occurrences of replace. Must be null terminated, and will be counted, it is always faster to use a String parameter here when possible.)
+DOC(Modifies str so that every occurence of replace that was within str is gone and the string in with has taken their places.)
+*/{
     String r = make_string_slowly(replace);
     String w = make_string_slowly(with);
     replace_str_ss(str, r, w);
