@@ -490,16 +490,16 @@ typedef int        (glXSwapIntervalMESA_Function)       (unsigned int interval);
 typedef int        (glXGetSwapIntervalMESA_Function)    (void);
 typedef int        (glXSwapIntervalSGI_Function)        (int interval);
 
-global glXCreateContextAttribsARB_Function *glXCreateContextAttribsARB = 0;
-global glXSwapIntervalEXT_Function         *glXSwapIntervalEXT = 0;
-global glXSwapIntervalMESA_Function        *glXSwapIntervalMESA = 0;
-global glXGetSwapIntervalMESA_Function     *glXGetSwapIntervalMESA = 0;
-global glXSwapIntervalSGI_Function         *glXSwapIntervalSGI = 0;
-
 internal GLXContext
 InitializeOpenGLContext(Display *XDisplay, Window XWindow, GLXFBConfig *best_config){
     
     const char *glxExts = glXQueryExtensionsString(XDisplay, DefaultScreen(XDisplay));
+    
+    glXCreateContextAttribsARB_Function *glXCreateContextAttribsARB = 0;
+    glXSwapIntervalEXT_Function         *glXSwapIntervalEXT = 0;
+    glXSwapIntervalMESA_Function        *glXSwapIntervalMESA = 0;
+    glXGetSwapIntervalMESA_Function     *glXGetSwapIntervalMESA = 0;
+    glXSwapIntervalSGI_Function         *glXSwapIntervalSGI = 0;
     
 #define GLXLOAD(f) f = (f##_Function*) glXGetProcAddressARB((const GLubyte*) #f);
     GLXLOAD(glXCreateContextAttribsARB);
