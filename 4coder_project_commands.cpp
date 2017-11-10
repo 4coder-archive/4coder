@@ -695,7 +695,7 @@ CUSTOM_COMMAND_SIG(setup_new_project){
             if (sh_script != 0){
                 fprintf(sh_script, "#!/bin/bash\n\n");
                 
-                fprintf(sh_script, get_code_home);
+                fprintf(sh_script, "%s", get_code_home);
                 
                 fprintf(sh_script, "OPTS=%.*s\n", 
                         default_flags_sh.size, default_flags_sh.str);
