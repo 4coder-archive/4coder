@@ -396,7 +396,7 @@ CUSTOM_COMMAND_SIG(open_file_in_quotes){
 
 CUSTOM_COMMAND_SIG(open_in_other){
     exec_command(app, change_active_panel);
-    exec_command(app, interactive_open);
+    exec_command(app, interactive_open_or_new);
 }
 
 CUSTOM_COMMAND_SIG(new_in_other){
