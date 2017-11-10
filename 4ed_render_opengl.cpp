@@ -106,8 +106,52 @@ private_draw_glyph(System_Functions *system, Render_Target *t, Render_Font *font
     }
 }
 
+internal void CALL_CONVENTION
+opengl_debug_callback(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const char *message, const void *userParam){
+    // TODO(allen): Fill this in with my preferred thingy.
+}
+
 internal void
 interpret_render_buffer(System_Functions *system, Render_Target *t){
+    local_persist b32 first_opengl_call = true;
+    if (first_opengl_call){
+        first_opengl_call = false;
+        
+        // TODO(allen): Get logging working everywhere
+#if 0
+        //TODO(inso): glGetStringi is required in core profile if the GL version is >= 3.0
+        char *Vendor   = (char *)glGetString(GL_VENDOR);
+        char *Renderer = (char *)glGetString(GL_RENDERER);
+        char *Version  = (char *)glGetString(GL_VERSION);
+        
+        LOGF("GL_VENDOR: %s\n", Vendor);
+        LOGF("GL_RENDERER: %s\n", Renderer);
+        LOGF("GL_VERSION: %s\n", Version);
+#endif
+        
+        // TODO(allen): Get this up and running again.
+#if (defined(BUILD_X64) && 0) || (defined(BUILD_X86) && 0)
+        // NOTE(casey): This slows down GL but puts error messages to
+        // the debug console immediately whenever you do something wrong
+        glDebugMessageCallback_type *glDebugMessageCallback = 
+            (glDebugMessageCallback_type *)win32_load_gl_always("glDebugMessageCallback", module);
+        glDebugMessageControl_type *glDebugMessageControl = 
+            (glDebugMessageControl_type *)win32_load_gl_always("glDebugMessageControl", module);
+        if(glDebugMessageCallback != 0 && glDebugMessageControl != 0)
+        {
+            glDebugMessageCallback(opengl_debug_callback, 0);
+            glDebugMessageControl(GL_DONT_CARE, GL_DONT_CARE, GL_DONT_CARE, 0, 0, GL_TRUE);
+            glEnable(GL_DEBUG_OUTPUT);
+            glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
+        }
+#endif
+        
+        glEnable(GL_TEXTURE_2D);
+        glEnable(GL_SCISSOR_TEST);
+        glEnable(GL_BLEND);
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    }
+    
     char *cursor = t->push_buffer;
     char *cursor_end = cursor + t->size;
     

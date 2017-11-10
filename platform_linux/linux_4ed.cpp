@@ -479,31 +479,13 @@ LinuxResizeTarget(i32 width, i32 height){
 static bool ctxErrorOccurred = false;
 
 internal int
-ctxErrorHandler( Display *dpy, XErrorEvent *ev )
-{
+ctxErrorHandler( Display *dpy, XErrorEvent *ev ){
     ctxErrorOccurred = true;
     return 0;
 }
 
-#if defined(FRED_INTERNAL)
-
-static void LinuxGLDebugCallback(
-GLenum source,
-GLenum type,
-GLuint id,
-GLenum severity,
-GLsizei length,
-const GLchar* message,
-const void* userParam
-){
-    LOGF("GL DEBUG: %s\n", message);
-}
-
-#endif
-
 internal GLXContext
-InitializeOpenGLContext(Display *XDisplay, Window XWindow, GLXFBConfig &bestFbc, b32 &IsLegacy)
-{
+InitializeOpenGLContext(Display *XDisplay, Window XWindow, GLXFBConfig &bestFbc, b32 &IsLegacy){
     IsLegacy = false;
     
     typedef GLXContext (*glXCreateContextAttribsARBProc)(Display*, GLXFBConfig, GLXContext, Bool, const int*);
@@ -589,8 +571,7 @@ InitializeOpenGLContext(Display *XDisplay, Window XWindow, GLXFBConfig &bestFbc,
     }
     
     b32 Direct;
-    if (!glXIsDirect(XDisplay, ctx))
-    {
+    if (!glXIsDirect(XDisplay, ctx)){
         LOG("Indirect GLX rendering context obtained\n");
         Direct = false;
     }
@@ -602,28 +583,20 @@ InitializeOpenGLContext(Display *XDisplay, Window XWindow, GLXFBConfig &bestFbc,
     LOG("Making context current\n");
     glXMakeCurrent( XDisplay, XWindow, ctx );
     
-    char *Vendor   = (char *)glGetString(GL_VENDOR);
-    char *Renderer = (char *)glGetString(GL_RENDERER);
-    char *Version  = (char *)glGetString(GL_VERSION);
-    
     //TODO(inso): glGetStringi is required in core profile if the GL version is >= 3.0
-    char *Extensions = (char *)glGetString(GL_EXTENSIONS);
-    
-    LOGF("GL_VENDOR: %s\n", Vendor);
-    LOGF("GL_RENDERER: %s\n", Renderer);
-    LOGF("GL_VERSION: %s\n", Version);
+    //char *Extensions = (char *)glGetString(GL_EXTENSIONS);
     
     //NOTE(inso): enable vsync if available. this should probably be optional
     if (Direct && strstr(glxExts, "GLX_EXT_swap_control ")){
         GLXLOAD(glXSwapIntervalEXT);
         
-        if (glXSwapIntervalEXT){
+        if (glXSwapIntervalEXT != 0){
             glXSwapIntervalEXT(XDisplay, XWindow, 1);
             
             unsigned int swap_val = 0;
             glXQueryDrawable(XDisplay, XWindow, GLX_SWAP_INTERVAL_EXT, &swap_val);
             
-            linuxvars.vsync = swap_val == 1;
+            linuxvars.vsync = (swap_val == true);
             LOGF("VSync enabled? %s.\n", linuxvars.vsync ? "Yes" : "No");
         }
         
@@ -633,29 +606,29 @@ InitializeOpenGLContext(Display *XDisplay, Window XWindow, GLXFBConfig &bestFbc,
         GLXLOAD(glXSwapIntervalMESA);
         GLXLOAD(glXGetSwapIntervalMESA);
         
-        if (glXSwapIntervalMESA){
+        if (glXSwapIntervalMESA != 0){
             glXSwapIntervalMESA(1);
             
-            if (glXGetSwapIntervalMESA){
+            if (glXGetSwapIntervalMESA != 0){
                 linuxvars.vsync = glXGetSwapIntervalMESA();
                 LOGF("VSync enabled? %s (MESA)\n", linuxvars.vsync ? "Yes" : "No");
-            } else {
+            }
+            else{
                 // NOTE(inso): assume it worked?
-                linuxvars.vsync = 1;
+                linuxvars.vsync = true;
                 LOG("VSync enabled? possibly (MESA)\n");
             }
         }
         
     }
     else if (Direct && strstr(glxExts, "GLX_SGI_swap_control ")){
-        
         GLXLOAD(glXSwapIntervalSGI);
         
         if (glXSwapIntervalSGI){
             glXSwapIntervalSGI(1);
             
             // NOTE(inso): The SGI one doesn't seem to have a way to confirm we got it...
-            linuxvars.vsync = 1;
+            linuxvars.vsync = true;
             LOG("VSync enabled? hopefully (SGI)\n");
         }
         
@@ -663,25 +636,6 @@ InitializeOpenGLContext(Display *XDisplay, Window XWindow, GLXFBConfig &bestFbc,
     else{
         LOG("VSync enabled? nope, no suitable extension\n");
     }
-    
-#if defined(FRED_INTERNAL)
-    typedef PFNGLDEBUGMESSAGECALLBACKARBPROC glDebugMessageCallbackProc;
-    
-    GLXLOAD(glDebugMessageCallback);
-    
-    if (glDebugMessageCallback){
-        LOG("Enabling GL Debug Callback\n");
-        glDebugMessageCallback(&LinuxGLDebugCallback, 0);
-        glEnable(GL_DEBUG_OUTPUT);
-    }
-#endif
-    
-    glEnable(GL_TEXTURE_2D);
-    glEnable(GL_SCISSOR_TEST);
-    glEnable(GL_BLEND);
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    
-#undef GLXLOAD
     
     return(ctx);
 }

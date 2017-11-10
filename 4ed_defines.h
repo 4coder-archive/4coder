@@ -55,6 +55,7 @@ typedef double f64;
 #define STR__(s) #s
 #define STR_(s) STR__(s)
 #define LINE_STR STR_(__LINE__)
+#define FNLN __FILE__ ":" LINE_STR ":"
 
 #if defined(Assert)
 # undef Assert

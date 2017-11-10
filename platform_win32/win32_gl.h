@@ -70,26 +70,7 @@
 #define WGL_CONTEXT_CORE_PROFILE_BIT_ARB  0x00000001
 #define WGL_CONTEXT_COMPATIBILITY_PROFILE_BIT_ARB 0x00000002
 
-typedef BOOL CALL_CONVENTION 
-wglChoosePixelFormatARB_Function(HDC hdc, const int *piAttribIList, const FLOAT *pfAttribFList, UINT nMaxFormats, int *piFormats, UINT *nNumFormats);
-
-typedef HGLRC CALL_CONVENTION 
-wglCreateContextAttribsARB_Function(HDC hDC, HGLRC hshareContext, const int *attribList);
-
-typedef const char* CALL_CONVENTION 
-wglGetExtensionsStringARB_Function(HDC hdc);
-
-typedef void CALL_CONVENTION 
-GLDEBUGPROC_TYPE(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const char * message, const GLvoid * userParam);
-
 // TODO(allen): these don't belong here, but the organizational stuff is not fully in place yet.
-typedef GLDEBUGPROC_TYPE * GLDEBUGPROC;
-typedef void CALL_CONVENTION 
-glDebugMessageControl_type(GLenum source, GLenum type, GLenum severity, GLsizei count, GLuint * ids, GLboolean enabled);
-
-typedef void CALL_CONVENTION 
-glDebugMessageCallback_type(GLDEBUGPROC callback, void * userParam);
-
 #define GL_DEBUG_OUTPUT_SYNCHRONOUS 0x8242
 #define GL_DEBUG_OUTPUT 0x92E0
 

@@ -12,7 +12,7 @@
 
 // HACK(allen): // NOTE(inso): this was a quick hack, might need some cleanup.
 internal void
-system_error_box(char *msg){
+system_error_box(char *msg, b32 shutdown = true){
     LOGF("Fatal Error: %s\n", msg);
     
     Display *dpy = XOpenDisplay(0);
@@ -180,7 +180,9 @@ system_error_box(char *msg){
     }
 #undef DRAW_STR
     
-    exit(1);
+    if (shutdown){
+        exit(1);
+    }
 }
 
 // BOTTOM

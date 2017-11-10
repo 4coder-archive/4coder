@@ -172,6 +172,20 @@ global Coroutine_System_Auto_Alloc coroutines;
 
 ////////////////////////////////
 
+internal void
+win32_output_error_string(){
+    DWORD error = GetLastError();
+    
+    char *str = 0;
+    char *str_ptr = (char*)&str;
+    if (FormatMessageA(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM, 0, error, 0, str_ptr, 0, 0)){
+        LOGF("win32 error:\n%s\n", str);
+        system_error_box(str, false);
+    }
+}
+
+////////////////////////////////
+
 internal HANDLE
 handle_type(Plat_Handle h){
     HANDLE result;
@@ -530,138 +544,135 @@ Win32Resize(i32 width, i32 height){
     }
 }
 
-internal void*
-win32_load_gl_always(char *name, HMODULE module){
-    void *p = (void *)wglGetProcAddress(name), *r = 0;
-    if(p == 0 ||
-       (p == (void*)0x1) || (p == (void*)0x2) || (p == (void*)0x3) ||
-       (p == (void*)-1) ){
-        r = (void *)GetProcAddress(module, name);
-    }
-    else{
-        r = p;
-    }
-    return(r);
-}
+#define GLFuncGood(f) (((f)!=0)&&((f)!=(void*)1)&&((f)!=(void*)2)&&((f)!=(void*)3)&&((f)!=(void*)-11))
 
-internal void CALL_CONVENTION
-OpenGLDebugCallback(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const char *message, const void *userParam){
-    OutputDebugStringA(message);
-    OutputDebugStringA("\n");
-}
+typedef HGLRC CALL_CONVENTION (wglCreateContextAttribsARB_Function)(HDC,HGLRC,i32*);
+typedef BOOL  CALL_CONVENTION (wglChoosePixelFormatARB_Function)(HDC,i32*,f32*,u32,i32*,u32*);
+typedef char* CALL_CONVENTION (wglGetExtensionsStringEXT_Function)();
+typedef VOID  CALL_CONVENTION (wglSwapIntervalEXT_Function)(i32);
+
+global wglCreateContextAttribsARB_Function *wglCreateContextAttribsARB = 0;
+global wglChoosePixelFormatARB_Function *wglChoosePixelFormatARB = 0;
+global wglGetExtensionsStringEXT_Function *wglGetExtensionsStringEXT = 0;
+global wglSwapIntervalEXT_Function *wglSwapIntervalEXT = 0;
 
 internal void
-Win32InitGL(){
-    // GL context initialization
-    PIXELFORMATDESCRIPTOR format;
+win32_init_gl(HDC hdc){
+    LOG("trying to load wgl extensions...\n");
+    
+#define GLInitFail(s) system_error_box(FNLN "\nOpenGL init fail - " s )
+    
+    // Init First Context
+    WNDCLASSA wglclass = {0};
+    wglclass.lpfnWndProc = DefWindowProcA;
+    wglclass.hInstance = GetModuleHandle(0);
+    wglclass.lpszClassName = "4ed-wgl-loader";
+    if (RegisterClassA(&wglclass) == 0){
+        GLInitFail("RegisterClassA");
+    }
+    
+    HWND hwglwnd = CreateWindowExA(0, wglclass.lpszClassName, "", 0, 0, 0, 0, 0, 0, 0, wglclass.hInstance, 0);
+    if (hwglwnd == 0){
+        GLInitFail("CreateWindowExA");
+    }
+    
+    HDC hwgldc = GetDC(hwglwnd);
+    
+    PIXELFORMATDESCRIPTOR format = {0};
     format.nSize = sizeof(format);
     format.nVersion = 1;
-    format.dwFlags = PFD_SUPPORT_OPENGL | PFD_DRAW_TO_WINDOW;
+    format.dwFlags = PFD_SUPPORT_OPENGL | PFD_DRAW_TO_WINDOW | PFD_DOUBLEBUFFER;
     format.iPixelType = PFD_TYPE_RGBA;
     format.cColorBits = 32;
-    format.cRedBits = 0;
-    format.cRedShift = 0;
-    format.cGreenBits = 0;
-    format.cGreenShift = 0;
-    format.cBlueBits = 0;
-    format.cBlueShift = 0;
-    format.cAlphaBits = 0;
-    format.cAlphaShift = 0;
-    format.cAccumBits = 0;
-    format.cAccumRedBits = 0;
-    format.cAccumGreenBits = 0;
-    format.cAccumBlueBits = 0;
-    format.cAccumAlphaBits = 0;
+    format.cAlphaBits = 8;
     format.cDepthBits = 24;
-    format.cStencilBits = 8;
-    format.cAuxBuffers = 0;
     format.iLayerType = PFD_MAIN_PLANE;
-    format.bReserved = 0;
-    format.dwLayerMask = 0;
-    format.dwVisibleMask = 0;
-    format.dwDamageMask = 0;
+    i32 suggested_format_index = ChoosePixelFormat(hwgldc, &format);
+    if (suggested_format_index == 0){
+        win32_output_error_string();
+        GLInitFail("ChoosePixelFormat");
+    }
     
-    HDC dc = GetDC(win32vars.window_handle);
-    Assert(dc);
-    int format_id = ChoosePixelFormat(dc, &format);
-    Assert(format_id != 0);
-    BOOL success = SetPixelFormat(dc, format_id, &format);
-    Assert(success == TRUE); AllowLocal(success);
+    DescribePixelFormat(hwgldc, suggested_format_index, sizeof(format), &format);
+    if (!SetPixelFormat(hwgldc, suggested_format_index, &format)){
+        win32_output_error_string();
+        GLInitFail("SetPixelFormat");
+    }
     
-    HGLRC glcontext = wglCreateContext(dc);
-    wglMakeCurrent(dc, glcontext);
+    HGLRC wglcontext = wglCreateContext(hwgldc);
+    if (wglcontext == 0){
+        win32_output_error_string();
+        GLInitFail("wglCreateContext");
+    }
     
-    HMODULE module = LoadLibraryA("opengl32.dll");
-    AllowLocal(module);
+    if (!wglMakeCurrent(hwgldc, wglcontext)){
+        win32_output_error_string();
+        GLInitFail("wglMakeCurrent");
+    }
     
-    wglCreateContextAttribsARB_Function *wglCreateContextAttribsARB = 0;
-    wglCreateContextAttribsARB = (wglCreateContextAttribsARB_Function*)
-        win32_load_gl_always("wglCreateContextAttribsARB", module);
+    // Load wgl Extensions
+#define LoadWGL(f, s) f = (f##_Function*)wglGetProcAddress(#f); b32 got_##f = GLFuncGood(f); \
+    if (!got_##f) { if (s) { GLInitFail(#f " missing"); } else { f = 0; } }
+    LoadWGL(wglCreateContextAttribsARB, true);
+    LoadWGL(wglChoosePixelFormatARB, true);
+    LoadWGL(wglGetExtensionsStringEXT, true);
     
-    wglChoosePixelFormatARB_Function *wglChoosePixelFormatARB = 0;
-    wglChoosePixelFormatARB = (wglChoosePixelFormatARB_Function*)
-        win32_load_gl_always("wglChoosePixelFormatARB", module);
+    LOG("got wgl functions\n");
     
-    if (wglCreateContextAttribsARB != 0 && wglChoosePixelFormatARB != 0){
-        const int choosePixel_attribList[] =
-        {
-            WGL_DRAW_TO_WINDOW_ARB, TRUE,
-            WGL_SUPPORT_OPENGL_ARB, TRUE,
-            WGL_DOUBLE_BUFFER_ARB, GL_TRUE,
-            WGL_PIXEL_TYPE_ARB, WGL_TYPE_RGBA_ARB,
-            WGL_COLOR_BITS_ARB, 32,
-            WGL_DEPTH_BITS_ARB, 24,
-            WGL_STENCIL_BITS_ARB, 8,
-            0,
-        };
-        
-        i32 extended_format_id = 0;
-        u32 num_formats = 0;
-        BOOL result =  wglChoosePixelFormatARB(dc, choosePixel_attribList, 0, 1, &extended_format_id, &num_formats);
-        
-        if (result != 0 && num_formats > 0){
-            const int createContext_attribList[] = {
-                WGL_CONTEXT_MAJOR_VERSION_ARB, 3,
-                WGL_CONTEXT_MINOR_VERSION_ARB, 2,
-                WGL_CONTEXT_PROFILE_MASK_ARB, WGL_CONTEXT_COMPATIBILITY_PROFILE_BIT_ARB,
-                0
-            };
-            
-            if (extended_format_id == format_id){
-                HGLRC extended_context = wglCreateContextAttribsARB(dc, 0, createContext_attribList);
-                if (extended_context){
-                    wglMakeCurrent(dc, extended_context);
-                    wglDeleteContext(glcontext);
-                    glcontext = extended_context;
-                }
-            }
+    char *extensions_c = wglGetExtensionsStringEXT();
+    String extensions = make_string_slowly(extensions_c);
+    if (has_substr(extensions, make_lit_string("WGL_EXT_swap_interval"))){
+        LoadWGL(wglSwapIntervalEXT, false);
+        if (wglSwapIntervalEXT != 0){
+            LOG("got wglSwapIntervalEXT\n");
         }
     }
     
-    ReleaseDC(win32vars.window_handle, dc);
+    // Init the Second Context
+    int pixel_attrib_list[] = {
+        WGL_DRAW_TO_WINDOW_ARB, TRUE,
+        WGL_ACCELERATION_ARB, WGL_FULL_ACCELERATION_ARB,
+        WGL_SUPPORT_OPENGL_ARB, TRUE,
+        WGL_DOUBLE_BUFFER_ARB, GL_TRUE,
+        WGL_PIXEL_TYPE_ARB, WGL_TYPE_RGBA_ARB,
+        0,
+    };
     
-#if (defined(BUILD_X64) && 1) || (defined(BUILD_X86) && 0)
-#if defined(FRED_INTERNAL)
-    // NOTE(casey): This slows down GL but puts error messages to
-    // the debug console immediately whenever you do something wrong
-    glDebugMessageCallback_type *glDebugMessageCallback = 
-        (glDebugMessageCallback_type *)win32_load_gl_always("glDebugMessageCallback", module);
-    glDebugMessageControl_type *glDebugMessageControl = 
-        (glDebugMessageControl_type *)win32_load_gl_always("glDebugMessageControl", module);
-    if(glDebugMessageCallback != 0 && glDebugMessageControl != 0)
-    {
-        glDebugMessageCallback(OpenGLDebugCallback, 0);
-        glDebugMessageControl(GL_DONT_CARE, GL_DONT_CARE, GL_DONT_CARE, 0, 0, GL_TRUE);
-        glEnable(GL_DEBUG_OUTPUT);
-        glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
+    u32 ignore = 0;
+    if (!wglChoosePixelFormatARB(hdc, pixel_attrib_list, 0, 1, &suggested_format_index, &ignore)){
+        GLInitFail("wglChoosePixelFormatARB");
     }
-#endif
-#endif
     
-    glEnable(GL_TEXTURE_2D);
-    glEnable(GL_SCISSOR_TEST);
-    glEnable(GL_BLEND);
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    DescribePixelFormat(hdc, suggested_format_index, sizeof(format), &format);
+    if (!SetPixelFormat(hdc, suggested_format_index, &format)){
+        GLInitFail("SetPixelFormat");
+    }
+    
+    i32 context_attrib_list[] = {
+        WGL_CONTEXT_MAJOR_VERSION_ARB, 2,
+        WGL_CONTEXT_MINOR_VERSION_ARB, 1,
+        WGL_CONTEXT_FLAGS_ARB, 0,
+        WGL_CONTEXT_PROFILE_MASK_ARB, WGL_CONTEXT_CORE_PROFILE_BIT_ARB,
+        0
+    };
+    
+    HGLRC context = wglCreateContextAttribsARB(hdc, 0, context_attrib_list);
+    if (context == 0){
+        GLInitFail("wglCreateContextAttribsARB");
+    }
+    
+    wglMakeCurrent(hdc, context);
+    
+    if (wglSwapIntervalEXT != 0){
+        LOGF("setting swap interval %d\n", 1);
+        wglSwapIntervalEXT(1);
+    }
+    
+    ReleaseDC(hwglwnd, hwgldc);
+    DestroyWindow(hwglwnd);
+    wglDeleteContext(wglcontext);
+    
+    LOG("successfully enabled opengl\n");
 }
 
 internal void
@@ -1080,10 +1091,12 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
         win32vars.dpi_y = GetDeviceCaps(hdc, LOGPIXELSY);
         
         GetClientRect(win32vars.window_handle, &window_rect);
+        
+        win32_init_gl(hdc);
+        
         ReleaseDC(win32vars.window_handle, hdc);
     }
     
-    Win32InitGL();
     Win32Resize(window_rect.right - window_rect.left, window_rect.bottom - window_rect.top);
     
     //

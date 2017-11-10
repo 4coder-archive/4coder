@@ -213,13 +213,9 @@ static i32 did_update_for_clipboard = true;
     [self setAutoresizingMask:NSViewWidthSizable | NSViewHeightSizable];
     
     NSOpenGLPixelFormatAttribute attrs[] = {
-        NSOpenGLPFAOpenGLProfile,
-        //NSOpenGLProfileVersion3_2Core,
-        NSOpenGLProfileVersionLegacy,
-        NSOpenGLPFAColorSize,
-        24,
-        NSOpenGLPFAAlphaSize,
-        8,
+        NSOpenGLPFAOpenGLProfile, NSOpenGLProfileVersionLegacy,
+        NSOpenGLPFAColorSize, 24,
+        NSOpenGLPFAAlphaSize, 8,
         NSOpenGLPFAAccelerated,
         NSOpenGLPFADoubleBuffer,
         0
