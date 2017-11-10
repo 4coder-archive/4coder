@@ -44,8 +44,10 @@
 
 # if defined(__gnu_linux__) /* OS */
 #  define IS_LINUX
+#  define CALL_CONVENTION
 # elif defined(__APPLE__) && defined(__MACH__) /* OS */
 #  define IS_MAC
+#  define CALL_CONVENTION
 #else
 #  error This compiler/platform combo is not supported yet
 # endif
