@@ -129,7 +129,7 @@ interpret_render_buffer(System_Functions *system, Render_Target *t){
         LOGF("GL_VERSION: %s\n", Version);
 #endif
         
-        // TODO(allen): Get this up and running again.
+        // TODO(allen): Get this up and running for dev mode again.
 #if (defined(BUILD_X64) && 0) || (defined(BUILD_X86) && 0)
         // NOTE(casey): This slows down GL but puts error messages to
         // the debug console immediately whenever you do something wrong

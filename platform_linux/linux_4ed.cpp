@@ -484,38 +484,38 @@ ctxErrorHandler( Display *dpy, XErrorEvent *ev ){
     return 0;
 }
 
+typedef GLXContext (glXCreateContextAttribsARB_Function)(Display*, GLXFBConfig, GLXContext, Bool, const int*);
+typedef void       (glXSwapIntervalEXT_Function)        (Display *dpy, GLXDrawable drawable, int interval);
+typedef int        (glXSwapIntervalMESA_Function)       (unsigned int interval);
+typedef int        (glXGetSwapIntervalMESA_Function)    (void);
+typedef int        (glXSwapIntervalSGI_Function)        (int interval);
+
+global glXCreateContextAttribsARB_Function *glXCreateContextAttribsARB = 0;
+global glXSwapIntervalEXT_Function         *glXSwapIntervalEXT = 0;
+global glXSwapIntervalMESA_Function        *glXSwapIntervalMESA = 0;
+global glXGetSwapIntervalMESA_Function     *glXGetSwapIntervalMESA = 0;
+global glXSwapIntervalSGI_Function         *glXSwapIntervalSGI = 0;
+
 internal GLXContext
-InitializeOpenGLContext(Display *XDisplay, Window XWindow, GLXFBConfig &bestFbc, b32 &IsLegacy){
-    IsLegacy = false;
-    
-    typedef GLXContext (*glXCreateContextAttribsARBProc)(Display*, GLXFBConfig, GLXContext, Bool, const int*);
-    
-    typedef PFNGLXSWAPINTERVALEXTPROC     glXSwapIntervalEXTProc;
-    typedef PFNGLXSWAPINTERVALMESAPROC    glXSwapIntervalMESAProc;
-    typedef PFNGLXGETSWAPINTERVALMESAPROC glXGetSwapIntervalMESAProc;
-    typedef PFNGLXSWAPINTERVALSGIPROC     glXSwapIntervalSGIProc;
+InitializeOpenGLContext(Display *XDisplay, Window XWindow, GLXFBConfig *best_config){
     
     const char *glxExts = glXQueryExtensionsString(XDisplay, DefaultScreen(XDisplay));
     
-#define GLXLOAD(x) x ## Proc x = (x ## Proc) glXGetProcAddressARB( (const GLubyte*) #x);
-    
+#define GLXLOAD(f) f = (f##_Function*) glXGetProcAddressARB((const GLubyte*) #f);
     GLXLOAD(glXCreateContextAttribsARB);
     
     GLXContext ctx = 0;
     ctxErrorOccurred = false;
     int (*oldHandler)(Display*, XErrorEvent*) = XSetErrorHandler(&ctxErrorHandler);
     
-    if (!glXCreateContextAttribsARB)
-    {
+    if (glXCreateContextAttribsARB == 0){
         LOG("glXCreateContextAttribsARB() not found, using old-style GLX context\n" );
-        ctx = glXCreateNewContext( XDisplay, bestFbc, GLX_RGBA_TYPE, 0, True );
+        ctx = glXCreateNewContext( XDisplay, *best_config, GLX_RGBA_TYPE, 0, True );
     } 
-    else
-    {
-        int context_attribs[] =
-        {
-            GLX_CONTEXT_MAJOR_VERSION_ARB, 4,
-            GLX_CONTEXT_MINOR_VERSION_ARB, 3,
+    else{
+        int context_attribs[] = {
+            GLX_CONTEXT_MAJOR_VERSION_ARB, 2,
+            GLX_CONTEXT_MINOR_VERSION_ARB, 1,
             GLX_CONTEXT_PROFILE_MASK_ARB , GLX_CONTEXT_COMPATIBILITY_PROFILE_BIT_ARB,
 #if defined(FRED_INTERNAL)
             GLX_CONTEXT_FLAGS_ARB        , GLX_CONTEXT_DEBUG_BIT_ARB,
@@ -523,42 +523,16 @@ InitializeOpenGLContext(Display *XDisplay, Window XWindow, GLXFBConfig &bestFbc,
             None
         };
         
-        LOG("Creating GL 4.3 context...\n");
-        ctx = glXCreateContextAttribsARB(XDisplay, bestFbc, 0, True, context_attribs);
+        LOG("Creating GL 2.1 context... ");
+        ctx = glXCreateContextAttribsARB(XDisplay, *best_config, 0, True, context_attribs);
         
         XSync( XDisplay, False );
-        if (!ctxErrorOccurred && ctx)
-        {
-            LOG("Created GL 4.3 context.\n" );
+        if (!ctxErrorOccurred && ctx){
+            LOG("Created GL 2.1 context.\n");
         }
-        else
-        {
-            ctxErrorOccurred = false;
-            
-            context_attribs[1] = 3;
-            context_attribs[3] = 2;
-            
-            LOG("GL 4.3 unavailable, creating GL 3.2 context...\n" );
-            ctx = glXCreateContextAttribsARB( XDisplay, bestFbc, 0, True, context_attribs );
-            
-            XSync(XDisplay, False);
-            
-            if (!ctxErrorOccurred && ctx)
-            {
-                LOG("Created GL 3.2 context.\n" );
-            }
-            else
-            {
-                context_attribs[1] = 1;
-                context_attribs[3] = 2;
-                
-                ctxErrorOccurred = false;
-                
-                LOG("Failed to create GL 3.2 context, using old-style GLX context\n");
-                ctx = glXCreateContextAttribsARB(XDisplay, bestFbc, 0, True, context_attribs);
-                
-                IsLegacy = true;
-            }
+        else{
+            LOG("Could not create a context.\n");
+            exit(1);
         }
     }
     
@@ -672,8 +646,7 @@ ChooseGLXConfig(Display *XDisplay, int XScreenIndex)
 {
     glx_config_result Result = {0};
     
-    int DesiredAttributes[] =
-    {
+    int DesiredAttributes[] = {
         GLX_X_RENDERABLE    , True,
         GLX_DRAWABLE_TYPE   , GLX_WINDOW_BIT,
         GLX_RENDER_TYPE     , GLX_RGBA_BIT,
@@ -685,21 +658,14 @@ ChooseGLXConfig(Display *XDisplay, int XScreenIndex)
         GLX_DEPTH_SIZE      , 24,
         GLX_STENCIL_SIZE    , 8,
         GLX_DOUBLEBUFFER    , True,
-        //GLX_SAMPLE_BUFFERS  , 1,
-        //GLX_SAMPLES         , 4,
         None
     };    
     
     int ConfigCount = 0;
-    GLXFBConfig *Configs = glXChooseFBConfig(XDisplay,
-                                             XScreenIndex,
-                                             DesiredAttributes,
-                                             &ConfigCount);
-    if (Configs && ConfigCount > 0)
-    {
+    GLXFBConfig *Configs = glXChooseFBConfig(XDisplay, XScreenIndex, DesiredAttributes, &ConfigCount);
+    if (Configs != 0 && ConfigCount > 0){
         XVisualInfo* VI = glXGetVisualFromFBConfig(XDisplay, Configs[0]);
-        if (VI)
-        {
+        if (VI != 0){
             Result.Found = true;
             Result.BestConfig = Configs[0];
             Result.BestInfo = *VI;
@@ -1140,9 +1106,8 @@ LinuxX11WindowInit(int argc, char** argv, int* window_width, int* window_height)
     // NOTE(inso): make the window visible
     XMapWindow(linuxvars.XDisplay, linuxvars.XWindow);
     
-    b32 IsLegacy = false;
     GLXContext GLContext =
-        InitializeOpenGLContext(linuxvars.XDisplay, linuxvars.XWindow, Config.BestConfig, IsLegacy);
+        InitializeOpenGLContext(linuxvars.XDisplay, linuxvars.XWindow, &Config.BestConfig);
     
     XRaiseWindow(linuxvars.XDisplay, linuxvars.XWindow);
     
