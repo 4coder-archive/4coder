@@ -155,8 +155,8 @@ default_key_template(Bind_Helper *context, int32_t t){
     bind_vanilla_keys(context, write_character);
     
     bind(context, key_mouse_left, B_None, t, click_set_cursor);
-    bind(context, key_mouse_right, B_None, t, click_set_mark);
     bind(context, key_mouse_left_release, B_None, t, click_set_mark);
+    bind(context, key_mouse_right, B_None, t, click_set_mark);
     
     bind(context, key_left,      B_None,  t, move_left);
     bind(context, key_right,     B_None,  t, move_right);
@@ -341,9 +341,8 @@ mac_default_keys(Bind_Helper *context){
     bind_vanilla_keys(context, write_character);
     
     bind(context, key_mouse_left, MDFR_NONE, click_set_cursor);
-    bind(context, key_mouse_right, MDFR_NONE, click_set_mark);
-    
     bind(context, key_mouse_left_release, MDFR_NONE, click_set_mark);
+    bind(context, key_mouse_right, MDFR_NONE, click_set_mark);
     
     bind(context, key_left, MDFR_NONE, move_left);
     bind(context, key_right, MDFR_NONE, move_right);
@@ -363,15 +362,15 @@ mac_default_keys(Bind_Helper *context){
     bind(context, key_up, MDFR_CMND, seek_whitespace_up_end_line);
     bind(context, key_down, MDFR_CMND, seek_whitespace_down_end_line);
     
-    bind(context, key_up, MDFR_CTRL, move_up_10);
-    bind(context, key_down, MDFR_CTRL, move_down_10);
+    bind(context, key_up, MDFR_ALT, move_up_10);
+    bind(context, key_down, MDFR_ALT, move_down_10);
     
     bind(context, key_back, MDFR_CMND, backspace_word);
     bind(context, key_del, MDFR_CMND, delete_word);
     bind(context, key_back, MDFR_CTRL, snipe_token_or_word);
     bind(context, key_del, MDFR_CTRL, snipe_token_or_word_right);
     
-    bind(context, ' ', MDFR_CMND, set_mark);
+    bind(context, ' ', MDFR_CTRL, set_mark);
     bind(context, 'a', MDFR_CMND, replace_in_range);
     bind(context, 'c', MDFR_CMND, copy);
     bind(context, 'd', MDFR_CMND, delete_range);

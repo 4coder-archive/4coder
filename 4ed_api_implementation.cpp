@@ -2517,7 +2517,7 @@ DOC_PARAM(rel_path, This parameter specifies the path to change to, may include 
 DOC_PARAM(rel_len, This parameter specifies the length of the rel_path string.)
 DOC_RETURN(This call returns non-zero if the call succeeds.)
 DOC(
-This call succeeds if the new directory exists and the it fits inside the dir buffer. If the call succeeds the dir buffer is filled with the new directory and len is overwritten with the length of the new string in the buffer.
+This call succeeds if the new directory exists and it fits inside the dir buffer. If the call succeeds the dir buffer is filled with the new directory and len is overwritten with the length of the new string in the buffer.
 
 For instance if dir contains "C:/Users/MySelf" and rel is "Documents" the buffer will contain "C:/Users/MySelf/Documents" and len will contain the length of that string.  This call can also be used with rel set to ".." to traverse to parent folders.
 )*/{
