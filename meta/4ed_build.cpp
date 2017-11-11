@@ -309,9 +309,12 @@ build(u32 flags, u32 arch, char *code_path, char **code_files, char *out_path, c
 "-D_GNU_SOURCE -fPIC "                \
 "-fno-threadsafe-statics -pthread"
 
-#define GCC_LIBS                               \
+#define GCC_LIBS_COMMON                        \
 "-L/usr/local/lib -lX11 -lpthread -lm -lrt "   \
 "-lGL -ldl -lXfixes -lfreetype -lfontconfig"
+
+#define GCC_LIBS_X64 GCC_LIBS_COMMON
+#define GCC_LIBS_X86 GCC_LIBS_COMMON
 
 #elif defined(IS_MAC)
 
@@ -319,10 +322,16 @@ build(u32 flags, u32 arch, char *code_path, char **code_files, char *out_path, c
 "-Wno-write-strings -Wno-deprecated-declarations "  \
 "-Wno-comment -Wno-switch -Wno-null-dereference "
 
-#define GCC_LIBS \
+#define GCC_LIBS_COMMON \
 "-framework Cocoa -framework QuartzCore " \
 "-framework CoreServices " \
-"-framework OpenGL -framework IOKit -lfreetype"
+"-framework OpenGL -framework IOKit "
+
+#define GCC_LIBS_X64 GCC_LIBS_COMMON \
+FOREIGN"/x64/libfreetype-mac.a"
+
+#define GCC_LIBS_X86 GCC_LIBS_COMMON \
+FOREIGN"/x86/libfreetype-mac.a"
 
 #else
 # error gcc options not set for this platform
@@ -382,7 +391,13 @@ build(u32 flags, u32 arch, char *code_path, char **code_files, char *out_path, c
     }
     
     if (flags & LIBS){
-        fm_add_to_line(line, GCC_LIBS);
+        if (arch == Arch_X64){
+            fm_add_to_line(line, GCC_LIBS_X64);
+        }
+        else if (arch == Arch_X86)
+        {
+            fm_add_to_line(line, GCC_LIBS_X86);
+        }
     }
     
     fm_finish_build_line(&line);
