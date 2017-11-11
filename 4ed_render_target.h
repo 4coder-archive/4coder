@@ -13,8 +13,6 @@
 #define FRED_RENDER_TARGET_H
 
 struct Render_Target{
-    void *handle;
-    void *context;
     i32_Rect clip_boxes[5];
     i32 clip_top;
     b32 clip_all;
