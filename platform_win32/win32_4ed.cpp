@@ -540,10 +540,10 @@ Win32Resize(i32 width, i32 height){
 
 #define GLFuncGood(f) (((f)!=0)&&((f)!=(void*)1)&&((f)!=(void*)2)&&((f)!=(void*)3)&&((f)!=(void*)-11))
 
-typedef HGLRC CALL_CONVENTION (wglCreateContextAttribsARB_Function)(HDC,HGLRC,i32*);
-typedef BOOL  CALL_CONVENTION (wglChoosePixelFormatARB_Function)(HDC,i32*,f32*,u32,i32*,u32*);
-typedef char* CALL_CONVENTION (wglGetExtensionsStringEXT_Function)();
-typedef VOID  CALL_CONVENTION (wglSwapIntervalEXT_Function)(i32);
+typedef HGLRC (CALL_CONVENTION wglCreateContextAttribsARB_Function)(HDC,HGLRC,i32*);
+typedef BOOL  (CALL_CONVENTION wglChoosePixelFormatARB_Function)(HDC,i32*,f32*,u32,i32*,u32*);
+typedef char* (CALL_CONVENTION wglGetExtensionsStringEXT_Function)();
+typedef VOID  (CALL_CONVENTION wglSwapIntervalEXT_Function)(i32);
 
 global wglCreateContextAttribsARB_Function *wglCreateContextAttribsARB = 0;
 global wglChoosePixelFormatARB_Function *wglChoosePixelFormatARB = 0;
