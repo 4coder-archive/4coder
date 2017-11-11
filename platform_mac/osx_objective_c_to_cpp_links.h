@@ -105,11 +105,11 @@ osx_get_file_change_event(char *buffer, i32 max, i32 *size);
 external void
 osx_show_cursor(i32 show_inc, i32 cursor_type);
 
-void
-osx_begin_render();
+external void
+osx_begin_render(void);
 
-void
-osx_end_render();
+external void
+osx_end_render(void);
 
 external void
 osx_schedule_step(void);
