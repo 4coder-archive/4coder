@@ -582,27 +582,6 @@ project_is_setup(Application_Links *app, char *dir, int32_t dir_len, int32_t dir
     return(result);
 }
 
-// TODO(allen): For this purpose we shouldn't go this far.
-// Instead just let the CWD of the running script be the code home.
-static char get_code_home[] = 
-"# Store the real CWD\n"
-"REAL_PWD=\"$PWD\"\n\n"
-"# Find the code home folder\n"
-"TARGET_FILE=\"$0\"\n"
-"cd `dirname $TARGET_FILE`\n"
-"TARGET_FILE=`basename $TARGET_FILE`\n"
-"while [ -L \"$TARGET_FILE\" ]\n"
-"do\n"
-"TARGET_FILE=`readlink $TARGET_FILE`\n"
-"cd `dirname $TARGET_FILE`\n"
-"TARGET_FILE=`basename $TARGET_FILE`\n"
-"done\n"
-"PHYS_DIR=`pwd -P`\n"
-"SCRIPT_FILE=$PHYS_DIR/$TARGET_FILE\n"
-"CODE_HOME=$(dirname \"$SCRIPT_FILE\")\n\n"
-"# Restore the PWD\n"
-"cd \"$REAL_PWD\"\n\n";
-
 // TODO(allen): Stop using stdio.h, switch to a 4coder buffer API for all file manipulation.
 #include <stdio.h>
 CUSTOM_COMMAND_SIG(setup_new_project){
@@ -695,12 +674,12 @@ CUSTOM_COMMAND_SIG(setup_new_project){
             if (sh_script != 0){
                 fprintf(sh_script, "#!/bin/bash\n\n");
                 
-                fprintf(sh_script, "%s", get_code_home);
+                fprintf(sh_script, "CODE_HOME=\"$PWD\"\n");
                 
                 fprintf(sh_script, "OPTS=%.*s\n", 
                         default_flags_sh.size, default_flags_sh.str);
                 
-                fprintf(sh_script, "pushd %.*s\n", 
+                fprintf(sh_script, "pushd %.*s > /dev/null\n", 
                         output_dir.size, output_dir.str);
                 fprintf(sh_script, "%.*s $OPTS $CODE_HOME/%.*s -o %.*s\n",
                         default_compiler_sh.size, default_compiler_sh.str,
