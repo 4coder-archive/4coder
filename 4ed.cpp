@@ -1536,8 +1536,6 @@ App_Step_Sig(app_step){
             mouse_event.keycode = key_mouse_right_release;
             input->keys.keys[input->keys.count++] = mouse_event;
         }
-        
-        input->mouse.wheel = -input->mouse.wheel;
     }
     
     // NOTE(allen): detect mouse hover status

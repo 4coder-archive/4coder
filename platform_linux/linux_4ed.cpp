@@ -1138,7 +1138,7 @@ internal void
 LinuxHandleX11Events(void)
 {
     static XEvent PrevEvent = {};
-    b32 should_step = 0;
+    b32 should_step = false;
     
     while (XPending(linuxvars.XDisplay))
     {
@@ -1151,7 +1151,7 @@ LinuxHandleX11Events(void)
         
         switch (Event.type){
             case KeyPress: {
-                should_step = 1;
+                should_step = true;
                 
                 b32 is_hold = (PrevEvent.type         == KeyRelease &&
                                PrevEvent.xkey.time    == Event.xkey.time &&
@@ -1219,17 +1219,17 @@ LinuxHandleX11Events(void)
             }break;
             
             case KeyRelease: {
-                should_step = 1;
+                should_step = true;
             }break;
             
             case MotionNotify: {
-                should_step = 1;
+                should_step = true;
                 linuxvars.input.mouse.x = Event.xmotion.x;
                 linuxvars.input.mouse.y = Event.xmotion.y;
             }break;
             
             case ButtonPress: {
-                should_step = 1;
+                should_step = true;
                 switch(Event.xbutton.button){
                     case Button1: {
                         linuxvars.input.mouse.press_l = 1;
@@ -1242,18 +1242,18 @@ LinuxHandleX11Events(void)
                     
                     //NOTE(inso): scroll up
                     case Button4: {
-                        linuxvars.input.mouse.wheel = 1;
+                        linuxvars.input.mouse.wheel = -100;
                     }break;
                     
                     //NOTE(inso): scroll down
                     case Button5: {
-                        linuxvars.input.mouse.wheel = -1;
+                        linuxvars.input.mouse.wheel =  100;
                     }break;
                 }
             }break;
             
             case ButtonRelease: {
-                should_step = 1;
+                should_step = true;
                 switch(Event.xbutton.button){
                     case Button1: {
                         linuxvars.input.mouse.release_l = 1;
@@ -1267,24 +1267,24 @@ LinuxHandleX11Events(void)
             }break;
             
             case EnterNotify: {
-                should_step = 1;
+                should_step = true;
                 linuxvars.input.mouse.out_of_window = 0;
             }break;
             
             case LeaveNotify: {
-                should_step = 1;
+                should_step = true;
                 linuxvars.input.mouse.out_of_window = 1;
             }break;
             
             case FocusIn:
             case FocusOut: {
-                should_step = 1;
+                should_step = true;
                 linuxvars.input.mouse.l = 0;
                 linuxvars.input.mouse.r = 0;
             }break;
             
             case ConfigureNotify: {
-                should_step = 1;
+                should_step = true;
                 i32 w = Event.xconfigure.width;
                 i32 h = Event.xconfigure.height;
                 
@@ -1302,7 +1302,7 @@ LinuxHandleX11Events(void)
             
             case ClientMessage: {
                 if ((Atom)Event.xclient.data.l[0] == linuxvars.atom_WM_DELETE_WINDOW) {
-                    should_step = 1;
+                    should_step = true;
                     linuxvars.keep_running = 0;
                 }
                 else if ((Atom)Event.xclient.data.l[0] == linuxvars.atom__NET_WM_PING) {
@@ -1395,15 +1395,16 @@ LinuxHandleX11Events(void)
                 if (e->selection == linuxvars.atom_CLIPBOARD && e->target == linuxvars.atom_UTF8_STRING && e->property != None){
                     Atom type;
                     int fmt;
-                    unsigned long nitems, bytes_left;
+                    unsigned long nitems;
+                    unsigned long bytes_left;
                     u8 *data;
                     
                     int result = XGetWindowProperty(linuxvars.XDisplay, linuxvars.XWindow, linuxvars.atom_CLIPBOARD, 0L, LINUX_MAX_PASTE_CHARS/4L, False, linuxvars.atom_UTF8_STRING, &type, &fmt, &nitems, &bytes_left, &data);
                     
                     if (result == Success && fmt == 8){
                         LinuxStringDup(&linuxvars.clipboard_contents, data, nitems);
-                        should_step = 1;
-                        linuxvars.new_clipboard = 1;
+                        should_step = true;
+                        linuxvars.new_clipboard = true;
                         XFree(data);
                         XDeleteProperty(linuxvars.XDisplay, linuxvars.XWindow, linuxvars.atom_CLIPBOARD);
                     }
@@ -1412,7 +1413,7 @@ LinuxHandleX11Events(void)
             
             case Expose:
             case VisibilityNotify: {
-                should_step = 1;
+                should_step = true;
             }break;
             
             default: {

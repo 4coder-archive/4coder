@@ -849,10 +849,10 @@ Win32Callback(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
             win32vars.got_useful_event = true;
             i32 rotation = GET_WHEEL_DELTA_WPARAM(wParam);
             if (rotation > 0){
-                win32vars.input_chunk.trans.mouse_wheel = 1;
+                win32vars.input_chunk.trans.mouse_wheel = -100;
             }
             else{
-                win32vars.input_chunk.trans.mouse_wheel = -1;
+                win32vars.input_chunk.trans.mouse_wheel =  100;
             }
         }break;
         

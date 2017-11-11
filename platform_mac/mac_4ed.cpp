@@ -462,12 +462,7 @@ osx_mouse(i32 mx, i32 my, u32 type){
 
 external void
 osx_mouse_wheel(float dx, float dy){
-    if (dy > 0){
-        osxvars.input.mouse.wheel = 1;
-    }
-    else if (dy < 0){
-        osxvars.input.mouse.wheel = -1;
-    }
+    osxvars.input.mouse.wheel = - (int32_t)(dy);
     osx_schedule_step();
 }
 

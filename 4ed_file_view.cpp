@@ -5580,7 +5580,7 @@ do_step_file_view(System_Functions *system, View *view, Models *models, i32_Rect
                     case guicom_scrollable_invisible:
                     {
                         if (user_input->mouse.wheel != 0){
-                            result.vars.target_y += user_input->mouse.wheel*target->delta;
+                            result.vars.target_y += user_input->mouse.wheel;
                             
                             result.vars.target_y =
                                 clamp(0, result.vars.target_y, max_y);

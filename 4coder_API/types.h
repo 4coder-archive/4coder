@@ -360,27 +360,25 @@ GLOBAL_VAR Key_Event_Data null_key_event_data = {0};
 
 /* DOC(Mouse_State describes an entire mouse state complete with the position, left and right button states, the wheel state, and whether or not the mouse if in the window.) */
 STRUCT Mouse_State{
-    /* DOC(This field indicates that the left button is held.) */
-    char l;
-    /* DOC(This field indicates that the right button is held.) */
-    char r;
-    /* DOC(This field indicates that the left button was pressed this frame.) */
-    char press_l;
-    /* DOC(This field indicates that the right button was pressed this frame.) */
-    char press_r;
-    /* DOC(This field indicates that the left button was released this frame.) */
-    char release_l;
-    /* DOC(This field indicates that the right button was released this frame.) */
-    char release_r;
-    /* DOC(
-    This field is 0 when the wheel has not moved, it is 1 for a downward motion and -1 for an upward motion.
-    ) */
-    char wheel;
-    /* DOC(This field indicates that the mouse is outside of the window.) */
-    char out_of_window;
-    /* DOC(This field contains the x position of the mouse relative to the window where the left side is 0.) */
+    /* DOC(Left button is down.) */
+    int8_t l;
+    /* DOC(Right button is down.) */
+    int8_t r;
+    /* DOC(Left button was pressed this frame.) */
+    int8_t press_l;
+    /* DOC(Right button was pressed this frame.) */
+    int8_t press_r;
+    /* DOC(Left button was released this frame.) */
+    int8_t release_l;
+    /* DOC(Right button was released this frame.) */
+    int8_t release_r;
+    /* DOC(Mouse is outside of the window.) */
+    int8_t out_of_window;
+    /* DOC(The motion of the wheel. Zero indicates no motion. Positive indicates downard scrolling. Negative indicates upward scrolling. The magnitude corresponds to the number of pixels of scroll will be applied at standard scroll speeds.) */
+    int32_t wheel;
+    /* DOC(X position of the mouse where the left of the window is x = 0, and x grows to the right.) */
     int32_t x;
-    /* DOC(This field contains the y position of the mouse relative to the window where the top side is 0.) */
+    /* DOC(Y position of the mouse where the top of the window is y = 0, and y grows to downward.) */
     int32_t y;
 };
 

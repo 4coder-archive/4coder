@@ -137,6 +137,7 @@ struct GUI_Target{
     i32 list_view_max;
     
     GUI_id scroll_id; 
+    // TODO(allen): is currently ignored in the wheel code, reevaluate?
     i32 delta;
     b32 has_keys;
     b32 animating;
@@ -695,8 +696,7 @@ gui_post_scroll_vars(GUI_Target *target, GUI_Scroll_Vars *vars_in, i32_Rect regi
 }
 
 internal void
-gui_begin_scrollable(GUI_Target *target, GUI_id scroll_context_id,
-                     GUI_Scroll_Vars scroll_vars, i32 delta, b32 show_bar){
+gui_begin_scrollable(GUI_Target *target, GUI_id scroll_context_id, GUI_Scroll_Vars scroll_vars, i32 delta, b32 show_bar){
     GUI_Header *h;
     
     gui_begin_serial_section(target);
