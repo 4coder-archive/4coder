@@ -518,7 +518,8 @@ osx_step(void){
     b32 keep_running = osxvars.keep_running;
     
     // NOTE(allen): Application Core Update
-    app.step(&sysfunc, &target, &memory_vars, &frame_input, &result);
+    Render_Target fixed_target = target;
+    app.step(&sysfunc, &fixed_target, &memory_vars, &frame_input, &result);
     
     // NOTE(allen): Finish the Loop
     if (result.perform_kill){
