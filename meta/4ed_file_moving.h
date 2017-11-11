@@ -74,10 +74,10 @@ internal void fm_slash_fix(char *path);
 
 // Memory concat helpers
 internal char *fm_prepare_string_internal(char *s1, ...);
-#define fm_str(...) fm_prepare_string_internal(__VA_ARGS__, 0)
+#define fm_str(...) fm_prepare_string_internal(__VA_ARGS__, (void*)0)
 
 internal char **fm_prepare_list_internal(char **l1, ...);
-#define fm_list(...) fm_prepare_list_internal(__VA_ARGS__, 0)
+#define fm_list(...) fm_prepare_list_internal(__VA_ARGS__, (void*)0)
 
 internal char **fm_list_one_item(char *item);
 
