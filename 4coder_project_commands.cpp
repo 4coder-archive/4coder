@@ -740,13 +740,13 @@ CUSTOM_COMMAND_SIG(setup_new_project){
                 replace_str(&output_dir, "\\\\", "/");
                 replace_str(&binary_file, "\\\\", "/");
                 
-                fprintf(project_script, "fkey_command_linux[1] = {\"build.sh\", \"*compilation*\", true , true };\n");
+                fprintf(project_script, "fkey_command_linux[1] = {\"./build.sh\", \"*compilation*\", true , true };\n");
                 fprintf(project_script, 
                         "fkey_command_linux[2] = {\"%.*s/%.*s\", \"*run*\", false , true };\n", 
                         output_dir.size, output_dir.str,
                         binary_file.size, binary_file.str);
                 
-                fprintf(project_script, "fkey_command_mac[1] = {\"build.sh\", \"*compilation*\", true , true };\n");
+                fprintf(project_script, "fkey_command_mac[1] = {\"./build.sh\", \"*compilation*\", true , true };\n");
                 fprintf(project_script, 
                         "fkey_command_mac[2] = {\"%.*s/%.*s\", \"*run*\", false , true };\n", 
                         output_dir.size, output_dir.str,
