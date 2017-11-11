@@ -606,8 +606,15 @@ fm__prepare(umem item_size, void *i1, va_list list){
     void *result = (void*)fm__push(size);
     memcpy(result, i1, size);
     
+    fprintf(stdout, "%p\n%.4s\n", i1, i1);
+    fflush(stdout);
+    
     void *ln = va_arg(list, void*);
     for (;ln != 0;){
+        fprintf(stdout, "%p\n"  , ln);
+        fprintf(stdout, "%.4s\n", ln);
+        fflush(stdout);
+        
         size = listsize(ln, item_size);
         void *new_str = (void*)fm__push(size);
         memcpy(new_str, ln, size);

@@ -138,7 +138,8 @@ static DISPLINK_SIG(osx_display_link);
 }
 
 - (void)requestDisplay{
-    NSRect rect = CGRectMake(0, 0, osx_objc.width, osx_objc.height);
+    CGRect cg_rect = CGRectMake(0, 0, osx_objc.width, osx_objc.height);
+    NSRect rect = NSRectFromCGRect(cg_rect);
     [self setNeedsDisplayInRect:rect];
 }
 

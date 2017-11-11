@@ -100,9 +100,9 @@ char *linux_gcc_platform_inc[] = { "platform_all", "platform_unix", 0 };
 char *mac_gcc_platform_inc[] = { "platform_all", "platform_unix", 0 };
 
 char **platform_includes[Platform_COUNT][Compiler_COUNT] = {
-    {windows_cl_platform_inc, 0                      },
-    {0                      , linux_gcc_platform_inc },
-    {0                      , mac_gcc_platform_inc   },
+    {windows_cl_platform_inc, 0                     },
+    {0                      , linux_gcc_platform_inc},
+    {0                      , mac_gcc_platform_inc  },
 };
 
 //
@@ -416,7 +416,7 @@ site_build(char *cdir, u32 flags){
     
     if (prev_error == 0){
         BEGIN_TIME_SECTION();
-        char *cmd = fm_str(BUILD_DIR"/sitegen");
+        char *cmd = fm_str(BUILD_DIR "/sitegen");
         char *code_dir = fm_str(".");
         char *asset_dir = fm_str("../4coder-non-source/site_resources");
         char *site_source_dir = fm_str("site/source_material");
@@ -510,7 +510,7 @@ get_freetype_include(char *out, u32 max){
     char *freetype_include = "/usr/local/include/freetype2";
     size = strlen(freetype_include);
     memcpy(out, freetype_include, size
-        );
+           );
 #endif
 #endif
     return(size);
