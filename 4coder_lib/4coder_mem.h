@@ -92,10 +92,11 @@ partition_reduce(Partition *data, i32_4tech size){
     }
 }
 
-inline void
+inline void*
 partition_align(Partition *data, u32_4tech boundary){
     --boundary;
     data->pos = (data->pos + boundary) & (~boundary);
+    return(data->base + data->pos);
 }
 
 inline void*
@@ -121,6 +122,7 @@ partition_sub_part(Partition *data, i32_4tech size){
 #define push_struct(part, T) (T*)partition_allocate(part, sizeof(T))
 #define push_array(part, T, size) (T*)partition_allocate(part, sizeof(T)*(size))
 #define push_block(part, size) partition_allocate(part, size)
+#define push_align(part, b) partition_align(part, b)
 
 inline Temp_Memory
 begin_temp_memory(Partition *data){

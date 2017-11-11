@@ -9,12 +9,13 @@
 
 // TOP
 
-#define ExtractStruct(s) ((s*)cursor); cursor += sizeof(s)
+// TODO(allen): If we don't actually need this then burn down 4ed_opengl_funcs.h
+// Declare function types and function pointers
+//#define GL_FUNC(N,R,P) typedef R (N##_Function) P; N##_Function *P = 0;
+//#include "4ed_opengl_funcs.h"
+#include "4ed_opengl_defines.h"
 
-inline void
-private_draw_set_clip(Render_Target *t, i32_Rect clip_box){
-    glScissor(clip_box.x0, t->height - clip_box.y1, clip_box.x1 - clip_box.x0, clip_box.y1 - clip_box.y0);
-}
+// OpenGL 2.1 implementation
 
 inline void
 private_draw_bind_texture(Render_Target *t, i32 texid){
@@ -33,106 +34,27 @@ private_draw_set_color(Render_Target *t, u32 color){
     }
 }
 
-inline void
-private_draw_rectangle(Render_Target *t, f32_Rect rect, u32 color){
-    private_draw_set_color(t, color);
-    private_draw_bind_texture(t, 0);
-    glBegin(GL_QUADS);
-    {
-        glVertex2f(rect.x0, rect.y0);
-        glVertex2f(rect.x0, rect.y1);
-        glVertex2f(rect.x1, rect.y1);
-        glVertex2f(rect.x1, rect.y0);
-    }
-    glEnd();
-}
-
-inline void
-private_draw_rectangle_outline(Render_Target *t, f32_Rect rect, u32 color){
-    f32_Rect r = get_inner_rect(rect, .5f);
-    private_draw_set_color(t, color);
-    private_draw_bind_texture(t, 0);
-    glBegin(GL_LINE_STRIP);
-    {
-        glVertex2f(r.x0, r.y0);
-        glVertex2f(r.x1, r.y0);
-        glVertex2f(r.x1, r.y1);
-        glVertex2f(r.x0, r.y1);
-        glVertex2f(r.x0, r.y0);
-    }
-    glEnd();
-}
-
-struct Render_Quad{
-    f32 x0, y0, x1, y1;
-    f32 s0, t0, s1, t1;
-};
-
-inline Render_Quad
-get_render_quad(Glyph_Bounds *b, i32 pw, i32 ph, float xpos, float ypos){
-    Render_Quad q;
-    
-    float ipw = 1.0f / pw, iph = 1.0f / ph;
-    
-    q.x0 = xpos + b->xoff;
-    q.y0 = ypos + b->yoff;
-    q.x1 = xpos + b->xoff2;
-    q.y1 = ypos + b->yoff2;
-    
-    q.s0 = b->x0 * ipw;
-    q.t0 = b->y0 * iph;
-    q.s1 = b->x1 * ipw;
-    q.t1 = b->y1 * iph;
-    
-    return(q);
-}
-
-inline void
-private_draw_glyph(System_Functions *system, Render_Target *t, Render_Font *font, u32 codepoint, f32 x, f32 y, u32 color){
-    Glyph_Data glyph = font_get_glyph(system, font, codepoint);
-    if (glyph.tex != 0){
-        Render_Quad q = get_render_quad(&glyph.bounds, glyph.tex_width, glyph.tex_height, x, y);
-        
-        private_draw_set_color(t, color);
-        private_draw_bind_texture(t, glyph.tex);
-        glBegin(GL_QUADS);
-        {
-            glTexCoord2f(q.s0, q.t1); glVertex2f(q.x0, q.y1);
-            glTexCoord2f(q.s1, q.t1); glVertex2f(q.x1, q.y1);
-            glTexCoord2f(q.s1, q.t0); glVertex2f(q.x1, q.y0);
-            glTexCoord2f(q.s0, q.t0); glVertex2f(q.x0, q.y0);
-        }
-        glEnd();
-    }
-}
-
-internal void CALL_CONVENTION
-opengl_debug_callback(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const char *message, const void *userParam){
-    // TODO(allen): Fill this in with my preferred thingy.
-}
-
 internal void
 interpret_render_buffer(System_Functions *system, Render_Target *t){
     local_persist b32 first_opengl_call = true;
     if (first_opengl_call){
         first_opengl_call = false;
         
-        // TODO(allen): Get logging working everywhere
-#if 0
-        //TODO(inso): glGetStringi is required in core profile if the GL version is >= 3.0
-        char *Vendor   = (char *)glGetString(GL_VENDOR);
-        char *Renderer = (char *)glGetString(GL_RENDERER);
-        char *Version  = (char *)glGetString(GL_VERSION);
+        char *vendor   = (char *)glGetString(GL_VENDOR);
+        char *renderer = (char *)glGetString(GL_RENDERER);
+        char *version  = (char *)glGetString(GL_VERSION);
         
-        LOGF("GL_VENDOR: %s\n", Vendor);
-        LOGF("GL_RENDERER: %s\n", Renderer);
-        LOGF("GL_VERSION: %s\n", Version);
-#endif
+        LOGF("GL_VENDOR: %s\n", vendor);
+        LOGF("GL_RENDERER: %s\n", renderer);
+        LOGF("GL_VERSION: %s\n", version);
         
         // TODO(allen): Get this up and running for dev mode again.
 #if (defined(BUILD_X64) && 0) || (defined(BUILD_X86) && 0)
         // NOTE(casey): This slows down GL but puts error messages to
         // the debug console immediately whenever you do something wrong
+        
+        void CALL_CONVENTION gl_dbg(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const char *message, const void *userParam);
+        
         glDebugMessageCallback_type *glDebugMessageCallback = 
             (glDebugMessageCallback_type *)win32_load_gl_always("glDebugMessageCallback", module);
         glDebugMessageControl_type *glDebugMessageControl = 
@@ -152,39 +74,113 @@ interpret_render_buffer(System_Functions *system, Render_Target *t){
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     }
     
-    char *cursor = t->push_buffer;
-    char *cursor_end = cursor + t->size;
+    i32 width = t->width;
+    i32 height = t->height;
     
-    for (; cursor < cursor_end;){
-        Render_Piece_Header *header = ExtractStruct(Render_Piece_Header);
+    glViewport(0, 0, width, height);
+    glMatrixMode(GL_PROJECTION);
+    glLoadIdentity();
+    glOrtho(0, width, height, 0, -1, 1);
+    glScissor(0, 0, width, height);
+    glClearColor(1.f, 0.f, 1.f, 1.f);
+    glClear(GL_COLOR_BUFFER_BIT);
+    
+    glBindTexture(GL_TEXTURE_2D, 0);
+    t->bound_texture = 0;
+    
+    glColor4f(0.f, 0.f, 0.f, 0.f);
+    t->color = 0;
+    
+    u8 *start = (u8*)t->buffer.base;
+    u8 *end = (u8*)t->buffer.base + t->buffer.pos;
+    Render_Command_Header *header = 0;
+    for (u8 *p = start; p < end; p += header->size){
+        header = (Render_Command_Header*)p;
         
         i32 type = header->type;
         switch (type){
-            case piece_type_rectangle:
+            case RenCom_Rectangle:
             {
-                Render_Piece_Rectangle *rectangle = ExtractStruct(Render_Piece_Rectangle);
-                private_draw_rectangle(t, rectangle->rect, rectangle->color);
+                Render_Command_Rectangle *rectangle = (Render_Command_Rectangle*)header;
+                f32_Rect r = rectangle->rect;
+                private_draw_set_color(t, rectangle->color);
+                private_draw_bind_texture(t, 0);
+                glBegin(GL_QUADS);
+                {
+                    glVertex2f(r.x0, r.y0);
+                    glVertex2f(r.x0, r.y1);
+                    glVertex2f(r.x1, r.y1);
+                    glVertex2f(r.x1, r.y0);
+                }
+                glEnd();
             }break;
             
-            case piece_type_outline:
+            case RenCom_Outline:
             {
-                Render_Piece_Rectangle *rectangle = ExtractStruct(Render_Piece_Rectangle);
-                private_draw_rectangle_outline(t, rectangle->rect, rectangle->color);
+                Render_Command_Rectangle *rectangle = (Render_Command_Rectangle*)header;
+                f32_Rect r = get_inner_rect(rectangle->rect, .5f);
+                private_draw_set_color(t, rectangle->color);
+                private_draw_bind_texture(t, 0);
+                glBegin(GL_LINE_STRIP);
+                {
+                    glVertex2f(r.x0, r.y0);
+                    glVertex2f(r.x1, r.y0);
+                    glVertex2f(r.x1, r.y1);
+                    glVertex2f(r.x0, r.y1);
+                    glVertex2f(r.x0, r.y0);
+                }
+                glEnd();
             }break;
             
-            case piece_type_glyph:
+            case RenCom_Glyph:
             {
-                Render_Piece_Glyph *glyph = ExtractStruct(Render_Piece_Glyph);
-                
+                Render_Command_Glyph *glyph = (Render_Command_Glyph*)header;
                 Render_Font *font = system->font.get_render_data_by_id(glyph->font_id);
-                Assert(font != 0);
-                private_draw_glyph(system, t, font, glyph->codepoint, glyph->pos.x, glyph->pos.y, glyph->color);
+                if (font == 0){
+                    break;
+                }
+                
+                Glyph_Data g = font_get_glyph(system, font, glyph->codepoint);
+                if (g.tex == 0){
+                    break;
+                }
+                
+                f32 x = glyph->pos.x;
+                f32 y = glyph->pos.y;
+                
+                f32_Rect xy = {0};
+                xy.x0 = x + g.bounds.xoff;
+                xy.y0 = y + g.bounds.yoff;
+                xy.x1 = x + g.bounds.xoff2;
+                xy.y1 = y + g.bounds.yoff2;
+                
+                // TODO(allen): Why aren't these baked in???
+                f32 unit_u = 1.f/g.tex_width;
+                f32 unit_v = 1.f/g.tex_height;
+                
+                f32_Rect uv = {0};
+                uv.x0 = g.bounds.x0*unit_u;
+                uv.y0 = g.bounds.y0*unit_v;
+                uv.x1 = g.bounds.x1*unit_u;
+                uv.y1 = g.bounds.y1*unit_v;
+                
+                private_draw_set_color(t, glyph->color);
+                private_draw_bind_texture(t, g.tex);
+                glBegin(GL_QUADS);
+                {
+                    glTexCoord2f(uv.x0, uv.y1); glVertex2f(xy.x0, xy.y1);
+                    glTexCoord2f(uv.x1, uv.y1); glVertex2f(xy.x1, xy.y1);
+                    glTexCoord2f(uv.x1, uv.y0); glVertex2f(xy.x1, xy.y0);
+                    glTexCoord2f(uv.x0, uv.y0); glVertex2f(xy.x0, xy.y0);
+                }
+                glEnd();
             }break;
             
-            case piece_type_change_clip:
+            case RenCom_ChangeClip:
             {
-                Render_Piece_Change_Clip *clip = ExtractStruct(Render_Piece_Change_Clip);
-                private_draw_set_clip(t, clip->box);
+                Render_Command_Change_Clip *clip = (Render_Command_Change_Clip*)header;
+                i32_Rect box = clip->box;
+                glScissor(box.x0, height - box.y1, box.x1 - box.x0, box.y1 - box.y0);
             }break;
         }
     }

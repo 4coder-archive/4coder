@@ -22,9 +22,7 @@ struct Render_Target{
     i32 bound_texture;
     u32 color;
     
-    // TODO(allen): change this to a Partition
-    char *push_buffer;
-    i32 size, max;
+    Partition buffer;
 };
 
 #endif

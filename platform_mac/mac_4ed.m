@@ -186,11 +186,7 @@ static i32 did_update_for_clipboard = true;
                 osx_objc.prev_clipboard_change_count = board.changeCount;
             }
             
-            CGLLockContext([[self openGLContext] CGLContextObj]);
-            [[self openGLContext] makeCurrentContext];
             osx_step();
-            [[self openGLContext] flushBuffer];
-            CGLUnlockContext([[self openGLContext] CGLContextObj]);
         }
     }
     return kCVReturnSuccess;
@@ -288,15 +284,6 @@ static i32 did_update_for_clipboard = true;
     return YES;
 }
 @end
-
-#if 0
-static
-DISPLINK_SIG(osx_display_link){
-    My4coderView* view = (__bridge My4coderView*)context;
-    CVReturn result = [view getFrame];
-    return result;
-}
-#endif
 
 @implementation AppDelegate
 - (void)applicationDidFinishLaunching:(id)sender
@@ -642,6 +629,18 @@ osx_show_cursor(i32 show, i32 cursor_type){
 
 My4coderView* view = 0;
 NSWindow* window = 0;
+
+void
+osx_begin_render(){
+    CGLLockContext([[view openGLContext] CGLContextObj]);
+    [[view openGLContext] makeCurrentContext];
+}
+
+void
+osx_end_render(){
+    [[view openGLContext] flushBuffer];
+    CGLUnlockContext([[view openGLContext] CGLContextObj]);
+}
 
 void
 osx_schedule_step(void){

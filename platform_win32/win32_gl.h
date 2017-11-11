@@ -70,9 +70,5 @@
 #define WGL_CONTEXT_CORE_PROFILE_BIT_ARB  0x00000001
 #define WGL_CONTEXT_COMPATIBILITY_PROFILE_BIT_ARB 0x00000002
 
-// TODO(allen): these don't belong here, but the organizational stuff is not fully in place yet.
-#define GL_DEBUG_OUTPUT_SYNCHRONOUS 0x8242
-#define GL_DEBUG_OUTPUT 0x92E0
-
 // BOTTOM
 

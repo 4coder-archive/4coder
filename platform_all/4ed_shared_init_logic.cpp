@@ -29,11 +29,12 @@ memory_init(){
     memory_vars.user_memory = system_memory_allocate_extended(0, memory_vars.user_memory_size);
     memory_vars.debug_memory_size = MB(512);
     memory_vars.debug_memory = system_memory_allocate_extended(0, memory_vars.debug_memory_size);
-    target.max = MB(1);
-    target.push_buffer = (char*)system_memory_allocate(target.max);
+    
+    i32 render_memsize = MB(1);
+    target.buffer = make_part(system_memory_allocate(render_memsize), render_memsize);
     
     b32 alloc_success = true;
-    if (memory_vars.vars_memory == 0 || memory_vars.target_memory == 0 || memory_vars.user_memory == 0 || target.push_buffer == 0){
+    if (memory_vars.vars_memory == 0 || memory_vars.target_memory == 0 || memory_vars.user_memory == 0 || target.buffer.base == 0){
         alloc_success = false;
     }
     

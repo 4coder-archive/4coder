@@ -447,7 +447,7 @@ Sys_CLI_End_Update_Sig(system_cli_end_update){
 
 #include "4ed_font_data.h"
 #include "4ed_system_shared.cpp"
-#include "4ed_render_opengl.cpp"
+#include "opengl/4ed_opengl_render.cpp"
 
 //
 // End of system funcs
@@ -460,12 +460,6 @@ Sys_CLI_End_Update_Sig(system_cli_end_update){
 internal void
 LinuxResizeTarget(i32 width, i32 height){
     if (width > 0 && height > 0){
-        glViewport(0, 0, width, height);
-        glMatrixMode(GL_PROJECTION);
-        glLoadIdentity();
-        glOrtho(0, width, height, 0, -1, 1);
-        glScissor(0, 0, width, height);
-        
         target.width = width;
         target.height = height;
     }
@@ -1652,8 +1646,8 @@ main(int argc, char **argv){
     
     system_schedule_step();
     
-    linuxvars.keep_running = 1;
-    linuxvars.input.first_step = 1;
+    linuxvars.keep_running = true;
+    linuxvars.input.first_step = true;
     linuxvars.input.dt = (frame_useconds / 1000000.f);
     
     for (;;){
@@ -1675,13 +1669,13 @@ main(int argc, char **argv){
             continue;
         }
         
-        b32 do_step = 0;
+        b32 do_step = false;
         
-        for(int i = 0; i < num_events; ++i){
+        for (int i = 0; i < num_events; ++i){
             int fd   = events[i].data.u64 & UINT32_MAX;
             u64 type = events[i].data.u64 & ~fd;
             
-            switch(type){
+            switch (type){
                 case LINUX_4ED_EVENT_X11: {
                     LinuxHandleX11Events();
                 } break;
@@ -1696,7 +1690,7 @@ main(int argc, char **argv){
                     do {
                         ret = read(linuxvars.step_event_fd, &ev, 8);
                     } while (ret != -1 || errno != EAGAIN);
-                    do_step = 1;
+                    do_step = true;
                 } break;
                 
                 case LINUX_4ED_EVENT_STEP_TIMER: {
@@ -1705,7 +1699,7 @@ main(int argc, char **argv){
                     do {
                         ret = read(linuxvars.step_timer_fd, &count, 8);
                     } while (ret != -1 || errno != EAGAIN);
-                    do_step = 1;
+                    do_step = true;
                 } break;
                 
                 case LINUX_4ED_EVENT_CLI: {
@@ -1717,13 +1711,10 @@ main(int argc, char **argv){
         if (do_step){
             linuxvars.last_step = system_now_time();
             
+            // NOTE(allen): Frame Clipboard Input
             if (linuxvars.input.first_step || !linuxvars.has_xfixes){
                 XConvertSelection(linuxvars.XDisplay, linuxvars.atom_CLIPBOARD, linuxvars.atom_UTF8_STRING, linuxvars.atom_CLIPBOARD, linuxvars.XWindow, CurrentTime);
             }
-            
-            Application_Step_Result result = {};
-            result.mouse_cursor_type = APP_MOUSE_CURSOR_DEFAULT;
-            result.trying_to_kill = !linuxvars.keep_running;
             
             if (linuxvars.new_clipboard){
                 linuxvars.input.clipboard = linuxvars.clipboard_contents;
@@ -1732,29 +1723,26 @@ main(int argc, char **argv){
                 linuxvars.input.clipboard = null_string;
             }
             
+            // NOTE(allen): Initialize result So the Core Doesn't Have to Fill Things it Doesn't Care About
+            Application_Step_Result result = {0};
+            result.mouse_cursor_type = APP_MOUSE_CURSOR_DEFAULT;
+            result.trying_to_kill = !linuxvars.keep_running;
+            
             // HACK(allen): THIS SHIT IS FUCKED (happens on mac too)
             b32 keep_running = linuxvars.keep_running;
             
+            // NOTE(allen): Application Core Update
             app.step(&sysfunc, &target, &memory_vars, &linuxvars.input, &result);
             
+            // NOTE(allen): Finish the Loop
             if (result.perform_kill){
                 break;
-            } else if (!keep_running && !linuxvars.keep_running){
+            }
+            else if (!keep_running && !linuxvars.keep_running){
                 linuxvars.keep_running = true;
             }
             
-            if (linuxvars.do_toggle){
-                linux_toggle_fullscreen();
-                linuxvars.do_toggle = false;
-            }
-            
-            if (result.animating){
-                system_schedule_step();
-            }
-            
-            interpret_render_buffer(&sysfunc, &target);
-            glXSwapBuffers(linuxvars.XDisplay, linuxvars.XWindow);
-            
+            // NOTE(allen): Switch to New Cursor
             if (result.mouse_cursor_type != linuxvars.cursor && !linuxvars.input.mouse.l){
                 Cursor c = xcursors[result.mouse_cursor_type];
                 if (!linuxvars.hide_cursor){
@@ -1763,15 +1751,32 @@ main(int argc, char **argv){
                 linuxvars.cursor = result.mouse_cursor_type;
             }
             
+            // NOTE(allen): Render
+            interpret_render_buffer(&sysfunc, &target);
+            glXSwapBuffers(linuxvars.XDisplay, linuxvars.XWindow);
+            
+            // NOTE(allen): Toggle Full Screen
+            if (linuxvars.do_toggle){
+                linux_toggle_fullscreen();
+                linuxvars.do_toggle = false;
+            }
+            
+            // NOTE(allen): Schedule Another Step if Needed
+            if (result.animating){
+                system_schedule_step();
+            }
+            
             flush_thread_group(BACKGROUND_THREADS);
             
-            linuxvars.input.first_step = 0;
+            // TODO(allen): CROSS REFERENCE WITH WIN32 "TIC898989"
             linuxvars.input.keys = null_key_input_data;
             linuxvars.input.mouse.press_l = 0;
             linuxvars.input.mouse.release_l = 0;
             linuxvars.input.mouse.press_r = 0;
             linuxvars.input.mouse.release_r = 0;
             linuxvars.input.mouse.wheel = 0;
+            
+            linuxvars.input.first_step = 0;
         }
     }
     

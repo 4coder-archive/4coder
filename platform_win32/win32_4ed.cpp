@@ -488,7 +488,7 @@ Sys_CLI_End_Update_Sig(system_cli_end_update){
 
 #include "4ed_font_data.h"
 #include "4ed_system_shared.cpp"
-#include "4ed_render_opengl.cpp"
+#include "opengl/4ed_opengl_render.cpp"
 
 //
 // Helpers
@@ -533,12 +533,6 @@ Win32KeycodeInit(){
 internal void
 Win32Resize(i32 width, i32 height){
     if (width > 0 && height > 0){
-        glViewport(0, 0, width, height);
-        glMatrixMode(GL_PROJECTION);
-        glLoadIdentity();
-        glOrtho(0, width, height, 0, -1, 1);
-        glScissor(0, 0, width, height);
-        
         target.width = width;
         target.height = height;
     }
@@ -1186,9 +1180,9 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
     MSG msg;
     for (;keep_running;){
         // TODO(allen): Find a good way to wait on a pipe
-        // without interfering with the reading process
-        //  Looks like we can ReadFile with a size of zero
-        // in an IOCP for this effect.
+        // without interfering with the reading process.
+        // NOTE(allen): Looks like we can ReadFile with a 
+        // size of zero in an IOCP for this effect.
         if (!win32vars.first){
             system_release_lock(FRAME_LOCK);
             
@@ -1274,6 +1268,7 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
             system_acquire_lock(FRAME_LOCK);
         }
         
+        // NOTE(allen): Mouse Out of Window Detection
         POINT mouse_point;
         if (GetCursorPos(&mouse_point) &&
             ScreenToClient(win32vars.window_handle, &mouse_point)){
@@ -1293,40 +1288,28 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
             }
             
             if (!is_hit){
-                win32vars.input_chunk.trans.out_of_window = 1;
+                win32vars.input_chunk.trans.out_of_window = true;
             }
             
             win32vars.input_chunk.pers.mouse_x = mouse_point.x;
             win32vars.input_chunk.pers.mouse_y = mouse_point.y;
         }
         else{
-            win32vars.input_chunk.trans.out_of_window = 1;
+            win32vars.input_chunk.trans.out_of_window = true;
         }
         
+        // NOTE(allen): Prepare the Frame Input
+        
+        // TODO(allen): CROSS REFERENCE WITH LINUX SPECIAL CODE "TIC898989"
         Win32_Input_Chunk input_chunk = win32vars.input_chunk;
         win32vars.input_chunk.trans = null_input_chunk_transient;
         
         input_chunk.pers.control_keys[MDFR_CAPS_INDEX] = GetKeyState(VK_CAPITAL) & 0x1;
         
-        win32vars.clipboard_contents = null_string;
-        if (win32vars.clipboard_sequence != 0){
-            DWORD new_number = GetClipboardSequenceNumber();
-            if (new_number != win32vars.clipboard_sequence){
-                win32vars.clipboard_sequence = new_number;
-                if (win32vars.next_clipboard_is_self){
-                    win32vars.next_clipboard_is_self = 0;
-                }
-                else{
-                    win32_read_clipboard_contents();
-                }
-            }
-        }
-        
         Application_Step_Input input = {0};
         
         input.first_step = win32vars.first;
         
-        // NOTE(allen): The expected dt given the frame limit in seconds.
         input.dt = frame_useconds / 1000000.f;
         
         input.keys = input_chunk.trans.key_data;
@@ -1343,33 +1326,47 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
         
         input.mouse.wheel = input_chunk.trans.mouse_wheel;
         input.mouse.x = input_chunk.pers.mouse_x;
+        
         input.mouse.y = input_chunk.pers.mouse_y;
         
+        // NOTE(allen): Frame Clipboard Input
+        win32vars.clipboard_contents = null_string;
+        if (win32vars.clipboard_sequence != 0){
+            DWORD new_number = GetClipboardSequenceNumber();
+            if (new_number != win32vars.clipboard_sequence){
+                win32vars.clipboard_sequence = new_number;
+                if (win32vars.next_clipboard_is_self){
+                    win32vars.next_clipboard_is_self = 0;
+                }
+                else{
+                    win32_read_clipboard_contents();
+                }
+            }
+        }
         input.clipboard = win32vars.clipboard_contents;
         
-        
-        Application_Step_Result result = {(Application_Mouse_Cursor)0};
+        // NOTE(allen): Initialize result So the Core Doesn't Have to Fill Things it Doesn't Care About
+        Application_Step_Result result = {0};
         result.mouse_cursor_type = APP_MOUSE_CURSOR_DEFAULT;
         result.lctrl_lalt_is_altgr = win32vars.lctrl_lalt_is_altgr;
         result.trying_to_kill = input_chunk.trans.trying_to_kill;
-        result.perform_kill = 0;
         
+        // TODO(allen): Not really appropriate to round trip this all the way to the OS layer, redo this system.
+        // NOTE(allen): Ask the Core About Exiting if We Have an Exit Signal
         if (win32vars.send_exit_signal){
             result.trying_to_kill = true;
             win32vars.send_exit_signal = false;
         }
         
+        // NOTE(allen): Application Core Update
         app.step(&sysfunc, &target, &memory_vars, &input, &result);
         
+        // NOTE(allen): Finish the Loop
         if (result.perform_kill){
             keep_running = false;
         }
         
-        if (win32vars.do_toggle){
-            win32_toggle_fullscreen();
-            win32vars.do_toggle = false;
-        }
-        
+        // NOTE(allen): Switch to New Cursor
         Win32SetCursorFromUpdate(result.mouse_cursor_type);
         if (win32vars.cursor_show != win32vars.prev_cursor_show){
             win32vars.prev_cursor_show = win32vars.cursor_show;
@@ -1393,19 +1390,28 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
                 // TODO(allen): MouseCursorShow_HideWhenStill
             }
         }
+        
+        // NOTE(allen): Update lctrl_lalt_is_altgr Status
         win32vars.lctrl_lalt_is_altgr = result.lctrl_lalt_is_altgr;
         
+        // NOTE(allen): Render
         HDC hdc = GetDC(win32vars.window_handle);
         interpret_render_buffer(&sysfunc, &target);
         SwapBuffers(hdc);
         ReleaseDC(win32vars.window_handle, hdc);
         
-        win32vars.first = 0;
+        // NOTE(allen): Toggle Full Screen
+        if (win32vars.do_toggle){
+            win32_toggle_fullscreen();
+            win32vars.do_toggle = false;
+        }
         
+        // NOTE(allen): Schedule Another Step if Needed
         if (result.animating){
             system_schedule_step();
         }
         
+        // NOTE(allen): Sleep a Bit to Cool Off :)
         flush_thread_group(BACKGROUND_THREADS);
         
         u64 timer_end = Win32HighResolutionTime();
@@ -1419,6 +1425,9 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
         }
         system_acquire_lock(FRAME_LOCK);
         timer_start = Win32HighResolutionTime();
+        
+        // TODO(allen): Only rely on version right inside input?
+        win32vars.first = 0;
     }
     
     return(0);

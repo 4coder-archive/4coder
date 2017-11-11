@@ -312,7 +312,7 @@ Sys_CLI_End_Update_Sig(system_cli_end_update){
 
 #include "4ed_font_data.h"
 #include "4ed_system_shared.cpp"
-#include "4ed_render_opengl.cpp"
+#include "opengl/4ed_opengl_render.cpp"
 
 ////////////////////////////////
 
@@ -335,12 +335,6 @@ osx_resize(int width, int height){
     if (width > 0 && height > 0){
         osx_objc.width = width;
         osx_objc.height = height;
-        
-        glViewport(0, 0, width, height);
-        glMatrixMode(GL_PROJECTION);
-        glLoadIdentity();
-        glOrtho(0, width, height, 0, -1, 1);
-        glScissor(0, 0, width, height);
         
         target.width = width;
         target.height = height;
@@ -490,15 +484,7 @@ osx_step(void){
     result.mouse_cursor_type = APP_MOUSE_CURSOR_DEFAULT;
     result.trying_to_kill = !osxvars.keep_running;
     
-    if (osx_objc.has_clipboard_item){
-        //void *clipboard_data;
-        //umem clipboard_size, clipboard_max;
-        osxvars.input.clipboard = make_string(osx_objc.clipboard_data, (i32)osx_objc.clipboard_size);
-    }
-    else{
-        osxvars.input.clipboard = null_string;
-    }
-    
+    // NOTE(allen): Prepare the Frame Input
     osxvars.input.dt = 1.f/60.f;
     if (osxvars.has_prev_time){
         u64 time_u = system_now_time();
@@ -511,6 +497,7 @@ osx_step(void){
         osxvars.prev_time_u = system_now_time();
     }
     
+    // TODO(allen): CROSS REFERENCE WITH WINDOWS SPECIAL CODE "TIC898989"
     Application_Step_Input frame_input = osxvars.input;
     osxvars.input.first_step = false;
     osxvars.input.keys = null_key_input_data;
@@ -520,14 +507,25 @@ osx_step(void){
     osxvars.input.mouse.release_r = false;
     osxvars.input.mouse.wheel = 0;
     
+    // NOTE(allen): Frame Clipboard Input
+    if (osx_objc.has_clipboard_item){
+        osxvars.input.clipboard = make_string(osx_objc.clipboard_data, (i32)osx_objc.clipboard_size);
+    }
+    else{
+        osxvars.input.clipboard = null_string;
+    }
+    
+    // HACK(allen): Got this all messed up with respect to how everyone else (other OS layers) work
     osx_objc.do_toggle = false;
     osx_objc.full_screen = osx_is_fullscreen();
     
     // HACK(allen): THIS SHIT IS FUCKED (happens on linux too)
     b32 keep_running = osxvars.keep_running;
     
+    // NOTE(allen): Application Core Update
     app.step(&sysfunc, &target, &memory_vars, &frame_input, &result);
     
+    // NOTE(allen): Finish the Loop
     if (result.perform_kill){
         osx_close_app();
     }
@@ -535,14 +533,20 @@ osx_step(void){
         osxvars.keep_running = true;
     }
     
+    // NOTE(allen): Switch to New Cursor
+    osx_show_cursor(0, result.mouse_cursor_type);
+    
+    // NOTE(allen): Render
+    osx_begin_render();
+    interpret_render_buffer(&sysfunc, &target);
+    osx_end_render();
+    
+    // NOTE(allen): Toggle Full Screen
     if (osx_objc.do_toggle){
         osx_toggle_fullscreen();
     }
     
-    osx_show_cursor(0, result.mouse_cursor_type);
-    
-    interpret_render_buffer(&sysfunc, &target);
-    
+    // NOTE(allen): Schedule Another Step if Needed
     if (result.animating || cli_count > 0){
         osx_schedule_step();
     }

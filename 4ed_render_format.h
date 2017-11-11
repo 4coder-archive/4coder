@@ -9,55 +9,42 @@
 
 // TOP
 
-enum Render_Piece_Type{
-    piece_type_rectangle,
-    piece_type_outline,
-    piece_type_glyph,
-    piece_type_change_clip
+enum Render_Command_Type{
+    RenCom_Rectangle,
+    RenCom_Outline,
+    RenCom_Glyph,
+    RenCom_ChangeClip
 };
 
-struct Render_Piece_Header{
+struct Render_Command_Header{
+    i32 size;
     i32 type;
 };
 
-struct Render_Piece_Rectangle{
+struct Render_Command_Rectangle{
+    Render_Command_Header header;
     f32_Rect rect;
     u32 color;
 };
 
-struct Render_Piece_Gradient{
+struct Render_Command_Gradient{
+    Render_Command_Header header;
     f32_Rect rect;
     u32 left_color;
     u32 right_color;
 };
 
-struct Render_Piece_Glyph{
+struct Render_Command_Glyph{
+    Render_Command_Header header;
     Vec2 pos;
     u32 color;
     Font_ID font_id;
     u32 codepoint;
 };
 
-struct Render_Piece_Glyph_Advance{
-    Vec2 pos;
-    u32 color;
-    f32 advance;
-    Font_ID font_id;
-    u32 codepoint;
-};
-
-struct Render_Piece_Change_Clip{
+struct Render_Command_Change_Clip{
+    Render_Command_Header header;
     i32_Rect box;
-};
-
-struct Render_Piece_Combined{
-    Render_Piece_Header header;
-    union{
-        Render_Piece_Rectangle rectangle;
-        Render_Piece_Gradient gradient;
-        Render_Piece_Glyph glyph;
-        Render_Piece_Glyph_Advance glyph_advance;
-    };
 };
 
 // BOTTOM

@@ -2312,14 +2312,6 @@ App_Step_Sig(app_step){
     {
         begin_render_section(target, system);
         
-        target->clip_top = -1;
-        i32_Rect target_rect = {0};
-        target_rect.x0 = 0;
-        target_rect.y0 = 0;
-        target_rect.x1 = target->width;
-        target_rect.y1 = target->height;
-        draw_push_clip(target, target_rect);
-        
         Command_Data *command = cmd;
         USE_PANEL(active_panel);
         USE_VIEW(active_view);
@@ -2338,8 +2330,6 @@ App_Step_Sig(app_step){
             u32 back_color = style->main.back_color;
             draw_rectangle(target, full, back_color);
             
-            draw_push_clip(target, panel->inner);
-            
             b32 file_scroll = false;
             GUI_Scroll_Vars scroll_zero = {0};
             GUI_Scroll_Vars *scroll_vars = &view->gui_scroll;
@@ -2353,9 +2343,7 @@ App_Step_Sig(app_step){
                 }
             }
             
-            do_render_file_view(system, view, models, scroll_vars, active_view,  panel->inner, active, target, &dead_input);
-            
-            draw_pop_clip(target);
+            do_render_file_view(system, view, models, scroll_vars, active_view, panel->inner, active, target, &dead_input);
             
             u32 margin_color;
             if (active){
