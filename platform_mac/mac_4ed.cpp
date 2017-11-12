@@ -564,10 +564,10 @@ osx_init(){
     // System Linkage
     //
     
-    system_error_box("Testing the error box", false);
-    
     DBG_POINT();
     link_system_code();
+    
+    system_error_box("Testing the error box", false);
     
     //
     // Memory init
