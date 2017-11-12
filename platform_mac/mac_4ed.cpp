@@ -235,7 +235,12 @@ Sys_CLI_Call_Sig(system_cli_call){
             exit(1);
         }
         
-        char* argv[] = { "sh", "-c", script_name, NULL };
+        char* argv[] = {
+            "sh",
+            "-c",
+            script_name,
+            0
+        };
         
         if (execv("/bin/sh", argv) == -1){
             DBG_POINT();
@@ -578,6 +583,8 @@ osx_init(){
     
     DBG_POINT();
     link_system_code();
+    
+    system_error_box("OOPS");
     
     //
     // Memory init
