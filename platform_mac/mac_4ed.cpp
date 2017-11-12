@@ -480,6 +480,11 @@ osx_try_to_close(void){
 external void
 osx_step(void){
     DBG_POINT();
+    if (app.step == 0){
+        LOG("app.step == 0 -- skipping\n");
+        return;
+    }
+    
     Application_Step_Result result = {};
     result.mouse_cursor_type = APP_MOUSE_CURSOR_DEFAULT;
     result.trying_to_kill = !osxvars.keep_running;
