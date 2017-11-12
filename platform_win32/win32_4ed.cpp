@@ -1359,9 +1359,11 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
         }
         
         // NOTE(allen): Application Core Update
-        if (app.step == 0){
-            LOG("app.step == 0 -- skipping\n");
+        if (app.step != 0){
             app.step(&sysfunc, &target, &memory_vars, &input, &result);
+        }
+        else{
+            LOG("app.step == 0 -- skipping\n");
         }
         
         // NOTE(allen): Finish the Loop

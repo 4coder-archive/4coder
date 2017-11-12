@@ -524,9 +524,11 @@ osx_step(void){
     b32 keep_running = osxvars.keep_running;
     
     // NOTE(allen): Application Core Update
-    if (app.step == 0){
-        LOG("app.step == 0 -- skipping\n");
+    if (app.step != 0){
         app.step(&sysfunc, &target, &memory_vars, &frame_input, &result);
+    }
+    else{
+        LOG("app.step == 0 -- skipping\n");
     }
     
     // NOTE(allen): Finish the Loop
