@@ -589,8 +589,6 @@ osx_init(){
     DBG_POINT();
     link_system_code();
     
-    system_error_box("OOPS");
-    
     //
     // Memory init
     //
