@@ -480,10 +480,6 @@ osx_try_to_close(void){
 external void
 osx_step(void){
     DBG_POINT();
-    if (app.step == 0){
-        LOG("app.step == 0 -- skipping\n");
-        return;
-    }
     
     Application_Step_Result result = {};
     result.mouse_cursor_type = APP_MOUSE_CURSOR_DEFAULT;
@@ -528,8 +524,10 @@ osx_step(void){
     b32 keep_running = osxvars.keep_running;
     
     // NOTE(allen): Application Core Update
-    //Render_Target fixed_target = target;
-    app.step(&sysfunc, &target, &memory_vars, &frame_input, &result);
+    if (app.step == 0){
+        LOG("app.step == 0 -- skipping\n");
+        app.step(&sysfunc, &target, &memory_vars, &frame_input, &result);
+    }
     
     // NOTE(allen): Finish the Loop
     if (result.perform_kill){
@@ -560,28 +558,6 @@ osx_step(void){
 
 external void
 osx_init(){
-    // TODO(allen): Setup GL DEBUG MESSAGE
-#if defined(FRED_INTERNAL) && 0
-    //
-    // OpenGL Init
-    //
-    
-    typedef PFNGLDEBUGMESSAGECALLBACKARBPROC glDebugMessageCallbackProc;
-    
-    GLXLOAD(glDebugMessageCallback);
-    
-    if (glDebugMessageCallback){
-        LOG("Enabling GL Debug Callback\n");
-        glDebugMessageCallback(&LinuxGLDebugCallback, 0);
-        glEnable(GL_DEBUG_OUTPUT);
-    }
-#endif
-    
-    glEnable(GL_TEXTURE_2D);
-    glEnable(GL_SCISSOR_TEST);
-    glEnable(GL_BLEND);
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    
     //
     // System Linkage
     //

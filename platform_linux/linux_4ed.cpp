@@ -1733,7 +1733,10 @@ main(int argc, char **argv){
             b32 keep_running = linuxvars.keep_running;
             
             // NOTE(allen): Application Core Update
-            app.step(&sysfunc, &target, &memory_vars, &linuxvars.input, &result);
+            if (app.step == 0){
+                LOG("app.step == 0 -- skipping\n");
+                app.step(&sysfunc, &target, &memory_vars, &linuxvars.input, &result);
+            }
             
             // NOTE(allen): Finish the Loop
             if (result.perform_kill){
