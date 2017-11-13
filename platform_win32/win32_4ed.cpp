@@ -173,14 +173,16 @@ global Coroutine_System_Auto_Alloc coroutines;
 ////////////////////////////////
 
 internal void
-win32_output_error_string(){
+win32_output_error_string(b32 use_error_box = true){
     DWORD error = GetLastError();
     
     char *str = 0;
     char *str_ptr = (char*)&str;
     if (FormatMessageA(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM, 0, error, 0, str_ptr, 0, 0)){
         LOGF("win32 error:\n%s\n", str);
-        system_error_box(str, false);
+        if (use_error_box){
+            system_error_box(str, false);
+        }
     }
 }
 
@@ -284,15 +286,17 @@ Sys_Send_Exit_Signal_Sig(system_send_exit_signal){
 internal
 Sys_Post_Clipboard_Sig(system_post_clipboard){
     if (OpenClipboard(win32vars.window_handle)){
-        EmptyClipboard();
-        HANDLE memory_handle;
-        memory_handle = GlobalAlloc(GMEM_MOVEABLE, str.size+1);
+        if (!EmptyClipboard()){
+            win32_output_error_string(false);
+        }
+        HANDLE memory_handle = GlobalAlloc(GMEM_MOVEABLE, str.size + 1);
         if (memory_handle){
             char *dest = (char*)GlobalLock(memory_handle);
             copy_fast_unsafe_cs(dest, str);
+            dest[str.size] = 0;
             GlobalUnlock(memory_handle);
             SetClipboardData(CF_TEXT, memory_handle);
-            win32vars.next_clipboard_is_self = 1;
+            win32vars.next_clipboard_is_self = true;
         }
         CloseClipboard();
     }

@@ -896,7 +896,6 @@ wrap_state_consume_token(System_Functions *system, Render_Font *font, Code_Wrap_
     do{
         for (; i < state->stream.end; ++i){
             if (!(i < end)){
-                Assert(state->tran.fill_expected == 0);
                 goto doublebreak;
             }
             
