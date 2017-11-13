@@ -214,43 +214,39 @@ get_change_event(File_Track_System *system, Partition *scratch, u8 *buffer, int3
     size_t read_count = sizeof(*ev);
     ssize_t n;
     
-    do {
+    do{
         n = read(vars->inotify, buff, read_count);
         read_count++;
-    } while(n == -1 && errno == EINVAL);
+    }while(n == -1 && errno == EINVAL);
     
-    if(n == -1 && errno != EAGAIN){
+    if (n == -1 && errno != EAGAIN){
         perror("inotify read");
-    } else if(n > 0){
+    } 
+    else if (n > 0){
         ev = (struct inotify_event*) buff;
         
         File_Index key = { ev->wd, 1 };
         File_Track_Entry *entry = tracking_system_lookup_entry(tables, key);
         Linux_File_Track_Entry *linux_entry = (Linux_File_Track_Entry*) entry;
         
-        LINUX_FN_DEBUG("mask: %#x", ev->mask);
-        
-        if(!entry_is_available(entry)){
-            
+        if (!entry_is_available(entry)){
             char* full_name = (char*) alloca(strlen(linux_entry->dir) + ev->len + 1);
             strcpy(full_name, linux_entry->dir);
             strcat(full_name, "/");
             strcat(full_name, ev->name);
             
-            LINUX_FN_DEBUG("event from wd %d (%s)", ev->wd, full_name);
-            
             size_t full_name_size = strlen(full_name);
-            if(max < full_name_size){
+            if (max < full_name_size){
                 result = FileTrack_MemoryTooSmall;
                 // NOTE(inso): this event will be dropped, needs to be stashed.
-                LINUX_FN_DEBUG("max too small, event dropped");
-            } else {
+            }
+            else{
                 memcpy(buffer, full_name, full_name_size);
                 *size = full_name_size;
                 result = FileTrack_Good;
             }
         } else {
-            LINUX_FN_DEBUG("dead event from wd %d", ev->wd);
+            //LINUX_FN_DEBUG("dead event from wd %d", ev->wd);
         }
     }
     

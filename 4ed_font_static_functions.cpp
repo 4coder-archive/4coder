@@ -203,8 +203,11 @@ font_get_or_make_page(System_Functions *system, Render_Font *font, u32 page_numb
                 if (pages != 0){
                     memset(pages, 0, sizeof(*pages)*new_max);
                     u32 old_max = font->page_max;
+                    Glyph_Page **old_pages = font->pages;
+                    font->pages = pages;
+                    font->page_max = new_max;
                     for (u32 i = 0; i < old_max; ++i){
-                        Glyph_Page *this_page = pages[i];
+                        Glyph_Page *this_page = old_pages[i];
                         if (this_page != FONT_PAGE_EMPTY && this_page != FONT_PAGE_DELETED){
                             u32 this_page_number = this_page->page_number;
                             Glyph_Page **dest = font_page_lookup(font, this_page_number, true);
@@ -212,9 +215,7 @@ font_get_or_make_page(System_Functions *system, Render_Font *font, u32 page_numb
                             *dest = this_page;
                         }
                     }
-                    system->font.free(font->pages);
-                    font->pages = pages;
-                    font->page_max = new_max;
+                    system->font.free(old_pages);
                     has_space = true;
                 }
             }
