@@ -143,6 +143,9 @@ struct Win32_Vars{
     b32 next_clipboard_is_self;
     DWORD clipboard_sequence;
     
+    Partition clip_post_part;
+    i32 clip_post_len;
+    
     HWND window_handle;
     i32 dpi_x, dpi_y;
     
@@ -279,27 +282,38 @@ Sys_Send_Exit_Signal_Sig(system_send_exit_signal){
 
 #include "4ed_coroutine_functions.cpp"
 
+#include "4ed_font_data.h"
+#include "4ed_system_shared.cpp"
+
 //
 // Clipboard
 //
 
-internal
-Sys_Post_Clipboard_Sig(system_post_clipboard){
+internal void
+win32_post_clipboard(char *text, i32 len){
     if (OpenClipboard(win32vars.window_handle)){
         if (!EmptyClipboard()){
             win32_output_error_string(false);
         }
-        HANDLE memory_handle = GlobalAlloc(GMEM_MOVEABLE, str.size + 1);
+        HANDLE memory_handle = GlobalAlloc(GMEM_MOVEABLE, len  + 1);
         if (memory_handle){
             char *dest = (char*)GlobalLock(memory_handle);
-            copy_fast_unsafe_cs(dest, str);
-            dest[str.size] = 0;
+            memmove(dest, text, len + 1);
             GlobalUnlock(memory_handle);
             SetClipboardData(CF_TEXT, memory_handle);
             win32vars.next_clipboard_is_self = true;
         }
         CloseClipboard();
     }
+}
+
+internal
+Sys_Post_Clipboard_Sig(system_post_clipboard){
+    Partition *part = &win32vars.clip_post_part;
+    win32vars.clip_post_len = str.size;
+    u8 *post = (u8*)sysshared_push_block(part, str.size + 1);
+    memmove(post, str.str, str.size);
+    post[str.size] = 0;
 }
 
 internal b32
@@ -490,8 +504,6 @@ Sys_CLI_End_Update_Sig(system_cli_end_update){
     return(close_me);
 }
 
-#include "4ed_font_data.h"
-#include "4ed_system_shared.cpp"
 #include "opengl/4ed_opengl_render.cpp"
 
 //
@@ -1114,7 +1126,7 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
     
     win32vars.clipboard_sequence = GetClipboardSequenceNumber();
     if (win32vars.clipboard_sequence == 0){
-        system_post_clipboard(make_lit_string(""));
+        win32_post_clipboard("", 0);
         
         win32vars.clipboard_sequence = GetClipboardSequenceNumber();
         win32vars.next_clipboard_is_self = 0;
@@ -1349,6 +1361,8 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
         }
         input.clipboard = win32vars.clipboard_contents;
         
+        win32vars.clip_post_len = 0;
+        
         // NOTE(allen): Initialize result So the Core Doesn't Have to Fill Things it Doesn't Care About
         Application_Step_Result result = {0};
         result.mouse_cursor_type = APP_MOUSE_CURSOR_DEFAULT;
@@ -1373,6 +1387,11 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
         // NOTE(allen): Finish the Loop
         if (result.perform_kill){
             keep_running = false;
+        }
+        
+        // NOTE(allen): Post New Clipboard Content
+        if (win32vars.clip_post_len > 0){
+            win32_post_clipboard((char*)win32vars.clip_post_part.base, win32vars.clip_post_len);
         }
         
         // NOTE(allen): Switch to New Cursor

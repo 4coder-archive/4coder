@@ -199,10 +199,9 @@ sysshared_partition_double(Partition *part){
 
 internal void*
 sysshared_push_block(Partition *part, i32 size){
-    void *result = 0;
-    result = push_block(part, size);
+    void *result = push_block(part, size);
     if (!result){
-        sysshared_partition_grow(part, size+part->max);
+        sysshared_partition_grow(part, size + part->max);
         result = push_block(part, size);
     }
     return(result);
