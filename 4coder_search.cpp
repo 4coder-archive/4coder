@@ -596,37 +596,38 @@ generic_search_all_buffers(Application_Links *app, General_Memory *general, Part
                 
                 Temp_Memory line_temp = begin_temp_memory(&line_part);
                 String line_str = {0};
-                read_line(app, &line_part, &match.buffer, word_pos.line, &line_str);
-                line_str = skip_chop_whitespace(line_str);
-                
-                int32_t str_len = file_len + 1 + line_num_len + 1 + column_num_len + 1 + 1 + line_str.size + 1;
-                
-                char *spare = push_array(part, char, str_len);
-                
-                if (spare == 0){
-                    buffer_replace_range(app, &search_buffer, size, size, str, part_size);
-                    size += part_size;
+                if (read_line(app, &line_part, &match.buffer, word_pos.line, &line_str)){
+                    line_str = skip_chop_whitespace(line_str);
                     
-                    end_temp_memory(temp);
-                    temp = begin_temp_memory(part);
+                    int32_t str_len = file_len + 1 + line_num_len + 1 + column_num_len + 1 + 1 + line_str.size + 1;
                     
-                    part_size = 0;
-                    spare = push_array(part, char, str_len);
+                    char *spare = push_array(part, char, str_len);
+                    
+                    if (spare == 0){
+                        buffer_replace_range(app, &search_buffer, size, size, str, part_size);
+                        size += part_size;
+                        
+                        end_temp_memory(temp);
+                        temp = begin_temp_memory(part);
+                        
+                        part_size = 0;
+                        spare = push_array(part, char, str_len);
+                    }
+                    
+                    part_size += str_len;
+                    
+                    String out_line = make_string_cap(spare, 0, str_len);
+                    append_ss(&out_line, make_string(file_name, file_len));
+                    append_s_char(&out_line, ':');
+                    append_int_to_str(&out_line, word_pos.line);
+                    append_s_char(&out_line, ':');
+                    append_int_to_str(&out_line, word_pos.character);
+                    append_s_char(&out_line, ':');
+                    append_s_char(&out_line, ' ');
+                    append_ss(&out_line, line_str);
+                    append_s_char(&out_line, '\n');
+                    Assert(out_line.size == str_len);
                 }
-                
-                part_size += str_len;
-                
-                String out_line = make_string_cap(spare, 0, str_len);
-                append_ss(&out_line, make_string(file_name, file_len));
-                append_s_char(&out_line, ':');
-                append_int_to_str(&out_line, word_pos.line);
-                append_s_char(&out_line, ':');
-                append_int_to_str(&out_line, word_pos.character);
-                append_s_char(&out_line, ':');
-                append_s_char(&out_line, ' ');
-                append_ss(&out_line, line_str);
-                append_s_char(&out_line, '\n');
-                Assert(out_line.size == str_len);
                 
                 end_temp_memory(line_temp);
             }

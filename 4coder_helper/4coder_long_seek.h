@@ -950,8 +950,10 @@ read_line(Application_Links *app, Partition *part, Buffer_Summary *buffer, int32
             if (begin.line == line){
                 if (0 <= begin.pos && begin.pos <= end.pos && end.pos <= buffer->size){
                     int32_t size = (end.pos - begin.pos);
-                    *str = make_string(push_array(part, char, size+1), size+1);
-                    if (str->str){
+                    int32_t alloc_size = size + 1;
+                    char *memory = push_array(part, char, alloc_size);
+                    if (memory != 0){
+                        *str = make_string(memory, 0, alloc_size);
                         success = true;
                         buffer_read_range(app, buffer, begin.pos, end.pos, str->str);
                         str->size = size;
