@@ -24,10 +24,14 @@ global_const Glyph_Bounds null_glyph_bounds = {0};
 
 struct Glyph_Page{
     u32 page_number;
+    
+    b32 has_layout;
     f32 advance[ITEM_PER_FONT_PAGE];
     Glyph_Bounds glyphs[ITEM_PER_FONT_PAGE];
-    u32 tex;
     i32 tex_width, tex_height;
+    
+    b32 has_gpu_setup;
+    u32 gpu_tex;
 };
 
 #define FONT_PAGE_EMPTY   ((Glyph_Page*)0)
@@ -40,6 +44,8 @@ struct Render_Font{
     f32 byte_advance;
     f32 byte_sub_advances[3];
     i32 height, ascent, descent, line_skip, advance;
+    i32 pt_size;
+    b32 use_hinting;
     
     u32 filename_len;
     u32 name_len;
@@ -57,6 +63,7 @@ struct Render_Font{
 
 struct Glyph_Data{
     Glyph_Bounds bounds;
+    b32 has_gpu_setup;
     u32 tex;
     i32 tex_width, tex_height;
 };

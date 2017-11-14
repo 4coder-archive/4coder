@@ -69,7 +69,6 @@
 #include <X11/extensions/Xfixes.h>
 
 #include <GL/glx.h>
-#include <GL/gl.h>
 #include <GL/glext.h>
 
 #include <linux/fs.h>
@@ -324,6 +323,9 @@ Sys_Send_Exit_Signal_Sig(system_send_exit_signal){
 
 #include "4ed_coroutine_functions.cpp"
 
+#include "4ed_font_data.h"
+#include "4ed_system_shared.cpp"
+
 //
 // Clipboard
 //
@@ -445,8 +447,9 @@ Sys_CLI_End_Update_Sig(system_cli_end_update){
     return(close_me);
 }
 
-#include "4ed_font_data.h"
-#include "4ed_system_shared.cpp"
+#include "4ed_font_system_functions.cpp"
+
+#include <GL/gl.h>
 #include "opengl/4ed_opengl_render.cpp"
 
 //

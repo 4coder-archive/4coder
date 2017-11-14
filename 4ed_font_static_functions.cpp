@@ -108,7 +108,7 @@ font_get_glyph(System_Functions *system, Render_Font *font, u32 codepoint){
     
     Glyph_Page *page = 0;
     
-    // Hack optimizations
+    // HACK(allen): Hack optimizations
     u32 cache_index = page_number % ArrayCount(font->cache);
     if (font->cache[cache_index].page_number == page_number){
         page = font->cache[cache_index].page;
@@ -122,10 +122,12 @@ font_get_glyph(System_Functions *system, Render_Font *font, u32 codepoint){
     
     if (page != 0 && page->advance[glyph_index] > 0.f){
         result.bounds = page->glyphs[glyph_index];
-        result.tex = page->tex;
+        result.has_gpu_setup = page->has_gpu_setup;
+        result.tex = page->gpu_tex;
         result.tex_width = page->tex_width;
         result.tex_height = page->tex_height;
     }
+    
     return(result);
 }
 

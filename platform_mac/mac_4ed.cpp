@@ -48,9 +48,6 @@
 #include "unix_4ed_headers.h"
 #include <sys/syslimits.h>
 
-#include <OpenGL/OpenGL.h>
-#include <OpenGL/gl.h>
-
 #undef external
 #undef internal
 #include <mach/mach.h>
@@ -186,6 +183,9 @@ Sys_Send_Exit_Signal_Sig(system_send_exit_signal){
 }
 
 #include "4ed_coroutine_functions.cpp"
+
+#include "4ed_font_data.h"
+#include "4ed_system_shared.cpp"
 
 //
 // Clipboard
@@ -323,8 +323,10 @@ Sys_CLI_End_Update_Sig(system_cli_end_update){
     return(close_me);
 }
 
-#include "4ed_font_data.h"
-#include "4ed_system_shared.cpp"
+#include "4ed_font_system_functions.cpp"
+
+#include <OpenGL/OpenGL.h>
+#include <OpenGL/gl.h>
 #include "opengl/4ed_opengl_render.cpp"
 
 ////////////////////////////////

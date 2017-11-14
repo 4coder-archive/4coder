@@ -53,7 +53,6 @@
 #include "4ed.h"
 
 #include <Windows.h>
-#include <GL/gl.h>
 #include "win32_gl.h"
 
 #define GL_TEXTURE_MAX_LEVEL 0x813D
@@ -504,6 +503,8 @@ Sys_CLI_End_Update_Sig(system_cli_end_update){
     return(close_me);
 }
 
+#include "4ed_font_system_functions.cpp"
+#include <GL/gl.h>
 #include "opengl/4ed_opengl_render.cpp"
 
 //
