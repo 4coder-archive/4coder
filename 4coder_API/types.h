@@ -14,7 +14,6 @@
 
 #endif
 
-
 /* DOC(bool32 is an alias name to signal that an integer parameter or field is for true/false values.) */
 TYPEDEF int32_t bool32;
 

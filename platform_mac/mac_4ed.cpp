@@ -127,8 +127,16 @@ Sys_Get_4ed_Path_Sig(system_get_4ed_path){
     return(size);
 }
 
+//#include "mac_fd_check.cpp"
 #include "unix_4ed_functions.cpp"
 #include "4ed_shared_file_handling.cpp"
+
+////////////////////////////////
+
+void
+osx_log(char *m, i32 l){
+    system_log(m, l);
+}
 
 ////////////////////////////////
 

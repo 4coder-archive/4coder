@@ -86,6 +86,9 @@ osx_step();
 external void
 osx_init();
 
+external void
+osx_log(char *m, i32 l);
+
 // In Objective-C layer.
 external void
 osx_post_to_clipboard(char *str);

@@ -21,6 +21,9 @@
 // for(dll_items(iterator, sentinel_ptr)){...}
 #define dll_items(it, st) ((it) = (st)->next); ((it) != (st)); ((it) = (it)->next)
 
+#define sll_push(f,l,n) if((f)==0&&(l)==0){(f)=(l)=(n);}else{(l)->next=(n);(l)=(n);}
+#define sll_pop(f,l) if((f)!=(l)){(f)=(f)->next;}else{(f)=(l)=0;}
+
 #define sll_init_sentinel(s) do{ (s)->next=(s); }while(0)
 #define sll_insert(p,v) do{ (v)->next=(p)->next; (p)->next = (v); }while(0)
 #define sll_remove(p,v) do{ Assert((p)->next == (v)); (p)->next = (v)->next; }while(0)

@@ -29,6 +29,20 @@
 # define LOGF(...)
 # endif
 
+#elif defined(IS_OBJC_LAYER)
+
+# if defined(USE_LOG)
+# define LOG(m) GEN_LOG(osx_log, FNLN "\n" m)
+# else
+# define LOG(m)
+# endif
+
+# if defined(USE_LOGF)
+# define LOGF(...) GEN_LOGF(osx_log, FNLN "\n" __VA_ARGS__)
+# else
+# define LOGF(...)
+# endif
+
 #else /* Not platform layer */
 
 # if defined(USE_LOG)

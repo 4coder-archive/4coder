@@ -9,6 +9,10 @@
 
 // TOP
 
+#if !defined(FD_CHECK)
+#define FD_CHECK()
+#endif
+
 struct Unix_Vars{
     b32 did_first_log;
 };
@@ -305,6 +309,8 @@ internal
 Sys_Load_Handle_Sig(system_load_handle){
     b32 result = false;
     
+    FD_CHECK();
+    
     i32 fd = open(filename, O_RDONLY);
     if (fd == -1 || fd == 0){
         LOGF("upable to open file descriptor for %s\n", filename);
@@ -369,6 +375,8 @@ Sys_Load_Close_Sig(system_load_close){
     else{
         LOGF("file descriptor (%d) closed\n", fd);
     }
+    
+    FD_CHECK();
     
     return(result);
 }

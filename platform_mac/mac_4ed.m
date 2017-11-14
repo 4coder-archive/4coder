@@ -15,7 +15,10 @@
 #include "4coder_API/version.h"
 #include "4coder_API/keycodes.h"
 
+#define IS_OBJC_LAYER
+#include "4ed_log.h"
 #include "4ed_cursor_codes.h"
+#include "4ed_doubly_linked_list.cpp"
 
 #define WINDOW_NAME "4coder " VERSION
 
@@ -299,29 +302,115 @@ static i32 did_update_for_clipboard = true;
 }
 @end
 
+//////////////////
+
+typedef struct File_Change_Node File_Change_Node;
+struct File_Change_Node{
+    File_Change_Node *next;
+    char *name;
+    i32 len;
+};
+
+typedef struct{
+    File_Change_Node *first;
+    File_Change_Node *last;
+    volatile i64 lock;
+} File_Change_Queue;
+
+static File_Change_Queue file_queue = {0};
+
+File_Change_Node*
+file_change_node(char *name){
+    i32 len = strlen(name);
+    void *block = malloc(len + 1 + sizeof(File_Change_Node));
+    File_Change_Node *node = (File_Change_Node*)block;
+    memset(node, 0, sizeof(*node));
+    node->name = (char*)(node + 1);
+    node->len = len;
+    memcpy(node->name, name, len + 1);
+    return(node);
+}
+
+void
+file_change_node_free(File_Change_Node *node){
+    free(node);
+}
+
+#define  file_queue_lock()
+//for(;;){i64 v=__sync_val_compare_and_swap(&file_queue.lock,0,1);if(v==0){break;}}
+
+#define file_queue_unlock()
+//__sync_lock_test_and_set(&file_queue.lock, 0)
+
+void
+file_watch_callback(ConstFSEventStreamRef stream, void *callbackInfo, size_t numEvents, void *evPaths, const FSEventStreamEventFlags *evFlags, const FSEventStreamEventId *evIds){
+    char **paths = (char**)evPaths;
+    for (int i = 0; i < numEvents; ++i){
+        File_Change_Node *node = file_change_node(paths[i]);
+        file_queue_lock();
+        sll_push(file_queue.first, file_queue.last, node);
+        file_queue_unlock();
+    }
+}
+
+//////////////////
+
+typedef struct{
+    FSEventStreamRef stream;
+} File_Watching_Handle;
+
+File_Watching_Handle
+schedule_file_watching(char *f){
+    File_Watching_Handle handle = {0};
+    
+    CFStringRef arg = CFStringCreateWithCString(0, f, kCFStringEncodingUTF8);
+    
+    CFArrayRef paths = CFArrayCreate(0, (const void**)&arg, 1, 0);
+    
+    void *callbackInfo = 0;
+    CFAbsoluteTime latency = 2.0;
+    
+    handle.stream = FSEventStreamCreate(0, &file_watch_callback,  0, paths, kFSEventStreamEventIdSinceNow, latency, kFSEventStreamCreateFlagFileEvents);
+    
+    FSEventStreamScheduleWithRunLoop(handle.stream, CFRunLoopGetMain(), kCFRunLoopDefaultMode);
+    
+    if (!FSEventStreamStart(handle.stream)){
+        fprintf(stdout, "BAD SCHED: %s\n", f);
+    }
+    
+    return(handle);
+}
+
+void
+unschedule_file_watching(File_Watching_Handle handle){
+    FSEventStreamStop(handle.stream);
+    FSEventStreamInvalidate(handle.stream);
+    FSEventStreamRelease(handle.stream);
+}
+
 typedef struct File_Table_Entry{
     u64 hash;
     void *name;
-    i32 fd;
+    i32 counter;
+    File_Watching_Handle handle;
 } File_Table_Entry;
 
-typedef struct File_Change_Queue{
-    i32 kq;
-    
+typedef struct File_Change_Table{
     File_Table_Entry *table;
-    i32 table_count;
-    i32 table_size;
-} File_Change_Queue;
+    i32 count;
+    i32 size;
+} File_Change_Table;
 
-static File_Change_Queue file_change_queue = {0};
+static File_Change_Table file_change_table = {0};
 
 void*
 osx_file_name_prefixed_length(char *name){
     i32 len = 0;
     for (; name[len] != 0; ++len);
-    char *name_stored = (char*)malloc(4 + l_round_up_u32(len, 4));
+    char *name_stored = (char*)malloc(4 + l_round_up_u32(len + 1, 4));
     *(i32*)name_stored = len;
     memcpy(name_stored + 4, name, len);
+    name_stored[4 + len] = 0;
     return(name_stored);
 }
 
@@ -343,11 +432,11 @@ osx_name_prefixed_match(void *a, void *b){
 File_Table_Entry*
 osx_file_listener_lookup_and_return_pointer(u64 hash, void *name){
     File_Table_Entry *result = 0;
-    i32 index = (i32)(hash % file_change_queue.table_size);
+    i32 index = (i32)(hash % file_change_table.size);
     i32 first_index = index;
     
     for (;;){
-        File_Table_Entry *entry = &file_change_queue.table[index];
+        File_Table_Entry *entry = &file_change_table.table[index];
         if (entry->hash == hash){
             if (osx_name_prefixed_match(name, entry->name)){
                 result = entry;
@@ -358,7 +447,7 @@ osx_file_listener_lookup_and_return_pointer(u64 hash, void *name){
             break;
         }
         
-        index = (index + 1)%file_change_queue.table_size;
+        index = (index + 1)%file_change_table.size;
         if (index == first_index){
             break;
         }
@@ -367,41 +456,112 @@ osx_file_listener_lookup_and_return_pointer(u64 hash, void *name){
     return(result);
 }
 
+void
+osx_file_listener_table_entry_erase(File_Table_Entry *entry){
+    free(entry->name);
+    unschedule_file_watching(entry->handle);
+    memset(entry, 0, sizeof(*entry));
+    entry->name = (void*)1;
+}
+
 b32
-osx_file_listener_lookup(u64 hash, void *name, i32 *fd_out){
+osx_file_listener_lookup_and_decrement(u64 hash, void *name){
     b32 found = false;
     File_Table_Entry *entry = osx_file_listener_lookup_and_return_pointer(hash, name);
     if (entry != 0){
         found = true;
-        if (fd_out != 0){
-            *fd_out = entry->fd;
+        --entry->counter;
+        if (entry->counter <= 0){
+            osx_file_listener_table_entry_erase(entry);
         }
     }
     return(found);
 }
 
 b32
-osx_file_listener_lookup_and_delete(u64 hash, void *name, i32 *fd_out){
-    b32 found = false;
-    File_Table_Entry *entry = osx_file_listener_lookup_and_return_pointer(hash, name);
-    if (entry != 0){
-        found = true;
-        if (fd_out != 0){
-            *fd_out = entry->fd;
+osx_file_listener_hash(u64 hash, void *name, i32 counter, File_Watching_Handle **handle_address_out){
+    b32 result = 0;
+    if (file_change_table.count*6 < file_change_table.size*5){
+        i32 index = (i32)(hash % file_change_table.size);
+        i32 first_index = index;
+        
+        for (;;){
+            File_Table_Entry *entry = &file_change_table.table[index];
+            if (entry->name == 0 || entry->name == (void*)1){
+                entry->hash = hash;
+                entry->name = name;
+                entry->counter = counter;
+                *handle_address_out = &entry->handle;
+                result = true;
+                ++file_change_table.count;
+                break;
+            }
+            
+            index = (index + 1)%file_change_table.size;
+            if (index == first_index){
+                break;
+            }
         }
-        memset(entry, 0, sizeof(*entry));
-        entry->name = (void*)1;
+        
+        if (!result){
+            LOG("file change listener table error: could not find a free slot in the table\n");
+        }
     }
-    return(found);
+    
+    return(result);
 }
 
-typedef struct Hash_Result{
-    b32 is_in_table;
-    b32 was_already_in_table;
-} Hash_Result;
+void
+osx_file_listener_grow_table(i32 size){
+    if (file_change_table.size < size){
+        File_Table_Entry *old_table = file_change_table.table;
+        i32 old_size = file_change_table.size;
+        
+        file_change_table.table = (File_Table_Entry*)osx_allocate(size*sizeof(File_Table_Entry));
+        memset(file_change_table.table, 0, size*sizeof(File_Table_Entry));
+        file_change_table.size = size;
+        
+        for (i32 i = 0; i < old_size; ++i){
+            void *name = file_change_table.table[i].name;
+            if (name != 0 && name != (void*)1){
+                File_Table_Entry *e = &file_change_table.table[i];
+                File_Watching_Handle *handle_address = 0;
+                osx_file_listener_hash(e->hash, e->name, e->counter, &handle_address);
+                *handle_address = e->handle;
+            }
+        }
+        
+        if (old_table != 0){
+            osx_free(old_table, old_size*sizeof(File_Table_Entry));
+        }
+    }
+}
+
+void
+osx_file_listener_double_table(){
+    osx_file_listener_grow_table(file_change_table.size*2);
+}
+
+b32
+osx_file_listener_insert_or_increment_always(u64 hash, void *name, File_Watching_Handle **handle_address_out){
+    b32 was_already_in_table = false;
+    File_Table_Entry *entry = osx_file_listener_lookup_and_return_pointer(hash, name);
+    if (entry != 0){
+        ++entry->counter;
+        was_already_in_table = true;
+    }
+    else{
+        b32 result = osx_file_listener_hash(hash, name, 1, handle_address_out);
+        if (!result){
+            osx_file_listener_double_table();
+            osx_file_listener_hash(hash, name, 1, handle_address_out);
+        }
+    }
+    return(was_already_in_table);
+}
 
 u64
-osx_file_hash(void *name){
+osx_get_file_hash(void *name){
     u32 count = *(u32*)(name);
     char *str = (char*)name + 4;
     u64 hash = 0;
@@ -420,168 +580,51 @@ osx_file_hash(void *name){
     return(hash);
 }
 
-Hash_Result
-osx_file_listener_hash(u64 hash, void *name, i32 fd){
-    Hash_Result result = {0};
-    if (osx_file_listener_lookup(hash, name, 0)){
-        result.is_in_table = true;
-        result.was_already_in_table = true;
-    }
-    else if (file_change_queue.table_count * 6 < file_change_queue.table_size * 5){
-        i32 index = (i32)(hash % file_change_queue.table_size);
-        i32 first_index = index;
-        
-        for (;;){
-            File_Table_Entry *entry = &file_change_queue.table[index];
-            if (entry->name == 0 || entry->name == (void*)1){
-                entry->hash = hash;
-                entry->name = name;
-                entry->fd = fd;
-                result.is_in_table = true;
-                ++file_change_queue.table_count;
-                break;
-            }
-            
-            index = (index + 1)%file_change_queue.table_size;
-            if (index == first_index){
-                break;
-            }
-        }
-        
-        if (!result.is_in_table){
-            fprintf(stdout, "file change listener table error: could not find a free slot in the table\n");
-        }
-    }
-    
-    return(result);
-}
-
-Hash_Result
-osx_file_listener_hash_bundled(File_Table_Entry entry){
-    Hash_Result result = osx_file_listener_hash(entry.hash, entry.name, entry.fd);
-    return(result);
-}
-
-void
-osx_file_listener_grow_table(i32 table_size){
-    if (file_change_queue.table_size < table_size){
-        File_Table_Entry *old_table = file_change_queue.table;
-        i32 old_size = file_change_queue.table_size;
-        
-        file_change_queue.table = (File_Table_Entry*)osx_allocate(table_size*sizeof(File_Table_Entry));
-        memset(file_change_queue.table, 0, table_size*sizeof(File_Table_Entry));
-        file_change_queue.table_size = table_size;
-        
-        for (i32 i = 0; i < old_size; ++i){
-            void *name = file_change_queue.table[i].name;
-            if (name != 0 && name != (void*)1){
-                osx_file_listener_hash_bundled(file_change_queue.table[i]);
-            }
-        }
-        
-        if (old_table != 0){
-            osx_free(old_table, old_size*sizeof(File_Table_Entry));
-        }
-    }
-}
-
-void
-osx_file_listener_double_table(){
-    osx_file_listener_grow_table(file_change_queue.table_size*2);
-}
-
-b32
-osx_file_listener_hash_always(u64 hash, void *name, i32 fd){
-    b32 was_already_in_table = false;
-    Hash_Result result = osx_file_listener_hash(hash, name, fd);
-    if (result.was_already_in_table){
-        was_already_in_table = true;
-    }
-    else if (!result.is_in_table){
-        osx_file_listener_double_table();
-        osx_file_listener_hash(hash, name, fd);
-    }
-    return(was_already_in_table);
-}
-
 void
 osx_file_listener_init(void){
-    memset(&file_change_queue, 0, sizeof(file_change_queue));
-    file_change_queue.kq = kqueue();
-    osx_file_listener_grow_table(1024);
+    osx_file_listener_grow_table(4096);
 }
 
 void
 osx_add_file_listener(char *dir_name){
-    DBG_POINT();
-    if (file_change_queue.kq < 0){
-        return;
-    }
-    
-    //fprintf(stdout, "ADD_FILE_LISTENER: %s\n", dir_name);
-    
-    i32 fd = open(dir_name, O_EVTONLY);
-    if (fd <= 0){
-        fprintf(stdout, "could not open fd for %s\n", dir_name);
-        return;
-    }
-    
     // TODO(allen): Decide what to do about these darn string mallocs.
     void *name_stored = osx_file_name_prefixed_length(dir_name);
-    
-    struct kevent new_kevent;
-    EV_SET(&new_kevent, fd, EVFILT_VNODE, EV_ADD|EV_CLEAR, NOTE_DELETE|NOTE_WRITE, 0, name_stored);
-    
-    struct timespec t = {0};
-    kevent(file_change_queue.kq, &new_kevent, 1, 0, 0, &t);
-    
-    b32 was_already_in_table = osx_file_listener_hash_always(osx_file_hash(name_stored), name_stored, fd);
+    File_Watching_Handle *handle_address = 0;
+    b32 was_already_in_table = osx_file_listener_insert_or_increment_always(osx_get_file_hash(name_stored), name_stored, &handle_address);
     if (was_already_in_table){
         free(name_stored);
     }
-    
-    DBG_POINT();
+    else{
+        *handle_address = schedule_file_watching(dir_name);
+    }
 }
 
 void
 osx_remove_file_listener(char *dir_name){
-    void *name = osx_file_name_prefixed_length(dir_name);
-    i32 fd;
-    if (osx_file_listener_lookup_and_delete(osx_file_hash(name), name, &fd)){
-        close(fd);
-    }
-    free(name);
+    void *name_stored = osx_file_name_prefixed_length(dir_name);
+    osx_file_listener_lookup_and_decrement(osx_get_file_hash(name_stored), name_stored);
+    free(name_stored);
 }
 
 i32
 osx_get_file_change_event(char *buffer, i32 max, i32 *size){
-    if (file_change_queue.kq < 0){
-        return 0;
-    }
+    file_queue_lock();
+    File_Change_Node *node = file_queue.first;
+    sll_pop(file_queue.first, file_queue.last);
+    file_queue_unlock();
     
     i32 result = 0;
-    struct timespec t = {0};
-    struct kevent event_out;
-    i32 count = kevent(file_change_queue.kq, 0, 0, &event_out, 1, &t);
-    if (count < 0 || (count > 0 && event_out.flags == EV_ERROR)){
-        //fprintf(stdout, "count: %4d error: %s\n", count, strerror(errno));
-    }
-    else if (count > 0){
-        if (event_out.udata != 0){
-            i32 len = *(i32*)event_out.udata;
-            char *str = (char*)((i32*)event_out.udata + 1);
-            //fprintf(stdout, "got an event for file: %.*s\n", len, str);
-            if (len <= max){
-                *size = len;
-                memcpy(buffer, str, len);
-                result = 1;
-            }
-            else{
-                // TODO(allen): Cache this miss for retrieval???
-                // TODO(allen): Better yet, always cache every event on every platform and therefore make two calls per event, but always with enough memory!??
-                result = -1;
-            }
+    if (node != 0){
+        if (node->len < max){
+            result = 1;
+            memcpy(buffer, node->name, node->len);
+            *size = node->len;
         }
+        else{
+            result = -1;
+            // TODO(allen): Somehow save the node?
+        }
+        file_change_node_free(node);
     }
     
     return(result);
