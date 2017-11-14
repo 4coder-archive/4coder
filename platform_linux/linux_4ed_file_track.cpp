@@ -83,8 +83,6 @@ add_listener(File_Track_System *system, Partition *scratch, u8 *filename){
                 File_Track_Entry *entry = tracking_system_lookup_entry(tables, key);
                 Linux_File_Track_Entry *linux_entry = (Linux_File_Track_Entry*) entry;
                 
-                LINUX_FN_DEBUG("map %s to wd %d", filename, wd);
-                
                 if(entry_is_available(entry)){
                     linux_entry->hash = key;
                     linux_entry->dir = vars->string_mem_begin;
@@ -93,7 +91,6 @@ add_listener(File_Track_System *system, Partition *scratch, u8 *filename){
                     vars->string_mem_begin += dir_len;
                     ++tables->tracked_count;
                 } else {
-                    LINUX_FN_DEBUG("dir already tracked, adding ref");
                     ++linux_entry->ref_count;
                 }
             } else {
@@ -107,8 +104,6 @@ add_listener(File_Track_System *system, Partition *scratch, u8 *filename){
     }
     
     pthread_mutex_unlock(&vars->lock);
-    
-    LINUX_FN_DEBUG("result: %d", result);
     
     return(result);
 }
