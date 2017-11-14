@@ -18,13 +18,13 @@
 #if defined(IS_PLAT_LAYER)
 
 # if defined(USE_LOG)
-# define LOG(m) GEN_LOG(sysfunc.log, FNLN m)
+# define LOG(m) GEN_LOG(sysfunc.log, FNLN "\n" m)
 # else
 # define LOG(m)
 # endif
 
 # if defined(USE_LOGF)
-# define LOGF(...) GEN_LOGF(sysfunc.log, FNLN __VA_ARGS__)
+# define LOGF(...) GEN_LOGF(sysfunc.log, FNLN "\n" __VA_ARGS__)
 # else
 # define LOGF(...)
 # endif
@@ -32,13 +32,13 @@
 #else /* Not platform layer */
 
 # if defined(USE_LOG)
-#  define LOG(s,m) GEN_LOG((s)->log, FNLN m)
+#  define LOG(s,m) GEN_LOG((s)->log, FNLN "\n" m)
 # else
 #  define LOG(s,m)
 # endif
 
 # if defined(USE_LOGF)
-#  define LOGF(s,...) GEN_LOGF((s)->log, FNLN __VA_ARGS__)
+#  define LOGF(s,...) GEN_LOGF((s)->log, FNLN "\n" __VA_ARGS__)
 # else
 #  define LOGF(s,...)
 # endif

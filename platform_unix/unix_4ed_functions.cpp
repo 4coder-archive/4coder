@@ -155,7 +155,7 @@ Sys_Set_File_List_Sig(system_set_file_list){
         return;
     }
     
-    LOGF("set_file_list: %s\n", directory);
+    LOGF("%s\n", directory);
     
     DIR *d = opendir(directory);
     if (d != 0){
@@ -257,36 +257,41 @@ Sys_Get_Canonical_Sig(system_get_canonical){
     
     max -= 1;
     
-    while(read_p < filename + len){
-        if(read_p == filename || read_p[0] == '/'){
-            if(read_p[1] == '/'){
+    while (read_p < filename + len){
+        if (read_p == filename || read_p[0] == '/'){
+            if (read_p[1] == '/'){
                 ++read_p;
-            } else if(read_p[1] == '.'){
-                if(read_p[2] == '/' || !read_p[2]){
+            }
+            else if(read_p[1] == '.'){
+                if (read_p[2] == '/' || !read_p[2]){
                     read_p += 2;
                 } else if(read_p[2] == '.' && (read_p[3] == '/' || !read_p[3])){
                     while(write_p > path && *--write_p != '/');
                     read_p += 3;
-                } else {
+                }
+                else {
                     *write_p++ = *read_p++;
                 }
-            } else {
+            }
+            else{
                 *write_p++ = *read_p++;
             }
-        } else {
+        }
+        else{
             *write_p++ = *read_p++;
         }
     }
-    if(write_p == path) *write_p++ = '/';
+    if (write_p == path) *write_p++ = '/';
     
-    if(max >= (write_p - path)){
+    if (max >= (write_p - path)){
         memcpy(buffer, path, write_p - path);
-    } else {
+    }
+    else{
         write_p = path;
     }
     
 #if defined(FRED_INTERNAL)
-    if(len != (write_p - path) || memcmp(filename, path, len) != 0){
+    if (len != (write_p - path) || memcmp(filename, path, len) != 0){
         LOGF("[%.*s] -> [%.*s]\n", len, filename, (int)(write_p - path), path);
     }
 #endif
@@ -301,11 +306,12 @@ Sys_Load_Handle_Sig(system_load_handle){
     b32 result = false;
     
     i32 fd = open(filename, O_RDONLY);
-    if (fd == -1){
-        LOG("error: open\n");
+    if (fd == -1 || fd == 0){
+        LOGF("upable to open file descriptor for %s\n", filename);
     }
     else{
-        *(int*)handle_out = fd;
+        LOGF("file descriptor (%d) == file %s\n", fd, filename);
+        *(i32*)handle_out = fd;
         result = true;
     }
     
@@ -316,28 +322,29 @@ internal
 Sys_Load_Size_Sig(system_load_size){
     u32 result = 0;
     
-    int fd = *(int*)&handle;
-    struct stat st;
+    i32 fd = *(i32*)&handle;
+    struct stat st = {0};
     
-    if(fstat(fd, &st) == -1){
-        LOG("error: fstat\n");
+    if (fstat(fd, &st) == -1){
+        LOGF("unable to stat a file\n");
     }
     else{
+        LOGF("file descriptor (%d) has size %d\n", fd, (i32)st.st_size);
         result = st.st_size;
     }
     
-    return result;
+    return(result);
 }
 
 internal
 Sys_Load_File_Sig(system_load_file){
-    int fd = *(int*)&handle;
+    i32 fd = *(i32*)&handle;
     
     do{
         ssize_t n = read(fd, buffer, size);
-        if(n == -1){
-            if(errno != EINTR){
-                LOG("error: read\n");
+        if (n == -1){
+            if (errno != EINTR){
+                LOGF("error reading from file descriptor (%d)\n", fd);
                 break;
             }
         }
@@ -347,46 +354,51 @@ Sys_Load_File_Sig(system_load_file){
         }
     } while(size);
     
-    return size == 0;
+    return(size == 0);
 }
 
 internal
 Sys_Load_Close_Sig(system_load_close){
-    b32 result = 1;
+    b32 result = true;
     
-    int fd = *(int*)&handle;
-    if(close(fd) == -1){
-        LOG("error: close\n");
-        result = 0;
+    i32 fd = *(i32*)&handle;
+    if (close(fd) == -1){
+        LOGF("error closing file descriptor (%d)\n", fd);
+        result = false;
+    }
+    else{
+        LOGF("file descriptor (%d) closed\n", fd);
     }
     
-    return result;
+    return(result);
 }
 
 internal
 Sys_Save_File_Sig(system_save_file){
-    int fd = open(filename, O_WRONLY | O_TRUNC | O_CREAT, 00640);
+    i32 fd = open(filename, O_WRONLY|O_TRUNC|O_CREAT, 00640);
+    
     LOGF("%s %d\n", filename, size);
-    if(fd < 0){
+    if (fd < 0){
         LOGF("error: open '%s': %s\n", filename, strerror(errno));
     }
     else{
-        do {
+        do{
             ssize_t written = write(fd, buffer, size);
-            if(written == -1){
-                if(errno != EINTR){
+            if (written == -1){
+                if (errno != EINTR){
                     LOG("error: write\n");
                     break;
                 }
-            } else {
+            }
+            else{
                 size -= written;
                 buffer += written;
             }
-        } while(size);
+        }while(size);
         close(fd);
     }
     
-    return (size == 0);
+    return(size == 0);
 }
 
 //
