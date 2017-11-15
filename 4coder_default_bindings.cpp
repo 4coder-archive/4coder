@@ -22,7 +22,11 @@ get_bindings(void *data, int32_t size){
     Bind_Helper *context = &context_;
     
     set_all_default_hooks(context);
+#if defined(__APPLE__) && defined(__MACH__)
+    mac_default_keys(context);
+#else
     default_keys(context);
+#endif
     
     int32_t result = end_bind_helper(context);
     return(result);
