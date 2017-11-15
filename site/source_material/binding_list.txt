@@ -199,16 +199,6 @@ The following commands only apply in C/C++ files where the lexer (syntax highlig
 
 \END
 
-\SECTION{Map: mac-4coder-like}
-This map is identical to "default" except that it uses different modifiers.
-
-"ctrl" is replaced with "ctrl" OR "alt"
-"alt" is replaced with "cmnd"
-
-This setup is meant to match the jobs of the keys on the Mac keyboard to the jobs 
-of the keys in the relatively same position on other keyboards.
-\END
-
 \SECTION{Map: mac-default}
 
 \SECTION{Global}
@@ -310,7 +300,7 @@ The following bindings apply in general text files and most apply in code files,
  \ITEM \STYLE{code} <ctrl del> \END Snipe token (or word) right
  
  \ITEM Note: 'the range' in the following commands refers to the text between the mark and cursor.
- \ITEM \STYLE{code} <ctrl space> \END Set mark to the cursor position
+ \ITEM \STYLE{code} <cmnd /> \END Set mark to the cursor position
  \ITEM \STYLE{code} <cmnd a> \END Replace a substring in the range
  \ITEM \STYLE{code} <cmnd c> \END Copy text from the range
  \ITEM \STYLE{code} <cmnd d> \END Delete the text in the range
