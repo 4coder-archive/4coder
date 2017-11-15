@@ -441,10 +441,10 @@ osx_character_input(u32 code, OSX_Keyboard_Modifiers modifier_flags){
             Key_Code chr = code;
             Key_Code nocaps = code;
             if (modifier_flags.caps){
-                if ('a' <= chr && chr <= 'z'){
+                if ('a' <= nocaps && nocaps <= 'z'){
                     chr += 'A' - 'a';
                 }
-                else if ('A' <= chr && chr <= 'Z'){
+                else if ('A' <= nocaps && nocaps <= 'Z'){
                     chr += 'a' - 'A';
                 }
             }

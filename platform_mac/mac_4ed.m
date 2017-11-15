@@ -54,6 +54,7 @@ osx_post_to_clipboard(char *str){
     osx_objc.just_posted_to_clipboard = true;
 }
 
+
 void
 osx_error_dialogue(char *str){
     NSAlert *alert = [[NSAlert alloc] init];
@@ -90,6 +91,7 @@ static DISPLINK_SIG(osx_display_link);
 - (void)keyDown:(NSEvent *)event{
     NSString *real = [event charactersIgnoringModifiers];
     NSString *with_mods = [event characters];
+    
     b32 is_dead_key = false;
     if (real && !with_mods){
         is_dead_key = true;
@@ -103,9 +105,17 @@ static DISPLINK_SIG(osx_display_link);
     mods.option = ((flags & NSEventModifierFlagOption) != 0);
     mods.caps = ((flags & NSEventModifierFlagCapsLock) != 0);
     
-    u32 length = real.length;
+    // TODO(allen): Not ideal solution, look for realer text
+    // input on Mac.  This just makes sure we're getting good
+    // results for unmodified keys when cmnd and ctrl aren't down.
+    NSString *which = with_mods;
+    if (mods.command || mods.control){
+        which = real;
+    }
+    
+    u32 length = which.length;
     for (u32 i = 0; i < length; ++i){
-        unichar c = [real characterAtIndex:i];
+        unichar c = [which characterAtIndex:i];
         osx_character_input(c, mods);
     }
 }
@@ -337,11 +347,9 @@ file_change_node_free(File_Change_Node *node){
     free(node);
 }
 
-#define  file_queue_lock()
-//for(;;){i64 v=__sync_val_compare_and_swap(&file_queue.lock,0,1);if(v==0){break;}}
+#define file_queue_lock() for(;;){i64 v=__sync_val_compare_and_swap(&file_queue.lock,0,1);if(v==0){break;}}
 
-#define file_queue_unlock()
-//__sync_lock_test_and_set(&file_queue.lock, 0)
+#define file_queue_unlock() __sync_lock_test_and_set(&file_queue.lock, 0)
 
 void
 file_watch_callback(ConstFSEventStreamRef stream, void *callbackInfo, size_t numEvents, void *evPaths, const FSEventStreamEventFlags *evFlags, const FSEventStreamEventId *evIds){
