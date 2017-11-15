@@ -64,7 +64,7 @@ bind(Bind_Helper *context, Key_Code code, int32_t m, int32_t t, Generic_Command 
             }
             else if (t == 1){
                 bind(context, code, MDFR_CTRL|MDFR_CMND|f, cmd);
-                bind(context, code, MDFR_ALT|MDFR_CMND|f, cmd);
+                bind(context, code, MDFR_ALT|f, cmd);
             }
         }break;
     }

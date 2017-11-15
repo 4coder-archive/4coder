@@ -86,6 +86,7 @@ osx_error_dialogue(char *str){
 static DISPLINK_SIG(osx_display_link);
 
 @implementation My4coderView
+
 - (void)keyDown:(NSEvent *)event{
     NSString *real = [event charactersIgnoringModifiers];
     NSString *with_mods = [event characters];
@@ -708,6 +709,12 @@ osx_is_fullscreen(void){
 void
 osx_close_app(void){
     [NSApp terminate: nil];
+}
+
+f32
+osx_timer_seconds(void){
+    f32 result = CACurrentMediaTime();
+    return(result);
 }
 
 int

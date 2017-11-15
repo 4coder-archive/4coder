@@ -126,6 +126,9 @@ osx_is_fullscreen(void);
 external void
 osx_close_app(void);
 
+external f32
+osx_timer_seconds(void);
+
 #endif
 
 // BOTTOM

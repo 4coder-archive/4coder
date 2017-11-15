@@ -126,6 +126,14 @@ Sys_Get_4ed_Path_Sig(system_get_4ed_path){
 
 //#include "mac_fd_check.cpp"
 #include "unix_4ed_functions.cpp"
+
+internal
+Sys_Now_Time_Sig(system_now_time){
+    f64 t = osx_timer_seconds();
+    u64 result = (u64)(t*1000000.f);
+    return(result);
+}
+
 #include "4ed_shared_file_handling.cpp"
 
 ////////////////////////////////

@@ -234,6 +234,15 @@ Sys_Get_4ed_Path_Sig(system_get_4ed_path){
 }
 
 #include "unix_4ed_functions.cpp"
+
+internal
+Sys_Now_Time_Sig(system_now_time){
+    struct timespec spec;
+    clock_gettime(CLOCK_REALTIME, &spec);
+    u64 result = (spec.tv_sec*UINT64_C(1000000)) + (spec.tv_nsec/UINT64_C(1000));
+    return(result);
+}
+
 #include "4ed_shared_file_handling.cpp"
 
 ////////////////////////////////

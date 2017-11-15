@@ -440,17 +440,5 @@ system_directory_exists(char *path){
     return(result);
 }
 
-//
-// Time
-//
-
-internal
-Sys_Now_Time_Sig(system_now_time){
-    struct timespec spec;
-    clock_gettime(CLOCK_REALTIME, &spec);
-    u64 result = (spec.tv_sec * UINT64_C(1000000)) + (spec.tv_nsec / UINT64_C(1000));
-    return(result);
-}
-
 // BOTTOM
 

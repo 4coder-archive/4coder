@@ -297,7 +297,7 @@ system_set_font(System_Functions *system, Partition *part, Render_Font *font, ch
         }
     }
     else{
-        LOGF("font \"%.*s\" name is too long to load in current build (max %u)\n", filename_len, filename, sizeof(font->filename) - 1);
+        LOGF("font \"%.*s\" name is too long to load in current build (max %u)\n", filename_len, filename, (u32)(sizeof(font->filename) - 1));
     }
 }
 
