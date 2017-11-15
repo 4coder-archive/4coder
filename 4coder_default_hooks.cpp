@@ -20,13 +20,11 @@ TYPE: 'internal-for-default-system'
 
 CUSTOM_COMMAND_SIG(set_bindings_choose);
 CUSTOM_COMMAND_SIG(set_bindings_default);
-CUSTOM_COMMAND_SIG(set_bindings_mac_4coder_like);
 CUSTOM_COMMAND_SIG(set_bindings_mac_default);
 
 static Named_Mapping named_maps_values[] = {
     {make_lit_string("choose")         , set_bindings_choose         },
     {make_lit_string("default")        , set_bindings_default        },
-    {make_lit_string("mac-4coder-like"), set_bindings_mac_4coder_like},
     {make_lit_string("mac-default")    , set_bindings_mac_default    },
 };
 

@@ -2,7 +2,6 @@
 // ""                - Leave the bindings unaltered from their startup value.
 // "choose"          - Ask 4coder to choose based on platform.
 // "default"         - Use the default keybindings 4coder has always had.
-// "mac-4coder-like" - Use keybindings for Mac similar to 4coder's bindings on other platforms.
 // "mac-default"     - Use keybindings similar to those found in other Mac applications.
 // <my-own-string>   - If you use the custom layer to make a named mapping you can use that here too.
 mapping = "";
