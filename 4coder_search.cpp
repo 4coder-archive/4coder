@@ -651,28 +651,36 @@ generic_search_all_buffers(Application_Links *app, General_Memory *general, Part
 // List Commands
 //
 
-CUSTOM_COMMAND_SIG(list_all_locations){
+CUSTOM_COMMAND_SIG(list_all_locations)
+CUSTOM_DOC("Queries the user for a string and lists all exact case-sensitive matches found in all open buffers.")
+{
     Query_Bar bar;
     get_search_all_string(app, &bar);
     if (bar.string.size == 0) return;
     generic_search_all_buffers(app, &global_general, &global_part, bar.string, SearchFlag_MatchWholeWord);
 }
 
-CUSTOM_COMMAND_SIG(list_all_substring_locations){
+CUSTOM_COMMAND_SIG(list_all_substring_locations)
+CUSTOM_DOC("Queries the user for a string and lists all case-sensitive substring matches found in all open buffers.")
+{
     Query_Bar bar;
     get_search_all_string(app, &bar);
     if (bar.string.size == 0) return;
     generic_search_all_buffers(app, &global_general, &global_part, bar.string, SearchFlag_MatchSubstring);
 }
 
-CUSTOM_COMMAND_SIG(list_all_locations_case_insensitive){
+CUSTOM_COMMAND_SIG(list_all_locations_case_insensitive)
+CUSTOM_DOC("Queries the user for a string and lists all exact case-insensitive matches found in all open buffers.")
+{
     Query_Bar bar;
     get_search_all_string(app, &bar);
     if (bar.string.size == 0) return;
     generic_search_all_buffers(app, &global_general, &global_part, bar.string, SearchFlag_CaseInsensitive | SearchFlag_MatchWholeWord);
 }
 
-CUSTOM_COMMAND_SIG(list_all_substring_locations_case_insensitive){
+CUSTOM_COMMAND_SIG(list_all_substring_locations_case_insensitive)
+CUSTOM_DOC("Queries the user for a string and lists all case-insensitive substring matches found in all open buffers.")
+{
     Query_Bar bar;
     get_search_all_string(app, &bar);
     if (bar.string.size == 0) return;
@@ -713,11 +721,15 @@ list_all_locations_of_identifier_parameters(Application_Links *app, bool32 subst
     }
 }
 
-CUSTOM_COMMAND_SIG(list_all_locations_of_identifier){
+CUSTOM_COMMAND_SIG(list_all_locations_of_identifier)
+CUSTOM_DOC("Reads a token or word under the cursor and lists all exact case-sensitive mathces in all open buffers.")
+{
     list_all_locations_of_identifier_parameters(app, false, false);
 }
 
-CUSTOM_COMMAND_SIG(list_all_locations_of_identifier_case_insensitive){
+CUSTOM_COMMAND_SIG(list_all_locations_of_identifier_case_insensitive)
+CUSTOM_DOC("Reads a token or word under the cursor and lists all exact case-insensitive mathces in all open buffers.")
+{
     list_all_locations_of_identifier_parameters(app, false, true);
 }
 
@@ -737,7 +749,9 @@ struct Word_Complete_State{
 
 static Word_Complete_State complete_state = {0};
 
-CUSTOM_COMMAND_SIG(word_complete){
+CUSTOM_COMMAND_SIG(word_complete)
+CUSTOM_DOC("Iteratively tries completing the word to the left of the cursor with other words in open buffers that have the same prefix string.")
+{
     View_Summary view = get_active_view(app, AccessOpen);
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessOpen);
     

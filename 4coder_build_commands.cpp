@@ -166,7 +166,9 @@ execute_standard_build(Application_Links *app, View_Summary *view, Buffer_Summar
     }
 }
 
-CUSTOM_COMMAND_SIG(build_search){
+CUSTOM_COMMAND_SIG(build_search)
+CUSTOM_DOC("Looks for a build.bat, build.sh, or makefile in the current and parent directories.  Runs the first that it finds and prints the output to *compilation*.")
+{
     uint32_t access = AccessAll;
     View_Summary view = get_active_view(app, access);
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, access);
@@ -198,7 +200,9 @@ set_fancy_compilation_buffer_font(Application_Links *app){
     buffer_set_font(app, &comp_buffer, literal("Inconsolata"));
 }
 
-CUSTOM_COMMAND_SIG(build_in_build_panel){
+CUSTOM_COMMAND_SIG(build_in_build_panel)
+CUSTOM_DOC("Looks for a build.bat, build.sh, or makefile in the current and parent directories.  Runs the first that it finds and prints the output to *compilation*.  Puts the *compilation* buffer in a panel at the footer of the current view.")
+{
     uint32_t access = AccessAll;
     View_Summary view = get_active_view(app, access);
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, access);
@@ -212,11 +216,15 @@ CUSTOM_COMMAND_SIG(build_in_build_panel){
     lock_jump_buffer(literal("*compilation*"));
 }
 
-CUSTOM_COMMAND_SIG(close_build_panel){
+CUSTOM_COMMAND_SIG(close_build_panel)
+CUSTOM_DOC("If the special build panel is open, closes it.")
+{
     close_special_note_view(app);
 }
 
-CUSTOM_COMMAND_SIG(change_to_build_panel){
+CUSTOM_COMMAND_SIG(change_to_build_panel)
+CUSTOM_DOC("If the special build panel is open, makes the build panel the active panel.")
+{
     View_Summary view = open_special_note_view(app, false);
     
     if (!view.exists){

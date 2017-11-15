@@ -49,21 +49,27 @@ clipboard_cut(Application_Links *app, int32_t start, int32_t end, Buffer_Summary
     return(result);
 }
 
-CUSTOM_COMMAND_SIG(copy){
+CUSTOM_COMMAND_SIG(copy)
+CUSTOM_DOC("Copy the text in the range from the cursor to the mark onto the clipboard.")
+{
     uint32_t access = AccessProtected;
     View_Summary view = get_active_view(app, access);
     Range range = get_range(&view);
     clipboard_copy(app, range.min, range.max, 0, access);
 }
 
-CUSTOM_COMMAND_SIG(cut){
+CUSTOM_COMMAND_SIG(cut)
+CUSTOM_DOC("Cut the text in the range from the cursor to the mark onto the clipboard.")
+{
     uint32_t access = AccessOpen;
     View_Summary view = get_active_view(app, access);
     Range range = get_range(&view);
     clipboard_cut(app, range.min, range.max, 0, access);
 }
 
-CUSTOM_COMMAND_SIG(paste){
+CUSTOM_COMMAND_SIG(paste)
+CUSTOM_DOC("At the cursor, insert the text at the top of the clipboard.")
+{
     uint32_t access = AccessOpen;
     int32_t count = clipboard_count(app, 0);
     if (count > 0){
@@ -99,7 +105,9 @@ CUSTOM_COMMAND_SIG(paste){
     }
 }
 
-CUSTOM_COMMAND_SIG(paste_next){
+CUSTOM_COMMAND_SIG(paste_next)
+CUSTOM_DOC("If the previous command was paste or paste_next, replaces the paste range with the next text down on the clipboard, otherwise operates as the paste command.")
+{
     uint32_t access = AccessOpen;
     int32_t count = clipboard_count(app, 0);
     if (count > 0){

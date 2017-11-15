@@ -122,7 +122,9 @@ open_special_note_view(Application_Links *app, bool32 create_if_not_exist = true
     return(special_view);
 }
 
-CUSTOM_COMMAND_SIG(change_active_panel){
+CUSTOM_COMMAND_SIG(change_active_panel)
+CUSTOM_DOC("Change the currently active panel, moving to the panel with the next highest view_id.")
+{
     View_Summary view = get_active_view(app, AccessAll);
     View_ID original_view_id = view.view_id;
     
@@ -138,7 +140,9 @@ CUSTOM_COMMAND_SIG(change_active_panel){
     }
 }
 
-CUSTOM_COMMAND_SIG(change_active_panel_backwards){
+CUSTOM_COMMAND_SIG(change_active_panel_backwards)
+CUSTOM_DOC("Change the currently active panel, moving to the panel with the next lowest view_id.")
+{
     View_Summary view = get_active_view(app, AccessAll);
     View_ID original_view_id = view.view_id;
     
@@ -154,13 +158,17 @@ CUSTOM_COMMAND_SIG(change_active_panel_backwards){
     }
 }
 
-CUSTOM_COMMAND_SIG(open_panel_vsplit){
+CUSTOM_COMMAND_SIG(open_panel_vsplit)
+CUSTOM_DOC("Create a new panel by vertically splitting the active panel.")
+{
     View_Summary view = get_active_view(app, AccessAll);
     View_Summary new_view = open_view(app, &view, ViewSplit_Right);
     new_view_settings(app, &new_view);
 }
 
-CUSTOM_COMMAND_SIG(open_panel_hsplit){
+CUSTOM_COMMAND_SIG(open_panel_hsplit)
+CUSTOM_DOC("Create a new panel by horizontally splitting the active panel.")
+{
     View_Summary view = get_active_view(app, AccessAll);
     View_Summary new_view = open_view(app, &view, ViewSplit_Bottom);
     new_view_settings(app, &new_view);
@@ -213,19 +221,27 @@ set_mouse_suppression(Application_Links *app, int32_t suppress){
     }
 }
 
-CUSTOM_COMMAND_SIG(suppress_mouse){
+CUSTOM_COMMAND_SIG(suppress_mouse)
+CUSTOM_DOC("Hides the mouse and causes all mosue input (clicks, position, wheel) to be ignored.")
+{
     set_mouse_suppression(app, true);
 }
 
-CUSTOM_COMMAND_SIG(allow_mouse){
+CUSTOM_COMMAND_SIG(allow_mouse)
+CUSTOM_DOC("Shows the mouse and causes all mouse input to be processed normally.")
+{
     set_mouse_suppression(app, false);
 }
 
-CUSTOM_COMMAND_SIG(toggle_mouse){
+CUSTOM_COMMAND_SIG(toggle_mouse)
+CUSTOM_DOC("Toggles the mouse suppression mode, see suppress_mouse and allow_mouse.")
+{
     set_mouse_suppression(app, !suppressing_mouse);
 }
 
-CUSTOM_COMMAND_SIG(toggle_fullscreen){
+CUSTOM_COMMAND_SIG(toggle_fullscreen)
+CUSTOM_DOC("Toggle fullscreen mode on or off.  The change(s) do not take effect until the next frame.")
+{
     set_fullscreen(app, !is_fullscreen(app));
 }
 
@@ -722,7 +738,9 @@ change_mapping(Application_Links *app, String mapping){
     }
 }
 
-CUSTOM_COMMAND_SIG(remap_interactive){
+CUSTOM_COMMAND_SIG(remap_interactive)
+CUSTOM_DOC("Switch to a named key binding map.")
+{
     Query_Bar bar = {0};
     char space[1024];
     bar.prompt = make_lit_string("Map Name: ");

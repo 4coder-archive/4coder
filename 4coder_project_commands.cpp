@@ -162,7 +162,9 @@ open_all_code(Application_Links *app, String dir){
     open_all_files_with_extension_internal(app, dir, extension_list, extension_count, false);
 }
 
-CUSTOM_COMMAND_SIG(open_all_code){
+CUSTOM_COMMAND_SIG(open_all_code)
+CUSTOM_DOC("Open all code in the current directory. File types are determined by extensions. An extension is considered code based on the extensions specified in 4coder.config.")
+{
     int32_t extension_count = 0;
     char **extension_list = get_current_project_extensions(&extension_count);
     open_all_files_with_extension(app, &global_part, extension_list, extension_count, false);
@@ -175,13 +177,17 @@ open_all_code_recursive(Application_Links *app, String dir){
     open_all_files_with_extension_internal(app, dir, extension_list, extension_count, true);
 }
 
-CUSTOM_COMMAND_SIG(open_all_code_recursive){
+CUSTOM_COMMAND_SIG(open_all_code_recursive)
+CUSTOM_DOC("Works as open_all_code but also runs in all subdirectories.")
+{
     int32_t extension_count = 0;
     char **extension_list = get_current_project_extensions(&extension_count);
     open_all_files_with_extension(app, &global_part, extension_list, extension_count, true);
 }
 
-CUSTOM_COMMAND_SIG(close_all_code){
+CUSTOM_COMMAND_SIG(close_all_code)
+CUSTOM_DOC("Closes any buffer with a filename ending with an extension configured to be recognized as a code file type.")
+{
     int32_t extension_count = 0;
     char **extension_list = get_current_project_extensions(&extension_count);
     close_all_files_with_extension(app, &global_part, extension_list, extension_count);
@@ -391,7 +397,9 @@ load_project_from_config_data(Application_Links *app, Partition *part, char *con
     end_temp_memory(temp);
 }
 
-CUSTOM_COMMAND_SIG(load_project){
+CUSTOM_COMMAND_SIG(load_project)
+CUSTOM_DOC("Looks for a project.4coder file in the current directory and tries to load it.  Looks in parent directories until a project file is found or there are no more parents.")
+{
     Partition *part = &global_part;
     
     Temp_Memory temp = begin_temp_memory(part);
@@ -513,7 +521,9 @@ exec_project_fkey_command(Application_Links *app, int32_t command_ind){
     }
 }
 
-CUSTOM_COMMAND_SIG(project_fkey_command){
+CUSTOM_COMMAND_SIG(project_fkey_command)
+CUSTOM_DOC("Run an 'fkey command' configured in a project.4coder file.  Determines the index of the 'fkey command' by which function key or numeric key was pressed to trigger the command.")
+{
     User_Input input = get_command_input(app);
     if (input.type == UserInputKey){
         bool32 got_ind = false;
@@ -537,7 +547,9 @@ CUSTOM_COMMAND_SIG(project_fkey_command){
     }
 }
 
-CUSTOM_COMMAND_SIG(project_go_to_root_directory){
+CUSTOM_COMMAND_SIG(project_go_to_root_directory)
+CUSTOM_DOC("Changes 4coder's hot directory to the root directory of the currently loaded project. With no loaded project nothing hapepns.")
+{
     if (current_project.loaded){
         directory_set_hot(app, current_project.dir, current_project.dir_len);
     }
@@ -592,7 +604,9 @@ project_is_setup(Application_Links *app, char *dir, int32_t dir_len, int32_t dir
 
 // TODO(allen): Stop using stdio.h, switch to a 4coder buffer API for all file manipulation.
 #include <stdio.h>
-CUSTOM_COMMAND_SIG(setup_new_project){
+CUSTOM_COMMAND_SIG(setup_new_project)
+CUSTOM_DOC("Queries the user for several configuration options and initializes a new 4coder project with build scripts for every OS.")
+{
     char space[4096];
     String str = make_fixed_width_string(space);
     str.size = directory_get_hot(app, str.str, str.memory_size);
