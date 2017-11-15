@@ -206,7 +206,7 @@ load_project_from_config_data(Application_Links *app, Partition *part, char *con
     lexer_keywords_default_init(part, &kw_table, &pp_table);
     
     Cpp_Lex_Data S = cpp_lex_data_init(false, kw_table, pp_table);
-    Cpp_Lex_Result result = cpp_lex_step(&S, mem, size+1, HAS_NULL_TERM, &array, NO_OUT_LIMIT);
+    Cpp_Lex_Result result = cpp_lex_step(&S, mem, size + 1, HAS_NULL_TERM, &array, NO_OUT_LIMIT);
     
     if (result == LexResult_Finished){
         // Clear out current project
@@ -227,7 +227,7 @@ load_project_from_config_data(Application_Links *app, Partition *part, char *con
         
         // Read the settings from project.4coder
         for (int32_t i = 0; i < array.count; ++i){
-            Config_Line config_line = read_config_line(array, &i);
+            Config_Line config_line = read_config_line(array, &i, mem);
             if (config_line.read_success){
                 Config_Item item = get_config_item(config_line, mem, array);
                 
@@ -364,6 +364,14 @@ load_project_from_config_data(Application_Links *app, Partition *part, char *con
                         }
                     }
                 }
+            }
+            else if (config_line.error_str.str != 0){
+                char space[2048];
+                String str = make_fixed_width_string(space);
+                copy(&str, "WARNING: bad syntax in 4coder.config at ");
+                append(&str, config_line.error_str);
+                append(&str, "\n");
+                print_message(app, str.str, str.size);
             }
         }
         

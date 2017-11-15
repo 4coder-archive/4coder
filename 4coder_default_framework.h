@@ -344,6 +344,7 @@ struct Config_Line{
     int32_t val_array_start;
     int32_t val_array_end;
     int32_t val_array_count;
+    String error_str;
     bool32 read_success;
 };
 
@@ -387,20 +388,21 @@ read_config_token(Cpp_Token_Array array, int32_t *i_ptr){
 }
 
 static Config_Line
-read_config_line(Cpp_Token_Array array, int32_t *i_ptr){
+read_config_line(Cpp_Token_Array array, int32_t *i_ptr, char *text){
     Config_Line config_line = {0};
     
     int32_t i = *i_ptr;
     
     config_line.id_token = read_config_token(array, &i);
+    int32_t text_index_start = config_line.id_token.start;
     if (config_line.id_token.type == CPP_TOKEN_IDENTIFIER){
         ++i;
         if (i < array.count){
             Cpp_Token token = read_config_token(array, &i);
             
-            bool32 subscript_success = true;
+            bool32 lvalue_success = true;
             if (token.type == CPP_TOKEN_BRACKET_OPEN){
-                subscript_success = false;
+                lvalue_success = false;
                 ++i;
                 if (i < array.count){
                     config_line.subscript_token = read_config_token(array, &i);
@@ -412,7 +414,7 @@ read_config_line(Cpp_Token_Array array, int32_t *i_ptr){
                                 ++i;
                                 if (i < array.count){
                                     token = read_config_token(array, &i);
-                                    subscript_success = true;
+                                    lvalue_success = true;
                                 }
                             }
                         }
@@ -420,16 +422,16 @@ read_config_line(Cpp_Token_Array array, int32_t *i_ptr){
                 }
             }
             
-            if (subscript_success){
+            if (lvalue_success){
                 if (token.type == CPP_TOKEN_EQ){
                     config_line.eq_token = read_config_token(array, &i);
                     ++i;
                     if (i < array.count){
                         Cpp_Token val_token = read_config_token(array, &i);
                         
-                        bool32 array_success = true;
+                        bool32 rvalue_success = true;
                         if (val_token.type == CPP_TOKEN_BRACE_OPEN){
-                            array_success = false;
+                            rvalue_success = false;
                             ++i;
                             if (i < array.count){
                                 config_line.val_array_start = i;
@@ -442,7 +444,7 @@ read_config_line(Cpp_Token_Array array, int32_t *i_ptr){
                                     }
                                     if (array_token.type == CPP_TOKEN_BRACE_CLOSE){
                                         config_line.val_array_end = i;
-                                        array_success = true;
+                                        rvalue_success = true;
                                         break;
                                     }
                                     else{
@@ -465,13 +467,13 @@ read_config_line(Cpp_Token_Array array, int32_t *i_ptr){
                             }
                         }
                         
-                        if (array_success){
+                        if (rvalue_success){
                             config_line.val_token = val_token;
                             ++i;
                             if (i < array.count){
                                 Cpp_Token semicolon_token = read_config_token(array, &i);
                                 if (semicolon_token.type == CPP_TOKEN_SEMICOLON){
-                                    config_line.read_success = 1;
+                                    config_line.read_success = true;
                                 }
                             }
                         }
@@ -482,6 +484,22 @@ read_config_line(Cpp_Token_Array array, int32_t *i_ptr){
     }
     
     if (!config_line.read_success){
+        Cpp_Token token = {0};
+        if (i < array.count){
+            token = array.tokens[i];
+        }
+        int32_t text_index_current = token.start + token.size;
+        if (text_index_current <= text_index_start){
+            if (array.count > 0){
+                token = array.tokens[array.count - 1];
+                text_index_current = token.start + token.size;
+            }
+        }
+        
+        if (text_index_current > text_index_start){
+            config_line.error_str = make_string(text + text_index_start, text_index_current - text_index_start);
+        }
+        
         for (; i < array.count; ++i){
             Cpp_Token token = read_config_token(array, &i);
             if (token.type == CPP_TOKEN_SEMICOLON){
@@ -864,7 +882,7 @@ process_config_file(Application_Links *app){
                 lexer_keywords_default_init(part, &kw_table, &pp_table);
                 
                 Cpp_Lex_Data S = cpp_lex_data_init(false, kw_table, pp_table);
-                Cpp_Lex_Result result = cpp_lex_step(&S, mem, size+1, HAS_NULL_TERM, &array, NO_OUT_LIMIT);
+                Cpp_Lex_Result result = cpp_lex_step(&S, mem, size + 1, HAS_NULL_TERM, &array, NO_OUT_LIMIT);
                 
                 if (result == LexResult_Finished){
                     int32_t new_wrap_width = default_wrap_width;
@@ -872,7 +890,7 @@ process_config_file(Application_Links *app){
                     bool32 lalt_lctrl_is_altgr = false;
                     
                     for (int32_t i = 0; i < array.count; ++i){
-                        Config_Line config_line = read_config_line(array, &i);
+                        Config_Line config_line = read_config_line(array, &i, mem);
                         
                         if (config_line.read_success){
                             Config_Item item = get_config_item(config_line, mem, array);
@@ -907,6 +925,14 @@ process_config_file(Application_Links *app){
                             config_bool_var(item, "automatically_load_project", 0, &automatically_load_project);
                             
                             config_bool_var(item, "lalt_lctrl_is_altgr", 0, &lalt_lctrl_is_altgr);
+                        }
+                        else if (config_line.error_str.str != 0){
+                            char space[2048];
+                            String str = make_fixed_width_string(space);
+                            copy(&str, "WARNING: bad syntax in 4coder.config at ");
+                            append(&str, config_line.error_str);
+                            append(&str, "\n");
+                            print_message(app, str.str, str.size);
                         }
                     }
                     
@@ -947,7 +973,7 @@ load_color_theme_file(Application_Links *app, char *file_name){
         file = fopen(str.str, "rb");
     }
     
-    if (file){
+    if (file != 0){
         Temp_Memory temp = begin_temp_memory(part);
         
         char *mem = 0;
@@ -967,7 +993,7 @@ load_color_theme_file(Application_Links *app, char *file_name){
             lexer_keywords_default_init(part, &kw_table, &pp_table);
             
             Cpp_Lex_Data S = cpp_lex_data_init(false, kw_table, pp_table);
-            Cpp_Lex_Result result = cpp_lex_step(&S, mem, size+1, HAS_NULL_TERM, &array, NO_OUT_LIMIT);
+            Cpp_Lex_Result result = cpp_lex_step(&S, mem, size + 1, HAS_NULL_TERM, &array, NO_OUT_LIMIT);
             
             if (result == LexResult_Finished){
                 success = true;
@@ -978,7 +1004,7 @@ load_color_theme_file(Application_Links *app, char *file_name){
                 init_theme_zero(&theme);
                 
                 for (int32_t i = 0; i < array.count; ++i){
-                    Config_Line config_line = read_config_line(array, &i);
+                    Config_Line config_line = read_config_line(array, &i, mem);
                     if (config_line.read_success){
                         Config_Item item = get_config_item(config_line, mem, array);
                         config_string_var(item, "name", 0, &name_str);
@@ -1004,6 +1030,14 @@ load_color_theme_file(Application_Links *app, char *file_name){
                                 }
                             }
                         }
+                    }
+                    else if (config_line.error_str.str != 0){
+                        char space[2048];
+                        String str = make_fixed_width_string(space);
+                        copy(&str, "WARNING: bad syntax in 4coder.config at ");
+                        append(&str, config_line.error_str);
+                        append(&str, "\n");
+                        print_message(app, str.str, str.size);
                     }
                 }
                 
