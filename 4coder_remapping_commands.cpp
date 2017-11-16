@@ -30,7 +30,6 @@ default_keys(Bind_Helper *context){
     bind(context, 'o', MDFR_ALT, open_in_other);
     bind(context, 'k', MDFR_CTRL, interactive_kill_buffer);
     bind(context, 'i', MDFR_CTRL, interactive_switch_buffer);
-    bind(context, 'w', MDFR_CTRL, save_as);
     bind(context, 'h', MDFR_CTRL, project_go_to_root_directory);
     bind(context, 'S', MDFR_CTRL, save_all_dirty_buffers);
     
@@ -206,7 +205,6 @@ mac_default_keys(Bind_Helper *context){
     bind(context, 'o', MDFR_CTRL, open_in_other);
     bind(context, 'k', MDFR_CMND, interactive_kill_buffer);
     bind(context, 'i', MDFR_CMND, interactive_switch_buffer);
-    bind(context, 'w', MDFR_CMND, save_as);
     bind(context, 'h', MDFR_CMND, project_go_to_root_directory);
     bind(context, 'S', MDFR_CMND, save_all_dirty_buffers);
     
@@ -384,7 +382,9 @@ get_context_on_global_part(void){
     return(result);
 }
 
-CUSTOM_COMMAND_SIG(set_bindings_choose){
+CUSTOM_COMMAND_SIG(set_bindings_choose)
+CUSTOM_DOC("Remap keybindings using the 'choose' mapping rule.")
+{
 #if defined(_WIN32) || defined(__linux__)
     
     set_bindings_default(app);
@@ -396,7 +396,9 @@ CUSTOM_COMMAND_SIG(set_bindings_choose){
 #endif
 }
 
-CUSTOM_COMMAND_SIG(set_bindings_default){
+CUSTOM_COMMAND_SIG(set_bindings_default)
+CUSTOM_DOC("Remap keybindings using the 'default' mapping rule.")
+{
     Temp_Memory temp = begin_temp_memory(&global_part);
     
     Bind_Helper context = get_context_on_global_part();
@@ -408,7 +410,9 @@ CUSTOM_COMMAND_SIG(set_bindings_default){
     end_temp_memory(temp);
 }
 
-CUSTOM_COMMAND_SIG(set_bindings_mac_default){
+CUSTOM_COMMAND_SIG(set_bindings_mac_default)
+CUSTOM_DOC("Remap keybindings using the 'mac-default' mapping rule.")
+{
     Temp_Memory temp = begin_temp_memory(&global_part);
     
     Bind_Helper context = get_context_on_global_part();

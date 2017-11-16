@@ -11,28 +11,52 @@ TYPE: 'major-system-include'
 
 #include "4coder_API/custom.h"
 
-#include "4coder_helper/4coder_jump_parsing.h"
-
-// NOTE(allen): Define USE_OLD_STYLE_JUMPS before including to get the old jumps (instead of sticky jumps).
-#if !defined(USE_OLD_STYLE_JUMPS)
-#define FCODER_JUMP_COMMANDS
-#endif
-
 #include "4coder_default_framework.h"
 #include "4coder_base_commands.cpp"
 #include "4coder_auto_indent.cpp"
 #include "4coder_search.cpp"
-#include "4coder_jump_parsing.cpp"
+#include "4coder_jump_direct.cpp"
+#include "4coder_jump_sticky.cpp"
 #include "4coder_clipboard.cpp"
 #include "4coder_system_command.cpp"
 #include "4coder_build_commands.cpp"
 #include "4coder_project_commands.cpp"
 #include "4coder_function_list.cpp"
 
-#if !defined(USE_OLD_STYLE_JUMPS)
-#undef FCODER_JUMP_COMMANDS
-#include "4coder_sticky_jump.cpp"
+// NOTE(allen): Define USE_OLD_STYLE_JUMPS before 4coder_default_include.cpp to get
+// the direct jumps (instead of sticky jumps).
+#if defined(USE_OLD_STYLE_JUMPS)
+
+#define goto_jump_at_cursor                 CUSTOM_ALIAS(goto_jump_at_cursor_direct)
+#define goto_jump_at_cursor_same_panel      CUSTOM_ALIAS(goto_jump_at_cursor_same_panel_direct)
+#define goto_next_jump                      CUSTOM_ALIAS(goto_next_jump_direct)
+#define goto_prev_jump                      CUSTOM_ALIAS(goto_prev_jump_direct)
+#define goto_next_jump_no_skips             CUSTOM_ALIAS(goto_next_jump_no_skips_direct)
+#define goto_prev_jump_no_skips             CUSTOM_ALIAS(goto_prev_jump_no_skips_direct)
+#define goto_first_jump                     CUSTOM_ALIAS(goto_first_jump_direct)
+#define newline_or_goto_position            CUSTOM_ALIAS(newline_or_goto_position_direct)
+#define newline_or_goto_position_same_panel CUSTOM_ALIAS(newline_or_goto_position_same_panel_direct)
+
+#else
+
+#define goto_jump_at_cursor                 CUSTOM_ALIAS(goto_jump_at_cursor_sticky)
+#define goto_jump_at_cursor_same_panel      CUSTOM_ALIAS(goto_jump_at_cursor_same_panel_sticky)
+#define goto_next_jump                      CUSTOM_ALIAS(goto_next_jump_sticky)
+#define goto_prev_jump                      CUSTOM_ALIAS(goto_prev_jump_sticky)
+#define goto_next_jump_no_skips             CUSTOM_ALIAS(goto_next_jump_no_skips_sticky)
+#define goto_prev_jump_no_skips             CUSTOM_ALIAS(goto_prev_jump_no_skips_sticky)
+#define goto_first_jump                     CUSTOM_ALIAS(goto_first_jump_sticky)
+#define newline_or_goto_position            CUSTOM_ALIAS(newline_or_goto_position_sticky)
+#define newline_or_goto_position_same_panel CUSTOM_ALIAS(newline_or_goto_position_same_panel_sticky)
+
 #endif
+
+#define seek_error               CUSTOM_ALIAS(seek_jump)
+#define goto_next_error          CUSTOM_ALIAS(goto_next_jump)
+#define goto_prev_error          CUSTOM_ALIAS(goto_prev_jump)
+#define goto_next_error_no_skips CUSTOM_ALIAS(goto_next_jump_no_skips)
+#define goto_prev_error_no_skips CUSTOM_ALIAS(goto_prev_jump_no_skips)
+#define goto_first_error         CUSTOM_ALIAS(goto_first_jump)
 
 #include "4coder_default_hooks.cpp"
 
@@ -70,16 +94,45 @@ basic_seek(Application_Links *app, bool32 seek_forward, uint32_t flags){
 #define right true
 #define left false
 
-CUSTOM_COMMAND_SIG(seek_whitespace_right){ basic_seek(app, right, BoundaryWhitespace); }
-CUSTOM_COMMAND_SIG(seek_whitespace_left){ basic_seek(app, left, BoundaryWhitespace); }
-CUSTOM_COMMAND_SIG(seek_token_right){ basic_seek(app, right, BoundaryToken); }
-CUSTOM_COMMAND_SIG(seek_token_left){ basic_seek(app, left, BoundaryToken); }
-CUSTOM_COMMAND_SIG(seek_white_or_token_right){basic_seek(app, right, BoundaryToken | BoundaryWhitespace);}
-CUSTOM_COMMAND_SIG(seek_white_or_token_left){basic_seek(app, left, BoundaryToken | BoundaryWhitespace);}
-CUSTOM_COMMAND_SIG(seek_alphanumeric_right){ basic_seek(app, right, BoundaryAlphanumeric); }
-CUSTOM_COMMAND_SIG(seek_alphanumeric_left){ basic_seek(app, left, BoundaryAlphanumeric); }
-CUSTOM_COMMAND_SIG(seek_alphanumeric_or_camel_right){ basic_seek(app, right, BoundaryAlphanumeric | BoundaryCamelCase); }
-CUSTOM_COMMAND_SIG(seek_alphanumeric_or_camel_left){ basic_seek(app, left, BoundaryAlphanumeric | BoundaryCamelCase); }
+CUSTOM_COMMAND_SIG(seek_whitespace_right)
+CUSTOM_DOC("Seek right for the next boundary between whitespace and non-whitespace.")
+{ basic_seek(app, right, BoundaryWhitespace); }
+
+CUSTOM_COMMAND_SIG(seek_whitespace_left)
+CUSTOM_DOC("Seek left for the next boundary between whitespace and non-whitespace.")
+{ basic_seek(app, left, BoundaryWhitespace); }
+
+CUSTOM_COMMAND_SIG(seek_token_right)
+CUSTOM_DOC("Seek right for the next end of a token.")
+{ basic_seek(app, right, BoundaryToken); }
+
+CUSTOM_COMMAND_SIG(seek_token_left)
+CUSTOM_DOC("Seek left for the next beginning of a token.")
+{ basic_seek(app, left, BoundaryToken); }
+
+CUSTOM_COMMAND_SIG(seek_white_or_token_right)
+CUSTOM_DOC("Seek right for the next end of a token or boundary between whitespace and non-whitespace.")
+{basic_seek(app, right, BoundaryToken | BoundaryWhitespace);}
+
+CUSTOM_COMMAND_SIG(seek_white_or_token_left)
+CUSTOM_DOC("Seek left for the next end of a token or boundary between whitespace and non-whitespace.")
+{basic_seek(app, left, BoundaryToken | BoundaryWhitespace);}
+
+CUSTOM_COMMAND_SIG(seek_alphanumeric_right)
+CUSTOM_DOC("Seek right for boundary between alphanumeric characters and non-alphanumeric characters.")
+{ basic_seek(app, right, BoundaryAlphanumeric); }
+
+CUSTOM_COMMAND_SIG(seek_alphanumeric_left)
+CUSTOM_DOC("Seek left for boundary between alphanumeric characters and non-alphanumeric characters.")
+{ basic_seek(app, left, BoundaryAlphanumeric); }
+
+CUSTOM_COMMAND_SIG(seek_alphanumeric_or_camel_right)
+CUSTOM_DOC("Seek right for boundary between alphanumeric characters or camel case word and non-alphanumeric characters.")
+{ basic_seek(app, right, BoundaryAlphanumeric | BoundaryCamelCase); }
+
+CUSTOM_COMMAND_SIG(seek_alphanumeric_or_camel_left)
+CUSTOM_DOC("Seek left for boundary between alphanumeric characters or camel case word and non-alphanumeric characters.")
+{ basic_seek(app, left, BoundaryAlphanumeric | BoundaryCamelCase); }
 
 #undef right
 #undef left
@@ -88,7 +141,9 @@ CUSTOM_COMMAND_SIG(seek_alphanumeric_or_camel_left){ basic_seek(app, left, Bound
 // Fast Deletes 
 //
 
-CUSTOM_COMMAND_SIG(backspace_word){
+CUSTOM_COMMAND_SIG(backspace_word)
+CUSTOM_DOC("Delete characters between the cursor position and the first alphanumeric boundary to the left.")
+{
     uint32_t access = AccessOpen;
     
     View_Summary view = get_active_view(app, access);
@@ -106,7 +161,9 @@ CUSTOM_COMMAND_SIG(backspace_word){
     }
 }
 
-CUSTOM_COMMAND_SIG(delete_word){
+CUSTOM_COMMAND_SIG(delete_word)
+CUSTOM_DOC("Delete characters between the cursor position and the first alphanumeric boundary to the right.")
+{
     uint32_t access = AccessOpen;
     
     View_Summary view = get_active_view(app, access);
@@ -124,7 +181,9 @@ CUSTOM_COMMAND_SIG(delete_word){
     }
 }
 
-CUSTOM_COMMAND_SIG(snipe_token_or_word){
+CUSTOM_COMMAND_SIG(snipe_token_or_word)
+CUSTOM_DOC("Delete a single, whole token on or to the left of the cursor.")
+{
     uint32_t access = AccessOpen;
     
     View_Summary view = get_active_view(app, access);
@@ -137,7 +196,9 @@ CUSTOM_COMMAND_SIG(snipe_token_or_word){
     buffer_replace_range(app, &buffer, range.start, range.end, 0, 0);
 }
 
-CUSTOM_COMMAND_SIG(snipe_token_or_word_right){
+CUSTOM_COMMAND_SIG(snipe_token_or_word_right)
+CUSTOM_DOC("Delete a single, whole token on or to the right of the cursor.")
+{
     uint32_t access = AccessOpen;
     
     View_Summary view = get_active_view(app, access);
@@ -154,7 +215,9 @@ CUSTOM_COMMAND_SIG(snipe_token_or_word_right){
 // Line Manipulation
 //
 
-CUSTOM_COMMAND_SIG(duplicate_line){
+CUSTOM_COMMAND_SIG(duplicate_line)
+CUSTOM_DOC("Create a copy of the line on which the cursor sits.")
+{
     View_Summary view = get_active_view(app, AccessOpen);
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessOpen);
     
@@ -174,7 +237,9 @@ CUSTOM_COMMAND_SIG(duplicate_line){
     end_temp_memory(temp);
 }
 
-CUSTOM_COMMAND_SIG(delete_line){
+CUSTOM_COMMAND_SIG(delete_line)
+CUSTOM_DOC("Delete the line the on which the cursor sits.")
+{
     View_Summary view = get_active_view(app, AccessOpen);
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessOpen);
     
@@ -194,12 +259,16 @@ CUSTOM_COMMAND_SIG(delete_line){
 // Clipboard + Indent Combo Command
 //
 
-CUSTOM_COMMAND_SIG(paste_and_indent){
+CUSTOM_COMMAND_SIG(paste_and_indent)
+CUSTOM_DOC("Paste from the top of clipboard and run auto-indent on the newly pasted text.")
+{
     exec_command(app, paste);
     exec_command(app, auto_tab_range);
 }
 
-CUSTOM_COMMAND_SIG(paste_next_and_indent){
+CUSTOM_COMMAND_SIG(paste_next_and_indent)
+CUSTOM_DOC("Paste the next item on the clipboard and run auto-indent on the newly pasted text.")
+{
     exec_command(app, paste_next);
     exec_command(app, auto_tab_range);
 }
@@ -237,25 +306,33 @@ long_braces(Application_Links *app, char *text, int32_t size){
     move_past_lead_whitespace(app, &view, &buffer);
 }
 
-CUSTOM_COMMAND_SIG(open_long_braces){
+CUSTOM_COMMAND_SIG(open_long_braces)
+CUSTOM_DOC("At the cursor, insert a '{' and '}' separated by a blank line.")
+{
     char text[] = "{\n\n}";
     int32_t size = sizeof(text) - 1;
     long_braces(app, text, size);
 }
 
-CUSTOM_COMMAND_SIG(open_long_braces_semicolon){
+CUSTOM_COMMAND_SIG(open_long_braces_semicolon)
+CUSTOM_DOC("At the cursor, insert a '{' and '};' separated by a blank line.")
+{
     char text[] = "{\n\n};";
     int32_t size = sizeof(text) - 1;
     long_braces(app, text, size);
 }
 
-CUSTOM_COMMAND_SIG(open_long_braces_break){
+CUSTOM_COMMAND_SIG(open_long_braces_break)
+CUSTOM_DOC("At the cursor, insert a '{' and '}break;' separated by a blank line.")
+{
     char text[] = "{\n\n}break;";
     int32_t size = sizeof(text) - 1;
     long_braces(app, text, size);
 }
 
-CUSTOM_COMMAND_SIG(if0_off){
+CUSTOM_COMMAND_SIG(if0_off)
+CUSTOM_DOC("Surround the range between the cursor and mark with an '#if 0' and an '#endif'")
+{
     char text1[] = "\n#if 0";
     int32_t size1 = sizeof(text1) - 1;
     
@@ -325,23 +402,33 @@ write_named_comment_string(Application_Links *app, char *type_string){
     write_string(app, str);
 }
 
-CUSTOM_COMMAND_SIG(write_todo){
+CUSTOM_COMMAND_SIG(write_todo)
+CUSTOM_DOC("At the cursor, insert a '// TODO' comment, includes user name if it was specified in config.4coder.")
+{
     write_named_comment_string(app, "TODO");
 }
 
-CUSTOM_COMMAND_SIG(write_hack){
+CUSTOM_COMMAND_SIG(write_hack)
+CUSTOM_DOC("At the cursor, insert a '// HACK' comment, includes user name if it was specified in config.4coder.")
+{
     write_named_comment_string(app, "HACK");
 }
 
-CUSTOM_COMMAND_SIG(write_note){
+CUSTOM_COMMAND_SIG(write_note)
+CUSTOM_DOC("At the cursor, insert a '// NOTE' comment, includes user name if it was specified in config.4coder.")
+{
     write_named_comment_string(app, "NOTE");
 }
 
-CUSTOM_COMMAND_SIG(write_block){
+CUSTOM_COMMAND_SIG(write_block)
+CUSTOM_DOC("At the cursor, insert a block comment.")
+{
     write_string(app, make_lit_string("/*  */"));
 }
 
-CUSTOM_COMMAND_SIG(write_zero_struct){
+CUSTOM_COMMAND_SIG(write_zero_struct)
+CUSTOM_DOC("At the cursor, insert a ' = {0};'.")
+{
     write_string(app, make_lit_string(" = {0};"));
 }
 
@@ -383,7 +470,9 @@ file_name_in_quotes(Application_Links *app, String *file_name){
     return(result);
 }
 
-CUSTOM_COMMAND_SIG(open_file_in_quotes){
+CUSTOM_COMMAND_SIG(open_file_in_quotes)
+CUSTOM_DOC("Reads a filename from surrounding '\"' characters and attempts to open the corresponding file.")
+{
     char file_name_[256];
     String file_name = make_fixed_width_string(file_name_);
     
@@ -394,16 +483,12 @@ CUSTOM_COMMAND_SIG(open_file_in_quotes){
     }
 }
 
-CUSTOM_COMMAND_SIG(open_in_other){
+CUSTOM_COMMAND_SIG(open_in_other)
+CUSTOM_DOC("Reads a filename from surrounding '\"' characters and attempts to open the corresponding file, displaying it in the other view.")
+{
     exec_command(app, change_active_panel);
     exec_command(app, interactive_open_or_new);
 }
-
-CUSTOM_COMMAND_SIG(new_in_other){
-    exec_command(app, change_active_panel);
-    exec_command(app, interactive_new);
-}
-
 
 //
 // File Navigating
@@ -458,7 +543,9 @@ get_cpp_matching_file(Application_Links *app, Buffer_Summary buffer, Buffer_Summ
     return(result);
 }
 
-CUSTOM_COMMAND_SIG(open_matching_file_cpp){
+CUSTOM_COMMAND_SIG(open_matching_file_cpp)
+CUSTOM_DOC("If the current file is a *.cpp or *.h, attempts to open the corresponding *.h or *.cpp file in the other view.")
+{
     View_Summary view = get_active_view(app, AccessAll);
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessAll);
     
@@ -475,7 +562,9 @@ CUSTOM_COMMAND_SIG(open_matching_file_cpp){
 // Execute Arbitrary Command
 //
 
-CUSTOM_COMMAND_SIG(execute_arbitrary_command){
+CUSTOM_COMMAND_SIG(execute_arbitrary_command)
+CUSTOM_DOC("Execute a 'long form' command.")
+{
     // NOTE(allen): This isn't a super powerful version of this command, I will expand
     // upon it so that it has all the cmdid_* commands by default.  However, with this
     // as an example you have everything you need to make it work already. You could

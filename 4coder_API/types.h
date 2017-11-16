@@ -747,7 +747,8 @@ TYPEDEF void Custom_Command_Function(struct Application_Links *app);
 
 // TODO(allen): Improve meta system so that the system for picking up macros is universal.
 #define CUSTOM_COMMAND_SIG(name) void name(struct Application_Links *app)
-
+#define CUSTOM_DOC(str)
+#define CUSTOM_ALIAS(x) x
 
 /* DOC(Generic_Command acts as a name for a command, and can name an internal command or a custom command.) */
 UNION Generic_Command{

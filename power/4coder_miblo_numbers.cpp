@@ -100,7 +100,9 @@ get_numeric_at_cursor(Application_Links *app, Buffer_Summary *buffer, int32_t po
     return(result);
 }
 
-CUSTOM_COMMAND_SIG(miblo_increment_basic){
+CUSTOM_COMMAND_SIG(miblo_increment_basic)
+CUSTOM_DOC("Increment an integer under the cursor by one.")
+{
     View_Summary view = get_active_view(app, AccessOpen);
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessOpen);
     
@@ -114,7 +116,9 @@ CUSTOM_COMMAND_SIG(miblo_increment_basic){
     }
 }
 
-CUSTOM_COMMAND_SIG(miblo_decrement_basic){
+CUSTOM_COMMAND_SIG(miblo_decrement_basic)
+CUSTOM_DOC("Decrement an integer under the cursor by one.")
+{
     View_Summary view = get_active_view(app, AccessOpen);
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessOpen);
     
@@ -379,19 +383,27 @@ miblo_time_stamp_alter(Application_Links *app, int32_t unit_type, int32_t amt){
     }
 }
 
-CUSTOM_COMMAND_SIG(miblo_increment_time_stamp){
+CUSTOM_COMMAND_SIG(miblo_increment_time_stamp)
+CUSTOM_DOC("Increment a time stamp under the cursor by one second. (format [m]m:ss or h:mm:ss")
+{
     miblo_time_stamp_alter(app, MIBLO_SECOND, 1);
 }
 
-CUSTOM_COMMAND_SIG(miblo_decrement_time_stamp){
+CUSTOM_COMMAND_SIG(miblo_decrement_time_stamp)
+CUSTOM_DOC("Decrement a time stamp under the cursor by one second. (format [m]m:ss or h:mm:ss")
+{
     miblo_time_stamp_alter(app, MIBLO_SECOND, -1);
 }
 
-CUSTOM_COMMAND_SIG(miblo_increment_time_stamp_minute){
+CUSTOM_COMMAND_SIG(miblo_increment_time_stamp_minute)
+CUSTOM_DOC("Increment a time stamp under the cursor by one minute. (format [m]m:ss or h:mm:ss")
+{
     miblo_time_stamp_alter(app, MIBLO_MINUTE, 1);
 }
 
-CUSTOM_COMMAND_SIG(miblo_decrement_time_stamp_minute){
+CUSTOM_COMMAND_SIG(miblo_decrement_time_stamp_minute)
+CUSTOM_DOC("Decrement a time stamp under the cursor by one minute. (format [m]m:ss or h:mm:ss")
+{
     miblo_time_stamp_alter(app, MIBLO_MINUTE, -1);
 }
 

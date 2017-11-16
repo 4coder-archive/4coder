@@ -345,7 +345,9 @@ list_all_functions(Application_Links *app, Partition *part, Buffer_Summary *buff
     
 }
 
-CUSTOM_COMMAND_SIG(list_all_functions_current_buffer){
+CUSTOM_COMMAND_SIG(list_all_functions_current_buffer)
+CUSTOM_DOC("Creates a jump list of lines of the current buffer that appear to define or declare functions.")
+{
     uint32_t access = AccessProtected;
     View_Summary view = get_active_view(app, access);
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, access);

@@ -605,7 +605,9 @@ auto_tab_whole_file_by_summary(Application_Links *app, Buffer_Summary *buffer){
     buffer_auto_indent(app, buffer, 0, buffer->size, DEF_TAB_WIDTH, DEFAULT_INDENT_FLAGS | AutoIndent_FullTokens);
 }
 
-CUSTOM_COMMAND_SIG(auto_tab_whole_file){
+CUSTOM_COMMAND_SIG(auto_tab_whole_file)
+CUSTOM_DOC("Audo-indents the entire current buffer.")
+{
     uint32_t access = AccessOpen;
     View_Summary view = get_active_view(app, access);
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, access);
@@ -613,7 +615,9 @@ CUSTOM_COMMAND_SIG(auto_tab_whole_file){
     auto_tab_whole_file_by_summary(app, &buffer);
 }
 
-CUSTOM_COMMAND_SIG(auto_tab_line_at_cursor){
+CUSTOM_COMMAND_SIG(auto_tab_line_at_cursor)
+CUSTOM_DOC("Auto-indents the line on which the cursor sits.")
+{
     uint32_t access = AccessOpen;
     View_Summary view = get_active_view(app, access);
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, access);
@@ -622,7 +626,9 @@ CUSTOM_COMMAND_SIG(auto_tab_line_at_cursor){
     move_past_lead_whitespace(app, &view, &buffer);
 }
 
-CUSTOM_COMMAND_SIG(auto_tab_range){
+CUSTOM_COMMAND_SIG(auto_tab_range)
+CUSTOM_DOC("Auto-indents the range between the cursor and the mark.")
+{
     uint32_t access = AccessOpen;
     View_Summary view = get_active_view(app, access);
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, access);
@@ -632,7 +638,9 @@ CUSTOM_COMMAND_SIG(auto_tab_range){
     move_past_lead_whitespace(app, &view, &buffer);
 }
 
-CUSTOM_COMMAND_SIG(write_and_auto_tab){
+CUSTOM_COMMAND_SIG(write_and_auto_tab)
+CUSTOM_DOC("Inserts a character and auto-indents the line on which the cursor sits.")
+{
     exec_command(app, write_character);
     
     uint32_t access = AccessOpen;

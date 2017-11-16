@@ -1,5 +1,5 @@
 /*
-4coder_sticky_jump.cpp - Commands and helpers for parsing jump locations from 
+4coder_jump_sticky.cpp - Commands and helpers for parsing jump locations from 
 compiler errors, sticking markers on jump locations, and jumping to them.
 
 TYPE: 'drop-in-command-pack'
@@ -7,14 +7,16 @@ TYPE: 'drop-in-command-pack'
 
 // TOP
 
-#if !defined(FCODER_STICKY_JUMP) && !defined(FCODER_JUMP_COMMANDS)
+//#if !defined(FCODER_STICKY_JUMP) && !defined(FCODER_JUMP_COMMANDS)
+//#define FCODER_STICKY_JUMP
+//#define FCODER_JUMP_COMMANDS
+
+#if !defined(FCODER_STICKY_JUMP)
 #define FCODER_STICKY_JUMP
-#define FCODER_JUMP_COMMANDS
 
 #include "4coder_default_framework.h"
 #include "4coder_helper/4coder_long_seek.h"
 #include "4coder_helper/4coder_helper.h"
-#include "4coder_helper/4coder_jump_parsing.h"
 
 #include "4coder_lib/4coder_mem.h"
 #include "4coder_jumping.h"
@@ -355,7 +357,9 @@ get_line_from_list(Marker_List *list, int32_t index){
     return(result);
 }
 
-CUSTOM_COMMAND_SIG(goto_jump_at_cursor){
+CUSTOM_COMMAND_SIG(goto_jump_at_cursor_sticky)
+CUSTOM_DOC("If the cursor is found to be on a jump location, parses the jump location and brings up the file and position in another view and changes the active panel to the view containing the jump.")
+{
     General_Memory *general = &global_general;
     Partition *part = &global_part;
     
@@ -381,7 +385,9 @@ CUSTOM_COMMAND_SIG(goto_jump_at_cursor){
     end_temp_memory(temp);
 }
 
-CUSTOM_COMMAND_SIG(goto_jump_at_cursor_same_panel){
+CUSTOM_COMMAND_SIG(goto_jump_at_cursor_same_panel_sticky)
+CUSTOM_DOC("If the cursor is found to be on a jump location, parses the jump location and brings up the file and position in this view, losing the compilation output or jump list.")
+{
     General_Memory *general = &global_general;
     Partition *part = &global_part;
     
@@ -474,7 +480,9 @@ get_locked_jump_state(Application_Links *app, Partition *part, General_Memory *g
     return(result);
 }
 
-CUSTOM_COMMAND_SIG(goto_next_jump){
+CUSTOM_COMMAND_SIG(goto_next_jump_sticky)
+CUSTOM_DOC("If a buffer containing jump locations has been locked in, goes to the next jump in the buffer, skipping sub jump locations.")
+{
     General_Memory *general = &global_general;
     Partition *part = &global_part;
     
@@ -488,7 +496,8 @@ CUSTOM_COMMAND_SIG(goto_next_jump){
     }
 }
 
-CUSTOM_COMMAND_SIG(goto_prev_jump){
+CUSTOM_COMMAND_SIG(goto_prev_jump_sticky)
+CUSTOM_DOC("If a buffer containing jump locations has been locked in, goes to the previous jump in the buffer, skipping sub jump locations."){
     General_Memory *general = &global_general;
     Partition *part = &global_part;
     
@@ -501,7 +510,9 @@ CUSTOM_COMMAND_SIG(goto_prev_jump){
     }
 }
 
-CUSTOM_COMMAND_SIG(goto_next_jump_no_skips){
+CUSTOM_COMMAND_SIG(goto_next_jump_no_skips_sticky)
+CUSTOM_DOC("If a buffer containing jump locations has been locked in, goes to the next jump in the buffer, and does not skip sub jump locations.")
+{
     General_Memory *general = &global_general;
     Partition *part = &global_part;
     
@@ -515,7 +526,9 @@ CUSTOM_COMMAND_SIG(goto_next_jump_no_skips){
     }
 }
 
-CUSTOM_COMMAND_SIG(goto_prev_jump_no_skips){
+CUSTOM_COMMAND_SIG(goto_prev_jump_no_skips_sticky)
+CUSTOM_DOC("If a buffer containing jump locations has been locked in, goes to the previous jump in the buffer, and does not skip sub jump locations.")
+{
     General_Memory *general = &global_general;
     Partition *part = &global_part;
     
@@ -528,7 +541,9 @@ CUSTOM_COMMAND_SIG(goto_prev_jump_no_skips){
     }
 }
 
-CUSTOM_COMMAND_SIG(goto_first_jump){
+CUSTOM_COMMAND_SIG(goto_first_jump_sticky)
+CUSTOM_DOC("If a buffer containing jump locations has been locked in, goes to the first jump in the buffer.")
+{
     General_Memory *general = &global_general;
     Partition *part = &global_part;
     
@@ -548,12 +563,14 @@ CUSTOM_COMMAND_SIG(goto_first_jump){
 // Insert Newline or Tigger Jump on Read Only Buffer
 //
 
-CUSTOM_COMMAND_SIG(newline_or_goto_position){
+CUSTOM_COMMAND_SIG(newline_or_goto_position_sticky)
+CUSTOM_DOC("If the buffer in the active view is writable, inserts a character, otherwise performs goto_jump_at_cursor.")
+{
     View_Summary view = get_active_view(app, AccessProtected);
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessProtected);
     
     if (buffer.lock_flags & AccessProtected){
-        goto_jump_at_cursor(app);
+        goto_jump_at_cursor_sticky(app);
         lock_jump_buffer(buffer);
     }
     else{
@@ -561,26 +578,20 @@ CUSTOM_COMMAND_SIG(newline_or_goto_position){
     }
 }
 
-CUSTOM_COMMAND_SIG(newline_or_goto_position_same_panel){
+CUSTOM_COMMAND_SIG(newline_or_goto_position_same_panel_sticky)
+CUSTOM_DOC("If the buffer in the active view is writable, inserts a character, otherwise performs goto_jump_at_cursor_same_panel.")
+{
     View_Summary view = get_active_view(app, AccessProtected);
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessProtected);
     
     if (buffer.lock_flags & AccessProtected){
-        goto_jump_at_cursor_same_panel(app);
+        goto_jump_at_cursor_same_panel_sticky(app);
         lock_jump_buffer(buffer);
     }
     else{
         write_character(app);
     }
 }
-
-
-#define seek_error                  seek_jump
-#define goto_next_error             goto_next_jump
-#define goto_prev_error             goto_prev_jump
-#define goto_next_error_no_skips    goto_next_jump_no_skips
-#define goto_prev_error_no_skips    goto_prev_jump_no_skips
-#define goto_first_error            goto_first_jump
 
 //
 // End File Hook

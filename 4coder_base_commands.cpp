@@ -19,7 +19,9 @@ TYPE: 'drop-in-command-pack'
 // Fundamental Editing Commands
 //
 
-CUSTOM_COMMAND_SIG(write_character){
+CUSTOM_COMMAND_SIG(write_character)
+CUSTOM_DOC("Inserts whatever character was used to trigger this command.")
+{
     uint32_t access = AccessOpen;
     View_Summary view = get_active_view(app, access);
     
@@ -47,7 +49,9 @@ CUSTOM_COMMAND_SIG(write_character){
     }
 }
 
-CUSTOM_COMMAND_SIG(delete_char){
+CUSTOM_COMMAND_SIG(delete_char)
+CUSTOM_DOC("Deletes the character to the right of the cursor.")
+{
     uint32_t access = AccessOpen;
     View_Summary view = get_active_view(app, access);
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, access);
@@ -63,7 +67,9 @@ CUSTOM_COMMAND_SIG(delete_char){
     }
 }
 
-CUSTOM_COMMAND_SIG(backspace_char){
+CUSTOM_COMMAND_SIG(backspace_char)
+CUSTOM_DOC("Deletes the character to the left of the cursor.")
+{
     uint32_t access = AccessOpen;
     View_Summary view = get_active_view(app, access);
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, access);
@@ -80,14 +86,18 @@ CUSTOM_COMMAND_SIG(backspace_char){
     }
 }
 
-CUSTOM_COMMAND_SIG(set_mark){
+CUSTOM_COMMAND_SIG(set_mark)
+CUSTOM_DOC("Sets the mark to the current position of the cursor.")
+{
     View_Summary view = get_active_view(app, AccessProtected);
     
     view_set_mark(app, &view, seek_pos(view.cursor.pos));
     view_set_cursor(app, &view, seek_pos(view.cursor.pos), 1);
 }
 
-CUSTOM_COMMAND_SIG(cursor_mark_swap){
+CUSTOM_COMMAND_SIG(cursor_mark_swap)
+CUSTOM_DOC("Swaps the position of the cursor and the mark.")
+{
     View_Summary view = get_active_view(app, AccessProtected);
     
     int32_t cursor = view.cursor.pos;
@@ -97,7 +107,9 @@ CUSTOM_COMMAND_SIG(cursor_mark_swap){
     view_set_mark(app, &view, seek_pos(cursor));
 }
 
-CUSTOM_COMMAND_SIG(delete_range){
+CUSTOM_COMMAND_SIG(delete_range)
+CUSTOM_DOC("Deletes the text in the range between the cursor and the mark.")
+{
     uint32_t access = AccessOpen;
     View_Summary view = get_active_view(app, access);
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, access);
@@ -110,7 +122,9 @@ CUSTOM_COMMAND_SIG(delete_range){
 // Basic Navigation Commands
 //
 
-CUSTOM_COMMAND_SIG(center_view){
+CUSTOM_COMMAND_SIG(center_view)
+CUSTOM_DOC("Centers the view vertically on the line on which the cursor sits.")
+{
     View_Summary view = get_active_view(app, AccessProtected);
     
     i32_Rect region = view.file_region;
@@ -123,7 +137,9 @@ CUSTOM_COMMAND_SIG(center_view){
     view_set_scroll(app, &view, scroll);
 }
 
-CUSTOM_COMMAND_SIG(left_adjust_view){
+CUSTOM_COMMAND_SIG(left_adjust_view)
+CUSTOM_DOC("Sets the left size of the view near the x position of the cursor.")
+{
     View_Summary view = get_active_view(app, AccessProtected);
     
     GUI_Scroll_Vars scroll = view.scroll_vars;
@@ -160,7 +176,9 @@ global_point_to_view_point(View_Summary *view, int32_t x, int32_t y, float *x_ou
     return(result);
 }
 
-CUSTOM_COMMAND_SIG(click_set_cursor){
+CUSTOM_COMMAND_SIG(click_set_cursor)
+CUSTOM_DOC("Sets the cursor position to the mouse position.")
+{
     uint32_t access = AccessProtected;
     View_Summary view = get_active_view(app, access);
     
@@ -171,7 +189,9 @@ CUSTOM_COMMAND_SIG(click_set_cursor){
     }
 }
 
-CUSTOM_COMMAND_SIG(click_set_mark){
+CUSTOM_COMMAND_SIG(click_set_mark)
+CUSTOM_DOC("Sets the mark position to the mouse position.")
+{
     uint32_t access = AccessProtected;
     View_Summary view = get_active_view(app, access);
     
@@ -193,19 +213,27 @@ move_vertical(Application_Links *app, float line_multiplier){
     view_set_cursor(app, &view, seek_xy(x, new_y, 0, view.unwrapped_lines), 0);
 }
 
-CUSTOM_COMMAND_SIG(move_up){
+CUSTOM_COMMAND_SIG(move_up)
+CUSTOM_DOC("Moves the cursor up one line.")
+{
     move_vertical(app, -1.f);
 }
 
-CUSTOM_COMMAND_SIG(move_down){
+CUSTOM_COMMAND_SIG(move_down)
+CUSTOM_DOC("Moves the cursor down one line.")
+{
     move_vertical(app, 1.f);
 }
 
-CUSTOM_COMMAND_SIG(move_up_10){
+CUSTOM_COMMAND_SIG(move_up_10)
+CUSTOM_DOC("Moves the cursor up ten lines.")
+{
     move_vertical(app, -10.f);
 }
 
-CUSTOM_COMMAND_SIG(move_down_10){
+CUSTOM_COMMAND_SIG(move_down_10)
+CUSTOM_DOC("Moves the cursor down ten lines.")
+{
     move_vertical(app, 10.f);
 }
 
@@ -225,14 +253,18 @@ get_page_jump(View_Summary *view){
     return(page_jump);
 }
 
-CUSTOM_COMMAND_SIG(page_up){
+CUSTOM_COMMAND_SIG(page_up)
+CUSTOM_DOC("Scrolls the view up one view height and moves the cursor up one view height.")
+{
     uint32_t access = AccessProtected;
     View_Summary view = get_active_view(app, access);
     float page_jump = get_page_jump(&view);
     move_vertical(app, -page_jump);
 }
 
-CUSTOM_COMMAND_SIG(page_down){
+CUSTOM_COMMAND_SIG(page_down)
+CUSTOM_DOC("Scrolls the view down one view height and moves the cursor down one view height.")
+{
     uint32_t access = AccessProtected;
     View_Summary view = get_active_view(app, access);
     float page_jump = get_page_jump(&view);
@@ -240,21 +272,27 @@ CUSTOM_COMMAND_SIG(page_down){
 }
 
 
-CUSTOM_COMMAND_SIG(move_left){
+CUSTOM_COMMAND_SIG(move_left)
+CUSTOM_DOC("Moves the cursor one character to the left.")
+{
     uint32_t access = AccessProtected;
     View_Summary view = get_active_view(app, access);
     int32_t new_pos = view.cursor.character_pos - 1;
     view_set_cursor(app, &view, seek_character_pos(new_pos), 1);
 }
 
-CUSTOM_COMMAND_SIG(move_right){
+CUSTOM_COMMAND_SIG(move_right)
+CUSTOM_DOC("Moves the cursor one character to the right.")
+{
     uint32_t access = AccessProtected;
     View_Summary view = get_active_view(app, access);
     int32_t new_pos = view.cursor.character_pos + 1;
     view_set_cursor(app, &view, seek_character_pos(new_pos), 1);
 }
 
-CUSTOM_COMMAND_SIG(select_all){
+CUSTOM_COMMAND_SIG(select_all)
+CUSTOM_DOC("Puts the cursor at the top of the file, and the mark at the bottom of the file.")
+{
     View_Summary view = get_active_view(app, AccessProtected);
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessProtected);
     view_set_cursor(app, &view, seek_character_pos(0), true);
@@ -265,7 +303,9 @@ CUSTOM_COMMAND_SIG(select_all){
 // Long Seeks
 //
 
-CUSTOM_COMMAND_SIG(seek_whitespace_up){
+CUSTOM_COMMAND_SIG(seek_whitespace_up)
+CUSTOM_DOC("Seeks the cursor up to the next blank line.")
+{
     uint32_t access = AccessProtected;
     View_Summary view = get_active_view(app, access);
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, access);
@@ -274,7 +314,9 @@ CUSTOM_COMMAND_SIG(seek_whitespace_up){
     view_set_cursor(app, &view, seek_pos(new_pos), true);
 }
 
-CUSTOM_COMMAND_SIG(seek_whitespace_down){
+CUSTOM_COMMAND_SIG(seek_whitespace_down)
+CUSTOM_DOC("Seeks the cursor down to the next blank line.")
+{
     uint32_t access = AccessProtected;
     View_Summary view = get_active_view(app, access);
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, access);
@@ -283,16 +325,9 @@ CUSTOM_COMMAND_SIG(seek_whitespace_down){
     view_set_cursor(app, &view, seek_pos(new_pos), true);
 }
 
-CUSTOM_COMMAND_SIG(seek_end_of_textual_line){
-    uint32_t access = AccessProtected;
-    View_Summary view = get_active_view(app, access);
-    Buffer_Summary buffer = get_buffer(app, view.buffer_id, access);
-    
-    int32_t new_pos = seek_line_end(app, &buffer, view.cursor.pos);
-    view_set_cursor(app, &view, seek_pos(new_pos), true);
-}
-
-CUSTOM_COMMAND_SIG(seek_beginning_of_textual_line){
+CUSTOM_COMMAND_SIG(seek_beginning_of_textual_line)
+CUSTOM_DOC("Seeks the cursor to the beginning of the line across all text.")
+{
     uint32_t access = AccessProtected;
     View_Summary view = get_active_view(app, access);
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, access);
@@ -301,7 +336,20 @@ CUSTOM_COMMAND_SIG(seek_beginning_of_textual_line){
     view_set_cursor(app, &view, seek_pos(new_pos), true);
 }
 
-CUSTOM_COMMAND_SIG(seek_beginning_of_line){
+CUSTOM_COMMAND_SIG(seek_end_of_textual_line)
+CUSTOM_DOC("Seeks the cursor to the end of the line across all text.")
+{
+    uint32_t access = AccessProtected;
+    View_Summary view = get_active_view(app, access);
+    Buffer_Summary buffer = get_buffer(app, view.buffer_id, access);
+    
+    int32_t new_pos = seek_line_end(app, &buffer, view.cursor.pos);
+    view_set_cursor(app, &view, seek_pos(new_pos), true);
+}
+
+CUSTOM_COMMAND_SIG(seek_beginning_of_line)
+CUSTOM_DOC("Seeks the cursor to the beginning of the visual line.")
+{
     View_Summary view = get_active_view(app, AccessProtected);
     
     float y = view.cursor.wrapped_y;
@@ -312,7 +360,9 @@ CUSTOM_COMMAND_SIG(seek_beginning_of_line){
     view_set_cursor(app, &view, seek_xy(0, y, 1, view.unwrapped_lines), 1);
 }
 
-CUSTOM_COMMAND_SIG(seek_end_of_line){
+CUSTOM_COMMAND_SIG(seek_end_of_line)
+CUSTOM_DOC("Seeks the cursor to the end of the visual line.")
+{
     View_Summary view = get_active_view(app, AccessProtected);
     
     float y = view.cursor.wrapped_y;
@@ -323,12 +373,16 @@ CUSTOM_COMMAND_SIG(seek_end_of_line){
     view_set_cursor(app, &view, seek_xy(100000.f, y, 1, view.unwrapped_lines), 1);
 }
 
-CUSTOM_COMMAND_SIG(seek_whitespace_up_end_line){
+CUSTOM_COMMAND_SIG(seek_whitespace_up_end_line)
+CUSTOM_DOC("Seeks the cursor up to the next blank line and places it at the end of the line.")
+{
     exec_command(app, seek_whitespace_up);
     exec_command(app, seek_end_of_line);
 }
 
-CUSTOM_COMMAND_SIG(seek_whitespace_down_end_line){
+CUSTOM_COMMAND_SIG(seek_whitespace_down_end_line)
+CUSTOM_DOC("Seeks the cursor down to the next blank line and places it at the end of the line.")
+{
     exec_command(app, seek_whitespace_down);
     exec_command(app, seek_end_of_line);
 }
@@ -338,7 +392,9 @@ CUSTOM_COMMAND_SIG(seek_whitespace_down_end_line){
 // Fancy Editing
 //
 
-CUSTOM_COMMAND_SIG(to_uppercase){
+CUSTOM_COMMAND_SIG(to_uppercase)
+CUSTOM_DOC("Converts all ascii text in the range between the cursor and the mark to uppercase.")
+{
     View_Summary view = get_active_view(app, AccessOpen);
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessOpen);
     
@@ -356,7 +412,9 @@ CUSTOM_COMMAND_SIG(to_uppercase){
     }
 }
 
-CUSTOM_COMMAND_SIG(to_lowercase){
+CUSTOM_COMMAND_SIG(to_lowercase)
+CUSTOM_DOC("Converts all ascii text in the range between the cursor and the mark to lowercase.")
+{
     View_Summary view = get_active_view(app, AccessOpen);
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessOpen);
     
@@ -374,7 +432,9 @@ CUSTOM_COMMAND_SIG(to_lowercase){
     }
 }
 
-CUSTOM_COMMAND_SIG(clean_all_lines){
+CUSTOM_COMMAND_SIG(clean_all_lines)
+CUSTOM_DOC("Removes trailing whitespace from all lines in the current buffer.")
+{
     // TODO(allen): This command always iterates accross the entire
     // buffer, so streaming it is actually the wrong call.  Rewrite this
     // to minimize calls to buffer_read_range.
@@ -401,10 +461,10 @@ CUSTOM_COMMAND_SIG(clean_all_lines){
                 for (; i < chunk.end; ++i){
                     char at_pos = chunk.data[i];
                     if (at_pos == '\n'){
-                        if (last_hard+1 < i){
+                        if (last_hard + 1 < i){
                             edit->str_start = 0;
                             edit->len = 0;
-                            edit->start = last_hard+1;
+                            edit->start = last_hard + 1;
                             edit->end = i;
                             ++edit;
                         }
@@ -421,10 +481,10 @@ CUSTOM_COMMAND_SIG(clean_all_lines){
                 still_looping = forward_stream_chunk(&chunk);
             }while(still_looping);
             
-            if (last_hard+1 < buffer_size){
+            if (last_hard + 1 < buffer_size){
                 edit->str_start = 0;
                 edit->len = 0;
-                edit->start = last_hard+1;
+                edit->start = last_hard + 1;
                 edit->end = buffer_size;
                 ++edit;
             }
@@ -440,13 +500,17 @@ CUSTOM_COMMAND_SIG(clean_all_lines){
 // Basic Panel Management
 //
 
-CUSTOM_COMMAND_SIG(basic_change_active_panel){
+CUSTOM_COMMAND_SIG(basic_change_active_panel)
+CUSTOM_DOC("Change the currently active panel, moving to the panel with the next highest view_id.  Will not skipe the build panel if it is open.")
+{
     View_Summary view = get_active_view(app, AccessAll);
     get_view_next_looped(app, &view, AccessAll);
     set_active_view(app, &view);
 }
 
-CUSTOM_COMMAND_SIG(close_panel){
+CUSTOM_COMMAND_SIG(close_panel)
+CUSTOM_DOC("Closes the currently active panel if it is not the only panel open.")
+{
     View_Summary view = get_active_view(app, AccessAll);
     close_view(app, &view);
 }
@@ -456,36 +520,46 @@ CUSTOM_COMMAND_SIG(close_panel){
 // Common Settings Commands
 //
 
-CUSTOM_COMMAND_SIG(show_scrollbar){
+CUSTOM_COMMAND_SIG(show_scrollbar)
+CUSTOM_DOC("Sets the current view to show it's scrollbar.")
+{
     View_Summary view = get_active_view(app, AccessAll);
     view_set_setting(app, &view, ViewSetting_ShowScrollbar, true);
 }
 
-CUSTOM_COMMAND_SIG(hide_scrollbar){
+CUSTOM_COMMAND_SIG(hide_scrollbar)
+CUSTOM_DOC("Sets the current view to hide it's scrollbar.")
+{
     View_Summary view = get_active_view(app, AccessAll);
     view_set_setting(app, &view, ViewSetting_ShowScrollbar, false);
 }
 
-CUSTOM_COMMAND_SIG(show_filebar){
+CUSTOM_COMMAND_SIG(show_filebar)
+CUSTOM_DOC("Sets the current view to show it's filebar.")
+{
     View_Summary view = get_active_view(app, AccessAll);
     view_set_setting(app, &view, ViewSetting_ShowFileBar, true);
 }
 
-CUSTOM_COMMAND_SIG(hide_filebar){
+CUSTOM_COMMAND_SIG(hide_filebar)
+CUSTOM_DOC("Sets the current view to hide it's filebar.")
+{
     View_Summary view = get_active_view(app, AccessAll);
     view_set_setting(app, &view, ViewSetting_ShowFileBar, false);
 }
 
-CUSTOM_COMMAND_SIG(toggle_filebar){
+CUSTOM_COMMAND_SIG(toggle_filebar)
+CUSTOM_DOC("Toggles the visibility status of the current view's filebar.")
+{
     View_Summary view = get_active_view(app, AccessAll);
     bool32 value;
     view_get_setting(app, &view, ViewSetting_ShowFileBar, &value);
     view_set_setting(app, &view, ViewSetting_ShowFileBar, !value);
 }
 
-//toggle_fullscreen can be used as a command
-
-CUSTOM_COMMAND_SIG(toggle_line_wrap){
+CUSTOM_COMMAND_SIG(toggle_line_wrap)
+CUSTOM_DOC("Toggles the current buffer's line wrapping status.")
+{
     View_Summary view = get_active_view(app, AccessProtected);
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessProtected);
     
@@ -493,7 +567,9 @@ CUSTOM_COMMAND_SIG(toggle_line_wrap){
     buffer_set_setting(app, &buffer, BufferSetting_WrapLine, unwrapped);
 }
 
-CUSTOM_COMMAND_SIG(increase_line_wrap){
+CUSTOM_COMMAND_SIG(increase_line_wrap)
+CUSTOM_DOC("Increases the current buffer's width for line wrapping.")
+{
     View_Summary view = get_active_view(app, AccessProtected);
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessProtected);
     
@@ -502,7 +578,9 @@ CUSTOM_COMMAND_SIG(increase_line_wrap){
     buffer_set_setting(app, &buffer, BufferSetting_WrapPosition, wrap + 10);
 }
 
-CUSTOM_COMMAND_SIG(decrease_line_wrap){
+CUSTOM_COMMAND_SIG(decrease_line_wrap)
+CUSTOM_DOC("Decrases the current buffer's width for line wrapping.")
+{
     View_Summary view = get_active_view(app, AccessProtected);
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessProtected);
     
@@ -511,7 +589,9 @@ CUSTOM_COMMAND_SIG(decrease_line_wrap){
     buffer_set_setting(app, &buffer, BufferSetting_WrapPosition, wrap - 10);
 }
 
-CUSTOM_COMMAND_SIG(toggle_virtual_whitespace){
+CUSTOM_COMMAND_SIG(toggle_virtual_whitespace)
+CUSTOM_DOC("Toggles the current buffer's virtual whitespace status.")
+{
     View_Summary view = get_active_view(app, AccessProtected);
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessProtected);
     
@@ -520,24 +600,32 @@ CUSTOM_COMMAND_SIG(toggle_virtual_whitespace){
     buffer_set_setting(app, &buffer, BufferSetting_VirtualWhitespace, !vwhite);
 }
 
-CUSTOM_COMMAND_SIG(toggle_show_whitespace){
+CUSTOM_COMMAND_SIG(toggle_show_whitespace)
+CUSTOM_DOC("Toggles the current buffer's whitespace visibility status.")
+{
     View_Summary view = get_active_view(app, AccessProtected);
     view_set_setting(app, &view, ViewSetting_ShowWhitespace, !view.show_whitespace);
 }
 
-CUSTOM_COMMAND_SIG(eol_dosify){
+CUSTOM_COMMAND_SIG(eol_dosify)
+CUSTOM_DOC("Puts the buffer in DOS line ending mode.")
+{
     View_Summary view = get_active_view(app, AccessOpen);
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessOpen);
     buffer_set_setting(app, &buffer, BufferSetting_Eol, 1);
 }
 
-CUSTOM_COMMAND_SIG(eol_nixify){
+CUSTOM_COMMAND_SIG(eol_nixify)
+CUSTOM_DOC("Puts the buffer in NIX line ending mode.")
+{
     View_Summary view = get_active_view(app, AccessOpen);
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessOpen);
     buffer_set_setting(app, &buffer, BufferSetting_Eol, 0);
 }
 
-CUSTOM_COMMAND_SIG(exit_4coder){
+CUSTOM_COMMAND_SIG(exit_4coder)
+CUSTOM_DOC("Attempts to close 4coder.")
+{
     send_exit_signal(app);
 }
 
@@ -545,7 +633,9 @@ CUSTOM_COMMAND_SIG(exit_4coder){
 // Interactive Commands
 //
 
-CUSTOM_COMMAND_SIG(goto_line){
+CUSTOM_COMMAND_SIG(goto_line)
+CUSTOM_DOC("Queries the user for a number, and jumps the cursor to the corresponding line.")
+{
     uint32_t access = AccessProtected;
     
     Query_Bar bar = {0};
@@ -716,17 +806,23 @@ isearch(Application_Links *app, int32_t start_reversed, String query_init){
     view_set_cursor(app, &view, seek_pos(match.min), true);
 }
 
-CUSTOM_COMMAND_SIG(search){
+CUSTOM_COMMAND_SIG(search)
+CUSTOM_DOC("Begins an incremental search down through the current buffer for a user specified string.")
+{
     String query = {0};
     isearch(app, false, query);
 }
 
-CUSTOM_COMMAND_SIG(reverse_search){
+CUSTOM_COMMAND_SIG(reverse_search)
+CUSTOM_DOC("Begins an incremental search up through the current buffer for a user specified string.")
+{
     String query = {0};
     isearch(app, true, query);
 }
 
-CUSTOM_COMMAND_SIG(search_identifier){
+CUSTOM_COMMAND_SIG(search_identifier)
+CUSTOM_DOC("Begins an incremental search down through the current buffer for the word or token under the cursor.")
+{
     View_Summary view = get_active_view(app, AccessProtected);
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessProtected);
     
@@ -735,7 +831,9 @@ CUSTOM_COMMAND_SIG(search_identifier){
     isearch(app, false, query);
 }
 
-CUSTOM_COMMAND_SIG(reverse_search_identifier){
+CUSTOM_COMMAND_SIG(reverse_search_identifier)
+CUSTOM_DOC("Begins an incremental search up through the current buffer for the word or token under the cursor.")
+{
     View_Summary view = get_active_view(app, AccessProtected);
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessProtected);
     
@@ -744,7 +842,9 @@ CUSTOM_COMMAND_SIG(reverse_search_identifier){
     isearch(app, true, query);
 }
 
-CUSTOM_COMMAND_SIG(replace_in_range){
+CUSTOM_COMMAND_SIG(replace_in_range)
+CUSTOM_DOC("Queries the user for two strings, and replaces all occurences of the first string in the range between the cursor and the mark with the second string.")
+{
     Query_Bar replace;
     char replace_space[1024];
     replace.prompt = make_lit_string("Replace: ");
@@ -812,7 +912,9 @@ query_replace(Application_Links *app, View_Summary *view, Buffer_Summary *buffer
     view_set_cursor(app, view, seek_pos(pos), true);
 }
 
-CUSTOM_COMMAND_SIG(query_replace){
+CUSTOM_COMMAND_SIG(query_replace)
+CUSTOM_DOC("Queries the user for two strings, and incrementally replaces every occurence of the first string with the second string.")
+{
     Query_Bar replace;
     char replace_space[1024];
     replace.prompt = make_lit_string("Replace: ");
@@ -843,7 +945,9 @@ CUSTOM_COMMAND_SIG(query_replace){
     query_replace(app, &view, &buffer, pos, r, w);
 }
 
-CUSTOM_COMMAND_SIG(query_replace_identifier){
+CUSTOM_COMMAND_SIG(query_replace_identifier)
+CUSTOM_DOC("Queries the user for a string, and incrementally replace every occurence of the word or token found at the cursor with the specified string.")
+{
     View_Summary view = get_active_view(app, AccessProtected);
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessProtected);
     
@@ -884,7 +988,9 @@ CUSTOM_COMMAND_SIG(query_replace_identifier){
 // File Handling Commands
 //
 
-CUSTOM_COMMAND_SIG(save_all_dirty_buffers){
+CUSTOM_COMMAND_SIG(save_all_dirty_buffers)
+CUSTOM_DOC("Saves all buffers marked dirty (showing the '*' indicator).")
+{
     for (Buffer_Summary buffer = get_buffer_first(app, AccessOpen);
          buffer.exists;
          get_buffer_next(app, &buffer, AccessOpen)){
@@ -898,55 +1004,75 @@ CUSTOM_COMMAND_SIG(save_all_dirty_buffers){
 // cmdid wrappers
 //
 
-CUSTOM_COMMAND_SIG(undo){
+CUSTOM_COMMAND_SIG(undo)
+CUSTOM_DOC("Advances backwards through the undo history.")
+{
     exec_command(app, cmdid_undo);
 }
 
-CUSTOM_COMMAND_SIG(redo){
+CUSTOM_COMMAND_SIG(redo)
+CUSTOM_DOC("Advances forewards through the undo history.")
+{
     exec_command(app, cmdid_redo);
 }
 
-CUSTOM_COMMAND_SIG(interactive_new){
+CUSTOM_COMMAND_SIG(interactive_new)
+CUSTOM_DOC("Interactively creates a new file.")
+{
     exec_command(app, cmdid_interactive_new);
 }
 
-CUSTOM_COMMAND_SIG(interactive_open){
+CUSTOM_COMMAND_SIG(interactive_open)
+CUSTOM_DOC("Interactively opens a file.")
+{
     exec_command(app, cmdid_interactive_open);
 }
 
-CUSTOM_COMMAND_SIG(interactive_open_or_new){
+CUSTOM_COMMAND_SIG(interactive_open_or_new)
+CUSTOM_DOC("Interactively opens or creates a new file.")
+{
     exec_command(app, cmdid_interactive_open_or_new);
 }
 
-CUSTOM_COMMAND_SIG(save_as){
-    exec_command(app, cmdid_save_as);
-}
-
-CUSTOM_COMMAND_SIG(interactive_switch_buffer){
+CUSTOM_COMMAND_SIG(interactive_switch_buffer)
+CUSTOM_DOC("Interactively switch to an open buffer.")
+{
     exec_command(app, cmdid_interactive_switch_buffer);
 }
 
-CUSTOM_COMMAND_SIG(interactive_kill_buffer){
+CUSTOM_COMMAND_SIG(interactive_kill_buffer)
+CUSTOM_DOC("Interactively kill an open buffer.")
+{
     exec_command(app, cmdid_interactive_kill_buffer);
 }
 
-CUSTOM_COMMAND_SIG(reopen){
+CUSTOM_COMMAND_SIG(reopen)
+CUSTOM_DOC("Reopen the current buffer from the hard drive.")
+{
     exec_command(app, cmdid_reopen);
 }
 
-CUSTOM_COMMAND_SIG(save){
+CUSTOM_COMMAND_SIG(save)
+CUSTOM_DOC("Saves the current buffer.")
+{
     exec_command(app, cmdid_save);
 }
 
-CUSTOM_COMMAND_SIG(kill_buffer){
+CUSTOM_COMMAND_SIG(kill_buffer)
+CUSTOM_DOC("Kills the current buffer.")
+{
     exec_command(app, cmdid_kill_buffer);
 }
 
-CUSTOM_COMMAND_SIG(open_color_tweaker){
+CUSTOM_COMMAND_SIG(open_color_tweaker)
+CUSTOM_DOC("Opens the 4coder colors and fonts selector menu.")
+{
     exec_command(app, cmdid_open_color_tweaker);
 }
 
-CUSTOM_COMMAND_SIG(open_debug){
+CUSTOM_COMMAND_SIG(open_debug)
+CUSTOM_DOC("Opens a debug view for internal use.")
+{
     exec_command(app, cmdid_open_debug);
 }
 

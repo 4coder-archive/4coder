@@ -11,7 +11,9 @@ TYPE: 'drop-in-command-pack'
 
 #include "4coder_default_framework.h"
 
-CUSTOM_COMMAND_SIG(execute_previous_cli){
+CUSTOM_COMMAND_SIG(execute_previous_cli)
+CUSTOM_DOC("If the command execute_any_cli has already been used, this will execute a CLI reusing the most recent buffer name and command.")
+{
     String out_buffer = make_string_slowly(out_buffer_space);
     String cmd = make_string_slowly(command_space);
     String hot_directory = make_string_slowly(hot_directory_space);
@@ -25,7 +27,8 @@ CUSTOM_COMMAND_SIG(execute_previous_cli){
     }
 }
 
-CUSTOM_COMMAND_SIG(execute_any_cli){
+CUSTOM_COMMAND_SIG(execute_any_cli)
+CUSTOM_DOC("Queries for an output buffer name and system command, runs the system command as a CLI and prints the output to the specified buffer."){
     Query_Bar bar_out = {0};
     Query_Bar bar_cmd = {0};
     

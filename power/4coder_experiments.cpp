@@ -28,7 +28,9 @@ get_line_y(Application_Links *app, View_Summary *view, int32_t line){
     return(y);
 }
 
-CUSTOM_COMMAND_SIG(kill_rect){
+CUSTOM_COMMAND_SIG(kill_rect)
+CUSTOM_DOC("Delete characters in a rectangular region. Range testing is done by unwrapped-xy coordinates.")
+{
     View_Summary view = get_active_view(app, AccessOpen);
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessOpen);
     
@@ -117,7 +119,9 @@ it just seems like the wrong way to do it, so I'll stop without
 doing multi-cursor for now.
 */
 
-CUSTOM_COMMAND_SIG(multi_line_edit){
+CUSTOM_COMMAND_SIG(multi_line_edit)
+CUSTOM_DOC("Begin multi-line mode.  In multi-line mode characters are inserted at every line between the mark and cursor.  All characters are inserted at the same character offset into the line.  This mode uses line_char coordinates.")
+{
     Partition *part = &global_part;
     
     View_Summary view = get_active_view(app, AccessOpen);
@@ -541,7 +545,9 @@ view_set_to_region(Application_Links *app, View_Summary *view, int32_t major_pos
 
 static float scope_center_threshold = 0.75f;
 
-CUSTOM_COMMAND_SIG(highlight_surrounding_scope){
+CUSTOM_COMMAND_SIG(highlight_surrounding_scope)
+CUSTOM_DOC("Finds the scope enclosed by '{' '}' surrounding the cursor and puts the cursor and mark on the '{' and '}'.")
+{
     uint32_t access = AccessProtected;
     View_Summary view = get_active_view(app, access);
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, access);
@@ -560,8 +566,9 @@ CUSTOM_COMMAND_SIG(highlight_surrounding_scope){
     }
 }
 
-// TODO(allen): These aren't super top notch yet (the ones about children and siblings).  I am not sure I want them around anyway, because it's not that fluid feeling even when it works.
-CUSTOM_COMMAND_SIG(highlight_first_child_scope){
+CUSTOM_COMMAND_SIG(highlight_next_scope_absolute)
+CUSTOM_DOC("Finds the first scope started by '{' after the cursor and puts the cursor and mark on the '{' and '}'.")
+{
     uint32_t access = AccessProtected;
     View_Summary view = get_active_view(app, access);
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, access);
@@ -577,55 +584,9 @@ CUSTOM_COMMAND_SIG(highlight_first_child_scope){
     }
 }
 
-CUSTOM_COMMAND_SIG(highlight_next_sibling_scope){
-    uint32_t access = AccessProtected;
-    View_Summary view = get_active_view(app, access);
-    Buffer_Summary buffer = get_buffer(app, view.buffer_id, access);
-    
-    int32_t start_pos = view.cursor.pos;
-    int32_t top = 0, bottom = 0;
-    if (find_next_scope(app, &buffer, start_pos, FindScope_NextSibling, &top)){
-        if (find_scope_bottom(app, &buffer, top, FindScope_EndOfToken, &bottom)){
-            view_set_cursor(app, &view, seek_pos(top), true);
-            view_set_mark(app, &view, seek_pos(bottom));
-            view_set_to_region(app, &view, top, bottom, scope_center_threshold);
-        }
-    }
-}
-
-CUSTOM_COMMAND_SIG(highlight_prev_sibling_scope){
-    uint32_t access = AccessProtected;
-    View_Summary view = get_active_view(app, access);
-    Buffer_Summary buffer = get_buffer(app, view.buffer_id, access);
-    
-    int32_t start_pos = view.cursor.pos;
-    int32_t top = 0, bottom = 0;
-    if (find_prev_scope(app, &buffer, start_pos, FindScope_NextSibling, &top)){
-        if (find_scope_bottom(app, &buffer, top, FindScope_EndOfToken, &bottom)){
-            view_set_cursor(app, &view, seek_pos(top), true);
-            view_set_mark(app, &view, seek_pos(bottom));
-            view_set_to_region(app, &view, top, bottom, scope_center_threshold);
-        }
-    }
-}
-
-CUSTOM_COMMAND_SIG(highlight_next_scope_absolute){
-    uint32_t access = AccessProtected;
-    View_Summary view = get_active_view(app, access);
-    Buffer_Summary buffer = get_buffer(app, view.buffer_id, access);
-    
-    int32_t start_pos = view.cursor.pos;
-    int32_t top = 0, bottom = 0;
-    if (find_next_scope(app, &buffer, start_pos, 0, &top)){
-        if (find_scope_bottom(app, &buffer, top, FindScope_EndOfToken, &bottom)){
-            view_set_cursor(app, &view, seek_pos(top), true);
-            view_set_mark(app, &view, seek_pos(bottom));
-            view_set_to_region(app, &view, top, bottom, scope_center_threshold);
-        }
-    }
-}
-
-CUSTOM_COMMAND_SIG(highlight_prev_scope_absolute){
+CUSTOM_COMMAND_SIG(highlight_prev_scope_absolute)
+CUSTOM_DOC("Finds the first scope started by '{' before the cursor and puts the cursor and mark on the '{' and '}'.")
+{
     uint32_t access = AccessProtected;
     View_Summary view = get_active_view(app, access);
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, access);
@@ -641,7 +602,9 @@ CUSTOM_COMMAND_SIG(highlight_prev_scope_absolute){
     }
 }
 
-CUSTOM_COMMAND_SIG(place_in_scope){
+CUSTOM_COMMAND_SIG(place_in_scope)
+CUSTOM_DOC("Wraps the code contained in the range between cursor and mark with a new curly brace scope.")
+{
     uint32_t access = AccessOpen;
     View_Summary view = get_active_view(app, access);
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, access);
@@ -715,7 +678,9 @@ CUSTOM_COMMAND_SIG(place_in_scope){
     }
 }
 
-CUSTOM_COMMAND_SIG(delete_current_scope){
+CUSTOM_COMMAND_SIG(delete_current_scope)
+CUSTOM_DOC("Deletes the braces surrounding the currently selected scope.  Leaves the contents within the scope.")
+{
     uint32_t access = AccessOpen;
     View_Summary view = get_active_view(app, access);
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, access);
@@ -972,7 +937,9 @@ find_whole_statement_down(Application_Links *app, Buffer_Summary *buffer, int32_
     return(result);
 }
 
-CUSTOM_COMMAND_SIG(scope_absorb_down){
+CUSTOM_COMMAND_SIG(scope_absorb_down)
+CUSTOM_DOC("If a scope is currently selected, and a statement or block statement is present below the current scope, the statement is moved into the scope.")
+{
     uint32_t access = AccessOpen;
     View_Summary view = get_active_view(app, access);
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, access);
@@ -1045,7 +1012,9 @@ CUSTOM_COMMAND_SIG(scope_absorb_down){
 
 // NOTE(allen): Some basic code manipulation ideas.
 
-CUSTOM_COMMAND_SIG(rename_parameter){
+CUSTOM_COMMAND_SIG(rename_parameter)
+CUSTOM_DOC("If the cursor is found to be on the name of a function parameter in the signature of a function definition, all occurences within the scope of the function will be replaced with a new provided string.")
+{
     uint32_t access = AccessOpen;
     View_Summary view = get_active_view(app, access);
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, access);
@@ -1196,7 +1165,9 @@ CUSTOM_COMMAND_SIG(rename_parameter){
     end_temp_memory(temp);
 }
 
-CUSTOM_COMMAND_SIG(write_explicit_enum_values){
+CUSTOM_COMMAND_SIG(write_explicit_enum_values)
+CUSTOM_DOC("If the cursor is found to be on the '{' of an enum definition, the values of the enum will be filled in sequentially starting from zero.  Existing values are overwritten.")
+{
     uint32_t access = AccessOpen;
     View_Summary view = get_active_view(app, access);
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, access);
