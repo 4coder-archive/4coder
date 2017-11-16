@@ -36,6 +36,7 @@
 
 #include "4ed_math.h"
 
+#include "4ed_font.h"
 #include "4ed_system.h"
 #include "4ed_log.h"
 #include "4ed_render_format.h"
@@ -43,7 +44,6 @@
 #include "4ed.h"
 
 #include "4ed_file_track.h"
-#include "4ed_font_interface_to_os.h"
 #include "4ed_system_shared.h"
 
 #include "unix_4ed_headers.h"
@@ -120,9 +120,10 @@ internal void        LinuxStringDup(String*, void*, size_t);
 global System_Functions sysfunc;
 #include "4ed_shared_library_constants.h"
 #include "unix_library_wrapper.h"
-#include "4ed_standard_libraries.cpp"
 
+#include "4ed_standard_libraries.cpp"
 #include "4ed_coroutine.cpp"
+#include "4ed_font.cpp"
 
 ////////////////////////////////
 
@@ -332,7 +333,6 @@ Sys_Send_Exit_Signal_Sig(system_send_exit_signal){
 
 #include "4ed_coroutine_functions.cpp"
 
-#include "4ed_font_data.h"
 #include "4ed_system_shared.cpp"
 
 //
@@ -456,8 +456,8 @@ Sys_CLI_End_Update_Sig(system_cli_end_update){
     return(close_me);
 }
 
-#include "4ed_font_system_functions.cpp"
-
+#include "4ed_font_provider_freetype.h"
+#include "4ed_font_provider_freetype.cpp"
 #include <GL/gl.h>
 #include "opengl/4ed_opengl_render.cpp"
 
@@ -1604,7 +1604,11 @@ main(int argc, char **argv){
     // Font System Init
     //
     
-    system_font_init(&sysfunc.font, 0, 0, plat_settings.font_size, plat_settings.use_hinting);
+    Partition *scratch = &shared_vars.scratch;
+    Temp_Memory temp = begin_temp_memory(scratch);
+    Font_Setup *font_setup_head = system_font_get_stubs(scratch);
+    system_font_init(&sysfunc.font, plat_settings.font_size, plat_settings.use_hinting, font_setup_head);
+    end_temp_memory(temp);
     
     //
     // Epoll init
@@ -1771,7 +1775,7 @@ main(int argc, char **argv){
             }
             
             // NOTE(allen): Render
-            interpret_render_buffer(&sysfunc, &target);
+            interpret_render_buffer(&target);
             glXSwapBuffers(linuxvars.XDisplay, linuxvars.XWindow);
             
             // NOTE(allen): Toggle Full Screen
@@ -1809,9 +1813,7 @@ main(int argc, char **argv){
     return(0);
 }
 
-#include "4ed_shared_fonts.cpp"
 #include "linux_4ed_file_track.cpp"
-#include "4ed_font_static_functions.cpp"
 
 // BOTTOM
 // vim: expandtab:ts=4:sts=4:sw=4

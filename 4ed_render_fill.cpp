@@ -106,13 +106,13 @@ internal f32
 draw_string_base(System_Functions *system, Render_Target *target, Font_ID font_id, String str_, i32 x_, i32 y_, u32 color){
     f32 x = 0;
     
-    Render_Font *font = system->font.get_render_data_by_id(font_id);
-    if (font != 0){
+    Font_Pointers font = system->font.get_pointers_by_id(font_id);
+    if (font.valid != 0){
         f32 y = (f32)y_;
         x = (f32)x_;
         
-        f32 byte_advance = font_get_byte_advance(font);
-        f32 *sub_advances = font_get_byte_sub_advances(font);
+        f32 byte_advance = font.metrics->byte_advance;
+        f32 *sub_advances = font.metrics->sub_advances;
         
         u8 *str = (u8*)str_.str;
         u8 *str_end = str + str_.size;
@@ -131,7 +131,7 @@ draw_string_base(System_Functions *system, Render_Target *target, Font_ID font_i
                     if (color != 0){
                         draw_font_glyph(target, font_id, codepoint, x, y, color);
                     }
-                    x += font_get_glyph_advance(system, font, codepoint);
+                    x += font_get_glyph_advance(system, font.settings, font.metrics, font.pages, codepoint);
                 }
                 else if (behavior.do_number_advance){
                     u8 n = (u8)(step.value);

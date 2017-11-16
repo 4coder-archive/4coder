@@ -1029,7 +1029,7 @@ DOC_SEE(Buffer_Setting_ID)
                     new_value = 48;
                 }
                 if (new_value != file->settings.display_width){
-                    Render_Font *font = system->font.get_render_data_by_id(file->settings.font_id);
+                    Font_Pointers font = system->font.get_pointers_by_id(file->settings.font_id);
                     file->settings.display_width = new_value;
                     file_measure_wraps_and_fix_cursor(system, models, file, font);
                 }
@@ -1042,7 +1042,7 @@ DOC_SEE(Buffer_Setting_ID)
                     new_value = 0;
                 }
                 if (new_value != file->settings.minimum_base_display_width){
-                    Render_Font *font = system->font.get_render_data_by_id(file->settings.font_id);
+                    Font_Pointers font = system->font.get_pointers_by_id(file->settings.font_id);
                     file->settings.minimum_base_display_width = new_value;
                     file_measure_wraps_and_fix_cursor(system, models, file, font);
                 }
@@ -1125,7 +1125,7 @@ DOC_SEE(Buffer_Setting_ID)
                 }
                 
                 if (full_remeasure){
-                    Render_Font *font = system->font.get_render_data_by_id(file->settings.font_id);
+                    Font_Pointers font = system->font.get_pointers_by_id(file->settings.font_id);
                     
                     file_allocate_character_starts_as_needed(&models->mem.general, file);
                     buffer_measure_character_starts(system, font, &file->state.buffer, file->state.character_starts, 0, file->settings.virtual_white);
@@ -2259,11 +2259,13 @@ DOC(This call changes 4coder's default font to one of the built in fonts.)
     String font_name = make_string(name, len);
     Font_ID font_id = font_get_id_by_name(system, font_name);
     
-    if (apply_to_all_files){
-        global_set_font(system, models, font_id);
-    }
-    else{
-        models->global_font_id = font_id;
+    if (font_id != 0){
+        if (apply_to_all_files){
+            global_set_font(system, models, font_id);
+        }
+        else{
+            models->global_font_id = font_id;
+        }
     }
 }
 
@@ -2284,7 +2286,9 @@ DOC(This call sets the display font of a particular buffer.)
     if (file != 0){
         String font_name = make_string(name, len);
         Font_ID font_id = font_get_id_by_name(system, font_name);
-        file_set_font(system, models, file, font_id);
+        if (font_id != 0){
+            file_set_font(system, models, file, font_id);
+        }
     }
 }
 

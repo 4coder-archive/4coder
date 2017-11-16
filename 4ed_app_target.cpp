@@ -17,6 +17,7 @@
 #include "4coder_API/custom.h"
 
 #include "4ed_math.h"
+#include "4ed_font.h"
 #include "4ed_system.h"
 
 #define PREFERRED_ALIGNMENT 8
@@ -41,6 +42,8 @@
 #include "4cpp/4cpp_lexer.h"
 
 #include "4ed_doubly_linked_list.cpp"
+
+#include "4ed_font.cpp"
 
 #include "4ed_translation.cpp"
 
@@ -68,8 +71,6 @@
 #include "4ed_app_models.h"
 #include "4ed_file_view.cpp"
 #include "4ed.cpp"
-
-#include "4ed_font_static_functions.cpp"
 
 // BOTTOM
 

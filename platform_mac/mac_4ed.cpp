@@ -35,6 +35,7 @@
 
 #include "4ed_math.h"
 
+#include "4ed_font.h"
 #include "4ed_system.h"
 #include "4ed_log.h"
 #include "4ed_render_format.h"
@@ -42,7 +43,6 @@
 #include "4ed.h"
 
 #include "4ed_file_track.h"
-#include "4ed_font_interface_to_os.h"
 #include "4ed_system_shared.h"
 
 #include "unix_4ed_headers.h"
@@ -75,9 +75,10 @@ __sync_val_compare_and_swap((dest), (comp), (ex))
 global System_Functions sysfunc;
 #include "4ed_shared_library_constants.h"
 #include "unix_library_wrapper.h"
-#include "4ed_standard_libraries.cpp"
 
+#include "4ed_standard_libraries.cpp"
 #include "4ed_coroutine.cpp"
+#include "4ed_font.cpp"
 
 ////////////////////////////////
 
@@ -192,7 +193,6 @@ Sys_Send_Exit_Signal_Sig(system_send_exit_signal){
 
 #include "4ed_coroutine_functions.cpp"
 
-#include "4ed_font_data.h"
 #include "4ed_system_shared.cpp"
 
 //
@@ -331,8 +331,8 @@ Sys_CLI_End_Update_Sig(system_cli_end_update){
     return(close_me);
 }
 
-#include "4ed_font_system_functions.cpp"
-
+#include "4ed_font_provider_freetype.h"
+#include "4ed_font_provider_freetype.cpp"
 #include <OpenGL/OpenGL.h>
 #include <OpenGL/gl.h>
 #include "opengl/4ed_opengl_render.cpp"
@@ -562,7 +562,7 @@ osx_step(void){
     
     // NOTE(allen): Render
     osx_begin_render();
-    interpret_render_buffer(&sysfunc, &target);
+    interpret_render_buffer(&target);
     osx_end_render();
     
     // NOTE(allen): Toggle Full Screen
@@ -649,7 +649,12 @@ osx_init(){
     //
     
     DBG_POINT();
-    system_font_init(&sysfunc.font, 0, 0, plat_settings.font_size, plat_settings.use_hinting);
+    
+    Partition *scratch = &shared_vars.scratch;
+    Temp_Memory temp = begin_temp_memory(scratch);
+    Font_Setup *font_setup_head = system_font_get_stubs(scratch);
+    system_font_init(&sysfunc.font, plat_settings.font_size, plat_settings.use_hinting, font_setup_head);
+    end_temp_memory(temp);
     
     //
     // App Init
@@ -680,9 +685,7 @@ osx_init(){
     DBG_POINT();
 }
 
-#include "4ed_shared_fonts.cpp"
 #include "mac_4ed_file_track.cpp"
-#include "4ed_font_static_functions.cpp"
 
 // BOTTOM
 

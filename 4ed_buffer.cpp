@@ -13,7 +13,6 @@
 // Buffer low level operations
 //
 
-#include "4ed_font_data.h"
 #include "4coder_helper/4coder_seek_types.h"
 
 struct Cursor_With_Index{
@@ -668,7 +667,7 @@ buffer_measure_starts(Buffer_Measure_Starts *state, Gap_Buffer *buffer){
 }
 
 internal void
-buffer_measure_character_starts(System_Functions *system, Render_Font *font, Gap_Buffer *buffer, i32 *character_starts, i32 mode, i32 virtual_white){
+buffer_measure_character_starts(System_Functions *system, Font_Pointers font, Gap_Buffer *buffer, i32 *character_starts, i32 mode, i32 virtual_white){
     PRFL_FUNC_GROUP();
     
     Assert(mode == 0);
@@ -749,7 +748,7 @@ struct Buffer_Measure_Wrap_Params{
     Gap_Buffer *buffer;
     i32 *wrap_line_index;
     System_Functions *system;
-    Render_Font *font;
+    Font_Pointers font;
     b32 virtual_white;
 };
 
@@ -853,10 +852,10 @@ buffer_measure_wrap_y(Buffer_Measure_Wrap_State *S_ptr, Buffer_Measure_Wrap_Para
                     else if (S.behavior.do_number_advance || S.behavior.do_codepoint_advance){
                         if (!S.skipping_whitespace){
                             if (S.behavior.do_codepoint_advance){
-                                S.current_adv = font_get_glyph_advance(params.system, params.font, S.step.value);
+                                S.current_adv = font_get_glyph_advance(params.system, params.font.settings, params.font.metrics, params.font.pages, S.step.value);
                             }
                             else{
-                                S.current_adv = font_get_byte_advance(params.font);
+                                S.current_adv = params.font.metrics->byte_advance;
                             }
                             
                             S.did_wrap = false;
@@ -986,7 +985,7 @@ buffer_remeasure_starts(Gap_Buffer *buffer, i32 line_start, i32 line_end, i32 li
 }
 
 internal void
-buffer_remeasure_character_starts(System_Functions *system, Render_Font *font, Gap_Buffer *buffer, i32 line_start, i32 line_end, i32 line_shift, i32 *character_starts, i32 mode, i32 virtual_whitespace){
+buffer_remeasure_character_starts(System_Functions *system, Font_Pointers font, Gap_Buffer *buffer, i32 line_start, i32 line_end, i32 line_shift, i32 *character_starts, i32 mode, i32 virtual_whitespace){
     Assert(mode == 0);
     
     i32 new_line_count = buffer->line_count;
@@ -1299,7 +1298,7 @@ struct Buffer_Cursor_Seek_Params{
     Gap_Buffer *buffer;
     Buffer_Seek seek;
     System_Functions *system;
-    Render_Font *font;
+    Font_Pointers font;
     i32 *wrap_line_index;
     i32 *character_starts;
     b32 virtual_white;
@@ -1351,7 +1350,7 @@ buffer_cursor_seek(Buffer_Cursor_Seek_State *S_ptr, Buffer_Cursor_Seek_Params pa
         DrCase(4);
     }
     
-    S.font_height = font_get_height(params.font);
+    S.font_height = params.font.metrics->height;
     
     S.xy_seek = (params.seek.type == buffer_seek_wrapped_xy || params.seek.type == buffer_seek_unwrapped_xy);
     S.size = buffer_size(params.buffer);
@@ -1539,10 +1538,10 @@ buffer_cursor_seek(Buffer_Cursor_Seek_State *S_ptr, Buffer_Cursor_Seek_Params pa
                     else if (S.behavior.do_number_advance || S.behavior.do_codepoint_advance){
                         
                         if (S.behavior.do_codepoint_advance){
-                            S.ch_width = font_get_glyph_advance(params.system, params.font, S.step.value);
+                            S.ch_width = font_get_glyph_advance(params.system, params.font.settings, params.font.metrics, params.font.pages, S.step.value);
                         }
                         else{
-                            S.ch_width = font_get_byte_advance(params.font);
+                            S.ch_width = params.font.metrics->byte_advance;
                         }
                         
                         if (S.step.i >= S.wrap_unit_end){
@@ -1732,7 +1731,7 @@ struct Render_Item_Write{
     Buffer_Render_Item *item;
     f32 x, y;
     System_Functions *system;
-    Render_Font *font;
+    Font_Pointers font;
     i32 font_height;
     f32 x_min;
     f32 x_max;
@@ -1741,7 +1740,7 @@ struct Render_Item_Write{
 inline Render_Item_Write
 write_render_item(Render_Item_Write write, i32 index, u32 codepoint, u32 flags){
     
-    f32 ch_width = font_get_glyph_advance(write.system, write.font, codepoint);
+    f32 ch_width = font_get_glyph_advance(write.system, write.font.settings, write.font.metrics, write.font.pages, codepoint);
     
     if (write.x <= write.x_max && write.x + ch_width >= write.x_min){
         write.item->index = index;
@@ -1775,7 +1774,7 @@ struct Buffer_Render_Params{
     Full_Cursor start_cursor;
     i32 wrapped;
     System_Functions *system;
-    Render_Font *font;
+    Font_Pointers font;
     b32 virtual_white;
     i32 wrap_slashes;
 };
@@ -1854,11 +1853,11 @@ buffer_render_data(Buffer_Render_State *S_ptr, Buffer_Render_Params params, f32 
     S.write.y           = S.shift_y;
     S.write.system      = params.system;
     S.write.font        = params.font;
-    S.write.font_height = font_get_height(params.font);
+    S.write.font_height = params.font.metrics->height;
     S.write.x_min       = params.port_x;
     S.write.x_max       = params.port_x + params.clip_w;
     
-    S.byte_advance = font_get_byte_advance(params.font);
+    S.byte_advance = params.font.metrics->byte_advance;
     
     if (params.virtual_white){
         S.skipping_whitespace = 1;
@@ -1963,7 +1962,7 @@ buffer_render_data(Buffer_Render_State *S_ptr, Buffer_Render_Params params, f32 
                                 
                                 case '\t':
                                 {
-                                    S.ch_width = font_get_glyph_advance(params.system, params.font, '\t');
+                                    S.ch_width = font_get_glyph_advance(params.system, params.font.settings, params.font.metrics, params.font.pages, '\t');
                                     
                                     f32 new_x = S.write.x + S.ch_width;
                                     S.write = write_render_item(S.write, I, ' ', 0);

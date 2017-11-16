@@ -49,7 +49,7 @@ private_draw_set_color(Render_Target *t, u32 color){
 }
 
 internal void
-interpret_render_buffer(System_Functions *system, Render_Target *t){
+interpret_render_buffer(Render_Target *t){
     // HACK(allen): Probably should use a different partition that can be resized, but whatevs for now scro.
     Partition *part = &t->buffer;
     
@@ -152,57 +152,59 @@ interpret_render_buffer(System_Functions *system, Render_Target *t){
             case RenCom_Glyph:
             {
                 Render_Command_Glyph *glyph = (Render_Command_Glyph*)header;
-                Render_Font *font = system->font.get_render_data_by_id(glyph->font_id);
-                if (font == 0){
+                Font_Pointers font = system_font_get_pointers_by_id(glyph->font_id);
+                if (!font.valid){
                     break;
                 }
                 
-                // HACK(allen): Super stupid... gotta fucking cleanup the font loading fiasco system.
-                Glyph_Data g = font_get_glyph(system, font, glyph->codepoint);
-                if (g.tex == 0){
-                    if (g.has_gpu_setup){
-                        break;
-                    }
-                    else{
-                        u32 page_number = (glyph->codepoint/ITEM_PER_FONT_PAGE);
-                        Glyph_Page *page = font_get_or_make_page(system, font, page_number);
-                        
-                        Temp_Memory temp = begin_temp_memory(part);
-                        i32 tex_width = 0;
-                        i32 tex_height = 0;
-                        u32 *pixels = font_load_page_pixels(part, font, page, page_number, &tex_width, &tex_height);
-                        page->has_gpu_setup = true;
-                        page->gpu_tex = private_texture_initialize(tex_width, tex_height, pixels);
-                        end_temp_memory(temp);
-                        
-                        g = font_get_glyph(system, font, glyph->codepoint);
-                        if (g.tex == 0){
-                            break;
-                        }
-                    }
+                u32 codepoint = glyph->codepoint;
+                u32 page_number = codepoint/GLYPHS_PER_PAGE;
+                Glyph_Page *page = font_cached_get_page(font.pages, page_number);
+                if (page == 0){
+                    break;
                 }
+                
+                if (!page->has_gpu_setup){
+                    Temp_Memory temp = begin_temp_memory(part);
+                    i32 tex_width = 0;
+                    i32 tex_height = 0;
+                    u32 *pixels = font_load_page_pixels(part, font.settings, page, page_number, &tex_width, &tex_height);
+                    page->has_gpu_setup = true;
+                    page->gpu_tex = private_texture_initialize(tex_width, tex_height, pixels);
+                    end_temp_memory(temp);
+                }
+                
+                if (page->gpu_tex == 0){
+                    break;
+                }
+                
+                u32 glyph_index = codepoint%GLYPHS_PER_PAGE;
+                Glyph_Bounds bounds = page->glyphs[glyph_index];
+                GLuint tex = page->gpu_tex;
+                i32 tex_width = page->tex_width;
+                i32 tex_height = page->tex_height;
                 
                 f32 x = glyph->pos.x;
                 f32 y = glyph->pos.y;
                 
                 f32_Rect xy = {0};
-                xy.x0 = x + g.bounds.xoff;
-                xy.y0 = y + g.bounds.yoff;
-                xy.x1 = x + g.bounds.xoff2;
-                xy.y1 = y + g.bounds.yoff2;
+                xy.x0 = x + bounds.xoff;
+                xy.y0 = y + bounds.yoff;
+                xy.x1 = x + bounds.xoff2;
+                xy.y1 = y + bounds.yoff2;
                 
                 // TODO(allen): Why aren't these baked in???
-                f32 unit_u = 1.f/g.tex_width;
-                f32 unit_v = 1.f/g.tex_height;
+                f32 unit_u = 1.f/tex_width;
+                f32 unit_v = 1.f/tex_height;
                 
                 f32_Rect uv = {0};
-                uv.x0 = g.bounds.x0*unit_u;
-                uv.y0 = g.bounds.y0*unit_v;
-                uv.x1 = g.bounds.x1*unit_u;
-                uv.y1 = g.bounds.y1*unit_v;
+                uv.x0 = bounds.x0*unit_u;
+                uv.y0 = bounds.y0*unit_v;
+                uv.x1 = bounds.x1*unit_u;
+                uv.y1 = bounds.y1*unit_v;
                 
                 private_draw_set_color(t, glyph->color);
-                private_draw_bind_texture(t, g.tex);
+                private_draw_bind_texture(t, tex);
                 glBegin(GL_QUADS);
                 {
                     glTexCoord2f(uv.x0, uv.y1); glVertex2f(xy.x0, xy.y1);

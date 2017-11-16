@@ -143,8 +143,8 @@ internal Full_Cursor
 view_compute_cursor(System_Functions *system, View *view, Buffer_Seek seek, b32 return_hint){
     Editing_File *file = view->file_data.file;
     
-    Render_Font *font = system->font.get_render_data_by_id(file->settings.font_id);
-    Assert(font != 0);
+    Font_Pointers font = system->font.get_pointers_by_id(file->settings.font_id);
+    Assert(font.valid);
     
     Full_Cursor result = {0};
     
@@ -708,7 +708,7 @@ file_allocate_character_starts_as_needed(General_Memory *general, Editing_File *
 internal void
 file_measure_character_starts(System_Functions *system, Models *models, Editing_File *file){
     file_allocate_character_starts_as_needed(&models->mem.general, file);
-    Render_Font *font = system->font.get_render_data_by_id(file->settings.font_id);
+    Font_Pointers font = system->font.get_pointers_by_id(file->settings.font_id);
     buffer_measure_character_starts(system, font, &file->state.buffer, file->state.character_starts, 0, file->settings.virtual_white);
     file_update_cursor_positions(system, models, file);
 }
@@ -760,7 +760,7 @@ struct Code_Wrap_State{
     i32 size;
     i32 i;
     
-    Render_Font *font;
+    Font_Pointers font;
     f32 tab_indent_amount;
     f32 byte_advance;
     
@@ -772,7 +772,7 @@ struct Code_Wrap_State{
 };
 
 internal void
-wrap_state_init(System_Functions *system, Code_Wrap_State *state, Editing_File *file, Render_Font *font){
+wrap_state_init(System_Functions *system, Code_Wrap_State *state, Editing_File *file, Font_Pointers font){
     state->token_array = file->state.token_array;
     state->token_ptr = state->token_array.tokens;
     state->end_token = state->token_ptr + state->token_array.count;
@@ -789,8 +789,8 @@ wrap_state_init(System_Functions *system, Code_Wrap_State *state, Editing_File *
     
     state->font = font;
     
-    state->tab_indent_amount = font_get_glyph_advance(system, font, '\t');
-    state->byte_advance = font_get_byte_advance(font);
+    state->tab_indent_amount = font_get_glyph_advance(system, font.settings, font.metrics, font.pages, '\t');
+    state->byte_advance = font.metrics->byte_advance;
     
     state->tran = null_buffer_translating_state;
 }
@@ -823,7 +823,7 @@ struct Code_Wrap_Step{
 };
 
 internal Code_Wrap_Step
-wrap_state_consume_token(System_Functions *system, Render_Font *font, Code_Wrap_State *state, i32 fixed_end_point){
+wrap_state_consume_token(System_Functions *system, Font_Pointers font, Code_Wrap_State *state, i32 fixed_end_point){
     Code_Wrap_Step result = {0};
     i32 i = state->i;
     
@@ -913,7 +913,7 @@ wrap_state_consume_token(System_Functions *system, Render_Font *font, Code_Wrap_
                     u32 n = state->step.value;
                     f32 adv = 0;
                     if (state->behavior.do_codepoint_advance){
-                        adv = font_get_glyph_advance(system, state->font, n);
+                        adv = font_get_glyph_advance(system, state->font.settings, state->font.metrics, state->font.pages, n);
                         
                         if (n != ' ' && n != '\t'){
                             skipping_whitespace = false;
@@ -1231,7 +1231,7 @@ get_current_shift(Code_Wrap_State *wrap_state, i32 next_line_start){
 }
 
 internal void
-file_measure_wraps(System_Functions *system, Models *models, Editing_File *file, Render_Font *font){
+file_measure_wraps(System_Functions *system, Models *models, Editing_File *file, Font_Pointers font){
     PRFL_FUNC_GROUP();
     
     General_Memory *general = &models->mem.general;
@@ -1339,7 +1339,7 @@ file_measure_wraps(System_Functions *system, Models *models, Editing_File *file,
                                                 word_stage = 1;
                                             }
                                             else{
-                                                f32 adv = font_get_glyph_advance(params.system, params.font, codepoint);
+                                                f32 adv = font_get_glyph_advance(params.system, params.font.settings, params.font.metrics, params.font.pages, codepoint);
                                                 
                                                 x += adv;
                                                 self_x += adv;
@@ -1484,7 +1484,7 @@ file_measure_wraps(System_Functions *system, Models *models, Editing_File *file,
                                                         goto doublebreak_stage1;
                                                     }
                                                     
-                                                    f32 adv = font_get_glyph_advance(params.system, params.font, buffer_step.value);
+                                                    f32 adv = font_get_glyph_advance(params.system, params.font.settings, params.font.metrics, params.font.pages, buffer_step.value);
                                                     x += adv;
                                                     
                                                     if (!first_word && x > current_width){
@@ -1520,7 +1520,7 @@ file_measure_wraps(System_Functions *system, Models *models, Editing_File *file,
                                                         goto doublebreak_stage2;
                                                     }
                                                     
-                                                    f32 adv = font_get_glyph_advance(params.system, params.font, buffer_step.value);
+                                                    f32 adv = font_get_glyph_advance(params.system, params.font.settings, params.font.metrics, params.font.pages, buffer_step.value);
                                                     x += adv;
                                                 }
                                             }
@@ -1737,7 +1737,7 @@ file_measure_wraps(System_Functions *system, Models *models, Editing_File *file,
 }
 
 internal void
-file_measure_wraps_and_fix_cursor(System_Functions *system, Models *models, Editing_File *file, Render_Font *font){
+file_measure_wraps_and_fix_cursor(System_Functions *system, Models *models, Editing_File *file, Font_Pointers font){
     if (file->state.hacks.suppression_mode){
         file->state.hacks.needs_wraps_and_fix_cursor = true;
     }
@@ -1785,7 +1785,8 @@ file_create_from_string(System_Functions *system, Models *models, Editing_File *
     
     Font_ID font_id = models->global_font_id;
     file->settings.font_id = font_id;
-    Render_Font *font = system->font.get_render_data_by_id(font_id);
+    Font_Pointers font = system->font.get_pointers_by_id(font_id);
+    Assert(font.valid);
     
     {
         file_measure_starts(general, &file->state.buffer);
@@ -2657,8 +2658,9 @@ file_view_nullify_file(View *view){
 
 internal void
 update_view_line_height(System_Functions *system, Models *models, View *view, Font_ID font_id){
-    Render_Font *font = system->font.get_render_data_by_id(font_id);
-    view->line_height = font_get_height(font);
+    Font_Pointers font = system->font.get_pointers_by_id(font_id);
+    Assert(font.valid);
+    view->line_height = font.metrics->height;
 }
 
 inline void
@@ -3142,7 +3144,9 @@ file_do_single_edit(System_Functions *system, Models *models, Editing_File *file
     i32 new_line_count = buffer_count_newlines(&file->state.buffer, start, start+str_len);
     i32 line_shift =  new_line_count - replaced_line_count;
     
-    Render_Font *font = system->font.get_render_data_by_id(file->settings.font_id);
+    Font_Pointers font = system->font.get_pointers_by_id(file->settings.font_id);
+    Assert(font.valid);
+    
     file_grow_starts_as_needed(general, buffer, line_shift);
     buffer_remeasure_starts(buffer, line_start, line_end, line_shift, shift_amount);
     
@@ -3262,7 +3266,8 @@ file_do_batch_edit(System_Functions *system, Models *models, Editing_File *file,
     // NOTE(allen): meta data
     file_measure_starts(general, &file->state.buffer);
     
-    Render_Font *font = system->font.get_render_data_by_id(file->settings.font_id);
+    Font_Pointers font = system->font.get_pointers_by_id(file->settings.font_id);
+    Assert(font.valid);
     
     // TODO(allen): write the remeasurement version
     file_allocate_character_starts_as_needed(general, file);
@@ -3543,7 +3548,7 @@ style_get_color(Style *style, Cpp_Token token){
 internal void
 file_set_font(System_Functions *system, Models *models, Editing_File *file, Font_ID font_id){
     file->settings.font_id = font_id;
-    Render_Font *font = system->font.get_render_data_by_id(font_id);
+    Font_Pointers font = system->font.get_pointers_by_id(font_id);
     file_measure_wraps_and_fix_cursor(system, models, file, font);
     
     Editing_Layout *layout = &models->layout;
@@ -4509,6 +4514,14 @@ step_file_view(System_Functions *system, View *view, Models *models, View *activ
                         }
                         break;
                         
+                        
+#if 0
+                        case CV_Mode_Font_Loading:
+                        {
+                            
+                        }break;
+#endif
+                        
                         case CV_Mode_Global_Font:
                         case CV_Mode_Font:
                         {
@@ -4527,20 +4540,16 @@ step_file_view(System_Functions *system, View *view, Models *models, View *activ
                                 font_id = file->settings.font_id;
                             }
                             
-                            // TODO(allen): paginate the display
                             Font_ID new_font_id = font_id;
                             u32 total_count = system->font.get_count();
-                            u32 count = Min(total_count, 10);
-                            
-                            for (u32 font_index = 0; font_index < count; ++font_index){
-                                Font_ID this_font_id = 0;
-                                system->font.get_ids_by_index(font_index, 1, &this_font_id);
+                            for (u32 i = 0; i < total_count; ++i){
+                                Font_ID this_font_id = i + 1;
                                 
                                 char name_space[256];
                                 String name = make_fixed_width_string(name_space);
-                                name.size = system->font.get_name_by_index(font_index, name.str, name.memory_size);
+                                name.size = system->font.get_name_by_id(this_font_id, name.str, name.memory_size);
                                 
-                                id.id[0] = (u64)font_index + 1;
+                                id.id[0] = (u64)this_font_id + 1;
                                 if (this_font_id != font_id){
                                     if (gui_do_font_button(target, id, this_font_id, name)){
                                         new_font_id = this_font_id;
@@ -5683,7 +5692,7 @@ draw_file_loaded(System_Functions *system, View *view, Models *models, i32_Rect 
     Buffer_Render_Item *items = push_array(part, Buffer_Render_Item, max);
     
     Font_ID font_id = file->settings.font_id;
-    Render_Font *font = system->font.get_render_data_by_id(font_id);
+    Font_Pointers font = system->font.get_pointers_by_id(font_id);
     
     f32 scroll_x = view->edit_pos->scroll.scroll_x;
     f32 scroll_y = view->edit_pos->scroll.scroll_y;
@@ -5922,7 +5931,7 @@ draw_text_with_cursor(System_Functions *system, Render_Target *target, View *vie
         draw_rectangle(target, rect, back_color);
         
         if (pos >= 0 && pos <  s.size){
-            Render_Font *font = system->font.get_render_data_by_id(font_id);
+            Font_Pointers font = system->font.get_pointers_by_id(font_id);
             
             String part1 = substr(s, 0, pos);
             String part2 = substr(s, pos, 1);
@@ -5930,7 +5939,7 @@ draw_text_with_cursor(System_Functions *system, Render_Target *target, View *vie
             
             x = draw_string(system, target, font_id, part1, floor32(x), y, text_color);
             
-            f32 adv = font_get_glyph_advance(system, font, s.str[pos]);
+            f32 adv = font_get_glyph_advance(system, font.settings, font.metrics, font.pages, s.str[pos]);
             i32_Rect cursor_rect;
             cursor_rect.x0 = floor32(x);
             cursor_rect.x1 = floor32(x) + ceil32(adv);
@@ -6137,7 +6146,7 @@ draw_style_preview(System_Functions *system, GUI_Target *gui_target, Render_Targ
     char font_name_space[256];
     String font_name = make_fixed_width_string(font_name_space);
     font_name.size = system->font.get_name_by_id(font_id, font_name.str, font_name.memory_size);
-    Render_Font *font = system->font.get_render_data_by_id(font_id);
+    Font_Pointers font = system->font.get_pointers_by_id(font_id);
     
     i32_Rect inner = get_inner_rect(rect, 3);
     
@@ -6159,7 +6168,7 @@ draw_style_preview(System_Functions *system, GUI_Target *gui_target, Render_Targ
         draw_string(system, target, font_id, font_name, font_x, y, text_color);
     }
     
-    i32 height = font_get_height(font);
+    i32 height = font.metrics->height;
     x = inner.x0;
     y += height;
     x = ceil32(draw_string(system, target, font_id, "if", x, y, keyword_color));

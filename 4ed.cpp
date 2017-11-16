@@ -15,11 +15,10 @@ global_const char messages[] =
 "Welcome to " VERSION "\n"
 "If you're new to 4coder there are some tutorials at http://4coder.net/tutorials.html\n"
 "\n"
-"New in alpha 4.0.22:\n"
+"New in alpha 4.0.22 and 4.0.23:\n"
 "-The rendering layer is cleaned up and faster\n"
 "-4coder can now ship with multiple built in command bindings\n"
 "  New built in binding \"mac-default\": For the mac version of 4coder - similar to most Mac applications\n"
-"  New built in binding \"mac-4coder-like\": For the mac version of 4coder - similar to 4coder on other OSes\n"
 "-Fullscreen now works on Windows without the '-S' flag\n"
 "-Set up a single 4coder project for Windows/Linux/Mac in one command: <alt x> -> \"new project\"\n"
 "\n"
@@ -1224,7 +1223,7 @@ init_command_line_settings(App_Settings *settings, Plat_Settings *plat_settings,
                     {
                         if (i < argc){
                             plat_settings->font_size = str_to_int_c(argv[i]);
-                            plat_settings->font_size = clamp_bottom(8, plat_settings->font_size);
+                            plat_settings->font_size = plat_settings->font_size;
                         }
                         action = CLAct_Nothing;
                     }break;

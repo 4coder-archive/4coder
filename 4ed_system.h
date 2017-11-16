@@ -12,8 +12,6 @@
 #if !defined(FCODER_SYSTEM_INTERFACE_H)
 #define FCODER_SYSTEM_INTERFACE_H
 
-#include "4ed_font_interface.h"
-
 // types
 struct Plat_Handle{
     u32 d[4];

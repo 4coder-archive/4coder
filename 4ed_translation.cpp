@@ -133,7 +133,7 @@ translating_select_emit_rule_ASCII(Translation_State *tran, Translation_Byte_Des
 }
 
 internal void
-translating_select_emit_rule_with_font(System_Functions *system, Render_Font *font, Translation_State *tran, Translation_Byte_Description desc, Translation_Emit_Rule *type_out){
+translating_select_emit_rule_with_font(System_Functions *system, Font_Pointers font, Translation_State *tran, Translation_Byte_Description desc, Translation_Emit_Rule *type_out){
     type_out->byte_class = desc.byte_class;
     type_out->last_byte_handler = desc.last_byte_handler;
     type_out->emit_type = desc.prelim_emit_type;
@@ -148,7 +148,7 @@ translating_select_emit_rule_with_font(System_Functions *system, Render_Font *fo
             }
             else{
                 type_out->codepoint = cp;
-                if (!font_can_render(system, font, cp)){
+                if (!font_can_render(system, font.settings, font.metrics, font.pages, cp)){
                     type_out->emit_type = BufferModelUnit_Numbers;
                 }
             }
@@ -213,7 +213,7 @@ translating_generate_emits(Translation_State *tran, Translation_Emit_Rule emit_r
 }
 
 internal void
-translating_fully_process_byte(System_Functions *system, Render_Font *font, Translation_State *tran, u8 ch, u32 i, u32 size, Translation_Emits *emits_out){
+translating_fully_process_byte(System_Functions *system, Font_Pointers font, Translation_State *tran, u8 ch, u32 i, u32 size, Translation_Emits *emits_out){
     Translation_Byte_Description description = {0};
     translating_consume_byte(tran, ch, i, size, &description);
     Translation_Emit_Rule emit_rule = {0};
