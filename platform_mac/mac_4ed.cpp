@@ -341,8 +341,38 @@ internal void
 osx_get_loadable_fonts(Partition *part, Font_Setup_List *list){
     OSX_Loadable_Fonts fonts = osx_list_loadable_fonts();
     for (i32 i = 0; i < fonts.count; ++i){
+        char *name = fonts.names[i];
+        char *path = fonts.paths[i];
         
+        Temp_Memory reset= begin_temp_memory(part);
+        Font_Setup *setup = push_array(part, Font_Setup, 1);
+        
+        if (setup != 0){
+            memset(setup, 0, sizeof(*setup));
+            
+            i32 len = str_size(path);
+            if (len < sizeof(setup->stub.name)){
+                i32 name_len = str_size(name);
+                if (name_len < sizeof(setup->name)){
+                    setup->stub.load_from_path = true;
+                    memcpy(setup->stub.name, path, len + 1);
+                    setup->stub.len = len;
+                    setup->has_display_name = true;
+                    setup->len = name_len;
+                    memcpy(setup->name, name, name_len + 1);
+                    sll_push(list->first, list->last, setup);
+                }
+                else{
+                    end_temp_memory(reset);
+                }
+            }
+            else{
+                end_temp_memory(reset);
+            }
+        }
     }
+    
+    free(fonts.names);
 }
 
 #include <OpenGL/OpenGL.h>

@@ -773,6 +773,7 @@ osx_list_loadable_fonts(void){
         fprintf(stdout, "found: %s\nat: %s\n", name, path);
         fflush(stdout);
     }
+    
     return(result);
 }
 
