@@ -344,6 +344,10 @@ osx_get_loadable_fonts(Partition *part, Font_Setup_List *list){
         char *name = fonts.names[i];
         char *path = fonts.paths[i];
         
+        if (name == 0 || path == 0){
+            continue;
+        }
+        
         Temp_Memory reset= begin_temp_memory(part);
         Font_Setup *setup = push_array(part, Font_Setup, 1);
         
