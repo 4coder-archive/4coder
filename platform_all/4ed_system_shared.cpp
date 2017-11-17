@@ -28,6 +28,10 @@ init_shared_vars(){
     void *scratch_memory = system_memory_allocate(scratch_size);
     shared_vars.scratch = make_part(scratch_memory, (i32)scratch_size);
     
+    umem font_scratch_size = MB(4);
+    void *font_scratch_memory = system_memory_allocate(font_scratch_size);
+    shared_vars.font_scratch = make_part(font_scratch_memory, (i32)font_scratch_size);
+    
     shared_vars.track_table_size = KB(16);
     shared_vars.track_table = system_memory_allocate(shared_vars.track_table_size);
     
@@ -150,15 +154,6 @@ sysshared_load_file(char *filename){
     return(result);
 }
 
-internal b32
-usable_ascii(char c){
-    b32 result = true;
-    if ((c < ' ' || c > '~') && c != '\n' && c != '\r' && c != '\t'){
-        result = false;
-    }
-    return(result);
-}
-
 internal void
 sysshared_filter_real_files(char **files, i32 *file_count){
     i32 end = *file_count;
@@ -172,6 +167,7 @@ sysshared_filter_real_files(char **files, i32 *file_count){
     *file_count = j;
 }
 
+// HACK(allen): Get rid of this now!?
 internal Partition
 sysshared_scratch_partition(i32 size){
     void *data = system_memory_allocate((umem)size);
@@ -181,9 +177,10 @@ sysshared_scratch_partition(i32 size){
 
 internal void
 sysshared_partition_grow(Partition *part, i32 new_size){
+    Assert(part->pos == 0);
+    
     void *data = 0;
     if (new_size > part->max){
-        // TODO(allen): attempt to grow in place by just acquiring next vpages?!
         data = system_memory_allocate((umem)new_size);
         memcpy(data, part->base, part->pos);
         system_memory_free(part->base, part->max);
@@ -192,15 +189,10 @@ sysshared_partition_grow(Partition *part, i32 new_size){
     }
 }
 
-internal void
-sysshared_partition_double(Partition *part){
-    sysshared_partition_grow(part, part->max*2);
-}
-
 internal void*
 sysshared_push_block(Partition *part, i32 size){
     void *result = push_block(part, size);
-    if (!result){
+    if (result == 0){
         sysshared_partition_grow(part, size + part->max);
         result = push_block(part, size);
     }

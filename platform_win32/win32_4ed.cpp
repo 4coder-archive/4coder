@@ -52,6 +52,7 @@
 #include "4ed_render_format.h"
 #include "4ed_render_target.h"
 #include "4ed.h"
+#include "4ed_linked_node_macros.h"
 
 #include <Windows.h>
 #include "win32_gl.h"
@@ -308,11 +309,20 @@ win32_post_clipboard(char *text, i32 len){
 
 internal
 Sys_Post_Clipboard_Sig(system_post_clipboard){
+    LOG("Beginning clipboard post\n");
     Partition *part = &win32vars.clip_post_part;
-    win32vars.clip_post_len = str.size;
+    part->pos = 0;
     u8 *post = (u8*)sysshared_push_block(part, str.size + 1);
-    memmove(post, str.str, str.size);
-    post[str.size] = 0;
+    if (post != 0){
+        LOG("Copying post to clipboard buffer\n");
+        memcpy(post, str.str, str.size);
+        post[str.size] = 0;
+        win32vars.clip_post_len = str.size;
+    }
+    else{
+        LOGF("Failed to allocate buffer for clipboard post (%d)\n", str.size + 1);
+    }
+    LOG("Finished clipboard post\n");
 }
 
 internal b32
@@ -505,6 +515,131 @@ Sys_CLI_End_Update_Sig(system_cli_end_update){
 
 #include "4ed_font_provider_freetype.h"
 #include "4ed_font_provider_freetype.cpp"
+
+internal
+Sys_Font_Data(name){
+    Font_Raw_Data data = {0};
+    
+    HFONT hfont = CreateFontA(
+        0,
+        0,
+        0,
+        0,
+        0,
+        FALSE, // Italic
+        FALSE, // Underline
+        FALSE, // Strikeout
+        ANSI_CHARSET,
+        OUT_DEVICE_PRECIS,
+        CLIP_DEFAULT_PRECIS,
+        DEFAULT_QUALITY,
+        DEFAULT_PITCH | FF_DONTCARE,
+        name
+        );
+    
+    if (hfont != 0){
+        HDC hdc = CreateCompatibleDC(NULL);
+        if (hdc != 0){
+            SelectObject(hdc, hfont);
+            DWORD size = GetFontData(hdc, 0, 0, NULL, 0);
+            if (size > 0){
+                Partition *part = &shared_vars.font_scratch;
+                data.temp = begin_temp_memory(part);
+                u8 *buffer = push_array(part, u8, size);
+                if (buffer == 0){
+                    sysshared_partition_grow(part, l_round_up_i32(size, KB(4)));
+                    buffer = push_array(part, u8, size);
+                }
+                
+                if (buffer != 0){
+                    push_align(part, 8);
+                    if (GetFontData(hdc, 0, 0, buffer, size) == size){
+                        data.data = buffer;
+                        data.size = size;
+                    }
+                }
+            }
+            DeleteDC(hdc);
+        }
+    }
+    
+    return(data);
+}
+
+struct Win32_Font_Enum{
+    Partition *part;
+    Font_Setup_List *list;
+};
+
+internal int
+win32_font_enum_callback(
+const LOGFONT    *lpelfe,
+const TEXTMETRIC *lpntme,
+DWORD      FontType,
+LPARAM     lParam
+){
+    if ((FontType & TRUETYPE_FONTTYPE) != 0){
+        ENUMLOGFONTEXDV *log_font = (ENUMLOGFONTEXDV*)lpelfe;
+        TCHAR *name = ((log_font)->elfEnumLogfontEx).elfLogFont.lfFaceName;
+        
+        if ((char)name[0] == '@'){
+            return(1);
+        }
+        
+        i32 len = 0;
+        for (;name[len]!=0;++len);
+        
+        if (len >= sizeof(((Font_Loadable_Stub*)0)->name)){
+            return(1);
+        }
+        
+        Win32_Font_Enum p = *(Win32_Font_Enum*)lParam;
+        Temp_Memory reset = begin_temp_memory(p.part);
+        
+        Font_Setup *setup = push_array(p.part, Font_Setup, 1);
+        if (setup != 0){
+            memset(setup, 0, sizeof(*setup));
+            
+            b32 good = true;
+            for (i32 i = 0; i < len; ++i){
+                if (name[i] >= 128){
+                    good = false;
+                    break;
+                }
+                setup->stub.name[i] = (char)name[i];
+            }
+            
+            if (good){
+                setup->stub.load_from_path = false;
+                setup->stub.len = len;
+                sll_push(p.list->first, p.list->last, setup);
+            }
+            else{
+                end_temp_memory(reset);
+            }
+        }
+    }
+    return(1);
+}
+
+internal void
+win32_get_loadable_fonts(Partition *part, Font_Setup_List *list){
+    HDC hdc= GetDC(0);
+    
+    LOGFONT log_font = {0};
+    log_font.lfCharSet = ANSI_CHARSET;
+    log_font.lfFaceName[0] = 0;
+    
+    Win32_Font_Enum p = {0};
+    p.part = part;
+    p.list = list;
+    
+    int result = EnumFontFamiliesEx(hdc, &log_font, win32_font_enum_callback, (LPARAM)&p,0);
+    AllowLocal(result);
+    
+    ReleaseDC(0, hdc);
+}
+
 #include <GL/gl.h>
 #include "opengl/4ed_opengl_render.cpp"
 
@@ -1118,8 +1253,9 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
     LOG("Initializing fonts\n");
     Partition *scratch = &shared_vars.scratch;
     Temp_Memory temp = begin_temp_memory(scratch);
-    Font_Setup *font_setup_head = system_font_get_stubs(scratch);
-    system_font_init(&sysfunc.font, plat_settings.font_size, plat_settings.use_hinting, font_setup_head);
+    Font_Setup_List font_setup = system_font_get_local_stubs(scratch);
+    win32_get_loadable_fonts(scratch, &font_setup);
+    system_font_init(&sysfunc.font, plat_settings.font_size, plat_settings.use_hinting, font_setup);
     end_temp_memory(temp);
     
     //

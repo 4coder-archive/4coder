@@ -4514,16 +4514,8 @@ step_file_view(System_Functions *system, View *view, Models *models, View *activ
                         }
                         break;
                         
-                        
-#if 0
-                        case CV_Mode_Font_Loading:
-                        {
-                            
-                        }break;
-#endif
-                        
-                        case CV_Mode_Global_Font:
                         case CV_Mode_Font:
+                        case CV_Mode_Global_Font:
                         {
                             Editing_File *file = view->file_data.file;
                             Assert(file != 0);
@@ -4535,36 +4527,31 @@ step_file_view(System_Functions *system, View *view, Models *models, View *activ
                                 view->color_mode = CV_Mode_Library;
                             }
                             
-                            Font_ID font_id = models->global_font_id;
-                            if (view->color_mode == CV_Mode_Font){
-                                font_id = file->settings.font_id;
-                            }
+                            gui_begin_scrollable(target, scroll_context, view->gui_scroll, 9*view->line_height, show_scrollbar);
                             
-                            Font_ID new_font_id = font_id;
-                            u32 total_count = system->font.get_count();
-                            for (u32 i = 0; i < total_count; ++i){
-                                Font_ID this_font_id = i + 1;
+                            Font_ID font_id = file->settings.font_id;
+                            
+                            Font_ID new_font_id = 0;
+                            i32 total_count = system->font.get_loadable_count();
+                            for (i32 i = 0; i < total_count; ++i){
+                                Font_Loadable_Description loadable = {0};
+                                system->font.get_loadable(i, &loadable);
                                 
-                                char name_space[256];
-                                String name = make_fixed_width_string(name_space);
-                                name.size = system->font.get_name_by_id(this_font_id, name.str, name.memory_size);
-                                
-                                id.id[0] = (u64)this_font_id + 1;
-                                if (this_font_id != font_id){
-                                    if (gui_do_font_button(target, id, this_font_id, name)){
-                                        new_font_id = this_font_id;
+                                id.id[0] = (u64)i + 1;
+                                if (loadable.valid){
+                                    String name = make_string(loadable.display_name, loadable.display_len);
+                                    if (gui_do_button(target, id, name)){
+                                        if (new_font_id == 0){
+                                            new_font_id = font_get_id_by_name(system, name);
+                                            if (new_font_id == 0){
+                                                new_font_id = system->font.load_new_font(&loadable.stub);
+                                            }
+                                        }
                                     }
                                 }
-                                else{
-                                    char message_space[256];
-                                    message = make_fixed_width_string(message_space);
-                                    copy_ss(&message, make_lit_string("currently selected: "));
-                                    append_ss(&message, name);
-                                    gui_do_font_button(target, id, this_font_id, message);
-                                }
                             }
                             
-                            if (font_id != new_font_id){
+                            if (new_font_id != 0 && new_font_id != font_id){
                                 if (view->color_mode == CV_Mode_Font){
                                     file_set_font(system, models, file, new_font_id);
                                 }
@@ -4572,6 +4559,8 @@ step_file_view(System_Functions *system, View *view, Models *models, View *activ
                                     global_set_font(system, models, new_font_id);
                                 }
                             }
+                            
+                            gui_end_scrollable(target);
                         }break;
                         
                         case CV_Mode_Adjusting:
@@ -4588,8 +4577,7 @@ step_file_view(System_Functions *system, View *view, Models *models, View *activ
                                 view->color_mode = CV_Mode_Library;
                             }
                             
-                            gui_begin_scrollable(target, scroll_context, view->gui_scroll,
-                                                 9 * view->line_height, show_scrollbar);
+                            gui_begin_scrollable(target, scroll_context, view->gui_scroll, 9*view->line_height, show_scrollbar);
                             
                             i32 next_color_editing = view->current_color_editing;
                             

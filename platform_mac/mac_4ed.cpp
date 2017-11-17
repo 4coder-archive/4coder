@@ -41,6 +41,7 @@
 #include "4ed_render_format.h"
 #include "4ed_render_target.h"
 #include "4ed.h"
+#include "4ed_linked_node_macros.h"
 
 #include "4ed_file_track.h"
 #include "4ed_system_shared.h"
@@ -652,8 +653,8 @@ osx_init(){
     
     Partition *scratch = &shared_vars.scratch;
     Temp_Memory temp = begin_temp_memory(scratch);
-    Font_Setup *font_setup_head = system_font_get_stubs(scratch);
-    system_font_init(&sysfunc.font, plat_settings.font_size, plat_settings.use_hinting, font_setup_head);
+    Font_Setup_List font_setup = system_font_get_local_stubs(scratch);
+    system_font_init(&sysfunc.font, plat_settings.font_size, plat_settings.use_hinting, font_setup);
     end_temp_memory(temp);
     
     //

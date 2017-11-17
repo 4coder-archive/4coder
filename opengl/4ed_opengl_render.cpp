@@ -50,9 +50,6 @@ private_draw_set_color(Render_Target *t, u32 color){
 
 internal void
 interpret_render_buffer(Render_Target *t){
-    // HACK(allen): Probably should use a different partition that can be resized, but whatevs for now scro.
-    Partition *part = &t->buffer;
-    
     local_persist b32 first_opengl_call = true;
     if (first_opengl_call){
         first_opengl_call = false;
@@ -165,6 +162,7 @@ interpret_render_buffer(Render_Target *t){
                 }
                 
                 if (!page->has_gpu_setup){
+                    Partition *part = &target.buffer;
                     Temp_Memory temp = begin_temp_memory(part);
                     i32 tex_width = 0;
                     i32 tex_height = 0;

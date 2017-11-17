@@ -34,6 +34,7 @@ struct Shared_Vars{
     u32 track_node_size;
     
     Partition scratch;
+    Partition font_scratch;
 };
 global Shared_Vars shared_vars;
 

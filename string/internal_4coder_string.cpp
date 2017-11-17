@@ -224,7 +224,9 @@ API_EXPORT FSTRING_LINK i32_4tech
 str_size(char *str)
 /* DOC(This call returns the number of bytes before a null terminator starting at str.) */{
     i32_4tech i = 0;
-    while (str[i]) ++i;
+    if (str != 0){
+        for (;str[i];++i);
+    }
     return(i);
 }
 
@@ -234,7 +236,7 @@ make_string_slowly(void *str)
     String result;
     result.str = (char*)str;
     result.size = str_size((char*)str);
-    result.memory_size = result.size+1;
+    result.memory_size = result.size + 1;
     return(result);
 }
 

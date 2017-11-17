@@ -452,23 +452,6 @@ gui_do_color_button(GUI_Target *target, GUI_id id, u32 fore, u32 back, String te
 }
 
 internal b32
-gui_do_font_button(GUI_Target *target, GUI_id id, Font_ID font_id, String text){
-    b32 result = 0;
-    i32 font_id32 = font_id;
-    GUI_Interactive *b = gui_push_button_command(target, guicom_font_button, id);
-    GUI_Header *h = (GUI_Header*)b;
-    gui_push_item(target, h, &font_id32, sizeof(font_id32));
-    gui_push_string(target, h, text);
-    
-    if (gui_id_eq(id, target->active)){
-        result = 1;
-        target->animating = 1;
-    }
-    
-    return(result);
-}
-
-internal b32
 gui_begin_list(GUI_Target *target, GUI_id id, i32 list_i,
                b32 activate_item, b32 snap_into_view, GUI_Item_Update *update){
     b32 result = 0;
@@ -562,6 +545,13 @@ gui_do_button(GUI_Target *target, GUI_id id, String message){
         target->animating = 1;
     }
     
+    return(result);
+}
+
+internal b32
+gui_do_button(GUI_Target *target, GUI_id id, char *message){
+    String str_message = make_string_slowly(message);
+    b32 result = gui_do_button(target, id, str_message);
     return(result);
 }
 
