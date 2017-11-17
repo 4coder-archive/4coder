@@ -459,6 +459,9 @@ Sys_CLI_End_Update_Sig(system_cli_end_update){
 
 #include "4ed_font_provider_freetype.h"
 #include "4ed_font_provider_freetype.cpp"
+
+Sys_Font_Data_Not_Used;
+
 #include <GL/gl.h>
 #include "opengl/4ed_opengl_render.cpp"
 
