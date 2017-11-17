@@ -18,7 +18,7 @@
 #define IS_OBJC_LAYER
 #include "4ed_log.h"
 #include "4ed_cursor_codes.h"
-#include "4ed_doubly_linked_list.cpp"
+#include "4ed_linked_node_macros.h"
 
 #define WINDOW_NAME "4coder " VERSION
 
