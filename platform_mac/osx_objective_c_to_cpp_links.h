@@ -56,6 +56,12 @@ typedef struct OSX_Objective_C_Vars{
     char **argv;
 } OSX_Objective_C_Vars;
 
+typedef struct OSX_Loadable_Fonts{
+    char **names;
+    char **paths;
+    i32 count;
+} OSX_Loadable_Fonts;
+
 // In C++ layer.
 extern OSX_Objective_C_Vars osx_objc;
 
@@ -128,6 +134,9 @@ osx_close_app(void);
 
 external f32
 osx_timer_seconds(void);
+
+external OSX_Loadable_Fonts
+osx_list_loadable_fonts(void);
 
 #endif
 

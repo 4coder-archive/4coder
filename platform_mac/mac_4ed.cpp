@@ -337,6 +337,14 @@ Sys_CLI_End_Update_Sig(system_cli_end_update){
 
 Sys_Font_Data_Not_Used;
 
+internal void
+osx_get_loadable_fonts(Partition *part, Font_Setup_List *list){
+    OSX_Loadable_Fonts fonts = osx_list_loadable_fonts();
+    for (i32 i = 0; i < fonts.count; ++i){
+        
+    }
+}
+
 #include <OpenGL/OpenGL.h>
 #include <OpenGL/gl.h>
 #include "opengl/4ed_opengl_render.cpp"
@@ -657,6 +665,7 @@ osx_init(){
     Partition *scratch = &shared_vars.scratch;
     Temp_Memory temp = begin_temp_memory(scratch);
     Font_Setup_List font_setup = system_font_get_local_stubs(scratch);
+    osx_get_loadable_fonts(scratch, &font_setup);
     system_font_init(&sysfunc.font, plat_settings.font_size, plat_settings.use_hinting, font_setup);
     end_temp_memory(temp);
     

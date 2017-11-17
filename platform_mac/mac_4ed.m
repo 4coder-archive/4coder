@@ -725,6 +725,57 @@ osx_timer_seconds(void){
     return(result);
 }
 
+NSString *get_font_path(NSFont *font){
+    CFStringRef name = (CFStringRef)[font fontName];
+    CGFloat size = [font pointSize];
+    CTFontDescriptorRef ref = CTFontDescriptorCreateWithNameAndSize(name, size);
+    CFURLRef url = CTFontDescriptorCopyAttribute(ref, kCTFontURLAttribute);
+    NSString *path = [(NSURL *)CFBridgingRelease(url) path];
+    return(path);
+}
+
+OSX_Loadable_Fonts
+osx_list_loadable_fonts(void){
+    NSFontManager *font_manager = [NSFontManager sharedFontManager];
+    NSArray<NSString*> *fonts = [font_manager availableFontFamilies];
+    
+    OSX_Loadable_Fonts result = {0};
+    NSUInteger count_u = [fonts count];
+    int count = (int)count_u;
+    
+    result.count = count;
+    
+    size_t memsize = count*2*sizeof(char*);
+    void *mem = malloc(memsize);
+    result.names = (char**)mem;
+    result.paths = result.names + count;
+    
+    for (int i = 0; i < count; ++i){
+        NSString *font_n = fonts[i];
+        char *font_n_c = (char*)[font_n UTF8String];
+        NSFont *font = [font_manager
+                fontWithFamily:font_n 
+                traits:NSUnboldFontMask|NSUnitalicFontMask 
+                weight:5 
+                size:12];
+        NSString *path = get_font_path(font);
+        char *path_c = 0;
+        if (path != nil){
+            path_c = (char*)[path UTF8String];
+        }
+        result.names[i] = font_n_c;
+        result.paths[i] = path_c;
+    }
+    
+    for (int i = 0; i < count; ++i){
+        char *name = result.names[i];
+        char *path = result.paths[i];
+        fprintf(stdout, "found: %s\nat: %s\n", name, path);
+        fflush(stdout);
+    }
+    return(result);
+}
+
 int
 main(int argc, char **argv){
     memset(&osx_objc, 0, sizeof(osx_objc));
