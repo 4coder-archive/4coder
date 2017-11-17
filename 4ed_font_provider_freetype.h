@@ -36,6 +36,10 @@ global Font_Vars fontvars = {0};
 struct Font_Setup{
     Font_Setup *next;
     Font_Loadable_Stub stub;
+    
+    b32 has_display_name;
+    i32 len;
+    char name[64];
 };
 
 struct Font_Setup_List{
@@ -54,7 +58,7 @@ struct Font_Raw_Data{
 internal Sys_Font_Data(name);
 
 #define Sys_Font_Data_Not_Used \
-internal Sys_Font_Data(name){Font_Raw_Data data = {0}; InvalidCodePath; return(data);}
+internal Sys_Font_Data(name){Font_Raw_Data data = {0}; LOG("there is no font data retrieval procedure available\n"); return(data);}
 
 #endif
 

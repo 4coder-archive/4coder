@@ -578,6 +578,7 @@ const TEXTMETRIC *lpntme,
 DWORD      FontType,
 LPARAM     lParam
 ){
+    
     if ((FontType & TRUETYPE_FONTTYPE) != 0){
         ENUMLOGFONTEXDV *log_font = (ENUMLOGFONTEXDV*)lpelfe;
         TCHAR *name = ((log_font)->elfEnumLogfontEx).elfLogFont.lfFaceName;
@@ -594,8 +595,8 @@ LPARAM     lParam
         }
         
         Win32_Font_Enum p = *(Win32_Font_Enum*)lParam;
-        Temp_Memory reset = begin_temp_memory(p.part);
         
+        Temp_Memory reset = begin_temp_memory(p.part);
         Font_Setup *setup = push_array(p.part, Font_Setup, 1);
         if (setup != 0){
             memset(setup, 0, sizeof(*setup));
@@ -619,6 +620,7 @@ LPARAM     lParam
             }
         }
     }
+    
     return(1);
 }
 

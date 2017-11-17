@@ -494,6 +494,7 @@ system_font_get_local_stubs(Partition *part){
         
         if (dir_len + len + 1 <= sizeof(list.first->stub.name)){
             Font_Setup *setup = push_struct(part, Font_Setup);
+            memset(setup, 0, sizeof(*setup));
             partition_align(part, 8);
             
             sll_push(list.first, list.last, setup);
@@ -539,7 +540,13 @@ system_font_init(Font_Functions *font_links, u32 pt_size, b32 use_hinting, Font_
             i32 capacity = (i32)(sizeof(loadable->display_name));
             
             if (stub->load_from_path){
-                name_good = font_load_name(stub, loadable->display_name, capacity);
+                if (ptr->has_display_name){
+                    name_good = true;
+                    memcpy(loadable->display_name, ptr->name, ptr->len);
+                }
+                else{
+                    name_good = font_load_name(stub, loadable->display_name, capacity);
+                }
                 if (name_good){
                     loadable->display_len = str_size(loadable->display_name);
                 }

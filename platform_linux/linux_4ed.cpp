@@ -460,7 +460,62 @@ Sys_CLI_End_Update_Sig(system_cli_end_update){
 #include "4ed_font_provider_freetype.h"
 #include "4ed_font_provider_freetype.cpp"
 
+#undef internal
+#include <fontconfig/fontconfig.h>
+#define internal static
+
 Sys_Font_Data_Not_Used;
+
+internal char*
+linux_get_loadable_fonts(Partition *part, Font_Setup_List *list){
+    FcConfig* config = FcInitLoadConfigAndFonts();
+    FcPattern* pat = FcPatternBuild(
+        0,
+        FC_STYLE, FcTypeString, (FcChar8*)"Regular",
+        (void*)0);
+    FcObjectSet* os = FcObjectSetBuild(FC_FAMILY, FC_FILE, (char*)0);
+    FcFontSet* fs = FcFontList(config, pat, os);
+    if (fs != 0){
+        LOGF("Total matching fonts: %d\n", fs->nfont);
+        for (int i=0; fs && i < fs->nfont; ++i) {
+            FcPattern* font = fs->fonts[i];
+            FcChar8 *file = 0;
+            FcChar8 *style = 0;
+            FcChar8 *family = 0;
+            
+            if (FcPatternGetString(font, FC_FILE, 0, &file) == FcResultMatch &&
+                FcPatternGetString(font, FC_FAMILY, 0, &family) == FcResultMatch)
+            {
+                Temp_Memory reset = begin_temp_memory(part);
+                Font_Setup *setup = push_array(part, Font_Setup, 1);
+                if (setup != 0){
+                    memset(setup, 0, sizeof(*setup));
+                    
+                    i32 len = str_size((char*)file);
+                    if (len < sizeof(setup->stub.name)){
+                        i32 name_len = str_size((char*)family);
+                        if (name_len < sizeof(setup->name)){
+                            setup->stub.load_from_path = true;
+                            memcpy(setup->stub.name, file, len + 1);
+                            setup->stub.len = len;
+                            setup->has_display_name = true;
+                            setup->len = name_len;
+                            memcpy(setup->name, family, name_len + 1);
+                            sll_push(list->first, list->last, setup);
+                        }
+                        else{
+                            end_temp_memory(reset);
+                        }
+                    }
+                    else{
+                        end_temp_memory(reset);
+                    }
+                }
+            }
+        }
+        FcFontSetDestroy(fs);
+    }
+}
 
 #include <GL/gl.h>
 #include "opengl/4ed_opengl_render.cpp"
@@ -1611,6 +1666,7 @@ main(int argc, char **argv){
     Partition *scratch = &shared_vars.scratch;
     Temp_Memory temp = begin_temp_memory(scratch);
     Font_Setup_List font_setup = system_font_get_local_stubs(scratch);
+    linux_get_loadable_fonts(scratch, &font_setup);
     system_font_init(&sysfunc.font, plat_settings.font_size, plat_settings.use_hinting, font_setup);
     end_temp_memory(temp);
     
