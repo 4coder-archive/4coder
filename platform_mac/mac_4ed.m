@@ -767,12 +767,14 @@ osx_list_loadable_fonts(void){
         result.paths[i] = path_c;
     }
     
+#if 0
     for (int i = 0; i < count; ++i){
         char *name = result.names[i];
         char *path = result.paths[i];
         fprintf(stdout, "found: %s\nat: %s\n", name, path);
         fflush(stdout);
     }
+#endif
     
     return(result);
 }
