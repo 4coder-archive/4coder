@@ -30,8 +30,8 @@
 #include "4coder_lib/4coder_utf8.h"
 
 #if defined(FRED_SUPER)
-# include "4coder_API/keycodes.h"
-# include "4coder_API/style.h"
+# include "4coder_generated/keycodes.h"
+# include "4coder_generated/style.h"
 
 # define FSTRING_IMPLEMENTATION
 # include "4coder_lib/4coder_string.h"
@@ -309,12 +309,10 @@ win32_post_clipboard(char *text, i32 len){
 
 internal
 Sys_Post_Clipboard_Sig(system_post_clipboard){
-    LOG("Beginning clipboard post\n");
     Partition *part = &win32vars.clip_post_part;
     part->pos = 0;
     u8 *post = (u8*)sysshared_push_block(part, str.size + 1);
     if (post != 0){
-        LOG("Copying post to clipboard buffer\n");
         memcpy(post, str.str, str.size);
         post[str.size] = 0;
         win32vars.clip_post_len = str.size;
@@ -322,7 +320,6 @@ Sys_Post_Clipboard_Sig(system_post_clipboard){
     else{
         LOGF("Failed to allocate buffer for clipboard post (%d)\n", str.size + 1);
     }
-    LOG("Finished clipboard post\n");
 }
 
 internal b32
@@ -571,7 +568,7 @@ struct Win32_Font_Enum{
     Font_Setup_List *list;
 };
 
-internal int
+int CALL_CONVENTION
 win32_font_enum_callback(
 const LOGFONT    *lpelfe,
 const TEXTMETRIC *lpntme,

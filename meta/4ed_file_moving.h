@@ -76,6 +76,9 @@ internal void fm_slash_fix(char *path);
 internal char *fm_prepare_string_internal(char *s1, ...);
 #define fm_str(...) fm_prepare_string_internal(__VA_ARGS__, (void*)0)
 
+internal char *fm_basic_string_internal(char *s1, ...);
+#define fm_basic_str(...) fm_basic_string_internal(__VA_ARGS__, (void*)0)
+
 internal char **fm_prepare_list_internal(char **l1, ...);
 #define fm_list(...) fm_prepare_list_internal(__VA_ARGS__, (void*)0)
 
@@ -616,6 +619,16 @@ fm__prepare(umem item_size, void *i1, va_list list){
     
     void *terminator = (void*)fm__push(item_size);
     memset(terminator, 0, item_size);
+    return(result);
+}
+
+internal char*
+fm_basic_string_internal(char *s1, ...){
+    umem item_size = sizeof(*s1);
+    va_list list;
+    va_start(list, s1);
+    char *result = (char*)fm__prepare(item_size, s1, list);
+    va_end(list);
     return(result);
 }
 

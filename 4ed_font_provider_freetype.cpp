@@ -448,9 +448,9 @@ Sys_Font_Load_Page_Sig(system_font_load_page, settings, metrics, page, page_numb
 
 internal
 Sys_Font_Allocate_Sig(system_font_allocate, size){
-    i64 *size_ptr = 0;
+    umem *size_ptr = 0;
     void *result = system_memory_allocate(size + sizeof(*size_ptr));
-    size_ptr = (i64*)result;
+    size_ptr = (umem*)result;
     *size_ptr = size + 4;
     return(size_ptr + 1);
 }
@@ -458,7 +458,7 @@ Sys_Font_Allocate_Sig(system_font_allocate, size){
 internal
 Sys_Font_Free_Sig(system_font_free, ptr){
     if (ptr != 0){
-        i64 *size_ptr = ((i64*)ptr) - 1;
+        umem *size_ptr = ((umem*)ptr) - 1;
         system_memory_free(size_ptr, *size_ptr);
     }
 }

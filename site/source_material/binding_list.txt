@@ -4,375 +4,312 @@
 4coder version \VERSION
 
 \SECTION{Built in Bindings}
- \ITEM \STYLE{code} "default" \END The standard bindings for Windows and Linux
- \ITEM \STYLE{code} "mac-default" \END The standard bindings reconfigured to be similar to other Mac applications
- \ITEM \STYLE{code} "mac-4coder-like" \END Bindings for Mac that make it very similar to use to 4coder on other OSes
+\ITEM \STYLE{code} "default" \END TODO
+\ITEM \STYLE{code} "mac-default" \END TODO
 \END
 
 \SECTION{4coder Long Command}
 Long name commands that can be typed in after using the "long command" command for infrequently triggered commands.
- \LIST
- \ITEM \STYLE{code} "load project" \END Load a project.4coder file, ditching any previously loaded project
- \ITEM \STYLE{code} "open all code" \END Open all code files in the current directory, extensions set in config.4coder, default to C/C++ extensions
- \ITEM \STYLE{code} "open all code recursive" \END Like \STYLE{code} "open all code" \END but recurses through folders
- \ITEM \STYLE{code} "dos lines" \END Switch the buffer to 'dos' line ending mode CRLF
- \ITEM \STYLE{code} "nix lines" \END Switch the buffer to 'nix' line ending mode LF
- \ITEM \STYLE{code} "remap" \END Change to one of the built in command bindings
- \ITEM \STYLE{code} "new project" \END Setup a new project.4coder and accompanying build scripts
- \END
+\LIST
+\ITEM \STYLE{code} "load project" \END Load a project.4coder file, ditching any previously loaded project
+\ITEM \STYLE{code} "open all code" \END Open all code files in the current directory, extensions set in config.4coder, default to C/C++ extensions
+\ITEM \STYLE{code} "open all code recursive" \END Like \STYLE{code} "open all code" \END but recurses through folders
+\ITEM \STYLE{code} "dos lines" \END Switch the buffer to 'dos' line ending mode CRLF
+\ITEM \STYLE{code} "nix lines" \END Switch the buffer to 'nix' line ending mode LF
+\ITEM \STYLE{code} "remap" \END Change to one of the built in command bindings
+\ITEM \STYLE{code} "new project" \END Setup a new project.4coder and accompanying build scripts
 \END
-
+\END
 \SECTION{Map: default}
-
-\SECTION{Global}
-The following bindings apply in all situations.
- \LIST
- \ITEM \STYLE{code} <ctrl p> \END Create a new panel with a vertical split
- \ITEM \STYLE{code} <ctrl _> \END Create a new panel with a horizontal split
- \ITEM \STYLE{code} <ctrl P> \END Close a panel
- \ITEM \STYLE{code} <ctrl ,> \END Change active panel
- \ITEM \STYLE{code} <ctrl <> \END change active panel backwards
- 
- \ITEM \STYLE{code} <ctrl n> \END New file dialogue
- \ITEM \STYLE{code} <ctrl o> \END Open file dialogue
- \ITEM \STYLE{code} <alt  o> \END Open file dialogue in other panel
- \ITEM \STYLE{code} <ctrl k> \END Kill buffer dialogue
- \ITEM \STYLE{code} <ctrl i> \END Switch open buffer dialogue
- \ITEM \STYLE{code} <ctrl w> \END 'Save As' - save file into new name
- \ITEM \STYLE{code} <ctrl h> \END Set hot directory to projet root directory
- \ITEM \STYLE{code} <ctrl S> \END Save all dirty buffers
- 
- \ITEM \STYLE{code} <alt  c> \END Open color and font selection GUI
- \ITEM \STYLE{code} <alt  d> \END Open a debug information GUI
- 
- \ITEM \STYLE{code} <alt  .> \END Change to footer build panel
- \ITEM \STYLE{code} <alt  ,> \END Close footer build panel
- \ITEM \STYLE{code} <alt  n> \END Goto next error/jump location
- \ITEM \STYLE{code} <alt  N> \END Goto previous error/jump location
- \ITEM \STYLE{code} <alt  M> \END Goto first error/jump location
- \ITEM \STYLE{code} <alt  m> \END Launch basic build (calls build.bat, build.sh, or Makefile)
- 
- \ITEM \STYLE{code} <alt  z> \END Execute arbitrary shell/terminal command in arbitrary buffer
- \ITEM \STYLE{code} <alt  Z> \END Repeat previous shell/terminal command
- 
- \ITEM \STYLE{code} <alt  x> \END Execute "long command" (see long command section)
- 
- \ITEM \STYLE{code} <alt  s> \END Show scrollbar
- \ITEM \STYLE{code} <alt  w> \END Hide scrollbar
- \ITEM \STYLE{code} <alt  b> \END Toggle filebar
- 
- \ITEM \STYLE{code} <alt  @> \END Toggle mouse input
- \ITEM \STYLE{code} <ctrl page up> \END Toggle fullscreen mode
- \ITEM \STYLE{code} <alt  E> \END Exit 4coder
- 
- \ITEM \STYLE{code} <f1> \END Launch shell command set in a loaded project
- \ITEM \STYLE{code} <f2> \END Launch shell command set in a loaded project
- \ITEM \STYLE{code} <f3> \END Launch shell command set in a loaded project
- \ITEM \STYLE{code} <f4> \END Launch shell command set in a loaded project
- 
- \ITEM \STYLE{code} <f5> \END Launch shell command set in a loaded project
- \ITEM \STYLE{code} <f6> \END Launch shell command set in a loaded project
- \ITEM \STYLE{code} <f7> \END Launch shell command set in a loaded project
- \ITEM \STYLE{code} <f8> \END Launch shell command set in a loaded project
- 
- \ITEM \STYLE{code} <f9> \END Launch shell command set in a loaded project
- \ITEM \STYLE{code} <f10> \END Launch shell command set in a loaded project
- \ITEM \STYLE{code} <f11> \END Launch shell command set in a loaded project
- \ITEM \STYLE{code} <f12> \END Launch shell command set in a loaded project
- 
- \ITEM \STYLE{code} <f13> \END Launch shell command set in a loaded project
- \ITEM \STYLE{code} <f14> \END Launch shell command set in a loaded project
- \ITEM \STYLE{code} <f15> \END Launch shell command set in a loaded project
- \ITEM \STYLE{code} <f16> \END Launch shell command set in a loaded project
- 
- \END
+\SECTION{mapid-global}
+TODO
+\LIST
+\ITEM \STYLE{code} <ctrl p> \END Create a new panel by vertically splitting the active panel.
+\ITEM \STYLE{code} <ctrl _> \END Create a new panel by horizontally splitting the active panel.
+\ITEM \STYLE{code} <ctrl P> \END Closes the currently active panel if it is not the only panel open.
+\ITEM \STYLE{code} <ctrl ,> \END Change the currently active panel, moving to the panel with the next highest view_id.
+\ITEM \STYLE{code} <ctrl <> \END Change the currently active panel, moving to the panel with the next lowest view_id.
+\ITEM \STYLE{code} <ctrl n> \END Interactively creates a new file.
+\ITEM \STYLE{code} <ctrl o> \END Interactively opens or creates a new file.
+\ITEM \STYLE{code} <alt o> \END Reads a filename from surrounding '"' characters and attempts to open the corresponding file, displaying it in the other view.
+\ITEM \STYLE{code} <ctrl k> \END Interactively kill an open buffer.
+\ITEM \STYLE{code} <ctrl i> \END Interactively switch to an open buffer.
+\ITEM \STYLE{code} <ctrl h> \END Changes 4coder's hot directory to the root directory of the currently loaded project. With no loaded project nothing hapepns.
+\ITEM \STYLE{code} <ctrl S> \END Saves all buffers marked dirty (showing the '*' indicator).
+\ITEM \STYLE{code} <alt c> \END Opens the 4coder colors and fonts selector menu.
+\ITEM \STYLE{code} <alt d> \END Opens a debug view for internal use.
+\ITEM \STYLE{code} <alt .> \END If the special build panel is open, makes the build panel the active panel.
+\ITEM \STYLE{code} <alt ,> \END If the special build panel is open, closes it.
+\ITEM \STYLE{code} <alt n> \END description missing
+\ITEM \STYLE{code} <alt N> \END description missing
+\ITEM \STYLE{code} <alt M> \END description missing
+\ITEM \STYLE{code} <alt m> \END Looks for a build.bat, build.sh, or makefile in the current and parent directories.  Runs the first that it finds and prints the output to *compilation*.  Puts the *compilation* buffer in a panel at the footer of the current view.
+\ITEM \STYLE{code} <alt z> \END Queries for an output buffer name and system command, runs the system command as a CLI and prints the output to the specified buffer.
+\ITEM \STYLE{code} <alt Z> \END If the command execute_any_cli has already been used, this will execute a CLI reusing the most recent buffer name and command.
+\ITEM \STYLE{code} <alt x> \END Execute a 'long form' command.
+\ITEM \STYLE{code} <alt s> \END Sets the current view to show it's scrollbar.
+\ITEM \STYLE{code} <alt w> \END Sets the current view to hide it's scrollbar.
+\ITEM \STYLE{code} <alt b> \END Toggles the visibility status of the current view's filebar.
+\ITEM \STYLE{code} <alt @> \END Toggles the mouse suppression mode, see suppress_mouse and allow_mouse.
+\ITEM \STYLE{code} <ctrl page up> \END Toggle fullscreen mode on or off.  The change(s) do not take effect until the next frame.
+\ITEM \STYLE{code} <alt E> \END Attempts to close 4coder.
+\ITEM \STYLE{code} <f1> \END Run an 'fkey command' configured in a project.4coder file.  Determines the index of the 'fkey command' by which function key or numeric key was pressed to trigger the command.
+\ITEM \STYLE{code} <f2> \END Run an 'fkey command' configured in a project.4coder file.  Determines the index of the 'fkey command' by which function key or numeric key was pressed to trigger the command.
+\ITEM \STYLE{code} <f3> \END Run an 'fkey command' configured in a project.4coder file.  Determines the index of the 'fkey command' by which function key or numeric key was pressed to trigger the command.
+\ITEM \STYLE{code} <f4> \END Run an 'fkey command' configured in a project.4coder file.  Determines the index of the 'fkey command' by which function key or numeric key was pressed to trigger the command.
+\ITEM \STYLE{code} <f5> \END Run an 'fkey command' configured in a project.4coder file.  Determines the index of the 'fkey command' by which function key or numeric key was pressed to trigger the command.
+\ITEM \STYLE{code} <f6> \END Run an 'fkey command' configured in a project.4coder file.  Determines the index of the 'fkey command' by which function key or numeric key was pressed to trigger the command.
+\ITEM \STYLE{code} <f7> \END Run an 'fkey command' configured in a project.4coder file.  Determines the index of the 'fkey command' by which function key or numeric key was pressed to trigger the command.
+\ITEM \STYLE{code} <f8> \END Run an 'fkey command' configured in a project.4coder file.  Determines the index of the 'fkey command' by which function key or numeric key was pressed to trigger the command.
+\ITEM \STYLE{code} <f9> \END Run an 'fkey command' configured in a project.4coder file.  Determines the index of the 'fkey command' by which function key or numeric key was pressed to trigger the command.
+\ITEM \STYLE{code} <f10> \END Run an 'fkey command' configured in a project.4coder file.  Determines the index of the 'fkey command' by which function key or numeric key was pressed to trigger the command.
+\ITEM \STYLE{code} <f11> \END Run an 'fkey command' configured in a project.4coder file.  Determines the index of the 'fkey command' by which function key or numeric key was pressed to trigger the command.
+\ITEM \STYLE{code} <f12> \END Run an 'fkey command' configured in a project.4coder file.  Determines the index of the 'fkey command' by which function key or numeric key was pressed to trigger the command.
+\ITEM \STYLE{code} <f13> \END Run an 'fkey command' configured in a project.4coder file.  Determines the index of the 'fkey command' by which function key or numeric key was pressed to trigger the command.
+\ITEM \STYLE{code} <f14> \END Run an 'fkey command' configured in a project.4coder file.  Determines the index of the 'fkey command' by which function key or numeric key was pressed to trigger the command.
+\ITEM \STYLE{code} <f15> \END Run an 'fkey command' configured in a project.4coder file.  Determines the index of the 'fkey command' by which function key or numeric key was pressed to trigger the command.
+\ITEM \STYLE{code} <f16> \END Run an 'fkey command' configured in a project.4coder file.  Determines the index of the 'fkey command' by which function key or numeric key was pressed to trigger the command.
 \END
-
-\SECTION{Text File}
-The following bindings apply in general text files and most apply in code files, but some are overriden by other commands.
- \LIST
- \ITEM \STYLE{code} <any character> \END Insert character
- 
- \ITEM \STYLE{code} <left click> \END Set cursor position to mouse position
- \ITEM \STYLE{code} <left release> \END Set mark position to mouse position
- \ITEM \STYLE{code} <right click> \END Set mark position to mouse position
- 
- \ITEM \STYLE{code} <left> \END Move left
- \ITEM \STYLE{code} <right> \END Move right
- \ITEM \STYLE{code} <del> \END Delete character
- \ITEM \STYLE{code} <shift del> \END Delete character
- \ITEM \STYLE{code} <back> \END Backspace character
- \ITEM \STYLE{code} <shift back> \END Backspace character
- \ITEM \STYLE{code} <up> \END Move up
- \ITEM \STYLE{code} <down> \END Move up
- \ITEM \STYLE{code} <end> \END Move to end of line
- \ITEM \STYLE{code} <home> \END Move to beginning of line
- \ITEM \STYLE{code} <page up> \END Move up one whole page
- \ITEM \STYLE{code} <page down> \END Move down one whole page
- 
- \ITEM \STYLE{code} <ctrl right> \END Seek right, stop at whitespace
- \ITEM \STYLE{code} <ctrl left> \END Seek left, stop at whitespace
- \ITEM \STYLE{code} <ctrl up> \END Seek up, stop at blank line
- \ITEM \STYLE{code} <ctrl down> \END Seek down, stop at blank line
- 
- \ITEM \STYLE{code} <alt up> \END Move up ten lines
- \ITEM \STYLE{code} <alt down> \END Move down ten lines
- 
- \ITEM \STYLE{code} <ctrl back> \END Delete word backwards
- \ITEM \STYLE{code} <ctrl del> \END Delete word forwards
- \ITEM \STYLE{code} <alt  back> \END Snipe token (or word) left
- \ITEM \STYLE{code} <alt  del> \END Snipe token (or word) right
- 
- \ITEM Note: 'the range' in the following commands refers to the text between the mark and cursor.
- \ITEM \STYLE{code} <ctrl space> \END Set mark to the cursor position
- \ITEM \STYLE{code} <ctrl a> \END Replace a substring in the range
- \ITEM \STYLE{code} <ctrl c> \END Copy text from the range
- \ITEM \STYLE{code} <ctrl d> \END Delete the text in the range
- \ITEM \STYLE{code} <ctrl e> \END Center the active view on the cursor
- \ITEM \STYLE{code} <ctrl E> \END Move the view so that it's left edge is near the cursor's current x position
- \ITEM \STYLE{code} <ctrl f> \END Begin an incremental search through the current buffer
- \ITEM \STYLE{code} <ctrl F> \END Create a jump location list of all loaded exact matches of a string
- \ITEM \STYLE{code} <alt  F> \END Create a jump location list of all loaded substring matches of a string without case sensitivity
- \ITEM \STYLE{code} <ctrl g> \END Goto a specific line number
- \ITEM \STYLE{code} <ctrl j> \END Convert text in the range to lowercase
- \ITEM \STYLE{code} <ctrl K> \END Kill the current buffer
- \ITEM \STYLE{code} <ctrl l> \END Toggle line wrapping on the current buffer
- \ITEM \STYLE{code} <ctrl m> \END Swap the cursor and mark positions
- \ITEM \STYLE{code} <ctrl O> \END Reload the current buffer from the file system
- \ITEM \STYLE{code} <ctrl q> \END Begin an iterative query replace
- \ITEM \STYLE{code} <ctrl Q> \END Begin an iterative query replace to replace the word under the cursor
- \ITEM \STYLE{code} <ctrl r> \END Begin a reversed incremental search through the current buffer
- \ITEM \STYLE{code} <ctrl s> \END Save the current buffer with it's given filename
- \ITEM \STYLE{code} <ctrl t> \END Begin an incremenal search through the current buffer for the word under the cursor
- \ITEM \STYLE{code} <ctrl T> \END Create a jump location list of all loaded exact matches of the word under the cursor
- \ITEM \STYLE{code} <ctrl u> \END Convert text in the range to uppercase
- \ITEM \STYLE{code} <ctrl v> \END Paste from the clipboard
- \ITEM \STYLE{code} <alt  v> \END Toggle the virtual whitespace system
- \ITEM \STYLE{code} <ctrl V> \END Paste the next item on the clipboard, 4coder keeps a finite history of past 64 copies
- \ITEM \STYLE{code} <ctrl x> \END Copy text from the range and delete the range (aka cut)
- \ITEM \STYLE{code} <ctrl y> \END Redo
- \ITEM \STYLE{code} <ctrl z> \END Undo
- 
- \ITEM \STYLE{code} <ctrl 2> \END Decrease the line wrap width for the current buffer
- \ITEM \STYLE{code} <ctrl 3> \END Increase the line wrap width for the current buffer
- 
- \ITEM \STYLE{code} <ctrl ?> \END Toggle the show whitespace option
- \ITEM \STYLE{code} <ctrl ~> \END Clean trailing whitespace from all lines
- \ITEM \STYLE{code} <return> \END Interpret jump location under cursor and jump to it, lock the next/prev jump commands to this jump location list (only in read only files)
- \ITEM \STYLE{code} <shift return> \END Like previous command but tries to open the jump location in the view that currently holds the jump location list
- 
- \END
 \END
-
-\SECTION{Code File}
-The following commands only apply in C/C++ files where the lexer (syntax highlighting) is turned on.
- \LIST
- 
- \ITEM \STYLE{code} <ctrl right> \END Seek right stop at alphanumeric or camel case
- \ITEM \STYLE{code} <ctrl left> \END Seek left stop at alphanumeric or camel case
- 
- \ITEM \STYLE{code} <}> \END Insert character and trigger auto indentation
- \ITEM \STYLE{code} <)> \END Insert character and trigger auto indentation
- \ITEM \STYLE{code} <]> \END Insert character and trigger auto indentation
- \ITEM \STYLE{code} <;> \END Insert character and trigger auto indentation
- \ITEM \STYLE{code} <#> \END Insert character and trigger auto indentation
- 
- \ITEM \STYLE{code} <tab> \END Automatically complete partial word
- \ITEM \STYLE{code} <ctrl tab> \END Auto indent the range
- \ITEM \STYLE{code} <shift tab> \END Auto indent the line at the cursor
- 
- \ITEM \STYLE{code} <alt  h> \END Insert a HACK commment
- \ITEM \STYLE{code} <alt  r> \END Insert a block comment
- \ITEM \STYLE{code} <alt  t> \END Insert a TODO comment
- \ITEM \STYLE{code} <alt  y> \END Insert a NOTE comment
- \ITEM \STYLE{code} <ctrl [> \END Open a pair of braces
- \ITEM \STYLE{code} <ctrl {> \END Open a pair of braces ended with a semicolon
- \ITEM \STYLE{code} <ctrl }> \END Open a pair of braces ended with a break
- \ITEM \STYLE{code} <alt  i> \END Surround the range with #if 0 and #endif
- \ITEM \STYLE{code} <alt  1> \END Try to open a file named by the string surrounded by quotes under the cursor
- \ITEM \STYLE{code} <alt  2> \END Switch from .cpp \STYLE{code} <-> \END .h
- \ITEM \STYLE{code} <ctrl 0> \END Insert the characters " = {0};"
- \ITEM \STYLE{code} <ctrl I> \END List all function signatures in the current buffer
- 
- \END
+\SECTION{mapid-file}
+TODO
+\LIST
+\ITEM \STYLE{code} <any character> \END Inserts whatever character was used to trigger this command.
+\ITEM \STYLE{code} <left click> \END Sets the cursor position to the mouse position.
+\ITEM \STYLE{code} <left release> \END Sets the mark position to the mouse position.
+\ITEM \STYLE{code} <right click> \END Sets the mark position to the mouse position.
+\ITEM \STYLE{code} <left> \END Moves the cursor one character to the left.
+\ITEM \STYLE{code} <right> \END Moves the cursor one character to the right.
+\ITEM \STYLE{code} <delete> \END Deletes the character to the right of the cursor.
+\ITEM \STYLE{code} <shift delete> \END Deletes the character to the right of the cursor.
+\ITEM \STYLE{code} <backspace> \END Deletes the character to the left of the cursor.
+\ITEM \STYLE{code} <shift backspace> \END Deletes the character to the left of the cursor.
+\ITEM \STYLE{code} <up> \END Moves the cursor up one line.
+\ITEM \STYLE{code} <down> \END Moves the cursor down one line.
+\ITEM \STYLE{code} <end> \END Seeks the cursor to the end of the visual line.
+\ITEM \STYLE{code} <home> \END Seeks the cursor to the beginning of the visual line.
+\ITEM \STYLE{code} <page up> \END Scrolls the view up one view height and moves the cursor up one view height.
+\ITEM \STYLE{code} <page down> \END Scrolls the view down one view height and moves the cursor down one view height.
+\ITEM \STYLE{code} <ctrl right> \END Seek right for the next boundary between whitespace and non-whitespace.
+\ITEM \STYLE{code} <ctrl left> \END Seek left for the next boundary between whitespace and non-whitespace.
+\ITEM \STYLE{code} <ctrl up> \END Seeks the cursor up to the next blank line and places it at the end of the line.
+\ITEM \STYLE{code} <ctrl down> \END Seeks the cursor down to the next blank line and places it at the end of the line.
+\ITEM \STYLE{code} <alt up> \END Moves the cursor up ten lines.
+\ITEM \STYLE{code} <alt down> \END Moves the cursor down ten lines.
+\ITEM \STYLE{code} <ctrl backspace> \END Delete characters between the cursor position and the first alphanumeric boundary to the left.
+\ITEM \STYLE{code} <ctrl delete> \END Delete characters between the cursor position and the first alphanumeric boundary to the right.
+\ITEM \STYLE{code} <alt backspace> \END Delete a single, whole token on or to the left of the cursor.
+\ITEM \STYLE{code} <alt delete> \END Delete a single, whole token on or to the right of the cursor.
+\ITEM \STYLE{code} <ctrl  > \END Sets the mark to the current position of the cursor.
+\ITEM \STYLE{code} <ctrl a> \END Queries the user for two strings, and replaces all occurences of the first string in the range between the cursor and the mark with the second string.
+\ITEM \STYLE{code} <ctrl c> \END Copy the text in the range from the cursor to the mark onto the clipboard.
+\ITEM \STYLE{code} <ctrl d> \END Deletes the text in the range between the cursor and the mark.
+\ITEM \STYLE{code} <ctrl e> \END Centers the view vertically on the line on which the cursor sits.
+\ITEM \STYLE{code} <ctrl E> \END Sets the left size of the view near the x position of the cursor.
+\ITEM \STYLE{code} <ctrl f> \END Begins an incremental search down through the current buffer for a user specified string.
+\ITEM \STYLE{code} <ctrl F> \END Queries the user for a string and lists all exact case-sensitive matches found in all open buffers.
+\ITEM \STYLE{code} <alt F> \END Queries the user for a string and lists all case-insensitive substring matches found in all open buffers.
+\ITEM \STYLE{code} <ctrl g> \END Queries the user for a number, and jumps the cursor to the corresponding line.
+\ITEM \STYLE{code} <ctrl j> \END Converts all ascii text in the range between the cursor and the mark to lowercase.
+\ITEM \STYLE{code} <ctrl K> \END Kills the current buffer.
+\ITEM \STYLE{code} <ctrl l> \END Toggles the current buffer's line wrapping status.
+\ITEM \STYLE{code} <ctrl m> \END Swaps the position of the cursor and the mark.
+\ITEM \STYLE{code} <ctrl O> \END Reopen the current buffer from the hard drive.
+\ITEM \STYLE{code} <ctrl q> \END Queries the user for two strings, and incrementally replaces every occurence of the first string with the second string.
+\ITEM \STYLE{code} <ctrl Q> \END Queries the user for a string, and incrementally replace every occurence of the word or token found at the cursor with the specified string.
+\ITEM \STYLE{code} <ctrl r> \END Begins an incremental search up through the current buffer for a user specified string.
+\ITEM \STYLE{code} <ctrl s> \END Saves the current buffer.
+\ITEM \STYLE{code} <ctrl t> \END Begins an incremental search down through the current buffer for the word or token under the cursor.
+\ITEM \STYLE{code} <ctrl T> \END Reads a token or word under the cursor and lists all exact case-sensitive mathces in all open buffers.
+\ITEM \STYLE{code} <ctrl u> \END Converts all ascii text in the range between the cursor and the mark to uppercase.
+\ITEM \STYLE{code} <ctrl v> \END Paste from the top of clipboard and run auto-indent on the newly pasted text.
+\ITEM \STYLE{code} <alt v> \END Toggles the current buffer's virtual whitespace status.
+\ITEM \STYLE{code} <ctrl V> \END Paste the next item on the clipboard and run auto-indent on the newly pasted text.
+\ITEM \STYLE{code} <ctrl x> \END Cut the text in the range from the cursor to the mark onto the clipboard.
+\ITEM \STYLE{code} <ctrl y> \END Advances forewards through the undo history.
+\ITEM \STYLE{code} <ctrl z> \END Advances backwards through the undo history.
+\ITEM \STYLE{code} <ctrl 2> \END Decrases the current buffer's width for line wrapping.
+\ITEM \STYLE{code} <ctrl 3> \END Increases the current buffer's width for line wrapping.
+\ITEM \STYLE{code} <ctrl ?> \END Toggles the current buffer's whitespace visibility status.
+\ITEM \STYLE{code} <ctrl ~> \END Removes trailing whitespace from all lines in the current buffer.
+\ITEM \STYLE{code} <return> \END description missing
+\ITEM \STYLE{code} <shift return> \END description missing
+\ITEM \STYLE{code} <shift  > \END Inserts whatever character was used to trigger this command.
 \END
-
 \END
-
+\SECTION{default-code-map}
+TODO
+\LIST
+\ITEM \STYLE{code} <ctrl right> \END Seek right for boundary between alphanumeric characters or camel case word and non-alphanumeric characters.
+\ITEM \STYLE{code} <ctrl left> \END Seek left for boundary between alphanumeric characters or camel case word and non-alphanumeric characters.
+\ITEM \STYLE{code} <return> \END Inserts a character and auto-indents the line on which the cursor sits.
+\ITEM \STYLE{code} <shift return> \END Inserts a character and auto-indents the line on which the cursor sits.
+\ITEM \STYLE{code} <}> \END Inserts a character and auto-indents the line on which the cursor sits.
+\ITEM \STYLE{code} <)> \END Inserts a character and auto-indents the line on which the cursor sits.
+\ITEM \STYLE{code} <]> \END Inserts a character and auto-indents the line on which the cursor sits.
+\ITEM \STYLE{code} <;> \END Inserts a character and auto-indents the line on which the cursor sits.
+\ITEM \STYLE{code} <#> \END Inserts a character and auto-indents the line on which the cursor sits.
+\ITEM \STYLE{code} <tab> \END Iteratively tries completing the word to the left of the cursor with other words in open buffers that have the same prefix string.
+\ITEM \STYLE{code} <ctrl tab> \END Auto-indents the range between the cursor and the mark.
+\ITEM \STYLE{code} <shift tab> \END Auto-indents the line on which the cursor sits.
+\ITEM \STYLE{code} <alt h> \END At the cursor, insert a '// HACK' comment, includes user name if it was specified in config.4coder.
+\ITEM \STYLE{code} <alt r> \END At the cursor, insert a block comment.
+\ITEM \STYLE{code} <alt t> \END At the cursor, insert a '// TODO' comment, includes user name if it was specified in config.4coder.
+\ITEM \STYLE{code} <alt y> \END At the cursor, insert a '// NOTE' comment, includes user name if it was specified in config.4coder.
+\ITEM \STYLE{code} <ctrl [> \END At the cursor, insert a '{' and '}' separated by a blank line.
+\ITEM \STYLE{code} <ctrl {> \END At the cursor, insert a '{' and '};' separated by a blank line.
+\ITEM \STYLE{code} <ctrl }> \END At the cursor, insert a '{' and '}break;' separated by a blank line.
+\ITEM \STYLE{code} <alt i> \END Surround the range between the cursor and mark with an '#if 0' and an '#endif'
+\ITEM \STYLE{code} <alt 1> \END Reads a filename from surrounding '"' characters and attempts to open the corresponding file.
+\ITEM \STYLE{code} <alt 2> \END If the current file is a *.cpp or *.h, attempts to open the corresponding *.h or *.cpp file in the other view.
+\ITEM \STYLE{code} <ctrl 0> \END At the cursor, insert a ' = {0};'.
+\ITEM \STYLE{code} <ctrl I> \END Creates a jump list of lines of the current buffer that appear to define or declare functions.
+\END
+\END
+\END
 \SECTION{Map: mac-default}
-
-\SECTION{Global}
-The following bindings apply in all situations.
- \LIST
- \ITEM \STYLE{code} <cmnd p> \END Create a new panel with a vertical split
- \ITEM \STYLE{code} <cmnd _> \END Create a new panel with a horizontal split
- \ITEM \STYLE{code} <cmnd P> \END Close a panel
- \ITEM \STYLE{code} <cmnd ,> \END Change active panel
- \ITEM \STYLE{code} <cmnd <> \END change active panel backwards
- 
- \ITEM \STYLE{code} <cmnd n> \END New file dialogue
- \ITEM \STYLE{code} <cmnd o> \END Open file dialogue
- \ITEM \STYLE{code} <ctrl o> \END Open file dialogue in other panel
- \ITEM \STYLE{code} <cmnd k> \END Kill buffer dialogue
- \ITEM \STYLE{code} <cmnd i> \END Switch open buffer dialogue
- \ITEM \STYLE{code} <cmnd w> \END 'Save As' - save file into new name
- \ITEM \STYLE{code} <cmnd h> \END Set hot directory to projet root directory
- 
- \ITEM \STYLE{code} <ctrl c> \END Open color and font selection GUI
- \ITEM \STYLE{code} <ctrl d> \END Open a debug information GUI
- 
- \ITEM \STYLE{code} <ctrl .> \END Change to footer build panel
- \ITEM \STYLE{code} <ctrl ,> \END Close footer build panel
- \ITEM \STYLE{code} <ctrl n> \END Goto next error/jump location
- \ITEM \STYLE{code} <ctrl N> \END Goto previous error/jump location
- \ITEM \STYLE{code} <ctrl M> \END Goto first error/jump location
- \ITEM \STYLE{code} <ctrl m> \END Launch basic build (calls build.bat, build.sh, or Makefile)
- 
- \ITEM \STYLE{code} <ctrl z> \END Execute arbitrary shell/terminal command in arbitrary buffer
- \ITEM \STYLE{code} <ctrl Z> \END Repeat previous shell/terminal command
- 
- \ITEM \STYLE{code} <ctrl x> \END Execute "long command" (see long command section)
- 
- \ITEM \STYLE{code} <ctrl s> \END Show scrollbar
- \ITEM \STYLE{code} <ctrl w> \END Hide scrollbar
- \ITEM \STYLE{code} <ctrl b> \END Toggle filebar
- 
- \ITEM \STYLE{code} <ctrl @> \END Toggle mouse input
- \ITEM \STYLE{code} <cmnd page up> \END Toggle fullscreen mode
- \ITEM \STYLE{code} <ctrl E> \END Exit 4coder
- 
- \ITEM \STYLE{code} <f1> \END Launch shell command set in a loaded project
- \ITEM \STYLE{code} <f2> \END Launch shell command set in a loaded project
- \ITEM \STYLE{code} <f3> \END Launch shell command set in a loaded project
- \ITEM \STYLE{code} <f4> \END Launch shell command set in a loaded project
- 
- \ITEM \STYLE{code} <f5> \END Launch shell command set in a loaded project
- \ITEM \STYLE{code} <f6> \END Launch shell command set in a loaded project
- \ITEM \STYLE{code} <f7> \END Launch shell command set in a loaded project
- \ITEM \STYLE{code} <f8> \END Launch shell command set in a loaded project
- 
- \ITEM \STYLE{code} <f9> \END Launch shell command set in a loaded project
- \ITEM \STYLE{code} <f10> \END Launch shell command set in a loaded project
- \ITEM \STYLE{code} <f11> \END Launch shell command set in a loaded project
- \ITEM \STYLE{code} <f12> \END Launch shell command set in a loaded project
- 
- \ITEM \STYLE{code} <f13> \END Launch shell command set in a loaded project
- \ITEM \STYLE{code} <f14> \END Launch shell command set in a loaded project
- \ITEM \STYLE{code} <f15> \END Launch shell command set in a loaded project
- \ITEM \STYLE{code} <f16> \END Launch shell command set in a loaded project
- 
- \END
+\SECTION{mapid-global}
+TODO
+\LIST
+\ITEM \STYLE{code} <cmnd p> \END Create a new panel by vertically splitting the active panel.
+\ITEM \STYLE{code} <cmnd _> \END Create a new panel by horizontally splitting the active panel.
+\ITEM \STYLE{code} <cmnd P> \END Closes the currently active panel if it is not the only panel open.
+\ITEM \STYLE{code} <cmnd ,> \END Change the currently active panel, moving to the panel with the next highest view_id.
+\ITEM \STYLE{code} <cmnd <> \END Change the currently active panel, moving to the panel with the next lowest view_id.
+\ITEM \STYLE{code} <cmnd n> \END Interactively creates a new file.
+\ITEM \STYLE{code} <cmnd o> \END Interactively opens or creates a new file.
+\ITEM \STYLE{code} <ctrl o> \END Reads a filename from surrounding '"' characters and attempts to open the corresponding file, displaying it in the other view.
+\ITEM \STYLE{code} <cmnd k> \END Interactively kill an open buffer.
+\ITEM \STYLE{code} <cmnd i> \END Interactively switch to an open buffer.
+\ITEM \STYLE{code} <cmnd h> \END Changes 4coder's hot directory to the root directory of the currently loaded project. With no loaded project nothing hapepns.
+\ITEM \STYLE{code} <cmnd S> \END Saves all buffers marked dirty (showing the '*' indicator).
+\ITEM \STYLE{code} <ctrl c> \END Opens the 4coder colors and fonts selector menu.
+\ITEM \STYLE{code} <ctrl d> \END Opens a debug view for internal use.
+\ITEM \STYLE{code} <ctrl .> \END If the special build panel is open, makes the build panel the active panel.
+\ITEM \STYLE{code} <ctrl ,> \END If the special build panel is open, closes it.
+\ITEM \STYLE{code} <ctrl n> \END description missing
+\ITEM \STYLE{code} <ctrl N> \END description missing
+\ITEM \STYLE{code} <ctrl M> \END description missing
+\ITEM \STYLE{code} <ctrl m> \END Looks for a build.bat, build.sh, or makefile in the current and parent directories.  Runs the first that it finds and prints the output to *compilation*.  Puts the *compilation* buffer in a panel at the footer of the current view.
+\ITEM \STYLE{code} <ctrl z> \END Queries for an output buffer name and system command, runs the system command as a CLI and prints the output to the specified buffer.
+\ITEM \STYLE{code} <ctrl Z> \END If the command execute_any_cli has already been used, this will execute a CLI reusing the most recent buffer name and command.
+\ITEM \STYLE{code} <ctrl x> \END Execute a 'long form' command.
+\ITEM \STYLE{code} <ctrl s> \END Sets the current view to show it's scrollbar.
+\ITEM \STYLE{code} <ctrl w> \END Sets the current view to hide it's scrollbar.
+\ITEM \STYLE{code} <ctrl b> \END Toggles the visibility status of the current view's filebar.
+\ITEM \STYLE{code} <ctrl @> \END Toggles the mouse suppression mode, see suppress_mouse and allow_mouse.
+\ITEM \STYLE{code} <cmnd page up> \END Toggle fullscreen mode on or off.  The change(s) do not take effect until the next frame.
+\ITEM \STYLE{code} <ctrl E> \END Attempts to close 4coder.
+\ITEM \STYLE{code} <f1> \END Run an 'fkey command' configured in a project.4coder file.  Determines the index of the 'fkey command' by which function key or numeric key was pressed to trigger the command.
+\ITEM \STYLE{code} <f2> \END Run an 'fkey command' configured in a project.4coder file.  Determines the index of the 'fkey command' by which function key or numeric key was pressed to trigger the command.
+\ITEM \STYLE{code} <f3> \END Run an 'fkey command' configured in a project.4coder file.  Determines the index of the 'fkey command' by which function key or numeric key was pressed to trigger the command.
+\ITEM \STYLE{code} <f4> \END Run an 'fkey command' configured in a project.4coder file.  Determines the index of the 'fkey command' by which function key or numeric key was pressed to trigger the command.
+\ITEM \STYLE{code} <f5> \END Run an 'fkey command' configured in a project.4coder file.  Determines the index of the 'fkey command' by which function key or numeric key was pressed to trigger the command.
+\ITEM \STYLE{code} <f6> \END Run an 'fkey command' configured in a project.4coder file.  Determines the index of the 'fkey command' by which function key or numeric key was pressed to trigger the command.
+\ITEM \STYLE{code} <f7> \END Run an 'fkey command' configured in a project.4coder file.  Determines the index of the 'fkey command' by which function key or numeric key was pressed to trigger the command.
+\ITEM \STYLE{code} <f8> \END Run an 'fkey command' configured in a project.4coder file.  Determines the index of the 'fkey command' by which function key or numeric key was pressed to trigger the command.
+\ITEM \STYLE{code} <f9> \END Run an 'fkey command' configured in a project.4coder file.  Determines the index of the 'fkey command' by which function key or numeric key was pressed to trigger the command.
+\ITEM \STYLE{code} <f10> \END Run an 'fkey command' configured in a project.4coder file.  Determines the index of the 'fkey command' by which function key or numeric key was pressed to trigger the command.
+\ITEM \STYLE{code} <f11> \END Run an 'fkey command' configured in a project.4coder file.  Determines the index of the 'fkey command' by which function key or numeric key was pressed to trigger the command.
+\ITEM \STYLE{code} <f12> \END Run an 'fkey command' configured in a project.4coder file.  Determines the index of the 'fkey command' by which function key or numeric key was pressed to trigger the command.
+\ITEM \STYLE{code} <f13> \END Run an 'fkey command' configured in a project.4coder file.  Determines the index of the 'fkey command' by which function key or numeric key was pressed to trigger the command.
+\ITEM \STYLE{code} <f14> \END Run an 'fkey command' configured in a project.4coder file.  Determines the index of the 'fkey command' by which function key or numeric key was pressed to trigger the command.
+\ITEM \STYLE{code} <f15> \END Run an 'fkey command' configured in a project.4coder file.  Determines the index of the 'fkey command' by which function key or numeric key was pressed to trigger the command.
+\ITEM \STYLE{code} <f16> \END Run an 'fkey command' configured in a project.4coder file.  Determines the index of the 'fkey command' by which function key or numeric key was pressed to trigger the command.
 \END
-
-\SECTION{Text File}
-The following bindings apply in general text files and most apply in code files, but some are overriden by other commands.
- \LIST
- \ITEM \STYLE{code} <any character> \END Insert character
- 
- \ITEM \STYLE{code} <left click> \END Set cursor position to mouse position
- \ITEM \STYLE{code} <left release> \END Set mark position to mouse position
- \ITEM \STYLE{code} <right click> \END Set mark position to mouse position
- 
- \ITEM \STYLE{code} <left> \END Move left
- \ITEM \STYLE{code} <right> \END Move right
- \ITEM \STYLE{code} <del> \END Delete character
- \ITEM \STYLE{code} <shift del> \END Delete character
- \ITEM \STYLE{code} <back> \END Backspace character
- \ITEM \STYLE{code} <shift back> \END Backspace character
- \ITEM \STYLE{code} <up> \END Move up
- \ITEM \STYLE{code} <down> \END Move up
- \ITEM \STYLE{code} <end> \END Move to end of line
- \ITEM \STYLE{code} <home> \END Move to beginning of line
- \ITEM \STYLE{code} <page up> \END Move up one whole page
- \ITEM \STYLE{code} <page down> \END Move down one whole page
- 
- \ITEM \STYLE{code} <cmnd right> \END Seek right, stop at whitespace
- \ITEM \STYLE{code} <cmnd left> \END Seek left, stop at whitespace
- \ITEM \STYLE{code} <cmnd up> \END Seek up, stop at blank line
- \ITEM \STYLE{code} <cmnd down> \END Seek down, stop at blank line
- 
- \ITEM \STYLE{code} <alt  up> \END Move up ten lines
- \ITEM \STYLE{code} <alt  down> \END Move down ten lines
- 
- \ITEM \STYLE{code} <cmnd back> \END Delete word backwards
- \ITEM \STYLE{code} <cmnd del> \END Delete word forwards
- \ITEM \STYLE{code} <ctrl back> \END Snipe token (or word) left
- \ITEM \STYLE{code} <ctrl del> \END Snipe token (or word) right
- 
- \ITEM Note: 'the range' in the following commands refers to the text between the mark and cursor.
- \ITEM \STYLE{code} <cmnd /> \END Set mark to the cursor position
- \ITEM \STYLE{code} <cmnd a> \END Replace a substring in the range
- \ITEM \STYLE{code} <cmnd c> \END Copy text from the range
- \ITEM \STYLE{code} <cmnd d> \END Delete the text in the range
- \ITEM \STYLE{code} <cmnd e> \END Center the active view on the cursor
- \ITEM \STYLE{code} <cmnd E> \END Move the view so that it's left edge is near the cursor's current x position
- \ITEM \STYLE{code} <cmnd f> \END Begin an incremental search through the current buffer
- \ITEM \STYLE{code} <cmnd F> \END Create a jump location list of all loaded exact matches of a string
- \ITEM \STYLE{code} <ctrl F> \END Create a jump location list of all loaded substring matches of a string without case sensitivity
- \ITEM \STYLE{code} <cmnd g> \END Goto a specific line number
- \ITEM \STYLE{code} <cmnd j> \END Convert text in the range to lowercase
- \ITEM \STYLE{code} <cmnd K> \END Kill the current buffer
- \ITEM \STYLE{code} <cmnd l> \END Toggle line wrapping on the current buffer
- \ITEM \STYLE{code} <cmnd m> \END Swap the cursor and mark positions
- \ITEM \STYLE{code} <cmnd O> \END Reload the current buffer from the file system
- \ITEM \STYLE{code} <cmnd q> \END Begin an iterative query replace
- \ITEM \STYLE{code} <cmnd Q> \END Begin an iterative query replace to replace the word under the cursor
- \ITEM \STYLE{code} <cmnd r> \END Begin a reversed incremental search through the current buffer
- \ITEM \STYLE{code} <cmnd s> \END Save the current buffer with it's given filename
- \ITEM \STYLE{code} <cmnd t> \END Begin an incremenal search through the current buffer for the word under the cursor
- \ITEM \STYLE{code} <cmnd T> \END Create a jump location list of all loaded exact matches of the word under the cursor
- \ITEM \STYLE{code} <cmnd u> \END Convert text in the range to uppercase
- \ITEM \STYLE{code} <cmnd v> \END Paste from the clipboard
- \ITEM \STYLE{code} <ctrl v> \END Toggle the virtual whitespace system
- \ITEM \STYLE{code} <cmnd V> \END Paste the next item on the clipboard, 4coder keeps a finite history of past 64 copies
- \ITEM \STYLE{code} <cmnd x> \END Copy text from the range and delete the range (aka cut)
- \ITEM \STYLE{code} <cmnd y> \END Redo
- \ITEM \STYLE{code} <cmnd z> \END Undo
- 
- \ITEM \STYLE{code} <cmnd 2> \END Decrease the line wrap width for the current buffer
- \ITEM \STYLE{code} <cmnd 3> \END Increase the line wrap width for the current buffer
- 
- \ITEM \STYLE{code} <cmnd ?> \END Toggle the show whitespace option
- \ITEM \STYLE{code} <cmnd ~> \END Clean trailing whitespace from all lines
- \ITEM \STYLE{code} <return> \END Interpret jump location under cursor and jump to it, lock the next/prev jump commands to this jump location list (only in read only files)
- \ITEM \STYLE{code} <shift return> \END Like previous command but tries to open the jump location in the view that currently holds the jump location list
- 
- \END
 \END
-
-\SECTION{Code File}
-The following commands only apply in C/C++ files where the lexer (syntax highlighting) is turned on.
- \LIST
- 
- \ITEM \STYLE{code} <cmnd right> \END Seek right stop at alphanumeric or camel case
- \ITEM \STYLE{code} <cmnd left> \END Seek left stop at alphanumeric or camel case
- 
- \ITEM \STYLE{code} <}> \END Insert character and trigger auto indentation
- \ITEM \STYLE{code} <)> \END Insert character and trigger auto indentation
- \ITEM \STYLE{code} <]> \END Insert character and trigger auto indentation
- \ITEM \STYLE{code} <;> \END Insert character and trigger auto indentation
- \ITEM \STYLE{code} <#> \END Insert character and trigger auto indentation
- 
- \ITEM \STYLE{code} <tab> \END Automatically complete partial word
- \ITEM \STYLE{code} <cmnd tab> \END Auto indent the range
- \ITEM \STYLE{code} <shift tab> \END Auto indent the line at the cursor
- 
- \ITEM \STYLE{code} <ctrl h> \END Insert a HACK comment
- \ITEM \STYLE{code} <ctrl r> \END Insert a block comment
- \ITEM \STYLE{code} <ctrl t> \END Insert a TODO comment
- \ITEM \STYLE{code} <ctrl y> \END Insert a NOTE comment
- \ITEM \STYLE{code} <cmnd [> \END Open a pair of braces
- \ITEM \STYLE{code} <cmnd {> \END Open a pair of braces ended with a semicolon
- \ITEM \STYLE{code} <cmnd }> \END Open a pair of braces ended with a break
- \ITEM \STYLE{code} <ctrl i> \END Surround the range with #if 0 and #endif
- \ITEM \STYLE{code} <ctrl 1> \END Try to open a file named by the string surrounded by quotes under the cursor
- \ITEM \STYLE{code} <ctrl 2> \END Switch from .cpp \STYLE{code} <-> \END .h
- \ITEM \STYLE{code} <cmnd 0> \END Insert the characters " = {0};"
- \ITEM \STYLE{code} <cmnd I> \END List all function signatures in the current buffer
- 
- \END
+\SECTION{mapid-file}
+TODO
+\LIST
+\ITEM \STYLE{code} <any character> \END Inserts whatever character was used to trigger this command.
+\ITEM \STYLE{code} <alt any character> \END Inserts whatever character was used to trigger this command.
+\ITEM \STYLE{code} <left click> \END Sets the cursor position to the mouse position.
+\ITEM \STYLE{code} <left release> \END Sets the mark position to the mouse position.
+\ITEM \STYLE{code} <right click> \END Sets the mark position to the mouse position.
+\ITEM \STYLE{code} <left> \END Moves the cursor one character to the left.
+\ITEM \STYLE{code} <right> \END Moves the cursor one character to the right.
+\ITEM \STYLE{code} <delete> \END Deletes the character to the right of the cursor.
+\ITEM \STYLE{code} <shift delete> \END Deletes the character to the right of the cursor.
+\ITEM \STYLE{code} <backspace> \END Deletes the character to the left of the cursor.
+\ITEM \STYLE{code} <shift backspace> \END Deletes the character to the left of the cursor.
+\ITEM \STYLE{code} <up> \END Moves the cursor up one line.
+\ITEM \STYLE{code} <down> \END Moves the cursor down one line.
+\ITEM \STYLE{code} <end> \END Seeks the cursor to the end of the visual line.
+\ITEM \STYLE{code} <home> \END Seeks the cursor to the beginning of the visual line.
+\ITEM \STYLE{code} <page up> \END Scrolls the view up one view height and moves the cursor up one view height.
+\ITEM \STYLE{code} <page down> \END Scrolls the view down one view height and moves the cursor down one view height.
+\ITEM \STYLE{code} <cmnd right> \END Seek right for the next boundary between whitespace and non-whitespace.
+\ITEM \STYLE{code} <cmnd left> \END Seek left for the next boundary between whitespace and non-whitespace.
+\ITEM \STYLE{code} <cmnd up> \END Seeks the cursor up to the next blank line and places it at the end of the line.
+\ITEM \STYLE{code} <cmnd down> \END Seeks the cursor down to the next blank line and places it at the end of the line.
+\ITEM \STYLE{code} <cmnd backspace> \END Delete characters between the cursor position and the first alphanumeric boundary to the left.
+\ITEM \STYLE{code} <cmnd delete> \END Delete characters between the cursor position and the first alphanumeric boundary to the right.
+\ITEM \STYLE{code} <ctrl backspace> \END Delete a single, whole token on or to the left of the cursor.
+\ITEM \STYLE{code} <ctrl delete> \END Delete a single, whole token on or to the right of the cursor.
+\ITEM \STYLE{code} <cmnd /> \END Sets the mark to the current position of the cursor.
+\ITEM \STYLE{code} <cmnd a> \END Queries the user for two strings, and replaces all occurences of the first string in the range between the cursor and the mark with the second string.
+\ITEM \STYLE{code} <cmnd c> \END Copy the text in the range from the cursor to the mark onto the clipboard.
+\ITEM \STYLE{code} <cmnd d> \END Deletes the text in the range between the cursor and the mark.
+\ITEM \STYLE{code} <cmnd e> \END Centers the view vertically on the line on which the cursor sits.
+\ITEM \STYLE{code} <cmnd E> \END Sets the left size of the view near the x position of the cursor.
+\ITEM \STYLE{code} <cmnd f> \END Begins an incremental search down through the current buffer for a user specified string.
+\ITEM \STYLE{code} <cmnd F> \END Queries the user for a string and lists all exact case-sensitive matches found in all open buffers.
+\ITEM \STYLE{code} <ctrl F> \END Queries the user for a string and lists all case-insensitive substring matches found in all open buffers.
+\ITEM \STYLE{code} <cmnd g> \END Queries the user for a number, and jumps the cursor to the corresponding line.
+\ITEM \STYLE{code} <cmnd j> \END Converts all ascii text in the range between the cursor and the mark to lowercase.
+\ITEM \STYLE{code} <cmnd K> \END Kills the current buffer.
+\ITEM \STYLE{code} <cmnd l> \END Toggles the current buffer's line wrapping status.
+\ITEM \STYLE{code} <cmnd m> \END Swaps the position of the cursor and the mark.
+\ITEM \STYLE{code} <cmnd O> \END Reopen the current buffer from the hard drive.
+\ITEM \STYLE{code} <cmnd q> \END Queries the user for two strings, and incrementally replaces every occurence of the first string with the second string.
+\ITEM \STYLE{code} <cmnd Q> \END Queries the user for a string, and incrementally replace every occurence of the word or token found at the cursor with the specified string.
+\ITEM \STYLE{code} <cmnd r> \END Begins an incremental search up through the current buffer for a user specified string.
+\ITEM \STYLE{code} <cmnd s> \END Saves the current buffer.
+\ITEM \STYLE{code} <cmnd t> \END Begins an incremental search down through the current buffer for the word or token under the cursor.
+\ITEM \STYLE{code} <cmnd T> \END Reads a token or word under the cursor and lists all exact case-sensitive mathces in all open buffers.
+\ITEM \STYLE{code} <cmnd u> \END Converts all ascii text in the range between the cursor and the mark to uppercase.
+\ITEM \STYLE{code} <cmnd v> \END Paste from the top of clipboard and run auto-indent on the newly pasted text.
+\ITEM \STYLE{code} <ctrl v> \END Toggles the current buffer's virtual whitespace status.
+\ITEM \STYLE{code} <cmnd V> \END Paste the next item on the clipboard and run auto-indent on the newly pasted text.
+\ITEM \STYLE{code} <cmnd x> \END Cut the text in the range from the cursor to the mark onto the clipboard.
+\ITEM \STYLE{code} <cmnd y> \END Advances forewards through the undo history.
+\ITEM \STYLE{code} <cmnd z> \END Advances backwards through the undo history.
+\ITEM \STYLE{code} <cmnd 2> \END Decrases the current buffer's width for line wrapping.
+\ITEM \STYLE{code} <cmnd 3> \END Increases the current buffer's width for line wrapping.
+\ITEM \STYLE{code} <cmnd ?> \END Toggles the current buffer's whitespace visibility status.
+\ITEM \STYLE{code} <cmnd ~> \END Removes trailing whitespace from all lines in the current buffer.
+\ITEM \STYLE{code} <return> \END description missing
+\ITEM \STYLE{code} <shift return> \END description missing
+\ITEM \STYLE{code} <shift  > \END Inserts whatever character was used to trigger this command.
 \END
-
 \END
-
-
+\SECTION{default-code-map}
+TODO
+\LIST
+\ITEM \STYLE{code} <cmnd right> \END Seek right for boundary between alphanumeric characters or camel case word and non-alphanumeric characters.
+\ITEM \STYLE{code} <cmnd left> \END Seek left for boundary between alphanumeric characters or camel case word and non-alphanumeric characters.
+\ITEM \STYLE{code} <return> \END Inserts a character and auto-indents the line on which the cursor sits.
+\ITEM \STYLE{code} <shift return> \END Inserts a character and auto-indents the line on which the cursor sits.
+\ITEM \STYLE{code} <}> \END Inserts a character and auto-indents the line on which the cursor sits.
+\ITEM \STYLE{code} <)> \END Inserts a character and auto-indents the line on which the cursor sits.
+\ITEM \STYLE{code} <]> \END Inserts a character and auto-indents the line on which the cursor sits.
+\ITEM \STYLE{code} <;> \END Inserts a character and auto-indents the line on which the cursor sits.
+\ITEM \STYLE{code} <#> \END Inserts a character and auto-indents the line on which the cursor sits.
+\ITEM \STYLE{code} <tab> \END Iteratively tries completing the word to the left of the cursor with other words in open buffers that have the same prefix string.
+\ITEM \STYLE{code} <cmnd tab> \END Auto-indents the range between the cursor and the mark.
+\ITEM \STYLE{code} <shift tab> \END Auto-indents the line on which the cursor sits.
+\ITEM \STYLE{code} <ctrl h> \END At the cursor, insert a '// HACK' comment, includes user name if it was specified in config.4coder.
+\ITEM \STYLE{code} <ctrl r> \END At the cursor, insert a block comment.
+\ITEM \STYLE{code} <ctrl t> \END At the cursor, insert a '// TODO' comment, includes user name if it was specified in config.4coder.
+\ITEM \STYLE{code} <ctrl y> \END At the cursor, insert a '// NOTE' comment, includes user name if it was specified in config.4coder.
+\ITEM \STYLE{code} <cmnd [> \END At the cursor, insert a '{' and '}' separated by a blank line.
+\ITEM \STYLE{code} <cmnd {> \END At the cursor, insert a '{' and '};' separated by a blank line.
+\ITEM \STYLE{code} <cmnd }> \END At the cursor, insert a '{' and '}break;' separated by a blank line.
+\ITEM \STYLE{code} <ctrl i> \END Surround the range between the cursor and mark with an '#if 0' and an '#endif'
+\ITEM \STYLE{code} <ctrl 1> \END Reads a filename from surrounding '"' characters and attempts to open the corresponding file.
+\ITEM \STYLE{code} <ctrl 2> \END If the current file is a *.cpp or *.h, attempts to open the corresponding *.h or *.cpp file in the other view.
+\ITEM \STYLE{code} <cmnd 0> \END At the cursor, insert a ' = {0};'.
+\ITEM \STYLE{code} <cmnd I> \END Creates a jump list of lines of the current buffer that appear to define or declare functions.
+\END
+\END
+\END

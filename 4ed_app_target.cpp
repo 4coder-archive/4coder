@@ -42,6 +42,7 @@
 #include "4cpp/4cpp_lexer.h"
 
 #include "4ed_linked_node_macros.h"
+#include "4ed_log.h"
 
 #include "4ed_font.cpp"
 

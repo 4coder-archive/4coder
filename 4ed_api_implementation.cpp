@@ -394,12 +394,7 @@ Clipboard_Post(Application_Links *app, int32_t clipboard_id, char *str, int32_t 
 DOC_PARAM(clipboard_id, This parameter is set up to prepare for future features, it should always be 0 for now.)
 DOC_PARAM(str, The str parameter specifies the string to be posted to the clipboard, it need not be null terminated.)
 DOC_PARAM(len, The len parameter specifies the length of the str string.)
-DOC
-(
-Stores the string str in the clipboard initially with index 0.
-Also reports the copy to the operating system, so that it may
-be pasted into other applications.
-)
+DOC(Stores the string str in the clipboard initially with index 0. Also reports the copy to the operating system, so that it may be pasted into other applications.)
 DOC_SEE(The_4coder_Clipboard)
 */{
     Command_Data *cmd = (Command_Data*)app->cmd_context;

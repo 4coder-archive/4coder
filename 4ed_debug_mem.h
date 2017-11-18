@@ -60,7 +60,7 @@ debug_gm_free(Debug_GM *general, void *memory){
 static void*
 debug_gm_reallocate(Debug_GM *general, void *old, int32_t old_size, int32_t size){
     void *result = debug_gm_allocate(general, size);
-    memcpy(result, old, old_size);
+    memcpy(result, old, Min(old_size, size));
     debug_gm_free(general, old);
     return(result);
 }

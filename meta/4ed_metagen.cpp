@@ -9,10 +9,12 @@
 
 // TOP
 
-#define KEYCODES_FILE "4coder_API/keycodes.h"
-#define STYLE_FILE "4coder_API/style.h"
+#define KEYCODES_FILE "4coder_generated/keycodes.h"
+#define STYLE_FILE "4coder_generated/style.h"
+#define API_H "4coder_generated/app_functions.h"
+#define REMAPPING_FILE "4coder_generated/remapping.h"
 
-#define API_H "4coder_API/app_functions.h"
+
 #define OS_API_H "4ed_os_custom_api.h"
 
 #include "../4ed_defines.h"
@@ -23,6 +25,7 @@
 #include "../4coder_lib/4coder_string.h"
 
 #include "../4cpp/4cpp_lexer.h"
+#include "../4ed_linked_node_macros.h"
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -34,42 +37,45 @@
 #include "4ed_meta_keywords.h"
 
 //////////////////////////////////////////////////////////////////////////////////////////////////
-char *keys_that_need_codes[] = {
-    "back",
-    "up",
-    "down",
-    "left",
-    "right",
-    "del",
-    "insert",
-    "home",
-    "end",
-    "page_up",
-    "page_down",
-    "esc",
-    
-    "mouse_left",
-    "mouse_right",
-    "mouse_left_release",
-    "mouse_right_release",
-    
-    "f1",
-    "f2",
-    "f3",
-    "f4",
-    "f5",
-    "f6",
-    "f7",
-    "f8",
-    
-    "f9",
-    "f10",
-    "f11",
-    "f12",
-    "f13",
-    "f14",
-    "f15",
-    "f16",
+#define KEY_LIST(M)\
+M(back) \
+M(up) \
+M(down) \
+M(left) \
+M(right) \
+M(del) \
+M(insert) \
+M(home) \
+M(end) \
+M(page_up) \
+M(page_down) \
+M(esc) \
+M(mouse_left) \
+M(mouse_right) \
+M(mouse_left_release) \
+M(mouse_right_release) \
+M(f1) \
+M(f2) \
+M(f3) \
+M(f4) \
+M(f5) \
+M(f6) \
+M(f7) \
+M(f8) \
+M(f9) \
+M(f10) \
+M(f11) \
+M(f12) \
+M(f13) \
+M(f14) \
+M(f15) \
+M(f16)
+
+enum{
+    key_enum_kicker_offer = 0xD800 - 1,
+#define DefKeyEnum(n) key_##n,
+    KEY_LIST(DefKeyEnum)
+#undef DefKeyEnum
 };
 
 internal void
@@ -78,19 +84,12 @@ generate_keycode_enum(){
     
     char *filename_keycodes = KEYCODES_FILE;
     
-    u16 code = 0xD800;
     String out = str_alloc(10 << 20);
     
-    i32 count = ArrayCount(keys_that_need_codes);
-    
     append(&out, "enum{\n");
-    for (i32 i = 0; i < count;){
-        append(&out, "key_");
-        append(&out, keys_that_need_codes[i++]);
-        append(&out, " = ");
-        append_int_to_str(&out, code++);
-        append(&out, ",\n");
-    }
+#define DefKeyEnum(n) append(&out, "key_" #n " = "); append_int_to_str(&out, key_##n); append(&out, ",\n");
+    KEY_LIST(DefKeyEnum)
+#undef DefKeyEnum
     append(&out, "};\n");
     
     append(&out,
@@ -99,15 +98,9 @@ generate_keycode_enum(){
            "char *result = 0;\n"
            "switch(key_code){\n");
     
-    for (i32 i = 0; i < count; ++i){
-        append(&out, "case key_");
-        append(&out, keys_that_need_codes[i]);
-        append(&out, ": result = \"");
-        append(&out, keys_that_need_codes[i]);
-        append(&out, "\"; *size = sizeof(\"");
-        append(&out, keys_that_need_codes[i]);
-        append(&out, "\")-1; break;\n");
-    }
+#define KeyCase(n) append(&out, "case key_" #n ": result = \"key_" #n "\"; *size = sizeof(\"key_" #n "\")-1; break;\n");
+    KEY_LIST(KeyCase)
+#undef KeyCase
     
     append(&out,
            "}\n"
@@ -503,6 +496,769 @@ generate_custom_headers(){
     fm_end_temp(temp);
 }
 
+//////////////////////////////////////////////////////////////////////////////////////////////////
+
+struct Key_Bind{
+    Key_Bind *next;
+    
+    b32 vanilla;
+    u32 keycode;
+    u32 modifiers;
+    
+    char *command;
+    i32 command_len;
+};
+
+struct Sub_Map{
+    Sub_Map *next;
+    
+    char *name;
+    i32 name_len;
+    char *description;
+    i32 description_len;
+    char *parent;
+    i32 parent_len;
+    b32 has_vanilla;
+    Key_Bind *first_key_bind;
+    Key_Bind *last_key_bind;
+    i32 key_bind_count;
+};
+
+struct Mapping{
+    Mapping *next;
+    
+    char *name;
+    i32 name_len;
+    char *description;
+    i32 description_len;
+    Sub_Map *first_sub_map;
+    Sub_Map *last_sub_map;
+    i32 sub_map_count;
+};
+
+struct Mapping_Array{
+    Mapping *first_mapping;
+    Mapping *last_mapping;
+    i32 mapping_count;
+    
+    Mapping *current_mapping;
+    Sub_Map *current_sub_map;
+};
+
+enum{
+    MDFR_NONE = 0x0,
+    MDFR_CTRL  = 0x1,
+    MDFR_ALT   = 0x2,
+    MDFR_CMND  = 0x4,
+    MDFR_SHIFT = 0x8,
+};
+
+//////////////////////////////////////////////////////////////////////////////////////////////////
+
+internal void
+emit_begin_mapping(Mapping_Array *array, char *name, char *description){
+    Assert(array->current_mapping == 0);
+    
+    Mapping *mapping = fm_push_array(Mapping, 1);
+    mapping->name = fm_basic_str(name);
+    mapping->name_len = str_size(name);
+    mapping->description = fm_basic_str(description);
+    mapping->description_len = str_size(description);
+    mapping->first_sub_map = 0;
+    mapping->last_sub_map = 0;
+    mapping->sub_map_count = 0;
+    sll_push(array->first_mapping, array->last_mapping, mapping);
+    ++array->mapping_count;
+    array->current_mapping = mapping;
+}
+
+internal void
+emit_end_mapping(Mapping_Array *array){
+    Assert(array->current_mapping != 0);
+    array->current_mapping = 0;
+}
+
+internal void
+emit_begin_map(Mapping_Array *array, char *mapid, char *description){
+    Assert(array->current_mapping != 0);
+    Assert(array->current_sub_map == 0);
+    
+    Sub_Map *sub_map = fm_push_array(Sub_Map, 1);
+    sub_map->name = fm_basic_str(mapid);
+    sub_map->name_len = str_size(mapid);
+    sub_map->description = fm_basic_str(description);
+    sub_map->description_len = str_size(description);
+    sub_map->parent = 0;
+    sub_map->parent_len = 0;
+    sub_map->first_key_bind = 0;
+    sub_map->last_key_bind = 0;
+    sub_map->key_bind_count = 0;
+    
+    Mapping *mapping = array->current_mapping;
+    sll_push(mapping->first_sub_map, mapping->last_sub_map, sub_map);
+    ++mapping->sub_map_count;
+    
+    array->current_sub_map = sub_map;
+}
+
+internal void
+emit_end_map(Mapping_Array *array){
+    Assert(array->current_mapping != 0);
+    Assert(array->current_sub_map != 0);
+    array->current_sub_map = 0;
+}
+
+internal void
+emit_inherit_map(Mapping_Array *array, char *mapid){
+    Assert(array->current_mapping != 0);
+    Assert(array->current_sub_map != 0);
+    
+    Sub_Map *sub_map = array->current_sub_map;
+    Assert(sub_map->parent == 0);
+    
+    sub_map->parent = fm_basic_str(mapid);
+    sub_map->parent_len = str_size(mapid);
+}
+
+internal void
+emit_bind(Mapping_Array *array, u32 keycode, u32 modifiers, char *command){
+    Assert(array->current_mapping != 0);
+    Assert(array->current_sub_map != 0);
+    
+    b32 is_duplicate = false;
+    Sub_Map *sub_map = array->current_sub_map;
+    for (Key_Bind *bind = sub_map->first_key_bind;
+         bind != 0;
+         bind = bind->next){
+        if (!bind->vanilla && keycode == bind->keycode && modifiers == bind->modifiers){
+            fprintf(stdout, "duplicate binding for %u %u\n", keycode, modifiers);
+            is_duplicate = true;
+            break;
+        }
+    }
+    
+    if (!is_duplicate){
+        Key_Bind *bind = fm_push_array(Key_Bind, 1);
+        bind->vanilla = false;
+        bind->keycode = keycode;
+        bind->modifiers = modifiers;
+        bind->command = fm_basic_str(command);
+        bind->command_len = str_size(command);
+        sll_push(sub_map->first_key_bind, sub_map->last_key_bind, bind);
+        ++sub_map->key_bind_count;
+    }
+}
+
+internal void
+emit_bind_vanilla_keys(Mapping_Array *array, u32 modifiers, char *command){
+    Assert(array->current_mapping != 0);
+    Assert(array->current_sub_map != 0);
+    
+    b32 is_duplicate = false;
+    Sub_Map *sub_map = array->current_sub_map;
+    for (Key_Bind *bind = sub_map->first_key_bind;
+         bind != 0;
+         bind = bind->next){
+        if (bind->vanilla && modifiers == bind->modifiers){
+            fprintf(stdout, "duplicate vanilla binding %u\n", modifiers);
+            is_duplicate = true;
+            break;
+        }
+    }
+    
+    if (!is_duplicate){
+        Key_Bind *bind = fm_push_array(Key_Bind, 1);
+        bind->vanilla = true;
+        bind->keycode = 0;
+        bind->modifiers = modifiers;
+        bind->command = fm_basic_str(command);
+        bind->command_len = str_size(command);
+        sll_push(sub_map->first_key_bind, sub_map->last_key_bind, bind);
+        ++sub_map->key_bind_count;
+    }
+}
+
+#define begin_mapping(mp,n,d) emit_begin_mapping(mp, #n, d)
+#define end_mapping(mp)       emit_end_mapping(mp)
+#define begin_map(mp,mapid,d) emit_begin_map(mp, #mapid, d)
+#define end_map(mp)           emit_end_map(mp)
+#define inherit_map(mp,mapid)      emit_inherit_map(mp, #mapid)
+#define bind(mp,k,md,c)            emit_bind(mp, k, md, #c)
+#define bind_vanilla_keys(mp,md,c) emit_bind_vanilla_keys(mp, md, #c)
+
+//////////////////////////////////////////////////////////////////////////////////////////////////
+
+internal void
+generate_remapping_code_and_data(){
+    Temp temp = fm_begin_temp();
+    
+    // Generate mapping array data structure
+    Mapping_Array mappings_ = {0};
+    Mapping_Array *mappings = &mappings_;
+    
+    begin_mapping(mappings, default, "TODO");
+    {
+        // NOTE(allen): GLOBAL
+        begin_map(mappings, mapid_global, "TODO");
+        
+        bind(mappings, 'p', MDFR_CTRL, open_panel_vsplit);
+        bind(mappings, '_', MDFR_CTRL, open_panel_hsplit);
+        bind(mappings, 'P', MDFR_CTRL, close_panel);
+        bind(mappings, ',', MDFR_CTRL, change_active_panel);
+        bind(mappings, '<', MDFR_CTRL, change_active_panel_backwards);
+        
+        bind(mappings, 'n', MDFR_CTRL, interactive_new);
+        bind(mappings, 'o', MDFR_CTRL, interactive_open_or_new);
+        bind(mappings, 'o', MDFR_ALT, open_in_other);
+        bind(mappings, 'k', MDFR_CTRL, interactive_kill_buffer);
+        bind(mappings, 'i', MDFR_CTRL, interactive_switch_buffer);
+        bind(mappings, 'h', MDFR_CTRL, project_go_to_root_directory);
+        bind(mappings, 'S', MDFR_CTRL, save_all_dirty_buffers);
+        
+        bind(mappings, 'c', MDFR_ALT, open_color_tweaker);
+        bind(mappings, 'd', MDFR_ALT, open_debug);
+        
+        bind(mappings, '.', MDFR_ALT, change_to_build_panel);
+        bind(mappings, ',', MDFR_ALT, close_build_panel);
+        bind(mappings, 'n', MDFR_ALT, goto_next_error);
+        bind(mappings, 'N', MDFR_ALT, goto_prev_error);
+        bind(mappings, 'M', MDFR_ALT, goto_first_error);
+        bind(mappings, 'm', MDFR_ALT, build_in_build_panel);
+        
+        bind(mappings, 'z', MDFR_ALT, execute_any_cli);
+        bind(mappings, 'Z', MDFR_ALT, execute_previous_cli);
+        
+        bind(mappings, 'x', MDFR_ALT, execute_arbitrary_command);
+        
+        bind(mappings, 's', MDFR_ALT, show_scrollbar);
+        bind(mappings, 'w', MDFR_ALT, hide_scrollbar);
+        bind(mappings, 'b', MDFR_ALT, toggle_filebar);
+        
+        bind(mappings, '@', MDFR_ALT, toggle_mouse);
+        bind(mappings, key_page_up, MDFR_CTRL, toggle_fullscreen);
+        bind(mappings, 'E', MDFR_ALT, exit_4coder);
+        
+        bind(mappings, key_f1, MDFR_NONE, project_fkey_command);
+        bind(mappings, key_f2, MDFR_NONE, project_fkey_command);
+        bind(mappings, key_f3, MDFR_NONE, project_fkey_command);
+        bind(mappings, key_f4, MDFR_NONE, project_fkey_command);
+        
+        bind(mappings, key_f5, MDFR_NONE, project_fkey_command);
+        bind(mappings, key_f6, MDFR_NONE, project_fkey_command);
+        bind(mappings, key_f7, MDFR_NONE, project_fkey_command);
+        bind(mappings, key_f8, MDFR_NONE, project_fkey_command);
+        
+        bind(mappings, key_f9, MDFR_NONE, project_fkey_command);
+        bind(mappings, key_f10, MDFR_NONE, project_fkey_command);
+        bind(mappings, key_f11, MDFR_NONE, project_fkey_command);
+        bind(mappings, key_f12, MDFR_NONE, project_fkey_command);
+        
+        bind(mappings, key_f13, MDFR_NONE, project_fkey_command);
+        bind(mappings, key_f14, MDFR_NONE, project_fkey_command);
+        bind(mappings, key_f15, MDFR_NONE, project_fkey_command);
+        bind(mappings, key_f16, MDFR_NONE, project_fkey_command);
+        
+        end_map(mappings);
+        
+        // NOTE(allen): FILE
+        begin_map(mappings, mapid_file, "TODO");
+        
+        bind_vanilla_keys(mappings, MDFR_NONE, write_character);
+        
+        bind(mappings, key_mouse_left, MDFR_NONE, click_set_cursor);
+        bind(mappings, key_mouse_left_release, MDFR_NONE, click_set_mark);
+        bind(mappings, key_mouse_right, MDFR_NONE, click_set_mark);
+        
+        bind(mappings, key_left,      MDFR_NONE, move_left);
+        bind(mappings, key_right,     MDFR_NONE, move_right);
+        bind(mappings, key_del,       MDFR_NONE, delete_char);
+        bind(mappings, key_del,       MDFR_SHIFT, delete_char);
+        bind(mappings, key_back,      MDFR_NONE, backspace_char);
+        bind(mappings, key_back,      MDFR_SHIFT, backspace_char);
+        bind(mappings, key_up,        MDFR_NONE, move_up);
+        bind(mappings, key_down,      MDFR_NONE, move_down);
+        bind(mappings, key_end,       MDFR_NONE, seek_end_of_line);
+        bind(mappings, key_home,      MDFR_NONE, seek_beginning_of_line);
+        bind(mappings, key_page_up,   MDFR_NONE, page_up);
+        bind(mappings, key_page_down, MDFR_NONE, page_down);
+        
+        bind(mappings, key_right, MDFR_CTRL, seek_whitespace_right);
+        bind(mappings, key_left,  MDFR_CTRL, seek_whitespace_left);
+        bind(mappings, key_up,    MDFR_CTRL, seek_whitespace_up_end_line);
+        bind(mappings, key_down,  MDFR_CTRL, seek_whitespace_down_end_line);
+        
+        bind(mappings, key_up, MDFR_ALT, move_up_10);
+        bind(mappings, key_down, MDFR_ALT, move_down_10);
+        
+        bind(mappings, key_back, MDFR_CTRL, backspace_word);
+        bind(mappings, key_del,  MDFR_CTRL, delete_word);
+        bind(mappings, key_back, MDFR_ALT, snipe_token_or_word);
+        bind(mappings, key_del,  MDFR_ALT, snipe_token_or_word_right);
+        
+        bind(mappings, ' ', MDFR_CTRL, set_mark);
+        bind(mappings, 'a', MDFR_CTRL, replace_in_range);
+        bind(mappings, 'c', MDFR_CTRL, copy);
+        bind(mappings, 'd', MDFR_CTRL, delete_range);
+        bind(mappings, 'e', MDFR_CTRL, center_view);
+        bind(mappings, 'E', MDFR_CTRL, left_adjust_view);
+        bind(mappings, 'f', MDFR_CTRL, search);
+        bind(mappings, 'F', MDFR_CTRL, list_all_locations);
+        bind(mappings, 'F', MDFR_ALT , list_all_substring_locations_case_insensitive);
+        bind(mappings, 'g', MDFR_CTRL, goto_line);
+        bind(mappings, 'j', MDFR_CTRL, to_lowercase);
+        bind(mappings, 'K', MDFR_CTRL, kill_buffer);
+        bind(mappings, 'l', MDFR_CTRL, toggle_line_wrap);
+        bind(mappings, 'm', MDFR_CTRL, cursor_mark_swap);
+        bind(mappings, 'O', MDFR_CTRL, reopen);
+        bind(mappings, 'q', MDFR_CTRL, query_replace);
+        bind(mappings, 'Q', MDFR_CTRL, query_replace_identifier);
+        bind(mappings, 'r', MDFR_CTRL, reverse_search);
+        bind(mappings, 's', MDFR_CTRL, save);
+        bind(mappings, 't', MDFR_CTRL, search_identifier);
+        bind(mappings, 'T', MDFR_CTRL, list_all_locations_of_identifier);
+        bind(mappings, 'u', MDFR_CTRL, to_uppercase);
+        bind(mappings, 'v', MDFR_CTRL, paste_and_indent);
+        bind(mappings, 'v', MDFR_ALT , toggle_virtual_whitespace);
+        bind(mappings, 'V', MDFR_CTRL, paste_next_and_indent);
+        bind(mappings, 'x', MDFR_CTRL, cut);
+        bind(mappings, 'y', MDFR_CTRL, redo);
+        bind(mappings, 'z', MDFR_CTRL, undo);
+        
+        bind(mappings, '2', MDFR_CTRL, decrease_line_wrap);
+        bind(mappings, '3', MDFR_CTRL, increase_line_wrap);
+        
+        bind(mappings, '?', MDFR_CTRL, toggle_show_whitespace);
+        bind(mappings, '~', MDFR_CTRL, clean_all_lines);
+        bind(mappings, '\n', MDFR_NONE, newline_or_goto_position);
+        bind(mappings, '\n', MDFR_SHIFT, newline_or_goto_position_same_panel);
+        bind(mappings, ' ', MDFR_SHIFT, write_character);
+        
+        end_map(mappings);
+        
+        // NOTE(allen): CODE
+        begin_map(mappings, default_code_map, "TODO");
+        
+        inherit_map(mappings, mapid_file);
+        
+        bind(mappings, key_right, MDFR_CTRL, seek_alphanumeric_or_camel_right);
+        bind(mappings, key_left, MDFR_CTRL, seek_alphanumeric_or_camel_left);
+        
+        bind(mappings, '\n', MDFR_NONE, write_and_auto_tab);
+        bind(mappings, '\n', MDFR_SHIFT, write_and_auto_tab);
+        bind(mappings, '}', MDFR_NONE, write_and_auto_tab);
+        bind(mappings, ')', MDFR_NONE, write_and_auto_tab);
+        bind(mappings, ']', MDFR_NONE, write_and_auto_tab);
+        bind(mappings, ';', MDFR_NONE, write_and_auto_tab);
+        bind(mappings, '#', MDFR_NONE, write_and_auto_tab);
+        
+        bind(mappings, '\t', MDFR_NONE, word_complete);
+        bind(mappings, '\t', MDFR_CTRL, auto_tab_range);
+        bind(mappings, '\t', MDFR_SHIFT, auto_tab_line_at_cursor);
+        
+        bind(mappings, 'h', MDFR_ALT, write_hack);
+        bind(mappings, 'r', MDFR_ALT, write_block);
+        bind(mappings, 't', MDFR_ALT, write_todo);
+        bind(mappings, 'y', MDFR_ALT, write_note);
+        bind(mappings, '[', MDFR_CTRL, open_long_braces);
+        bind(mappings, '{', MDFR_CTRL, open_long_braces_semicolon);
+        bind(mappings, '}', MDFR_CTRL, open_long_braces_break);
+        bind(mappings, 'i', MDFR_ALT, if0_off);
+        bind(mappings, '1', MDFR_ALT, open_file_in_quotes);
+        bind(mappings, '2', MDFR_ALT, open_matching_file_cpp);
+        bind(mappings, '0', MDFR_CTRL, write_zero_struct);
+        bind(mappings, 'I', MDFR_CTRL, list_all_functions_current_buffer);
+        
+        end_map(mappings);
+    }
+    end_mapping(mappings);
+    
+    begin_mapping(mappings, mac_default, "TODO");
+    {
+        // NOTE(allen): GLOBAL
+        begin_map(mappings, mapid_global, "TODO");
+        
+        bind(mappings, 'p', MDFR_CMND, open_panel_vsplit);
+        bind(mappings, '_', MDFR_CMND, open_panel_hsplit);
+        bind(mappings, 'P', MDFR_CMND, close_panel);
+        bind(mappings, ',', MDFR_CMND, change_active_panel);
+        bind(mappings, '<', MDFR_CMND, change_active_panel_backwards);
+        
+        bind(mappings, 'n', MDFR_CMND, interactive_new);
+        bind(mappings, 'o', MDFR_CMND, interactive_open_or_new);
+        bind(mappings, 'o', MDFR_CTRL, open_in_other);
+        bind(mappings, 'k', MDFR_CMND, interactive_kill_buffer);
+        bind(mappings, 'i', MDFR_CMND, interactive_switch_buffer);
+        bind(mappings, 'h', MDFR_CMND, project_go_to_root_directory);
+        bind(mappings, 'S', MDFR_CMND, save_all_dirty_buffers);
+        
+        bind(mappings, 'c', MDFR_CTRL, open_color_tweaker);
+        bind(mappings, 'd', MDFR_CTRL, open_debug);
+        
+        bind(mappings, '.', MDFR_CTRL, change_to_build_panel);
+        bind(mappings, ',', MDFR_CTRL, close_build_panel);
+        bind(mappings, 'n', MDFR_CTRL, goto_next_error);
+        bind(mappings, 'N', MDFR_CTRL, goto_prev_error);
+        bind(mappings, 'M', MDFR_CTRL, goto_first_error);
+        bind(mappings, 'm', MDFR_CTRL, build_in_build_panel);
+        
+        bind(mappings, 'z', MDFR_CTRL, execute_any_cli);
+        bind(mappings, 'Z', MDFR_CTRL, execute_previous_cli);
+        
+        bind(mappings, 'x', MDFR_CTRL, execute_arbitrary_command);
+        
+        bind(mappings, 's', MDFR_CTRL, show_scrollbar);
+        bind(mappings, 'w', MDFR_CTRL, hide_scrollbar);
+        bind(mappings, 'b', MDFR_CTRL, toggle_filebar);
+        
+        bind(mappings, '@', MDFR_CTRL, toggle_mouse);
+        bind(mappings, key_page_up, MDFR_CMND, toggle_fullscreen);
+        bind(mappings, 'E', MDFR_CTRL, exit_4coder);
+        
+        bind(mappings, key_f1, MDFR_NONE, project_fkey_command);
+        bind(mappings, key_f2, MDFR_NONE, project_fkey_command);
+        bind(mappings, key_f3, MDFR_NONE, project_fkey_command);
+        bind(mappings, key_f4, MDFR_NONE, project_fkey_command);
+        
+        bind(mappings, key_f5, MDFR_NONE, project_fkey_command);
+        bind(mappings, key_f6, MDFR_NONE, project_fkey_command);
+        bind(mappings, key_f7, MDFR_NONE, project_fkey_command);
+        bind(mappings, key_f8, MDFR_NONE, project_fkey_command);
+        
+        bind(mappings, key_f9, MDFR_NONE, project_fkey_command);
+        bind(mappings, key_f10, MDFR_NONE, project_fkey_command);
+        bind(mappings, key_f11, MDFR_NONE, project_fkey_command);
+        bind(mappings, key_f12, MDFR_NONE, project_fkey_command);
+        
+        bind(mappings, key_f13, MDFR_NONE, project_fkey_command);
+        bind(mappings, key_f14, MDFR_NONE, project_fkey_command);
+        bind(mappings, key_f15, MDFR_NONE, project_fkey_command);
+        bind(mappings, key_f16, MDFR_NONE, project_fkey_command);
+        
+        end_map(mappings);
+        
+        // NOTE(allen): FILE
+        begin_map(mappings, mapid_file, "TODO");
+        
+        bind_vanilla_keys(mappings, MDFR_NONE, write_character);
+        bind_vanilla_keys(mappings, MDFR_ALT, write_character);
+        
+        bind(mappings, key_mouse_left, MDFR_NONE, click_set_cursor);
+        bind(mappings, key_mouse_left_release, MDFR_NONE, click_set_mark);
+        bind(mappings, key_mouse_right, MDFR_NONE, click_set_mark);
+        
+        bind(mappings, key_left, MDFR_NONE, move_left);
+        bind(mappings, key_right, MDFR_NONE, move_right);
+        bind(mappings, key_del, MDFR_NONE, delete_char);
+        bind(mappings, key_del, MDFR_SHIFT, delete_char);
+        bind(mappings, key_back, MDFR_NONE, backspace_char);
+        bind(mappings, key_back, MDFR_SHIFT, backspace_char);
+        bind(mappings, key_up, MDFR_NONE, move_up);
+        bind(mappings, key_down, MDFR_NONE, move_down);
+        bind(mappings, key_end, MDFR_NONE, seek_end_of_line);
+        bind(mappings, key_home, MDFR_NONE, seek_beginning_of_line);
+        bind(mappings, key_page_up, MDFR_NONE, page_up);
+        bind(mappings, key_page_down, MDFR_NONE, page_down);
+        
+        bind(mappings, key_right, MDFR_CMND, seek_whitespace_right);
+        bind(mappings, key_left, MDFR_CMND, seek_whitespace_left);
+        bind(mappings, key_up, MDFR_CMND, seek_whitespace_up_end_line);
+        bind(mappings, key_down, MDFR_CMND, seek_whitespace_down_end_line);
+        
+        bind(mappings, key_back, MDFR_CMND, backspace_word);
+        bind(mappings, key_del, MDFR_CMND, delete_word);
+        bind(mappings, key_back, MDFR_CTRL, snipe_token_or_word);
+        bind(mappings, key_del, MDFR_CTRL, snipe_token_or_word_right);
+        
+        bind(mappings, '/', MDFR_CMND, set_mark);
+        bind(mappings, 'a', MDFR_CMND, replace_in_range);
+        bind(mappings, 'c', MDFR_CMND, copy);
+        bind(mappings, 'd', MDFR_CMND, delete_range);
+        bind(mappings, 'e', MDFR_CMND, center_view);
+        bind(mappings, 'E', MDFR_CMND, left_adjust_view);
+        bind(mappings, 'f', MDFR_CMND, search);
+        bind(mappings, 'F', MDFR_CMND, list_all_locations);
+        bind(mappings, 'F', MDFR_CTRL, list_all_substring_locations_case_insensitive);
+        bind(mappings, 'g', MDFR_CMND, goto_line);
+        bind(mappings, 'j', MDFR_CMND, to_lowercase);
+        bind(mappings, 'K', MDFR_CMND, kill_buffer);
+        bind(mappings, 'l', MDFR_CMND, toggle_line_wrap);
+        bind(mappings, 'm', MDFR_CMND, cursor_mark_swap);
+        bind(mappings, 'O', MDFR_CMND, reopen);
+        bind(mappings, 'q', MDFR_CMND, query_replace);
+        bind(mappings, 'Q', MDFR_CMND, query_replace_identifier);
+        bind(mappings, 'r', MDFR_CMND, reverse_search);
+        bind(mappings, 's', MDFR_CMND, save);
+        bind(mappings, 't', MDFR_CMND, search_identifier);
+        bind(mappings, 'T', MDFR_CMND, list_all_locations_of_identifier);
+        bind(mappings, 'u', MDFR_CMND, to_uppercase);
+        bind(mappings, 'v', MDFR_CMND, paste_and_indent);
+        bind(mappings, 'v', MDFR_CTRL, toggle_virtual_whitespace);
+        bind(mappings, 'V', MDFR_CMND, paste_next_and_indent);
+        bind(mappings, 'x', MDFR_CMND, cut);
+        bind(mappings, 'y', MDFR_CMND, redo);
+        bind(mappings, 'z', MDFR_CMND, undo);
+        
+        bind(mappings, '2', MDFR_CMND, decrease_line_wrap);
+        bind(mappings, '3', MDFR_CMND, increase_line_wrap);
+        
+        bind(mappings, '?', MDFR_CMND, toggle_show_whitespace);
+        bind(mappings, '~', MDFR_CMND, clean_all_lines);
+        bind(mappings, '\n', MDFR_NONE, newline_or_goto_position);
+        bind(mappings, '\n', MDFR_SHIFT, newline_or_goto_position_same_panel);
+        bind(mappings, ' ', MDFR_SHIFT, write_character);
+        
+        end_map(mappings);
+        
+        // NOTE(allen): CODE
+        begin_map(mappings, default_code_map, "TODO");
+        
+        inherit_map(mappings, mapid_file);
+        
+        bind(mappings, key_right, MDFR_CMND, seek_alphanumeric_or_camel_right);
+        bind(mappings, key_left, MDFR_CMND, seek_alphanumeric_or_camel_left);
+        
+        bind(mappings, '\n', MDFR_NONE, write_and_auto_tab);
+        bind(mappings, '\n', MDFR_SHIFT, write_and_auto_tab);
+        bind(mappings, '}', MDFR_NONE, write_and_auto_tab);
+        bind(mappings, ')', MDFR_NONE, write_and_auto_tab);
+        bind(mappings, ']', MDFR_NONE, write_and_auto_tab);
+        bind(mappings, ';', MDFR_NONE, write_and_auto_tab);
+        bind(mappings, '#', MDFR_NONE, write_and_auto_tab);
+        
+        bind(mappings, '\t', MDFR_NONE, word_complete);
+        bind(mappings, '\t', MDFR_CMND, auto_tab_range);
+        bind(mappings, '\t', MDFR_SHIFT, auto_tab_line_at_cursor);
+        
+        bind(mappings, 'h', MDFR_CTRL, write_hack);
+        bind(mappings, 'r', MDFR_CTRL, write_block);
+        bind(mappings, 't', MDFR_CTRL, write_todo);
+        bind(mappings, 'y', MDFR_CTRL, write_note);
+        bind(mappings, '[', MDFR_CMND, open_long_braces);
+        bind(mappings, '{', MDFR_CMND, open_long_braces_semicolon);
+        bind(mappings, '}', MDFR_CMND, open_long_braces_break);
+        bind(mappings, 'i', MDFR_CTRL, if0_off);
+        bind(mappings, '1', MDFR_CTRL, open_file_in_quotes);
+        bind(mappings, '2', MDFR_CTRL, open_matching_file_cpp);
+        bind(mappings, '0', MDFR_CMND, write_zero_struct);
+        bind(mappings, 'I', MDFR_CMND, list_all_functions_current_buffer);
+        
+        end_map(mappings);
+    }
+    end_mapping(mappings);
+    
+    // Generate remapping from mapping array
+    FILE *out = fopen(REMAPPING_FILE, "wb");
+    if (out != 0){
+        
+        fprintf(out, "#if defined(CUSTOM_COMMAND_SIG)\n");
+        for (Mapping *mapping = mappings->first_mapping;
+             mapping != 0;
+             mapping = mapping->next){
+            fprintf(out, "void fill_keys_%s(Bind_Helper *context){\n", mapping->name);
+            
+            for (Sub_Map *sub_map = mapping->first_sub_map;
+                 sub_map != 0;
+                 sub_map = sub_map->next){
+                fprintf(out, "begin_map(context, %s);\n", sub_map->name);
+                
+                if (sub_map->parent != 0){
+                    fprintf(out, "inherit_map(context, %s);\n", sub_map->parent);
+                }
+                
+                for (Key_Bind *bind = sub_map->first_key_bind;
+                     bind != 0;
+                     bind = bind->next){
+                    char mdfr_str[256];
+                    String m = make_fixed_width_string(mdfr_str);
+                    b32 has_base = false;
+                    
+                    if (bind->modifiers & MDFR_CTRL){
+                        if (has_base){
+                            append(&m, "|");
+                        }
+                        append(&m, "MDFR_CTRL");
+                    }
+                    if (bind->modifiers & MDFR_ALT){
+                        if (has_base){
+                            append(&m, "|");
+                        }
+                        append(&m, "MDFR_ALT");
+                    }
+                    if (bind->modifiers & MDFR_CMND){
+                        if (has_base){
+                            append(&m, "|");
+                        }
+                        append(&m, "MDFR_CMND");
+                    }
+                    if (bind->modifiers & MDFR_SHIFT){
+                        if (has_base){
+                            append(&m, "|");
+                        }
+                        append(&m, "MDFR_SHIFT");
+                    }
+                    if (bind->modifiers == 0){
+                        append(&m, "MDFR_NONE");
+                    }
+                    terminate_with_null(&m);
+                    
+                    if (bind->vanilla){
+                        if (bind->modifiers == 0){
+                            fprintf(out, "bind_vanilla_keys(context, %s);\n", bind->command);
+                        }
+                        else{
+                            fprintf(out, "bind_vanilla_keys(context, %s, %s);\n", mdfr_str, bind->command);
+                        }
+                    }
+                    else{
+                        char key_str_space[16];
+                        char *key_str = 0;
+                        switch (bind->keycode){
+#define KeyCase(n) case key_##n: key_str = "key_" #n; break;
+                            KEY_LIST(KeyCase)
+#undef KeyCase
+                        }
+                        
+                        if (key_str == 0){
+                            key_str = key_str_space;
+                            if (bind->keycode == '\n'){
+                                memcpy(key_str_space, "'\\n'", 5);
+                            }
+                            else if (bind->keycode == '\t'){
+                                memcpy(key_str_space, "'\\t'", 5);
+                            }
+                            else if (bind->keycode == '\''){
+                                memcpy(key_str_space, "'\\''", 5);
+                            }
+                            else if (bind->keycode == '\\'){
+                                memcpy(key_str_space, "'\\\\'", 5);
+                            }
+                            else{
+                                Assert(bind->keycode <= 127);
+                                key_str_space[0] = '\'';
+                                key_str_space[1] = (char)bind->keycode;
+                                key_str_space[2] = '\'';
+                                key_str_space[3] = 0;
+                            }
+                        }
+                        
+                        fprintf(out, "bind(context, %s, %s, %s);\n",
+                                key_str,
+                                mdfr_str,
+                                bind->command);
+                    }
+                }
+                
+                fprintf(out, "end_map(context);\n");
+            }
+            
+            fprintf(out, "}\n");
+        }
+        fprintf(out, "#endif\n");
+        
+        fprintf(out,
+                "#if defined(CUSTOM_COMMAND_SIG)\n"
+                "#define LINK_PROCS(x) x\n"
+                "#else\n"
+                "#define LINK_PROCS(x)\n"
+                "#endif\n");
+        
+        fprintf(out,
+                "struct Meta_Key_Bind{\n"
+                "int32_t vanilla;\n"
+                "uint32_t keycode;\n"
+                "uint32_t modifiers;\n"
+                "char *command;\n"
+                "int32_t command_len;\n"
+                "LINK_PROCS(Custom_Command_Function *proc;)\n"
+                "};\n"
+                "struct Meta_Sub_Map{\n"
+                "char *name;\n"
+                "int32_t name_len;\n"
+                "char *description;\n"
+                "int32_t description_len;\n"
+                "char *parent;\n"
+                "int32_t parent_len;\n"
+                "Meta_Key_Bind *binds;\n"
+                "int32_t bind_count;\n"
+                "};\n"
+                "struct Meta_Mapping{\n"
+                "char *name;\n"
+                "int32_t name_len;\n"
+                "char *description;\n"
+                "int32_t description_len;\n"
+                "Meta_Sub_Map *sub_maps;\n"
+                "int32_t sub_map_count;\n"
+                "LINK_PROCS(void (*fill_keys_proc)(Bind_Helper *context);)\n"
+                "};\n");
+        
+        for (Mapping *mapping = mappings->first_mapping;
+             mapping != 0;
+             mapping = mapping->next){
+            for (Sub_Map *sub_map = mapping->first_sub_map;
+                 sub_map != 0;
+                 sub_map = sub_map->next){
+                if (sub_map->key_bind_count > 0){
+                    fprintf(out, "static Meta_Key_Bind fcoder_binds_for_%s_%s[%d] = {\n",
+                            mapping->name, sub_map->name, sub_map->key_bind_count);
+                    for (Key_Bind *bind = sub_map->first_key_bind;
+                         bind != 0;
+                         bind = bind->next){
+                        fprintf(out,
+                                "{%d, %u, %u, \"%s\", %d, LINK_PROCS(%s)},\n",
+                                bind->vanilla, bind->keycode, bind->modifiers,
+                                bind->command, bind->command_len,
+                                bind->command);
+                    }
+                    fprintf(out, "};\n");
+                }
+            }
+            
+            fprintf(out, "static Meta_Sub_Map fcoder_submaps_for_%s[%d] = {\n",
+                    mapping->name, mapping->sub_map_count);
+            for (Sub_Map *sub_map = mapping->first_sub_map;
+                 sub_map != 0;
+                 sub_map = sub_map->next){
+                if (sub_map->parent != 0){
+                    fprintf(out, "{\"%s\", %d, \"%s\", %d, \"%s\", %d, fcoder_binds_for_%s_%s, %d},\n",
+                            sub_map->name, sub_map->name_len,
+                            sub_map->description, sub_map->description_len,
+                            sub_map->parent, sub_map->parent_len,
+                            mapping->name, sub_map->name,
+                            sub_map->key_bind_count);
+                }
+                else{
+                    fprintf(out, "{\"%s\", %d, \"%s\", %d, 0, 0, fcoder_binds_for_%s_%s, %d},\n",
+                            sub_map->name, sub_map->name_len,
+                            sub_map->description, sub_map->description_len,
+                            mapping->name, sub_map->name,
+                            sub_map->key_bind_count);
+                }
+            }
+            fprintf(out, "};\n");
+        }
+        
+        fprintf(out, "static Meta_Mapping fcoder_meta_maps[%d] = {\n",
+                mappings->mapping_count);
+        for (Mapping *mapping = mappings->first_mapping;
+             mapping != 0;
+             mapping = mapping->next){
+            fprintf(out, "{\"%s\", %d, \"%s\", %d, fcoder_submaps_for_%s, %d, LINK_PROCS(fill_keys_%s)},\n",
+                    mapping->name, mapping->name_len,
+                    mapping->description, mapping->description_len,
+                    mapping->name,
+                    mapping->sub_map_count,
+                    mapping->name);
+        }
+        fprintf(out, "};\n");
+        
+        fclose(out);
+    }
+    
+    fm_end_temp(temp);
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////////////
+
 int main(int argc, char **argv){
     META_BEGIN();
     
@@ -510,6 +1266,7 @@ int main(int argc, char **argv){
     generate_keycode_enum();
     generate_style();
     generate_custom_headers();
+    generate_remapping_code_and_data();
     
     META_FINISH();
 }

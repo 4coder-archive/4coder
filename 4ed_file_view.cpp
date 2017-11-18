@@ -3463,15 +3463,6 @@ working_set_clipboard_roll_down(Working_Set *working){
     return(result);
 }
 
-internal void
-clipboard_copy(System_Functions *system, General_Memory *general, Working_Set *working, Range range, Editing_File *file){
-    i32 size = range.end - range.start;
-    String *dest = working_set_next_clipboard_string(general, working, size);
-    buffer_stringify(&file->state.buffer, range.start, range.end, dest->str);
-    dest->size = size;
-    system->post_clipboard(*dest);
-}
-
 internal Edit_Spec
 file_compute_edit(Mem_Options *mem, Editing_File *file, Buffer_Edit *edits, char *str_base, i32 str_size, Buffer_Edit *inverse_array, char *inv_str, i32 inv_max, i32 edit_count, i32 batch_type){
     General_Memory *general = &mem->general;
