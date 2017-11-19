@@ -351,6 +351,23 @@ font_load(System_Functions *system, Font_Settings *settings, Font_Metrics *metri
 ////////////////////////////////
 
 internal
+Sys_Font_Allocate_Sig(system_font_allocate, size){
+    umem *size_ptr = 0;
+    void *result = system_memory_allocate(size + sizeof(*size_ptr));
+    size_ptr = (umem*)result;
+    *size_ptr = size + 4;
+    return(size_ptr + 1);
+}
+
+internal
+Sys_Font_Free_Sig(system_font_free, ptr){
+    if (ptr != 0){
+        umem *size_ptr = ((umem*)ptr) - 1;
+        system_memory_free(size_ptr, *size_ptr);
+    }
+}
+
+internal
 Sys_Font_Get_Loadable_Count_Sig(system_font_get_loadable_count){
     return(fontvars.loadable_count);
 }
@@ -367,38 +384,139 @@ Sys_Font_Get_Loadable_Sig(system_font_get_loadable, i, out){
 
 internal
 Sys_Font_Load_New_Font_Sig(system_font_load_new_font, stub){
-    Font_ID new_id = 0;
+    i32 slot_max = fontvars.max_slot_count;
+    Font_Slot_Page *page_with_slot = 0;
     
-    i32 font_count_max = ArrayCount(fontvars.slots);
-    if (fontvars.count < font_count_max){
-        i32 index = fontvars.count;
-        Font_Slot *slot = &fontvars.slots[index];
-        Font_Settings *settings = &slot->settings;
-        Font_Metrics *metrics = &slot->metrics;
-        Font_Page_Storage *pages = &slot->pages;
+    Assert(fontvars.used_slot_count <= slot_max);
+    if (fontvars.used_slot_count == slot_max){
+        i32 memsize = l_round_up_i32(SLOT_PAGE_SIZE, KB(4));
+        i32 page_count = memsize/SLOT_PAGE_SIZE;
+        void *ptr = system_font_allocate(memsize);
+        memset(ptr, 0, memsize);
         
-        Assert(!slot->is_active);
+        page_with_slot = (Font_Slot_Page*)ptr;
         
-        char *filename = stub->name;
-        i32 filename_len = 0;
-        for (;filename[filename_len];++filename_len);
-        
-        
-        // Initialize Font Parameters
-        Assert(filename_len <= sizeof(settings->stub.name) - 1);
-        memset(settings, 0, sizeof(*settings));
-        memcpy(&settings->stub, stub, sizeof(*stub));
-        settings->pt_size = fontvars.pt_size;
-        settings->use_hinting = fontvars.use_hinting;
-        
-        memset(metrics, 0, sizeof(*metrics));
-        memset(pages, 0, sizeof(*pages));
-        b32 success = font_load(&sysfunc, settings, metrics, pages);
-        if (success){
-            slot->is_active = true;
-            new_id = (Font_ID)(index + 1);
-            ++fontvars.count;
+        for (i32 i = 0; i < page_count; ++i){
+            i32 page_slot_count = SLOT_PER_PAGE;
+            
+            Font_Slot_Page *page = (Font_Slot_Page*)ptr;
+            page->is_active = (u64*)(page + 1);
+            page->settings = (Font_Settings*)(page->is_active + (page_slot_count + 63)/64);
+            page->metrics = (Font_Metrics*)(page->settings + page_slot_count);
+            page->pages = (Font_Page_Storage*)(page->metrics + page_slot_count);
+            ptr = page->pages + page_slot_count;
+            
+            page->used_count = 0;
+            page->fill_count = 0;
+            page->max = page_slot_count;
+            
+            dll_insert_back(&fontvars.slot_pages_sentinel, page);
+            if (page->prev == &fontvars.slot_pages_sentinel){
+                page->first_id = 1;
+            }
+            else{
+                page->first_id = page->prev->first_id + page->prev->max;
+            }
+            
+            // NOTE(allen): Some of the last 64 bits of the is_active array may not line up with actual slots.
+            // Set such bits to 1 to simulate the "slot" being filled for allocation purposes.
+            // TODO(allen): This could be O(log n) instead of O(n) if I end up making bit manipulation helpers someday.
+            u64 last_mask_fill = 0;
+            if (page_slot_count%64 != 0){
+                last_mask_fill = (1LLU << 63);
+                for (i32 spread_step = (page_slot_count%64) - 1;
+                     spread_step > 0;
+                     --spread_step){
+                    last_mask_fill |= (last_mask_fill >> 1);
+                }
+            }
+            
+            i32 is_active_max = (page_with_slot->max + 63)/64;
+            page->is_active[is_active_max - 1] = last_mask_fill;
         }
+        
+        fontvars.max_slot_count += page_count*SLOT_PER_PAGE;
+    }
+    else{
+        for (Font_Slot_Page *page = fontvars.slot_pages_sentinel.next;
+             page != &fontvars.slot_pages_sentinel;
+             page = page->next){
+            if (page->used_count < page->max){
+                page_with_slot = page;
+                break;
+            }
+        }
+    }
+    
+    if (page_with_slot == 0){
+        LOG("Could not get a font slot while loading a font\n");
+        return(0);
+    }
+    
+    Assert(page_with_slot->used_count < page_with_slot->max);
+    
+    // Get a fillable index
+    i32 index = -1;
+    if (page_with_slot->fill_count < page_with_slot->max){
+        index = page_with_slot->fill_count;
+    }
+    else{
+        i32 is_active_max = (page_with_slot->max + 63)/64;
+        u64 *is_active_ptr = page_with_slot->is_active;
+        for (i32 i = 0; i < is_active_max; ++i){
+            u64 is_active_v = is_active_ptr[i];
+            if (is_active_v != (~0)){
+                i32 j_stop = 64;
+                if (i + 1 == is_active_max){
+                    j_stop = SLOT_PER_PAGE%64;
+                }
+                for (i32 j = 0; j < j_stop; ++j){
+                    if ((is_active_v & (1LLU << j)) == 0){
+                        index = i*64 + j;
+                        break;
+                    }
+                }
+                break;
+            }
+        }
+    }
+    
+    // Get the slot pointers.
+    Assert(index != -1);
+    
+    u64 *is_active_flags = &page_with_slot->is_active[index/64];
+    u64 is_active_mask = (1LLU << (index % 64));
+    Font_Settings *settings = &page_with_slot->settings[index];
+    Font_Metrics *metrics = &page_with_slot->metrics[index];
+    Font_Page_Storage *pages = &page_with_slot->pages[index];
+    Font_ID new_id = page_with_slot->first_id + index;
+    
+    Assert(((*is_active_flags) & is_active_mask) == 0);
+    
+    char *filename = stub->name;
+    i32 filename_len = 0;
+    for (;filename[filename_len];++filename_len);
+    
+    // Initialize Font Parameters
+    Assert(filename_len <= sizeof(settings->stub.name) - 1);
+    memset(settings, 0, sizeof(*settings));
+    memcpy(&settings->stub, stub, sizeof(*stub));
+    settings->pt_size = fontvars.pt_size;
+    settings->use_hinting = fontvars.use_hinting;
+    
+    memset(metrics, 0, sizeof(*metrics));
+    memset(pages, 0, sizeof(*pages));
+    b32 success = font_load(&sysfunc, settings, metrics, pages);
+    if (success){
+        *is_active_flags |= is_active_mask;
+        ++fontvars.used_slot_count;
+        ++page_with_slot->used_count;
+        if (index >= page_with_slot->fill_count){
+            page_with_slot->fill_count = index + 1;
+        }
+    }
+    else{
+        new_id = 0;
     }
     
     return(new_id);
@@ -406,37 +524,62 @@ Sys_Font_Load_New_Font_Sig(system_font_load_new_font, stub){
 
 internal
 Sys_Font_Get_Count_Sig(system_font_get_count){
-    return(fontvars.count);
+    return(fontvars.used_slot_count);
+}
+
+internal Font_Slot_Page_And_Index
+system_font_get_active_location(Font_ID font_id){
+    Font_Slot_Page_And_Index result = {0};
+    
+    for (Font_Slot_Page *page = fontvars.slot_pages_sentinel.next;
+         page != &fontvars.slot_pages_sentinel;
+         page = page->next){
+        if (page->first_id <= font_id && font_id < page->first_id + SLOT_PER_PAGE){
+            i32 index = (i32)(font_id - page->first_id);
+            u64 is_active_v = page->is_active[index/64];
+            if ((is_active_v & (1LLU << (index%64))) != 0){
+                result.page = page;
+                result.index = index;
+            }
+            break;
+        }
+    }
+    
+    return(result);
 }
 
 internal
-Sys_Font_Get_Name_By_ID_Sig(system_font_get_name_by_id, str_out, capacity){
+Sys_Font_Get_Name_By_ID_Sig(system_font_get_name_by_id, font_id, str_out, capacity){
     i32 length = 0;
-    if (0 < font_id && font_id <= (u32)fontvars.count){
-        u32 index = font_id - 1;
-        Font_Slot *slot = &fontvars.slots[index];
-        if (slot->is_active){
-            Font_Metrics *metrics = &slot->metrics;
-            length = metrics->name_len;
-            copy_partial_cs(str_out, capacity, make_string(metrics->name, length));
-        }
+    if (font_id == 0){
+        return(length);
     }
+    
+    Font_Slot_Page_And_Index page_and_index = system_font_get_active_location(font_id);
+    if (page_and_index.page != 0){
+        Font_Metrics *metrics = &page_and_index.page->metrics[page_and_index.index];
+        length = metrics->name_len;
+        copy_partial_cs(str_out, capacity, make_string(metrics->name, length));
+    }
+    
     return(length);
 }
 
 internal
 Sys_Font_Get_Pointers_By_ID_Sig(system_font_get_pointers_by_id, font_id){
     Font_Pointers font = {0};
-    if (0 < font_id && font_id <= (u32)fontvars.count){
-        u32 index = font_id - 1;
-        Font_Slot *slot = &fontvars.slots[index];
-        if (slot->is_active){
-            font.valid    = true;
-            font.settings = &slot->settings;
-            font.metrics  = &slot->metrics;
-            font.pages    = &slot->pages;
-        }
+    if (font_id == 0){
+        return(font);
     }
+    
+    Font_Slot_Page_And_Index page_and_index = system_font_get_active_location(font_id);
+    if (page_and_index.page != 0){
+        font.valid    = true;
+        font.settings = &page_and_index.page->settings[page_and_index.index];
+        font.metrics  = &page_and_index.page->metrics[page_and_index.index];
+        font.pages    = &page_and_index.page->pages[page_and_index.index];
+    }
+    
     return(font);
 }
 
@@ -444,23 +587,6 @@ internal
 Sys_Font_Load_Page_Sig(system_font_load_page, settings, metrics, page, page_number){
     Assert(page_number != 0);
     font_load_page_layout(settings, metrics, page, page_number);
-}
-
-internal
-Sys_Font_Allocate_Sig(system_font_allocate, size){
-    umem *size_ptr = 0;
-    void *result = system_memory_allocate(size + sizeof(*size_ptr));
-    size_ptr = (umem*)result;
-    *size_ptr = size + 4;
-    return(size_ptr + 1);
-}
-
-internal
-Sys_Font_Free_Sig(system_font_free, ptr){
-    if (ptr != 0){
-        umem *size_ptr = ((umem*)ptr) - 1;
-        system_memory_free(size_ptr, *size_ptr);
-    }
 }
 
 ////////////////////////////////
@@ -524,6 +650,9 @@ system_font_init(Font_Functions *font_links, u32 pt_size, b32 use_hinting, Font_
     font_links->allocate           = system_font_allocate;
     font_links->free               = system_font_free;
     
+    // Initialize fontvars
+    memset(&fontvars, 0, sizeof(fontvars));
+    dll_init_sentinel(&fontvars.slot_pages_sentinel);
     fontvars.pt_size = pt_size;
     fontvars.use_hinting = use_hinting;
     
@@ -568,44 +697,9 @@ system_font_init(Font_Functions *font_links, u32 pt_size, b32 use_hinting, Font_
         }
     }
     
-    // Filling initial fonts
-    i32 font_count_max = 1;
-    for (Font_Setup *ptr = list.first;
-         ptr != 0;
-         ptr = ptr->next){
-        Font_Loadable_Stub *stub = &ptr->stub;
-        
-        Font_ID new_id = 0;
-        if (fontvars.count < font_count_max){
-            i32 index = fontvars.count;
-            Font_Slot *slot = &fontvars.slots[index];
-            Font_Settings *settings = &slot->settings;
-            Font_Metrics *metrics = &slot->metrics;
-            Font_Page_Storage *pages = &slot->pages;
-            
-            Assert(!slot->is_active);
-            
-            char *filename = stub->name;
-            i32 filename_len = 0;
-            for (;filename[filename_len];++filename_len);
-            
-            // Initialize Font Parameters
-            Assert(filename_len <= sizeof(settings->stub.name) - 1);
-            memset(settings, 0, sizeof(*settings));
-            memcpy(&settings->stub, stub, sizeof(*stub));
-            settings->pt_size = fontvars.pt_size;
-            settings->use_hinting = fontvars.use_hinting;
-            
-            memset(metrics, 0, sizeof(*metrics));
-            memset(pages, 0, sizeof(*pages));
-            b32 success = font_load(&sysfunc, settings, metrics, pages);
-            if (success){
-                slot->is_active = true;
-                new_id = (Font_ID)(index + 1);
-                ++fontvars.count;
-            }
-        }
-    }
+    // Force load one font.
+    Font_Setup *first_setup = list.first;
+    system_font_load_new_font(&first_setup->stub);
 }
 
 // BOTTOM

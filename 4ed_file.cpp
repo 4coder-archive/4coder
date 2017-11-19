@@ -220,7 +220,7 @@ allocate_markers_state(General_Memory *general, Editing_File *file, u32 new_arra
     u32 real_max = (memory_size - sizeof_marker_array)/sizeof(Marker);
     Marker_Array *array = (Marker_Array*)general_memory_allocate(general, memory_size);
     
-    dll_back_insert(&file->markers.sentinel, array);
+    dll_insert_back(&file->markers.sentinel, array);
     array->buffer_id = file->id;
     array->count = 0;
     array->sim_max = new_array_max;

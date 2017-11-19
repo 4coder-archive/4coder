@@ -14,9 +14,9 @@
 // is the same as the type of the next/prev pointers.
 
 #define dll_init_sentinel(s) (s)->next=(s),(s)->prev=(s)
-#define dll_insert(p,v)      (v)->next=(p)->next,(v)->prev=(p),(p)->next=(v),(v)->next->prev=(v)
-#define dll_back_insert(p,v) (v)->prev=(p)->prev,(v)->next=(p),(p)->prev=(v),(v)->prev->next=(v)
-#define dll_remove(v)        (v)->next->prev=(v)->prev,(v)->prev->next=(v)->next
+#define dll_insert(p,n)      (n)->next=(p)->next,(n)->prev=(p),(p)->next=(n),(n)->next->prev=(n)
+#define dll_insert_back(p,n) (n)->prev=(p)->prev,(n)->next=(p),(p)->prev=(n),(n)->prev->next=(n)
+#define dll_remove(n)        (n)->next->prev=(n)->prev,(n)->prev->next=(n)->next
 
 // HACK(allen): I don't like this anymore, get rid of it.
 // for(dll_items(iterator, sentinel_ptr)){...}

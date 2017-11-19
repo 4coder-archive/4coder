@@ -12,7 +12,6 @@
 #if !defined(FCODER_FONT_PROVIDER_FREETYPE_H)
 #define FCODER_FONT_PROVIDER_FREETYPE_H
 
-// NOTE(allen): Implemented by the freetype font provider.
 struct Font_Slot{
     b32 is_active;
     Font_Settings settings;
@@ -20,9 +19,35 @@ struct Font_Slot{
     Font_Page_Storage pages;
 };
 
+struct Font_Slot_Page{
+    Font_Slot_Page *next;
+    Font_Slot_Page *prev;
+    
+    u64 *is_active;
+    Font_Settings *settings;
+    Font_Metrics *metrics;
+    Font_Page_Storage *pages;
+    
+    i32 used_count;
+    i32 fill_count;
+    i32 max;
+    Font_ID first_id;
+};
+
+struct Font_Slot_Page_And_Index{
+    Font_Slot_Page *page;
+    i32 index;
+};
+
+// NOTE(allen): SLOT_PER_PAGE must be >= 1
+global int32_t SLOT_PER_PAGE = 32;
+global int32_t SLOT_SIZE = sizeof(Font_Settings) + sizeof(Font_Metrics) + sizeof(Font_Page_Storage);
+global int32_t SLOT_PAGE_SIZE = sizeof(Font_Slot_Page) + ((SLOT_PER_PAGE + 63)/64)*8 + SLOT_PER_PAGE*SLOT_SIZE;
+
 struct Font_Vars{
-    Font_Slot slots[32];
-    i32 count;
+    Font_Slot_Page slot_pages_sentinel;
+    i32 used_slot_count;
+    i32 max_slot_count;
     
     Font_Loadable_Description loadables[4096];
     i32 loadable_count;

@@ -112,8 +112,8 @@ typedef Sys_Font_Load_New_Font_Sig(Font_Load_New_Font_Function, stub);
 #define Sys_Font_Get_Count_Sig(n) i32 (n)(void)
 typedef Sys_Font_Get_Count_Sig(Font_Get_Count_Function);
 
-#define Sys_Font_Get_Name_By_ID_Sig(n, out, cap) i32 (n)(Font_ID font_id, char *out, u32 cap)
-typedef Sys_Font_Get_Name_By_ID_Sig(Font_Get_Name_By_ID_Function, out, cap);
+#define Sys_Font_Get_Name_By_ID_Sig(n, font_id, out, cap) i32 (n)(Font_ID font_id, char *out, u32 cap)
+typedef Sys_Font_Get_Name_By_ID_Sig(Font_Get_Name_By_ID_Function, font_id, out, cap);
 
 #define Sys_Font_Get_Pointers_By_ID_Sig(n,font_id) Font_Pointers (n)(Font_ID font_id)
 typedef Sys_Font_Get_Pointers_By_ID_Sig(Font_Get_Pointers_By_ID_Function, font_id);
