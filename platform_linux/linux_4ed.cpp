@@ -465,22 +465,148 @@ global u32 system_font_method = SystemFontMethod_FilePath;
 #include <fontconfig/fontconfig.h>
 #define internal static
 
+global FcConfig *fc_config = 0;
+
 internal
 Sys_Font_Path(name, parameters){
-    // TODO(allen)
+    if (fc_config == 0){
+        fc_config = FcInitLoadConfigAndFonts();
+    }
+    
+    Font_Path path = {0};
+    
+    FcPattern *pattern_regular = FcPatternBuild(
+        0,
+        FC_POSTSCRIPT_NAME, FcTypeString, name,
+        FC_SIZE, FcTypeDouble, (double)parameters->pt_size,
+        FC_FONTFORMAT, FcTypeString, "TrueType",
+        FC_STYLE, FcTypeString, (FcChar8*)"Regular",
+        (void*)0);
+    
+    FcPattern *pattern_styled = 0;
+    if (parameters->italics || parameters->bold){
+        if (parameters->italics && !parameters->bold){
+            pattern_styled = FcPatternBuild(
+                0,
+                FC_POSTSCRIPT_NAME, FcTypeString, name,
+                FC_SIZE, FcTypeDouble, (double)parameters->pt_size,
+                FC_FONTFORMAT, FcTypeString, "TrueType",
+                FC_STYLE, FcTypeString, (FcChar8*)"Italic",
+                (void*)0);
+        }
+        else if (!parameters->italics && parameters->bold){
+            pattern_styled = FcPatternBuild(
+                0,
+                FC_POSTSCRIPT_NAME, FcTypeString, name,
+                FC_SIZE, FcTypeDouble, (double)parameters->pt_size,
+                FC_FONTFORMAT, FcTypeString, "TrueType",
+                FC_STYLE, FcTypeString, (FcChar8*)"Bold",
+                (void*)0);
+        }
+        else{
+            pattern_styled = FcPatternBuild(
+                0,
+                FC_POSTSCRIPT_NAME, FcTypeString, name,
+                FC_SIZE, FcTypeDouble, (double)parameters->pt_size,
+                FC_FONTFORMAT, FcTypeString, "TrueType",
+                FC_STYLE, FcTypeString, (FcChar8*)"Bold Italic",
+                (void*)0);
+        }
+    }
+    
+    b32 got_font = false;
+    if (pattern_styled != 0){
+        if (FcConfigSubstitute(fc_config, pattern_styled, FcMatchPattern)){
+            FcDefaultSubstitute(pattern_styled);
+            
+            FcResult res;
+            FcPattern *font = FcFontMatch(fc_config, pattern_styled, &res);
+            FcChar8 *filename = 0;
+            
+            if (font != 0){
+                FcPatternGetString(font, FC_FILE, 0, &filename);
+                if (filename != 0){
+                    Partition *part = &shared_vars.font_scratch;
+                    path.temp = begin_temp_memory(part);
+                    i32 len = str_size((char*)filename);
+                    char *buffer = push_array(part, char, len + 1);
+                    if (buffer == 0){
+                        sysshared_partition_grow(part, l_round_up_i32(len + 1, KB(4)));
+                        buffer = push_array(part, char, len + 1);
+                    }
+                    
+                    if (buffer != 0){
+                        push_align(part, 8);
+                        memcpy(buffer, filename, len + 1);
+                        path.len = len;
+                        path.name = buffer;
+                    }
+                    
+                    got_font = true;
+                }
+                FcPatternDestroy(font);
+            }
+        }
+        
+        FcPatternDestroy(pattern_styled);
+        pattern_styled = 0;
+    }
+    
+    if (!got_font){
+        if (FcConfigSubstitute(fc_config, pattern_regular, FcMatchPattern)){
+            FcDefaultSubstitute(pattern_regular);
+            
+            FcResult res;
+            FcPattern *font = FcFontMatch(fc_config, pattern_regular, &res);
+            FcChar8 *filename = 0;
+            
+            if (font != 0){
+                FcPatternGetString(font, FC_FILE, 0, &filename);
+                if (filename != 0){
+                    Partition *part = &shared_vars.font_scratch;
+                    path.temp = begin_temp_memory(part);
+                    i32 len = str_size((char*)filename);
+                    char *buffer = push_array(part, char, len + 1);
+                    if (buffer == 0){
+                        sysshared_partition_grow(part, l_round_up_i32(len + 1, KB(4)));
+                        buffer = push_array(part, char, len + 1);
+                    }
+                    
+                    if (buffer != 0){
+                        push_align(part, 8);
+                        memcpy(buffer, filename, len + 1);
+                        path.len = len;
+                        path.name = buffer;
+                    }
+                    
+                    got_font = true;
+                }
+                FcPatternDestroy(font);
+            }
+        }
+        
+        FcPatternDestroy(pattern_styled);
+    }
+    
+    FcPatternDestroy(pattern_regular);
+    
+    return(path);
 }
 
 Sys_Font_Data_Not_Used;
 
 internal char*
 linux_get_loadable_fonts(Partition *part, Font_Setup_List *list){
-    FcConfig* config = FcInitLoadConfigAndFonts();
+    if (fc_config == 0){
+        fc_config = FcInitLoadConfigAndFonts();
+    }
+    
     FcPattern* pat = FcPatternBuild(
         0,
         FC_STYLE, FcTypeString, (FcChar8*)"Regular",
         (void*)0);
     FcObjectSet* os = FcObjectSetBuild(FC_FAMILY, FC_FILE, (char*)0);
-    FcFontSet* fs = FcFontList(config, pat, os);
+    FcFontSet* fs = FcFontList(fc_config, pat, os);
     if (fs != 0){
         LOGF("Total matching fonts: %d\n", fs->nfont);
         for (int i=0; fs && i < fs->nfont; ++i) {
