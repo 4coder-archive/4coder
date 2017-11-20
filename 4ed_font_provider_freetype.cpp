@@ -33,23 +33,56 @@ font_ft_flags(b32 use_hinting){
 }
 
 internal b32
-font_ft_get_face(FT_Library ft, Font_Loadable_Stub *stub, FT_Face *face){
+font_ft_get_face(FT_Library ft, Font_Loadable_Stub *stub, Font_Parameters *parameters, FT_Face *face){
     b32 success = true;
+    b32 do_transform = false;
     if (stub->load_from_path){
+        // TODO(allen): Look for italics/bold stuff?
         FT_Error error = FT_New_Face(ft, stub->name, 0, face);
         success = (error == 0);
+        do_transform = success;
     }
     else{
-        Font_Raw_Data data = system_font_data(stub->name);
-        if (data.size > 0){
-            FT_Error error = FT_New_Memory_Face(ft, data.data, data.size, 0, face);
-            success = (error == 0);
+        switch (system_font_method){
+            case SystemFontMethod_FilePath:
+            {
+                Font_Path path = system_font_path(stub->name, parameters);
+                if (path.len > 0){
+                    FT_Error error = FT_New_Face(ft, path.name, 0, face);
+                    success = (error == 0);
+                    do_transform = (success && path.used_base_file);
+                }
+                else{
+                    success = false;
+                }
+                end_temp_memory(path.temp);
+            }break;
+            
+            case SystemFontMethod_RawData:
+            {
+                Font_Raw_Data data = system_font_data(stub->name, parameters);
+                if (data.size > 0){
+                    FT_Error error = FT_New_Memory_Face(ft, data.data, data.size, 0, face);
+                    success = (error == 0);
+                    do_transform = (success && data.used_base_file);
+                }
+                else{
+                    success = false;
+                }
+                end_temp_memory(data.temp);
+            }break;
         }
-        else{
-            success = false;
-        }
-        end_temp_memory(data.temp);
     }
+    
+#if 0
+    if (do_transform && parameters != 0){
+        if (parameters->italics || parameters->bold){
+            FT_Matrix matrix = {0};
+            FT_Set_Transform(face, &matrix, 0);
+        }
+    }
+#endif
+    
     return(success);
 }
 
@@ -62,7 +95,7 @@ font_load_name(Font_Loadable_Stub *stub, char *buffer, i32 capacity){
     FT_Init_FreeType(&ft);
     
     FT_Face face;
-    if (font_ft_get_face(ft, stub, &face)){
+    if (font_ft_get_face(ft, stub, 0, &face)){
         char *name = face->family_name;
         i32 name_len = str_size(name);
         if (name_len < capacity){
@@ -84,14 +117,21 @@ font_load_page_layout(Font_Settings *settings, Font_Metrics *metrics, Glyph_Page
     page->has_layout = true;
     
     u32 pt_size = settings->parameters.pt_size;
+    b32 italics = settings->parameters.italics;
+    b32 bold = settings->parameters.bold;
+    b32 underline = settings->parameters.underline;
     b32 use_hinting = settings->parameters.use_hinting;
+    
+    AllowLocal(italics);
+    AllowLocal(bold);
+    AllowLocal(underline);
     
     // TODO(allen): Stop redoing all this init for each call.
     FT_Library ft;
     FT_Init_FreeType(&ft);
     
     FT_Face face;
-    b32 has_a_good_face = font_ft_get_face(ft, &settings->stub, &face);
+    b32 has_a_good_face = font_ft_get_face(ft, &settings->stub, &settings->parameters, &face);
     
     if (has_a_good_face){
         FT_Size_RequestRec_ size = {};
@@ -176,15 +216,22 @@ font_load_page_pixels(Partition *part, Font_Settings *settings, Glyph_Page *page
     Assert(page->has_layout);
     Assert(page->page_number == page_number);
     
-    i32 pt_size = settings->parameters.pt_size;
+    u32 pt_size = settings->parameters.pt_size;
+    b32 italics = settings->parameters.italics;
+    b32 bold = settings->parameters.bold;
+    b32 underline = settings->parameters.underline;
     b32 use_hinting = settings->parameters.use_hinting;
+    
+    AllowLocal(italics);
+    AllowLocal(bold);
+    AllowLocal(underline);
     
     // TODO(allen): Stop redoing all this init for each call.
     FT_Library ft;
     FT_Init_FreeType(&ft);
     
     FT_Face face;
-    b32 has_a_good_face = font_ft_get_face(ft, &settings->stub, &face);
+    b32 has_a_good_face = font_ft_get_face(ft, &settings->stub, &settings->parameters, &face);
     u32 *pixels = 0;
     
     if (has_a_good_face){
@@ -292,7 +339,7 @@ font_load(System_Functions *system, Font_Settings *settings, Font_Metrics *metri
     FT_Init_FreeType(&ft);
     
     FT_Face face;
-    b32 success = font_ft_get_face(ft, &settings->stub, &face);
+    b32 success = font_ft_get_face(ft, &settings->stub, &settings->parameters, &face);
     
     if (success){    
         FT_Size_RequestRec_ size = {};
@@ -707,6 +754,7 @@ system_font_get_local_stubs(Partition *part){
             sll_push(list.first, list.last, setup);
             
             setup->stub.load_from_path = true;
+            setup->stub.in_font_folder = true;
             memcpy(&setup->stub.name[0], directory, dir_len);
             memcpy(&setup->stub.name[dir_len], filename, len + 1);
             setup->stub.len = dir_len + len;
@@ -775,7 +823,17 @@ system_font_init(Font_Functions *font_links, u32 pt_size, b32 use_hinting, Font_
             }
             
             if (name_good){
-                memcpy(&loadable->stub, stub, sizeof(*stub));
+                if (stub->in_font_folder){
+                    memcpy(&loadable->stub, stub, sizeof(*stub));
+                }
+                else{
+                    stub->load_from_path = false;
+                    stub->in_font_folder = false;
+                    stub->len = loadable->display_len;
+                    memset(loadable->stub.name, 0, sizeof(stub->name));
+                    memcpy(loadable->stub.name, loadable->display_name, stub->len);
+                }
+                
                 loadable->valid = true;
                 ++fontvars.loadable_count;
             }

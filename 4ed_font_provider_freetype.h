@@ -76,17 +76,38 @@ struct Font_Setup_List{
 };
 
 // NOTE(allen): Procedures to be implemented per-OS for the freetype font provider.
+struct Font_Path{
+    Temp_Memory temp;
+    char *name;
+    i32 len;
+    b32 used_base_file;
+};
+
 struct Font_Raw_Data{
     Temp_Memory temp;
     u8 *data;
     i32 size;
+    b32 used_base_file;
 };
 
-#define Sys_Font_Data(name) Font_Raw_Data system_font_data(char *name)
-internal Sys_Font_Data(name);
+enum{
+    SystemFontMethod_FilePath,
+    SystemFontMethod_RawData,
+};
+
+#define Sys_Font_Path(name, parameters) Font_Path system_font_path(char *name, Font_Parameters *parameters)
+internal Sys_Font_Path(name, parameters);
+
+#define Sys_Font_Path_Not_Used \
+internal Sys_Font_Path(n,p){ \
+    Font_Path path = {0}; LOG("there is no font path retrieval procedure available\n"); return(path);}
+
+#define Sys_Font_Data(name, parameters) Font_Raw_Data system_font_data(char *name, Font_Parameters *parameters)
+internal Sys_Font_Data(name, parameters);
 
 #define Sys_Font_Data_Not_Used \
-internal Sys_Font_Data(name){Font_Raw_Data data = {0}; LOG("there is no font data retrieval procedure available\n"); return(data);}
+internal Sys_Font_Data(n,p){ \
+    Font_Raw_Data data = {0}; LOG("there is no font data retrieval procedure available\n"); return(data);}
 
 #endif
 

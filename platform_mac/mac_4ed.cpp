@@ -333,7 +333,13 @@ Sys_CLI_End_Update_Sig(system_cli_end_update){
 }
 
 #include "4ed_font_provider_freetype.h"
+global u32 system_font_method = SystemFontMethod_FilePath;
 #include "4ed_font_provider_freetype.cpp"
+
+internal
+Sys_Font_Path(name, parameters){
+    // TODO(allen)
+}
 
 Sys_Font_Data_Not_Used;
 

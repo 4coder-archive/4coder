@@ -15,6 +15,7 @@
 // NOTE(allen): A description of an available font.
 struct Font_Loadable_Stub{
     b32 load_from_path;
+    b32 in_font_folder;
     i32 len;
     char name[256];
 };

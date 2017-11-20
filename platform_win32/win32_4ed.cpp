@@ -511,19 +511,27 @@ Sys_CLI_End_Update_Sig(system_cli_end_update){
 }
 
 #include "4ed_font_provider_freetype.h"
+global u32 system_font_method = SystemFontMethod_RawData;
 #include "4ed_font_provider_freetype.cpp"
 
+Sys_Font_Path_Not_Used;
+
 internal
-Sys_Font_Data(name){
+Sys_Font_Data(name, parameters){
     Font_Raw_Data data = {0};
+    
+    int weight = FW_REGULAR;
+    if (parameters->bold){
+        weight = FW_BOLD;
+    }
     
     HFONT hfont = CreateFontA(
         0,
         0,
         0,
         0,
-        0,
-        FALSE, // Italic
+        weight, // Weight
+        parameters->italics, // Italic
         FALSE, // Underline
         FALSE, // Strikeout
         ANSI_CHARSET,
