@@ -62,6 +62,11 @@ typedef struct OSX_Loadable_Fonts{
     i32 count;
 } OSX_Loadable_Fonts;
 
+typedef struct OSX_Font_Match{
+    char *path;
+    b32 used_base_file;
+} OSX_Font_Match;
+
 // In C++ layer.
 extern OSX_Objective_C_Vars osx_objc;
 
@@ -134,6 +139,9 @@ osx_close_app(void);
 
 external f32
 osx_timer_seconds(void);
+
+external OSX_Font_Match
+osx_get_font_match(char *name, i32 pt_size, b32 italic, b32 bold);
 
 external OSX_Loadable_Fonts
 osx_list_loadable_fonts(void);

@@ -338,7 +338,36 @@ global u32 system_font_method = SystemFontMethod_FilePath;
 
 internal
 Sys_Font_Path(name, parameters){
-    // TODO(allen)
+    b32 italic = (parameters != 0 && parameters->italics);
+    b32 bold = (parameters != 0 && parameters->bold);
+    i32 pt_size = 12;
+    if (parameters != 0){
+        pt_size = parameters->pt_size;
+    }
+    
+    OSX_Font_Match match = osx_get_font_match(name, pt_size, italic, bold);
+    
+    Font_Path path = {0};
+    if (match.path != 0){
+        Partition *part = &shared_vars.font_scratch;
+        path.temp = begin_temp_memory(part);
+        
+        i32 len = str_size(match.path);
+        char *buffer = push_array(part, char, len + 1);
+        if (buffer == 0){
+            sysshared_partition_grow(part, l_round_up_i32(len + 1, KB(4)));
+            buffer = push_array(part, char, len + 1);
+        }
+        
+        if (buffer != 0){
+            push_align(part, 8);
+            memcpy(buffer, match.path, len + 1);
+            path.len = len;
+            path.name = buffer;
+        }
+    }
+    
+    return(path);
 }
 
 Sys_Font_Data_Not_Used;

@@ -726,6 +726,8 @@ osx_timer_seconds(void){
     return(result);
 }
 
+NSFontManager *font_manager = 0;
+
 NSString *get_font_path(NSFont *font){
     CFStringRef name = (CFStringRef)[font fontName];
     CGFloat size = [font pointSize];
@@ -735,9 +737,60 @@ NSString *get_font_path(NSFont *font){
     return(path);
 }
 
+OSX_Font_Match
+osx_get_font_match(char *name, i32 pt_size, b32 italic, b32 bold){
+    if (font_manager == 0){
+        font_manager = [NSFontManager sharedFontManager];
+    }
+    
+    NSString *name_string = [NSString stringWithUTF8String:name];
+    NSFontTraitMask trait_mask = 0;
+    if (italic){
+        trait_mask = (trait_mask | NSItalicFontMask);
+    }
+    NSInteger weight = 5;
+    if (bold){
+        weight = 9;
+    }
+    
+    b32 used_base_file = false;
+    NSFont *font = [font_manager
+            fontWithFamily: name_string
+            traits: trait_mask
+            weight: weight
+            size:(float)pt_size];
+    
+    if (font == nil){
+        font = [font_manager
+                fontWithFamily: name_string
+                traits: 0
+                weight: 5
+                size:(float)pt_size];
+        used_base_file = true;
+    }
+    
+    OSX_Font_Match match = {0};
+    if (font != nil){
+        NSString *path = get_font_path(font);
+        char *path_c = 0;
+        if (path != nil){
+            path_c = (char*)[path UTF8String];
+        }
+        if (path_c != 0){
+            match.path = path_c;
+            match.used_base_file = used_base_file;
+        }
+    }
+    
+    return(match);
+}
+
 OSX_Loadable_Fonts
 osx_list_loadable_fonts(void){
-    NSFontManager *font_manager = [NSFontManager sharedFontManager];
+    if (font_manager == 0){
+        font_manager = [NSFontManager sharedFontManager];
+    }
+    
     NSArray<NSString*> *fonts = [font_manager availableFontFamilies];
     
     OSX_Loadable_Fonts result = {0};
@@ -767,15 +820,6 @@ osx_list_loadable_fonts(void){
         result.names[i] = font_n_c;
         result.paths[i] = path_c;
     }
-    
-#if 0
-    for (int i = 0; i < count; ++i){
-        char *name = result.names[i];
-        char *path = result.paths[i];
-        fprintf(stdout, "found: %s\nat: %s\n", name, path);
-        fflush(stdout);
-    }
-#endif
     
     return(result);
 }
