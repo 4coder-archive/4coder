@@ -413,8 +413,7 @@ osx_resize(int width, int height){
 }
 
 internal void
-osx_push_key(Key_Code code, Key_Code chr, Key_Code chr_nocaps, b8 *mods)
-{
+osx_push_key(Key_Code code, Key_Code chr, Key_Code chr_nocaps, b8 *mods){
     i32 count = osxvars.input.keys.count;
     
     if (count < KEY_INPUT_BUFFER_SIZE){

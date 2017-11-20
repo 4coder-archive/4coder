@@ -4568,16 +4568,14 @@ step_file_view(System_Functions *system, View *view, Models *models, View *activ
                                         append(&m, " *");
                                     }
                                     
-                                    id.id[0] = i;
-                                    id.id[1] = 0;
+                                    id.id[0] = i*2 + 0;
                                     if (gui_do_button(target, id, m)){
                                         if (new_font_id == 0){
                                             new_font_id = i;
                                         }
                                     }
                                     
-                                    id.id[0] = i;
-                                    id.id[1] = 1;
+                                    id.id[0] = i*2 + 1;
                                     if (gui_do_button(target, id, make_lit_string("edit"))){
                                         view->font_edit_id = i;
                                         if (view->color_mode == CV_Mode_Font){
@@ -4590,8 +4588,7 @@ step_file_view(System_Functions *system, View *view, Models *models, View *activ
                                 }
                             }
                             
-                            id.id[0] = 0;
-                            id.id[1] = 2;
+                            id.id[0] = largest_id*2 + 2;
                             if (gui_do_button(target, id, make_lit_string("new face"))){
                                 if (new_font_id == 0){
                                     Font_Pointers font = system->font.get_pointers_by_id(font_id);
@@ -4654,6 +4651,8 @@ step_file_view(System_Functions *system, View *view, Models *models, View *activ
                                 }
                             }
                             
+                            gui_begin_scrollable(target, scroll_context, view->gui_scroll, 9*view->line_height, show_scrollbar);
+                            
                             Font_ID font_edit_id = view->font_edit_id;
                             Font_Pointers font = system->font.get_pointers_by_id(font_edit_id);
                             Font_Settings *settings = font.settings;
@@ -4710,6 +4709,7 @@ step_file_view(System_Functions *system, View *view, Models *models, View *activ
                                 
                                 if (loadable.valid){
                                     String name = make_string(loadable.display_name, loadable.display_len);
+                                    ++id.id[0];
                                     if (gui_do_button(target, id, name)){
                                         if (!has_new_settings){
                                             has_new_settings = true;
@@ -4718,6 +4718,8 @@ step_file_view(System_Functions *system, View *view, Models *models, View *activ
                                     }
                                 }
                             }
+                            
+                            gui_end_scrollable(target);
                             
                             if (has_new_settings){
                                 alter_font(system, models, font_edit_id, &new_settings);
@@ -5513,13 +5515,17 @@ view_get_scroll_y(View *view){
 }
 
 internal b32
-click_button_input(GUI_Target *target, GUI_Session *session, Input_Summary *user_input,
-                   GUI_Interactive *b, b32 *is_animating){
+click_button_input(GUI_Target *target, GUI_Session *session, b32 in_scroll, i32_Rect scroll_rect, Input_Summary *user_input, GUI_Interactive *b, b32 *is_animating){
     b32 result = 0;
     i32 mx = user_input->mouse.x;
     i32 my = user_input->mouse.y;
     
-    if (hit_check(mx, my, session->rect)){
+    b32 in_sub_region = true;
+    if (in_scroll && !hit_check(mx, my, scroll_rect)){
+        in_sub_region = false;
+    }
+    
+    if (in_sub_region && hit_check(mx, my, session->rect)){
         target->hover = b->id;
         if (user_input->mouse.press_l){
             target->mouse_hot = b->id;
@@ -5535,12 +5541,12 @@ click_button_input(GUI_Target *target, GUI_Session *session, Input_Summary *user
     else if (gui_id_eq(target->hover, b->id)){
         target->hover = gui_id_zero();
     }
+    
     return(result);
 }
 
 internal b32
-scroll_button_input(GUI_Target *target, GUI_Session *session, Input_Summary *user_input,
-                    GUI_id id, b32 *is_animating){
+scroll_button_input(GUI_Target *target, GUI_Session *session, Input_Summary *user_input, GUI_id id, b32 *is_animating){
     b32 result = 0;
     i32 mx = user_input->mouse.x;
     i32 my = user_input->mouse.y;
@@ -5596,6 +5602,13 @@ do_step_file_view(System_Functions *system, View *view, Models *models, i32_Rect
     result.region = region;
     
     target->active = gui_id_zero();
+    
+    // HACK(allen): UI sucks!  Now just forcing it to 
+    // not have the bug where it clicks buttons behind the 
+    // header buttons before the scrollable section.
+    b32 in_scroll = false;
+    i32_Rect scroll_rect = {0};
+    i32 prev_bottom = 0;
     
     if (target->push.pos > 0){
         gui_session_init(&gui_session, target, rect, view->line_height);
@@ -5660,9 +5673,11 @@ do_step_file_view(System_Functions *system, View *view, Models *models, i32_Rect
                     {
                         GUI_Interactive *b = (GUI_Interactive*)h;
                         
-                        if (click_button_input(target, &gui_session, user_input, b, &result.is_animating)){
+                        if (click_button_input(target, &gui_session, in_scroll, scroll_rect, user_input, b, &result.is_animating)){
                             result.consumed_l = true;
                         }
+                        
+                        prev_bottom = gui_session.rect.y1;
                     }break;
                     
                     case guicom_fixed_option:
@@ -5670,7 +5685,7 @@ do_step_file_view(System_Functions *system, View *view, Models *models, i32_Rect
                     {
                         GUI_Interactive *b = (GUI_Interactive*)h;
                         
-                        if (click_button_input(target, &gui_session, user_input, b, &result.is_animating)){
+                        if (click_button_input(target, &gui_session, in_scroll, scroll_rect, user_input, b, &result.is_animating)){
                             result.consumed_l = true;
                         }
                         
@@ -5768,8 +5783,18 @@ do_step_file_view(System_Functions *system, View *view, Models *models, i32_Rect
                         }
                     }break;
                     
+                    case guicom_begin_scrollable_section:
+                    {
+                        in_scroll = true;
+                        scroll_rect.x0 = region.x0;
+                        scroll_rect.y0 = prev_bottom;
+                        scroll_rect.x1 = region.x1;
+                        scroll_rect.y1 = region.y1;
+                    }break;
+                    
                     case guicom_end_scrollable_section:
                     {
+                        in_scroll = false;
                         if (!is_file_scroll){
                             result.has_max_y_suggestion = 1;
                             result.max_y = gui_session.suggested_max_y;

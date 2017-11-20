@@ -23,7 +23,7 @@ default_keys(Bind_Helper *context){
 
 void
 mac_default_keys(Bind_Helper *context){
-    
+    fill_keys_mac_default(context);
 }
 
 
