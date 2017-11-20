@@ -13,7 +13,7 @@
 #include "4ed_defines.h"
 #undef inline
 #include "4coder_API/version.h"
-#include "4coder_API/keycodes.h"
+#include "4coder_generated/keycodes.h"
 
 #define IS_OBJC_LAYER
 #include "4ed_log.h"

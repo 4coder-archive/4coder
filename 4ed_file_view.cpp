@@ -4562,7 +4562,7 @@ step_file_view(System_Functions *system, View *view, Models *models, View *activ
                                     append(&m, "\" size:");
                                     append_int_to_str(&m, settings->pt_size);
                                     append(&m, " hint:");
-                                    append(&m, (settings->use_hinting)?"ON ":"OFF");
+                                    append(&m, (char*)(settings->use_hinting?"ON ":"OFF"));
                                     
                                     if (i == font_id){
                                         append(&m, " *");
@@ -4686,9 +4686,9 @@ step_file_view(System_Functions *system, View *view, Models *models, View *activ
                             }
                             
                             copy(&m, "Turn Hinting ");
-                            append(&m, settings->use_hinting?"Off":"On");
+                            append(&m, (char*)(settings->use_hinting?"Off":"On"));
                             append(&m, " (it is currently ");
-                            append(&m, settings->use_hinting?"On":"Off");
+                            append(&m, (char*)(settings->use_hinting?"On":"Off"));
                             append(&m, ")");
                             ++id.id[0];
                             if (gui_do_button(target, id, m)){
