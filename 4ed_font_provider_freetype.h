@@ -31,7 +31,7 @@ struct Font_Slot_Page{
     i32 used_count;
     i32 fill_count;
     i32 max;
-    Font_ID first_id;
+    Face_ID first_id;
 };
 
 struct Font_Slot_Page_And_Index{
@@ -48,7 +48,7 @@ struct Font_Vars{
     Font_Slot_Page slot_pages_sentinel;
     i32 used_slot_count;
     i32 max_slot_count;
-    Font_ID largest_font_id;
+    Face_ID largest_font_id;
     
     // HACK(allen): // HACK(allen): // HACK(allen): 
     // TODO(allen): Upgrade this to have "unlimited" resizable memory.

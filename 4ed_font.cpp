@@ -9,11 +9,11 @@
 
 // TOP
 
-internal Font_ID
+internal Face_ID
 font_get_id_by_name(System_Functions *system, String name){
-    Font_ID id = 0;
+    Face_ID id = 0;
     u32 count = system->font.get_count();
-    for (Font_ID id_it = 1; id_it <= count; ++id_it){
+    for (Face_ID id_it = 1; id_it <= count; ++id_it){
         char str[256];
         i32 str_len = system->font.get_name_by_id(id_it, str, sizeof(str));
         if (str_len > 0){

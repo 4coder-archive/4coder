@@ -20,9 +20,8 @@ struct App_Settings{
     i32 initial_line;
     b32 lctrl_lalt_is_altgr;
     
-    char *custom_font_file;
-    char *custom_font_name;
-    i32 custom_font_size;
+    i32 font_size;
+    b32 use_hinting;
 };
 global_const App_Settings null_app_settings = {0};
 
@@ -46,7 +45,7 @@ struct Models{
     Mem_Options mem;
     App_Settings settings;
     
-    Font_ID global_font_id;
+    Face_ID global_font_id;
     
     Mapping mapping;
     

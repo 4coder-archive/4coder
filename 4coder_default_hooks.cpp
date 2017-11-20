@@ -204,7 +204,7 @@ OPEN_FILE_HOOK_SIG(default_file_settings){
         buffer_set_setting(app, &buffer, BufferSetting_LexWithoutStrings, true);
         buffer_set_setting(app, &buffer, BufferSetting_VirtualWhitespace, true);
     }
-    else if (treat_as_code && enable_code_wrapping && buffer.size < (1 << 18)){
+    else if (treat_as_code && enable_code_wrapping && buffer.size < (512 << 10)){
         // NOTE(allen|a4.0.12): There is a little bit of grossness going on here.
         // If we set BufferSetting_Lex to true, it will launch a lexing job.
         // If a lexing job is active when we set BufferSetting_VirtualWhitespace, the call can fail.

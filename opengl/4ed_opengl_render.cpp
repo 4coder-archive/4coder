@@ -218,6 +218,26 @@ interpret_render_buffer(Render_Target *t){
                     glTexCoord2f(uv.x0, uv.y0); glVertex2f(xy.x0, xy.y0);
                 }
                 glEnd();
+                
+                if (codepoint != ' ' && font.settings->parameters.underline){
+                    glDisable(GL_TEXTURE_2D);
+                    
+                    f32 x0 = x;
+                    f32 x1 = x + page->advance[glyph_index];
+                    f32 yoff1 = y + font.metrics->underline_yoff1;
+                    f32 yoff2 = y + font.metrics->underline_yoff2;
+                    
+                    glBegin(GL_QUADS);
+                    {
+                        glVertex2f(x0, yoff1);
+                        glVertex2f(x1, yoff1);
+                        glVertex2f(x1, yoff2);
+                        glVertex2f(x0, yoff2);
+                    }
+                    glEnd();
+                    
+                    glEnable(GL_TEXTURE_2D);
+                }
             }break;
             
             case RenCom_ChangeClip:

@@ -43,7 +43,7 @@ struct Render_Command_Glyph{
     Render_Command_Header header;
     Vec2 pos;
     u32 color;
-    Font_ID font_id;
+    Face_ID font_id;
     u32 codepoint;
 };
 

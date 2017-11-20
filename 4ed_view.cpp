@@ -134,7 +134,7 @@ struct View{
     View *hot_file_view;
     u32 *palette;
     Color_View_Mode color_mode;
-    Font_ID font_edit_id;
+    Face_ID font_edit_id;
     Super_Color color;
     b32 p4c_only;
     Style_Library inspecting_styles;

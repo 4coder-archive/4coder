@@ -1783,7 +1783,7 @@ file_create_from_string(System_Functions *system, Models *models, Editing_File *
     }
     file_synchronize_times(system, file);
     
-    Font_ID font_id = models->global_font_id;
+    Face_ID font_id = models->global_font_id;
     file->settings.font_id = font_id;
     Font_Pointers font = system->font.get_pointers_by_id(font_id);
     Assert(font.valid);
@@ -2657,7 +2657,7 @@ file_view_nullify_file(View *view){
 }
 
 internal void
-update_view_line_height(System_Functions *system, Models *models, View *view, Font_ID font_id){
+update_view_line_height(System_Functions *system, Models *models, View *view, Face_ID font_id){
     Font_Pointers font = system->font.get_pointers_by_id(font_id);
     Assert(font.valid);
     view->line_height = font.metrics->height;
@@ -3538,7 +3538,7 @@ style_get_color(Style *style, Cpp_Token token){
 
 internal void
 file_full_remeasure(System_Functions *system, Models *models, Editing_File *file){
-    Font_ID font_id = file->settings.font_id;
+    Face_ID font_id = file->settings.font_id;
     Font_Pointers font = system->font.get_pointers_by_id(font_id);
     file_measure_wraps_and_fix_cursor(system, models, file, font);
     
@@ -3551,13 +3551,13 @@ file_full_remeasure(System_Functions *system, Models *models, Editing_File *file
 }
 
 internal void
-file_set_font(System_Functions *system, Models *models, Editing_File *file, Font_ID font_id){
+file_set_font(System_Functions *system, Models *models, Editing_File *file, Face_ID font_id){
     file->settings.font_id = font_id;
     file_full_remeasure(system, models, file);
 }
 
 internal void
-global_set_font(System_Functions *system, Models *models, Font_ID font_id){
+global_set_font(System_Functions *system, Models *models, Face_ID font_id){
     File_Node *node = 0;
     File_Node *sentinel = &models->working_set.used_sentinel;
     for (dll_items(node, sentinel)){
@@ -3567,9 +3567,13 @@ global_set_font(System_Functions *system, Models *models, Font_ID font_id){
     models->global_font_id = font_id;
 }
 
-internal void
-alter_font(System_Functions *system, Models *models, Font_ID font_id, Font_Settings *new_settings){
+internal b32
+alter_font(System_Functions *system, Models *models, Face_ID font_id, Font_Settings *new_settings){
+    b32 success = false;
+    
     if (system->font.face_change_settings(font_id, new_settings)){
+        success = true;
+        
         File_Node *node = 0;
         File_Node *sentinel = &models->working_set.used_sentinel;
         for (dll_items(node, sentinel)){
@@ -3579,6 +3583,39 @@ alter_font(System_Functions *system, Models *models, Font_ID font_id, Font_Setti
             }
         }
     }
+    
+    return(success);
+}
+
+internal b32
+release_font(System_Functions *system, Models *models, Face_ID font_id, Face_ID replacement_id){
+    b32 success = false;
+    
+    if (system->font.face_release(font_id)){
+        Font_Pointers font = system->font.get_pointers_by_id(replacement_id);
+        if (!font.valid){
+            Face_ID largest_id = system->font.get_largest_id();
+            for (replacement_id = 1; replacement_id <= largest_id && replacement_id > 0; ++replacement_id){
+                Font_Pointers font = system->font.get_pointers_by_id(replacement_id);
+                if (font.valid){
+                    break;
+                }
+            }
+            Assert(replacement_id <= largest_id && replacement_id > 0);
+        }
+        
+        success = true;
+        File_Node *node = 0;
+        File_Node *sentinel = &models->working_set.used_sentinel;
+        for (dll_items(node, sentinel)){
+            Editing_File *file = (Editing_File*)node;
+            if (file->settings.font_id == font_id){
+                file_set_font(system, models, file, replacement_id);
+            }
+        }
+    }
+    
+    return(success);
 }
 
 inline void
@@ -3945,7 +3982,7 @@ struct File_Bar{
     f32 pos_x, pos_y;
     f32 text_shift_x, text_shift_y;
     i32_Rect rect;
-    Font_ID font_id;
+    Face_ID font_id;
 };
 
 internal void
@@ -4538,11 +4575,11 @@ step_file_view(System_Functions *system, View *view, Models *models, View *activ
                             
                             gui_begin_scrollable(target, scroll_context, view->gui_scroll, 9*view->line_height, show_scrollbar);
                             
-                            Font_ID font_id = file->settings.font_id;
-                            Font_ID new_font_id = 0;
+                            Face_ID font_id = file->settings.font_id;
+                            Face_ID new_font_id = 0;
                             
-                            Font_ID largest_id = system->font.get_largest_id();
-                            for (Font_ID i = 1; i <= largest_id; ++i){
+                            Face_ID largest_id = system->font.get_largest_id();
+                            for (Face_ID i = 1; i <= largest_id; ++i){
                                 Font_Pointers font = system->font.get_pointers_by_id(i);
                                 if (font.valid){
                                     Font_Settings *settings = font.settings;
@@ -4629,7 +4666,7 @@ step_file_view(System_Functions *system, View *view, Models *models, View *activ
                             
                             gui_begin_scrollable(target, scroll_context, view->gui_scroll, 9*view->line_height, show_scrollbar);
                             
-                            Font_ID font_edit_id = view->font_edit_id;
+                            Face_ID font_edit_id = view->font_edit_id;
                             Font_Pointers font = system->font.get_pointers_by_id(font_edit_id);
                             Font_Settings *settings = font.settings;
                             Font_Metrics *metrics = font.metrics;
@@ -5872,7 +5909,7 @@ draw_file_loaded(System_Functions *system, View *view, Models *models, i32_Rect 
     i32 max = partition_remaining(part) / sizeof(Buffer_Render_Item);
     Buffer_Render_Item *items = push_array(part, Buffer_Render_Item, max);
     
-    Font_ID font_id = file->settings.font_id;
+    Face_ID font_id = file->settings.font_id;
     Font_Pointers font = system->font.get_pointers_by_id(font_id);
     
     f32 scroll_x = view->edit_pos->scroll.scroll_x;
@@ -6079,7 +6116,7 @@ draw_file_loaded(System_Functions *system, View *view, Models *models, i32_Rect 
 }
 
 internal void
-draw_text_field(System_Functions *system, Render_Target *target, View *view, Models *models, Font_ID font_id, i32_Rect rect, String p, String t){
+draw_text_field(System_Functions *system, Render_Target *target, View *view, Models *models, Face_ID font_id, i32_Rect rect, String p, String t){
     Style *style = main_style(models);
     
     u32 back_color = style->main.margin_color;
@@ -6097,7 +6134,7 @@ draw_text_field(System_Functions *system, Render_Target *target, View *view, Mod
 }
 
 internal void
-draw_text_with_cursor(System_Functions *system, Render_Target *target, View *view, Models *models, Font_ID font_id, i32_Rect rect, String s, i32 pos){
+draw_text_with_cursor(System_Functions *system, Render_Target *target, View *view, Models *models, Face_ID font_id, i32_Rect rect, String s, i32 pos){
     Style *style = main_style(models);
     
     u32 back_color = style->main.margin_color;
@@ -6232,7 +6269,7 @@ get_margin_color(i32 active_level, Style *style){
 }
 
 internal void
-draw_color_button(System_Functions *system, GUI_Target *gui_target, Render_Target *target, View *view, Font_ID font_id, i32_Rect rect, GUI_id id, u32 fore, u32 back, String text){
+draw_color_button(System_Functions *system, GUI_Target *gui_target, Render_Target *target, View *view, Face_ID font_id, i32_Rect rect, GUI_id id, u32 fore, u32 back, String text){
     i32 active_level = gui_active_level(gui_target, id);
     
     if (active_level > 0){
@@ -6244,7 +6281,7 @@ draw_color_button(System_Functions *system, GUI_Target *gui_target, Render_Targe
 }
 
 internal void
-draw_font_button(System_Functions *system, GUI_Target *gui_target, Render_Target *target, View *view, Models *models, i32_Rect rect, GUI_id id, Font_ID font_id, String text){
+draw_font_button(System_Functions *system, GUI_Target *gui_target, Render_Target *target, View *view, Models *models, i32_Rect rect, GUI_id id, Face_ID font_id, String text){
     Style *style = main_style(models);
     
     i32 active_level = gui_active_level(gui_target, id);
@@ -6259,7 +6296,7 @@ draw_font_button(System_Functions *system, GUI_Target *gui_target, Render_Target
 }
 
 internal void
-draw_fat_option_block(System_Functions *system, GUI_Target *gui_target, Render_Target *target, View *view, Models *models, Font_ID font_id, i32_Rect rect, GUI_id id, String text, String pop, i8 checkbox = -1){
+draw_fat_option_block(System_Functions *system, GUI_Target *gui_target, Render_Target *target, View *view, Models *models, Face_ID font_id, i32_Rect rect, GUI_id id, String text, String pop, i8 checkbox = -1){
     Style *style = main_style(models);
     
     i32 active_level = gui_active_level(gui_target, id);
@@ -6298,7 +6335,7 @@ draw_fat_option_block(System_Functions *system, GUI_Target *gui_target, Render_T
 }
 
 internal void
-draw_button(System_Functions *system, GUI_Target *gui_target, Render_Target *target, View *view, Models *models, Font_ID font_id, i32_Rect rect, GUI_id id, String text){
+draw_button(System_Functions *system, GUI_Target *gui_target, Render_Target *target, View *view, Models *models, Face_ID font_id, i32_Rect rect, GUI_id id, String text){
     Style *style = main_style(models);
     
     i32 active_level = gui_active_level(gui_target, id);
@@ -6322,7 +6359,7 @@ draw_button(System_Functions *system, GUI_Target *gui_target, Render_Target *tar
 }
 
 internal void
-draw_style_preview(System_Functions *system, GUI_Target *gui_target, Render_Target *target, View *view, Models *models, Font_ID font_id, i32_Rect rect, GUI_id id, Style *style){
+draw_style_preview(System_Functions *system, GUI_Target *gui_target, Render_Target *target, View *view, Models *models, Face_ID font_id, i32_Rect rect, GUI_id id, Style *style){
     i32 active_level = gui_active_level(gui_target, id);
     char font_name_space[256];
     String font_name = make_fixed_width_string(font_name_space);
@@ -6381,7 +6418,7 @@ do_render_file_view(System_Functions *system, View *view, Models *models, GUI_Sc
     
     Assert(file != 0);
     
-    Font_ID font_id = file->settings.font_id;
+    Face_ID font_id = file->settings.font_id;
     if (gui_target->push.pos > 0){
         gui_session_init(&gui_session, gui_target, rect, view->line_height);
         
@@ -6447,7 +6484,7 @@ do_render_file_view(System_Functions *system, View *view, Models *models, GUI_Sc
                     {
                         GUI_Interactive *b = (GUI_Interactive*)h;
                         void *ptr = (b + 1);
-                        Font_ID this_font_id = (Font_ID)gui_read_integer(&ptr);
+                        Face_ID this_font_id = (Face_ID)gui_read_integer(&ptr);
                         String t = gui_read_string(&ptr);
                         
                         draw_font_button(system, gui_target, target, view, models, gui_session.rect, b->id, this_font_id, t);

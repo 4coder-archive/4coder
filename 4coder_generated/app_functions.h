@@ -56,9 +56,16 @@ struct Application_Links;
 #define PRINT_MESSAGE_SIG(n) void n(Application_Links *app, char *str, int32_t len)
 #define CREATE_THEME_SIG(n) void n(Application_Links *app, Theme *theme, char *name, int32_t len)
 #define CHANGE_THEME_SIG(n) void n(Application_Links *app, char *name, int32_t len)
-#define CHANGE_FONT_SIG(n) void n(Application_Links *app, char *name, int32_t len, bool32 apply_to_all_files)
-#define BUFFER_SET_FONT_SIG(n) void n(Application_Links *app, Buffer_Summary *buffer, char *name, int32_t len)
-#define BUFFER_GET_FONT_SIG(n) bool32 n(Application_Links *app, Buffer_Summary *buffer, char *name_out, int32_t name_max)
+#define GET_LARGEST_FACE_ID_SIG(n) Face_ID n(Application_Links *app)
+#define SET_GLOBAL_FACE_SIG(n) bool32 n(Application_Links *app, Face_ID id, bool32 apply_to_all_buffers)
+#define BUFFER_SET_FACE_SIG(n) bool32 n(Application_Links *app, Buffer_Summary *buffer, Face_ID id)
+#define GET_FACE_DESCRIPTION_SIG(n) Face_Description n(Application_Links *app, Face_ID id)
+#define GET_FACE_ID_SIG(n) Face_ID n(Application_Links *app, Buffer_Summary *buffer)
+#define TRY_CREATE_NEW_FACE_SIG(n) Face_ID n(Application_Links *app, Face_Description *description)
+#define TRY_MODIFY_FACE_SIG(n) bool32 n(Application_Links *app, Face_ID id, Face_Description *description)
+#define TRY_RELEASE_FACE_SIG(n) bool32 n(Application_Links *app, Face_ID id, Face_ID replacement_id)
+#define GET_AVAILABLE_FONT_COUNT_SIG(n) int32_t n(Application_Links *app)
+#define GET_AVAILABLE_FONT_SIG(n) Available_Font n(Application_Links *app, int32_t index)
 #define SET_THEME_COLORS_SIG(n) void n(Application_Links *app, Theme_Color *colors, int32_t count)
 #define GET_THEME_COLORS_SIG(n) void n(Application_Links *app, Theme_Color *colors, int32_t count)
 #define DIRECTORY_GET_HOT_SIG(n) int32_t n(Application_Links *app, char *out, int32_t capacity)
@@ -133,9 +140,16 @@ typedef END_QUERY_BAR_SIG(End_Query_Bar_Function);
 typedef PRINT_MESSAGE_SIG(Print_Message_Function);
 typedef CREATE_THEME_SIG(Create_Theme_Function);
 typedef CHANGE_THEME_SIG(Change_Theme_Function);
-typedef CHANGE_FONT_SIG(Change_Font_Function);
-typedef BUFFER_SET_FONT_SIG(Buffer_Set_Font_Function);
-typedef BUFFER_GET_FONT_SIG(Buffer_Get_Font_Function);
+typedef GET_LARGEST_FACE_ID_SIG(Get_Largest_Face_ID_Function);
+typedef SET_GLOBAL_FACE_SIG(Set_Global_Face_Function);
+typedef BUFFER_SET_FACE_SIG(Buffer_Set_Face_Function);
+typedef GET_FACE_DESCRIPTION_SIG(Get_Face_Description_Function);
+typedef GET_FACE_ID_SIG(Get_Face_ID_Function);
+typedef TRY_CREATE_NEW_FACE_SIG(Try_Create_New_Face_Function);
+typedef TRY_MODIFY_FACE_SIG(Try_Modify_Face_Function);
+typedef TRY_RELEASE_FACE_SIG(Try_Release_Face_Function);
+typedef GET_AVAILABLE_FONT_COUNT_SIG(Get_Available_Font_Count_Function);
+typedef GET_AVAILABLE_FONT_SIG(Get_Available_Font_Function);
 typedef SET_THEME_COLORS_SIG(Set_Theme_Colors_Function);
 typedef GET_THEME_COLORS_SIG(Get_Theme_Colors_Function);
 typedef DIRECTORY_GET_HOT_SIG(Directory_Get_Hot_Function);
@@ -212,9 +226,16 @@ End_Query_Bar_Function *end_query_bar;
 Print_Message_Function *print_message;
 Create_Theme_Function *create_theme;
 Change_Theme_Function *change_theme;
-Change_Font_Function *change_font;
-Buffer_Set_Font_Function *buffer_set_font;
-Buffer_Get_Font_Function *buffer_get_font;
+Get_Largest_Face_ID_Function *get_largest_face_id;
+Set_Global_Face_Function *set_global_face;
+Buffer_Set_Face_Function *buffer_set_face;
+Get_Face_Description_Function *get_face_description;
+Get_Face_ID_Function *get_face_id;
+Try_Create_New_Face_Function *try_create_new_face;
+Try_Modify_Face_Function *try_modify_face;
+Try_Release_Face_Function *try_release_face;
+Get_Available_Font_Count_Function *get_available_font_count;
+Get_Available_Font_Function *get_available_font;
 Set_Theme_Colors_Function *set_theme_colors;
 Get_Theme_Colors_Function *get_theme_colors;
 Directory_Get_Hot_Function *directory_get_hot;
@@ -290,9 +311,16 @@ End_Query_Bar_Function *end_query_bar_;
 Print_Message_Function *print_message_;
 Create_Theme_Function *create_theme_;
 Change_Theme_Function *change_theme_;
-Change_Font_Function *change_font_;
-Buffer_Set_Font_Function *buffer_set_font_;
-Buffer_Get_Font_Function *buffer_get_font_;
+Get_Largest_Face_ID_Function *get_largest_face_id_;
+Set_Global_Face_Function *set_global_face_;
+Buffer_Set_Face_Function *buffer_set_face_;
+Get_Face_Description_Function *get_face_description_;
+Get_Face_ID_Function *get_face_id_;
+Try_Create_New_Face_Function *try_create_new_face_;
+Try_Modify_Face_Function *try_modify_face_;
+Try_Release_Face_Function *try_release_face_;
+Get_Available_Font_Count_Function *get_available_font_count_;
+Get_Available_Font_Function *get_available_font_;
 Set_Theme_Colors_Function *set_theme_colors_;
 Get_Theme_Colors_Function *get_theme_colors_;
 Directory_Get_Hot_Function *directory_get_hot_;
@@ -376,9 +404,16 @@ app_links->end_query_bar_ = End_Query_Bar;\
 app_links->print_message_ = Print_Message;\
 app_links->create_theme_ = Create_Theme;\
 app_links->change_theme_ = Change_Theme;\
-app_links->change_font_ = Change_Font;\
-app_links->buffer_set_font_ = Buffer_Set_Font;\
-app_links->buffer_get_font_ = Buffer_Get_Font;\
+app_links->get_largest_face_id_ = Get_Largest_Face_ID;\
+app_links->set_global_face_ = Set_Global_Face;\
+app_links->buffer_set_face_ = Buffer_Set_Face;\
+app_links->get_face_description_ = Get_Face_Description;\
+app_links->get_face_id_ = Get_Face_ID;\
+app_links->try_create_new_face_ = Try_Create_New_Face;\
+app_links->try_modify_face_ = Try_Modify_Face;\
+app_links->try_release_face_ = Try_Release_Face;\
+app_links->get_available_font_count_ = Get_Available_Font_Count;\
+app_links->get_available_font_ = Get_Available_Font;\
 app_links->set_theme_colors_ = Set_Theme_Colors;\
 app_links->get_theme_colors_ = Get_Theme_Colors;\
 app_links->directory_get_hot_ = Directory_Get_Hot;\
@@ -454,9 +489,16 @@ static inline void end_query_bar(Application_Links *app, Query_Bar *bar, uint32_
 static inline void print_message(Application_Links *app, char *str, int32_t len){(app->print_message(app, str, len));}
 static inline void create_theme(Application_Links *app, Theme *theme, char *name, int32_t len){(app->create_theme(app, theme, name, len));}
 static inline void change_theme(Application_Links *app, char *name, int32_t len){(app->change_theme(app, name, len));}
-static inline void change_font(Application_Links *app, char *name, int32_t len, bool32 apply_to_all_files){(app->change_font(app, name, len, apply_to_all_files));}
-static inline void buffer_set_font(Application_Links *app, Buffer_Summary *buffer, char *name, int32_t len){(app->buffer_set_font(app, buffer, name, len));}
-static inline bool32 buffer_get_font(Application_Links *app, Buffer_Summary *buffer, char *name_out, int32_t name_max){return(app->buffer_get_font(app, buffer, name_out, name_max));}
+static inline Face_ID get_largest_face_id(Application_Links *app){return(app->get_largest_face_id(app));}
+static inline bool32 set_global_face(Application_Links *app, Face_ID id, bool32 apply_to_all_buffers){return(app->set_global_face(app, id, apply_to_all_buffers));}
+static inline bool32 buffer_set_face(Application_Links *app, Buffer_Summary *buffer, Face_ID id){return(app->buffer_set_face(app, buffer, id));}
+static inline Face_Description get_face_description(Application_Links *app, Face_ID id){return(app->get_face_description(app, id));}
+static inline Face_ID get_face_id(Application_Links *app, Buffer_Summary *buffer){return(app->get_face_id(app, buffer));}
+static inline Face_ID try_create_new_face(Application_Links *app, Face_Description *description){return(app->try_create_new_face(app, description));}
+static inline bool32 try_modify_face(Application_Links *app, Face_ID id, Face_Description *description){return(app->try_modify_face(app, id, description));}
+static inline bool32 try_release_face(Application_Links *app, Face_ID id, Face_ID replacement_id){return(app->try_release_face(app, id, replacement_id));}
+static inline int32_t get_available_font_count(Application_Links *app){return(app->get_available_font_count(app));}
+static inline Available_Font get_available_font(Application_Links *app, int32_t index){return(app->get_available_font(app, index));}
 static inline void set_theme_colors(Application_Links *app, Theme_Color *colors, int32_t count){(app->set_theme_colors(app, colors, count));}
 static inline void get_theme_colors(Application_Links *app, Theme_Color *colors, int32_t count){(app->get_theme_colors(app, colors, count));}
 static inline int32_t directory_get_hot(Application_Links *app, char *out, int32_t capacity){return(app->directory_get_hot(app, out, capacity));}
@@ -532,9 +574,16 @@ static inline void end_query_bar(Application_Links *app, Query_Bar *bar, uint32_
 static inline void print_message(Application_Links *app, char *str, int32_t len){(app->print_message_(app, str, len));}
 static inline void create_theme(Application_Links *app, Theme *theme, char *name, int32_t len){(app->create_theme_(app, theme, name, len));}
 static inline void change_theme(Application_Links *app, char *name, int32_t len){(app->change_theme_(app, name, len));}
-static inline void change_font(Application_Links *app, char *name, int32_t len, bool32 apply_to_all_files){(app->change_font_(app, name, len, apply_to_all_files));}
-static inline void buffer_set_font(Application_Links *app, Buffer_Summary *buffer, char *name, int32_t len){(app->buffer_set_font_(app, buffer, name, len));}
-static inline bool32 buffer_get_font(Application_Links *app, Buffer_Summary *buffer, char *name_out, int32_t name_max){return(app->buffer_get_font_(app, buffer, name_out, name_max));}
+static inline Face_ID get_largest_face_id(Application_Links *app){return(app->get_largest_face_id_(app));}
+static inline bool32 set_global_face(Application_Links *app, Face_ID id, bool32 apply_to_all_buffers){return(app->set_global_face_(app, id, apply_to_all_buffers));}
+static inline bool32 buffer_set_face(Application_Links *app, Buffer_Summary *buffer, Face_ID id){return(app->buffer_set_face_(app, buffer, id));}
+static inline Face_Description get_face_description(Application_Links *app, Face_ID id){return(app->get_face_description_(app, id));}
+static inline Face_ID get_face_id(Application_Links *app, Buffer_Summary *buffer){return(app->get_face_id_(app, buffer));}
+static inline Face_ID try_create_new_face(Application_Links *app, Face_Description *description){return(app->try_create_new_face_(app, description));}
+static inline bool32 try_modify_face(Application_Links *app, Face_ID id, Face_Description *description){return(app->try_modify_face_(app, id, description));}
+static inline bool32 try_release_face(Application_Links *app, Face_ID id, Face_ID replacement_id){return(app->try_release_face_(app, id, replacement_id));}
+static inline int32_t get_available_font_count(Application_Links *app){return(app->get_available_font_count_(app));}
+static inline Available_Font get_available_font(Application_Links *app, int32_t index){return(app->get_available_font_(app, index));}
 static inline void set_theme_colors(Application_Links *app, Theme_Color *colors, int32_t count){(app->set_theme_colors_(app, colors, count));}
 static inline void get_theme_colors(Application_Links *app, Theme_Color *colors, int32_t count){(app->get_theme_colors_(app, colors, count));}
 static inline int32_t directory_get_hot(Application_Links *app, char *out, int32_t capacity){return(app->directory_get_hot_(app, out, capacity));}

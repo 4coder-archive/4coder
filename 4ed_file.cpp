@@ -96,7 +96,7 @@ struct Editing_File_Settings{
     Parse_Context_ID parse_context_id;
     b32 dos_write_mode;
     b32 virtual_white;
-    Font_ID font_id;
+    Face_ID font_id;
     b8 unwrapped_lines;
     b8 tokens_exist;
     b8 tokens_without_strings;

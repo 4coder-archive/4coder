@@ -89,7 +89,7 @@ draw_margin(Render_Target *target, i32_Rect outer, i32 width, u32 color){
 }
 
 internal void
-draw_font_glyph(Render_Target *target, Font_ID font_id, u32 codepoint, f32 x, f32 y, u32 color){
+draw_font_glyph(Render_Target *target, Face_ID font_id, u32 codepoint, f32 x, f32 y, u32 color){
     Render_Command_Glyph cmd;
     CmdHeader(RenCom_Glyph);
     cmd.pos.x = x;
@@ -102,7 +102,7 @@ draw_font_glyph(Render_Target *target, Font_ID font_id, u32 codepoint, f32 x, f3
 }
 
 internal f32
-draw_string_base(System_Functions *system, Render_Target *target, Font_ID font_id, String str_, i32 x_, i32 y_, u32 color){
+draw_string_base(System_Functions *system, Render_Target *target, Face_ID font_id, String str_, i32 x_, i32 y_, u32 color){
     f32 x = 0;
     
     Font_Pointers font = system->font.get_pointers_by_id(font_id);
@@ -155,26 +155,26 @@ draw_string_base(System_Functions *system, Render_Target *target, Font_ID font_i
 }
 
 internal f32
-draw_string(System_Functions *system, Render_Target *target, Font_ID font_id, String str, i32 x, i32 y, u32 color){
+draw_string(System_Functions *system, Render_Target *target, Face_ID font_id, String str, i32 x, i32 y, u32 color){
     f32 w = draw_string_base(system, target, font_id, str, x, y, color);
     return(w);
 }
 
 internal f32
-draw_string(System_Functions *system, Render_Target *target, Font_ID font_id, char *str, i32 x, i32 y, u32 color){
+draw_string(System_Functions *system, Render_Target *target, Face_ID font_id, char *str, i32 x, i32 y, u32 color){
     String string = make_string_slowly(str);
     f32 w = draw_string_base(system, target, font_id, string, x, y, color);
     return(w);
 }
 
 internal f32
-font_string_width(System_Functions *system, Render_Target *target, Font_ID font_id, String str){
+font_string_width(System_Functions *system, Render_Target *target, Face_ID font_id, String str){
     f32 w = draw_string_base(system, target, font_id, str, 0, 0, 0);
     return(w);
 }
 
 internal f32
-font_string_width(System_Functions *system, Render_Target *target, Font_ID font_id, char *str){
+font_string_width(System_Functions *system, Render_Target *target, Face_ID font_id, char *str){
     String string = make_string_slowly(str);
     f32 w = draw_string_base(system, target, font_id, string, 0, 0, 0);
     return(w);

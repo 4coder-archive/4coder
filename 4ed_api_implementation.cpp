@@ -2239,78 +2239,234 @@ DOC(This call changes 4coder's color pallet to one of the built in themes.)
     }
 }
 
-API_EXPORT void
-Change_Font(Application_Links *app, char *name, int32_t len, bool32 apply_to_all_files)
-/*
-DOC_PARAM(name, The name parameter specifies the name of the font to begin using; it need not be null terminated.)
-DOC_PARAM(len, The len parameter specifies the length of the name string.)
-DOC_PARAM(apply_to_all_files, If this is set all open files change to this font.  Usually this should be true durring the start hook because several files already exist at that time.)
-DOC(This call changes 4coder's default font to one of the built in fonts.)
-*/{
+API_EXPORT Face_ID
+Get_Largest_Face_ID(Application_Links *app)
+{
     Command_Data *cmd = (Command_Data*)app->cmd_context;
-    Models *models = cmd->models;
     System_Functions *system = cmd->system;
-    
-    String font_name = make_string(name, len);
-    Font_ID font_id = font_get_id_by_name(system, font_name);
-    
-    if (font_id != 0){
-        if (apply_to_all_files){
-            global_set_font(system, models, font_id);
-        }
-        else{
-            models->global_font_id = font_id;
-        }
-    }
-}
-
-API_EXPORT void
-Buffer_Set_Font(Application_Links *app, Buffer_Summary *buffer, char *name, int32_t len)
-/*
-DOC_PARAM(buffer, This parameter the buffer that shall have it's font changed)
-DOC_PARAM(name, The name parameter specifies the name of the font to begin using; it need not be null terminated.)
-DOC_PARAM(len, The len parameter specifies the length of the name string.)
-DOC(This call sets the display font of a particular buffer.)
-*/{
-    
-    Command_Data *cmd = (Command_Data*)app->cmd_context;
-    Models *models = cmd->models;
-    System_Functions *system = cmd->system;
-    Editing_File *file = imp_get_file(cmd, buffer);
-    
-    if (file != 0){
-        String font_name = make_string(name, len);
-        Font_ID font_id = font_get_id_by_name(system, font_name);
-        if (font_id != 0){
-            file_set_font(system, models, file, font_id);
-        }
-    }
+    Face_ID result = system->font.get_largest_id();
+    return(result);
 }
 
 API_EXPORT bool32
-Buffer_Get_Font(Application_Links *app, Buffer_Summary *buffer, char *name_out, int32_t name_max)
-/*
-DOC_PARAM(buffer, the buffer from which to get the font name)
-DOC_PARAM(name_out, a character array in which to write the name of the font)
-DOC_PARAM(name_max, the capacity of name_out)
-DOC_RETURN(returns non-zero on success)
-*/{
+Set_Global_Face(Application_Links *app, Face_ID id, bool32 apply_to_all_buffers)
+{
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     System_Functions *system = cmd->system;
-    Editing_File *file = imp_get_file(cmd, buffer);
     
-    bool32 result = false;
+    bool32 did_change = false;
     
-    if (file != 0){
-        String name = make_string_cap(name_out, 0, name_max);
-        Font_ID font_id = file->settings.font_id;
-        name.size = system->font.get_name_by_id(font_id, name_out, name_max);
-        if (name.size > 0){
-            result = true;
+    Font_Pointers font = system->font.get_pointers_by_id(id);
+    if (font.valid){
+        did_change = true;
+        
+        Models *models = cmd->models;
+        if (apply_to_all_buffers){
+            global_set_font(system, models, id);
+        }
+        else{
+            models->global_font_id = id;
         }
     }
     
-    return(result);
+    return(did_change);
+}
+
+API_EXPORT bool32
+Buffer_Set_Face(Application_Links *app, Buffer_Summary *buffer, Face_ID id)
+{
+    Command_Data *cmd = (Command_Data*)app->cmd_context;
+    Editing_File *file = imp_get_file(cmd, buffer);
+    
+    bool32 did_change = false;
+    
+    if (file != 0){
+        System_Functions *system = cmd->system;
+        Font_Pointers font = system->font.get_pointers_by_id(id);
+        if (font.valid){
+            did_change = true;
+            
+            Models *models = cmd->models;
+            file_set_font(system, models, file, id);
+        }
+    }
+    
+    return(did_change);
+}
+
+internal void
+font_pointers_to_face_description(Font_Pointers font, Face_Description *description){
+    Font_Metrics *metrics = font.metrics;
+    i32 len = str_size(metrics->name);
+    memcpy(description->font.name, metrics->name, len);
+    
+    Font_Settings *settings = font.settings;
+    description->font.in_local_font_folder = settings->stub.in_font_folder;
+    description->pt_size = settings->parameters.pt_size;
+    description->bold = settings->parameters.bold;
+    description->italic = settings->parameters.italics;
+    description->underline = settings->parameters.underline;
+    description->hinting = settings->parameters.use_hinting;
+}
+
+internal b32
+face_description_to_settings(System_Functions *system, Face_Description description, Font_Settings *settings){
+    b32 success = false;
+    
+    if (description.font.in_local_font_folder){
+        i32 count = system->font.get_loadable_count();
+        for (i32 i = 0; i < count; ++i){
+            Font_Loadable_Description loadable = {0};
+            system->font.get_loadable(i, &loadable);
+            
+            if (loadable.valid){
+                if (!loadable.stub.in_font_folder){
+                    break;
+                }
+                
+                if (match(make_string(loadable.display_name, loadable.display_len), description.font.name)){
+                    success = true;
+                    memcpy(&settings->stub, &loadable.stub, sizeof(settings->stub));
+                    break;
+                }
+            }
+        }
+    }
+    else{
+        success = true;
+        
+        settings->stub.load_from_path = false;
+        settings->stub.in_font_folder = false;
+        settings->stub.len = str_size(description.font.name);
+        memcpy(settings->stub.name, description.font.name, settings->stub.len + 1);
+    }
+    
+    if (success){
+        settings->parameters.pt_size = description.pt_size;
+        settings->parameters.italics = description.italic;
+        settings->parameters.bold = description.bold;
+        settings->parameters.underline = description.underline;
+        settings->parameters.use_hinting = description.hinting;
+    }
+    
+    return(success);
+}
+
+API_EXPORT Face_Description
+Get_Face_Description(Application_Links *app, Face_ID id)
+{
+    Command_Data *cmd = (Command_Data*)app->cmd_context;
+    System_Functions *system = cmd->system;
+    
+    Face_Description description = {0};
+    if (id != 0){
+        Font_Pointers font = system->font.get_pointers_by_id(id);
+        if (font.valid){
+            font_pointers_to_face_description(font, &description);
+            Assert(description.font.name[0] != 0);
+        }
+    }
+    else{
+        Models *models = cmd->models;
+        description.pt_size = models->settings.font_size;
+        description.hinting = models->settings.use_hinting;
+    }
+    
+    return(description);
+}
+
+API_EXPORT Face_ID
+Get_Face_ID(Application_Links *app, Buffer_Summary *buffer)
+{
+    Command_Data *cmd = (Command_Data*)app->cmd_context;
+    
+    Face_ID id = 0;
+    if (buffer != 0){
+        Editing_File *file = imp_get_file(cmd, buffer);
+        if (file != 0){
+            id = file->settings.font_id;
+        }
+    }
+    else{
+        Models *models = cmd->models;
+        id = models->global_font_id;
+    }
+    
+    return(id);
+}
+
+API_EXPORT Face_ID
+Try_Create_New_Face(Application_Links *app, Face_Description *description)
+{
+    Command_Data *cmd = (Command_Data*)app->cmd_context;
+    System_Functions *system = cmd->system;
+    
+    Face_ID id = 0;
+    Font_Settings settings;
+    if (face_description_to_settings(system, *description, &settings)){
+        id = system->font.face_allocate_and_init(&settings);
+    }
+    
+    return(id);
+}
+
+API_EXPORT bool32
+Try_Modify_Face(Application_Links *app, Face_ID id, Face_Description *description)
+{
+    Command_Data *cmd = (Command_Data*)app->cmd_context;
+    System_Functions *system = cmd->system;
+    
+    bool32 success = false;
+    Font_Settings settings;
+    if (face_description_to_settings(system, *description, &settings)){
+        Models *models = cmd->models;
+        if (alter_font(system, models, id, &settings)){
+            success = true;
+        }
+    }
+    
+    return(success);
+}
+
+API_EXPORT bool32
+Try_Release_Face(Application_Links *app, Face_ID id, Face_ID replacement_id)
+{
+    Command_Data *cmd = (Command_Data*)app->cmd_context;
+    System_Functions *system = cmd->system;
+    Models *models = cmd->models;
+    
+    bool32 success = false;
+    if (release_font(system, models, id, replacement_id)){
+        success = true;
+    }
+    
+    return(success);
+}
+
+API_EXPORT int32_t
+Get_Available_Font_Count(Application_Links *app)
+{
+    Command_Data *cmd = (Command_Data*)app->cmd_context;
+    System_Functions *system = cmd->system;
+    i32 count = system->font.get_loadable_count();
+    return(count);
+}
+
+API_EXPORT Available_Font
+Get_Available_Font(Application_Links *app, int32_t index)
+{
+    Command_Data *cmd = (Command_Data*)app->cmd_context;
+    System_Functions *system = cmd->system;
+    
+    Available_Font available = {0};
+    Font_Loadable_Description description = {0};
+    system->font.get_loadable(index, &description);
+    if (description.valid){
+        memcpy(available.name, description.display_name, description.display_len);
+        available.in_local_font_folder = description.stub.in_font_folder;
+    }
+    
+    return(available);
 }
 
 API_EXPORT void

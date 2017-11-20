@@ -1223,7 +1223,7 @@ init_command_line_settings(App_Settings *settings, Plat_Settings *plat_settings,
                     {
                         if (i < argc){
                             plat_settings->font_size = str_to_int_c(argv[i]);
-                            plat_settings->font_size = plat_settings->font_size;
+                            settings->font_size = plat_settings->font_size;
                         }
                         action = CLAct_Nothing;
                     }break;
@@ -1231,6 +1231,7 @@ init_command_line_settings(App_Settings *settings, Plat_Settings *plat_settings,
                     case CLAct_FontUseHinting:
                     {
                         plat_settings->use_hinting = true;
+                        settings->use_hinting = plat_settings->use_hinting;
                         action = CLAct_Nothing;
                     }break;
                     

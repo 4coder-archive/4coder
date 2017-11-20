@@ -64,7 +64,10 @@ font_ft_get_face(FT_Library ft, Font_Loadable_Stub *stub, Font_Parameters *param
                 if (data.size > 0){
                     FT_Error error = FT_New_Memory_Face(ft, data.data, data.size, 0, face);
                     success = (error == 0);
-                    do_transform = (success && data.used_base_file);
+                    if (success){
+                        success = match((*face)->family_name, stub->name);
+                        do_transform = (success && data.used_base_file);
+                    }
                 }
                 else{
                     success = false;
@@ -117,14 +120,7 @@ font_load_page_layout(Font_Settings *settings, Font_Metrics *metrics, Glyph_Page
     page->has_layout = true;
     
     u32 pt_size = settings->parameters.pt_size;
-    b32 italics = settings->parameters.italics;
-    b32 bold = settings->parameters.bold;
-    b32 underline = settings->parameters.underline;
     b32 use_hinting = settings->parameters.use_hinting;
-    
-    AllowLocal(italics);
-    AllowLocal(bold);
-    AllowLocal(underline);
     
     // TODO(allen): Stop redoing all this init for each call.
     FT_Library ft;
@@ -188,7 +184,7 @@ font_load_page_layout(Font_Settings *settings, Font_Metrics *metrics, Glyph_Page
                 glyph_out->yoff2 = glyph_out->yoff + h + 1;
                 
                 // TODO(allen): maybe advance data should be integers?
-                *advance_out = (f32)ceil32(face->glyph->advance.x / 64.0f);
+                *advance_out = (f32)ceil32(face->glyph->advance.x/64.0f);
                 
                 pen_x = ceil32(glyph_out->x1 + 1);
             }
@@ -217,14 +213,7 @@ font_load_page_pixels(Partition *part, Font_Settings *settings, Glyph_Page *page
     Assert(page->page_number == page_number);
     
     u32 pt_size = settings->parameters.pt_size;
-    b32 italics = settings->parameters.italics;
-    b32 bold = settings->parameters.bold;
-    b32 underline = settings->parameters.underline;
     b32 use_hinting = settings->parameters.use_hinting;
-    
-    AllowLocal(italics);
-    AllowLocal(bold);
-    AllowLocal(underline);
     
     // TODO(allen): Stop redoing all this init for each call.
     FT_Library ft;
@@ -363,14 +352,31 @@ font_load(System_Functions *system, Font_Settings *settings, Font_Metrics *metri
             }
         }
         
-        metrics->ascent    = ceil32  (face->size->metrics.ascender    / 64.0f);
-        metrics->descent   = floor32 (face->size->metrics.descender   / 64.0f);
-        metrics->advance   = ceil32  (face->size->metrics.max_advance / 64.0f);
-        metrics->height    = ceil32  (face->size->metrics.height      / 64.0f);
+        metrics->ascent    = ceil32(face->size->metrics.ascender   /64.f);
+        metrics->descent   = floor32(face->size->metrics.descender /64.f);
+        metrics->advance   = ceil32(face->size->metrics.max_advance/64.f);
+        metrics->height    = ceil32(face->size->metrics.height     /64.f);
         metrics->line_skip = metrics->height - (metrics->ascent - metrics->descent);
         metrics->height   -= metrics->line_skip;
         metrics->line_skip = 0;
-        if (metrics->height > pt_size*4){
+        
+        if (settings->parameters.underline){
+            f32 notional_to_real_ratio = (f32)metrics->height/(f32)face->height;
+            f32 relative_center = -1.f*notional_to_real_ratio*face->underline_position;
+            f32 relative_thickness = notional_to_real_ratio*face->underline_thickness;
+            
+            f32 center    = (f32)floor32(metrics->ascent + relative_center);
+            f32 thickness = clamp_bottom(1.f, relative_thickness);
+            
+            metrics->underline_yoff1 = center - thickness*0.5f;
+            metrics->underline_yoff2 = center + thickness*0.5f;
+        }
+        else{
+            metrics->underline_yoff1 = 0.f;
+            metrics->underline_yoff2 = 0.f;
+        }
+        
+        if (metrics->height > pt_size*4 || metrics->height < 6){
             success = false;
         }
         else{
@@ -558,7 +564,7 @@ Sys_Font_Face_Allocate_And_Init_Sig(system_font_face_allocate_and_init, new_sett
     Font_Settings *settings = &page_with_slot->settings[index];
     Font_Metrics *metrics = &page_with_slot->metrics[index];
     Font_Page_Storage *pages = &page_with_slot->pages[index];
-    Font_ID new_id = page_with_slot->first_id + index;
+    Face_ID new_id = page_with_slot->first_id + index;
     
     Assert(((*is_active_flags) & is_active_mask) == 0);
     
@@ -602,7 +608,7 @@ Sys_Font_Get_Count_Sig(system_font_get_count){
 }
 
 internal Font_Slot_Page_And_Index
-system_font_get_active_location(Font_ID font_id){
+system_font_get_active_location(Face_ID font_id){
     Font_Slot_Page_And_Index result = {0};
     
     for (Font_Slot_Page *page = fontvars.slot_pages_sentinel.next;
@@ -658,6 +664,10 @@ Sys_Font_Face_Change_Settings_Sig(system_font_face_change_settings, font_id, new
 
 internal
 Sys_Font_Face_Release_Sig(system_font_face_release, font_id){
+    if (fontvars.used_slot_count == 1){
+        return(false);
+    }
+    
     if (font_id == 0){
         return(false);
     }
