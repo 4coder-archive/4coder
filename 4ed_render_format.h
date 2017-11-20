@@ -13,12 +13,17 @@ enum Render_Command_Type{
     RenCom_Rectangle,
     RenCom_Outline,
     RenCom_Glyph,
-    RenCom_ChangeClip
+    RenCom_ChangeClip,
 };
 
 struct Render_Command_Header{
-    i32 size;
-    i32 type;
+    union{
+        struct{
+            i32 size;
+            i32 type;
+        };
+        u64 force_8_byte_align_;
+    };
 };
 
 struct Render_Command_Rectangle{
@@ -45,6 +50,11 @@ struct Render_Command_Glyph{
 struct Render_Command_Change_Clip{
     Render_Command_Header header;
     i32_Rect box;
+};
+
+struct Render_Pseudo_Command_Free_Texture{
+    Render_Command_Header header;
+    Render_Free_Texture free_texture_node;
 };
 
 // BOTTOM

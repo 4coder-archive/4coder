@@ -261,6 +261,28 @@ font_load_page_pixels(Partition *part, Font_Settings *settings, Glyph_Page *page
     return(pixels);
 }
 
+internal void
+font_release_pages(System_Functions *system, Font_Page_Storage *storage){
+    u32 old_max = storage->page_max;
+    Glyph_Page **old_pages = storage->pages;
+    
+    for (u32 i = 0; i < old_max; ++i){
+        Glyph_Page *this_page = old_pages[i];
+        if (this_page != FONT_PAGE_EMPTY && this_page != FONT_PAGE_DELETED){
+            if (this_page->has_gpu_setup){
+                Assert(sizeof(Render_Pseudo_Command_Free_Texture)%8 == 0);
+                Render_Pseudo_Command_Free_Texture *c = push_array(&target.buffer, Render_Pseudo_Command_Free_Texture, 1);
+                c->header.size = sizeof(*c);
+                c->free_texture_node.tex_id = this_page->gpu_tex;
+                sll_push(target.free_texture_first, target.free_texture_last, &c->free_texture_node);
+            }
+            system->font.free(this_page);
+        }
+    }
+    
+    system->font.free(old_pages);
+}
+
 internal b32
 font_load(System_Functions *system, Font_Settings *settings, Font_Metrics *metrics, Font_Page_Storage *pages){
     i32 pt_size = settings->pt_size;
@@ -519,7 +541,16 @@ Sys_Font_Load_New_Font_Sig(system_font_load_new_font, stub){
         new_id = 0;
     }
     
+    if (new_id > fontvars.largest_font_id){
+        fontvars.largest_font_id = new_id;
+    }
+    
     return(new_id);
+}
+
+internal
+Sys_Font_Get_Largest_ID_Sig(system_font_get_largest_id){
+    return(fontvars.largest_font_id);
 }
 
 internal
@@ -546,6 +577,40 @@ system_font_get_active_location(Font_ID font_id){
     }
     
     return(result);
+}
+
+internal
+Sys_Font_Change_Settings_Sig(system_font_change_settings, font_id, new_settings){
+    if (font_id == 0){
+        return(false);
+    }
+    
+    Font_Slot_Page_And_Index page_and_index = system_font_get_active_location(font_id);
+    if (page_and_index.page == 0){
+        return(false);
+    }
+    
+    Font_Settings *old_settings = &page_and_index.page->settings[page_and_index.index];
+    if (memcmp(new_settings, old_settings, sizeof(*new_settings)) == 0){
+        return(false);
+    }
+    
+    b32 made_change = false;
+    
+    Font_Metrics temp_metrics = {0};
+    Font_Page_Storage temp_pages = {0};
+    
+    if (font_load(&sysfunc, new_settings, &temp_metrics, &temp_pages)){
+        Font_Metrics *metrics_ptr = &page_and_index.page->metrics[page_and_index.index];
+        Font_Page_Storage *pages_ptr = &page_and_index.page->pages[page_and_index.index];
+        font_release_pages(&sysfunc, pages_ptr);
+        memcpy(old_settings, new_settings, sizeof(*old_settings));
+        memcpy(metrics_ptr, &temp_metrics, sizeof(*metrics_ptr));
+        memcpy(pages_ptr, &temp_pages, sizeof(*pages_ptr));
+        made_change = true;
+    }
+    
+    return(made_change);
 }
 
 internal
@@ -643,6 +708,8 @@ system_font_init(Font_Functions *font_links, u32 pt_size, b32 use_hinting, Font_
     font_links->get_loadable_count = system_font_get_loadable_count;
     font_links->get_loadable       = system_font_get_loadable;
     font_links->load_new_font      = system_font_load_new_font;
+    font_links->change_settings    = system_font_change_settings;
+    font_links->get_largest_id     = system_font_get_largest_id;
     font_links->get_count          = system_font_get_count;
     font_links->get_name_by_id     = system_font_get_name_by_id;
     font_links->get_pointers_by_id = system_font_get_pointers_by_id;

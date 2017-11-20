@@ -105,6 +105,13 @@ interpret_render_buffer(Render_Target *t){
     glColor4f(0.f, 0.f, 0.f, 0.f);
     t->color = 0;
     
+    for (Render_Free_Texture *free_texture = t->free_texture_first;
+         free_texture != 0;
+         free_texture = free_texture->next){
+        glDeleteTextures(1, &free_texture->tex_id);
+    }
+    sll_clear(t->free_texture_first, t->free_texture_last);
+    
     u8 *start = (u8*)t->buffer.base;
     u8 *end = (u8*)t->buffer.base + t->buffer.pos;
     Render_Command_Header *header = 0;

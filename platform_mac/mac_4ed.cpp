@@ -38,8 +38,8 @@
 #include "4ed_font.h"
 #include "4ed_system.h"
 #include "4ed_log.h"
-#include "4ed_render_format.h"
 #include "4ed_render_target.h"
+#include "4ed_render_format.h"
 #include "4ed.h"
 #include "4ed_linked_node_macros.h"
 
@@ -588,6 +588,7 @@ osx_step(void){
     b32 keep_running = osxvars.keep_running;
     
     // NOTE(allen): Application Core Update
+    target.buffer.pos = 0;
     if (app.step != 0){
         app.step(&sysfunc, &target, &memory_vars, &frame_input, &result);
     }

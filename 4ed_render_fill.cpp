@@ -27,7 +27,6 @@ draw_change_clip(Render_Target *target, i32_Rect clip_box){
 
 internal void
 begin_render_section(Render_Target *target, System_Functions *system){
-    target->buffer.pos = 0;
     target->clip_top = -1;
     
     i32_Rect clip;

@@ -33,8 +33,8 @@
 # include "4ed_debug_mem.h"
 #endif
 
-#include "4ed_render_format.h"
 #include "4ed_render_target.h"
+#include "4ed_render_format.h"
 #include "4ed.h"
 #include "4ed_buffer_model.h"
 

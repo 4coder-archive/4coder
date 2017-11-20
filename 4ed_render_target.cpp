@@ -23,13 +23,6 @@ Render_Begin_Push_Sig(render_internal_begin_push, t, ptr, size){
     if (out != 0){
         memcpy(out, ptr, size);
     }
-    
-    // TODO(allen): Application side logging.
-#if 0
-    else{
-        LOG("Render command buffer out of memory!\n");
-    }
-#endif
     return(out);
 }
 

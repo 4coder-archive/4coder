@@ -3537,8 +3537,8 @@ style_get_color(Style *style, Cpp_Token token){
 }
 
 internal void
-file_set_font(System_Functions *system, Models *models, Editing_File *file, Font_ID font_id){
-    file->settings.font_id = font_id;
+file_full_remeasure(System_Functions *system, Models *models, Editing_File *file){
+    Font_ID font_id = file->settings.font_id;
     Font_Pointers font = system->font.get_pointers_by_id(font_id);
     file_measure_wraps_and_fix_cursor(system, models, file, font);
     
@@ -3551,6 +3551,12 @@ file_set_font(System_Functions *system, Models *models, Editing_File *file, Font
 }
 
 internal void
+file_set_font(System_Functions *system, Models *models, Editing_File *file, Font_ID font_id){
+    file->settings.font_id = font_id;
+    file_full_remeasure(system, models, file);
+}
+
+internal void
 global_set_font(System_Functions *system, Models *models, Font_ID font_id){
     File_Node *node = 0;
     File_Node *sentinel = &models->working_set.used_sentinel;
@@ -3559,6 +3565,20 @@ global_set_font(System_Functions *system, Models *models, Font_ID font_id){
         file_set_font(system, models, file, font_id);
     }
     models->global_font_id = font_id;
+}
+
+internal void
+alter_font(System_Functions *system, Models *models, Font_ID font_id, Font_Settings *new_settings){
+    if (system->font.change_settings(font_id, new_settings)){
+        File_Node *node = 0;
+        File_Node *sentinel = &models->working_set.used_sentinel;
+        for (dll_items(node, sentinel)){
+            Editing_File *file = (Editing_File*)node;
+            if (file->settings.font_id == font_id){
+                file_full_remeasure(system, models, file);
+            }
+        }
+    }
 }
 
 inline void
@@ -4511,18 +4531,83 @@ step_file_view(System_Functions *system, View *view, Models *models, View *activ
                             Editing_File *file = view->file_data.file;
                             Assert(file != 0);
                             
-                            message = make_lit_string("Back");
-                            
                             id.id[0] = 0;
-                            if (gui_do_button(target, id, message)){
+                            if (gui_do_button(target, id, make_lit_string("Back"))){
                                 view->color_mode = CV_Mode_Library;
                             }
                             
                             gui_begin_scrollable(target, scroll_context, view->gui_scroll, 9*view->line_height, show_scrollbar);
                             
                             Font_ID font_id = file->settings.font_id;
-                            
                             Font_ID new_font_id = 0;
+                            
+#if 1
+                            
+                            // NEW
+                            Font_ID largest_id = system->font.get_largest_id();
+                            for (Font_ID i = 1; i <= largest_id; ++i){
+                                Font_Pointers font = system->font.get_pointers_by_id(i);
+                                if (font.valid){
+                                    Font_Settings *settings = font.settings;
+                                    Font_Metrics *metrics = font.metrics;
+                                    
+                                    char space[512];
+                                    String m = make_fixed_width_string(space);
+                                    if (i == font_id){
+                                        append(&m, "* ");
+                                    }
+                                    
+                                    append(&m, "family:\"");
+                                    append(&m, make_string(metrics->name, metrics->name_len));
+                                    append(&m, "\" size:");
+                                    append_int_to_str(&m, settings->pt_size);
+                                    append(&m, " hint:");
+                                    append(&m, (settings->use_hinting)?"ON ":"OFF");
+                                    
+                                    if (i == font_id){
+                                        append(&m, " *");
+                                    }
+                                    
+                                    id.id[0] = i;
+                                    id.id[1] = 0;
+                                    if (gui_do_button(target, id, m)){
+                                        if (new_font_id == 0){
+                                            new_font_id = i;
+                                        }
+                                    }
+                                    
+                                    id.id[0] = i;
+                                    id.id[1] = 1;
+                                    if (gui_do_button(target, id, make_lit_string("edit"))){
+                                        view->font_edit_id = i;
+                                        if (view->color_mode == CV_Mode_Font){
+                                            view->color_mode = CV_Mode_Font_Editing;
+                                        }
+                                        else{
+                                            view->color_mode = CV_Mode_Global_Font_Editing;
+                                        }
+                                    }
+                                }
+                            }
+                            
+                            id.id[0] = 0;
+                            id.id[1] = 2;
+                            if (gui_do_button(target, id, make_lit_string("new face"))){
+                                if (new_font_id == 0){
+                                    Font_Pointers font = system->font.get_pointers_by_id(font_id);
+                                    view->font_edit_id = system->font.load_new_font(&font.settings->stub);
+                                    if (view->color_mode == CV_Mode_Font){
+                                        view->color_mode = CV_Mode_Font_Editing;
+                                    }
+                                    else{
+                                        view->color_mode = CV_Mode_Global_Font_Editing;
+                                    }
+                                }
+                            }
+                            
+#else
+                            
+                            // OLD
                             i32 total_count = system->font.get_loadable_count();
                             for (i32 i = 0; i < total_count; ++i){
                                 Font_Loadable_Description loadable = {0};
@@ -4542,16 +4627,101 @@ step_file_view(System_Functions *system, View *view, Models *models, View *activ
                                 }
                             }
                             
-                            if (new_font_id != 0 && new_font_id != font_id){
-                                if (view->color_mode == CV_Mode_Font){
+#endif
+                            
+                            if (new_font_id != 0){
+                                if (view->color_mode == CV_Mode_Font && new_font_id != font_id){
                                     file_set_font(system, models, file, new_font_id);
                                 }
-                                else{
+                                else if (new_font_id != font_id || new_font_id != models->global_font_id){
                                     global_set_font(system, models, new_font_id);
                                 }
                             }
                             
                             gui_end_scrollable(target);
+                        }break;
+                        
+                        case CV_Mode_Font_Editing:
+                        case CV_Mode_Global_Font_Editing:
+                        {
+                            id.id[0] = 0;
+                            if (gui_do_button(target, id, make_lit_string("Back"))){
+                                if (view->color_mode == CV_Mode_Font_Editing){
+                                    view->color_mode = CV_Mode_Font;
+                                }
+                                else{
+                                    view->color_mode = CV_Mode_Global_Font;
+                                }
+                            }
+                            
+                            Font_ID font_edit_id = view->font_edit_id;
+                            Font_Pointers font = system->font.get_pointers_by_id(font_edit_id);
+                            Font_Settings *settings = font.settings;
+                            Font_Metrics *metrics = font.metrics;
+                            Font_Settings new_settings = *settings;
+                            b32 has_new_settings = false;
+                            
+                            char space[128];
+                            String m = make_fixed_width_string(space);
+                            copy(&m, "Size Up (");
+                            append_int_to_str(&m, settings->pt_size);
+                            append(&m, ")");
+                            ++id.id[0];
+                            if (gui_do_button(target, id, m)){
+                                if (!has_new_settings){
+                                    has_new_settings = true;
+                                    ++new_settings.pt_size;
+                                }
+                            }
+                            
+                            copy(&m, "Size Down (");
+                            append_int_to_str(&m, settings->pt_size);
+                            append(&m, ")");
+                            ++id.id[0];
+                            if (gui_do_button(target, id, m)){
+                                if (!has_new_settings){
+                                    has_new_settings = true;
+                                    --new_settings.pt_size;
+                                }
+                            }
+                            
+                            copy(&m, "Turn Hinting ");
+                            append(&m, settings->use_hinting?"Off":"On");
+                            append(&m, " (it is currently ");
+                            append(&m, settings->use_hinting?"On":"Off");
+                            append(&m, ")");
+                            ++id.id[0];
+                            if (gui_do_button(target, id, m)){
+                                if (!has_new_settings){
+                                    has_new_settings = true;
+                                    new_settings.use_hinting = !new_settings.use_hinting;
+                                }
+                            }
+                            
+                            copy(&m, "Current Family: ");
+                            append(&m, make_string(metrics->name, metrics->name_len));
+                            ++id.id[0];
+                            gui_do_button(target, id, m);
+                            
+                            i32 total_count = system->font.get_loadable_count();
+                            for (i32 i = 0; i < total_count; ++i){
+                                Font_Loadable_Description loadable = {0};
+                                system->font.get_loadable(i, &loadable);
+                                
+                                if (loadable.valid){
+                                    String name = make_string(loadable.display_name, loadable.display_len);
+                                    if (gui_do_button(target, id, name)){
+                                        if (!has_new_settings){
+                                            has_new_settings = true;
+                                            memcpy(&new_settings.stub, &loadable.stub, sizeof(loadable.stub));
+                                        }
+                                    }
+                                }
+                            }
+                            
+                            if (has_new_settings){
+                                alter_font(system, models, font_edit_id, &new_settings);
+                            }
                         }break;
                         
                         case CV_Mode_Adjusting:

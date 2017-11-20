@@ -65,7 +65,9 @@ enum Color_View_Mode{
     CV_Mode_Library,
     CV_Mode_Font,
     CV_Mode_Global_Font,
-    CV_Mode_Adjusting
+    CV_Mode_Font_Editing,
+    CV_Mode_Global_Font_Editing,
+    CV_Mode_Adjusting,
 };
 
 struct Scroll_Context{
@@ -132,6 +134,7 @@ struct View{
     View *hot_file_view;
     u32 *palette;
     Color_View_Mode color_mode;
+    Font_ID font_edit_id;
     Super_Color color;
     b32 p4c_only;
     Style_Library inspecting_styles;

@@ -12,6 +12,11 @@
 #if !defined(FRED_RENDER_TARGET_H)
 #define FRED_RENDER_TARGET_H
 
+struct Render_Free_Texture{
+    Render_Free_Texture *next;
+    u32 tex_id;
+};
+
 struct Render_Target{
     i32_Rect clip_boxes[5];
     i32 clip_top;
@@ -19,6 +24,9 @@ struct Render_Target{
     i32 width, height;
     i32 bound_texture;
     u32 color;
+    
+    Render_Free_Texture *free_texture_first;
+    Render_Free_Texture *free_texture_last;
     
     Partition buffer;
 };

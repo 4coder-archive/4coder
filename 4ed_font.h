@@ -109,13 +109,19 @@ typedef Sys_Font_Get_Loadable_Sig(Font_Get_Loadable_Function, index, out);
 #define Sys_Font_Load_New_Font_Sig(n,s) Font_ID (n)(Font_Loadable_Stub *s)
 typedef Sys_Font_Load_New_Font_Sig(Font_Load_New_Font_Function, stub);
 
+#define Sys_Font_Change_Settings_Sig(n,id,s) b32 (n)(Font_ID id, Font_Settings *s)
+typedef Sys_Font_Change_Settings_Sig(Font_Change_Settings_Function, font_id, new_settings);
+
+#define Sys_Font_Get_Largest_ID_Sig(n) Font_ID (n)(void)
+typedef Sys_Font_Get_Largest_ID_Sig(Font_Get_Largest_ID_Function);
+
 #define Sys_Font_Get_Count_Sig(n) i32 (n)(void)
 typedef Sys_Font_Get_Count_Sig(Font_Get_Count_Function);
 
 #define Sys_Font_Get_Name_By_ID_Sig(n, font_id, out, cap) i32 (n)(Font_ID font_id, char *out, u32 cap)
 typedef Sys_Font_Get_Name_By_ID_Sig(Font_Get_Name_By_ID_Function, font_id, out, cap);
 
-#define Sys_Font_Get_Pointers_By_ID_Sig(n,font_id) Font_Pointers (n)(Font_ID font_id)
+#define Sys_Font_Get_Pointers_By_ID_Sig(n, font_id) Font_Pointers (n)(Font_ID font_id)
 typedef Sys_Font_Get_Pointers_By_ID_Sig(Font_Get_Pointers_By_ID_Function, font_id);
 
 #define Sys_Font_Load_Page_Sig(n,s,m,p,pn) void (n)(Font_Settings *s, Font_Metrics *m, Glyph_Page *p, u32 pn)
@@ -131,6 +137,8 @@ struct Font_Functions{
     Font_Get_Loadable_Count_Function *get_loadable_count;
     Font_Get_Loadable_Function *get_loadable;
     Font_Load_New_Font_Function *load_new_font;
+    Font_Change_Settings_Function *change_settings;
+    Font_Get_Largest_ID_Function *get_largest_id;
     Font_Get_Count_Function *get_count;
     Font_Get_Name_By_ID_Function *get_name_by_id;
     Font_Get_Pointers_By_ID_Function *get_pointers_by_id;

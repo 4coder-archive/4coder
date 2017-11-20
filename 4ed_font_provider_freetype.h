@@ -48,7 +48,10 @@ struct Font_Vars{
     Font_Slot_Page slot_pages_sentinel;
     i32 used_slot_count;
     i32 max_slot_count;
+    Font_ID largest_font_id;
     
+    // HACK(allen): // HACK(allen): // HACK(allen): 
+    // TODO(allen): Upgrade this to have "unlimited" resizable memory.
     Font_Loadable_Description loadables[4096];
     i32 loadable_count;
     

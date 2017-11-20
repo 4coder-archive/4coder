@@ -25,6 +25,7 @@
 // NOTE(allen): These macros work on structs with a next
 // pointer to the saem type as the containing struct.
 
+#define sll_clear(f,l) (f)=(l)=0
 #define sll_push(f,l,n) if((f)==0&&(l)==0){(f)=(l)=(n);}else{(l)->next=(n);(l)=(n);}(l)->next=0
 #define sll_pop(f,l) if((f)!=(l)){(f)=(f)->next;}else{(f)=(l)=0;}
 
