@@ -83,8 +83,8 @@ font_load_page_layout(Font_Settings *settings, Font_Metrics *metrics, Glyph_Page
     page->page_number = page_number;
     page->has_layout = true;
     
-    u32 pt_size = settings->pt_size;
-    b32 use_hinting = settings->use_hinting;
+    u32 pt_size = settings->parameters.pt_size;
+    b32 use_hinting = settings->parameters.use_hinting;
     
     // TODO(allen): Stop redoing all this init for each call.
     FT_Library ft;
@@ -176,8 +176,8 @@ font_load_page_pixels(Partition *part, Font_Settings *settings, Glyph_Page *page
     Assert(page->has_layout);
     Assert(page->page_number == page_number);
     
-    i32 pt_size = settings->pt_size;
-    b32 use_hinting = settings->use_hinting;
+    i32 pt_size = settings->parameters.pt_size;
+    b32 use_hinting = settings->parameters.use_hinting;
     
     // TODO(allen): Stop redoing all this init for each call.
     FT_Library ft;
@@ -285,7 +285,7 @@ font_release_pages(System_Functions *system, Font_Page_Storage *storage){
 
 internal b32
 font_load(System_Functions *system, Font_Settings *settings, Font_Metrics *metrics, Font_Page_Storage *pages){
-    i32 pt_size = settings->pt_size;
+    i32 pt_size = settings->parameters.pt_size;
     
     // TODO(allen): Stop redoing all this init for each call.
     FT_Library ft;
@@ -405,7 +405,7 @@ Sys_Font_Get_Loadable_Sig(system_font_get_loadable, i, out){
 }
 
 internal
-Sys_Font_Load_New_Font_Sig(system_font_load_new_font, stub){
+Sys_Font_Face_Allocate_And_Init_Sig(system_font_face_allocate_and_init, new_settings){
     i32 slot_max = fontvars.max_slot_count;
     Font_Slot_Page *page_with_slot = 0;
     
@@ -515,16 +515,12 @@ Sys_Font_Load_New_Font_Sig(system_font_load_new_font, stub){
     
     Assert(((*is_active_flags) & is_active_mask) == 0);
     
-    char *filename = stub->name;
+    char *filename = new_settings->stub.name;
     i32 filename_len = 0;
     for (;filename[filename_len];++filename_len);
     
-    // Initialize Font Parameters
-    Assert(filename_len <= sizeof(settings->stub.name) - 1);
-    memset(settings, 0, sizeof(*settings));
-    memcpy(&settings->stub, stub, sizeof(*stub));
-    settings->pt_size = fontvars.pt_size;
-    settings->use_hinting = fontvars.use_hinting;
+    // Initialize font settings.
+    memcpy(settings, new_settings, sizeof(*new_settings));
     
     memset(metrics, 0, sizeof(*metrics));
     memset(pages, 0, sizeof(*pages));
@@ -580,7 +576,7 @@ system_font_get_active_location(Font_ID font_id){
 }
 
 internal
-Sys_Font_Change_Settings_Sig(system_font_change_settings, font_id, new_settings){
+Sys_Font_Face_Change_Settings_Sig(system_font_face_change_settings, font_id, new_settings){
     if (font_id == 0){
         return(false);
     }
@@ -611,6 +607,26 @@ Sys_Font_Change_Settings_Sig(system_font_change_settings, font_id, new_settings)
     }
     
     return(made_change);
+}
+
+internal
+Sys_Font_Face_Release_Sig(system_font_face_release, font_id){
+    if (font_id == 0){
+        return(false);
+    }
+    
+    Font_Slot_Page_And_Index page_and_index = system_font_get_active_location(font_id);
+    if (page_and_index.page == 0){
+        return(false);
+    }
+    
+    Font_Page_Storage *pages_ptr = &page_and_index.page->pages[page_and_index.index];
+    font_release_pages(&sysfunc, pages_ptr);
+    
+    u64 *is_active_ptr = &page_and_index.page->is_active[page_and_index.index/64];
+    (*is_active_ptr) &= (~(1 << (page_and_index.index%64)));
+    
+    return(true);
 }
 
 internal
@@ -705,21 +721,23 @@ system_font_get_local_stubs(Partition *part){
 internal void
 system_font_init(Font_Functions *font_links, u32 pt_size, b32 use_hinting, Font_Setup_List list){
     // Linking
-    font_links->get_loadable_count = system_font_get_loadable_count;
-    font_links->get_loadable       = system_font_get_loadable;
-    font_links->load_new_font      = system_font_load_new_font;
-    font_links->change_settings    = system_font_change_settings;
-    font_links->get_largest_id     = system_font_get_largest_id;
-    font_links->get_count          = system_font_get_count;
-    font_links->get_name_by_id     = system_font_get_name_by_id;
-    font_links->get_pointers_by_id = system_font_get_pointers_by_id;
-    font_links->load_page          = system_font_load_page;
-    font_links->allocate           = system_font_allocate;
-    font_links->free               = system_font_free;
+    font_links->get_loadable_count     = system_font_get_loadable_count;
+    font_links->get_loadable           = system_font_get_loadable;
+    font_links->face_allocate_and_init = system_font_face_allocate_and_init;
+    font_links->face_change_settings   = system_font_face_change_settings;
+    font_links->get_largest_id         = system_font_get_largest_id;
+    font_links->get_count              = system_font_get_count;
+    font_links->get_name_by_id         = system_font_get_name_by_id;
+    font_links->get_pointers_by_id     = system_font_get_pointers_by_id;
+    font_links->load_page              = system_font_load_page;
+    font_links->allocate               = system_font_allocate;
+    font_links->free                   = system_font_free;
     
     // Initialize fontvars
     memset(&fontvars, 0, sizeof(fontvars));
     dll_init_sentinel(&fontvars.slot_pages_sentinel);
+    
+    // TODO(allen): Eliminate from fontvars.
     fontvars.pt_size = pt_size;
     fontvars.use_hinting = use_hinting;
     
@@ -766,7 +784,11 @@ system_font_init(Font_Functions *font_links, u32 pt_size, b32 use_hinting, Font_
     
     // Force load one font.
     Font_Setup *first_setup = list.first;
-    system_font_load_new_font(&first_setup->stub);
+    Font_Settings first_settings = {0};
+    memcpy(&first_settings.stub, &first_setup->stub, sizeof(first_setup->stub));
+    first_settings.parameters.pt_size = pt_size;
+    first_settings.parameters.use_hinting = use_hinting;
+    system_font_face_allocate_and_init(&first_settings);
 }
 
 // BOTTOM

@@ -27,10 +27,17 @@ struct Font_Loadable_Description{
 };
 
 // NOTE(allen): Settings that the are specified that determine how a font should be loaded and rendered.
+struct Font_Parameters{
+    i32 pt_size;
+    b32 italics;
+    b32 bold;
+    b32 underline;
+    b32 use_hinting;
+};
+
 struct Font_Settings{
     Font_Loadable_Stub stub;
-    i32 pt_size;
-    b32 use_hinting;
+    Font_Parameters parameters;
 };
 
 // NOTE(allen): Results about the font true for the entire font as a whole.
@@ -106,11 +113,14 @@ typedef Sys_Font_Get_Loadable_Count_Sig(Font_Get_Loadable_Count_Function);
 #define Sys_Font_Get_Loadable_Sig(n,i,o) void (n)(i32 i, Font_Loadable_Description *o)
 typedef Sys_Font_Get_Loadable_Sig(Font_Get_Loadable_Function, index, out);
 
-#define Sys_Font_Load_New_Font_Sig(n,s) Font_ID (n)(Font_Loadable_Stub *s)
-typedef Sys_Font_Load_New_Font_Sig(Font_Load_New_Font_Function, stub);
+#define Sys_Font_Face_Allocate_And_Init_Sig(n,s) Font_ID (n)(Font_Settings *s)
+typedef Sys_Font_Face_Allocate_And_Init_Sig(Font_Face_Allocate_And_Init_Function, settings);
 
-#define Sys_Font_Change_Settings_Sig(n,id,s) b32 (n)(Font_ID id, Font_Settings *s)
-typedef Sys_Font_Change_Settings_Sig(Font_Change_Settings_Function, font_id, new_settings);
+#define Sys_Font_Face_Change_Settings_Sig(n,id,s) b32 (n)(Font_ID id, Font_Settings *s)
+typedef Sys_Font_Face_Change_Settings_Sig(Font_Face_Change_Settings_Function, font_id, new_settings);
+
+#define Sys_Font_Face_Release_Sig(n,id) b32 (n)(Font_ID id)
+typedef Sys_Font_Face_Release_Sig(Font_Face_Release_Function, font_id);
 
 #define Sys_Font_Get_Largest_ID_Sig(n) Font_ID (n)(void)
 typedef Sys_Font_Get_Largest_ID_Sig(Font_Get_Largest_ID_Function);
@@ -136,8 +146,9 @@ typedef Sys_Font_Free_Sig(Font_Free_Function,ptr);
 struct Font_Functions{
     Font_Get_Loadable_Count_Function *get_loadable_count;
     Font_Get_Loadable_Function *get_loadable;
-    Font_Load_New_Font_Function *load_new_font;
-    Font_Change_Settings_Function *change_settings;
+    Font_Face_Allocate_And_Init_Function *face_allocate_and_init;
+    Font_Face_Change_Settings_Function *face_change_settings;
+    Font_Face_Release_Function *face_release;
     Font_Get_Largest_ID_Function *get_largest_id;
     Font_Get_Count_Function *get_count;
     Font_Get_Name_By_ID_Function *get_name_by_id;

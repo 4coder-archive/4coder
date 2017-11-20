@@ -3569,7 +3569,7 @@ global_set_font(System_Functions *system, Models *models, Font_ID font_id){
 
 internal void
 alter_font(System_Functions *system, Models *models, Font_ID font_id, Font_Settings *new_settings){
-    if (system->font.change_settings(font_id, new_settings)){
+    if (system->font.face_change_settings(font_id, new_settings)){
         File_Node *node = 0;
         File_Node *sentinel = &models->working_set.used_sentinel;
         for (dll_items(node, sentinel)){
@@ -4541,9 +4541,6 @@ step_file_view(System_Functions *system, View *view, Models *models, View *activ
                             Font_ID font_id = file->settings.font_id;
                             Font_ID new_font_id = 0;
                             
-#if 1
-                            
-                            // NEW
                             Font_ID largest_id = system->font.get_largest_id();
                             for (Font_ID i = 1; i <= largest_id; ++i){
                                 Font_Pointers font = system->font.get_pointers_by_id(i);
@@ -4554,18 +4551,21 @@ step_file_view(System_Functions *system, View *view, Models *models, View *activ
                                     char space[512];
                                     String m = make_fixed_width_string(space);
                                     if (i == font_id){
-                                        append(&m, "* ");
+                                        append(&m, "*");
                                     }
                                     
-                                    append(&m, "family:\"");
+                                    append(&m, " \"");
                                     append(&m, make_string(metrics->name, metrics->name_len));
-                                    append(&m, "\" size:");
-                                    append_int_to_str(&m, settings->pt_size);
-                                    append(&m, " hint:");
-                                    append(&m, (char*)(settings->use_hinting?"ON ":"OFF"));
+                                    append(&m, "\" ");
+                                    append_int_to_str(&m, settings->parameters.pt_size);
+                                    append(&m, " ");
+                                    append(&m, (char*)(settings->parameters.italics?"italics ":""));
+                                    append(&m, (char*)(settings->parameters.bold?"bold ":""));
+                                    append(&m, (char*)(settings->parameters.underline?"underline ":""));
+                                    append(&m, (char*)(settings->parameters.use_hinting?"hinting ":""));
                                     
                                     if (i == font_id){
-                                        append(&m, " *");
+                                        append(&m, "*");
                                     }
                                     
                                     id.id[0] = i*2 + 0;
@@ -4592,7 +4592,7 @@ step_file_view(System_Functions *system, View *view, Models *models, View *activ
                             if (gui_do_button(target, id, make_lit_string("new face"))){
                                 if (new_font_id == 0){
                                     Font_Pointers font = system->font.get_pointers_by_id(font_id);
-                                    view->font_edit_id = system->font.load_new_font(&font.settings->stub);
+                                    view->font_edit_id = system->font.face_allocate_and_init(font.settings);
                                     if (view->color_mode == CV_Mode_Font){
                                         view->color_mode = CV_Mode_Font_Editing;
                                     }
@@ -4601,30 +4601,6 @@ step_file_view(System_Functions *system, View *view, Models *models, View *activ
                                     }
                                 }
                             }
-                            
-#else
-                            
-                            // OLD
-                            i32 total_count = system->font.get_loadable_count();
-                            for (i32 i = 0; i < total_count; ++i){
-                                Font_Loadable_Description loadable = {0};
-                                system->font.get_loadable(i, &loadable);
-                                
-                                id.id[0] = (u64)i + 1;
-                                if (loadable.valid){
-                                    String name = make_string(loadable.display_name, loadable.display_len);
-                                    if (gui_do_button(target, id, name)){
-                                        if (new_font_id == 0){
-                                            new_font_id = font_get_id_by_name(system, name);
-                                            if (new_font_id == 0){
-                                                new_font_id = system->font.load_new_font(&loadable.stub);
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                            
-#endif
                             
                             if (new_font_id != 0){
                                 if (view->color_mode == CV_Mode_Font && new_font_id != font_id){
@@ -4663,37 +4639,68 @@ step_file_view(System_Functions *system, View *view, Models *models, View *activ
                             char space[128];
                             String m = make_fixed_width_string(space);
                             copy(&m, "Size Up (");
-                            append_int_to_str(&m, settings->pt_size);
+                            append_int_to_str(&m, settings->parameters.pt_size);
                             append(&m, ")");
                             ++id.id[0];
                             if (gui_do_button(target, id, m)){
                                 if (!has_new_settings){
                                     has_new_settings = true;
-                                    ++new_settings.pt_size;
+                                    ++new_settings.parameters.pt_size;
                                 }
                             }
                             
                             copy(&m, "Size Down (");
-                            append_int_to_str(&m, settings->pt_size);
+                            append_int_to_str(&m, settings->parameters.pt_size);
                             append(&m, ")");
                             ++id.id[0];
                             if (gui_do_button(target, id, m)){
                                 if (!has_new_settings){
                                     has_new_settings = true;
-                                    --new_settings.pt_size;
+                                    --new_settings.parameters.pt_size;
                                 }
                             }
                             
-                            copy(&m, "Turn Hinting ");
-                            append(&m, (char*)(settings->use_hinting?"Off":"On"));
-                            append(&m, " (it is currently ");
-                            append(&m, (char*)(settings->use_hinting?"On":"Off"));
-                            append(&m, ")");
+                            copy(&m, "Italics [");
+                            append(&m, (char*)(settings->parameters.italics?"+":" "));
+                            append(&m, "]");
                             ++id.id[0];
                             if (gui_do_button(target, id, m)){
                                 if (!has_new_settings){
                                     has_new_settings = true;
-                                    new_settings.use_hinting = !new_settings.use_hinting;
+                                    new_settings.parameters.italics = !new_settings.parameters.italics;
+                                }
+                            }
+                            
+                            copy(&m, "Bold [");
+                            append(&m, (char*)(settings->parameters.bold?"+":" "));
+                            append(&m, "]");
+                            ++id.id[0];
+                            if (gui_do_button(target, id, m)){
+                                if (!has_new_settings){
+                                    has_new_settings = true;
+                                    new_settings.parameters.bold = !new_settings.parameters.bold;
+                                }
+                            }
+                            
+                            copy(&m, "Underline [");
+                            append(&m, (char*)(settings->parameters.underline?"+":" "));
+                            append(&m, "]");
+                            ++id.id[0];
+                            if (gui_do_button(target, id, m)){
+                                if (!has_new_settings){
+                                    has_new_settings = true;
+                                    new_settings.parameters.underline = !new_settings.parameters.underline;
+                                }
+                            }
+                            
+                            copy(&m, "Hinting [");
+                            append(&m, (char*)(settings->parameters.use_hinting?"+":" "));
+                            append(&m, "]");
+                            ++id.id[0];
+                            if (gui_do_button(target, id, m)){
+                                if (!has_new_settings){
+                                    has_new_settings = true;
+                                    new_settings.parameters.use_hinting = !new_settings.parameters.use_hinting;
                                 }
                             }
                             
