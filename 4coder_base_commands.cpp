@@ -1035,6 +1035,36 @@ CUSTOM_DOC("Saves all buffers marked dirty (showing the '*' indicator).")
     }
 }
 
+CUSTOM_COMMAND_SIG(delete_file)
+CUSTOM_DOC("Deletes the file of the current buffer if 4coder has the appropriate access rights.")
+{
+    View_Summary view = get_active_view(app, AccessAll);
+    Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessAll);
+    
+    if (buffer.file_name != 0){
+        String file_name = {0};
+        file_name = make_string(buffer.file_name, buffer.file_name_len);
+        
+        String path = path_of_directory(file_name);
+        
+        char space[4096];
+        String cmd = make_fixed_width_string(space);
+        
+#if defined(_WIN32)
+        append(&cmd, "del ");
+#elif defined(__linux__) && defined(__APPLE__) && defined(__MACH__)
+        append(&cmd, "rm ");
+#else
+# error no delete file command for this platform
+#endif
+        append(&cmd, front_of_directory(file_name));
+        
+        exec_system_command(app, 0, buffer_identifier(0), path.str, path.size, cmd.str, cmd.size, 0);
+        
+        kill_buffer(app, buffer_identifier(buffer.buffer_id), view.view_id, BufferKill_AlwaysKill);
+    }
+}
+
 //
 // cmdid wrappers
 //

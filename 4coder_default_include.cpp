@@ -692,30 +692,33 @@ CUSTOM_DOC("Execute a 'long form' command.")
     end_query_bar(app, &bar, 0);
     
     if (match_ss(bar.string, make_lit_string("load project"))){
-        exec_command(app, load_project);
+        load_project(app);
     }
     else if (match_ss(bar.string, make_lit_string("open all code"))){
-        exec_command(app, open_all_code);
+        open_all_code(app);
     }
     else if (match_ss(bar.string, make_lit_string("open all code recursive"))){
-        exec_command(app, open_all_code_recursive);
+        open_all_code_recursive(app);
     }
     else if(match_ss(bar.string, make_lit_string("close all code"))){
-        exec_command(app, close_all_code);
+        close_all_code(app);
     }
     else if (match_ss(bar.string, make_lit_string("dos lines")) ||
              match_ss(bar.string, make_lit_string("dosify"))){
-        exec_command(app, eol_dosify);
+        eol_dosify(app);
     }
     else if (match_ss(bar.string, make_lit_string("nix lines")) ||
              match_ss(bar.string, make_lit_string("nixify"))){
-        exec_command(app, eol_nixify);
+        eol_nixify(app);
     }
     else if (match_ss(bar.string, make_lit_string("remap"))){
-        exec_command(app, remap_interactive);
+        remap_interactive(app);
     }
     else if (match_ss(bar.string, make_lit_string("new project"))){
-        exec_command(app, setup_new_project);
+        setup_new_project(app);
+    }
+    else if (match_ss(bar.string, make_lit_string("delete file"))){
+        delete_file(app);
     }
     else{
         print_message(app, literal("unrecognized command\n"));

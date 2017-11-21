@@ -298,7 +298,8 @@ win32_post_clipboard(char *text, i32 len){
         HANDLE memory_handle = GlobalAlloc(GMEM_MOVEABLE, len  + 1);
         if (memory_handle){
             char *dest = (char*)GlobalLock(memory_handle);
-            memmove(dest, text, len + 1);
+            memmove(dest, text, len);
+            dest[len] = 0;
             GlobalUnlock(memory_handle);
             SetClipboardData(CF_TEXT, memory_handle);
             win32vars.next_clipboard_is_self = true;
@@ -1574,7 +1575,7 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
         
         // NOTE(allen): Render
         HDC hdc = GetDC(win32vars.window_handle);
-        interpret_render_buffer(&target);
+        interpret_render_buffer(&target, &shared_vars.pixel_scratch);
         SwapBuffers(hdc);
         ReleaseDC(win32vars.window_handle, hdc);
         

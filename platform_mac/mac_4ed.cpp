@@ -346,11 +346,11 @@ Sys_Font_Path(name, parameters){
     }
     
     OSX_Font_Match match = osx_get_font_match(name, pt_size, italic, bold);
-
+    
     Font_Path path = {0};
     Partition *part = &shared_vars.font_scratch;
     path.temp = begin_temp_memory(part);
-
+    
     if (match.path != 0){
         i32 len = str_size(match.path);
         char *buffer = push_array(part, char, len + 1);
@@ -643,7 +643,7 @@ osx_step(void){
     
     // NOTE(allen): Render
     osx_begin_render();
-    interpret_render_buffer(&target);
+    interpret_render_buffer(&target, &shared_vars.pixel_scratch);
     osx_end_render();
     
     // NOTE(allen): Toggle Full Screen

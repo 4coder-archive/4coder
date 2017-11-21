@@ -226,7 +226,7 @@ font_load_page_pixels(Partition *part, Font_Settings *settings, Glyph_Page *page
         i32 tex_width   = page->tex_width;
         i32 tex_height  = page->tex_height;
         
-        pixels = push_array(part, u32, tex_width*tex_height);
+        pixels = (u32*)sysshared_push_block(part, tex_width*tex_height*sizeof(u32));
         
         if (pixels != 0){
             memset(pixels, 0, tex_width*tex_height*sizeof(u32));

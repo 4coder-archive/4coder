@@ -32,6 +32,10 @@ init_shared_vars(){
     void *font_scratch_memory = system_memory_allocate(font_scratch_size);
     shared_vars.font_scratch = make_part(font_scratch_memory, (i32)font_scratch_size);
     
+    umem pixel_scratch_size = MB(4);
+    void *pixel_scratch_memory = system_memory_allocate(pixel_scratch_size);
+    shared_vars.pixel_scratch = make_part(pixel_scratch_memory, (i32)pixel_scratch_size);
+    
     shared_vars.track_table_size = KB(16);
     shared_vars.track_table = system_memory_allocate(shared_vars.track_table_size);
     

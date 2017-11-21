@@ -232,17 +232,16 @@ API_EXPORT bool32
 Exec_System_Command(Application_Links *app, View_Summary *view, Buffer_Identifier buffer_id, char *path, int32_t path_len, char *command, int32_t command_len, Command_Line_Interface_Flag flags)
 /*
 DOC_PARAM(view, If the view parameter is non-null it specifies a view to display the command's output buffer, otherwise the command will still work but if there is a buffer capturing the output it will not automatically be displayed.)
-DOC_PARAM(buffer_id, The buffer the command will output to is specified by the buffer parameter. See Buffer_Identifier for information on how this type specifies a buffer.  The command will cause a crash if no buffer is specified.)
+DOC_PARAM(buffer_id, The buffer the command will output to is specified by the buffer parameter. See Buffer_Identifier for information on how this type specifies a buffer.  If output from the command should just be ignored, then buffer_identifier(0) can be specified to indicate no output buffer.)
 DOC_PARAM(path, The path parameter specifies the current working directory in which the command shall be executed. The string need not be null terminated.)
 DOC_PARAM(path_len, The parameter path_len specifies the length of the path string.)
 DOC_PARAM(command, The command parameter specifies the command that shall be executed. The string need not be null terminated.)
 DOC_PARAM(command_len, The parameter command_len specifies the length of the command string.)
 DOC_PARAM(flags, Flags for the behavior of the call are specified in the flags parameter.)
 DOC_RETURN(This call returns non-zero on success.)
-DOC(A call to exec_system_command executes a command as if called from the command line, and sends the output to a buffer. The buffer identifier can name a new buffer that does not exist, name a buffer that does exist, or provide the id of a buffer that does exist.
+DOC(A call to exec_system_command executes a command as if called from the command line, and sends the output to a buffer. To output to an existing buffer, the buffer identifier can name a new buffer that does not exist, or provide the id of a buffer that does exist.  If the buffer identifier uses a name for a buffer that does not exist, the buffer is created and used. If the buffer identifier uses an id that does not belong to an open buffer, then no buffer is used.
 
-If the buffer is not already in an open view and the view parameter is not NULL,
-then the provided view will display the output buffer.
+If there in an output buffer and it is not already in an open view and the view parameter is not NULL, then the provided view will display the output buffer.
 
 If the view parameter is NULL, no view will switch to the output.)
 DOC_SEE(Buffer_Identifier)

@@ -1967,7 +1967,7 @@ main(int argc, char **argv){
             }
             
             // NOTE(allen): Render
-            interpret_render_buffer(&target);
+            interpret_render_buffer(&target, &shared_vars.pixel_scratch);
             glXSwapBuffers(linuxvars.XDisplay, linuxvars.XWindow);
             
             // NOTE(allen): Toggle Full Screen

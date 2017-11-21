@@ -35,6 +35,7 @@ struct Shared_Vars{
     
     Partition scratch;
     Partition font_scratch;
+    Partition pixel_scratch;
 };
 global Shared_Vars shared_vars;
 
