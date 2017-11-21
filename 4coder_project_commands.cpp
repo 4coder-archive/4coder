@@ -400,28 +400,30 @@ load_project_from_config_data(Application_Links *app, Partition *part, char *con
 CUSTOM_COMMAND_SIG(load_project)
 CUSTOM_DOC("Looks for a project.4coder file in the current directory and tries to load it.  Looks in parent directories until a project file is found or there are no more parents.")
 {
+    save_all_dirty_buffers(app);
+    
     Partition *part = &global_part;
     
     Temp_Memory temp = begin_temp_memory(part);
     
     char project_file_space[512];
-    String project_name = make_fixed_width_string(project_file_space);
-    project_name.size = directory_get_hot(app, project_name.str, project_name.memory_size);
-    if (project_name.size >= project_name.memory_size){
-        project_name.size = 0;
+    String project_path = make_fixed_width_string(project_file_space);
+    project_path.size = directory_get_hot(app, project_path.str, project_path.memory_size);
+    if (project_path.size >= project_path.memory_size){
+        project_path.size = 0;
     }
     
-    if (project_name.size != 0){
+    if (project_path.size != 0){
         bool32 load_failed = false;
         for(;;){
-            int32_t original_size = project_name.size;
-            append_sc(&project_name, "project.4coder");
-            terminate_with_null(&project_name);
+            int32_t original_size = project_path.size;
+            append_sc(&project_path, "project.4coder");
+            terminate_with_null(&project_path);
             
-            FILE *file = fopen(project_name.str, "rb");
-            if (file){
-                project_name.size = original_size;
-                terminate_with_null(&project_name);
+            FILE *file = fopen(project_path.str, "rb");
+            if (file != 0){
+                project_path.size = original_size;
+                terminate_with_null(&project_path);
                 
                 char *mem = 0;
                 int32_t size = 0;
@@ -429,15 +431,15 @@ CUSTOM_DOC("Looks for a project.4coder file in the current directory and tries t
                 fclose(file);
                 
                 if (file_read_success){
-                    load_project_from_config_data(app, part, mem, size, project_name);
+                    load_project_from_config_data(app, part, mem, size, project_path);
                 }
                 break;
             }
             else{
-                project_name.size = original_size;
-                remove_last_folder(&project_name);
+                project_path.size = original_size;
+                remove_last_folder(&project_path);
                 
-                if (project_name.size >= original_size){
+                if (project_path.size >= original_size){
                     load_failed = true;
                     break;
                 }
@@ -464,6 +466,47 @@ CUSTOM_DOC("Looks for a project.4coder file in the current directory and tries t
     }
     
     end_temp_memory(temp);
+}
+
+CUSTOM_COMMAND_SIG(reload_current_project)
+CUSTOM_DOC("If a project file has already been loaded, reloads the same file.  Useful for when the project configuration is changed.")
+{
+    if (current_project.loaded){
+        save_all_dirty_buffers(app);
+        
+        char space[512];
+        String project_path = make_fixed_width_string(space);
+        append(&project_path, make_string(current_project.dir, current_project.dir_len));
+        if (project_path.size < 1 || !char_is_slash(project_path.str[project_path.size - 1])){
+            append(&project_path, "/");
+        }
+        int32_t path_size = project_path.size;
+        append(&project_path, "project.4coder");
+        terminate_with_null(&project_path);
+        
+        FILE *file = fopen(project_path.str, "rb");
+        if (file != 0){
+            project_path.size = path_size;
+            terminate_with_null(&project_path);
+            
+            Partition *part = &global_part;
+            Temp_Memory temp = begin_temp_memory(part);
+            
+            char *mem = 0;
+            int32_t size = 0;
+            bool32 file_read_success = file_handle_dump(part, file, &mem, &size);
+            fclose(file);
+            
+            if (file_read_success){
+                load_project_from_config_data(app, part, mem, size, project_path);
+            }
+            
+            end_temp_memory(temp);
+        }
+        else{
+            print_message(app, literal("project.4coder file not found. Previous configuration left unchanged."));
+        }
+    }
 }
 
 ///////////////////////////////
@@ -766,6 +809,8 @@ CUSTOM_DOC("Queries the user for several configuration options and initializes a
     else{
         print_message(app, literal("project already setup, no changes made\n"));
     }
+    
+    load_project(app);
 }
 
 #endif

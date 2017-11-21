@@ -53,6 +53,8 @@ TODO
 \ITEM \STYLE{code} <alt @> \END Toggles the mouse suppression mode, see suppress_mouse and allow_mouse.
 \ITEM \STYLE{code} <ctrl page up> \END Toggle fullscreen mode on or off.  The change(s) do not take effect until the next frame.
 \ITEM \STYLE{code} <alt E> \END Attempts to close 4coder.
+\ITEM \STYLE{code} <ctrl +> \END Increase the size of the face used by the current buffer.
+\ITEM \STYLE{code} <ctrl -> \END Decrease the size of the face used by the current buffer.
 \ITEM \STYLE{code} <f1> \END Run an 'fkey command' configured in a project.4coder file.  Determines the index of the 'fkey command' by which function key or numeric key was pressed to trigger the command.
 \ITEM \STYLE{code} <f2> \END Run an 'fkey command' configured in a project.4coder file.  Determines the index of the 'fkey command' by which function key or numeric key was pressed to trigger the command.
 \ITEM \STYLE{code} <f3> \END Run an 'fkey command' configured in a project.4coder file.  Determines the index of the 'fkey command' by which function key or numeric key was pressed to trigger the command.
@@ -134,7 +136,7 @@ TODO
 \ITEM \STYLE{code} <ctrl ~> \END Removes trailing whitespace from all lines in the current buffer.
 \ITEM \STYLE{code} <return> \END description missing
 \ITEM \STYLE{code} <shift return> \END description missing
-\ITEM \STYLE{code} <shift  > \END Inserts whatever character was used to trigger this command.
+\ITEM \STYLE{code} <shift  > \END Inserts an underscore.
 \END
 \END
 \SECTION{default-code-map}
@@ -280,7 +282,7 @@ TODO
 \ITEM \STYLE{code} <cmnd ~> \END Removes trailing whitespace from all lines in the current buffer.
 \ITEM \STYLE{code} <return> \END description missing
 \ITEM \STYLE{code} <shift return> \END description missing
-\ITEM \STYLE{code} <shift  > \END Inserts whatever character was used to trigger this command.
+\ITEM \STYLE{code} <shift  > \END Inserts an underscore.
 \END
 \END
 \SECTION{default-code-map}

@@ -713,6 +713,7 @@ generate_remapping_code_and_data(){
         bind(mappings, 'k', MDFR_CTRL, interactive_kill_buffer);
         bind(mappings, 'i', MDFR_CTRL, interactive_switch_buffer);
         bind(mappings, 'h', MDFR_CTRL, project_go_to_root_directory);
+        bind(mappings, 'H', MDFR_CTRL, reload_current_project);
         bind(mappings, 'S', MDFR_CTRL, save_all_dirty_buffers);
         
         bind(mappings, 'c', MDFR_ALT, open_color_tweaker);
@@ -737,6 +738,9 @@ generate_remapping_code_and_data(){
         bind(mappings, '@', MDFR_ALT, toggle_mouse);
         bind(mappings, key_page_up, MDFR_CTRL, toggle_fullscreen);
         bind(mappings, 'E', MDFR_ALT, exit_4coder);
+        
+        bind(mappings, '+', MDFR_CTRL, increase_face_size);
+        bind(mappings, '-', MDFR_CTRL, decrease_face_size);
         
         bind(mappings, key_f1, MDFR_NONE, project_fkey_command);
         bind(mappings, key_f2, MDFR_NONE, project_fkey_command);
@@ -787,8 +791,8 @@ generate_remapping_code_and_data(){
         bind(mappings, key_up,    MDFR_CTRL, seek_whitespace_up_end_line);
         bind(mappings, key_down,  MDFR_CTRL, seek_whitespace_down_end_line);
         
-        bind(mappings, key_up, MDFR_ALT, move_up_10);
-        bind(mappings, key_down, MDFR_ALT, move_down_10);
+        bind(mappings, key_up, MDFR_ALT, move_line_up);
+        bind(mappings, key_down, MDFR_ALT, move_line_down);
         
         bind(mappings, key_back, MDFR_CTRL, backspace_word);
         bind(mappings, key_del,  MDFR_CTRL, delete_word);
@@ -799,19 +803,23 @@ generate_remapping_code_and_data(){
         bind(mappings, 'a', MDFR_CTRL, replace_in_range);
         bind(mappings, 'c', MDFR_CTRL, copy);
         bind(mappings, 'd', MDFR_CTRL, delete_range);
+        bind(mappings, 'D', MDFR_CTRL, delete_line);
         bind(mappings, 'e', MDFR_CTRL, center_view);
         bind(mappings, 'E', MDFR_CTRL, left_adjust_view);
         bind(mappings, 'f', MDFR_CTRL, search);
         bind(mappings, 'F', MDFR_CTRL, list_all_locations);
         bind(mappings, 'F', MDFR_ALT , list_all_substring_locations_case_insensitive);
         bind(mappings, 'g', MDFR_CTRL, goto_line);
+        bind(mappings, 'G', MDFR_CTRL, list_all_locations_of_selection);
         bind(mappings, 'j', MDFR_CTRL, to_lowercase);
         bind(mappings, 'K', MDFR_CTRL, kill_buffer);
         bind(mappings, 'l', MDFR_CTRL, toggle_line_wrap);
+        bind(mappings, 'L', MDFR_CTRL, duplicate_line);
         bind(mappings, 'm', MDFR_CTRL, cursor_mark_swap);
         bind(mappings, 'O', MDFR_CTRL, reopen);
         bind(mappings, 'q', MDFR_CTRL, query_replace);
         bind(mappings, 'Q', MDFR_CTRL, query_replace_identifier);
+        bind(mappings, 'q', MDFR_ALT , query_replace_selection);
         bind(mappings, 'r', MDFR_CTRL, reverse_search);
         bind(mappings, 's', MDFR_CTRL, save);
         bind(mappings, 't', MDFR_CTRL, search_identifier);
@@ -831,7 +839,7 @@ generate_remapping_code_and_data(){
         bind(mappings, '~', MDFR_CTRL, clean_all_lines);
         bind(mappings, '\n', MDFR_NONE, newline_or_goto_position);
         bind(mappings, '\n', MDFR_SHIFT, newline_or_goto_position_same_panel);
-        bind(mappings, ' ', MDFR_SHIFT, write_character);
+        bind(mappings, ' ', MDFR_SHIFT, write_underscore);
         
         end_map(mappings);
         
@@ -859,10 +867,20 @@ generate_remapping_code_and_data(){
         bind(mappings, 'r', MDFR_ALT, write_block);
         bind(mappings, 't', MDFR_ALT, write_todo);
         bind(mappings, 'y', MDFR_ALT, write_note);
+        
         bind(mappings, '[', MDFR_CTRL, open_long_braces);
         bind(mappings, '{', MDFR_CTRL, open_long_braces_semicolon);
         bind(mappings, '}', MDFR_CTRL, open_long_braces_break);
+        
+        bind(mappings, '[', MDFR_ALT, highlight_surrounding_scope);
+        bind(mappings, ']', MDFR_ALT, highlight_prev_scope_absolute);
+        bind(mappings, '\'', MDFR_ALT, highlight_next_scope_absolute);
+        bind(mappings, '/', MDFR_ALT, place_in_scope);
+        bind(mappings, '-', MDFR_ALT, delete_current_scope);
+        bind(mappings, 'j', MDFR_ALT, scope_absorb_down);
+        
         bind(mappings, 'i', MDFR_ALT, if0_off);
+        
         bind(mappings, '1', MDFR_ALT, open_file_in_quotes);
         bind(mappings, '2', MDFR_ALT, open_matching_file_cpp);
         bind(mappings, '0', MDFR_CTRL, write_zero_struct);
@@ -889,6 +907,7 @@ generate_remapping_code_and_data(){
         bind(mappings, 'k', MDFR_CMND, interactive_kill_buffer);
         bind(mappings, 'i', MDFR_CMND, interactive_switch_buffer);
         bind(mappings, 'h', MDFR_CMND, project_go_to_root_directory);
+        bind(mappings, 'H', MDFR_CMND, reload_current_project);
         bind(mappings, 'S', MDFR_CMND, save_all_dirty_buffers);
         
         bind(mappings, 'c', MDFR_CTRL, open_color_tweaker);
@@ -973,15 +992,18 @@ generate_remapping_code_and_data(){
         bind(mappings, 'a', MDFR_CMND, replace_in_range);
         bind(mappings, 'c', MDFR_CMND, copy);
         bind(mappings, 'd', MDFR_CMND, delete_range);
+        bind(mappings, 'D', MDFR_CMND, delete_line);
         bind(mappings, 'e', MDFR_CMND, center_view);
         bind(mappings, 'E', MDFR_CMND, left_adjust_view);
         bind(mappings, 'f', MDFR_CMND, search);
         bind(mappings, 'F', MDFR_CMND, list_all_locations);
         bind(mappings, 'F', MDFR_CTRL, list_all_substring_locations_case_insensitive);
         bind(mappings, 'g', MDFR_CMND, goto_line);
+        bind(mappings, 'G', MDFR_CMND, list_all_locations_of_selection);
         bind(mappings, 'j', MDFR_CMND, to_lowercase);
         bind(mappings, 'K', MDFR_CMND, kill_buffer);
         bind(mappings, 'l', MDFR_CMND, toggle_line_wrap);
+        bind(mappings, 'L', MDFR_CMND, duplicate_line);
         bind(mappings, 'm', MDFR_CMND, cursor_mark_swap);
         bind(mappings, 'O', MDFR_CMND, reopen);
         bind(mappings, 'q', MDFR_CMND, query_replace);
@@ -1005,7 +1027,7 @@ generate_remapping_code_and_data(){
         bind(mappings, '~', MDFR_CMND, clean_all_lines);
         bind(mappings, '\n', MDFR_NONE, newline_or_goto_position);
         bind(mappings, '\n', MDFR_SHIFT, newline_or_goto_position_same_panel);
-        bind(mappings, ' ', MDFR_SHIFT, write_character);
+        bind(mappings, ' ', MDFR_SHIFT, write_underscore);
         
         end_map(mappings);
         
@@ -1033,10 +1055,20 @@ generate_remapping_code_and_data(){
         bind(mappings, 'r', MDFR_CTRL, write_block);
         bind(mappings, 't', MDFR_CTRL, write_todo);
         bind(mappings, 'y', MDFR_CTRL, write_note);
+        
         bind(mappings, '[', MDFR_CMND, open_long_braces);
         bind(mappings, '{', MDFR_CMND, open_long_braces_semicolon);
         bind(mappings, '}', MDFR_CMND, open_long_braces_break);
+        
+        bind(mappings, '[', MDFR_CTRL, highlight_surrounding_scope);
+        bind(mappings, ']', MDFR_CTRL, highlight_prev_scope_absolute);
+        bind(mappings, '\'', MDFR_CTRL, highlight_next_scope_absolute);
+        bind(mappings, '/', MDFR_CTRL, place_in_scope);
+        bind(mappings, '-', MDFR_CTRL, delete_current_scope);
+        bind(mappings, 'j', MDFR_CTRL, scope_absorb_down);
+        
         bind(mappings, 'i', MDFR_CTRL, if0_off);
+        
         bind(mappings, '1', MDFR_CTRL, open_file_in_quotes);
         bind(mappings, '2', MDFR_CTRL, open_matching_file_cpp);
         bind(mappings, '0', MDFR_CMND, write_zero_struct);

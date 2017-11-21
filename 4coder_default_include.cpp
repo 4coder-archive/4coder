@@ -22,6 +22,7 @@ TYPE: 'major-system-include'
 #include "4coder_build_commands.cpp"
 #include "4coder_project_commands.cpp"
 #include "4coder_function_list.cpp"
+#include "4coder_scope_commands.cpp"
 
 // NOTE(allen): Define USE_OLD_STYLE_JUMPS before 4coder_default_include.cpp to get
 // the direct jumps (instead of sticky jumps).
@@ -211,9 +212,117 @@ CUSTOM_DOC("Delete a single, whole token on or to the right of the cursor.")
     buffer_replace_range(app, &buffer, range.start, range.end, 0, 0);
 }
 
+
+//
+// Quer Replace Selection
+//
+
+CUSTOM_COMMAND_SIG(query_replace_selection)
+CUSTOM_DOC("Queries the user for a string, and incrementally replace every occurence of the string found in the selected range with the specified string.")
+{
+    View_Summary view = get_active_view(app, AccessOpen);
+    Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessOpen);
+    
+    if (!buffer.exists){
+        return;
+    }
+    
+    Partition *part = &global_part;
+    Temp_Memory temp = begin_temp_memory(part);
+    
+    Range range = get_range(&view);
+    int32_t replace_length = range.max - range.min;
+    if (replace_length != 0){
+        char *replace_space = push_array(part, char, replace_length);
+        if (buffer_read_range(app, &buffer, range.min, range.max, replace_space)){
+            String replace = make_string(replace_space, replace_length);
+            query_replace_parameter(app, replace, range.min, true);
+        }
+    }
+    
+    end_temp_memory(temp);
+}
+
+
 //
 // Line Manipulation
 //
+
+CUSTOM_COMMAND_SIG(move_line_up)
+CUSTOM_DOC("Swaps the line under the cursor with the line above it, and moves the cursor up with it.")
+{
+    View_Summary view = get_active_view(app, AccessOpen);
+    
+    if (view.cursor.line <= 1){
+        return;
+    }
+    
+    Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessOpen);
+    if (!buffer.exists){
+        return;
+    }
+    
+    Full_Cursor prev_line_cursor = {0};
+    Full_Cursor this_line_cursor = {0};
+    Full_Cursor next_line_cursor = {0};
+    
+    int32_t this_line = view.cursor.line;
+    int32_t prev_line = this_line - 1;
+    int32_t next_line = this_line +1;
+    
+    if (view_compute_cursor(app, &view, seek_line_char(prev_line, 1), &prev_line_cursor) &&
+        view_compute_cursor(app, &view, seek_line_char(this_line, 1), &this_line_cursor) &&
+        view_compute_cursor(app, &view, seek_line_char(next_line, 1), &next_line_cursor)){
+        
+        int32_t prev_line_pos = prev_line_cursor.pos;
+        int32_t this_line_pos = this_line_cursor.pos;
+        int32_t next_line_pos = next_line_cursor.pos;
+        
+        Partition *part = &global_part;
+        Temp_Memory temp = begin_temp_memory(part);
+        
+        int32_t length = next_line_pos - prev_line_pos;
+        char *swap = push_array(part, char, length);
+        int32_t first_len = next_line_pos - this_line_pos;
+        
+        if (buffer_read_range(app, &buffer, this_line_pos, next_line_pos, swap) &&
+            buffer_read_range(app, &buffer, prev_line_pos, this_line_pos, swap + first_len)){
+            buffer_replace_range(app, &buffer, prev_line_pos, next_line_pos, swap, length);
+            view_set_cursor(app, &view, seek_line_char(prev_line, 1), true);
+        }
+        
+        end_temp_memory(temp);
+    }
+}
+
+CUSTOM_COMMAND_SIG(move_down_textual)
+CUSTOM_DOC("Moves down to the next line of actual text, regardless of line wrapping.")
+{
+    View_Summary view = get_active_view(app, AccessOpen);
+    if (!view.exists){
+        return;
+    }
+    
+    int32_t next_line = view.cursor.line + 1;
+    view_set_cursor(app, &view, seek_line_char(next_line, 1), true);
+}
+
+CUSTOM_COMMAND_SIG(move_line_down)
+CUSTOM_DOC("Swaps the line under the cursor with the line below it, and moves the cursor down with it.")
+{
+    View_Summary view = get_active_view(app, AccessOpen);
+    if (!view.exists){
+        return;
+    }
+    Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessOpen);
+    if (!buffer.exists){
+        return;
+    }
+    
+    move_down_textual(app);
+    move_line_up(app);
+    move_down_textual(app);
+}
 
 CUSTOM_COMMAND_SIG(duplicate_line)
 CUSTOM_DOC("Create a copy of the line on which the cursor sits.")

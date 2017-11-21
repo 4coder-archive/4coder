@@ -19,17 +19,12 @@ TYPE: 'drop-in-command-pack'
 // Fundamental Editing Commands
 //
 
-CUSTOM_COMMAND_SIG(write_character)
-CUSTOM_DOC("Inserts whatever character was used to trigger this command.")
-{
-    uint32_t access = AccessOpen;
-    View_Summary view = get_active_view(app, access);
-    
-    User_Input in = get_command_input(app);
-    
-    uint8_t character[4];
-    uint32_t length = to_writable_character(in, character);
+static void
+write_character_parameter(Application_Links *app, uint8_t *character, uint32_t length){
     if (length != 0){
+        uint32_t access = AccessOpen;
+        View_Summary view = get_active_view(app, access);
+        
         Buffer_Summary buffer = get_buffer(app, view.buffer_id, access);
         int32_t pos = view.cursor.pos;
         
@@ -47,6 +42,22 @@ CUSTOM_DOC("Inserts whatever character was used to trigger this command.")
         
         view_set_cursor(app, &view, seek_pos(next_cursor_marker.pos), true);
     }
+}
+
+CUSTOM_COMMAND_SIG(write_character)
+CUSTOM_DOC("Inserts whatever character was used to trigger this command.")
+{
+    User_Input in = get_command_input(app);
+    uint8_t character[4];
+    uint32_t length = to_writable_character(in, character);
+    write_character_parameter(app, character, length);
+}
+
+CUSTOM_COMMAND_SIG(write_underscore)
+CUSTOM_DOC("Inserts an underscore.")
+{
+    uint8_t character = '_';
+    write_character_parameter(app, &character, 1);
 }
 
 CUSTOM_COMMAND_SIG(delete_char)
@@ -589,6 +600,30 @@ CUSTOM_DOC("Decrases the current buffer's width for line wrapping.")
     buffer_set_setting(app, &buffer, BufferSetting_WrapPosition, wrap - 10);
 }
 
+CUSTOM_COMMAND_SIG(increase_face_size)
+CUSTOM_DOC("Increase the size of the face used by the current buffer.")
+{
+    View_Summary view = get_active_view(app, AccessAll);
+    Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessAll);
+    
+    Face_ID face_id = get_face_id(app, &buffer);
+    Face_Description description = get_face_description(app, face_id);
+    ++description.pt_size;
+    try_modify_face(app, face_id, &description);
+}
+
+CUSTOM_COMMAND_SIG(decrease_face_size)
+CUSTOM_DOC("Decrease the size of the face used by the current buffer.")
+{
+    View_Summary view = get_active_view(app, AccessAll);
+    Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessAll);
+    
+    Face_ID face_id = get_face_id(app, &buffer);
+    Face_Description description = get_face_description(app, face_id);
+    --description.pt_size;
+    try_modify_face(app, face_id, &description);
+}
+
 CUSTOM_COMMAND_SIG(toggle_virtual_whitespace)
 CUSTOM_DOC("Toggles the current buffer's virtual whitespace status.")
 {
@@ -912,21 +947,20 @@ query_replace(Application_Links *app, View_Summary *view, Buffer_Summary *buffer
     view_set_cursor(app, view, seek_pos(pos), true);
 }
 
-CUSTOM_COMMAND_SIG(query_replace)
-CUSTOM_DOC("Queries the user for two strings, and incrementally replaces every occurence of the first string with the second string.")
-{
+static void
+query_replace_parameter(Application_Links *app, String replace_str, int32_t start_pos, bool32 add_replace_query_bar){
     Query_Bar replace;
-    char replace_space[1024];
     replace.prompt = make_lit_string("Replace: ");
-    replace.string = make_fixed_width_string(replace_space);
+    replace.string = replace_str;
+    
+    if (add_replace_query_bar){
+        start_query_bar(app, &replace, 0);
+    }
     
     Query_Bar with;
     char with_space[1024];
     with.prompt = make_lit_string("With: ");
     with.string = make_fixed_width_string(with_space);
-    
-    if (!query_user_string(app, &replace)) return;
-    if (replace.string.size == 0) return;
     
     if (!query_user_string(app, &with)) return;
     
@@ -935,7 +969,7 @@ CUSTOM_DOC("Queries the user for two strings, and incrementally replaces every o
     
     View_Summary view = get_active_view(app, AccessOpen);
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessOpen);
-    int32_t pos = view.cursor.pos;
+    int32_t pos = start_pos;
     
     Query_Bar bar;
     bar.prompt = make_lit_string("Replace? (y)es, (n)ext, (esc)\n");
@@ -945,42 +979,43 @@ CUSTOM_DOC("Queries the user for two strings, and incrementally replaces every o
     query_replace(app, &view, &buffer, pos, r, w);
 }
 
+CUSTOM_COMMAND_SIG(query_replace)
+CUSTOM_DOC("Queries the user for two strings, and incrementally replaces every occurence of the first string with the second string.")
+{
+    View_Summary view = get_active_view(app, AccessOpen);
+    Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessOpen);
+    
+    if (!buffer.exists){
+        return;
+    }
+    
+    Query_Bar replace;
+    char replace_space[1024];
+    replace.prompt = make_lit_string("Replace: ");
+    replace.string = make_fixed_width_string(replace_space);
+    
+    if (!query_user_string(app, &replace)) return;
+    if (replace.string.size == 0) return;
+    
+    query_replace_parameter(app, replace.string, view.cursor.pos, false);
+}
+
 CUSTOM_COMMAND_SIG(query_replace_identifier)
 CUSTOM_DOC("Queries the user for a string, and incrementally replace every occurence of the word or token found at the cursor with the specified string.")
 {
-    View_Summary view = get_active_view(app, AccessProtected);
-    Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessProtected);
+    View_Summary view = get_active_view(app, AccessOpen);
+    Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessOpen);
+    
+    if (!buffer.exists){
+        return;
+    }
     
     Range range = {0};
     char space[256];
-    String query = read_identifier_at_pos(app, &buffer, view.cursor.pos, space, sizeof(space), &range);
+    String replace = read_identifier_at_pos(app, &buffer, view.cursor.pos, space, sizeof(space), &range);
     
-    if (query.size != 0){
-        Query_Bar replace;
-        replace.prompt = make_lit_string("Replace: ");
-        replace.string = query;
-        if (start_query_bar(app, &replace, 0) == 0) return;
-        
-        Query_Bar with;
-        char with_space[1024];
-        with.prompt = make_lit_string("With: ");
-        with.string = make_fixed_width_string(with_space);
-        
-        if (!query_user_string(app, &with)) return;
-        
-        String r = replace.string;
-        String w = with.string;
-        
-        view = get_active_view(app, AccessOpen);
-        buffer = get_buffer(app, view.buffer_id, AccessOpen);
-        int32_t pos = range.start;
-        
-        Query_Bar bar;
-        bar.prompt = make_lit_string("Replace? (y)es, (n)ext, (esc)\n");
-        bar.string = null_string;
-        start_query_bar(app, &bar, 0);
-        
-        query_replace(app, &view, &buffer, pos, r, w);
+    if (replace.size != 0){
+        query_replace_parameter(app, replace, range.min, true);
     }
 }
 

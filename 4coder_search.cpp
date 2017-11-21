@@ -733,6 +733,54 @@ CUSTOM_DOC("Reads a token or word under the cursor and lists all exact case-inse
     list_all_locations_of_identifier_parameters(app, false, true);
 }
 
+static void
+list_all_locations_of_selection_parameters(Application_Links *app, bool32 substrings, bool32 case_insensitive){
+    View_Summary view = get_active_view(app, AccessProtected);
+    Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessProtected);
+    
+    if (!buffer.exists){
+        return;
+    }
+    
+    Partition *part = &global_part;
+    Temp_Memory temp = begin_temp_memory(part);
+    
+    Range range = get_range(&view);
+    int32_t query_length = range.max - range.min;
+    if (query_length != 0){
+        char *query_space = push_array(part, char, query_length);
+        if (buffer_read_range(app, &buffer, range.min, range.max, query_space)){
+            String query = make_string(query_space, query_length);
+            
+            uint32_t flags = 0;
+            if (substrings){
+                flags |= SearchFlag_MatchSubstring;
+            }
+            else{
+                flags |= SearchFlag_MatchWholeWord;
+            }
+            if (case_insensitive){
+                flags |= SearchFlag_CaseInsensitive;
+            }
+            generic_search_all_buffers(app, &global_general, &global_part, query, flags);
+        }
+    }
+    
+    end_temp_memory(temp);
+}
+
+CUSTOM_COMMAND_SIG(list_all_locations_of_selection)
+CUSTOM_DOC("Reads the string in the selected range and lists all exact case-sensitive mathces in all open buffers.")
+{
+    list_all_locations_of_selection_parameters(app, false, false);
+}
+
+CUSTOM_COMMAND_SIG(list_all_locations_of_selection_case_insensitive)
+CUSTOM_DOC("Reads the string in the selected range and lists all exact case-insensitive mathces in all open buffers.")
+{
+    list_all_locations_of_selection_parameters(app, false, true);
+}
+
 //
 // Word Complete Command
 //
