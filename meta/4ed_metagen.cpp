@@ -839,7 +839,7 @@ generate_remapping_code_and_data(){
         bind(mappings, '~', MDFR_CTRL, clean_all_lines);
         bind(mappings, '\n', MDFR_NONE, newline_or_goto_position);
         bind(mappings, '\n', MDFR_SHIFT, newline_or_goto_position_same_panel);
-        bind(mappings, ' ', MDFR_SHIFT, write_underscore);
+        bind(mappings, ' ', MDFR_SHIFT, write_character);
         
         end_map(mappings);
         
@@ -932,6 +932,9 @@ generate_remapping_code_and_data(){
         bind(mappings, '@', MDFR_CTRL, toggle_mouse);
         bind(mappings, key_page_up, MDFR_CMND, toggle_fullscreen);
         bind(mappings, 'E', MDFR_CTRL, exit_4coder);
+        
+        bind(mappings, '+', MDFR_CTRL, increase_face_size);
+        bind(mappings, '-', MDFR_CTRL, decrease_face_size);
         
         bind(mappings, key_f1, MDFR_NONE, project_fkey_command);
         bind(mappings, key_f2, MDFR_NONE, project_fkey_command);
@@ -1027,7 +1030,7 @@ generate_remapping_code_and_data(){
         bind(mappings, '~', MDFR_CMND, clean_all_lines);
         bind(mappings, '\n', MDFR_NONE, newline_or_goto_position);
         bind(mappings, '\n', MDFR_SHIFT, newline_or_goto_position_same_panel);
-        bind(mappings, ' ', MDFR_SHIFT, write_underscore);
+        bind(mappings, ' ', MDFR_SHIFT, write_character);
         
         end_map(mappings);
         
