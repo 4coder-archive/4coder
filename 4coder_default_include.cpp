@@ -725,6 +725,9 @@ CUSTOM_DOC("Execute a 'long form' command.")
     else if (match_ss(bar.string, make_lit_string("rename file"))){
         rename_file_query(app);
     }
+    else if (match_ss(bar.string, make_lit_string("mkdir"))){
+        make_directory_query(app);
+    }
     else{
         print_message(app, literal("unrecognized command\n"));
     }

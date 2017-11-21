@@ -2604,10 +2604,10 @@ DOC_SEE(Theme_Color)
 API_EXPORT int32_t
 Directory_Get_Hot(Application_Links *app, char *out, int32_t capacity)
 /*
-DOC_PARAM(out, This parameter provides a character buffer that receives the 4coder 'hot directory'.)
-DOC_PARAM(capacity, This parameter specifies the maximum size to be output to the out buffer.)
-DOC_RETURN(This call returns the size of the string written into the buffer.)
-DOC(4coder has a concept of a 'hot directory' which is the directory most recently accessed in the GUI.  Whenever the GUI is opened it shows the hot directory. In the future this will be deprecated and eliminated in favor of more flexible directories controlled on the custom side.)
+DOC_PARAM(out, On success this character buffer is filled with the 4coder 'hot directory'.)
+DOC_PARAM(capacity, Specifies the capacity in bytes of the of the out buffer.)
+DOC(4coder has a concept of a 'hot directory' which is the directory most recently accessed in the GUI.  Whenever the GUI is opened it shows the hot directory. In the future this will be deprecated and eliminated in favor of more flexible hot directories created and controlled in the custom layer.)
+DOC_RETURN(This call returns the length of the hot directory string whether or not it was successfully copied into the output buffer.  The call is successful if and only if capacity is greater than or the return size.)
 DOC_SEE(directory_set_hot)
 */{
     Command_Data *cmd = (Command_Data*)app->cmd_context;

@@ -1126,6 +1126,37 @@ CUSTOM_DOC("Queries the user for a new name and renames the file of the current 
     }
 }
 
+CUSTOM_COMMAND_SIG(make_directory_query)
+CUSTOM_DOC("Queries the user for a name and creates a new directory with the given name.")
+{
+    char hot_space[2048];
+    int32_t hot_length = directory_get_hot(app, hot_space, sizeof(hot_space));
+    if (hot_length < sizeof(hot_space)){
+        String hot = make_string(hot_space, hot_length);
+        
+        // Query the user
+        Query_Bar bar;
+        
+        char prompt_space[4096];
+        bar.prompt = make_fixed_width_string(prompt_space);
+        append(&bar.prompt, "Make directory at '");
+        append(&bar.prompt, hot);
+        append(&bar.prompt, "': ");
+        
+        char name_space[4096];
+        bar.string = make_fixed_width_string(name_space);
+        if (!query_user_string(app, &bar)) return;
+        if (bar.string.size == 0) return;
+        
+        char cmd_space[4096];
+        String cmd = make_fixed_width_string(cmd_space);
+        append(&cmd, "mkdir ");
+        if (append_checked(&cmd, bar.string)){
+            exec_system_command(app, 0, buffer_identifier(0), hot.str, hot.size, cmd.str, cmd.size, 0);
+        }
+    }
+}
+
 //
 // cmdid wrappers
 //
