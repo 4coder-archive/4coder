@@ -115,7 +115,7 @@ bind(context, '?', MDFR_CTRL, toggle_show_whitespace);
 bind(context, '~', MDFR_CTRL, clean_all_lines);
 bind(context, '\n', MDFR_NONE, newline_or_goto_position);
 bind(context, '\n', MDFR_SHIFT, newline_or_goto_position_same_panel);
-bind(context, ' ', MDFR_SHIFT, write_underscore);
+bind(context, ' ', MDFR_SHIFT, write_character);
 end_map(context);
 begin_map(context, default_code_map);
 inherit_map(context, mapid_file);
@@ -183,6 +183,8 @@ bind(context, 'b', MDFR_CTRL, toggle_filebar);
 bind(context, '@', MDFR_CTRL, toggle_mouse);
 bind(context, key_page_up, MDFR_CMND, toggle_fullscreen);
 bind(context, 'E', MDFR_CTRL, exit_4coder);
+bind(context, '+', MDFR_CTRL, increase_face_size);
+bind(context, '-', MDFR_CTRL, decrease_face_size);
 bind(context, key_f1, MDFR_NONE, project_fkey_command);
 bind(context, key_f2, MDFR_NONE, project_fkey_command);
 bind(context, key_f3, MDFR_NONE, project_fkey_command);
@@ -263,7 +265,7 @@ bind(context, '?', MDFR_CMND, toggle_show_whitespace);
 bind(context, '~', MDFR_CMND, clean_all_lines);
 bind(context, '\n', MDFR_NONE, newline_or_goto_position);
 bind(context, '\n', MDFR_SHIFT, newline_or_goto_position_same_panel);
-bind(context, ' ', MDFR_SHIFT, write_underscore);
+bind(context, ' ', MDFR_SHIFT, write_character);
 end_map(context);
 begin_map(context, default_code_map);
 inherit_map(context, mapid_file);
@@ -447,7 +449,7 @@ static Meta_Key_Bind fcoder_binds_for_default_mapid_file[65] = {
 {0, 126, 1, "clean_all_lines", 15, LINK_PROCS(clean_all_lines)},
 {0, 10, 0, "newline_or_goto_position", 24, LINK_PROCS(newline_or_goto_position)},
 {0, 10, 8, "newline_or_goto_position_same_panel", 35, LINK_PROCS(newline_or_goto_position_same_panel)},
-{0, 32, 8, "write_underscore", 16, LINK_PROCS(write_underscore)},
+{0, 32, 8, "write_character", 15, LINK_PROCS(write_character)},
 };
 static Meta_Key_Bind fcoder_binds_for_default_default_code_map[30] = {
 {0, 55300, 1, "seek_alphanumeric_or_camel_right", 32, LINK_PROCS(seek_alphanumeric_or_camel_right)},
@@ -486,7 +488,7 @@ static Meta_Sub_Map fcoder_submaps_for_default[3] = {
 {"mapid_file", 10, "TODO", 4, 0, 0, fcoder_binds_for_default_mapid_file, 65},
 {"default_code_map", 16, "TODO", 4, "mapid_file", 10, fcoder_binds_for_default_default_code_map, 30},
 };
-static Meta_Key_Bind fcoder_binds_for_mac_default_mapid_global[46] = {
+static Meta_Key_Bind fcoder_binds_for_mac_default_mapid_global[48] = {
 {0, 112, 4, "open_panel_vsplit", 17, LINK_PROCS(open_panel_vsplit)},
 {0, 95, 4, "open_panel_hsplit", 17, LINK_PROCS(open_panel_hsplit)},
 {0, 80, 4, "close_panel", 11, LINK_PROCS(close_panel)},
@@ -517,6 +519,8 @@ static Meta_Key_Bind fcoder_binds_for_mac_default_mapid_global[46] = {
 {0, 64, 1, "toggle_mouse", 12, LINK_PROCS(toggle_mouse)},
 {0, 55305, 4, "toggle_fullscreen", 17, LINK_PROCS(toggle_fullscreen)},
 {0, 69, 1, "exit_4coder", 11, LINK_PROCS(exit_4coder)},
+{0, 43, 1, "increase_face_size", 18, LINK_PROCS(increase_face_size)},
+{0, 45, 1, "decrease_face_size", 18, LINK_PROCS(decrease_face_size)},
 {0, 55312, 0, "project_fkey_command", 20, LINK_PROCS(project_fkey_command)},
 {0, 55313, 0, "project_fkey_command", 20, LINK_PROCS(project_fkey_command)},
 {0, 55314, 0, "project_fkey_command", 20, LINK_PROCS(project_fkey_command)},
@@ -597,7 +601,7 @@ static Meta_Key_Bind fcoder_binds_for_mac_default_mapid_file[63] = {
 {0, 126, 4, "clean_all_lines", 15, LINK_PROCS(clean_all_lines)},
 {0, 10, 0, "newline_or_goto_position", 24, LINK_PROCS(newline_or_goto_position)},
 {0, 10, 8, "newline_or_goto_position_same_panel", 35, LINK_PROCS(newline_or_goto_position_same_panel)},
-{0, 32, 8, "write_underscore", 16, LINK_PROCS(write_underscore)},
+{0, 32, 8, "write_character", 15, LINK_PROCS(write_character)},
 };
 static Meta_Key_Bind fcoder_binds_for_mac_default_default_code_map[30] = {
 {0, 55300, 4, "seek_alphanumeric_or_camel_right", 32, LINK_PROCS(seek_alphanumeric_or_camel_right)},
@@ -632,7 +636,7 @@ static Meta_Key_Bind fcoder_binds_for_mac_default_default_code_map[30] = {
 {0, 73, 4, "list_all_functions_current_buffer", 33, LINK_PROCS(list_all_functions_current_buffer)},
 };
 static Meta_Sub_Map fcoder_submaps_for_mac_default[3] = {
-{"mapid_global", 12, "TODO", 4, 0, 0, fcoder_binds_for_mac_default_mapid_global, 46},
+{"mapid_global", 12, "TODO", 4, 0, 0, fcoder_binds_for_mac_default_mapid_global, 48},
 {"mapid_file", 10, "TODO", 4, 0, 0, fcoder_binds_for_mac_default_mapid_file, 63},
 {"default_code_map", 16, "TODO", 4, "mapid_file", 10, fcoder_binds_for_mac_default_default_code_map, 30},
 };

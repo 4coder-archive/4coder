@@ -12,7 +12,7 @@
 #if !defined(FRED_FILE_MOVING_H)
 #define FRED_FILE_MOVING_H
 
-#include "../4ed_os_comp_cracking.h"
+#include "../4coder_os_comp_cracking.h"
 
 #include <stdio.h>  // include system for windows
 #include <stdlib.h> // include system for linux   (YAY!)

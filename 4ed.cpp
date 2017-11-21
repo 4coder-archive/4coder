@@ -1480,11 +1480,12 @@ App_Step_Sig(app_step){
         
         for (;system->get_file_change(buffer, buffer_size, &mem_too_small, &size);){
             Assert(!mem_too_small);
-            Editing_File_Canon_Name canon;
+            Editing_File_Canon_Name canon = {0};
             if (get_canon_name(system, &canon, make_string(buffer, size))){
                 Editing_File *file = working_set_canon_contains(working_set, canon.name);
-                if (file){
+                if (file != 0){
                     if (file->state.ignore_behind_os == 0){
+                        
                         file_mark_behind_os(file);
                     }
                     else if (file->state.ignore_behind_os == 1){

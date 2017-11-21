@@ -546,7 +546,7 @@ save_file_to_name(System_Functions *system, Models *models, Editing_File *file, 
         result = system->save_file(filename, data, size);
         
         if (result && using_actual_filename){
-            file->state.ignore_behind_os = true;
+            file->state.ignore_behind_os = 1;
         }
         
         file_mark_clean(file);

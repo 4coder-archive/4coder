@@ -29,7 +29,7 @@ struct Application_Links;
 #define BUFFER_GET_TOKEN_INDEX_SIG(n) bool32 n(Application_Links *app, Buffer_Summary *buffer, int32_t pos, Cpp_Get_Token_Result *get_result)
 #define BUFFER_SEND_END_SIGNAL_SIG(n) bool32 n(Application_Links *app, Buffer_Summary *buffer)
 #define CREATE_BUFFER_SIG(n) Buffer_Summary n(Application_Links *app, char *filename, int32_t filename_len, Buffer_Create_Flag flags)
-#define SAVE_BUFFER_SIG(n) bool32 n(Application_Links *app, Buffer_Summary *buffer, char *filename, int32_t filename_len, uint32_t flags)
+#define SAVE_BUFFER_SIG(n) bool32 n(Application_Links *app, Buffer_Summary *buffer, char *file_name, int32_t file_name_len, uint32_t flags)
 #define KILL_BUFFER_SIG(n) bool32 n(Application_Links *app, Buffer_Identifier buffer, View_ID view_id, Buffer_Kill_Flag flags)
 #define GET_VIEW_FIRST_SIG(n) View_Summary n(Application_Links *app, Access_Flag access)
 #define GET_VIEW_NEXT_SIG(n) void n(Application_Links *app, View_Summary *view, Access_Flag access)
@@ -462,7 +462,7 @@ static inline bool32 buffer_read_tokens(Application_Links *app, Buffer_Summary *
 static inline bool32 buffer_get_token_index(Application_Links *app, Buffer_Summary *buffer, int32_t pos, Cpp_Get_Token_Result *get_result){return(app->buffer_get_token_index(app, buffer, pos, get_result));}
 static inline bool32 buffer_send_end_signal(Application_Links *app, Buffer_Summary *buffer){return(app->buffer_send_end_signal(app, buffer));}
 static inline Buffer_Summary create_buffer(Application_Links *app, char *filename, int32_t filename_len, Buffer_Create_Flag flags){return(app->create_buffer(app, filename, filename_len, flags));}
-static inline bool32 save_buffer(Application_Links *app, Buffer_Summary *buffer, char *filename, int32_t filename_len, uint32_t flags){return(app->save_buffer(app, buffer, filename, filename_len, flags));}
+static inline bool32 save_buffer(Application_Links *app, Buffer_Summary *buffer, char *file_name, int32_t file_name_len, uint32_t flags){return(app->save_buffer(app, buffer, file_name, file_name_len, flags));}
 static inline bool32 kill_buffer(Application_Links *app, Buffer_Identifier buffer, View_ID view_id, Buffer_Kill_Flag flags){return(app->kill_buffer(app, buffer, view_id, flags));}
 static inline View_Summary get_view_first(Application_Links *app, Access_Flag access){return(app->get_view_first(app, access));}
 static inline void get_view_next(Application_Links *app, View_Summary *view, Access_Flag access){(app->get_view_next(app, view, access));}
@@ -547,7 +547,7 @@ static inline bool32 buffer_read_tokens(Application_Links *app, Buffer_Summary *
 static inline bool32 buffer_get_token_index(Application_Links *app, Buffer_Summary *buffer, int32_t pos, Cpp_Get_Token_Result *get_result){return(app->buffer_get_token_index_(app, buffer, pos, get_result));}
 static inline bool32 buffer_send_end_signal(Application_Links *app, Buffer_Summary *buffer){return(app->buffer_send_end_signal_(app, buffer));}
 static inline Buffer_Summary create_buffer(Application_Links *app, char *filename, int32_t filename_len, Buffer_Create_Flag flags){return(app->create_buffer_(app, filename, filename_len, flags));}
-static inline bool32 save_buffer(Application_Links *app, Buffer_Summary *buffer, char *filename, int32_t filename_len, uint32_t flags){return(app->save_buffer_(app, buffer, filename, filename_len, flags));}
+static inline bool32 save_buffer(Application_Links *app, Buffer_Summary *buffer, char *file_name, int32_t file_name_len, uint32_t flags){return(app->save_buffer_(app, buffer, file_name, file_name_len, flags));}
 static inline bool32 kill_buffer(Application_Links *app, Buffer_Identifier buffer, View_ID view_id, Buffer_Kill_Flag flags){return(app->kill_buffer_(app, buffer, view_id, flags));}
 static inline View_Summary get_view_first(Application_Links *app, Access_Flag access){return(app->get_view_first_(app, access));}
 static inline void get_view_next(Application_Links *app, View_Summary *view, Access_Flag access){(app->get_view_next_(app, view, access));}

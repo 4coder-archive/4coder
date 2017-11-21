@@ -11,6 +11,8 @@ TYPE: 'major-system-include'
 
 #include "4coder_API/custom.h"
 
+#include "4coder_os_comp_cracking.h"
+
 #include "4coder_default_framework.h"
 #include "4coder_base_commands.cpp"
 #include "4coder_auto_indent.cpp"
@@ -718,7 +720,10 @@ CUSTOM_DOC("Execute a 'long form' command.")
         setup_new_project(app);
     }
     else if (match_ss(bar.string, make_lit_string("delete file"))){
-        delete_file(app);
+        delete_file_query(app);
+    }
+    else if (match_ss(bar.string, make_lit_string("rename file"))){
+        rename_file_query(app);
     }
     else{
         print_message(app, literal("unrecognized command\n"));

@@ -202,6 +202,8 @@ ENUM(uint32_t, Buffer_Create_Flag){
     BufferCreate_AlwaysNew  = 0x2,
     /* DOC(When BufferCreate_NeverNew is set it indicates that the buffer should only be created if it is an existing file or if a buffer with the given name is already open.) */
     BufferCreate_NeverNew   = 0x4,
+    /* DOC(When BufferCreate_JustChangedFile is set it indicates that the file to load has just been saved in the same frame and a change notification for the file should be ignored.) */
+    BufferCreate_JustChangedFile = 0x8,
 };
 
 
@@ -211,6 +213,12 @@ STRUCT Buffer_Creation_Data{
     Buffer_Create_Flag flags;
     char fname_space [256];
     int32_t fname_len;
+};
+
+/* DOC(A Buffer_Save_Flag field specifies buffer saving behavior.) */
+ENUM(uint32_t, Buffer_Save_Flag){
+    /* DOC(BufferSave_IgnoreDirtyFlag tells the save procedure not to check the dirty flag of the buffer. Usually buffers not marked dirty will not be saved, but sometimes it is useful to force it to save anyway. ) */
+    BufferSave_IgnoreDirtyFlag = 0x1,
 };
 
 /* DOC(A Buffer_Kill_Flag field specifies how a buffer should be killed.) */

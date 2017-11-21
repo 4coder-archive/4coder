@@ -12,7 +12,7 @@
 #if !defined(FTECH_DEFINES)
 #define FTECH_DEFINES
 
-#include "4ed_os_comp_cracking.h"
+#include "4coder_os_comp_cracking.h"
 
 #include <stdint.h>
 

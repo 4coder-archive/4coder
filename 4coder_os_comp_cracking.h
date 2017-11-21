@@ -9,8 +9,8 @@
 
 // TOP
 
-#if !defined(FRED_OS_COMP_CRACKING_H)
-#define FRED_OS_COMP_CRACKING_H
+#if !defined(FCODER_OS_COMP_CRACKING_H)
+#define FCODER_OS_COMP_CRACKING_H
 
 #if defined(_MSC_VER) /* COMPILER */
 
@@ -28,7 +28,7 @@
 #  error This compiler/platform combo is not supported yet
 # endif
 
-# if defined(_M_AMD64) /* Arch */
+# if defined(_M_AMD64) /* Architecture */
 #  define CALL_CONVENTION
 #  define BUILD_X64
 # elif defined(_M_IX86)
@@ -53,7 +53,7 @@
 # endif
 
 #else
-#error This compiler is not supported yet
+# error This compiler is not supported yet
 #endif
 
 #endif

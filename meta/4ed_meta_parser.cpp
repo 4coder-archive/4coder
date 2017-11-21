@@ -1203,7 +1203,7 @@ compile_meta_unit(char *code_directory, char **files, Meta_Keywords *meta_keywor
         char str_space[512];
         String name = make_fixed_width_string(str_space);
         append_sc(&name, code_directory);
-#ifdef _WIN32
+#if defined(_WIN32)
         append_sc(&name, "\\");
 #else
         append_sc(&name, "/");

@@ -49,11 +49,11 @@ get_context_on_global_part(void){
 CUSTOM_COMMAND_SIG(set_bindings_choose)
 CUSTOM_DOC("Remap keybindings using the 'choose' mapping rule.")
 {
-#if defined(_WIN32) || defined(__linux__)
+#if defined(IS_WINDOWS) || defined(IS_LINUX)
     
     set_bindings_default(app);
     
-#elif defined(__APPLE__) && defined(__MACH__)
+#elif defined(IS_MAC)
     
     set_bindings_mac_default(app);
     

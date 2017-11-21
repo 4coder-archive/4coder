@@ -1314,7 +1314,7 @@ DOC_SEE(Buffer_Create_Flag)
                 if (system->load_file(handle, buffer, size)){
                     system->load_close(handle);
                     file = working_set_alloc_always(working_set, general);
-                    if (file){
+                    if (file != 0){
                         buffer_bind_file(system, general, working_set, file, canon.name);
                         buffer_bind_name(general, working_set, file, fname);
                         init_normal_file(system, models, file, buffer, size);
@@ -1334,6 +1334,10 @@ DOC_SEE(Buffer_Create_Flag)
             fill_buffer_summary(&result, file, cmd);
         }
         
+        if (file != 0 && (flags & BufferCreate_JustChangedFile)){
+            file->state.ignore_behind_os = 1;
+        }
+        
         end_temp_memory(temp);
     }
     
@@ -1341,28 +1345,36 @@ DOC_SEE(Buffer_Create_Flag)
 }
 
 API_EXPORT bool32
-Save_Buffer(Application_Links *app, Buffer_Summary *buffer, char *filename, int32_t filename_len, uint32_t flags)
+Save_Buffer(Application_Links *app, Buffer_Summary *buffer, char *file_name, int32_t file_name_len, uint32_t flags)
 /*
 DOC_PARAM(buffer, The buffer parameter specifies the buffer to save to a file.)
-DOC_PARAM(filename, The filename parameter specifies the name of the file to write with the contents of the buffer; it need not be null terminated.)
-DOC_PARAM(filename_len, The filename_len parameter specifies the length of the filename string.)
-DOC_PARAM(flags, This parameter is not currently used and should be set to 0 for now.)
+DOC_PARAM(file_name, The file_name parameter specifies the name of the file to write with the contents of the buffer; it need not be null terminated.)
+DOC_PARAM(file_name_len, The file_name_len parameter specifies the length of the file_name string.)
+DOC_PARAM(flags, Specifies special behaviors for the save routine.)
 DOC_RETURN(This call returns non-zero on success.)
-DOC(Often it will make sense to set filename and filename_len to buffer.filename and buffer.filename_len)
+DOC(Often it will make sense to set file_name and file_name_len to buffer.file_name and buffer.file_name_len)
+DOC_SEE(Buffer_Save_Flag)
 */{
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     System_Functions *system = cmd->system;
     Models *models = cmd->models;
-    bool32 result = 0;
+    bool32 result = false;
     
     Editing_File *file = imp_get_file(cmd, buffer);
-    if (file){
-        if (file_get_sync(file) != DirtyState_UpToDate){
-            result = 1;
+    if (file != 0){
+        b32 skip_save = false;
+        if (!(flags & BufferSave_IgnoreDirtyFlag)){
+            if (file_get_sync(file) == DirtyState_UpToDate){
+                skip_save = true;
+            }
+        }
+        
+        if (!skip_save){
+            result = true;
             
             Partition *part = &models->mem.part;
             Temp_Memory temp = begin_temp_memory(part);
-            String name = make_string_terminated(part, filename, filename_len);
+            String name = make_string_terminated(part, file_name, file_name_len);
             save_file_to_name(system, models, file, name.str);
             end_temp_memory(temp);
         }

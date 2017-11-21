@@ -918,12 +918,12 @@ CUSTOM_DOC("Queries the user for two strings, and replaces all occurences of the
 }
 
 static void
-query_replace(Application_Links *app, View_Summary *view, Buffer_Summary *buffer, int32_t pos, String r, String w){
+query_replace_base(Application_Links *app, View_Summary *view, Buffer_Summary *buffer, int32_t pos, String r, String w){
     int32_t new_pos = 0;
     buffer_seek_string_forward(app, buffer, pos, 0, r.str, r.size, &new_pos);
     
     User_Input in = {0};
-    while (new_pos < buffer->size){
+    for (;new_pos < buffer->size;){
         Range match = make_range(new_pos, new_pos + r.size);
         view_set_highlight(app, view, match.min, match.max, 1);
         
@@ -976,7 +976,7 @@ query_replace_parameter(Application_Links *app, String replace_str, int32_t star
     bar.string = null_string;
     start_query_bar(app, &bar, 0);
     
-    query_replace(app, &view, &buffer, pos, r, w);
+    query_replace_base(app, &view, &buffer, pos, r, w);
 }
 
 CUSTOM_COMMAND_SIG(query_replace)
@@ -1035,8 +1035,31 @@ CUSTOM_DOC("Saves all buffers marked dirty (showing the '*' indicator).")
     }
 }
 
-CUSTOM_COMMAND_SIG(delete_file)
-CUSTOM_DOC("Deletes the file of the current buffer if 4coder has the appropriate access rights.")
+static void
+delete_file_base(Application_Links *app, String file_name, Buffer_ID buffer_id){
+    String path = path_of_directory(file_name);
+    
+    char space[4096];
+    String cmd = make_fixed_width_string(space);
+    
+#if defined(IS_WINDOWS)
+    append(&cmd, "del ");
+#elif defined(IS_LINUX) || defined(IS_MAC)
+    append(&cmd, "rm ");
+#else
+# error no delete file command for this platform
+#endif
+    append(&cmd, '"');
+    append(&cmd, front_of_directory(file_name));
+    append(&cmd, '"');
+    
+    exec_system_command(app, 0, buffer_identifier(0), path.str, path.size, cmd.str, cmd.size, 0);
+    
+    kill_buffer(app, buffer_identifier(buffer_id), 0, BufferKill_AlwaysKill);
+}
+
+CUSTOM_COMMAND_SIG(delete_file_query)
+CUSTOM_DOC("Deletes the file of the current buffer if 4coder has the appropriate access rights. Will ask the user for confirmation first.")
 {
     View_Summary view = get_active_view(app, AccessAll);
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessAll);
@@ -1045,23 +1068,61 @@ CUSTOM_DOC("Deletes the file of the current buffer if 4coder has the appropriate
         String file_name = {0};
         file_name = make_string(buffer.file_name, buffer.file_name_len);
         
-        String path = path_of_directory(file_name);
-        
         char space[4096];
-        String cmd = make_fixed_width_string(space);
+        Query_Bar bar;
+        bar.prompt = make_fixed_width_string(space);
+        append(&bar.prompt, "Delete '");
+        append(&bar.prompt, file_name);
+        append(&bar.prompt, "' (Y)es, (n)o");
+        bar.string = null_string;
+        if (start_query_bar(app, &bar, 0) == 0) return;
         
-#if defined(_WIN32)
-        append(&cmd, "del ");
-#elif defined(__linux__) || (defined(__APPLE__) && defined(__MACH__))
-        append(&cmd, "rm ");
-#else
-# error no delete file command for this platform
-#endif
-        append(&cmd, front_of_directory(file_name));
+        User_Input in = get_user_input(app, EventOnAnyKey, 0);
+        if (in.key.keycode != 'Y') return;
         
-        exec_system_command(app, 0, buffer_identifier(0), path.str, path.size, cmd.str, cmd.size, 0);
-        
-        kill_buffer(app, buffer_identifier(buffer.buffer_id), view.view_id, BufferKill_AlwaysKill);
+        delete_file_base(app, file_name, buffer.buffer_id);
+    }
+}
+
+CUSTOM_COMMAND_SIG(rename_file_query)
+CUSTOM_DOC("Queries the user for a new name and renames the file of the current buffer, altering the buffer's name too.")
+{
+    View_Summary view = get_active_view(app, AccessAll);
+    Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessAll);
+    
+    if (buffer.file_name != 0){
+        char file_name_space[4096];
+        String file_name = make_fixed_width_string(file_name_space);
+        if (copy_checked(&file_name, make_string(buffer.file_name, buffer.file_name_len))){
+            // Query the user
+            Query_Bar bar;
+            
+            char prompt_space[4096];
+            bar.prompt = make_fixed_width_string(prompt_space);
+            append(&bar.prompt, "Rename '");
+            append(&bar.prompt, front_of_directory(file_name));
+            append(&bar.prompt, "' to: ");
+            
+            char name_space[4096];
+            bar.string = make_fixed_width_string(name_space);
+            if (!query_user_string(app, &bar)) return;
+            if (bar.string.size == 0) return;
+            
+            // TODO(allen): There should be a way to say, "detach a buffer's file" and "attach this file to a buffer"
+            
+            char new_file_name_space[4096];
+            String new_file_name = make_fixed_width_string(new_file_name_space);
+            copy(&new_file_name, file_name);
+            remove_last_folder(&new_file_name);
+            append(&new_file_name, bar.string);
+            terminate_with_null(&new_file_name);
+            
+            if (save_buffer(app, &buffer, new_file_name.str, new_file_name.size, BufferSave_IgnoreDirtyFlag)){
+                delete_file_base(app, file_name, buffer.buffer_id);
+                Buffer_Summary new_buffer = create_buffer(app, new_file_name.str, new_file_name.size, BufferCreate_NeverNew|BufferCreate_JustChangedFile);
+                view_set_buffer(app, &view, new_buffer.buffer_id, 0);
+            }
+        }
     }
 }
 

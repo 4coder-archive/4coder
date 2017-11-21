@@ -108,7 +108,7 @@ standard_build_search(Application_Links *app, View_Summary *view, Buffer_Summary
     return(result);
 }
 
-#if defined(_WIN32)
+#if defined(IS_WINDOWS)
 
 // NOTE(allen): Build search rule for windows.
 static int32_t
@@ -119,7 +119,7 @@ execute_standard_build_search(Application_Links *app, View_Summary *view,
     return(result);
 }
 
-#elif defined(__linux__) || (defined(__APPLE__) && defined(__MACH__))
+#elif defined(IS_LINUX) || defined(IS_MAC)
 
 // NOTE(allen): Build search rule for linux and mac.
 static int32_t
