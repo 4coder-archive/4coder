@@ -346,12 +346,12 @@ Sys_Font_Path(name, parameters){
     }
     
     OSX_Font_Match match = osx_get_font_match(name, pt_size, italic, bold);
-    
+
     Font_Path path = {0};
+    Partition *part = &shared_vars.font_scratch;
+    path.temp = begin_temp_memory(part);
+
     if (match.path != 0){
-        Partition *part = &shared_vars.font_scratch;
-        path.temp = begin_temp_memory(part);
-        
         i32 len = str_size(match.path);
         char *buffer = push_array(part, char, len + 1);
         if (buffer == 0){
