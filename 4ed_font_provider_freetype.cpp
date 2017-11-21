@@ -50,7 +50,10 @@ font_ft_get_face(FT_Library ft, Font_Loadable_Stub *stub, Font_Parameters *param
                 if (path.len > 0){
                     FT_Error error = FT_New_Face(ft, path.name, 0, face);
                     success = (error == 0);
-                    do_transform = (success && path.used_base_file);
+                    if (success){
+                        success = match((*face)->family_name, stub->name);
+                        do_transform = (success && path.used_base_file);
+                    }
                 }
                 else{
                     success = false;
