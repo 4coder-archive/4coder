@@ -39,7 +39,7 @@
 #include "4ed_buffer_model.h"
 
 #define FCPP_FORBID_MALLOC
-#include "4cpp/4cpp_lexer.h"
+#include "4coder_lib/4cpp_lexer.h"
 
 #include "4ed_linked_node_macros.h"
 #include "4ed_log.h"

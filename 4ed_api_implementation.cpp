@@ -2241,6 +2241,9 @@ DOC(This call changes 4coder's color pallet to one of the built in themes.)
 
 API_EXPORT Face_ID
 Get_Largest_Face_ID(Application_Links *app)
+/*
+DOC_RETURN(Returns the largest face ID that could be valid.  There is no guarantee that the returned value is a valid face, or that every face less than the returned value is valid.  The guarantee is that all valid face ids are in the range between 1 and the return value.)
+*/
 {
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     System_Functions *system = cmd->system;
@@ -2250,6 +2253,12 @@ Get_Largest_Face_ID(Application_Links *app)
 
 API_EXPORT bool32
 Set_Global_Face(Application_Links *app, Face_ID id, bool32 apply_to_all_buffers)
+/*
+DOC_PARAM(id, The id of the face to try to make the global face.)
+DOC_PARAM(apply_to_all_buffers, If the face is valid, apply the face to change to all open buffers as well as setting the global default.)
+DOC(Tries to set the global default face, which new buffers will use upon creation.)
+DOC_RETURN(Returns true if the given id was a valid face and the change was made successfully.)
+*/
 {
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     System_Functions *system = cmd->system;
@@ -2274,6 +2283,12 @@ Set_Global_Face(Application_Links *app, Face_ID id, bool32 apply_to_all_buffers)
 
 API_EXPORT bool32
 Buffer_Set_Face(Application_Links *app, Buffer_Summary *buffer, Face_ID id)
+/*
+DOC_PARAM(buffer, The buffer on which to change the face.)
+DOC_PARAM(id, The id of the face to try to set the buffer to use.)
+DOC(Tries to set the buffer's face.)
+DOC_RETURN(Returns true if the given id was a valid face and the change was made successfully.)
+*/
 {
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     Editing_File *file = imp_get_file(cmd, buffer);
@@ -2354,6 +2369,14 @@ face_description_to_settings(System_Functions *system, Face_Description descript
 
 API_EXPORT Face_Description
 Get_Face_Description(Application_Links *app, Face_ID id)
+/*
+DOC_PARAM(id, The face slot from which to read a description.  If zero gets default values.)
+DOC(Fills out the values of a Face_Description struct, which includes all the information that determines the appearance of the face.  If the id does not specify a valid face the description will be invalid.  An invalid description has a zero length string in it's font.name field (i.e. description.font.name[0] == 0), and a valid description always contains a non-zero length string in the font.name field (i.e. description.font.name[0] != 0)
+
+If the input id is zero, the description returned will be invalid, but the pt_size and hinting fields will reflect the default values for those fields as specified on the command line.  The default values, if unspecified, are pt_size=16 and hinting=false.  Note that the id of zero is reserved and is never a valid face.)
+DOC_RETURN(Returns a Face_Description that is valid if the id references a valid face slot and is filled with the description of the face.  Otherwise returns an invalid Face_Description.)
+DOC_SEE(Face_Description)
+*/
 {
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     System_Functions *system = cmd->system;
@@ -2377,6 +2400,11 @@ Get_Face_Description(Application_Links *app, Face_ID id)
 
 API_EXPORT Face_ID
 Get_Face_ID(Application_Links *app, Buffer_Summary *buffer)
+/*
+DOC_PARAM(buffer, The buffer from which to get a face id.  If NULL gets global face id.)
+DOC(Retrieves a face id if buffer is a valid Buffer_Summary.  If buffer is set to NULL, the parameter is ignored and the global default face is returned.)
+DOC_RETURN(On success a valid Face_ID, otherwise returns zero.)
+*/
 {
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     
@@ -2397,6 +2425,20 @@ Get_Face_ID(Application_Links *app, Buffer_Summary *buffer)
 
 API_EXPORT Face_ID
 Try_Create_New_Face(Application_Links *app, Face_Description *description)
+/*
+DOC_PARAM(description, A description of the new face to try to create.)
+DOC(Attempts to create a new face and configure it with the provided description.  This call can fail for a number of reasons:
+
+- If the description's font field is not one of the available fonts no face is created.
+
+- If the specified font cannot actually be loaded by the 4coder font system no face is created.
+
+- If the specified font with the specified configuration is too large or too small no face is created.
+
+Note, not all fonts will support all styles.  The fields for italic, bold, underline, and hinting, are only requests that the system try to apply these configurations, but if any cannot be done the face will still be created but without the unsupported configurations.  4coder does not try to simulate the effects of missing styles.)
+DOC_RETURN(Returns a new valid face id if the font system successfully instanatiates the new face, otherwise returns zero.  Note that zero is a reserved id and is never a valid id.)
+DOC_SEE(Face_Description)
+*/
 {
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     System_Functions *system = cmd->system;
@@ -2412,6 +2454,17 @@ Try_Create_New_Face(Application_Links *app, Face_Description *description)
 
 API_EXPORT bool32
 Try_Modify_Face(Application_Links *app, Face_ID id, Face_Description *description)
+/*
+DOC_PARAM(id, The id of the face slot to try to modify.)
+DOC_PARAM(description, The new description for the face slot to use.)
+DOC(Attempts to modify the face in a particular face slot.  If successful all buffers using the face will continue using the same face slot, and will therefore change appearance to the new configuration of the face slot.
+
+This call can fail for all the same reasons that try_create_new_face can fail, and the same rules about failure to apply specific styles also apply.  If the call does fail, the original configuration of the face slot stays in place.  A valid face slot should never become invalid except by releasing it.
+
+Performance Warning: Modifying a face slot should only be done a couple of times per frame in most cases.  Not only does this call reconfigure a slot, it also recomputes the layout for all buffers that use this face slot.)
+DOC_RETURN(Returns true on success and false on failure.)
+DOC_SEE(try_create_new_face)
+*/
 {
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     System_Functions *system = cmd->system;
@@ -2430,6 +2483,16 @@ Try_Modify_Face(Application_Links *app, Face_ID id, Face_Description *descriptio
 
 API_EXPORT bool32
 Try_Release_Face(Application_Links *app, Face_ID id, Face_ID replacement_id)
+/*
+DOC_PARAM(id, The id of the face slot to release.)
+DOC_PARAM(replacement_id, Optional.  Specifies what buffers that were using id should switch to after the release.)
+DOC(Attempts to release the slot referred to by id.  If successful all buffers using the face will switch to using a new valid face, and will therefore change appearance to the new face slot.  If replacement_id refers to a valid face slot, it will be used for the new slot, otherwise the slot is chosen arbitrarily out of the remaining valid faces.
+
+This call can fail if the id does not name a valid face slot, or if there is only one face slot left in the system.
+
+Performance Warning: Releasing a face slot should only be done a couple of times per frame in most cases.  Not only does it release all the resources used by the slot, it also recomputes the layout for all buffers that used the released slot.  If no buffers use the slots that are released, it is generally okay to use it more frequently.)
+DOC_RETURN(Returns true on success and zero on failure.)
+*/
 {
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     System_Functions *system = cmd->system;
@@ -2445,6 +2508,10 @@ Try_Release_Face(Application_Links *app, Face_ID id, Face_ID replacement_id)
 
 API_EXPORT int32_t
 Get_Available_Font_Count(Application_Links *app)
+/*
+DOC(An available font is a font that the 4coder font system detected on initialization.  Available fonts either come from the font folder in the same path as the 4ed executable, or from the system fonts.  Attempting to load fonts not in returned by available fonts will likely fail, but is permitted.  Available fonts are not updated after initialization.  Just because a font is returned by the available font system does not necessarily mean that it can be loaded.)
+DOC_RETURN(Returns the number of available fonts that the user can query.)
+*/
 {
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     System_Functions *system = cmd->system;
@@ -2454,6 +2521,11 @@ Get_Available_Font_Count(Application_Links *app)
 
 API_EXPORT Available_Font
 Get_Available_Font(Application_Links *app, int32_t index)
+/*
+DOC_PARAM(index, The index of the available font to retrieve.  Must be in the range [0,count-1] where count is the value returned by get_available_font_count.)
+DOC_RETURN(Returns a valid Available_Font if index is in the required range.  Otherwise returns an invalid Available_Font.  An Available_Font is valid if and only if it's name field contains a string with a non-zero length (i.e. font.name[0] != 0))
+DOC_SEE(get_available_font_count)
+*/
 {
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     System_Functions *system = cmd->system;

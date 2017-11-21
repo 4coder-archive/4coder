@@ -51,9 +51,9 @@ typedef int32_t bool32;
 
 #define ArrayCount(a) (sizeof(a)/sizeof(*a))
 
-#define LEXER_TABLE_FILE "4cpp/4cpp_lexer_tables.c"
+#define LEXER_TABLE_FILE "4coder_lib/4cpp_lexer_tables.c"
 
-#include "../4cpp/4cpp_lexer_types.h"
+#include "../4coder_lib/4cpp_lexer_types.h"
 #include "../4ed_mem_ansi.c"
 
 struct Whitespace_FSM{

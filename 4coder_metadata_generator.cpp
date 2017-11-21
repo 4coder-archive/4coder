@@ -11,7 +11,7 @@ TYPE: 'code-preprocessor'
 #include "4coder_lib/4coder_mem.h"
 #define FSTRING_IMPLEMENTATION
 #include "4coder_lib/4coder_string.h"
-#include "4cpp/4cpp_lexer.h"
+#include "4coder_lib/4cpp_lexer.h"
 
 #define str_to_l_c(s) ((s).size), ((s).str)
 #define str_to_c_l(s) ((s).str), ((s).size)

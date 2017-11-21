@@ -19,7 +19,7 @@
 #define BACKUP_FOLDER ".." SLASH ".." SLASH "string_backup"
 #define PUBLISH_FOLDER ".." SLASH "4coder_helper"
 
-#include "../4cpp/4cpp_lexer.h"
+#include "../4coder_lib/4cpp_lexer.h"
 #define FSTRING_IMPLEMENTATION
 #include "../4coder_lib/4coder_string.h"
 

@@ -77,15 +77,6 @@ font_ft_get_face(FT_Library ft, Font_Loadable_Stub *stub, Font_Parameters *param
         }
     }
     
-#if 0
-    if (do_transform && parameters != 0){
-        if (parameters->italics || parameters->bold){
-            FT_Matrix matrix = {0};
-            FT_Set_Transform(face, &matrix, 0);
-        }
-    }
-#endif
-    
     return(success);
 }
 

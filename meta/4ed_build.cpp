@@ -665,7 +665,7 @@ package(char *cdir){
                 fm_copy_folder(cdir, dir, "4coder_API");
                 fm_copy_folder(cdir, dir, "4coder_helper");
                 fm_copy_folder(cdir, dir, "4coder_lib");
-                fm_copy_folder(cdir, dir, "4cpp");
+                fm_copy_folder(cdir, dir, "4coder_generated");
                 fm_copy_folder(cdir, dir, "languages");
             }
             

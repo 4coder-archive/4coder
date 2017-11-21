@@ -9,7 +9,7 @@
 
 #include "4coder_helper/4coder_streaming.h"
 #include "4coder_lib/4coder_mem.h"
-#include "4cpp/4cpp_lexer.h"
+#include "4coder_lib/4cpp_lexer.h"
 
 //
 // Whitespace Based Seeks
