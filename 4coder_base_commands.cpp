@@ -1052,7 +1052,7 @@ CUSTOM_DOC("Deletes the file of the current buffer if 4coder has the appropriate
         
 #if defined(_WIN32)
         append(&cmd, "del ");
-#elif defined(__linux__) && defined(__APPLE__) && defined(__MACH__)
+#elif defined(__linux__) || (defined(__APPLE__) && defined(__MACH__))
         append(&cmd, "rm ");
 #else
 # error no delete file command for this platform
