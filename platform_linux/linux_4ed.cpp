@@ -514,6 +514,9 @@ Sys_Font_Path(name, parameters){
         }
     }
     
+    Partition *part = &shared_vars.font_scratch;
+    path.temp = begin_temp_memory(part);
+    
     b32 got_font = false;
     if (pattern_styled != 0){
         if (FcConfigSubstitute(fc_config, pattern_styled, FcMatchPattern)){
@@ -526,8 +529,6 @@ Sys_Font_Path(name, parameters){
             if (font != 0){
                 FcPatternGetString(font, FC_FILE, 0, &filename);
                 if (filename != 0){
-                    Partition *part = &shared_vars.font_scratch;
-                    path.temp = begin_temp_memory(part);
                     i32 len = str_size((char*)filename);
                     char *buffer = push_array(part, char, len + 1);
                     if (buffer == 0){
@@ -563,8 +564,6 @@ Sys_Font_Path(name, parameters){
             if (font != 0){
                 FcPatternGetString(font, FC_FILE, 0, &filename);
                 if (filename != 0){
-                    Partition *part = &shared_vars.font_scratch;
-                    path.temp = begin_temp_memory(part);
                     i32 len = str_size((char*)filename);
                     char *buffer = push_array(part, char, len + 1);
                     if (buffer == 0){
