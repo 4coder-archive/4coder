@@ -77,13 +77,19 @@ encode(Partition *part, char *str){
         exit(1);
     }
     
-    for (int32_t i = 0, j = 0; i <= size; ++i){
+    int32_t j = 0;
+    for (int32_t i = 0; i <= size; ++i){
         if (str[i] != '"'){
             out[j++] = str[i];
         }
     }
     
-    return(out);
+    // TODO(NAME): WHY DOESN'T THIS WORK!?
+    String fixer_str = make_string_cap(out, j, size + 1);
+    fixer_str = skip_chop_whitespace(fixer_str);
+    fixer_str.str[fixer_str.size] = 0;
+    
+    return(fixer_str.str);
 }
 
 static char*

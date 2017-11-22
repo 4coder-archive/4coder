@@ -40,9 +40,9 @@ DEBUG=-g
 
 cd "$REAL_PWD"
 g++ -I"$CODE_HOME" $FLAGS $DEBUG -std=gnu++0x "$CODE_HOME/4coder_metadata_generator.cpp" -o metadata_generator
-metadata_generator -R "$CODE_HOME " "$CODE_HOME "
+./metadata_generator -R "$CODE_HOME" "$CODE_HOME"
 
 g++ -I"$CODE_HOME" $FLAGS $DEBUG -std=gnu++0x "$SOURCE" -shared -o custom_4coder.so -fPIC
 
-
+rm metadata_generator
 
