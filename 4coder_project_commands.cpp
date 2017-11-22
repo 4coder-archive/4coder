@@ -744,13 +744,13 @@ CUSTOM_DOC("Queries the user for several configuration options and initializes a
                 fprintf(sh_script, "OPTS=%.*s\n", 
                         default_flags_sh.size, default_flags_sh.str);
                 
-                fprintf(sh_script, "pushd %.*s > /dev/null\n", 
+                fprintf(sh_script, "cd %.*s > /dev/null\n", 
                         output_dir.size, output_dir.str);
                 fprintf(sh_script, "%.*s $OPTS $CODE_HOME/%.*s -o %.*s\n",
                         default_compiler_sh.size, default_compiler_sh.str,
                         code_file.size, code_file.str,
                         binary_file.size, binary_file.str);
-                fprintf(sh_script, "popd > /dev/null\n");
+                fprintf(sh_script, "cd $CODE_HOME > /dev/null\n");
                 
                 fclose(sh_script);
             }
