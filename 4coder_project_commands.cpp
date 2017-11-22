@@ -750,7 +750,7 @@ CUSTOM_DOC("Queries the user for several configuration options and initializes a
                         default_compiler_sh.size, default_compiler_sh.str,
                         code_file.size, code_file.str,
                         binary_file.size, binary_file.str);
-                fprintf(sh_script, "popd\n");
+                fprintf(sh_script, "popd > /dev/null\n");
                 
                 fclose(sh_script);
             }
