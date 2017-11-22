@@ -8,6 +8,8 @@ TYPE: 'code-preprocessor'
 
 #define COMMAND_METADATA_OUT "4coder_generated/command_metadata.h"
 
+#include "4coder_os_comp_cracking.h"
+
 #include "4coder_lib/4coder_mem.h"
 #define FSTRING_IMPLEMENTATION
 #include "4coder_lib/4coder_string.h"
@@ -22,11 +24,24 @@ TYPE: 'code-preprocessor'
 
 typedef int32_t bool32;
 
+#if defined(IS_WINDOWS)
+
 //// WINDOWS BEGIN ////
 #define UNICODE
 #include <Windows.h>
 typedef TCHAR Filename_Character;
 //// WINDOWS END ////
+
+#elif defined(IS_LINUX) || defiend(IS_MAC)
+
+//// UNIX BEGIN ////
+#include <dirent.h>
+typedef char Filename_Character;
+//// UNIX END ////
+
+#else
+# error metdata generator not supported on this platform
+#endif
 
 struct File_Info{
     Filename_Character *name;
@@ -45,12 +60,52 @@ static File_List
 get_file_list(Partition *part, Filename_Character *dir);
 
 static Filename_Character*
-encode(Partition *part, char *str);
+encode(Partition *part, char *str){
+    int32_t size = 0;
+    for (;str[size]!=0;++size);
+    
+    Filename_Character *out = push_array(part, Filename_Character, size + 1);
+    push_align(part, 8);
+    
+    if (out == 0){
+        fprintf(stdout, "fatal error: ran out of memory encoding string to filename\n");
+        exit(1);
+    }
+    
+    for (int32_t i = 0, j = 0; i <= size; ++i){
+        if (str[i] != '"'){
+            out[j++] = str[i];
+        }
+    }
+    
+    return(out);
+}
 
 static char*
-unencode(Partition *part, Filename_Character *str, int32_t len);
+unencode(Partition *part, Filename_Character *str, int32_t len){
+    Temp_Memory temp = begin_temp_memory(part);
+    char *out = push_array(part, char, len + 1);
+    push_align(part, 8);
+    
+    if (out == 0){
+        fprintf(stdout, "fatal error: ran out of memory unencoding string to filename\n");
+        exit(1);
+    }
+    
+    for (int32_t i = 0; i <= len; ++i){
+        if (str[i] <= 127){
+            out[i] = (char)str[i];
+        }
+        else{
+            out = 0;
+            end_temp_memory(temp);
+            break;
+        }
+    }
+    
+    return(out);
+}
 
-//// WINDOWS BEGIN ////
 static bool32
 is_code_file(Filename_Character *name, int32_t len){
     bool32 is_code = false;
@@ -81,6 +136,9 @@ is_code_file(Filename_Character *name, int32_t len){
     return(is_code);
 }
 
+#if defined(IS_WINDOWS)
+
+//// WINDOWS BEGIN ////
 static File_List
 get_file_list(Partition *part, Filename_Character *dir){
     if (part == 0){
@@ -91,9 +149,6 @@ get_file_list(Partition *part, Filename_Character *dir){
         fprintf(stdout, "fatal error: NULL dir passed to %s\n", __FUNCTION__);
         exit(1);
     }
-    
-    File_List list = {0};
-    Temp_Memory part_reset = begin_temp_memory(part);
     
     HANDLE dir_handle =
         CreateFile(dir,
@@ -150,6 +205,9 @@ get_file_list(Partition *part, Filename_Character *dir){
         more_files = FindNextFile(search, &find_data);
     }while(more_files);
     FindClose(search);
+    
+    File_List list = {0};
+    Temp_Memory part_reset = begin_temp_memory(part);
     
     int32_t rounded_char_size = (character_count*sizeof(Filename_Character) + 7)&(~7);
     int32_t memsize = rounded_char_size + file_count*sizeof(File_Info);
@@ -216,54 +274,139 @@ get_file_list(Partition *part, Filename_Character *dir){
     
     return(list);
 }
+//// WINDOWS END ////
 
-static Filename_Character*
-encode(Partition *part, char *str){
-    int32_t size = 0;
-    for (;str[size]!=0;++size);
-    
-    Filename_Character *out = push_array(part, Filename_Character, size + 1);
-    push_align(part, 8);
-    
-    if (out == 0){
-        fprintf(stdout, "fatal error: ran out of memory encoding string to filename\n");
+#elif defined(IS_LINUX) || defiend(IS_MAC)
+
+//// UNIX BEGIN ////
+static File_List
+get_file_list(Partition *part, Filename_Character *dir){
+    if (part == 0){
+        fprintf(stdout, "fatal error: NULL part passed to %s\n", __FUNCTION__);
+        exit(1);
+    }
+    if (dir == 0){
+        fprintf(stdout, "fatal error: NULL dir passed to %s\n", __FUNCTION__);
         exit(1);
     }
     
-    for (int32_t i = 0, j = 0; i <= size; ++i){
-        if (str[i] != '"'){
-            out[j++] = str[i];
-        }
-    }
-    
-    return(out);
-}
-
-static char*
-unencode(Partition *part, Filename_Character *str, int32_t len){
-    Temp_Memory temp = begin_temp_memory(part);
-    char *out = push_array(part, char, len + 1);
-    push_align(part, 8);
-    
-    if (out == 0){
-        fprintf(stdout, "fatal error: ran out of memory unencoding string to filename\n");
+    DIR *dir_handle = opendir(directory);
+    if (dir_handle == 0){
+        fprintf(stdout, "fatal error: could not open directory handle\n");
         exit(1);
     }
     
-    for (int32_t i = 0; i <= len; ++i){
-        if (str[i] <= 127){
-            out[i] = (char)str[i];
+    Filename_Character final_name[4096];
+    int32_t final_length = str_size(dir);
+    if (final_length + 1 > sizeof(final_name)){
+        fprintf(stdout, "fatal error: path name too long for local buffer\n");
+        exit(1);
+    }
+    memcpy(final_name, dir, final_length + 1);
+    
+    int32_t character_count = 0;
+    int32_t file_count = 0;
+    for (struct dirent *entry = readdir(dir_handle);
+         entry != 0;
+         entry = readdir(dir_handle)){
+        Filename_Character *name = entry->d_name;
+        
+        int32_t size = 0;
+        for(;name[size];++size);
+        
+        bool32 is_folder = false;
+        if (entry->d_type == DT_LINK){
+            struct stat st;
+            if (stat(entry->d_name, &st) != -1){
+                is_folder = S_ISDIR(st.st_mode);
+            }
         }
         else{
-            out = 0;
-            end_temp_memory(temp);
-            break;
+            is_folder = (entry->d_type == DT_DIR);
+        }
+        
+        if (name[0] != '.' && (is_folder || is_code_file(name, size))){
+            ++file_count;
+            character_count += size + 1;
         }
     }
     
-    return(out);
+    File_List list = {0};
+    Temp_Memory part_reset = begin_temp_memory(part);
+    
+    int32_t rounded_char_size = (character_count*sizeof(Filename_Character) + 7)&(~7);
+    int32_t memsize = rounded_char_size + file_count*sizeof(File_Info);
+    void *mem = push_array(part, uint8_t, memsize);
+    if (mem == 0){
+        fprintf(stdout, "fatal error: not enough memory on the partition for a file list.\n");
+        exit(1);
+    }
+    
+    Filename_Character *char_ptr = (Filename_Character*)mem;
+    File_Info *info_ptr = (File_Info*)((uint8_t*)mem + rounded_char_size);
+    
+    Filename_Character *char_ptr_end = (Filename_Character*)info_ptr;
+    File_Info *info_ptr_end = info_ptr + file_count;
+    
+    File_Info *info_ptr_base = info_ptr;
+    
+    rewinddir(dir_handle);
+    
+    int32_t adjusted_file_count = 0;
+    for (struct dirent *entry = readdir(d);
+         entry != 0;
+         entry = readdir(d)){
+        Filename_Character *name = entry->d_name;
+        
+        int32_t size = 0;
+        for(;name[size];++size);
+        
+        bool32 is_folder = false;
+        if (entry->d_type == DT_LINK){
+            struct stat st;
+            if (stat(entry->d_name, &st) != -1){
+                is_folder = S_ISDIR(st.st_mode);
+            }
+        }
+        else{
+            is_folder = (entry->d_type == DT_DIR);
+        }
+        
+        if (name[0] != '.' && (is_folder || is_code_file(name, size))){
+            if (info_ptr + 1 > info_ptr_end || char_ptr + size + 1 > char_ptr_end){
+                memset(&list, 0, sizeof(list));
+                end_temp_memory(part_reset);
+                closedir(dir_handle);
+                return(list);
+            }
+            
+            info_ptr->name = char_ptr;
+            info_ptr->len = size;
+            info_ptr->is_folder = is_folder;
+            
+            memmove(char_ptr, name, size*sizeof(*name));
+            char_ptr[size] = 0;
+            
+            char_ptr += size + 1;
+            ++info_ptr;
+            ++adjusted_file_count;
+        }
+    }
+    closedir(dir_handle);
+    
+    list.info = info_ptr_base;
+    list.count = adjusted_file_count;
+    list.final_length = final_length;
+    memcpy(list.final_name, final_name, list.final_length*sizeof(*final_name));
+    list.final_name[list.final_length] = 0;
+    
+    return(list);
 }
-//// WINDOWS END ////
+//// UNIX END ////
+
+#else
+# error metdata generator not supported on this platform
+#endif
 
 static String
 file_dump(Partition *part, char *name){
@@ -276,6 +419,10 @@ file_dump(Partition *part, char *name){
         fseek(file, 0, SEEK_SET);
         text.memory_size = text.size + 1;
         text.str = push_array(part, char, text.memory_size);
+        if (text.str == 0){
+            fprintf(stdout, "fatal error: not enough memory in partition for file dumping");
+            exit(1);
+        }
         fread(text.str, 1, text.size, file);
         terminate_with_null(&text);
         fclose(file);

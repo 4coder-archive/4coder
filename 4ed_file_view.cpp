@@ -879,15 +879,20 @@ wrap_state_consume_token(System_Functions *system, Font_Pointers font, Code_Wrap
         }
     }
     
-    i32 line_start = state->line_starts[state->line_index];
+    i32 line_start = state->size;
+    if (state->line_index < 0){
+        line_start = 0;
+    }
+    else if (state->line_index < state->line_count){
+        line_start = state->line_starts[state->line_index];
+    }
     b32 still_looping = 0;
     i32 end = token.start + token.size;
     if (fixed_end_point >= 0 && end > fixed_end_point){
         end = fixed_end_point;
     }
     
-    i = clamp_bottom(i, line_start);
-    
+    i = clamp_bottom(line_start, i);
     if (i == line_start){
         skipping_whitespace = true;
     }
