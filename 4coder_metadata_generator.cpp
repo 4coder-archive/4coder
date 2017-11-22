@@ -84,12 +84,7 @@ encode(Partition *part, char *str){
         }
     }
     
-    // TODO(NAME): WHY DOESN'T THIS WORK!?
-    String fixer_str = make_string_cap(out, j, size + 1);
-    fixer_str = skip_chop_whitespace(fixer_str);
-    fixer_str.str[fixer_str.size] = 0;
-    
-    return(fixer_str.str);
+    return(out);
 }
 
 static char*
