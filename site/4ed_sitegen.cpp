@@ -206,6 +206,9 @@ generate_binding_list(char *code_directory, char *src_directory){
                             else if (bind->keycode == '\t'){
                                 key_str = "tab";
                             }
+                            else if (bind->keycode == ' '){
+                                key_str = "space";
+                            }
                             else{
                                 Assert(bind->keycode <= 127);
                                 key_str = key_str_space;

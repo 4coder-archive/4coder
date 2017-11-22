@@ -696,10 +696,10 @@ generate_remapping_code_and_data(){
     Mapping_Array mappings_ = {0};
     Mapping_Array *mappings = &mappings_;
     
-    begin_mapping(mappings, default, "TODO");
+    begin_mapping(mappings, default, "The default 4coder bindings - typically good for Windows and Linux");
     {
         // NOTE(allen): GLOBAL
-        begin_map(mappings, mapid_global, "TODO");
+        begin_map(mappings, mapid_global, "The following bindings apply in all situations.");
         
         bind(mappings, 'p', MDFR_CTRL, open_panel_vsplit);
         bind(mappings, '_', MDFR_CTRL, open_panel_hsplit);
@@ -721,9 +721,9 @@ generate_remapping_code_and_data(){
         
         bind(mappings, '.', MDFR_ALT, change_to_build_panel);
         bind(mappings, ',', MDFR_ALT, close_build_panel);
-        bind(mappings, 'n', MDFR_ALT, goto_next_error);
-        bind(mappings, 'N', MDFR_ALT, goto_prev_error);
-        bind(mappings, 'M', MDFR_ALT, goto_first_error);
+        bind(mappings, 'n', MDFR_ALT, goto_next_jump_sticky);
+        bind(mappings, 'N', MDFR_ALT, goto_prev_jump_sticky);
+        bind(mappings, 'M', MDFR_ALT, goto_first_jump_sticky);
         bind(mappings, 'm', MDFR_ALT, build_in_build_panel);
         
         bind(mappings, 'z', MDFR_ALT, execute_any_cli);
@@ -765,7 +765,7 @@ generate_remapping_code_and_data(){
         end_map(mappings);
         
         // NOTE(allen): FILE
-        begin_map(mappings, mapid_file, "TODO");
+        begin_map(mappings, mapid_file, "The following bindings apply in general text files and most apply in code files, but some are overriden by other commands specific to code files.");
         
         bind_vanilla_keys(mappings, MDFR_NONE, write_character);
         
@@ -837,14 +837,14 @@ generate_remapping_code_and_data(){
         
         bind(mappings, '?', MDFR_CTRL, toggle_show_whitespace);
         bind(mappings, '~', MDFR_CTRL, clean_all_lines);
-        bind(mappings, '\n', MDFR_NONE, newline_or_goto_position);
-        bind(mappings, '\n', MDFR_SHIFT, newline_or_goto_position_same_panel);
+        bind(mappings, '\n', MDFR_NONE, newline_or_goto_position_sticky);
+        bind(mappings, '\n', MDFR_SHIFT, newline_or_goto_position_same_panel_sticky);
         bind(mappings, ' ', MDFR_SHIFT, write_character);
         
         end_map(mappings);
         
         // NOTE(allen): CODE
-        begin_map(mappings, default_code_map, "TODO");
+        begin_map(mappings, default_code_map, "The following commands only apply in files where the lexer (syntax highlighting) is turned on.");
         
         inherit_map(mappings, mapid_file);
         
@@ -890,10 +890,10 @@ generate_remapping_code_and_data(){
     }
     end_mapping(mappings);
     
-    begin_mapping(mappings, mac_default, "TODO");
+    begin_mapping(mappings, mac_default, "Default 4coder bindings on a Mac keyboard");
     {
         // NOTE(allen): GLOBAL
-        begin_map(mappings, mapid_global, "TODO");
+        begin_map(mappings, mapid_global, "The following bindings apply in all situations.");
         
         bind(mappings, 'p', MDFR_CMND, open_panel_vsplit);
         bind(mappings, '_', MDFR_CMND, open_panel_hsplit);
@@ -915,9 +915,9 @@ generate_remapping_code_and_data(){
         
         bind(mappings, '.', MDFR_CTRL, change_to_build_panel);
         bind(mappings, ',', MDFR_CTRL, close_build_panel);
-        bind(mappings, 'n', MDFR_CTRL, goto_next_error);
-        bind(mappings, 'N', MDFR_CTRL, goto_prev_error);
-        bind(mappings, 'M', MDFR_CTRL, goto_first_error);
+        bind(mappings, 'n', MDFR_CTRL, goto_next_jump_sticky);
+        bind(mappings, 'N', MDFR_CTRL, goto_prev_jump_sticky);
+        bind(mappings, 'M', MDFR_CTRL, goto_first_jump_sticky);
         bind(mappings, 'm', MDFR_CTRL, build_in_build_panel);
         
         bind(mappings, 'z', MDFR_CTRL, execute_any_cli);
@@ -959,7 +959,7 @@ generate_remapping_code_and_data(){
         end_map(mappings);
         
         // NOTE(allen): FILE
-        begin_map(mappings, mapid_file, "TODO");
+        begin_map(mappings, mapid_file, "The following bindings apply in general text files and most apply in code files, but some are overriden by other commands specific to code files.");
         
         bind_vanilla_keys(mappings, MDFR_NONE, write_character);
         bind_vanilla_keys(mappings, MDFR_ALT, write_character);
@@ -1028,14 +1028,14 @@ generate_remapping_code_and_data(){
         
         bind(mappings, '?', MDFR_CMND, toggle_show_whitespace);
         bind(mappings, '~', MDFR_CMND, clean_all_lines);
-        bind(mappings, '\n', MDFR_NONE, newline_or_goto_position);
-        bind(mappings, '\n', MDFR_SHIFT, newline_or_goto_position_same_panel);
+        bind(mappings, '\n', MDFR_NONE, newline_or_goto_position_sticky);
+        bind(mappings, '\n', MDFR_SHIFT, newline_or_goto_position_same_panel_sticky);
         bind(mappings, ' ', MDFR_SHIFT, write_character);
         
         end_map(mappings);
         
         // NOTE(allen): CODE
-        begin_map(mappings, default_code_map, "TODO");
+        begin_map(mappings, default_code_map, "The following commands only apply in files where the lexer (syntax highlighting) is turned on.");
         
         inherit_map(mappings, mapid_file);
         

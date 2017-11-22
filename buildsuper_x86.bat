@@ -17,9 +17,13 @@ SET DEBUG=/Zi
 SET BUILD_DLL=/LD /link /INCREMENTAL:NO /OPT:REF
 SET EXPORTS=/EXPORT:get_bindings /EXPORT:get_alpha_4coder_version
 
+cl %OPTS% /I"%CODE_HOME% " %DEBUG% "%CODE_HOME%4coder_metadata_generator.cpp" /Femetadata_generator
+metadata_generator -R "%CODE_HOME% " "%CODE_HOME% "
+
 cl %OPTS% /I"%CODE_HOME% " %DEBUG% "%SRC%" /Fecustom_4coder %BUILD_DLL% %EXPORTS%
 
 REM file spammation preventation
+del metadata_generator*
 del *.exp
 del *.obj
 del *.lib

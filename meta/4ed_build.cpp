@@ -419,8 +419,14 @@ build(u32 flags, u32 arch, char *code_path, char *code_file, char *out_path, cha
     build(flags, arch, code_path, code_files, out_path, out_file, defines, exports, inc_folders);
 }
 
+// TODO(NAME): build metadata fully from C++ and eliminate build_metadata.bat and build_metadata.sh
+
 internal void
 site_build(char *cdir, u32 flags){
+    {
+        systemf("%s -R %s", "build_metadata" BAT, cdir);
+    }
+    
     {
         char *file = fm_str("site/4ed_sitegen.cpp");
         char *dir = fm_str(BUILD_DIR);

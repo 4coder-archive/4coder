@@ -8,6 +8,6 @@ cl %OPTS% ..\code\4coder_metadata_generator.cpp /Zi /Femetadata_generator
 popd
 
 SET CODE_HOME=%~dp0
-..\build\metadata_generator -R "%CODE_HOME%"
+..\build\metadata_generator -R "%CODE_HOME% " "%CODE_HOME% "
 
 

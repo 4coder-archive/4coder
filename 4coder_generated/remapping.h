@@ -18,9 +18,9 @@ bind(context, 'c', MDFR_ALT, open_color_tweaker);
 bind(context, 'd', MDFR_ALT, open_debug);
 bind(context, '.', MDFR_ALT, change_to_build_panel);
 bind(context, ',', MDFR_ALT, close_build_panel);
-bind(context, 'n', MDFR_ALT, goto_next_error);
-bind(context, 'N', MDFR_ALT, goto_prev_error);
-bind(context, 'M', MDFR_ALT, goto_first_error);
+bind(context, 'n', MDFR_ALT, goto_next_jump_sticky);
+bind(context, 'N', MDFR_ALT, goto_prev_jump_sticky);
+bind(context, 'M', MDFR_ALT, goto_first_jump_sticky);
 bind(context, 'm', MDFR_ALT, build_in_build_panel);
 bind(context, 'z', MDFR_ALT, execute_any_cli);
 bind(context, 'Z', MDFR_ALT, execute_previous_cli);
@@ -113,8 +113,8 @@ bind(context, '2', MDFR_CTRL, decrease_line_wrap);
 bind(context, '3', MDFR_CTRL, increase_line_wrap);
 bind(context, '?', MDFR_CTRL, toggle_show_whitespace);
 bind(context, '~', MDFR_CTRL, clean_all_lines);
-bind(context, '\n', MDFR_NONE, newline_or_goto_position);
-bind(context, '\n', MDFR_SHIFT, newline_or_goto_position_same_panel);
+bind(context, '\n', MDFR_NONE, newline_or_goto_position_sticky);
+bind(context, '\n', MDFR_SHIFT, newline_or_goto_position_same_panel_sticky);
 bind(context, ' ', MDFR_SHIFT, write_character);
 end_map(context);
 begin_map(context, default_code_map);
@@ -170,9 +170,9 @@ bind(context, 'c', MDFR_CTRL, open_color_tweaker);
 bind(context, 'd', MDFR_CTRL, open_debug);
 bind(context, '.', MDFR_CTRL, change_to_build_panel);
 bind(context, ',', MDFR_CTRL, close_build_panel);
-bind(context, 'n', MDFR_CTRL, goto_next_error);
-bind(context, 'N', MDFR_CTRL, goto_prev_error);
-bind(context, 'M', MDFR_CTRL, goto_first_error);
+bind(context, 'n', MDFR_CTRL, goto_next_jump_sticky);
+bind(context, 'N', MDFR_CTRL, goto_prev_jump_sticky);
+bind(context, 'M', MDFR_CTRL, goto_first_jump_sticky);
 bind(context, 'm', MDFR_CTRL, build_in_build_panel);
 bind(context, 'z', MDFR_CTRL, execute_any_cli);
 bind(context, 'Z', MDFR_CTRL, execute_previous_cli);
@@ -263,8 +263,8 @@ bind(context, '2', MDFR_CMND, decrease_line_wrap);
 bind(context, '3', MDFR_CMND, increase_line_wrap);
 bind(context, '?', MDFR_CMND, toggle_show_whitespace);
 bind(context, '~', MDFR_CMND, clean_all_lines);
-bind(context, '\n', MDFR_NONE, newline_or_goto_position);
-bind(context, '\n', MDFR_SHIFT, newline_or_goto_position_same_panel);
+bind(context, '\n', MDFR_NONE, newline_or_goto_position_sticky);
+bind(context, '\n', MDFR_SHIFT, newline_or_goto_position_same_panel_sticky);
 bind(context, ' ', MDFR_SHIFT, write_character);
 end_map(context);
 begin_map(context, default_code_map);
@@ -352,9 +352,9 @@ static Meta_Key_Bind fcoder_binds_for_default_mapid_global[48] = {
 {0, 100, 2, "open_debug", 10, LINK_PROCS(open_debug)},
 {0, 46, 2, "change_to_build_panel", 21, LINK_PROCS(change_to_build_panel)},
 {0, 44, 2, "close_build_panel", 17, LINK_PROCS(close_build_panel)},
-{0, 110, 2, "goto_next_error", 15, LINK_PROCS(goto_next_error)},
-{0, 78, 2, "goto_prev_error", 15, LINK_PROCS(goto_prev_error)},
-{0, 77, 2, "goto_first_error", 16, LINK_PROCS(goto_first_error)},
+{0, 110, 2, "goto_next_jump_sticky", 21, LINK_PROCS(goto_next_jump_sticky)},
+{0, 78, 2, "goto_prev_jump_sticky", 21, LINK_PROCS(goto_prev_jump_sticky)},
+{0, 77, 2, "goto_first_jump_sticky", 22, LINK_PROCS(goto_first_jump_sticky)},
 {0, 109, 2, "build_in_build_panel", 20, LINK_PROCS(build_in_build_panel)},
 {0, 122, 2, "execute_any_cli", 15, LINK_PROCS(execute_any_cli)},
 {0, 90, 2, "execute_previous_cli", 20, LINK_PROCS(execute_previous_cli)},
@@ -447,8 +447,8 @@ static Meta_Key_Bind fcoder_binds_for_default_mapid_file[65] = {
 {0, 51, 1, "increase_line_wrap", 18, LINK_PROCS(increase_line_wrap)},
 {0, 63, 1, "toggle_show_whitespace", 22, LINK_PROCS(toggle_show_whitespace)},
 {0, 126, 1, "clean_all_lines", 15, LINK_PROCS(clean_all_lines)},
-{0, 10, 0, "newline_or_goto_position", 24, LINK_PROCS(newline_or_goto_position)},
-{0, 10, 8, "newline_or_goto_position_same_panel", 35, LINK_PROCS(newline_or_goto_position_same_panel)},
+{0, 10, 0, "newline_or_goto_position_sticky", 31, LINK_PROCS(newline_or_goto_position_sticky)},
+{0, 10, 8, "newline_or_goto_position_same_panel_sticky", 42, LINK_PROCS(newline_or_goto_position_same_panel_sticky)},
 {0, 32, 8, "write_character", 15, LINK_PROCS(write_character)},
 };
 static Meta_Key_Bind fcoder_binds_for_default_default_code_map[30] = {
@@ -484,9 +484,9 @@ static Meta_Key_Bind fcoder_binds_for_default_default_code_map[30] = {
 {0, 73, 1, "list_all_functions_current_buffer", 33, LINK_PROCS(list_all_functions_current_buffer)},
 };
 static Meta_Sub_Map fcoder_submaps_for_default[3] = {
-{"mapid_global", 12, "TODO", 4, 0, 0, fcoder_binds_for_default_mapid_global, 48},
-{"mapid_file", 10, "TODO", 4, 0, 0, fcoder_binds_for_default_mapid_file, 65},
-{"default_code_map", 16, "TODO", 4, "mapid_file", 10, fcoder_binds_for_default_default_code_map, 30},
+{"mapid_global", 12, "The following bindings apply in all situations.", 47, 0, 0, fcoder_binds_for_default_mapid_global, 48},
+{"mapid_file", 10, "The following bindings apply in general text files and most apply in code files, but some are overriden by other commands specific to code files.", 145, 0, 0, fcoder_binds_for_default_mapid_file, 65},
+{"default_code_map", 16, "The following commands only apply in files where the lexer (syntax highlighting) is turned on.", 94, "mapid_file", 10, fcoder_binds_for_default_default_code_map, 30},
 };
 static Meta_Key_Bind fcoder_binds_for_mac_default_mapid_global[48] = {
 {0, 112, 4, "open_panel_vsplit", 17, LINK_PROCS(open_panel_vsplit)},
@@ -506,9 +506,9 @@ static Meta_Key_Bind fcoder_binds_for_mac_default_mapid_global[48] = {
 {0, 100, 1, "open_debug", 10, LINK_PROCS(open_debug)},
 {0, 46, 1, "change_to_build_panel", 21, LINK_PROCS(change_to_build_panel)},
 {0, 44, 1, "close_build_panel", 17, LINK_PROCS(close_build_panel)},
-{0, 110, 1, "goto_next_error", 15, LINK_PROCS(goto_next_error)},
-{0, 78, 1, "goto_prev_error", 15, LINK_PROCS(goto_prev_error)},
-{0, 77, 1, "goto_first_error", 16, LINK_PROCS(goto_first_error)},
+{0, 110, 1, "goto_next_jump_sticky", 21, LINK_PROCS(goto_next_jump_sticky)},
+{0, 78, 1, "goto_prev_jump_sticky", 21, LINK_PROCS(goto_prev_jump_sticky)},
+{0, 77, 1, "goto_first_jump_sticky", 22, LINK_PROCS(goto_first_jump_sticky)},
 {0, 109, 1, "build_in_build_panel", 20, LINK_PROCS(build_in_build_panel)},
 {0, 122, 1, "execute_any_cli", 15, LINK_PROCS(execute_any_cli)},
 {0, 90, 1, "execute_previous_cli", 20, LINK_PROCS(execute_previous_cli)},
@@ -599,8 +599,8 @@ static Meta_Key_Bind fcoder_binds_for_mac_default_mapid_file[63] = {
 {0, 51, 4, "increase_line_wrap", 18, LINK_PROCS(increase_line_wrap)},
 {0, 63, 4, "toggle_show_whitespace", 22, LINK_PROCS(toggle_show_whitespace)},
 {0, 126, 4, "clean_all_lines", 15, LINK_PROCS(clean_all_lines)},
-{0, 10, 0, "newline_or_goto_position", 24, LINK_PROCS(newline_or_goto_position)},
-{0, 10, 8, "newline_or_goto_position_same_panel", 35, LINK_PROCS(newline_or_goto_position_same_panel)},
+{0, 10, 0, "newline_or_goto_position_sticky", 31, LINK_PROCS(newline_or_goto_position_sticky)},
+{0, 10, 8, "newline_or_goto_position_same_panel_sticky", 42, LINK_PROCS(newline_or_goto_position_same_panel_sticky)},
 {0, 32, 8, "write_character", 15, LINK_PROCS(write_character)},
 };
 static Meta_Key_Bind fcoder_binds_for_mac_default_default_code_map[30] = {
@@ -636,11 +636,11 @@ static Meta_Key_Bind fcoder_binds_for_mac_default_default_code_map[30] = {
 {0, 73, 4, "list_all_functions_current_buffer", 33, LINK_PROCS(list_all_functions_current_buffer)},
 };
 static Meta_Sub_Map fcoder_submaps_for_mac_default[3] = {
-{"mapid_global", 12, "TODO", 4, 0, 0, fcoder_binds_for_mac_default_mapid_global, 48},
-{"mapid_file", 10, "TODO", 4, 0, 0, fcoder_binds_for_mac_default_mapid_file, 63},
-{"default_code_map", 16, "TODO", 4, "mapid_file", 10, fcoder_binds_for_mac_default_default_code_map, 30},
+{"mapid_global", 12, "The following bindings apply in all situations.", 47, 0, 0, fcoder_binds_for_mac_default_mapid_global, 48},
+{"mapid_file", 10, "The following bindings apply in general text files and most apply in code files, but some are overriden by other commands specific to code files.", 145, 0, 0, fcoder_binds_for_mac_default_mapid_file, 63},
+{"default_code_map", 16, "The following commands only apply in files where the lexer (syntax highlighting) is turned on.", 94, "mapid_file", 10, fcoder_binds_for_mac_default_default_code_map, 30},
 };
 static Meta_Mapping fcoder_meta_maps[2] = {
-{"default", 7, "TODO", 4, fcoder_submaps_for_default, 3, LINK_PROCS(fill_keys_default)},
-{"mac_default", 11, "TODO", 4, fcoder_submaps_for_mac_default, 3, LINK_PROCS(fill_keys_mac_default)},
+{"default", 7, "The default 4coder bindings - typically good for Windows and Linux", 66, fcoder_submaps_for_default, 3, LINK_PROCS(fill_keys_default)},
+{"mac_default", 11, "Default 4coder bindings on a Mac keyboard", 41, fcoder_submaps_for_mac_default, 3, LINK_PROCS(fill_keys_mac_default)},
 };

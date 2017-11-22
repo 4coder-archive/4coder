@@ -1048,18 +1048,18 @@ show_usage(int argc, char **argv){
     if (argc >= 1){
         name = argv[0];
     }
-    fprintf(stdout, "usage:\n%s [-R] <root-directory> [<root-directory2> ...]\n", name);
+    fprintf(stdout, "usage:\n%s [-R] <4coder-root-directory> <scan-root-directory> [<scan-root-directory2> ...]\n", name);
     exit(0);
 }
 
 int
 main(int argc, char **argv){
-    if (argc < 2){
+    if (argc < 3){
         show_usage(argc, argv);
     }
     
     bool32 recursive = match(argv[1], "-R");
-    if (recursive && argc < 3){
+    if (recursive && argc < 4){
         show_usage(argc, argv);
     }
     
@@ -1068,9 +1068,11 @@ main(int argc, char **argv){
     Partition part_ = make_part(mem, size);
     Partition *part = &part_;
     
-    int32_t start_i = 1;
+    char *out_directory = argv[2];
+    
+    int32_t start_i = 2;
     if (recursive){
-        start_i = 2;
+        start_i = 3;
     }
     
     Meta_Command_Entry_Arrays entry_arrays = {0};
@@ -1079,7 +1081,26 @@ main(int argc, char **argv){
         parse_files_in_directory(part, &entry_arrays, root_name, recursive);
     }
     
-    FILE *out = fopen(COMMAND_METADATA_OUT, "wb");
+    int32_t out_dir_len = str_size(out_directory);
+    if (out_directory[0] == '"'){
+        out_directory += 1;
+        out_dir_len -= 2;
+    }
+    
+    {
+        String str = make_string(out_directory, out_dir_len);
+        str = skip_chop_whitespace(str);
+        out_directory = str.str;
+        out_dir_len = str.size;
+    }
+    
+    int32_t len = out_dir_len + 1 + sizeof(COMMAND_METADATA_OUT) - 1;
+    char *out_file_name = (char*)malloc(len + 1);
+    memcpy(out_file_name, out_directory, out_dir_len);
+    memcpy(out_file_name + out_dir_len, "/", 1);
+    memcpy(out_file_name + out_dir_len + 1, COMMAND_METADATA_OUT, sizeof(COMMAND_METADATA_OUT));
+    
+    FILE *out = fopen(out_file_name, "wb");
     
     if (out != 0){
         fprintf(out, "#define command_id(c) (fcoder_metacmd_ID_##c)\n");
@@ -1150,7 +1171,7 @@ main(int argc, char **argv){
         }
     }
     else{
-        fprintf(stdout, "fatal error: could not open output file %s\n", COMMAND_METADATA_OUT);
+        fprintf(stdout, "fatal error: could not open output file %s%s\n", out_directory, COMMAND_METADATA_OUT);
     }
     
     return(0);

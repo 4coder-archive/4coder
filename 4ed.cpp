@@ -341,8 +341,10 @@ app_resume_coroutine(System_Functions *system, Application_Links *app, Coroutine
 
 inline void
 output_file_append(System_Functions *system, Models *models, Editing_File *file, String value, b32 cursor_at_end){
-    i32 end = buffer_size(&file->state.buffer);
-    file_replace_range(system, models, file, end, end, value.str, value.size);
+    if (!file->is_dummy){
+        i32 end = buffer_size(&file->state.buffer);
+        file_replace_range(system, models, file, end, end, value.str, value.size);
+    }
 }
 
 inline void
