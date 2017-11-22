@@ -13,6 +13,7 @@ fkey_command_linux[1]  = {"echo build: x64 & ./build.sh", "*compilation*" , true
 fkey_command_linux[2]  = {"build_site.sh"               , "*site*"        , false, true };
 fkey_command_linux[3]  = {"build_string.sh"             , "*compilation*" , true , true };
 fkey_command_linux[4]  = {"echo build: x86 & ./build.sh -DDEV_BUILD_X86"  , "*compilation*", true, true };
+fkey_command_linux[5]  = {"./build_metadata.sh"         , "*compilation*" , true , true };
 fkey_command_linux[12] = {"./package.sh"                , "*package*"     , false, true };
 
 fkey_command_mac[1]  = {"echo build: x64 & ./build.sh", "*compilation*" , true , true };

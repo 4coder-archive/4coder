@@ -30,13 +30,18 @@ typedef int32_t bool32;
 #define UNICODE
 #include <Windows.h>
 typedef TCHAR Filename_Character;
+#define SLASH '\\'
 //// WINDOWS END ////
 
 #elif defined(IS_LINUX) || defined(IS_MAC)
 
 //// UNIX BEGIN ////
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
 #include <dirent.h>
 typedef char Filename_Character;
+#define SLASH '/'
 //// UNIX END ////
 
 #else
@@ -280,12 +285,12 @@ get_file_list(Partition *part, Filename_Character *dir){
 
 //// UNIX BEGIN ////
 static File_List
-get_file_list(Partition *part, Filename_Character *dir){
+get_file_list(Partition *part, Filename_Character *directory){
     if (part == 0){
         fprintf(stdout, "fatal error: NULL part passed to %s\n", __FUNCTION__);
         exit(1);
     }
-    if (dir == 0){
+    if (directory == 0){
         fprintf(stdout, "fatal error: NULL dir passed to %s\n", __FUNCTION__);
         exit(1);
     }
@@ -293,16 +298,22 @@ get_file_list(Partition *part, Filename_Character *dir){
     DIR *dir_handle = opendir(directory);
     if (dir_handle == 0){
         fprintf(stdout, "fatal error: could not open directory handle\n");
+        if (sizeof(*directory) == 2){
+            fprintf(stdout, "%ls\n", (wchar_t*)directory);
+        }
+        else{
+            fprintf(stdout, "%s\n", (char*)directory);
+        }
         exit(1);
     }
     
     Filename_Character final_name[4096];
-    int32_t final_length = str_size(dir);
+    int32_t final_length = str_size(directory);
     if (final_length + 1 > sizeof(final_name)){
         fprintf(stdout, "fatal error: path name too long for local buffer\n");
         exit(1);
     }
-    memcpy(final_name, dir, final_length + 1);
+    memcpy(final_name, directory, final_length + 1);
     
     int32_t character_count = 0;
     int32_t file_count = 0;
@@ -315,7 +326,7 @@ get_file_list(Partition *part, Filename_Character *dir){
         for(;name[size];++size);
         
         bool32 is_folder = false;
-        if (entry->d_type == DT_LINK){
+        if (entry->d_type == DT_LNK){
             struct stat st;
             if (stat(entry->d_name, &st) != -1){
                 is_folder = S_ISDIR(st.st_mode);
@@ -353,16 +364,16 @@ get_file_list(Partition *part, Filename_Character *dir){
     rewinddir(dir_handle);
     
     int32_t adjusted_file_count = 0;
-    for (struct dirent *entry = readdir(d);
+    for (struct dirent *entry = readdir(dir_handle);
          entry != 0;
-         entry = readdir(d)){
+         entry = readdir(dir_handle)){
         Filename_Character *name = entry->d_name;
         
         int32_t size = 0;
         for(;name[size];++size);
         
         bool32 is_folder = false;
-        if (entry->d_type == DT_LINK){
+        if (entry->d_type == DT_LNK){
             struct stat st;
             if (stat(entry->d_name, &st) != -1){
                 is_folder = S_ISDIR(st.st_mode);
@@ -986,10 +997,10 @@ parse_file(Partition *part, Meta_Command_Entry_Arrays *entry_arrays, Filename_Ch
     char *name = unencode(part, name_, len);
     if (name == 0){
         if (sizeof(*name_) == 2){
-            fprintf(stdout, "warning: could not unencode file name %ls - file skipped\n", name_);
+            fprintf(stdout, "warning: could not unencode file name %ls - file skipped\n", (wchar_t*)name_);
         }
         else{
-            fprintf(stdout, "warning: could not unencode file name %s - file skipped\n", name_);
+            fprintf(stdout, "warning: could not unencode file name %s - file skipped\n", (char*)name_);
         }
         return;
     }
@@ -1018,7 +1029,7 @@ parse_files_in_directory(Partition *part, Meta_Command_Entry_Arrays *entry_array
         }
         
         memmove(full_name, list.final_name, list.final_length*sizeof(*full_name));
-        full_name[list.final_length] = '\\';
+        full_name[list.final_length] = SLASH;
         memmove(full_name + list.final_length + 1, info->name, info->len*sizeof(*full_name));
         full_name[full_name_len] = 0;
         
