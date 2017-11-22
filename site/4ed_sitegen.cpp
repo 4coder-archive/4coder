@@ -67,6 +67,9 @@ Long name commands that can be typed in after using the "long command" command f
 \ITEM \STYLE{code} "nix lines" \END Switch the buffer to 'nix' line ending mode LF
 \ITEM \STYLE{code} "remap" \END Change to one of the built in command bindings
 \ITEM \STYLE{code} "new project" \END Setup a new project.4coder and accompanying build scripts
+\ITEM \STYLE{code} "delete file" \END Delete the file attached to the current buffer and close the buffer
+\ITEM \STYLE{code} "rename file" \END Rename the file attached to the current buffer and reopen the buffer
+\ITEM \STYLE{code} "mkdir" \END Make a new directory in 4coder's hot directory
 \END
 \END
 )foo";
