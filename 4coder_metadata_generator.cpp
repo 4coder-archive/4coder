@@ -32,7 +32,7 @@ typedef int32_t bool32;
 typedef TCHAR Filename_Character;
 //// WINDOWS END ////
 
-#elif defined(IS_LINUX) || defiend(IS_MAC)
+#elif defined(IS_LINUX) || defined(IS_MAC)
 
 //// UNIX BEGIN ////
 #include <dirent.h>
@@ -276,7 +276,7 @@ get_file_list(Partition *part, Filename_Character *dir){
 }
 //// WINDOWS END ////
 
-#elif defined(IS_LINUX) || defiend(IS_MAC)
+#elif defined(IS_LINUX) || defined(IS_MAC)
 
 //// UNIX BEGIN ////
 static File_List
