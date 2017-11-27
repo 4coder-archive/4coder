@@ -202,10 +202,13 @@ get_file_list(Partition *part, Filename_Character *dir){
         
         uint32_t attribs = find_data.dwFileAttributes;
         bool32 is_folder = ((attribs & FILE_ATTRIBUTE_DIRECTORY) != 0);
+        bool32 is_hidden = ((attribs & FILE_ATTRIBUTE_HIDDEN) != 0);
         
-        if (name[0] != '.' && (is_folder || is_code_file(name, size))){
-            ++file_count;
-            character_count += size + 1;
+        if (!is_hidden){
+            if (name[0] != '.' && (is_folder || is_code_file(name, size))){
+                ++file_count;
+                character_count += size + 1;
+            }
         }
         
         more_files = FindNextFile(search, &find_data);
@@ -247,25 +250,28 @@ get_file_list(Partition *part, Filename_Character *dir){
         
         uint32_t attribs = find_data.dwFileAttributes;
         bool32 is_folder = ((attribs & FILE_ATTRIBUTE_DIRECTORY) != 0);
+        bool32 is_hidden = ((attribs & FILE_ATTRIBUTE_HIDDEN) != 0);
         
-        if (name[0] != '.' && (is_folder || is_code_file(name, size))){
-            if (info_ptr + 1 > info_ptr_end || char_ptr + size + 1 > char_ptr_end){
-                memset(&list, 0, sizeof(list));
-                end_temp_memory(part_reset);
-                FindClose(search);
-                return(list);
+        if (!is_hidden){
+            if (name[0] != '.' && (is_folder || is_code_file(name, size))){
+                if (info_ptr + 1 > info_ptr_end || char_ptr + size + 1 > char_ptr_end){
+                    memset(&list, 0, sizeof(list));
+                    end_temp_memory(part_reset);
+                    FindClose(search);
+                    return(list);
+                }
+                
+                info_ptr->name = char_ptr;
+                info_ptr->len = size;
+                info_ptr->is_folder = is_folder;
+                
+                memmove(char_ptr, name, size*sizeof(*name));
+                char_ptr[size] = 0;
+                
+                char_ptr += size + 1;
+                ++info_ptr;
+                ++adjusted_file_count;
             }
-            
-            info_ptr->name = char_ptr;
-            info_ptr->len = size;
-            info_ptr->is_folder = is_folder;
-            
-            memmove(char_ptr, name, size*sizeof(*name));
-            char_ptr[size] = 0;
-            
-            char_ptr += size + 1;
-            ++info_ptr;
-            ++adjusted_file_count;
         }
         
         more_files = FindNextFile(search, &find_data);
@@ -660,6 +666,51 @@ struct Meta_Command_Entry_Arrays{
     Meta_Command_Entry *last_alias;
     int32_t alias_count;
 };
+
+///////////////////////////////
+
+#define Swap(T,a,b) {T t=a; a=b; b=t;}
+
+static int32_t
+quick_sort_part(Meta_Command_Entry **entries, int32_t first, int32_t one_past_last){
+    int32_t pivot = one_past_last - 1;
+    String pivot_key = entries[pivot]->name;
+    int32_t j = first;
+    for (int32_t i = first; i < pivot; ++i){
+        if (compare(entries[i]->name, pivot_key) < 0){
+            Swap(Meta_Command_Entry*, entries[i], entries[j]);
+            ++j;
+        }
+    }
+    Swap(Meta_Command_Entry*, entries[j], entries[pivot]);
+    return(j);
+}
+
+static void
+quick_sort(Meta_Command_Entry **entries, int32_t first, int32_t one_past_last){
+    if (first + 1 < one_past_last){
+        int32_t pivot = quick_sort_part(entries, first, one_past_last);
+        quick_sort(entries, first, pivot);
+        quick_sort(entries, pivot + 1, one_past_last);
+    }
+}
+
+static Meta_Command_Entry**
+get_sorted_meta_commands(Partition *part, Meta_Command_Entry *first, int32_t count){
+    Meta_Command_Entry **entries = push_array(part, Meta_Command_Entry*, count);
+    
+    int32_t i = 0;
+    for (Meta_Command_Entry *entry = first;
+         entry != 0;
+         entry = entry->next, ++i){
+        entries[i] = entry;
+    }
+    Assert(i == count);
+    
+    quick_sort(entries, 0, count);
+    
+    return(entries);
+}
 
 ///////////////////////////////
 
@@ -1104,6 +1155,9 @@ main(int argc, char **argv){
     FILE *out = fopen(out_file_name, "wb");
     
     if (out != 0){
+        int32_t entry_count = entry_arrays.doc_string_count;
+        Meta_Command_Entry **entries = get_sorted_meta_commands(part, entry_arrays.first_doc_string, entry_count);
+        
         fprintf(out, "#define command_id(c) (fcoder_metacmd_ID_##c)\n");
         fprintf(out, "#define command_metadata(c) (&fcoder_metacmd_table[command_id(c)])\n");
         fprintf(out, "#define command_metadata_by_id(id) (&fcoder_metacmd_table[id])\n");
@@ -1115,9 +1169,8 @@ main(int argc, char **argv){
         fprintf(out, "#endif\n");
         
         fprintf(out, "#if defined(CUSTOM_COMMAND_SIG)\n");
-        for (Meta_Command_Entry *entry = entry_arrays.first_doc_string;
-             entry != 0;
-             entry = entry->next){
+        for (int32_t i = 0; i < entry_count; ++i){
+            Meta_Command_Entry *entry = entries[i];
             fprintf(out, "CUSTOM_COMMAND_SIG(%.*s);\n", str_to_l_c(entry->name));
         }
         fprintf(out, "#endif\n");
@@ -1137,9 +1190,9 @@ main(int argc, char **argv){
         fprintf(out,
                 "static Command_Metadata fcoder_metacmd_table[%d] = {\n",
                 entry_arrays.doc_string_count);
-        for (Meta_Command_Entry *entry = entry_arrays.first_doc_string;
-             entry != 0;
-             entry = entry->next){
+        for (int32_t i = 0; i < entry_count; ++i){
+            Meta_Command_Entry *entry = entries[i];
+            
             Temp_Memory temp = begin_temp_memory(part);
             
             // HACK(allen): We could just get these at the HEAD END of the process,
@@ -1163,9 +1216,9 @@ main(int argc, char **argv){
         fprintf(out, "};\n");
         
         int32_t id = 0;
-        for (Meta_Command_Entry *entry = entry_arrays.first_doc_string;
-             entry != 0;
-             entry = entry->next){
+        for (int32_t i = 0; i < entry_count; ++i){
+            Meta_Command_Entry *entry = entries[i];
+            
             fprintf(out, "static int32_t fcoder_metacmd_ID_%.*s = %d;\n",
                     str_to_l_c(entry->name), id);
             ++id;
