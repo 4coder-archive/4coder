@@ -341,9 +341,16 @@ win32_read_clipboard_contents(){
                     u32 clip_16_len = 0;
                     for(;clip_16[clip_16_len];++clip_16_len);
                     
-                    // TODO(allen): Extend the buffer if it is too small.
                     b32 error = false;
                     u32 clip_8_len = (u32)utf16_to_utf8_minimal_checking(win32vars.clip_buffer, win32vars.clip_max-1, clip_16, clip_16_len, &error);
+                    
+                    for (;clip_8_len >= win32vars.clip_max && !error;){
+                        system_memory_free(win32vars.clip_buffer, win32vars.clip_max);
+                        win32vars.clip_max = l_round_up_u32(clip_8_len, KB(4));
+                        win32vars.clip_buffer = (u8*)system_memory_allocate(win32vars.clip_max);
+                        
+                        clip_8_len = (u32)utf16_to_utf8_minimal_checking(win32vars.clip_buffer, win32vars.clip_max - 1, clip_16, clip_16_len, &error);
+                    }
                     
                     if (clip_8_len < win32vars.clip_max && !error){
                         win32vars.clip_buffer[clip_8_len] = 0;
