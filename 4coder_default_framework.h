@@ -517,8 +517,8 @@ read_config_line(Cpp_Token_Array array, int32_t *i_ptr, char *text){
         }
         
         for (; i < array.count; ++i){
-            Cpp_Token token = read_config_token(array, &i);
-            if (token.type == CPP_TOKEN_SEMICOLON){
+            Cpp_Token skip_token = read_config_token(array, &i);
+            if (skip_token.type == CPP_TOKEN_SEMICOLON){
                 break;
             }
         }

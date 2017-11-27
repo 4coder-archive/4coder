@@ -3601,7 +3601,7 @@ release_font(System_Functions *system, Models *models, Face_ID font_id, Face_ID 
         if (!font.valid){
             Face_ID largest_id = system->font.get_largest_id();
             for (replacement_id = 1; replacement_id <= largest_id && replacement_id > 0; ++replacement_id){
-                Font_Pointers font = system->font.get_pointers_by_id(replacement_id);
+                font = system->font.get_pointers_by_id(replacement_id);
                 if (font.valid){
                     break;
                 }
