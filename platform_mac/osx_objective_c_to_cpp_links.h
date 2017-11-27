@@ -43,7 +43,8 @@ typedef struct OSX_Objective_C_Vars{
     u32 prev_clipboard_change_count;
     b32 has_clipboard_item;
     void *clipboard_data;
-    umem clipboard_size, clipboard_max;
+    u32 clipboard_size;
+    u32 clipboard_max;
     b32 just_posted_to_clipboard;
     
     char *clipboard_space;

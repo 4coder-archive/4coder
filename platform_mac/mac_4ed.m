@@ -185,10 +185,17 @@ static i32 did_update_for_clipboard = true;
                         if (data != nil){
                             u32 copy_length = data.length;
                             if (copy_length > 0){
-                                // TODO(allen): Grow clipboard memory if needed.
-                                if (copy_length+1 < osx_objc.clipboard_max){
+                                if (copy_length + 1 >= osx_objc.clipboard_max){
+                                    osx_free(osx_objc.clipboard_data, osx_objc.clipboard_max);
+                                    osx_objc.clipboard_max = l_round_up_u32(copy_length + 1, KB(4));
+                                    osx_objc.clipboard_data = osx_allocate(osx_objc.clipboard_max);
+                                }
+                                
+                                if (copy_length + 1 < osx_objc.clipboard_max){
                                     osx_objc.clipboard_size = copy_length;
-                                    [data getBytes: osx_objc.clipboard_data length: copy_length];
+                                    [data
+                                            getBytes: osx_objc.clipboard_data
+                                            length: copy_length];
                                     ((char*)osx_objc.clipboard_data)[copy_length] = 0;
                                     osx_objc.has_clipboard_item = true;
                                 }
@@ -828,7 +835,7 @@ int
 main(int argc, char **argv){
     memset(&osx_objc, 0, sizeof(osx_objc));
     
-    umem clipboard_size = MB(4);
+    u32 clipboard_size = KB(16);
     osx_objc.clipboard_data = osx_allocate(clipboard_size);
     osx_objc.clipboard_max = clipboard_size;
     osx_objc.argc = argc;
