@@ -1808,8 +1808,7 @@ App_Step_Sig(app_step){
         i32 preserved_inputs = ArrayCount(debug->input_events) - count;
         
         debug->this_frame_count = count;
-        memmove(events + count, events,
-                sizeof(Debug_Input_Event)*preserved_inputs);
+        memmove(events + count, events, sizeof(Debug_Input_Event)*preserved_inputs);
         
         for (i32 i = 0; i < key_data.count; ++i){
             Key_Event_Data key = get_single_key(&key_data,  i);
