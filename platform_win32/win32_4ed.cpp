@@ -405,8 +405,9 @@ Sys_CLI_Call_Sig(system_cli_call){
                 STARTUPINFO startup = {};
                 startup.cb = sizeof(STARTUPINFO);
                 startup.dwFlags = STARTF_USESHOWWINDOW | STARTF_USESTDHANDLES;
-                startup.hStdError = out_write;
+                startup.hStdInput = INVALID_HANDLE_VALUE;
                 startup.hStdOutput = out_write;
+                startup.hStdError = out_write;
                 startup.wShowWindow = SW_HIDE;
                 
                 PROCESS_INFORMATION info = {};
