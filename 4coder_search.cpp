@@ -411,20 +411,12 @@ search_next_match(Application_Links *app, Search_Set *set, Search_Iter *it_ptr){
         switch (range->type){
             case SearchRange_FrontToBack:
             {
-                find_result =
-                    search_front_to_back(app, range,
-                                         iter.word,
-                                         &iter.pos,
-                                         &result);
+                find_result = search_front_to_back(app, range, iter.word, &iter.pos, &result);
             }break;
             
             case SearchRange_BackToFront:
             {
-                find_result =
-                    search_back_to_front(app, range,
-                                         iter.word,
-                                         &iter.back_pos,
-                                         &result);
+                find_result = search_back_to_front(app, range, iter.word, &iter.back_pos, &result);
             }break;
             
             case SearchRange_Wave:
@@ -436,17 +428,11 @@ search_next_match(Application_Links *app, Search_Set *set, Search_Iter *it_ptr){
                 int32_t backward_result = FindResult_PastEnd;
                 
                 if (iter.pos < range->start + range->size){
-                    forward_result = search_front_to_back(app, range,
-                                                          iter.word,
-                                                          &iter.pos,
-                                                          &forward_match);
+                    forward_result = search_front_to_back(app, range, iter.word, &iter.pos, &forward_match);
                 }
                 
                 if (iter.back_pos > range->start){
-                    backward_result = search_back_to_front(app, range,
-                                                           iter.word,
-                                                           &iter.back_pos,
-                                                           &backward_match);
+                    backward_result = search_back_to_front(app, range, iter.word, &iter.back_pos, &backward_match);
                 }
                 
                 if (forward_result == FindResult_FoundMatch){

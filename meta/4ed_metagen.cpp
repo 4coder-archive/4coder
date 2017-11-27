@@ -721,8 +721,8 @@ generate_remapping_code_and_data(){
         
         bind(mappings, '.', MDFR_ALT, change_to_build_panel);
         bind(mappings, ',', MDFR_ALT, close_build_panel);
-        bind(mappings, 'n', MDFR_ALT, goto_next_jump_sticky);
-        bind(mappings, 'N', MDFR_ALT, goto_prev_jump_sticky);
+        bind(mappings, 'n', MDFR_ALT, goto_next_jump_no_skips_sticky);
+        bind(mappings, 'N', MDFR_ALT, goto_prev_jump_no_skips_sticky);
         bind(mappings, 'M', MDFR_ALT, goto_first_jump_sticky);
         bind(mappings, 'm', MDFR_ALT, build_in_build_panel);
         

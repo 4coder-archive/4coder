@@ -53,6 +53,17 @@ ms_style_verify(String line, int32_t left_paren_pos, int32_t right_paren_pos){
     return(result);
 }
 
+static int32_t
+try_skip_rust_arrow(String line){
+    int32_t pos = 0;
+    if (match_part(line, "-->")){
+        String sub = substr_tail(line, 3);
+        sub = skip_chop_whitespace(sub);
+        pos = (int32_t)(sub.str - line.str);
+    }
+    return(pos);
+}
+
 static bool32
 parse_jump_location(String line, Name_Based_Jump_Location *location, int32_t *colon_char, bool32 *is_sub_error){
     bool32 result = false;
@@ -119,20 +130,22 @@ parse_jump_location(String line, Name_Based_Jump_Location *location, int32_t *co
     }
     
     if (!is_ms_style){
-        int32_t colon_pos1 = find_s_char(line, 0, ':');
-        if (line.size > colon_pos1+1){
-            if (char_is_slash(line.str[colon_pos1+1])){
-                colon_pos1 = find_s_char(line, colon_pos1+1, ':');
+        int32_t start = try_skip_rust_arrow(line);
+        
+        int32_t colon_pos1 = find_s_char(line, start, ':');
+        if (line.size > colon_pos1 + 1){
+            if (char_is_slash(line.str[colon_pos1 + 1])){
+                colon_pos1 = find_s_char(line, colon_pos1 + 1, ':');
             }
         }
         
-        int32_t colon_pos2 = find_s_char(line, colon_pos1+1, ':');
-        int32_t colon_pos3 = find_s_char(line, colon_pos2+1, ':');
+        int32_t colon_pos2 = find_s_char(line, colon_pos1 + 1, ':');
+        int32_t colon_pos3 = find_s_char(line, colon_pos2 + 1, ':');
         
-        if (colon_pos3+1 <= line.size){
-            String filename = substr(line, 0, colon_pos1);
-            String line_number = substr(line, colon_pos1+1, colon_pos2 - colon_pos1 - 1);
-            String column_number = substr(line, colon_pos2+1, colon_pos3 - colon_pos2 - 1);
+        if (colon_pos3 + 1 <= line.size){
+            String filename = substr(line, start, colon_pos1 - start);
+            String line_number = substr(line, colon_pos1 + 1, colon_pos2 - colon_pos1 - 1);
+            String column_number = substr(line, colon_pos2 + 1, colon_pos3 - colon_pos2 - 1);
             
             if (filename.size > 0 &&
                 line_number.size > 0 &&
@@ -145,9 +158,9 @@ parse_jump_location(String line, Name_Based_Jump_Location *location, int32_t *co
             }
         }
         else{
-            if (colon_pos2+1 <= line.size){
+            if (colon_pos2 + 1 <= line.size){
                 String filename = substr(line, 0, colon_pos1);
-                String line_number = substr(line, colon_pos1+1, colon_pos2 - colon_pos1 - 1);
+                String line_number = substr(line, colon_pos1 + 1, colon_pos2 - colon_pos1 - 1);
                 
                 if (str_is_int_s(line_number)){
                     if (filename.size > 0 && line_number.size > 0){
