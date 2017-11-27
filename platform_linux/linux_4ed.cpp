@@ -1605,7 +1605,6 @@ LinuxHandleX11Events(void)
                     int result = XGetWindowProperty(linuxvars.XDisplay, linuxvars.XWindow, linuxvars.atom_CLIPBOARD, 0L, PASTE_MAX_WORDS, False, linuxvars.atom_UTF8_STRING, &type, &fmt, &nitems, &bytes_left, &data);
                     
                     if (result == Success && fmt == 8){
-                        fprintf(stdout, "nitems = %lu\n", nitems);
                         LinuxStringDup(&linuxvars.clipboard_contents, data, nitems);
                         should_step = true;
                         linuxvars.new_clipboard = true;
