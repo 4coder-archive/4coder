@@ -83,7 +83,6 @@
 // Linux macros
 //
 
-#define LINUX_MAX_PASTE_CHARS 0x10000L
 #define FPS 60L
 #define frame_useconds (1000000UL / FPS)
 
@@ -1601,7 +1600,9 @@ LinuxHandleX11Events(void)
                     unsigned long bytes_left;
                     u8 *data;
                     
-                    int result = XGetWindowProperty(linuxvars.XDisplay, linuxvars.XWindow, linuxvars.atom_CLIPBOARD, 0L, LINUX_MAX_PASTE_CHARS/4L, False, linuxvars.atom_UTF8_STRING, &type, &fmt, &nitems, &bytes_left, &data);
+                    
+#define PASTE_MAX_WORDS 0x20000000L
+                    int result = XGetWindowProperty(linuxvars.XDisplay, linuxvars.XWindow, linuxvars.atom_CLIPBOARD, 0L, PASTE_MAX_WORDS, False, linuxvars.atom_UTF8_STRING, &type, &fmt, &nitems, &bytes_left, &data);
                     
                     if (result == Success && fmt == 8){
                         fprintf(stdout, "nitems = %lu\n", nitems);
