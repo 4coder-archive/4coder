@@ -873,7 +873,7 @@ Win32HighResolutionTime(){
 }
 
 internal LRESULT
-Win32Callback(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
+win32_proc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
     LRESULT result = 0;
     
     switch (uMsg){
@@ -1102,6 +1102,11 @@ Win32Callback(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
             EndPaint(hwnd, &ps);
         }break;
         
+        case WM_CLIPBOARDUPDATE:
+        {
+            win32vars.got_useful_event = true;
+        }break;
+        
         case WM_CLOSE:
         case WM_DESTROY:
         {
@@ -1197,7 +1202,7 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
     
     WNDCLASS window_class = {0};
     window_class.style = CS_HREDRAW|CS_VREDRAW;
-    window_class.lpfnWndProc = (WNDPROC)(Win32Callback);
+    window_class.lpfnWndProc = (WNDPROC)(win32_proc);
     window_class.hInstance = hInstance;
     window_class.lpszClassName = L"4coder-win32-wndclass";
     window_class.hIcon = LoadIcon(hInstance, L"main");
@@ -1278,6 +1283,10 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
     //
     
     LOG("Initializing clipboard\n");
+    if (!AddClipboardFormatListener(win32vars.window_handle)){
+        win32_output_error_string(false);
+    }
+    
     win32vars.clip_max = KB(16);
     win32vars.clip_buffer = (u8*)system_memory_allocate(win32vars.clip_max);
     
