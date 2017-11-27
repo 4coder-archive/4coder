@@ -185,7 +185,7 @@ static i32 did_update_for_clipboard = true;
                         if (data != nil){
                             u32 copy_length = data.length;
                             if (copy_length > 0){
-                                if (copy_length + 1 >= osx_objc.clipboard_max){
+                                if (copy_length + 1 > osx_objc.clipboard_max){
                                     osx_free(osx_objc.clipboard_data, osx_objc.clipboard_max);
                                     osx_objc.clipboard_max = l_round_up_u32(copy_length + 1, KB(4));
                                     osx_objc.clipboard_data = osx_allocate(osx_objc.clipboard_max);

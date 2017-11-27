@@ -608,10 +608,10 @@ osx_step(void){
     
     // NOTE(allen): Frame Clipboard Input
     if (osx_objc.has_clipboard_item){
-        osxvars.input.clipboard = make_string(osx_objc.clipboard_data, (i32)osx_objc.clipboard_size);
+        frame_input.clipboard = make_string(osx_objc.clipboard_data, (i32)osx_objc.clipboard_size);
     }
     else{
-        osxvars.input.clipboard = null_string;
+        frame_input.clipboard = null_string;
     }
     
     // HACK(allen): Got this all messed up with respect to how everyone else (other OS layers) work
