@@ -460,36 +460,44 @@ cpp__pp_directive_to_state(Cpp_Token_Type type){
     Cpp_Lex_PP_State result = LSPP_default;
     switch (type){
         case CPP_PP_INCLUDE: case CPP_PP_IMPORT: case CPP_PP_USING:
-        result = LSPP_include;
-        break;
+        {
+            result = LSPP_include;
+        }break;
         
         case CPP_PP_DEFINE:
-        result = LSPP_macro_identifier;
-        break;
+        {
+            result = LSPP_macro_identifier;
+        }break;
         
         case CPP_PP_UNDEF: case CPP_PP_IFDEF: case CPP_PP_IFNDEF:
-        result = LSPP_identifier;
-        break;
+        {
+            result = LSPP_identifier;
+        }break;
         
         case CPP_PP_IF: case CPP_PP_ELIF:
-        result = LSPP_body_if;
-        break;
+        {
+            result = LSPP_body_if;
+        }break;
         
         case CPP_PP_PRAGMA:
-        result = LSPP_body;
-        break;
+        {
+            result = LSPP_body;
+        }break;
         
         case CPP_PP_VERSION: case CPP_PP_LINE:
-        result = LSPP_number;
-        break;
+        {
+            result = LSPP_number;
+        }break;
         
         case CPP_PP_ERROR:
-        result = LSPP_error;
-        break;
+        {
+            result = LSPP_error;
+        }break;
         
         case CPP_PP_UNKNOWN: case CPP_PP_ELSE: case CPP_PP_ENDIF:
-        result = LSPP_junk;
-        break;
+        {
+            result = LSPP_junk;
+        }break;
     }
     return(result);
 }

@@ -311,13 +311,13 @@ main_fsm(Cpp_Lex_FSM fsm, uint8_t pp_state, uint8_t c, bool32 ignore_string_deli
             default:
             switch (fsm.state){
                 case LS_default:
-                if (c == 'R'){
+                if (!ignore_string_delims && c == 'R'){
                     fsm.state = LS_string_R;
                 }
-                else if (c == 'U' || c == 'L'){
+                else if (!ignore_string_delims && (c == 'U' || c == 'L')){
                     fsm.state = LS_string_LUu8;
                 }
-                else if (c == 'u'){
+                else if (!ignore_string_delims && c == 'u'){
                     fsm.state = LS_string_u;
                 }
                 else if (is_identifier_char_non_numeric(c, ignore_string_delims)){

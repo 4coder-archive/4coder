@@ -303,6 +303,7 @@ DOC_SEE(cpp_get_relex_range) */
 STRUCT Cpp_Relex_Range{
     /* DOC(The index of the first token in the unedited array that needs to be relexed.) */
     int32_t start_token_index;
+    
     /* DOC(The index of the first token in the unedited array after the edited range that may not need to be relexed.  Sometimes a relex operation has to lex past this position to find a token that is not effected by the edit.) */
     int32_t end_token_index;
 };
@@ -475,18 +476,18 @@ ENUM_INTERNAL(uint8_t, Cpp_Lex_Str_State){
 #define LSSTR_check_delim LSSTR_count
 
 ENUM_INTERNAL(uint8_t, Cpp_Lex_PP_State){
-    LSPP_default,
-    LSPP_include,
-    LSPP_macro_identifier,
-    LSPP_identifier,
-    LSPP_body_if,
-    LSPP_body,
-    LSPP_number,
-    LSPP_error,
-    LSPP_junk,
-    LSPP_no_strings,
+    LSPP_default = 0,
+    LSPP_include = 1,
+    LSPP_macro_identifier = 2,
+    LSPP_identifier = 3,
+    LSPP_body_if = 4,
+    LSPP_body = 5,
+    LSPP_number = 6,
+    LSPP_error = 7,
+    LSPP_junk = 8,
+    LSPP_no_strings = 9,
     //
-    LSPP_count
+    LSPP_count = 10
 };
 
 #endif

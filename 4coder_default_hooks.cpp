@@ -116,6 +116,7 @@ OPEN_FILE_HOOK_SIG(default_file_settings){
     bool32 treat_as_code = false;
     bool32 treat_as_todo = false;
     bool32 wrap_lines = true;
+    bool32 lex_without_strings = false;
     
     int32_t extension_count = 0;
     char **extension_list = get_current_code_extensions(&extension_count);
@@ -148,6 +149,7 @@ OPEN_FILE_HOOK_SIG(default_file_settings){
                         init_language_rust(app);
                     }
                     parse_context_id = parse_context_language_rust;
+                    lex_without_strings = true;
                 }
                 
                 if (match(ext, "cpp") || match(ext, "h") || match(ext, "c") || match(ext, "hpp") || match(ext, "cc")){
@@ -211,6 +213,9 @@ OPEN_FILE_HOOK_SIG(default_file_settings){
         // Unfortunantely without tokens virtual whitespace doesn't really make sense.
         // So for now I have it automatically turning on lexing when virtual whitespace is turned on.
         // Cleaning some of that up is a goal for future versions.
+        if (lex_without_strings){
+            buffer_set_setting(app, &buffer, BufferSetting_LexWithoutStrings, true);
+        }
         buffer_set_setting(app, &buffer, BufferSetting_WrapLine, true);
         buffer_set_setting(app, &buffer, BufferSetting_VirtualWhitespace, true);
     }
