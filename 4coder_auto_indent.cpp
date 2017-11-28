@@ -24,7 +24,7 @@ TYPE: 'drop-in-command-pack'
 #endif
 
 //
-// Generic Line Indenter
+// Wrapper Implementation
 //
 
 struct Hard_Start_Result{
@@ -288,10 +288,6 @@ find_anchor_token(Application_Links *app, Buffer_Summary *buffer, Cpp_Token_Arra
     return(token);
 }
 
-//
-// Indent Rules
-//
-
 struct Indent_Parse_State{
     int32_t current_indent;
     int32_t previous_line_indent;
@@ -336,7 +332,11 @@ get_indentation_marks(Application_Links *app, Partition *part, Buffer_Summary *b
         if (token_ptr < tokens.tokens + tokens.count){
             token = *token_ptr;
         }
-        --token_ptr;
+        
+        // Back up and consume this token too IF it is a scope opener.
+        if (token.type == CPP_TOKEN_BRACE_OPEN || token.type == CPP_TOKEN_BRACKET_OPEN){
+            --token_ptr;
+        }
         
         for (;line_number < line_end;){
             prev_token = token;
@@ -413,11 +413,50 @@ get_indentation_marks(Application_Links *app, Partition *part, Buffer_Summary *b
                                     
                                     default:
                                     if (indent.current_indent > 0){
-                                        if (!(prev_token.flags & CPP_TFLAG_PP_BODY) && !(prev_token.flags & CPP_TFLAG_PP_DIRECTIVE)){
-                                            switch (prev_token.type){
-                                                case CPP_TOKEN_BRACKET_OPEN: case CPP_TOKEN_BRACE_OPEN: case CPP_TOKEN_BRACE_CLOSE: case CPP_TOKEN_SEMICOLON: case CPP_TOKEN_COLON: case CPP_TOKEN_COMMA: case CPP_TOKEN_COMMENT: break;
-                                                default: this_indent += tab_width;
+                                        bool32 statement_complete = false;
+                                        
+                                        Cpp_Token *prev_usable_token_ptr = token_ptr - 1;
+                                        Cpp_Token prev_usable_token = {0};
+                                        if (prev_usable_token_ptr >= tokens.tokens){
+                                            prev_usable_token = *prev_usable_token_ptr;
+                                        }
+                                        
+                                        // Scan backwards for the previous token that actually tells us about the statement.
+                                        bool32 has_prev_usable_token = true;
+#define NotUsable(T) \
+                                        (((T).flags&CPP_TFLAG_PP_BODY) || ((T).flags&CPP_TFLAG_PP_DIRECTIVE) || ((T).type == CPP_TOKEN_COMMENT))
+                                        if (NotUsable(prev_usable_token)){
+                                            has_prev_usable_token = false;
+                                            
+                                            for (--prev_usable_token_ptr;
+                                                 prev_usable_token_ptr >= tokens.tokens;
+                                                 --prev_usable_token_ptr){
+                                                
+                                                prev_usable_token = *prev_usable_token_ptr;
+                                                if (!NotUsable(prev_usable_token)){
+                                                    has_prev_usable_token = true;
+                                                    break;
+                                                }
                                             }
+                                        }
+#undef NotUsable
+                                        
+                                        if (!has_prev_usable_token){
+                                            statement_complete = true;
+                                        }
+                                        else{
+                                            if (prev_usable_token.type == CPP_TOKEN_BRACKET_OPEN ||
+                                                prev_usable_token.type == CPP_TOKEN_BRACE_OPEN ||
+                                                prev_usable_token.type == CPP_TOKEN_BRACE_CLOSE ||
+                                                prev_usable_token.type == CPP_TOKEN_SEMICOLON ||
+                                                prev_usable_token.type == CPP_TOKEN_COLON ||
+                                                prev_usable_token.type == CPP_TOKEN_COMMA){
+                                                statement_complete = true;
+                                            }
+                                        }
+                                        
+                                        if (!statement_complete){
+                                            this_indent += tab_width;
                                         }
                                     }
                                 }
@@ -610,11 +649,6 @@ buffer_auto_indent(Application_Links *app, Buffer_Summary *buffer, int32_t start
 // Commands
 //
 
-static void
-auto_tab_whole_file_by_summary(Application_Links *app, Buffer_Summary *buffer){
-    buffer_auto_indent(app, buffer, 0, buffer->size, DEF_TAB_WIDTH, DEFAULT_INDENT_FLAGS | AutoIndent_FullTokens);
-}
-
 CUSTOM_COMMAND_SIG(auto_tab_whole_file)
 CUSTOM_DOC("Audo-indents the entire current buffer.")
 {
@@ -622,7 +656,7 @@ CUSTOM_DOC("Audo-indents the entire current buffer.")
     View_Summary view = get_active_view(app, access);
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, access);
     
-    auto_tab_whole_file_by_summary(app, &buffer);
+    buffer_auto_indent(app, &global_part, &buffer, 0, buffer.size, DEF_TAB_WIDTH, DEFAULT_INDENT_FLAGS | AutoIndent_FullTokens);
 }
 
 CUSTOM_COMMAND_SIG(auto_tab_line_at_cursor)
@@ -632,7 +666,7 @@ CUSTOM_DOC("Auto-indents the line on which the cursor sits.")
     View_Summary view = get_active_view(app, access);
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, access);
     
-    buffer_auto_indent(app, &buffer, view.cursor.pos, view.cursor.pos, DEF_TAB_WIDTH, DEFAULT_INDENT_FLAGS | AutoIndent_FullTokens);
+    buffer_auto_indent(app, &global_part, &buffer, view.cursor.pos, view.cursor.pos, DEF_TAB_WIDTH, DEFAULT_INDENT_FLAGS | AutoIndent_FullTokens);
     move_past_lead_whitespace(app, &view, &buffer);
 }
 
@@ -644,7 +678,7 @@ CUSTOM_DOC("Auto-indents the range between the cursor and the mark.")
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, access);
     Range range = get_range(&view);
     
-    buffer_auto_indent(app, &buffer, range.min, range.max, DEF_TAB_WIDTH, DEFAULT_INDENT_FLAGS | AutoIndent_FullTokens);
+    buffer_auto_indent(app, &global_part, &buffer, range.min, range.max, DEF_TAB_WIDTH, DEFAULT_INDENT_FLAGS | AutoIndent_FullTokens);
     move_past_lead_whitespace(app, &view, &buffer);
 }
 
@@ -657,11 +691,9 @@ CUSTOM_DOC("Inserts a character and auto-indents the line on which the cursor si
     View_Summary view = get_active_view(app, access);
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, access);
     
-    buffer_auto_indent(app, &buffer, view.cursor.pos, view.cursor.pos, DEF_TAB_WIDTH, DEFAULT_INDENT_FLAGS | AutoIndent_ExactAlignBlock);
+    buffer_auto_indent(app, &global_part, &buffer, view.cursor.pos, view.cursor.pos, DEF_TAB_WIDTH, DEFAULT_INDENT_FLAGS | AutoIndent_ExactAlignBlock);
     move_past_lead_whitespace(app, &view, &buffer);
 }
-
-
 
 #endif
 

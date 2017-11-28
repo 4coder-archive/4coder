@@ -274,7 +274,7 @@ ENUM(uint32_t, Command_Line_Interface_Flag){
 
 /* DOC(An Auto_Indent_Flag field specifies the behavior of an auto indentation operation.) */
 ENUM(uint32_t, Auto_Indent_Flag){
-    /* DOC(If AutoIndent_ClearLine is set, then any line that is only whitespace will be cleared to contain nothing at all. otherwise the line is filled with whitespace to match the nearby indentation.) */
+    /* DOC(If AutoIndent_ClearLine is set, then any line that is only whitespace will be cleared to contain nothing at all, otherwise the line is filled with whitespace to match the nearby indentation.) */
     AutoIndent_ClearLine = 0x1,
     /* DOC(If AutoIndent_UseTab is set, then when putting in leading whitespace to align code, as many tabs will be used as possible until the fine grained control of spaces is needed to finish the alignment.) */
     AutoIndent_UseTab    = 0x2,

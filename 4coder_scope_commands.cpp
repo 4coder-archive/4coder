@@ -351,7 +351,8 @@ CUSTOM_DOC("Finds the scope enclosed by '{' '}' surrounding the cursor and puts 
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, access);
     
     int32_t start_pos = view.cursor.pos;
-    int32_t top = 0, bottom = 0;
+    int32_t top = 0;
+    int32_t bottom = 0;
     if (find_scope_top(app, &buffer, start_pos, FindScope_Parent, &top)){
         view_set_cursor(app, &view, seek_pos(top), true);
         if (find_scope_bottom(app, &buffer, start_pos, FindScope_Parent | FindScope_EndOfToken, &bottom)){
@@ -372,7 +373,8 @@ CUSTOM_DOC("Finds the first scope started by '{' after the cursor and puts the c
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, access);
     
     int32_t start_pos = view.cursor.pos;
-    int32_t top = 0, bottom = 0;
+    int32_t top = 0;
+    int32_t bottom = 0;
     if (find_next_scope(app, &buffer, start_pos, 0, &top)){
         if (find_scope_bottom(app, &buffer, top, FindScope_EndOfToken, &bottom)){
             view_set_cursor(app, &view, seek_pos(top), true);

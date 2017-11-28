@@ -413,7 +413,7 @@ long_braces(Application_Links *app, char *text, int32_t size){
     buffer_replace_range(app, &buffer, pos, pos, text, size);
     view_set_cursor(app, &view, seek_pos(pos + 2), true);
     
-    buffer_auto_indent(app, &buffer, pos, pos + size, DEF_TAB_WIDTH, DEFAULT_INDENT_FLAGS | AutoIndent_FullTokens);
+    buffer_auto_indent(app, &global_part, &buffer, pos, pos + size, DEF_TAB_WIDTH, DEFAULT_INDENT_FLAGS | AutoIndent_FullTokens);
     move_past_lead_whitespace(app, &view, &buffer);
 }
 
@@ -485,7 +485,7 @@ CUSTOM_DOC("Surround the range between the cursor and mark with an '#if 0' and a
         }
         
         range = get_range(&view);
-        buffer_auto_indent(app, &buffer, range.min, range.max, DEF_TAB_WIDTH, DEFAULT_INDENT_FLAGS | AutoIndent_FullTokens);
+        buffer_auto_indent(app, &global_part, &buffer, range.min, range.max, DEF_TAB_WIDTH, DEFAULT_INDENT_FLAGS | AutoIndent_FullTokens);
         move_past_lead_whitespace(app, &view, &buffer);
     }
 }

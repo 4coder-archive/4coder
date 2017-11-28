@@ -1024,7 +1024,7 @@ buffer_line_is_blank(Application_Links *app, Buffer_Summary *buffer, int32_t lin
 
 static int32_t
 buffer_get_line_number(Application_Links *app, Buffer_Summary *buffer, int32_t pos){
-    Partial_Cursor partial_cursor;
+    Partial_Cursor partial_cursor = {0};
     buffer_compute_cursor(app, buffer, seek_pos(pos), &partial_cursor);
     return(partial_cursor.line);
 }
