@@ -225,7 +225,7 @@ static i32 did_update_for_clipboard = true;
 
 - (void)init_gl
 {
-    if(osx_objc.running){
+    if (osx_objc.gl_is_initialized){
         return;
     }
     
@@ -253,7 +253,7 @@ static i32 did_update_for_clipboard = true;
     
     [context makeCurrentContext];
     
-    osx_objc.running = true;
+    osx_objc.gl_is_initialized = true;
 }
 
 - (id)init
@@ -873,6 +873,7 @@ main(int argc, char **argv){
                 userInfo: nil repeats:YES];
         
         osx_init();
+        osx_objc.running = true;
         
         [NSApp run];
     }

@@ -36,6 +36,7 @@ typedef struct OSX_Keyboard_Modifiers{
 
 typedef struct OSX_Objective_C_Vars{
     i32 width, height;
+    b32 gl_is_initialized;
     b32 running;
     u32 key_count;
     u32 keys[8];
