@@ -333,6 +333,9 @@ get_indentation_marks(Application_Links *app, Partition *part, Buffer_Summary *b
         indent.previous_line_indent = indent.current_indent;
         Cpp_Token prev_token = {0};
         Cpp_Token token = {0};
+        if (token_ptr < tokens.tokens + tokens.count){
+            token = *token_ptr;
+        }
         --token_ptr;
         
         for (;line_number < line_end;){

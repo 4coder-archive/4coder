@@ -206,9 +206,9 @@ int32_t line_number;
 };
 static Command_Metadata fcoder_metacmd_table[185] = {
 { PROC_LINKS(allow_mouse, 0), "allow_mouse", 11,  "Shows the mouse and causes all mouse input to be processed normally.", 68, "C:\\work\\4ed\\code\\4coder_default_framework.h", 47, 230 },
-{ PROC_LINKS(auto_tab_line_at_cursor, 0), "auto_tab_line_at_cursor", 23,  "Auto-indents the line on which the cursor sits.", 47, "C:\\work\\4ed\\code\\4coder_auto_indent.cpp", 43, 625 },
-{ PROC_LINKS(auto_tab_range, 0), "auto_tab_range", 14,  "Auto-indents the range between the cursor and the mark.", 55, "C:\\work\\4ed\\code\\4coder_auto_indent.cpp", 43, 636 },
-{ PROC_LINKS(auto_tab_whole_file, 0), "auto_tab_whole_file", 19,  "Audo-indents the entire current buffer.", 39, "C:\\work\\4ed\\code\\4coder_auto_indent.cpp", 43, 615 },
+{ PROC_LINKS(auto_tab_line_at_cursor, 0), "auto_tab_line_at_cursor", 23,  "Auto-indents the line on which the cursor sits.", 47, "C:\\work\\4ed\\code\\4coder_auto_indent.cpp", 43, 628 },
+{ PROC_LINKS(auto_tab_range, 0), "auto_tab_range", 14,  "Auto-indents the range between the cursor and the mark.", 55, "C:\\work\\4ed\\code\\4coder_auto_indent.cpp", 43, 639 },
+{ PROC_LINKS(auto_tab_whole_file, 0), "auto_tab_whole_file", 19,  "Audo-indents the entire current buffer.", 39, "C:\\work\\4ed\\code\\4coder_auto_indent.cpp", 43, 618 },
 { PROC_LINKS(backspace_char, 0), "backspace_char", 14,  "Deletes the character to the left of the cursor.", 48, "C:\\work\\4ed\\code\\4coder_base_commands.cpp", 45, 81 },
 { PROC_LINKS(backspace_word, 0), "backspace_word", 14,  "Delete characters between the cursor position and the first alphanumeric boundary to the left.", 94, "C:\\work\\4ed\\code\\4coder_default_include.cpp", 47, 147 },
 { PROC_LINKS(basic_change_active_panel, 0), "basic_change_active_panel", 25,  "Change the currently active panel, moving to the panel with the next highest view_id.  Will not skipe the build panel if it is open.", 132, "C:\\work\\4ed\\code\\4coder_base_commands.cpp", 45, 514 },
@@ -381,7 +381,7 @@ static Command_Metadata fcoder_metacmd_table[185] = {
 { PROC_LINKS(toggle_virtual_whitespace, 0), "toggle_virtual_whitespace", 25,  "Toggles the current buffer's virtual whitespace status.", 55, "C:\\work\\4ed\\code\\4coder_base_commands.cpp", 45, 627 },
 { PROC_LINKS(undo, 0), "undo", 4,  "Advances backwards through the undo history.", 44, "C:\\work\\4ed\\code\\4coder_base_commands.cpp", 45, 1164 },
 { PROC_LINKS(word_complete, 0), "word_complete", 13,  "Iteratively tries completing the word to the left of the cursor with other words in open buffers that have the same prefix string.", 130, "C:\\work\\4ed\\code\\4coder_search.cpp", 38, 786 },
-{ PROC_LINKS(write_and_auto_tab, 0), "write_and_auto_tab", 18,  "Inserts a character and auto-indents the line on which the cursor sits.", 71, "C:\\work\\4ed\\code\\4coder_auto_indent.cpp", 43, 648 },
+{ PROC_LINKS(write_and_auto_tab, 0), "write_and_auto_tab", 18,  "Inserts a character and auto-indents the line on which the cursor sits.", 71, "C:\\work\\4ed\\code\\4coder_auto_indent.cpp", 43, 651 },
 { PROC_LINKS(write_block, 0), "write_block", 11,  "At the cursor, insert a block comment.", 38, "C:\\work\\4ed\\code\\4coder_default_include.cpp", 47, 534 },
 { PROC_LINKS(write_character, 0), "write_character", 15,  "Inserts whatever character was used to trigger this command.", 60, "C:\\work\\4ed\\code\\4coder_base_commands.cpp", 45, 47 },
 { PROC_LINKS(write_explicit_enum_values, 0), "write_explicit_enum_values", 26,  "If the cursor is found to be on the '{' of an enum definition, the values of the enum will be filled in sequentially starting from zero.  Existing values are overwritten.", 170, "C:\\work\\4ed\\code\\power\\4coder_experiments.cpp", 50, 496 },
