@@ -3143,8 +3143,8 @@ file_do_single_edit(System_Functions *system, Models *models, Editing_File *file
     
     // NOTE(allen): meta data
     Gap_Buffer *buffer = &file->state.buffer;
-    i32 line_start = buffer_get_line_index(&file->state.buffer, start);
-    i32 line_end = buffer_get_line_index(&file->state.buffer, end);
+    i32 line_start = buffer_get_line_number(&file->state.buffer, start);
+    i32 line_end = buffer_get_line_number(&file->state.buffer, end);
     i32 replaced_line_count = line_end - line_start;
     i32 new_line_count = buffer_count_newlines(&file->state.buffer, start, start+str_len);
     i32 line_shift =  new_line_count - replaced_line_count;

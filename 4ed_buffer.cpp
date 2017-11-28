@@ -1194,6 +1194,7 @@ binary_search(i32 *array, i32 value, i32 l_bound, i32 u_bound){
     return(i);
 }
 
+// TODO(allen): CHECK
 inline i32
 buffer_get_line_index_range(Gap_Buffer *buffer, i32 pos, i32 l_bound, i32 u_bound){
     Assert(0 <= l_bound);
@@ -1207,7 +1208,7 @@ buffer_get_line_index_range(Gap_Buffer *buffer, i32 pos, i32 l_bound, i32 u_boun
 }
 
 inline i32
-buffer_get_line_index(Gap_Buffer *buffer, i32 pos){
+buffer_get_line_number(Gap_Buffer *buffer, i32 pos){
     i32 result = buffer_get_line_index_range(buffer, pos, 0, buffer->line_count);
     return(result);
 }
@@ -1363,7 +1364,7 @@ buffer_cursor_seek(Buffer_Cursor_Seek_State *S_ptr, Buffer_Cursor_Seek_Params pa
             {
                 params.seek.pos = clamp(0, params.seek.pos, S.size);
                 
-                line_index = buffer_get_line_index(params.buffer, params.seek.pos);
+                line_index = buffer_get_line_number(params.buffer, params.seek.pos);
             }break;
             
             case buffer_seek_character_pos:

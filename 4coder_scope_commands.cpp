@@ -407,22 +407,15 @@ CUSTOM_DOC("Wraps the code contained in the range between cursor and mark with a
     View_Summary view = get_active_view(app, access);
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, access);
     
-    Range lines;
+    Range lines = {0};
     Range range = get_range(&view);
-    lines.min = buffer_get_line_index(app, &buffer, range.min);
+    lines.min = buffer_get_line_number(app, &buffer, range.min);
     range.min = buffer_get_line_start(app, &buffer, lines.min);
     
-    lines.max = buffer_get_line_index(app, &buffer, range.max);
+    lines.max = buffer_get_line_number(app, &buffer, range.max);
     range.max = buffer_get_line_end(app, &buffer, lines.max);
     
-    bool32 do_full = false;
-    
-    if (lines.min < lines.max){
-        do_full = true;
-    }
-    else if (!buffer_line_is_blank(app, &buffer, lines.min)){
-        do_full = true;
-    }
+    bool32 do_full = (lines.min < lines.max) || (!buffer_line_is_blank(app, &buffer, lines.min));
     
     if (do_full){
         Buffer_Edit edits[2];

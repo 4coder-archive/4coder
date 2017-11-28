@@ -1023,7 +1023,7 @@ buffer_line_is_blank(Application_Links *app, Buffer_Summary *buffer, int32_t lin
 }
 
 static int32_t
-buffer_get_line_index(Application_Links *app, Buffer_Summary *buffer, int32_t pos){
+buffer_get_line_number(Application_Links *app, Buffer_Summary *buffer, int32_t pos){
     Partial_Cursor partial_cursor;
     buffer_compute_cursor(app, buffer, seek_pos(pos), &partial_cursor);
     return(partial_cursor.line);
@@ -1044,7 +1044,7 @@ get_first_token_at_line(Application_Links *app, Buffer_Summary *buffer, Cpp_Toke
     
     Cpp_Token *result = 0;
     if (get_token.token_index < tokens.count){
-        result = tokens.tokens + get_token.token_index;
+        result = &tokens.tokens[get_token.token_index];
     }
     
     return(result);

@@ -192,17 +192,16 @@ seek_matching_token_backwards(Cpp_Token_Array tokens, Cpp_Token *token, Cpp_Toke
 
 static Cpp_Token*
 find_anchor_token(Application_Links *app, Buffer_Summary *buffer, Cpp_Token_Array tokens, int32_t line_start, int32_t tab_width, int32_t *current_indent_out){
-    Cpp_Token *token = get_first_token_at_line(app, buffer, tokens, line_start);
+    Cpp_Token *token = 0;
     
-    if (token == 0 && tokens.count == 0){
-        // In this case just let the null token pointer be returned.
-    }
-    else{
+    if (tokens.count != 0){
+        token = get_first_token_at_line(app, buffer, tokens, line_start);
+        
         if (token == 0){
             token = tokens.tokens + (tokens.count - 1);
         }
         
-        if (token != tokens.tokens){
+        if (token > tokens.tokens){
             --token;
             for (; token > tokens.tokens; --token){
                 if (!(token->flags & CPP_TFLAG_PP_BODY)){
@@ -219,7 +218,7 @@ find_anchor_token(Application_Links *app, Buffer_Summary *buffer, Cpp_Token_Arra
         int32_t current_indent = 0;
         int32_t found_safe_start_position = 0;
         do{
-            int32_t line = buffer_get_line_index(app, buffer, token->start);
+            int32_t line = buffer_get_line_number(app, buffer, token->start);
             int32_t start = buffer_get_line_start(app, buffer, line);
             
             Hard_Start_Result hard_start = buffer_find_hard_start(app, buffer, start, tab_width);
@@ -244,8 +243,9 @@ find_anchor_token(Application_Links *app, Buffer_Summary *buffer, Cpp_Token_Arra
                         case CPP_TOKEN_PARENTHESE_CLOSE:
                         case CPP_TOKEN_BRACKET_CLOSE:
                         case CPP_TOKEN_BRACE_CLOSE:
-                        close = token->type;
-                        goto out_of_loop2;
+                        {
+                            close = token->type;
+                        }goto out_of_loop2;
                     }
                 }
                 out_of_loop2:;
@@ -253,22 +253,29 @@ find_anchor_token(Application_Links *app, Buffer_Summary *buffer, Cpp_Token_Arra
                 Cpp_Token_Type open_type = CPP_TOKEN_JUNK;
                 Cpp_Token_Type close_type = CPP_TOKEN_JUNK;
                 switch (close){
-                    case 0: token = start_token; found_safe_start_position = true; break;
+                    case 0:
+                    {
+                        token = start_token;
+                        found_safe_start_position = true;
+                    }break;
                     
                     case CPP_TOKEN_PARENTHESE_CLOSE:
-                    open_type = CPP_TOKEN_PARENTHESE_OPEN;
-                    close_type = CPP_TOKEN_PARENTHESE_CLOSE;
-                    break;
+                    {
+                        open_type = CPP_TOKEN_PARENTHESE_OPEN;
+                        close_type = CPP_TOKEN_PARENTHESE_CLOSE;
+                    }break;
                     
                     case CPP_TOKEN_BRACKET_CLOSE:
-                    open_type = CPP_TOKEN_BRACKET_OPEN;
-                    close_type = CPP_TOKEN_BRACKET_CLOSE;
-                    break;
+                    {
+                        open_type = CPP_TOKEN_BRACKET_OPEN;
+                        close_type = CPP_TOKEN_BRACKET_CLOSE;
+                    }break;
                     
                     case CPP_TOKEN_BRACE_CLOSE:
-                    open_type = CPP_TOKEN_BRACE_OPEN;
-                    close_type = CPP_TOKEN_BRACE_CLOSE;
-                    break;
+                    {
+                        open_type = CPP_TOKEN_BRACE_OPEN;
+                        close_type = CPP_TOKEN_BRACE_CLOSE;
+                    }break;
                 }
                 if (open_type != CPP_TOKEN_JUNK){
                     token = seek_matching_token_backwards(tokens, token-1, open_type, close_type);
@@ -313,22 +320,22 @@ get_indentation_marks(Application_Links *app, Partition *part, Buffer_Summary *b
         }
     }
     else{
-        int32_t line_index = buffer_get_line_index(app, buffer, token_ptr->start);
-        if (line_index > line_start){
-            line_index = line_start;
+        int32_t line_number = buffer_get_line_number(app, buffer, token_ptr->start);
+        if (line_number > line_start){
+            line_number = line_start;
         }
         
         if (token_ptr == tokens.tokens){
             indent.current_indent = 0;
         }
         
-        int32_t next_line_start_pos = buffer_get_line_start(app, buffer, line_index);
+        int32_t next_line_start_pos = buffer_get_line_start(app, buffer, line_number);
         indent.previous_line_indent = indent.current_indent;
         Cpp_Token prev_token = {0};
         Cpp_Token token = {0};
         --token_ptr;
         
-        for (;line_index < line_end;){
+        for (;line_number < line_end;){
             prev_token = token;
             ++token_ptr;
             if (token_ptr < tokens.tokens + tokens.count){
@@ -340,15 +347,15 @@ get_indentation_marks(Application_Links *app, Partition *part, Buffer_Summary *b
                 token.flags = 0;
             }
             
-            for (;token.start >= next_line_start_pos && line_index < line_end;){
-                next_line_start_pos = buffer_get_line_start(app, buffer, line_index+1);
+            for (;token.start >= next_line_start_pos && line_number < line_end;){
+                next_line_start_pos = buffer_get_line_start(app, buffer, line_number+1);
                 
                 int32_t this_indent = 0;
                 {
                     int32_t previous_indent = indent.previous_line_indent;
                     
-                    int32_t this_line_start = buffer_get_line_start(app, buffer, line_index);
-                    int32_t next_line_start = buffer_get_line_start(app, buffer, line_index+1);
+                    int32_t this_line_start = buffer_get_line_start(app, buffer, line_number);
+                    int32_t next_line_start = buffer_get_line_start(app, buffer, line_number+1);
                     
                     bool32 did_special_behavior = false;
                     
@@ -373,7 +380,7 @@ get_indentation_marks(Application_Links *app, Partition *part, Buffer_Summary *b
                             }
                             
                             if (!hard_start.all_whitespace){
-                                if (line_index >= line_start){
+                                if (line_number >= line_start){
                                     indent.previous_comment_indent = this_indent;
                                 }
                                 else{
@@ -439,10 +446,10 @@ get_indentation_marks(Application_Links *app, Partition *part, Buffer_Summary *b
                     }
                 }
                 
-                if (line_index >= line_start){
-                    indent_marks[line_index] = this_indent;
+                if (line_number >= line_start){
+                    indent_marks[line_number] = this_indent;
                 }
-                ++line_index;
+                ++line_number;
                 
                 indent.previous_line_indent = this_indent;
             }
@@ -456,7 +463,7 @@ get_indentation_marks(Application_Links *app, Partition *part, Buffer_Summary *b
                 
                 case CPP_TOKEN_COMMENT:
                 {
-                    int32_t line = buffer_get_line_index(app, buffer, token.start);
+                    int32_t line = buffer_get_line_number(app, buffer, token.start);
                     int32_t start = buffer_get_line_start(app, buffer, line);
                     
                     indent.comment_shift = (indent.current_indent - (token.start - start));
@@ -467,7 +474,7 @@ get_indentation_marks(Application_Links *app, Partition *part, Buffer_Summary *b
                 {
                     if (!(token.flags & CPP_TFLAG_PP_BODY)){
                         if (indent.paren_nesting < ArrayCount(indent.paren_anchor_indent)){
-                            int32_t line = buffer_get_line_index(app, buffer, token.start);
+                            int32_t line = buffer_get_line_number(app, buffer, token.start);
                             int32_t start = buffer_get_line_start(app, buffer, line);
                             int32_t char_pos = token.start - start;
                             
@@ -500,8 +507,8 @@ get_indentation_marks(Application_Links *app, Partition *part, Buffer_Summary *b
 
 static void
 get_indent_lines_minimum(Application_Links *app, Buffer_Summary *buffer, int32_t start_pos, int32_t end_pos, int32_t *line_start_out, int32_t *line_end_out){
-    int32_t line_start = buffer_get_line_index(app, buffer, start_pos);
-    int32_t line_end = buffer_get_line_index(app, buffer, end_pos) + 1;
+    int32_t line_start = buffer_get_line_number(app, buffer, start_pos);
+    int32_t line_end = buffer_get_line_number(app, buffer, end_pos) + 1;
     
     *line_start_out = line_start;
     *line_end_out = line_end;
@@ -509,14 +516,14 @@ get_indent_lines_minimum(Application_Links *app, Buffer_Summary *buffer, int32_t
 
 static void
 get_indent_lines_whole_tokens(Application_Links *app, Buffer_Summary *buffer, Cpp_Token_Array tokens, int32_t start_pos, int32_t end_pos, int32_t *line_start_out, int32_t *line_end_out){
-    int32_t line_start = buffer_get_line_index(app, buffer, start_pos);
-    int32_t line_end = buffer_get_line_index(app, buffer, end_pos);
+    int32_t line_start = buffer_get_line_number(app, buffer, start_pos);
+    int32_t line_end = buffer_get_line_number(app, buffer, end_pos);
     
     for (;line_start > 1;){
         int32_t line_start_pos = 0;
         Cpp_Token *token = get_first_token_at_line(app, buffer, tokens, line_start, &line_start_pos);
         if (token && token->start < line_start_pos){
-            line_start = buffer_get_line_index(app, buffer, token->start);
+            line_start = buffer_get_line_number(app, buffer, token->start);
         }
         else{
             break;
@@ -527,7 +534,7 @@ get_indent_lines_whole_tokens(Application_Links *app, Buffer_Summary *buffer, Cp
         int32_t next_line_start_pos = 0;
         Cpp_Token *token = get_first_token_at_line(app, buffer, tokens, line_end+1, &next_line_start_pos);
         if (token && token->start < next_line_start_pos){
-            line_end = buffer_get_line_index(app, buffer, token->start+token->size);
+            line_end = buffer_get_line_number(app, buffer, token->start+token->size);
         }
         else{
             break;

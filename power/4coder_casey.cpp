@@ -1318,7 +1318,7 @@ casey_list_all_functions(Application_Links *app, Partition *part, Buffer_Summary
                 int32_t sig_size = extra_memory->pos;
                 String sig = make_string(extra_memory->base, sig_size);
                 
-                int32_t line_number = buffer_get_line_index(app, buffer, open_paren_pos);
+                int32_t line_number = buffer_get_line_number(app, buffer, open_paren_pos);
                 int32_t line_number_len = int_to_str_size(line_number);
                 
                 int32_t append_len = buffer_name.size + 1 + line_number_len + 1 + 1 + sig_size + 1;
