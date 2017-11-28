@@ -188,7 +188,7 @@ Sys_Is_Fullscreen_Sig(system_is_fullscreen){
 // HACK(allen): Why does this work differently from the win32 version!?
 internal
 Sys_Send_Exit_Signal_Sig(system_send_exit_signal){
-    DBG_POINT();
+    
     osxvars.keep_running = false;
 }
 
@@ -226,16 +226,16 @@ Sys_Post_Clipboard_Sig(system_post_clipboard){
 global i32 cli_count = 0;
 
 internal
-Sys_CLI_Call_Sig(system_cli_call){
+Sys_CLI_Call_Sig(system_cli_call, path, script_name, cli_out){
     i32 pipe_fds[2];
     if (pipe(pipe_fds) == -1){
-        DBG_POINT();
+        
         return 0;
     }
     
     i32 child_pid = fork();
     if (child_pid == -1){
-        DBG_POINT();
+        
         return 0;
     }
     
@@ -248,7 +248,7 @@ Sys_CLI_Call_Sig(system_cli_call){
         dup2(pipe_fds[PIPE_FD_WRITE], STDERR_FILENO);
         
         if (chdir(path) == -1){
-            DBG_POINT();
+            
             exit(1);
         }
         
@@ -260,7 +260,7 @@ Sys_CLI_Call_Sig(system_cli_call){
         };
         
         if (execv("/bin/sh", argv) == -1){
-            DBG_POINT();
+            
         }
         exit(1);
     }
@@ -298,7 +298,7 @@ Sys_CLI_Update_Step_Sig(system_cli_update_step){
     while (space_left > 0 && select(pipe_read_fd + 1, &fds, NULL, NULL, &tv) == 1){
         ssize_t num = read(pipe_read_fd, ptr, space_left);
         if (num == -1){
-            DBG_POINT();
+            
         } else if (num == 0){
             // NOTE(inso): EOF
             break;
@@ -577,7 +577,7 @@ osx_try_to_close(void){
 
 external void
 osx_step(void){
-    DBG_POINT();
+    
     
     Application_Step_Result result = {};
     result.mouse_cursor_type = APP_MOUSE_CURSOR_DEFAULT;
@@ -663,14 +663,12 @@ osx_init(){
     // System Linkage
     //
     
-    DBG_POINT();
     link_system_code();
     
     //
     // Memory init
     //
     
-    DBG_POINT();
     memset(&target, 0, sizeof(target));
     memset(&memory_vars, 0, sizeof(memory_vars));
     memset(&plat_settings, 0, sizeof(plat_settings));
@@ -689,15 +687,21 @@ osx_init(){
     // Previously zipped stuff is here, it should be zipped in the new pattern now.
     //
     
-    DBG_POINT();
     init_shared_vars();
     
     //
-    // Dynamic Linkage
+    // Load Core Code
     //
-    
-    DBG_POINT();
     load_app_code();
+    
+    //
+    // Read command line
+    //
+    read_command_line(osx_objc.argc, osx_objc.argv);
+    
+    //
+    // Load Custom Code
+    //
 #if defined(FRED_SUPER)
     load_custom_code();
 #else
@@ -705,31 +709,20 @@ osx_init(){
 #endif
     
     //
-    // Read command line
-    //
-    
-    DBG_POINT();
-    read_command_line(osx_objc.argc, osx_objc.argv);
-    
-    //
     // Threads
     //
     
-    DBG_POINT();
     work_system_init();
     
     //
     // Coroutines
     //
     
-    DBG_POINT();
     coroutines_init();
     
     //
     // Font System Init
     //
-    
-    DBG_POINT();
     
     Partition *scratch = &shared_vars.scratch;
     Temp_Memory temp = begin_temp_memory(scratch);
@@ -742,7 +735,6 @@ osx_init(){
     // App Init
     //
     
-    DBG_POINT();
     char cwd[4096];
     u32 size = sysfunc.get_current_path(cwd, sizeof(cwd));
     if (size == 0 || size >= sizeof(cwd)){
@@ -752,19 +744,15 @@ osx_init(){
     terminate_with_null(&curdir);
     replace_char(&curdir, '\\', '/');
     
-    DBG_POINT();
+    
     
     String clipboard_string = {0};
     if (osx_objc.has_clipboard_item){
         clipboard_string = make_string(osx_objc.clipboard_data, osx_objc.clipboard_size);
     }
     
-    DBG_POINT();
-    
     LOG("Initializing application variables\n");
     app.init(&sysfunc, &target, &memory_vars, clipboard_string, curdir, custom_api);
-    
-    DBG_POINT();
 }
 
 #include "mac_4ed_file_track.cpp"

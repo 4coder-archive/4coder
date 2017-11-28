@@ -350,7 +350,7 @@ Sys_Post_Clipboard_Sig(system_post_clipboard){
 //
 
 internal
-Sys_CLI_Call_Sig(system_cli_call){
+Sys_CLI_Call_Sig(system_cli_call, path, script_name, cli_out){
     LINUX_FN_DEBUG("%s %s", path, script_name);
     
     int pipe_fds[2];
@@ -1671,21 +1671,23 @@ main(int argc, char **argv){
     init_shared_vars();
     
     //
-    // Dynamic Linkage
+    // Load Core Code
     //
-    
     load_app_code();
+    
+    //
+    // Read command line
+    //
+    read_command_line(argc, argv);
+    
+    //
+    // Load Custom Code
+    //
 #if defined(FRED_SUPER)
     load_custom_code();
 #else
     custom_api.get_bindings = get_bindings;
 #endif
-    
-    //
-    // Read command line
-    //
-    
-    read_command_line(argc, argv);
     
     //
     // Threads

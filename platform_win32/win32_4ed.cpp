@@ -61,6 +61,11 @@
 
 //////////////////////////////
 
+internal void
+win32_output_error_string(b32 use_error_box = true);
+
+//////////////////////////////
+
 #include "win32_utf8.h"
 
 #include "4ed_file_track.h"
@@ -177,7 +182,7 @@ global Coroutine_System_Auto_Alloc coroutines;
 ////////////////////////////////
 
 internal void
-win32_output_error_string(b32 use_error_box = true){
+win32_output_error_string(b32 use_error_box){
     DWORD error = GetLastError();
     
     char *str = 0;
@@ -187,6 +192,9 @@ win32_output_error_string(b32 use_error_box = true){
         if (use_error_box){
             system_error_box(str, false);
         }
+    }
+    else{
+        LOGF("win32 error raw: %d\n", error);
     }
 }
 
@@ -380,7 +388,9 @@ win32_read_clipboard_contents(){
 //
 
 internal
-Sys_CLI_Call_Sig(system_cli_call){
+Sys_CLI_Call_Sig(system_cli_call, path, script_name, cli_out){
+    Assert(sizeof(Plat_Handle) >= sizeof(HANDLE));
+    
     char cmd[] = "c:\\windows\\system32\\cmd.exe";
     char *env_variables = 0;
     char command_line[2048];
@@ -391,28 +401,34 @@ Sys_CLI_Call_Sig(system_cli_call){
     b32 success = terminate_with_null(&s);
     
     if (success){
-        success = 0;
+        success = false;
         
-        SECURITY_ATTRIBUTES sec_attributes = {};
-        HANDLE out_read;
-        HANDLE out_write;
+        *(HANDLE*)&cli_out->proc = INVALID_HANDLE_VALUE;
+        *(HANDLE*)&cli_out->out_read = INVALID_HANDLE_VALUE;
+        *(HANDLE*)&cli_out->out_write = INVALID_HANDLE_VALUE;
+        *(HANDLE*)&cli_out->in_read = INVALID_HANDLE_VALUE;
+        *(HANDLE*)&cli_out->in_write = INVALID_HANDLE_VALUE;
         
-        sec_attributes.nLength = sizeof(SECURITY_ATTRIBUTES);
-        sec_attributes.bInheritHandle = TRUE;
+        SECURITY_ATTRIBUTES security_atrb = {};
+        security_atrb.nLength = sizeof(SECURITY_ATTRIBUTES);
+        security_atrb.bInheritHandle = TRUE;
         
-        if (CreatePipe(&out_read, &out_write, &sec_attributes, 0)){
+        HANDLE out_read = INVALID_HANDLE_VALUE;
+        HANDLE out_write = INVALID_HANDLE_VALUE;
+        if (CreatePipe(&out_read, &out_write, &security_atrb, 0)){
             if (SetHandleInformation(out_read, HANDLE_FLAG_INHERIT, 0)){
                 STARTUPINFO startup = {};
                 startup.cb = sizeof(STARTUPINFO);
                 startup.dwFlags = STARTF_USESHOWWINDOW | STARTF_USESTDHANDLES;
-                startup.hStdInput = INVALID_HANDLE_VALUE;
+                
+                HANDLE in_read = CreateFileA("nul", GENERIC_READ, FILE_SHARE_READ|FILE_SHARE_WRITE|FILE_SHARE_DELETE, &security_atrb, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
+                
+                startup.hStdInput = in_read;
                 startup.hStdOutput = out_write;
                 startup.hStdError = out_write;
                 startup.wShowWindow = SW_HIDE;
                 
                 PROCESS_INFORMATION info = {};
-                
-                Assert(sizeof(Plat_Handle) >= sizeof(HANDLE));
                 if (CreateProcess_utf8((u8*)cmd, (u8*)command_line, 0, 0, TRUE, 0, env_variables, (u8*)path, &startup, &info)){
                     success = 1;
                     CloseHandle(info.hThread);
@@ -425,18 +441,13 @@ Sys_CLI_Call_Sig(system_cli_call){
                 else{
                     CloseHandle(out_read);
                     CloseHandle(out_write);
-                    *(HANDLE*)&cli_out->proc = INVALID_HANDLE_VALUE;
-                    *(HANDLE*)&cli_out->out_read = INVALID_HANDLE_VALUE;
-                    *(HANDLE*)&cli_out->out_write = INVALID_HANDLE_VALUE;
+                    CloseHandle(in_read);
                 }
             }
             else{
                 // TODO(allen): failed SetHandleInformation
                 CloseHandle(out_read);
                 CloseHandle(out_write);
-                *(HANDLE*)&cli_out->proc = INVALID_HANDLE_VALUE;
-                *(HANDLE*)&cli_out->out_read = INVALID_HANDLE_VALUE;
-                *(HANDLE*)&cli_out->out_write = INVALID_HANDLE_VALUE;
             }
         }
         else{
@@ -512,6 +523,12 @@ Sys_CLI_End_Update_Sig(system_cli_end_update){
         CloseHandle(*(HANDLE*)&cli->proc);
         CloseHandle(*(HANDLE*)&cli->out_read);
         CloseHandle(*(HANDLE*)&cli->out_write);
+        if (*(HANDLE*)&cli->in_read != INVALID_HANDLE_VALUE){
+            CloseHandle(*(HANDLE*)&cli->in_read);
+        }
+        if (*(HANDLE*)&cli->in_write != INVALID_HANDLE_VALUE){
+            CloseHandle(*(HANDLE*)&cli->in_write);
+        }
         
         --win32vars.running_cli;
     }
@@ -1169,21 +1186,24 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
     init_shared_vars();
     
     //
-    // Dynamic Linkage
+    // Load Core Code
+    //
+    load_app_code();
+    
+    //
+    // Read Command Line
+    //
+    read_command_line(argc, argv);
+    
+    //
+    // Load Custom Code
     //
     
-    load_app_code();
 #if defined(FRED_SUPER)
     load_custom_code();
 #else
     custom_api.get_bindings = get_bindings;
 #endif
-    
-    //
-    // Read Command Line
-    //
-    
-    read_command_line(argc, argv);
     
     //
     // Threads

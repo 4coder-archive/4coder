@@ -69,7 +69,9 @@ system_load_library(Library *library, char *name, Load_Library_Location location
     
     b32 success = false;
     if (path.size > 0){
-        append(&path, SLASH);
+        if (path.str[path.size - 1] != SLASH){
+            append(&path, SLASH);
+        }
         append(&path, name);
         terminate_with_null(&path);
         success = system_load_library_direct(library, path.str);

@@ -71,12 +71,14 @@ struct CLI_Handles{
     Plat_Handle proc;
     Plat_Handle out_read;
     Plat_Handle out_write;
+    Plat_Handle in_read;
+    Plat_Handle in_write;
     u32 scratch_space[4];
     i32 exit;
 };
 
-#define Sys_CLI_Call_Sig(name) b32 name(char *path, char *script_name, CLI_Handles *cli_out)
-typedef Sys_CLI_Call_Sig(System_CLI_Call);
+#define Sys_CLI_Call_Sig(n, path, script, cli_out) b32 n(char *path, char *script, CLI_Handles *cli_out)
+typedef Sys_CLI_Call_Sig(System_CLI_Call, path, script, cli_out);
 
 #define Sys_CLI_Begin_Update_Sig(name) void name(CLI_Handles *cli)
 typedef Sys_CLI_Begin_Update_Sig(System_CLI_Begin_Update);
