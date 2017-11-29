@@ -895,7 +895,8 @@ CUSTOM_DOC("Queries the user for two strings, and replaces all occurences of the
     
     if (!query_user_string(app, &with)) return;
     
-    String r = replace.string, w = with.string;
+    String r = replace.string;
+    String w = with.string;
     
     uint32_t access = AccessOpen;
     View_Summary view = get_active_view(app, access);

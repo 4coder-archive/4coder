@@ -933,6 +933,36 @@ buffer_seek_string_insensitive_backward(Application_Links *app, Buffer_Summary *
     }
 }
 
+typedef uint32_t Buffer_Seek_String_Flags;
+enum{
+    BufferSeekString_Backward = 1,
+    BufferSeekString_CaseInsensitive = 2,
+};
+
+static void
+buffer_seek_string(Application_Links *app, Buffer_Summary *buffer, int32_t pos, int32_t end, int32_t min, char *str, int32_t size, int32_t *result, Buffer_Seek_String_Flags flags){
+    switch (flags & 3){
+        case 0:
+        {
+            buffer_seek_string_forward(app, buffer, pos, end, str, size, result);
+        }break;
+        
+        case BufferSeekString_Backward:
+        {
+            buffer_seek_string_backward(app, buffer, pos, min, str, size, result);
+        }break;
+        
+        case BufferSeekString_CaseInsensitive:
+        {
+            buffer_seek_string_insensitive_forward(app, buffer, pos, end, str, size, result);
+        }break;
+        
+        case BufferSeekString_Backward|BufferSeekString_CaseInsensitive:
+        {
+            buffer_seek_string_insensitive_backward(app, buffer, pos, min, str, size, result);
+        }break;
+    }
+}
 
 //
 // Buffer Line Positioning

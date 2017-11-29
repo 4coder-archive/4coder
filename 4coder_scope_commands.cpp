@@ -402,12 +402,10 @@ CUSTOM_DOC("Finds the first scope started by '{' before the cursor and puts the 
     }
 }
 
-CUSTOM_COMMAND_SIG(place_in_scope)
-CUSTOM_DOC("Wraps the code contained in the range between cursor and mark with a new curly brace scope.")
-{
-    uint32_t access = AccessOpen;
-    View_Summary view = get_active_view(app, access);
-    Buffer_Summary buffer = get_buffer(app, view.buffer_id, access);
+static void
+place_begin_and_end_on_own_lines(Application_Links *app, Partition *scratch, char *begin, char *end){
+    View_Summary view = get_active_view(app, AccessOpen);
+    Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessOpen);
     
     Range lines = {0};
     Range range = get_range(&view);
@@ -419,22 +417,33 @@ CUSTOM_DOC("Wraps the code contained in the range between cursor and mark with a
     
     bool32 do_full = (lines.min < lines.max) || (!buffer_line_is_blank(app, &buffer, lines.min));
     
+    Temp_Memory temp = begin_temp_memory(scratch);
+    int32_t begin_len = str_size(begin);
+    int32_t end_len = str_size(end);
+    
+    int32_t str_size = begin_len + end_len + 2;
+    char *str = push_array(scratch, char, str_size);
+    String builder = make_string_cap(str, 0, str_size);
+    append(&builder, begin);
+    append(&builder, "\n");
+    append(&builder, "\n");
+    append(&builder, end);
+    
     if (do_full){
         Buffer_Edit edits[2];
-        char str[5] = "{\n\n}";
         
         int32_t min_adjustment = 0;
         int32_t max_adjustment = 4;
         
         if (buffer_line_is_blank(app, &buffer, lines.min)){
+            memmove(str + 1, str, begin_len);
             str[0] = '\n';
-            str[1] = '{';
             ++min_adjustment;
         }
         
         if (buffer_line_is_blank(app, &buffer, lines.max)){
-            str[2] = '}';
-            str[3] = '\n';
+            memmove(str + begin_len + 1, str + begin_len + 2, end_len);
+            str[begin_len + end_len + 1] = '\n';
             --max_adjustment;
         }
         
@@ -450,25 +459,34 @@ CUSTOM_DOC("Wraps the code contained in the range between cursor and mark with a
         }
         
         edits[0].str_start = 0;
-        edits[0].len = 2;
+        edits[0].len = begin_len + 1;
         edits[0].start = range.min;
         edits[0].end = range.min;
         
-        edits[1].str_start = 2;
-        edits[1].len = 2;
+        edits[1].str_start = begin_len + 1;
+        edits[1].len = end_len + 1;
         edits[1].start = range.max;
         edits[1].end = range.max;
         
-        buffer_batch_edit(app, &buffer, str, 4, edits, 2, BatchEdit_Normal);
+        buffer_batch_edit(app, &buffer, str, str_size, edits, 2, BatchEdit_Normal);
         
         view_set_cursor(app, &view, seek_pos(cursor_pos), true);
         view_set_mark(app, &view, seek_pos(mark_pos));
     }
     else{
-        buffer_replace_range(app, &buffer, range.min, range.max, "{\n\n}", 4);
-        view_set_cursor(app, &view, seek_pos(range.min + 2), true);
-        view_set_mark(app, &view, seek_pos(range.min + 2));
+        buffer_replace_range(app, &buffer, range.min, range.max, str, str_size);
+        int32_t center_pos = range.min + begin_len + 1;
+        view_set_cursor(app, &view, seek_pos(center_pos), true);
+        view_set_mark(app, &view, seek_pos(center_pos));
     }
+    
+    end_temp_memory(temp);
+}
+
+CUSTOM_COMMAND_SIG(place_in_scope)
+CUSTOM_DOC("Wraps the code contained in the range between cursor and mark with a new curly brace scope.")
+{
+    place_begin_and_end_on_own_lines(app, &global_part, "{", "}");
 }
 
 CUSTOM_COMMAND_SIG(delete_current_scope)

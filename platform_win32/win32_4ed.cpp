@@ -232,7 +232,6 @@ system_schedule_step(){
 
 ////////////////////////////////
 
-// HACK(allen): Get this shit working more properly (look at pens)
 internal void
 win32_toggle_fullscreen(){
     HWND win = win32vars.window_handle;

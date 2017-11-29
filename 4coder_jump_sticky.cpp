@@ -559,6 +559,25 @@ CUSTOM_DOC("If a buffer containing jump locations has been locked in, goes to th
     }
 }
 
+CUSTOM_COMMAND_SIG(goto_first_jump_same_panel_sticky)
+CUSTOM_DOC("If a buffer containing jump locations has been locked in, goes to the first jump in the buffer and views the buffer in the panel where the jump list was.")
+{
+    General_Memory *general = &global_general;
+    Partition *part = &global_part;
+    
+    Locked_Jump_State jump_state = get_locked_jump_state(app, part, general);
+    if (jump_state.view.exists){
+        int32_t list_index = 0;
+        ID_Pos_Jump_Location location = {0};
+        if (get_jump_from_list(app, jump_state.list, list_index, &location)){
+            Buffer_Summary buffer = {0};
+            if (get_jump_buffer(app, &buffer, &location)){
+                jump_to_location(app, &jump_state.view, &buffer, location);
+            }
+        }
+    }
+}
+
 //
 // Insert Newline or Tigger Jump on Read Only Buffer
 //

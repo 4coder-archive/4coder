@@ -164,6 +164,7 @@ CUSTOM_DOC("Create a new panel by vertically splitting the active panel.")
     View_Summary view = get_active_view(app, AccessAll);
     View_Summary new_view = open_view(app, &view, ViewSplit_Right);
     new_view_settings(app, &new_view);
+    view_set_buffer(app, &new_view, view.buffer_id, 0);
 }
 
 CUSTOM_COMMAND_SIG(open_panel_hsplit)
@@ -172,6 +173,7 @@ CUSTOM_DOC("Create a new panel by horizontally splitting the active panel.")
     View_Summary view = get_active_view(app, AccessAll);
     View_Summary new_view = open_view(app, &view, ViewSplit_Bottom);
     new_view_settings(app, &new_view);
+    view_set_buffer(app, &new_view, view.buffer_id, 0);
 }
 
 //

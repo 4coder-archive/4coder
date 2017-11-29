@@ -246,7 +246,7 @@ CUSTOM_COMMAND_SIG(multi_paste){
 }
 
 static Range
-multi_paste_range(Application_Links *app, View_Summary *view, Range range, int32_t paste_count){
+multi_paste_range(Application_Links *app, View_Summary *view, Range range, int32_t paste_count, bool32 old_to_new){
     Range finish_range = range;
     if (paste_count >= 1){
         Buffer_Summary buffer = get_buffer(app, view->buffer_id, AccessOpen);
@@ -260,8 +260,19 @@ multi_paste_range(Application_Links *app, View_Summary *view, Range range, int32
             if (total_size <= app->memory_size){
                 char *str = (char*)app->memory;
                 int32_t position = 0;
-                for (int32_t paste_index = paste_count - 1; paste_index >= 0; --paste_index){
-                    if (paste_index != paste_count - 1){
+                
+                int32_t first = paste_count - 1;
+                int32_t one_past_last = -1;
+                int32_t step = -1;
+                
+                if (!old_to_new){
+                    first = 0;
+                    one_past_last = paste_count;
+                    step = 1;
+                }
+                
+                for (int32_t paste_index = first; paste_index != one_past_last; paste_index += step){
+                    if (paste_index != first){
                         str[position] = '\n';
                         ++position;
                     }
@@ -288,53 +299,86 @@ multi_paste_range(Application_Links *app, View_Summary *view, Range range, int32
     return(finish_range);
 }
 
+static void
+multi_paste_interactive_up_down(Application_Links *app, int32_t paste_count, int32_t clip_count){
+    View_Summary view = get_active_view(app, AccessOpen);
+    
+    Range range = {0};
+    range.min = range.max = view.cursor.pos;
+    
+    bool32 old_to_new = true;
+    
+    range = multi_paste_range(app, &view, range, paste_count, old_to_new);
+    
+    Query_Bar bar = {0};
+    bar.prompt = make_lit_string("Up and Down to condense and expand paste stages; R to reverse order; Return to finish; Escape to abort.");
+    if (start_query_bar(app, &bar, 0) == 0) return;
+    
+    User_Input in = {0};
+    for (;;){
+        in = get_user_input(app, EventOnAnyKey, EventOnEsc);
+        if (in.abort) break;
+        Assert(in.type == UserInputKey);
+        
+        bool32 did_modify = false;
+        if (in.key.keycode == key_up){
+            if (paste_count > 1){
+                --paste_count;
+                did_modify = true;
+            }
+        }
+        else if (in.key.keycode == key_down){
+            if (paste_count < clip_count){
+                ++paste_count;
+                did_modify = true;
+            }
+        }
+        else if (in.key.keycode == 'r' || in.key.keycode == 'R'){
+            old_to_new = !old_to_new;
+            did_modify = true;
+        }
+        else if (in.key.keycode == '\n'){
+            break;
+        }
+        
+        if (did_modify){
+            range = multi_paste_range(app, &view, range, paste_count, old_to_new);
+        }
+    }
+    
+    if (in.abort){
+        Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessOpen);
+        buffer_replace_range(app, &buffer, range.min, range.max, 0, 0);
+    }
+}
+
 CUSTOM_COMMAND_SIG(multi_paste_interactive){
     int32_t clip_count = clipboard_count(app, 0);
     if (clip_count > 0){
-        View_Summary view = get_active_view(app, AccessOpen);
-        
-        int32_t paste_count = 1;
-        Range range = {0};
-        range.min = range.max = view.cursor.pos;
-        
-        range = multi_paste_range(app, &view, range, paste_count);
-        
+        multi_paste_interactive_up_down(app, 1, clip_count);
+    }
+}
+
+CUSTOM_COMMAND_SIG(multi_paste_interactive_quick){
+    int32_t clip_count = clipboard_count(app, 0);
+    if (clip_count > 0){
+        char string_space[256];
         Query_Bar bar = {0};
-        bar.prompt = make_lit_string("Up and Down to condense and expand paste stages; Return to finish; Escape to abort.");
-        if (start_query_bar(app, &bar, 0) == 0) return;
+        bar.prompt = make_lit_string("How Many Slots To Paste: ");
+        bar.string = make_fixed_width_string(string_space);
+        query_user_number(app, &bar);
         
-        User_Input in = {0};
-        for (;;){
-            in = get_user_input(app, EventOnAnyKey, EventOnEsc);
-            if (in.abort) break;
-            Assert(in.type == UserInputKey);
-            
-            bool32 did_modify = false;
-            if (in.key.keycode == key_up){
-                if (paste_count > 1){
-                    --paste_count;
-                    did_modify = true;
-                }
-            }
-            else if (in.key.keycode == key_down){
-                if (paste_count < clip_count){
-                    ++paste_count;
-                    did_modify = true;
-                }
-            }
-            else if (in.key.keycode == '\n'){
-                break;
-            }
-            
-            if (did_modify){
-                range = multi_paste_range(app, &view, range, paste_count);
-            }
+        int32_t initial_paste_count = str_to_int_s(bar.string);
+        if (initial_paste_count > clip_count){
+            initial_paste_count = clip_count;
+        }
+        if (initial_paste_count < 1){
+            initial_paste_count = 1;
         }
         
-        if (in.abort){
-            Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessOpen);
-            buffer_replace_range(app, &buffer, range.min, range.max, 0, 0);
-        }
+        end_query_bar(app, &bar, 0);
+        
+        multi_paste_interactive_up_down(app, initial_paste_count, clip_count);
     }
 }
 
@@ -493,9 +537,14 @@ CUSTOM_DOC("If the cursor is found to be on the name of a function parameter in 
     end_temp_memory(temp);
 }
 
-CUSTOM_COMMAND_SIG(write_explicit_enum_values)
-CUSTOM_DOC("If the cursor is found to be on the '{' of an enum definition, the values of the enum will be filled in sequentially starting from zero.  Existing values are overwritten.")
-{
+typedef uint32_t Write_Explicit_Enum_Values_Mode;
+enum{
+    WriteExplicitEnumValues_Integers,
+    WriteExplicitEnumValues_Flags,
+};
+
+static void
+write_explicit_enum_values_parameters(Application_Links *app, Write_Explicit_Enum_Values_Mode mode){
     uint32_t access = AccessOpen;
     View_Summary view = get_active_view(app, access);
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, access);
@@ -551,7 +600,11 @@ CUSTOM_DOC("If the cursor is found to be on the '{' of an enum definition, the v
                         
                         closed_correctly = false;
                         still_looping = false;
-                        int32_t value = 0;
+                        uint32_t value = 0;
+                        if (mode == WriteExplicitEnumValues_Flags){
+                            value = 1;
+                        }
+                        
                         do{
                             for (;token_index < stream.end; ++token_index){
                                 Cpp_Token *token_ptr = stream.tokens + token_index;
@@ -595,7 +648,15 @@ CUSTOM_DOC("If the cursor is found to be on the '{' of an enum definition, the v
                                             if (closed_correctly){
                                                 append(&string, "\n");
                                             }
-                                            ++value;
+                                            
+                                            if (mode == WriteExplicitEnumValues_Integers){
+                                                ++value;
+                                            }
+                                            else if (mode == WriteExplicitEnumValues_Flags){
+                                                if (value < (1 << 31)){
+                                                    value <<= 1;
+                                                }
+                                            }
                                             
                                             int32_t str_size = string.size - str_pos;
                                             
@@ -638,6 +699,104 @@ CUSTOM_DOC("If the cursor is found to be on the '{' of an enum definition, the v
     
     end_temp_memory(temp);
 }
+
+CUSTOM_COMMAND_SIG(write_explicit_enum_values)
+CUSTOM_DOC("If the cursor is found to be on the '{' of an enum definition, the values of the enum will be filled in sequentially starting from zero.  Existing values are overwritten.")
+{
+    write_explicit_enum_values_parameters(app, WriteExplicitEnumValues_Integers);
+}
+
+CUSTOM_COMMAND_SIG(write_explicit_enum_flags)
+CUSTOM_DOC("If the cursor is found to be on the '{' of an enum definition, the values of the enum will be filled in to give each a unique power of 2 value, starting from 1.  Existing values are overwritten.")
+{
+    write_explicit_enum_values_parameters(app, WriteExplicitEnumValues_Flags);
+}
+
+//
+// Rename All
+//
+
+struct Replace_Target{
+    Buffer_ID buffer_id;
+    int32_t start_pos;
+};
+
+static void
+replace_all_occurrences_parameters(Application_Links *app, General_Memory *general, Partition *part, String target_string, String new_string){
+    if (target_string.size <= 0) return;
+    
+    for (bool32 got_all_occurrences = false;
+         !got_all_occurrences;){
+        // Initialize a generic search all buffers
+        Search_Set set = {0};
+        Search_Iter iter = {0};
+        initialize_generic_search_all_buffers(app, general, &target_string, 1, SearchFlag_MatchSubstring, 0, 0, &set, &iter);
+        
+        // Visit all locations and create replacement list
+        Temp_Memory temp = begin_temp_memory(part);
+        Replace_Target *targets = push_array(part, Replace_Target, 0);
+        int32_t target_count = 0;
+        
+        got_all_occurrences = true;
+        for (Search_Match match = search_next_match(app, &set, &iter);
+             match.found_match;
+             match = search_next_match(app, &set, &iter)){
+            
+            Replace_Target *new_target= push_array(part, Replace_Target, 1);
+            if (new_target != 0){
+                new_target->buffer_id = match.buffer.buffer_id;
+                new_target->start_pos = match.start;
+                ++target_count;
+            }
+            else{
+                if (!has_substr(new_string, target_string)){
+                    got_all_occurrences = false;
+                }
+                else{
+                    print_message(app, literal("Could not replace all occurrences, ran out of memory\n"));
+                }
+                break;
+            }
+        }
+        
+        // Use replacement list to do replacements
+        for (int32_t i = 0; i < target_count; ++i){
+            Replace_Target *target = &targets[i];
+            Buffer_Summary buffer= get_buffer(app, target->buffer_id, AccessOpen);
+            buffer_replace_range(app, &buffer, target->start_pos, target->start_pos + target_string.size, new_string.str, new_string.size);
+        }
+        
+        end_temp_memory(temp);
+    }
+}
+
+CUSTOM_COMMAND_SIG(replace_all_occurrences)
+CUSTOM_DOC("Queries the user for two strings, and replaces all occurrences of the first string with the second string in all open buffers.")
+{
+    Query_Bar replace;
+    char replace_space[1024];
+    replace.prompt = make_lit_string("Replace (In All Buffers): ");
+    replace.string = make_fixed_width_string(replace_space);
+    
+    Query_Bar with;
+    char with_space[1024];
+    with.prompt = make_lit_string("With: ");
+    with.string = make_fixed_width_string(with_space);
+    
+    if (!query_user_string(app, &replace)) return;
+    if (replace.string.size == 0) return;
+    
+    if (!query_user_string(app, &with)) return;
+    
+    String r = replace.string;
+    String w = with.string;
+    
+    replace_all_occurrences_parameters(app, &global_general, &global_part, r, w);
+}
+
+//
+// Self training to stop typing Ctrl+S
+//
 
 CUSTOM_COMMAND_SIG(punishment){
     Theme_Color colors[4];
@@ -698,12 +857,14 @@ get_bindings(void *data, int32_t size){
     bind(context, key_home, MDFR_ALT, miblo_increment_time_stamp_minute);
     bind(context, key_end, MDFR_ALT, miblo_decrement_time_stamp_minute);
     
-    bind(context, 'b', MDFR_CTRL, multi_paste_interactive);
+    bind(context, 'b', MDFR_CTRL, multi_paste_interactive_quick);
+    bind(context, 'A', MDFR_CTRL, replace_all_occurrences);
     
     end_map(context);
     
     begin_map(context, default_code_map);
     bind(context, key_insert, MDFR_CTRL, write_explicit_enum_values);
+    bind(context, key_insert, MDFR_CTRL|MDFR_SHIFT, write_explicit_enum_flags);
     bind(context, 'p', MDFR_ALT, rename_parameter);
     end_map(context);
     

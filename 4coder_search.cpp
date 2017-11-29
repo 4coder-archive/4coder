@@ -10,6 +10,8 @@ TYPE: 'drop-in-command-pack'
 #if !defined(FCODER_SEARCH)
 #define FCODER_SEARCH
 
+#include "4coder_search.h"
+
 #include "4coder_lib/4coder_table.h"
 #include "4coder_lib/4coder_mem.h"
 
@@ -22,62 +24,47 @@ TYPE: 'drop-in-command-pack'
 // Search Iteration Systems
 //
 
-enum Search_Range_Type{
-    SearchRange_FrontToBack,
-    SearchRange_BackToFront,
-    SearchRange_Wave,
-};
-
-enum Search_Range_Flag{
-    SearchFlag_MatchWholeWord  = 0x00,
-    SearchFlag_MatchWordPrefix = 0x01,
-    SearchFlag_MatchSubstring  = 0x02,
-    SearchFlag_MatchMask       = 0xFF,
-    SearchFlag_CaseInsensitive = 0x0100,
-};
-
-struct Search_Range{
-    int32_t type;
-    uint32_t flags;
-    int32_t buffer;
-    int32_t start;
-    int32_t size;
-    int32_t mid_start;
-    int32_t mid_size;
-};
-
-struct Search_Set{
-    Search_Range *ranges;
-    int32_t count;
-    int32_t max;
-};
-
-struct Search_Iter{
-    String word;
-    int32_t pos;
-    int32_t back_pos;
-    int32_t i;
-    int32_t range_initialized;
-};
-
-struct Search_Match{
-    Buffer_Summary buffer;
-    int32_t start;
-    int32_t end;
-    int32_t found_match;
-};
+static void
+search_key_alloc(General_Memory *general, Search_Key *key, int32_t *size, int32_t count){
+    if (count > ArrayCount(key->words)){
+        count = ArrayCount(key->words);
+    }
+    
+    int32_t min_size = 0x7FFFFFFF;
+    int32_t total_size = 0;
+    for (int32_t i = 0; i < count; ++i){
+        total_size += size[i];
+        if (min_size > size[i]){
+            min_size = size[i];
+        }
+    }
+    
+    int32_t max_base_size = total_size*2;
+    
+    if (key->base == 0){
+        key->base = (char*)general_memory_allocate(general, max_base_size);
+        key->base_size = max_base_size;
+    }
+    else if (key->base_size < total_size){
+        key->base  = (char*)general_memory_reallocate_nocopy(general, key->base, max_base_size);
+        key->base_size = max_base_size;
+    }
+    
+    char *char_ptr = key->base;
+    for (int32_t i = 0; i < count; ++i){
+        key->words[i].str = char_ptr;
+        key->words[i].size = 0;
+        key->words[i].memory_size = size[i];
+        char_ptr += size[i];
+    }
+    
+    key->count = count;
+    key->min_size = min_size;
+}
 
 static void
-search_iter_init(General_Memory *general, Search_Iter *iter, int32_t size){
-    int32_t str_max = size*2;
-    if (iter->word.str == 0){
-        iter->word.str = (char*)general_memory_allocate(general, str_max);
-        iter->word.memory_size = str_max;
-    }
-    else if (iter->word.memory_size < size){
-        iter->word.str = (char*)general_memory_reallocate_nocopy(general, iter->word.str, str_max);
-        iter->word.memory_size = str_max;
-    }
+search_iter_init(Search_Iter *iter, Search_Key key){
+    iter->key = key;
     iter->i = 0;
     iter->range_initialized = 0;
 }
@@ -136,6 +123,10 @@ search_hits_init(General_Memory *general, Table *hits, String_Space *str, int32_
     table_clear(hits);
 }
 
+//
+// Table Operations
+//
+
 static int32_t
 search_hit_add(General_Memory *general, Table *hits, String_Space *space, char *str, int32_t len){
     int32_t result = false;
@@ -174,6 +165,53 @@ search_hit_add(General_Memory *general, Table *hits, String_Space *space, char *
     return(result);
 }
 
+//
+// Search Key Checking
+//
+
+typedef uint32_t Seek_Potential_Match_Direction;
+enum{
+    SeekPotentialMatch_Forward,
+    SeekPotentialMatch_Backward,
+};
+
+static void
+seek_potential_match(Application_Links *app, Search_Range *range, Search_Key key, Search_Match *result, Seek_Potential_Match_Direction direction, int32_t start_pos, int32_t end_pos){
+    bool32 case_insensitive = ((range->flags & SearchFlag_CaseInsensitive) != 0);
+    bool32 forward = (direction == SeekPotentialMatch_Forward);
+#define OptFlag(b,f) ((b)?(f):(0))
+    Buffer_Seek_String_Flags flags = 0
+        | OptFlag(case_insensitive, BufferSeekString_CaseInsensitive)
+        | OptFlag(!forward, BufferSeekString_Backward);
+    result->buffer = get_buffer(app, range->buffer, AccessAll);
+    
+    int32_t best_pos = 0;
+    if (forward){
+        best_pos = end_pos;
+    }
+    
+    for (int32_t i = 0; i < key.count; ++i){
+        String word = key.words[i];
+        int32_t new_pos = -1;
+        buffer_seek_string(app, &result->buffer, start_pos, end_pos, range->start, word.str, word.size, &new_pos, flags);
+        
+        if (new_pos >= 0){
+            if (forward){
+                if (new_pos < best_pos){
+                    best_pos = new_pos;
+                }
+            }
+            else{
+                if (new_pos > best_pos){
+                    best_pos = new_pos;
+                }
+            }
+        }
+    }
+    
+    result->start = best_pos;
+}
+
 static int32_t
 buffer_seek_alpha_numeric_end(Application_Links *app, Buffer_Summary *buffer, int32_t pos){
     char space[1024];
@@ -192,68 +230,73 @@ buffer_seek_alpha_numeric_end(Application_Links *app, Buffer_Summary *buffer, in
     return(pos);
 }
 
-static void
-search_iter_next_range(Search_Iter *it){
-    ++it->i;
-    it->pos = 0;
-    it->back_pos = 0;
-    it->range_initialized = 0;
-}
-
 enum{
     FindResult_None,
     FindResult_FoundMatch,
-    FindResult_PastEnd
+    FindResult_PastEnd,
 };
 
 static int32_t
-match_check(Application_Links *app, Search_Range *range, int32_t *pos, Search_Match *result_ptr, String word){
-    int32_t found_match = FindResult_None;
+match_check(Application_Links *app, Search_Range *range, int32_t *pos, Search_Match *result_ptr, Search_Key key){
+    int32_t result_code = FindResult_None;
     
     Search_Match result = *result_ptr;
     int32_t end_pos = range->start + range->size;
     
     int32_t type = (range->flags & SearchFlag_MatchMask);
+    result.match_word_index = -1;
     
-    switch (type){
-        case SearchFlag_MatchWholeWord:
-        {
-            char first = word.str[0];
-            
-            char prev = ' ';
-            if (char_is_alpha_numeric_utf8(first)){
-                prev = buffer_get_char(app, &result.buffer, result.start - 1);
-            }
-            
-            if (!char_is_alpha_numeric_utf8(prev)){
-                result.end = result.start + word.size;
-                if (result.end <= end_pos){
-                    char last = word.str[word.size-1];
-                    
-                    char next = ' ';
-                    if (char_is_alpha_numeric_utf8(last)){
-                        next = buffer_get_char(app, &result.buffer, result.end);
+    for (int32_t i = 0; i < key.count; ++i){
+        String word = key.words[i];
+        
+        int32_t found_match = FindResult_None;
+        switch (type){
+            case SearchFlag_MatchWholeWord:
+            {
+                char prev = ' ';
+                if (char_is_alpha_numeric_utf8(word.str[0])){
+                    prev = buffer_get_char(app, &result.buffer, result.start - 1);
+                }
+                
+                if (!char_is_alpha_numeric_utf8(prev)){
+                    result.end = result.start + word.size;
+                    if (result.end <= end_pos){
+                        char next = ' ';
+                        if (char_is_alpha_numeric_utf8(word.str[word.size-1])){
+                            next = buffer_get_char(app, &result.buffer, result.end);
+                        }
+                        
+                        if (!char_is_alpha_numeric_utf8(next)){
+                            result.found_match = true;
+                            found_match = FindResult_FoundMatch;
+                        }
                     }
+                    else{
+                        found_match = FindResult_PastEnd;
+                    }
+                }
+            }break;
+            
+            case SearchFlag_MatchWordPrefix:
+            {
+                char prev = buffer_get_char(app, &result.buffer, result.start - 1);
+                if (!char_is_alpha_numeric_utf8(prev)){
+                    result.end =
+                        buffer_seek_alpha_numeric_end(app, &result.buffer, result.start);
                     
-                    if (!char_is_alpha_numeric_utf8(next)){
+                    if (result.end <= end_pos){
                         result.found_match = true;
                         found_match = FindResult_FoundMatch;
                     }
+                    else{
+                        found_match = FindResult_PastEnd;
+                    }
                 }
-                else{
-                    found_match = FindResult_PastEnd;
-                }
-            }
-        }break;
-        
-        case SearchFlag_MatchWordPrefix:
-        {
-            char prev = buffer_get_char(app, &result.buffer, result.start - 1);
-            if (!char_is_alpha_numeric_utf8(prev)){
-                result.end =
-                    buffer_seek_alpha_numeric_end(
-                    app, &result.buffer, result.start);
-                
+            }break;
+            
+            case SearchFlag_MatchSubstring:
+            {
+                result.end = result.start + word.size;
                 if (result.end <= end_pos){
                     result.found_match = true;
                     found_match = FindResult_FoundMatch;
@@ -261,55 +304,53 @@ match_check(Application_Links *app, Search_Range *range, int32_t *pos, Search_Ma
                 else{
                     found_match = FindResult_PastEnd;
                 }
-            }
-        }break;
+            }break;
+        }
         
-        case SearchFlag_MatchSubstring:
-        {
-            result.end = result.start + word.size;
-            if (result.end <= end_pos){
-                result.found_match = true;
-                found_match = FindResult_FoundMatch;
-            }
-            else{
-                found_match = FindResult_PastEnd;
-            }
-        }break;
+        if (found_match == FindResult_FoundMatch){
+            result_code = FindResult_FoundMatch;
+            result.match_word_index = i;
+            break;
+        }
+        else if (found_match == FindResult_PastEnd){
+            result_code = FindResult_PastEnd;
+        }
     }
     
     *result_ptr = result;
     
-    return(found_match);
+    return(result_code);
 }
 
+//
+// Find Next Match
+//
+
 static int32_t
-search_front_to_back_step(Application_Links *app, Search_Range *range, String word, int32_t *pos, Search_Match *result_ptr){
+search_front_to_back(Application_Links *app, Search_Range *range, Search_Key key, int32_t *pos, Search_Match *result){
     int32_t found_match = FindResult_None;
-    
-    Search_Match result = *result_ptr;
-    
-    int32_t end_pos = range->start + range->size;
-    if (*pos + word.size < end_pos){
-        int32_t start_pos = *pos;
-        if (start_pos < range->start){
-            start_pos = range->start;
-        }
+    for (;found_match == FindResult_None;){
+        found_match = FindResult_None;
         
-        int32_t case_insensitive = (range->flags & SearchFlag_CaseInsensitive);
-        
-        result.buffer = get_buffer(app, range->buffer, AccessAll);
-        if (case_insensitive){
-            buffer_seek_string_insensitive_forward(app, &result.buffer, start_pos, end_pos, word.str, word.size, &result.start);
-        }
-        else{
-            buffer_seek_string_forward(app, &result.buffer, start_pos, end_pos, word.str, word.size, &result.start);
-        }
-        
-        if (result.start < end_pos){
-            *pos = result.start + 1;
-            found_match = match_check(app, range, pos, &result, word);
-            if (found_match == FindResult_FoundMatch){
-                *pos = result.end;
+        int32_t end_pos = range->start + range->size;
+        if (*pos + key.min_size < end_pos){
+            int32_t start_pos = *pos;
+            if (start_pos < range->start){
+                start_pos = range->start;
+            }
+            
+            seek_potential_match(app, range, key, result, SeekPotentialMatch_Forward, start_pos, end_pos);
+            
+            if (result->start < end_pos){
+                *pos = result->start + 1;
+                found_match = match_check(app, range, pos, result, key);
+                if (found_match == FindResult_FoundMatch){
+                    *pos = result->end;
+                }
+            }
+            else{
+                found_match = FindResult_PastEnd;
+                *pos = end_pos + 1;
             }
         }
         else{
@@ -317,68 +358,43 @@ search_front_to_back_step(Application_Links *app, Search_Range *range, String wo
             *pos = end_pos + 1;
         }
     }
-    else{
-        found_match = FindResult_PastEnd;
-        *pos = end_pos + 1;
-    }
-    
-    *result_ptr = result;
-    
     return(found_match);
 }
 
 static int32_t
-search_front_to_back(Application_Links *app, Search_Range *range, String word, int32_t *pos, Search_Match *result_ptr){
+search_back_to_front(Application_Links *app, Search_Range *range, Search_Key key, int32_t *pos, Search_Match *result){
     int32_t found_match = FindResult_None;
     for (;found_match == FindResult_None;){
-        found_match = search_front_to_back_step(app, range, word, pos, result_ptr);
-    }
-    return(found_match);
-}
-
-static int32_t
-search_back_to_front_step(Application_Links *app, Search_Range *range, String word, int32_t *pos, Search_Match *result_ptr){
-    int32_t found_match = FindResult_None;
-    
-    Search_Match result = *result_ptr;
-    
-    if (*pos > range->start){
-        int32_t start_pos = *pos;
-        
-        result.buffer = get_buffer(app, range->buffer, AccessAll);
-        buffer_seek_string_backward(app, &result.buffer,
-                                    start_pos, range->start,
-                                    word.str, word.size,
-                                    &result.start);
-        
-        // TODO(allen): deduplicate the match checking code.
-        if (result.start >= range->start){
-            *pos = result.start - 1;
-            found_match = match_check(app, range, pos, &result, word);
-            if (found_match == FindResult_FoundMatch){
-                *pos = result.start - word.size;
+        found_match = FindResult_None;
+        if (*pos > range->start){
+            int32_t start_pos = *pos;
+            
+            seek_potential_match(app, range, key, result, SeekPotentialMatch_Backward, start_pos, 0);
+            
+            if (result->start >= range->start){
+                *pos = result->start - 1;
+                found_match = match_check(app, range, pos, result, key);
+                if (found_match == FindResult_FoundMatch){
+                    *pos = result->start - key.words[result->match_word_index].size;
+                }
+            }
+            else{
+                found_match = FindResult_PastEnd;
             }
         }
         else{
             found_match = FindResult_PastEnd;
         }
     }
-    else{
-        found_match = FindResult_PastEnd;
-    }
-    
-    *result_ptr = result;
-    
     return(found_match);
 }
 
-static int32_t
-search_back_to_front(Application_Links *app, Search_Range *range, String word, int32_t *pos, Search_Match *result_ptr){
-    int32_t found_match = FindResult_None;
-    for (;found_match == FindResult_None;){
-        found_match = search_back_to_front_step(app, range, word, pos, result_ptr);
-    }
-    return(found_match);
+static void
+search_iter_next_range(Search_Iter *it){
+    ++it->i;
+    it->pos = 0;
+    it->back_pos = 0;
+    it->range_initialized = 0;
 }
 
 static Search_Match
@@ -411,12 +427,12 @@ search_next_match(Application_Links *app, Search_Set *set, Search_Iter *it_ptr){
         switch (range->type){
             case SearchRange_FrontToBack:
             {
-                find_result = search_front_to_back(app, range, iter.word, &iter.pos, &result);
+                find_result = search_front_to_back(app, range, iter.key, &iter.pos, &result);
             }break;
             
             case SearchRange_BackToFront:
             {
-                find_result = search_back_to_front(app, range, iter.word, &iter.back_pos, &result);
+                find_result = search_back_to_front(app, range, iter.key, &iter.back_pos, &result);
             }break;
             
             case SearchRange_Wave:
@@ -428,11 +444,11 @@ search_next_match(Application_Links *app, Search_Set *set, Search_Iter *it_ptr){
                 int32_t backward_result = FindResult_PastEnd;
                 
                 if (iter.pos < range->start + range->size){
-                    forward_result = search_front_to_back(app, range, iter.word, &iter.pos, &forward_match);
+                    forward_result = search_front_to_back(app, range, iter.key, &iter.pos, &forward_match);
                 }
                 
                 if (iter.back_pos > range->start){
-                    backward_result = search_back_to_front(app, range, iter.word, &iter.back_pos, &backward_match);
+                    backward_result = search_back_to_front(app, range, iter.key, &iter.back_pos, &backward_match);
                 }
                 
                 if (forward_result == FindResult_FoundMatch){
@@ -489,29 +505,141 @@ search_next_match(Application_Links *app, Search_Set *set, Search_Iter *it_ptr){
 //
 
 static void
-get_search_all_string(Application_Links *app, Query_Bar *bar){
-    char string_space[1024];
-    bar->prompt = make_lit_string("List Locations For: ");
-    bar->string = make_fixed_width_string(string_space);
+initialize_generic_search_all_buffers(Application_Links *app, General_Memory *general, String *strings, int32_t count, Search_Range_Flag match_flags, int32_t *skip_buffers, int32_t skip_buffer_count, Search_Set *set, Search_Iter *iter){
+    memset(set, 0, sizeof(*set));
+    memset(iter, 0, sizeof(*iter));
     
-    if (!query_user_string(app, bar)){
-        bar->string.size = 0;
+    Search_Key key = {0};
+    int32_t sizes[ArrayCount(key.words)];
+    memset(sizes, 0, sizeof(sizes));
+    
+    if (count > ArrayCount(key.words)){
+        count = ArrayCount(key.words);
     }
+    for (int32_t i = 0; i < count; ++i){
+        sizes[i] = strings[i].size;
+    }
+    
+    // TODO(allen): Why on earth am I allocating these separately in this case?  Upgrade to just use the string array on the stack!
+    search_key_alloc(general, &key, sizes, count);
+    for (int32_t i = 0; i < count; ++i){
+        copy_ss(&key.words[i], strings[i]);
+    }
+    
+    search_iter_init(iter, key);
+    
+    int32_t buffer_count = get_buffer_count(app);
+    search_set_init(general, set, buffer_count);
+    
+    Search_Range *ranges = set->ranges;
+    
+    View_Summary view = get_active_view(app, AccessProtected);
+    Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessProtected);
+    
+    int32_t j = 0;
+    if (buffer.exists){
+        bool32 skip = false;
+        for (int32_t i = 0; i < skip_buffer_count; ++i){
+            if (buffer.buffer_id == skip_buffers[i]){
+                skip = true;
+                break;
+            }
+        }
+        
+        if (!skip){
+            ranges[0].type = SearchRange_FrontToBack;
+            ranges[0].flags = match_flags;
+            ranges[0].buffer = buffer.buffer_id;
+            ranges[0].start = 0;
+            ranges[0].size = buffer.size;
+            j = 1;
+        }
+    }
+    
+    for (Buffer_Summary buffer_it = get_buffer_first(app, AccessAll);
+         buffer_it.exists;
+         get_buffer_next(app, &buffer_it, AccessAll)){
+        if (buffer.buffer_id != buffer_it.buffer_id){
+            bool32 skip = false;
+            for (int32_t i = 0; i < skip_buffer_count; ++i){
+                if (buffer.buffer_id == skip_buffers[i]){
+                    skip = true;
+                    break;
+                }
+            }
+            
+            if (!skip){
+                if (buffer_it.buffer_name[0] != '*'){
+                    ranges[j].type = SearchRange_FrontToBack;
+                    ranges[j].flags = match_flags;
+                    ranges[j].buffer = buffer_it.buffer_id;
+                    ranges[j].start = 0;
+                    ranges[j].size = buffer_it.size;
+                    ++j;
+                }
+            }
+        }
+    }
+    set->count = j;
+}
+
+//
+// List all Locations
+//
+
+static void
+buffered_print_flush(Application_Links *app, Partition *part, Temp_Memory temp, Buffer_Summary *output_buffer){
+    int32_t size = output_buffer->size;
+    int32_t write_size = part->pos - temp.pos;
+    char *str = part->base + temp.pos;
+    buffer_replace_range(app, output_buffer, size, size, str, write_size);
 }
 
 static void
-generic_search_all_buffers(Application_Links *app, General_Memory *general, Partition *part, String string, uint32_t match_flags){
-    Search_Set set = {0};
-    Search_Iter iter = {0};
+buffered_print_match_jump_line(Application_Links *app, Partition *part, Temp_Memory temp, Partition *line_part, Buffer_Summary *output_buffer, Buffer_Summary *match_buffer, Partial_Cursor word_pos){
+    char *file_name = match_buffer->buffer_name;
+    int32_t file_len = match_buffer->buffer_name_len;
     
-    search_iter_init(general, &iter, string.size);
-    copy_ss(&iter.word, string);
+    int32_t line_num_len = int_to_str_size(word_pos.line);
+    int32_t column_num_len = int_to_str_size(word_pos.character);
     
-    int32_t buffer_count = get_buffer_count(app);
-    search_set_init(general, &set, buffer_count);
+    Temp_Memory line_temp = begin_temp_memory(line_part);
+    String line_str = {0};
+    if (read_line(app, line_part, match_buffer, word_pos.line, &line_str)){
+        line_str = skip_chop_whitespace(line_str);
+        
+        int32_t str_len = file_len + 1 + line_num_len + 1 + column_num_len + 1 + 1 + line_str.size + 1;
+        
+        char *spare = push_array(part, char, str_len);
+        
+        if (spare == 0){
+            buffered_print_flush(app, part, temp, output_buffer);
+            
+            end_temp_memory(temp);
+            temp = begin_temp_memory(part);
+            
+            spare = push_array(part, char, str_len);
+        }
+        
+        String out_line = make_string_cap(spare, 0, str_len);
+        append_ss(&out_line, make_string(file_name, file_len));
+        append_s_char(&out_line, ':');
+        append_int_to_str(&out_line, word_pos.line);
+        append_s_char(&out_line, ':');
+        append_int_to_str(&out_line, word_pos.character);
+        append_s_char(&out_line, ':');
+        append_s_char(&out_line, ' ');
+        append_ss(&out_line, line_str);
+        append_s_char(&out_line, '\n');
+        Assert(out_line.size == str_len);
+    }
     
-    Search_Range *ranges = set.ranges;
-    
+    end_temp_memory(line_temp);
+}
+
+static void
+list_all_locations_parameters(Application_Links *app, General_Memory *general, Partition *part, String *strings, int32_t count, Search_Range_Flag match_flags){
+    // Open the search buffer
     String search_name = make_lit_string("*search*");
     Buffer_Summary search_buffer = get_buffer_by_name(app, search_name.str, search_name.size, AccessAll);
     if (!search_buffer.exists){
@@ -525,152 +653,106 @@ generic_search_all_buffers(Application_Links *app, General_Memory *general, Part
         buffer_replace_range(app, &search_buffer, 0, search_buffer.size, 0, 0);
     }
     
-    {
-        View_Summary view = get_active_view(app, AccessProtected);
-        Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessProtected);
-        
-        int32_t j = 0;
-        if (buffer.exists){
-            if (buffer.buffer_id != search_buffer.buffer_id){
-                ranges[0].type = SearchRange_FrontToBack;
-                ranges[0].flags = match_flags;
-                ranges[0].buffer = buffer.buffer_id;
-                ranges[0].start = 0;
-                ranges[0].size = buffer.size;
-                j = 1;
-            }
-        }
-        
-        for (Buffer_Summary buffer_it = get_buffer_first(app, AccessAll);
-             buffer_it.exists;
-             get_buffer_next(app, &buffer_it, AccessAll)){
-            if (buffer.buffer_id != buffer_it.buffer_id){
-                if (search_buffer.buffer_id != buffer_it.buffer_id){
-                    if (buffer_it.buffer_name[0] != '*'){
-                        ranges[j].type = SearchRange_FrontToBack;
-                        ranges[j].flags = match_flags;
-                        ranges[j].buffer = buffer_it.buffer_id;
-                        ranges[j].start = 0;
-                        ranges[j].size = buffer_it.size;
-                        ++j;
-                    }
-                }
-            }
-        }
-        set.count = j;
-    }
+    // Initialize a generic search all buffers
+    Search_Set set = {0};
+    Search_Iter iter = {0};
+    initialize_generic_search_all_buffers(app, general, strings, count, match_flags, &search_buffer.buffer_id, 1, &set, &iter);
     
-    Temp_Memory temp = begin_temp_memory(part);
+    // List all locations into search buffer
+    Temp_Memory all_temp = begin_temp_memory(part);
     Partition line_part = partition_sub_part(part, (4 << 10));
-    char *str = (char*)partition_current(part);
-    int32_t part_size = 0;
-    int32_t size = 0;
-    for (;;){
-        Search_Match match = search_next_match(app, &set, &iter);
-        if (match.found_match){
-            Partial_Cursor word_pos = {0};
-            if (buffer_compute_cursor(app, &match.buffer, seek_pos(match.start), &word_pos)){
-                char *file_name = match.buffer.file_name;
-                int32_t file_len = match.buffer.file_name_len;
-                if (file_name != 0){
-                    file_name = match.buffer.buffer_name;
-                    file_len = match.buffer.buffer_name_len;
-                }
-                
-                int32_t line_num_len = int_to_str_size(word_pos.line);
-                int32_t column_num_len = int_to_str_size(word_pos.character);
-                
-                Temp_Memory line_temp = begin_temp_memory(&line_part);
-                String line_str = {0};
-                if (read_line(app, &line_part, &match.buffer, word_pos.line, &line_str)){
-                    line_str = skip_chop_whitespace(line_str);
-                    
-                    int32_t str_len = file_len + 1 + line_num_len + 1 + column_num_len + 1 + 1 + line_str.size + 1;
-                    
-                    char *spare = push_array(part, char, str_len);
-                    
-                    if (spare == 0){
-                        buffer_replace_range(app, &search_buffer, size, size, str, part_size);
-                        size += part_size;
-                        
-                        end_temp_memory(temp);
-                        temp = begin_temp_memory(part);
-                        
-                        part_size = 0;
-                        spare = push_array(part, char, str_len);
-                    }
-                    
-                    part_size += str_len;
-                    
-                    String out_line = make_string_cap(spare, 0, str_len);
-                    append_ss(&out_line, make_string(file_name, file_len));
-                    append_s_char(&out_line, ':');
-                    append_int_to_str(&out_line, word_pos.line);
-                    append_s_char(&out_line, ':');
-                    append_int_to_str(&out_line, word_pos.character);
-                    append_s_char(&out_line, ':');
-                    append_s_char(&out_line, ' ');
-                    append_ss(&out_line, line_str);
-                    append_s_char(&out_line, '\n');
-                    Assert(out_line.size == str_len);
-                }
-                
-                end_temp_memory(line_temp);
-            }
-        }
-        else{
-            break;
+    Temp_Memory temp = begin_temp_memory(part);
+    for (Search_Match match = search_next_match(app, &set, &iter);
+         match.found_match;
+         match = search_next_match(app, &set, &iter)){
+        Partial_Cursor word_pos = {0};
+        if (buffer_compute_cursor(app, &match.buffer, seek_pos(match.start), &word_pos)){
+            buffered_print_match_jump_line(app, part, temp, &line_part, &search_buffer, &match.buffer, word_pos);
         }
     }
     
-    buffer_replace_range(app, &search_buffer, size, size, str, part_size);
+    buffered_print_flush(app, part, temp, &search_buffer);
+    end_temp_memory(all_temp);
     
+    // Lock this *search* as the jump buffer
     View_Summary view = get_active_view(app, AccessAll);
     view_set_buffer(app, &view, search_buffer.buffer_id, 0);
-    
     lock_jump_buffer(search_name.str, search_name.size);
-    
-    end_temp_memory(temp);
 }
+
 
 //
 // List Commands
 //
 
+static void
+get_search_all_string(Application_Links *app, Query_Bar *bar, char *string_space, int32_t space_size){
+    bar->prompt = make_lit_string("List Locations For: ");
+    bar->string = make_string_cap(string_space, 0, space_size);
+    
+    if (!query_user_string(app, bar)){
+        bar->string.size = 0;
+    }
+}
+
 CUSTOM_COMMAND_SIG(list_all_locations)
 CUSTOM_DOC("Queries the user for a string and lists all exact case-sensitive matches found in all open buffers.")
 {
+    char string_space[1024];
     Query_Bar bar;
-    get_search_all_string(app, &bar);
+    get_search_all_string(app, &bar, string_space, sizeof(string_space));
     if (bar.string.size == 0) return;
-    generic_search_all_buffers(app, &global_general, &global_part, bar.string, SearchFlag_MatchWholeWord);
+    list_all_locations_parameters(app, &global_general, &global_part, &bar.string, 1, SearchFlag_MatchWholeWord);
 }
 
 CUSTOM_COMMAND_SIG(list_all_substring_locations)
 CUSTOM_DOC("Queries the user for a string and lists all case-sensitive substring matches found in all open buffers.")
 {
+    char string_space[1024];
     Query_Bar bar;
-    get_search_all_string(app, &bar);
+    get_search_all_string(app, &bar, string_space, sizeof(string_space));
     if (bar.string.size == 0) return;
-    generic_search_all_buffers(app, &global_general, &global_part, bar.string, SearchFlag_MatchSubstring);
+    list_all_locations_parameters(app, &global_general, &global_part, &bar.string, 1, SearchFlag_MatchSubstring);
 }
 
 CUSTOM_COMMAND_SIG(list_all_locations_case_insensitive)
 CUSTOM_DOC("Queries the user for a string and lists all exact case-insensitive matches found in all open buffers.")
 {
+    char string_space[1024];
     Query_Bar bar;
-    get_search_all_string(app, &bar);
+    get_search_all_string(app, &bar, string_space, sizeof(string_space));
     if (bar.string.size == 0) return;
-    generic_search_all_buffers(app, &global_general, &global_part, bar.string, SearchFlag_CaseInsensitive | SearchFlag_MatchWholeWord);
+    list_all_locations_parameters(app, &global_general, &global_part, &bar.string, 1, SearchFlag_CaseInsensitive | SearchFlag_MatchWholeWord);
 }
 
 CUSTOM_COMMAND_SIG(list_all_substring_locations_case_insensitive)
 CUSTOM_DOC("Queries the user for a string and lists all case-insensitive substring matches found in all open buffers.")
 {
+    char string_space[1024];
     Query_Bar bar;
-    get_search_all_string(app, &bar);
+    get_search_all_string(app, &bar, string_space, sizeof(string_space));
     if (bar.string.size == 0) return;
-    generic_search_all_buffers(app, &global_general, &global_part, bar.string, SearchFlag_CaseInsensitive | SearchFlag_MatchSubstring);
+    list_all_locations_parameters(app, &global_general, &global_part, &bar.string, 1, SearchFlag_CaseInsensitive | SearchFlag_MatchSubstring);
+}
+
+static String
+get_token_or_word_under_pos(Application_Links *app, Buffer_Summary *buffer, int32_t pos, char *space, int32_t capacity){
+    String result = {0};
+    
+    Cpp_Get_Token_Result get_result = {0};
+    bool32 success = buffer_get_token_index(app, buffer, pos, &get_result);
+    
+    if (success && !get_result.in_whitespace){
+        int32_t size = get_result.token_end - get_result.token_start;
+        if (size > 0 && size <= capacity){
+            success = buffer_read_range(app, buffer, get_result.token_start, get_result.token_end, space);
+            if (success){
+                result = make_string(space, size);
+            }
+        }
+    }
+    
+    return(result);
 }
 
 static void
@@ -678,32 +760,22 @@ list_all_locations_of_identifier_parameters(Application_Links *app, bool32 subst
     View_Summary view = get_active_view(app, AccessProtected);
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessProtected);
     
-    Cpp_Get_Token_Result get_result = {0};
-    bool32 success = buffer_get_token_index(app, &buffer, view.cursor.pos, &get_result);
-    
-    if (success && !get_result.in_whitespace){
-        char space[256];
-        int32_t size = get_result.token_end - get_result.token_start;
+    char space[512];
+    String str = get_token_or_word_under_pos(app, &buffer, view.cursor.pos, space, sizeof(space));
+    if (str.str != 0){
+        change_active_panel(app);
         
-        if (size > 0 && size <= sizeof(space)){
-            success = buffer_read_range(app, &buffer, get_result.token_start, get_result.token_end, space);
-            if (success){
-                String str = make_string(space, size);
-                change_active_panel(app);
-                
-                uint32_t flags = 0;
-                if (substrings){
-                    flags |= SearchFlag_MatchSubstring;
-                }
-                else{
-                    flags |= SearchFlag_MatchWholeWord;
-                }
-                if (case_insensitive){
-                    flags |= SearchFlag_CaseInsensitive;
-                }
-                generic_search_all_buffers(app, &global_general, &global_part, str, flags);
-            }
+        Search_Range_Flag flags = 0;
+        if (substrings){
+            flags |= SearchFlag_MatchSubstring;
         }
+        else{
+            flags |= SearchFlag_MatchWholeWord;
+        }
+        if (case_insensitive){
+            flags |= SearchFlag_CaseInsensitive;
+        }
+        list_all_locations_parameters(app, &global_general, &global_part, &str, 1, flags);
     }
 }
 
@@ -738,7 +810,7 @@ list_all_locations_of_selection_parameters(Application_Links *app, bool32 substr
         if (buffer_read_range(app, &buffer, range.min, range.max, query_space)){
             String query = make_string(query_space, query_length);
             
-            uint32_t flags = 0;
+            Search_Range_Flag flags = 0;
             if (substrings){
                 flags |= SearchFlag_MatchSubstring;
             }
@@ -748,7 +820,7 @@ list_all_locations_of_selection_parameters(Application_Links *app, bool32 substr
             if (case_insensitive){
                 flags |= SearchFlag_CaseInsensitive;
             }
-            generic_search_all_buffers(app, &global_general, &global_part, query, flags);
+            list_all_locations_parameters(app, &global_general, &global_part, &query, 1, flags);
         }
     }
     
@@ -766,6 +838,7 @@ CUSTOM_DOC("Reads the string in the selected range and lists all exact case-inse
 {
     list_all_locations_of_selection_parameters(app, false, true);
 }
+
 
 //
 // Word Complete Command
@@ -840,13 +913,14 @@ CUSTOM_DOC("Iteratively tries completing the word to the left of the cursor with
                 return;
             }
             
-            // NOTE(allen): Initialize the search iterator
-            // with the partial word.
+            // NOTE(allen): Initialize the search iterator with the partial word.
             complete_state.initialized = true;
-            search_iter_init(&global_general, &complete_state.iter, size);
-            buffer_read_range(app, &buffer, word_start, word_end,
-                              complete_state.iter.word.str);
-            complete_state.iter.word.size = size;
+            Search_Key key = {0};
+            search_key_alloc(&global_general, &key, &size, 1);
+            buffer_read_range(app, &buffer, word_start, word_end, key.words[0].str);
+            key.words[0].size = size;
+            
+            search_iter_init(&complete_state.iter, key);
             
             // NOTE(allen): Initialize the set of ranges to be searched.
             int32_t buffer_count = get_buffer_count(app);
@@ -877,11 +951,9 @@ CUSTOM_DOC("Iteratively tries completing the word to the left of the cursor with
             complete_state.set.count = j;
             
             // NOTE(allen): Initialize the search hit table.
-            search_hits_init(&global_general, &complete_state.hits, &complete_state.str,
-                             100, (4 << 10));
-            search_hit_add(&global_general, &complete_state.hits, &complete_state.str,
-                           complete_state.iter.word.str,
-                           complete_state.iter.word.size);
+            search_hits_init(&global_general, &complete_state.hits, &complete_state.str, 100, (4 << 10));
+            String word = complete_state.iter.key.words[0];
+            search_hit_add(&global_general, &complete_state.hits, &complete_state.str, word.str, word.size);
             
             complete_state.word_start = word_start;
             complete_state.word_end = word_end;
@@ -889,32 +961,25 @@ CUSTOM_DOC("Iteratively tries completing the word to the left of the cursor with
         else{
             word_start = complete_state.word_start;
             word_end = complete_state.word_end;
-            size = complete_state.iter.word.size;
+            size = complete_state.iter.key.words[0].size;
         }
         
         // NOTE(allen): Iterate through matches.
         if (size > 0){
             for (;;){
                 int32_t match_size = 0;
-                Search_Match match =
-                    search_next_match(app, &complete_state.set,
-                                      &complete_state.iter);
+                Search_Match match = search_next_match(app, &complete_state.set, &complete_state.iter);
                 
                 if (match.found_match){
                     match_size = match.end - match.start;
                     Temp_Memory temp = begin_temp_memory(&global_part);
                     char *spare = push_array(&global_part, char, match_size);
                     
-                    buffer_read_range(app, &match.buffer,
-                                      match.start, match.end, spare);
+                    buffer_read_range(app, &match.buffer, match.start, match.end, spare);
                     
-                    if (search_hit_add(&global_general, &complete_state.hits, &complete_state.str,
-                                       spare, match_size)){
-                        buffer_replace_range(app, &buffer, word_start, word_end,
-                                             spare, match_size);
-                        view_set_cursor(app, &view,
-                                        seek_pos(word_start + match_size),
-                                        true);
+                    if (search_hit_add(&global_general, &complete_state.hits, &complete_state.str, spare, match_size)){
+                        buffer_replace_range(app, &buffer, word_start, word_end, spare, match_size);
+                        view_set_cursor(app, &view, seek_pos(word_start + match_size), true);
                         
                         complete_state.word_end = word_start + match_size;
                         complete_state.set.ranges[0].mid_size = match_size;
@@ -927,19 +992,14 @@ CUSTOM_DOC("Iteratively tries completing the word to the left of the cursor with
                     complete_state.iter.pos = 0;
                     complete_state.iter.i = 0;
                     
-                    search_hits_init(&global_general, &complete_state.hits, &complete_state.str,
-                                     100, (4 << 10));
-                    search_hit_add(&global_general, &complete_state.hits, &complete_state.str,
-                                   complete_state.iter.word.str,
-                                   complete_state.iter.word.size);
+                    search_hits_init(&global_general, &complete_state.hits, &complete_state.str, 100, (4 << 10));
+                    String word = complete_state.iter.key.words[0];
+                    search_hit_add(&global_general, &complete_state.hits, &complete_state.str, word.str, word.size);
                     
-                    match_size = complete_state.iter.word.size;
-                    char *str = complete_state.iter.word.str;
-                    buffer_replace_range(app, &buffer, word_start, word_end,
-                                         str, match_size);
-                    view_set_cursor(app, &view,
-                                    seek_pos(word_start + match_size),
-                                    true);
+                    match_size = word.size;
+                    char *str = word.str;
+                    buffer_replace_range(app, &buffer, word_start, word_end, str, match_size);
+                    view_set_cursor(app, &view, seek_pos(word_start + match_size), true);
                     
                     complete_state.word_end = word_start + match_size;
                     complete_state.set.ranges[0].mid_size = match_size;

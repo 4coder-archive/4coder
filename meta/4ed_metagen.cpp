@@ -832,8 +832,8 @@ generate_remapping_code_and_data(){
         bind(mappings, 'y', MDFR_CTRL, redo);
         bind(mappings, 'z', MDFR_CTRL, undo);
         
-        bind(mappings, '2', MDFR_CTRL, decrease_line_wrap);
-        bind(mappings, '3', MDFR_CTRL, increase_line_wrap);
+        bind(mappings, '1', MDFR_CTRL, view_buffer_other_panel);
+        bind(mappings, '2', MDFR_CTRL, swap_buffers_between_panels);
         
         bind(mappings, '?', MDFR_CTRL, toggle_show_whitespace);
         bind(mappings, '~', MDFR_CTRL, clean_all_lines);
@@ -867,6 +867,9 @@ generate_remapping_code_and_data(){
         bind(mappings, 'r', MDFR_ALT, write_block);
         bind(mappings, 't', MDFR_ALT, write_todo);
         bind(mappings, 'y', MDFR_ALT, write_note);
+        
+        bind(mappings, 'D', MDFR_ALT, list_all_locations_of_type_definition);
+        bind(mappings, 'T', MDFR_ALT, list_all_locations_of_type_definition_of_identifier);
         
         bind(mappings, '[', MDFR_CTRL, open_long_braces);
         bind(mappings, '{', MDFR_CTRL, open_long_braces_semicolon);
@@ -1023,8 +1026,8 @@ generate_remapping_code_and_data(){
         bind(mappings, 'y', MDFR_CMND, redo);
         bind(mappings, 'z', MDFR_CMND, undo);
         
-        bind(mappings, '2', MDFR_CMND, decrease_line_wrap);
-        bind(mappings, '3', MDFR_CMND, increase_line_wrap);
+        bind(mappings, '1', MDFR_CMND, view_buffer_other_panel);
+        bind(mappings, '2', MDFR_CMND, swap_buffers_between_panels);
         
         bind(mappings, '?', MDFR_CMND, toggle_show_whitespace);
         bind(mappings, '~', MDFR_CMND, clean_all_lines);
@@ -1058,6 +1061,9 @@ generate_remapping_code_and_data(){
         bind(mappings, 'r', MDFR_CTRL, write_block);
         bind(mappings, 't', MDFR_CTRL, write_todo);
         bind(mappings, 'y', MDFR_CTRL, write_note);
+        
+        bind(mappings, 'D', MDFR_CTRL, list_all_locations_of_type_definition);
+        bind(mappings, 'T', MDFR_CTRL, list_all_locations_of_type_definition_of_identifier);
         
         bind(mappings, '[', MDFR_CMND, open_long_braces);
         bind(mappings, '{', MDFR_CMND, open_long_braces_semicolon);

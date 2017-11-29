@@ -185,38 +185,56 @@ CUSTOM_DOC("Delete characters between the cursor position and the first alphanum
 }
 
 CUSTOM_COMMAND_SIG(snipe_token_or_word)
-CUSTOM_DOC("Delete a single, whole token on or to the left of the cursor.")
+CUSTOM_DOC("Delete a single, whole token on or to the left of the cursor and post it to the clipboard.")
 {
     uint32_t access = AccessOpen;
     
     View_Summary view = get_active_view(app, access);
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, access);
     
-    int32_t pos1 = buffer_boundary_seek(app, &buffer, view.cursor.pos, false, BoundaryToken | BoundaryWhitespace);
-    int32_t pos2 = buffer_boundary_seek(app, &buffer, pos1,            true,  BoundaryToken | BoundaryWhitespace);
+    int32_t pos1 = buffer_boundary_seek(app, &buffer, view.cursor.pos, false, BoundaryToken|BoundaryWhitespace);
+    int32_t pos2 = buffer_boundary_seek(app, &buffer, pos1,            true,  BoundaryToken|BoundaryWhitespace);
     
     Range range = make_range(pos1, pos2);
+    
+    Partition *part = &global_part;
+    Temp_Memory temp = begin_temp_memory(part);
+    int32_t len = range.end - range.start;
+    char *space = push_array(part, char, len);
+    buffer_read_range(app, &buffer, range.start, range.end, space);
+    clipboard_post(app, 0, space, len);
+    end_temp_memory(temp);
+    
     buffer_replace_range(app, &buffer, range.start, range.end, 0, 0);
 }
 
 CUSTOM_COMMAND_SIG(snipe_token_or_word_right)
-CUSTOM_DOC("Delete a single, whole token on or to the right of the cursor.")
+CUSTOM_DOC("Delete a single, whole token on or to the right of the cursor and post it to the clipboard.")
 {
     uint32_t access = AccessOpen;
     
     View_Summary view = get_active_view(app, access);
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, access);
     
-    int32_t pos2 = buffer_boundary_seek(app, &buffer, view.cursor.pos, true,  BoundaryToken | BoundaryWhitespace);
-    int32_t pos1 = buffer_boundary_seek(app, &buffer, pos2,            false, BoundaryToken | BoundaryWhitespace);
+    int32_t pos2 = buffer_boundary_seek(app, &buffer, view.cursor.pos, true,  BoundaryToken|BoundaryWhitespace);
+    int32_t pos1 = buffer_boundary_seek(app, &buffer, pos2,            false, BoundaryToken|BoundaryWhitespace);
     
     Range range = make_range(pos1, pos2);
+    
+    Partition *part = &global_part;
+    Temp_Memory temp = begin_temp_memory(part);
+    int32_t len = range.end - range.start;
+    char *space = push_array(part, char, len);
+    buffer_read_range(app, &buffer, range.start, range.end, space);
+    clipboard_post(app, 0, space, len);
+    end_temp_memory(temp);
+    
     buffer_replace_range(app, &buffer, range.start, range.end, 0, 0);
 }
 
 
 //
-// Quer Replace Selection
+// Query Replace Selection
 //
 
 CUSTOM_COMMAND_SIG(query_replace_selection)
@@ -386,6 +404,81 @@ CUSTOM_DOC("Paste the next item on the clipboard and run auto-indent on the newl
 
 
 //
+// Approximate Definition Search
+//
+
+static void
+get_search_definition(Application_Links *app, Query_Bar *bar, char *string_space, int32_t space_size){
+    bar->prompt = make_lit_string("List Definitions For: ");
+    bar->string = make_string_cap(string_space, 0, space_size);
+    
+    if (!query_user_string(app, bar)){
+        bar->string.size = 0;
+    }
+}
+
+static String
+build_string(Partition *part, char *s1, char *s2, char *s3){
+    String sr = {0};
+    sr.memory_size = str_size(s1) + str_size(s2) + str_size(s3);
+    sr.str = push_array(part, char, sr.memory_size);
+    append(&sr, s1);
+    append(&sr, s2);
+    append(&sr, s3);
+    return(sr);
+}
+
+static void
+list_all_locations_of_type_definition_parameters(Application_Links *app, char *str){
+    Partition *part = &global_part;
+    Temp_Memory temp = begin_temp_memory(part);
+    
+    String match_strings[6];
+    match_strings[0] = build_string(part, "struct ", str, "{");
+    match_strings[1] = build_string(part, "struct ", str, "\n{");
+    match_strings[2] = build_string(part, "union " , str, "{");
+    match_strings[3] = build_string(part, "union " , str, "\n{");
+    match_strings[4] = build_string(part, "enum "  , str, "{");
+    match_strings[5] = build_string(part, "enum "  , str, "\n{");
+    
+    list_all_locations_parameters(app, &global_general, part, match_strings, ArrayCount(match_strings), 0);
+    
+    end_temp_memory(temp);
+    
+    Buffer_Summary buffer = get_buffer_by_name(app, literal("*search*"), AccessAll);
+    if (buffer.line_count == 2){
+        goto_first_jump_same_panel_sticky(app);
+    }
+}
+
+CUSTOM_COMMAND_SIG(list_all_locations_of_type_definition)
+CUSTOM_DOC("Queries user for string, lists all locations of strings that appear to define a type whose name matches the input string.")
+{
+    char string_space[1024];
+    Query_Bar bar;
+    get_search_definition(app, &bar, string_space, sizeof(string_space));
+    if (bar.string.size == 0) return;
+    if (!terminate_with_null(&bar.string)) return;
+    
+    list_all_locations_of_type_definition_parameters(app, bar.string.str);
+}
+
+CUSTOM_COMMAND_SIG(list_all_locations_of_type_definition_of_identifier)
+CUSTOM_DOC("Reads a token or word under the cursor and lists all locations of strings that appear to define a type whose name matches it.")
+{
+    View_Summary view = get_active_view(app, AccessProtected);
+    Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessProtected);
+    
+    char space[512];
+    String str = get_token_or_word_under_pos(app, &buffer, view.cursor.pos, space, sizeof(space) - 1);
+    str.str[str.size] = 0;
+    
+    change_active_panel(app);
+    list_all_locations_of_type_definition_parameters(app, str.str);
+}
+
+
+//
 // Combined Write Commands
 //
 
@@ -444,50 +537,7 @@ CUSTOM_DOC("At the cursor, insert a '{' and '}break;' separated by a blank line.
 CUSTOM_COMMAND_SIG(if0_off)
 CUSTOM_DOC("Surround the range between the cursor and mark with an '#if 0' and an '#endif'")
 {
-    char text1[] = "\n#if 0";
-    int32_t size1 = sizeof(text1) - 1;
-    
-    char text2[] = "#endif\n";
-    int32_t size2 = sizeof(text2) - 1;
-    
-    View_Summary view = get_active_view(app, AccessOpen);
-    Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessOpen);
-    
-    Range range = get_range(&view);
-    
-    if (range.min < range.max){
-        Buffer_Edit edits[2];
-        char *str = 0;
-        char *base = (char*)partition_current(&global_part);
-        
-        str = push_array(&global_part, char, size1);
-        memcpy(str, text1, size1);
-        edits[0].str_start = (int32_t)(str - base);
-        edits[0].len = size1;
-        edits[0].start = range.min;
-        edits[0].end = range.min;
-        
-        str = push_array(&global_part, char, size2);
-        memcpy(str, text2, size2);
-        edits[1].str_start = (int32_t)(str - base);
-        edits[1].len = size2;
-        edits[1].start = range.max;
-        edits[1].end = range.max;
-        
-        buffer_batch_edit(app, &buffer, base, global_part.pos, edits, ArrayCount(edits), BatchEdit_Normal);
-        
-        view = get_view(app, view.view_id, AccessAll);
-        if (view.cursor.pos > view.mark.pos){
-            view_set_cursor(app, &view, seek_line_char(view.cursor.line+1, view.cursor.character), 1);
-        }
-        else{
-            view_set_mark(app, &view, seek_line_char(view.mark.line+1, view.mark.character));
-        }
-        
-        range = get_range(&view);
-        buffer_auto_indent(app, &global_part, &buffer, range.min, range.max, DEF_TAB_WIDTH, DEFAULT_INDENT_FLAGS | AutoIndent_FullTokens);
-        move_past_lead_whitespace(app, &view, &buffer);
-    }
+    place_begin_and_end_on_own_lines(app, &global_part, "#if 0", "#endif");
 }
 
 static void
@@ -594,16 +644,16 @@ CUSTOM_DOC("Reads a filename from surrounding '\"' characters and attempts to op
     }
 }
 
+//
+// File Navigating
+//
+
 CUSTOM_COMMAND_SIG(open_in_other)
 CUSTOM_DOC("Reads a filename from surrounding '\"' characters and attempts to open the corresponding file, displaying it in the other view.")
 {
     exec_command(app, change_active_panel);
     exec_command(app, interactive_open_or_new);
 }
-
-//
-// File Navigating
-//
 
 static bool32
 get_cpp_matching_file(Application_Links *app, Buffer_Summary buffer, Buffer_Summary *buffer_out){
@@ -668,6 +718,30 @@ CUSTOM_DOC("If the current file is a *.cpp or *.h, attempts to open the correspo
     }
 }
 
+CUSTOM_COMMAND_SIG(view_buffer_other_panel)
+CUSTOM_DOC("Set the other non-active panel to view the buffer that the active panel views, and switch to that panel.")
+{
+    View_Summary view = get_active_view(app, AccessAll);
+    int32_t buffer_id = view.buffer_id;
+    change_active_panel(app);
+    view = get_active_view(app, AccessAll);
+    view_set_buffer(app, &view, buffer_id, 0);
+}
+
+CUSTOM_COMMAND_SIG(swap_buffers_between_panels)
+CUSTOM_DOC("Set the other non-active panel to view the buffer that the active panel views, and switch to that panel.")
+{
+    View_Summary view1 = get_active_view(app, AccessAll);
+    change_active_panel(app);
+    View_Summary view2 = get_active_view(app, AccessAll);
+    
+    if (view1.view_id != view2.view_id){
+        int32_t buffer_id1 = view1.buffer_id;
+        int32_t buffer_id2 = view2.buffer_id;
+        view_set_buffer(app, &view1, buffer_id2, 0);
+        view_set_buffer(app, &view2, buffer_id1, 0);
+    }
+}
 
 //
 // Execute Arbitrary Command

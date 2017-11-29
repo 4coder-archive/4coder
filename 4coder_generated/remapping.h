@@ -109,8 +109,8 @@ bind(context, 'V', MDFR_CTRL, paste_next_and_indent);
 bind(context, 'x', MDFR_CTRL, cut);
 bind(context, 'y', MDFR_CTRL, redo);
 bind(context, 'z', MDFR_CTRL, undo);
-bind(context, '2', MDFR_CTRL, decrease_line_wrap);
-bind(context, '3', MDFR_CTRL, increase_line_wrap);
+bind(context, '1', MDFR_CTRL, view_buffer_other_panel);
+bind(context, '2', MDFR_CTRL, swap_buffers_between_panels);
 bind(context, '?', MDFR_CTRL, toggle_show_whitespace);
 bind(context, '~', MDFR_CTRL, clean_all_lines);
 bind(context, '\n', MDFR_NONE, newline_or_goto_position_sticky);
@@ -135,6 +135,8 @@ bind(context, 'h', MDFR_ALT, write_hack);
 bind(context, 'r', MDFR_ALT, write_block);
 bind(context, 't', MDFR_ALT, write_todo);
 bind(context, 'y', MDFR_ALT, write_note);
+bind(context, 'D', MDFR_ALT, list_all_locations_of_type_definition);
+bind(context, 'T', MDFR_ALT, list_all_locations_of_type_definition_of_identifier);
 bind(context, '[', MDFR_CTRL, open_long_braces);
 bind(context, '{', MDFR_CTRL, open_long_braces_semicolon);
 bind(context, '}', MDFR_CTRL, open_long_braces_break);
@@ -259,8 +261,8 @@ bind(context, 'V', MDFR_CMND, paste_next_and_indent);
 bind(context, 'x', MDFR_CMND, cut);
 bind(context, 'y', MDFR_CMND, redo);
 bind(context, 'z', MDFR_CMND, undo);
-bind(context, '2', MDFR_CMND, decrease_line_wrap);
-bind(context, '3', MDFR_CMND, increase_line_wrap);
+bind(context, '1', MDFR_CMND, view_buffer_other_panel);
+bind(context, '2', MDFR_CMND, swap_buffers_between_panels);
 bind(context, '?', MDFR_CMND, toggle_show_whitespace);
 bind(context, '~', MDFR_CMND, clean_all_lines);
 bind(context, '\n', MDFR_NONE, newline_or_goto_position_sticky);
@@ -285,6 +287,8 @@ bind(context, 'h', MDFR_CTRL, write_hack);
 bind(context, 'r', MDFR_CTRL, write_block);
 bind(context, 't', MDFR_CTRL, write_todo);
 bind(context, 'y', MDFR_CTRL, write_note);
+bind(context, 'D', MDFR_CTRL, list_all_locations_of_type_definition);
+bind(context, 'T', MDFR_CTRL, list_all_locations_of_type_definition_of_identifier);
 bind(context, '[', MDFR_CMND, open_long_braces);
 bind(context, '{', MDFR_CMND, open_long_braces_semicolon);
 bind(context, '}', MDFR_CMND, open_long_braces_break);
@@ -443,15 +447,15 @@ static Meta_Key_Bind fcoder_binds_for_default_mapid_file[65] = {
 {0, 120, 1, "cut", 3, LINK_PROCS(cut)},
 {0, 121, 1, "redo", 4, LINK_PROCS(redo)},
 {0, 122, 1, "undo", 4, LINK_PROCS(undo)},
-{0, 50, 1, "decrease_line_wrap", 18, LINK_PROCS(decrease_line_wrap)},
-{0, 51, 1, "increase_line_wrap", 18, LINK_PROCS(increase_line_wrap)},
+{0, 49, 1, "view_buffer_other_panel", 23, LINK_PROCS(view_buffer_other_panel)},
+{0, 50, 1, "swap_buffers_between_panels", 27, LINK_PROCS(swap_buffers_between_panels)},
 {0, 63, 1, "toggle_show_whitespace", 22, LINK_PROCS(toggle_show_whitespace)},
 {0, 126, 1, "clean_all_lines", 15, LINK_PROCS(clean_all_lines)},
 {0, 10, 0, "newline_or_goto_position_sticky", 31, LINK_PROCS(newline_or_goto_position_sticky)},
 {0, 10, 8, "newline_or_goto_position_same_panel_sticky", 42, LINK_PROCS(newline_or_goto_position_same_panel_sticky)},
 {0, 32, 8, "write_character", 15, LINK_PROCS(write_character)},
 };
-static Meta_Key_Bind fcoder_binds_for_default_default_code_map[30] = {
+static Meta_Key_Bind fcoder_binds_for_default_default_code_map[32] = {
 {0, 55300, 1, "seek_alphanumeric_or_camel_right", 32, LINK_PROCS(seek_alphanumeric_or_camel_right)},
 {0, 55299, 1, "seek_alphanumeric_or_camel_left", 31, LINK_PROCS(seek_alphanumeric_or_camel_left)},
 {0, 10, 0, "write_and_auto_tab", 18, LINK_PROCS(write_and_auto_tab)},
@@ -468,6 +472,8 @@ static Meta_Key_Bind fcoder_binds_for_default_default_code_map[30] = {
 {0, 114, 2, "write_block", 11, LINK_PROCS(write_block)},
 {0, 116, 2, "write_todo", 10, LINK_PROCS(write_todo)},
 {0, 121, 2, "write_note", 10, LINK_PROCS(write_note)},
+{0, 68, 2, "list_all_locations_of_type_definition", 37, LINK_PROCS(list_all_locations_of_type_definition)},
+{0, 84, 2, "list_all_locations_of_type_definition_of_identifier", 51, LINK_PROCS(list_all_locations_of_type_definition_of_identifier)},
 {0, 91, 1, "open_long_braces", 16, LINK_PROCS(open_long_braces)},
 {0, 123, 1, "open_long_braces_semicolon", 26, LINK_PROCS(open_long_braces_semicolon)},
 {0, 125, 1, "open_long_braces_break", 22, LINK_PROCS(open_long_braces_break)},
@@ -486,7 +492,7 @@ static Meta_Key_Bind fcoder_binds_for_default_default_code_map[30] = {
 static Meta_Sub_Map fcoder_submaps_for_default[3] = {
 {"mapid_global", 12, "The following bindings apply in all situations.", 47, 0, 0, fcoder_binds_for_default_mapid_global, 48},
 {"mapid_file", 10, "The following bindings apply in general text files and most apply in code files, but some are overriden by other commands specific to code files.", 145, 0, 0, fcoder_binds_for_default_mapid_file, 65},
-{"default_code_map", 16, "The following commands only apply in files where the lexer (syntax highlighting) is turned on.", 94, "mapid_file", 10, fcoder_binds_for_default_default_code_map, 30},
+{"default_code_map", 16, "The following commands only apply in files where the lexer (syntax highlighting) is turned on.", 94, "mapid_file", 10, fcoder_binds_for_default_default_code_map, 32},
 };
 static Meta_Key_Bind fcoder_binds_for_mac_default_mapid_global[48] = {
 {0, 112, 4, "open_panel_vsplit", 17, LINK_PROCS(open_panel_vsplit)},
@@ -595,15 +601,15 @@ static Meta_Key_Bind fcoder_binds_for_mac_default_mapid_file[63] = {
 {0, 120, 4, "cut", 3, LINK_PROCS(cut)},
 {0, 121, 4, "redo", 4, LINK_PROCS(redo)},
 {0, 122, 4, "undo", 4, LINK_PROCS(undo)},
-{0, 50, 4, "decrease_line_wrap", 18, LINK_PROCS(decrease_line_wrap)},
-{0, 51, 4, "increase_line_wrap", 18, LINK_PROCS(increase_line_wrap)},
+{0, 49, 4, "view_buffer_other_panel", 23, LINK_PROCS(view_buffer_other_panel)},
+{0, 50, 4, "swap_buffers_between_panels", 27, LINK_PROCS(swap_buffers_between_panels)},
 {0, 63, 4, "toggle_show_whitespace", 22, LINK_PROCS(toggle_show_whitespace)},
 {0, 126, 4, "clean_all_lines", 15, LINK_PROCS(clean_all_lines)},
 {0, 10, 0, "newline_or_goto_position_sticky", 31, LINK_PROCS(newline_or_goto_position_sticky)},
 {0, 10, 8, "newline_or_goto_position_same_panel_sticky", 42, LINK_PROCS(newline_or_goto_position_same_panel_sticky)},
 {0, 32, 8, "write_character", 15, LINK_PROCS(write_character)},
 };
-static Meta_Key_Bind fcoder_binds_for_mac_default_default_code_map[30] = {
+static Meta_Key_Bind fcoder_binds_for_mac_default_default_code_map[32] = {
 {0, 55300, 4, "seek_alphanumeric_or_camel_right", 32, LINK_PROCS(seek_alphanumeric_or_camel_right)},
 {0, 55299, 4, "seek_alphanumeric_or_camel_left", 31, LINK_PROCS(seek_alphanumeric_or_camel_left)},
 {0, 10, 0, "write_and_auto_tab", 18, LINK_PROCS(write_and_auto_tab)},
@@ -620,6 +626,8 @@ static Meta_Key_Bind fcoder_binds_for_mac_default_default_code_map[30] = {
 {0, 114, 1, "write_block", 11, LINK_PROCS(write_block)},
 {0, 116, 1, "write_todo", 10, LINK_PROCS(write_todo)},
 {0, 121, 1, "write_note", 10, LINK_PROCS(write_note)},
+{0, 68, 1, "list_all_locations_of_type_definition", 37, LINK_PROCS(list_all_locations_of_type_definition)},
+{0, 84, 1, "list_all_locations_of_type_definition_of_identifier", 51, LINK_PROCS(list_all_locations_of_type_definition_of_identifier)},
 {0, 91, 4, "open_long_braces", 16, LINK_PROCS(open_long_braces)},
 {0, 123, 4, "open_long_braces_semicolon", 26, LINK_PROCS(open_long_braces_semicolon)},
 {0, 125, 4, "open_long_braces_break", 22, LINK_PROCS(open_long_braces_break)},
@@ -638,7 +646,7 @@ static Meta_Key_Bind fcoder_binds_for_mac_default_default_code_map[30] = {
 static Meta_Sub_Map fcoder_submaps_for_mac_default[3] = {
 {"mapid_global", 12, "The following bindings apply in all situations.", 47, 0, 0, fcoder_binds_for_mac_default_mapid_global, 48},
 {"mapid_file", 10, "The following bindings apply in general text files and most apply in code files, but some are overriden by other commands specific to code files.", 145, 0, 0, fcoder_binds_for_mac_default_mapid_file, 63},
-{"default_code_map", 16, "The following commands only apply in files where the lexer (syntax highlighting) is turned on.", 94, "mapid_file", 10, fcoder_binds_for_mac_default_default_code_map, 30},
+{"default_code_map", 16, "The following commands only apply in files where the lexer (syntax highlighting) is turned on.", 94, "mapid_file", 10, fcoder_binds_for_mac_default_default_code_map, 32},
 };
 static Meta_Mapping fcoder_meta_maps[2] = {
 {"default", 7, "The default 4coder bindings - typically good for Windows and Linux", 66, fcoder_submaps_for_default, 3, LINK_PROCS(fill_keys_default)},
