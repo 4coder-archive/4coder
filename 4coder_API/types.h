@@ -73,8 +73,6 @@ ENUM(uint64_t, Command_ID){
     cmdid_interactive_open,
     /* DOC(cmdid_interactive_open_or_new begins an interactive dialogue to open a file into a buffer, if the name specified does not match any existing buffer, a new buffer is created instead.) */
     cmdid_interactive_open_or_new,
-    /* DOC(cmdid_save_as does not currently work and is likely to be removed rather that fixed.) */
-    cmdid_save_as,
     /* DOC(cmdid_interactive_switch_buffer begins an interactive dialogue to choose an open buffer to swap into the active view.) */
     cmdid_interactive_switch_buffer,
     /* DOC(cmdid_interactive_kill_buffer begins an interactive dialogue to choose an open buffer to kill.) */
@@ -827,7 +825,7 @@ STRUCT User_Input{
 };
 
 
-/* DOC(Hook_IDs name the various hooks into 4coder, these hooks use the Hook_Function signature.)
+/* DOC(Hook_IDs name the various hooks in 4coder, these hooks use the Hook_Function signature.)
 DOC_SEE(Hook_Function) */
 ENUM(int32_t, Hook_ID){
     /* DOC(TODO) */
@@ -858,6 +856,8 @@ ENUM(int32_t, Special_Hook_ID){
     special_hook_input_filter,
     /* DOC(TODO) */
     special_hook_start,
+    /* DOC(TODO) */
+    special_hook_buffer_name_resolver,
 };
 
 TYPEDEF_FUNC int32_t Command_Caller_Hook_Function(struct Application_Links *app, Generic_Command cmd);
@@ -866,8 +866,8 @@ TYPEDEF_FUNC int32_t Command_Caller_Hook_Function(struct Application_Links *app,
 TYPEDEF_FUNC int32_t Hook_Function(struct Application_Links *app);
 #define HOOK_SIG(name) int32_t name(struct Application_Links *app)
 
-TYPEDEF_FUNC int32_t Open_File_Hook_Function(struct Application_Links *app, int32_t buffer_id);
-#define OPEN_FILE_HOOK_SIG(name) int32_t name(struct Application_Links *app, int32_t buffer_id)
+TYPEDEF_FUNC int32_t Open_File_Hook_Function(struct Application_Links *app, Buffer_ID buffer_id);
+#define OPEN_FILE_HOOK_SIG(name) int32_t name(struct Application_Links *app, Buffer_ID buffer_id)
 
 TYPEDEF_FUNC void Input_Filter_Function(Mouse_State *mouse);
 #define INPUT_FILTER_SIG(name) void name(Mouse_State *mouse)
@@ -875,6 +875,10 @@ TYPEDEF_FUNC void Input_Filter_Function(Mouse_State *mouse);
 TYPEDEF_FUNC int32_t Scroll_Rule_Function(float target_x, float target_y, float *scroll_x, float *scroll_y, int32_t view_id, int32_t is_new_target, float dt);
 #define SCROLL_RULE_SIG(name) \
 int32_t name(float target_x, float target_y, float *scroll_x, float *scroll_y, int32_t view_id, int32_t is_new_target, float dt)
+
+TYPEDEF_FUNC void Buffer_Name_Resolver_Function(struct Application_Links *app, char *file_name, int32_t file_name_len, char *name, int32_t *size, int32_t capacity);
+#define BUFFER_NAME_RESOLVER_SIG(n) \
+void n(struct Application_Links *app, char *file_name, int32_t file_name_len, char *name, int32_t *size, int32_t capacity)
 
 TYPEDEF_FUNC int32_t Start_Hook_Function(struct Application_Links *app, char **files, int32_t file_count, char **flags, int32_t flag_count);
 #define START_HOOK_SIG(name) \

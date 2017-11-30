@@ -88,7 +88,46 @@ HOOK_SIG(default_view_adjust){
     return(0);
 }
 
-// TODO(allen): Eliminate this hook if you can.
+BUFFER_NAME_RESOLVER_SIG(default_buffer_name_resolution){
+    String s = make_string_cap(name, *size, capacity);
+    int32_t original_size = *size;
+    int32_t x = 0;
+    for (;;){
+        Buffer_Summary conflicting_buffer = get_buffer_by_name(app, s.str, s.size, AccessAll);
+        if (!conflicting_buffer.exists){
+            break;
+        }
+        s.size = original_size;
+        
+        // Get the uniquifier string
+        x += 1;
+        
+        String s_file_name = path_of_directory(make_string(file_name, file_name_len));
+        s_file_name.size -= 1;
+        char *end = s_file_name.str + s_file_name.size;
+        
+        for (int32_t i = 0; i < x; ++i){
+            s_file_name = path_of_directory(s_file_name);
+            if (i + 1 < x){
+                s_file_name.size -= 1;
+            }
+            if (s_file_name.size <= 0){
+                s_file_name.size = 0;
+                break;
+            }
+        }
+        
+        char *start = s_file_name.str + s_file_name.size;
+        
+        String uniquifier = make_string(start, (int32_t)(end - start));
+        
+        append(&s, " <");
+        append(&s, uniquifier);
+        append(&s, ">");
+    }
+    *size = s.size;
+}
+
 OPEN_FILE_HOOK_SIG(default_file_settings){
     // NOTE(allen|a4.0.8): The get_parameter_buffer was eliminated
     // and instead the buffer is passed as an explicit parameter through
@@ -206,8 +245,6 @@ OPEN_FILE_HOOK_SIG(default_file_settings){
         buffer_set_setting(app, &buffer, BufferSetting_WrapLine, wrap_lines);
         buffer_set_setting(app, &buffer, BufferSetting_Lex, treat_as_code);
     }
-    
-    set_title(app, "TESTINGGGG!!!!!!! BOOOYYAAA!!!!!");
     
     // no meaning for return
     return(0);
@@ -374,6 +411,7 @@ set_all_default_hooks(Bind_Helper *context){
     set_command_caller(context, default_command_caller);
     set_input_filter(context, default_suppress_mouse_filter);
     set_scroll_rule(context, smooth_scroll_rule);
+    set_buffer_name_resolver(context, default_buffer_name_resolution);
 }
 
 #endif

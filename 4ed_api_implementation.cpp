@@ -36,8 +36,8 @@ fill_buffer_summary(Buffer_Summary *buffer, Editing_File *file, Working_Set *wor
         buffer->file_name_len = file->canon.name.size;
         buffer->file_name = file->canon.name.str;
         
-        buffer->buffer_name_len = file->name.live_name.size;
-        buffer->buffer_name = file->name.live_name.str;
+        buffer->buffer_name_len = file->name.name.size;
+        buffer->buffer_name = file->name.name.str;
         
         buffer->dirty = file->state.dirty;
         
@@ -114,7 +114,7 @@ get_file_from_identifier(System_Functions *system, Working_Set *working_set, Buf
     }
     else if (buffer.name){
         String name = make_string(buffer.name, buffer.name_len);
-        file = working_set_name_contains(working_set, name);
+        file = working_set_contains_name(working_set, name);
     }
     
     return(file);
@@ -276,14 +276,14 @@ DOC_SEE(Command_Line_Interface_Flag)
         if (file != 0){
             if (file->settings.read_only == 0){
                 append(&feedback_str, make_lit_string("ERROR: "));
-                append(&feedback_str, file->name.live_name);
+                append(&feedback_str, file->name.name);
                 append(&feedback_str, make_lit_string(" is not a read-only buffer\n"));
                 result = false;
                 goto done;
             }
             if (file->settings.never_kill){
                 append(&feedback_str, make_lit_string("ERROR: The buffer "));
-                append(&feedback_str, file->name.live_name);
+                append(&feedback_str, file->name.name);
                 append(&feedback_str, make_lit_string(" is not killable"));
                 result = false;
                 goto done;
@@ -300,7 +300,7 @@ DOC_SEE(Command_Line_Interface_Flag)
             }
             
             String name = make_string_terminated(part, buffer_id.name, buffer_id.name_len);
-            buffer_bind_name(general, working_set, file, name);
+            buffer_bind_name(models, general, working_set, file, name);
             init_read_only_file(system, models, file);
         }
         
@@ -595,7 +595,7 @@ DOC_SEE(Access_Flag)
     Buffer_Summary buffer = {0};
     Working_Set *working_set = &cmd->models->working_set;
     
-    Editing_File *file = working_set_name_contains(working_set, make_string(name, len));
+    Editing_File *file = working_set_contains_name(working_set, make_string(name, len));
     if (file != 0 && !file->is_dummy){
         fill_buffer_summary(&buffer, file, working_set);
         if (!access_test(buffer.lock_flags, access)){
@@ -628,9 +628,9 @@ DOC_SEE(Access_Flag)
     Working_Set *working_set = &models->working_set;
     
     String fname = make_string(name, len);
-    Editing_File_Canon_Name canon = {0};
+    Editing_File_Name canon = {0};
     if (get_canon_name(system, &canon, fname)){
-        Editing_File *file = working_set_canon_contains(working_set, canon.name);
+        Editing_File *file = working_set_contains_canon(working_set, canon.name);
         fill_buffer_summary(&buffer, file, working_set);
         if (!access_test(buffer.lock_flags, access)){
             buffer = null_buffer_summary;
@@ -1259,9 +1259,9 @@ DOC_SEE(Buffer_Create_Flag)
         String fname = make_string(filename, filename_len);
         Editing_File *file = 0;
         b32 do_new_file = false;
-        Editing_File_Canon_Name canon = {0};
+        Editing_File_Name canon = {0};
         if (get_canon_name(system, &canon, fname)){
-            file = working_set_canon_contains(working_set, canon.name);
+            file = working_set_contains_canon(working_set, canon.name);
         }
         else{
             do_new_file = true;
@@ -1269,7 +1269,7 @@ DOC_SEE(Buffer_Create_Flag)
         
         // NOTE(allen): Try to get the file by buffer name.
         if (file == 0){
-            file = working_set_name_contains(working_set, fname);
+            file = working_set_contains_name(working_set, fname);
         }
         
         // NOTE(allen): If there is still no file, create a new buffer.
@@ -1292,7 +1292,7 @@ DOC_SEE(Buffer_Create_Flag)
                 if (!(flags & BufferCreate_NeverNew)){
                     file = working_set_alloc_always(working_set, general);
                     if (file != 0){
-                        buffer_bind_name(general, working_set, file, fname);
+                        buffer_bind_name(models, general, working_set, file, fname);
                         init_normal_file(system, models, file, 0, 0);
                         fill_buffer_summary(&result, file, cmd);
                     }
@@ -1316,7 +1316,7 @@ DOC_SEE(Buffer_Create_Flag)
                     file = working_set_alloc_always(working_set, general);
                     if (file != 0){
                         buffer_bind_file(system, general, working_set, file, canon.name);
-                        buffer_bind_name(general, working_set, file, fname);
+                        buffer_bind_name(models, general, working_set, file, fname);
                         init_normal_file(system, models, file, buffer, size);
                         fill_buffer_summary(&result, file, cmd);
                     }
@@ -2827,7 +2827,7 @@ DOC(This call sends a signal to 4coder to attempt to exit.  If there are unsaved
 }
 
 API_EXPORT void
-Set_Title(Application_Links *app, char *title)
+Set_Window_Title(Application_Links *app, char *title)
 /*
 DOC_PARAM(title, A null terminated string indicating the new title for the 4coder window.)
 DOC(Sets 4coder's window title to the specified title string.)

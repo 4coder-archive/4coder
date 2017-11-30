@@ -67,6 +67,7 @@ struct Models{
     Command_Caller_Hook_Function *command_caller;
     Input_Filter_Function *input_filter;
     Scroll_Rule_Function *scroll_rule;
+    Buffer_Name_Resolver_Function *buffer_name_resolver;
     
     Style_Library styles;
     u32 *palette;

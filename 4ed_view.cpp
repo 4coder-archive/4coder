@@ -32,7 +32,6 @@ global File_Viewing_Data null_file_viewing_data = {0};
 
 enum Interactive_Action{
     IAct_Open,
-    IAct_Save_As,
     IAct_New,
     IAct_OpenOrNew,
     IAct_Switch,

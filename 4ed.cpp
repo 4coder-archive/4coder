@@ -549,14 +549,6 @@ COMMAND_DECL(save){
     }
 }
 
-COMMAND_DECL(save_as){
-    USE_MODELS(models);
-    USE_VIEW(view);
-    REQ_FILE(file, view);
-    
-    view_show_interactive(system, view, models, IAct_Save_As, IInt_Sys_File_List, make_lit_string("Save As: "));
-}
-
 COMMAND_DECL(change_active_panel){
     USE_MODELS(models);
     USE_PANEL(panel);
@@ -937,6 +929,11 @@ interpret_binding_buffer(Models *models, void *buffer, i32 size){
                                     models->scroll_rule = (Scroll_Rule_Function*)unit->hook.func;
                                 }break;
                                 
+                                case special_hook_buffer_name_resolver:
+                                {
+                                    models->buffer_name_resolver = (Buffer_Name_Resolver_Function*)unit->hook.func;
+                                }break;
+                                
                                 case special_hook_input_filter:
                                 {
                                     models->input_filter = (Input_Filter_Function*)unit->hook.func;
@@ -1031,7 +1028,6 @@ setup_command_table(){
     SET(interactive_open_or_new);
     SET(interactive_switch_buffer);
     SET(interactive_kill_buffer);
-    SET(save_as);
     
     SET(reopen);
     SET(save);
@@ -1455,7 +1451,7 @@ App_Init_Sig(app_init){
     
     for (i32 i = 0; i < ArrayCount(init_files); ++i){
         Editing_File *file = working_set_alloc_always(&models->working_set, general);
-        buffer_bind_name(general, &models->working_set, file, init_files[i].name);
+        buffer_bind_name(models, general, &models->working_set, file, init_files[i].name);
         
         if (init_files[i].read_only){
             init_read_only_file(system, models, file);
@@ -1518,9 +1514,9 @@ App_Step_Sig(app_step){
         
         for (;system->get_file_change(buffer, buffer_size, &mem_too_small, &size);){
             Assert(!mem_too_small);
-            Editing_File_Canon_Name canon = {0};
+            Editing_File_Name canon = {0};
             if (get_canon_name(system, &canon, make_string(buffer, size))){
-                Editing_File *file = working_set_canon_contains(working_set, canon.name);
+                Editing_File *file = working_set_contains_canon(working_set, canon.name);
                 if (file != 0){
                     if (file->state.ignore_behind_os == 0){
                         
@@ -1732,7 +1728,7 @@ App_Step_Sig(app_step){
             cl_filename.size = cl_filename_len;
             
             String filename = {0};
-            Editing_File_Canon_Name canon_name;
+            Editing_File_Name canon_name = {0};
             if (get_canon_name(system, &canon_name, make_string_slowly(models->settings.init_files[i]))){
                 filename = canon_name.name;
             }

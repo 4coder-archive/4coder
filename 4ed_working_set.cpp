@@ -266,9 +266,8 @@ working_set_remove_basic(Working_Set *working_set, Table *table, String name){
 }
 
 internal Editing_File*
-working_set_canon_contains(Working_Set *working_set, String name){
-    Editing_File *result =
-        working_set_contains_basic(working_set, &working_set->canon_table, name);
+working_set_contains_canon(Working_Set *working_set, String name){
+    Editing_File *result = working_set_contains_basic(working_set, &working_set->canon_table, name);
     return(result);
 }
 
@@ -284,20 +283,19 @@ working_set_canon_remove(Working_Set *working_set, String name){
 }
 
 internal Editing_File*
-working_set_name_contains(Working_Set *working_set, String name){
-    Editing_File *result =
-        working_set_contains_basic(working_set, &working_set->name_table, name);
+working_set_contains_name(Working_Set *working_set, String name){
+    Editing_File *result = working_set_contains_basic(working_set, &working_set->name_table, name);
     return(result);
 }
 
 internal b32
-working_set_name_add(General_Memory *general, Working_Set *working_set, Editing_File *file, String name){
+working_set_add_name(General_Memory *general, Working_Set *working_set, Editing_File *file, String name){
     b32 result = working_set_add_basic(general, working_set, &working_set->name_table, file, name);
     return(result);
 }
 
 internal void
-working_set_name_remove(Working_Set *working_set, String name){
+working_set_remove_name(Working_Set *working_set, String name){
     working_set_remove_basic(working_set, &working_set->name_table, name);
 }
 
@@ -313,7 +311,7 @@ working_set_lookup_file(Working_Set *working_set, String string){
         used_nodes = &working_set->used_sentinel;
         for (dll_items(node, used_nodes)){
             file = (Editing_File*)node;
-            if (string.size == 0 || match_ss(string, file->name.live_name)){
+            if (string.size == 0 || match_ss(string, file->name.name)){
                 break;
             }
         }
@@ -325,7 +323,7 @@ working_set_lookup_file(Working_Set *working_set, String string){
         used_nodes = &working_set->used_sentinel;
         for (dll_items(node, used_nodes)){
             file = (Editing_File*)node;
-            if (string.size == 0 || has_substr_s(file->name.live_name, string)){
+            if (string.size == 0 || has_substr_s(file->name.name, string)){
                 break;
             }
         }
@@ -351,13 +349,11 @@ touch_file(Working_Set *working_set, Editing_File *file){
 
 internal void
 editing_file_name_init(Editing_File_Name *name){
-    name->live_name = make_fixed_width_string(name->live_name_);
-    //name->source_path = make_fixed_width_string(name->source_path_);
-    name->extension = make_fixed_width_string(name->extension_);
+    name->name = make_fixed_width_string(name->name_);
 }
 
 internal b32
-get_canon_name(System_Functions *system, Editing_File_Canon_Name *canon_name, String filename){
+get_canon_name(System_Functions *system, Editing_File_Name *canon_name, String filename){
     canon_name->name = make_fixed_width_string(canon_name->name_);
     
     canon_name->name.size = system->get_canonical(filename.str, filename.size, canon_name->name.str, canon_name->name.memory_size);
@@ -368,63 +364,8 @@ get_canon_name(System_Functions *system, Editing_File_Canon_Name *canon_name, St
 }
 
 internal void
-buffer_get_new_name(Working_Set *working_set, Editing_File_Name *name, String filename){
-    Assert(name->live_name.str != 0);
-    
-    //copy_checked_ss(&name->source_path, filename);
-    copy_ss(&name->live_name, front_of_directory(filename));
-    
-    String ext = file_extension(filename);
-    copy_ss(&name->extension, ext);
-#if 0
-    if (name->source_path.size == name->live_name.size){
-        name->extension.size = 0;
-    }
-    else{
-        String ext = file_extension(filename);
-        copy_ss(&name->extension, ext);
-    }
-#endif
-    
-    {
-        i32 original_len = name->live_name.size;
-        i32 file_x = 0;
-        b32 hit_conflict = 1;
-        while (hit_conflict){
-            hit_conflict = 0;
-            
-            File_Node *used_nodes = &working_set->used_sentinel, *node;
-            for (dll_items(node, used_nodes)){
-                Editing_File *file_ptr = (Editing_File*)node;
-                if (file_is_ready(file_ptr)){
-                    if (match_ss(name->live_name, file_ptr->name.live_name)){
-                        ++file_x;
-                        hit_conflict = 1;
-                        break;
-                    }
-                }
-            }
-            
-            if (hit_conflict){
-                name->live_name.size = original_len;
-                append_ss(&name->live_name, make_lit_string(" <"));
-                append_int_to_str(&name->live_name, file_x);
-                append_s_char(&name->live_name, '>');
-            }
-        }
-    }
-}
-
-inline void
-buffer_get_new_name(Working_Set *working_set, Editing_File_Name *name, char *filename){
-    String f = make_string_slowly(filename);
-    buffer_get_new_name(working_set, name, f);
-}
-
-internal void
 buffer_bind_file(System_Functions *system, General_Memory *general, Working_Set *working_set, Editing_File *file, String canon_filename){
-    Assert(file->name.live_name.size == 0 && file->name.extension.size == 0);
-    //&& file->name.source_path.size == 0);
+    Assert(file->name.name.size == 0);
     Assert(file->canon.name.size == 0);
     
     file->canon.name = make_fixed_width_string(file->canon.name_);
@@ -437,8 +378,7 @@ buffer_bind_file(System_Functions *system, General_Memory *general, Working_Set 
 
 internal void
 buffer_unbind_file(System_Functions *system, Working_Set *working_set, Editing_File *file){
-    Assert(file->name.live_name.size == 0 && file->name.extension.size == 0);
-    // && file->name.source_path.size == 0
+    Assert(file->name.name.size == 0);
     Assert(file->canon.name.size != 0);
     
     system->remove_listener(file->canon.name_);
@@ -446,34 +386,62 @@ buffer_unbind_file(System_Functions *system, Working_Set *working_set, Editing_F
     file->canon.name.size = 0;
 }
 
-internal void
-buffer_bind_name(General_Memory *general, Working_Set *working_set, Editing_File *file, String filename){
-    Assert(file->name.live_name.size == 0 &&
-           file->name.extension.size == 0);
-    // && file->name.source_path.size == 0
+internal b32
+buffer_name_has_conflict(Working_Set *working_set, String base_name){
+    b32 hit_conflict = false;
     
-    Editing_File_Name new_name;
+    File_Node *used_nodes = &working_set->used_sentinel;
+    for (File_Node *node = used_nodes->next; node != used_nodes; node = node->next){
+        Editing_File *file_ptr = (Editing_File*)node;
+        if (file_is_ready(file_ptr) && match_ss(base_name, file_ptr->name.name)){
+            hit_conflict = true;
+            break;
+        }
+    }
+    
+    return(hit_conflict);
+}
+
+internal void
+buffer_resolve_name_low_level(Working_Set *working_set, Editing_File_Name *name, String base_name){
+    Assert(name->name.str != 0);
+    
+    copy_ss(&name->name, base_name);
+    
+    i32 original_len = name->name.size;
+    i32 file_x = 0;
+    for (b32 hit_conflict = true; hit_conflict;){
+        hit_conflict = buffer_name_has_conflict(working_set, name->name);
+        if (hit_conflict){
+            ++file_x;
+            name->name.size = original_len;
+            append_ss(&name->name, make_lit_string(" ##"));
+            append_int_to_str(&name->name, file_x);
+        }
+    }
+}
+
+internal void
+buffer_bind_name_low_level(General_Memory *general, Working_Set *working_set, Editing_File *file, String name){
+    Assert(file->name.name.size == 0);
+    
+    Editing_File_Name new_name = {0};
     editing_file_name_init(&new_name);
-    buffer_get_new_name(working_set, &new_name, filename);
+    buffer_resolve_name_low_level(working_set, &new_name, name);
     
     editing_file_name_init(&file->name);
-    copy_ss(&file->name.live_name, new_name.live_name);
-    //copy_ss(&file->name.source_path, new_name.source_path);
-    copy_ss(&file->name.extension, new_name.extension);
+    copy_ss(&file->name.name, new_name.name);
     
-    b32 result = working_set_name_add(general, working_set, file, file->name.live_name);
+    b32 result = working_set_add_name(general, working_set, file, file->name.name);
     Assert(result); AllowLocal(result);
 }
 
 internal void
-buffer_unbind_name(Working_Set *working_set, Editing_File *file){
-    Assert(file->name.live_name.size != 0);
-    working_set_name_remove(working_set, file->name.live_name);
-    file->name.live_name.size = 0;
-    //file->name.source_path.size = 0;
-    file->name.extension.size = 0;
+buffer_unbind_name_low_level(Working_Set *working_set, Editing_File *file){
+    Assert(file->name.name.size != 0);
+    working_set_remove_name(working_set, file->name.name);
+    file->name.name.size = 0;
 }
-
 
 // BOTTOM
 

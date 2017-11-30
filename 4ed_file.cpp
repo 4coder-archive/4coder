@@ -153,21 +153,13 @@ struct Editing_File_State{
 global_const Editing_File_State null_editing_file_state = {0};
 
 struct Editing_File_Name{
-    char live_name_[256];
-    //char source_path_[256];
-    char extension_[16];
-    String live_name;
-    //String source_path;
-    String extension;
-};
-
-struct Editing_File_Canon_Name{
     char name_[256];
     String name;
 };
 
 struct File_Node{
-    File_Node *next, *prev;
+    File_Node *next;
+    File_Node *prev;
 };
 
 struct Editing_File{
@@ -179,9 +171,8 @@ struct Editing_File{
     Editing_File_State state;
     Editing_File_Markers markers;
     Editing_File_Name name;
-    Editing_File_Canon_Name canon;
+    Editing_File_Name canon;
     Buffer_Slot_ID id;
-    //u64 unique_buffer_id;
 };
 static Editing_File null_editing_file = {0};
 

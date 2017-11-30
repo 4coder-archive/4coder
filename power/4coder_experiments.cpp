@@ -836,6 +836,7 @@ get_bindings(void *data, int32_t size){
     set_command_caller(context, default_command_caller);
     
     set_scroll_rule(context, smooth_scroll_rule);
+    set_buffer_name_resolver(context, default_buffer_name_resolution);
     
     default_keys(context);
     

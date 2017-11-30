@@ -148,7 +148,7 @@ inherit_map(Bind_Helper *helper, int32_t mapid){
     if (helper->group == 0 && helper->error == 0) helper->error = BH_ERR_MISSING_BEGIN;
     if (!helper->error && mapid < mapid_global) ++helper->header->header.user_map_count;
     
-    Binding_Unit unit;
+    Binding_Unit unit = {0};
     unit.type = unit_inherit;
     unit.map_inherit.mapid = mapid;
     
@@ -157,91 +157,91 @@ inherit_map(Bind_Helper *helper, int32_t mapid){
 
 inline void
 set_hook(Bind_Helper *helper, int32_t hook_id, Hook_Function *func){
-    Binding_Unit unit;
+    Binding_Unit unit = {0};
     unit.type = unit_hook;
     unit.hook.hook_id = hook_id;
-    unit.hook.func = (void*) func;
-    
+    unit.hook.func = (void*)func;
     write_unit(helper, unit);
 }
 
 inline void
 set_scroll_rule(Bind_Helper *helper, Scroll_Rule_Function *func){
-    Binding_Unit unit;
+    Binding_Unit unit = {0};
     unit.type = unit_hook;
     unit.hook.hook_id = special_hook_scroll_rule;
-    unit.hook.func = (void*) func;
-    
+    unit.hook.func = (void*)func;
+    write_unit(helper, unit);
+}
+
+inline void
+set_buffer_name_resolver(Bind_Helper *helper, Buffer_Name_Resolver_Function *func){
+    Binding_Unit unit = {0};
+    unit.type = unit_hook;
+    unit.hook.hook_id = special_hook_buffer_name_resolver;
+    unit.hook.func = (void*)func;
     write_unit(helper, unit);
 }
 
 inline void
 set_new_file_hook(Bind_Helper *helper, Open_File_Hook_Function *func){
-    Binding_Unit unit;
+    Binding_Unit unit = {0};
     unit.type = unit_hook;
     unit.hook.hook_id = special_hook_new_file;
-    unit.hook.func = (void*) func;
-    
+    unit.hook.func = (void*)func;
     write_unit(helper, unit);
 }
 
 inline void
 set_start_hook(Bind_Helper *helper, Start_Hook_Function *func){
-    Binding_Unit unit;
+    Binding_Unit unit = {0};
     unit.type = unit_hook;
     unit.hook.hook_id = special_hook_start;
-    unit.hook.func = (void*) func;
-    
+    unit.hook.func = (void*)func;
     write_unit(helper, unit);
 }
 
 inline void
 set_open_file_hook(Bind_Helper *helper, Open_File_Hook_Function *func){
-    Binding_Unit unit;
+    Binding_Unit unit = {0};
     unit.type = unit_hook;
     unit.hook.hook_id = special_hook_open_file;
-    unit.hook.func = (void*) func;
-    
+    unit.hook.func = (void*)func;
     write_unit(helper, unit);
 }
 
 inline void
 set_save_file_hook(Bind_Helper *helper, Open_File_Hook_Function *func){
-    Binding_Unit unit;
+    Binding_Unit unit = {0};
     unit.type = unit_hook;
     unit.hook.hook_id = special_hook_save_file;
-    unit.hook.func = (void*) func;
-    
+    unit.hook.func = (void*)func;
     write_unit(helper, unit);
 }
 
 inline void
 set_end_file_hook(Bind_Helper *helper, Open_File_Hook_Function *func){
-    Binding_Unit unit;
+    Binding_Unit unit = {0};
     unit.type = unit_hook;
     unit.hook.hook_id = special_hook_end_file;
-    unit.hook.func = (void*) func;
-    
+    unit.hook.func = (void*)func;
     write_unit(helper, unit);
 }
 
 inline void
 set_command_caller(Bind_Helper *helper, Command_Caller_Hook_Function *func){
-    Binding_Unit unit;
+    Binding_Unit unit = {0};
     unit.type = unit_hook;
     unit.hook.hook_id = special_hook_command_caller;
-    unit.hook.func = (void*) func;
-    
+    unit.hook.func = (void*)func;
     write_unit(helper, unit);
 }
 
 inline void
 set_input_filter(Bind_Helper *helper, Input_Filter_Function *func){
-    Binding_Unit unit;
+    Binding_Unit unit = {0};
     unit.type = unit_hook;
     unit.hook.hook_id = special_hook_input_filter;
-    unit.hook.func = (void*) func;
-    
+    unit.hook.func = (void*)func;
     write_unit(helper, unit);
 }
 
