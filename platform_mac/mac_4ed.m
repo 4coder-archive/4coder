@@ -831,6 +831,12 @@ osx_list_loadable_fonts(void){
     return(result);
 }
 
+void
+osx_change_title(char *str_c){
+    NSString *str = [NSString stringWithUTF8String:str_c];
+    [window setTitle:str];
+}
+
 int
 main(int argc, char **argv){
     memset(&osx_objc, 0, sizeof(osx_objc));

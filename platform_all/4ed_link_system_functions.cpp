@@ -50,14 +50,17 @@ link_system_code(){
     SYSLINK(memory_allocate);
     SYSLINK(memory_set_protection);
     SYSLINK(memory_free);
+    
     SYSLINK(file_exists);
     SYSLINK(directory_cd);
     SYSLINK(get_current_path);
     SYSLINK(get_4ed_path);
+    
     SYSLINK(set_fullscreen);
     SYSLINK(is_fullscreen);
     SYSLINK(show_mouse_cursor);
     SYSLINK(send_exit_signal);
+    SYSLINK(set_title);
     
     SYSLINK(log);
 #if defined(FRED_INTERNAL)

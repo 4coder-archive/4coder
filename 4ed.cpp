@@ -1710,6 +1710,8 @@ App_Step_Sig(app_step){
     cmd->key = null_key_event_data;
     
     if (input->first_step){
+        system->set_title("TESTINGGGG!!!!!!! BOOOYYAAA!!!!!");
+        
         // Open command line files.
         char space[512];
         String cl_filename = make_fixed_width_string(space);

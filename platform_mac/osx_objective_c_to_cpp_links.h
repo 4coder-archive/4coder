@@ -148,6 +148,9 @@ osx_get_font_match(char *name, i32 pt_size, b32 italic, b32 bold);
 external OSX_Loadable_Fonts
 osx_list_loadable_fonts(void);
 
+external void
+osx_change_title(char *str);
+
 #endif
 
 // BOTTOM

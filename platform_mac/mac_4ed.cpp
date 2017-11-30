@@ -188,8 +188,12 @@ Sys_Is_Fullscreen_Sig(system_is_fullscreen){
 // HACK(allen): Why does this work differently from the win32 version!?
 internal
 Sys_Send_Exit_Signal_Sig(system_send_exit_signal){
-    
     osxvars.keep_running = false;
+}
+
+internal
+Sys_Set_Title_Sig(system_set_title, title){
+    osx_change_title(title);
 }
 
 #include "4ed_coroutine_functions.cpp"

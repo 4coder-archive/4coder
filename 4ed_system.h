@@ -212,6 +212,9 @@ typedef Sys_Is_Fullscreen_Sig(System_Is_Fullscreen);
 #define Sys_Send_Exit_Signal_Sig(name) void name()
 typedef Sys_Send_Exit_Signal_Sig(System_Send_Exit_Signal);
 
+#define Sys_Set_Title_Sig(n,t) void n(char *t)
+typedef Sys_Set_Title_Sig(System_Set_Title, title);
+
 // debug
 #define Sys_Log_Sig(name) void name(char *message, u32 length)
 typedef Sys_Log_Sig(System_Log);
@@ -264,14 +267,17 @@ struct System_Functions{
     System_Memory_Allocate        *memory_allocate;
     System_Memory_Set_Protection  *memory_set_protection;
     System_Memory_Free            *memory_free;
+    
     System_File_Exists            *file_exists;
     System_Directory_CD           *directory_cd;
     System_Get_Current_Path       *get_current_path;
     System_Get_4ed_Path           *get_4ed_path;
+    
     System_Show_Mouse_Cursor      *show_mouse_cursor;
     System_Set_Fullscreen         *set_fullscreen;
     System_Is_Fullscreen          *is_fullscreen;
     System_Send_Exit_Signal       *send_exit_signal;
+    System_Set_Title              *set_title;
     
     // debug: 1
     System_Log *log;
