@@ -2808,11 +2808,7 @@ DOC(This call tells 4coder to set the full_screen mode.  The change to full scre
 API_EXPORT bool32
 Is_Fullscreen(Application_Links *app)
 /*
-DOC(This call returns true if the 4coder is in full screen mode.  This call
-takes toggles that have already occured this frame into account.  So it may return
-true even though the frame has not ended and actually put 4coder into full screen. If
-it returns true though, 4coder will definitely be full screen by the beginning of the next
-frame if the state is not changed.)
+DOC(This call returns true if the 4coder is in full screen mode.  This call takes toggles that have already occured this frame into account.  So it may return true even though the frame has not ended and actually put 4coder into full screen. If it returns true though, 4coder will definitely be full screen by the beginning of the next frame if the state is not changed.)
 */{
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     System_Functions *system = cmd->system;
@@ -2823,12 +2819,22 @@ frame if the state is not changed.)
 API_EXPORT void
 Send_Exit_Signal(Application_Links *app)
 /*
-DOC(This call sends a signal to 4coder to attempt to exit.  If there are unsaved
-files this triggers a dialogue ensuring you're okay with closing.)
+DOC(This call sends a signal to 4coder to attempt to exit.  If there are unsaved files this triggers a dialogue ensuring you're okay with closing.)
 */{
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     System_Functions *system = cmd->system;
     system->send_exit_signal();
+}
+
+API_EXPORT void
+Set_Title(Application_Links *app, char *title)
+/*
+DOC_PARAM(title, A null terminated string indicating the new title for the 4coder window.)
+DOC(Sets 4coder's window title to the specified title string.)
+*/{
+    Command_Data *cmd = (Command_Data*)app->cmd_context;
+    System_Functions *system = cmd->system;
+    system->set_title(title);
 }
 
 // BOTTOM

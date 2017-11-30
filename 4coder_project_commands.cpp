@@ -392,6 +392,14 @@ load_project_from_config_data(Application_Links *app, Partition *part, char *con
         else{
             open_all_code(app, project_dir);
         }
+        
+        // Set window title
+        char space[1024];
+        String builder = make_fixed_width_string(space);
+        append(&builder, "4coder: ");
+        append(&builder, project_dir);
+        terminate_with_null(&builder);
+        //set_title(app, builder.str);
     }
     
     end_temp_memory(temp);

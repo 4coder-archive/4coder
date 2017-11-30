@@ -39,6 +39,8 @@ START_HOOK_SIG(default_start){
         load_project(app);
     }
     
+    set_title(app, "TESTINGGGG!!!!!!! BOOOYYAAA!!!!!");
+    
     // no meaning for return
     return(0);
 }
@@ -51,23 +53,6 @@ START_HOOK_SIG(default_start){
 // also relies on this particular command caller hook.
 COMMAND_CALLER_HOOK(default_command_caller){
     View_Summary view = get_active_view(app, AccessAll);
-    
-#if 0
-    // NOTE(allen): Debugging input.
-#include <stdio.h>
-    User_Input in = get_command_input(app);
-    if (in.type == UserInputKey){
-        Key_Event_Data key = in.key;
-        fprintf(stdout, "keycode %u/'%c'\n", key.keycode, (char)key.keycode);
-        fprintf(stdout, "character %u/'%c'\n", key.character, (char)key.character);
-        fprintf(stdout, "character_no_caps_lock %u/'%c'\n", key.character_no_caps_lock, (char)key.character_no_caps_lock);
-        fprintf(stdout, "ctrl: %s ", key.modifiers[MDFR_CONTROL_INDEX]?" true":"false");
-        fprintf(stdout, "alt: %s " , key.modifiers[MDFR_ALT_INDEX]    ?" true":"false");
-        fprintf(stdout, "cmnd: %s ", key.modifiers[MDFR_COMMAND_INDEX]?" true":"false");
-        fprintf(stdout, "shift: %s", key.modifiers[MDFR_SHIFT_INDEX]  ?" true":"false");
-        fprintf(stdout, "\n");
-    }
-#endif
     
     view_paste_index[view.view_id].next_rewrite = 0;
     exec_command(app, cmd);
