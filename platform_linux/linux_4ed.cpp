@@ -1958,6 +1958,11 @@ main(int argc, char **argv){
                 linuxvars.keep_running = true;
             }
             
+            // NOTE(NAME): Switch to New Title
+            if (result.has_new_title){
+                XStoreName(linuxvars.XDisplay, linuxvars.XWindow, result.title_string);
+            }
+            
             // NOTE(allen): Switch to New Cursor
             if (result.mouse_cursor_type != linuxvars.cursor && !linuxvars.input.mouse.l){
                 Cursor c = xcursors[result.mouse_cursor_type];
