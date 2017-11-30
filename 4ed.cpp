@@ -193,7 +193,11 @@ struct Command_Data{
     System_Functions *system;
     Live_Views *live_set;
     
-    i32 screen_width, screen_height;
+    i32 screen_width;
+    i32 screen_height;
+    
+    Application_Step_Result *step_result;
+    
     Key_Event_Data key;
 };
 
@@ -1423,6 +1427,8 @@ App_Init_Sig(app_init){
     cmd->system = system;
     cmd->live_set = &models->live_set;
     
+    cmd->step_result = &app_result;
+    
     cmd->screen_width = target->width;
     cmd->screen_height = target->height;
     
@@ -1704,11 +1710,14 @@ App_Step_Sig(app_step){
     cmd->system = system;
     cmd->live_set = &models->live_set;
     
+    cmd->step_result = &app_result;
+    
     cmd->screen_width = target->width;
     cmd->screen_height = target->height;
     
     cmd->key = null_key_event_data;
     
+    // NOTE(allen): First frame initialization
     if (input->first_step){
         // Open command line files.
         char space[512];

@@ -94,6 +94,8 @@ struct Application_Step_Result{
     b32 trying_to_kill;
     b32 perform_kill;
     b32 animating;
+    b32 has_new_title;
+    char *title_string;
 };
 
 struct Application_Step_Input{

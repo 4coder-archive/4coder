@@ -2833,8 +2833,7 @@ DOC_PARAM(title, A null terminated string indicating the new title for the 4code
 DOC(Sets 4coder's window title to the specified title string.)
 */{
     Command_Data *cmd = (Command_Data*)app->cmd_context;
-    System_Functions *system = cmd->system;
-    system->set_title(title);
+    
 }
 
 // BOTTOM

@@ -191,11 +191,6 @@ Sys_Send_Exit_Signal_Sig(system_send_exit_signal){
     osxvars.keep_running = false;
 }
 
-internal
-Sys_Set_Title_Sig(system_set_title, title){
-    osx_change_title(title);
-}
-
 #include "4ed_coroutine_functions.cpp"
 
 #include "4ed_system_shared.cpp"
@@ -640,6 +635,11 @@ osx_step(void){
     }
     else if (!keep_running && !osxvars.keep_running){
         osxvars.keep_running = true;
+    }
+    
+    // NOTE(allen): Switch to New Title
+    if (result.has_new_title){
+        osx_change_title(result.title_string);
     }
     
     // NOTE(allen): Switch to New Cursor
