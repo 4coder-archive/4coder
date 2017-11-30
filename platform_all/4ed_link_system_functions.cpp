@@ -60,7 +60,6 @@ link_system_code(){
     SYSLINK(is_fullscreen);
     SYSLINK(show_mouse_cursor);
     SYSLINK(send_exit_signal);
-    SYSLINK(set_title);
     
     SYSLINK(log);
 #if defined(FRED_INTERNAL)

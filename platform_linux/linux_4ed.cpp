@@ -1249,8 +1249,6 @@ LinuxX11WindowInit(int argc, char** argv, int* window_width, int* window_height)
     pid_t pid = getpid();
     XChangeProperty(linuxvars.XDisplay, linuxvars.XWindow, linuxvars.atom__NET_WM_PID, XA_CARDINAL, 32, PropModeReplace, (unsigned char*)&pid, 1);
     
-#define WINDOW_NAME "4coder 4linux: " VERSION
-    
     //NOTE(inso): set wm properties
     XStoreName(linuxvars.XDisplay, linuxvars.XWindow, WINDOW_NAME);
     

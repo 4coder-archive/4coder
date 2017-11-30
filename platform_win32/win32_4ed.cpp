@@ -24,8 +24,6 @@
 #include "4ed_defines.h"
 #include "4coder_API/version.h"
 
-#define WINDOW_NAME L"4coder: " L_VERSION
-
 #include <string.h>
 #include "4coder_lib/4coder_utf8.h"
 
@@ -1259,7 +1257,7 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
     if (!plat_settings.fullscreen_window && plat_settings.maximize_window){
         window_style |= WS_MAXIMIZE;
     }
-    win32vars.window_handle = CreateWindowEx(0, window_class.lpszClassName, WINDOW_NAME, window_style, window_x, window_y, window_rect.right - window_rect.left, window_rect.bottom - window_rect.top, 0, 0, hInstance, 0);
+    win32vars.window_handle = CreateWindowEx(0, window_class.lpszClassName, L_WINDOW_NAME, window_style, window_x, window_y, window_rect.right - window_rect.left, window_rect.bottom - window_rect.top, 0, 0, hInstance, 0);
     
     if (win32vars.window_handle == 0){
         LOG("Failed\n");
@@ -1579,6 +1577,11 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
         // NOTE(allen): Post New Clipboard Content
         if (win32vars.clip_post_len > 0){
             win32_post_clipboard((char*)win32vars.clip_post_part.base, win32vars.clip_post_len);
+        }
+        
+        // NOTE(allen): Switch to New Title
+        if (result.has_new_title){
+            SetWindowText_utf8(win32vars.window_handle, (u8*)result.title_string);
         }
         
         // NOTE(allen): Switch to New Cursor

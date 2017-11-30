@@ -39,8 +39,6 @@ START_HOOK_SIG(default_start){
         load_project(app);
     }
     
-    set_title(app, "TESTINGGGG!!!!!!! BOOOYYAAA!!!!!");
-    
     // no meaning for return
     return(0);
 }
@@ -208,6 +206,8 @@ OPEN_FILE_HOOK_SIG(default_file_settings){
         buffer_set_setting(app, &buffer, BufferSetting_WrapLine, wrap_lines);
         buffer_set_setting(app, &buffer, BufferSetting_Lex, treat_as_code);
     }
+    
+    set_title(app, "TESTINGGGG!!!!!!! BOOOYYAAA!!!!!");
     
     // no meaning for return
     return(0);

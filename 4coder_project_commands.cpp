@@ -399,7 +399,7 @@ load_project_from_config_data(Application_Links *app, Partition *part, char *con
         append(&builder, "4coder: ");
         append(&builder, project_dir);
         terminate_with_null(&builder);
-        //set_title(app, builder.str);
+        set_title(app, builder.str);
     }
     
     end_temp_memory(temp);

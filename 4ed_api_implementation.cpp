@@ -2833,7 +2833,11 @@ DOC_PARAM(title, A null terminated string indicating the new title for the 4code
 DOC(Sets 4coder's window title to the specified title string.)
 */{
     Command_Data *cmd = (Command_Data*)app->cmd_context;
-    
+    Models *models = cmd->models;
+    models->has_new_title = true;
+    String dst = make_string_cap(models->title_space, 0, models->title_capacity);
+    append(&dst, title);
+    terminate_with_null(&dst);
 }
 
 // BOTTOM

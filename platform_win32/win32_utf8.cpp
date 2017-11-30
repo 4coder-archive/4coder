@@ -12,6 +12,31 @@
 #if !defined(FRED_WIN32_UTF8_CPP)
 #define FRED_WIN32_UTF8_CPP
 
+internal Win32_UTF16
+input_8_to_16(Partition *scratch, u8 *in){
+    Win32_UTF16 r = {0};
+    
+    u32 utf8_len = 0;
+    for (;in[utf8_len];++utf8_len);
+    u32 utf16_max = (utf8_len + 1)*2;
+    u16 *utf16 = push_array(scratch, u16, utf16_max);
+    
+    b32 error = false;
+    u32 utf16_len = (u32)utf8_to_utf16_minimal_checking(utf16, utf16_max - 1, in, utf8_len, &error);
+    
+    if (!error && utf16_len < utf16_max){
+        utf16[utf16_len] = 0;
+        
+        r.success = true;
+        r.utf8_len = utf8_len;
+        r.utf16_max = utf16_max;
+        r.utf16_len = utf16_len;
+        r.utf16 = utf16;
+    }
+    
+    return(r);
+}
+
 internal HANDLE
 CreateFile_utf8(u8 *name, DWORD access, DWORD share, LPSECURITY_ATTRIBUTES security, DWORD creation, DWORD flags, HANDLE template_file){
     HANDLE result = INVALID_HANDLE_VALUE;
@@ -19,17 +44,9 @@ CreateFile_utf8(u8 *name, DWORD access, DWORD share, LPSECURITY_ATTRIBUTES secur
     Partition *scratch = &shared_vars.scratch;
     Temp_Memory temp = begin_temp_memory(scratch);
     
-    u32 len = 0;
-    for (;name[len];++len);
-    u32 name_16_max = (len+1)*2;
-    u16 *name_16 = push_array(scratch, u16, name_16_max);
-    
-    b32 convert_error = false;
-    u32 name_16_len = (u32)utf8_to_utf16_minimal_checking(name_16, name_16_max-1, name, len, &convert_error);
-    
-    if (!convert_error){
-        name_16[name_16_len] = 0;
-        result = CreateFileW((LPWSTR)name_16, access, share, security, creation, flags, template_file);
+    Win32_UTF16 name_16 = input_8_to_16(scratch, name);
+    if (name_16.success){
+        result = CreateFileW((LPWSTR)name_16.utf16, access, share, security, creation, flags, template_file);
     }
     
     end_temp_memory(temp);
@@ -76,17 +93,9 @@ FindFirstFile_utf8(u8 *name, LPWIN32_FIND_DATA find_data){
     Partition *scratch = &shared_vars.scratch;
     Temp_Memory temp = begin_temp_memory(scratch);
     
-    u32 len = 0;
-    for (;name[len];++len);
-    u32 name_16_max = (len+1)*2;
-    u16 *name_16 = push_array(scratch, u16, name_16_max);
-    
-    b32 convert_error = false;
-    u32 name_16_len = (u32)utf8_to_utf16_minimal_checking(name_16, name_16_max-1, name, len, &convert_error);
-    
-    if (name_16_len < name_16_max && !convert_error){
-        name_16[name_16_len] = 0;
-        result = FindFirstFileW((LPWSTR)name_16, find_data);
+    Win32_UTF16 name_16 = input_8_to_16(scratch, name);
+    if (name_16.success){
+        result = FindFirstFileW((LPWSTR)name_16.utf16, find_data);
     }
     
     end_temp_memory(temp);
@@ -101,17 +110,9 @@ GetFileAttributes_utf8(u8 *name){
     Partition *scratch = &shared_vars.scratch;
     Temp_Memory temp = begin_temp_memory(scratch);
     
-    u32 len = 0;
-    for (;name[len];++len);
-    u32 name_16_max = (len+1)*2;
-    u16 *name_16 = push_array(scratch, u16, name_16_max);
-    
-    b32 convert_error = false;
-    u32 name_16_len = (u32)utf8_to_utf16_minimal_checking(name_16, name_16_max-1, name, len, &convert_error);
-    
-    if (name_16_len < name_16_max && !convert_error){
-        name_16[name_16_len] = 0;
-        result = GetFileAttributesW((LPWSTR)name_16);
+    Win32_UTF16 name_16 = input_8_to_16(scratch, name);
+    if (name_16.success){
+        result = GetFileAttributesW((LPWSTR)name_16.utf16);
     }
     
     end_temp_memory(temp);
@@ -133,7 +134,7 @@ GetModuleFileName_utf8(HMODULE module, u8 *file_out, DWORD max){
     
     if (max > 0){
         b32 convert_error = false;
-        u32 file_8_len = (u32)utf16_to_utf8_minimal_checking(file_out, max-1, file_16, file_16_len, &convert_error);
+        u32 file_8_len = (u32)utf16_to_utf8_minimal_checking(file_out, max - 1, file_16, file_16_len, &convert_error);
         result = file_8_len;
         if (convert_error || file_8_len >= max){
             result = 0;
@@ -152,37 +153,15 @@ CreateProcess_utf8(u8 *app_name, u8 *command, LPSECURITY_ATTRIBUTES security, LP
     Partition *scratch = &shared_vars.scratch;
     Temp_Memory temp = begin_temp_memory(scratch);
     
-    u32 app_name_len = 0;
-    for (;app_name[app_name_len];++app_name_len);
+    Win32_UTF16 app_name_16 = input_8_to_16(scratch, app_name);
     
-    u32 command_len = 0;
-    for (;command[command_len];++command_len);
-    
-    u32 curdir_len = 0;
-    for (;curdir[curdir_len];++curdir_len);
-    
-    u32 app_name_16_max = (app_name_len+1)*2;
-    u32 command_16_max = (command_len+1)*2;
-    u32 curdir_16_max = (curdir_len+1)*2;
-    
-    u16 *app_name_16 = push_array(scratch, u16, app_name_16_max);
-    u16 *command_16 = push_array(scratch, u16, command_16_max);
-    u16 *curdir_16 = push_array(scratch, u16, curdir_16_max);
-    
-    b32 error = false;
-    u32 app_name_16_len = (u32)utf8_to_utf16_minimal_checking(app_name_16, app_name_16_max-1, app_name, app_name_len, &error);
-    
-    if (app_name_16_len < app_name_16_max && !error){
-        u32 command_16_len = (u32)utf8_to_utf16_minimal_checking(command_16, command_16_max-1, command, command_len, &error);
-        
-        if (command_16_len < command_16_max && !error){
-            u32 curdir_16_len = (u32)utf8_to_utf16_minimal_checking(curdir_16, curdir_16_max-1, curdir, curdir_len, &error);
-            
-            app_name_16[app_name_16_len] = 0;
-            command_16[command_16_len] = 0;
-            curdir_16[curdir_16_len] = 0;
-            
-            result = CreateProcessW((LPWSTR)app_name_16, (LPWSTR)command_16, security, thread, inherit_handles, creation, environment, (LPWSTR)curdir_16, startup, process);
+    if (app_name_16.success){
+        Win32_UTF16 command_16 = input_8_to_16(scratch, command);
+        if (command_16.success){
+            Win32_UTF16 curdir_16 = input_8_to_16(scratch, curdir);
+            if (curdir_16.success){
+                result = CreateProcessW((LPWSTR)app_name_16.utf16, (LPWSTR)command_16.utf16, security, thread, inherit_handles, creation, environment, (LPWSTR)curdir_16.utf16, startup, process);
+            }
         }
     }
     
@@ -223,29 +202,29 @@ MessageBox_utf8(HWND owner, u8 *text, u8 *caption, UINT type){
     Partition *scratch = &shared_vars.scratch;
     Temp_Memory temp = begin_temp_memory(scratch);
     
-    u32 text_len = 0;
-    for(;text[text_len];++text_len);
-    
-    u32 caption_len = 0;
-    for(;caption[caption_len];++caption_len);
-    
-    u32 text_16_max = (text_len+1)*2;
-    u32 caption_16_max = (caption_len+1)*2;
-    
-    u16 *text_16 = push_array(scratch, u16, text_16_max);
-    u16 *caption_16 = push_array(scratch, u16, caption_16_max);
-    
-    b32 error = false;
-    u32 text_16_len = (u32)utf8_to_utf16_minimal_checking(text_16, text_16_max-1, text, text_len, &error);
-    
-    if (text_16_len < text_16_max && !error){
-        u32 caption_16_len = (u32)utf8_to_utf16_minimal_checking(caption_16, caption_16_max-1, caption, caption_len, &error);
-        
-        if (text_16_len < text_16_max && !error){
-            text_16[text_16_len] = 0;
-            caption_16[caption_16_len] = 0;
-            MessageBoxW(owner, (LPWSTR)text_16, (LPWSTR)caption_16, type);
+    Win32_UTF16 text_16 = input_8_to_16(scratch, text);
+    if (text_16.success){
+        Win32_UTF16 caption_16 = input_8_to_16(scratch, caption);
+        if (caption_16.success){
+            result = MessageBoxW(owner, (LPWSTR)text_16.utf16, (LPWSTR)caption_16.utf16, type);
         }
+    }
+    
+    end_temp_memory(temp);
+    
+    return(result);
+}
+
+internal BOOL
+SetWindowText_utf8(HWND window, u8 *string){
+    BOOL result = FALSE;
+    
+    Partition *scratch = &shared_vars.scratch;
+    Temp_Memory temp = begin_temp_memory(scratch);
+    
+    Win32_UTF16 string_16 = input_8_to_16(scratch, string);
+    if (string_16.success){
+        result = SetWindowTextW(window, (LPWSTR)string_16.utf16);
     }
     
     end_temp_memory(temp);

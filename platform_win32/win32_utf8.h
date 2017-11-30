@@ -36,6 +36,19 @@ GetCurrentDirectory_utf8(DWORD max, u8 *buffer);
 internal int
 MessageBox_utf8(HWND owner, u8 *text, u8 *caption, UINT type);
 
+internal BOOL
+SetWindowText_utf8(HWND window, u8 *string);
+
+// For implementation
+
+struct Win32_UTF16{
+    b32 success;
+    u32 utf8_len;
+    u32 utf16_max;
+    u32 utf16_len;
+    u16 *utf16;
+};
+
 #endif
 
 // BOTTOM

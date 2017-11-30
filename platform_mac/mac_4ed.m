@@ -21,8 +21,6 @@
 #include "4ed_cursor_codes.h"
 #include "4ed_linked_node_macros.h"
 
-#define WINDOW_NAME "4coder " VERSION
-
 #undef internal
 #undef global
 #undef external

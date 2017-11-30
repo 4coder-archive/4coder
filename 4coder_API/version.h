@@ -22,6 +22,8 @@
 
 #define VERSION VERSION_STRING VERSION_TYPE
 
+#define WINDOW_NAME "4coder: " VERSION
+
 // long string
 #define L_VN__(a,b,c) L#a L"." L#b L"." L#c
 #define L_VN_(a,b,c) L_VN__(a,b,c)
@@ -35,3 +37,5 @@
 #endif
 
 #define L_VERSION L_VERSION_STRING L_VERSION_TYPE
+
+#define L_WINDOW_NAME L"4coder: " L_VERSION

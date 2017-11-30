@@ -196,8 +196,6 @@ struct Command_Data{
     i32 screen_width;
     i32 screen_height;
     
-    Application_Step_Result *step_result;
-    
     Key_Event_Data key;
 };
 
@@ -1419,6 +1417,16 @@ App_Init_Sig(app_init){
     models->global_font_id = 1;
     app_hardcode_default_style(models);
     
+    // NOTE(allen): title space
+    models->has_new_title = true;
+    models->title_capacity = KB(4);
+    models->title_space = push_array(partition, char, models->title_capacity);
+    {
+        String builder = make_string_cap(models->title_space, 0, models->title_capacity);
+        append(&builder, WINDOW_NAME);
+        terminate_with_null(&builder);
+    }
+    
     // NOTE(allen): init first panel
     Command_Data *cmd = &vars->command_data;
     
@@ -1426,8 +1434,6 @@ App_Init_Sig(app_init){
     cmd->vars = vars;
     cmd->system = system;
     cmd->live_set = &models->live_set;
-    
-    cmd->step_result = &app_result;
     
     cmd->screen_width = target->width;
     cmd->screen_height = target->height;
@@ -1709,8 +1715,6 @@ App_Step_Sig(app_step){
     cmd->vars = vars;
     cmd->system = system;
     cmd->live_set = &models->live_set;
-    
-    cmd->step_result = &app_result;
     
     cmd->screen_width = target->width;
     cmd->screen_height = target->height;
@@ -2403,6 +2407,13 @@ App_Step_Sig(app_step){
         }
         
         end_render_section(target, system);
+    }
+    
+    // NOTE(allen): get new window title
+    if (models->has_new_title){
+        models->has_new_title = false;
+        app_result.has_new_title = true;
+        app_result.title_string = models->title_space;
     }
     
     // NOTE(allen): get cursor type
