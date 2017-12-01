@@ -114,15 +114,22 @@ global Coroutine_System_Auto_Alloc coroutines;
 
 internal
 Sys_Get_4ed_Path_Sig(system_get_4ed_path){
-    u32 buf_size = capacity;
-    i32 status = _NSGetExecutablePath(out, &buf_size);
+    Partition *scratch = &shared_vars.scratch;
+    Temp_Memory temp = begin_temp_memory(scratch);
+    char *temp_buffer = push_array(scratch, char, capacity);
     i32 size = 0;
+    u32 buf_size = capacity;
+    i32 status = _NSGetExecutablePath(temp_buffer, &buf_size);
     if (status == 0){
-        String str = make_string_slowly(out);
-        remove_last_folder(&str);
-        terminate_with_null(&str);
-        size = str.size;
+        ssize_t ln_len = readlink(temp_buffer, out, capacity);
+        if (ln_len != -1){
+            String str = make_string_cap(out, ln_len, capacity);
+            remove_last_folder(&str);
+            terminate_with_null(&str);
+            size = str.size;
+        }
     }
+    end_temp_memory(temp);
     return(size);
 }
 
