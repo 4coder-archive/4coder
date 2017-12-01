@@ -195,7 +195,7 @@ seek_potential_match(Application_Links *app, Search_Range *range, Search_Key key
         int32_t new_pos = -1;
         buffer_seek_string(app, &result->buffer, start_pos, end_pos, range->start, word.str, word.size, &new_pos, flags);
         
-        if (new_pos >= 0 && new_pos < end_pos){
+        if (new_pos >= 0){
             if (forward){
                 if (new_pos < best_pos){
                     best_pos = new_pos;

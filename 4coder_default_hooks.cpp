@@ -111,10 +111,18 @@ BUFFER_NAME_RESOLVER_SIG(default_buffer_name_resolution){
                 int32_t conflict_index = unresolved[i];
                 Buffer_Name_Conflict_Entry *conflict = &conflicts[conflict_index];
                 
-                copy(&conflict->unique_name_in_out, conflict->base_name);
+                int32_t len = conflict->base_name_len;
+                if (len < 0){
+                    len = 0;
+                }
+                if (len > conflict->unique_name_capacity){
+                    len = conflict->unique_name_capacity;
+                }
+                conflict->unique_name_len_in_out = len;
+                memcpy(conflict->unique_name_in_out, conflict->base_name, len);
                 
-                if (conflict->file_name.str != 0){
-                    String s_file_name = conflict->file_name;
+                if (conflict->file_name != 0){
+                    String s_file_name = make_string(conflict->file_name, conflict->file_name_len);
                     s_file_name = path_of_directory(s_file_name);
                     s_file_name.size -= 1;
                     char *end = s_file_name.str + s_file_name.size;
@@ -132,9 +140,13 @@ BUFFER_NAME_RESOLVER_SIG(default_buffer_name_resolution){
                     
                     String uniqueifier = make_string(start, (int32_t)(end - start));
                     
-                    append(&conflict->unique_name_in_out, " <");
-                    append(&conflict->unique_name_in_out, uniqueifier);
-                    append(&conflict->unique_name_in_out, ">");
+                    String builder = make_string_cap(conflict->unique_name_in_out,
+                                                     conflict->unique_name_len_in_out,
+                                                     conflict->unique_name_capacity);
+                    append(&builder, " <");
+                    append(&builder, uniqueifier);
+                    append(&builder, ">");
+                    conflict->unique_name_len_in_out = builder.size;
                 }
             }
             
@@ -143,17 +155,19 @@ BUFFER_NAME_RESOLVER_SIG(default_buffer_name_resolution){
             for (int32_t i = 0; i < unresolved_count; ++i){
                 int32_t conflict_index = unresolved[i];
                 Buffer_Name_Conflict_Entry *conflict = &conflicts[conflict_index];
-                String conflict_name = conflict->unique_name_in_out;
+                String conflict_name = make_string(conflict->unique_name_in_out,
+                                                   conflict->unique_name_len_in_out);
                 
                 bool32 hit_conflict = false;
-                if (conflict->file_name.str != 0){
+                if (conflict->file_name != 0){
                     for (int32_t j = 0; j < unresolved_count; ++j){
                         if (i == j) continue;
                         
                         int32_t conflict_j_index = unresolved[j];
                         Buffer_Name_Conflict_Entry *conflict_j = &conflicts[conflict_j_index];
                         
-                        if (match(conflict_name, conflict_j->unique_name_in_out)){
+                        if (match(conflict_name, make_string(conflict_j->unique_name_in_out,
+                                                             conflict_j->unique_name_len_in_out))){
                             hit_conflict = true;
                             break;
                         }

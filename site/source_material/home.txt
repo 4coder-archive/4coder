@@ -5,17 +5,17 @@
 
 If you cannot find what you are looking for please contact \STYLE{code} editor@4coder.net \END with questions.
 
-\LINK{!http://patreon.com/mr4thdimention} Get an alpha build by supporting development \END
+\LINK{!http://patreon.com/mr4thdimention} Support Development \END
 
-\LINK{document:features} The official 4coder feature list \END
+\LINK{document:features} Feature List \END
 
-\LINK{document:bindings} The list of default 4coder bindings \END
+\LINK{document:bindings} Bindings \END
 
-\LINK{document:roadmap} The official 4coder road map \END
+\LINK{document:roadmap} Road Map \END
 
-\LINK{document:custom_docs} The official documentation for the 4coder customization system \END
+\LINK{document:custom_docs} Documentation for Customization \END
 
-\LINK{document:tutorials} Using 4coder tutorials \END
+\LINK{document:tutorials} Tutorials for 4coder \END
 
 \IMAGE{image:screen_1}
 

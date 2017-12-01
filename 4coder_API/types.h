@@ -878,9 +878,13 @@ int32_t name(float target_x, float target_y, float *scroll_x, float *scroll_y, i
 
 STRUCT Buffer_Name_Conflict_Entry{
     Buffer_ID buffer_id;
-    String file_name;
-    String base_name;
-    String unique_name_in_out;
+    char *file_name;
+    int32_t file_name_len;
+    char *base_name;
+    int32_t base_name_len;
+    char *unique_name_in_out;
+    int32_t unique_name_len_in_out;
+    int32_t unique_name_capacity;
 };
 
 TYPEDEF_FUNC void Buffer_Name_Resolver_Function(struct Application_Links *app, Buffer_Name_Conflict_Entry *conflicts, int32_t conflict_count);

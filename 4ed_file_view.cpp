@@ -3673,32 +3673,33 @@ init_read_only_file(System_Functions *system, Models *models, Editing_File *file
     }
 }
 
-internal String
-make_string_part(Partition *scratch, String src){
-    String r = {0};
+internal char*
+make_string_part(Partition *scratch, String src, int32_t *size_out){
+    char *r = {0};
     if (src.size > 0){
-        r.str = push_array(scratch, char, src.size);
-        r.memory_size = src.size;
-        copy(&r, src);
+        r = push_array(scratch, char, src.size);
+        *size_out = src.size;
+        memcpy(r, src.str, *size_out);
     }
     return(r);
 }
 
-internal String
-make_string_part(Partition *scratch, String src, int32_t cap){
+internal char*
+make_string_part(Partition *scratch, String src, int32_t cap, int32_t *size_out, int32_t *cap_out){
     cap = clamp_bottom(src.size, cap);
-    String r = {0};
+    char *r = 0;
     if (src.size > 0){
-        r.str = push_array(scratch, char, cap);
-        r.memory_size = cap;
-        copy(&r, src);
+        r = push_array(scratch, char, cap);
+        *size_out = src.size;
+        *cap_out = cap;
+        memcpy(r, src.str, *size_out);
     }
     return(r);
 }
 
 internal void
 buffer_bind_name(Models *models, General_Memory *general, Partition *scratch, Working_Set *working_set, Editing_File *file, String file_name){
-    String new_base_name = front_of_directory(file_name);
+    String base_name = front_of_directory(file_name);
     
     Temp_Memory temp = begin_temp_memory(scratch);
     
@@ -3715,7 +3716,7 @@ buffer_bind_name(Models *models, General_Memory *general, Partition *scratch, Wo
     File_Node *used_nodes = &working_set->used_sentinel;
     for (File_Node *node = used_nodes->next; node != used_nodes; node = node->next){
         Editing_File *file_ptr = (Editing_File*)node;
-        if (file_is_ready(file_ptr) && match(new_base_name, file_ptr->base_name.name)){
+        if (file_is_ready(file_ptr) && match(base_name, file_ptr->base_name.name)){
             ++conflict_count;
             Editing_File **new_file_ptr = push_array(scratch, Editing_File*, 1);
             *new_file_ptr = file_ptr;
@@ -3729,16 +3730,14 @@ buffer_bind_name(Models *models, General_Memory *general, Partition *scratch, Wo
         Editing_File *file_ptr = conflict_file_ptrs[i];
         Buffer_Name_Conflict_Entry *entry = &conflicts[i];
         entry->buffer_id = file_ptr->id.id;
-        entry->file_name = make_string_part(scratch, file_ptr->canon.name);
-        if (i == 0){
-            String base = front_of_directory(file_name);
-            entry->base_name = make_string_part(scratch, base);
-            entry->unique_name_in_out = make_string_part(scratch, base, 256);
+        entry->file_name = make_string_part(scratch, file_ptr->canon.name, &entry->file_name_len);
+        entry->base_name = make_string_part(scratch, base_name, &entry->base_name_len);
+        
+        String b = base_name;
+        if (i > 0){
+            b = file_ptr->unique_name.name;
         }
-        else{
-            entry->base_name = make_string_part(scratch, file_ptr->base_name.name);
-            entry->unique_name_in_out = make_string_part(scratch, file_ptr->unique_name.name, 256);
-        }
+        entry->unique_name_in_out = make_string_part(scratch, b, 256, &entry->unique_name_len_in_out, &entry->unique_name_capacity);
     }
     
     // Get user's resolution data.
@@ -3756,7 +3755,10 @@ buffer_bind_name(Models *models, General_Memory *general, Partition *scratch, Wo
     for (int32_t i = 0; i < conflict_count; ++i){
         Editing_File *file_ptr = conflict_file_ptrs[i];
         Buffer_Name_Conflict_Entry *entry = &conflicts[i];
-        buffer_bind_name_low_level(general, working_set, file_ptr, entry->base_name, entry->unique_name_in_out);
+        
+        String unique_name = make_string(entry->unique_name_in_out, entry->unique_name_len_in_out);
+        
+        buffer_bind_name_low_level(general, working_set, file_ptr, base_name, unique_name);
     }
     
     end_temp_memory(temp);
