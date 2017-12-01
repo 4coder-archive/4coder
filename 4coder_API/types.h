@@ -876,9 +876,16 @@ TYPEDEF_FUNC int32_t Scroll_Rule_Function(float target_x, float target_y, float 
 #define SCROLL_RULE_SIG(name) \
 int32_t name(float target_x, float target_y, float *scroll_x, float *scroll_y, int32_t view_id, int32_t is_new_target, float dt)
 
-TYPEDEF_FUNC void Buffer_Name_Resolver_Function(struct Application_Links *app, char *file_name, int32_t file_name_len, char *name, int32_t *size, int32_t capacity);
+STRUCT Buffer_Name_Conflict_Entry{
+    Buffer_ID buffer_id;
+    String file_name;
+    String base_name;
+    String unique_name_in_out;
+};
+
+TYPEDEF_FUNC void Buffer_Name_Resolver_Function(struct Application_Links *app, Buffer_Name_Conflict_Entry *conflicts, int32_t conflict_count);
 #define BUFFER_NAME_RESOLVER_SIG(n) \
-void n(struct Application_Links *app, char *file_name, int32_t file_name_len, char *name, int32_t *size, int32_t capacity)
+void n(struct Application_Links *app, Buffer_Name_Conflict_Entry *conflicts, int32_t conflict_count)
 
 TYPEDEF_FUNC int32_t Start_Hook_Function(struct Application_Links *app, char **files, int32_t file_count, char **flags, int32_t flag_count);
 #define START_HOOK_SIG(name) \

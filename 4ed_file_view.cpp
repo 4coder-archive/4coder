@@ -3673,21 +3673,93 @@ init_read_only_file(System_Functions *system, Models *models, Editing_File *file
     }
 }
 
+internal String
+make_string_part(Partition *scratch, String src){
+    String r = {0};
+    if (src.size > 0){
+        r.str = push_array(scratch, char, src.size);
+        r.memory_size = src.size;
+        copy(&r, src);
+    }
+    return(r);
+}
+
+internal String
+make_string_part(Partition *scratch, String src, int32_t cap){
+    cap = clamp_bottom(src.size, cap);
+    String r = {0};
+    if (src.size > 0){
+        r.str = push_array(scratch, char, cap);
+        r.memory_size = cap;
+        copy(&r, src);
+    }
+    return(r);
+}
+
 internal void
-buffer_bind_name(Models *models, General_Memory *general, Working_Set *working_set, Editing_File *file, String file_name){
-    Editing_File_Name new_name = {0};
-    editing_file_name_init(&new_name);
-    copy(&new_name.name, front_of_directory(file_name));
-    if (models->buffer_name_resolver != 0){
-        models->buffer_name_resolver(&models->app_links, file_name.str, file_name.size, new_name.name.str, &new_name.name.size, new_name.name.memory_size);
-        if (new_name.name.size < 0){
-            new_name.name.size = 0;
-        }
-        if (new_name.name.size > new_name.name.memory_size){
-            new_name.name.size = new_name.name.memory_size;
+buffer_bind_name(Models *models, General_Memory *general, Partition *scratch, Working_Set *working_set, Editing_File *file, String file_name){
+    String new_base_name = front_of_directory(file_name);
+    
+    Temp_Memory temp = begin_temp_memory(scratch);
+    
+    // List of conflict files.
+    Editing_File **conflict_file_ptrs = push_array(scratch, Editing_File*, 0);
+    int32_t conflict_count = 0;
+    
+    {
+        ++conflict_count;
+        Editing_File **new_file_ptr = push_array(scratch, Editing_File*, 1);
+        *new_file_ptr = file;
+    }
+    
+    File_Node *used_nodes = &working_set->used_sentinel;
+    for (File_Node *node = used_nodes->next; node != used_nodes; node = node->next){
+        Editing_File *file_ptr = (Editing_File*)node;
+        if (file_is_ready(file_ptr) && match(new_base_name, file_ptr->base_name.name)){
+            ++conflict_count;
+            Editing_File **new_file_ptr = push_array(scratch, Editing_File*, 1);
+            *new_file_ptr = file_ptr;
         }
     }
-    buffer_bind_name_low_level(general, working_set, file, new_name.name);
+    
+    // Fill conflict array.
+    Buffer_Name_Conflict_Entry *conflicts = push_array(scratch, Buffer_Name_Conflict_Entry, conflict_count);
+    
+    for (int32_t i = 0; i < conflict_count; ++i){
+        Editing_File *file_ptr = conflict_file_ptrs[i];
+        Buffer_Name_Conflict_Entry *entry = &conflicts[i];
+        entry->buffer_id = file_ptr->id.id;
+        entry->file_name = make_string_part(scratch, file_ptr->canon.name);
+        if (i == 0){
+            String base = front_of_directory(file_name);
+            entry->base_name = make_string_part(scratch, base);
+            entry->unique_name_in_out = make_string_part(scratch, base, 256);
+        }
+        else{
+            entry->base_name = make_string_part(scratch, file_ptr->base_name.name);
+            entry->unique_name_in_out = make_string_part(scratch, file_ptr->unique_name.name, 256);
+        }
+    }
+    
+    // Get user's resolution data.
+    if (models->buffer_name_resolver != 0){
+        models->buffer_name_resolver(&models->app_links, conflicts, conflict_count);
+    }
+    
+    // Re-bind all of the files
+    for (int32_t i = 0; i < conflict_count; ++i){
+        Editing_File *file_ptr = conflict_file_ptrs[i];
+        if (file_ptr->unique_name.name.str != 0){
+            buffer_unbind_name_low_level(working_set, file_ptr);
+        }
+    }
+    for (int32_t i = 0; i < conflict_count; ++i){
+        Editing_File *file_ptr = conflict_file_ptrs[i];
+        Buffer_Name_Conflict_Entry *entry = &conflicts[i];
+        buffer_bind_name_low_level(general, working_set, file_ptr, entry->base_name, entry->unique_name_in_out);
+    }
+    
+    end_temp_memory(temp);
 }
 
 internal Editing_File*
@@ -3705,14 +3777,14 @@ open_file(System_Functions *system, Models *models, String filename){
                 if (system->load_handle(canon_name.name.str, &handle)){
                     Mem_Options *mem = &models->mem;
                     General_Memory *general = &mem->general;
+                    Partition *part = &mem->part;
                     
                     file = working_set_alloc_always(working_set, general);
                     
                     buffer_bind_file(system, general, working_set, file, canon_name.name);
-                    buffer_bind_name(models, general, working_set, file, filename);
+                    buffer_bind_name(models, general, part, working_set, file, filename);
                     
                     i32 size = system->load_size(handle);
-                    Partition *part = &mem->part;
                     char *buffer = 0;
                     b32 gen_buffer = 0;
                     
@@ -3770,11 +3842,12 @@ view_interactive_new_file(System_Functions *system, Models *models, View *view, 
             else{
                 Mem_Options *mem = &models->mem;
                 General_Memory *general = &mem->general;
+                Partition *part = &mem->part;
                 
                 file = working_set_alloc_always(working_set, general);
                 
                 buffer_bind_file(system, general, working_set, file, canon_name.name);
-                buffer_bind_name(models, general, working_set, file, filename);
+                buffer_bind_name(models, general, part, working_set, file, filename);
                 
                 init_normal_file(system, models, file, 0, 0);
             }
@@ -3837,7 +3910,7 @@ save_file_by_name(System_Functions *system, Models *models, String name){
 internal void
 interactive_begin_sure_to_kill(System_Functions *system, View *view, Models *models, Editing_File *file){
     view_show_interactive(system, view, models, IAct_Sure_To_Kill, IInt_Sure_To_Kill, make_lit_string("Are you sure?"));
-    copy_ss(&view->dest, file->name.name);
+    copy_ss(&view->dest, file->unique_name.name);
 }
 
 enum Try_Kill_Result{
@@ -5035,13 +5108,13 @@ step_file_view(System_Functions *system, View *view, Models *models, View *activ
                                     Editing_File *file = (Editing_File*)node;
                                     Assert(!file->is_dummy);
                                     
-                                    if (wildcard_match_s(&absolutes, file->name.name, 0) != 0){
+                                    if (wildcard_match_s(&absolutes, file->unique_name.name, 0) != 0){
                                         View_Iter iter = file_view_iter_init(layout, file, 0);
                                         if (file_view_iter_good(iter)){
                                             reserved_files[reserved_top++] = file;
                                         }
                                         else{
-                                            if (file->name.name.str[0] == '*'){
+                                            if (file->unique_name.name.str[0] == '*'){
                                                 reserved_files[reserved_top++] = file;
                                             }
                                             else{
@@ -5054,9 +5127,9 @@ step_file_view(System_Functions *system, View *view, Models *models, View *activ
                                                 }
                                                 
                                                 id.id[0] = (u64)(file);
-                                                if (gui_do_file_option(target, id, file->name.name, 0, message)){
+                                                if (gui_do_file_option(target, id, file->unique_name.name, 0, message)){
                                                     complete = 1;
-                                                    copy_ss(&comp_dest, file->name.name);
+                                                    copy_ss(&comp_dest, file->unique_name.name);
                                                 }
                                             }
                                         }
@@ -5075,9 +5148,9 @@ step_file_view(System_Functions *system, View *view, Models *models, View *activ
                                     }
                                     
                                     id.id[0] = (u64)(file);
-                                    if (gui_do_file_option(target, id, file->name.name, 0, message)){
+                                    if (gui_do_file_option(target, id, file->unique_name.name, 0, message)){
                                         complete = 1;
-                                        copy_ss(&comp_dest, file->name.name);
+                                        copy_ss(&comp_dest, file->unique_name.name);
                                     }
                                 }
                                 
@@ -5389,7 +5462,7 @@ step_file_view(System_Functions *system, View *view, Models *models, View *activ
                                 Editing_File *file = view_ptr->file_data.file;
                                 append_ss(&string, make_lit_string(" > buffer: "));
                                 if (file){
-                                    append_ss(&string, file->name.name);
+                                    append_ss(&string, file->unique_name.name);
                                     gui_do_text_field(target, string, empty_str);
                                     string.size = 0;
                                     append_ss(&string, make_lit_string(" >> buffer-slot-id: "));
@@ -6181,7 +6254,7 @@ draw_file_bar(System_Functions *system, Render_Target *target, View *view, Model
         
         Assert(file);
         
-        intbar_draw_string(system, target, &bar, file->name.name, base_color);
+        intbar_draw_string(system, target, &bar, file->unique_name.name, base_color);
         intbar_draw_string(system, target, &bar, make_lit_string(" -"), base_color);
         
         if (file->is_loading){

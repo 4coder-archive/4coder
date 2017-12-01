@@ -311,7 +311,7 @@ working_set_lookup_file(Working_Set *working_set, String string){
         used_nodes = &working_set->used_sentinel;
         for (dll_items(node, used_nodes)){
             file = (Editing_File*)node;
-            if (string.size == 0 || match_ss(string, file->name.name)){
+            if (string.size == 0 || match_ss(string, file->unique_name.name)){
                 break;
             }
         }
@@ -323,7 +323,7 @@ working_set_lookup_file(Working_Set *working_set, String string){
         used_nodes = &working_set->used_sentinel;
         for (dll_items(node, used_nodes)){
             file = (Editing_File*)node;
-            if (string.size == 0 || has_substr_s(file->name.name, string)){
+            if (string.size == 0 || has_substr_s(file->unique_name.name, string)){
                 break;
             }
         }
@@ -365,7 +365,7 @@ get_canon_name(System_Functions *system, Editing_File_Name *canon_name, String f
 
 internal void
 buffer_bind_file(System_Functions *system, General_Memory *general, Working_Set *working_set, Editing_File *file, String canon_filename){
-    Assert(file->name.name.size == 0);
+    Assert(file->unique_name.name.size == 0);
     Assert(file->canon.name.size == 0);
     
     file->canon.name = make_fixed_width_string(file->canon.name_);
@@ -378,7 +378,7 @@ buffer_bind_file(System_Functions *system, General_Memory *general, Working_Set 
 
 internal void
 buffer_unbind_file(System_Functions *system, Working_Set *working_set, Editing_File *file){
-    Assert(file->name.name.size == 0);
+    Assert(file->unique_name.name.size == 0);
     Assert(file->canon.name.size != 0);
     
     system->remove_listener(file->canon.name_);
@@ -392,8 +392,7 @@ buffer_name_has_conflict(Working_Set *working_set, String base_name){
     
     File_Node *used_nodes = &working_set->used_sentinel;
     for (File_Node *node = used_nodes->next; node != used_nodes; node = node->next){
-        Editing_File *file_ptr = (Editing_File*)node;
-        if (file_is_ready(file_ptr) && match_ss(base_name, file_ptr->name.name)){
+        Editing_File *file_ptr = (Editing_File*)node;if (file_is_ready(file_ptr) && match(base_name, file_ptr->unique_name.name)){
             hit_conflict = true;
             break;
         }
@@ -406,7 +405,7 @@ internal void
 buffer_resolve_name_low_level(Working_Set *working_set, Editing_File_Name *name, String base_name){
     Assert(name->name.str != 0);
     
-    copy_ss(&name->name, base_name);
+    copy(&name->name, base_name);
     
     i32 original_len = name->name.size;
     i32 file_x = 0;
@@ -415,32 +414,39 @@ buffer_resolve_name_low_level(Working_Set *working_set, Editing_File_Name *name,
         if (hit_conflict){
             ++file_x;
             name->name.size = original_len;
-            append_ss(&name->name, make_lit_string(" ##"));
+            append(&name->name, " (");
             append_int_to_str(&name->name, file_x);
+            append(&name->name, ")");
         }
     }
 }
 
 internal void
-buffer_bind_name_low_level(General_Memory *general, Working_Set *working_set, Editing_File *file, String name){
-    Assert(file->name.name.size == 0);
+buffer_bind_name_low_level(General_Memory *general, Working_Set *working_set, Editing_File *file, String base_name, String name){
+    Assert(file->base_name.name.size == 0);
+    Assert(file->unique_name.name.size == 0);
     
     Editing_File_Name new_name = {0};
     editing_file_name_init(&new_name);
     buffer_resolve_name_low_level(working_set, &new_name, name);
     
-    editing_file_name_init(&file->name);
-    copy_ss(&file->name.name, new_name.name);
+    editing_file_name_init(&file->base_name);
+    copy(&file->base_name.name, base_name);
     
-    b32 result = working_set_add_name(general, working_set, file, file->name.name);
+    editing_file_name_init(&file->unique_name);
+    copy(&file->unique_name.name, new_name.name);
+    
+    b32 result = working_set_add_name(general, working_set, file, file->unique_name.name);
     Assert(result); AllowLocal(result);
 }
 
 internal void
 buffer_unbind_name_low_level(Working_Set *working_set, Editing_File *file){
-    Assert(file->name.name.size != 0);
-    working_set_remove_name(working_set, file->name.name);
-    file->name.name.size = 0;
+    Assert(file->base_name.name.size != 0);
+    Assert(file->unique_name.name.size != 0);
+    working_set_remove_name(working_set, file->unique_name.name);
+    file->base_name.name.size = 0;
+    file->unique_name.name.size = 0;
 }
 
 // BOTTOM

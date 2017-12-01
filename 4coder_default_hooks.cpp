@@ -89,43 +89,94 @@ HOOK_SIG(default_view_adjust){
 }
 
 BUFFER_NAME_RESOLVER_SIG(default_buffer_name_resolution){
-    String s = make_string_cap(name, *size, capacity);
-    int32_t original_size = *size;
-    int32_t x = 0;
-    for (;;){
-        Buffer_Summary conflicting_buffer = get_buffer_by_name(app, s.str, s.size, AccessAll);
-        if (!conflicting_buffer.exists){
-            break;
+    if (conflict_count > 1){
+        // List of unresolved conflicts
+        Partition *part = &global_part;
+        Temp_Memory temp = begin_temp_memory(part);
+        
+        int32_t *unresolved = push_array(part, int32_t, conflict_count);
+        if (unresolved == 0) return;
+        
+        int32_t unresolved_count = conflict_count;
+        for (int32_t i = 0; i < conflict_count; ++i){
+            unresolved[i] = i;
         }
-        s.size = original_size;
         
-        // Get the uniquifier string
-        x += 1;
-        
-        String s_file_name = path_of_directory(make_string(file_name, file_name_len));
-        s_file_name.size -= 1;
-        char *end = s_file_name.str + s_file_name.size;
-        
-        for (int32_t i = 0; i < x; ++i){
-            s_file_name = path_of_directory(s_file_name);
-            if (i + 1 < x){
-                s_file_name.size -= 1;
+        // Resolution Loop
+        int32_t x = 0;
+        for (;;){
+            // Resolution Pass
+            ++x;
+            for (int32_t i = 0; i < unresolved_count; ++i){
+                int32_t conflict_index = unresolved[i];
+                Buffer_Name_Conflict_Entry *conflict = &conflicts[conflict_index];
+                
+                copy(&conflict->unique_name_in_out, conflict->base_name);
+                
+                if (conflict->file_name.str != 0){
+                    String s_file_name = conflict->file_name;
+                    s_file_name = path_of_directory(s_file_name);
+                    s_file_name.size -= 1;
+                    char *end = s_file_name.str + s_file_name.size;
+                    for (int32_t j = 0; j < x; ++j){
+                        s_file_name = path_of_directory(s_file_name);
+                        if (j + 1 < x){
+                            s_file_name.size -= 1;
+                        }
+                        if (s_file_name.size <= 0){
+                            s_file_name.size = 0;
+                            break;
+                        }
+                    }
+                    char *start = s_file_name.str + s_file_name.size;
+                    
+                    String uniqueifier = make_string(start, (int32_t)(end - start));
+                    
+                    append(&conflict->unique_name_in_out, " <");
+                    append(&conflict->unique_name_in_out, uniqueifier);
+                    append(&conflict->unique_name_in_out, ">");
+                }
             }
-            if (s_file_name.size <= 0){
-                s_file_name.size = 0;
+            
+            // Conflict Check Pass
+            bool32 has_conflicts = false;
+            for (int32_t i = 0; i < unresolved_count; ++i){
+                int32_t conflict_index = unresolved[i];
+                Buffer_Name_Conflict_Entry *conflict = &conflicts[conflict_index];
+                String conflict_name = conflict->unique_name_in_out;
+                
+                bool32 hit_conflict = false;
+                if (conflict->file_name.str != 0){
+                    for (int32_t j = 0; j < unresolved_count; ++j){
+                        if (i == j) continue;
+                        
+                        int32_t conflict_j_index = unresolved[j];
+                        Buffer_Name_Conflict_Entry *conflict_j = &conflicts[conflict_j_index];
+                        
+                        if (match(conflict_name, conflict_j->unique_name_in_out)){
+                            hit_conflict = true;
+                            break;
+                        }
+                    }
+                }
+                
+                if (hit_conflict){
+                    has_conflicts = true;
+                }
+                else{
+                    --unresolved_count;
+                    unresolved[i] = unresolved[unresolved_count];
+                    --i;
+                }
+            }
+            
+            if (!has_conflicts){
                 break;
             }
         }
         
-        char *start = s_file_name.str + s_file_name.size;
-        
-        String uniquifier = make_string(start, (int32_t)(end - start));
-        
-        append(&s, " <");
-        append(&s, uniquifier);
-        append(&s, ">");
+        end_temp_memory(temp);
     }
-    *size = s.size;
 }
 
 OPEN_FILE_HOOK_SIG(default_file_settings){

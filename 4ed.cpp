@@ -1451,7 +1451,7 @@ App_Init_Sig(app_init){
     
     for (i32 i = 0; i < ArrayCount(init_files); ++i){
         Editing_File *file = working_set_alloc_always(&models->working_set, general);
-        buffer_bind_name(models, general, &models->working_set, file, init_files[i].name);
+        buffer_bind_name(models, general, partition, &models->working_set, file, init_files[i].name);
         
         if (init_files[i].read_only){
             init_read_only_file(system, models, file);

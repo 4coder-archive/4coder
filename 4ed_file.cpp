@@ -170,7 +170,8 @@ struct Editing_File{
     b32 is_dummy;
     Editing_File_State state;
     Editing_File_Markers markers;
-    Editing_File_Name name;
+    Editing_File_Name base_name;
+    Editing_File_Name unique_name;
     Editing_File_Name canon;
     Buffer_Slot_ID id;
 };

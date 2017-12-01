@@ -36,8 +36,8 @@ fill_buffer_summary(Buffer_Summary *buffer, Editing_File *file, Working_Set *wor
         buffer->file_name_len = file->canon.name.size;
         buffer->file_name = file->canon.name.str;
         
-        buffer->buffer_name_len = file->name.name.size;
-        buffer->buffer_name = file->name.name.str;
+        buffer->buffer_name_len = file->unique_name.name.size;
+        buffer->buffer_name = file->unique_name.name.str;
         
         buffer->dirty = file->state.dirty;
         
@@ -276,14 +276,14 @@ DOC_SEE(Command_Line_Interface_Flag)
         if (file != 0){
             if (file->settings.read_only == 0){
                 append(&feedback_str, make_lit_string("ERROR: "));
-                append(&feedback_str, file->name.name);
+                append(&feedback_str, file->unique_name.name);
                 append(&feedback_str, make_lit_string(" is not a read-only buffer\n"));
                 result = false;
                 goto done;
             }
             if (file->settings.never_kill){
                 append(&feedback_str, make_lit_string("ERROR: The buffer "));
-                append(&feedback_str, file->name.name);
+                append(&feedback_str, file->unique_name.name);
                 append(&feedback_str, make_lit_string(" is not killable"));
                 result = false;
                 goto done;
@@ -300,7 +300,7 @@ DOC_SEE(Command_Line_Interface_Flag)
             }
             
             String name = make_string_terminated(part, buffer_id.name, buffer_id.name_len);
-            buffer_bind_name(models, general, working_set, file, name);
+            buffer_bind_name(models, general, part, working_set, file, name);
             init_read_only_file(system, models, file);
         }
         
@@ -1292,7 +1292,7 @@ DOC_SEE(Buffer_Create_Flag)
                 if (!(flags & BufferCreate_NeverNew)){
                     file = working_set_alloc_always(working_set, general);
                     if (file != 0){
-                        buffer_bind_name(models, general, working_set, file, fname);
+                        buffer_bind_name(models, general, part, working_set, file, fname);
                         init_normal_file(system, models, file, 0, 0);
                         fill_buffer_summary(&result, file, cmd);
                     }
@@ -1316,7 +1316,7 @@ DOC_SEE(Buffer_Create_Flag)
                     file = working_set_alloc_always(working_set, general);
                     if (file != 0){
                         buffer_bind_file(system, general, working_set, file, canon.name);
-                        buffer_bind_name(models, general, working_set, file, fname);
+                        buffer_bind_name(models, general, part, working_set, file, fname);
                         init_normal_file(system, models, file, buffer, size);
                         fill_buffer_summary(&result, file, cmd);
                     }
