@@ -100,11 +100,7 @@
 #include <string.h>
 #include <stdlib.h>
 
-#define FCODER_JUMP_COMMANDS
 #include "4coder_default_include.cpp"
-#include "4coder_jump_parsing.cpp"
-#undef FCODER_JUMP_COMMANDS
-#include "4coder_sticky_jump.cpp"
 
 #define internal static
 
@@ -454,8 +450,8 @@ DeleteAfterMotion(struct Application_Links *app, Custom_Command_Function *motion
     
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, access);
     
-    // NOTE(allen|a4.0.19): This 'paragraph' should fix 85% of whitespace problems, but if 
-    // it has some issue, you can get the old behavior by just removing it. Doing it by 
+    // NOTE(allen|a4.0.19): This 'paragraph' should fix 85% of whitespace problems, but if
+    // it has some issue, you can get the old behavior by just removing it. Doing it by
     // cursor motion always seemed to introduce other problems spots.
     if (range.min > 0 && range.max < buffer.size){
         char before = buffer_get_char(app, &buffer, range.min - 1);
@@ -767,6 +763,7 @@ CUSTOM_COMMAND_SIG(casey_save_and_make_without_asking)
     prev_location = null_location;
 }
 
+#if 1
 CUSTOM_COMMAND_SIG(casey_goto_previous_error)
 {
     goto_prev_error_no_skips(app);
@@ -776,6 +773,17 @@ CUSTOM_COMMAND_SIG(casey_goto_next_error)
 {
     goto_next_error_no_skips(app);
 }
+#else
+CUSTOM_COMMAND_SIG(casey_goto_previous_error)
+{
+    seek_error(app, &global_part, true, false, -1);
+}
+
+CUSTOM_COMMAND_SIG(casey_goto_next_error)
+{
+    seek_error(app, &global_part, true, false, 1);
+}
+#endif
 
 CUSTOM_COMMAND_SIG(casey_imenu)
 {
@@ -1085,6 +1093,82 @@ OpenProject(Application_Links *app, char *Contents)
     }
 }
 
+inline int
+IsCodeLegal(int32_t Codepoint)
+{
+    int Result = ((Codepoint == '\n') ||
+                  (Codepoint == '\t') ||
+                  (Codepoint == '\r') ||
+                  ((Codepoint >= 32)  &&
+                   (Codepoint <= 126)));
+    
+    return(Result);
+}
+
+CUSTOM_COMMAND_SIG(casey_force_codelegal_characters)
+{
+    View_Summary view = get_active_view(app, AccessOpen);
+    Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessOpen);
+    
+    int32_t line_count = buffer.line_count;
+    int32_t edit_max = line_count;
+    
+    if (edit_max*(int32_t)sizeof(Buffer_Edit) < app->memory_size){
+        Buffer_Edit *edits = (Buffer_Edit*)app->memory;
+        
+        char data[1024];
+        Stream_Chunk chunk = {0};
+        
+        int32_t i = 0;
+        int32_t last_utf = 0;
+        int32_t run = 0;
+        
+        if (init_stream_chunk(&chunk, app, &buffer, i, data, sizeof(data))){
+            Buffer_Edit *edit = edits;
+            
+            do
+            {
+                for (; i < chunk.end; ++i)
+                {
+                    if(IsCodeLegal(chunk.data[i]))
+                    {
+                        if(run)
+                        {
+                            edit->str_start = 0;
+                            edit->len = 1;
+                            edit->start = last_utf;
+                            edit->end = i;
+                            ++edit;
+                            
+                            run = false;
+                        }
+                    }
+                    else if(!run)
+                    {
+                        last_utf = i;
+                        
+                        run = true;
+                    }
+                }
+            } while(forward_stream_chunk(&chunk));
+            
+            if(run)
+            {
+                edit->str_start = 0;
+                edit->len = 1;
+                edit->start = last_utf;
+                edit->end = i;
+                ++edit;
+                
+                run = false;
+            }
+            
+            int32_t edit_count = (int32_t)(edit - edits);
+            buffer_batch_edit(app, &buffer, " ", 1, edits, edit_count, BatchEdit_PreserveTokens);
+        }
+    }
+}
+
 CUSTOM_COMMAND_SIG(casey_execute_arbitrary_command)
 {
     Query_Bar bar;
@@ -1095,9 +1179,9 @@ CUSTOM_COMMAND_SIG(casey_execute_arbitrary_command)
     if (!query_user_string(app, &bar)) return;
     end_query_bar(app, &bar, 0);
     
-    if(match(bar.string, make_lit_string("project")))
+    if(match(bar.string, make_lit_string("codelegal")))
     {
-        //        exec_command(app, open_all_code);
+        exec_command(app, casey_force_codelegal_characters);
     }
     else if(match(bar.string, make_lit_string("open menu")))
     {
@@ -1403,24 +1487,9 @@ CUSTOM_COMMAND_SIG(casey_list_all_functions_globally){
 internal void
 UpdateModalIndicator(Application_Links *app)
 {
-    // TODO(casey): Need more colors...
-#if 0
-    Theme_Color shared_colors[] =
-    {
-        {Stag_Comment, },
-        {Stag_Keyword, },
-        {Stag_Str_Constant, }
-        {Stag_Char_Constant, }
-        {Stag_Int_Constant, }
-        {Stag_Float_Constant, }
-        {Stag_Bool_Constant, }
-        {Stag_Preproc, }
-        {Stag_Include, }
-    };
-#endif
-    
     int unsigned Background = (GlobalBrightMode ? 0xFFFFFF : 0x161616);
     int unsigned Default = (GlobalBrightMode ? 0x000000 : 0xA08563);
+    int unsigned Constant = 0x6B8E23;
     
     Theme_Color normal_colors[] =
     {
@@ -1459,12 +1528,21 @@ UpdateModalIndicator(Application_Links *app)
         {Stag_Comment, 0x7D7D7D},
         {Stag_Keyword, 0xCD950C},
         {Stag_Preproc, 0xDAB98F},
-        {Stag_Include, 0x6B8E23},
+        {Stag_Include, Constant},
         {Stag_Back, Background},
         {Stag_Margin, Background},
         {Stag_Margin_Hover, Background},
-        {Stag_Margin_Active, 0x934420},
+        {Stag_Margin_Active, Background},
+        {Stag_List_Item,Background},
+        {Stag_List_Item_Hover, 0x934420},
+        {Stag_List_Item_Active, 0x934420},
         {Stag_Default, Default},
+        
+        {Stag_Str_Constant, Constant},
+        {Stag_Char_Constant, Constant},
+        {Stag_Int_Constant, Constant},
+        {Stag_Float_Constant, Constant},
+        {Stag_Bool_Constant, Constant},
     };
     set_theme_colors(app, common_colors, ArrayCount(common_colors));
 }
@@ -1598,6 +1676,7 @@ OPEN_FILE_HOOK_SIG(casey_file_settings)
     if(treat_as_outline)
     {
         buffer_set_setting(app, &buffer, BufferSetting_VirtualWhitespace, 1);
+        buffer_set_setting(app, &buffer, BufferSetting_LexWithoutStrings, 1);
     }
     else if(treat_as_code)
     {
@@ -1711,6 +1790,8 @@ SCROLL_RULE_SIG(casey_smooth_scroll_rule){
 
 START_HOOK_SIG(casey_start)
 {
+    bool HandmadeHeroMachine = (strcmp(getenv("COMPUTERNAME"), "CASEYMPC2") == 0);
+    
     // NOTE(allen): This initializes a couple of global memory
     // management structs on the custom side that are used in
     // some of the new 4coder features including building and
@@ -1718,10 +1799,10 @@ START_HOOK_SIG(casey_start)
     init_memory(app);
     
     exec_command(app, hide_scrollbar);
-    exec_command(app, hide_filebar);
+    if(!HandmadeHeroMachine) {exec_command(app, hide_filebar);}
     exec_command(app, open_panel_vsplit);
     exec_command(app, hide_scrollbar);
-    exec_command(app, hide_filebar);
+    if(!HandmadeHeroMachine) {exec_command(app, hide_filebar);}
     exec_command(app, change_active_panel);
     
     change_theme(app, literal("Handmade Hero"));
@@ -1763,6 +1844,9 @@ extern "C" GET_BINDING_DATA(get_bindings)
     begin_map(context, mapid_file);
     
     bind_vanilla_keys(context, write_character);
+    
+    // TODO(casey): How can I bind something to just pressing the control key by itself?
+    // bind(context, key_control, MDFR_NONE, end_free_typing);
     
     bind(context, key_insert, MDFR_NONE, begin_free_typing);
     bind(context, '`', MDFR_NONE, begin_free_typing);
