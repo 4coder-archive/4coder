@@ -120,10 +120,19 @@ Sys_Get_4ed_Path_Sig(system_get_4ed_path){
     i32 size = 0;
     u32 buf_size = capacity;
     i32 status = _NSGetExecutablePath(temp_buffer, &buf_size);
+    buf_size = str_size(temp_buffer);
     if (status == 0){
         ssize_t ln_len = readlink(temp_buffer, out, capacity);
         if (ln_len != -1){
+            out[ln_len] = 0;
             String str = make_string_cap(out, ln_len, capacity);
+            remove_last_folder(&str);
+            terminate_with_null(&str);
+            size = str.size;
+        }
+        else{
+            memcpy(out, temp_buffer, buf_size);
+            String str = make_string_cap(out, buf_size, capacity);
             remove_last_folder(&str);
             terminate_with_null(&str);
             size = str.size;

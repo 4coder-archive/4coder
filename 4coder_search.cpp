@@ -403,7 +403,7 @@ search_next_match(Application_Links *app, Search_Set *set, Search_Iter *it_ptr){
     Search_Iter iter = *it_ptr;
     
     int32_t count = set->count;
-    for (; iter.i < count;){
+    for (;iter.i < count;){
         Search_Range *range = set->ranges + iter.i;
         
         int32_t find_result = FindResult_None;
@@ -413,7 +413,7 @@ search_next_match(Application_Links *app, Search_Set *set, Search_Iter *it_ptr){
             switch (range->type){
                 case SearchRange_BackToFront:
                 {
-                    iter.back_pos = range->start+range->size-1;
+                    iter.back_pos = range->start + range->size-1;
                 }break;
                 
                 case SearchRange_Wave:
@@ -547,39 +547,43 @@ initialize_generic_search_all_buffers(Application_Links *app, General_Memory *ge
         }
         
         if (!skip){
-            ranges[0].type = SearchRange_FrontToBack;
-            ranges[0].flags = match_flags;
-            ranges[0].buffer = buffer.buffer_id;
-            ranges[0].start = 0;
-            ranges[0].size = buffer.size;
-            j = 1;
+            ranges[j].type = SearchRange_FrontToBack;
+            ranges[j].flags = match_flags;
+            ranges[j].buffer = buffer.buffer_id;
+            ranges[j].start = 0;
+            ranges[j].size = buffer.size;
+            ++j;
         }
     }
     
     for (Buffer_Summary buffer_it = get_buffer_first(app, AccessAll);
          buffer_it.exists;
          get_buffer_next(app, &buffer_it, AccessAll)){
-        if (buffer.buffer_id != buffer_it.buffer_id){
-            bool32 skip = false;
-            for (int32_t i = 0; i < skip_buffer_count; ++i){
-                if (buffer.buffer_id == skip_buffers[i]){
-                    skip = true;
-                    break;
-                }
-            }
-            
-            if (!skip){
-                if (buffer_it.buffer_name[0] != '*'){
-                    ranges[j].type = SearchRange_FrontToBack;
-                    ranges[j].flags = match_flags;
-                    ranges[j].buffer = buffer_it.buffer_id;
-                    ranges[j].start = 0;
-                    ranges[j].size = buffer_it.size;
-                    ++j;
-                }
+        if (buffer_it.buffer_id == buffer.buffer_id){
+            continue;
+        }
+        
+        bool32 skip = false;
+        for (int32_t i = 0; i < skip_buffer_count; ++i){
+            if (buffer_it.buffer_id == skip_buffers[i]){
+                skip = true;
+                break;
             }
         }
+        
+        if (!skip){
+            if (buffer_it.buffer_name[0] != '*'){
+                ranges[j].type = SearchRange_FrontToBack;
+                ranges[j].flags = match_flags;
+                ranges[j].buffer = buffer_it.buffer_id;
+                ranges[j].start = 0;
+                ranges[j].size = buffer_it.size;
+                ++j;
+            }
+        }
+        
     }
+    
     set->count = j;
 }
 

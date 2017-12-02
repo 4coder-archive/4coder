@@ -43,10 +43,8 @@ struct Search_Set{
 struct Search_Key{
     char *base;
     int32_t base_size;
-    
     String words[16];
     int32_t count;
-    
     int32_t min_size;
 };
 

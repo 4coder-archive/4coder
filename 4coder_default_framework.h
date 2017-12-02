@@ -875,6 +875,7 @@ process_config_file(Application_Links *app){
     if (file == 0){
         char space[256];
         int32_t size = get_4ed_path(app, space, sizeof(space));
+        print_message(app, space, size);
         String str = make_string_cap(space, size, sizeof(space));
         append_sc(&str, "/config.4coder");
         terminate_with_null(&str);
