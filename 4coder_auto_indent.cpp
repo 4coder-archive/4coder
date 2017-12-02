@@ -502,12 +502,19 @@ get_indentation_marks(Application_Links *app, Partition *part, Buffer_Summary *b
                 case CPP_TOKEN_BRACE_CLOSE: indent.current_indent -= tab_width; break;
                 
                 case CPP_TOKEN_COMMENT:
+                case CPP_TOKEN_STRING_CONSTANT:
                 {
                     int32_t line = buffer_get_line_number(app, buffer, token.start);
                     int32_t start = buffer_get_line_start(app, buffer, line);
+                    Hard_Start_Result hard_start = buffer_find_hard_start(app, buffer, start, tab_width);
                     
-                    indent.comment_shift = (indent.current_indent - (token.start - start));
-                    indent.previous_comment_indent = (token.start - start);
+                    int32_t old_dist_to_token = (token.start - start);
+                    int32_t old_indent = hard_start.indent_pos;
+                    int32_t token_start_inset = old_dist_to_token - old_indent;
+                    int32_t new_dist_to_token = indent.current_indent + token_start_inset;
+                    
+                    indent.comment_shift = (new_dist_to_token - old_dist_to_token);
+                    indent.previous_comment_indent = old_indent;
                 }break;
                 
                 case CPP_TOKEN_PARENTHESE_OPEN:
@@ -689,7 +696,12 @@ CUSTOM_DOC("Inserts a character and auto-indents the line on which the cursor si
     View_Summary view = get_active_view(app, access);
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, access);
     
-    buffer_auto_indent(app, &global_part, &buffer, view.cursor.pos, view.cursor.pos, DEF_TAB_WIDTH, DEFAULT_INDENT_FLAGS | AutoIndent_ExactAlignBlock);
+    uint32_t flags = DEFAULT_INDENT_FLAGS;
+    User_Input in = get_command_input(app);
+    if (in.type == UserInputKey && in.key.character == '\n'){
+        flags |= AutoIndent_ExactAlignBlock;
+    }
+    buffer_auto_indent(app, &global_part, &buffer, view.cursor.pos, view.cursor.pos, DEF_TAB_WIDTH, DEFAULT_INDENT_FLAGS);
     move_past_lead_whitespace(app, &view, &buffer);
 }
 
