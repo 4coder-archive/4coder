@@ -36,13 +36,14 @@ PHYS_DIR=`pwd -P`
 SOURCE=$PHYS_DIR/$TARGET_FILE
 
 FLAGS="-Wno-write-strings -Wno-null-dereference -Wno-comment -Wno-switch -Wno-writable-strings"
+ARCH=-m32
 DEBUG=-g
 
 cd "$REAL_PWD"
 g++ -I"$CODE_HOME" $FLAGS $DEBUG -std=gnu++0x "$CODE_HOME/4coder_metadata_generator.cpp" -o metadata_generator
 ./metadata_generator -R "$CODE_HOME" "$CODE_HOME"
 
-g++ -I"$CODE_HOME" $FLAGS $DEBUG -std=gnu++0x "$SOURCE" -shared -o custom_4coder.so -fPIC
+g++ -I"$CODE_HOME" $ARCH $FLAGS $DEBUG -std=gnu++0x "$SOURCE" -shared -o custom_4coder.so -fPIC
 
 rm metadata_generator
 
