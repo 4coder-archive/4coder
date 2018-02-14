@@ -15,5 +15,6 @@ if %ERRORLEVEL% neq 0 (goto END)
 popd
 
 ..\build\build
+:END
 if %ERRORLEVEL% neq 0 (set FirstError=1)
 
