@@ -14,6 +14,23 @@
 
 #include "4coder_os_comp_cracking.h"
 
+#if defined(IS_CL)
+#if (_MSC_VER == 1500)
+#define JUST_GUESS_INTS
+#endif
+#endif
+
+#if defined(JUST_GUESS_INTS)
+typedef signed char i8;
+typedef signed short i16;
+typedef signed int i32;
+typedef signed long long i64;
+
+typedef unsigned char u8;
+typedef unsigned short u16;
+typedef unsigned int u32;
+typedef unsigned long long u64;
+#else
 #include <stdint.h>
 
 typedef int8_t i8;
@@ -25,6 +42,7 @@ typedef uint8_t u8;
 typedef uint16_t u16;
 typedef uint32_t u32;
 typedef uint64_t u64;
+#endif
 
 typedef i8 b8;
 typedef i32 b32;

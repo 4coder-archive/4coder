@@ -198,7 +198,7 @@ internal void
 fm__init_memory(){
     Assert(fm_arena_memory == 0);
     fm_arena_max = MB(512);
-    fm_arena_memory = (char*)malloc(fm_arena_max);
+    fm_arena_memory = (char*)malloc((size_t)fm_arena_max);
 }
 
 internal Temp
@@ -598,7 +598,7 @@ internal umem
 listsize(void *p, umem item_size){
     u64 zero = 0;
     u8 *ptr = (u8*)p;
-    for (;memcmp(ptr, &zero, item_size) != 0; ptr += item_size);
+    for (;memcmp(ptr, &zero, (size_t)item_size) != 0; ptr += item_size);
     umem size = (ptr - (u8*)p);
     return(size);
 }
@@ -607,18 +607,18 @@ internal void*
 fm__prepare(umem item_size, void *i1, va_list list){
     umem size = listsize(i1, item_size);
     void *result = (void*)fm__push(size);
-    memcpy(result, i1, size);
+    memcpy(result, i1, (size_t)size);
     
     void *ln = va_arg(list, void*);
     for (;ln != 0;){
         size = listsize(ln, item_size);
         void *new_str = (void*)fm__push(size);
-        memcpy(new_str, ln, size);
+        memcpy(new_str, ln, (size_t)size);
         ln = va_arg(list, void*);
     }
     
     void *terminator = (void*)fm__push(item_size);
-    memset(terminator, 0, item_size);
+    memset(terminator, 0, (size_t)item_size);
     return(result);
 }
 
