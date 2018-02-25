@@ -197,7 +197,7 @@ FOREIGN_WIN"\\x64\\freetype.lib"
 "user32.lib winmm.lib gdi32.lib opengl32.lib "   \
 FOREIGN_WIN"\\x86\\freetype.lib"
 
-#define CL_ICON "..\\res\\icon.res"
+#define CL_ICON "..\\4coder-non-source\\res\\icon.res"
 
 internal void
 build(u32 flags, u32 arch, char *code_path, char **code_files, char *out_path, char *out_file, char **defines, char **exports, char **inc_folders){
