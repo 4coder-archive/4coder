@@ -980,7 +980,7 @@ win32_proc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
                 character = '\n';
             }
             else if (character == '\t'){
-                character = '\t';
+                // Do nothing
             }
             else if (character < 32 || character == 127){
                 break;
@@ -1145,6 +1145,9 @@ win32_proc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
 
 #include "4ed_link_system_functions.cpp"
 #include "4ed_shared_init_logic.cpp"
+
+#include "4ed_input_simulation.h"
+#include "4ed_input_simulation.cpp"
 
 int CALL_CONVENTION
 WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow){
@@ -1358,6 +1361,12 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
     LOG("Initializing application variables\n");
     app.init(&sysfunc, &target, &memory_vars, win32vars.clipboard_contents, curdir, custom_api);
     
+    Input_Simulation_Controls sim_controls = {0};
+    simulation_init(&sim_controls);
+    
+    Simulation_Event_Stream_State sim_stream = {0};
+    simulation_stream_init(&sim_stream);
+    
     //
     // Main loop
     //
@@ -1392,7 +1401,7 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
             
             b32 get_more_messages = true;
             do{
-                if (win32vars.got_useful_event == 0){
+                if (win32vars.got_useful_event == 0 && !plat_settings.use_test_input){
                     get_more_messages = GetMessage(&msg, 0, 0, 0);
                 }
                 else{
@@ -1508,62 +1517,140 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
         
         Application_Step_Input input = {0};
         
-        input.first_step = win32vars.first;
-        
-        input.dt = frame_useconds / 1000000.f;
-        
-        input.keys = input_chunk.trans.key_data;
-        
-        input.mouse.out_of_window = input_chunk.trans.out_of_window;
-        
-        input.mouse.l = input_chunk.pers.mouse_l;
-        input.mouse.press_l = input_chunk.trans.mouse_l_press;
-        input.mouse.release_l = input_chunk.trans.mouse_l_release;
-        
-        input.mouse.r = input_chunk.pers.mouse_r;
-        input.mouse.press_r = input_chunk.trans.mouse_r_press;
-        input.mouse.release_r = input_chunk.trans.mouse_r_release;
-        
-        input.mouse.wheel = input_chunk.trans.mouse_wheel;
-        input.mouse.x = input_chunk.pers.mouse_x;
-        
-        input.mouse.y = input_chunk.pers.mouse_y;
-        
-        // NOTE(allen): Frame Clipboard Input
-        win32vars.clipboard_contents = null_string;
-        if (win32vars.clipboard_sequence != 0){
-            DWORD new_number = GetClipboardSequenceNumber();
-            if (new_number != win32vars.clipboard_sequence){
-                win32vars.clipboard_sequence = new_number;
-                if (win32vars.next_clipboard_is_self){
-                    win32vars.next_clipboard_is_self = 0;
-                }
-                else{
-                    win32_read_clipboard_contents();
+        if (!plat_settings.use_test_input){
+            input.first_step = win32vars.first;
+            input.dt = frame_useconds/1000000.f;
+            
+            input.keys = input_chunk.trans.key_data;
+            
+            input.mouse.out_of_window = input_chunk.trans.out_of_window;
+            
+            input.mouse.l = input_chunk.pers.mouse_l;
+            input.mouse.press_l = input_chunk.trans.mouse_l_press;
+            input.mouse.release_l = input_chunk.trans.mouse_l_release;
+            
+            input.mouse.r = input_chunk.pers.mouse_r;
+            input.mouse.press_r = input_chunk.trans.mouse_r_press;
+            input.mouse.release_r = input_chunk.trans.mouse_r_release;
+            
+            input.mouse.wheel = input_chunk.trans.mouse_wheel;
+            input.mouse.x = input_chunk.pers.mouse_x;
+            input.mouse.y = input_chunk.pers.mouse_y;
+            
+            input.trying_to_kill = input_chunk.trans.trying_to_kill;
+            
+            // TODO(allen): Not really appropriate to round trip this all the way to the OS layer, redo this system.
+            // NOTE(allen): Ask the Core About Exiting if We Have an Exit Signal
+            if (win32vars.send_exit_signal){
+                input.trying_to_kill = true;
+                win32vars.send_exit_signal = false;
+            }
+            
+            // NOTE(allen): Frame Clipboard Input
+            win32vars.clipboard_contents = null_string;
+            if (win32vars.clipboard_sequence != 0){
+                DWORD new_number = GetClipboardSequenceNumber();
+                if (new_number != win32vars.clipboard_sequence){
+                    win32vars.clipboard_sequence = new_number;
+                    if (win32vars.next_clipboard_is_self){
+                        win32vars.next_clipboard_is_self = 0;
+                    }
+                    else{
+                        win32_read_clipboard_contents();
+                    }
                 }
             }
+            input.clipboard = win32vars.clipboard_contents;
         }
-        input.clipboard = win32vars.clipboard_contents;
+        else{
+            Simulation_Event sim_events[19];
+            i32 sim_event_count = ArrayCount(sim_events);
+            
+            sim_events[0].counter_index = 0;
+            sim_events[0].type = SimulationEvent_MouseXY;
+            sim_events[0].mouse_xy.x = 20;
+            sim_events[0].mouse_xy.y = 20;
+            
+            sim_events[1].counter_index = 45;
+            sim_events[1].type = SimulationEvent_DebugNumber;
+            sim_events[1].debug_number = 1;
+            sim_events[2].counter_index = 45;
+            sim_events[2].type = SimulationEvent_Key;
+            sim_events[2].key.code = '_';
+            sim_events[2].key.modifiers = MDFR_CTRL;
+            
+            sim_events[3].counter_index = 50;
+            sim_events[3].type = SimulationEvent_DebugNumber;
+            sim_events[3].debug_number = 2;
+            sim_events[4].counter_index = 50;
+            sim_events[4].type = SimulationEvent_Key;
+            sim_events[4].key.code = '4';
+            sim_events[4].key.modifiers = MDFR_NONE;
+            sim_events[5].counter_index = 50;
+            sim_events[5].type = SimulationEvent_Key;
+            sim_events[5].key.code = 'c';
+            sim_events[5].key.modifiers = MDFR_NONE;
+            sim_events[6].counter_index = 50;
+            sim_events[6].type = SimulationEvent_Key;
+            sim_events[6].key.code = 'o';
+            sim_events[6].key.modifiers = MDFR_NONE;
+            sim_events[7].counter_index = 50;
+            sim_events[7].type = SimulationEvent_Key;
+            sim_events[7].key.code = 'd';
+            sim_events[7].key.modifiers = MDFR_NONE;
+            sim_events[8].counter_index = 50;
+            sim_events[8].type = SimulationEvent_Key;
+            sim_events[8].key.code = 'e';
+            sim_events[8].key.modifiers = MDFR_NONE;
+            sim_events[9].counter_index = 50;
+            sim_events[9].type = SimulationEvent_Key;
+            sim_events[9].key.code = 'r';
+            sim_events[9].key.modifiers = MDFR_NONE;
+            
+            sim_events[10].counter_index = 80;
+            sim_events[10].type = SimulationEvent_MouseLeftPress;
+            sim_events[11].counter_index = 90;
+            sim_events[11].type = SimulationEvent_MouseLeftRelease;
+            sim_events[12].counter_index = 100;
+            sim_events[12].type = SimulationEvent_MouseLeftPress;
+            sim_events[13].counter_index = 110;
+            sim_events[13].type = SimulationEvent_MouseXY;
+            sim_events[13].mouse_xy.x = 50;
+            sim_events[13].mouse_xy.y = 20;
+            sim_events[14].counter_index = 110;
+            sim_events[14].type = SimulationEvent_MouseLeftRelease;
+            
+            sim_events[15].counter_index = 150;
+            sim_events[15].type = SimulationEvent_Key;
+            sim_events[15].key.code = key_back;
+            sim_events[15].key.modifiers = MDFR_CTRL;
+            sim_events[16].counter_index = 150;
+            sim_events[16].type = SimulationEvent_Key;
+            sim_events[16].key.code = key_end;
+            sim_events[16].key.modifiers = MDFR_NONE;
+            
+            sim_events[17].counter_index = 300;
+            sim_events[17].type = SimulationEvent_DebugNumber;
+            sim_events[17].debug_number = 3;
+            sim_events[18].counter_index = 300;
+            sim_events[18].type = SimulationEvent_Exit;
+            
+            simulation_step_begin(&sim_controls, &input,
+                                  win32vars.first, frame_useconds/1000000.f);
+            simulation_drive_from_events(&sim_controls, &sim_stream, &input,
+                                         sim_events, sim_event_count,
+                                         target.width, target.height);
+            simulation_step_end(&sim_controls, &input);
+        }
         
         win32vars.clip_post_len = 0;
         
-        // NOTE(allen): Initialize result So the Core Doesn't Have to Fill Things it Doesn't Care About
-        Application_Step_Result result = {0};
-        result.mouse_cursor_type = APP_MOUSE_CURSOR_DEFAULT;
-        result.lctrl_lalt_is_altgr = win32vars.lctrl_lalt_is_altgr;
-        result.trying_to_kill = input_chunk.trans.trying_to_kill;
-        
-        // TODO(allen): Not really appropriate to round trip this all the way to the OS layer, redo this system.
-        // NOTE(allen): Ask the Core About Exiting if We Have an Exit Signal
-        if (win32vars.send_exit_signal){
-            result.trying_to_kill = true;
-            win32vars.send_exit_signal = false;
-        }
         
         // NOTE(allen): Application Core Update
         target.buffer.pos = 0;
+        Application_Step_Result result = {0};
         if (app.step != 0){
-            app.step(&sysfunc, &target, &memory_vars, &input, &result);
+            result = app.step(&sysfunc, &target, &memory_vars, &input);
         }
         else{
             LOG("app.step == 0 -- skipping\n");

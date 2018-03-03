@@ -1,4 +1,4 @@
-extensions = ".c.cpp.h.m.bat.sh.4coder.txt";
+extensions = ".c.cpp.h.m.bat.sh.4coder.txt.4is";
 open_recursively = true;
 
 fkey_command_win[1]  = {"echo build: x64 & build.bat", "*compilation*" , true , true  };
@@ -7,6 +7,7 @@ fkey_command_win[3]  = {"build_string.bat"           , "*compilation*" , true , 
 fkey_command_win[4]  = {"echo build: x86 & build.bat /DDEV_BUILD_X86"  , "*compilation*", true, true };
 fkey_command_win[5]  = {"build_metadata.bat"         , "*compilation*" , true , true };
 fkey_command_win[6]  = {"run_profile.bat"            , "*profile*"     , false, true  };
+fkey_command_win[7]  = {"build_tests.bat"            , "*compilation*" , true , true };
 fkey_command_win[12] = {"package.bat"                , "*package*"     , false, true  };
 
 fkey_command_linux[1]  = {"echo build: x64 & ./build.sh", "*compilation*" , true , true };

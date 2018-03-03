@@ -379,7 +379,7 @@ STRUCT Mouse_State{
     int8_t release_r;
     /* DOC(Mouse is outside of the window.) */
     int8_t out_of_window;
-    /* DOC(The motion of the wheel. Zero indicates no motion. Positive indicates downard scrolling. Negative indicates upward scrolling. The magnitude corresponds to the number of pixels of scroll will be applied at standard scroll speeds.) */
+    /* DOC(The motion of the wheel. Zero indicates no motion. Positive indicates downard scrolling. Negative indicates upward scrolling. The magnitude corresponds to the number of pixels of scroll that would be applied at standard scroll speeds.) */
     int32_t wheel;
     /* DOC(X position of the mouse where the left of the window is x = 0, and x grows to the right.) */
     int32_t x;

@@ -1123,7 +1123,8 @@ enum Command_Line_Action{
     CLAct_FontUseHinting,
     CLAct_LogStdout,
     CLAct_LogFile,
-    CLAct_Count
+    CLAct_TestInput,
+    CLAct_COUNT,
 };
 
 enum Command_Line_Mode{
@@ -1179,6 +1180,8 @@ init_command_line_settings(App_Settings *settings, Plat_Settings *plat_settings,
                                 
                                 case 'l': action = CLAct_LogStdout; --i;                break;
                                 case 'L': action = CLAct_LogFile; --i;                  break;
+                                
+                                case 'T': action = CLAct_TestInput; --i;                break;
                             }
                         }
                         else if (arg[0] != 0){
@@ -1283,6 +1286,12 @@ init_command_line_settings(App_Settings *settings, Plat_Settings *plat_settings,
                     case CLAct_LogFile:
                     {
                         plat_settings->use_log = LogTo_LogFile;
+                        action = CLAct_Nothing;
+                    }break;
+                    
+                    case CLAct_TestInput:
+                    {
+                        plat_settings->use_test_input = true;
                         action = CLAct_Nothing;
                     }break;
                 }
@@ -1499,11 +1508,12 @@ App_Init_Sig(app_init){
 }
 
 App_Step_Sig(app_step){
-    Application_Step_Result app_result = *app_result_;
-    app_result.animating = 0;
-    
     App_Vars *vars = (App_Vars*)memory->vars_memory;
     Models *models = &vars->models;
+    
+    Application_Step_Result app_result = {0};
+    app_result.mouse_cursor_type = APP_MOUSE_CURSOR_DEFAULT;
+    app_result.lctrl_lalt_is_altgr = models->settings.lctrl_lalt_is_altgr;
     
     // NOTE(allen): OS clipboard event handling
     String clipboard = input->clipboard;
@@ -1772,7 +1782,7 @@ App_Step_Sig(app_step){
     }
     
     // NOTE(allen): respond if the user is trying to kill the application
-    if (app_result.trying_to_kill){
+    if (input->trying_to_kill){
         b32 there_is_unsaved = 0;
         app_result.animating = 1;
         
@@ -2044,16 +2054,11 @@ App_Step_Sig(app_step){
                 }
                 
                 b32 file_scroll = false;
-                GUI_Scroll_Vars scroll_zero = {0};
                 GUI_Scroll_Vars *scroll_vars = &view->gui_scroll;
                 if (view->showing_ui == VUI_None){
-                    if (view->file_data.file){
-                        scroll_vars = &view->edit_pos->scroll;
-                        file_scroll = true;
-                    }
-                    else{
-                        scroll_vars = &scroll_zero;
-                    }
+                    Assert(view->file_data.file != 0);
+                    scroll_vars = &view->edit_pos->scroll;
+                    file_scroll = true;
                 }
                 
                 i32 max_y = 0;
@@ -2387,16 +2392,11 @@ App_Step_Sig(app_step){
             draw_rectangle(target, full, back_color);
             
             b32 file_scroll = false;
-            GUI_Scroll_Vars scroll_zero = {0};
             GUI_Scroll_Vars *scroll_vars = &view->gui_scroll;
             if (view->showing_ui == VUI_None){
-                if (view->file_data.file){
-                    scroll_vars = &view->edit_pos->scroll;
-                    file_scroll = true;
-                }
-                else{
-                    scroll_vars = &scroll_zero;
-                }
+                Assert(view->file_data.file != 0);
+                scroll_vars = &view->edit_pos->scroll;
+                file_scroll = true;
             }
             
             do_render_file_view(system, view, models, scroll_vars, active_view, panel->inner, active, target, &dead_input);
@@ -2449,9 +2449,8 @@ App_Step_Sig(app_step){
     app_result.lctrl_lalt_is_altgr = models->settings.lctrl_lalt_is_altgr;
     app_result.perform_kill = !models->keep_playing;
     
-    *app_result_ = app_result;
-    
     // end-of-app_step
+    return(app_result);
 }
 
 extern "C" App_Get_Functions_Sig(app_get_functions){

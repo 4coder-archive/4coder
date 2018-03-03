@@ -1,0 +1,31 @@
+
+mouse_xy 20 20
+
+wait 45
+debug_number 1
+key _ MDFR_CTRL
+
+wait 5
+debug_number 2
+type 1 4coder
+
+wait 30
+mouse_left_press
+
+wait 10
+mouse_left_release
+
+wait 10
+mouse_left_press
+
+wait 10
+mouse_xy 50 20
+mouse_left_release
+
+wait 40
+key key_back MDFR_CTRL
+key key_end MDFR_NONE
+
+wait 150
+debug_number 3
+exit

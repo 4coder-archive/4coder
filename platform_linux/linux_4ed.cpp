@@ -1932,18 +1932,17 @@ main(int argc, char **argv){
                 linuxvars.input.clipboard = null_string;
             }
             
-            // NOTE(allen): Initialize result So the Core Doesn't Have to Fill Things it Doesn't Care About
-            Application_Step_Result result = {0};
-            result.mouse_cursor_type = APP_MOUSE_CURSOR_DEFAULT;
-            result.trying_to_kill = !linuxvars.keep_running;
+            Application_Step_Result frame_input = linuxvars.input;
+            frame_input.trying_to_kill = !linuxvars.keep_running;
             
             // HACK(allen): THIS SHIT IS FUCKED (happens on mac too)
             b32 keep_running = linuxvars.keep_running;
             
             // NOTE(allen): Application Core Update
             target.buffer.pos = 0;
+            Application_Step_Result result = {0};
             if (app.step != 0){
-                app.step(&sysfunc, &target, &memory_vars, &linuxvars.input, &result);
+                result = app.step(&sysfunc, &target, &memory_vars, &frame_input);
             }
             else{
                 LOG("app.step == 0 -- skipping\n");

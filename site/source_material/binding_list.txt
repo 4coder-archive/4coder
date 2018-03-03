@@ -44,8 +44,8 @@ The following bindings apply in all situations.
 \ITEM \STYLE{code} <alt d> \END Opens a debug view for internal use.
 \ITEM \STYLE{code} <alt .> \END If the special build panel is open, makes the build panel the active panel.
 \ITEM \STYLE{code} <alt ,> \END If the special build panel is open, closes it.
-\ITEM \STYLE{code} <alt n> \END If a buffer containing jump locations has been locked in, goes to the next jump in the buffer, skipping sub jump locations.
-\ITEM \STYLE{code} <alt N> \END If a buffer containing jump locations has been locked in, goes to the previous jump in the buffer, skipping sub jump locations.
+\ITEM \STYLE{code} <alt n> \END If a buffer containing jump locations has been locked in, goes to the next jump in the buffer, and does not skip sub jump locations.
+\ITEM \STYLE{code} <alt N> \END If a buffer containing jump locations has been locked in, goes to the previous jump in the buffer, and does not skip sub jump locations.
 \ITEM \STYLE{code} <alt M> \END If a buffer containing jump locations has been locked in, goes to the first jump in the buffer.
 \ITEM \STYLE{code} <alt m> \END Looks for a build.bat, build.sh, or makefile in the current and parent directories.  Runs the first that it finds and prints the output to *compilation*.  Puts the *compilation* buffer in a panel at the footer of the current view.
 \ITEM \STYLE{code} <alt z> \END Queries for an output buffer name and system command, runs the system command as a CLI and prints the output to the specified buffer.
@@ -104,8 +104,8 @@ The following bindings apply in general text files and most apply in code files,
 \ITEM \STYLE{code} <alt down> \END Swaps the line under the cursor with the line below it, and moves the cursor down with it.
 \ITEM \STYLE{code} <ctrl backspace> \END Delete characters between the cursor position and the first alphanumeric boundary to the left.
 \ITEM \STYLE{code} <ctrl delete> \END Delete characters between the cursor position and the first alphanumeric boundary to the right.
-\ITEM \STYLE{code} <alt backspace> \END Delete a single, whole token on or to the left of the cursor.
-\ITEM \STYLE{code} <alt delete> \END Delete a single, whole token on or to the right of the cursor.
+\ITEM \STYLE{code} <alt backspace> \END Delete a single, whole token on or to the left of the cursor and post it to the clipboard.
+\ITEM \STYLE{code} <alt delete> \END Delete a single, whole token on or to the right of the cursor and post it to the clipboard.
 \ITEM \STYLE{code} <ctrl space> \END Sets the mark to the current position of the cursor.
 \ITEM \STYLE{code} <ctrl a> \END Queries the user for two strings, and replaces all occurences of the first string in the range between the cursor and the mark with the second string.
 \ITEM \STYLE{code} <ctrl c> \END Copy the text in the range from the cursor to the mark onto the clipboard.
@@ -138,8 +138,8 @@ The following bindings apply in general text files and most apply in code files,
 \ITEM \STYLE{code} <ctrl x> \END Cut the text in the range from the cursor to the mark onto the clipboard.
 \ITEM \STYLE{code} <ctrl y> \END Advances forewards through the undo history.
 \ITEM \STYLE{code} <ctrl z> \END Advances backwards through the undo history.
-\ITEM \STYLE{code} <ctrl 2> \END Decrases the current buffer's width for line wrapping.
-\ITEM \STYLE{code} <ctrl 3> \END Increases the current buffer's width for line wrapping.
+\ITEM \STYLE{code} <ctrl 1> \END Set the other non-active panel to view the buffer that the active panel views, and switch to that panel.
+\ITEM \STYLE{code} <ctrl 2> \END Set the other non-active panel to view the buffer that the active panel views, and switch to that panel.
 \ITEM \STYLE{code} <ctrl ?> \END Toggles the current buffer's whitespace visibility status.
 \ITEM \STYLE{code} <ctrl ~> \END Removes trailing whitespace from all lines in the current buffer.
 \ITEM \STYLE{code} <return> \END If the buffer in the active view is writable, inserts a character, otherwise performs goto_jump_at_cursor.
@@ -166,6 +166,8 @@ The following commands only apply in files where the lexer (syntax highlighting)
 \ITEM \STYLE{code} <alt r> \END At the cursor, insert a block comment.
 \ITEM \STYLE{code} <alt t> \END At the cursor, insert a '// TODO' comment, includes user name if it was specified in config.4coder.
 \ITEM \STYLE{code} <alt y> \END At the cursor, insert a '// NOTE' comment, includes user name if it was specified in config.4coder.
+\ITEM \STYLE{code} <alt D> \END Queries user for string, lists all locations of strings that appear to define a type whose name matches the input string.
+\ITEM \STYLE{code} <alt T> \END Reads a token or word under the cursor and lists all locations of strings that appear to define a type whose name matches it.
 \ITEM \STYLE{code} <ctrl [> \END At the cursor, insert a '{' and '}' separated by a blank line.
 \ITEM \STYLE{code} <ctrl {> \END At the cursor, insert a '{' and '};' separated by a blank line.
 \ITEM \STYLE{code} <ctrl }> \END At the cursor, insert a '{' and '}break;' separated by a blank line.
@@ -263,8 +265,8 @@ The following bindings apply in general text files and most apply in code files,
 \ITEM \STYLE{code} <cmnd down> \END Seeks the cursor down to the next blank line and places it at the end of the line.
 \ITEM \STYLE{code} <cmnd backspace> \END Delete characters between the cursor position and the first alphanumeric boundary to the left.
 \ITEM \STYLE{code} <cmnd delete> \END Delete characters between the cursor position and the first alphanumeric boundary to the right.
-\ITEM \STYLE{code} <ctrl backspace> \END Delete a single, whole token on or to the left of the cursor.
-\ITEM \STYLE{code} <ctrl delete> \END Delete a single, whole token on or to the right of the cursor.
+\ITEM \STYLE{code} <ctrl backspace> \END Delete a single, whole token on or to the left of the cursor and post it to the clipboard.
+\ITEM \STYLE{code} <ctrl delete> \END Delete a single, whole token on or to the right of the cursor and post it to the clipboard.
 \ITEM \STYLE{code} <cmnd /> \END Sets the mark to the current position of the cursor.
 \ITEM \STYLE{code} <cmnd a> \END Queries the user for two strings, and replaces all occurences of the first string in the range between the cursor and the mark with the second string.
 \ITEM \STYLE{code} <cmnd c> \END Copy the text in the range from the cursor to the mark onto the clipboard.
@@ -296,8 +298,8 @@ The following bindings apply in general text files and most apply in code files,
 \ITEM \STYLE{code} <cmnd x> \END Cut the text in the range from the cursor to the mark onto the clipboard.
 \ITEM \STYLE{code} <cmnd y> \END Advances forewards through the undo history.
 \ITEM \STYLE{code} <cmnd z> \END Advances backwards through the undo history.
-\ITEM \STYLE{code} <cmnd 2> \END Decrases the current buffer's width for line wrapping.
-\ITEM \STYLE{code} <cmnd 3> \END Increases the current buffer's width for line wrapping.
+\ITEM \STYLE{code} <cmnd 1> \END Set the other non-active panel to view the buffer that the active panel views, and switch to that panel.
+\ITEM \STYLE{code} <cmnd 2> \END Set the other non-active panel to view the buffer that the active panel views, and switch to that panel.
 \ITEM \STYLE{code} <cmnd ?> \END Toggles the current buffer's whitespace visibility status.
 \ITEM \STYLE{code} <cmnd ~> \END Removes trailing whitespace from all lines in the current buffer.
 \ITEM \STYLE{code} <return> \END If the buffer in the active view is writable, inserts a character, otherwise performs goto_jump_at_cursor.
@@ -324,6 +326,8 @@ The following commands only apply in files where the lexer (syntax highlighting)
 \ITEM \STYLE{code} <ctrl r> \END At the cursor, insert a block comment.
 \ITEM \STYLE{code} <ctrl t> \END At the cursor, insert a '// TODO' comment, includes user name if it was specified in config.4coder.
 \ITEM \STYLE{code} <ctrl y> \END At the cursor, insert a '// NOTE' comment, includes user name if it was specified in config.4coder.
+\ITEM \STYLE{code} <ctrl D> \END Queries user for string, lists all locations of strings that appear to define a type whose name matches the input string.
+\ITEM \STYLE{code} <ctrl T> \END Reads a token or word under the cursor and lists all locations of strings that appear to define a type whose name matches it.
 \ITEM \STYLE{code} <cmnd [> \END At the cursor, insert a '{' and '}' separated by a blank line.
 \ITEM \STYLE{code} <cmnd {> \END At the cursor, insert a '{' and '};' separated by a blank line.
 \ITEM \STYLE{code} <cmnd }> \END At the cursor, insert a '{' and '}break;' separated by a blank line.

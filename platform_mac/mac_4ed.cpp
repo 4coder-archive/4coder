@@ -593,10 +593,7 @@ osx_try_to_close(void){
 external void
 osx_step(void){
     
-    
     Application_Step_Result result = {};
-    result.mouse_cursor_type = APP_MOUSE_CURSOR_DEFAULT;
-    result.trying_to_kill = !osxvars.keep_running;
     
     // NOTE(allen): Prepare the Frame Input
     osxvars.input.dt = 1.f/60.f;
@@ -621,6 +618,8 @@ osx_step(void){
     osxvars.input.mouse.release_r = false;
     osxvars.input.mouse.wheel = 0;
     
+    frame_input.trying_to_kill = !osxvars.keep_running;
+    
     // NOTE(allen): Frame Clipboard Input
     if (osx_objc.has_clipboard_item){
         frame_input.clipboard = make_string(osx_objc.clipboard_data, (i32)osx_objc.clipboard_size);
@@ -639,7 +638,7 @@ osx_step(void){
     // NOTE(allen): Application Core Update
     target.buffer.pos = 0;
     if (app.step != 0){
-        app.step(&sysfunc, &target, &memory_vars, &frame_input, &result);
+        result = app.step(&sysfunc, &target, &memory_vars, &frame_input);
     }
     else{
         LOG("app.step == 0 -- skipping\n");

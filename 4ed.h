@@ -60,6 +60,7 @@ struct Plat_Settings{
     b8 fullscreen_window;
     
     u8 use_log;
+    b8 use_test_input;
     
     i32 window_w, window_h;
     i32 window_x, window_y;
@@ -91,7 +92,6 @@ typedef App_Init_Sig(App_Init);
 struct Application_Step_Result{
     Application_Mouse_Cursor mouse_cursor_type;
     b32 lctrl_lalt_is_altgr;
-    b32 trying_to_kill;
     b32 perform_kill;
     b32 animating;
     b32 has_new_title;
@@ -104,14 +104,15 @@ struct Application_Step_Input{
     Key_Input_Data keys;
     Mouse_State mouse;
     String clipboard;
+    b32 trying_to_kill;
+    u32 debug_number;
 };
 
-#define App_Step_Sig(name) void            \
+#define App_Step_Sig(name) Application_Step_Result \
 name(System_Functions *system,             \
 Render_Target *target,                \
 Application_Memory *memory,           \
-Application_Step_Input *input,        \
-Application_Step_Result *app_result_)
+Application_Step_Input *input)
 
 typedef App_Step_Sig(App_Step);
 

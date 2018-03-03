@@ -2755,13 +2755,10 @@ view_set_relative_scrolling(View *view, Relative_Scrolling scrolling){
 
 inline i32_Rect
 view_widget_rect(View *view, i32 line_height){
+    Assert(view->file_data.file);
     Panel *panel = view->panel;
     i32_Rect result = panel->inner;
-    
-    if (view->file_data.file){
-        result.y0 = result.y0 + line_height + 2;
-    }
-    
+    result.y0 = result.y0 + line_height + 2;
     return(result);
 }
 
@@ -3006,9 +3003,7 @@ file_edit_cursor_fix(System_Functions *system, Models *models, Editing_File *fil
         }
     }
     
-    // TODO(NAME): dump all the markers in the file and then read them back out.
-    // Make a plan for "right leaning" markers.
-    if (cursor_count > 0){
+    if (cursor_count > 0 || r_cursor_count > 0){
         buffer_sort_cursors(cursors, cursor_count);
         if (desc.is_batch){
             buffer_batch_edit_update_cursors(cursors, cursor_count, desc.batch, desc.batch_size, false);
@@ -4090,7 +4085,8 @@ internal b32
 file_step(View *view, i32_Rect region, Input_Summary *user_input, b32 is_active, b32 *consumed_l){
     b32 is_animating = false;
     Editing_File *file = view->file_data.file;
-    if (file && !file->is_loading){
+    Assert(file != 0);
+    if (!file->is_loading){
         if (file->state.paste_effect.seconds_down > 0.f){
             file->state.paste_effect.seconds_down -= user_input->dt;
             is_animating = true;
@@ -4542,10 +4538,9 @@ step_file_view(System_Functions *system, View *view, Models *models, View *activ
                 GUI_Scroll_Vars scroll_zero = {0};
                 GUI_Scroll_Vars *scroll = &scroll_zero;
                 
-                if (view->file_data.file){
-                    Assert(view->edit_pos);
-                    scroll = &view->edit_pos->scroll;
-                }
+                Assert(view->file_data.file != 0);
+                Assert(view->edit_pos != 0);
+                scroll = &view->edit_pos->scroll;
                 
                 gui_begin_scrollable(target, scroll_context, *scroll,
                                      delta, show_scrollbar);
@@ -4584,14 +4579,14 @@ step_file_view(System_Functions *system, View *view, Models *models, View *activ
                                 view->color_mode = CV_Mode_Adjusting;
                             }
                             
-                            if (view->file_data.file){
-                                message = make_lit_string("Set Font");
-                                id.id[0] = (u64)(&view->file_data.file->settings.font_id);
-                                
-                                if (gui_do_button(target, id, message)){
-                                    view->color_mode = CV_Mode_Font;
-                                }
+                            Assert(view->file_data.file != 0);
+                            
+                            message = make_lit_string("Set Font");
+                            id.id[0] = (u64)(&view->file_data.file->settings.font_id);
+                            if (gui_do_button(target, id, message)){
+                                view->color_mode = CV_Mode_Font;
                             }
+                            
                             
                             message = make_lit_string("Set Global Font");
                             id.id[0] = (u64)(&models->global_font_id);
@@ -6464,6 +6459,8 @@ internal i32
 do_render_file_view(System_Functions *system, View *view, Models *models, GUI_Scroll_Vars *scroll, View *active, i32_Rect rect, b32 is_active, Render_Target *target, Input_Summary *user_input){
     
     Editing_File *file = view->file_data.file;
+    Assert(file != 0);
+    
     i32 result = 0;
     
     GUI_Session gui_session = {0};
@@ -6473,8 +6470,6 @@ do_render_file_view(System_Functions *system, View *view, Models *models, GUI_Sc
     
     f32 v = {0};
     i32 max_y = view_compute_max_target_y(view);
-    
-    Assert(file != 0);
     
     Face_ID font_id = file->settings.font_id;
     if (gui_target->push.pos > 0){
