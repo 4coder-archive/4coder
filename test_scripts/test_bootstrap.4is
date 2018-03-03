@@ -7,7 +7,10 @@ key _ MDFR_CTRL
 
 wait 5
 debug_number 2
-type 1 4coder
+type 2 4coder
+key key_space MDFR_NONE
+wait 2
+type 2 awesomeness
 
 wait 30
 mouse_left_press

@@ -1181,7 +1181,7 @@ init_command_line_settings(App_Settings *settings, Plat_Settings *plat_settings,
                                 case 'l': action = CLAct_LogStdout; --i;                break;
                                 case 'L': action = CLAct_LogFile; --i;                  break;
                                 
-                                case 'T': action = CLAct_TestInput; --i;                break;
+                                case 'T': action = CLAct_TestInput;                     break;
                             }
                         }
                         else if (arg[0] != 0){
@@ -1291,7 +1291,10 @@ init_command_line_settings(App_Settings *settings, Plat_Settings *plat_settings,
                     
                     case CLAct_TestInput:
                     {
-                        plat_settings->use_test_input = true;
+                        if (i < argc){
+                            plat_settings->use_test_input = true;
+                            plat_settings->test_input = argv[i];
+                        }
                         action = CLAct_Nothing;
                     }break;
                 }

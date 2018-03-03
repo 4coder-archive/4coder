@@ -1362,10 +1362,30 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
     app.init(&sysfunc, &target, &memory_vars, win32vars.clipboard_contents, curdir, custom_api);
     
     Input_Simulation_Controls sim_controls = {0};
-    simulation_init(&sim_controls);
-    
     Simulation_Event_Stream_State sim_stream = {0};
-    simulation_stream_init(&sim_stream);
+    Simulation_Event *sim_events = 0;
+    i32 sim_event_count = 0;
+    
+    if (plat_settings.use_test_input){
+        simulation_init(&sim_controls);
+        simulation_stream_init(&sim_stream);
+        
+        plat_settings.use_test_input = false;
+        
+        Plat_Handle file_handle;
+        if (system_load_handle(plat_settings.test_input, &file_handle)){
+            u32 size = system_load_size(file_handle);
+            char *buffer = (char*)system_memory_allocate(size);
+            
+            if (system_load_file(file_handle, buffer, size)){
+                sim_event_count = *(i32*)buffer;
+                sim_events = (Simulation_Event*)(buffer + 4);
+                plat_settings.use_test_input = true;
+            }
+            
+            system_load_close(file_handle);
+        }
+    }
     
     //
     // Main loop
@@ -1563,78 +1583,6 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
             input.clipboard = win32vars.clipboard_contents;
         }
         else{
-            Simulation_Event sim_events[19];
-            i32 sim_event_count = ArrayCount(sim_events);
-            
-            sim_events[0].counter_index = 0;
-            sim_events[0].type = SimulationEvent_MouseXY;
-            sim_events[0].mouse_xy.x = 20;
-            sim_events[0].mouse_xy.y = 20;
-            
-            sim_events[1].counter_index = 45;
-            sim_events[1].type = SimulationEvent_DebugNumber;
-            sim_events[1].debug_number = 1;
-            sim_events[2].counter_index = 45;
-            sim_events[2].type = SimulationEvent_Key;
-            sim_events[2].key.code = '_';
-            sim_events[2].key.modifiers = MDFR_CTRL;
-            
-            sim_events[3].counter_index = 50;
-            sim_events[3].type = SimulationEvent_DebugNumber;
-            sim_events[3].debug_number = 2;
-            sim_events[4].counter_index = 50;
-            sim_events[4].type = SimulationEvent_Key;
-            sim_events[4].key.code = '4';
-            sim_events[4].key.modifiers = MDFR_NONE;
-            sim_events[5].counter_index = 50;
-            sim_events[5].type = SimulationEvent_Key;
-            sim_events[5].key.code = 'c';
-            sim_events[5].key.modifiers = MDFR_NONE;
-            sim_events[6].counter_index = 50;
-            sim_events[6].type = SimulationEvent_Key;
-            sim_events[6].key.code = 'o';
-            sim_events[6].key.modifiers = MDFR_NONE;
-            sim_events[7].counter_index = 50;
-            sim_events[7].type = SimulationEvent_Key;
-            sim_events[7].key.code = 'd';
-            sim_events[7].key.modifiers = MDFR_NONE;
-            sim_events[8].counter_index = 50;
-            sim_events[8].type = SimulationEvent_Key;
-            sim_events[8].key.code = 'e';
-            sim_events[8].key.modifiers = MDFR_NONE;
-            sim_events[9].counter_index = 50;
-            sim_events[9].type = SimulationEvent_Key;
-            sim_events[9].key.code = 'r';
-            sim_events[9].key.modifiers = MDFR_NONE;
-            
-            sim_events[10].counter_index = 80;
-            sim_events[10].type = SimulationEvent_MouseLeftPress;
-            sim_events[11].counter_index = 90;
-            sim_events[11].type = SimulationEvent_MouseLeftRelease;
-            sim_events[12].counter_index = 100;
-            sim_events[12].type = SimulationEvent_MouseLeftPress;
-            sim_events[13].counter_index = 110;
-            sim_events[13].type = SimulationEvent_MouseXY;
-            sim_events[13].mouse_xy.x = 50;
-            sim_events[13].mouse_xy.y = 20;
-            sim_events[14].counter_index = 110;
-            sim_events[14].type = SimulationEvent_MouseLeftRelease;
-            
-            sim_events[15].counter_index = 150;
-            sim_events[15].type = SimulationEvent_Key;
-            sim_events[15].key.code = key_back;
-            sim_events[15].key.modifiers = MDFR_CTRL;
-            sim_events[16].counter_index = 150;
-            sim_events[16].type = SimulationEvent_Key;
-            sim_events[16].key.code = key_end;
-            sim_events[16].key.modifiers = MDFR_NONE;
-            
-            sim_events[17].counter_index = 300;
-            sim_events[17].type = SimulationEvent_DebugNumber;
-            sim_events[17].debug_number = 3;
-            sim_events[18].counter_index = 300;
-            sim_events[18].type = SimulationEvent_Exit;
-            
             simulation_step_begin(&sim_controls, &input,
                                   win32vars.first, frame_useconds/1000000.f);
             simulation_drive_from_events(&sim_controls, &sim_stream, &input,
