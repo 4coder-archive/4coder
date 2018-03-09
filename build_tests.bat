@@ -21,5 +21,7 @@ cl %opts% %inc% %code_home%\meta\4ed_test_builder.cpp /Zi /Fetest_builder
 popd
 
 pushd %data_home%
-%build_home%\test_builder %code_home%\test_scripts
+%build_home%\test_builder %code_home%\test_scripts\test_full_click.4is
+%build_home%\test_builder %code_home%\test_scripts\test_write_4coder_awesomeness.4is
+%build_home%\test_builder %code_home%\test_scripts\test_bootstrap.4is
 popd

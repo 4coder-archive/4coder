@@ -7,16 +7,10 @@ key _ MDFR_CTRL
 
 wait 5
 debug_number 2
-type 2 4coder
-key key_space MDFR_NONE
-wait 2
-type 2 awesomeness
+invoke test_write_4coder_awesomeness.4id
 
 wait 30
-mouse_left_press
-
-wait 10
-mouse_left_release
+invoke test_full_click.4id
 
 wait 10
 mouse_left_press

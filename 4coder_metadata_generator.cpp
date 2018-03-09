@@ -633,16 +633,22 @@ parse_file(Partition *part, Meta_Command_Entry_Arrays *entry_arrays, Filename_Ch
 }
 
 static void
-parse_files_in_directory(Partition *part, Meta_Command_Entry_Arrays *entry_arrays, Filename_Character *root, bool32 recursive){
-    Cross_Platform_File_List list = get_file_list(part, root, filter_is_code_file);
+parse_files_by_pattern(Partition *part, Meta_Command_Entry_Arrays *entry_arrays, Filename_Character *pattern, bool32 recursive){
+    Cross_Platform_File_List list = get_file_list(part, pattern, filter_is_code_file);
     for (int32_t i = 0; i < list.count; ++i){
         Cross_Platform_File_Info *info = &list.info[i];
         
         if (info->is_folder && match(make_string(info->name, info->len), "4coder_generated")){
             continue;
         }
+        if (!recursive && info->is_folder){
+            continue;
+        }
         
-        int32_t full_name_len = list.final_length + 1 + info->len;
+        int32_t full_name_len = list.path_length + 1 + info->len;
+        if (info->is_folder){
+            full_name_len += 2;
+        }
         Filename_Character *full_name = push_array(part, Filename_Character, full_name_len + 1);
         push_align(part, 8);
         
@@ -651,16 +657,18 @@ parse_files_in_directory(Partition *part, Meta_Command_Entry_Arrays *entry_array
             exit(1);
         }
         
-        memmove(full_name, list.final_name, list.final_length*sizeof(*full_name));
-        full_name[list.final_length] = SLASH;
-        memmove(full_name + list.final_length + 1, info->name, info->len*sizeof(*full_name));
+        memmove(full_name, list.path_name, list.path_length*sizeof(*full_name));
+        full_name[list.path_length] = SLASH;
+        memmove(full_name + list.path_length + 1, info->name, info->len*sizeof(*full_name));
         full_name[full_name_len] = 0;
         
         if (!info->is_folder){
             parse_file(part, entry_arrays, full_name, full_name_len);
         }
         else{
-            parse_files_in_directory(part, entry_arrays, full_name, recursive);
+            full_name[full_name_len - 2] = SLASH;
+            full_name[full_name_len - 1] = '*';
+            parse_files_by_pattern(part, entry_arrays, full_name, true);
         }
     }
 }
@@ -671,7 +679,7 @@ show_usage(int argc, char **argv){
     if (argc >= 1){
         name = argv[0];
     }
-    fprintf(stdout, "usage:\n%s [-R] <4coder-root-directory> <scan-root-directory> [<scan-root-directory2> ...]\n", name);
+    fprintf(stdout, "usage:\n%s [-R] <4coder-root-directory> <input-file-pattern> [<input-file-pattern> ...]\n", name);
     exit(0);
 }
 
@@ -700,8 +708,8 @@ main(int argc, char **argv){
     
     Meta_Command_Entry_Arrays entry_arrays = {0};
     for (int32_t i = start_i; i < argc; ++i){
-        Filename_Character *root_name = encode(part, argv[i]);
-        parse_files_in_directory(part, &entry_arrays, root_name, recursive);
+        Filename_Character *pattern_name = encode(part, argv[i]);
+        parse_files_by_pattern(part, &entry_arrays, pattern_name, recursive);
     }
     
     int32_t out_dir_len = str_size(out_directory);

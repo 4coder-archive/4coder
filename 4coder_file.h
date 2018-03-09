@@ -51,8 +51,8 @@ struct Cross_Platform_File_Info{
 struct Cross_Platform_File_List{
     Cross_Platform_File_Info *info;
     int32_t count;
-    int32_t final_length;
-    Filename_Character final_name[4096];
+    int32_t path_length;
+    Filename_Character path_name[4096];
 };
 
 typedef bool32 File_Filter(Filename_Character *name, int32_t len);
@@ -147,46 +147,59 @@ filter_is_code_file(Filename_Character *name, int32_t len){
 
 //// WINDOWS BEGIN ////
 static Cross_Platform_File_List
-get_file_list(Partition *part, Filename_Character *dir, File_Filter *filter){
+get_file_list(Partition *part, Filename_Character *pattern, File_Filter *filter){
     if (part == 0){
         fprintf(stdout, "fatal error: NULL part passed to %s\n", __FUNCTION__);
         exit(1);
     }
-    if (dir == 0){
-        fprintf(stdout, "fatal error: NULL dir passed to %s\n", __FUNCTION__);
+    if (pattern == 0){
+        fprintf(stdout, "fatal error: NULL pattern passed to %s\n", __FUNCTION__);
         exit(1);
     }
     
+    int32_t pattern_length = 0;
+    for (; pattern[pattern_length] != 0; ++pattern_length);
+    int32_t last_slash = pattern_length;
+    for (; last_slash > 0 && pattern[last_slash] != SLASH; --last_slash);
+    if (last_slash < 0){
+        fprintf(stdout, "fatal error: invalid file pattern\n");
+        exit(1);
+    }
+    pattern[last_slash] = 0;
+    
     HANDLE dir_handle =
-        CreateFile(dir,
+        CreateFile(pattern,
                    FILE_LIST_DIRECTORY,
                    FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
                    0,
                    OPEN_EXISTING,
                    FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OVERLAPPED,
                    0);
+    pattern[last_slash] = SLASH;
     
     if (dir_handle == INVALID_HANDLE_VALUE){
         fprintf(stdout, "fatal error: could not open directory handle\n");
         exit(1);
     }
     
-    Filename_Character final_name[4096];
-    DWORD final_length = GetFinalPathNameByHandle(dir_handle, final_name, sizeof(final_name), 0);
-    if (final_length > sizeof(final_name)){
+    Filename_Character path_name[4096];
+    DWORD path_length = GetFinalPathNameByHandle(dir_handle, path_name, sizeof(path_name), 0);
+    if (path_length > sizeof(path_name)){
         fprintf(stdout, "fatal error: path name too long for local buffer\n");
         exit(1);
     }
     CloseHandle(dir_handle);
     
-    final_length -= 4;
-    memmove(final_name, final_name + 4, final_length*sizeof(*final_name));
-    final_name[final_length] = '\\';
-    final_name[final_length + 1] = '*';
-    final_name[final_length + 2] = 0;
+    path_length -= 4;
+    memmove(path_name, path_name + 4, path_length*sizeof(*path_name));
+    path_name[path_length] = 0;
+    
+    // TODO(allen): // TODO(allen): // TODO(allen): // TODO(allen): // TODO(allen): 
+    // TODO(allen): // TODO(allen): // TODO(allen): // TODO(allen): // TODO(allen): 
+    // Get this working with the new search by pattern structure!!!
     
     WIN32_FIND_DATA find_data = {0};
-    HANDLE search = FindFirstFile(final_name, &find_data);
+    HANDLE search = FindFirstFile(pattern, &find_data);
     if (search == INVALID_HANDLE_VALUE){
         fprintf(stdout, "fatal error: could not begin a file search\n");
         exit(1);
@@ -235,7 +248,7 @@ get_file_list(Partition *part, Filename_Character *dir, File_Filter *filter){
     
     Cross_Platform_File_Info *info_ptr_base = info_ptr;
     
-    search = FindFirstFile(final_name, &find_data);
+    search = FindFirstFile(pattern, &find_data);
     if (search == INVALID_HANDLE_VALUE){
         fprintf(stdout, "fatal error: could not restart a file search\n");
         exit(1);
@@ -281,9 +294,9 @@ get_file_list(Partition *part, Filename_Character *dir, File_Filter *filter){
     
     list.info = info_ptr_base;
     list.count = adjusted_file_count;
-    list.final_length = final_length;
-    memcpy(list.final_name, final_name, list.final_length*sizeof(*final_name));
-    list.final_name[list.final_length] = 0;
+    list.path_length = path_length;
+    memcpy(list.path_name, path_name, list.path_length*sizeof(*path_name));
+    list.path_name[list.path_length] = 0;
     
     return(list);
 }

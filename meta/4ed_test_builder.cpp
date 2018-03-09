@@ -201,11 +201,19 @@ require_integer(Line_Parse_Context context, i32 index, i32 *int_out){
 }
 
 internal bool32
-require_string(Line_Parse_Context context, i32 index, String *str_out){
+require_unquoted_string(Line_Parse_Context context, i32 index, String *str_out){
     bool32 result = false;
     if (index < context.words.count){
-        *str_out = context.words.strings[index];
-        result = true;
+        String str = context.words.strings[index];
+        if (str.str[0] != '"'){
+            *str_out = str;
+            result = true;
+        }
+        else{
+            show_error(context,
+                       context.words.strings[context.words.count - 1].str,
+                       "expected a simple word (a simple word must be unquoted)");
+        }
     }
     else{
         show_error(context,
@@ -215,6 +223,11 @@ require_string(Line_Parse_Context context, i32 index, String *str_out){
     return(result);
 }
 
+internal bool32
+require_any_string(Line_Parse_Context context, i32 index, String *str_out){
+    bool32 result = require_unquoted_string(context, index, str_out);
+    return(result);
+}
 
 internal bool32
 key_name_to_code(Line_Parse_Context context, String key_name, u32 *key_code_out){
@@ -241,10 +254,6 @@ key_name_to_code(Line_Parse_Context context, String key_name, u32 *key_code_out)
         KEY_CODE_CHK(key_page_up);
         KEY_CODE_CHK(key_page_down);
         KEY_CODE_CHK(key_esc);
-        KEY_CODE_CHK(key_mouse_left);
-        KEY_CODE_CHK(key_mouse_right);
-        KEY_CODE_CHK(key_mouse_left_release);
-        KEY_CODE_CHK(key_mouse_right_release);
         KEY_CODE_CHK(key_f1);
         KEY_CODE_CHK(key_f2);
         KEY_CODE_CHK(key_f3);
@@ -262,6 +271,8 @@ key_name_to_code(Line_Parse_Context context, String key_name, u32 *key_code_out)
         KEY_CODE_CHK(key_f15);
         KEY_CODE_CHK(key_f16);
         KEY_CODE_CHK_SET("key_space", ' ');
+        KEY_CODE_CHK_SET("key_newline", '\n');
+        KEY_CODE_CHK_SET("key_tab", '\t');
     }
     
     if (!result){
@@ -292,8 +303,7 @@ mod_name_to_flags(Line_Parse_Context context, Partition *part, String mod_name, 
         MDFR_FLAG_CHK(MDFR_SHIFT);
         else{
             result = false;
-            show_error(context, flag_string.str,
-                       "unrecognized flag string");
+            show_error(context, flag_string.str, "unrecognized flag string");
             break;
         }
         
@@ -306,24 +316,26 @@ mod_name_to_flags(Line_Parse_Context context, Partition *part, String mod_name, 
 }
 
 internal void
-process_script_inner(Partition *part, char *name){
-    String data = file_dump(part, name);
-    String_Array lines = get_lines(part, data);
+process_script_inner(Partition *scratch, char *name){
+    String data = file_dump(scratch, name);
+    String_Array lines = get_lines(scratch, data);
     
-    Simulation_Event *events = push_array(part, Simulation_Event, 0);
+    Simulation_Event *events = push_array(scratch, Simulation_Event, 0);
     i32 event_count = 0;
     
     i32 time_counter = 0;
     
     for (i32 i = 0; i < lines.count; ++i){
-        Temp_Memory word_temp = begin_temp_memory(part);
+        Temp_Memory word_temp = begin_temp_memory(scratch);
         String line = lines.strings[i];
-        String_Array words = get_words(part, line);
+        String_Array words = get_words(scratch, line);
         
         Line_Parse_Context context = {0};
         context.name = name;
         context.data = data;
         context.words = words;
+        
+        i32 current_debug_number = 0;
         
         bool32 emit_event = false;
         Simulation_Event event = {0};
@@ -332,9 +344,13 @@ process_script_inner(Partition *part, char *name){
         i32 type_increment = 0;
         String type_string = {0};
         
+        bool32 emit_invoke = false;
+        String invoke_file = {0};
+        
         if (words.count != 0){
             String first_word = words.strings[0];
             if (!match(substr(first_word, 0, 2), "//")){
+                
                 if (match(first_word, "debug_number")){
                     i32 debug_number = 0;
                     if (require_integer(context, 1, &debug_number) &&
@@ -343,11 +359,13 @@ process_script_inner(Partition *part, char *name){
                         event.counter_index = time_counter;
                         event.type = SimulationEvent_DebugNumber;
                         event.debug_number = debug_number;
+                        current_debug_number = debug_number;
                     }
                     else{
                         return;
                     }
                 }
+                
                 else if (match(first_word, "wait")){
                     i32 increment = 0;
                     if (require_integer(context, 1, &increment) &&
@@ -358,16 +376,17 @@ process_script_inner(Partition *part, char *name){
                         return;
                     }
                 }
+                
                 else if (match(first_word, "key")){
                     String key_name = {0};
                     String mod_name = {0};
-                    if (require_string(context, 1, &key_name) &&
-                        require_string(context, 2, &mod_name) &&
+                    if (require_unquoted_string(context, 1, &key_name) &&
+                        require_unquoted_string(context, 2, &mod_name) &&
                         require_blank(context, 3)){
                         u32 key_code = 0;
                         u8 modifiers = 0;
                         if (key_name_to_code(context, key_name, &key_code) &&
-                            mod_name_to_flags(context, part, mod_name, &modifiers)){
+                            mod_name_to_flags(context, scratch, mod_name, &modifiers)){
                             emit_event = true;
                             event.counter_index = time_counter;
                             event.type = SimulationEvent_Key;
@@ -382,11 +401,12 @@ process_script_inner(Partition *part, char *name){
                         return;
                     }
                 }
+                
                 else if (match(first_word, "type")){
                     i32 increment = 0;
                     String string = {0};
                     if (require_integer(context, 1, &increment) &&
-                        require_string(context, 2, &string) &&
+                        require_unquoted_string(context, 2, &string) &&
                         require_blank(context, 3)){
                         emit_type = true;
                         type_increment = increment;
@@ -396,6 +416,19 @@ process_script_inner(Partition *part, char *name){
                         return;
                     }
                 }
+                
+                else if (match(first_word, "invoke")){
+                    String file = {0};
+                    if (require_any_string(context, 1, &file) &&
+                        require_blank(context, 2)){
+                        emit_invoke = true;
+                        invoke_file = file;
+                    }
+                    else{
+                        return;
+                    }
+                }
+                
                 else if (match(first_word, "mouse_left_press")){
                     if (require_blank(context, 1)){
                         emit_event = true;
@@ -406,6 +439,7 @@ process_script_inner(Partition *part, char *name){
                         return;
                     }
                 }
+                
                 else if (match(first_word, "mouse_right_press")){
                     if (require_blank(context, 1)){
                         emit_event = true;
@@ -416,6 +450,7 @@ process_script_inner(Partition *part, char *name){
                         return;
                     }
                 }
+                
                 else if (match(first_word, "mouse_left_release")){
                     if (require_blank(context, 1)){
                         emit_event = true;
@@ -426,6 +461,7 @@ process_script_inner(Partition *part, char *name){
                         return;
                     }
                 }
+                
                 else if (match(first_word, "mouse_right_release")){
                     if (require_blank(context, 1)){
                         emit_event = true;
@@ -436,6 +472,7 @@ process_script_inner(Partition *part, char *name){
                         return;
                     }
                 }
+                
                 else if (match(first_word, "mouse_wheel")){
                     i32 wheel = 0;
                     if (require_integer(context, 1, &wheel) &&
@@ -449,6 +486,7 @@ process_script_inner(Partition *part, char *name){
                         return;
                     }
                 }
+                
                 else if (match(first_word, "mouse_xy")){
                     i32 x = 0;
                     i32 y = 0;
@@ -465,6 +503,7 @@ process_script_inner(Partition *part, char *name){
                         return;
                     }
                 }
+                
                 else if (match(first_word, "exit")){
                     if (require_blank(context, 1)){
                         emit_event = true;
@@ -475,9 +514,9 @@ process_script_inner(Partition *part, char *name){
                         return;
                     }
                 }
+                
                 else{
-                    show_error(name, data, first_word.str,
-                               "unrecognized control word");
+                    show_error(name, data, first_word.str, "unrecognized control word");
                     return;
                 }
             }
@@ -486,7 +525,7 @@ process_script_inner(Partition *part, char *name){
         end_temp_memory(word_temp);
         
         if (emit_event){
-            Simulation_Event *new_event = push_array(part, Simulation_Event, 1);
+            Simulation_Event *new_event = push_array(scratch, Simulation_Event, 1);
             memset(new_event, 0, sizeof(*new_event));
             *new_event = event;
             event_count += 1;
@@ -494,7 +533,7 @@ process_script_inner(Partition *part, char *name){
         
         if (emit_type){
             for (i32 j = 0; j < type_string.size; ++j){
-                Simulation_Event *new_event = push_array(part, Simulation_Event, 1);
+                Simulation_Event *new_event = push_array(scratch, Simulation_Event, 1);
                 memset(new_event, 0, sizeof(*new_event));
                 new_event->counter_index = time_counter;
                 new_event->type = SimulationEvent_Key;
@@ -504,10 +543,48 @@ process_script_inner(Partition *part, char *name){
                 time_counter += type_increment;
             }
         }
+        
+        if (emit_invoke){
+            Temp_Memory invoke_temp = begin_temp_memory(scratch);
+            
+            char *invoke_name = push_array(scratch, char, invoke_file.size + 1);
+            push_align(scratch, 8);
+            memcpy(invoke_name, invoke_file.str, invoke_file.size);
+            invoke_name[invoke_file.size] = 0;
+            String invoke_data = file_dump(scratch, invoke_name);
+            if (invoke_data.str == 0){
+                show_error(name, data, invoke_file.str, "could not open invoked file");
+                return;
+            }
+            i32 count = *(i32*)invoke_data.str;
+            Simulation_Event *events = (Simulation_Event*)(invoke_data.str + 4);
+            Simulation_Event *event = events;
+            for (i32 i = 0; i < count; ++i, ++event){
+                event->counter_index = event->counter_index + time_counter;
+                if (event->type == SimulationEvent_Exit){
+                    count = i + 1;
+                    event->type = SimulationEvent_DebugNumber;
+                }
+                if (event->type == SimulationEvent_DebugNumber){
+                    event->debug_number = current_debug_number;
+                }
+            }
+            if (count > 0){
+                time_counter = events[count - 1].counter_index;
+            }
+            end_temp_memory(invoke_temp);
+            
+            // NOTE(allen): This is pulling back events from inside a
+            // closed temp block.  Don't let it get separated from the
+            // end_temp_memory call!
+            void *ptr = push_array(scratch, Simulation_Event, count);
+            memmove(ptr, events, sizeof(*events)*count);
+            event_count += count;
+        }
     }
     
     String out_name_s = front_of_directory(make_string_slowly(name));
-    char *out_name = push_array(part, char, out_name_s.size + 1);
+    char *out_name = push_array(scratch, char, out_name_s.size + 1);
     memcpy(out_name, out_name_s.str, out_name_s.size);
     Assert(out_name[out_name_s.size - 1] == 's');
     out_name[out_name_s.size - 1] = 'd';
@@ -526,9 +603,9 @@ process_script_inner(Partition *part, char *name){
 }
 
 internal void
-process_script(Partition *part, char *name){
-    Temp_Memory temp = begin_temp_memory(part);
-    process_script_inner(part, name);
+process_script(Partition *scratch, char *name){
+    Temp_Memory temp = begin_temp_memory(scratch);
+    process_script_inner(scratch, name);
     end_temp_memory(temp);
 }
 
@@ -550,8 +627,8 @@ main(int argc, char **argv){
     for (i32 i = 1; i < argc; ++i){
         Cross_Platform_File_List files = get_file_list(part, encode(part, argv[i]), filter_all);
         
-        char *final_name = unencode(part, files.final_name, files.final_length);
-        String final_name_s = make_string_slowly(final_name);
+        char *path_name = unencode(part, files.path_name, files.path_length);
+        String path_name_s = make_string_slowly(path_name);
         
         Cross_Platform_File_Info *info = files.info;
         for (i32 j = 0; j < files.count; ++j, ++info){
@@ -565,12 +642,12 @@ main(int argc, char **argv){
                 continue;
             }
             
-            i32 whole_name_max = final_name_s.size + 1 + s.size + 1;
+            i32 whole_name_max = path_name_s.size + 1 + s.size + 1;
             char *whole_name = push_array(part, char, whole_name_max);
             push_align(part, 8);
             
             String w = make_string_cap(whole_name, 0, whole_name_max);
-            append(&w, final_name_s);
+            append(&w, path_name_s);
             append(&w, '/');
             append(&w, s);
             terminate_with_null(&w);
