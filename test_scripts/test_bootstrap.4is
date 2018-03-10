@@ -23,6 +23,19 @@ wait 40
 key key_back MDFR_CTRL
 key key_end MDFR_NONE
 
-wait 150
-debug_number 3
+wait 10
+key o MDFR_CTRL
+
+wait 10
+type 5 unicode.txt
+wait 25
+key key_newline MDFR_NONE
+wait 25
+type 5 hello
+key key_newline MDFR_NONE
+
+wait 60
 exit
+
+wait 60
+key Y MDFR_NONE

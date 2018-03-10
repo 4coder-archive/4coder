@@ -22,6 +22,9 @@ struct App_Settings{
     
     i32 font_size;
     b32 use_hinting;
+    
+    b32 make_input_recording;
+    char *input_recording_output_file;
 };
 global_const App_Settings null_app_settings = {0};
 
@@ -96,6 +99,15 @@ struct Models{
     b32 has_new_title;
     char *title_space;
     i32 title_capacity;
+    
+    i32 frame_counter;
+    
+    i32 previous_mouse_x;
+    i32 previous_mouse_y;
+    
+    Simulation_Event *recorded_events;
+    i32 recorded_event_count;
+    i32 recorded_event_max;
 };
 
 // BOTTOM

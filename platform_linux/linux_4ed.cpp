@@ -1989,7 +1989,7 @@ main(int argc, char **argv){
             flush_thread_group(BACKGROUND_THREADS);
             
             // TODO(allen): CROSS REFERENCE WITH WIN32 "TIC898989"
-            linuxvars.input.keys = null_key_input_data;
+            memset(&linuxvars.input.keys, 0, sizeof(linuxvars.input.keys));
             linuxvars.input.mouse.press_l = 0;
             linuxvars.input.mouse.release_l = 0;
             linuxvars.input.mouse.press_r = 0;

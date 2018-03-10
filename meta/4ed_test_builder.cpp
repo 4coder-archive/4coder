@@ -346,6 +346,7 @@ process_script_inner(Partition *scratch, char *name){
         
         bool32 emit_invoke = false;
         String invoke_file = {0};
+        bool32 invoke_raw_data = false;
         
         if (words.count != 0){
             String first_word = words.strings[0];
@@ -423,6 +424,19 @@ process_script_inner(Partition *scratch, char *name){
                         require_blank(context, 2)){
                         emit_invoke = true;
                         invoke_file = file;
+                    }
+                    else{
+                        return;
+                    }
+                }
+                
+                else if (match(first_word, "raw_invoke")){
+                    String file = {0};
+                    if (require_any_string(context, 1, &file) &&
+                        require_blank(context, 2)){
+                        emit_invoke = true;
+                        invoke_file = file;
+                        invoke_raw_data = true;
                     }
                     else{
                         return;
@@ -561,7 +575,7 @@ process_script_inner(Partition *scratch, char *name){
             Simulation_Event *event = events;
             for (i32 i = 0; i < count; ++i, ++event){
                 event->counter_index = event->counter_index + time_counter;
-                if (event->type == SimulationEvent_Exit){
+                if (event->type == SimulationEvent_Exit && !invoke_raw_data){
                     count = i + 1;
                     event->type = SimulationEvent_DebugNumber;
                 }

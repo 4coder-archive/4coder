@@ -32,13 +32,6 @@ struct Key_Input_Data{
     Key_Event_Data keys[KEY_INPUT_BUFFER_SIZE + KEY_EXTRA_SIZE];
     i32 count;
 };
-static Key_Input_Data null_key_input_data = {0};
-
-inline Key_Event_Data
-get_single_key(Key_Input_Data *data, i32 index){
-    Key_Event_Data key = data->keys[index];
-    return(key);
-}
 
 struct Input_Summary{
     Mouse_State mouse;

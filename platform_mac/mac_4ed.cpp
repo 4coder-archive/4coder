@@ -611,7 +611,7 @@ osx_step(void){
     // TODO(allen): CROSS REFERENCE WITH WINDOWS SPECIAL CODE "TIC898989"
     Application_Step_Input frame_input = osxvars.input;
     osxvars.input.first_step = false;
-    osxvars.input.keys = null_key_input_data;
+    memset(&linuxvars.input.keys, 0, sizeof(linuxvars.input.keys));
     osxvars.input.mouse.press_l = false;
     osxvars.input.mouse.release_l = false;
     osxvars.input.mouse.press_r = false;

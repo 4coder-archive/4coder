@@ -4501,12 +4501,9 @@ step_file_view(System_Functions *system, View *view, Models *models, View *activ
     b32 show_scrollbar = !view->hide_scrollbar;
     
     if (view->showing_ui != VUI_None){
-        b32 did_esc = 0;
-        Key_Event_Data key;
-        i32 i;
-        
-        for (i = 0; i < keys.count; ++i){
-            key = get_single_key(&keys, i);
+        b32 did_esc = false;
+        for (i32 i = 0; i < keys.count; ++i){
+            Key_Event_Data key = keys.keys[i];
             if (key.keycode == key_esc){
                 did_esc = 1;
                 break;
@@ -4956,7 +4953,7 @@ step_file_view(System_Functions *system, View *view, Models *models, View *activ
                             
                             b32 do_open_or_new = false;
                             for (i32 i = 0; i < keys.count; ++i){
-                                Key_Event_Data key = get_single_key(&keys, i);
+                                Key_Event_Data key = keys.keys[i];
                                 Single_Line_Input_Step step = app_single_file_input_step(system, &models->working_set, key,
                                                                                          &hdir->string, hdir, 1, 0);
                                 
@@ -5059,17 +5056,12 @@ step_file_view(System_Functions *system, View *view, Models *models, View *activ
                             Editing_Layout *layout = &models->layout;
                             GUI_Item_Update update = {0};
                             
-                            {
-                                Single_Line_Input_Step step;
-                                Key_Event_Data key;
-                                i32 i;
-                                for (i = 0; i < keys.count; ++i){
-                                    key = get_single_key(&keys, i);
-                                    step = app_single_line_input_step(system, key, &view->dest);
-                                    if (step.made_a_change){
-                                        view->list_i = 0;
-                                        result.consume_keys = 1;
-                                    }
+                            for (i32 i = 0; i < keys.count; ++i){
+                                Key_Event_Data key = keys.keys[i];
+                                Single_Line_Input_Step step = app_single_line_input_step(system, key, &view->dest);
+                                if (step.made_a_change){
+                                    view->list_i = 0;
+                                    result.consume_keys = 1;
                                 }
                             }
                             
@@ -5266,8 +5258,7 @@ step_file_view(System_Functions *system, View *view, Models *models, View *activ
                     {
                         i32 prev_mode = view->debug_vars.mode;
                         for (i32 i = 0; i < keys.count; ++i){
-                            Key_Event_Data key = get_single_key(&keys, i);
-                            
+                            Key_Event_Data key = keys.keys[i];
                             if (key.modifiers[MDFR_CONTROL_INDEX] == 0 &&
                                 key.modifiers[MDFR_ALT_INDEX] == 0){
                                 if (key.keycode == 'i'){
@@ -5799,7 +5790,7 @@ do_step_file_view(System_Functions *system, View *view, Models *models, i32_Rect
                             if (activation_key != 0){
                                 i32 count = keys->count;
                                 for (i32 i = 0; i < count; ++i){
-                                    Key_Event_Data key = get_single_key(keys, i);
+                                    Key_Event_Data key = keys->keys[i];
                                     
                                     u8 character[4];
                                     u32 length = to_writable_character(key.character, character);

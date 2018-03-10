@@ -19,6 +19,7 @@
 #include "4ed_math.h"
 #include "4ed_font.h"
 #include "4ed_system.h"
+#include "4ed_input_simulation_event.h"
 
 #define PREFERRED_ALIGNMENT 8
 #define USE_DEBUG_MEMORY
