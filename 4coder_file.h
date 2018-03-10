@@ -15,6 +15,7 @@ TYPE: 'utility'
 #include "4coder_lib/4coder_string.h"
 
 #include <stdio.h>
+#include <stdlib.h>
 
 typedef int32_t bool32;
 
@@ -305,36 +306,65 @@ get_file_list(Partition *part, Filename_Character *pattern, File_Filter *filter)
 #elif defined(IS_LINUX) || defined(IS_MAC)
 
 //// UNIX BEGIN ////
+static bool32
+match_pattern(Filename_Character *name, Filename_Character *pattern){
+    bool32 match = false;
+    if (sizeof(*name) == 1){
+        Absolutes absolutes = {0};
+        String pattern_str = make_string_slowly(pattern);
+        get_absolutes(pattern_str, &absolutes, false, false);
+        match = wildcard_match_c(&absolutes, name, false);
+    }
+    else{
+        fprintf(stdout, "fatal error: wide characters not supported!\n");
+        exit(1);
+    }
+    return(match);
+}
+
 static Cross_Platform_File_List
-get_file_list(Partition *part, Filename_Character *directory, File_Filter *filter){
+get_file_list(Partition *part, Filename_Character *pattern, File_Filter *filter){
     if (part == 0){
         fprintf(stdout, "fatal error: NULL part passed to %s\n", __FUNCTION__);
         exit(1);
     }
-    if (directory == 0){
+    if (pattern == 0){
         fprintf(stdout, "fatal error: NULL dir passed to %s\n", __FUNCTION__);
         exit(1);
     }
     
-    DIR *dir_handle = opendir(directory);
+    int32_t pattern_length = 0;
+    for (; pattern[pattern_length] != 0; ++pattern_length);
+    int32_t last_slash = pattern_length;
+    for (; last_slash > 0 && pattern[last_slash] != SLASH; --last_slash);
+    if (last_slash < 0){
+        fprintf(stdout, "fatal error: invalid file pattern\n");
+        exit(1);
+    }
+    pattern[last_slash] = 0;
+    
+    DIR *dir_handle = opendir(pattern);
+    
     if (dir_handle == 0){
         fprintf(stdout, "fatal error: could not open directory handle\n");
-        if (sizeof(*directory) == 2){
-            fprintf(stdout, "%ls\n", (wchar_t*)directory);
+        if (sizeof(*pattern) == 2){
+            fprintf(stdout, "%ls\n", (wchar_t*)pattern);
         }
         else{
-            fprintf(stdout, "%s\n", (char*)directory);
+            fprintf(stdout, "%s\n", (char*)pattern);
         }
         exit(1);
     }
     
-    Filename_Character final_name[4096];
-    int32_t final_length = str_size(directory);
-    if (final_length + 1 > sizeof(final_name)){
+    Filename_Character path_name[4096];
+    int32_t path_length = str_size(pattern);
+    if (path_length + 1 > sizeof(path_name)){
         fprintf(stdout, "fatal error: path name too long for local buffer\n");
         exit(1);
     }
-    memcpy(final_name, directory, final_length + 1);
+    memcpy(path_name, pattern, path_length + 1);
+    
+    char *file_pattern = pattern + last_slash + 1;
     
     int32_t character_count = 0;
     int32_t file_count = 0;
@@ -342,6 +372,9 @@ get_file_list(Partition *part, Filename_Character *directory, File_Filter *filte
          entry != 0;
          entry = readdir(dir_handle)){
         Filename_Character *name = entry->d_name;
+        if (!match_pattern(name, file_pattern)){
+            continue;
+        }
         
         int32_t size = 0;
         for(;name[size];++size);
@@ -389,6 +422,9 @@ get_file_list(Partition *part, Filename_Character *directory, File_Filter *filte
          entry != 0;
          entry = readdir(dir_handle)){
         Filename_Character *name = entry->d_name;
+        if (!match_pattern(name, file_pattern)){
+            continue;
+        }
         
         int32_t size = 0;
         for(;name[size];++size);
@@ -428,9 +464,9 @@ get_file_list(Partition *part, Filename_Character *directory, File_Filter *filte
     
     list.info = info_ptr_base;
     list.count = adjusted_file_count;
-    list.final_length = final_length;
-    memcpy(list.final_name, final_name, list.final_length*sizeof(*final_name));
-    list.final_name[list.final_length] = 0;
+    list.path_length = path_length;
+    memcpy(list.path_name, path_name, list.path_length*sizeof(*path_name));
+    list.path_name[list.path_length] = 0;
     
     return(list);
 }

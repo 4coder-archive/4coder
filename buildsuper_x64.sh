@@ -15,12 +15,12 @@ do
 done
 PHYS_DIR=`pwd -P`
 SCRIPT_FILE=$PHYS_DIR/$TARGET_FILE
-CODE_HOME=$(dirname "$SCRIPT_FILE")
+code_home=$(dirname "$SCRIPT_FILE")
 
 # Find the most reasonable candidate build file
 SOURCE="$1"
 if [ -z "$SOURCE" ]; then
-    SOURCE="$CODE_HOME/4coder_default_bindings.cpp"
+    SOURCE="$code_home/4coder_default_bindings.cpp"
 fi
 
 TARGET_FILE="$SOURCE"
@@ -40,9 +40,9 @@ ARCH=-m64
 DEBUG=-g
 
 cd "$REAL_PWD"
-g++ -I"$CODE_HOME" $FLAGS $DEBUG -std=gnu++0x "$CODE_HOME/4coder_metadata_generator.cpp" -o metadata_generator
-./metadata_generator -R "$CODE_HOME" "$CODE_HOME"
+g++ -I"$code_home" $FLAGS $DEBUG -std=gnu++0x "$code_home/4coder_metadata_generator.cpp" -o metadata_generator
+./metadata_generator -R "$code_home" "$code_home/*"
 
-g++ -I"$CODE_HOME" $ARCH $FLAGS $DEBUG -std=gnu++0x "$SOURCE" -shared -o custom_4coder.so -fPIC
+g++ -I"$code_home" $ARCH $FLAGS $DEBUG -std=gnu++0x "$SOURCE" -shared -o custom_4coder.so -fPIC
 
 rm metadata_generator

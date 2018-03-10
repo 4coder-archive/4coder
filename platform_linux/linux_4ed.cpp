@@ -1932,7 +1932,7 @@ main(int argc, char **argv){
                 linuxvars.input.clipboard = null_string;
             }
             
-            Application_Step_Result frame_input = linuxvars.input;
+            Application_Step_Input frame_input = linuxvars.input;
             frame_input.trying_to_kill = !linuxvars.keep_running;
             
             // HACK(allen): THIS SHIT IS FUCKED (happens on mac too)
