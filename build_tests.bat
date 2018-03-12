@@ -3,25 +3,30 @@
 if not exist ..\tests (mkdir ..\tests)
 if not exist ..\tests\input_data (mkdir ..\tests\input_data)
 
-set code_home=%cd%
+set code=%cd%
 pushd ..\build
-set build_home=%cd%
+set build=%cd%
 popd
 pushd ..\tests\input_data
-set data_home=%cd%
+set data=%cd%
 popd
 
-set opts=/W4 /wd4310 /wd4100 /wd4201 /wd4505 /wd4996 /wd4127 /wd4510 /wd4512 /wd4610 /wd4390 /WX
+set name=test_builder
+set full_name=%build%\%name%
+set scripts=%code%\test_input_scripts
+
+set opts=
+set opts=%opts% /W4 /WX /wd4310 /wd4100 /wd4201 /wd4505 /wd4996 /wd4127 /wd4510 /wd4512 /wd4610 /wd4390
 set opts=%opts% /GR- /EHa- /nologo /FC
 
-set inc=-I%code_home%
+set inc=-I%code%
 
-pushd %build_home%
-cl %opts% %inc% %code_home%\meta\4ed_test_builder.cpp /Zi /Fetest_builder
+pushd %build%
+cl %opts% %inc% %code%\meta\4ed_test_builder.cpp /Zi /Fe%name%
 popd
 
-pushd %data_home%
-%build_home%\test_builder %code_home%\test_scripts\test_full_click.4is
-%build_home%\test_builder %code_home%\test_scripts\test_write_4coder_awesomeness.4is
-%build_home%\test_builder %code_home%\test_scripts\test_bootstrap.4is
+pushd %data%
+%full_name% %scripts%\test_full_click.4is
+%full_name% %scripts%\test_write_4coder_awesomeness.4is
+%full_name% %scripts%\test_bootstrap.4is
 popd
