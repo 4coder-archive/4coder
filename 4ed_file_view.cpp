@@ -6082,7 +6082,7 @@ draw_file_loaded(System_Functions *system, View *view, Models *models, i32_Rect 
             
             if (token_i < token_array.count){
                 if (ind >= token_array.tokens[token_i].start){
-                    for (;ind >= token_array.tokens[token_i].start && token_i < token_array.count; ++token_i){
+                    for (;token_i < token_array.count && ind >= token_array.tokens[token_i].start; ++token_i){
                         main_color = *style_get_color(style, token_array.tokens[token_i]);
                         current_token = token_array.tokens[token_i];
                     }
