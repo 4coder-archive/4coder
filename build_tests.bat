@@ -7,7 +7,7 @@ set code=%cd%
 pushd ..\build
 set build=%cd%
 popd
-pushd ..\tests\input_data
+pushd ..\4coder-non-source\test_data\input_data
 set data=%cd%
 popd
 
