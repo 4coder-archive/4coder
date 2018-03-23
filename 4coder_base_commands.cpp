@@ -398,6 +398,20 @@ CUSTOM_DOC("Seeks the cursor down to the next blank line and places it at the en
     exec_command(app, seek_end_of_line);
 }
 
+CUSTOM_COMMAND_SIG(goto_beginning_of_file)
+CUSTOM_DOC("Sets the cursor to the beginning of the file.")
+{
+    View_Summary view = get_active_view(app, AccessProtected);
+    view_set_cursor(app, &view, seek_pos(0), 1);
+}
+
+CUSTOM_COMMAND_SIG(goto_end_of_file)
+CUSTOM_DOC("Sets the cursor to the end of the file.")
+{
+    View_Summary view = get_active_view(app, AccessProtected);
+    Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessProtected);
+    view_set_cursor(app, &view, seek_pos(buffer.size), 1);
+}
 
 //
 // Fancy Editing

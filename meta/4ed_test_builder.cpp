@@ -316,7 +316,7 @@ mod_name_to_flags(Line_Parse_Context context, Partition *part, String mod_name, 
 }
 
 internal void
-process_script_inner(Partition *scratch, char *name){
+process_script__inner(Partition *scratch, char *name){
     String data = file_dump(scratch, name);
     String_Array lines = get_lines(scratch, data);
     
@@ -619,7 +619,7 @@ process_script_inner(Partition *scratch, char *name){
 internal void
 process_script(Partition *scratch, char *name){
     Temp_Memory temp = begin_temp_memory(scratch);
-    process_script_inner(scratch, name);
+    process_script__inner(scratch, name);
     end_temp_memory(temp);
 }
 

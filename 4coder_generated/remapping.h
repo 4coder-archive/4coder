@@ -65,6 +65,8 @@ bind(context, key_up, MDFR_NONE, move_up);
 bind(context, key_down, MDFR_NONE, move_down);
 bind(context, key_end, MDFR_NONE, seek_end_of_line);
 bind(context, key_home, MDFR_NONE, seek_beginning_of_line);
+bind(context, key_page_up, MDFR_CTRL, goto_beginning_of_file);
+bind(context, key_page_down, MDFR_CTRL, goto_end_of_file);
 bind(context, key_page_up, MDFR_NONE, page_up);
 bind(context, key_page_down, MDFR_NONE, page_down);
 bind(context, key_right, MDFR_CTRL, seek_whitespace_right);
@@ -220,6 +222,8 @@ bind(context, key_up, MDFR_NONE, move_up);
 bind(context, key_down, MDFR_NONE, move_down);
 bind(context, key_end, MDFR_NONE, seek_end_of_line);
 bind(context, key_home, MDFR_NONE, seek_beginning_of_line);
+bind(context, key_page_up, MDFR_CTRL, goto_beginning_of_file);
+bind(context, key_page_down, MDFR_CTRL, goto_end_of_file);
 bind(context, key_page_up, MDFR_NONE, page_up);
 bind(context, key_page_down, MDFR_NONE, page_down);
 bind(context, key_right, MDFR_CMND, seek_whitespace_right);
@@ -388,7 +392,7 @@ static Meta_Key_Bind fcoder_binds_for_default_mapid_global[48] = {
 {0, 55326, 0, "project_fkey_command", 20, LINK_PROCS(project_fkey_command)},
 {0, 55327, 0, "project_fkey_command", 20, LINK_PROCS(project_fkey_command)},
 };
-static Meta_Key_Bind fcoder_binds_for_default_mapid_file[65] = {
+static Meta_Key_Bind fcoder_binds_for_default_mapid_file[67] = {
 {1, 0, 0, "write_character", 15, LINK_PROCS(write_character)},
 {0, 55308, 0, "click_set_cursor", 16, LINK_PROCS(click_set_cursor)},
 {0, 55310, 0, "click_set_mark", 14, LINK_PROCS(click_set_mark)},
@@ -403,6 +407,8 @@ static Meta_Key_Bind fcoder_binds_for_default_mapid_file[65] = {
 {0, 55298, 0, "move_down", 9, LINK_PROCS(move_down)},
 {0, 55304, 0, "seek_end_of_line", 16, LINK_PROCS(seek_end_of_line)},
 {0, 55303, 0, "seek_beginning_of_line", 22, LINK_PROCS(seek_beginning_of_line)},
+{0, 55305, 1, "goto_beginning_of_file", 22, LINK_PROCS(goto_beginning_of_file)},
+{0, 55306, 1, "goto_end_of_file", 16, LINK_PROCS(goto_end_of_file)},
 {0, 55305, 0, "page_up", 7, LINK_PROCS(page_up)},
 {0, 55306, 0, "page_down", 9, LINK_PROCS(page_down)},
 {0, 55300, 1, "seek_whitespace_right", 21, LINK_PROCS(seek_whitespace_right)},
@@ -491,7 +497,7 @@ static Meta_Key_Bind fcoder_binds_for_default_default_code_map[32] = {
 };
 static Meta_Sub_Map fcoder_submaps_for_default[3] = {
 {"mapid_global", 12, "The following bindings apply in all situations.", 47, 0, 0, fcoder_binds_for_default_mapid_global, 48},
-{"mapid_file", 10, "The following bindings apply in general text files and most apply in code files, but some are overriden by other commands specific to code files.", 145, 0, 0, fcoder_binds_for_default_mapid_file, 65},
+{"mapid_file", 10, "The following bindings apply in general text files and most apply in code files, but some are overriden by other commands specific to code files.", 145, 0, 0, fcoder_binds_for_default_mapid_file, 67},
 {"default_code_map", 16, "The following commands only apply in files where the lexer (syntax highlighting) is turned on.", 94, "mapid_file", 10, fcoder_binds_for_default_default_code_map, 32},
 };
 static Meta_Key_Bind fcoder_binds_for_mac_default_mapid_global[48] = {
@@ -544,7 +550,7 @@ static Meta_Key_Bind fcoder_binds_for_mac_default_mapid_global[48] = {
 {0, 55326, 0, "project_fkey_command", 20, LINK_PROCS(project_fkey_command)},
 {0, 55327, 0, "project_fkey_command", 20, LINK_PROCS(project_fkey_command)},
 };
-static Meta_Key_Bind fcoder_binds_for_mac_default_mapid_file[63] = {
+static Meta_Key_Bind fcoder_binds_for_mac_default_mapid_file[65] = {
 {1, 0, 0, "write_character", 15, LINK_PROCS(write_character)},
 {1, 0, 2, "write_character", 15, LINK_PROCS(write_character)},
 {0, 55308, 0, "click_set_cursor", 16, LINK_PROCS(click_set_cursor)},
@@ -560,6 +566,8 @@ static Meta_Key_Bind fcoder_binds_for_mac_default_mapid_file[63] = {
 {0, 55298, 0, "move_down", 9, LINK_PROCS(move_down)},
 {0, 55304, 0, "seek_end_of_line", 16, LINK_PROCS(seek_end_of_line)},
 {0, 55303, 0, "seek_beginning_of_line", 22, LINK_PROCS(seek_beginning_of_line)},
+{0, 55305, 1, "goto_beginning_of_file", 22, LINK_PROCS(goto_beginning_of_file)},
+{0, 55306, 1, "goto_end_of_file", 16, LINK_PROCS(goto_end_of_file)},
 {0, 55305, 0, "page_up", 7, LINK_PROCS(page_up)},
 {0, 55306, 0, "page_down", 9, LINK_PROCS(page_down)},
 {0, 55300, 4, "seek_whitespace_right", 21, LINK_PROCS(seek_whitespace_right)},
@@ -645,7 +653,7 @@ static Meta_Key_Bind fcoder_binds_for_mac_default_default_code_map[32] = {
 };
 static Meta_Sub_Map fcoder_submaps_for_mac_default[3] = {
 {"mapid_global", 12, "The following bindings apply in all situations.", 47, 0, 0, fcoder_binds_for_mac_default_mapid_global, 48},
-{"mapid_file", 10, "The following bindings apply in general text files and most apply in code files, but some are overriden by other commands specific to code files.", 145, 0, 0, fcoder_binds_for_mac_default_mapid_file, 63},
+{"mapid_file", 10, "The following bindings apply in general text files and most apply in code files, but some are overriden by other commands specific to code files.", 145, 0, 0, fcoder_binds_for_mac_default_mapid_file, 65},
 {"default_code_map", 16, "The following commands only apply in files where the lexer (syntax highlighting) is turned on.", 94, "mapid_file", 10, fcoder_binds_for_mac_default_default_code_map, 32},
 };
 static Meta_Mapping fcoder_meta_maps[2] = {

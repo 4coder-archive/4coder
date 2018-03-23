@@ -90,7 +90,7 @@ generate_keycode_enum(){
 #define DefKeyEnum(n) append(&out, "key_" #n " = "); append_int_to_str(&out, key_##n); append(&out, ",\n");
     KEY_LIST(DefKeyEnum)
 #undef DefKeyEnum
-    append(&out, "};\n");
+        append(&out, "};\n");
     
     append(&out,
            "static char*\n"
@@ -102,10 +102,10 @@ generate_keycode_enum(){
     KEY_LIST(KeyCase)
 #undef KeyCase
     
-    append(&out,
-           "}\n"
-           "return(result);\n"
-           "}\n");
+        append(&out,
+               "}\n"
+               "return(result);\n"
+               "}\n");
     
     fm_write_file(filename_keycodes, out.str, out.size);
     out.size = 0;
@@ -783,6 +783,8 @@ generate_remapping_code_and_data(){
         bind(mappings, key_down,      MDFR_NONE, move_down);
         bind(mappings, key_end,       MDFR_NONE, seek_end_of_line);
         bind(mappings, key_home,      MDFR_NONE, seek_beginning_of_line);
+        bind(mappings, key_page_up,   MDFR_CTRL, goto_beginning_of_file);
+        bind(mappings, key_page_down, MDFR_CTRL, goto_end_of_file);
         bind(mappings, key_page_up,   MDFR_NONE, page_up);
         bind(mappings, key_page_down, MDFR_NONE, page_down);
         
@@ -981,6 +983,8 @@ generate_remapping_code_and_data(){
         bind(mappings, key_down, MDFR_NONE, move_down);
         bind(mappings, key_end, MDFR_NONE, seek_end_of_line);
         bind(mappings, key_home, MDFR_NONE, seek_beginning_of_line);
+        bind(mappings, key_page_up,   MDFR_CTRL, goto_beginning_of_file);
+        bind(mappings, key_page_down, MDFR_CTRL, goto_end_of_file);
         bind(mappings, key_page_up, MDFR_NONE, page_up);
         bind(mappings, key_page_down, MDFR_NONE, page_down);
         
