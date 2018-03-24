@@ -25,7 +25,7 @@ bind(context, 'm', MDFR_ALT, build_in_build_panel);
 bind(context, 'z', MDFR_ALT, execute_any_cli);
 bind(context, 'Z', MDFR_ALT, execute_previous_cli);
 bind(context, 'x', MDFR_ALT, execute_arbitrary_command);
-bind(context, 's', MDFR_ALT, show_scrollbar);
+bind(context, 'W', MDFR_ALT, show_scrollbar);
 bind(context, 'w', MDFR_ALT, hide_scrollbar);
 bind(context, 'b', MDFR_ALT, toggle_filebar);
 bind(context, '@', MDFR_ALT, toggle_mouse);
@@ -102,6 +102,7 @@ bind(context, 'Q', MDFR_CTRL, query_replace_identifier);
 bind(context, 'q', MDFR_ALT, query_replace_selection);
 bind(context, 'r', MDFR_CTRL, reverse_search);
 bind(context, 's', MDFR_CTRL, save);
+bind(context, 's', MDFR_ALT, save_to_query);
 bind(context, 't', MDFR_CTRL, search_identifier);
 bind(context, 'T', MDFR_CTRL, list_all_locations_of_identifier);
 bind(context, 'u', MDFR_CTRL, to_uppercase);
@@ -181,7 +182,7 @@ bind(context, 'm', MDFR_CTRL, build_in_build_panel);
 bind(context, 'z', MDFR_CTRL, execute_any_cli);
 bind(context, 'Z', MDFR_CTRL, execute_previous_cli);
 bind(context, 'x', MDFR_CTRL, execute_arbitrary_command);
-bind(context, 's', MDFR_CTRL, show_scrollbar);
+bind(context, 'W', MDFR_CTRL, show_scrollbar);
 bind(context, 'w', MDFR_CTRL, hide_scrollbar);
 bind(context, 'b', MDFR_CTRL, toggle_filebar);
 bind(context, '@', MDFR_CTRL, toggle_mouse);
@@ -256,6 +257,7 @@ bind(context, 'q', MDFR_CMND, query_replace);
 bind(context, 'Q', MDFR_CMND, query_replace_identifier);
 bind(context, 'r', MDFR_CMND, reverse_search);
 bind(context, 's', MDFR_CMND, save);
+bind(context, 's', MDFR_CTRL, save_to_query);
 bind(context, 't', MDFR_CMND, search_identifier);
 bind(context, 'T', MDFR_CMND, list_all_locations_of_identifier);
 bind(context, 'u', MDFR_CMND, to_uppercase);
@@ -367,7 +369,7 @@ static Meta_Key_Bind fcoder_binds_for_default_mapid_global[48] = {
 {0, 122, 2, "execute_any_cli", 15, LINK_PROCS(execute_any_cli)},
 {0, 90, 2, "execute_previous_cli", 20, LINK_PROCS(execute_previous_cli)},
 {0, 120, 2, "execute_arbitrary_command", 25, LINK_PROCS(execute_arbitrary_command)},
-{0, 115, 2, "show_scrollbar", 14, LINK_PROCS(show_scrollbar)},
+{0, 87, 2, "show_scrollbar", 14, LINK_PROCS(show_scrollbar)},
 {0, 119, 2, "hide_scrollbar", 14, LINK_PROCS(hide_scrollbar)},
 {0, 98, 2, "toggle_filebar", 14, LINK_PROCS(toggle_filebar)},
 {0, 64, 2, "toggle_mouse", 12, LINK_PROCS(toggle_mouse)},
@@ -392,7 +394,7 @@ static Meta_Key_Bind fcoder_binds_for_default_mapid_global[48] = {
 {0, 55326, 0, "project_fkey_command", 20, LINK_PROCS(project_fkey_command)},
 {0, 55327, 0, "project_fkey_command", 20, LINK_PROCS(project_fkey_command)},
 };
-static Meta_Key_Bind fcoder_binds_for_default_mapid_file[67] = {
+static Meta_Key_Bind fcoder_binds_for_default_mapid_file[68] = {
 {1, 0, 0, "write_character", 15, LINK_PROCS(write_character)},
 {0, 55308, 0, "click_set_cursor", 16, LINK_PROCS(click_set_cursor)},
 {0, 55310, 0, "click_set_mark", 14, LINK_PROCS(click_set_mark)},
@@ -444,6 +446,7 @@ static Meta_Key_Bind fcoder_binds_for_default_mapid_file[67] = {
 {0, 113, 2, "query_replace_selection", 23, LINK_PROCS(query_replace_selection)},
 {0, 114, 1, "reverse_search", 14, LINK_PROCS(reverse_search)},
 {0, 115, 1, "save", 4, LINK_PROCS(save)},
+{0, 115, 2, "save_to_query", 13, LINK_PROCS(save_to_query)},
 {0, 116, 1, "search_identifier", 17, LINK_PROCS(search_identifier)},
 {0, 84, 1, "list_all_locations_of_identifier", 32, LINK_PROCS(list_all_locations_of_identifier)},
 {0, 117, 1, "to_uppercase", 12, LINK_PROCS(to_uppercase)},
@@ -497,7 +500,7 @@ static Meta_Key_Bind fcoder_binds_for_default_default_code_map[32] = {
 };
 static Meta_Sub_Map fcoder_submaps_for_default[3] = {
 {"mapid_global", 12, "The following bindings apply in all situations.", 47, 0, 0, fcoder_binds_for_default_mapid_global, 48},
-{"mapid_file", 10, "The following bindings apply in general text files and most apply in code files, but some are overriden by other commands specific to code files.", 145, 0, 0, fcoder_binds_for_default_mapid_file, 67},
+{"mapid_file", 10, "The following bindings apply in general text files and most apply in code files, but some are overriden by other commands specific to code files.", 145, 0, 0, fcoder_binds_for_default_mapid_file, 68},
 {"default_code_map", 16, "The following commands only apply in files where the lexer (syntax highlighting) is turned on.", 94, "mapid_file", 10, fcoder_binds_for_default_default_code_map, 32},
 };
 static Meta_Key_Bind fcoder_binds_for_mac_default_mapid_global[48] = {
@@ -525,7 +528,7 @@ static Meta_Key_Bind fcoder_binds_for_mac_default_mapid_global[48] = {
 {0, 122, 1, "execute_any_cli", 15, LINK_PROCS(execute_any_cli)},
 {0, 90, 1, "execute_previous_cli", 20, LINK_PROCS(execute_previous_cli)},
 {0, 120, 1, "execute_arbitrary_command", 25, LINK_PROCS(execute_arbitrary_command)},
-{0, 115, 1, "show_scrollbar", 14, LINK_PROCS(show_scrollbar)},
+{0, 87, 1, "show_scrollbar", 14, LINK_PROCS(show_scrollbar)},
 {0, 119, 1, "hide_scrollbar", 14, LINK_PROCS(hide_scrollbar)},
 {0, 98, 1, "toggle_filebar", 14, LINK_PROCS(toggle_filebar)},
 {0, 64, 1, "toggle_mouse", 12, LINK_PROCS(toggle_mouse)},
@@ -550,7 +553,7 @@ static Meta_Key_Bind fcoder_binds_for_mac_default_mapid_global[48] = {
 {0, 55326, 0, "project_fkey_command", 20, LINK_PROCS(project_fkey_command)},
 {0, 55327, 0, "project_fkey_command", 20, LINK_PROCS(project_fkey_command)},
 };
-static Meta_Key_Bind fcoder_binds_for_mac_default_mapid_file[65] = {
+static Meta_Key_Bind fcoder_binds_for_mac_default_mapid_file[66] = {
 {1, 0, 0, "write_character", 15, LINK_PROCS(write_character)},
 {1, 0, 2, "write_character", 15, LINK_PROCS(write_character)},
 {0, 55308, 0, "click_set_cursor", 16, LINK_PROCS(click_set_cursor)},
@@ -600,6 +603,7 @@ static Meta_Key_Bind fcoder_binds_for_mac_default_mapid_file[65] = {
 {0, 81, 4, "query_replace_identifier", 24, LINK_PROCS(query_replace_identifier)},
 {0, 114, 4, "reverse_search", 14, LINK_PROCS(reverse_search)},
 {0, 115, 4, "save", 4, LINK_PROCS(save)},
+{0, 115, 1, "save_to_query", 13, LINK_PROCS(save_to_query)},
 {0, 116, 4, "search_identifier", 17, LINK_PROCS(search_identifier)},
 {0, 84, 4, "list_all_locations_of_identifier", 32, LINK_PROCS(list_all_locations_of_identifier)},
 {0, 117, 4, "to_uppercase", 12, LINK_PROCS(to_uppercase)},
@@ -653,7 +657,7 @@ static Meta_Key_Bind fcoder_binds_for_mac_default_default_code_map[32] = {
 };
 static Meta_Sub_Map fcoder_submaps_for_mac_default[3] = {
 {"mapid_global", 12, "The following bindings apply in all situations.", 47, 0, 0, fcoder_binds_for_mac_default_mapid_global, 48},
-{"mapid_file", 10, "The following bindings apply in general text files and most apply in code files, but some are overriden by other commands specific to code files.", 145, 0, 0, fcoder_binds_for_mac_default_mapid_file, 65},
+{"mapid_file", 10, "The following bindings apply in general text files and most apply in code files, but some are overriden by other commands specific to code files.", 145, 0, 0, fcoder_binds_for_mac_default_mapid_file, 66},
 {"default_code_map", 16, "The following commands only apply in files where the lexer (syntax highlighting) is turned on.", 94, "mapid_file", 10, fcoder_binds_for_mac_default_default_code_map, 32},
 };
 static Meta_Mapping fcoder_meta_maps[2] = {

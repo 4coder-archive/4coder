@@ -13,22 +13,6 @@
 // Edit Position Basics
 //
 
-enum Edit_Pos_Set_Type{
-    EditPos_None,
-    EditPos_CursorSet,
-    EditPos_ScrollSet
-};
-struct File_Edit_Positions{
-    GUI_Scroll_Vars scroll;
-    Full_Cursor cursor;
-    i32 mark;
-    f32 preferred_x;
-    i32 scroll_i;
-    i32 last_set_type;
-    b32 in_view;
-};
-static File_Edit_Positions null_edit_pos = {0};
-
 internal void
 edit_pos_set_cursor(File_Edit_Positions *edit_pos, Full_Cursor cursor, b32 set_preferred_x, b32 unwrapped_lines){
     edit_pos->cursor = cursor;
@@ -47,136 +31,16 @@ edit_pos_set_scroll(File_Edit_Positions *edit_pos, GUI_Scroll_Vars scroll){
     edit_pos->last_set_type = EditPos_ScrollSet;
 }
 
-
-// TODO(NAME): Replace this with markers over time.
-//
-// Highlighting Information
-//
-
-struct Text_Effect{
-    i32 start, end;
-    u32 color;
-    f32 seconds_down, seconds_max;
-};
-
 //
 // Editing_File
 //
 
-union Buffer_Slot_ID{
-    Buffer_ID id;
-    i16 part[2];
-};
 inline Buffer_Slot_ID
 to_file_id(i32 id){
     Buffer_Slot_ID result;
     result.id = id;
     return(result);
 }
-
-struct Marker_Array{
-    Marker_Array *next, *prev;
-    Buffer_Slot_ID buffer_id;
-    u32 count, sim_max, max;
-    Marker marker_0;
-};
-global_const u32 sizeof_marker_array = sizeof(Marker_Array) - sizeof(Marker);
-
-struct Editing_File_Markers{
-    Marker_Array sentinel;
-    u32 array_count;
-    u32 marker_count;
-};
-
-struct Editing_File_Settings{
-    i32 base_map_id;
-    i32 display_width;
-    i32 minimum_base_display_width;
-    i32 wrap_indicator;
-    Parse_Context_ID parse_context_id;
-    b32 dos_write_mode;
-    b32 virtual_white;
-    Face_ID font_id;
-    b8 unwrapped_lines;
-    b8 tokens_exist;
-    b8 tokens_without_strings;
-    b8 is_initialized;
-    b8 unimportant;
-    b8 read_only;
-    b8 never_kill;
-    u8 pad[1];
-};
-global_const Editing_File_Settings null_editing_file_settings = {0};
-
-struct Editing_Hacks{
-    b32 suppression_mode;
-    b32 needs_wraps_and_fix_cursor;
-};
-
-struct Editing_File_State{
-    Gap_Buffer buffer;
-    
-    i32 *wrap_line_index;
-    i32 wrap_max;
-    
-    i32 *character_starts;
-    i32 character_start_max;
-    
-    f32 *line_indents;
-    i32 line_indent_max;
-    
-    i32 wrap_line_count;
-    
-    i32 *wrap_positions;
-    i32 wrap_position_count;
-    i32 wrap_position_max;
-    
-    Undo_Data undo;
-    
-    Cpp_Token_Array token_array;
-    Cpp_Token_Array swap_array;
-    u32 lex_job;
-    b32 tokens_complete;
-    b32 still_lexing;
-    
-    Text_Effect paste_effect;
-    
-    Dirty_State dirty;
-    u32 ignore_behind_os;
-    
-    File_Edit_Positions edit_pos_space[16];
-    File_Edit_Positions *edit_poss[16];
-    i32 edit_poss_count;
-    
-    Editing_Hacks hacks;
-};
-global_const Editing_File_State null_editing_file_state = {0};
-
-struct Editing_File_Name{
-    char name_[256];
-    String name;
-};
-
-struct File_Node{
-    File_Node *next;
-    File_Node *prev;
-};
-
-struct Editing_File{
-    // NOTE(allen): node must be the first member of Editing_File!
-    File_Node node;
-    Editing_File_Settings settings;
-    b32 is_loading;
-    b32 is_dummy;
-    Editing_File_State state;
-    Editing_File_Markers markers;
-    Editing_File_Name base_name;
-    Editing_File_Name unique_name;
-    Editing_File_Name canon;
-    Buffer_Slot_ID id;
-};
-static Editing_File null_editing_file = {0};
-
 
 //
 // Handling a file's Marker Arrays
@@ -207,9 +71,9 @@ clear_file_markers_state(General_Memory *general, Editing_File_Markers *markers)
 
 internal void*
 allocate_markers_state(General_Memory *general, Editing_File *file, u32 new_array_max){
-    u32 memory_size = sizeof_marker_array + sizeof(Marker)*new_array_max;
+    u32 memory_size = sizeof(Marker_Array) + sizeof(Marker)*new_array_max;
     memory_size = l_round_up_u32(memory_size, KB(4));
-    u32 real_max = (memory_size - sizeof_marker_array)/sizeof(Marker);
+    u32 real_max = (memory_size - sizeof(Marker_Array))/sizeof(Marker);
     Marker_Array *array = (Marker_Array*)general_memory_allocate(general, memory_size);
     
     dll_insert_back(&file->markers.sentinel, array);
@@ -243,7 +107,7 @@ markers_set(Editing_File *file, void *handle, u32 first_index, u32 count, Marker
                     file->markers.marker_count += new_count - markers->count;
                     markers->count = new_count;
                 }
-                Marker *dst = &markers->marker_0;
+                Marker *dst = MarkerArrayBase(markers);
                 memcpy(dst + first_index, source, sizeof(Marker)*count);
                 result = true;
             }
@@ -260,7 +124,7 @@ markers_get(Editing_File *file, void *handle, u32 first_index, u32 count, Marker
         Marker_Array *markers = (Marker_Array*)handle;
         if (markers->buffer_id.id == file->id.id){
             if (first_index + count <= markers->count){
-                Marker *src = &markers->marker_0;
+                Marker *src = MarkerArrayBase(markers);
                 memcpy(output, src + first_index, sizeof(Marker)*count);
                 result = true;
             }
@@ -465,9 +329,9 @@ file_is_ready(Editing_File *file){
 
 inline void
 file_set_to_loading(Editing_File *file){
-    file->state = null_editing_file_state;
-    file->settings = null_editing_file_settings;
-    file->is_loading = 1;
+    memset(&file->state, 0, sizeof(file->state));
+    memset(&file->settings, 0, sizeof(file->settings));
+    file->is_loading = true;
 }
 
 inline void

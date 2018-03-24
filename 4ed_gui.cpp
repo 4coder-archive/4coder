@@ -9,17 +9,6 @@
 
 // TOP
 
-struct Query_Slot{
-    Query_Slot *next;
-    Query_Bar *query_bar;
-};
-
-struct Query_Set{
-    Query_Slot slots[8];
-    Query_Slot *free_slot;
-    Query_Slot *used_slot;
-};
-
 internal void
 init_query_set(Query_Set *set){
     Query_Slot *slot = set->slots;
@@ -63,12 +52,6 @@ free_query_slot(Query_Set *set, Query_Bar *match_bar){
     }
 }
 
-struct Super_Color{
-    Vec4 hsla;
-    Vec4 rgba;
-    u32 *out;
-};
-
 internal Super_Color
 super_color_create(u32 packed){
     Super_Color result = {};
@@ -111,91 +94,6 @@ super_color_post_byte(Super_Color *color, i32 channel, u8 byte){
     super_color_post_packed(color, packed);
     return packed;
 }
-
-struct GUI_Target{
-    Partition push;
-    
-    GUI_id active;
-    GUI_id mouse_hot;
-    GUI_id auto_hot;
-    GUI_id hover;
-    
-    // TODO(allen): Can we remove original yet?
-    GUI_Scroll_Vars scroll_original;
-    i32_Rect region_original;
-    
-    //GUI_Scroll_Vars scroll_updated;
-    i32_Rect region_updated;
-    
-    // TODO(allen): Would rather have a way of tracking this
-    // for more than one list.  Perhaps just throw in a hash table?
-    // Or maybe this only needs to be tracked for the active list.
-    i32 list_max;
-    b32 has_list_index_position;
-    i32_Rect list_index_position;
-    i32 list_view_min;
-    i32 list_view_max;
-    
-    GUI_id scroll_id; 
-    // TODO(allen): is currently ignored in the wheel code, reevaluate?
-    i32 delta;
-    b32 has_keys;
-    b32 animating;
-    b32 did_file;
-};
-
-struct GUI_Item_Update{
-    i32 partition_point;
-    
-    b32 has_adjustment;
-    i32 adjustment_value;
-    
-    b32 has_index_position;
-    i32_Rect index_position;
-};
-
-struct GUI_Header{
-    i32 type;
-    i32 size;
-};
-
-struct GUI_Interactive{
-    GUI_Header h;
-    GUI_id id;
-};
-
-struct GUI_Edit{
-    GUI_Header h;
-    GUI_id id;
-    void *out;
-};
-
-enum GUI_Command_Type{
-    guicom_null,
-    guicom_begin_serial,
-    guicom_end_serial,
-    guicom_top_bar,
-    guicom_file,
-    guicom_text_field,
-    guicom_color_button,
-    guicom_font_button,
-    guicom_text_with_cursor,
-    guicom_begin_list,
-    guicom_end_list,
-    guicom_file_option,
-    guicom_fixed_option,
-    guicom_button,
-    guicom_fixed_option_checkbox,
-    guicom_style_preview,
-    guicom_scrollable,
-    guicom_scrollable_bar,
-    guicom_scrollable_top,
-    guicom_scrollable_slider,
-    guicom_scrollable_bottom,
-    guicom_scrollable_invisible,
-    guicom_begin_scrollable_section,
-    guicom_end_scrollable_section,
-};
 
 inline b32
 gui_id_eq(GUI_id id1, GUI_id id2){
@@ -720,38 +618,6 @@ gui_activate_scrolling(GUI_Target *target){
     target->active = gui_id_scrollbar();
 }
 
-struct GUI_Section{
-    i32 max_v, v, top_v;
-};
-
-struct GUI_List_Vars{
-    b32 in_list;
-    i32 index;
-    i32 auto_hot;
-    i32 auto_activate;
-};
-
-struct GUI_Session{
-    i32_Rect full_rect;
-    i32_Rect rect;
-    
-    i32 suggested_max_y;
-    i32 clip_y;
-    
-    i32 line_height;
-    b32 is_scrollable;
-    i32 scrollable_items_bottom;
-    
-    i32_Rect scroll_region;
-    i32_Rect scroll_rect;
-    f32 scroll_top, scroll_bottom;
-    
-    GUI_List_Vars list;
-    
-    GUI_Section sections[64];
-    i32 t;
-};
-
 #define GUIScrollbarWidth 16
 
 // TODO(allen): We can probably totally get rid of this now.
@@ -923,16 +789,6 @@ gui_read_out(void **ptr){
     *ptr = ((void**)ptr) + 1;
     return(result);
 }
-
-struct GUI_Interpret_Result{
-    b32 has_info;
-    b32 auto_hot;
-    b32 auto_activate;
-    i32 screen_orientation;
-    
-    b32 has_region;
-    i32_Rect region;
-};
 
 internal GUI_Interpret_Result
 gui_interpret(GUI_Target *target, GUI_Session *session, GUI_Header *h,
@@ -1211,11 +1067,6 @@ gui_interpret(GUI_Target *target, GUI_Session *session, GUI_Header *h,
     
     return(result);
 }
-
-struct GUI_View_Jump{
-    i32 view_min;
-    i32 view_max;
-};
 
 internal GUI_View_Jump
 gui_compute_view_jump(i32_Rect scroll_region, i32_Rect position){

@@ -5,7 +5,7 @@
 
 If you cannot find what you are looking for please contact \STYLE{code} editor@4coder.net \END with questions.
 
-\LINK{!http://patreon.com/mr4thdimention} Support Development \END
+\LINK{!http://4coder.itch.io/4coder} Get Builds and Support Development \END
 
 \LINK{document:features} Feature List \END
 

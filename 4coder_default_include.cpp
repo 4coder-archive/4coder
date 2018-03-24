@@ -354,15 +354,15 @@ CUSTOM_DOC("Create a copy of the line on which the cursor sits.")
     
     Temp_Memory temp = begin_temp_memory(part);
     String line_string = {0};
-    read_line(app, part, &buffer, view.cursor.line, &line_string);
-    
-    push_array(part, char, 1);
-    ++line_string.memory_size;
-    append_s_char(&line_string, '\n');
-    
-    int32_t pos = buffer_get_line_end(app, &buffer, view.cursor.line) + 1;
-    buffer_replace_range(app, &buffer, pos, pos, line_string.str, line_string.size);
-    
+    char *before_line = push_array(part, char, 1);
+    if (read_line(app, part, &buffer, view.cursor.line, &line_string)){
+        *before_line = '\n';
+        line_string.str = before_line;
+        line_string.size += 1;
+        
+        int32_t pos = buffer_get_line_end(app, &buffer, view.cursor.line);
+        buffer_replace_range(app, &buffer, pos, pos, line_string.str, line_string.size);
+    }
     end_temp_memory(temp);
 }
 

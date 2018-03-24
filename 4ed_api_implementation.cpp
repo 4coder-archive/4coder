@@ -13,12 +13,7 @@
 
 inline b32
 access_test(u32 lock_flags, u32 access_flags){
-    b32 result = 0;
-    
-    if ((lock_flags & ~access_flags) == 0){
-        result = 1;
-    }
-    
+    b32 result = ((lock_flags & ~access_flags) == 0);
     return(result);
 }
 
@@ -70,32 +65,28 @@ fill_buffer_summary(Buffer_Summary *buffer, Editing_File *file, Command_Data *cm
 
 internal void
 fill_view_summary(System_Functions *system, View_Summary *view, View *vptr, Live_Views *live_set, Working_Set *working_set){
-    Buffer_ID buffer_id = 0;
-    File_Viewing_Data *data = &vptr->file_data;
+    File_Viewing_Data *data = &vptr->transient.file_data;
     
     *view = null_view_summary;
     
-    if (vptr->in_use){
-        view->exists = 1;
+    if (vptr->transient.in_use){
+        view->exists = true;
         view->view_id = (int32_t)(vptr - live_set->views) + 1;
-        view->line_height = (f32)(vptr->line_height);
+        view->line_height = (f32)(vptr->transient.line_height);
         view->unwrapped_lines = data->file->settings.unwrapped_lines;
         view->show_whitespace = data->show_whitespace;
         view->lock_flags = view_lock_flags(vptr);
         
-        Assert(data->file);
+        view->buffer_id = vptr->transient.file_data.file->id.id;
         
-        buffer_id = vptr->file_data.file->id.id;
+        Assert(data->file != 0);
+        view->mark = file_compute_cursor(system, data->file, seek_pos(vptr->transient.edit_pos->mark), 0);
+        view->cursor = vptr->transient.edit_pos->cursor;
+        view->preferred_x = vptr->transient.edit_pos->preferred_x;
         
-        view->buffer_id = buffer_id;
-        
-        view->mark = view_compute_cursor(system, vptr, seek_pos(vptr->edit_pos->mark), 0);
-        view->cursor = vptr->edit_pos->cursor;
-        view->preferred_x = vptr->edit_pos->preferred_x;
-        
-        view->view_region = vptr->panel->inner;
-        view->file_region = vptr->file_region;
-        view->scroll_vars = vptr->edit_pos->scroll;
+        view->view_region = vptr->transient.panel->inner;
+        view->file_region = vptr->transient.file_region;
+        view->scroll_vars = vptr->transient.edit_pos->scroll;
     }
 }
 
@@ -143,7 +134,7 @@ imp_get_view(Command_Data *cmd, View_ID view_id){
     view_id = view_id - 1;
     if (view_id >= 0 && view_id < live_set->max){
         vptr = live_set->views + view_id;
-        if (!vptr->in_use){
+        if (!vptr->transient.in_use){
             vptr = 0;
         }
     }
@@ -337,8 +328,7 @@ DOC_SEE(Command_Line_Interface_Flag)
         if (file != 0){
             b32 bind_to_new_view = true;
             if (!(flags & CLI_AlwaysBindToView)){
-                View_Iter iter = file_view_iter_init(&models->layout, file, 0);
-                if (file_view_iter_good(iter)){
+                if (file_is_viewed(&models->layout, file)){
                     bind_to_new_view = false;
                 }
             }
@@ -1062,10 +1052,14 @@ DOC_SEE(Buffer_Setting_ID)
                     file->settings.base_map_id = value;
                 }
                 
-                for (View_Iter iter = file_view_iter_init(&models->layout, file, 0);
-                     file_view_iter_good(iter);
-                     iter = file_view_iter_next(iter)){
-                    iter.view->map = file->settings.base_map_id;
+                for (Panel *panel = models->layout.used_sentinel.next;
+                     panel != &models->layout.used_sentinel;
+                     panel = panel->next){
+                    View *view = panel->view;
+                    if (view->transient.file_data.file != file){
+                        continue;
+                    }
+                    view->transient.map = file->settings.base_map_id;
                 }
             }break;
             
@@ -1453,7 +1447,7 @@ internal_get_view_next(Command_Data *cmd, View_Summary *view){
     
     if (index >= 0 && index < live_set->max){
         View *vptr = live_set->views + index;
-        Panel *panel = vptr->panel;
+        Panel *panel = vptr->transient.panel;
         if (panel != 0){
             panel = panel->next;
         }
@@ -1580,7 +1574,7 @@ DOC_SEE(View_Split_Position)
     System_Functions *system = cmd->system;
     Models *models = cmd->models;
     View *vptr = imp_get_view(cmd, view_location);
-    Panel *panel = vptr->panel;
+    Panel *panel = vptr->transient.panel;
     View_Summary result = {0};
     
     if (models->layout.panel_count < models->layout.panel_max_count){
@@ -1644,85 +1638,78 @@ in the system, the call will fail.)
     
     bool32 result = 0;
     
-    if (vptr){
-        if (models->layout.panel_count > 1){
-            Panel *panel = vptr->panel;
-            
-            Divider_And_ID div, parent_div, child_div;
-            i32 child;
-            i32 parent;
-            i32 which_child;
-            i32 active;
-            
-            live_set_free_view(&models->live_set, vptr, models);
-            panel->view = 0;
-            
-            div = layout_get_divider(&models->layout, panel->parent);
-            
-            // This divider cannot have two child dividers.
-            Assert(div.divider->child1 == -1 || div.divider->child2 == -1);
-            
-            // Get the child who needs to fill in this node's spot
-            child = div.divider->child1;
-            if (child == -1) child = div.divider->child2;
-            
-            parent = div.divider->parent;
-            which_child = div.divider->which_child;
-            
-            // Fill the child in the slot this node use to hold
-            if (parent == -1){
-                Assert(models->layout.root == div.id);
-                models->layout.root = child;
-            }
-            else{
-                parent_div = layout_get_divider(&models->layout, parent);
-                if (which_child == -1){
-                    parent_div.divider->child1 = child;
-                }
-                else{
-                    parent_div.divider->child2 = child;
-                }
-            }
-            
-            // If there was a child divider, give it information about it's new parent.
-            if (child != -1){
-                child_div = layout_get_divider(&models->layout, child);
-                child_div.divider->parent = parent;
-                child_div.divider->which_child = div.divider->which_child;
-            }
-            
-            // What is the new active panel?
-            active = -1;
-            if (child == -1){
-                Panel *panel_ptr = 0;
-                Panel *used_panels = &models->layout.used_sentinel;
-                for (dll_items(panel_ptr, used_panels)){
-                    if (panel_ptr != panel && panel_ptr->parent == div.id){
-                        panel_ptr->parent = parent;
-                        panel_ptr->which_child = which_child;
-                        active = (i32)(panel_ptr - models->layout.panels);
-                        break;
-                    }
-                }
-            }
-            else{
-                Panel *panel_ptr = panel->next;
-                if (panel_ptr == &models->layout.used_sentinel) panel_ptr = panel_ptr->next;
-                Assert(panel_ptr != panel);
-                active = (i32)(panel_ptr - models->layout.panels);
-            }
-            Assert(active != -1 && panel != models->layout.panels + active);
-            
-            // If the panel we're closing was previously active, we have to switch to it's sibling.
-            if (models->layout.active_panel == (i32)(panel - models->layout.panels)){
-                models->layout.active_panel = active;
-            }
-            
-            layout_free_divider(&models->layout, div.divider);
-            layout_free_panel(&models->layout, panel);
-            layout_fix_all_panels(&models->layout);
+    if (vptr != 0 && models->layout.panel_count > 1){
+        Panel *panel = vptr->transient.panel;
+        
+        live_set_free_view(&models->live_set, vptr, models);
+        panel->view = 0;
+        
+        Divider_And_ID div = layout_get_divider(&models->layout, panel->parent);
+        
+        // This divider cannot have two child dividers.
+        Assert(div.divider->child1 == -1 || div.divider->child2 == -1);
+        
+        // Get the child who needs to fill in this node's spot
+        i32 child = div.divider->child1;
+        if (child == -1) child = div.divider->child2;
+        
+        i32 parent = div.divider->parent;
+        i32 which_child = div.divider->which_child;
+        
+        // Fill the child in the slot this node use to hold
+        if (parent == -1){
+            Assert(models->layout.root == div.id);
+            models->layout.root = child;
         }
+        else{
+            Divider_And_ID parent_div = layout_get_divider(&models->layout, parent);
+            if (which_child == -1){
+                parent_div.divider->child1 = child;
+            }
+            else{
+                parent_div.divider->child2 = child;
+            }
+        }
+        
+        // If there was a child divider, give it information about it's new parent.
+        if (child != -1){
+            Divider_And_ID child_div = layout_get_divider(&models->layout, child);
+            child_div.divider->parent = parent;
+            child_div.divider->which_child = div.divider->which_child;
+        }
+        
+        // What is the new active panel?
+        i32 active = -1;
+        if (child == -1){
+            for (Panel *panel_ptr = models->layout.used_sentinel.next;
+                 panel_ptr != &models->layout.used_sentinel;
+                 panel_ptr = panel_ptr->next){
+                if (panel_ptr != panel && panel_ptr->parent == div.id){
+                    panel_ptr->parent = parent;
+                    panel_ptr->which_child = which_child;
+                    active = (i32)(panel_ptr - models->layout.panels);
+                    break;
+                }
+            }
+        }
+        else{
+            Panel *panel_ptr = panel->next;
+            if (panel_ptr == &models->layout.used_sentinel) panel_ptr = panel_ptr->next;
+            Assert(panel_ptr != panel);
+            active = (i32)(panel_ptr - models->layout.panels);
+        }
+        Assert(active != -1 && panel != models->layout.panels + active);
+        
+        // If the panel we're closing was previously active, we have to switch to it's sibling.
+        if (models->layout.active_panel == (i32)(panel - models->layout.panels)){
+            models->layout.active_panel = active;
+        }
+        
+        layout_free_divider(&models->layout, div.divider);
+        layout_free_panel(&models->layout, panel);
+        layout_fix_all_panels(&models->layout);
     }
+    
     
     return(result);
 }
@@ -1744,10 +1731,9 @@ DOC_SEE(get_active_view)
     View *vptr = imp_get_view(cmd, view);
     bool32 result = false;
     
-    if (vptr){
+    if (vptr != 0){
         result = true;
-        
-        Panel *panel = vptr->panel;
+        Panel *panel = vptr->transient.panel;
         models->layout.active_panel = (i32)(panel - models->layout.panels);
     }
     
@@ -1766,13 +1752,28 @@ DOC_RETURN(returns non-zero on success)
     View *vptr = imp_get_view(cmd, view);
     int32_t result = 0;
     
-    if (vptr){
+    if (vptr != 0){
         result = 1;
         switch (setting){
-            case ViewSetting_ShowWhitespace: *value_out = vptr->file_data.show_whitespace; break;
-            case ViewSetting_ShowScrollbar: *value_out = !vptr->hide_scrollbar; break;
-            case ViewSetting_ShowFileBar: *value_out = !vptr->hide_file_bar; break;
-            default: result = 0; break;
+            case ViewSetting_ShowWhitespace:
+            {
+                *value_out = vptr->transient.file_data.show_whitespace;
+            }break;
+            
+            case ViewSetting_ShowScrollbar:
+            {
+                *value_out = !vptr->transient.hide_scrollbar;
+            }break;
+            
+            case ViewSetting_ShowFileBar:
+            {
+                *value_out = !vptr->transient.hide_file_bar;
+            }break;
+            
+            default:
+            {
+                result = 0;
+            }break;
         }
     }
     
@@ -1793,22 +1794,22 @@ DOC_SEE(View_Setting_ID)
     View *vptr = imp_get_view(cmd, view);
     bool32 result = false;
     
-    if (vptr){
+    if (vptr != 0){
         result = true;
         switch (setting){
             case ViewSetting_ShowWhitespace:
             {
-                vptr->file_data.show_whitespace = value;
+                vptr->transient.file_data.show_whitespace = value;
             }break;
             
             case ViewSetting_ShowScrollbar:
             {
-                vptr->hide_scrollbar = !value;
+                vptr->transient.hide_scrollbar = !value;
             }break;
             
             case ViewSetting_ShowFileBar:
             {
-                vptr->hide_file_bar = !value;
+                vptr->transient.hide_file_bar = !value;
             }break;
             
             default:
@@ -1838,10 +1839,10 @@ DOC_RETURN(This call returns non-zero on success.)
         Editing_Layout *layout = &models->layout;
         View *vptr = imp_get_view(cmd, view);
         
-        if (vptr){
+        if (vptr != 0){
             result = true;
             
-            Panel *panel = vptr->panel;
+            Panel *panel = vptr->transient.panel;
             Panel_Divider *div = layout->dividers + panel->parent;
             
             if (panel->which_child == 1){
@@ -1872,11 +1873,12 @@ DOC_SEE(Full_Cursor)
     View *vptr = imp_get_view(cmd, view);
     bool32 result = false;
     
-    if (vptr){
-        Editing_File *file = vptr->file_data.file;
-        if (file != 0 && !file->is_loading){
+    if (vptr != 0){
+        Editing_File *file = vptr->transient.file_data.file;
+        Assert(file != 0);
+        if (!file->is_loading){
             result = true;
-            *cursor_out = view_compute_cursor(system, vptr, seek, 0);
+            *cursor_out = file_compute_cursor(system, file, seek, 0);
             fill_view_summary(system, view, vptr, cmd);
         }
     }
@@ -1897,15 +1899,14 @@ DOC_SEE(Buffer_Seek)
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     System_Functions *system = cmd->system;
     View *vptr = imp_get_view(cmd, view);
-    Editing_File *file = 0;
     bool32 result = false;
     
     if (vptr){
-        file = vptr->file_data.file;
-        Assert(file);
+        Editing_File *file = vptr->transient.file_data.file;
+        Assert(file != 0);
         if (!file->is_loading){
             result = true;
-            Full_Cursor cursor = view_compute_cursor(system, vptr, seek, 0);
+            Full_Cursor cursor = file_compute_cursor(system, file, seek, 0);
             view_set_cursor(vptr, cursor, set_preferred_x, file->settings.unwrapped_lines);
             fill_view_summary(system, view, vptr, cmd);
         }
@@ -1925,12 +1926,12 @@ DOC_SEE(GUI_Scroll_Vars)
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     System_Functions *system = cmd->system;
     View *vptr = imp_get_view(cmd, view);
-    Editing_File *file = 0;
     bool32 result = false;
     
-    if (vptr){
-        file = vptr->file_data.file;
-        if (file && !file->is_loading){
+    if (vptr != 0){
+        Editing_File *file = vptr->transient.file_data.file;
+        Assert(file != 0);
+        if (!file->is_loading){
             result = true;
             view_set_scroll(system, vptr, scroll);
             fill_view_summary(system, view, vptr, cmd);
@@ -1952,21 +1953,20 @@ DOC_SEE(Buffer_Seek)
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     System_Functions *system = cmd->system;
     View *vptr = imp_get_view(cmd, view);
-    Editing_File *file = 0;
-    Full_Cursor cursor = {0};
     bool32 result = false;
     
-    if (vptr){
-        file = vptr->file_data.file;
-        if (file && !file->is_loading){
+    if (vptr != 0){
+        Editing_File *file = vptr->transient.file_data.file;
+        Assert(file != 0);
+        if (!file->is_loading){
             if (seek.type != buffer_seek_pos){
                 result = true;
-                cursor = view_compute_cursor(system, vptr, seek, 0);
-                vptr->edit_pos->mark = cursor.pos;
+                Full_Cursor cursor = file_compute_cursor(system, file, seek, 0);
+                vptr->transient.edit_pos->mark = cursor.pos;
             }
             else{
                 result = true;
-                vptr->edit_pos->mark = seek.pos;
+                vptr->transient.edit_pos->mark = seek.pos;
             }
             fill_view_summary(system, view, vptr, cmd);
         }
@@ -1995,13 +1995,13 @@ and the turn_on set to false, will switch back to showing the cursor.
     View *vptr = imp_get_view(cmd, view);
     bool32 result = false;
     
-    if (vptr){
+    if (vptr != 0){
         result = true;
         if (turn_on){
             view_set_temp_highlight(system, vptr, start, end);
         }
         else{
-            vptr->file_data.show_temp_highlight = 0;
+            vptr->transient.file_data.show_temp_highlight = false;
         }
         fill_view_summary(system, view, vptr, cmd);
     }
@@ -2025,12 +2025,11 @@ DOC_SEE(Set_Buffer_Flag)
     Models *models = cmd->models;
     bool32 result = false;
     
-    if (vptr){
+    if (vptr != 0){
         Editing_File *file = working_set_get_active_file(&models->working_set, buffer_id);
-        
         if (file != 0){
             result = true;
-            if (file != vptr->file_data.file){
+            if (file != vptr->transient.file_data.file){
                 view_set_file(system, vptr, file, models);
                 if (!(flags & SetBuffer_KeepOriginalGUI)){
                     view_show_file(vptr, models);
@@ -2168,12 +2167,11 @@ only use for this call is in an interactive command that makes calls to get_user
 */{
     Command_Data *command = (Command_Data*)app->cmd_context;
     USE_VIEW(vptr);
-    Query_Slot *slot = 0;
-    
-    slot = alloc_query_slot(&vptr->query_set);
-    slot->query_bar = bar;
-    
+    Query_Slot *slot = alloc_query_slot(&vptr->transient.query_set);
     bool32 result = (slot != 0);
+    if (result){
+        slot->query_bar = bar;
+    }
     return(result);
 }
 
@@ -2186,7 +2184,7 @@ DOC(Stops showing the particular query bar specified by the bar parameter.)
 */{
     Command_Data *command = (Command_Data*)app->cmd_context;
     USE_VIEW(vptr);
-    free_query_slot(&vptr->query_set, bar);
+    free_query_slot(&vptr->transient.query_set, bar);
 }
 
 API_EXPORT void
@@ -2201,6 +2199,14 @@ DOC(This call posts a string to the *messages* buffer.)
     do_feedback_message(cmd->system, models, make_string(str, len));
 }
 
+internal void
+style_set_colors(Style *style, Theme *theme){
+    for (u32 i = 0; i < Stag_COUNT; ++i){
+        u32 *color_ptr = style_index_by_tag(&style->main, i);
+        *color_ptr = theme->colors[i];
+    }
+}
+
 API_EXPORT void
 Create_Theme(Application_Links *app, Theme *theme, char *name, int32_t len)
 /*
@@ -2210,22 +2216,26 @@ DOC_PARAM(len, The length of the name string.)
 DOC(This call creates a new theme.  If the given name is already the name of a string, the old string will be replaced with the new one.  This call does not set the current theme.)
 */{
     Command_Data *cmd = (Command_Data*)app->cmd_context;
-    Style_Library *styles = &cmd->models->styles;
+    Style_Library *library = &cmd->models->styles;
     String theme_name = make_string(name, len);
     
     b32 hit_existing_theme = false;
-    i32 count = styles->count;
-    Style *s = styles->styles;
-    for (i32 i = 0; i < count; ++i, ++s){
-        if (match_ss(s->name, theme_name)){
-            style_set_colors(s, theme);
+    i32 count = library->count;
+    Style *style = library->styles;
+    for (i32 i = 0; i < count; ++i, ++style){
+        if (match(style->name, theme_name)){
+            style_set_colors(style, theme);
             hit_existing_theme = true;
             break;
         }
     }
     
     if (!hit_existing_theme){
-        style_add(styles, theme, make_string(name, len));
+        if (library->count < library->max){
+            Style *style = &library->styles[library->count++];
+            style_set_colors(style, theme);
+            style_set_name(style, make_string(name, len));
+        }
     }
 }
 
@@ -2607,18 +2617,20 @@ Directory_Get_Hot(Application_Links *app, char *out, int32_t capacity)
 DOC_PARAM(out, On success this character buffer is filled with the 4coder 'hot directory'.)
 DOC_PARAM(capacity, Specifies the capacity in bytes of the of the out buffer.)
 DOC(4coder has a concept of a 'hot directory' which is the directory most recently accessed in the GUI.  Whenever the GUI is opened it shows the hot directory. In the future this will be deprecated and eliminated in favor of more flexible hot directories created and controlled in the custom layer.)
-DOC_RETURN(This call returns the length of the hot directory string whether or not it was successfully copied into the output buffer.  The call is successful if and only if capacity is greater than or the return size.)
+DOC_RETURN(This call returns the length of the hot directory string whether or not it was successfully copied into the output buffer.  The call is successful if and only if capacity is greater than or equal to the return size.)
 DOC_SEE(directory_set_hot)
 */{
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     Hot_Directory *hot = &cmd->models->hot_directory;
-    i32 copy_max = capacity - 1;
     hot_directory_clean_end(hot);
-    if (copy_max > hot->string.size){
-        copy_max = hot->string.size;
+    if (capacity > 0){
+        i32 copy_max = capacity - 1;
+        if (copy_max > hot->string.size){
+            copy_max = hot->string.size;
+        }
+        memcpy(out, hot->string.str, copy_max);
+        out[copy_max] = 0;
     }
-    memcpy(out, hot->string.str, copy_max);
-    out[copy_max] = 0;
     return(hot->string.size);
 }
 

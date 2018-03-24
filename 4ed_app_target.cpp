@@ -44,34 +44,38 @@
 
 #include "4ed_linked_node_macros.h"
 #include "4ed_log.h"
+#include "4ed_gui.h"
+
+#include "4ed_buffer_model.h"
+#include "4ed_translation.h"
+#include "4ed_buffer.h"
+#include "4ed_undo.h"
+#include "4ed_file.h"
+#include "4ed_style.h"
+#include "4ed_hot_directory.h"
+#include "4ed_view.h"
 
 #include "4ed_font.cpp"
 
+//check
 #include "4ed_translation.cpp"
-
 #include "4ed_render_target.cpp"
 #include "4ed_render_fill.cpp"
-
-#include "4ed_style.h"
-#include "4ed_style.cpp"
 #include "4ed_command.cpp"
-
+//check
 #include "4ed_buffer.cpp"
-#include "4ed_undo.cpp"
+//check
 #include "4ed_file.cpp"
 #include "4ed_working_set.cpp"
+//check
 #include "4ed_hot_directory.cpp"
 #include "4ed_parse_contexts.cpp"
-
 #include "4ed_cli.cpp"
-
-#include "4ed_gui.h"
+//check
 #include "4ed_gui.cpp"
 #include "4ed_layout.cpp"
-#include "4ed_view.cpp"
-
 #include "4ed_app_models.h"
-#include "4ed_file_view.cpp"
+#include "4ed_view.cpp"
 #include "4ed.cpp"
 
 // BOTTOM

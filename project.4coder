@@ -6,10 +6,14 @@ fkey_command_win[2]  = {"build_site.bat"             , "*site*"        , false, 
 fkey_command_win[3]  = {"build_string.bat"           , "*compilation*" , true , true  };
 fkey_command_win[4]  = {"echo build: x86 & build.bat /DDEV_BUILD_X86"  , "*compilation*", true, true };
 fkey_command_win[5]  = {"build_metadata.bat"         , "*compilation*" , true , true };
-fkey_command_win[6]  = {"run_regression_tests.bat"   , "*test*"        , false, false};
+fkey_command_win[6]  = {"run_regression_tests.bat"   , "*test*"        , false, true };
 fkey_command_win[7]  = {"build_tests.bat"            , "*compilation*" , true , true };
 fkey_command_win[8]  = {"generate_tests.bat"         , "*compilation*" , true , true };
 fkey_command_win[12] = {"package.bat"                , "*package*"     , false, true  };
+
+fkey_command_win[1]  = {"build_tests.bat"            , "*compilation*" , true , true };
+fkey_command_win[2]  = {"generate_tests.bat"         , "*compilation*" , true , true };
+fkey_command_win[3]  = {"run_regression_tests.bat"   , "*test*"        , false, true };
 
 fkey_command_linux[1]  = {"echo build: x64 & ./build.sh", "*compilation*" , true , true };
 fkey_command_linux[2]  = {"build_site.sh"               , "*site*"        , false, true };

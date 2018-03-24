@@ -9,14 +9,6 @@
 
 // TOP
 
-struct Hot_Directory{
-    char string_space[256];
-    char canon_dir_space[256];
-    String string;
-    String canon_dir;
-    File_List file_list;
-};
-
 internal void
 hot_directory_clean_end(Hot_Directory *hot_directory){
     String *str = &hot_directory->string;

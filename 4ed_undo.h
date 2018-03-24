@@ -1,17 +1,16 @@
 /*
  * Mr. 4th Dimention - Allen Webster
  *
- * 06.01.2017
+ * 24.01.2018
  *
- * Undo subsystem for 4coder
+ * Buffer types
  *
  */
 
 // TOP
 
-//
-// Undo Basics
-//
+#if !defined(FRED_UNDO_H)
+#define FRED_UNDO_H
 
 enum Edit_Type{
     ED_NORMAL,
@@ -66,5 +65,6 @@ struct Undo_Data{
     b32 current_block_normal;
 };
 
-// BOTTOM
+#endif
 
+// BOTTOM

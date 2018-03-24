@@ -28,7 +28,6 @@
 # include "4coder_lib/4coder_mem.h"
 
 # include "4coder_API/types.h"
-# include "4ed_os_custom_api.h"
 
 #else
 # include "4coder_default_bindings.cpp"

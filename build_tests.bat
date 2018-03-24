@@ -26,9 +26,7 @@ cl %opts% %inc% %code%\meta\4ed_test_builder.cpp /Zi /Fe%name%
 popd
 
 pushd %data%
-%full_name% %scripts%\test_full_click.4is
-%full_name% %scripts%\test_write_4coder_awesomeness.4is
-%full_name% %scripts%\test_bootstrap.4is
+%full_name% %scripts%\*.4is
 %full_name% %scripts%\generated\*.4is
 popd
 

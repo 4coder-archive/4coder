@@ -394,10 +394,15 @@ do_feedback_message(System_Functions *system, Models *models, String value, b32 
         if (!set_to_start){
             pos = buffer_size(&file->state.buffer);
         }
-        for (View_Iter iter = file_view_iter_init(&models->layout, file, 0);
-             file_view_iter_good(iter);
-             iter = file_view_iter_next(iter)){
-            view_cursor_move(system, iter.view, pos);
+        
+        for (Panel *panel = models->layout.used_sentinel.next;
+             panel != &models->layout.used_sentinel;
+             panel = panel->next){
+            View *view = panel->view;
+            if (view->transient.file_data.file != file){
+                continue;
+            }
+            view_cursor_move(system, view, pos);
         }
     }
 }
@@ -420,12 +425,10 @@ do_feedback_message(System_Functions *system, Models *models, String value, b32 
     n = __panel__->view;                                              \
 }while(false)
 
-#define REQ_OPEN_VIEW(n) USE_VIEW(n); if (view_lock_level(n) > LockLevel_Open) return
+#define REQ_OPEN_VIEW(n) USE_VIEW(n); if (view_lock_flags(n) != 0) return
 
-#define REQ_READABLE_VIEW(n) USE_VIEW(n); if (view_lock_level(n) > LockLevel_Protected) return
-
-#define REQ_FILE(n,v) Editing_File *n = (v)->file_data.file; if (!n) return
-#define REQ_FILE_HISTORY(n,v) Editing_File *n = (v)->file_data.file; if (!n || !n->state.undo.undo.edits) return
+#define REQ_FILE(n,v) Editing_File *n = (v)->transient.file_data.file; if (n == 0) return
+#define REQ_FILE_HISTORY(n,v) Editing_File *n = (v)->transient.file_data.file; if (n == 0 || n->state.undo.undo.edits == 0) return
 
 #define COMMAND_DECL(n) internal void command_##n(System_Functions *system, Command_Data *command, Command_Binding binding)
 
@@ -434,7 +437,7 @@ panel_make_empty(System_Functions *system, Models *models, Panel *panel){
     Assert(panel->view == 0);
     View_And_ID new_view = live_set_alloc_view(&models->live_set, panel, models);
     view_set_file(system, new_view.view, models->scratch_buffer, models);
-    new_view.view->map = models->scratch_buffer->settings.base_map_id;
+    new_view.view->transient.map = models->scratch_buffer->settings.base_map_id;
     return(new_view.view);
 }
 
@@ -446,9 +449,7 @@ COMMAND_DECL(undo){
     USE_MODELS(models);
     REQ_OPEN_VIEW(view);
     REQ_FILE_HISTORY(file, view);
-    
     view_undo_redo(system, models, view, &file->state.undo.undo, ED_UNDO);
-    
     Assert(file->state.undo.undo.size >= 0);
 }
 
@@ -456,9 +457,7 @@ COMMAND_DECL(redo){
     USE_MODELS(models);
     REQ_OPEN_VIEW(view);
     REQ_FILE_HISTORY(file, view);
-    
     view_undo_redo(system, models, view, &file->state.undo.redo, ED_REDO);
-    
     Assert(file->state.undo.undo.size >= 0);
 }
 
@@ -500,7 +499,7 @@ COMMAND_DECL(reopen){
             Temp_Memory temp = begin_temp_memory(part);
             char *buffer = push_array(part, char, size);
             
-            if (buffer){
+            if (buffer != 0){
                 if (system->load_file(handle, buffer, size)){
                     system->load_close(handle);
                     
@@ -511,14 +510,19 @@ COMMAND_DECL(reopen){
                     int32_t column_number[16];
                     View *vptrs[16];
                     i32 vptr_count = 0;
-                    for (View_Iter iter = file_view_iter_init(&models->layout, file, 0);
-                         file_view_iter_good(iter);
-                         iter = file_view_iter_next(iter)){
-                        vptrs[vptr_count] = iter.view;
-                        edit_poss[vptr_count] = iter.view->edit_pos[0];
-                        line_number[vptr_count] = iter.view->edit_pos[0].cursor.line;
-                        column_number[vptr_count] = iter.view->edit_pos[0].cursor.character;
-                        iter.view->edit_pos = 0;
+                    
+                    for (Panel *panel = models->layout.used_sentinel.next;
+                         panel != &models->layout.used_sentinel;
+                         panel = panel->next){
+                        View *view = panel->view;
+                        if (view->transient.file_data.file != file){
+                            continue;
+                        }
+                        vptrs[vptr_count] = view;
+                        edit_poss[vptr_count] = view->transient.edit_pos[0];
+                        line_number[vptr_count] = view->transient.edit_pos[0].cursor.line;
+                        column_number[vptr_count] = view->transient.edit_pos[0].cursor.character;
+                        view->transient.edit_pos = 0;
                         ++vptr_count;
                     }
                     
@@ -531,8 +535,8 @@ COMMAND_DECL(reopen){
                         int32_t line = line_number[i];
                         int32_t character = column_number[i];
                         
-                        *vptrs[i]->edit_pos = edit_poss[i];
-                        Full_Cursor cursor = view_compute_cursor(system, vptrs[i], seek_line_char(line, character), 0);
+                        *vptrs[i]->transient.edit_pos = edit_poss[i];
+                        Full_Cursor cursor = file_compute_cursor(system, file, seek_line_char(line, character), 0);
                         
                         view_set_cursor(vptrs[i], cursor, true, file->settings.unwrapped_lines);
                     }
@@ -596,8 +600,8 @@ COMMAND_DECL(kill_buffer){
 internal void
 case_change_range(System_Functions *system, Models *models, View *view, Editing_File *file, u8 a, u8 z, u8 char_delta){
     Range range  = {0};
-    range.min = Min(view->edit_pos->cursor.pos, view->edit_pos->mark);
-    range.max = Max(view->edit_pos->cursor.pos, view->edit_pos->mark);
+    range.min = Min(view->transient.edit_pos->cursor.pos, view->transient.edit_pos->mark);
+    range.max = Max(view->transient.edit_pos->cursor.pos, view->transient.edit_pos->mark);
     if (range.start < range.end){
         Edit_Step step = {};
         step.type = ED_NORMAL;
@@ -634,7 +638,7 @@ COMMAND_DECL(open_debug){
     USE_VIEW(view);
     USE_MODELS(models);
     view_show_GUI(view, models, VUI_Debug);
-    view->debug_vars = null_debug_vars;
+    view->transient.debug_vars = null_debug_vars;
 }
 
 COMMAND_DECL(user_callback){
@@ -1412,12 +1416,18 @@ App_Init_Sig(app_init){
         
         models->live_set.views = push_array(partition, View, models->live_set.max);
         
-        dll_init_sentinel(&models->live_set.free_sentinel);
+        //dll_init_sentinel
+        models->live_set.free_sentinel.transient.next = &models->live_set.free_sentinel;
+        models->live_set.free_sentinel.transient.prev = &models->live_set.free_sentinel;
         
         i32 max = models->live_set.max;
         View *view = models->live_set.views;
         for (i32 i = 0; i < max; ++i, ++view){
-            dll_insert(&models->live_set.free_sentinel, view);
+            //dll_insert(&models->live_set.free_sentinel, view);
+            view->transient.next = models->live_set.free_sentinel.transient.next;
+            view->transient.prev = &models->live_set.free_sentinel;
+            models->live_set.free_sentinel.transient.next = view;
+            view->transient.next->transient.prev = view;
             
             View_Persistent *persistent = &view->persistent;
             persistent->id = i;
@@ -1745,19 +1755,18 @@ App_Step_Sig(app_step){
     b32 mouse_in_margin_area = false;
     
     Panel *mouse_panel = 0;
-    {
-        Panel *used_panels = &models->layout.used_sentinel, *panel = 0;
-        for (dll_items(panel, used_panels)){
-            if (hit_check(mx, my, panel->inner)){
-                mouse_panel = panel;
-                mouse_in_edit_area = true;
-                break;
-            }
-            else if (hit_check(mx, my, panel->full)){
-                mouse_panel = panel;
-                mouse_in_margin_area = true;
-                break;
-            }
+    for (Panel *panel = models->layout.used_sentinel.next;
+         panel != &models->layout.used_sentinel;
+         panel = panel->next){
+        if (hit_check(mx, my, panel->inner)){
+            mouse_panel = panel;
+            mouse_in_edit_area = true;
+            break;
+        }
+        else if (hit_check(mx, my, panel->full)){
+            mouse_panel = panel;
+            mouse_in_margin_area = true;
+            break;
         }
     }
     
@@ -1906,24 +1915,19 @@ App_Step_Sig(app_step){
             
             models->hook_start(&models->app_links, files, files_count, flags, flags_count);
         }
-        
-        Panel *panel = models->layout.used_sentinel.next;
-        for (i32 i = 0; i < models->settings.init_files_count; ++i, panel = panel->next){
-            Assert(panel->view->file_data.file != 0);
-        }
     }
     
     // NOTE(allen): respond if the user is trying to kill the application
     if (input->trying_to_kill){
-        b32 there_is_unsaved = 0;
-        app_result.animating = 1;
+        b32 there_is_unsaved = false;
+        app_result.animating = true;
         
-        File_Node *node, *sent;
-        sent = &models->working_set.used_sentinel;
-        for (dll_items(node, sent)){
+        for (File_Node *node = models->working_set.used_sentinel.next;
+             node != &models->working_set.used_sentinel;
+             node = node->next){
             Editing_File *file = (Editing_File*)node;
             if (buffer_needs_save(file)){
-                there_is_unsaved = 1;
+                there_is_unsaved = true;
                 break;
             }
         }
@@ -1944,7 +1948,7 @@ App_Step_Sig(app_step){
                 command_coroutine = 0;
             }
             if (view != 0){
-                init_query_set(&view->query_set);
+                init_query_set(&view->transient.query_set);
             }
             
             if (view == 0){
@@ -2044,7 +2048,7 @@ App_Step_Sig(app_step){
                     
                     i32 map = mapid_global;
                     if (view != 0){
-                        map = view->map;
+                        map = view->transient.map;
                     }
                     Command_Binding cmd_bind = map_extract_recursive(&models->mapping, map, key);
                     
@@ -2124,7 +2128,7 @@ App_Step_Sig(app_step){
                 // TODO(allen): Should I somehow allow a view to clean up however it wants after a
                 // command finishes, or after transfering to another view mid command?
                 if (view != 0 && models->command_coroutine == 0){
-                    init_query_set(&view->query_set);
+                    init_query_set(&view->transient.query_set);
                 }
                 if (models->command_coroutine == 0) break;
             }
@@ -2149,22 +2153,18 @@ App_Step_Sig(app_step){
     Mouse_State mouse_state = get_mouse_state(&vars->available_input);
     
     {
-        Panel *panel = 0, *used_panels = 0;
-        View *view = 0;
-        b32 active = 0;
-        Input_Summary summary = {0};
-        
         Command_Data *command = cmd;
         USE_VIEW(active_view);
         USE_PANEL(active_panel);
         
-        used_panels = &models->layout.used_sentinel;
-        for (dll_items(panel, used_panels)){
-            view = panel->view;
-            active = (panel == active_panel);
-            summary = (active)?(active_input):(dead_input);
+        for (Panel *panel = models->layout.used_sentinel.next;
+             panel != &models->layout.used_sentinel;
+             panel = panel->next){
+            View *view = panel->view;
+            b32 active = (panel == active_panel);
+            Input_Summary summary = (active)?(active_input):(dead_input);
             
-            view->changed_context_in_step = 0;
+            view->transient.changed_context_in_step = 0;
             
             View_Step_Result result = step_file_view(system, view, models, active_view, summary);
             
@@ -2178,7 +2178,7 @@ App_Step_Sig(app_step){
                 consume_input(&vars->available_input, Input_Esc, "file view step");
             }
             
-            if (view->changed_context_in_step == 0){
+            if (view->transient.changed_context_in_step == 0){
                 active = (panel == active_panel);
                 summary = (active)?(active_input):(dead_input);
                 if (panel == mouse_panel && !input->mouse.out_of_window){
@@ -2186,22 +2186,22 @@ App_Step_Sig(app_step){
                 }
                 
                 b32 file_scroll = false;
-                GUI_Scroll_Vars *scroll_vars = &view->gui_scroll;
-                if (view->showing_ui == VUI_None){
-                    Assert(view->file_data.file != 0);
-                    scroll_vars = &view->edit_pos->scroll;
+                GUI_Scroll_Vars *scroll_vars = &view->transient.gui_scroll;
+                if (view->transient.showing_ui == VUI_None){
+                    Assert(view->transient.file_data.file != 0);
+                    scroll_vars = &view->transient.edit_pos->scroll;
                     file_scroll = true;
                 }
                 
                 i32 max_y = 0;
-                if (view->showing_ui == VUI_None){
+                if (view->transient.showing_ui == VUI_None){
                     max_y = view_compute_max_target_y(view);
                 }
                 else{
-                    max_y = view->gui_max_y;
+                    max_y = view->transient.gui_max_y;
                 }
                 
-                Input_Process_Result ip_result = do_step_file_view(system, view, models, panel->inner, active, &summary, *scroll_vars, view->scroll_region, max_y);
+                Input_Process_Result ip_result = do_step_file_view(system, view, models, panel->inner, active, &summary, *scroll_vars, view->transient.scroll_region, max_y);
                 
                 if (ip_result.is_animating){
                     app_result.animating = 1;
@@ -2214,7 +2214,7 @@ App_Step_Sig(app_step){
                 }
                 
                 if (ip_result.has_max_y_suggestion){
-                    view->gui_max_y = ip_result.max_y;
+                    view->transient.gui_max_y = ip_result.max_y;
                 }
                 
                 if (!gui_scroll_eq(scroll_vars, &ip_result.vars)){
@@ -2226,7 +2226,7 @@ App_Step_Sig(app_step){
                     }
                 }
                 
-                view->scroll_region = ip_result.region;
+                view->transient.scroll_region = ip_result.region;
             }
         }
     }
@@ -2252,7 +2252,7 @@ App_Step_Sig(app_step){
                     USE_VIEW(view);
                     Assert(view != 0);
                     
-                    Command_Binding cmd_bind = map_extract_recursive(&models->mapping, view->map, key);
+                    Command_Binding cmd_bind = map_extract_recursive(&models->mapping, view->transient.map, key);
                     
                     if (cmd_bind.function){
                         if (key.keycode == key_esc){
@@ -2472,7 +2472,7 @@ App_Step_Sig(app_step){
                 
                 Panel *active_panel = &models->layout.panels[models->layout.active_panel];
                 View *view = active_panel->view;
-                init_query_set(&view->query_set);
+                init_query_set(&view->transient.query_set);
             }
             
             models->layout.active_panel = new_panel_id;
@@ -2482,12 +2482,13 @@ App_Step_Sig(app_step){
     
     // NOTE(allen): on the first frame there should be no scrolling
     if (input->first_step){
-        Panel *panel = 0, *used_panels = &models->layout.used_sentinel;
-        for (dll_items(panel, used_panels)){
+        for (Panel *panel = models->layout.used_sentinel.next;
+             panel != &models->layout.used_sentinel;
+             panel = panel->next){
             View *view = panel->view;
-            GUI_Scroll_Vars *scroll_vars = &view->gui_scroll;
-            if (view->edit_pos){
-                scroll_vars = &view->edit_pos->scroll;
+            GUI_Scroll_Vars *scroll_vars = &view->transient.gui_scroll;
+            if (view->transient.edit_pos != 0){
+                scroll_vars = &view->transient.edit_pos->scroll;
             }
             scroll_vars->scroll_x = (f32)scroll_vars->target_x;
             scroll_vars->scroll_y = (f32)scroll_vars->target_y;
@@ -2495,9 +2496,9 @@ App_Step_Sig(app_step){
     }
     
     // NOTE(allen): if this is the last frame, run the exit hook
-    if (!models->keep_playing && models->hooks[hook_exit]){
+    if (!models->keep_playing && models->hooks[hook_exit] != 0){
         if (!models->hooks[hook_exit](&models->app_links)){
-            models->keep_playing = 1;
+            models->keep_playing = true;
         }
     }
     
@@ -2510,9 +2511,9 @@ App_Step_Sig(app_step){
         USE_VIEW(active_view);
         
         // NOTE(allen): render the panels
-        Panel *panel, *used_panels;
-        used_panels = &models->layout.used_sentinel;
-        for (dll_items(panel, used_panels)){
+        for (Panel *panel = models->layout.used_sentinel.next;
+             panel != &models->layout.used_sentinel;
+             panel = panel->next){
             i32_Rect full = panel->full;
             i32_Rect inner = panel->inner;
             
@@ -2524,10 +2525,10 @@ App_Step_Sig(app_step){
             draw_rectangle(target, full, back_color);
             
             b32 file_scroll = false;
-            GUI_Scroll_Vars *scroll_vars = &view->gui_scroll;
-            if (view->showing_ui == VUI_None){
-                Assert(view->file_data.file != 0);
-                scroll_vars = &view->edit_pos->scroll;
+            GUI_Scroll_Vars *scroll_vars = &view->transient.gui_scroll;
+            if (view->transient.showing_ui == VUI_None){
+                Assert(view->transient.file_data.file != 0);
+                scroll_vars = &view->transient.edit_pos->scroll;
                 file_scroll = true;
             }
             

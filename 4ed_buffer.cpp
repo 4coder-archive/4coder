@@ -15,11 +15,6 @@
 
 #include "4coder_helper/4coder_seek_types.h"
 
-struct Cursor_With_Index{
-    i32 pos;
-    i32 index;
-};
-
 inline void
 write_cursor_with_index(Cursor_With_Index *positions, i32 *count, i32 pos){
     positions[(*count)].index = *count;
@@ -278,18 +273,6 @@ eol_in_place_convert_out(char *data, i32 size, i32 max, i32 *size_out){
 // Implementation of the gap buffer
 //
 
-struct Gap_Buffer{
-    char *data;
-    i32 size1;
-    i32 gap_size;
-    i32 size2;
-    i32 max;
-    
-    i32 *line_starts;
-    i32 line_count;
-    i32 line_max;
-};
-
 inline i32
 buffer_good(Gap_Buffer *buffer){
     i32 good = (buffer->data != 0);
@@ -301,12 +284,6 @@ buffer_size(Gap_Buffer *buffer){
     i32 size = buffer->size1 + buffer->size2;
     return(size);
 }
-
-struct Gap_Buffer_Init{
-    Gap_Buffer *buffer;
-    char *data;
-    i32 size;
-};
 
 internal Gap_Buffer_Init
 buffer_begin_init(Gap_Buffer *buffer, char *data, i32 size){
@@ -365,18 +342,6 @@ buffer_end_init(Gap_Buffer_Init *init, void *scratch, i32 scratch_size){
     
     return(result);
 }
-
-struct Gap_Buffer_Stream{
-    Gap_Buffer *buffer;
-    char *data;
-    i32 end;
-    i32 separated;
-    i32 absolute_end;
-    
-    b32 use_termination_character;
-    char terminator;
-};
-global Gap_Buffer_Stream null_buffer_stream = {0};
 
 internal b32
 buffer_stringify_loop(Gap_Buffer_Stream *stream, Gap_Buffer *buffer, i32 start, i32 end){
@@ -494,11 +459,6 @@ buffer_replace_range(Gap_Buffer *buffer, i32 start, i32 end, char *str, i32 len,
     return(result);
 }
 
-struct Buffer_Batch_State{
-    i32 i;
-    i32 shift_total;
-};
-
 // TODO(allen): Now that we are just using Gap_Buffer we could afford to improve
 // this for the Gap_Buffer's behavior.
 internal i32
@@ -609,12 +569,6 @@ buffer_count_newlines(Gap_Buffer *buffer, i32 start, i32 end){
     
     return(count);
 }
-
-struct Buffer_Measure_Starts{
-    i32 i;
-    i32 count;
-    i32 start;
-};
 
 // TODO(allen): Rewrite this with a duff routine
 // Also make it so that the array goes one past the end
@@ -727,56 +681,6 @@ buffer_measure_character_starts(System_Functions *system, Font_Pointers font, Ga
     
     Assert(line_index-1 == buffer->line_count);
 }
-
-enum{
-    BLStatus_Finished,
-    BLStatus_NeedWrapLineShift,
-    BLStatus_NeedLineShift,
-    BLStatus_NeedWrapDetermination,
-};
-
-struct Buffer_Layout_Stop{
-    u32 status;
-    i32 line_index;
-    i32 wrap_line_index;
-    i32 pos;
-    i32 next_line_pos;
-    f32 x;
-};
-
-struct Buffer_Measure_Wrap_Params{
-    Gap_Buffer *buffer;
-    i32 *wrap_line_index;
-    System_Functions *system;
-    Font_Pointers font;
-    b32 virtual_white;
-};
-
-struct Buffer_Measure_Wrap_State{
-    Gap_Buffer_Stream stream;
-    i32 i;
-    i32 size;
-    b32 still_looping;
-    
-    i32 line_index;
-    
-    i32 current_wrap_index;
-    f32 current_adv;
-    f32 x;
-    
-    b32 skipping_whitespace;
-    i32 wrap_unit_end;
-    b32 did_wrap;
-    b32 first_of_the_line;
-    
-    Translation_State tran;
-    Translation_Emits emits;
-    u32 J;
-    Buffer_Model_Step step;
-    Buffer_Model_Behavior behavior;
-    
-    i32 __pc__;
-};
 
 // duff-routine defines
 #define DrCase(PC) case PC: goto resumespot_##PC
@@ -1295,45 +1199,6 @@ buffer_partial_from_line_character(Gap_Buffer *buffer, i32 line, i32 character){
     return(result);
 }
 
-struct Buffer_Cursor_Seek_Params{
-    Gap_Buffer *buffer;
-    Buffer_Seek seek;
-    System_Functions *system;
-    Font_Pointers font;
-    i32 *wrap_line_index;
-    i32 *character_starts;
-    b32 virtual_white;
-    b32 return_hint;
-    Full_Cursor *cursor_out;
-};
-
-struct Buffer_Cursor_Seek_State{
-    Full_Cursor next_cursor;
-    Full_Cursor this_cursor;
-    Full_Cursor prev_cursor;
-    
-    Gap_Buffer_Stream stream;
-    b32 still_looping;
-    i32 i;
-    i32 size;
-    i32 wrap_unit_end;
-    
-    b32 first_of_the_line;
-    b32 xy_seek;
-    f32 ch_width;
-    
-    i32 font_height;
-    
-    Translation_State tran;
-    Translation_Emits emits;
-    u32 J;
-    Buffer_Model_Step step;
-    Buffer_Model_Behavior behavior;
-    
-    
-    i32 __pc__;
-};
-
 // dialogical-routine defines
 #define DrCase(PC) case PC: goto resumespot_##PC
 #define DrYield(PC, n) { *S_ptr = S; S_ptr->__pc__ = PC; return(n); resumespot_##PC:; }
@@ -1683,12 +1548,6 @@ buffer_invert_edit(Gap_Buffer *buffer, Buffer_Edit edit, Buffer_Edit *inverse, c
     buffer_invert_edit_shift(buffer, edit, inverse, strings, str_pos, max, 0);
 }
 
-struct Buffer_Invert_Batch{
-    i32 i;
-    i32 shift_amount;
-    i32 len;
-};
-
 internal i32
 buffer_invert_batch(Buffer_Invert_Batch *state, Gap_Buffer *buffer, Buffer_Edit *edits, i32 count,
                     Buffer_Edit *inverse, char *strings, i32 *str_pos, i32 max){
@@ -1715,29 +1574,6 @@ buffer_invert_batch(Buffer_Invert_Batch *state, Gap_Buffer *buffer, Buffer_Edit 
     return(result);
 }
 
-enum Buffer_Render_Flag{
-    BRFlag_Special_Character = (1 << 0),
-    BRFlag_Ghost_Character = (1 << 1)
-};
-
-struct Buffer_Render_Item{
-    i32 index;
-    u32 codepoint;
-    u32 flags;
-    f32 x0, y0;
-    f32 x1, y1;
-};
-
-struct Render_Item_Write{
-    Buffer_Render_Item *item;
-    f32 x, y;
-    System_Functions *system;
-    Font_Pointers font;
-    i32 font_height;
-    f32 x_min;
-    f32 x_max;
-};
-
 inline Render_Item_Write
 write_render_item(Render_Item_Write write, i32 index, u32 codepoint, u32 flags){
     
@@ -1759,55 +1595,6 @@ write_render_item(Render_Item_Write write, i32 index, u32 codepoint, u32 flags){
     
     return(write);
 }
-
-struct Buffer_Render_Params{
-    Gap_Buffer *buffer;
-    Buffer_Render_Item *items;
-    i32 max;
-    i32 *count;
-    f32 port_x;
-    f32 port_y;
-    f32 clip_w;
-    f32 scroll_x;
-    f32 scroll_y;
-    f32 width;
-    f32 height;
-    Full_Cursor start_cursor;
-    i32 wrapped;
-    System_Functions *system;
-    Font_Pointers font;
-    b32 virtual_white;
-    i32 wrap_slashes;
-};
-
-struct Buffer_Render_State{
-    Gap_Buffer_Stream stream;
-    b32 still_looping;
-    i32 i;
-    i32 size;
-    
-    f32 shift_x;
-    f32 shift_y;
-    
-    f32 ch_width;
-    
-    Render_Item_Write write;
-    f32 byte_advance;
-    
-    i32 line;
-    i32 wrap_line;
-    b32 skipping_whitespace;
-    b32 first_of_the_line;
-    i32 wrap_unit_end;
-    
-    Translation_State tran;
-    Translation_Emits emits;
-    u32 J;
-    Buffer_Model_Step step;
-    Buffer_Model_Behavior behavior;
-    
-    i32 __pc__;
-};
 
 // duff-routine defines
 #define DrCase(PC) case PC: goto resumespot_##PC

@@ -14,9 +14,6 @@
 #define API_H "4coder_generated/app_functions.h"
 #define REMAPPING_FILE "4coder_generated/remapping.h"
 
-
-#define OS_API_H "4ed_os_custom_api.h"
-
 #include "../4ed_defines.h"
 #include "4ed_meta_defines.h"
 #include "../4coder_API/version.h"
@@ -187,7 +184,7 @@ generate_style(){
     Temp temp = fm_begin_temp();
     
     char filename_4coder[] = STYLE_FILE;
-    char filename_4ed[] = "4ed_style.h";
+    char filename_4ed[] = "4ed_generated_style.h";
     
     String out = str_alloc(10 << 20);;
     
@@ -354,31 +351,6 @@ generate_custom_headers(){
     String out = str_alloc(10 << 20);
     
     // NOTE(allen): Custom API headers
-    i32 main_api_count = unit_custom.parse[0].item_count;
-    i32 os_api_count = unit_custom.parse[1].item_count;
-    append(&out, "struct Application_Links;\n");
-    
-    for (i32 i = main_api_count; i < os_api_count; ++i){
-        append(&out, "#define ");
-        append(&out, func_4ed_names.names[i].macro);
-        append(&out, "(n) ");
-        append(&out, unit_custom.set.items[i].ret);
-        append(&out, " n");
-        append(&out, unit_custom.set.items[i].args);
-        append_s_char(&out, '\n');
-    }
-    
-    for (i32 i = main_api_count; i < os_api_count; ++i){
-        append(&out, "typedef ");
-        append(&out, func_4ed_names.names[i].macro);
-        append_s_char(&out, '(');
-        append(&out, unit_custom.set.items[i].name);
-        append(&out, "_Function);\n");
-    }
-    
-    fm_write_file(OS_API_H, out.str, out.size);
-    out.size = 0;
-    
     append(&out, "struct Application_Links;\n");
     
     for (i32 i = 0; i < unit_custom.set.count; ++i){
@@ -400,7 +372,6 @@ generate_custom_headers(){
     }
     
     append(&out, "struct Application_Links{\n");
-    
     
     append(&out, "#if defined(ALLOW_DEP_4CODER)\n");
     for (i32 i = 0; i < unit_custom.set.count; ++i){
@@ -731,7 +702,7 @@ generate_remapping_code_and_data(){
         
         bind(mappings, 'x', MDFR_ALT, execute_arbitrary_command);
         
-        bind(mappings, 's', MDFR_ALT, show_scrollbar);
+        bind(mappings, 'W', MDFR_ALT, show_scrollbar);
         bind(mappings, 'w', MDFR_ALT, hide_scrollbar);
         bind(mappings, 'b', MDFR_ALT, toggle_filebar);
         
@@ -824,6 +795,7 @@ generate_remapping_code_and_data(){
         bind(mappings, 'q', MDFR_ALT , query_replace_selection);
         bind(mappings, 'r', MDFR_CTRL, reverse_search);
         bind(mappings, 's', MDFR_CTRL, save);
+        bind(mappings, 's', MDFR_ALT , save_to_query);
         bind(mappings, 't', MDFR_CTRL, search_identifier);
         bind(mappings, 'T', MDFR_CTRL, list_all_locations_of_identifier);
         bind(mappings, 'u', MDFR_CTRL, to_uppercase);
@@ -930,7 +902,7 @@ generate_remapping_code_and_data(){
         
         bind(mappings, 'x', MDFR_CTRL, execute_arbitrary_command);
         
-        bind(mappings, 's', MDFR_CTRL, show_scrollbar);
+        bind(mappings, 'W', MDFR_CTRL, show_scrollbar);
         bind(mappings, 'w', MDFR_CTRL, hide_scrollbar);
         bind(mappings, 'b', MDFR_CTRL, toggle_filebar);
         
@@ -1020,6 +992,7 @@ generate_remapping_code_and_data(){
         bind(mappings, 'Q', MDFR_CMND, query_replace_identifier);
         bind(mappings, 'r', MDFR_CMND, reverse_search);
         bind(mappings, 's', MDFR_CMND, save);
+        bind(mappings, 's', MDFR_CTRL, save_to_query);
         bind(mappings, 't', MDFR_CMND, search_identifier);
         bind(mappings, 'T', MDFR_CMND, list_all_locations_of_identifier);
         bind(mappings, 'u', MDFR_CMND, to_uppercase);

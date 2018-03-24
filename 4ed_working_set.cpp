@@ -98,9 +98,8 @@ working_set_alloc(Working_Set *working_set){
         
         dll_remove(node);
         Buffer_Slot_ID id = result->id;
-        *result = null_editing_file;
+        memset(result, 0, sizeof(*result));
         result->id = id;
-        //result->unique_buffer_id = ++working_set->unique_file_counter;
         dll_insert(&working_set->used_sentinel, node);
         result->settings.display_width = working_set->default_display_width;
         result->settings.minimum_base_display_width = working_set->default_minimum_base_display_width;
@@ -305,41 +304,39 @@ internal Editing_File*
 working_set_lookup_file(Working_Set *working_set, String string){
     Editing_File *file = 0;
     
-    {
-        // TODO(allen): use the name table for this
-        File_Node *node, *used_nodes;
-        used_nodes = &working_set->used_sentinel;
-        for (dll_items(node, used_nodes)){
-            file = (Editing_File*)node;
-            if (string.size == 0 || match_ss(string, file->unique_name.name)){
+    // TODO(allen): use the name table for this
+    for (File_Node *node = working_set->used_sentinel.next;
+         node != &working_set->used_sentinel;
+         node = node->next){
+        Editing_File *nfile = (Editing_File*)node;
+        if (string.size == 0 || match_ss(string, nfile->unique_name.name)){
+            file = nfile;
+            break;
+        }
+    }
+    
+    if (file == 0){
+        for (File_Node *node = working_set->used_sentinel.next;
+             node = &working_set->used_sentinel;
+             node = node->next){
+            Editing_File *nfile = (Editing_File*)node;
+            if (string.size == 0 || has_substr_s(nfile->unique_name.name, string)){
+                file = nfile;
                 break;
             }
         }
-        if (node == used_nodes) file = 0;
     }
     
-    if (!file){
-        File_Node *node, *used_nodes;
-        used_nodes = &working_set->used_sentinel;
-        for (dll_items(node, used_nodes)){
-            file = (Editing_File*)node;
-            if (string.size == 0 || has_substr_s(file->unique_name.name, string)){
-                break;
-            }
-        }
-        if (node == used_nodes) file = 0;
-    }
-    
-    return (file);
+    return(file);
 }
 
 internal void
 touch_file(Working_Set *working_set, Editing_File *file){
-    if (file){
-        Assert(!file->is_dummy);
-        dll_remove(&file->node);
-        dll_insert(&working_set->used_sentinel, &file->node);
-    }
+    TentativeAssert(file != 0);
+    Assert(!file->is_dummy);
+    dll_remove(&file->node);
+    dll_insert(&working_set->used_sentinel, &file->node);
+    
 }
 
 

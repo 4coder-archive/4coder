@@ -224,6 +224,32 @@ require_unquoted_string(Line_Parse_Context context, i32 index, String *str_out){
 }
 
 internal bool32
+require_unquoted_multi_string(Line_Parse_Context context, i32 start_index, String *str_out){
+    bool32 result = false;
+    if (start_index < context.words.count){
+        String str = context.words.strings[start_index];
+        if (str.str[0] != '"'){
+            String last_word = context.words.strings[context.words.count - 1];
+            char *end = last_word.str + last_word.size;
+            str.size = (i32)(end - str.str);
+            *str_out = str;
+            result = true;
+        }
+        else{
+            show_error(context,
+                       context.words.strings[context.words.count - 1].str,
+                       "expected a simple word (a simple word must be unquoted)");
+        }
+    }
+    else{
+        show_error(context,
+                   context.words.strings[context.words.count - 1].str,
+                   "expected another word");
+    }
+    return(result);
+}
+
+internal bool32
 require_any_string(Line_Parse_Context context, i32 index, String *str_out){
     bool32 result = require_unquoted_string(context, index, str_out);
     return(result);
@@ -323,6 +349,7 @@ process_script__inner(Partition *scratch, char *name){
     Simulation_Event *events = push_array(scratch, Simulation_Event, 0);
     i32 event_count = 0;
     
+    i32 standard_time_increment = 0;
     i32 time_counter = 0;
     
     for (i32 i = 0; i < lines.count; ++i){
@@ -378,6 +405,17 @@ process_script__inner(Partition *scratch, char *name){
                     }
                 }
                 
+                else if (match(first_word, "basewait")){
+                    i32 increment = 0;
+                    if (require_integer(context, 1, &increment) &&
+                        require_blank(context, 2)){
+                        standard_time_increment = increment;
+                    }
+                    else{
+                        return;
+                    }
+                }
+                
                 else if (match(first_word, "key")){
                     String key_name = {0};
                     String mod_name = {0};
@@ -407,8 +445,7 @@ process_script__inner(Partition *scratch, char *name){
                     i32 increment = 0;
                     String string = {0};
                     if (require_integer(context, 1, &increment) &&
-                        require_unquoted_string(context, 2, &string) &&
-                        require_blank(context, 3)){
+                        require_unquoted_multi_string(context, 2, &string)){
                         emit_type = true;
                         type_increment = increment;
                         type_string = string;
@@ -543,6 +580,7 @@ process_script__inner(Partition *scratch, char *name){
             memset(new_event, 0, sizeof(*new_event));
             *new_event = event;
             event_count += 1;
+            time_counter += standard_time_increment;
         }
         
         if (emit_type){
@@ -554,8 +592,11 @@ process_script__inner(Partition *scratch, char *name){
                 new_event->key.code = type_string.str[j];
                 new_event->key.modifiers = MDFR_NONE;
                 event_count += 1;
-                time_counter += type_increment;
+                if (j + 1 < type_string.size){
+                    time_counter += type_increment;
+                }
             }
+            time_counter += standard_time_increment;
         }
         
         if (emit_invoke){
@@ -584,7 +625,7 @@ process_script__inner(Partition *scratch, char *name){
                 }
             }
             if (count > 0){
-                time_counter = events[count - 1].counter_index;
+                time_counter = events[count - 1].counter_index + standard_time_increment;
             }
             end_temp_memory(invoke_temp);
             

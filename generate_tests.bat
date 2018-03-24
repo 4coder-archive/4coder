@@ -22,6 +22,4 @@ pushd %build%
 cl %opts% %inc% %code%\meta\4ed_test_generator.cpp /Zi /Fe%name%
 popd
 
-pushd %scripts%
-%full_name%
-popd
+%full_name% %code%

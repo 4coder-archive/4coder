@@ -1099,6 +1099,46 @@ CUSTOM_DOC("Deletes the file of the current buffer if 4coder has the appropriate
     }
 }
 
+CUSTOM_COMMAND_SIG(save_to_query)
+CUSTOM_DOC("Queries the user for a name and saves the contents of the current buffer, altering the buffer's name too.")
+{
+    View_Summary view = get_active_view(app, AccessAll);
+    Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessAll);
+    
+    // Query the user
+    Query_Bar bar;
+    
+    char prompt_space[4096];
+    bar.prompt = make_fixed_width_string(prompt_space);
+    append(&bar.prompt, "Save '");
+    append(&bar.prompt, make_string(buffer.buffer_name, buffer.buffer_name_len));
+    append(&bar.prompt, "' to: ");
+    
+    char name_space[4096];
+    bar.string = make_fixed_width_string(name_space);
+    if (!query_user_string(app, &bar)) return;
+    if (bar.string.size == 0) return;
+    
+    char new_file_name_space[4096];
+    String new_file_name = make_fixed_width_string(new_file_name_space);
+    int32_t hot_dir_size = directory_get_hot(app, 0, 0);
+    if (new_file_name.size + hot_dir_size <= new_file_name.memory_size){
+        new_file_name.size += directory_get_hot(app, new_file_name.str + new_file_name.size, new_file_name.memory_size - new_file_name.size);
+        //append(&new_file_name, "/");
+        if (append(&new_file_name, bar.string)){
+            if (save_buffer(app, &buffer, new_file_name.str, new_file_name.size, BufferSave_IgnoreDirtyFlag)){
+                Buffer_Summary new_buffer = create_buffer(app, new_file_name.str, new_file_name.size, BufferCreate_NeverNew|BufferCreate_JustChangedFile);
+                if (new_buffer.exists){
+                    if (new_buffer.buffer_id != buffer.buffer_id){
+                        kill_buffer(app, buffer_identifier(buffer.buffer_id), 0, BufferKill_AlwaysKill);
+                        view_set_buffer(app, &view, new_buffer.buffer_id, 0);
+                    }
+                }
+            }
+        }
+    }
+}
+
 CUSTOM_COMMAND_SIG(rename_file_query)
 CUSTOM_DOC("Queries the user for a new name and renames the file of the current buffer, altering the buffer's name too.")
 {

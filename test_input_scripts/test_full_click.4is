@@ -1,6 +1,0 @@
-
-mouse_left_press
-wait 2
-mouse_left_release
-
-exit
