@@ -3,70 +3,11 @@
  *
  * 19.08.2015
  *
- * Panel layout and general view functions for 4coder
+ * Panel layout functions
  *
  */
 
 // TOP
-
-struct Panel_Divider{
-    Panel_Divider *next;
-    i32 parent;
-    i32 which_child;
-    i32 child1, child2;
-    b32 v_divider;
-    f32 pos;
-};
-
-struct Screen_Region{
-    i32_Rect full;
-    i32_Rect inner;
-    i32 l_margin, r_margin;
-    i32 t_margin, b_margin;
-};
-
-struct Panel{
-    Panel *next;
-    Panel *prev;
-    
-    struct View *view;
-    i32 parent;
-    i32 which_child;
-    
-    union{
-        struct{
-            i32_Rect full;
-            i32_Rect inner;
-            i32_Rect prev_inner;
-            i32 l_margin, r_margin;
-            i32 t_margin, b_margin;
-        };
-        Screen_Region screen_region;
-    };
-};
-
-struct Editing_Layout{
-    Panel *panels;
-    Panel free_sentinel;
-    Panel used_sentinel;
-    Panel_Divider *dividers;
-    Panel_Divider *free_divider;
-    i32 panel_count, panel_max_count;
-    i32 root;
-    i32 active_panel;
-    i32 full_width, full_height;
-    b32 panel_state_dirty;
-};
-
-struct Divider_And_ID{
-    Panel_Divider* divider;
-    i32 id;
-};
-
-struct Panel_And_ID{
-    Panel* panel;
-    i32 id;
-};
 
 internal void
 panel_init(Panel *panel){
@@ -89,9 +30,9 @@ panel_divider_zero(){
 
 internal Divider_And_ID
 layout_alloc_divider(Editing_Layout *layout){
-    Divider_And_ID result;
-    
     Assert(layout->free_divider);
+    
+    Divider_And_ID result;
     result.divider = layout->free_divider;
     layout->free_divider = result.divider->next;
     
@@ -109,12 +50,10 @@ layout_alloc_divider(Editing_Layout *layout){
 
 internal Divider_And_ID
 layout_get_divider(Editing_Layout *layout, i32 id){
-    Divider_And_ID result;
-    
     Assert(id >= 0 && id < layout->panel_max_count-1);
+    Divider_And_ID result;
     result.id = id;
     result.divider = layout->dividers + id;
-    
     return(result);
 }
 

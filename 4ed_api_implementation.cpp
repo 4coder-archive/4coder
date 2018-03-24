@@ -320,7 +320,7 @@ DOC_SEE(Command_Line_Interface_Flag)
         
         // NOTE(allen): If we have an output file, prepare it for child proc output.
         if (file != 0){
-            file_clear(system, models, file);
+            edit_clear(system, models, file);
             file->settings.unimportant = true;
         }
         
@@ -337,7 +337,7 @@ DOC_SEE(Command_Line_Interface_Flag)
                 View *vptr = imp_get_view(cmd, view);
                 if (vptr != 0){
                     view_set_file(system, vptr, file, models);
-                    view_show_file(vptr, models);
+                    view_show_file(vptr);
                 }
             }
         }
@@ -700,8 +700,8 @@ DOC_SEE(4coder_Buffer_Positioning_System)
         if (0 <= start && start <= end && end <= size){
             result = true;
             
-            file_replace_range(cmd->system, cmd->models,
-                               file, start, end, str, len);
+            edit_single(cmd->system, cmd->models,
+                        file, start, end, str, len);
         }
         fill_buffer_summary(buffer, file, cmd);
     }
@@ -772,7 +772,7 @@ DOC_SEE(Buffer_Batch_Edit_Type)
             
             Edit_Spec spec = file_compute_edit(mem, file, edits, str, str_len, inverse_edits, inv_str, inv_str_max, edit_count, type);
             
-            file_do_batch_edit(system, models, file, spec, hist_normal, type);
+            edit_batch(system, models, file, spec, hist_normal, type);
             
             end_temp_memory(temp);
         }
@@ -904,18 +904,65 @@ DOC_RETURN(returns non-zero on success)
     if (file){
         result = 1;
         switch (setting){
-            case BufferSetting_Lex: *value_out = file->settings.tokens_exist; break;
-            case BufferSetting_LexWithoutStrings: *value_out = file->settings.tokens_without_strings; break;
-            case BufferSetting_ParserContext: *value_out = file->settings.parse_context_id; break;
-            case BufferSetting_WrapLine: *value_out = !file->settings.unwrapped_lines; break;
-            case BufferSetting_WrapPosition: *value_out = file->settings.display_width; break;
-            case BufferSetting_MinimumBaseWrapPosition: *value_out = file->settings.minimum_base_display_width; break;
-            case BufferSetting_MapID: *value_out = file->settings.base_map_id; break;
-            case BufferSetting_Eol: *value_out = file->settings.dos_write_mode; break;
-            case BufferSetting_Unimportant: *value_out = file->settings.unimportant; break;
-            case BufferSetting_ReadOnly: *value_out = file->settings.read_only; break;
-            case BufferSetting_VirtualWhitespace: *value_out = file->settings.virtual_white; break;
-            default: result = 0; break;
+            case BufferSetting_Lex:
+            {
+                *value_out = file->settings.tokens_exist;
+            }break;
+            
+            case BufferSetting_LexWithoutStrings:
+            {
+                *value_out = file->settings.tokens_without_strings;
+            }break;
+            
+            case BufferSetting_ParserContext:
+            {
+                *value_out = file->settings.parse_context_id;
+            }break;
+            
+            case BufferSetting_WrapLine:
+            {
+                *value_out = !file->settings.unwrapped_lines;
+            }break;
+            
+            case BufferSetting_WrapPosition:
+            {
+                *value_out = file->settings.display_width;
+            }break;
+            
+            case BufferSetting_MinimumBaseWrapPosition:
+            {
+                *value_out = file->settings.minimum_base_display_width;
+            }break;
+            
+            case BufferSetting_MapID:
+            {
+                *value_out = file->settings.base_map_id;
+            }break;
+            
+            case BufferSetting_Eol:
+            {
+                *value_out = file->settings.dos_write_mode;
+            }break;
+            
+            case BufferSetting_Unimportant:
+            {
+                *value_out = file->settings.unimportant;
+            }break;
+            
+            case BufferSetting_ReadOnly:
+            {
+                *value_out = file->settings.read_only;
+            }break;
+            
+            case BufferSetting_VirtualWhitespace:
+            {
+                *value_out = file->settings.virtual_white;
+            }break;
+            
+            default:
+            {
+                result = 0;
+            }break;
         }
     }
     
@@ -1015,7 +1062,8 @@ DOC_SEE(Buffer_Setting_ID)
                 if (new_value != file->settings.display_width){
                     Font_Pointers font = system->font.get_pointers_by_id(file->settings.font_id);
                     file->settings.display_width = new_value;
-                    file_measure_wraps_and_fix_cursor(system, models, file, font);
+                    file_measure_wraps(system, &models->mem, file, font);
+                    adjust_views_looking_at_files_to_new_cursor(system, models, file);
                 }
             }break;
             
@@ -1028,7 +1076,8 @@ DOC_SEE(Buffer_Setting_ID)
                 if (new_value != file->settings.minimum_base_display_width){
                     Font_Pointers font = system->font.get_pointers_by_id(file->settings.font_id);
                     file->settings.minimum_base_display_width = new_value;
-                    file_measure_wraps_and_fix_cursor(system, models, file, font);
+                    file_measure_wraps(system, &models->mem, file, font);
+                    adjust_views_looking_at_files_to_new_cursor(system, models, file);
                 }
             }break;
             
@@ -1117,8 +1166,8 @@ DOC_SEE(Buffer_Setting_ID)
                     
                     file_allocate_character_starts_as_needed(&models->mem.general, file);
                     buffer_measure_character_starts(system, font, &file->state.buffer, file->state.character_starts, 0, file->settings.virtual_white);
-                    file_measure_wraps(system, models, file, font);
-                    file_update_cursor_positions(system, models, file);
+                    file_measure_wraps(system, &models->mem, file, font);
+                    adjust_views_looking_at_files_to_new_cursor(system, models, file);
                 }
             }break;
             
@@ -1358,7 +1407,7 @@ DOC_SEE(Buffer_Save_Flag)
     if (file != 0){
         b32 skip_save = false;
         if (!(flags & BufferSave_IgnoreDirtyFlag)){
-            if (file_get_sync(file) == DirtyState_UpToDate){
+            if (file->state.dirty == DirtyState_UpToDate){
                 skip_save = true;
             }
         }
@@ -2032,7 +2081,7 @@ DOC_SEE(Set_Buffer_Flag)
             if (file != vptr->transient.file_data.file){
                 view_set_file(system, vptr, file, models);
                 if (!(flags & SetBuffer_KeepOriginalGUI)){
-                    view_show_file(vptr, models);
+                    view_show_file(vptr);
                 }
             }
         }
@@ -2254,7 +2303,7 @@ DOC(This call changes 4coder's color pallet to one of the built in themes.)
     Style *s = styles->styles;
     for (i32 i = 0; i < count; ++i, ++s){
         if (match_ss(s->name, theme_name)){
-            style_copy(main_style(cmd->models), s);
+            style_copy(&styles->styles[0], s);
             break;
         }
     }
@@ -2571,15 +2620,11 @@ DOC(For each struct in the array, the slot in the main color pallet specified by
 DOC_SEE(Theme_Color)
 */{
     Command_Data *cmd = (Command_Data*)app->cmd_context;
-    Style *style = main_style(cmd->models);
-    
-    int_color *color = 0;
-    i32 i = 0;
+    Style *style = &cmd->models->styles.styles[0];
     Theme_Color *theme_color = colors;
-    
-    for (i = 0; i < count; ++i, ++theme_color){
-        color = style_index_by_tag(&style->main, theme_color->tag);
-        if (color){
+    for (i32 i = 0; i < count; ++i, ++theme_color){
+        int_color *color = style_index_by_tag(&style->main, theme_color->tag);
+        if (color != 0){
             *color = theme_color->color | 0xFF000000;
         }
     }
@@ -2594,15 +2639,11 @@ DOC(For each struct in the array, the color field of the struct is filled with t
 DOC_SEE(Theme_Color)
 */{
     Command_Data *cmd = (Command_Data*)app->cmd_context;
-    Style *style = main_style(cmd->models);
-    
-    u32 *color = 0;
-    i32 i = 0;
+    Style *style = &cmd->models->styles.styles[0];
     Theme_Color *theme_color = colors;
-    
-    for (i = 0; i < count; ++i, ++theme_color){
-        color = style_index_by_tag(&style->main, theme_color->tag);
-        if (color){
+    for (i32 i = 0; i < count; ++i, ++theme_color){
+        u32 *color = style_index_by_tag(&style->main, theme_color->tag);
+        if (color != 0){
             theme_color->color = *color | 0xFF000000;
         }
         else{

@@ -191,50 +191,6 @@ global_const char messages[] =
 #define DEFAULT_DISPLAY_WIDTH 672
 #define DEFAULT_MINIMUM_BASE_DISPLAY_WIDTH 550
 
-enum App_State{
-    APP_STATE_EDIT,
-    APP_STATE_RESIZING,
-    // never below this
-    APP_STATE_COUNT
-};
-
-struct App_State_Resizing{
-    Panel_Divider *divider;
-};
-
-struct Command_Data{
-    Models *models;
-    struct App_Vars *vars;
-    System_Functions *system;
-    Live_Views *live_set;
-    
-    i32 screen_width;
-    i32 screen_height;
-    
-    Key_Event_Data key;
-};
-
-enum Input_Types{
-    Input_AnyKey,
-    Input_Esc,
-    Input_MouseMove,
-    Input_MouseLeftButton,
-    Input_MouseRightButton,
-    Input_MouseWheel,
-    Input_Count
-};
-
-struct Consumption_Record{
-    b32 consumed;
-    char consumer[32];
-};
-
-struct Available_Input{
-    Key_Input_Data *keys;
-    Mouse_State *mouse;
-    Consumption_Record records[Input_Count];
-};
-
 internal Available_Input
 init_available_input(Key_Input_Data *keys, Mouse_State *mouse){
     Available_Input result = {0};
@@ -313,28 +269,6 @@ consume_input(Available_Input *available, i32 input_type, char *consumer){
     }
 }
 
-struct App_Vars{
-    Models models;
-    
-    CLI_List cli_processes;
-    
-    App_State state;
-    App_State_Resizing resizing;
-    
-    Command_Data command_data;
-    
-    Available_Input available_input;
-};
-
-enum Coroutine_Type{
-    Co_View,
-    Co_Command
-};
-struct App_Coroutine_State{
-    void *co;
-    i32 type;
-};
-
 inline App_Coroutine_State
 get_state(Application_Links *app){
     App_Coroutine_State state = {0};
@@ -377,10 +311,11 @@ app_resume_coroutine(System_Functions *system, Application_Links *app, Coroutine
 }
 
 inline void
-output_file_append(System_Functions *system, Models *models, Editing_File *file, String value, b32 cursor_at_end){
+output_file_append(System_Functions *system, Models *models, Editing_File *file, String value){
     if (!file->is_dummy){
         i32 end = buffer_size(&file->state.buffer);
-        file_replace_range(system, models, file, end, end, value.str, value.size);
+        edit_single(system, models, file,
+                    end, end, value.str, value.size);
     }
 }
 
@@ -389,7 +324,7 @@ do_feedback_message(System_Functions *system, Models *models, String value, b32 
     Editing_File *file = models->message_buffer;
     
     if (file){
-        output_file_append(system, models, file, value, true);
+        output_file_append(system, models, file, value);
         i32 pos = 0;
         if (!set_to_start){
             pos = buffer_size(&file->state.buffer);
@@ -443,6 +378,19 @@ panel_make_empty(System_Functions *system, Models *models, Panel *panel){
 
 COMMAND_DECL(null){
     AllowLocal(command);
+}
+
+internal void
+view_undo_redo(System_Functions *system, Models *models, View *view, Edit_Stack *stack, Edit_Type expected_type){
+    Editing_File *file = view->transient.file_data.file;
+    Assert(file != 0);
+    Assert(view->transient.edit_pos != 0);
+    if (stack->edit_count > 0){
+        Edit_Step step = stack->edits[stack->edit_count - 1];
+        Assert(step.type == expected_type);
+        edit_historical(system, models, file, view, stack,
+                        step, hist_normal);
+    }
 }
 
 COMMAND_DECL(undo){
@@ -526,7 +474,7 @@ COMMAND_DECL(reopen){
                         ++vptr_count;
                     }
                     
-                    file_close(system, general, file);
+                    file_free(system, general, file);
                     init_normal_file(system, models, file, buffer, size);
                     
                     for (i32 i = 0; i < vptr_count; ++i){
@@ -562,17 +510,6 @@ COMMAND_DECL(save){
     if (!file->is_dummy && file_is_ready(file) && buffer_can_save(file)){
         save_file(system, models, file);
     }
-}
-
-COMMAND_DECL(change_active_panel){
-    USE_MODELS(models);
-    USE_PANEL(panel);
-    
-    panel = panel->next;
-    if (panel == &models->layout.used_sentinel){
-        panel = panel->next;
-    }
-    models->layout.active_panel = (i32)(panel - models->layout.panels);
 }
 
 COMMAND_DECL(interactive_switch_buffer){
@@ -992,11 +929,6 @@ interpret_binding_buffer(Models *models, void *buffer, i32 size){
 
 #include "4ed_api_implementation.cpp"
 
-struct Command_In{
-    Command_Data *cmd;
-    Command_Binding bind;
-};
-
 internal void
 command_caller(Coroutine_Head *coroutine){
     Command_In *cmd_in = (Command_In*)coroutine->in;
@@ -1121,33 +1053,8 @@ app_hardcode_default_style(Models *models){
     /////////////////
     models->styles.count = (i32)(style - styles);
     models->styles.max = ArrayCount(models->styles.styles);
-    style_copy(main_style(models), models->styles.styles + 1);
+    style_copy(&models->styles.styles[0], models->styles.styles + 1);
 }
-
-enum Command_Line_Action{
-    CLAct_Nothing,
-    CLAct_Ignore,
-    CLAct_UserFile,
-    CLAct_CustomDLL,
-    CLAct_InitialFilePosition,
-    CLAct_WindowSize,
-    CLAct_WindowMaximize,
-    CLAct_WindowPosition,
-    CLAct_WindowFullscreen,
-    CLAct_FontSize,
-    CLAct_FontUseHinting,
-    CLAct_LogStdout,
-    CLAct_LogFile,
-    CLAct_TestInput,
-    CLAct_RecordInput,
-    //
-    CLAct_COUNT,
-};
-
-enum Command_Line_Mode{
-    CLMode_App,
-    CLMode_Custom
-};
 
 internal void
 init_command_line_settings(App_Settings *settings, Plat_Settings *plat_settings, i32 argc, char **argv){
@@ -1498,12 +1405,6 @@ App_Init_Sig(app_init){
     
     General_Memory *general = &models->mem.general;
     
-    struct File_Init{
-        String name;
-        Editing_File **ptr;
-        b32 read_only;
-    };
-    
     File_Init init_files[] = {
         { make_lit_string("*messages*"), &models->message_buffer, true , },
         { make_lit_string("*scratch*"),  &models->scratch_buffer, false, }
@@ -1686,8 +1587,9 @@ App_Step_Sig(app_step){
                 Editing_File *file = working_set_contains_canon(working_set, canon.name);
                 if (file != 0){
                     if (file->state.ignore_behind_os == 0){
-                        
-                        file_mark_behind_os(file);
+                        if (!file->settings.unimportant){
+                            
+                        }
                     }
                     else if (file->state.ignore_behind_os == 1){
                         file->state.ignore_behind_os = 2;
@@ -1847,7 +1749,7 @@ App_Step_Sig(app_step){
             if (system->cli_update_step(cli, dest, max, &amount)){
                 if (file != 0){
                     amount = eol_in_place_convert_in(dest, amount);
-                    output_file_append(system, models, file, make_string(dest, amount), proc_ptr->cursor_at_end);
+                    output_file_append(system, models, file, make_string(dest, amount));
                 }
             }
             
@@ -1857,11 +1759,13 @@ App_Step_Sig(app_step){
                     String str = make_fixed_width_string(str_space);
                     append(&str, make_lit_string("exited with code "));
                     append_int_to_str(&str, cli->exit);
-                    output_file_append(system, models, file, str, proc_ptr->cursor_at_end);
+                    output_file_append(system, models, file, str);
                 }
                 procs_to_free[proc_free_count++] = proc_ptr;
             }
         }
+        
+        // TODO(allen): proc_ptr->cursor_at_end
         
         for (i32 i = proc_free_count - 1; i >= 0; --i){
             cli_list_free_proc(list, procs_to_free[i]);
@@ -2008,15 +1912,6 @@ App_Step_Sig(app_step){
         Temp_Memory temp = begin_temp_memory(part);
         
         // HACK(allen): This can be simplified a lot more.
-        enum{
-            Event_Keyboard,
-            Event_Mouse,
-        };
-        struct Coroutine_Event{
-            u32 type;
-            u32 key_i;
-        };
-        
         Coroutine_Event *events = push_array(part, Coroutine_Event, 32);
         u32 event_count = 0;
         
@@ -2518,7 +2413,7 @@ App_Step_Sig(app_step){
             i32_Rect inner = panel->inner;
             
             View *view = panel->view;
-            Style *style = main_style(models);
+            Style *style = &models->styles.styles[0];
             
             b32 active = (panel == active_panel);
             u32 back_color = style->main.back_color;

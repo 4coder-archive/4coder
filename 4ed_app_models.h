@@ -9,6 +9,9 @@
 
 // TOP
 
+#if !defined(FRED_APP_MODELS_H)
+#define FRED_APP_MODELS_H
+
 struct App_Settings{
     char *init_files[8];
     i32 init_files_count;
@@ -110,7 +113,120 @@ struct Models{
     i32 recorded_event_max;
 };
 
+////////////////////////////////
+
+enum App_State{
+    APP_STATE_EDIT,
+    APP_STATE_RESIZING,
+    // never below this
+    APP_STATE_COUNT
+};
+
+struct App_State_Resizing{
+    Panel_Divider *divider;
+};
+
+struct Command_Data{
+    Models *models;
+    struct App_Vars *vars;
+    System_Functions *system;
+    Live_Views *live_set;
+    
+    i32 screen_width;
+    i32 screen_height;
+    
+    Key_Event_Data key;
+};
+
+enum Input_Types{
+    Input_AnyKey,
+    Input_Esc,
+    Input_MouseMove,
+    Input_MouseLeftButton,
+    Input_MouseRightButton,
+    Input_MouseWheel,
+    Input_Count
+};
+
+struct Consumption_Record{
+    b32 consumed;
+    char consumer[32];
+};
+
+struct Available_Input{
+    Key_Input_Data *keys;
+    Mouse_State *mouse;
+    Consumption_Record records[Input_Count];
+};
+
+struct App_Vars{
+    Models models;
+    
+    CLI_List cli_processes;
+    
+    App_State state;
+    App_State_Resizing resizing;
+    
+    Command_Data command_data;
+    
+    Available_Input available_input;
+};
+
+enum Coroutine_Type{
+    Co_View,
+    Co_Command
+};
+struct App_Coroutine_State{
+    void *co;
+    i32 type;
+};
+
+struct Command_In{
+    Command_Data *cmd;
+    Command_Binding bind;
+};
+
+struct File_Init{
+    String name;
+    Editing_File **ptr;
+    b32 read_only;
+};
+
+enum{
+    Event_Keyboard,
+    Event_Mouse,
+};
+struct Coroutine_Event{
+    u32 type;
+    u32 key_i;
+};
+
+enum Command_Line_Action{
+    CLAct_Nothing,
+    CLAct_Ignore,
+    CLAct_UserFile,
+    CLAct_CustomDLL,
+    CLAct_InitialFilePosition,
+    CLAct_WindowSize,
+    CLAct_WindowMaximize,
+    CLAct_WindowPosition,
+    CLAct_WindowFullscreen,
+    CLAct_FontSize,
+    CLAct_FontUseHinting,
+    CLAct_LogStdout,
+    CLAct_LogFile,
+    CLAct_TestInput,
+    CLAct_RecordInput,
+    //
+    CLAct_COUNT,
+};
+
+enum Command_Line_Mode{
+    CLMode_App,
+    CLMode_Custom
+};
+
+#endif
+
 // BOTTOM
-
-
 

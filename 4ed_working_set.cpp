@@ -3,7 +3,7 @@
  *
  * 03.01.2017
  *
- * Working_Set data structure for 4coder
+ * Working_Set data structure
  *
  */
 
@@ -12,58 +12,6 @@
 //
 // Working_Set of files
 //
-
-struct Non_File_Table_Entry{
-    String name;
-    Buffer_Slot_ID id;
-};
-
-struct File_Array{
-    Editing_File *files;
-    i32 size;
-};
-
-struct Working_Set{
-    File_Array *file_arrays;
-    i32 file_count, file_max;
-    i16 array_count, array_max;
-    
-    File_Node free_sentinel;
-    File_Node used_sentinel;
-    
-    Table canon_table;
-    Table name_table;
-    
-    String clipboards[64];
-    i32 clipboard_size, clipboard_max_size;
-    i32 clipboard_current, clipboard_rolling;
-    
-    //u64 unique_file_counter;
-    
-    File_Node *sync_check_iter;
-    
-    i32 default_display_width;
-    i32 default_minimum_base_display_width;
-};
-
-struct File_Name_Entry{
-    String name;
-    Buffer_Slot_ID id;
-};
-
-
-internal i32
-tbl_name_compare(void *a, void *b, void *arg){
-    String *fa = (String*)a;
-    File_Name_Entry *fb = (File_Name_Entry*)b;
-    
-    i32 result = 1;
-    if (match_ss(*fa, fb->name)){
-        result = 0;
-    }
-    
-    return(result);
-}
 
 internal void
 working_set_extend_memory(Working_Set *working_set, Editing_File *new_space, i16 number_of_files){
@@ -161,7 +109,7 @@ inline Editing_File*
 working_set_get_active_file(Working_Set *working_set, Buffer_Slot_ID id){
     Editing_File *result = 0;
     result = working_set_index(working_set, id);
-    if (result && result->is_dummy){
+    if (result != 0 && result->is_dummy){
         result = 0;
     }
     return(result);
@@ -169,8 +117,7 @@ working_set_get_active_file(Working_Set *working_set, Buffer_Slot_ID id){
 
 inline Editing_File*
 working_set_get_active_file(Working_Set *working_set, i32 id){
-    Editing_File *result;
-    result = working_set_get_active_file(working_set, to_file_id(id));
+    Editing_File *result= working_set_get_active_file(working_set, to_file_id(id));
     return(result);
 }
 

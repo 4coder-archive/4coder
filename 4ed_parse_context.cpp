@@ -3,35 +3,11 @@
  *
  * 19.05.2017
  *
- * Parse contexts allocation and locking.
+ * Parse contexts allocation and locking
  *
  */
 
 // TOP
-
-struct Stored_Parse_Context{
-    umem memsize;
-    u64 *kw_keywords;
-    u64 *pp_keywords;
-    u32 kw_max;
-    u32 pp_max;
-};
-
-struct Stored_Parse_Context_Slot{
-    union{
-        Stored_Parse_Context_Slot *next;
-        Stored_Parse_Context *context;
-    };
-    b32 freed;
-};
-
-struct Parse_Context_Memory{
-    Stored_Parse_Context_Slot *parse_context_array;
-    u32 parse_context_counter;
-    u32 parse_context_max;
-    
-    Stored_Parse_Context_Slot free_sentinel;
-};
 
 internal void
 parse_context_init_memory(Parse_Context_Memory *parse_mem, void *mem, umem memsize){
@@ -132,13 +108,6 @@ parse_context_add_default(Parse_Context_Memory *parse_mem, General_Memory *gener
     
     return(result);
 }
-
-struct Parse_Context{
-    b32 valid;
-    Cpp_Keyword_Table kw_table;
-    Cpp_Keyword_Table pp_table;
-    umem memory_size;
-};
 
 internal Parse_Context
 parse_context_get(Parse_Context_Memory *parse_mem, Parse_Context_ID id, void *mem, umem memsize){

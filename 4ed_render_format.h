@@ -9,6 +9,9 @@
 
 // TOP
 
+#if !defined(FRED_RENDER_FORMAT_H)
+#define FRED_RENDER_FORMAT_H
+
 enum Render_Command_Type{
     RenCom_Rectangle,
     RenCom_Outline,
@@ -56,6 +59,8 @@ struct Render_Pseudo_Command_Free_Texture{
     Render_Command_Header header;
     Render_Free_Texture free_texture_node;
 };
+
+#endif
 
 // BOTTOM
 

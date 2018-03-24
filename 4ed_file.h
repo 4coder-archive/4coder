@@ -72,11 +72,6 @@ struct Editing_File_Settings{
     u8 pad[1];
 };
 
-struct Editing_Hacks{
-    b32 suppression_mode;
-    b32 needs_wraps_and_fix_cursor;
-};
-
 struct Editing_File_State{
     Gap_Buffer buffer;
     
@@ -111,8 +106,6 @@ struct Editing_File_State{
     File_Edit_Positions edit_pos_space[16];
     File_Edit_Positions *edit_poss[16];
     i32 edit_poss_count;
-    
-    Editing_Hacks hacks;
 };
 
 struct Editing_File_Name{

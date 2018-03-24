@@ -9,21 +9,6 @@
 
 // TOP
 
-#if !defined(FRED_CLI_CPP)
-#define FRED_CLI_CPP
-
-struct CLI_Process{
-    CLI_Handles cli;
-    Editing_File *out_file;
-    b32 cursor_at_end;
-};
-
-struct CLI_List{
-    CLI_Process *procs;
-    u32 count;
-    u32 max;
-};
-
 inline CLI_List
 make_cli_list(Partition *part, u32 max){
     CLI_List list = {0};
@@ -62,8 +47,6 @@ cli_list_has_space(CLI_List *list){
     b32 has_space = (list->count < list->max);
     return(has_space);
 }
-
-#endif
 
 // BOTTOM
 
