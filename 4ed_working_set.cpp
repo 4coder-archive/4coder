@@ -9,9 +9,39 @@
 
 // TOP
 
-//
-// Working_Set of files
-//
+// TODO(allen): Find a real home for this... string library needs a makeover.
+internal String
+push_string(Partition *part, char *str, i32 len){
+    char *space = (char*)push_array(part, char, len + 1);
+    memcpy(space, str, len);
+    space[len] = 0;
+    String string = make_string_cap(space, len, len + 1);
+    return(string);
+}
+
+internal String
+push_string(Partition *part, String str){
+    String res = push_string(part, str.str, str.size);
+    return(res);
+}
+
+internal String
+push_string(Partition *part, char *str, i32 len, i32 cap){
+    cap = clamp_bottom(len + 1, cap);
+    char *space = (char*)push_array(part, char, cap);
+    memcpy(space, str, len);
+    space[len] = 0;
+    String string = make_string_cap(space, len, cap);
+    return(string);
+}
+
+internal String
+push_string(Partition *part, String str, i32 cap){
+    String res = push_string(part, str.str, str.size, cap);
+    return(res);
+}
+
+////////////////////////////////
 
 internal void
 working_set_extend_memory(Working_Set *working_set, Editing_File *new_space, i16 number_of_files){
@@ -279,25 +309,87 @@ working_set_lookup_file(Working_Set *working_set, String string){
 
 internal void
 touch_file(Working_Set *working_set, Editing_File *file){
-    TentativeAssert(file != 0);
+    Assert(file != 0);
     Assert(!file->is_dummy);
     dll_remove(&file->node);
     dll_insert(&working_set->used_sentinel, &file->node);
-    
 }
 
+////////////////////////////////
 
-//
-// Name Binding
-//
-
-internal void
-editing_file_name_init(Editing_File_Name *name){
-    name->name = make_fixed_width_string(name->name_);
+// TODO(allen): Bring the clipboard fully to the custom side.
+internal String*
+working_set_next_clipboard_string(General_Memory *general, Working_Set *working, i32 str_size){
+    i32 clipboard_current = working->clipboard_current;
+    if (working->clipboard_size == 0){
+        clipboard_current = 0;
+        working->clipboard_size = 1;
+    }
+    else{
+        ++clipboard_current;
+        if (clipboard_current >= working->clipboard_max_size){
+            clipboard_current = 0;
+        }
+        else if (working->clipboard_size <= clipboard_current){
+            working->clipboard_size = clipboard_current + 1;
+        }
+    }
+    String *result = &working->clipboards[clipboard_current];
+    working->clipboard_current = clipboard_current;
+    working->clipboard_rolling = clipboard_current;
+    char *new_str;
+    if (result->str != 0){
+        new_str = (char*)general_memory_reallocate(general, result->str, result->size, str_size);
+    }
+    else{
+        new_str = (char*)general_memory_allocate(general, str_size+1);
+    }
+    // TODO(allen): What if new_str == 0?
+    *result = make_string_cap(new_str, 0, str_size);
+    return(result);
 }
+
+internal String*
+working_set_clipboard_index(Working_Set *working, i32 index){
+    String *result = 0;
+    i32 size = working->clipboard_size;
+    i32 current = working->clipboard_current;
+    if (index >= 0 && size > 0){
+        index = index % size;
+        index = current + size - index;
+        index = index % size;
+        result = &working->clipboards[index];
+    }
+    return(result);
+}
+
+internal String*
+working_set_clipboard_head(Working_Set *working){
+    String *result = 0;
+    if (working->clipboard_size > 0){
+        working->clipboard_rolling = 0;
+        result = working_set_clipboard_index(working, working->clipboard_rolling);
+    }
+    return(result);
+}
+
+internal String*
+working_set_clipboard_roll_down(Working_Set *working){
+    String *result = 0;
+    if (working->clipboard_size > 0){
+        i32 clipboard_index = working->clipboard_rolling;
+        ++clipboard_index;
+        working->clipboard_rolling = clipboard_index;
+        result = working_set_clipboard_index(working, working->clipboard_rolling);
+    }
+    return(result);
+}
+
+////////////////////////////////
 
 internal b32
-get_canon_name(System_Functions *system, Editing_File_Name *canon_name, String filename){
+get_canon_name(System_Functions *system, String filename,
+               Editing_File_Name *canon_name){
     canon_name->name = make_fixed_width_string(canon_name->name_);
     
     canon_name->name.size = system->get_canonical(filename.str, filename.size, canon_name->name.str, canon_name->name.memory_size);
@@ -308,16 +400,19 @@ get_canon_name(System_Functions *system, Editing_File_Name *canon_name, String f
 }
 
 internal void
-buffer_bind_file(System_Functions *system, General_Memory *general, Working_Set *working_set, Editing_File *file, String canon_filename){
+buffer_bind_file(System_Functions *system, General_Memory *general,
+                 Working_Set *working_set,
+                 Editing_File *file, String canon_filename){
     Assert(file->unique_name.name.size == 0);
     Assert(file->canon.name.size == 0);
     
     file->canon.name = make_fixed_width_string(file->canon.name_);
-    copy_ss(&file->canon.name, canon_filename);
+    copy(&file->canon.name, canon_filename);
     terminate_with_null(&file->canon.name);
     system->add_listener(file->canon.name.str);
-    b32 result = working_set_canon_add(general, working_set, file, file->canon.name);
-    Assert(result); AllowLocal(result);
+    if (!working_set_canon_add(general, working_set, file, file->canon.name)){
+        InvalidCodePath;
+    }
 }
 
 internal void
@@ -371,17 +466,18 @@ buffer_bind_name_low_level(General_Memory *general, Working_Set *working_set, Ed
     Assert(file->unique_name.name.size == 0);
     
     Editing_File_Name new_name = {0};
-    editing_file_name_init(&new_name);
+    new_name.name = make_fixed_width_string(new_name.name_);
     buffer_resolve_name_low_level(working_set, &new_name, name);
     
-    editing_file_name_init(&file->base_name);
+    file->base_name.name = make_fixed_width_string(file->base_name.name_);
     copy(&file->base_name.name, base_name);
     
-    editing_file_name_init(&file->unique_name);
+    file->unique_name.name = make_fixed_width_string(file->unique_name.name_);
     copy(&file->unique_name.name, new_name.name);
     
-    b32 result = working_set_add_name(general, working_set, file, file->unique_name.name);
-    Assert(result); AllowLocal(result);
+    if (!working_set_add_name(general, working_set, file, file->unique_name.name)){
+        InvalidCodePath;
+    }
 }
 
 internal void
@@ -391,6 +487,136 @@ buffer_unbind_name_low_level(Working_Set *working_set, Editing_File *file){
     working_set_remove_name(working_set, file->unique_name.name);
     file->base_name.name.size = 0;
     file->unique_name.name.size = 0;
+}
+
+internal void
+buffer_bind_name(Models *models, General_Memory *general, Partition *scratch,
+                 Working_Set *working_set,
+                 Editing_File *file, String base_name){
+    Temp_Memory temp = begin_temp_memory(scratch);
+    
+    // List of conflict files.
+    Editing_File **conflict_file_ptrs = push_array(scratch, Editing_File*, 0);
+    int32_t conflict_count = 0;
+    
+    {
+        Editing_File **new_file_ptr = push_array(scratch, Editing_File*, 1);
+        *new_file_ptr = file;
+        ++conflict_count;
+    }
+    
+    File_Node *used_nodes = &working_set->used_sentinel;
+    for (File_Node *node = used_nodes->next; node != used_nodes; node = node->next){
+        Editing_File *file_ptr = (Editing_File*)node;
+        if (file_is_ready(file_ptr) && match(base_name, file_ptr->base_name.name)){
+            Editing_File **new_file_ptr = push_array(scratch, Editing_File*, 1);
+            *new_file_ptr = file_ptr;
+            ++conflict_count;
+        }
+    }
+    
+    // Fill conflict array.
+    Buffer_Name_Conflict_Entry *conflicts = push_array(scratch, Buffer_Name_Conflict_Entry, conflict_count);
+    
+    for (int32_t i = 0; i < conflict_count; ++i){
+        Editing_File *file_ptr = conflict_file_ptrs[i];
+        Buffer_Name_Conflict_Entry *entry = &conflicts[i];
+        entry->buffer_id = file_ptr->id.id;
+        
+        String file_name = push_string(scratch, file_ptr->canon.name);
+        entry->file_name = file_name.str;
+        entry->file_name_len = file_name.size;
+        
+        String term_base_name = push_string(scratch, base_name);
+        entry->base_name = term_base_name.str;
+        entry->base_name_len = term_base_name.size;
+        
+        String b = base_name;
+        if (i > 0){
+            b = file_ptr->unique_name.name;
+        }
+        i32 unique_name_capacity = 256;
+        String unique_name = push_string(scratch, b, unique_name_capacity);
+        entry->unique_name_in_out = unique_name.str;
+        entry->unique_name_len_in_out = unique_name.size;
+        entry->unique_name_capacity = unique_name_capacity;
+    }
+    
+    // Get user's resolution data.
+    if (models->buffer_name_resolver != 0){
+        models->buffer_name_resolver(&models->app_links, conflicts, conflict_count);
+    }
+    
+    // Re-bind all of the files
+    for (int32_t i = 0; i < conflict_count; ++i){
+        Editing_File *file_ptr = conflict_file_ptrs[i];
+        if (file_ptr->unique_name.name.str != 0){
+            buffer_unbind_name_low_level(working_set, file_ptr);
+        }
+    }
+    for (int32_t i = 0; i < conflict_count; ++i){
+        Editing_File *file_ptr = conflict_file_ptrs[i];
+        Buffer_Name_Conflict_Entry *entry = &conflicts[i];
+        String unique_name = make_string(entry->unique_name_in_out, entry->unique_name_len_in_out);
+        buffer_bind_name_low_level(general, working_set, file_ptr, base_name, unique_name);
+    }
+    
+    end_temp_memory(temp);
+}
+
+////////////////////////////////
+
+internal Editing_File*
+open_file(System_Functions *system, Models *models, String filename){
+    Editing_File *file = 0;
+    Editing_File_Name canon_name = {0};
+    
+    if (terminate_with_null(&filename) &&
+        get_canon_name(system, filename, &canon_name)){
+        Working_Set *working_set = &models->working_set;
+        file = working_set_contains_canon(working_set, canon_name.name);
+        if (file == 0){
+            Plat_Handle handle;
+            if (system->load_handle(canon_name.name.str, &handle)){
+                Mem_Options *mem = &models->mem;
+                General_Memory *general = &mem->general;
+                Partition *part = &mem->part;
+                
+                file = working_set_alloc_always(working_set, general);
+                buffer_bind_file(system, general, working_set, file, canon_name.name);
+                buffer_bind_name(models, general, part, working_set, file, front_of_directory(filename));
+                
+                i32 size = system->load_size(handle);
+                char *buffer = 0;
+                b32 gen_buffer = 0;
+                
+                Temp_Memory temp = begin_temp_memory(part);
+                
+                buffer = push_array(part, char, size);
+                if (buffer == 0){
+                    buffer = (char*)general_memory_allocate(general, size);
+                    Assert(buffer);
+                    gen_buffer = 1;
+                }
+                
+                if (system->load_file(handle, buffer, size)){
+                    system->load_close(handle);
+                    init_normal_file(system, models, buffer, size, file);
+                }
+                else{
+                    system->load_close(handle);
+                }
+                
+                if (gen_buffer){
+                    general_memory_free(general, buffer);
+                }
+                
+                end_temp_memory(temp);
+            }
+        }
+    }
+    
+    return(file);
 }
 
 // BOTTOM

@@ -282,15 +282,19 @@ DOC_SEE(Command_Line_Interface_Flag)
         }
         
         // NOTE(allen): If the buffer is specified by name but does not already exist, then create it.
-        if (file == 0 && buffer_id.name){
+        if (file == 0 && buffer_id.name != 0){
             file = working_set_alloc_always(working_set, general);
+            Assert(file != 0);
+            
+#if 0
             if (file == 0){
                 append(&feedback_str, make_lit_string("ERROR: unable to allocate a new buffer\n"));
                 result = false;
                 goto done;
             }
+#endif
             
-            String name = make_string_terminated(part, buffer_id.name, buffer_id.name_len);
+            String name = push_string(part, buffer_id.name, buffer_id.name_len);
             buffer_bind_name(models, general, part, working_set, file, name);
             init_read_only_file(system, models, file);
         }
@@ -336,7 +340,7 @@ DOC_SEE(Command_Line_Interface_Flag)
             if (bind_to_new_view){
                 View *vptr = imp_get_view(cmd, view);
                 if (vptr != 0){
-                    view_set_file(system, vptr, file, models);
+                    view_set_file(system, models, vptr, file);
                     view_show_file(vptr);
                 }
             }
@@ -349,7 +353,7 @@ DOC_SEE(Command_Line_Interface_Flag)
             path_string = models->hot_directory.string;
         }
         else{
-            path_string = make_string_terminated(part, path, path_len);
+            path_string = push_string(part, path, path_len);
         }
         
         // NOTE(allen): Figure out the command string.
@@ -358,7 +362,7 @@ DOC_SEE(Command_Line_Interface_Flag)
             command_string = make_lit_string(" echo no script specified");
         }
         else{
-            command_string = make_string_terminated(part, command, command_len);
+            command_string = push_string(part, command, command_len);
         }
         
         // NOTE(allen): Attept to execute the command.
@@ -619,7 +623,8 @@ DOC_SEE(Access_Flag)
     
     String fname = make_string(name, len);
     Editing_File_Name canon = {0};
-    if (get_canon_name(system, &canon, fname)){
+    if (get_canon_name(system, fname,
+                       &canon)){
         Editing_File *file = working_set_contains_canon(working_set, canon.name);
         fill_buffer_summary(&buffer, file, working_set);
         if (!access_test(buffer.lock_flags, access)){
@@ -770,7 +775,10 @@ DOC_SEE(Buffer_Batch_Edit_Type)
             char *inv_str = (char*)part->base + part->pos;
             int32_t inv_str_max = part->max - part->pos;
             
-            Edit_Spec spec = file_compute_edit(mem, file, edits, str, str_len, inverse_edits, inv_str, inv_str_max, edit_count, type);
+            Edit_Spec spec = edit_compute_batch_spec(&mem->general,
+                                                     file,
+                                                     edits, str, str_len,
+                                                     inverse_edits, inv_str, inv_str_max, edit_count, type);
             
             edit_batch(system, models, file, spec, hist_normal, type);
             
@@ -1063,7 +1071,7 @@ DOC_SEE(Buffer_Setting_ID)
                     Font_Pointers font = system->font.get_pointers_by_id(file->settings.font_id);
                     file->settings.display_width = new_value;
                     file_measure_wraps(system, &models->mem, file, font);
-                    adjust_views_looking_at_files_to_new_cursor(system, models, file);
+                    adjust_views_looking_at_file_to_new_cursor(system, models, file);
                 }
             }break;
             
@@ -1077,7 +1085,7 @@ DOC_SEE(Buffer_Setting_ID)
                     Font_Pointers font = system->font.get_pointers_by_id(file->settings.font_id);
                     file->settings.minimum_base_display_width = new_value;
                     file_measure_wraps(system, &models->mem, file, font);
-                    adjust_views_looking_at_files_to_new_cursor(system, models, file);
+                    adjust_views_looking_at_file_to_new_cursor(system, models, file);
                 }
             }break;
             
@@ -1167,7 +1175,7 @@ DOC_SEE(Buffer_Setting_ID)
                     file_allocate_character_starts_as_needed(&models->mem.general, file);
                     buffer_measure_character_starts(system, font, &file->state.buffer, file->state.character_starts, 0, file->settings.virtual_white);
                     file_measure_wraps(system, &models->mem, file, font);
-                    adjust_views_looking_at_files_to_new_cursor(system, models, file);
+                    adjust_views_looking_at_file_to_new_cursor(system, models, file);
                 }
             }break;
             
@@ -1303,7 +1311,7 @@ DOC_SEE(Buffer_Create_Flag)
         Editing_File *file = 0;
         b32 do_new_file = false;
         Editing_File_Name canon = {0};
-        if (get_canon_name(system, &canon, fname)){
+        if (get_canon_name(system, fname, &canon)){
             file = working_set_contains_canon(working_set, canon.name);
         }
         else{
@@ -1321,7 +1329,7 @@ DOC_SEE(Buffer_Create_Flag)
             
             // NOTE(allen): Figure out whether this is a new file, or an existing file.
             if (!do_new_file){
-                if (flags & BufferCreate_AlwaysNew){
+                if ((flags & BufferCreate_AlwaysNew) != 0){
                     do_new_file = true;
                 }
                 else{
@@ -1332,11 +1340,11 @@ DOC_SEE(Buffer_Create_Flag)
             }
             
             if (do_new_file){
-                if (!(flags & BufferCreate_NeverNew)){
+                if ((flags & BufferCreate_NeverNew) == 0){
                     file = working_set_alloc_always(working_set, general);
                     if (file != 0){
-                        buffer_bind_name(models, general, part, working_set, file, fname);
-                        init_normal_file(system, models, file, 0, 0);
+                        buffer_bind_name(models, general, part, working_set, file, front_of_directory(fname));
+                        init_normal_file(system, models, 0, 0, file);
                         fill_buffer_summary(&result, file, cmd);
                     }
                 }
@@ -1359,8 +1367,8 @@ DOC_SEE(Buffer_Create_Flag)
                     file = working_set_alloc_always(working_set, general);
                     if (file != 0){
                         buffer_bind_file(system, general, working_set, file, canon.name);
-                        buffer_bind_name(models, general, part, working_set, file, fname);
-                        init_normal_file(system, models, file, buffer, size);
+                        buffer_bind_name(models, general, part, working_set, file, front_of_directory(fname));
+                        init_normal_file(system, models, buffer, size, file);
                         fill_buffer_summary(&result, file, cmd);
                     }
                 }
@@ -1417,7 +1425,7 @@ DOC_SEE(Buffer_Save_Flag)
             
             Partition *part = &models->mem.part;
             Temp_Memory temp = begin_temp_memory(part);
-            String name = make_string_terminated(part, file_name, file_name_len);
+            String name = push_string(part, file_name, file_name_len);
             save_file_to_name(system, models, file, name.str);
             end_temp_memory(temp);
         }
@@ -1444,26 +1452,25 @@ DOC_SEE(Buffer_Identifier)
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     System_Functions *system = cmd->system;
     Models *models = cmd->models;
-    Working_Set *working_set = &models->working_set;
-    View *vptr = imp_get_view(cmd, view_id);
-    Editing_File *file = get_file_from_identifier(system, working_set, buffer);
-    int32_t result = false;
     
-    if (file){
-        if (flags & BufferKill_AlwaysKill){
+    bool32 result = false;
+    Working_Set *working_set = &models->working_set;
+    Editing_File *file = get_file_from_identifier(system, working_set, buffer);
+    if (file != 0){
+        if ((flags & BufferKill_AlwaysKill) != 0){
             result = true;
-            kill_file(system, models, file);
+            kill_file_and_update_views(system, models, file);
         }
         else{
             Try_Kill_Result kill_result = interactive_try_kill_file(system, models, file);
             if (kill_result == TryKill_NeedDialogue){
-                if (vptr){
+                View *vptr = imp_get_view(cmd, view_id);
+                if (vptr != 0){
                     interactive_begin_sure_to_kill(system, vptr, models, file);
                 }
                 else{
-#define MESSAGE "CUSTOM WARNING: the buffer is dirty and no view was specified for a dialogue.\n"
-                    print_message(app, literal(MESSAGE));
-#undef MESSAGE
+                    char m[] = "WARNING: the buffer is dirty and no view was specified for a dialogue.\n";
+                    print_message(app, m, sizeof(m) - 1);
                 }
             }
             else{
@@ -2079,7 +2086,7 @@ DOC_SEE(Set_Buffer_Flag)
         if (file != 0){
             result = true;
             if (file != vptr->transient.file_data.file){
-                view_set_file(system, vptr, file, models);
+                view_set_file(system, models, vptr, file);
                 if (!(flags & SetBuffer_KeepOriginalGUI)){
                     view_show_file(vptr);
                 }
@@ -2341,7 +2348,7 @@ DOC_RETURN(Returns true if the given id was a valid face and the change was made
         
         Models *models = cmd->models;
         if (apply_to_all_buffers){
-            global_set_font(system, models, id);
+            global_set_font_and_update_files(system, models, id);
         }
         else{
             models->global_font_id = id;
@@ -2543,7 +2550,7 @@ DOC_SEE(try_create_new_face)
     Font_Settings settings;
     if (face_description_to_settings(system, *description, &settings)){
         Models *models = cmd->models;
-        if (alter_font(system, models, id, &settings)){
+        if (alter_font_and_update_files(system, models, id, &settings)){
             success = true;
         }
     }
@@ -2567,12 +2574,7 @@ DOC_RETURN(Returns true on success and zero on failure.)
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     System_Functions *system = cmd->system;
     Models *models = cmd->models;
-    
-    bool32 success = false;
-    if (release_font(system, models, id, replacement_id)){
-        success = true;
-    }
-    
+    bool32 success = release_font_and_update_files(system, models, id, replacement_id);
     return(success);
 }
 
@@ -2707,7 +2709,7 @@ DOC_SEE(File_List)
     Partition *part = &cmd->models->mem.part;
     File_List result = {};
     Temp_Memory temp = begin_temp_memory(part);
-    String str = make_string_terminated(part, dir, len);
+    String str = push_string(part, dir, len);
     system->set_file_list(&result, str.str, 0, 0, 0);
     end_temp_memory(temp);
     return(result);

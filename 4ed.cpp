@@ -371,7 +371,7 @@ internal View*
 panel_make_empty(System_Functions *system, Models *models, Panel *panel){
     Assert(panel->view == 0);
     View_And_ID new_view = live_set_alloc_view(&models->live_set, panel, models);
-    view_set_file(system, new_view.view, models->scratch_buffer, models);
+    view_set_file(system, models, new_view.view, models->scratch_buffer);
     new_view.view->transient.map = models->scratch_buffer->settings.base_map_id;
     return(new_view.view);
 }
@@ -475,10 +475,10 @@ COMMAND_DECL(reopen){
                     }
                     
                     file_free(system, general, file);
-                    init_normal_file(system, models, file, buffer, size);
+                    init_normal_file(system, models, buffer, size, file);
                     
                     for (i32 i = 0; i < vptr_count; ++i){
-                        view_set_file(system, vptrs[i], file, models);
+                        view_set_file(system, models, vptrs[i], file);
                         
                         int32_t line = line_number[i];
                         int32_t character = column_number[i];
@@ -515,14 +515,12 @@ COMMAND_DECL(save){
 COMMAND_DECL(interactive_switch_buffer){
     USE_MODELS(models);
     USE_VIEW(view);
-    
     view_show_interactive(system, view, models, IAct_Switch, IInt_Live_File_List, make_lit_string("Switch Buffer: "));
 }
 
 COMMAND_DECL(interactive_kill_buffer){
     USE_MODELS(models);
     USE_VIEW(view);
-    
     view_show_interactive(system, view, models, IAct_Kill, IInt_Live_File_List, make_lit_string("Kill Buffer: "));
 }
 
@@ -530,8 +528,9 @@ COMMAND_DECL(kill_buffer){
     USE_MODELS(models);
     USE_VIEW(view);
     REQ_FILE(file, view);
-    
-    interactive_try_kill_file(system, models, view, file);
+    if (interactive_try_kill_file(system, models, file) == TryKill_NeedDialogue){
+        interactive_begin_sure_to_kill(system, view, models, file);
+    }
 }
 
 internal void
@@ -567,20 +566,19 @@ case_change_range(System_Functions *system, Models *models, View *view, Editing_
 
 COMMAND_DECL(open_color_tweaker){
     USE_VIEW(view);
-    USE_MODELS(models);
-    view_show_theme(view, models);
-}
-
-COMMAND_DECL(open_debug){
-    USE_VIEW(view);
-    USE_MODELS(models);
-    view_show_GUI(view, models, VUI_Debug);
-    view->transient.debug_vars = null_debug_vars;
+    view->transient.map = mapid_ui;
+    view->transient.showing_ui = VUI_Theme;
+    view->transient.color_mode = CV_Mode_Library;
+    view->transient.color = super_color_create(0xFF000000);
+    view->transient.current_color_editing = 0;
+    view->transient.changed_context_in_step = true;
 }
 
 COMMAND_DECL(user_callback){
     USE_MODELS(models);
-    if (binding.custom) binding.custom(&models->app_links);
+    if (binding.custom != 0){
+        binding.custom(&models->app_links);
+    }
 }
 
 global Command_Function *command_table[cmdid_count];
@@ -981,7 +979,6 @@ setup_command_table(){
     SET(kill_buffer);
     
     SET(open_color_tweaker);
-    SET(open_debug);
 #undef SET
 }
 
@@ -1403,13 +1400,12 @@ App_Init_Sig(app_init){
     
     cmd->key = null_key_event_data;
     
-    General_Memory *general = &models->mem.general;
-    
     File_Init init_files[] = {
         { make_lit_string("*messages*"), &models->message_buffer, true , },
-        { make_lit_string("*scratch*"),  &models->scratch_buffer, false, }
+        { make_lit_string("*scratch*"),  &models->scratch_buffer, false, },
     };
     
+    General_Memory *general = &models->mem.general;
     for (i32 i = 0; i < ArrayCount(init_files); ++i){
         Editing_File *file = working_set_alloc_always(&models->working_set, general);
         buffer_bind_name(models, general, partition, &models->working_set, file, init_files[i].name);
@@ -1418,7 +1414,7 @@ App_Init_Sig(app_init){
             init_read_only_file(system, models, file);
         }
         else{
-            init_normal_file(system, models, file, 0, 0);
+            init_normal_file(system, models, 0, 0, file);
         }
         
         file->settings.never_kill = true;
@@ -1583,7 +1579,8 @@ App_Step_Sig(app_step){
         for (;system->get_file_change(buffer, buffer_size, &mem_too_small, &size);){
             Assert(!mem_too_small);
             Editing_File_Name canon = {0};
-            if (get_canon_name(system, &canon, make_string(buffer, size))){
+            if (get_canon_name(system, make_string(buffer, size),
+                               &canon)){
                 Editing_File *file = working_set_contains_canon(working_set, canon.name);
                 if (file != 0){
                     if (file->state.ignore_behind_os == 0){
@@ -1799,7 +1796,8 @@ App_Step_Sig(app_step){
             
             String filename = {0};
             Editing_File_Name canon_name = {0};
-            if (get_canon_name(system, &canon_name, make_string_slowly(models->settings.init_files[i]))){
+            if (get_canon_name(system, make_string_slowly(models->settings.init_files[i]),
+                               &canon_name)){
                 filename = canon_name.name;
             }
             else{

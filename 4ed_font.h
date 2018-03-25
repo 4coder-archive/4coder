@@ -41,7 +41,7 @@ struct Font_Settings{
     Font_Parameters parameters;
 };
 
-// NOTE(allen): Results about the font true for the entire font as a whole.
+// NOTE(allen): Data about the font true for the entire font as a whole.
 struct Font_Metrics{
     i32 name_len;
     char name[256];

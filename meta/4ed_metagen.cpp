@@ -688,7 +688,6 @@ generate_remapping_code_and_data(){
         bind(mappings, 'S', MDFR_CTRL, save_all_dirty_buffers);
         
         bind(mappings, 'c', MDFR_ALT, open_color_tweaker);
-        bind(mappings, 'd', MDFR_ALT, open_debug);
         
         bind(mappings, '.', MDFR_ALT, change_to_build_panel);
         bind(mappings, ',', MDFR_ALT, close_build_panel);
@@ -888,7 +887,6 @@ generate_remapping_code_and_data(){
         bind(mappings, 'S', MDFR_CMND, save_all_dirty_buffers);
         
         bind(mappings, 'c', MDFR_CTRL, open_color_tweaker);
-        bind(mappings, 'd', MDFR_CTRL, open_debug);
         
         bind(mappings, '.', MDFR_CTRL, change_to_build_panel);
         bind(mappings, ',', MDFR_CTRL, close_build_panel);

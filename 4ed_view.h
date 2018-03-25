@@ -40,33 +40,36 @@ enum Interactive_Action{
     IAct_Sure_To_Close
 };
 
-enum Interactive_Interaction{
-    IInt_Sys_File_List,
-    IInt_Live_File_List,
-    IInt_Sure_To_Kill,
-    IInt_Sure_To_Close
+typedef i32 Unsaved_Changes_User_Response;
+enum{
+    UnsavedChangesUserResponse_ContinueAnyway = 0,
+    UnsavedChangesUserResponse_Cancel = 1,
+    UnsavedChangesUserResponse_SaveAndContinue = 2,
 };
 
-enum View_UI{
-    VUI_None,
-    VUI_Theme,
-    VUI_Interactive,
-    VUI_Debug
+typedef i32 Interactive_Interaction;
+enum{
+    IInt_Sys_File_List = 0,
+    IInt_Live_File_List = 1,
+    IInt_Sure_To_Kill = 2,
+    IInt_Sure_To_Close = 3
 };
 
-enum Debug_Mode{
-    DBG_Input,
-    DBG_Threads_And_Memory,
-    DBG_View_Inspection
+typedef i32 View_UI;
+enum{
+    VUI_None = 0,
+    VUI_Theme = 1,
+    VUI_Interactive = 2,
 };
 
-enum Color_View_Mode{
-    CV_Mode_Library,
-    CV_Mode_Font,
-    CV_Mode_Global_Font,
-    CV_Mode_Font_Editing,
-    CV_Mode_Global_Font_Editing,
-    CV_Mode_Adjusting,
+typedef i32 Color_View_Mode;
+enum{
+    CV_Mode_Library = 0,
+    CV_Mode_Font = 1,
+    CV_Mode_Global_Font = 2,
+    CV_Mode_Font_Editing = 3,
+    CV_Mode_Global_Font_Editing = 4,
+    CV_Mode_Adjusting = 5,
 };
 
 struct Scroll_Context{
@@ -74,12 +77,6 @@ struct Scroll_Context{
     GUI_id scroll;
     View_UI mode;
 };
-
-struct Debug_Vars{
-    i32 mode;
-    i32 inspecting_view_id;
-};
-global_const Debug_Vars null_debug_vars = {0};
 
 struct View_Transient{
     struct View *next;
@@ -139,8 +136,6 @@ struct View_Transient{
     f32 widget_height;
     
     b32 reinit_scrolling;
-    
-    Debug_Vars debug_vars;
 };
 
 struct View{

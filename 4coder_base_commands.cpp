@@ -1282,12 +1282,6 @@ CUSTOM_DOC("Opens the 4coder colors and fonts selector menu.")
     exec_command(app, cmdid_open_color_tweaker);
 }
 
-CUSTOM_COMMAND_SIG(open_debug)
-CUSTOM_DOC("Opens a debug view for internal use.")
-{
-    exec_command(app, cmdid_open_debug);
-}
-
 #endif
 
 // BOTTOM

@@ -87,8 +87,6 @@ ENUM(uint64_t, Command_ID){
     
     /* DOC(cmdid_open_color_tweaker opens the theme editing GUI.) */
     cmdid_open_color_tweaker,
-    /* DOC(cmdid_open_debug opens the debug information viewer mode.) */
-    cmdid_open_debug,
     
     // count
     cmdid_count

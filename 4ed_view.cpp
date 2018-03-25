@@ -87,6 +87,22 @@ view_compute_max_target_y(View *view){
     return(ceil32(max_target_y));
 }
 
+inline u32
+view_lock_flags(View *view){
+    u32 result = AccessOpen;
+    File_Viewing_Data *data = &view->transient.file_data;
+    if (view->transient.showing_ui != VUI_None){
+        result |= AccessHidden;
+    }
+    if (data->file_locked ||
+        (data->file && data->file->settings.read_only)){
+        result |= AccessProtected;
+    }
+    return(result);
+}
+
+////////////////////////////////
+
 internal b32
 view_move_view_to_cursor(View *view, GUI_Scroll_Vars *scroll, b32 center_view){
     b32 result = 0;
@@ -219,19 +235,26 @@ view_set_temp_highlight(System_Functions *system, View *view, i32 pos, i32 end_p
     view_set_cursor(view, view->transient.file_data.temp_highlight, 0, file->settings.unwrapped_lines);
 }
 
-inline u32
-view_lock_flags(View *view){
-    u32 result = AccessOpen;
-    File_Viewing_Data *data = &view->transient.file_data;
-    if (view->transient.showing_ui != VUI_None){
-        result |= AccessHidden;
-    }
-    if (data->file_locked ||
-        (data->file && data->file->settings.read_only)){
-        result |= AccessProtected;
-    }
-    return(result);
+inline void
+view_cursor_move(System_Functions *system, View *view, i32 pos){
+    Editing_File *file = view->transient.file_data.file;
+    Assert(file != 0);
+    Full_Cursor cursor = file_compute_cursor(system, file, seek_pos(pos), 0);
+    view_set_cursor(view, cursor, true, file->settings.unwrapped_lines);
+    view->transient.file_data.show_temp_highlight = false;
 }
+
+inline void
+view_post_paste_effect(View *view, f32 seconds, i32 start, i32 size, u32 color){
+    Editing_File *file = view->transient.file_data.file;
+    file->state.paste_effect.start = start;
+    file->state.paste_effect.end = start + size;
+    file->state.paste_effect.color = color;
+    file->state.paste_effect.seconds_down = seconds;
+    file->state.paste_effect.seconds_max = seconds;
+}
+
+////////////////////////////////
 
 internal b32
 file_is_viewed(Editing_Layout *layout, Editing_File *file){
@@ -248,10 +271,8 @@ file_is_viewed(Editing_Layout *layout, Editing_File *file){
     return(is_viewed);
 }
 
-////////////////////////////////
-
 internal void
-adjust_views_looking_at_files_to_new_cursor(System_Functions *system, Models *models, Editing_File *file){
+adjust_views_looking_at_file_to_new_cursor(System_Functions *system, Models *models, Editing_File *file){
     Editing_Layout *layout = &models->layout;
     
     for (Panel *panel = layout->used_sentinel.next;
@@ -274,23 +295,88 @@ adjust_views_looking_at_files_to_new_cursor(System_Functions *system, Models *mo
     }
 }
 
-////////////////////////////////
+internal void
+file_full_remeasure(System_Functions *system, Models *models, Editing_File *file){
+    Face_ID font_id = file->settings.font_id;
+    Font_Pointers font = system->font.get_pointers_by_id(font_id);
+    file_measure_wraps(system, &models->mem, file, font);
+    adjust_views_looking_at_file_to_new_cursor(system, models, file);
+    
+    Editing_Layout *layout = &models->layout;
+    
+    for (Panel *panel = layout->used_sentinel.next;
+         panel != &layout->used_sentinel;
+         panel = panel->next){
+        View *view = panel->view;
+        if (view->transient.file_data.file == file){
+            view->transient.line_height = font.metrics->height;
+        }
+    }
+}
 
 internal void
-update_view_line_height(System_Functions *system, Models *models, View *view, Face_ID font_id){
-    Font_Pointers font = system->font.get_pointers_by_id(font_id);
-    Assert(font.valid);
-    view->transient.line_height = font.metrics->height;
+file_set_font(System_Functions *system, Models *models, Editing_File *file, Face_ID font_id){
+    file->settings.font_id = font_id;
+    file_full_remeasure(system, models, file);
 }
 
-inline void
-view_cursor_move(System_Functions *system, View *view, i32 pos){
-    Editing_File *file = view->transient.file_data.file;
-    Assert(file != 0);
-    Full_Cursor cursor = file_compute_cursor(system, file, seek_pos(pos), 0);
-    view_set_cursor(view, cursor, true, file->settings.unwrapped_lines);
-    view->transient.file_data.show_temp_highlight = false;
+internal void
+global_set_font_and_update_files(System_Functions *system, Models *models, Face_ID font_id){
+    for (File_Node *node = models->working_set.used_sentinel.next;
+         node != &models->working_set.used_sentinel;
+         node = node->next){
+        Editing_File *file = (Editing_File*)node;
+        file_set_font(system, models, file, font_id);
+    }
+    models->global_font_id = font_id;
 }
+
+internal b32
+alter_font_and_update_files(System_Functions *system, Models *models, Face_ID font_id, Font_Settings *new_settings){
+    b32 success = false;
+    if (system->font.face_change_settings(font_id, new_settings)){
+        success = true;
+        for (File_Node *node = models->working_set.used_sentinel.next;
+             node != &models->working_set.used_sentinel;
+             node = node->next){
+            Editing_File *file = (Editing_File*)node;
+            if (file->settings.font_id == font_id){
+                file_full_remeasure(system, models, file);
+            }
+        }
+    }
+    return(success);
+}
+
+internal b32
+release_font_and_update_files(System_Functions *system, Models *models, Face_ID font_id, Face_ID replacement_id){
+    b32 success = false;
+    if (system->font.face_release(font_id)){
+        Font_Pointers font = system->font.get_pointers_by_id(replacement_id);
+        if (!font.valid){
+            Face_ID largest_id = system->font.get_largest_id();
+            for (replacement_id = 1; replacement_id <= largest_id && replacement_id > 0; ++replacement_id){
+                font = system->font.get_pointers_by_id(replacement_id);
+                if (font.valid){
+                    break;
+                }
+            }
+            Assert(replacement_id <= largest_id && replacement_id > 0);
+        }
+        success = true;
+        for (File_Node *node = models->working_set.used_sentinel.next;
+             node != &models->working_set.used_sentinel;
+             node = node->next){
+            Editing_File *file = (Editing_File*)node;
+            if (file->settings.font_id == font_id){
+                file_set_font(system, models, file, replacement_id);
+            }
+        }
+    }
+    return(success);
+}
+
+////////////////////////////////
 
 inline void
 view_show_file(View *view){
@@ -303,8 +389,23 @@ view_show_file(View *view){
     }
 }
 
+inline void
+view_show_interactive(System_Functions *system, View *view, Models *models, Interactive_Action action, Interactive_Interaction interaction, String query){
+    view->transient.showing_ui = VUI_Interactive;
+    view->transient.action = action;
+    view->transient.interaction = interaction;
+    view->transient.dest = make_fixed_width_string(view->transient.dest_);
+    view->transient.list_i = 0;
+    
+    view->transient.map = mapid_ui;
+    
+    hot_directory_clean_end(&models->hot_directory);
+    hot_directory_reload(system, &models->hot_directory);
+    view->transient.changed_context_in_step = true;
+}
+
 internal void
-view_set_file(System_Functions *system, View *view, Editing_File *file, Models *models){
+view_set_file(System_Functions *system, Models *models, View *view, Editing_File *file){
     Assert(file != 0);
     
     if (view->transient.file_data.file != 0){
@@ -324,7 +425,8 @@ view_set_file(System_Functions *system, View *view, Editing_File *file, Models *
     edit_pos = edit_pos_get_new(file, view->persistent.id);
     view->transient.edit_pos = edit_pos;
     
-    update_view_line_height(system, models, view, file->settings.font_id);
+    Font_Pointers font = system->font.get_pointers_by_id(file->settings.font_id);
+    view->transient.line_height = font.metrics->height;
     
     if (edit_pos->cursor.line == 0){
         view_cursor_move(system, view, 0);
@@ -355,24 +457,7 @@ view_set_relative_scrolling(View *view, Relative_Scrolling scrolling){
     }
 }
 
-inline i32_Rect
-view_widget_rect(View *view, i32 line_height){
-    Assert(view->transient.file_data.file);
-    Panel *panel = view->transient.panel;
-    i32_Rect result = panel->inner;
-    result.y0 = result.y0 + line_height + 2;
-    return(result);
-}
-
-inline void
-view_post_paste_effect(View *view, f32 seconds, i32 start, i32 size, u32 color){
-    Editing_File *file = view->transient.file_data.file;
-    file->state.paste_effect.start = start;
-    file->state.paste_effect.end = start + size;
-    file->state.paste_effect.color = color;
-    file->state.paste_effect.seconds_down = seconds;
-    file->state.paste_effect.seconds_max = seconds;
-}
+////////////////////////////////
 
 inline void
 edit_pre_maintenance(System_Functions *system, General_Memory *general, Editing_File *file){
@@ -573,8 +658,48 @@ edit_single__inner(System_Functions *system, Models *models, Editing_File *file,
     edit_fix_marks(system, models, file, layout, desc);
 }
 
+inline void
+edit_single(System_Functions *system, Models *models, Editing_File *file,
+            i32 start, i32 end, char *str, i32 len){
+    Edit_Spec spec = {};
+    spec.step.type = ED_NORMAL;
+    spec.step.edit.start =  start;
+    spec.step.edit.end = end;
+    spec.step.edit.len = len;
+    spec.str = (u8*)str;
+    edit_single__inner(system, models, file, spec,
+                       hist_normal);
+}
+
+internal Edit_Spec
+edit_compute_batch_spec(General_Memory *general,
+                        Editing_File *file,
+                        Buffer_Edit *edits, char *str_base, i32 str_size,
+                        Buffer_Edit *inverse_array, char *inv_str, i32 inv_max, i32 edit_count, i32 batch_type){
+    
+    i32 inv_str_pos = 0;
+    Buffer_Invert_Batch state = {};
+    if (buffer_invert_batch(&state, &file->state.buffer, edits, edit_count,
+                            inverse_array, inv_str, &inv_str_pos, inv_max)){
+        InvalidCodePath;
+    }
+    
+    i32 first_child = undo_children_push(general, &file->state.undo.children, edits, edit_count, (u8*)(str_base), str_size);
+    i32 inverse_first_child = undo_children_push(general, &file->state.undo.children, inverse_array, edit_count, (u8*)(inv_str), inv_str_pos);
+    
+    Edit_Spec spec = {};
+    spec.step.type = ED_NORMAL;
+    spec.step.first_child = first_child;
+    spec.step.inverse_first_child = inverse_first_child;
+    spec.step.special_type = batch_type;
+    spec.step.child_count = edit_count;
+    spec.step.inverse_child_count = edit_count;
+    return(spec);
+}
+
 internal void
-edit_batch(System_Functions *system, Models *models, Editing_File *file, Edit_Spec spec, History_Mode history_mode, i32 batch_type){
+edit_batch(System_Functions *system, Models *models, Editing_File *file,
+           Edit_Spec spec, History_Mode history_mode, Buffer_Batch_Edit_Type batch_type){
     
     Mem_Options *mem = &models->mem;
     General_Memory *general = &mem->general;
@@ -688,19 +813,6 @@ edit_batch(System_Functions *system, Models *models, Editing_File *file, Edit_Sp
 }
 
 inline void
-edit_single(System_Functions *system, Models *models, Editing_File *file,
-            i32 start, i32 end, char *str, i32 len){
-    Edit_Spec spec = {};
-    spec.step.type = ED_NORMAL;
-    spec.step.edit.start =  start;
-    spec.step.edit.end = end;
-    spec.step.edit.len = len;
-    spec.str = (u8*)str;
-    edit_single__inner(system, models, file, spec,
-                       hist_normal);
-}
-
-inline void
 edit_clear(System_Functions *system, Models *models, Editing_File *file){
     if (models->hook_end_file != 0){
         models->hook_end_file(&models->app_links, file->id.id);
@@ -735,498 +847,10 @@ edit_historical(System_Functions *system, Models *models, Editing_File *file, Vi
     }
 }
 
-internal String*
-working_set_next_clipboard_string(General_Memory *general, Working_Set *working, i32 str_size){
-    String *result = 0;
-    i32 clipboard_current = working->clipboard_current;
-    if (working->clipboard_size == 0){
-        clipboard_current = 0;
-        working->clipboard_size = 1;
-    }
-    else{
-        ++clipboard_current;
-        if (clipboard_current >= working->clipboard_max_size){
-            clipboard_current = 0;
-        }
-        else if (working->clipboard_size <= clipboard_current){
-            working->clipboard_size = clipboard_current+1;
-        }
-    }
-    result = &working->clipboards[clipboard_current];
-    working->clipboard_current = clipboard_current;
-    working->clipboard_rolling = clipboard_current;
-    char *new_str;
-    if (result->str){
-        new_str = (char*)general_memory_reallocate(general, result->str, result->size, str_size);
-    }
-    else{
-        new_str = (char*)general_memory_allocate(general, str_size+1);
-    }
-    // TODO(allen): What if new_str == 0?
-    *result = make_string_cap(new_str, 0, str_size);
-    return result;
-}
-
-internal String*
-working_set_clipboard_index(Working_Set *working, i32 index){
-    String *result = 0;
-    i32 size = working->clipboard_size;
-    i32 current = working->clipboard_current;
-    if (index >= 0 && size > 0){
-        index = index % size;
-        index = current + size - index;
-        index = index % size;
-        result = &working->clipboards[index];
-    }
-    return(result);
-}
-
-internal String*
-working_set_clipboard_head(Working_Set *working){
-    String *result = 0;
-    if (working->clipboard_size > 0){
-        working->clipboard_rolling = 0;
-        result = working_set_clipboard_index(working, working->clipboard_rolling);
-    }
-    return(result);
-}
-
-internal String*
-working_set_clipboard_roll_down(Working_Set *working){
-    String *result = 0;
-    if (working->clipboard_size > 0){
-        i32 clipboard_index = working->clipboard_rolling;
-        ++clipboard_index;
-        working->clipboard_rolling = clipboard_index;
-        result = working_set_clipboard_index(working, working->clipboard_rolling);
-    }
-    return(result);
-}
-
-internal Edit_Spec
-file_compute_edit(Mem_Options *mem, Editing_File *file, Buffer_Edit *edits, char *str_base, i32 str_size, Buffer_Edit *inverse_array, char *inv_str, i32 inv_max, i32 edit_count, i32 batch_type){
-    General_Memory *general = &mem->general;
-    
-    i32 inv_str_pos = 0;
-    Buffer_Invert_Batch state = {};
-    if (buffer_invert_batch(&state, &file->state.buffer, edits, edit_count,
-                            inverse_array, inv_str, &inv_str_pos, inv_max)){
-        Assert(0);
-    }
-    
-    i32 first_child = undo_children_push(general, &file->state.undo.children, edits, edit_count, (u8*)(str_base), str_size);
-    i32 inverse_first_child = undo_children_push(general, &file->state.undo.children, inverse_array, edit_count, (u8*)(inv_str), inv_str_pos);
-    
-    Edit_Spec spec = {};
-    spec.step.type = ED_NORMAL;
-    spec.step.first_child = first_child;
-    spec.step.inverse_first_child = inverse_first_child;
-    spec.step.special_type = batch_type;
-    spec.step.child_count = edit_count;
-    spec.step.inverse_child_count = edit_count;
-    
-    return(spec);
-}
-
-internal u32*
-style_get_color(Style *style, Cpp_Token token){
-    u32 *result;
-    if (token.flags & CPP_TFLAG_IS_KEYWORD){
-        if (token.type == CPP_TOKEN_BOOLEAN_CONSTANT){
-            result = &style->main.bool_constant_color;
-        }
-        else{
-            result = &style->main.keyword_color;
-        }
-    }
-    else if(token.flags & CPP_TFLAG_PP_DIRECTIVE){
-        result = &style->main.preproc_color;
-    }
-    else{
-        switch (token.type){
-            case CPP_TOKEN_COMMENT:
-            result = &style->main.comment_color;
-            break;
-            
-            case CPP_TOKEN_STRING_CONSTANT:
-            result = &style->main.str_constant_color;
-            break;
-            
-            case CPP_TOKEN_CHARACTER_CONSTANT:
-            result = &style->main.char_constant_color;
-            break;
-            
-            case CPP_TOKEN_INTEGER_CONSTANT:
-            result = &style->main.int_constant_color;
-            break;
-            
-            case CPP_TOKEN_FLOATING_CONSTANT:
-            result = &style->main.float_constant_color;
-            break;
-            
-            case CPP_PP_INCLUDE_FILE:
-            result = &style->main.include_color;
-            break;
-            
-            default:
-            result = &style->main.default_color;
-            break;
-        }
-    }
-    return result;
-}
+////////////////////////////////
 
 internal void
-file_full_remeasure(System_Functions *system, Models *models, Editing_File *file){
-    Face_ID font_id = file->settings.font_id;
-    Font_Pointers font = system->font.get_pointers_by_id(font_id);
-    file_measure_wraps(system, &models->mem, file, font);
-    adjust_views_looking_at_files_to_new_cursor(system, models, file);
-    
-    Editing_Layout *layout = &models->layout;
-    
-    for (Panel *panel = layout->used_sentinel.next;
-         panel != &layout->used_sentinel;
-         panel = panel->next){
-        View *view = panel->view;
-        if (view->transient.file_data.file == file){
-            update_view_line_height(system, models, view, font_id);
-        }
-    }
-}
-
-internal void
-file_set_font(System_Functions *system, Models *models, Editing_File *file, Face_ID font_id){
-    file->settings.font_id = font_id;
-    file_full_remeasure(system, models, file);
-}
-
-internal void
-global_set_font(System_Functions *system, Models *models, Face_ID font_id){
-    for (File_Node *node = models->working_set.used_sentinel.next;
-         node != &models->working_set.used_sentinel;
-         node = node->next){
-        Editing_File *file = (Editing_File*)node;
-        file_set_font(system, models, file, font_id);
-    }
-    models->global_font_id = font_id;
-}
-
-internal b32
-alter_font(System_Functions *system, Models *models, Face_ID font_id, Font_Settings *new_settings){
-    b32 success = false;
-    
-    if (system->font.face_change_settings(font_id, new_settings)){
-        success = true;
-        
-        for (File_Node *node = models->working_set.used_sentinel.next;
-             node != &models->working_set.used_sentinel;
-             node = node->next){
-            Editing_File *file = (Editing_File*)node;
-            if (file->settings.font_id == font_id){
-                file_full_remeasure(system, models, file);
-            }
-        }
-    }
-    
-    return(success);
-}
-
-internal b32
-release_font(System_Functions *system, Models *models, Face_ID font_id, Face_ID replacement_id){
-    b32 success = false;
-    
-    if (system->font.face_release(font_id)){
-        Font_Pointers font = system->font.get_pointers_by_id(replacement_id);
-        if (!font.valid){
-            Face_ID largest_id = system->font.get_largest_id();
-            for (replacement_id = 1; replacement_id <= largest_id && replacement_id > 0; ++replacement_id){
-                font = system->font.get_pointers_by_id(replacement_id);
-                if (font.valid){
-                    break;
-                }
-            }
-            Assert(replacement_id <= largest_id && replacement_id > 0);
-        }
-        
-        success = true;
-        for (File_Node *node = models->working_set.used_sentinel.next;
-             node != &models->working_set.used_sentinel;
-             node = node->next){
-            Editing_File *file = (Editing_File*)node;
-            if (file->settings.font_id == font_id){
-                file_set_font(system, models, file, replacement_id);
-            }
-        }
-    }
-    
-    return(success);
-}
-
-inline void
-view_show_GUI(View *view, Models *models, View_UI ui){
-    view->transient.map = mapid_ui;
-    view->transient.showing_ui = ui;
-    view->transient.changed_context_in_step = true;
-}
-
-inline void
-view_show_interactive(System_Functions *system, View *view, Models *models, Interactive_Action action, Interactive_Interaction interaction, String query){
-    view->transient.showing_ui = VUI_Interactive;
-    view->transient.action = action;
-    view->transient.interaction = interaction;
-    view->transient.dest = make_fixed_width_string(view->transient.dest_);
-    view->transient.list_i = 0;
-    
-    view->transient.map = mapid_ui;
-    
-    hot_directory_clean_end(&models->hot_directory);
-    hot_directory_reload(system, &models->hot_directory);
-    view->transient.changed_context_in_step = true;
-}
-
-inline void
-view_show_theme(View *view, Models *models){
-    view->transient.map = mapid_ui;
-    view->transient.showing_ui = VUI_Theme;
-    view->transient.color_mode = CV_Mode_Library;
-    view->transient.color = super_color_create(0xFF000000);
-    view->transient.current_color_editing = 0;
-    view->transient.changed_context_in_step = true;
-}
-
-internal String
-make_string_terminated(Partition *part, char *str, i32 len){
-    char *space = (char*)push_array(part, char, len + 1);
-    String string = make_string_cap(str, len, len+1);
-    copy_fast_unsafe_cs(space, string);
-    string.str = space;
-    terminate_with_null(&string);
-    return(string);
-}
-
-internal void
-init_normal_file(System_Functions *system, Models *models, Editing_File *file, char *buffer, i32 size){
-    PRFL_FUNC_GROUP();
-    
-    String val = make_string(buffer, size);
-    file_create_from_string(system, models, file, val, 0);
-    
-    if (file->settings.tokens_exist && file->state.token_array.tokens == 0){
-        if (!file->settings.virtual_white){
-            file_first_lex_parallel(system, models, file);
-        }
-        else{
-            file_first_lex_serial(models, file);
-        }
-    }
-}
-
-internal void
-init_read_only_file(System_Functions *system, Models *models, Editing_File *file){
-    String val = null_string;
-    file_create_from_string(system, models, file, val, FileCreateFlag_ReadOnly);
-    
-    if (file->settings.tokens_exist && file->state.token_array.tokens == 0){
-        if (!file->settings.virtual_white){
-            file_first_lex_parallel(system, models, file);
-        }
-        else{
-            file_first_lex_serial(models, file);
-        }
-    }
-}
-
-internal char*
-make_string_part(Partition *scratch, String src, int32_t *size_out){
-    char *r = {0};
-    if (src.size > 0){
-        r = push_array(scratch, char, src.size);
-        *size_out = src.size;
-        memcpy(r, src.str, *size_out);
-    }
-    return(r);
-}
-
-internal char*
-make_string_part(Partition *scratch, String src, int32_t cap, int32_t *size_out, int32_t *cap_out){
-    cap = clamp_bottom(src.size, cap);
-    char *r = 0;
-    if (src.size > 0){
-        r = push_array(scratch, char, cap);
-        *size_out = src.size;
-        *cap_out = cap;
-        memcpy(r, src.str, *size_out);
-    }
-    return(r);
-}
-
-internal void
-buffer_bind_name(Models *models, General_Memory *general, Partition *scratch, Working_Set *working_set, Editing_File *file, String file_name){
-    String base_name = front_of_directory(file_name);
-    
-    Temp_Memory temp = begin_temp_memory(scratch);
-    
-    // List of conflict files.
-    Editing_File **conflict_file_ptrs = push_array(scratch, Editing_File*, 0);
-    int32_t conflict_count = 0;
-    
-    {
-        ++conflict_count;
-        Editing_File **new_file_ptr = push_array(scratch, Editing_File*, 1);
-        *new_file_ptr = file;
-    }
-    
-    File_Node *used_nodes = &working_set->used_sentinel;
-    for (File_Node *node = used_nodes->next; node != used_nodes; node = node->next){
-        Editing_File *file_ptr = (Editing_File*)node;
-        if (file_is_ready(file_ptr) && match(base_name, file_ptr->base_name.name)){
-            ++conflict_count;
-            Editing_File **new_file_ptr = push_array(scratch, Editing_File*, 1);
-            *new_file_ptr = file_ptr;
-        }
-    }
-    
-    // Fill conflict array.
-    Buffer_Name_Conflict_Entry *conflicts = push_array(scratch, Buffer_Name_Conflict_Entry, conflict_count);
-    
-    for (int32_t i = 0; i < conflict_count; ++i){
-        Editing_File *file_ptr = conflict_file_ptrs[i];
-        Buffer_Name_Conflict_Entry *entry = &conflicts[i];
-        entry->buffer_id = file_ptr->id.id;
-        entry->file_name = make_string_part(scratch, file_ptr->canon.name, &entry->file_name_len);
-        entry->base_name = make_string_part(scratch, base_name, &entry->base_name_len);
-        
-        String b = base_name;
-        if (i > 0){
-            b = file_ptr->unique_name.name;
-        }
-        entry->unique_name_in_out = make_string_part(scratch, b, 256, &entry->unique_name_len_in_out, &entry->unique_name_capacity);
-    }
-    
-    // Get user's resolution data.
-    if (models->buffer_name_resolver != 0){
-        models->buffer_name_resolver(&models->app_links, conflicts, conflict_count);
-    }
-    
-    // Re-bind all of the files
-    for (int32_t i = 0; i < conflict_count; ++i){
-        Editing_File *file_ptr = conflict_file_ptrs[i];
-        if (file_ptr->unique_name.name.str != 0){
-            buffer_unbind_name_low_level(working_set, file_ptr);
-        }
-    }
-    for (int32_t i = 0; i < conflict_count; ++i){
-        Editing_File *file_ptr = conflict_file_ptrs[i];
-        Buffer_Name_Conflict_Entry *entry = &conflicts[i];
-        
-        String unique_name = make_string(entry->unique_name_in_out, entry->unique_name_len_in_out);
-        
-        buffer_bind_name_low_level(general, working_set, file_ptr, base_name, unique_name);
-    }
-    
-    end_temp_memory(temp);
-}
-
-internal Editing_File*
-open_file(System_Functions *system, Models *models, String filename){
-    Working_Set *working_set = &models->working_set;
-    Editing_File *file = 0;
-    
-    if (terminate_with_null(&filename)){
-        Editing_File_Name canon_name = {0};
-        if (get_canon_name(system, &canon_name, filename)){
-            file = working_set_contains_canon(working_set, canon_name.name);
-            
-            if (file == 0){
-                Plat_Handle handle;
-                if (system->load_handle(canon_name.name.str, &handle)){
-                    Mem_Options *mem = &models->mem;
-                    General_Memory *general = &mem->general;
-                    Partition *part = &mem->part;
-                    
-                    file = working_set_alloc_always(working_set, general);
-                    
-                    buffer_bind_file(system, general, working_set, file, canon_name.name);
-                    buffer_bind_name(models, general, part, working_set, file, filename);
-                    
-                    i32 size = system->load_size(handle);
-                    char *buffer = 0;
-                    b32 gen_buffer = 0;
-                    
-                    Temp_Memory temp = begin_temp_memory(part);
-                    
-                    buffer = push_array(part, char, size);
-                    if (buffer == 0){
-                        buffer = (char*)general_memory_allocate(general, size);
-                        Assert(buffer);
-                        gen_buffer = 1;
-                    }
-                    
-                    if (system->load_file(handle, buffer, size)){
-                        system->load_close(handle);
-                        init_normal_file(system, models, file, buffer, size);
-                    }
-                    else{
-                        system->load_close(handle);
-                    }
-                    
-                    if (gen_buffer){
-                        general_memory_free(general, buffer);
-                    }
-                    
-                    end_temp_memory(temp);
-                }
-            }
-        }
-    }
-    
-    return(file);
-}
-
-internal void
-view_open_file(System_Functions *system, Models *models, View *view, String filename){
-    Editing_File *file = open_file(system, models, filename);
-    if (file){
-        view_set_file(system, view, file, models);
-    }
-}
-
-internal void
-view_interactive_new_file(System_Functions *system, Models *models, View *view, String filename){
-    Working_Set *working_set = &models->working_set;
-    Editing_File *file = 0;
-    
-    if (terminate_with_null(&filename)){
-        Editing_File_Name canon_name = {0};
-        if (get_canon_name(system, &canon_name, filename)){
-            file = working_set_contains_canon(working_set, canon_name.name);
-            
-            if (file != 0){
-                edit_clear(system, models, file);
-            }
-            else{
-                Mem_Options *mem = &models->mem;
-                General_Memory *general = &mem->general;
-                Partition *part = &mem->part;
-                
-                file = working_set_alloc_always(working_set, general);
-                
-                buffer_bind_file(system, general, working_set, file, canon_name.name);
-                buffer_bind_name(models, general, part, working_set, file, filename);
-                
-                init_normal_file(system, models, file, 0, 0);
-            }
-        }
-    }
-    
-    if (file){
-        view_set_file(system, view, file, models);
-    }
-}
-
-internal void
-kill_file(System_Functions *system, Models *models, Editing_File *file){
+kill_file_and_update_views(System_Functions *system, Models *models, Editing_File *file){
     Working_Set *working_set = &models->working_set;
     
     if (file != 0 && !file->settings.never_kill){
@@ -1241,87 +865,47 @@ kill_file(System_Functions *system, Models *models, Editing_File *file){
         file_free(system, &models->mem.general, file);
         working_set_free_file(&models->mem.general, working_set, file);
         
-        File_Node *used = &models->working_set.used_sentinel;
+        File_Node *used = &working_set->used_sentinel;
         File_Node *node = used->next;
-        
-        
         for (Panel *panel = models->layout.used_sentinel.next;
              panel != &models->layout.used_sentinel;
              panel = panel->next){
             View *view = panel->view;
-            if (view->transient.file_data.file != file){
-                continue;
-            }
-            if (node != used){
+            if (view->transient.file_data.file == file){
+                Assert(node != used);
                 view->transient.file_data.file = 0;
-                view_set_file(system, view, (Editing_File*)node, models);
-                node = node->next;
-            }
-            else{
-                view->transient.file_data.file = 0;
-                view_set_file(system, view, 0, models);
+                view_set_file(system, models, view, (Editing_File*)node);
+                if (node->next != used){
+                    node = node->next;
+                }
+                else{
+                    node = node->next->next;
+                    Assert(node != used);
+                }
             }
         }
     }
-}
-
-internal void
-kill_file_by_name(System_Functions *system, Models *models, String name){
-    Editing_File *file = working_set_contains_name(&models->working_set, name);
-    kill_file(system, models, file);
-}
-
-internal void
-save_file_by_name(System_Functions *system, Models *models, String name){
-    Editing_File *file = working_set_contains_name(&models->working_set, name);
-    if (file != 0){
-        save_file(system, models, file);
-    }
-}
-
-internal void
-interactive_begin_sure_to_kill(System_Functions *system, View *view, Models *models, Editing_File *file){
-    view_show_interactive(system, view, models, IAct_Sure_To_Kill, IInt_Sure_To_Kill, make_lit_string("Are you sure?"));
-    copy_ss(&view->transient.dest, file->unique_name.name);
 }
 
 internal Try_Kill_Result
 interactive_try_kill_file(System_Functions *system, Models *models, Editing_File *file){
     Try_Kill_Result result = TryKill_CannotKill;
-    
     if (!file->settings.never_kill){
         if (buffer_needs_save(file)){
             result = TryKill_NeedDialogue;
         }
         else{
-            kill_file(system, models, file);
+            kill_file_and_update_views(system, models, file);
             result = TryKill_Success;
         }
     }
-    
     return(result);
 }
 
-internal b32
-interactive_try_kill_file(System_Functions *system, Models *models, View *view, Editing_File *file){
-    Try_Kill_Result kill_result = interactive_try_kill_file(system, models, file);
-    b32 result = (kill_result == TryKill_NeedDialogue);
-    if (result){
-        interactive_begin_sure_to_kill(system, view, models, file);
-    }
-    return(result);
-}
-
-internal b32
-interactive_try_kill_file_by_name(System_Functions *system, Models *models, View *view, String name){
-    b32 kill_dialogue = 0;
-    
-    Editing_File *file = working_set_contains_name(&models->working_set, name);
-    if (file){
-        kill_dialogue = interactive_try_kill_file(system, models, view, file);
-    }
-    
-    return(kill_dialogue);
+internal void
+interactive_begin_sure_to_kill(System_Functions *system, View *view, Models *models, Editing_File *file){
+    view_show_interactive(system, view, models, IAct_Sure_To_Kill, IInt_Sure_To_Kill, make_lit_string("Are you sure?"));
+    copy(&view->transient.dest, file->unique_name.name);
 }
 
 internal void
@@ -1329,152 +913,127 @@ interactive_view_complete(System_Functions *system, View *view, Models *models, 
     switch (view->transient.action){
         case IAct_Open:
         {
-            view_open_file(system, models, view, dest);
+            Editing_File *file = open_file(system, models, dest);
+            if (file != 0){
+                view_set_file(system, models, view, file);
+            }
             view_show_file(view);
         }break;
         
         case IAct_New:
-        if (dest.size > 0 && !char_is_slash(dest.str[dest.size-1])){
-            view_interactive_new_file(system, models, view, dest);
-            view_show_file(view);
-            if (models->hook_new_file != 0){
-                Editing_File *file = view->transient.file_data.file;
-                models->hook_new_file(&models->app_links, file->id.id);
-            }
-        }break;
-        
-        case IAct_OpenOrNew:
         {
-            InvalidCodePath;
+            if (dest.size > 0 && !char_is_slash(dest.str[dest.size-1])){
+                Editing_File *file = 0;
+                Editing_File_Name canon_name = {0};
+                
+                if (terminate_with_null(&dest) &&
+                    get_canon_name(system, dest, &canon_name)){
+                    Working_Set *working_set = &models->working_set;
+                    file = working_set_contains_canon(working_set, canon_name.name);
+                    if (file == 0){
+                        Mem_Options *mem = &models->mem;
+                        General_Memory *general = &mem->general;
+                        Partition *part = &mem->part;
+                        
+                        file = working_set_alloc_always(working_set, general);
+                        buffer_bind_file(system, general, working_set, file, canon_name.name);
+                        buffer_bind_name(models, general, part, working_set, file, front_of_directory(dest));
+                        
+                        init_normal_file(system, models, 0, 0, file);
+                    }
+                    else{
+                        edit_clear(system, models, file);
+                    }
+                }
+                if (file != 0){
+                    view_set_file(system, models, view, file);
+                }
+                view_show_file(view);
+                if (file != 0 && models->hook_new_file != 0){
+                    models->hook_new_file(&models->app_links, file->id.id);
+                }
+            }
         }break;
         
         case IAct_Switch:
         {
             Editing_File *file = working_set_contains_name(&models->working_set, dest);
             if (file){
-                view_set_file(system, view, file, models);
+                view_set_file(system, models, view, file);
             }
             view_show_file(view);
         }break;
         
         case IAct_Kill:
-        if (!interactive_try_kill_file_by_name(system, models, view, dest)){
-            view_show_file(view);
+        {
+            b32 kill_dialogue = false;
+            Editing_File *file = working_set_contains_name(&models->working_set, dest);
+            if (file != 0){
+                kill_dialogue = (interactive_try_kill_file(system, models, file) == TryKill_NeedDialogue);
+                if (kill_dialogue){
+                    interactive_begin_sure_to_kill(system, view, models, file);
+                }
+            }
+            if (!kill_dialogue){
+                view_show_file(view);
+            }
         }break;
         
         case IAct_Sure_To_Close:
-        switch (user_action){
-            case 0:
-            {
-                models->keep_playing = 0;
-            }break;
-            
-            case 1:
-            {
-                view_show_file(view);
-            }break;
-            
-            case 2: // TODO(allen): Save all and close.
-            break;
+        {
+            switch (user_action){
+                case UnsavedChangesUserResponse_ContinueAnyway:
+                {
+                    models->keep_playing = false;
+                }break;
+                
+                case UnsavedChangesUserResponse_Cancel:
+                {
+                    view_show_file(view);
+                }break;
+                
+                // TODO(allen): Save all and close.
+                case UnsavedChangesUserResponse_SaveAndContinue: InvalidCodePath;
+                default: InvalidCodePath;
+            }
         }break;
         
         case IAct_Sure_To_Kill:
-        switch (user_action){
-            case 0:
-            {
-                kill_file_by_name(system, models, dest);
-                view_show_file(view);
-            }break;
-            
-            case 1:
-            {
-                view_show_file(view);
-            }break;
-            
-            case 2:
-            {
-                save_file_by_name(system, models, dest);
-                kill_file_by_name(system, models, dest);
-                view_show_file(view);
-            }break;
+        {
+            switch (user_action){
+                case UnsavedChangesUserResponse_ContinueAnyway:
+                {
+                    Editing_File *file = working_set_contains_name(&models->working_set, dest);
+                    if (file != 0){
+                        kill_file_and_update_views(system, models, file);
+                    }
+                    view_show_file(view);
+                }break;
+                
+                case UnsavedChangesUserResponse_Cancel:
+                {
+                    view_show_file(view);
+                }break;
+                
+                case UnsavedChangesUserResponse_SaveAndContinue:
+                {
+                    Editing_File *file = working_set_contains_name(&models->working_set, dest);
+                    if (file != 0){
+                        save_file(system, models, file);
+                        kill_file_and_update_views(system, models, file);
+                    }
+                    view_show_file(view);
+                }break;
+                
+                default: InvalidCodePath;
+            }
         }break;
-    }
-}
-
-internal void
-intbar_draw_string(System_Functions *system, Render_Target *target, File_Bar *bar, String str, u32 char_color){
-    draw_string(system, target, bar->font_id, str, (i32)(bar->pos_x + bar->text_shift_x), (i32)(bar->pos_y + bar->text_shift_y), char_color);
-    bar->pos_x += font_string_width(system, target, bar->font_id, str);
-}
-
-internal GUI_Scroll_Vars
-view_reinit_scrolling(View *view){
-    
-    view->transient.reinit_scrolling = false;
-    
-    i32 target_x = 0;
-    i32 target_y = 0;
-    Editing_File *file = view->transient.file_data.file;
-    Assert(file != 0);
-    if (file_is_ready(file)){
-        Vec2 cursor = view_get_cursor_xy(view);
         
-        f32 w = view_width(view);
-        f32 h = view_height(view);
-        
-        if (cursor.x >= target_x + w){
-            target_x = round32(cursor.x - w*.35f);
-        }
-        
-        target_y = clamp_bottom(0, floor32(cursor.y - h*.5f));
+        case IAct_OpenOrNew: InvalidCodePath;
     }
-    
-    GUI_Scroll_Vars scroll = {0};
-    
-    scroll.target_y = target_y;
-    scroll.scroll_y = (f32)target_y;
-    scroll.prev_target_y = -1000;
-    
-    scroll.target_x = target_x;
-    scroll.scroll_x = (f32)target_x;
-    scroll.prev_target_x = -1000;
-    
-    return(scroll);
 }
 
-internal b32
-file_step(View *view, i32_Rect region, Input_Summary *user_input, b32 is_active, b32 *consumed_l){
-    b32 is_animating = false;
-    Editing_File *file = view->transient.file_data.file;
-    Assert(file != 0);
-    if (!file->is_loading){
-        if (file->state.paste_effect.seconds_down > 0.f){
-            file->state.paste_effect.seconds_down -= user_input->dt;
-            is_animating = true;
-        }
-    }
-    return(is_animating);
-}
-
-internal void
-do_widget(View *view, GUI_Target *target){
-    Query_Slot *slot;
-    Query_Bar *bar;
-    
-    // NOTE(allen): A temporary measure... although in
-    // general we maybe want the user to be able to ask
-    // how large a particular section of the GUI turns
-    // out to be after layout?
-    f32 height = 0.f;
-    
-    for (slot = view->transient.query_set.used_slot; slot != 0; slot = slot->next){
-        bar = slot->query_bar;
-        gui_do_text_field(target, bar->prompt, bar->string);
-        height += view->transient.line_height + 2;
-    }
-    
-    view->transient.widget_height = height;
-}
+////////////////////////////////
 
 internal void
 begin_exhaustive_loop(Exhaustive_File_Loop *loop, Hot_Directory *hdir){
@@ -1559,7 +1118,7 @@ static Style_Color_Edit colors_to_edit[] = {
 };
 
 internal Single_Line_Input_Step
-app_single_line_input_core(System_Functions *system, Working_Set *working_set, Key_Event_Data key, Single_Line_Mode mode){
+app_single_line_input__inner(System_Functions *system, Working_Set *working_set, Key_Event_Data key, Single_Line_Mode mode){
     Single_Line_Input_Step result = {0};
     
     b8 ctrl = key.modifiers[MDFR_CONTROL_INDEX];
@@ -1626,7 +1185,7 @@ app_single_line_input_core(System_Functions *system, Working_Set *working_set, K
         }
     }
     
-    return result;
+    return(result);
 }
 
 inline Single_Line_Input_Step
@@ -1634,7 +1193,7 @@ app_single_line_input_step(System_Functions *system, Key_Event_Data key, String 
     Single_Line_Mode mode = {};
     mode.type = SINGLE_LINE_STRING;
     mode.string = string;
-    return app_single_line_input_core(system, 0, key, mode);
+    return(app_single_line_input__inner(system, 0, key, mode));
 }
 
 inline Single_Line_Input_Step
@@ -1648,151 +1207,7 @@ app_single_file_input_step(System_Functions *system,
     mode.hot_directory = hot_directory;
     mode.try_to_match = try_to_match;
     mode.case_sensitive = case_sensitive;
-    return app_single_line_input_core(system, working_set, key, mode);
-}
-
-inline Single_Line_Input_Step
-app_single_number_input_step(System_Functions *system, Key_Event_Data key, String *string){
-    Single_Line_Input_Step result = {};
-    Single_Line_Mode mode = {};
-    mode.type = SINGLE_LINE_STRING;
-    mode.string = string;
-    
-    char c = (char)key.character;
-    if (c == 0 || c == '\n' || char_is_numeric(c))
-        result = app_single_line_input_core(system, 0, key, mode);
-    return result;
-}
-
-internal void
-append_label(String *string, i32 indent_level, char *message){
-    i32 r = 0;
-    for (r = 0; r < indent_level; ++r){
-        append_s_char(string, '>');
-    }
-    append_sc(string, message);
-}
-
-internal void
-show_gui_line(GUI_Target *target, String *string, i32 indent_level, i32 h_align, char *message, char *follow_up){
-    string->size = 0;
-    append_label(string, indent_level, message);
-    if (follow_up){
-        append_padding(string, '-', h_align);
-        append_s_char(string, ' ');
-        append_sc(string, follow_up);
-    }
-    gui_do_text_field(target, *string, null_string);
-}
-
-internal void
-show_gui_int(GUI_Target *target, String *string,
-             i32 indent_level, i32 h_align, char *message, i32 x){
-    string->size = 0;
-    append_label(string, indent_level, message);
-    append_padding(string, '-', h_align);
-    append_s_char(string, ' ');
-    append_int_to_str(string, x);
-    gui_do_text_field(target, *string, null_string);
-}
-
-internal void
-show_gui_u64(GUI_Target *target, String *string,
-             i32 indent_level, i32 h_align, char *message, u64 x){
-    string->size = 0;
-    append_label(string, indent_level, message);
-    append_padding(string, '-', h_align);
-    append_s_char(string, ' ');
-    append_u64_to_str(string, x);
-    gui_do_text_field(target, *string, null_string);
-}
-
-internal void
-show_gui_int_int(GUI_Target *target, String *string,
-                 i32 indent_level, i32 h_align, char *message, i32 x, i32 m){
-    string->size = 0;
-    append_label(string, indent_level, message);
-    append_padding(string, '-', h_align);
-    append_s_char(string, ' ');
-    append_int_to_str(string, x);
-    append_s_char(string, '/');
-    append_int_to_str(string, m);
-    gui_do_text_field(target, *string, null_string);
-}
-
-internal void
-show_gui_id(GUI_Target *target, String *string,
-            i32 indent_level, i32 h_align, char *message, GUI_id id){
-    string->size = 0;
-    append_label(string, indent_level, message);
-    append_padding(string, '-', h_align);
-    append_ss(string, make_lit_string(" [0]: "));
-    append_u64_to_str(string, id.id[0]);
-    append_padding(string, ' ', h_align + 26);
-    append_ss(string, make_lit_string(" [1]: "));
-    append_u64_to_str(string, id.id[1]);
-    gui_do_text_field(target, *string, null_string);
-}
-
-internal void
-show_gui_float(GUI_Target *target, String *string,
-               i32 indent_level, i32 h_align, char *message, float x){
-    string->size = 0;
-    append_label(string, indent_level, message);
-    append_padding(string, '-', h_align);
-    append_s_char(string, ' ');
-    append_float_to_str(string, x);
-    gui_do_text_field(target, *string, null_string);
-}
-
-internal void
-show_gui_scroll(GUI_Target *target, String *string,
-                i32 indent_level, i32 h_align, char *message,
-                GUI_Scroll_Vars scroll){
-    show_gui_line (target, string, indent_level, 0, message, 0);
-    show_gui_float(target, string, indent_level+1, h_align, " scroll_y ", scroll.scroll_y);
-    show_gui_int  (target, string, indent_level+1, h_align, " target_y ", scroll.target_y);
-    show_gui_int  (target, string, indent_level+1, h_align, " prev_target_y ", scroll.prev_target_y);
-    show_gui_float(target, string, indent_level+1, h_align, " scroll_x ", scroll.scroll_x);
-    show_gui_int  (target, string, indent_level+1, h_align, " target_x ", scroll.target_x);
-    show_gui_int  (target, string, indent_level+1, h_align, " prev_target_x ", scroll.prev_target_x);
-}
-
-internal void
-show_gui_cursor(GUI_Target *target, String *string,
-                i32 indent_level, i32 h_align, char *message,
-                Full_Cursor cursor){
-    show_gui_line (target, string, indent_level, 0, message, 0);
-    show_gui_int  (target, string, indent_level+1, h_align, " pos ", cursor.pos);
-    show_gui_int  (target, string, indent_level+1, h_align, " line ", cursor.line);
-    show_gui_int  (target, string, indent_level+1, h_align, " column ", cursor.character);
-    show_gui_float(target, string, indent_level+1, h_align, " unwrapped_x ", cursor.unwrapped_x);
-    show_gui_float(target, string, indent_level+1, h_align, " unwrapped_y ", cursor.unwrapped_y);
-    show_gui_float(target, string, indent_level+1, h_align, " wrapped_x ", cursor.wrapped_x);
-    show_gui_float(target, string, indent_level+1, h_align, " wrapped_y ", cursor.wrapped_y);
-}
-
-internal void
-show_gui_region(GUI_Target *target, String *string,
-                i32 indent_level, i32 h_align, char *message,
-                i32_Rect region){
-    show_gui_line(target, string, indent_level, 0, message, 0);
-    show_gui_int (target, string, indent_level+1, h_align, " x0 ", region.x0);
-    show_gui_int (target, string, indent_level+1, h_align, " y0 ", region.y0);
-    show_gui_int (target, string, indent_level+1, h_align, " x1 ", region.x1);
-    show_gui_int (target, string, indent_level+1, h_align, " y1 ", region.y1);
-}
-
-inline void
-gui_show_mouse(GUI_Target *target, String *string, i32 mx, i32 my){
-    string->size = 0;
-    append_ss(string, make_lit_string("mouse: ("));
-    append_int_to_str(string, mx);
-    append_s_char(string, ',');
-    append_int_to_str(string, my);
-    append_s_char(string, ')');
-    
-    gui_do_text_field(target, *string, null_string);
+    return(app_single_line_input__inner(system, working_set, key, mode));
 }
 
 internal View_Step_Result
@@ -1821,30 +1236,41 @@ step_file_view(System_Functions *system, View *view, Models *models, View *activ
     
     gui_begin_top_level(target, input);
     {
-        if (view->transient.showing_ui != VUI_Debug && !view->transient.hide_file_bar){
+        if (!view->transient.hide_file_bar){
             gui_do_top_bar(target);
         }
-        do_widget(view, target);
+        
+        // NOTE(allen): A temporary measure... although in
+        // general we maybe want the user to be able to ask
+        // how large a particular section of the GUI turns
+        // out to be after layout?
+        i32 bar_count = 0;
+        for (Query_Slot *slot = view->transient.query_set.used_slot;
+             slot != 0;
+             slot = slot->next, ++bar_count){
+            Query_Bar *bar = slot->query_bar;
+            gui_do_text_field(target, bar->prompt, bar->string);
+        }
+        view->transient.widget_height = (f32)bar_count*(view->transient.line_height + 2);
         
         if (view->transient.showing_ui == VUI_None){
-            
             gui_begin_serial_section(target);
-            {
-                i32 delta = 9*view->transient.line_height;
-                GUI_id scroll_context = {0};
-                scroll_context.id[1] = view->transient.showing_ui;
-                scroll_context.id[0] = (u64)(view->transient.file_data.file);
-                
-                Assert(view->transient.file_data.file != 0);
-                Assert(view->transient.edit_pos != 0);
-                
-                GUI_Scroll_Vars *scroll = &view->transient.edit_pos->scroll;
-                gui_begin_scrollable(target, scroll_context, *scroll,
-                                     delta, show_scrollbar);
-                
-                gui_do_file(target);
-                gui_end_scrollable(target);
-            }
+            
+            i32 delta = 9*view->transient.line_height;
+            GUI_id scroll_context = {0};
+            scroll_context.id[1] = view->transient.showing_ui;
+            scroll_context.id[0] = (u64)(view->transient.file_data.file);
+            
+            Assert(view->transient.file_data.file != 0);
+            Assert(view->transient.edit_pos != 0);
+            
+            GUI_Scroll_Vars *scroll = &view->transient.edit_pos->scroll;
+            gui_begin_scrollable(target, scroll_context, *scroll,
+                                 delta, show_scrollbar);
+            
+            gui_do_file(target);
+            gui_end_scrollable(target);
+            
             gui_end_serial_section(target);
         }
         else{
@@ -1995,7 +1421,7 @@ step_file_view(System_Functions *system, View *view, Models *models, View *activ
                                     file_set_font(system, models, file, new_font_id);
                                 }
                                 else if (new_font_id != font_id || new_font_id != models->global_font_id){
-                                    global_set_font(system, models, new_font_id);
+                                    global_set_font_and_update_files(system, models, new_font_id);
                                 }
                             }
                             
@@ -2117,7 +1543,7 @@ step_file_view(System_Functions *system, View *view, Models *models, View *activ
                             gui_end_scrollable(target);
                             
                             if (has_new_settings){
-                                alter_font(system, models, font_edit_id, &new_settings);
+                                alter_font_and_update_files(system, models, font_edit_id, &new_settings);
                             }
                         }break;
                         
@@ -2550,355 +1976,6 @@ step_file_view(System_Functions *system, View *view, Models *models, View *activ
                         interactive_view_complete(system, view, models, comp_dest, comp_action);
                     }
                 }break;
-                
-                case VUI_Debug:
-                {
-                    GUI_id scroll_context = {0};
-                    scroll_context.id[1] = VUI_Debug + ((u64)view->transient.debug_vars.mode << 32);
-                    
-                    GUI_id id = {0};
-                    id.id[1] = VUI_Debug + ((u64)view->transient.debug_vars.mode << 32);
-                    
-                    // TODO(allen):
-                    // + Incoming input
-                    // + Memory info
-                    // + Thread info
-                    // + View inspection
-                    //   - auto generate?
-                    //   - expand/collapse sections
-                    // - Buffer inspection
-                    // - Command maps inspection
-                    // - Clipboard inspection
-                    
-                    String empty_str = null_string;
-                    
-                    char space1[512];
-                    String string = make_fixed_width_string(space1);
-                    
-                    // Time Watcher
-                    {
-                        string.size = 0;
-                        u64 time = system->now_time();
-                        
-                        append_ss(&string, make_lit_string("last redraw: "));
-                        append_u64_to_str(&string, time);
-                        
-                        gui_do_text_field(target, string, empty_str);
-                    }
-                    
-                    {
-                        i32 prev_mode = view->transient.debug_vars.mode;
-                        for (i32 i = 0; i < keys.count; ++i){
-                            Key_Event_Data key = keys.keys[i];
-                            if (key.modifiers[MDFR_CONTROL_INDEX] == 0 &&
-                                key.modifiers[MDFR_ALT_INDEX] == 0){
-                                if (key.keycode == 'i'){
-                                    view->transient.debug_vars.mode = DBG_Input;
-                                }
-                                if (key.keycode == 'm'){
-                                    view->transient.debug_vars.mode = DBG_Threads_And_Memory;
-                                }
-                                if (key.keycode == 'v'){
-                                    view->transient.debug_vars.mode = DBG_View_Inspection;
-                                }
-                            }
-                        }
-                        if (prev_mode != view->transient.debug_vars.mode){
-                            result.consume_keys = 1;
-                        }
-                    }
-                    
-                    gui_begin_scrollable(target, scroll_context, view->transient.gui_scroll,
-                                         9*view->transient.line_height, show_scrollbar);
-                    
-                    switch (view->transient.debug_vars.mode){
-                        case DBG_Input:
-                        {
-                            Debug_Data *debug = &models->debug;
-                            
-                            gui_show_mouse(target, &string, input.mouse.x, input.mouse.y);
-                            
-                            Debug_Input_Event *input_event = debug->input_events;
-                            for (i32 i = 0;
-                                 i < ArrayCount(debug->input_events);
-                                 ++i, ++input_event){
-                                string.size = 0;
-                                
-                                if (input_event->is_hold){
-                                    append_ss(&string, make_lit_string("hold:  "));
-                                }
-                                else{
-                                    append_ss(&string, make_lit_string("press: "));
-                                }
-                                
-                                if (input_event->is_ctrl){
-                                    append_ss(&string, make_lit_string("ctrl-"));
-                                }
-                                else{
-                                    append_ss(&string, make_lit_string("    -"));
-                                }
-                                
-                                if (input_event->is_alt){
-                                    append_ss(&string, make_lit_string("alt-"));
-                                }
-                                else{
-                                    append_ss(&string, make_lit_string("   -"));
-                                }
-                                
-                                if (input_event->is_shift){
-                                    append_ss(&string, make_lit_string("shift "));
-                                }
-                                else{
-                                    append_ss(&string, make_lit_string("      "));
-                                }
-                                
-                                if (input_event->key > ' ' && input_event->key <= '~'){
-                                    append_ss(&string, make_string(&input_event->key, 1));
-                                }
-                                else if (input_event->key == ' '){
-                                    append_ss(&string, make_lit_string("space"));
-                                }
-                                else if (input_event->key == '\n'){
-                                    append_ss(&string, make_lit_string("\\n"));
-                                }
-                                else if (input_event->key == '\t'){
-                                    append_ss(&string, make_lit_string("\\t"));
-                                }
-                                else{
-                                    String str;
-                                    str.str = global_key_name(input_event->key, &str.size);
-                                    if (str.str){
-                                        str.memory_size = str.size + 1;
-                                        append_ss(&string, str);
-                                    }
-                                    else{
-                                        append_ss(&string, make_lit_string("unrecognized!"));
-                                    }
-                                }
-                                
-                                if (input_event->consumer[0] != 0){
-                                    append_padding(&string, ' ', 40);
-                                    append_sc(&string, input_event->consumer);
-                                }
-                                
-                                gui_do_text_field(target, string, empty_str);
-                            }
-                        }break;
-                        
-                        case DBG_Threads_And_Memory:
-                        {
-                            b8 threads[4];
-                            i32 pending = 0;
-                            
-                            if (system->internal_get_thread_states){
-                                system->internal_get_thread_states(BACKGROUND_THREADS,
-                                                                   threads, &pending);
-                                
-                                string.size = 0;
-                                append_ss(&string, make_lit_string("pending jobs: "));
-                                append_int_to_str(&string, pending);
-                                gui_do_text_field(target, string, empty_str);
-                                
-                                for (i32 i = 0; i < 4; ++i){
-                                    string.size = 0;
-                                    append_ss(&string, make_lit_string("thread "));
-                                    append_int_to_str(&string, i);
-                                    append_ss(&string, make_lit_string(": "));
-                                    
-                                    if (threads[i]){
-                                        append_ss(&string, make_lit_string("running"));
-                                    }
-                                    else{
-                                        append_ss(&string, make_lit_string("waiting"));
-                                    }
-                                    
-                                    gui_do_text_field(target, string, empty_str);
-                                }
-                            }
-                            
-                            Partition *part = &models->mem.part;
-                            
-                            string.size = 0;
-                            append_ss(&string, make_lit_string("part memory: "));
-                            append_int_to_str(&string, part->pos);
-                            append_s_char(&string, '/');
-                            append_int_to_str(&string, part->max);
-                            gui_do_text_field(target, string, empty_str);
-                            
-#if !defined(FED_DEBUG_MEM_H)
-                            General_Memory *general = &models->mem.general;
-                            Bubble *bubble = 0, *sentinel = &general->sentinel;
-                            for (dll_items(bubble, sentinel)){
-                                string.size = 0;
-                                if (bubble->flags & MEM_BUBBLE_USED){
-                                    append_ss(&string, make_lit_string(" used: "));
-                                }
-                                else{
-                                    append_ss(&string, make_lit_string(" free: "));
-                                }
-                                
-                                append_int_to_str(&string, bubble->size);
-                                append_padding(&string, ' ', 40);
-                                gui_do_text_field(target, string, empty_str);
-                            }
-#endif
-                        }break;
-                        
-                        case DBG_View_Inspection:
-                        {
-                            i32 inspecting_id = view->transient.debug_vars.inspecting_view_id;
-                            View *views_to_inspect[16];
-                            i32 view_count = 0;
-                            b32 low_detail = true;
-                            
-                            if (inspecting_id == 0){
-                                Editing_Layout *layout = &models->layout;
-                                
-                                for (Panel *panel = layout->used_sentinel.next;
-                                     panel != &layout->used_sentinel;
-                                     panel = panel->next){
-                                    View *view_ptr = panel->view;
-                                    views_to_inspect[view_count++] = view_ptr;
-                                }
-                            }
-                            else if (inspecting_id >= 1 && inspecting_id <= 16){
-                                Live_Views *live_set = &models->live_set;
-                                View *view_ptr = live_set->views + inspecting_id - 1;
-                                views_to_inspect[view_count++] = view_ptr;
-                                low_detail = false;
-                            }
-                            
-                            for (i32 i = 0; i < view_count; ++i){
-                                View *view_ptr = views_to_inspect[i];
-                                
-                                string.size = 0;
-                                append_ss(&string, make_lit_string("view: "));
-                                append_int_to_str(&string, view_ptr->persistent.id + 1);
-                                gui_do_text_field(target, string, empty_str);
-                                
-                                string.size = 0;
-                                Editing_File *file = view_ptr->transient.file_data.file;
-                                Assert(file != 0);
-                                append_ss(&string, make_lit_string(" > buffer: "));
-                                append_ss(&string, file->unique_name.name);
-                                gui_do_text_field(target, string, empty_str);
-                                string.size = 0;
-                                append_ss(&string, make_lit_string(" >> buffer-slot-id: "));
-                                append_int_to_str(&string, file->id.id);
-                                
-                                if (low_detail){
-                                    string.size = 0;
-                                    append_ss(&string, make_lit_string("inspect this"));
-                                    
-                                    id.id[0] = (u64)(view_ptr->persistent.id);
-                                    if (gui_do_button(target, id, string)){
-                                        view->transient.debug_vars.inspecting_view_id = view_ptr->persistent.id + 1;
-                                    }
-                                }
-                                else{
-                                    
-                                    gui_show_mouse(target, &string, input.mouse.x, input.mouse.y);
-                                    
-#define SHOW_GUI_BLANK(n)            show_gui_line(target, &string, n, 0, "", 0)
-#define SHOW_GUI_LINE(n, str)        show_gui_line(target, &string, n, 0, " " str, 0)
-#define SHOW_GUI_STRING(n, h, str, mes) show_gui_line(target, &string, n, h, " " str " ", mes)
-#define SHOW_GUI_INT(n, h, str, v)   show_gui_int(target, &string, n, h, " " str " ", v)
-#define SHOW_GUI_INT_INT(n, h, str, v, m) show_gui_int_int(target, &string, n, h, " " str " ", v, m)
-#define SHOW_GUI_U64(n, h, str, v)   show_gui_u64(target, &string, n, h, " " str " ", v)
-#define SHOW_GUI_ID(n, h, str, v)    show_gui_id(target, &string, n, h, " " str, v)
-#define SHOW_GUI_FLOAT(n, h, str, v) show_gui_float(target, &string, n, h, " " str " ", v)
-#define SHOW_GUI_BOOL(n, h, str, v)  do { if (v) { show_gui_line(target, &string, n, h, " " str " ", "true"); }\
-                                        else { show_gui_line(target, &string, n, h, " " str " ", "false"); } } while(0)
-                                    
-#define SHOW_GUI_SCROLL(n, h, str, v) show_gui_scroll(target, &string, n, h, " " str, v)
-#define SHOW_GUI_CURSOR(n, h, str, v) show_gui_cursor(target, &string, n, h, " " str, v)
-#define SHOW_GUI_REGION(n, h, str, v) show_gui_region(target, &string, n, h, " " str, v)
-                                    
-                                    i32 h_align = 31;
-                                    
-                                    SHOW_GUI_BLANK(0);
-                                    {
-                                        i32 map = view_ptr->transient.map;
-#define MAP_LABEL "command map"
-                                        if (map == mapid_global){
-                                            SHOW_GUI_STRING(1, h_align, MAP_LABEL, "global");
-                                        }
-                                        else if (map == mapid_file){
-                                            SHOW_GUI_STRING(1, h_align, MAP_LABEL, "file");
-                                        }
-                                        else if (map == mapid_ui){
-                                            SHOW_GUI_STRING(1, h_align, MAP_LABEL, "gui");
-                                        }
-                                        else if (map == mapid_nomap){
-                                            SHOW_GUI_STRING(1, h_align, MAP_LABEL, "nomap");
-                                        }
-                                        else{
-                                            SHOW_GUI_STRING(1, h_align, MAP_LABEL, "user");
-                                            SHOW_GUI_INT(2, h_align, "custom map id", map);
-                                        }
-                                    }
-                                    
-                                    SHOW_GUI_BLANK(0);
-                                    SHOW_GUI_LINE(1, "file data:");
-                                    SHOW_GUI_BOOL(2, h_align, "has file", view_ptr->transient.file_data.file);
-                                    SHOW_GUI_BOOL(2, h_align, "show temp highlight", view_ptr->transient.file_data.show_temp_highlight);
-                                    SHOW_GUI_INT (2, h_align, "start temp highlight", view_ptr->transient.file_data.temp_highlight.pos);
-                                    SHOW_GUI_INT (2, h_align, "end temp highlight", view_ptr->transient.file_data.temp_highlight_end_pos);
-                                    
-                                    SHOW_GUI_BOOL(2, h_align, "show whitespace", view_ptr->transient.file_data.show_whitespace);
-                                    SHOW_GUI_BOOL(2, h_align, "locked", view_ptr->transient.file_data.file_locked);
-                                    
-                                    SHOW_GUI_BLANK(0);
-                                    SHOW_GUI_REGION(1, h_align, "scroll region", view_ptr->transient.scroll_region);
-                                    
-                                    SHOW_GUI_BLANK(0);
-                                    SHOW_GUI_LINE(1, "file editing positions");
-                                    {
-                                        File_Edit_Positions *edit_pos = view_ptr->transient.edit_pos;
-                                        
-                                        Assert(edit_pos != 0);
-                                        SHOW_GUI_SCROLL(2, h_align, "scroll:", edit_pos->scroll);
-                                        SHOW_GUI_BLANK (2);
-                                        SHOW_GUI_CURSOR(2, h_align, "cursor:", edit_pos->cursor);
-                                        SHOW_GUI_BLANK (2);
-                                        SHOW_GUI_INT   (2, h_align, "mark", edit_pos->mark);
-                                        SHOW_GUI_FLOAT (2, h_align, "preferred_x", edit_pos->preferred_x);
-                                        SHOW_GUI_INT   (2, h_align, "scroll_i", edit_pos->scroll_i);
-                                    }
-                                    
-                                    SHOW_GUI_BLANK (0);
-                                    SHOW_GUI_SCROLL(1, h_align, "gui scroll:", view_ptr->transient.gui_scroll);
-                                    
-                                    SHOW_GUI_BLANK  (0);
-                                    SHOW_GUI_LINE   (1, "gui target");
-                                    SHOW_GUI_INT_INT(2, h_align, "gui partition",
-                                                     view_ptr->transient.gui_target.push.pos,
-                                                     view_ptr->transient.gui_target.push.max);
-                                    
-                                    SHOW_GUI_BLANK  (2);
-                                    SHOW_GUI_ID     (2, h_align, "active",    view_ptr->transient.gui_target.active);
-                                    SHOW_GUI_ID     (2, h_align, "mouse_hot", view_ptr->transient.gui_target.mouse_hot);
-                                    SHOW_GUI_ID     (2, h_align, "auto_hot",  view_ptr->transient.gui_target.auto_hot);
-                                    SHOW_GUI_ID     (2, h_align, "hover",     view_ptr->transient.gui_target.hover);
-                                    SHOW_GUI_ID     (2, h_align, "scroll_id", view_ptr->transient.gui_target.scroll_id);
-                                    
-                                    SHOW_GUI_BLANK  (2);
-                                    SHOW_GUI_SCROLL (2, h_align, "scroll_original", view_ptr->transient.gui_target.scroll_original);
-                                    SHOW_GUI_REGION (2, h_align, "region_original", view_ptr->transient.gui_target.region_original);
-                                    
-                                    SHOW_GUI_BLANK  (2);
-                                    SHOW_GUI_REGION (2, h_align, "region_updated", view_ptr->transient.gui_target.region_updated);
-                                    
-                                    
-                                    SHOW_GUI_BLANK  (1);
-                                    SHOW_GUI_SCROLL (1, h_align, "gui scroll", view_ptr->transient.gui_scroll);
-                                }
-                            }
-                        }break;
-                    }
-                    
-                    gui_end_scrollable(target);
-                }break;
             }
         }
     }
@@ -3053,15 +2130,43 @@ do_step_file_view(System_Functions *system, View *view, Models *models, i32_Rect
                         // computation of view_compute_max_target_y depends on it.
                         view->transient.file_region = gui_session.rect;
                         
+                        Editing_File *file = view->transient.file_data.file;
+                        Assert(file != 0);
+                        
                         if (view->transient.reinit_scrolling){
-                            result.vars = view_reinit_scrolling(view);
-                            result.is_animating = 1;
+                            view->transient.reinit_scrolling = false;
+                            result.is_animating = true;
+                            
+                            i32 target_x = 0;
+                            i32 target_y = 0;
+                            if (file_is_ready(file)){
+                                Vec2 cursor = view_get_cursor_xy(view);
+                                
+                                f32 w = view_width(view);
+                                f32 h = view_height(view);
+                                
+                                if (cursor.x >= target_x + w){
+                                    target_x = round32(cursor.x - w*.35f);
+                                }
+                                
+                                target_y = clamp_bottom(0, floor32(cursor.y - h*.5f));
+                            }
+                            
+                            result.vars.target_y = target_y;
+                            result.vars.scroll_y = (f32)target_y;
+                            result.vars.prev_target_y = -1000;
+                            
+                            result.vars.target_x = target_x;
+                            result.vars.scroll_x = (f32)target_x;
+                            result.vars.prev_target_x = -1000;
                         }
                         
-                        if (file_step(view, gui_session.rect, user_input, is_active, &result.consumed_l)){
-                            result.is_animating = 1;
+                        if (!file->is_loading && file->state.paste_effect.seconds_down > 0.f){
+                            file->state.paste_effect.seconds_down -= user_input->dt;
+                            result.is_animating = true;
                         }
-                        is_file_scroll = 1;
+                        
+                        is_file_scroll = true;
                     }break;
                     
                     case guicom_color_button:
@@ -3088,29 +2193,27 @@ do_step_file_view(System_Functions *system, View *view, Models *models, i32_Rect
                             result.consumed_l = true;
                         }
                         
-                        {
-                            Key_Input_Data *keys = &user_input->keys;
-                            
-                            void *ptr = (b + 1);
-                            String string = gui_read_string(&ptr);
-                            AllowLocal(string);
-                            
-                            char activation_key = *(char*)ptr;
-                            activation_key = char_to_upper(activation_key);
-                            
-                            if (activation_key != 0){
-                                i32 count = keys->count;
-                                for (i32 i = 0; i < count; ++i){
-                                    Key_Event_Data key = keys->keys[i];
-                                    
-                                    u8 character[4];
-                                    u32 length = to_writable_character(key.character, character);
-                                    if (length == 1){
-                                        if (char_to_upper(character[0]) == activation_key){
-                                            target->active = b->id;
-                                            result.is_animating = 1;
-                                            break;
-                                        }
+                        Key_Input_Data *keys = &user_input->keys;
+                        
+                        void *ptr = (b + 1);
+                        String string = gui_read_string(&ptr);
+                        AllowLocal(string);
+                        
+                        char activation_key = *(char*)ptr;
+                        activation_key = char_to_upper(activation_key);
+                        
+                        if (activation_key != 0){
+                            i32 count = keys->count;
+                            for (i32 i = 0; i < count; ++i){
+                                Key_Event_Data key = keys->keys[i];
+                                
+                                u8 character[4];
+                                u32 length = to_writable_character(key.character, character);
+                                if (length == 1){
+                                    if (char_to_upper(character[0]) == activation_key){
+                                        target->active = b->id;
+                                        result.is_animating = 1;
+                                        break;
                                     }
                                 }
                             }
@@ -3232,6 +2335,62 @@ do_step_file_view(System_Functions *system, View *view, Models *models, i32_Rect
         }
     }
     
+    return(result);
+}
+
+internal u32*
+style_get_color(Style *style, Cpp_Token token){
+    u32 *result = 0;
+    if ((token.flags & CPP_TFLAG_IS_KEYWORD) != 0){
+        if (token.type == CPP_TOKEN_BOOLEAN_CONSTANT){
+            result = &style->main.bool_constant_color;
+        }
+        else{
+            result = &style->main.keyword_color;
+        }
+    }
+    else if ((token.flags & CPP_TFLAG_PP_DIRECTIVE) != 0){
+        result = &style->main.preproc_color;
+    }
+    else{
+        switch (token.type){
+            case CPP_TOKEN_COMMENT:
+            {
+                result = &style->main.comment_color;
+            }break;
+            
+            case CPP_TOKEN_STRING_CONSTANT:
+            {
+                result = &style->main.str_constant_color;
+            }break;
+            
+            case CPP_TOKEN_CHARACTER_CONSTANT:
+            {
+                result = &style->main.char_constant_color;
+            }break;
+            
+            case CPP_TOKEN_INTEGER_CONSTANT:
+            {
+                result = &style->main.int_constant_color;
+            }break;
+            
+            case CPP_TOKEN_FLOATING_CONSTANT:
+            {
+                result = &style->main.float_constant_color;
+            }break;
+            
+            case CPP_PP_INCLUDE_FILE:
+            {
+                result = &style->main.include_color;
+            }break;
+            
+            default:
+            {
+                result = &style->main.default_color;
+            }break;
+        }
+    }
+    Assert(result != 0);
     return(result);
 }
 
@@ -3529,6 +2688,12 @@ draw_text_with_cursor(System_Functions *system, Render_Target *target, View *vie
             draw_string(system, target, font_id, s, floor32(x), y, text_color);
         }
     }
+}
+
+internal void
+intbar_draw_string(System_Functions *system, Render_Target *target, File_Bar *bar, String str, u32 char_color){
+    draw_string(system, target, bar->font_id, str, (i32)(bar->pos_x + bar->text_shift_x), (i32)(bar->pos_y + bar->text_shift_y), char_color);
+    bar->pos_x += font_string_width(system, target, bar->font_id, str);
 }
 
 internal void
