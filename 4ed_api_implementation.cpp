@@ -1692,12 +1692,12 @@ in the system, the call will fail.)
     Models *models = cmd->models;
     View *vptr = imp_get_view(cmd, view);
     
-    bool32 result = 0;
+    bool32 result = false;
     
     if (vptr != 0 && models->layout.panel_count > 1){
         Panel *panel = vptr->transient.panel;
         
-        live_set_free_view(&models->live_set, vptr, models);
+        live_set_free_view(&models->mem.general, &models->live_set, vptr);
         panel->view = 0;
         
         Divider_And_ID div = layout_get_divider(&models->layout, panel->parent);
@@ -2253,14 +2253,6 @@ DOC(This call posts a string to the *messages* buffer.)
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     Models *models = cmd->models;
     do_feedback_message(cmd->system, models, make_string(str, len));
-}
-
-internal void
-style_set_colors(Style *style, Theme *theme){
-    for (u32 i = 0; i < Stag_COUNT; ++i){
-        u32 *color_ptr = style_index_by_tag(&style->main, i);
-        *color_ptr = theme->colors[i];
-    }
 }
 
 API_EXPORT void

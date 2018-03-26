@@ -42,6 +42,7 @@ enum Interactive_Action{
 
 typedef i32 Unsaved_Changes_User_Response;
 enum{
+    UnsavedChangesUserResponse_Error = -1,
     UnsavedChangesUserResponse_ContinueAnyway = 0,
     UnsavedChangesUserResponse_Cancel = 1,
     UnsavedChangesUserResponse_SaveAndContinue = 2,
@@ -113,7 +114,6 @@ struct View_Transient{
     b32 changed_context_in_step;
     
     // theme stuff
-    View *hot_file_view;
     u32 *palette;
     Color_View_Mode color_mode;
     Face_ID font_edit_id;
@@ -210,29 +210,12 @@ struct Cursor_Fix_Descriptor{
 };
 
 struct File_Bar{
-    f32 pos_x, pos_y;
-    f32 text_shift_x, text_shift_y;
+    f32 pos_x;
+    f32 pos_y;
+    f32 text_shift_x;
+    f32 text_shift_y;
     i32_Rect rect;
     Face_ID font_id;
-};
-
-struct Exhaustive_File_Loop{
-    char front_name_[256];
-    char full_path_[256];
-    String front_name, full_path;
-    
-    Absolutes absolutes;
-    
-    File_Info *infos;
-    i32 count, r;
-};
-
-struct Exhaustive_File_Info{
-    File_Info *info;
-    String message;
-    b8 is_folder;
-    b8 name_match;
-    b8 is_loaded;
 };
 
 struct Style_Color_Edit{
@@ -263,8 +246,6 @@ struct Single_Line_Mode{
     String *string;
     Hot_Directory *hot_directory;
     b32 fast_folder_select;
-    b32 try_to_match;
-    b32 case_sensitive;
 };
 
 struct View_Step_Result{

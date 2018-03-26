@@ -212,6 +212,10 @@ API_EXPORT_MACRO
 /* DOC(This macro takes a literal string in quotes and uses it to create a String with the correct size and memory size.  Strings created this way should usually not be mutated.) */
 #define make_lit_string(s) (make_string_cap((char*)(s), sizeof(s)-1, sizeof(s)))
 
+API_EXPORT_MACRO 
+/* DOC(Rename for make_lit_string.) DOC_SEE(make_lit_string) */
+#define lit(s) make_lit_string(s)
+
 API_EXPORT_MACRO
 /* DOC(This macro takes a local char array with a fixed width and uses it to create an empty String with the correct size and memory size to operate on the array.) */
 #define make_fixed_width_string(s) (make_string_cap((char*)(s), 0, sizeof(s)))

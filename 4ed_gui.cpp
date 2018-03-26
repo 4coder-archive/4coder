@@ -9,6 +9,14 @@
 
 // TOP
 
+internal GUI_id
+gui_id(u64 a, u64 b){
+    GUI_id id;
+    id.id[0] = a;
+    id.id[1] = b;
+    return(id);
+}
+
 internal void
 init_query_set(Query_Set *set){
     Query_Slot *slot = set->slots;
@@ -816,54 +824,59 @@ gui_interpret(GUI_Target *target, GUI_Session *session, GUI_Header *h,
     if (!session->is_scrollable) scroll_v = 0;
     
     switch (h->type){
-        case guicom_null: Assert(0); break;
+        case guicom_null: InvalidCodePath;
         
         case guicom_begin_serial:
-        ++session->t;
-        Assert(session->t < ArrayCount(session->sections));
-        new_section = &session->sections[session->t];
-        new_section->v = y;
-        new_section->max_v = y;
-        new_section->top_v = y;
-        break;
+        {
+            ++session->t;
+            Assert(session->t < ArrayCount(session->sections));
+            new_section = &session->sections[session->t];
+            new_section->v = y;
+            new_section->max_v = y;
+            new_section->top_v = y;
+        }break;
         
         case guicom_end_serial:
-        Assert(session->t > 0);
-        prev_section = &session->sections[--session->t];
-        end_v = section->max_v;
-        end_section = prev_section;
-        break;
+        {
+            Assert(session->t > 0);
+            prev_section = &session->sections[--session->t];
+            end_v = section->max_v;
+            end_section = prev_section;
+        }break;
         
         case guicom_top_bar:
-        give_to_user = 1;
-        rect = gui_layout_fixed_h(session, y, session->line_height + 2);
-        end_v = rect.y1;
-        end_section = section;
-        break;
+        {
+            give_to_user = 1;
+            rect = gui_layout_fixed_h(session, y, session->line_height + 2);
+            end_v = rect.y1;
+            end_section = section;
+        }break;
         
         case guicom_file:
-        give_to_user = 1;
-        rect = gui_layout_top_bottom(session, y, session->full_rect.y1);
-        end_v = rect.y1;
-        end_section = section;
-        scroll_v = 0;
-        break;
+        {
+            give_to_user = 1;
+            rect = gui_layout_top_bottom(session, y, session->full_rect.y1);
+            end_v = rect.y1;
+            end_section = section;
+            scroll_v = 0;
+        }break;
         
         case guicom_text_with_cursor:
         case guicom_text_field:
-        give_to_user = 1;
-        rect = gui_layout_fixed_h(session, y, session->line_height + 2);
-        end_v = rect.y1;
-        end_section = section;
-        break;
+        {
+            give_to_user = 1;
+            rect = gui_layout_fixed_h(session, y, session->line_height + 2);
+            end_v = rect.y1;
+            end_section = section;
+        }break;
         
         case guicom_color_button:
-        case guicom_font_button:
-        give_to_user = 1;
-        rect = gui_layout_fixed_h(session, y, session->line_height + 2);
-        end_v = rect.y1;
-        end_section = section;
-        break;
+        {
+            give_to_user = 1;
+            rect = gui_layout_fixed_h(session, y, session->line_height + 2);
+            end_v = rect.y1;
+            end_section = section;
+        }break;
         
         case guicom_begin_list:
         {
@@ -883,10 +896,11 @@ gui_interpret(GUI_Target *target, GUI_Session *session, GUI_Header *h,
         }break;
         
         case guicom_end_list:
-        Assert(session->list.in_list == 1);
-        session->list.in_list = 0;
-        target->list_max = session->list.index;
-        break;
+        {
+            Assert(session->list.in_list == 1);
+            session->list.in_list = 0;
+            target->list_max = session->list.index;
+        }break;
         
         case guicom_file_option:
         case guicom_fixed_option:
@@ -915,25 +929,27 @@ gui_interpret(GUI_Target *target, GUI_Session *session, GUI_Header *h,
         }break;
         
         case guicom_button:
-        give_to_user = 1;
-        rect = gui_layout_fixed_h(session, y, session->line_height * 2);
-        end_v = rect.y1;
-        end_section = section;
-        break;
+        {
+            give_to_user = 1;
+            rect = gui_layout_fixed_h(session, y, session->line_height * 2);
+            end_v = rect.y1;
+            end_section = section;
+        }break;
         
         case guicom_style_preview:
-        give_to_user = 1;
-        rect = gui_layout_fixed_h(session, y, session->line_height * 3 + 6);
-        end_v = rect.y1;
-        end_section = section;
-        break;
+        {
+            give_to_user = 1;
+            rect = gui_layout_fixed_h(session, y, session->line_height * 3 + 6);
+            end_v = rect.y1;
+            end_section = section;
+        }break;
         
         case guicom_scrollable:
-        Assert(session->is_scrollable == 0);
-        session->is_scrollable = 1;
-        always_give_to_user = 1;
-        
         {
+            Assert(session->is_scrollable == 0);
+            session->is_scrollable = 1;
+            always_give_to_user = 1;
+            
             i32_Rect scrollable_rect = {0};
             scrollable_rect.x0 = session->full_rect.x0;
             scrollable_rect.x1 = session->full_rect.x1;
@@ -942,19 +958,18 @@ gui_interpret(GUI_Target *target, GUI_Session *session, GUI_Header *h,
             result.has_region = 1;
             result.region = scrollable_rect;
             session->scroll_region = scrollable_rect;
-        }
-        break;
+        }break;
         
         case guicom_scrollable_bar:
-        Assert(session->is_scrollable);
-        give_to_user = 1;
-        rect.x1 = session->full_rect.x1;
-        rect.x0 = rect.x1 - GUIScrollbarWidth;
-        rect.y0 = y;
-        rect.y1 = session->full_rect.y1;
-        session->scroll_rect = rect;
-        
         {
+            Assert(session->is_scrollable);
+            give_to_user = 1;
+            rect.x1 = session->full_rect.x1;
+            rect.x0 = rect.x1 - GUIScrollbarWidth;
+            rect.y0 = y;
+            rect.y1 = session->full_rect.y1;
+            session->scroll_rect = rect;
+            
             i32_Rect scrollable_rect = {0};
             scrollable_rect.x0 = session->full_rect.x0;
             scrollable_rect.x1 = rect.x0;
@@ -963,58 +978,63 @@ gui_interpret(GUI_Target *target, GUI_Session *session, GUI_Header *h,
             result.has_region = 1;
             result.region = scrollable_rect;
             session->scroll_region = scrollable_rect;
-        }
-        scroll_v = 0;
-        break;
+            scroll_v = 0;
+        }break;
         
         case guicom_scrollable_top:
-        Assert(session->is_scrollable);
-        give_to_user = 1;
-        gui_scrollbar_top(session->scroll_rect, &rect);
-        scroll_v = 0;
-        break;
+        {
+            Assert(session->is_scrollable);
+            give_to_user = 1;
+            gui_scrollbar_top(session->scroll_rect, &rect);
+            scroll_v = 0;
+        }break;
         
         case guicom_scrollable_slider:
-        Assert(session->is_scrollable);
-        give_to_user = 1;
-        
-        lerp_space_scroll_v =
-            unlerp(0,
-                   (f32)target->scroll_original.target_y,
-                   (f32)max_y);
-        
-        gui_scrollbar_slider(session->scroll_rect, &rect, lerp_space_scroll_v,
-                             &session->scroll_top, &session->scroll_bottom,
-                             0, max_y);
-        scroll_v = 0;
-        break;
+        {
+            Assert(session->is_scrollable);
+            give_to_user = 1;
+            
+            lerp_space_scroll_v =
+                unlerp(0,
+                       (f32)target->scroll_original.target_y,
+                       (f32)max_y);
+            
+            gui_scrollbar_slider(session->scroll_rect, &rect, lerp_space_scroll_v,
+                                 &session->scroll_top, &session->scroll_bottom,
+                                 0, max_y);
+            scroll_v = 0;
+        }break;
         
         case guicom_scrollable_invisible:
-        Assert(session->is_scrollable);
-        always_give_to_user = 1;
-        break;
+        {
+            Assert(session->is_scrollable);
+            always_give_to_user = 1;
+        }break;
         
         case guicom_scrollable_bottom:
-        Assert(session->is_scrollable);
-        give_to_user = 1;
-        gui_scrollbar_bottom(session->scroll_rect, &rect);
-        scroll_v = 0;
-        break;
+        {
+            Assert(session->is_scrollable);
+            give_to_user = 1;
+            gui_scrollbar_bottom(session->scroll_rect, &rect);
+            scroll_v = 0;
+        }break;
         
         case guicom_begin_scrollable_section:
-        always_give_to_user = 1;
-        session->scrollable_items_bottom = 0;
-        rect = gui_layout_top_bottom(session, y, session->full_rect.y1);
-        end_v = rect.y1;
-        break;
+        {
+            always_give_to_user = 1;
+            session->scrollable_items_bottom = 0;
+            rect = gui_layout_top_bottom(session, y, session->full_rect.y1);
+            end_v = rect.y1;
+        }break;
         
         case guicom_end_scrollable_section:
-        always_give_to_user = 1;
-        session->suggested_max_y = ceil32(session->scrollable_items_bottom - (session->full_rect.y0 + session->full_rect.y1)*.5f);
-        if (session->suggested_max_y < 0){
-            session->suggested_max_y = 0;
-        }
-        break;
+        {
+            always_give_to_user = 1;
+            session->suggested_max_y = ceil32(session->scrollable_items_bottom - (session->full_rect.y0 + session->full_rect.y1)*.5f);
+            if (session->suggested_max_y < 0){
+                session->suggested_max_y = 0;
+            }
+        }break;
     }
     
     if (do_layout){

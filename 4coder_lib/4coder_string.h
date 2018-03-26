@@ -96,6 +96,9 @@ FSTRING_INLINE String              make_string(void *str, i32_4tech size);
 #ifndef   make_lit_string
 # define make_lit_string(s) (make_string_cap((char*)(s), sizeof(s)-1, sizeof(s)))
 #endif
+#ifndef   lit
+# define lit(s) make_lit_string(s)
+#endif
 #ifndef   make_fixed_width_string
 # define make_fixed_width_string(s) (make_string_cap((char*)(s), 0, sizeof(s)))
 #endif

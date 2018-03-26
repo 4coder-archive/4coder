@@ -323,7 +323,7 @@ inline void
 do_feedback_message(System_Functions *system, Models *models, String value, b32 set_to_start = 0){
     Editing_File *file = models->message_buffer;
     
-    if (file){
+    if (file != 0){
         output_file_append(system, models, file, value);
         i32 pos = 0;
         if (!set_to_start){
@@ -348,7 +348,6 @@ do_feedback_message(System_Functions *system, Models *models, String value, b32 
 #define USE_VARS(n) App_Vars *n = command->vars
 #define USE_FILE(n,v) Editing_File *n = (v)->file_data.file
 
-
 #define USE_PANEL(n) Panel *n = 0; do{                      \
     i32 panel_index = command->models->layout.active_panel; \
     n = command->models->layout.panels + panel_index;       \
@@ -370,7 +369,7 @@ do_feedback_message(System_Functions *system, Models *models, String value, b32 
 internal View*
 panel_make_empty(System_Functions *system, Models *models, Panel *panel){
     Assert(panel->view == 0);
-    View_And_ID new_view = live_set_alloc_view(&models->live_set, panel, models);
+    View_And_ID new_view = live_set_alloc_view(&models->mem.general, &models->live_set, panel);
     view_set_file(system, models, new_view.view, models->scratch_buffer);
     new_view.view->transient.map = models->scratch_buffer->settings.base_map_id;
     return(new_view.view);
@@ -2059,7 +2058,7 @@ App_Step_Sig(app_step){
             
             view->transient.changed_context_in_step = 0;
             
-            View_Step_Result result = step_file_view(system, view, models, active_view, summary);
+            View_Step_Result result = step_view(system, view, models, active_view, summary);
             
             if (result.animating){
                 app_result.animating = 1;
