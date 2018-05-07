@@ -88,7 +88,6 @@ edit_fix_marks(System_Functions *system, Models *models, Editing_File *file, Edi
                 Assert(view->transient.edit_pos != 0);
                 
                 i32 cursor_pos = cursors[cursor_count++].pos;
-                Editing_File *file = view->transient.file_data.file;
                 Full_Cursor new_cursor = file_compute_cursor(system, file, seek_pos(cursor_pos), 0);
                 
                 GUI_Scroll_Vars scroll = view->transient.edit_pos->scroll;

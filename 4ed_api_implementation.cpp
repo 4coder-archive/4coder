@@ -2301,9 +2301,9 @@ DOC(This call creates a new theme.  If the given name is already the name of a s
     
     if (!hit_existing_theme){
         if (library->count < library->max){
-            Style *style = &library->styles[library->count++];
-            style_set_colors(style, theme);
-            style_set_name(style, make_string(name, len));
+            Style *new_style = &library->styles[library->count++];
+            style_set_colors(new_style, theme);
+            style_set_name(new_style, make_string(name, len));
         }
     }
 }

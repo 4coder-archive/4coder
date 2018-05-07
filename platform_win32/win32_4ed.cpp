@@ -1400,12 +1400,12 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
         
         Plat_Handle file_handle;
         if (system_load_handle(plat_settings.test_input, &file_handle)){
-            u32 size = system_load_size(file_handle);
-            char *buffer = (char*)system_memory_allocate(size);
+            u32 test_size = system_load_size(file_handle);
+            char *test_buffer = (char*)system_memory_allocate(test_size);
             
-            if (system_load_file(file_handle, buffer, size)){
-                sim_event_count = *(i32*)buffer;
-                sim_events = (Simulation_Event*)(buffer + 4);
+            if (system_load_file(file_handle, test_buffer, test_size)){
+                sim_event_count = *(i32*)test_buffer;
+                sim_events = (Simulation_Event*)(test_buffer + 4);
                 plat_settings.use_test_input = true;
             }
             

@@ -683,20 +683,6 @@ step_view(System_Functions *system, View *view, Models *models, View *active_vie
                         autocomplete_with_enter = false;
                     }
                     
-                    String message = null_string;
-                    switch (view->transient.action){
-                        case IAct_OpenOrNew:
-                        case IAct_Open:
-                        {
-                            message = lit("Open: ");
-                        }break;
-                        
-                        case IAct_New:
-                        {
-                            message = lit("New: ");
-                        }break;
-                    }
-                    
                     GUI_Item_Update update = {0};
                     Hot_Directory *hdir = &models->hot_directory;
                     
@@ -723,7 +709,23 @@ step_view(System_Functions *system, View *view, Models *models, View *active_vie
                         }
                     }
                     
-                    gui_do_text_field(target, message, hdir->string);
+                    {                    
+                        String message = {0};
+                        switch (view->transient.action){
+                            case IAct_OpenOrNew:
+                            case IAct_Open:
+                            {
+                                message = lit("Open: ");
+                            }break;
+                            
+                            case IAct_New:
+                            {
+                                message = lit("New: ");
+                            }break;
+                        }
+                        
+                        gui_do_text_field(target, message, hdir->string);
+                    }
                     
                     b32 snap_into_view = false;
                     scroll_context.id[0] = (u64)(hdir);
@@ -764,7 +766,10 @@ step_view(System_Functions *system, View *view, Models *models, View *active_vie
                         append(&full_path, info_ptr->filename);
                         terminate_with_null(&full_path);
                         
-                        String filename = make_string_cap(info_ptr->filename, info_ptr->filename_len, info_ptr->filename_len + 1);
+                        char *str = info_ptr->filename;
+                        i32 len = info_ptr->filename_len;
+                        String filename = make_string_cap(str, len, len + 1);
+                        b32 is_folder = info_ptr->folder;
                         
                         if (wildcard_match_s(&absolutes, filename, false)){
                             Editing_File *file_ptr = working_set_contains_canon(working_set, full_path);
@@ -790,11 +795,6 @@ step_view(System_Functions *system, View *view, Models *models, View *active_vie
                                     default: InvalidCodePath;
                                 }
                             }
-                            
-                            char *str = info_ptr->filename;
-                            i32 len = info_ptr->filename_len;
-                            String filename = make_string_cap(str, len, len + 1);
-                            b32 is_folder = info_ptr->folder;
                             
                             if (gui_do_file_option(target, gui_id((u64)(info_ptr), high_id), filename, is_folder, message)){
                                 if (is_folder){
@@ -836,19 +836,6 @@ step_view(System_Functions *system, View *view, Models *models, View *active_vie
                 
                 case IInt_Live_File_List:
                 {
-                    String message = null_string;
-                    switch (view->transient.action){
-                        case IAct_Switch:
-                        {
-                            message = lit("Switch: ");
-                        }break;
-                        
-                        case IAct_Kill:
-                        {
-                            message = lit("Kill: ");
-                        }break;
-                    }
-                    
                     Working_Set *working_set = &models->working_set;
                     Editing_Layout *layout = &models->layout;
                     GUI_Item_Update update = {0};
@@ -865,7 +852,21 @@ step_view(System_Functions *system, View *view, Models *models, View *active_vie
                     Absolutes absolutes = {0};
                     get_absolutes(view->transient.dest, &absolutes, 1, 1);
                     
-                    gui_do_text_field(target, message, view->transient.dest);
+                    {
+                        String message = {0};
+                        switch (view->transient.action){
+                            case IAct_Switch:
+                            {
+                                message = lit("Switch: ");
+                            }break;
+                            
+                            case IAct_Kill:
+                            {
+                                message = lit("Kill: ");
+                            }break;
+                        }
+                        gui_do_text_field(target, message, view->transient.dest);
+                    }
                     
                     b32 snap_into_view = 0;
                     scroll_context.id[0] = (u64)(working_set);
@@ -1131,14 +1132,14 @@ do_step_file_view(System_Functions *system, View *view, Models *models, i32_Rect
                             if (file_is_ready(file)){
                                 Vec2 cursor = view_get_cursor_xy(view);
                                 
-                                f32 w = view_width(view);
-                                f32 h = view_height(view);
+                                f32 width = view_width(view);
+                                f32 height = view_height(view);
                                 
-                                if (cursor.x >= target_x + w){
-                                    target_x = round32(cursor.x - w*.35f);
+                                if (cursor.x >= target_x + width){
+                                    target_x = round32(cursor.x - width*.35f);
                                 }
                                 
-                                target_y = clamp_bottom(0, floor32(cursor.y - h*.5f));
+                                target_y = clamp_bottom(0, floor32(cursor.y - height*.5f));
                             }
                             
                             result.vars.target_y = target_y;

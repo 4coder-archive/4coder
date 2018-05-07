@@ -477,15 +477,15 @@ COMMAND_DECL(reopen){
                     for (Panel *panel = models->layout.used_sentinel.next;
                          panel != &models->layout.used_sentinel;
                          panel = panel->next){
-                        View *view = panel->view;
-                        if (view->transient.file_data.file != file){
+                        View *view_it = panel->view;
+                        if (view_it->transient.file_data.file != file){
                             continue;
                         }
-                        vptrs[vptr_count] = view;
-                        edit_poss[vptr_count] = view->transient.edit_pos[0];
-                        line_number[vptr_count] = view->transient.edit_pos[0].cursor.line;
-                        column_number[vptr_count] = view->transient.edit_pos[0].cursor.character;
-                        view->transient.edit_pos = 0;
+                        vptrs[vptr_count] = view_it;
+                        edit_poss[vptr_count] = view_it->transient.edit_pos[0];
+                        line_number[vptr_count] = view_it->transient.edit_pos[0].cursor.line;
+                        column_number[vptr_count] = view_it->transient.edit_pos[0].cursor.character;
+                        view_it->transient.edit_pos = 0;
                         ++vptr_count;
                     }
                     
