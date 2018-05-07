@@ -28,7 +28,7 @@ global_const char messages[] =
 "-Fixed jump behavior quirks with parsing and cursor movement\n"
 "-Fixed rare bug causing copy from other applications to fail on Windows\n"
 "-Fixed auto indent commands to do a better job picking an anchor for parsing\n"
-" Testing system now in place:\n"
+" Testing system now in place (windows only):\n"
 " Flag -R <file-name> creates an 'input recording' file of the 4coder session\n"
 " Flag -T <file-name> overrides user input and drives input by the input recorded in the specified file\n"
 "\n"
