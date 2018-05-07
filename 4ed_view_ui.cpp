@@ -636,7 +636,7 @@ step_view(System_Functions *system, View *view, Models *models, View *active_vie
                                     }
                                     result.consume_keys = result.consume_keys || set_consume_keys;
                                     view->transient.color_cursor = clamp(0, view->transient.color_cursor, 5);
-                                    next_color_editing = clamp(0, next_color_editing, ArrayCount(colors_to_edit) - 1);
+                                    next_color_editing = clamp((i32)(0), next_color_editing, (i32)(ArrayCount(colors_to_edit) - 1));
                                 }
                                 
                                 if (rollback){
