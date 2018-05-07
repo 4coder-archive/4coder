@@ -23,9 +23,9 @@ CUSTOM_COMMAND_SIG(set_bindings_default);
 CUSTOM_COMMAND_SIG(set_bindings_mac_default);
 
 static Named_Mapping named_maps_values[] = {
+    {make_lit_string("mac-default")    , set_bindings_mac_default    },
     {make_lit_string("choose")         , set_bindings_choose         },
     {make_lit_string("default")        , set_bindings_default        },
-    {make_lit_string("mac-default")    , set_bindings_mac_default    },
 };
 
 START_HOOK_SIG(default_start){

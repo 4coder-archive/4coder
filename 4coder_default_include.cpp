@@ -306,7 +306,15 @@ CUSTOM_DOC("Swaps the line under the cursor with the line above it, and moves th
         int32_t first_len = next_line_pos - this_line_pos;
         
         if (buffer_read_range(app, &buffer, this_line_pos, next_line_pos, swap)){
-            if (first_len == 0 || swap[first_len - 1] != '\n'){
+            bool32 second_line_didnt_have_newline = true;
+            for (int32_t i = first_len - 1; i >= 0; --i){
+                if (swap[i] == '\n'){
+                    second_line_didnt_have_newline = false;
+                    break;
+                }
+            }
+            
+            if (second_line_didnt_have_newline){
                 swap[first_len] = '\n';
                 first_len += 1;
                 // NOTE(allen): Don't increase "length" because then we will be including
