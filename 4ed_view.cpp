@@ -533,7 +533,7 @@ kill_file_and_update_views(System_Functions *system, Models *models, Editing_Fil
         if (file->canon.name.size != 0){
             buffer_unbind_file(system, working_set, file);
         }
-        file_free(system, &models->mem.general, file);
+        file_free(system, &models->app_links, &models->mem.general, file);
         working_set_free_file(&models->mem.general, working_set, file);
         
         File_Node *used = &working_set->used_sentinel;

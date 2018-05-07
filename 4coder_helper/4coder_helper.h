@@ -5,6 +5,33 @@
 #if !defined(FCODER_HELPER_H)
 #define FCODER_HELPER_H
 
+#define dll_remove(n)        (n)->next->prev=(n)->prev,(n)->prev->next=(n)->next
+
+#define zdll_push_back_(f,l,n) if(f==0){n->next=n->prev=0;f=l=n;}else{n->prev=l;n->next=0;l->next=n;l=n;}
+#define zdll_push_back(f,l,n) do{ zdll_push_back_((f),(l),(n)) }while(0)
+#define zdll_remove_front_(f,l,n) if(f==l){f=l=0;}else{f=f->next;f->prev=0;}
+#define zdll_remove_back_(f,l,n) if(f==l){f=l=0;}else{l=l->prev;l->next=0;}
+#define zdll_remove_(f,l,n) if(f==n){zdll_remove_front_(f,l,n);}else if(l==n){zdll_remove_back_(f,l,n);}else{dll_remove(n);}
+#define zdll_remove(f,l,n) do{ zdll_remove_((f),(l),(n)) }while(0)
+
+#define Member(S,m) (((S*)0)->m)
+#define PtrDif(a,b) ((uint8_t*)(a) - (uint8_t*)(b))
+#define PtrAsInt(a) PtrDif(a,0)
+#define OffsetOfMember(S,m) PtrAsInt(&Member(S,m))
+#define CastFromMember(S,m,ptr) (S*)( (uint8_t*)(ptr) - OffsetOfMember(S,m) )
+
+inline float
+hexfloat(uint32_t x){
+    union{
+        uint32_t x;
+        float f;
+    } c;
+    c.x = x;
+    return(c.f);
+}
+
+static const float max_f32 = hexfloat(0x7f800000);
+
 #include "4coder_seek_types.h"
 #include "4coder_lib/4coder_utf8.h"
 

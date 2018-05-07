@@ -473,7 +473,7 @@ COMMAND_DECL(reopen){
                         ++vptr_count;
                     }
                     
-                    file_free(system, general, file);
+                    file_free(system, &models->app_links, general, file);
                     init_normal_file(system, models, buffer, size, file);
                     
                     for (i32 i = 0; i < vptr_count; ++i){
@@ -1417,7 +1417,7 @@ App_Init_Sig(app_init){
         }
         
         file->settings.never_kill = true;
-        file->settings.unimportant = true;
+        file_set_unimportant(file, true);
         file->settings.unwrapped_lines = true;
         
         if (init_files[i].ptr){
@@ -1583,9 +1583,7 @@ App_Step_Sig(app_step){
                 Editing_File *file = working_set_contains_canon(working_set, canon.name);
                 if (file != 0){
                     if (file->state.ignore_behind_os == 0){
-                        if (!file->settings.unimportant){
-                            
-                        }
+                        file_set_dirty_flag(file, DirtyState_UnloadedChanges);
                     }
                     else if (file->state.ignore_behind_os == 1){
                         file->state.ignore_behind_os = 2;

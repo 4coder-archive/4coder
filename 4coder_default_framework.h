@@ -21,7 +21,7 @@ TYPE: 'internal-for-default-system'
 
 enum Default_Maps{
     default_code_map,
-    default_maps_count
+    default_maps_count,
 };
 
 //

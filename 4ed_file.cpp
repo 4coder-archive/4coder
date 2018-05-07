@@ -27,11 +27,14 @@ init_file_markers_state(Editing_File_Markers *markers){
 }
 
 internal void
-clear_file_markers_state(General_Memory *general, Editing_File_Markers *markers){
+clear_file_markers_state(Application_Links *app, General_Memory *general, Editing_File_Markers *markers){
     Marker_Array *sentinel = &markers->sentinel;
     for (Marker_Array *marker_array = sentinel->next;
          marker_array != sentinel;
          marker_array = sentinel->next){
+        if (marker_array->callback != 0){
+            marker_array->callback(app, marker_array, marker_array + 1, marker_array->user_data_size);
+        }
         dll_remove(marker_array);
         general_memory_free(general, marker_array);
     }
@@ -42,10 +45,12 @@ clear_file_markers_state(General_Memory *general, Editing_File_Markers *markers)
 }
 
 internal void*
-allocate_markers_state(General_Memory *general, Editing_File *file, u32 new_array_max){
-    u32 memory_size = sizeof(Marker_Array) + sizeof(Marker)*new_array_max;
+allocate_markers_state(General_Memory *general, Editing_File *file, u32 new_array_max,
+                       Marker_Delete_Callback *callback, void *user_data, u32 user_data_size){
+    u32 rounded_user_data_size = l_round_up_u32(user_data_size, 8);
+    u32 memory_size = sizeof(Marker_Array) + rounded_user_data_size + sizeof(Marker)*new_array_max;
     memory_size = l_round_up_u32(memory_size, KB(4));
-    u32 real_max = (memory_size - sizeof(Marker_Array))/sizeof(Marker);
+    u32 real_max = (memory_size - sizeof(Marker_Array) - rounded_user_data_size)/sizeof(Marker);
     Marker_Array *array = (Marker_Array*)general_memory_allocate(general, memory_size);
     
     dll_insert_back(&file->markers.sentinel, array);
@@ -53,6 +58,10 @@ allocate_markers_state(General_Memory *general, Editing_File *file, u32 new_arra
     array->count = 0;
     array->sim_max = new_array_max;
     array->max = real_max;
+    array->callback = callback;
+    array->user_data_size = user_data_size;
+    array->rounded_user_data_size = rounded_user_data_size;
+    memcpy(array + 1, user_data, user_data_size);
     
     ++file->markers.array_count;
     
@@ -66,59 +75,82 @@ get_buffer_id_from_marker_handle(void *handle){
     return(result.id);
 }
 
+internal Data
+get_user_data_from_marker_handle(void *handle){
+    Marker_Array *markers = (Marker_Array*)handle;
+    Data data;
+    data.data = (u8*)markers + 1;
+    data.size = markers->user_data_size;
+    return(data);
+}
+
 internal b32
 markers_set(Editing_File *file, void *handle, u32 first_index, u32 count, Marker *source){
     Assert(file != 0);
-    b32 result = false;
-    if (handle != 0){
-        Marker_Array *markers = (Marker_Array*)handle;
-        if (markers->buffer_id.id == file->id.id){
-            if (first_index + count <= markers->sim_max){
-                u32 new_count = first_index + count;
-                if (new_count > markers->count){
-                    file->markers.marker_count += new_count - markers->count;
-                    markers->count = new_count;
-                }
-                Marker *dst = MarkerArrayBase(markers);
-                memcpy(dst + first_index, source, sizeof(Marker)*count);
-                result = true;
-            }
-        }
+    if (handle == 0){
+        return(false);
     }
-    return(result);
+    
+    Marker_Array *markers = (Marker_Array*)handle;
+    if (markers->buffer_id.id != file->id.id){
+        return(false);
+    }
+    
+    if (first_index + count > markers->sim_max){
+        return(false);
+    }
+    
+    u32 new_count = first_index + count;
+    if (new_count > markers->count){
+        file->markers.marker_count += new_count - markers->count;
+        markers->count = new_count;
+    }
+    Marker *dst = MarkerArrayBase(markers);
+    memcpy(dst + first_index, source, sizeof(Marker)*count);
+    
+    return(true);
 }
 
 internal b32
 markers_get(Editing_File *file, void *handle, u32 first_index, u32 count, Marker *output){
     Assert(file != 0);
-    b32 result = false;
-    if (handle != 0){
-        Marker_Array *markers = (Marker_Array*)handle;
-        if (markers->buffer_id.id == file->id.id){
-            if (first_index + count <= markers->count){
-                Marker *src = MarkerArrayBase(markers);
-                memcpy(output, src + first_index, sizeof(Marker)*count);
-                result = true;
-            }
-        }
+    if (handle == 0){
+        return(false);
     }
-    return(result);
+    
+    Marker_Array *markers = (Marker_Array*)handle;
+    if (markers->buffer_id.id != file->id.id){
+        return(false);
+    }
+    
+    if (first_index + count > markers->count){
+        return(false);
+    }
+    
+    Marker *src = MarkerArrayBase(markers);
+    memcpy(output, src + first_index, sizeof(Marker)*count);
+    
+    return(true);
 }
 
 internal b32
 markers_free(General_Memory *general, Editing_File *file, void *handle){
     Assert(file != 0);
-    b32 result = false;
-    if (handle != 0){
-        Marker_Array *markers = (Marker_Array*)handle;
-        if (markers->buffer_id.id == file->id.id){
-            dll_remove(markers);
-            file->markers.marker_count -= markers->count;
-            --file->markers.array_count;
-            general_memory_free(general, markers);
-        }
+    if (handle == 0){
+        return(false);
     }
-    return(result);
+    
+    Marker_Array *markers = (Marker_Array*)handle;
+    if (markers->buffer_id.id != file->id.id){
+        return(false);
+    }
+    
+    dll_remove(markers);
+    file->markers.marker_count -= markers->count;
+    --file->markers.array_count;
+    general_memory_free(general, markers);
+    
+    return(true);
 }
 
 ////////////////////////////////
@@ -267,6 +299,14 @@ file_is_ready(Editing_File *file){
         result = true;
     }
     return(result);
+}
+
+inline void
+file_set_unimportant(Editing_File *file, b32 val){
+    if (val){
+        file->state.dirty = DirtyState_UpToDate;
+    }
+    file->settings.unimportant = (b8)(val != false);
 }
 
 inline void
@@ -540,24 +580,32 @@ file_allocate_metadata_as_needed(General_Memory *general, Gap_Buffer *buffer, vo
 
 inline void
 file_allocate_character_starts_as_needed(General_Memory *general, Editing_File *file){
-    file_allocate_metadata_as_needed(general, &file->state.buffer, (void**)&file->state.character_starts, &file->state. character_start_max, file->state.buffer.line_count, sizeof(i32));
+    file_allocate_metadata_as_needed(general,
+                                     &file->state.buffer, (void**)&file->state.character_starts,
+                                     &file->state.character_start_max, file->state.buffer.line_count + 1, sizeof(i32));
 }
 
 internal void
 file_allocate_indents_as_needed(General_Memory *general, Editing_File *file, i32 min_last_index){
     i32 min_amount = min_last_index + 1;
-    file_allocate_metadata_as_needed(general, &file->state.buffer, (void**)&file->state.line_indents, &file->state.line_indent_max, min_amount, sizeof(f32));
+    file_allocate_metadata_as_needed(general,
+                                     &file->state.buffer, (void**)&file->state.line_indents,
+                                     &file->state.line_indent_max, min_amount, sizeof(f32));
 }
 
 inline void
 file_allocate_wraps_as_needed(General_Memory *general, Editing_File *file){
-    file_allocate_metadata_as_needed(general, &file->state.buffer, (void**)&file->state.wrap_line_index, &file->state.wrap_max, file->state.buffer.line_count, sizeof(f32));
+    file_allocate_metadata_as_needed(general,
+                                     &file->state.buffer, (void**)&file->state.wrap_line_index,
+                                     &file->state.wrap_max, file->state.buffer.line_count + 1, sizeof(f32));
 }
 
 inline void
 file_allocate_wrap_positions_as_needed(General_Memory *general, Editing_File *file, i32 min_last_index){
     i32 min_amount = min_last_index + 1;
-    file_allocate_metadata_as_needed(general, &file->state.buffer, (void**)&file->state.wrap_positions, &file->state.wrap_position_max, min_amount, sizeof(f32));
+    file_allocate_metadata_as_needed(general,
+                                     &file->state.buffer, (void**)&file->state.wrap_positions,
+                                     &file->state.wrap_position_max, min_amount, sizeof(f32));
 }
 
 ////////////////////////////////
@@ -644,7 +692,7 @@ file_create_from_string(System_Functions *system, Models *models, Editing_File *
 }
 
 internal void
-file_free(System_Functions *system, General_Memory *general, Editing_File *file){
+file_free(System_Functions *system, Application_Links *app, General_Memory *general, Editing_File *file){
     if (file->state.still_lexing){
         system->cancel_job(BACKGROUND_THREADS, file->state.lex_job);
         if (file->state.swap_array.tokens){
@@ -655,6 +703,8 @@ file_free(System_Functions *system, General_Memory *general, Editing_File *file)
     if (file->state.token_array.tokens){
         general_memory_free(general, file->state.token_array.tokens);
     }
+    
+    clear_file_markers_state(app, general, &file->markers);
     
     Gap_Buffer *buffer = &file->state.buffer;
     if (buffer->data){

@@ -17,8 +17,9 @@ struct Application_Links;
 #define BUFFER_REPLACE_RANGE_SIG(n) bool32 n(Application_Links *app, Buffer_Summary *buffer, int32_t start, int32_t end, char *str, int32_t len)
 #define BUFFER_COMPUTE_CURSOR_SIG(n) bool32 n(Application_Links *app, Buffer_Summary *buffer, Buffer_Seek seek, Partial_Cursor *cursor_out)
 #define BUFFER_BATCH_EDIT_SIG(n) bool32 n(Application_Links *app, Buffer_Summary *buffer, char *str, int32_t str_len, Buffer_Edit *edits, int32_t edit_count, Buffer_Batch_Edit_Type type)
-#define BUFFER_ADD_MARKERS_SIG(n) Marker_Handle n(Application_Links *app, Buffer_Summary *buffer, uint32_t marker_count)
+#define BUFFER_ADD_MARKERS_SIG(n) Marker_Handle n(Application_Links *app, Buffer_Summary *buffer, uint32_t marker_count, Marker_Delete_Callback *callback, void *user_data, uint32_t user_data_size)
 #define GET_BUFFER_BY_MARKER_HANDLE_SIG(n) Buffer_Summary n(Application_Links *app, Marker_Handle marker, Access_Flag access)
+#define GET_USER_DATA_BY_MARKER_HANDLE_SIG(n) Data n(Application_Links *app, Marker_Handle marker)
 #define BUFFER_SET_MARKERS_SIG(n) bool32 n(Application_Links *app, Buffer_Summary *buffer, Marker_Handle marker, uint32_t first_marker_index, uint32_t marker_count, Marker *source_markers)
 #define BUFFER_GET_MARKERS_SIG(n) bool32 n(Application_Links *app, Buffer_Summary *buffer, Marker_Handle marker, uint32_t first_marker_index, uint32_t marker_count, Marker *markers_out)
 #define BUFFER_REMOVE_MARKERS_SIG(n) bool32 n(Application_Links *app, Buffer_Summary *buffer, Marker_Handle marker)
@@ -104,6 +105,7 @@ typedef BUFFER_COMPUTE_CURSOR_SIG(Buffer_Compute_Cursor_Function);
 typedef BUFFER_BATCH_EDIT_SIG(Buffer_Batch_Edit_Function);
 typedef BUFFER_ADD_MARKERS_SIG(Buffer_Add_Markers_Function);
 typedef GET_BUFFER_BY_MARKER_HANDLE_SIG(Get_Buffer_By_Marker_Handle_Function);
+typedef GET_USER_DATA_BY_MARKER_HANDLE_SIG(Get_User_Data_By_Marker_Handle_Function);
 typedef BUFFER_SET_MARKERS_SIG(Buffer_Set_Markers_Function);
 typedef BUFFER_GET_MARKERS_SIG(Buffer_Get_Markers_Function);
 typedef BUFFER_REMOVE_MARKERS_SIG(Buffer_Remove_Markers_Function);
@@ -191,6 +193,7 @@ Buffer_Compute_Cursor_Function *buffer_compute_cursor;
 Buffer_Batch_Edit_Function *buffer_batch_edit;
 Buffer_Add_Markers_Function *buffer_add_markers;
 Get_Buffer_By_Marker_Handle_Function *get_buffer_by_marker_handle;
+Get_User_Data_By_Marker_Handle_Function *get_user_data_by_marker_handle;
 Buffer_Set_Markers_Function *buffer_set_markers;
 Buffer_Get_Markers_Function *buffer_get_markers;
 Buffer_Remove_Markers_Function *buffer_remove_markers;
@@ -277,6 +280,7 @@ Buffer_Compute_Cursor_Function *buffer_compute_cursor_;
 Buffer_Batch_Edit_Function *buffer_batch_edit_;
 Buffer_Add_Markers_Function *buffer_add_markers_;
 Get_Buffer_By_Marker_Handle_Function *get_buffer_by_marker_handle_;
+Get_User_Data_By_Marker_Handle_Function *get_user_data_by_marker_handle_;
 Buffer_Set_Markers_Function *buffer_set_markers_;
 Buffer_Get_Markers_Function *buffer_get_markers_;
 Buffer_Remove_Markers_Function *buffer_remove_markers_;
@@ -371,6 +375,7 @@ app_links->buffer_compute_cursor_ = Buffer_Compute_Cursor;\
 app_links->buffer_batch_edit_ = Buffer_Batch_Edit;\
 app_links->buffer_add_markers_ = Buffer_Add_Markers;\
 app_links->get_buffer_by_marker_handle_ = Get_Buffer_By_Marker_Handle;\
+app_links->get_user_data_by_marker_handle_ = Get_User_Data_By_Marker_Handle;\
 app_links->buffer_set_markers_ = Buffer_Set_Markers;\
 app_links->buffer_get_markers_ = Buffer_Get_Markers;\
 app_links->buffer_remove_markers_ = Buffer_Remove_Markers;\
@@ -455,8 +460,9 @@ static inline bool32 buffer_read_range(Application_Links *app, Buffer_Summary *b
 static inline bool32 buffer_replace_range(Application_Links *app, Buffer_Summary *buffer, int32_t start, int32_t end, char *str, int32_t len){return(app->buffer_replace_range(app, buffer, start, end, str, len));}
 static inline bool32 buffer_compute_cursor(Application_Links *app, Buffer_Summary *buffer, Buffer_Seek seek, Partial_Cursor *cursor_out){return(app->buffer_compute_cursor(app, buffer, seek, cursor_out));}
 static inline bool32 buffer_batch_edit(Application_Links *app, Buffer_Summary *buffer, char *str, int32_t str_len, Buffer_Edit *edits, int32_t edit_count, Buffer_Batch_Edit_Type type){return(app->buffer_batch_edit(app, buffer, str, str_len, edits, edit_count, type));}
-static inline Marker_Handle buffer_add_markers(Application_Links *app, Buffer_Summary *buffer, uint32_t marker_count){return(app->buffer_add_markers(app, buffer, marker_count));}
+static inline Marker_Handle buffer_add_markers(Application_Links *app, Buffer_Summary *buffer, uint32_t marker_count, Marker_Delete_Callback *callback, void *user_data, uint32_t user_data_size){return(app->buffer_add_markers(app, buffer, marker_count, callback, user_data, user_data_size));}
 static inline Buffer_Summary get_buffer_by_marker_handle(Application_Links *app, Marker_Handle marker, Access_Flag access){return(app->get_buffer_by_marker_handle(app, marker, access));}
+static inline Data get_user_data_by_marker_handle(Application_Links *app, Marker_Handle marker){return(app->get_user_data_by_marker_handle(app, marker));}
 static inline bool32 buffer_set_markers(Application_Links *app, Buffer_Summary *buffer, Marker_Handle marker, uint32_t first_marker_index, uint32_t marker_count, Marker *source_markers){return(app->buffer_set_markers(app, buffer, marker, first_marker_index, marker_count, source_markers));}
 static inline bool32 buffer_get_markers(Application_Links *app, Buffer_Summary *buffer, Marker_Handle marker, uint32_t first_marker_index, uint32_t marker_count, Marker *markers_out){return(app->buffer_get_markers(app, buffer, marker, first_marker_index, marker_count, markers_out));}
 static inline bool32 buffer_remove_markers(Application_Links *app, Buffer_Summary *buffer, Marker_Handle marker){return(app->buffer_remove_markers(app, buffer, marker));}
@@ -541,8 +547,9 @@ static inline bool32 buffer_read_range(Application_Links *app, Buffer_Summary *b
 static inline bool32 buffer_replace_range(Application_Links *app, Buffer_Summary *buffer, int32_t start, int32_t end, char *str, int32_t len){return(app->buffer_replace_range_(app, buffer, start, end, str, len));}
 static inline bool32 buffer_compute_cursor(Application_Links *app, Buffer_Summary *buffer, Buffer_Seek seek, Partial_Cursor *cursor_out){return(app->buffer_compute_cursor_(app, buffer, seek, cursor_out));}
 static inline bool32 buffer_batch_edit(Application_Links *app, Buffer_Summary *buffer, char *str, int32_t str_len, Buffer_Edit *edits, int32_t edit_count, Buffer_Batch_Edit_Type type){return(app->buffer_batch_edit_(app, buffer, str, str_len, edits, edit_count, type));}
-static inline Marker_Handle buffer_add_markers(Application_Links *app, Buffer_Summary *buffer, uint32_t marker_count){return(app->buffer_add_markers_(app, buffer, marker_count));}
+static inline Marker_Handle buffer_add_markers(Application_Links *app, Buffer_Summary *buffer, uint32_t marker_count, Marker_Delete_Callback *callback, void *user_data, uint32_t user_data_size){return(app->buffer_add_markers_(app, buffer, marker_count, callback, user_data, user_data_size));}
 static inline Buffer_Summary get_buffer_by_marker_handle(Application_Links *app, Marker_Handle marker, Access_Flag access){return(app->get_buffer_by_marker_handle_(app, marker, access));}
+static inline Data get_user_data_by_marker_handle(Application_Links *app, Marker_Handle marker){return(app->get_user_data_by_marker_handle_(app, marker));}
 static inline bool32 buffer_set_markers(Application_Links *app, Buffer_Summary *buffer, Marker_Handle marker, uint32_t first_marker_index, uint32_t marker_count, Marker *source_markers){return(app->buffer_set_markers_(app, buffer, marker, first_marker_index, marker_count, source_markers));}
 static inline bool32 buffer_get_markers(Application_Links *app, Buffer_Summary *buffer, Marker_Handle marker, uint32_t first_marker_index, uint32_t marker_count, Marker *markers_out){return(app->buffer_get_markers_(app, buffer, marker, first_marker_index, marker_count, markers_out));}
 static inline bool32 buffer_remove_markers(Application_Links *app, Buffer_Summary *buffer, Marker_Handle marker){return(app->buffer_remove_markers_(app, buffer, marker));}

@@ -918,12 +918,12 @@ step_view(System_Functions *system, View *view, Models *models, View *active_vie
                         if (emit_this_file){
                             String message = {0};
                             switch (file_ptr->state.dirty){
-                                case DirtyState_UnloadedChanges:
+                                case DirtyState_UnsavedChanges:
                                 {
                                     message = lit(" *");
                                 }break;
                                 
-                                case DirtyState_UnsavedChanges:
+                                case DirtyState_UnloadedChanges:
                                 {
                                     message = lit(" !");
                                 }break;

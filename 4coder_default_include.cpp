@@ -302,13 +302,22 @@ CUSTOM_DOC("Swaps the line under the cursor with the line above it, and moves th
         Temp_Memory temp = begin_temp_memory(part);
         
         int32_t length = next_line_pos - prev_line_pos;
-        char *swap = push_array(part, char, length);
+        char *swap = push_array(part, char, length + 1);
         int32_t first_len = next_line_pos - this_line_pos;
         
-        if (buffer_read_range(app, &buffer, this_line_pos, next_line_pos, swap) &&
-            buffer_read_range(app, &buffer, prev_line_pos, this_line_pos, swap + first_len)){
-            buffer_replace_range(app, &buffer, prev_line_pos, next_line_pos, swap, length);
-            view_set_cursor(app, &view, seek_line_char(prev_line, 1), true);
+        if (buffer_read_range(app, &buffer, this_line_pos, next_line_pos, swap)){
+            if (first_len == 0 || swap[first_len - 1] != '\n'){
+                swap[first_len] = '\n';
+                first_len += 1;
+                // NOTE(allen): Don't increase "length" because then we will be including
+                // the original newline and addignt this new one, making the file longer
+                // which shouldn't be possible for this command!
+            }
+            
+            if (buffer_read_range(app, &buffer, prev_line_pos, this_line_pos, swap + first_len)){
+                buffer_replace_range(app, &buffer, prev_line_pos, next_line_pos, swap, length);
+                view_set_cursor(app, &view, seek_line_char(prev_line, 1), true);
+            }
         }
         
         end_temp_memory(temp);
@@ -322,7 +331,6 @@ CUSTOM_DOC("Moves down to the next line of actual text, regardless of line wrapp
     if (!view.exists){
         return;
     }
-    
     int32_t next_line = view.cursor.line + 1;
     view_set_cursor(app, &view, seek_line_char(next_line, 1), true);
 }
@@ -339,9 +347,15 @@ CUSTOM_DOC("Swaps the line under the cursor with the line below it, and moves th
         return;
     }
     
-    move_down_textual(app);
-    move_line_up(app);
-    move_down_textual(app);
+    int32_t next_line = view.cursor.line + 1;
+    Full_Cursor new_cursor = {0};
+    if (view_compute_cursor(app, &view, seek_line_char(next_line, 1), &new_cursor)){
+        if (new_cursor.line == next_line){
+            view_set_cursor(app, &view, seek_pos(new_cursor.pos), true);
+            move_line_up(app);
+            move_down_textual(app);
+        }
+    }
 }
 
 CUSTOM_COMMAND_SIG(duplicate_line)
@@ -377,6 +391,15 @@ CUSTOM_DOC("Delete the line the on which the cursor sits.")
     Temp_Memory temp = begin_temp_memory(part);
     int32_t start = buffer_get_line_start(app, &buffer, view.cursor.line);
     int32_t end = buffer_get_line_end(app, &buffer, view.cursor.line) + 1;
+    if (end > buffer.size){
+        end = buffer.size;
+    }
+    if (start == end || buffer_get_char(app, &buffer, end - 1) != '\n'){
+        start -= 1;
+        if (start < 0){
+            start = 0;
+        }
+    }
     
     buffer_replace_range(app, &buffer, start, end, 0, 0);
     
@@ -471,10 +494,12 @@ CUSTOM_DOC("Reads a token or word under the cursor and lists all locations of st
     
     char space[512];
     String str = get_token_or_word_under_pos(app, &buffer, view.cursor.pos, space, sizeof(space) - 1);
-    str.str[str.size] = 0;
-    
-    change_active_panel(app);
-    list_all_locations_of_type_definition_parameters(app, str.str);
+    if (str.size > 0){
+        str.str[str.size] = 0;
+        
+        change_active_panel(app);
+        list_all_locations_of_type_definition_parameters(app, str.str);
+    }
 }
 
 

@@ -440,10 +440,11 @@ main(int argc, char **argv){
     test_list.part = &test_list_part;
     
     // NOTE(allen): Tests
-    push_test(&test_list, "test_load_FONT_COURIER_NEW_28_c.4id");
-    generate_token_tests(part, &test_list, GenFlag_DoAll);
+    //push_test(&test_list, "test_load_FONT_COURIER_NEW_28_c.4id");
+    push_test(&test_list, "test_load_rome_txt.4id");
+    //generate_token_tests(part, &test_list, GenFlag_DoAll);
     //generate_token_tests(part, &test_list, GenFlag_OutputTestNames);
-    generate_dupline_tests(part, &test_list, GenFlag_DoAll);
+    //generate_dupline_tests(part, &test_list, GenFlag_DoAll);
     //generate_dupline_tests(part, &test_list, GenFlag_OutputTestNames);
     
     // NOTE(allen): Generate the run test script

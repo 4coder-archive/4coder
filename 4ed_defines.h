@@ -162,6 +162,18 @@ inline u32 round_up_pot_u32(u32 x){
 #define min_u32 ((u32)0)
 #define min_u64 ((u64)0)
 
+inline f32
+hexfloat_f32(u32 x){
+    union{
+        u32 x;
+        f32 f;
+    } c;
+    c.x = x;
+    return(c.f);
+}
+
+global_const f32 max_f32 = hexfloat_f32(0x7f800000);
+
 #define Bit_0 (1 << 0)
 #define Bit_1 (1 << 1)
 #define Bit_2 (1 << 2)

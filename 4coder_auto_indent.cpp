@@ -192,6 +192,86 @@ seek_matching_token_backwards(Cpp_Token_Array tokens, Cpp_Token *token, Cpp_Toke
 
 static Cpp_Token*
 find_anchor_token(Application_Links *app, Buffer_Summary *buffer, Cpp_Token_Array tokens, int32_t line_start, int32_t tab_width, int32_t *current_indent_out){
+#if 1
+    // NOTE(allen): New implementation of find_anchor_token (4.0.26) revert if it is a problem.
+    Cpp_Token *token = 0;
+    if (tokens.count > 0){
+        Cpp_Token *first_invalid_token = get_first_token_at_line(app, buffer, tokens, line_start);
+        if (first_invalid_token <= tokens.tokens){
+            token = tokens.tokens;
+        }
+        else{
+            
+            int32_t stack[256];
+            int32_t top = -1;
+            
+            Cpp_Token *token_it = tokens.tokens;
+            int32_t highest_checked_line_number = -1;
+            for (; token_it < first_invalid_token; ++token_it){
+                int32_t line_number = buffer_get_line_number(app, buffer, token_it->start);
+                if (highest_checked_line_number < line_number){
+                    highest_checked_line_number = line_number;
+                    if (top == -1){
+                        token = token_it;
+                    }
+                }
+                
+                switch (token_it->type){
+                    case CPP_TOKEN_BRACE_OPEN:
+                    case CPP_TOKEN_BRACKET_OPEN:
+                    case CPP_TOKEN_PARENTHESE_OPEN:
+                    {
+                        top += 1;
+                        stack[top] = token_it->type;
+                    }break;
+                    
+                    case CPP_TOKEN_PARENTHESE_CLOSE:
+                    {
+                        for (;top >= 0;){
+                            int32_t index = top;
+                            top -= 1;
+                            if (stack[index] == CPP_TOKEN_PARENTHESE_OPEN){
+                                break;
+                            }
+                        }
+                    }break;
+                    
+                    case CPP_TOKEN_BRACE_CLOSE:
+                    {
+                        for (;top >= 0;){
+                            int32_t index = top;
+                            if (stack[index] == CPP_TOKEN_PARENTHESE_OPEN){
+                                break;
+                            }
+                            top -= 1;
+                            if (stack[index] == CPP_TOKEN_BRACE_OPEN){
+                                break;
+                            }
+                        }
+                    }break;
+                    
+                    case CPP_TOKEN_BRACKET_CLOSE:
+                    {
+                        for (;top >= 0;){
+                            int32_t index = top;
+                            if (stack[index] == CPP_TOKEN_PARENTHESE_OPEN ||
+                                stack[index] == CPP_TOKEN_BRACE_OPEN){
+                                break;
+                            }
+                            top -= 1;
+                            if (stack[index] == CPP_TOKEN_BRACKET_OPEN){
+                                break;
+                            }
+                        }
+                    }break;
+                }
+            }
+        }
+    }
+    return(token);
+    
+#else
+    // NOTE(allen): Old (4.0.25) implementation of find_anchor_token.
     Cpp_Token *token = 0;
     
     if (tokens.count != 0){
@@ -229,10 +309,10 @@ find_anchor_token(Application_Links *app, Buffer_Summary *buffer, Cpp_Token_Arra
             
             if (start_token->type == CPP_TOKEN_PARENTHESE_OPEN){
                 if (start_token == tokens.tokens){
-                    found_safe_start_position = 1;
+                    found_safe_start_position = true;
                 }
                 else{
-                    token = start_token-1;
+                    token = start_token - 1;
                 }
             }
             else{
@@ -286,6 +366,7 @@ find_anchor_token(Application_Links *app, Buffer_Summary *buffer, Cpp_Token_Arra
     }
     
     return(token);
+#endif
 }
 
 struct Indent_Parse_State{

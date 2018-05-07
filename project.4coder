@@ -1,5 +1,9 @@
-extensions = ".c.cpp.h.m.bat.sh.4coder.txt.4is";
+extensions = ".c.cpp.h.m.bat.sh.4coder.txt";
 open_recursively = true;
+
+fkey_command_win[1]  = {"build_tests.bat"            , "*compilation*" , true , true };
+fkey_command_win[2]  = {"generate_tests.bat"         , "*compilation*" , true , true };
+fkey_command_win[3]  = {"run_regression_tests.bat"   , "*test*"        , false, true };
 
 fkey_command_win[1]  = {"echo build: x64 & build.bat", "*compilation*" , true , true  };
 fkey_command_win[2]  = {"build_site.bat"             , "*site*"        , false, true  };
@@ -10,10 +14,6 @@ fkey_command_win[6]  = {"run_regression_tests.bat"   , "*test*"        , false, 
 fkey_command_win[7]  = {"build_tests.bat"            , "*compilation*" , true , true };
 fkey_command_win[8]  = {"generate_tests.bat"         , "*compilation*" , true , true };
 fkey_command_win[12] = {"package.bat"                , "*package*"     , false, true  };
-
-fkey_command_win[1]  = {"build_tests.bat"            , "*compilation*" , true , true };
-fkey_command_win[2]  = {"generate_tests.bat"         , "*compilation*" , true , true };
-fkey_command_win[3]  = {"run_regression_tests.bat"   , "*test*"        , false, true };
 
 fkey_command_linux[1]  = {"echo build: x64 & ./build.sh", "*compilation*" , true , true };
 fkey_command_linux[2]  = {"build_site.sh"               , "*site*"        , false, true };

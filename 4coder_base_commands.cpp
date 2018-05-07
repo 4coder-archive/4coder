@@ -32,7 +32,7 @@ write_character_parameter(Application_Links *app, uint8_t *character, uint32_t l
         next_cursor_marker.pos = character_pos_to_pos(app, &view, &buffer, view.cursor.character_pos);
         next_cursor_marker.lean_right = true;
         
-        Marker_Handle handle = buffer_add_markers(app, &buffer, 1);
+        Marker_Handle handle = buffer_add_markers(app, &buffer, 1, 0, 0, 0);
         buffer_set_markers(app, &buffer, handle, 0, 1, &next_cursor_marker);
         
         buffer_replace_range(app, &buffer, pos, pos, (char*)character, length);
@@ -218,10 +218,25 @@ move_vertical(Application_Links *app, float line_multiplier){
     uint32_t access = AccessProtected;
     View_Summary view = get_active_view(app, access);
     
-    float new_y = get_view_y(&view) + line_multiplier*view.line_height;
+    float delta_y = line_multiplier*view.line_height;
+    float new_y = get_view_y(&view) + delta_y;
     float x = view.preferred_x;
     
     view_set_cursor(app, &view, seek_xy(x, new_y, 0, view.unwrapped_lines), 0);
+    float actual_new_y = get_view_y(&view);
+    if (actual_new_y < new_y){
+        i32_Rect file_region = view.file_region;
+        int32_t height = file_region.y1 - file_region.y0;
+        int32_t full_scroll_y = (int32_t)actual_new_y - height/2;
+        if (view.scroll_vars.target_y < full_scroll_y){
+            GUI_Scroll_Vars new_scroll_vars = view.scroll_vars;
+            new_scroll_vars.target_y += (int32_t)delta_y;
+            if (new_scroll_vars.target_y > full_scroll_y){
+                new_scroll_vars.target_y = full_scroll_y;
+            }
+            view_set_scroll(app, &view, new_scroll_vars);
+        }
+    }
 }
 
 CUSTOM_COMMAND_SIG(move_up)
@@ -381,7 +396,7 @@ CUSTOM_DOC("Seeks the cursor to the end of the visual line.")
         y = view.cursor.unwrapped_y;
     }
     
-    view_set_cursor(app, &view, seek_xy(100000.f, y, 1, view.unwrapped_lines), 1);
+    view_set_cursor(app, &view, seek_xy(max_f32, y, 1, view.unwrapped_lines), 1);
 }
 
 CUSTOM_COMMAND_SIG(seek_whitespace_up_end_line)

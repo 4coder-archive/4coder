@@ -367,6 +367,29 @@ edit_clear(System_Functions *system, Models *models, Editing_File *file){
     if (models->hook_end_file != 0){
         models->hook_end_file(&models->app_links, file->id.id);
     }
+    
+    b32 no_views_see_file = true;
+    
+    Editing_Layout *layout = &models->layout;
+    for (Panel *panel = layout->used_sentinel.next;
+         panel != &layout->used_sentinel;
+         panel = panel->next){
+        View *view = panel->view;
+        if (view->transient.file_data.file == file){
+            Full_Cursor cursor = {0};
+            cursor.line = 1;
+            cursor.character = 1;
+            cursor.wrap_line = 1;
+            view_set_cursor(view, cursor, true, file->settings.unwrapped_lines);
+            no_views_see_file = false;
+        }
+    }
+    
+    if (no_views_see_file){
+        memset(file->state.edit_pos_space, 0, sizeof(file->state.edit_pos_space));
+        file->state.edit_poss_count = 0;
+    }
+    
     edit_single(system, models, file,
                 0, buffer_size(&file->state.buffer), 0, 0);
 }

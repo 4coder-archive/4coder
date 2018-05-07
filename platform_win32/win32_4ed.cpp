@@ -328,52 +328,79 @@ Sys_Post_Clipboard_Sig(system_post_clipboard){
 }
 
 internal b32
-win32_read_clipboard_contents(){
+win32_read_clipboard_contents(void){
+    Partition *scratch = &shared_vars.scratch;
+    Temp_Memory temp = begin_temp_memory(scratch);
+    
     b32 result = false;
     
-    if (IsClipboardFormatAvailable(CF_UNICODETEXT)){
-        result = true;
+    b32 has_text = false;
+    b32 has_unicode = IsClipboardFormatAvailable(CF_UNICODETEXT);
+    if (!has_unicode){
+        has_text = IsClipboardFormatAvailable(CF_TEXT);
+    }
+    b32 can_read = has_unicode || has_text;
+    
+    if (can_read){
         if (OpenClipboard(win32vars.window_handle)){
-            HANDLE clip_data = GetClipboardData(CF_UNICODETEXT);
-            if (clip_data != 0){
-                Partition *scratch = &shared_vars.scratch;
-                Temp_Memory temp = begin_temp_memory(scratch);
-                
-                u16 *clip_16 = (u16*)GlobalLock(clip_data);
-                
-                if (clip_16 != 0){
-                    u32 clip_16_len = 0;
-                    for(;clip_16[clip_16_len];++clip_16_len);
-                    
-                    b32 error = false;
-                    u32 clip_8_len = (u32)utf16_to_utf8_minimal_checking(win32vars.clip_buffer, win32vars.clip_max-1, clip_16, clip_16_len, &error);
-                    
-                    for (;clip_8_len >= win32vars.clip_max && !error;){
-                        system_memory_free(win32vars.clip_buffer, win32vars.clip_max);
-                        win32vars.clip_max = l_round_up_u32(clip_8_len, KB(4));
-                        win32vars.clip_buffer = (u8*)system_memory_allocate(win32vars.clip_max);
+            result = true;
+            HANDLE clip_data = 0;
+            i32 contents_length = 0;
+            if (has_unicode){
+                clip_data = GetClipboardData(CF_UNICODETEXT);
+                if (clip_data != 0){
+                    u16 *clip_16 = (u16*)GlobalLock(clip_data);
+                    if (clip_16 != 0){
+                        u32 clip_16_len = 0;
+                        for(;clip_16[clip_16_len];++clip_16_len);
                         
-                        clip_8_len = (u32)utf16_to_utf8_minimal_checking(win32vars.clip_buffer, win32vars.clip_max - 1, clip_16, clip_16_len, &error);
-                    }
-                    
-                    if (clip_8_len < win32vars.clip_max && !error){
-                        win32vars.clip_buffer[clip_8_len] = 0;
+                        b32 error = false;
+                        u32 clip_8_len = (u32)utf16_to_utf8_minimal_checking(win32vars.clip_buffer, win32vars.clip_max-1, clip_16, clip_16_len, &error);
                         
-                        win32vars.clipboard_contents = make_string_cap(win32vars.clip_buffer, clip_8_len, win32vars.clip_max);
+                        for (;clip_8_len >= win32vars.clip_max && !error;){
+                            system_memory_free(win32vars.clip_buffer, win32vars.clip_max);
+                            win32vars.clip_max = l_round_up_u32(clip_8_len + 1, KB(4));
+                            win32vars.clip_buffer = (u8*)system_memory_allocate(win32vars.clip_max);
+                            clip_8_len = (u32)utf16_to_utf8_minimal_checking(win32vars.clip_buffer, win32vars.clip_max - 1, clip_16, clip_16_len, &error);
+                        }
+                        
+                        if (clip_8_len < win32vars.clip_max && !error){
+                            win32vars.clip_buffer[clip_8_len] = 0;
+                            contents_length = clip_8_len + 1;
+                        }
                     }
-                    
-                    GlobalUnlock(clip_data);
                 }
-                
-                if (win32vars.clipboard_contents.str){
-                    win32vars.clipboard_contents.size = str_size((char*)win32vars.clipboard_contents.str);
-                }
-                
-                end_temp_memory(temp);
             }
+            else{
+                clip_data = GetClipboardData(CF_TEXT);
+                if (clip_data != 0){
+                    char *clip_ascii = (char*)GlobalLock(clip_data);
+                    if (clip_ascii != 0){
+                        u32 clip_ascii_len = 0;
+                        for(;clip_ascii[clip_ascii_len];++clip_ascii_len);
+                        
+                        if (clip_ascii_len >= win32vars.clip_max){
+                            system_memory_free(win32vars.clip_buffer, win32vars.clip_max);
+                            win32vars.clip_max = l_round_up_u32(clip_ascii_len + 1, KB(4));
+                            win32vars.clip_buffer = (u8*)system_memory_allocate(win32vars.clip_max);
+                        }
+                        memcpy(win32vars.clip_buffer, clip_ascii, clip_ascii_len + 1);
+                        contents_length = clip_ascii_len + 1;
+                    }
+                }
+            }
+            
+            if (contents_length > 0){
+                win32vars.clipboard_contents = make_string_cap(win32vars.clip_buffer, contents_length - 1, win32vars.clip_max);
+            }
+            
+            GlobalUnlock(clip_data);
+            
             CloseClipboard();
         }
     }
+    
+    end_temp_memory(temp);
     
     return(result);
 }
@@ -1566,16 +1593,23 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
             }
             
             // NOTE(allen): Frame Clipboard Input
-            win32vars.clipboard_contents = null_string;
+            memset(&win32vars.clipboard_contents, 0, sizeof(win32vars.clipboard_contents));
             if (win32vars.clipboard_sequence != 0){
                 DWORD new_number = GetClipboardSequenceNumber();
                 if (new_number != win32vars.clipboard_sequence){
-                    win32vars.clipboard_sequence = new_number;
                     if (win32vars.next_clipboard_is_self){
-                        win32vars.next_clipboard_is_self = 0;
+                        win32vars.next_clipboard_is_self = false;
+                        win32vars.clipboard_sequence = new_number;
                     }
                     else{
-                        win32_read_clipboard_contents();
+                        b32 got_contents = false;
+                        for (i32 R = 0; R < 4; ++R){
+                            if (win32_read_clipboard_contents()){
+                                win32vars.clipboard_sequence = new_number;
+                                got_contents = true;
+                                break;
+                            }
+                        }
                     }
                 }
             }

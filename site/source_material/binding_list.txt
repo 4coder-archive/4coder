@@ -41,7 +41,6 @@ The following bindings apply in all situations.
 \ITEM \STYLE{code} <ctrl H> \END If a project file has already been loaded, reloads the same file.  Useful for when the project configuration is changed.
 \ITEM \STYLE{code} <ctrl S> \END Saves all buffers marked dirty (showing the '*' indicator).
 \ITEM \STYLE{code} <alt c> \END Opens the 4coder colors and fonts selector menu.
-\ITEM \STYLE{code} <alt d> \END Opens a debug view for internal use.
 \ITEM \STYLE{code} <alt .> \END If the special build panel is open, makes the build panel the active panel.
 \ITEM \STYLE{code} <alt ,> \END If the special build panel is open, closes it.
 \ITEM \STYLE{code} <alt n> \END If a buffer containing jump locations has been locked in, goes to the next jump in the buffer, and does not skip sub jump locations.
@@ -51,7 +50,7 @@ The following bindings apply in all situations.
 \ITEM \STYLE{code} <alt z> \END Queries for an output buffer name and system command, runs the system command as a CLI and prints the output to the specified buffer.
 \ITEM \STYLE{code} <alt Z> \END If the command execute_any_cli has already been used, this will execute a CLI reusing the most recent buffer name and command.
 \ITEM \STYLE{code} <alt x> \END Execute a 'long form' command.
-\ITEM \STYLE{code} <alt s> \END Sets the current view to show it's scrollbar.
+\ITEM \STYLE{code} <alt W> \END Sets the current view to show it's scrollbar.
 \ITEM \STYLE{code} <alt w> \END Sets the current view to hide it's scrollbar.
 \ITEM \STYLE{code} <alt b> \END Toggles the visibility status of the current view's filebar.
 \ITEM \STYLE{code} <alt @> \END Toggles the mouse suppression mode, see suppress_mouse and allow_mouse.
@@ -94,6 +93,8 @@ The following bindings apply in general text files and most apply in code files,
 \ITEM \STYLE{code} <down> \END Moves the cursor down one line.
 \ITEM \STYLE{code} <end> \END Seeks the cursor to the end of the visual line.
 \ITEM \STYLE{code} <home> \END Seeks the cursor to the beginning of the visual line.
+\ITEM \STYLE{code} <ctrl page up> \END Sets the cursor to the beginning of the file.
+\ITEM \STYLE{code} <ctrl page down> \END Sets the cursor to the end of the file.
 \ITEM \STYLE{code} <page up> \END Scrolls the view up one view height and moves the cursor up one view height.
 \ITEM \STYLE{code} <page down> \END Scrolls the view down one view height and moves the cursor down one view height.
 \ITEM \STYLE{code} <ctrl right> \END Seek right for the next boundary between whitespace and non-whitespace.
@@ -129,6 +130,7 @@ The following bindings apply in general text files and most apply in code files,
 \ITEM \STYLE{code} <alt q> \END Queries the user for a string, and incrementally replace every occurence of the string found in the selected range with the specified string.
 \ITEM \STYLE{code} <ctrl r> \END Begins an incremental search up through the current buffer for a user specified string.
 \ITEM \STYLE{code} <ctrl s> \END Saves the current buffer.
+\ITEM \STYLE{code} <alt s> \END Queries the user for a name and saves the contents of the current buffer, altering the buffer's name too.
 \ITEM \STYLE{code} <ctrl t> \END Begins an incremental search down through the current buffer for the word or token under the cursor.
 \ITEM \STYLE{code} <ctrl T> \END Reads a token or word under the cursor and lists all exact case-sensitive mathces in all open buffers.
 \ITEM \STYLE{code} <ctrl u> \END Converts all ascii text in the range between the cursor and the mark to uppercase.
@@ -203,7 +205,6 @@ The following bindings apply in all situations.
 \ITEM \STYLE{code} <cmnd H> \END If a project file has already been loaded, reloads the same file.  Useful for when the project configuration is changed.
 \ITEM \STYLE{code} <cmnd S> \END Saves all buffers marked dirty (showing the '*' indicator).
 \ITEM \STYLE{code} <ctrl c> \END Opens the 4coder colors and fonts selector menu.
-\ITEM \STYLE{code} <ctrl d> \END Opens a debug view for internal use.
 \ITEM \STYLE{code} <ctrl .> \END If the special build panel is open, makes the build panel the active panel.
 \ITEM \STYLE{code} <ctrl ,> \END If the special build panel is open, closes it.
 \ITEM \STYLE{code} <ctrl n> \END If a buffer containing jump locations has been locked in, goes to the next jump in the buffer, skipping sub jump locations.
@@ -213,7 +214,7 @@ The following bindings apply in all situations.
 \ITEM \STYLE{code} <ctrl z> \END Queries for an output buffer name and system command, runs the system command as a CLI and prints the output to the specified buffer.
 \ITEM \STYLE{code} <ctrl Z> \END If the command execute_any_cli has already been used, this will execute a CLI reusing the most recent buffer name and command.
 \ITEM \STYLE{code} <ctrl x> \END Execute a 'long form' command.
-\ITEM \STYLE{code} <ctrl s> \END Sets the current view to show it's scrollbar.
+\ITEM \STYLE{code} <ctrl W> \END Sets the current view to show it's scrollbar.
 \ITEM \STYLE{code} <ctrl w> \END Sets the current view to hide it's scrollbar.
 \ITEM \STYLE{code} <ctrl b> \END Toggles the visibility status of the current view's filebar.
 \ITEM \STYLE{code} <ctrl @> \END Toggles the mouse suppression mode, see suppress_mouse and allow_mouse.
@@ -257,6 +258,8 @@ The following bindings apply in general text files and most apply in code files,
 \ITEM \STYLE{code} <down> \END Moves the cursor down one line.
 \ITEM \STYLE{code} <end> \END Seeks the cursor to the end of the visual line.
 \ITEM \STYLE{code} <home> \END Seeks the cursor to the beginning of the visual line.
+\ITEM \STYLE{code} <ctrl page up> \END Sets the cursor to the beginning of the file.
+\ITEM \STYLE{code} <ctrl page down> \END Sets the cursor to the end of the file.
 \ITEM \STYLE{code} <page up> \END Scrolls the view up one view height and moves the cursor up one view height.
 \ITEM \STYLE{code} <page down> \END Scrolls the view down one view height and moves the cursor down one view height.
 \ITEM \STYLE{code} <cmnd right> \END Seek right for the next boundary between whitespace and non-whitespace.
@@ -289,6 +292,7 @@ The following bindings apply in general text files and most apply in code files,
 \ITEM \STYLE{code} <cmnd Q> \END Queries the user for a string, and incrementally replace every occurence of the word or token found at the cursor with the specified string.
 \ITEM \STYLE{code} <cmnd r> \END Begins an incremental search up through the current buffer for a user specified string.
 \ITEM \STYLE{code} <cmnd s> \END Saves the current buffer.
+\ITEM \STYLE{code} <ctrl s> \END Queries the user for a name and saves the contents of the current buffer, altering the buffer's name too.
 \ITEM \STYLE{code} <cmnd t> \END Begins an incremental search down through the current buffer for the word or token under the cursor.
 \ITEM \STYLE{code} <cmnd T> \END Reads a token or word under the cursor and lists all exact case-sensitive mathces in all open buffers.
 \ITEM \STYLE{code} <cmnd u> \END Converts all ascii text in the range between the cursor and the mark to uppercase.

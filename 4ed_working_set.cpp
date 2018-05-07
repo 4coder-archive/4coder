@@ -108,7 +108,6 @@ working_set_free_file(General_Memory *general, Working_Set  *working_set, Editin
     }
     
     file->is_dummy = 1;
-    clear_file_markers_state(general, &file->markers);
     dll_remove(&file->node);
     dll_insert(&working_set->free_sentinel, &file->node);
     --working_set->file_count;

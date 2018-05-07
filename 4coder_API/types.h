@@ -624,6 +624,8 @@ DOC_SEE(buffer_add_markers)
 */
 TYPEDEF void* Marker_Handle;
 
+TYPEDEF void Marker_Delete_Callback(struct Application_Links *app, Marker_Handle handle, void *user_data, uint32_t user_data_size);
+
 /*
 DOC(A four corner axis aligned rectangle, with integer coordinates.)
 */
@@ -822,6 +824,15 @@ STRUCT User_Input{
     Generic_Command command;
 };
 
+/*
+DOC(Data is used for passing and returing pointer size pairs.)
+*/
+STRUCT Data{
+    /* DOC(A pointer to the data.) */
+    uint8_t *data;
+    /* DOC(The size of the data in bytes.) */
+    uint64_t size;
+};
 
 /* DOC(Hook_IDs name the various hooks in 4coder, these hooks use the Hook_Function signature.)
 DOC_SEE(Hook_Function) */
@@ -921,6 +932,7 @@ ENUM(int32_t, Map_ID){
     mapid_ui,
     mapid_nomap
 };
+
 
 /*
 DOC(Describes a unit of information for setting up key bindings.  A unit can set a key binding, switch the active map, set the inherited map, or set a hook.)

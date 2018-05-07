@@ -105,6 +105,8 @@ init_coroutine_system(Coroutine *root, Coroutine_System *sys){
     root->type = CoroutineType_Root;
     
     system_init_cv(&root->cv);
+    
+    system_acquire_lock(&sys->lock);
 }
 
 internal void

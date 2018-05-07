@@ -325,7 +325,7 @@ DOC_SEE(Command_Line_Interface_Flag)
         // NOTE(allen): If we have an output file, prepare it for child proc output.
         if (file != 0){
             edit_clear(system, models, file);
-            file->settings.unimportant = true;
+            file_set_unimportant(file, true);
         }
         
         // NOTE(allen): If we have an output file and we need to bring it up in a new view, do so.
@@ -792,10 +792,13 @@ DOC_SEE(Buffer_Batch_Edit_Type)
 }
 
 API_EXPORT Marker_Handle
-Buffer_Add_Markers(Application_Links *app, Buffer_Summary *buffer, uint32_t marker_count)
+Buffer_Add_Markers(Application_Links *app, Buffer_Summary *buffer, uint32_t marker_count, Marker_Delete_Callback *callback, void *user_data, uint32_t user_data_size)
 /*
 DOC_PARAM(buffer, The buffer on which to add the new markers.)
 DOC_PARAM(marker_count, How many markers to be stored in the new marker array.)
+DOC_PARAM(callback, A callback that will be called if the buffer closes with these markers still attached.)
+DOC_PARAM(user_data, A pointer to data that will be passed to the callback on close.  The data will be copied so you do not need to manage it's lifetime.)
+DOC_RETURN(user_data_size, The size of the data pointed to by user_data in bytes.)
 DOC_RETURN(If this call succeeds it returns a handle to the new markers.  If it fails it returns a null handle.)
 DOC(This call makes an allocation of markers for the specified buffer.  The newly allocated markers are not immediately activated.  To activate a marker use buffer_set_markers to give the marker a value.  The markers will remain allocated on the buffer until buffer_remove_markers is called or until the buffer is killed.)
 DOC_SEE(Marker)
@@ -806,7 +809,8 @@ DOC_SEE(Marker)
     
     Marker_Handle result = 0;
     if (file != 0){
-        result = allocate_markers_state(&models->mem.general, file, marker_count);
+        result = allocate_markers_state(&models->mem.general, file, marker_count,
+                                        callback, user_data, user_data_size);
     }
     
     return(result);
@@ -819,9 +823,26 @@ DOC_PARAM(marker, The marker handle to query.)
 DOC_PARAM(access, The access parameter determines what levels of protection this call can access.)
 DOC_SEE(Marker)
 */{
-    Buffer_ID buffer_id = get_buffer_id_from_marker_handle(marker);
-    Buffer_Summary buffer = Get_Buffer(app, buffer_id, access);
+    Buffer_Summary buffer = {0};
+    if (marker != 0){
+        Buffer_ID buffer_id = get_buffer_id_from_marker_handle(marker);
+        buffer = Get_Buffer(app, buffer_id, access);
+    }
     return(buffer);
+}
+
+API_EXPORT Data
+Get_User_Data_By_Marker_Handle(Application_Links *app, Marker_Handle marker)
+/*
+DOC_PARAM(marker, The marker thandle to query.)
+DOC_RETURN(Returns a data struct containing the user data passed in to buffer_add_markers, or a zero struct if the handle is null.)
+DOC_SEE(Marker)
+*/{
+    Data data = {0};
+    if (marker != 0){
+        data = get_user_data_from_marker_handle(marker);
+    }
+    return(data);
 }
 
 API_EXPORT bool32
@@ -1127,11 +1148,11 @@ DOC_SEE(Buffer_Setting_ID)
             
             case BufferSetting_Unimportant:
             {
-                if (value){
-                    file->settings.unimportant = true;
+                if (value != 0){
+                    file_set_unimportant(file, true);
                 }
                 else{
-                    file->settings.unimportant = false;
+                    file_set_unimportant(file, false);
                 }
             }break;
             

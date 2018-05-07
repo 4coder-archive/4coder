@@ -40,12 +40,18 @@ union Buffer_Slot_ID{
 };
 
 struct Marker_Array{
-    Marker_Array *next, *prev;
+    Marker_Array *next;
+    Marker_Array *prev;
     Buffer_Slot_ID buffer_id;
-    u32 count, sim_max, max;
+    u32 count;
+    u32 sim_max;
+    u32 max;
+    Marker_Delete_Callback *callback;
+    u32 user_data_size;
+    u32 rounded_user_data_size;
 };
 
-#define MarkerArrayBase(array) (Marker*)((u8*)(array) + sizeof(Marker_Array))
+#define MarkerArrayBase(a) (Marker*)((u8*)(a) + sizeof(Marker_Array) + ((Marker_Array*)(a))->rounded_user_data_size)
 
 struct Editing_File_Markers{
     Marker_Array sentinel;
