@@ -68,7 +68,9 @@ typedef double f64;
 #define ArrayCount(a) ((sizeof(a))/(sizeof(*a)))
 #define ExpandArray(a) (a), (ArrayCount(a))
 #define AllowLocal(c) (void)(c)
-#define Member(T, m) (((T*)0)->m)
+#if !defined(Member)
+# define Member(T, m) (((T*)0)->m)
+#endif
 
 #define STR__(s) #s
 #define STR_(s) STR__(s)
@@ -162,17 +164,19 @@ inline u32 round_up_pot_u32(u32 x){
 #define min_u32 ((u32)0)
 #define min_u64 ((u64)0)
 
+#if !defined(max_f32)
 inline f32
-hexfloat_f32(u32 x){
+max_f32_proc(void){
     union{
         u32 x;
         f32 f;
     } c;
-    c.x = x;
+    c.x = 0x7f800000;
     return(c.f);
 }
 
-global_const f32 max_f32 = hexfloat_f32(0x7f800000);
+#define max_f32 max_f32_proc()
+#endif
 
 #define Bit_0 (1 << 0)
 #define Bit_1 (1 << 1)

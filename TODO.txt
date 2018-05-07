@@ -82,9 +82,6 @@
 ; [] indication on failure to save
 ; [] history is broken, revist the entire system
 ;
-; [] view fails to follow cursor when the view is shrunk
-; [] view fails to follow cursor after deleting long line
-;
 ;
 
 ; BEFORE I SHIP
@@ -179,7 +176,7 @@
 ; [] command for setting wrap positions in views directly
 ; [] ability to see the wrap position as a number/line and adjust graphically
 ; [] code level wrapping level 2
-;     [] comment lead whitespace problem
+;     [X] comment lead whitespace problem
 ;     [] remeasure version of measure_wraps
 
 ; [] code file outlining

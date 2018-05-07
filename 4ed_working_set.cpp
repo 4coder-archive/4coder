@@ -293,7 +293,7 @@ working_set_lookup_file(Working_Set *working_set, String string){
     
     if (file == 0){
         for (File_Node *node = working_set->used_sentinel.next;
-             node = &working_set->used_sentinel;
+             node != &working_set->used_sentinel;
              node = node->next){
             Editing_File *nfile = (Editing_File*)node;
             if (string.size == 0 || has_substr_s(nfile->unique_name.name, string)){

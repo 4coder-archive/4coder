@@ -14,23 +14,27 @@
 #define zdll_remove_(f,l,n) if(f==n){zdll_remove_front_(f,l,n);}else if(l==n){zdll_remove_back_(f,l,n);}else{dll_remove(n);}
 #define zdll_remove(f,l,n) do{ zdll_remove_((f),(l),(n)) }while(0)
 
-#define Member(S,m) (((S*)0)->m)
+#if !defined(Member)
+# define Member(S,m) (((S*)0)->m)
+#endif
 #define PtrDif(a,b) ((uint8_t*)(a) - (uint8_t*)(b))
 #define PtrAsInt(a) PtrDif(a,0)
 #define OffsetOfMember(S,m) PtrAsInt(&Member(S,m))
 #define CastFromMember(S,m,ptr) (S*)( (uint8_t*)(ptr) - OffsetOfMember(S,m) )
 
+#if !defined(max_f32)
 inline float
-hexfloat(uint32_t x){
+max_f32_proc(void){
     union{
         uint32_t x;
         float f;
     } c;
-    c.x = x;
+    c.x = 0x7f800000;
     return(c.f);
 }
 
-static const float max_f32 = hexfloat(0x7f800000);
+#define max_f32 max_f32_proc()
+#endif
 
 #include "4coder_seek_types.h"
 #include "4coder_lib/4coder_utf8.h"
