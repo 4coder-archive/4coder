@@ -1240,6 +1240,37 @@ non-zero if dest does not run out of space in the underlying memory.) */{
 //
 
 API_EXPORT FSTRING_LINK void
+string_interpret_escapes(String src, char *dst){
+    i32_4tech mode = 0;
+    i32_4tech j = 0;
+    for (i32_4tech i = 0; i < src.size; ++i){
+        switch (mode){
+            case 0:
+            {
+                if (src.str[i] == '\\'){
+                    mode = 1;
+                }
+                else{
+                    dst[j++] = src.str[i];
+                }
+            }break;
+            
+            case 1:
+            {
+                switch (src.str[i]){
+                    case '\\':{dst[j++] = '\\'; mode = 0;}break;
+                    case 'n': {dst[j++] = '\n'; mode = 0;}break;
+                    case 't': {dst[j++] = '\t'; mode = 0;}break;
+                    case '"': {dst[j++] = '"';  mode = 0;}break;
+                    case '0': {dst[j++] = '\0'; mode = 0;}break;
+                }
+            }break;
+        }
+    }
+    dst[j] = 0;
+}
+
+API_EXPORT FSTRING_LINK void
 replace_char(String *str, char replace, char with)/*
 DOC_PARAM(str, The str parameter provides the string in which replacement shall be performed.)
 DOC_PARAM(replace, The replace character specifies which character should be replaced.)

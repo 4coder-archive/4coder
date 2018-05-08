@@ -1,5 +1,5 @@
 /*
-4coder_string.h - Version 1.0.109
+4coder_string.h - Version 1.0.111
 no warranty implied; use at your own risk
 
 This software is in the public domain. Where that dedication is not
@@ -171,6 +171,7 @@ FSTRING_INLINE b32_4tech           append_ss(String *dest, String src);
 FSTRING_INLINE b32_4tech           append_sc(String *dest, char *src);
 FSTRING_LINK b32_4tech             terminate_with_null(String *str);
 FSTRING_LINK b32_4tech             append_padding(String *dest, char c, i32_4tech target_size);
+FSTRING_LINK void                  string_interpret_escapes(String src, char *dst);
 FSTRING_LINK void                  replace_char(String *str, char replace, char with);
 FSTRING_LINK void                  replace_str_ss(String *str, String replace, String with);
 FSTRING_LINK void                  replace_str_sc(String *str, String replace, char *with);
@@ -499,7 +500,9 @@ FSTRING_LINK i32_4tech
 str_size(char *str)
 {
     i32_4tech i = 0;
-    while (str[i]) ++i;
+    if (str != 0){
+        for (;str[i];++i);
+    }
     return(i);
 }
 #endif
@@ -511,7 +514,7 @@ make_string_slowly(void *str)
     String result;
     result.str = (char*)str;
     result.size = str_size((char*)str);
-    result.memory_size = result.size+1;
+    result.memory_size = result.size + 1;
     return(result);
 }
 #endif
@@ -1471,6 +1474,39 @@ append_padding(String *dest, char c, i32_4tech target_size){
 //
 // Other Edits
 //
+
+#if defined(FSTRING_IMPLEMENTATION)
+FSTRING_LINK void
+string_interpret_escapes(String src, char *dst){
+    i32_4tech mode = 0;
+    i32_4tech j = 0;
+    for (i32_4tech i = 0; i < src.size; ++i){
+        switch (mode){
+            case 0:
+            {
+                if (src.str[i] == '\\'){
+                    mode = 1;
+                }
+                else{
+                    dst[j++] = src.str[i];
+                }
+            }break;
+            
+            case 1:
+            {
+                switch (src.str[i]){
+                    case '\\':{dst[j++] = '\\'; mode = 0;}break;
+                    case 'n': {dst[j++] = '\n'; mode = 0;}break;
+                    case 't': {dst[j++] = '\t'; mode = 0;}break;
+                    case '"': {dst[j++] = '"';  mode = 0;}break;
+                    case '0': {dst[j++] = '\0'; mode = 0;}break;
+                }
+            }break;
+        }
+    }
+    dst[j] = 0;
+}
+#endif
 
 #if defined(FSTRING_IMPLEMENTATION)
 FSTRING_LINK void

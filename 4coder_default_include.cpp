@@ -22,6 +22,7 @@ TYPE: 'major-system-include'
 #include "4coder_clipboard.cpp"
 #include "4coder_system_command.cpp"
 #include "4coder_build_commands.cpp"
+#include "4coder_open_all_close_all.cpp"
 #include "4coder_project_commands.cpp"
 #include "4coder_function_list.cpp"
 #include "4coder_scope_commands.cpp"
