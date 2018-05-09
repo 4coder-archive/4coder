@@ -317,9 +317,6 @@ Sys_Load_Handle_Sig(system_load_handle){
         *(HANDLE*)handle_out = file;
         result = true;
     }
-    else{
-        win32_output_error_string(true);
-    }
     
     return(result);
 }
