@@ -7,14 +7,23 @@
 #if !defined(FCODER_DEFAULT_INCLUDE_CPP)
 #define FCODER_DEFAULT_INCLUDE_CPP
 
+// NOTE(allen): Define USE_OLD_STYLE_JUMPS before 4coder_default_include.cpp to get
+// the direct jumps (instead of sticky jumps).
+
 #include "4coder_API/custom.h"
 #include "4coder_os_comp_cracking.h"
 
+#define FSTRING_IMPLEMENTATION
+#include "4coder_lib/4coder_string.h"
+#include "4coder_lib/4coder_table.h"
+#include "4coder_lib/4coder_mem.h"
+#include "4coder_lib/4coder_utf8.h"
+#include "4coder_lib/4cpp_lexer.h"
+
+#include "4coder_helper/4coder_bind_helper.h"
 #include "4coder_helper/4coder_helper.h"
 #include "4coder_helper/4coder_streaming.h"
 #include "4coder_helper/4coder_long_seek.h"
-#include "4coder_lib/4coder_mem.h"
-#include "4coder_lib/4coder_utf8.h"
 
 #include "4coder_default_framework.h"
 #include "4coder_auto_indent.h"
@@ -27,6 +36,7 @@
 
 #include "4coder_base_commands.cpp"
 #include "4coder_default_framework.cpp"
+#include "4coder_seek_commands.cpp"
 #include "4coder_auto_indent.cpp"
 #include "4coder_search.cpp"
 #include "4coder_jumping.cpp"
@@ -39,212 +49,7 @@
 #include "4coder_function_list.cpp"
 #include "4coder_scope_commands.cpp"
 
-// NOTE(allen): Define USE_OLD_STYLE_JUMPS before 4coder_default_include.cpp to get
-// the direct jumps (instead of sticky jumps).
-#if defined(USE_OLD_STYLE_JUMPS)
-
-#define goto_jump_at_cursor                 CUSTOM_ALIAS(goto_jump_at_cursor_direct)
-#define goto_jump_at_cursor_same_panel      CUSTOM_ALIAS(goto_jump_at_cursor_same_panel_direct)
-#define goto_next_jump                      CUSTOM_ALIAS(goto_next_jump_direct)
-#define goto_prev_jump                      CUSTOM_ALIAS(goto_prev_jump_direct)
-#define goto_next_jump_no_skips             CUSTOM_ALIAS(goto_next_jump_no_skips_direct)
-#define goto_prev_jump_no_skips             CUSTOM_ALIAS(goto_prev_jump_no_skips_direct)
-#define goto_first_jump                     CUSTOM_ALIAS(goto_first_jump_direct)
-#define newline_or_goto_position            CUSTOM_ALIAS(newline_or_goto_position_direct)
-#define newline_or_goto_position_same_panel CUSTOM_ALIAS(newline_or_goto_position_same_panel_direct)
-
-#else
-
-#define goto_jump_at_cursor                 CUSTOM_ALIAS(goto_jump_at_cursor_sticky)
-#define goto_jump_at_cursor_same_panel      CUSTOM_ALIAS(goto_jump_at_cursor_same_panel_sticky)
-#define goto_next_jump                      CUSTOM_ALIAS(goto_next_jump_sticky)
-#define goto_prev_jump                      CUSTOM_ALIAS(goto_prev_jump_sticky)
-#define goto_next_jump_no_skips             CUSTOM_ALIAS(goto_next_jump_no_skips_sticky)
-#define goto_prev_jump_no_skips             CUSTOM_ALIAS(goto_prev_jump_no_skips_sticky)
-#define goto_first_jump                     CUSTOM_ALIAS(goto_first_jump_sticky)
-#define newline_or_goto_position            CUSTOM_ALIAS(newline_or_goto_position_sticky)
-#define newline_or_goto_position_same_panel CUSTOM_ALIAS(newline_or_goto_position_same_panel_sticky)
-
-#endif
-
-#define seek_error               CUSTOM_ALIAS(seek_jump)
-#define goto_next_error          CUSTOM_ALIAS(goto_next_jump)
-#define goto_prev_error          CUSTOM_ALIAS(goto_prev_jump)
-#define goto_next_error_no_skips CUSTOM_ALIAS(goto_next_jump_no_skips)
-#define goto_prev_error_no_skips CUSTOM_ALIAS(goto_prev_jump_no_skips)
-#define goto_first_error         CUSTOM_ALIAS(goto_first_jump)
-
 #include "4coder_default_hooks.cpp"
-
-#include "4coder_helper/4coder_bind_helper.h"
-#include "4coder_helper/4coder_helper.h"
-#include "4coder_helper/4coder_streaming.h"
-#include "4coder_helper/4coder_long_seek.h"
-
-#define FSTRING_IMPLEMENTATION
-#include "4coder_lib/4coder_string.h"
-#include "4coder_lib/4coder_table.h"
-#include "4coder_lib/4coder_mem.h"
-#include "4coder_lib/4coder_utf8.h"
-
-#include "4coder_lib/4cpp_lexer.h"
-
-//
-// Seeks Using Default Framework Memory
-//
-
-static int32_t
-buffer_boundary_seek(Application_Links *app, Buffer_Summary *buffer, int32_t start_pos, bool32 seek_forward, Seek_Boundary_Flag flags){
-    int32_t result = buffer_boundary_seek(app, buffer, &global_part, start_pos, seek_forward, flags);
-    return(result);
-}
-
-static void
-basic_seek(Application_Links *app, bool32 seek_forward, uint32_t flags){
-    View_Summary view = get_active_view(app, AccessProtected);
-    Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessProtected);
-    int32_t pos = buffer_boundary_seek(app, &buffer, view.cursor.pos, seek_forward, flags);
-    view_set_cursor(app, &view, seek_pos(pos), true);
-}
-
-#define right true
-#define left false
-
-CUSTOM_COMMAND_SIG(seek_whitespace_right)
-CUSTOM_DOC("Seek right for the next boundary between whitespace and non-whitespace.")
-{ basic_seek(app, right, BoundaryWhitespace); }
-
-CUSTOM_COMMAND_SIG(seek_whitespace_left)
-CUSTOM_DOC("Seek left for the next boundary between whitespace and non-whitespace.")
-{ basic_seek(app, left, BoundaryWhitespace); }
-
-CUSTOM_COMMAND_SIG(seek_token_right)
-CUSTOM_DOC("Seek right for the next end of a token.")
-{ basic_seek(app, right, BoundaryToken); }
-
-CUSTOM_COMMAND_SIG(seek_token_left)
-CUSTOM_DOC("Seek left for the next beginning of a token.")
-{ basic_seek(app, left, BoundaryToken); }
-
-CUSTOM_COMMAND_SIG(seek_white_or_token_right)
-CUSTOM_DOC("Seek right for the next end of a token or boundary between whitespace and non-whitespace.")
-{basic_seek(app, right, BoundaryToken | BoundaryWhitespace);}
-
-CUSTOM_COMMAND_SIG(seek_white_or_token_left)
-CUSTOM_DOC("Seek left for the next end of a token or boundary between whitespace and non-whitespace.")
-{basic_seek(app, left, BoundaryToken | BoundaryWhitespace);}
-
-CUSTOM_COMMAND_SIG(seek_alphanumeric_right)
-CUSTOM_DOC("Seek right for boundary between alphanumeric characters and non-alphanumeric characters.")
-{ basic_seek(app, right, BoundaryAlphanumeric); }
-
-CUSTOM_COMMAND_SIG(seek_alphanumeric_left)
-CUSTOM_DOC("Seek left for boundary between alphanumeric characters and non-alphanumeric characters.")
-{ basic_seek(app, left, BoundaryAlphanumeric); }
-
-CUSTOM_COMMAND_SIG(seek_alphanumeric_or_camel_right)
-CUSTOM_DOC("Seek right for boundary between alphanumeric characters or camel case word and non-alphanumeric characters.")
-{ basic_seek(app, right, BoundaryAlphanumeric | BoundaryCamelCase); }
-
-CUSTOM_COMMAND_SIG(seek_alphanumeric_or_camel_left)
-CUSTOM_DOC("Seek left for boundary between alphanumeric characters or camel case word and non-alphanumeric characters.")
-{ basic_seek(app, left, BoundaryAlphanumeric | BoundaryCamelCase); }
-
-#undef right
-#undef left
-
-//
-// Fast Deletes 
-//
-
-CUSTOM_COMMAND_SIG(backspace_word)
-CUSTOM_DOC("Delete characters between the cursor position and the first alphanumeric boundary to the left.")
-{
-    uint32_t access = AccessOpen;
-    
-    View_Summary view = get_active_view(app, access);
-    Buffer_Summary buffer = get_buffer(app, view.buffer_id, access);
-    
-    if (buffer.exists){
-        int32_t pos2 = 0, pos1 = 0;
-        
-        pos2 = view.cursor.pos;
-        exec_command(app, seek_alphanumeric_left);
-        refresh_view(app, &view);
-        pos1 = view.cursor.pos;
-        
-        buffer_replace_range(app, &buffer, pos1, pos2, 0, 0);
-    }
-}
-
-CUSTOM_COMMAND_SIG(delete_word)
-CUSTOM_DOC("Delete characters between the cursor position and the first alphanumeric boundary to the right.")
-{
-    uint32_t access = AccessOpen;
-    
-    View_Summary view = get_active_view(app, access);
-    Buffer_Summary buffer = get_buffer(app, view.buffer_id, access);
-    
-    if (buffer.exists){
-        int32_t pos2 = 0, pos1 = 0;
-        
-        pos1 = view.cursor.pos;
-        exec_command(app, seek_alphanumeric_right);
-        refresh_view(app, &view);
-        pos2 = view.cursor.pos;
-        
-        buffer_replace_range(app, &buffer, pos1, pos2, 0, 0);
-    }
-}
-
-CUSTOM_COMMAND_SIG(snipe_token_or_word)
-CUSTOM_DOC("Delete a single, whole token on or to the left of the cursor and post it to the clipboard.")
-{
-    uint32_t access = AccessOpen;
-    
-    View_Summary view = get_active_view(app, access);
-    Buffer_Summary buffer = get_buffer(app, view.buffer_id, access);
-    
-    int32_t pos1 = buffer_boundary_seek(app, &buffer, view.cursor.pos, false, BoundaryToken|BoundaryWhitespace);
-    int32_t pos2 = buffer_boundary_seek(app, &buffer, pos1,            true,  BoundaryToken|BoundaryWhitespace);
-    
-    Range range = make_range(pos1, pos2);
-    
-    Partition *part = &global_part;
-    Temp_Memory temp = begin_temp_memory(part);
-    int32_t len = range.end - range.start;
-    char *space = push_array(part, char, len);
-    buffer_read_range(app, &buffer, range.start, range.end, space);
-    clipboard_post(app, 0, space, len);
-    end_temp_memory(temp);
-    
-    buffer_replace_range(app, &buffer, range.start, range.end, 0, 0);
-}
-
-CUSTOM_COMMAND_SIG(snipe_token_or_word_right)
-CUSTOM_DOC("Delete a single, whole token on or to the right of the cursor and post it to the clipboard.")
-{
-    uint32_t access = AccessOpen;
-    
-    View_Summary view = get_active_view(app, access);
-    Buffer_Summary buffer = get_buffer(app, view.buffer_id, access);
-    
-    int32_t pos2 = buffer_boundary_seek(app, &buffer, view.cursor.pos, true,  BoundaryToken|BoundaryWhitespace);
-    int32_t pos1 = buffer_boundary_seek(app, &buffer, pos2,            false, BoundaryToken|BoundaryWhitespace);
-    
-    Range range = make_range(pos1, pos2);
-    
-    Partition *part = &global_part;
-    Temp_Memory temp = begin_temp_memory(part);
-    int32_t len = range.end - range.start;
-    char *space = push_array(part, char, len);
-    buffer_read_range(app, &buffer, range.start, range.end, space);
-    clipboard_post(app, 0, space, len);
-    end_temp_memory(temp);
-    
-    buffer_replace_range(app, &buffer, range.start, range.end, 0, 0);
-}
-
 
 //
 // Query Replace Selection

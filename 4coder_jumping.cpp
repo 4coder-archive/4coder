@@ -374,5 +374,40 @@ seek_jump(Application_Links *app, Partition *part, bool32 skip_repeats, bool32 s
     return(result);
 }
 
+////////////////////////////////
+
+#if defined(USE_OLD_STYLE_JUMPS)
+
+#define goto_jump_at_cursor                 CUSTOM_ALIAS(goto_jump_at_cursor_direct)
+#define goto_jump_at_cursor_same_panel      CUSTOM_ALIAS(goto_jump_at_cursor_same_panel_direct)
+#define goto_next_jump                      CUSTOM_ALIAS(goto_next_jump_direct)
+#define goto_prev_jump                      CUSTOM_ALIAS(goto_prev_jump_direct)
+#define goto_next_jump_no_skips             CUSTOM_ALIAS(goto_next_jump_no_skips_direct)
+#define goto_prev_jump_no_skips             CUSTOM_ALIAS(goto_prev_jump_no_skips_direct)
+#define goto_first_jump                     CUSTOM_ALIAS(goto_first_jump_direct)
+#define newline_or_goto_position            CUSTOM_ALIAS(newline_or_goto_position_direct)
+#define newline_or_goto_position_same_panel CUSTOM_ALIAS(newline_or_goto_position_same_panel_direct)
+
+#else
+
+#define goto_jump_at_cursor                 CUSTOM_ALIAS(goto_jump_at_cursor_sticky)
+#define goto_jump_at_cursor_same_panel      CUSTOM_ALIAS(goto_jump_at_cursor_same_panel_sticky)
+#define goto_next_jump                      CUSTOM_ALIAS(goto_next_jump_sticky)
+#define goto_prev_jump                      CUSTOM_ALIAS(goto_prev_jump_sticky)
+#define goto_next_jump_no_skips             CUSTOM_ALIAS(goto_next_jump_no_skips_sticky)
+#define goto_prev_jump_no_skips             CUSTOM_ALIAS(goto_prev_jump_no_skips_sticky)
+#define goto_first_jump                     CUSTOM_ALIAS(goto_first_jump_sticky)
+#define newline_or_goto_position            CUSTOM_ALIAS(newline_or_goto_position_sticky)
+#define newline_or_goto_position_same_panel CUSTOM_ALIAS(newline_or_goto_position_same_panel_sticky)
+
+#endif
+
+#define seek_error               CUSTOM_ALIAS(seek_jump)
+#define goto_next_error          CUSTOM_ALIAS(goto_next_jump)
+#define goto_prev_error          CUSTOM_ALIAS(goto_prev_jump)
+#define goto_next_error_no_skips CUSTOM_ALIAS(goto_next_jump_no_skips)
+#define goto_prev_error_no_skips CUSTOM_ALIAS(goto_prev_jump_no_skips)
+#define goto_first_error         CUSTOM_ALIAS(goto_first_jump)
+
 // BOTTOM
 

@@ -5,57 +5,42 @@
 // TOP
 
 static bool32
-clipboard_copy(Application_Links *app, int32_t start, int32_t end, Buffer_Summary *buffer_out, uint32_t access){
-    View_Summary view = get_active_view(app, access);
-    Buffer_Summary buffer = get_buffer(app, view.buffer_id, access);
-    bool32 result = 0;
-    
-    if (buffer.exists){
-        if (0 <= start && start <= end && end <= buffer.size){
-            int32_t size = (end - start);
-            char *str = (char*)app->memory;
-            
-            if (size <= app->memory_size){
-                buffer_read_range(app, &buffer, start, end, str);
-                clipboard_post(app, 0, str, size);
-                if (buffer_out){*buffer_out = buffer;}
-                result = 1;
-            }
+post_buffer_range_to_clipboard(Application_Links *app, Partition *scratch, int32_t clipboard_index,
+                               Buffer_Summary *buffer, int32_t first, int32_t one_past_last){
+    bool32 success = false;
+    if (buffer->exists &&
+        0 <= first && first < one_past_last && one_past_last <= buffer->size){
+        Temp_Memory temp = begin_temp_memory(scratch);
+        int32_t size = one_past_last - first;
+        char *str = push_array(scratch, char, size);
+        if (str != 0){
+            buffer_read_range(app, buffer, first, one_past_last, str);
+            clipboard_post(app, clipboard_index, str, size);
+            success = true;
         }
+        end_temp_memory(temp);
     }
-    
-    return(result);
-}
-
-static int32_t
-clipboard_cut(Application_Links *app, int32_t start, int32_t end, Buffer_Summary *buffer_out, uint32_t access){
-    Buffer_Summary buffer = {0};
-    int32_t result = false;
-    
-    if (clipboard_copy(app, start, end, &buffer, access)){
-        buffer_replace_range(app, &buffer, start, end, 0, 0);
-        if (buffer_out){*buffer_out = buffer;}
-    }
-    
-    return(result);
+    return(success);
 }
 
 CUSTOM_COMMAND_SIG(copy)
 CUSTOM_DOC("Copy the text in the range from the cursor to the mark onto the clipboard.")
 {
-    uint32_t access = AccessProtected;
-    View_Summary view = get_active_view(app, access);
+    View_Summary view = get_active_view(app, AccessProtected);
+    Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessProtected);
     Range range = get_range(&view);
-    clipboard_copy(app, range.min, range.max, 0, access);
+    post_buffer_range_to_clipboard(app, &global_part, 0, &buffer, range.min, range.max);
 }
 
 CUSTOM_COMMAND_SIG(cut)
 CUSTOM_DOC("Cut the text in the range from the cursor to the mark onto the clipboard.")
 {
-    uint32_t access = AccessOpen;
-    View_Summary view = get_active_view(app, access);
+    View_Summary view = get_active_view(app, AccessOpen);
+    Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessOpen);
     Range range = get_range(&view);
-    clipboard_cut(app, range.min, range.max, 0, access);
+    if (post_buffer_range_to_clipboard(app, &global_part, 0, &buffer, range.min, range.max)){
+        buffer_replace_range(app, &buffer, range.min, range.max, 0, 0);
+    }
 }
 
 CUSTOM_COMMAND_SIG(paste)
