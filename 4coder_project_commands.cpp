@@ -166,11 +166,13 @@ load_project_from_data(Application_Links *app, Partition *scratch,
         current_project.loaded = true;
         
         // Set new project directory
-        current_project.dir = current_project.dir_space;
-        String str = make_fixed_width_string(current_project.dir_space);
-        copy(&str, project_dir);
-        terminate_with_null(&str);
-        current_project.dir_len = str.size;
+        {
+            current_project.dir = current_project.dir_space;
+            String str = make_fixed_width_string(current_project.dir_space);
+            copy(&str, project_dir);
+            terminate_with_null(&str);
+            current_project.dir_len = str.size;
+        }
         
         // Read the settings from project.4coder
         for (int32_t i = 0; i < array.count; ++i){
