@@ -1,17 +1,8 @@
 /*
 4coder_build_commands.cpp - Commands for building.
-
-TYPE: 'drop-in-command-pack'
 */
 
 // TOP
-
-#if !defined(FCODER_BUILD_COMMANDS_CPP)
-#define FCODER_BUILD_COMMANDS_CPP
-
-#include "4coder_helper/4coder_helper.h"
-
-#include "4coder_default_framework.h"
 
 // NOTE(allen|a4.0.9): This is provided to establish a default method of getting
 // a "build directory".  This function tries to setup the build directory in the
@@ -20,12 +11,6 @@ TYPE: 'drop-in-command-pack'
 //
 //  There is no requirement that a custom build system in 4coder actually use the
 // directory given by this function.
-enum Get_Build_Directory_Result{
-    BuildDir_None,
-    BuildDir_AtFile,
-    BuildDir_AtHot
-};
-
 static int32_t
 get_build_directory(Application_Links *app, Buffer_Summary *buffer, String *dir_out){
     int32_t result = BuildDir_None;
@@ -239,8 +224,6 @@ CUSTOM_DOC("If the special build panel is open, makes the build panel the active
         set_active_view(app, &view);
     }
 }
-
-#endif
 
 // BOTTOM
 

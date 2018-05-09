@@ -1,16 +1,13 @@
 /*
 4coder_scope_commands.cpp - A set of commands and helpers relevant for scope level navigation and editing.
-
-TYPE: 'drop-in-command-pack'
 */
 
 // TOP
 
-enum{
-    FindScope_Parent = 0x1,
-    FindScope_NextSibling = 0x1,
-    FindScope_EndOfToken = 0x2,
-};
+static bool32 parse_statement_down(Application_Links *app, Statement_Parser *parser, Cpp_Token *token_out);
+static float scope_center_threshold = 0.75f;
+
+////////////////////////////////
 
 static bool32
 find_scope_top(Application_Links *app, Buffer_Summary *buffer, int32_t start_pos, uint32_t flags, int32_t *end_pos_out){
@@ -341,8 +338,6 @@ view_set_to_region(Application_Links *app, View_Summary *view, int32_t major_pos
     }
 }
 
-static float scope_center_threshold = 0.75f;
-
 CUSTOM_COMMAND_SIG(highlight_surrounding_scope)
 CUSTOM_DOC("Finds the scope enclosed by '{' '}' surrounding the cursor and puts the cursor and mark on the '{' and '}'.")
 {
@@ -530,12 +525,6 @@ CUSTOM_DOC("Deletes the braces surrounding the currently selected scope.  Leaves
     }
 }
 
-struct Statement_Parser{
-    Stream_Tokens stream;
-    int32_t token_index;
-    Buffer_Summary *buffer;
-};
-
 static Cpp_Token*
 parser_next_token(Statement_Parser *parser){
     Cpp_Token *result = 0;
@@ -549,8 +538,6 @@ parser_next_token(Statement_Parser *parser){
     }
     return(result);
 }
-
-static bool32 parse_statement_down(Application_Links *app, Statement_Parser *parser, Cpp_Token *token_out);
 
 static bool32
 parse_for_down(Application_Links *app, Statement_Parser *parser, Cpp_Token *token_out){

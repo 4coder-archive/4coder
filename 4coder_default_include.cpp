@@ -1,7 +1,5 @@
 /*
 4coder_default_include.cpp - Default set of commands and setup used in 4coder.
-
-TYPE: 'major-system-include'
 */
 
 // TOP
@@ -10,13 +8,28 @@ TYPE: 'major-system-include'
 #define FCODER_DEFAULT_INCLUDE_CPP
 
 #include "4coder_API/custom.h"
-
 #include "4coder_os_comp_cracking.h"
 
+#include "4coder_helper/4coder_helper.h"
+#include "4coder_helper/4coder_streaming.h"
+#include "4coder_helper/4coder_long_seek.h"
+#include "4coder_lib/4coder_mem.h"
+#include "4coder_lib/4coder_utf8.h"
+
 #include "4coder_default_framework.h"
+#include "4coder_auto_indent.h"
+#include "4coder_build_commands.h"
+#include "4coder_jumping.h"
+#include "4coder_jump_sticky.h"
+#include "4coder_project_commands.h"
+#include "4coder_function_list.h"
+#include "4coder_scope_commands.h"
+
 #include "4coder_base_commands.cpp"
+#include "4coder_default_framework.cpp"
 #include "4coder_auto_indent.cpp"
 #include "4coder_search.cpp"
+#include "4coder_jumping.cpp"
 #include "4coder_jump_direct.cpp"
 #include "4coder_jump_sticky.cpp"
 #include "4coder_clipboard.cpp"

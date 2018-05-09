@@ -1,15 +1,8 @@
 /*
 4coder_system_command.cpp - Commands for executing arbitrary system command line instructions.
-
-TYPE: 'drop-in-command-pack'
 */
 
 // TOP
-
-#if !defined(FCODER_SYSTEM_COMMAND_CPP)
-#define FCODER_SYSTEM_COMMAND_CPP
-
-#include "4coder_default_framework.h"
 
 CUSTOM_COMMAND_SIG(execute_previous_cli)
 CUSTOM_DOC("If the command execute_any_cli has already been used, this will execute a CLI reusing the most recent buffer name and command.")
@@ -44,8 +37,6 @@ CUSTOM_DOC("Queries for an output buffer name and system command, runs the syste
     
     execute_previous_cli(app);
 }
-
-#endif
 
 // BOTTOM
 

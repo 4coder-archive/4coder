@@ -1,25 +1,9 @@
 /*
 4coder_direct_jump.cpp - Commands and helpers for parsing jump locations from 
 compiler errors and jumping to them in the corresponding buffer.
-
-TYPE: 'drop-in-command-pack'
 */
 
 // TOP
-
-//#if !defined(FCODER_JUMP_PARSING) && !defined(FCODER_JUMP_COMMANDS)
-//#define FCODER_JUMP_PARSING
-//#define FCODER_JUMP_COMMANDS
-
-#if !defined(FCODER_JUMP_PARSING)
-#define FCODER_JUMP_PARSING
-
-#include "4coder_default_framework.h"
-#include "4coder_helper/4coder_long_seek.h"
-#include "4coder_helper/4coder_helper.h"
-
-#include "4coder_lib/4coder_mem.h"
-#include "4coder_jumping.h"
 
 CUSTOM_COMMAND_SIG(goto_jump_at_cursor_direct)
 CUSTOM_DOC("If the cursor is found to be on a jump location, parses the jump location and brings up the file and position in another view and changes the active panel to the view containing the jump.")
@@ -143,8 +127,6 @@ CUSTOM_DOC("If the buffer in the active view is writable, inserts a character, o
         write_character(app);
     }
 }
-
-#endif
 
 // BOTTOM
 

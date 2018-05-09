@@ -1,7 +1,5 @@
 /*
 4coder_project_commands.h - type header paired with 4coder_project_commands.cpp
-
-type: 'type-header'
 */
 
 // TOP
@@ -9,7 +7,6 @@ type: 'type-header'
 #if !defined(FCODER_PROJECT_COMMANDS_H)
 #define FCODER_PROJECT_COMMANDS_H
 
-#include "4coder_default_framework.h"
 #include "4coder_lib/4coder_mem.h"
 
 enum{

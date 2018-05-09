@@ -1,7 +1,5 @@
 /*
 4coder_language_cpp.h - Sets up the C++ language context.
-
-TYPE: 'langauge-description'
 */
 
 // TOP

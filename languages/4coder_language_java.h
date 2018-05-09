@@ -1,7 +1,5 @@
 /*
 4coder_language_java.h - Sets up the Java language context.
-
-TYPE: 'langauge-description'
 */
 
 // TOP

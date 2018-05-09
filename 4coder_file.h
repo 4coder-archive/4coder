@@ -1,8 +1,6 @@
 /*
  4coder_file.h - File enumeration and reading procedures for each platform.
- 
-TYPE: 'utility'
-*/
+ */
 
 // TOP
 

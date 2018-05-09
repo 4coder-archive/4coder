@@ -1,17 +1,8 @@
 /*
 4coder_clipboard.cpp - Copy paste commands and clipboard related setup.
-
-TYPE: 'drop-in-command-pack'
 */
 
 // TOP
-
-#if !defined(FCODER_CLIPBOARD_CPP)
-#define FCODER_CLIPBOARD_CPP
-
-#include "4coder_default_framework.h"
-
-#include "4coder_helper/4coder_helper.h"
 
 static bool32
 clipboard_copy(Application_Links *app, int32_t start, int32_t end, Buffer_Summary *buffer_out, uint32_t access){
@@ -148,8 +139,6 @@ CUSTOM_DOC("If the previous command was paste or paste_next, replaces the paste 
         }
     }
 }
-
-#endif
 
 // BOTTOM
 

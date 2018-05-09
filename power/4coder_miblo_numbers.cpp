@@ -1,8 +1,6 @@
 /*
 4coder_miblo_numbers.cpp - Commands for so called "Miblo Number Operations" which involve incrementing
 and decrementing various forms of number as numerical objects despite being encoded as text objects.
-
-TYPE: 'drop-in-command-pack'
 */
 
 // TOP

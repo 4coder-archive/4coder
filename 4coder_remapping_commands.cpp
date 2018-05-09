@@ -1,8 +1,6 @@
 /*
 4coder_remapping_commands.cpp - Commands that remap all of the keys to one of the maps
 in the set of default maps.
-
-TYPE: 'drop-in-command-pack'
 */
 
 // TOP

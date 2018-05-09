@@ -1,7 +1,5 @@
 /*
 4coder_default_hooks.cpp - Sets up the hooks for the default framework.
-
-TYPE: 'internal-for-default-system'
 */
 
 // TOP
@@ -9,9 +7,7 @@ TYPE: 'internal-for-default-system'
 #if !defined(FCODER_DEFAULT_HOOKS_CPP)
 #define FCODER_DEFAULT_HOOKS_CPP
 
-#include "4coder_default_framework.h"
 #include "4coder_helper/4coder_bind_helper.h"
-#include "4coder_project_commands.cpp"
 
 #include "languages/4coder_language_cpp.h"
 #include "languages/4coder_language_rust.h"

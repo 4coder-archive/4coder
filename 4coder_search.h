@@ -1,7 +1,5 @@
 /*
 4coder_search.h - Types that are used in the search accross all buffers procedures.
-
-TYPE: 'types-header'
 */
 
 // TOP

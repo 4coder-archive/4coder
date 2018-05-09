@@ -1,8 +1,6 @@
 /*
 4coder_search.cpp - Commands that search accross buffers including word complete,
 and list all locations.
-
-TYPE: 'drop-in-command-pack'
 */
 
 // TOP
@@ -17,8 +15,6 @@ TYPE: 'drop-in-command-pack'
 
 #include "4coder_helper/4coder_streaming.h"
 #include "4coder_helper/4coder_long_seek.h"
-
-#include "4coder_default_framework.h"
 
 //
 // Search Iteration Systems

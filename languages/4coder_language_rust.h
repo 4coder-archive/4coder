@@ -1,7 +1,5 @@
 /*
 4coder_language_rust.h - Sets up the Rust language context.
-
-TYPE: 'langauge-description'
 */
 
 // TOP

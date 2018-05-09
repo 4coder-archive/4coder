@@ -1,7 +1,5 @@
 /*
 4coder_metadata_generator.cpp - A preprocessor program for generating a list of commands and their descriptions.
-
-TYPE: 'code-preprocessor'
 */
 
 // TOP

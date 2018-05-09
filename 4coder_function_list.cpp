@@ -1,22 +1,8 @@
 /*
 4coder_function_list.cpp - Command for listing all functions in a C/C++ file in a jump list.
-
-TYPE: 'drop-in-command-pack'
 */
 
 // TOP
-
-#if !defined(FCODER_FUNCTION_LIST_CPP)
-#define FCODER_FUNCTION_LIST_CPP
-
-#include "4coder_API/custom.h"
-
-#include "4coder_default_framework.h"
-
-#include "4coder_helper/4coder_helper.h"
-#include "4coder_helper/4coder_streaming.h"
-
-#include "4coder_lib/4coder_mem.h"
 
 // NOTE(allen|a4.0.14): This turned out to be a nasty little routine.  There might 
 // be a better way to do it with just tokens that I didn't see the first time 
@@ -26,22 +12,6 @@ TYPE: 'drop-in-command-pack'
 // This version can be dropped anywhere underneath 4coder_default_include.cpp and
 // will then provide the "list_all_functions_current_buffer" command.
 //
-
-//
-// Declaration list
-//
-
-struct Function_Positions{
-    int32_t sig_start_index;
-    int32_t sig_end_index;
-    int32_t open_paren_pos;
-};
-
-struct Get_Positions_Results{
-    int32_t positions_count;
-    int32_t next_token_index;
-    bool32 still_looping;
-};
 
 static Get_Positions_Results
 get_function_positions(Application_Links *app, Buffer_Summary *buffer, int32_t token_index, Function_Positions *positions_array, int32_t positions_max){
@@ -353,8 +323,6 @@ CUSTOM_DOC("Creates a jump list of lines of the current buffer that appear to de
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, access);
     list_all_functions(app, &global_part, &buffer);
 }
-
-#endif
 
 // BOTTOM
 

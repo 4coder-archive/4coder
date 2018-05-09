@@ -1,19 +1,8 @@
 /*
 4coder_project_commands.cpp - commands for loading and using a project.
-
-type: 'drop-in-command-pack'
 */
 
 // TOP
-
-#if !defined(FCODER_PROJECT_COMMANDS_CPP)
-#define FCODER_PROJECT_COMMANDS_CPP
-
-#include "4coder_project_commands.h"
-
-#include "4coder_build_commands.cpp"
-
-///////////////////////////////
 
 static Project current_project = {0};
 
@@ -145,36 +134,13 @@ open_all_code_with_project_extensions_in_directory(Application_Links *app, Strin
     open_all_files_in_directory_with_extension(app, dir, array, flags);
 }
 
-////////////////////////////////
-
-CUSTOM_COMMAND_SIG(close_all_code)
-CUSTOM_DOC("Closes any buffer with a filename ending with an extension configured to be recognized as a code file type.")
-{
-    CString_Array extensions = get_project_extensions(&current_project);
-    close_all_files_with_extension(app, &global_part, extensions);
-}
-
-CUSTOM_COMMAND_SIG(open_all_code)
-CUSTOM_DOC("Open all code in the current directory. File types are determined by extensions. An extension is considered code based on the extensions specified in 4coder.config.")
-{
-    CString_Array extensions = get_project_extensions(&current_project);
-    open_all_files_with_extension_in_hot(app, &global_part, extensions, 0);
-}
-
-CUSTOM_COMMAND_SIG(open_all_code_recursive)
-CUSTOM_DOC("Works as open_all_code but also runs in all subdirectories.")
-{
-    CString_Array extensions = get_project_extensions(&current_project);
-    open_all_files_with_extension_in_hot(app, &global_part, extensions, OpenAllFilesFlag_Recursive);
-}
-
 ///////////////////////////////
 
 static void
-load_project_from_data(Application_Links *app, Partition *scrtach,
+load_project_from_data(Application_Links *app, Partition *scratch,
                        char *config_data, int32_t config_data_size,
                        String project_dir){
-    Temp_Memory temp = begin_temp_memory(scrtach);
+    Temp_Memory temp = begin_temp_memory(scratch);
     
     char *mem = config_data;
     int32_t size = config_data_size;
@@ -182,11 +148,11 @@ load_project_from_data(Application_Links *app, Partition *scrtach,
     Cpp_Token_Array array;
     array.count = 0;
     array.max_count = (1 << 20)/sizeof(Cpp_Token);
-    array.tokens = push_array(scrtach, Cpp_Token, array.max_count);
+    array.tokens = push_array(scratch, Cpp_Token, array.max_count);
     
     Cpp_Keyword_Table kw_table = {0};
     Cpp_Keyword_Table pp_table = {0};
-    lexer_keywords_default_init(scrtach, &kw_table, &pp_table);
+    lexer_keywords_default_init(scratch, &kw_table, &pp_table);
     
     Cpp_Lex_Data S = cpp_lex_data_init(false, kw_table, pp_table);
     Cpp_Lex_Result result = cpp_lex_step(&S, mem, size + 1, HAS_NULL_TERM, &array, NO_OUT_LIMIT);
@@ -194,19 +160,17 @@ load_project_from_data(Application_Links *app, Partition *scrtach,
     if (result == LexResult_Finished){
         // Clear out current project
         if (current_project.close_all_code_when_this_project_closes){
-            exec_command(app, close_all_code);
+            close_all_files_with_extension(app, scratch, get_project_extensions(&current_project));
         }
         memset(&current_project, 0, sizeof(current_project));
         current_project.loaded = true;
         
         // Set new project directory
-        {
-            current_project.dir = current_project.dir_space;
-            String str = make_fixed_width_string(current_project.dir_space);
-            copy(&str, project_dir);
-            terminate_with_null(&str);
-            current_project.dir_len = str.size;
-        }
+        current_project.dir = current_project.dir_space;
+        String str = make_fixed_width_string(current_project.dir_space);
+        copy(&str, project_dir);
+        terminate_with_null(&str);
+        current_project.dir_len = str.size;
         
         // Read the settings from project.4coder
         for (int32_t i = 0; i < array.count; ++i){
@@ -229,11 +193,9 @@ load_project_from_data(Application_Links *app, Partition *scrtach,
                     }
                 }
                 
-                {
-                    bool32 open_recursively = false;
-                    if (config_bool_var(item, "open_recursively", 0, &open_recursively)){
-                        current_project.open_recursively = open_recursively;
-                    }
+                bool32 open_recursively = false;
+                if (config_bool_var(item, "open_recursively", 0, &open_recursively)){
+                    current_project.open_recursively = open_recursively;
                 }
                 
                 {
@@ -360,7 +322,7 @@ load_project_from_data(Application_Links *app, Partition *scrtach,
         
         if (current_project.close_all_files_when_project_opens){
             CString_Array extension_array = {0};
-            close_all_files_with_extension(app, scrtach, extension_array);
+            close_all_files_with_extension(app, scratch, extension_array);
         }
         
         // Open all project files
@@ -432,6 +394,29 @@ exec_project_fkey_command(Application_Links *app, int32_t command_ind){
             set_fancy_compilation_buffer_font(app);
         }
     }
+}
+
+////////////////////////////////
+
+CUSTOM_COMMAND_SIG(close_all_code)
+CUSTOM_DOC("Closes any buffer with a filename ending with an extension configured to be recognized as a code file type.")
+{
+    CString_Array extensions = get_project_extensions(&current_project);
+    close_all_files_with_extension(app, &global_part, extensions);
+}
+
+CUSTOM_COMMAND_SIG(open_all_code)
+CUSTOM_DOC("Open all code in the current directory. File types are determined by extensions. An extension is considered code based on the extensions specified in 4coder.config.")
+{
+    CString_Array extensions = get_project_extensions(&current_project);
+    open_all_files_with_extension_in_hot(app, &global_part, extensions, 0);
+}
+
+CUSTOM_COMMAND_SIG(open_all_code_recursive)
+CUSTOM_DOC("Works as open_all_code but also runs in all subdirectories.")
+{
+    CString_Array extensions = get_project_extensions(&current_project);
+    open_all_files_with_extension_in_hot(app, &global_part, extensions, OpenAllFilesFlag_Recursive);
 }
 
 ///////////////////////////////
@@ -744,8 +729,6 @@ CUSTOM_DOC("Queries the user for several configuration options and initializes a
     
     load_project(app);
 }
-
-#endif
 
 // BOTTOM
 

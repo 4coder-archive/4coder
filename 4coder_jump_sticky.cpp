@@ -1,25 +1,14 @@
 /*
 4coder_jump_sticky.cpp - Commands and helpers for parsing jump locations from 
 compiler errors, sticking markers on jump locations, and jumping to them.
-
-TYPE: 'drop-in-command-pack'
 */
 
 // TOP
 
-//#if !defined(FCODER_STICKY_JUMP) && !defined(FCODER_JUMP_COMMANDS)
-//#define FCODER_STICKY_JUMP
-//#define FCODER_JUMP_COMMANDS
+static Marker_List_Node *marker_list_first = 0;
+static Marker_List_Node *marker_list_last = 0;
 
-#if !defined(FCODER_STICKY_JUMP)
-#define FCODER_STICKY_JUMP
-
-#include "4coder_default_framework.h"
-#include "4coder_helper/4coder_long_seek.h"
-#include "4coder_helper/4coder_helper.h"
-
-#include "4coder_lib/4coder_mem.h"
-#include "4coder_jumping.h"
+////////////////////////////////
 
 static uint32_t
 binary_search(uint32_t *array, int32_t stride, int32_t count, uint32_t x){
@@ -48,32 +37,6 @@ binary_search(uint32_t *array, int32_t stride, int32_t count, uint32_t x){
     }
     return(i);
 }
-
-enum Jump_Location_Flag{
-    JumpFlag_IsSubJump = 0x1,
-};
-
-struct Sticky_Jump_Destination_Array{
-    uint32_t first_jump_index;
-    Marker_Handle handle;
-};
-
-struct Sticky_Jump_Source{
-    uint32_t line_number;
-    uint32_t flags;
-};
-
-struct Marker_List{
-    Sticky_Jump_Destination_Array *dst;
-    int32_t dst_count;
-    int32_t dst_max;
-    
-    Sticky_Jump_Source *jumps;
-    int32_t jump_count;
-    int32_t jump_max;
-    
-    int32_t previous_size;
-};
 
 static Sticky_Jump_Destination_Array
 make_sticky_jump_destination_array(uint32_t first_jump_index, Marker_Handle handle){
@@ -274,16 +237,6 @@ free_marker_list(General_Memory *general, Marker_List list){
     general_memory_free(general, list.dst);
     general_memory_free(general, list.jumps);
 }
-
-struct Marker_List_Node{
-    Marker_List_Node *next;
-    Marker_List_Node *prev;
-    Marker_List list;
-    int32_t buffer_id;
-};
-
-static Marker_List_Node *marker_list_first = 0;
-static Marker_List_Node *marker_list_last = 0;
 
 static void
 delete_marker_list(Marker_List_Node *node){
@@ -487,12 +440,6 @@ goto_next_filtered_jump(Application_Links *app, Marker_List *list, View_Summary 
     }
 }
 
-struct Locked_Jump_State{
-    View_Summary view;
-    Marker_List *list;
-    int32_t list_index;
-};
-
 static Locked_Jump_State
 get_locked_jump_state(Application_Links *app, Partition *part, General_Memory *general){
     Locked_Jump_State result = {0};
@@ -654,8 +601,6 @@ OPEN_FILE_HOOK_SIG(end_file_close_jump_list){
     
     return(0);
 }
-
-#endif
 
 // BOTTOM
 

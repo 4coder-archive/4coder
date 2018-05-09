@@ -1,13 +1,11 @@
 /*
 4coder_default_bidings.cpp - Supplies the default bindings used for default 4coder behavior.
-
-TYPE: 'build-target'
 */
 
 // TOP
 
-#if !defined(FCODER_DEFAULT_BINDINGS)
-#define FCODER_DEFAULT_BINDINGS
+#if !defined(FCODER_DEFAULT_BINDINGS_CPP)
+#define FCODER_DEFAULT_BINDINGS_CPP
 
 #include "4coder_default_include.cpp"
 

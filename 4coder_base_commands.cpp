@@ -1,19 +1,9 @@
 /*
 4coder_base_commands.cpp - Base commands such as inserting characters, and 
 moving the cursor, which work even without the default 4coder framework.
-
-TYPE: 'drop-in-command-pack'
 */
 
 // TOP
-
-#if !defined(FCODER_BASE_COMMANDS_CPP)
-#define FCODER_BASE_COMMANDS_CPP
-
-#include "4coder_helper/4coder_helper.h"
-#include "4coder_helper/4coder_long_seek.h"
-
-#include "4coder_lib/4coder_utf8.h"
 
 //
 // Fundamental Editing Commands
@@ -1296,8 +1286,6 @@ CUSTOM_DOC("Opens the 4coder colors and fonts selector menu.")
 {
     exec_command(app, cmdid_open_color_tweaker);
 }
-
-#endif
 
 // BOTTOM
 

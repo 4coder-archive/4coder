@@ -1,7 +1,5 @@
 /*
 4coder_experiments.cpp - Supplies extension bindings to the defaults with experimental new features.
-
-TYPE: 'build-target'
 */
 
 // TOP
