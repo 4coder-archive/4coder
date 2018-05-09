@@ -104,7 +104,7 @@ CUSTOM_DOC("If a buffer containing jump locations has been locked in, goes to th
     View_Summary view = get_view_for_locked_jump_buffer(app);
     if (view.exists){
         view_set_cursor(app, &view, seek_pos(0), true);
-        prev_location = null_location;
+        memset(&prev_location, 0, sizeof(prev_location));
         seek_jump(app, &global_part, false, true, 1);
     }
     end_temp_memory(temp);

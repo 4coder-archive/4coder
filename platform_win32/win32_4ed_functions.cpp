@@ -66,7 +66,7 @@ internal
 Sys_File_Can_Be_Made_Sig(system_file_can_be_made){
     HANDLE file = CreateFile_utf8(filename, FILE_APPEND_DATA, 0, 0, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, 0);
     b32 result = false;
-    if (file != 0 && file != INVALID_HANDLE_VALUE){
+    if (file != INVALID_HANDLE_VALUE){
         CloseHandle(file);
         result = true;
     }
@@ -316,6 +316,9 @@ Sys_Load_Handle_Sig(system_load_handle){
     if (file != INVALID_HANDLE_VALUE){
         *(HANDLE*)handle_out = file;
         result = true;
+    }
+    else{
+        win32_output_error_string(true);
     }
     
     return(result);

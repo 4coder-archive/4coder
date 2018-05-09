@@ -249,94 +249,6 @@ CUSTOM_DOC("Toggle fullscreen mode on or off.  The change(s) do not take effect 
 
 
 //
-// Projects
-//
-
-static char *default_extensions[] = {
-    "cpp",
-    "hpp",
-    "c",
-    "h",
-    "cc",
-    "cs"
-};
-
-struct Extension_List{
-    char extension_space[256];
-    char *extensions[94];
-    int32_t extension_count;
-};
-
-static void
-set_extensions(Extension_List *extension_list, String src){
-    int32_t mode = 0;
-    int32_t j = 0, k = 0;
-    for (int32_t i = 0; i < src.size; ++i){
-        switch (mode){
-            case 0:
-            {
-                if (src.str[i] == '.'){
-                    mode = 1;
-                    extension_list->extensions[k++] = &extension_list->extension_space[j];
-                }
-            }break;
-            
-            case 1:
-            {
-                if (src.str[i] == '.'){
-                    extension_list->extension_space[j++] = 0;
-                    extension_list->extensions[k++] = &extension_list->extension_space[j];
-                }
-                else{
-                    extension_list->extension_space[j++] = src.str[i];
-                }
-            }break;
-        }
-    }
-    extension_list->extension_space[j++] = 0;
-    extension_list->extension_count = k;
-}
-
-struct Fkey_Command{
-    char command[128];
-    char out[128];
-    bool32 use_build_panel;
-    bool32 save_dirty_buffers;
-};
-
-struct Project{
-    char dir_space[256];
-    char *dir;
-    int32_t dir_len;
-    
-    Extension_List extension_list;
-    Fkey_Command fkey_commands[16];
-    
-    bool32 close_all_code_when_this_project_closes;
-    bool32 close_all_files_when_project_opens;
-    
-    bool32 open_recursively;
-    
-    bool32 loaded;
-};
-
-static Project null_project = {0};
-static Project current_project = {0};
-
-static char**
-get_current_project_extensions(int32_t *extension_count_out){
-    char **extension_list = default_extensions;
-    int32_t extension_count = ArrayCount(default_extensions);
-    if (current_project.dir != 0){
-        extension_list = current_project.extension_list.extensions;
-        extension_count = current_project.extension_list.extension_count;
-    }
-    *extension_count_out = extension_count;
-    return(extension_list);
-}
-
-
-//
 // Location Jumping State
 //
 
@@ -346,7 +258,6 @@ struct ID_Based_Jump_Location{
     int32_t column;
 };
 
-static ID_Based_Jump_Location null_location = {0};
 static ID_Based_Jump_Location prev_location = {0};
 
 
@@ -776,8 +687,6 @@ static String default_font_name = make_fixed_width_string(default_font_name_spac
 static char user_name_space[256] = {0};
 static String user_name = make_fixed_width_string(user_name_space);
 
-static Extension_List treat_as_code_exts = {0};
-
 static bool32 automatically_load_project = false;
 
 static char default_compiler_bat_space[256];
@@ -805,7 +714,7 @@ get_current_name(char **name_out, int32_t *len_out){
 }
 
 static String
-get_default_theme_name(){
+get_default_theme_name(void){
     String str = default_theme_name;
     if (str.size == 0){
         str = make_lit_string("4coder");
@@ -814,7 +723,7 @@ get_default_theme_name(){
 }
 
 static String
-get_default_font_name(){
+get_default_font_name(void){
     String str = default_font_name;
     if (str.size == 0){
         str = make_lit_string("Liberation Mono");
@@ -822,47 +731,259 @@ get_default_font_name(){
     return(str);
 }
 
-static char**
-get_current_code_extensions(int32_t *extension_count_out){
-    char **extension_list = default_extensions;
-    int32_t extension_count = ArrayCount(default_extensions);
-    if (treat_as_code_exts.extension_count != 0){
-        extension_list = treat_as_code_exts.extensions;
-        extension_count = treat_as_code_exts.extension_count;
+struct Extension_List{
+    char space[256];
+    char *exts[94];
+    int32_t count;
+};
+
+struct CString_Array{
+    char **strings;
+    int32_t count;
+};
+
+static char *default_extensions[] = {
+    "cpp",
+    "hpp",
+    "c",
+    "h",
+    "cc",
+    "cs",
+};
+
+static Extension_List treat_as_code_exts = {0};
+
+static CString_Array
+get_code_extensions(Extension_List *list){
+    CString_Array array = {0};
+    array.strings = default_extensions;
+    array.count = ArrayCount(default_extensions);
+    if (list->count != 0){
+        array.strings = list->exts;
+        array.count = list->count;
     }
-    *extension_count_out = extension_count;
-    return(extension_list);
+    return(array);
+}
+
+static void
+parse_extension_line_to_extension_list(String str, Extension_List *list){
+    int32_t mode = 0;
+    int32_t j = 0, k = 0;
+    for (int32_t i = 0; i < str.size; ++i){
+        switch (mode){
+            case 0:
+            {
+                if (str.str[i] == '.'){
+                    mode = 1;
+                    list->exts[k++] = &list->space[j];
+                }
+            }break;
+            
+            case 1:
+            {
+                if (str.str[i] == '.'){
+                    list->space[j++] = 0;
+                    list->exts[k++] = &list->space[j];
+                }
+                else{
+                    list->space[j++] = str.str[i];
+                }
+            }break;
+        }
+    }
+    list->space[j++] = 0;
+    list->count = k;
 }
 
 // TODO(allen): Stop handling files this way!  My own API should be able to do this!!?!?!?!!?!?!!!!?
 // NOTE(allen): Actually need binary buffers for some stuff to work, but not this parsing thing here.
 #include <stdio.h>
 
-static bool32
-file_handle_dump(Partition *part, FILE *file, char **mem_ptr, int32_t *size_ptr){
-    bool32 success = 0;
+static String
+dump_file_handle(Partition *arena, FILE *file){
+    String str = {0};
+    if (file != 0){
+        fseek(file, 0, SEEK_END);
+        int32_t size = ftell(file);
+        char *mem = push_array(arena, char, size + 1);
+        push_align(arena, 8);
+        if (mem != 0){
+            fseek(file, 0, SEEK_SET);
+            fread(mem, 1, size, file);
+            mem[size] = 0;
+            str = make_string_cap(mem, size, size + 1);
+        }
+    }
+    return(str);
+}
+
+static FILE*
+open_file_search_up_path(Partition *scratch, String path, String file_name){
+    Temp_Memory temp = begin_temp_memory(scratch);
     
-    fseek(file, 0, SEEK_END);
-    int32_t size = ftell(file);
-    char *mem = (char*)push_block(part, size+1);
-    fseek(file, 0, SEEK_SET);
-    int32_t check_size = (int32_t)fread(mem, 1, size, file);
-    if (check_size == size){
-        mem[size] = 0;
-        success = 1;
+    int32_t cap = path.size + file_name.size + 2;
+    char *space = push_array(scratch, char, cap);
+    String name_str = make_string_cap(space, 0, cap);
+    append(&name_str, path);
+    if (name_str.size == 0 || !char_is_slash(name_str.str[name_str.size - 1])){
+        append(&name_str, "/");
     }
     
-    *mem_ptr = mem;
-    *size_ptr = size;
+    FILE *file = 0;
+    for (;;){
+        int32_t base_size = name_str.size;
+        append(&name_str, file_name);
+        terminate_with_null(&name_str);
+        file = fopen(name_str.str, "rb");
+        if (file != 0){
+            break;
+        }
+        
+        name_str.size = base_size;
+        remove_last_folder(&name_str);
+        if (name_str.size >= base_size){
+            break;
+        }
+    }
     
-    return(success);
+    end_temp_memory(temp);
+    return(file);
+}
+
+static char*
+get_null_terminated(Partition *scratch, String name){
+    char *name_terminated = 0;
+    if (name.size < name.memory_size){
+        terminate_with_null(&name);
+        name_terminated = name.str;
+    }
+    else{
+        name_terminated = push_array(scratch, char, name.size + 1);
+        if (name_terminated != 0){
+            memcpy(name_terminated, name.str, name.size);
+            name_terminated[name.size] = 0;
+        }
+    }
+    return(name_terminated);
+}
+
+static FILE*
+open_file(Partition *scratch, String name){
+    FILE *file = 0;
+    Temp_Memory temp = begin_temp_memory(scratch);
+    char *name_terminated = get_null_terminated(scratch, name);
+    if (name_terminated != 0){
+        file = fopen(name_terminated, "rb");
+    }
+    end_temp_memory(temp);
+    return(file);
+}
+
+static String
+dump_file(Partition *arena, String name){
+    String result = {0};
+    FILE *file = open_file(arena, name);
+    if (file != 0){
+        result = dump_file_handle(arena, file);
+        fclose(file);
+    }
+    return(result);
+}
+
+static String
+dump_file_search_up_path(Partition *arena, String path, String file_name){
+    String result = {0};
+    FILE *file = open_file_search_up_path(arena, path, file_name);
+    if (file != 0){
+        result = dump_file_handle(arena, file);
+        fclose(file);
+    }
+    return(result);
+}
+
+///////////////////////////////
+
+static void
+process_config_data(Application_Links *app, Partition *scratch, String data){
+    
+    Cpp_Token_Array array = {0};
+    array.count = 0;
+    array.max_count = (1 << 20)/sizeof(Cpp_Token);
+    array.tokens = push_array(scratch, Cpp_Token, array.max_count);
+    
+    if (array.tokens != 0){
+        Cpp_Keyword_Table kw_table = {0};
+        Cpp_Keyword_Table pp_table = {0};
+        lexer_keywords_default_init(scratch, &kw_table, &pp_table);
+        
+        Cpp_Lex_Data S = cpp_lex_data_init(false, kw_table, pp_table);
+        Cpp_Lex_Result result = cpp_lex_step(&S, data.str, data.size + 1, HAS_NULL_TERM, &array, NO_OUT_LIMIT);
+        
+        if (result == LexResult_Finished){
+            int32_t new_wrap_width = default_wrap_width;
+            int32_t new_min_base_width = default_min_base_width;
+            bool32 lalt_lctrl_is_altgr = false;
+            
+            for (int32_t i = 0; i < array.count; ++i){
+                Config_Line config_line = read_config_line(array, &i, data.str);
+                
+                if (config_line.read_success){
+                    Config_Item item = get_config_item(config_line, data.str, array);
+                    
+                    config_bool_var(item, "enable_code_wrapping", 0, &enable_code_wrapping);
+                    config_bool_var(item, "automatically_adjust_wrapping", 0, &automatically_adjust_wrapping);
+                    config_bool_var(item, "automatically_indent_text_on_save", 0, &automatically_indent_text_on_save);
+                    config_bool_var(item, "automatically_save_changes_on_build", 0, &automatically_save_changes_on_build);
+                    
+                    config_int_var(item, "default_wrap_width", 0, &new_wrap_width);
+                    config_int_var(item, "default_min_base_width", 0, &new_min_base_width);
+                    
+                    config_string_var(item, "default_theme_name", 0, &default_theme_name);
+                    config_string_var(item, "default_font_name", 0, &default_font_name);
+                    config_string_var(item, "user_name", 0, &user_name);
+                    
+                    config_string_var(item, "default_compiler_bat", 0, &default_compiler_bat);
+                    config_string_var(item, "default_flags_bat", 0, &default_flags_bat);
+                    config_string_var(item, "default_compiler_sh", 0, &default_compiler_sh);
+                    config_string_var(item, "default_flags_sh", 0, &default_flags_sh);
+                    
+                    char str_space[512];
+                    String str = make_fixed_width_string(str_space);
+                    if (config_string_var(item, "mapping", 0, &str)){
+                        change_mapping(app, str);
+                    }
+                    
+                    if (config_string_var(item, "treat_as_code", 0, &str)){
+                        parse_extension_line_to_extension_list(str, &treat_as_code_exts);
+                    }
+                    
+                    config_bool_var(item, "automatically_load_project", 0, &automatically_load_project);
+                    
+                    config_bool_var(item, "lalt_lctrl_is_altgr", 0, &lalt_lctrl_is_altgr);
+                }
+                else if (config_line.error_str.str != 0){
+                    char space[2048];
+                    String str = make_fixed_width_string(space);
+                    copy(&str, "WARNING: bad syntax in 4coder.config at ");
+                    append(&str, config_line.error_str);
+                    append(&str, "\n");
+                    print_message(app, str.str, str.size);
+                }
+            }
+            
+            adjust_all_buffer_wrap_widths(app, new_wrap_width, new_min_base_width);
+            default_wrap_width = new_wrap_width;
+            default_min_base_width = new_min_base_width;
+            global_set_setting(app, GlobalSetting_LAltLCtrlIsAltGr, lalt_lctrl_is_altgr);
+        }
+    }
+    else{
+        print_message(app, literal("Ran out of memory processing config.4coder\n"));
+    }
 }
 
 static void
 process_config_file(Application_Links *app){
-    Partition *part = &global_part;
-    FILE *file = fopen("config.4coder", "rb");
-    
     static bool32 has_initialized = false;
     if (!has_initialized){
         has_initialized = true;
@@ -871,6 +992,9 @@ process_config_file(Application_Links *app){
         copy(&default_compiler_sh, "g++");
         copy(&default_flags_bat, "");
     }
+    
+    Partition *part = &global_part;
+    FILE *file = fopen("config.4coder", "rb");
     
     if (file == 0){
         char space[256];
@@ -884,91 +1008,12 @@ process_config_file(Application_Links *app){
     
     if (file != 0){
         Temp_Memory temp = begin_temp_memory(part);
-        
-        char *mem = 0;
-        int32_t size = 0;
-        bool32 file_read_success = file_handle_dump(part, file, &mem, &size);
-        
-        if (file_read_success){
-            fclose(file);
-            
-            Cpp_Token_Array array = {0};
-            array.count = 0;
-            array.max_count = (1 << 20)/sizeof(Cpp_Token);
-            array.tokens = push_array(part, Cpp_Token, array.max_count);
-            
-            if (array.tokens != 0){
-                Cpp_Keyword_Table kw_table = {0};
-                Cpp_Keyword_Table pp_table = {0};
-                lexer_keywords_default_init(part, &kw_table, &pp_table);
-                
-                Cpp_Lex_Data S = cpp_lex_data_init(false, kw_table, pp_table);
-                Cpp_Lex_Result result = cpp_lex_step(&S, mem, size + 1, HAS_NULL_TERM, &array, NO_OUT_LIMIT);
-                
-                if (result == LexResult_Finished){
-                    int32_t new_wrap_width = default_wrap_width;
-                    int32_t new_min_base_width = default_min_base_width;
-                    bool32 lalt_lctrl_is_altgr = false;
-                    
-                    for (int32_t i = 0; i < array.count; ++i){
-                        Config_Line config_line = read_config_line(array, &i, mem);
-                        
-                        if (config_line.read_success){
-                            Config_Item item = get_config_item(config_line, mem, array);
-                            
-                            config_bool_var(item, "enable_code_wrapping", 0, &enable_code_wrapping);
-                            config_bool_var(item, "automatically_adjust_wrapping", 0, &automatically_adjust_wrapping);
-                            config_bool_var(item, "automatically_indent_text_on_save", 0, &automatically_indent_text_on_save);
-                            config_bool_var(item, "automatically_save_changes_on_build", 0, &automatically_save_changes_on_build);
-                            
-                            config_int_var(item, "default_wrap_width", 0, &new_wrap_width);
-                            config_int_var(item, "default_min_base_width", 0, &new_min_base_width);
-                            
-                            config_string_var(item, "default_theme_name", 0, &default_theme_name);
-                            config_string_var(item, "default_font_name", 0, &default_font_name);
-                            config_string_var(item, "user_name", 0, &user_name);
-                            
-                            config_string_var(item, "default_compiler_bat", 0, &default_compiler_bat);
-                            config_string_var(item, "default_flags_bat", 0, &default_flags_bat);
-                            config_string_var(item, "default_compiler_sh", 0, &default_compiler_sh);
-                            config_string_var(item, "default_flags_sh", 0, &default_flags_sh);
-                            
-                            char str_space[512];
-                            String str = make_fixed_width_string(str_space);
-                            if (config_string_var(item, "mapping", 0, &str)){
-                                change_mapping(app, str);
-                            }
-                            
-                            if (config_string_var(item, "treat_as_code", 0, &str)){
-                                set_extensions(&treat_as_code_exts, str);
-                            }
-                            
-                            config_bool_var(item, "automatically_load_project", 0, &automatically_load_project);
-                            
-                            config_bool_var(item, "lalt_lctrl_is_altgr", 0, &lalt_lctrl_is_altgr);
-                        }
-                        else if (config_line.error_str.str != 0){
-                            char space[2048];
-                            String str = make_fixed_width_string(space);
-                            copy(&str, "WARNING: bad syntax in 4coder.config at ");
-                            append(&str, config_line.error_str);
-                            append(&str, "\n");
-                            print_message(app, str.str, str.size);
-                        }
-                    }
-                    
-                    adjust_all_buffer_wrap_widths(app, new_wrap_width, new_min_base_width);
-                    default_wrap_width = new_wrap_width;
-                    default_min_base_width = new_min_base_width;
-                    global_set_setting(app, GlobalSetting_LAltLCtrlIsAltGr, lalt_lctrl_is_altgr);
-                }
-            }
-            else{
-                print_message(app, literal("Ran out of memory processing config.4coder\n"));
-            }
+        String data = dump_file_handle(part, file);
+        if (data.str != 0){
+            process_config_data(app, part, data);
         }
-        
         end_temp_memory(temp);
+        fclose(file);
     }
     else{
         print_message(app, literal("Did not find config.4coder, using default settings\n"));
@@ -979,12 +1024,85 @@ process_config_file(Application_Links *app){
 // Color Theme
 //
 
+static bool32
+load_color_theme_data(Application_Links *app, Partition *scratch,
+                      char *file_name, String data){
+    bool32 success = false;
+    
+    Cpp_Token_Array array;
+    array.count = 0;
+    array.max_count = (1 << 20)/sizeof(Cpp_Token);
+    array.tokens = push_array(scratch, Cpp_Token, array.max_count);
+    
+    Cpp_Keyword_Table kw_table = {0};
+    Cpp_Keyword_Table pp_table = {0};
+    lexer_keywords_default_init(scratch, &kw_table, &pp_table);
+    
+    Cpp_Lex_Data S = cpp_lex_data_init(false, kw_table, pp_table);
+    Cpp_Lex_Result result = cpp_lex_step(&S, data.str, data.size + 1, HAS_NULL_TERM, &array, NO_OUT_LIMIT);
+    
+    if (result == LexResult_Finished){
+        success = true;
+        
+        char name_space[512];
+        String name_str = make_fixed_width_string(name_space);
+        Theme theme;
+        init_theme_zero(&theme);
+        
+        for (int32_t i = 0; i < array.count; ++i){
+            Config_Line config_line = read_config_line(array, &i, data.str);
+            if (config_line.read_success){
+                Config_Item item = get_config_item(config_line, data.str, array);
+                config_string_var(item, "name", 0, &name_str);
+                
+                for (int32_t tag = 0; tag < ArrayCount(style_tag_names); ++tag){
+                    char *name = style_tag_names[tag];
+                    int_color color = 0;
+                    if (config_uint_var(item, name, 0, &color)){
+                        int_color *color_slot = &theme.colors[tag];
+                        *color_slot = color;
+                    }
+                    else{
+                        char var_space[512];
+                        String var_str = make_fixed_width_string(var_space);
+                        if (config_identifier_var(item, name, 0, &var_str)){
+                            for (int32_t eq_tag = 0; eq_tag < ArrayCount(style_tag_names); ++eq_tag){
+                                if (match(var_str, style_tag_names[eq_tag])){
+                                    int_color *color_slot = &theme.colors[tag];
+                                    *color_slot = theme.colors[eq_tag];
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            else if (config_line.error_str.str != 0){
+                char space[2048];
+                String str = make_fixed_width_string(space);
+                copy(&str, "WARNING: bad syntax in 4coder.config at ");
+                append(&str, config_line.error_str);
+                append(&str, "\n");
+                print_message(app, str.str, str.size);
+            }
+        }
+        
+        if (name_str.size == 0){
+            copy(&name_str, file_name);
+        }
+        
+        create_theme(app, &theme, name_str.str, name_str.size);
+    }
+    
+    return(success);
+}
+
 static void
 load_color_theme_file(Application_Links *app, char *file_name){
     Partition *part = &global_part;
     FILE *file = fopen(file_name, "rb");
     
-    if (!file){
+    if (file == 0){
         char space[256];
         int32_t size = get_4ed_path(app, space, sizeof(space));
         String str = make_string_cap(space, size, sizeof(space));
@@ -996,80 +1114,13 @@ load_color_theme_file(Application_Links *app, char *file_name){
     
     if (file != 0){
         Temp_Memory temp = begin_temp_memory(part);
-        
-        char *mem = 0;
-        int32_t size = 0;
-        bool32 file_read_success = file_handle_dump(part, file, &mem, &size);
-        fclose(file);
+        String data = dump_file_handle(part, file);
         bool32 success = false;
-        
-        if (file_read_success){
-            Cpp_Token_Array array;
-            array.count = 0;
-            array.max_count = (1 << 20)/sizeof(Cpp_Token);
-            array.tokens = push_array(&global_part, Cpp_Token, array.max_count);
-            
-            Cpp_Keyword_Table kw_table = {0};
-            Cpp_Keyword_Table pp_table = {0};
-            lexer_keywords_default_init(part, &kw_table, &pp_table);
-            
-            Cpp_Lex_Data S = cpp_lex_data_init(false, kw_table, pp_table);
-            Cpp_Lex_Result result = cpp_lex_step(&S, mem, size + 1, HAS_NULL_TERM, &array, NO_OUT_LIMIT);
-            
-            if (result == LexResult_Finished){
-                success = true;
-                
-                char name_space[512];
-                String name_str = make_fixed_width_string(name_space);
-                Theme theme;
-                init_theme_zero(&theme);
-                
-                for (int32_t i = 0; i < array.count; ++i){
-                    Config_Line config_line = read_config_line(array, &i, mem);
-                    if (config_line.read_success){
-                        Config_Item item = get_config_item(config_line, mem, array);
-                        config_string_var(item, "name", 0, &name_str);
-                        
-                        for (int32_t tag = 0; tag < ArrayCount(style_tag_names); ++tag){
-                            char *name = style_tag_names[tag];
-                            int_color color = 0;
-                            if (config_uint_var(item, name, 0, &color)){
-                                int_color *color_slot = &theme.colors[tag];
-                                *color_slot = color;
-                            }
-                            else{
-                                char var_space[512];
-                                String var_str = make_fixed_width_string(var_space);
-                                if (config_identifier_var(item, name, 0, &var_str)){
-                                    for (int32_t eq_tag = 0; eq_tag < ArrayCount(style_tag_names); ++eq_tag){
-                                        if (match(var_str, style_tag_names[eq_tag])){
-                                            int_color *color_slot = &theme.colors[tag];
-                                            *color_slot = theme.colors[eq_tag];
-                                            break;
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    else if (config_line.error_str.str != 0){
-                        char space[2048];
-                        String str = make_fixed_width_string(space);
-                        copy(&str, "WARNING: bad syntax in 4coder.config at ");
-                        append(&str, config_line.error_str);
-                        append(&str, "\n");
-                        print_message(app, str.str, str.size);
-                    }
-                }
-                
-                if (name_str.size == 0){
-                    copy(&name_str, file_name);
-                }
-                
-                create_theme(app, &theme, name_str.str, name_str.size);
-            }
+        if (data.str != 0){
+            success = load_color_theme_data(app, part, file_name, data);
         }
         end_temp_memory(temp);
+        fclose(file);
         
         if (!success){
             char space[256];

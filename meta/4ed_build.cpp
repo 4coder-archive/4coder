@@ -240,7 +240,7 @@ build(u32 flags, u32 arch, char *code_path, char **code_files, char *out_path, c
     
     if (flags & ICON){
         // TODO(allen): Get this icon in the non-source repository to avoid having to work around it in the future.
-        //fm_add_to_line(line, CL_ICON);
+        fm_add_to_line(line, CL_ICON);
     }
     
     if (flags & DEBUG_INFO){

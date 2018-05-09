@@ -173,7 +173,7 @@ CUSTOM_DOC("Looks for a build.bat, build.sh, or makefile in the current and pare
     View_Summary view = get_active_view(app, access);
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, access);
     execute_standard_build(app, &view, &buffer);
-    prev_location = null_location;
+    memset(&prev_location, 0, sizeof(prev_location));
     lock_jump_buffer(literal("*compilation*"));
 }
 
@@ -212,7 +212,7 @@ CUSTOM_DOC("Looks for a build.bat, build.sh, or makefile in the current and pare
     execute_standard_build(app, &build_view, &buffer);
     set_fancy_compilation_buffer_font(app);
     
-    prev_location = null_location;
+    memset(&prev_location, 0, sizeof(prev_location));
     lock_jump_buffer(literal("*compilation*"));
 }
 

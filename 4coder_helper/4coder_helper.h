@@ -36,6 +36,10 @@ max_f32_proc(void){
 #define max_f32 max_f32_proc()
 #endif
 
+#if !defined(ArrayCount)
+# define ArrayCount(a) (sizeof(a)/sizeof(a[0]))
+#endif
+
 #include "4coder_seek_types.h"
 #include "4coder_lib/4coder_utf8.h"
 
@@ -471,9 +475,5 @@ get_range(View_Summary *view){
     Range range = make_range(view->cursor.pos, view->mark.pos);
     return(range);
 }
-
-#if !defined(ArrayCount)
-# define ArrayCount(a) (sizeof(a)/sizeof(a[0]))
-#endif
 
 #endif

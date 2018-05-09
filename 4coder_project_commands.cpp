@@ -9,76 +9,171 @@ type: 'drop-in-command-pack'
 #if !defined(FCODER_PROJECT_COMMANDS_CPP)
 #define FCODER_PROJECT_COMMANDS_CPP
 
-#include "4coder_default_framework.h"
-#include "4coder_lib/4coder_mem.h"
+#include "4coder_project_commands.h"
 
 #include "4coder_build_commands.cpp"
-#include "4coder_open_all_close_all.cpp"
 
 ///////////////////////////////
 
-// TODO(allen): promote to helper status
-static FILE*
-open_file_search_up_path(Partition *scratch, String path, String file_name){
-    Temp_Memory temp = begin_temp_memory(scratch);
-    
-    int32_t cap = path.size + file_name.size + 2;
-    char *space = push_array(scratch, char, cap);
-    String name_str = make_string_cap(space, 0, cap);
-    append(&name_str, path);
-    if (name_str.size == 0 || !char_is_slash(name_str.str[name_str.size - 1])){
-        append(&name_str, "/");
-    }
-    
-    FILE *file = 0;
-    for (;;){
-        int32_t base_size = name_str.size;
-        append(&name_str, file_name);
-        terminate_with_null(&name_str);
-        file = fopen(name_str.str, "rb");
-        if (file != 0){
-            break;
-        }
-        
-        name_str.size = base_size;
-        remove_last_folder(&name_str);
-        if (name_str.size >= base_size){
-            break;
-        }
-    }
-    
-    end_temp_memory(temp);
-    return(file);
-}
-
-static String
-dump_file_search_up_path(Partition *arena, String path, String file_name){
-    FILE *file = open_file_search_up_path(arena, path, file_name);
-    String result = {0};
-    if (file != 0){
-        char *m = 0;
-        int32_t s = 0;
-        bool32 success = file_handle_dump(arena, file, &m, &s);
-        if (success){
-            result.str =  m;
-            result.size = s;
-            result.memory_size = s;
-        }
-    }
-    return(result);
-}
+static Project current_project = {0};
 
 ///////////////////////////////
 
-struct Project_Setup_Status{
-    bool32 bat_exists;
-    bool32 sh_exists;
-    bool32 project_exists;
-    bool32 everything_exists;
-};
+static CString_Array
+get_project_extensions(Project *project){
+    CString_Array array = {0};
+    array.strings = default_extensions;
+    array.count = ArrayCount(default_extensions);
+    if (project->loaded){
+        array.strings = project->extension_list.exts;
+        array.count = project->extension_list.count;
+    }
+    return(array);
+}
+
+///////////////////////////////
 
 static void
-load_project_from_config_data(Application_Links *app, Partition *scrtach, char *config_data, int32_t config_data_size, String project_dir){
+close_all_files_with_extension(Application_Links *app, Partition *scratch_part,
+                               CString_Array extension_array){
+    Temp_Memory temp = begin_temp_memory(scratch_part);
+    
+    int32_t buffers_to_close_max = partition_remaining(scratch_part)/sizeof(int32_t);
+    int32_t *buffers_to_close = push_array(scratch_part, int32_t, buffers_to_close_max);
+    
+    int32_t buffers_to_close_count = 0;
+    bool32 do_repeat = 0;
+    do{
+        buffers_to_close_count = 0;
+        do_repeat = 0;
+        
+        uint32_t access = AccessAll;
+        Buffer_Summary buffer = {0};
+        for (buffer = get_buffer_first(app, access);
+             buffer.exists;
+             get_buffer_next(app, &buffer, access)){
+            
+            bool32 is_match = 1;
+            if (extension_array.count > 0){
+                is_match = 0;
+                if (buffer.file_name != 0){
+                    String extension = file_extension(make_string(buffer.file_name, buffer.file_name_len));
+                    for (int32_t i = 0; i < extension_array.count; ++i){
+                        if (match(extension, extension_array.strings[i])){
+                            is_match = 1;
+                            break;
+                        }
+                    }
+                }
+            }
+            
+            if (is_match){
+                if (buffers_to_close_count >= buffers_to_close_max){
+                    do_repeat = 1;
+                    break;
+                }
+                buffers_to_close[buffers_to_close_count++] = buffer.buffer_id;
+            }
+        }
+        
+        for (int32_t i = 0; i < buffers_to_close_count; ++i){
+            kill_buffer(app, buffer_identifier(buffers_to_close[i]), true, 0);
+        }
+    }while(do_repeat);
+    
+    end_temp_memory(temp);
+}
+
+static void
+open_all_files_in_directory_with_extension(Application_Links *app, String dir,
+                                           CString_Array extension_array,
+                                           uint32_t flags){
+    File_List list = get_file_list(app, dir.str, dir.size);
+    int32_t dir_size = dir.size;
+    
+    for (uint32_t i = 0; i < list.count; ++i){
+        File_Info *info = list.infos + i;
+        if (info->folder){
+            if (((flags&OpenAllFilesFlag_Recursive) != 0) && info->filename[0] != '.'){
+                dir.size = dir_size;
+                append(&dir, info->filename);
+                append(&dir, "/");
+                open_all_files_in_directory_with_extension(app, dir, extension_array, flags);
+            }
+        }
+        else{
+            bool32 is_match = true;
+            if (extension_array.count > 0){
+                is_match = false;
+                String ext = make_string_cap(info->filename, info->filename_len, info->filename_len + 1);
+                ext = file_extension(ext);
+                for (int32_t j = 0; j < extension_array.count; ++j){
+                    if (match(ext, extension_array.strings[j])){
+                        is_match = true;
+                        break;
+                    }
+                }
+            }
+            
+            if (is_match){
+                dir.size = dir_size;
+                append(&dir, info->filename);
+                create_buffer(app, dir.str, dir.size, 0);
+            }
+        }
+    }
+    
+    free_file_list(app, list);
+}
+
+static void
+open_all_files_with_extension_in_hot(Application_Links *app, Partition *scratch,
+                                     CString_Array extensions_array,
+                                     uint32_t flags){
+    Temp_Memory temp = begin_temp_memory(scratch);
+    int32_t max_size = 4096;
+    char *memory = push_array(scratch, char, max_size);
+    String dir = make_string_cap(memory, 0, max_size);
+    dir.size = directory_get_hot(app, dir.str, dir.memory_size);
+    open_all_files_in_directory_with_extension(app, dir, extensions_array, flags);
+    end_temp_memory(temp);
+}
+
+static void
+open_all_code_with_project_extensions_in_directory(Application_Links *app, String dir, uint32_t flags){
+    CString_Array array = get_project_extensions(&current_project);
+    open_all_files_in_directory_with_extension(app, dir, array, flags);
+}
+
+////////////////////////////////
+
+CUSTOM_COMMAND_SIG(close_all_code)
+CUSTOM_DOC("Closes any buffer with a filename ending with an extension configured to be recognized as a code file type.")
+{
+    CString_Array extensions = get_project_extensions(&current_project);
+    close_all_files_with_extension(app, &global_part, extensions);
+}
+
+CUSTOM_COMMAND_SIG(open_all_code)
+CUSTOM_DOC("Open all code in the current directory. File types are determined by extensions. An extension is considered code based on the extensions specified in 4coder.config.")
+{
+    CString_Array extensions = get_project_extensions(&current_project);
+    open_all_files_with_extension_in_hot(app, &global_part, extensions, 0);
+}
+
+CUSTOM_COMMAND_SIG(open_all_code_recursive)
+CUSTOM_DOC("Works as open_all_code but also runs in all subdirectories.")
+{
+    CString_Array extensions = get_project_extensions(&current_project);
+    open_all_files_with_extension_in_hot(app, &global_part, extensions, OpenAllFilesFlag_Recursive);
+}
+
+///////////////////////////////
+
+static void
+load_project_from_data(Application_Links *app, Partition *scrtach,
+                       char *config_data, int32_t config_data_size,
+                       String project_dir){
     Temp_Memory temp = begin_temp_memory(scrtach);
     
     char *mem = config_data;
@@ -101,7 +196,7 @@ load_project_from_config_data(Application_Links *app, Partition *scrtach, char *
         if (current_project.close_all_code_when_this_project_closes){
             exec_command(app, close_all_code);
         }
-        current_project = null_project;
+        memset(&current_project, 0, sizeof(current_project));
         current_project.loaded = true;
         
         // Set new project directory
@@ -123,8 +218,8 @@ load_project_from_config_data(Application_Links *app, Partition *scrtach, char *
                     char str_space[512];
                     String str = make_fixed_width_string(str_space);
                     if (config_string_var(item, "extensions", 0, &str)){
-                        if (str.size < sizeof(current_project.extension_list.extension_space)){
-                            set_extensions(&current_project.extension_list, str);
+                        if (str.size < sizeof(current_project.extension_list.space)){
+                            parse_extension_line_to_extension_list(str, &current_project.extension_list);
                             print_message(app, str.str, str.size);
                             print_message(app, "\n", 1);
                         }
@@ -264,7 +359,8 @@ load_project_from_config_data(Application_Links *app, Partition *scrtach, char *
         }
         
         if (current_project.close_all_files_when_project_opens){
-            close_all_files_with_extension(app, scrtach, 0, 0);
+            CString_Array extension_array = {0};
+            close_all_files_with_extension(app, scrtach, extension_array);
         }
         
         // Open all project files
@@ -302,8 +398,8 @@ exec_project_fkey_command(Application_Links *app, int32_t command_ind){
         
         int32_t command_len = str_size(command);
         
-        View_Summary view_ = {0};
-        View_Summary *view = 0;
+        View_Summary view = {0};
+        View_Summary *view_ptr = 0;
         Buffer_Identifier buffer_id = {0};
         uint32_t flags = CLI_OverlapWithConflict;
         
@@ -312,19 +408,18 @@ exec_project_fkey_command(Application_Links *app, int32_t command_ind){
             int32_t out_len = str_size(out);
             buffer_id = buffer_identifier(out, out_len);
             
-            view = &view_;
-            
             if (use_build_panel){
-                view_ = get_or_open_build_panel(app);
+                view = get_or_open_build_panel(app);
                 if (match(out, "*compilation*")){
                     set_fancy_font = true;
                 }
             }
             else{
-                view_ = get_active_view(app, AccessAll);
+                view = get_active_view(app, AccessAll);
             }
+            view_ptr = &view;
             
-            prev_location = null_location;
+            memset(&prev_location, 0, sizeof(prev_location));
             lock_jump_buffer(out, out_len);
         }
         else{
@@ -332,7 +427,7 @@ exec_project_fkey_command(Application_Links *app, int32_t command_ind){
             buffer_id = buffer_identifier(literal("*dump*"));
         }
         
-        exec_system_command(app, view, buffer_id, current_project.dir, current_project.dir_len, command, command_len, flags);
+        exec_system_command(app, view_ptr, buffer_id, current_project.dir, current_project.dir_len, command, command_len, flags);
         if (set_fancy_font){
             set_fancy_compilation_buffer_font(app);
         }
@@ -345,11 +440,11 @@ CUSTOM_COMMAND_SIG(load_project)
 CUSTOM_DOC("Looks for a project.4coder file in the current directory and tries to load it.  Looks in parent directories until a project file is found or there are no more parents.")
 {
     Partition *part = &global_part;
-    save_all_dirty_buffers(app);
     
     Temp_Memory temp = begin_temp_memory(part);
-    char project_file_space[512];
-    String project_path = make_fixed_width_string(project_file_space);
+    save_all_dirty_buffers(app);
+    char space[512];
+    String project_path = make_fixed_width_string(space);
     project_path.size = directory_get_hot(app, project_path.str, project_path.memory_size);
     if (project_path.size >= project_path.memory_size){
         print_message(app, literal("Hot directory longer than hard coded path buffer.\n"));
@@ -360,20 +455,20 @@ CUSTOM_DOC("Looks for a project.4coder file in the current directory and tries t
     else{
         String data = dump_file_search_up_path(part, project_path, make_lit_string("project.4coder"));
         if (data.str != 0){
-            load_project_from_config_data(app, part, data.str, data.size, project_path);
+            load_project_from_data(app, part, data.str, data.size, project_path);
         }
         else{
             char message_space[512];
             String message = make_fixed_width_string(message_space);
-            append_sc(&message, "Did not find project.4coder.  ");
+            append(&message, "Did not find project.4coder.  ");
             if (current_project.dir != 0){
-                append_sc(&message, "Continuing with: ");
-                append_sc(&message, current_project.dir);
+                append(&message, "Continuing with: ");
+                append(&message, current_project.dir);
             }
             else{
-                append_sc(&message, "Continuing without a project");
+                append(&message, "Continuing without a project");
             }
-            append_s_char(&message, '\n');
+            append(&message, '\n');
             print_message(app, message.str, message.size);
         }
     }
@@ -383,45 +478,34 @@ CUSTOM_DOC("Looks for a project.4coder file in the current directory and tries t
 CUSTOM_COMMAND_SIG(reload_current_project)
 CUSTOM_DOC("If a project file has already been loaded, reloads the same file.  Useful for when the project configuration is changed.")
 {
+    Partition *part = &global_part;
+    
     if (current_project.loaded){
         save_all_dirty_buffers(app);
-        
         char space[512];
         String project_path = make_fixed_width_string(space);
         append(&project_path, make_string(current_project.dir, current_project.dir_len));
-        if (project_path.size < 1 || !char_is_slash(project_path.str[project_path.size - 1])){
+        if (project_path.size == 0 || !char_is_slash(project_path.str[project_path.size - 1])){
             append(&project_path, "/");
         }
-        int32_t path_size = project_path.size;
         append(&project_path, "project.4coder");
         terminate_with_null(&project_path);
         
         FILE *file = fopen(project_path.str, "rb");
         if (file != 0){
-            project_path.size = path_size;
-            terminate_with_null(&project_path);
-            
-            Partition *part = &global_part;
             Temp_Memory temp = begin_temp_memory(part);
-            
-            char *mem = 0;
-            int32_t size = 0;
-            bool32 file_read_success = file_handle_dump(part, file, &mem, &size);
-            fclose(file);
-            
-            if (file_read_success){
-                load_project_from_config_data(app, part, mem, size, project_path);
+            String data = dump_file_handle(part, file);
+            if (data.str != 0){
+                load_project_from_data(app, part, data.str, data.size, project_path);
             }
-            
             end_temp_memory(temp);
+            fclose(file);
         }
         else{
-            print_message(app, literal("project.4coder file not found. Previous configuration left unchanged."));
+            print_message(app, literal("project.4coder file not found. Project configuration unchanged."));
         }
     }
 }
-
-///////////////////////////////
 
 CUSTOM_COMMAND_SIG(project_fkey_command)
 CUSTOM_DOC("Run an 'fkey command' configured in a project.4coder file.  Determines the index of the 'fkey command' by which function key or numeric key was pressed to trigger the command.")
@@ -442,7 +526,6 @@ CUSTOM_DOC("Run an 'fkey command' configured in a project.4coder file.  Determin
             ind = 9;
             got_ind = true;
         }
-        
         if (got_ind){
             exec_project_fkey_command(app, ind);
         }
@@ -496,7 +579,6 @@ project_is_setup(Application_Links *app, char *dir, int32_t dir_len, int32_t dir
     return(result);
 }
 
-#include <stdio.h>
 CUSTOM_COMMAND_SIG(setup_new_project)
 CUSTOM_DOC("Queries the user for several configuration options and initializes a new 4coder project with build scripts for every OS.")
 {

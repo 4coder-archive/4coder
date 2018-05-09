@@ -205,16 +205,15 @@ OPEN_FILE_HOOK_SIG(default_file_settings){
     bool32 wrap_lines = true;
     bool32 lex_without_strings = false;
     
-    int32_t extension_count = 0;
-    char **extension_list = get_current_code_extensions(&extension_count);
+    CString_Array extensions = get_code_extensions(&treat_as_code_exts);
     
     Parse_Context_ID parse_context_id = 0;
     
     if (buffer.file_name != 0 && buffer.size < (16 << 20)){
         String name = make_string(buffer.file_name, buffer.file_name_len);
         String ext = file_extension(name);
-        for (int32_t i = 0; i < extension_count; ++i){
-            if (match(ext, extension_list[i])){
+        for (int32_t i = 0; i < extensions.count; ++i){
+            if (match(ext, extensions.strings[i])){
                 treat_as_code = true;
                 
                 if (match(ext, "cs")){
