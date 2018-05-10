@@ -22,6 +22,10 @@
 
 #include "4coder_helper/4coder_bind_helper.h"
 #include "4coder_helper/4coder_helper.h"
+
+#include "4coder_helper/4coder_bind_helper.cpp"
+#include "4coder_helper/4coder_helper.cpp"
+
 #include "4coder_helper/4coder_streaming.h"
 #include "4coder_helper/4coder_long_seek.h"
 
@@ -34,8 +38,8 @@
 #include "4coder_function_list.h"
 #include "4coder_scope_commands.h"
 
-#include "4coder_base_commands.cpp"
 #include "4coder_default_framework.cpp"
+#include "4coder_base_commands.cpp"
 #include "4coder_seek_commands.cpp"
 #include "4coder_auto_indent.cpp"
 #include "4coder_search.cpp"
@@ -50,37 +54,6 @@
 #include "4coder_scope_commands.cpp"
 
 #include "4coder_default_hooks.cpp"
-
-//
-// Query Replace Selection
-//
-
-CUSTOM_COMMAND_SIG(query_replace_selection)
-CUSTOM_DOC("Queries the user for a string, and incrementally replace every occurence of the string found in the selected range with the specified string.")
-{
-    View_Summary view = get_active_view(app, AccessOpen);
-    Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessOpen);
-    
-    if (!buffer.exists){
-        return;
-    }
-    
-    Partition *part = &global_part;
-    Temp_Memory temp = begin_temp_memory(part);
-    
-    Range range = get_range(&view);
-    int32_t replace_length = range.max - range.min;
-    if (replace_length != 0){
-        char *replace_space = push_array(part, char, replace_length);
-        if (buffer_read_range(app, &buffer, range.min, range.max, replace_space)){
-            String replace = make_string(replace_space, replace_length);
-            query_replace_parameter(app, replace, range.min, true);
-        }
-    }
-    
-    end_temp_memory(temp);
-}
-
 
 //
 // Line Manipulation

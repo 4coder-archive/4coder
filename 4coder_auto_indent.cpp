@@ -736,7 +736,7 @@ CUSTOM_DOC("Auto-indents the range between the cursor and the mark.")
     uint32_t access = AccessOpen;
     View_Summary view = get_active_view(app, access);
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, access);
-    Range range = get_range(&view);
+    Range range = get_view_range(&view);
     
     buffer_auto_indent(app, &global_part, &buffer, range.min, range.max, DEF_TAB_WIDTH, DEFAULT_INDENT_FLAGS | AutoIndent_FullTokens);
     move_past_lead_whitespace(app, &view, &buffer);

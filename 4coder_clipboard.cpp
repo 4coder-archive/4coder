@@ -28,7 +28,7 @@ CUSTOM_DOC("Copy the text in the range from the cursor to the mark onto the clip
 {
     View_Summary view = get_active_view(app, AccessProtected);
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessProtected);
-    Range range = get_range(&view);
+    Range range = get_view_range(&view);
     post_buffer_range_to_clipboard(app, &global_part, 0, &buffer, range.min, range.max);
 }
 
@@ -37,7 +37,7 @@ CUSTOM_DOC("Cut the text in the range from the cursor to the mark onto the clipb
 {
     View_Summary view = get_active_view(app, AccessOpen);
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessOpen);
-    Range range = get_range(&view);
+    Range range = get_view_range(&view);
     if (post_buffer_range_to_clipboard(app, &global_part, 0, &buffer, range.min, range.max)){
         buffer_replace_range(app, &buffer, range.min, range.max, 0, 0);
     }
@@ -102,11 +102,11 @@ CUSTOM_DOC("If the previous command was paste or paste_next, replaces the paste 
                 str = (char*)app->memory;
             }
             
-            if (str){
+            if (str != 0){
                 clipboard_index(app, 0, paste_index, str, len);
                 
                 Buffer_Summary buffer = get_buffer(app, view.buffer_id, access);
-                Range range = get_range(&view);
+                Range range = get_view_range(&view);
                 int32_t pos = range.min;
                 
                 buffer_replace_range(app, &buffer, range.min, range.max, str, len);

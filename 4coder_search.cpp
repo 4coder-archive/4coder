@@ -803,7 +803,7 @@ list_all_locations_of_selection_parameters(Application_Links *app, bool32 substr
     Partition *part = &global_part;
     Temp_Memory temp = begin_temp_memory(part);
     
-    Range range = get_range(&view);
+    Range range = get_view_range(&view);
     int32_t query_length = range.max - range.min;
     if (query_length != 0){
         char *query_space = push_array(part, char, query_length);

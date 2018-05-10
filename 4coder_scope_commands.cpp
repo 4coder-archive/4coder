@@ -403,7 +403,7 @@ place_begin_and_end_on_own_lines(Application_Links *app, Partition *scratch, cha
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessOpen);
     
     Range lines = {0};
-    Range range = get_range(&view);
+    Range range = get_view_range(&view);
     lines.min = buffer_get_line_number(app, &buffer, range.min);
     range.min = buffer_get_line_start(app, &buffer, lines.min);
     
