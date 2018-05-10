@@ -45,7 +45,9 @@ memory_init(){
 }
 
 internal void
-load_app_code(){
+load_app_code(void){
+    LOG("Loading 4coder core...");
+    
     App_Get_Functions *get_funcs = 0;
     
     if (system_load_library(&libraries.app_code, "4ed_app", LoadLibrary_BinaryDirectory)){

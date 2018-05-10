@@ -4,11 +4,6 @@
 
 // TOP
 
-#if !defined(FCODER_DEFAULT_HOOKS_CPP)
-#define FCODER_DEFAULT_HOOKS_CPP
-
-#include "4coder_helper/4coder_bind_helper.h"
-
 #include "languages/4coder_language_cpp.h"
 #include "languages/4coder_language_rust.h"
 #include "languages/4coder_language_cs.h"
@@ -473,8 +468,6 @@ set_all_default_hooks(Bind_Helper *context){
     set_scroll_rule(context, smooth_scroll_rule);
     set_buffer_name_resolver(context, default_buffer_name_resolution);
 }
-
-#endif
 
 // BOTTOM
 

@@ -576,7 +576,7 @@ STRUCT Buffer_Summary{
     /*DOC(If this is not a null summary, this field contains flags describing the protection status of the buffer.)*/
     Access_Flag lock_flags;
     
-    /* DOC(If this is not a null summary, this field specifies the size of the text in the buffer.) */
+    /* DOC(If this is not a null summary, this field specifies the number of bytes in the buffer.) */
     int32_t size;
     /* DOC(If this is not a null summary, this field specifies the number of lines in the buffer.) */
     int32_t line_count;

@@ -1,19 +1,8 @@
 /*
- * Helpers for doing long range seeks.
- */
+4coder_seek.cpp - Procedures and commands for jumping through code to useful stop boundaries.
+*/
 
 // TOP
-
-#if !defined(FCODER_LONG_SEEK_H)
-#define FCODER_LONG_SEEK_H
-
-#include "4coder_helper/4coder_streaming.h"
-#include "4coder_lib/4coder_mem.h"
-#include "4coder_lib/4cpp_lexer.h"
-
-//
-// Whitespace Based Seeks
-//
 
 static int32_t
 seek_line_end(Application_Links *app, Buffer_Summary *buffer, int32_t pos){
@@ -222,6 +211,7 @@ buffer_seek_whitespace_down(Application_Links *app, Buffer_Summary *buffer, int3
     
     return(pos);
 }
+
 static int32_t
 buffer_seek_whitespace_right(Application_Links *app, Buffer_Summary *buffer, int32_t pos){
     char data_chunk[1024];
@@ -295,10 +285,6 @@ buffer_seek_whitespace_left(Application_Links *app, Buffer_Summary *buffer, int3
     
     return(pos);
 }
-
-//
-// Boundary Type Seeks
-//
 
 static int32_t
 buffer_seek_alphanumeric_right(Application_Links *app, Buffer_Summary *buffer, int32_t pos){
@@ -681,9 +667,7 @@ DOC_SEE(4coder_Buffer_Positioning_System)
     return(result);
 }
 
-//
-// Character Seeks
-//
+////////////////////////////////
 
 void
 buffer_seek_delimiter_forward(Application_Links *app, Buffer_Summary *buffer, int32_t pos, char delim, int32_t *result){
@@ -738,13 +722,6 @@ buffer_seek_delimiter_backward(Application_Links *app, Buffer_Summary *buffer, i
     
     finished:;
 }
-
-//
-// Buffer Substring Seeks
-//
-
-// TODO(allen): This duplication is driving me crazy... I've gotta
-// upgrade the meta programming system another level.
 
 // NOTE(allen): This is limitted to a string size of 512.
 // You can push it up or do something more clever by just
@@ -933,11 +910,7 @@ buffer_seek_string_insensitive_backward(Application_Links *app, Buffer_Summary *
     }
 }
 
-typedef uint32_t Buffer_Seek_String_Flags;
-enum{
-    BufferSeekString_Backward = 1,
-    BufferSeekString_CaseInsensitive = 2,
-};
+////////////////////////////////
 
 static void
 buffer_seek_string(Application_Links *app, Buffer_Summary *buffer, int32_t pos, int32_t end, int32_t min, char *str, int32_t size, int32_t *result, Buffer_Seek_String_Flags flags){
@@ -964,65 +937,13 @@ buffer_seek_string(Application_Links *app, Buffer_Summary *buffer, int32_t pos, 
     }
 }
 
-//
-// Buffer Line Positioning
-//
-
-static bool32
-read_line(Application_Links *app, Partition *part, Buffer_Summary *buffer, int32_t line, String *str){
-    Partial_Cursor begin = {0};
-    Partial_Cursor end = {0};
-    
-    bool32 success = false;
-    
-    if (buffer_compute_cursor(app, buffer, seek_line_char(line, 1), &begin)){
-        if (buffer_compute_cursor(app, buffer, seek_line_char(line, -1), &end)){
-            if (begin.line == line){
-                if (0 <= begin.pos && begin.pos <= end.pos && end.pos <= buffer->size){
-                    int32_t size = (end.pos - begin.pos);
-                    int32_t alloc_size = size + 1;
-                    char *memory = push_array(part, char, alloc_size);
-                    if (memory != 0){
-                        *str = make_string(memory, 0, alloc_size);
-                        success = true;
-                        buffer_read_range(app, buffer, begin.pos, end.pos, str->str);
-                        str->size = size;
-                        terminate_with_null(str);
-                    }
-                }
-            }
-        }
-    }
-    
-    return(success);
-}
-
-static int32_t
-buffer_get_line_start(Application_Links *app, Buffer_Summary *buffer, int32_t line){
-    Partial_Cursor partial_cursor;
-    int32_t result = buffer->size;
-    if (line <= buffer->line_count){
-        buffer_compute_cursor(app, buffer, seek_line_char(line, 1), &partial_cursor);
-        result = partial_cursor.pos;
-    }
-    return(result);
-}
-
-static int32_t
-buffer_get_line_end(Application_Links *app, Buffer_Summary *buffer, int32_t line){
-    Partial_Cursor partial_cursor;
-    int32_t result = buffer->size;
-    if (line <= buffer->line_count){
-        buffer_compute_cursor(app, buffer, seek_line_char(line, -1), &partial_cursor);
-        result = partial_cursor.pos;
-    }
-    return(result);
-}
+////////////////////////////////
 
 static bool32
 buffer_line_is_blank(Application_Links *app, Buffer_Summary *buffer, int32_t line){
-    Partial_Cursor start, end;
-    bool32 result = 0;
+    Partial_Cursor start = {0};
+    Partial_Cursor end = {0};
+    bool32 result = false;
     if (line <= buffer->line_count){
         buffer_compute_cursor(app, buffer, seek_line_char(line, 1), &start);
         buffer_compute_cursor(app, buffer, seek_line_char(line, -1), &end);
@@ -1039,7 +960,7 @@ buffer_line_is_blank(Application_Links *app, Buffer_Summary *buffer, int32_t lin
             do{
                 for (;i < stream.end; ++i){
                     char c = stream.data[i];
-                    if (!(c == ' ' || c == '\t' || c == '\r' || c == '\v' || c == '\n')){
+                    if (!char_is_whitespace(c)){
                         result = false;
                         goto double_break;
                     }
@@ -1049,34 +970,6 @@ buffer_line_is_blank(Application_Links *app, Buffer_Summary *buffer, int32_t lin
         }
         double_break:;
     }
-    return(result);
-}
-
-static int32_t
-buffer_get_line_number(Application_Links *app, Buffer_Summary *buffer, int32_t pos){
-    Partial_Cursor partial_cursor = {0};
-    buffer_compute_cursor(app, buffer, seek_pos(pos), &partial_cursor);
-    return(partial_cursor.line);
-}
-
-static Cpp_Token*
-get_first_token_at_line(Application_Links *app, Buffer_Summary *buffer, Cpp_Token_Array tokens, int32_t line, int32_t *line_start_out = 0){
-    int32_t line_start = buffer_get_line_start(app, buffer, line);
-    Cpp_Get_Token_Result get_token = cpp_get_token(tokens, line_start);
-    
-    if (get_token.in_whitespace){
-        get_token.token_index += 1;
-    }
-    
-    if (line_start_out){
-        *line_start_out = line_start;
-    }
-    
-    Cpp_Token *result = 0;
-    if (get_token.token_index < tokens.count){
-        result = &tokens.tokens[get_token.token_index];
-    }
-    
     return(result);
 }
 
@@ -1106,7 +999,274 @@ read_identifier_at_pos(Application_Links *app, Buffer_Summary *buffer, int32_t p
     return(query);
 }
 
-#endif
+////////////////////////////////
+
+static int32_t
+flip_dir(int32_t dir){
+    if (dir == DirLeft){
+        return(DirRight);
+    }
+    else{
+        return(DirLeft);
+    }
+}
+
+static int32_t
+buffer_boundary_seek(Application_Links *app, Buffer_Summary *buffer,
+                     int32_t start_pos, int32_t dir, Seek_Boundary_Flag flags){
+    bool32 forward = (dir == DirRight);
+    return(buffer_boundary_seek(app, buffer, &global_part, start_pos, forward, flags));
+}
+
+static void
+view_buffer_boundary_seek_set_pos(Application_Links *app, View_Summary *view, Buffer_Summary *buffer,
+                                  int32_t dir, uint32_t flags){
+    int32_t pos = buffer_boundary_seek(app, buffer, &global_part, view->cursor.pos, dir, flags);
+    view_set_cursor(app, view, seek_pos(pos), true);
+}
+
+static void
+view_boundary_seek_set_pos(Application_Links *app, View_Summary *view,
+                           int32_t dir, uint32_t flags){
+    Buffer_Summary buffer = get_buffer(app, view->buffer_id, AccessProtected);
+    view_buffer_boundary_seek_set_pos(app, view, &buffer, dir, flags);
+}
+
+static void
+current_view_boundary_seek_set_pos(Application_Links *app, int32_t dir, uint32_t flags){
+    View_Summary view = get_active_view(app, AccessProtected);
+    view_boundary_seek_set_pos(app, &view, dir, flags);
+}
+
+static Range
+view_buffer_boundary_range(Application_Links *app, View_Summary *view, Buffer_Summary *buffer,
+                           int32_t dir, uint32_t flags){
+    int32_t pos1 = view->cursor.pos;
+    int32_t pos2 = buffer_boundary_seek(app, buffer, pos1, dir, flags);
+    return(make_range(pos1, pos2));
+}
+
+static Range
+view_buffer_snipe_range(Application_Links *app, View_Summary *view, Buffer_Summary *buffer,
+                        int32_t dir, uint32_t flags){
+    int32_t pos0 = view->cursor.pos;
+    int32_t pos1 = buffer_boundary_seek(app, buffer, pos0, dir          , flags);
+    int32_t pos2 = buffer_boundary_seek(app, buffer, pos1, flip_dir(dir), flags);
+    if (dir == DirLeft){
+        if (pos2 < pos0){
+            pos2 = pos0;
+        }
+    }
+    else{
+        if (pos2 > pos0){
+            pos2 = pos0;
+        }
+    }
+    return(make_range(pos1, pos2));
+}
+
+static void
+current_view_boundary_delete(Application_Links *app, int32_t dir, uint32_t flags){
+    View_Summary view = get_active_view(app, AccessOpen);
+    Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessOpen);
+    if (buffer.exists){
+        Range range = view_buffer_boundary_range(app, &view, &buffer, dir, flags);
+        buffer_replace_range(app, &buffer, range.min, range.max, 0, 0);
+    }
+}
+
+static void
+current_view_snipe_delete(Application_Links *app, int32_t dir, uint32_t flags){
+    View_Summary view = get_active_view(app, AccessOpen);
+    Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessOpen);
+    if (buffer.exists){
+        Range range = view_buffer_snipe_range(app, &view, &buffer, dir, flags);
+        buffer_replace_range(app, &buffer, range.min, range.max, 0, 0);
+    }
+}
+
+////////////////////////////////
+
+CUSTOM_COMMAND_SIG(seek_whitespace_up)
+CUSTOM_DOC("Seeks the cursor up to the next blank line.")
+{
+    View_Summary view = get_active_view(app, AccessProtected);
+    Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessProtected);
+    int32_t new_pos = buffer_seek_whitespace_up(app, &buffer, view.cursor.pos);
+    view_set_cursor(app, &view, seek_pos(new_pos), true);
+}
+
+CUSTOM_COMMAND_SIG(seek_whitespace_down)
+CUSTOM_DOC("Seeks the cursor down to the next blank line.")
+{
+    View_Summary view = get_active_view(app, AccessProtected);
+    Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessProtected);
+    int32_t new_pos = buffer_seek_whitespace_down(app, &buffer, view.cursor.pos);
+    view_set_cursor(app, &view, seek_pos(new_pos), true);
+}
+
+CUSTOM_COMMAND_SIG(seek_beginning_of_textual_line)
+CUSTOM_DOC("Seeks the cursor to the beginning of the line across all text.")
+{
+    View_Summary view = get_active_view(app, AccessProtected);
+    Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessProtected);
+    int32_t new_pos = seek_line_beginning(app, &buffer, view.cursor.pos);
+    view_set_cursor(app, &view, seek_pos(new_pos), true);
+}
+
+CUSTOM_COMMAND_SIG(seek_end_of_textual_line)
+CUSTOM_DOC("Seeks the cursor to the end of the line across all text.")
+{
+    View_Summary view = get_active_view(app, AccessProtected);
+    Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessProtected);
+    int32_t new_pos = seek_line_end(app, &buffer, view.cursor.pos);
+    view_set_cursor(app, &view, seek_pos(new_pos), true);
+}
+
+CUSTOM_COMMAND_SIG(seek_beginning_of_line)
+CUSTOM_DOC("Seeks the cursor to the beginning of the visual line.")
+{
+    View_Summary view = get_active_view(app, AccessProtected);
+    float y = view.cursor.wrapped_y;
+    if (view.unwrapped_lines){
+        y = view.cursor.unwrapped_y;
+    }
+    view_set_cursor(app, &view, seek_xy(0, y, 1, view.unwrapped_lines), 1);
+}
+
+CUSTOM_COMMAND_SIG(seek_end_of_line)
+CUSTOM_DOC("Seeks the cursor to the end of the visual line.")
+{
+    View_Summary view = get_active_view(app, AccessProtected);
+    float y = view.cursor.wrapped_y;
+    if (view.unwrapped_lines){
+        y = view.cursor.unwrapped_y;
+    }
+    view_set_cursor(app, &view, seek_xy(max_f32, y, 1, view.unwrapped_lines), 1);
+}
+
+CUSTOM_COMMAND_SIG(seek_whitespace_up_end_line)
+CUSTOM_DOC("Seeks the cursor up to the next blank line and places it at the end of the line.")
+{
+    View_Summary view = get_active_view(app, AccessProtected);
+    Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessProtected);
+    int32_t new_pos = buffer_seek_whitespace_up(app, &buffer, view.cursor.pos);
+    new_pos = seek_line_end(app, &buffer, new_pos);
+    view_set_cursor(app, &view, seek_pos(new_pos), true);
+}
+
+CUSTOM_COMMAND_SIG(seek_whitespace_down_end_line)
+CUSTOM_DOC("Seeks the cursor down to the next blank line and places it at the end of the line.")
+{
+    View_Summary view = get_active_view(app, AccessProtected);
+    Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessProtected);
+    int32_t new_pos = buffer_seek_whitespace_down(app, &buffer, view.cursor.pos);
+    new_pos = seek_line_end(app, &buffer, new_pos);
+    view_set_cursor(app, &view, seek_pos(new_pos), true);
+}
+
+CUSTOM_COMMAND_SIG(goto_beginning_of_file)
+CUSTOM_DOC("Sets the cursor to the beginning of the file.")
+{
+    View_Summary view = get_active_view(app, AccessProtected);
+    view_set_cursor(app, &view, seek_pos(0), true);
+}
+
+CUSTOM_COMMAND_SIG(goto_end_of_file)
+CUSTOM_DOC("Sets the cursor to the end of the file.")
+{
+    View_Summary view = get_active_view(app, AccessProtected);
+    Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessProtected);
+    view_set_cursor(app, &view, seek_pos(buffer.size), true);
+}
+
+////////////////////////////////
+
+CUSTOM_COMMAND_SIG(seek_whitespace_right)
+CUSTOM_DOC("Seek right for the next boundary between whitespace and non-whitespace.")
+{
+    current_view_boundary_seek_set_pos(app, DirRight, BoundaryWhitespace);
+}
+
+CUSTOM_COMMAND_SIG(seek_whitespace_left)
+CUSTOM_DOC("Seek left for the next boundary between whitespace and non-whitespace.")
+{
+    current_view_boundary_seek_set_pos(app, DirLeft, BoundaryWhitespace);
+}
+
+CUSTOM_COMMAND_SIG(seek_token_right)
+CUSTOM_DOC("Seek right for the next end of a token.")
+{
+    current_view_boundary_seek_set_pos(app, DirRight, BoundaryToken);
+}
+
+CUSTOM_COMMAND_SIG(seek_token_left)
+CUSTOM_DOC("Seek left for the next beginning of a token.")
+{
+    current_view_boundary_seek_set_pos(app, DirLeft, BoundaryToken);
+}
+
+CUSTOM_COMMAND_SIG(seek_white_or_token_right)
+CUSTOM_DOC("Seek right for the next end of a token or boundary between whitespace and non-whitespace.")
+{
+    current_view_boundary_seek_set_pos(app, DirRight, BoundaryToken|BoundaryWhitespace);
+}
+
+CUSTOM_COMMAND_SIG(seek_white_or_token_left)
+CUSTOM_DOC("Seek left for the next end of a token or boundary between whitespace and non-whitespace.")
+{
+    current_view_boundary_seek_set_pos(app, DirLeft, BoundaryToken|BoundaryWhitespace);
+}
+
+CUSTOM_COMMAND_SIG(seek_alphanumeric_right)
+CUSTOM_DOC("Seek right for boundary between alphanumeric characters and non-alphanumeric characters.")
+{
+    current_view_boundary_seek_set_pos(app, DirRight, BoundaryAlphanumeric);
+}
+
+CUSTOM_COMMAND_SIG(seek_alphanumeric_left)
+CUSTOM_DOC("Seek left for boundary between alphanumeric characters and non-alphanumeric characters.")
+{
+    current_view_boundary_seek_set_pos(app, DirLeft, BoundaryAlphanumeric);
+}
+
+CUSTOM_COMMAND_SIG(seek_alphanumeric_or_camel_right)
+CUSTOM_DOC("Seek right for boundary between alphanumeric characters or camel case word and non-alphanumeric characters.")
+{
+    current_view_boundary_seek_set_pos(app, DirRight, BoundaryAlphanumeric|BoundaryCamelCase);
+}
+
+CUSTOM_COMMAND_SIG(seek_alphanumeric_or_camel_left)
+CUSTOM_DOC("Seek left for boundary between alphanumeric characters or camel case word and non-alphanumeric characters.")
+{
+    current_view_boundary_seek_set_pos(app, DirLeft, BoundaryAlphanumeric|BoundaryCamelCase);
+}
+
+////////////////////////////////
+
+CUSTOM_COMMAND_SIG(backspace_word)
+CUSTOM_DOC("Delete characters between the cursor position and the first alphanumeric boundary to the left.")
+{
+    current_view_boundary_delete(app, DirLeft, BoundaryAlphanumeric);
+}
+
+CUSTOM_COMMAND_SIG(delete_word)
+CUSTOM_DOC("Delete characters between the cursor position and the first alphanumeric boundary to the right.")
+{
+    current_view_boundary_delete(app, DirRight, BoundaryAlphanumeric);
+}
+
+CUSTOM_COMMAND_SIG(snipe_token_or_word)
+CUSTOM_DOC("Delete a single, whole token on or to the left of the cursor and post it to the clipboard.")
+{
+    current_view_snipe_delete(app, DirLeft, BoundaryToken|BoundaryWhitespace);
+}
+
+CUSTOM_COMMAND_SIG(snipe_token_or_word_right)
+CUSTOM_DOC("Delete a single, whole token on or to the right of the cursor and post it to the clipboard.")
+{
+    current_view_snipe_delete(app, DirRight, BoundaryToken|BoundaryWhitespace);
+}
 
 // BOTTOM
 

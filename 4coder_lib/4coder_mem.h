@@ -82,7 +82,7 @@ partition_allocate(Partition *data, i32_4tech size){
         ret = data->base + data->pos;
         data->pos += size;
     }
-    return ret;
+    return(ret);
 }
 
 inline void

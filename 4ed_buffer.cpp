@@ -13,8 +13,6 @@
 // Buffer low level operations
 //
 
-#include "4coder_helper/4coder_seek_types.h"
-
 inline void
 write_cursor_with_index(Cursor_With_Index *positions, i32 *count, i32 pos){
     positions[(*count)].index = *count;

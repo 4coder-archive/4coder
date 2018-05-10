@@ -120,8 +120,8 @@ enum{
 
 char *custom_files[] = {
     "../code/4coder_default_bindings.cpp",
-    "../code/power/4coder_experiments.cpp",
-    "../code/power/4coder_casey.cpp",
+    "../code/4coder_experiments.cpp",
+    "../code/4coder_casey.cpp",
     "../4vim/4coder_chronal.cpp",
 };
 
@@ -680,23 +680,6 @@ package(char *cdir){
             fm_make_folder_if_missing(zip_dir);
             fm_zip(par_dir, "4coder", zip_name);
         }
-        fm_end_temp(temp);
-    }
-    
-    // NOTE(allen): power
-    {
-        Temp temp = fm_begin_temp();
-        char *pack_power_par_dir = fm_str("../current_dist_power");
-        char *pack_power_dir = fm_str(pack_power_par_dir, "/power");
-        
-        fm_clear_folder(pack_power_par_dir);
-        fm_make_folder_if_missing(pack_power_dir);
-        fm_make_folder_if_missing(fm_str(pack_dir, "/power"));
-        fm_copy_all("power", "*", pack_power_dir);
-        
-        char *dist_name = get_4coder_dist_name(Platform_None, "power", Arch_None);
-        char *zip_name = fm_str(pack_dir, "/power/", dist_name, ".zip");
-        fm_zip(pack_power_par_dir, "power", zip_name);
         fm_end_temp(temp);
     }
 }

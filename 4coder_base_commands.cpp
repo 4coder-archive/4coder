@@ -5,10 +5,6 @@ moving the cursor, which work even without the default 4coder framework.
 
 // TOP
 
-//
-// Fundamental Editing Commands
-//
-
 static void
 write_character_parameter(Application_Links *app, uint8_t *character, uint32_t length){
     if (length != 0){
@@ -119,9 +115,7 @@ CUSTOM_DOC("Deletes the text in the range between the cursor and the mark.")
     buffer_replace_range(app, &buffer, range.min, range.max, 0, 0);
 }
 
-//
-// Basic Navigation Commands
-//
+////////////////////////////////
 
 CUSTOM_COMMAND_SIG(center_view)
 CUSTOM_DOC("Centers the view vertically on the line on which the cursor sits.")
@@ -203,6 +197,8 @@ CUSTOM_DOC("Sets the mark position to the mouse position.")
     }
 }
 
+////////////////////////////////
+
 inline void
 move_vertical(Application_Links *app, float line_multiplier){
     uint32_t access = AccessProtected;
@@ -229,6 +225,22 @@ move_vertical(Application_Links *app, float line_multiplier){
     }
 }
 
+static float
+get_page_jump(View_Summary *view){
+    i32_Rect region = view->file_region;
+    float page_jump = 1.f;
+    if (view->line_height > 0.f){
+        int32_t height = region.y1 - region.y0;
+        float line_count = (float)(height)/view->line_height;
+        int32_t line_count_rounded = (int32_t)line_count;
+        page_jump = (float)line_count_rounded - 3.f;
+        if (page_jump <= 1.f){
+            page_jump = 1.f;
+        }
+    }
+    return(page_jump);
+}
+
 CUSTOM_COMMAND_SIG(move_up)
 CUSTOM_DOC("Moves the cursor up one line.")
 {
@@ -253,20 +265,15 @@ CUSTOM_DOC("Moves the cursor down ten lines.")
     move_vertical(app, 10.f);
 }
 
-static float
-get_page_jump(View_Summary *view){
-    i32_Rect region = view->file_region;
-    float page_jump = 1;
-    
-    if (view->line_height > 0){
-        page_jump = (float)(region.y1 - region.y0) / view->line_height;
-        page_jump -= 3.f;
-        if (page_jump <= 0){
-            page_jump = 1.f;
-        }
+CUSTOM_COMMAND_SIG(move_down_textual)
+CUSTOM_DOC("Moves down to the next line of actual text, regardless of line wrapping.")
+{
+    View_Summary view = get_active_view(app, AccessOpen);
+    if (!view.exists){
+        return;
     }
-    
-    return(page_jump);
+    int32_t next_line = view.cursor.line + 1;
+    view_set_cursor(app, &view, seek_line_char(next_line, 1), true);
 }
 
 CUSTOM_COMMAND_SIG(page_up)
@@ -287,6 +294,7 @@ CUSTOM_DOC("Scrolls the view down one view height and moves the cursor down one 
     move_vertical(app, page_jump);
 }
 
+////////////////
 
 CUSTOM_COMMAND_SIG(move_left)
 CUSTOM_DOC("Moves the cursor one character to the left.")
@@ -311,116 +319,11 @@ CUSTOM_DOC("Puts the cursor at the top of the file, and the mark at the bottom o
 {
     View_Summary view = get_active_view(app, AccessProtected);
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessProtected);
-    view_set_cursor(app, &view, seek_character_pos(0), true);
-    view_set_mark(app, &view, seek_character_pos(buffer.size));
+    view_set_cursor(app, &view, seek_pos(0), true);
+    view_set_mark(app, &view, seek_pos(buffer.size));
 }
 
-//
-// Long Seeks
-//
-
-CUSTOM_COMMAND_SIG(seek_whitespace_up)
-CUSTOM_DOC("Seeks the cursor up to the next blank line.")
-{
-    uint32_t access = AccessProtected;
-    View_Summary view = get_active_view(app, access);
-    Buffer_Summary buffer = get_buffer(app, view.buffer_id, access);
-    
-    int32_t new_pos = buffer_seek_whitespace_up(app, &buffer, view.cursor.pos);
-    view_set_cursor(app, &view, seek_pos(new_pos), true);
-}
-
-CUSTOM_COMMAND_SIG(seek_whitespace_down)
-CUSTOM_DOC("Seeks the cursor down to the next blank line.")
-{
-    uint32_t access = AccessProtected;
-    View_Summary view = get_active_view(app, access);
-    Buffer_Summary buffer = get_buffer(app, view.buffer_id, access);
-    
-    int32_t new_pos = buffer_seek_whitespace_down(app, &buffer, view.cursor.pos);
-    view_set_cursor(app, &view, seek_pos(new_pos), true);
-}
-
-CUSTOM_COMMAND_SIG(seek_beginning_of_textual_line)
-CUSTOM_DOC("Seeks the cursor to the beginning of the line across all text.")
-{
-    uint32_t access = AccessProtected;
-    View_Summary view = get_active_view(app, access);
-    Buffer_Summary buffer = get_buffer(app, view.buffer_id, access);
-    
-    int32_t new_pos = seek_line_beginning(app, &buffer, view.cursor.pos);
-    view_set_cursor(app, &view, seek_pos(new_pos), true);
-}
-
-CUSTOM_COMMAND_SIG(seek_end_of_textual_line)
-CUSTOM_DOC("Seeks the cursor to the end of the line across all text.")
-{
-    uint32_t access = AccessProtected;
-    View_Summary view = get_active_view(app, access);
-    Buffer_Summary buffer = get_buffer(app, view.buffer_id, access);
-    
-    int32_t new_pos = seek_line_end(app, &buffer, view.cursor.pos);
-    view_set_cursor(app, &view, seek_pos(new_pos), true);
-}
-
-CUSTOM_COMMAND_SIG(seek_beginning_of_line)
-CUSTOM_DOC("Seeks the cursor to the beginning of the visual line.")
-{
-    View_Summary view = get_active_view(app, AccessProtected);
-    
-    float y = view.cursor.wrapped_y;
-    if (view.unwrapped_lines){
-        y = view.cursor.unwrapped_y;
-    }
-    
-    view_set_cursor(app, &view, seek_xy(0, y, 1, view.unwrapped_lines), 1);
-}
-
-CUSTOM_COMMAND_SIG(seek_end_of_line)
-CUSTOM_DOC("Seeks the cursor to the end of the visual line.")
-{
-    View_Summary view = get_active_view(app, AccessProtected);
-    
-    float y = view.cursor.wrapped_y;
-    if (view.unwrapped_lines){
-        y = view.cursor.unwrapped_y;
-    }
-    
-    view_set_cursor(app, &view, seek_xy(max_f32, y, 1, view.unwrapped_lines), 1);
-}
-
-CUSTOM_COMMAND_SIG(seek_whitespace_up_end_line)
-CUSTOM_DOC("Seeks the cursor up to the next blank line and places it at the end of the line.")
-{
-    exec_command(app, seek_whitespace_up);
-    exec_command(app, seek_end_of_line);
-}
-
-CUSTOM_COMMAND_SIG(seek_whitespace_down_end_line)
-CUSTOM_DOC("Seeks the cursor down to the next blank line and places it at the end of the line.")
-{
-    exec_command(app, seek_whitespace_down);
-    exec_command(app, seek_end_of_line);
-}
-
-CUSTOM_COMMAND_SIG(goto_beginning_of_file)
-CUSTOM_DOC("Sets the cursor to the beginning of the file.")
-{
-    View_Summary view = get_active_view(app, AccessProtected);
-    view_set_cursor(app, &view, seek_pos(0), 1);
-}
-
-CUSTOM_COMMAND_SIG(goto_end_of_file)
-CUSTOM_DOC("Sets the cursor to the end of the file.")
-{
-    View_Summary view = get_active_view(app, AccessProtected);
-    Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessProtected);
-    view_set_cursor(app, &view, seek_pos(buffer.size), 1);
-}
-
-//
-// Fancy Editing
-//
+////////////////////////////////
 
 CUSTOM_COMMAND_SIG(to_uppercase)
 CUSTOM_DOC("Converts all ascii text in the range between the cursor and the mark to uppercase.")
@@ -525,10 +428,7 @@ CUSTOM_DOC("Removes trailing whitespace from all lines in the current buffer.")
     }
 }
 
-
-//
-// Basic Panel Management
-//
+////////////////////////////////
 
 CUSTOM_COMMAND_SIG(basic_change_active_panel)
 CUSTOM_DOC("Change the currently active panel, moving to the panel with the next highest view_id.  Will not skipe the build panel if it is open.")
@@ -545,10 +445,7 @@ CUSTOM_DOC("Closes the currently active panel if it is not the only panel open."
     close_view(app, &view);
 }
 
-
-//
-// Common Settings Commands
-//
+////////////////////////////////
 
 CUSTOM_COMMAND_SIG(show_scrollbar)
 CUSTOM_DOC("Sets the current view to show it's scrollbar.")
@@ -683,9 +580,7 @@ CUSTOM_DOC("Attempts to close 4coder.")
     send_exit_signal(app);
 }
 
-//
-// Interactive Commands
-//
+////////////////////////////////
 
 CUSTOM_COMMAND_SIG(goto_line)
 CUSTOM_DOC("Queries the user for a number, and jumps the cursor to the corresponding line.")
@@ -1061,9 +956,7 @@ CUSTOM_DOC("Queries the user for a string, and incrementally replace every occur
     end_temp_memory(temp);
 }
 
-//
-// File Handling Commands
-//
+////////////////////////////////
 
 CUSTOM_COMMAND_SIG(save_all_dirty_buffers)
 CUSTOM_DOC("Saves all buffers marked dirty (showing the '*' indicator).")
@@ -1239,9 +1132,144 @@ CUSTOM_DOC("Queries the user for a name and creates a new directory with the giv
     }
 }
 
-//
-// cmdid wrappers
-//
+////////////////////////////////
+
+CUSTOM_COMMAND_SIG(move_line_up)
+CUSTOM_DOC("Swaps the line under the cursor with the line above it, and moves the cursor up with it.")
+{
+    View_Summary view = get_active_view(app, AccessOpen);
+    
+    if (view.cursor.line <= 1){
+        return;
+    }
+    
+    Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessOpen);
+    if (!buffer.exists){
+        return;
+    }
+    
+    Full_Cursor prev_line_cursor = {0};
+    Full_Cursor this_line_cursor = {0};
+    Full_Cursor next_line_cursor = {0};
+    
+    int32_t this_line = view.cursor.line;
+    int32_t prev_line = this_line - 1;
+    int32_t next_line = this_line +1;
+    
+    if (view_compute_cursor(app, &view, seek_line_char(prev_line, 1), &prev_line_cursor) &&
+        view_compute_cursor(app, &view, seek_line_char(this_line, 1), &this_line_cursor) &&
+        view_compute_cursor(app, &view, seek_line_char(next_line, 1), &next_line_cursor)){
+        
+        int32_t prev_line_pos = prev_line_cursor.pos;
+        int32_t this_line_pos = this_line_cursor.pos;
+        int32_t next_line_pos = next_line_cursor.pos;
+        
+        Partition *part = &global_part;
+        Temp_Memory temp = begin_temp_memory(part);
+        
+        int32_t length = next_line_pos - prev_line_pos;
+        char *swap = push_array(part, char, length + 1);
+        int32_t first_len = next_line_pos - this_line_pos;
+        
+        if (buffer_read_range(app, &buffer, this_line_pos, next_line_pos, swap)){
+            bool32 second_line_didnt_have_newline = true;
+            for (int32_t i = first_len - 1; i >= 0; --i){
+                if (swap[i] == '\n'){
+                    second_line_didnt_have_newline = false;
+                    break;
+                }
+            }
+            
+            if (second_line_didnt_have_newline){
+                swap[first_len] = '\n';
+                first_len += 1;
+                // NOTE(allen): Don't increase "length" because then we will be including
+                // the original newline and addignt this new one, making the file longer
+                // which shouldn't be possible for this command!
+            }
+            
+            if (buffer_read_range(app, &buffer, prev_line_pos, this_line_pos, swap + first_len)){
+                buffer_replace_range(app, &buffer, prev_line_pos, next_line_pos, swap, length);
+                view_set_cursor(app, &view, seek_line_char(prev_line, 1), true);
+            }
+        }
+        
+        end_temp_memory(temp);
+    }
+}
+
+CUSTOM_COMMAND_SIG(move_line_down)
+CUSTOM_DOC("Swaps the line under the cursor with the line below it, and moves the cursor down with it.")
+{
+    View_Summary view = get_active_view(app, AccessOpen);
+    if (!view.exists){
+        return;
+    }
+    Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessOpen);
+    if (!buffer.exists){
+        return;
+    }
+    
+    int32_t next_line = view.cursor.line + 1;
+    Full_Cursor new_cursor = {0};
+    if (view_compute_cursor(app, &view, seek_line_char(next_line, 1), &new_cursor)){
+        if (new_cursor.line == next_line){
+            view_set_cursor(app, &view, seek_pos(new_cursor.pos), true);
+            move_line_up(app);
+            move_down_textual(app);
+        }
+    }
+}
+
+CUSTOM_COMMAND_SIG(duplicate_line)
+CUSTOM_DOC("Create a copy of the line on which the cursor sits.")
+{
+    View_Summary view = get_active_view(app, AccessOpen);
+    Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessOpen);
+    
+    Partition *part = &global_part;
+    
+    Temp_Memory temp = begin_temp_memory(part);
+    String line_string = {0};
+    char *before_line = push_array(part, char, 1);
+    if (read_line(app, part, &buffer, view.cursor.line, &line_string)){
+        *before_line = '\n';
+        line_string.str = before_line;
+        line_string.size += 1;
+        
+        int32_t pos = buffer_get_line_end(app, &buffer, view.cursor.line);
+        buffer_replace_range(app, &buffer, pos, pos, line_string.str, line_string.size);
+    }
+    end_temp_memory(temp);
+}
+
+CUSTOM_COMMAND_SIG(delete_line)
+CUSTOM_DOC("Delete the line the on which the cursor sits.")
+{
+    View_Summary view = get_active_view(app, AccessOpen);
+    Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessOpen);
+    
+    Partition *part = &global_part;
+    
+    Temp_Memory temp = begin_temp_memory(part);
+    int32_t start = buffer_get_line_start(app, &buffer, view.cursor.line);
+    int32_t end = buffer_get_line_end(app, &buffer, view.cursor.line) + 1;
+    if (end > buffer.size){
+        end = buffer.size;
+    }
+    if (start == end || buffer_get_char(app, &buffer, end - 1) != '\n'){
+        start -= 1;
+        if (start < 0){
+            start = 0;
+        }
+    }
+    
+    buffer_replace_range(app, &buffer, start, end, 0, 0);
+    
+    end_temp_memory(temp);
+}
+
+////////////////////////////////
 
 CUSTOM_COMMAND_SIG(undo)
 CUSTOM_DOC("Advances backwards through the undo history.")

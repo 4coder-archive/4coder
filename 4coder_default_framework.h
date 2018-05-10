@@ -7,10 +7,6 @@
 #if !defined(FCODER_DEFAULT_FRAMEWORK_H)
 #define FCODER_DEFAULT_FRAMEWORK_H
 
-#include "4coder_helper/4coder_helper.h"
-#include "4coder_lib/4coder_mem.h"
-#include "4coder_lib/4cpp_lexer.h"
-
 enum Default_Maps{
     default_code_map,
     default_maps_count,

@@ -976,7 +976,7 @@ app_links_init(System_Functions *system, Application_Links *app_links, void *dat
 }
 
 internal void
-setup_command_table(){
+setup_command_table(void){
 #define SET(n) command_table[cmdid_##n] = command_##n
     SET(null);
     
@@ -1304,7 +1304,8 @@ App_Init_Sig(app_init){
     
     Partition *partition = &models->mem.part;
     
-    i32 panel_max_count = models->layout.panel_max_count = MAX_VIEWS;
+    i32 panel_max_count = MAX_VIEWS;
+    models->layout.panel_max_count = panel_max_count;
     i32 divider_max_count = panel_max_count - 1;
     models->layout.panel_count = 0;
     
@@ -1355,7 +1356,7 @@ App_Init_Sig(app_init){
     
     {
         umem memsize = KB(8);
-        void *mem = push_block(partition, (i32)memsize);
+        void *mem = push_array(partition, u8, (i32)memsize);
         parse_context_init_memory(&models->parse_context_memory, mem, memsize);
         parse_context_add_default(&models->parse_context_memory, &models->mem.general);
     }
@@ -1383,9 +1384,9 @@ App_Init_Sig(app_init){
     models->working_set.clipboard_rolling = 0;
     
     // TODO(allen): more robust allocation solution for the clipboard
-    if (clipboard.str){
+    if (clipboard.str != 0){
         String *dest = working_set_next_clipboard_string(&models->mem.general, &models->working_set, clipboard.size);
-        copy_ss(dest, make_string((char*)clipboard.str, clipboard.size));
+        copy(dest, make_string((char*)clipboard.str, clipboard.size));
     }
     
     // NOTE(allen): style setup
@@ -1436,7 +1437,7 @@ App_Init_Sig(app_init){
         file_set_unimportant(file, true);
         file->settings.unwrapped_lines = true;
         
-        if (init_files[i].ptr){
+        if (init_files[i].ptr != 0){
             *init_files[i].ptr = file;
         }
     }
@@ -1786,15 +1787,12 @@ App_Step_Sig(app_step){
     
     // NOTE(allen): prepare to start executing commands
     Command_Data *cmd = &vars->command_data;
-    
     cmd->models = models;
     cmd->vars = vars;
     cmd->system = system;
     cmd->live_set = &models->live_set;
-    
     cmd->screen_width = target->width;
     cmd->screen_height = target->height;
-    
     cmd->key = null_key_event_data;
     
     // NOTE(allen): First frame initialization

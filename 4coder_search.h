@@ -7,10 +7,23 @@
 #if !defined(FCODER_SEARCH_H)
 #define FCODER_SEARCH_H
 
-enum Search_Range_Type{
-    SearchRange_FrontToBack,
-    SearchRange_BackToFront,
-    SearchRange_Wave,
+typedef int32_t Seek_Potential_Match_Direction;
+enum{
+    SeekPotentialMatch_Forward = 0,
+    SeekPotentialMatch_Backward = 1,
+};
+
+enum{
+    FindResult_None,
+    FindResult_FoundMatch,
+    FindResult_PastEnd,
+};
+
+typedef int32_t Search_Range_Type;
+enum{
+    SearchRange_FrontToBack = 0,
+    SearchRange_BackToFront = 1,
+    SearchRange_Wave = 2,
 };
 
 typedef uint32_t Search_Range_Flag;
@@ -60,6 +73,16 @@ struct Search_Match{
     int32_t end;
     int32_t match_word_index;
     int32_t found_match;
+};
+
+struct Word_Complete_State{
+    Search_Set set;
+    Search_Iter iter;
+    Table hits;
+    String_Space str;
+    int32_t word_start;
+    int32_t word_end;
+    int32_t initialized;
 };
 
 #endif

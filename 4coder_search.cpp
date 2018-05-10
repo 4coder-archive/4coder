@@ -5,17 +5,6 @@ and list all locations.
 
 // TOP
 
-#if !defined(FCODER_SEARCH)
-#define FCODER_SEARCH
-
-#include "4coder_search.h"
-
-#include "4coder_lib/4coder_table.h"
-#include "4coder_lib/4coder_mem.h"
-
-#include "4coder_helper/4coder_streaming.h"
-#include "4coder_helper/4coder_long_seek.h"
-
 //
 // Search Iteration Systems
 //
@@ -165,12 +154,6 @@ search_hit_add(General_Memory *general, Table *hits, String_Space *space, char *
 // Search Key Checking
 //
 
-typedef uint32_t Seek_Potential_Match_Direction;
-enum{
-    SeekPotentialMatch_Forward,
-    SeekPotentialMatch_Backward,
-};
-
 static void
 seek_potential_match(Application_Links *app, Search_Range *range, Search_Key key, Search_Match *result, Seek_Potential_Match_Direction direction, int32_t start_pos, int32_t end_pos){
     bool32 case_insensitive = ((range->flags & SearchFlag_CaseInsensitive) != 0);
@@ -225,12 +208,6 @@ buffer_seek_alpha_numeric_end(Application_Links *app, Buffer_Summary *buffer, in
     double_break:;
     return(pos);
 }
-
-enum{
-    FindResult_None,
-    FindResult_FoundMatch,
-    FindResult_PastEnd,
-};
 
 static int32_t
 match_check(Application_Links *app, Search_Range *range, int32_t *pos, Search_Match *result_ptr, Search_Key key){
@@ -844,16 +821,6 @@ CUSTOM_DOC("Reads the string in the selected range and lists all exact case-inse
 // Word Complete Command
 //
 
-struct Word_Complete_State{
-    Search_Set set;
-    Search_Iter iter;
-    Table hits;
-    String_Space str;
-    int32_t word_start;
-    int32_t word_end;
-    int32_t initialized;
-};
-
 static Word_Complete_State complete_state = {0};
 
 CUSTOM_COMMAND_SIG(word_complete)
@@ -1009,8 +976,6 @@ CUSTOM_DOC("Iteratively tries completing the word to the left of the cursor with
         }
     }
 }
-
-#endif
 
 // BOTTOM
 

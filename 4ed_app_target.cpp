@@ -80,6 +80,7 @@
 #include "4ed_cli.cpp"
 #include "4ed_gui.cpp"
 #include "4ed_layout.cpp"
+#include "4coder_buffer_seek_constructors.cpp"
 #include "4ed_view.cpp"
 #include "4ed_edit.cpp"
 #include "4ed_view_ui.cpp"

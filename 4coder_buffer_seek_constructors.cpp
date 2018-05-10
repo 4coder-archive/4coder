@@ -1,16 +1,8 @@
 /* 
- * Mr. 4th Dimention - Allen Webster
- * 
- * 23.02.2016
- * 
- * Types shared by custom and application
- * 
+ * Buffer seek descriptor constructors.
  */
 
 // TOP
-
-#if !defined(FRED_BUFFER_TYPES_H)
-#define FRED_BUFFER_TYPES_H
 
 static Buffer_Seek
 seek_pos(int32_t pos){
@@ -66,8 +58,6 @@ seek_line_char(int32_t line, int32_t character){
     result.character = character;
     return(result);
 }
-
-#endif
 
 // BOTTOM
 

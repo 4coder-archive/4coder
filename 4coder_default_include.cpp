@@ -20,17 +20,11 @@
 #include "4coder_lib/4coder_utf8.h"
 #include "4coder_lib/4cpp_lexer.h"
 
-#include "4coder_helper/4coder_bind_helper.h"
-#include "4coder_helper/4coder_helper.h"
-
-#include "4coder_helper/4coder_bind_helper.cpp"
-#include "4coder_helper/4coder_helper.cpp"
-
-#include "4coder_helper/4coder_streaming.h"
-#include "4coder_helper/4coder_long_seek.h"
-
+#include "4coder_helper.h"
 #include "4coder_default_framework.h"
+#include "4coder_seek.h"
 #include "4coder_auto_indent.h"
+#include "4coder_search.h"
 #include "4coder_build_commands.h"
 #include "4coder_jumping.h"
 #include "4coder_jump_sticky.h"
@@ -38,9 +32,11 @@
 #include "4coder_function_list.h"
 #include "4coder_scope_commands.h"
 
+#include "4coder_buffer_seek_constructors.cpp"
+#include "4coder_helper.cpp"
 #include "4coder_default_framework.cpp"
+#include "4coder_seek.cpp"
 #include "4coder_base_commands.cpp"
-#include "4coder_seek_commands.cpp"
 #include "4coder_auto_indent.cpp"
 #include "4coder_search.cpp"
 #include "4coder_jumping.cpp"
@@ -54,176 +50,6 @@
 #include "4coder_scope_commands.cpp"
 
 #include "4coder_default_hooks.cpp"
-
-//
-// Line Manipulation
-//
-
-CUSTOM_COMMAND_SIG(move_line_up)
-CUSTOM_DOC("Swaps the line under the cursor with the line above it, and moves the cursor up with it.")
-{
-    View_Summary view = get_active_view(app, AccessOpen);
-    
-    if (view.cursor.line <= 1){
-        return;
-    }
-    
-    Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessOpen);
-    if (!buffer.exists){
-        return;
-    }
-    
-    Full_Cursor prev_line_cursor = {0};
-    Full_Cursor this_line_cursor = {0};
-    Full_Cursor next_line_cursor = {0};
-    
-    int32_t this_line = view.cursor.line;
-    int32_t prev_line = this_line - 1;
-    int32_t next_line = this_line +1;
-    
-    if (view_compute_cursor(app, &view, seek_line_char(prev_line, 1), &prev_line_cursor) &&
-        view_compute_cursor(app, &view, seek_line_char(this_line, 1), &this_line_cursor) &&
-        view_compute_cursor(app, &view, seek_line_char(next_line, 1), &next_line_cursor)){
-        
-        int32_t prev_line_pos = prev_line_cursor.pos;
-        int32_t this_line_pos = this_line_cursor.pos;
-        int32_t next_line_pos = next_line_cursor.pos;
-        
-        Partition *part = &global_part;
-        Temp_Memory temp = begin_temp_memory(part);
-        
-        int32_t length = next_line_pos - prev_line_pos;
-        char *swap = push_array(part, char, length + 1);
-        int32_t first_len = next_line_pos - this_line_pos;
-        
-        if (buffer_read_range(app, &buffer, this_line_pos, next_line_pos, swap)){
-            bool32 second_line_didnt_have_newline = true;
-            for (int32_t i = first_len - 1; i >= 0; --i){
-                if (swap[i] == '\n'){
-                    second_line_didnt_have_newline = false;
-                    break;
-                }
-            }
-            
-            if (second_line_didnt_have_newline){
-                swap[first_len] = '\n';
-                first_len += 1;
-                // NOTE(allen): Don't increase "length" because then we will be including
-                // the original newline and addignt this new one, making the file longer
-                // which shouldn't be possible for this command!
-            }
-            
-            if (buffer_read_range(app, &buffer, prev_line_pos, this_line_pos, swap + first_len)){
-                buffer_replace_range(app, &buffer, prev_line_pos, next_line_pos, swap, length);
-                view_set_cursor(app, &view, seek_line_char(prev_line, 1), true);
-            }
-        }
-        
-        end_temp_memory(temp);
-    }
-}
-
-CUSTOM_COMMAND_SIG(move_down_textual)
-CUSTOM_DOC("Moves down to the next line of actual text, regardless of line wrapping.")
-{
-    View_Summary view = get_active_view(app, AccessOpen);
-    if (!view.exists){
-        return;
-    }
-    int32_t next_line = view.cursor.line + 1;
-    view_set_cursor(app, &view, seek_line_char(next_line, 1), true);
-}
-
-CUSTOM_COMMAND_SIG(move_line_down)
-CUSTOM_DOC("Swaps the line under the cursor with the line below it, and moves the cursor down with it.")
-{
-    View_Summary view = get_active_view(app, AccessOpen);
-    if (!view.exists){
-        return;
-    }
-    Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessOpen);
-    if (!buffer.exists){
-        return;
-    }
-    
-    int32_t next_line = view.cursor.line + 1;
-    Full_Cursor new_cursor = {0};
-    if (view_compute_cursor(app, &view, seek_line_char(next_line, 1), &new_cursor)){
-        if (new_cursor.line == next_line){
-            view_set_cursor(app, &view, seek_pos(new_cursor.pos), true);
-            move_line_up(app);
-            move_down_textual(app);
-        }
-    }
-}
-
-CUSTOM_COMMAND_SIG(duplicate_line)
-CUSTOM_DOC("Create a copy of the line on which the cursor sits.")
-{
-    View_Summary view = get_active_view(app, AccessOpen);
-    Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessOpen);
-    
-    Partition *part = &global_part;
-    
-    Temp_Memory temp = begin_temp_memory(part);
-    String line_string = {0};
-    char *before_line = push_array(part, char, 1);
-    if (read_line(app, part, &buffer, view.cursor.line, &line_string)){
-        *before_line = '\n';
-        line_string.str = before_line;
-        line_string.size += 1;
-        
-        int32_t pos = buffer_get_line_end(app, &buffer, view.cursor.line);
-        buffer_replace_range(app, &buffer, pos, pos, line_string.str, line_string.size);
-    }
-    end_temp_memory(temp);
-}
-
-CUSTOM_COMMAND_SIG(delete_line)
-CUSTOM_DOC("Delete the line the on which the cursor sits.")
-{
-    View_Summary view = get_active_view(app, AccessOpen);
-    Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessOpen);
-    
-    Partition *part = &global_part;
-    
-    Temp_Memory temp = begin_temp_memory(part);
-    int32_t start = buffer_get_line_start(app, &buffer, view.cursor.line);
-    int32_t end = buffer_get_line_end(app, &buffer, view.cursor.line) + 1;
-    if (end > buffer.size){
-        end = buffer.size;
-    }
-    if (start == end || buffer_get_char(app, &buffer, end - 1) != '\n'){
-        start -= 1;
-        if (start < 0){
-            start = 0;
-        }
-    }
-    
-    buffer_replace_range(app, &buffer, start, end, 0, 0);
-    
-    end_temp_memory(temp);
-}
-
-
-//
-// Clipboard + Indent Combo Command
-//
-
-CUSTOM_COMMAND_SIG(paste_and_indent)
-CUSTOM_DOC("Paste from the top of clipboard and run auto-indent on the newly pasted text.")
-{
-    exec_command(app, paste);
-    exec_command(app, auto_tab_range);
-}
-
-CUSTOM_COMMAND_SIG(paste_next_and_indent)
-CUSTOM_DOC("Paste the next item on the clipboard and run auto-indent on the newly pasted text.")
-{
-    exec_command(app, paste_next);
-    exec_command(app, auto_tab_range);
-}
-
 
 //
 // Approximate Definition Search
