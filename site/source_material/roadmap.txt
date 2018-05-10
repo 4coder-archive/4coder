@@ -5,11 +5,11 @@ Right now I am working on upgrading some core internal systems that should buy m
 
 \SECTION{Improve the Core Buffer Systems}
  \LIST
- \ITEM Programmable code wrapping.
- \ITEM Virtual/Ghost text for features such as word complete and code folding.
- \ITEM Binary buffer mode.
  \ITEM Fix up the undo/redo system.
  \ITEM Expose undo/redo system in the custom layer.
+ \ITEM Binary buffer mode.
+ \ITEM Programmable code wrapping.
+ \ITEM Virtual/Ghost text for features such as word complete and code folding.
  \END
 \END
 
@@ -17,7 +17,8 @@ Right now I am working on upgrading some core internal systems that should buy m
  \LIST
  \ITEM Restructure custom layer to work as an event loop.
  \ITEM Custom layer reloading at runtime.
- \ITEM New frameworks for vim like and sublime like editing.
+ \ITEM Sublime like editing.
+ \ITEM Vim like editing.
  \END
 \END
 
@@ -26,13 +27,5 @@ Right now I am working on upgrading some core internal systems that should buy m
  \ITEM Upgrade the worker thread system to better support async and parallel solutions.
  \ITEM Support for double click opening files in an existing window.
  \ITEM Make the rendeirng system modular.
- \END
-\END
-
-\SECTION{Buffer Driven GUI}
- \LIST
- \ITEM Labels, clickable buttons, text fields.
- \ITEM Tables.
- \ITEM IMGUI helper wrapper.
  \END
 \END

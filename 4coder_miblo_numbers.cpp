@@ -5,13 +5,6 @@ and decrementing various forms of number as numerical objects despite being enco
 
 // TOP
 
-#if !defined(FCODER_MIBLO_NUMBERS_CPP)
-#define FCODER_MIBLO_NUMBERS_CPP
-
-#include "4coder_API/custom.h"
-#include "4coder_helper/4coder_helper.h"
-#include "4coder_helper/4coder_streaming.h"
-
 static int32_t
 get_numeric_string_at_cursor(Application_Links *app, Buffer_Summary *buffer, int32_t start_pos, int32_t *numeric_start, int32_t *numeric_end){
     int32_t result = 0;
@@ -404,7 +397,5 @@ CUSTOM_DOC("Decrement a time stamp under the cursor by one minute. (format [m]m:
 {
     miblo_time_stamp_alter(app, MIBLO_MINUTE, -1);
 }
-
-#endif
 
 // BOTTOM

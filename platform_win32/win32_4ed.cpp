@@ -706,7 +706,7 @@ win32_get_loadable_fonts(Partition *part, Font_Setup_List *list){
 global Key_Code keycode_lookup_table[255];
 
 internal void
-Win32KeycodeInit(){
+Win32KeycodeInit(void){
     keycode_lookup_table[VK_BACK] = key_back;
     keycode_lookup_table[VK_DELETE] = key_del;
     keycode_lookup_table[VK_UP] = key_up;

@@ -34,7 +34,7 @@ descriptor_open(int fd){
 }
 
 void
-print_open_file_descriptors(){
+print_open_file_descriptors(void){
     for (int fd = 1; fd < 256; ++fd){
         if (descriptor_open(fd)){
             char b[MAXPATHLEN + 1];

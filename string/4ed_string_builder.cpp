@@ -17,7 +17,6 @@
 #define INTERNAL_STRING "internal_4coder_string.cpp"
 
 #define BACKUP_FOLDER ".." SLASH ".." SLASH "string_backup"
-#define PUBLISH_FOLDER ".." SLASH "4coder_helper"
 
 #include "../4coder_lib/4cpp_lexer.h"
 #define FSTRING_IMPLEMENTATION
@@ -440,7 +439,6 @@ int main(){
         fm_make_folder_if_missing(BACKUP_FOLDER SLASH V_MAJ SLASH V_MIN);
         file_move(BACKUP_FOLDER SLASH V_MAJ SLASH V_MIN, INTERNAL_STRING);
         file_move(BACKUP_FOLDER SLASH V_MAJ SLASH V_MIN, GENERATED_FILE);
-        //file_move(PUBLISH_FOLDER, GENERATED_FILE);
         fm_delete_file(GENERATED_FILE);
         printf("published "GENERATED_FILE": v%d.%d.%d\n", major_number, minor_number, build_number);
         save_build_number(BUILD_NUMBER_FILE, major_number, minor_number, build_number + 1);
