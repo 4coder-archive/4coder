@@ -28,7 +28,6 @@ bind(context, 'W', MDFR_ALT, show_scrollbar);
 bind(context, 'w', MDFR_ALT, hide_scrollbar);
 bind(context, 'b', MDFR_ALT, toggle_filebar);
 bind(context, '@', MDFR_ALT, toggle_mouse);
-bind(context, key_page_up, MDFR_CTRL, toggle_fullscreen);
 bind(context, 'E', MDFR_ALT, exit_4coder);
 bind(context, '+', MDFR_CTRL, increase_face_size);
 bind(context, '-', MDFR_CTRL, decrease_face_size);
@@ -90,7 +89,6 @@ bind(context, 'F', MDFR_CTRL, list_all_locations);
 bind(context, 'F', MDFR_ALT, list_all_substring_locations_case_insensitive);
 bind(context, 'g', MDFR_CTRL, goto_line);
 bind(context, 'G', MDFR_CTRL, list_all_locations_of_selection);
-bind(context, 'j', MDFR_CTRL, to_lowercase);
 bind(context, 'K', MDFR_CTRL, kill_buffer);
 bind(context, 'l', MDFR_CTRL, toggle_line_wrap);
 bind(context, 'L', MDFR_CTRL, duplicate_line);
@@ -104,7 +102,6 @@ bind(context, 's', MDFR_CTRL, save);
 bind(context, 's', MDFR_ALT, save_to_query);
 bind(context, 't', MDFR_CTRL, search_identifier);
 bind(context, 'T', MDFR_CTRL, list_all_locations_of_identifier);
-bind(context, 'u', MDFR_CTRL, to_uppercase);
 bind(context, 'v', MDFR_CTRL, paste_and_indent);
 bind(context, 'v', MDFR_ALT, toggle_virtual_whitespace);
 bind(context, 'V', MDFR_CTRL, paste_next_and_indent);
@@ -184,7 +181,6 @@ bind(context, 'W', MDFR_CTRL, show_scrollbar);
 bind(context, 'w', MDFR_CTRL, hide_scrollbar);
 bind(context, 'b', MDFR_CTRL, toggle_filebar);
 bind(context, '@', MDFR_CTRL, toggle_mouse);
-bind(context, key_page_up, MDFR_CMND, toggle_fullscreen);
 bind(context, 'E', MDFR_CTRL, exit_4coder);
 bind(context, '+', MDFR_CTRL, increase_face_size);
 bind(context, '-', MDFR_CTRL, decrease_face_size);
@@ -245,7 +241,6 @@ bind(context, 'F', MDFR_CMND, list_all_locations);
 bind(context, 'F', MDFR_CTRL, list_all_substring_locations_case_insensitive);
 bind(context, 'g', MDFR_CMND, goto_line);
 bind(context, 'G', MDFR_CMND, list_all_locations_of_selection);
-bind(context, 'j', MDFR_CMND, to_lowercase);
 bind(context, 'K', MDFR_CMND, kill_buffer);
 bind(context, 'l', MDFR_CMND, toggle_line_wrap);
 bind(context, 'L', MDFR_CMND, duplicate_line);
@@ -258,7 +253,6 @@ bind(context, 's', MDFR_CMND, save);
 bind(context, 's', MDFR_CTRL, save_to_query);
 bind(context, 't', MDFR_CMND, search_identifier);
 bind(context, 'T', MDFR_CMND, list_all_locations_of_identifier);
-bind(context, 'u', MDFR_CMND, to_uppercase);
 bind(context, 'v', MDFR_CMND, paste_and_indent);
 bind(context, 'v', MDFR_CTRL, toggle_virtual_whitespace);
 bind(context, 'V', MDFR_CMND, paste_next_and_indent);
@@ -342,7 +336,7 @@ Meta_Sub_Map *sub_maps;
 int32_t sub_map_count;
 LINK_PROCS(void (*fill_keys_proc)(Bind_Helper *context);)
 };
-static Meta_Key_Bind fcoder_binds_for_default_mapid_global[47] = {
+static Meta_Key_Bind fcoder_binds_for_default_mapid_global[46] = {
 {0, 112, 1, "open_panel_vsplit", 17, LINK_PROCS(open_panel_vsplit)},
 {0, 95, 1, "open_panel_hsplit", 17, LINK_PROCS(open_panel_hsplit)},
 {0, 80, 1, "close_panel", 11, LINK_PROCS(close_panel)},
@@ -370,7 +364,6 @@ static Meta_Key_Bind fcoder_binds_for_default_mapid_global[47] = {
 {0, 119, 2, "hide_scrollbar", 14, LINK_PROCS(hide_scrollbar)},
 {0, 98, 2, "toggle_filebar", 14, LINK_PROCS(toggle_filebar)},
 {0, 64, 2, "toggle_mouse", 12, LINK_PROCS(toggle_mouse)},
-{0, 55305, 1, "toggle_fullscreen", 17, LINK_PROCS(toggle_fullscreen)},
 {0, 69, 2, "exit_4coder", 11, LINK_PROCS(exit_4coder)},
 {0, 43, 1, "increase_face_size", 18, LINK_PROCS(increase_face_size)},
 {0, 45, 1, "decrease_face_size", 18, LINK_PROCS(decrease_face_size)},
@@ -391,7 +384,7 @@ static Meta_Key_Bind fcoder_binds_for_default_mapid_global[47] = {
 {0, 55326, 0, "project_fkey_command", 20, LINK_PROCS(project_fkey_command)},
 {0, 55327, 0, "project_fkey_command", 20, LINK_PROCS(project_fkey_command)},
 };
-static Meta_Key_Bind fcoder_binds_for_default_mapid_file[68] = {
+static Meta_Key_Bind fcoder_binds_for_default_mapid_file[66] = {
 {1, 0, 0, "write_character", 15, LINK_PROCS(write_character)},
 {0, 55308, 0, "click_set_cursor", 16, LINK_PROCS(click_set_cursor)},
 {0, 55310, 0, "click_set_mark", 14, LINK_PROCS(click_set_mark)},
@@ -432,7 +425,6 @@ static Meta_Key_Bind fcoder_binds_for_default_mapid_file[68] = {
 {0, 70, 2, "list_all_substring_locations_case_insensitive", 45, LINK_PROCS(list_all_substring_locations_case_insensitive)},
 {0, 103, 1, "goto_line", 9, LINK_PROCS(goto_line)},
 {0, 71, 1, "list_all_locations_of_selection", 31, LINK_PROCS(list_all_locations_of_selection)},
-{0, 106, 1, "to_lowercase", 12, LINK_PROCS(to_lowercase)},
 {0, 75, 1, "kill_buffer", 11, LINK_PROCS(kill_buffer)},
 {0, 108, 1, "toggle_line_wrap", 16, LINK_PROCS(toggle_line_wrap)},
 {0, 76, 1, "duplicate_line", 14, LINK_PROCS(duplicate_line)},
@@ -446,7 +438,6 @@ static Meta_Key_Bind fcoder_binds_for_default_mapid_file[68] = {
 {0, 115, 2, "save_to_query", 13, LINK_PROCS(save_to_query)},
 {0, 116, 1, "search_identifier", 17, LINK_PROCS(search_identifier)},
 {0, 84, 1, "list_all_locations_of_identifier", 32, LINK_PROCS(list_all_locations_of_identifier)},
-{0, 117, 1, "to_uppercase", 12, LINK_PROCS(to_uppercase)},
 {0, 118, 1, "paste_and_indent", 16, LINK_PROCS(paste_and_indent)},
 {0, 118, 2, "toggle_virtual_whitespace", 25, LINK_PROCS(toggle_virtual_whitespace)},
 {0, 86, 1, "paste_next_and_indent", 21, LINK_PROCS(paste_next_and_indent)},
@@ -496,11 +487,11 @@ static Meta_Key_Bind fcoder_binds_for_default_default_code_map[32] = {
 {0, 73, 1, "list_all_functions_current_buffer", 33, LINK_PROCS(list_all_functions_current_buffer)},
 };
 static Meta_Sub_Map fcoder_submaps_for_default[3] = {
-{"mapid_global", 12, "The following bindings apply in all situations.", 47, 0, 0, fcoder_binds_for_default_mapid_global, 47},
-{"mapid_file", 10, "The following bindings apply in general text files and most apply in code files, but some are overriden by other commands specific to code files.", 145, 0, 0, fcoder_binds_for_default_mapid_file, 68},
+{"mapid_global", 12, "The following bindings apply in all situations.", 47, 0, 0, fcoder_binds_for_default_mapid_global, 46},
+{"mapid_file", 10, "The following bindings apply in general text files and most apply in code files, but some are overriden by other commands specific to code files.", 145, 0, 0, fcoder_binds_for_default_mapid_file, 66},
 {"default_code_map", 16, "The following commands only apply in files where the lexer (syntax highlighting) is turned on.", 94, "mapid_file", 10, fcoder_binds_for_default_default_code_map, 32},
 };
-static Meta_Key_Bind fcoder_binds_for_mac_default_mapid_global[47] = {
+static Meta_Key_Bind fcoder_binds_for_mac_default_mapid_global[46] = {
 {0, 112, 4, "open_panel_vsplit", 17, LINK_PROCS(open_panel_vsplit)},
 {0, 95, 4, "open_panel_hsplit", 17, LINK_PROCS(open_panel_hsplit)},
 {0, 80, 4, "close_panel", 11, LINK_PROCS(close_panel)},
@@ -528,7 +519,6 @@ static Meta_Key_Bind fcoder_binds_for_mac_default_mapid_global[47] = {
 {0, 119, 1, "hide_scrollbar", 14, LINK_PROCS(hide_scrollbar)},
 {0, 98, 1, "toggle_filebar", 14, LINK_PROCS(toggle_filebar)},
 {0, 64, 1, "toggle_mouse", 12, LINK_PROCS(toggle_mouse)},
-{0, 55305, 4, "toggle_fullscreen", 17, LINK_PROCS(toggle_fullscreen)},
 {0, 69, 1, "exit_4coder", 11, LINK_PROCS(exit_4coder)},
 {0, 43, 1, "increase_face_size", 18, LINK_PROCS(increase_face_size)},
 {0, 45, 1, "decrease_face_size", 18, LINK_PROCS(decrease_face_size)},
@@ -549,7 +539,7 @@ static Meta_Key_Bind fcoder_binds_for_mac_default_mapid_global[47] = {
 {0, 55326, 0, "project_fkey_command", 20, LINK_PROCS(project_fkey_command)},
 {0, 55327, 0, "project_fkey_command", 20, LINK_PROCS(project_fkey_command)},
 };
-static Meta_Key_Bind fcoder_binds_for_mac_default_mapid_file[66] = {
+static Meta_Key_Bind fcoder_binds_for_mac_default_mapid_file[64] = {
 {1, 0, 0, "write_character", 15, LINK_PROCS(write_character)},
 {1, 0, 2, "write_character", 15, LINK_PROCS(write_character)},
 {0, 55308, 0, "click_set_cursor", 16, LINK_PROCS(click_set_cursor)},
@@ -589,7 +579,6 @@ static Meta_Key_Bind fcoder_binds_for_mac_default_mapid_file[66] = {
 {0, 70, 1, "list_all_substring_locations_case_insensitive", 45, LINK_PROCS(list_all_substring_locations_case_insensitive)},
 {0, 103, 4, "goto_line", 9, LINK_PROCS(goto_line)},
 {0, 71, 4, "list_all_locations_of_selection", 31, LINK_PROCS(list_all_locations_of_selection)},
-{0, 106, 4, "to_lowercase", 12, LINK_PROCS(to_lowercase)},
 {0, 75, 4, "kill_buffer", 11, LINK_PROCS(kill_buffer)},
 {0, 108, 4, "toggle_line_wrap", 16, LINK_PROCS(toggle_line_wrap)},
 {0, 76, 4, "duplicate_line", 14, LINK_PROCS(duplicate_line)},
@@ -602,7 +591,6 @@ static Meta_Key_Bind fcoder_binds_for_mac_default_mapid_file[66] = {
 {0, 115, 1, "save_to_query", 13, LINK_PROCS(save_to_query)},
 {0, 116, 4, "search_identifier", 17, LINK_PROCS(search_identifier)},
 {0, 84, 4, "list_all_locations_of_identifier", 32, LINK_PROCS(list_all_locations_of_identifier)},
-{0, 117, 4, "to_uppercase", 12, LINK_PROCS(to_uppercase)},
 {0, 118, 4, "paste_and_indent", 16, LINK_PROCS(paste_and_indent)},
 {0, 118, 1, "toggle_virtual_whitespace", 25, LINK_PROCS(toggle_virtual_whitespace)},
 {0, 86, 4, "paste_next_and_indent", 21, LINK_PROCS(paste_next_and_indent)},
@@ -652,8 +640,8 @@ static Meta_Key_Bind fcoder_binds_for_mac_default_default_code_map[32] = {
 {0, 73, 4, "list_all_functions_current_buffer", 33, LINK_PROCS(list_all_functions_current_buffer)},
 };
 static Meta_Sub_Map fcoder_submaps_for_mac_default[3] = {
-{"mapid_global", 12, "The following bindings apply in all situations.", 47, 0, 0, fcoder_binds_for_mac_default_mapid_global, 47},
-{"mapid_file", 10, "The following bindings apply in general text files and most apply in code files, but some are overriden by other commands specific to code files.", 145, 0, 0, fcoder_binds_for_mac_default_mapid_file, 66},
+{"mapid_global", 12, "The following bindings apply in all situations.", 47, 0, 0, fcoder_binds_for_mac_default_mapid_global, 46},
+{"mapid_file", 10, "The following bindings apply in general text files and most apply in code files, but some are overriden by other commands specific to code files.", 145, 0, 0, fcoder_binds_for_mac_default_mapid_file, 64},
 {"default_code_map", 16, "The following commands only apply in files where the lexer (syntax highlighting) is turned on.", 94, "mapid_file", 10, fcoder_binds_for_mac_default_default_code_map, 32},
 };
 static Meta_Mapping fcoder_meta_maps[2] = {

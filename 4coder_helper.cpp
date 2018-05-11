@@ -385,16 +385,14 @@ query_user_general(Application_Links *app, Query_Bar *bar, bool32 force_number){
     return(success);
 }
 
-static int32_t
+static bool32
 query_user_string(Application_Links *app, Query_Bar *bar){
-    int32_t success = query_user_general(app, bar, false);
-    return(success);
+    return(query_user_general(app, bar, false));
 }
 
-static int32_t
+static bool32
 query_user_number(Application_Links *app, Query_Bar *bar){
-    int32_t success = query_user_general(app, bar, true);
-    return(success);
+    return(query_user_general(app, bar, true));
 }
 
 static void
@@ -525,7 +523,8 @@ get_first_view_with_buffer(Application_Links *app, int32_t buffer_id){
 }
 
 static bool32
-open_file(Application_Links *app, Buffer_Summary *buffer_out, char *filename, int32_t filename_len, bool32 background, bool32 never_new){
+open_file(Application_Links *app, Buffer_Summary *buffer_out,
+          char *filename, int32_t filename_len, bool32 background, bool32 never_new){
     bool32 result = false;
     Buffer_Summary buffer = get_buffer_by_name(app, filename, filename_len, AccessProtected|AccessHidden);
     
@@ -545,7 +544,7 @@ open_file(Application_Links *app, Buffer_Summary *buffer_out, char *filename, in
         }
         buffer = create_buffer(app, filename, filename_len, flags);
         if (buffer.exists){
-            if (buffer_out){
+            if (buffer_out != 0){
                 *buffer_out = buffer;
             }
             result = true;
@@ -573,7 +572,8 @@ buffer_identifier_to_id(Application_Links *app, Buffer_Identifier identifier){
 }
 
 static bool32
-view_open_file(Application_Links *app, View_Summary *view, char *filename, int32_t filename_len, bool32 never_new){
+view_open_file(Application_Links *app, View_Summary *view,
+               char *filename, int32_t filename_len, bool32 never_new){
     bool32 result = false;
     
     if (view != 0){
@@ -972,6 +972,153 @@ backward_stream_tokens(Stream_Tokens *stream){
     return(result);
 }
 
+static String
+get_query_string(Application_Links *app, char *query_str, char *string_space, int32_t space_size){
+    Query_Bar bar;
+    bar.prompt = make_string_slowly(query_str);
+    bar.string = make_string_cap(string_space, 0, space_size);
+    if (!query_user_string(app, &bar)){
+        bar.string.size = 0;
+    }
+    return(bar.string);
+}
+
+static String
+get_string_in_view_range(Application_Links *app, Partition *arena, View_Summary *view){
+    String str = {0};
+    Buffer_Summary buffer = get_buffer(app, view->buffer_id, AccessProtected);
+    if (!buffer.exists) return(str);
+    Range range = get_view_range(view);
+    int32_t query_length = range.max - range.min;
+    if (query_length != 0){
+        char *query_space = push_array(arena, char, query_length);
+        if (buffer_read_range(app, &buffer, range.min, range.max, query_space)){
+            str = make_string(query_space, query_length);
+        }
+    }
+    return(str);
+}
+
+static String
+get_token_or_word_under_pos(Application_Links *app, Buffer_Summary *buffer, int32_t pos, char *space, int32_t capacity){
+    String result = {0};
+    Cpp_Get_Token_Result get_result = {0};
+    bool32 success = buffer_get_token_index(app, buffer, pos, &get_result);
+    if (success && !get_result.in_whitespace){
+        int32_t size = get_result.token_end - get_result.token_start;
+        if (size > 0 && size <= capacity){
+            success = buffer_read_range(app, buffer, get_result.token_start, get_result.token_end, space);
+            if (success){
+                result = make_string(space, size);
+            }
+        }
+    }
+    return(result);
+}
+
+static String
+build_string(Partition *part, char *s0, char *s1, char *s2){
+    String sr = {0};
+    sr.memory_size = str_size(s0) + str_size(s1) + str_size(s2);
+    sr.str = push_array(part, char, sr.memory_size);
+    if (sr.str != 0){
+        append(&sr, s0);
+        append(&sr, s1);
+        append(&sr, s2);
+    }
+    return(sr);
+}
+
+static String
+build_string(Partition *part, char *s0, char *s1, String s2){
+    String sr = {0};
+    sr.memory_size = str_size(s0) + str_size(s1) + s2.size;
+    sr.str = push_array(part, char, sr.memory_size);
+    if (sr.str != 0){
+        append(&sr, s0);
+        append(&sr, s1);
+        append(&sr, s2);
+    }
+    return(sr);
+}
+
+static String
+build_string(Partition *part, char *s0, String s1, char *s2){
+    String sr = {0};
+    sr.memory_size = str_size(s0) + s1.size + str_size(s2);
+    sr.str = push_array(part, char, sr.memory_size);
+    if (sr.str != 0){
+        append(&sr, s0);
+        append(&sr, s1);
+        append(&sr, s2);
+    }
+    return(sr);
+}
+
+static String
+build_string(Partition *part, char *s0, String s1, String s2){
+    String sr = {0};
+    sr.memory_size = str_size(s0) + s1.size + s2.size;
+    sr.str = push_array(part, char, sr.memory_size);
+    if (sr.str != 0){
+        append(&sr, s0);
+        append(&sr, s1);
+        append(&sr, s2);
+    }
+    return(sr);
+}
+
+static String
+build_string(Partition *part, String s0, char *s1, char *s2){
+    String sr = {0};
+    sr.memory_size = s0.size + str_size(s1) + str_size(s2);
+    sr.str = push_array(part, char, sr.memory_size);
+    if (sr.str != 0){
+        append(&sr, s0);
+        append(&sr, s1);
+        append(&sr, s2);
+    }
+    return(sr);
+}
+
+static String
+build_string(Partition *part, String s0, char *s1, String s2){
+    String sr = {0};
+    sr.memory_size = s0.size + str_size(s1) + s2.size;
+    sr.str = push_array(part, char, sr.memory_size);
+    if (sr.str != 0){
+        append(&sr, s0);
+        append(&sr, s1);
+        append(&sr, s2);
+    }
+    return(sr);
+}
+
+static String
+build_string(Partition *part, String s0, String s1, char *s2){
+    String sr = {0};
+    sr.memory_size = s0.size + s1.size + str_size(s2);
+    sr.str = push_array(part, char, sr.memory_size);
+    if (sr.str != 0){
+        append(&sr, s0);
+        append(&sr, s1);
+        append(&sr, s2);
+    }
+    return(sr);
+}
+
+static String
+build_string(Partition *part, String s0, String s1, String s2){
+    String sr = {0};
+    sr.memory_size = s0.size + s1.size + s2.size;
+    sr.str = push_array(part, char, sr.memory_size);
+    if (sr.str != 0){
+        append(&sr, s0);
+        append(&sr, s1);
+        append(&sr, s2);
+    }
+    return(sr);
+}
 
 // BOTTOM
 

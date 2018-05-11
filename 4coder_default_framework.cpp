@@ -144,19 +144,43 @@ open_special_note_view(Application_Links *app, bool32 create_if_not_exist = true
     return(special_view);
 }
 
-CUSTOM_COMMAND_SIG(change_active_panel)
-CUSTOM_DOC("Change the currently active panel, moving to the panel with the next highest view_id.")
-{
-    View_Summary view = get_active_view(app, AccessAll);
-    View_ID original_view_id = view.view_id;
-    
+static View_Summary
+get_next_active_panel(Application_Links *app, View_Summary *view_start){
+    View_ID original_view_id = view_start->view_id;
+    View_Summary view = *view_start;
     do{
         get_view_next_looped(app, &view, AccessAll);
         if (view.view_id != special_note_view_id){
             break;
         }
     }while(view.view_id != original_view_id);
-    
+    if (!view.exists){
+        memset(&view, 0, sizeof(view));
+    }
+    return(view);
+}
+
+static View_Summary
+get_prev_active_panel(Application_Links *app, View_Summary *view_start){
+    View_ID original_view_id = view_start->view_id;
+    View_Summary view = *view_start;
+    do{
+        get_view_prev_looped(app, &view, AccessAll);
+        if (view.view_id != special_note_view_id){
+            break;
+        }
+    }while(view.view_id != original_view_id);
+    if (!view.exists){
+        memset(&view, 0, sizeof(view));
+    }
+    return(view);
+}
+
+CUSTOM_COMMAND_SIG(change_active_panel)
+CUSTOM_DOC("Change the currently active panel, moving to the panel with the next highest view_id.")
+{
+    View_Summary view = get_active_view(app, AccessAll);
+    view = get_next_active_panel(app, &view);
     if (view.exists){
         set_active_view(app, &view);
     }
@@ -166,15 +190,7 @@ CUSTOM_COMMAND_SIG(change_active_panel_backwards)
 CUSTOM_DOC("Change the currently active panel, moving to the panel with the next lowest view_id.")
 {
     View_Summary view = get_active_view(app, AccessAll);
-    View_ID original_view_id = view.view_id;
-    
-    do{
-        get_view_prev_looped(app, &view, AccessAll);
-        if (view.view_id != special_note_view_id){
-            break;
-        }
-    }while(view.view_id != original_view_id);
-    
+    view = get_prev_active_panel(app, &view);
     if (view.exists){
         set_active_view(app, &view);
     }

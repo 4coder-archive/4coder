@@ -37,7 +37,7 @@ CUSTOM_DOC("Inserts whatever character was used to trigger this command.")
     uint8_t character[4];
     uint32_t length = to_writable_character(in, character);
     write_character_parameter(app, character, length);
-}
+    }
 
 CUSTOM_COMMAND_SIG(write_underscore)
 CUSTOM_DOC("Inserts an underscore.")
@@ -606,11 +606,8 @@ CUSTOM_COMMAND_SIG(reverse_search);
 
 static void
 isearch(Application_Links *app, int32_t start_reversed, String query_init){
-    uint32_t access = AccessProtected;
-    
-    View_Summary view = get_active_view(app, access);
-    Buffer_Summary buffer = get_buffer(app, view.buffer_id, access);
-    
+    View_Summary view = get_active_view(app, AccessProtected);
+    Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessProtected);
     if (!buffer.exists) return;
     
     Query_Bar bar = {0};
@@ -1271,6 +1268,132 @@ CUSTOM_DOC("Delete the line the on which the cursor sits.")
 
 ////////////////////////////////
 
+static bool32
+get_cpp_matching_file(Application_Links *app, Buffer_Summary buffer, Buffer_Summary *buffer_out){
+    bool32 result = false;
+    
+    if (buffer.file_name != 0){
+        char space[512];
+        String file_name = make_string_cap(space, 0, sizeof(space));
+        append(&file_name, make_string(buffer.file_name, buffer.file_name_len));
+        
+        String extension = file_extension(file_name);
+        String new_extensions[2] = {0};
+        int32_t new_extensions_count = 0;
+        
+        if (match(extension, "cpp") || match(extension, "cc")){
+            new_extensions[0] = make_lit_string("h");
+            new_extensions[1] = make_lit_string("hpp");
+            new_extensions_count = 2;
+        }
+        else if (match(extension, "c")){
+            new_extensions[0] = make_lit_string("h");
+            new_extensions_count = 1;
+        }
+        else if (match(extension, "h")){
+            new_extensions[0] = make_lit_string("c");
+            new_extensions[1] = make_lit_string("cpp");
+            new_extensions_count = 2;
+        }
+        else if (match(extension, "hpp")){
+            new_extensions[0] = make_lit_string("cpp");
+            new_extensions_count = 1;
+        }
+        
+        remove_extension(&file_name);
+        int32_t base_pos = file_name.size;
+        for (int32_t i = 0; i < new_extensions_count; ++i){
+            String ext = new_extensions[i];
+            file_name.size = base_pos;
+            append(&file_name, ext);
+            
+            if (open_file(app, buffer_out, file_name.str, file_name.size, false, true)){
+                result = true;
+                break;
+            }
+        }
+    }
+    
+    return(result);
+}
+
+CUSTOM_COMMAND_SIG(open_file_in_quotes)
+CUSTOM_DOC("Reads a filename from surrounding '\"' characters and attempts to open the corresponding file.")
+{
+    View_Summary view = get_active_view(app, AccessProtected);
+    Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessProtected);
+    if (!buffer.exists) return;
+    
+    char file_name_[256];
+    String file_name = make_fixed_width_string(file_name_);
+    
+    int32_t pos = view.cursor.pos;
+    int32_t start = 0;
+    int32_t end = 0;
+    buffer_seek_delimiter_forward(app, &buffer, pos, '"', &end);
+    buffer_seek_delimiter_backward(app, &buffer, pos, '"', &start);
+    ++start;
+    
+    int32_t size = end - start;
+    
+    char short_file_name[128];
+    if (size < sizeof(short_file_name)){
+        if (buffer_read_range(app, &buffer, start, end, short_file_name)){
+            copy(&file_name, make_string(buffer.file_name, buffer.file_name_len));
+            remove_last_folder(&file_name);
+            append(&file_name, make_string(short_file_name, size));
+            
+            view = get_next_active_panel(app, &view);
+            if (view.exists){
+                if (view_open_file(app, &view, file_name.str, file_name.size, true)){
+                    set_active_view(app, &view);
+                }
+            }
+        }
+    }
+}
+
+CUSTOM_COMMAND_SIG(open_matching_file_cpp)
+CUSTOM_DOC("If the current file is a *.cpp or *.h, attempts to open the corresponding *.h or *.cpp file in the other view.")
+{
+    View_Summary view = get_active_view(app, AccessAll);
+    Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessAll);
+    
+    Buffer_Summary new_buffer = {0};
+    if (get_cpp_matching_file(app, buffer, &new_buffer)){
+        get_view_next_looped(app, &view, AccessAll);
+        view_set_buffer(app, &view, new_buffer.buffer_id, 0);
+        set_active_view(app, &view);
+    }
+}
+
+CUSTOM_COMMAND_SIG(view_buffer_other_panel)
+CUSTOM_DOC("Set the other non-active panel to view the buffer that the active panel views, and switch to that panel.")
+{
+    View_Summary view = get_active_view(app, AccessAll);
+    int32_t buffer_id = view.buffer_id;
+    change_active_panel(app);
+    view = get_active_view(app, AccessAll);
+    view_set_buffer(app, &view, buffer_id, 0);
+}
+
+CUSTOM_COMMAND_SIG(swap_buffers_between_panels)
+CUSTOM_DOC("Set the other non-active panel to view the buffer that the active panel views, and switch to that panel.")
+{
+    View_Summary view1 = get_active_view(app, AccessAll);
+    change_active_panel(app);
+    View_Summary view2 = get_active_view(app, AccessAll);
+    
+    if (view1.view_id != view2.view_id){
+        int32_t buffer_id1 = view1.buffer_id;
+        int32_t buffer_id2 = view2.buffer_id;
+        view_set_buffer(app, &view1, buffer_id2, 0);
+        view_set_buffer(app, &view2, buffer_id1, 0);
+    }
+}
+
+////////////////////////////////
+
 CUSTOM_COMMAND_SIG(undo)
 CUSTOM_DOC("Advances backwards through the undo history.")
 {
@@ -1335,6 +1458,15 @@ CUSTOM_COMMAND_SIG(open_color_tweaker)
 CUSTOM_DOC("Opens the 4coder colors and fonts selector menu.")
 {
     exec_command(app, cmdid_open_color_tweaker);
+}
+
+////////////////////////////////
+
+CUSTOM_COMMAND_SIG(open_in_other)
+CUSTOM_DOC("Switches to the next active panel and begins an open file dialogue.")
+{
+    change_active_panel(app);
+    interactive_open_or_new(app);
 }
 
 // BOTTOM
