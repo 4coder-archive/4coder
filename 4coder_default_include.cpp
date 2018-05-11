@@ -417,39 +417,42 @@ CUSTOM_DOC("Execute a 'long form' command.")
     // is still available in bar.string though.
     end_query_bar(app, &bar, 0);
     
-    if (match_ss(bar.string, make_lit_string("load project"))){
+    if (match(bar.string, make_lit_string("toggle fullscreen"))){
+        toggle_fullscreen(app);
+    }
+    else if (match(bar.string, make_lit_string("load project"))){
         load_project(app);
     }
-    else if (match_ss(bar.string, make_lit_string("open all code"))){
+    else if (match(bar.string, make_lit_string("open all code"))){
         open_all_code(app);
     }
-    else if (match_ss(bar.string, make_lit_string("open all code recursive"))){
+    else if (match(bar.string, make_lit_string("open all code recursive"))){
         open_all_code_recursive(app);
     }
-    else if(match_ss(bar.string, make_lit_string("close all code"))){
+    else if(match(bar.string, make_lit_string("close all code"))){
         close_all_code(app);
     }
-    else if (match_ss(bar.string, make_lit_string("dos lines")) ||
-             match_ss(bar.string, make_lit_string("dosify"))){
+    else if (match(bar.string, make_lit_string("dos lines")) ||
+             match(bar.string, make_lit_string("dosify"))){
         eol_dosify(app);
     }
-    else if (match_ss(bar.string, make_lit_string("nix lines")) ||
-             match_ss(bar.string, make_lit_string("nixify"))){
+    else if (match(bar.string, make_lit_string("nix lines")) ||
+             match(bar.string, make_lit_string("nixify"))){
         eol_nixify(app);
     }
-    else if (match_ss(bar.string, make_lit_string("remap"))){
+    else if (match(bar.string, make_lit_string("remap"))){
         remap_interactive(app);
     }
-    else if (match_ss(bar.string, make_lit_string("new project"))){
+    else if (match(bar.string, make_lit_string("new project"))){
         setup_new_project(app);
     }
-    else if (match_ss(bar.string, make_lit_string("delete file"))){
+    else if (match(bar.string, make_lit_string("delete file"))){
         delete_file_query(app);
     }
-    else if (match_ss(bar.string, make_lit_string("rename file"))){
+    else if (match(bar.string, make_lit_string("rename file"))){
         rename_file_query(app);
     }
-    else if (match_ss(bar.string, make_lit_string("mkdir"))){
+    else if (match(bar.string, make_lit_string("mkdir"))){
         make_directory_query(app);
     }
     else{

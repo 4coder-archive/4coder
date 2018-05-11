@@ -706,7 +706,6 @@ generate_remapping_code_and_data(){
         bind(mappings, 'b', MDFR_ALT, toggle_filebar);
         
         bind(mappings, '@', MDFR_ALT, toggle_mouse);
-        bind(mappings, key_page_up, MDFR_CTRL, toggle_fullscreen);
         bind(mappings, 'E', MDFR_ALT, exit_4coder);
         
         bind(mappings, '+', MDFR_CTRL, increase_face_size);
@@ -783,7 +782,6 @@ generate_remapping_code_and_data(){
         bind(mappings, 'F', MDFR_ALT , list_all_substring_locations_case_insensitive);
         bind(mappings, 'g', MDFR_CTRL, goto_line);
         bind(mappings, 'G', MDFR_CTRL, list_all_locations_of_selection);
-        bind(mappings, 'j', MDFR_CTRL, to_lowercase);
         bind(mappings, 'K', MDFR_CTRL, kill_buffer);
         bind(mappings, 'l', MDFR_CTRL, toggle_line_wrap);
         bind(mappings, 'L', MDFR_CTRL, duplicate_line);
@@ -797,7 +795,6 @@ generate_remapping_code_and_data(){
         bind(mappings, 's', MDFR_ALT , save_to_query);
         bind(mappings, 't', MDFR_CTRL, search_identifier);
         bind(mappings, 'T', MDFR_CTRL, list_all_locations_of_identifier);
-        bind(mappings, 'u', MDFR_CTRL, to_uppercase);
         bind(mappings, 'v', MDFR_CTRL, paste_and_indent);
         bind(mappings, 'v', MDFR_ALT , toggle_virtual_whitespace);
         bind(mappings, 'V', MDFR_CTRL, paste_next_and_indent);
@@ -905,7 +902,6 @@ generate_remapping_code_and_data(){
         bind(mappings, 'b', MDFR_CTRL, toggle_filebar);
         
         bind(mappings, '@', MDFR_CTRL, toggle_mouse);
-        bind(mappings, key_page_up, MDFR_CMND, toggle_fullscreen);
         bind(mappings, 'E', MDFR_CTRL, exit_4coder);
         
         bind(mappings, '+', MDFR_CTRL, increase_face_size);
@@ -980,7 +976,6 @@ generate_remapping_code_and_data(){
         bind(mappings, 'F', MDFR_CTRL, list_all_substring_locations_case_insensitive);
         bind(mappings, 'g', MDFR_CMND, goto_line);
         bind(mappings, 'G', MDFR_CMND, list_all_locations_of_selection);
-        bind(mappings, 'j', MDFR_CMND, to_lowercase);
         bind(mappings, 'K', MDFR_CMND, kill_buffer);
         bind(mappings, 'l', MDFR_CMND, toggle_line_wrap);
         bind(mappings, 'L', MDFR_CMND, duplicate_line);
@@ -993,7 +988,6 @@ generate_remapping_code_and_data(){
         bind(mappings, 's', MDFR_CTRL, save_to_query);
         bind(mappings, 't', MDFR_CMND, search_identifier);
         bind(mappings, 'T', MDFR_CMND, list_all_locations_of_identifier);
-        bind(mappings, 'u', MDFR_CMND, to_uppercase);
         bind(mappings, 'v', MDFR_CMND, paste_and_indent);
         bind(mappings, 'v', MDFR_CTRL, toggle_virtual_whitespace);
         bind(mappings, 'V', MDFR_CMND, paste_next_and_indent);
