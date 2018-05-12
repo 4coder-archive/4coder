@@ -320,14 +320,13 @@ OPEN_FILE_HOOK_SIG(default_file_save){
     Buffer_Summary buffer = get_buffer(app, buffer_id, AccessAll);
     Assert(buffer.exists);
     
-#if defined(FCODER_AUTO_INDENT_CPP)
     int32_t is_virtual = 0;
-    if (automatically_indent_text_on_save && buffer_get_setting(app, &buffer, BufferSetting_VirtualWhitespace, &is_virtual)){ 
+    if (global_config.automatically_indent_text_on_save &&
+        buffer_get_setting(app, &buffer, BufferSetting_VirtualWhitespace, &is_virtual)){ 
         if (is_virtual){
             buffer_auto_indent(app, &global_part, &buffer, 0, buffer.size, DEF_TAB_WIDTH, DEFAULT_INDENT_FLAGS | AutoIndent_FullTokens);
         }
     }
-#endif
     
     // no meaning for return
     return(0);

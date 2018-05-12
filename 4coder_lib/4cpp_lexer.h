@@ -283,28 +283,30 @@ cpp__table_match(Cpp_Keyword_Table *table, char *s, u32_4tech s_len, u32_4tech *
     
     b32_4tech result = false;
     u32_4tech max = table->max;
-    u32_4tech first_index = hash % max;
-    u32_4tech index = first_index;
-    for (;;){
-        u64_4tech *keyword_ptr = keywords + index;
-        if (*keyword_ptr == 0){
-            break;
-        }
-        
-        u32_4tech *str_len = (u32_4tech*)(*keyword_ptr + base);
-        char *str = (char*)(str_len + 2);
-        if (cpp__match(str, *str_len, s, s_len)){
-            *item_ptr_out = (u32_4tech*)(*keyword_ptr + base);
-            result = true;
-            break;
-        }
-        
-        ++index;
-        if (index >= max){
-            index = 0;
-        }
-        if (index == first_index){
-            break;
+    if (max > 0){
+        u32_4tech first_index = hash % max;
+        u32_4tech index = first_index;
+        for (;;){
+            u64_4tech *keyword_ptr = keywords + index;
+            if (*keyword_ptr == 0){
+                break;
+            }
+            
+            u32_4tech *str_len = (u32_4tech*)(*keyword_ptr + base);
+            char *str = (char*)(str_len + 2);
+            if (cpp__match(str, *str_len, s, s_len)){
+                *item_ptr_out = (u32_4tech*)(*keyword_ptr + base);
+                result = true;
+                break;
+            }
+            
+            ++index;
+            if (index >= max){
+                index = 0;
+            }
+            if (index == first_index){
+                break;
+            }
         }
     }
     
