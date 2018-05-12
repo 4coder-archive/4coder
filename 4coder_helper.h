@@ -65,10 +65,16 @@ max_f32_proc(void){
 # define Swap(T,a,b) do{ T t = a; a = b; b = t; } while(0)
 #endif
 
+#define require(c) if (!(c)){ return(0); }
+
+////////////////////////////////
+
 struct Buffer_Rect{
-    int32_t char0, line0;
-    int32_t char1, line1;
-};
+    int32_t char0;
+    int32_t line0;
+    int32_t char1;
+int32_t line1;
+    };
 
 ////////////////////////////////
 

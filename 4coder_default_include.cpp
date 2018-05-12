@@ -22,6 +22,7 @@
 
 #include "4coder_helper.h"
 #include "4coder_default_framework.h"
+#include "4coder_config.h"
 #include "4coder_seek.h"
 #include "4coder_auto_indent.h"
 #include "4coder_search.h"
@@ -32,8 +33,10 @@
 #include "4coder_function_list.h"
 #include "4coder_scope_commands.h"
 
+#include "4coder_default_framework_variables.cpp"
 #include "4coder_buffer_seek_constructors.cpp"
 #include "4coder_helper.cpp"
+#include "4coder_config.cpp"
 #include "4coder_default_framework.cpp"
 #include "4coder_seek.cpp"
 #include "4coder_base_commands.cpp"

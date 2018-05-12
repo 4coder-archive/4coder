@@ -1120,5 +1120,139 @@ build_string(Partition *part, String s0, String s1, String s2){
     return(sr);
 }
 
+static void
+lexer_keywords_default_init(Partition *part, Cpp_Keyword_Table *kw_out, Cpp_Keyword_Table *pp_out){
+    umem_4tech kw_size = cpp_get_table_memory_size_default(CPP_TABLE_KEYWORDS);
+    umem_4tech pp_size = cpp_get_table_memory_size_default(CPP_TABLE_PREPROCESSOR_DIRECTIVES);
+    void *kw_mem = push_array(part, char, (i32_4tech)kw_size);
+    void *pp_mem = push_array(part, char, (i32_4tech)pp_size);
+    *kw_out = cpp_make_table_default(CPP_TABLE_KEYWORDS, kw_mem, kw_size);
+    *pp_out = cpp_make_table_default(CPP_TABLE_PREPROCESSOR_DIRECTIVES, pp_mem, pp_size);
+}
+
+////////////////////////////////
+
+// TODO(allen): Stop handling files this way!  My own API should be able to do this!!?!?!?!!?!?!!!!?
+// NOTE(allen): Actually need binary buffers for some stuff to work, but not this parsing thing here.
+#include <stdio.h>
+
+static String
+dump_file_handle(Partition *arena, FILE *file){
+    String str = {0};
+    if (file != 0){
+        fseek(file, 0, SEEK_END);
+        int32_t size = ftell(file);
+        char *mem = push_array(arena, char, size + 1);
+        push_align(arena, 8);
+        if (mem != 0){
+            fseek(file, 0, SEEK_SET);
+            fread(mem, 1, size, file);
+            mem[size] = 0;
+            str = make_string_cap(mem, size, size + 1);
+        }
+    }
+    return(str);
+}
+
+static FILE*
+open_file_search_up_path(Partition *scratch, String path, String file_name){
+    Temp_Memory temp = begin_temp_memory(scratch);
+    
+    int32_t cap = path.size + file_name.size + 2;
+    char *space = push_array(scratch, char, cap);
+    String name_str = make_string_cap(space, 0, cap);
+    append(&name_str, path);
+    if (name_str.size == 0 || !char_is_slash(name_str.str[name_str.size - 1])){
+        append(&name_str, "/");
+    }
+    
+    FILE *file = 0;
+    for (;;){
+        int32_t base_size = name_str.size;
+        append(&name_str, file_name);
+        terminate_with_null(&name_str);
+        file = fopen(name_str.str, "rb");
+        if (file != 0){
+            break;
+        }
+        
+        name_str.size = base_size;
+        remove_last_folder(&name_str);
+        if (name_str.size >= base_size){
+            break;
+        }
+    }
+    
+    end_temp_memory(temp);
+    return(file);
+}
+
+static FILE*
+open_file_try_current_path_then_binary_path(Application_Links *app, char *file_name){
+    FILE *file = fopen(file_name, "rb");
+    if (file == 0){
+        char space[256];
+        int32_t size = get_4ed_path(app, space, sizeof(space));
+        String str = make_string_cap(space, size, sizeof(space));
+        append(&str, "/");
+        append(&str, file_name);
+        if (terminate_with_null(&str)){
+        file = fopen(str.str, "rb");
+}
+    }
+    return(file);
+}
+
+static char*
+get_null_terminated(Partition *scratch, String name){
+    char *name_terminated = 0;
+    if (name.size < name.memory_size){
+        terminate_with_null(&name);
+        name_terminated = name.str;
+    }
+    else{
+        name_terminated = push_array(scratch, char, name.size + 1);
+        if (name_terminated != 0){
+            memcpy(name_terminated, name.str, name.size);
+            name_terminated[name.size] = 0;
+        }
+    }
+    return(name_terminated);
+}
+
+static FILE*
+open_file(Partition *scratch, String name){
+    FILE *file = 0;
+    Temp_Memory temp = begin_temp_memory(scratch);
+    char *name_terminated = get_null_terminated(scratch, name);
+    if (name_terminated != 0){
+        file = fopen(name_terminated, "rb");
+    }
+    end_temp_memory(temp);
+    return(file);
+}
+
+static String
+dump_file(Partition *arena, String name){
+    String result = {0};
+    FILE *file = open_file(arena, name);
+    if (file != 0){
+        result = dump_file_handle(arena, file);
+        fclose(file);
+    }
+    return(result);
+}
+
+static String
+dump_file_search_up_path(Partition *arena, String path, String file_name){
+    String result = {0};
+    FILE *file = open_file_search_up_path(arena, path, file_name);
+    if (file != 0){
+        result = dump_file_handle(arena, file);
+        fclose(file);
+    }
+    return(result);
+}
+
 // BOTTOM
 

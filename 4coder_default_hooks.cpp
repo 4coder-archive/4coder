@@ -26,7 +26,7 @@ START_HOOK_SIG(default_start){
     default_4coder_initialize(app);
     default_4coder_side_by_side_panels(app, files, file_count);
     
-    if (automatically_load_project){
+    if (global_config.automatically_load_project){
         load_project(app);
     }
     
@@ -69,10 +69,10 @@ HOOK_SIG(default_view_adjust){
     new_wrap_width = (int32_t)(new_wrap_width * .9f);
     
     int32_t new_min_base_width = (int32_t)(new_wrap_width * .77f);
-    if (automatically_adjust_wrapping){
+    if (global_config.automatically_adjust_wrapping){
         adjust_all_buffer_wrap_widths(app, new_wrap_width, new_min_base_width);
-        default_wrap_width = new_wrap_width;
-        default_min_base_width = new_min_base_width;
+        global_config.default_wrap_width = new_wrap_width;
+        global_config.default_min_base_width = new_min_base_width;
     }
     
     // no meaning for return
@@ -196,7 +196,7 @@ OPEN_FILE_HOOK_SIG(default_file_settings){
     bool32 wrap_lines = true;
     bool32 lex_without_strings = false;
     
-    CString_Array extensions = get_code_extensions(&treat_as_code_exts);
+    CString_Array extensions = get_code_extensions(&global_config.code_exts);
     
     Parse_Context_ID parse_context_id = 0;
     
@@ -273,8 +273,10 @@ OPEN_FILE_HOOK_SIG(default_file_settings){
     
     int32_t map_id = (treat_as_code)?((int32_t)default_code_map):((int32_t)mapid_file);
     
-    buffer_set_setting(app, &buffer, BufferSetting_WrapPosition, default_wrap_width);
-    buffer_set_setting(app, &buffer, BufferSetting_MinimumBaseWrapPosition, default_min_base_width);
+    buffer_set_setting(app, &buffer, BufferSetting_WrapPosition,
+                       global_config.default_wrap_width);
+    buffer_set_setting(app, &buffer, BufferSetting_MinimumBaseWrapPosition,
+                       global_config.default_min_base_width);
     buffer_set_setting(app, &buffer, BufferSetting_MapID, map_id);
     buffer_set_setting(app, &buffer, BufferSetting_ParserContext, parse_context_id);
     
@@ -283,7 +285,7 @@ OPEN_FILE_HOOK_SIG(default_file_settings){
         buffer_set_setting(app, &buffer, BufferSetting_LexWithoutStrings, true);
         buffer_set_setting(app, &buffer, BufferSetting_VirtualWhitespace, true);
     }
-    else if (treat_as_code && enable_code_wrapping && buffer.size < (128 << 10)){
+    else if (treat_as_code && global_config.enable_code_wrapping && buffer.size < (128 << 10)){
         // NOTE(allen|a4.0.12): There is a little bit of grossness going on here.
         // If we set BufferSetting_Lex to true, it will launch a lexing job.
         // If a lexing job is active when we set BufferSetting_VirtualWhitespace, the call can fail.

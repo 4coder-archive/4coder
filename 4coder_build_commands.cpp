@@ -40,7 +40,8 @@ get_build_directory(Application_Links *app, Buffer_Summary *buffer, String *dir_
 
 // TODO(allen): Better names for the "standard build search" family.
 static int32_t
-standard_build_search(Application_Links *app, View_Summary *view, Buffer_Summary *active_buffer, String *dir, String *command, int32_t perform_backup, int32_t use_path_in_command, String filename, String commandname){
+standard_build_search(Application_Links *app, View_Summary *view, Buffer_Summary *active_buffer,
+                      String *dir, String *command, bool32 perform_backup, bool32 use_path_in_command, String filename, String command_name){
     int32_t result = false;
     
     for(;;){
@@ -51,13 +52,13 @@ standard_build_search(Application_Links *app, View_Summary *view, Buffer_Summary
             dir->size = old_size;
             
             if (use_path_in_command){
-                append_s_char(command, '"');
-                append_ss(command, *dir);
-                append_ss(command, commandname);
-                append_s_char(command, '"');
+                append(command, '"');
+                append(command, *dir);
+                append(command, command_name);
+                append(command, '"');
             }
             else{
-                append_ss(command, commandname);
+                append_ss(command, command_name);
             }
             
             char space[512];
@@ -67,7 +68,7 @@ standard_build_search(Application_Links *app, View_Summary *view, Buffer_Summary
             append_s_char(&message, '\n');
             print_message(app, message.str, message.size);
             
-            if (automatically_save_changes_on_build){
+            if (global_config.automatically_save_changes_on_build){
                 save_all_dirty_buffers(app);
             }
             

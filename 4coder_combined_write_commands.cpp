@@ -24,21 +24,20 @@ write_named_comment_string(Application_Links *app, char *type_string){
     char space[512];
     String str = make_fixed_width_string(space);
     
-    char *name = 0;
-    int32_t name_len = 0;
-    if (get_current_name(&name, &name_len)){
-        append(&str, "// ");
-        append(&str, type_string);
-        append(&str, "(");
-        append(&str, make_string(name, name_len));
-        append(&str, "): ");
-    }
+    String name = global_config.user_name;
+    if (name.size > 0){
+    append(&str, "// ");
+append(&str, type_string);
+append(&str, "(");
+append(&str, name);
+append(&str, "): ");
+}
     else{
         append(&str, "// ");
         append(&str, type_string);
         append(&str, ": ");
     }
-    
+
     write_string(app, str);
 }
 

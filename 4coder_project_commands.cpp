@@ -624,14 +624,16 @@ CUSTOM_DOC("Queries the user for several configuration options and initializes a
             FILE *bat_script = fopen(str.str, "wb");
             if (bat_script != 0){
                 fprintf(bat_script, "@echo off\n\n");
-                fprintf(bat_script, "SET OPTS=%.*s\n", 
-                        default_flags_bat.size, default_flags_bat.str);
-                fprintf(bat_script, "SET CODE_HOME=%%cd%%\n");
+                fprintf(bat_script, "set opts=%.*s\n", 
+                        global_config.default_flags_bat.size,
+                        global_config.default_flags_bat.str);
+                fprintf(bat_script, "set code=%%cd%%\n");
                 
                 fprintf(bat_script, "pushd %.*s\n", 
                         output_dir.size, output_dir.str);
-                fprintf(bat_script, "%.*s %%OPTS%% %%CODE_HOME%%\\%.*s -Fe%.*s\n",
-                        default_compiler_bat.size, default_compiler_bat.str,
+                fprintf(bat_script, "%.*s %%opts%% %%code%%\\%.*s -Fe%.*s\n",
+                        global_config.default_compiler_bat.size,
+                        global_config.default_compiler_bat.str,
                         code_file.size, code_file.str,
                         binary_file.size, binary_file.str);
                 fprintf(bat_script, "popd\n");
@@ -658,18 +660,20 @@ CUSTOM_DOC("Queries the user for several configuration options and initializes a
             if (sh_script != 0){
                 fprintf(sh_script, "#!/bin/bash\n\n");
                 
-                fprintf(sh_script, "CODE_HOME=\"$PWD\"\n");
+                fprintf(sh_script, "code=\"$PWD\"\n");
                 
-                fprintf(sh_script, "OPTS=%.*s\n", 
-                        default_flags_sh.size, default_flags_sh.str);
+                fprintf(sh_script, "opts=%.*s\n", 
+                        global_config.default_flags_sh.size,
+                        global_config.default_flags_sh.str);
                 
                 fprintf(sh_script, "cd %.*s > /dev/null\n", 
                         output_dir.size, output_dir.str);
-                fprintf(sh_script, "%.*s $OPTS $CODE_HOME/%.*s -o %.*s\n",
-                        default_compiler_sh.size, default_compiler_sh.str,
+                fprintf(sh_script, "%.*s $opts $code/%.*s -o %.*s\n",
+                        global_config.default_compiler_sh.size,
+                        global_config.default_compiler_sh.str,
                         code_file.size, code_file.str,
                         binary_file.size, binary_file.str);
-                fprintf(sh_script, "cd $CODE_HOME > /dev/null\n");
+                fprintf(sh_script, "cd $code > /dev/null\n");
                 
                 fclose(sh_script);
             }

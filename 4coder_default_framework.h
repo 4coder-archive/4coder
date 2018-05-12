@@ -72,19 +72,6 @@ struct Named_Mapping{
     Custom_Command_Function *remap_command;
 };
 
-////////////////////////////////
-
-struct Extension_List{
-    char space[256];
-    char *exts[94];
-    int32_t count;
-};
-
-struct CString_Array{
-    char **strings;
-    int32_t count;
-};
-
 #endif
 
 // BOTTOM
