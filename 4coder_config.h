@@ -82,6 +82,8 @@ struct Config_Assignment{
     
     Config_LValue *l;
     Config_RValue *r;
+    
+    bool32 visited;
 };
 
 struct Config{

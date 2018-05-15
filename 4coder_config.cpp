@@ -91,7 +91,7 @@ static String
 config_parser__get_lexeme(Config_Parser *ctx){
     String lexeme = {0};
     if (ctx->start <= ctx->token && ctx->token < ctx->end){
-         lexeme = make_string(ctx->data.str + ctx->token->start, ctx->token->size);
+        lexeme = make_string(ctx->data.str + ctx->token->start, ctx->token->size);
     }
     return(lexeme);
 }
@@ -113,8 +113,8 @@ config_parser__recognize_text(Config_Parser *ctx, String text){
     bool32 result = false;
     String lexeme = config_parser__get_lexeme(ctx);
     if (lexeme.str != 0 && match(lexeme, text)){
-            result = true;
-        }
+        result = true;
+    }
     return(result);
 }
 
@@ -125,7 +125,7 @@ config_parser__match_token(Config_Parser *ctx, Cpp_Token_Type type){
         config_parser__advance_to_next(ctx);
     }
     return(result);
-    }
+}
 
 static bool32
 config_parser__match_text(Config_Parser *ctx, String text){
@@ -143,6 +143,17 @@ static Config_LValue           *config_parser__lvalue(Config_Parser *ctx);
 static Config_RValue           *config_parser__rvalue(Config_Parser *ctx);
 static Config_Compound         *config_parser__compound(Config_Parser *ctx);
 static Config_Compound_Element *config_parser__element(Config_Parser *ctx);
+
+static Config*
+config_parse(Partition *arena, char *file_name, String data, Cpp_Token_Array array){
+    Temp_Memory restore_point = begin_temp_memory(arena);
+    Config_Parser ctx = make_config_parser(arena, file_name, data, array);
+    Config *config = config_parser__config(&ctx);
+    if (config == 0){
+        end_temp_memory(restore_point);
+    }
+    return(config);
+}
 
 static Config*
 config_parser__config(Config_Parser *ctx){
@@ -183,14 +194,15 @@ static Config_Assignment*
 config_parser__assignment(Config_Parser *ctx){
     Config_LValue *l = config_parser__lvalue(ctx);
     require(l != 0);
+    require(config_parser__match_token(ctx, CPP_TOKEN_EQ));
     Config_RValue *r = config_parser__rvalue(ctx);
-require(r != 0);
+    require(r != 0);
     
     Config_Assignment *assignment = push_array(ctx->arena, Config_Assignment, 1);
     assignment->l = l;
     assignment->r = r;
     return(assignment);
-    }
+}
 
 static Config_LValue*
 config_parser__lvalue(Config_Parser *ctx){
@@ -302,7 +314,7 @@ config_parser__compound(Config_Parser *ctx){
     compound->last = last;
     compound->count = count;
     return(compound);
-    }
+}
 
 static Config_Compound_Element*
 config_parser__element(Config_Parser *ctx){
@@ -312,11 +324,11 @@ config_parser__element(Config_Parser *ctx){
             layout.type = ConfigLayoutType_Identifier;
             layout.identifier = config_parser__get_lexeme(ctx);
             config_parser__advance_to_next(ctx);
-            }
+        }
         else if (config_parser__recognize_token(ctx, CPP_TOKEN_IDENTIFIER)){
             layout.type = ConfigLayoutType_Integer;
             layout.integer = config_parser__get_integer(ctx);
-        config_parser__advance_to_next(ctx);
+            config_parser__advance_to_next(ctx);
         }
         else{
             return(0);
@@ -330,6 +342,99 @@ config_parser__element(Config_Parser *ctx){
     element->r = rvalue;
     return(element);
 }
+
+////////////////////////////////
+
+static Config_Assignment*
+config_lookup_assignment(Config *config, char *var_name, int32_t subscript){
+    Config_Assignment *assignment;
+    for (assignment = config->first;
+         assignment != 0;
+         assignment = assignment->next){
+        Config_LValue *l = assignment->l;
+        if (l != 0 && match(l->identifier, var_name) && l->index == subscript){
+            break;
+        }
+    }
+    return(assignment);
+}
+
+static bool32
+config_var(Config *config, char *var_name, int32_t subscript, Config_RValue_Type type, void *out){
+    Config_Assignment *assignment = config_lookup_assignment(config, var_name, subscript);
+    bool32 success = false;
+    if (assignment != 0){
+        Config_RValue *r = assignment->r;
+        if (r != 0 && !assignment->visited){
+            if (r->type == ConfigRValueType_LValue){
+                assignment->visited = true;
+                success = config_var(config, var_name, subscript, type, out);
+                assignment->visited = false;
+            }
+            else if (r->type == type){
+                success = true;
+                switch (type){
+                    case ConfigRValueType_Boolean:
+                    {
+                        *(bool32*)out = r->boolean;
+                    }break;
+                    
+                    case ConfigRValueType_Integer:
+                    {
+                        *(int32_t*)out = r->integer;
+                    }break;
+                    
+                    case ConfigRValueType_String:
+                    {
+                        *(String*)out = r->string;
+                    }break;
+                    
+                    case ConfigRValueType_Character:
+                    {
+                        *(char*)out = r->character;
+                    }break;
+                    
+                    case ConfigRValueType_Compound:
+                    {
+                        *(Config_Compound**)out = r->compound;
+                    }break;
+                }
+            }
+        }
+    }
+    return(success);
+}
+
+static bool32
+config_bool_var(Config *config, char *var_name, int32_t subscript, bool32 *var_out){
+    return(config_var(config, var_name, subscript, ConfigRValueType_Boolean, var_out));
+}
+
+static bool32
+config_int_var(Config *config, char *var_name, int32_t subscript, int32_t *var_out){
+    return(config_var(config, var_name, subscript, ConfigRValueType_Integer, var_out));
+}
+
+static bool32
+config_uint_var(Config *config, char *var_name, int32_t subscript, uint32_t *var_out){
+    return(config_var(config, var_name, subscript, ConfigRValueType_Integer, var_out));
+}
+
+static bool32
+config_string_var(Config *config, char *var_name, int32_t subscript, String *var_out){
+    return(config_var(config, var_name, subscript, ConfigRValueType_String, var_out));
+}
+
+static bool32
+config_char_var(Config *config, char *var_name, int32_t subscript, char *var_out){
+    return(config_var(config, var_name, subscript, ConfigRValueType_Character, var_out));
+}
+
+static bool32
+config_compound_var(Config *config, char *var_name, int32_t subscript, Config_Compound **var_out){
+    return(config_var(config, var_name, subscript, ConfigRValueType_Compound, var_out));
+}
+
 
 ////////////////////////////////
 
@@ -692,7 +797,7 @@ config_init_default(Config_Data *config){
 
 static void
 config_parse__data(Partition *scratch,
-                    String data, Config_Data *config){
+                   char *file_name, String data, Config_Data *config){
     config_init_default(config);
     
     bool32 success = false;
@@ -712,8 +817,42 @@ config_parse__data(Partition *scratch,
         Cpp_Lex_Result result = cpp_lex_step(&S, data.str, data.size + 1, HAS_NULL_TERM, &array, NO_OUT_LIMIT);
         
         if (result == LexResult_Finished){
-            success = true;
+#if 0
+            Config *parsed = config_parse(scratch, file_name, data, array);
+            if (parsed != 0){
+                success = true;
+                
+                config_bool_var(parsed, "enable_code_wrapping", 0, &config->enable_code_wrapping);
+                config_bool_var(parsed, "automatically_adjust_wrapping", 0, &config->automatically_adjust_wrapping);
+                config_bool_var(parsed, "automatically_indent_text_on_save", 0, &config->automatically_indent_text_on_save);
+                config_bool_var(parsed, "automatically_save_changes_on_build", 0, &config->automatically_save_changes_on_build);
+                
+                config_int_var(parsed, "default_wrap_width", 0, &config->default_wrap_width);
+                config_int_var(parsed, "default_min_base_width", 0, &config->default_min_base_width);
+                
+                config_string_var(parsed, "default_theme_name", 0, &config->default_theme_name);
+                config_string_var(parsed, "default_font_name", 0, &config->default_font_name);
+                config_string_var(parsed, "user_name", 0, &config->user_name);
+                
+                config_string_var(parsed, "default_compiler_bat", 0, &config->default_compiler_bat);
+                config_string_var(parsed, "default_flags_bat", 0, &config->default_flags_bat);
+                config_string_var(parsed, "default_compiler_sh", 0, &config->default_compiler_sh);
+                config_string_var(parsed, "default_flags_sh", 0, &config->default_flags_sh);
+                
+                config_string_var(parsed, "mapping", 0, &config->current_mapping);
+                
+                char space[512];
+                String str = make_fixed_width_string(space);
+                if (config_string_var(parsed, "treat_as_code", 0, &str)){
+                    parse_extension_line_to_extension_list(str, &config->code_exts);
+                }
+                
+                config_bool_var(parsed, "automatically_load_project", 0, &config->automatically_load_project);
+                config_bool_var(parsed, "lalt_lctrl_is_altgr", 0, &config->lalt_lctrl_is_altgr);
+            }
             
+#else
+            success = true;
             for (int32_t i = 0; i < array.count; ++i){
                 Config_Line config_line = read_config_line(array, &i, data.str);
                 
@@ -765,7 +904,8 @@ config_parse__data(Partition *scratch,
                     config_bool_var(item, "lalt_lctrl_is_altgr", 0,
                                     &config->lalt_lctrl_is_altgr);
                 }
-                }
+            }
+#endif
         }
     }
     
@@ -778,24 +918,24 @@ config_parse__data(Partition *scratch,
 
 static void
 config_parse__file_handle(Partition *scratch,
-                          FILE *file, Config_Data *config){
+                          char *file_name, FILE *file, Config_Data *config){
     Temp_Memory temp = begin_temp_memory(scratch);
     String data = dump_file_handle(scratch, file);
-        if (data.str != 0){
-          config_parse__data(scratch, data, config);
-        }
+    if (data.str != 0){
+        config_parse__data(scratch, file_name, data, config);
+    }
     else{
         config_init_default(config);
     }
-        end_temp_memory(temp);
-        }
+    end_temp_memory(temp);
+}
 
 static void
 config_parse__file_name(Application_Links *app, Partition *scratch,
                         char *file_name, Config_Data *config){
     FILE *file = open_file_try_current_path_then_binary_path(app, file_name);
     if (file != 0){
-        config_parse__file_handle(scratch, file, config);
+        config_parse__file_handle(scratch, file_name, file, config);
         fclose(file);
     }
     else{
@@ -863,14 +1003,14 @@ theme_parse__data(Partition *scratch, String data, Theme_Data *theme){
 
 static bool32
 theme_parse__file_handle(Partition *scratch, FILE *file, Theme_Data *theme){
-     Temp_Memory temp = begin_temp_memory(scratch);
-        String data = dump_file_handle(scratch, file);
-        bool32 success = false;
-        if (data.str != 0){
-            success = theme_parse__data(scratch, data, theme);
-        }
-        end_temp_memory(temp);
-        return(success);
+    Temp_Memory temp = begin_temp_memory(scratch);
+    String data = dump_file_handle(scratch, file);
+    bool32 success = false;
+    if (data.str != 0){
+        success = theme_parse__data(scratch, data, theme);
+    }
+    end_temp_memory(temp);
+    return(success);
 }
 
 static bool32
@@ -913,7 +1053,7 @@ load_theme_file_into_live_set(Application_Links *app, Partition *scratch, char *
 
 static void
 load_folder_of_themes_into_live_set(Application_Links *app, Partition *scratch,
-                   char *folder_name){
+                                    char *folder_name){
     char path_space[512];
     String path = make_fixed_width_string(path_space);
     path.size = get_4ed_path(app, path_space, sizeof(path_space));
@@ -934,7 +1074,7 @@ load_folder_of_themes_into_live_set(Application_Links *app, Partition *scratch,
             if (terminate_with_null(&file_name)){
                 load_theme_file_into_live_set(app, scratch, file_name.str);
             }
-            }
+        }
         free_file_list(app, list);
     }
 }
