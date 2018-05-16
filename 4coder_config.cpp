@@ -197,6 +197,7 @@ config_parser__assignment(Config_Parser *ctx){
     require(config_parser__match_token(ctx, CPP_TOKEN_EQ));
     Config_RValue *r = config_parser__rvalue(ctx);
     require(r != 0);
+    require(config_parser__match_token(ctx, CPP_TOKEN_SEMICOLON));
     
     Config_Assignment *assignment = push_array(ctx->arena, Config_Assignment, 1);
     assignment->l = l;
@@ -817,7 +818,7 @@ config_parse__data(Partition *scratch,
         Cpp_Lex_Result result = cpp_lex_step(&S, data.str, data.size + 1, HAS_NULL_TERM, &array, NO_OUT_LIMIT);
         
         if (result == LexResult_Finished){
-#if 0
+#if 1
             Config *parsed = config_parse(scratch, file_name, data, array);
             if (parsed != 0){
                 success = true;
