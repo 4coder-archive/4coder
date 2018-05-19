@@ -12,7 +12,6 @@ bind(context, 'o', MDFR_ALT, open_in_other);
 bind(context, 'k', MDFR_CTRL, interactive_kill_buffer);
 bind(context, 'i', MDFR_CTRL, interactive_switch_buffer);
 bind(context, 'h', MDFR_CTRL, project_go_to_root_directory);
-bind(context, 'H', MDFR_CTRL, reload_current_project);
 bind(context, 'S', MDFR_CTRL, save_all_dirty_buffers);
 bind(context, 'c', MDFR_ALT, open_color_tweaker);
 bind(context, '.', MDFR_ALT, change_to_build_panel);
@@ -165,7 +164,6 @@ bind(context, 'o', MDFR_CTRL, open_in_other);
 bind(context, 'k', MDFR_CMND, interactive_kill_buffer);
 bind(context, 'i', MDFR_CMND, interactive_switch_buffer);
 bind(context, 'h', MDFR_CMND, project_go_to_root_directory);
-bind(context, 'H', MDFR_CMND, reload_current_project);
 bind(context, 'S', MDFR_CMND, save_all_dirty_buffers);
 bind(context, 'c', MDFR_CTRL, open_color_tweaker);
 bind(context, '.', MDFR_CTRL, change_to_build_panel);
@@ -336,7 +334,7 @@ Meta_Sub_Map *sub_maps;
 int32_t sub_map_count;
 LINK_PROCS(void (*fill_keys_proc)(Bind_Helper *context);)
 };
-static Meta_Key_Bind fcoder_binds_for_default_mapid_global[46] = {
+static Meta_Key_Bind fcoder_binds_for_default_mapid_global[45] = {
 {0, 112, 1, "open_panel_vsplit", 17, LINK_PROCS(open_panel_vsplit)},
 {0, 95, 1, "open_panel_hsplit", 17, LINK_PROCS(open_panel_hsplit)},
 {0, 80, 1, "close_panel", 11, LINK_PROCS(close_panel)},
@@ -348,7 +346,6 @@ static Meta_Key_Bind fcoder_binds_for_default_mapid_global[46] = {
 {0, 107, 1, "interactive_kill_buffer", 23, LINK_PROCS(interactive_kill_buffer)},
 {0, 105, 1, "interactive_switch_buffer", 25, LINK_PROCS(interactive_switch_buffer)},
 {0, 104, 1, "project_go_to_root_directory", 28, LINK_PROCS(project_go_to_root_directory)},
-{0, 72, 1, "reload_current_project", 22, LINK_PROCS(reload_current_project)},
 {0, 83, 1, "save_all_dirty_buffers", 22, LINK_PROCS(save_all_dirty_buffers)},
 {0, 99, 2, "open_color_tweaker", 18, LINK_PROCS(open_color_tweaker)},
 {0, 46, 2, "change_to_build_panel", 21, LINK_PROCS(change_to_build_panel)},
@@ -487,11 +484,11 @@ static Meta_Key_Bind fcoder_binds_for_default_default_code_map[32] = {
 {0, 73, 1, "list_all_functions_current_buffer", 33, LINK_PROCS(list_all_functions_current_buffer)},
 };
 static Meta_Sub_Map fcoder_submaps_for_default[3] = {
-{"mapid_global", 12, "The following bindings apply in all situations.", 47, 0, 0, fcoder_binds_for_default_mapid_global, 46},
+{"mapid_global", 12, "The following bindings apply in all situations.", 47, 0, 0, fcoder_binds_for_default_mapid_global, 45},
 {"mapid_file", 10, "The following bindings apply in general text files and most apply in code files, but some are overriden by other commands specific to code files.", 145, 0, 0, fcoder_binds_for_default_mapid_file, 66},
 {"default_code_map", 16, "The following commands only apply in files where the lexer (syntax highlighting) is turned on.", 94, "mapid_file", 10, fcoder_binds_for_default_default_code_map, 32},
 };
-static Meta_Key_Bind fcoder_binds_for_mac_default_mapid_global[46] = {
+static Meta_Key_Bind fcoder_binds_for_mac_default_mapid_global[45] = {
 {0, 112, 4, "open_panel_vsplit", 17, LINK_PROCS(open_panel_vsplit)},
 {0, 95, 4, "open_panel_hsplit", 17, LINK_PROCS(open_panel_hsplit)},
 {0, 80, 4, "close_panel", 11, LINK_PROCS(close_panel)},
@@ -503,7 +500,6 @@ static Meta_Key_Bind fcoder_binds_for_mac_default_mapid_global[46] = {
 {0, 107, 4, "interactive_kill_buffer", 23, LINK_PROCS(interactive_kill_buffer)},
 {0, 105, 4, "interactive_switch_buffer", 25, LINK_PROCS(interactive_switch_buffer)},
 {0, 104, 4, "project_go_to_root_directory", 28, LINK_PROCS(project_go_to_root_directory)},
-{0, 72, 4, "reload_current_project", 22, LINK_PROCS(reload_current_project)},
 {0, 83, 4, "save_all_dirty_buffers", 22, LINK_PROCS(save_all_dirty_buffers)},
 {0, 99, 1, "open_color_tweaker", 18, LINK_PROCS(open_color_tweaker)},
 {0, 46, 1, "change_to_build_panel", 21, LINK_PROCS(change_to_build_panel)},
@@ -640,7 +636,7 @@ static Meta_Key_Bind fcoder_binds_for_mac_default_default_code_map[32] = {
 {0, 73, 4, "list_all_functions_current_buffer", 33, LINK_PROCS(list_all_functions_current_buffer)},
 };
 static Meta_Sub_Map fcoder_submaps_for_mac_default[3] = {
-{"mapid_global", 12, "The following bindings apply in all situations.", 47, 0, 0, fcoder_binds_for_mac_default_mapid_global, 46},
+{"mapid_global", 12, "The following bindings apply in all situations.", 47, 0, 0, fcoder_binds_for_mac_default_mapid_global, 45},
 {"mapid_file", 10, "The following bindings apply in general text files and most apply in code files, but some are overriden by other commands specific to code files.", 145, 0, 0, fcoder_binds_for_mac_default_mapid_file, 64},
 {"default_code_map", 16, "The following commands only apply in files where the lexer (syntax highlighting) is turned on.", 94, "mapid_file", 10, fcoder_binds_for_mac_default_default_code_map, 32},
 };

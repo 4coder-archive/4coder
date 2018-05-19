@@ -9,7 +9,7 @@ static Project current_project = {0};
 ///////////////////////////////
 
 static CString_Array
-get_project_extensions(Project *project){
+project_get_extensions(Project *project){
     CString_Array array = {0};
     array.strings = default_extensions;
     array.count = ArrayCount(default_extensions);
@@ -74,21 +74,21 @@ close_all_files_with_extension(Application_Links *app, Partition *scratch_part,
 }
 
 static void
-open_all_files_in_directory_with_extension(Application_Links *app, String dir,
+open_all_files_in_directory_with_extension__inner(Application_Links *app, String space,
                                            CString_Array extension_array,
-                                           uint32_t flags){
-    File_List list = get_file_list(app, dir.str, dir.size);
-    int32_t dir_size = dir.size;
+                                                  uint32_t flags){
+    File_List list = get_file_list(app, space.str, space.size);
+    int32_t dir_size = space.size;
     
     for (uint32_t i = 0; i < list.count; ++i){
         File_Info *info = list.infos + i;
-        if (info->folder){
-            if (((flags&OpenAllFilesFlag_Recursive) != 0) && info->filename[0] != '.'){
-                dir.size = dir_size;
-                append(&dir, info->filename);
-                append(&dir, "/");
-                open_all_files_in_directory_with_extension(app, dir, extension_array, flags);
-            }
+        if (info->folder &&
+            ((flags & OpenAllFilesFlag_Recursive) != 0) &&
+            info->filename[0] != '.'){
+            space.size = dir_size;
+            append(&space, info->filename);
+            append(&space, "/");
+            open_all_files_in_directory_with_extension__inner(app, space, extension_array, flags);
         }
         else{
             bool32 is_match = true;
@@ -105,9 +105,9 @@ open_all_files_in_directory_with_extension(Application_Links *app, String dir,
             }
             
             if (is_match){
-                dir.size = dir_size;
-                append(&dir, info->filename);
-                create_buffer(app, dir.str, dir.size, 0);
+                space.size = dir_size;
+                append(&space, info->filename);
+                create_buffer(app, space.str, space.size, 0);
             }
         }
     }
@@ -116,91 +116,66 @@ open_all_files_in_directory_with_extension(Application_Links *app, String dir,
 }
 
 static void
-open_all_files_with_extension_in_hot(Application_Links *app, Partition *scratch,
-                                     CString_Array extensions_array,
-                                     uint32_t flags){
+open_all_files_in_directory_with_extension(Application_Links *app, Partition *scratch,
+                                           String dir,
+                                           CString_Array extension_array,
+                                           uint32_t flags){
     Temp_Memory temp = begin_temp_memory(scratch);
-    int32_t max_size = 4096;
-    char *memory = push_array(scratch, char, max_size);
-    String dir = make_string_cap(memory, 0, max_size);
-    dir.size = directory_get_hot(app, dir.str, dir.memory_size);
-    open_all_files_in_directory_with_extension(app, dir, extensions_array, flags);
+    int32_t size = 32 << 10;
+    char *mem = push_array(scratch, char, size);
+    String space = make_string_cap(mem, 0, size);
+    append(&space, dir);
+    open_all_files_in_directory_with_extension__inner(app, space, extension_array, flags);
     end_temp_memory(temp);
 }
 
 static void
-open_all_code_with_project_extensions_in_directory(Application_Links *app, String dir, uint32_t flags){
-    CString_Array array = get_project_extensions(&current_project);
-    open_all_files_in_directory_with_extension(app, dir, array, flags);
+open_all_files_in_hot_with_extension(Application_Links *app, Partition *scratch,
+                                     CString_Array extensions_array,
+                                     uint32_t flags){
+    Temp_Memory temp = begin_temp_memory(scratch);
+    int32_t size = 32 << 10;
+    char *mem = push_array(scratch, char, size);
+    String space = make_string_cap(mem, 0, size);
+    space.size = directory_get_hot(app, space.str, space.memory_size);
+    open_all_files_in_directory_with_extension__inner(app, space, extensions_array, flags);
+    end_temp_memory(temp);
 }
 
 ///////////////////////////////
 
-static void
-load_project_from_data(Application_Links *app, Partition *scratch,
-                       char *config_data, int32_t config_data_size,
-                       String project_dir){
-    Temp_Memory temp = begin_temp_memory(scratch);
+static bool32
+parse_project__data(Partition *scratch, String file_name, String data, String file_dir,
+                    Project *project){
+    bool32 success = false;
     
-    char *mem = config_data;
-    int32_t size = config_data_size;
+    Cpp_Token_Array array = text_data_to_token_array(scratch, data);
+    if (array.tokens != 0){
+        Config *parsed = text_data_and_token_array_to_parse_data(scratch, file_name, data, array);
+        if (parsed != 0){
+            success = true;
+            memset(project, 0, sizeof(*project));
+            
+            // Set new project directory
+{
+    project->dir = project->dir_space;
+        String str = make_fixed_width_string(project->dir_space);
+        copy(&str, file_dir);
+        terminate_with_null(&str);
+        project->dir_len = str.size;
+}
+            
+    // Read the settings from project.4coder
+    String str = {0};
+    if (config_string_var(parsed, "extensions", 0, &str)){
+        parse_extension_line_to_extension_list(str, &project->extension_list);
+    }
     
-    Cpp_Token_Array array;
-    array.count = 0;
-    array.max_count = (1 << 20)/sizeof(Cpp_Token);
-    array.tokens = push_array(scratch, Cpp_Token, array.max_count);
+    bool32 open_recursively = false;
+    if (config_bool_var(parsed, "open_recursively", 0, &open_recursively)){
+        project->open_recursively = open_recursively;
+    }
     
-    Cpp_Keyword_Table kw_table = {0};
-    Cpp_Keyword_Table pp_table = {0};
-    lexer_keywords_default_init(scratch, &kw_table, &pp_table);
-    
-    Cpp_Lex_Data S = cpp_lex_data_init(false, kw_table, pp_table);
-    Cpp_Lex_Result result = cpp_lex_step(&S, mem, size + 1, HAS_NULL_TERM, &array, NO_OUT_LIMIT);
-    
-    if (result == LexResult_Finished){
-        // Clear out current project
-        if (current_project.close_all_code_when_this_project_closes){
-            close_all_files_with_extension(app, scratch, get_project_extensions(&current_project));
-        }
-        memset(&current_project, 0, sizeof(current_project));
-        current_project.loaded = true;
-        
-        // Set new project directory
-        {
-            current_project.dir = current_project.dir_space;
-            String str = make_fixed_width_string(current_project.dir_space);
-            copy(&str, project_dir);
-            terminate_with_null(&str);
-            current_project.dir_len = str.size;
-        }
-        
-        // Read the settings from project.4coder
-        for (int32_t i = 0; i < array.count; ++i){
-            Config_Line config_line = read_config_line(array, &i, mem);
-            if (config_line.read_success){
-                Config_Item item = get_config_item(config_line, mem, array);
-                
-                {
-                    char str_space[512];
-                    String str = make_fixed_width_string(str_space);
-                    if (config_string_var(item, "extensions", 0, &str)){
-                        if (str.size < sizeof(current_project.extension_list.space)){
-                            parse_extension_line_to_extension_list(str, &current_project.extension_list);
-                            print_message(app, str.str, str.size);
-                            print_message(app, "\n", 1);
-                        }
-                        else{
-                            print_message(app, literal("STRING TOO LONG!\n"));
-                        }
-                    }
-                }
-                
-                bool32 open_recursively = false;
-                if (config_bool_var(item, "open_recursively", 0, &open_recursively)){
-                    current_project.open_recursively = open_recursively;
-                }
-                
-                {
 #if defined(IS_WINDOWS)
 # define FKEY_COMMAND "fkey_command_win"
 #elif defined(IS_LINUX)
@@ -210,139 +185,134 @@ load_project_from_data(Application_Links *app, Partition *scratch,
 #else
 # error no project configuration names for this platform
 #endif
-                    
-                    int32_t index = 0;
-                    Config_Array_Reader array_reader = {0};
-                    if (config_array_var(item, FKEY_COMMAND, &index, &array_reader)){
-                        if (index >= 1 && index <= 16){
-                            Config_Item array_item = {0};
-                            int32_t item_index = 0;
-                            
-                            char space[256];
-                            String msg = make_fixed_width_string(space);
-                            append(&msg, FKEY_COMMAND"[");
-                            append_int_to_str(&msg, index);
-                            append(&msg, "] = {");
-                            
-                            for (config_array_next_item(&array_reader, &array_item);
-                                 config_array_good(&array_reader);
-                                 config_array_next_item(&array_reader, &array_item)){
-                                
-                                if (item_index >= 4){
-                                    break;
-                                }
-                                
-                                append(&msg, "[");
-                                append_int_to_str(&msg, item_index);
-                                append(&msg, "] = ");
-                                
-                                bool32 read_string = false;
-                                bool32 read_bool = false;
-                                
-                                char *dest_str = 0;
-                                int32_t dest_str_size = 0;
-                                
-                                bool32 *dest_bool = 0;
-                                
-                                switch (item_index){
-                                    case 0:
-                                    {
-                                        dest_str = current_project.fkey_commands[index-1].command;
-                                        dest_str_size = sizeof(current_project.fkey_commands[index-1].command);
-                                        read_string = true;
-                                    }break;
-                                    
-                                    case 1:
-                                    {
-                                        dest_str = current_project.fkey_commands[index-1].out;
-                                        dest_str_size = sizeof(current_project.fkey_commands[index-1].out);
-                                        read_string = true;
-                                    }break;
-                                    
-                                    case 2:
-                                    {
-                                        dest_bool = &current_project.fkey_commands[index-1].use_build_panel;
-                                        read_bool = true;
-                                    }break;
-                                    
-                                    case 3:
-                                    {
-                                        dest_bool = &current_project.fkey_commands[index-1].save_dirty_buffers;
-                                        read_bool = true;
-                                    }break;
-                                }
-                                
-                                if (read_string){
-                                    if (config_int_var(array_item, 0, 0, 0)){
-                                        append(&msg, "NULL, ");
-                                        dest_str[0] = 0;
-                                    }
-                                    
-                                    char str_space[512];
-                                    String str = make_fixed_width_string(str_space);
-                                    if (config_string_var(array_item, 0, 0, &str)){
-                                        if (str.size < dest_str_size){
-                                            string_interpret_escapes(str, dest_str);
-                                            append(&msg, dest_str);
-                                            append(&msg, ", ");
-                                        }
-                                        else{
-                                            append(&msg, "STRING TOO LONG!, ");
-                                        }
-                                    }
-                                }
-                                
-                                if (read_bool){
-                                    if (config_bool_var(array_item, 0, 0, dest_bool)){
-                                        if (*dest_bool){
-                                            append(&msg, "true, ");
-                                        }
-                                        else{
-                                            append(&msg, "false, ");
-                                        }
-                                    }
-                                }
-                                
-                                item_index++;
-                            }
-                            
-                            append(&msg, "}\n");
-                            print_message(app, msg.str, msg.size);
-                        }
-                    }
-                }
+    
+    for (int32_t i = 1; i <= 16; ++i){
+        Config_Compound *compound = 0;
+        if (config_compound_var(parsed, FKEY_COMMAND, i, &compound)){
+            Fkey_Command *command = &project->fkey_commands[i - 1];
+            command->command[0] = 0;
+            command->out[0] = 0;
+            command->use_build_panel = false;
+            command->save_dirty_buffers = false;
+            
+            String cmd = {0};
+            if (config_compound_string_member(parsed, compound, "cmd", 0, &cmd)){
+                String dst = make_fixed_width_string(command->command);
+                append(&dst, cmd);
+                terminate_with_null(&dst);
             }
-            else if (config_line.error_str.str != 0){
-                char space[2048];
-                String str = make_fixed_width_string(space);
-                copy(&str, "WARNING: bad syntax in 4coder.config at ");
-                append(&str, config_line.error_str);
-                append(&str, "\n");
-                print_message(app, str.str, str.size);
+            
+            String out = {0};
+            if (config_compound_string_member(parsed, compound, "out", 1, &out)){
+                String dst = make_fixed_width_string(command->out);
+                append(&dst, out);
+                terminate_with_null(&out);
+            }
+            
+            bool32 footer_panel = false;
+            if (config_compound_bool_member(parsed, compound, "footer_panel", 2, &footer_panel)){
+                command->use_build_panel = footer_panel;
+            }
+            
+            bool32 save_dirty_buffers = false;
+            if (config_compound_bool_member(parsed, compound, "save_dirty_files", 3, &footer_panel)){
+                command->save_dirty_buffers = save_dirty_buffers;
             }
         }
-        
-        if (current_project.close_all_files_when_project_opens){
-            CString_Array extension_array = {0};
-            close_all_files_with_extension(app, scratch, extension_array);
-        }
-        
-        // Open all project files
-        uint32_t flags = 0;
-        if (current_project.open_recursively){
-            flags |= OpenAllFilesFlag_Recursive;
-        }
-        open_all_code_with_project_extensions_in_directory(app, project_dir, flags);
-        
-        // Set window title
-        char space[1024];
-        String builder = make_fixed_width_string(space);
-        append(&builder, "4coder: ");
-        append(&builder, project_dir);
-        terminate_with_null(&builder);
-        set_window_title(app, builder.str);
+    }
+}
     }
     
+    return(success);
+}
+
+static bool32
+parse_project__nearest_file(Application_Links *app, Partition *arena, Project *project){
+    bool32 success = false;
+    
+    String project_path = {0};
+    Temp_Memory temp = begin_temp_memory(arena);
+    int32_t size = 32 << 10;
+    char *space = push_array(arena, char, size);
+    if (space != 0){
+        project_path = make_string_cap(space, 0, size);
+        project_path.size = directory_get_hot(app, project_path.str, project_path.memory_size);
+        end_temp_memory(temp);
+        push_array(arena, char, project_path.size);
+        project_path.memory_size = project_path.size;
+        if (project_path.size == 0){
+            print_message(app, literal("The hot directory is empty, cannot search for a project.\n"));
+        }
+        else{
+            File_Name_Path_Data dump = dump_file_search_up_path(arena, project_path, make_lit_string("project.4coder"));
+            if (dump.data.str != 0){
+                String project_root = dump.path;
+                remove_last_folder(&project_root);
+                success = parse_project__data(arena, dump.file_name, dump.data, project_root, project);
+            }
+            else{
+                char message_space[512];
+                String message = make_fixed_width_string(message_space);
+                append(&message, "Did not find project.4coder.  ");
+                if (current_project.dir != 0){
+                    append(&message, "Continuing with: ");
+                    append(&message, current_project.dir);
+                }
+                else{
+                    append(&message, "Continuing without a project");
+                }
+                append(&message, '\n');
+                print_message(app, message.str, message.size);
+            }
+        }
+    }
+    end_temp_memory(temp);
+    
+    return(success);
+}
+
+static void
+set_current_project(Application_Links *app, Partition *scratch, Project *project){
+    memcpy(&current_project, &project, sizeof(current_project));
+    
+    String file_dir = make_string(project->dir_space, project->dir_len);
+    
+    // Open all project files
+    uint32_t flags = 0;
+    if (current_project.open_recursively){
+        flags |= OpenAllFilesFlag_Recursive;
+    }
+    CString_Array array = project_get_extensions(&current_project);
+    open_all_files_in_directory_with_extension(app, scratch, file_dir, array, flags);
+    
+    // Set window title
+    char space[1024];
+    String builder = make_fixed_width_string(space);
+    append(&builder, "4coder: ");
+    append(&builder, file_dir);
+    terminate_with_null(&builder);
+    set_window_title(app, builder.str);
+}
+
+static void
+set_current_project_from_data(Application_Links *app, Partition *scratch,
+                       String file_name, String data, String file_dir){
+    Temp_Memory temp = begin_temp_memory(scratch);
+    Project project = {0};
+    if (parse_project__data(scratch, file_name, data, file_dir,
+                             &project)){
+        set_current_project(app, scratch, &project);
+    }
+    end_temp_memory(temp);
+}
+
+static void
+set_project_from_nearest_project_file(Application_Links *app, Partition *scratch){
+    Temp_Memory temp = begin_temp_memory(scratch);
+    Project project = {0};
+    if (parse_project__nearest_file(app, scratch, &project)){
+        set_current_project(app, scratch, &project);
+    }
     end_temp_memory(temp);
 }
 
@@ -403,22 +373,22 @@ exec_project_fkey_command(Application_Links *app, int32_t command_ind){
 CUSTOM_COMMAND_SIG(close_all_code)
 CUSTOM_DOC("Closes any buffer with a filename ending with an extension configured to be recognized as a code file type.")
 {
-    CString_Array extensions = get_project_extensions(&current_project);
+    CString_Array extensions = project_get_extensions(&current_project);
     close_all_files_with_extension(app, &global_part, extensions);
 }
 
 CUSTOM_COMMAND_SIG(open_all_code)
 CUSTOM_DOC("Open all code in the current directory. File types are determined by extensions. An extension is considered code based on the extensions specified in 4coder.config.")
 {
-    CString_Array extensions = get_project_extensions(&current_project);
-    open_all_files_with_extension_in_hot(app, &global_part, extensions, 0);
+    CString_Array extensions = project_get_extensions(&current_project);
+    open_all_files_in_hot_with_extension(app, &global_part, extensions, 0);
 }
 
 CUSTOM_COMMAND_SIG(open_all_code_recursive)
 CUSTOM_DOC("Works as open_all_code but also runs in all subdirectories.")
 {
-    CString_Array extensions = get_project_extensions(&current_project);
-    open_all_files_with_extension_in_hot(app, &global_part, extensions, OpenAllFilesFlag_Recursive);
+    CString_Array extensions = project_get_extensions(&current_project);
+    open_all_files_in_hot_with_extension(app, &global_part, extensions, OpenAllFilesFlag_Recursive);
 }
 
 ///////////////////////////////
@@ -426,72 +396,8 @@ CUSTOM_DOC("Works as open_all_code but also runs in all subdirectories.")
 CUSTOM_COMMAND_SIG(load_project)
 CUSTOM_DOC("Looks for a project.4coder file in the current directory and tries to load it.  Looks in parent directories until a project file is found or there are no more parents.")
 {
-    Partition *part = &global_part;
-    
-    Temp_Memory temp = begin_temp_memory(part);
     save_all_dirty_buffers(app);
-    char space[512];
-    String project_path = make_fixed_width_string(space);
-    project_path.size = directory_get_hot(app, project_path.str, project_path.memory_size);
-    if (project_path.size >= project_path.memory_size){
-        print_message(app, literal("Hot directory longer than hard coded path buffer.\n"));
-    }
-    else if (project_path.size == 0){
-        print_message(app, literal("The hot directory is empty, cannot search for a project.\n"));
-    }
-    else{
-        String data = dump_file_search_up_path(part, project_path, make_lit_string("project.4coder"));
-        if (data.str != 0){
-            load_project_from_data(app, part, data.str, data.size, project_path);
-        }
-        else{
-            char message_space[512];
-            String message = make_fixed_width_string(message_space);
-            append(&message, "Did not find project.4coder.  ");
-            if (current_project.dir != 0){
-                append(&message, "Continuing with: ");
-                append(&message, current_project.dir);
-            }
-            else{
-                append(&message, "Continuing without a project");
-            }
-            append(&message, '\n');
-            print_message(app, message.str, message.size);
-        }
-    }
-    end_temp_memory(temp);
-}
-
-CUSTOM_COMMAND_SIG(reload_current_project)
-CUSTOM_DOC("If a project file has already been loaded, reloads the same file.  Useful for when the project configuration is changed.")
-{
-    Partition *part = &global_part;
-    
-    if (current_project.loaded){
-        save_all_dirty_buffers(app);
-        char space[512];
-        String project_path = make_fixed_width_string(space);
-        append(&project_path, make_string(current_project.dir, current_project.dir_len));
-        if (project_path.size == 0 || !char_is_slash(project_path.str[project_path.size - 1])){
-            append(&project_path, "/");
-        }
-        append(&project_path, "project.4coder");
-        terminate_with_null(&project_path);
-        
-        FILE *file = fopen(project_path.str, "rb");
-        if (file != 0){
-            Temp_Memory temp = begin_temp_memory(part);
-            String data = dump_file_handle(part, file);
-            if (data.str != 0){
-                load_project_from_data(app, part, data.str, data.size, project_path);
-            }
-            end_temp_memory(temp);
-            fclose(file);
-        }
-        else{
-            print_message(app, literal("project.4coder file not found. Project configuration unchanged."));
-        }
-    }
+    set_project_from_nearest_project_file(app, &global_part);
 }
 
 CUSTOM_COMMAND_SIG(project_fkey_command)

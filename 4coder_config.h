@@ -12,7 +12,7 @@ struct Config_Parser{
     Cpp_Token *token;
 Cpp_Token *end;
     
-    char *file_name;
+     String file_name;
     String data;
     
     Partition *arena;
@@ -47,9 +47,18 @@ struct Config_RValue{
         Config_LValue *lvalue;
         bool32 boolean;
         int32_t integer;
+        uint32_t uinteger;
         String string;
         char character;
         Config_Compound *compound;
+    };
+};
+
+struct Config_Integer{
+    bool32 is_signed;
+    union{
+        int32_t integer;
+        uint32_t uinteger;
     };
 };
 

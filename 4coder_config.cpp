@@ -63,10 +63,10 @@ config_parser__advance_to_next(Config_Parser *ctx){
 }
 
 static Config_Parser
-make_config_parser(Partition *arena, char *file_name, String data, Cpp_Token_Array array){
+make_config_parser(Partition *arena, String file_name, String data, Cpp_Token_Array array){
     Config_Parser ctx = {0};
     ctx.start = array.tokens;
-    ctx.token = ctx.start;
+    ctx.token = ctx.start - 1;
     ctx.end = ctx.start + array.count;
     ctx.file_name = file_name;
     ctx.data = data;
@@ -96,10 +96,19 @@ config_parser__get_lexeme(Config_Parser *ctx){
     return(lexeme);
 }
 
-static int32_t
-config_parser__get_integer(Config_Parser *ctx){
+static Config_Integer
+config_parser__get_int(Config_Parser *ctx){
+    Config_Integer config_integer = {0};
     String str = config_parser__get_lexeme(ctx);
-    return(str_to_int(str));
+    if (match(substr(str, 0, 2), "0x")){
+        config_integer.is_signed = false;
+        config_integer.uinteger = hexstr_to_int(substr_tail(str, 2));
+    }
+    else{
+        config_integer.is_signed = true;
+        config_integer.integer = str_to_int(str);
+    }
+    return(config_integer);
 }
 
 static bool32
@@ -145,7 +154,7 @@ static Config_Compound         *config_parser__compound(Config_Parser *ctx);
 static Config_Compound_Element *config_parser__element(Config_Parser *ctx);
 
 static Config*
-config_parse(Partition *arena, char *file_name, String data, Cpp_Token_Array array){
+text_data_and_token_array_to_parse_data(Partition *arena, String file_name, String data, Cpp_Token_Array array){
     Temp_Memory restore_point = begin_temp_memory(arena);
     Config_Parser ctx = make_config_parser(arena, file_name, data, array);
     Config *config = config_parser__config(&ctx);
@@ -170,6 +179,7 @@ config_parser__config(Config_Parser *ctx){
     }
     
     Config *config = push_array(ctx->arena, Config, 1);
+    memset(config, 0, sizeof(*config));
     config->version = version;
     config->first = first;
     config->last = last;
@@ -182,11 +192,11 @@ config_parser__version(Config_Parser *ctx){
     require(config_parser__match_text(ctx, make_lit_string("version")));
     require(config_parser__match_token(ctx, CPP_TOKEN_PARENTHESE_OPEN));
     require(config_parser__recognize_token(ctx, CPP_TOKEN_INTEGER_CONSTANT));
-    int32_t value = config_parser__get_integer(ctx);
+    Config_Integer value = config_parser__get_int(ctx);
     config_parser__advance_to_next(ctx);
     require(config_parser__match_token(ctx, CPP_TOKEN_PARENTHESE_CLOSE));
     int32_t *ptr = push_array(ctx->arena, int32_t, 1);
-    *ptr = value;
+    *ptr = value.integer;
     return(ptr);
 }
 
@@ -200,6 +210,7 @@ config_parser__assignment(Config_Parser *ctx){
     require(config_parser__match_token(ctx, CPP_TOKEN_SEMICOLON));
     
     Config_Assignment *assignment = push_array(ctx->arena, Config_Assignment, 1);
+    memset(assignment, 0, sizeof(*assignment));
     assignment->l = l;
     assignment->r = r;
     return(assignment);
@@ -214,12 +225,14 @@ config_parser__lvalue(Config_Parser *ctx){
     int32_t index = 0;
     if (config_parser__match_token(ctx, CPP_TOKEN_BRACKET_OPEN)){
         require(config_parser__recognize_token(ctx, CPP_TOKEN_INTEGER_CONSTANT));
-        index = config_parser__get_integer(ctx);
+        Config_Integer value = config_parser__get_int(ctx);
+        index = value.integer;
         config_parser__advance_to_next(ctx);
         require(config_parser__match_token(ctx, CPP_TOKEN_BRACKET_CLOSE));
     }
     
     Config_LValue *lvalue = push_array(ctx->arena, Config_LValue, 1);
+    memset(lvalue, 0, sizeof(*lvalue));
     lvalue->identifier = identifier;
     lvalue->index = index;
     return(lvalue);
@@ -231,6 +244,7 @@ config_parser__rvalue(Config_Parser *ctx){
         Config_LValue *l = config_parser__lvalue(ctx);
         require(l != 0);
         Config_RValue *rvalue = push_array(ctx->arena, Config_RValue, 1);
+        memset(rvalue, 0, sizeof(*rvalue));
         rvalue->type = ConfigRValueType_LValue;
         rvalue->lvalue = l;
         return(rvalue);
@@ -240,6 +254,7 @@ config_parser__rvalue(Config_Parser *ctx){
         Config_Compound *compound = config_parser__compound(ctx);
         require(compound != 0);
         Config_RValue *rvalue = push_array(ctx->arena, Config_RValue, 1);
+        memset(rvalue, 0, sizeof(*rvalue));
         rvalue->type = ConfigRValueType_Compound;
         rvalue->compound = compound;
         return(rvalue);
@@ -248,16 +263,23 @@ config_parser__rvalue(Config_Parser *ctx){
         bool32 b = config_parser__get_boolean(ctx);
         config_parser__advance_to_next(ctx);
         Config_RValue *rvalue = push_array(ctx->arena, Config_RValue, 1);
+        memset(rvalue, 0, sizeof(*rvalue));
         rvalue->type = ConfigRValueType_Boolean;
         rvalue->boolean = b;
         return(rvalue);
     }
     else if (config_parser__recognize_token(ctx, CPP_TOKEN_INTEGER_CONSTANT)){
-        int32_t v = config_parser__get_integer(ctx);
+        Config_Integer value = config_parser__get_int(ctx);
         config_parser__advance_to_next(ctx);
         Config_RValue *rvalue = push_array(ctx->arena, Config_RValue, 1);
+        memset(rvalue, 0, sizeof(*rvalue));
         rvalue->type = ConfigRValueType_Integer;
-        rvalue->integer = v;
+        if (value.is_signed){
+            rvalue->integer = value.integer;
+}
+        else{
+            rvalue->uinteger = value.uinteger;
+        }
         return(rvalue);
     }
     else if (config_parser__recognize_token(ctx, CPP_TOKEN_STRING_CONSTANT)){
@@ -268,6 +290,7 @@ config_parser__rvalue(Config_Parser *ctx){
         s = substr(s, 1, s.size - 2);
         string_interpret_escapes(s, space);
         Config_RValue *rvalue = push_array(ctx->arena, Config_RValue, 1);
+        memset(rvalue, 0, sizeof(*rvalue));
         rvalue->type = ConfigRValueType_String;
         rvalue->string = make_string_slowly(space);
         return(rvalue);
@@ -280,6 +303,7 @@ config_parser__rvalue(Config_Parser *ctx){
         s = substr(s, 1, s.size - 2);
         string_interpret_escapes(s, space);
         Config_RValue *rvalue = push_array(ctx->arena, Config_RValue, 1);
+        memset(rvalue, 0, sizeof(*rvalue));
         rvalue->type = ConfigRValueType_Character;
         rvalue->character = space[0];
         return(rvalue);
@@ -311,6 +335,7 @@ config_parser__compound(Config_Parser *ctx){
     require(config_parser__match_token(ctx, CPP_TOKEN_BRACE_CLOSE));
     
     Config_Compound *compound = push_array(ctx->arena, Config_Compound, 1);
+    memset(compound, 0, sizeof(*compound));
     compound->first = first;
     compound->last = last;
     compound->count = count;
@@ -321,14 +346,15 @@ static Config_Compound_Element*
 config_parser__element(Config_Parser *ctx){
     Config_Layout layout = {0};
     if (config_parser__match_token(ctx, CPP_TOKEN_DOT)){
-        if (config_parser__recognize_token(ctx, CPP_TOKEN_INTEGER_CONSTANT)){
+        if (config_parser__recognize_token(ctx, CPP_TOKEN_IDENTIFIER)){
             layout.type = ConfigLayoutType_Identifier;
             layout.identifier = config_parser__get_lexeme(ctx);
             config_parser__advance_to_next(ctx);
         }
-        else if (config_parser__recognize_token(ctx, CPP_TOKEN_IDENTIFIER)){
+        else if (config_parser__recognize_token(ctx, CPP_TOKEN_INTEGER_CONSTANT)){
             layout.type = ConfigLayoutType_Integer;
-            layout.integer = config_parser__get_integer(ctx);
+            Config_Integer value = config_parser__get_int(ctx);
+            layout.integer = value.integer;
             config_parser__advance_to_next(ctx);
         }
         else{
@@ -337,8 +363,9 @@ config_parser__element(Config_Parser *ctx){
         require(config_parser__match_token(ctx, CPP_TOKEN_EQ));
     }
     Config_RValue *rvalue = config_parser__rvalue(ctx);
-    require(rvalue);
+    require(rvalue != 0);
     Config_Compound_Element *element = push_array(ctx->arena, Config_Compound_Element, 1);
+    memset(element, 0, sizeof(*element));
     element->l = layout;
     element->r = rvalue;
     return(element);
@@ -347,7 +374,7 @@ config_parser__element(Config_Parser *ctx){
 ////////////////////////////////
 
 static Config_Assignment*
-config_lookup_assignment(Config *config, char *var_name, int32_t subscript){
+config_lookup_assignment(Config *config, String var_name, int32_t subscript){
     Config_Assignment *assignment;
     for (assignment = config->first;
          assignment != 0;
@@ -361,81 +388,235 @@ config_lookup_assignment(Config *config, char *var_name, int32_t subscript){
 }
 
 static bool32
-config_var(Config *config, char *var_name, int32_t subscript, Config_RValue_Type type, void *out){
+config_var(Config *config, String var_name, int32_t subscript, Config_RValue_Type type, void *out);
+
+static bool32
+config_evaluate_rvalue(Config *config, Config_Assignment *assignment, Config_RValue *r,
+                       Config_RValue_Type type, void *out){
+    bool32 success = false;
+    if (r != 0 && !assignment->visited){
+    if (r->type == ConfigRValueType_LValue){
+        assignment->visited = true;
+        Config_LValue *l = r->lvalue;
+        success = config_var(config, l->identifier, l->index, type, out);
+        assignment->visited = false;
+    }
+    else if (r->type == type){
+        success = true;
+        switch (type){
+            case ConfigRValueType_Boolean:
+            {
+                *(bool32*)out = r->boolean;
+            }break;
+            
+            case ConfigRValueType_Integer:
+            {
+                *(int32_t*)out = r->integer;
+            }break;
+            
+            case ConfigRValueType_String:
+            {
+                *(String*)out = r->string;
+            }break;
+            
+            case ConfigRValueType_Character:
+            {
+                *(char*)out = r->character;
+            }break;
+            
+            case ConfigRValueType_Compound:
+            {
+                *(Config_Compound**)out = r->compound;
+            }break;
+        }
+    }
+}
+    return(success);
+}
+
+static bool32
+config_var(Config *config, String var_name, int32_t subscript, Config_RValue_Type type, void *var_out){
     Config_Assignment *assignment = config_lookup_assignment(config, var_name, subscript);
     bool32 success = false;
     if (assignment != 0){
-        Config_RValue *r = assignment->r;
-        if (r != 0 && !assignment->visited){
-            if (r->type == ConfigRValueType_LValue){
-                assignment->visited = true;
-                success = config_var(config, var_name, subscript, type, out);
-                assignment->visited = false;
-            }
-            else if (r->type == type){
-                success = true;
-                switch (type){
-                    case ConfigRValueType_Boolean:
-                    {
-                        *(bool32*)out = r->boolean;
-                    }break;
-                    
-                    case ConfigRValueType_Integer:
-                    {
-                        *(int32_t*)out = r->integer;
-                    }break;
-                    
-                    case ConfigRValueType_String:
-                    {
-                        *(String*)out = r->string;
-                    }break;
-                    
-                    case ConfigRValueType_Character:
-                    {
-                        *(char*)out = r->character;
-                    }break;
-                    
-                    case ConfigRValueType_Compound:
-                    {
-                        *(Config_Compound**)out = r->compound;
-                    }break;
+        success = config_evaluate_rvalue(config, assignment, assignment->r, type, var_out);
+    }
+    return(success);
+}
+
+static bool32
+config_bool_var(Config *config, String var_name, int32_t subscript, bool32 *var_out){
+    return(config_var(config, var_name, subscript, ConfigRValueType_Boolean, var_out));
+}
+
+static bool32
+config_bool_var(Config *config, char *var_name, int32_t subscript, bool32 *var_out){
+    return(config_var(config, make_string_slowly(var_name), subscript, ConfigRValueType_Boolean, var_out));
+}
+
+static bool32
+config_int_var(Config *config, String var_name, int32_t subscript, int32_t *var_out){
+    return(config_var(config, var_name, subscript, ConfigRValueType_Integer, var_out));
+}
+
+static bool32
+config_int_var(Config *config, char *var_name, int32_t subscript, int32_t *var_out){
+    return(config_var(config, make_string_slowly(var_name), subscript, ConfigRValueType_Integer, var_out));
+}
+
+static bool32
+config_uint_var(Config *config, String var_name, int32_t subscript, uint32_t *var_out){
+    return(config_var(config, var_name, subscript, ConfigRValueType_Integer, var_out));
+}
+
+static bool32
+config_uint_var(Config *config, char *var_name, int32_t subscript, uint32_t *var_out){
+    return(config_var(config, make_string_slowly(var_name), subscript, ConfigRValueType_Integer, var_out));
+}
+
+static bool32
+config_string_var(Config *config, String var_name, int32_t subscript, String *var_out){
+    return(config_var(config, var_name, subscript, ConfigRValueType_String, var_out));
+}
+
+static bool32
+config_string_var(Config *config, char *var_name, int32_t subscript, String *var_out){
+    return(config_var(config, make_string_slowly(var_name), subscript, ConfigRValueType_String, var_out));
+}
+
+static bool32
+config_char_var(Config *config, String var_name, int32_t subscript, char *var_out){
+    return(config_var(config, var_name, subscript, ConfigRValueType_Character, var_out));
+}
+
+static bool32
+config_char_var(Config *config, char *var_name, int32_t subscript, char *var_out){
+    return(config_var(config, make_string_slowly(var_name), subscript, ConfigRValueType_Character, var_out));
+}
+
+static bool32
+config_compound_var(Config *config, String var_name, int32_t subscript, Config_Compound **var_out){
+    return(config_var(config, var_name, subscript, ConfigRValueType_Compound, var_out));
+}
+
+static bool32
+config_compound_var(Config *config, char *var_name, int32_t subscript, Config_Compound **var_out){
+    return(config_var(config, make_string_slowly(var_name), subscript, ConfigRValueType_Compound, var_out));
+}
+
+static bool32
+config_compound_member(Config *config, Config_Compound *compound, String var_name, int32_t index,
+                       Config_RValue_Type type, void *var_out){
+    bool32 success = false;
+    int32_t implicit_index = 0;
+    bool32 implicit_index_is_valid = true;
+    for (Config_Compound_Element *element = compound->first;
+         element != 0;
+         element = element->next, implicit_index += 1){
+        bool32 element_matches_query = false;
+        switch (element->l.type){
+            case ConfigLayoutType_Unset:
+            {
+                if (implicit_index_is_valid && index == implicit_index){
+                    element_matches_query = true;
                 }
-            }
+            }break;
+            
+            case ConfigLayoutType_Identifier:
+            {
+                implicit_index_is_valid = false;
+            if (match(element->l.identifier, var_name)){
+                    element_matches_query = true;
+                }
+                }break;
+            
+            case ConfigLayoutType_Integer:
+            {
+                implicit_index_is_valid = false;
+                if (element->l.integer == index){
+                    element_matches_query = true;
+                }
+            }break;
+        }
+        if (element_matches_query){
+            Config_Assignment dummy_assignment = {0};
+            success = config_evaluate_rvalue(config, &dummy_assignment, element->r, type, var_out);
         }
     }
     return(success);
 }
 
 static bool32
-config_bool_var(Config *config, char *var_name, int32_t subscript, bool32 *var_out){
-    return(config_var(config, var_name, subscript, ConfigRValueType_Boolean, var_out));
+config_compound_bool_member(Config *config, Config_Compound *compound,
+                            String var_name, int32_t index, bool32 *var_out){
+    return(config_compound_member(config, compound, var_name, index, ConfigRValueType_Boolean, var_out));
 }
 
 static bool32
-config_int_var(Config *config, char *var_name, int32_t subscript, int32_t *var_out){
-    return(config_var(config, var_name, subscript, ConfigRValueType_Integer, var_out));
+config_compound_bool_member(Config *config, Config_Compound *compound,
+                            char *var_name, int32_t index, bool32 *var_out){
+    return(config_compound_member(config, compound, make_string_slowly(var_name), index, ConfigRValueType_Boolean, var_out));
 }
 
 static bool32
-config_uint_var(Config *config, char *var_name, int32_t subscript, uint32_t *var_out){
-    return(config_var(config, var_name, subscript, ConfigRValueType_Integer, var_out));
+config_compound_int_member(Config *config, Config_Compound *compound,
+                           String var_name, int32_t index, int32_t *var_out){
+    return(config_compound_member(config, compound, var_name, index, ConfigRValueType_Integer, var_out));
 }
 
 static bool32
-config_string_var(Config *config, char *var_name, int32_t subscript, String *var_out){
-    return(config_var(config, var_name, subscript, ConfigRValueType_String, var_out));
+config_compound_int_member(Config *config, Config_Compound *compound,
+                           char *var_name, int32_t index, int32_t *var_out){
+    return(config_compound_member(config, compound, make_string_slowly(var_name), index, ConfigRValueType_Integer, var_out));
 }
 
 static bool32
-config_char_var(Config *config, char *var_name, int32_t subscript, char *var_out){
-    return(config_var(config, var_name, subscript, ConfigRValueType_Character, var_out));
+config_compound_uint_member(Config *config, Config_Compound *compound,
+                            String var_name, int32_t index, uint32_t *var_out){
+    return(config_compound_member(config, compound, var_name, index, ConfigRValueType_Integer, var_out));
 }
 
 static bool32
-config_compound_var(Config *config, char *var_name, int32_t subscript, Config_Compound **var_out){
-    return(config_var(config, var_name, subscript, ConfigRValueType_Compound, var_out));
+config_compound_uint_member(Config *config, Config_Compound *compound,
+                            char *var_name, int32_t index, uint32_t *var_out){
+    return(config_compound_member(config, compound, make_string_slowly(var_name), index, ConfigRValueType_Integer, var_out));
 }
 
+static bool32
+config_compound_string_member(Config *config, Config_Compound *compound,
+                              String var_name, int32_t index, String *var_out){
+    return(config_compound_member(config, compound, var_name, index, ConfigRValueType_String, var_out));
+}
+
+static bool32
+config_compound_string_member(Config *config, Config_Compound *compound,
+                              char *var_name, int32_t index, String *var_out){
+    return(config_compound_member(config, compound, make_string_slowly(var_name), index, ConfigRValueType_String, var_out));
+}
+
+static bool32
+config_compound_char_member(Config *config, Config_Compound *compound,
+                            String var_name, int32_t index, char *var_out){
+    return(config_compound_member(config, compound, var_name, index, ConfigRValueType_Character, var_out));
+}
+
+static bool32
+config_compound_char_member(Config *config, Config_Compound *compound,
+                            char *var_name, int32_t index, char *var_out){
+    return(config_compound_member(config, compound, make_string_slowly(var_name), index, ConfigRValueType_Character, var_out));
+}
+
+static bool32
+config_compound_compound_member(Config *config, Config_Compound *compound,
+                                String var_name, int32_t index, Config_Compound **var_out){
+    return(config_compound_member(config, compound, var_name, index, ConfigRValueType_Compound, var_out));
+}
+
+static bool32
+config_compound_compound_member(Config *config, Config_Compound *compound,
+                                char *var_name, int32_t index, Config_Compound **var_out){
+    return(config_compound_member(config, compound, make_string_slowly(var_name), index, ConfigRValueType_Compound, var_out));
+}
 
 ////////////////////////////////
 
@@ -757,6 +938,48 @@ change_mapping(Application_Links *app, String mapping){
 
 ////////////////////////////////
 
+static Cpp_Token_Array
+text_data_to_token_array(Partition *arena, String data){
+    bool32 success = false;
+    int32_t max_count = (1 << 20)/sizeof(Cpp_Token);
+    Temp_Memory restore_point = begin_temp_memory(arena);
+    Cpp_Token_Array array = {0};
+    array.tokens = push_array(arena, Cpp_Token, max_count);
+    if (array.tokens != 0){
+        array.max_count = max_count;
+        Cpp_Keyword_Table kw_table = {0};
+        Cpp_Keyword_Table pp_table = {0};
+        if (lexer_keywords_default_init(arena, &kw_table, &pp_table)){
+            Cpp_Lex_Data S = cpp_lex_data_init(false, kw_table, pp_table);
+            Cpp_Lex_Result result = cpp_lex_step(&S, data.str, data.size + 1, HAS_NULL_TERM, &array, NO_OUT_LIMIT);
+            if (result == LexResult_Finished){
+                success = true;
+            }
+        }
+        }
+    if (!success){
+        memset(&array, 0, sizeof(array));
+        end_temp_memory(restore_point);
+    }
+    return(array);
+}
+
+static Config*
+text_data_to_parsed_data(Partition *arena, String file_name, String data){
+    Config *parsed = 0;
+    Temp_Memory restore_point = begin_temp_memory(arena);
+    Cpp_Token_Array array = text_data_to_token_array(arena, data);
+    if (array.tokens != 0){
+        parsed = text_data_and_token_array_to_parse_data(arena, file_name, data, array);
+if (parsed == 0){
+        end_temp_memory(restore_point);
+    }
+}
+        return(parsed);
+}
+
+////////////////////////////////
+
 static void
 config_init_default(Config_Data *config){
     config->default_wrap_width = 672;
@@ -797,29 +1020,13 @@ config_init_default(Config_Data *config){
 }
 
 static void
-config_parse__data(Partition *scratch,
-                   char *file_name, String data, Config_Data *config){
+config_parse__data(Partition *scratch, String file_name, String data, Config_Data *config){
     config_init_default(config);
     
     bool32 success = false;
     Temp_Memory temp = begin_temp_memory(scratch);
     
-    Cpp_Token_Array array = {0};
-    array.count = 0;
-    array.max_count = (1 << 20)/sizeof(Cpp_Token);
-    array.tokens = push_array(scratch, Cpp_Token, array.max_count);
-    
-    if (array.tokens != 0){
-        Cpp_Keyword_Table kw_table = {0};
-        Cpp_Keyword_Table pp_table = {0};
-        lexer_keywords_default_init(scratch, &kw_table, &pp_table);
-        
-        Cpp_Lex_Data S = cpp_lex_data_init(false, kw_table, pp_table);
-        Cpp_Lex_Result result = cpp_lex_step(&S, data.str, data.size + 1, HAS_NULL_TERM, &array, NO_OUT_LIMIT);
-        
-        if (result == LexResult_Finished){
-#if 1
-            Config *parsed = config_parse(scratch, file_name, data, array);
+    Config *parsed = text_data_to_parsed_data(scratch, file_name, data);
             if (parsed != 0){
                 success = true;
                 
@@ -851,64 +1058,6 @@ config_parse__data(Partition *scratch,
                 config_bool_var(parsed, "automatically_load_project", 0, &config->automatically_load_project);
                 config_bool_var(parsed, "lalt_lctrl_is_altgr", 0, &config->lalt_lctrl_is_altgr);
             }
-            
-#else
-            success = true;
-            for (int32_t i = 0; i < array.count; ++i){
-                Config_Line config_line = read_config_line(array, &i, data.str);
-                
-                if (config_line.read_success){
-                    Config_Item item = get_config_item(config_line, data.str, array);
-                    
-                    config_bool_var(item, "enable_code_wrapping", 0,
-                                    &config->enable_code_wrapping);
-                    config_bool_var(item, "automatically_adjust_wrapping", 0,
-                                    &config->automatically_adjust_wrapping);
-                    config_bool_var(item, "automatically_indent_text_on_save", 0,
-                                    &config->automatically_indent_text_on_save);
-                    config_bool_var(item, "automatically_save_changes_on_build", 0,
-                                    &config->automatically_save_changes_on_build);
-                    
-                    config_int_var(item, "default_wrap_width", 0,
-                                   &config->default_wrap_width);
-                    config_int_var(item, "default_min_base_width", 0,
-                                   &config->default_min_base_width);
-                    
-                    config_string_var(item, "default_theme_name", 0,
-                                      &config->default_theme_name);
-                    config_string_var(item, "default_font_name", 0,
-                                      &config->default_font_name);
-                    config_string_var(item, "user_name", 0,
-                                      &config->user_name);
-                    
-                    config_string_var(item, "default_compiler_bat", 0,
-                                      &config->default_compiler_bat);
-                    config_string_var(item, "default_flags_bat", 0,
-                                      &config->default_flags_bat);
-                    config_string_var(item, "default_compiler_sh", 0,
-                                      &config->default_compiler_sh);
-                    config_string_var(item, "default_flags_sh", 0,
-                                      &config->default_flags_sh);
-                    
-                    config_string_var(item, "mapping", 0,
-                                      &config->current_mapping);
-                    
-                    char space[512];
-                    String str = make_fixed_width_string(space);
-                    if (config_string_var(item, "treat_as_code", 0, &str)){
-                        parse_extension_line_to_extension_list(str, &config->code_exts);
-                    }
-                    
-                    config_bool_var(item, "automatically_load_project", 0,
-                                    &config->automatically_load_project);
-                    
-                    config_bool_var(item, "lalt_lctrl_is_altgr", 0,
-                                    &config->lalt_lctrl_is_altgr);
-                }
-            }
-#endif
-        }
-    }
     
     end_temp_memory(temp);
     
@@ -919,7 +1068,7 @@ config_parse__data(Partition *scratch,
 
 static void
 config_parse__file_handle(Partition *scratch,
-                          char *file_name, FILE *file, Config_Data *config){
+                           String file_name, FILE *file, Config_Data *config){
     Temp_Memory temp = begin_temp_memory(scratch);
     String data = dump_file_handle(scratch, file);
     if (data.str != 0){
@@ -934,81 +1083,70 @@ config_parse__file_handle(Partition *scratch,
 static void
 config_parse__file_name(Application_Links *app, Partition *scratch,
                         char *file_name, Config_Data *config){
+    bool32 success = false;
     FILE *file = open_file_try_current_path_then_binary_path(app, file_name);
     if (file != 0){
-        config_parse__file_handle(scratch, file_name, file, config);
+        Temp_Memory temp = begin_temp_memory(scratch);
+        String data = dump_file_handle(scratch, file);
         fclose(file);
-    }
-    else{
-        print_message(app, literal("Did not find config file, using default settings\n"));
+    if (data.str != 0){
+            config_parse__data(scratch, make_string_slowly(file_name), data, config);
+        }
+        end_temp_memory(temp);
+        }
+    
+    if (!success){
         config_init_default(config);
     }
 }
 
-static bool32
-theme_parse__data(Partition *scratch, String data, Theme_Data *theme){
-    bool32 success = false;
-    
-    Cpp_Token_Array array;
-    array.count = 0;
-    array.max_count = (1 << 20)/sizeof(Cpp_Token);
-    array.tokens = push_array(scratch, Cpp_Token, array.max_count);
-    
-    Cpp_Keyword_Table kw_table = {0};
-    Cpp_Keyword_Table pp_table = {0};
-    lexer_keywords_default_init(scratch, &kw_table, &pp_table);
-    
-    Cpp_Lex_Data S = cpp_lex_data_init(false, kw_table, pp_table);
-    Cpp_Lex_Result result = cpp_lex_step(&S, data.str, data.size + 1, HAS_NULL_TERM, &array, NO_OUT_LIMIT);
-    
-    if (result == LexResult_Finished){
-        success = true;
-        
-        theme->name = make_fixed_width_string(theme->space);
-        copy(&theme->name, "unnamed");
-        init_theme_zero(&theme->theme);
-        
-        for (int32_t i = 0; i < array.count; ++i){
-            Config_Line config_line = read_config_line(array, &i, data.str);
-            if (config_line.read_success){
-                Config_Item item = get_config_item(config_line, data.str, array);
-                config_string_var(item, "name", 0, &theme->name);
-                
-                for (int32_t tag = 0; tag < ArrayCount(style_tag_names); ++tag){
-                    char *name = style_tag_names[tag];
-                    int_color color = 0;
-                    if (config_uint_var(item, name, 0, &color)){
-                        int_color *color_slot = &theme->theme.colors[tag];
-                        *color_slot = color;
-                    }
-                    else{
-                        char var_space[512];
-                        String var_str = make_fixed_width_string(var_space);
-                        if (config_identifier_var(item, name, 0, &var_str)){
-                            for (int32_t eq_tag = 0; eq_tag < ArrayCount(style_tag_names); ++eq_tag){
-                                if (match(var_str, style_tag_names[eq_tag])){
-                                    int_color *color_slot = &theme->theme.colors[tag];
-                                    *color_slot = theme->theme.colors[eq_tag];
-                                    break;
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
+static void
+init_theme_zero(Theme *theme){
+    for (int32_t i = 0; i < Stag_COUNT; ++i){
+        theme->colors[i] = 0;
     }
+}
+
+static bool32
+theme_parse__data(Partition *scratch, String file_name, String data, Theme_Data *theme){
+    theme->name = make_fixed_width_string(theme->space);
+    copy(&theme->name, "unnamed");
+    init_theme_zero(&theme->theme);
+    
+    bool32 success = false;
+    Temp_Memory temp = begin_temp_memory(scratch);
+    
+            Config *parsed = text_data_to_parsed_data(scratch, file_name, data);
+            if (parsed != 0){
+                success = true;
+                
+                String theme_name = {0};
+                if (config_string_var(parsed, "name", 0, &theme_name)){
+                    copy(&theme->name, theme_name);
+                }
+                
+                for (int32_t i = 0; i < Stag_COUNT; ++i){
+                    char *name = style_tag_names[i];
+                    uint32_t color = 0;
+                    if (!config_uint_var(parsed, name, 0, &color)){
+                        color = 0xFFFF00FF;
+                    }
+                    theme->theme.colors[i] = color;
+                    }
+            }
+    
+    end_temp_memory(temp);
     
     return(success);
 }
 
 static bool32
-theme_parse__file_handle(Partition *scratch, FILE *file, Theme_Data *theme){
+theme_parse__file_handle(Partition *scratch, String file_name, FILE *file, Theme_Data *theme){
     Temp_Memory temp = begin_temp_memory(scratch);
     String data = dump_file_handle(scratch, file);
     bool32 success = false;
     if (data.str != 0){
-        success = theme_parse__data(scratch, data, theme);
+        success = theme_parse__data(scratch, file_name, data, theme);
     }
     end_temp_memory(temp);
     return(success);
@@ -1020,10 +1158,13 @@ theme_parse__file_name(Application_Links *app, Partition *scratch,
     bool32 success = false;
     FILE *file = open_file_try_current_path_then_binary_path(app, file_name);
     if (file != 0){
-        success = theme_parse__file_handle(scratch, file, theme);
+        Temp_Memory temp = begin_temp_memory(scratch);
+        String data = dump_file_handle(scratch, file);
         fclose(file);
+        success = theme_parse__data(scratch, make_string_slowly(file_name), data, theme);
+        end_temp_memory(temp);
     }
-    else{
+    if (!success){
         char space[256];
         String str = make_fixed_width_string(space);
         append(&str, "Did not find ");
@@ -1031,7 +1172,6 @@ theme_parse__file_name(Application_Links *app, Partition *scratch,
         append(&str, ", color scheme not loaded");
         print_message(app, str.str, str.size);
     }
-    
     return(success);
 }
 

@@ -186,7 +186,7 @@ generate_style(){
     char filename_4coder[] = STYLE_FILE;
     char filename_4ed[] = "4ed_generated_style.h";
     
-    String out = str_alloc(10 << 20);;
+    String out = str_alloc(10 << 20);
     
     enum_begin(&out, "Style_Tag");
     {
@@ -684,7 +684,6 @@ generate_remapping_code_and_data(){
         bind(mappings, 'k', MDFR_CTRL, interactive_kill_buffer);
         bind(mappings, 'i', MDFR_CTRL, interactive_switch_buffer);
         bind(mappings, 'h', MDFR_CTRL, project_go_to_root_directory);
-        bind(mappings, 'H', MDFR_CTRL, reload_current_project);
         bind(mappings, 'S', MDFR_CTRL, save_all_dirty_buffers);
         
         bind(mappings, 'c', MDFR_ALT, open_color_tweaker);
@@ -880,7 +879,6 @@ generate_remapping_code_and_data(){
         bind(mappings, 'k', MDFR_CMND, interactive_kill_buffer);
         bind(mappings, 'i', MDFR_CMND, interactive_switch_buffer);
         bind(mappings, 'h', MDFR_CMND, project_go_to_root_directory);
-        bind(mappings, 'H', MDFR_CMND, reload_current_project);
         bind(mappings, 'S', MDFR_CMND, save_all_dirty_buffers);
         
         bind(mappings, 'c', MDFR_CTRL, open_color_tweaker);

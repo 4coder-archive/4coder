@@ -7,6 +7,10 @@
 #if !defined(FCODER_HELPER_H)
 #define FCODER_HELPER_H
 
+// TODO(allen): Stop handling files this way!  My own API should be able to do this!!?!?!?!!?!?!!!!?
+// NOTE(allen): Actually need binary buffers for some stuff to work, but not this parsing thing here.
+#include <stdio.h>
+
 struct Bind_Helper{
     Binding_Unit *cursor, *start, *end;
     Binding_Unit *header, *group;
@@ -66,6 +70,24 @@ max_f32_proc(void){
 #endif
 
 #define require(c) if (!(c)){ return(0); }
+
+////////////////////////////////
+
+struct File_Handle_Path{
+    FILE *file;
+    String path;
+};
+
+struct File_Name_Data{
+    String file_name;
+    String data;
+};
+
+struct File_Name_Path_Data{
+    String file_name;
+    String path;
+String data;
+    };
 
 ////////////////////////////////
 

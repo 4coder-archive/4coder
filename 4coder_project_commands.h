@@ -30,9 +30,6 @@ struct Project{
     Extension_List extension_list;
     Fkey_Command fkey_commands[16];
     
-    bool32 close_all_code_when_this_project_closes;
-    bool32 close_all_files_when_project_opens;
-    
     bool32 open_recursively;
     
     bool32 loaded;
