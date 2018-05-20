@@ -7,6 +7,23 @@
 #if !defined(FCODER_CONFIG_H)
 #define FCODER_CONFIG_H
 
+// TODO(allen): Stop handling files this way!  My own API should be able to do this!!?!?!?!!?!?!!!!?
+// NOTE(allen): Actually need binary buffers for some stuff to work, but not this parsing thing here.
+#include <stdio.h>
+
+struct Error_Location{
+    int32_t line_number;
+    int32_t column_number;
+};
+
+struct Config_Error{
+    Config_Error *next;
+    Config_Error *prev;
+    String file_name;
+    char *pos;
+    String text;
+};
+
 struct Config_Parser{
     Cpp_Token *start;
     Cpp_Token *token;
@@ -16,6 +33,10 @@ Cpp_Token *end;
     String data;
     
     Partition *arena;
+    
+    Config_Error *first_error;
+    Config_Error *last_error;
+    int32_t count_error;
     };
 
 struct Config_LValue{
@@ -100,6 +121,12 @@ struct Config{
     Config_Assignment *first;
     Config_Assignment *last;
     int32_t count;
+    
+    Config_Error *first_error;
+    Config_Error *last_error;
+    int32_t count_error;
+    
+    String data;
 };
 
 ////////////////////////////////

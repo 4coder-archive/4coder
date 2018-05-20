@@ -34,11 +34,10 @@ The following bindings apply in all situations.
 \ITEM \STYLE{code} <ctrl <> \END Change the currently active panel, moving to the panel with the next lowest view_id.
 \ITEM \STYLE{code} <ctrl n> \END Interactively creates a new file.
 \ITEM \STYLE{code} <ctrl o> \END Interactively opens or creates a new file.
-\ITEM \STYLE{code} <alt o> \END Reads a filename from surrounding '"' characters and attempts to open the corresponding file, displaying it in the other view.
+\ITEM \STYLE{code} <alt o> \END Switches to the next active panel and begins an open file dialogue.
 \ITEM \STYLE{code} <ctrl k> \END Interactively kill an open buffer.
 \ITEM \STYLE{code} <ctrl i> \END Interactively switch to an open buffer.
 \ITEM \STYLE{code} <ctrl h> \END Changes 4coder's hot directory to the root directory of the currently loaded project. With no loaded project nothing hapepns.
-\ITEM \STYLE{code} <ctrl H> \END If a project file has already been loaded, reloads the same file.  Useful for when the project configuration is changed.
 \ITEM \STYLE{code} <ctrl S> \END Saves all buffers marked dirty (showing the '*' indicator).
 \ITEM \STYLE{code} <alt c> \END Opens the 4coder colors and fonts selector menu.
 \ITEM \STYLE{code} <alt .> \END If the special build panel is open, makes the build panel the active panel.
@@ -54,7 +53,6 @@ The following bindings apply in all situations.
 \ITEM \STYLE{code} <alt w> \END Sets the current view to hide it's scrollbar.
 \ITEM \STYLE{code} <alt b> \END Toggles the visibility status of the current view's filebar.
 \ITEM \STYLE{code} <alt @> \END Toggles the mouse suppression mode, see suppress_mouse and allow_mouse.
-\ITEM \STYLE{code} <ctrl page up> \END Toggle fullscreen mode on or off.  The change(s) do not take effect until the next frame.
 \ITEM \STYLE{code} <alt E> \END Attempts to close 4coder.
 \ITEM \STYLE{code} <ctrl +> \END Increase the size of the face used by the current buffer.
 \ITEM \STYLE{code} <ctrl -> \END Decrease the size of the face used by the current buffer.
@@ -119,7 +117,6 @@ The following bindings apply in general text files and most apply in code files,
 \ITEM \STYLE{code} <alt F> \END Queries the user for a string and lists all case-insensitive substring matches found in all open buffers.
 \ITEM \STYLE{code} <ctrl g> \END Queries the user for a number, and jumps the cursor to the corresponding line.
 \ITEM \STYLE{code} <ctrl G> \END Reads the string in the selected range and lists all exact case-sensitive mathces in all open buffers.
-\ITEM \STYLE{code} <ctrl j> \END Converts all ascii text in the range between the cursor and the mark to lowercase.
 \ITEM \STYLE{code} <ctrl K> \END Kills the current buffer.
 \ITEM \STYLE{code} <ctrl l> \END Toggles the current buffer's line wrapping status.
 \ITEM \STYLE{code} <ctrl L> \END Create a copy of the line on which the cursor sits.
@@ -133,7 +130,6 @@ The following bindings apply in general text files and most apply in code files,
 \ITEM \STYLE{code} <alt s> \END Queries the user for a name and saves the contents of the current buffer, altering the buffer's name too.
 \ITEM \STYLE{code} <ctrl t> \END Begins an incremental search down through the current buffer for the word or token under the cursor.
 \ITEM \STYLE{code} <ctrl T> \END Reads a token or word under the cursor and lists all exact case-sensitive mathces in all open buffers.
-\ITEM \STYLE{code} <ctrl u> \END Converts all ascii text in the range between the cursor and the mark to uppercase.
 \ITEM \STYLE{code} <ctrl v> \END Paste from the top of clipboard and run auto-indent on the newly pasted text.
 \ITEM \STYLE{code} <alt v> \END Toggles the current buffer's virtual whitespace status.
 \ITEM \STYLE{code} <ctrl V> \END Paste the next item on the clipboard and run auto-indent on the newly pasted text.
@@ -198,11 +194,10 @@ The following bindings apply in all situations.
 \ITEM \STYLE{code} <cmnd <> \END Change the currently active panel, moving to the panel with the next lowest view_id.
 \ITEM \STYLE{code} <cmnd n> \END Interactively creates a new file.
 \ITEM \STYLE{code} <cmnd o> \END Interactively opens or creates a new file.
-\ITEM \STYLE{code} <ctrl o> \END Reads a filename from surrounding '"' characters and attempts to open the corresponding file, displaying it in the other view.
+\ITEM \STYLE{code} <ctrl o> \END Switches to the next active panel and begins an open file dialogue.
 \ITEM \STYLE{code} <cmnd k> \END Interactively kill an open buffer.
 \ITEM \STYLE{code} <cmnd i> \END Interactively switch to an open buffer.
 \ITEM \STYLE{code} <cmnd h> \END Changes 4coder's hot directory to the root directory of the currently loaded project. With no loaded project nothing hapepns.
-\ITEM \STYLE{code} <cmnd H> \END If a project file has already been loaded, reloads the same file.  Useful for when the project configuration is changed.
 \ITEM \STYLE{code} <cmnd S> \END Saves all buffers marked dirty (showing the '*' indicator).
 \ITEM \STYLE{code} <ctrl c> \END Opens the 4coder colors and fonts selector menu.
 \ITEM \STYLE{code} <ctrl .> \END If the special build panel is open, makes the build panel the active panel.
@@ -218,7 +213,6 @@ The following bindings apply in all situations.
 \ITEM \STYLE{code} <ctrl w> \END Sets the current view to hide it's scrollbar.
 \ITEM \STYLE{code} <ctrl b> \END Toggles the visibility status of the current view's filebar.
 \ITEM \STYLE{code} <ctrl @> \END Toggles the mouse suppression mode, see suppress_mouse and allow_mouse.
-\ITEM \STYLE{code} <cmnd page up> \END Toggle fullscreen mode on or off.  The change(s) do not take effect until the next frame.
 \ITEM \STYLE{code} <ctrl E> \END Attempts to close 4coder.
 \ITEM \STYLE{code} <ctrl +> \END Increase the size of the face used by the current buffer.
 \ITEM \STYLE{code} <ctrl -> \END Decrease the size of the face used by the current buffer.
@@ -282,7 +276,6 @@ The following bindings apply in general text files and most apply in code files,
 \ITEM \STYLE{code} <ctrl F> \END Queries the user for a string and lists all case-insensitive substring matches found in all open buffers.
 \ITEM \STYLE{code} <cmnd g> \END Queries the user for a number, and jumps the cursor to the corresponding line.
 \ITEM \STYLE{code} <cmnd G> \END Reads the string in the selected range and lists all exact case-sensitive mathces in all open buffers.
-\ITEM \STYLE{code} <cmnd j> \END Converts all ascii text in the range between the cursor and the mark to lowercase.
 \ITEM \STYLE{code} <cmnd K> \END Kills the current buffer.
 \ITEM \STYLE{code} <cmnd l> \END Toggles the current buffer's line wrapping status.
 \ITEM \STYLE{code} <cmnd L> \END Create a copy of the line on which the cursor sits.
@@ -295,7 +288,6 @@ The following bindings apply in general text files and most apply in code files,
 \ITEM \STYLE{code} <ctrl s> \END Queries the user for a name and saves the contents of the current buffer, altering the buffer's name too.
 \ITEM \STYLE{code} <cmnd t> \END Begins an incremental search down through the current buffer for the word or token under the cursor.
 \ITEM \STYLE{code} <cmnd T> \END Reads a token or word under the cursor and lists all exact case-sensitive mathces in all open buffers.
-\ITEM \STYLE{code} <cmnd u> \END Converts all ascii text in the range between the cursor and the mark to uppercase.
 \ITEM \STYLE{code} <cmnd v> \END Paste from the top of clipboard and run auto-indent on the newly pasted text.
 \ITEM \STYLE{code} <ctrl v> \END Toggles the current buffer's virtual whitespace status.
 \ITEM \STYLE{code} <cmnd V> \END Paste the next item on the clipboard and run auto-indent on the newly pasted text.

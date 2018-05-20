@@ -144,17 +144,17 @@ open_all_files_in_hot_with_extension(Application_Links *app, Partition *scratch,
 
 ///////////////////////////////
 
-static bool32
+static Config*
 parse_project__data(Partition *scratch, String file_name, String data, String file_dir,
                     Project *project){
-    bool32 success = false;
+    Config *parsed = 0;
     
     Cpp_Token_Array array = text_data_to_token_array(scratch, data);
     if (array.tokens != 0){
-        Config *parsed = text_data_and_token_array_to_parse_data(scratch, file_name, data, array);
+        parsed = text_data_and_token_array_to_parse_data(scratch, file_name, data, array);
         if (parsed != 0){
-            success = true;
             memset(project, 0, sizeof(*project));
+            project->loaded = true;
             
             // Set new project directory
 {
@@ -223,32 +223,32 @@ parse_project__data(Partition *scratch, String file_name, String data, String fi
 }
     }
     
-    return(success);
+    return(parsed);
 }
 
-static bool32
-parse_project__nearest_file(Application_Links *app, Partition *arena, Project *project){
-    bool32 success = false;
+static Config*
+parse_project__nearest_file(Application_Links *app, Partition *scratch, Project *project){
+    Config *parsed = 0;
     
     String project_path = {0};
-    Temp_Memory temp = begin_temp_memory(arena);
+    Temp_Memory temp = begin_temp_memory(scratch);
     int32_t size = 32 << 10;
-    char *space = push_array(arena, char, size);
+    char *space = push_array(scratch, char, size);
     if (space != 0){
         project_path = make_string_cap(space, 0, size);
         project_path.size = directory_get_hot(app, project_path.str, project_path.memory_size);
         end_temp_memory(temp);
-        push_array(arena, char, project_path.size);
+        push_array(scratch, char, project_path.size);
         project_path.memory_size = project_path.size;
         if (project_path.size == 0){
             print_message(app, literal("The hot directory is empty, cannot search for a project.\n"));
         }
         else{
-            File_Name_Path_Data dump = dump_file_search_up_path(arena, project_path, make_lit_string("project.4coder"));
+            File_Name_Path_Data dump = dump_file_search_up_path(scratch, project_path, make_lit_string("project.4coder"));
             if (dump.data.str != 0){
                 String project_root = dump.path;
                 remove_last_folder(&project_root);
-                success = parse_project__data(arena, dump.file_name, dump.data, project_root, project);
+                parsed = parse_project__data(scratch, dump.file_name, dump.data, project_root, project);
             }
             else{
                 char message_space[512];
@@ -268,14 +268,15 @@ parse_project__nearest_file(Application_Links *app, Partition *arena, Project *p
     }
     end_temp_memory(temp);
     
-    return(success);
+    return(parsed);
 }
 
 static void
-set_current_project(Application_Links *app, Partition *scratch, Project *project){
-    memcpy(&current_project, &project, sizeof(current_project));
+set_current_project(Application_Links *app, Partition *scratch, Project *project, Config *parsed){
+    memcpy(&current_project, project, sizeof(current_project));
+    current_project.dir = current_project.dir_space;
     
-    String file_dir = make_string(project->dir_space, project->dir_len);
+    String file_dir = make_string(current_project.dir_space, current_project.dir_len);
     
     // Open all project files
     uint32_t flags = 0;
@@ -292,6 +293,11 @@ set_current_project(Application_Links *app, Partition *scratch, Project *project
     append(&builder, file_dir);
     terminate_with_null(&builder);
     set_window_title(app, builder.str);
+    
+    Temp_Memory temp = begin_temp_memory(scratch);
+    String error_text = config_stringize_errors(scratch, parsed);
+    print_message(app, error_text.str, error_text.size);
+    end_temp_memory(temp);
 }
 
 static void
@@ -299,19 +305,20 @@ set_current_project_from_data(Application_Links *app, Partition *scratch,
                        String file_name, String data, String file_dir){
     Temp_Memory temp = begin_temp_memory(scratch);
     Project project = {0};
-    if (parse_project__data(scratch, file_name, data, file_dir,
-                             &project)){
-        set_current_project(app, scratch, &project);
+    Config *parsed = parse_project__data(scratch, file_name, data, file_dir, &project);
+    if (parsed != 0){
+        set_current_project(app, scratch, &project, parsed);
     }
     end_temp_memory(temp);
 }
 
 static void
-set_project_from_nearest_project_file(Application_Links *app, Partition *scratch){
+set_current_project_from_nearest_project_file(Application_Links *app, Partition *scratch){
     Temp_Memory temp = begin_temp_memory(scratch);
     Project project = {0};
-    if (parse_project__nearest_file(app, scratch, &project)){
-        set_current_project(app, scratch, &project);
+    Config *parsed = parse_project__nearest_file(app, scratch, &project);
+    if (parsed != 0){
+        set_current_project(app, scratch, &project, parsed);
     }
     end_temp_memory(temp);
 }
@@ -397,7 +404,7 @@ CUSTOM_COMMAND_SIG(load_project)
 CUSTOM_DOC("Looks for a project.4coder file in the current directory and tries to load it.  Looks in parent directories until a project file is found or there are no more parents.")
 {
     save_all_dirty_buffers(app);
-    set_project_from_nearest_project_file(app, &global_part);
+    set_current_project_from_nearest_project_file(app, &global_part);
 }
 
 CUSTOM_COMMAND_SIG(project_fkey_command)

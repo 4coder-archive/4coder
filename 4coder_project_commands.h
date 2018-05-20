@@ -31,7 +31,6 @@ struct Project{
     Fkey_Command fkey_commands[16];
     
     bool32 open_recursively;
-    
     bool32 loaded;
 };
 

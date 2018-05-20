@@ -4,12 +4,6 @@
 
 // TOP
 
-// TODO(allen): Stop handling files this way!  My own API should be able to do this!!?!?!?!!?!?!!!!?
-// NOTE(allen): Actually need binary buffers for some stuff to work, but not this parsing thing here.
-#include <stdio.h>
-
-////////////////////////////////
-
 static CString_Array
 get_code_extensions(Extension_List *list){
     CString_Array array = {0};
@@ -50,6 +44,50 @@ parse_extension_line_to_extension_list(String str, Extension_List *list){
     }
     list->space[j++] = 0;
     list->count = k;
+}
+
+////////////////////////////////
+
+static Error_Location
+get_error_location(char *base, char *pos){
+    Error_Location location = {0};
+    location.line_number = 1;
+    location.column_number = 1;
+    for (char *ptr = base;
+         ptr < pos;
+         ptr += 1){
+        if (*ptr == '\n'){
+            location.line_number += 1;
+            location.column_number = 1;
+        }
+        else{
+            location.column_number += 1;
+        }
+    }
+    return(location);
+}
+
+static String
+config_stringize_errors(Partition *arena, Config *parsed){
+    String result = {0};
+    result.str = push_array(arena, char, 0);
+    result.memory_size = partition_remaining(arena);
+    for (Config_Error *error = parsed->first_error;
+         error != 0;
+         error = error->next){
+        Error_Location location = get_error_location(parsed->data.str, error->pos);
+        append(&result, error->file_name);
+        append(&result, ":");
+        append_int_to_str(&result, location.line_number);
+        append(&result, ":");
+        append_int_to_str(&result, location.column_number);
+        append(&result, ": ");
+        append(&result, error->text);
+        append(&result, "\n");
+    }
+    result.memory_size = result.size;
+    push_array(arena, char, result.size);
+    return(result);
 }
 
 ////////////////////////////////
@@ -145,13 +183,13 @@ config_parser__match_text(Config_Parser *ctx, String text){
     return(result);
 }
 
-static Config                  *config_parser__config(Config_Parser *ctx);
-static int32_t                 *config_parser__version(Config_Parser *ctx);
+static Config                  *config_parser__config    (Config_Parser *ctx);
+static int32_t                 *config_parser__version   (Config_Parser *ctx);
 static Config_Assignment       *config_parser__assignment(Config_Parser *ctx);
-static Config_LValue           *config_parser__lvalue(Config_Parser *ctx);
-static Config_RValue           *config_parser__rvalue(Config_Parser *ctx);
-static Config_Compound         *config_parser__compound(Config_Parser *ctx);
-static Config_Compound_Element *config_parser__element(Config_Parser *ctx);
+static Config_LValue           *config_parser__lvalue    (Config_Parser *ctx);
+static Config_RValue           *config_parser__rvalue    (Config_Parser *ctx);
+static Config_Compound         *config_parser__compound  (Config_Parser *ctx);
+static Config_Compound_Element *config_parser__element   (Config_Parser *ctx);
 
 static Config*
 text_data_and_token_array_to_parse_data(Partition *arena, String file_name, String data, Cpp_Token_Array array){
@@ -164,6 +202,39 @@ text_data_and_token_array_to_parse_data(Partition *arena, String file_name, Stri
     return(config);
 }
 
+static Config_Error*
+config_parser__push_error(Config_Parser *ctx){
+    Config_Error *error = push_array(ctx->arena, Config_Error, 1);
+    zdll_push_back(ctx->first_error, ctx->last_error, error);
+    error->file_name = ctx->file_name;
+    error->pos = ctx->data.str + ctx->token->start;
+    ctx->count_error += 1;
+    return(error);
+}
+
+static String
+config_parser__begin_string(Config_Parser *ctx){
+    String str;
+    str.str = push_array(ctx->arena, char, 0);
+    str.size = 0;
+    str.memory_size = ctx->arena->max - ctx->arena->pos;
+    return(str);
+}
+
+static void
+config_parser__end_string(Config_Parser *ctx, String *str){
+    str->memory_size = str->size;
+    push_array(ctx->arena, char, str->size);
+}
+
+static void
+config_parser__log_error(Config_Parser *ctx, char *error_text){
+    Config_Error *error = config_parser__push_error(ctx);
+    error->text = config_parser__begin_string(ctx);
+    append(&error->text, error_text);
+    config_parser__end_string(ctx, &error->text);
+}
+
 static Config*
 config_parser__config(Config_Parser *ctx){
     int32_t *version = config_parser__version(ctx);
@@ -173,9 +244,10 @@ config_parser__config(Config_Parser *ctx){
     int32_t count = 0;
     for (;!config_parser__recognize_token(ctx, CPP_TOKEN_EOF);){
         Config_Assignment *assignment = config_parser__assignment(ctx);
-        require(assignment != 0);
-        zdll_push_back(first, last, assignment);
-        count += 1;
+        if (assignment != 0){
+            zdll_push_back(first, last, assignment);
+            count += 1;
+        }
     }
     
     Config *config = push_array(ctx->arena, Config, 1);
@@ -184,17 +256,57 @@ config_parser__config(Config_Parser *ctx){
     config->first = first;
     config->last = last;
     config->count = count;
+    config->first_error = ctx->first_error;
+    config->last_error  = ctx->last_error;
+    config->count_error = ctx->count_error;
+    config->data = ctx->data;
     return(config);
+}
+
+static void
+config_parser__recover_parse(Config_Parser *ctx){
+    for (;;){
+        if (config_parser__match_token(ctx, CPP_TOKEN_SEMICOLON)){
+            break;
+        }
+        if (config_parser__recognize_token(ctx, CPP_TOKEN_EOF)){
+            break;
+        }
+        config_parser__advance_to_next(ctx);
+    }
 }
 
 static int32_t*
 config_parser__version(Config_Parser *ctx){
     require(config_parser__match_text(ctx, make_lit_string("version")));
-    require(config_parser__match_token(ctx, CPP_TOKEN_PARENTHESE_OPEN));
-    require(config_parser__recognize_token(ctx, CPP_TOKEN_INTEGER_CONSTANT));
+    
+    if (!config_parser__match_token(ctx, CPP_TOKEN_PARENTHESE_OPEN)){
+        config_parser__log_error(ctx, "expected token '(' for version specifier: 'version(#)'");
+        config_parser__recover_parse(ctx);
+        return(0);
+    }
+    
+    if (!config_parser__recognize_token(ctx, CPP_TOKEN_INTEGER_CONSTANT)){
+        config_parser__log_error(ctx, "expected an integer constant for version specifier: 'version(#)'");
+        config_parser__recover_parse(ctx);
+        return(0);
+    }
+    
     Config_Integer value = config_parser__get_int(ctx);
     config_parser__advance_to_next(ctx);
-    require(config_parser__match_token(ctx, CPP_TOKEN_PARENTHESE_CLOSE));
+    
+    if (!config_parser__match_token(ctx, CPP_TOKEN_PARENTHESE_CLOSE)){
+        config_parser__log_error(ctx, "expected token ')' for version specifier: 'version(#)'");
+        config_parser__recover_parse(ctx);
+        return(0);
+    }
+    
+    if (!config_parser__match_token(ctx, CPP_TOKEN_SEMICOLON)){
+        config_parser__log_error(ctx, "expected token ';' for version specifier: 'version(#)'");
+        config_parser__recover_parse(ctx);
+        return(0);
+    }
+    
     int32_t *ptr = push_array(ctx->arena, int32_t, 1);
     *ptr = value.integer;
     return(ptr);
@@ -203,11 +315,35 @@ config_parser__version(Config_Parser *ctx){
 static Config_Assignment*
 config_parser__assignment(Config_Parser *ctx){
     Config_LValue *l = config_parser__lvalue(ctx);
-    require(l != 0);
-    require(config_parser__match_token(ctx, CPP_TOKEN_EQ));
+    if (l == 0){
+        config_parser__log_error(ctx, "expected an l-value; l-value formats: 'identifier', 'identifier[#]'");
+        config_parser__recover_parse(ctx);
+        return(0);
+    }
+    
+    if (!config_parser__match_token(ctx, CPP_TOKEN_EQ)){
+        config_parser__log_error(ctx, "expected token '=' for assignment: 'l-value = r-value;'");
+        config_parser__recover_parse(ctx);
+        return(0);
+    }
+    
     Config_RValue *r = config_parser__rvalue(ctx);
-    require(r != 0);
-    require(config_parser__match_token(ctx, CPP_TOKEN_SEMICOLON));
+    if (r == 0){
+        config_parser__log_error(ctx, "expected an r-value; r-value formats:\n"
+                                 "\tconstants (true, false, integers, hexadecimal integers, strings, characters)\n"
+                                 "\tany l-value that is set in the file\n"
+                                 "\tcompound: '{ compound-element, compound-element, compound-element ...}'\n"
+                                 "\ta compound-element is an r-value, and can have a layout specifier\n"
+                                 "\tcompound-element with layout specifier: .name = r-value, .integer = r-value");
+        config_parser__recover_parse(ctx);
+        return(0);
+    }
+    
+    if (!config_parser__match_token(ctx, CPP_TOKEN_SEMICOLON)){
+        config_parser__log_error(ctx, "expected token ';' for assignment: 'l-value = r-value;'");
+        config_parser__recover_parse(ctx);
+        return(0);
+    }
     
     Config_Assignment *assignment = push_array(ctx->arena, Config_Assignment, 1);
     memset(assignment, 0, sizeof(*assignment));
@@ -276,7 +412,7 @@ config_parser__rvalue(Config_Parser *ctx){
         rvalue->type = ConfigRValueType_Integer;
         if (value.is_signed){
             rvalue->integer = value.integer;
-}
+        }
         else{
             rvalue->uinteger = value.uinteger;
         }
@@ -395,42 +531,42 @@ config_evaluate_rvalue(Config *config, Config_Assignment *assignment, Config_RVa
                        Config_RValue_Type type, void *out){
     bool32 success = false;
     if (r != 0 && !assignment->visited){
-    if (r->type == ConfigRValueType_LValue){
-        assignment->visited = true;
-        Config_LValue *l = r->lvalue;
-        success = config_var(config, l->identifier, l->index, type, out);
-        assignment->visited = false;
-    }
-    else if (r->type == type){
-        success = true;
-        switch (type){
-            case ConfigRValueType_Boolean:
-            {
-                *(bool32*)out = r->boolean;
-            }break;
-            
-            case ConfigRValueType_Integer:
-            {
-                *(int32_t*)out = r->integer;
-            }break;
-            
-            case ConfigRValueType_String:
-            {
-                *(String*)out = r->string;
-            }break;
-            
-            case ConfigRValueType_Character:
-            {
-                *(char*)out = r->character;
-            }break;
-            
-            case ConfigRValueType_Compound:
-            {
-                *(Config_Compound**)out = r->compound;
-            }break;
+        if (r->type == ConfigRValueType_LValue){
+            assignment->visited = true;
+            Config_LValue *l = r->lvalue;
+            success = config_var(config, l->identifier, l->index, type, out);
+            assignment->visited = false;
+        }
+        else if (r->type == type){
+            success = true;
+            switch (type){
+                case ConfigRValueType_Boolean:
+                {
+                    *(bool32*)out = r->boolean;
+                }break;
+                
+                case ConfigRValueType_Integer:
+                {
+                    *(int32_t*)out = r->integer;
+                }break;
+                
+                case ConfigRValueType_String:
+                {
+                    *(String*)out = r->string;
+                }break;
+                
+                case ConfigRValueType_Character:
+                {
+                    *(char*)out = r->character;
+                }break;
+                
+                case ConfigRValueType_Compound:
+                {
+                    *(Config_Compound**)out = r->compound;
+                }break;
+            }
         }
     }
-}
     return(success);
 }
 
@@ -485,6 +621,27 @@ config_string_var(Config *config, char *var_name, int32_t subscript, String *var
 }
 
 static bool32
+config_placed_string_var(Config *config, String var_name, int32_t subscript,
+                         String *var_out, char *space, int32_t space_size){
+    *var_out = make_string_cap(space, 0, space_size);
+    String str = {0};
+    bool32 result = config_string_var(config, var_name, subscript, &str);
+    if (result){
+        copy(var_out, str);
+        }
+    return(result);
+}
+
+static bool32
+config_placed_string_var(Config *config, char *var_name, int32_t subscript,
+                         String *var_out, char *space, int32_t space_size){
+    return(config_placed_string_var(config, make_string_slowly(var_name), subscript,
+                                    var_out, space, space_size));
+}
+
+#define config_fixed_string_var(c,v,s,o,a) config_placed_string_var((c),(v),(s),(o),(a),sizeof(a))
+
+static bool32
 config_char_var(Config *config, String var_name, int32_t subscript, char *var_out){
     return(config_var(config, var_name, subscript, ConfigRValueType_Character, var_out));
 }
@@ -525,10 +682,10 @@ config_compound_member(Config *config, Config_Compound *compound, String var_nam
             case ConfigLayoutType_Identifier:
             {
                 implicit_index_is_valid = false;
-            if (match(element->l.identifier, var_name)){
+                if (match(element->l.identifier, var_name)){
                     element_matches_query = true;
                 }
-                }break;
+            }break;
             
             case ConfigLayoutType_Integer:
             {
@@ -620,307 +777,6 @@ config_compound_compound_member(Config *config, Config_Compound *compound,
 
 ////////////////////////////////
 
-static Cpp_Token
-read_config_token(Cpp_Token_Array array, int32_t *i_ptr){
-    Cpp_Token token = {0};
-    int32_t i = *i_ptr;
-    for (; i < array.count; ++i){
-        Cpp_Token comment_token = array.tokens[i];
-        if (comment_token.type != CPP_TOKEN_COMMENT){
-            break;
-        }
-    }
-    if (i < array.count){
-        token = array.tokens[i];
-    }
-    *i_ptr = i;
-    return(token);
-}
-
-static Config_Line
-read_config_line(Cpp_Token_Array array, int32_t *i_ptr, char *text){
-    Config_Line config_line = {0};
-    
-    int32_t i = *i_ptr;
-    config_line.id_token = read_config_token(array, &i);
-    int32_t text_index_start = config_line.id_token.start;
-    if (config_line.id_token.type == CPP_TOKEN_IDENTIFIER){
-        ++i;
-        if (i < array.count){
-            Cpp_Token token = read_config_token(array, &i);
-            
-            bool32 lvalue_success = true;
-            if (token.type == CPP_TOKEN_BRACKET_OPEN){
-                lvalue_success = false;
-                ++i;
-                if (i < array.count){
-                    config_line.subscript_token = read_config_token(array, &i);
-                    if (config_line.subscript_token.type == CPP_TOKEN_INTEGER_CONSTANT){
-                        ++i;
-                        if (i < array.count){
-                            token = read_config_token(array, &i);
-                            if (token.type == CPP_TOKEN_BRACKET_CLOSE){
-                                ++i;
-                                if (i < array.count){
-                                    token = read_config_token(array, &i);
-                                    lvalue_success = true;
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-            
-            if (lvalue_success){
-                if (token.type == CPP_TOKEN_EQ){
-                    config_line.eq_token = read_config_token(array, &i);
-                    ++i;
-                    if (i < array.count){
-                        Cpp_Token val_token = read_config_token(array, &i);
-                        
-                        bool32 rvalue_success = true;
-                        if (val_token.type == CPP_TOKEN_BRACE_OPEN){
-                            rvalue_success = false;
-                            ++i;
-                            if (i < array.count){
-                                config_line.val_array_start = i;
-                                
-                                bool32 expecting_array_item = 1;
-                                for (; i < array.count; ++i){
-                                    Cpp_Token array_token = read_config_token(array, &i);
-                                    if (array_token.size == 0){
-                                        break;
-                                    }
-                                    if (array_token.type == CPP_TOKEN_BRACE_CLOSE){
-                                        config_line.val_array_end = i;
-                                        rvalue_success = true;
-                                        break;
-                                    }
-                                    else{
-                                        if (array_token.type == CPP_TOKEN_COMMA){
-                                            if (!expecting_array_item){
-                                                expecting_array_item = true;
-                                            }
-                                            else{
-                                                break;
-                                            }
-                                        }
-                                        else{
-                                            if (expecting_array_item){
-                                                expecting_array_item = false;
-                                                ++config_line.val_array_count;
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                        
-                        if (rvalue_success){
-                            config_line.val_token = val_token;
-                            ++i;
-                            if (i < array.count){
-                                Cpp_Token semicolon_token = read_config_token(array, &i);
-                                if (semicolon_token.type == CPP_TOKEN_SEMICOLON){
-                                    config_line.read_success = true;
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-    
-    if (!config_line.read_success){
-        Cpp_Token token = {0};
-        if (i < array.count){
-            token = array.tokens[i];
-        }
-        int32_t text_index_current = token.start + token.size;
-        if (text_index_current <= text_index_start){
-            if (array.count > 0){
-                token = array.tokens[array.count - 1];
-                text_index_current = token.start + token.size;
-            }
-        }
-        
-        if (text_index_current > text_index_start){
-            config_line.error_str = make_string(text + text_index_start, text_index_current - text_index_start);
-        }
-        
-        for (; i < array.count; ++i){
-            Cpp_Token skip_token = read_config_token(array, &i);
-            if (skip_token.type == CPP_TOKEN_SEMICOLON){
-                break;
-            }
-        }
-    }
-    
-    *i_ptr = i;
-    
-    return(config_line);
-}
-
-static Config_Item
-get_config_item(Config_Line line, char *mem, Cpp_Token_Array array){
-    Config_Item item = {0};
-    item.line = line;
-    item.array = array;
-    item.mem = mem;
-    if (line.id_token.size != 0){
-        item.id = make_string(mem + line.id_token.start, line.id_token.size);
-    }
-    
-    if (line.subscript_token.size != 0){
-        String subscript_str = make_string(mem + line.subscript_token.start,line.subscript_token.size);
-        item.subscript_index = str_to_int_s(subscript_str);
-        item.has_subscript = 1;
-    }
-    
-    return(item);
-}
-
-static bool32
-config_var(Config_Item item, char *var_name, int32_t *subscript, uint32_t token_type, void *var_out){
-    bool32 result = false;
-    bool32 subscript_success = true;
-    if (item.line.val_token.type == token_type){
-        if ((var_name == 0 && item.id.size == 0) || match(item.id, var_name)){
-            if (subscript){
-                if (item.has_subscript){
-                    *subscript = item.subscript_index;
-                }
-                else{
-                    subscript_success = false;
-                }
-            }
-            
-            if (subscript_success){
-                if (var_out){
-                    switch (token_type){
-                        case CPP_TOKEN_BOOLEAN_CONSTANT:
-                        {
-                            *(bool32*)var_out = (item.mem[item.line.val_token.start] == 't');
-                        }break;
-                        
-                        case CPP_TOKEN_INTEGER_CONSTANT:
-                        {
-                            if (match(make_string(item.mem + item.line.val_token.start, 2), "0x")){
-                                // Hex Integer
-                                String val = make_string(item.mem + item.line.val_token.start + 2, item.line.val_token.size - 2);
-                                *(uint32_t*)var_out = hexstr_to_int(val);
-                            }
-                            else{
-                                // Integer
-                                String val = make_string(item.mem + item.line.val_token.start, item.line.val_token.size);
-                                *(int32_t*)var_out = str_to_int(val);
-                            }
-                        }break;
-                        
-                        case CPP_TOKEN_STRING_CONSTANT:
-                        {
-                            String str = make_string(item.mem + item.line.val_token.start + 1,item.line.val_token.size - 2);
-                            copy((String*)var_out, str);
-                        }break;
-                        
-                        case CPP_TOKEN_IDENTIFIER:
-                        {
-                            String str = make_string(item.mem + item.line.val_token.start,item.line.val_token.size);
-                            copy((String*)var_out, str);
-                        }break;
-                        
-                        case CPP_TOKEN_BRACE_OPEN:
-                        {
-                            Config_Array_Reader *array_reader = (Config_Array_Reader*)var_out;
-                            array_reader->array = item.array;
-                            array_reader->mem = item.mem;
-                            array_reader->i = item.line.val_array_start;
-                            array_reader->val_array_end = item.line.val_array_end;
-                            array_reader->good = 1;
-                        }break;
-                    }
-                }
-                result = true;
-            }
-        }
-    }
-    return(result);
-}
-
-static bool32
-config_bool_var(Config_Item item, char *var_name, int32_t *subscript, bool32 *var_out){
-    return(config_var(item, var_name, subscript, CPP_TOKEN_BOOLEAN_CONSTANT, var_out));
-}
-
-static bool32
-config_int_var(Config_Item item, char *var_name, int32_t *subscript, int32_t *var_out){
-    return(config_var(item, var_name, subscript, CPP_TOKEN_INTEGER_CONSTANT, var_out));
-}
-
-static bool32
-config_uint_var(Config_Item item, char *var_name, int32_t *subscript, uint32_t *var_out){
-    return(config_var(item, var_name, subscript, CPP_TOKEN_INTEGER_CONSTANT, var_out));
-}
-
-static bool32
-config_string_var(Config_Item item, char *var_name, int32_t *subscript, String *var_out){
-    return(config_var(item, var_name, subscript, CPP_TOKEN_STRING_CONSTANT, var_out));
-}
-
-static bool32
-config_identifier_var(Config_Item item, char *var_name, int32_t *subscript, String *var_out){
-    return(config_var(item, var_name, subscript, CPP_TOKEN_IDENTIFIER, var_out));
-}
-
-static bool32
-config_array_var(Config_Item item, char *var_name, int32_t *subscript, Config_Array_Reader *array_reader){
-    return(config_var(item, var_name, subscript, CPP_TOKEN_BRACE_OPEN, array_reader));
-}
-
-static bool32
-config_array_next_item(Config_Array_Reader *array_reader, Config_Item *item){
-    bool32 result = false;
-    
-    for (;array_reader->i < array_reader->val_array_end;
-         ++array_reader->i){
-        Cpp_Token array_token = read_config_token(array_reader->array, &array_reader->i);
-        if (array_token.size == 0 || array_reader->i >= array_reader->val_array_end){
-            break;
-        }
-        
-        if (array_token.type == CPP_TOKEN_BRACE_CLOSE){
-            break;
-        }
-        
-        switch (array_token.type){
-            case CPP_TOKEN_BOOLEAN_CONSTANT:
-            case CPP_TOKEN_INTEGER_CONSTANT:
-            case CPP_TOKEN_STRING_CONSTANT:
-            {
-                Config_Line line = {0};
-                line.val_token = array_token;
-                line.read_success = 1;
-                *item = get_config_item(line, array_reader->mem, array_reader->array);
-                result = true;
-                ++array_reader->i;
-                goto doublebreak;
-            }break;
-        }
-    }
-    doublebreak:;
-    
-    array_reader->good = result;
-    return(result);
-}
-
-static bool32
-config_array_good(Config_Array_Reader *array_reader){
-    return(array_reader->good);
-}
-
-////////////////////////////////
-
 static void
 change_mapping(Application_Links *app, String mapping){
     bool32 did_remap = false;
@@ -956,7 +812,7 @@ text_data_to_token_array(Partition *arena, String data){
                 success = true;
             }
         }
-        }
+    }
     if (!success){
         memset(&array, 0, sizeof(array));
         end_temp_memory(restore_point);
@@ -971,11 +827,11 @@ text_data_to_parsed_data(Partition *arena, String file_name, String data){
     Cpp_Token_Array array = text_data_to_token_array(arena, data);
     if (array.tokens != 0){
         parsed = text_data_and_token_array_to_parse_data(arena, file_name, data, array);
-if (parsed == 0){
-        end_temp_memory(restore_point);
+        if (parsed == 0){
+            end_temp_memory(restore_point);
+        }
     }
-}
-        return(parsed);
+    return(parsed);
 }
 
 ////////////////////////////////
@@ -1019,85 +875,91 @@ config_init_default(Config_Data *config){
     memset(&config->code_exts, 0, sizeof(config->code_exts));
 }
 
-static void
-config_parse__data(Partition *scratch, String file_name, String data, Config_Data *config){
+static Config*
+config_parse__data(Partition *arena, String file_name, String data, Config_Data *config){
     config_init_default(config);
     
     bool32 success = false;
-    Temp_Memory temp = begin_temp_memory(scratch);
     
-    Config *parsed = text_data_to_parsed_data(scratch, file_name, data);
-            if (parsed != 0){
-                success = true;
-                
-                config_bool_var(parsed, "enable_code_wrapping", 0, &config->enable_code_wrapping);
-                config_bool_var(parsed, "automatically_adjust_wrapping", 0, &config->automatically_adjust_wrapping);
-                config_bool_var(parsed, "automatically_indent_text_on_save", 0, &config->automatically_indent_text_on_save);
-                config_bool_var(parsed, "automatically_save_changes_on_build", 0, &config->automatically_save_changes_on_build);
-                
-                config_int_var(parsed, "default_wrap_width", 0, &config->default_wrap_width);
-                config_int_var(parsed, "default_min_base_width", 0, &config->default_min_base_width);
-                
-                config_string_var(parsed, "default_theme_name", 0, &config->default_theme_name);
-                config_string_var(parsed, "default_font_name", 0, &config->default_font_name);
-                config_string_var(parsed, "user_name", 0, &config->user_name);
-                
-                config_string_var(parsed, "default_compiler_bat", 0, &config->default_compiler_bat);
-                config_string_var(parsed, "default_flags_bat", 0, &config->default_flags_bat);
-                config_string_var(parsed, "default_compiler_sh", 0, &config->default_compiler_sh);
-                config_string_var(parsed, "default_flags_sh", 0, &config->default_flags_sh);
-                
-                config_string_var(parsed, "mapping", 0, &config->current_mapping);
-                
-                char space[512];
-                String str = make_fixed_width_string(space);
-                if (config_string_var(parsed, "treat_as_code", 0, &str)){
-                    parse_extension_line_to_extension_list(str, &config->code_exts);
-                }
-                
-                config_bool_var(parsed, "automatically_load_project", 0, &config->automatically_load_project);
-                config_bool_var(parsed, "lalt_lctrl_is_altgr", 0, &config->lalt_lctrl_is_altgr);
-            }
-    
-    end_temp_memory(temp);
+    Config *parsed = text_data_to_parsed_data(arena, file_name, data);
+    if (parsed != 0){
+        success = true;
+        
+        config_bool_var(parsed, "enable_code_wrapping", 0, &config->enable_code_wrapping);
+        config_bool_var(parsed, "automatically_adjust_wrapping", 0, &config->automatically_adjust_wrapping);
+        config_bool_var(parsed, "automatically_indent_text_on_save", 0, &config->automatically_indent_text_on_save);
+        config_bool_var(parsed, "automatically_save_changes_on_build", 0, &config->automatically_save_changes_on_build);
+        
+        config_int_var(parsed, "default_wrap_width", 0, &config->default_wrap_width);
+        config_int_var(parsed, "default_min_base_width", 0, &config->default_min_base_width);
+        
+        config_fixed_string_var(parsed, "default_theme_name", 0,
+                                 &config->default_theme_name, config->default_theme_name_space);
+        config_fixed_string_var(parsed, "default_font_name", 0,
+                                 &config->default_font_name, config->default_font_name_space);
+        config_fixed_string_var(parsed, "user_name", 0,
+                                 &config->user_name, config->user_name_space);
+        
+        config_fixed_string_var(parsed, "default_compiler_bat", 0,
+                                 &config->default_compiler_bat, config->default_compiler_bat_space);
+        config_fixed_string_var(parsed, "default_flags_bat", 0,
+                                 &config->default_flags_bat, config->default_flags_bat_space);
+        config_fixed_string_var(parsed, "default_compiler_sh", 0,
+                                 &config->default_compiler_sh, config->default_compiler_sh_space);
+        config_fixed_string_var(parsed, "default_flags_sh", 0,
+                                 &config->default_flags_sh, config->default_flags_sh_space);
+        
+        config_fixed_string_var(parsed, "mapping", 0,
+                                 &config->current_mapping, config->current_mapping_space);
+        
+        String str;
+        if (config_string_var(parsed, "treat_as_code", 0, &str)){
+            parse_extension_line_to_extension_list(str, &config->code_exts);
+        }
+        
+        config_bool_var(parsed, "automatically_load_project", 0, &config->automatically_load_project);
+        config_bool_var(parsed, "lalt_lctrl_is_altgr", 0, &config->lalt_lctrl_is_altgr);
+    }
     
     if (!success){
         config_init_default(config);
     }
+    
+    return(parsed);
 }
 
-static void
-config_parse__file_handle(Partition *scratch,
-                           String file_name, FILE *file, Config_Data *config){
-    Temp_Memory temp = begin_temp_memory(scratch);
-    String data = dump_file_handle(scratch, file);
+static Config*
+config_parse__file_handle(Partition *arena,
+                          String file_name, FILE *file, Config_Data *config){
+    Config *parsed = 0;
+    String data = dump_file_handle(arena, file);
     if (data.str != 0){
-        config_parse__data(scratch, file_name, data, config);
+        parsed = config_parse__data(arena, file_name, data, config);
     }
     else{
         config_init_default(config);
     }
-    end_temp_memory(temp);
+    return(parsed);
 }
 
-static void
-config_parse__file_name(Application_Links *app, Partition *scratch,
+static Config*
+config_parse__file_name(Application_Links *app, Partition *arena,
                         char *file_name, Config_Data *config){
+    Config *parsed = 0;
     bool32 success = false;
     FILE *file = open_file_try_current_path_then_binary_path(app, file_name);
     if (file != 0){
-        Temp_Memory temp = begin_temp_memory(scratch);
-        String data = dump_file_handle(scratch, file);
+        String data = dump_file_handle(arena, file);
         fclose(file);
-    if (data.str != 0){
-            config_parse__data(scratch, make_string_slowly(file_name), data, config);
+        if (data.str != 0){
+            parsed = config_parse__data(arena, make_string_slowly(file_name), data, config);
+            success = true; 
         }
-        end_temp_memory(temp);
-        }
-    
+    }
     if (!success){
         config_init_default(config);
     }
+    return(parsed);
 }
 
 static void
@@ -1107,64 +969,50 @@ init_theme_zero(Theme *theme){
     }
 }
 
-static bool32
-theme_parse__data(Partition *scratch, String file_name, String data, Theme_Data *theme){
+static Config*
+theme_parse__data(Partition *arena, String file_name, String data, Theme_Data *theme){
     theme->name = make_fixed_width_string(theme->space);
     copy(&theme->name, "unnamed");
     init_theme_zero(&theme->theme);
     
-    bool32 success = false;
-    Temp_Memory temp = begin_temp_memory(scratch);
-    
-            Config *parsed = text_data_to_parsed_data(scratch, file_name, data);
-            if (parsed != 0){
-                success = true;
-                
-                String theme_name = {0};
-                if (config_string_var(parsed, "name", 0, &theme_name)){
-                    copy(&theme->name, theme_name);
-                }
-                
-                for (int32_t i = 0; i < Stag_COUNT; ++i){
-                    char *name = style_tag_names[i];
-                    uint32_t color = 0;
-                    if (!config_uint_var(parsed, name, 0, &color)){
-                        color = 0xFFFF00FF;
-                    }
-                    theme->theme.colors[i] = color;
-                    }
+    Config *parsed = text_data_to_parsed_data(arena, file_name, data);
+    if (parsed != 0){
+        config_fixed_string_var(parsed, "name", 0, &theme->name, theme->space);
+        
+        for (int32_t i = 0; i < Stag_COUNT; ++i){
+            char *name = style_tag_names[i];
+            uint32_t color = 0;
+            if (!config_uint_var(parsed, name, 0, &color)){
+                color = 0xFFFF00FF;
             }
-    
-    end_temp_memory(temp);
-    
-    return(success);
-}
-
-static bool32
-theme_parse__file_handle(Partition *scratch, String file_name, FILE *file, Theme_Data *theme){
-    Temp_Memory temp = begin_temp_memory(scratch);
-    String data = dump_file_handle(scratch, file);
-    bool32 success = false;
-    if (data.str != 0){
-        success = theme_parse__data(scratch, file_name, data, theme);
+            theme->theme.colors[i] = color;
+        }
     }
-    end_temp_memory(temp);
-    return(success);
+    
+    return(parsed);
 }
 
-static bool32
-theme_parse__file_name(Application_Links *app, Partition *scratch,
+static Config*
+theme_parse__file_handle(Partition *arena, String file_name, FILE *file, Theme_Data *theme){
+    String data = dump_file_handle(arena, file);
+    Config *parsed = 0;
+    if (data.str != 0){
+         parsed = theme_parse__data(arena, file_name, data, theme);
+    }
+    return(parsed);
+}
+
+static Config*
+theme_parse__file_name(Application_Links *app, Partition *arena,
                        char *file_name, Theme_Data *theme){
-    bool32 success = false;
+    Config *parsed = 0;
     FILE *file = open_file_try_current_path_then_binary_path(app, file_name);
     if (file != 0){
-        Temp_Memory temp = begin_temp_memory(scratch);
-        String data = dump_file_handle(scratch, file);
+        String data = dump_file_handle(arena, file);
         fclose(file);
-        success = theme_parse__data(scratch, make_string_slowly(file_name), data, theme);
-        end_temp_memory(temp);
+        parsed = theme_parse__data(arena, make_string_slowly(file_name), data, theme);
     }
-    if (!success){
+    if (parsed == 0){
         char space[256];
         String str = make_fixed_width_string(space);
         append(&str, "Did not find ");
@@ -1172,14 +1020,19 @@ theme_parse__file_name(Application_Links *app, Partition *scratch,
         append(&str, ", color scheme not loaded");
         print_message(app, str.str, str.size);
     }
-    return(success);
+    return(parsed);
 }
 
 ////////////////////////////////
 
 static void
 load_config_and_apply(Application_Links *app, Partition *scratch, Config_Data *config){
-    config_parse__file_name(app, scratch, "config.4coder", config);
+    Temp_Memory temp = begin_temp_memory(scratch);
+    Config *parsed = config_parse__file_name(app, scratch, "config.4coder", config);
+    String error_text = config_stringize_errors(scratch, parsed);
+    print_message(app, error_text.str, error_text.size);
+    end_temp_memory(temp);
+    
     change_mapping(app, config->current_mapping);
     adjust_all_buffer_wrap_widths(app, config->default_wrap_width, config->default_min_base_width);
     global_set_setting(app, GlobalSetting_LAltLCtrlIsAltGr, config->lalt_lctrl_is_altgr);
@@ -1187,8 +1040,12 @@ load_config_and_apply(Application_Links *app, Partition *scratch, Config_Data *c
 
 static void
 load_theme_file_into_live_set(Application_Links *app, Partition *scratch, char *file_name){
+    Temp_Memory temp = begin_temp_memory(scratch);
     Theme_Data theme = {0};
-    theme_parse__file_name(app, scratch, file_name, &theme);
+    Config *config = theme_parse__file_name(app, scratch, file_name, &theme);
+    String error_text = config_stringize_errors(scratch, config);
+    print_message(app, error_text.str, error_text.size);
+    end_temp_memory(temp);
     create_theme(app, &theme.theme, theme.name.str, theme.name.size);
 }
 

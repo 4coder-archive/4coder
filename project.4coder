@@ -1,30 +1,34 @@
 extensions = ".c.cpp.h.m.bat.sh.4coder.txt";
 open_recursively = true;
 
-fkey_command_win[1]  = {"build_tests.bat"            , "*compilation*" , true , true };
-fkey_command_win[2]  = {"generate_tests.bat"         , "*compilation*" , true , true };
-fkey_command_win[3]  = {"run_regression_tests.bat"   , "*test*"        , false, true };
+build_x86_win32 = "echo build: x86 & build.bat /DDEV_BUILD_X86";
+build_x86_linux = "echo build: x86 & ./build.sh -DDEV_BUILD_X86";
+build_x86_mac   = "echo build: x86 & ./build.sh -DDEV_BUILD_X86";
 
-fkey_command_win[1]  = {"echo build: x64 & build.bat", "*compilation*" , true , true  };
-fkey_command_win[2]  = {"build_site.bat"             , "*site*"        , false, true  };
-fkey_command_win[3]  = {"build_string.bat"           , "*compilation*" , true , true  };
-fkey_command_win[4]  = {"echo build: x86 & build.bat /DDEV_BUILD_X86"  , "*compilation*", true, true };
-fkey_command_win[5]  = {"build_metadata.bat"         , "*compilation*" , true , true };
-fkey_command_win[6]  = {"run_regression_tests.bat"   , "*test*"        , false, true };
-fkey_command_win[7]  = {"build_tests.bat"            , "*compilation*" , true , true };
-fkey_command_win[8]  = {"generate_tests.bat"         , "*compilation*" , true , true };
-fkey_command_win[12] = {"package.bat"                , "*package*"     , false, true  };
+fkey_command_win[1]  = {"echo build: x64 & build.bat", "*compilation*" , .footer_panel = true , .save_dirty_files = true };
+fkey_command_win[2]  = {"build_site.bat"             , "*site*"        , .footer_panel = false, .save_dirty_files = true };
+fkey_command_win[3]  = {"build_string.bat"           , "*compilation*" , .footer_panel = true , .save_dirty_files = true };
+fkey_command_win[4]  = {build_x86_win32              , "*compilation*" , .footer_panel = true,  .save_dirty_files = true };
+fkey_command_win[5]  = {"build_metadata.bat"         , "*compilation*" , .footer_panel = true , .save_dirty_files = true };
+fkey_command_win[6]  = {"run_regression_tests.bat"   , "*test*"        , .footer_panel = false, .save_dirty_files = true };
+fkey_command_win[7]  = {"build_tests.bat"            , "*compilation*" , .footer_panel = true , .save_dirty_files = true };
+fkey_command_win[8]  = {"generate_tests.bat"         , "*compilation*" , .footer_panel = true , .save_dirty_files = true };
+fkey_command_win[12] = {"package.bat"                , "*package*"     , .footer_panel = false, .save_dirty_files = true };
 
-fkey_command_linux[1]  = {"echo build: x64 & ./build.sh", "*compilation*" , true , true };
-fkey_command_linux[2]  = {"build_site.sh"               , "*site*"        , false, true };
-fkey_command_linux[3]  = {"build_string.sh"             , "*compilation*" , true , true };
-fkey_command_linux[4]  = {"echo build: x86 & ./build.sh -DDEV_BUILD_X86"  , "*compilation*", true, true };
-fkey_command_linux[5]  = {"./build_metadata.sh"         , "*compilation*" , true , true };
-fkey_command_linux[12] = {"./package.sh"                , "*package*"     , false, true };
+fkey_command_win[1]  = {"build_tests.bat"            , "*compilation*" , .footer_panel = true , .save_dirty_files = true };
+fkey_command_win[2]  = {"generate_tests.bat"         , "*compilation*" , .footer_panel = true , .save_dirty_files = true };
+fkey_command_win[3]  = {"run_regression_tests.bat"   , "*test*"        , .footer_panel = false, .save_dirty_files = true };
 
-fkey_command_mac[1]  = {"echo build: x64 & ./build.sh", "*compilation*" , true , true };
-fkey_command_mac[2]  = {"build_site.sh"               , "*site*"        , false, true };
-fkey_command_mac[3]  = {"build_string.sh"             , "*compilation*" , true , true };
-fkey_command_mac[4]  = {"echo build: x86 & ./build.sh -DDEV_BUILD_X86"  , "*compilation*", true, true };
-fkey_command_mac[10] = {"./package.sh"                , "*package*"     , false, true };
+fkey_command_linux[1]  = {"echo build: x64 & ./build.sh", "*compilation*" , .footer_panel = true , .save_dirty_files = true };
+fkey_command_linux[2]  = {"build_site.sh"               , "*site*"        , .footer_panel = false, .save_dirty_files = true };
+fkey_command_linux[3]  = {"build_string.sh"             , "*compilation*" , .footer_panel = true , .save_dirty_files = true };
+fkey_command_linux[4]  = {build_x86_linux               , "*compilation*" , .footer_panel = true , .save_dirty_files = true };
+fkey_command_linux[5]  = {"./build_metadata.sh"         , "*compilation*" , .footer_panel = true , .save_dirty_files = true };
+fkey_command_linux[12] = {"./package.sh"                , "*package*"     , .footer_panel = false, .save_dirty_files = true };
+
+fkey_command_mac[1]  = {"echo build: x64 & ./build.sh", "*compilation*" , .footer_panel = true , .save_dirty_files = true };
+fkey_command_mac[2]  = {"build_site.sh"               , "*site*"        , .footer_panel = false, .save_dirty_files = true };
+fkey_command_mac[3]  = {"build_string.sh"             , "*compilation*" , .footer_panel = true , .save_dirty_files = true };
+fkey_command_mac[4]  = {build_x86_mac                 , "*compilation*" , .footer_panel = true , .save_dirty_files = true };
+fkey_command_mac[10] = {"./package.sh"                , "*package*"     , .footer_panel = false, .save_dirty_files = true };
 

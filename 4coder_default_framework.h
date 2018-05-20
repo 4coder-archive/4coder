@@ -36,37 +36,6 @@ struct ID_Based_Jump_Location{
 
 ////////////////////////////////
 
-struct Config_Line{
-    Cpp_Token id_token;
-    Cpp_Token subscript_token;
-    Cpp_Token eq_token;
-    Cpp_Token val_token;
-    int32_t val_array_start;
-    int32_t val_array_end;
-    int32_t val_array_count;
-    String error_str;
-    bool32 read_success;
-};
-
-struct Config_Item{
-    Config_Line line;
-    Cpp_Token_Array array;
-    char *mem;
-    String id;
-    int32_t subscript_index;
-    bool32 has_subscript;
-};
-
-struct Config_Array_Reader{
-    Cpp_Token_Array array;
-    char *mem;
-    int32_t i;
-    int32_t val_array_end;
-    bool32 good;
-};
-
-////////////////////////////////
-
 struct Named_Mapping{
     String name;
     Custom_Command_Function *remap_command;

@@ -1,6 +1,6 @@
 config := [version] {assignment}
 
-version := "version" "(" INTEGER ")"
+version := "version" "(" INTEGER ")" ";"
 assignment := lvalue "=" rvalue ";"
 lvalue := IDENTIFIER [ "[" INTEGER "]" ]
 rvalue := lvalue | BOOLEAN | INTEGER | STRING | CHARACTER | "{" compound_body
