@@ -225,7 +225,7 @@ CUSTOM_COMMAND_SIG(multi_paste){
                 clipboard_index(app, 0, paste_index, str + 1, len);
                 
                 Buffer_Summary buffer = get_buffer(app, view.buffer_id, access);
-                Range range = get_range(&view);
+                Range range = get_view_range(&view);
                 buffer_replace_range(app, &buffer, range.max, range.max, str, len + 1);
                 view_set_mark(app, &view, seek_pos(range.max + 1));
                 view_set_cursor(app, &view, seek_pos(range.max + len + 1), true);
