@@ -75,7 +75,7 @@ close_all_files_with_extension(Application_Links *app, Partition *scratch_part,
 
 static void
 open_all_files_in_directory_with_extension__inner(Application_Links *app, String space,
-                                           CString_Array extension_array,
+                                                  CString_Array extension_array,
                                                   uint32_t flags){
     File_List list = get_file_list(app, space.str, space.size);
     int32_t dir_size = space.size;
@@ -157,25 +157,25 @@ parse_project__data(Partition *scratch, String file_name, String data, String fi
             project->loaded = true;
             
             // Set new project directory
-{
-    project->dir = project->dir_space;
-        String str = make_fixed_width_string(project->dir_space);
-        copy(&str, file_dir);
-        terminate_with_null(&str);
-        project->dir_len = str.size;
-}
+            {
+                project->dir = project->dir_space;
+                String str = make_fixed_width_string(project->dir_space);
+                copy(&str, file_dir);
+                terminate_with_null(&str);
+                project->dir_len = str.size;
+            }
             
-    // Read the settings from project.4coder
-    String str = {0};
-    if (config_string_var(parsed, "extensions", 0, &str)){
-        parse_extension_line_to_extension_list(str, &project->extension_list);
-    }
-    
-    bool32 open_recursively = false;
-    if (config_bool_var(parsed, "open_recursively", 0, &open_recursively)){
-        project->open_recursively = open_recursively;
-    }
-    
+            // Read the settings from project.4coder
+            String str = {0};
+            if (config_string_var(parsed, "extensions", 0, &str)){
+                parse_extension_line_to_extension_list(str, &project->extension_list);
+            }
+            
+            bool32 open_recursively = false;
+            if (config_bool_var(parsed, "open_recursively", 0, &open_recursively)){
+                project->open_recursively = open_recursively;
+            }
+            
 #if defined(IS_WINDOWS)
 # define FKEY_COMMAND "fkey_command_win"
 #elif defined(IS_LINUX)
@@ -185,42 +185,42 @@ parse_project__data(Partition *scratch, String file_name, String data, String fi
 #else
 # error no project configuration names for this platform
 #endif
-    
-    for (int32_t i = 1; i <= 16; ++i){
-        Config_Compound *compound = 0;
-        if (config_compound_var(parsed, FKEY_COMMAND, i, &compound)){
-            Fkey_Command *command = &project->fkey_commands[i - 1];
-            command->command[0] = 0;
-            command->out[0] = 0;
-            command->use_build_panel = false;
-            command->save_dirty_buffers = false;
             
-            String cmd = {0};
-            if (config_compound_string_member(parsed, compound, "cmd", 0, &cmd)){
-                String dst = make_fixed_width_string(command->command);
-                append(&dst, cmd);
-                terminate_with_null(&dst);
-            }
-            
-            String out = {0};
-            if (config_compound_string_member(parsed, compound, "out", 1, &out)){
-                String dst = make_fixed_width_string(command->out);
-                append(&dst, out);
-                terminate_with_null(&out);
-            }
-            
-            bool32 footer_panel = false;
-            if (config_compound_bool_member(parsed, compound, "footer_panel", 2, &footer_panel)){
-                command->use_build_panel = footer_panel;
-            }
-            
-            bool32 save_dirty_buffers = false;
-            if (config_compound_bool_member(parsed, compound, "save_dirty_files", 3, &footer_panel)){
-                command->save_dirty_buffers = save_dirty_buffers;
+            for (int32_t i = 1; i <= 16; ++i){
+                Config_Compound *compound = 0;
+                if (config_compound_var(parsed, FKEY_COMMAND, i, &compound)){
+                    Fkey_Command *command = &project->fkey_commands[i - 1];
+                    command->command[0] = 0;
+                    command->out[0] = 0;
+                    command->use_build_panel = false;
+                    command->save_dirty_buffers = false;
+                    
+                    String cmd = {0};
+                    if (config_compound_string_member(parsed, compound, "cmd", 0, &cmd)){
+                        String dst = make_fixed_width_string(command->command);
+                        append(&dst, cmd);
+                        terminate_with_null(&dst);
+                    }
+                    
+                    String out = {0};
+                    if (config_compound_string_member(parsed, compound, "out", 1, &out)){
+                        String dst = make_fixed_width_string(command->out);
+                        append(&dst, out);
+                        terminate_with_null(&out);
+                    }
+                    
+                    bool32 footer_panel = false;
+                    if (config_compound_bool_member(parsed, compound, "footer_panel", 2, &footer_panel)){
+                        command->use_build_panel = footer_panel;
+                    }
+                    
+                    bool32 save_dirty_buffers = false;
+                    if (config_compound_bool_member(parsed, compound, "save_dirty_files", 3, &save_dirty_buffers)){
+                        command->save_dirty_buffers = save_dirty_buffers;
+                    }
+                }
             }
         }
-    }
-}
     }
     
     return(parsed);
@@ -302,7 +302,7 @@ set_current_project(Application_Links *app, Partition *scratch, Project *project
 
 static void
 set_current_project_from_data(Application_Links *app, Partition *scratch,
-                       String file_name, String data, String file_dir){
+                              String file_name, String data, String file_dir){
     Temp_Memory temp = begin_temp_memory(scratch);
     Project project = {0};
     Config *parsed = parse_project__data(scratch, file_name, data, file_dir, &project);
