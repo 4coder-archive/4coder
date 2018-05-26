@@ -531,7 +531,10 @@ config_evaluate_rvalue(Config *config, Config_Assignment *assignment, Config_RVa
                        Config_RValue_Type type, void *out){
     bool32 success = false;
     if (r != 0 && !assignment->visited){
-        if (r->type == ConfigRValueType_LValue){
+        if (type == ConfigRValueType_NoType){
+            success = true;
+        }
+        else if (r->type == ConfigRValueType_LValue){
             assignment->visited = true;
             Config_LValue *l = r->lvalue;
             success = config_var(config, l->identifier, l->index, type, out);
@@ -539,31 +542,33 @@ config_evaluate_rvalue(Config *config, Config_Assignment *assignment, Config_RVa
         }
         else if (r->type == type){
             success = true;
-            switch (type){
-                case ConfigRValueType_Boolean:
-                {
-                    *(bool32*)out = r->boolean;
-                }break;
-                
-                case ConfigRValueType_Integer:
-                {
-                    *(int32_t*)out = r->integer;
-                }break;
-                
-                case ConfigRValueType_String:
-                {
-                    *(String*)out = r->string;
-                }break;
-                
-                case ConfigRValueType_Character:
-                {
-                    *(char*)out = r->character;
-                }break;
-                
-                case ConfigRValueType_Compound:
-                {
-                    *(Config_Compound**)out = r->compound;
-                }break;
+            if (out != 0){
+                switch (type){
+                    case ConfigRValueType_Boolean:
+                    {
+                        *(bool32*)out = r->boolean;
+                    }break;
+                    
+                    case ConfigRValueType_Integer:
+                    {
+                        *(int32_t*)out = r->integer;
+                    }break;
+                    
+                    case ConfigRValueType_String:
+                    {
+                        *(String*)out = r->string;
+                    }break;
+                    
+                    case ConfigRValueType_Character:
+                    {
+                        *(char*)out = r->character;
+                    }break;
+                    
+                    case ConfigRValueType_Compound:
+                    {
+                        *(Config_Compound**)out = r->compound;
+                    }break;
+                }
             }
         }
     }
@@ -578,87 +583,6 @@ config_var(Config *config, String var_name, int32_t subscript, Config_RValue_Typ
         success = config_evaluate_rvalue(config, assignment, assignment->r, type, var_out);
     }
     return(success);
-}
-
-static bool32
-config_bool_var(Config *config, String var_name, int32_t subscript, bool32 *var_out){
-    return(config_var(config, var_name, subscript, ConfigRValueType_Boolean, var_out));
-}
-
-static bool32
-config_bool_var(Config *config, char *var_name, int32_t subscript, bool32 *var_out){
-    return(config_var(config, make_string_slowly(var_name), subscript, ConfigRValueType_Boolean, var_out));
-}
-
-static bool32
-config_int_var(Config *config, String var_name, int32_t subscript, int32_t *var_out){
-    return(config_var(config, var_name, subscript, ConfigRValueType_Integer, var_out));
-}
-
-static bool32
-config_int_var(Config *config, char *var_name, int32_t subscript, int32_t *var_out){
-    return(config_var(config, make_string_slowly(var_name), subscript, ConfigRValueType_Integer, var_out));
-}
-
-static bool32
-config_uint_var(Config *config, String var_name, int32_t subscript, uint32_t *var_out){
-    return(config_var(config, var_name, subscript, ConfigRValueType_Integer, var_out));
-}
-
-static bool32
-config_uint_var(Config *config, char *var_name, int32_t subscript, uint32_t *var_out){
-    return(config_var(config, make_string_slowly(var_name), subscript, ConfigRValueType_Integer, var_out));
-}
-
-static bool32
-config_string_var(Config *config, String var_name, int32_t subscript, String *var_out){
-    return(config_var(config, var_name, subscript, ConfigRValueType_String, var_out));
-}
-
-static bool32
-config_string_var(Config *config, char *var_name, int32_t subscript, String *var_out){
-    return(config_var(config, make_string_slowly(var_name), subscript, ConfigRValueType_String, var_out));
-}
-
-static bool32
-config_placed_string_var(Config *config, String var_name, int32_t subscript,
-                         String *var_out, char *space, int32_t space_size){
-    *var_out = make_string_cap(space, 0, space_size);
-    String str = {0};
-    bool32 result = config_string_var(config, var_name, subscript, &str);
-    if (result){
-        copy(var_out, str);
-        }
-    return(result);
-}
-
-static bool32
-config_placed_string_var(Config *config, char *var_name, int32_t subscript,
-                         String *var_out, char *space, int32_t space_size){
-    return(config_placed_string_var(config, make_string_slowly(var_name), subscript,
-                                    var_out, space, space_size));
-}
-
-#define config_fixed_string_var(c,v,s,o,a) config_placed_string_var((c),(v),(s),(o),(a),sizeof(a))
-
-static bool32
-config_char_var(Config *config, String var_name, int32_t subscript, char *var_out){
-    return(config_var(config, var_name, subscript, ConfigRValueType_Character, var_out));
-}
-
-static bool32
-config_char_var(Config *config, char *var_name, int32_t subscript, char *var_out){
-    return(config_var(config, make_string_slowly(var_name), subscript, ConfigRValueType_Character, var_out));
-}
-
-static bool32
-config_compound_var(Config *config, String var_name, int32_t subscript, Config_Compound **var_out){
-    return(config_var(config, var_name, subscript, ConfigRValueType_Compound, var_out));
-}
-
-static bool32
-config_compound_var(Config *config, char *var_name, int32_t subscript, Config_Compound **var_out){
-    return(config_var(config, make_string_slowly(var_name), subscript, ConfigRValueType_Compound, var_out));
 }
 
 static bool32
@@ -698,81 +622,314 @@ config_compound_member(Config *config, Config_Compound *compound, String var_nam
         if (element_matches_query){
             Config_Assignment dummy_assignment = {0};
             success = config_evaluate_rvalue(config, &dummy_assignment, element->r, type, var_out);
+            break;
         }
     }
     return(success);
 }
 
+static Iteration_Step_Result
+typed_array_iteration_step(Config *parsed, Config_Compound *compound, Config_RValue_Type type,
+                           int32_t index, void *var_out);
+
+static int32_t
+typed_array_get_count(Config *parsed, Config_Compound *compound, Config_RValue_Type type);
+
+#define config_fixed_string_var(c,v,s,o,a) config_placed_string_var((c),(v),(s),(o),(a),sizeof(a))
+
+////////////////////////////////
+
 static bool32
-config_compound_bool_member(Config *config, Config_Compound *compound,
-                            String var_name, int32_t index, bool32 *var_out){
-    return(config_compound_member(config, compound, var_name, index, ConfigRValueType_Boolean, var_out));
+config_has_var(Config *config, String var_name, int32_t subscript){
+    bool32 result = config_var(config, var_name, subscript, ConfigRValueType_NoType, 0);
+    return(result);
+}
+
+static bool32
+config_has_var(Config *config, char *var_name, int32_t subscript){
+    String var_name_str = make_string_slowly(var_name);
+    bool32 result = config_var(config, var_name_str, subscript, ConfigRValueType_NoType, 0);
+    return(result);
+}
+
+static bool32
+config_bool_var(Config *config, String var_name, int32_t subscript, bool32* var_out){
+    bool32 result = config_var(config, var_name, subscript, ConfigRValueType_Boolean, var_out);
+    return(result);
+}
+
+static bool32
+config_bool_var(Config *config, char *var_name, int32_t subscript, bool32* var_out){
+    String var_name_str = make_string_slowly(var_name);
+    bool32 result = config_var(config, var_name_str, subscript, ConfigRValueType_Boolean, var_out);
+    return(result);
+}
+
+static bool32
+config_int_var(Config *config, String var_name, int32_t subscript, int32_t* var_out){
+    bool32 result = config_var(config, var_name, subscript, ConfigRValueType_Integer, var_out);
+    return(result);
+}
+
+static bool32
+config_int_var(Config *config, char *var_name, int32_t subscript, int32_t* var_out){
+    String var_name_str = make_string_slowly(var_name);
+    bool32 result = config_var(config, var_name_str, subscript, ConfigRValueType_Integer, var_out);
+    return(result);
+}
+
+static bool32
+config_uint_var(Config *config, String var_name, int32_t subscript, uint32_t* var_out){
+    bool32 result = config_var(config, var_name, subscript, ConfigRValueType_Integer, var_out);
+    return(result);
+}
+
+static bool32
+config_uint_var(Config *config, char *var_name, int32_t subscript, uint32_t* var_out){
+    String var_name_str = make_string_slowly(var_name);
+    bool32 result = config_var(config, var_name_str, subscript, ConfigRValueType_Integer, var_out);
+    return(result);
+}
+
+static bool32
+config_string_var(Config *config, String var_name, int32_t subscript, String* var_out){
+    bool32 result = config_var(config, var_name, subscript, ConfigRValueType_String, var_out);
+    return(result);
+}
+
+static bool32
+config_string_var(Config *config, char *var_name, int32_t subscript, String* var_out){
+    String var_name_str = make_string_slowly(var_name);
+    bool32 result = config_var(config, var_name_str, subscript, ConfigRValueType_String, var_out);
+    return(result);
+}
+
+static bool32
+config_placed_string_var(Config *config, String var_name, int32_t subscript, String* var_out, char *space, int32_t space_size){
+    bool32 result = config_var(config, var_name, subscript, ConfigRValueType_String, var_out);
+    if (result){
+        String str = *var_out;
+        *var_out = make_string_cap(space, 0, space_size);
+        copy(var_out, str);
+    }
+    return(result);
+}
+
+static bool32
+config_placed_string_var(Config *config, char *var_name, int32_t subscript, String* var_out, char *space, int32_t space_size){
+    String var_name_str = make_string_slowly(var_name);
+    bool32 result = config_var(config, var_name_str, subscript, ConfigRValueType_String, var_out);
+    if (result){
+        String str = *var_out;
+        *var_out = make_string_cap(space, 0, space_size);
+        copy(var_out, str);
+    }
+    return(result);
+}
+
+static bool32
+config_char_var(Config *config, String var_name, int32_t subscript, char* var_out){
+    bool32 result = config_var(config, var_name, subscript, ConfigRValueType_Character, var_out);
+    return(result);
+}
+
+static bool32
+config_char_var(Config *config, char *var_name, int32_t subscript, char* var_out){
+    String var_name_str = make_string_slowly(var_name);
+    bool32 result = config_var(config, var_name_str, subscript, ConfigRValueType_Character, var_out);
+    return(result);
+}
+
+static bool32
+config_compound_var(Config *config, String var_name, int32_t subscript, Config_Compound** var_out){
+    bool32 result = config_var(config, var_name, subscript, ConfigRValueType_Compound, var_out);
+    return(result);
+}
+
+static bool32
+config_compound_var(Config *config, char *var_name, int32_t subscript, Config_Compound** var_out){
+    String var_name_str = make_string_slowly(var_name);
+    bool32 result = config_var(config, var_name_str, subscript, ConfigRValueType_Compound, var_out);
+    return(result);
+}
+
+static bool32
+config_compound_has_member(Config *config, Config_Compound *compound,
+                           String var_name, int32_t index){
+    bool32 result = config_compound_member(config, compound, var_name, index,
+                                           ConfigRValueType_NoType, 0);
+    return(result);
+}
+
+static bool32
+config_compound_has_member(Config *config, Config_Compound *compound,
+                           char *var_name, int32_t index){
+    String var_name_str = make_string_slowly(var_name);
+    bool32 result = config_compound_member(config, compound, var_name_str, index,
+                                           ConfigRValueType_NoType, 0);
+    return(result);
 }
 
 static bool32
 config_compound_bool_member(Config *config, Config_Compound *compound,
-                            char *var_name, int32_t index, bool32 *var_out){
-    return(config_compound_member(config, compound, make_string_slowly(var_name), index, ConfigRValueType_Boolean, var_out));
+                            String var_name, int32_t index, bool32* var_out){
+    bool32 result = config_compound_member(config, compound, var_name, index,
+                                           ConfigRValueType_Boolean, var_out);
+    return(result);
+}
+
+static bool32
+config_compound_bool_member(Config *config, Config_Compound *compound,
+                            char *var_name, int32_t index, bool32* var_out){
+    String var_name_str = make_string_slowly(var_name);
+    bool32 result = config_compound_member(config, compound, var_name_str, index,
+                                           ConfigRValueType_Boolean, var_out);
+    return(result);
 }
 
 static bool32
 config_compound_int_member(Config *config, Config_Compound *compound,
-                           String var_name, int32_t index, int32_t *var_out){
-    return(config_compound_member(config, compound, var_name, index, ConfigRValueType_Integer, var_out));
+                           String var_name, int32_t index, int32_t* var_out){
+    bool32 result = config_compound_member(config, compound, var_name, index,
+                                           ConfigRValueType_Integer, var_out);
+    return(result);
 }
 
 static bool32
 config_compound_int_member(Config *config, Config_Compound *compound,
-                           char *var_name, int32_t index, int32_t *var_out){
-    return(config_compound_member(config, compound, make_string_slowly(var_name), index, ConfigRValueType_Integer, var_out));
+                           char *var_name, int32_t index, int32_t* var_out){
+    String var_name_str = make_string_slowly(var_name);
+    bool32 result = config_compound_member(config, compound, var_name_str, index,
+                                           ConfigRValueType_Integer, var_out);
+    return(result);
 }
 
 static bool32
 config_compound_uint_member(Config *config, Config_Compound *compound,
-                            String var_name, int32_t index, uint32_t *var_out){
-    return(config_compound_member(config, compound, var_name, index, ConfigRValueType_Integer, var_out));
+                            String var_name, int32_t index, uint32_t* var_out){
+    bool32 result = config_compound_member(config, compound, var_name, index,
+                                           ConfigRValueType_Integer, var_out);
+    return(result);
 }
 
 static bool32
 config_compound_uint_member(Config *config, Config_Compound *compound,
-                            char *var_name, int32_t index, uint32_t *var_out){
-    return(config_compound_member(config, compound, make_string_slowly(var_name), index, ConfigRValueType_Integer, var_out));
+                            char *var_name, int32_t index, uint32_t* var_out){
+    String var_name_str = make_string_slowly(var_name);
+    bool32 result = config_compound_member(config, compound, var_name_str, index,
+                                           ConfigRValueType_Integer, var_out);
+    return(result);
 }
 
 static bool32
 config_compound_string_member(Config *config, Config_Compound *compound,
-                              String var_name, int32_t index, String *var_out){
-    return(config_compound_member(config, compound, var_name, index, ConfigRValueType_String, var_out));
+                              String var_name, int32_t index, String* var_out){
+    bool32 result = config_compound_member(config, compound, var_name, index,
+                                           ConfigRValueType_String, var_out);
+    return(result);
 }
 
 static bool32
 config_compound_string_member(Config *config, Config_Compound *compound,
-                              char *var_name, int32_t index, String *var_out){
-    return(config_compound_member(config, compound, make_string_slowly(var_name), index, ConfigRValueType_String, var_out));
+                              char *var_name, int32_t index, String* var_out){
+    String var_name_str = make_string_slowly(var_name);
+    bool32 result = config_compound_member(config, compound, var_name_str, index,
+                                           ConfigRValueType_String, var_out);
+    return(result);
+}
+
+static bool32
+config_compound_placed_string_member(Config *config, Config_Compound *compound,
+                                     String var_name, int32_t index, String* var_out, char *space, int32_t space_size){
+    bool32 result = config_compound_member(config, compound, var_name, index,
+                                           ConfigRValueType_String, var_out);
+    if (result){
+        String str = *var_out;
+        *var_out = make_string_cap(space, 0, space_size);
+        copy(var_out, str);
+    }
+    return(result);
+}
+
+static bool32
+config_compound_placed_string_member(Config *config, Config_Compound *compound,
+                                     char *var_name, int32_t index, String* var_out, char *space, int32_t space_size){
+    String var_name_str = make_string_slowly(var_name);
+    bool32 result = config_compound_member(config, compound, var_name_str, index,
+                                           ConfigRValueType_String, var_out);
+    if (result){
+        String str = *var_out;
+        *var_out = make_string_cap(space, 0, space_size);
+        copy(var_out, str);
+    }
+    return(result);
 }
 
 static bool32
 config_compound_char_member(Config *config, Config_Compound *compound,
-                            String var_name, int32_t index, char *var_out){
-    return(config_compound_member(config, compound, var_name, index, ConfigRValueType_Character, var_out));
+                            String var_name, int32_t index, char* var_out){
+    bool32 result = config_compound_member(config, compound, var_name, index,
+                                           ConfigRValueType_Character, var_out);
+    return(result);
 }
 
 static bool32
 config_compound_char_member(Config *config, Config_Compound *compound,
-                            char *var_name, int32_t index, char *var_out){
-    return(config_compound_member(config, compound, make_string_slowly(var_name), index, ConfigRValueType_Character, var_out));
+                            char *var_name, int32_t index, char* var_out){
+    String var_name_str = make_string_slowly(var_name);
+    bool32 result = config_compound_member(config, compound, var_name_str, index,
+                                           ConfigRValueType_Character, var_out);
+    return(result);
 }
 
 static bool32
 config_compound_compound_member(Config *config, Config_Compound *compound,
-                                String var_name, int32_t index, Config_Compound **var_out){
-    return(config_compound_member(config, compound, var_name, index, ConfigRValueType_Compound, var_out));
+                                String var_name, int32_t index, Config_Compound** var_out){
+    bool32 result = config_compound_member(config, compound, var_name, index,
+                                           ConfigRValueType_Compound, var_out);
+    return(result);
 }
 
 static bool32
 config_compound_compound_member(Config *config, Config_Compound *compound,
-                                char *var_name, int32_t index, Config_Compound **var_out){
-    return(config_compound_member(config, compound, make_string_slowly(var_name), index, ConfigRValueType_Compound, var_out));
+                                char *var_name, int32_t index, Config_Compound** var_out){
+    String var_name_str = make_string_slowly(var_name);
+    bool32 result = config_compound_member(config, compound, var_name_str, index,
+                                           ConfigRValueType_Compound, var_out);
+    return(result);
+}
+
+////////////////////////////////
+
+static Iteration_Step_Result
+typed_array_iteration_step(Config *parsed, Config_Compound *compound, Config_RValue_Type type,
+                           int32_t index, void *var_out){
+    Iteration_Step_Result result = Iteration_Good;
+    if (!config_compound_member(parsed, compound, make_lit_string("~"), index, type, var_out)){
+        if (config_compound_has_member(parsed, compound, "~", index)){
+            result = Iteration_Skip;
+        }
+        else{
+            result = Iteration_Quit;
+        }
+    }
+    return(result);
+}
+
+static int32_t
+typed_array_get_count(Config *parsed, Config_Compound *compound, Config_RValue_Type type){
+    int32_t count = 0;
+    for (int32_t i = 0;; ++i){
+        Iteration_Step_Result step_result = typed_array_iteration_step(parsed, compound, type, i, 0);
+        if (step_result == Iteration_Skip){
+            continue;
+        }
+        else if (step_result == Iteration_Quit){
+            break;
+        }
+        count += 1;
+    }
+    return(count);
 }
 
 ////////////////////////////////
@@ -894,23 +1051,23 @@ config_parse__data(Partition *arena, String file_name, String data, Config_Data 
         config_int_var(parsed, "default_min_base_width", 0, &config->default_min_base_width);
         
         config_fixed_string_var(parsed, "default_theme_name", 0,
-                                 &config->default_theme_name, config->default_theme_name_space);
+                                &config->default_theme_name, config->default_theme_name_space);
         config_fixed_string_var(parsed, "default_font_name", 0,
-                                 &config->default_font_name, config->default_font_name_space);
+                                &config->default_font_name, config->default_font_name_space);
         config_fixed_string_var(parsed, "user_name", 0,
-                                 &config->user_name, config->user_name_space);
+                                &config->user_name, config->user_name_space);
         
         config_fixed_string_var(parsed, "default_compiler_bat", 0,
-                                 &config->default_compiler_bat, config->default_compiler_bat_space);
+                                &config->default_compiler_bat, config->default_compiler_bat_space);
         config_fixed_string_var(parsed, "default_flags_bat", 0,
-                                 &config->default_flags_bat, config->default_flags_bat_space);
+                                &config->default_flags_bat, config->default_flags_bat_space);
         config_fixed_string_var(parsed, "default_compiler_sh", 0,
-                                 &config->default_compiler_sh, config->default_compiler_sh_space);
+                                &config->default_compiler_sh, config->default_compiler_sh_space);
         config_fixed_string_var(parsed, "default_flags_sh", 0,
-                                 &config->default_flags_sh, config->default_flags_sh_space);
+                                &config->default_flags_sh, config->default_flags_sh_space);
         
         config_fixed_string_var(parsed, "mapping", 0,
-                                 &config->current_mapping, config->current_mapping_space);
+                                &config->current_mapping, config->current_mapping_space);
         
         String str;
         if (config_string_var(parsed, "treat_as_code", 0, &str)){
@@ -997,7 +1154,7 @@ theme_parse__file_handle(Partition *arena, String file_name, FILE *file, Theme_D
     String data = dump_file_handle(arena, file);
     Config *parsed = 0;
     if (data.str != 0){
-         parsed = theme_parse__data(arena, file_name, data, theme);
+        parsed = theme_parse__data(arena, file_name, data, theme);
     }
     return(parsed);
 }

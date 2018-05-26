@@ -1121,10 +1121,10 @@ lexer_keywords_default_init(Partition *arena, Cpp_Keyword_Table *kw_out, Cpp_Key
     void *kw_mem = push_array(arena, char, (i32_4tech)kw_size);
     void *pp_mem = push_array(arena, char, (i32_4tech)pp_size);
     if (kw_mem != 0 && pp_mem != 0){
-    *kw_out = cpp_make_table_default(CPP_TABLE_KEYWORDS, kw_mem, kw_size);
-*pp_out = cpp_make_table_default(CPP_TABLE_PREPROCESSOR_DIRECTIVES, pp_mem, pp_size);
+        *kw_out = cpp_make_table_default(CPP_TABLE_KEYWORDS, kw_mem, kw_size);
+        *pp_out = cpp_make_table_default(CPP_TABLE_PREPROCESSOR_DIRECTIVES, pp_mem, pp_size);
         success = true;
-}
+    }
     return(success);
 }
 
@@ -1191,8 +1191,8 @@ open_file_try_current_path_then_binary_path(Application_Links *app, char *file_n
         append(&str, "/");
         append(&str, file_name);
         if (terminate_with_null(&str)){
-        file = fopen(str.str, "rb");
-}
+            file = fopen(str.str, "rb");
+        }
     }
     return(file);
 }
@@ -1232,7 +1232,7 @@ dump_file(Partition *arena, String file_name){
     FILE *file = open_file(arena, file_name);
     if (file != 0){
         result.file_name = file_name;
-         result.data = dump_file_handle(arena, file);
+        result.data = dump_file_handle(arena, file);
         fclose(file);
     }
     return(result);
@@ -1247,6 +1247,30 @@ dump_file_search_up_path(Partition *arena, String path, String file_name){
         result.path = file.path;
         result.data = dump_file_handle(arena, file.file);
         fclose(file.file);
+    }
+    return(result);
+}
+
+static String
+push_string(Partition *arena, int32_t cap){
+    char *mem = push_array(arena, char, cap);
+    String result = {0};
+    if (mem != 0){
+        result = make_string_cap(mem, 0, cap);
+    }
+    return(result);
+}
+
+static String
+push_string_copy(Partition *arena, String str){
+    String result = {0};
+    if (str.str != 0){
+        result = push_string(arena, str.size + 1);
+        push_align(arena, 8);
+        if (result.str != 0){
+            copy(&result, str);
+            terminate_with_null(&result);
+        }
     }
     return(result);
 }

@@ -15,23 +15,65 @@ enum{
 
 ///////////////////////////////
 
-struct Fkey_Command{
-    char command[128];
-    char out[128];
-    bool32 use_build_panel;
-    bool32 save_dirty_buffers;
+typedef int32_t Iteration_Step_Result;
+enum{
+    Iteration_Good = 0,
+    Iteration_Skip = 1,
+    Iteration_Quit = 2,
+};
+
+///////////////////////////////
+
+struct Project_Command{
+    String name;
+    String cmd;
+    String out;
+    bool32 footer_panel;
+    bool32 save_dirty_files;
+};
+
+struct Project_Command_Array{
+    Project_Command *commands;
+    int32_t count;
+};
+
+struct Project_File_Load_Path{
+    String path;
+    bool32 recursive;
+    bool32 relative;
+};
+
+struct Project_File_Load_Path_Array{
+    Project_File_Load_Path *paths;
+    int32_t count;
+};
+
+struct Project_File_Pattern{
+    Absolutes absolutes;
+};
+
+struct Project_File_Pattern_Array{
+    Project_File_Pattern *patterns;
+    int32_t count;
 };
 
 struct Project{
-    char dir_space[256];
-    char *dir;
-    int32_t dir_len;
-    
-    Extension_List extension_list;
-    Fkey_Command fkey_commands[16];
-    
-    bool32 open_recursively;
     bool32 loaded;
+    
+    String dir;
+    String name;
+    
+    Project_File_Pattern_Array pattern_array;
+    Project_File_Pattern_Array blacklist_pattern_array;
+    Project_File_Load_Path_Array load_path_array;
+    Project_Command_Array command_array;
+    
+    int32_t fkey_commands[16];
+};
+
+struct Project_Parse_Result{
+    Config *parsed;
+    Project *project;
 };
 
 ///////////////////////////////

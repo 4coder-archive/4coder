@@ -27,9 +27,9 @@ struct Config_Error{
 struct Config_Parser{
     Cpp_Token *start;
     Cpp_Token *token;
-Cpp_Token *end;
+    Cpp_Token *end;
     
-     String file_name;
+    String file_name;
     String data;
     
     Partition *arena;
@@ -37,7 +37,7 @@ Cpp_Token *end;
     Config_Error *first_error;
     Config_Error *last_error;
     int32_t count_error;
-    };
+};
 
 struct Config_LValue{
     String identifier;
@@ -53,7 +53,10 @@ enum{
     ConfigRValueType_String = 4,
     ConfigRValueType_Character = 5,
     ConfigRValueType_Compound = 6,
-    ConfigRValueType_COUNT = 7,
+    ConfigRValueType_NoType = 7,
+};
+enum{
+    ConfigRValueType_COUNT = ConfigRValueType_NoType,
 };
 
 struct Config_Compound{
@@ -148,19 +151,19 @@ struct Config_Data{
     
     bool32 enable_code_wrapping;
     bool32 automatically_adjust_wrapping;
-     bool32 automatically_indent_text_on_save;
+    bool32 automatically_indent_text_on_save;
     bool32 automatically_save_changes_on_build;
     bool32 automatically_load_project;
     bool32 lalt_lctrl_is_altgr;
     
-     char default_theme_name_space[256];
-     String default_theme_name;
+    char default_theme_name_space[256];
+    String default_theme_name;
     
-     char default_font_name_space[256];
-     String default_font_name;
+    char default_font_name_space[256];
+    String default_font_name;
     
-     char user_name_space[256];
-     String user_name;
+    char user_name_space[256];
+    String user_name;
     
     char default_compiler_bat_space[256];
     String default_compiler_bat;
@@ -178,7 +181,7 @@ struct Config_Data{
     String current_mapping;
     
     Extension_List code_exts;
-    };
+};
 
 struct Theme_Data{
     char space[128];

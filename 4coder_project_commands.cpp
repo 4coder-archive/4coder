@@ -5,19 +5,33 @@
 // TOP
 
 static Project current_project = {0};
+static Partition current_project_arena = {0};
 
 ///////////////////////////////
 
-static CString_Array
-project_get_extensions(Project *project){
-    CString_Array array = {0};
-    array.strings = default_extensions;
-    array.count = ArrayCount(default_extensions);
-    if (project->loaded){
-        array.strings = project->extension_list.exts;
-        array.count = project->extension_list.count;
+static Project_File_Pattern_Array
+get_pattern_array_from_cstring_array(Partition *arena, CString_Array list){
+    Project_File_Pattern_Array array = {0};
+    int32_t count = list.count;
+    array.patterns = push_array(arena, Project_File_Pattern, count);
+    array.count = count;
+    for (int32_t i = 0; i < count; ++i){
+        String base_str = make_string_slowly(list.strings[i]);
+        String str = push_string(arena, base_str.size + 3);
+        append(&str, "*.");
+        append(&str, base_str);
+        terminate_with_null(&str);
+        get_absolutes(str, &array.patterns[i].absolutes, false, false);
     }
     return(array);
+}
+
+static Project_File_Pattern_Array
+get_pattern_array_from_extension_list(Partition *arena, Extension_List extension_list){
+    CString_Array list = {0};
+    list.strings = extension_list.exts;
+    list.count = extension_list.count;
+    return(get_pattern_array_from_cstring_array(arena, list));
 }
 
 ///////////////////////////////
@@ -73,190 +87,499 @@ close_all_files_with_extension(Application_Links *app, Partition *scratch_part,
     end_temp_memory(temp);
 }
 
+static bool32
+match_in_pattern_array(char *str, Project_File_Pattern_Array array){
+    bool32 found_match = false;
+    Project_File_Pattern *pattern = array.patterns;
+    for (int32_t i = 0; i < array.count; ++i, ++pattern){
+        if (wildcard_match_c(&pattern->absolutes, str, true)){
+            found_match = true;
+            break;
+        }
+    }
+    return(found_match);
+}
+
 static void
-open_all_files_in_directory_with_extension__inner(Application_Links *app, String space,
-                                                  CString_Array extension_array,
-                                                  uint32_t flags){
+open_all_files_in_directory_pattern_match__inner(Application_Links *app, String space,
+                                                 Project_File_Pattern_Array whitelist,
+                                                 Project_File_Pattern_Array blacklist,
+                                                 uint32_t flags){
     File_List list = get_file_list(app, space.str, space.size);
     int32_t dir_size = space.size;
     
-    for (uint32_t i = 0; i < list.count; ++i){
-        File_Info *info = list.infos + i;
-        if (info->folder &&
-            ((flags & OpenAllFilesFlag_Recursive) != 0) &&
-            info->filename[0] != '.'){
-            space.size = dir_size;
-            append(&space, info->filename);
-            append(&space, "/");
-            open_all_files_in_directory_with_extension__inner(app, space, extension_array, flags);
-        }
-        else{
-            bool32 is_match = true;
-            if (extension_array.count > 0){
-                is_match = false;
-                String ext = make_string_cap(info->filename, info->filename_len, info->filename_len + 1);
-                ext = file_extension(ext);
-                for (int32_t j = 0; j < extension_array.count; ++j){
-                    if (match(ext, extension_array.strings[j])){
-                        is_match = true;
-                        break;
-                    }
-                }
+    File_Info *info = list.infos;
+    for (uint32_t i = 0; i < list.count; ++i, ++info){
+        if (info->folder){
+            if ((flags & OpenAllFilesFlag_Recursive) == 0){
+                continue;
+            }
+            if (match_in_pattern_array(info->filename, blacklist)){
+                continue;
             }
             
-            if (is_match){
-                space.size = dir_size;
-                append(&space, info->filename);
-                create_buffer(app, space.str, space.size, 0);
+            space.size = dir_size;
+            String str = make_string(info->filename, info->filename_len);
+            append(&space, str);
+            append(&space, "/");
+            open_all_files_in_directory_pattern_match__inner(app, space, whitelist, blacklist, flags);
+        }
+        else{
+            if (!match_in_pattern_array(info->filename, whitelist)){
+                continue;
             }
+            if (match_in_pattern_array(info->filename, blacklist)){
+                continue;
+            }
+            
+            space.size = dir_size;
+            String str = make_string(info->filename, info->filename_len);
+            append(&space, str);
+            create_buffer(app, space.str, space.size, 0);
         }
     }
     
     free_file_list(app, list);
 }
 
+static Project_File_Pattern_Array
+get_standard_blacklist(Partition *arena){
+    static char *dot_str = ".*";
+    CString_Array black_array = {0};
+    black_array.strings = &dot_str;
+    black_array.count = 1;
+    return(get_pattern_array_from_cstring_array(arena, black_array));
+}
+
 static void
-open_all_files_in_directory_with_extension(Application_Links *app, Partition *scratch,
-                                           String dir,
-                                           CString_Array extension_array,
-                                           uint32_t flags){
+open_all_files_in_directory_pattern_match(Application_Links *app, Partition *scratch,
+                                          String dir,
+                                          Project_File_Pattern_Array whitelist,
+                                          Project_File_Pattern_Array blacklist,
+                                          uint32_t flags){
     Temp_Memory temp = begin_temp_memory(scratch);
     int32_t size = 32 << 10;
     char *mem = push_array(scratch, char, size);
     String space = make_string_cap(mem, 0, size);
     append(&space, dir);
-    open_all_files_in_directory_with_extension__inner(app, space, extension_array, flags);
+    open_all_files_in_directory_pattern_match__inner(app, space, whitelist, blacklist, flags);
+    end_temp_memory(temp);
+}
+
+static void
+open_all_files_in_directory_with_extension(Application_Links *app, Partition *scratch,
+                                           String dir, CString_Array array,
+                                           uint32_t flags){
+    Temp_Memory temp = begin_temp_memory(scratch);
+    Project_File_Pattern_Array whitelist = get_pattern_array_from_cstring_array(scratch, array);
+    Project_File_Pattern_Array blacklist = get_standard_blacklist(scratch);
+    open_all_files_in_directory_pattern_match(app, scratch, dir, whitelist, blacklist, flags);
     end_temp_memory(temp);
 }
 
 static void
 open_all_files_in_hot_with_extension(Application_Links *app, Partition *scratch,
-                                     CString_Array extensions_array,
+                                     CString_Array array,
                                      uint32_t flags){
     Temp_Memory temp = begin_temp_memory(scratch);
     int32_t size = 32 << 10;
     char *mem = push_array(scratch, char, size);
     String space = make_string_cap(mem, 0, size);
     space.size = directory_get_hot(app, space.str, space.memory_size);
-    open_all_files_in_directory_with_extension__inner(app, space, extensions_array, flags);
+    Project_File_Pattern_Array whitelist = get_pattern_array_from_cstring_array(scratch, array);
+    Project_File_Pattern_Array blacklist = get_standard_blacklist(scratch);
+    open_all_files_in_directory_pattern_match__inner(app, space, whitelist, blacklist, flags);
     end_temp_memory(temp);
 }
 
 ///////////////////////////////
 
-static Config*
-parse_project__data(Partition *scratch, String file_name, String data, String file_dir,
-                    Project *project){
-    Config *parsed = 0;
-    
-    Cpp_Token_Array array = text_data_to_token_array(scratch, data);
-    if (array.tokens != 0){
-        parsed = text_data_and_token_array_to_parse_data(scratch, file_name, data, array);
-        if (parsed != 0){
-            memset(project, 0, sizeof(*project));
-            project->loaded = true;
-            
-            // Set new project directory
-            {
-                project->dir = project->dir_space;
-                String str = make_fixed_width_string(project->dir_space);
-                copy(&str, file_dir);
-                terminate_with_null(&str);
-                project->dir_len = str.size;
-            }
-            
-            // Read the settings from project.4coder
-            String str = {0};
-            if (config_string_var(parsed, "extensions", 0, &str)){
-                parse_extension_line_to_extension_list(str, &project->extension_list);
-            }
-            
-            bool32 open_recursively = false;
-            if (config_bool_var(parsed, "open_recursively", 0, &open_recursively)){
-                project->open_recursively = open_recursively;
-            }
-            
 #if defined(IS_WINDOWS)
-# define FKEY_COMMAND "fkey_command_win"
+#define PlatformName "win"
 #elif defined(IS_LINUX)
-# define FKEY_COMMAND "fkey_command_linux"
+#define PlatformName "linux"
 #elif defined(IS_MAC)
-# define FKEY_COMMAND "fkey_command_mac"
+#define PlatformName "mac"
 #else
 # error no project configuration names for this platform
 #endif
+
+static Project*
+parse_project__config_data__version_0(Partition *arena, String file_dir, Config *parsed){
+    Project *project = push_array(arena, Project, 1);
+    memset(project, 0, sizeof(*project));
+    
+    // Set new project directory
+    {
+        int32_t cap = file_dir.size + 1;
+        char *mem = push_array(arena, char, cap);
+        project->dir = make_string(mem, 0, cap);
+        copy(&project->dir, file_dir);
+        terminate_with_null(&project->dir);
+        
+        project->load_path_array.paths = push_array(arena, Project_File_Load_Path, 1);
+        project->load_path_array.count = 1;
+        
+        project->load_path_array.paths[0].path = project->dir;
+        project->load_path_array.paths[0].recursive = false;
+        project->load_path_array.paths[0].relative = false;
+        
+        project->name = project->dir;
+    }
+    
+    // Read the settings from project.4coder
+    String str = {0};
+    if (config_string_var(parsed, "extensions", 0, &str)){
+        Extension_List extension_list;
+        parse_extension_line_to_extension_list(str, &extension_list);
+        project->pattern_array = get_pattern_array_from_extension_list(arena, extension_list);
+        project->blacklist_pattern_array = get_standard_blacklist(arena);
+    }
+    
+    bool32 open_recursively = false;
+    if (config_bool_var(parsed, "open_recursively", 0, &open_recursively)){
+        project->load_path_array.paths[0].recursive = open_recursively;
+    }
+    
+    char fkey_command_name[] = "fkey_command_" PlatformName;
+    
+    project->command_array.commands = push_array(arena, Project_Command, 16);
+    project->command_array.count = 16;
+    
+    Project_Command *command = project->command_array.commands;
+    for (int32_t j = 1; j <= 16; ++j, ++command){
+        project->fkey_commands[j - 1] = j - 1;
+        memset(command, 0, sizeof(*command));
+        
+        Config_Compound *compound = 0;
+        if (config_compound_var(parsed, fkey_command_name, j, &compound)){
+            command->name = push_string(arena, 4);
+            append_int_to_str(&command->name, j);
+            terminate_with_null(&command->name);
             
-            for (int32_t i = 1; i <= 16; ++i){
-                Config_Compound *compound = 0;
-                if (config_compound_var(parsed, FKEY_COMMAND, i, &compound)){
-                    Fkey_Command *command = &project->fkey_commands[i - 1];
-                    command->command[0] = 0;
-                    command->out[0] = 0;
-                    command->use_build_panel = false;
-                    command->save_dirty_buffers = false;
+            String cmd = {0};
+            if (config_compound_string_member(parsed, compound, "cmd", 0, &cmd)){
+                command->cmd = push_string_copy(arena, cmd);
+            }
+            
+            String out = {0};
+            if (config_compound_string_member(parsed, compound, "out", 1, &out)){
+                command->out = push_string_copy(arena, out);
+            }
+            
+            bool32 footer_panel = false;
+            if (config_compound_bool_member(parsed, compound, "footer_panel", 2, &footer_panel)){
+                command->footer_panel = footer_panel;
+            }
+            
+            bool32 save_dirty_files = false;
+            if (config_compound_bool_member(parsed, compound, "save_dirty_files", 3, &save_dirty_files)){
+                command->save_dirty_files = save_dirty_files;
+            }
+        }
+        else{
+            command->name = push_string(arena, 4);
+            append_int_to_str(&command->name, j);
+            terminate_with_null(&command->name);
+        }
+    }
+    
+    project->loaded = true;
+    return(project);
+}
+
+static void
+parse_project__extract_pattern_array(Partition *arena, Config *parsed,
+                                     char *root_variable_name,
+                                     Project_File_Pattern_Array *array_out){
+    Config_Compound *compound = 0;
+    if (config_compound_var(parsed, root_variable_name, 0, &compound)){
+        int32_t count = typed_array_get_count(parsed, compound, ConfigRValueType_String);
+        
+        array_out->patterns = push_array(arena, Project_File_Pattern, count);
+        array_out->count = count;
+        
+        for (int32_t i = 0, c = 0; c < count; ++i){
+            String str = {0};
+            if (config_compound_string_member(parsed, compound, "~", i, &str)){
+                str = push_string_copy(arena, str);
+                get_absolutes(str, &array_out->patterns[c].absolutes, false, false);
+                ++c;
+            }
+        }
+    }
+}
+
+static Project*
+parse_project__config_data__version_1(Partition *arena, String root_dir, Config *parsed){
+    Project *project = push_array(arena, Project, 1);
+    memset(project, 0, sizeof(*project));
+    
+    // Set new project directory
+    {
+        int32_t cap = root_dir.size + 1;
+        project->dir = push_string(arena, cap);
+        copy(&project->dir, root_dir);
+        terminate_with_null(&project->dir);
+    }
+    
+    // project_name
+    {
+        String str = {0};
+        if (config_string_var(parsed, "project_name", 0, &str)){
+            project->name = push_string_copy(arena, str);
+        }
+    }
+    
+    // patterns
+    parse_project__extract_pattern_array(arena, parsed, "patterns", &project->pattern_array);
+    
+    // blacklist_patterns
+    parse_project__extract_pattern_array(arena, parsed, "blacklist_patterns", &project->blacklist_pattern_array);
+    
+    // load_paths
+    {
+        Config_Compound *compound = 0;
+        if (config_compound_var(parsed, "load_paths", 0, &compound)){
+            for (int32_t i = 0;; ++i){
+                Config_Compound *paths_option = 0;
+                Iteration_Step_Result step_result = typed_array_iteration_step(parsed, compound, ConfigRValueType_Compound, i, &paths_option);
+                if (step_result == Iteration_Skip){
+                    continue;
+                }
+                else if (step_result == Iteration_Quit){
+                    break;
+                }
+                
+                bool32 use_this_option = false;
+                
+                Config_Compound *paths = 0;
+                if (config_compound_compound_member(parsed, paths_option, "paths", 0, &paths)){
+                    String str = {0};
+                    if (config_compound_string_member(parsed, paths_option, "os", 1, &str)){
+                        if (match(str, make_lit_string(PlatformName))){
+                            use_this_option = true;
+                        }
+                    }
+                }
+                
+                if (use_this_option){
+                    int32_t count = typed_array_get_count(parsed, paths, ConfigRValueType_Compound);
                     
-                    String cmd = {0};
-                    if (config_compound_string_member(parsed, compound, "cmd", 0, &cmd)){
-                        String dst = make_fixed_width_string(command->command);
-                        append(&dst, cmd);
-                        terminate_with_null(&dst);
+                    project->load_path_array.paths = push_array(arena, Project_File_Load_Path, count);
+                    project->load_path_array.count = count;
+                    
+                    Project_File_Load_Path *dst = project->load_path_array.paths;
+                    for (int32_t j = 0, c = 0; c < count; ++j){
+                        Config_Compound *src = 0;
+                        if (config_compound_compound_member(parsed, paths, "~", j, &src)){
+                            memset(dst, 0, sizeof(*dst));
+                            dst->recursive = true;
+                            dst->relative = true;
+                            
+                            String str = {0};
+                            if (config_compound_string_member(parsed, src, "path", 0, &str)){
+                                dst->path = push_string_copy(arena, str);
+                            }
+                            
+                            config_compound_bool_member(parsed, src, "recursive", 1, &dst->recursive);
+                            config_compound_bool_member(parsed, src, "relative", 1, &dst->relative);
+                            
+                            ++c;
+                            ++dst;
+                        }
                     }
                     
-                    String out = {0};
-                    if (config_compound_string_member(parsed, compound, "out", 1, &out)){
-                        String dst = make_fixed_width_string(command->out);
-                        append(&dst, out);
-                        terminate_with_null(&out);
-                    }
-                    
-                    bool32 footer_panel = false;
-                    if (config_compound_bool_member(parsed, compound, "footer_panel", 2, &footer_panel)){
-                        command->use_build_panel = footer_panel;
-                    }
-                    
-                    bool32 save_dirty_buffers = false;
-                    if (config_compound_bool_member(parsed, compound, "save_dirty_files", 3, &save_dirty_buffers)){
-                        command->save_dirty_buffers = save_dirty_buffers;
-                    }
+                    break;
                 }
             }
         }
     }
     
-    return(parsed);
+    // command_list
+    {
+        Config_Compound *compound = 0;
+        if (config_compound_var(parsed, "command_list", 0, &compound)){
+            int32_t count = typed_array_get_count(parsed, compound, ConfigRValueType_Compound);
+            
+            project->command_array.commands = push_array(arena, Project_Command, count);
+            project->command_array.count = count;
+            
+            Project_Command *dst = project->command_array.commands;
+            for (int32_t i = 0, c = 0; c < count; ++i){
+                
+                Config_Compound *src = 0;
+                if (config_compound_compound_member(parsed, compound, "~", i, &src)){
+                    memset(dst, 0, sizeof(*dst));
+                    
+                    bool32 can_emit_command = true;
+                    
+                    String name = {0};
+                    Config_Compound *cmd_set = 0;
+                    String out = {0};
+                    bool32 footer_panel = false;
+                    bool32 save_dirty_files = true;
+                    String cmd_str = {0};
+                    
+                    if (!config_compound_string_member(parsed, src, "name", 0, &name)){
+                        can_emit_command = false;
+                        goto finish_command;
+                    }
+                    
+                    if (!config_compound_compound_member(parsed, src, "cmd", 1, &cmd_set)){
+                        can_emit_command = false;
+                        goto finish_command;
+                    }
+                    
+                    can_emit_command = false;
+                    for (int32_t j = 0;; ++j){
+                        Config_Compound *cmd_option = 0;
+                        Iteration_Step_Result step_result = typed_array_iteration_step(parsed, cmd_set, ConfigRValueType_Compound, j, &cmd_option);
+                        if (step_result == Iteration_Skip){
+                            continue;
+                        }
+                        else if (step_result == Iteration_Quit){
+                            break;
+                        }
+                        
+                        bool32 use_this_option = false;
+                        
+                        String cmd = {0};
+                        if (config_compound_string_member(parsed, cmd_option, "cmd", 0, &cmd)){
+                            String str = {0};
+                            if (config_compound_string_member(parsed, cmd_option, "os", 1, &str)){
+                                if (match(str, make_lit_string(PlatformName))){
+                                    use_this_option = true;
+                                }
+                            }
+                        }
+                        
+                        if (use_this_option){
+                            can_emit_command = true;
+                            cmd_str = cmd;
+                            break;
+                        }
+                    }
+                    
+                    if (can_emit_command){
+                        config_compound_string_member(parsed, src, "out", 2, &out);
+                        config_compound_bool_member(parsed, src, "footer_panel", 3, &footer_panel);
+                        config_compound_bool_member(parsed, src, "save_dirty_files", 4,
+                                                    &save_dirty_files);
+                        
+                        dst->name = push_string_copy(arena, name);
+                        dst->cmd = push_string_copy(arena, cmd_str);
+                        dst->out = push_string_copy(arena, out);
+                        dst->footer_panel = footer_panel;
+                        dst->save_dirty_files = save_dirty_files;
+                    }
+                    
+                    finish_command:;
+                    ++dst;
+                    ++c;
+                }
+            }
+        }
+    }
+    
+    // fkey_command
+    {
+        for (int32_t i = 1; i <= 16; ++i){
+            String name = {0};
+            int32_t index = -1;
+            if (config_string_var(parsed, "fkey_command", i, &name)){
+                int32_t count = project->command_array.count;
+                Project_Command *command_ptr = project->command_array.commands;
+                for (int32_t j = 0; j < count; ++j, ++command_ptr){
+                    if (match(command_ptr->name, name)){
+                        index = j;
+                        break;
+                    }
+                }
+            }
+            project->fkey_commands[i - 1] = index;
+        }
+    }
+    
+    project->loaded = true;
+    return(project);
 }
 
-static Config*
-parse_project__nearest_file(Application_Links *app, Partition *scratch, Project *project){
-    Config *parsed = 0;
+static Project*
+parse_project__config_data(Partition *arena, String file_dir, Config *parsed){
+    int32_t version = 0;
+    if (parsed->version != 0){
+        version = *parsed->version;
+    }
     
+    switch (version){
+        case 0:
+        {
+            return(parse_project__config_data__version_0(arena, file_dir, parsed));
+        }break;
+        
+        case 1:
+        {
+            return(parse_project__config_data__version_1(arena, file_dir, parsed));
+        }break;
+        
+        default:
+        {
+            return(0);
+        }break;
+    }
+}
+
+static Project_Parse_Result
+parse_project__data(Partition *arena, String file_name, String data, String file_dir){
+    Project_Parse_Result result = {0};
+    Cpp_Token_Array array = text_data_to_token_array(arena, data);
+    if (array.tokens != 0){
+        result.parsed = text_data_and_token_array_to_parse_data(arena, file_name, data, array);
+        if (result.parsed != 0){
+            result.project = parse_project__config_data(arena, file_dir, result.parsed);
+        }
+    }
+    return(result);
+}
+
+static Project_Parse_Result
+parse_project__nearest_file(Application_Links *app, Partition *arena){
+    Project_Parse_Result result = {0};
+    
+    Temp_Memory restore_point = begin_temp_memory(arena);
     String project_path = {0};
-    Temp_Memory temp = begin_temp_memory(scratch);
     int32_t size = 32 << 10;
-    char *space = push_array(scratch, char, size);
+    char *space = push_array(arena, char, size);
     if (space != 0){
         project_path = make_string_cap(space, 0, size);
         project_path.size = directory_get_hot(app, project_path.str, project_path.memory_size);
-        end_temp_memory(temp);
-        push_array(scratch, char, project_path.size);
+        end_temp_memory(restore_point);
+        push_array(arena, char, project_path.size);
         project_path.memory_size = project_path.size;
         if (project_path.size == 0){
             print_message(app, literal("The hot directory is empty, cannot search for a project.\n"));
         }
         else{
-            File_Name_Path_Data dump = dump_file_search_up_path(scratch, project_path, make_lit_string("project.4coder"));
+            File_Name_Path_Data dump = dump_file_search_up_path(arena, project_path, make_lit_string("project.4coder"));
             if (dump.data.str != 0){
                 String project_root = dump.path;
                 remove_last_folder(&project_root);
-                parsed = parse_project__data(scratch, dump.file_name, dump.data, project_root, project);
+                result = parse_project__data(arena, dump.file_name, dump.data, project_root);
             }
             else{
                 char message_space[512];
                 String message = make_fixed_width_string(message_space);
                 append(&message, "Did not find project.4coder.  ");
-                if (current_project.dir != 0){
-                    append(&message, "Continuing with: ");
-                    append(&message, current_project.dir);
+                if (current_project.loaded){
+                    if (current_project.name.size > 0){
+                        append(&message, "Continuing with: ");
+                        append(&message, current_project.name);
+                    }
+                    else{
+                        append(&message, "Continuing with: ");
+                        append(&message, current_project.dir);
+                    }
                 }
                 else{
                     append(&message, "Continuing without a project");
@@ -266,78 +589,253 @@ parse_project__nearest_file(Application_Links *app, Partition *scratch, Project 
             }
         }
     }
-    end_temp_memory(temp);
     
-    return(parsed);
+    return(result);
+}
+
+static bool32
+project_deep_copy__pattern_array(Partition *arena, Project_File_Pattern_Array *src_array,
+                                 Project_File_Pattern_Array *dst_array){
+    int32_t pattern_count = src_array->count;
+    dst_array->patterns = push_array(arena, Project_File_Pattern, pattern_count);
+    if (dst_array->patterns == 0){
+        return(false);
+    }
+    dst_array->count = pattern_count;
+    
+    Project_File_Pattern *dst = dst_array->patterns;
+    Project_File_Pattern *src = src_array->patterns;
+    for (int32_t i = 0; i < pattern_count; ++i, ++dst, ++src){
+        int32_t abs_count = src->absolutes.count;
+        dst->absolutes.count = abs_count;
+        for (int32_t j = 0; j < abs_count; ++j){
+            dst->absolutes.a[j] = push_string_copy(arena, src->absolutes.a[j]);
+            if (dst->absolutes.a[j].str == 0){
+                return(false);
+            }
+        }
+    }
+    
+    return(true);
+}
+
+static Project
+project_deep_copy__inner(Partition *arena, Project *project){
+    Project result = {0};
+    
+    result.dir = push_string_copy(arena, project->dir);
+    if (result.dir.str == 0){
+        return(result);
+    }
+    
+    result.name = push_string_copy(arena, project->name);
+    if (result.name.str == 0){
+        return(result);
+    }
+    
+    if (!project_deep_copy__pattern_array(arena, &project->pattern_array, &result.pattern_array)){
+        return(result);
+    }
+    if (!project_deep_copy__pattern_array(arena, &project->blacklist_pattern_array, &result.blacklist_pattern_array)){
+        return(result);
+    }
+    
+    {
+        int32_t path_count = project->load_path_array.count;
+        result.load_path_array.paths = push_array(arena, Project_File_Load_Path, path_count);
+        if (result.load_path_array.paths == 0){
+            return(result);
+        }
+        result.load_path_array.count = path_count;
+        
+        Project_File_Load_Path *dst = result.load_path_array.paths;
+        Project_File_Load_Path *src = project->load_path_array.paths;
+        for (int32_t i = 0; i < path_count; ++i, ++dst, ++src){
+            dst->path = push_string_copy(arena, src->path);
+            if (dst->path.str == 0){
+                return(result);
+            }
+            dst->recursive = src->recursive;
+            dst->relative = src->relative;
+        }
+    }
+    
+    {
+        int32_t command_count = project->command_array.count;
+        result.command_array.commands = push_array(arena, Project_Command, command_count);
+        if (result.command_array.commands == 0){
+            return(result);
+        }
+        result.command_array.count = command_count;
+        
+        Project_Command *dst = result.command_array.commands;
+        Project_Command *src = project->command_array.commands;
+        for (int32_t i = 0; i < command_count; ++i, ++dst, ++src){
+            memset(dst, 0, sizeof(*dst));
+            if (src->name.str != 0){
+                dst->name = push_string_copy(arena, src->name);
+                if (dst->name.str == 0){
+                    return(result);
+                }
+            }
+            if (src->cmd.str != 0){
+                dst->cmd = push_string_copy(arena, src->cmd);
+                if (dst->cmd.str == 0){
+                    return(result);
+                }
+            }
+            if (src->out.str != 0){
+                dst->out = push_string_copy(arena, src->out);
+                if (dst->out.str == 0){
+                    return(result);
+                }
+            }
+            dst->footer_panel = src->footer_panel;
+            dst->save_dirty_files = src->save_dirty_files;
+        }
+    }
+    
+    {
+        memcpy(result.fkey_commands, project->fkey_commands, sizeof(result.fkey_commands));
+    }
+    
+    result.loaded = true;
+    return(result);
+}
+
+static Project
+project_deep_copy(Partition *arena, Project *project){
+    Temp_Memory temp = begin_temp_memory(arena);
+    Project result = project_deep_copy__inner(arena, project);
+    if (!result.loaded){
+        end_temp_memory(temp);
+        memset(&result, 0, sizeof(result));
+    }
+    return(result);
 }
 
 static void
 set_current_project(Application_Links *app, Partition *scratch, Project *project, Config *parsed){
-    memcpy(&current_project, project, sizeof(current_project));
-    current_project.dir = current_project.dir_space;
+    bool32 print_errors = false;
     
-    String file_dir = make_string(current_project.dir_space, current_project.dir_len);
-    
-    // Open all project files
-    uint32_t flags = 0;
-    if (current_project.open_recursively){
-        flags |= OpenAllFilesFlag_Recursive;
+    if (parsed != 0 && project != 0){
+        if (current_project_arena.base == 0){
+            int32_t project_mem_size = (1 << 20);
+            void *project_mem = memory_allocate(app, project_mem_size);
+            current_project_arena = make_part(project_mem, project_mem_size);
+        }
+        
+        // Copy project to current_project
+        current_project_arena.pos = 0;
+        Project new_project = project_deep_copy(&current_project_arena, project);
+        if (new_project.loaded){
+            current_project = new_project;
+            
+            print_errors = true;
+            
+            // Open all project files
+            for (int32_t i = 0; i < current_project.load_path_array.count; ++i){
+                Project_File_Load_Path *load_path = &current_project.load_path_array.paths[i];
+                uint32_t flags = 0;
+                if (load_path->recursive){
+                    flags |= OpenAllFilesFlag_Recursive;
+                }
+                
+                Temp_Memory temp = begin_temp_memory(scratch);
+                String path_str = load_path->path;
+                String file_dir = path_str;
+                if (load_path->relative){
+                    String project_dir = current_project.dir;
+                    int32_t cap = path_str.size + project_dir.size + 2;
+                    char *mem = push_array(scratch, char, cap);
+                    push_align(scratch, 8);
+                    if (mem != 0){
+                        file_dir = make_string_cap(mem, 0, cap);
+                        append(&file_dir, project_dir);
+                        if (file_dir.size == 0 || file_dir.str[file_dir.size - 1] != '/'){
+                            append(&file_dir, "/");
+                        }
+                        append(&file_dir, path_str);
+                        if (file_dir.size == 0 || file_dir.str[file_dir.size - 1] != '/'){
+                            append(&file_dir, "/");
+                        }
+                        terminate_with_null(&file_dir);
+                    }
+                }
+                
+                Project_File_Pattern_Array whitelist = current_project.pattern_array;
+                Project_File_Pattern_Array blacklist = current_project.blacklist_pattern_array;
+                open_all_files_in_directory_pattern_match(app, scratch, file_dir,
+                                                          whitelist, blacklist,
+                                                          flags);
+                
+                end_temp_memory(temp);
+            }
+            
+            // Set window title
+            if (project->name.size > 0){
+                char space[1024];
+                String builder = make_fixed_width_string(space);
+                append(&builder, "4coder project: ");
+                append(&builder, project->name);
+                terminate_with_null(&builder);
+                set_window_title(app, builder.str);
+            }
+        }
+        else{
+#define M "Failed to initialize new project; need more memory dedicated to the project system.\n"
+            print_message(app, literal(M));
+#undef M
+        }
     }
-    CString_Array array = project_get_extensions(&current_project);
-    open_all_files_in_directory_with_extension(app, scratch, file_dir, array, flags);
+    else if (parsed != 0){
+        print_errors = true;
+    }
     
-    // Set window title
-    char space[1024];
-    String builder = make_fixed_width_string(space);
-    append(&builder, "4coder: ");
-    append(&builder, file_dir);
-    terminate_with_null(&builder);
-    set_window_title(app, builder.str);
-    
-    Temp_Memory temp = begin_temp_memory(scratch);
-    String error_text = config_stringize_errors(scratch, parsed);
-    print_message(app, error_text.str, error_text.size);
-    end_temp_memory(temp);
+    if (print_errors){
+        Temp_Memory temp = begin_temp_memory(scratch);
+        String error_text = config_stringize_errors(scratch, parsed);
+        print_message(app, error_text.str, error_text.size);
+        end_temp_memory(temp);
+    }
 }
 
 static void
 set_current_project_from_data(Application_Links *app, Partition *scratch,
                               String file_name, String data, String file_dir){
     Temp_Memory temp = begin_temp_memory(scratch);
-    Project project = {0};
-    Config *parsed = parse_project__data(scratch, file_name, data, file_dir, &project);
-    if (parsed != 0){
-        set_current_project(app, scratch, &project, parsed);
-    }
+    Project_Parse_Result project_parse = parse_project__data(scratch, file_name, data, file_dir);
+    set_current_project(app, scratch, project_parse.project, project_parse.parsed);
     end_temp_memory(temp);
 }
 
 static void
 set_current_project_from_nearest_project_file(Application_Links *app, Partition *scratch){
     Temp_Memory temp = begin_temp_memory(scratch);
-    Project project = {0};
-    Config *parsed = parse_project__nearest_file(app, scratch, &project);
-    if (parsed != 0){
-        set_current_project(app, scratch, &project, parsed);
-    }
+    Project_Parse_Result project_parse = parse_project__nearest_file(app, scratch);
+    set_current_project(app, scratch, project_parse.project, project_parse.parsed);
     end_temp_memory(temp);
 }
 
 static void
-exec_project_fkey_command(Application_Links *app, int32_t command_ind){
-    Fkey_Command *fkey = &current_project.fkey_commands[command_ind];
-    char *command = fkey->command;
+exec_project_fkey_command(Application_Links *app, int32_t fkey_index){
+    if (!current_project.loaded){
+        return;
+    }
     
-    if (command[0] != 0){
-        char *out = fkey->out;
-        bool32 use_build_panel = fkey->use_build_panel;
-        bool32 save_dirty_buffers = fkey->save_dirty_buffers;
+    int32_t command_index = current_project.fkey_commands[fkey_index];
+    if (command_index < 0 || command_index >= current_project.command_array.count){
+        return;
+    }
+    
+    Project_Command *fkey = &current_project.command_array.commands[command_index];
+    if (fkey->cmd.size > 0){
+        bool32 footer_panel = fkey->footer_panel;
+        bool32 save_dirty_files = fkey->save_dirty_files;
         
-        if (save_dirty_buffers){
+        if (save_dirty_files){
             save_all_dirty_buffers(app);
         }
-        
-        int32_t command_len = str_size(command);
         
         View_Summary view = {0};
         View_Summary *view_ptr = 0;
@@ -345,13 +843,12 @@ exec_project_fkey_command(Application_Links *app, int32_t command_ind){
         uint32_t flags = CLI_OverlapWithConflict;
         
         bool32 set_fancy_font = false;
-        if (out[0] != 0){
-            int32_t out_len = str_size(out);
-            buffer_id = buffer_identifier(out, out_len);
+        if (fkey->out.size > 0){
+            buffer_id = buffer_identifier(fkey->out.str, fkey->out.size);
             
-            if (use_build_panel){
+            if (footer_panel){
                 view = get_or_open_build_panel(app);
-                if (match(out, "*compilation*")){
+                if (match(fkey->out, "*compilation*")){
                     set_fancy_font = true;
                 }
             }
@@ -361,14 +858,16 @@ exec_project_fkey_command(Application_Links *app, int32_t command_ind){
             view_ptr = &view;
             
             memset(&prev_location, 0, sizeof(prev_location));
-            lock_jump_buffer(out, out_len);
+            lock_jump_buffer(fkey->out.str, fkey->out.size);
         }
         else{
             // TODO(allen): fix the exec_system_command call so it can take a null buffer_id.
             buffer_id = buffer_identifier(literal("*dump*"));
         }
         
-        exec_system_command(app, view_ptr, buffer_id, current_project.dir, current_project.dir_len, command, command_len, flags);
+        String dir = current_project.dir;
+        String cmd = fkey->cmd;
+        exec_system_command(app, view_ptr, buffer_id, dir.str, dir.size, cmd.str, cmd.size, flags);
         if (set_fancy_font){
             set_fancy_compilation_buffer_font(app);
         }
@@ -380,21 +879,21 @@ exec_project_fkey_command(Application_Links *app, int32_t command_ind){
 CUSTOM_COMMAND_SIG(close_all_code)
 CUSTOM_DOC("Closes any buffer with a filename ending with an extension configured to be recognized as a code file type.")
 {
-    CString_Array extensions = project_get_extensions(&current_project);
+    CString_Array extensions = get_code_extensions(&global_config.code_exts);
     close_all_files_with_extension(app, &global_part, extensions);
 }
 
 CUSTOM_COMMAND_SIG(open_all_code)
 CUSTOM_DOC("Open all code in the current directory. File types are determined by extensions. An extension is considered code based on the extensions specified in 4coder.config.")
 {
-    CString_Array extensions = project_get_extensions(&current_project);
+    CString_Array extensions = get_code_extensions(&global_config.code_exts);
     open_all_files_in_hot_with_extension(app, &global_part, extensions, 0);
 }
 
 CUSTOM_COMMAND_SIG(open_all_code_recursive)
 CUSTOM_DOC("Works as open_all_code but also runs in all subdirectories.")
 {
-    CString_Array extensions = project_get_extensions(&current_project);
+    CString_Array extensions = get_code_extensions(&global_config.code_exts);
     open_all_files_in_hot_with_extension(app, &global_part, extensions, OpenAllFilesFlag_Recursive);
 }
 
@@ -436,7 +935,8 @@ CUSTOM_COMMAND_SIG(project_go_to_root_directory)
 CUSTOM_DOC("Changes 4coder's hot directory to the root directory of the currently loaded project. With no loaded project nothing hapepns.")
 {
     if (current_project.loaded){
-        directory_set_hot(app, current_project.dir, current_project.dir_len);
+        String dir = current_project.dir;
+        directory_set_hot(app, dir.str, dir.size);
     }
 }
 

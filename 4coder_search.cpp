@@ -614,7 +614,7 @@ buffered_print_match_jump_line(Application_Links *app, Partition *part, Temp_Mem
 
 static void
 list__parameters(Application_Links *app, General_Memory *general, Partition *scratch,
-                               String *strings, int32_t count, Search_Range_Flag match_flags){
+                 String *strings, int32_t count, Search_Range_Flag match_flags){
     // Open the search buffer
     String search_name = make_lit_string("*search*");
     Buffer_Summary search_buffer = get_buffer_by_name(app, search_name.str, search_name.size, AccessAll);
@@ -674,7 +674,7 @@ list_single__parameters(Application_Links *app, General_Memory *general, Partiti
 
 static void
 list_query__parameters(Application_Links *app, General_Memory *general, Partition *scratch,
-                                     bool32 substrings, bool32 case_insensitive){
+                       bool32 substrings, bool32 case_insensitive){
     char space[1024];
     String str = get_query_string(app, "List Locations For: ", space, sizeof(space));
     if (str.str != 0){
@@ -685,7 +685,7 @@ list_query__parameters(Application_Links *app, General_Memory *general, Partitio
 
 static void
 list_identifier__parameters(Application_Links *app, General_Memory *general, Partition *scratch,
-                                             bool32 substrings, bool32 case_insensitive){
+                            bool32 substrings, bool32 case_insensitive){
     View_Summary view = get_active_view(app, AccessProtected);
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessProtected);
     if (!buffer.exists) return;
@@ -699,7 +699,7 @@ list_identifier__parameters(Application_Links *app, General_Memory *general, Par
 
 static void
 list_selected_range__parameters(Application_Links *app, General_Memory *general, Partition *scratch,
-                                           bool32 substrings, bool32 case_insensitive){
+                                bool32 substrings, bool32 case_insensitive){
     View_Summary view = get_active_view(app, AccessProtected);
     Temp_Memory temp = begin_temp_memory(scratch);
     String str = get_string_in_view_range(app, scratch, &view);
@@ -724,10 +724,10 @@ list_type_definition__parameters(Application_Links *app, General_Memory *general
     match_strings[5] = build_string(scratch, "enum "  , str, "\n{");
     
     list__parameters(app, general, scratch,
-                                   match_strings, ArrayCount(match_strings), 0);
+                     match_strings, ArrayCount(match_strings), 0);
     
     end_temp_memory(temp);
-
+    
 #if 0    
     Buffer_Summary buffer = get_buffer_by_name(app, literal("*search*"), AccessAll);
     if (buffer.line_count == 2){
@@ -748,13 +748,13 @@ CUSTOM_COMMAND_SIG(list_all_substring_locations)
 CUSTOM_DOC("Queries the user for a string and lists all case-sensitive substring matches found in all open buffers.")
 {
     list_query__parameters(app, &global_general, &global_part, true, false);
-    }
+}
 
 CUSTOM_COMMAND_SIG(list_all_locations_case_insensitive)
 CUSTOM_DOC("Queries the user for a string and lists all exact case-insensitive matches found in all open buffers.")
 {
     list_query__parameters(app, &global_general, &global_part, false, true);
-    }
+}
 
 CUSTOM_COMMAND_SIG(list_all_substring_locations_case_insensitive)
 CUSTOM_DOC("Queries the user for a string and lists all case-insensitive substring matches found in all open buffers.")
@@ -793,8 +793,8 @@ CUSTOM_DOC("Queries user for string, lists all locations of strings that appear 
     String str = get_query_string(app, "List Definitions For: ", space, sizeof(space));
     if (str.str != 0){
         change_active_panel(app);
-list_type_definition__parameters(app, &global_general, &global_part, str);
-}
+        list_type_definition__parameters(app, &global_general, &global_part, str);
+    }
 }
 
 CUSTOM_COMMAND_SIG(list_all_locations_of_type_definition_of_identifier)
