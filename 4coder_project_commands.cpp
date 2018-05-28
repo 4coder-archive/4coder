@@ -715,8 +715,75 @@ project_deep_copy(Partition *arena, Project *project){
 }
 
 static void
+config_feedback_file_pattern_array(String *space, char *name, Project_File_Pattern_Array *array){
+    append(space, name);
+    append(space, " = {\n");
+    Project_File_Pattern *pattern = array->patterns;
+    for (int32_t i = 0; i < array->count; ++i, ++pattern){
+        append(space, "\"");
+        String *absolute = pattern->absolutes.a;
+        for (int32_t j = 0; j < pattern->absolutes.count; ++j, ++absolute){
+            if (j != 0){
+                append(space, "*");
+            }
+            append(space, *absolute);
+        }
+        append(space, "\",\n");
+    }
+    append(space, "};\n");
+}
+
+static void
+config_feedback_file_load_path_array(String *space, char *name, Project_File_Load_Path_Array *array){
+    append(space, name);
+    append(space, " = {\n");
+    Project_File_Load_Path *path = array->paths;
+    for (int32_t i = 0; i < array->count; ++i, ++path){
+        append(space, "{ ");
+        append(space, ".path = \"");
+        append(space, path->path);
+        append(space, "\", ");
+        append(space, ".recursive = ");
+        append(space, path->recursive?"true":"false");
+        append(space, ", ");
+        append(space, ".relative = ");
+        append(space, path->relative?"true":"false");
+        append(space, ", ");
+        append(space, "},\n");
+    }
+    append(space, "};\n");
+}
+
+static void
+config_feedback_command_array(String *space, char *name, Project_Command_Array *array){
+    append(space, name);
+    append(space, " = {\n");
+    Project_Command *command = array->commands;
+    for (int32_t i = 0; i < array->count; ++i, ++command){
+        append(space, "{ ");
+        append(space, ".name = \"");
+        append(space, command->name);
+        append(space, "\", ");
+        append(space, ".cmd = \"");
+        append(space, command->cmd);
+        append(space, "\", ");
+        append(space, ".out = \"");
+        append(space, command->out);
+        append(space, "\", ");
+        append(space, ".footer_panel = ");
+        append(space, command->footer_panel?"true":"false");
+        append(space, ", ");
+        append(space, ".save_dirty_files = ");
+        append(space, command->save_dirty_files?"true":"false");
+        append(space, ", ");
+        append(space, "},\n");
+    }
+    append(space, "};\n");
+}
+
+static void
 set_current_project(Application_Links *app, Partition *scratch, Project *project, Config *parsed){
-    bool32 print_errors = false;
+    bool32 print_feedback = false;
     
     if (parsed != 0 && project != 0){
         if (current_project_arena.base == 0){
@@ -731,7 +798,7 @@ set_current_project(Application_Links *app, Partition *scratch, Project *project
         if (new_project.loaded){
             current_project = new_project;
             
-            print_errors = true;
+            print_feedback = true;
             
             // Open all project files
             for (int32_t i = 0; i < current_project.load_path_array.count; ++i){
@@ -789,13 +856,42 @@ set_current_project(Application_Links *app, Partition *scratch, Project *project
         }
     }
     else if (parsed != 0){
-        print_errors = true;
+        print_feedback = true;
     }
     
-    if (print_errors){
+    if (print_feedback){
         Temp_Memory temp = begin_temp_memory(scratch);
+        
+        // Top
+        print_message(app, literal("Loaded project file:\n"));
+        
+        // Errors
         String error_text = config_stringize_errors(scratch, parsed);
         print_message(app, error_text.str, error_text.size);
+        
+        // Values
+        if (project == 0){
+            print_message(app, literal("Could not instantiate project\n"));
+        }
+        else{
+            Temp_Memory temp2 = begin_temp_memory(scratch);
+            String space = push_string(scratch, partition_remaining(scratch));
+            
+            {
+                config_feedback_string(&space, "'root_directory'", project->dir);
+                config_feedback_string(&space, "project_name", project->name);
+                
+                config_feedback_file_pattern_array(&space, "patterns", &project->pattern_array);
+                config_feedback_file_pattern_array(&space, "blacklist_patterns", &project->blacklist_pattern_array);
+                config_feedback_file_load_path_array(&space, "load_paths", &project->load_path_array);
+                config_feedback_command_array(&space, "command_list", &project->command_array);
+            }
+            
+            append(&space, "\n");
+            print_message(app, space.str, space.size);
+            end_temp_memory(temp2);
+        }
+        
         end_temp_memory(temp);
     }
 }

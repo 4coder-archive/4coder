@@ -6,6 +6,10 @@
 // <my-own-string>   - If you use the custom layer to make a named mapping you can use that here too.
 mapping = "";
 
+// UI
+use_scroll_bars = false;
+use_file_bars = true;
+
 // Code Wrapping
 enable_code_wrapping = true;
 automatically_adjust_wrapping = true;
@@ -19,6 +23,13 @@ automatically_indent_text_on_save = true;
 // When set to true, all unsaved changes will be saved on a build.
 automatically_save_changes_on_build = true;
 
+// Load project on startup
+automatically_load_project = false;
+
+// Indentation
+indent_with_tabs = false;
+indent_width = 4;
+
 // Theme
 default_theme_name = "4coder";
 default_font_name = "Liberation Mono";
@@ -28,9 +39,6 @@ user_name = "NAME";
 
 // Extensions
 treat_as_code = ".cpp.c.hpp.h.cc.cs.java.rs.glsl.m";
-
-// Load project on startup
-automatically_load_project = false;
 
 // Keyboard AltGr setting
 lalt_lctrl_is_altgr = false;

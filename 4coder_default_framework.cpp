@@ -20,10 +20,6 @@ static String locked_buffer = make_fixed_width_string(locked_buffer_space);
 static View_ID special_note_view_id = 0;
 
 
-static bool32 default_use_scrollbars = false;
-static bool32 default_use_file_bars = true;
-
-
 View_Paste_Index view_paste_index_[16];
 View_Paste_Index *view_paste_index = view_paste_index_ - 1;
 
@@ -79,10 +75,10 @@ get_view_for_locked_jump_buffer(Application_Links *app){
 
 static void
 new_view_settings(Application_Links *app, View_Summary *view){
-    if (!default_use_scrollbars){
+    if (!global_config.use_scroll_bars){
         view_set_setting(app, view, ViewSetting_ShowScrollbar, false);
     }
-    if (!default_use_file_bars){
+    if (!global_config.use_file_bars){
         view_set_setting(app, view, ViewSetting_ShowFileBar, false);
     }
 }
@@ -419,7 +415,7 @@ init_memory(Application_Links *app){
 }
 
 static void
-default_4coder_initialize(Application_Links *app, bool32 use_scrollbars, bool32 use_file_bars){
+default_4coder_initialize(Application_Links *app){
     init_memory(app);
     
     static const char message[] = ""
@@ -427,6 +423,7 @@ default_4coder_initialize(Application_Links *app, bool32 use_scrollbars, bool32 
         "If you're new to 4coder there are some tutorials at http://4coder.net/tutorials.html\n"
         "Direct bug reports to editor@4coder.net for maximum reply speed\n"
         "Questions or requests can go to editor@4coder.net or to 4coder.handmade.network\n"
+        "The change log can be found in CHANGES.txt\n"
         "\n";
     String msg = make_lit_string(message);
     print_message(app, msg.str, msg.size);
@@ -439,14 +436,13 @@ default_4coder_initialize(Application_Links *app, bool32 use_scrollbars, bool32 
     
     change_theme(app, theme.str, theme.size);
     change_font(app, font.str, font.size, true);
-    
-    default_use_scrollbars = use_scrollbars;
-    default_use_file_bars = use_file_bars;
 }
 
 static void
-default_4coder_initialize(Application_Links *app){
-    default_4coder_initialize(app, false, true);
+default_4coder_initialize(Application_Links *app, bool32 use_scroll_bars, bool32 use_file_bars){
+    default_4coder_initialize(app);
+    global_config.use_scroll_bars = use_scroll_bars;
+    global_config.use_file_bars = use_file_bars;
 }
 
 static void

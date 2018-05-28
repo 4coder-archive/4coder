@@ -4,14 +4,6 @@
 
 // TOP
 
-#if !defined(DEFAULT_INDENT_FLAGS)
-# define DEFAULT_INDENT_FLAGS false
-#endif
-
-#if !defined(DEF_TAB_WIDTH)
-# define DEF_TAB_WIDTH 4
-#endif
-
 static Hard_Start_Result
 buffer_find_hard_start(Application_Links *app, Buffer_Summary *buffer, int32_t line_start, int32_t tab_width){
     tab_width -= 1;
@@ -708,6 +700,14 @@ buffer_auto_indent(Application_Links *app, Buffer_Summary *buffer, int32_t start
 //
 // Commands
 //
+
+#if !defined(DEFAULT_INDENT_FLAGS)
+# define DEFAULT_INDENT_FLAGS ((global_config.indent_with_tabs)?(AutoIndent_UseTab):(0))
+#endif
+
+#if !defined(DEF_TAB_WIDTH)
+# define DEF_TAB_WIDTH global_config.indent_width
+#endif
 
 CUSTOM_COMMAND_SIG(auto_tab_whole_file)
 CUSTOM_DOC("Audo-indents the entire current buffer.")

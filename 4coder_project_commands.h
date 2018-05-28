@@ -24,16 +24,12 @@ enum{
 
 ///////////////////////////////
 
-struct Project_Command{
-    String name;
-    String cmd;
-    String out;
-    bool32 footer_panel;
-    bool32 save_dirty_files;
+struct Project_File_Pattern{
+    Absolutes absolutes;
 };
 
-struct Project_Command_Array{
-    Project_Command *commands;
+struct Project_File_Pattern_Array{
+    Project_File_Pattern *patterns;
     int32_t count;
 };
 
@@ -48,12 +44,16 @@ struct Project_File_Load_Path_Array{
     int32_t count;
 };
 
-struct Project_File_Pattern{
-    Absolutes absolutes;
+struct Project_Command{
+    String name;
+    String cmd;
+    String out;
+    bool32 footer_panel;
+    bool32 save_dirty_files;
 };
 
-struct Project_File_Pattern_Array{
-    Project_File_Pattern *patterns;
+struct Project_Command_Array{
+    Project_Command *commands;
     int32_t count;
 };
 

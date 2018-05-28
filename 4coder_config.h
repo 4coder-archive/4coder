@@ -154,11 +154,16 @@ struct Config_Data{
     char current_mapping_space[256];
     String current_mapping;
     
+    bool32 use_scroll_bars;
+    bool32 use_file_bars;
     bool32 enable_code_wrapping;
     bool32 automatically_indent_text_on_save;
     bool32 automatically_save_changes_on_build;
     bool32 automatically_adjust_wrapping;
     bool32 automatically_load_project;
+    
+    bool32 indent_with_tabs;
+    int32_t indent_width;
     
     int32_t default_wrap_width;
     int32_t default_min_base_width;

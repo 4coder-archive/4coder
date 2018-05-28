@@ -8,7 +8,6 @@ the default 4coder behavior.
 static Named_Mapping *named_maps = 0;
 static int32_t named_map_count = 0;
 
-
 static char *default_extensions[] = {
     "cpp",
     "hpp",

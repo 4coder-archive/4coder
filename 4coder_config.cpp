@@ -997,24 +997,33 @@ text_data_to_parsed_data(Partition *arena, String file_name, String data){
 
 static void
 config_init_default(Config_Data *config){
-    config->default_wrap_width = 672;
-    config->default_min_base_width = 550;
+    config->user_name = make_fixed_width_string(config->user_name_space);
+    copy(&config->user_name, "");
     
+    memset(&config->code_exts, 0, sizeof(config->code_exts));
+    
+    config->current_mapping = make_fixed_width_string(config->current_mapping_space);
+    copy(&config->current_mapping, "");
+    
+    config->use_scroll_bars = false;
+    config->use_file_bars = true;
     config->enable_code_wrapping = true;
     config->automatically_adjust_wrapping = true;
     config->automatically_indent_text_on_save = true;
     config->automatically_save_changes_on_build = true;
     config->automatically_load_project = false;
-    config->lalt_lctrl_is_altgr = false;
+    
+    config->indent_with_tabs = false;
+    config->indent_width = 4;
+    
+    config->default_wrap_width = 672;
+    config->default_min_base_width = 550;
     
     config->default_theme_name = make_fixed_width_string(config->default_theme_name_space);
     copy(&config->default_theme_name, "4coder");
     
     config->default_font_name = make_fixed_width_string(config->default_font_name_space);
     copy(&config->default_font_name, "");
-    
-    config->user_name = make_fixed_width_string(config->user_name_space);
-    copy(&config->user_name, "");
     
     config->default_compiler_bat = make_fixed_width_string(config->default_compiler_bat_space);
     copy(&config->default_compiler_bat, "cl");
@@ -1028,10 +1037,7 @@ config_init_default(Config_Data *config){
     config->default_flags_sh = make_fixed_width_string(config->default_flags_sh_space);
     copy(&config->default_flags_sh, "");
     
-    config->current_mapping = make_fixed_width_string(config->current_mapping_space);
-    copy(&config->current_mapping, "");
-    
-    memset(&config->code_exts, 0, sizeof(config->code_exts));
+    config->lalt_lctrl_is_altgr = false;
 }
 
 static Config*
@@ -1044,10 +1050,27 @@ config_parse__data(Partition *arena, String file_name, String data, Config_Data 
     if (parsed != 0){
         success = true;
         
+        config_fixed_string_var(parsed, "user_name", 0,
+                                &config->user_name, config->user_name_space);
+        
+        String str;
+        if (config_string_var(parsed, "treat_as_code", 0, &str)){
+            parse_extension_line_to_extension_list(str, &config->code_exts);
+        }
+        
+        config_fixed_string_var(parsed, "mapping", 0,
+                                &config->current_mapping, config->current_mapping_space);
+        
+        config_bool_var(parsed, "use_scroll_bars", 0, &config->use_scroll_bars);
+        config_bool_var(parsed, "use_file_bars", 0, &config->use_file_bars);
         config_bool_var(parsed, "enable_code_wrapping", 0, &config->enable_code_wrapping);
         config_bool_var(parsed, "automatically_adjust_wrapping", 0, &config->automatically_adjust_wrapping);
         config_bool_var(parsed, "automatically_indent_text_on_save", 0, &config->automatically_indent_text_on_save);
         config_bool_var(parsed, "automatically_save_changes_on_build", 0, &config->automatically_save_changes_on_build);
+        config_bool_var(parsed, "automatically_load_project", 0, &config->automatically_load_project);
+        
+        config_bool_var(parsed, "indent_with_tabs", 0, &config->indent_with_tabs);
+        config_int_var(parsed, "indent_width", 0, &config->indent_width);
         
         config_int_var(parsed, "default_wrap_width", 0, &config->default_wrap_width);
         config_int_var(parsed, "default_min_base_width", 0, &config->default_min_base_width);
@@ -1056,8 +1079,6 @@ config_parse__data(Partition *arena, String file_name, String data, Config_Data 
                                 &config->default_theme_name, config->default_theme_name_space);
         config_fixed_string_var(parsed, "default_font_name", 0,
                                 &config->default_font_name, config->default_font_name_space);
-        config_fixed_string_var(parsed, "user_name", 0,
-                                &config->user_name, config->user_name_space);
         
         config_fixed_string_var(parsed, "default_compiler_bat", 0,
                                 &config->default_compiler_bat, config->default_compiler_bat_space);
@@ -1068,15 +1089,6 @@ config_parse__data(Partition *arena, String file_name, String data, Config_Data 
         config_fixed_string_var(parsed, "default_flags_sh", 0,
                                 &config->default_flags_sh, config->default_flags_sh_space);
         
-        config_fixed_string_var(parsed, "mapping", 0,
-                                &config->current_mapping, config->current_mapping_space);
-        
-        String str;
-        if (config_string_var(parsed, "treat_as_code", 0, &str)){
-            parse_extension_line_to_extension_list(str, &config->code_exts);
-        }
-        
-        config_bool_var(parsed, "automatically_load_project", 0, &config->automatically_load_project);
         config_bool_var(parsed, "lalt_lctrl_is_altgr", 0, &config->lalt_lctrl_is_altgr);
     }
     
@@ -1248,28 +1260,36 @@ load_config_and_apply(Application_Links *app, Partition *scratch, Config_Data *c
         // Values
         Temp_Memory temp2 = begin_temp_memory(scratch);
         String space = push_string(scratch, partition_remaining(scratch));
-        config_feedback_string(&space, "user_name", config->user_name);
-        config_feedback_extension_list(&space, "treat_as_code", &config->code_exts);
-        config_feedback_string(&space, "current_mapping", config->current_mapping);
         
-        config_feedback_bool(&space, "enable_code_wrapping", config->enable_code_wrapping);
-        config_feedback_bool(&space, "automatically_indent_text_on_save", config->automatically_indent_text_on_save);
-        config_feedback_bool(&space, "automatically_save_changes_on_build", config->automatically_save_changes_on_build);
-        config_feedback_bool(&space, "automatically_adjust_wrapping", config->automatically_adjust_wrapping);
-        config_feedback_bool(&space, "automatically_load_project", config->automatically_load_project);
-        
-        config_feedback_int(&space, "default_wrap_width", config->default_wrap_width);
-        config_feedback_int(&space, "default_min_base_width", config->default_min_base_width);
-        
-        config_feedback_string(&space, "default_theme_name", config->default_theme_name);
-        config_feedback_string(&space, "default_font_name", config->default_font_name);
-        
-        config_feedback_string(&space, "default_compiler_bat", config->default_compiler_bat);
-        config_feedback_string(&space, "default_flags_bat", config->default_flags_bat);
-        config_feedback_string(&space, "default_compiler_sh", config->default_compiler_sh);
-        config_feedback_string(&space, "default_flags_sh", config->default_flags_sh);
-        
-        config_feedback_bool(&space, "lalt_lctrl_is_altgr", config->lalt_lctrl_is_altgr);
+        {
+            config_feedback_string(&space, "user_name", config->user_name);
+            config_feedback_extension_list(&space, "treat_as_code", &config->code_exts);
+            config_feedback_string(&space, "current_mapping", config->current_mapping);
+            
+            config_feedback_bool(&space, "use_scroll_bars", config->use_scroll_bars);
+            config_feedback_bool(&space, "use_file_bars", config->use_file_bars);
+            config_feedback_bool(&space, "enable_code_wrapping", config->enable_code_wrapping);
+            config_feedback_bool(&space, "automatically_indent_text_on_save", config->automatically_indent_text_on_save);
+            config_feedback_bool(&space, "automatically_save_changes_on_build", config->automatically_save_changes_on_build);
+            config_feedback_bool(&space, "automatically_adjust_wrapping", config->automatically_adjust_wrapping);
+            config_feedback_bool(&space, "automatically_load_project", config->automatically_load_project);
+            
+            config_feedback_bool(&space, "indent_with_tabs", config->indent_with_tabs);
+            config_feedback_int(&space, "indent_width", config->indent_width);
+            
+            config_feedback_int(&space, "default_wrap_width", config->default_wrap_width);
+            config_feedback_int(&space, "default_min_base_width", config->default_min_base_width);
+            
+            config_feedback_string(&space, "default_theme_name", config->default_theme_name);
+            config_feedback_string(&space, "default_font_name", config->default_font_name);
+            
+            config_feedback_string(&space, "default_compiler_bat", config->default_compiler_bat);
+            config_feedback_string(&space, "default_flags_bat", config->default_flags_bat);
+            config_feedback_string(&space, "default_compiler_sh", config->default_compiler_sh);
+            config_feedback_string(&space, "default_flags_sh", config->default_flags_sh);
+            
+            config_feedback_bool(&space, "lalt_lctrl_is_altgr", config->lalt_lctrl_is_altgr);
+        }
         
         append(&space, "\n");
         print_message(app, space.str, space.size);
