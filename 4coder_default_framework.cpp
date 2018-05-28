@@ -356,14 +356,12 @@ buffer_set_font(Application_Links *app, Buffer_Summary *buffer, char *name, int3
 static Face_ID
 get_face_id_by_description(Application_Links *app, Face_Description *description, Face_Description *base_description){
     Face_ID new_id = 0;
-    
     if (!descriptions_match(description, base_description)){
         new_id = get_existing_face_id_matching_description(app, description);
         if (new_id == 0){
             new_id = try_create_new_face(app, description);
         }
     }
-    
     return(new_id);
 }
 
@@ -423,6 +421,16 @@ init_memory(Application_Links *app){
 static void
 default_4coder_initialize(Application_Links *app, bool32 use_scrollbars, bool32 use_file_bars){
     init_memory(app);
+    
+    static const char message[] = ""
+        "Welcome to " VERSION "\n"
+        "If you're new to 4coder there are some tutorials at http://4coder.net/tutorials.html\n"
+        "Direct bug reports to editor@4coder.net for maximum reply speed\n"
+        "Questions or requests can go to editor@4coder.net or to 4coder.handmade.network\n"
+        "\n";
+    String msg = make_lit_string(message);
+    print_message(app, msg.str, msg.size);
+    
     load_config_and_apply(app, &global_part, &global_config);
     load_folder_of_themes_into_live_set(app, &global_part, "themes");
     

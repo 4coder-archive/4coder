@@ -146,24 +146,28 @@ struct CString_Array{
 };
 
 struct Config_Data{
-    int32_t default_wrap_width;
-    int32_t default_min_base_width;
+    char user_name_space[256];
+    String user_name;
+    
+    Extension_List code_exts;
+    
+    char current_mapping_space[256];
+    String current_mapping;
     
     bool32 enable_code_wrapping;
-    bool32 automatically_adjust_wrapping;
     bool32 automatically_indent_text_on_save;
     bool32 automatically_save_changes_on_build;
+    bool32 automatically_adjust_wrapping;
     bool32 automatically_load_project;
-    bool32 lalt_lctrl_is_altgr;
+    
+    int32_t default_wrap_width;
+    int32_t default_min_base_width;
     
     char default_theme_name_space[256];
     String default_theme_name;
     
     char default_font_name_space[256];
     String default_font_name;
-    
-    char user_name_space[256];
-    String user_name;
     
     char default_compiler_bat_space[256];
     String default_compiler_bat;
@@ -177,10 +181,7 @@ struct Config_Data{
     char default_flags_sh_space[1024];
     String default_flags_sh;
     
-    char current_mapping_space[256];
-    String current_mapping;
-    
-    Extension_List code_exts;
+    bool32 lalt_lctrl_is_altgr;
 };
 
 struct Theme_Data{

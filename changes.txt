@@ -1,0 +1,185 @@
+
+New in alpha 4.0.26:
+ Routine bug fixing...
+-Fixed various text input crash bugs
+-Fixed load large file crash bug
+-Fixed crash in 'list_all_locations_of_type_definition_of_identifier'
+-Fixed sticky jump crash
+-Fixed line move/delete bugs on last line of file
+-Fixed <end> to work on indefinitely long lines
+-Fixed jump behavior quirks with parsing and cursor movement
+-Fixed rare bug causing copy from other applications to fail on Windows
+-Fixed auto indent commands to do a better job picking an anchor for parsing
+ Testing system now in place (windows only):
+ Flag -R <file-name> creates an 'input recording' file of the 4coder session
+ Flag -T <file-name> overrides user input and drives input by the input recorded in the specified file
+
+New in alpha 4.0.25:
+-Support for unbounded paste sizes
+-Window title now reflects the open project file
+-Buffer names resolve with more path information instead of just a counter
+-Support for Rust error format and improved autoindenting for Rust
+-Work around for bug in make on Windows
+-New commands:
+ <ctrl 1> show the current buffer in the other panel (side by side)
+ <ctrl 2> show the current buffer in the other panel (swap with other buffer)
+ <alt D> list all type definition locations of a particular string ~ if only one jump to it instead
+ <alt T> list all type definition locations of the token under the cursor ~ if only one jump to it instead
+-The indenter no longer does anything to multi-line strings such as raw strings.
+-The customization API now has the ability to set the window's title.
+-The customization API has a hook for resolving buffer name conflicts.
+
+New in alpha 4.0.24:
+-Fonts can now be loaded from the system API or from the fonts folder
+-Fonts can now be resized at run time, hinting can be toggled at run time
+-Fonts can now be rendered with any combination of the styles: bold, italic, underline
+  (That is provided the font supports the style.)
+-Now font faces can have different sizes simultaneously, or have the different hinting or styling configurations.
+-Lots of new built in commands including:
+ <ctrl D> delete the line under the cursor
+ <ctrl L> duplicate the line under the cursor
+ <alt up> move the line under the cursor up
+ <alt down> move the line under the cursor down
+ <alt [> select surrounding scope in code file
+ <alt ]> select the next scope up in code file
+ <alt '> select the next scope down in code file
+ <alt -> if a scope is selected, delete it's braces
+ <alt j> if a scope is selected, absorb the statement below it into the scope
+ <alt x> + 'delete file' close the current buffer and delete it's physical file
+ <alt x> + 'rename file' rename the current buffer's physical file and reopen the buffer with the new file name
+ <alt x> + 'mkdir' create a new directory
+-The customization API is extended for more explicit font face control.
+-The customization API comes with a parser and generator for generating metadata on built in and custom commands.
+
+New in alpha 4.0.22 and 4.0.23:
+-The rendering layer is cleaned up and faster
+-4coder can now ship with multiple built in command bindings
+  New built in binding "mac-default": For the mac version of 4coder - similar to most Mac applications
+-Fullscreen now works on Windows without the '-S' flag
+-Set up a single 4coder project for Windows/Linux/Mac in one command: <alt x> -> "new project"
+
+New in alpha 4.0.21:
+-Color schemes are now loaded in theme files from the "themes" folder
+-After loading a project <alt h> sets the hot directory to the project directory
+-The flag -L enables a logging system that will collect information in case more information is needed while debugging a problem
+-All command line flags after the special flag --custom are now passed to the custom API start hook
+-The start hook now gets the list of file names that were specified on the command line
+  All of the files specified on the command line are loaded before the start hook runs
+-It is now possible to set the hot directory from the custom API
+-On windows the buildsuper scripts are improved to look for vcvarsall.bat in lots of common locations
+
+New in alpha 4.0.20:
+-Option for LAlt + LCtrl = AltGr on Windows is now in config.4coder
+-The 4cpp lexer now has a customizable keyword table, *experimental* expansion of language support to:
+  Rust, C#, Java
+  Arbitrary keyword customization available in custom code (super users)
+
+New in alpha 4.0.19:
+-Lexer now handles string literal prefixes and is more optimized
+-Fixes for lingering unicode bugs
+-Power users have an experimental new jump to error that keeps correct positions through edits (coming to all tiers soon)
+
+New in alpha 4.0.18:
+-Support for rendering unicode characters
+-<ctrl t> isearch alpha-numeric word under cursor
+-<ctrl Q> query replace alpha-numeric word under cursor
+-<alt b> toggle file bar
+
+New in alpha 4.0.17:\n"
+-New support for extended ascii input.
+-Extended ascii encoded in buffers as utf8.
+-The custom layer now has a 'markers' API for tracking buffer positions across changes.
+
+New in alpha 4.0.16:
+-<alt 2> If the current file is a C++ code file, this opens the matching header.
+  If the current file is a C++ header, this opens the matching code file.
+-Option to automatically save changes on build in the config file.
+  This works for builds triggered by <alt m>.
+-Option in project files to have certain fkey commands save changes.
+
+New in alpha 4.0.15:
+-<ctrl I> find all functions in the current buffer and list them in a jump buffer
+-option to set user name in config.4coder
+  The user name is used in <alt t> and <alt y> comment writing commands
+
+New in alpha 4.0.14:
+-Option to have wrap widths automatically adjust based on average view width
+-The 'config.4coder' file can now be placed with the 4ed executable file
+-New options in 'config.4coder' to specify the font and color theme
+-New built in project configuration system
+-New on-save hooks allows custom behavior in the custom layer whenever a file is saved
+-When using code wrapping, any saved file is automatically indented in the text format, this option can be turned off in config.4coder
+
+New in alpha 4.0.12 and 4.0.13:
+-Text files wrap lines at whitespace when possible
+-New code wrapping feature is on by default
+-Introduced a 'config.4coder' for setting several wrapping options:
+  enable_code_wrapping: set to false if you want the text like behavior
+  default_wrap_width: the wrap width to set in new files
+-<ctrl 2> decrease the current buffer's wrap width
+-<ctrl 3> increase the current buffer's wrap width
+-In the customization layer new settings for the buffer are exposed dealing with wrapping
+-In the customization layer there is a call for setting what keys the GUI should use
+
+New in alpha 4.0.11:
+-The commands for going to next error, previous error, etc now work
+  on any buffer with jump locations including *search*
+-4coder now supports proper, borderless, fullscreen with the flag -F
+  and fullscreen can be toggled with <control pageup>.
+  (This sometimes causes artifacts on the Windows task bar)
+-<alt E> to exit
+-hook on exit for the customization system
+-tokens now exposed in customization system
+-mouse release events in customization system
+
+New in alpha 4.0.10:
+-<ctrl F> list all locations of a string across all open buffers
+-Build now finds build.sh and Makefile on Linux
+-<alt n> goes to the next error if the *compilation* buffer is open
+-<alt N> goes to the previous error
+-<alt M> goes to the first error
+-<alt .> switch to the compilation buffer
+-<alt ,> close the panel viewing the compilation buffer
+-New documentation for the 4coder string library included in 4coder_API.html
+-Low level allocation calls available in custom API
+-Each panel can change font independently.
+  Per-buffer fonts are exposed in the custom API.
+
+New in alpha 4.0.9:
+-A scratch buffer is now opened with 4coder automatically
+-A new mouse suppression mode toggled by <F2>
+-Hinting is disabled by default, a -h flag on the command line enables it
+-New 4coder_API.html documentation file provided for the custom layer API
+-Experimental new work-flow for building and jumping to errors
+  This system is only for MSVC in the 'power' version as of 4.0.9
+
+New in alpha 4.0.8:
+-Eliminated the parameter stack
+
+New in alpha 4.0.7:
+-Right click sets the mark
+-Clicks now have key codes so they can have events bound in customizations
+-<alt d> opens a debug view, see more in README.txt
+
+New in alpha 4.0.6:
+-Tied the view scrolling and the list arrow navigation together
+-Scroll bars are now toggleable with <alt s> for show and <alt w> for hide
+
+New in alpha 4.0.5:
+-New indent rule
+-app->buffer_compute_cursor in the customization API
+-f keys are available in the customization system now
+
+New in alpha 4.0.3 and 4.0.4:
+-Scroll bar on files and file lists
+-Arrow navigation in lists
+-A new minimal theme editor
+
+New in alpha 4.0.2:
+-The file count limit is over 8 million now
+-File equality is handled better so renamings (such as 'subst') are safe now
+-This buffer will report events including errors that happen in 4coder
+-Super users can post their own messages here with app->print_message
+-<ctrl e> centers view on cursor; cmdid_center_view in customization API
+-Set font size on command line with -f N, N = 16 by default
+

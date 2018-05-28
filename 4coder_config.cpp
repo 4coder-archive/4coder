@@ -70,23 +70,25 @@ get_error_location(char *base, char *pos){
 static String
 config_stringize_errors(Partition *arena, Config *parsed){
     String result = {0};
-    result.str = push_array(arena, char, 0);
-    result.memory_size = partition_remaining(arena);
-    for (Config_Error *error = parsed->first_error;
-         error != 0;
-         error = error->next){
-        Error_Location location = get_error_location(parsed->data.str, error->pos);
-        append(&result, error->file_name);
-        append(&result, ":");
-        append_int_to_str(&result, location.line_number);
-        append(&result, ":");
-        append_int_to_str(&result, location.column_number);
-        append(&result, ": ");
-        append(&result, error->text);
-        append(&result, "\n");
+    if (parsed->first_error != 0){
+        result.str = push_array(arena, char, 0);
+        result.memory_size = partition_remaining(arena);
+        for (Config_Error *error = parsed->first_error;
+             error != 0;
+             error = error->next){
+            Error_Location location = get_error_location(parsed->data.str, error->pos);
+            append(&result, error->file_name);
+            append(&result, ":");
+            append_int_to_str(&result, location.line_number);
+            append(&result, ":");
+            append_int_to_str(&result, location.column_number);
+            append(&result, ": ");
+            append(&result, error->text);
+            append(&result, "\n");
+        }
+        result.memory_size = result.size;
+        push_array(arena, char, result.size);
     }
-    result.memory_size = result.size;
-    push_array(arena, char, result.size);
     return(result);
 }
 
@@ -1183,16 +1185,103 @@ theme_parse__file_name(Application_Links *app, Partition *arena,
 ////////////////////////////////
 
 static void
+config_feedback_bool(String *space, char *name, bool32 val){
+    append(space, name);
+    append(space, " = ");
+    append(space, val?"true":"false");
+    append(space, ";\n");
+}
+
+static void
+config_feedback_string(String *space, char *name, String val){
+    if (val.size > 0){
+        append(space, name);
+        append(space, " = \"");
+        append(space, val);
+        append(space, "\";\n");
+    }
+}
+
+static void
+config_feedback_string(String *space, char *name, char *val){
+    config_feedback_string(space, name, make_string_slowly(val));
+}
+
+static void
+config_feedback_extension_list(String *space, char *name, Extension_List *list){
+    if (list->count > 0){
+        append(space, name);
+        append(space, " = \"");
+        for (int32_t i = 0; i < list->count; ++i){
+            append(space, ".");
+            append(space, list->exts[i]);
+        }
+        append(space, "\";\n");
+    }
+}
+
+static void
+config_feedback_int(String *space, char *name, int32_t val){
+    append(space, name);
+    append(space, " = ");
+    append_int_to_str(space, val);
+    append(space, ";\n");
+}
+
+////////////////////////////////
+
+static void
 load_config_and_apply(Application_Links *app, Partition *scratch, Config_Data *config){
     Temp_Memory temp = begin_temp_memory(scratch);
     Config *parsed = config_parse__file_name(app, scratch, "config.4coder", config);
-    String error_text = config_stringize_errors(scratch, parsed);
-    print_message(app, error_text.str, error_text.size);
-    end_temp_memory(temp);
     
-    change_mapping(app, config->current_mapping);
-    adjust_all_buffer_wrap_widths(app, config->default_wrap_width, config->default_min_base_width);
-    global_set_setting(app, GlobalSetting_LAltLCtrlIsAltGr, config->lalt_lctrl_is_altgr);
+    if (parsed != 0){
+        // Top
+        print_message(app, literal("Loaded config file:\n"));
+        
+        // Errors
+        String error_text = config_stringize_errors(scratch, parsed);
+        if (error_text.str != 0){
+            print_message(app, error_text.str, error_text.size);
+        }
+        
+        // Values
+        Temp_Memory temp2 = begin_temp_memory(scratch);
+        String space = push_string(scratch, partition_remaining(scratch));
+        config_feedback_string(&space, "user_name", config->user_name);
+        config_feedback_extension_list(&space, "treat_as_code", &config->code_exts);
+        config_feedback_string(&space, "current_mapping", config->current_mapping);
+        
+        config_feedback_bool(&space, "enable_code_wrapping", config->enable_code_wrapping);
+        config_feedback_bool(&space, "automatically_indent_text_on_save", config->automatically_indent_text_on_save);
+        config_feedback_bool(&space, "automatically_save_changes_on_build", config->automatically_save_changes_on_build);
+        config_feedback_bool(&space, "automatically_adjust_wrapping", config->automatically_adjust_wrapping);
+        config_feedback_bool(&space, "automatically_load_project", config->automatically_load_project);
+        
+        config_feedback_int(&space, "default_wrap_width", config->default_wrap_width);
+        config_feedback_int(&space, "default_min_base_width", config->default_min_base_width);
+        
+        config_feedback_string(&space, "default_theme_name", config->default_theme_name);
+        config_feedback_string(&space, "default_font_name", config->default_font_name);
+        
+        config_feedback_string(&space, "default_compiler_bat", config->default_compiler_bat);
+        config_feedback_string(&space, "default_flags_bat", config->default_flags_bat);
+        config_feedback_string(&space, "default_compiler_sh", config->default_compiler_sh);
+        config_feedback_string(&space, "default_flags_sh", config->default_flags_sh);
+        
+        config_feedback_bool(&space, "lalt_lctrl_is_altgr", config->lalt_lctrl_is_altgr);
+        
+        append(&space, "\n");
+        print_message(app, space.str, space.size);
+        end_temp_memory(temp2);
+        
+        // Apply config
+        change_mapping(app, config->current_mapping);
+        adjust_all_buffer_wrap_widths(app, config->default_wrap_width, config->default_min_base_width);
+        global_set_setting(app, GlobalSetting_LAltLCtrlIsAltGr, config->lalt_lctrl_is_altgr);
+    }
+    
+    end_temp_memory(temp);
 }
 
 static void

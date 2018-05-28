@@ -618,9 +618,9 @@ package(char *cdir){
     
     // NOTE(allen): alpha and super builds
     enum{
-        Tier_Alpha,
-        Tier_Super,
-        Tier_COUNT
+        Tier_Alpha = 0,
+        Tier_Super = 1,
+        Tier_COUNT = 2
     };
     
     char *tiers[] = { "alpha", "super" };
@@ -650,6 +650,7 @@ package(char *cdir){
             fm_copy_folder(cdir, dir, "themes");
             fm_copy_file(fm_str(cdir, "/LICENSE.txt"), fm_str(dir, "/LICENSE.txt"));
             fm_copy_file(fm_str(cdir, "/README.txt"), fm_str(dir, "/README.txt"));
+            fm_copy_file(fm_str(cdir, "/CHANGES.txt"), fm_str(dir, "/CHANGES.txt"));
             
             fm_make_folder_if_missing(fonts_dir);
             fm_copy_all(fonts_source_dir, "*", fonts_dir);
