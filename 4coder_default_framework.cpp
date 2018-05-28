@@ -229,179 +229,6 @@ CUSTOM_DOC("Switch to a named key binding map.")
 
 ////////////////////////////////
 
-#if 0
-static bool32
-get_current_name(char **name_out, int32_t *len_out){
-    bool32 result = false;
-    *name_out = 0;
-    if (user_name.str[0] != 0){
-        *name_out = user_name.str;
-        *len_out = user_name.size;
-        result = true;
-    }
-    return(result);
-}
-
-static String
-get_default_theme_name(void){
-    String str = default_theme_name;
-    if (str.size == 0){
-        str = make_lit_string("4coder");
-    }
-    return(str);
-}
-
-static String
-get_default_font_name(void){
-    String str = default_font_name;
-    if (str.size == 0){
-        str = make_lit_string("Liberation Mono");
-    }
-    return(str);
-}
-#endif
-
-////////////////////////////////
-
-static bool32
-descriptions_match(Face_Description *a, Face_Description *b){
-    bool32 result = false;
-    if (match(a->font.name, b->font.name) && a->font.in_local_font_folder == b->font.in_local_font_folder){
-        if (memcmp((&a->pt_size), (&b->pt_size), sizeof(*a) - sizeof(a->font)) == 0){
-            result = true;
-        }
-    }
-    return(result);
-}
-
-static Face_ID
-get_existing_face_id_matching_name(Application_Links *app, char *name, int32_t len){
-    String name_str = make_string(name, len);
-    Face_ID largest_id = get_largest_face_id(app);
-    Face_ID result = 0;
-    for (Face_ID id = 1; id <= largest_id; ++id){
-        Face_Description compare = get_face_description(app, id);
-        if (match(compare.font.name, name_str)){
-            result = id;
-            break;
-        }
-    }
-    return(result);
-}
-
-static Face_ID
-get_existing_face_id_matching_description(Application_Links *app, Face_Description *description){
-    Face_ID largest_id = get_largest_face_id(app);
-    Face_ID result = 0;
-    for (Face_ID id = 1; id <= largest_id; ++id){
-        Face_Description compare = get_face_description(app, id);
-        if (descriptions_match(&compare, description)){
-            result = id;
-            break;
-        }
-    }
-    return(result);
-}
-
-static Face_ID
-get_face_id_by_name(Application_Links *app, char *name, int32_t len, Face_Description *base_description){
-    Face_ID new_id = 0;
-    
-    String str = make_string(name, len);
-    if (!match(str, base_description->font.name)){
-        new_id = get_existing_face_id_matching_name(app, name, len);
-        if (new_id == 0){
-            Face_Description description = *base_description;
-            copy_fast_unsafe_cs(description.font.name, str);
-            description.font.name[str.size] = 0;
-            
-            description.font.in_local_font_folder = false;
-            new_id = try_create_new_face(app, &description);
-            if (new_id == 0){
-                description.font.in_local_font_folder = true;
-                new_id = try_create_new_face(app, &description);
-            }
-        }
-    }
-    
-    return(new_id);
-}
-
-static void
-change_font(Application_Links *app, char *name, int32_t len, bool32 apply_to_all_buffers){
-    Face_ID global_face_id = get_face_id(app, 0);
-    Face_Description description = get_face_description(app, global_face_id);
-    Face_ID new_id = get_face_id_by_name(app, name, len, &description);
-    if (new_id != 0){
-        set_global_face(app, new_id, apply_to_all_buffers);
-    }
-}
-
-static void
-buffer_set_font(Application_Links *app, Buffer_Summary *buffer, char *name, int32_t len){
-    Face_ID current_id = get_face_id(app, buffer);
-    if (current_id != 0){
-        Face_Description description = get_face_description(app, current_id);
-        Face_ID new_id = get_face_id_by_name(app, name, len, &description);
-        if (new_id != 0){
-            buffer_set_face(app, buffer, new_id);
-        }
-    }
-}
-
-static Face_ID
-get_face_id_by_description(Application_Links *app, Face_Description *description, Face_Description *base_description){
-    Face_ID new_id = 0;
-    if (!descriptions_match(description, base_description)){
-        new_id = get_existing_face_id_matching_description(app, description);
-        if (new_id == 0){
-            new_id = try_create_new_face(app, description);
-        }
-    }
-    return(new_id);
-}
-
-static void
-change_face_description(Application_Links *app, Face_Description *new_description, bool32 apply_to_all_buffers){
-    Face_ID global_face_id = get_face_id(app, 0);
-    Face_Description old_description = get_face_description(app, global_face_id);
-    Face_ID new_id = get_face_id_by_description(app, new_description, &old_description);
-    if (new_id != 0){
-        set_global_face(app, new_id, apply_to_all_buffers);
-    }
-}
-
-static void
-buffer_set_face_description(Application_Links *app, Buffer_Summary *buffer, Face_Description *new_description){
-    Face_ID current_id = get_face_id(app, buffer);
-    if (current_id != 0){
-        Face_Description old_description = get_face_description(app, current_id);
-        Face_ID new_id = get_face_id_by_description(app, new_description, &old_description);
-        if (new_id != 0){
-            buffer_set_face(app, buffer, new_id);
-        }
-    }
-}
-
-static Face_Description
-get_buffer_face_description(Application_Links *app, Buffer_Summary *buffer){
-    Face_ID current_id = get_face_id(app, buffer);
-    Face_Description description = {0};
-    if (current_id != 0){
-        description = get_face_description(app, current_id);
-    }
-    return(description);
-}
-
-static Face_Description
-get_global_face_description(Application_Links *app){
-    Face_ID current_id = get_face_id(app, 0);
-    Face_Description description = get_face_description(app, current_id);
-    return(description);
-}
-
-////////////////////////////////
-
 static void
 init_memory(Application_Links *app){
     int32_t part_size = (32 << 20);
@@ -415,7 +242,7 @@ init_memory(Application_Links *app){
 }
 
 static void
-default_4coder_initialize(Application_Links *app){
+default_4coder_initialize(Application_Links *app, int32_t override_font_size, bool32 override_hinting){
     init_memory(app);
     
     static const char message[] = ""
@@ -428,19 +255,14 @@ default_4coder_initialize(Application_Links *app){
     String msg = make_lit_string(message);
     print_message(app, msg.str, msg.size);
     
-    load_config_and_apply(app, &global_part, &global_config);
+    load_config_and_apply(app, &global_part, &global_config, override_font_size, override_hinting);
     load_folder_of_themes_into_live_set(app, &global_part, "themes");
-    
-    String theme = global_config.default_theme_name;
-    String font = global_config.default_font_name;
-    
-    change_theme(app, theme.str, theme.size);
-    change_font(app, font.str, font.size, true);
 }
 
 static void
-default_4coder_initialize(Application_Links *app, bool32 use_scroll_bars, bool32 use_file_bars){
-    default_4coder_initialize(app);
+default_4coder_initialize(Application_Links *app, int32_t override_font_size, bool32 override_hinting,
+                          bool32 use_scroll_bars, bool32 use_file_bars){
+    default_4coder_initialize(app, override_font_size, override_hinting);
     global_config.use_scroll_bars = use_scroll_bars;
     global_config.use_file_bars = use_file_bars;
 }

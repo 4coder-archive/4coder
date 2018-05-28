@@ -23,7 +23,8 @@ START_HOOK_SIG(default_start){
     named_maps = named_maps_values;
     named_map_count = ArrayCount(named_maps_values);
     
-    default_4coder_initialize(app);
+    Face_Description command_line_description = get_face_description(app, 0);
+    default_4coder_initialize(app, command_line_description.pt_size, command_line_description.hinting);
     default_4coder_side_by_side_panels(app, files, file_count);
     
     if (global_config.automatically_load_project){

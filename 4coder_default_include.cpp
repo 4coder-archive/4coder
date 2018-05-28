@@ -36,6 +36,7 @@
 #include "4coder_default_framework_variables.cpp"
 #include "4coder_buffer_seek_constructors.cpp"
 #include "4coder_helper.cpp"
+#include "4coder_font_helper.cpp"
 #include "4coder_config.cpp"
 #include "4coder_default_framework.cpp"
 #include "4coder_seek.cpp"

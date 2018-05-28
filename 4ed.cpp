@@ -1633,6 +1633,7 @@ App_Step_Sig(app_step){
             char **flags = models->settings.custom_flags;
             i32 flags_count = models->settings.custom_flags_count;
             
+            
             models->hook_start(&models->app_links, files, files_count, flags, flags_count);
         }
     }

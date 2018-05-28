@@ -183,7 +183,7 @@ get_or_open_build_panel(Application_Links *app){
 static void
 set_fancy_compilation_buffer_font(Application_Links *app){
     Buffer_Summary comp_buffer = get_buffer_by_name(app, literal("*compilation*"), AccessAll);
-    buffer_set_font(app, &comp_buffer, literal("Inconsolata"));
+    set_buffer_face_by_name(app, &comp_buffer, literal("Inconsolata"));
 }
 
 CUSTOM_COMMAND_SIG(build_in_build_panel)

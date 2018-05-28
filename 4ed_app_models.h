@@ -33,9 +33,7 @@ global_const App_Settings null_app_settings = {0};
 
 struct Debug_Input_Event{
     Key_Code key;
-    
     char consumer[32];
-    
     b8 is_hold;
     b8 is_ctrl;
     b8 is_alt;

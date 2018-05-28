@@ -1024,6 +1024,8 @@ config_init_default(Config_Data *config){
     
     config->default_font_name = make_fixed_width_string(config->default_font_name_space);
     copy(&config->default_font_name, "");
+    config->default_font_size = 16;
+    config->default_font_hinting = false;
     
     config->default_compiler_bat = make_fixed_width_string(config->default_compiler_bat_space);
     copy(&config->default_compiler_bat, "cl");
@@ -1077,8 +1079,11 @@ config_parse__data(Partition *arena, String file_name, String data, Config_Data 
         
         config_fixed_string_var(parsed, "default_theme_name", 0,
                                 &config->default_theme_name, config->default_theme_name_space);
+        
         config_fixed_string_var(parsed, "default_font_name", 0,
                                 &config->default_font_name, config->default_font_name_space);
+        config_int_var(parsed, "default_font_size", 0, &config->default_font_size);
+        config_bool_var(parsed, "default_font_hinting", 0, &config->default_font_hinting);
         
         config_fixed_string_var(parsed, "default_compiler_bat", 0,
                                 &config->default_compiler_bat, config->default_compiler_bat_space);
@@ -1243,7 +1248,8 @@ config_feedback_int(String *space, char *name, int32_t val){
 ////////////////////////////////
 
 static void
-load_config_and_apply(Application_Links *app, Partition *scratch, Config_Data *config){
+load_config_and_apply(Application_Links *app, Partition *scratch, Config_Data *config,
+                      int32_t override_font_size, bool32 override_hinting){
     Temp_Memory temp = begin_temp_memory(scratch);
     Config *parsed = config_parse__file_name(app, scratch, "config.4coder", config);
     
@@ -1281,7 +1287,10 @@ load_config_and_apply(Application_Links *app, Partition *scratch, Config_Data *c
             config_feedback_int(&space, "default_min_base_width", config->default_min_base_width);
             
             config_feedback_string(&space, "default_theme_name", config->default_theme_name);
+            
             config_feedback_string(&space, "default_font_name", config->default_font_name);
+            config_feedback_int(&space, "default_font_size", config->default_font_size);
+            config_feedback_bool(&space, "default_font_hinting", config->default_font_hinting);
             
             config_feedback_string(&space, "default_compiler_bat", config->default_compiler_bat);
             config_feedback_string(&space, "default_flags_bat", config->default_flags_bat);
@@ -1299,6 +1308,25 @@ load_config_and_apply(Application_Links *app, Partition *scratch, Config_Data *c
         change_mapping(app, config->current_mapping);
         adjust_all_buffer_wrap_widths(app, config->default_wrap_width, config->default_min_base_width);
         global_set_setting(app, GlobalSetting_LAltLCtrlIsAltGr, config->lalt_lctrl_is_altgr);
+        
+        change_theme(app, config->default_theme_name.str, config->default_theme_name.size);
+        
+        Face_Description description = {0};
+        int32_t len = config->default_font_name.size;
+        char *name_ptr = config->default_font_name.str;
+        if (len > sizeof(description.font.name) - 1){
+            len = sizeof(description.font.name) - 1;
+        }
+        memcpy(description.font.name, name_ptr, len);
+        description.font.name[len] = 0;
+        if (override_font_size != 0){
+            description.pt_size = override_font_size;
+        }
+        else{
+            description.pt_size = config->default_font_size;
+        }
+        description.hinting = config->default_font_hinting || override_hinting;
+        change_global_face_by_description(app, description, true);
     }
     
     end_temp_memory(temp);

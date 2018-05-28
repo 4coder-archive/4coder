@@ -2463,7 +2463,9 @@ Get_Face_Description(Application_Links *app, Face_ID id)
 DOC_PARAM(id, The face slot from which to read a description.  If zero gets default values.)
 DOC(Fills out the values of a Face_Description struct, which includes all the information that determines the appearance of the face.  If the id does not specify a valid face the description will be invalid.  An invalid description has a zero length string in it's font.name field (i.e. description.font.name[0] == 0), and a valid description always contains a non-zero length string in the font.name field (i.e. description.font.name[0] != 0)
 
-If the input id is zero, the description returned will be invalid, but the pt_size and hinting fields will reflect the default values for those fields as specified on the command line.  The default values, if unspecified, are pt_size=16 and hinting=false.  Note that the id of zero is reserved and is never a valid face.)
+If the input id is zero, the description returned will be invalid, but the pt_size and hinting fields will reflect the default values for those fields as specified on the command line.  The default values, if unspecified, are pt_size=0 and hinting=false.  These default values are overriden by config.4coder when instantiating fonts at startup, but the original values of pt_size=0 and hinting=false from the command line are preserved and returned here for the lifetime of the program.
+
+Note that the id of zero is reserved and is never a valid face.)
 DOC_RETURN(Returns a Face_Description that is valid if the id references a valid face slot and is filled with the description of the face.  Otherwise returns an invalid Face_Description.)
 DOC_SEE(Face_Description)
 */

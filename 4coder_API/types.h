@@ -869,6 +869,11 @@ ENUM(int32_t, Special_Hook_ID){
     special_hook_buffer_name_resolver,
 };
 
+STRUCT Startup_Parameters{
+    int32_t override_font_size;
+    bool32 override_hinting;
+};
+
 TYPEDEF_FUNC int32_t Command_Caller_Hook_Function(struct Application_Links *app, Generic_Command cmd);
 #define COMMAND_CALLER_HOOK(name) int32_t name(struct Application_Links *app, Generic_Command cmd)
 

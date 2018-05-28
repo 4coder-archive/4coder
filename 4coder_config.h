@@ -173,6 +173,8 @@ struct Config_Data{
     
     char default_font_name_space[256];
     String default_font_name;
+    int32_t default_font_size;
+    bool32 default_font_hinting;
     
     char default_compiler_bat_space[256];
     String default_compiler_bat;
