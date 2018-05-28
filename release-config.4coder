@@ -32,7 +32,11 @@ indent_width = 4;
 
 // Theme
 default_theme_name = "4coder";
+
+// Font
 default_font_name = "Liberation Mono";
+default_font_size = 16;
+default_font_hinting = false;
 
 // User
 user_name = "NAME";
