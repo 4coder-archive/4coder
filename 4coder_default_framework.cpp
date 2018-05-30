@@ -255,8 +255,8 @@ default_4coder_initialize(Application_Links *app, int32_t override_font_size, bo
     String msg = make_lit_string(message);
     print_message(app, msg.str, msg.size);
     
-    load_config_and_apply(app, &global_part, &global_config, override_font_size, override_hinting);
     load_folder_of_themes_into_live_set(app, &global_part, "themes");
+    load_config_and_apply(app, &global_part, &global_config, override_font_size, override_hinting);
 }
 
 static void
