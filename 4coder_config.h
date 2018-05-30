@@ -134,6 +134,21 @@ struct Config{
 
 ////////////////////////////////
 
+struct Config_Get_Result{
+    bool32 success;
+    Config_RValue_Type type;
+    union{
+        bool32 boolean;
+        int32_t integer;
+        uint32_t uinteger;
+        String string;
+        char character;
+        Config_Compound *compound;
+    };
+};
+
+////////////////////////////////
+
 struct Extension_List{
     char space[256];
     char *exts[94];

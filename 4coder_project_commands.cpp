@@ -162,6 +162,9 @@ open_all_files_in_directory_pattern_match(Application_Links *app, Partition *scr
     char *mem = push_array(scratch, char, size);
     String space = make_string_cap(mem, 0, size);
     append(&space, dir);
+    if (space.size == 0 || !char_is_slash(space.str[space.size - 1])){
+        append(&space, '/');
+    }
     open_all_files_in_directory_pattern_match__inner(app, space, whitelist, blacklist, flags);
     end_temp_memory(temp);
 }
@@ -186,6 +189,9 @@ open_all_files_in_hot_with_extension(Application_Links *app, Partition *scratch,
     char *mem = push_array(scratch, char, size);
     String space = make_string_cap(mem, 0, size);
     space.size = directory_get_hot(app, space.str, space.memory_size);
+    if (space.size == 0 || !char_is_slash(space.str[space.size - 1])){
+        append(&space, '/');
+    }
     Project_File_Pattern_Array whitelist = get_pattern_array_from_cstring_array(scratch, array);
     Project_File_Pattern_Array blacklist = get_standard_blacklist(scratch);
     open_all_files_in_directory_pattern_match__inner(app, space, whitelist, blacklist, flags);
@@ -383,7 +389,7 @@ parse_project__config_data__version_1(Partition *arena, String root_dir, Config 
                             }
                             
                             config_compound_bool_member(parsed, src, "recursive", 1, &dst->recursive);
-                            config_compound_bool_member(parsed, src, "relative", 1, &dst->relative);
+                            config_compound_bool_member(parsed, src, "relative", 2, &dst->relative);
                             
                             ++c;
                             ++dst;
