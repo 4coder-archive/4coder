@@ -300,18 +300,17 @@ parse_project__extract_pattern_array(Partition *arena, Config *parsed,
                                      Project_File_Pattern_Array *array_out){
     Config_Compound *compound = 0;
     if (config_compound_var(parsed, root_variable_name, 0, &compound)){
-        int32_t count = typed_array_get_count(parsed, compound, ConfigRValueType_String);
+        Config_Get_Result_List list = typed_string_array_reference_list(arena, parsed, compound);
         
-        array_out->patterns = push_array(arena, Project_File_Pattern, count);
-        array_out->count = count;
+        array_out->patterns = push_array(arena, Project_File_Pattern, list.count);
+        array_out->count = list.count;
         
-        for (int32_t i = 0, c = 0; c < count; ++i){
-            String str = {0};
-            if (config_compound_string_member(parsed, compound, "~", i, &str)){
-                str = push_string_copy(arena, str);
-                get_absolutes(str, &array_out->patterns[c].absolutes, false, false);
-                ++c;
-            }
+        int32_t i = 0;
+        for (Config_Get_Result_Node *node = list.first;
+             node != 0;
+             node = node->next, i += 1){
+            String str = push_string_copy(arena, node->result.string);
+            get_absolutes(str, &array_out->patterns[i].absolutes, false, false);
         }
     }
 }
@@ -348,14 +347,14 @@ parse_project__config_data__version_1(Partition *arena, String root_dir, Config 
         Config_Compound *compound = 0;
         if (config_compound_var(parsed, "load_paths", 0, &compound)){
             for (int32_t i = 0;; ++i){
-                Config_Compound *paths_option = 0;
-                Iteration_Step_Result step_result = typed_array_iteration_step(parsed, compound, ConfigRValueType_Compound, i, &paths_option);
-                if (step_result == Iteration_Skip){
+                Config_Iteration_Step_Result result = typed_array_iteration_step(parsed, compound, ConfigRValueType_Compound, i);
+                if (result.step == Iteration_Skip){
                     continue;
                 }
-                else if (step_result == Iteration_Quit){
+                else if (result.step == Iteration_Quit){
                     break;
                 }
+                Config_Compound *paths_option = result.get.compound;
                 
                 bool32 use_this_option = false;
                 
@@ -370,30 +369,27 @@ parse_project__config_data__version_1(Partition *arena, String root_dir, Config 
                 }
                 
                 if (use_this_option){
-                    int32_t count = typed_array_get_count(parsed, paths, ConfigRValueType_Compound);
+                    Config_Get_Result_List list = typed_compound_array_reference_list(arena, parsed, paths);
                     
-                    project->load_path_array.paths = push_array(arena, Project_File_Load_Path, count);
-                    project->load_path_array.count = count;
+                    project->load_path_array.paths = push_array(arena, Project_File_Load_Path, list.count);
+                    project->load_path_array.count = list.count;
                     
                     Project_File_Load_Path *dst = project->load_path_array.paths;
-                    for (int32_t j = 0, c = 0; c < count; ++j){
-                        Config_Compound *src = 0;
-                        if (config_compound_compound_member(parsed, paths, "~", j, &src)){
-                            memset(dst, 0, sizeof(*dst));
-                            dst->recursive = true;
-                            dst->relative = true;
-                            
-                            String str = {0};
-                            if (config_compound_string_member(parsed, src, "path", 0, &str)){
-                                dst->path = push_string_copy(arena, str);
-                            }
-                            
-                            config_compound_bool_member(parsed, src, "recursive", 1, &dst->recursive);
-                            config_compound_bool_member(parsed, src, "relative", 2, &dst->relative);
-                            
-                            ++c;
-                            ++dst;
+                    for (Config_Get_Result_Node *node = list.first;
+                         node != 0;
+                         node = node->next, ++dst){
+                        Config_Compound *src = node->result.compound;
+                        memset(dst, 0, sizeof(*dst));
+                        dst->recursive = true;
+                        dst->relative = true;
+                        
+                        String str = {0};
+                        if (config_compound_string_member(parsed, src, "path", 0, &str)){
+                            dst->path = push_string_copy(arena, str);
                         }
+                        
+                        config_compound_bool_member(parsed, src, "recursive", 1, &dst->recursive);
+                        config_compound_bool_member(parsed, src, "relative", 2, &dst->relative);
                     }
                     
                     break;
@@ -406,84 +402,81 @@ parse_project__config_data__version_1(Partition *arena, String root_dir, Config 
     {
         Config_Compound *compound = 0;
         if (config_compound_var(parsed, "command_list", 0, &compound)){
-            int32_t count = typed_array_get_count(parsed, compound, ConfigRValueType_Compound);
+            Config_Get_Result_List list = typed_compound_array_reference_list(arena, parsed, compound);
             
-            project->command_array.commands = push_array(arena, Project_Command, count);
-            project->command_array.count = count;
+            project->command_array.commands = push_array(arena, Project_Command, list.count);
+            project->command_array.count = list.count;
             
             Project_Command *dst = project->command_array.commands;
-            for (int32_t i = 0, c = 0; c < count; ++i){
+            for (Config_Get_Result_Node *node = list.first;
+                 node != 0;
+                 node = node->next, ++dst){
+                Config_Compound *src = node->result.compound;
+                memset(dst, 0, sizeof(*dst));
                 
-                Config_Compound *src = 0;
-                if (config_compound_compound_member(parsed, compound, "~", i, &src)){
-                    memset(dst, 0, sizeof(*dst));
-                    
-                    bool32 can_emit_command = true;
-                    
-                    String name = {0};
-                    Config_Compound *cmd_set = 0;
-                    String out = {0};
-                    bool32 footer_panel = false;
-                    bool32 save_dirty_files = true;
-                    String cmd_str = {0};
-                    
-                    if (!config_compound_string_member(parsed, src, "name", 0, &name)){
-                        can_emit_command = false;
-                        goto finish_command;
-                    }
-                    
-                    if (!config_compound_compound_member(parsed, src, "cmd", 1, &cmd_set)){
-                        can_emit_command = false;
-                        goto finish_command;
-                    }
-                    
+                bool32 can_emit_command = true;
+                
+                String name = {0};
+                Config_Compound *cmd_set = 0;
+                String out = {0};
+                bool32 footer_panel = false;
+                bool32 save_dirty_files = true;
+                String cmd_str = {0};
+                
+                if (!config_compound_string_member(parsed, src, "name", 0, &name)){
                     can_emit_command = false;
-                    for (int32_t j = 0;; ++j){
-                        Config_Compound *cmd_option = 0;
-                        Iteration_Step_Result step_result = typed_array_iteration_step(parsed, cmd_set, ConfigRValueType_Compound, j, &cmd_option);
-                        if (step_result == Iteration_Skip){
-                            continue;
-                        }
-                        else if (step_result == Iteration_Quit){
-                            break;
-                        }
-                        
-                        bool32 use_this_option = false;
-                        
-                        String cmd = {0};
-                        if (config_compound_string_member(parsed, cmd_option, "cmd", 0, &cmd)){
-                            String str = {0};
-                            if (config_compound_string_member(parsed, cmd_option, "os", 1, &str)){
-                                if (match(str, make_lit_string(PlatformName))){
-                                    use_this_option = true;
-                                }
+                    goto finish_command;
+                }
+                
+                if (!config_compound_compound_member(parsed, src, "cmd", 1, &cmd_set)){
+                    can_emit_command = false;
+                    goto finish_command;
+                }
+                
+                can_emit_command = false;
+                for (int32_t j = 0;; ++j){
+                    Config_Iteration_Step_Result result = typed_array_iteration_step(parsed, cmd_set, ConfigRValueType_Compound, j);
+                    if (result.step == Iteration_Skip){
+                        continue;
+                    }
+                    else if (result.step == Iteration_Quit){
+                        break;
+                    }
+                    Config_Compound *cmd_option = result.get.compound;
+                    
+                    bool32 use_this_option = false;
+                    
+                    String cmd = {0};
+                    if (config_compound_string_member(parsed, cmd_option, "cmd", 0, &cmd)){
+                        String str = {0};
+                        if (config_compound_string_member(parsed, cmd_option, "os", 1, &str)){
+                            if (match(str, make_lit_string(PlatformName))){
+                                use_this_option = true;
                             }
                         }
-                        
-                        if (use_this_option){
-                            can_emit_command = true;
-                            cmd_str = cmd;
-                            break;
-                        }
                     }
                     
-                    if (can_emit_command){
-                        config_compound_string_member(parsed, src, "out", 2, &out);
-                        config_compound_bool_member(parsed, src, "footer_panel", 3, &footer_panel);
-                        config_compound_bool_member(parsed, src, "save_dirty_files", 4,
-                                                    &save_dirty_files);
-                        
-                        dst->name = push_string_copy(arena, name);
-                        dst->cmd = push_string_copy(arena, cmd_str);
-                        dst->out = push_string_copy(arena, out);
-                        dst->footer_panel = footer_panel;
-                        dst->save_dirty_files = save_dirty_files;
+                    if (use_this_option){
+                        can_emit_command = true;
+                        cmd_str = cmd;
+                        break;
                     }
-                    
-                    finish_command:;
-                    ++dst;
-                    ++c;
                 }
+                
+                if (can_emit_command){
+                    config_compound_string_member(parsed, src, "out", 2, &out);
+                    config_compound_bool_member(parsed, src, "footer_panel", 3, &footer_panel);
+                    config_compound_bool_member(parsed, src, "save_dirty_files", 4,
+                                                &save_dirty_files);
+                    
+                    dst->name = push_string_copy(arena, name);
+                    dst->cmd = push_string_copy(arena, cmd_str);
+                    dst->out = push_string_copy(arena, out);
+                    dst->footer_panel = footer_panel;
+                    dst->save_dirty_files = save_dirty_files;
+                }
+                
+                finish_command:;
             }
         }
     }

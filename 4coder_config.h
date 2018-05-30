@@ -134,6 +134,13 @@ struct Config{
 
 ////////////////////////////////
 
+typedef int32_t Iteration_Step_Result;
+enum{
+    Iteration_Good = 0,
+    Iteration_Skip = 1,
+    Iteration_Quit = 2,
+};
+
 struct Config_Get_Result{
     bool32 success;
     Config_RValue_Type type;
@@ -145,6 +152,23 @@ struct Config_Get_Result{
         char character;
         Config_Compound *compound;
     };
+};
+
+struct Config_Iteration_Step_Result{
+    Iteration_Step_Result step;
+    Config_Get_Result get;
+};
+
+struct Config_Get_Result_Node{
+    Config_Get_Result_Node *next;
+    Config_Get_Result_Node *prev;
+    Config_Get_Result result;
+};
+
+struct Config_Get_Result_List{
+    Config_Get_Result_Node *first;
+    Config_Get_Result_Node *last;
+    int32_t count;
 };
 
 ////////////////////////////////

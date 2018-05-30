@@ -624,12 +624,14 @@ config_compound_member(Config *config, Config_Compound *compound, String var_nam
     return(result);
 }
 
-static Iteration_Step_Result
-typed_array_iteration_step(Config *parsed, Config_Compound *compound, Config_RValue_Type type,
-                           int32_t index, void *var_out);
+static Config_Iteration_Step_Result
+typed_array_iteration_step(Config *parsed, Config_Compound *compound, Config_RValue_Type type, int32_t index);
 
 static int32_t
 typed_array_get_count(Config *parsed, Config_Compound *compound, Config_RValue_Type type);
+
+static Config_Get_Result_List
+typed_array_reference_list(Partition *arena, Config *parsed, Config_Compound *compound, Config_RValue_Type type);
 
 #define config_fixed_string_var(c,v,s,o,a) config_placed_string_var((c),(v),(s),(o),(a),sizeof(a))
 
@@ -968,73 +970,85 @@ config_compound_compound_member(Config *config, Config_Compound *compound,
 }
 
 static Iteration_Step_Result
-typed_has_array_iteration_step(Config *config, Config_Compound *compound,
-                               int32_t index){
-    Iteration_Step_Result result = typed_array_iteration_step(config, compound, ConfigRValueType_NoType,
-                                                              index, 0);
-    return(result);
+typed_has_array_iteration_step(Config *config, Config_Compound *compound, int32_t index){
+    Config_Iteration_Step_Result result = typed_array_iteration_step(config, compound, ConfigRValueType_NoType, index);
+    return(result.step);
 }
 
 static Iteration_Step_Result
-typed_bool_array_iteration_step(Config *config, Config_Compound *compound,
-                                int32_t index, bool32* var_out){
-    Iteration_Step_Result result = typed_array_iteration_step(config, compound, ConfigRValueType_Boolean,
-                                                              index, var_out);
-    return(result);
+typed_bool_array_iteration_step(Config *config, Config_Compound *compound, int32_t index, bool32* var_out){
+    Config_Iteration_Step_Result result = typed_array_iteration_step(config, compound, ConfigRValueType_Boolean, index);
+    bool32 success = (result.step == Iteration_Good);
+    if (success){
+        *var_out = result.get.boolean;
+    }
+    return(result.step);
 }
 
 static Iteration_Step_Result
-typed_int_array_iteration_step(Config *config, Config_Compound *compound,
-                               int32_t index, int32_t* var_out){
-    Iteration_Step_Result result = typed_array_iteration_step(config, compound, ConfigRValueType_Integer,
-                                                              index, var_out);
-    return(result);
+typed_int_array_iteration_step(Config *config, Config_Compound *compound, int32_t index, int32_t* var_out){
+    Config_Iteration_Step_Result result = typed_array_iteration_step(config, compound, ConfigRValueType_Integer, index);
+    bool32 success = (result.step == Iteration_Good);
+    if (success){
+        *var_out = result.get.integer;
+    }
+    return(result.step);
 }
 
 static Iteration_Step_Result
-typed_uint_array_iteration_step(Config *config, Config_Compound *compound,
-                                int32_t index, uint32_t* var_out){
-    Iteration_Step_Result result = typed_array_iteration_step(config, compound, ConfigRValueType_Integer,
-                                                              index, var_out);
-    return(result);
+typed_uint_array_iteration_step(Config *config, Config_Compound *compound, int32_t index, uint32_t* var_out){
+    Config_Iteration_Step_Result result = typed_array_iteration_step(config, compound, ConfigRValueType_Integer, index);
+    bool32 success = (result.step == Iteration_Good);
+    if (success){
+        *var_out = result.get.uinteger;
+    }
+    return(result.step);
 }
 
 static Iteration_Step_Result
-typed_string_array_iteration_step(Config *config, Config_Compound *compound,
-                                  int32_t index, String* var_out){
-    Iteration_Step_Result result = typed_array_iteration_step(config, compound, ConfigRValueType_String,
-                                                              index, var_out);
-    return(result);
+typed_string_array_iteration_step(Config *config, Config_Compound *compound, int32_t index, String* var_out){
+    Config_Iteration_Step_Result result = typed_array_iteration_step(config, compound, ConfigRValueType_String, index);
+    bool32 success = (result.step == Iteration_Good);
+    if (success){
+        *var_out = result.get.string;
+    }
+    return(result.step);
 }
 
 static Iteration_Step_Result
-typed_placed_string_array_iteration_step(Config *config, Config_Compound *compound,
-                                         int32_t index, String* var_out, char *space, int32_t space_size){
-    Iteration_Step_Result result = typed_array_iteration_step(config, compound, ConfigRValueType_String,
-                                                              index, var_out);
-    bool32 success = (result == Iteration_Good);
+typed_placed_string_array_iteration_step(Config *config, Config_Compound *compound, int32_t index, String* var_out
+                                         , char *space, int32_t space_size){
+    Config_Iteration_Step_Result result = typed_array_iteration_step(config, compound, ConfigRValueType_String, index);
+    bool32 success = (result.step == Iteration_Good);
+    if (success){
+        *var_out = result.get.string;
+    }
     if (success){
         String str = *var_out;
         *var_out = make_string_cap(space, 0, space_size);
         copy(var_out, str);
     }
-    return(result);
+    return(result.step);
 }
 
 static Iteration_Step_Result
-typed_char_array_iteration_step(Config *config, Config_Compound *compound,
-                                int32_t index, char* var_out){
-    Iteration_Step_Result result = typed_array_iteration_step(config, compound, ConfigRValueType_Character,
-                                                              index, var_out);
-    return(result);
+typed_char_array_iteration_step(Config *config, Config_Compound *compound, int32_t index, char* var_out){
+    Config_Iteration_Step_Result result = typed_array_iteration_step(config, compound, ConfigRValueType_Character, index);
+    bool32 success = (result.step == Iteration_Good);
+    if (success){
+        *var_out = result.get.character;
+    }
+    return(result.step);
 }
 
 static Iteration_Step_Result
-typed_compound_array_iteration_step(Config *config, Config_Compound *compound,
-                                    int32_t index, Config_Compound** var_out){
-    Iteration_Step_Result result = typed_array_iteration_step(config, compound, ConfigRValueType_Compound,
-                                                              index, var_out);
-    return(result);
+typed_compound_array_iteration_step(Config *config, Config_Compound *compound, int32_t index, Config_Compound** var_out){
+    Config_Iteration_Step_Result result = typed_array_iteration_step(config, compound, ConfigRValueType_Compound, index);
+    bool32 success = (result.step == Iteration_Good);
+    if (success){
+        *var_out = result.get.compound;
+    }
+    return(result.step);
 }
 
 static int32_t
@@ -1079,66 +1093,100 @@ typed_no_type_array_get_count(Config *config, Config_Compound *compound){
     return(count);
 }
 
+static Config_Get_Result_List
+typed_bool_array_reference_list(Partition *arena, Config *config, Config_Compound *compound){
+    Config_Get_Result_List list = typed_array_reference_list(arena, config, compound, ConfigRValueType_Boolean);
+    return(list);
+}
+
+static Config_Get_Result_List
+typed_int_array_reference_list(Partition *arena, Config *config, Config_Compound *compound){
+    Config_Get_Result_List list = typed_array_reference_list(arena, config, compound, ConfigRValueType_Integer);
+    return(list);
+}
+
+static Config_Get_Result_List
+typed_float_array_reference_list(Partition *arena, Config *config, Config_Compound *compound){
+    Config_Get_Result_List list = typed_array_reference_list(arena, config, compound, ConfigRValueType_Float);
+    return(list);
+}
+
+static Config_Get_Result_List
+typed_string_array_reference_list(Partition *arena, Config *config, Config_Compound *compound){
+    Config_Get_Result_List list = typed_array_reference_list(arena, config, compound, ConfigRValueType_String);
+    return(list);
+}
+
+static Config_Get_Result_List
+typed_character_array_reference_list(Partition *arena, Config *config, Config_Compound *compound){
+    Config_Get_Result_List list = typed_array_reference_list(arena, config, compound, ConfigRValueType_Character);
+    return(list);
+}
+
+static Config_Get_Result_List
+typed_compound_array_reference_list(Partition *arena, Config *config, Config_Compound *compound){
+    Config_Get_Result_List list = typed_array_reference_list(arena, config, compound, ConfigRValueType_Compound);
+    return(list);
+}
+
+static Config_Get_Result_List
+typed_no_type_array_reference_list(Partition *arena, Config *config, Config_Compound *compound){
+    Config_Get_Result_List list = typed_array_reference_list(arena, config, compound, ConfigRValueType_NoType);
+    return(list);
+}
+
 ////////////////////////////////
 
-static Iteration_Step_Result
-typed_array_iteration_step(Config *parsed, Config_Compound *compound, Config_RValue_Type type,
-                           int32_t index, void *var_out){
-    Iteration_Step_Result step_result = Iteration_Quit;
-    Config_Get_Result result = config_compound_member(parsed, compound, make_lit_string("~"), index);
-    if (result.success){
-        if (result.type == type){
-            step_result = Iteration_Good;
-            if (var_out != 0){
-                switch (type){
-                    case ConfigRValueType_Boolean:
-                    {
-                        *(bool32*)var_out = result.boolean;
-                    }break;
-                    
-                    case ConfigRValueType_Integer:
-                    {
-                        *(int32_t*)var_out = result.integer;
-                    }break;
-                    
-                    case ConfigRValueType_String:
-                    {
-                        *(String*)var_out = result.string;
-                    }break;
-                    
-                    case ConfigRValueType_Character:
-                    {
-                        *(char*)var_out = result.character;
-                    }break;
-                    
-                    case ConfigRValueType_Compound:
-                    {
-                        *(Config_Compound**)var_out = result.compound;
-                    }break;
-                }
-            }
+static Config_Iteration_Step_Result
+typed_array_iteration_step(Config *parsed, Config_Compound *compound, Config_RValue_Type type, int32_t index){
+    Config_Iteration_Step_Result result = {0};
+    result.step = Iteration_Quit;
+    Config_Get_Result get_result = config_compound_member(parsed, compound, make_lit_string("~"), index);
+    if (get_result.success){
+        if (get_result.type == type || type == ConfigRValueType_NoType){
+            result.step = Iteration_Good;
+            result.get = get_result;
         }
         else{
-            step_result = Iteration_Skip;
+            result.step = Iteration_Skip;
         }
     }
-    return(step_result);
+    return(result);
 }
 
 static int32_t
 typed_array_get_count(Config *parsed, Config_Compound *compound, Config_RValue_Type type){
     int32_t count = 0;
     for (int32_t i = 0;; ++i){
-        Iteration_Step_Result step_result = typed_array_iteration_step(parsed, compound, type, i, 0);
-        if (step_result == Iteration_Skip){
+        Config_Iteration_Step_Result result = typed_array_iteration_step(parsed, compound, type, i);
+        if (result.step == Iteration_Skip){
             continue;
         }
-        else if (step_result == Iteration_Quit){
+        else if (result.step == Iteration_Quit){
             break;
         }
         count += 1;
     }
     return(count);
+}
+
+static Config_Get_Result_List
+typed_array_reference_list(Partition *arena, Config *parsed, Config_Compound *compound, Config_RValue_Type type){
+    Config_Get_Result_List list = {0};
+    for (int32_t i = 0;; ++i){
+        Config_Iteration_Step_Result result = typed_array_iteration_step(parsed, compound, type, i);
+        if (result.step == Iteration_Skip){
+            continue;
+        }
+        else if (result.step == Iteration_Quit){
+            break;
+        }
+        Config_Get_Result_Node *node = push_array(arena, Config_Get_Result_Node, 1);
+        node->result = result.get;
+        zdll_push_back(list.first, list.last, node);
+        list.count += 1;
+    }
+    return(list);
 }
 
 ////////////////////////////////

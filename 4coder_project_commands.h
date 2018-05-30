@@ -15,15 +15,6 @@ enum{
 
 ///////////////////////////////
 
-typedef int32_t Iteration_Step_Result;
-enum{
-    Iteration_Good = 0,
-    Iteration_Skip = 1,
-    Iteration_Quit = 2,
-};
-
-///////////////////////////////
-
 struct Project_File_Pattern{
     Absolutes absolutes;
 };
