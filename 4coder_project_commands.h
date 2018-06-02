@@ -41,6 +41,7 @@ struct Project_Command{
     String out;
     bool32 footer_panel;
     bool32 save_dirty_files;
+    bool32 cursor_at_end;
 };
 
 struct Project_Command_Array{
@@ -74,6 +75,14 @@ struct Project_Setup_Status{
     bool32 sh_exists;
     bool32 project_exists;
     bool32 everything_exists;
+};
+
+struct Project_Key_Strings{
+    bool32 success;
+    String script_file;
+    String code_file;
+    String output_dir;
+    String binary_file;
 };
 
 #endif

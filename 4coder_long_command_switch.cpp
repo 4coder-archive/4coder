@@ -44,6 +44,15 @@ CUSTOM_DOC("Execute a 'long form' command.")
     else if (match(bar.string, make_lit_string("new project"))){
         setup_new_project(app);
     }
+    else if (match(bar.string, make_lit_string("new bat"))){
+        setup_build_bat(app);
+    }
+    else if (match(bar.string, make_lit_string("new sh"))){
+        setup_build_sh(app);
+    }
+    else if (match(bar.string, make_lit_string("new scripts"))){
+        setup_build_bat_and_sh(app);
+    }
     else if (match(bar.string, make_lit_string("delete file"))){
         delete_file_query(app);
     }

@@ -286,14 +286,6 @@ DOC_SEE(Command_Line_Interface_Flag)
             file = working_set_alloc_always(working_set, general);
             Assert(file != 0);
             
-#if 0
-            if (file == 0){
-                append(&feedback_str, make_lit_string("ERROR: unable to allocate a new buffer\n"));
-                result = false;
-                goto done;
-            }
-#endif
-            
             String name = push_string(part, buffer_id.name, buffer_id.name_len);
             buffer_bind_name(models, general, part, working_set, file, name);
             init_read_only_file(system, models, file);
@@ -366,7 +358,10 @@ DOC_SEE(Command_Line_Interface_Flag)
         }
         
         // NOTE(allen): Attept to execute the command.
-        if (!cli_list_call(system, &vars->cli_processes, path_string.str, command_string.str, file, ((flags & CLI_CursorAtEnd) != 0))){
+        char *path_str = path_string.str;
+        char *command_str = command_string.str;
+        b32 cursor_at_end = ((flags & CLI_CursorAtEnd) != 0);
+        if (!cli_list_call(system, &vars->cli_processes, path_str, command_str, file, cursor_at_end)){
             append(&feedback_str, "ERROR: Failed to make the cli call\n");
             result = false;
         }

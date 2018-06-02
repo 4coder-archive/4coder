@@ -1131,6 +1131,21 @@ lexer_keywords_default_init(Partition *arena, Cpp_Keyword_Table *kw_out, Cpp_Key
 ////////////////////////////////
 
 static String
+get_hot_directory(Application_Links *app, Partition *arena){
+    Temp_Memory temp = begin_temp_memory(arena);
+    int32_t space_cap = partition_remaining(arena);
+    char *space = push_array(arena, char, space_cap);
+    String hot_dir = make_string_cap(space, 0, space_cap);
+    hot_dir.size = directory_get_hot(app, hot_dir.str, hot_dir.memory_size);
+    end_temp_memory(temp);
+    push_array(arena, char, hot_dir.size);
+    hot_dir.memory_size = hot_dir.size;
+    return(hot_dir);
+}
+
+////////////////////////////////
+
+static String
 dump_file_handle(Partition *arena, FILE *file){
     String str = {0};
     if (file != 0){

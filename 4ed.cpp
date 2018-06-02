@@ -137,31 +137,31 @@ inline void
 output_file_append(System_Functions *system, Models *models, Editing_File *file, String value){
     if (!file->is_dummy){
         i32 end = buffer_size(&file->state.buffer);
-        edit_single(system, models, file,
-                    end, end, value.str, value.size);
+        edit_single(system, models, file, end, end, value.str, value.size);
+    }
+}
+
+internal void
+file_cursor_to_end(System_Functions *system, Models *models, Editing_File *file){
+    Assert(file != 0);
+    i32 pos = buffer_size(&file->state.buffer);
+    for (Panel *panel = models->layout.used_sentinel.next;
+         panel != &models->layout.used_sentinel;
+         panel = panel->next){
+        View *view = panel->view;
+        if (view->transient.file_data.file != file){
+            continue;
+        }
+        view_cursor_move(system, view, pos);
     }
 }
 
 inline void
-do_feedback_message(System_Functions *system, Models *models, String value, b32 set_to_start = 0){
+do_feedback_message(System_Functions *system, Models *models, String value){
     Editing_File *file = models->message_buffer;
-    
     if (file != 0){
         output_file_append(system, models, file, value);
-        i32 pos = 0;
-        if (!set_to_start){
-            pos = buffer_size(&file->state.buffer);
-        }
-        
-        for (Panel *panel = models->layout.used_sentinel.next;
-             panel != &models->layout.used_sentinel;
-             panel = panel->next){
-            View *view = panel->view;
-            if (view->transient.file_data.file != file){
-                continue;
-            }
-            view_cursor_move(system, view, pos);
-        }
+        file_cursor_to_end(system, models, file);
     }
 }
 
@@ -1559,15 +1559,16 @@ App_Step_Sig(app_step){
         CLI_Process *proc_ptr = list->procs;
         for (u32 i = 0; i < list->count; ++i, ++proc_ptr){
             Editing_File *file = proc_ptr->out_file;
-            
             CLI_Handles *cli = &proc_ptr->cli;
             
+            b32 edited_file = false;
             u32 amount = 0;
             system->cli_begin_update(cli);
             if (system->cli_update_step(cli, dest, max, &amount)){
-                if (file != 0){
+                if (file != 0 && amount > 0){
                     amount = eol_in_place_convert_in(dest, amount);
                     output_file_append(system, models, file, make_string(dest, amount));
+                    edited_file = true;
                 }
             }
             
@@ -1578,12 +1579,15 @@ App_Step_Sig(app_step){
                     append(&str, make_lit_string("exited with code "));
                     append_int_to_str(&str, cli->exit);
                     output_file_append(system, models, file, str);
+                    edited_file = true;
                 }
                 procs_to_free[proc_free_count++] = proc_ptr;
             }
+            
+            if (proc_ptr->cursor_at_end && file != 0){
+                file_cursor_to_end(system, models, file);
+            }
         }
-        
-        // TODO(allen): proc_ptr->cursor_at_end
         
         for (i32 i = proc_free_count - 1; i >= 0; --i){
             cli_list_free_proc(list, procs_to_free[i]);

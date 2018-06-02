@@ -416,12 +416,13 @@ parse_project__config_data__version_1(Partition *arena, String root_dir, Config 
                 
                 bool32 can_emit_command = true;
                 
-                String name = {0};
                 Config_Compound *cmd_set = 0;
+                String name = {0};
+                String cmd_str = {0};
                 String out = {0};
                 bool32 footer_panel = false;
                 bool32 save_dirty_files = true;
-                String cmd_str = {0};
+                bool32 cursor_at_end = false;
                 
                 if (!config_compound_string_member(parsed, src, "name", 0, &name)){
                     can_emit_command = false;
@@ -468,12 +469,15 @@ parse_project__config_data__version_1(Partition *arena, String root_dir, Config 
                     config_compound_bool_member(parsed, src, "footer_panel", 3, &footer_panel);
                     config_compound_bool_member(parsed, src, "save_dirty_files", 4,
                                                 &save_dirty_files);
+                    config_compound_bool_member(parsed, src, "cursor_at_end", 5,
+                                                &cursor_at_end);
                     
                     dst->name = push_string_copy(arena, name);
                     dst->cmd = push_string_copy(arena, cmd_str);
                     dst->out = push_string_copy(arena, out);
                     dst->footer_panel = footer_panel;
                     dst->save_dirty_files = save_dirty_files;
+                    dst->cursor_at_end = cursor_at_end;
                 }
                 
                 finish_command:;
@@ -691,6 +695,7 @@ project_deep_copy__inner(Partition *arena, Project *project){
             }
             dst->footer_panel = src->footer_panel;
             dst->save_dirty_files = src->save_dirty_files;
+            dst->cursor_at_end = src->cursor_at_end;
         }
     }
     
@@ -774,6 +779,9 @@ config_feedback_command_array(String *space, char *name, Project_Command_Array *
         append(space, ", ");
         append(space, ".save_dirty_files = ");
         append(space, command->save_dirty_files?"true":"false");
+        append(space, ", ");
+        append(space, ".cursor_at_end = ");
+        append(space, command->cursor_at_end?"true":"false");
         append(space, ", ");
         append(space, "},\n");
     }
@@ -927,6 +935,7 @@ exec_project_fkey_command(Application_Links *app, int32_t fkey_index){
     if (fkey->cmd.size > 0){
         bool32 footer_panel = fkey->footer_panel;
         bool32 save_dirty_files = fkey->save_dirty_files;
+        bool32 cursor_at_end = fkey->cursor_at_end;
         
         if (save_dirty_files){
             save_all_dirty_buffers(app);
@@ -936,6 +945,9 @@ exec_project_fkey_command(Application_Links *app, int32_t fkey_index){
         View_Summary *view_ptr = 0;
         Buffer_Identifier buffer_id = {0};
         uint32_t flags = CLI_OverlapWithConflict;
+        if (cursor_at_end){
+            flags |= CLI_CursorAtEnd;
+        }
         
         bool32 set_fancy_font = false;
         if (fkey->out.size > 0){
@@ -1038,29 +1050,26 @@ CUSTOM_DOC("Changes 4coder's hot directory to the root directory of the currentl
 ///////////////////////////////
 
 static Project_Setup_Status
-project_is_setup(Application_Links *app, char *dir, int32_t dir_len, int32_t dir_capacity){
+project_is_setup(Application_Links *app, Partition *scratch, String script_path, String script_file){
     Project_Setup_Status result = {0};
     
-    Temp_Memory temp = begin_temp_memory(&global_part);
+    Temp_Memory temp = begin_temp_memory(scratch);
     
     static int32_t needed_extra_space = 15;
+    char *space = push_array(&global_part, char, script_path.size + needed_extra_space);
+    String str = make_string_cap(space, 0, script_path.size + needed_extra_space);
+    copy(&str, script_path);
     
-    String str = {0};
-    if (dir_capacity >= dir_len + needed_extra_space){
-        str = make_string_cap(dir, dir_len, dir_capacity);
-    }
-    else{
-        char *space = push_array(&global_part, char, dir_len + needed_extra_space);
-        str = make_string_cap(space, 0, dir_len + needed_extra_space);
-        copy(&str, make_string(dir, dir_len));
-    }
-    
-    str.size = dir_len;
-    append(&str, "/build.bat");
+    int32_t dir_len = str.size;
+    append(&str, "/");
+    append(&str, script_file);
+    append(&str, ".bat");
     result.bat_exists = file_exists(app, str.str, str.size);
     
     str.size = dir_len;
-    append(&str, "/build.sh");
+    append(&str, "/");
+    append(&str, script_file);
+    append(&str, ".sh");
     result.sh_exists = file_exists(app, str.str, str.size);
     
     str.size = dir_len;
@@ -1074,174 +1083,362 @@ project_is_setup(Application_Links *app, char *dir, int32_t dir_len, int32_t dir
     return(result);
 }
 
+static Project_Key_Strings
+project_key_strings_query_user(Application_Links *app,
+                               bool32 get_script_file, bool32 get_code_file,
+                               char *script_file_space, int32_t script_file_cap,
+                               char *code_file_space, int32_t code_file_cap,
+                               char *output_dir_space, int32_t output_dir_cap,
+                               char *binary_file_space, int32_t binary_file_cap){
+    Project_Key_Strings keys = {0};
+    
+    Query_Bar script_file_bar = {0};
+    Query_Bar code_file_bar = {0};
+    Query_Bar output_dir_bar = {0};
+    Query_Bar binary_file_bar = {0};
+    
+    if (get_script_file){
+        script_file_bar.prompt = make_lit_string("Script Name: ");
+        script_file_bar.string = make_string_cap(script_file_space, 0, script_file_cap);
+        
+        if (!query_user_string(app, &script_file_bar)) return(keys);
+        if (script_file_bar.string.size == 0) return(keys);
+    }
+    
+    if (get_code_file){
+        code_file_bar.prompt = make_lit_string("Build Target: ");
+        code_file_bar.string = make_string_cap(code_file_space, 0, code_file_cap);
+        
+        if (!query_user_string(app, &code_file_bar)) return(keys);
+        if (code_file_bar.string.size == 0) return(keys);
+    }
+    
+    output_dir_bar.prompt = make_lit_string("Output Directory: ");
+    output_dir_bar.string = make_string_cap(output_dir_space, 0, output_dir_cap);
+    
+    if (!query_user_string(app, &output_dir_bar)) return(keys);
+    if (output_dir_bar.string.size == 0){
+        copy(&output_dir_bar.string, ".");
+    }
+    
+    
+    binary_file_bar.prompt = make_lit_string("Binary Output: ");
+    binary_file_bar.string = make_string_cap(binary_file_space, 0, binary_file_cap);
+    
+    if (!query_user_string(app, &binary_file_bar)) return(keys);
+    if (binary_file_bar.string.size == 0) return(keys);
+    
+    
+    keys.success = true;
+    keys.script_file = script_file_bar.string;
+    keys.code_file = code_file_bar.string;
+    keys.output_dir = output_dir_bar.string;
+    keys.binary_file = binary_file_bar.string;
+    
+    return(keys);
+}
+
+static bool32
+project_generate_bat_script(Partition *scratch, String opts, String compiler,
+                            String script_path, String script_file,
+                            String code_file, String output_dir, String binary_file){
+    bool32 success = false;
+    
+    Temp_Memory temp = begin_temp_memory(scratch);
+    
+    String cf = push_string_copy(scratch, code_file);
+    String od = push_string_copy(scratch, output_dir);
+    String bf = push_string_copy(scratch, binary_file);
+    
+    replace_char(&cf, '/', '\\');
+    replace_char(&od, '/', '\\');
+    replace_char(&bf, '/', '\\');
+    
+    int32_t space_cap = partition_remaining(scratch);
+    char *space = push_array(scratch, char, space_cap);
+    String file_name = make_string_cap(space, 0, space_cap);
+    append(&file_name, script_path);
+    append(&file_name, "/");
+    append(&file_name, script_file);
+    append(&file_name, ".bat");
+    terminate_with_null(&file_name);
+    
+    FILE *bat_script = fopen(file_name.str, "wb");
+    if (bat_script != 0){
+        fprintf(bat_script, "@echo off\n\n");
+        fprintf(bat_script, "set opts=%.*s\n", opts.size, opts.str);
+        fprintf(bat_script, "set code=%%cd%%\n");
+        
+        fprintf(bat_script, "pushd %.*s\n", od.size, od.str);
+        fprintf(bat_script, "%.*s %%opts%% %%code%%\\%.*s -Fe%.*s\n",
+                compiler.size, compiler.str, cf.size, cf.str, bf.size, bf.str);
+        fprintf(bat_script, "popd\n");
+        
+        fclose(bat_script);
+        success = true;
+    }
+    
+    end_temp_memory(temp);
+    
+    return(success);
+}
+
+static bool32
+project_generate_sh_script(Partition *scratch, String opts, String compiler,
+                           String script_path, String script_file,
+                           String code_file, String output_dir, String binary_file){
+    bool32 success = false;
+    
+    Temp_Memory temp = begin_temp_memory(scratch);
+    
+    String cf = code_file;
+    String od = output_dir;
+    String bf = binary_file;
+    
+    int32_t space_cap = partition_remaining(scratch);
+    char *space = push_array(scratch, char, space_cap);
+    String file_name = make_string_cap(space, 0, space_cap);
+    append(&file_name, script_path);
+    append(&file_name, "/");
+    append(&file_name, script_file);
+    append(&file_name, ".sh");
+    terminate_with_null(&file_name);
+    
+    FILE *sh_script = fopen(file_name.str, "wb");
+    if (sh_script != 0){
+        fprintf(sh_script, "#!/bin/bash\n\n");
+        
+        fprintf(sh_script, "code=\"$PWD\"\n");
+        
+        fprintf(sh_script, "opts=%.*s\n", opts.size, opts.str);
+        
+        fprintf(sh_script, "cd %.*s > /dev/null\n", od.size, od.str);
+        fprintf(sh_script, "%.*s $opts $code/%.*s -o %.*s\n",
+                compiler.size, compiler.str, cf.size, cf.str, bf.size, bf.str);
+        fprintf(sh_script, "cd $code > /dev/null\n");
+        
+        fclose(sh_script);
+        success = true;
+    }
+    
+    end_temp_memory(temp);
+    
+    return(success);
+}
+
+static bool32
+project_generate_project_4coder_file(Partition *scratch,
+                                     String script_path, String script_file,
+                                     String output_dir, String binary_file){
+    bool32 success = false;
+    
+    Temp_Memory temp = begin_temp_memory(scratch);
+    
+    String od = output_dir;
+    String bf = binary_file;
+    
+    String od_win = push_string(scratch, od.size*2);
+    String bf_win = push_string(scratch, bf.size*2);
+    
+    append(&od_win, od);
+    append(&bf_win, bf);
+    
+    replace_str(&od_win, "/", "\\\\");
+    replace_str(&bf_win, "/", "\\\\");
+    
+    int32_t space_cap = partition_remaining(scratch);
+    char *space = push_array(scratch, char, space_cap);
+    String file_name = make_string_cap(space, 0, space_cap);
+    append(&file_name, script_path);
+    append(&file_name, "/project.4coder");
+    terminate_with_null(&file_name);
+    
+    FILE *out = fopen(file_name.str, "wb");
+    if (out != 0){
+        fprintf(out, "version(1);\n");
+        fprintf(out, "project_name = \"%.*s\";\n", binary_file.size, binary_file.str);
+        fprintf(out, "patterns = {\n");
+        fprintf(out, "\"*.c\",\n");
+        fprintf(out, "\"*.cpp\",\n");
+        fprintf(out, "\"*.h\",\n");
+        fprintf(out, "\"*.m\",\n");
+        fprintf(out, "\"*.bat\",\n");
+        fprintf(out, "\"*.sh\",\n");
+        fprintf(out, "\"*.4coder\",\n");
+        fprintf(out, "};\n");
+        fprintf(out, "patterns = {\n");
+        fprintf(out, "\".*\",\n");
+        fprintf(out, "};\n");
+        fprintf(out, "load_paths_base = {\n");
+        fprintf(out, " { \".\", .relative = true, .recursive = true, },");
+        fprintf(out, "};\n");
+        fprintf(out, "load_paths = {\n");
+        fprintf(out, " { load_paths_base, .os = \"win\", },\n");
+        fprintf(out, " { load_paths_base, .os = \"linux\", },\n");
+        fprintf(out, " { load_paths_base, .os = \"mac\", },\n");
+        fprintf(out, "};\n");
+        
+        fprintf(out, "\n");
+        
+        fprintf(out, "command_list = {\n");
+        fprintf(out, " { .name = \"build\",\n");
+        fprintf(out, "   .out = \"*compilation*\", .footer_panel = true, .save_dirty_files = true,\n");
+        fprintf(out, "   .cmd = { { \"%.*s.bat\", .os = \"win\"   },\n",
+                script_file.size, script_file.str);
+        fprintf(out, "            { \"%.*s.sh\" , .os = \"linux\" },\n",
+                script_file.size, script_file.str);
+        fprintf(out, "            { \"%.*s.sh\" , .os = \"mac\"   }, }, },\n",
+                script_file.size, script_file.str);
+        fprintf(out, " { .name = \"run\",\n");
+        fprintf(out, "   .out = \"*run*\", .footer_panel = false, .save_dirty_files = false,\n");
+        fprintf(out, "   .cmd = { { \"%.*s\\\\%.*s\", .os = \"win\"   },\n",
+                od_win.size, od_win.str, bf_win.size, bf_win.str);
+        fprintf(out, "            { \"%.*s/%.*s\" , .os = \"linux\" },\n",
+                od.size, od.str, bf.size, bf.str);
+        fprintf(out, "            { \"%.*s/%.*s\" , .os = \"mac\"   }, }, },\n",
+                od.size, od.str, bf.size, bf.str);
+        fprintf(out, "};\n");
+        
+        fprintf(out, "fkey_command[1] = \"build\";\n");
+        fprintf(out, "fkey_command[2] = \"run\";\n");
+        
+        fclose(out);
+        success = true;
+    }
+    
+    end_temp_memory(temp);
+    
+    return(success);
+}
+
+static void
+project_setup_scripts__generic(Application_Links *app, Partition *scratch,
+                               bool32 do_project_file,
+                               bool32 do_bat_script,
+                               bool32 do_sh_script){
+    Temp_Memory temp = begin_temp_memory(scratch);
+    String script_path = get_hot_directory(app, scratch);
+    
+    bool32 needs_to_do_work = false;
+    Project_Setup_Status status = {0};
+    if (do_project_file){
+        status = project_is_setup(app, scratch, script_path, make_lit_string("build"));
+        needs_to_do_work =
+            !status.project_exists ||
+            (do_bat_script && !status.bat_exists) ||
+            (do_sh_script && !status.sh_exists);
+    }
+    else{
+        needs_to_do_work = true;
+    }
+    
+    if (needs_to_do_work){
+        // Query the User for Key File Names
+        char script_file_space[1024];
+        char code_file_space  [1024];
+        char output_dir_space [1024];
+        char binary_file_space[1024];
+        
+        bool32 get_script_file = !do_project_file;
+        bool32 get_code_file =
+            (do_bat_script && !status.bat_exists) ||
+            (do_sh_script && !status.sh_exists);
+        
+        Project_Key_Strings keys = 
+            project_key_strings_query_user(app,
+                                           get_script_file, get_code_file,
+                                           script_file_space, sizeof(script_file_space),
+                                           code_file_space, sizeof(code_file_space),
+                                           output_dir_space, sizeof(output_dir_space),
+                                           binary_file_space, sizeof(binary_file_space));
+        
+        if (!keys.success){
+            return;
+        }
+        
+        if (do_project_file){
+            keys.script_file = make_lit_string("build");
+        }
+        
+        if (!do_project_file){
+            status = project_is_setup(app, scratch, script_path, keys.script_file);
+        }
+        
+        // Generate Scripts
+        if (do_bat_script){
+            if (!status.bat_exists){
+                if (!project_generate_bat_script(scratch,
+                                                 global_config.default_flags_bat,
+                                                 global_config.default_compiler_bat,
+                                                 script_path, keys.script_file,
+                                                 keys.code_file, keys.output_dir, keys.binary_file)){
+                    print_message(app, literal("could not create build.bat for new project\n"));
+                }
+            }
+            else{
+                print_message(app, literal("the batch script already exists, no changes made to it\n"));
+            }
+        }
+        
+        if (do_sh_script){
+            if (!status.bat_exists){
+                if (!project_generate_sh_script(scratch,
+                                                global_config.default_flags_sh,
+                                                global_config.default_compiler_sh,
+                                                script_path, keys.script_file,
+                                                keys.code_file, keys.output_dir, keys.binary_file)){
+                    print_message(app, literal("could not create build.sh for new project\n"));
+                }
+            }
+            else{
+                print_message(app, literal("the shell script already exists, no changes made to it\n"));
+            }
+        }
+        
+        if (do_project_file){
+            if (!status.project_exists){
+                if (!project_generate_project_4coder_file(scratch, script_path, keys.script_file,
+                                                          keys.output_dir, keys.binary_file)){
+                    print_message(app, literal("could not create project.4coder for new project\n"));
+                }
+            }
+            else{
+                print_message(app, literal("project.4coder already exists, no changes made to it\n"));
+            }
+        }
+    }
+    else{
+        if (do_project_file){
+            print_message(app, literal("project already setup, no changes made\n"));
+        }
+    }
+    
+    end_temp_memory(temp);
+}
+
 CUSTOM_COMMAND_SIG(setup_new_project)
 CUSTOM_DOC("Queries the user for several configuration options and initializes a new 4coder project with build scripts for every OS.")
 {
-    char space[4096];
-    String str = make_fixed_width_string(space);
-    str.size = directory_get_hot(app, str.str, str.memory_size);
-    int32_t dir_size = str.size;
-    
-    Project_Setup_Status status = project_is_setup(app, str.str, dir_size, str.memory_size);
-    if (!status.everything_exists){
-        // Query the User for Key File Names
-        Query_Bar code_file_bar = {0};
-        Query_Bar output_dir_bar = {0};
-        Query_Bar binary_file_bar = {0};
-        char code_file_space[1024];
-        char output_dir_space[1024];
-        char binary_file_space[1024];
-        
-        if (!status.bat_exists || !status.sh_exists){
-            code_file_bar.prompt = make_lit_string("Build Target: ");
-            code_file_bar.string = make_fixed_width_string(code_file_space);
-            
-            if (!query_user_string(app, &code_file_bar)) return;
-            if (code_file_bar.string.size == 0) return;
-        }
-        
-        output_dir_bar.prompt = make_lit_string("Output Directory: ");
-        output_dir_bar.string = make_fixed_width_string(output_dir_space);
-        
-        if (!query_user_string(app, &output_dir_bar)) return;
-        if (output_dir_bar.string.size == 0){
-            copy(&output_dir_bar.string, ".");
-        }
-        
-        
-        binary_file_bar.prompt = make_lit_string("Binary Output: ");
-        binary_file_bar.string = make_fixed_width_string(binary_file_space);
-        
-        if (!query_user_string(app, &binary_file_bar)) return;
-        if (binary_file_bar.string.size == 0) return;
-        
-        
-        String code_file = code_file_bar.string;
-        String output_dir = output_dir_bar.string;
-        String binary_file = binary_file_bar.string;
-        
-        // Generate Scripts
-        if (!status.bat_exists){
-            replace_char(&code_file, '/', '\\');
-            replace_char(&output_dir, '/', '\\');
-            replace_char(&binary_file, '/', '\\');
-            
-            str.size = dir_size;
-            append(&str, "/build.bat");
-            terminate_with_null(&str);
-            FILE *bat_script = fopen(str.str, "wb");
-            if (bat_script != 0){
-                fprintf(bat_script, "@echo off\n\n");
-                fprintf(bat_script, "set opts=%.*s\n", 
-                        global_config.default_flags_bat.size,
-                        global_config.default_flags_bat.str);
-                fprintf(bat_script, "set code=%%cd%%\n");
-                
-                fprintf(bat_script, "pushd %.*s\n", 
-                        output_dir.size, output_dir.str);
-                fprintf(bat_script, "%.*s %%opts%% %%code%%\\%.*s -Fe%.*s\n",
-                        global_config.default_compiler_bat.size,
-                        global_config.default_compiler_bat.str,
-                        code_file.size, code_file.str,
-                        binary_file.size, binary_file.str);
-                fprintf(bat_script, "popd\n");
-                
-                fclose(bat_script);
-            }
-            else{
-                print_message(app, literal("could not create build.bat for new project\n"));
-            }
-            
-            replace_char(&code_file, '\\', '/');
-            replace_char(&output_dir, '\\', '/');
-            replace_char(&binary_file, '\\', '/');
-        }
-        else{
-            print_message(app, literal("build.bat already exists, no changes made to it\n"));
-        }
-        
-        if (!status.sh_exists){
-            str.size = dir_size;
-            append(&str, "/build.sh");
-            terminate_with_null(&str);
-            FILE *sh_script = fopen(str.str, "wb");
-            if (sh_script != 0){
-                fprintf(sh_script, "#!/bin/bash\n\n");
-                
-                fprintf(sh_script, "code=\"$PWD\"\n");
-                
-                fprintf(sh_script, "opts=%.*s\n", 
-                        global_config.default_flags_sh.size,
-                        global_config.default_flags_sh.str);
-                
-                fprintf(sh_script, "cd %.*s > /dev/null\n", 
-                        output_dir.size, output_dir.str);
-                fprintf(sh_script, "%.*s $opts $code/%.*s -o %.*s\n",
-                        global_config.default_compiler_sh.size,
-                        global_config.default_compiler_sh.str,
-                        code_file.size, code_file.str,
-                        binary_file.size, binary_file.str);
-                fprintf(sh_script, "cd $code > /dev/null\n");
-                
-                fclose(sh_script);
-            }
-            else{
-                print_message(app, literal("could not create build.sh for new project\n"));
-            }
-        }
-        else{
-            print_message(app, literal("build.sh already exists, no changes made to it\n"));
-        }
-        
-        if (!status.project_exists){
-            str.size = dir_size;
-            append(&str, "/project.4coder");
-            terminate_with_null(&str);
-            FILE *project_script = fopen(str.str, "wb");
-            if (project_script != 0){
-                fprintf(project_script, "extensions = \".c.cpp.h.m.bat.sh.4coder\";\n");
-                fprintf(project_script, "open_recursively = true;\n\n");
-                
-                replace_str(&code_file, "/", "\\\\");
-                replace_str(&output_dir, "/", "\\\\");
-                replace_str(&binary_file, "/", "\\\\");
-                fprintf(project_script, 
-                        "fkey_command_win[1] = {\"build.bat\", \"*compilation*\", true , true };\n");
-                fprintf(project_script, 
-                        "fkey_command_win[2] = {\"%.*s\\\\%.*s\", \"*run*\", false , true };\n", 
-                        output_dir.size, output_dir.str,
-                        binary_file.size, binary_file.str);
-                replace_str(&code_file, "\\\\", "/");
-                replace_str(&output_dir, "\\\\", "/");
-                replace_str(&binary_file, "\\\\", "/");
-                
-                fprintf(project_script, "fkey_command_linux[1] = {\"./build.sh\", \"*compilation*\", true , true };\n");
-                fprintf(project_script, 
-                        "fkey_command_linux[2] = {\"%.*s/%.*s\", \"*run*\", false , true };\n", 
-                        output_dir.size, output_dir.str,
-                        binary_file.size, binary_file.str);
-                
-                fprintf(project_script, "fkey_command_mac[1] = {\"./build.sh\", \"*compilation*\", true , true };\n");
-                fprintf(project_script, 
-                        "fkey_command_mac[2] = {\"%.*s/%.*s\", \"*run*\", false , true };\n", 
-                        output_dir.size, output_dir.str,
-                        binary_file.size, binary_file.str);
-                fclose(project_script);
-            }
-            else{
-                print_message(app, literal("could not create project.4coder for new project\n"));
-            }
-        }
-        else{
-            print_message(app, literal("project.4coder already exists, no changes made to it\n"));
-        }
-        
-    }
-    else{
-        print_message(app, literal("project already setup, no changes made\n"));
-    }
-    
+    project_setup_scripts__generic(app, &global_part, true, true, true);
     load_project(app);
+}
+
+CUSTOM_COMMAND_SIG(setup_build_bat)
+CUSTOM_DOC("Queries the user for several configuration options and initializes a new build batch script.")
+{
+    project_setup_scripts__generic(app, &global_part, false, true, false);
+}
+
+CUSTOM_COMMAND_SIG(setup_build_sh)
+CUSTOM_DOC("Queries the user for several configuration options and initializes a new build shell script.")
+{
+    project_setup_scripts__generic(app, &global_part, false, false, true);
+}
+
+CUSTOM_COMMAND_SIG(setup_build_bat_and_sh)
+CUSTOM_DOC("Queries the user for several configuration options and initializes a new build batch script.")
+{
+    project_setup_scripts__generic(app, &global_part, false, true, true);
 }
 
 // BOTTOM
