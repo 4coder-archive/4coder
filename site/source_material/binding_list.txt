@@ -34,7 +34,7 @@ The following bindings apply in all situations.
 \ITEM \STYLE{code} <ctrl <> \END Change the currently active panel, moving to the panel with the next lowest view_id.
 \ITEM \STYLE{code} <ctrl n> \END Interactively creates a new file.
 \ITEM \STYLE{code} <ctrl o> \END Interactively opens or creates a new file.
-\ITEM \STYLE{code} <alt o> \END Switches to the next active panel and begins an open file dialogue.
+\ITEM \STYLE{code} <alt o> \END Interactively opens a file in the other panel.
 \ITEM \STYLE{code} <ctrl k> \END Interactively kill an open buffer.
 \ITEM \STYLE{code} <ctrl i> \END Interactively switch to an open buffer.
 \ITEM \STYLE{code} <ctrl h> \END Changes 4coder's hot directory to the root directory of the currently loaded project. With no loaded project nothing hapepns.
@@ -194,7 +194,7 @@ The following bindings apply in all situations.
 \ITEM \STYLE{code} <cmnd <> \END Change the currently active panel, moving to the panel with the next lowest view_id.
 \ITEM \STYLE{code} <cmnd n> \END Interactively creates a new file.
 \ITEM \STYLE{code} <cmnd o> \END Interactively opens or creates a new file.
-\ITEM \STYLE{code} <ctrl o> \END Switches to the next active panel and begins an open file dialogue.
+\ITEM \STYLE{code} <ctrl o> \END Interactively opens a file in the other panel.
 \ITEM \STYLE{code} <cmnd k> \END Interactively kill an open buffer.
 \ITEM \STYLE{code} <cmnd i> \END Interactively switch to an open buffer.
 \ITEM \STYLE{code} <cmnd h> \END Changes 4coder's hot directory to the root directory of the currently loaded project. With no loaded project nothing hapepns.

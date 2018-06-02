@@ -1307,11 +1307,11 @@ output_end_list(String *out){
 internal void
 output_begin_item(String *out, Section_Counter *section_counter){
     if (section_counter->list_item_counter == 0){
-        append(out, "<li style='font-size: 95%; background: #EFEFDF;'>");
+        append(out, "<li style='font-size: 95%; background: #EFEFDF; padding: 4;'>");
         section_counter->list_item_counter = 1;
     }
     else{
-        append(out, "<li style='font-size: 95%;'>");
+        append(out, "<li style='font-size: 95%;' padding: 4;>");
         section_counter->list_item_counter = 0;
     }
 }

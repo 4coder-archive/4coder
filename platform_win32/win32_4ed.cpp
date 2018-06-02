@@ -784,7 +784,8 @@ win32_init_gl(HDC hdc){
     PIXELFORMATDESCRIPTOR format = {0};
     format.nSize = sizeof(format);
     format.nVersion = 1;
-    format.dwFlags = PFD_SUPPORT_OPENGL | PFD_DRAW_TO_WINDOW | PFD_DOUBLEBUFFER;
+    //format.dwFlags = PFD_SUPPORT_OPENGL | PFD_DRAW_TO_WINDOW | PFD_DOUBLEBUFFER;
+    format.dwFlags = PFD_SUPPORT_OPENGL | PFD_DRAW_TO_WINDOW;
     format.iPixelType = PFD_TYPE_RGBA;
     format.cColorBits = 32;
     format.cAlphaBits = 8;
@@ -836,7 +837,8 @@ win32_init_gl(HDC hdc){
         WGL_DRAW_TO_WINDOW_ARB, TRUE,
         WGL_ACCELERATION_ARB, WGL_FULL_ACCELERATION_ARB,
         WGL_SUPPORT_OPENGL_ARB, TRUE,
-        WGL_DOUBLE_BUFFER_ARB, GL_TRUE,
+        //WGL_DOUBLE_BUFFER_ARB, TRUE,
+        WGL_DOUBLE_BUFFER_ARB, FALSE,
         WGL_PIXEL_TYPE_ARB, WGL_TYPE_RGBA_ARB,
         0,
     };

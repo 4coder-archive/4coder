@@ -1,4 +1,20 @@
 
+New in alpha 4.0.27:
+-Project system upgraded to "version(1)"
+ Wildcard patterns for file loading
+ Load all files from multiple paths
+ Maintain a list of common command line commands for the project
+-New commands:
+ <alt x> + 'toggle fullscreen' toggle fullscreen mode
+ <alt x> + 'new bat' create a batch script for building a particular source file
+ <alt x> + 'new sh' create a shell script for building a particular source file
+ <alt x> + 'new scripts' create a batch and shell script for building a particular source file
+-Upgrade to config.4coder:
+ "default_font_size" set a font size to use (overriden by command line)
+ "default_font_hinting" default setting for hinting (overriden by command line)
+ "use_scroll_bars" the default setting for panel scroll bars
+ "use_file_bars" the default setting for panel file bars
+
 New in alpha 4.0.26:
  Routine bug fixing...
 -Fixed various text input crash bugs

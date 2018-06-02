@@ -334,6 +334,9 @@ parse_project__config_data__version_1(Partition *arena, String root_dir, Config 
         if (config_string_var(parsed, "project_name", 0, &str)){
             project->name = push_string_copy(arena, str);
         }
+        else{
+            project->name = make_lit_string("");
+        }
     }
     
     // patterns
@@ -1280,11 +1283,11 @@ project_generate_project_4coder_file(Partition *scratch,
         fprintf(out, "\"*.sh\",\n");
         fprintf(out, "\"*.4coder\",\n");
         fprintf(out, "};\n");
-        fprintf(out, "patterns = {\n");
+        fprintf(out, "blacklist_patterns = {\n");
         fprintf(out, "\".*\",\n");
         fprintf(out, "};\n");
         fprintf(out, "load_paths_base = {\n");
-        fprintf(out, " { \".\", .relative = true, .recursive = true, },");
+        fprintf(out, " { \".\", .relative = true, .recursive = true, },\n");
         fprintf(out, "};\n");
         fprintf(out, "load_paths = {\n");
         fprintf(out, " { load_paths_base, .os = \"win\", },\n");
