@@ -411,13 +411,16 @@ parse_project__config_data__version_1(Partition *arena, String root_dir, Config 
             for (Config_Get_Result_Node *node = list.first;
                  node != 0;
                  node = node->next, ++dst){
+                char *pos = node->result.pos;
                 Config_Compound *src = node->result.compound;
                 memset(dst, 0, sizeof(*dst));
                 
                 bool32 can_emit_command = true;
                 
-                Config_Compound *cmd_set = 0;
                 String name = {0};
+                Config_Get_Result cmd_result = {0};
+                Config_Compound *cmd_set = 0;
+                char *cmd_pos = 0;
                 String cmd_str = {0};
                 String out = {0};
                 bool32 footer_panel = false;
@@ -426,11 +429,19 @@ parse_project__config_data__version_1(Partition *arena, String root_dir, Config 
                 
                 if (!config_compound_string_member(parsed, src, "name", 0, &name)){
                     can_emit_command = false;
+                    config_add_error(arena, parsed, pos, "a command must have a string type name member");
                     goto finish_command;
                 }
                 
-                if (!config_compound_compound_member(parsed, src, "cmd", 1, &cmd_set)){
+                cmd_result = config_compound_member(parsed, src,
+                                                    make_lit_string("cmd"), 1);
+                if (cmd_result.success){
+                    cmd_set = cmd_result.compound;
+                    cmd_pos = cmd_result.pos;
+                }
+                else{
                     can_emit_command = false;
+                    config_add_error(arena, parsed, pos, "a command must have an array type cmd member");
                     goto finish_command;
                 }
                 
@@ -464,21 +475,24 @@ parse_project__config_data__version_1(Partition *arena, String root_dir, Config 
                     }
                 }
                 
-                if (can_emit_command){
-                    config_compound_string_member(parsed, src, "out", 2, &out);
-                    config_compound_bool_member(parsed, src, "footer_panel", 3, &footer_panel);
-                    config_compound_bool_member(parsed, src, "save_dirty_files", 4,
-                                                &save_dirty_files);
-                    config_compound_bool_member(parsed, src, "cursor_at_end", 5,
-                                                &cursor_at_end);
-                    
-                    dst->name = push_string_copy(arena, name);
-                    dst->cmd = push_string_copy(arena, cmd_str);
-                    dst->out = push_string_copy(arena, out);
-                    dst->footer_panel = footer_panel;
-                    dst->save_dirty_files = save_dirty_files;
-                    dst->cursor_at_end = cursor_at_end;
+                if (!can_emit_command){
+                    config_add_error(arena, parsed, cmd_pos, "no usable command strings found in cmd");
+                    goto finish_command;
                 }
+                
+                config_compound_string_member(parsed, src, "out", 2, &out);
+                config_compound_bool_member(parsed, src, "footer_panel", 3, &footer_panel);
+                config_compound_bool_member(parsed, src, "save_dirty_files", 4,
+                                            &save_dirty_files);
+                config_compound_bool_member(parsed, src, "cursor_at_end", 5,
+                                            &cursor_at_end);
+                
+                dst->name = push_string_copy(arena, name);
+                dst->cmd = push_string_copy(arena, cmd_str);
+                dst->out = push_string_copy(arena, out);
+                dst->footer_panel = footer_panel;
+                dst->save_dirty_files = save_dirty_files;
+                dst->cursor_at_end = cursor_at_end;
                 
                 finish_command:;
             }

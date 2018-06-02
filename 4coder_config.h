@@ -24,6 +24,12 @@ struct Config_Error{
     String text;
 };
 
+struct Config_Error_List{
+    Config_Error *first;
+    Config_Error *last;
+    int32_t count;
+};
+
 struct Config_Parser{
     Cpp_Token *start;
     Cpp_Token *token;
@@ -34,9 +40,7 @@ struct Config_Parser{
     
     Partition *arena;
     
-    Config_Error *first_error;
-    Config_Error *last_error;
-    int32_t count_error;
+    Config_Error_List errors;
 };
 
 struct Config_LValue{
@@ -95,6 +99,7 @@ enum{
 };
 struct Config_Layout{
     Config_Layout_Type type;
+    char *pos;
     union{
         String identifier;
         int32_t integer;
@@ -113,6 +118,7 @@ struct Config_Assignment{
     Config_Assignment *next;
     Config_Assignment *prev;
     
+    char *pos;
     Config_LValue *l;
     Config_RValue *r;
     
@@ -125,10 +131,9 @@ struct Config{
     Config_Assignment *last;
     int32_t count;
     
-    Config_Error *first_error;
-    Config_Error *last_error;
-    int32_t count_error;
+    Config_Error_List errors;
     
+    String file_name;
     String data;
 };
 
@@ -144,6 +149,7 @@ enum{
 struct Config_Get_Result{
     bool32 success;
     Config_RValue_Type type;
+    char *pos;
     union{
         bool32 boolean;
         int32_t integer;

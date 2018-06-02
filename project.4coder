@@ -15,9 +15,9 @@ blacklist_patterns = {
 };
 load_paths_only = { {"."}, };
 load_paths = {
- {load_paths_only, .os = "win"},
- {load_paths_only, .os = "linux"},
- {load_paths_only, .os = "mac"},
+ { load_paths_only, .os = "win"  },
+ { load_paths_only, .os = "linux"},
+ { load_paths_only, .os = "mac"  },
 };
 
 build_x86_win32 = "echo build: x86 & build.bat /DDEV_BUILD_X86";

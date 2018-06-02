@@ -37,7 +37,7 @@ CUSTOM_DOC("Inserts whatever character was used to trigger this command.")
     uint8_t character[4];
     uint32_t length = to_writable_character(in, character);
     write_character_parameter(app, character, length);
-    }
+}
 
 CUSTOM_COMMAND_SIG(write_underscore)
 CUSTOM_DOC("Inserts an underscore.")
@@ -1463,7 +1463,7 @@ CUSTOM_DOC("Opens the 4coder colors and fonts selector menu.")
 ////////////////////////////////
 
 CUSTOM_COMMAND_SIG(open_in_other)
-CUSTOM_DOC("Switches to the next active panel and begins an open file dialogue.")
+CUSTOM_DOC("Interactively opens a file in the other panel.")
 {
     change_active_panel(app);
     interactive_open_or_new(app);

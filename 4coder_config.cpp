@@ -70,10 +70,10 @@ get_error_location(char *base, char *pos){
 static String
 config_stringize_errors(Partition *arena, Config *parsed){
     String result = {0};
-    if (parsed->first_error != 0){
+    if (parsed->errors.first != 0){
         result.str = push_array(arena, char, 0);
         result.memory_size = partition_remaining(arena);
-        for (Config_Error *error = parsed->first_error;
+        for (Config_Error *error = parsed->errors.first;
              error != 0;
              error = error->next){
             Error_Location location = get_error_location(parsed->data.str, error->pos);
@@ -204,37 +204,48 @@ text_data_and_token_array_to_parse_data(Partition *arena, String file_name, Stri
     return(config);
 }
 
-static Config_Error*
-config_parser__push_error(Config_Parser *ctx){
-    Config_Error *error = push_array(ctx->arena, Config_Error, 1);
-    zdll_push_back(ctx->first_error, ctx->last_error, error);
-    error->file_name = ctx->file_name;
-    error->pos = ctx->data.str + ctx->token->start;
-    ctx->count_error += 1;
-    return(error);
-}
-
+// TODO(allen): Move to string library
 static String
-config_parser__begin_string(Config_Parser *ctx){
+config_begin_string(Partition *arena){
     String str;
-    str.str = push_array(ctx->arena, char, 0);
+    str.str = push_array(arena, char, 0);
     str.size = 0;
-    str.memory_size = ctx->arena->max - ctx->arena->pos;
+    str.memory_size = arena->max - arena->pos;
     return(str);
 }
 
 static void
-config_parser__end_string(Config_Parser *ctx, String *str){
+config_end_string(Partition *arena, String *str){
     str->memory_size = str->size;
-    push_array(ctx->arena, char, str->size);
+    push_array(arena, char, str->size);
+}
+
+static Config_Error*
+config_error_push(Partition *arena, Config_Error_List *list, String file_name, char *pos, char *error_text){
+    Config_Error *error = push_array(arena, Config_Error, 1);
+    zdll_push_back(list->first, list->last, error);
+    list->count += 1;
+    error->file_name = file_name;
+    error->pos = pos;
+    error->text = config_begin_string(arena);
+    append(&error->text, error_text);
+    config_end_string(arena, &error->text);
+    return(error);
+}
+
+static char*
+config_parser__get_pos(Config_Parser *ctx){
+    return(ctx->data.str + ctx->token->start);
+}
+
+static void
+config_parser__log_error_pos(Config_Parser *ctx, char *pos, char *error_text){
+    config_error_push(ctx->arena, &ctx->errors, ctx->file_name, pos, error_text);
 }
 
 static void
 config_parser__log_error(Config_Parser *ctx, char *error_text){
-    Config_Error *error = config_parser__push_error(ctx);
-    error->text = config_parser__begin_string(ctx);
-    append(&error->text, error_text);
-    config_parser__end_string(ctx, &error->text);
+    config_parser__log_error_pos(ctx, config_parser__get_pos(ctx), error_text);
 }
 
 static Config*
@@ -258,9 +269,8 @@ config_parser__config(Config_Parser *ctx){
     config->first = first;
     config->last = last;
     config->count = count;
-    config->first_error = ctx->first_error;
-    config->last_error  = ctx->last_error;
-    config->count_error = ctx->count_error;
+    config->errors = ctx->errors;
+    config->file_name = ctx->file_name;
     config->data = ctx->data;
     return(config);
 }
@@ -316,6 +326,8 @@ config_parser__version(Config_Parser *ctx){
 
 static Config_Assignment*
 config_parser__assignment(Config_Parser *ctx){
+    char *pos = config_parser__get_pos(ctx);
+    
     Config_LValue *l = config_parser__lvalue(ctx);
     if (l == 0){
         config_parser__log_error(ctx, "expected an l-value; l-value formats: 'identifier', 'identifier[#]'");
@@ -349,6 +361,7 @@ config_parser__assignment(Config_Parser *ctx){
     
     Config_Assignment *assignment = push_array(ctx->arena, Config_Assignment, 1);
     memset(assignment, 0, sizeof(*assignment));
+    assignment->pos = pos;
     assignment->l = l;
     assignment->r = r;
     return(assignment);
@@ -449,6 +462,22 @@ config_parser__rvalue(Config_Parser *ctx){
     return(0);
 }
 
+static void
+config_parser__compound__check(Config_Parser *ctx, Config_Compound *compound){
+    bool32 implicit_index_allowed = true;
+    for (Config_Compound_Element *node = compound->first;
+         node != 0;
+         node = node->next){
+        if (node->l.type != ConfigLayoutType_Unset){
+            implicit_index_allowed = false;
+        }
+        else if (!implicit_index_allowed){
+            config_parser__log_error_pos(ctx, node->l.pos,
+                                         "encountered unlabeled member after one or more labeled members");
+        }
+    }
+}
+
 static Config_Compound*
 config_parser__compound(Config_Parser *ctx){
     Config_Compound_Element *first = 0;
@@ -477,12 +506,14 @@ config_parser__compound(Config_Parser *ctx){
     compound->first = first;
     compound->last = last;
     compound->count = count;
+    config_parser__compound__check(ctx, compound);
     return(compound);
 }
 
 static Config_Compound_Element*
 config_parser__element(Config_Parser *ctx){
     Config_Layout layout = {0};
+    layout.pos = config_parser__get_pos(ctx);
     if (config_parser__match_token(ctx, CPP_TOKEN_DOT)){
         if (config_parser__recognize_token(ctx, CPP_TOKEN_IDENTIFIER)){
             layout.type = ConfigLayoutType_Identifier;
@@ -507,6 +538,13 @@ config_parser__element(Config_Parser *ctx){
     element->l = layout;
     element->r = rvalue;
     return(element);
+}
+
+////////////////////////////////
+
+static Config_Error*
+config_add_error(Partition *arena, Config *config, char *pos, char *error_text){
+    return(config_error_push(arena, &config->errors, config->file_name, pos, error_text));
 }
 
 ////////////////////////////////
@@ -540,6 +578,7 @@ config_evaluate_rvalue(Config *config, Config_Assignment *assignment, Config_RVa
         }
         else{
             result.success = true;
+            result.pos = assignment->pos;
             result.type = r->type;
             switch (r->type){
                 case ConfigRValueType_Boolean:
@@ -617,6 +656,7 @@ config_compound_member(Config *config, Config_Compound *compound, String var_nam
         }
         if (element_matches_query){
             Config_Assignment dummy_assignment = {0};
+            dummy_assignment.pos = element->l.pos;
             result = config_evaluate_rvalue(config, &dummy_assignment, element->r);
             break;
         }
