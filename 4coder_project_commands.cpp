@@ -765,10 +765,10 @@ config_feedback_file_load_path_array(String *space, char *name, Project_File_Loa
         append(space, path->path);
         append(space, "\", ");
         append(space, ".recursive = ");
-        append(space, path->recursive?"true":"false");
+        append(space, (char*)(path->recursive?"true":"false"));
         append(space, ", ");
         append(space, ".relative = ");
-        append(space, path->relative?"true":"false");
+        append(space, (char*)(path->relative?"true":"false"));
         append(space, ", ");
         append(space, "},\n");
     }
@@ -792,13 +792,13 @@ config_feedback_command_array(String *space, char *name, Project_Command_Array *
         append(space, command->out);
         append(space, "\", ");
         append(space, ".footer_panel = ");
-        append(space, command->footer_panel?"true":"false");
+        append(space, (char*)(command->footer_panel?"true":"false"));
         append(space, ", ");
         append(space, ".save_dirty_files = ");
-        append(space, command->save_dirty_files?"true":"false");
+        append(space, (char*)(command->save_dirty_files?"true":"false"));
         append(space, ", ");
         append(space, ".cursor_at_end = ");
-        append(space, command->cursor_at_end?"true":"false");
+        append(space, (char*)(command->cursor_at_end?"true":"false"));
         append(space, ", ");
         append(space, "},\n");
     }

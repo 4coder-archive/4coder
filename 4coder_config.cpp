@@ -1500,7 +1500,7 @@ static void
 config_feedback_bool(String *space, char *name, bool32 val){
     append(space, name);
     append(space, " = ");
-    append(space, val?"true":"false");
+    append(space, (char*)(val?"true":"false"));
     append(space, ";\n");
 }
 
