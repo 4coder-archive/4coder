@@ -123,6 +123,8 @@ static char *GlobalCompilationBufferName = "*compilation*";
 // TODO(casey): If 4coder gets variables at some point, this would go in a variable.
 static char BuildDirectory[4096] = "./";
 
+#define ZeroStruct(a) memset(&(a), 0, sizeof(a))
+
 enum token_type
 {
     Token_Unknown,
@@ -337,6 +339,14 @@ IsINL(String extension)
 }
 
 inline bool
+IsJavascript(String extension)
+{
+    bool Result = (match(extension, make_lit_string("js")) != 0);
+    
+    return(Result);
+}
+
+inline bool
 IsBAT(String extension)
 {
     bool Result = (match(extension, make_lit_string("bat")) != 0);
@@ -377,9 +387,17 @@ IsOutline(String extension)
 }
 
 inline bool
+IsMollyWebMarkup(String extension)
+{
+    bool Result = (match(extension, make_lit_string("mwm")) != 0);
+    
+    return(Result);
+}
+
+inline bool
 IsCode(String extension)
 {
-    bool Result = (IsBee(extension) || IsH(extension) || IsCPP(extension) || IsINL(extension) || IsBAT(extension) || IsCMirror(extension) || IsShader(extension) || IsMTD(extension));
+    bool Result = (IsJavascript(extension) || IsBee(extension) || IsH(extension) || IsCPP(extension) || IsINL(extension) || IsBAT(extension) || IsCMirror(extension) || IsShader(extension) || IsMTD(extension));
     
     return(Result);
 }
@@ -387,7 +405,7 @@ IsCode(String extension)
 inline bool
 IsDoc(String extension)
 {
-    bool Result = (IsTXT(extension));
+    bool Result = (IsTXT(extension) || IsOutline(extension) || IsMollyWebMarkup(extension));
     
     return(Result);
 }
@@ -715,6 +733,7 @@ CUSTOM_COMMAND_SIG(casey_save_and_make_without_asking)
 {
     exec_command(app, change_active_panel);
     
+#if 0
     Buffer_Summary buffer = {};
     
     unsigned int access = AccessAll;
@@ -724,6 +743,8 @@ CUSTOM_COMMAND_SIG(casey_save_and_make_without_asking)
     {
         save_buffer(app, &buffer, buffer.file_name, buffer.file_name_len, 0);
     }
+#endif
+    save_all_dirty_buffers(app);
     
     // NOTE(allen): The parameter pushing made it a little easier
     // to deal with this particular pattern where two similar strings
@@ -760,7 +781,7 @@ CUSTOM_COMMAND_SIG(casey_save_and_make_without_asking)
     }
     exec_command(app, change_active_panel);
     
-    prev_location = null_location;
+    ZeroStruct(prev_location);
 }
 
 #if 1
@@ -910,6 +931,8 @@ ParseConstant(tokenizer *Tokenizer)
     return(Result);
 }
 
+#pragma warning(disable:4456)
+
 internal calc_node *
 ParseMultiplyExpression(tokenizer *Tokenizer)
 {
@@ -975,7 +998,7 @@ CUSTOM_COMMAND_SIG(casey_quick_calc)
     unsigned int access = AccessOpen;
     View_Summary view = get_active_view(app, access);
     
-    Range range = get_range(&view);
+    Range range = get_view_range(&view);
     
     size_t Size = range.max - range.min;
     char *Stuff = (char *)malloc(Size + 1);
@@ -1074,7 +1097,7 @@ OpenProject(Application_Links *app, char *Contents)
             {
                 String filename = make_string(info->filename, info->filename_len);
                 String extension = file_extension(filename);
-                if (IsCode(extension))
+                if (IsCode(extension) || IsDoc(extension))
                 {
                     // NOTE(allen): There's no way in the 4coder API to use relative
                     // paths at the moment, so everything should be full paths.  Which is
@@ -1806,7 +1829,7 @@ START_HOOK_SIG(casey_start)
     exec_command(app, change_active_panel);
     
     change_theme(app, literal("Handmade Hero"));
-    change_font(app, literal("Droid Sans Mono"), true);
+    set_global_face_by_name(app, literal("Droid Sans Mono"), true);
     UpdateModalIndicator(app);
     
     return(0);
