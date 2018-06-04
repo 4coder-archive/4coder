@@ -680,159 +680,173 @@ typed_array_reference_list(Partition *arena, Config *parsed, Config_Compound *co
 static bool32
 config_has_var(Config *config, String var_name, int32_t subscript){
     Config_Get_Result result = config_var(config, var_name, subscript);
-    return(result.success);
+    bool32 success = result.success && result.type == ConfigRValueType_NoType;
+    return(success);
 }
 
 static bool32
 config_has_var(Config *config, char *var_name, int32_t subscript){
     String var_name_str = make_string_slowly(var_name);
     Config_Get_Result result = config_var(config, var_name_str, subscript);
-    return(result.success);
+    bool32 success = result.success && result.type == ConfigRValueType_NoType;
+    return(success);
 }
 
 static bool32
 config_bool_var(Config *config, String var_name, int32_t subscript, bool32* var_out){
     Config_Get_Result result = config_var(config, var_name, subscript);
-    if (result.success){
+    bool32 success = result.success && result.type == ConfigRValueType_Boolean;
+    if (success){
         *var_out = result.boolean;
     }
-    return(result.success);
+    return(success);
 }
 
 static bool32
 config_bool_var(Config *config, char *var_name, int32_t subscript, bool32* var_out){
     String var_name_str = make_string_slowly(var_name);
     Config_Get_Result result = config_var(config, var_name_str, subscript);
-    if (result.success){
+    bool32 success = result.success && result.type == ConfigRValueType_Boolean;
+    if (success){
         *var_out = result.boolean;
     }
-    return(result.success);
+    return(success);
 }
 
 static bool32
 config_int_var(Config *config, String var_name, int32_t subscript, int32_t* var_out){
     Config_Get_Result result = config_var(config, var_name, subscript);
-    if (result.success){
+    bool32 success = result.success && result.type == ConfigRValueType_Integer;
+    if (success){
         *var_out = result.integer;
     }
-    return(result.success);
+    return(success);
 }
 
 static bool32
 config_int_var(Config *config, char *var_name, int32_t subscript, int32_t* var_out){
     String var_name_str = make_string_slowly(var_name);
     Config_Get_Result result = config_var(config, var_name_str, subscript);
-    if (result.success){
+    bool32 success = result.success && result.type == ConfigRValueType_Integer;
+    if (success){
         *var_out = result.integer;
     }
-    return(result.success);
+    return(success);
 }
 
 static bool32
 config_uint_var(Config *config, String var_name, int32_t subscript, uint32_t* var_out){
     Config_Get_Result result = config_var(config, var_name, subscript);
-    if (result.success){
+    bool32 success = result.success && result.type == ConfigRValueType_Integer;
+    if (success){
         *var_out = result.uinteger;
     }
-    return(result.success);
+    return(success);
 }
 
 static bool32
 config_uint_var(Config *config, char *var_name, int32_t subscript, uint32_t* var_out){
     String var_name_str = make_string_slowly(var_name);
     Config_Get_Result result = config_var(config, var_name_str, subscript);
-    if (result.success){
+    bool32 success = result.success && result.type == ConfigRValueType_Integer;
+    if (success){
         *var_out = result.uinteger;
     }
-    return(result.success);
+    return(success);
 }
 
 static bool32
 config_string_var(Config *config, String var_name, int32_t subscript, String* var_out){
     Config_Get_Result result = config_var(config, var_name, subscript);
-    if (result.success){
+    bool32 success = result.success && result.type == ConfigRValueType_String;
+    if (success){
         *var_out = result.string;
     }
-    return(result.success);
+    return(success);
 }
 
 static bool32
 config_string_var(Config *config, char *var_name, int32_t subscript, String* var_out){
     String var_name_str = make_string_slowly(var_name);
     Config_Get_Result result = config_var(config, var_name_str, subscript);
-    if (result.success){
+    bool32 success = result.success && result.type == ConfigRValueType_String;
+    if (success){
         *var_out = result.string;
     }
-    return(result.success);
+    return(success);
 }
 
 static bool32
 config_placed_string_var(Config *config, String var_name, int32_t subscript, String* var_out, char *space, int32_t space_size){
     Config_Get_Result result = config_var(config, var_name, subscript);
-    if (result.success){
+    bool32 success = result.success && result.type == ConfigRValueType_String;
+    if (success){
         *var_out = result.string;
     }
-    bool32 success = result.success;
     if (success){
         String str = *var_out;
         *var_out = make_string_cap(space, 0, space_size);
         copy(var_out, str);
     }
-    return(result.success);
+    return(success);
 }
 
 static bool32
 config_placed_string_var(Config *config, char *var_name, int32_t subscript, String* var_out, char *space, int32_t space_size){
     String var_name_str = make_string_slowly(var_name);
     Config_Get_Result result = config_var(config, var_name_str, subscript);
-    if (result.success){
+    bool32 success = result.success && result.type == ConfigRValueType_String;
+    if (success){
         *var_out = result.string;
     }
-    bool32 success = result.success;
     if (success){
         String str = *var_out;
         *var_out = make_string_cap(space, 0, space_size);
         copy(var_out, str);
     }
-    return(result.success);
+    return(success);
 }
 
 static bool32
 config_char_var(Config *config, String var_name, int32_t subscript, char* var_out){
     Config_Get_Result result = config_var(config, var_name, subscript);
-    if (result.success){
+    bool32 success = result.success && result.type == ConfigRValueType_Character;
+    if (success){
         *var_out = result.character;
     }
-    return(result.success);
+    return(success);
 }
 
 static bool32
 config_char_var(Config *config, char *var_name, int32_t subscript, char* var_out){
     String var_name_str = make_string_slowly(var_name);
     Config_Get_Result result = config_var(config, var_name_str, subscript);
-    if (result.success){
+    bool32 success = result.success && result.type == ConfigRValueType_Character;
+    if (success){
         *var_out = result.character;
     }
-    return(result.success);
+    return(success);
 }
 
 static bool32
 config_compound_var(Config *config, String var_name, int32_t subscript, Config_Compound** var_out){
     Config_Get_Result result = config_var(config, var_name, subscript);
-    if (result.success){
+    bool32 success = result.success && result.type == ConfigRValueType_Compound;
+    if (success){
         *var_out = result.compound;
     }
-    return(result.success);
+    return(success);
 }
 
 static bool32
 config_compound_var(Config *config, char *var_name, int32_t subscript, Config_Compound** var_out){
     String var_name_str = make_string_slowly(var_name);
     Config_Get_Result result = config_var(config, var_name_str, subscript);
-    if (result.success){
+    bool32 success = result.success && result.type == ConfigRValueType_Compound;
+    if (success){
         *var_out = result.compound;
     }
-    return(result.success);
+    return(success);
 }
 
 static bool32
