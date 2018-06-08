@@ -733,7 +733,12 @@ cpp_lex_nonalloc_null_end_no_limit(Cpp_Lex_Data *S_ptr, char *chunk, i32_4tech s
                     
                     if (item_ptr != 0){
                         S.token.type = (Cpp_Token_Type)(item_ptr[1]);
-                        S.token.flags = CPP_TFLAG_PP_DIRECTIVE;
+                        if (CPP_PP_INCLUDE <= S.token.type && S.token.type <= CPP_PP_UNKNOWN){
+                            S.token.flags = CPP_TFLAG_PP_DIRECTIVE;
+                        }
+                        else{
+                            S.token.flags = 0;
+                        }
                         S.pp_state = (u8_4tech)cpp__pp_directive_to_state(S.token.type);
                         break;
                     }
