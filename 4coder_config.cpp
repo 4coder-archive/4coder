@@ -1330,6 +1330,7 @@ config_init_default(Config_Data *config){
     
     config->use_scroll_bars = false;
     config->use_file_bars = true;
+    config->enable_virtual_whitespace = true;
     config->enable_code_wrapping = true;
     config->automatically_adjust_wrapping = true;
     config->automatically_indent_text_on_save = true;
@@ -1388,6 +1389,7 @@ config_parse__data(Partition *arena, String file_name, String data, Config_Data 
         
         config_bool_var(parsed, "use_scroll_bars", 0, &config->use_scroll_bars);
         config_bool_var(parsed, "use_file_bars", 0, &config->use_file_bars);
+        config_bool_var(parsed, "enable_virtual_whitespace", 0, &config->enable_virtual_whitespace);
         config_bool_var(parsed, "enable_code_wrapping", 0, &config->enable_code_wrapping);
         config_bool_var(parsed, "automatically_adjust_wrapping", 0, &config->automatically_adjust_wrapping);
         config_bool_var(parsed, "automatically_indent_text_on_save", 0, &config->automatically_indent_text_on_save);
@@ -1597,6 +1599,7 @@ load_config_and_apply(Application_Links *app, Partition *scratch, Config_Data *c
             
             config_feedback_bool(&space, "use_scroll_bars", config->use_scroll_bars);
             config_feedback_bool(&space, "use_file_bars", config->use_file_bars);
+            config_feedback_bool(&space, "enable_virtual_whitespace", config->enable_virtual_whitespace);
             config_feedback_bool(&space, "enable_code_wrapping", config->enable_code_wrapping);
             config_feedback_bool(&space, "automatically_indent_text_on_save", config->automatically_indent_text_on_save);
             config_feedback_bool(&space, "automatically_save_changes_on_build", config->automatically_save_changes_on_build);

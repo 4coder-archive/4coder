@@ -1387,8 +1387,24 @@ CUSTOM_DOC("Set the other non-active panel to view the buffer that the active pa
     if (view1.view_id != view2.view_id){
         int32_t buffer_id1 = view1.buffer_id;
         int32_t buffer_id2 = view2.buffer_id;
-        view_set_buffer(app, &view1, buffer_id2, 0);
-        view_set_buffer(app, &view2, buffer_id1, 0);
+        if (buffer_id1 != buffer_id2){
+            view_set_buffer(app, &view1, buffer_id2, 0);
+            view_set_buffer(app, &view2, buffer_id1, 0);
+        }
+        else{
+            Full_Cursor v1_c = view1.cursor;
+            Full_Cursor v1_m = view1.mark;
+            GUI_Scroll_Vars v1_r = view1.scroll_vars;
+            Full_Cursor v2_c = view2.cursor;
+            Full_Cursor v2_m = view2.mark;
+            GUI_Scroll_Vars v2_r = view2.scroll_vars;
+            view_set_cursor(app, &view1, seek_pos(v2_c.pos), true);
+            view_set_mark  (app, &view1, seek_pos(v2_m.pos));
+            view_set_scroll(app, &view1, v2_r);
+            view_set_cursor(app, &view2, seek_pos(v1_c.pos), true);
+            view_set_mark  (app, &view2, seek_pos(v1_m.pos));
+            view_set_scroll(app, &view2, v1_r);
+        }
     }
 }
 
