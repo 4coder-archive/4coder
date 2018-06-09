@@ -976,7 +976,9 @@ LinuxKeycodeInit(Display* dpy){
     struct SymMapping {
         KeySym sym;
         u16 code;
-    } sym_table[] = {
+    };
+    
+    SymMapping sym_table[] = {
         { XK_BackSpace, key_back },
         { XK_Delete, key_del },
         { XK_Up, key_up },
@@ -1409,7 +1411,7 @@ LinuxHandleX11Events(void)
                 
                 if (special_key){
                     LinuxPushKey(special_key, 0, 0, mods);
-                } else if (key < 256){
+                } else if (key != 0){
                     LinuxPushKey(key, key, key_no_caps, mods);
                 } else {
                     LinuxPushKey(0, 0, 0, mods);
