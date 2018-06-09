@@ -1300,11 +1300,11 @@ project_generate_project_4coder_file(Partition *scratch,
         fprintf(out, "command_list = {\n");
         fprintf(out, " { .name = \"build\",\n");
         fprintf(out, "   .out = \"*compilation*\", .footer_panel = true, .save_dirty_files = true,\n");
-        fprintf(out, "   .cmd = { { \"%.*s.bat\", .os = \"win\"   },\n",
+        fprintf(out, "   .cmd = { { \"%.*s.bat\" , .os = \"win\"   },\n",
                 script_file.size, script_file.str);
-        fprintf(out, "            { \"%.*s.sh\" , .os = \"linux\" },\n",
+        fprintf(out, "            { \"./%.*s.sh\", .os = \"linux\" },\n",
                 script_file.size, script_file.str);
-        fprintf(out, "            { \"%.*s.sh\" , .os = \"mac\"   }, }, },\n",
+        fprintf(out, "            { \"./%.*s.sh\", .os = \"mac\"   }, }, },\n",
                 script_file.size, script_file.str);
         fprintf(out, " { .name = \"run\",\n");
         fprintf(out, "   .out = \"*run*\", .footer_panel = false, .save_dirty_files = false,\n");
