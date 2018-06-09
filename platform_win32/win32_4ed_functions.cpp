@@ -134,11 +134,9 @@ Sys_Set_File_List_Sig(system_set_file_list){
             DWORD final_length = GetFinalPathNameByHandle_utf8(dir_handle, (u8*)dir_space, sizeof(dir_space), 0);
             CloseHandle(dir_handle);
             
-            if (final_length < sizeof(dir_space)){
+            if (final_length + 2 < sizeof(dir_space)){
                 u8 *c_str_dir = (u8*)dir_space;
                 
-                final_length -= 4;
-                memmove(c_str_dir, c_str_dir+4, final_length);
                 c_str_dir[final_length] = '\\';
                 c_str_dir[final_length+1] = '*';
                 c_str_dir[final_length+2] = 0;
@@ -253,7 +251,11 @@ Sys_Get_Canonical_Sig(system_get_canonical){
     u32 result = 0;
     
     char src_space[MAX_PATH + 32];
-    if (len < sizeof(src_space) && len >= 2 && ((filename[0] >= 'a' && filename[0] <= 'z') || (filename[0] >= 'A' && filename[0] <= 'Z')) && filename[1] == ':'){
+    if (len < sizeof(src_space) &&
+        (len >= 2 &&
+         ((filename[0] >= 'a' && filename[0] <= 'z') ||
+          (filename[0] >= 'A' && filename[0] <= 'Z')) && filename[1] == ':') ||
+        (filename[0] == '\\' && filename[1] == '\\')){
         memcpy(src_space, filename, len);
         src_space[len] = 0;
         
@@ -263,11 +265,11 @@ Sys_Get_Canonical_Sig(system_get_canonical){
             DWORD final_length = GetFinalPathNameByHandle_utf8(file, (u8*)buffer, max, 0);
             
             if (final_length < max && final_length >= 4){
-                if (buffer[final_length-1] == 0){
+                if (buffer[final_length - 1] == 0){
                     --final_length;
                 }
-                final_length -= 4;
-                memmove(buffer, buffer+4, final_length);
+                //final_length -= 4;
+                //memmove(buffer, buffer+4, final_length);
                 buffer[final_length] = 0;
                 result = final_length;
             }
