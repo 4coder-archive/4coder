@@ -585,25 +585,21 @@ open_file(System_Functions *system, Models *models, String filename){
                 buffer_bind_file(system, general, working_set, file, canon_name.name);
                 buffer_bind_name(models, general, part, working_set, file, front_of_directory(filename));
                 
-                i32 size = system->load_size(handle);
-                char *buffer = 0;
-                b32 gen_buffer = 0;
-                
                 Temp_Memory temp = begin_temp_memory(part);
                 
-                buffer = push_array(part, char, size);
+                i32 size = system->load_size(handle);
+                char *buffer = push_array(part, char, size);
+                b32 gen_buffer = false;
                 if (buffer == 0){
                     buffer = (char*)general_memory_allocate(general, size);
-                    Assert(buffer);
-                    gen_buffer = 1;
+                    Assert(buffer != 0);
+                    gen_buffer = true;
                 }
                 
-                if (system->load_file(handle, buffer, size)){
-                    system->load_close(handle);
+                b32 good_load = system->load_file(handle, buffer, size);
+                system->load_close(handle);
+                if (good_load){
                     init_normal_file(system, models, buffer, size, file);
-                }
-                else{
-                    system->load_close(handle);
                 }
                 
                 if (gen_buffer){

@@ -435,8 +435,6 @@ get_current_shift(Code_Wrap_State *wrap_state, i32 next_line_start){
 
 internal void
 file_measure_wraps(System_Functions *system, Mem_Options *mem, Editing_File *file, Font_Pointers font){
-    PRFL_FUNC_GROUP();
-    
     General_Memory *general = &mem->general;
     Partition *part = &mem->part;
     
