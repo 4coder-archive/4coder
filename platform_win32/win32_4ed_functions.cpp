@@ -119,6 +119,20 @@ Sys_Memory_Free_Sig(system_memory_free){
 // Files
 //
 
+internal String
+win32_remove_unc_prefix_characters(String path){
+    if (match_part(path, make_lit_string("\\\\?\\UNC"))){
+        path.size -= 6;
+        memmove(path.str, path.str + 6, path.size);
+        path.str[0] = '\\';
+    }
+    else if (match_part(path, make_lit_string("\\\\?\\"))){
+        path.size -= 4;
+        memmove(path.str, path.str + 4, path.size);
+    }
+    return(path);
+}
+
 internal
 Sys_Set_File_List_Sig(system_set_file_list){
     b32 clear_list = true;
@@ -134,12 +148,19 @@ Sys_Set_File_List_Sig(system_set_file_list){
             DWORD final_length = GetFinalPathNameByHandle_utf8(dir_handle, (u8*)dir_space, sizeof(dir_space), 0);
             CloseHandle(dir_handle);
             
-            if (final_length + 2 < sizeof(dir_space)){
+            if (final_length + 3 < sizeof(dir_space)){
                 u8 *c_str_dir = (u8*)dir_space;
+                if (c_str_dir[final_length - 1] == 0){
+                    --final_length;
+                }
+                String str_dir = make_string(c_str_dir, final_length);
+                String adjusted_str_dir = win32_remove_unc_prefix_characters(str_dir);
                 
+                c_str_dir = (u8*)adjusted_str_dir.str;
+                final_length = adjusted_str_dir.size;
                 c_str_dir[final_length] = '\\';
-                c_str_dir[final_length+1] = '*';
-                c_str_dir[final_length+2] = 0;
+                c_str_dir[final_length + 1] = '*';
+                c_str_dir[final_length + 2] = 0;
                 
                 if (canon_directory_out != 0){
                     if (final_length+1 < canon_directory_max){
@@ -264,12 +285,14 @@ Sys_Get_Canonical_Sig(system_get_canonical){
         if (file != INVALID_HANDLE_VALUE){
             DWORD final_length = GetFinalPathNameByHandle_utf8(file, (u8*)buffer, max, 0);
             
-            if (final_length < max && final_length >= 4){
+            if (final_length + 3 < max){
                 if (buffer[final_length - 1] == 0){
                     --final_length;
                 }
-                //final_length -= 4;
-                //memmove(buffer, buffer+4, final_length);
+                String str_dir = make_string(buffer, final_length);
+                String adjusted_str_dir = win32_remove_unc_prefix_characters(str_dir);
+                buffer = adjusted_str_dir.str;
+                final_length = adjusted_str_dir.size;
                 buffer[final_length] = 0;
                 result = final_length;
             }
@@ -289,12 +312,14 @@ Sys_Get_Canonical_Sig(system_get_canonical){
             if (dir != INVALID_HANDLE_VALUE){
                 DWORD final_length = GetFinalPathNameByHandle_utf8(dir, (u8*)buffer, max, 0);
                 
-                if (final_length < max && final_length >= 4){
+                if (final_length + 3 < max){
                     if (buffer[final_length-1] == 0){
                         --final_length;
                     }
-                    final_length -= 4;
-                    memmove(buffer, buffer+4, final_length);
+                    String str_dir = make_string(buffer, final_length);
+                    String adjusted_str_dir = win32_remove_unc_prefix_characters(str_dir);
+                    buffer = adjusted_str_dir.str;
+                    final_length = adjusted_str_dir.size;
                     buffer[final_length++] = '\\';
                     memcpy(buffer + final_length, front_str.str, front_str.size);
                     final_length += front_str.size;
