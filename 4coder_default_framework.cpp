@@ -8,37 +8,6 @@
 static Partition global_part;
 static General_Memory global_general;
 
-
-#if !defined(AUTO_CENTER_AFTER_JUMPS)
-#define AUTO_CENTER_AFTER_JUMPS true
-#endif
-static bool32 auto_center_after_jumps = AUTO_CENTER_AFTER_JUMPS;
-static char locked_buffer_space[256];
-static String locked_buffer = make_fixed_width_string(locked_buffer_space);
-
-
-static View_ID special_note_view_id = 0;
-
-
-View_Paste_Index view_paste_index_[16];
-View_Paste_Index *view_paste_index = view_paste_index_ - 1;
-
-
-static char out_buffer_space[1024];
-static char command_space[1024];
-static char hot_directory_space[1024];
-
-
-static bool32 suppressing_mouse = false;
-
-
-static ID_Based_Jump_Location prev_location = {0};
-
-
-static Config_Data global_config = {0};
-
-////////////////////////////////
-
 static void
 unlock_jump_buffer(void){
     locked_buffer.size = 0;
@@ -230,7 +199,7 @@ CUSTOM_DOC("Switch to a named key binding map.")
 ////////////////////////////////
 
 static void
-init_memory(Application_Links *app){
+default_4coder_initialize(Application_Links *app, int32_t override_font_size, bool32 override_hinting){
     int32_t part_size = (32 << 20);
     int32_t general_size = (4 << 20);
     
@@ -239,11 +208,6 @@ init_memory(Application_Links *app){
     
     void *general_mem = memory_allocate(app, general_size);
     general_memory_open(&global_general, general_mem, general_size);
-}
-
-static void
-default_4coder_initialize(Application_Links *app, int32_t override_font_size, bool32 override_hinting){
-    init_memory(app);
     
     static const char message[] = ""
         "Welcome to " VERSION "\n"
@@ -260,11 +224,9 @@ default_4coder_initialize(Application_Links *app, int32_t override_font_size, bo
 }
 
 static void
-default_4coder_initialize(Application_Links *app, int32_t override_font_size, bool32 override_hinting,
-                          bool32 use_scroll_bars, bool32 use_file_bars){
-    default_4coder_initialize(app, override_font_size, override_hinting);
-    global_config.use_scroll_bars = use_scroll_bars;
-    global_config.use_file_bars = use_file_bars;
+default_4coder_initialize(Application_Links *app){
+    Face_Description command_line_description = get_face_description(app, 0);
+    default_4coder_initialize(app, command_line_description.pt_size, command_line_description.hinting);
 }
 
 static void

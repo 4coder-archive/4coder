@@ -100,16 +100,16 @@ print_config_var(FILE *out, Operation *op){
         fprintf(out, "%s", op->code_before);
     }
     fprintf(out, "Config_Get_Result result = config_var(config, var_name, subscript);\n");
+    fprintf(out, "bool32 success = result.success && result.type == ConfigRValueType_%s;\n", type_names[op->r_type]);
     if (op->output_type != 0){
-        fprintf(out, "if (result.success){\n");
+        fprintf(out, "if (success){\n");
         fprintf(out, "*var_out = result.%s;\n", op->result_type);
         fprintf(out, "}\n");
     }
     if (op->code_after != 0){
-        fprintf(out, "bool32 success = result.success;\n");
         fprintf(out, "%s", op->code_after);
     }
-    fprintf(out, "return(result.success);\n");
+    fprintf(out, "return(success);\n");
     fprintf(out, "}\n\n");
     
     fprintf(out, "static bool32\n");
@@ -127,16 +127,16 @@ print_config_var(FILE *out, Operation *op){
     }
     fprintf(out, "String var_name_str = make_string_slowly(var_name);\n");
     fprintf(out, "Config_Get_Result result = config_var(config, var_name_str, subscript);\n");
+    fprintf(out, "bool32 success = result.success && result.type == ConfigRValueType_%s;\n", type_names[op->r_type]);
     if (op->output_type != 0){
-        fprintf(out, "if (result.success){\n");
+        fprintf(out, "if (success){\n");
         fprintf(out, "*var_out = result.%s;\n", op->result_type);
         fprintf(out, "}\n");
     }
     if (op->code_after != 0){
-        fprintf(out, "bool32 success = result.success;\n");
         fprintf(out, "%s", op->code_after);
     }
-    fprintf(out, "return(result.success);\n");
+    fprintf(out, "return(success);\n");
     fprintf(out, "}\n\n");
 }
 
@@ -157,16 +157,16 @@ print_compound_member(FILE *out, Operation *op){
         fprintf(out, "%s", op->code_before);
     }
     fprintf(out, "Config_Get_Result result = config_compound_member(config, compound, var_name, index);\n");
+    fprintf(out, "bool32 success = result.success && result.type == ConfigRValueType_%s;\n", type_names[op->r_type]);
     if (op->output_type != 0){
-        fprintf(out, "if (result.success){\n");
+        fprintf(out, "if (success){\n");
         fprintf(out, "*var_out = result.%s;\n", op->result_type);
         fprintf(out, "}\n");
     }
     if (op->code_after != 0){
-        fprintf(out, "bool32 success = result.success;\n");
         fprintf(out, "%s", op->code_after);
     }
-    fprintf(out, "return(result.success);\n");
+    fprintf(out, "return(success);\n");
     fprintf(out, "}\n\n");
     
     fprintf(out, "static bool32\n");
@@ -185,16 +185,16 @@ print_compound_member(FILE *out, Operation *op){
         fprintf(out, "%s", op->code_before);
     }
     fprintf(out, "Config_Get_Result result = config_compound_member(config, compound, var_name_str, index);\n");
+    fprintf(out, "bool32 success = result.success && result.type == ConfigRValueType_%s;\n", type_names[op->r_type]);
     if (op->output_type != 0){
-        fprintf(out, "if (result.success){\n");
+        fprintf(out, "if (success){\n");
         fprintf(out, "*var_out = result.%s;\n", op->result_type);
         fprintf(out, "}\n");
     }
     if (op->code_after != 0){
-        fprintf(out, "bool32 success = result.success;\n");
         fprintf(out, "%s", op->code_after);
     }
-    fprintf(out, "return(result.success);\n");
+    fprintf(out, "return(success);\n");
     fprintf(out, "}\n\n");
 }
 

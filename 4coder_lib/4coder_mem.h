@@ -301,14 +301,8 @@ static i32_4tech
 general_memory_check(General_Memory *general){}
 #endif
 
-#if !defined(PRFL_FUNC_GROUP)
-#define PRFL_FUNC_GROUP()
-#endif
-
 static void*
 general_memory_allocate(General_Memory *general, i32_4tech size){
-    PRFL_FUNC_GROUP();
-    
     void *result = 0;
     if (size < BUBBLE_MIN_SIZE) size = BUBBLE_MIN_SIZE;
     for (Bubble *bubble = general->free_sentinel.next2;

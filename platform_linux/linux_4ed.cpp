@@ -958,8 +958,7 @@ LinuxInputInit(Display *dpy, Window XWindow){
 // Keyboard handling funcs
 //
 
-global Key_Code keycode_lookup_table[255];
-
+#if 0
 internal void
 LinuxKeycodeInit(Display* dpy){
     
@@ -976,7 +975,9 @@ LinuxKeycodeInit(Display* dpy){
     struct SymMapping {
         KeySym sym;
         u16 code;
-    } sym_table[] = {
+    };
+    
+    SymMapping sym_table[] = {
         { XK_BackSpace, key_back },
         { XK_Delete, key_del },
         { XK_Up, key_up },
@@ -1016,7 +1017,9 @@ LinuxKeycodeInit(Display* dpy){
     
     KeySym* syms = XGetKeyboardMapping(dpy, key_min, key_count, &syms_per_code);
     
-    if (!syms) return;
+    if (syms == 0){
+        return;
+    }
     
     int key = key_min;
     for(int i = 0; i < key_count * syms_per_code; ++i){
@@ -1029,8 +1032,8 @@ LinuxKeycodeInit(Display* dpy){
     }
     
     XFree(syms);
-    
 }
+#endif
 
 internal void
 LinuxPushKey(Key_Code code, Key_Code chr, Key_Code chr_nocaps, b8 *mods)
@@ -1335,41 +1338,41 @@ LinuxX11WindowInit(int argc, char** argv, int* window_width, int* window_height)
 internal void
 LinuxHandleX11Events(void)
 {
-    static XEvent PrevEvent = {};
+    static XEvent prev_event = {};
     b32 should_step = false;
     
     while (XPending(linuxvars.XDisplay))
     {
-        XEvent Event;
-        XNextEvent(linuxvars.XDisplay, &Event);
+        XEvent event;
+        XNextEvent(linuxvars.XDisplay, &event);
         
-        if (XFilterEvent(&Event, None) == True){
+        if (XFilterEvent(&event, None) == True){
             continue;
         }
         
-        switch (Event.type){
+        switch (event.type){
             case KeyPress: {
                 should_step = true;
                 
-                b32 is_hold = (PrevEvent.type         == KeyRelease &&
-                               PrevEvent.xkey.time    == Event.xkey.time &&
-                               PrevEvent.xkey.keycode == Event.xkey.keycode);
+                b32 is_hold = (prev_event.type         == KeyRelease &&
+                               prev_event.xkey.time    == event.xkey.time &&
+                               prev_event.xkey.keycode == event.xkey.keycode);
                 
                 b8 mods[MDFR_INDEX_COUNT] = {};
                 mods[MDFR_HOLD_INDEX] = is_hold;
                 
-                if (Event.xkey.state & ShiftMask) mods[MDFR_SHIFT_INDEX] = 1;
-                if (Event.xkey.state & ControlMask) mods[MDFR_CONTROL_INDEX] = 1;
-                if (Event.xkey.state & LockMask) mods[MDFR_CAPS_INDEX] = 1;
-                if (Event.xkey.state & Mod1Mask) mods[MDFR_ALT_INDEX] = 1;
+                if (event.xkey.state & ShiftMask) mods[MDFR_SHIFT_INDEX] = 1;
+                if (event.xkey.state & ControlMask) mods[MDFR_CONTROL_INDEX] = 1;
+                if (event.xkey.state & LockMask) mods[MDFR_CAPS_INDEX] = 1;
+                if (event.xkey.state & Mod1Mask) mods[MDFR_ALT_INDEX] = 1;
                 
-                Event.xkey.state &= ~(ControlMask);
+                event.xkey.state &= ~(ControlMask);
                 
                 Status status;
                 KeySym keysym = NoSymbol;
                 u8 buff[32] = {};
                 
-                Xutf8LookupString(linuxvars.input_context, &Event.xkey, (char*)buff, sizeof(buff) - 1, &keysym, &status);
+                Xutf8LookupString(linuxvars.input_context, &event.xkey, (char*)buff, sizeof(buff) - 1, &keysym, &status);
                 
                 if (status == XBufferOverflow){
                     //TODO(inso): handle properly
@@ -1378,14 +1381,26 @@ LinuxHandleX11Events(void)
                     LOG("FIXME: XBufferOverflow from LookupString.\n");
                 }
                 
+                // don't push modifiers
+                if (keysym >= XK_Shift_L && keysym <= XK_Hyper_R){
+                    break;
+                }
+                
                 u32 key = utf8_to_u32_unchecked(buff);
                 u32 key_no_caps = key;
                 
-                if (mods[MDFR_CAPS_INDEX] && status == XLookupBoth && Event.xkey.keycode){
+                if (mods[MDFR_CAPS_INDEX] && status == XLookupBoth && event.xkey.keycode){
                     u8 buff_no_caps[32] = {0};
-                    Event.xkey.state &= ~(LockMask);
+                    event.xkey.state &= ~(LockMask);
                     
-                    XLookupString(&Event.xkey, (char*)buff_no_caps, sizeof(buff_no_caps) - 1, NULL, NULL);
+                    Xutf8LookupString(linuxvars.input_context, &event.xkey, (char*)buff_no_caps, sizeof(buff_no_caps) - 1, NULL, &status);
+                    
+                    if (status == XBufferOverflow){
+                        //TODO(inso): handle properly
+                        Xutf8ResetIC(linuxvars.input_context);
+                        XSetICFocus(linuxvars.input_context);
+                        LOG("FIXME: XBufferOverflow from LookupString.\n");
+                    }
                     
                     if (*buff_no_caps){
                         key_no_caps = utf8_to_u32_unchecked(buff_no_caps);
@@ -1395,21 +1410,160 @@ LinuxHandleX11Events(void)
                 if (key         == '\r') key         = '\n';
                 if (key_no_caps == '\r') key_no_caps = '\n';
                 
-                // don't push modifiers
-                if (keysym >= XK_Shift_L && keysym <= XK_Hyper_R){
-                    break;
-                }
-                
                 if (keysym == XK_ISO_Left_Tab){
                     key = key_no_caps = '\t';
                     mods[MDFR_SHIFT_INDEX] = 1;
                 }
                 
-                Key_Code special_key = keycode_lookup_table[(u8)Event.xkey.keycode];
+                //Key_Code special_key = keycode_lookup_table[keysym];
+                
+                Key_Code special_key = 0;
+                switch (keysym){
+                    case XK_BackSpace:
+                    {
+                        special_key = key_back;
+                    }break;
+                    
+                    case XK_Delete:
+                    {
+                        special_key = key_del;
+                    }break;
+                    
+                    case XK_Up:
+                    {
+                        special_key = key_up;
+                    }break;
+                    
+                    case XK_Down:
+                    {
+                        special_key = key_down;
+                    }break;
+                    
+                    case XK_Left:
+                    {
+                        special_key = key_left;
+                    }break;
+                    
+                    case XK_Right:
+                    {
+                        special_key = key_right;
+                    }break;
+                    
+                    case XK_Insert:
+                    {
+                        special_key = key_insert;
+                    }break;
+                    
+                    case XK_Home:
+                    {
+                        special_key = key_home;
+                    }break;
+                    
+                    case XK_End:
+                    {
+                        special_key = key_end;
+                    }break;
+                    
+                    case XK_Page_Up:
+                    {
+                        special_key = key_page_up;
+                    }break;
+                    
+                    case XK_Page_Down:
+                    {
+                        special_key = key_page_down;
+                    }break;
+                    
+                    case XK_Escape:
+                    {
+                        special_key = key_esc;
+                    }break;
+                    
+                    case XK_F1:
+                    {
+                        special_key = key_f1;
+                    }break;
+                    
+                    case XK_F2:
+                    {
+                        special_key = key_f2;
+                    }break;
+                    
+                    case XK_F3:
+                    {
+                        special_key = key_f3;
+                    }break;
+                    
+                    case XK_F4:
+                    {
+                        special_key = key_f4;
+                    }break;
+                    
+                    case XK_F5:
+                    {
+                        special_key = key_f5;
+                    }break;
+                    
+                    case XK_F6:
+                    {
+                        special_key = key_f6;
+                    }break;
+                    
+                    case XK_F7:
+                    {
+                        special_key = key_f7;
+                    }break;
+                    
+                    case XK_F8:
+                    {
+                        special_key = key_f8;
+                    }break;
+                    
+                    case XK_F9:
+                    {
+                        special_key = key_f9;
+                    }break;
+                    
+                    case XK_F10:
+                    {
+                        special_key = key_f10;
+                    }break;
+                    
+                    case XK_F11:
+                    {
+                        special_key = key_f11;
+                    }break;
+                    
+                    case XK_F12:
+                    {
+                        special_key = key_f12;
+                    }break;
+                    
+                    case XK_F13:
+                    {
+                        special_key = key_f13;
+                    }break;
+                    
+                    case XK_F14:
+                    {
+                        special_key = key_f14;
+                    }break;
+                    
+                    case XK_F15:
+                    {
+                        special_key = key_f15;
+                    }break;
+                    
+                    case XK_F16:
+                    {
+                        special_key = key_f16;
+                    }break;
+                }
+                
                 
                 if (special_key){
                     LinuxPushKey(special_key, 0, 0, mods);
-                } else if (key < 256){
+                } else if (key != 0){
                     LinuxPushKey(key, key, key_no_caps, mods);
                 } else {
                     LinuxPushKey(0, 0, 0, mods);
@@ -1422,13 +1576,13 @@ LinuxHandleX11Events(void)
             
             case MotionNotify: {
                 should_step = true;
-                linuxvars.input.mouse.x = Event.xmotion.x;
-                linuxvars.input.mouse.y = Event.xmotion.y;
+                linuxvars.input.mouse.x = event.xmotion.x;
+                linuxvars.input.mouse.y = event.xmotion.y;
             }break;
             
             case ButtonPress: {
                 should_step = true;
-                switch(Event.xbutton.button){
+                switch(event.xbutton.button){
                     case Button1: {
                         linuxvars.input.mouse.press_l = 1;
                         linuxvars.input.mouse.l = 1;
@@ -1452,7 +1606,7 @@ LinuxHandleX11Events(void)
             
             case ButtonRelease: {
                 should_step = true;
-                switch(Event.xbutton.button){
+                switch(event.xbutton.button){
                     case Button1: {
                         linuxvars.input.mouse.release_l = 1;
                         linuxvars.input.mouse.l = 0;
@@ -1483,8 +1637,8 @@ LinuxHandleX11Events(void)
             
             case ConfigureNotify: {
                 should_step = true;
-                i32 w = Event.xconfigure.width;
-                i32 h = Event.xconfigure.height;
+                i32 w = event.xconfigure.width;
+                i32 h = event.xconfigure.height;
                 
                 if (w != target.width || h != target.height){
                     LinuxResizeTarget(w, h);
@@ -1492,32 +1646,31 @@ LinuxHandleX11Events(void)
             }break;
             
             case MappingNotify: {
-                if (Event.xmapping.request == MappingModifier || Event.xmapping.request == MappingKeyboard){
-                    XRefreshKeyboardMapping(&Event.xmapping);
-                    LinuxKeycodeInit(linuxvars.XDisplay);
+                if (event.xmapping.request == MappingModifier || event.xmapping.request == MappingKeyboard){
+                    XRefreshKeyboardMapping(&event.xmapping);
+                    //LinuxKeycodeInit(linuxvars.XDisplay);
                 }
             }break;
             
             case ClientMessage: {
-                if ((Atom)Event.xclient.data.l[0] == linuxvars.atom_WM_DELETE_WINDOW) {
+                if ((Atom)event.xclient.data.l[0] == linuxvars.atom_WM_DELETE_WINDOW) {
                     should_step = true;
                     linuxvars.keep_running = 0;
                 }
-                else if ((Atom)Event.xclient.data.l[0] == linuxvars.atom__NET_WM_PING) {
-                    Event.xclient.window = DefaultRootWindow(linuxvars.XDisplay);
+                else if ((Atom)event.xclient.data.l[0] == linuxvars.atom__NET_WM_PING) {
+                    event.xclient.window = DefaultRootWindow(linuxvars.XDisplay);
                     XSendEvent(
                         linuxvars.XDisplay,
-                        Event.xclient.window,
+                        event.xclient.window,
                         False,
                         SubstructureRedirectMask | SubstructureNotifyMask,
-                        &Event
-                        );
+                        &event);
                 }
             }break;
             
             // NOTE(inso): Someone wants us to give them the clipboard data.
             case SelectionRequest: {
-                XSelectionRequestEvent request = Event.xselectionrequest;
+                XSelectionRequestEvent request = event.xselectionrequest;
                 
                 XSelectionEvent response = {};
                 response.type = SelectionNotify;
@@ -1582,14 +1735,14 @@ LinuxHandleX11Events(void)
             
             // NOTE(inso): Another program is now the clipboard owner.
             case SelectionClear: {
-                if (Event.xselectionclear.selection == linuxvars.atom_CLIPBOARD){
+                if (event.xselectionclear.selection == linuxvars.atom_CLIPBOARD){
                     linuxvars.clipboard_outgoing.size = 0;
                 }
             }break;
             
             // NOTE(inso): A program is giving us the clipboard data we asked for.
             case SelectionNotify: {
-                XSelectionEvent* e = (XSelectionEvent*)&Event;
+                XSelectionEvent* e = (XSelectionEvent*)&event;
                 if (e->selection == linuxvars.atom_CLIPBOARD && e->target == linuxvars.atom_UTF8_STRING && e->property != None){
                     Atom type;
                     int fmt;
@@ -1617,8 +1770,8 @@ LinuxHandleX11Events(void)
             }break;
             
             default: {
-                if (Event.type == linuxvars.xfixes_selection_event){
-                    XFixesSelectionNotifyEvent* sne = (XFixesSelectionNotifyEvent*)&Event;
+                if (event.type == linuxvars.xfixes_selection_event){
+                    XFixesSelectionNotifyEvent* sne = (XFixesSelectionNotifyEvent*)&event;
                     if (sne->subtype == XFixesSelectionNotify && sne->owner != linuxvars.XWindow){
                         XConvertSelection(linuxvars.XDisplay, linuxvars.atom_CLIPBOARD, linuxvars.atom_UTF8_STRING, linuxvars.atom_CLIPBOARD, linuxvars.XWindow, CurrentTime);
                     }
@@ -1626,7 +1779,7 @@ LinuxHandleX11Events(void)
             }break;
         }
         
-        PrevEvent = Event;
+        prev_event = event;
     }
     
     if (should_step){
@@ -1769,7 +1922,7 @@ main(int argc, char **argv){
     linuxvars.input_style = input_result.best_style;
     linuxvars.input_context = input_result.xic;
     
-    LinuxKeycodeInit(linuxvars.XDisplay);
+    //LinuxKeycodeInit(linuxvars.XDisplay);
     
     Cursor xcursors[APP_MOUSE_CURSOR_COUNT] = {
         None,

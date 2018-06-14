@@ -596,9 +596,6 @@ OPEN_FILE_HOOK_SIG(end_file_close_jump_list){
         delete_marker_list(list);
     }
     default_end_file(app, buffer_id);
-    
-    
-    
     return(0);
 }
 

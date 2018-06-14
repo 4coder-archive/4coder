@@ -5,13 +5,9 @@ Getting started with 4coder and navigating your files:
 
 \VIDEO{youtube:h5cbOcnSrcc}
 
-Setting up and navigating your project with 4coder:
+Creating and using a "version(1)" project in 4coder:
 
-\VIDEO{youtube:glPEpaT6GH0}
-
-Extending your project with a project.4coder file:
-
-\VIDEO{youtube:iZLtS3IoatE}
+\VIDEO{youtube:FX8WPI2WGVI}
 
 Using customizable keywords in the 4coder custom API:
 

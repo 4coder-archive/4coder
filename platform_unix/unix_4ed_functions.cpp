@@ -204,20 +204,20 @@ Sys_Set_File_List_Sig(system_set_file_list){
                  entry != 0;
                  entry = readdir(d)){
                 char *fname = entry->d_name;
-                if (match_cc(fname, ".") || match_cc(fname, "..")){
+                if (match(fname, ".") || match(fname, "..")){
                     continue;
                 }
                 char *cursor_start = cursor;
                 i32 length = copy_fast_unsafe_cc(cursor_start, fname);
                 cursor += length;
                 
-                if(entry->d_type == DT_LNK){
+                if (entry->d_type == DT_LNK){
                     struct stat st;
-                    if(stat(entry->d_name, &st) != -1){
+                    if (stat(entry->d_name, &st) != -1){
                         info_ptr->folder = S_ISDIR(st.st_mode);
                     }
                     else{
-                        info_ptr->folder = 0;
+                        info_ptr->folder = false;
                     }
                 }
                 else{

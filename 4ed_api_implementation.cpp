@@ -687,8 +687,6 @@ range is not within the bounds of the buffer.
 )
 DOC_SEE(4coder_Buffer_Positioning_System)
 */{
-    PRFL_FUNC_GROUP();
-    
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     Editing_File *file = imp_get_file(cmd, buffer);
     
@@ -1308,8 +1306,6 @@ DOC(Try to create a new buffer.  This call first checks to see if a buffer alrea
 If no buffer exists with the given name, then a new buffer is created.  If a file that matches the given filename exists, the file is loaded as the contents of the new buffer.  Otherwise a buffer is created without a matching file until the buffer is saved and the buffer is left blank.)
 DOC_SEE(Buffer_Create_Flag)
 */{
-    PRFL_FUNC_GROUP();
-    
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     System_Functions *system = cmd->system;
     Models *models = cmd->models;

@@ -201,6 +201,7 @@ struct Config_Data{
     
     bool32 use_scroll_bars;
     bool32 use_file_bars;
+    bool32 enable_virtual_whitespace;
     bool32 enable_code_wrapping;
     bool32 automatically_indent_text_on_save;
     bool32 automatically_save_changes_on_build;

@@ -541,8 +541,6 @@ file_grow_starts_as_needed(General_Memory *general, Gap_Buffer *buffer, i32 addi
 
 internal void
 file_measure_starts(General_Memory *general, Gap_Buffer *buffer){
-    PRFL_FUNC_GROUP();
-    
     if (buffer->line_starts == 0){
         i32 max = buffer->line_max = KB(1);
         buffer->line_starts = (i32*)general_memory_allocate(general, max*sizeof(i32));
@@ -612,8 +610,6 @@ file_allocate_wrap_positions_as_needed(General_Memory *general, Editing_File *fi
 
 internal void
 file_create_from_string(System_Functions *system, Models *models, Editing_File *file, String val, u32 flags){
-    PRFL_FUNC_GROUP();
-    
     General_Memory *general = &models->mem.general;
     Partition *part = &models->mem.part;
     Open_File_Hook_Function *hook_open_file = models->hook_open_file;
@@ -735,8 +731,6 @@ internal void
 init_normal_file(System_Functions *system, Models *models,
                  char *buffer, i32 size,
                  Editing_File *file){
-    PRFL_FUNC_GROUP();
-    
     String val = make_string(buffer, size);
     file_create_from_string(system, models, file, val, 0);
     

@@ -1,5 +1,5 @@
 /*
-4coder_string.h - Version 1.0.111
+4coder_string.h - Version 1.0.114
 no warranty implied; use at your own risk
 
 This software is in the public domain. Where that dedication is not
@@ -1494,14 +1494,16 @@ string_interpret_escapes(String src, char *dst){
             
             case 1:
             {
-                switch (src.str[i]){
-                    case '\\':{dst[j++] = '\\'; mode = 0;}break;
-                    case 'n': {dst[j++] = '\n'; mode = 0;}break;
-                    case 't': {dst[j++] = '\t'; mode = 0;}break;
-                    case '"': {dst[j++] = '"';  mode = 0;}break;
-                    case '\'':{dst[j++] = '\'';  mode = 0;}break;
-                    case '0': {dst[j++] = '\0'; mode = 0;}break;
+                char c = src.str[i];
+                switch (c){
+                    case '\\':{dst[j++] = '\\';} break;
+                    case 'n': {dst[j++] = '\n';} break;
+                    case 't': {dst[j++] = '\t';} break;
+                    case '"': {dst[j++] = '"'; } break;
+                    case '0': {dst[j++] = '\0';} break;
+                    default: {dst[j++] = '\\'; dst[j++] = c;}break;
                 }
+                mode = 0;
             }break;
         }
     }

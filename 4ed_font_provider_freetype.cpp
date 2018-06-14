@@ -492,7 +492,7 @@ Sys_Font_Face_Allocate_And_Init_Sig(system_font_face_allocate_and_init, new_sett
             // TODO(allen): This could be O(log n) instead of O(n) if I end up making bit manipulation helpers someday.
             u64 last_mask_fill = 0;
             if (page_slot_count%64 != 0){
-                last_mask_fill = (1LLU << 63);
+                last_mask_fill = (1ULL << 63);
                 for (i32 spread_step = (page_slot_count%64) - 1;
                      spread_step > 0;
                      --spread_step){
@@ -540,7 +540,7 @@ Sys_Font_Face_Allocate_And_Init_Sig(system_font_face_allocate_and_init, new_sett
                     j_stop = SLOT_PER_PAGE%64;
                 }
                 for (i32 j = 0; j < j_stop; ++j){
-                    if ((is_active_v & (1LLU << j)) == 0){
+                    if ((is_active_v & (1ULL << j)) == 0){
                         index = i*64 + j;
                         break;
                     }
@@ -554,7 +554,7 @@ Sys_Font_Face_Allocate_And_Init_Sig(system_font_face_allocate_and_init, new_sett
     Assert(index != -1);
     
     u64 *is_active_flags = &page_with_slot->is_active[index/64];
-    u64 is_active_mask = (1LLU << (index % 64));
+    u64 is_active_mask = (1ULL << (index % 64));
     Font_Settings *settings = &page_with_slot->settings[index];
     Font_Metrics *metrics = &page_with_slot->metrics[index];
     Font_Page_Storage *pages = &page_with_slot->pages[index];
@@ -611,7 +611,7 @@ system_font_get_active_location(Face_ID font_id){
         if (page->first_id <= font_id && font_id < page->first_id + SLOT_PER_PAGE){
             i32 index = (i32)(font_id - page->first_id);
             u64 is_active_v = page->is_active[index/64];
-            if ((is_active_v & (1LLU << (index%64))) != 0){
+            if ((is_active_v & (1ULL << (index%64))) != 0){
                 result.page = page;
                 result.index = index;
             }

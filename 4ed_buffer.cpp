@@ -620,8 +620,6 @@ buffer_measure_starts(Buffer_Measure_Starts *state, Gap_Buffer *buffer){
 
 internal void
 buffer_measure_character_starts(System_Functions *system, Font_Pointers font, Gap_Buffer *buffer, i32 *character_starts, i32 mode, i32 virtual_white){
-    PRFL_FUNC_GROUP();
-    
     Assert(mode == 0);
     
     Gap_Buffer_Stream stream = {0};

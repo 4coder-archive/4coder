@@ -23,8 +23,7 @@ START_HOOK_SIG(default_start){
     named_maps = named_maps_values;
     named_map_count = ArrayCount(named_maps_values);
     
-    Face_Description command_line_description = get_face_description(app, 0);
-    default_4coder_initialize(app, command_line_description.pt_size, command_line_description.hinting);
+    default_4coder_initialize(app);
     default_4coder_side_by_side_panels(app, files, file_count);
     
     if (global_config.automatically_load_project){
@@ -274,10 +273,8 @@ OPEN_FILE_HOOK_SIG(default_file_settings){
     
     int32_t map_id = (treat_as_code)?((int32_t)default_code_map):((int32_t)mapid_file);
     
-    buffer_set_setting(app, &buffer, BufferSetting_WrapPosition,
-                       global_config.default_wrap_width);
-    buffer_set_setting(app, &buffer, BufferSetting_MinimumBaseWrapPosition,
-                       global_config.default_min_base_width);
+    buffer_set_setting(app, &buffer, BufferSetting_WrapPosition, global_config.default_wrap_width);
+    buffer_set_setting(app, &buffer, BufferSetting_MinimumBaseWrapPosition, global_config.default_min_base_width);
     buffer_set_setting(app, &buffer, BufferSetting_MapID, map_id);
     buffer_set_setting(app, &buffer, BufferSetting_ParserContext, parse_context_id);
     
@@ -286,18 +283,29 @@ OPEN_FILE_HOOK_SIG(default_file_settings){
         buffer_set_setting(app, &buffer, BufferSetting_LexWithoutStrings, true);
         buffer_set_setting(app, &buffer, BufferSetting_VirtualWhitespace, true);
     }
-    else if (treat_as_code && global_config.enable_code_wrapping && buffer.size < (128 << 10)){
-        // NOTE(allen|a4.0.12): There is a little bit of grossness going on here.
-        // If we set BufferSetting_Lex to true, it will launch a lexing job.
-        // If a lexing job is active when we set BufferSetting_VirtualWhitespace, the call can fail.
-        // Unfortunantely without tokens virtual whitespace doesn't really make sense.
-        // So for now I have it automatically turning on lexing when virtual whitespace is turned on.
-        // Cleaning some of that up is a goal for future versions.
-        if (lex_without_strings){
-            buffer_set_setting(app, &buffer, BufferSetting_LexWithoutStrings, true);
+    else if (treat_as_code && buffer.size < (128 << 10)){
+        if (global_config.enable_virtual_whitespace){
+            // NOTE(allen|a4.0.12): There is a little bit of grossness going on here.
+            // If we set BufferSetting_Lex to true, it will launch a lexing job.
+            // If a lexing job is active when we set BufferSetting_VirtualWhitespace, the call can fail.
+            // Unfortunantely without tokens virtual whitespace doesn't really make sense.
+            // So for now I have it automatically turning on lexing when virtual whitespace is turned on.
+            // Cleaning some of that up is a goal for future versions.
+            if (lex_without_strings){
+                buffer_set_setting(app, &buffer, BufferSetting_LexWithoutStrings, true);
+            }
+            if (global_config.enable_code_wrapping){
+                buffer_set_setting(app, &buffer, BufferSetting_WrapLine, true);
+            }
+            buffer_set_setting(app, &buffer, BufferSetting_VirtualWhitespace, true);
         }
-        buffer_set_setting(app, &buffer, BufferSetting_WrapLine, true);
-        buffer_set_setting(app, &buffer, BufferSetting_VirtualWhitespace, true);
+        else if (global_config.enable_code_wrapping){
+            if (lex_without_strings){
+                buffer_set_setting(app, &buffer, BufferSetting_LexWithoutStrings, true);
+            }
+            buffer_set_setting(app, &buffer, BufferSetting_Lex, true);
+            buffer_set_setting(app, &buffer, BufferSetting_WrapLine, true);
+        }
     }
     else{
         buffer_set_setting(app, &buffer, BufferSetting_WrapLine, wrap_lines);
@@ -459,11 +467,7 @@ set_all_default_hooks(Bind_Helper *context){
     set_new_file_hook(context, default_new_file);
     set_save_file_hook(context, default_file_save);
     
-#if defined(FCODER_STICKY_JUMP)
     set_end_file_hook(context, end_file_close_jump_list);
-#else
-    set_end_file_hook(context, default_end_file);
-#endif
     
     set_command_caller(context, default_command_caller);
     set_input_filter(context, default_suppress_mouse_filter);
