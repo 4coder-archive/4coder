@@ -159,7 +159,7 @@ get_file_list(Partition *part, Filename_Character *pattern, File_Filter *filter)
     int32_t pattern_length = 0;
     for (; pattern[pattern_length] != 0; ++pattern_length);
     int32_t last_slash = pattern_length;
-    for (; last_slash > 0 && pattern[last_slash] != SLASH; --last_slash);
+    for (; last_slash >= 0 && pattern[last_slash] != SLASH; --last_slash);
     if (last_slash < 0){
         fprintf(stdout, "fatal error: invalid file pattern\n");
         exit(1);

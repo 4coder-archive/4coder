@@ -13,6 +13,8 @@
 #include "4coder_API/custom.h"
 #include "4coder_os_comp_cracking.h"
 
+#include "4coder_generated/command_metadata.h"
+
 #define FSTRING_IMPLEMENTATION
 #include "4coder_lib/4coder_string.h"
 #include "4coder_lib/4coder_table.h"

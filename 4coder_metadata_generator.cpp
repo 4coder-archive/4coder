@@ -632,7 +632,7 @@ parse_file(Partition *part, Meta_Command_Entry_Arrays *entry_arrays, Filename_Ch
 
 static void
 parse_files_by_pattern(Partition *part, Meta_Command_Entry_Arrays *entry_arrays, Filename_Character *pattern, bool32 recursive){
-    Cross_Platform_File_List list = get_file_list(part, pattern, filter_is_code_file);
+    Cross_Platform_File_List list = get_file_list(part, pattern, filter_all);
     for (int32_t i = 0; i < list.count; ++i){
         Cross_Platform_File_Info *info = &list.info[i];
         
@@ -735,6 +735,7 @@ main(int argc, char **argv){
         int32_t entry_count = entry_arrays.doc_string_count;
         Meta_Command_Entry **entries = get_sorted_meta_commands(part, entry_arrays.first_doc_string, entry_count);
         
+        fprintf(out, "#if !defined(NO_COMMAND_METADATA)\n");
         fprintf(out, "#define command_id(c) (fcoder_metacmd_ID_##c)\n");
         fprintf(out, "#define command_metadata(c) (&fcoder_metacmd_table[command_id(c)])\n");
         fprintf(out, "#define command_metadata_by_id(id) (&fcoder_metacmd_table[id])\n");
@@ -800,6 +801,10 @@ main(int argc, char **argv){
                     str_to_l_c(entry->name), id);
             ++id;
         }
+        
+        fprintf(out, "#endif\n");
+        
+        fclose(out);
     }
     else{
         fprintf(stdout, "fatal error: could not open output file %s%s\n", out_directory, COMMAND_METADATA_OUT);

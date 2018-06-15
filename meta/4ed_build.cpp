@@ -424,7 +424,7 @@ build(u32 flags, u32 arch, char *code_path, char *code_file, char *out_path, cha
 internal void
 site_build(char *cdir, u32 flags){
     {
-        systemf("%s -R %s", "build_metadata" BAT, cdir);
+        systemf("%s \"..%scode%s4coder_default_bindings.cpp\"", "build_metadata" BAT, SLASH, SLASH);
     }
     
     {

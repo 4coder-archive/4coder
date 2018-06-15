@@ -9,22 +9,26 @@ if %code_home:~-1%==\ (set code_home=%code_home:~0,-1%)
 
 if NOT "%Platform%" == "X86" IF NOT "%Platform%" == "x86" (call "%code_home%\windows_scripts\setup_cl_x86.bat")
 
-set SRC=%1
-if "%SRC%" == "" set SRC=4coder_default_bindings.cpp
+set src=%1
+if "%src%" == "" set src=4coder_default_bindings.cpp
 
-set OPTS=/W4 /wd4310 /wd4100 /wd4201 /wd4505 /wd4996 /wd4127 /wd4510 /wd4512 /wd4610 /wd4457 /WX
-set OPTS=%OPTS% /GR- /nologo /FC
-set DEBUG=/Zi
-set BUILD_DLL=/LD /link /INCREMENTAL:NO /OPT:REF
-set EXPORTS=/EXPORT:get_bindings /EXPORT:get_alpha_4coder_version
+set opts=/W4 /wd4310 /wd4100 /wd4201 /wd4505 /wd4996 /wd4127 /wd4510 /wd4512 /wd4610 /wd4457 /WX
+set opts=%opts% /GR- /nologo /FC
+set debug=/Zi
+set build_dll=/LD /link /INCREMENTAL:NO /OPT:REF
+set exports=/EXPORT:get_bindings /EXPORT:get_alpha_4coder_version
 
-cl %OPTS% /I"%code_home%" %DEBUG% "%code_home%\4coder_metadata_generator.cpp" /Femetadata_generator
-metadata_generator -R "%code_home%" "%code_home%\*"
+set preproc_file=4coder_command_metadata.i
+set meta_macros=/DCUSTOM_COMMAND_SIG=CUSTOM_COMMAND_SIG /DCUSTOM_DOC=CUSTOM_DOC /DCUSTOM_ALIAS=CUSTOM_ALIAS /DNO_COMMAND_METADATA
+cl /I"%code_home%" %opts% %debug% %src% /P /Fi%preproc_file% %meta_macros%
+cl /I"%code_home%" %opts% %debug% "%code_home%\4coder_metadata_generator.cpp" /Femetadata_generator
+metadata_generator -R "%code_home%" "%cd%\\%preproc_file%"
 
-cl %OPTS% /I"%code_home%" %DEBUG% "%SRC%" /Fecustom_4coder %BUILD_DLL% %EXPORTS%
+cl %opts% /I"%code_home%" %debug% "%src%" /Fecustom_4coder %build_dll% %exports%
 
 REM file spammation preventation
 del metadata_generator*
 del *.exp
 del *.obj
 del *.lib
+del %preproc_file%

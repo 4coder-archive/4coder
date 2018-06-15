@@ -65,14 +65,6 @@ command_list = {
    .cmd = { {"..\\build\\generate_config_parser", .os = "win"  },
             {"../build/generate_config_parser"  , .os = "linux"},
             {"../build/generate_config_parser"  , .os = "mac"  }, }, },
- { .name = "build cpp preproc test",
-   .out = "*compilation*",  .footer_panel = true, .save_dirty_files = true,
-   .cmd = { {"pushd test_preproc & build.bat", .os = "win"},
-          }, },
- { .name = "run cpp preproc test",
-   .out = "*run*",  .footer_panel = false, .save_dirty_files = true,
-   .cmd = { {"pushd test_preproc & ..\\..\\build\\test_preproc test_1_src.cpp test_1_res.i", .os = "win"},
-          }, },
 };
 
 fkey_command[1]  = "build x64";
@@ -83,6 +75,3 @@ fkey_command[5]  = "build metadata";
 fkey_command[6]  = "build config parser generator";
 fkey_command[7]  = "generate config parser";
 fkey_command[12] = "package";
-
-//fkey_command[1]  = "build cpp preproc test";
-//fkey_command[2]  = "run cpp preproc test";
