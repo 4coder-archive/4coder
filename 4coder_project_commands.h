@@ -63,6 +63,13 @@ struct Project{
     int32_t fkey_commands[16];
 };
 
+typedef int32_t Project_OS_Match_Level;
+enum{
+    ProjectOSMatchLevel_NoMatch = 0,
+    ProjectOSMatchLevel_PassiveMatch = 1,
+    ProjectOSMatchLevel_ActiveMatch = 2,
+};
+
 struct Project_Parse_Result{
     Config *parsed;
     Project *project;

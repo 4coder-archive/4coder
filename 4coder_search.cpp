@@ -496,7 +496,7 @@ initialize_generic_search_all_buffers(Application_Links *app, General_Memory *ge
     // TODO(allen): Why on earth am I allocating these separately in this case?  Upgrade to just use the string array on the stack!
     search_key_alloc(general, &key, sizes, count);
     for (int32_t i = 0; i < count; ++i){
-        copy_ss(&key.words[i], strings[i]);
+        copy(&key.words[i], strings[i]);
     }
     
     search_iter_init(iter, key);

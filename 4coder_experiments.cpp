@@ -4,9 +4,6 @@
 
 // TOP
 
-#if !defined(FCODER_EXPERIMENTS_CPP)
-#define FCODER_EXPERIMENTS_CPP
-
 #include "4coder_default_include.cpp"
 #include "4coder_miblo_numbers.cpp"
 
@@ -740,7 +737,7 @@ replace_all_occurrences_parameters(Application_Links *app, General_Memory *gener
              match.found_match;
              match = search_next_match(app, &set, &iter)){
             
-            Replace_Target *new_target= push_array(part, Replace_Target, 1);
+            Replace_Target *new_target = push_array(part, Replace_Target, 1);
             if (new_target != 0){
                 new_target->buffer_id = match.buffer.buffer_id;
                 new_target->start_pos = match.start;
@@ -758,10 +755,19 @@ replace_all_occurrences_parameters(Application_Links *app, General_Memory *gener
         }
         
         // Use replacement list to do replacements
-        for (int32_t i = 0; i < target_count; ++i){
-            Replace_Target *target = &targets[i];
-            Buffer_Summary buffer= get_buffer(app, target->buffer_id, AccessOpen);
-            buffer_replace_range(app, &buffer, target->start_pos, target->start_pos + target_string.size, new_string.str, new_string.size);
+        int32_t shift_per_replacement = new_string.size - target_string.size;
+        int32_t current_offset = 0;
+        int32_t current_buffer_id = 0;
+        Replace_Target *target = targets;
+        for (int32_t i = 0; i < target_count; ++i, ++target){
+            if (target->buffer_id != current_buffer_id){
+                current_buffer_id = target->buffer_id;
+                current_offset = 0;
+            }
+            Buffer_Summary buffer = get_buffer(app, target->buffer_id, AccessOpen);
+            int32_t pos = target->start_pos + current_offset;
+            buffer_replace_range(app, &buffer, pos, pos + target_string.size, new_string.str, new_string.size);
+            current_offset += shift_per_replacement;
         }
         
         end_temp_memory(temp);
@@ -841,8 +847,6 @@ get_bindings(void *data, int32_t size){
     int32_t result = end_bind_helper(context);
     return(result);
 }
-
-#endif
 
 // BOTTOM
 

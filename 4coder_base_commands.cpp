@@ -605,7 +605,7 @@ CUSTOM_COMMAND_SIG(search);
 CUSTOM_COMMAND_SIG(reverse_search);
 
 static void
-isearch(Application_Links *app, int32_t start_reversed, String query_init){
+isearch(Application_Links *app, bool32 start_reversed, String query_init, bool32 on_the_query_init_string){
     View_Summary view = get_active_view(app, AccessProtected);
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessProtected);
     if (!buffer.exists) return;
@@ -626,7 +626,7 @@ isearch(Application_Links *app, int32_t start_reversed, String query_init){
     
     char bar_string_space[256];
     bar.string = make_fixed_width_string(bar_string_space);
-    copy_ss(&bar.string, query_init);
+    copy(&bar.string, query_init);
     
     String isearch_str = make_lit_string("I-Search: ");
     String rsearch_str = make_lit_string("Reverse-I-Search: ");
@@ -650,7 +650,6 @@ isearch(Application_Links *app, int32_t start_reversed, String query_init){
         bool32 backspace = false;
         
         if (!first_step){
-            //in = get_user_input(app, EventOnAnyKey, EventOnEsc | EventOnButton);
             in = get_user_input(app, EventOnAnyKey, EventOnEsc);
             if (in.abort) break;
             
@@ -662,15 +661,32 @@ isearch(Application_Links *app, int32_t start_reversed, String query_init){
             
             bool32 made_change = false;
             if (in.key.keycode == '\n' || in.key.keycode == '\t'){
-                break;
+                if (in.key.modifiers[MDFR_CONTROL_INDEX]){
+                    copy(&bar.string, previous_isearch_query);
+                }
+                else{
+                    String previous_isearch_query_str = make_fixed_width_string(previous_isearch_query);
+                    append(&previous_isearch_query_str, bar.string);
+                    terminate_with_null(&previous_isearch_query_str);
+                    break;
+                }
             }
             else if (length != 0 && key_is_unmodified(&in.key)){
-                append_ss(&bar.string, make_string(character, length));
+                append(&bar.string, make_string(character, length));
                 made_change = true;
             }
             else if (in.key.keycode == key_back){
-                made_change = backspace_utf8(&bar.string);
-                backspace = true;
+                if (key_is_unmodified(&in.key)){
+                    made_change = backspace_utf8(&bar.string);
+                    backspace = true;
+                }
+                else if (in.key.modifiers[MDFR_CONTROL_INDEX]){
+                    if (bar.string.size > 0){
+                        made_change = true;
+                        bar.string.size = 0;
+                        backspace = true;
+                    }
+                }
             }
             
             if ((in.command.command == search) || in.key.keycode == key_page_down || in.key.keycode == key_down){
@@ -682,7 +698,7 @@ isearch(Application_Links *app, int32_t start_reversed, String query_init){
             }
         }
         else{
-            if (bar.string.size != 0){
+            if (query_init.size != 0 && on_the_query_init_string){
                 step_backward = true;
             }
             first_step = false;
@@ -745,6 +761,9 @@ isearch(Application_Links *app, int32_t start_reversed, String query_init){
     
     view_set_highlight(app, &view, 0, 0, false);
     if (in.abort){
+        String previous_isearch_query_str = make_fixed_width_string(previous_isearch_query);
+        append(&previous_isearch_query_str, bar.string);
+        terminate_with_null(&previous_isearch_query_str);
         view_set_cursor(app, &view, seek_pos(first_pos), true);
         return;
     }
@@ -756,14 +775,14 @@ CUSTOM_COMMAND_SIG(search)
 CUSTOM_DOC("Begins an incremental search down through the current buffer for a user specified string.")
 {
     String query = {0};
-    isearch(app, false, query);
+    isearch(app, false, query, false);
 }
 
 CUSTOM_COMMAND_SIG(reverse_search)
 CUSTOM_DOC("Begins an incremental search up through the current buffer for a user specified string.")
 {
     String query = {0};
-    isearch(app, true, query);
+    isearch(app, true, query, false);
 }
 
 CUSTOM_COMMAND_SIG(search_identifier)
@@ -774,7 +793,7 @@ CUSTOM_DOC("Begins an incremental search down through the current buffer for the
     
     char space[256];
     String query = read_identifier_at_pos(app, &buffer, view.cursor.pos, space, sizeof(space), 0);
-    isearch(app, false, query);
+    isearch(app, false, query, true);
 }
 
 CUSTOM_COMMAND_SIG(reverse_search_identifier)
@@ -785,7 +804,7 @@ CUSTOM_DOC("Begins an incremental search up through the current buffer for the w
     
     char space[256];
     String query = read_identifier_at_pos(app, &buffer, view.cursor.pos, space, sizeof(space), 0);
-    isearch(app, true, query);
+    isearch(app, true, query, true);
 }
 
 CUSTOM_COMMAND_SIG(replace_in_range)
