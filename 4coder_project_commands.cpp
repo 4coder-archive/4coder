@@ -315,6 +315,20 @@ parse_project__extract_pattern_array(Partition *arena, Config *parsed,
     }
 }
 
+static Project_OS_Match_Level
+parse_project__version_1__os_match(String str, String this_os_str){
+    if (match(str, this_os_str)){
+        return(ProjectOSMatchLevel_ActiveMatch);
+    }
+    else if (match(str, make_lit_string("all"))){
+        return(ProjectOSMatchLevel_ActiveMatch);
+    }
+    else if (match(str, make_lit_string("default"))){
+        return(ProjectOSMatchLevel_PassiveMatch);
+    }
+    return(ProjectOSMatchLevel_NoMatch);
+}
+
 static Project*
 parse_project__config_data__version_1(Partition *arena, String root_dir, Config *parsed){
     Project *project = push_array(arena, Project, 1);
@@ -349,6 +363,9 @@ parse_project__config_data__version_1(Partition *arena, String root_dir, Config 
     {
         Config_Compound *compound = 0;
         if (config_compound_var(parsed, "load_paths", 0, &compound)){
+            bool32 found_match = false;
+            Config_Compound *best_paths = 0;
+            
             for (int32_t i = 0;; ++i){
                 Config_Iteration_Step_Result result = typed_array_iteration_step(parsed, compound, ConfigRValueType_Compound, i);
                 if (result.step == Iteration_Skip){
@@ -359,43 +376,48 @@ parse_project__config_data__version_1(Partition *arena, String root_dir, Config 
                 }
                 Config_Compound *paths_option = result.get.compound;
                 
-                bool32 use_this_option = false;
-                
                 Config_Compound *paths = 0;
                 if (config_compound_compound_member(parsed, paths_option, "paths", 0, &paths)){
                     String str = {0};
                     if (config_compound_string_member(parsed, paths_option, "os", 1, &str)){
-                        if (match(str, make_lit_string(PlatformName))){
-                            use_this_option = true;
+                        Project_OS_Match_Level r = parse_project__version_1__os_match(str, make_lit_string(PlatformName));
+                        if (r == ProjectOSMatchLevel_ActiveMatch){
+                            found_match = true;
+                            best_paths = paths;
+                            break;
+                        }
+                        else if (r == ProjectOSMatchLevel_PassiveMatch){
+                            if (!found_match){
+                                found_match = true;
+                                best_paths = paths;
+                            }
                         }
                     }
                 }
+            }
+            
+            if (found_match){
+                Config_Get_Result_List list = typed_compound_array_reference_list(arena, parsed, best_paths);
                 
-                if (use_this_option){
-                    Config_Get_Result_List list = typed_compound_array_reference_list(arena, parsed, paths);
+                project->load_path_array.paths = push_array(arena, Project_File_Load_Path, list.count);
+                project->load_path_array.count = list.count;
+                
+                Project_File_Load_Path *dst = project->load_path_array.paths;
+                for (Config_Get_Result_Node *node = list.first;
+                     node != 0;
+                     node = node->next, ++dst){
+                    Config_Compound *src = node->result.compound;
+                    memset(dst, 0, sizeof(*dst));
+                    dst->recursive = true;
+                    dst->relative = true;
                     
-                    project->load_path_array.paths = push_array(arena, Project_File_Load_Path, list.count);
-                    project->load_path_array.count = list.count;
-                    
-                    Project_File_Load_Path *dst = project->load_path_array.paths;
-                    for (Config_Get_Result_Node *node = list.first;
-                         node != 0;
-                         node = node->next, ++dst){
-                        Config_Compound *src = node->result.compound;
-                        memset(dst, 0, sizeof(*dst));
-                        dst->recursive = true;
-                        dst->relative = true;
-                        
-                        String str = {0};
-                        if (config_compound_string_member(parsed, src, "path", 0, &str)){
-                            dst->path = push_string_copy(arena, str);
-                        }
-                        
-                        config_compound_bool_member(parsed, src, "recursive", 1, &dst->recursive);
-                        config_compound_bool_member(parsed, src, "relative", 2, &dst->relative);
+                    String str = {0};
+                    if (config_compound_string_member(parsed, src, "path", 0, &str)){
+                        dst->path = push_string_copy(arena, str);
                     }
                     
-                    break;
+                    config_compound_bool_member(parsed, src, "recursive", 1, &dst->recursive);
+                    config_compound_bool_member(parsed, src, "relative", 2, &dst->relative);
                 }
             }
         }
@@ -459,22 +481,23 @@ parse_project__config_data__version_1(Partition *arena, String root_dir, Config 
                     }
                     Config_Compound *cmd_option = result.get.compound;
                     
-                    bool32 use_this_option = false;
-                    
                     String cmd = {0};
                     if (config_compound_string_member(parsed, cmd_option, "cmd", 0, &cmd)){
                         String str = {0};
                         if (config_compound_string_member(parsed, cmd_option, "os", 1, &str)){
-                            if (match(str, make_lit_string(PlatformName))){
-                                use_this_option = true;
+                            Project_OS_Match_Level r = parse_project__version_1__os_match(str, make_lit_string(PlatformName));
+                            if (r == ProjectOSMatchLevel_ActiveMatch){
+                                can_emit_command = true;
+                                cmd_str = cmd;
+                                break;
+                            }
+                            else if (r == ProjectOSMatchLevel_PassiveMatch){
+                                if (!can_emit_command){
+                                    can_emit_command = true;
+                                    cmd_str = cmd;
+                                }
                             }
                         }
-                    }
-                    
-                    if (use_this_option){
-                        can_emit_command = true;
-                        cmd_str = cmd;
-                        break;
                     }
                 }
                 
@@ -938,21 +961,11 @@ set_current_project_from_nearest_project_file(Application_Links *app, Partition 
 }
 
 static void
-exec_project_fkey_command(Application_Links *app, int32_t fkey_index){
-    if (!current_project.loaded){
-        return;
-    }
-    
-    int32_t command_index = current_project.fkey_commands[fkey_index];
-    if (command_index < 0 || command_index >= current_project.command_array.count){
-        return;
-    }
-    
-    Project_Command *fkey = &current_project.command_array.commands[command_index];
-    if (fkey->cmd.size > 0){
-        bool32 footer_panel = fkey->footer_panel;
-        bool32 save_dirty_files = fkey->save_dirty_files;
-        bool32 cursor_at_end = fkey->cursor_at_end;
+exec_project_command(Application_Links *app, Project_Command *command){
+    if (command->cmd.size > 0){
+        bool32 footer_panel = command->footer_panel;
+        bool32 save_dirty_files = command->save_dirty_files;
+        bool32 cursor_at_end = command->cursor_at_end;
         
         if (save_dirty_files){
             save_all_dirty_buffers(app);
@@ -967,12 +980,12 @@ exec_project_fkey_command(Application_Links *app, int32_t fkey_index){
         }
         
         bool32 set_fancy_font = false;
-        if (fkey->out.size > 0){
-            buffer_id = buffer_identifier(fkey->out.str, fkey->out.size);
+        if (command->out.size > 0){
+            buffer_id = buffer_identifier(command->out.str, command->out.size);
             
             if (footer_panel){
                 view = get_or_open_build_panel(app);
-                if (match(fkey->out, "*compilation*")){
+                if (match(command->out, "*compilation*")){
                     set_fancy_font = true;
                 }
             }
@@ -982,7 +995,7 @@ exec_project_fkey_command(Application_Links *app, int32_t fkey_index){
             view_ptr = &view;
             
             memset(&prev_location, 0, sizeof(prev_location));
-            lock_jump_buffer(fkey->out.str, fkey->out.size);
+            lock_jump_buffer(command->out.str, command->out.size);
         }
         else{
             // TODO(allen): fix the exec_system_command call so it can take a null buffer_id.
@@ -990,12 +1003,44 @@ exec_project_fkey_command(Application_Links *app, int32_t fkey_index){
         }
         
         String dir = current_project.dir;
-        String cmd = fkey->cmd;
+        String cmd = command->cmd;
         exec_system_command(app, view_ptr, buffer_id, dir.str, dir.size, cmd.str, cmd.size, flags);
         if (set_fancy_font){
             set_fancy_compilation_buffer_font(app);
         }
     }
+}
+
+static void
+exec_project_fkey_command(Application_Links *app, int32_t fkey_index){
+    if (!current_project.loaded){
+        return;
+    }
+    int32_t command_index = current_project.fkey_commands[fkey_index];
+    if (command_index < 0 || command_index >= current_project.command_array.count){
+        return;
+    }
+    Project_Command *fkey = &current_project.command_array.commands[command_index];
+    exec_project_command(app, fkey);
+}
+
+static void
+exec_project_command_by_name(Application_Links *app, String name){
+    if (!current_project.loaded){
+        return;
+    }
+    Project_Command *command = current_project.command_array.commands;
+    for (int32_t i = 0; i < current_project.command_array.count; ++i, ++command){
+        if (match(command->name, name)){
+            exec_project_command(app, command);
+            break;
+        }
+    }
+}
+
+static void
+exec_project_command_by_name(Application_Links *app, char *name){
+    exec_project_command_by_name(app, make_string_slowly(name));
 }
 
 ////////////////////////////////

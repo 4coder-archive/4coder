@@ -45,4 +45,6 @@ static ID_Based_Jump_Location prev_location = {0};
 
 static Config_Data global_config = {0};
 
+static char previous_isearch_query[256] = {0};
+
 // BOTTOM

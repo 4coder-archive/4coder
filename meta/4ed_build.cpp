@@ -422,10 +422,13 @@ build(u32 flags, u32 arch, char *code_path, char *code_file, char *out_path, cha
 // TODO(NAME): build metadata fully from C++ and eliminate build_metadata.bat and build_metadata.sh
 
 internal void
+build_metadata(void){
+    systemf("%s \"..%scode%s4coder_default_bindings.cpp\"", "build_metadata" BAT, SLASH, SLASH);
+}
+
+internal void
 site_build(char *cdir, u32 flags){
-    {
-        systemf("%s \"..%scode%s4coder_default_bindings.cpp\"", "build_metadata" BAT, SLASH, SLASH);
-    }
+    build_metadata();
     
     {
         char *file = fm_str("site/4ed_sitegen.cpp");
@@ -582,8 +585,8 @@ internal void
 standard_build(char *cdir, u32 flags, u32 arch){
     fsm_generator(cdir);
     metagen(cdir);
-    do_buildsuper(cdir, fm_str(custom_files[Custom_Default]), arch);
-    //do_buildsuper(cdir, fm_str(custom_files[Custom_Experiments]), arch);
+    //do_buildsuper(cdir, fm_str(custom_files[Custom_Default]), arch);
+    do_buildsuper(cdir, fm_str(custom_files[Custom_Experiments]), arch);
     //do_buildsuper(cdir, fm_str(custom_files[Custom_Casey]), arch);
     //do_buildsuper(cdir, fm_str(custom_files[Custom_ChronalVim]), arch);
     build_main(cdir, true, flags, arch);
@@ -639,6 +642,7 @@ package(char *cdir){
             char *fonts_dir    = fm_str(dir, "/fonts");
             char *zip_dir      = fm_str(pack_dir, "/", tier, "_", arch_names[arch]);
             
+            build_metadata();
             build_main(cdir, false, flags, arch);
             
             fm_clear_folder(par_dir);

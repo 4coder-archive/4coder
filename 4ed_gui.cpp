@@ -360,8 +360,8 @@ gui_do_color_button(GUI_Target *target, GUI_id id, u32 fore, u32 back, String te
 internal b32
 gui_begin_list(GUI_Target *target, GUI_id id, i32 list_i,
                b32 activate_item, b32 snap_into_view, GUI_Item_Update *update){
-    b32 result = 0;
-    b32 active = 0;
+    b32 result = false;
+    b32 active = false;
     
     i32 list_min = 0;
     i32 list_max = target->list_max;
@@ -373,8 +373,8 @@ gui_begin_list(GUI_Target *target, GUI_id id, i32 list_i,
     
     result = target->has_keys || target->has_list_index_position;
     if (gui_id_eq(id, target->active)){
-        active = 1;
-        result = 1;
+        active = true;
+        result = true;
     }
     
     if (snap_into_view){
@@ -388,18 +388,30 @@ gui_begin_list(GUI_Target *target, GUI_id id, i32 list_i,
     
     if (list_max > 0){
         if (list_i < list_min || list_i >= list_max){
-            result = 1;
+            result = true;
         }
     }
     
     if (result){
         gui_fill_update(update, target, h);
         if (list_i < list_min){
-            gui_update_adjustment(update, list_min);
+            if (list_max > 0){
+                i32 range_size = list_max - list_min;
+                i32 roll_down = (list_min - list_i)%range_size;
+                if (roll_down == 0){
+                    roll_down = range_size;
+                }
+                gui_update_adjustment(update, list_max - roll_down);
+            }
+            else{
+                gui_update_adjustment(update, 0);
+            }
         }
         else if (list_i >= list_max){
             if (list_max > 0){
-                gui_update_adjustment(update, list_max - 1);
+                i32 range_size = list_max - list_min;
+                i32 roll_over = (list_i - list_max)%range_size;
+                gui_update_adjustment(update, list_min + roll_over);
             }
             else{
                 gui_update_adjustment(update, 0);
