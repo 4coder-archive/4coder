@@ -423,7 +423,8 @@ build(u32 flags, u32 arch, char *code_path, char *code_file, char *out_path, cha
 
 internal void
 build_metadata(void){
-    systemf("%s \"..%scode%s4coder_default_bindings.cpp\"", "build_metadata" BAT, SLASH, SLASH);
+    systemf("./%s \"..%scode%s4coder_default_bindings.cpp\"",
+            "build_metadata" BAT, SLASH, SLASH);
 }
 
 internal void
