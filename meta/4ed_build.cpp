@@ -586,8 +586,8 @@ internal void
 standard_build(char *cdir, u32 flags, u32 arch){
     fsm_generator(cdir);
     metagen(cdir);
-    //do_buildsuper(cdir, fm_str(custom_files[Custom_Default]), arch);
-    do_buildsuper(cdir, fm_str(custom_files[Custom_Experiments]), arch);
+    do_buildsuper(cdir, fm_str(custom_files[Custom_Default]), arch);
+    //do_buildsuper(cdir, fm_str(custom_files[Custom_Experiments]), arch);
     //do_buildsuper(cdir, fm_str(custom_files[Custom_Casey]), arch);
     //do_buildsuper(cdir, fm_str(custom_files[Custom_ChronalVim]), arch);
     build_main(cdir, true, flags, arch);

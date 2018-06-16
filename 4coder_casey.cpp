@@ -1815,11 +1815,7 @@ START_HOOK_SIG(casey_start)
 {
     bool HandmadeHeroMachine = (strcmp(getenv("COMPUTERNAME"), "CASEYMPC2") == 0);
     
-    // NOTE(allen): This initializes a couple of global memory
-    // management structs on the custom side that are used in
-    // some of the new 4coder features including building and
-    // custom-side word complete.
-    init_memory(app);
+    default_4coder_initialize(app);
     
     exec_command(app, hide_scrollbar);
     if(!HandmadeHeroMachine) {exec_command(app, hide_filebar);}
