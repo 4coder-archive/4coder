@@ -1,4 +1,17 @@
 
+New in alpha 4.0.28:
+-In config.4coder "eanble_virtual_whitespace" is now separate from "enable_code_wrapping"
+-In project.4coder .os = "all" now matches for all operating systems
+-In project.4coder .os = "default" matches if no other match is available
+-When doing isearch <ctrl backspace> clears the entire query
+-When doing isearch <ctrl enter> sets the search field to the previous search string
+-Bug fix: Fixed issues with string escape sequences in the parser for *.4coder files
+-Bug fix: On windows network directories can now be browsed and their files can be loaded
+-Bug fix: Linux keyboard handling has been upgraded to allow certain custom layouts to work
+-Bug fix: Fixed replace_all_occurences in 4coder_experiments.cpp
+-Bug fix: "buildsuper" scripts now runs metadata_generator on the result of the preprocessor
+          ensuring it only tries to link to commands that will actually be defined
+
 New in alpha 4.0.27:
 -Project system upgraded to "version(1)"
  Wildcard patterns for file loading
