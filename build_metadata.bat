@@ -13,9 +13,8 @@ pushd ..\build
 set preproc_file=4coder_command_metadata.i
 set meta_macros=/DCUSTOM_COMMAND_SIG=CUSTOM_COMMAND_SIG /DCUSTOM_DOC=CUSTOM_DOC /DCUSTOM_ALIAS=CUSTOM_ALIAS /DNO_COMMAND_METADATA
 cl /I"%code_home%" %opts% %debug% %src% /P /Fi%preproc_file% %meta_macros%
-metadata_generator -R "%code_home%" "%cd%\\%preproc_file%"
-
 cl %opts% ..\code\4coder_metadata_generator.cpp /Zi /Femetadata_generator
+metadata_generator -R "%code_home%" "%cd%\\%preproc_file%"
 
 del %preproc_file%
 popd
