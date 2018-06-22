@@ -19,7 +19,7 @@ set build_dll=/LD /link /INCREMENTAL:NO /OPT:REF
 set exports=/EXPORT:get_bindings /EXPORT:get_alpha_4coder_version
 
 set preproc_file=4coder_command_metadata.i
-set meta_macros=/DCUSTOM_COMMAND_SIG=CUSTOM_COMMAND_SIG /DCUSTOM_DOC=CUSTOM_DOC /DCUSTOM_ALIAS=CUSTOM_ALIAS /DNO_COMMAND_METADATA
+set meta_macros=/DMETA_PASS
 cl /I"%code_home%" %opts% %debug% %src% /P /Fi%preproc_file% %meta_macros%
 cl /I"%code_home%" %opts% %debug% "%code_home%\4coder_metadata_generator.cpp" /Femetadata_generator
 metadata_generator -R "%code_home%" "%cd%\\%preproc_file%"

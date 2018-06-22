@@ -365,6 +365,25 @@ require_close_parenthese(Reader *reader, int32_t *opt_pos_out = 0){
 }
 
 static bool32
+require_comma(Reader *reader, int32_t *opt_pos_out = 0){
+    bool32 success = false;
+    
+    Cpp_Token token = get_token(reader);
+    if (token.type == CPP_TOKEN_COMMA){
+        success = true;
+        if (opt_pos_out != 0){
+            *opt_pos_out = token.start;
+        }
+    }
+    
+    if (!success){
+        error(reader, token.start, "expected to find ','");
+    }
+    
+    return(success);
+}
+
+static bool32
 require_define(Reader *reader, int32_t *opt_pos_out = 0){
     bool32 success = false;
     
@@ -405,6 +424,27 @@ extract_identifier(Reader *reader, String *str_out, int32_t *opt_pos_out = 0){
 }
 
 static bool32
+extract_integer(Reader *reader, String *str_out, int32_t *opt_pos_out = 0){
+    bool32 success = false;
+    
+    Cpp_Token token = get_token(reader);
+    if (token.type == CPP_TOKEN_INTEGER_CONSTANT){
+        String lexeme = token_str(reader->text, token);
+        *str_out = lexeme;
+        success = true;
+        if (opt_pos_out != 0){
+            *opt_pos_out = token.start;
+        }
+    }
+    
+    if (!success){
+        error(reader, token.start, "expected to find an integer");
+    }
+    
+    return(success);
+}
+
+static bool32
 extract_string(Reader *reader, String *str_out, int32_t *opt_pos_out = 0){
     bool32 success = false;
     
@@ -428,6 +468,8 @@ extract_string(Reader *reader, String *str_out, int32_t *opt_pos_out = 0){
 static bool32
 parse_documented_command(Partition *part, Meta_Command_Entry_Arrays *arrays, Reader *reader){
     String name = {0};
+    String file_name = {0};
+    String line_number = {0};
     String doc = {0};
     
     // Getting the command's name
@@ -441,6 +483,22 @@ parse_documented_command(Partition *part, Meta_Command_Entry_Arrays *arrays, Rea
     }
     
     if (!extract_identifier(reader, &name)){
+        return(false);
+    }
+    
+    if (!require_comma(reader)){
+        return(false);
+    }
+    
+    if (!extract_string(reader, &file_name)){
+        return(false);
+    }
+    
+    if (!require_comma(reader)){
+        return(false);
+    }
+    
+    if (!extract_integer(reader, &line_number)){
         return(false);
     }
     
@@ -478,10 +536,14 @@ parse_documented_command(Partition *part, Meta_Command_Entry_Arrays *arrays, Rea
     
     doc = substr(doc, 1, doc.size - 2);
     
+    char *source_name = push_array(part, char, file_name.size + 1);
+    push_align(part, 8);
+    string_interpret_escapes(substr(file_name, 1, file_name.size - 2), source_name);
+    
     Meta_Command_Entry *new_entry = push_array(part, Meta_Command_Entry, 1);
     new_entry->name = name;
-    new_entry->source_name = reader->source_name;
-    new_entry->line_number = line_number(reader, start_pos);
+    new_entry->source_name = source_name;
+    new_entry->line_number = str_to_int(line_number);
     new_entry->docstring.doc = doc;
     sll_push(arrays->first_doc_string, arrays->last_doc_string, new_entry);
     ++arrays->doc_string_count;
@@ -554,7 +616,7 @@ parse_text(Partition *part, Meta_Command_Entry_Arrays *entry_arrays, char *sourc
                 Temp_Read temp_read = begin_temp_read(reader);
                 
                 bool32 found_start_pos = false;
-                for (int32_t R = 0; R < 5; ++R){
+                for (int32_t R = 0; R < 10; ++R){
                     Cpp_Token p_token = prev_token(reader);
                     if (p_token.type == CPP_TOKEN_IDENTIFIER){
                         String p_lexeme = token_str(text, p_token);
@@ -735,7 +797,7 @@ main(int argc, char **argv){
         int32_t entry_count = entry_arrays.doc_string_count;
         Meta_Command_Entry **entries = get_sorted_meta_commands(part, entry_arrays.first_doc_string, entry_count);
         
-        fprintf(out, "#if !defined(NO_COMMAND_METADATA)\n");
+        fprintf(out, "#if !defined(META_PASS)\n");
         fprintf(out, "#define command_id(c) (fcoder_metacmd_ID_##c)\n");
         fprintf(out, "#define command_metadata(c) (&fcoder_metacmd_table[command_id(c)])\n");
         fprintf(out, "#define command_metadata_by_id(id) (&fcoder_metacmd_table[id])\n");

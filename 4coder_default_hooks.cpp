@@ -276,6 +276,9 @@ OPEN_FILE_HOOK_SIG(default_file_settings){
     buffer_set_setting(app, &buffer, BufferSetting_WrapPosition, global_config.default_wrap_width);
     buffer_set_setting(app, &buffer, BufferSetting_MinimumBaseWrapPosition, global_config.default_min_base_width);
     buffer_set_setting(app, &buffer, BufferSetting_MapID, map_id);
+    int32_t map_id_query = 0;
+    buffer_get_setting(app, &buffer, BufferSetting_MapID, &map_id_query);
+    Assert(map_id_query == map_id);
     buffer_set_setting(app, &buffer, BufferSetting_ParserContext, parse_context_id);
     
     if (treat_as_todo){
@@ -294,9 +297,7 @@ OPEN_FILE_HOOK_SIG(default_file_settings){
             if (lex_without_strings){
                 buffer_set_setting(app, &buffer, BufferSetting_LexWithoutStrings, true);
             }
-            if (global_config.enable_code_wrapping){
-                buffer_set_setting(app, &buffer, BufferSetting_WrapLine, true);
-            }
+            buffer_set_setting(app, &buffer, BufferSetting_WrapLine, global_config.enable_code_wrapping);
             buffer_set_setting(app, &buffer, BufferSetting_VirtualWhitespace, true);
         }
         else if (global_config.enable_code_wrapping){

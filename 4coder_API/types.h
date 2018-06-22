@@ -789,15 +789,18 @@ STRUCT Buffer_Batch_Edit{
 /* DOC(Custom_Command_Function is a function type which matches the signature used for commands.  To declare a command use CUSTOM_COMMAND_SIG.) DOC_SEE(CUSTOM_COMMAND_SIG) */
 TYPEDEF void Custom_Command_Function(struct Application_Links *app);
 
-// TODO(allen): Improve meta system so that the system for picking up macros is universal.
-#if !defined(CUSTOM_COMMAND_SIG)
-# define CUSTOM_COMMAND_SIG(name) void name(struct Application_Links *app)
+#if defined(CUSTOM_COMMAND_SIG) || defined(CUSTOM_DOC) || defined(CUSTOM_ALIAS)
+#error Please don't define CUSTOM_COMMAND_SIG, CUSTOM_DOC, or CUSTOM_ALIAS
 #endif
-#if !defined(CUSTOM_DOC)
-# define CUSTOM_DOC(str)
-#endif
-#if !defined(CUSTOM_ALIAS)
-# define CUSTOM_ALIAS(x) x
+
+#if !defined(META_PASS)
+#define CUSTOM_COMMAND_SIG(name) void name(struct Application_Links *app)
+#define CUSTOM_DOC(str)
+#define CUSTOM_ALIAS(x) x
+#else
+#define CUSTOM_COMMAND_SIG(name) CUSTOM_COMMAND_SIG(name, __FILE__, __LINE__)
+#define CUSTOM_DOC(str) CUSTOM_DOC(str)
+#define CUSTOM_ALIAS(x) CUSTOM_ALIAS(x)
 #endif
 
 /* DOC(Generic_Command acts as a name for a command, and can name an internal command or a custom command.) */
