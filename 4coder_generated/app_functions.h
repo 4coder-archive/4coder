@@ -49,6 +49,9 @@ struct Application_Links;
 #define VIEW_SET_HIGHLIGHT_SIG(n) bool32 n(Application_Links *app, View_Summary *view, int32_t start, int32_t end, bool32 turn_on)
 #define VIEW_SET_BUFFER_SIG(n) bool32 n(Application_Links *app, View_Summary *view, Buffer_ID buffer_id, Set_Buffer_Flag flags)
 #define VIEW_POST_FADE_SIG(n) bool32 n(Application_Links *app, View_Summary *view, float seconds, int32_t start, int32_t end, int_color color)
+#define CREATE_VIEW_VARIABLE_SIG(n) int32_t n(Application_Links *app, char *null_terminated_name, uint64_t default_value)
+#define VIEW_SET_VARIABLE_SIG(n) bool32 n(Application_Links *app, View_Summary *view, int32_t location, uint64_t value)
+#define VIEW_GET_VARIABLE_SIG(n) bool32 n(Application_Links *app, View_Summary *view, int32_t location, uint64_t *value_out)
 #define GET_USER_INPUT_SIG(n) User_Input n(Application_Links *app, Input_Type_Flag get_type, Input_Type_Flag abort_type)
 #define GET_COMMAND_INPUT_SIG(n) User_Input n(Application_Links *app)
 #define GET_MOUSE_STATE_SIG(n) Mouse_State n(Application_Links *app)
@@ -135,6 +138,9 @@ typedef VIEW_SET_MARK_SIG(View_Set_Mark_Function);
 typedef VIEW_SET_HIGHLIGHT_SIG(View_Set_Highlight_Function);
 typedef VIEW_SET_BUFFER_SIG(View_Set_Buffer_Function);
 typedef VIEW_POST_FADE_SIG(View_Post_Fade_Function);
+typedef CREATE_VIEW_VARIABLE_SIG(Create_View_Variable_Function);
+typedef VIEW_SET_VARIABLE_SIG(View_Set_Variable_Function);
+typedef VIEW_GET_VARIABLE_SIG(View_Get_Variable_Function);
 typedef GET_USER_INPUT_SIG(Get_User_Input_Function);
 typedef GET_COMMAND_INPUT_SIG(Get_Command_Input_Function);
 typedef GET_MOUSE_STATE_SIG(Get_Mouse_State_Function);
@@ -223,6 +229,9 @@ View_Set_Mark_Function *view_set_mark;
 View_Set_Highlight_Function *view_set_highlight;
 View_Set_Buffer_Function *view_set_buffer;
 View_Post_Fade_Function *view_post_fade;
+Create_View_Variable_Function *create_view_variable;
+View_Set_Variable_Function *view_set_variable;
+View_Get_Variable_Function *view_get_variable;
 Get_User_Input_Function *get_user_input;
 Get_Command_Input_Function *get_command_input;
 Get_Mouse_State_Function *get_mouse_state;
@@ -310,6 +319,9 @@ View_Set_Mark_Function *view_set_mark_;
 View_Set_Highlight_Function *view_set_highlight_;
 View_Set_Buffer_Function *view_set_buffer_;
 View_Post_Fade_Function *view_post_fade_;
+Create_View_Variable_Function *create_view_variable_;
+View_Set_Variable_Function *view_set_variable_;
+View_Get_Variable_Function *view_get_variable_;
 Get_User_Input_Function *get_user_input_;
 Get_Command_Input_Function *get_command_input_;
 Get_Mouse_State_Function *get_mouse_state_;
@@ -405,6 +417,9 @@ app_links->view_set_mark_ = View_Set_Mark;\
 app_links->view_set_highlight_ = View_Set_Highlight;\
 app_links->view_set_buffer_ = View_Set_Buffer;\
 app_links->view_post_fade_ = View_Post_Fade;\
+app_links->create_view_variable_ = Create_View_Variable;\
+app_links->view_set_variable_ = View_Set_Variable;\
+app_links->view_get_variable_ = View_Get_Variable;\
 app_links->get_user_input_ = Get_User_Input;\
 app_links->get_command_input_ = Get_Command_Input;\
 app_links->get_mouse_state_ = Get_Mouse_State;\
@@ -492,6 +507,9 @@ static inline bool32 view_set_mark(Application_Links *app, View_Summary *view, B
 static inline bool32 view_set_highlight(Application_Links *app, View_Summary *view, int32_t start, int32_t end, bool32 turn_on){return(app->view_set_highlight(app, view, start, end, turn_on));}
 static inline bool32 view_set_buffer(Application_Links *app, View_Summary *view, Buffer_ID buffer_id, Set_Buffer_Flag flags){return(app->view_set_buffer(app, view, buffer_id, flags));}
 static inline bool32 view_post_fade(Application_Links *app, View_Summary *view, float seconds, int32_t start, int32_t end, int_color color){return(app->view_post_fade(app, view, seconds, start, end, color));}
+static inline int32_t create_view_variable(Application_Links *app, char *null_terminated_name, uint64_t default_value){return(app->create_view_variable(app, null_terminated_name, default_value));}
+static inline bool32 view_set_variable(Application_Links *app, View_Summary *view, int32_t location, uint64_t value){return(app->view_set_variable(app, view, location, value));}
+static inline bool32 view_get_variable(Application_Links *app, View_Summary *view, int32_t location, uint64_t *value_out){return(app->view_get_variable(app, view, location, value_out));}
 static inline User_Input get_user_input(Application_Links *app, Input_Type_Flag get_type, Input_Type_Flag abort_type){return(app->get_user_input(app, get_type, abort_type));}
 static inline User_Input get_command_input(Application_Links *app){return(app->get_command_input(app));}
 static inline Mouse_State get_mouse_state(Application_Links *app){return(app->get_mouse_state(app));}
@@ -579,6 +597,9 @@ static inline bool32 view_set_mark(Application_Links *app, View_Summary *view, B
 static inline bool32 view_set_highlight(Application_Links *app, View_Summary *view, int32_t start, int32_t end, bool32 turn_on){return(app->view_set_highlight_(app, view, start, end, turn_on));}
 static inline bool32 view_set_buffer(Application_Links *app, View_Summary *view, Buffer_ID buffer_id, Set_Buffer_Flag flags){return(app->view_set_buffer_(app, view, buffer_id, flags));}
 static inline bool32 view_post_fade(Application_Links *app, View_Summary *view, float seconds, int32_t start, int32_t end, int_color color){return(app->view_post_fade_(app, view, seconds, start, end, color));}
+static inline int32_t create_view_variable(Application_Links *app, char *null_terminated_name, uint64_t default_value){return(app->create_view_variable_(app, null_terminated_name, default_value));}
+static inline bool32 view_set_variable(Application_Links *app, View_Summary *view, int32_t location, uint64_t value){return(app->view_set_variable_(app, view, location, value));}
+static inline bool32 view_get_variable(Application_Links *app, View_Summary *view, int32_t location, uint64_t *value_out){return(app->view_get_variable_(app, view, location, value_out));}
 static inline User_Input get_user_input(Application_Links *app, Input_Type_Flag get_type, Input_Type_Flag abort_type){return(app->get_user_input_(app, get_type, abort_type));}
 static inline User_Input get_command_input(Application_Links *app){return(app->get_command_input_(app));}
 static inline Mouse_State get_mouse_state(Application_Links *app){return(app->get_mouse_state_(app));}

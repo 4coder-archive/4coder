@@ -828,10 +828,12 @@ CUSTOM_DOC("Iteratively tries completing the word to the left of the cursor with
     if (buffer.exists){
         int32_t do_init = false;
         
-        if (view_paste_index[view.view_id].rewrite != RewriteWordComplete){
+        uint64_t rewrite = 0;
+        view_get_variable(app, &view, view_rewrite_loc, &rewrite);
+        if (rewrite != RewriteWordComplete){
             do_init = true;
         }
-        view_paste_index[view.view_id].next_rewrite = RewriteWordComplete;
+        view_set_variable(app, &view, view_next_rewrite_loc, RewriteWordComplete);
         if (!complete_state.initialized){
             do_init = true;
         }

@@ -434,7 +434,7 @@ CUSTOM_COMMAND_SIG(basic_change_active_panel)
 CUSTOM_DOC("Change the currently active panel, moving to the panel with the next highest view_id.  Will not skipe the build panel if it is open.")
 {
     View_Summary view = get_active_view(app, AccessAll);
-    get_view_next_looped(app, &view, AccessAll);
+    get_next_view_looped_all_panels(app, &view, AccessAll);
     set_active_view(app, &view);
 }
 
@@ -1362,7 +1362,7 @@ CUSTOM_DOC("Reads a filename from surrounding '\"' characters and attempts to op
             remove_last_folder(&file_name);
             append(&file_name, make_string(short_file_name, size));
             
-            view = get_next_active_panel(app, &view);
+            view = get_next_view_looped_primary_panels(app, &view, AccessAll);
             if (view.exists){
                 if (view_open_file(app, &view, file_name.str, file_name.size, true)){
                     set_active_view(app, &view);
@@ -1380,7 +1380,7 @@ CUSTOM_DOC("If the current file is a *.cpp or *.h, attempts to open the correspo
     
     Buffer_Summary new_buffer = {0};
     if (get_cpp_matching_file(app, buffer, &new_buffer)){
-        get_view_next_looped(app, &view, AccessAll);
+        get_next_view_looped_primary_panels(app, &view, AccessAll);
         view_set_buffer(app, &view, new_buffer.buffer_id, 0);
         set_active_view(app, &view);
     }

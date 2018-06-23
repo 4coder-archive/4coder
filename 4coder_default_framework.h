@@ -20,12 +20,6 @@ enum Rewrite_Type{
     RewriteWordComplete
 };
 
-struct View_Paste_Index{
-    int32_t rewrite;
-    int32_t next_rewrite;
-    int32_t index;
-};
-
 ////////////////////////////////
 
 struct ID_Based_Jump_Location{

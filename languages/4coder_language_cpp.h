@@ -47,6 +47,7 @@ init_language_cpp(Application_Links *app){
         PSAT("long"     , CPP_TOKEN_KEY_MODIFIER),
         PSAT("short"    , CPP_TOKEN_KEY_MODIFIER),
         PSAT("unsigned" , CPP_TOKEN_KEY_MODIFIER),
+        PSAT("signed"   , CPP_TOKEN_KEY_MODIFIER),
         
         PSAT("const"    , CPP_TOKEN_KEY_QUALIFIER),
         PSAT("volatile" , CPP_TOKEN_KEY_QUALIFIER),

@@ -36,6 +36,8 @@ live_set_alloc_view(General_Memory *general, Live_Views *live_set, Panel *panel)
     gui_mem = advance_to_alignment(gui_mem);
     result.view->transient.gui_target.push = make_part(gui_mem, gui_mem_size);
     
+    dynamic_variables_block_init(general, &result.view->transient.dynamic_vars);
+    
     return(result);
 }
 
@@ -52,6 +54,8 @@ live_set_free_view(General_Memory *general, Live_Views *live_set, View *view){
     live_set->free_sentinel.transient.next = view;
     view->transient.next->transient.prev = view;
     view->transient.in_use = false;
+    
+    dynamic_variables_block_free(general, &view->transient.dynamic_vars);
 }
 
 ////////////////////////////////

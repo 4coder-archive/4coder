@@ -51,10 +51,9 @@ CUSTOM_DOC("At the cursor, insert the text at the top of the clipboard.")
     if (count > 0){
         View_Summary view = get_active_view(app, access);
         
-        view_paste_index[view.view_id].next_rewrite = RewritePaste;
-        
+        view_set_variable(app, &view, view_next_rewrite_loc, RewritePaste);
         int32_t paste_index = 0;
-        view_paste_index[view.view_id].index = paste_index;
+        view_set_variable(app, &view, view_paste_index_loc, paste_index);
         
         int32_t len = clipboard_index(app, 0, paste_index, 0, 0);
         char *str = 0;
@@ -89,11 +88,14 @@ CUSTOM_DOC("If the previous command was paste or paste_next, replaces the paste 
     if (count > 0){
         View_Summary view = get_active_view(app, access);
         
-        if (view_paste_index[view.view_id].rewrite == RewritePaste){
-            view_paste_index[view.view_id].next_rewrite = RewritePaste;
-            
-            int32_t paste_index = view_paste_index[view.view_id].index + 1;
-            view_paste_index[view.view_id].index = paste_index;
+        uint64_t rewrite = 0;
+        view_get_variable(app, &view, view_rewrite_loc, &rewrite);
+        if (rewrite == RewritePaste){
+            view_set_variable(app, &view, view_next_rewrite_loc, RewritePaste);
+            uint64_t prev_paste_index = 0;
+            view_get_variable(app, &view, view_paste_index_loc, &prev_paste_index);
+            int32_t paste_index = (int32_t)prev_paste_index + 1;
+            view_set_variable(app, &view, view_paste_index_loc, paste_index);
             
             int32_t len = clipboard_index(app, 0, paste_index, 0, 0);
             char *str = 0;

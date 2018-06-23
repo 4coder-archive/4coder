@@ -619,7 +619,7 @@ get_view_last(Application_Links *app, uint32_t access){
 }
 
 static void
-get_view_next_looped(Application_Links *app, View_Summary *view, uint32_t access){
+get_next_view_looped_all_panels(Application_Links *app, View_Summary *view, uint32_t access){
     get_view_next(app, view, access);
     if (!view->exists){
         *view = get_view_first(app, access);
@@ -627,7 +627,7 @@ get_view_next_looped(Application_Links *app, View_Summary *view, uint32_t access
 }
 
 static void
-get_view_prev_looped(Application_Links *app, View_Summary *view, uint32_t access){
+get_prev_view_looped_all_panels(Application_Links *app, View_Summary *view, uint32_t access){
     get_view_prev(app, view, access);
     if (!view->exists){
         *view = get_view_last(app, access);

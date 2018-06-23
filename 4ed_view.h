@@ -87,6 +87,7 @@ struct View_Transient{
     i32 map;
     
     File_Viewing_Data file_data;
+    Dynamic_Variable_Block dynamic_vars;
     
     i32_Rect file_region_prev;
     i32_Rect file_region;

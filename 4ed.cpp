@@ -1179,6 +1179,8 @@ App_Init_Sig(app_init){
         memset(models->app_links.memory, 0, wanted_size);
     }
     
+    dynamic_variables_init(&models->view_variable_layout);
+    
     // NOTE(allen): file setup
     working_set_init(&models->working_set, partition, &vars->models.mem.general);
     models->working_set.default_display_width = DEFAULT_DISPLAY_WIDTH;

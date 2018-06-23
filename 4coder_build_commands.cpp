@@ -168,21 +168,19 @@ CUSTOM_DOC("Looks for a build.bat, build.sh, or makefile in the current and pare
 static View_Summary
 get_or_open_build_panel(Application_Links *app){
     View_Summary view = {0};
-    
     Buffer_Summary buffer = GET_COMP_BUFFER(app);
     if (buffer.exists){
         view = get_first_view_with_buffer(app, buffer.buffer_id);
     }
     if (!view.exists){
-        view = open_special_note_view(app);
+        view = open_build_footer_panel(app);
     }
-    
     return(view);
 }
 
 static void
 set_fancy_compilation_buffer_font(Application_Links *app){
-    Buffer_Summary comp_buffer = get_buffer_by_name(app, literal("*compilation*"), AccessAll);
+    Buffer_Summary comp_buffer = GET_COMP_BUFFER(app);
     set_buffer_face_by_name(app, &comp_buffer, literal("Inconsolata"));
 }
 
@@ -205,22 +203,13 @@ CUSTOM_DOC("Looks for a build.bat, build.sh, or makefile in the current and pare
 CUSTOM_COMMAND_SIG(close_build_panel)
 CUSTOM_DOC("If the special build panel is open, closes it.")
 {
-    close_special_note_view(app);
+    close_build_footer_panel(app);
 }
 
 CUSTOM_COMMAND_SIG(change_to_build_panel)
 CUSTOM_DOC("If the special build panel is open, makes the build panel the active panel.")
 {
-    View_Summary view = open_special_note_view(app, false);
-    
-    if (!view.exists){
-        Buffer_Summary buffer = GET_COMP_BUFFER(app);
-        if (buffer.exists){
-            view = open_special_note_view(app);
-            view_set_buffer(app, &view, buffer.buffer_id, 0);
-        }
-    }
-    
+    View_Summary view = get_or_open_build_panel(app);
     if (view.exists){
         set_active_view(app, &view);
     }

@@ -25,11 +25,13 @@ static char locked_buffer_space[256];
 static String locked_buffer = make_fixed_width_string(locked_buffer_space);
 
 
-static View_ID special_note_view_id = 0;
+static View_ID build_footer_panel_view_id = 0;
 
 
-View_Paste_Index view_paste_index_[16];
-View_Paste_Index *view_paste_index = view_paste_index_ - 1;
+static int32_t view_rewrite_loc = 0;
+static int32_t view_next_rewrite_loc = 0;
+static int32_t view_paste_index_loc = 0;
+static int32_t view_is_passive_loc = 0;
 
 
 static char out_buffer_space[1024];

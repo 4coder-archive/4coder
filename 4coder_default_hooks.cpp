@@ -43,9 +43,11 @@ START_HOOK_SIG(default_start){
 COMMAND_CALLER_HOOK(default_command_caller){
     View_Summary view = get_active_view(app, AccessAll);
     
-    view_paste_index[view.view_id].next_rewrite = 0;
+    view_set_variable(app, &view, view_next_rewrite_loc, 0);
     exec_command(app, cmd);
-    view_paste_index[view.view_id].rewrite = view_paste_index[view.view_id].next_rewrite;
+    uint64_t next_rewrite = 0;
+    view_get_variable(app, &view, view_next_rewrite_loc, &next_rewrite);
+    view_set_variable(app, &view, view_rewrite_loc, next_rewrite);
     
     return(0);
 }

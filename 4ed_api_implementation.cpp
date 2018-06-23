@@ -2138,6 +2138,53 @@ DOC_SEE(int_color)
     return(result);
 }
 
+API_EXPORT int32_t
+Create_View_Variable(Application_Links *app, char *null_terminated_name, uint64_t default_value){
+    Command_Data *cmd = (Command_Data*)app->cmd_context;
+    Models *models = cmd->models;
+    String name = make_string_slowly(null_terminated_name);
+    return(dynamic_variables_lookup_or_create(&models->mem.general,
+                                              &models->view_variable_layout, name, default_value));
+}
+
+API_EXPORT bool32
+View_Set_Variable(Application_Links *app, View_Summary *view, int32_t location, uint64_t value){
+    Command_Data *cmd = (Command_Data*)app->cmd_context;
+    View *vptr = imp_get_view(cmd, view);
+    bool32 result = false;
+    if (vptr != 0){
+        Models *models = cmd->models;
+        u64 *ptr = 0;
+        if (dynamic_variables_get_ptr(&models->mem.general,
+                                      &models->view_variable_layout,
+                                      &vptr->transient.dynamic_vars,
+                                      location, &ptr)){
+            result = true;
+            *ptr = value;
+        }
+    }
+    return(result);
+}
+
+API_EXPORT bool32
+View_Get_Variable(Application_Links *app, View_Summary *view, int32_t location, uint64_t *value_out){
+    Command_Data *cmd = (Command_Data*)app->cmd_context;
+    View *vptr = imp_get_view(cmd, view);
+    bool32 result = false;
+    if (vptr != 0){
+        Models *models = cmd->models;
+        u64 *ptr = 0;
+        if (dynamic_variables_get_ptr(&models->mem.general,
+                                      &models->view_variable_layout,
+                                      &vptr->transient.dynamic_vars,
+                                      location, &ptr)){
+            result = true;
+            *value_out = *ptr;
+        }
+    }
+    return(result);
+}
+
 API_EXPORT User_Input
 Get_User_Input(Application_Links *app, Input_Type_Flag get_type, Input_Type_Flag abort_type)
 /*

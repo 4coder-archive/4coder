@@ -52,36 +52,59 @@ new_view_settings(Application_Links *app, View_Summary *view){
     }
 }
 
+////////////////////////////////
+
 static void
-close_special_note_view(Application_Links *app){
-    View_Summary special_view = get_view(app, special_note_view_id, AccessAll);
-    if (special_view.exists){
-        close_view(app, &special_view);
-    }
-    special_note_view_id = 0;
+view_set_passive(Application_Links *app, View_Summary *view, bool32 value){
+    view_set_variable(app, view, view_is_passive_loc, (uint64_t)value);
+}
+
+static bool32
+view_get_is_passive(Application_Links *app, View_Summary *view){
+    uint64_t is_passive = 0;
+    view_get_variable(app, view, view_is_passive_loc, &is_passive);
+    return(is_passive != 0);
 }
 
 static View_Summary
-open_special_note_view(Application_Links *app, bool32 create_if_not_exist = true){
-    View_Summary special_view = get_view(app, special_note_view_id, AccessAll);
+open_footer_panel(Application_Links *app, View_Summary *view){
+    View_Summary special_view = open_view(app, view, ViewSplit_Bottom);
+    new_view_settings(app, &special_view);
+    view_set_split_proportion(app, &special_view, .2f);
+    view_set_passive(app, &special_view, true);
+    return(special_view);
+}
+
+////////////////////////////////
+
+static void
+close_build_footer_panel(Application_Links *app){
+    View_Summary special_view = get_view(app, build_footer_panel_view_id, AccessAll);
+    if (special_view.exists){
+        close_view(app, &special_view);
+    }
+    build_footer_panel_view_id = 0;
+}
+
+static View_Summary
+open_build_footer_panel(Application_Links *app, bool32 create_if_not_exist = true){
+    View_Summary special_view = get_view(app, build_footer_panel_view_id, AccessAll);
     if (create_if_not_exist && !special_view.exists){
         View_Summary view = get_active_view(app, AccessAll);
-        special_view = open_view(app, &view, ViewSplit_Bottom);
-        new_view_settings(app, &special_view);
-        view_set_split_proportion(app, &special_view, .2f);
+        special_view = open_footer_panel(app, &view);
         set_active_view(app, &view);
-        special_note_view_id = special_view.view_id;
+        build_footer_panel_view_id = special_view.view_id;
     }
     return(special_view);
 }
 
 static View_Summary
-get_next_active_panel(Application_Links *app, View_Summary *view_start){
+get_next_view_looped_primary_panels(Application_Links *app, View_Summary *view_start, Access_Flag access){
     View_ID original_view_id = view_start->view_id;
     View_Summary view = *view_start;
     do{
-        get_view_next_looped(app, &view, AccessAll);
-        if (view.view_id != special_note_view_id){
+        get_next_view_looped_all_panels(app, &view, access);
+        if (!view_get_is_passive(app, &view)){
             break;
         }
     }while(view.view_id != original_view_id);
@@ -92,12 +115,12 @@ get_next_active_panel(Application_Links *app, View_Summary *view_start){
 }
 
 static View_Summary
-get_prev_active_panel(Application_Links *app, View_Summary *view_start){
+get_prev_view_looped_primary_panels(Application_Links *app, View_Summary *view_start, Access_Flag access){
     View_ID original_view_id = view_start->view_id;
     View_Summary view = *view_start;
     do{
-        get_view_prev_looped(app, &view, AccessAll);
-        if (view.view_id != special_note_view_id){
+        get_prev_view_looped_all_panels(app, &view, access);
+        if (!view_get_is_passive(app, &view)){
             break;
         }
     }while(view.view_id != original_view_id);
@@ -111,7 +134,7 @@ CUSTOM_COMMAND_SIG(change_active_panel)
 CUSTOM_DOC("Change the currently active panel, moving to the panel with the next highest view_id.")
 {
     View_Summary view = get_active_view(app, AccessAll);
-    view = get_next_active_panel(app, &view);
+    view = get_next_view_looped_primary_panels(app, &view, AccessAll);
     if (view.exists){
         set_active_view(app, &view);
     }
@@ -121,7 +144,7 @@ CUSTOM_COMMAND_SIG(change_active_panel_backwards)
 CUSTOM_DOC("Change the currently active panel, moving to the panel with the next lowest view_id.")
 {
     View_Summary view = get_active_view(app, AccessAll);
-    view = get_prev_active_panel(app, &view);
+    view = get_prev_view_looped_primary_panels(app, &view, AccessAll);
     if (view.exists){
         set_active_view(app, &view);
     }
@@ -221,6 +244,11 @@ default_4coder_initialize(Application_Links *app, int32_t override_font_size, bo
     
     load_folder_of_themes_into_live_set(app, &global_part, "themes");
     load_config_and_apply(app, &global_part, &global_config, override_font_size, override_hinting);
+    
+    view_rewrite_loc      = create_view_variable(app, "DEFAULT.rewrite"     , (uint64_t)0);
+    view_next_rewrite_loc = create_view_variable(app, "DEFAULT.next_rewrite", (uint64_t)0);
+    view_paste_index_loc  = create_view_variable(app, "DEFAULT.paste_index" , (uint64_t)0);
+    view_is_passive_loc   = create_view_variable(app, "DEFAULT.is_passive"  , (uint64_t)false);
 }
 
 static void
