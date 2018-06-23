@@ -1290,5 +1290,15 @@ push_string_copy(Partition *arena, String str){
     return(result);
 }
 
+static String
+push_string_copy(Partition *arena, char *str, int32_t size){
+    return(push_string_copy(arena, make_string(str, size)));
+}
+
+static String
+push_string_copy(Partition *arena, char *str){
+    return(push_string_copy(arena, make_string_slowly(str)));
+}
+
 // BOTTOM
 

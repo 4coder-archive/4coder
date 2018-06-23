@@ -652,7 +652,8 @@ GLOBAL_VAR f32_Rect null_f32_rect = {0};
 
 /* DOC(View_Summary acts as a handle to a view and describes the state of the view.)
 DOC_SEE(Access_Flag)
-DOC_SEE(Full_Cursor) */
+DOC_SEE(Full_Cursor)
+DOC_SEE(GUI_Scroll_Vars) */
 STRUCT View_Summary{
     /* DOC(This field indicates whether the View_Summary describes a view that is open in 4coder. When this field is false the summary is referred to as a "null summary". ) */
     bool32 exists;

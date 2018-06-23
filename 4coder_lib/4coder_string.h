@@ -976,7 +976,6 @@ compare_ss(String a, String b){
 // Finding Characters and Substrings
 //
 
-
 #if defined(FSTRING_IMPLEMENTATION)
 FSTRING_LINK i32_4tech
 find_c_char(char *str, i32_4tech start, char character){
