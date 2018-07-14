@@ -20,24 +20,21 @@ style_set_colors(Style *style, Theme *theme){
 internal u32
 style_get_margin_color(i32 active_level, Style *style){
     u32 margin = 0xFFFFFFFF;
-    
     switch (active_level){
         default:
+        case UIActivation_None:
         {
             margin = style->main.list_item_color;
         }break;
-        
-        case 1: case 2:
+        case UIActivation_Hover:
         {
             margin = style->main.list_item_hover_color;
         }break;
-        
-        case 3: case 4:
+        case UIActivation_Active:
         {
             margin = style->main.list_item_active_color;
         }break;
     }
-    
     return(margin);
 }
 

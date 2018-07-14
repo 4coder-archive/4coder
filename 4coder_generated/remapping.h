@@ -10,7 +10,7 @@ bind(context, 'n', MDFR_CTRL, interactive_new);
 bind(context, 'o', MDFR_CTRL, interactive_open_or_new);
 bind(context, 'o', MDFR_ALT, open_in_other);
 bind(context, 'k', MDFR_CTRL, interactive_kill_buffer);
-bind(context, 'i', MDFR_CTRL, interactive_switch_buffer);
+bind(context, 'i', MDFR_CTRL, interactive_switch_buffer_DUMMY_API_EXPLORATION);
 bind(context, 'h', MDFR_CTRL, project_go_to_root_directory);
 bind(context, 'S', MDFR_CTRL, save_all_dirty_buffers);
 bind(context, 'c', MDFR_ALT, open_color_tweaker);
@@ -344,7 +344,7 @@ static Meta_Key_Bind fcoder_binds_for_default_mapid_global[45] = {
 {0, 111, 1, "interactive_open_or_new", 23, LINK_PROCS(interactive_open_or_new)},
 {0, 111, 2, "open_in_other", 13, LINK_PROCS(open_in_other)},
 {0, 107, 1, "interactive_kill_buffer", 23, LINK_PROCS(interactive_kill_buffer)},
-{0, 105, 1, "interactive_switch_buffer", 25, LINK_PROCS(interactive_switch_buffer)},
+{0, 105, 1, "interactive_switch_buffer_DUMMY_API_EXPLORATION", 47, LINK_PROCS(interactive_switch_buffer_DUMMY_API_EXPLORATION)},
 {0, 104, 1, "project_go_to_root_directory", 28, LINK_PROCS(project_go_to_root_directory)},
 {0, 83, 1, "save_all_dirty_buffers", 22, LINK_PROCS(save_all_dirty_buffers)},
 {0, 99, 2, "open_color_tweaker", 18, LINK_PROCS(open_color_tweaker)},

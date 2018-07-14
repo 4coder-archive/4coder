@@ -232,21 +232,15 @@ COMMAND_DECL(redo){
 }
 
 COMMAND_DECL(interactive_new){
-    USE_MODELS(models);
-    USE_VIEW(view);
-    view_show_interactive(system, view, models, IAct_New, IInt_Sys_File_List, make_lit_string("New: "));
+    
 }
 
 COMMAND_DECL(interactive_open){
-    USE_MODELS(models);
-    USE_VIEW(view);
-    view_show_interactive(system, view, models, IAct_Open, IInt_Sys_File_List,make_lit_string("Open: "));
+    
 }
 
 COMMAND_DECL(interactive_open_or_new){
-    USE_MODELS(models);
-    USE_VIEW(view);
-    view_show_interactive(system, view, models, IAct_OpenOrNew, IInt_Sys_File_List,make_lit_string("Open: "));
+    
 }
 
 // TODO(allen): Improvements to reopen
@@ -335,15 +329,11 @@ COMMAND_DECL(save){
 }
 
 COMMAND_DECL(interactive_switch_buffer){
-    USE_MODELS(models);
-    USE_VIEW(view);
-    view_show_interactive(system, view, models, IAct_Switch, IInt_Live_File_List, make_lit_string("Switch Buffer: "));
+    
 }
 
 COMMAND_DECL(interactive_kill_buffer){
-    USE_MODELS(models);
-    USE_VIEW(view);
-    view_show_interactive(system, view, models, IAct_Kill, IInt_Live_File_List, make_lit_string("Kill Buffer: "));
+    
 }
 
 COMMAND_DECL(kill_buffer){
@@ -387,13 +377,7 @@ case_change_range(System_Functions *system, Models *models, View *view, Editing_
 }
 
 COMMAND_DECL(open_color_tweaker){
-    USE_VIEW(view);
-    view->transient.map = mapid_ui;
-    view->transient.showing_ui = VUI_Theme;
-    view->transient.color_mode = CV_Mode_Library;
-    view->transient.color = super_color_create(0xFF000000);
-    view->transient.current_color_editing = 0;
-    view->transient.changed_context_in_step = true;
+    
 }
 
 COMMAND_DECL(user_callback){
@@ -1683,7 +1667,9 @@ App_Step_Sig(app_step){
                 view = panel->view;
             }
             
+#if 0
             view_show_interactive(system, view, models, IAct_Sure_To_Close, IInt_Sure_To_Close, make_lit_string("Are you sure?"));
+#endif
             
             models->command_coroutine = command_coroutine;
         }
@@ -1884,18 +1870,6 @@ App_Step_Sig(app_step){
             
             view->transient.changed_context_in_step = 0;
             
-            View_Step_Result result = step_view(system, view, models, active_view, summary);
-            
-            if (result.animating){
-                app_result.animating = 1;
-            }
-            if (result.consume_keys){
-                consume_input(&vars->available_input, Input_AnyKey, "file view step");
-            }
-            if (result.consume_keys || result.consume_esc){
-                consume_input(&vars->available_input, Input_Esc, "file view step");
-            }
-            
             if (view->transient.changed_context_in_step == 0){
                 active = (panel == active_panel);
                 summary = (active)?(active_input):(dead_input);
@@ -1903,20 +1877,17 @@ App_Step_Sig(app_step){
                     summary.mouse = mouse_state;
                 }
                 
-                b32 file_scroll = false;
-                GUI_Scroll_Vars *scroll_vars = &view->transient.gui_scroll;
-                if (view->transient.showing_ui == VUI_None){
-                    Assert(view->transient.file_data.file != 0);
-                    scroll_vars = &view->transient.edit_pos->scroll;
-                    file_scroll = true;
-                }
+                b32 file_scroll = true;
+                GUI_Scroll_Vars *scroll_vars = &view->transient.edit_pos->scroll;
                 
                 i32 max_y = 0;
-                if (view->transient.showing_ui == VUI_None){
+                if (view->transient.ui_mode_counter == 0){
                     max_y = view_compute_max_target_y(view);
                 }
                 else{
+#if 0
                     max_y = view->transient.gui_max_y;
+#endif
                 }
                 
                 Input_Process_Result ip_result = do_step_file_view(system, view, models, panel->inner, active, &summary, *scroll_vars, view->transient.scroll_region, max_y);
@@ -1931,11 +1902,7 @@ App_Step_Sig(app_step){
                     consume_input(&vars->available_input, Input_MouseRightButton, "file view step");
                 }
                 
-                if (ip_result.has_max_y_suggestion){
-                    view->transient.gui_max_y = ip_result.max_y;
-                }
-                
-                if (!gui_scroll_eq(scroll_vars, &ip_result.vars)){
+                if (memcmp(scroll_vars, &ip_result.vars, sizeof(*scroll_vars)) != 0){
                     if (file_scroll){
                         view_set_scroll(system, view, ip_result.vars);
                     }
@@ -2198,12 +2165,11 @@ App_Step_Sig(app_step){
              panel != &models->layout.used_sentinel;
              panel = panel->next){
             View *view = panel->view;
-            GUI_Scroll_Vars *scroll_vars = &view->transient.gui_scroll;
             if (view->transient.edit_pos != 0){
-                scroll_vars = &view->transient.edit_pos->scroll;
+                GUI_Scroll_Vars *scroll_vars = &view->transient.edit_pos->scroll;
+                scroll_vars->scroll_x = (f32)scroll_vars->target_x;
+                scroll_vars->scroll_y = (f32)scroll_vars->target_y;
             }
-            scroll_vars->scroll_x = (f32)scroll_vars->target_x;
-            scroll_vars->scroll_y = (f32)scroll_vars->target_y;
         }
     }
     
@@ -2236,13 +2202,7 @@ App_Step_Sig(app_step){
             u32 back_color = style->main.back_color;
             draw_rectangle(target, full, back_color);
             
-            b32 file_scroll = false;
-            GUI_Scroll_Vars *scroll_vars = &view->transient.gui_scroll;
-            if (view->transient.showing_ui == VUI_None){
-                Assert(view->transient.file_data.file != 0);
-                scroll_vars = &view->transient.edit_pos->scroll;
-                file_scroll = true;
-            }
+            GUI_Scroll_Vars *scroll_vars = &view->transient.edit_pos->scroll;
             
             do_render_file_view(system, view, models, scroll_vars, active_view, panel->inner, active, target, &dead_input);
             

@@ -30,12 +30,6 @@ live_set_alloc_view(General_Memory *general, Live_Views *live_set, Panel *panel)
     
     init_query_set(&result.view->transient.query_set);
     
-    i32 gui_mem_size = KB(512);
-    void *gui_mem = general_memory_allocate(general, gui_mem_size + 8);
-    result.view->transient.gui_mem = gui_mem;
-    gui_mem = advance_to_alignment(gui_mem);
-    result.view->transient.gui_target.push = make_part(gui_mem, gui_mem_size);
-    
     dynamic_variables_block_init(general, &result.view->transient.dynamic_vars);
     
     return(result);
@@ -46,8 +40,10 @@ live_set_free_view(General_Memory *general, Live_Views *live_set, View *view){
     Assert(live_set->count > 0);
     --live_set->count;
     
-    general_memory_free(general, view->transient.gui_mem);
-    view->transient.gui_mem = 0;
+    if (view->transient.ui_control.items != 0){
+        general_memory_free(general, view->transient.ui_control.items);
+    }
+    
     //dll_insert(&live_set->free_sentinel, view);
     view->transient.next = live_set->free_sentinel.transient.next;
     view->transient.prev = &live_set->free_sentinel;
@@ -98,7 +94,7 @@ view_get_cursor_xy(View *view){
 internal f32
 view_get_scroll_y(View *view){
     f32 v = 0;
-    if (view->transient.showing_ui == VUI_None){
+    if (view->transient.ui_mode_counter == 0){
         File_Edit_Positions *edit_pos = view->transient.edit_pos;
         TentativeAssert(edit_pos != 0);
         if (edit_pos != 0){
@@ -106,7 +102,9 @@ view_get_scroll_y(View *view){
         }
     }
     else{
+#if 0
         v = view->transient.gui_scroll.scroll_y;
+#endif
     }
     return(v);
 }
@@ -158,11 +156,10 @@ inline u32
 view_lock_flags(View *view){
     u32 result = AccessOpen;
     File_Viewing_Data *data = &view->transient.file_data;
-    if (view->transient.showing_ui != VUI_None){
+    if (view->transient.ui_mode_counter > 0){
         result |= AccessHidden;
     }
-    if (data->file_locked ||
-        (data->file && data->file->settings.read_only)){
+    if (data->file_locked || (data->file && data->file->settings.read_only)){
         result |= AccessProtected;
     }
     return(result);
@@ -348,25 +345,6 @@ view_show_file(View *view){
     Editing_File *file = view->transient.file_data.file;
     Assert(file != 0);
     view->transient.map = file->settings.base_map_id;
-    if (view->transient.showing_ui != VUI_None){
-        view->transient.showing_ui = VUI_None;
-        view->transient.changed_context_in_step = 1;
-    }
-}
-
-inline void
-view_show_interactive(System_Functions *system, View *view, Models *models, Interactive_Action action, Interactive_Interaction interaction, String query){
-    view->transient.showing_ui = VUI_Interactive;
-    view->transient.action = action;
-    view->transient.interaction = interaction;
-    view->transient.dest = make_fixed_width_string(view->transient.dest_);
-    view->transient.list_i = 0;
-    
-    view->transient.map = mapid_ui;
-    
-    hot_directory_clean_end(&models->hot_directory);
-    hot_directory_reload(system, &models->hot_directory);
-    view->transient.changed_context_in_step = true;
 }
 
 internal void
@@ -397,7 +375,7 @@ view_set_file(System_Functions *system, Models *models, View *view, Editing_File
         view_cursor_move(system, view, 0);
     }
     
-    if (view->transient.showing_ui == VUI_None){
+    if (view->transient.ui_mode_counter == 0){
         view_show_file(view);
     }
 }

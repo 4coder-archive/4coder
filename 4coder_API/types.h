@@ -685,8 +685,6 @@ STRUCT View_Summary{
     GUI_Scroll_Vars scroll_vars;
 };
 
-GLOBAL_VAR View_Summary null_view_summary = {0};
-
 /* DOC(Query_Bar is a struct used to store information in the user's control
 that will be displayed as a drop down bar durring an interactive command.) */
 STRUCT Query_Bar{
@@ -701,6 +699,44 @@ STRUCT Query_Bar{
 STRUCT Event_Message{
     /* DOC(This feature is not implemented.) */
     int32_t type;
+};
+
+ENUM(int32_t, UI_Item_Type){
+    UIType_Option,
+    UIType_TextField,
+};
+
+ENUM(int32_t, UI_Activation_Level){
+    UIActivation_None,
+    UIActivation_Hover,
+    UIActivation_Active,
+};
+
+STRUCT UI_Item{
+    UI_Item_Type type;
+    String query;
+    String string;
+    String status;
+    void *user_data;
+    UI_Activation_Level activation_level;
+    i32_Rect rectangle;
+};
+
+STRUCT UI_Item_Node{
+    UI_Item_Node *next;
+    UI_Item_Node *prev;
+    UI_Item fixed;
+};
+
+STRUCT UI_List{
+    UI_Item_Node *first;
+    UI_Item_Node *last;
+    int32_t count;
+};
+
+STRUCT UI_Control{
+    UI_Item *items;
+    int32_t count;
 };
 
 /* 

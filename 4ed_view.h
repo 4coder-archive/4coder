@@ -30,55 +30,6 @@ struct File_Viewing_Data{
 };
 global File_Viewing_Data null_file_viewing_data = {0};
 
-enum Interactive_Action{
-    IAct_Open,
-    IAct_New,
-    IAct_OpenOrNew,
-    IAct_Switch,
-    IAct_Kill,
-    IAct_Sure_To_Kill,
-    IAct_Sure_To_Close
-};
-
-typedef i32 Unsaved_Changes_User_Response;
-enum{
-    UnsavedChangesUserResponse_Error = -1,
-    UnsavedChangesUserResponse_ContinueAnyway = 0,
-    UnsavedChangesUserResponse_Cancel = 1,
-    UnsavedChangesUserResponse_SaveAndContinue = 2,
-};
-
-typedef i32 Interactive_Interaction;
-enum{
-    IInt_Sys_File_List = 0,
-    IInt_Live_File_List = 1,
-    IInt_Sure_To_Kill = 2,
-    IInt_Sure_To_Close = 3
-};
-
-typedef i32 View_UI;
-enum{
-    VUI_None = 0,
-    VUI_Theme = 1,
-    VUI_Interactive = 2,
-};
-
-typedef i32 Color_View_Mode;
-enum{
-    CV_Mode_Library = 0,
-    CV_Mode_Font = 1,
-    CV_Mode_Global_Font = 2,
-    CV_Mode_Font_Editing = 3,
-    CV_Mode_Global_Font_Editing = 4,
-    CV_Mode_Adjusting = 5,
-};
-
-struct Scroll_Context{
-    Editing_File *file;
-    GUI_id scroll;
-    View_UI mode;
-};
-
 struct View_Transient{
     struct View *next;
     struct View *prev;
@@ -95,36 +46,13 @@ struct View_Transient{
     i32_Rect scroll_region;
     File_Edit_Positions *edit_pos;
     
-    View_UI showing_ui;
-    GUI_Target gui_target;
-    void *gui_mem;
-    GUI_Scroll_Vars gui_scroll;
-    i32 gui_max_y;
-    i32 list_i;
+    i32 ui_mode_counter;
+    UI_Control ui_control;
     
     b32 hide_scrollbar;
     b32 hide_file_bar;
     
-    // interactive stuff
-    Interactive_Interaction interaction;
-    Interactive_Action action;
-    
-    char dest_[256];
-    String dest;
-    
     b32 changed_context_in_step;
-    
-    // theme stuff
-    u32 *palette;
-    Color_View_Mode color_mode;
-    Face_ID font_edit_id;
-    Super_Color color;
-    b32 p4c_only;
-    Style_Library inspecting_styles;
-    b8 import_export_check[64];
-    i32 import_file_id;
-    i32 current_color_editing;
-    i32 color_cursor;
     
     // misc
     

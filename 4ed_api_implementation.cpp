@@ -67,7 +67,7 @@ internal void
 fill_view_summary(System_Functions *system, View_Summary *view, View *vptr, Live_Views *live_set, Working_Set *working_set){
     File_Viewing_Data *data = &vptr->transient.file_data;
     
-    *view = null_view_summary;
+    memset(view, 0, sizeof(*view));
     
     if (vptr->transient.in_use){
         view->exists = true;
@@ -1523,11 +1523,11 @@ internal_get_view_next(Command_Data *cmd, View_Summary *view){
             fill_view_summary(system, view, panel->view, live_set, &cmd->models->working_set);
         }
         else{
-            *view = null_view_summary;
+            memset(view, 0, sizeof(*view));
         }
     }
     else{
-        *view = null_view_summary;
+        memset(view, 0, sizeof(*view));
     }
 }
 
@@ -1598,7 +1598,7 @@ DOC_SEE(Access_Flag)
         View *vptr = live_set->views + view_id;
         fill_view_summary(system, &view, vptr, live_set, &cmd->models->working_set);
         if (!access_test(view.lock_flags, access)){
-            view = null_view_summary;
+            memset(&view, 0, sizeof(view));
         }
     }
     
@@ -1623,7 +1623,7 @@ DOC_SEE(Access_Flag)
     View_Summary view = {0};
     fill_view_summary(system, &view, panel->view, &models->live_set, &models->working_set);
     if (!access_test(view.lock_flags, access)){
-        view = null_view_summary;
+        memset(&view, 0, sizeof(view));
     }
     return(view);
 }
@@ -2183,6 +2183,69 @@ View_Get_Variable(Application_Links *app, View_Summary *view, int32_t location, 
         }
     }
     return(result);
+}
+
+API_EXPORT int32_t
+View_Start_UI_Mode(Application_Links *app, View_Summary *view){
+    Command_Data *cmd = (Command_Data*)app->cmd_context;
+    View *vptr = imp_get_view(cmd, view);
+    if (vptr != 0){
+        vptr->transient.ui_mode_counter = clamp_bottom(0, vptr->transient.ui_mode_counter);
+        vptr->transient.ui_mode_counter += 1;
+        return(vptr->transient.ui_mode_counter);
+    }
+    else{
+        return(0);
+    }
+}
+
+API_EXPORT int32_t
+View_End_UI_Mode(Application_Links *app, View_Summary *view){
+    Command_Data *cmd = (Command_Data*)app->cmd_context;
+    View *vptr = imp_get_view(cmd, view);
+    if (vptr != 0){
+        vptr->transient.ui_mode_counter = clamp_bottom(0, vptr->transient.ui_mode_counter);
+        if (vptr->transient.ui_mode_counter > 0){
+            vptr->transient.ui_mode_counter -= 1;
+            return(vptr->transient.ui_mode_counter + 1);
+        }
+        else{
+            return(0);
+        }
+    }
+    else{
+        return(0);
+    }
+}
+
+API_EXPORT bool32
+View_Set_UI(Application_Links *app, View_Summary *view, UI_Control *control){
+    Command_Data *cmd = (Command_Data*)app->cmd_context;
+    View *vptr = imp_get_view(cmd, view);
+    Models *models = cmd->models;
+    General_Memory *general = &models->mem.general;
+    if (vptr != 0){
+        if (vptr->transient.ui_control.items != 0){
+            general_memory_free(general, vptr->transient.ui_control.items);
+        }
+        vptr->transient.ui_control.count = 0;
+        if (control->count > 0){
+            i32 memory_size = sizeof(UI_Item)*control->count;
+            vptr->transient.ui_control.items = (UI_Item*)general_memory_allocate(general, memory_size);
+            if (vptr->transient.ui_control.items != 0){
+                vptr->transient.ui_control.count = control->count;
+                memcpy(vptr->transient.ui_control.items, control->items, memory_size);
+            }
+            else{
+                return(false);
+            }
+        }
+        else{
+            vptr->transient.ui_control.items = 0;
+        }
+        return(true);
+    }
+    return(false);
 }
 
 API_EXPORT User_Input

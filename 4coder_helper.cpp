@@ -613,7 +613,7 @@ get_view_last(Application_Links *app, uint32_t access){
     view.exists = true;
     get_view_prev(app, &view, access);
     if (view.view_id < 1 || view.view_id > 16){
-        view = null_view_summary;
+        memset(&view, 0, sizeof(view));
     }
     return(view);
 }

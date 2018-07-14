@@ -1497,17 +1497,16 @@ CUSTOM_DOC("Opens the 4coder colors and fonts selector menu.")
 
 ////////////////////////////////
 
-#if 0
 CUSTOM_COMMAND_SIG(interactive_switch_buffer_DUMMY_API_EXPLORATION)
 CUSTOM_DOC("Interactively switch to an open buffer.")
 {
     Partition *scratch = &global_part;
     View_Summary view = get_active_view(app, AccessAll);
-    view_start_list_mode(app, &view);
+    view_start_ui_mode(app, &view);
     
     int32_t x0 = 0;
     int32_t x1 = view.view_region.x1 - view.view_region.x0;
-    int32_t line_height = view.line_height;
+    int32_t line_height = (int32_t)view.line_height;
     int32_t block_height = line_height*2;
     
     Temp_Memory temp = begin_temp_memory(scratch);
@@ -1518,13 +1517,13 @@ CUSTOM_DOC("Interactively switch to an open buffer.")
         
         int32_t y_pos = line_height;
         
-        List_Control list = {0};
-        List_Item *highlighted_item = 0;
+        UI_List list = {0};
+        UI_Item *highlighted_item = 0;
         for (Buffer_Summary buffer = get_buffer_first(app, AccessAll);
              buffer.exists;
              get_buffer_next(app, &buffer, AccessAll)){
             String buffer_name = make_string(buffer.buffer_name, buffer.buffer_name_len);
-            if (has_substr(buffer_name, text_field)){
+            if (text_field.size == 0 || has_substr(buffer_name, text_field)){
                 i32_Rect item_rect = {0};
                 item_rect.x0 = x0;
                 item_rect.y0 = y_pos;
@@ -1532,23 +1531,25 @@ CUSTOM_DOC("Interactively switch to an open buffer.")
                 item_rect.y1 = y_pos + block_height;
                 y_pos = item_rect.y1;
                 
-                List_Item *item = push_array(scratch, List_Item, 1);
-                memset(item, 0, sizeof(*item));
-                item->type = ListItemType_Option;
-                item->string = push_string_copy(scratch, buffer_name);
+                UI_Item item = {0};
+                item.type = UIType_Option;
+                item.string = push_string_copy(scratch, buffer_name);
                 char *status = "";
                 switch (buffer.dirty){
                     case DirtyState_UnsavedChanges:  status = " *"; break;
                     case DirtyState_UnloadedChanges: status = " !"; break;
                 }
-                item->status = push_string_copy(scratch, status);
-                item->user_data = (void*)buffer.buffer_id;
-                item->highlighted = false;
-                item->rectangle = item_rect;
-                
-                list_control_add_item(&list, item);
+                item.status = push_string_copy(scratch, status);
+                item.user_data = (void*)buffer.buffer_id;
+                item.activation_level = UIActivation_None;
+                item.rectangle = item_rect;
                 if (highlighted_item == 0){
-                    highlighted_item = item;
+                    item.activation_level = UIActivation_Hover;
+                    UI_Item *item_ptr = ui_list_add_item(scratch, &list, item);
+                    highlighted_item = item_ptr;
+                }
+                else{
+                    ui_list_add_item(scratch, &list, item);
                 }
             }
         }
@@ -1561,23 +1562,24 @@ CUSTOM_DOC("Interactively switch to an open buffer.")
             item_rect.y1 = line_height;
             y_pos = item_rect.y1;
             
-            List_Item *item = push_array(scratch, List_Item, 1);
-            memset(item, 0, sizeof(*item));
-            item->type = ListItemType_TextField;
-            item->query = push_string_copy(scratch, "Switch: ");
-            item->string = text_field;
-            item->user_data = 0;
-            item->rectangle = item_rect;
+            UI_Item item = {0};
+            item.type = UIType_TextField;
+            item.query = push_string_copy(scratch, "Switch: ");
+            item.string = text_field;
+            item.user_data = 0;
+            item.rectangle = item_rect;
+            ui_list_add_item(scratch, &list, item);
         }
         
-        view_set_list(app, &view, &list);
+        UI_Control control = ui_list_to_ui_control(scratch, &list);
+        view_set_ui(app, &view, &control);
         
         User_Input in = get_user_input(app, EventAll, EventOnEsc);
         if (in.abort){
             goto done;
         }
         
-        List_Item *activated_item = 0;
+        UI_Item *activated_item = 0;
         switch (in.type){
             case UserInputKey:
             {
@@ -1601,7 +1603,7 @@ CUSTOM_DOC("Interactively switch to an open buffer.")
                 if (in.mouse.press_l){
                     int32_t mx = in.mouse.x - view.view_region.x0;
                     int32_t my = in.mouse.y - view.view_region.y0;
-                    activated_item = list_control_get_mouse_hit(&list, mx, my);
+                    activated_item = ui_control_get_mouse_hit(&control, mx, my);
                 }
             }break;
         }
@@ -1614,10 +1616,9 @@ CUSTOM_DOC("Interactively switch to an open buffer.")
     }
     
     done:;
-    view_end_list_mode(app, &view);
+    view_end_ui_mode(app, &view);
     end_temp_memory(temp);
 }
-#endif
 
 ////////////////////////////////
 

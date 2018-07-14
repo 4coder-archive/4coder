@@ -682,7 +682,7 @@ generate_remapping_code_and_data(){
         bind(mappings, 'o', MDFR_CTRL, interactive_open_or_new);
         bind(mappings, 'o', MDFR_ALT, open_in_other);
         bind(mappings, 'k', MDFR_CTRL, interactive_kill_buffer);
-        bind(mappings, 'i', MDFR_CTRL, interactive_switch_buffer);
+        bind(mappings, 'i', MDFR_CTRL, interactive_switch_buffer_DUMMY_API_EXPLORATION);
         bind(mappings, 'h', MDFR_CTRL, project_go_to_root_directory);
         bind(mappings, 'S', MDFR_CTRL, save_all_dirty_buffers);
         
