@@ -146,13 +146,11 @@ global_const Style_Color_Edit colors_to_edit[] = {
 };
 
 internal Input_Process_Result
-do_step_file_view(System_Functions *system, View *view, Models *models, i32_Rect rect, b32 is_active, Input_Summary *user_input, GUI_Scroll_Vars vars, i32_Rect region, i32 max_y){
+do_step_file_view(System_Functions *system, View *view, Models *models, i32_Rect rect, b32 is_active, Input_Summary *user_input, GUI_Scroll_Vars scroll, i32 max_y){
+    scroll.target_y = clamp(0, scroll.target_y, max_y);
+    
     Input_Process_Result result = {0};
-    
-    vars.target_y = clamp(0, vars.target_y, max_y);
-    
-    result.vars = vars;
-    result.region = region;
+    result.scroll = scroll;
     
     i32 line_height = view->transient.line_height;
     
@@ -166,8 +164,8 @@ do_step_file_view(System_Functions *system, View *view, Models *models, i32_Rect
     }
     
     if (user_input->mouse.wheel != 0){
-        result.vars.target_y += user_input->mouse.wheel;
-        result.vars.target_y = clamp(0, result.vars.target_y, max_y);
+        result.scroll.target_y += user_input->mouse.wheel;
+        result.scroll.target_y = clamp(0, result.scroll.target_y, max_y);
         result.is_animating = true;
     }
     
@@ -194,26 +192,23 @@ do_step_file_view(System_Functions *system, View *view, Models *models, i32_Rect
                 target_y = clamp_bottom(0, floor32(cursor.y - height*.5f));
             }
             
-            result.vars.target_y = target_y;
-            result.vars.scroll_y = (f32)target_y;
-            result.vars.prev_target_y = -1000;
+            result.scroll.target_y = target_y;
+            result.scroll.scroll_y = (f32)target_y;
+            result.scroll.prev_target_y = -1000;
             
-            result.vars.target_x = target_x;
-            result.vars.scroll_x = (f32)target_x;
-            result.vars.prev_target_x = -1000;
+            result.scroll.target_x = target_x;
+            result.scroll.scroll_x = (f32)target_x;
+            result.scroll.prev_target_x = -1000;
         }
         
         if (!file->is_loading && file->state.paste_effect.seconds_down > 0.f){
             file->state.paste_effect.seconds_down -= user_input->dt;
             result.is_animating = true;
         }
-        
-        result.has_max_y_suggestion = true;
-        result.max_y = view_compute_max_target_y(view);
     }
     
     {    
-        GUI_Scroll_Vars scroll_vars = result.vars;
+        GUI_Scroll_Vars scroll_vars = result.scroll;
         b32 is_new_target = (scroll_vars.target_x != scroll_vars.prev_target_x ||
                              scroll_vars.target_y != scroll_vars.prev_target_y);
         
@@ -227,7 +222,7 @@ do_step_file_view(System_Functions *system, View *view, Models *models, i32_Rect
         scroll_vars.prev_target_x = scroll_vars.target_x;
         scroll_vars.prev_target_y = scroll_vars.target_y;
         
-        result.vars = scroll_vars;
+        result.scroll = scroll_vars;
     }
     
     return(result);
@@ -398,46 +393,47 @@ do_render_file_view(System_Functions *system, View *view, Models *models, GUI_Sc
         }
     }
     else{
+        f32_Rect rect_f32 = f32R(rect);
+        
         i32 item_count = view->transient.ui_control.count;
         UI_Item *item = view->transient.ui_control.items;
+        GUI_Scroll_Vars scroll = view->transient.ui_scroll;
         for (i32 i = 0; i < item_count; ++i, item += 1){
-            switch (item->type){
-                case UIType_Option:
-                {
-                    u32 back = style->main.back_color;
-                    u32 margin = style_get_margin_color(item->activation_level, style);
-                    u32 text_color = style->main.default_color;
-                    u32 pop_color = style->main.file_info_style.pop2_color;
-                    i32_Rect item_rect = item->rectangle;
-                    item_rect.x0 += rect.x0;
-                    item_rect.y0 += rect.y0;
-                    item_rect.x1 += rect.x0;
-                    item_rect.y1 += rect.y0;
-                    i32_Rect inner = get_inner_rect(item_rect, 3);
-                    draw_rectangle(target, inner, back);
-                    draw_margin(target, item_rect, inner, margin);
-                    i32 x = inner.x0 + 3;
-                    i32 y = inner.y0 + line_height/2 - 1;
-                    x = ceil32(draw_string(system, target, font_id, item->string, x, y, text_color));
-                    draw_string(system, target, font_id, item->status, x, y, pop_color);
-                }break;
-                
-                case UIType_TextField:
-                {
-                    u32 back_color = style->main.margin_color;
-                    u32 text1_color = style->main.default_color;
-                    u32 text2_color = style->main.file_info_style.pop1_color;
-                    i32_Rect item_rect = item->rectangle;
-                    item_rect.x0 += rect.x0;
-                    item_rect.y0 += rect.y0;
-                    item_rect.x1 += rect.x0;
-                    item_rect.y1 += rect.y0;
-                    draw_rectangle(target, item_rect, back_color);
-                    i32 x = item_rect.x0;
-                    i32 y = item_rect.y0 + 2;
-                    x = ceil32(draw_string(system, target, font_id, item->query, x, y, text2_color));
-                    draw_string(system, target, font_id, item->string, x, y, text1_color);
-                }break;
+            f32_Rect item_rect = f32R(item->rectangle);
+            item_rect.x0 += rect_f32.x0 - scroll.scroll_x;
+            item_rect.y0 += rect_f32.y0 - scroll.scroll_y;
+            item_rect.x1 += rect_f32.x0 - scroll.scroll_x;
+            item_rect.y1 += rect_f32.y0 - scroll.scroll_y;
+            
+            if (rect_opverlap(item_rect, rect_f32)){
+                switch (item->type){
+                    case UIType_Option:
+                    {
+                        u32 back = style->main.back_color;
+                        u32 margin_color = style_get_margin_color(item->activation_level, style);
+                        u32 text_color = style->main.default_color;
+                        u32 pop_color = style->main.file_info_style.pop2_color;
+                        f32_Rect inner = get_inner_rect(item_rect, 3);
+                        draw_rectangle(target, inner, back);
+                        draw_margin(target, item_rect, inner, margin_color);
+                        i32 x = (i32)inner.x0 + 3;
+                        i32 y = (i32)inner.y0 + line_height/2 - 1;
+                        x = ceil32(draw_string(system, target, font_id, item->string, x, y, text_color));
+                        draw_string(system, target, font_id, item->status, x, y, pop_color);
+                    }break;
+                    
+                    case UIType_TextField:
+                    {
+                        u32 back_color = style->main.margin_color;
+                        u32 text1_color = style->main.default_color;
+                        u32 text2_color = style->main.file_info_style.pop1_color;
+                        draw_rectangle(target, item_rect, back_color);
+                        i32 x = (i32)item_rect.x0;
+                        i32 y = (i32)item_rect.y0 + 2;
+                        x = ceil32(draw_string(system, target, font_id, item->query, x, y, text2_color));
+                        draw_string(system, target, font_id, item->string, x, y, text1_color);
+                    }break;
+                }
             }
         }
     }

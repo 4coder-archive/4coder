@@ -48,6 +48,7 @@ struct View_Transient{
     
     i32 ui_mode_counter;
     UI_Control ui_control;
+    GUI_Scroll_Vars ui_scroll;
     
     b32 hide_scrollbar;
     b32 hide_file_bar;
@@ -184,14 +185,10 @@ struct View_Step_Result{
 };
 
 struct Input_Process_Result{
-    GUI_Scroll_Vars vars;
-    i32_Rect region;
+    GUI_Scroll_Vars scroll;
     b32 is_animating;
     b32 consumed_l;
     b32 consumed_r;
-    
-    b32 has_max_y_suggestion;
-    i32 max_y;
 };
 
 enum{

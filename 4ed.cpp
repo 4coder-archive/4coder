@@ -1868,51 +1868,46 @@ App_Step_Sig(app_step){
             b32 active = (panel == active_panel);
             Input_Summary summary = (active)?(active_input):(dead_input);
             
-            view->transient.changed_context_in_step = 0;
+            if (panel == mouse_panel && !input->mouse.out_of_window){
+                summary.mouse = mouse_state;
+            }
             
-            if (view->transient.changed_context_in_step == 0){
-                active = (panel == active_panel);
-                summary = (active)?(active_input):(dead_input);
-                if (panel == mouse_panel && !input->mouse.out_of_window){
-                    summary.mouse = mouse_state;
-                }
-                
-                b32 file_scroll = true;
-                GUI_Scroll_Vars *scroll_vars = &view->transient.edit_pos->scroll;
-                
-                i32 max_y = 0;
-                if (view->transient.ui_mode_counter == 0){
-                    max_y = view_compute_max_target_y(view);
+            GUI_Scroll_Vars *scroll_vars = 0;
+            i32 max_y = 0;
+            b32 file_scroll = false;
+            if (view->transient.ui_mode_counter == 0){
+                scroll_vars = &view->transient.edit_pos->scroll;
+                max_y = view_compute_max_target_y(view);
+                file_scroll = true;
+            }
+            else{
+                scroll_vars = &view->transient.ui_scroll;
+                i32 bottom = view->transient.ui_control.bounding_box.y1;
+                max_y = view_compute_max_target_y_from_bottom_y(view, (f32)bottom);
+                file_scroll = false;
+            }
+            
+            Input_Process_Result ip_result = do_step_file_view(system, view, models, panel->inner, active, &summary, *scroll_vars, max_y);
+            
+            if (ip_result.is_animating){
+                app_result.animating = true;
+            }
+            if (ip_result.consumed_l){
+                consume_input(&vars->available_input, Input_MouseLeftButton, "file view step");
+            }
+            if (ip_result.consumed_r){
+                consume_input(&vars->available_input, Input_MouseRightButton, "file view step");
+            }
+            
+            if (memcmp(scroll_vars, &ip_result.scroll, sizeof(*scroll_vars)) != 0){
+                if (file_scroll){
+                    view_set_scroll(system, view, ip_result.scroll);
                 }
                 else{
-#if 0
-                    max_y = view->transient.gui_max_y;
-#endif
+                    *scroll_vars = ip_result.scroll;
                 }
-                
-                Input_Process_Result ip_result = do_step_file_view(system, view, models, panel->inner, active, &summary, *scroll_vars, view->transient.scroll_region, max_y);
-                
-                if (ip_result.is_animating){
-                    app_result.animating = 1;
-                }
-                if (ip_result.consumed_l){
-                    consume_input(&vars->available_input, Input_MouseLeftButton, "file view step");
-                }
-                if (ip_result.consumed_r){
-                    consume_input(&vars->available_input, Input_MouseRightButton, "file view step");
-                }
-                
-                if (memcmp(scroll_vars, &ip_result.vars, sizeof(*scroll_vars)) != 0){
-                    if (file_scroll){
-                        view_set_scroll(system, view, ip_result.vars);
-                    }
-                    else{
-                        *scroll_vars = ip_result.vars;
-                    }
-                }
-                
-                view->transient.scroll_region = ip_result.region;
             }
+            
         }
     }
     

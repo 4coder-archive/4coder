@@ -75,6 +75,20 @@ draw_rectangle_outline(Render_Target *target, i32_Rect rect, u32 color){
 }
 
 internal void
+draw_margin(Render_Target *target, f32_Rect outer, f32_Rect inner, u32 color){
+    draw_rectangle(target, f32R(outer.x0, outer.y0, outer.x1, inner.y0), color);
+    draw_rectangle(target, f32R(outer.x0, inner.y1, outer.x1, outer.y1), color);
+    draw_rectangle(target, f32R(outer.x0, inner.y0, inner.x0, inner.y1), color);
+    draw_rectangle(target, f32R(inner.x1, inner.y0, outer.x1, inner.y1), color);
+}
+
+inline void
+draw_margin(Render_Target *target, f32_Rect outer, f32 width, u32 color){
+    f32_Rect inner = get_inner_rect(outer, width);
+    draw_margin(target, outer, inner, color);
+}
+
+internal void
 draw_margin(Render_Target *target, i32_Rect outer, i32_Rect inner, u32 color){
     draw_rectangle(target, i32R(outer.x0, outer.y0, outer.x1, inner.y0), color);
     draw_rectangle(target, i32R(outer.x0, inner.y1, outer.x1, outer.y1), color);

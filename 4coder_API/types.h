@@ -737,6 +737,8 @@ STRUCT UI_List{
 STRUCT UI_Control{
     UI_Item *items;
     int32_t count;
+    
+    i32_Rect bounding_box;
 };
 
 /* 

@@ -1509,16 +1509,27 @@ CUSTOM_DOC("Interactively switch to an open buffer.")
     int32_t line_height = (int32_t)view.line_height;
     int32_t block_height = line_height*2;
     
+    int32_t hot_buffer_id = 0;
+    int32_t item_index = 0;
+    
     Temp_Memory temp = begin_temp_memory(scratch);
     String text_field = push_string(scratch, 256);
-    Temp_Memory list_restore_point = begin_temp_memory(scratch);
     for(;;){
-        end_temp_memory(list_restore_point);
+        Temp_Memory full_temp = begin_temp_memory(scratch);
+        
+        refresh_view(app, &view);
+        Mouse_State mouse_state = get_mouse_state(app);
+        int32_t mx = mouse_state.x - view.file_region.x0 + (int32_t)view.scroll_vars.scroll_x;
+        int32_t my = mouse_state.y - view.file_region.y0 + (int32_t)view.scroll_vars.scroll_y;
         
         int32_t y_pos = line_height;
         
         UI_List list = {0};
+        int32_t item_index_counter = 0;
         UI_Item *highlighted_item = 0;
+        UI_Item *hot_item = 0;
+        UI_Item *hovered_item = 0;
+        int32_t option_item_count = 0;
         for (Buffer_Summary buffer = get_buffer_first(app, AccessAll);
              buffer.exists;
              get_buffer_next(app, &buffer, AccessAll)){
@@ -1543,15 +1554,37 @@ CUSTOM_DOC("Interactively switch to an open buffer.")
                 item.user_data = (void*)buffer.buffer_id;
                 item.activation_level = UIActivation_None;
                 item.rectangle = item_rect;
-                if (highlighted_item == 0){
-                    item.activation_level = UIActivation_Hover;
-                    UI_Item *item_ptr = ui_list_add_item(scratch, &list, item);
+                
+                UI_Item *item_ptr = ui_list_add_item(scratch, &list, item);
+                option_item_count += 1;
+                
+                if (item_rect.x0 <= mx && mx < item_rect.x1 &&
+                    item_rect.y0 <= my && my < item_rect.y1){
+                    hovered_item = item_ptr;
+                }
+                if (item_index_counter == item_index){
                     highlighted_item = item_ptr;
                 }
-                else{
-                    ui_list_add_item(scratch, &list, item);
+                item_index_counter += 1;
+                if (buffer.buffer_id == hot_buffer_id){
+                    hot_item = item_ptr;
                 }
             }
+        }
+        
+        if (hovered_item != 0){
+            hovered_item->activation_level = UIActivation_Hover;
+        }
+        if (hot_item != 0){
+            if (hot_item == hovered_item){
+                hot_item->activation_level = UIActivation_Active;
+            }
+            else{
+                hot_item->activation_level = UIActivation_Hover;
+            }
+        }
+        if (highlighted_item != 0){
+            highlighted_item->activation_level = UIActivation_Active;
         }
         
         {
@@ -1566,6 +1599,7 @@ CUSTOM_DOC("Interactively switch to an open buffer.")
             item.type = UIType_TextField;
             item.query = push_string_copy(scratch, "Switch: ");
             item.string = text_field;
+            item.activation_level = UIActivation_Active;
             item.user_data = 0;
             item.rectangle = item_rect;
             ui_list_add_item(scratch, &list, item);
@@ -1574,45 +1608,94 @@ CUSTOM_DOC("Interactively switch to an open buffer.")
         UI_Control control = ui_list_to_ui_control(scratch, &list);
         view_set_ui(app, &view, &control);
         
-        User_Input in = get_user_input(app, EventAll, EventOnEsc);
-        if (in.abort){
-            goto done;
-        }
-        
-        UI_Item *activated_item = 0;
-        switch (in.type){
-            case UserInputKey:
-            {
-                if (in.key.keycode == '\n' || in.key.keycode == '\t'){
-                    activated_item = highlighted_item;
-                }
-                else if (in.key.keycode == key_back){
-                    backspace_utf8(&text_field);
-                }
-                else{
-                    uint8_t character[4];
-                    uint32_t length = to_writable_character(in, character);
-                    if (length > 0){
-                        append(&text_field, make_string(character, length));
-                    }
-                }
-            }break;
+        for (;;){
+            bool32 needs_full_update = false;
             
-            case UserInputMouse:
-            {
-                if (in.mouse.press_l){
-                    int32_t mx = in.mouse.x - view.view_region.x0;
-                    int32_t my = in.mouse.y - view.view_region.y0;
-                    activated_item = ui_control_get_mouse_hit(&control, mx, my);
-                }
-            }break;
+            User_Input in = get_user_input(app, EventAll, EventOnEsc);
+            if (in.abort){
+                goto done;
+            }
+            
+            UI_Item *activated_item = 0;
+            switch (in.type){
+                case UserInputKey:
+                {
+                    if (in.key.keycode == '\n' || in.key.keycode == '\t'){
+                        activated_item = highlighted_item;
+                    }
+                    else if (in.key.keycode == key_back){
+                        backspace_utf8(&text_field);
+                        needs_full_update = true;
+                        item_index = 0;
+                    }
+                    else if (in.key.keycode == key_up || in.key.keycode == key_page_up){
+                        item_index = item_index - 1;
+                        if (item_index < 0){
+                            item_index = 0;
+                        }
+                        needs_full_update = true;
+                    }
+                    else if (in.key.keycode == key_down || in.key.keycode == key_page_down){
+                        item_index = item_index + 1;
+                        if (item_index > option_item_count - 1){
+                            item_index = option_item_count - 1;
+                        }
+                        needs_full_update = true;
+                    }
+                    else{
+                        uint8_t character[4];
+                        uint32_t length = to_writable_character(in, character);
+                        if (length > 0){
+                            append(&text_field, make_string(character, length));
+                            needs_full_update = true;
+                            item_index = 0;
+                        }
+                    }
+                }break;
+                
+                case UserInputMouse:
+                {
+                    if (in.mouse.wheel != 0){
+                        GUI_Scroll_Vars scroll = view.scroll_vars;
+                        scroll.target_y += in.mouse.wheel;
+                        view_set_scroll(app, &view, scroll);
+                    }
+                    if (in.mouse.press_l || in.mouse.release_l){
+                        int32_t mx = in.mouse.x - view.file_region.x0;
+                        int32_t my = in.mouse.y - view.file_region.y0;
+                        UI_Item *clicked = ui_control_get_mouse_hit(&control, mx, my);
+                        if (in.mouse.press_l){
+                            if (clicked != 0){
+                                hot_buffer_id = (int32_t)clicked->user_data;
+                            }
+                        }
+                        if (in.mouse.release_l){
+                            if (clicked != 0){
+                                if (hot_buffer_id == (int32_t)clicked->user_data){
+                                    activated_item = clicked;
+                                }
+                            }
+                            hot_buffer_id = 0;
+                        }
+                        needs_full_update = true;
+                    }
+                    if (mx != in.mouse.x || my != in.mouse.y){
+                        needs_full_update = true;
+                    }
+                }break;
+            }
+            
+            if (activated_item != 0){
+                int32_t buffer_id = (int32_t)activated_item->user_data;
+                view_set_buffer(app, &view, buffer_id, 0);
+                goto done;
+            }
+            if (needs_full_update){
+                goto full_update;
+            }
         }
-        
-        if (activated_item != 0){
-            int32_t buffer_id = (int32_t)activated_item->user_data;
-            view_set_buffer(app, &view, buffer_id, 0);
-            goto done;
-        }
+        full_update:;
+        end_temp_memory(full_temp);
     }
     
     done:;

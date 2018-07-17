@@ -139,6 +139,14 @@ view_cursor_limits(View *view){
 }
 
 inline i32
+view_compute_max_target_y_from_bottom_y(View *view, f32 max_item_y){
+    i32 line_height = view->transient.line_height;
+    f32 height = clamp_bottom((f32)line_height, view_height(view));
+    f32 max_target_y = clamp_bottom(0.f, max_item_y - height*0.5f);
+    return(ceil32(max_target_y));
+}
+
+inline i32
 view_compute_max_target_y(View *view){
     i32 line_height = view->transient.line_height;
     Editing_File *file = view->transient.file_data.file;
@@ -147,9 +155,7 @@ view_compute_max_target_y(View *view){
     if (!file->settings.unwrapped_lines){
         lowest_line = file->state.wrap_line_index[buffer->line_count];
     }
-    f32 height = clamp_bottom((f32)line_height, view_height(view));
-    f32 max_target_y = clamp_bottom(0.f, ((lowest_line + 0.5f)*line_height) - height*0.5f);
-    return(ceil32(max_target_y));
+    return(view_compute_max_target_y_from_bottom_y(view, (lowest_line + 0.5f)*(f32)line_height));
 }
 
 inline u32

@@ -657,5 +657,23 @@ fits_inside(i32_Rect rect, i32_Rect outer){
     return(rect.x0 >= outer.x0 && rect.x1 <= outer.x1 && rect.y0 >= outer.y0 && rect.y1 <= outer.y1);
 }
 
+static int32_t
+interval_overlap(float a0, float a1, float b0, float b1){
+    if (a0 <= b0 && b0 < a1 ||
+        b0 <= a0 && a0 < b1){
+        return(true);
+    }
+    return(false);
+}
+
+static int32_t
+rect_opverlap(f32_Rect a, f32_Rect b){
+    if (interval_overlap(a.x0, a.x1, b.x0, b.x1) &&
+        interval_overlap(a.y0, a.y1, b.y0, b.y1)){
+        return(true);
+    }
+    return(false);
+}
+
 // BOTTOM
 

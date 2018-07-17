@@ -86,7 +86,12 @@ fill_view_summary(System_Functions *system, View_Summary *view, View *vptr, Live
         
         view->view_region = vptr->transient.panel->inner;
         view->file_region = vptr->transient.file_region;
-        view->scroll_vars = vptr->transient.edit_pos->scroll;
+        if (vptr->transient.ui_mode_counter == 0){
+            view->scroll_vars = vptr->transient.edit_pos->scroll;
+        }
+        else{
+            view->scroll_vars = vptr->transient.ui_scroll;
+        }
     }
 }
 
@@ -2001,7 +2006,12 @@ DOC_SEE(GUI_Scroll_Vars)
         Assert(file != 0);
         if (!file->is_loading){
             result = true;
-            view_set_scroll(system, vptr, scroll);
+            if (vptr->transient.ui_mode_counter == 0){
+                view_set_scroll(system, vptr, scroll);
+            }
+            else{
+                vptr->transient.ui_scroll = scroll;
+            }
             fill_view_summary(system, view, vptr, cmd);
         }
     }
@@ -2228,7 +2238,7 @@ View_Set_UI(Application_Links *app, View_Summary *view, UI_Control *control){
         if (vptr->transient.ui_control.items != 0){
             general_memory_free(general, vptr->transient.ui_control.items);
         }
-        vptr->transient.ui_control.count = 0;
+        memset(&vptr->transient.ui_control, 0, sizeof(vptr->transient.ui_control));
         if (control->count > 0){
             i32 memory_size = sizeof(UI_Item)*control->count;
             vptr->transient.ui_control.items = (UI_Item*)general_memory_allocate(general, memory_size);
@@ -2240,9 +2250,7 @@ View_Set_UI(Application_Links *app, View_Summary *view, UI_Control *control){
                 return(false);
             }
         }
-        else{
-            vptr->transient.ui_control.items = 0;
-        }
+        vptr->transient.ui_control.bounding_box = control->bounding_box;
         return(true);
     }
     return(false);
