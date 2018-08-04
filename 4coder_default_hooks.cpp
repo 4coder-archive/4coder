@@ -274,11 +274,15 @@ OPEN_FILE_HOOK_SIG(default_file_settings){
     }
     
     int32_t map_id = (treat_as_code)?((int32_t)default_code_map):((int32_t)mapid_file);
+    int32_t map_id_query = 0;
+    
+    buffer_set_setting(app, &buffer, BufferSetting_MapID, default_lister_ui_map);
+    buffer_get_setting(app, &buffer, BufferSetting_MapID, &map_id_query);
+    Assert(map_id_query == default_lister_ui_map);
     
     buffer_set_setting(app, &buffer, BufferSetting_WrapPosition, global_config.default_wrap_width);
     buffer_set_setting(app, &buffer, BufferSetting_MinimumBaseWrapPosition, global_config.default_min_base_width);
     buffer_set_setting(app, &buffer, BufferSetting_MapID, map_id);
-    int32_t map_id_query = 0;
     buffer_get_setting(app, &buffer, BufferSetting_MapID, &map_id_query);
     Assert(map_id_query == map_id);
     buffer_set_setting(app, &buffer, BufferSetting_ParserContext, parse_context_id);

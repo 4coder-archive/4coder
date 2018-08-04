@@ -1012,7 +1012,7 @@ get_token_or_word_under_pos(Application_Links *app, Buffer_Summary *buffer, int3
 static String
 build_string(Partition *part, char *s0, char *s1, char *s2){
     String sr = {0};
-    sr.memory_size = str_size(s0) + str_size(s1) + str_size(s2);
+    sr.memory_size = str_size(s0) + str_size(s1) + str_size(s2) + 1;
     sr.str = push_array(part, char, sr.memory_size);
     if (sr.str != 0){
         append(&sr, s0);
@@ -1025,91 +1025,98 @@ build_string(Partition *part, char *s0, char *s1, char *s2){
 static String
 build_string(Partition *part, char *s0, char *s1, String s2){
     String sr = {0};
-    sr.memory_size = str_size(s0) + str_size(s1) + s2.size;
+    sr.memory_size = str_size(s0) + str_size(s1) + s2.size + 1;
     sr.str = push_array(part, char, sr.memory_size);
     if (sr.str != 0){
         append(&sr, s0);
         append(&sr, s1);
         append(&sr, s2);
     }
+    terminate_with_null(&sr);
     return(sr);
 }
 
 static String
 build_string(Partition *part, char *s0, String s1, char *s2){
     String sr = {0};
-    sr.memory_size = str_size(s0) + s1.size + str_size(s2);
+    sr.memory_size = str_size(s0) + s1.size + str_size(s2) + 1;
     sr.str = push_array(part, char, sr.memory_size);
     if (sr.str != 0){
         append(&sr, s0);
         append(&sr, s1);
         append(&sr, s2);
     }
+    terminate_with_null(&sr);
     return(sr);
 }
 
 static String
 build_string(Partition *part, char *s0, String s1, String s2){
     String sr = {0};
-    sr.memory_size = str_size(s0) + s1.size + s2.size;
+    sr.memory_size = str_size(s0) + s1.size + s2.size + 1;
     sr.str = push_array(part, char, sr.memory_size);
     if (sr.str != 0){
         append(&sr, s0);
         append(&sr, s1);
         append(&sr, s2);
     }
+    terminate_with_null(&sr);
     return(sr);
 }
 
 static String
 build_string(Partition *part, String s0, char *s1, char *s2){
     String sr = {0};
-    sr.memory_size = s0.size + str_size(s1) + str_size(s2);
+    sr.memory_size = s0.size + str_size(s1) + str_size(s2) + 1;
     sr.str = push_array(part, char, sr.memory_size);
     if (sr.str != 0){
         append(&sr, s0);
         append(&sr, s1);
         append(&sr, s2);
     }
+    terminate_with_null(&sr);
     return(sr);
 }
 
 static String
 build_string(Partition *part, String s0, char *s1, String s2){
     String sr = {0};
-    sr.memory_size = s0.size + str_size(s1) + s2.size;
+    sr.memory_size = s0.size + str_size(s1) + s2.size + 1;
     sr.str = push_array(part, char, sr.memory_size);
     if (sr.str != 0){
         append(&sr, s0);
         append(&sr, s1);
         append(&sr, s2);
     }
+    terminate_with_null(&sr);
     return(sr);
 }
 
 static String
 build_string(Partition *part, String s0, String s1, char *s2){
     String sr = {0};
-    sr.memory_size = s0.size + s1.size + str_size(s2);
+    sr.memory_size = s0.size + s1.size + str_size(s2) + 1;
     sr.str = push_array(part, char, sr.memory_size);
     if (sr.str != 0){
         append(&sr, s0);
         append(&sr, s1);
         append(&sr, s2);
     }
+    terminate_with_null(&sr);
     return(sr);
 }
 
 static String
 build_string(Partition *part, String s0, String s1, String s2){
     String sr = {0};
-    sr.memory_size = s0.size + s1.size + s2.size;
+    sr.memory_size = s0.size + s1.size + s2.size + 1;
     sr.str = push_array(part, char, sr.memory_size);
     if (sr.str != 0){
         append(&sr, s0);
         append(&sr, s1);
         append(&sr, s2);
     }
+    terminate_with_null(&sr);
     return(sr);
 }
 

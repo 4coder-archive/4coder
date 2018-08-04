@@ -25,8 +25,14 @@ struct Application_Memory{
     i32 debug_memory_size;
 };
 
+// TODO(allen): // TODO(allen): // TODO(allen): // TODO(allen): // TODO(allen): 
+// TODO(allen): // TODO(allen): // TODO(allen): // TODO(allen): // TODO(allen): 
+// TODO(allen): // TODO(allen): // TODO(allen): // TODO(allen): // TODO(allen): 
+// TODO(allen): // TODO(allen): // TODO(allen): // TODO(allen): // TODO(allen): 
+// TODO(allen): // TODO(allen): // TODO(allen): // TODO(allen): // TODO(allen): 
+// TODO(allen): Fix this nonsense
 #define KEY_INPUT_BUFFER_SIZE 8
-#define KEY_EXTRA_SIZE 2
+#define KEY_EXTRA_SIZE 5
 
 struct Key_Input_Data{
     Key_Event_Data keys[KEY_INPUT_BUFFER_SIZE + KEY_EXTRA_SIZE];

@@ -180,14 +180,17 @@ ENUM(int32_t, View_Setting_ID){
     /* DOC(ViewSetting_Null is not a valid setting, it is reserved to detect errors.) */
     ViewSetting_Null,
     
-    /* DOC(The ViewSetting_ShowWhitespace setting determines whether the view highlights whitespace in a file.  Whenever the view switches to a new buffer this setting is turned off.) */
+    /* DOC(Determines whether the view highlights whitespace in a file.  Whenever the view switches to a new buffer this setting is turned off.) */
     ViewSetting_ShowWhitespace,
     
-    /* DOC(The ViewSetting_ShowScrollbar setting determines whether a scroll bar is attached to a view in it's scrollable section.) */
+    /* DOC(Determines whether a scroll bar is attached to a view in it's scrollable section.) */
     ViewSetting_ShowScrollbar,
     
-    /* DOC(The ViewSetting_ShowFileBar settings determines whether to show the file bar.) */
+    /* DOC(Determines whether to show the file bar.) */
     ViewSetting_ShowFileBar,
+    
+    /* DOC(Determines what command map the view uses when it is in ui mode.) */
+    ViewSetting_UICommandMap
 };
 
 /* DOC(A Buffer_Create_Flag field specifies how a buffer should be created.) */
@@ -340,7 +343,9 @@ TYPEDEF uint32_t Key_Code;
 DOC_SEE(Key_Modifier_Flag) */
 TYPEDEF uint8_t Key_Modifier;
 
-/* DOC(Key_Event_Data describes a key event, including the translation to a character, the translation to a character ignoring the state of caps lock, and an array of all the modifiers that were pressed at the time of the event.) */
+/* DOC(Key_Event_Data describes a key event, including the translation to a character, the translation to a character ignoring the state of caps lock, and an array of all the modifiers that were pressed at the time of the event.)
+DOC_SEE(Key_Modifier_Index)
+*/
 STRUCT Key_Event_Data{
     /* DOC(This field is the raw keycode which is always non-zero in valid key events.) */
     Key_Code keycode;
@@ -701,24 +706,34 @@ STRUCT Event_Message{
     int32_t type;
 };
 
-ENUM(int32_t, UI_Item_Type){
+ENUM(int16_t, UI_Item_Type){
     UIType_Option,
     UIType_TextField,
 };
 
-ENUM(int32_t, UI_Activation_Level){
+ENUM(int8_t, UI_Activation_Level){
     UIActivation_None,
     UIActivation_Hover,
     UIActivation_Active,
 };
 
+ENUM(int8_t, UI_Coordinate_System){
+    UICoordinates_Scrolled,
+    UICoordinates_ViewRelative,
+    UICoordinates_COUNT,
+};
+
 STRUCT UI_Item{
     UI_Item_Type type;
-    String query;
-    String string;
-    String status;
-    void *user_data;
     UI_Activation_Level activation_level;
+    UI_Coordinate_System coordinates;
+    // 32-bits of padding to fill here
+    union{
+        String query;
+        String status;
+    };
+    String string;
+    void *user_data;
     i32_Rect rectangle;
 };
 
@@ -737,8 +752,7 @@ STRUCT UI_List{
 STRUCT UI_Control{
     UI_Item *items;
     int32_t count;
-    
-    i32_Rect bounding_box;
+    i32_Rect bounding_box[UICoordinates_COUNT];
 };
 
 /* 
@@ -856,6 +870,8 @@ UNION Generic_Command{
 DOC(User_Input describes a user input event which can be either a key press or mouse event.)
 DOC_SEE(User_Input_Type_ID)
 DOC_SEE(Generic_Command)
+DOC_SEE(Key_Event_Data)
+DOC_SEE(Mouse_State)
 */
 STRUCT User_Input{
     /* DOC(This field specifies whether the event was a key press or mouse event.) */

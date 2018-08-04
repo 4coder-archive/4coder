@@ -216,8 +216,7 @@ edit_single(System_Functions *system, Models *models, Editing_File *file,
     spec.step.edit.end = end;
     spec.step.edit.len = len;
     spec.str = (u8*)str;
-    edit_single__inner(system, models, file, spec,
-                       hist_normal);
+    edit_single__inner(system, models, file, spec, hist_normal);
 }
 
 internal Edit_Spec

@@ -31,20 +31,6 @@ struct App_Settings{
 };
 global_const App_Settings null_app_settings = {0};
 
-struct Debug_Input_Event{
-    Key_Code key;
-    char consumer[32];
-    b8 is_hold;
-    b8 is_ctrl;
-    b8 is_alt;
-    b8 is_shift;
-};
-
-struct Debug_Data{
-    Debug_Input_Event input_events[16];
-    i32 this_frame_count;
-};
-
 struct Models{
     Mem_Options mem;
     App_Settings settings;
@@ -54,6 +40,10 @@ struct Models{
     Mapping mapping;
     
     Command_Binding prev_command;
+    
+    i32 prev_x;
+    i32 prev_y;
+    b32 animated_last_frame;
     
     Coroutine_Head *command_coroutine;
     u32 command_coroutine_flags[2];
@@ -91,8 +81,6 @@ struct Models{
     Panel *prev_mouse_panel;
     
     b32 keep_playing;
-    
-    Debug_Data debug;
     
     Key_Code user_up_key;
     Key_Code user_down_key;

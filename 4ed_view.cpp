@@ -9,6 +9,16 @@
 
 // TOP
 
+internal i32
+view_get_map(View *view){
+    if (view->transient.ui_mode_counter > 0){
+        return(view->transient.ui_map_id);
+    }
+    else{
+        return(view->transient.file_data.file->settings.base_map_id);
+    }
+}
+
 internal View_And_ID
 live_set_alloc_view(General_Memory *general, Live_Views *live_set, Panel *panel){
     Assert(live_set->count < live_set->max);
@@ -346,13 +356,6 @@ view_post_paste_effect(View *view, f32 seconds, i32 start, i32 size, u32 color){
 
 ////////////////////////////////
 
-inline void
-view_show_file(View *view){
-    Editing_File *file = view->transient.file_data.file;
-    Assert(file != 0);
-    view->transient.map = file->settings.base_map_id;
-}
-
 internal void
 view_set_file(System_Functions *system, Models *models, View *view, Editing_File *file){
     Assert(file != 0);
@@ -379,10 +382,6 @@ view_set_file(System_Functions *system, Models *models, View *view, Editing_File
     
     if (edit_pos->cursor.line == 0){
         view_cursor_move(system, view, 0);
-    }
-    
-    if (view->transient.ui_mode_counter == 0){
-        view_show_file(view);
     }
 }
 

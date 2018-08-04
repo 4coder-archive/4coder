@@ -55,6 +55,7 @@ struct Application_Links;
 #define VIEW_START_UI_MODE_SIG(n) int32_t n(Application_Links *app, View_Summary *view)
 #define VIEW_END_UI_MODE_SIG(n) int32_t n(Application_Links *app, View_Summary *view)
 #define VIEW_SET_UI_SIG(n) bool32 n(Application_Links *app, View_Summary *view, UI_Control *control)
+#define VIEW_GET_UI_COPY_SIG(n) UI_Control n(Application_Links *app, View_Summary *view, struct Partition *part)
 #define GET_USER_INPUT_SIG(n) User_Input n(Application_Links *app, Input_Type_Flag get_type, Input_Type_Flag abort_type)
 #define GET_COMMAND_INPUT_SIG(n) User_Input n(Application_Links *app)
 #define GET_MOUSE_STATE_SIG(n) Mouse_State n(Application_Links *app)
@@ -147,6 +148,7 @@ typedef VIEW_GET_VARIABLE_SIG(View_Get_Variable_Function);
 typedef VIEW_START_UI_MODE_SIG(View_Start_UI_Mode_Function);
 typedef VIEW_END_UI_MODE_SIG(View_End_UI_Mode_Function);
 typedef VIEW_SET_UI_SIG(View_Set_UI_Function);
+typedef VIEW_GET_UI_COPY_SIG(View_Get_UI_Copy_Function);
 typedef GET_USER_INPUT_SIG(Get_User_Input_Function);
 typedef GET_COMMAND_INPUT_SIG(Get_Command_Input_Function);
 typedef GET_MOUSE_STATE_SIG(Get_Mouse_State_Function);
@@ -241,6 +243,7 @@ View_Get_Variable_Function *view_get_variable;
 View_Start_UI_Mode_Function *view_start_ui_mode;
 View_End_UI_Mode_Function *view_end_ui_mode;
 View_Set_UI_Function *view_set_ui;
+View_Get_UI_Copy_Function *view_get_ui_copy;
 Get_User_Input_Function *get_user_input;
 Get_Command_Input_Function *get_command_input;
 Get_Mouse_State_Function *get_mouse_state;
@@ -334,6 +337,7 @@ View_Get_Variable_Function *view_get_variable_;
 View_Start_UI_Mode_Function *view_start_ui_mode_;
 View_End_UI_Mode_Function *view_end_ui_mode_;
 View_Set_UI_Function *view_set_ui_;
+View_Get_UI_Copy_Function *view_get_ui_copy_;
 Get_User_Input_Function *get_user_input_;
 Get_Command_Input_Function *get_command_input_;
 Get_Mouse_State_Function *get_mouse_state_;
@@ -435,6 +439,7 @@ app_links->view_get_variable_ = View_Get_Variable;\
 app_links->view_start_ui_mode_ = View_Start_UI_Mode;\
 app_links->view_end_ui_mode_ = View_End_UI_Mode;\
 app_links->view_set_ui_ = View_Set_UI;\
+app_links->view_get_ui_copy_ = View_Get_UI_Copy;\
 app_links->get_user_input_ = Get_User_Input;\
 app_links->get_command_input_ = Get_Command_Input;\
 app_links->get_mouse_state_ = Get_Mouse_State;\
@@ -528,6 +533,7 @@ static inline bool32 view_get_variable(Application_Links *app, View_Summary *vie
 static inline int32_t view_start_ui_mode(Application_Links *app, View_Summary *view){return(app->view_start_ui_mode(app, view));}
 static inline int32_t view_end_ui_mode(Application_Links *app, View_Summary *view){return(app->view_end_ui_mode(app, view));}
 static inline bool32 view_set_ui(Application_Links *app, View_Summary *view, UI_Control *control){return(app->view_set_ui(app, view, control));}
+static inline UI_Control view_get_ui_copy(Application_Links *app, View_Summary *view, struct Partition *part){return(app->view_get_ui_copy(app, view, part));}
 static inline User_Input get_user_input(Application_Links *app, Input_Type_Flag get_type, Input_Type_Flag abort_type){return(app->get_user_input(app, get_type, abort_type));}
 static inline User_Input get_command_input(Application_Links *app){return(app->get_command_input(app));}
 static inline Mouse_State get_mouse_state(Application_Links *app){return(app->get_mouse_state(app));}
@@ -621,6 +627,7 @@ static inline bool32 view_get_variable(Application_Links *app, View_Summary *vie
 static inline int32_t view_start_ui_mode(Application_Links *app, View_Summary *view){return(app->view_start_ui_mode_(app, view));}
 static inline int32_t view_end_ui_mode(Application_Links *app, View_Summary *view){return(app->view_end_ui_mode_(app, view));}
 static inline bool32 view_set_ui(Application_Links *app, View_Summary *view, UI_Control *control){return(app->view_set_ui_(app, view, control));}
+static inline UI_Control view_get_ui_copy(Application_Links *app, View_Summary *view, struct Partition *part){return(app->view_get_ui_copy_(app, view, part));}
 static inline User_Input get_user_input(Application_Links *app, Input_Type_Flag get_type, Input_Type_Flag abort_type){return(app->get_user_input_(app, get_type, abort_type));}
 static inline User_Input get_command_input(Application_Links *app){return(app->get_command_input_(app));}
 static inline Mouse_State get_mouse_state(Application_Links *app){return(app->get_mouse_state_(app));}

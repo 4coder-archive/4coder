@@ -338,7 +338,8 @@ DOC_SEE(Command_Line_Interface_Flag)
                 View *vptr = imp_get_view(cmd, view);
                 if (vptr != 0){
                     view_set_file(system, models, vptr, file);
-                    view_show_file(vptr);
+                    // TODO(allen): // TODO(allen): // TODO(allen): // TODO(allen): // TODO(allen): 
+                    // Send "quit UI" events!
                 }
             }
         }
@@ -623,8 +624,7 @@ DOC_SEE(Access_Flag)
     
     String fname = make_string(name, len);
     Editing_File_Name canon = {0};
-    if (get_canon_name(system, fname,
-                       &canon)){
+    if (get_canon_name(system, fname, &canon)){
         Editing_File *file = working_set_contains_canon(working_set, canon.name);
         fill_buffer_summary(&buffer, file, working_set);
         if (!access_test(buffer.lock_flags, access)){
@@ -1127,16 +1127,6 @@ DOC_SEE(Buffer_Setting_ID)
                 else if (value <= mapid_nomap){
                     file->settings.base_map_id = value;
                 }
-                
-                for (Panel *panel = models->layout.used_sentinel.next;
-                     panel != &models->layout.used_sentinel;
-                     panel = panel->next){
-                    View *view = panel->view;
-                    if (view->transient.file_data.file != file){
-                        continue;
-                    }
-                    view->transient.map = file->settings.base_map_id;
-                }
             }break;
             
             case BufferSetting_Eol:
@@ -1402,8 +1392,15 @@ DOC_SEE(Buffer_Create_Flag)
             fill_buffer_summary(&result, file, cmd);
         }
         
-        if (file != 0 && (flags & BufferCreate_JustChangedFile)){
+        if (file != 0 && (flags & BufferCreate_JustChangedFile) != 0){
             file->state.ignore_behind_os = 1;
+        }
+        
+        if (file != 0 && (flags & BufferCreate_AlwaysNew) != 0){
+            i32 size = buffer_size(&file->state.buffer);
+            if (size > 0){
+                edit_single(system, models, file, 0, size, 0, 0);
+            }
         }
         
         end_temp_memory(temp);
@@ -1843,6 +1840,11 @@ DOC_RETURN(returns non-zero on success)
                 *value_out = !vptr->transient.hide_file_bar;
             }break;
             
+            case ViewSetting_UICommandMap:
+            {
+                *value_out = vptr->transient.ui_map_id;
+            }break;
+            
             default:
             {
                 result = 0;
@@ -1883,6 +1885,11 @@ DOC_SEE(View_Setting_ID)
             case ViewSetting_ShowFileBar:
             {
                 vptr->transient.hide_file_bar = !value;
+            }break;
+            
+            case ViewSetting_UICommandMap:
+            {
+                vptr->transient.ui_map_id = value;
             }break;
             
             default:
@@ -2110,7 +2117,8 @@ DOC_SEE(Set_Buffer_Flag)
             if (file != vptr->transient.file_data.file){
                 view_set_file(system, models, vptr, file);
                 if (!(flags & SetBuffer_KeepOriginalGUI)){
-                    view_show_file(vptr);
+                    //  TODO(allen): // TODO(allen): // TODO(allen): // TODO(allen): // TODO(allen): 
+                    // Send "quit UI" events!
                 }
             }
         }
@@ -2240,20 +2248,70 @@ View_Set_UI(Application_Links *app, View_Summary *view, UI_Control *control){
         }
         memset(&vptr->transient.ui_control, 0, sizeof(vptr->transient.ui_control));
         if (control->count > 0){
-            i32 memory_size = sizeof(UI_Item)*control->count;
-            vptr->transient.ui_control.items = (UI_Item*)general_memory_allocate(general, memory_size);
-            if (vptr->transient.ui_control.items != 0){
-                vptr->transient.ui_control.count = control->count;
-                memcpy(vptr->transient.ui_control.items, control->items, memory_size);
+            i32 string_size = 0;
+            for (UI_Item *item = control->items, *one_past_last = control->items + control->count;
+                 item < one_past_last;
+                 item += 1){
+                string_size += item->query.size;
+                string_size += item->string.size;
+            }
+            
+            i32 all_items_size = sizeof(UI_Item)*control->count;
+            i32 memory_size = all_items_size + string_size;
+            UI_Item *new_items = (UI_Item*)general_memory_allocate(general, memory_size);
+            if (new_items != 0){
+                char *string_space = (char*)(new_items + control->count);
+                Partition string_alloc = make_part(string_space, string_size);
+                i32 count = control->count;
+                memcpy(new_items, control->items, all_items_size);
+                for (UI_Item *item = new_items, *one_past_last = new_items + count;
+                     item < one_past_last;
+                     item += 1){
+                    String *fixup[2];
+                    fixup[0] = &item->query;
+                    fixup[1] = &item->string;
+                    for (i32 i = 0; i < ArrayCount(fixup); i += 1){
+                        String old = *fixup[i];
+                        char *new_str = push_array(&string_alloc, char, old.size);
+                        fixup[i]->str = new_str;
+                        fixup[i]->size = old.size;
+                        fixup[i]->memory_size = old.size;
+                        memcpy(new_str, old.str, old.size);
+                    }
+                }
+                vptr->transient.ui_control.items = new_items;
+                vptr->transient.ui_control.count = count;
             }
             else{
                 return(false);
             }
         }
-        vptr->transient.ui_control.bounding_box = control->bounding_box;
+        memcpy(vptr->transient.ui_control.bounding_box, control->bounding_box,
+               sizeof(control->bounding_box));
         return(true);
     }
     return(false);
+}
+
+API_EXPORT UI_Control
+View_Get_UI_Copy(Application_Links *app, View_Summary *view, struct Partition *part){
+    Command_Data *cmd = (Command_Data*)app->cmd_context;
+    View *vptr = imp_get_view(cmd, view);
+    UI_Control result = {0};
+    if (vptr != 0){
+        UI_Control *control = &vptr->transient.ui_control;
+        result.items = push_array(part, UI_Item, control->count);
+        if (result.items != 0){
+            result.count = control->count;
+            // TODO(allen): Fixup the pointers
+            memcpy(result.items, control->items, sizeof(*result.items)*result.count);
+        }
+        else{
+            return(result);
+        }
+        memcpy(result.bounding_box, control->bounding_box, sizeof(result.bounding_box));
+    }
+    return(result);
 }
 
 API_EXPORT User_Input
@@ -2784,19 +2842,17 @@ Directory_Get_Hot(Application_Links *app, char *out, int32_t capacity)
 DOC_PARAM(out, On success this character buffer is filled with the 4coder 'hot directory'.)
 DOC_PARAM(capacity, Specifies the capacity in bytes of the of the out buffer.)
 DOC(4coder has a concept of a 'hot directory' which is the directory most recently accessed in the GUI.  Whenever the GUI is opened it shows the hot directory. In the future this will be deprecated and eliminated in favor of more flexible hot directories created and controlled in the custom layer.)
-DOC_RETURN(This call returns the length of the hot directory string whether or not it was successfully copied into the output buffer.  The call is successful if and only if capacity is greater than or equal to the return size.)
+DOC_RETURN(This call returns the length of the hot directory string whether or not it was successfully copied into the output buffer.  The call is successful if and only if capacity is greater than or equal to the return value.)
 DOC_SEE(directory_set_hot)
 */{
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     Hot_Directory *hot = &cmd->models->hot_directory;
     hot_directory_clean_end(hot);
-    if (capacity > 0){
-        i32 copy_max = capacity - 1;
-        if (copy_max > hot->string.size){
-            copy_max = hot->string.size;
+    if (capacity >= hot->string.size){
+        memcpy(out, hot->string.str, hot->string.size);
+        if (capacity > hot->string.size){
+            out[hot->string.size] = 0;
         }
-        memcpy(out, hot->string.str, copy_max);
-        out[copy_max] = 0;
     }
     return(hot->string.size);
 }

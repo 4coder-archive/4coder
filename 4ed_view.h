@@ -35,7 +35,6 @@ struct View_Transient{
     struct View *prev;
     struct Panel *panel;
     b32 in_use;
-    i32 map;
     
     File_Viewing_Data file_data;
     Dynamic_Variable_Block dynamic_vars;
@@ -49,6 +48,7 @@ struct View_Transient{
     i32 ui_mode_counter;
     UI_Control ui_control;
     GUI_Scroll_Vars ui_scroll;
+    i32 ui_map_id;
     
     b32 hide_scrollbar;
     b32 hide_file_bar;

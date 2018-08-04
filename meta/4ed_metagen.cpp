@@ -51,6 +51,9 @@ M(mouse_left) \
 M(mouse_right) \
 M(mouse_left_release) \
 M(mouse_right_release) \
+M(mouse_wheel) \
+M(mouse_move) \
+M(animate) \
 M(f1) \
 M(f2) \
 M(f3) \
@@ -67,6 +70,7 @@ M(f13) \
 M(f14) \
 M(f15) \
 M(f16)
+
 
 enum{
     key_enum_kicker_offer = 0xD800 - 1,
@@ -682,7 +686,7 @@ generate_remapping_code_and_data(){
         bind(mappings, 'o', MDFR_CTRL, interactive_open_or_new);
         bind(mappings, 'o', MDFR_ALT, open_in_other);
         bind(mappings, 'k', MDFR_CTRL, interactive_kill_buffer);
-        bind(mappings, 'i', MDFR_CTRL, interactive_switch_buffer_DUMMY_API_EXPLORATION);
+        bind(mappings, 'i', MDFR_CTRL, interactive_switch_buffer);
         bind(mappings, 'h', MDFR_CTRL, project_go_to_root_directory);
         bind(mappings, 'S', MDFR_CTRL, save_all_dirty_buffers);
         
@@ -857,6 +861,27 @@ generate_remapping_code_and_data(){
         bind(mappings, '2', MDFR_ALT, open_matching_file_cpp);
         bind(mappings, '0', MDFR_CTRL, write_zero_struct);
         bind(mappings, 'I', MDFR_CTRL, list_all_functions_current_buffer);
+        
+        end_map(mappings);
+        
+        // NOTE(allen): LISTER
+        begin_map(mappings, default_lister_ui_map,
+                  "These commands apply in 'lister mode' such as when you open a file.");
+        
+        bind_vanilla_keys(mappings, MDFR_NONE, list_mode__write_character);
+        bind(mappings, key_esc, MDFR_NONE, list_mode__quit);
+        bind(mappings, '\n', MDFR_NONE, list_mode__activate);
+        bind(mappings, '\t', MDFR_NONE, list_mode__activate);
+        bind(mappings, key_back     , MDFR_NONE, list_mode__backspace_text_field);
+        bind(mappings, key_up       , MDFR_NONE, list_mode__move_up);
+        bind(mappings, key_page_up  , MDFR_NONE, list_mode__move_up);
+        bind(mappings, key_down     , MDFR_NONE, list_mode__move_down);
+        bind(mappings, key_page_down, MDFR_NONE, list_mode__move_down);
+        bind(mappings, key_mouse_wheel       , MDFR_NONE, list_mode__wheel_scroll);
+        bind(mappings, key_mouse_left        , MDFR_NONE, list_mode__mouse_press);
+        bind(mappings, key_mouse_left_release, MDFR_NONE, list_mode__mouse_release);
+        bind(mappings, key_mouse_move, MDFR_NONE, list_mode__repaint);
+        bind(mappings, key_animate   , MDFR_NONE, list_mode__repaint);
         
         end_map(mappings);
     }
@@ -1049,6 +1074,27 @@ generate_remapping_code_and_data(){
         bind(mappings, '2', MDFR_CTRL, open_matching_file_cpp);
         bind(mappings, '0', MDFR_CMND, write_zero_struct);
         bind(mappings, 'I', MDFR_CMND, list_all_functions_current_buffer);
+        
+        end_map(mappings);
+        
+        // NOTE(allen): LISTER
+        begin_map(mappings, default_lister_ui_map,
+                  "These commands apply in 'lister mode' such as when you open a file.");
+        
+        bind_vanilla_keys(mappings, MDFR_NONE, list_mode__write_character);
+        bind(mappings, key_esc, MDFR_NONE, list_mode__quit);
+        bind(mappings, '\n', MDFR_NONE, list_mode__activate);
+        bind(mappings, '\t', MDFR_NONE, list_mode__activate);
+        bind(mappings, key_back     , MDFR_NONE, list_mode__backspace_text_field);
+        bind(mappings, key_up       , MDFR_NONE, list_mode__move_up);
+        bind(mappings, key_page_up  , MDFR_NONE, list_mode__move_up);
+        bind(mappings, key_down     , MDFR_NONE, list_mode__move_down);
+        bind(mappings, key_page_down, MDFR_NONE, list_mode__move_down);
+        bind(mappings, key_mouse_wheel       , MDFR_NONE, list_mode__wheel_scroll);
+        bind(mappings, key_mouse_left        , MDFR_NONE, list_mode__mouse_press);
+        bind(mappings, key_mouse_left_release, MDFR_NONE, list_mode__mouse_release);
+        bind(mappings, key_mouse_move, MDFR_NONE, list_mode__repaint);
+        bind(mappings, key_animate   , MDFR_NONE, list_mode__repaint);
         
         end_map(mappings);
     }

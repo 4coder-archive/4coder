@@ -10,7 +10,7 @@ bind(context, 'n', MDFR_CTRL, interactive_new);
 bind(context, 'o', MDFR_CTRL, interactive_open_or_new);
 bind(context, 'o', MDFR_ALT, open_in_other);
 bind(context, 'k', MDFR_CTRL, interactive_kill_buffer);
-bind(context, 'i', MDFR_CTRL, interactive_switch_buffer_DUMMY_API_EXPLORATION);
+bind(context, 'i', MDFR_CTRL, interactive_switch_buffer);
 bind(context, 'h', MDFR_CTRL, project_go_to_root_directory);
 bind(context, 'S', MDFR_CTRL, save_all_dirty_buffers);
 bind(context, 'c', MDFR_ALT, open_color_tweaker);
@@ -149,6 +149,22 @@ bind(context, '1', MDFR_ALT, open_file_in_quotes);
 bind(context, '2', MDFR_ALT, open_matching_file_cpp);
 bind(context, '0', MDFR_CTRL, write_zero_struct);
 bind(context, 'I', MDFR_CTRL, list_all_functions_current_buffer);
+end_map(context);
+begin_map(context, default_lister_ui_map);
+bind_vanilla_keys(context, list_mode__write_character);
+bind(context, key_esc, MDFR_NONE, list_mode__quit);
+bind(context, '\n', MDFR_NONE, list_mode__activate);
+bind(context, '\t', MDFR_NONE, list_mode__activate);
+bind(context, key_back, MDFR_NONE, list_mode__backspace_text_field);
+bind(context, key_up, MDFR_NONE, list_mode__move_up);
+bind(context, key_page_up, MDFR_NONE, list_mode__move_up);
+bind(context, key_down, MDFR_NONE, list_mode__move_down);
+bind(context, key_page_down, MDFR_NONE, list_mode__move_down);
+bind(context, key_mouse_wheel, MDFR_NONE, list_mode__wheel_scroll);
+bind(context, key_mouse_left, MDFR_NONE, list_mode__mouse_press);
+bind(context, key_mouse_left_release, MDFR_NONE, list_mode__mouse_release);
+bind(context, key_mouse_move, MDFR_NONE, list_mode__repaint);
+bind(context, key_animate, MDFR_NONE, list_mode__repaint);
 end_map(context);
 }
 void fill_keys_mac_default(Bind_Helper *context){
@@ -300,6 +316,22 @@ bind(context, '2', MDFR_CTRL, open_matching_file_cpp);
 bind(context, '0', MDFR_CMND, write_zero_struct);
 bind(context, 'I', MDFR_CMND, list_all_functions_current_buffer);
 end_map(context);
+begin_map(context, default_lister_ui_map);
+bind_vanilla_keys(context, list_mode__write_character);
+bind(context, key_esc, MDFR_NONE, list_mode__quit);
+bind(context, '\n', MDFR_NONE, list_mode__activate);
+bind(context, '\t', MDFR_NONE, list_mode__activate);
+bind(context, key_back, MDFR_NONE, list_mode__backspace_text_field);
+bind(context, key_up, MDFR_NONE, list_mode__move_up);
+bind(context, key_page_up, MDFR_NONE, list_mode__move_up);
+bind(context, key_down, MDFR_NONE, list_mode__move_down);
+bind(context, key_page_down, MDFR_NONE, list_mode__move_down);
+bind(context, key_mouse_wheel, MDFR_NONE, list_mode__wheel_scroll);
+bind(context, key_mouse_left, MDFR_NONE, list_mode__mouse_press);
+bind(context, key_mouse_left_release, MDFR_NONE, list_mode__mouse_release);
+bind(context, key_mouse_move, MDFR_NONE, list_mode__repaint);
+bind(context, key_animate, MDFR_NONE, list_mode__repaint);
+end_map(context);
 }
 #endif
 #if defined(CUSTOM_COMMAND_SIG)
@@ -344,7 +376,7 @@ static Meta_Key_Bind fcoder_binds_for_default_mapid_global[45] = {
 {0, 111, 1, "interactive_open_or_new", 23, LINK_PROCS(interactive_open_or_new)},
 {0, 111, 2, "open_in_other", 13, LINK_PROCS(open_in_other)},
 {0, 107, 1, "interactive_kill_buffer", 23, LINK_PROCS(interactive_kill_buffer)},
-{0, 105, 1, "interactive_switch_buffer_DUMMY_API_EXPLORATION", 47, LINK_PROCS(interactive_switch_buffer_DUMMY_API_EXPLORATION)},
+{0, 105, 1, "interactive_switch_buffer", 25, LINK_PROCS(interactive_switch_buffer)},
 {0, 104, 1, "project_go_to_root_directory", 28, LINK_PROCS(project_go_to_root_directory)},
 {0, 83, 1, "save_all_dirty_buffers", 22, LINK_PROCS(save_all_dirty_buffers)},
 {0, 99, 2, "open_color_tweaker", 18, LINK_PROCS(open_color_tweaker)},
@@ -364,9 +396,6 @@ static Meta_Key_Bind fcoder_binds_for_default_mapid_global[45] = {
 {0, 69, 2, "exit_4coder", 11, LINK_PROCS(exit_4coder)},
 {0, 43, 1, "increase_face_size", 18, LINK_PROCS(increase_face_size)},
 {0, 45, 1, "decrease_face_size", 18, LINK_PROCS(decrease_face_size)},
-{0, 55312, 0, "project_fkey_command", 20, LINK_PROCS(project_fkey_command)},
-{0, 55313, 0, "project_fkey_command", 20, LINK_PROCS(project_fkey_command)},
-{0, 55314, 0, "project_fkey_command", 20, LINK_PROCS(project_fkey_command)},
 {0, 55315, 0, "project_fkey_command", 20, LINK_PROCS(project_fkey_command)},
 {0, 55316, 0, "project_fkey_command", 20, LINK_PROCS(project_fkey_command)},
 {0, 55317, 0, "project_fkey_command", 20, LINK_PROCS(project_fkey_command)},
@@ -380,6 +409,9 @@ static Meta_Key_Bind fcoder_binds_for_default_mapid_global[45] = {
 {0, 55325, 0, "project_fkey_command", 20, LINK_PROCS(project_fkey_command)},
 {0, 55326, 0, "project_fkey_command", 20, LINK_PROCS(project_fkey_command)},
 {0, 55327, 0, "project_fkey_command", 20, LINK_PROCS(project_fkey_command)},
+{0, 55328, 0, "project_fkey_command", 20, LINK_PROCS(project_fkey_command)},
+{0, 55329, 0, "project_fkey_command", 20, LINK_PROCS(project_fkey_command)},
+{0, 55330, 0, "project_fkey_command", 20, LINK_PROCS(project_fkey_command)},
 };
 static Meta_Key_Bind fcoder_binds_for_default_mapid_file[66] = {
 {1, 0, 0, "write_character", 15, LINK_PROCS(write_character)},
@@ -483,10 +515,27 @@ static Meta_Key_Bind fcoder_binds_for_default_default_code_map[32] = {
 {0, 48, 1, "write_zero_struct", 17, LINK_PROCS(write_zero_struct)},
 {0, 73, 1, "list_all_functions_current_buffer", 33, LINK_PROCS(list_all_functions_current_buffer)},
 };
-static Meta_Sub_Map fcoder_submaps_for_default[3] = {
+static Meta_Key_Bind fcoder_binds_for_default_default_lister_ui_map[14] = {
+{1, 0, 0, "list_mode__write_character", 26, LINK_PROCS(list_mode__write_character)},
+{0, 55307, 0, "list_mode__quit", 15, LINK_PROCS(list_mode__quit)},
+{0, 10, 0, "list_mode__activate", 19, LINK_PROCS(list_mode__activate)},
+{0, 9, 0, "list_mode__activate", 19, LINK_PROCS(list_mode__activate)},
+{0, 55296, 0, "list_mode__backspace_text_field", 31, LINK_PROCS(list_mode__backspace_text_field)},
+{0, 55297, 0, "list_mode__move_up", 18, LINK_PROCS(list_mode__move_up)},
+{0, 55305, 0, "list_mode__move_up", 18, LINK_PROCS(list_mode__move_up)},
+{0, 55298, 0, "list_mode__move_down", 20, LINK_PROCS(list_mode__move_down)},
+{0, 55306, 0, "list_mode__move_down", 20, LINK_PROCS(list_mode__move_down)},
+{0, 55312, 0, "list_mode__wheel_scroll", 23, LINK_PROCS(list_mode__wheel_scroll)},
+{0, 55308, 0, "list_mode__mouse_press", 22, LINK_PROCS(list_mode__mouse_press)},
+{0, 55310, 0, "list_mode__mouse_release", 24, LINK_PROCS(list_mode__mouse_release)},
+{0, 55313, 0, "list_mode__repaint", 18, LINK_PROCS(list_mode__repaint)},
+{0, 55314, 0, "list_mode__repaint", 18, LINK_PROCS(list_mode__repaint)},
+};
+static Meta_Sub_Map fcoder_submaps_for_default[4] = {
 {"mapid_global", 12, "The following bindings apply in all situations.", 47, 0, 0, fcoder_binds_for_default_mapid_global, 45},
 {"mapid_file", 10, "The following bindings apply in general text files and most apply in code files, but some are overriden by other commands specific to code files.", 145, 0, 0, fcoder_binds_for_default_mapid_file, 66},
 {"default_code_map", 16, "The following commands only apply in files where the lexer (syntax highlighting) is turned on.", 94, "mapid_file", 10, fcoder_binds_for_default_default_code_map, 32},
+{"default_lister_ui_map", 21, "These commands apply in 'lister mode' such as when you open a file.", 67, 0, 0, fcoder_binds_for_default_default_lister_ui_map, 14},
 };
 static Meta_Key_Bind fcoder_binds_for_mac_default_mapid_global[45] = {
 {0, 112, 4, "open_panel_vsplit", 17, LINK_PROCS(open_panel_vsplit)},
@@ -518,9 +567,6 @@ static Meta_Key_Bind fcoder_binds_for_mac_default_mapid_global[45] = {
 {0, 69, 1, "exit_4coder", 11, LINK_PROCS(exit_4coder)},
 {0, 43, 1, "increase_face_size", 18, LINK_PROCS(increase_face_size)},
 {0, 45, 1, "decrease_face_size", 18, LINK_PROCS(decrease_face_size)},
-{0, 55312, 0, "project_fkey_command", 20, LINK_PROCS(project_fkey_command)},
-{0, 55313, 0, "project_fkey_command", 20, LINK_PROCS(project_fkey_command)},
-{0, 55314, 0, "project_fkey_command", 20, LINK_PROCS(project_fkey_command)},
 {0, 55315, 0, "project_fkey_command", 20, LINK_PROCS(project_fkey_command)},
 {0, 55316, 0, "project_fkey_command", 20, LINK_PROCS(project_fkey_command)},
 {0, 55317, 0, "project_fkey_command", 20, LINK_PROCS(project_fkey_command)},
@@ -534,6 +580,9 @@ static Meta_Key_Bind fcoder_binds_for_mac_default_mapid_global[45] = {
 {0, 55325, 0, "project_fkey_command", 20, LINK_PROCS(project_fkey_command)},
 {0, 55326, 0, "project_fkey_command", 20, LINK_PROCS(project_fkey_command)},
 {0, 55327, 0, "project_fkey_command", 20, LINK_PROCS(project_fkey_command)},
+{0, 55328, 0, "project_fkey_command", 20, LINK_PROCS(project_fkey_command)},
+{0, 55329, 0, "project_fkey_command", 20, LINK_PROCS(project_fkey_command)},
+{0, 55330, 0, "project_fkey_command", 20, LINK_PROCS(project_fkey_command)},
 };
 static Meta_Key_Bind fcoder_binds_for_mac_default_mapid_file[64] = {
 {1, 0, 0, "write_character", 15, LINK_PROCS(write_character)},
@@ -635,12 +684,29 @@ static Meta_Key_Bind fcoder_binds_for_mac_default_default_code_map[32] = {
 {0, 48, 4, "write_zero_struct", 17, LINK_PROCS(write_zero_struct)},
 {0, 73, 4, "list_all_functions_current_buffer", 33, LINK_PROCS(list_all_functions_current_buffer)},
 };
-static Meta_Sub_Map fcoder_submaps_for_mac_default[3] = {
+static Meta_Key_Bind fcoder_binds_for_mac_default_default_lister_ui_map[14] = {
+{1, 0, 0, "list_mode__write_character", 26, LINK_PROCS(list_mode__write_character)},
+{0, 55307, 0, "list_mode__quit", 15, LINK_PROCS(list_mode__quit)},
+{0, 10, 0, "list_mode__activate", 19, LINK_PROCS(list_mode__activate)},
+{0, 9, 0, "list_mode__activate", 19, LINK_PROCS(list_mode__activate)},
+{0, 55296, 0, "list_mode__backspace_text_field", 31, LINK_PROCS(list_mode__backspace_text_field)},
+{0, 55297, 0, "list_mode__move_up", 18, LINK_PROCS(list_mode__move_up)},
+{0, 55305, 0, "list_mode__move_up", 18, LINK_PROCS(list_mode__move_up)},
+{0, 55298, 0, "list_mode__move_down", 20, LINK_PROCS(list_mode__move_down)},
+{0, 55306, 0, "list_mode__move_down", 20, LINK_PROCS(list_mode__move_down)},
+{0, 55312, 0, "list_mode__wheel_scroll", 23, LINK_PROCS(list_mode__wheel_scroll)},
+{0, 55308, 0, "list_mode__mouse_press", 22, LINK_PROCS(list_mode__mouse_press)},
+{0, 55310, 0, "list_mode__mouse_release", 24, LINK_PROCS(list_mode__mouse_release)},
+{0, 55313, 0, "list_mode__repaint", 18, LINK_PROCS(list_mode__repaint)},
+{0, 55314, 0, "list_mode__repaint", 18, LINK_PROCS(list_mode__repaint)},
+};
+static Meta_Sub_Map fcoder_submaps_for_mac_default[4] = {
 {"mapid_global", 12, "The following bindings apply in all situations.", 47, 0, 0, fcoder_binds_for_mac_default_mapid_global, 45},
 {"mapid_file", 10, "The following bindings apply in general text files and most apply in code files, but some are overriden by other commands specific to code files.", 145, 0, 0, fcoder_binds_for_mac_default_mapid_file, 64},
 {"default_code_map", 16, "The following commands only apply in files where the lexer (syntax highlighting) is turned on.", 94, "mapid_file", 10, fcoder_binds_for_mac_default_default_code_map, 32},
+{"default_lister_ui_map", 21, "These commands apply in 'lister mode' such as when you open a file.", 67, 0, 0, fcoder_binds_for_mac_default_default_lister_ui_map, 14},
 };
 static Meta_Mapping fcoder_meta_maps[2] = {
-{"default", 7, "The default 4coder bindings - typically good for Windows and Linux", 66, fcoder_submaps_for_default, 3, LINK_PROCS(fill_keys_default)},
-{"mac_default", 11, "Default 4coder bindings on a Mac keyboard", 41, fcoder_submaps_for_mac_default, 3, LINK_PROCS(fill_keys_mac_default)},
+{"default", 7, "The default 4coder bindings - typically good for Windows and Linux", 66, fcoder_submaps_for_default, 4, LINK_PROCS(fill_keys_default)},
+{"mac_default", 11, "Default 4coder bindings on a Mac keyboard", 41, fcoder_submaps_for_mac_default, 4, LINK_PROCS(fill_keys_mac_default)},
 };

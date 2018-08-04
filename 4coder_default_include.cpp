@@ -22,6 +22,7 @@
 #include "4coder_lib/4coder_utf8.h"
 #include "4coder_lib/4cpp_lexer.h"
 
+#include "4coder_ui_helper.h"
 #include "4coder_helper.h"
 #include "4coder_default_framework.h"
 #include "4coder_config.h"
@@ -37,13 +38,14 @@
 
 #include "4coder_default_framework_variables.cpp"
 #include "4coder_buffer_seek_constructors.cpp"
-#include "4coder_ui_helper.cpp"
 #include "4coder_helper.cpp"
+#include "4coder_ui_helper.cpp"
 #include "4coder_font_helper.cpp"
 #include "4coder_config.cpp"
 #include "4coder_default_framework.cpp"
 #include "4coder_seek.cpp"
 #include "4coder_base_commands.cpp"
+#include "4coder_lists.cpp"
 #include "4coder_auto_indent.cpp"
 #include "4coder_search.cpp"
 #include "4coder_jumping.cpp"

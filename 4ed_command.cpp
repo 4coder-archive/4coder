@@ -26,7 +26,6 @@ get_or_add_map_index(Mapping *mapping, i32 mapid){
     return(result);
 }
 
-// HACK(allen): This seems busted, investigate.
 internal i32
 get_map_index(Mapping *mapping, i32 mapid){
     i32 user_map_count = mapping->user_map_count;
@@ -34,10 +33,6 @@ get_map_index(Mapping *mapping, i32 mapid){
     i32 result = 0;
     for (; result < user_map_count; ++result){
         if (map_id_table[result] == mapid){
-            break;
-        }
-        if (map_id_table[result] == 0){
-            result = user_map_count;
             break;
         }
     }

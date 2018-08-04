@@ -194,7 +194,6 @@ panel_make_empty(System_Functions *system, Models *models, Panel *panel){
     Assert(panel->view == 0);
     View_And_ID new_view = live_set_alloc_view(&models->mem.general, &models->live_set, panel);
     view_set_file(system, models, new_view.view, models->scratch_buffer);
-    new_view.view->transient.map = models->scratch_buffer->settings.base_map_id;
     return(new_view.view);
 }
 
@@ -1430,7 +1429,7 @@ App_Step_Sig(app_step){
     
     // NOTE(allen): prepare input information
     {
-        if (models->input_filter){
+        if (models->input_filter != 0){
             models->input_filter(&input->mouse);
         }
         
@@ -1450,6 +1449,22 @@ App_Step_Sig(app_step){
         }
         else if (input->mouse.release_r){
             mouse_event.keycode = key_mouse_right_release;
+            input->keys.keys[input->keys.count++] = mouse_event;
+        }
+        
+        if (input->mouse.wheel != 0){
+            mouse_event.keycode = key_mouse_wheel;
+            input->keys.keys[input->keys.count++] = mouse_event;
+        }
+        
+        if (input->mouse.x != models->prev_x &&
+            input->mouse.y != models->prev_y){
+            mouse_event.keycode = key_mouse_move;
+            input->keys.keys[input->keys.count++] = mouse_event;
+        }
+        
+        if (models->animated_last_frame){
+            mouse_event.keycode = key_animate;
             input->keys.keys[input->keys.count++] = mouse_event;
         }
     }
@@ -1678,33 +1693,8 @@ App_Step_Sig(app_step){
         }
     }
     
-    // NOTE(allen): pass events to debug
+    // NOTE(allen): Get Available Input
     vars->available_input = init_available_input(&input->keys, &input->mouse);
-    
-    {
-        Debug_Data *debug = &models->debug;
-        Key_Input_Data key_data = get_key_data(&vars->available_input);
-        
-        Debug_Input_Event *events = debug->input_events;
-        
-        i32 count = key_data.count;
-        i32 preserved_inputs = ArrayCount(debug->input_events) - count;
-        
-        debug->this_frame_count = count;
-        memmove(events + count, events, sizeof(Debug_Input_Event)*preserved_inputs);
-        
-        for (i32 i = 0; i < key_data.count; ++i){
-            Key_Event_Data key = key_data.keys[i];
-            events[i].key = key.keycode;
-            
-            events[i].consumer[0] = 0;
-            
-            events[i].is_hold = key.modifiers[MDFR_HOLD_INDEX];
-            events[i].is_ctrl = key.modifiers[MDFR_CONTROL_INDEX];
-            events[i].is_alt = key.modifiers[MDFR_ALT_INDEX];
-            events[i].is_shift = key.modifiers[MDFR_SHIFT_INDEX];
-        }
-    }
     
     // NOTE(allen): Keyboard and Mouse input to command coroutine.
     if (models->command_coroutine != 0){
@@ -1752,7 +1742,7 @@ App_Step_Sig(app_step){
                     
                     i32 map = mapid_global;
                     if (view != 0){
-                        map = view->transient.map;
+                        map = view_get_map(view);
                     }
                     Command_Binding cmd_bind = map_extract_recursive(&models->mapping, map, key);
                     
@@ -1882,7 +1872,7 @@ App_Step_Sig(app_step){
             }
             else{
                 scroll_vars = &view->transient.ui_scroll;
-                i32 bottom = view->transient.ui_control.bounding_box.y1;
+                i32 bottom = view->transient.ui_control.bounding_box[UICoordinates_Scrolled].y1;
                 max_y = view_compute_max_target_y_from_bottom_y(view, (f32)bottom);
                 file_scroll = false;
             }
@@ -1907,7 +1897,6 @@ App_Step_Sig(app_step){
                     *scroll_vars = ip_result.scroll;
                 }
             }
-            
         }
     }
     
@@ -1932,7 +1921,8 @@ App_Step_Sig(app_step){
                     USE_VIEW(view);
                     Assert(view != 0);
                     
-                    Command_Binding cmd_bind = map_extract_recursive(&models->mapping, view->transient.map, key);
+                    i32 map = view_get_map(view);
+                    Command_Binding cmd_bind = map_extract_recursive(&models->mapping, map, key);
                     
                     if (cmd_bind.function){
                         if (key.keycode == key_esc){
@@ -1972,54 +1962,6 @@ App_Step_Sig(app_step){
         }
         if (hit_esc){
             consume_input(&vars->available_input, Input_Esc, "command dispatcher");
-        }
-    }
-    
-    // NOTE(allen): pass consumption data to debug
-    {
-        Debug_Data *debug = &models->debug;
-        i32 count = debug->this_frame_count;
-        
-        Consumption_Record *record = 0;
-        
-        record = &vars->available_input.records[Input_MouseLeftButton];
-        if (record->consumed && record->consumer[0] != 0){
-            Debug_Input_Event *event = debug->input_events;
-            for (i32 i = 0; i < count; ++i, ++event){
-                if (event->key == key_mouse_left && event->consumer[0] == 0){
-                    memcpy(event->consumer, record->consumer, sizeof(record->consumer));
-                }
-            }
-        }
-        
-        record = &vars->available_input.records[Input_MouseRightButton];
-        if (record->consumed && record->consumer[0] != 0){
-            Debug_Input_Event *event = debug->input_events;
-            for (i32 i = 0; i < count; ++i, ++event){
-                if (event->key == key_mouse_right && event->consumer[0] == 0){
-                    memcpy(event->consumer, record->consumer, sizeof(record->consumer));
-                }
-            }
-        }
-        
-        record = &vars->available_input.records[Input_Esc];
-        if (record->consumed && record->consumer[0] != 0){
-            Debug_Input_Event *event = debug->input_events;
-            for (i32 i = 0; i < count; ++i, ++event){
-                if (event->key == key_esc && event->consumer[0] == 0){
-                    memcpy(event->consumer, record->consumer, sizeof(record->consumer));
-                }
-            }
-        }
-        
-        record = &vars->available_input.records[Input_AnyKey];
-        if (record->consumed){
-            Debug_Input_Event *event = debug->input_events;
-            for (i32 i = 0; i < count; ++i, ++event){
-                if (event->consumer[0] == 0){
-                    memcpy(event->consumer, record->consumer, sizeof(record->consumer));
-                }
-            }
         }
     }
     
@@ -2249,6 +2191,10 @@ App_Step_Sig(app_step){
     app_result.lctrl_lalt_is_altgr = models->settings.lctrl_lalt_is_altgr;
     app_result.perform_kill = !models->keep_playing;
     
+    // NOTE(allen): Update Frame to Frame States
+    models->prev_x = input->mouse.x;
+    models->prev_y = input->mouse.y;
+    models->animated_last_frame = app_result.animating;
     models->frame_counter += 1;
     
     // end-of-app_step
