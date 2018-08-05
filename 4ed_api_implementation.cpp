@@ -213,7 +213,9 @@ DOC_SEE(Command_ID)
         Command_Function *function = command_table[command_id];
         Command_Binding binding = {};
         binding.function = function;
-        if (function) function(cmd->system, cmd, binding);
+        if (function != 0){
+            function(cmd->system, cmd, binding);
+        }
         
         result = true;
     }
@@ -1313,21 +1315,28 @@ DOC_SEE(Buffer_Create_Flag)
     if (filename_len > 0){
         Temp_Memory temp = begin_temp_memory(part);
         
-        // NOTE(allen): Try to get the file by canon name.
         String fname = make_string(filename, filename_len);
         Editing_File *file = 0;
-        b32 do_new_file = false;
+        b32 do_empty_buffer = false;
         Editing_File_Name canon = {0};
-        if (get_canon_name(system, fname, &canon)){
-            file = working_set_contains_canon(working_set, canon.name);
-        }
-        else{
-            do_new_file = true;
+        b32 has_canon_name = false;
+        
+        // NOTE(allen): Try to get the file by canon name.
+        if ((flags & BufferCreate_NeverAttachToFile) == 0){
+            if (get_canon_name(system, fname, &canon)){
+                has_canon_name = true;
+                file = working_set_contains_canon(working_set, canon.name);
+            }
+            else{
+                do_empty_buffer = true;
+            }
         }
         
         // NOTE(allen): Try to get the file by buffer name.
-        if (file == 0){
-            file = working_set_contains_name(working_set, fname);
+        if ((flags & BufferCreate_MustAttachToFile) == 0){
+            if (file == 0){
+                file = working_set_contains_name(working_set, fname);
+            }
         }
         
         // NOTE(allen): If there is still no file, create a new buffer.
@@ -1335,21 +1344,24 @@ DOC_SEE(Buffer_Create_Flag)
             Plat_Handle handle = {0};
             
             // NOTE(allen): Figure out whether this is a new file, or an existing file.
-            if (!do_new_file){
+            if (!do_empty_buffer){
                 if ((flags & BufferCreate_AlwaysNew) != 0){
-                    do_new_file = true;
+                    do_empty_buffer = true;
                 }
                 else{
                     if (!system->load_handle(canon.name.str, &handle)){
-                        do_new_file = true;
+                        do_empty_buffer = true;
                     }
                 }
             }
             
-            if (do_new_file){
+            if (do_empty_buffer){
                 if ((flags & BufferCreate_NeverNew) == 0){
                     file = working_set_alloc_always(working_set, general);
                     if (file != 0){
+                        if (has_canon_name){
+                            buffer_bind_file(system, general, working_set, file, canon.name);
+                        }
                         buffer_bind_name(models, general, part, working_set, file, front_of_directory(fname));
                         init_normal_file(system, models, 0, 0, file);
                         fill_buffer_summary(&result, file, cmd);
@@ -1448,53 +1460,70 @@ DOC_SEE(Buffer_Save_Flag)
     return(result);
 }
 
-API_EXPORT bool32
-Kill_Buffer(Application_Links *app, Buffer_Identifier buffer, View_ID view_id, Buffer_Kill_Flag flags)
+API_EXPORT Buffer_Kill_Result
+Kill_Buffer(Application_Links *app, Buffer_Identifier buffer, Buffer_Kill_Flag flags)
 /*
 DOC_PARAM(buffer, The buffer parameter specifies the buffer to try to kill.)
-DOC_PARAM(view_id, The view_id parameter specifies the view that will contain the "are you sure" dialogue if the buffer is dirty.)
 DOC_PARAM(flags, The flags parameter specifies behaviors for the buffer kill.)
-DOC_RETURN(This call returns non-zero if the buffer is killed.)
+DOC_RETURN(This call returns BufferKillResult_Killed if the call successfully kills the buffer,
+for extended information on other kill results see the Buffer_Kill_Result enumeration.)
 
-DOC(Tries to kill the idenfied buffer.  If the buffer is dirty and the "are you sure"
-dialogue needs to be displayed the provided view is used to show the dialogue.
-If the view is not open the kill fails.)
+DOC(Tries to kill the idenfied buffer, if the buffer is dirty or does not exist then nothing will
+happen. The default rules about when to kill or not kill a buffer can be altered by the flags.)
 
+DOC_SEE(Buffer_Kill_Result)
 DOC_SEE(Buffer_Kill_Flag)
 DOC_SEE(Buffer_Identifier)
 */{
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     System_Functions *system = cmd->system;
     Models *models = cmd->models;
-    
-    bool32 result = false;
+    Buffer_Kill_Result result = BufferKillResult_DoesNotExist;
     Working_Set *working_set = &models->working_set;
     Editing_File *file = get_file_from_identifier(system, working_set, buffer);
     if (file != 0){
-        if ((flags & BufferKill_AlwaysKill) != 0){
-            result = true;
-            kill_file_and_update_views(system, models, file);
-        }
-        else{
-            Try_Kill_Result kill_result = interactive_try_kill_file(system, models, file);
-            if (kill_result == TryKill_NeedDialogue){
-                View *vptr = imp_get_view(cmd, view_id);
-                if (vptr != 0){
-                    interactive_begin_sure_to_kill(system, vptr, models, file);
+        result = BufferKillResult_Unkillable;
+        if (!file->settings.never_kill){
+            b32 needs_to_save = buffer_needs_save(file);
+            if (!needs_to_save || (flags & BufferKill_AlwaysKill) != 0){
+                if (models->hook_end_file != 0){
+                    models->hook_end_file(&models->app_links, file->id.id);
                 }
-                else{
-                    char m[] = "WARNING: the buffer is dirty and no view was specified for a dialogue.\n";
-                    print_message(app, m, sizeof(m) - 1);
+                
+                buffer_unbind_name_low_level(working_set, file);
+                if (file->canon.name.size != 0){
+                    buffer_unbind_file(system, working_set, file);
                 }
+                file_free(system, &models->app_links, &models->mem.general, file);
+                working_set_free_file(&models->mem.general, working_set, file);
+                
+                File_Node *used = &working_set->used_sentinel;
+                File_Node *node = used->next;
+                for (Panel *panel = models->layout.used_sentinel.next;
+                     panel != &models->layout.used_sentinel;
+                     panel = panel->next){
+                    View *view = panel->view;
+                    if (view->transient.file_data.file == file){
+                        Assert(node != used);
+                        view->transient.file_data.file = 0;
+                        view_set_file(system, models, view, (Editing_File*)node);
+                        if (node->next != used){
+                            node = node->next;
+                        }
+                        else{
+                            node = node->next->next;
+                            Assert(node != used);
+                        }
+                    }
+                }
+                
+                result = BufferKillResult_Killed;
             }
             else{
-                if (kill_result == TryKill_Success){
-                    result = true;
-                }
+                result = BufferKillResult_Dirty;
             }
         }
     }
-    
     return(result);
 }
 
@@ -2225,7 +2254,7 @@ View_End_UI_Mode(Application_Links *app, View_Summary *view){
         vptr->transient.ui_mode_counter = clamp_bottom(0, vptr->transient.ui_mode_counter);
         if (vptr->transient.ui_mode_counter > 0){
             vptr->transient.ui_mode_counter -= 1;
-            return(vptr->transient.ui_mode_counter + 1);
+            return(vptr->transient.ui_mode_counter);
         }
         else{
             return(0);
@@ -3054,11 +3083,15 @@ DOC(This call returns true if the 4coder is in full screen mode.  This call take
 API_EXPORT void
 Send_Exit_Signal(Application_Links *app)
 /*
-DOC(This call sends a signal to 4coder to attempt to exit.  If there are unsaved files this triggers a dialogue ensuring you're okay with closing.)
+DOC(This call sends a signal to 4coder to attempt to exit, which will trigger the exit hook before the end of the frame.  That hook will have the chance to cancel the exit.
+
+In the default behavior of the exit hook, the exit is cancelled if there are unsaved changes, and instead a UI querying the user for permission to close without saving is presented, if the user confirms the UI sends another exit signal that will not be canceled.
+
+To make send_exit_signal exit no matter what, setup your hook in such a way that it knows when you are trying to exit no matter what, such as with a global variable that you set before calling send_exit_signal.)
 */{
     Command_Data *cmd = (Command_Data*)app->cmd_context;
-    System_Functions *system = cmd->system;
-    system->send_exit_signal();
+    Models *models = cmd->models;
+    models->keep_playing = false;
 }
 
 API_EXPORT void

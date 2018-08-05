@@ -8,6 +8,8 @@ the default 4coder behavior.
 static Named_Mapping *named_maps = 0;
 static int32_t named_map_count = 0;
 
+static bool32 allow_immediate_close_without_checking_for_changes = false;
+
 static char *default_extensions[] = {
     "cpp",
     "hpp",
@@ -50,3 +52,4 @@ static Config_Data global_config = {0};
 static char previous_isearch_query[256] = {0};
 
 // BOTTOM
+

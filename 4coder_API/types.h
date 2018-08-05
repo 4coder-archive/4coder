@@ -61,33 +61,14 @@ ENUM(uint32_t, Key_Modifier_Flag){
 ENUM(uint64_t, Command_ID){
     /* DOC(cmdid_null is set aside to always be zero and is not associated with any command.) */
     cmdid_null,
-    
     /* DOC(cmdid_undo performs a standard undo behavior.) */
     cmdid_undo,
     /* DOC(cmdid_redo reperforms an edit that was undone.) */
     cmdid_redo,
-    
-    /* DOC(cmdid_interactive_new begins an interactive dialogue to create a new buffer.) */
-    cmdid_interactive_new,
-    /* DOC(cmdid_interactive_open begins an interactive dialogue to open a file into a buffer.) */
-    cmdid_interactive_open,
-    /* DOC(cmdid_interactive_open_or_new begins an interactive dialogue to open a file into a buffer, if the name specified does not match any existing buffer, a new buffer is created instead.) */
-    cmdid_interactive_open_or_new,
-    /* DOC(cmdid_interactive_switch_buffer begins an interactive dialogue to choose an open buffer to swap into the active view.) */
-    cmdid_interactive_switch_buffer,
-    /* DOC(cmdid_interactive_kill_buffer begins an interactive dialogue to choose an open buffer to kill.) */
-    cmdid_interactive_kill_buffer,
-    
     /* DOC(cmdid_reopen reloads the active buffer's associated file and discards the old buffer contents for the reloaded file.) */
     cmdid_reopen,
     /* DOC(cmdid_save saves the buffer's contents into the associated file.) */
     cmdid_save,
-    /* DOC(cmdid_kill_buffer tries to kill the active buffer.) */
-    cmdid_kill_buffer,
-    
-    /* DOC(cmdid_open_color_tweaker opens the theme editing GUI.) */
-    cmdid_open_color_tweaker,
-    
     // count
     cmdid_count
 };
@@ -105,11 +86,11 @@ ENUM(uint32_t, Memory_Protect_Flags){
 /* DOC(User_Input_Type_ID specifies a type of user input event.) */
 ENUM(int32_t, User_Input_Type_ID){
     /* DOC(UserInputNone indicates that no event has occurred.) */
-    UserInputNone,
+    UserInputNone = 0,
     /* DOC(UserInputKey indicates an event which can be described by a Key_Event_Data struct.) */
-    UserInputKey,
+    UserInputKey = 1,
     /* DOC(UserInputMouse indicates an event which can be described by a Mouse_State struct.) */
-    UserInputMouse
+    UserInputMouse = 2
 };
 
 /* DOC(A Wrap_Indicator_Mode is used in the buffer setting BufferSetting_WrapIndicator to specify how to indicate that line has been wrapped.) */
@@ -203,8 +184,11 @@ ENUM(uint32_t, Buffer_Create_Flag){
     BufferCreate_NeverNew   = 0x4,
     /* DOC(When BufferCreate_JustChangedFile is set it indicates that the file to load has just been saved in the same frame and a change notification for the file should be ignored.) */
     BufferCreate_JustChangedFile = 0x8,
+    /* DOC(Indicates that when create_buffer searches for already existing buffers that match the name parameter, it should only search by file name, and that if it cannot create the buffer with the file attached, it should not create the buffer at all.) */
+    BufferCreate_MustAttachToFile = 0x10,
+    /* DOC(Indicates that when create_buffer searches for already existing buffers that match the name parameter, it should only search by buffer name, and that it should not attach a file to the buffer even if it can.  Caution! Buffers that don't have attached files cannot be saved.) */
+    BufferCreate_NeverAttachToFile = 0x20,
 };
-
 
 /* DOC(Buffer_Creation_Data is a struct used as a local handle for the creation of a buffer. )
 HIDE_MEMBERS() */
@@ -222,11 +206,16 @@ ENUM(uint32_t, Buffer_Save_Flag){
 
 /* DOC(A Buffer_Kill_Flag field specifies how a buffer should be killed.) */
 ENUM(uint32_t, Buffer_Kill_Flag){
-    /* DOC(BufferKill_Background is not currently implemented.) */
-    BufferKill_Background  = 0x1,
     /* DOC(When BufferKill_AlwaysKill is set it indicates the buffer should be killed
     without asking, even when the buffer is dirty.) */
     BufferKill_AlwaysKill  = 0x2,
+};
+
+ENUM(int32_t, Buffer_Kill_Result){
+    BufferKillResult_Killed = 0,
+    BufferKillResult_Dirty = 1,
+    BufferKillResult_Unkillable = 2,
+    BufferKillResult_DoesNotExist = 3,
 };
 
 /* DOC(An Access_Flag field specifies what sort of permission you grant to an access call.  An access call is usually one the returns a summary struct.  If a 4coder object has a particular protection flag set and the corresponding bit is not set in the access field, that 4coder object is hidden.  On the other hand if a protection flag is set in the access parameter and the object does not have that protection flag, the object is still returned from the access call.) */

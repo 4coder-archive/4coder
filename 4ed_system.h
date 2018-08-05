@@ -209,9 +209,6 @@ typedef Sys_Set_Fullscreen_Sig(System_Set_Fullscreen);
 #define Sys_Is_Fullscreen_Sig(name) bool32 name()
 typedef Sys_Is_Fullscreen_Sig(System_Is_Fullscreen);
 
-#define Sys_Send_Exit_Signal_Sig(name) void name()
-typedef Sys_Send_Exit_Signal_Sig(System_Send_Exit_Signal);
-
 // debug
 #define Sys_Log_Sig(name) void name(char *message, u32 length)
 typedef Sys_Log_Sig(System_Log);
@@ -273,7 +270,6 @@ struct System_Functions{
     System_Show_Mouse_Cursor      *show_mouse_cursor;
     System_Set_Fullscreen         *set_fullscreen;
     System_Is_Fullscreen          *is_fullscreen;
-    System_Send_Exit_Signal       *send_exit_signal;
     
     // debug: 1
     System_Log *log;

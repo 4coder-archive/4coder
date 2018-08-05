@@ -564,6 +564,21 @@ buffer_identifier_to_id(Application_Links *app, Buffer_Identifier identifier){
     return(id);
 }
 
+static Buffer_Summary
+buffer_identifier_to_buffer_summary(Application_Links *app, Buffer_Identifier identifier, Access_Flag access){
+    Buffer_Summary buffer = {0};
+    if (identifier.id != 0){
+        buffer = get_buffer(app, identifier.id, access);
+    }
+    else{
+        buffer = get_buffer_by_name(app, identifier.name, identifier.name_len, access);
+        if (!buffer.exists){
+            buffer = get_buffer_by_file_name(app, identifier.name, identifier.name_len, access);
+        }
+    }
+    return(buffer);
+}
+
 static bool32
 view_open_file(Application_Links *app, View_Summary *view,
                char *filename, int32_t filename_len, bool32 never_new){
@@ -605,6 +620,17 @@ get_view_prev(Application_Links *app, View_Summary *view, uint32_t access){
         
         *view = new_view;
     }
+}
+
+static Buffer_Kill_Result
+kill_buffer(Application_Links *app, Buffer_Identifier identifier, View_ID gui_view_id, Buffer_Kill_Flag flags){
+    Buffer_Kill_Result result = kill_buffer(app, identifier, flags);
+    if (result == BufferKillResult_Dirty){
+        Buffer_Summary buffer = buffer_identifier_to_buffer_summary(app, identifier, AccessAll);
+        View_Summary view = get_view(app, gui_view_id, AccessAll);
+        do_gui_sure_to_kill(app, &buffer, &view);
+    }
+    return(result);
 }
 
 static View_Summary

@@ -360,46 +360,49 @@ lister_begin_new_item_set(Lister *lister){
     memset(&lister->options, 0, sizeof(lister->options));
 }
 
-static void
+static void*
 lister_add_item(Partition *arena, Lister *lister,
                 Lister_Prealloced_String string, Lister_Prealloced_String status,
-                void *user_data){
+                void *user_data, int32_t extra_space){
     Lister_Option_Node *node = push_array(arena, Lister_Option_Node, 1);
     node->string = string.string;
     node->status = status.string;
     node->user_data = user_data;
     zdll_push_back(lister->options.first, lister->options.last, node);
     lister->options.count += 1;
+    void *result = push_array(arena, char, extra_space);
+    push_align(arena, 8);
+    return(result);
 }
 
-static void
+static void*
 lister_add_item(Partition *arena, Lister *lister,
                 Lister_Prealloced_String string, String status,
-                void *user_data){
-    lister_add_item(arena, lister,
-                    string,
-                    lister_prealloced(push_string_copy(arena, status)),
-                    user_data);
+                void *user_data, int32_t extra_space){
+    return(lister_add_item(arena, lister,
+                           string,
+                           lister_prealloced(push_string_copy(arena, status)),
+                           user_data, extra_space));
 }
 
-static void
+static void*
 lister_add_item(Partition *arena, Lister *lister,
                 String string, Lister_Prealloced_String status,
-                void *user_data){
-    lister_add_item(arena, lister,
-                    lister_prealloced(push_string_copy(arena, string)),
-                    status,
-                    user_data);
+                void *user_data, int32_t extra_space){
+    return(lister_add_item(arena, lister,
+                           lister_prealloced(push_string_copy(arena, string)),
+                           status,
+                           user_data, extra_space));
 }
 
-static void
+static void*
 lister_add_item(Partition *arena, Lister *lister,
                 String string, String status,
-                void *user_data){
-    lister_add_item(arena, lister,
-                    lister_prealloced(push_string_copy(arena, string)),
-                    lister_prealloced(push_string_copy(arena, status)),
-                    user_data);
+                void *user_data, int32_t extra_space){
+    return(lister_add_item(arena, lister,
+                           lister_prealloced(push_string_copy(arena, string)),
+                           lister_prealloced(push_string_copy(arena, status)),
+                           user_data, extra_space));
 }
 
 static void*
@@ -420,9 +423,9 @@ lister_get_user_data(Lister *lister, int32_t index){
 
 static void
 lister_call_refresh_handler(Application_Links *app, Partition *arena, Lister *lister){
-    if (lister->refresh != 0){
+    if (lister->handlers.refresh != 0){
         arena->pos = 0;
-        lister->refresh(app, arena, lister);
+        lister->handlers.refresh(app, arena, lister);
     }
 }
 
@@ -432,17 +435,18 @@ lister_call_activate_handler(Application_Links *app, Partition *scratch, General
                              void *user_data, bool32 activated_by_mouse){
     Lister *lister = &state->lister;
     Lister_Activation_Code code = ListerActivation_Finished;
-    if (lister->activate != 0){
-        code = lister->activate(app, view, lister->text_field, user_data, activated_by_mouse);
+    if (lister->handlers.activate != 0){
+        code = lister->handlers.activate(app, view, lister->text_field, user_data, activated_by_mouse);
     }
     switch (code){
         case ListerActivation_Finished:
         {
-            state->initialized = false;
-            view_end_ui_mode(app, view);
-            if (state->arena.base != 0){
-                general_memory_free(general, state->arena.base);
-                memset(&state->arena, 0, sizeof(state->arena));
+            if (view_end_ui_mode(app, view) == 0){
+                state->initialized = false;
+                if (state->arena.base != 0){
+                    general_memory_free(general, state->arena.base);
+                    memset(&state->arena, 0, sizeof(state->arena));
+                }
             }
         }break;
         

@@ -53,7 +53,28 @@ COMMAND_CALLER_HOOK(default_command_caller){
 }
 
 HOOK_SIG(default_exit){
-    // if this returns zero it cancels the exit.
+    // If this returns zero it cancels the exit.
+    if (allow_immediate_close_without_checking_for_changes){
+        return(1);
+    }
+    
+    bool32 has_unsaved_changes = false;
+    
+    for (Buffer_Summary buffer = get_buffer_first(app, AccessAll);
+         buffer.exists;
+         get_buffer_next(app, &buffer, AccessAll)){
+        if (buffer.dirty == DirtyState_UnsavedChanges){
+            has_unsaved_changes = true;
+            break;
+        }
+    }
+    
+    if (has_unsaved_changes){
+        View_Summary view = get_active_view(app, AccessAll);
+        do_gui_sure_to_close_4coder(app, &view);
+        return(0);
+    }
+    
     return(1);
 }
 

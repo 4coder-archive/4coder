@@ -280,11 +280,6 @@ Sys_Is_Fullscreen_Sig(system_is_fullscreen){
     return(result);
 }
 
-internal
-Sys_Send_Exit_Signal_Sig(system_send_exit_signal){
-    win32vars.send_exit_signal = true;
-}
-
 #include "4ed_coroutine_functions.cpp"
 
 #include "4ed_system_shared.cpp"
@@ -1174,9 +1169,6 @@ win32_proc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
 #include "4ed_link_system_functions.cpp"
 #include "4ed_shared_init_logic.cpp"
 
-#include "4ed_input_simulation.h"
-#include "4ed_input_simulation.cpp"
-
 int CALL_CONVENTION
 WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow){
     i32 argc = __argc;
@@ -1389,32 +1381,6 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
     LOG("Initializing application variables\n");
     app.init(&sysfunc, &target, &memory_vars, win32vars.clipboard_contents, curdir, custom_api);
     
-    Input_Simulation_Controls sim_controls = {0};
-    Simulation_Event_Stream_State sim_stream = {0};
-    Simulation_Event *sim_events = 0;
-    i32 sim_event_count = 0;
-    
-    if (plat_settings.use_test_input){
-        simulation_init(&sim_controls);
-        simulation_stream_init(&sim_stream);
-        
-        plat_settings.use_test_input = false;
-        
-        Plat_Handle file_handle;
-        if (system_load_handle(plat_settings.test_input, &file_handle)){
-            u32 test_size = system_load_size(file_handle);
-            char *test_buffer = (char*)system_memory_allocate(test_size);
-            
-            if (system_load_file(file_handle, test_buffer, test_size)){
-                sim_event_count = *(i32*)test_buffer;
-                sim_events = (Simulation_Event*)(test_buffer + 4);
-                plat_settings.use_test_input = true;
-            }
-            
-            system_load_close(file_handle);
-        }
-    }
-    
     //
     // Main loop
     //
@@ -1449,7 +1415,7 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
             
             b32 get_more_messages = true;
             do{
-                if (win32vars.got_useful_event == 0 && !plat_settings.use_test_input){
+                if (win32vars.got_useful_event == 0){
                     get_more_messages = GetMessage(&msg, 0, 0, 0);
                 }
                 else{
@@ -1565,66 +1531,56 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
         
         Application_Step_Input input = {0};
         
-        if (!plat_settings.use_test_input){
-            input.first_step = win32vars.first;
-            input.dt = frame_useconds/1000000.f;
-            
-            input.keys = input_chunk.trans.key_data;
-            
-            input.mouse.out_of_window = input_chunk.trans.out_of_window;
-            
-            input.mouse.l = input_chunk.pers.mouse_l;
-            input.mouse.press_l = input_chunk.trans.mouse_l_press;
-            input.mouse.release_l = input_chunk.trans.mouse_l_release;
-            
-            input.mouse.r = input_chunk.pers.mouse_r;
-            input.mouse.press_r = input_chunk.trans.mouse_r_press;
-            input.mouse.release_r = input_chunk.trans.mouse_r_release;
-            
-            input.mouse.wheel = input_chunk.trans.mouse_wheel;
-            input.mouse.x = input_chunk.pers.mouse_x;
-            input.mouse.y = input_chunk.pers.mouse_y;
-            
-            input.trying_to_kill = input_chunk.trans.trying_to_kill;
-            
-            // TODO(allen): Not really appropriate to round trip this all the way to the OS layer, redo this system.
-            // NOTE(allen): Ask the Core About Exiting if We Have an Exit Signal
-            if (win32vars.send_exit_signal){
-                input.trying_to_kill = true;
-                win32vars.send_exit_signal = false;
-            }
-            
-            // NOTE(allen): Frame Clipboard Input
-            memset(&win32vars.clipboard_contents, 0, sizeof(win32vars.clipboard_contents));
-            if (win32vars.clipboard_sequence != 0){
-                DWORD new_number = GetClipboardSequenceNumber();
-                if (new_number != win32vars.clipboard_sequence){
-                    if (win32vars.next_clipboard_is_self){
-                        win32vars.next_clipboard_is_self = false;
-                        win32vars.clipboard_sequence = new_number;
-                    }
-                    else{
-                        b32 got_contents = false;
-                        for (i32 R = 0; R < 4; ++R){
-                            if (win32_read_clipboard_contents()){
-                                win32vars.clipboard_sequence = new_number;
-                                got_contents = true;
-                                break;
-                            }
+        input.first_step = win32vars.first;
+        input.dt = frame_useconds/1000000.f;
+        
+        input.keys = input_chunk.trans.key_data;
+        
+        input.mouse.out_of_window = input_chunk.trans.out_of_window;
+        
+        input.mouse.l = input_chunk.pers.mouse_l;
+        input.mouse.press_l = input_chunk.trans.mouse_l_press;
+        input.mouse.release_l = input_chunk.trans.mouse_l_release;
+        
+        input.mouse.r = input_chunk.pers.mouse_r;
+        input.mouse.press_r = input_chunk.trans.mouse_r_press;
+        input.mouse.release_r = input_chunk.trans.mouse_r_release;
+        
+        input.mouse.wheel = input_chunk.trans.mouse_wheel;
+        input.mouse.x = input_chunk.pers.mouse_x;
+        input.mouse.y = input_chunk.pers.mouse_y;
+        
+        input.trying_to_kill = input_chunk.trans.trying_to_kill;
+        
+        // TODO(allen): Not really appropriate to round trip this all the way to the OS layer, redo this system.
+        // NOTE(allen): Ask the Core About Exiting if We Have an Exit Signal
+        if (win32vars.send_exit_signal){
+            input.trying_to_kill = true;
+            win32vars.send_exit_signal = false;
+        }
+        
+        // NOTE(allen): Frame Clipboard Input
+        memset(&win32vars.clipboard_contents, 0, sizeof(win32vars.clipboard_contents));
+        if (win32vars.clipboard_sequence != 0){
+            DWORD new_number = GetClipboardSequenceNumber();
+            if (new_number != win32vars.clipboard_sequence){
+                if (win32vars.next_clipboard_is_self){
+                    win32vars.next_clipboard_is_self = false;
+                    win32vars.clipboard_sequence = new_number;
+                }
+                else{
+                    b32 got_contents = false;
+                    for (i32 R = 0; R < 4; ++R){
+                        if (win32_read_clipboard_contents()){
+                            win32vars.clipboard_sequence = new_number;
+                            got_contents = true;
+                            break;
                         }
                     }
                 }
             }
-            input.clipboard = win32vars.clipboard_contents;
         }
-        else{
-            simulation_step_begin(&sim_controls, &input,
-                                  win32vars.first, frame_useconds/1000000.f);
-            simulation_drive_from_events(&sim_controls, &sim_stream, &input,
-                                         sim_events, sim_event_count,
-                                         target.width, target.height);
-            simulation_step_end(&sim_controls, &input);
-        }
+        input.clipboard = win32vars.clipboard_contents;
         
         win32vars.clip_post_len = 0;
         

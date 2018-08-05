@@ -59,8 +59,6 @@ struct Plat_Settings{
     b8 fullscreen_window;
     
     u8 use_log;
-    b8 use_test_input;
-    char *test_input;
     
     i32 window_w, window_h;
     i32 window_x, window_y;

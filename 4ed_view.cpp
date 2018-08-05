@@ -507,44 +507,6 @@ release_font_and_update_files(System_Functions *system, Models *models, Face_ID 
     return(success);
 }
 
-internal void
-kill_file_and_update_views(System_Functions *system, Models *models, Editing_File *file){
-    Working_Set *working_set = &models->working_set;
-    
-    if (file != 0 && !file->settings.never_kill){
-        if (models->hook_end_file != 0){
-            models->hook_end_file(&models->app_links, file->id.id);
-        }
-        
-        buffer_unbind_name_low_level(working_set, file);
-        if (file->canon.name.size != 0){
-            buffer_unbind_file(system, working_set, file);
-        }
-        file_free(system, &models->app_links, &models->mem.general, file);
-        working_set_free_file(&models->mem.general, working_set, file);
-        
-        File_Node *used = &working_set->used_sentinel;
-        File_Node *node = used->next;
-        for (Panel *panel = models->layout.used_sentinel.next;
-             panel != &models->layout.used_sentinel;
-             panel = panel->next){
-            View *view = panel->view;
-            if (view->transient.file_data.file == file){
-                Assert(node != used);
-                view->transient.file_data.file = 0;
-                view_set_file(system, models, view, (Editing_File*)node);
-                if (node->next != used){
-                    node = node->next;
-                }
-                else{
-                    node = node->next->next;
-                    Assert(node != used);
-                }
-            }
-        }
-    }
-}
-
 ////////////////////////////////
 
 internal i32

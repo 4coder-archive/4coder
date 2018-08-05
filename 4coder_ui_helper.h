@@ -33,17 +33,21 @@ struct Lister_Option_List{
     int32_t count;
 };
 
-struct Lister{
-    // Event Handlers
+struct Lister_Handlers{
     Lister_Activation_Function_Type *activate;
     Lister_Regenerate_List_Function_Type *refresh;
     Custom_Command_Function *write_character;
     Custom_Command_Function *backspace;
     Custom_Command_Function *navigate_up;
     Custom_Command_Function *navigate_down;
-    void *user_data;
+};
+
+struct Lister{
+    // Event Handlers
+    Lister_Handlers handlers;
     
     // List Data
+    void *user_data;
     char query_space[256];
     String query;
     char text_field_space[256];
@@ -66,6 +70,15 @@ struct Lister_State{
     int32_t option_item_count;
     Partition arena;
     Lister lister;
+};
+
+////////////////////////////////
+
+struct Lister_Fixed_Option{
+    char *string;
+    char *status;
+    char *shortcut_chars;
+    void *user_data;
 };
 
 #endif

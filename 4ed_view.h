@@ -201,12 +201,6 @@ enum History_Mode{
     hist_forward
 };
 
-enum Try_Kill_Result{
-    TryKill_CannotKill,
-    TryKill_NeedDialogue,
-    TryKill_Success
-};
-
 #endif
 
 // BOTTOM

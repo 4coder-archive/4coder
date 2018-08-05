@@ -151,20 +151,20 @@ bind(context, '0', MDFR_CTRL, write_zero_struct);
 bind(context, 'I', MDFR_CTRL, list_all_functions_current_buffer);
 end_map(context);
 begin_map(context, default_lister_ui_map);
-bind_vanilla_keys(context, list_mode__write_character);
-bind(context, key_esc, MDFR_NONE, list_mode__quit);
-bind(context, '\n', MDFR_NONE, list_mode__activate);
-bind(context, '\t', MDFR_NONE, list_mode__activate);
-bind(context, key_back, MDFR_NONE, list_mode__backspace_text_field);
-bind(context, key_up, MDFR_NONE, list_mode__move_up);
-bind(context, key_page_up, MDFR_NONE, list_mode__move_up);
-bind(context, key_down, MDFR_NONE, list_mode__move_down);
-bind(context, key_page_down, MDFR_NONE, list_mode__move_down);
-bind(context, key_mouse_wheel, MDFR_NONE, list_mode__wheel_scroll);
-bind(context, key_mouse_left, MDFR_NONE, list_mode__mouse_press);
-bind(context, key_mouse_left_release, MDFR_NONE, list_mode__mouse_release);
-bind(context, key_mouse_move, MDFR_NONE, list_mode__repaint);
-bind(context, key_animate, MDFR_NONE, list_mode__repaint);
+bind_vanilla_keys(context, lister__write_character);
+bind(context, key_esc, MDFR_NONE, lister__quit);
+bind(context, '\n', MDFR_NONE, lister__activate);
+bind(context, '\t', MDFR_NONE, lister__activate);
+bind(context, key_back, MDFR_NONE, lister__backspace_text_field);
+bind(context, key_up, MDFR_NONE, lister__move_up);
+bind(context, key_page_up, MDFR_NONE, lister__move_up);
+bind(context, key_down, MDFR_NONE, lister__move_down);
+bind(context, key_page_down, MDFR_NONE, lister__move_down);
+bind(context, key_mouse_wheel, MDFR_NONE, lister__wheel_scroll);
+bind(context, key_mouse_left, MDFR_NONE, lister__mouse_press);
+bind(context, key_mouse_left_release, MDFR_NONE, lister__mouse_release);
+bind(context, key_mouse_move, MDFR_NONE, lister__repaint);
+bind(context, key_animate, MDFR_NONE, lister__repaint);
 end_map(context);
 }
 void fill_keys_mac_default(Bind_Helper *context){
@@ -317,20 +317,20 @@ bind(context, '0', MDFR_CMND, write_zero_struct);
 bind(context, 'I', MDFR_CMND, list_all_functions_current_buffer);
 end_map(context);
 begin_map(context, default_lister_ui_map);
-bind_vanilla_keys(context, list_mode__write_character);
-bind(context, key_esc, MDFR_NONE, list_mode__quit);
-bind(context, '\n', MDFR_NONE, list_mode__activate);
-bind(context, '\t', MDFR_NONE, list_mode__activate);
-bind(context, key_back, MDFR_NONE, list_mode__backspace_text_field);
-bind(context, key_up, MDFR_NONE, list_mode__move_up);
-bind(context, key_page_up, MDFR_NONE, list_mode__move_up);
-bind(context, key_down, MDFR_NONE, list_mode__move_down);
-bind(context, key_page_down, MDFR_NONE, list_mode__move_down);
-bind(context, key_mouse_wheel, MDFR_NONE, list_mode__wheel_scroll);
-bind(context, key_mouse_left, MDFR_NONE, list_mode__mouse_press);
-bind(context, key_mouse_left_release, MDFR_NONE, list_mode__mouse_release);
-bind(context, key_mouse_move, MDFR_NONE, list_mode__repaint);
-bind(context, key_animate, MDFR_NONE, list_mode__repaint);
+bind_vanilla_keys(context, lister__write_character);
+bind(context, key_esc, MDFR_NONE, lister__quit);
+bind(context, '\n', MDFR_NONE, lister__activate);
+bind(context, '\t', MDFR_NONE, lister__activate);
+bind(context, key_back, MDFR_NONE, lister__backspace_text_field);
+bind(context, key_up, MDFR_NONE, lister__move_up);
+bind(context, key_page_up, MDFR_NONE, lister__move_up);
+bind(context, key_down, MDFR_NONE, lister__move_down);
+bind(context, key_page_down, MDFR_NONE, lister__move_down);
+bind(context, key_mouse_wheel, MDFR_NONE, lister__wheel_scroll);
+bind(context, key_mouse_left, MDFR_NONE, lister__mouse_press);
+bind(context, key_mouse_left_release, MDFR_NONE, lister__mouse_release);
+bind(context, key_mouse_move, MDFR_NONE, lister__repaint);
+bind(context, key_animate, MDFR_NONE, lister__repaint);
 end_map(context);
 }
 #endif
@@ -516,20 +516,20 @@ static Meta_Key_Bind fcoder_binds_for_default_default_code_map[32] = {
 {0, 73, 1, "list_all_functions_current_buffer", 33, LINK_PROCS(list_all_functions_current_buffer)},
 };
 static Meta_Key_Bind fcoder_binds_for_default_default_lister_ui_map[14] = {
-{1, 0, 0, "list_mode__write_character", 26, LINK_PROCS(list_mode__write_character)},
-{0, 55307, 0, "list_mode__quit", 15, LINK_PROCS(list_mode__quit)},
-{0, 10, 0, "list_mode__activate", 19, LINK_PROCS(list_mode__activate)},
-{0, 9, 0, "list_mode__activate", 19, LINK_PROCS(list_mode__activate)},
-{0, 55296, 0, "list_mode__backspace_text_field", 31, LINK_PROCS(list_mode__backspace_text_field)},
-{0, 55297, 0, "list_mode__move_up", 18, LINK_PROCS(list_mode__move_up)},
-{0, 55305, 0, "list_mode__move_up", 18, LINK_PROCS(list_mode__move_up)},
-{0, 55298, 0, "list_mode__move_down", 20, LINK_PROCS(list_mode__move_down)},
-{0, 55306, 0, "list_mode__move_down", 20, LINK_PROCS(list_mode__move_down)},
-{0, 55312, 0, "list_mode__wheel_scroll", 23, LINK_PROCS(list_mode__wheel_scroll)},
-{0, 55308, 0, "list_mode__mouse_press", 22, LINK_PROCS(list_mode__mouse_press)},
-{0, 55310, 0, "list_mode__mouse_release", 24, LINK_PROCS(list_mode__mouse_release)},
-{0, 55313, 0, "list_mode__repaint", 18, LINK_PROCS(list_mode__repaint)},
-{0, 55314, 0, "list_mode__repaint", 18, LINK_PROCS(list_mode__repaint)},
+{1, 0, 0, "lister__write_character", 23, LINK_PROCS(lister__write_character)},
+{0, 55307, 0, "lister__quit", 12, LINK_PROCS(lister__quit)},
+{0, 10, 0, "lister__activate", 16, LINK_PROCS(lister__activate)},
+{0, 9, 0, "lister__activate", 16, LINK_PROCS(lister__activate)},
+{0, 55296, 0, "lister__backspace_text_field", 28, LINK_PROCS(lister__backspace_text_field)},
+{0, 55297, 0, "lister__move_up", 15, LINK_PROCS(lister__move_up)},
+{0, 55305, 0, "lister__move_up", 15, LINK_PROCS(lister__move_up)},
+{0, 55298, 0, "lister__move_down", 17, LINK_PROCS(lister__move_down)},
+{0, 55306, 0, "lister__move_down", 17, LINK_PROCS(lister__move_down)},
+{0, 55312, 0, "lister__wheel_scroll", 20, LINK_PROCS(lister__wheel_scroll)},
+{0, 55308, 0, "lister__mouse_press", 19, LINK_PROCS(lister__mouse_press)},
+{0, 55310, 0, "lister__mouse_release", 21, LINK_PROCS(lister__mouse_release)},
+{0, 55313, 0, "lister__repaint", 15, LINK_PROCS(lister__repaint)},
+{0, 55314, 0, "lister__repaint", 15, LINK_PROCS(lister__repaint)},
 };
 static Meta_Sub_Map fcoder_submaps_for_default[4] = {
 {"mapid_global", 12, "The following bindings apply in all situations.", 47, 0, 0, fcoder_binds_for_default_mapid_global, 45},
@@ -685,20 +685,20 @@ static Meta_Key_Bind fcoder_binds_for_mac_default_default_code_map[32] = {
 {0, 73, 4, "list_all_functions_current_buffer", 33, LINK_PROCS(list_all_functions_current_buffer)},
 };
 static Meta_Key_Bind fcoder_binds_for_mac_default_default_lister_ui_map[14] = {
-{1, 0, 0, "list_mode__write_character", 26, LINK_PROCS(list_mode__write_character)},
-{0, 55307, 0, "list_mode__quit", 15, LINK_PROCS(list_mode__quit)},
-{0, 10, 0, "list_mode__activate", 19, LINK_PROCS(list_mode__activate)},
-{0, 9, 0, "list_mode__activate", 19, LINK_PROCS(list_mode__activate)},
-{0, 55296, 0, "list_mode__backspace_text_field", 31, LINK_PROCS(list_mode__backspace_text_field)},
-{0, 55297, 0, "list_mode__move_up", 18, LINK_PROCS(list_mode__move_up)},
-{0, 55305, 0, "list_mode__move_up", 18, LINK_PROCS(list_mode__move_up)},
-{0, 55298, 0, "list_mode__move_down", 20, LINK_PROCS(list_mode__move_down)},
-{0, 55306, 0, "list_mode__move_down", 20, LINK_PROCS(list_mode__move_down)},
-{0, 55312, 0, "list_mode__wheel_scroll", 23, LINK_PROCS(list_mode__wheel_scroll)},
-{0, 55308, 0, "list_mode__mouse_press", 22, LINK_PROCS(list_mode__mouse_press)},
-{0, 55310, 0, "list_mode__mouse_release", 24, LINK_PROCS(list_mode__mouse_release)},
-{0, 55313, 0, "list_mode__repaint", 18, LINK_PROCS(list_mode__repaint)},
-{0, 55314, 0, "list_mode__repaint", 18, LINK_PROCS(list_mode__repaint)},
+{1, 0, 0, "lister__write_character", 23, LINK_PROCS(lister__write_character)},
+{0, 55307, 0, "lister__quit", 12, LINK_PROCS(lister__quit)},
+{0, 10, 0, "lister__activate", 16, LINK_PROCS(lister__activate)},
+{0, 9, 0, "lister__activate", 16, LINK_PROCS(lister__activate)},
+{0, 55296, 0, "lister__backspace_text_field", 28, LINK_PROCS(lister__backspace_text_field)},
+{0, 55297, 0, "lister__move_up", 15, LINK_PROCS(lister__move_up)},
+{0, 55305, 0, "lister__move_up", 15, LINK_PROCS(lister__move_up)},
+{0, 55298, 0, "lister__move_down", 17, LINK_PROCS(lister__move_down)},
+{0, 55306, 0, "lister__move_down", 17, LINK_PROCS(lister__move_down)},
+{0, 55312, 0, "lister__wheel_scroll", 20, LINK_PROCS(lister__wheel_scroll)},
+{0, 55308, 0, "lister__mouse_press", 19, LINK_PROCS(lister__mouse_press)},
+{0, 55310, 0, "lister__mouse_release", 21, LINK_PROCS(lister__mouse_release)},
+{0, 55313, 0, "lister__repaint", 15, LINK_PROCS(lister__repaint)},
+{0, 55314, 0, "lister__repaint", 15, LINK_PROCS(lister__repaint)},
 };
 static Meta_Sub_Map fcoder_submaps_for_mac_default[4] = {
 {"mapid_global", 12, "The following bindings apply in all situations.", 47, 0, 0, fcoder_binds_for_mac_default_mapid_global, 45},

@@ -1429,6 +1429,15 @@ CUSTOM_DOC("Set the other non-active panel to view the buffer that the active pa
 
 ////////////////////////////////
 
+CUSTOM_COMMAND_SIG(kill_buffer)
+CUSTOM_DOC("Kills the current buffer.")
+{
+    View_Summary view = get_active_view(app, AccessProtected);
+    kill_buffer(app, buffer_identifier(view.buffer_id), view.view_id, 0);
+}
+
+////////////////////////////////
+
 CUSTOM_COMMAND_SIG(undo)
 CUSTOM_DOC("Advances backwards through the undo history.")
 {
@@ -1453,16 +1462,16 @@ CUSTOM_DOC("Saves the current buffer.")
     exec_command(app, cmdid_save);
 }
 
-CUSTOM_COMMAND_SIG(kill_buffer)
-CUSTOM_DOC("Kills the current buffer.")
-{
-    exec_command(app, cmdid_kill_buffer);
-}
-
 CUSTOM_COMMAND_SIG(open_color_tweaker)
 CUSTOM_DOC("Opens the 4coder colors and fonts selector menu.")
 {
-    exec_command(app, cmdid_open_color_tweaker);
+    // TODO(allen):  TODO(allen):  TODO(allen):  TODO(allen):  TODO(allen):  TODO(allen):  TODO(allen): 
+    // TODO(allen):  TODO(allen):  TODO(allen):  TODO(allen):  TODO(allen):  TODO(allen): 
+    // TODO(allen):  TODO(allen):  TODO(allen):  TODO(allen):  TODO(allen): 
+    // TODO(allen):  TODO(allen):  TODO(allen):  TODO(allen): 
+    // TODO(allen):  TODO(allen):  TODO(allen): 
+    // TODO(allen):  TODO(allen): 
+    // TODO(allen): 
 }
 
 ////////////////////////////////

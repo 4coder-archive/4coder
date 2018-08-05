@@ -9,26 +9,6 @@
 
 // TOP
 
-internal Try_Kill_Result
-interactive_try_kill_file(System_Functions *system, Models *models, Editing_File *file){
-    Try_Kill_Result result = TryKill_CannotKill;
-    if (!file->settings.never_kill){
-        if (buffer_needs_save(file)){
-            result = TryKill_NeedDialogue;
-        }
-        else{
-            kill_file_and_update_views(system, models, file);
-            result = TryKill_Success;
-        }
-    }
-    return(result);
-}
-
-internal void
-interactive_begin_sure_to_kill(System_Functions *system, View *view, Models *models, Editing_File *file){
-    
-}
-
 ////////////////////////////////
 
 global_const Style_Color_Edit colors_to_edit[] = {

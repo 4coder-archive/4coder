@@ -59,7 +59,6 @@ link_system_code(){
     SYSLINK(set_fullscreen);
     SYSLINK(is_fullscreen);
     SYSLINK(show_mouse_cursor);
-    SYSLINK(send_exit_signal);
     
     SYSLINK(log);
 #if defined(FRED_INTERNAL)

@@ -230,18 +230,6 @@ COMMAND_DECL(redo){
     Assert(file->state.undo.undo.size >= 0);
 }
 
-COMMAND_DECL(interactive_new){
-    
-}
-
-COMMAND_DECL(interactive_open){
-    
-}
-
-COMMAND_DECL(interactive_open_or_new){
-    
-}
-
 // TODO(allen): Improvements to reopen
 // - Perform a diff
 // - If the diff is not tremendously big, apply the edits.
@@ -327,23 +315,6 @@ COMMAND_DECL(save){
     }
 }
 
-COMMAND_DECL(interactive_switch_buffer){
-    
-}
-
-COMMAND_DECL(interactive_kill_buffer){
-    
-}
-
-COMMAND_DECL(kill_buffer){
-    USE_MODELS(models);
-    USE_VIEW(view);
-    REQ_FILE(file, view);
-    if (interactive_try_kill_file(system, models, file) == TryKill_NeedDialogue){
-        interactive_begin_sure_to_kill(system, view, models, file);
-    }
-}
-
 internal void
 case_change_range(System_Functions *system, Models *models, View *view, Editing_File *file, u8 a, u8 z, u8 char_delta){
     Range range  = {0};
@@ -373,10 +344,6 @@ case_change_range(System_Functions *system, Models *models, View *view, Editing_
             file_relex_parallel(system, models, file, range.start, range.end, 0);
         }
     }
-}
-
-COMMAND_DECL(open_color_tweaker){
-    
 }
 
 COMMAND_DECL(user_callback){
@@ -769,40 +736,14 @@ internal void
 setup_command_table(void){
 #define SET(n) command_table[cmdid_##n] = command_##n
     SET(null);
-    
     SET(undo);
     SET(redo);
-    
-    SET(interactive_new);
-    SET(interactive_open);
-    SET(interactive_open_or_new);
-    SET(interactive_switch_buffer);
-    SET(interactive_kill_buffer);
-    
     SET(reopen);
     SET(save);
-    SET(kill_buffer);
-    
-    SET(open_color_tweaker);
 #undef SET
 }
 
 // App Functions
-
-internal void
-app_recording_emit_events(System_Functions *system, Models *models, Simulation_Event *new_events, i32 new_event_count){
-    if (models->recorded_event_count + new_event_count > models->recorded_event_max){
-        i32 new_max = 2*(models->recorded_event_count + new_event_count);
-        void *new_ptr = system->memory_allocate(sizeof(Simulation_Event)*new_max);
-        memmove(new_ptr, models->recorded_events, sizeof(*models->recorded_events)*models->recorded_event_count);
-        system->memory_free(models->recorded_events, sizeof(*models->recorded_events)*models->recorded_event_max);
-        models->recorded_events = (Simulation_Event*)new_ptr;
-        models->recorded_event_max = new_max;
-    }
-    
-    memcpy(models->recorded_events + models->recorded_event_count, new_events, sizeof(*new_events)*new_event_count);
-    models->recorded_event_count += new_event_count;
-}
 
 internal void
 app_hardcode_default_style(Models *models){
@@ -906,9 +847,6 @@ init_command_line_settings(App_Settings *settings, Plat_Settings *plat_settings,
                                 
                                 case 'l': action = CLAct_LogStdout; --i;                break;
                                 case 'L': action = CLAct_LogFile; --i;                  break;
-                                
-                                case 'T': action = CLAct_TestInput;                     break;
-                                case 'R': action = CLAct_RecordInput;                   break;
                             }
                         }
                         else if (arg[0] != 0){
@@ -1015,24 +953,6 @@ init_command_line_settings(App_Settings *settings, Plat_Settings *plat_settings,
                         plat_settings->use_log = LogTo_LogFile;
                         action = CLAct_Nothing;
                     }break;
-                    
-                    case CLAct_TestInput:
-                    {
-                        if (i < argc){
-                            plat_settings->use_test_input = true;
-                            plat_settings->test_input = argv[i];
-                        }
-                        action = CLAct_Nothing;
-                    }break;
-                    
-                    case CLAct_RecordInput:
-                    {
-                        if (i < argc){
-                            settings->make_input_recording = true;
-                            settings->input_recording_output_file = argv[i];
-                        }
-                        action = CLAct_Nothing;
-                    }break;
                 }
             }break;
             
@@ -1068,8 +988,7 @@ App_Read_Command_Line_Sig(app_read_command_line){
     i32 out_size = 0;
     App_Vars *vars = app_setup_memory(system, memory);
     App_Settings *settings = &vars->models.settings;
-    
-    *settings = null_app_settings;
+    memset(settings, 0, sizeof(*settings));
     plat_settings->font_size = 16;
     
     if (argc > 1){
@@ -1246,16 +1165,6 @@ App_Init_Sig(app_init){
     // NOTE(allen): init GUI keys
     models->user_up_key = key_up;
     models->user_down_key = key_down;
-    
-    // NOTE(allen): init recording
-    if (models->settings.make_input_recording){
-        i32 max = KB(4)/sizeof(Simulation_Event);
-        void *ptr = system->memory_allocate(max*sizeof(Simulation_Event));
-        
-        models->recorded_events = (Simulation_Event*)ptr;
-        models->recorded_event_count = 0;
-        models->recorded_event_max = max;
-    }
 }
 
 App_Step_Sig(app_step){
@@ -1265,102 +1174,6 @@ App_Step_Sig(app_step){
     Application_Step_Result app_result = {0};
     app_result.mouse_cursor_type = APP_MOUSE_CURSOR_DEFAULT;
     app_result.lctrl_lalt_is_altgr = models->settings.lctrl_lalt_is_altgr;
-    
-    // NOTE(allen): Emit recorded events
-    if (models->settings.make_input_recording){
-        local_const i32 max_possible_events = KEY_INPUT_BUFFER_SIZE + KEY_EXTRA_SIZE + 5;
-        Simulation_Event new_events[max_possible_events];
-        i32 new_event_count = 0;
-        
-        i32 counter_index = models->frame_counter;
-        for (i32 i = 0; i < input->keys.count; ++i){
-            Assert(new_event_count < max_possible_events);
-            Key_Event_Data key = input->keys.keys[i];
-            Simulation_Event *new_event = new_events + (new_event_count++);
-            new_event->counter_index = counter_index;
-            new_event->type = SimulationEvent_Key;
-            new_event->key.code = key.keycode;
-            u8 modifier_flags = 0;
-#define MDFR_FLAG_READ(I,F) if (key.modifiers[I]) { modifier_flags |= F; }
-            MDFR_FLAG_READ(MDFR_CONTROL_INDEX, MDFR_CTRL);
-            MDFR_FLAG_READ(MDFR_ALT_INDEX,     MDFR_ALT);
-            MDFR_FLAG_READ(MDFR_COMMAND_INDEX, MDFR_CMND);
-            MDFR_FLAG_READ(MDFR_SHIFT_INDEX,   MDFR_SHIFT);
-            new_event->key.modifiers = modifier_flags;
-        }
-        
-        if (input->mouse.press_l){
-            Assert(new_event_count < max_possible_events);
-            Simulation_Event *new_event = new_events + (new_event_count++);
-            new_event->counter_index = counter_index;
-            new_event->type = SimulationEvent_MouseLeftPress;
-        }
-        
-        if (input->mouse.release_l){
-            Assert(new_event_count < max_possible_events);
-            Simulation_Event *new_event = new_events + (new_event_count++);
-            new_event->counter_index = counter_index;
-            new_event->type = SimulationEvent_MouseLeftRelease;
-        }
-        
-        if (input->mouse.press_r){
-            Assert(new_event_count < max_possible_events);
-            Simulation_Event *new_event = new_events + (new_event_count++);
-            new_event->counter_index = counter_index;
-            new_event->type = SimulationEvent_MouseRightPress;
-        }
-        
-        if (input->mouse.release_r){
-            Assert(new_event_count < max_possible_events);
-            Simulation_Event *new_event = new_events + (new_event_count++);
-            new_event->counter_index = counter_index;
-            new_event->type = SimulationEvent_MouseRightRelease;
-        }
-        
-        if (input->mouse.wheel != 0){
-            Assert(new_event_count < max_possible_events);
-            Simulation_Event *new_event = new_events + (new_event_count++);
-            new_event->counter_index = counter_index;
-            new_event->type = SimulationEvent_MouseWheel;
-            new_event->wheel = input->mouse.wheel;
-        }
-        
-        if (input->mouse.x != models->previous_mouse_x ||
-            input->mouse.y != models->previous_mouse_y){
-            Assert(new_event_count < max_possible_events);
-            Simulation_Event *new_event = new_events + (new_event_count++);
-            new_event->counter_index = counter_index;
-            new_event->type = SimulationEvent_MouseXY;
-            new_event->mouse_xy.x = input->mouse.x;
-            new_event->mouse_xy.y = input->mouse.y;
-            
-            models->previous_mouse_x = input->mouse.x;
-            models->previous_mouse_y = input->mouse.y;
-        }
-        
-        if (input->trying_to_kill){
-            Assert(new_event_count < max_possible_events);
-            Simulation_Event *new_event = new_events + (new_event_count++);
-            new_event->counter_index = counter_index;
-            new_event->type = SimulationEvent_Exit;
-        }
-        
-        if (new_event_count > 0){
-            app_recording_emit_events(system, models, new_events, new_event_count);
-            
-            Partition *scratch = &models->mem.part;
-            Temp_Memory temp = begin_temp_memory(scratch);
-            i32 event_count = models->recorded_event_count;
-            u32 data_size = 4 + sizeof(Simulation_Event)*event_count;
-            char *data = push_array(scratch, char, 0);
-            i32 *count = push_array(scratch, i32, 1);
-            *count = event_count;
-            Simulation_Event *events = push_array(scratch, Simulation_Event, event_count);
-            memcpy(events, models->recorded_events, sizeof(*models->recorded_events)*event_count);
-            system->save_file(models->settings.input_recording_output_file, data, data_size);
-            end_temp_memory(temp);
-        }
-    }
     
     // NOTE(allen): OS clipboard event handling
     String clipboard = input->clipboard;
@@ -1643,56 +1456,6 @@ App_Step_Sig(app_step){
         }
     }
     
-    // NOTE(allen): respond if the user is trying to kill the application
-    if (input->trying_to_kill){
-        b32 there_is_unsaved = false;
-        app_result.animating = true;
-        
-        for (File_Node *node = models->working_set.used_sentinel.next;
-             node != &models->working_set.used_sentinel;
-             node = node->next){
-            Editing_File *file = (Editing_File*)node;
-            if (buffer_needs_save(file)){
-                there_is_unsaved = true;
-                break;
-            }
-        }
-        
-        if (there_is_unsaved){
-            Coroutine_Head *command_coroutine = models->command_coroutine;
-            Command_Data *command = cmd;
-            USE_VIEW(view);
-            
-            for (i32 i = 0; i < 128 && command_coroutine != 0; ++i){
-                User_Input user_in = {0};
-                user_in.abort = true;
-                
-                command_coroutine = app_resume_coroutine(system, &models->app_links, Co_Command, command_coroutine, &user_in, models->command_coroutine_flags);
-            }
-            if (command_coroutine != 0){
-                // TODO(allen): post grave warning
-                command_coroutine = 0;
-            }
-            if (view != 0){
-                init_query_set(&view->transient.query_set);
-            }
-            
-            if (view == 0){
-                Panel *panel = models->layout.used_sentinel.next;
-                view = panel->view;
-            }
-            
-#if 0
-            view_show_interactive(system, view, models, IAct_Sure_To_Close, IInt_Sure_To_Close, make_lit_string("Are you sure?"));
-#endif
-            
-            models->command_coroutine = command_coroutine;
-        }
-        else{
-            models->keep_playing = 0;
-        }
-    }
-    
     // NOTE(allen): Get Available Input
     vars->available_input = init_available_input(&input->keys, &input->mouse);
     
@@ -1718,9 +1481,12 @@ App_Step_Sig(app_step){
         
         if ((get_flags & EventOnAnyKey) || (get_flags & EventOnEsc)){
             for (i32 key_i = 0; key_i < key_data.count; ++key_i){
-                Coroutine_Event *new_event = &events[event_count++];
-                new_event->type = Event_Keyboard;
-                new_event->key_i = key_i;
+                Key_Code keycode = key_data.keys[key_i].keycode;
+                if (keycode != key_animate && keycode != key_mouse_move){
+                    Coroutine_Event *new_event = &events[event_count++];
+                    new_event->type = Event_Keyboard;
+                    new_event->key_i = key_i;
+                }
             }
         }
         
@@ -2110,10 +1876,17 @@ App_Step_Sig(app_step){
         }
     }
     
-    // NOTE(allen): if this is the last frame, run the exit hook
-    if (!models->keep_playing && models->hooks[hook_exit] != 0){
-        if (!models->hooks[hook_exit](&models->app_links)){
-            models->keep_playing = true;
+    // NOTE(allen): If the exit signal has been sent, run the exit hook.
+    if (input->trying_to_kill){
+        models->keep_playing = false;
+    }
+    if (!models->keep_playing){
+        Hook_Function *exit_func = models->hooks[hook_exit];
+        if (exit_func != 0){
+            if (exit_func(&models->app_links) == 0){
+                app_result.animating = true;
+                models->keep_playing = true;
+            }
         }
     }
     

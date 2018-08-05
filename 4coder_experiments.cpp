@@ -191,7 +191,6 @@ CUSTOM_DOC("Begin multi-line mode.  In multi-line mode characters are inserted a
                 
                 --pos;
             }
-            
         }
         else{
             break;

@@ -200,12 +200,6 @@ Sys_Is_Fullscreen_Sig(system_is_fullscreen){
     return(result);
 }
 
-// HACK(allen): Why does this work differently from the win32 version!?
-internal
-Sys_Send_Exit_Signal_Sig(system_send_exit_signal){
-    osxvars.keep_running = false;
-}
-
 #include "4ed_coroutine_functions.cpp"
 
 #include "4ed_system_shared.cpp"

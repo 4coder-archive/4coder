@@ -868,20 +868,20 @@ generate_remapping_code_and_data(){
         begin_map(mappings, default_lister_ui_map,
                   "These commands apply in 'lister mode' such as when you open a file.");
         
-        bind_vanilla_keys(mappings, MDFR_NONE, list_mode__write_character);
-        bind(mappings, key_esc, MDFR_NONE, list_mode__quit);
-        bind(mappings, '\n', MDFR_NONE, list_mode__activate);
-        bind(mappings, '\t', MDFR_NONE, list_mode__activate);
-        bind(mappings, key_back     , MDFR_NONE, list_mode__backspace_text_field);
-        bind(mappings, key_up       , MDFR_NONE, list_mode__move_up);
-        bind(mappings, key_page_up  , MDFR_NONE, list_mode__move_up);
-        bind(mappings, key_down     , MDFR_NONE, list_mode__move_down);
-        bind(mappings, key_page_down, MDFR_NONE, list_mode__move_down);
-        bind(mappings, key_mouse_wheel       , MDFR_NONE, list_mode__wheel_scroll);
-        bind(mappings, key_mouse_left        , MDFR_NONE, list_mode__mouse_press);
-        bind(mappings, key_mouse_left_release, MDFR_NONE, list_mode__mouse_release);
-        bind(mappings, key_mouse_move, MDFR_NONE, list_mode__repaint);
-        bind(mappings, key_animate   , MDFR_NONE, list_mode__repaint);
+        bind_vanilla_keys(mappings, MDFR_NONE, lister__write_character);
+        bind(mappings, key_esc, MDFR_NONE, lister__quit);
+        bind(mappings, '\n', MDFR_NONE, lister__activate);
+        bind(mappings, '\t', MDFR_NONE, lister__activate);
+        bind(mappings, key_back     , MDFR_NONE, lister__backspace_text_field);
+        bind(mappings, key_up       , MDFR_NONE, lister__move_up);
+        bind(mappings, key_page_up  , MDFR_NONE, lister__move_up);
+        bind(mappings, key_down     , MDFR_NONE, lister__move_down);
+        bind(mappings, key_page_down, MDFR_NONE, lister__move_down);
+        bind(mappings, key_mouse_wheel       , MDFR_NONE, lister__wheel_scroll);
+        bind(mappings, key_mouse_left        , MDFR_NONE, lister__mouse_press);
+        bind(mappings, key_mouse_left_release, MDFR_NONE, lister__mouse_release);
+        bind(mappings, key_mouse_move, MDFR_NONE, lister__repaint);
+        bind(mappings, key_animate   , MDFR_NONE, lister__repaint);
         
         end_map(mappings);
     }
@@ -1081,20 +1081,20 @@ generate_remapping_code_and_data(){
         begin_map(mappings, default_lister_ui_map,
                   "These commands apply in 'lister mode' such as when you open a file.");
         
-        bind_vanilla_keys(mappings, MDFR_NONE, list_mode__write_character);
-        bind(mappings, key_esc, MDFR_NONE, list_mode__quit);
-        bind(mappings, '\n', MDFR_NONE, list_mode__activate);
-        bind(mappings, '\t', MDFR_NONE, list_mode__activate);
-        bind(mappings, key_back     , MDFR_NONE, list_mode__backspace_text_field);
-        bind(mappings, key_up       , MDFR_NONE, list_mode__move_up);
-        bind(mappings, key_page_up  , MDFR_NONE, list_mode__move_up);
-        bind(mappings, key_down     , MDFR_NONE, list_mode__move_down);
-        bind(mappings, key_page_down, MDFR_NONE, list_mode__move_down);
-        bind(mappings, key_mouse_wheel       , MDFR_NONE, list_mode__wheel_scroll);
-        bind(mappings, key_mouse_left        , MDFR_NONE, list_mode__mouse_press);
-        bind(mappings, key_mouse_left_release, MDFR_NONE, list_mode__mouse_release);
-        bind(mappings, key_mouse_move, MDFR_NONE, list_mode__repaint);
-        bind(mappings, key_animate   , MDFR_NONE, list_mode__repaint);
+        bind_vanilla_keys(mappings, MDFR_NONE, lister__write_character);
+        bind(mappings, key_esc, MDFR_NONE, lister__quit);
+        bind(mappings, '\n', MDFR_NONE, lister__activate);
+        bind(mappings, '\t', MDFR_NONE, lister__activate);
+        bind(mappings, key_back     , MDFR_NONE, lister__backspace_text_field);
+        bind(mappings, key_up       , MDFR_NONE, lister__move_up);
+        bind(mappings, key_page_up  , MDFR_NONE, lister__move_up);
+        bind(mappings, key_down     , MDFR_NONE, lister__move_down);
+        bind(mappings, key_page_down, MDFR_NONE, lister__move_down);
+        bind(mappings, key_mouse_wheel       , MDFR_NONE, lister__wheel_scroll);
+        bind(mappings, key_mouse_left        , MDFR_NONE, lister__mouse_press);
+        bind(mappings, key_mouse_left_release, MDFR_NONE, lister__mouse_release);
+        bind(mappings, key_mouse_move, MDFR_NONE, lister__repaint);
+        bind(mappings, key_animate   , MDFR_NONE, lister__repaint);
         
         end_map(mappings);
     }
