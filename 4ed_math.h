@@ -598,6 +598,16 @@ i32R(int32_t l, int32_t t, int32_t r, int32_t b){
     return(rect);
 }
 
+inline i32_Rect
+i32R(f32_Rect r){
+    i32_Rect rect;
+    rect.x0 = (int32_t)r.x0;
+    rect.y0 = (int32_t)r.y0;
+    rect.x1 = (int32_t)r.x1;
+    rect.y1 = (int32_t)r.y1;
+    return(rect);
+}
+
 inline f32_Rect
 f32R(float l, float t, float r, float b){
     f32_Rect rect;
@@ -624,12 +634,12 @@ rect_equal(i32_Rect r1, i32_Rect r2){
 
 inline int32_t
 hit_check(int32_t x, int32_t y, int32_t x0, int32_t y0, int32_t x1, int32_t y1){
-    return (x >= x0 && x < x1 && y >= y0 && y < y1);
+    return(x >= x0 && x < x1 && y >= y0 && y < y1);
 }
 
 inline int32_t
 hit_check(int32_t x, int32_t y, i32_Rect rect){
-    return (hit_check(x, y, rect.x0, rect.y0, rect.x1, rect.y1));
+    return(hit_check(x, y, rect.x0, rect.y0, rect.x1, rect.y1));
 }
 
 inline i32_Rect

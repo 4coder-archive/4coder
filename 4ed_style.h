@@ -19,7 +19,7 @@ struct Style_Font{
 };
 
 struct Style{
-    char name_[24];
+    char name_[32];
     String name;
     Style_Main_Data main;
 };

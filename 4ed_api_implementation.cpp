@@ -2281,8 +2281,19 @@ View_Set_UI(Application_Links *app, View_Summary *view, UI_Control *control){
             for (UI_Item *item = control->items, *one_past_last = control->items + control->count;
                  item < one_past_last;
                  item += 1){
-                string_size += item->query.size;
-                string_size += item->string.size;
+                switch (item->type){
+                    case UIType_Option:
+                    {
+                        string_size += item->option.string.size;
+                        string_size += item->option.status.size;
+                    }break;
+                    
+                    case UIType_TextField:
+                    {
+                        string_size += item->text_field.query.size;
+                        string_size += item->text_field.string.size;
+                    }break;
+                }
             }
             
             i32 all_items_size = sizeof(UI_Item)*control->count;
@@ -2297,9 +2308,20 @@ View_Set_UI(Application_Links *app, View_Summary *view, UI_Control *control){
                      item < one_past_last;
                      item += 1){
                     String *fixup[2];
-                    fixup[0] = &item->query;
-                    fixup[1] = &item->string;
-                    for (i32 i = 0; i < ArrayCount(fixup); i += 1){
+                    i32 fixup_count = 0;
+                    switch (item->type){
+                        case UIType_Option:
+                        {
+                            fixup[0] = &item->option.string;
+                            fixup[1] = &item->option.status;
+                        }break;
+                        case UIType_TextField:
+                        {
+                            fixup[0] = &item->text_field.query;
+                            fixup[1] = &item->text_field.string;
+                        }break;
+                    }
+                    for (i32 i = 0; i < fixup_count; i += 1){
                         String old = *fixup[i];
                         char *new_str = push_array(&string_alloc, char, old.size);
                         fixup[i]->str = new_str;

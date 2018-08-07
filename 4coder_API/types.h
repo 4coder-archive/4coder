@@ -684,7 +684,6 @@ that will be displayed as a drop down bar durring an interactive command.) */
 STRUCT Query_Bar{
     /* DOC(This specifies the prompt portion of the drop down bar.) */
     String prompt;
-    
     /* DOC(This specifies the main string portion of the drop down bar.) */
     String string;
 };
@@ -696,8 +695,9 @@ STRUCT Event_Message{
 };
 
 ENUM(int16_t, UI_Item_Type){
-    UIType_Option,
-    UIType_TextField,
+    UIType_Option = 0,
+    UIType_TextField = 1,
+    UIType_ThemePreview = 2,
 };
 
 ENUM(int8_t, UI_Activation_Level){
@@ -718,10 +718,18 @@ STRUCT UI_Item{
     UI_Coordinate_System coordinates;
     // 32-bits of padding to fill here
     union{
-        String query;
-        String status;
+        struct{
+            String string;
+            String status;
+        } option;
+        struct{
+            String query;
+            String string;
+        } text_field;
+        struct{
+            int32_t theme_index;
+        } theme_preview;
     };
-    String string;
     void *user_data;
     i32_Rect rectangle;
 };

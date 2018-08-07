@@ -269,8 +269,8 @@ lister_update_ui(Application_Links *app, Partition *scratch, View_Summary *view,
             item.type = UIType_Option;
             item.activation_level = UIActivation_None;
             item.coordinates = UICoordinates_Scrolled;
-            item.string = node->string;
-            item.status = node->status;
+            item.option.string = node->string;
+            item.option.status = node->status;
             item.user_data = node->user_data;
             item.rectangle = item_rect;
             
@@ -327,8 +327,8 @@ lister_update_ui(Application_Links *app, Partition *scratch, View_Summary *view,
         item.type = UIType_TextField;
         item.activation_level = UIActivation_Active;
         item.coordinates = UICoordinates_ViewRelative;
-        item.query = state->lister.query;
-        item.string = state->lister.text_field;
+        item.text_field.query = state->lister.query;
+        item.text_field.string = state->lister.text_field;
         item.user_data = 0;
         item.rectangle = item_rect;
         ui_list_add_item(scratch, &list, item);
