@@ -241,6 +241,10 @@ do_render_file_view(System_Functions *system, View *view, Models *models, GUI_Sc
     i32 line_height = view->transient.line_height;
     Style *style = &models->styles.styles[0];
     Face_ID font_id = file->settings.font_id;
+    char font_name_space[256];
+    String font_name = make_fixed_width_string(font_name_space);
+    font_name.size = system->font.get_name_by_id(font_id, font_name.str, font_name.memory_size);
+    Font_Pointers font = system->font.get_pointers_by_id(font_id);
     
     if (!view->transient.hide_file_bar){
         i32_Rect top_bar_rect = {0};
@@ -318,8 +322,8 @@ do_render_file_view(System_Functions *system, View *view, Models *models, GUI_Sc
                         draw_margin(target, item_rect, inner, margin_color);
                         i32 x = (i32)inner.x0 + 3;
                         i32 y = (i32)inner.y0 + line_height/2 - 1;
-                        x = ceil32(draw_string(system, target, font_id, item->string, x, y, text_color));
-                        draw_string(system, target, font_id, item->status, x, y, pop_color);
+                        x = ceil32(draw_string(system, target, font_id, item->option.string, x, y, text_color));
+                        draw_string(system, target, font_id, item->option.status, x, y, pop_color);
                     }break;
                     
                     case UIType_TextField:
@@ -330,8 +334,51 @@ do_render_file_view(System_Functions *system, View *view, Models *models, GUI_Sc
                         draw_rectangle(target, item_rect, back_color);
                         i32 x = (i32)item_rect.x0;
                         i32 y = (i32)item_rect.y0 + 2;
-                        x = ceil32(draw_string(system, target, font_id, item->query, x, y, text2_color));
-                        draw_string(system, target, font_id, item->string, x, y, text1_color);
+                        x = ceil32(draw_string(system, target, font_id, item->text_field.query, x, y, text2_color));
+                        draw_string(system, target, font_id, item->text_field.string, x, y, text1_color);
+                    }break;
+                    
+                    case UIType_ColorTheme:
+                    {
+                        Style *style_preview = &models->styles.styles[item->color_theme.index];
+                        u32 margin_color = style_get_margin_color(item->activation_level, style_preview);
+                        u32 back = style_preview->main.back_color;
+                        u32 text_color = style_preview->main.default_color;
+                        u32 keyword_color = style_preview->main.keyword_color;
+                        u32 int_constant_color = style_preview->main.int_constant_color;
+                        u32 comment_color = style_preview->main.comment_color;
+                        
+                        f32_Rect inner = get_inner_rect(item_rect, 3);
+                        
+                        draw_margin(target, item_rect, inner, margin_color);
+                        draw_rectangle(target, inner, back);
+                        
+                        i32 y = (i32)inner.y0;
+                        i32 x = (i32)inner.x0;
+                        String str = item->color_theme.string;
+                        if (str.str == 0){
+                            str = style_preview->name;
+                        }
+                        x = ceil32(draw_string(system, target, font_id, str, x, y, text_color));
+                        i32 font_x = (i32)(inner.x1 - font_string_width(system, target, font_id, font_name));
+                        if (font_x > x + 10){
+                            draw_string(system, target, font_id, font_name, font_x, y, text_color);
+                        }
+                        
+                        i32 height = font.metrics->height;
+                        x = inner.x0;
+                        y += height;
+                        x = ceil32(draw_string(system, target, font_id, "if", x, y, keyword_color));
+                        x = ceil32(draw_string(system, target, font_id, "(x < ", x, y, text_color));
+                        x = ceil32(draw_string(system, target, font_id, "0", x, y, int_constant_color));
+                        x = ceil32(draw_string(system, target, font_id, ") { x = ", x, y, text_color));
+                        x = ceil32(draw_string(system, target, font_id, "0", x, y, int_constant_color));
+                        x = ceil32(draw_string(system, target, font_id, "; } ", x, y, text_color));
+                        x = ceil32(draw_string(system, target, font_id, "// comment", x, y, comment_color));
+                        
+                        x = inner.x0;
+                        y += height;
+                        draw_string(system, target, font_id, "[] () {}; * -> +-/ <>= ! && || % ^", x, y, text_color);
                     }break;
                 }
             }

@@ -71,6 +71,11 @@ typedef double f64;
 #if !defined(Member)
 # define Member(T, m) (((T*)0)->m)
 #endif
+#define PtrDif(a,b) ((uint8_t*)(a) - (uint8_t*)(b))
+#define PtrAsInt(a) PtrDif(a,0)
+#define OffsetOfMember(S,m) PtrAsInt(&Member(S,m))
+#define CastFromMember(S,m,ptr) (S*)( (uint8_t*)(ptr) - OffsetOfMember(S,m) )
+#define IntAsPtr(a) (void*)(((uint8_t*)0) + a)
 
 #define STR__(s) #s
 #define STR_(s) STR__(s)

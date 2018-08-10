@@ -698,6 +698,7 @@ STRUCT Event_Message{
 ENUM(int16_t, UI_Item_Type){
     UIType_Option,
     UIType_TextField,
+    UIType_ColorTheme,
 };
 
 ENUM(int8_t, UI_Activation_Level){
@@ -718,10 +719,19 @@ STRUCT UI_Item{
     UI_Coordinate_System coordinates;
     // 32-bits of padding to fill here
     union{
-        String query;
-        String status;
+        struct{
+            String string;
+            String status;
+        } option;
+        struct{
+            String query;
+            String string;
+        } text_field;
+        struct{
+            String string;
+            int32_t index;
+        } color_theme;
     };
-    String string;
     void *user_data;
     i32_Rect rectangle;
 };
@@ -832,7 +842,7 @@ STRUCT Buffer_Batch_Edit{
 TYPEDEF void Custom_Command_Function(struct Application_Links *app);
 
 #if defined(CUSTOM_COMMAND_SIG) || defined(CUSTOM_DOC) || defined(CUSTOM_ALIAS)
-#error Please don't define CUSTOM_COMMAND_SIG, CUSTOM_DOC, or CUSTOM_ALIAS
+#error Please do not define CUSTOM_COMMAND_SIG, CUSTOM_DOC, or CUSTOM_ALIAS
 #endif
 
 #if !defined(META_PASS)

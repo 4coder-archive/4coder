@@ -62,8 +62,11 @@ struct Application_Links;
 #define START_QUERY_BAR_SIG(n) bool32 n(Application_Links *app, Query_Bar *bar, uint32_t flags)
 #define END_QUERY_BAR_SIG(n) void n(Application_Links *app, Query_Bar *bar, uint32_t flags)
 #define PRINT_MESSAGE_SIG(n) void n(Application_Links *app, char *str, int32_t len)
+#define GET_THEME_COUNT_SIG(n) int32_t n(Application_Links *app)
+#define GET_THEME_NAME_SIG(n) String n(Application_Links *app, Partition *arena, int32_t index)
 #define CREATE_THEME_SIG(n) void n(Application_Links *app, Theme *theme, char *name, int32_t len)
 #define CHANGE_THEME_SIG(n) void n(Application_Links *app, char *name, int32_t len)
+#define CHANGE_THEME_BY_INDEX_SIG(n) bool32 n(Application_Links *app, int32_t index)
 #define GET_LARGEST_FACE_ID_SIG(n) Face_ID n(Application_Links *app)
 #define SET_GLOBAL_FACE_SIG(n) bool32 n(Application_Links *app, Face_ID id, bool32 apply_to_all_buffers)
 #define BUFFER_SET_FACE_SIG(n) bool32 n(Application_Links *app, Buffer_Summary *buffer, Face_ID id)
@@ -155,8 +158,11 @@ typedef GET_MOUSE_STATE_SIG(Get_Mouse_State_Function);
 typedef START_QUERY_BAR_SIG(Start_Query_Bar_Function);
 typedef END_QUERY_BAR_SIG(End_Query_Bar_Function);
 typedef PRINT_MESSAGE_SIG(Print_Message_Function);
+typedef GET_THEME_COUNT_SIG(Get_Theme_Count_Function);
+typedef GET_THEME_NAME_SIG(Get_Theme_Name_Function);
 typedef CREATE_THEME_SIG(Create_Theme_Function);
 typedef CHANGE_THEME_SIG(Change_Theme_Function);
+typedef CHANGE_THEME_BY_INDEX_SIG(Change_Theme_By_Index_Function);
 typedef GET_LARGEST_FACE_ID_SIG(Get_Largest_Face_ID_Function);
 typedef SET_GLOBAL_FACE_SIG(Set_Global_Face_Function);
 typedef BUFFER_SET_FACE_SIG(Buffer_Set_Face_Function);
@@ -250,8 +256,11 @@ Get_Mouse_State_Function *get_mouse_state;
 Start_Query_Bar_Function *start_query_bar;
 End_Query_Bar_Function *end_query_bar;
 Print_Message_Function *print_message;
+Get_Theme_Count_Function *get_theme_count;
+Get_Theme_Name_Function *get_theme_name;
 Create_Theme_Function *create_theme;
 Change_Theme_Function *change_theme;
+Change_Theme_By_Index_Function *change_theme_by_index;
 Get_Largest_Face_ID_Function *get_largest_face_id;
 Set_Global_Face_Function *set_global_face;
 Buffer_Set_Face_Function *buffer_set_face;
@@ -344,8 +353,11 @@ Get_Mouse_State_Function *get_mouse_state_;
 Start_Query_Bar_Function *start_query_bar_;
 End_Query_Bar_Function *end_query_bar_;
 Print_Message_Function *print_message_;
+Get_Theme_Count_Function *get_theme_count_;
+Get_Theme_Name_Function *get_theme_name_;
 Create_Theme_Function *create_theme_;
 Change_Theme_Function *change_theme_;
+Change_Theme_By_Index_Function *change_theme_by_index_;
 Get_Largest_Face_ID_Function *get_largest_face_id_;
 Set_Global_Face_Function *set_global_face_;
 Buffer_Set_Face_Function *buffer_set_face_;
@@ -446,8 +458,11 @@ app_links->get_mouse_state_ = Get_Mouse_State;\
 app_links->start_query_bar_ = Start_Query_Bar;\
 app_links->end_query_bar_ = End_Query_Bar;\
 app_links->print_message_ = Print_Message;\
+app_links->get_theme_count_ = Get_Theme_Count;\
+app_links->get_theme_name_ = Get_Theme_Name;\
 app_links->create_theme_ = Create_Theme;\
 app_links->change_theme_ = Change_Theme;\
+app_links->change_theme_by_index_ = Change_Theme_By_Index;\
 app_links->get_largest_face_id_ = Get_Largest_Face_ID;\
 app_links->set_global_face_ = Set_Global_Face;\
 app_links->buffer_set_face_ = Buffer_Set_Face;\
@@ -540,8 +555,11 @@ static inline Mouse_State get_mouse_state(Application_Links *app){return(app->ge
 static inline bool32 start_query_bar(Application_Links *app, Query_Bar *bar, uint32_t flags){return(app->start_query_bar(app, bar, flags));}
 static inline void end_query_bar(Application_Links *app, Query_Bar *bar, uint32_t flags){(app->end_query_bar(app, bar, flags));}
 static inline void print_message(Application_Links *app, char *str, int32_t len){(app->print_message(app, str, len));}
+static inline int32_t get_theme_count(Application_Links *app){return(app->get_theme_count(app));}
+static inline String get_theme_name(Application_Links *app, Partition *arena, int32_t index){return(app->get_theme_name(app, arena, index));}
 static inline void create_theme(Application_Links *app, Theme *theme, char *name, int32_t len){(app->create_theme(app, theme, name, len));}
 static inline void change_theme(Application_Links *app, char *name, int32_t len){(app->change_theme(app, name, len));}
+static inline bool32 change_theme_by_index(Application_Links *app, int32_t index){return(app->change_theme_by_index(app, index));}
 static inline Face_ID get_largest_face_id(Application_Links *app){return(app->get_largest_face_id(app));}
 static inline bool32 set_global_face(Application_Links *app, Face_ID id, bool32 apply_to_all_buffers){return(app->set_global_face(app, id, apply_to_all_buffers));}
 static inline bool32 buffer_set_face(Application_Links *app, Buffer_Summary *buffer, Face_ID id){return(app->buffer_set_face(app, buffer, id));}
@@ -634,8 +652,11 @@ static inline Mouse_State get_mouse_state(Application_Links *app){return(app->ge
 static inline bool32 start_query_bar(Application_Links *app, Query_Bar *bar, uint32_t flags){return(app->start_query_bar_(app, bar, flags));}
 static inline void end_query_bar(Application_Links *app, Query_Bar *bar, uint32_t flags){(app->end_query_bar_(app, bar, flags));}
 static inline void print_message(Application_Links *app, char *str, int32_t len){(app->print_message_(app, str, len));}
+static inline int32_t get_theme_count(Application_Links *app){return(app->get_theme_count_(app));}
+static inline String get_theme_name(Application_Links *app, Partition *arena, int32_t index){return(app->get_theme_name_(app, arena, index));}
 static inline void create_theme(Application_Links *app, Theme *theme, char *name, int32_t len){(app->create_theme_(app, theme, name, len));}
 static inline void change_theme(Application_Links *app, char *name, int32_t len){(app->change_theme_(app, name, len));}
+static inline bool32 change_theme_by_index(Application_Links *app, int32_t index){return(app->change_theme_by_index_(app, index));}
 static inline Face_ID get_largest_face_id(Application_Links *app){return(app->get_largest_face_id_(app));}
 static inline bool32 set_global_face(Application_Links *app, Face_ID id, bool32 apply_to_all_buffers){return(app->set_global_face_(app, id, apply_to_all_buffers));}
 static inline bool32 buffer_set_face(Application_Links *app, Buffer_Summary *buffer, Face_ID id){return(app->buffer_set_face_(app, buffer, id));}

@@ -598,6 +598,16 @@ i32R(int32_t l, int32_t t, int32_t r, int32_t b){
     return(rect);
 }
 
+inline i32_Rect
+i32R(f32_Rect r){
+    i32_Rect rect;
+    rect.x0 = (i32)r.x0;
+    rect.y0 = (i32)r.y0;
+    rect.x1 = (i32)r.x1;
+    rect.y1 = (i32)r.y1;
+    return(rect);
+}
+
 inline f32_Rect
 f32R(float l, float t, float r, float b){
     f32_Rect rect;

@@ -46,6 +46,7 @@ struct Bind_Buffer{
 #define PtrAsInt(a) PtrDif(a,0)
 #define OffsetOfMember(S,m) PtrAsInt(&Member(S,m))
 #define CastFromMember(S,m,ptr) (S*)( (uint8_t*)(ptr) - OffsetOfMember(S,m) )
+#define IntAsPtr(a) (void*)(((uint8_t*)0) + a)
 
 #if !defined(max_f32)
 inline float
@@ -86,8 +87,8 @@ struct File_Name_Data{
 struct File_Name_Path_Data{
     String file_name;
     String path;
-String data;
-    };
+    String data;
+};
 
 ////////////////////////////////
 
@@ -95,8 +96,8 @@ struct Buffer_Rect{
     int32_t char0;
     int32_t line0;
     int32_t char1;
-int32_t line1;
-    };
+    int32_t line1;
+};
 
 ////////////////////////////////
 

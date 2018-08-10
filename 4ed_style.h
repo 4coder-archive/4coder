@@ -40,7 +40,8 @@ style_set_name(Style *style, String name){
 
 struct Style_Library{
     Style styles[64];
-    i32 count, max;
+    i32 count;
+    i32 max;
 };
 
 #endif

@@ -95,7 +95,6 @@ fill_view_summary(System_Functions *system, View_Summary *view, View *vptr, Live
     }
 }
 
-
 inline void
 fill_view_summary(System_Functions *system, View_Summary *view, View *vptr, Command_Data *cmd){
     fill_view_summary(system, view, vptr, &cmd->models->live_set, &cmd->models->working_set);
@@ -2281,8 +2280,24 @@ View_Set_UI(Application_Links *app, View_Summary *view, UI_Control *control){
             for (UI_Item *item = control->items, *one_past_last = control->items + control->count;
                  item < one_past_last;
                  item += 1){
-                string_size += item->query.size;
-                string_size += item->string.size;
+                switch (item->type){
+                    case UIType_Option:
+                    {
+                        string_size += item->option.string.size;
+                        string_size += item->option.status.size;
+                    }break;
+                    
+                    case UIType_TextField:
+                    {
+                        string_size += item->text_field.query.size;
+                        string_size += item->text_field.string.size;
+                    }break;
+                    
+                    case UIType_ColorTheme:
+                    {
+                        string_size += item->color_theme.string.size;
+                    }break;
+                }
             }
             
             i32 all_items_size = sizeof(UI_Item)*control->count;
@@ -2296,10 +2311,30 @@ View_Set_UI(Application_Links *app, View_Summary *view, UI_Control *control){
                 for (UI_Item *item = new_items, *one_past_last = new_items + count;
                      item < one_past_last;
                      item += 1){
+                    
                     String *fixup[2];
-                    fixup[0] = &item->query;
-                    fixup[1] = &item->string;
-                    for (i32 i = 0; i < ArrayCount(fixup); i += 1){
+                    int32_t fixup_count = 0;
+                    switch (item->type){
+                        case UIType_Option:
+                        {
+                            fixup[0] = &item->option.string;
+                            fixup[1] = &item->option.status;
+                            fixup_count = 2;
+                        }break;
+                        case UIType_TextField:
+                        {
+                            fixup[0] = &item->text_field.query;
+                            fixup[1] = &item->text_field.string;
+                            fixup_count = 2;
+                        }break;
+                        case UIType_ColorTheme:
+                        {
+                            fixup[0] = &item->color_theme.string;
+                            fixup_count = 1;
+                        }break;
+                    }
+                    
+                    for (i32 i = 0; i < fixup_count; i += 1){
                         String old = *fixup[i];
                         char *new_str = push_array(&string_alloc, char, old.size);
                         fixup[i]->str = new_str;
@@ -2472,6 +2507,35 @@ DOC(This call posts a string to the *messages* buffer.)
     do_feedback_message(cmd->system, models, make_string(str, len));
 }
 
+API_EXPORT int32_t
+Get_Theme_Count(Application_Links *app)
+{
+    Command_Data *cmd = (Command_Data*)app->cmd_context;
+    Style_Library *library = &cmd->models->styles;
+    return(library->count);
+}
+
+API_EXPORT String
+Get_Theme_Name(Application_Links *app, Partition *arena, int32_t index){
+    Command_Data *cmd = (Command_Data*)app->cmd_context;
+    Style_Library *library = &cmd->models->styles;
+    
+    String str = {0};
+    if (0 <= index && index < library->count){
+        Style *style = &library->styles[index];
+        char *mem = push_array(arena, char, style->name.size + 1);
+        if (mem != 0){
+            str.str = mem;
+            str.size = style->name.size;
+            str.memory_size = str.size + 1;
+            memcpy(str.str, style->name.str, str.size);
+            str.str[str.size] = 0;
+        }
+    }
+    
+    return(str);
+}
+
 API_EXPORT void
 Create_Theme(Application_Links *app, Theme *theme, char *name, int32_t len)
 /*
@@ -2518,11 +2582,24 @@ DOC(This call changes 4coder's color pallet to one of the built in themes.)
     i32 count = styles->count;
     Style *s = styles->styles;
     for (i32 i = 0; i < count; ++i, ++s){
-        if (match_ss(s->name, theme_name)){
+        if (match(s->name, theme_name)){
             style_copy(&styles->styles[0], s);
             break;
         }
     }
+}
+
+API_EXPORT bool32
+Change_Theme_By_Index(Application_Links *app, int32_t index)
+{
+    Command_Data *cmd = (Command_Data*)app->cmd_context;
+    Style_Library *styles = &cmd->models->styles;
+    i32 count = styles->count;
+    if (0 <= index && index < count){
+        style_copy(&styles->styles[0], &styles->styles[index]);
+        return(true);
+    }
+    return(false);
 }
 
 API_EXPORT Face_ID

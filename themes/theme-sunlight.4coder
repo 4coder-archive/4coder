@@ -1,0 +1,38 @@
+name = "sunlight";
+
+Back = 0xFFDFDFDF;
+Margin = 0xFFC7C7C7;
+Margin_Hover = 0xFFBFBFBF;
+Margin_Active = 0xFFB7B7B7;
+List_Item = Margin;
+List_Item_Hover = Margin_Hover;
+List_Item_Active = Margin_Active;
+Cursor = 0xFF222222;
+At_Cursor = Back;
+Mark = 0xFF797979;
+Highlight = 0xFFFF9979;
+At_Highlight = Back;
+Default = 0xFF47474F;
+Comment = 0xFF953FFF;
+Keyword = 0xFF002255;
+Str_Constant = Keyword;
+Char_Constant = Str_Constant;
+Int_Constant = Str_Constant;
+Float_Constant = Str_Constant;
+Bool_Constant = Str_Constant;
+Include = Str_Constant;
+Preproc = 0xFF000000;
+Special_Character = 0xFF00FFFF;
+Ghost_Character = 0xFF929292;
+
+Paste = 0xFFFF0000;
+Undo = 0xFF00FF00;
+
+Highlight_Junk = 0xFFB7DFDF;
+Highlight_White = 0xFFC7C7C7;
+
+Bar = 0xFF909090;
+Bar_Active = 0xFFC1C1C1;
+Base = 0xFFFFFFFF;
+Pop1 = 0xFFFF4F2F;
+Pop2 = 0xFF00C5FF;

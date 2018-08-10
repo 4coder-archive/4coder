@@ -1462,18 +1462,6 @@ CUSTOM_DOC("Saves the current buffer.")
     exec_command(app, cmdid_save);
 }
 
-CUSTOM_COMMAND_SIG(open_color_tweaker)
-CUSTOM_DOC("Opens the 4coder colors and fonts selector menu.")
-{
-    // TODO(allen):  TODO(allen):  TODO(allen):  TODO(allen):  TODO(allen):  TODO(allen):  TODO(allen): 
-    // TODO(allen):  TODO(allen):  TODO(allen):  TODO(allen):  TODO(allen):  TODO(allen): 
-    // TODO(allen):  TODO(allen):  TODO(allen):  TODO(allen):  TODO(allen): 
-    // TODO(allen):  TODO(allen):  TODO(allen):  TODO(allen): 
-    // TODO(allen):  TODO(allen):  TODO(allen): 
-    // TODO(allen):  TODO(allen): 
-    // TODO(allen): 
-}
-
 ////////////////////////////////
 
 CUSTOM_COMMAND_SIG(open_in_other)
