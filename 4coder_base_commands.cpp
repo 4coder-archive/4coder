@@ -974,16 +974,28 @@ CUSTOM_DOC("Queries the user for a string, and incrementally replace every occur
 
 ////////////////////////////////
 
-CUSTOM_COMMAND_SIG(save_all_dirty_buffers)
-CUSTOM_DOC("Saves all buffers marked dirty (showing the '*' indicator).")
-{
+static void
+save_all_dirty_buffers_with_postfix(Application_Links *app, String postfix){
     for (Buffer_Summary buffer = get_buffer_first(app, AccessOpen);
          buffer.exists;
          get_buffer_next(app, &buffer, AccessOpen)){
         if (buffer.dirty == DirtyState_UnsavedChanges){
-            save_buffer(app, &buffer, buffer.file_name, buffer.file_name_len, 0);
+            String file_name = make_string(buffer.file_name, buffer.file_name_len);
+            if (file_name.size >= postfix.size){
+                String file_name_post = substr_tail(file_name, file_name.size - postfix.size);
+                if (match(file_name_post, postfix)){
+                    save_buffer(app, &buffer, buffer.file_name, buffer.file_name_len, 0);
+                }
+            }
         }
     }
+}
+
+CUSTOM_COMMAND_SIG(save_all_dirty_buffers)
+CUSTOM_DOC("Saves all buffers marked dirty (showing the '*' indicator).")
+{
+    String empty = {0};
+    save_all_dirty_buffers_with_postfix(app, empty);
 }
 
 static void
@@ -1463,6 +1475,29 @@ CUSTOM_DOC("Saves the current buffer.")
 }
 
 ////////////////////////////////
+
+CUSTOM_COMMAND_SIG(reload_themes)
+CUSTOM_DOC("Loads all the theme files in the theme folder, replacing duplicates with the new theme data.")
+{
+    String fcoder_extension = make_lit_string(".4coder");
+    save_all_dirty_buffers_with_postfix(app, fcoder_extension);
+    
+    Partition *scratch = &global_part;
+    Temp_Memory temp = begin_temp_memory(scratch);
+    load_folder_of_themes_into_live_set(app, scratch, "themes");
+    String name = get_theme_name(app, scratch, 0);
+    int32_t theme_count = get_theme_count(app);
+    for (int32_t i = 1; i < theme_count; i += 1){
+        Temp_Memory sub_temp = begin_temp_memory(scratch);
+        String style_name = get_theme_name(app, scratch, i);
+        if (match(name, style_name)){
+            change_theme_by_index(app, i);
+            break;
+        }
+        end_temp_memory(sub_temp);
+    }
+    end_temp_memory(temp);
+}
 
 CUSTOM_COMMAND_SIG(open_in_other)
 CUSTOM_DOC("Interactively opens a file in the other panel.")

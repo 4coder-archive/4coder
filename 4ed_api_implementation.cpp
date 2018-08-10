@@ -2550,10 +2550,11 @@ DOC(This call creates a new theme.  If the given name is already the name of a s
     
     b32 hit_existing_theme = false;
     i32 count = library->count;
-    Style *style = library->styles;
-    for (i32 i = 0; i < count; ++i, ++style){
+    Style *style = library->styles + 1;
+    for (i32 i = 1; i < count; ++i, ++style){
         if (match(style->name, theme_name)){
             style_set_colors(style, theme);
+            Print_Message(app, "DID THING\n", sizeof("DID THING\n") - 1);
             hit_existing_theme = true;
             break;
         }
@@ -2580,8 +2581,8 @@ DOC(This call changes 4coder's color pallet to one of the built in themes.)
     String theme_name = make_string(name, len);
     
     i32 count = styles->count;
-    Style *s = styles->styles;
-    for (i32 i = 0; i < count; ++i, ++s){
+    Style *s = styles->styles + 1;
+    for (i32 i = 1; i < count; ++i, ++s){
         if (match(s->name, theme_name)){
             style_copy(&styles->styles[0], s);
             break;
