@@ -1072,16 +1072,14 @@ App_Init_Sig(app_init){
     
     {
         setup_command_table();
-        
         Assert(models->config_api.get_bindings != 0);
         i32 wanted_size = models->config_api.get_bindings(models->app_links.memory, models->app_links.memory_size);
         Assert(wanted_size <= models->app_links.memory_size);
         interpret_binding_buffer(models, models->app_links.memory, wanted_size);
-        
         memset(models->app_links.memory, 0, wanted_size);
     }
     
-    dynamic_variables_init(&models->view_variable_layout);
+    dynamic_variables_init(&models->variable_layout);
     
     // NOTE(allen): file setup
     working_set_init(&models->working_set, partition, &vars->models.mem.general);

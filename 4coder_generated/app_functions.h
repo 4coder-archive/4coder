@@ -55,7 +55,7 @@ struct Application_Links;
 #define VIEW_END_UI_MODE_SIG(n) int32_t n(Application_Links *app, View_Summary *view)
 #define VIEW_SET_UI_SIG(n) bool32 n(Application_Links *app, View_Summary *view, UI_Control *control)
 #define VIEW_GET_UI_COPY_SIG(n) UI_Control n(Application_Links *app, View_Summary *view, struct Partition *part)
-#define CREATE_CORE_VARIABLE_SIG(n) int32_t n(Application_Links *app, Lifetime_Type type, char *null_terminated_name, uint64_t default_value)
+#define CREATE_CORE_VARIABLE_SIG(n) int32_t n(Application_Links *app, char *null_terminated_name, uint64_t default_value)
 #define CORE_VARIABLE_SET_SIG(n) bool32 n(Application_Links *app, Lifetime_Handle handle, int32_t location, uint64_t value)
 #define CORE_VARIABLE_GET_SIG(n) bool32 n(Application_Links *app, Lifetime_Handle handle, int32_t location, uint64_t *value_out)
 #define GET_USER_INPUT_SIG(n) User_Input n(Application_Links *app, Input_Type_Flag get_type, Input_Type_Flag abort_type)
@@ -558,7 +558,7 @@ static inline int32_t view_start_ui_mode(Application_Links *app, View_Summary *v
 static inline int32_t view_end_ui_mode(Application_Links *app, View_Summary *view){return(app->view_end_ui_mode(app, view));}
 static inline bool32 view_set_ui(Application_Links *app, View_Summary *view, UI_Control *control){return(app->view_set_ui(app, view, control));}
 static inline UI_Control view_get_ui_copy(Application_Links *app, View_Summary *view, struct Partition *part){return(app->view_get_ui_copy(app, view, part));}
-static inline int32_t create_core_variable(Application_Links *app, Lifetime_Type type, char *null_terminated_name, uint64_t default_value){return(app->create_core_variable(app, type, null_terminated_name, default_value));}
+static inline int32_t create_core_variable(Application_Links *app, char *null_terminated_name, uint64_t default_value){return(app->create_core_variable(app, null_terminated_name, default_value));}
 static inline bool32 core_variable_set(Application_Links *app, Lifetime_Handle handle, int32_t location, uint64_t value){return(app->core_variable_set(app, handle, location, value));}
 static inline bool32 core_variable_get(Application_Links *app, Lifetime_Handle handle, int32_t location, uint64_t *value_out){return(app->core_variable_get(app, handle, location, value_out));}
 static inline User_Input get_user_input(Application_Links *app, Input_Type_Flag get_type, Input_Type_Flag abort_type){return(app->get_user_input(app, get_type, abort_type));}
@@ -657,7 +657,7 @@ static inline int32_t view_start_ui_mode(Application_Links *app, View_Summary *v
 static inline int32_t view_end_ui_mode(Application_Links *app, View_Summary *view){return(app->view_end_ui_mode_(app, view));}
 static inline bool32 view_set_ui(Application_Links *app, View_Summary *view, UI_Control *control){return(app->view_set_ui_(app, view, control));}
 static inline UI_Control view_get_ui_copy(Application_Links *app, View_Summary *view, struct Partition *part){return(app->view_get_ui_copy_(app, view, part));}
-static inline int32_t create_core_variable(Application_Links *app, Lifetime_Type type, char *null_terminated_name, uint64_t default_value){return(app->create_core_variable_(app, type, null_terminated_name, default_value));}
+static inline int32_t create_core_variable(Application_Links *app, char *null_terminated_name, uint64_t default_value){return(app->create_core_variable_(app, null_terminated_name, default_value));}
 static inline bool32 core_variable_set(Application_Links *app, Lifetime_Handle handle, int32_t location, uint64_t value){return(app->core_variable_set_(app, handle, location, value));}
 static inline bool32 core_variable_get(Application_Links *app, Lifetime_Handle handle, int32_t location, uint64_t *value_out){return(app->core_variable_get_(app, handle, location, value_out));}
 static inline User_Input get_user_input(Application_Links *app, Input_Type_Flag get_type, Input_Type_Flag abort_type){return(app->get_user_input_(app, get_type, abort_type));}

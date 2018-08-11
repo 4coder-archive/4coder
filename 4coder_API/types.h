@@ -691,15 +691,18 @@ STRUCT Query_Bar{
 
 static int32_t CoreVariableIndex_ERROR = -1;
 
-ENUM(int32_t, Lifetime_Type){
-    LifetimeType_View = 0,
-    LifetimeType_Buffer = 1,
+ENUM(int32_t, Lifetime_Handle_Type){
+    LifetimeHandleType_Overlapped = 0,
+    LifetimeHandleType_Buffer = 1,
+    LifetimeHandleType_View = 2,
 };
 
 STRUCT Lifetime_Handle{
-    Lifetime_Type type;
-    View_ID view_id;
-    Buffer_ID buffer_id;
+    Lifetime_Handle_Type type;
+    union{
+        View_ID view_id;
+        Buffer_ID buffer_id;
+    };
 };
 
 ENUM(int16_t, UI_Item_Type){

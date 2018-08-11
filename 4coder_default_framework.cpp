@@ -247,10 +247,10 @@ default_4coder_initialize(Application_Links *app, int32_t override_font_size, bo
     load_folder_of_themes_into_live_set(app, &global_part, "themes");
     load_config_and_apply(app, &global_part, &global_config, override_font_size, override_hinting);
     
-    view_rewrite_loc      = create_core_variable(app, LifetimeType_View, "DEFAULT.rewrite"     , (uint64_t)0);
-    view_next_rewrite_loc = create_core_variable(app, LifetimeType_View, "DEFAULT.next_rewrite", (uint64_t)0);
-    view_paste_index_loc  = create_core_variable(app, LifetimeType_View, "DEFAULT.paste_index" , (uint64_t)0);
-    view_is_passive_loc   = create_core_variable(app, LifetimeType_View, "DEFAULT.is_passive"  , (uint64_t)false);
+    view_rewrite_loc      = create_core_variable(app, "DEFAULT.rewrite"     , (uint64_t)0);
+    view_next_rewrite_loc = create_core_variable(app, "DEFAULT.next_rewrite", (uint64_t)0);
+    view_paste_index_loc  = create_core_variable(app, "DEFAULT.paste_index" , (uint64_t)0);
+    view_is_passive_loc   = create_core_variable(app, "DEFAULT.is_passive"  , (uint64_t)false);
 }
 
 static void

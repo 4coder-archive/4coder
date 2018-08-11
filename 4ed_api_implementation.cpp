@@ -1202,7 +1202,7 @@ Buffer_Get_Lifetime_Handle(Application_Links *app, Buffer_ID buffer_id)
     Editing_File *file = imp_get_file(cmd, buffer_id);
     Lifetime_Handle lifetime = {0};
     if (file != 0){
-        lifetime.type = LifetimeType_Buffer;
+        lifetime.type = LifetimeHandleType_Buffer;
         lifetime.buffer_id = buffer_id;
     }
     return(lifetime);
@@ -1946,7 +1946,7 @@ View_Get_Lifetime_Handle(Application_Links *app, View_ID view_id)
     View *view = imp_get_view(cmd, view_id);
     Lifetime_Handle lifetime = {0};
     if (view != 0){
-        lifetime.type = LifetimeType_View;
+        lifetime.type = LifetimeHandleType_View;
         lifetime.view_id = view_id;
     }
     return(lifetime);
@@ -2355,26 +2355,24 @@ View_Get_UI_Copy(Application_Links *app, View_Summary *view, struct Partition *p
     return(result);
 }
 
+API_EXPORT Lifetime_Handle
+Get_Overlapped_Lifetime_Handle(Application_Links *app, Lifetime_Handle *member_handles, int32_t member_count)
+{
+    Command_Data *cmd = (Command_Data*)app->cmd_context;
+    Lifetime_Handle result = {0};
+    
+    return(result);
+}
+
 API_EXPORT int32_t
-Create_Core_Variable(Application_Links *app, Lifetime_Type type, char *null_terminated_name, uint64_t default_value)
+Create_Core_Variable(Application_Links *app, char *null_terminated_name, uint64_t default_value)
 {
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     Models *models = cmd->models;
     String name = make_string_slowly(null_terminated_name);
     General_Memory *general = &models->mem.general;
-    switch (type){
-        case LifetimeType_View:
-        {
-            Dynamic_Variable_Layout *layout = &models->view_variable_layout;
-            return(dynamic_variables_lookup_or_create(general, layout, name, default_value));
-        }break;
-        case LifetimeType_Buffer:
-        {
-            Dynamic_Variable_Layout *layout = &models->buffer_variable_layout;
-            return(dynamic_variables_lookup_or_create(general, layout, name, default_value));
-        }break;
-    }
-    return(CoreVariableIndex_ERROR);
+    Dynamic_Variable_Layout *layout = &models->variable_layout;
+    return(dynamic_variables_lookup_or_create(general, layout, name, default_value));
 }
 
 internal bool32
@@ -2382,25 +2380,28 @@ get_dynamic_variable(Command_Data *cmd, Lifetime_Handle handle,
                      int32_t location, uint64_t **ptr_out){
     Models *models = cmd->models;
     General_Memory *general = &models->mem.general;
-    Dynamic_Variable_Layout *layout = 0;
+    Dynamic_Variable_Layout *layout = &models->variable_layout;
     Dynamic_Variable_Block *block = 0;
     
     switch (handle.type){
-        case LifetimeType_View:
+        case LifetimeHandleType_Overlapped:
         {
-            View *vptr = imp_get_view(cmd, handle.view_id);
-            if (vptr != 0){
-                layout = &models->view_variable_layout;
-                block = &vptr->transient.dynamic_vars;
-            }
+            NotImplemented;
         }break;
         
-        case LifetimeType_Buffer:
+        case LifetimeHandleType_Buffer:
         {
             Editing_File *file = imp_get_file(cmd, handle.buffer_id);
             if (file != 0){
-                layout = &models->buffer_variable_layout;
                 block = &file->dynamic_vars;
+            }
+        }break;
+        
+        case LifetimeHandleType_View:
+        {
+            View *vptr = imp_get_view(cmd, handle.view_id);
+            if (vptr != 0){
+                block = &vptr->transient.dynamic_vars;
             }
         }break;
     }

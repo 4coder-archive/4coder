@@ -31,6 +31,36 @@ struct Dynamic_Variable_Block{
     i32 max;
 };
 
+////////////////////////////////
+
+union Lifetime_Object{
+    struct{
+        Object *next;
+        Object *prev;
+    };
+    struct{
+        struct Key **keys;
+        i32 count;
+        i32 max;
+    };
+};
+
+union Lifetime_Key{
+    struct{
+        Key *next;
+        Key *prev;
+    };
+    struct{
+        struct Object **keys;
+        i32 count;
+        i32 max;
+    };
+};
+
+struct Lifetime_Allocator{
+    // TODO(allen): // TODO(allen): // TODO(allen): // TODO(allen): 
+};
+
 #endif
 
 // BOTTOM
