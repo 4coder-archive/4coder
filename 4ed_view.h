@@ -15,7 +15,6 @@
 struct View_Persistent{
     i32 id;
     Coroutine_Head *coroutine;
-    Event_Message message_passing_slot;
 };
 
 struct File_Viewing_Data{

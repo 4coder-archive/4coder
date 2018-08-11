@@ -42,12 +42,13 @@ START_HOOK_SIG(default_start){
 // also relies on this particular command caller hook.
 COMMAND_CALLER_HOOK(default_command_caller){
     View_Summary view = get_active_view(app, AccessAll);
+    Lifetime_Handle view_life = view_get_lifetime_handle(app, view.view_id);
     
-    view_set_variable(app, &view, view_next_rewrite_loc, 0);
+    core_variable_set(app, view_life, view_next_rewrite_loc, 0);
     exec_command(app, cmd);
     uint64_t next_rewrite = 0;
-    view_get_variable(app, &view, view_next_rewrite_loc, &next_rewrite);
-    view_set_variable(app, &view, view_rewrite_loc, next_rewrite);
+    core_variable_get(app, view_life, view_next_rewrite_loc, &next_rewrite);
+    core_variable_set(app, view_life, view_rewrite_loc, next_rewrite);
     
     return(0);
 }

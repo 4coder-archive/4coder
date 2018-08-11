@@ -1,6 +1,6 @@
 name = "sunlight";
 
-Back = 0xFFDFDFDF;
+Back = 0xFFDFD5D0;
 Margin = 0xFFC7C7C7;
 Margin_Hover = 0xFFBFBFBF;
 Margin_Active = 0xFFB7B7B7;
@@ -22,7 +22,7 @@ Float_Constant = Str_Constant;
 Bool_Constant = Str_Constant;
 Include = Str_Constant;
 Preproc = 0xFF000000;
-Special_Character = 0xFF00FFFF;
+Special_Character = 0xFFFF00FF;
 Ghost_Character = 0xFF929292;
 
 Paste = 0xFFFF0000;

@@ -689,10 +689,17 @@ STRUCT Query_Bar{
     String string;
 };
 
-/* DOC(This feature is not implemented.) */
-STRUCT Event_Message{
-    /* DOC(This feature is not implemented.) */
-    int32_t type;
+static int32_t CoreVariableIndex_ERROR = -1;
+
+ENUM(int32_t, Lifetime_Type){
+    LifetimeType_View = 0,
+    LifetimeType_Buffer = 1,
+};
+
+STRUCT Lifetime_Handle{
+    Lifetime_Type type;
+    View_ID view_id;
+    Buffer_ID buffer_id;
 };
 
 ENUM(int16_t, UI_Item_Type){

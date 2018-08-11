@@ -56,13 +56,15 @@ new_view_settings(Application_Links *app, View_Summary *view){
 
 static void
 view_set_passive(Application_Links *app, View_Summary *view, bool32 value){
-    view_set_variable(app, view, view_is_passive_loc, (uint64_t)value);
+    Lifetime_Handle view_life = view_get_lifetime_handle(app, view->view_id);
+    core_variable_set(app, view_life, view_is_passive_loc, (uint64_t)value);
 }
 
 static bool32
 view_get_is_passive(Application_Links *app, View_Summary *view){
+    Lifetime_Handle view_life = view_get_lifetime_handle(app, view->view_id);
     uint64_t is_passive = 0;
-    view_get_variable(app, view, view_is_passive_loc, &is_passive);
+    core_variable_get(app, view_life, view_is_passive_loc, &is_passive);
     return(is_passive != 0);
 }
 
@@ -245,10 +247,10 @@ default_4coder_initialize(Application_Links *app, int32_t override_font_size, bo
     load_folder_of_themes_into_live_set(app, &global_part, "themes");
     load_config_and_apply(app, &global_part, &global_config, override_font_size, override_hinting);
     
-    view_rewrite_loc      = create_view_variable(app, "DEFAULT.rewrite"     , (uint64_t)0);
-    view_next_rewrite_loc = create_view_variable(app, "DEFAULT.next_rewrite", (uint64_t)0);
-    view_paste_index_loc  = create_view_variable(app, "DEFAULT.paste_index" , (uint64_t)0);
-    view_is_passive_loc   = create_view_variable(app, "DEFAULT.is_passive"  , (uint64_t)false);
+    view_rewrite_loc      = create_core_variable(app, LifetimeType_View, "DEFAULT.rewrite"     , (uint64_t)0);
+    view_next_rewrite_loc = create_core_variable(app, LifetimeType_View, "DEFAULT.next_rewrite", (uint64_t)0);
+    view_paste_index_loc  = create_core_variable(app, LifetimeType_View, "DEFAULT.paste_index" , (uint64_t)0);
+    view_is_passive_loc   = create_core_variable(app, LifetimeType_View, "DEFAULT.is_passive"  , (uint64_t)false);
 }
 
 static void

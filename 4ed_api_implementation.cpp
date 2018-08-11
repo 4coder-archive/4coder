@@ -103,7 +103,6 @@ fill_view_summary(System_Functions *system, View_Summary *view, View *vptr, Comm
 internal Editing_File*
 get_file_from_identifier(System_Functions *system, Working_Set *working_set, Buffer_Identifier buffer){
     Editing_File *file = 0;
-    
     if (buffer.id){
         file = working_set_get_active_file(working_set, buffer.id);
     }
@@ -111,22 +110,25 @@ get_file_from_identifier(System_Functions *system, Working_Set *working_set, Buf
         String name = make_string(buffer.name, buffer.name_len);
         file = working_set_contains_name(working_set, name);
     }
-    
+    return(file);
+}
+
+internal Editing_File*
+imp_get_file(Command_Data *cmd, Buffer_ID buffer_id){
+    Working_Set *working_set = &cmd->models->working_set;
+    Editing_File *file = working_set_get_active_file(working_set, buffer_id);
+    if (file != 0 && !file_is_ready(file)){
+        file = 0;
+    }
     return(file);
 }
 
 internal Editing_File*
 imp_get_file(Command_Data *cmd, Buffer_Summary *buffer){
     Editing_File *file = 0;
-    Working_Set *working_set = &cmd->models->working_set;;
-    
     if (buffer && buffer->exists){
-        file = working_set_get_active_file(working_set, buffer->buffer_id);
-        if (file != 0 && !file_is_ready(file)){
-            file = 0;
-        }
+        file = imp_get_file(cmd, buffer->buffer_id);
     }
-    
     return(file);
 }
 
@@ -134,7 +136,6 @@ internal View*
 imp_get_view(Command_Data *cmd, View_ID view_id){
     Live_Views *live_set = cmd->live_set;
     View *vptr = 0;
-    
     view_id = view_id - 1;
     if (view_id >= 0 && view_id < live_set->max){
         vptr = live_set->views + view_id;
@@ -142,18 +143,15 @@ imp_get_view(Command_Data *cmd, View_ID view_id){
             vptr = 0;
         }
     }
-    
     return(vptr);
 }
 
 internal View*
 imp_get_view(Command_Data *cmd, View_Summary *view){
     View *vptr = 0;
-    
-    if (view && view->exists){
+    if (view != 0 && view->exists){
         vptr = imp_get_view(cmd, view->view_id);
     }
-    
     return(vptr);
 }
 
@@ -927,10 +925,10 @@ DOC_RETURN(returns non-zero on success)
 */{
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     Editing_File *file = imp_get_file(cmd, buffer);
-    bool32 result = 0;
+    bool32 result = false;
     
-    if (file){
-        result = 1;
+    if (file != 0){
+        result = true;
         switch (setting){
             case BufferSetting_Lex:
             {
@@ -1197,6 +1195,19 @@ DOC_SEE(Buffer_Setting_ID)
     return(result);
 }
 
+API_EXPORT Lifetime_Handle
+Buffer_Get_Lifetime_Handle(Application_Links *app, Buffer_ID buffer_id)
+{
+    Command_Data *cmd = (Command_Data*)app->cmd_context;
+    Editing_File *file = imp_get_file(cmd, buffer_id);
+    Lifetime_Handle lifetime = {0};
+    if (file != 0){
+        lifetime.type = LifetimeType_Buffer;
+        lifetime.buffer_id = buffer_id;
+    }
+    return(lifetime);
+}
+
 API_EXPORT int32_t
 Buffer_Token_Count(Application_Links *app, Buffer_Summary *buffer)
 /*
@@ -1206,13 +1217,12 @@ If the buffer does not exist or if it is not a lexed buffer, the return is zero.
 */{
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     Editing_File *file = imp_get_file(cmd, buffer);
-    
     int32_t count = 0;
-    
-    if (file && file->state.token_array.tokens && file->state.tokens_complete){
+    if (file != 0 &&
+        file->state.token_array.tokens &&
+        file->state.tokens_complete){
         count = file->state.token_array.count;
     }
-    
     return(count);
 }
 
@@ -1808,7 +1818,6 @@ in the system, the call will fail.)
         layout_fix_all_panels(&models->layout);
     }
     
-    
     return(result);
 }
 
@@ -1817,11 +1826,9 @@ Set_Active_View(Application_Links *app, View_Summary *view)
 /*
 DOC_PARAM(view, The view parameter specifies which view to make active.)
 DOC_RETURN(This call returns non-zero on success.)
-
 DOC(If the given view is open, it is set as the
 active view, and takes subsequent commands and is returned
 from get_active_view.)
-
 DOC_SEE(get_active_view)
 */{
     Command_Data *cmd = (Command_Data*)app->cmd_context;
@@ -1930,6 +1937,19 @@ DOC_SEE(View_Setting_ID)
     }
     
     return(result);
+}
+
+API_EXPORT Lifetime_Handle
+View_Get_Lifetime_Handle(Application_Links *app, View_ID view_id)
+{
+    Command_Data *cmd = (Command_Data*)app->cmd_context;
+    View *view = imp_get_view(cmd, view_id);
+    Lifetime_Handle lifetime = {0};
+    if (view != 0){
+        lifetime.type = LifetimeType_View;
+        lifetime.view_id = view_id;
+    }
+    return(lifetime);
 }
 
 API_EXPORT bool32
@@ -2185,54 +2205,8 @@ DOC_SEE(int_color)
 }
 
 API_EXPORT int32_t
-Create_View_Variable(Application_Links *app, char *null_terminated_name, uint64_t default_value){
-    Command_Data *cmd = (Command_Data*)app->cmd_context;
-    Models *models = cmd->models;
-    String name = make_string_slowly(null_terminated_name);
-    return(dynamic_variables_lookup_or_create(&models->mem.general,
-                                              &models->view_variable_layout, name, default_value));
-}
-
-API_EXPORT bool32
-View_Set_Variable(Application_Links *app, View_Summary *view, int32_t location, uint64_t value){
-    Command_Data *cmd = (Command_Data*)app->cmd_context;
-    View *vptr = imp_get_view(cmd, view);
-    bool32 result = false;
-    if (vptr != 0){
-        Models *models = cmd->models;
-        u64 *ptr = 0;
-        if (dynamic_variables_get_ptr(&models->mem.general,
-                                      &models->view_variable_layout,
-                                      &vptr->transient.dynamic_vars,
-                                      location, &ptr)){
-            result = true;
-            *ptr = value;
-        }
-    }
-    return(result);
-}
-
-API_EXPORT bool32
-View_Get_Variable(Application_Links *app, View_Summary *view, int32_t location, uint64_t *value_out){
-    Command_Data *cmd = (Command_Data*)app->cmd_context;
-    View *vptr = imp_get_view(cmd, view);
-    bool32 result = false;
-    if (vptr != 0){
-        Models *models = cmd->models;
-        u64 *ptr = 0;
-        if (dynamic_variables_get_ptr(&models->mem.general,
-                                      &models->view_variable_layout,
-                                      &vptr->transient.dynamic_vars,
-                                      location, &ptr)){
-            result = true;
-            *value_out = *ptr;
-        }
-    }
-    return(result);
-}
-
-API_EXPORT int32_t
-View_Start_UI_Mode(Application_Links *app, View_Summary *view){
+View_Start_UI_Mode(Application_Links *app, View_Summary *view)
+{
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     View *vptr = imp_get_view(cmd, view);
     if (vptr != 0){
@@ -2246,7 +2220,8 @@ View_Start_UI_Mode(Application_Links *app, View_Summary *view){
 }
 
 API_EXPORT int32_t
-View_End_UI_Mode(Application_Links *app, View_Summary *view){
+View_End_UI_Mode(Application_Links *app, View_Summary *view)
+{
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     View *vptr = imp_get_view(cmd, view);
     if (vptr != 0){
@@ -2265,7 +2240,8 @@ View_End_UI_Mode(Application_Links *app, View_Summary *view){
 }
 
 API_EXPORT bool32
-View_Set_UI(Application_Links *app, View_Summary *view, UI_Control *control){
+View_Set_UI(Application_Links *app, View_Summary *view, UI_Control *control)
+{
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     View *vptr = imp_get_view(cmd, view);
     Models *models = cmd->models;
@@ -2358,7 +2334,8 @@ View_Set_UI(Application_Links *app, View_Summary *view, UI_Control *control){
 }
 
 API_EXPORT UI_Control
-View_Get_UI_Copy(Application_Links *app, View_Summary *view, struct Partition *part){
+View_Get_UI_Copy(Application_Links *app, View_Summary *view, struct Partition *part)
+{
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     View *vptr = imp_get_view(cmd, view);
     UI_Control result = {0};
@@ -2376,6 +2353,89 @@ View_Get_UI_Copy(Application_Links *app, View_Summary *view, struct Partition *p
         memcpy(result.bounding_box, control->bounding_box, sizeof(result.bounding_box));
     }
     return(result);
+}
+
+API_EXPORT int32_t
+Create_Core_Variable(Application_Links *app, Lifetime_Type type, char *null_terminated_name, uint64_t default_value)
+{
+    Command_Data *cmd = (Command_Data*)app->cmd_context;
+    Models *models = cmd->models;
+    String name = make_string_slowly(null_terminated_name);
+    General_Memory *general = &models->mem.general;
+    switch (type){
+        case LifetimeType_View:
+        {
+            Dynamic_Variable_Layout *layout = &models->view_variable_layout;
+            return(dynamic_variables_lookup_or_create(general, layout, name, default_value));
+        }break;
+        case LifetimeType_Buffer:
+        {
+            Dynamic_Variable_Layout *layout = &models->buffer_variable_layout;
+            return(dynamic_variables_lookup_or_create(general, layout, name, default_value));
+        }break;
+    }
+    return(CoreVariableIndex_ERROR);
+}
+
+internal bool32
+get_dynamic_variable(Command_Data *cmd, Lifetime_Handle handle,
+                     int32_t location, uint64_t **ptr_out){
+    Models *models = cmd->models;
+    General_Memory *general = &models->mem.general;
+    Dynamic_Variable_Layout *layout = 0;
+    Dynamic_Variable_Block *block = 0;
+    
+    switch (handle.type){
+        case LifetimeType_View:
+        {
+            View *vptr = imp_get_view(cmd, handle.view_id);
+            if (vptr != 0){
+                layout = &models->view_variable_layout;
+                block = &vptr->transient.dynamic_vars;
+            }
+        }break;
+        
+        case LifetimeType_Buffer:
+        {
+            Editing_File *file = imp_get_file(cmd, handle.buffer_id);
+            if (file != 0){
+                layout = &models->buffer_variable_layout;
+                block = &file->dynamic_vars;
+            }
+        }break;
+    }
+    
+    bool32 result = false;
+    if (layout != 0 && block != 0){
+        if (dynamic_variables_get_ptr(general, layout, block, location, ptr_out)){
+            result = true;
+        }
+    }
+    return(result);
+}
+
+API_EXPORT bool32
+Core_Variable_Set(Application_Links *app, Lifetime_Handle handle, int32_t location, uint64_t value)
+{
+    Command_Data *cmd = (Command_Data*)app->cmd_context;
+    u64 *ptr = 0;
+    if (get_dynamic_variable(cmd, handle, location, &ptr)){
+        *ptr = value;
+        return(true);
+    }
+    return(false);
+}
+
+API_EXPORT bool32
+Core_Variable_Get(Application_Links *app, Lifetime_Handle handle, int32_t location, uint64_t *value_out)
+{
+    Command_Data *cmd = (Command_Data*)app->cmd_context;
+    u64 *ptr = 0;
+    if (get_dynamic_variable(cmd, handle, location, &ptr)){
+        *value_out = *ptr;
+        return(true);
+    }
+    return(false);
 }
 
 API_EXPORT User_Input
@@ -2439,23 +2499,6 @@ DOC_SEE(Mouse_State)
     return(mouse);
 }
 
-/*
-API_EXPORT Event_Message
-Get_Event_Message (Application_Links *app){
-Event_Message message = {0};
-System_Functions *system = (System_Functions*)app->system_links;
-Coroutine *coroutine = (Coroutine*)app->current_coroutine;
-
-if (app->type_coroutine == Co_View){
-Assert(coroutine);
-system->yield_coroutine(coroutine);
-message = *(Event_Message*)coroutine->in;
-}
-
-return(message);
-}
-*/
-
 API_EXPORT bool32
 Start_Query_Bar(Application_Links *app, Query_Bar *bar, uint32_t flags)
 /*
@@ -2516,7 +2559,8 @@ Get_Theme_Count(Application_Links *app)
 }
 
 API_EXPORT String
-Get_Theme_Name(Application_Links *app, Partition *arena, int32_t index){
+Get_Theme_Name(Application_Links *app, Partition *arena, int32_t index)
+{
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     Style_Library *library = &cmd->models->styles;
     

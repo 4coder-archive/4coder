@@ -43,6 +43,7 @@
 
 #include "4ed_linked_node_macros.h"
 #include "4ed_log.h"
+#include "4ed_dynamic_variables.h"
 
 #include "4ed_buffer_model.h"
 #include "4ed_translation.h"
@@ -59,10 +60,10 @@
 #include "4ed_cli.h"
 #include "4ed_gui.h"
 #include "4ed_layout.h"
-#include "4ed_dynamic_variables.h"
 #include "4ed_view.h"
 #include "4ed_app_models.h"
 
+#include "4ed_dynamic_variables.cpp"
 #include "4ed_parse_context.cpp"
 #include "4ed_font.cpp"
 #include "4ed_translation.cpp"
@@ -79,7 +80,6 @@
 #include "4ed_hot_directory.cpp"
 #include "4ed_cli.cpp"
 #include "4ed_gui.cpp"
-#include "4ed_dynamic_variables.cpp"
 #include "4ed_layout.cpp"
 #include "4coder_buffer_seek_constructors.cpp"
 #include "4ed_view.cpp"

@@ -66,7 +66,7 @@ working_set_extend_memory(Working_Set *working_set, Editing_File *new_space, i16
 }
 
 internal Editing_File*
-working_set_alloc(Working_Set *working_set){
+working_set_alloc(Working_Set *working_set, General_Memory *general){
     Editing_File *result = 0;
     
     if (working_set->file_count < working_set->file_max){
@@ -83,6 +83,7 @@ working_set_alloc(Working_Set *working_set){
         result->settings.minimum_base_display_width = working_set->default_minimum_base_display_width;
         result->settings.wrap_indicator = WrapIndicator_Show_At_Wrap_Edge;
         init_file_markers_state(&result->markers);
+        dynamic_variables_block_init(general, &result->dynamic_vars);
         ++working_set->file_count;
     }
     
@@ -97,7 +98,7 @@ working_set_alloc_always(Working_Set *working_set, General_Memory *general){
         Editing_File *new_chunk = gen_array(general, Editing_File, new_count);
         working_set_extend_memory(working_set, new_chunk, new_count);
     }
-    result = working_set_alloc(working_set);
+    result = working_set_alloc(working_set, general);
     return(result);
 }
 

@@ -67,6 +67,7 @@ struct Models{
     Live_Views live_set;
     Parse_Context_Memory parse_context_memory;
     
+    Dynamic_Variable_Layout buffer_variable_layout;
     Dynamic_Variable_Layout view_variable_layout;
     
     Editing_File *message_buffer;
