@@ -378,6 +378,45 @@ begin_integrated_lister__with_fixed_options(Application_Links *app, char *query_
                                                 view);
 }
 
+static void
+begin_integrated_lister__ui_list(Application_Links *app, char *query_string,
+                                 Lister_Handlers handlers, void *user_data,
+                                 Lister_UI_Option *options, int32_t option_count,
+                                 View_Summary *view){
+    Partition *scratch = &global_part;
+    General_Memory *general = &global_general;
+    view_start_ui_mode(app, view);
+    view_set_setting(app, view, ViewSetting_UICommandMap, default_lister_ui_map);
+    Lister_State *state = view_get_lister_state(view);
+    init_lister_state(state, general);
+    lister_first_init(&state->lister);
+    state->lister.theme_list = true;
+    for (int32_t i = 0; i < option_count; i += 1){
+        lister_add_ui_item(&state->arena, &state->lister,
+                           make_string_slowly(options[i].string),
+                           options[i].index,
+                           options[i].user_data, 0);
+    }
+    lister_set_query_string(&state->lister, query_string);
+    state->lister.handlers = handlers;
+    state->lister.handlers.refresh = 0;
+    state->lister.user_data = user_data;
+    lister_update_ui(app, scratch, view, state);
+}
+
+static void
+begin_integrated_lister__ui_list(Application_Links *app, char *query_string,
+                                 Lister_Activation_Function_Type *activate, void *user_data,
+                                 Lister_UI_Option *options, int32_t option_count,
+                                 View_Summary *view){
+    Lister_Handlers handlers = lister_get_default_handlers();
+    handlers.activate = activate;
+    begin_integrated_lister__ui_list(app, query_string,
+                                     handlers, user_data,
+                                     options, option_count,
+                                     view);
+}
+
 ////////////////////////////////
 
 static void
@@ -394,7 +433,7 @@ generate_all_buffers_list(Application_Links *app, Partition *arena, Lister *list
             case DirtyState_UnsavedChanges:  status = make_lit_string(" *"); break;
             case DirtyState_UnloadedChanges: status = make_lit_string(" !"); break;
         }
-        lister_add_item(arena, lister, buffer_name, status, (void*)buffer_id, 0);
+        lister_add_item(arena, lister, buffer_name, status, IntAsPtr(buffer_id), 0);
     }
 }
 
@@ -491,9 +530,9 @@ enum{
 static Lister_Activation_Code
 activate_confirm_kill(Application_Links *app, View_Summary *view, String text_field,
                       void *user_data, bool32 clicked){
-    int32_t behavior = (int32_t)user_data;
+    int32_t behavior = (int32_t)PtrAsInt(user_data);
     Lister_State *state = view_get_lister_state(view);
-    Buffer_ID buffer_id = (Buffer_ID)(state->lister.user_data);
+    Buffer_ID buffer_id = (Buffer_ID)(PtrAsInt(state->lister.user_data));
     switch (behavior){
         case SureToKill_No:
         {}break;
@@ -525,13 +564,13 @@ activate_confirm_kill(Application_Links *app, View_Summary *view, String text_fi
 static void
 do_gui_sure_to_kill(Application_Links *app, Buffer_Summary *buffer, View_Summary *view){
     Lister_Fixed_Option options[] = {
-        {"(N)o"           , "", "Nn", (void*)SureToKill_No  },
-        {"(Y)es"          , "", "Yy", (void*)SureToKill_Yes },
-        {"(S)ave and Kill", "", "Ss", (void*)SureToKill_Save},
+        {"(N)o"           , "", "Nn", IntAsPtr(SureToKill_No)  },
+        {"(Y)es"          , "", "Yy", IntAsPtr(SureToKill_Yes) },
+        {"(S)ave and Kill", "", "Ss", IntAsPtr(SureToKill_Save)},
     };
     int32_t option_count = sizeof(options)/sizeof(options[0]);
     begin_integrated_lister__with_fixed_options(app, "There are unsaved changes, close anyway?",
-                                                activate_confirm_kill, (void*)buffer->buffer_id,
+                                                activate_confirm_kill, IntAsPtr(buffer->buffer_id),
                                                 options, option_count,
                                                 view);
 }
@@ -539,7 +578,7 @@ do_gui_sure_to_kill(Application_Links *app, Buffer_Summary *buffer, View_Summary
 static Lister_Activation_Code
 activate_confirm_close_4coder(Application_Links *app, View_Summary *view, String text_field,
                               void *user_data, bool32 clicked){
-    int32_t behavior = (int32_t)user_data;
+    int32_t behavior = (int32_t)PtrAsInt(user_data);
     switch (behavior){
         case SureToKill_No:
         {}break;
@@ -581,7 +620,7 @@ static Lister_Activation_Code
 activate_switch_buffer(Application_Links *app, View_Summary *view, String text_field,
                        void *user_data, bool32 activated_by_mouse){
     if (user_data != 0){
-        Buffer_ID buffer_id = (Buffer_ID)(user_data);
+        Buffer_ID buffer_id = (Buffer_ID)(PtrAsInt(user_data));
         view_set_buffer(app, view, buffer_id, SetBuffer_KeepOriginalGUI);
     }
     return(ListerActivation_Finished);
@@ -599,7 +638,7 @@ static Lister_Activation_Code
 activate_kill_buffer(Application_Links *app, View_Summary *view, String text_field,
                      void *user_data, bool32 activated_by_mouse){
     if (user_data != 0){
-        Buffer_ID buffer_id = (Buffer_ID)(user_data);
+        Buffer_ID buffer_id = (Buffer_ID)(PtrAsInt(user_data));
         kill_buffer(app, buffer_identifier(buffer_id), view->view_id, 0);
     }
     return(ListerActivation_Finished);
@@ -740,6 +779,39 @@ CUSTOM_DOC("Interactively opens a file.")
     View_Summary view = get_active_view(app, AccessAll);
     for (;view_end_ui_mode(app, &view););
     begin_integrated_lister__file_system_list(app, "Open: ", activate_open, 0, &view);
+}
+
+static Lister_Activation_Code
+activate_select_theme(Application_Links *app, View_Summary *view, String text_field,
+                      void *user_data, bool32 clicked){
+    Lister_Activation_Code result = ListerActivation_Finished;
+    change_theme_by_index(app, (int32_t)PtrAsInt(user_data));
+    return(result);
+}
+
+CUSTOM_COMMAND_SIG(open_color_tweaker)
+CUSTOM_DOC("Opens the 4coder theme selector list.")
+{
+    Partition *scratch = &global_part;
+    Temp_Memory temp = begin_temp_memory(scratch);
+    
+    View_Summary view = get_active_view(app, AccessAll);
+    for (;view_end_ui_mode(app, &view););
+    int32_t theme_count = get_theme_count(app);
+    Lister_UI_Option *options = push_array(scratch, Lister_UI_Option, theme_count);
+    for (int32_t i = 0; i < theme_count; i += 1){
+        String name = get_theme_name(app, scratch, i);
+        options[i].string = name.str;
+        options[i].index = i;
+        options[i].user_data = IntAsPtr(i);
+    }
+    begin_integrated_lister__ui_list(app,
+                                     "Select a theme: ",
+                                     activate_select_theme, 0,
+                                     options, theme_count,
+                                     &view);
+    
+    end_temp_memory(temp);
 }
 
 // BOTTOM

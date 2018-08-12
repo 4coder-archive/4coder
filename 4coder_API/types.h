@@ -386,17 +386,28 @@ GLOBAL_VAR Mouse_State null_mouse_state = {0};
 Throughout the API ranges are thought of in the form [min,max) where max is "one past the end" of the range that is actually read/edited/modified.) */
 UNION Range{
     STRUCT{
-        /* DOC(This is the smaller value in the range, it is also the 'start'.) */
+        /* DOC(This is the smaller value in the range.) */
         int32_t min;
-        /* DOC(This is the larger value in the range, it is also the 'end'.) */
+        /* DOC(This is the larger value in the range.) */
         int32_t max;
     };
     STRUCT{
-        /* DOC(This is the start of the range, it is also the 'min'.) */
+        /* DOC(This is the start of the range, unioned with min.) */
         int32_t start;
-        /* DOC(This is the end of the range, it is also the 'max'.) */
+        /* DOC(This is the end of the range, unioned with max.) */
         int32_t end;
     };
+    STRUCT{
+        /* DOC(This is the first value in the range, unioned with min.) */
+        int32_t first;
+        /* DOC(This is one_past_the_last value in the range, unioned with max.) */
+        int32_t one_past_last;
+    };
+};
+
+STRUCT Range_Array{
+    Range *ranges;
+    int32_t count;
 };
 
 /* DOC(Parser_String_And_Type contains a string and type integer used to specify information about keywords to the parser.) */
@@ -688,16 +699,29 @@ STRUCT Query_Bar{
     String string;
 };
 
-/* DOC(This feature is not implemented.) */
-STRUCT Event_Message{
-    /* DOC(This feature is not implemented.) */
-    int32_t type;
+TYPEDEF int32_t Managed_Variable_ID;
+static Managed_Variable_ID ManagedVariableIndex_ERROR = -1;
+
+ENUM(int32_t, Dynamic_Scope_Type){
+    DynamicScopeType_Global = 0,
+    DynamicScopeType_Intersected = 1,
+    DynamicScopeType_Buffer = 2,
+    DynamicScopeType_View = 3,
+};
+
+STRUCT Dynamic_Scope{
+    Dynamic_Scope_Type type;
+    union{
+        uint64_t intersected_opaque_handle;
+        View_ID view_id;
+        Buffer_ID buffer_id;
+    };
 };
 
 ENUM(int16_t, UI_Item_Type){
     UIType_Option = 0,
     UIType_TextField = 1,
-    UIType_ThemePreview = 2,
+    UIType_ColorTheme = 2,
 };
 
 ENUM(int8_t, UI_Activation_Level){
@@ -727,8 +751,9 @@ STRUCT UI_Item{
             String string;
         } text_field;
         struct{
-            int32_t theme_index;
-        } theme_preview;
+            String string;
+            int32_t index;
+        } color_theme;
     };
     void *user_data;
     i32_Rect rectangle;
@@ -840,7 +865,7 @@ STRUCT Buffer_Batch_Edit{
 TYPEDEF void Custom_Command_Function(struct Application_Links *app);
 
 #if defined(CUSTOM_COMMAND_SIG) || defined(CUSTOM_DOC) || defined(CUSTOM_ALIAS)
-#error Please don't define CUSTOM_COMMAND_SIG, CUSTOM_DOC, or CUSTOM_ALIAS
+#error Please do not define CUSTOM_COMMAND_SIG, CUSTOM_DOC, or CUSTOM_ALIAS
 #endif
 
 #if !defined(META_PASS)

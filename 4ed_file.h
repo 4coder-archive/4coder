@@ -131,6 +131,8 @@ struct Editing_File{
     b32 is_loading;
     b32 is_dummy;
     Editing_File_State state;
+    Dynamic_Variable_Block dynamic_vars;
+    Lifetime_Object *lifetime_object;
     Editing_File_Markers markers;
     Editing_File_Name base_name;
     Editing_File_Name unique_name;

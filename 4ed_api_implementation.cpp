@@ -95,7 +95,6 @@ fill_view_summary(System_Functions *system, View_Summary *view, View *vptr, Live
     }
 }
 
-
 inline void
 fill_view_summary(System_Functions *system, View_Summary *view, View *vptr, Command_Data *cmd){
     fill_view_summary(system, view, vptr, &cmd->models->live_set, &cmd->models->working_set);
@@ -104,7 +103,6 @@ fill_view_summary(System_Functions *system, View_Summary *view, View *vptr, Comm
 internal Editing_File*
 get_file_from_identifier(System_Functions *system, Working_Set *working_set, Buffer_Identifier buffer){
     Editing_File *file = 0;
-    
     if (buffer.id){
         file = working_set_get_active_file(working_set, buffer.id);
     }
@@ -112,22 +110,25 @@ get_file_from_identifier(System_Functions *system, Working_Set *working_set, Buf
         String name = make_string(buffer.name, buffer.name_len);
         file = working_set_contains_name(working_set, name);
     }
-    
+    return(file);
+}
+
+internal Editing_File*
+imp_get_file(Command_Data *cmd, Buffer_ID buffer_id){
+    Working_Set *working_set = &cmd->models->working_set;
+    Editing_File *file = working_set_get_active_file(working_set, buffer_id);
+    if (file != 0 && !file_is_ready(file)){
+        file = 0;
+    }
     return(file);
 }
 
 internal Editing_File*
 imp_get_file(Command_Data *cmd, Buffer_Summary *buffer){
     Editing_File *file = 0;
-    Working_Set *working_set = &cmd->models->working_set;;
-    
     if (buffer && buffer->exists){
-        file = working_set_get_active_file(working_set, buffer->buffer_id);
-        if (file != 0 && !file_is_ready(file)){
-            file = 0;
-        }
+        file = imp_get_file(cmd, buffer->buffer_id);
     }
-    
     return(file);
 }
 
@@ -135,7 +136,6 @@ internal View*
 imp_get_view(Command_Data *cmd, View_ID view_id){
     Live_Views *live_set = cmd->live_set;
     View *vptr = 0;
-    
     view_id = view_id - 1;
     if (view_id >= 0 && view_id < live_set->max){
         vptr = live_set->views + view_id;
@@ -143,18 +143,15 @@ imp_get_view(Command_Data *cmd, View_ID view_id){
             vptr = 0;
         }
     }
-    
     return(vptr);
 }
 
 internal View*
 imp_get_view(Command_Data *cmd, View_Summary *view){
     View *vptr = 0;
-    
-    if (view && view->exists){
+    if (view != 0 && view->exists){
         vptr = imp_get_view(cmd, view->view_id);
     }
-    
     return(vptr);
 }
 
@@ -290,7 +287,7 @@ DOC_SEE(Command_Line_Interface_Flag)
         
         // NOTE(allen): If the buffer is specified by name but does not already exist, then create it.
         if (file == 0 && buffer_id.name != 0){
-            file = working_set_alloc_always(working_set, general);
+            file = working_set_alloc_always(working_set, general, &models->lifetime_allocator);
             Assert(file != 0);
             
             String name = push_string(part, buffer_id.name, buffer_id.name_len);
@@ -928,10 +925,10 @@ DOC_RETURN(returns non-zero on success)
 */{
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     Editing_File *file = imp_get_file(cmd, buffer);
-    bool32 result = 0;
+    bool32 result = false;
     
-    if (file){
-        result = 1;
+    if (file != 0){
+        result = true;
         switch (setting){
             case BufferSetting_Lex:
             {
@@ -1198,6 +1195,19 @@ DOC_SEE(Buffer_Setting_ID)
     return(result);
 }
 
+API_EXPORT Dynamic_Scope
+Buffer_Get_Dynamic_Scope(Application_Links *app, Buffer_ID buffer_id)
+{
+    Command_Data *cmd = (Command_Data*)app->cmd_context;
+    Editing_File *file = imp_get_file(cmd, buffer_id);
+    Dynamic_Scope lifetime = {0};
+    if (file != 0){
+        lifetime.type = DynamicScopeType_Buffer;
+        lifetime.buffer_id = buffer_id;
+    }
+    return(lifetime);
+}
+
 API_EXPORT int32_t
 Buffer_Token_Count(Application_Links *app, Buffer_Summary *buffer)
 /*
@@ -1207,13 +1217,12 @@ If the buffer does not exist or if it is not a lexed buffer, the return is zero.
 */{
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     Editing_File *file = imp_get_file(cmd, buffer);
-    
     int32_t count = 0;
-    
-    if (file && file->state.token_array.tokens && file->state.tokens_complete){
+    if (file != 0 &&
+        file->state.token_array.tokens &&
+        file->state.tokens_complete){
         count = file->state.token_array.count;
     }
-    
     return(count);
 }
 
@@ -1357,7 +1366,7 @@ DOC_SEE(Buffer_Create_Flag)
             
             if (do_empty_buffer){
                 if ((flags & BufferCreate_NeverNew) == 0){
-                    file = working_set_alloc_always(working_set, general);
+                    file = working_set_alloc_always(working_set, general, &models->lifetime_allocator);
                     if (file != 0){
                         if (has_canon_name){
                             buffer_bind_file(system, general, working_set, file, canon.name);
@@ -1383,7 +1392,7 @@ DOC_SEE(Buffer_Create_Flag)
                 
                 if (system->load_file(handle, buffer, size)){
                     system->load_close(handle);
-                    file = working_set_alloc_always(working_set, general);
+                    file = working_set_alloc_always(working_set, general, &models->lifetime_allocator);
                     if (file != 0){
                         buffer_bind_file(system, general, working_set, file, canon.name);
                         buffer_bind_name(models, general, part, working_set, file, front_of_directory(fname));
@@ -1495,7 +1504,7 @@ DOC_SEE(Buffer_Identifier)
                     buffer_unbind_file(system, working_set, file);
                 }
                 file_free(system, &models->app_links, &models->mem.general, file);
-                working_set_free_file(&models->mem.general, working_set, file);
+                working_set_free_file(&models->mem.general, &models->lifetime_allocator, working_set, file);
                 
                 File_Node *used = &working_set->used_sentinel;
                 File_Node *node = used->next;
@@ -1740,7 +1749,7 @@ in the system, the call will fail.)
     if (vptr != 0 && models->layout.panel_count > 1){
         Panel *panel = vptr->transient.panel;
         
-        live_set_free_view(&models->mem.general, &models->live_set, vptr);
+        live_set_free_view(&models->mem.general, &models->lifetime_allocator, &models->live_set, vptr);
         panel->view = 0;
         
         Divider_And_ID div = layout_get_divider(&models->layout, panel->parent);
@@ -1809,7 +1818,6 @@ in the system, the call will fail.)
         layout_fix_all_panels(&models->layout);
     }
     
-    
     return(result);
 }
 
@@ -1818,11 +1826,9 @@ Set_Active_View(Application_Links *app, View_Summary *view)
 /*
 DOC_PARAM(view, The view parameter specifies which view to make active.)
 DOC_RETURN(This call returns non-zero on success.)
-
 DOC(If the given view is open, it is set as the
 active view, and takes subsequent commands and is returned
 from get_active_view.)
-
 DOC_SEE(get_active_view)
 */{
     Command_Data *cmd = (Command_Data*)app->cmd_context;
@@ -1931,6 +1937,19 @@ DOC_SEE(View_Setting_ID)
     }
     
     return(result);
+}
+
+API_EXPORT Dynamic_Scope
+View_Get_Dynamic_Scope(Application_Links *app, View_ID view_id)
+{
+    Command_Data *cmd = (Command_Data*)app->cmd_context;
+    View *view = imp_get_view(cmd, view_id);
+    Dynamic_Scope lifetime = {0};
+    if (view != 0){
+        lifetime.type = DynamicScopeType_View;
+        lifetime.view_id = view_id;
+    }
+    return(lifetime);
 }
 
 API_EXPORT bool32
@@ -2186,54 +2205,8 @@ DOC_SEE(int_color)
 }
 
 API_EXPORT int32_t
-Create_View_Variable(Application_Links *app, char *null_terminated_name, uint64_t default_value){
-    Command_Data *cmd = (Command_Data*)app->cmd_context;
-    Models *models = cmd->models;
-    String name = make_string_slowly(null_terminated_name);
-    return(dynamic_variables_lookup_or_create(&models->mem.general,
-                                              &models->view_variable_layout, name, default_value));
-}
-
-API_EXPORT bool32
-View_Set_Variable(Application_Links *app, View_Summary *view, int32_t location, uint64_t value){
-    Command_Data *cmd = (Command_Data*)app->cmd_context;
-    View *vptr = imp_get_view(cmd, view);
-    bool32 result = false;
-    if (vptr != 0){
-        Models *models = cmd->models;
-        u64 *ptr = 0;
-        if (dynamic_variables_get_ptr(&models->mem.general,
-                                      &models->view_variable_layout,
-                                      &vptr->transient.dynamic_vars,
-                                      location, &ptr)){
-            result = true;
-            *ptr = value;
-        }
-    }
-    return(result);
-}
-
-API_EXPORT bool32
-View_Get_Variable(Application_Links *app, View_Summary *view, int32_t location, uint64_t *value_out){
-    Command_Data *cmd = (Command_Data*)app->cmd_context;
-    View *vptr = imp_get_view(cmd, view);
-    bool32 result = false;
-    if (vptr != 0){
-        Models *models = cmd->models;
-        u64 *ptr = 0;
-        if (dynamic_variables_get_ptr(&models->mem.general,
-                                      &models->view_variable_layout,
-                                      &vptr->transient.dynamic_vars,
-                                      location, &ptr)){
-            result = true;
-            *value_out = *ptr;
-        }
-    }
-    return(result);
-}
-
-API_EXPORT int32_t
-View_Start_UI_Mode(Application_Links *app, View_Summary *view){
+View_Start_UI_Mode(Application_Links *app, View_Summary *view)
+{
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     View *vptr = imp_get_view(cmd, view);
     if (vptr != 0){
@@ -2247,7 +2220,8 @@ View_Start_UI_Mode(Application_Links *app, View_Summary *view){
 }
 
 API_EXPORT int32_t
-View_End_UI_Mode(Application_Links *app, View_Summary *view){
+View_End_UI_Mode(Application_Links *app, View_Summary *view)
+{
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     View *vptr = imp_get_view(cmd, view);
     if (vptr != 0){
@@ -2266,11 +2240,12 @@ View_End_UI_Mode(Application_Links *app, View_Summary *view){
 }
 
 API_EXPORT bool32
-View_Set_UI(Application_Links *app, View_Summary *view, UI_Control *control){
+View_Set_UI(Application_Links *app, View_Summary *view, UI_Control *control)
+{
     Command_Data *cmd = (Command_Data*)app->cmd_context;
-    View *vptr = imp_get_view(cmd, view);
     Models *models = cmd->models;
     General_Memory *general = &models->mem.general;
+    View *vptr = imp_get_view(cmd, view);
     if (vptr != 0){
         if (vptr->transient.ui_control.items != 0){
             general_memory_free(general, vptr->transient.ui_control.items);
@@ -2293,6 +2268,11 @@ View_Set_UI(Application_Links *app, View_Summary *view, UI_Control *control){
                         string_size += item->text_field.query.size;
                         string_size += item->text_field.string.size;
                     }break;
+                    
+                    case UIType_ColorTheme:
+                    {
+                        string_size += item->color_theme.string.size;
+                    }break;
                 }
             }
             
@@ -2307,20 +2287,30 @@ View_Set_UI(Application_Links *app, View_Summary *view, UI_Control *control){
                 for (UI_Item *item = new_items, *one_past_last = new_items + count;
                      item < one_past_last;
                      item += 1){
+                    
                     String *fixup[2];
-                    i32 fixup_count = 0;
+                    
+                    int32_t fixup_count = 0;
                     switch (item->type){
                         case UIType_Option:
                         {
                             fixup[0] = &item->option.string;
                             fixup[1] = &item->option.status;
+                            fixup_count = 2;
                         }break;
                         case UIType_TextField:
                         {
                             fixup[0] = &item->text_field.query;
                             fixup[1] = &item->text_field.string;
+                            fixup_count = 2;
+                        }break;
+                        case UIType_ColorTheme:
+                        {
+                            fixup[0] = &item->color_theme.string;
+                            fixup_count = 1;
                         }break;
                     }
+                    
                     for (i32 i = 0; i < fixup_count; i += 1){
                         String old = *fixup[i];
                         char *new_str = push_array(&string_alloc, char, old.size);
@@ -2345,7 +2335,8 @@ View_Set_UI(Application_Links *app, View_Summary *view, UI_Control *control){
 }
 
 API_EXPORT UI_Control
-View_Get_UI_Copy(Application_Links *app, View_Summary *view, struct Partition *part){
+View_Get_UI_Copy(Application_Links *app, View_Summary *view, struct Partition *part)
+{
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     View *vptr = imp_get_view(cmd, view);
     UI_Control result = {0};
@@ -2363,6 +2354,188 @@ View_Get_UI_Copy(Application_Links *app, View_Summary *view, struct Partition *p
         memcpy(result.bounding_box, control->bounding_box, sizeof(result.bounding_box));
     }
     return(result);
+}
+
+API_EXPORT Dynamic_Scope
+Get_Global_Dynamic_Scope(Application_Links *app)
+{
+    Dynamic_Scope scope = {0};
+    scope.type = DynamicScopeType_Global;
+    return(scope);
+}
+
+API_EXPORT Dynamic_Scope
+Get_Intersected_Dynamic_Scope(Application_Links *app, Dynamic_Scope *intersected_scopes, int32_t count)
+{
+    Command_Data *cmd = (Command_Data*)app->cmd_context;
+    Models *models = cmd->models;
+    Partition *scratch = &models->mem.part;
+    Dynamic_Scope result = {0};
+    
+    Temp_Memory temp = begin_temp_memory(scratch);
+    
+    b32 filled_array = true;
+    Lifetime_Object **object_ptr_array = push_array(scratch, Lifetime_Object*, 0);
+    for (i32 i = 0; i < count; i += 1){
+        Dynamic_Scope handle = intersected_scopes[i];
+        
+        switch (handle.type){
+            case DynamicScopeType_Global:
+            {
+                // NOTE(allen): (global_scope INTERSECT X) == X for all X, therefore we emit nothing when a global scope is in the key list.
+            }break;
+            
+            case DynamicScopeType_Intersected:
+            {
+                Lifetime_Key *key = (Lifetime_Key*)IntAsPtr(handle.intersected_opaque_handle);
+                i32 member_count = key->count;
+                Lifetime_Object **key_member_ptr = key->members;
+                for (i32 j = 0; j < member_count; j += 1, key_member_ptr += 1){
+                    Lifetime_Object **new_object_ptr = push_array(scratch, Lifetime_Object*, 1);
+                    *new_object_ptr = *key_member_ptr;
+                }
+            }break;
+            
+            case DynamicScopeType_Buffer:
+            {
+                Editing_File *file = imp_get_file(cmd, handle.buffer_id);
+                if (file == 0){
+                    filled_array = false;
+                    goto quit_loop;
+                }
+                Lifetime_Object **new_object_ptr = push_array(scratch, Lifetime_Object*, 1);
+                *new_object_ptr = file->lifetime_object;
+            }break;
+            
+            case DynamicScopeType_View:
+            {
+                View *vptr = imp_get_view(cmd, handle.view_id);
+                if (vptr == 0){
+                    filled_array = false;
+                    goto quit_loop;
+                }
+                Lifetime_Object **new_object_ptr = push_array(scratch, Lifetime_Object*, 1);
+                *new_object_ptr = vptr->transient.lifetime_object;
+            }break;
+        }
+    }
+    quit_loop:;
+    
+    if (filled_array){
+        i32 member_count = (i32)(push_array(scratch, Lifetime_Object*, 0) - object_ptr_array);
+        member_count = lifetime_sort_and_dedup_object_set(object_ptr_array, member_count);
+        
+        General_Memory *general = &models->mem.general;
+        Lifetime_Allocator *lifetime_allocator = &models->lifetime_allocator;
+        Lifetime_Key *key = lifetime_get_or_create_intersection_key(general, lifetime_allocator, object_ptr_array, member_count);
+        result.type = DynamicScopeType_Intersected;
+        result.intersected_opaque_handle = (u64)(PtrAsInt(key));
+    }
+    
+    end_temp_memory(temp);
+    
+    return(result);
+}
+
+API_EXPORT Managed_Variable_ID
+Managed_Variable_Create(Application_Links *app, char *null_terminated_name, uint64_t default_value)
+{
+    Command_Data *cmd = (Command_Data*)app->cmd_context;
+    Models *models = cmd->models;
+    String name = make_string_slowly(null_terminated_name);
+    General_Memory *general = &models->mem.general;
+    Dynamic_Variable_Layout *layout = &models->variable_layout;
+    return(dynamic_variables_create(general, layout, name, default_value));
+}
+
+API_EXPORT Managed_Variable_ID
+Managed_Variable_Get_ID(Application_Links *app, char *null_terminated_name)
+{
+    Command_Data *cmd = (Command_Data*)app->cmd_context;
+    Models *models = cmd->models;
+    String name = make_string_slowly(null_terminated_name);
+    Dynamic_Variable_Layout *layout = &models->variable_layout;
+    return(dynamic_variables_lookup(layout, name));
+}
+
+API_EXPORT int32_t
+Managed_Variable_Create_Or_Get_ID(Application_Links *app, char *null_terminated_name, uint64_t default_value)
+{
+    Command_Data *cmd = (Command_Data*)app->cmd_context;
+    Models *models = cmd->models;
+    String name = make_string_slowly(null_terminated_name);
+    General_Memory *general = &models->mem.general;
+    Dynamic_Variable_Layout *layout = &models->variable_layout;
+    return(dynamic_variables_lookup_or_create(general, layout, name, default_value));
+}
+
+internal bool32
+get_dynamic_variable(Command_Data *cmd, Dynamic_Scope handle, int32_t location, uint64_t **ptr_out){
+    Models *models = cmd->models;
+    General_Memory *general = &models->mem.general;
+    Dynamic_Variable_Layout *layout = &models->variable_layout;
+    Dynamic_Variable_Block *block = 0;
+    
+    switch (handle.type){
+        case DynamicScopeType_Global:
+        {
+            block = &models->dynamic_vars;
+        }break;
+        
+        case DynamicScopeType_Intersected:
+        {
+            Lifetime_Key *key = (Lifetime_Key*)IntAsPtr(handle.intersected_opaque_handle);
+            block = &key->dynamic_vars;
+        }break;
+        
+        case DynamicScopeType_Buffer:
+        {
+            Editing_File *file = imp_get_file(cmd, handle.buffer_id);
+            if (file != 0){
+                block = &file->dynamic_vars;
+            }
+        }break;
+        
+        case DynamicScopeType_View:
+        {
+            View *vptr = imp_get_view(cmd, handle.view_id);
+            if (vptr != 0){
+                block = &vptr->transient.dynamic_vars;
+            }
+        }break;
+    }
+    
+    bool32 result = false;
+    if (layout != 0 && block != 0){
+        if (dynamic_variables_get_ptr(general, layout, block, location, ptr_out)){
+            result = true;
+        }
+    }
+    return(result);
+}
+
+API_EXPORT bool32
+Managed_Variable_Set(Application_Links *app, Dynamic_Scope scope, Managed_Variable_ID location, uint64_t value)
+{
+    Command_Data *cmd = (Command_Data*)app->cmd_context;
+    u64 *ptr = 0;
+    if (get_dynamic_variable(cmd, scope, location, &ptr)){
+        *ptr = value;
+        return(true);
+    }
+    return(false);
+}
+
+API_EXPORT bool32
+Managed_Variable_Get(Application_Links *app, Dynamic_Scope scope, Managed_Variable_ID location, uint64_t *value_out)
+{
+    Command_Data *cmd = (Command_Data*)app->cmd_context;
+    u64 *ptr = 0;
+    if (get_dynamic_variable(cmd, scope, location, &ptr)){
+        *value_out = *ptr;
+        return(true);
+    }
+    return(false);
 }
 
 API_EXPORT User_Input
@@ -2426,23 +2599,6 @@ DOC_SEE(Mouse_State)
     return(mouse);
 }
 
-/*
-API_EXPORT Event_Message
-Get_Event_Message (Application_Links *app){
-Event_Message message = {0};
-System_Functions *system = (System_Functions*)app->system_links;
-Coroutine *coroutine = (Coroutine*)app->current_coroutine;
-
-if (app->type_coroutine == Co_View){
-Assert(coroutine);
-system->yield_coroutine(coroutine);
-message = *(Event_Message*)coroutine->in;
-}
-
-return(message);
-}
-*/
-
 API_EXPORT bool32
 Start_Query_Bar(Application_Links *app, Query_Bar *bar, uint32_t flags)
 /*
@@ -2494,6 +2650,36 @@ DOC(This call posts a string to the *messages* buffer.)
     do_feedback_message(cmd->system, models, make_string(str, len));
 }
 
+API_EXPORT int32_t
+Get_Theme_Count(Application_Links *app)
+{
+    Command_Data *cmd = (Command_Data*)app->cmd_context;
+    Style_Library *library = &cmd->models->styles;
+    return(library->count);
+}
+
+API_EXPORT String
+Get_Theme_Name(Application_Links *app, struct Partition *arena, int32_t index)
+{
+    Command_Data *cmd = (Command_Data*)app->cmd_context;
+    Style_Library *library = &cmd->models->styles;
+    
+    String str = {0};
+    if (0 <= index && index < library->count){
+        Style *style = &library->styles[index];
+        char *mem = push_array(arena, char, style->name.size + 1);
+        if (mem != 0){
+            str.str = mem;
+            str.size = style->name.size;
+            str.memory_size = str.size + 1;
+            memcpy(str.str, style->name.str, str.size);
+            str.str[str.size] = 0;
+        }
+    }
+    
+    return(str);
+}
+
 API_EXPORT void
 Create_Theme(Application_Links *app, Theme *theme, char *name, int32_t len)
 /*
@@ -2508,10 +2694,11 @@ DOC(This call creates a new theme.  If the given name is already the name of a s
     
     b32 hit_existing_theme = false;
     i32 count = library->count;
-    Style *style = library->styles;
-    for (i32 i = 0; i < count; ++i, ++style){
+    Style *style = library->styles + 1;
+    for (i32 i = 1; i < count; ++i, ++style){
         if (match(style->name, theme_name)){
             style_set_colors(style, theme);
+            Print_Message(app, "DID THING\n", sizeof("DID THING\n") - 1);
             hit_existing_theme = true;
             break;
         }
@@ -2538,13 +2725,26 @@ DOC(This call changes 4coder's color pallet to one of the built in themes.)
     String theme_name = make_string(name, len);
     
     i32 count = styles->count;
-    Style *s = styles->styles;
-    for (i32 i = 0; i < count; ++i, ++s){
-        if (match_ss(s->name, theme_name)){
+    Style *s = styles->styles + 1;
+    for (i32 i = 1; i < count; ++i, ++s){
+        if (match(s->name, theme_name)){
             style_copy(&styles->styles[0], s);
             break;
         }
     }
+}
+
+API_EXPORT bool32
+Change_Theme_By_Index(Application_Links *app, int32_t index)
+{
+    Command_Data *cmd = (Command_Data*)app->cmd_context;
+    Style_Library *styles = &cmd->models->styles;
+    i32 count = styles->count;
+    if (0 <= index && index < count){
+        style_copy(&styles->styles[0], &styles->styles[index]);
+        return(true);
+    }
+    return(false);
 }
 
 API_EXPORT Face_ID

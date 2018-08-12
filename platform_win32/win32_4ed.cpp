@@ -930,8 +930,8 @@ win32_proc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
                     Control_Keys *controls = &win32vars.input_chunk.pers.controls;
                     b8 *control_keys = win32vars.input_chunk.pers.control_keys;
                     
-                    b8 down = ((lParam & Bit_31)?(0):(1));
-                    b8 is_right = ((lParam & Bit_24)?(1):(0));
+                    b8 down = ((lParam & bit_31)?(0):(1));
+                    b8 is_right = ((lParam & bit_24)?(1):(0));
                     
                     if (wParam != 255){
                         switch (wParam){
@@ -970,7 +970,7 @@ win32_proc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
                 
                 default:
                 {
-                    b8 current_state = ((lParam & Bit_31)?(0):(1));
+                    b8 current_state = ((lParam & bit_31)?(0):(1));
                     
                     if (current_state){
                         Key_Code key = keycode_lookup_table[(u8)wParam];

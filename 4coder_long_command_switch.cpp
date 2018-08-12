@@ -62,6 +62,9 @@ CUSTOM_DOC("Execute a 'long form' command.")
     else if (match(bar.string, make_lit_string("mkdir"))){
         make_directory_query(app);
     }
+    else if (match(bar.string, make_lit_string("reload themes"))){
+        reload_themes(app);
+    }
     else{
         print_message(app, literal("unrecognized command\n"));
     }

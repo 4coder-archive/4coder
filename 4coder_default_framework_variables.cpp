@@ -30,10 +30,10 @@ static String locked_buffer = make_fixed_width_string(locked_buffer_space);
 static View_ID build_footer_panel_view_id = 0;
 
 
-static int32_t view_rewrite_loc = 0;
-static int32_t view_next_rewrite_loc = 0;
-static int32_t view_paste_index_loc = 0;
-static int32_t view_is_passive_loc = 0;
+static Managed_Variable_ID view_rewrite_loc = 0;
+static Managed_Variable_ID view_next_rewrite_loc = 0;
+static Managed_Variable_ID view_paste_index_loc = 0;
+static Managed_Variable_ID view_is_passive_loc = 0;
 
 
 static char out_buffer_space[1024];
@@ -44,7 +44,7 @@ static char hot_directory_space[1024];
 static bool32 suppressing_mouse = false;
 
 
-static ID_Based_Jump_Location prev_location = {0};
+static ID_Line_Column_Jump_Location prev_location = {0};
 
 
 static Config_Data global_config = {0};

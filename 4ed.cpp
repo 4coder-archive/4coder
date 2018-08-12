@@ -192,7 +192,7 @@ do_feedback_message(System_Functions *system, Models *models, String value){
 internal View*
 panel_make_empty(System_Functions *system, Models *models, Panel *panel){
     Assert(panel->view == 0);
-    View_And_ID new_view = live_set_alloc_view(&models->mem.general, &models->live_set, panel);
+    View_And_ID new_view = live_set_alloc_view(&models->mem.general, &models->lifetime_allocator, &models->live_set, panel);
     view_set_file(system, models, new_view.view, models->scratch_buffer);
     return(new_view.view);
 }
@@ -1072,16 +1072,15 @@ App_Init_Sig(app_init){
     
     {
         setup_command_table();
-        
         Assert(models->config_api.get_bindings != 0);
         i32 wanted_size = models->config_api.get_bindings(models->app_links.memory, models->app_links.memory_size);
         Assert(wanted_size <= models->app_links.memory_size);
         interpret_binding_buffer(models, models->app_links.memory, wanted_size);
-        
         memset(models->app_links.memory, 0, wanted_size);
     }
     
-    dynamic_variables_init(&models->view_variable_layout);
+    dynamic_variables_init(&models->variable_layout);
+    dynamic_variables_block_init(&models->mem.general, &models->dynamic_vars);
     
     // NOTE(allen): file setup
     working_set_init(&models->working_set, partition, &vars->models.mem.general);
@@ -1134,7 +1133,7 @@ App_Init_Sig(app_init){
     
     General_Memory *general = &models->mem.general;
     for (i32 i = 0; i < ArrayCount(init_files); ++i){
-        Editing_File *file = working_set_alloc_always(&models->working_set, general);
+        Editing_File *file = working_set_alloc_always(&models->working_set, general, &models->lifetime_allocator);
         buffer_bind_name(models, general, partition, &models->working_set, file, init_files[i].name);
         
         if (init_files[i].read_only){

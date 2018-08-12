@@ -1681,9 +1681,10 @@ load_folder_of_themes_into_live_set(Application_Links *app, Partition *scratch,
         File_List list = get_file_list(app, path.str, path.size);
         for (uint32_t i = 0; i < list.count; ++i){
             File_Info *info = &list.infos[i];
-            if (info->folder) continue;
+            if (info->folder){
+                continue;
+            }
             String info_file_name = make_string(info->filename, info->filename_len);
-            if (!match(file_extension(info_file_name), "4coder")) continue;
             char file_name_space[512];
             String file_name = make_fixed_width_string(file_name_space);
             copy(&file_name, path);

@@ -43,7 +43,7 @@ try_skip_rust_arrow(String line){
 }
 
 static bool32
-parse_jump_location(String line, Name_Based_Jump_Location *location, int32_t *colon_char, bool32 *is_sub_error){
+parse_jump_location(String line, Name_Line_Column_Location *location, int32_t *colon_char, bool32 *is_sub_error){
     bool32 result = false;
     *is_sub_error = (line.str[0] == ' ');
     
@@ -161,7 +161,7 @@ parse_jump_location(String line, Name_Based_Jump_Location *location, int32_t *co
 }
 
 static bool32
-parse_jump_location(String line, bool32 skip_sub_error, Name_Based_Jump_Location *location, int32_t *colon_char){
+parse_jump_location(String line, bool32 skip_sub_error, Name_Line_Column_Location *location, int32_t *colon_char){
     bool32 is_sub_error = false;
     bool32 result = parse_jump_location(line, location, colon_char, &is_sub_error);
     if (is_sub_error && skip_sub_error){
@@ -173,7 +173,7 @@ parse_jump_location(String line, bool32 skip_sub_error, Name_Based_Jump_Location
 static int32_t
 parse_jump_from_buffer_line(Application_Links *app, Partition *arena,
                             int32_t buffer_id, int32_t line,
-                            bool32 skip_sub_errors, Name_Based_Jump_Location *location){
+                            bool32 skip_sub_errors, Name_Line_Column_Location *location){
     int32_t result = false;
     String line_str = {0};
     Buffer_Summary buffer = get_buffer(app, buffer_id, AccessAll);
@@ -189,7 +189,7 @@ parse_jump_from_buffer_line(Application_Links *app, Partition *arena,
 ////////////////////////////////
 
 static bool32
-get_jump_buffer(Application_Links *app, Buffer_Summary *buffer, Name_Based_Jump_Location *location){
+get_jump_buffer(Application_Links *app, Buffer_Summary *buffer, Name_Line_Column_Location *location){
     bool32 result = open_file(app, buffer, location->file.str, location->file.size, false, true);
     return(result);
 }
@@ -223,7 +223,7 @@ set_view_to_location(Application_Links *app, View_Summary *view, Buffer_Summary 
 }
 
 static void
-jump_to_location(Application_Links *app, View_Summary *view, Buffer_Summary *buffer, Name_Based_Jump_Location location){
+jump_to_location(Application_Links *app, View_Summary *view, Buffer_Summary *buffer, Name_Line_Column_Location location){
     set_active_view(app, view);
     set_view_to_location(app, view, buffer, seek_line_char(location.line, location.column));
     if (auto_center_after_jumps){
@@ -246,7 +246,7 @@ static bool32
 seek_next_jump_in_buffer(Application_Links *app, Partition *part,
                          int32_t buffer_id, int32_t first_line, bool32 skip_sub_errors,
                          int32_t direction,
-                         int32_t *line_out, int32_t *colon_index_out, Name_Based_Jump_Location *location_out){
+                         int32_t *line_out, int32_t *colon_index_out, Name_Line_Column_Location *location_out){
     
     Assert(direction == 1 || direction == -1);
     
@@ -276,9 +276,9 @@ seek_next_jump_in_buffer(Application_Links *app, Partition *part,
     return(result);
 }
 
-static ID_Based_Jump_Location
-convert_name_based_to_id_based(Application_Links *app, Name_Based_Jump_Location loc){
-    ID_Based_Jump_Location result = {0};
+static ID_Line_Column_Jump_Location
+convert_name_based_to_id_based(Application_Links *app, Name_Line_Column_Location loc){
+    ID_Line_Column_Jump_Location result = {0};
     Buffer_Summary buffer = get_buffer_by_name(app, loc.file.str, loc.file.size, AccessAll);
     
     if (buffer.exists){
@@ -291,10 +291,10 @@ convert_name_based_to_id_based(Application_Links *app, Name_Based_Jump_Location 
 }
 
 static int32_t
-seek_next_jump_in_view(Application_Links *app, Partition *part, View_Summary *view, int32_t skip_sub_errors, int32_t direction, int32_t *line_out, int32_t *colon_index_out, Name_Based_Jump_Location *location_out){
+seek_next_jump_in_view(Application_Links *app, Partition *part, View_Summary *view, int32_t skip_sub_errors, int32_t direction, int32_t *line_out, int32_t *colon_index_out, Name_Line_Column_Location *location_out){
     int32_t result = false;
     
-    Name_Based_Jump_Location location = {0};
+    Name_Line_Column_Location location = {0};
     int32_t line = view->cursor.line;
     int32_t colon_index = 0;
     if (seek_next_jump_in_buffer(app, part, view->buffer_id, line+direction, skip_sub_errors, direction, &line, &colon_index, &location)){
@@ -308,7 +308,7 @@ seek_next_jump_in_view(Application_Links *app, Partition *part, View_Summary *vi
 }
 
 static bool32
-skip_this_jump(ID_Based_Jump_Location prev, ID_Based_Jump_Location jump){
+skip_this_jump(ID_Line_Column_Jump_Location prev, ID_Line_Column_Jump_Location jump){
     bool32 result = false;
     if (prev.buffer_id != 0 && prev.buffer_id == jump.buffer_id && prev.line == jump.line && prev.column <= jump.column){
         result = true;
@@ -317,12 +317,13 @@ skip_this_jump(ID_Based_Jump_Location prev, ID_Based_Jump_Location jump){
 }
 
 static bool32
-advance_cursor_in_jump_view(Application_Links *app, Partition *part, View_Summary *view, int32_t skip_repeats, int32_t skip_sub_error, int32_t direction, Name_Based_Jump_Location *location_out){
+advance_cursor_in_jump_view(Application_Links *app, Partition *part, View_Summary *view, int32_t skip_repeats, int32_t skip_sub_error, int32_t direction, Name_Line_Column_Location *location_out){
     bool32 result = true;
     
-    Name_Based_Jump_Location location = {0};
-    ID_Based_Jump_Location jump = {0};
-    int32_t line = 0, colon_index = 0;
+    Name_Line_Column_Location location = {0};
+    ID_Line_Column_Jump_Location jump = {0};
+    int32_t line = 0;
+    int32_t colon_index = 0;
     
     do{
         Temp_Memory temp = begin_temp_memory(part);
@@ -340,7 +341,7 @@ advance_cursor_in_jump_view(Application_Links *app, Partition *part, View_Summar
     
     if (result){
         *location_out = location;
-        view_set_cursor(app, view, seek_line_char(line, colon_index+1), true);
+        view_set_cursor(app, view, seek_line_char(line, colon_index + 1), true);
     }
     
     prev_location = jump;
@@ -354,7 +355,7 @@ seek_jump(Application_Links *app, Partition *part, bool32 skip_repeats, bool32 s
     
     View_Summary view = get_view_for_locked_jump_buffer(app);
     if (view.exists){
-        Name_Based_Jump_Location location = {0};
+        Name_Line_Column_Location location = {0};
         if (advance_cursor_in_jump_view(app, &global_part, &view, skip_repeats, skip_sub_errors, direction, &location)){
             
             Buffer_Summary buffer = {0};

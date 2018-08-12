@@ -23,7 +23,10 @@ struct Lister_Option_Node{
     Lister_Option_Node *next;
     Lister_Option_Node *prev;
     String string;
-    String status;
+    union{
+        String status;
+        int32_t index;
+    };
     void *user_data;
 };
 
@@ -55,6 +58,7 @@ struct Lister{
     char key_string_space[256];
     String key_string;
     Lister_Option_List options;
+    bool32 theme_list;
 };
 
 struct Lister_Prealloced_String{
@@ -78,6 +82,12 @@ struct Lister_Fixed_Option{
     char *string;
     char *status;
     char *shortcut_chars;
+    void *user_data;
+};
+
+struct Lister_UI_Option{
+    char *string;
+    int32_t index;
     void *user_data;
 };
 

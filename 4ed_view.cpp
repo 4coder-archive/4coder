@@ -20,7 +20,7 @@ view_get_map(View *view){
 }
 
 internal View_And_ID
-live_set_alloc_view(General_Memory *general, Live_Views *live_set, Panel *panel){
+live_set_alloc_view(General_Memory *general, Lifetime_Allocator *lifetime_allocator, Live_Views *live_set, Panel *panel){
     Assert(live_set->count < live_set->max);
     ++live_set->count;
     
@@ -29,7 +29,6 @@ live_set_alloc_view(General_Memory *general, Live_Views *live_set, Panel *panel)
     result.id = (i32)(result.view - live_set->views);
     Assert(result.id == result.view->persistent.id);
     
-    //dll_remove(&result.view->transient));
     result.view->transient.next->transient.prev = result.view->transient.prev;
     result.view->transient.prev->transient.next = result.view->transient.next;
     memset(&result.view->transient, 0, sizeof(result.view->transient));
@@ -41,12 +40,13 @@ live_set_alloc_view(General_Memory *general, Live_Views *live_set, Panel *panel)
     init_query_set(&result.view->transient.query_set);
     
     dynamic_variables_block_init(general, &result.view->transient.dynamic_vars);
+    result.view->transient.lifetime_object = lifetime_alloc_object(general, lifetime_allocator, LifetimeObject_View, result.view);
     
     return(result);
 }
 
 inline void
-live_set_free_view(General_Memory *general, Live_Views *live_set, View *view){
+live_set_free_view(General_Memory *general, Lifetime_Allocator *lifetime_allocator, Live_Views *live_set, View *view){
     Assert(live_set->count > 0);
     --live_set->count;
     
@@ -54,7 +54,6 @@ live_set_free_view(General_Memory *general, Live_Views *live_set, View *view){
         general_memory_free(general, view->transient.ui_control.items);
     }
     
-    //dll_insert(&live_set->free_sentinel, view);
     view->transient.next = live_set->free_sentinel.transient.next;
     view->transient.prev = &live_set->free_sentinel;
     live_set->free_sentinel.transient.next = view;
@@ -62,6 +61,7 @@ live_set_free_view(General_Memory *general, Live_Views *live_set, View *view){
     view->transient.in_use = false;
     
     dynamic_variables_block_free(general, &view->transient.dynamic_vars);
+    lifetime_free_object(general, lifetime_allocator, view->transient.lifetime_object);
 }
 
 ////////////////////////////////

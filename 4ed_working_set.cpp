@@ -66,8 +66,13 @@ working_set_extend_memory(Working_Set *working_set, Editing_File *new_space, i16
 }
 
 internal Editing_File*
-working_set_alloc(Working_Set *working_set){
+working_set_alloc_always(Working_Set *working_set, General_Memory *general, Lifetime_Allocator *lifetime_allocator){
     Editing_File *result = 0;
+    if (working_set->file_count == working_set->file_max && working_set->array_count < working_set->array_max){
+        i16 new_count = (i16)clamp_top(working_set->file_max, max_i16);
+        Editing_File *new_chunk = gen_array(general, Editing_File, new_count);
+        working_set_extend_memory(working_set, new_chunk, new_count);
+    }
     
     if (working_set->file_count < working_set->file_max){
         File_Node *node = working_set->free_sentinel.next;
@@ -83,31 +88,24 @@ working_set_alloc(Working_Set *working_set){
         result->settings.minimum_base_display_width = working_set->default_minimum_base_display_width;
         result->settings.wrap_indicator = WrapIndicator_Show_At_Wrap_Edge;
         init_file_markers_state(&result->markers);
+        dynamic_variables_block_init(general, &result->dynamic_vars);
+        result->lifetime_object = lifetime_alloc_object(general, lifetime_allocator, LifetimeObject_File, result);
         ++working_set->file_count;
     }
     
     return(result);
 }
 
-internal Editing_File*
-working_set_alloc_always(Working_Set *working_set, General_Memory *general){
-    Editing_File *result = 0;
-    if (working_set->file_count == working_set->file_max && working_set->array_count < working_set->array_max){
-        i16 new_count = (i16)clamp_top(working_set->file_max, max_i16);
-        Editing_File *new_chunk = gen_array(general, Editing_File, new_count);
-        working_set_extend_memory(working_set, new_chunk, new_count);
-    }
-    result = working_set_alloc(working_set);
-    return(result);
-}
-
 inline void
-working_set_free_file(General_Memory *general, Working_Set  *working_set, Editing_File *file){
+working_set_free_file(General_Memory *general, Lifetime_Allocator *lifetime_allocator, Working_Set  *working_set, Editing_File *file){
     if (working_set->sync_check_iter == &file->node){
         working_set->sync_check_iter = working_set->sync_check_iter->next;
     }
     
-    file->is_dummy = 1;
+    dynamic_variables_block_free(general, &file->dynamic_vars);
+    lifetime_free_object(general, lifetime_allocator, file->lifetime_object);
+    
+    file->is_dummy = true;
     dll_remove(&file->node);
     dll_insert(&working_set->free_sentinel, &file->node);
     --working_set->file_count;
@@ -581,7 +579,7 @@ open_file(System_Functions *system, Models *models, String filename){
                 General_Memory *general = &mem->general;
                 Partition *part = &mem->part;
                 
-                file = working_set_alloc_always(working_set, general);
+                file = working_set_alloc_always(working_set, general, &models->lifetime_allocator);
                 buffer_bind_file(system, general, working_set, file, canon_name.name);
                 buffer_bind_name(models, general, part, working_set, file, front_of_directory(filename));
                 

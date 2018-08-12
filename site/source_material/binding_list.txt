@@ -33,13 +33,13 @@ The following bindings apply in all situations.
 \ITEM \STYLE{code} <ctrl ,> \END Change the currently active panel, moving to the panel with the next highest view_id.
 \ITEM \STYLE{code} <ctrl <> \END Change the currently active panel, moving to the panel with the next lowest view_id.
 \ITEM \STYLE{code} <ctrl n> \END Interactively creates a new file.
-\ITEM \STYLE{code} <ctrl o> \END Interactively opens or creates a new file.
+\ITEM \STYLE{code} <ctrl o> \END Interactively open a file out of the file system.
 \ITEM \STYLE{code} <alt o> \END Interactively opens a file in the other panel.
 \ITEM \STYLE{code} <ctrl k> \END Interactively kill an open buffer.
 \ITEM \STYLE{code} <ctrl i> \END Interactively switch to an open buffer.
 \ITEM \STYLE{code} <ctrl h> \END Changes 4coder's hot directory to the root directory of the currently loaded project. With no loaded project nothing hapepns.
 \ITEM \STYLE{code} <ctrl S> \END Saves all buffers marked dirty (showing the '*' indicator).
-\ITEM \STYLE{code} <alt c> \END Opens the 4coder colors and fonts selector menu.
+\ITEM \STYLE{code} <alt c> \END Opens the 4coder theme selector list.
 \ITEM \STYLE{code} <alt .> \END If the special build panel is open, makes the build panel the active panel.
 \ITEM \STYLE{code} <alt ,> \END If the special build panel is open, closes it.
 \ITEM \STYLE{code} <alt n> \END If a buffer containing jump locations has been locked in, goes to the next jump in the buffer, and does not skip sub jump locations.
@@ -185,12 +185,12 @@ The following commands only apply in files where the lexer (syntax highlighting)
 \SECTION{default-lister-ui-map}
 These commands apply in 'lister mode' such as when you open a file.
 \LIST
-\ITEM \STYLE{code} <any character> \END A list mode command that inserts a new character to the text field.
-\ITEM \STYLE{code} <escape> \END A list mode command that quits the list without executing any actions.
-\ITEM \STYLE{code} <return> \END A list mode command that activates the list's action on the highlighted item.
-\ITEM \STYLE{code} <tab> \END A list mode command that activates the list's action on the highlighted item.
-\ITEM \STYLE{code} <backspace> \END A list mode command that backspaces one character from the text field.
-\ITEM \STYLE{code} <up> \END A list mode command that moves the highlighted item one up in the list.
-\ITEM \STYLE{code} <page up> \END A list mode command that moves the highlighted item one up in the list.
-\ITEM \STYLE{code} <down> \END A list mode command that moves the highlighted item one down in the list.
-\ITEM \STYLE{code} <page down> \END A list mode command that moves the highlighted item one down in the list.
+\ITEM \STYLE{code} <any character> \END A lister mode command that dispatches to the lister's write character handler.
+\ITEM \STYLE{code} <escape> \END A lister mode command that quits the list without executing any actions.
+\ITEM \STYLE{code} <return> \END A lister mode command that activates the list's action on the highlighted item.
+\ITEM \STYLE{code} <tab> \END A lister mode command that activates the list's action on the highlighted item.
+\ITEM \STYLE{code} <backspace> \END A lister mode command that dispatches to the lister's backspace text field handler.
+\ITEM \STYLE{code} <up> \END A lister mode command that dispatches to the lister's navigate up handler.
+\ITEM \STYLE{code} <page up> \END A lister mode command that dispatches to the lister's navigate up handler.
+\ITEM \STYLE{code} <down> \END A lister mode command that dispatches to the lister's navigate down handler.
+\ITEM \STYLE{code} <page down> \END A lister mode command that dispatches to the lister's navigate down handler.

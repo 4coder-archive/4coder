@@ -15,7 +15,6 @@
 struct View_Persistent{
     i32 id;
     Coroutine_Head *coroutine;
-    Event_Message message_passing_slot;
 };
 
 struct File_Viewing_Data{
@@ -38,6 +37,7 @@ struct View_Transient{
     
     File_Viewing_Data file_data;
     Dynamic_Variable_Block dynamic_vars;
+    Lifetime_Object *lifetime_object;
     
     i32_Rect file_region_prev;
     i32_Rect file_region;

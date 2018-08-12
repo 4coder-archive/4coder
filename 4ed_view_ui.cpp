@@ -241,6 +241,9 @@ do_render_file_view(System_Functions *system, View *view, Models *models, GUI_Sc
     i32 line_height = view->transient.line_height;
     Style *style = &models->styles.styles[0];
     Face_ID font_id = file->settings.font_id;
+    char font_name_space[256];
+    String font_name = make_fixed_width_string(font_name_space);
+    font_name.size = system->font.get_name_by_id(font_id, font_name.str, font_name.memory_size);
     Font_Pointers font = system->font.get_pointers_by_id(font_id);
     
     if (!view->transient.hide_file_bar){
@@ -335,43 +338,47 @@ do_render_file_view(System_Functions *system, View *view, Models *models, GUI_Sc
                         draw_string(system, target, font_id, item->text_field.string, x, y, text1_color);
                     }break;
                     
-                    case UIType_ThemePreview:
+                    case UIType_ColorTheme:
                     {
-                        Style *preview_style = &models->styles.styles[item->theme_preview.theme_index];
-                        u32 back = preview_style->main.back_color;
-                        u32 margin_color = style_get_margin_color(item->activation_level, preview_style);
-                        u32 text_color = preview_style->main.default_color;
-                        u32 keyword_color = preview_style->main.keyword_color;
-                        u32 int_constant_color = preview_style->main.int_constant_color;
-                        u32 comment_color = preview_style->main.comment_color;
+                        Style *style_preview = &models->styles.styles[item->color_theme.index];
+                        u32 margin_color = style_get_margin_color(item->activation_level, style_preview);
+                        u32 back = style_preview->main.back_color;
+                        u32 text_color = style_preview->main.default_color;
+                        u32 keyword_color = style_preview->main.keyword_color;
+                        u32 int_constant_color = style_preview->main.int_constant_color;
+                        u32 comment_color = style_preview->main.comment_color;
+                        
                         f32_Rect inner = get_inner_rect(item_rect, 3);
-                        draw_rectangle(target, inner, back);
+                        
                         draw_margin(target, item_rect, inner, margin_color);
-                        i32 start_y = (i32)inner.y0;
-                        i32 start_x = (i32)inner.x0;
-                        i32 end_y = (i32)inner.y1;
-                        i32 y = start_y;
-                        i32 x = start_x;
-                        x = ceil32(draw_string(system, target, font_id, preview_style->name.str, x, y, text_color));
+                        draw_rectangle(target, inner, back);
+                        
+                        i32 y = (i32)inner.y0;
+                        i32 x = (i32)inner.x0;
+                        String str = item->color_theme.string;
+                        if (str.str == 0){
+                            str = style_preview->name;
+                        }
+                        x = ceil32(draw_string(system, target, font_id, str, x, y, text_color));
+                        i32 font_x = (i32)(inner.x1 - font_string_width(system, target, font_id, font_name));
+                        if (font_x > x + 10){
+                            draw_string(system, target, font_id, font_name, font_x, y, text_color);
+                        }
                         
                         i32 height = font.metrics->height;
-                        x = start_x;
+                        x = (i32)inner.x0;
                         y += height;
-                        if (y + height <= end_y){
-                            x = ceil32(draw_string(system, target, font_id, "if", x, y, keyword_color));
-                            x = ceil32(draw_string(system, target, font_id, "(x < ", x, y, text_color));
-                            x = ceil32(draw_string(system, target, font_id, "0", x, y, int_constant_color));
-                            x = ceil32(draw_string(system, target, font_id, ") { x = ", x, y, text_color));
-                            x = ceil32(draw_string(system, target, font_id, "0", x, y, int_constant_color));
-                            x = ceil32(draw_string(system, target, font_id, "; } ", x, y, text_color));
-                            x = ceil32(draw_string(system, target, font_id, "// comment", x, y, comment_color));
-                            
-                            x = start_x;
-                            y += height;
-                            if (y + height <= end_y){
-                                draw_string(system, target, font_id, "[] () {}; * -> +-/ <>= ! && || % ^", x, y, text_color);
-                            }
-                        }
+                        x = ceil32(draw_string(system, target, font_id, "if", x, y, keyword_color));
+                        x = ceil32(draw_string(system, target, font_id, "(x < ", x, y, text_color));
+                        x = ceil32(draw_string(system, target, font_id, "0", x, y, int_constant_color));
+                        x = ceil32(draw_string(system, target, font_id, ") { x = ", x, y, text_color));
+                        x = ceil32(draw_string(system, target, font_id, "0", x, y, int_constant_color));
+                        x = ceil32(draw_string(system, target, font_id, "; } ", x, y, text_color));
+                        x = ceil32(draw_string(system, target, font_id, "// comment", x, y, comment_color));
+                        
+                        x = (i32)inner.x0;
+                        y += height;
+                        draw_string(system, target, font_id, "[] () {}; * -> +-/ <>= ! && || % ^", x, y, text_color);
                     }break;
                 }
             }

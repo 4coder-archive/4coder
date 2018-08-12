@@ -30,7 +30,6 @@
 #include "4coder_auto_indent.h"
 #include "4coder_search.h"
 #include "4coder_build_commands.h"
-#include "4coder_jumping.h"
 #include "4coder_jump_sticky.h"
 #include "4coder_project_commands.h"
 #include "4coder_function_list.h"

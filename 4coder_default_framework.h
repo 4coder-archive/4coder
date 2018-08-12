@@ -23,10 +23,27 @@ enum Rewrite_Type{
 
 ////////////////////////////////
 
-struct ID_Based_Jump_Location{
-    int32_t buffer_id;
+struct ID_Line_Column_Jump_Location{
+    Buffer_ID buffer_id;
     int32_t line;
     int32_t column;
+};
+typedef ID_Line_Column_Jump_Location ID_Based_Jump_Location;
+
+struct ID_Pos_Jump_Location{
+    Buffer_ID buffer_id;
+    int32_t pos;
+};
+
+struct Name_Line_Column_Location{
+    String file;
+    int32_t line;
+    int32_t column;
+};
+
+struct ID_Pos_Jump_Location_Array{
+    struct ID_Pos_Jump_Location *jumps;
+    int32_t count;
 };
 
 ////////////////////////////////

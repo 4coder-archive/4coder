@@ -67,7 +67,9 @@ struct Models{
     Live_Views live_set;
     Parse_Context_Memory parse_context_memory;
     
-    Dynamic_Variable_Layout view_variable_layout;
+    Dynamic_Variable_Layout variable_layout;
+    Dynamic_Variable_Block dynamic_vars;
+    Lifetime_Allocator lifetime_allocator;
     
     Editing_File *message_buffer;
     Editing_File *scratch_buffer;
@@ -94,6 +96,12 @@ struct Models{
 };
 
 ////////////////////////////////
+
+typedef i32 Lifetime_Object_Type;
+enum{
+    LifetimeObject_File = 0,
+    LifetimeObject_View = 1,
+};
 
 enum App_State{
     APP_STATE_EDIT,

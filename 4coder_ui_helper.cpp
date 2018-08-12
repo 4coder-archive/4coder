@@ -231,10 +231,18 @@ lister_get_clicked_item(Application_Links *app, View_Summary *view, Partition *s
 static void
 lister_update_ui(Application_Links *app, Partition *scratch, View_Summary *view,
                  Lister_State *state){
+    bool32 is_theme_list = state->lister.theme_list;
+    
     int32_t x0 = 0;
     int32_t x1 = view->view_region.x1 - view->view_region.x0;
     int32_t line_height = (int32_t)view->line_height;
-    int32_t block_height = line_height*2;
+    int32_t block_height = 0;
+    if (is_theme_list){
+        block_height = line_height*3 + 6;
+    }
+    else{
+        block_height = line_height*2;
+    }
     
     Temp_Memory full_temp = begin_temp_memory(scratch);
     
@@ -266,11 +274,18 @@ lister_update_ui(Application_Links *app, Partition *scratch, View_Summary *view,
             y_pos = item_rect.y1;
             
             UI_Item item = {0};
-            item.type = UIType_Option;
+            if (!is_theme_list){
+                item.type = UIType_Option;
+                item.option.string = node->string;
+                item.option.status = node->status;
+            }
+            else{
+                item.type = UIType_ColorTheme;
+                item.color_theme.string = node->string;
+                item.color_theme.index = node->index;
+            }
             item.activation_level = UIActivation_None;
             item.coordinates = UICoordinates_Scrolled;
-            item.option.string = node->string;
-            item.option.status = node->status;
             item.user_data = node->user_data;
             item.rectangle = item_rect;
             
@@ -403,6 +418,31 @@ lister_add_item(Partition *arena, Lister *lister,
                            lister_prealloced(push_string_copy(arena, string)),
                            lister_prealloced(push_string_copy(arena, status)),
                            user_data, extra_space));
+}
+
+static void*
+lister_add_ui_item(Partition *arena, Lister *lister,
+                   Lister_Prealloced_String string, int32_t index,
+                   void *user_data, int32_t extra_space){
+    Lister_Option_Node *node = push_array(arena, Lister_Option_Node, 1);
+    node->string = string.string;
+    node->index = index;
+    node->user_data = user_data;
+    zdll_push_back(lister->options.first, lister->options.last, node);
+    lister->options.count += 1;
+    void *result = push_array(arena, char, extra_space);
+    push_align(arena, 8);
+    return(result);
+}
+
+static void*
+lister_add_ui_item(Partition *arena, Lister *lister,
+                   String string, int32_t index,
+                   void *user_data, int32_t extra_space){
+    return(lister_add_ui_item(arena, lister,
+                              lister_prealloced(push_string_copy(arena, string)),
+                              index,
+                              user_data, extra_space));
 }
 
 static void*
