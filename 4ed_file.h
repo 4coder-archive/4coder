@@ -46,9 +46,6 @@ struct Marker_Array{
     u32 count;
     u32 sim_max;
     u32 max;
-    Marker_Delete_Callback *callback;
-    u32 user_data_size;
-    u32 rounded_user_data_size;
 };
 
 #define MarkerArrayBase(a) (Marker*)((u8*)(a) + sizeof(Marker_Array) + ((Marker_Array*)(a))->rounded_user_data_size)

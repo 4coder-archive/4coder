@@ -45,23 +45,15 @@ clear_file_markers_state(Application_Links *app, General_Memory *general, Editin
 }
 
 internal void*
-allocate_markers_state(General_Memory *general, Editing_File *file, u32 new_array_max,
-                       Marker_Delete_Callback *callback, void *user_data, u32 user_data_size){
-    u32 rounded_user_data_size = l_round_up_u32(user_data_size, 8);
-    u32 memory_size = sizeof(Marker_Array) + rounded_user_data_size + sizeof(Marker)*new_array_max;
-    memory_size = l_round_up_u32(memory_size, KB(4));
-    u32 real_max = (memory_size - sizeof(Marker_Array) - rounded_user_data_size)/sizeof(Marker);
+allocate_markers_state(General_Memory *general, Editing_File *file, u32 new_array_max){
+    u32 memory_size = sizeof(Marker_Array) + sizeof(Marker)*new_array_max;
     Marker_Array *array = (Marker_Array*)general_memory_allocate(general, memory_size);
     
     dll_insert_back(&file->markers.sentinel, array);
     array->buffer_id = file->id;
     array->count = 0;
     array->sim_max = new_array_max;
-    array->max = real_max;
-    array->callback = callback;
-    array->user_data_size = user_data_size;
-    array->rounded_user_data_size = rounded_user_data_size;
-    memcpy(array + 1, user_data, user_data_size);
+    array->max = new_array_max;
     
     ++file->markers.array_count;
     

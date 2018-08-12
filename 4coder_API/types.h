@@ -609,8 +609,6 @@ STRUCT Buffer_Summary{
     bool32 unwrapped_lines;
 };
 
-GLOBAL_VAR Buffer_Summary null_buffer_summary = {0};
-
 /*
 DOC(A markers is a location in a buffer that, once placed, is effected by edits the same way characters are effected.  In particular if an edit occurs in a location in the buffer before a marker, the marker is shifted forward or backward so that it remains on the same character.)
 DOC_SEE(buffer_add_markers)
@@ -621,15 +619,6 @@ STRUCT Marker{
     /* DOC(When a marker is inside a range that gets edited, by default the marker 'leans_left' which means it goes to the beginning of the edited range.  If the field lean_right is set to true, the marker will lean right with edits and will go to the end of edited range.) */
     bool32 lean_right;
 };
-
-/*
-DOC(A handle to an internally held array of markers.)
-DOC_SEE(Marker)
-DOC_SEE(buffer_add_markers)
-*/
-TYPEDEF void* Marker_Handle;
-
-TYPEDEF void Marker_Delete_Callback(struct Application_Links *app, Marker_Handle handle, void *user_data, uint32_t user_data_size);
 
 /*
 DOC(A four corner axis aligned rectangle, with integer coordinates.)
@@ -701,6 +690,8 @@ STRUCT Query_Bar{
 
 TYPEDEF int32_t Managed_Variable_ID;
 static Managed_Variable_ID ManagedVariableIndex_ERROR = -1;
+
+TYPEDEF uint64_t Managed_Object;
 
 ENUM(int32_t, Dynamic_Scope_Type){
     DynamicScopeType_Global = 0,

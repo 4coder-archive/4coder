@@ -123,6 +123,125 @@ dynamic_variables_get_ptr(General_Memory *general,
 ////////////////////////////////
 
 internal u64
+ptr_check__hash(Lifetime_Key *key){
+    u64 x = (u64)(PtrAsInt(key));
+    return(x >> 3);
+}
+
+internal b32
+ptr_check_table_check(Ptr_Check_Table *table, void *key){
+    u32 max = table->max;
+    if (max > 0 && table->count > 0){
+        u64 hash = ptr_check_hash(key);
+        u32 first_index = hash%max;
+        u32 index = first_index;
+        void *keys = table->keys;
+        for (;;){
+            if (keys[index] == key){
+                return(true);
+            }
+            else if (hashes[index] == LifetimeKeyHash_Empty){
+                return(false);
+            }
+            index += 1;
+            if (index == max){
+                index = 0;
+            }
+            if (index == first_index){
+                return(false);
+            }
+        }
+    }
+    return(false);
+}
+
+internal Ptr_Check_Table
+ptr_check_table_copy(General_Memory *general, Ptr_Check_Table *table, u32 new_max);
+
+internal void
+ptr_check_table_insert(General_Memory *general, Ptr_Check_Table *table, void *key){
+    {
+        u32 max = table->max;
+        u32 count = table->count;
+        if (max == 0 || (count + 1)*6 > max*5){
+            Assert(general != 0);
+            Ptr_Check_Table new_table = ptr_check_table_copy(general, *table, max*2);
+            general_memory_free(general, table->mem_ptr);
+            *table = new_table;
+        }
+    }
+    
+    {
+        u32 max = table->max;
+        if (max > 0 && table->count > 0){
+            u64 hash = ptr_check_hash(key);
+            u32 first_index = hash%max;
+            u32 index = first_index;
+            void **keys = table->keys;
+            for (;;){
+                if (keys[index] == 0 || keys[index] == (Lifetime_Key*)1){
+                    keys[index] = key;
+                    return;
+                }
+                index += 1;
+                if (index == max){
+                    index = 0;
+                }
+                if (index == first_index){
+                    return;
+                }
+            }
+        }
+    }
+}
+
+internal void
+ptr_check_table_erase(Ptr_Check_Table *table, Lifetime_Key *erase_key){
+    u32 max = table->max;
+    if (max > 0 && table->count > 0){
+        u64 hash = ptr_check_hash(erase_key);
+        u32 first_index = hash%max;
+        u32 index = first_index;
+        void **keys = table->keys;
+        for (;;){
+            if (keys[index] == erase_key){
+                keys[index] = 0;
+                return;
+            }
+            else if (hashes[index] == LifetimeKeyHash_Empty){
+                return;
+            }
+            index += 1;
+            if (index == max){
+                index = 0;
+            }
+            if (index == first_index){
+                return;
+            }
+        }
+    }
+}
+
+internal Lifetime_Key_Check_Table
+ptr_check_table_copy(General_Memory *general, Lifetime_Key_Check_Table *table, u32 new_max){
+    Lifetime_Key_Check_Table new_table = {0};
+    new_table.max = clamp_bottom(table.max, new_max);
+    new_table.max = clamp_bottom(307, new_table.max);
+    i32 item_size = sizeof(*new_table.keys);
+    new_table.keys = (Lifetime_Key**)general_memory_allocate(general, item_size*new_table.max);
+    memset(new_table.keys, 0, item_size*new_table.max);
+    for (u32 i = 0; i < table.max; i += 1){
+        u64 k = (u64)(PtrAsInt(table.keys[i]));
+        if (k > 1){
+            ptr_check_table_insert(0, &new_table, table.keys[i]);
+        }
+    }
+    return(new_table);
+}
+
+////////////////////////////////
+
+internal u64
 lifetime__key_hash(Lifetime_Object **object_ptr_array, i32 count){
     u64 hash = bit_1;
     for (i32 i = 0; i < count; i += 1){
@@ -219,6 +338,7 @@ lifetime__key_table_erase(Lifetime_Key_Table *table, Lifetime_Key *erase_key){
                 if (erase_key == key){
                     hashes[index] = LifetimeKeyHash_Deleted;
                     table->keys[index] = 0;
+                    return;
                 }
             }
             else if (hashes[index] == LifetimeKeyHash_Empty){
@@ -299,6 +419,7 @@ lifetime__free_key(General_Memory *general, Lifetime_Allocator *lifetime_allocat
     
     // Free
     lifetime__key_table_erase(&lifetime_allocator->key_table, key);
+    ptr_check_table_erase(&lifetime_allocator->key_check_table, key);
     general_memory_free(general, key->members);
     zdll_push_back(lifetime_allocator->free_keys.first, lifetime_allocator->free_keys.last, key);
 }
@@ -475,8 +596,14 @@ lifetime_get_or_create_intersection_key(General_Memory *general, Lifetime_Alloca
     dynamic_variables_block_init(general, &new_key->dynamic_vars);
     
     lifetime__key_table_insert(general, &lifetime_allocator->key_table, hash, new_key);
+    ptr_check_table_insert(general, &lifetime_allocator->key_check_table, new_key);
     
     return(new_key);
+}
+
+internal b32
+lifetime_key_check(Lifetime_Allocator *lifetime_allocator, Lifetime_Key *key){
+    return(ptr_check_table_check(&lifetime_allocator->key_check_table, key));
 }
 
 // BOTTOM

@@ -33,6 +33,14 @@ struct Dynamic_Variable_Block{
 
 ////////////////////////////////
 
+struct Ptr_Check_Table{
+    void **keys;
+    u32 count;
+    u32 max;
+};
+
+////////////////////////////////
+
 global_const i32 lifetime_key_reference_per_node = 32;
 
 struct Lifetime_Key_Ref_Node{
@@ -105,6 +113,12 @@ struct Lifetime_Allocator{
     Lifetime_Object_List free_objects;
     Lifetime_Key_List free_keys;
     Lifetime_Key_Table key_table;
+    Lifetime_Ptr_Check_Table key_check_table;
+};
+
+struct Lifetime_Key_With_Opaque_ID{
+    Lifetime_Key *key;
+    u64 opaque_id;
 };
 
 #endif

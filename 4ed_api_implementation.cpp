@@ -788,65 +788,46 @@ DOC_SEE(Buffer_Batch_Edit_Type)
     return(result);
 }
 
-API_EXPORT Marker_Handle
-Buffer_Add_Markers(Application_Links *app, Buffer_Summary *buffer, uint32_t marker_count, Marker_Delete_Callback *callback, void *user_data, uint32_t user_data_size)
+API_EXPORT Managed_Object
+Buffer_Add_Markers(Application_Links *app, Buffer_ID buffer_id, uint32_t marker_count, Dynamic_Scope *scope)
 /*
-DOC_PARAM(buffer, The buffer on which to add the new markers.)
+DOC_PARAM(buffer_id, The id of the buffer on which to add the new markers.)
 DOC_PARAM(marker_count, How many markers to be stored in the new marker array.)
-DOC_PARAM(callback, A callback that will be called if the buffer closes with these markers still attached.)
-DOC_PARAM(user_data, A pointer to data that will be passed to the callback on close.  The data will be copied so you do not need to manage it's lifetime.)
-DOC_PARAM(user_data_size, The size of the data pointed to by user_data in bytes.)
+DOC_PARAM(scope, Optional dynamic scope tied to the marker's lifetime.  Note this scope will be implicitly interesected with the scope tied to the target buffer.)
 DOC_RETURN(If this call succeeds it returns a handle to the new markers.  If it fails it returns a null handle.)
 DOC(This call makes an allocation of markers for the specified buffer.  The newly allocated markers are not immediately activated.  To activate a marker use buffer_set_markers to give the marker a value.  The markers will remain allocated on the buffer until buffer_remove_markers is called or until the buffer is killed.)
 DOC_SEE(Marker)
 */{
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     Models *models = cmd->models;
-    Editing_File *file = imp_get_file(cmd, buffer);
-    
-    Marker_Handle result = 0;
+    Editing_File *file = imp_get_file(cmd, buffer_id);
+    Managed_Object result = 0;
     if (file != 0){
-        result = allocate_markers_state(&models->mem.general, file, marker_count,
-                                        callback, user_data, user_data_size);
+        result = (Managed_Object)allocate_markers_state(&models->mem.general, file, marker_count);
     }
-    
     return(result);
 }
 
 API_EXPORT Buffer_Summary
-Get_Buffer_By_Marker_Handle(Application_Links *app, Marker_Handle marker, Access_Flag access)
+Get_Buffer_By_Marker_Handle(Application_Links *app, Managed_Object marker_object, Access_Flag access)
 /*
-DOC_PARAM(marker, The marker handle to query.)
+DOC_PARAM(marker_object, The marker handle to query.)
 DOC_PARAM(access, The access parameter determines what levels of protection this call can access.)
 DOC_SEE(Marker)
 */{
     Buffer_Summary buffer = {0};
-    if (marker != 0){
-        Buffer_ID buffer_id = get_buffer_id_from_marker_handle(marker);
+    if (object != 0){
+        void *ptr = IntAsPtr(marker_object);
+        Buffer_ID buffer_id = get_buffer_id_from_marker_handle(ptr);
         buffer = Get_Buffer(app, buffer_id, access);
     }
     return(buffer);
 }
 
-API_EXPORT Data
-Get_User_Data_By_Marker_Handle(Application_Links *app, Marker_Handle marker)
-/*
-DOC_PARAM(marker, The marker thandle to query.)
-DOC_RETURN(Returns a data struct containing the user data passed in to buffer_add_markers, or a zero struct if the handle is null.)
-DOC_SEE(Marker)
-*/{
-    Data data = {0};
-    if (marker != 0){
-        data = get_user_data_from_marker_handle(marker);
-    }
-    return(data);
-}
-
 API_EXPORT bool32
-Buffer_Set_Markers(Application_Links *app, Buffer_Summary *buffer, Marker_Handle marker, uint32_t first_marker_index, uint32_t marker_count, Marker *source_markers)
+Buffer_Set_Markers(Application_Links *app, Managed_Object marker_object, uint32_t first_marker_index, uint32_t marker_count, Marker *source_markers)
 /*
-DOC_PARAM(buffer, The buffer on which the specified markers are attached.)
-DOC_PARAM(marker, The marker handle refering to the markers to be set.)
+DOC_PARAM(marker_object, The marker handle refering to the markers to be set.)
 DOC_PARAM(first_marker_index, The index of the first marker to be set by this call.)
 DOC_PARAM(marker_count, The number of markers to be set by this call.)
 DOC_PARAM(source_markers, An array of marker_count Markers to specify the values to set to the markers specified.)
@@ -855,23 +836,24 @@ DOC(This call sets the value of a Marker, eliminating whatever value was there b
 DOC_SEE(Marker)
 */{
     Command_Data *cmd = (Command_Data*)app->cmd_context;
-    Editing_File *file = imp_get_file(cmd, buffer);
-    
     bool32 result = false;
-    if (file != 0){
-        if (markers_set(file, marker, first_marker_index, marker_count, source_markers)){
-            result = true;
+    if (marker_object != 0){
+        void *ptr = IntAsPtr(marker_object);
+        Buffer_ID buffer_id = get_buffer_id_from_marker_handle(ptr);
+        Editing_File *file = imp_get_file(cmd, buffer_id);
+        if (file != 0){
+            if (markers_set(file, ptr, first_marker_index, marker_count, source_markers)){
+                result = true;
+            }
         }
     }
-    
     return(result);
 }
 
 API_EXPORT bool32
-Buffer_Get_Markers(Application_Links *app, Buffer_Summary *buffer, Marker_Handle marker, uint32_t first_marker_index, uint32_t marker_count, Marker *markers_out)
+Buffer_Get_Markers(Application_Links *app, Managed_Object marker_object, uint32_t first_marker_index, uint32_t marker_count, Marker *markers_out)
 /*
-DOC_PARAM(buffer, The buffer on which the specified markers are attached.)
-DOC_PARAM(marker, The marker handle refering to the markers to be read.)
+DOC_PARAM(marker_object, The marker handle refering to the markers to be read.)
 DOC_PARAM(first_marker_index, The index of the first marker to be read by this call.)
 DOC_PARAM(marker_count, The number of markers to be read by this call.)
 DOC_PARAM(markers_out, An array of marker_count Markers to be filled by the result of the read.)
@@ -880,20 +862,22 @@ DOC(When the range specified by first_marker_index and marker_count is a range o
 DOC_SEE(Marker)
 */{
     Command_Data *cmd = (Command_Data*)app->cmd_context;
-    Editing_File *file = imp_get_file(cmd, buffer);
-    
     bool32 result = false;
-    if (file != 0){
-        if (markers_get(file, marker, first_marker_index, marker_count, markers_out)){
-            result = true;
+    if (marker_object != 0){
+        void *ptr = IntAsPtr(marker_object);
+        Buffer_ID buffer_id = get_buffer_id_from_marker_handle(ptr);
+        Editing_File *file = imp_get_file(cmd, buffer_id);
+        if (file != 0){
+            if (markers_get(file, ptr, first_marker_index, marker_count, markers_out)){
+                result = true;
+            }
         }
     }
-    
     return(result);
 }
 
 API_EXPORT bool32
-Buffer_Remove_Markers(Application_Links *app, Buffer_Summary *buffer, Marker_Handle marker)
+Buffer_Remove_Markers(Application_Links *app, Managed_Object marker)
 /*
 DOC_PARAM(buffer, The buffer on which the specified markers are attached.)
 DOC_PARAM(marker, The marker handle refering to the markers to be detached from the buffer.)
@@ -903,15 +887,17 @@ DOC_SEE(buffer_add_markers)
 */{
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     Models *models = cmd->models;
-    Editing_File *file = imp_get_file(cmd, buffer);
-    
     bool32 result = false;
-    if (file != 0){
-        if (markers_free(&models->mem.general, file, marker)){
-            result = true;
+    if (marker_object != 0){
+        void *ptr = IntAsPtr(marker_object);
+        Buffer_ID buffer_id = get_buffer_id_from_marker_handle(ptr);
+        Editing_File *file = imp_get_file(cmd, buffer_id);
+        if (file != 0){
+            if (markers_free(&models->mem.general, file, ptr)){
+                result = true;
+            }
         }
     }
-    
     return(result);
 }
 
@@ -2369,6 +2355,7 @@ Get_Intersected_Dynamic_Scope(Application_Links *app, Dynamic_Scope *intersected
 {
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     Models *models = cmd->models;
+    Lifetime_Allocator *lifetime_allocator = &models->lifetime_allocator;
     Partition *scratch = &models->mem.part;
     Dynamic_Scope result = {0};
     
@@ -2388,11 +2375,13 @@ Get_Intersected_Dynamic_Scope(Application_Links *app, Dynamic_Scope *intersected
             case DynamicScopeType_Intersected:
             {
                 Lifetime_Key *key = (Lifetime_Key*)IntAsPtr(handle.intersected_opaque_handle);
-                i32 member_count = key->count;
-                Lifetime_Object **key_member_ptr = key->members;
-                for (i32 j = 0; j < member_count; j += 1, key_member_ptr += 1){
-                    Lifetime_Object **new_object_ptr = push_array(scratch, Lifetime_Object*, 1);
-                    *new_object_ptr = *key_member_ptr;
+                if (lifetime_key_check(lifetime_allocator, key)){
+                    i32 member_count = key->count;
+                    Lifetime_Object **key_member_ptr = key->members;
+                    for (i32 j = 0; j < member_count; j += 1, key_member_ptr += 1){
+                        Lifetime_Object **new_object_ptr = push_array(scratch, Lifetime_Object*, 1);
+                        *new_object_ptr = *key_member_ptr;
+                    }
                 }
             }break;
             
@@ -2426,7 +2415,6 @@ Get_Intersected_Dynamic_Scope(Application_Links *app, Dynamic_Scope *intersected
         member_count = lifetime_sort_and_dedup_object_set(object_ptr_array, member_count);
         
         General_Memory *general = &models->mem.general;
-        Lifetime_Allocator *lifetime_allocator = &models->lifetime_allocator;
         Lifetime_Key *key = lifetime_get_or_create_intersection_key(general, lifetime_allocator, object_ptr_array, member_count);
         result.type = DynamicScopeType_Intersected;
         result.intersected_opaque_handle = (u64)(PtrAsInt(key));
@@ -2472,6 +2460,7 @@ Managed_Variable_Create_Or_Get_ID(Application_Links *app, char *null_terminated_
 internal bool32
 get_dynamic_variable(Command_Data *cmd, Dynamic_Scope handle, int32_t location, uint64_t **ptr_out){
     Models *models = cmd->models;
+    Lifetime_Allocator *lifetime_allocator = &models->lifetime_allocator;
     General_Memory *general = &models->mem.general;
     Dynamic_Variable_Layout *layout = &models->variable_layout;
     Dynamic_Variable_Block *block = 0;
@@ -2485,7 +2474,9 @@ get_dynamic_variable(Command_Data *cmd, Dynamic_Scope handle, int32_t location, 
         case DynamicScopeType_Intersected:
         {
             Lifetime_Key *key = (Lifetime_Key*)IntAsPtr(handle.intersected_opaque_handle);
-            block = &key->dynamic_vars;
+            if (lifetime_key_check(lifetime_allocator, key)){
+                block = &key->dynamic_vars;
+            }
         }break;
         
         case DynamicScopeType_Buffer:

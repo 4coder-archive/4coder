@@ -38,55 +38,6 @@ binary_search(uint32_t *array, int32_t stride, int32_t count, uint32_t x){
     return(i);
 }
 
-static Sticky_Jump_Destination_Array
-make_sticky_jump_destination_array(uint32_t first_jump_index, Marker_Handle handle){
-    Sticky_Jump_Destination_Array r;
-    r.first_jump_index = first_jump_index;
-    r.handle = handle;
-    return(r);
-}
-
-static Sticky_Jump_Source
-make_sticky_jump_source(uint32_t line_number, uint32_t flags){
-    Sticky_Jump_Source r;
-    r.line_number = line_number;
-    r.flags = flags;
-    return(r);
-}
-
-static void
-double_dst_max(General_Memory *general, Marker_List *list){
-    uint32_t new_dst_max = list->dst_max*2;
-    list->dst = gen_realloc_array(general, Sticky_Jump_Destination_Array, list->dst, list->dst_max, new_dst_max);
-    list->dst_max = new_dst_max;
-}
-
-static void
-double_jump_max(General_Memory *general, Marker_List *list){
-    uint32_t new_jump_max = list->jump_max*2;
-    list->jumps = gen_realloc_array(general, Sticky_Jump_Source, list->jumps, list->jump_max, new_jump_max);
-    list->jump_max = new_jump_max;
-}
-
-static void
-marker_list_remove_references(Marker_List *list, Marker_Handle handle){
-    int32_t count = list->dst_count;
-    Sticky_Jump_Destination_Array *dst = list->dst;
-    for (int32_t i = 0; i < count; ++i, ++dst){
-        if (dst->handle == handle){
-            dst->handle = 0;
-        }
-    }
-}
-
-static void
-sticky_jump_markers_cleanup(Application_Links *app, Marker_Handle handle, void *user_data, uint32_t user_data_size){
-    if (user_data_size == sizeof(Marker_List*)){
-        Marker_List *list = *(Marker_List**)user_data;
-        marker_list_remove_references(list, handle);
-    }
-}
-
 static Sticky_Jump_Array
 parse_buffer_to_jump_array(Application_Links *app, Partition *arena, Buffer_Summary buffer){
     Sticky_Jump_Array result = {0};
@@ -176,7 +127,7 @@ init_marker_list(Application_Links *app, Partition *part, General_Memory *genera
     Dynamic_Scope scope_array[2];
     scope_array[0] = buffer_get_dynamic_scope(app, buffer_id);
     
-    List_Node_Handle list_sentinel = managed_list_node_alloc(app, scope_array[0]);
+    Managed_Object list_sentinel = managed_list_node_alloc(app, scope_array[0]);
     
     for (int32_t i = 0; i < buffer_ranges.count; i += 1){
         Range range = buffer_ranges.ranges[i];
@@ -186,18 +137,18 @@ init_marker_list(Application_Links *app, Partition *part, General_Memory *genera
         scope_array[1] = buffer_get_dynamic_scope(app, target_buffer_id);
         Dynamic_Scope scope = get_intersected_dynamic_scope(app, scope_array, ArrayCount(scope_array));
         
-        Marker_Handle marker_handle = buffer_add_markers(app, target_buffer_id, jump_count, &scope);
+        Managed_Object marker_handle = buffer_add_markers(app, target_buffer_id, jump_count, &scope);
         Temp_Memory marker_temp = begin_temp_memory(part);
         Marker *markers = push_array(part, Marker, jump_count);
         for (int32_t j = 0; j < jump_count; j += 1){
             markers[j].pos = jumps.jumps[j + range.first].jump_pos;
             markers[j].lean_right = false;
         }
-        buffer_set_markers(app, handle, 0, jump_count, markers);
+        buffer_set_markers(app, marker_handle, 0, jump_count, markers);
         end_temp_memory(marker_temp);
         
         int32_t line_details_mem_size = sizeof(Sticky_Jump_Line_Details)*jump_count;
-        Memory_Handle memory = managed_memory_alloc(app, scope, line_details_mem_size);
+        Managed_Object memory = managed_memory_alloc(app, scope, line_details_mem_size);
         Temp_Memory details_temp = begin_temp_memory(part);
         Sticky_Jump_Line_Details *details = push_array(part, Sticky_Jump_Line_Details, jump_count);
         for (int32_t j = 0; j < jump_count; j += 1){
@@ -208,12 +159,12 @@ init_marker_list(Application_Links *app, Partition *part, General_Memory *genera
         managed_memory_set(app, memory, 0, details, line_details_mem_size);
         end_temp_memory(details_temp);
         
-        List_Node_Handle node_handle = managed_list_node_alloc(app, scope, sizeof(Sticky_Jump_Node_Header));
+        Managed_Object node_handle = managed_list_node_alloc(app, scope, sizeof(Sticky_Jump_Node_Header));
         managed_list_node_insert(app, list_sentinel, node_handle, ListInsert_Back);
         Sticky_Jump_Node_Header node_header = {0};
         node_header.memory = memory;
         node_header.markers = marker_handle;
-        node_handle.count = jump_count;
+        node_header.count = jump_count;
         managed_memory_set(app, node_handle, 0, &node_header, sizeof(node_header));
     }
     end_temp_memory(temp);
@@ -281,12 +232,6 @@ init_marker_list(Application_Links *app, Partition *part, General_Memory *genera
     end_temp_memory(temp);
 }
 #endif
-
-static void
-free_marker_list(General_Memory *general, Marker_List list){
-    general_memory_free(general, list.dst);
-    general_memory_free(general, list.jumps);
-}
 
 static void
 delete_marker_list(Marker_List_Node *node){
