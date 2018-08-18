@@ -66,11 +66,11 @@ working_set_extend_memory(Working_Set *working_set, Editing_File *new_space, i16
 }
 
 internal Editing_File*
-working_set_alloc_always(Working_Set *working_set, General_Memory *general, Lifetime_Allocator *lifetime_allocator){
+working_set_alloc_always(Working_Set *working_set, Heap *heap, Lifetime_Allocator *lifetime_allocator){
     Editing_File *result = 0;
     if (working_set->file_count == working_set->file_max && working_set->array_count < working_set->array_max){
         i16 new_count = (i16)clamp_top(working_set->file_max, max_i16);
-        Editing_File *new_chunk = gen_array(general, Editing_File, new_count);
+        Editing_File *new_chunk = heap_array(heap, Editing_File, new_count);
         working_set_extend_memory(working_set, new_chunk, new_count);
     }
     
@@ -88,8 +88,8 @@ working_set_alloc_always(Working_Set *working_set, General_Memory *general, Life
         result->settings.minimum_base_display_width = working_set->default_minimum_base_display_width;
         result->settings.wrap_indicator = WrapIndicator_Show_At_Wrap_Edge;
         init_file_markers_state(&result->markers);
-        dynamic_variables_block_init(general, &result->dynamic_vars);
-        result->lifetime_object = lifetime_alloc_object(general, lifetime_allocator, LifetimeObject_File, result);
+        dynamic_workspace_init(heap, &result->dynamic_workspace);
+        result->lifetime_object = lifetime_alloc_object(heap, lifetime_allocator, LifetimeObject_File, result);
         ++working_set->file_count;
     }
     
@@ -97,13 +97,13 @@ working_set_alloc_always(Working_Set *working_set, General_Memory *general, Life
 }
 
 inline void
-working_set_free_file(General_Memory *general, Lifetime_Allocator *lifetime_allocator, Working_Set  *working_set, Editing_File *file){
+working_set_free_file(Heap *heap, Lifetime_Allocator *lifetime_allocator, Working_Set  *working_set, Editing_File *file){
     if (working_set->sync_check_iter == &file->node){
         working_set->sync_check_iter = working_set->sync_check_iter->next;
     }
     
-    dynamic_variables_block_free(general, &file->dynamic_vars);
-    lifetime_free_object(general, lifetime_allocator, file->lifetime_object);
+    dynamic_workspace_free(heap, &file->dynamic_workspace);
+    lifetime_free_object(heap, lifetime_allocator, file->lifetime_object);
     
     file->is_dummy = true;
     dll_remove(&file->node);
@@ -149,7 +149,7 @@ working_set_get_active_file(Working_Set *working_set, i32 id){
 }
 
 internal void
-working_set_init(Working_Set *working_set, Partition *partition, General_Memory *general){
+working_set_init(Working_Set *working_set, Partition *partition, Heap *heap){
     i16 init_count = 16;
     i16 array_init_count = 256;
     
@@ -178,7 +178,7 @@ working_set_init(Working_Set *working_set, Partition *partition, General_Memory 
         i32 item_size = sizeof(File_Name_Entry);
         i32 table_size = working_set->file_max;
         i32 mem_size = table_required_mem_size(table_size, item_size);
-        void *mem = general_memory_allocate(general, mem_size);
+        void *mem = heap_allocate(heap, mem_size);
         memset(mem, 0, mem_size);
         table_init_memory(&working_set->canon_table, mem, table_size, item_size);
     }
@@ -188,23 +188,23 @@ working_set_init(Working_Set *working_set, Partition *partition, General_Memory 
         i32 item_size = sizeof(File_Name_Entry);
         i32 table_size = working_set->file_max;
         i32 mem_size = table_required_mem_size(table_size, item_size);
-        void *mem = general_memory_allocate(general, mem_size);
+        void *mem = heap_allocate(heap, mem_size);
         memset(mem, 0, mem_size);
         table_init_memory(&working_set->name_table, mem, table_size, item_size);
     }
 }
 
 inline void
-working_set__grow_if_needed(Table *table, General_Memory *general, void *arg, Hash_Function *hash_func, Compare_Function *comp_func){
+working_set__grow_if_needed(Table *table, Heap *heap, void *arg, Hash_Function *hash_func, Compare_Function *comp_func){
     if (table_at_capacity(table)){
         Table btable = {0};
         i32 new_max = table->max * 2;
         i32 mem_size = table_required_mem_size(new_max, table->item_size);
-        void *mem = general_memory_allocate(general, mem_size);
+        void *mem = heap_allocate(heap, mem_size);
         table_init_memory(&btable, mem, new_max, table->item_size);
         table_clear(&btable);
         table_rehash(table, &btable, 0, hash_func, comp_func);
-        general_memory_free(general, table->hash_array);
+        heap_free(heap, table->hash_array);
         *table = btable;
     }
 }
@@ -223,8 +223,8 @@ working_set_contains_basic(Working_Set *working_set, Table *table, String name){
 }
 
 internal b32
-working_set_add_basic(General_Memory *general, Working_Set *working_set, Table *table, Editing_File *file, String name){
-    working_set__grow_if_needed(table, general, 0, tbl_string_hash, tbl_string_compare);
+working_set_add_basic(Heap *heap, Working_Set *working_set, Table *table, Editing_File *file, String name){
+    working_set__grow_if_needed(table, heap, 0, tbl_string_hash, tbl_string_compare);
     
     File_Name_Entry entry;
     entry.name = name;
@@ -245,8 +245,8 @@ working_set_contains_canon(Working_Set *working_set, String name){
 }
 
 internal b32
-working_set_canon_add(General_Memory *general, Working_Set *working_set, Editing_File *file, String name){
-    b32 result = working_set_add_basic(general,working_set, &working_set->canon_table, file, name);
+working_set_canon_add(Heap *heap, Working_Set *working_set, Editing_File *file, String name){
+    b32 result = working_set_add_basic(heap,working_set, &working_set->canon_table, file, name);
     return(result);
 }
 
@@ -262,8 +262,8 @@ working_set_contains_name(Working_Set *working_set, String name){
 }
 
 internal b32
-working_set_add_name(General_Memory *general, Working_Set *working_set, Editing_File *file, String name){
-    b32 result = working_set_add_basic(general, working_set, &working_set->name_table, file, name);
+working_set_add_name(Heap *heap, Working_Set *working_set, Editing_File *file, String name){
+    b32 result = working_set_add_basic(heap, working_set, &working_set->name_table, file, name);
     return(result);
 }
 
@@ -316,7 +316,7 @@ touch_file(Working_Set *working_set, Editing_File *file){
 
 // TODO(allen): Bring the clipboard fully to the custom side.
 internal String*
-working_set_next_clipboard_string(General_Memory *general, Working_Set *working, i32 str_size){
+working_set_next_clipboard_string(Heap *heap, Working_Set *working, i32 str_size){
     i32 clipboard_current = working->clipboard_current;
     if (working->clipboard_size == 0){
         clipboard_current = 0;
@@ -334,12 +334,14 @@ working_set_next_clipboard_string(General_Memory *general, Working_Set *working,
     String *result = &working->clipboards[clipboard_current];
     working->clipboard_current = clipboard_current;
     working->clipboard_rolling = clipboard_current;
-    char *new_str;
+    char *new_str = 0;
     if (result->str != 0){
-        new_str = (char*)general_memory_reallocate(general, result->str, result->size, str_size);
+        new_str = heap_array(heap, char, str_size);
+        memcpy(new_str, result->str, result->size);
+        heap_free(heap, result->str);
     }
     else{
-        new_str = (char*)general_memory_allocate(general, str_size+1);
+        new_str = (char*)heap_allocate(heap, str_size + 1);
     }
     // TODO(allen): What if new_str == 0?
     *result = make_string_cap(new_str, 0, str_size);
@@ -397,7 +399,7 @@ get_canon_name(System_Functions *system, String filename,
 }
 
 internal void
-buffer_bind_file(System_Functions *system, General_Memory *general,
+buffer_bind_file(System_Functions *system, Heap *heap,
                  Working_Set *working_set,
                  Editing_File *file, String canon_filename){
     Assert(file->unique_name.name.size == 0);
@@ -407,7 +409,7 @@ buffer_bind_file(System_Functions *system, General_Memory *general,
     copy(&file->canon.name, canon_filename);
     terminate_with_null(&file->canon.name);
     system->add_listener(file->canon.name.str);
-    if (!working_set_canon_add(general, working_set, file, file->canon.name)){
+    if (!working_set_canon_add(heap, working_set, file, file->canon.name)){
         InvalidCodePath;
     }
 }
@@ -458,7 +460,7 @@ buffer_resolve_name_low_level(Working_Set *working_set, Editing_File_Name *name,
 }
 
 internal void
-buffer_bind_name_low_level(General_Memory *general, Working_Set *working_set, Editing_File *file, String base_name, String name){
+buffer_bind_name_low_level(Heap *heap, Working_Set *working_set, Editing_File *file, String base_name, String name){
     Assert(file->base_name.name.size == 0);
     Assert(file->unique_name.name.size == 0);
     
@@ -472,7 +474,7 @@ buffer_bind_name_low_level(General_Memory *general, Working_Set *working_set, Ed
     file->unique_name.name = make_fixed_width_string(file->unique_name.name_);
     copy(&file->unique_name.name, new_name.name);
     
-    if (!working_set_add_name(general, working_set, file, file->unique_name.name)){
+    if (!working_set_add_name(heap, working_set, file, file->unique_name.name)){
         InvalidCodePath;
     }
 }
@@ -487,7 +489,7 @@ buffer_unbind_name_low_level(Working_Set *working_set, Editing_File *file){
 }
 
 internal void
-buffer_bind_name(Models *models, General_Memory *general, Partition *scratch,
+buffer_bind_name(Models *models, Heap *heap, Partition *scratch,
                  Working_Set *working_set,
                  Editing_File *file, String base_name){
     Temp_Memory temp = begin_temp_memory(scratch);
@@ -555,7 +557,7 @@ buffer_bind_name(Models *models, General_Memory *general, Partition *scratch,
         Editing_File *file_ptr = conflict_file_ptrs[i];
         Buffer_Name_Conflict_Entry *entry = &conflicts[i];
         String unique_name = make_string(entry->unique_name_in_out, entry->unique_name_len_in_out);
-        buffer_bind_name_low_level(general, working_set, file_ptr, base_name, unique_name);
+        buffer_bind_name_low_level(heap, working_set, file_ptr, base_name, unique_name);
     }
     
     end_temp_memory(temp);
@@ -576,12 +578,12 @@ open_file(System_Functions *system, Models *models, String filename){
             Plat_Handle handle;
             if (system->load_handle(canon_name.name.str, &handle)){
                 Mem_Options *mem = &models->mem;
-                General_Memory *general = &mem->general;
+                Heap *heap = &mem->heap;
                 Partition *part = &mem->part;
                 
-                file = working_set_alloc_always(working_set, general, &models->lifetime_allocator);
-                buffer_bind_file(system, general, working_set, file, canon_name.name);
-                buffer_bind_name(models, general, part, working_set, file, front_of_directory(filename));
+                file = working_set_alloc_always(working_set, heap, &models->lifetime_allocator);
+                buffer_bind_file(system, heap, working_set, file, canon_name.name);
+                buffer_bind_name(models, heap, part, working_set, file, front_of_directory(filename));
                 
                 Temp_Memory temp = begin_temp_memory(part);
                 
@@ -589,7 +591,7 @@ open_file(System_Functions *system, Models *models, String filename){
                 char *buffer = push_array(part, char, size);
                 b32 gen_buffer = false;
                 if (buffer == 0){
-                    buffer = (char*)general_memory_allocate(general, size);
+                    buffer = heap_array(heap, char, size);
                     Assert(buffer != 0);
                     gen_buffer = true;
                 }
@@ -601,7 +603,7 @@ open_file(System_Functions *system, Models *models, String filename){
                 }
                 
                 if (gen_buffer){
-                    general_memory_free(general, buffer);
+                    heap_free(heap, buffer);
                 }
                 
                 end_temp_memory(temp);

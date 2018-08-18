@@ -7,7 +7,9 @@
 #if !defined(FCODER_FILE_ENUMERATOR_CPP)
 #define FCODER_FILE_ENUMERATOR_CPP
 
-#include "4coder_lib/4coder_mem.h"
+#include "4coder_lib/4coder_arena.h"
+#include "4coder_lib/4coder_arena.cpp"
+
 #include "4coder_os_comp_cracking.h"
 #define FSTRING_IMPLEMENTATION
 #include "4coder_lib/4coder_string.h"

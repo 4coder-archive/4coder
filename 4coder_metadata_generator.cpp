@@ -8,7 +8,6 @@
 
 #include "4coder_file.h"
 
-#include "4coder_lib/4coder_mem.h"
 #include "4coder_lib/4cpp_lexer.h"
 
 #include <stdio.h>

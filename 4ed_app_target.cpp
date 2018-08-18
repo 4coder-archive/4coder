@@ -21,17 +21,22 @@
 #include "4ed_system.h"
 
 #define PREFERRED_ALIGNMENT 8
-#define USE_DEBUG_MEMORY
 
 #define FSTRING_IMPLEMENTATION
 #define FSTRING_C
 #include "4coder_lib/4coder_string.h"
-#include "4coder_lib/4coder_mem.h"
+#include "4coder_lib/4coder_arena.h"
+#include "4coder_lib/4coder_heap.h"
 #include "4coder_lib/4coder_table.h"
 #include "4coder_lib/4coder_utf8.h"
-#if defined(USE_DEBUG_MEMORY)
-# include "4ed_debug_mem.h"
-#endif
+
+struct Mem_Options{
+    Partition part;
+    Heap heap;
+};
+
+#include "4coder_lib/4coder_arena.cpp"
+#include "4coder_lib/4coder_heap.cpp"
 
 #include "4ed_render_target.h"
 #include "4ed_render_format.h"

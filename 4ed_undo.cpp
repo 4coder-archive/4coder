@@ -10,54 +10,62 @@
 // TOP
 
 internal void
-undo_stack_grow_string(General_Memory *general, Edit_Stack *stack, i32 extra_size){
+undo_stack_grow_string(Heap *heap, Edit_Stack *stack, i32 extra_size){
     i32 old_max = stack->max;
     u8 *old_str = stack->strings;
     i32 new_max = old_max*2 + extra_size;
-    u8 *new_str = (u8*)general_memory_reallocate(general, old_str, old_max, new_max);
+    u8 *new_str = heap_array(heap, u8, new_max);
+    memcpy(new_str, old_str, sizeof(*new_str)*old_max);
+    heap_free(heap, old_str);
     stack->strings = new_str;
     stack->max = new_max;
 }
 
 internal void
-undo_stack_grow_edits(General_Memory *general, Edit_Stack *stack){
+undo_stack_grow_edits(Heap *heap, Edit_Stack *stack){
     i32 old_max = stack->edit_max;
     Edit_Step *old_eds = stack->edits;
     i32 new_max = old_max*2 + 2;
-    Edit_Step *new_eds = (Edit_Step*)general_memory_reallocate(general, old_eds, old_max*sizeof(Edit_Step), new_max*sizeof(Edit_Step));
+    Edit_Step *new_eds = heap_array(heap, Edit_Step, new_max);
+    memcpy(new_eds, old_eds, sizeof(*new_eds)*old_max);
+    heap_free(heap, old_eds);
     stack->edits = new_eds;
     stack->edit_max = new_max;
 }
 
 internal void
-child_stack_grow_string(General_Memory *general, Small_Edit_Stack *stack, i32 extra_size){
+child_stack_grow_string(Heap *heap, Small_Edit_Stack *stack, i32 extra_size){
     i32 old_max = stack->max;
     u8 *old_str = stack->strings;
     i32 new_max = old_max*2 + extra_size;
-    u8 *new_str = (u8*)general_memory_reallocate(general, old_str, old_max, new_max);
+    u8 *new_str = heap_array(heap, u8, new_max);
+    memcpy(new_str, old_str, sizeof(*new_str)*old_max);
+    heap_free(heap, old_str);
     stack->strings = new_str;
     stack->max = new_max;
 }
 
 internal void
-child_stack_grow_edits(General_Memory *general, Small_Edit_Stack *stack, i32 amount){
+child_stack_grow_edits(Heap *heap, Small_Edit_Stack *stack, i32 amount){
     i32 old_max = stack->edit_max;
     Buffer_Edit *old_eds = stack->edits;
     i32 new_max = old_max*2 + amount;
-    Buffer_Edit *new_eds = (Buffer_Edit*)general_memory_reallocate(general, old_eds, old_max*sizeof(Buffer_Edit), new_max*sizeof(Buffer_Edit));
+    Buffer_Edit *new_eds = heap_array(heap, Buffer_Edit, new_max);
+    memcpy(new_eds, old_eds, sizeof(*new_eds)*new_max);
+    heap_free(heap, old_eds);
     stack->edits = new_eds;
     stack->edit_max = new_max;
 }
 
 internal i32
-undo_children_push(General_Memory *general, Small_Edit_Stack *children, Buffer_Edit *edits, i32 edit_count, u8 *strings, i32 string_size){
+undo_children_push(Heap *heap, Small_Edit_Stack *children, Buffer_Edit *edits, i32 edit_count, u8 *strings, i32 string_size){
     i32 result = children->edit_count;
     if (children->edit_count + edit_count > children->edit_max){
-        child_stack_grow_edits(general, children, edit_count);
+        child_stack_grow_edits(heap, children, edit_count);
     }
     
     if (children->size + string_size > children->max){
-        child_stack_grow_string(general, children, string_size);
+        child_stack_grow_string(heap, children, string_size);
     }
     
     memcpy(children->edits + children->edit_count, edits, edit_count*sizeof(Buffer_Edit));
@@ -76,7 +84,7 @@ undo_children_push(General_Memory *general, Small_Edit_Stack *children, Buffer_E
 }
 
 internal Edit_Step*
-file_post_undo(General_Memory *general, Editing_File *file, Edit_Step step, b32 do_merge, b32 can_merge){
+file_post_undo(Heap *heap, Editing_File *file, Edit_Step step, b32 do_merge, b32 can_merge){
     if (step.type == ED_NORMAL){
         file->state.undo.redo.size = 0;
         file->state.undo.redo.edit_count = 0;
@@ -87,7 +95,7 @@ file_post_undo(General_Memory *general, Editing_File *file, Edit_Step step, b32 
     
     if (step.child_count == 0){
         if (step.edit.end - step.edit.start + undo->size > undo->max){
-            undo_stack_grow_string(general, undo, step.edit.end - step.edit.start);
+            undo_stack_grow_string(heap, undo, step.edit.end - step.edit.start);
         }
         
         Buffer_Edit inv;
@@ -115,7 +123,7 @@ file_post_undo(General_Memory *general, Editing_File *file, Edit_Step step, b32 
         }
         else{
             if (undo->edit_count == undo->edit_max){
-                undo_stack_grow_edits(general, undo);
+                undo_stack_grow_edits(heap, undo);
             }
             
             result = undo->edits + (undo->edit_count++);
@@ -132,7 +140,7 @@ file_post_undo(General_Memory *general, Editing_File *file, Edit_Step step, b32 
         inv_step.inverse_child_count = step.child_count;
         
         if (undo->edit_count == undo->edit_max){
-            undo_stack_grow_edits(general, undo);
+            undo_stack_grow_edits(heap, undo);
         }
         result = undo->edits + (undo->edit_count++);
         *result = inv_step;
@@ -151,12 +159,12 @@ undo_stack_pop(Edit_Stack *stack){
 }
 
 internal void
-file_post_redo(General_Memory *general, Editing_File *file, Edit_Step step){
+file_post_redo(Heap *heap, Editing_File *file, Edit_Step step){
     Edit_Stack *redo = &file->state.undo.redo;
     
     if (step.child_count == 0){
         if (step.edit.end - step.edit.start + redo->size > redo->max){
-            undo_stack_grow_string(general, redo, step.edit.end - step.edit.start);
+            undo_stack_grow_string(heap, redo, step.edit.end - step.edit.start);
         }
         
         Buffer_Edit inv;
@@ -167,7 +175,7 @@ file_post_redo(General_Memory *general, Editing_File *file, Edit_Step step){
         inv_step.type = ED_REDO;
         
         if (redo->edit_count == redo->edit_max){
-            undo_stack_grow_edits(general, redo);
+            undo_stack_grow_edits(heap, redo);
         }
         redo->edits[redo->edit_count++] = inv_step;
     }
@@ -181,7 +189,7 @@ file_post_redo(General_Memory *general, Editing_File *file, Edit_Step step){
         inv_step.inverse_child_count = step.child_count;
         
         if (redo->edit_count == redo->edit_max){
-            undo_stack_grow_edits(general, redo);
+            undo_stack_grow_edits(heap, redo);
         }
         redo->edits[redo->edit_count++] = inv_step;
     }
@@ -210,7 +218,7 @@ file_unpost_history_block(Editing_File *file){
 }
 
 internal Edit_Step*
-file_post_history(General_Memory *general, Editing_File *file, Edit_Step step, b32 do_merge, b32 can_merge){
+file_post_history(Heap *heap, Editing_File *file, Edit_Step step, b32 do_merge, b32 can_merge){
     Edit_Stack *history = &file->state.undo.history;
     Edit_Step *result = 0;
     
@@ -224,7 +232,7 @@ file_post_history(General_Memory *general, Editing_File *file, Edit_Step step, b
     
     if (step.child_count == 0){
         if (step.edit.end - step.edit.start + history->size > history->max){
-            undo_stack_grow_string(general, history, step.edit.end - step.edit.start);
+            undo_stack_grow_string(heap, history, step.edit.end - step.edit.start);
         }
         
         Buffer_Edit inv;
@@ -252,7 +260,7 @@ file_post_history(General_Memory *general, Editing_File *file, Edit_Step step, b
         }
         else{
             if (history->edit_count == history->edit_max){
-                undo_stack_grow_edits(general, history);
+                undo_stack_grow_edits(heap, history);
             }
             result = history->edits + (history->edit_count++);
         }
@@ -269,7 +277,7 @@ file_post_history(General_Memory *general, Editing_File *file, Edit_Step step, b
         inv_step.child_count = step.inverse_child_count;
         
         if (history->edit_count == history->edit_max){
-            undo_stack_grow_edits(general, history);
+            undo_stack_grow_edits(heap, history);
         }
         result = history->edits + (history->edit_count++);
         *result = inv_step;
@@ -281,7 +289,7 @@ file_post_history(General_Memory *general, Editing_File *file, Edit_Step step, b
 internal void
 file_update_history_before_edit(Mem_Options *mem, Editing_File *file, Edit_Step step, u8 *str, History_Mode history_mode){
     if (!file->state.undo.undo.edits) return;
-    General_Memory *general = &mem->general;
+    Heap *heap = &mem->heap;
     
     b32 can_merge = 0, do_merge = 0;
     switch (step.type){
@@ -295,16 +303,16 @@ file_update_history_before_edit(Mem_Options *mem, Editing_File *file, Edit_Step 
             }
             
             if (history_mode != hist_forward){
-                file_post_history(general, file, step, do_merge, can_merge);
+                file_post_history(heap, file, step, do_merge, can_merge);
             }
             
-            file_post_undo(general, file, step, do_merge, can_merge);
+            file_post_undo(heap, file, step, do_merge, can_merge);
         }break;
         
         case ED_REVERSE_NORMAL:
         {
             if (history_mode != hist_forward){
-                file_post_history(general, file, step, do_merge, can_merge);
+                file_post_history(heap, file, step, do_merge, can_merge);
             }
             
             undo_stack_pop(&file->state.undo.undo);
@@ -349,10 +357,10 @@ file_update_history_before_edit(Mem_Options *mem, Editing_File *file, Edit_Step 
                     ++redo_end;
                     
                     if (file->state.undo.redo.edit_count + steps_of_redo > file->state.undo.redo.edit_max)
-                        undo_stack_grow_edits(general, &file->state.undo.redo);
+                        undo_stack_grow_edits(heap, &file->state.undo.redo);
                     
                     if (file->state.undo.redo.size + strings_of_redo > file->state.undo.redo.max)
-                        undo_stack_grow_string(general, &file->state.undo.redo, strings_of_redo);
+                        undo_stack_grow_string(heap, &file->state.undo.redo, strings_of_redo);
                     
                     u8 *str_src = file->state.undo.history.strings + redo_end->edit.str_start;
                     u8 *str_dest_base = file->state.undo.redo.strings;
@@ -398,9 +406,9 @@ file_update_history_before_edit(Mem_Options *mem, Editing_File *file, Edit_Step 
         case ED_UNDO:
         {
             if (history_mode != hist_forward){
-                file_post_history(general, file, step, do_merge, can_merge);
+                file_post_history(heap, file, step, do_merge, can_merge);
             }
-            file_post_redo(general, file, step);
+            file_post_redo(heap, file, step);
             undo_stack_pop(&file->state.undo.undo);
         }break;
         
@@ -410,10 +418,10 @@ file_update_history_before_edit(Mem_Options *mem, Editing_File *file, Edit_Step 
             if (step.edit.len == 1 && str && (can_merge || char_is_whitespace(*str))) do_merge = 1;
             
             if (history_mode != hist_forward){
-                file_post_history(general, file, step, do_merge, can_merge);
+                file_post_history(heap, file, step, do_merge, can_merge);
             }
             
-            file_post_undo(general, file, step, do_merge, can_merge);
+            file_post_undo(heap, file, step, do_merge, can_merge);
             undo_stack_pop(&file->state.undo.redo);
         }break;
     }

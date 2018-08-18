@@ -7,18 +7,20 @@
 #if !defined(FCODER_JUMP_STICKY_H)
 #define FCODER_JUMP_STICKY_H
 
-struct Sticky_Jump_Line_Details{
-    int32_t list_line;
-    int32_t list_colon_index;
-    bool32 is_sub_error;
-};
-
 struct Sticky_Jump{
     int32_t list_line;
     int32_t list_colon_index;
     bool32 is_sub_error;
     Buffer_ID jump_buffer_id;
     int32_t jump_pos;
+};
+
+struct Sticky_Jump_Stored{
+    int32_t list_line;
+    int32_t list_colon_index;
+    bool32 is_sub_error;
+    Buffer_ID jump_buffer_id;
+    int32_t index_into_marker_array;
 };
 
 struct Sticky_Jump_Array{
@@ -38,14 +40,17 @@ enum Jump_Location_Flag{
 };
 
 struct Marker_List{
+    Managed_Object jump_array;
+    int32_t jump_count;
     int32_t previous_size;
+    Buffer_ID buffer_id;
 };
 
 struct Marker_List_Node{
     Marker_List_Node *next;
     Marker_List_Node *prev;
     Marker_List list;
-    int32_t buffer_id;
+    Buffer_ID buffer_id;
 };
 
 struct Locked_Jump_State{

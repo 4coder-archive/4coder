@@ -19,7 +19,7 @@ access_test(u32 lock_flags, u32 access_flags){
 
 internal void
 fill_buffer_summary(Buffer_Summary *buffer, Editing_File *file, Working_Set *working_set){
-    *buffer = null_buffer_summary;
+    memset(buffer, 0, sizeof(*buffer));
     if (!file->is_dummy){
         buffer->exists = 1;
         buffer->ready = file_is_ready(file);
@@ -247,7 +247,7 @@ DOC_SEE(Command_Line_Interface_Flag)
     App_Vars *vars = cmd->vars;
     Models *models = cmd->models;
     Partition *part = &models->mem.part;
-    General_Memory *general = &models->mem.general;
+    Heap *heap = &models->mem.heap;
     Working_Set *working_set = &models->working_set;
     
     bool32 result = true;
@@ -287,11 +287,11 @@ DOC_SEE(Command_Line_Interface_Flag)
         
         // NOTE(allen): If the buffer is specified by name but does not already exist, then create it.
         if (file == 0 && buffer_id.name != 0){
-            file = working_set_alloc_always(working_set, general, &models->lifetime_allocator);
+            file = working_set_alloc_always(working_set, heap, &models->lifetime_allocator);
             Assert(file != 0);
             
             String name = push_string(part, buffer_id.name, buffer_id.name_len);
-            buffer_bind_name(models, general, part, working_set, file, name);
+            buffer_bind_name(models, heap, part, working_set, file, name);
             init_read_only_file(system, models, file);
         }
         
@@ -393,10 +393,10 @@ DOC_SEE(The_4coder_Clipboard)
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     System_Functions *system = cmd->system;
     Models *models = cmd->models;
-    General_Memory *general = &models->mem.general;
+    Heap *heap = &models->mem.heap;
     Working_Set *working = &models->working_set;
     
-    String *dest = working_set_next_clipboard_string(general, working, len);
+    String *dest = working_set_next_clipboard_string(heap, working, len);
     copy_ss(dest, make_string(str, len));
     system->post_clipboard(*dest);
 }
@@ -455,7 +455,7 @@ DOC_RETURN(On success returns an id for the new parse context.  If id == 0, then
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     Models *models = cmd->models;
     
-    Parse_Context_ID id = parse_context_add(&models->parse_context_memory, &models->mem.general, kw, kw_count, pp, pp_count);
+    Parse_Context_ID id = parse_context_add(&models->parse_context_memory, &models->mem.heap, kw, kw_count, pp, pp_count);
     
     return(id);
 }
@@ -481,17 +481,17 @@ internal_get_buffer_first(Working_Set *working_set, Buffer_Summary *buffer){
 internal void
 internal_get_buffer_next(Working_Set *working_set, Buffer_Summary *buffer){
     Editing_File *file = working_set_get_active_file(working_set, buffer->buffer_id);
-    if (file){
+    if (file != 0){
         file = (Editing_File*)file->node.next;
         if (file != (Editing_File*)&working_set->used_sentinel){
             fill_buffer_summary(buffer, file, working_set);
         }
         else{
-            *buffer = null_buffer_summary;
+            memset(buffer, 0, sizeof(*buffer));
         }
     }
     else{
-        *buffer = null_buffer_summary;
+        memset(buffer, 0, sizeof(*buffer));
     }
 }
 
@@ -559,15 +559,13 @@ DOC_SEE(Buffer_ID)
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     Working_Set *working_set = &cmd->models->working_set;
     Buffer_Summary buffer = {0};
-    
     Editing_File *file = working_set_get_active_file(working_set, buffer_id);
     if (file != 0 && !file->is_dummy){
         fill_buffer_summary(&buffer, file, working_set);
         if (!access_test(buffer.lock_flags, access)){
-            buffer = null_buffer_summary;
+            memset(&buffer, 0, sizeof(buffer));
         }
     }
-    
     return(buffer);
 }
 
@@ -588,15 +586,13 @@ DOC_SEE(Access_Flag)
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     Buffer_Summary buffer = {0};
     Working_Set *working_set = &cmd->models->working_set;
-    
     Editing_File *file = working_set_contains_name(working_set, make_string(name, len));
     if (file != 0 && !file->is_dummy){
         fill_buffer_summary(&buffer, file, working_set);
         if (!access_test(buffer.lock_flags, access)){
-            buffer = null_buffer_summary;
+            memset(&buffer, 0, sizeof(buffer));
         }
     }
-    
     return(buffer);
 }
 
@@ -620,17 +616,15 @@ DOC_SEE(Access_Flag)
     System_Functions *system = cmd->system;
     Models *models = cmd->models;
     Working_Set *working_set = &models->working_set;
-    
     String fname = make_string(name, len);
     Editing_File_Name canon = {0};
     if (get_canon_name(system, fname, &canon)){
         Editing_File *file = working_set_contains_canon(working_set, canon.name);
         fill_buffer_summary(&buffer, file, working_set);
         if (!access_test(buffer.lock_flags, access)){
-            buffer = null_buffer_summary;
+            memset(&buffer, 0, sizeof(buffer));
         }
     }
-    
     return(buffer);
 }
 
@@ -772,7 +766,7 @@ DOC_SEE(Buffer_Batch_Edit_Type)
             char *inv_str = (char*)part->base + part->pos;
             int32_t inv_str_max = part->max - part->pos;
             
-            Edit_Spec spec = edit_compute_batch_spec(&mem->general,
+            Edit_Spec spec = edit_compute_batch_spec(&mem->heap,
                                                      file,
                                                      edits, str, str_len,
                                                      inverse_edits, inv_str, inv_str_max, edit_count, type);
@@ -803,7 +797,7 @@ DOC_SEE(Marker)
     Editing_File *file = imp_get_file(cmd, buffer_id);
     Managed_Object result = 0;
     if (file != 0){
-        result = (Managed_Object)allocate_markers_state(&models->mem.general, file, marker_count);
+        result = (Managed_Object)allocate_markers_state(&models->mem.heap, file, marker_count);
     }
     return(result);
 }
@@ -816,7 +810,7 @@ DOC_PARAM(access, The access parameter determines what levels of protection this
 DOC_SEE(Marker)
 */{
     Buffer_Summary buffer = {0};
-    if (object != 0){
+    if (marker_object != 0){
         void *ptr = IntAsPtr(marker_object);
         Buffer_ID buffer_id = get_buffer_id_from_marker_handle(ptr);
         buffer = Get_Buffer(app, buffer_id, access);
@@ -877,10 +871,10 @@ DOC_SEE(Marker)
 }
 
 API_EXPORT bool32
-Buffer_Remove_Markers(Application_Links *app, Managed_Object marker)
+Buffer_Remove_Markers(Application_Links *app, Managed_Object marker_object)
 /*
 DOC_PARAM(buffer, The buffer on which the specified markers are attached.)
-DOC_PARAM(marker, The marker handle refering to the markers to be detached from the buffer.)
+DOC_PARAM(marker_object, The marker handle refering to the markers to be detached from the buffer.)
 DOC_RETURN(On success returns non-zero, on failure returns zero.)
 DOC(Deactivates the entire range of markers specified by the marker handle and frees the memory used to store the markers internally.)
 DOC_SEE(buffer_add_markers)
@@ -893,7 +887,7 @@ DOC_SEE(buffer_add_markers)
         Buffer_ID buffer_id = get_buffer_id_from_marker_handle(ptr);
         Editing_File *file = imp_get_file(cmd, buffer_id);
         if (file != 0){
-            if (markers_free(&models->mem.general, file, ptr)){
+            if (markers_free(&models->mem.heap, file, ptr)){
                 result = true;
             }
         }
@@ -1005,7 +999,7 @@ DOC_SEE(Buffer_Setting_ID)
             {
                 if (file->settings.tokens_exist){
                     if (!value){
-                        file_kill_tokens(system, &models->mem.general, file);
+                        file_kill_tokens(system, &models->mem.heap, file);
                     }
                 }
                 else{
@@ -1024,7 +1018,7 @@ DOC_SEE(Buffer_Setting_ID)
             {
                 if (file->settings.tokens_exist){
                     if ((b8)value != file->settings.tokens_without_strings){
-                        file_kill_tokens(system, &models->mem.general, file);
+                        file_kill_tokens(system, &models->mem.heap, file);
                         file->settings.tokens_without_strings = (b8)value;
                         if (!file->settings.virtual_white){
                             file_first_lex_parallel(system, models, file);
@@ -1045,7 +1039,7 @@ DOC_SEE(Buffer_Setting_ID)
                 
                 if (file->settings.tokens_exist){
                     if (fixed_value != file->settings.parse_context_id){
-                        file_kill_tokens(system, &models->mem.general, file);
+                        file_kill_tokens(system, &models->mem.heap, file);
                         file->settings.parse_context_id = fixed_value;
                         if (!file->settings.virtual_white){
                             file_first_lex_parallel(system, models, file);
@@ -1166,7 +1160,7 @@ DOC_SEE(Buffer_Setting_ID)
                 if (full_remeasure){
                     Font_Pointers font = system->font.get_pointers_by_id(file->settings.font_id);
                     
-                    file_allocate_character_starts_as_needed(&models->mem.general, file);
+                    file_allocate_character_starts_as_needed(&models->mem.heap, file);
                     buffer_measure_character_starts(system, font, &file->state.buffer, file->state.character_starts, 0, file->settings.virtual_white);
                     file_measure_wraps(system, &models->mem, file, font);
                     adjust_views_looking_at_file_to_new_cursor(system, models, file);
@@ -1302,7 +1296,7 @@ DOC_SEE(Buffer_Create_Flag)
     System_Functions *system = cmd->system;
     Models *models = cmd->models;
     Working_Set *working_set = &models->working_set;
-    General_Memory *general = &models->mem.general;
+    Heap *heap = &models->mem.heap;
     Partition *part = &models->mem.part;
     
     Buffer_Summary result = {0};
@@ -1352,12 +1346,12 @@ DOC_SEE(Buffer_Create_Flag)
             
             if (do_empty_buffer){
                 if ((flags & BufferCreate_NeverNew) == 0){
-                    file = working_set_alloc_always(working_set, general, &models->lifetime_allocator);
+                    file = working_set_alloc_always(working_set, heap, &models->lifetime_allocator);
                     if (file != 0){
                         if (has_canon_name){
-                            buffer_bind_file(system, general, working_set, file, canon.name);
+                            buffer_bind_file(system, heap, working_set, file, canon.name);
                         }
-                        buffer_bind_name(models, general, part, working_set, file, front_of_directory(fname));
+                        buffer_bind_name(models, heap, part, working_set, file, front_of_directory(fname));
                         init_normal_file(system, models, 0, 0, file);
                         fill_buffer_summary(&result, file, cmd);
                     }
@@ -1367,21 +1361,21 @@ DOC_SEE(Buffer_Create_Flag)
                 Assert(!handle_equal(handle, null_plat_handle));
                 
                 i32 size = system->load_size(handle);
-                b32 in_general_mem = false;
+                b32 in_heap_mem = false;
                 char *buffer = push_array(part, char, size);
                 
                 if (buffer == 0){
-                    buffer = (char*)general_memory_allocate(general, size);
+                    buffer = heap_array(heap, char, size);
                     Assert(buffer != 0);
-                    in_general_mem = true;
+                    in_heap_mem = true;
                 }
                 
                 if (system->load_file(handle, buffer, size)){
                     system->load_close(handle);
-                    file = working_set_alloc_always(working_set, general, &models->lifetime_allocator);
+                    file = working_set_alloc_always(working_set, heap, &models->lifetime_allocator);
                     if (file != 0){
-                        buffer_bind_file(system, general, working_set, file, canon.name);
-                        buffer_bind_name(models, general, part, working_set, file, front_of_directory(fname));
+                        buffer_bind_file(system, heap, working_set, file, canon.name);
+                        buffer_bind_name(models, heap, part, working_set, file, front_of_directory(fname));
                         init_normal_file(system, models, buffer, size, file);
                         fill_buffer_summary(&result, file, cmd);
                     }
@@ -1390,8 +1384,8 @@ DOC_SEE(Buffer_Create_Flag)
                     system->load_close(handle);
                 }
                 
-                if (in_general_mem){
-                    general_memory_free(general, buffer);
+                if (in_heap_mem){
+                    heap_free(heap, buffer);
                 }
             }
         }
@@ -1489,8 +1483,8 @@ DOC_SEE(Buffer_Identifier)
                 if (file->canon.name.size != 0){
                     buffer_unbind_file(system, working_set, file);
                 }
-                file_free(system, &models->app_links, &models->mem.general, file);
-                working_set_free_file(&models->mem.general, &models->lifetime_allocator, working_set, file);
+                file_free(system, &models->app_links, &models->mem.heap, file);
+                working_set_free_file(&models->mem.heap, &models->lifetime_allocator, working_set, file);
                 
                 File_Node *used = &working_set->used_sentinel;
                 File_Node *node = used->next;
@@ -1735,7 +1729,7 @@ in the system, the call will fail.)
     if (vptr != 0 && models->layout.panel_count > 1){
         Panel *panel = vptr->transient.panel;
         
-        live_set_free_view(&models->mem.general, &models->lifetime_allocator, &models->live_set, vptr);
+        live_set_free_view(&models->mem.heap, &models->lifetime_allocator, &models->live_set, vptr);
         panel->view = 0;
         
         Divider_And_ID div = layout_get_divider(&models->layout, panel->parent);
@@ -2230,11 +2224,11 @@ View_Set_UI(Application_Links *app, View_Summary *view, UI_Control *control)
 {
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     Models *models = cmd->models;
-    General_Memory *general = &models->mem.general;
+    Heap *heap = &models->mem.heap;
     View *vptr = imp_get_view(cmd, view);
     if (vptr != 0){
         if (vptr->transient.ui_control.items != 0){
-            general_memory_free(general, vptr->transient.ui_control.items);
+            heap_free(heap, vptr->transient.ui_control.items);
         }
         memset(&vptr->transient.ui_control, 0, sizeof(vptr->transient.ui_control));
         if (control->count > 0){
@@ -2264,7 +2258,7 @@ View_Set_UI(Application_Links *app, View_Summary *view, UI_Control *control)
             
             i32 all_items_size = sizeof(UI_Item)*control->count;
             i32 memory_size = all_items_size + string_size;
-            UI_Item *new_items = (UI_Item*)general_memory_allocate(general, memory_size);
+            UI_Item *new_items = (UI_Item*)heap_allocate(heap, memory_size);
             if (new_items != 0){
                 char *string_space = (char*)(new_items + control->count);
                 Partition string_alloc = make_part(string_space, string_size);
@@ -2414,8 +2408,8 @@ Get_Intersected_Dynamic_Scope(Application_Links *app, Dynamic_Scope *intersected
         i32 member_count = (i32)(push_array(scratch, Lifetime_Object*, 0) - object_ptr_array);
         member_count = lifetime_sort_and_dedup_object_set(object_ptr_array, member_count);
         
-        General_Memory *general = &models->mem.general;
-        Lifetime_Key *key = lifetime_get_or_create_intersection_key(general, lifetime_allocator, object_ptr_array, member_count);
+        Heap *heap = &models->mem.heap;
+        Lifetime_Key *key = lifetime_get_or_create_intersection_key(heap, lifetime_allocator, object_ptr_array, member_count);
         result.type = DynamicScopeType_Intersected;
         result.intersected_opaque_handle = (u64)(PtrAsInt(key));
     }
@@ -2431,9 +2425,9 @@ Managed_Variable_Create(Application_Links *app, char *null_terminated_name, uint
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     Models *models = cmd->models;
     String name = make_string_slowly(null_terminated_name);
-    General_Memory *general = &models->mem.general;
+    Heap *heap = &models->mem.heap;
     Dynamic_Variable_Layout *layout = &models->variable_layout;
-    return(dynamic_variables_create(general, layout, name, default_value));
+    return(dynamic_variables_create(heap, layout, name, default_value));
 }
 
 API_EXPORT Managed_Variable_ID
@@ -2452,53 +2446,55 @@ Managed_Variable_Create_Or_Get_ID(Application_Links *app, char *null_terminated_
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     Models *models = cmd->models;
     String name = make_string_slowly(null_terminated_name);
-    General_Memory *general = &models->mem.general;
+    Heap *heap = &models->mem.heap;
     Dynamic_Variable_Layout *layout = &models->variable_layout;
-    return(dynamic_variables_lookup_or_create(general, layout, name, default_value));
+    return(dynamic_variables_lookup_or_create(heap, layout, name, default_value));
+}
+
+internal Dynamic_Workspace*
+get_dynamic_workspace(Command_Data *cmd, Dynamic_Scope handle){
+    Models *models = cmd->models;
+    Dynamic_Workspace *workspace = 0;
+    switch (handle.type){
+        case DynamicScopeType_Global:
+        {
+            workspace = &models->dynamic_workspace;
+        }break;
+        case DynamicScopeType_Intersected:
+        {
+            Lifetime_Key *key = (Lifetime_Key*)IntAsPtr(handle.intersected_opaque_handle);
+            Lifetime_Allocator *lifetime_allocator = &models->lifetime_allocator;
+            if (lifetime_key_check(lifetime_allocator, key)){
+                workspace = &key->dynamic_workspace;
+            }
+        }break;
+        case DynamicScopeType_Buffer:
+        {
+            Editing_File *file = imp_get_file(cmd, handle.buffer_id);
+            if (file != 0){
+                workspace = &file->dynamic_workspace;
+            }
+        }break;
+        case DynamicScopeType_View:
+        {
+            View *vptr = imp_get_view(cmd, handle.view_id);
+            if (vptr != 0){
+                workspace = &vptr->transient.dynamic_workspace;
+            }
+        }break;
+    }
+    return(workspace);
 }
 
 internal bool32
 get_dynamic_variable(Command_Data *cmd, Dynamic_Scope handle, int32_t location, uint64_t **ptr_out){
     Models *models = cmd->models;
-    Lifetime_Allocator *lifetime_allocator = &models->lifetime_allocator;
-    General_Memory *general = &models->mem.general;
+    Heap *heap = &models->mem.heap;
     Dynamic_Variable_Layout *layout = &models->variable_layout;
-    Dynamic_Variable_Block *block = 0;
-    
-    switch (handle.type){
-        case DynamicScopeType_Global:
-        {
-            block = &models->dynamic_vars;
-        }break;
-        
-        case DynamicScopeType_Intersected:
-        {
-            Lifetime_Key *key = (Lifetime_Key*)IntAsPtr(handle.intersected_opaque_handle);
-            if (lifetime_key_check(lifetime_allocator, key)){
-                block = &key->dynamic_vars;
-            }
-        }break;
-        
-        case DynamicScopeType_Buffer:
-        {
-            Editing_File *file = imp_get_file(cmd, handle.buffer_id);
-            if (file != 0){
-                block = &file->dynamic_vars;
-            }
-        }break;
-        
-        case DynamicScopeType_View:
-        {
-            View *vptr = imp_get_view(cmd, handle.view_id);
-            if (vptr != 0){
-                block = &vptr->transient.dynamic_vars;
-            }
-        }break;
-    }
-    
+    Dynamic_Workspace *workspace = get_dynamic_workspace(cmd, handle);
     bool32 result = false;
-    if (layout != 0 && block != 0){
-        if (dynamic_variables_get_ptr(general, layout, block, location, ptr_out)){
+    if (workspace != 0){
+        if (dynamic_variables_get_ptr(heap, layout, &workspace->var_block, location, ptr_out)){
             result = true;
         }
     }
@@ -2527,6 +2523,40 @@ Managed_Variable_Get(Application_Links *app, Dynamic_Scope scope, Managed_Variab
         return(true);
     }
     return(false);
+}
+
+API_EXPORT Managed_Object
+Managed_Memory_Alloc(Application_Links *app, Dynamic_Scope scope, int32_t size)
+{
+    Command_Data *cmd = (Command_Data*)app->cmd_context;
+    Models *models = cmd->models;
+    Heap *heap = &models->mem.heap;
+    Dynamic_Workspace *workspace = get_dynamic_workspace(cmd, scope);
+    Managed_Object result = 0;
+    if (workspace != 0){
+        result = (Managed_Object)dynamic_allocate(heap, &workspace->mem_bank, size);
+    }
+    return(result);
+}
+
+API_EXPORT bool32
+Managed_Memory_Set(Application_Links *app, Managed_Object object, uint32_t start, uint32_t size, void *mem)
+{
+    //    Command_Data *cmd = (Command_Data*)app->cmd_context;
+    //    Models *models = cmd->models;
+    u8 *ptr = (u8*)IntAsPtr(object);
+    memcpy(ptr + start, mem, size);
+    return(true);
+}
+
+API_EXPORT bool32
+Managed_Memory_Get(Application_Links *app, Managed_Object object, uint32_t start, uint32_t size, void *mem_out)
+{
+    //    Command_Data *cmd = (Command_Data*)app->cmd_context;
+    //    Models *models = cmd->models;
+    u8 *ptr = (u8*)IntAsPtr(object);
+    memcpy(mem_out, ptr + start, size);
+    return(true);
 }
 
 API_EXPORT User_Input

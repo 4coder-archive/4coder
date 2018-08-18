@@ -1333,5 +1333,66 @@ push_string_copy(Partition *arena, char *str){
     return(push_string_copy(arena, make_string_slowly(str)));
 }
 
+static void
+sort_pairs_by_key__quick(Sort_Pair_i32 *pairs, int32_t first, int32_t one_past_last){
+    int32_t dif = one_past_last - first;
+    if (dif >= 2){
+        int32_t pivot = one_past_last - 1;
+        int32_t pivot_key = pairs[pivot].key;
+        int32_t j = first;
+        bool32 interleave = false;
+        for (int32_t i = first; i < pivot; i += 1){
+            int32_t key = pairs[i].key;
+            if (key < pivot_key){
+                pairs[i].key = pairs[j].key;
+                pairs[j].key = key;
+                j += 1;
+            }
+            else if (key == pivot_key){
+                if (interleave){
+                    pairs[i].key = pairs[j].key;
+                    pairs[j].key = key;
+                    j += 1;
+                }
+                interleave = !interleave;
+            }
+        }
+        pairs[pivot].key = pairs[j].key;
+        pairs[j].key = pivot_key;
+        sort_pairs_by_key__quick(pairs, first, j);
+        sort_pairs_by_key__quick(pairs, j + 1, one_past_last);
+    }
+}
+
+static void
+sort_pairs_by_key(Sort_Pair_i32 *pairs, int32_t count){
+    sort_pairs_by_key__quick(pairs, 0, count);
+}
+
+static Range_Array
+get_ranges_of_duplicate_keys(Partition *arena, int32_t *keys, int32_t stride, int32_t count){
+    Range_Array result = {0};
+    result.ranges = push_array(arena, Range, 0);
+    uint8_t *ptr = (uint8_t*)keys;
+    int32_t start_i = 0;
+    for (int32_t i = 1; i <= count; i += 1){
+        bool32 is_end = false;
+        if (i == count){
+            is_end = true;
+        }
+        else if (*(int32_t*)(ptr + i*stride) != *(int32_t*)(ptr + start_i*stride)){
+            is_end = true;
+        }
+        if (is_end){
+            Range *new_range = push_array(arena, Range, 1);
+            new_range->first = start_i;
+            new_range->one_past_last = i;
+            start_i = i;
+        }
+    }
+    result.count = (int32_t)(push_array(arena, Range, 0) - result.ranges);
+    return(result);
+}
+
 // BOTTOM
 

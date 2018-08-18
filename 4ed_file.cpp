@@ -27,16 +27,13 @@ init_file_markers_state(Editing_File_Markers *markers){
 }
 
 internal void
-clear_file_markers_state(Application_Links *app, General_Memory *general, Editing_File_Markers *markers){
+clear_file_markers_state(Application_Links *app, Heap *heap, Editing_File_Markers *markers){
     Marker_Array *sentinel = &markers->sentinel;
     for (Marker_Array *marker_array = sentinel->next;
          marker_array != sentinel;
          marker_array = sentinel->next){
-        if (marker_array->callback != 0){
-            marker_array->callback(app, marker_array, marker_array + 1, marker_array->user_data_size);
-        }
         dll_remove(marker_array);
-        general_memory_free(general, marker_array);
+        heap_free(heap, marker_array);
     }
     Assert(sentinel->next == sentinel);
     Assert(sentinel->prev == sentinel);
@@ -45,9 +42,9 @@ clear_file_markers_state(Application_Links *app, General_Memory *general, Editin
 }
 
 internal void*
-allocate_markers_state(General_Memory *general, Editing_File *file, u32 new_array_max){
+allocate_markers_state(Heap *heap, Editing_File *file, u32 new_array_max){
     u32 memory_size = sizeof(Marker_Array) + sizeof(Marker)*new_array_max;
-    Marker_Array *array = (Marker_Array*)general_memory_allocate(general, memory_size);
+    Marker_Array *array = (Marker_Array*)heap_allocate(heap, memory_size);
     
     dll_insert_back(&file->markers.sentinel, array);
     array->buffer_id = file->id;
@@ -65,15 +62,6 @@ get_buffer_id_from_marker_handle(void *handle){
     Marker_Array *markers = (Marker_Array*)handle;
     Buffer_Slot_ID result = markers->buffer_id;
     return(result.id);
-}
-
-internal Data
-get_user_data_from_marker_handle(void *handle){
-    Marker_Array *markers = (Marker_Array*)handle;
-    Data data;
-    data.data = (u8*)markers + 1;
-    data.size = markers->user_data_size;
-    return(data);
 }
 
 internal b32
@@ -126,7 +114,7 @@ markers_get(Editing_File *file, void *handle, u32 first_index, u32 count, Marker
 }
 
 internal b32
-markers_free(General_Memory *general, Editing_File *file, void *handle){
+markers_free(Heap *heap, Editing_File *file, void *handle){
     Assert(file != 0);
     if (handle == 0){
         return(false);
@@ -140,7 +128,7 @@ markers_free(General_Memory *general, Editing_File *file, void *handle){
     dll_remove(markers);
     file->markers.marker_count -= markers->count;
     --file->markers.array_count;
-    general_memory_free(general, markers);
+    heap_free(heap, markers);
     
     return(true);
 }
@@ -333,15 +321,14 @@ save_file_to_name(System_Functions *system, Models *models, Editing_File *file, 
     
     if (filename != 0){
         Mem_Options *mem = &models->mem;
-        if (models->hook_save_file){
+        if (models->hook_save_file != 0){
             models->hook_save_file(&models->app_links, file->id.id);
         }
         
-        i32 max = 0, size = 0;
-        b32 dos_write_mode = file->settings.dos_write_mode;
-        char *data = 0;
         Gap_Buffer *buffer = &file->state.buffer;
+        b32 dos_write_mode = file->settings.dos_write_mode;
         
+        i32 max = 0;
         if (dos_write_mode){
             max = buffer_size(buffer) + buffer->line_count + 1;
         }
@@ -349,21 +336,23 @@ save_file_to_name(System_Functions *system, Models *models, Editing_File *file, 
             max = buffer_size(buffer);
         }
         
-        b32 used_general = 0;
+        b32 used_heap = 0;
         Temp_Memory temp = begin_temp_memory(&mem->part);
         char empty = 0;
+        char *data = 0;
         if (max == 0){
             data = &empty;
         }
         else{
             data = (char*)push_array(&mem->part, char, max);
             if (!data){
-                used_general = 1;
-                data = (char*)general_memory_allocate(&mem->general, max);
+                used_heap = 1;
+                data = heap_array(&mem->heap, char, max);
             }
         }
         Assert(data != 0);
         
+        i32 size = 0;
         if (dos_write_mode){
             size = buffer_convert_out(buffer, data, max);
         }
@@ -391,8 +380,8 @@ save_file_to_name(System_Functions *system, Models *models, Editing_File *file, 
         
         file_set_dirty_flag(file, DirtyState_UpToDate);
         
-        if (used_general){
-            general_memory_free(&mem->general, data);
+        if (used_heap){
+            heap_free(&mem->heap, data);
         }
         end_temp_memory(temp);
         
@@ -507,35 +496,33 @@ file_compute_cursor(System_Functions *system, Editing_File *file, Buffer_Seek se
 ////////////////////////////////
 
 internal i32
-file_grow_starts_as_needed(General_Memory *general, Gap_Buffer *buffer, i32 additional_lines){
+file_grow_starts_as_needed(Heap *heap, Gap_Buffer *buffer, i32 additional_lines){
     b32 result = GROW_NOT_NEEDED;
     i32 max = buffer->line_max;
     i32 count = buffer->line_count;
     i32 target_lines = count + additional_lines;
-    
     if (target_lines > max || max == 0){
         max = l_round_up_i32(target_lines + max, KB(1));
-        
-        i32 *new_lines = (i32*)general_memory_reallocate(general, buffer->line_starts, sizeof(i32)*count, sizeof(f32)*max);
-        
-        if (new_lines){
+        i32 *new_lines = heap_array(heap, i32, max);
+        if (new_lines != 0){
             result = GROW_SUCCESS;
-            buffer->line_max = max;
+            memcpy(new_lines, buffer->line_starts, sizeof(*new_lines)*count);
+            heap_free(heap, buffer->line_starts);
             buffer->line_starts = new_lines;
+            buffer->line_max = max;
         }
         else{
             result = GROW_FAILED;
         }
     }
-    
     return(result);
 }
 
 internal void
-file_measure_starts(General_Memory *general, Gap_Buffer *buffer){
+file_measure_starts(Heap *heap, Gap_Buffer *buffer){
     if (buffer->line_starts == 0){
         i32 max = buffer->line_max = KB(1);
-        buffer->line_starts = (i32*)general_memory_allocate(general, max*sizeof(i32));
+        buffer->line_starts = heap_array(heap, i32, max);
         Assert(buffer->line_starts != 0);
     }
     
@@ -543,25 +530,29 @@ file_measure_starts(General_Memory *general, Gap_Buffer *buffer){
     for (;buffer_measure_starts(&state, buffer);){
         i32 count = state.count;
         i32 max = ((buffer->line_max + 1) << 1);
-        i32 *new_lines = (i32*)general_memory_reallocate(general, buffer->line_starts, sizeof(i32)*count, sizeof(i32)*max);
-        Assert(new_lines);
+        i32 *new_lines = heap_array(heap, i32, max);
+        Assert(new_lines != 0);
+        memcpy(new_lines, buffer->line_starts, sizeof(*new_lines)*count);
+        heap_free(heap, buffer->line_starts);
         buffer->line_starts = new_lines;
         buffer->line_max = max;
     }
 }
 
 internal void
-file_allocate_metadata_as_needed(General_Memory *general, Gap_Buffer *buffer, void **mem, i32 *mem_max_count, i32 count, i32 item_size){
+file_allocate_metadata_as_needed(Heap *heap, Gap_Buffer *buffer, void **mem, i32 *mem_max_count, i32 count, i32 item_size){
     if (*mem == 0){
         i32 max = l_round_up_i32(((count + 1)*2), KB(1));
-        *mem = general_memory_allocate(general, max*item_size);
+        *mem = heap_allocate(heap, max*item_size);
         *mem_max_count = max;
         Assert(*mem != 0);
     }
     else if (*mem_max_count < count){
         i32 old_max = *mem_max_count;
         i32 max = l_round_up_i32(((count + 1)*2), KB(1));
-        void *new_mem = general_memory_reallocate(general, *mem, item_size*old_max, item_size*max);
+        void *new_mem = heap_allocate(heap, item_size*max);
+        memcpy(new_mem, *mem, item_size*old_max);
+        heap_free(heap, *mem);
         *mem = new_mem;
         *mem_max_count = max;
         Assert(*mem != 0);
@@ -569,31 +560,31 @@ file_allocate_metadata_as_needed(General_Memory *general, Gap_Buffer *buffer, vo
 }
 
 inline void
-file_allocate_character_starts_as_needed(General_Memory *general, Editing_File *file){
-    file_allocate_metadata_as_needed(general,
+file_allocate_character_starts_as_needed(Heap *heap, Editing_File *file){
+    file_allocate_metadata_as_needed(heap,
                                      &file->state.buffer, (void**)&file->state.character_starts,
                                      &file->state.character_start_max, file->state.buffer.line_count + 1, sizeof(i32));
 }
 
 internal void
-file_allocate_indents_as_needed(General_Memory *general, Editing_File *file, i32 min_last_index){
+file_allocate_indents_as_needed(Heap *heap, Editing_File *file, i32 min_last_index){
     i32 min_amount = min_last_index + 1;
-    file_allocate_metadata_as_needed(general,
+    file_allocate_metadata_as_needed(heap,
                                      &file->state.buffer, (void**)&file->state.line_indents,
                                      &file->state.line_indent_max, min_amount, sizeof(f32));
 }
 
 inline void
-file_allocate_wraps_as_needed(General_Memory *general, Editing_File *file){
-    file_allocate_metadata_as_needed(general,
+file_allocate_wraps_as_needed(Heap *heap, Editing_File *file){
+    file_allocate_metadata_as_needed(heap,
                                      &file->state.buffer, (void**)&file->state.wrap_line_index,
                                      &file->state.wrap_max, file->state.buffer.line_count + 1, sizeof(f32));
 }
 
 inline void
-file_allocate_wrap_positions_as_needed(General_Memory *general, Editing_File *file, i32 min_last_index){
+file_allocate_wrap_positions_as_needed(Heap *heap, Editing_File *file, i32 min_last_index){
     i32 min_amount = min_last_index + 1;
-    file_allocate_metadata_as_needed(general,
+    file_allocate_metadata_as_needed(heap,
                                      &file->state.buffer, (void**)&file->state.wrap_positions,
                                      &file->state.wrap_position_max, min_amount, sizeof(f32));
 }
@@ -602,7 +593,7 @@ file_allocate_wrap_positions_as_needed(General_Memory *general, Editing_File *fi
 
 internal void
 file_create_from_string(System_Functions *system, Models *models, Editing_File *file, String val, u32 flags){
-    General_Memory *general = &models->mem.general;
+    Heap *heap = &models->mem.heap;
     Partition *part = &models->mem.part;
     Open_File_Hook_Function *hook_open_file = models->hook_open_file;
     Application_Links *app_links = &models->app_links;
@@ -615,7 +606,7 @@ file_create_from_string(System_Functions *system, Models *models, Editing_File *
         if (page_size < KB(4)){
             page_size = KB(4);
         }
-        void *data = general_memory_allocate(general, page_size);
+        void *data = heap_allocate(heap, page_size);
         buffer_init_provide_page(&init, data, page_size);
     }
     
@@ -635,9 +626,9 @@ file_create_from_string(System_Functions *system, Models *models, Editing_File *
     Assert(font.valid);
     
     {
-        file_measure_starts(general, &file->state.buffer);
+        file_measure_starts(heap, &file->state.buffer);
         
-        file_allocate_character_starts_as_needed(general, file);
+        file_allocate_character_starts_as_needed(heap, file);
         buffer_measure_character_starts(system, font, &file->state.buffer, file->state.character_starts, 0, file->settings.virtual_white);
         
         file_measure_wraps(system, &models->mem, file, font);
@@ -649,24 +640,24 @@ file_create_from_string(System_Functions *system, Models *models, Editing_File *
         // TODO(allen): Redo undo system (if you don't mind the pun)
         i32 request_size = KB(64);
         file->state.undo.undo.max = request_size;
-        file->state.undo.undo.strings = (u8*)general_memory_allocate(general, request_size);
-        file->state.undo.undo.edit_max = request_size / sizeof(Edit_Step);
-        file->state.undo.undo.edits = (Edit_Step*)general_memory_allocate(general, request_size);
+        file->state.undo.undo.strings = (u8*)heap_allocate(heap, request_size);
+        file->state.undo.undo.edit_max = request_size/sizeof(Edit_Step);
+        file->state.undo.undo.edits = (Edit_Step*)heap_allocate(heap, request_size);
         
         file->state.undo.redo.max = request_size;
-        file->state.undo.redo.strings = (u8*)general_memory_allocate(general, request_size);
-        file->state.undo.redo.edit_max = request_size / sizeof(Edit_Step);
-        file->state.undo.redo.edits = (Edit_Step*)general_memory_allocate(general, request_size);
+        file->state.undo.redo.strings = (u8*)heap_allocate(heap, request_size);
+        file->state.undo.redo.edit_max = request_size/sizeof(Edit_Step);
+        file->state.undo.redo.edits = (Edit_Step*)heap_allocate(heap, request_size);
         
         file->state.undo.history.max = request_size;
-        file->state.undo.history.strings = (u8*)general_memory_allocate(general, request_size);
-        file->state.undo.history.edit_max = request_size / sizeof(Edit_Step);
-        file->state.undo.history.edits = (Edit_Step*)general_memory_allocate(general, request_size);
+        file->state.undo.history.strings = (u8*)heap_allocate(heap, request_size);
+        file->state.undo.history.edit_max = request_size/sizeof(Edit_Step);
+        file->state.undo.history.edits = (Edit_Step*)heap_allocate(heap, request_size);
         
         file->state.undo.children.max = request_size;
-        file->state.undo.children.strings = (u8*)general_memory_allocate(general, request_size);
-        file->state.undo.children.edit_max = request_size / sizeof(Buffer_Edit);
-        file->state.undo.children.edits = (Buffer_Edit*)general_memory_allocate(general, request_size);
+        file->state.undo.children.strings = (u8*)heap_allocate(heap, request_size);
+        file->state.undo.children.edit_max = request_size/sizeof(Buffer_Edit);
+        file->state.undo.children.edits = (Buffer_Edit*)heap_allocate(heap, request_size);
         
         file->state.undo.history_block_count = 1;
         file->state.undo.history_head_block = 0;
@@ -680,42 +671,42 @@ file_create_from_string(System_Functions *system, Models *models, Editing_File *
 }
 
 internal void
-file_free(System_Functions *system, Application_Links *app, General_Memory *general, Editing_File *file){
+file_free(System_Functions *system, Application_Links *app, Heap *heap, Editing_File *file){
     if (file->state.still_lexing){
         system->cancel_job(BACKGROUND_THREADS, file->state.lex_job);
         if (file->state.swap_array.tokens){
-            general_memory_free(general, file->state.swap_array.tokens);
+            heap_free(heap, file->state.swap_array.tokens);
             file->state.swap_array.tokens = 0;
         }
     }
     if (file->state.token_array.tokens){
-        general_memory_free(general, file->state.token_array.tokens);
+        heap_free(heap, file->state.token_array.tokens);
     }
     
-    clear_file_markers_state(app, general, &file->markers);
+    clear_file_markers_state(app, heap, &file->markers);
     
     Gap_Buffer *buffer = &file->state.buffer;
     if (buffer->data){
-        general_memory_free(general, buffer->data);
-        general_memory_free(general, buffer->line_starts);
+        heap_free(heap, buffer->data);
+        heap_free(heap, buffer->line_starts);
     }
     
-    general_memory_free(general, file->state.wrap_line_index);
-    general_memory_free(general, file->state.character_starts);
-    general_memory_free(general, file->state.line_indents);
+    heap_free(heap, file->state.wrap_line_index);
+    heap_free(heap, file->state.character_starts);
+    heap_free(heap, file->state.line_indents);
     
     if (file->state.undo.undo.edits){
-        general_memory_free(general, file->state.undo.undo.strings);
-        general_memory_free(general, file->state.undo.undo.edits);
+        heap_free(heap, file->state.undo.undo.strings);
+        heap_free(heap, file->state.undo.undo.edits);
         
-        general_memory_free(general, file->state.undo.redo.strings);
-        general_memory_free(general, file->state.undo.redo.edits);
+        heap_free(heap, file->state.undo.redo.strings);
+        heap_free(heap, file->state.undo.redo.edits);
         
-        general_memory_free(general, file->state.undo.history.strings);
-        general_memory_free(general, file->state.undo.history.edits);
+        heap_free(heap, file->state.undo.history.strings);
+        heap_free(heap, file->state.undo.history.edits);
         
-        general_memory_free(general, file->state.undo.children.strings);
-        general_memory_free(general, file->state.undo.children.edits);
+        heap_free(heap, file->state.undo.children.strings);
+        heap_free(heap, file->state.undo.children.edits);
     }
 }
 

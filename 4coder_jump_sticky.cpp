@@ -90,148 +90,84 @@ parse_buffer_to_jump_array(Application_Links *app, Partition *arena, Buffer_Summ
     return(result);
 }
 
-static Range_Array
-jump_array_mark_buffer_ranges(Partition *arena, Sticky_Jump_Array jumps){
-    Range_Array result = {0};
-    result.ranges = push_array(arena, Range, 0);
-    int32_t start_i = 0;
-    for (int32_t i = 1; i <= jumps.count; i += 1){
-        bool32 is_end = false;
-        if (i == jumps.count){
-            is_end = true;
-        }
-        else if (jumps.jumps[i].jump_buffer_id != jumps.jumps[start_i].jump_buffer_id){
-            is_end = true;
-        }
-        if (is_end){
-            Range *new_range = push_array(arena, Range, 1);
-            new_range->first = start_i;
-            new_range->one_past_last = i;
-            start_i = i;
-        }
-    }
-    result.count = (int32_t)(push_array(arena, Range, 0) - result.ranges);
-    return(result);
-}
+static char    sticky_jump_marker_handle_var[] = "DEFAULT.sticky_jump_marker_handle";
+static int32_t sticky_jump_marker_handle_loc;
 
-#if 1
 static void
-init_marker_list(Application_Links *app, Partition *part, General_Memory *general, Buffer_ID buffer_id,
+init_marker_list(Application_Links *app, Partition *scratch, Heap *heap, Buffer_ID buffer_id,
                  Marker_List *list){
     Buffer_Summary buffer = get_buffer(app, buffer_id, AccessAll);
     
-    Temp_Memory temp = begin_temp_memory(part);
-    Sticky_Jump_Array jumps = parse_buffer_to_jump_array(app, part, buffer);
-    Range_Array buffer_ranges = jump_array_mark_buffer_ranges(part, jumps);
+    Temp_Memory temp = begin_temp_memory(scratch);
+    Sticky_Jump_Array jumps = parse_buffer_to_jump_array(app, scratch, buffer);
+    Range_Array buffer_ranges = get_ranges_of_duplicate_keys(scratch,
+                                                             &jumps.jumps->jump_buffer_id, sizeof(*jumps.jumps),
+                                                             jumps.count);
+    Sort_Pair_i32 *range_index_buffer_id_pairs = push_array(scratch, Sort_Pair_i32, buffer_ranges.count);
+    for (int32_t i = 0; i < buffer_ranges.count; i += 1){
+        range_index_buffer_id_pairs[i].index = i;
+        range_index_buffer_id_pairs[i].key = jumps.jumps[buffer_ranges.ranges[i].first].jump_buffer_id;
+    }
+    sort_pairs_by_key(range_index_buffer_id_pairs, buffer_ranges.count);
+    Range_Array grouped_buffer_ranges = get_ranges_of_duplicate_keys(scratch,
+                                                                     &range_index_buffer_id_pairs->key,
+                                                                     sizeof(*range_index_buffer_id_pairs),
+                                                                     buffer_ranges.count);
     
-    Dynamic_Scope scope_array[2];
+    Sticky_Jump_Stored *stored = push_array(scratch, Sticky_Jump_Stored, jumps.count);
+    
+    Dynamic_Scope scope_array[2] = {0};
     scope_array[0] = buffer_get_dynamic_scope(app, buffer_id);
     
-    Managed_Object list_sentinel = managed_list_node_alloc(app, scope_array[0]);
-    
-    for (int32_t i = 0; i < buffer_ranges.count; i += 1){
-        Range range = buffer_ranges.ranges[i];
-        Buffer_ID target_buffer_id = jumps.jumps[range.first].jump_buffer_id;
-        int32_t jump_count = range.one_past_last - range.first;
+    for (int32_t i = 0; i < grouped_buffer_ranges.count; i += 1){
+        Range buffer_range_indices = grouped_buffer_ranges.ranges[i];
+        
+        Temp_Memory marker_temp = begin_temp_memory(scratch);
+        Marker *markers = push_array(scratch, Marker, 0);
+        int32_t total_jump_count = 0;
+        Buffer_ID target_buffer_id = 0;
+        for (int32_t j = buffer_range_indices.first;
+             j < buffer_range_indices.one_past_last;
+             j += 1){
+            int32_t range_index = range_index_buffer_id_pairs[j].index;
+            Range range = buffer_ranges.ranges[range_index];
+            total_jump_count += range.one_past_last - range.first;
+            if (target_buffer_id == 0){
+                target_buffer_id = jumps.jumps[range.first].jump_buffer_id;
+            }
+            for (int32_t k = range.first; k < range.one_past_last; k += 1){
+                Marker *new_marker = push_array(scratch, Marker, 1);
+                new_marker->pos = jumps.jumps[k].jump_pos;
+                new_marker->lean_right = false;
+                stored[k].list_line        = jumps.jumps[k].list_line;
+                stored[k].list_colon_index = jumps.jumps[k].list_colon_index;
+                stored[k].is_sub_error     = jumps.jumps[k].is_sub_error;
+                stored[k].jump_buffer_id   = jumps.jumps[k].jump_buffer_id;
+                stored[k].index_into_marker_array = total_jump_count;
+                total_jump_count += 1;
+            }
+        }
         
         scope_array[1] = buffer_get_dynamic_scope(app, target_buffer_id);
         Dynamic_Scope scope = get_intersected_dynamic_scope(app, scope_array, ArrayCount(scope_array));
-        
-        Managed_Object marker_handle = buffer_add_markers(app, target_buffer_id, jump_count, &scope);
-        Temp_Memory marker_temp = begin_temp_memory(part);
-        Marker *markers = push_array(part, Marker, jump_count);
-        for (int32_t j = 0; j < jump_count; j += 1){
-            markers[j].pos = jumps.jumps[j + range.first].jump_pos;
-            markers[j].lean_right = false;
-        }
-        buffer_set_markers(app, marker_handle, 0, jump_count, markers);
+        Managed_Object marker_handle = buffer_add_markers(app, target_buffer_id, total_jump_count, &scope);
+        buffer_set_markers(app, marker_handle, 0, total_jump_count, markers);
         end_temp_memory(marker_temp);
         
-        int32_t line_details_mem_size = sizeof(Sticky_Jump_Line_Details)*jump_count;
-        Managed_Object memory = managed_memory_alloc(app, scope, line_details_mem_size);
-        Temp_Memory details_temp = begin_temp_memory(part);
-        Sticky_Jump_Line_Details *details = push_array(part, Sticky_Jump_Line_Details, jump_count);
-        for (int32_t j = 0; j < jump_count; j += 1){
-            details[j].list_line        = jumps.jumps[j + range.first].list_line;
-            details[j].list_colon_index = jumps.jumps[j + range.first].list_colon_index;
-            details[j].is_sub_error     = jumps.jumps[j + range.first].is_sub_error;
-        }
-        managed_memory_set(app, memory, 0, details, line_details_mem_size);
-        end_temp_memory(details_temp);
-        
-        Managed_Object node_handle = managed_list_node_alloc(app, scope, sizeof(Sticky_Jump_Node_Header));
-        managed_list_node_insert(app, list_sentinel, node_handle, ListInsert_Back);
-        Sticky_Jump_Node_Header node_header = {0};
-        node_header.memory = memory;
-        node_header.markers = marker_handle;
-        node_header.count = jump_count;
-        managed_memory_set(app, node_handle, 0, &node_header, sizeof(node_header));
+        sticky_jump_marker_handle_loc = managed_variable_create_or_get_id(app, sticky_jump_marker_handle_var, 0);
+        managed_variable_set(app, scope, sticky_jump_marker_handle_loc, marker_handle);
     }
+    
+    Managed_Object stored_jump_array = managed_memory_alloc(app, scope_array[0], sizeof(Sticky_Jump_Stored)*jumps.count);
+    managed_memory_set(app, stored_jump_array, 0, sizeof(Sticky_Jump_Stored)*jumps.count, stored);
+    
     end_temp_memory(temp);
-}
-
-#else
-
-static void
-init_marker_list(Application_Links *app, Partition *part, General_Memory *general, Buffer_ID buffer_id,
-                 Marker_List *list){
-    Buffer_Summary buffer = get_buffer(app, buffer_id, AccessAll);
     
-    Temp_Memory temp = begin_temp_memory(part);
-    Sticky_Jump_Array jumps = parse_buffer_to_jump_array(app, part, buffer);
-    Range_Array buffer_ranges = jump_array_mark_buffer_ranges(part, jumps);
-    
-    list->dst_max = 64;
-    list->dst = gen_array(general, Sticky_Jump_Destination_Array, list->dst_max);
-    
-    list->jump_max = 64;
-    list->jumps = gen_array(general, Sticky_Jump_Source, list->jump_max);
-    
+    list->jump_array = stored_jump_array;
+    list->jump_count = jumps.count;
     list->previous_size = buffer.size;
-    
-    uint32_t prev_jump_count = 0;
-    for (int32_t i = 0; i < buffer_ranges.count; i += 1){
-        Range range = buffer_ranges.ranges[i];
-        Buffer_ID target_buffer_id = jumps.jumps[range.first].jump_buffer_id;
-        int32_t jump_count = range.one_past_last - range.first;
-        
-        if (list->dst_count >= list->dst_max){
-            double_dst_max(general, list);
-        }
-        
-        Buffer_Summary location_buffer = get_buffer(app, target_buffer_id, AccessAll);
-        Marker_Handle new_handle = buffer_add_markers(app, &location_buffer, jump_count,
-                                                      sticky_jump_markers_cleanup, &list, sizeof(list));
-        
-        list->dst[list->dst_count] = make_sticky_jump_destination_array(prev_jump_count, new_handle);
-        ++list->dst_count;
-        
-        prev_jump_count = list->jump_count;
-        
-        Temp_Memory marker_temp = begin_temp_memory(part);
-        Marker *markers = push_array(part, Marker, jump_count);
-        for (int32_t j = 0; j < jump_count; j += 1){
-            markers[j].pos = jumps.jumps[j + range.first].jump_pos;
-            markers[j].lean_right = false;
-        }
-        buffer_set_markers(app, &location_buffer, new_handle, 0, jump_count, markers);
-        end_temp_memory(marker_temp);
-        
-        for (int32_t j = range.first; j < range.one_past_last; j += 1){
-            if (list->jump_count >= list->jump_max){
-                double_jump_max(general, list);
-            }
-            uint32_t flags = 0;
-            if (jumps.jumps[j].is_sub_error){
-                flags |= JumpFlag_IsSubJump;
-            }
-            list->jumps[list->jump_count] = make_sticky_jump_source(jumps.jumps[j].list_line, flags);
-            ++list->jump_count;
-        }
-    }
-    end_temp_memory(temp);
+    list->buffer_id = buffer_id;
 }
-#endif
 
 static void
 delete_marker_list(Marker_List_Node *node){
@@ -244,8 +180,8 @@ delete_marker_list(Marker_List *list){
 }
 
 static Marker_List*
-make_new_marker_list_for_buffer(General_Memory *general, int32_t buffer_id){
-    Marker_List_Node *new_node = gen_array(general, Marker_List_Node, 1);
+make_new_marker_list_for_buffer(Heap *heap, int32_t buffer_id){
+    Marker_List_Node *new_node = heap_array(heap, Marker_List_Node, 1);
     zdll_push_back(marker_list_first, marker_list_last, new_node);
     new_node->buffer_id = buffer_id;
     memset(&new_node->list, 0, sizeof(new_node->list));
@@ -254,22 +190,20 @@ make_new_marker_list_for_buffer(General_Memory *general, int32_t buffer_id){
 }
 
 static Marker_List*
-get_marker_list_for_buffer(General_Memory *general, int32_t buffer_id){
-    Marker_List *result = 0;
+get_marker_list_for_buffer(Buffer_ID buffer_id){
     for (Marker_List_Node *node = marker_list_first;
          node != 0;
          node = node->next){
         if (buffer_id == node->buffer_id){
-            result = &node->list;
-            break;
+            return(&node->list);
         }
     }
-    return(result);
+    return(0);
 }
 
 static Marker_List*
-get_or_make_list_for_buffer(Application_Links *app, Partition *part, General_Memory *general, int32_t buffer_id){
-    Marker_List *result = get_marker_list_for_buffer(general, buffer_id);
+get_or_make_list_for_buffer(Application_Links *app, Partition *part, Heap *heap, int32_t buffer_id){
+    Marker_List *result = get_marker_list_for_buffer(buffer_id);
     if (result != 0){
         Buffer_Summary buffer = get_buffer(app, buffer_id, AccessAll);
         // TODO(allen): When buffers get an "edit sequence number" use that instead.
@@ -279,67 +213,118 @@ get_or_make_list_for_buffer(Application_Links *app, Partition *part, General_Mem
         }
     }
     if (result == 0){
-        result = make_new_marker_list_for_buffer(general, buffer_id);
-        init_marker_list(app, part, general, buffer_id, result);
+        result = make_new_marker_list_for_buffer(heap, buffer_id);
+        init_marker_list(app, part, heap, buffer_id, result);
     }
     return(result);
 }
 
 static bool32
-get_jump_from_list(Application_Links *app, Marker_List *list, int32_t index, ID_Pos_Jump_Location *location){
-    bool32 result = false;
-    if (index >= 0 && index < list->jump_count){
-        uint32_t handle_index = binary_search(&list->dst->first_jump_index, sizeof(*list->dst), list->dst_count, index);
-        Sticky_Jump_Destination_Array destinations = list->dst[handle_index];
-        uint32_t marker_index = index - destinations.first_jump_index;
-        Buffer_Summary buffer = get_buffer_by_marker_handle(app, destinations.handle, AccessAll);
-        if (buffer.exists){
-            Marker marker;
-            buffer_get_markers(app, &buffer, destinations.handle, marker_index, 1, &marker);
-            location->buffer_id = buffer.buffer_id;
-            location->pos = marker.pos;
-            result = true;
+get_stored_jump_from_list(Application_Links *app, Marker_List *list, int32_t index,
+                          Sticky_Jump_Stored *stored_out){
+    Sticky_Jump_Stored stored = {0};
+    if (managed_memory_get(app, list->jump_array, index*sizeof(stored), sizeof(stored), &stored)){
+        *stored_out = stored;
+        return(true);
+    }
+    return(false);
+}
+
+static Sticky_Jump_Stored*
+get_all_stored_jumps_from_list(Application_Links *app, Partition *arena, Marker_List *list){
+    Temp_Memory restore_point = begin_temp_memory(arena);
+    Sticky_Jump_Stored *stored = push_array(arena, Sticky_Jump_Stored, list->jump_count);
+    if (stored != 0){
+        if (!managed_memory_get(app, list->jump_array, 0, sizeof(*stored)*list->jump_count, stored)){
+            stored = 0;
+            end_temp_memory(restore_point);
         }
     }
-    return(result);
+    return(stored);
 }
 
-static int32_t
-get_index_exact_from_list(Marker_List *list, int32_t line){
-    int32_t result = -1;
-    uint32_t jump_index = binary_search(&list->jumps->line_number, sizeof(*list->jumps), list->jump_count, line);
-    if (list->jumps[jump_index].line_number == (uint32_t)line){
-        result = jump_index;
+static bool32
+get_jump_from_list(Application_Links *app, Marker_List *list, int32_t index, ID_Pos_Jump_Location *location){
+    Sticky_Jump_Stored stored = {0};
+    if (get_stored_jump_from_list(app, list, index, &stored)){
+        Buffer_ID target_buffer_id = stored.jump_buffer_id;
+        
+        Dynamic_Scope scope_array[2] = {0};
+        scope_array[0] = buffer_get_dynamic_scope(app, list->buffer_id);
+        scope_array[1] = buffer_get_dynamic_scope(app, target_buffer_id);
+        Dynamic_Scope scope = get_intersected_dynamic_scope(app, scope_array, ArrayCount(scope_array));
+        
+        sticky_jump_marker_handle_loc = managed_variable_create_or_get_id(app, sticky_jump_marker_handle_var, 0);
+        Managed_Object marker_array = 0;
+        if (managed_variable_get(app, scope, sticky_jump_marker_handle_loc, &marker_array)){
+            Marker marker = {0};
+            buffer_get_markers(app, marker_array, stored.index_into_marker_array, 1, &marker);
+            location->buffer_id = target_buffer_id;
+            location->pos = marker.pos;
+            return(true);
+        }
     }
-    return(result);
+    return(false);
 }
 
 static int32_t
-get_index_nearest_from_list(Marker_List *list, int32_t line){
-    int32_t result = binary_search(&list->jumps->line_number, sizeof(*list->jumps), list->jump_count, line);
-    return(result);
-}
-
-static int32_t
-get_line_from_list(Marker_List *list, int32_t index){
+get_line_from_list(Application_Links *app, Marker_List *list, int32_t index){
     int32_t result = 0;
-    if (0 <= index && index < list->jump_count){
-        result = list->jumps[index].line_number;
+    Sticky_Jump_Stored stored = {0};
+    if (get_stored_jump_from_list(app, list, index, &stored)){
+        result = stored.list_line;
     }
+    return(result);
+}
+
+static bool32
+get_is_sub_error_from_list(Application_Links *app, Marker_List *list, int32_t index){
+    bool32 result = false;
+    Sticky_Jump_Stored stored = {0};
+    if (get_stored_jump_from_list(app, list, index, &stored)){
+        result = stored.is_sub_error;
+    }
+    return(result);
+}
+
+static int32_t
+get_index_nearest_from_list(Application_Links *app, Partition *scratch, Marker_List *list, int32_t line){
+    int32_t result = -1;
+    Temp_Memory temp = begin_temp_memory(scratch);
+    Sticky_Jump_Stored *stored = get_all_stored_jumps_from_list(app, scratch, list);
+    if (stored != 0){
+        result = binary_search((uint32_t*)&stored->list_line, sizeof(*stored), list->jump_count, line);
+    }
+    end_temp_memory(temp);
+    return(result);
+}
+
+static int32_t
+get_index_exact_from_list(Application_Links *app, Partition *scratch, Marker_List *list, int32_t line){
+    int32_t result = -1;
+    Temp_Memory temp = begin_temp_memory(scratch);
+    Sticky_Jump_Stored *stored = get_all_stored_jumps_from_list(app, scratch, list);
+    if (stored != 0){
+        int32_t index = binary_search((uint32_t*)&stored->list_line, sizeof(*stored), list->jump_count, line);
+        if (stored[index].list_line == line){
+            result = index;
+        }
+    }
+    end_temp_memory(temp);
     return(result);
 }
 
 CUSTOM_COMMAND_SIG(goto_jump_at_cursor_sticky)
 CUSTOM_DOC("If the cursor is found to be on a jump location, parses the jump location and brings up the file and position in another view and changes the active panel to the view containing the jump.")
 {
-    General_Memory *general = &global_general;
+    Heap *heap = &global_heap;
     Partition *part = &global_part;
     
     Temp_Memory temp = begin_temp_memory(part);
     View_Summary view = get_active_view(app, AccessProtected);
-    Marker_List *list = get_or_make_list_for_buffer(app, part, general, view.buffer_id);
+    Marker_List *list = get_or_make_list_for_buffer(app, part, heap, view.buffer_id);
     
-    int32_t list_index = get_index_exact_from_list(list, view.cursor.line);
+    int32_t list_index = get_index_exact_from_list(app, part, list, view.cursor.line);
     
     if (list_index >= 0){
         ID_Pos_Jump_Location location = {0};
@@ -360,13 +345,13 @@ CUSTOM_DOC("If the cursor is found to be on a jump location, parses the jump loc
 CUSTOM_COMMAND_SIG(goto_jump_at_cursor_same_panel_sticky)
 CUSTOM_DOC("If the cursor is found to be on a jump location, parses the jump location and brings up the file and position in this view, losing the compilation output or jump list.")
 {
-    General_Memory *general = &global_general;
+    Heap *heap = &global_heap;
     Partition *part = &global_part;
     
     Temp_Memory temp = begin_temp_memory(part);
     View_Summary view = get_active_view(app, AccessProtected);
-    Marker_List *list = get_or_make_list_for_buffer(app, part, general, view.buffer_id);
-    int32_t list_index = get_index_exact_from_list(list, view.cursor.line);
+    Marker_List *list = get_or_make_list_for_buffer(app, part, heap, view.buffer_id);
+    int32_t list_index = get_index_exact_from_list(app, part, list, view.cursor.line);
     
     if (list_index >= 0){
         ID_Pos_Jump_Location location = {0};
@@ -423,13 +408,13 @@ goto_next_filtered_jump(Application_Links *app, Marker_List *list, View_Summary 
             if (skip_repeats && jump_is_repeat(prev_location, location)){
                 skip_this = true;
             }
-            else if (skip_sub_errors && (list->jumps[list_index].flags & JumpFlag_IsSubJump)){
+            else if (skip_sub_errors && get_is_sub_error_from_list(app, list, list_index)){
                 skip_this = true;
             }
             
             if (!skip_this){
                 goto_jump_in_order(app, list, jump_view, location);
-                int32_t updated_line = get_line_from_list(list, list_index);
+                int32_t updated_line = get_line_from_list(app, list, list_index);
                 view_set_cursor(app, jump_view, seek_line_char(updated_line, 1), true);
                 break;
             }
@@ -440,12 +425,12 @@ goto_next_filtered_jump(Application_Links *app, Marker_List *list, View_Summary 
 }
 
 static Locked_Jump_State
-get_locked_jump_state(Application_Links *app, Partition *part, General_Memory *general){
+get_locked_jump_state(Application_Links *app, Partition *part, Heap *heap){
     Locked_Jump_State result = {0};
     result.view = get_view_for_locked_jump_buffer(app);
     if (result.view.exists){
-        result.list = get_or_make_list_for_buffer(app, part, general, result.view.buffer_id);
-        result.list_index = get_index_nearest_from_list(result.list, result.view.cursor.line);
+        result.list = get_or_make_list_for_buffer(app, part, heap, result.view.buffer_id);
+        result.list_index = get_index_nearest_from_list(app, part, result.list, result.view.cursor.line);
     }
     return(result);
 }
@@ -453,12 +438,12 @@ get_locked_jump_state(Application_Links *app, Partition *part, General_Memory *g
 CUSTOM_COMMAND_SIG(goto_next_jump_sticky)
 CUSTOM_DOC("If a buffer containing jump locations has been locked in, goes to the next jump in the buffer, skipping sub jump locations.")
 {
-    General_Memory *general = &global_general;
+    Heap *heap = &global_heap;
     Partition *part = &global_part;
     
-    Locked_Jump_State jump_state = get_locked_jump_state(app, part, general);
+    Locked_Jump_State jump_state = get_locked_jump_state(app, part, heap);
     if (jump_state.view.exists){
-        int32_t line = get_line_from_list(jump_state.list, jump_state.list_index);
+        int32_t line = get_line_from_list(app, jump_state.list, jump_state.list_index);
         if (line <= jump_state.view.cursor.line){
             ++jump_state.list_index;
         }
@@ -468,10 +453,10 @@ CUSTOM_DOC("If a buffer containing jump locations has been locked in, goes to th
 
 CUSTOM_COMMAND_SIG(goto_prev_jump_sticky)
 CUSTOM_DOC("If a buffer containing jump locations has been locked in, goes to the previous jump in the buffer, skipping sub jump locations."){
-    General_Memory *general = &global_general;
+    Heap *heap = &global_heap;
     Partition *part = &global_part;
     
-    Locked_Jump_State jump_state = get_locked_jump_state(app, part, general);
+    Locked_Jump_State jump_state = get_locked_jump_state(app, part, heap);
     if (jump_state.view.exists){
         if (jump_state.list_index > 0){
             --jump_state.list_index;
@@ -483,12 +468,12 @@ CUSTOM_DOC("If a buffer containing jump locations has been locked in, goes to th
 CUSTOM_COMMAND_SIG(goto_next_jump_no_skips_sticky)
 CUSTOM_DOC("If a buffer containing jump locations has been locked in, goes to the next jump in the buffer, and does not skip sub jump locations.")
 {
-    General_Memory *general = &global_general;
+    Heap *heap = &global_heap;
     Partition *part = &global_part;
     
-    Locked_Jump_State jump_state = get_locked_jump_state(app, part, general);
+    Locked_Jump_State jump_state = get_locked_jump_state(app, part, heap);
     if (jump_state.view.exists){
-        int32_t line = get_line_from_list(jump_state.list, jump_state.list_index);
+        int32_t line = get_line_from_list(app, jump_state.list, jump_state.list_index);
         if (line <= jump_state.view.cursor.line){
             ++jump_state.list_index;
         }
@@ -499,10 +484,10 @@ CUSTOM_DOC("If a buffer containing jump locations has been locked in, goes to th
 CUSTOM_COMMAND_SIG(goto_prev_jump_no_skips_sticky)
 CUSTOM_DOC("If a buffer containing jump locations has been locked in, goes to the previous jump in the buffer, and does not skip sub jump locations.")
 {
-    General_Memory *general = &global_general;
+    Heap *heap = &global_heap;
     Partition *part = &global_part;
     
-    Locked_Jump_State jump_state = get_locked_jump_state(app, part, general);
+    Locked_Jump_State jump_state = get_locked_jump_state(app, part, heap);
     if (jump_state.view.exists){
         if (jump_state.list_index > 0){
             --jump_state.list_index;
@@ -514,16 +499,16 @@ CUSTOM_DOC("If a buffer containing jump locations has been locked in, goes to th
 CUSTOM_COMMAND_SIG(goto_first_jump_sticky)
 CUSTOM_DOC("If a buffer containing jump locations has been locked in, goes to the first jump in the buffer.")
 {
-    General_Memory *general = &global_general;
+    Heap *heap = &global_heap;
     Partition *part = &global_part;
     
-    Locked_Jump_State jump_state = get_locked_jump_state(app, part, general);
+    Locked_Jump_State jump_state = get_locked_jump_state(app, part, heap);
     if (jump_state.view.exists){
         int32_t list_index = 0;
         ID_Pos_Jump_Location location = {0};
         if (get_jump_from_list(app, jump_state.list, list_index, &location)){
             goto_jump_in_order(app, jump_state.list, &jump_state.view, location);
-            int32_t updated_line = get_line_from_list(jump_state.list, list_index);
+            int32_t updated_line = get_line_from_list(app, jump_state.list, list_index);
             view_set_cursor(app, &jump_state.view, seek_line_char(updated_line, 1), true);
         }
     }
@@ -532,10 +517,10 @@ CUSTOM_DOC("If a buffer containing jump locations has been locked in, goes to th
 CUSTOM_COMMAND_SIG(goto_first_jump_same_panel_sticky)
 CUSTOM_DOC("If a buffer containing jump locations has been locked in, goes to the first jump in the buffer and views the buffer in the panel where the jump list was.")
 {
-    General_Memory *general = &global_general;
+    Heap *heap = &global_heap;
     Partition *part = &global_part;
     
-    Locked_Jump_State jump_state = get_locked_jump_state(app, part, general);
+    Locked_Jump_State jump_state = get_locked_jump_state(app, part, heap);
     if (jump_state.view.exists){
         int32_t list_index = 0;
         ID_Pos_Jump_Location location = {0};
@@ -588,10 +573,8 @@ CUSTOM_DOC("If the buffer in the active view is writable, inserts a character, o
 
 OPEN_FILE_HOOK_SIG(default_end_file);
 OPEN_FILE_HOOK_SIG(end_file_close_jump_list){
-    General_Memory *general = &global_general;
-    Marker_List *list = get_marker_list_for_buffer(general, buffer_id);
+    Marker_List *list = get_marker_list_for_buffer(buffer_id);
     if (list != 0){
-        free_marker_list(general, *list);
         delete_marker_list(list);
     }
     default_end_file(app, buffer_id);

@@ -20,7 +20,7 @@ view_get_map(View *view){
 }
 
 internal View_And_ID
-live_set_alloc_view(General_Memory *general, Lifetime_Allocator *lifetime_allocator, Live_Views *live_set, Panel *panel){
+live_set_alloc_view(Heap *heap, Lifetime_Allocator *lifetime_allocator, Live_Views *live_set, Panel *panel){
     Assert(live_set->count < live_set->max);
     ++live_set->count;
     
@@ -39,19 +39,19 @@ live_set_alloc_view(General_Memory *general, Lifetime_Allocator *lifetime_alloca
     
     init_query_set(&result.view->transient.query_set);
     
-    dynamic_variables_block_init(general, &result.view->transient.dynamic_vars);
-    result.view->transient.lifetime_object = lifetime_alloc_object(general, lifetime_allocator, LifetimeObject_View, result.view);
+    dynamic_workspace_init(heap, &result.view->transient.dynamic_workspace);
+    result.view->transient.lifetime_object = lifetime_alloc_object(heap, lifetime_allocator, LifetimeObject_View, result.view);
     
     return(result);
 }
 
 inline void
-live_set_free_view(General_Memory *general, Lifetime_Allocator *lifetime_allocator, Live_Views *live_set, View *view){
+live_set_free_view(Heap *heap, Lifetime_Allocator *lifetime_allocator, Live_Views *live_set, View *view){
     Assert(live_set->count > 0);
     --live_set->count;
     
     if (view->transient.ui_control.items != 0){
-        general_memory_free(general, view->transient.ui_control.items);
+        heap_free(heap, view->transient.ui_control.items);
     }
     
     view->transient.next = live_set->free_sentinel.transient.next;
@@ -60,8 +60,8 @@ live_set_free_view(General_Memory *general, Lifetime_Allocator *lifetime_allocat
     view->transient.next->transient.prev = view;
     view->transient.in_use = false;
     
-    dynamic_variables_block_free(general, &view->transient.dynamic_vars);
-    lifetime_free_object(general, lifetime_allocator, view->transient.lifetime_object);
+    dynamic_workspace_free(heap, &view->transient.dynamic_workspace);
+    lifetime_free_object(heap, lifetime_allocator, view->transient.lifetime_object);
 }
 
 ////////////////////////////////

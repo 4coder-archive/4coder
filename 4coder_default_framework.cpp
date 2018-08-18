@@ -6,7 +6,7 @@
 // TOP
 
 static Partition global_part;
-static General_Memory global_general;
+static Heap global_heap;
 
 static void
 unlock_jump_buffer(void){
@@ -226,13 +226,14 @@ CUSTOM_DOC("Switch to a named key binding map.")
 static void
 default_4coder_initialize(Application_Links *app, int32_t override_font_size, bool32 override_hinting){
     int32_t part_size = (32 << 20);
-    int32_t general_size = (4 << 20);
+    int32_t heap_size = ( 4 << 20);
     
     void *part_mem = memory_allocate(app, part_size);
     global_part = make_part(part_mem, part_size);
     
-    void *general_mem = memory_allocate(app, general_size);
-    general_memory_open(&global_general, general_mem, general_size);
+    void *heap_mem = memory_allocate(app, heap_size);
+    heap_init(&global_heap);
+    heap_extend(&global_heap, heap_mem, heap_size);
     
     static const char message[] = ""
         "Welcome to " VERSION "\n"

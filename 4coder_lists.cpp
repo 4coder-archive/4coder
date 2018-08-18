@@ -18,7 +18,7 @@ CUSTOM_COMMAND_SIG(lister__activate)
 CUSTOM_DOC("A lister mode command that activates the list's action on the highlighted item.")
 {
     Partition *scratch = &global_part;
-    General_Memory *general = &global_general;
+    Heap *heap = &global_heap;
     View_Summary view = get_active_view(app, AccessAll);
     Lister_State *state = view_get_lister_state(&view);
     if (state->initialized){
@@ -26,8 +26,7 @@ CUSTOM_DOC("A lister mode command that activates the list's action on the highli
         if (0 <= state->raw_item_index && state->raw_item_index < state->lister.options.count){
             user_data = lister_get_user_data(&state->lister, state->raw_item_index);
         }
-        lister_call_activate_handler(app, scratch, general, &view,
-                                     state, user_data, false);
+        lister_call_activate_handler(app, scratch, heap, &view, state, user_data, false);
     }
 }
 
@@ -102,13 +101,13 @@ CUSTOM_COMMAND_SIG(lister__mouse_release)
 CUSTOM_DOC("A lister mode command that ends a click interaction with a list item under the mouse, possibly activating it.")
 {
     Partition *scratch = &global_part;
-    General_Memory *general = &global_general;
+    Heap *heap = &global_heap;
     View_Summary view = get_active_view(app, AccessAll);
     Lister_State *state = view_get_lister_state(&view);
     if (state->initialized && state->hot_user_data != 0){
         UI_Item clicked = lister_get_clicked_item(app, &view, scratch);
         if (state->hot_user_data == clicked.user_data){
-            lister_call_activate_handler(app, scratch, general, &view,
+            lister_call_activate_handler(app, scratch, heap, &view,
                                          state, clicked.user_data, true);
         }
     }
@@ -257,7 +256,7 @@ CUSTOM_COMMAND_SIG(lister__write_character__fixed_list)
 CUSTOM_DOC("A lister mode command that handles input for the fixed sure to kill list.")
 {
     Partition *scratch = &global_part;
-    General_Memory *general = &global_general;
+    Heap *heap = &global_heap;
     View_Summary view = get_active_view(app, AccessAll);
     Lister_State *state = view_get_lister_state(&view);
     if (state->initialized){
@@ -278,7 +277,7 @@ CUSTOM_DOC("A lister mode command that handles input for the fixed sure to kill 
                 }
             }
             if (did_shortcut_key){
-                lister_call_activate_handler(app, scratch, general,
+                lister_call_activate_handler(app, scratch, heap,
                                              &view, state,
                                              user_data, false);
             }
@@ -314,11 +313,11 @@ begin_integrated_lister__with_refresh_handler(Application_Links *app, char *quer
                                               View_Summary *view){
     if (handlers.refresh != 0){
         Partition *scratch = &global_part;
-        General_Memory *general = &global_general;
+        Heap *heap = &global_heap;
         view_start_ui_mode(app, view);
         view_set_setting(app, view, ViewSetting_UICommandMap, default_lister_ui_map);
         Lister_State *state = view_get_lister_state(view);
-        init_lister_state(state, general);
+        init_lister_state(state, heap);
         lister_first_init(&state->lister);
         lister_set_query_string(&state->lister, query_string);
         state->lister.handlers = handlers;
@@ -342,11 +341,11 @@ begin_integrated_lister__with_fixed_options(Application_Links *app, char *query_
                                             Lister_Fixed_Option *options, int32_t option_count,
                                             View_Summary *view){
     Partition *scratch = &global_part;
-    General_Memory *general = &global_general;
+    Heap *heap = &global_heap;
     view_start_ui_mode(app, view);
     view_set_setting(app, view, ViewSetting_UICommandMap, default_lister_ui_map);
     Lister_State *state = view_get_lister_state(view);
-    init_lister_state(state, general);
+    init_lister_state(state, heap);
     lister_first_init(&state->lister);
     for (int32_t i = 0; i < option_count; i += 1){
         char *shortcut_chars = options[i].shortcut_chars;
@@ -384,11 +383,11 @@ begin_integrated_lister__ui_list(Application_Links *app, char *query_string,
                                  Lister_UI_Option *options, int32_t option_count,
                                  View_Summary *view){
     Partition *scratch = &global_part;
-    General_Memory *general = &global_general;
+    Heap *heap = &global_heap;
     view_start_ui_mode(app, view);
     view_set_setting(app, view, ViewSetting_UICommandMap, default_lister_ui_map);
     Lister_State *state = view_get_lister_state(view);
-    init_lister_state(state, general);
+    init_lister_state(state, heap);
     lister_first_init(&state->lister);
     state->lister.theme_list = true;
     for (int32_t i = 0; i < option_count; i += 1){

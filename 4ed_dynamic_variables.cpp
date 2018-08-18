@@ -28,9 +28,9 @@ dynamic_variables_lookup(Dynamic_Variable_Layout *layout, String name){
 }
 
 internal Managed_Variable_ID
-dynamic_variables_create__always(General_Memory *general, Dynamic_Variable_Layout *layout, String name, u64 default_value){
+dynamic_variables_create__always(Heap *heap, Dynamic_Variable_Layout *layout, String name, u64 default_value){
     int32_t alloc_size = name.size + 1 + sizeof(Dynamic_Variable_Slot);
-    void *ptr = general_memory_allocate(general, alloc_size);
+    void *ptr = heap_allocate(heap, alloc_size);
     if (ptr != 0){
         Dynamic_Variable_Slot *new_slot = (Dynamic_Variable_Slot*)ptr;
         char *c_str = (char*)(new_slot + 1);
@@ -47,41 +47,41 @@ dynamic_variables_create__always(General_Memory *general, Dynamic_Variable_Layou
 }
 
 internal Managed_Variable_ID
-dynamic_variables_lookup_or_create(General_Memory *general, Dynamic_Variable_Layout *layout, String name, u64 default_value){
+dynamic_variables_lookup_or_create(Heap *heap, Dynamic_Variable_Layout *layout, String name, u64 default_value){
     Managed_Variable_ID lookup_id = dynamic_variables_lookup(layout, name);
     if (lookup_id != ManagedVariableIndex_ERROR){
         return(lookup_id);
     }
-    return(dynamic_variables_create__always(general, layout, name, default_value));
+    return(dynamic_variables_create__always(heap, layout, name, default_value));
 }
 
 internal i32
-dynamic_variables_create(General_Memory *general, Dynamic_Variable_Layout *layout, String name, u64 default_value){
+dynamic_variables_create(Heap *heap, Dynamic_Variable_Layout *layout, String name, u64 default_value){
     Managed_Variable_ID lookup_id = dynamic_variables_lookup(layout, name);
     if (lookup_id == ManagedVariableIndex_ERROR){
-        return(dynamic_variables_create__always(general, layout, name, default_value));
+        return(dynamic_variables_create__always(heap, layout, name, default_value));
     }
     return(ManagedVariableIndex_ERROR);
 }
 
 internal void
-dynamic_variables_block_init(General_Memory *general, Dynamic_Variable_Block *block){
+dynamic_variables_block_init(Heap *heap, Dynamic_Variable_Block *block){
     i32 max = 64;
-    block->val_array = (u64*)general_memory_allocate(general, sizeof(u64)*max);
+    block->val_array = heap_array(heap, u64, max);
     block->count = 0;
     block->max = max;
 }
 
 internal void
-dynamic_variables_block_free(General_Memory *general, Dynamic_Variable_Block *block){
-    general_memory_free(general, block->val_array);
+dynamic_variables_block_free(Heap *heap, Dynamic_Variable_Block *block){
+    heap_free(heap, block->val_array);
 }
 
 internal void
-dynamic_variables_block_grow_max_to(General_Memory *general, i32 new_max, Dynamic_Variable_Block *block){
-    u64 *new_array = (u64*)general_memory_allocate(general, sizeof(u64)*new_max);
+dynamic_variables_block_grow_max_to(Heap *heap, i32 new_max, Dynamic_Variable_Block *block){
+    u64 *new_array = heap_array(heap, u64, new_max);
     memcpy(new_array, block->val_array, sizeof(u64)*block->count);
-    general_memory_free(general, block->val_array);
+    heap_free(heap, block->val_array);
     block->val_array = new_array;
 }
 
@@ -101,7 +101,7 @@ dynamic_variables_block_fill_unset_values(Dynamic_Variable_Layout *layout, Dynam
 }
 
 internal b32
-dynamic_variables_get_ptr(General_Memory *general,
+dynamic_variables_get_ptr(Heap *heap,
                           Dynamic_Variable_Layout *layout, Dynamic_Variable_Block *block,
                           i32 location, u64 **ptr_out){
     b32 result = false;
@@ -110,7 +110,7 @@ dynamic_variables_get_ptr(General_Memory *general,
         if (index >= block->count){
             i32 minimum_max = layout->location_counter - 1;
             if (block->max < minimum_max){
-                dynamic_variables_block_grow_max_to(general, minimum_max*2, block);
+                dynamic_variables_block_grow_max_to(heap, minimum_max*2, block);
             }
             dynamic_variables_block_fill_unset_values(layout, block, index + 1);
         }
@@ -122,25 +122,55 @@ dynamic_variables_get_ptr(General_Memory *general,
 
 ////////////////////////////////
 
+internal void*
+dynamic_allocate(Heap *heap, Dynamic_Memory_Bank *bank, i32 size){
+    void *ptr = heap_allocate(&bank->heap, size);
+    if (ptr == 0){
+        i32 alloc_size = clamp_bottom(4096, size*4);
+        void *new_block = heap_allocate(heap, alloc_size);
+        if (new_block != 0){
+            Dynamic_Memory_Header *header = (Dynamic_Memory_Header*)new_block;
+            sll_push(bank->first, bank->last, header);
+            heap_extend(&bank->heap, header + 1, alloc_size - sizeof(*header));
+            ptr = heap_allocate(&bank->heap, size);
+        }
+    }
+    return(ptr);
+}
+
+////////////////////////////////
+
+internal void
+dynamic_workspace_init(Heap *heap, Dynamic_Workspace *workspace){
+    dynamic_variables_block_init(heap, &workspace->var_block);
+}
+
+internal void
+dynamic_workspace_free(Heap *heap, Dynamic_Workspace *workspace){
+    dynamic_variables_block_free(heap, &workspace->var_block);
+}
+
+////////////////////////////////
+
 internal u64
-ptr_check__hash(Lifetime_Key *key){
+ptr_check__hash(void *key){
     u64 x = (u64)(PtrAsInt(key));
-    return(x >> 3);
+    return((x >> 3) | bit_63);
 }
 
 internal b32
 ptr_check_table_check(Ptr_Check_Table *table, void *key){
     u32 max = table->max;
     if (max > 0 && table->count > 0){
-        u64 hash = ptr_check_hash(key);
+        u64 hash = ptr_check__hash(key);
         u32 first_index = hash%max;
         u32 index = first_index;
-        void *keys = table->keys;
+        void **keys = table->keys;
         for (;;){
             if (keys[index] == key){
                 return(true);
             }
-            else if (hashes[index] == LifetimeKeyHash_Empty){
+            else if (keys[index] == IntAsPtr(LifetimeKeyHash_Empty)){
                 return(false);
             }
             index += 1;
@@ -156,17 +186,17 @@ ptr_check_table_check(Ptr_Check_Table *table, void *key){
 }
 
 internal Ptr_Check_Table
-ptr_check_table_copy(General_Memory *general, Ptr_Check_Table *table, u32 new_max);
+ptr_check_table_copy(Heap *heap, Ptr_Check_Table table, u32 new_max);
 
 internal void
-ptr_check_table_insert(General_Memory *general, Ptr_Check_Table *table, void *key){
+ptr_check_table_insert(Heap *heap, Ptr_Check_Table *table, void *key){
     {
         u32 max = table->max;
         u32 count = table->count;
         if (max == 0 || (count + 1)*6 > max*5){
-            Assert(general != 0);
-            Ptr_Check_Table new_table = ptr_check_table_copy(general, *table, max*2);
-            general_memory_free(general, table->mem_ptr);
+            Assert(heap != 0);
+            Ptr_Check_Table new_table = ptr_check_table_copy(heap, *table, max*2);
+            heap_free(heap, table->keys);
             *table = new_table;
         }
     }
@@ -174,7 +204,7 @@ ptr_check_table_insert(General_Memory *general, Ptr_Check_Table *table, void *ke
     {
         u32 max = table->max;
         if (max > 0 && table->count > 0){
-            u64 hash = ptr_check_hash(key);
+            u64 hash = ptr_check__hash(key);
             u32 first_index = hash%max;
             u32 index = first_index;
             void **keys = table->keys;
@@ -199,7 +229,7 @@ internal void
 ptr_check_table_erase(Ptr_Check_Table *table, Lifetime_Key *erase_key){
     u32 max = table->max;
     if (max > 0 && table->count > 0){
-        u64 hash = ptr_check_hash(erase_key);
+        u64 hash = ptr_check__hash(erase_key);
         u32 first_index = hash%max;
         u32 index = first_index;
         void **keys = table->keys;
@@ -208,7 +238,7 @@ ptr_check_table_erase(Ptr_Check_Table *table, Lifetime_Key *erase_key){
                 keys[index] = 0;
                 return;
             }
-            else if (hashes[index] == LifetimeKeyHash_Empty){
+            else if (keys[index] == IntAsPtr(LifetimeKeyHash_Empty)){
                 return;
             }
             index += 1;
@@ -222,17 +252,16 @@ ptr_check_table_erase(Ptr_Check_Table *table, Lifetime_Key *erase_key){
     }
 }
 
-internal Lifetime_Key_Check_Table
-ptr_check_table_copy(General_Memory *general, Lifetime_Key_Check_Table *table, u32 new_max){
-    Lifetime_Key_Check_Table new_table = {0};
+internal Ptr_Check_Table
+ptr_check_table_copy(Heap *heap, Ptr_Check_Table table, u32 new_max){
+    Ptr_Check_Table new_table = {0};
     new_table.max = clamp_bottom(table.max, new_max);
     new_table.max = clamp_bottom(307, new_table.max);
-    i32 item_size = sizeof(*new_table.keys);
-    new_table.keys = (Lifetime_Key**)general_memory_allocate(general, item_size*new_table.max);
-    memset(new_table.keys, 0, item_size*new_table.max);
+    new_table.keys = heap_array(heap, void*, new_table.max);
+    memset(new_table.keys, 0, sizeof(*new_table.keys)*new_table.max);
     for (u32 i = 0; i < table.max; i += 1){
         u64 k = (u64)(PtrAsInt(table.keys[i]));
-        if (k > 1){
+        if ((k&bit_63) == 0){
             ptr_check_table_insert(0, &new_table, table.keys[i]);
         }
     }
@@ -284,17 +313,17 @@ lifetime__key_table_lookup(Lifetime_Key_Table *table, u64 hash, Lifetime_Object 
 }
 
 internal Lifetime_Key_Table
-lifetime__key_table_copy(General_Memory *general, Lifetime_Key_Table table, u32 new_max);
+lifetime__key_table_copy(Heap *heap, Lifetime_Key_Table table, u32 new_max);
 
 internal void
-lifetime__key_table_insert(General_Memory *general, Lifetime_Key_Table *table, u64 hash, Lifetime_Key *key){
+lifetime__key_table_insert(Heap *heap, Lifetime_Key_Table *table, u64 hash, Lifetime_Key *key){
     {
         u32 max = table->max;
         u32 count = table->count;
         if (max == 0 || (count + 1)*6 > max*5){
-            Assert(general != 0);
-            Lifetime_Key_Table new_table = lifetime__key_table_copy(general, *table, max*2);
-            general_memory_free(general, table->mem_ptr);
+            Assert(heap != 0);
+            Lifetime_Key_Table new_table = lifetime__key_table_copy(heap, *table, max*2);
+            heap_free(heap, table->mem_ptr);
             *table = new_table;
         }
     }
@@ -356,12 +385,12 @@ lifetime__key_table_erase(Lifetime_Key_Table *table, Lifetime_Key *erase_key){
 }
 
 internal Lifetime_Key_Table
-lifetime__key_table_copy(General_Memory *general, Lifetime_Key_Table table, u32 new_max){
+lifetime__key_table_copy(Heap *heap, Lifetime_Key_Table table, u32 new_max){
     Lifetime_Key_Table new_table = {0};
     new_table.max = clamp_bottom(table.max, new_max);
     new_table.max = clamp_bottom(307, new_table.max);
     i32 item_size = sizeof(*new_table.hashes) + sizeof(*new_table.keys);
-    new_table.mem_ptr = general_memory_allocate(general, item_size*new_table.max);
+    new_table.mem_ptr = heap_allocate(heap, item_size*new_table.max);
     memset(new_table.mem_ptr, 0, item_size*new_table.max);
     new_table.hashes = (u64*)(new_table.mem_ptr);
     new_table.keys = (Lifetime_Key**)(new_table.hashes + new_table.max);
@@ -374,10 +403,10 @@ lifetime__key_table_copy(General_Memory *general, Lifetime_Key_Table table, u32 
 }
 
 internal void
-lifetime__free_key(General_Memory *general, Lifetime_Allocator *lifetime_allocator,
+lifetime__free_key(Heap *heap, Lifetime_Allocator *lifetime_allocator,
                    Lifetime_Key *key, Lifetime_Object *skip_object){
     // Deinit
-    dynamic_variables_block_free(general, &key->dynamic_vars);
+    dynamic_workspace_free(heap, &key->dynamic_workspace);
     
     // Remove From Objects
     i32 count = key->count;
@@ -420,16 +449,16 @@ lifetime__free_key(General_Memory *general, Lifetime_Allocator *lifetime_allocat
     // Free
     lifetime__key_table_erase(&lifetime_allocator->key_table, key);
     ptr_check_table_erase(&lifetime_allocator->key_check_table, key);
-    general_memory_free(general, key->members);
+    heap_free(heap, key->members);
     zdll_push_back(lifetime_allocator->free_keys.first, lifetime_allocator->free_keys.last, key);
 }
 
 internal Lifetime_Key_Ref_Node*
-lifetime__alloc_key_reference_node(General_Memory *general, Lifetime_Allocator *lifetime_allocator){
+lifetime__alloc_key_reference_node(Heap *heap, Lifetime_Allocator *lifetime_allocator){
     Lifetime_Key_Ref_Node *result = lifetime_allocator->free_key_references.first;
     if (result == 0){
         i32 new_node_count = 32;
-        Lifetime_Key_Ref_Node *new_nodes = (Lifetime_Key_Ref_Node*)general_memory_allocate(general, sizeof(Lifetime_Key_Ref_Node)*new_node_count);
+        Lifetime_Key_Ref_Node *new_nodes = heap_array(heap, Lifetime_Key_Ref_Node, new_node_count);
         Lifetime_Key_Ref_Node *new_node_ptr = new_nodes;
         for (i32 i = 0; i < new_node_count; i += 1, new_node_ptr += 1){
             zdll_push_back(lifetime_allocator->free_key_references.first,
@@ -445,7 +474,7 @@ lifetime__alloc_key_reference_node(General_Memory *general, Lifetime_Allocator *
 }
 
 internal void
-lifetime__object_add_key(General_Memory *general, Lifetime_Allocator *lifetime_allocator,
+lifetime__object_add_key(Heap *heap, Lifetime_Allocator *lifetime_allocator,
                          Lifetime_Object *object, Lifetime_Key *key){
     Lifetime_Key_Ref_Node *last_node = object->key_node_last;
     b32 insert_on_new_node = false;
@@ -462,7 +491,7 @@ lifetime__object_add_key(General_Memory *general, Lifetime_Allocator *lifetime_a
         }
     }
     if (insert_on_new_node){
-        Lifetime_Key_Ref_Node *new_node = lifetime__alloc_key_reference_node(general, lifetime_allocator);
+        Lifetime_Key_Ref_Node *new_node = lifetime__alloc_key_reference_node(heap, lifetime_allocator);
         zdll_push_back(object->key_node_first, object->key_node_last, new_node);
         memset(new_node->keys, 0, sizeof(new_node->keys));
         new_node->keys[0] = key;
@@ -471,11 +500,11 @@ lifetime__object_add_key(General_Memory *general, Lifetime_Allocator *lifetime_a
 }
 
 internal Lifetime_Object*
-lifetime_alloc_object(General_Memory *general, Lifetime_Allocator *lifetime_allocator, i32 user_type, void *user_back_ptr){
+lifetime_alloc_object(Heap *heap, Lifetime_Allocator *lifetime_allocator, i32 user_type, void *user_back_ptr){
     Lifetime_Object *object = lifetime_allocator->free_objects.first;
     if (object == 0){
         i32 new_object_count = 256;
-        Lifetime_Object *new_objects = (Lifetime_Object*)general_memory_allocate(general, sizeof(Lifetime_Object)*new_object_count);
+        Lifetime_Object *new_objects = heap_array(heap, Lifetime_Object, new_object_count);
         Lifetime_Object *new_object_ptr = new_objects;
         for (i32 i = 0; i < new_object_count; i += 1, new_object_ptr += 1){
             zdll_push_back(lifetime_allocator->free_objects.first, lifetime_allocator->free_objects.last, new_object_ptr);
@@ -495,7 +524,7 @@ lifetime_alloc_object(General_Memory *general, Lifetime_Allocator *lifetime_allo
 }
 
 internal void
-lifetime_free_object(General_Memory *general, Lifetime_Allocator *lifetime_allocator,
+lifetime_free_object(Heap *heap, Lifetime_Allocator *lifetime_allocator,
                      Lifetime_Object *lifetime_object){
     i32 key_i = 0;
     for (Lifetime_Key_Ref_Node *node = lifetime_object->key_node_first;
@@ -503,7 +532,7 @@ lifetime_free_object(General_Memory *general, Lifetime_Allocator *lifetime_alloc
          node = node->next){
         i32 one_past_last = clamp_top(ArrayCount(node->keys), lifetime_object->key_count - key_i);
         for (i32 i = 0; i < one_past_last; i += 1){
-            lifetime__free_key(general, lifetime_allocator, node->keys[i], lifetime_object);
+            lifetime__free_key(heap, lifetime_allocator, node->keys[i], lifetime_object);
         }
         key_i += one_past_last;
     }
@@ -558,7 +587,7 @@ lifetime_sort_and_dedup_object_set(Lifetime_Object **ptr_array, i32 count){
 }
 
 internal Lifetime_Key*
-lifetime_get_or_create_intersection_key(General_Memory *general, Lifetime_Allocator *lifetime_allocator, Lifetime_Object **object_ptr_array, i32 count){
+lifetime_get_or_create_intersection_key(Heap *heap, Lifetime_Allocator *lifetime_allocator, Lifetime_Object **object_ptr_array, i32 count){
     u64 hash = lifetime__key_hash(object_ptr_array, count);
     
     // Lookup
@@ -572,7 +601,7 @@ lifetime_get_or_create_intersection_key(General_Memory *general, Lifetime_Alloca
     Lifetime_Key *new_key = lifetime_allocator->free_keys.first;
     if (new_key == 0){
         i32 new_key_count = 256;
-        Lifetime_Key *new_keys = (Lifetime_Key*)general_memory_allocate(general, sizeof(Lifetime_Key)*new_key_count);
+        Lifetime_Key *new_keys = heap_array(heap, Lifetime_Key, new_key_count);
         Lifetime_Key *new_key_ptr = new_keys;
         for (i32 i = 0; i < new_key_count; i += 1, new_key_ptr += 1){
             zdll_push_back(lifetime_allocator->free_keys.first, lifetime_allocator->free_keys.last, new_key_ptr);
@@ -586,17 +615,17 @@ lifetime_get_or_create_intersection_key(General_Memory *general, Lifetime_Alloca
     Lifetime_Object **object_ptr = object_ptr_array;
     for (i32 i = 0; i < count; i += 1, object_ptr += 1){
         Lifetime_Object *object = *object_ptr;
-        lifetime__object_add_key(general, lifetime_allocator, object, new_key);
+        lifetime__object_add_key(heap, lifetime_allocator, object, new_key);
     }
     
     // Initialize
-    new_key->members = (Lifetime_Object**)general_memory_allocate(general, sizeof(Lifetime_Object*)*count);
-    memcpy(new_key->members, object_ptr_array, sizeof(Lifetime_Object*)*count);
+    new_key->members = heap_array(heap, Lifetime_Object*, count);
+    memcpy(new_key->members, object_ptr_array, sizeof(*new_key->members)*count);
     new_key->count = count;
-    dynamic_variables_block_init(general, &new_key->dynamic_vars);
+    dynamic_workspace_init(heap, &new_key->dynamic_workspace);
     
-    lifetime__key_table_insert(general, &lifetime_allocator->key_table, hash, new_key);
-    ptr_check_table_insert(general, &lifetime_allocator->key_check_table, new_key);
+    lifetime__key_table_insert(heap, &lifetime_allocator->key_table, hash, new_key);
+    ptr_check_table_insert(heap, &lifetime_allocator->key_check_table, new_key);
     
     return(new_key);
 }

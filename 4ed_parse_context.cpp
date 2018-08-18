@@ -28,7 +28,7 @@ parse_context_valid_id(Parse_Context_Memory *parse_mem, Parse_Context_ID id){
 }
 
 internal Parse_Context_ID
-parse_context_add(Parse_Context_Memory *parse_mem, General_Memory *general, Parser_String_And_Type *kw_sats, u32 kw_count, Parser_String_And_Type *pp_sats, u32 pp_count){
+parse_context_add(Parse_Context_Memory *parse_mem, Heap *heap, Parser_String_And_Type *kw_sats, u32 kw_count, Parser_String_And_Type *pp_sats, u32 pp_count){
     Stored_Parse_Context_Slot *slot = 0;
     if (parse_mem->free_sentinel.next != &parse_mem->free_sentinel){
         slot = parse_mem->free_sentinel.next;
@@ -45,7 +45,7 @@ parse_context_add(Parse_Context_Memory *parse_mem, General_Memory *general, Pars
         umem pp_memsize = cpp_get_table_memory_size_string_lengths(&pp_sats->length, stride, pp_count);
         
         umem memsize = kw_memsize + pp_memsize + sizeof(Stored_Parse_Context);
-        void *mem = general_memory_allocate(general, (i32)memsize);
+        void *mem = heap_allocate(heap, (i32)memsize);
         
         Stored_Parse_Context *parse_context = (Stored_Parse_Context*)mem;
         u8 *kw_mem = (u8*)(parse_context+1);
@@ -70,7 +70,7 @@ parse_context_add(Parse_Context_Memory *parse_mem, General_Memory *general, Pars
 }
 
 internal u32
-parse_context_add_default(Parse_Context_Memory *parse_mem, General_Memory *general){
+parse_context_add_default(Parse_Context_Memory *parse_mem, Heap *heap){
     Stored_Parse_Context_Slot *slot = 0;
     if (parse_mem->free_sentinel.next != &parse_mem->free_sentinel){
         slot = parse_mem->free_sentinel.next;
@@ -86,7 +86,7 @@ parse_context_add_default(Parse_Context_Memory *parse_mem, General_Memory *gener
         umem pp_memsize = cpp_get_table_memory_size_default(CPP_TABLE_PREPROCESSOR_DIRECTIVES);
         
         umem memsize = kw_memsize + pp_memsize + sizeof(Stored_Parse_Context);
-        void *mem = general_memory_allocate(general, (i32)(memsize));
+        void *mem = heap_allocate(heap, (i32)(memsize));
         
         Stored_Parse_Context *parse_context = (Stored_Parse_Context*)mem;
         u8 *kw_mem = (u8*)(parse_context+1);

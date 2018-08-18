@@ -21,7 +21,7 @@ struct Application_Links;
 #define GET_BUFFER_BY_MARKER_HANDLE_SIG(n) Buffer_Summary n(Application_Links *app, Managed_Object marker_object, Access_Flag access)
 #define BUFFER_SET_MARKERS_SIG(n) bool32 n(Application_Links *app, Managed_Object marker_object, uint32_t first_marker_index, uint32_t marker_count, Marker *source_markers)
 #define BUFFER_GET_MARKERS_SIG(n) bool32 n(Application_Links *app, Managed_Object marker_object, uint32_t first_marker_index, uint32_t marker_count, Marker *markers_out)
-#define BUFFER_REMOVE_MARKERS_SIG(n) bool32 n(Application_Links *app, Managed_Object marker)
+#define BUFFER_REMOVE_MARKERS_SIG(n) bool32 n(Application_Links *app, Managed_Object marker_object)
 #define BUFFER_GET_SETTING_SIG(n) bool32 n(Application_Links *app, Buffer_Summary *buffer, Buffer_Setting_ID setting, int32_t *value_out)
 #define BUFFER_SET_SETTING_SIG(n) bool32 n(Application_Links *app, Buffer_Summary *buffer, Buffer_Setting_ID setting, int32_t value)
 #define BUFFER_GET_DYNAMIC_SCOPE_SIG(n) Dynamic_Scope n(Application_Links *app, Buffer_ID buffer_id)
@@ -61,6 +61,9 @@ struct Application_Links;
 #define MANAGED_VARIABLE_CREATE_OR_GET_ID_SIG(n) int32_t n(Application_Links *app, char *null_terminated_name, uint64_t default_value)
 #define MANAGED_VARIABLE_SET_SIG(n) bool32 n(Application_Links *app, Dynamic_Scope scope, Managed_Variable_ID location, uint64_t value)
 #define MANAGED_VARIABLE_GET_SIG(n) bool32 n(Application_Links *app, Dynamic_Scope scope, Managed_Variable_ID location, uint64_t *value_out)
+#define MANAGED_MEMORY_ALLOC_SIG(n) Managed_Object n(Application_Links *app, Dynamic_Scope scope, int32_t size)
+#define MANAGED_MEMORY_SET_SIG(n) bool32 n(Application_Links *app, Managed_Object object, uint32_t start, uint32_t size, void *mem)
+#define MANAGED_MEMORY_GET_SIG(n) bool32 n(Application_Links *app, Managed_Object object, uint32_t start, uint32_t size, void *mem_out)
 #define GET_USER_INPUT_SIG(n) User_Input n(Application_Links *app, Input_Type_Flag get_type, Input_Type_Flag abort_type)
 #define GET_COMMAND_INPUT_SIG(n) User_Input n(Application_Links *app)
 #define GET_MOUSE_STATE_SIG(n) Mouse_State n(Application_Links *app)
@@ -162,6 +165,9 @@ typedef MANAGED_VARIABLE_GET_ID_SIG(Managed_Variable_Get_ID_Function);
 typedef MANAGED_VARIABLE_CREATE_OR_GET_ID_SIG(Managed_Variable_Create_Or_Get_ID_Function);
 typedef MANAGED_VARIABLE_SET_SIG(Managed_Variable_Set_Function);
 typedef MANAGED_VARIABLE_GET_SIG(Managed_Variable_Get_Function);
+typedef MANAGED_MEMORY_ALLOC_SIG(Managed_Memory_Alloc_Function);
+typedef MANAGED_MEMORY_SET_SIG(Managed_Memory_Set_Function);
+typedef MANAGED_MEMORY_GET_SIG(Managed_Memory_Get_Function);
 typedef GET_USER_INPUT_SIG(Get_User_Input_Function);
 typedef GET_COMMAND_INPUT_SIG(Get_Command_Input_Function);
 typedef GET_MOUSE_STATE_SIG(Get_Mouse_State_Function);
@@ -265,6 +271,9 @@ Managed_Variable_Get_ID_Function *managed_variable_get_id;
 Managed_Variable_Create_Or_Get_ID_Function *managed_variable_create_or_get_id;
 Managed_Variable_Set_Function *managed_variable_set;
 Managed_Variable_Get_Function *managed_variable_get;
+Managed_Memory_Alloc_Function *managed_memory_alloc;
+Managed_Memory_Set_Function *managed_memory_set;
+Managed_Memory_Get_Function *managed_memory_get;
 Get_User_Input_Function *get_user_input;
 Get_Command_Input_Function *get_command_input;
 Get_Mouse_State_Function *get_mouse_state;
@@ -367,6 +376,9 @@ Managed_Variable_Get_ID_Function *managed_variable_get_id_;
 Managed_Variable_Create_Or_Get_ID_Function *managed_variable_create_or_get_id_;
 Managed_Variable_Set_Function *managed_variable_set_;
 Managed_Variable_Get_Function *managed_variable_get_;
+Managed_Memory_Alloc_Function *managed_memory_alloc_;
+Managed_Memory_Set_Function *managed_memory_set_;
+Managed_Memory_Get_Function *managed_memory_get_;
 Get_User_Input_Function *get_user_input_;
 Get_Command_Input_Function *get_command_input_;
 Get_Mouse_State_Function *get_mouse_state_;
@@ -477,6 +489,9 @@ app_links->managed_variable_get_id_ = Managed_Variable_Get_ID;\
 app_links->managed_variable_create_or_get_id_ = Managed_Variable_Create_Or_Get_ID;\
 app_links->managed_variable_set_ = Managed_Variable_Set;\
 app_links->managed_variable_get_ = Managed_Variable_Get;\
+app_links->managed_memory_alloc_ = Managed_Memory_Alloc;\
+app_links->managed_memory_set_ = Managed_Memory_Set;\
+app_links->managed_memory_get_ = Managed_Memory_Get;\
 app_links->get_user_input_ = Get_User_Input;\
 app_links->get_command_input_ = Get_Command_Input;\
 app_links->get_mouse_state_ = Get_Mouse_State;\
@@ -539,7 +554,7 @@ static inline Managed_Object buffer_add_markers(Application_Links *app, Buffer_I
 static inline Buffer_Summary get_buffer_by_marker_handle(Application_Links *app, Managed_Object marker_object, Access_Flag access){return(app->get_buffer_by_marker_handle(app, marker_object, access));}
 static inline bool32 buffer_set_markers(Application_Links *app, Managed_Object marker_object, uint32_t first_marker_index, uint32_t marker_count, Marker *source_markers){return(app->buffer_set_markers(app, marker_object, first_marker_index, marker_count, source_markers));}
 static inline bool32 buffer_get_markers(Application_Links *app, Managed_Object marker_object, uint32_t first_marker_index, uint32_t marker_count, Marker *markers_out){return(app->buffer_get_markers(app, marker_object, first_marker_index, marker_count, markers_out));}
-static inline bool32 buffer_remove_markers(Application_Links *app, Managed_Object marker){return(app->buffer_remove_markers(app, marker));}
+static inline bool32 buffer_remove_markers(Application_Links *app, Managed_Object marker_object){return(app->buffer_remove_markers(app, marker_object));}
 static inline bool32 buffer_get_setting(Application_Links *app, Buffer_Summary *buffer, Buffer_Setting_ID setting, int32_t *value_out){return(app->buffer_get_setting(app, buffer, setting, value_out));}
 static inline bool32 buffer_set_setting(Application_Links *app, Buffer_Summary *buffer, Buffer_Setting_ID setting, int32_t value){return(app->buffer_set_setting(app, buffer, setting, value));}
 static inline Dynamic_Scope buffer_get_dynamic_scope(Application_Links *app, Buffer_ID buffer_id){return(app->buffer_get_dynamic_scope(app, buffer_id));}
@@ -579,6 +594,9 @@ static inline Managed_Variable_ID managed_variable_get_id(Application_Links *app
 static inline int32_t managed_variable_create_or_get_id(Application_Links *app, char *null_terminated_name, uint64_t default_value){return(app->managed_variable_create_or_get_id(app, null_terminated_name, default_value));}
 static inline bool32 managed_variable_set(Application_Links *app, Dynamic_Scope scope, Managed_Variable_ID location, uint64_t value){return(app->managed_variable_set(app, scope, location, value));}
 static inline bool32 managed_variable_get(Application_Links *app, Dynamic_Scope scope, Managed_Variable_ID location, uint64_t *value_out){return(app->managed_variable_get(app, scope, location, value_out));}
+static inline Managed_Object managed_memory_alloc(Application_Links *app, Dynamic_Scope scope, int32_t size){return(app->managed_memory_alloc(app, scope, size));}
+static inline bool32 managed_memory_set(Application_Links *app, Managed_Object object, uint32_t start, uint32_t size, void *mem){return(app->managed_memory_set(app, object, start, size, mem));}
+static inline bool32 managed_memory_get(Application_Links *app, Managed_Object object, uint32_t start, uint32_t size, void *mem_out){return(app->managed_memory_get(app, object, start, size, mem_out));}
 static inline User_Input get_user_input(Application_Links *app, Input_Type_Flag get_type, Input_Type_Flag abort_type){return(app->get_user_input(app, get_type, abort_type));}
 static inline User_Input get_command_input(Application_Links *app){return(app->get_command_input(app));}
 static inline Mouse_State get_mouse_state(Application_Links *app){return(app->get_mouse_state(app));}
@@ -641,7 +659,7 @@ static inline Managed_Object buffer_add_markers(Application_Links *app, Buffer_I
 static inline Buffer_Summary get_buffer_by_marker_handle(Application_Links *app, Managed_Object marker_object, Access_Flag access){return(app->get_buffer_by_marker_handle_(app, marker_object, access));}
 static inline bool32 buffer_set_markers(Application_Links *app, Managed_Object marker_object, uint32_t first_marker_index, uint32_t marker_count, Marker *source_markers){return(app->buffer_set_markers_(app, marker_object, first_marker_index, marker_count, source_markers));}
 static inline bool32 buffer_get_markers(Application_Links *app, Managed_Object marker_object, uint32_t first_marker_index, uint32_t marker_count, Marker *markers_out){return(app->buffer_get_markers_(app, marker_object, first_marker_index, marker_count, markers_out));}
-static inline bool32 buffer_remove_markers(Application_Links *app, Managed_Object marker){return(app->buffer_remove_markers_(app, marker));}
+static inline bool32 buffer_remove_markers(Application_Links *app, Managed_Object marker_object){return(app->buffer_remove_markers_(app, marker_object));}
 static inline bool32 buffer_get_setting(Application_Links *app, Buffer_Summary *buffer, Buffer_Setting_ID setting, int32_t *value_out){return(app->buffer_get_setting_(app, buffer, setting, value_out));}
 static inline bool32 buffer_set_setting(Application_Links *app, Buffer_Summary *buffer, Buffer_Setting_ID setting, int32_t value){return(app->buffer_set_setting_(app, buffer, setting, value));}
 static inline Dynamic_Scope buffer_get_dynamic_scope(Application_Links *app, Buffer_ID buffer_id){return(app->buffer_get_dynamic_scope_(app, buffer_id));}
@@ -681,6 +699,9 @@ static inline Managed_Variable_ID managed_variable_get_id(Application_Links *app
 static inline int32_t managed_variable_create_or_get_id(Application_Links *app, char *null_terminated_name, uint64_t default_value){return(app->managed_variable_create_or_get_id_(app, null_terminated_name, default_value));}
 static inline bool32 managed_variable_set(Application_Links *app, Dynamic_Scope scope, Managed_Variable_ID location, uint64_t value){return(app->managed_variable_set_(app, scope, location, value));}
 static inline bool32 managed_variable_get(Application_Links *app, Dynamic_Scope scope, Managed_Variable_ID location, uint64_t *value_out){return(app->managed_variable_get_(app, scope, location, value_out));}
+static inline Managed_Object managed_memory_alloc(Application_Links *app, Dynamic_Scope scope, int32_t size){return(app->managed_memory_alloc_(app, scope, size));}
+static inline bool32 managed_memory_set(Application_Links *app, Managed_Object object, uint32_t start, uint32_t size, void *mem){return(app->managed_memory_set_(app, object, start, size, mem));}
+static inline bool32 managed_memory_get(Application_Links *app, Managed_Object object, uint32_t start, uint32_t size, void *mem_out){return(app->managed_memory_get_(app, object, start, size, mem_out));}
 static inline User_Input get_user_input(Application_Links *app, Input_Type_Flag get_type, Input_Type_Flag abort_type){return(app->get_user_input_(app, get_type, abort_type));}
 static inline User_Input get_command_input(Application_Links *app){return(app->get_command_input_(app));}
 static inline Mouse_State get_mouse_state(Application_Links *app){return(app->get_mouse_state_(app));}

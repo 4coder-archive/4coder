@@ -33,7 +33,9 @@
 
 # define FSTRING_IMPLEMENTATION
 # include "4coder_lib/4coder_string.h"
-# include "4coder_lib/4coder_mem.h"
+# include "4coder_lib/4coder_arena.h"
+
+# include "4coder_lib/4coder_arena.cpp"
 
 # include "4coder_API/types.h"
 

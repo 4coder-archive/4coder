@@ -125,6 +125,13 @@ struct Stream_Tokens{
     int32_t count, token_count;
 };
 
+////////////////////////////////
+
+struct Sort_Pair_i32{
+    int32_t index;
+    int32_t key;
+};
+
 #endif
 
 // BOTTOM

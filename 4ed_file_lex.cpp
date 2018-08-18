@@ -12,7 +12,7 @@
 internal
 Job_Callback_Sig(job_full_lex){
     Editing_File *file = (Editing_File*)data[0];
-    General_Memory *general = (General_Memory*)data[1];
+    Heap *heap = (Heap*)data[1];
     Models *models = (Models*)data[2];
     
     Parse_Context parse_context = parse_context_get(&models->parse_context_memory, file->settings.parse_context_id, memory->data, memory->size);
@@ -108,7 +108,7 @@ Job_Callback_Sig(job_full_lex){
     system->acquire_lock(FRAME_LOCK);
     {
         Assert(file->state.swap_array.tokens == 0);
-        file->state.swap_array.tokens = (Cpp_Token*)general_memory_allocate(general, new_max*sizeof(Cpp_Token));
+        file->state.swap_array.tokens = heap_array(heap, Cpp_Token, new_max);
     }
     system->release_lock(FRAME_LOCK);
     
@@ -123,7 +123,7 @@ Job_Callback_Sig(job_full_lex){
         file_token_array->count = tokens.count;
         file_token_array->max_count = new_max;
         if (file_token_array->tokens){
-            general_memory_free(general, file_token_array->tokens);
+            heap_free(heap, file_token_array->tokens);
         }
         file_token_array->tokens = file->state.swap_array.tokens;
         file->state.swap_array.tokens = 0;
@@ -138,17 +138,17 @@ Job_Callback_Sig(job_full_lex){
 }
 
 internal void
-file_kill_tokens(System_Functions *system, General_Memory *general, Editing_File *file){
+file_kill_tokens(System_Functions *system, Heap *heap, Editing_File *file){
     file->settings.tokens_exist = 0;
     if (file->state.still_lexing){
         system->cancel_job(BACKGROUND_THREADS, file->state.lex_job);
         if (file->state.swap_array.tokens){
-            general_memory_free(general, file->state.swap_array.tokens);
+            heap_free(heap, file->state.swap_array.tokens);
             file->state.swap_array.tokens = 0;
         }
     }
     if (file->state.token_array.tokens){
-        general_memory_free(general, file->state.token_array.tokens);
+        heap_free(heap, file->state.token_array.tokens);
     }
     file->state.tokens_complete = 0;
     file->state.token_array = null_cpp_token_array;
@@ -156,7 +156,7 @@ file_kill_tokens(System_Functions *system, General_Memory *general, Editing_File
 
 internal void
 file_first_lex_parallel(System_Functions *system, Models *models, Editing_File *file){
-    General_Memory *general = &models->mem.general;
+    Heap *heap = &models->mem.heap;
     file->settings.tokens_exist = true;
     
     if (file->is_loading == 0 && file->state.still_lexing == 0){
@@ -168,7 +168,7 @@ file_first_lex_parallel(System_Functions *system, Models *models, Editing_File *
         Job_Data job;
         job.callback = job_full_lex;
         job.data[0] = file;
-        job.data[1] = general;
+        job.data[1] = heap;
         job.data[2] = models;
         file->state.lex_job = system->post_job(BACKGROUND_THREADS, job);
     }
@@ -178,7 +178,7 @@ internal void
 file_first_lex_serial(Models *models, Editing_File *file){
     Mem_Options *mem = &models->mem;
     Partition *part = &mem->part;
-    General_Memory *general = &mem->general;
+    Heap *heap = &mem->heap;
     file->settings.tokens_exist = true;
     
     Assert(!file->state.still_lexing);
@@ -238,14 +238,15 @@ file_first_lex_serial(Models *models, Editing_File *file){
                     case LexResult_NeedTokenMemory:
                     {
                         u32 new_max = l_round_up_u32(swap_array->count + new_tokens.count + 1, KB(1));
-                        u32 new_mem_max = new_max*sizeof(Cpp_Token);
-                        u32 old_mem_count = swap_array->count*sizeof(Cpp_Token);
                         if (swap_array->tokens == 0){
-                            swap_array->tokens = (Cpp_Token*)general_memory_allocate(general, new_mem_max);
+                            swap_array->tokens = heap_array(heap, Cpp_Token, new_max);
                         }
                         else{
-                            swap_array->tokens = (Cpp_Token*)
-                                general_memory_reallocate(general, swap_array->tokens, old_mem_count, new_mem_max);
+                            u32 old_count = swap_array->count;
+                            Cpp_Token *new_tokens = heap_array(heap, Cpp_Token, new_max);
+                            memcpy(new_tokens, swap_array->tokens, sizeof(*new_tokens)*old_count);
+                            heap_free(heap, swap_array->tokens);
+                            swap_array->tokens = new_tokens;
                         }
                         swap_array->max_count = new_max;
                         
@@ -267,7 +268,7 @@ file_first_lex_serial(Models *models, Editing_File *file){
             token_array->count = swap_array->count;
             token_array->max_count = swap_array->max_count;
             if (token_array->tokens != 0){
-                general_memory_free(general, token_array->tokens);
+                heap_free(heap, token_array->tokens);
             }
             token_array->tokens = swap_array->tokens;
             
@@ -288,7 +289,7 @@ file_first_lex_serial(Models *models, Editing_File *file){
 internal b32
 file_relex_parallel(System_Functions *system, Models *models, Editing_File *file, i32 start_i, i32 end_i, i32 shift_amount){
     Mem_Options *mem = &models->mem;
-    General_Memory *general = &mem->general;
+    Heap *heap = &mem->heap;
     Partition *part = &mem->part;
     
     if (file->state.token_array.tokens == 0){
@@ -372,7 +373,9 @@ file_relex_parallel(System_Functions *system, Models *models, Editing_File *file
             i32 new_count = cpp_relex_get_new_count(&state, array->count, &relex_array);
             if (new_count > array->max_count){
                 i32 new_max = l_round_up_i32(new_count, KB(1));
-                void *memory = general_memory_reallocate(general, array->tokens, array->count*sizeof(Cpp_Token), new_max*sizeof(Cpp_Token));
+                void *memory = heap_allocate(heap, new_max*sizeof(Cpp_Token));
+                memcpy(memory, array->tokens, array->count*sizeof(Cpp_Token));
+                heap_free(heap, array->tokens);
                 array->tokens = (Cpp_Token*)memory;
                 array->max_count = new_max;
             }
@@ -412,7 +415,7 @@ file_relex_parallel(System_Functions *system, Models *models, Editing_File *file
         Job_Data job;
         job.callback = job_full_lex;
         job.data[0] = file;
-        job.data[1] = general;
+        job.data[1] = heap;
         job.data[2] = models;
         file->state.lex_job = system->post_job(BACKGROUND_THREADS, job);
         result = false;
@@ -424,7 +427,7 @@ file_relex_parallel(System_Functions *system, Models *models, Editing_File *file
 internal b32
 file_relex_serial(Models *models, Editing_File *file, i32 start_i, i32 end_i, i32 shift_amount){
     Mem_Options *mem = &models->mem;
-    General_Memory *general = &mem->general;
+    Heap *heap = &mem->heap;
     Partition *part = &mem->part;
     
     if (file->state.token_array.tokens == 0){
@@ -496,7 +499,10 @@ file_relex_serial(Models *models, Editing_File *file, i32 start_i, i32 end_i, i3
     i32 new_count = cpp_relex_get_new_count(&state, array->count, &relex_array);
     if (new_count > array->max_count){
         i32 new_max = l_round_up_i32(new_count, KB(1));
-        array->tokens = (Cpp_Token*)general_memory_reallocate(general, array->tokens, array->count*sizeof(Cpp_Token), new_max*sizeof(Cpp_Token));
+        Cpp_Token *new_tokens = heap_array(heap, Cpp_Token, new_max);
+        memcpy(new_tokens, array->tokens, array->count*sizeof(Cpp_Token));
+        heap_free(heap, array->tokens);
+        array->tokens = new_tokens;
         array->max_count = new_max;
     }
     

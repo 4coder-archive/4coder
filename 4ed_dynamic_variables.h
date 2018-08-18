@@ -33,6 +33,25 @@ struct Dynamic_Variable_Block{
 
 ////////////////////////////////
 
+struct Dynamic_Memory_Header{
+    Dynamic_Memory_Header *next;
+};
+
+struct Dynamic_Memory_Bank{
+    Heap heap;
+    Dynamic_Memory_Header *first;
+    Dynamic_Memory_Header *last;
+};
+
+////////////////////////////////
+
+struct Dynamic_Workspace{
+    Dynamic_Variable_Block var_block;
+    Dynamic_Memory_Bank mem_bank;
+};
+
+////////////////////////////////
+
 struct Ptr_Check_Table{
     void **keys;
     u32 count;
@@ -74,7 +93,7 @@ struct Lifetime_Key{
         struct{
             struct Lifetime_Object **members;
             i32 count;
-            Dynamic_Variable_Block dynamic_vars;
+            Dynamic_Workspace dynamic_workspace;
         };
     };
 };
@@ -113,7 +132,7 @@ struct Lifetime_Allocator{
     Lifetime_Object_List free_objects;
     Lifetime_Key_List free_keys;
     Lifetime_Key_Table key_table;
-    Lifetime_Ptr_Check_Table key_check_table;
+    Ptr_Check_Table key_check_table;
 };
 
 struct Lifetime_Key_With_Opaque_ID{

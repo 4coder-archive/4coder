@@ -48,7 +48,7 @@ struct Marker_Array{
     u32 max;
 };
 
-#define MarkerArrayBase(a) (Marker*)((u8*)(a) + sizeof(Marker_Array) + ((Marker_Array*)(a))->rounded_user_data_size)
+#define MarkerArrayBase(a) (Marker*)((u8*)(a) + sizeof(Marker_Array))
 
 struct Editing_File_Markers{
     Marker_Array sentinel;
@@ -128,7 +128,7 @@ struct Editing_File{
     b32 is_loading;
     b32 is_dummy;
     Editing_File_State state;
-    Dynamic_Variable_Block dynamic_vars;
+    Dynamic_Workspace dynamic_workspace;
     Lifetime_Object *lifetime_object;
     Editing_File_Markers markers;
     Editing_File_Name base_name;

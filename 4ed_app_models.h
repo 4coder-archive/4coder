@@ -68,7 +68,7 @@ struct Models{
     Parse_Context_Memory parse_context_memory;
     
     Dynamic_Variable_Layout variable_layout;
-    Dynamic_Variable_Block dynamic_vars;
+    Dynamic_Workspace dynamic_workspace;
     Lifetime_Allocator lifetime_allocator;
     
     Editing_File *message_buffer;

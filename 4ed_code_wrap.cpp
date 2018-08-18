@@ -435,14 +435,14 @@ get_current_shift(Code_Wrap_State *wrap_state, i32 next_line_start){
 
 internal void
 file_measure_wraps(System_Functions *system, Mem_Options *mem, Editing_File *file, Font_Pointers font){
-    General_Memory *general = &mem->general;
+    Heap *heap = &mem->heap;
     Partition *part = &mem->part;
     
     Temp_Memory temp = begin_temp_memory(part);
     
-    file_allocate_wraps_as_needed(general, file);
-    file_allocate_indents_as_needed(general, file, file->state.buffer.line_count);
-    file_allocate_wrap_positions_as_needed(general, file, file->state.buffer.line_count);
+    file_allocate_wraps_as_needed(heap, file);
+    file_allocate_indents_as_needed(heap, file, file->state.buffer.line_count);
+    file_allocate_wrap_positions_as_needed(heap, file, file->state.buffer.line_count);
     
     Buffer_Measure_Wrap_Params params;
     params.buffer          = &file->state.buffer;
@@ -506,7 +506,7 @@ file_measure_wraps(System_Functions *system, Mem_Options *mem, Editing_File *fil
                     else{
                         do_wrap = 1;
                         wrap_unit_end = wrap_indent_marks[stage+1].wrap_position;
-                        file_allocate_wrap_positions_as_needed(general, file, wrap_position_index);
+                        file_allocate_wrap_positions_as_needed(heap, file, wrap_position_index);
                         file->state.wrap_positions[wrap_position_index++] = stop.pos;
                     }
                 }
@@ -569,7 +569,7 @@ file_measure_wraps(System_Functions *system, Mem_Options *mem, Editing_File *fil
                     wrap_unit_end = wrap_end_result;
                     if (x > width){
                         do_wrap = 1;
-                        file_allocate_wrap_positions_as_needed(general, file, wrap_position_index);
+                        file_allocate_wrap_positions_as_needed(heap, file, wrap_position_index);
                         file->state.wrap_positions[wrap_position_index++] = stop.pos;
                     }
                     else{
@@ -801,17 +801,17 @@ file_measure_wraps(System_Functions *system, Mem_Options *mem, Editing_File *fil
                                     next_stickieness = stickieness_guess(next_type, this_type, next_flags, this_flags, 0);
                                 }
                                 
-                                i32 general_stickieness = this_stickieness;
-                                if (general_stickieness < next_stickieness){
-                                    general_stickieness = next_stickieness;
+                                i32 heap_stickieness = this_stickieness;
+                                if (heap_stickieness < next_stickieness){
+                                    heap_stickieness = next_stickieness;
                                 }
                                 
                                 if (wrap_state.wrap_x.paren_top != 0 && this_type == CPP_TOKEN_COMMA){
-                                    general_stickieness = 0;
+                                    heap_stickieness = 0;
                                 }
                                 
                                 wrappable_score = 64*50;
-                                wrappable_score += 101 - general_stickieness - wrap_state.wrap_x.paren_safe_top*80;
+                                wrappable_score += 101 - heap_stickieness - wrap_state.wrap_x.paren_safe_top*80;
                                 
                                 potential_marks[potential_count].wrap_position = next_wrap_position;
                                 potential_marks[potential_count].line_shift = current_shift.shift;
@@ -914,7 +914,7 @@ file_measure_wraps(System_Functions *system, Mem_Options *mem, Editing_File *fil
                 current_line_shift = clamp_top(current_line_shift, current_width - edge_tolerance);
                 
                 if (stop.wrap_line_index >= file->state.line_indent_max){
-                    file_allocate_indents_as_needed(general, file, stop.wrap_line_index);
+                    file_allocate_indents_as_needed(heap, file, stop.wrap_line_index);
                 }
                 
                 file->state.line_indents[stop.wrap_line_index] = current_line_shift;
@@ -925,7 +925,7 @@ file_measure_wraps(System_Functions *system, Mem_Options *mem, Editing_File *fil
     
     ++file->state.wrap_line_count;
     
-    file_allocate_wrap_positions_as_needed(general, file, wrap_position_index);
+    file_allocate_wrap_positions_as_needed(heap, file, wrap_position_index);
     file->state.wrap_positions[wrap_position_index++] = size;
     file->state.wrap_position_count = wrap_position_index;
     

@@ -10,7 +10,7 @@ and list all locations.
 //
 
 static void
-search_key_alloc(General_Memory *general, Search_Key *key, int32_t *size, int32_t count){
+search_key_alloc(Heap *heap, Search_Key *key, int32_t *size, int32_t count){
     if (count > ArrayCount(key->words)){
         count = ArrayCount(key->words);
     }
@@ -24,14 +24,15 @@ search_key_alloc(General_Memory *general, Search_Key *key, int32_t *size, int32_
         }
     }
     
-    int32_t max_base_size = total_size*2;
-    
     if (key->base == 0){
-        key->base = (char*)general_memory_allocate(general, max_base_size);
+        int32_t max_base_size = total_size*2;
+        key->base  = heap_array(heap, char, max_base_size);
         key->base_size = max_base_size;
     }
     else if (key->base_size < total_size){
-        key->base  = (char*)general_memory_reallocate_nocopy(general, key->base, max_base_size);
+        int32_t max_base_size = total_size*2;
+        heap_free(heap, key->base);
+        key->base  = heap_array(heap, char, max_base_size);
         key->base_size = max_base_size;
     }
     
@@ -55,52 +56,54 @@ search_iter_init(Search_Iter *iter, Search_Key key){
 }
 
 static void
-search_set_init(General_Memory *general, Search_Set *set, int32_t range_count){
-    int32_t max = range_count*2;
-    
+search_set_init(Heap *heap, Search_Set *set, int32_t range_count){
     if (set->ranges == 0){
-        set->ranges = (Search_Range*)general_memory_allocate(general, sizeof(Search_Range)*max);
+        int32_t max = range_count*2;
+        set->ranges = heap_array(heap, Search_Range, max);
         set->max = max;
     }
     else if (set->max < range_count){
-        set->ranges = (Search_Range*)general_memory_reallocate_nocopy(
-            general, set->ranges, sizeof(Search_Range)*max);
+        int32_t max = range_count*2;
+        heap_free(heap, set->ranges);
+        set->ranges = heap_array(heap, Search_Range, max);
         set->max = max;
     }
-    
     set->count = range_count;
 }
 
 static void
-search_hits_table_alloc(General_Memory *general, Table *hits, int32_t table_size){
+search_hits_table_alloc(Heap *heap, Table *hits, int32_t table_size){
     void *mem = 0;
     int32_t mem_size = table_required_mem_size(table_size, sizeof(Offset_String));
     if (hits->hash_array == 0){
-        mem = general_memory_allocate(general, mem_size);
+        mem = heap_allocate(heap, mem_size);
     }
     else{
-        mem = general_memory_reallocate_nocopy(general, hits->hash_array, mem_size);
+        heap_free(heap, hits->hash_array);
+        mem = heap_allocate(heap, mem_size);
     }
     table_init_memory(hits, mem, table_size, sizeof(Offset_String));
 }
 
 static void
-search_hits_init(General_Memory *general, Table *hits, String_Space *str, int32_t table_size, int32_t str_size){
+search_hits_init(Heap *heap, Table *hits, String_Space *str, int32_t table_size, int32_t str_size){
     if (hits->hash_array == 0){
-        search_hits_table_alloc(general, hits, table_size);
+        search_hits_table_alloc(heap, hits, table_size);
     }
     else{
         int32_t mem_size = table_required_mem_size(table_size, sizeof(Offset_String));
-        void *mem = general_memory_reallocate_nocopy(general, hits->hash_array, mem_size);
+        heap_free(heap, hits->hash_array);
+        void *mem = heap_allocate(heap, mem_size);
         table_init_memory(hits, mem, table_size, sizeof(Offset_String));
     }
     
     if (str->space == 0){
-        str->space = (char*)general_memory_allocate(general, str_size);
+        str->space = heap_array(heap, char, str_size);
         str->max = str_size;
     }
     else if (str->max < str_size){
-        str->space = (char*)general_memory_reallocate_nocopy(general, str->space, str_size);
+        heap_free(heap, str->space);
+        str->space = heap_array(heap, char, str_size);
         str->max = str_size;
     }
     
@@ -113,7 +116,7 @@ search_hits_init(General_Memory *general, Table *hits, String_Space *str, int32_
 //
 
 static int32_t
-search_hit_add(General_Memory *general, Table *hits, String_Space *space, char *str, int32_t len){
+search_hit_add(Heap *heap, Table *hits, String_Space *space, char *str, int32_t len){
     int32_t result = false;
     
     Assert(len != 0);
@@ -124,7 +127,10 @@ search_hit_add(General_Memory *general, Table *hits, String_Space *space, char *
         if (new_size < space->max + len){
             new_size = space->max + len;
         }
-        space->space = (char*)general_memory_reallocate(general, space->space, space->new_pos, new_size);
+        char *new_space = heap_array(heap, char, new_size);
+        memcpy(new_space, space->space, space->new_pos);
+        heap_free(heap, space->space);
+        space->space = new_space;
         ostring = strspace_append(space, str, len);
     }
     
@@ -132,10 +138,10 @@ search_hit_add(General_Memory *general, Table *hits, String_Space *space, char *
     
     if (table_at_capacity(hits)){
         Table new_hits = {0};
-        search_hits_table_alloc(general, &new_hits, hits->max*2);
+        search_hits_table_alloc(heap, &new_hits, hits->max*2);
         table_clear(&new_hits);
         table_rehash(hits, &new_hits, space->space, tbl_offset_string_hash, tbl_offset_string_compare);
-        general_memory_free(general, hits->hash_array);
+        heap_free(heap, hits->hash_array);
         *hits = new_hits;
     }
     
@@ -478,7 +484,7 @@ search_next_match(Application_Links *app, Search_Set *set, Search_Iter *it_ptr){
 //
 
 static void
-initialize_generic_search_all_buffers(Application_Links *app, General_Memory *general, String *strings, int32_t count, Search_Range_Flag match_flags, int32_t *skip_buffers, int32_t skip_buffer_count, Search_Set *set, Search_Iter *iter){
+initialize_generic_search_all_buffers(Application_Links *app, Heap *heap, String *strings, int32_t count, Search_Range_Flag match_flags, int32_t *skip_buffers, int32_t skip_buffer_count, Search_Set *set, Search_Iter *iter){
     memset(set, 0, sizeof(*set));
     memset(iter, 0, sizeof(*iter));
     
@@ -494,7 +500,7 @@ initialize_generic_search_all_buffers(Application_Links *app, General_Memory *ge
     }
     
     // TODO(allen): Why on earth am I allocating these separately in this case?  Upgrade to just use the string array on the stack!
-    search_key_alloc(general, &key, sizes, count);
+    search_key_alloc(heap, &key, sizes, count);
     for (int32_t i = 0; i < count; ++i){
         copy(&key.words[i], strings[i]);
     }
@@ -502,7 +508,7 @@ initialize_generic_search_all_buffers(Application_Links *app, General_Memory *ge
     search_iter_init(iter, key);
     
     int32_t buffer_count = get_buffer_count(app);
-    search_set_init(general, set, buffer_count);
+    search_set_init(heap, set, buffer_count);
     
     Search_Range *ranges = set->ranges;
     
@@ -613,7 +619,7 @@ buffered_print_match_jump_line(Application_Links *app, Partition *part, Temp_Mem
 }
 
 static void
-list__parameters(Application_Links *app, General_Memory *general, Partition *scratch,
+list__parameters(Application_Links *app, Heap *heap, Partition *scratch,
                  String *strings, int32_t count, Search_Range_Flag match_flags){
     // Open the search buffer
     String search_name = make_lit_string("*search*");
@@ -632,7 +638,7 @@ list__parameters(Application_Links *app, General_Memory *general, Partition *scr
     // Initialize a generic search all buffers
     Search_Set set = {0};
     Search_Iter iter = {0};
-    initialize_generic_search_all_buffers(app, general, strings, count, match_flags, &search_buffer.buffer_id, 1, &set, &iter);
+    initialize_generic_search_all_buffers(app, heap, strings, count, match_flags, &search_buffer.buffer_id, 1, &set, &iter);
     
     // List all locations into search buffer
     Temp_Memory all_temp = begin_temp_memory(scratch);
@@ -657,7 +663,7 @@ list__parameters(Application_Links *app, General_Memory *general, Partition *scr
 }
 
 static void
-list_single__parameters(Application_Links *app, General_Memory *general, Partition *scratch,
+list_single__parameters(Application_Links *app, Heap *heap, Partition *scratch,
                         String str, bool32 substrings, bool32 case_insensitive){
     Search_Range_Flag flags = 0;
     if (substrings){
@@ -669,22 +675,22 @@ list_single__parameters(Application_Links *app, General_Memory *general, Partiti
     if (case_insensitive){
         flags |= SearchFlag_CaseInsensitive;
     }
-    list__parameters(app, general, scratch, &str, 1, flags);
+    list__parameters(app, heap, scratch, &str, 1, flags);
 }
 
 static void
-list_query__parameters(Application_Links *app, General_Memory *general, Partition *scratch,
+list_query__parameters(Application_Links *app, Heap *heap, Partition *scratch,
                        bool32 substrings, bool32 case_insensitive){
     char space[1024];
     String str = get_query_string(app, "List Locations For: ", space, sizeof(space));
     if (str.str != 0){
         change_active_panel(app);
-        list_single__parameters(app, general, scratch, str, substrings, case_insensitive);
+        list_single__parameters(app, heap, scratch, str, substrings, case_insensitive);
     }
 }
 
 static void
-list_identifier__parameters(Application_Links *app, General_Memory *general, Partition *scratch,
+list_identifier__parameters(Application_Links *app, Heap *heap, Partition *scratch,
                             bool32 substrings, bool32 case_insensitive){
     View_Summary view = get_active_view(app, AccessProtected);
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessProtected);
@@ -693,25 +699,25 @@ list_identifier__parameters(Application_Links *app, General_Memory *general, Par
     String str = get_token_or_word_under_pos(app, &buffer, view.cursor.pos, space, sizeof(space));
     if (str.str != 0){
         change_active_panel(app);
-        list_single__parameters(app, general, scratch, str, substrings, case_insensitive);
+        list_single__parameters(app, heap, scratch, str, substrings, case_insensitive);
     }
 }
 
 static void
-list_selected_range__parameters(Application_Links *app, General_Memory *general, Partition *scratch,
+list_selected_range__parameters(Application_Links *app, Heap *heap, Partition *scratch,
                                 bool32 substrings, bool32 case_insensitive){
     View_Summary view = get_active_view(app, AccessProtected);
     Temp_Memory temp = begin_temp_memory(scratch);
     String str = get_string_in_view_range(app, scratch, &view);
     if (str.str != 0){
         change_active_panel(app);
-        list_single__parameters(app, general, scratch, str, substrings, case_insensitive);
+        list_single__parameters(app, heap, scratch, str, substrings, case_insensitive);
     }
     end_temp_memory(temp);
 }
 
 static void
-list_type_definition__parameters(Application_Links *app, General_Memory *general, Partition *scratch,
+list_type_definition__parameters(Application_Links *app, Heap *heap, Partition *scratch,
                                  String str){
     Temp_Memory temp = begin_temp_memory(scratch);
     
@@ -723,7 +729,7 @@ list_type_definition__parameters(Application_Links *app, General_Memory *general
     match_strings[4] = build_string(scratch, "enum "  , str, "{");
     match_strings[5] = build_string(scratch, "enum "  , str, "\n{");
     
-    list__parameters(app, general, scratch,
+    list__parameters(app, heap, scratch,
                      match_strings, ArrayCount(match_strings), 0);
     
     end_temp_memory(temp);
@@ -741,49 +747,49 @@ list_type_definition__parameters(Application_Links *app, General_Memory *general
 CUSTOM_COMMAND_SIG(list_all_locations)
 CUSTOM_DOC("Queries the user for a string and lists all exact case-sensitive matches found in all open buffers.")
 {
-    list_query__parameters(app, &global_general, &global_part, false, false);
+    list_query__parameters(app, &global_heap, &global_part, false, false);
 }
 
 CUSTOM_COMMAND_SIG(list_all_substring_locations)
 CUSTOM_DOC("Queries the user for a string and lists all case-sensitive substring matches found in all open buffers.")
 {
-    list_query__parameters(app, &global_general, &global_part, true, false);
+    list_query__parameters(app, &global_heap, &global_part, true, false);
 }
 
 CUSTOM_COMMAND_SIG(list_all_locations_case_insensitive)
 CUSTOM_DOC("Queries the user for a string and lists all exact case-insensitive matches found in all open buffers.")
 {
-    list_query__parameters(app, &global_general, &global_part, false, true);
+    list_query__parameters(app, &global_heap, &global_part, false, true);
 }
 
 CUSTOM_COMMAND_SIG(list_all_substring_locations_case_insensitive)
 CUSTOM_DOC("Queries the user for a string and lists all case-insensitive substring matches found in all open buffers.")
 {
-    list_query__parameters(app, &global_general, &global_part, true, true);
+    list_query__parameters(app, &global_heap, &global_part, true, true);
 }
 
 CUSTOM_COMMAND_SIG(list_all_locations_of_identifier)
 CUSTOM_DOC("Reads a token or word under the cursor and lists all exact case-sensitive mathces in all open buffers.")
 {
-    list_identifier__parameters(app, &global_general, &global_part, false, false);
+    list_identifier__parameters(app, &global_heap, &global_part, false, false);
 }
 
 CUSTOM_COMMAND_SIG(list_all_locations_of_identifier_case_insensitive)
 CUSTOM_DOC("Reads a token or word under the cursor and lists all exact case-insensitive mathces in all open buffers.")
 {
-    list_identifier__parameters(app, &global_general, &global_part, false, true);
+    list_identifier__parameters(app, &global_heap, &global_part, false, true);
 }
 
 CUSTOM_COMMAND_SIG(list_all_locations_of_selection)
 CUSTOM_DOC("Reads the string in the selected range and lists all exact case-sensitive mathces in all open buffers.")
 {
-    list_selected_range__parameters(app, &global_general, &global_part, false, false);
+    list_selected_range__parameters(app, &global_heap, &global_part, false, false);
 }
 
 CUSTOM_COMMAND_SIG(list_all_locations_of_selection_case_insensitive)
 CUSTOM_DOC("Reads the string in the selected range and lists all exact case-insensitive mathces in all open buffers.")
 {
-    list_selected_range__parameters(app, &global_general, &global_part, false, true);
+    list_selected_range__parameters(app, &global_heap, &global_part, false, true);
 }
 
 CUSTOM_COMMAND_SIG(list_all_locations_of_type_definition)
@@ -793,7 +799,7 @@ CUSTOM_DOC("Queries user for string, lists all locations of strings that appear 
     String str = get_query_string(app, "List Definitions For: ", space, sizeof(space));
     if (str.str != 0){
         change_active_panel(app);
-        list_type_definition__parameters(app, &global_general, &global_part, str);
+        list_type_definition__parameters(app, &global_heap, &global_part, str);
     }
 }
 
@@ -806,7 +812,7 @@ CUSTOM_DOC("Reads a token or word under the cursor and lists all locations of st
     String str = get_token_or_word_under_pos(app, &buffer, view.cursor.pos, space, sizeof(space) - 1);
     if (str.str != 0){
         change_active_panel(app);
-        list_type_definition__parameters(app, &global_general, &global_part, str);
+        list_type_definition__parameters(app, &global_heap, &global_part, str);
     }
 }
 
@@ -881,7 +887,7 @@ CUSTOM_DOC("Iteratively tries completing the word to the left of the cursor with
             // NOTE(allen): Initialize the search iterator with the partial word.
             complete_state.initialized = true;
             Search_Key key = {0};
-            search_key_alloc(&global_general, &key, &size, 1);
+            search_key_alloc(&global_heap, &key, &size, 1);
             buffer_read_range(app, &buffer, word_start, word_end, key.words[0].str);
             key.words[0].size = size;
             
@@ -889,7 +895,7 @@ CUSTOM_DOC("Iteratively tries completing the word to the left of the cursor with
             
             // NOTE(allen): Initialize the set of ranges to be searched.
             int32_t buffer_count = get_buffer_count(app);
-            search_set_init(&global_general, &complete_state.set, buffer_count);
+            search_set_init(&global_heap, &complete_state.set, buffer_count);
             
             Search_Range *ranges = complete_state.set.ranges;
             ranges[0].type = SearchRange_Wave;
@@ -916,9 +922,9 @@ CUSTOM_DOC("Iteratively tries completing the word to the left of the cursor with
             complete_state.set.count = j;
             
             // NOTE(allen): Initialize the search hit table.
-            search_hits_init(&global_general, &complete_state.hits, &complete_state.str, 100, (4 << 10));
+            search_hits_init(&global_heap, &complete_state.hits, &complete_state.str, 100, (4 << 10));
             String word = complete_state.iter.key.words[0];
-            search_hit_add(&global_general, &complete_state.hits, &complete_state.str, word.str, word.size);
+            search_hit_add(&global_heap, &complete_state.hits, &complete_state.str, word.str, word.size);
             
             complete_state.word_start = word_start;
             complete_state.word_end = word_end;
@@ -942,7 +948,7 @@ CUSTOM_DOC("Iteratively tries completing the word to the left of the cursor with
                     
                     buffer_read_range(app, &match.buffer, match.start, match.end, spare);
                     
-                    if (search_hit_add(&global_general, &complete_state.hits, &complete_state.str, spare, match_size)){
+                    if (search_hit_add(&global_heap, &complete_state.hits, &complete_state.str, spare, match_size)){
                         buffer_replace_range(app, &buffer, word_start, word_end, spare, match_size);
                         view_set_cursor(app, &view, seek_pos(word_start + match_size), true);
                         
@@ -957,9 +963,9 @@ CUSTOM_DOC("Iteratively tries completing the word to the left of the cursor with
                     complete_state.iter.pos = 0;
                     complete_state.iter.i = 0;
                     
-                    search_hits_init(&global_general, &complete_state.hits, &complete_state.str, 100, (4 << 10));
+                    search_hits_init(&global_heap, &complete_state.hits, &complete_state.str, 100, (4 << 10));
                     String word = complete_state.iter.key.words[0];
-                    search_hit_add(&global_general, &complete_state.hits, &complete_state.str, word.str, word.size);
+                    search_hit_add(&global_heap, &complete_state.hits, &complete_state.str, word.str, word.size);
                     
                     match_size = word.size;
                     char *str = word.str;

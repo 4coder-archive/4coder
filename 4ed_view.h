@@ -36,7 +36,7 @@ struct View_Transient{
     b32 in_use;
     
     File_Viewing_Data file_data;
-    Dynamic_Variable_Block dynamic_vars;
+    Dynamic_Workspace dynamic_workspace;
     Lifetime_Object *lifetime_object;
     
     i32_Rect file_region_prev;

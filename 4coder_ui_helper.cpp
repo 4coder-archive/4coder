@@ -195,17 +195,17 @@ view_get_lister_state(View_Summary *view){
 }
 
 static void
-init_lister_state(Lister_State *state, General_Memory *general){
+init_lister_state(Lister_State *state, Heap *heap){
     state->initialized = true;
     state->hot_user_data = 0;
     state->item_index = 0;
     state->set_view_vertical_focus_to_item = false;
     state->option_item_count = 0;
     if (state->arena.base != 0){
-        general_memory_free(general, state->arena.base);
+        heap_free(heap, state->arena.base);
     }
     int32_t arena_size = (64 << 10);
-    state->arena = make_part(general_memory_allocate(general, arena_size), arena_size);
+    state->arena = make_part(heap_allocate(heap, arena_size), arena_size);
     memset(&state->lister, 0, sizeof(state->lister));
 }
 
@@ -470,7 +470,7 @@ lister_call_refresh_handler(Application_Links *app, Partition *arena, Lister *li
 }
 
 static void
-lister_call_activate_handler(Application_Links *app, Partition *scratch, General_Memory *general,
+lister_call_activate_handler(Application_Links *app, Partition *scratch, Heap *heap,
                              View_Summary *view, Lister_State *state,
                              void *user_data, bool32 activated_by_mouse){
     Lister *lister = &state->lister;
@@ -484,7 +484,7 @@ lister_call_activate_handler(Application_Links *app, Partition *scratch, General
             if (view_end_ui_mode(app, view) == 0){
                 state->initialized = false;
                 if (state->arena.base != 0){
-                    general_memory_free(general, state->arena.base);
+                    heap_free(heap, state->arena.base);
                     memset(&state->arena, 0, sizeof(state->arena));
                 }
             }

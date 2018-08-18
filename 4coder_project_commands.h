@@ -7,8 +7,6 @@
 #if !defined(FCODER_PROJECT_COMMANDS_H)
 #define FCODER_PROJECT_COMMANDS_H
 
-#include "4coder_lib/4coder_mem.h"
-
 enum{
     OpenAllFilesFlag_Recursive = 1,
 };

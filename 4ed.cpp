@@ -192,7 +192,7 @@ do_feedback_message(System_Functions *system, Models *models, String value){
 internal View*
 panel_make_empty(System_Functions *system, Models *models, Panel *panel){
     Assert(panel->view == 0);
-    View_And_ID new_view = live_set_alloc_view(&models->mem.general, &models->lifetime_allocator, &models->live_set, panel);
+    View_And_ID new_view = live_set_alloc_view(&models->mem.heap, &models->lifetime_allocator, &models->live_set, panel);
     view_set_file(system, models, new_view.view, models->scratch_buffer);
     return(new_view.view);
 }
@@ -254,7 +254,7 @@ COMMAND_DECL(reopen){
                 if (system->load_file(handle, buffer, size)){
                     system->load_close(handle);
                     
-                    General_Memory *general = &models->mem.general;
+                    Heap *heap = &models->mem.heap;
                     
                     File_Edit_Positions edit_poss[16];
                     int32_t line_number[16];
@@ -277,7 +277,7 @@ COMMAND_DECL(reopen){
                         ++vptr_count;
                     }
                     
-                    file_free(system, &models->app_links, general, file);
+                    file_free(system, &models->app_links, heap, file);
                     init_normal_file(system, models, buffer, size, file);
                     
                     for (i32 i = 0; i < vptr_count; ++i){
@@ -403,7 +403,7 @@ internal b32
 interpret_binding_buffer(Models *models, void *buffer, i32 size){
     b32 result = true;
     
-    General_Memory *gen = &models->mem.general;
+    Heap *gen = &models->mem.heap;
     Partition *part = &models->mem.part;
     Temp_Memory temp = begin_temp_memory(part);
     
@@ -508,7 +508,7 @@ interpret_binding_buffer(Models *models, void *buffer, i32 size){
         i32 binding_rounded_memsize = l_round_up_i32(binding_memsize, 8);
         
         i32 needed_memsize = map_id_table_rounded_memsize + user_maps_rounded_memsize + binding_rounded_memsize;
-        new_mapping.memory = general_memory_allocate(gen, needed_memsize);
+        new_mapping.memory = heap_allocate(gen, needed_memsize);
         local_part = make_part(new_mapping.memory, needed_memsize);
         
         // Move ID Table Memory and Pointer
@@ -688,7 +688,7 @@ interpret_binding_buffer(Models *models, void *buffer, i32 size){
     Mapping old_mapping = models->mapping;
     if (old_mapping.memory != 0){
         // TODO(allen): Do I need to explicity work on recovering the old ids of buffers?
-        general_memory_free(gen, old_mapping.memory);
+        heap_free(gen, old_mapping.memory);
     }
     
     models->mapping = new_mapping;
@@ -974,13 +974,8 @@ app_setup_memory(System_Functions *system, Application_Memory *memory){
     Assert(vars != 0);
     memset(vars, 0, sizeof(*vars));
     vars->models.mem.part = _partition;
-    
-#if defined(USE_DEBUG_MEMORY)
-    general_memory_open(system, &vars->models.mem.general, memory->target_memory, memory->target_memory_size);
-#else
-    general_memory_open(&vars->models.mem.general, memory->target_memory, memory->target_memory_size);
-#endif
-    
+    heap_init(&vars->models.mem.heap);
+    heap_extend(&vars->models.mem.heap, memory->target_memory, memory->target_memory_size);
     return(vars);
 }
 
@@ -1067,7 +1062,7 @@ App_Init_Sig(app_init){
         umem memsize = KB(8);
         void *mem = push_array(partition, u8, (i32)memsize);
         parse_context_init_memory(&models->parse_context_memory, mem, memsize);
-        parse_context_add_default(&models->parse_context_memory, &models->mem.general);
+        parse_context_add_default(&models->parse_context_memory, &models->mem.heap);
     }
     
     {
@@ -1080,10 +1075,10 @@ App_Init_Sig(app_init){
     }
     
     dynamic_variables_init(&models->variable_layout);
-    dynamic_variables_block_init(&models->mem.general, &models->dynamic_vars);
+    dynamic_workspace_init(&models->mem.heap, &models->dynamic_workspace);
     
     // NOTE(allen): file setup
-    working_set_init(&models->working_set, partition, &vars->models.mem.general);
+    working_set_init(&models->working_set, partition, &vars->models.mem.heap);
     models->working_set.default_display_width = DEFAULT_DISPLAY_WIDTH;
     models->working_set.default_minimum_base_display_width = DEFAULT_MINIMUM_BASE_DISPLAY_WIDTH;
     
@@ -1095,7 +1090,7 @@ App_Init_Sig(app_init){
     
     // TODO(allen): more robust allocation solution for the clipboard
     if (clipboard.str != 0){
-        String *dest = working_set_next_clipboard_string(&models->mem.general, &models->working_set, clipboard.size);
+        String *dest = working_set_next_clipboard_string(&models->mem.heap, &models->working_set, clipboard.size);
         copy(dest, make_string((char*)clipboard.str, clipboard.size));
     }
     
@@ -1131,10 +1126,10 @@ App_Init_Sig(app_init){
         { make_lit_string("*scratch*"),  &models->scratch_buffer, false, },
     };
     
-    General_Memory *general = &models->mem.general;
+    Heap *heap = &models->mem.heap;
     for (i32 i = 0; i < ArrayCount(init_files); ++i){
-        Editing_File *file = working_set_alloc_always(&models->working_set, general, &models->lifetime_allocator);
-        buffer_bind_name(models, general, partition, &models->working_set, file, init_files[i].name);
+        Editing_File *file = working_set_alloc_always(&models->working_set, heap, &models->lifetime_allocator);
+        buffer_bind_name(models, heap, partition, &models->working_set, file, init_files[i].name);
         
         if (init_files[i].read_only){
             init_read_only_file(system, models, file);
@@ -1177,7 +1172,7 @@ App_Step_Sig(app_step){
     // NOTE(allen): OS clipboard event handling
     String clipboard = input->clipboard;
     if (clipboard.str){
-        String *dest =working_set_next_clipboard_string(&models->mem.general, &models->working_set, clipboard.size);
+        String *dest = working_set_next_clipboard_string(&models->mem.heap, &models->working_set, clipboard.size);
         dest->size = eol_convert_in(dest->str, clipboard.str, clipboard.size);
     }
     

@@ -10,11 +10,11 @@
 // TOP
 
 inline void
-edit_pre_maintenance(System_Functions *system, General_Memory *general, Editing_File *file){
+edit_pre_maintenance(System_Functions *system, Heap *heap, Editing_File *file){
     if (file->state.still_lexing){
         system->cancel_job(BACKGROUND_THREADS, file->state.lex_job);
         if (file->state.swap_array.tokens){
-            general_memory_free(general, file->state.swap_array.tokens);
+            heap_free(heap, file->state.swap_array.tokens);
             file->state.swap_array.tokens = 0;
         }
         file->state.still_lexing = 0;
@@ -142,11 +142,11 @@ edit_single__inner(System_Functions *system, Models *models, Editing_File *file,
     
     // NOTE(allen): fixing stuff beforewards????
     file_update_history_before_edit(mem, file, spec.step, spec.str, history_mode);
-    edit_pre_maintenance(system, &mem->general, file);
+    edit_pre_maintenance(system, &mem->heap, file);
     
     // NOTE(allen): actual text replacement
     i32 shift_amount = 0;
-    General_Memory *general = &mem->general;
+    Heap *heap = &mem->heap;
     Partition *part = &mem->part;
     
     char *str = (char*)spec.str;
@@ -162,11 +162,11 @@ edit_single__inner(System_Functions *system, Models *models, Editing_File *file,
     while (buffer_replace_range(&file->state.buffer, start, end, str, str_len, &shift_amount, part->base + part->pos, scratch_size, &request_amount)){
         void *new_data = 0;
         if (request_amount > 0){
-            new_data = general_memory_allocate(general, request_amount);
+            new_data = heap_allocate(heap, request_amount);
         }
         void *old_data = buffer_edit_provide_memory(&file->state.buffer, new_data, request_amount);
         if (old_data){
-            general_memory_free(general, old_data);
+            heap_free(heap, old_data);
         }
     }
     
@@ -191,10 +191,10 @@ edit_single__inner(System_Functions *system, Models *models, Editing_File *file,
     Font_Pointers font = system->font.get_pointers_by_id(file->settings.font_id);
     Assert(font.valid);
     
-    file_grow_starts_as_needed(general, buffer, line_shift);
+    file_grow_starts_as_needed(heap, buffer, line_shift);
     buffer_remeasure_starts(buffer, line_start, line_end, line_shift, shift_amount);
     
-    file_allocate_character_starts_as_needed(general, file);
+    file_allocate_character_starts_as_needed(heap, file);
     buffer_remeasure_character_starts(system, font, buffer, line_start, line_end, line_shift, file->state.character_starts, 0, file->settings.virtual_white);
     
     file_measure_wraps(system, &models->mem, file, font);
@@ -220,7 +220,7 @@ edit_single(System_Functions *system, Models *models, Editing_File *file,
 }
 
 internal Edit_Spec
-edit_compute_batch_spec(General_Memory *general,
+edit_compute_batch_spec(Heap *heap,
                         Editing_File *file,
                         Buffer_Edit *edits, char *str_base, i32 str_size,
                         Buffer_Edit *inverse_array, char *inv_str, i32 inv_max, i32 edit_count, i32 batch_type){
@@ -232,8 +232,8 @@ edit_compute_batch_spec(General_Memory *general,
         InvalidCodePath;
     }
     
-    i32 first_child = undo_children_push(general, &file->state.undo.children, edits, edit_count, (u8*)(str_base), str_size);
-    i32 inverse_first_child = undo_children_push(general, &file->state.undo.children, inverse_array, edit_count, (u8*)(inv_str), inv_str_pos);
+    i32 first_child = undo_children_push(heap, &file->state.undo.children, edits, edit_count, (u8*)(str_base), str_size);
+    i32 inverse_first_child = undo_children_push(heap, &file->state.undo.children, inverse_array, edit_count, (u8*)(inv_str), inv_str_pos);
     
     Edit_Spec spec = {};
     spec.step.type = ED_NORMAL;
@@ -250,14 +250,14 @@ edit_batch(System_Functions *system, Models *models, Editing_File *file,
            Edit_Spec spec, History_Mode history_mode, Buffer_Batch_Edit_Type batch_type){
     
     Mem_Options *mem = &models->mem;
-    General_Memory *general = &mem->general;
+    Heap *heap = &mem->heap;
     Partition *part = &mem->part;
     Editing_Layout *layout = &models->layout;
     
     // NOTE(allen): fixing stuff "beforewards"???
     Assert(spec.str == 0);
     file_update_history_before_edit(mem, file, spec.step, 0, history_mode);
-    edit_pre_maintenance(system, &mem->general, file);
+    edit_pre_maintenance(system, &mem->heap, file);
     
     // NOTE(allen): actual text replacement
     u8 *str_base = file->state.undo.children.strings;
@@ -275,11 +275,11 @@ edit_batch(System_Functions *system, Models *models, Editing_File *file,
                                   scratch_size, &request_amount)){
         void *new_data = 0;
         if (request_amount > 0){
-            new_data = general_memory_allocate(general, request_amount);
+            new_data = heap_allocate(heap, request_amount);
         }
         void *old_data = buffer_edit_provide_memory(&file->state.buffer, new_data, request_amount);
         if (old_data){
-            general_memory_free(general, old_data);
+            heap_free(heap, old_data);
         }
     }
     
@@ -341,13 +341,13 @@ edit_batch(System_Functions *system, Models *models, Editing_File *file,
     // it from cursor fixing is because you're a lazy asshole.
     
     // NOTE(allen): meta data
-    file_measure_starts(general, &file->state.buffer);
+    file_measure_starts(heap, &file->state.buffer);
     
     Font_Pointers font = system->font.get_pointers_by_id(file->settings.font_id);
     Assert(font.valid);
     
     // TODO(allen): write the remeasurement version
-    file_allocate_character_starts_as_needed(general, file);
+    file_allocate_character_starts_as_needed(heap, file);
     buffer_measure_character_starts(system, font, &file->state.buffer, file->state.character_starts, 0, file->settings.virtual_white);
     
     file_measure_wraps(system, &models->mem, file, font);
