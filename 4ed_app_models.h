@@ -105,12 +105,6 @@ enum{
     DynamicWorkspace_Intersected = 3,
 };
 
-typedef i32 Lifetime_Object_Type;
-enum{
-    LifetimeObject_File = 0,
-    LifetimeObject_View = 1,
-};
-
 enum App_State{
     APP_STATE_EDIT,
     APP_STATE_RESIZING,

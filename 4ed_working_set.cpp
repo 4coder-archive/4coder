@@ -88,10 +88,7 @@ working_set_alloc_always(Working_Set *working_set, Heap *heap, Lifetime_Allocato
         result->settings.minimum_base_display_width = working_set->default_minimum_base_display_width;
         result->settings.wrap_indicator = WrapIndicator_Show_At_Wrap_Edge;
         init_file_markers_state(&result->markers);
-        dynamic_workspace_init(heap, lifetime_allocator,
-                               DynamicWorkspace_Buffer, result,
-                               &result->dynamic_workspace);
-        result->lifetime_object = lifetime_alloc_object(heap, lifetime_allocator, LifetimeObject_File, result);
+        result->lifetime_object = lifetime_alloc_object(heap, lifetime_allocator, DynamicWorkspace_Buffer, result);
         ++working_set->file_count;
     }
     
@@ -104,7 +101,6 @@ working_set_free_file(Heap *heap, Lifetime_Allocator *lifetime_allocator, Workin
         working_set->sync_check_iter = working_set->sync_check_iter->next;
     }
     
-    dynamic_workspace_free(heap, lifetime_allocator, &file->dynamic_workspace);
     lifetime_free_object(heap, lifetime_allocator, file->lifetime_object);
     
     file->is_dummy = true;

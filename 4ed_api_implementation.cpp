@@ -1182,7 +1182,8 @@ Buffer_Get_Managed_Scope(Application_Links *app, Buffer_ID buffer_id)
     Editing_File *file = imp_get_file(cmd, buffer_id);
     Managed_Scope lifetime = 0;
     if (file != 0){
-        lifetime = (Managed_Scope)file->dynamic_workspace.scope_id;
+        Assert(file->lifetime_object != 0);
+        lifetime = (Managed_Scope)file->lifetime_object->workspace.scope_id;
     }
     return(lifetime);
 }
@@ -1925,7 +1926,8 @@ View_Get_Managed_Scope(Application_Links *app, View_ID view_id)
     View *view = imp_get_view(cmd, view_id);
     Managed_Scope lifetime = 0;
     if (view != 0){
-        lifetime = (Managed_Scope)(view->transient.dynamic_workspace.scope_id);
+        Assert(view->transient.lifetime_object != 0);
+        lifetime = (Managed_Scope)(view->transient.lifetime_object->workspace.scope_id);
     }
     return(lifetime);
 }

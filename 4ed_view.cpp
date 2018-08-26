@@ -39,10 +39,7 @@ live_set_alloc_view(Heap *heap, Lifetime_Allocator *lifetime_allocator, Live_Vie
     
     init_query_set(&result.view->transient.query_set);
     
-    dynamic_workspace_init(heap, lifetime_allocator,
-                           DynamicWorkspace_View, result.view,
-                           &result.view->transient.dynamic_workspace);
-    result.view->transient.lifetime_object = lifetime_alloc_object(heap, lifetime_allocator, LifetimeObject_View, result.view);
+    result.view->transient.lifetime_object = lifetime_alloc_object(heap, lifetime_allocator, DynamicWorkspace_View, result.view);
     
     return(result);
 }
@@ -62,7 +59,6 @@ live_set_free_view(Heap *heap, Lifetime_Allocator *lifetime_allocator, Live_View
     view->transient.next->transient.prev = view;
     view->transient.in_use = false;
     
-    dynamic_workspace_free(heap, lifetime_allocator, &view->transient.dynamic_workspace);
     lifetime_free_object(heap, lifetime_allocator, view->transient.lifetime_object);
 }
 

@@ -448,8 +448,7 @@ lifetime_alloc_object(Heap *heap, Lifetime_Allocator *lifetime_allocator, i32 us
     lifetime_allocator->free_objects.count -= 1;
     
     memset(object, 0, sizeof(*object));
-    object->user_type = user_type;
-    object->user_back_ptr = user_back_ptr;
+    dynamic_workspace_init(heap, lifetime_allocator, user_type, user_back_ptr, &object->workspace);
     
     return(object);
 }
@@ -457,6 +456,8 @@ lifetime_alloc_object(Heap *heap, Lifetime_Allocator *lifetime_allocator, i32 us
 internal void
 lifetime_free_object(Heap *heap, Lifetime_Allocator *lifetime_allocator,
                      Lifetime_Object *lifetime_object){
+    dynamic_workspace_free(heap, lifetime_allocator, &lifetime_object->workspace);
+    
     i32 key_i = 0;
     for (Lifetime_Key_Ref_Node *node = lifetime_object->key_node_first;
          node != 0;

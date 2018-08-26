@@ -75,8 +75,7 @@ struct Lifetime_Object{
             Lifetime_Key_Ref_Node *key_node_first;
             Lifetime_Key_Ref_Node *key_node_last;
             i32 key_count;
-            i32 user_type;
-            void *user_back_ptr;
+            Dynamic_Workspace workspace;
         };
     };
 };
