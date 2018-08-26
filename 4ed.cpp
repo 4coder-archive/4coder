@@ -1075,7 +1075,9 @@ App_Init_Sig(app_init){
     }
     
     dynamic_variables_init(&models->variable_layout);
-    dynamic_workspace_init(&models->mem.heap, &models->dynamic_workspace);
+    dynamic_workspace_init(&models->mem.heap, &models->lifetime_allocator,
+                           DynamicWorkspace_Global, 0,
+                           &models->dynamic_workspace);
     
     // NOTE(allen): file setup
     working_set_init(&models->working_set, partition, &vars->models.mem.heap);

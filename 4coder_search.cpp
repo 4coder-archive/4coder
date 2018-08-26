@@ -834,7 +834,7 @@ CUSTOM_DOC("Iteratively tries completing the word to the left of the cursor with
     if (buffer.exists){
         int32_t do_init = false;
         
-        Dynamic_Scope scope = view_get_dynamic_scope(app, view.view_id);
+        Managed_Scope scope = view_get_managed_scope(app, view.view_id);
         
         uint64_t rewrite = 0;
         managed_variable_get(app, scope, view_rewrite_loc, &rewrite);

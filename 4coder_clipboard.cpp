@@ -50,7 +50,7 @@ CUSTOM_DOC("At the cursor, insert the text at the top of the clipboard.")
     int32_t count = clipboard_count(app, 0);
     if (count > 0){
         View_Summary view = get_active_view(app, access);
-        Dynamic_Scope scope = view_get_dynamic_scope(app, view.view_id);
+        Managed_Scope scope = view_get_managed_scope(app, view.view_id);
         managed_variable_set(app, scope, view_next_rewrite_loc, RewritePaste);
         int32_t paste_index = 0;
         managed_variable_set(app, scope, view_paste_index_loc, paste_index);
@@ -87,7 +87,7 @@ CUSTOM_DOC("If the previous command was paste or paste_next, replaces the paste 
     int32_t count = clipboard_count(app, 0);
     if (count > 0){
         View_Summary view = get_active_view(app, access);
-        Dynamic_Scope scope = view_get_dynamic_scope(app, view.view_id);
+        Managed_Scope scope = view_get_managed_scope(app, view.view_id);
         
         uint64_t rewrite = 0;
         managed_variable_get(app, scope, view_rewrite_loc, &rewrite);

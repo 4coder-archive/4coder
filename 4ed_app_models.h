@@ -97,6 +97,14 @@ struct Models{
 
 ////////////////////////////////
 
+typedef i32 Dynamic_Workspace_Type;
+enum{
+    DynamicWorkspace_Global = 0,
+    DynamicWorkspace_Buffer = 1,
+    DynamicWorkspace_View = 2,
+    DynamicWorkspace_Intersected = 3,
+};
+
 typedef i32 Lifetime_Object_Type;
 enum{
     LifetimeObject_File = 0,

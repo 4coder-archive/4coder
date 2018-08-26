@@ -48,14 +48,11 @@ struct Dynamic_Memory_Bank{
 struct Dynamic_Workspace{
     Dynamic_Variable_Block var_block;
     Dynamic_Memory_Bank mem_bank;
-};
-
-////////////////////////////////
-
-struct Ptr_Check_Table{
-    void **keys;
-    u32 count;
-    u32 max;
+    u32_Ptr_Table object_id_to_object_ptr;
+    u32 object_id_counter;
+    u32 scope_id;
+    i32 user_type;
+    void *user_back_ptr;
 };
 
 ////////////////////////////////
@@ -132,7 +129,9 @@ struct Lifetime_Allocator{
     Lifetime_Object_List free_objects;
     Lifetime_Key_List free_keys;
     Lifetime_Key_Table key_table;
-    Ptr_Check_Table key_check_table;
+    Ptr_Table key_check_table;
+    u32_Ptr_Table scope_id_to_scope_ptr_table;
+    u32 scope_id_counter;
 };
 
 struct Lifetime_Key_With_Opaque_ID{

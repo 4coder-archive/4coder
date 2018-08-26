@@ -689,25 +689,12 @@ STRUCT Query_Bar{
 };
 
 TYPEDEF int32_t Managed_Variable_ID;
-static Managed_Variable_ID ManagedVariableIndex_ERROR = -1;
-
+TYPEDEF uint64_t Managed_Scope;
 TYPEDEF uint64_t Managed_Object;
 
-ENUM(int32_t, Dynamic_Scope_Type){
-    DynamicScopeType_Global = 0,
-    DynamicScopeType_Intersected = 1,
-    DynamicScopeType_Buffer = 2,
-    DynamicScopeType_View = 3,
-};
-
-STRUCT Dynamic_Scope{
-    Dynamic_Scope_Type type;
-    union{
-        uint64_t intersected_opaque_handle;
-        View_ID view_id;
-        Buffer_ID buffer_id;
-    };
-};
+static Managed_Variable_ID ManagedVariableIndex_ERROR = -1;
+static Managed_Scope ManagedScope_NULL = 0;
+static Managed_Object ManagedObject_NULL = 0;
 
 ENUM(int16_t, UI_Item_Type){
     UIType_Option = 0,

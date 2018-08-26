@@ -42,14 +42,12 @@ START_HOOK_SIG(default_start){
 // also relies on this particular command caller hook.
 COMMAND_CALLER_HOOK(default_command_caller){
     View_Summary view = get_active_view(app, AccessAll);
-    Dynamic_Scope scope = view_get_dynamic_scope(app, view.view_id);
-    
+    Managed_Scope scope = view_get_managed_scope(app, view.view_id);
     managed_variable_set(app, scope, view_next_rewrite_loc, 0);
     exec_command(app, cmd);
     uint64_t next_rewrite = 0;
     managed_variable_get(app, scope, view_next_rewrite_loc, &next_rewrite);
     managed_variable_set(app, scope, view_rewrite_loc, next_rewrite);
-    
     return(0);
 }
 

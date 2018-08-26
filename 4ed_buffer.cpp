@@ -20,8 +20,12 @@ write_cursor_with_index(Cursor_With_Index *positions, i32 *count, i32 pos){
     ++(*count);
 }
 
+// TODO(allen): Rewrite this without being a dumbass.
+// TODO(allen): Rewrite this without being a dumbass.
+// TODO(allen): Rewrite this without being a dumbass.
 #define CursorSwap__(a,b) { Cursor_With_Index t = a; a = b; b = t; }
 
+// TODO(allen): Rewrite this without being a dumbass.
 internal void
 buffer_quick_sort_cursors(Cursor_With_Index *positions, i32 start, i32 pivot){
     i32 mid = start;
@@ -343,7 +347,7 @@ buffer_end_init(Gap_Buffer_Init *init, void *scratch, i32 scratch_size){
 
 internal b32
 buffer_stringify_loop(Gap_Buffer_Stream *stream, Gap_Buffer *buffer, i32 start, i32 end){
-    b32 result = 0;
+    b32 result = false;
     
     if (0 <= start && start < end && end <= buffer->size1 + buffer->size2){
         stream->buffer = buffer;
@@ -351,15 +355,15 @@ buffer_stringify_loop(Gap_Buffer_Stream *stream, Gap_Buffer *buffer, i32 start, 
         
         if (start < buffer->size1){
             if (buffer->size1 < end){
-                stream->separated = 1;
+                stream->separated = true;
             }
             else{
-                stream->separated = 0;
+                stream->separated = false;
             }
             stream->data = buffer->data;
         }
         else{
-            stream->separated = 0;
+            stream->separated = false;
             stream->data = buffer->data + buffer->gap_size;
         }
         
@@ -374,18 +378,16 @@ buffer_stringify_loop(Gap_Buffer_Stream *stream, Gap_Buffer *buffer, i32 start, 
             stream->end = stream->absolute_end;
         }
         
-        result = 1;
+        result = true;
     }
     
-    if (result == 0){
-        if (stream->use_termination_character){
-            stream->buffer = buffer;
-            stream->absolute_end = end;
-            stream->use_termination_character = 0;
-            stream->data = (&stream->terminator) - buffer->size1 - buffer->size2;
-            stream->end = stream->absolute_end + 1;
-            result = 1;
-        }
+    if (!result && stream->use_termination_character){
+        stream->buffer = buffer;
+        stream->absolute_end = end;
+        stream->use_termination_character = true;
+        stream->data = (&stream->terminator) - buffer->size1 - buffer->size2;
+        stream->end = stream->absolute_end + 1;
+        result = true;
     }
     
     return(result);

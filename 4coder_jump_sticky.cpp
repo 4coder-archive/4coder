@@ -116,8 +116,8 @@ init_marker_list(Application_Links *app, Partition *scratch, Heap *heap, Buffer_
     
     Sticky_Jump_Stored *stored = push_array(scratch, Sticky_Jump_Stored, jumps.count);
     
-    Dynamic_Scope scope_array[2] = {0};
-    scope_array[0] = buffer_get_dynamic_scope(app, buffer_id);
+    Managed_Scope scope_array[2] = {0};
+    scope_array[0] = buffer_get_managed_scope(app, buffer_id);
     
     for (int32_t i = 0; i < grouped_buffer_ranges.count; i += 1){
         Range buffer_range_indices = grouped_buffer_ranges.ranges[i];
@@ -131,7 +131,6 @@ init_marker_list(Application_Links *app, Partition *scratch, Heap *heap, Buffer_
              j += 1){
             int32_t range_index = range_index_buffer_id_pairs[j].index;
             Range range = buffer_ranges.ranges[range_index];
-            total_jump_count += range.one_past_last - range.first;
             if (target_buffer_id == 0){
                 target_buffer_id = jumps.jumps[range.first].jump_buffer_id;
             }
@@ -148,8 +147,8 @@ init_marker_list(Application_Links *app, Partition *scratch, Heap *heap, Buffer_
             }
         }
         
-        scope_array[1] = buffer_get_dynamic_scope(app, target_buffer_id);
-        Dynamic_Scope scope = get_intersected_dynamic_scope(app, scope_array, ArrayCount(scope_array));
+        scope_array[1] = buffer_get_managed_scope(app, target_buffer_id);
+        Managed_Scope scope = get_intersected_managed_scope(app, scope_array, ArrayCount(scope_array));
         Managed_Object marker_handle = buffer_add_markers(app, target_buffer_id, total_jump_count, &scope);
         buffer_set_markers(app, marker_handle, 0, total_jump_count, markers);
         end_temp_memory(marker_temp);
@@ -249,10 +248,10 @@ get_jump_from_list(Application_Links *app, Marker_List *list, int32_t index, ID_
     if (get_stored_jump_from_list(app, list, index, &stored)){
         Buffer_ID target_buffer_id = stored.jump_buffer_id;
         
-        Dynamic_Scope scope_array[2] = {0};
-        scope_array[0] = buffer_get_dynamic_scope(app, list->buffer_id);
-        scope_array[1] = buffer_get_dynamic_scope(app, target_buffer_id);
-        Dynamic_Scope scope = get_intersected_dynamic_scope(app, scope_array, ArrayCount(scope_array));
+        Managed_Scope scope_array[2] = {0};
+        scope_array[0] = buffer_get_managed_scope(app, list->buffer_id);
+        scope_array[1] = buffer_get_managed_scope(app, target_buffer_id);
+        Managed_Scope scope = get_intersected_managed_scope(app, scope_array, ArrayCount(scope_array));
         
         sticky_jump_marker_handle_loc = managed_variable_create_or_get_id(app, sticky_jump_marker_handle_var, 0);
         Managed_Object marker_array = 0;

@@ -122,8 +122,25 @@ dynamic_variables_get_ptr(Heap *heap,
 
 ////////////////////////////////
 
+internal void
+dynamic_memory_bank_init(Heap *heap, Dynamic_Memory_Bank *mem_bank){
+    heap_init(&mem_bank->heap);
+    mem_bank->first = 0;
+    mem_bank->last = 0;
+}
+
+internal void
+dynamic_memory_bank_free(Heap *heap, Dynamic_Memory_Bank *mem_bank){
+    for (Dynamic_Memory_Header *header = mem_bank->first, *next = 0;
+         header != 0;
+         header = next){
+        next = header->next;
+        heap_free(heap, header);
+    }
+}
+
 internal void*
-dynamic_allocate(Heap *heap, Dynamic_Memory_Bank *bank, i32 size){
+dynamic_memory_bank_allocate(Heap *heap, Dynamic_Memory_Bank *bank, i32 size){
     void *ptr = heap_allocate(&bank->heap, size);
     if (ptr == 0){
         i32 alloc_size = clamp_bottom(4096, size*4);
@@ -141,131 +158,44 @@ dynamic_allocate(Heap *heap, Dynamic_Memory_Bank *bank, i32 size){
 ////////////////////////////////
 
 internal void
-dynamic_workspace_init(Heap *heap, Dynamic_Workspace *workspace){
+dynamic_workspace_init(Heap *heap, Lifetime_Allocator *lifetime_allocator,
+                       i32 user_type, void *user_back_ptr,
+                       Dynamic_Workspace *workspace){
     dynamic_variables_block_init(heap, &workspace->var_block);
+    dynamic_memory_bank_init(heap, &workspace->mem_bank);
+    if (lifetime_allocator->scope_id_counter == 0){
+        lifetime_allocator->scope_id_counter = 1;
+    }
+    workspace->scope_id = lifetime_allocator->scope_id_counter++;
+    insert_u32_Ptr_table(heap, &lifetime_allocator->scope_id_to_scope_ptr_table, workspace->scope_id, workspace);
+    workspace->user_type = user_type;
+    workspace->user_back_ptr = user_back_ptr;
 }
 
 internal void
-dynamic_workspace_free(Heap *heap, Dynamic_Workspace *workspace){
+dynamic_workspace_free(Heap *heap, Lifetime_Allocator *lifetime_allocator, Dynamic_Workspace *workspace){
+    erase_u32_Ptr_table(&lifetime_allocator->scope_id_to_scope_ptr_table, workspace->scope_id);
     dynamic_variables_block_free(heap, &workspace->var_block);
+    dynamic_memory_bank_free(heap, &workspace->mem_bank);
 }
 
-////////////////////////////////
-
-internal u64
-ptr_check__hash(void *key){
-    u64 x = (u64)(PtrAsInt(key));
-    return((x >> 3) | bit_63);
+internal u32
+dynamic_workspace_store_pointer(Heap *heap, Dynamic_Workspace *workspace, void *ptr){
+    if (workspace->object_id_counter == 0){
+        workspace->object_id_counter = 1;
+    }
+    u32 id = workspace->object_id_counter++;
+    insert_u32_Ptr_table(heap, &workspace->object_id_to_object_ptr, id, ptr);
+    return(id);
 }
 
-internal b32
-ptr_check_table_check(Ptr_Check_Table *table, void *key){
-    u32 max = table->max;
-    if (max > 0 && table->count > 0){
-        u64 hash = ptr_check__hash(key);
-        u32 first_index = hash%max;
-        u32 index = first_index;
-        void **keys = table->keys;
-        for (;;){
-            if (keys[index] == key){
-                return(true);
-            }
-            else if (keys[index] == IntAsPtr(LifetimeKeyHash_Empty)){
-                return(false);
-            }
-            index += 1;
-            if (index == max){
-                index = 0;
-            }
-            if (index == first_index){
-                return(false);
-            }
-        }
+internal void*
+dynamic_workspace_get_pointer(Dynamic_Workspace *workspace, u32 id){
+    u32_Ptr_Lookup_Result lookup = lookup_u32_Ptr_table(&workspace->object_id_to_object_ptr, id);
+    if (lookup.success){
+        return(*lookup.val);
     }
-    return(false);
-}
-
-internal Ptr_Check_Table
-ptr_check_table_copy(Heap *heap, Ptr_Check_Table table, u32 new_max);
-
-internal void
-ptr_check_table_insert(Heap *heap, Ptr_Check_Table *table, void *key){
-    {
-        u32 max = table->max;
-        u32 count = table->count;
-        if (max == 0 || (count + 1)*6 > max*5){
-            Assert(heap != 0);
-            Ptr_Check_Table new_table = ptr_check_table_copy(heap, *table, max*2);
-            heap_free(heap, table->keys);
-            *table = new_table;
-        }
-    }
-    
-    {
-        u32 max = table->max;
-        if (max > 0 && table->count > 0){
-            u64 hash = ptr_check__hash(key);
-            u32 first_index = hash%max;
-            u32 index = first_index;
-            void **keys = table->keys;
-            for (;;){
-                if (keys[index] == 0 || keys[index] == (Lifetime_Key*)1){
-                    keys[index] = key;
-                    return;
-                }
-                index += 1;
-                if (index == max){
-                    index = 0;
-                }
-                if (index == first_index){
-                    return;
-                }
-            }
-        }
-    }
-}
-
-internal void
-ptr_check_table_erase(Ptr_Check_Table *table, Lifetime_Key *erase_key){
-    u32 max = table->max;
-    if (max > 0 && table->count > 0){
-        u64 hash = ptr_check__hash(erase_key);
-        u32 first_index = hash%max;
-        u32 index = first_index;
-        void **keys = table->keys;
-        for (;;){
-            if (keys[index] == erase_key){
-                keys[index] = 0;
-                return;
-            }
-            else if (keys[index] == IntAsPtr(LifetimeKeyHash_Empty)){
-                return;
-            }
-            index += 1;
-            if (index == max){
-                index = 0;
-            }
-            if (index == first_index){
-                return;
-            }
-        }
-    }
-}
-
-internal Ptr_Check_Table
-ptr_check_table_copy(Heap *heap, Ptr_Check_Table table, u32 new_max){
-    Ptr_Check_Table new_table = {0};
-    new_table.max = clamp_bottom(table.max, new_max);
-    new_table.max = clamp_bottom(307, new_table.max);
-    new_table.keys = heap_array(heap, void*, new_table.max);
-    memset(new_table.keys, 0, sizeof(*new_table.keys)*new_table.max);
-    for (u32 i = 0; i < table.max; i += 1){
-        u64 k = (u64)(PtrAsInt(table.keys[i]));
-        if ((k&bit_63) == 0){
-            ptr_check_table_insert(0, &new_table, table.keys[i]);
-        }
-    }
-    return(new_table);
+    return(0);
 }
 
 ////////////////////////////////
@@ -330,7 +260,7 @@ lifetime__key_table_insert(Heap *heap, Lifetime_Key_Table *table, u64 hash, Life
     
     {
         u32 max = table->max;
-        if (max > 0 && table->count > 0){
+        if (max > 0){
             u32 first_index = hash%max;
             u32 index = first_index;
             u64 *hashes = table->hashes;
@@ -339,6 +269,7 @@ lifetime__key_table_insert(Heap *heap, Lifetime_Key_Table *table, u64 hash, Life
                     hashes[index] == LifetimeKeyHash_Deleted){
                     hashes[index] = hash;
                     table->keys[index] = key;
+                    table->count += 1;
                     return;
                 }
                 index += 1;
@@ -406,7 +337,7 @@ internal void
 lifetime__free_key(Heap *heap, Lifetime_Allocator *lifetime_allocator,
                    Lifetime_Key *key, Lifetime_Object *skip_object){
     // Deinit
-    dynamic_workspace_free(heap, &key->dynamic_workspace);
+    dynamic_workspace_free(heap, lifetime_allocator, &key->dynamic_workspace);
     
     // Remove From Objects
     i32 count = key->count;
@@ -448,7 +379,7 @@ lifetime__free_key(Heap *heap, Lifetime_Allocator *lifetime_allocator,
     
     // Free
     lifetime__key_table_erase(&lifetime_allocator->key_table, key);
-    ptr_check_table_erase(&lifetime_allocator->key_check_table, key);
+    erase_Ptr_table(&lifetime_allocator->key_check_table, key);
     heap_free(heap, key->members);
     zdll_push_back(lifetime_allocator->free_keys.first, lifetime_allocator->free_keys.last, key);
 }
@@ -575,11 +506,11 @@ lifetime_sort_object_set__quick(Lifetime_Object **ptr_array, i32 first, i32 one_
 internal i32
 lifetime_sort_and_dedup_object_set(Lifetime_Object **ptr_array, i32 count){
     lifetime_sort_object_set__quick(ptr_array, 0, count);
-    Lifetime_Object **ptr_write = ptr_array;
-    Lifetime_Object **ptr_read  = ptr_array;
+    Lifetime_Object **ptr_write = ptr_array + 1;
+    Lifetime_Object **ptr_read  = ptr_array + 1;
     for (i32 i = 1; i < count; i += 1, ptr_read += 1){
-        if (ptr_write[-1] < *ptr_read){
-            ptr_write[0] = *ptr_read;
+        if (ptr_read[-1] < ptr_read[0]){
+            *ptr_write = *ptr_read;
             ptr_write += 1;
         }
     }
@@ -622,17 +553,19 @@ lifetime_get_or_create_intersection_key(Heap *heap, Lifetime_Allocator *lifetime
     new_key->members = heap_array(heap, Lifetime_Object*, count);
     memcpy(new_key->members, object_ptr_array, sizeof(*new_key->members)*count);
     new_key->count = count;
-    dynamic_workspace_init(heap, &new_key->dynamic_workspace);
+    dynamic_workspace_init(heap, lifetime_allocator,
+                           DynamicWorkspace_Intersected, new_key,
+                           &new_key->dynamic_workspace);
     
     lifetime__key_table_insert(heap, &lifetime_allocator->key_table, hash, new_key);
-    ptr_check_table_insert(heap, &lifetime_allocator->key_check_table, new_key);
+    insert_Ptr_table(heap, &lifetime_allocator->key_check_table, new_key);
     
     return(new_key);
 }
 
 internal b32
 lifetime_key_check(Lifetime_Allocator *lifetime_allocator, Lifetime_Key *key){
-    return(ptr_check_table_check(&lifetime_allocator->key_check_table, key));
+    return(lookup_Ptr_table(&lifetime_allocator->key_check_table, key));
 }
 
 // BOTTOM

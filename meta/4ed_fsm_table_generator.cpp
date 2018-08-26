@@ -41,6 +41,10 @@ typedef int32_t b32_4tech;
 #if !defined(API_EXPORT)
 # define API_EXPORT
 #endif
+
+#if !defined(internal)
+# define internal static
+#endif
 // standard preamble end 
 
 #include <string.h>
@@ -54,7 +58,7 @@ typedef int32_t bool32;
 #define LEXER_TABLE_FILE "4coder_lib/4cpp_lexer_tables.c"
 
 #include "../4coder_lib/4cpp_lexer_types.h"
-#include "../4ed_mem_ansi.c"
+#include "../4ed_mem.cpp"
 
 struct Whitespace_FSM{
     unsigned char pp_state;
