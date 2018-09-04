@@ -94,7 +94,7 @@ struct Dynamic_Workspace{
     Dynamic_Memory_Bank mem_bank;
     u32_Ptr_Table object_id_to_object_ptr;
     u32 object_id_counter;
-    u32 scope_id;
+    u32 group_id;
     i32 user_type;
     void *user_back_ptr;
     Managed_Buffer_Markers_Header_List buffer_markers_list;
@@ -174,7 +174,7 @@ struct Lifetime_Allocator{
     Lifetime_Key_List free_keys;
     Lifetime_Key_Table key_table;
     Ptr_Table key_check_table;
-    u32_Ptr_Table scope_id_to_scope_ptr_table;
+    u32_Ptr_Table group_id_to_group_ptr_table;
     u32 scope_id_counter;
 };
 

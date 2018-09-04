@@ -80,7 +80,6 @@ handle_track_out_of_memory(i32 val){
 internal
 Sys_Add_Listener_Sig(system_add_listener){
     b32 result = false;
-    
     for (;;){
         i32 track_result = add_listener(&shared_vars.track, &shared_vars.scratch, (u8*)filename);
         if (handle_track_out_of_memory(track_result)){
@@ -90,7 +89,6 @@ Sys_Add_Listener_Sig(system_add_listener){
             break;
         }
     }
-    
     return(result);
 }
 

@@ -1062,22 +1062,22 @@ DOC_SEE(Buffer_Setting_ID)
     return(result);
 }
 
-internal Managed_Scope
-buffer_get_managed_scope__inner(Editing_File *file){
-    Managed_Scope lifetime = 0;
+internal Managed_Group
+buffer_get_managed_group__inner(Editing_File *file){
+    Managed_Group lifetime = 0;
     if (file != 0){
         Assert(file->lifetime_object != 0);
-        lifetime = (Managed_Scope)file->lifetime_object->workspace.scope_id;
+        lifetime = (Managed_Group)file->lifetime_object->workspace.group_id;
     }
     return(lifetime);
 }
 
-API_EXPORT Managed_Scope
-Buffer_Get_Managed_Scope(Application_Links *app, Buffer_ID buffer_id)
+API_EXPORT Managed_Group
+Buffer_Get_Managed_Group(Application_Links *app, Buffer_ID buffer_id)
 {
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     Editing_File *file = imp_get_file(cmd, buffer_id);
-    return(buffer_get_managed_scope__inner(file));
+    return(buffer_get_managed_group__inner(file));
 }
 
 API_EXPORT int32_t
@@ -1811,15 +1811,15 @@ DOC_SEE(View_Setting_ID)
     return(result);
 }
 
-API_EXPORT Managed_Scope
-View_Get_Managed_Scope(Application_Links *app, View_ID view_id)
+API_EXPORT Managed_Group
+View_Get_Managed_Group(Application_Links *app, View_ID view_id)
 {
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     View *view = imp_get_view(cmd, view_id);
-    Managed_Scope lifetime = 0;
+    Managed_Group lifetime = 0;
     if (view != 0){
         Assert(view->transient.lifetime_object != 0);
-        lifetime = (Managed_Scope)(view->transient.lifetime_object->workspace.scope_id);
+        lifetime = (Managed_Group)(view->transient.lifetime_object->workspace.group_id);
     }
     return(lifetime);
 }
@@ -2228,26 +2228,25 @@ View_Get_UI_Copy(Application_Links *app, View_Summary *view, struct Partition *p
     return(result);
 }
 
-API_EXPORT Managed_Scope
-Get_Global_Managed_Scope(Application_Links *app)
+API_EXPORT Managed_Group
+Get_Global_Managed_Group(Application_Links *app)
 {
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     Models *models = cmd->models;
-    Managed_Scope scope = (Managed_Scope)models->dynamic_workspace.scope_id;
-    return(scope);
+    return((Managed_Group)models->dynamic_workspace.group_id);
 }
 
 internal Dynamic_Workspace*
-get_dynamic_workspace(Models *models, Managed_Scope handle){
-    u32_Ptr_Lookup_Result lookup_result = lookup_u32_Ptr_table(&models->lifetime_allocator.scope_id_to_scope_ptr_table, (u32)handle);
+get_dynamic_workspace(Models *models, Managed_Group handle){
+    u32_Ptr_Lookup_Result lookup_result = lookup_u32_Ptr_table(&models->lifetime_allocator.group_id_to_group_ptr_table, (u32)handle);
     if (!lookup_result.success){
         return(0);
     }
     return((Dynamic_Workspace*)*lookup_result.val);
 }
 
-API_EXPORT Managed_Scope
-Get_Intersected_Managed_Scope(Application_Links *app, Managed_Scope *intersected_scopes, int32_t count)
+API_EXPORT Managed_Group
+Get_Intersected_Managed_Group(Application_Links *app, Managed_Group *intersected_groups, int32_t count)
 {
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     Models *models = cmd->models;
@@ -2259,7 +2258,7 @@ Get_Intersected_Managed_Scope(Application_Links *app, Managed_Scope *intersected
     b32 filled_array = true;
     Lifetime_Object **object_ptr_array = push_array(scratch, Lifetime_Object*, 0);
     for (i32 i = 0; i < count; i += 1){
-        Dynamic_Workspace *workspace = get_dynamic_workspace(models, intersected_scopes[i]);
+        Dynamic_Workspace *workspace = get_dynamic_workspace(models, intersected_groups[i]);
         if (workspace == 0){
             filled_array = false;
             break;
@@ -2268,7 +2267,7 @@ Get_Intersected_Managed_Scope(Application_Links *app, Managed_Scope *intersected
         switch (workspace->user_type){
             case DynamicWorkspace_Global:
             {
-                // NOTE(allen): (global_scope INTERSECT X) == X for all X, therefore we emit nothing when a global scope is in the key list.
+                // NOTE(allen): (global_group INTERSECT X) == X for all X, therefore we emit nothing when a global group is in the key list.
             }break;
             
             case DynamicWorkspace_Buffer:
@@ -2300,13 +2299,13 @@ Get_Intersected_Managed_Scope(Application_Links *app, Managed_Scope *intersected
         }
     }
     
-    Managed_Scope result = 0;
+    Managed_Group result = 0;
     if (filled_array){
         i32 member_count = (i32)(push_array(scratch, Lifetime_Object*, 0) - object_ptr_array);
         member_count = lifetime_sort_and_dedup_object_set(object_ptr_array, member_count);
         Heap *heap = &models->mem.heap;
         Lifetime_Key *key = lifetime_get_or_create_intersection_key(heap, lifetime_allocator, object_ptr_array, member_count);
-        result = (Managed_Scope)key->dynamic_workspace.scope_id;
+        result = (Managed_Group)key->dynamic_workspace.group_id;
     }
     
     end_temp_memory(temp);
@@ -2335,7 +2334,7 @@ Managed_Variable_Get_ID(Application_Links *app, char *null_terminated_name)
     return(dynamic_variables_lookup(layout, name));
 }
 
-API_EXPORT int32_t
+API_EXPORT Managed_Variable_ID
 Managed_Variable_Create_Or_Get_ID(Application_Links *app, char *null_terminated_name, uint64_t default_value)
 {
     Command_Data *cmd = (Command_Data*)app->cmd_context;
@@ -2347,7 +2346,7 @@ Managed_Variable_Create_Or_Get_ID(Application_Links *app, char *null_terminated_
 }
 
 internal bool32
-get_dynamic_variable(Command_Data *cmd, Managed_Scope handle, int32_t location, uint64_t **ptr_out){
+get_dynamic_variable(Command_Data *cmd, Managed_Group handle, int32_t location, uint64_t **ptr_out){
     Models *models = cmd->models;
     Heap *heap = &models->mem.heap;
     Dynamic_Variable_Layout *layout = &models->variable_layout;
@@ -2362,11 +2361,11 @@ get_dynamic_variable(Command_Data *cmd, Managed_Scope handle, int32_t location, 
 }
 
 API_EXPORT bool32
-Managed_Variable_Set(Application_Links *app, Managed_Scope scope, Managed_Variable_ID location, uint64_t value)
+Managed_Variable_Set(Application_Links *app, Managed_Group group, Managed_Variable_ID location, uint64_t value)
 {
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     u64 *ptr = 0;
-    if (get_dynamic_variable(cmd, scope, location, &ptr)){
+    if (get_dynamic_variable(cmd, group, location, &ptr)){
         *ptr = value;
         return(true);
     }
@@ -2374,11 +2373,11 @@ Managed_Variable_Set(Application_Links *app, Managed_Scope scope, Managed_Variab
 }
 
 API_EXPORT bool32
-Managed_Variable_Get(Application_Links *app, Managed_Scope scope, Managed_Variable_ID location, uint64_t *value_out)
+Managed_Variable_Get(Application_Links *app, Managed_Group group, Managed_Variable_ID location, uint64_t *value_out)
 {
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     u64 *ptr = 0;
-    if (get_dynamic_variable(cmd, scope, location, &ptr)){
+    if (get_dynamic_variable(cmd, group, location, &ptr)){
         *value_out = *ptr;
         return(true);
     }
@@ -2386,12 +2385,12 @@ Managed_Variable_Get(Application_Links *app, Managed_Scope scope, Managed_Variab
 }
 
 API_EXPORT Managed_Object
-Managed_Memory_Alloc(Application_Links *app, Managed_Scope scope, int32_t size)
+Managed_Memory_Alloc(Application_Links *app, Managed_Group group, int32_t size)
 {
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     Models *models = cmd->models;
     Heap *heap = &models->mem.heap;
-    Dynamic_Workspace *workspace = get_dynamic_workspace(models, scope);
+    Dynamic_Workspace *workspace = get_dynamic_workspace(models, group);
     Managed_Object result = 0;
     if (workspace != 0){
         void *ptr = dynamic_memory_bank_allocate(heap, &workspace->mem_bank, size + sizeof(Managed_Memory_Header));
@@ -2399,26 +2398,26 @@ Managed_Memory_Alloc(Application_Links *app, Managed_Scope scope, int32_t size)
         header->type = ManagedObjectType_Memory;
         header->size = size;
         u32 id = dynamic_workspace_store_pointer(heap, workspace, ptr);
-        result = ((u64)scope << 32) | (u64)id;
+        result = ((u64)group << 32) | (u64)id;
     }
     return(result);
 }
 
 API_EXPORT Managed_Object
-Buffer_Markers_Alloc(Application_Links *app, Buffer_ID buffer_id, int32_t count, Managed_Scope *scope)
+Buffer_Markers_Alloc(Application_Links *app, Buffer_ID buffer_id, int32_t count, Managed_Group *group)
 {
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     Editing_File *file = imp_get_file(cmd, buffer_id);
-    Managed_Scope markers_scope = buffer_get_managed_scope__inner(file);
-    if (scope != 0){
-        Managed_Object scope_array[2];
-        scope_array[0] = markers_scope;
-        scope_array[1] = *scope;
-        markers_scope = Get_Intersected_Managed_Scope(app, scope_array, 2);
+    Managed_Group markers_group = buffer_get_managed_group__inner(file);
+    if (group != 0){
+        Managed_Object group_array[2];
+        group_array[0] = markers_group;
+        group_array[1] = *group;
+        markers_group = Get_Intersected_Managed_Group(app, group_array, 2);
     }
     Models *models = cmd->models;
     Heap *heap = &models->mem.heap;
-    Dynamic_Workspace *workspace = get_dynamic_workspace(models, markers_scope);
+    Dynamic_Workspace *workspace = get_dynamic_workspace(models, markers_group);
     Managed_Object result = 0;
     if (workspace != 0){
         i32 size = count*sizeof(Marker);
@@ -2431,7 +2430,7 @@ Buffer_Markers_Alloc(Application_Links *app, Buffer_ID buffer_id, int32_t count,
         header->buffer_id = buffer_id;
         file->state.total_marker_count += count;
         u32 id = dynamic_workspace_store_pointer(heap, workspace, ptr);
-        result = ((u64)markers_scope << 32) | (u64)id;
+        result = ((u64)markers_group << 32) | (u64)id;
     }
     return(result);
 }

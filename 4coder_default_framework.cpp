@@ -56,15 +56,15 @@ new_view_settings(Application_Links *app, View_Summary *view){
 
 static void
 view_set_passive(Application_Links *app, View_Summary *view, bool32 value){
-    Managed_Scope scope = view_get_managed_scope(app, view->view_id);
-    managed_variable_set(app, scope, view_is_passive_loc, (uint64_t)value);
+    Managed_Group group = view_get_managed_group(app, view->view_id);
+    managed_variable_set(app, group, view_is_passive_loc, (uint64_t)value);
 }
 
 static bool32
 view_get_is_passive(Application_Links *app, View_Summary *view){
-    Managed_Scope scope = view_get_managed_scope(app, view->view_id);
+    Managed_Group group = view_get_managed_group(app, view->view_id);
     uint64_t is_passive = 0;
-    managed_variable_get(app, scope, view_is_passive_loc, &is_passive);
+    managed_variable_get(app, group, view_is_passive_loc, &is_passive);
     return(is_passive != 0);
 }
 

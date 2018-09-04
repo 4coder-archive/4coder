@@ -50,10 +50,10 @@ CUSTOM_DOC("At the cursor, insert the text at the top of the clipboard.")
     int32_t count = clipboard_count(app, 0);
     if (count > 0){
         View_Summary view = get_active_view(app, access);
-        Managed_Scope scope = view_get_managed_scope(app, view.view_id);
-        managed_variable_set(app, scope, view_next_rewrite_loc, RewritePaste);
+        Managed_Group group = view_get_managed_group(app, view.view_id);
+        managed_variable_set(app, group, view_next_rewrite_loc, RewritePaste);
         int32_t paste_index = 0;
-        managed_variable_set(app, scope, view_paste_index_loc, paste_index);
+        managed_variable_set(app, group, view_paste_index_loc, paste_index);
         
         int32_t len = clipboard_index(app, 0, paste_index, 0, 0);
         char *str = 0;
@@ -87,16 +87,16 @@ CUSTOM_DOC("If the previous command was paste or paste_next, replaces the paste 
     int32_t count = clipboard_count(app, 0);
     if (count > 0){
         View_Summary view = get_active_view(app, access);
-        Managed_Scope scope = view_get_managed_scope(app, view.view_id);
+        Managed_Group group = view_get_managed_group(app, view.view_id);
         
         uint64_t rewrite = 0;
-        managed_variable_get(app, scope, view_rewrite_loc, &rewrite);
+        managed_variable_get(app, group, view_rewrite_loc, &rewrite);
         if (rewrite == RewritePaste){
-            managed_variable_set(app, scope, view_next_rewrite_loc, RewritePaste);
+            managed_variable_set(app, group, view_next_rewrite_loc, RewritePaste);
             uint64_t prev_paste_index = 0;
-            managed_variable_get(app, scope, view_paste_index_loc, &prev_paste_index);
+            managed_variable_get(app, group, view_paste_index_loc, &prev_paste_index);
             int32_t paste_index = (int32_t)prev_paste_index + 1;
-            managed_variable_set(app, scope, view_paste_index_loc, paste_index);
+            managed_variable_set(app, group, view_paste_index_loc, paste_index);
             
             int32_t len = clipboard_index(app, 0, paste_index, 0, 0);
             char *str = 0;

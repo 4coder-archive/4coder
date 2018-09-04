@@ -834,14 +834,14 @@ CUSTOM_DOC("Iteratively tries completing the word to the left of the cursor with
     if (buffer.exists){
         int32_t do_init = false;
         
-        Managed_Scope scope = view_get_managed_scope(app, view.view_id);
+        Managed_Group group = view_get_managed_group(app, view.view_id);
         
         uint64_t rewrite = 0;
-        managed_variable_get(app, scope, view_rewrite_loc, &rewrite);
+        managed_variable_get(app, group, view_rewrite_loc, &rewrite);
         if (rewrite != RewriteWordComplete){
             do_init = true;
         }
-        managed_variable_set(app, scope, view_next_rewrite_loc, RewriteWordComplete);
+        managed_variable_set(app, group, view_next_rewrite_loc, RewriteWordComplete);
         if (!complete_state.initialized){
             do_init = true;
         }

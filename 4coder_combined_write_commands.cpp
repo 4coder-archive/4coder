@@ -26,18 +26,18 @@ write_named_comment_string(Application_Links *app, char *type_string){
     
     String name = global_config.user_name;
     if (name.size > 0){
-    append(&str, "// ");
-append(&str, type_string);
-append(&str, "(");
-append(&str, name);
-append(&str, "): ");
-}
+        append(&str, "// ");
+        append(&str, type_string);
+        append(&str, "(");
+        append(&str, name);
+        append(&str, "): ");
+    }
     else{
         append(&str, "// ");
         append(&str, type_string);
         append(&str, ": ");
     }
-
+    
     write_string(app, str);
 }
 
