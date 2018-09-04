@@ -12,6 +12,50 @@
 #if !defined(FRED_DYNAMIC_VARIABLES_H)
 #define FRED_DYNAMIC_VARIABLES_H
 
+typedef i32 Managed_Object_Type;
+enum{
+    ManagedObjectType_None = 0,
+    ManagedObjectType_Memory = 1,
+    ManagedObjectType_Markers = 2,
+    
+    ManagedObjectType_COUNT = 3,
+};
+
+union Managed_Memory_Header{
+    Managed_Object_Type type;
+    u64 eight_byte_alignment__;
+    struct{
+        Managed_Object_Type type__;
+        i32 size;
+    };
+};
+
+union Managed_Buffer_Markers_Header{
+    Managed_Object_Type type;
+    u64 eight_byte_alignment__;
+    struct{
+        Managed_Object_Type type__;
+        Managed_Buffer_Markers_Header *next;
+        Managed_Buffer_Markers_Header *prev;
+        i32 size;
+        Buffer_ID buffer_id;
+    };
+};
+
+global_const i32 managed_header_type_sizes[ManagedObjectType_COUNT] = {
+    0,
+    sizeof(Managed_Memory_Header),
+    sizeof(Managed_Buffer_Markers_Header),
+};
+
+struct Managed_Buffer_Markers_Header_List{
+    Managed_Buffer_Markers_Header *first;
+    Managed_Buffer_Markers_Header *last;
+    i32 count;
+};
+
+////////////////////////////////
+
 struct Dynamic_Variable_Slot{
     Dynamic_Variable_Slot *next;
     Dynamic_Variable_Slot *prev;
@@ -53,6 +97,7 @@ struct Dynamic_Workspace{
     u32 scope_id;
     i32 user_type;
     void *user_back_ptr;
+    Managed_Buffer_Markers_Header_List buffer_markers_list;
 };
 
 ////////////////////////////////

@@ -256,7 +256,7 @@ DOC_SEE(Command_Line_Interface_Flag)
     
     Temp_Memory temp = begin_temp_memory(part);
     
-    {    
+    {
         // NOTE(allen): Check that it is possible to store a new child process.
         if (!cli_list_has_space(&vars->cli_processes)){
             append(&feedback_str, make_lit_string("ERROR: no available process slot\n"));
@@ -337,7 +337,7 @@ DOC_SEE(Command_Line_Interface_Flag)
                 View *vptr = imp_get_view(cmd, view);
                 if (vptr != 0){
                     view_set_file(system, models, vptr, file);
-                    // TODO(allen): // TODO(allen): // TODO(allen): // TODO(allen): // TODO(allen): 
+                    // TODO(allen): // TODO(allen): // TODO(allen): // TODO(allen): // TODO(allen):
                     // Send "quit UI" events!
                 }
             }
@@ -782,119 +782,6 @@ DOC_SEE(Buffer_Batch_Edit_Type)
     return(result);
 }
 
-API_EXPORT Managed_Object
-Buffer_Add_Markers(Application_Links *app, Buffer_ID buffer_id, uint32_t marker_count, Managed_Scope *scope)
-/*
-DOC_PARAM(buffer_id, The id of the buffer on which to add the new markers.)
-DOC_PARAM(marker_count, How many markers to be stored in the new marker array.)
-DOC_PARAM(scope, Optional dynamic scope tied to the marker's lifetime.  Note this scope will be implicitly interesected with the scope tied to the target buffer.)
-DOC_RETURN(If this call succeeds it returns a handle to the new markers.  If it fails it returns a null handle.)
-DOC(This call makes an allocation of markers for the specified buffer.  The newly allocated markers are not immediately activated.  To activate a marker use buffer_set_markers to give the marker a value.  The markers will remain allocated on the buffer until buffer_remove_markers is called or until the buffer is killed.)
-DOC_SEE(Marker)
-*/{
-    Command_Data *cmd = (Command_Data*)app->cmd_context;
-    Models *models = cmd->models;
-    Editing_File *file = imp_get_file(cmd, buffer_id);
-    Managed_Object result = 0;
-    if (file != 0){
-        result = (Managed_Object)allocate_markers_state(&models->mem.heap, file, marker_count);
-    }
-    return(result);
-}
-
-API_EXPORT Buffer_Summary
-Get_Buffer_By_Marker_Handle(Application_Links *app, Managed_Object marker_object, Access_Flag access)
-/*
-DOC_PARAM(marker_object, The marker handle to query.)
-DOC_PARAM(access, The access parameter determines what levels of protection this call can access.)
-DOC_SEE(Marker)
-*/{
-    Buffer_Summary buffer = {0};
-    if (marker_object != 0){
-        void *ptr = IntAsPtr(marker_object);
-        Buffer_ID buffer_id = get_buffer_id_from_marker_handle(ptr);
-        buffer = Get_Buffer(app, buffer_id, access);
-    }
-    return(buffer);
-}
-
-API_EXPORT bool32
-Buffer_Set_Markers(Application_Links *app, Managed_Object marker_object, uint32_t first_marker_index, uint32_t marker_count, Marker *source_markers)
-/*
-DOC_PARAM(marker_object, The marker handle refering to the markers to be set.)
-DOC_PARAM(first_marker_index, The index of the first marker to be set by this call.)
-DOC_PARAM(marker_count, The number of markers to be set by this call.)
-DOC_PARAM(source_markers, An array of marker_count Markers to specify the values to set to the markers specified.)
-DOC_RETURN(On success returns non-zero, on failure returns zero.)
-DOC(This call sets the value of a Marker, eliminating whatever value was there before.  Any markers that are set become active if they were not active before.  If a marker of lower index than first_marker_index was not active before this call, it will be cleared to zero and made active as well, so that all markers between 0 and  first_marker_index + marker_count - 1 are active after this call.  If first_marker_index + marker_count exceeds the originally allocated size of the marker array, this call will fail.)
-DOC_SEE(Marker)
-*/{
-    Command_Data *cmd = (Command_Data*)app->cmd_context;
-    bool32 result = false;
-    if (marker_object != 0){
-        void *ptr = IntAsPtr(marker_object);
-        Buffer_ID buffer_id = get_buffer_id_from_marker_handle(ptr);
-        Editing_File *file = imp_get_file(cmd, buffer_id);
-        if (file != 0){
-            if (markers_set(file, ptr, first_marker_index, marker_count, source_markers)){
-                result = true;
-            }
-        }
-    }
-    return(result);
-}
-
-API_EXPORT bool32
-Buffer_Get_Markers(Application_Links *app, Managed_Object marker_object, uint32_t first_marker_index, uint32_t marker_count, Marker *markers_out)
-/*
-DOC_PARAM(marker_object, The marker handle refering to the markers to be read.)
-DOC_PARAM(first_marker_index, The index of the first marker to be read by this call.)
-DOC_PARAM(marker_count, The number of markers to be read by this call.)
-DOC_PARAM(markers_out, An array of marker_count Markers to be filled by the result of the read.)
-DOC_RETURN(On success returns non-zero, on failure returns zero.)
-DOC(When the range specified by first_marker_index and marker_count is a range of active markers in the array specified by the marker handle, this call succeeds and fills the markers_out buffer with the current values of the specified markers.)
-DOC_SEE(Marker)
-*/{
-    Command_Data *cmd = (Command_Data*)app->cmd_context;
-    bool32 result = false;
-    if (marker_object != 0){
-        void *ptr = IntAsPtr(marker_object);
-        Buffer_ID buffer_id = get_buffer_id_from_marker_handle(ptr);
-        Editing_File *file = imp_get_file(cmd, buffer_id);
-        if (file != 0){
-            if (markers_get(file, ptr, first_marker_index, marker_count, markers_out)){
-                result = true;
-            }
-        }
-    }
-    return(result);
-}
-
-API_EXPORT bool32
-Buffer_Remove_Markers(Application_Links *app, Managed_Object marker_object)
-/*
-DOC_PARAM(buffer, The buffer on which the specified markers are attached.)
-DOC_PARAM(marker_object, The marker handle refering to the markers to be detached from the buffer.)
-DOC_RETURN(On success returns non-zero, on failure returns zero.)
-DOC(Deactivates the entire range of markers specified by the marker handle and frees the memory used to store the markers internally.)
-DOC_SEE(buffer_add_markers)
-*/{
-    Command_Data *cmd = (Command_Data*)app->cmd_context;
-    Models *models = cmd->models;
-    bool32 result = false;
-    if (marker_object != 0){
-        void *ptr = IntAsPtr(marker_object);
-        Buffer_ID buffer_id = get_buffer_id_from_marker_handle(ptr);
-        Editing_File *file = imp_get_file(cmd, buffer_id);
-        if (file != 0){
-            if (markers_free(&models->mem.heap, file, ptr)){
-                result = true;
-            }
-        }
-    }
-    return(result);
-}
-
 API_EXPORT bool32
 Buffer_Get_Setting(Application_Links *app, Buffer_Summary *buffer, Buffer_Setting_ID setting, int32_t *value_out)
 /*
@@ -1175,17 +1062,22 @@ DOC_SEE(Buffer_Setting_ID)
     return(result);
 }
 
-API_EXPORT Managed_Scope
-Buffer_Get_Managed_Scope(Application_Links *app, Buffer_ID buffer_id)
-{
-    Command_Data *cmd = (Command_Data*)app->cmd_context;
-    Editing_File *file = imp_get_file(cmd, buffer_id);
+internal Managed_Scope
+buffer_get_managed_scope__inner(Editing_File *file){
     Managed_Scope lifetime = 0;
     if (file != 0){
         Assert(file->lifetime_object != 0);
         lifetime = (Managed_Scope)file->lifetime_object->workspace.scope_id;
     }
     return(lifetime);
+}
+
+API_EXPORT Managed_Scope
+Buffer_Get_Managed_Scope(Application_Links *app, Buffer_ID buffer_id)
+{
+    Command_Data *cmd = (Command_Data*)app->cmd_context;
+    Editing_File *file = imp_get_file(cmd, buffer_id);
+    return(buffer_get_managed_scope__inner(file));
 }
 
 API_EXPORT int32_t
@@ -2145,7 +2037,7 @@ DOC_SEE(Set_Buffer_Flag)
             if (file != vptr->transient.file_data.file){
                 view_set_file(system, models, vptr, file);
                 if (!(flags & SetBuffer_KeepOriginalGUI)){
-                    //  TODO(allen): // TODO(allen): // TODO(allen): // TODO(allen): // TODO(allen): 
+                    //  TODO(allen): // TODO(allen): // TODO(allen): // TODO(allen): // TODO(allen):
                     // Send "quit UI" events!
                 }
             }
@@ -2502,15 +2394,75 @@ Managed_Memory_Alloc(Application_Links *app, Managed_Scope scope, int32_t size)
     Dynamic_Workspace *workspace = get_dynamic_workspace(models, scope);
     Managed_Object result = 0;
     if (workspace != 0){
-        void *ptr = dynamic_memory_bank_allocate(heap, &workspace->mem_bank, size);
+        void *ptr = dynamic_memory_bank_allocate(heap, &workspace->mem_bank, size + sizeof(Managed_Memory_Header));
+        Managed_Memory_Header *header = (Managed_Memory_Header*)ptr;
+        header->type = ManagedObjectType_Memory;
+        header->size = size;
         u32 id = dynamic_workspace_store_pointer(heap, workspace, ptr);
         result = ((u64)scope << 32) | (u64)id;
     }
     return(result);
 }
 
+API_EXPORT Managed_Object
+Buffer_Markers_Alloc(Application_Links *app, Buffer_ID buffer_id, int32_t count, Managed_Scope *scope)
+{
+    Command_Data *cmd = (Command_Data*)app->cmd_context;
+    Editing_File *file = imp_get_file(cmd, buffer_id);
+    Managed_Scope markers_scope = buffer_get_managed_scope__inner(file);
+    if (scope != 0){
+        Managed_Object scope_array[2];
+        scope_array[0] = markers_scope;
+        scope_array[1] = *scope;
+        markers_scope = Get_Intersected_Managed_Scope(app, scope_array, 2);
+    }
+    Models *models = cmd->models;
+    Heap *heap = &models->mem.heap;
+    Dynamic_Workspace *workspace = get_dynamic_workspace(models, markers_scope);
+    Managed_Object result = 0;
+    if (workspace != 0){
+        i32 size = count*sizeof(Marker);
+        void *ptr = dynamic_memory_bank_allocate(heap, &workspace->mem_bank, size + sizeof(Managed_Buffer_Markers_Header));
+        Managed_Buffer_Markers_Header *header = (Managed_Buffer_Markers_Header*)ptr;
+        zdll_push_back(workspace->buffer_markers_list.first, workspace->buffer_markers_list.last, header);
+        workspace->buffer_markers_list.count += 1;
+        header->type = ManagedObjectType_Markers;
+        header->size = size;
+        header->buffer_id = buffer_id;
+        file->state.total_marker_count += count;
+        u32 id = dynamic_workspace_store_pointer(heap, workspace, ptr);
+        result = ((u64)markers_scope << 32) | (u64)id;
+    }
+    return(result);
+}
+
+API_EXPORT bool32
+Managed_Object_Free(Application_Links *app, Managed_Object object)
+{
+    Command_Data *cmd = (Command_Data*)app->cmd_context;
+    Models *models = cmd->models;
+    u32 hi_id = (object >> 32)&max_u32;
+    Dynamic_Workspace *workspace = get_dynamic_workspace(models, hi_id);
+    if (workspace != 0){
+        u32 lo_id = object&max_u32;
+        u8 *object_ptr = (u8*)dynamic_workspace_get_pointer(workspace, lo_id);
+        if (object_ptr != 0){
+            Managed_Object_Type *type = (Managed_Object_Type*)object_ptr;
+            if (*type == ManagedObjectType_Markers){
+                Managed_Buffer_Markers_Header *header = (Managed_Buffer_Markers_Header*)object_ptr;
+                zdll_remove(workspace->buffer_markers_list.first, workspace->buffer_markers_list.last, header);
+                workspace->buffer_markers_list.count -= 1;
+            }
+            dynamic_workspace_erase_pointer(workspace, lo_id);
+            dynamic_memory_bank_free(&workspace->mem_bank, object_ptr);
+            return(true);
+        }
+    }
+    return(false);
+}
+
 internal u8*
-get_dynamic_object(Models *models, Managed_Object object){
+get_dynamic_object_header_ptr(Models *models, Managed_Object object){
     u32 hi_id = (object >> 32)&max_u32;
     Dynamic_Workspace *workspace = get_dynamic_workspace(models, hi_id);
     if (workspace != 0){
@@ -2520,12 +2472,23 @@ get_dynamic_object(Models *models, Managed_Object object){
     return(0);
 }
 
+internal u8*
+get_dynamic_object_memory_ptr(u8 *header_ptr){
+    if (header_ptr != 0){
+        Managed_Object_Type *type = (Managed_Object_Type*)header_ptr;
+        if (0 < *type && *type < ManagedObjectType_COUNT){
+            return(header_ptr + managed_header_type_sizes[*type]);
+        }
+    }
+    return(0);
+}
+
 API_EXPORT bool32
-Managed_Memory_Set(Application_Links *app, Managed_Object object, uint32_t start, uint32_t size, void *mem)
+Managed_Object_Write(Application_Links *app, Managed_Object object, uint32_t start, uint32_t size, void *mem)
 {
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     Models *models = cmd->models;
-    u8 *ptr = get_dynamic_object(models, object);
+    u8 *ptr = get_dynamic_object_memory_ptr(get_dynamic_object_header_ptr(models, object));
     if (ptr != 0){
         memcpy(ptr + start, mem, size);
         return(true);
@@ -2534,11 +2497,11 @@ Managed_Memory_Set(Application_Links *app, Managed_Object object, uint32_t start
 }
 
 API_EXPORT bool32
-Managed_Memory_Get(Application_Links *app, Managed_Object object, uint32_t start, uint32_t size, void *mem_out)
+Managed_Object_Read(Application_Links *app, Managed_Object object, uint32_t start, uint32_t size, void *mem_out)
 {
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     Models *models = cmd->models;
-    u8 *ptr = get_dynamic_object(models, object);
+    u8 *ptr = get_dynamic_object_memory_ptr(get_dynamic_object_header_ptr(models, object));
     if (ptr != 0){
         memcpy(mem_out, ptr + start, size);
         return(true);
@@ -2569,8 +2532,8 @@ DOC_SEE(User_Input)
     
     if (app->type_coroutine == Co_Command){
         Assert(coroutine != 0);
-        *((u32*)coroutine->out+0) = get_type;
-        *((u32*)coroutine->out+1) = abort_type;
+        *((u32*)coroutine->out + 0) = get_type;
+        *((u32*)coroutine->out + 1) = abort_type;
         system->yield_coroutine(coroutine);
         result = *(User_Input*)coroutine->in;
     }
@@ -2586,12 +2549,10 @@ DOC_SEE(User_Input)
 */{
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     User_Input result;
-    
     result.type = UserInputKey;
     result.abort = 0;
     result.key = cmd->key;
     result.command.cmdid = 0;
-    
     return(result);
 }
 
@@ -2603,8 +2564,7 @@ DOC_SEE(Mouse_State)
 */{
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     App_Vars *vars = cmd->vars;
-    Mouse_State mouse = direct_get_mouse_state(&vars->available_input);
-    return(mouse);
+    return(direct_get_mouse_state(&vars->available_input));
 }
 
 API_EXPORT bool32

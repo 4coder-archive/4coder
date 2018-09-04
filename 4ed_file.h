@@ -39,23 +39,6 @@ union Buffer_Slot_ID{
     i16 part[2];
 };
 
-struct Marker_Array{
-    Marker_Array *next;
-    Marker_Array *prev;
-    Buffer_Slot_ID buffer_id;
-    u32 count;
-    u32 sim_max;
-    u32 max;
-};
-
-#define MarkerArrayBase(a) (Marker*)((u8*)(a) + sizeof(Marker_Array))
-
-struct Editing_File_Markers{
-    Marker_Array sentinel;
-    u32 array_count;
-    u32 marker_count;
-};
-
 struct Editing_File_Settings{
     i32 base_map_id;
     i32 display_width;
@@ -93,6 +76,8 @@ struct Editing_File_State{
     i32 wrap_position_count;
     i32 wrap_position_max;
     
+    i32 total_marker_count;
+    
     Undo_Data undo;
     
     Cpp_Token_Array token_array;
@@ -129,7 +114,6 @@ struct Editing_File{
     b32 is_dummy;
     Editing_File_State state;
     Lifetime_Object *lifetime_object;
-    Editing_File_Markers markers;
     Editing_File_Name base_name;
     Editing_File_Name unique_name;
     Editing_File_Name canon;

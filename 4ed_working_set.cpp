@@ -87,7 +87,6 @@ working_set_alloc_always(Working_Set *working_set, Heap *heap, Lifetime_Allocato
         result->settings.display_width = working_set->default_display_width;
         result->settings.minimum_base_display_width = working_set->default_minimum_base_display_width;
         result->settings.wrap_indicator = WrapIndicator_Show_At_Wrap_Edge;
-        init_file_markers_state(&result->markers);
         result->lifetime_object = lifetime_alloc_object(heap, lifetime_allocator, DynamicWorkspace_Buffer, result);
         ++working_set->file_count;
     }

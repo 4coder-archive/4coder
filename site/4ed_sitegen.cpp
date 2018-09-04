@@ -248,11 +248,6 @@ generate_binding_list(char *code_directory, char *src_directory){
     fclose(out);
 }
 
-#if 0
-
-
-#endif
-
 //
 // Meta Parse Rules
 //

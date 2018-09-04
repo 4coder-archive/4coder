@@ -129,16 +129,6 @@ dynamic_memory_bank_init(Heap *heap, Dynamic_Memory_Bank *mem_bank){
     mem_bank->last = 0;
 }
 
-internal void
-dynamic_memory_bank_free(Heap *heap, Dynamic_Memory_Bank *mem_bank){
-    for (Dynamic_Memory_Header *header = mem_bank->first, *next = 0;
-         header != 0;
-         header = next){
-        next = header->next;
-        heap_free(heap, header);
-    }
-}
-
 internal void*
 dynamic_memory_bank_allocate(Heap *heap, Dynamic_Memory_Bank *bank, i32 size){
     void *ptr = heap_allocate(&bank->heap, size);
@@ -153,6 +143,21 @@ dynamic_memory_bank_allocate(Heap *heap, Dynamic_Memory_Bank *bank, i32 size){
         }
     }
     return(ptr);
+}
+
+internal void
+dynamic_memory_bank_free(Dynamic_Memory_Bank *bank, void *ptr){
+    heap_free(&bank->heap, ptr);
+}
+
+internal void
+dynamic_memory_bank_free_all(Heap *heap, Dynamic_Memory_Bank *mem_bank){
+    for (Dynamic_Memory_Header *header = mem_bank->first, *next = 0;
+         header != 0;
+         header = next){
+        next = header->next;
+        heap_free(heap, header);
+    }
 }
 
 ////////////////////////////////
@@ -176,7 +181,7 @@ internal void
 dynamic_workspace_free(Heap *heap, Lifetime_Allocator *lifetime_allocator, Dynamic_Workspace *workspace){
     erase_u32_Ptr_table(&lifetime_allocator->scope_id_to_scope_ptr_table, workspace->scope_id);
     dynamic_variables_block_free(heap, &workspace->var_block);
-    dynamic_memory_bank_free(heap, &workspace->mem_bank);
+    dynamic_memory_bank_free_all(heap, &workspace->mem_bank);
 }
 
 internal u32
@@ -187,6 +192,11 @@ dynamic_workspace_store_pointer(Heap *heap, Dynamic_Workspace *workspace, void *
     u32 id = workspace->object_id_counter++;
     insert_u32_Ptr_table(heap, &workspace->object_id_to_object_ptr, id, ptr);
     return(id);
+}
+
+internal void
+dynamic_workspace_erase_pointer(Dynamic_Workspace *workspace, u32 id){
+    erase_u32_Ptr_table(&workspace->object_id_to_object_ptr, id);
 }
 
 internal void*

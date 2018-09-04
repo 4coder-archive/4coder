@@ -19,123 +19,6 @@ to_file_id(i32 id){
 ////////////////////////////////
 
 internal void
-init_file_markers_state(Editing_File_Markers *markers){
-    Marker_Array *sentinel = &markers->sentinel;
-    dll_init_sentinel(sentinel);
-    markers->array_count = 0;
-    markers->marker_count = 0;
-}
-
-internal void
-clear_file_markers_state(Application_Links *app, Heap *heap, Editing_File_Markers *markers){
-    Marker_Array *sentinel = &markers->sentinel;
-    for (Marker_Array *marker_array = sentinel->next;
-         marker_array != sentinel;
-         marker_array = sentinel->next){
-        dll_remove(marker_array);
-        heap_free(heap, marker_array);
-    }
-    Assert(sentinel->next == sentinel);
-    Assert(sentinel->prev == sentinel);
-    markers->array_count = 0;
-    markers->marker_count = 0;
-}
-
-internal void*
-allocate_markers_state(Heap *heap, Editing_File *file, u32 new_array_max){
-    u32 memory_size = sizeof(Marker_Array) + sizeof(Marker)*new_array_max;
-    Marker_Array *array = (Marker_Array*)heap_allocate(heap, memory_size);
-    
-    dll_insert_back(&file->markers.sentinel, array);
-    array->buffer_id = file->id;
-    array->count = 0;
-    array->sim_max = new_array_max;
-    array->max = new_array_max;
-    
-    ++file->markers.array_count;
-    
-    return(array);
-}
-
-internal Buffer_ID
-get_buffer_id_from_marker_handle(void *handle){
-    Marker_Array *markers = (Marker_Array*)handle;
-    Buffer_Slot_ID result = markers->buffer_id;
-    return(result.id);
-}
-
-internal b32
-markers_set(Editing_File *file, void *handle, u32 first_index, u32 count, Marker *source){
-    Assert(file != 0);
-    if (handle == 0){
-        return(false);
-    }
-    
-    Marker_Array *markers = (Marker_Array*)handle;
-    if (markers->buffer_id.id != file->id.id){
-        return(false);
-    }
-    
-    if (first_index + count > markers->sim_max){
-        return(false);
-    }
-    
-    u32 new_count = first_index + count;
-    if (new_count > markers->count){
-        file->markers.marker_count += new_count - markers->count;
-        markers->count = new_count;
-    }
-    Marker *dst = MarkerArrayBase(markers);
-    memcpy(dst + first_index, source, sizeof(Marker)*count);
-    
-    return(true);
-}
-
-internal b32
-markers_get(Editing_File *file, void *handle, u32 first_index, u32 count, Marker *output){
-    Assert(file != 0);
-    if (handle == 0){
-        return(false);
-    }
-    
-    Marker_Array *markers = (Marker_Array*)handle;
-    if (markers->buffer_id.id != file->id.id){
-        return(false);
-    }
-    
-    if (first_index + count > markers->count){
-        return(false);
-    }
-    
-    Marker *src = MarkerArrayBase(markers);
-    memcpy(output, src + first_index, sizeof(Marker)*count);
-    
-    return(true);
-}
-
-internal b32
-markers_free(Heap *heap, Editing_File *file, void *handle){
-    Assert(file != 0);
-    if (handle == 0){
-        return(false);
-    }
-    
-    Marker_Array *markers = (Marker_Array*)handle;
-    if (markers->buffer_id.id != file->id.id){
-        return(false);
-    }
-    
-    dll_remove(markers);
-    file->markers.marker_count -= markers->count;
-    --file->markers.array_count;
-    heap_free(heap, markers);
-    
-    return(true);
-}
-
-////////////////////////////////
-
-internal void
 edit_pos_set_cursor(File_Edit_Positions *edit_pos, Full_Cursor cursor, b32 set_preferred_x, b32 unwrapped_lines){
     edit_pos->cursor = cursor;
     if (set_preferred_x){
@@ -682,8 +565,6 @@ file_free(System_Functions *system, Application_Links *app, Heap *heap, Editing_
     if (file->state.token_array.tokens){
         heap_free(heap, file->state.token_array.tokens);
     }
-    
-    clear_file_markers_state(app, heap, &file->markers);
     
     Gap_Buffer *buffer = &file->state.buffer;
     if (buffer->data){
