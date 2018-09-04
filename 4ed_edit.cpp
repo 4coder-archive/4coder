@@ -99,18 +99,20 @@ edit_fix_marks(System_Functions *system, Models *models, Editing_File *file, Edi
     edit_fix_marks__write_workspace_marks(&file_lifetime_object->workspace, file->id.id,
                                           cursors, r_cursors, &cursor_count, &r_cursor_count);
     
-    i32 key_count = file_lifetime_object->key_count;
-    i32 key_index = 0;
-    for (Lifetime_Key_Ref_Node *key_node = file_lifetime_object->key_node_first;
-         key_node != 0;
-         key_node = key_node->next){
-        i32 count = clamp_top(lifetime_key_reference_per_node, key_count - key_index);
-        for (i32 i = 0; i < count; i += 1){
-            Lifetime_Key *key = key_node->keys[i];
-            edit_fix_marks__write_workspace_marks(&key->dynamic_workspace, file->id.id,
-                                                  cursors, r_cursors, &cursor_count, &r_cursor_count);
+    {
+        i32 key_count = file_lifetime_object->key_count;
+        i32 key_index = 0;
+        for (Lifetime_Key_Ref_Node *key_node = file_lifetime_object->key_node_first;
+             key_node != 0;
+             key_node = key_node->next){
+            i32 count = clamp_top(lifetime_key_reference_per_node, key_count - key_index);
+            for (i32 i = 0; i < count; i += 1){
+                Lifetime_Key *key = key_node->keys[i];
+                edit_fix_marks__write_workspace_marks(&key->dynamic_workspace, file->id.id,
+                                                      cursors, r_cursors, &cursor_count, &r_cursor_count);
+            }
+            key_index += count;
         }
-        key_index += count;
     }
     
     if (cursor_count > 0 || r_cursor_count > 0){

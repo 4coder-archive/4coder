@@ -205,15 +205,18 @@ CUSTOM_COMMAND_SIG(multi_paste){
     int32_t count = clipboard_count(app, 0);
     if (count > 0){
         View_Summary view = get_active_view(app, access);
+        Managed_Group group = view_get_managed_group(app, view.view_id);
         
-        if (view_paste_index[view.view_id].rewrite == RewritePaste){
-            view_paste_index[view.view_id].next_rewrite = RewritePaste;
-            
-            int32_t paste_index = view_paste_index[view.view_id].index + 1;
-            view_paste_index[view.view_id].index = paste_index;
+        uint64_t rewrite = 0;
+        managed_variable_get(app, group, view_rewrite_loc, &rewrite);
+        if (rewrite == RewritePaste){
+            managed_variable_set(app, group, view_next_rewrite_loc, RewritePaste);
+            uint64_t prev_paste_index = 0;
+            managed_variable_get(app, group, view_paste_index_loc, &prev_paste_index);
+            int32_t paste_index = (int32_t)prev_paste_index + 1;
+            managed_variable_set(app, group, view_paste_index_loc, paste_index);
             
             int32_t len = clipboard_index(app, 0, paste_index, 0, 0);
-            
             
             if (len + 1 <= app->memory_size){
                 char *str = (char*)app->memory;
@@ -716,7 +719,7 @@ struct Replace_Target{
 };
 
 static void
-replace_all_occurrences_parameters(Application_Links *app, General_Memory *general, Partition *part, String target_string, String new_string){
+replace_all_occurrences_parameters(Application_Links *app, Heap *heap, Partition *part, String target_string, String new_string){
     if (target_string.size <= 0) return;
     
     for (bool32 got_all_occurrences = false;
@@ -724,7 +727,7 @@ replace_all_occurrences_parameters(Application_Links *app, General_Memory *gener
         // Initialize a generic search all buffers
         Search_Set set = {0};
         Search_Iter iter = {0};
-        initialize_generic_search_all_buffers(app, general, &target_string, 1, SearchFlag_MatchSubstring, 0, 0, &set, &iter);
+        initialize_generic_search_all_buffers(app, heap, &target_string, 1, SearchFlag_MatchSubstring, 0, 0, &set, &iter);
         
         // Visit all locations and create replacement list
         Temp_Memory temp = begin_temp_memory(part);
@@ -794,7 +797,7 @@ CUSTOM_DOC("Queries the user for two strings, and replaces all occurrences of th
     String r = replace.string;
     String w = with.string;
     
-    replace_all_occurrences_parameters(app, &global_general, &global_part, r, w);
+    replace_all_occurrences_parameters(app, &global_heap, &global_part, r, w);
 }
 
 extern "C" int32_t

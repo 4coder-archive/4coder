@@ -243,10 +243,10 @@ file_first_lex_serial(Models *models, Editing_File *file){
                         }
                         else{
                             u32 old_count = swap_array->count;
-                            Cpp_Token *new_tokens = heap_array(heap, Cpp_Token, new_max);
-                            memcpy(new_tokens, swap_array->tokens, sizeof(*new_tokens)*old_count);
+                            Cpp_Token *new_token_mem = heap_array(heap, Cpp_Token, new_max);
+                            memcpy(new_token_mem, swap_array->tokens, sizeof(*new_token_mem)*old_count);
                             heap_free(heap, swap_array->tokens);
-                            swap_array->tokens = new_tokens;
+                            swap_array->tokens = new_token_mem;
                         }
                         swap_array->max_count = new_max;
                         

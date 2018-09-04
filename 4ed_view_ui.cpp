@@ -288,16 +288,16 @@ do_render_file_view(System_Functions *system, View *view, Models *models, GUI_Sc
         
         i32 item_count = view->transient.ui_control.count;
         UI_Item *item = view->transient.ui_control.items;
-        GUI_Scroll_Vars scroll = view->transient.ui_scroll;
+        GUI_Scroll_Vars ui_scroll = view->transient.ui_scroll;
         for (i32 i = 0; i < item_count; ++i, item += 1){
             f32_Rect item_rect = f32R(item->rectangle);
             switch (item->coordinates){
                 case UICoordinates_Scrolled:
                 {
-                    item_rect.x0 += rect_f32.x0 - scroll.scroll_x;
-                    item_rect.y0 += rect_f32.y0 - scroll.scroll_y;
-                    item_rect.x1 += rect_f32.x0 - scroll.scroll_x;
-                    item_rect.y1 += rect_f32.y0 - scroll.scroll_y;
+                    item_rect.x0 += rect_f32.x0 - ui_scroll.scroll_x;
+                    item_rect.y0 += rect_f32.y0 - ui_scroll.scroll_y;
+                    item_rect.x1 += rect_f32.x0 - ui_scroll.scroll_x;
+                    item_rect.y1 += rect_f32.y0 - ui_scroll.scroll_y;
                 }break;
                 
                 case UICoordinates_ViewRelative:
