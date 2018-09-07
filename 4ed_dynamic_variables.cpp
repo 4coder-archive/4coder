@@ -171,15 +171,15 @@ dynamic_workspace_init(Heap *heap, Lifetime_Allocator *lifetime_allocator,
     if (lifetime_allocator->scope_id_counter == 0){
         lifetime_allocator->scope_id_counter = 1;
     }
-    workspace->group_id = lifetime_allocator->scope_id_counter++;
-    insert_u32_Ptr_table(heap, &lifetime_allocator->group_id_to_group_ptr_table, workspace->group_id, workspace);
+    workspace->scope_id = lifetime_allocator->scope_id_counter++;
+    insert_u32_Ptr_table(heap, &lifetime_allocator->scope_id_to_scope_ptr_table, workspace->scope_id, workspace);
     workspace->user_type = user_type;
     workspace->user_back_ptr = user_back_ptr;
 }
 
 internal void
 dynamic_workspace_free(Heap *heap, Lifetime_Allocator *lifetime_allocator, Dynamic_Workspace *workspace){
-    erase_u32_Ptr_table(&lifetime_allocator->group_id_to_group_ptr_table, workspace->group_id);
+    erase_u32_Ptr_table(&lifetime_allocator->scope_id_to_scope_ptr_table, workspace->scope_id);
     dynamic_variables_block_free(heap, &workspace->var_block);
     dynamic_memory_bank_free_all(heap, &workspace->mem_bank);
 }

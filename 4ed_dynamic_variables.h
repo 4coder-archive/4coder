@@ -12,34 +12,24 @@
 #if !defined(FRED_DYNAMIC_VARIABLES_H)
 #define FRED_DYNAMIC_VARIABLES_H
 
-typedef i32 Managed_Object_Type;
-enum{
-    ManagedObjectType_None = 0,
-    ManagedObjectType_Memory = 1,
-    ManagedObjectType_Markers = 2,
-    
-    ManagedObjectType_COUNT = 3,
-};
-
-union Managed_Memory_Header{
-    Managed_Object_Type type;
+union Managed_Object_Standard_Header{
     u64 eight_byte_alignment__;
     struct{
-        Managed_Object_Type type__;
-        i32 size;
+        Managed_Object_Type type;
+        u32 item_size;
+        u32 count;
     };
 };
 
-union Managed_Buffer_Markers_Header{
-    Managed_Object_Type type;
-    u64 eight_byte_alignment__;
-    struct{
-        Managed_Object_Type type__;
-        Managed_Buffer_Markers_Header *next;
-        Managed_Buffer_Markers_Header *prev;
-        i32 size;
-        Buffer_ID buffer_id;
-    };
+struct Managed_Memory_Header{
+    Managed_Object_Standard_Header std_header;
+};
+
+struct Managed_Buffer_Markers_Header{
+    Managed_Object_Standard_Header std_header;
+    Managed_Buffer_Markers_Header *next;
+    Managed_Buffer_Markers_Header *prev;
+    Buffer_ID buffer_id;
 };
 
 global_const i32 managed_header_type_sizes[ManagedObjectType_COUNT] = {
@@ -94,7 +84,7 @@ struct Dynamic_Workspace{
     Dynamic_Memory_Bank mem_bank;
     u32_Ptr_Table object_id_to_object_ptr;
     u32 object_id_counter;
-    u32 group_id;
+    u32 scope_id;
     i32 user_type;
     void *user_back_ptr;
     Managed_Buffer_Markers_Header_List buffer_markers_list;
@@ -174,13 +164,20 @@ struct Lifetime_Allocator{
     Lifetime_Key_List free_keys;
     Lifetime_Key_Table key_table;
     Ptr_Table key_check_table;
-    u32_Ptr_Table group_id_to_group_ptr_table;
+    u32_Ptr_Table scope_id_to_scope_ptr_table;
     u32 scope_id_counter;
 };
 
 struct Lifetime_Key_With_Opaque_ID{
     Lifetime_Key *key;
     u64 opaque_id;
+};
+
+////////////////////////////////
+
+struct Managed_Object_Ptr_And_Workspace{
+    Dynamic_Workspace *workspace;
+    Managed_Object_Standard_Header *header;
 };
 
 #endif

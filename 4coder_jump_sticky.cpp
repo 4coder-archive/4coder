@@ -109,22 +109,22 @@ init_marker_list(Application_Links *app, Partition *scratch, Heap *heap, Buffer_
         range_index_buffer_id_pairs[i].key = jumps.jumps[buffer_ranges.ranges[i].first].jump_buffer_id;
     }
     sort_pairs_by_key(range_index_buffer_id_pairs, buffer_ranges.count);
-    Range_Array grouped_buffer_ranges = get_ranges_of_duplicate_keys(scratch,
-                                                                     &range_index_buffer_id_pairs->key,
-                                                                     sizeof(*range_index_buffer_id_pairs),
-                                                                     buffer_ranges.count);
+    Range_Array scoped_buffer_ranges = get_ranges_of_duplicate_keys(scratch,
+                                                                    &range_index_buffer_id_pairs->key,
+                                                                    sizeof(*range_index_buffer_id_pairs),
+                                                                    buffer_ranges.count);
     
     Sticky_Jump_Stored *stored = push_array(scratch, Sticky_Jump_Stored, jumps.count);
     
-    Managed_Group group_array[2] = {0};
-    group_array[0] = buffer_get_managed_group(app, buffer_id);
+    Managed_Scope scope_array[2] = {0};
+    scope_array[0] = buffer_get_managed_scope(app, buffer_id);
     
-    for (int32_t i = 0; i < grouped_buffer_ranges.count; i += 1){
-        Range buffer_range_indices = grouped_buffer_ranges.ranges[i];
+    for (int32_t i = 0; i < scoped_buffer_ranges.count; i += 1){
+        Range buffer_range_indices = scoped_buffer_ranges.ranges[i];
         
         Temp_Memory marker_temp = begin_temp_memory(scratch);
         Marker *markers = push_array(scratch, Marker, 0);
-        int32_t total_jump_count = 0;
+        uint32_t total_jump_count = 0;
         Buffer_ID target_buffer_id = 0;
         for (int32_t j = buffer_range_indices.first;
              j < buffer_range_indices.one_past_last;
@@ -147,18 +147,22 @@ init_marker_list(Application_Links *app, Partition *scratch, Heap *heap, Buffer_
             }
         }
         
-        group_array[1] = buffer_get_managed_group(app, target_buffer_id);
-        Managed_Group group = get_intersected_managed_group(app, group_array, ArrayCount(group_array));
-        Managed_Object marker_handle = buffer_markers_alloc(app, target_buffer_id, total_jump_count, &group);
-        managed_object_write(app, marker_handle, 0, total_jump_count*sizeof(Marker), markers);
+        scope_array[1] = buffer_get_managed_scope(app, target_buffer_id);
+        Managed_Scope scope = get_managed_scope_with_multiple_dependencies(app, scope_array, ArrayCount(scope_array));
+        Managed_Object marker_handle = alloc_buffer_markers_on_buffer(app, target_buffer_id, total_jump_count, &scope);
+        managed_object_store_data(app, marker_handle, 0, total_jump_count, markers);
         end_temp_memory(marker_temp);
         
+        Assert(managed_object_get_item_size(app, marker_handle) == sizeof(Marker));
+        Assert(managed_object_get_item_count(app, marker_handle) == total_jump_count);
+        Assert(managed_object_get_type(app, marker_handle) == ManagedObjectType_Markers);
+        
         sticky_jump_marker_handle_loc = managed_variable_create_or_get_id(app, sticky_jump_marker_handle_var, 0);
-        managed_variable_set(app, group, sticky_jump_marker_handle_loc, marker_handle);
+        managed_variable_set(app, scope, sticky_jump_marker_handle_loc, marker_handle);
     }
     
-    Managed_Object stored_jump_array = managed_memory_alloc(app, group_array[0], sizeof(Sticky_Jump_Stored)*jumps.count);
-    managed_object_write(app, stored_jump_array, 0, sizeof(Sticky_Jump_Stored)*jumps.count, stored);
+    Managed_Object stored_jump_array = alloc_managed_memory_in_scope(app, scope_array[0], sizeof(Sticky_Jump_Stored), jumps.count);
+    managed_object_store_data(app, stored_jump_array, 0, jumps.count, stored);
     
     end_temp_memory(temp);
     
@@ -222,7 +226,7 @@ static bool32
 get_stored_jump_from_list(Application_Links *app, Marker_List *list, int32_t index,
                           Sticky_Jump_Stored *stored_out){
     Sticky_Jump_Stored stored = {0};
-    if (managed_object_read(app, list->jump_array, index*sizeof(stored), sizeof(stored), &stored)){
+    if (managed_object_load_data(app, list->jump_array, index, 1, &stored)){
         *stored_out = stored;
         return(true);
     }
@@ -234,7 +238,7 @@ get_all_stored_jumps_from_list(Application_Links *app, Partition *arena, Marker_
     Temp_Memory restore_point = begin_temp_memory(arena);
     Sticky_Jump_Stored *stored = push_array(arena, Sticky_Jump_Stored, list->jump_count);
     if (stored != 0){
-        if (!managed_object_read(app, list->jump_array, 0, sizeof(*stored)*list->jump_count, stored)){
+        if (!managed_object_load_data(app, list->jump_array, 0, list->jump_count, stored)){
             stored = 0;
             end_temp_memory(restore_point);
         }
@@ -248,16 +252,16 @@ get_jump_from_list(Application_Links *app, Marker_List *list, int32_t index, ID_
     if (get_stored_jump_from_list(app, list, index, &stored)){
         Buffer_ID target_buffer_id = stored.jump_buffer_id;
         
-        Managed_Group group_array[2] = {0};
-        group_array[0] = buffer_get_managed_group(app, list->buffer_id);
-        group_array[1] = buffer_get_managed_group(app, target_buffer_id);
-        Managed_Group group = get_intersected_managed_group(app, group_array, ArrayCount(group_array));
+        Managed_Scope scope_array[2] = {0};
+        scope_array[0] = buffer_get_managed_scope(app, list->buffer_id);
+        scope_array[1] = buffer_get_managed_scope(app, target_buffer_id);
+        Managed_Scope scope = get_managed_scope_with_multiple_dependencies(app, scope_array, ArrayCount(scope_array));
         
         sticky_jump_marker_handle_loc = managed_variable_create_or_get_id(app, sticky_jump_marker_handle_var, 0);
         Managed_Object marker_array = 0;
-        if (managed_variable_get(app, group, sticky_jump_marker_handle_loc, &marker_array)){
+        if (managed_variable_get(app, scope, sticky_jump_marker_handle_loc, &marker_array)){
             Marker marker = {0};
-            managed_object_read(app, marker_array, stored.index_into_marker_array*sizeof(Marker), 1*sizeof(Marker), &marker);
+            managed_object_load_data(app, marker_array, stored.index_into_marker_array, 1, &marker);
             location->buffer_id = target_buffer_id;
             location->pos = marker.pos;
             return(true);

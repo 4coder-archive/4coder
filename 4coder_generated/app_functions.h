@@ -19,7 +19,7 @@ struct Application_Links;
 #define BUFFER_BATCH_EDIT_SIG(n) bool32 n(Application_Links *app, Buffer_Summary *buffer, char *str, int32_t str_len, Buffer_Edit *edits, int32_t edit_count, Buffer_Batch_Edit_Type type)
 #define BUFFER_GET_SETTING_SIG(n) bool32 n(Application_Links *app, Buffer_Summary *buffer, Buffer_Setting_ID setting, int32_t *value_out)
 #define BUFFER_SET_SETTING_SIG(n) bool32 n(Application_Links *app, Buffer_Summary *buffer, Buffer_Setting_ID setting, int32_t value)
-#define BUFFER_GET_MANAGED_GROUP_SIG(n) Managed_Group n(Application_Links *app, Buffer_ID buffer_id)
+#define BUFFER_GET_MANAGED_SCOPE_SIG(n) Managed_Scope n(Application_Links *app, Buffer_ID buffer_id)
 #define BUFFER_TOKEN_COUNT_SIG(n) int32_t n(Application_Links *app, Buffer_Summary *buffer)
 #define BUFFER_READ_TOKENS_SIG(n) bool32 n(Application_Links *app, Buffer_Summary *buffer, int32_t start_token, int32_t end_token, Cpp_Token *tokens_out)
 #define BUFFER_GET_TOKEN_INDEX_SIG(n) bool32 n(Application_Links *app, Buffer_Summary *buffer, int32_t pos, Cpp_Get_Token_Result *get_result)
@@ -36,7 +36,7 @@ struct Application_Links;
 #define SET_ACTIVE_VIEW_SIG(n) bool32 n(Application_Links *app, View_Summary *view)
 #define VIEW_GET_SETTING_SIG(n) bool32 n(Application_Links *app, View_Summary *view, View_Setting_ID setting, int32_t *value_out)
 #define VIEW_SET_SETTING_SIG(n) bool32 n(Application_Links *app, View_Summary *view, View_Setting_ID setting, int32_t value)
-#define VIEW_GET_MANAGED_GROUP_SIG(n) Managed_Group n(Application_Links *app, View_ID view_id)
+#define VIEW_GET_MANAGED_SCOPE_SIG(n) Managed_Scope n(Application_Links *app, View_ID view_id)
 #define VIEW_SET_SPLIT_PROPORTION_SIG(n) bool32 n(Application_Links *app, View_Summary *view, float t)
 #define VIEW_COMPUTE_CURSOR_SIG(n) bool32 n(Application_Links *app, View_Summary *view, Buffer_Seek seek, Full_Cursor *cursor_out)
 #define VIEW_SET_CURSOR_SIG(n) bool32 n(Application_Links *app, View_Summary *view, Buffer_Seek seek, bool32 set_preferred_x)
@@ -49,18 +49,22 @@ struct Application_Links;
 #define VIEW_END_UI_MODE_SIG(n) int32_t n(Application_Links *app, View_Summary *view)
 #define VIEW_SET_UI_SIG(n) bool32 n(Application_Links *app, View_Summary *view, UI_Control *control)
 #define VIEW_GET_UI_COPY_SIG(n) UI_Control n(Application_Links *app, View_Summary *view, struct Partition *part)
-#define GET_GLOBAL_MANAGED_GROUP_SIG(n) Managed_Group n(Application_Links *app)
-#define GET_INTERSECTED_MANAGED_GROUP_SIG(n) Managed_Group n(Application_Links *app, Managed_Group *intersected_groups, int32_t count)
+#define GET_GLOBAL_MANAGED_SCOPE_SIG(n) Managed_Scope n(Application_Links *app)
+#define GET_MANAGED_SCOPE_WITH_MULTIPLE_DEPENDENCIES_SIG(n) Managed_Scope n(Application_Links *app, Managed_Scope *intersected_scopes, int32_t count)
 #define MANAGED_VARIABLE_CREATE_SIG(n) Managed_Variable_ID n(Application_Links *app, char *null_terminated_name, uint64_t default_value)
 #define MANAGED_VARIABLE_GET_ID_SIG(n) Managed_Variable_ID n(Application_Links *app, char *null_terminated_name)
 #define MANAGED_VARIABLE_CREATE_OR_GET_ID_SIG(n) Managed_Variable_ID n(Application_Links *app, char *null_terminated_name, uint64_t default_value)
-#define MANAGED_VARIABLE_SET_SIG(n) bool32 n(Application_Links *app, Managed_Group group, Managed_Variable_ID location, uint64_t value)
-#define MANAGED_VARIABLE_GET_SIG(n) bool32 n(Application_Links *app, Managed_Group group, Managed_Variable_ID location, uint64_t *value_out)
-#define MANAGED_MEMORY_ALLOC_SIG(n) Managed_Object n(Application_Links *app, Managed_Group group, int32_t size)
-#define BUFFER_MARKERS_ALLOC_SIG(n) Managed_Object n(Application_Links *app, Buffer_ID buffer_id, int32_t count, Managed_Group *group)
+#define MANAGED_VARIABLE_SET_SIG(n) bool32 n(Application_Links *app, Managed_Scope scope, Managed_Variable_ID location, uint64_t value)
+#define MANAGED_VARIABLE_GET_SIG(n) bool32 n(Application_Links *app, Managed_Scope scope, Managed_Variable_ID location, uint64_t *value_out)
+#define ALLOC_MANAGED_MEMORY_IN_SCOPE_SIG(n) Managed_Object n(Application_Links *app, Managed_Scope scope, int32_t item_size, int32_t count)
+#define ALLOC_BUFFER_MARKERS_ON_BUFFER_SIG(n) Managed_Object n(Application_Links *app, Buffer_ID buffer_id, int32_t count, Managed_Scope *optional_extra_scope)
+#define MANAGED_OBJECT_GET_ITEM_SIZE_SIG(n) uint32_t n(Application_Links *app, Managed_Object object)
+#define MANAGED_OBJECT_GET_ITEM_COUNT_SIG(n) uint32_t n(Application_Links *app, Managed_Object object)
+#define MANAGED_OBJECT_GET_TYPE_SIG(n) Managed_Object_Type n(Application_Links *app, Managed_Object object)
+#define MANAGED_OBJECT_GET_CONTAINING_SCOPE_SIG(n) Managed_Scope n(Application_Links *app, Managed_Object object)
 #define MANAGED_OBJECT_FREE_SIG(n) bool32 n(Application_Links *app, Managed_Object object)
-#define MANAGED_OBJECT_WRITE_SIG(n) bool32 n(Application_Links *app, Managed_Object object, uint32_t start, uint32_t size, void *mem)
-#define MANAGED_OBJECT_READ_SIG(n) bool32 n(Application_Links *app, Managed_Object object, uint32_t start, uint32_t size, void *mem_out)
+#define MANAGED_OBJECT_STORE_DATA_SIG(n) bool32 n(Application_Links *app, Managed_Object object, uint32_t first_index, uint32_t count, void *mem)
+#define MANAGED_OBJECT_LOAD_DATA_SIG(n) bool32 n(Application_Links *app, Managed_Object object, uint32_t first_index, uint32_t count, void *mem_out)
 #define GET_USER_INPUT_SIG(n) User_Input n(Application_Links *app, Input_Type_Flag get_type, Input_Type_Flag abort_type)
 #define GET_COMMAND_INPUT_SIG(n) User_Input n(Application_Links *app)
 #define GET_MOUSE_STATE_SIG(n) Mouse_State n(Application_Links *app)
@@ -120,7 +124,7 @@ typedef BUFFER_COMPUTE_CURSOR_SIG(Buffer_Compute_Cursor_Function);
 typedef BUFFER_BATCH_EDIT_SIG(Buffer_Batch_Edit_Function);
 typedef BUFFER_GET_SETTING_SIG(Buffer_Get_Setting_Function);
 typedef BUFFER_SET_SETTING_SIG(Buffer_Set_Setting_Function);
-typedef BUFFER_GET_MANAGED_GROUP_SIG(Buffer_Get_Managed_Group_Function);
+typedef BUFFER_GET_MANAGED_SCOPE_SIG(Buffer_Get_Managed_Scope_Function);
 typedef BUFFER_TOKEN_COUNT_SIG(Buffer_Token_Count_Function);
 typedef BUFFER_READ_TOKENS_SIG(Buffer_Read_Tokens_Function);
 typedef BUFFER_GET_TOKEN_INDEX_SIG(Buffer_Get_Token_Index_Function);
@@ -137,7 +141,7 @@ typedef CLOSE_VIEW_SIG(Close_View_Function);
 typedef SET_ACTIVE_VIEW_SIG(Set_Active_View_Function);
 typedef VIEW_GET_SETTING_SIG(View_Get_Setting_Function);
 typedef VIEW_SET_SETTING_SIG(View_Set_Setting_Function);
-typedef VIEW_GET_MANAGED_GROUP_SIG(View_Get_Managed_Group_Function);
+typedef VIEW_GET_MANAGED_SCOPE_SIG(View_Get_Managed_Scope_Function);
 typedef VIEW_SET_SPLIT_PROPORTION_SIG(View_Set_Split_Proportion_Function);
 typedef VIEW_COMPUTE_CURSOR_SIG(View_Compute_Cursor_Function);
 typedef VIEW_SET_CURSOR_SIG(View_Set_Cursor_Function);
@@ -150,18 +154,22 @@ typedef VIEW_START_UI_MODE_SIG(View_Start_UI_Mode_Function);
 typedef VIEW_END_UI_MODE_SIG(View_End_UI_Mode_Function);
 typedef VIEW_SET_UI_SIG(View_Set_UI_Function);
 typedef VIEW_GET_UI_COPY_SIG(View_Get_UI_Copy_Function);
-typedef GET_GLOBAL_MANAGED_GROUP_SIG(Get_Global_Managed_Group_Function);
-typedef GET_INTERSECTED_MANAGED_GROUP_SIG(Get_Intersected_Managed_Group_Function);
+typedef GET_GLOBAL_MANAGED_SCOPE_SIG(Get_Global_Managed_Scope_Function);
+typedef GET_MANAGED_SCOPE_WITH_MULTIPLE_DEPENDENCIES_SIG(Get_Managed_Scope_With_Multiple_Dependencies_Function);
 typedef MANAGED_VARIABLE_CREATE_SIG(Managed_Variable_Create_Function);
 typedef MANAGED_VARIABLE_GET_ID_SIG(Managed_Variable_Get_ID_Function);
 typedef MANAGED_VARIABLE_CREATE_OR_GET_ID_SIG(Managed_Variable_Create_Or_Get_ID_Function);
 typedef MANAGED_VARIABLE_SET_SIG(Managed_Variable_Set_Function);
 typedef MANAGED_VARIABLE_GET_SIG(Managed_Variable_Get_Function);
-typedef MANAGED_MEMORY_ALLOC_SIG(Managed_Memory_Alloc_Function);
-typedef BUFFER_MARKERS_ALLOC_SIG(Buffer_Markers_Alloc_Function);
+typedef ALLOC_MANAGED_MEMORY_IN_SCOPE_SIG(Alloc_Managed_Memory_In_Scope_Function);
+typedef ALLOC_BUFFER_MARKERS_ON_BUFFER_SIG(Alloc_Buffer_Markers_On_Buffer_Function);
+typedef MANAGED_OBJECT_GET_ITEM_SIZE_SIG(Managed_Object_Get_Item_Size_Function);
+typedef MANAGED_OBJECT_GET_ITEM_COUNT_SIG(Managed_Object_Get_Item_Count_Function);
+typedef MANAGED_OBJECT_GET_TYPE_SIG(Managed_Object_Get_Type_Function);
+typedef MANAGED_OBJECT_GET_CONTAINING_SCOPE_SIG(Managed_Object_Get_Containing_Scope_Function);
 typedef MANAGED_OBJECT_FREE_SIG(Managed_Object_Free_Function);
-typedef MANAGED_OBJECT_WRITE_SIG(Managed_Object_Write_Function);
-typedef MANAGED_OBJECT_READ_SIG(Managed_Object_Read_Function);
+typedef MANAGED_OBJECT_STORE_DATA_SIG(Managed_Object_Store_Data_Function);
+typedef MANAGED_OBJECT_LOAD_DATA_SIG(Managed_Object_Load_Data_Function);
 typedef GET_USER_INPUT_SIG(Get_User_Input_Function);
 typedef GET_COMMAND_INPUT_SIG(Get_Command_Input_Function);
 typedef GET_MOUSE_STATE_SIG(Get_Mouse_State_Function);
@@ -223,7 +231,7 @@ Buffer_Compute_Cursor_Function *buffer_compute_cursor;
 Buffer_Batch_Edit_Function *buffer_batch_edit;
 Buffer_Get_Setting_Function *buffer_get_setting;
 Buffer_Set_Setting_Function *buffer_set_setting;
-Buffer_Get_Managed_Group_Function *buffer_get_managed_group;
+Buffer_Get_Managed_Scope_Function *buffer_get_managed_scope;
 Buffer_Token_Count_Function *buffer_token_count;
 Buffer_Read_Tokens_Function *buffer_read_tokens;
 Buffer_Get_Token_Index_Function *buffer_get_token_index;
@@ -240,7 +248,7 @@ Close_View_Function *close_view;
 Set_Active_View_Function *set_active_view;
 View_Get_Setting_Function *view_get_setting;
 View_Set_Setting_Function *view_set_setting;
-View_Get_Managed_Group_Function *view_get_managed_group;
+View_Get_Managed_Scope_Function *view_get_managed_scope;
 View_Set_Split_Proportion_Function *view_set_split_proportion;
 View_Compute_Cursor_Function *view_compute_cursor;
 View_Set_Cursor_Function *view_set_cursor;
@@ -253,18 +261,22 @@ View_Start_UI_Mode_Function *view_start_ui_mode;
 View_End_UI_Mode_Function *view_end_ui_mode;
 View_Set_UI_Function *view_set_ui;
 View_Get_UI_Copy_Function *view_get_ui_copy;
-Get_Global_Managed_Group_Function *get_global_managed_group;
-Get_Intersected_Managed_Group_Function *get_intersected_managed_group;
+Get_Global_Managed_Scope_Function *get_global_managed_scope;
+Get_Managed_Scope_With_Multiple_Dependencies_Function *get_managed_scope_with_multiple_dependencies;
 Managed_Variable_Create_Function *managed_variable_create;
 Managed_Variable_Get_ID_Function *managed_variable_get_id;
 Managed_Variable_Create_Or_Get_ID_Function *managed_variable_create_or_get_id;
 Managed_Variable_Set_Function *managed_variable_set;
 Managed_Variable_Get_Function *managed_variable_get;
-Managed_Memory_Alloc_Function *managed_memory_alloc;
-Buffer_Markers_Alloc_Function *buffer_markers_alloc;
+Alloc_Managed_Memory_In_Scope_Function *alloc_managed_memory_in_scope;
+Alloc_Buffer_Markers_On_Buffer_Function *alloc_buffer_markers_on_buffer;
+Managed_Object_Get_Item_Size_Function *managed_object_get_item_size;
+Managed_Object_Get_Item_Count_Function *managed_object_get_item_count;
+Managed_Object_Get_Type_Function *managed_object_get_type;
+Managed_Object_Get_Containing_Scope_Function *managed_object_get_containing_scope;
 Managed_Object_Free_Function *managed_object_free;
-Managed_Object_Write_Function *managed_object_write;
-Managed_Object_Read_Function *managed_object_read;
+Managed_Object_Store_Data_Function *managed_object_store_data;
+Managed_Object_Load_Data_Function *managed_object_load_data;
 Get_User_Input_Function *get_user_input;
 Get_Command_Input_Function *get_command_input;
 Get_Mouse_State_Function *get_mouse_state;
@@ -325,7 +337,7 @@ Buffer_Compute_Cursor_Function *buffer_compute_cursor_;
 Buffer_Batch_Edit_Function *buffer_batch_edit_;
 Buffer_Get_Setting_Function *buffer_get_setting_;
 Buffer_Set_Setting_Function *buffer_set_setting_;
-Buffer_Get_Managed_Group_Function *buffer_get_managed_group_;
+Buffer_Get_Managed_Scope_Function *buffer_get_managed_scope_;
 Buffer_Token_Count_Function *buffer_token_count_;
 Buffer_Read_Tokens_Function *buffer_read_tokens_;
 Buffer_Get_Token_Index_Function *buffer_get_token_index_;
@@ -342,7 +354,7 @@ Close_View_Function *close_view_;
 Set_Active_View_Function *set_active_view_;
 View_Get_Setting_Function *view_get_setting_;
 View_Set_Setting_Function *view_set_setting_;
-View_Get_Managed_Group_Function *view_get_managed_group_;
+View_Get_Managed_Scope_Function *view_get_managed_scope_;
 View_Set_Split_Proportion_Function *view_set_split_proportion_;
 View_Compute_Cursor_Function *view_compute_cursor_;
 View_Set_Cursor_Function *view_set_cursor_;
@@ -355,18 +367,22 @@ View_Start_UI_Mode_Function *view_start_ui_mode_;
 View_End_UI_Mode_Function *view_end_ui_mode_;
 View_Set_UI_Function *view_set_ui_;
 View_Get_UI_Copy_Function *view_get_ui_copy_;
-Get_Global_Managed_Group_Function *get_global_managed_group_;
-Get_Intersected_Managed_Group_Function *get_intersected_managed_group_;
+Get_Global_Managed_Scope_Function *get_global_managed_scope_;
+Get_Managed_Scope_With_Multiple_Dependencies_Function *get_managed_scope_with_multiple_dependencies_;
 Managed_Variable_Create_Function *managed_variable_create_;
 Managed_Variable_Get_ID_Function *managed_variable_get_id_;
 Managed_Variable_Create_Or_Get_ID_Function *managed_variable_create_or_get_id_;
 Managed_Variable_Set_Function *managed_variable_set_;
 Managed_Variable_Get_Function *managed_variable_get_;
-Managed_Memory_Alloc_Function *managed_memory_alloc_;
-Buffer_Markers_Alloc_Function *buffer_markers_alloc_;
+Alloc_Managed_Memory_In_Scope_Function *alloc_managed_memory_in_scope_;
+Alloc_Buffer_Markers_On_Buffer_Function *alloc_buffer_markers_on_buffer_;
+Managed_Object_Get_Item_Size_Function *managed_object_get_item_size_;
+Managed_Object_Get_Item_Count_Function *managed_object_get_item_count_;
+Managed_Object_Get_Type_Function *managed_object_get_type_;
+Managed_Object_Get_Containing_Scope_Function *managed_object_get_containing_scope_;
 Managed_Object_Free_Function *managed_object_free_;
-Managed_Object_Write_Function *managed_object_write_;
-Managed_Object_Read_Function *managed_object_read_;
+Managed_Object_Store_Data_Function *managed_object_store_data_;
+Managed_Object_Load_Data_Function *managed_object_load_data_;
 Get_User_Input_Function *get_user_input_;
 Get_Command_Input_Function *get_command_input_;
 Get_Mouse_State_Function *get_mouse_state_;
@@ -435,7 +451,7 @@ app_links->buffer_compute_cursor_ = Buffer_Compute_Cursor;\
 app_links->buffer_batch_edit_ = Buffer_Batch_Edit;\
 app_links->buffer_get_setting_ = Buffer_Get_Setting;\
 app_links->buffer_set_setting_ = Buffer_Set_Setting;\
-app_links->buffer_get_managed_group_ = Buffer_Get_Managed_Group;\
+app_links->buffer_get_managed_scope_ = Buffer_Get_Managed_Scope;\
 app_links->buffer_token_count_ = Buffer_Token_Count;\
 app_links->buffer_read_tokens_ = Buffer_Read_Tokens;\
 app_links->buffer_get_token_index_ = Buffer_Get_Token_Index;\
@@ -452,7 +468,7 @@ app_links->close_view_ = Close_View;\
 app_links->set_active_view_ = Set_Active_View;\
 app_links->view_get_setting_ = View_Get_Setting;\
 app_links->view_set_setting_ = View_Set_Setting;\
-app_links->view_get_managed_group_ = View_Get_Managed_Group;\
+app_links->view_get_managed_scope_ = View_Get_Managed_Scope;\
 app_links->view_set_split_proportion_ = View_Set_Split_Proportion;\
 app_links->view_compute_cursor_ = View_Compute_Cursor;\
 app_links->view_set_cursor_ = View_Set_Cursor;\
@@ -465,18 +481,22 @@ app_links->view_start_ui_mode_ = View_Start_UI_Mode;\
 app_links->view_end_ui_mode_ = View_End_UI_Mode;\
 app_links->view_set_ui_ = View_Set_UI;\
 app_links->view_get_ui_copy_ = View_Get_UI_Copy;\
-app_links->get_global_managed_group_ = Get_Global_Managed_Group;\
-app_links->get_intersected_managed_group_ = Get_Intersected_Managed_Group;\
+app_links->get_global_managed_scope_ = Get_Global_Managed_Scope;\
+app_links->get_managed_scope_with_multiple_dependencies_ = Get_Managed_Scope_With_Multiple_Dependencies;\
 app_links->managed_variable_create_ = Managed_Variable_Create;\
 app_links->managed_variable_get_id_ = Managed_Variable_Get_ID;\
 app_links->managed_variable_create_or_get_id_ = Managed_Variable_Create_Or_Get_ID;\
 app_links->managed_variable_set_ = Managed_Variable_Set;\
 app_links->managed_variable_get_ = Managed_Variable_Get;\
-app_links->managed_memory_alloc_ = Managed_Memory_Alloc;\
-app_links->buffer_markers_alloc_ = Buffer_Markers_Alloc;\
+app_links->alloc_managed_memory_in_scope_ = Alloc_Managed_Memory_In_Scope;\
+app_links->alloc_buffer_markers_on_buffer_ = Alloc_Buffer_Markers_On_Buffer;\
+app_links->managed_object_get_item_size_ = Managed_Object_Get_Item_Size;\
+app_links->managed_object_get_item_count_ = Managed_Object_Get_Item_Count;\
+app_links->managed_object_get_type_ = Managed_Object_Get_Type;\
+app_links->managed_object_get_containing_scope_ = Managed_Object_Get_Containing_Scope;\
 app_links->managed_object_free_ = Managed_Object_Free;\
-app_links->managed_object_write_ = Managed_Object_Write;\
-app_links->managed_object_read_ = Managed_Object_Read;\
+app_links->managed_object_store_data_ = Managed_Object_Store_Data;\
+app_links->managed_object_load_data_ = Managed_Object_Load_Data;\
 app_links->get_user_input_ = Get_User_Input;\
 app_links->get_command_input_ = Get_Command_Input;\
 app_links->get_mouse_state_ = Get_Mouse_State;\
@@ -537,7 +557,7 @@ static inline bool32 buffer_compute_cursor(Application_Links *app, Buffer_Summar
 static inline bool32 buffer_batch_edit(Application_Links *app, Buffer_Summary *buffer, char *str, int32_t str_len, Buffer_Edit *edits, int32_t edit_count, Buffer_Batch_Edit_Type type){return(app->buffer_batch_edit(app, buffer, str, str_len, edits, edit_count, type));}
 static inline bool32 buffer_get_setting(Application_Links *app, Buffer_Summary *buffer, Buffer_Setting_ID setting, int32_t *value_out){return(app->buffer_get_setting(app, buffer, setting, value_out));}
 static inline bool32 buffer_set_setting(Application_Links *app, Buffer_Summary *buffer, Buffer_Setting_ID setting, int32_t value){return(app->buffer_set_setting(app, buffer, setting, value));}
-static inline Managed_Group buffer_get_managed_group(Application_Links *app, Buffer_ID buffer_id){return(app->buffer_get_managed_group(app, buffer_id));}
+static inline Managed_Scope buffer_get_managed_scope(Application_Links *app, Buffer_ID buffer_id){return(app->buffer_get_managed_scope(app, buffer_id));}
 static inline int32_t buffer_token_count(Application_Links *app, Buffer_Summary *buffer){return(app->buffer_token_count(app, buffer));}
 static inline bool32 buffer_read_tokens(Application_Links *app, Buffer_Summary *buffer, int32_t start_token, int32_t end_token, Cpp_Token *tokens_out){return(app->buffer_read_tokens(app, buffer, start_token, end_token, tokens_out));}
 static inline bool32 buffer_get_token_index(Application_Links *app, Buffer_Summary *buffer, int32_t pos, Cpp_Get_Token_Result *get_result){return(app->buffer_get_token_index(app, buffer, pos, get_result));}
@@ -554,7 +574,7 @@ static inline bool32 close_view(Application_Links *app, View_Summary *view){retu
 static inline bool32 set_active_view(Application_Links *app, View_Summary *view){return(app->set_active_view(app, view));}
 static inline bool32 view_get_setting(Application_Links *app, View_Summary *view, View_Setting_ID setting, int32_t *value_out){return(app->view_get_setting(app, view, setting, value_out));}
 static inline bool32 view_set_setting(Application_Links *app, View_Summary *view, View_Setting_ID setting, int32_t value){return(app->view_set_setting(app, view, setting, value));}
-static inline Managed_Group view_get_managed_group(Application_Links *app, View_ID view_id){return(app->view_get_managed_group(app, view_id));}
+static inline Managed_Scope view_get_managed_scope(Application_Links *app, View_ID view_id){return(app->view_get_managed_scope(app, view_id));}
 static inline bool32 view_set_split_proportion(Application_Links *app, View_Summary *view, float t){return(app->view_set_split_proportion(app, view, t));}
 static inline bool32 view_compute_cursor(Application_Links *app, View_Summary *view, Buffer_Seek seek, Full_Cursor *cursor_out){return(app->view_compute_cursor(app, view, seek, cursor_out));}
 static inline bool32 view_set_cursor(Application_Links *app, View_Summary *view, Buffer_Seek seek, bool32 set_preferred_x){return(app->view_set_cursor(app, view, seek, set_preferred_x));}
@@ -567,18 +587,22 @@ static inline int32_t view_start_ui_mode(Application_Links *app, View_Summary *v
 static inline int32_t view_end_ui_mode(Application_Links *app, View_Summary *view){return(app->view_end_ui_mode(app, view));}
 static inline bool32 view_set_ui(Application_Links *app, View_Summary *view, UI_Control *control){return(app->view_set_ui(app, view, control));}
 static inline UI_Control view_get_ui_copy(Application_Links *app, View_Summary *view, struct Partition *part){return(app->view_get_ui_copy(app, view, part));}
-static inline Managed_Group get_global_managed_group(Application_Links *app){return(app->get_global_managed_group(app));}
-static inline Managed_Group get_intersected_managed_group(Application_Links *app, Managed_Group *intersected_groups, int32_t count){return(app->get_intersected_managed_group(app, intersected_groups, count));}
+static inline Managed_Scope get_global_managed_scope(Application_Links *app){return(app->get_global_managed_scope(app));}
+static inline Managed_Scope get_managed_scope_with_multiple_dependencies(Application_Links *app, Managed_Scope *intersected_scopes, int32_t count){return(app->get_managed_scope_with_multiple_dependencies(app, intersected_scopes, count));}
 static inline Managed_Variable_ID managed_variable_create(Application_Links *app, char *null_terminated_name, uint64_t default_value){return(app->managed_variable_create(app, null_terminated_name, default_value));}
 static inline Managed_Variable_ID managed_variable_get_id(Application_Links *app, char *null_terminated_name){return(app->managed_variable_get_id(app, null_terminated_name));}
 static inline Managed_Variable_ID managed_variable_create_or_get_id(Application_Links *app, char *null_terminated_name, uint64_t default_value){return(app->managed_variable_create_or_get_id(app, null_terminated_name, default_value));}
-static inline bool32 managed_variable_set(Application_Links *app, Managed_Group group, Managed_Variable_ID location, uint64_t value){return(app->managed_variable_set(app, group, location, value));}
-static inline bool32 managed_variable_get(Application_Links *app, Managed_Group group, Managed_Variable_ID location, uint64_t *value_out){return(app->managed_variable_get(app, group, location, value_out));}
-static inline Managed_Object managed_memory_alloc(Application_Links *app, Managed_Group group, int32_t size){return(app->managed_memory_alloc(app, group, size));}
-static inline Managed_Object buffer_markers_alloc(Application_Links *app, Buffer_ID buffer_id, int32_t count, Managed_Group *group){return(app->buffer_markers_alloc(app, buffer_id, count, group));}
+static inline bool32 managed_variable_set(Application_Links *app, Managed_Scope scope, Managed_Variable_ID location, uint64_t value){return(app->managed_variable_set(app, scope, location, value));}
+static inline bool32 managed_variable_get(Application_Links *app, Managed_Scope scope, Managed_Variable_ID location, uint64_t *value_out){return(app->managed_variable_get(app, scope, location, value_out));}
+static inline Managed_Object alloc_managed_memory_in_scope(Application_Links *app, Managed_Scope scope, int32_t item_size, int32_t count){return(app->alloc_managed_memory_in_scope(app, scope, item_size, count));}
+static inline Managed_Object alloc_buffer_markers_on_buffer(Application_Links *app, Buffer_ID buffer_id, int32_t count, Managed_Scope *optional_extra_scope){return(app->alloc_buffer_markers_on_buffer(app, buffer_id, count, optional_extra_scope));}
+static inline uint32_t managed_object_get_item_size(Application_Links *app, Managed_Object object){return(app->managed_object_get_item_size(app, object));}
+static inline uint32_t managed_object_get_item_count(Application_Links *app, Managed_Object object){return(app->managed_object_get_item_count(app, object));}
+static inline Managed_Object_Type managed_object_get_type(Application_Links *app, Managed_Object object){return(app->managed_object_get_type(app, object));}
+static inline Managed_Scope managed_object_get_containing_scope(Application_Links *app, Managed_Object object){return(app->managed_object_get_containing_scope(app, object));}
 static inline bool32 managed_object_free(Application_Links *app, Managed_Object object){return(app->managed_object_free(app, object));}
-static inline bool32 managed_object_write(Application_Links *app, Managed_Object object, uint32_t start, uint32_t size, void *mem){return(app->managed_object_write(app, object, start, size, mem));}
-static inline bool32 managed_object_read(Application_Links *app, Managed_Object object, uint32_t start, uint32_t size, void *mem_out){return(app->managed_object_read(app, object, start, size, mem_out));}
+static inline bool32 managed_object_store_data(Application_Links *app, Managed_Object object, uint32_t first_index, uint32_t count, void *mem){return(app->managed_object_store_data(app, object, first_index, count, mem));}
+static inline bool32 managed_object_load_data(Application_Links *app, Managed_Object object, uint32_t first_index, uint32_t count, void *mem_out){return(app->managed_object_load_data(app, object, first_index, count, mem_out));}
 static inline User_Input get_user_input(Application_Links *app, Input_Type_Flag get_type, Input_Type_Flag abort_type){return(app->get_user_input(app, get_type, abort_type));}
 static inline User_Input get_command_input(Application_Links *app){return(app->get_command_input(app));}
 static inline Mouse_State get_mouse_state(Application_Links *app){return(app->get_mouse_state(app));}
@@ -639,7 +663,7 @@ static inline bool32 buffer_compute_cursor(Application_Links *app, Buffer_Summar
 static inline bool32 buffer_batch_edit(Application_Links *app, Buffer_Summary *buffer, char *str, int32_t str_len, Buffer_Edit *edits, int32_t edit_count, Buffer_Batch_Edit_Type type){return(app->buffer_batch_edit_(app, buffer, str, str_len, edits, edit_count, type));}
 static inline bool32 buffer_get_setting(Application_Links *app, Buffer_Summary *buffer, Buffer_Setting_ID setting, int32_t *value_out){return(app->buffer_get_setting_(app, buffer, setting, value_out));}
 static inline bool32 buffer_set_setting(Application_Links *app, Buffer_Summary *buffer, Buffer_Setting_ID setting, int32_t value){return(app->buffer_set_setting_(app, buffer, setting, value));}
-static inline Managed_Group buffer_get_managed_group(Application_Links *app, Buffer_ID buffer_id){return(app->buffer_get_managed_group_(app, buffer_id));}
+static inline Managed_Scope buffer_get_managed_scope(Application_Links *app, Buffer_ID buffer_id){return(app->buffer_get_managed_scope_(app, buffer_id));}
 static inline int32_t buffer_token_count(Application_Links *app, Buffer_Summary *buffer){return(app->buffer_token_count_(app, buffer));}
 static inline bool32 buffer_read_tokens(Application_Links *app, Buffer_Summary *buffer, int32_t start_token, int32_t end_token, Cpp_Token *tokens_out){return(app->buffer_read_tokens_(app, buffer, start_token, end_token, tokens_out));}
 static inline bool32 buffer_get_token_index(Application_Links *app, Buffer_Summary *buffer, int32_t pos, Cpp_Get_Token_Result *get_result){return(app->buffer_get_token_index_(app, buffer, pos, get_result));}
@@ -656,7 +680,7 @@ static inline bool32 close_view(Application_Links *app, View_Summary *view){retu
 static inline bool32 set_active_view(Application_Links *app, View_Summary *view){return(app->set_active_view_(app, view));}
 static inline bool32 view_get_setting(Application_Links *app, View_Summary *view, View_Setting_ID setting, int32_t *value_out){return(app->view_get_setting_(app, view, setting, value_out));}
 static inline bool32 view_set_setting(Application_Links *app, View_Summary *view, View_Setting_ID setting, int32_t value){return(app->view_set_setting_(app, view, setting, value));}
-static inline Managed_Group view_get_managed_group(Application_Links *app, View_ID view_id){return(app->view_get_managed_group_(app, view_id));}
+static inline Managed_Scope view_get_managed_scope(Application_Links *app, View_ID view_id){return(app->view_get_managed_scope_(app, view_id));}
 static inline bool32 view_set_split_proportion(Application_Links *app, View_Summary *view, float t){return(app->view_set_split_proportion_(app, view, t));}
 static inline bool32 view_compute_cursor(Application_Links *app, View_Summary *view, Buffer_Seek seek, Full_Cursor *cursor_out){return(app->view_compute_cursor_(app, view, seek, cursor_out));}
 static inline bool32 view_set_cursor(Application_Links *app, View_Summary *view, Buffer_Seek seek, bool32 set_preferred_x){return(app->view_set_cursor_(app, view, seek, set_preferred_x));}
@@ -669,18 +693,22 @@ static inline int32_t view_start_ui_mode(Application_Links *app, View_Summary *v
 static inline int32_t view_end_ui_mode(Application_Links *app, View_Summary *view){return(app->view_end_ui_mode_(app, view));}
 static inline bool32 view_set_ui(Application_Links *app, View_Summary *view, UI_Control *control){return(app->view_set_ui_(app, view, control));}
 static inline UI_Control view_get_ui_copy(Application_Links *app, View_Summary *view, struct Partition *part){return(app->view_get_ui_copy_(app, view, part));}
-static inline Managed_Group get_global_managed_group(Application_Links *app){return(app->get_global_managed_group_(app));}
-static inline Managed_Group get_intersected_managed_group(Application_Links *app, Managed_Group *intersected_groups, int32_t count){return(app->get_intersected_managed_group_(app, intersected_groups, count));}
+static inline Managed_Scope get_global_managed_scope(Application_Links *app){return(app->get_global_managed_scope_(app));}
+static inline Managed_Scope get_managed_scope_with_multiple_dependencies(Application_Links *app, Managed_Scope *intersected_scopes, int32_t count){return(app->get_managed_scope_with_multiple_dependencies_(app, intersected_scopes, count));}
 static inline Managed_Variable_ID managed_variable_create(Application_Links *app, char *null_terminated_name, uint64_t default_value){return(app->managed_variable_create_(app, null_terminated_name, default_value));}
 static inline Managed_Variable_ID managed_variable_get_id(Application_Links *app, char *null_terminated_name){return(app->managed_variable_get_id_(app, null_terminated_name));}
 static inline Managed_Variable_ID managed_variable_create_or_get_id(Application_Links *app, char *null_terminated_name, uint64_t default_value){return(app->managed_variable_create_or_get_id_(app, null_terminated_name, default_value));}
-static inline bool32 managed_variable_set(Application_Links *app, Managed_Group group, Managed_Variable_ID location, uint64_t value){return(app->managed_variable_set_(app, group, location, value));}
-static inline bool32 managed_variable_get(Application_Links *app, Managed_Group group, Managed_Variable_ID location, uint64_t *value_out){return(app->managed_variable_get_(app, group, location, value_out));}
-static inline Managed_Object managed_memory_alloc(Application_Links *app, Managed_Group group, int32_t size){return(app->managed_memory_alloc_(app, group, size));}
-static inline Managed_Object buffer_markers_alloc(Application_Links *app, Buffer_ID buffer_id, int32_t count, Managed_Group *group){return(app->buffer_markers_alloc_(app, buffer_id, count, group));}
+static inline bool32 managed_variable_set(Application_Links *app, Managed_Scope scope, Managed_Variable_ID location, uint64_t value){return(app->managed_variable_set_(app, scope, location, value));}
+static inline bool32 managed_variable_get(Application_Links *app, Managed_Scope scope, Managed_Variable_ID location, uint64_t *value_out){return(app->managed_variable_get_(app, scope, location, value_out));}
+static inline Managed_Object alloc_managed_memory_in_scope(Application_Links *app, Managed_Scope scope, int32_t item_size, int32_t count){return(app->alloc_managed_memory_in_scope_(app, scope, item_size, count));}
+static inline Managed_Object alloc_buffer_markers_on_buffer(Application_Links *app, Buffer_ID buffer_id, int32_t count, Managed_Scope *optional_extra_scope){return(app->alloc_buffer_markers_on_buffer_(app, buffer_id, count, optional_extra_scope));}
+static inline uint32_t managed_object_get_item_size(Application_Links *app, Managed_Object object){return(app->managed_object_get_item_size_(app, object));}
+static inline uint32_t managed_object_get_item_count(Application_Links *app, Managed_Object object){return(app->managed_object_get_item_count_(app, object));}
+static inline Managed_Object_Type managed_object_get_type(Application_Links *app, Managed_Object object){return(app->managed_object_get_type_(app, object));}
+static inline Managed_Scope managed_object_get_containing_scope(Application_Links *app, Managed_Object object){return(app->managed_object_get_containing_scope_(app, object));}
 static inline bool32 managed_object_free(Application_Links *app, Managed_Object object){return(app->managed_object_free_(app, object));}
-static inline bool32 managed_object_write(Application_Links *app, Managed_Object object, uint32_t start, uint32_t size, void *mem){return(app->managed_object_write_(app, object, start, size, mem));}
-static inline bool32 managed_object_read(Application_Links *app, Managed_Object object, uint32_t start, uint32_t size, void *mem_out){return(app->managed_object_read_(app, object, start, size, mem_out));}
+static inline bool32 managed_object_store_data(Application_Links *app, Managed_Object object, uint32_t first_index, uint32_t count, void *mem){return(app->managed_object_store_data_(app, object, first_index, count, mem));}
+static inline bool32 managed_object_load_data(Application_Links *app, Managed_Object object, uint32_t first_index, uint32_t count, void *mem_out){return(app->managed_object_load_data_(app, object, first_index, count, mem_out));}
 static inline User_Input get_user_input(Application_Links *app, Input_Type_Flag get_type, Input_Type_Flag abort_type){return(app->get_user_input_(app, get_type, abort_type));}
 static inline User_Input get_command_input(Application_Links *app){return(app->get_command_input_(app));}
 static inline Mouse_State get_mouse_state(Application_Links *app){return(app->get_mouse_state_(app));}

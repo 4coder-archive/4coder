@@ -21,15 +21,15 @@ write_character_parameter(Application_Links *app, uint8_t *character, uint32_t l
         //Managed_Object handle = buffer_add_markers(app, buffer.buffer_id, 1, 0);
         //buffer_set_markers(app, handle, 0, 1, &next_cursor_marker);
         
-        Managed_Object handle = buffer_markers_alloc(app, buffer.buffer_id, 1, 0);
-        managed_object_write(app, handle, 0, sizeof(Marker), &next_cursor_marker);
+        Managed_Object handle = alloc_buffer_markers_on_buffer(app, buffer.buffer_id, 1, 0);
+        managed_object_store_data(app, handle, 0, 1, &next_cursor_marker);
         
         buffer_replace_range(app, &buffer, pos, pos, (char*)character, length);
         
         //buffer_get_markers(app, handle, 0, 1, &next_cursor_marker);
         //buffer_remove_markers(app, handle);
         
-        managed_object_read(app, handle, 0, sizeof(Marker), &next_cursor_marker);
+        managed_object_load_data(app, handle, 0, 1, &next_cursor_marker);
         managed_object_free(app, handle);
         
         view_set_cursor(app, &view, seek_pos(next_cursor_marker.pos), true);

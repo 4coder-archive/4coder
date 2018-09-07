@@ -42,12 +42,12 @@ START_HOOK_SIG(default_start){
 // also relies on this particular command caller hook.
 COMMAND_CALLER_HOOK(default_command_caller){
     View_Summary view = get_active_view(app, AccessAll);
-    Managed_Group group = view_get_managed_group(app, view.view_id);
-    managed_variable_set(app, group, view_next_rewrite_loc, 0);
+    Managed_Scope scope = view_get_managed_scope(app, view.view_id);
+    managed_variable_set(app, scope, view_next_rewrite_loc, 0);
     exec_command(app, cmd);
     uint64_t next_rewrite = 0;
-    managed_variable_get(app, group, view_next_rewrite_loc, &next_rewrite);
-    managed_variable_set(app, group, view_rewrite_loc, next_rewrite);
+    managed_variable_get(app, scope, view_next_rewrite_loc, &next_rewrite);
+    managed_variable_set(app, scope, view_rewrite_loc, next_rewrite);
     return(0);
 }
 
@@ -215,7 +215,6 @@ OPEN_FILE_HOOK_SIG(default_file_settings){
     
     bool32 treat_as_code = false;
     bool32 treat_as_todo = false;
-    bool32 wrap_lines = true;
     bool32 lex_without_strings = false;
     
     CString_Array extensions = get_code_extensions(&global_config.code_exts);
@@ -279,18 +278,8 @@ OPEN_FILE_HOOK_SIG(default_file_settings){
         }
         
         if (!treat_as_code){
-            String lead_name = front_of_directory(name);
-            if (match_insensitive(lead_name, "todo.txt")){
-                treat_as_todo = true;
-            }
+            treat_as_todo = match_insensitive(front_of_directory(name), "todo.txt");
         }
-    }
-    
-    if (treat_as_code){
-        wrap_lines = false;
-    }
-    if (buffer.file_name == 0){
-        wrap_lines = false;
     }
     
     int32_t map_id = (treat_as_code)?((int32_t)default_code_map):((int32_t)mapid_file);
@@ -307,36 +296,46 @@ OPEN_FILE_HOOK_SIG(default_file_settings){
     Assert(map_id_query == map_id);
     buffer_set_setting(app, &buffer, BufferSetting_ParserContext, parse_context_id);
     
+    // NOTE(allen): Decide buffer settings
+    bool32 wrap_lines = true;
+    bool32 use_virtual_whitespace = false;
+    bool32 use_lexer = false;
     if (treat_as_todo){
-        buffer_set_setting(app, &buffer, BufferSetting_WrapLine, true);
+        lex_without_strings = true;
+        wrap_lines = true;
+        use_virtual_whitespace = true;
+        use_lexer = true;
+    }
+    else if (treat_as_code){
+        wrap_lines = global_config.enable_code_wrapping;
+        use_virtual_whitespace = global_config.enable_virtual_whitespace;
+        use_lexer = true;
+    }
+    if (match(make_string(buffer.buffer_name, buffer.buffer_name_len), "*compilation*")){
+        wrap_lines = false;
+    }
+    if (buffer.size >= (192 << 10)){
+        wrap_lines = false;
+        use_virtual_whitespace = false;
+    }
+    
+    // NOTE(allen|a4.0.12): There is a little bit of grossness going on here.
+    // If we set BufferSetting_Lex to true, it will launch a lexing job.
+    // If a lexing job is active when we set BufferSetting_VirtualWhitespace, the call can fail.
+    // Unfortunantely without tokens virtual whitespace doesn't really make sense.
+    // So for now I have it automatically turning on lexing when virtual whitespace is turned on.
+    // Cleaning some of that up is a goal for future versions.
+    if (lex_without_strings){
         buffer_set_setting(app, &buffer, BufferSetting_LexWithoutStrings, true);
+    }
+    if (wrap_lines){
+        buffer_set_setting(app, &buffer, BufferSetting_WrapLine, true);
+    }
+    if (use_virtual_whitespace){
         buffer_set_setting(app, &buffer, BufferSetting_VirtualWhitespace, true);
     }
-    else if (treat_as_code && buffer.size < (128 << 10)){
-        if (global_config.enable_virtual_whitespace){
-            // NOTE(allen|a4.0.12): There is a little bit of grossness going on here.
-            // If we set BufferSetting_Lex to true, it will launch a lexing job.
-            // If a lexing job is active when we set BufferSetting_VirtualWhitespace, the call can fail.
-            // Unfortunantely without tokens virtual whitespace doesn't really make sense.
-            // So for now I have it automatically turning on lexing when virtual whitespace is turned on.
-            // Cleaning some of that up is a goal for future versions.
-            if (lex_without_strings){
-                buffer_set_setting(app, &buffer, BufferSetting_LexWithoutStrings, true);
-            }
-            buffer_set_setting(app, &buffer, BufferSetting_WrapLine, global_config.enable_code_wrapping);
-            buffer_set_setting(app, &buffer, BufferSetting_VirtualWhitespace, true);
-        }
-        else if (global_config.enable_code_wrapping){
-            if (lex_without_strings){
-                buffer_set_setting(app, &buffer, BufferSetting_LexWithoutStrings, true);
-            }
-            buffer_set_setting(app, &buffer, BufferSetting_Lex, true);
-            buffer_set_setting(app, &buffer, BufferSetting_WrapLine, true);
-        }
-    }
-    else{
-        buffer_set_setting(app, &buffer, BufferSetting_WrapLine, wrap_lines);
-        buffer_set_setting(app, &buffer, BufferSetting_Lex, treat_as_code);
+    if (use_lexer){
+        buffer_set_setting(app, &buffer, BufferSetting_Lex, true);
     }
     
     // no meaning for return

@@ -32,7 +32,8 @@ edit_fix_marks__write_workspace_marks(Dynamic_Workspace *workspace, Buffer_ID bu
          node = node->next){
         if (node->buffer_id == buffer_id){
             Marker *markers = (Marker*)(node + 1);
-            i32 count = node->size/sizeof(Marker);
+            Assert(sizeof(Marker) == node->std_header.item_size);
+            i32 count = node->std_header.count;
             for (i32 i = 0; i < count; i += 1){
                 if (markers[i].lean_right){
                     write_cursor_with_index(r_cursors, r_cursor_count, markers[i].pos);
@@ -53,7 +54,8 @@ edit_fix_marks__read_workspace_marks(Dynamic_Workspace *workspace, Buffer_ID buf
          node = node->next){
         if (node->buffer_id == buffer_id){
             Marker *markers = (Marker*)(node + 1);
-            i32 count = node->size/sizeof(Marker);
+            Assert(sizeof(Marker) == node->std_header.item_size);
+            i32 count = node->std_header.count;
             for (i32 i = 0; i < count; i += 1){
                 if (markers[i].lean_right){
                     markers[i].pos = r_cursors[(*r_cursor_count)++].pos;

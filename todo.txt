@@ -1,0 +1,60 @@
+
+[] Build 4.0.29
+{
+    Features
+    {
+        [x] Lister API
+        [x] Managed Cooperative Memory API
+        [x] Separate distinct buffer groups by newline
+        [x] If no results put message explaining that fact (search buffer)
+        [] Fixup File Lister Sorting
+        [] File System Lister Missing Status
+        [] Command Lister
+        [] Color Pallette Expansion For Keywords
+        [] Color Pallette Expansion For Paren/Brace Matching
+        [] Visible Markers
+        {
+            [] Line Highlight
+            [] Cursor Block
+            [] Wire Cursor Block
+            [] Cursor Line
+            [] Highlight Range
+        }
+        [] Reload all out of sync files
+    }
+    
+    Bugs
+    {
+        [x] Code Wrapping Problem
+        [x] Cancel Search Shouldn't Bring Up The Search Window
+        [x] Heap Corruption 1
+        [x] Heap Corruption 2
+        [x] New type matching pattern struct Name { /}
+        [] Reload "Big File" <ctrl O>
+        [] crash after disabling virtual whitespace and reloading
+        [] If indent bug (get accompanying repro file) "mgl_base.h"
+        [] list_all_locations end UI mode
+        [] Lexing Scientific Notation " 3.402823466e+38F "
+    }
+    
+    [] Documentation
+}
+
+Long Term
+{
+    Features
+    {
+        [] Renderer Modularity
+        [] Software Renderer
+        [] Undo Upgrade
+        [] Meta Buffer
+        [] Multi Cursor
+        [] Commands in Input Bar
+    }
+    
+    Bugs
+    {
+        [] Remote Desktop Doesn't Work -> Need Renderer Modularity & Software Renderer
+        [] Jim's file is blank even though it tries to load a real file (wtf)
+    }
+}

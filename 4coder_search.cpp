@@ -576,6 +576,19 @@ buffered_print_flush(Application_Links *app, Partition *part, Temp_Memory temp, 
     buffer_replace_range(app, output_buffer, size, size, str, write_size);
 }
 
+static char*
+buffered_memory_reserve(Application_Links *app, Partition *part, Temp_Memory temp, Buffer_Summary *output_buffer,
+                        int32_t length){
+    char *mem = push_array(part, char, length);
+    if (mem == 0){
+        buffered_print_flush(app, part, temp, output_buffer);
+        end_temp_memory(temp);
+        mem = push_array(part, char, length);
+    }
+    Assert(mem != 0);
+    return(mem);
+}
+
 static void
 buffered_print_match_jump_line(Application_Links *app, Partition *part, Temp_Memory temp, Partition *line_part, Buffer_Summary *output_buffer, Buffer_Summary *match_buffer, Partial_Cursor word_pos){
     char *file_name = match_buffer->buffer_name;
@@ -591,16 +604,7 @@ buffered_print_match_jump_line(Application_Links *app, Partition *part, Temp_Mem
         
         int32_t str_len = file_len + 1 + line_num_len + 1 + column_num_len + 1 + 1 + line_str.size + 1;
         
-        char *spare = push_array(part, char, str_len);
-        
-        if (spare == 0){
-            buffered_print_flush(app, part, temp, output_buffer);
-            
-            end_temp_memory(temp);
-            temp = begin_temp_memory(part);
-            
-            spare = push_array(part, char, str_len);
-        }
+        char *spare = buffered_memory_reserve(app, part, temp, output_buffer, str_len);
         
         String out_line = make_string_cap(spare, 0, str_len);
         append_ss(&out_line, make_string(file_name, file_len));
@@ -644,13 +648,30 @@ list__parameters(Application_Links *app, Heap *heap, Partition *scratch,
     Temp_Memory all_temp = begin_temp_memory(scratch);
     Partition line_part = partition_sub_part(scratch, (4 << 10));
     Temp_Memory temp = begin_temp_memory(scratch);
+    Buffer_ID prev_match_id = 0;
+    bool32 no_matches = true;
     for (Search_Match match = search_next_match(app, &set, &iter);
          match.found_match;
          match = search_next_match(app, &set, &iter)){
         Partial_Cursor word_pos = {0};
         if (buffer_compute_cursor(app, &match.buffer, seek_pos(match.start), &word_pos)){
+            if (prev_match_id != match.buffer.buffer_id){
+                if (prev_match_id != 0){
+                    char *newline = buffered_memory_reserve(app, scratch, temp, &search_buffer, 1);
+                    *newline = '\n';
+                }
+                prev_match_id = match.buffer.buffer_id;
+            }
             buffered_print_match_jump_line(app, scratch, temp, &line_part, &search_buffer, &match.buffer, word_pos);
+            no_matches = false;
         }
+    }
+    
+    if (no_matches){
+        char no_matches_message[] = "no matches\n";
+        int32_t no_matches_message_length = sizeof(no_matches_message) - 1;
+        char *no_matches_message_out = buffered_memory_reserve(app, scratch, temp, &search_buffer, no_matches_message_length);
+        memcpy(no_matches_message_out, no_matches_message, no_matches_message_length);
     }
     
     buffered_print_flush(app, scratch, temp, &search_buffer);
@@ -683,7 +704,7 @@ list_query__parameters(Application_Links *app, Heap *heap, Partition *scratch,
                        bool32 substrings, bool32 case_insensitive){
     char space[1024];
     String str = get_query_string(app, "List Locations For: ", space, sizeof(space));
-    if (str.str != 0){
+    if (str.size > 0){
         change_active_panel(app);
         list_single__parameters(app, heap, scratch, str, substrings, case_insensitive);
     }
@@ -697,7 +718,7 @@ list_identifier__parameters(Application_Links *app, Heap *heap, Partition *scrat
     if (!buffer.exists) return;
     char space[512];
     String str = get_token_or_word_under_pos(app, &buffer, view.cursor.pos, space, sizeof(space));
-    if (str.str != 0){
+    if (str.size > 0){
         change_active_panel(app);
         list_single__parameters(app, heap, scratch, str, substrings, case_insensitive);
     }
@@ -709,7 +730,7 @@ list_selected_range__parameters(Application_Links *app, Heap *heap, Partition *s
     View_Summary view = get_active_view(app, AccessProtected);
     Temp_Memory temp = begin_temp_memory(scratch);
     String str = get_string_in_view_range(app, scratch, &view);
-    if (str.str != 0){
+    if (str.size > 0){
         change_active_panel(app);
         list_single__parameters(app, heap, scratch, str, substrings, case_insensitive);
     }
@@ -721,13 +742,17 @@ list_type_definition__parameters(Application_Links *app, Heap *heap, Partition *
                                  String str){
     Temp_Memory temp = begin_temp_memory(scratch);
     
-    String match_strings[6];
-    match_strings[0] = build_string(scratch, "struct ", str, "{");
-    match_strings[1] = build_string(scratch, "struct ", str, "\n{");
-    match_strings[2] = build_string(scratch, "union " , str, "{");
-    match_strings[3] = build_string(scratch, "union " , str, "\n{");
-    match_strings[4] = build_string(scratch, "enum "  , str, "{");
-    match_strings[5] = build_string(scratch, "enum "  , str, "\n{");
+    String match_strings[9];
+    int32_t i = 0;
+    match_strings[i++] = build_string(scratch, "struct ", str, "{");
+    match_strings[i++] = build_string(scratch, "struct ", str, "\n{");
+    match_strings[i++] = build_string(scratch, "struct ", str, " {");
+    match_strings[i++] = build_string(scratch, "union " , str, "{");
+    match_strings[i++] = build_string(scratch, "union " , str, "\n{");
+    match_strings[i++] = build_string(scratch, "union " , str, " {");
+    match_strings[i++] = build_string(scratch, "enum "  , str, "{");
+    match_strings[i++] = build_string(scratch, "enum "  , str, "\n{");
+    match_strings[i++] = build_string(scratch, "enum "  , str, " {");
     
     list__parameters(app, heap, scratch,
                      match_strings, ArrayCount(match_strings), 0);
@@ -797,7 +822,7 @@ CUSTOM_DOC("Queries user for string, lists all locations of strings that appear 
 {
     char space[1024];
     String str = get_query_string(app, "List Definitions For: ", space, sizeof(space));
-    if (str.str != 0){
+    if (str.size > 0){
         change_active_panel(app);
         list_type_definition__parameters(app, &global_heap, &global_part, str);
     }
@@ -810,7 +835,7 @@ CUSTOM_DOC("Reads a token or word under the cursor and lists all locations of st
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessProtected);
     char space[512];
     String str = get_token_or_word_under_pos(app, &buffer, view.cursor.pos, space, sizeof(space) - 1);
-    if (str.str != 0){
+    if (str.size > 0){
         change_active_panel(app);
         list_type_definition__parameters(app, &global_heap, &global_part, str);
     }
@@ -834,14 +859,14 @@ CUSTOM_DOC("Iteratively tries completing the word to the left of the cursor with
     if (buffer.exists){
         int32_t do_init = false;
         
-        Managed_Group group = view_get_managed_group(app, view.view_id);
+        Managed_Scope scope = view_get_managed_scope(app, view.view_id);
         
         uint64_t rewrite = 0;
-        managed_variable_get(app, group, view_rewrite_loc, &rewrite);
+        managed_variable_get(app, scope, view_rewrite_loc, &rewrite);
         if (rewrite != RewriteWordComplete){
             do_init = true;
         }
-        managed_variable_set(app, group, view_next_rewrite_loc, RewriteWordComplete);
+        managed_variable_set(app, scope, view_next_rewrite_loc, RewriteWordComplete);
         if (!complete_state.initialized){
             do_init = true;
         }

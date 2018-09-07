@@ -841,6 +841,7 @@ main(int argc, char **argv){
             char *fixed_name = push_array(part, char, source_name_len*2 + 1);
             String s = make_string_cap(fixed_name, 0, source_name_len*2 + 1);
             copy(&s, entry->source_name);
+            int32_t unescaped_size = s.size;
             replace_str(&s, "\\", "\\\\");
             terminate_with_null(&s);
             
@@ -849,7 +850,7 @@ main(int argc, char **argv){
                     str_to_l_c(entry->name),
                     str_to_l_c(entry->name), entry->name.size,
                     str_to_l_c(entry->docstring.doc), entry->docstring.doc.size,
-                    s.str, s.size, entry->line_number);
+                    s.str, unescaped_size, entry->line_number);
             end_temp_memory(temp);
         }
         fprintf(out, "};\n");

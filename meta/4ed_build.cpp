@@ -423,8 +423,7 @@ build(u32 flags, u32 arch, char *code_path, char *code_file, char *out_path, cha
 
 internal void
 build_metadata(void){
-    systemf("./%s \"..%scode%s4coder_default_bindings.cpp\"",
-            "build_metadata" BAT, SLASH, SLASH);
+    systemf(".%s%s ..%scode%s4coder_default_bindings.cpp", SLASH, "build_metadata" BAT, SLASH, SLASH);
 }
 
 internal void
@@ -586,8 +585,8 @@ internal void
 standard_build(char *cdir, u32 flags, u32 arch){
     fsm_generator(cdir);
     metagen(cdir);
-    //do_buildsuper(cdir, fm_str(custom_files[Custom_Default]), arch);
-    do_buildsuper(cdir, fm_str(custom_files[Custom_Experiments]), arch);
+    do_buildsuper(cdir, fm_str(custom_files[Custom_Default]), arch);
+    //do_buildsuper(cdir, fm_str(custom_files[Custom_Experiments]), arch);
     //do_buildsuper(cdir, fm_str(custom_files[Custom_Casey]), arch);
     //do_buildsuper(cdir, fm_str(custom_files[Custom_ChronalVim]), arch);
     build_main(cdir, true, flags, arch);

@@ -1062,22 +1062,22 @@ DOC_SEE(Buffer_Setting_ID)
     return(result);
 }
 
-internal Managed_Group
-buffer_get_managed_group__inner(Editing_File *file){
-    Managed_Group lifetime = 0;
+internal Managed_Scope
+buffer_get_managed_scope__inner(Editing_File *file){
+    Managed_Scope lifetime = 0;
     if (file != 0){
         Assert(file->lifetime_object != 0);
-        lifetime = (Managed_Group)file->lifetime_object->workspace.group_id;
+        lifetime = (Managed_Scope)file->lifetime_object->workspace.scope_id;
     }
     return(lifetime);
 }
 
-API_EXPORT Managed_Group
-Buffer_Get_Managed_Group(Application_Links *app, Buffer_ID buffer_id)
+API_EXPORT Managed_Scope
+Buffer_Get_Managed_Scope(Application_Links *app, Buffer_ID buffer_id)
 {
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     Editing_File *file = imp_get_file(cmd, buffer_id);
-    return(buffer_get_managed_group__inner(file));
+    return(buffer_get_managed_scope__inner(file));
 }
 
 API_EXPORT int32_t
@@ -1811,15 +1811,15 @@ DOC_SEE(View_Setting_ID)
     return(result);
 }
 
-API_EXPORT Managed_Group
-View_Get_Managed_Group(Application_Links *app, View_ID view_id)
+API_EXPORT Managed_Scope
+View_Get_Managed_Scope(Application_Links *app, View_ID view_id)
 {
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     View *view = imp_get_view(cmd, view_id);
-    Managed_Group lifetime = 0;
+    Managed_Scope lifetime = 0;
     if (view != 0){
         Assert(view->transient.lifetime_object != 0);
-        lifetime = (Managed_Group)(view->transient.lifetime_object->workspace.group_id);
+        lifetime = (Managed_Scope)(view->transient.lifetime_object->workspace.scope_id);
     }
     return(lifetime);
 }
@@ -2228,25 +2228,25 @@ View_Get_UI_Copy(Application_Links *app, View_Summary *view, struct Partition *p
     return(result);
 }
 
-API_EXPORT Managed_Group
-Get_Global_Managed_Group(Application_Links *app)
+API_EXPORT Managed_Scope
+Get_Global_Managed_Scope(Application_Links *app)
 {
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     Models *models = cmd->models;
-    return((Managed_Group)models->dynamic_workspace.group_id);
+    return((Managed_Scope)models->dynamic_workspace.scope_id);
 }
 
 internal Dynamic_Workspace*
-get_dynamic_workspace(Models *models, Managed_Group handle){
-    u32_Ptr_Lookup_Result lookup_result = lookup_u32_Ptr_table(&models->lifetime_allocator.group_id_to_group_ptr_table, (u32)handle);
+get_dynamic_workspace(Models *models, Managed_Scope handle){
+    u32_Ptr_Lookup_Result lookup_result = lookup_u32_Ptr_table(&models->lifetime_allocator.scope_id_to_scope_ptr_table, (u32)handle);
     if (!lookup_result.success){
         return(0);
     }
     return((Dynamic_Workspace*)*lookup_result.val);
 }
 
-API_EXPORT Managed_Group
-Get_Intersected_Managed_Group(Application_Links *app, Managed_Group *intersected_groups, int32_t count)
+API_EXPORT Managed_Scope
+Get_Managed_Scope_With_Multiple_Dependencies(Application_Links *app, Managed_Scope *intersected_scopes, int32_t count)
 {
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     Models *models = cmd->models;
@@ -2258,7 +2258,7 @@ Get_Intersected_Managed_Group(Application_Links *app, Managed_Group *intersected
     b32 filled_array = true;
     Lifetime_Object **object_ptr_array = push_array(scratch, Lifetime_Object*, 0);
     for (i32 i = 0; i < count; i += 1){
-        Dynamic_Workspace *workspace = get_dynamic_workspace(models, intersected_groups[i]);
+        Dynamic_Workspace *workspace = get_dynamic_workspace(models, intersected_scopes[i]);
         if (workspace == 0){
             filled_array = false;
             break;
@@ -2267,7 +2267,7 @@ Get_Intersected_Managed_Group(Application_Links *app, Managed_Group *intersected
         switch (workspace->user_type){
             case DynamicWorkspace_Global:
             {
-                // NOTE(allen): (global_group INTERSECT X) == X for all X, therefore we emit nothing when a global group is in the key list.
+                // NOTE(allen): (global_scope INTERSECT X) == X for all X, therefore we emit nothing when a global group is in the key list.
             }break;
             
             case DynamicWorkspace_Buffer:
@@ -2299,13 +2299,13 @@ Get_Intersected_Managed_Group(Application_Links *app, Managed_Group *intersected
         }
     }
     
-    Managed_Group result = 0;
+    Managed_Scope result = 0;
     if (filled_array){
         i32 member_count = (i32)(push_array(scratch, Lifetime_Object*, 0) - object_ptr_array);
         member_count = lifetime_sort_and_dedup_object_set(object_ptr_array, member_count);
         Heap *heap = &models->mem.heap;
         Lifetime_Key *key = lifetime_get_or_create_intersection_key(heap, lifetime_allocator, object_ptr_array, member_count);
-        result = (Managed_Group)key->dynamic_workspace.group_id;
+        result = (Managed_Scope)key->dynamic_workspace.scope_id;
     }
     
     end_temp_memory(temp);
@@ -2346,7 +2346,7 @@ Managed_Variable_Create_Or_Get_ID(Application_Links *app, char *null_terminated_
 }
 
 internal bool32
-get_dynamic_variable(Command_Data *cmd, Managed_Group handle, int32_t location, uint64_t **ptr_out){
+get_dynamic_variable(Command_Data *cmd, Managed_Scope handle, int32_t location, uint64_t **ptr_out){
     Models *models = cmd->models;
     Heap *heap = &models->mem.heap;
     Dynamic_Variable_Layout *layout = &models->variable_layout;
@@ -2361,11 +2361,11 @@ get_dynamic_variable(Command_Data *cmd, Managed_Group handle, int32_t location, 
 }
 
 API_EXPORT bool32
-Managed_Variable_Set(Application_Links *app, Managed_Group group, Managed_Variable_ID location, uint64_t value)
+Managed_Variable_Set(Application_Links *app, Managed_Scope scope, Managed_Variable_ID location, uint64_t value)
 {
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     u64 *ptr = 0;
-    if (get_dynamic_variable(cmd, group, location, &ptr)){
+    if (get_dynamic_variable(cmd, scope, location, &ptr)){
         *ptr = value;
         return(true);
     }
@@ -2373,11 +2373,11 @@ Managed_Variable_Set(Application_Links *app, Managed_Group group, Managed_Variab
 }
 
 API_EXPORT bool32
-Managed_Variable_Get(Application_Links *app, Managed_Group group, Managed_Variable_ID location, uint64_t *value_out)
+Managed_Variable_Get(Application_Links *app, Managed_Scope scope, Managed_Variable_ID location, uint64_t *value_out)
 {
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     u64 *ptr = 0;
-    if (get_dynamic_variable(cmd, group, location, &ptr)){
+    if (get_dynamic_variable(cmd, scope, location, &ptr)){
         *value_out = *ptr;
         return(true);
     }
@@ -2385,54 +2385,137 @@ Managed_Variable_Get(Application_Links *app, Managed_Group group, Managed_Variab
 }
 
 API_EXPORT Managed_Object
-Managed_Memory_Alloc(Application_Links *app, Managed_Group group, int32_t size)
+Alloc_Managed_Memory_In_Scope(Application_Links *app, Managed_Scope scope, int32_t item_size, int32_t count)
 {
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     Models *models = cmd->models;
     Heap *heap = &models->mem.heap;
-    Dynamic_Workspace *workspace = get_dynamic_workspace(models, group);
+    Dynamic_Workspace *workspace = get_dynamic_workspace(models, scope);
     Managed_Object result = 0;
     if (workspace != 0){
+        int32_t size = count*item_size;
         void *ptr = dynamic_memory_bank_allocate(heap, &workspace->mem_bank, size + sizeof(Managed_Memory_Header));
         Managed_Memory_Header *header = (Managed_Memory_Header*)ptr;
-        header->type = ManagedObjectType_Memory;
-        header->size = size;
+        header->std_header.type = ManagedObjectType_Memory;
+        header->std_header.item_size = item_size;
+        header->std_header.count = count;
         u32 id = dynamic_workspace_store_pointer(heap, workspace, ptr);
-        result = ((u64)group << 32) | (u64)id;
+        result = ((u64)scope << 32) | (u64)id;
     }
     return(result);
 }
 
 API_EXPORT Managed_Object
-Buffer_Markers_Alloc(Application_Links *app, Buffer_ID buffer_id, int32_t count, Managed_Group *group)
+Alloc_Buffer_Markers_On_Buffer(Application_Links *app, Buffer_ID buffer_id, int32_t count, Managed_Scope *optional_extra_scope)
 {
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     Editing_File *file = imp_get_file(cmd, buffer_id);
-    Managed_Group markers_group = buffer_get_managed_group__inner(file);
-    if (group != 0){
-        Managed_Object group_array[2];
-        group_array[0] = markers_group;
-        group_array[1] = *group;
-        markers_group = Get_Intersected_Managed_Group(app, group_array, 2);
+    Managed_Scope markers_scope = buffer_get_managed_scope__inner(file);
+    if (optional_extra_scope != 0){
+        Managed_Object scope_array[2];
+        scope_array[0] = markers_scope;
+        scope_array[1] = *optional_extra_scope;
+        markers_scope = Get_Managed_Scope_With_Multiple_Dependencies(app, scope_array, 2);
     }
     Models *models = cmd->models;
     Heap *heap = &models->mem.heap;
-    Dynamic_Workspace *workspace = get_dynamic_workspace(models, markers_group);
+    Dynamic_Workspace *workspace = get_dynamic_workspace(models, markers_scope);
     Managed_Object result = 0;
     if (workspace != 0){
         i32 size = count*sizeof(Marker);
         void *ptr = dynamic_memory_bank_allocate(heap, &workspace->mem_bank, size + sizeof(Managed_Buffer_Markers_Header));
         Managed_Buffer_Markers_Header *header = (Managed_Buffer_Markers_Header*)ptr;
+        header->std_header.type = ManagedObjectType_Markers;
+        header->std_header.item_size = sizeof(Marker);
+        header->std_header.count = count;
         zdll_push_back(workspace->buffer_markers_list.first, workspace->buffer_markers_list.last, header);
         workspace->buffer_markers_list.count += 1;
-        header->type = ManagedObjectType_Markers;
-        header->size = size;
         header->buffer_id = buffer_id;
         file->state.total_marker_count += count;
         u32 id = dynamic_workspace_store_pointer(heap, workspace, ptr);
-        result = ((u64)markers_group << 32) | (u64)id;
+        result = ((u64)markers_scope << 32) | (u64)id;
     }
     return(result);
+}
+
+internal Managed_Object_Ptr_And_Workspace
+get_dynamic_object_ptrs(Models *models, Managed_Object object){
+    Managed_Object_Ptr_And_Workspace result = {0};
+    u32 hi_id = (object >> 32)&max_u32;
+    Dynamic_Workspace *workspace = get_dynamic_workspace(models, hi_id);
+    if (workspace != 0){
+        u32 lo_id = object&max_u32;
+        Managed_Object_Standard_Header *header = (Managed_Object_Standard_Header*)dynamic_workspace_get_pointer(workspace, lo_id);
+        if (header != 0){
+            result.workspace = workspace;
+            result.header = header;
+            return(result);
+        }
+    }
+    return(result);
+}
+
+internal u8*
+get_dynamic_object_memory_ptr(Managed_Object_Standard_Header *header){
+    if (header != 0){
+        if (0 < header->type && header->type < ManagedObjectType_COUNT){
+            return(((u8*)header) + managed_header_type_sizes[header->type]);
+        }
+    }
+    return(0);
+}
+
+API_EXPORT uint32_t
+Managed_Object_Get_Item_Size(Application_Links *app, Managed_Object object)
+{
+    Command_Data *cmd = (Command_Data*)app->cmd_context;
+    Models *models = cmd->models;
+    Managed_Object_Ptr_And_Workspace object_ptrs = get_dynamic_object_ptrs(models, object);
+    if (object_ptrs.header != 0){
+        return(object_ptrs.header->item_size);
+    }
+    return(0);
+}
+
+API_EXPORT uint32_t
+Managed_Object_Get_Item_Count(Application_Links *app, Managed_Object object)
+{
+    Command_Data *cmd = (Command_Data*)app->cmd_context;
+    Models *models = cmd->models;
+    Managed_Object_Ptr_And_Workspace object_ptrs = get_dynamic_object_ptrs(models, object);
+    if (object_ptrs.header != 0){
+        return(object_ptrs.header->count);
+    }
+    return(0);
+}
+
+API_EXPORT Managed_Object_Type
+Managed_Object_Get_Type(Application_Links *app, Managed_Object object)
+{
+    Command_Data *cmd = (Command_Data*)app->cmd_context;
+    Models *models = cmd->models;
+    Managed_Object_Ptr_And_Workspace object_ptrs = get_dynamic_object_ptrs(models, object);
+    if (object_ptrs.header != 0){
+        Managed_Object_Type type = object_ptrs.header->type;
+        if (type < 0 || ManagedObjectType_COUNT <= type){
+            type = ManagedObjectType_Error;
+        }
+        return(type);
+    }
+    return(ManagedObjectType_Error);
+}
+
+API_EXPORT Managed_Scope
+Managed_Object_Get_Containing_Scope(Application_Links *app, Managed_Object object)
+{
+    Command_Data *cmd = (Command_Data*)app->cmd_context;
+    Models *models = cmd->models;
+    u32 hi_id = (object >> 32)&max_u32;
+    Dynamic_Workspace *workspace = get_dynamic_workspace(models, hi_id);
+    if (workspace != 0){
+        return((Managed_Scope)hi_id);
+    }
+    return(0);
 }
 
 API_EXPORT bool32
@@ -2460,50 +2543,40 @@ Managed_Object_Free(Application_Links *app, Managed_Object object)
     return(false);
 }
 
-internal u8*
-get_dynamic_object_header_ptr(Models *models, Managed_Object object){
-    u32 hi_id = (object >> 32)&max_u32;
-    Dynamic_Workspace *workspace = get_dynamic_workspace(models, hi_id);
-    if (workspace != 0){
-        u32 lo_id = object&max_u32;
-        return((u8*)dynamic_workspace_get_pointer(workspace, lo_id));
-    }
-    return(0);
-}
-
-internal u8*
-get_dynamic_object_memory_ptr(u8 *header_ptr){
-    if (header_ptr != 0){
-        Managed_Object_Type *type = (Managed_Object_Type*)header_ptr;
-        if (0 < *type && *type < ManagedObjectType_COUNT){
-            return(header_ptr + managed_header_type_sizes[*type]);
-        }
-    }
-    return(0);
-}
-
 API_EXPORT bool32
-Managed_Object_Write(Application_Links *app, Managed_Object object, uint32_t start, uint32_t size, void *mem)
+Managed_Object_Store_Data(Application_Links *app, Managed_Object object, uint32_t first_index, uint32_t count, void *mem)
 {
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     Models *models = cmd->models;
-    u8 *ptr = get_dynamic_object_memory_ptr(get_dynamic_object_header_ptr(models, object));
+    Managed_Object_Ptr_And_Workspace object_ptrs = get_dynamic_object_ptrs(models, object);
+    u8 *ptr = get_dynamic_object_memory_ptr(object_ptrs.header);
     if (ptr != 0){
-        memcpy(ptr + start, mem, size);
-        return(true);
+        u32 item_count = object_ptrs.header->count;
+        if (0 <= first_index && first_index + count <= item_count){
+            u32 item_size = object_ptrs.header->item_size;
+            memcpy(ptr + first_index*item_size, mem, count*item_size);
+            heap_assert_good(&object_ptrs.workspace->mem_bank.heap);
+            return(true);
+        }
     }
     return(false);
 }
 
 API_EXPORT bool32
-Managed_Object_Read(Application_Links *app, Managed_Object object, uint32_t start, uint32_t size, void *mem_out)
+Managed_Object_Load_Data(Application_Links *app, Managed_Object object, uint32_t first_index, uint32_t count, void *mem_out)
 {
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     Models *models = cmd->models;
-    u8 *ptr = get_dynamic_object_memory_ptr(get_dynamic_object_header_ptr(models, object));
+    Managed_Object_Ptr_And_Workspace object_ptrs = get_dynamic_object_ptrs(models, object);
+    u8 *ptr = get_dynamic_object_memory_ptr(object_ptrs.header);
     if (ptr != 0){
-        memcpy(mem_out, ptr + start, size);
-        return(true);
+        u32 item_count = object_ptrs.header->count;
+        if (0 <= first_index && first_index + count <= item_count){
+            u32 item_size = object_ptrs.header->item_size;
+            memcpy(mem_out, ptr + first_index*item_size, count*item_size);
+            heap_assert_good(&object_ptrs.workspace->mem_bank.heap);
+            return(true);
+        }
     }
     return(false);
 }

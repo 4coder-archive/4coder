@@ -11,6 +11,7 @@ use_scroll_bars = false;
 use_file_bars = true;
 
 // Code Wrapping
+treat_as_code = ".cpp.c.hpp.h.cc.cs.java.rs.glsl.m";
 enable_virtual_whitespace = true;
 enable_code_wrapping = true;
 automatically_adjust_wrapping = true;
@@ -41,9 +42,6 @@ default_font_hinting = false;
 
 // User
 user_name = "NAME";
-
-// Extensions
-treat_as_code = ".cpp.c.hpp.h.cc.cs.java.rs.glsl.m";
 
 // Keyboard AltGr setting
 lalt_lctrl_is_altgr = false;

@@ -679,6 +679,22 @@ STRUCT View_Summary{
     GUI_Scroll_Vars scroll_vars;
 };
 
+ENUM(int32_t, Managed_Object_Type)
+{
+    ManagedObjectType_Error = 0,
+    ManagedObjectType_Memory = 1,
+    ManagedObjectType_Markers = 2,
+    ManagedObjectType_COUNT = 3,
+};
+
+TYPEDEF uint64_t Managed_Scope;
+TYPEDEF int32_t Managed_Variable_ID;
+TYPEDEF uint64_t Managed_Object;
+
+static Managed_Scope ManagedScope_NULL = 0;
+static Managed_Variable_ID ManagedVariableIndex_ERROR = -1;
+static Managed_Object ManagedObject_NULL = 0;
+
 /* DOC(Query_Bar is a struct used to store information in the user's control that will be displayed as a drop down bar durring an interactive command.) */
 STRUCT Query_Bar{
     /* DOC(This specifies the prompt portion of the drop down bar.) */
@@ -686,14 +702,6 @@ STRUCT Query_Bar{
     /* DOC(This specifies the main string portion of the drop down bar.) */
     String string;
 };
-
-TYPEDEF uint64_t Managed_Group;
-TYPEDEF int32_t Managed_Variable_ID;
-TYPEDEF uint64_t Managed_Object;
-
-static Managed_Group ManagedGroup_NULL = 0;
-static Managed_Variable_ID ManagedVariableIndex_ERROR = -1;
-static Managed_Object ManagedObject_NULL = 0;
 
 ENUM(int16_t, UI_Item_Type){
     UIType_Option = 0,
