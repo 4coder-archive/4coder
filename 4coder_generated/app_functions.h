@@ -47,7 +47,7 @@ struct Application_Links;
 #define VIEW_POST_FADE_SIG(n) bool32 n(Application_Links *app, View_Summary *view, float seconds, int32_t start, int32_t end, int_color color)
 #define VIEW_START_UI_MODE_SIG(n) int32_t n(Application_Links *app, View_Summary *view)
 #define VIEW_END_UI_MODE_SIG(n) int32_t n(Application_Links *app, View_Summary *view)
-#define VIEW_SET_UI_SIG(n) bool32 n(Application_Links *app, View_Summary *view, UI_Control *control)
+#define VIEW_SET_UI_SIG(n) bool32 n(Application_Links *app, View_Summary *view, UI_Control *control, UI_Quit_Function_Type *quit_function)
 #define VIEW_GET_UI_COPY_SIG(n) UI_Control n(Application_Links *app, View_Summary *view, struct Partition *part)
 #define GET_GLOBAL_MANAGED_SCOPE_SIG(n) Managed_Scope n(Application_Links *app)
 #define GET_MANAGED_SCOPE_WITH_MULTIPLE_DEPENDENCIES_SIG(n) Managed_Scope n(Application_Links *app, Managed_Scope *intersected_scopes, int32_t count)
@@ -585,7 +585,7 @@ static inline bool32 view_set_buffer(Application_Links *app, View_Summary *view,
 static inline bool32 view_post_fade(Application_Links *app, View_Summary *view, float seconds, int32_t start, int32_t end, int_color color){return(app->view_post_fade(app, view, seconds, start, end, color));}
 static inline int32_t view_start_ui_mode(Application_Links *app, View_Summary *view){return(app->view_start_ui_mode(app, view));}
 static inline int32_t view_end_ui_mode(Application_Links *app, View_Summary *view){return(app->view_end_ui_mode(app, view));}
-static inline bool32 view_set_ui(Application_Links *app, View_Summary *view, UI_Control *control){return(app->view_set_ui(app, view, control));}
+static inline bool32 view_set_ui(Application_Links *app, View_Summary *view, UI_Control *control, UI_Quit_Function_Type *quit_function){return(app->view_set_ui(app, view, control, quit_function));}
 static inline UI_Control view_get_ui_copy(Application_Links *app, View_Summary *view, struct Partition *part){return(app->view_get_ui_copy(app, view, part));}
 static inline Managed_Scope get_global_managed_scope(Application_Links *app){return(app->get_global_managed_scope(app));}
 static inline Managed_Scope get_managed_scope_with_multiple_dependencies(Application_Links *app, Managed_Scope *intersected_scopes, int32_t count){return(app->get_managed_scope_with_multiple_dependencies(app, intersected_scopes, count));}
@@ -691,7 +691,7 @@ static inline bool32 view_set_buffer(Application_Links *app, View_Summary *view,
 static inline bool32 view_post_fade(Application_Links *app, View_Summary *view, float seconds, int32_t start, int32_t end, int_color color){return(app->view_post_fade_(app, view, seconds, start, end, color));}
 static inline int32_t view_start_ui_mode(Application_Links *app, View_Summary *view){return(app->view_start_ui_mode_(app, view));}
 static inline int32_t view_end_ui_mode(Application_Links *app, View_Summary *view){return(app->view_end_ui_mode_(app, view));}
-static inline bool32 view_set_ui(Application_Links *app, View_Summary *view, UI_Control *control){return(app->view_set_ui_(app, view, control));}
+static inline bool32 view_set_ui(Application_Links *app, View_Summary *view, UI_Control *control, UI_Quit_Function_Type *quit_function){return(app->view_set_ui_(app, view, control, quit_function));}
 static inline UI_Control view_get_ui_copy(Application_Links *app, View_Summary *view, struct Partition *part){return(app->view_get_ui_copy_(app, view, part));}
 static inline Managed_Scope get_global_managed_scope(Application_Links *app){return(app->get_global_managed_scope_(app));}
 static inline Managed_Scope get_managed_scope_with_multiple_dependencies(Application_Links *app, Managed_Scope *intersected_scopes, int32_t count){return(app->get_managed_scope_with_multiple_dependencies_(app, intersected_scopes, count));}

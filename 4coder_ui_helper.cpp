@@ -209,6 +209,11 @@ init_lister_state(Lister_State *state, Heap *heap){
     memset(&state->lister, 0, sizeof(state->lister));
 }
 
+UI_QUIT_FUNCTION(lister_quit_function){
+    Lister_State *state = view_get_lister_state(&view);
+    state->initialized = false;
+}
+
 static UI_Item
 lister_get_clicked_item(Application_Links *app, View_Summary *view, Partition *scratch){
     Temp_Memory temp = begin_temp_memory(scratch);
@@ -350,7 +355,7 @@ lister_update_ui(Application_Links *app, Partition *scratch, View_Summary *view,
     }
     
     UI_Control control = ui_list_to_ui_control(scratch, &list);
-    view_set_ui(app, view, &control);
+    view_set_ui(app, view, &control, lister_quit_function);
     
     end_temp_memory(full_temp);
 }

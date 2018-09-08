@@ -45,6 +45,7 @@ struct View_Transient{
     File_Edit_Positions *edit_pos;
     
     i32 ui_mode_counter;
+    UI_Quit_Function_Type *ui_quit;
     UI_Control ui_control;
     GUI_Scroll_Vars ui_scroll;
     i32 ui_map_id;

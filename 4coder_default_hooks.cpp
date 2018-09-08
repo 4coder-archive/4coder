@@ -314,7 +314,8 @@ OPEN_FILE_HOOK_SIG(default_file_settings){
     if (match(make_string(buffer.buffer_name, buffer.buffer_name_len), "*compilation*")){
         wrap_lines = false;
     }
-    if (buffer.size >= (192 << 10)){
+    //if (buffer.size >= (192 << 10)){
+    if (buffer.size >= (128 << 10)){
         wrap_lines = false;
         use_virtual_whitespace = false;
     }

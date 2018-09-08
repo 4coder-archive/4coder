@@ -7,7 +7,11 @@
         [x] Managed Cooperative Memory API
         [x] Separate distinct buffer groups by newline
         [x] If no results put message explaining that fact (search buffer)
+        [x] Quit UI events
+        [] Change UI API to not be counted, toggle only for this build, no "UI stacks"
+        [] end file signal dumps the current managed scope
         [] Fixup File Lister Sorting
+        [] Exact Matches Sort to Top Always ALWAYS ALWAYS ALWAYS
         [] File System Lister Missing Status
         [] Command Lister
         [] Color Pallette Expansion For Keywords
@@ -25,19 +29,22 @@
     
     Bugs
     {
-        [x] Code Wrapping Problem
-        [x] Cancel Search Shouldn't Bring Up The Search Window
-        [x] Heap Corruption 1
-        [x] Heap Corruption 2
-        [x] New type matching pattern struct Name { /}
-        [] Reload "Big File" <ctrl O>
-        [] crash after disabling virtual whitespace and reloading
-        [] If indent bug (get accompanying repro file) "mgl_base.h"
-        [] list_all_locations end UI mode
-        [] Lexing Scientific Notation " 3.402823466e+38F "
+        Repro Needed
+        {
+        }
     }
     
-    [] Documentation
+    Followup
+    {
+        [] If indent bug (get accompanying repro file) "mgl_base.h" (File size virtual whitespace situation)
+        [] Reload "Big File" <ctrl O>
+        [] crash after disabling virtual whitespace and reloading
+    }
+    
+    Documentation
+    {
+        
+    }
 }
 
 Long Term
@@ -56,5 +63,15 @@ Long Term
     {
         [] Remote Desktop Doesn't Work -> Need Renderer Modularity & Software Renderer
         [] Jim's file is blank even though it tries to load a real file (wtf)
+        [] Lexing Scientific Notation " 3.402823466e+38F "
     }
 }
+
+Change Log
+{
+    4.0.29
+    {
+        
+    }
+}
+

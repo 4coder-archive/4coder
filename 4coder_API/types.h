@@ -762,6 +762,9 @@ STRUCT UI_Control{
     i32_Rect bounding_box[UICoordinates_COUNT];
 };
 
+TYPEDEF_FUNC void UI_Quit_Function_Type(struct Application_Links *app, View_Summary view);
+#define UI_QUIT_FUNCTION(name) void name(struct Application_Links *app, View_Summary view)
+
 /* 
 DOC(Theme_Color stores a style tag/color pair, for the purpose of setting and getting colors in the theme.)
 DOC_SEE(Style_Tag)

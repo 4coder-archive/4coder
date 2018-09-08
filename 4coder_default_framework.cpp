@@ -132,6 +132,15 @@ get_prev_view_looped_primary_panels(Application_Links *app, View_Summary *view_s
     return(view);
 }
 
+static View_Summary
+get_next_view_after_active(Application_Links *app, uint32_t access){
+    View_Summary view = get_active_view(app, access);
+    if (view.exists){
+        view = get_next_view_looped_primary_panels(app, &view, access);
+    }
+    return(view);
+}
+
 CUSTOM_COMMAND_SIG(change_active_panel)
 CUSTOM_DOC("Change the currently active panel, moving to the panel with the next highest view_id.")
 {
@@ -168,6 +177,44 @@ CUSTOM_DOC("Create a new panel by horizontally splitting the active panel.")
     View_Summary new_view = open_view(app, &view, ViewSplit_Bottom);
     new_view_settings(app, &new_view);
     view_set_buffer(app, &new_view, view.buffer_id, 0);
+}
+
+////////////////////////////////
+
+// NOTE(allen): Credits to nj/FlyingSolomon for authoring the original version of this helper.
+
+static Buffer_ID
+create_or_switch_to_buffer_by_name(Application_Links *app, char *name, int32_t name_length,
+                                   View_Summary default_target_view){
+    uint32_t access = AccessAll;
+    Buffer_Summary search_buffer = get_buffer_by_name(app, name, name_length, access);
+    
+    if (search_buffer.exists){
+        View_Summary target_view = default_target_view;
+        
+        View_Summary view_with_buffer_already_open = get_first_view_with_buffer(app, search_buffer.buffer_id);
+        if (view_with_buffer_already_open.exists){
+            target_view = view_with_buffer_already_open;
+            view_end_ui_mode(app, &target_view);
+        }
+        else{
+            view_set_buffer(app, &target_view, search_buffer.buffer_id, 0);
+        }
+        set_active_view(app, &target_view);
+        
+        buffer_send_end_signal(app, &search_buffer);
+        buffer_replace_range(app, &search_buffer, 0, search_buffer.size, 0, 0);
+    }
+    else{
+        search_buffer = create_buffer(app, name, name_length, BufferCreate_AlwaysNew);
+        buffer_set_setting(app, &search_buffer, BufferSetting_Unimportant, true);
+        buffer_set_setting(app, &search_buffer, BufferSetting_ReadOnly, true);
+        buffer_set_setting(app, &search_buffer, BufferSetting_WrapLine, false);
+        view_set_buffer(app, &default_target_view, search_buffer.buffer_id, 0);
+        set_active_view(app, &default_target_view);
+    }
+    
+    return(search_buffer.buffer_id);
 }
 
 ////////////////////////////////

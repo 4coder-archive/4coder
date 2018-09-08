@@ -96,8 +96,24 @@ fill_view_summary(System_Functions *system, View_Summary *view, View *vptr, Live
 }
 
 inline void
+fill_view_summary(System_Functions *system, View_Summary *view, View *vptr, Models *models){
+    fill_view_summary(system, view, vptr, &models->live_set, &models->working_set);
+}
+
+inline void
 fill_view_summary(System_Functions *system, View_Summary *view, View *vptr, Command_Data *cmd){
-    fill_view_summary(system, view, vptr, &cmd->models->live_set, &cmd->models->working_set);
+    fill_view_summary(system, view, vptr, cmd->models);
+}
+
+internal void
+view_quit_ui(System_Functions *system, Models *models, View *view){
+    Assert(view != 0);
+    view->transient.ui_mode_counter = 0;
+    if (view->transient.ui_quit != 0){
+        View_Summary view_summary = {0};
+        fill_view_summary(system, &view_summary, view, models);
+        view->transient.ui_quit(&models->app_links, view_summary);
+    }
 }
 
 internal Editing_File*
@@ -337,8 +353,7 @@ DOC_SEE(Command_Line_Interface_Flag)
                 View *vptr = imp_get_view(cmd, view);
                 if (vptr != 0){
                     view_set_file(system, models, vptr, file);
-                    // TODO(allen): // TODO(allen): // TODO(allen): // TODO(allen): // TODO(allen):
-                    // Send "quit UI" events!
+                    view_quit_ui(system, models, vptr);
                 }
             }
         }
@@ -2037,8 +2052,7 @@ DOC_SEE(Set_Buffer_Flag)
             if (file != vptr->transient.file_data.file){
                 view_set_file(system, models, vptr, file);
                 if (!(flags & SetBuffer_KeepOriginalGUI)){
-                    //  TODO(allen): // TODO(allen): // TODO(allen): // TODO(allen): // TODO(allen):
-                    // Send "quit UI" events!
+                    view_quit_ui(system, models, vptr);
                 }
             }
         }
@@ -2100,6 +2114,11 @@ View_End_UI_Mode(Application_Links *app, View_Summary *view)
         vptr->transient.ui_mode_counter = clamp_bottom(0, vptr->transient.ui_mode_counter);
         if (vptr->transient.ui_mode_counter > 0){
             vptr->transient.ui_mode_counter -= 1;
+            if (vptr->transient.ui_mode_counter == 0){
+                System_Functions *system = cmd->system;
+                Models *models = cmd->models;
+                view_quit_ui(system, models, vptr);
+            }
             return(vptr->transient.ui_mode_counter);
         }
         else{
@@ -2112,7 +2131,7 @@ View_End_UI_Mode(Application_Links *app, View_Summary *view)
 }
 
 API_EXPORT bool32
-View_Set_UI(Application_Links *app, View_Summary *view, UI_Control *control)
+View_Set_UI(Application_Links *app, View_Summary *view, UI_Control *control, UI_Quit_Function_Type *quit_function)
 {
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     Models *models = cmd->models;
@@ -2201,6 +2220,7 @@ View_Set_UI(Application_Links *app, View_Summary *view, UI_Control *control)
         }
         memcpy(vptr->transient.ui_control.bounding_box, control->bounding_box,
                sizeof(control->bounding_box));
+        vptr->transient.ui_quit = quit_function;
         return(true);
     }
     return(false);

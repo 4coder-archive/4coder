@@ -624,20 +624,13 @@ buffered_print_match_jump_line(Application_Links *app, Partition *part, Temp_Mem
 
 static void
 list__parameters(Application_Links *app, Heap *heap, Partition *scratch,
-                 String *strings, int32_t count, Search_Range_Flag match_flags){
+                 String *strings, int32_t count, Search_Range_Flag match_flags,
+                 View_Summary default_target_view){
     // Open the search buffer
     String search_name = make_lit_string("*search*");
-    Buffer_Summary search_buffer = get_buffer_by_name(app, search_name.str, search_name.size, AccessAll);
-    if (!search_buffer.exists){
-        search_buffer = create_buffer(app, search_name.str, search_name.size, BufferCreate_AlwaysNew);
-        buffer_set_setting(app, &search_buffer, BufferSetting_Unimportant, true);
-        buffer_set_setting(app, &search_buffer, BufferSetting_ReadOnly, true);
-        buffer_set_setting(app, &search_buffer, BufferSetting_WrapLine, false);
-    }
-    else{
-        buffer_send_end_signal(app, &search_buffer);
-        buffer_replace_range(app, &search_buffer, 0, search_buffer.size, 0, 0);
-    }
+    Buffer_ID search_buffer_id = create_or_switch_to_buffer_by_name(app, search_name.str, search_name.size,
+                                                                    default_target_view);
+    Buffer_Summary search_buffer = get_buffer(app, search_buffer_id, AccessAll);
     
     // Initialize a generic search all buffers
     Search_Set set = {0};
@@ -677,15 +670,14 @@ list__parameters(Application_Links *app, Heap *heap, Partition *scratch,
     buffered_print_flush(app, scratch, temp, &search_buffer);
     end_temp_memory(all_temp);
     
-    // Lock this *search* as the jump buffer
-    View_Summary view = get_active_view(app, AccessAll);
-    view_set_buffer(app, &view, search_buffer.buffer_id, 0);
+    // Lock *search* as the jump buffer
     lock_jump_buffer(search_name.str, search_name.size);
 }
 
 static void
 list_single__parameters(Application_Links *app, Heap *heap, Partition *scratch,
-                        String str, bool32 substrings, bool32 case_insensitive){
+                        String str, bool32 substrings, bool32 case_insensitive,
+                        View_Summary default_target_view){
     Search_Range_Flag flags = 0;
     if (substrings){
         flags |= SearchFlag_MatchSubstring;
@@ -696,50 +688,54 @@ list_single__parameters(Application_Links *app, Heap *heap, Partition *scratch,
     if (case_insensitive){
         flags |= SearchFlag_CaseInsensitive;
     }
-    list__parameters(app, heap, scratch, &str, 1, flags);
+    list__parameters(app, heap, scratch, &str, 1, flags, default_target_view);
 }
 
 static void
 list_query__parameters(Application_Links *app, Heap *heap, Partition *scratch,
-                       bool32 substrings, bool32 case_insensitive){
+                       bool32 substrings, bool32 case_insensitive,
+                       View_Summary default_target_view){
     char space[1024];
     String str = get_query_string(app, "List Locations For: ", space, sizeof(space));
     if (str.size > 0){
-        change_active_panel(app);
-        list_single__parameters(app, heap, scratch, str, substrings, case_insensitive);
+        list_single__parameters(app, heap, scratch, str, substrings, case_insensitive,
+                                default_target_view);
     }
 }
 
 static void
 list_identifier__parameters(Application_Links *app, Heap *heap, Partition *scratch,
-                            bool32 substrings, bool32 case_insensitive){
+                            bool32 substrings, bool32 case_insensitive,
+                            View_Summary default_target_view){
     View_Summary view = get_active_view(app, AccessProtected);
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessProtected);
     if (!buffer.exists) return;
     char space[512];
     String str = get_token_or_word_under_pos(app, &buffer, view.cursor.pos, space, sizeof(space));
     if (str.size > 0){
-        change_active_panel(app);
-        list_single__parameters(app, heap, scratch, str, substrings, case_insensitive);
+        list_single__parameters(app, heap, scratch, str, substrings, case_insensitive,
+                                default_target_view);
     }
 }
 
 static void
 list_selected_range__parameters(Application_Links *app, Heap *heap, Partition *scratch,
-                                bool32 substrings, bool32 case_insensitive){
+                                bool32 substrings, bool32 case_insensitive,
+                                View_Summary default_target_view){
     View_Summary view = get_active_view(app, AccessProtected);
     Temp_Memory temp = begin_temp_memory(scratch);
     String str = get_string_in_view_range(app, scratch, &view);
     if (str.size > 0){
-        change_active_panel(app);
-        list_single__parameters(app, heap, scratch, str, substrings, case_insensitive);
+        list_single__parameters(app, heap, scratch, str, substrings, case_insensitive,
+                                default_target_view);
     }
     end_temp_memory(temp);
 }
 
 static void
 list_type_definition__parameters(Application_Links *app, Heap *heap, Partition *scratch,
-                                 String str){
+                                 String str,
+                                 View_Summary default_target_view){
     Temp_Memory temp = begin_temp_memory(scratch);
     
     String match_strings[9];
@@ -755,7 +751,8 @@ list_type_definition__parameters(Application_Links *app, Heap *heap, Partition *
     match_strings[i++] = build_string(scratch, "enum "  , str, " {");
     
     list__parameters(app, heap, scratch,
-                     match_strings, ArrayCount(match_strings), 0);
+                     match_strings, ArrayCount(match_strings), 0,
+                     default_target_view);
     
     end_temp_memory(temp);
     
@@ -772,49 +769,57 @@ list_type_definition__parameters(Application_Links *app, Heap *heap, Partition *
 CUSTOM_COMMAND_SIG(list_all_locations)
 CUSTOM_DOC("Queries the user for a string and lists all exact case-sensitive matches found in all open buffers.")
 {
-    list_query__parameters(app, &global_heap, &global_part, false, false);
+    View_Summary target_view = get_next_view_after_active(app, AccessAll);
+    list_query__parameters(app, &global_heap, &global_part, false, false, target_view);
 }
 
 CUSTOM_COMMAND_SIG(list_all_substring_locations)
 CUSTOM_DOC("Queries the user for a string and lists all case-sensitive substring matches found in all open buffers.")
 {
-    list_query__parameters(app, &global_heap, &global_part, true, false);
+    View_Summary target_view = get_next_view_after_active(app, AccessAll);
+    list_query__parameters(app, &global_heap, &global_part, true, false, target_view);
 }
 
 CUSTOM_COMMAND_SIG(list_all_locations_case_insensitive)
 CUSTOM_DOC("Queries the user for a string and lists all exact case-insensitive matches found in all open buffers.")
 {
-    list_query__parameters(app, &global_heap, &global_part, false, true);
+    View_Summary target_view = get_next_view_after_active(app, AccessAll);
+    list_query__parameters(app, &global_heap, &global_part, false, true, target_view);
 }
 
 CUSTOM_COMMAND_SIG(list_all_substring_locations_case_insensitive)
 CUSTOM_DOC("Queries the user for a string and lists all case-insensitive substring matches found in all open buffers.")
 {
-    list_query__parameters(app, &global_heap, &global_part, true, true);
+    View_Summary target_view = get_next_view_after_active(app, AccessAll);
+    list_query__parameters(app, &global_heap, &global_part, true, true, target_view);
 }
 
 CUSTOM_COMMAND_SIG(list_all_locations_of_identifier)
 CUSTOM_DOC("Reads a token or word under the cursor and lists all exact case-sensitive mathces in all open buffers.")
 {
-    list_identifier__parameters(app, &global_heap, &global_part, false, false);
+    View_Summary target_view = get_next_view_after_active(app, AccessAll);
+    list_identifier__parameters(app, &global_heap, &global_part, false, false, target_view);
 }
 
 CUSTOM_COMMAND_SIG(list_all_locations_of_identifier_case_insensitive)
 CUSTOM_DOC("Reads a token or word under the cursor and lists all exact case-insensitive mathces in all open buffers.")
 {
-    list_identifier__parameters(app, &global_heap, &global_part, false, true);
+    View_Summary target_view = get_next_view_after_active(app, AccessAll);
+    list_identifier__parameters(app, &global_heap, &global_part, false, true, target_view);
 }
 
 CUSTOM_COMMAND_SIG(list_all_locations_of_selection)
 CUSTOM_DOC("Reads the string in the selected range and lists all exact case-sensitive mathces in all open buffers.")
 {
-    list_selected_range__parameters(app, &global_heap, &global_part, false, false);
+    View_Summary target_view = get_next_view_after_active(app, AccessAll);
+    list_selected_range__parameters(app, &global_heap, &global_part, false, false, target_view);
 }
 
 CUSTOM_COMMAND_SIG(list_all_locations_of_selection_case_insensitive)
 CUSTOM_DOC("Reads the string in the selected range and lists all exact case-insensitive mathces in all open buffers.")
 {
-    list_selected_range__parameters(app, &global_heap, &global_part, false, true);
+    View_Summary target_view = get_next_view_after_active(app, AccessAll);
+    list_selected_range__parameters(app, &global_heap, &global_part, false, true, target_view);
 }
 
 CUSTOM_COMMAND_SIG(list_all_locations_of_type_definition)
@@ -823,8 +828,8 @@ CUSTOM_DOC("Queries user for string, lists all locations of strings that appear 
     char space[1024];
     String str = get_query_string(app, "List Definitions For: ", space, sizeof(space));
     if (str.size > 0){
-        change_active_panel(app);
-        list_type_definition__parameters(app, &global_heap, &global_part, str);
+        View_Summary target_view = get_next_view_after_active(app, AccessAll);
+        list_type_definition__parameters(app, &global_heap, &global_part, str, target_view);
     }
 }
 
@@ -836,8 +841,8 @@ CUSTOM_DOC("Reads a token or word under the cursor and lists all locations of st
     char space[512];
     String str = get_token_or_word_under_pos(app, &buffer, view.cursor.pos, space, sizeof(space) - 1);
     if (str.size > 0){
-        change_active_panel(app);
-        list_type_definition__parameters(app, &global_heap, &global_part, str);
+        View_Summary target_view = get_next_view_after_active(app, AccessAll);
+        list_type_definition__parameters(app, &global_heap, &global_part, str, target_view);
     }
 }
 

@@ -9,8 +9,6 @@ CUSTOM_COMMAND_SIG(lister__quit)
 CUSTOM_DOC("A lister mode command that quits the list without executing any actions.")
 {
     View_Summary view = get_active_view(app, AccessAll);
-    Lister_State *state = view_get_lister_state(&view);
-    state->initialized = false;
     view_end_ui_mode(app, &view);
 }
 
