@@ -36,9 +36,6 @@
     
     Followup
     {
-        [] If indent bug (get accompanying repro file) "mgl_base.h" (File size virtual whitespace situation)
-        [] Reload "Big File" <ctrl O>
-        [] crash after disabling virtual whitespace and reloading
     }
     
     Documentation
