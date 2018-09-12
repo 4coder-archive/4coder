@@ -2758,7 +2758,6 @@ DOC(This call creates a new theme.  If the given name is already the name of a s
     for (i32 i = 1; i < count; ++i, ++style){
         if (match(style->name, theme_name)){
             style_set_colors(style, theme);
-            Print_Message(app, "DID THING\n", sizeof("DID THING\n") - 1);
             hit_existing_theme = true;
             break;
         }

@@ -331,17 +331,20 @@ working_set_next_clipboard_string(Heap *heap, Working_Set *working, i32 str_size
     String *result = &working->clipboards[clipboard_current];
     working->clipboard_current = clipboard_current;
     working->clipboard_rolling = clipboard_current;
-    char *new_str = 0;
     if (result->str != 0){
-        new_str = heap_array(heap, char, str_size);
-        memcpy(new_str, result->str, result->size);
-        heap_free(heap, result->str);
+        if (result->memory_size <= str_size){
+            heap_free(heap, result->str);
+            char *new_str = (char*)heap_allocate(heap, str_size + 1);
+            *result = make_string_cap(new_str, 0, str_size + 1);
+        }
+        else{
+            result->size = 0;
+        }
     }
     else{
-        new_str = (char*)heap_allocate(heap, str_size + 1);
+        char *new_str = (char*)heap_allocate(heap, str_size + 1);
+        *result = make_string_cap(new_str, 0, str_size + 1);
     }
-    // TODO(allen): What if new_str == 0?
-    *result = make_string_cap(new_str, 0, str_size);
     return(result);
 }
 
