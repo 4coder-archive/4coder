@@ -11,7 +11,7 @@
 
 internal i32
 view_get_map(View *view){
-    if (view->transient.ui_mode_counter > 0){
+    if (view->transient.ui_mode){
         return(view->transient.ui_map_id);
     }
     else{
@@ -99,10 +99,11 @@ view_get_cursor_xy(View *view){
     return(result);
 }
 
+#if 0
 internal f32
 view_get_scroll_y(View *view){
     f32 v = 0;
-    if (view->transient.ui_mode_counter == 0){
+    if (!view->transient.ui_mode){
         File_Edit_Positions *edit_pos = view->transient.edit_pos;
         TentativeAssert(edit_pos != 0);
         if (edit_pos != 0){
@@ -110,12 +111,11 @@ view_get_scroll_y(View *view){
         }
     }
     else{
-#if 0
-        v = view->transient.gui_scroll.scroll_y;
-#endif
+        // TODO(allen): // TODO(allen): // TODO(allen): // TODO(allen): 
     }
     return(v);
 }
+#endif
 
 inline Cursor_Limits
 view_cursor_limits(View *view){
@@ -170,7 +170,7 @@ inline u32
 view_lock_flags(View *view){
     u32 result = AccessOpen;
     File_Viewing_Data *data = &view->transient.file_data;
-    if (view->transient.ui_mode_counter > 0){
+    if (view->transient.ui_mode){
         result |= AccessHidden;
     }
     if (data->file_locked || (data->file && data->file->settings.read_only)){

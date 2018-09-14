@@ -87,7 +87,6 @@ working_set_alloc_always(Working_Set *working_set, Heap *heap, Lifetime_Allocato
         result->settings.display_width = working_set->default_display_width;
         result->settings.minimum_base_display_width = working_set->default_minimum_base_display_width;
         result->settings.wrap_indicator = WrapIndicator_Show_At_Wrap_Edge;
-        result->lifetime_object = lifetime_alloc_object(heap, lifetime_allocator, DynamicWorkspace_Buffer, result);
         ++working_set->file_count;
     }
     
@@ -95,12 +94,10 @@ working_set_alloc_always(Working_Set *working_set, Heap *heap, Lifetime_Allocato
 }
 
 inline void
-working_set_free_file(Heap *heap, Lifetime_Allocator *lifetime_allocator, Working_Set  *working_set, Editing_File *file){
+working_set_free_file(Heap *heap, Working_Set  *working_set, Editing_File *file){
     if (working_set->sync_check_iter == &file->node){
         working_set->sync_check_iter = working_set->sync_check_iter->next;
     }
-    
-    lifetime_free_object(heap, lifetime_allocator, file->lifetime_object);
     
     file->is_dummy = true;
     dll_remove(&file->node);

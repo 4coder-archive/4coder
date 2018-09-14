@@ -36,6 +36,11 @@ struct Lister_Option_List{
     int32_t count;
 };
 
+struct Lister_Option_Node_Ptr_Array{
+    Lister_Option_Node **node_ptrs;
+    int32_t count;
+};
+
 struct Lister_Handlers{
     Lister_Activation_Function_Type *activate;
     Lister_Regenerate_List_Function_Type *refresh;

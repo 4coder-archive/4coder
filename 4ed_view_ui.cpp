@@ -70,7 +70,7 @@ do_step_file_view(System_Functions *system, View *view, Models *models, i32_Rect
          slot = slot->next, ++bar_count);
     view->transient.widget_height = (f32)bar_count*(view->transient.line_height + 2);
     
-    if (view->transient.ui_mode_counter == 0){
+    if (!view->transient.ui_mode){
         if (user_input->mouse.wheel != 0){
             result.scroll.target_y += user_input->mouse.wheel;
             result.scroll.target_y = clamp(0, result.scroll.target_y, max_y);
@@ -278,7 +278,7 @@ do_render_file_view(System_Functions *system, View *view, Models *models, GUI_Sc
     view->transient.widget_height = (f32)bar_count*(view->transient.line_height + 2);
     
     draw_push_clip(target, rect);
-    if (view->transient.ui_mode_counter == 0){
+    if (!view->transient.ui_mode){
         if (file_is_ready(file)){
             result = render_loaded_file_in_view(system, view, models, rect, is_active, target);
         }

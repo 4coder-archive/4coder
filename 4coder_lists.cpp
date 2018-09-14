@@ -417,20 +417,69 @@ begin_integrated_lister__ui_list(Application_Links *app, char *query_string,
 ////////////////////////////////
 
 static void
+generate_all_buffers_list__output_buffer(Partition *arena, Lister *lister, Buffer_Summary buffer){
+    String status = {0};
+    switch (buffer.dirty){
+        case DirtyState_UnsavedChanges:  status = make_lit_string(" *"); break;
+        case DirtyState_UnloadedChanges: status = make_lit_string(" !"); break;
+    }
+    String buffer_name = make_string(buffer.buffer_name, buffer.buffer_name_len);
+    lister_add_item(arena, lister, buffer_name, status, IntAsPtr(buffer.buffer_id), 0);
+}
+
+static void
 generate_all_buffers_list(Application_Links *app, Partition *arena, Lister *lister){
     lister_begin_new_item_set(lister);
+    
+    Buffer_ID buffers_currently_being_viewed[16];
+    int32_t currently_viewed_buffer_count = 0;
+    
+    // List currently viewed buffers
+    for (View_Summary view = get_view_first(app, AccessAll);
+         view.exists;
+         get_view_next(app, &view, AccessAll)){
+        Buffer_ID new_buffer_id = view.buffer_id;
+        for (int32_t i = 0; i < currently_viewed_buffer_count; i += 1){
+            if (new_buffer_id == buffers_currently_being_viewed[i]){
+                goto skip0;
+            }
+        }
+        buffers_currently_being_viewed[currently_viewed_buffer_count++] = new_buffer_id;
+        skip0:;
+    }
+    
+    // Regular Buffers
     for (Buffer_Summary buffer = get_buffer_first(app, AccessAll);
          buffer.exists;
          get_buffer_next(app, &buffer, AccessAll)){
-        String buffer_name = make_string(buffer.buffer_name, buffer.buffer_name_len);
-        Dirty_State dirty = buffer.dirty;
-        int32_t buffer_id = buffer.buffer_id;
-        String status = {0};
-        switch (dirty){
-            case DirtyState_UnsavedChanges:  status = make_lit_string(" *"); break;
-            case DirtyState_UnloadedChanges: status = make_lit_string(" !"); break;
+        for (int32_t i = 0; i < currently_viewed_buffer_count; i += 1){
+            if (buffer.buffer_id == buffers_currently_being_viewed[i]){
+                goto skip1;
+            }
         }
-        lister_add_item(arena, lister, buffer_name, status, IntAsPtr(buffer_id), 0);
+        if (buffer.buffer_name_len == 0 || buffer.buffer_name[0] != '*'){
+            generate_all_buffers_list__output_buffer(arena, lister, buffer);
+        }
+        skip1:;
+    }
+    // Buffers Starting with *
+    for (Buffer_Summary buffer = get_buffer_first(app, AccessAll);
+         buffer.exists;
+         get_buffer_next(app, &buffer, AccessAll)){
+        for (int32_t i = 0; i < currently_viewed_buffer_count; i += 1){
+            if (buffer.buffer_id == buffers_currently_being_viewed[i]){
+                goto skip2;
+            }
+        }
+        if (buffer.buffer_name_len != 0 && buffer.buffer_name[0] == '*'){
+            generate_all_buffers_list__output_buffer(arena, lister, buffer);
+        }
+        skip2:;
+    }
+    // Buffers That Are Open in Views
+    for (int32_t i = 0; i < currently_viewed_buffer_count; i += 1){
+        Buffer_Summary buffer = get_buffer(app, buffers_currently_being_viewed[i], AccessAll);
+        generate_all_buffers_list__output_buffer(arena, lister, buffer);
     }
 }
 
@@ -449,13 +498,12 @@ generate_hot_directory_file_list(Application_Links *app, Partition *arena, Liste
     }
     
     lister_begin_new_item_set(lister);
-    Temp_Memory temp = begin_temp_memory(arena);
     String hot = get_hot_directory(app, arena);
+    push_align(arena, 8);
     File_List file_list = {0};
     if (hot.str != 0){
         file_list = get_file_list(app, hot.str, hot.size);
     }
-    end_temp_memory(temp);
     if (hot.str != 0){
         for (File_Info *info = file_list.infos, *one_past_last = file_list.infos + file_list.count;
              info < one_past_last;
@@ -475,9 +523,24 @@ generate_hot_directory_file_list(Application_Links *app, Partition *arena, Liste
             String file_name = push_string_copy(arena, make_string(info->filename, info->filename_len));
             char *is_loaded = "";
             char *status_flag = "";
+            
+            Temp_Memory path_temp = begin_temp_memory(arena);
+            String full_file_path = {0};
+            full_file_path.size = 0;
+            full_file_path.memory_size = hot.size + 1 + info->filename_len + 1;
+            full_file_path.str = push_array(arena, char, full_file_path.memory_size);
+            append(&full_file_path, hot);
+            if (full_file_path.size == 0 ||
+                char_is_slash(full_file_path.str[full_file_path.size - 1])){
+                append(&full_file_path, "/");
+            }
+            append(&full_file_path, make_string(info->filename, info->filename_len));
             Buffer_Summary buffer = get_buffer_by_file_name(app,
-                                                            info->filename, info->filename_len,
+                                                            full_file_path.str, full_file_path.size,
                                                             AccessAll);
+            
+            end_temp_memory(path_temp);
+            
             if (buffer.exists){
                 is_loaded = " LOADED";
                 switch (buffer.dirty){
@@ -627,7 +690,7 @@ CUSTOM_COMMAND_SIG(interactive_switch_buffer)
 CUSTOM_DOC("Interactively switch to an open buffer.")
 {
     View_Summary view = get_active_view(app, AccessAll);
-    for (;view_end_ui_mode(app, &view););
+    view_end_ui_mode(app, &view);
     begin_integrated_lister__buffer_list(app, "Switch: ", activate_switch_buffer, 0, &view);
 }
 
@@ -645,7 +708,7 @@ CUSTOM_COMMAND_SIG(interactive_kill_buffer)
 CUSTOM_DOC("Interactively kill an open buffer.")
 {
     View_Summary view = get_active_view(app, AccessAll);
-    for (;view_end_ui_mode(app, &view););
+    view_end_ui_mode(app, &view);
     begin_integrated_lister__buffer_list(app, "Kill: ", activate_kill_buffer, 0, &view);
 }
 
@@ -714,7 +777,7 @@ CUSTOM_COMMAND_SIG(interactive_open_or_new)
 CUSTOM_DOC("Interactively open a file out of the file system.")
 {
     View_Summary view = get_active_view(app, AccessAll);
-    for (;view_end_ui_mode(app, &view););
+    view_end_ui_mode(app, &view);
     begin_integrated_lister__file_system_list(app, "Open: ", activate_open_or_new, 0, &view);
 }
 
@@ -747,7 +810,7 @@ CUSTOM_COMMAND_SIG(interactive_new)
 CUSTOM_DOC("Interactively creates a new file.")
 {
     View_Summary view = get_active_view(app, AccessAll);
-    for (;view_end_ui_mode(app, &view););
+    view_end_ui_mode(app, &view);
     begin_integrated_lister__file_system_list(app, "New: ", activate_new, 0, &view);
 }
 
@@ -774,7 +837,7 @@ CUSTOM_COMMAND_SIG(interactive_open)
 CUSTOM_DOC("Interactively opens a file.")
 {
     View_Summary view = get_active_view(app, AccessAll);
-    for (;view_end_ui_mode(app, &view););
+    view_end_ui_mode(app, &view);
     begin_integrated_lister__file_system_list(app, "Open: ", activate_open, 0, &view);
 }
 
@@ -793,7 +856,7 @@ CUSTOM_DOC("Opens the 4coder theme selector list.")
     Temp_Memory temp = begin_temp_memory(scratch);
     
     View_Summary view = get_active_view(app, AccessAll);
-    for (;view_end_ui_mode(app, &view););
+    view_end_ui_mode(app, &view);
     int32_t theme_count = get_theme_count(app);
     Lister_UI_Option *options = push_array(scratch, Lister_UI_Option, theme_count);
     for (int32_t i = 0; i < theme_count; i += 1){

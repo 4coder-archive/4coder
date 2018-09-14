@@ -86,11 +86,11 @@ fill_view_summary(System_Functions *system, View_Summary *view, View *vptr, Live
         
         view->view_region = vptr->transient.panel->inner;
         view->file_region = vptr->transient.file_region;
-        if (vptr->transient.ui_mode_counter == 0){
-            view->scroll_vars = vptr->transient.edit_pos->scroll;
+        if (vptr->transient.ui_mode){
+            view->scroll_vars = vptr->transient.ui_scroll;
         }
         else{
-            view->scroll_vars = vptr->transient.ui_scroll;
+            view->scroll_vars = vptr->transient.edit_pos->scroll;
         }
     }
 }
@@ -108,7 +108,7 @@ fill_view_summary(System_Functions *system, View_Summary *view, View *vptr, Comm
 internal void
 view_quit_ui(System_Functions *system, Models *models, View *view){
     Assert(view != 0);
-    view->transient.ui_mode_counter = 0;
+    view->transient.ui_mode = false;
     if (view->transient.ui_quit != 0){
         View_Summary view_summary = {0};
         fill_view_summary(system, &view_summary, view, models);
@@ -635,9 +635,11 @@ DOC_SEE(Access_Flag)
     Editing_File_Name canon = {0};
     if (get_canon_name(system, fname, &canon)){
         Editing_File *file = working_set_contains_canon(working_set, canon.name);
-        fill_buffer_summary(&buffer, file, working_set);
-        if (!access_test(buffer.lock_flags, access)){
-            memset(&buffer, 0, sizeof(buffer));
+        if (file != 0){
+            fill_buffer_summary(&buffer, file, working_set);
+            if (!access_test(buffer.lock_flags, access)){
+                memset(&buffer, 0, sizeof(buffer));
+            }
         }
     }
     return(buffer);
@@ -1178,10 +1180,7 @@ DOC(Whenever a buffer is killed an end signal is sent which triggers the end fil
     bool32 result = false;
     if (file != 0){
         result = true;
-        Open_File_Hook_Function *hook_end_file = models->hook_end_file;
-        if (hook_end_file != 0){
-            hook_end_file(app, file->id.id);
-        }
+        file_end_file(models, file);
     }
     
     return(result);
@@ -1390,8 +1389,8 @@ DOC_SEE(Buffer_Identifier)
                 if (file->canon.name.size != 0){
                     buffer_unbind_file(system, working_set, file);
                 }
-                file_free(system, &models->app_links, &models->mem.heap, file);
-                working_set_free_file(&models->mem.heap, &models->lifetime_allocator, working_set, file);
+                file_free(system, &models->app_links, &models->mem.heap, &models->lifetime_allocator, file);
+                working_set_free_file(&models->mem.heap, working_set, file);
                 
                 File_Node *used = &working_set->used_sentinel;
                 File_Node *node = used->next;
@@ -1948,7 +1947,7 @@ DOC_SEE(GUI_Scroll_Vars)
         Assert(file != 0);
         if (!file->is_loading){
             result = true;
-            if (vptr->transient.ui_mode_counter == 0){
+            if (!vptr->transient.ui_mode){
                 view_set_scroll(system, vptr, scroll);
             }
             else{
@@ -2090,18 +2089,22 @@ DOC_SEE(int_color)
     return(result);
 }
 
-API_EXPORT int32_t
+API_EXPORT bool32
 View_Start_UI_Mode(Application_Links *app, View_Summary *view)
 {
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     View *vptr = imp_get_view(cmd, view);
     if (vptr != 0){
-        vptr->transient.ui_mode_counter = clamp_bottom(0, vptr->transient.ui_mode_counter);
-        vptr->transient.ui_mode_counter += 1;
-        return(vptr->transient.ui_mode_counter);
+        if (vptr->transient.ui_mode){
+            return(false);
+        }
+        else{
+            vptr->transient.ui_mode = true;
+            return(true);
+        }
     }
     else{
-        return(0);
+        return(false);
     }
 }
 
@@ -2111,22 +2114,19 @@ View_End_UI_Mode(Application_Links *app, View_Summary *view)
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     View *vptr = imp_get_view(cmd, view);
     if (vptr != 0){
-        vptr->transient.ui_mode_counter = clamp_bottom(0, vptr->transient.ui_mode_counter);
-        if (vptr->transient.ui_mode_counter > 0){
-            vptr->transient.ui_mode_counter -= 1;
-            if (vptr->transient.ui_mode_counter == 0){
-                System_Functions *system = cmd->system;
-                Models *models = cmd->models;
-                view_quit_ui(system, models, vptr);
-            }
-            return(vptr->transient.ui_mode_counter);
+        if (vptr->transient.ui_mode){
+            System_Functions *system = cmd->system;
+            Models *models = cmd->models;
+            view_quit_ui(system, models, vptr);
+            vptr->transient.ui_mode = false;
+            return(true);
         }
         else{
-            return(0);
+            return(false);
         }
     }
     else{
-        return(0);
+        return(false);
     }
 }
 
@@ -2443,7 +2443,7 @@ Alloc_Buffer_Markers_On_Buffer(Application_Links *app, Buffer_ID buffer_id, int3
     Managed_Object result = 0;
     if (workspace != 0){
         i32 size = count*sizeof(Marker);
-        void *ptr = dynamic_memory_bank_allocate(heap, &workspace->mem_bank, size + sizeof(Managed_Buffer_Markers_Header));
+		void *ptr = dynamic_memory_bank_allocate(heap, &workspace->mem_bank, size + sizeof(Managed_Buffer_Markers_Header));
         Managed_Buffer_Markers_Header *header = (Managed_Buffer_Markers_Header*)ptr;
         header->std_header.type = ManagedObjectType_Markers;
         header->std_header.item_size = sizeof(Marker);

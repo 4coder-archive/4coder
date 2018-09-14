@@ -413,11 +413,21 @@ edit_batch(System_Functions *system, Models *models, Editing_File *file,
     edit_fix_marks(system, models, file, layout, desc);
 }
 
-inline void
-edit_clear(System_Functions *system, Models *models, Editing_File *file){
+internal void
+file_end_file(Models *models, Editing_File *file){
     if (models->hook_end_file != 0){
         models->hook_end_file(&models->app_links, file->id.id);
     }
+    
+    Heap *heap = &models->mem.heap;
+    Lifetime_Allocator *lifetime_allocator = &models->lifetime_allocator;
+    lifetime_free_object(heap, lifetime_allocator, file->lifetime_object);
+    file->lifetime_object = lifetime_alloc_object(heap, lifetime_allocator, DynamicWorkspace_Buffer, file);
+}
+
+inline void
+edit_clear(System_Functions *system, Models *models, Editing_File *file){
+    file_end_file(models, file);
     
     b32 no_views_see_file = true;
     

@@ -100,7 +100,7 @@ open_build_footer_panel(Application_Links *app, bool32 create_if_not_exist = tru
     return(special_view);
 }
 
-static View_Summary
+static void
 get_next_view_looped_primary_panels(Application_Links *app, View_Summary *view_start, Access_Flag access){
     View_ID original_view_id = view_start->view_id;
     View_Summary view = *view_start;
@@ -113,10 +113,10 @@ get_next_view_looped_primary_panels(Application_Links *app, View_Summary *view_s
     if (!view.exists){
         memset(&view, 0, sizeof(view));
     }
-    return(view);
+    *view_start = view;
 }
 
-static View_Summary
+static void
 get_prev_view_looped_primary_panels(Application_Links *app, View_Summary *view_start, Access_Flag access){
     View_ID original_view_id = view_start->view_id;
     View_Summary view = *view_start;
@@ -129,14 +129,14 @@ get_prev_view_looped_primary_panels(Application_Links *app, View_Summary *view_s
     if (!view.exists){
         memset(&view, 0, sizeof(view));
     }
-    return(view);
+    *view_start = view;
 }
 
 static View_Summary
 get_next_view_after_active(Application_Links *app, uint32_t access){
     View_Summary view = get_active_view(app, access);
     if (view.exists){
-        view = get_next_view_looped_primary_panels(app, &view, access);
+        get_next_view_looped_primary_panels(app, &view, access);
     }
     return(view);
 }
@@ -145,7 +145,7 @@ CUSTOM_COMMAND_SIG(change_active_panel)
 CUSTOM_DOC("Change the currently active panel, moving to the panel with the next highest view_id.")
 {
     View_Summary view = get_active_view(app, AccessAll);
-    view = get_next_view_looped_primary_panels(app, &view, AccessAll);
+    get_next_view_looped_primary_panels(app, &view, AccessAll);
     if (view.exists){
         set_active_view(app, &view);
     }
@@ -155,7 +155,7 @@ CUSTOM_COMMAND_SIG(change_active_panel_backwards)
 CUSTOM_DOC("Change the currently active panel, moving to the panel with the next lowest view_id.")
 {
     View_Summary view = get_active_view(app, AccessAll);
-    view = get_prev_view_looped_primary_panels(app, &view, AccessAll);
+    get_prev_view_looped_primary_panels(app, &view, AccessAll);
     if (view.exists){
         set_active_view(app, &view);
     }

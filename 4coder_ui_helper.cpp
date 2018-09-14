@@ -260,17 +260,49 @@ lister_update_ui(Application_Links *app, Partition *scratch, View_Summary *view,
     
     state->raw_item_index = -1;
     
+    int32_t node_count = state->lister.options.count;
+    Lister_Option_Node_Ptr_Array exact_matches = {0};
+    exact_matches.node_ptrs = push_array(scratch, Lister_Option_Node*, 1);
+    Lister_Option_Node_Ptr_Array before_extension_matches = {0};
+    before_extension_matches.node_ptrs = push_array(scratch, Lister_Option_Node*, node_count);
+    Lister_Option_Node_Ptr_Array substring_matches = {0};
+    substring_matches.node_ptrs = push_array(scratch, Lister_Option_Node*, node_count);
+    for (Lister_Option_Node *node = state->lister.options.first;
+         node != 0;
+         node = node->next){
+        if (state->lister.key_string.size == 0 ||
+            has_substr(node->string, state->lister.key_string)){
+            if (match_insensitive(node->string, state->lister.key_string) && exact_matches.count == 0){
+                exact_matches.node_ptrs[exact_matches.count++] = node;
+            }
+            else if (match_part_insensitive(node->string, state->lister.key_string) &&
+                     node->string.size > state->lister.key_string.size &&
+                     node->string.str[state->lister.key_string.size] == '.'){
+                before_extension_matches.node_ptrs[before_extension_matches.count++] = node;
+            }
+            else{
+                substring_matches.node_ptrs[substring_matches.count++] = node;
+            }
+        }
+    }
+    
+    Lister_Option_Node_Ptr_Array node_ptr_arrays[] = {
+        exact_matches,
+        before_extension_matches,
+        substring_matches,
+    };
+    
     UI_List list = {0};
     UI_Item *highlighted_item = 0;
     UI_Item *hot_item = 0;
     UI_Item *hovered_item = 0;
     int32_t item_index_counter = 0;
     int32_t raw_index_counter = 0;
-    for (Lister_Option_Node *node = state->lister.options.first;
-         node != 0;
-         node = node->next){
-        if (state->lister.key_string.size == 0 ||
-            has_substr(node->string, state->lister.key_string)){
+    for (int32_t array_index = 0; array_index < ArrayCount(node_ptr_arrays); array_index += 1){
+        Lister_Option_Node_Ptr_Array node_ptr_array = node_ptr_arrays[array_index];
+        for (int32_t node_index = 0; node_index < node_ptr_array.count; node_index += 1){
+            Lister_Option_Node *node = node_ptr_array.node_ptrs[node_index];
+            
             i32_Rect item_rect = {0};
             item_rect.x0 = x0;
             item_rect.y0 = y_pos;
@@ -307,8 +339,8 @@ lister_update_ui(Application_Links *app, Partition *scratch, View_Summary *view,
             if (node->user_data == state->hot_user_data && hot_item != 0){
                 hot_item = item_ptr;
             }
+            raw_index_counter += 1;
         }
-        raw_index_counter += 1;
     }
     state->option_item_count = item_index_counter;
     
@@ -486,12 +518,11 @@ lister_call_activate_handler(Application_Links *app, Partition *scratch, Heap *h
     switch (code){
         case ListerActivation_Finished:
         {
-            if (view_end_ui_mode(app, view) == 0){
-                state->initialized = false;
-                if (state->arena.base != 0){
-                    heap_free(heap, state->arena.base);
-                    memset(&state->arena, 0, sizeof(state->arena));
-                }
+            view_end_ui_mode(app, view);
+            state->initialized = false;
+            if (state->arena.base != 0){
+                heap_free(heap, state->arena.base);
+                memset(&state->arena, 0, sizeof(state->arena));
             }
         }break;
         

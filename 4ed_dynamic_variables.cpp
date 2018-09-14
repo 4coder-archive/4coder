@@ -426,6 +426,7 @@ lifetime__object_add_key(Heap *heap, Lifetime_Allocator *lifetime_allocator,
         i32 next_insert_slot = object->key_count%ArrayCount(last_node->keys);
         if (next_insert_slot != 0){
             last_node->keys[next_insert_slot] = key;
+            object->key_count += 1;
         }
         else{
             insert_on_new_node = true;

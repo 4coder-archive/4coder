@@ -1380,7 +1380,7 @@ CUSTOM_DOC("Reads a filename from surrounding '\"' characters and attempts to op
             remove_last_folder(&file_name);
             append(&file_name, make_string(short_file_name, size));
             
-            view = get_next_view_looped_primary_panels(app, &view, AccessAll);
+            get_next_view_looped_primary_panels(app, &view, AccessAll);
             if (view.exists){
                 if (view_open_file(app, &view, file_name.str, file_name.size, true)){
                     set_active_view(app, &view);

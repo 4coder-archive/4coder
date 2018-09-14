@@ -518,6 +518,8 @@ file_create_from_string(System_Functions *system, Models *models, Editing_File *
         //adjust_views_looking_at_files_to_new_cursor(system, models, file);
     }
     
+    file->lifetime_object = lifetime_alloc_object(heap, &models->lifetime_allocator, DynamicWorkspace_Buffer, file);
+    
     file->settings.read_only = ((flags & FileCreateFlag_ReadOnly) != 0);
     if (!file->settings.read_only){
         // TODO(allen): Redo undo system (if you don't mind the pun)
@@ -554,7 +556,8 @@ file_create_from_string(System_Functions *system, Models *models, Editing_File *
 }
 
 internal void
-file_free(System_Functions *system, Application_Links *app, Heap *heap, Editing_File *file){
+file_free(System_Functions *system, Application_Links *app, Heap *heap, Lifetime_Allocator *lifetime_allocator,
+          Editing_File *file){
     if (file->state.still_lexing){
         system->cancel_job(BACKGROUND_THREADS, file->state.lex_job);
         if (file->state.swap_array.tokens){
@@ -565,6 +568,8 @@ file_free(System_Functions *system, Application_Links *app, Heap *heap, Editing_
     if (file->state.token_array.tokens){
         heap_free(heap, file->state.token_array.tokens);
     }
+    
+    lifetime_free_object(heap, lifetime_allocator, file->lifetime_object);
     
     Gap_Buffer *buffer = &file->state.buffer;
     if (buffer->data){

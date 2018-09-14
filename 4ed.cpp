@@ -277,7 +277,7 @@ COMMAND_DECL(reopen){
                         ++vptr_count;
                     }
                     
-                    file_free(system, &models->app_links, heap, file);
+                    file_free(system, &models->app_links, heap, &models->lifetime_allocator, file);
                     init_normal_file(system, models, buffer, size, file);
                     
                     for (i32 i = 0; i < vptr_count; ++i){
@@ -1627,7 +1627,7 @@ App_Step_Sig(app_step){
             GUI_Scroll_Vars *scroll_vars = 0;
             i32 max_y = 0;
             b32 file_scroll = false;
-            if (view->transient.ui_mode_counter == 0){
+            if (!view->transient.ui_mode){
                 scroll_vars = &view->transient.edit_pos->scroll;
                 max_y = view_compute_max_target_y(view);
                 file_scroll = true;

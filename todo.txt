@@ -3,17 +3,8 @@
 {
     Features
     {
-        [x] Lister API
-        [x] Managed Cooperative Memory API
-        [x] Separate distinct buffer groups by newline
-        [x] If no results put message explaining that fact (search buffer)
-        [x] Quit UI events
-        [] Change UI API to not be counted, toggle only for this build, no "UI stacks"
-        [] end file signal dumps the current managed scope
-        [] Fixup File Lister Sorting
-        [] Exact Matches Sort to Top Always ALWAYS ALWAYS ALWAYS
-        [] File System Lister Missing Status
         [] Command Lister
+        [] Function Lister
         [] Color Pallette Expansion For Keywords
         [] Color Pallette Expansion For Paren/Brace Matching
         [] Visible Markers
@@ -25,6 +16,7 @@
             [] Highlight Range
         }
         [] Reload all out of sync files
+        [] Doubly Linked List Node Managed Object
     }
     
     Bugs
@@ -40,7 +32,7 @@
     
     Documentation
     {
-        
+        [] ALL
     }
 }
 
@@ -68,7 +60,12 @@ Change Log
 {
     4.0.29
     {
-        
+        [x] Lister API
+        [x] Managed Cooperative Memory API
+        [x] Separate distinct buffer groups by newline
+        [x] If no results put message explaining that fact (search buffer)
+        [x] Quit UI events
+        [x] Exact Matches Sort to Top Always ALWAYS ALWAYS ALWAYS
     }
 }
 
