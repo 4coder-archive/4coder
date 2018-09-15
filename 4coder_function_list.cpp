@@ -275,7 +275,7 @@ print_positions(Application_Links *app, Buffer_Summary *buffer, Function_Positio
 }
 
 static void
-list_all_functions(Application_Links *app, Partition *part, Buffer_Summary *buffer){
+list_all_functions(Application_Links *app, Partition *part, Buffer_Summary *optional_target_buffer){
     String search_name = make_lit_string("*decls*");
     Buffer_Summary decls_buffer = get_buffer_by_name(app, search_name.str, search_name.size, AccessAll);
     if (!decls_buffer.exists){
@@ -294,17 +294,34 @@ list_all_functions(Application_Links *app, Partition *part, Buffer_Summary *buff
     int32_t positions_max = (4<<10)/sizeof(Function_Positions);
     Function_Positions *positions_array = push_array(part, Function_Positions, positions_max);
     
-    int32_t token_index = 0;
-    bool32 still_looping = false;
-    do{
-        Get_Positions_Results get_positions_results = get_function_positions(app, buffer, token_index, positions_array, positions_max);
+    for (Buffer_Summary buffer_it = get_buffer_first(app, AccessAll);
+         buffer_it.exists;
+         get_buffer_next(app, &buffer_it, AccessAll)){
+        Buffer_Summary buffer = buffer_it;
+        if (optional_target_buffer != 0){
+            buffer = *optional_target_buffer;
+        }
         
-        int32_t positions_count = get_positions_results.positions_count;
-        token_index = get_positions_results.next_token_index;
-        still_looping = get_positions_results.still_looping;
+        if (!buffer.tokens_are_ready){
+            continue;
+        }
         
-        print_positions(app, buffer, positions_array, positions_count, &decls_buffer, part);
-    }while(still_looping);
+        int32_t token_index = 0;
+        bool32 still_looping = false;
+        do{
+            Get_Positions_Results get_positions_results = get_function_positions(app, &buffer, token_index, positions_array, positions_max);
+            
+            int32_t positions_count = get_positions_results.positions_count;
+            token_index = get_positions_results.next_token_index;
+            still_looping = get_positions_results.still_looping;
+            
+            print_positions(app, &buffer, positions_array, positions_count, &decls_buffer, part);
+        }while(still_looping);
+        
+        if (optional_target_buffer != 0){
+            break;
+        }
+    }
     
     View_Summary view = get_active_view(app, AccessAll);
     view_set_buffer(app, &view, decls_buffer.buffer_id, 0);
@@ -318,10 +335,39 @@ list_all_functions(Application_Links *app, Partition *part, Buffer_Summary *buff
 CUSTOM_COMMAND_SIG(list_all_functions_current_buffer)
 CUSTOM_DOC("Creates a jump list of lines of the current buffer that appear to define or declare functions.")
 {
-    uint32_t access = AccessProtected;
-    View_Summary view = get_active_view(app, access);
-    Buffer_Summary buffer = get_buffer(app, view.buffer_id, access);
-    list_all_functions(app, &global_part, &buffer);
+    View_Summary view = get_active_view(app, AccessProtected);
+    Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessProtected);
+    if (buffer.exists){
+        list_all_functions(app, &global_part, &buffer);
+    }
+}
+
+CUSTOM_COMMAND_SIG(list_all_functions_current_buffer_lister)
+CUSTOM_DOC("Creates a lister of locations that look like function definitions and declarations in the buffer.")
+{
+    View_Summary view = get_active_view(app, AccessProtected);
+    Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessProtected);
+    if (buffer.exists){
+        list_all_functions(app, &global_part, &buffer);
+        view = get_active_view(app, AccessAll);
+        open_jump_lister(app, &global_part, &global_heap,
+                         &view, view.buffer_id, JumpListerActivation_OpenInUIView, 0);
+    }
+}
+
+CUSTOM_COMMAND_SIG(list_all_functions_all_buffers)
+CUSTOM_DOC("Creates a jump list of lines from all buffers that appear to define or declare functions.")
+{
+    list_all_functions(app, &global_part, 0);
+}
+
+CUSTOM_COMMAND_SIG(list_all_functions_all_buffers_lister)
+CUSTOM_DOC("Creates a lister of locations that look like function definitions and declarations all buffers.")
+{
+    list_all_functions(app, &global_part, 0);
+    View_Summary view = get_active_view(app, AccessAll);
+    open_jump_lister(app, &global_part, &global_heap,
+                     &view, view.buffer_id, JumpListerActivation_OpenInUIView, 0);
 }
 
 // BOTTOM

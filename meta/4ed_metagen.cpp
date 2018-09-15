@@ -676,9 +676,6 @@ generate_remapping_code_and_data(){
         // NOTE(allen): GLOBAL
         begin_map(mappings, mapid_global, "The following bindings apply in all situations.");
         
-        bind(mappings, 'p', MDFR_CTRL, open_panel_vsplit);
-        bind(mappings, '_', MDFR_CTRL, open_panel_hsplit);
-        bind(mappings, 'P', MDFR_CTRL, close_panel);
         bind(mappings, ',', MDFR_CTRL, change_active_panel);
         bind(mappings, '<', MDFR_CTRL, change_active_panel_backwards);
         
@@ -690,8 +687,6 @@ generate_remapping_code_and_data(){
         bind(mappings, 'h', MDFR_CTRL, project_go_to_root_directory);
         bind(mappings, 'S', MDFR_CTRL, save_all_dirty_buffers);
         
-        bind(mappings, 'c', MDFR_ALT, open_color_tweaker);
-        
         bind(mappings, '.', MDFR_ALT, change_to_build_panel);
         bind(mappings, ',', MDFR_ALT, close_build_panel);
         bind(mappings, 'n', MDFR_ALT, goto_next_jump_no_skips_sticky);
@@ -702,17 +697,10 @@ generate_remapping_code_and_data(){
         bind(mappings, 'z', MDFR_ALT, execute_any_cli);
         bind(mappings, 'Z', MDFR_ALT, execute_previous_cli);
         
-        bind(mappings, 'x', MDFR_ALT, execute_arbitrary_command);
+        bind(mappings, 'x', MDFR_ALT, command_lister);
         
-        bind(mappings, 'W', MDFR_ALT, show_scrollbar);
-        bind(mappings, 'w', MDFR_ALT, hide_scrollbar);
-        bind(mappings, 'b', MDFR_ALT, toggle_filebar);
-        
-        bind(mappings, '@', MDFR_ALT, toggle_mouse);
+        bind(mappings, 'I', MDFR_CTRL, list_all_functions_current_buffer_lister);
         bind(mappings, 'E', MDFR_ALT, exit_4coder);
-        
-        bind(mappings, '+', MDFR_CTRL, increase_face_size);
-        bind(mappings, '-', MDFR_CTRL, decrease_face_size);
         
         bind(mappings, key_f1, MDFR_NONE, project_fkey_command);
         bind(mappings, key_f2, MDFR_NONE, project_fkey_command);
@@ -786,7 +774,6 @@ generate_remapping_code_and_data(){
         bind(mappings, 'g', MDFR_CTRL, goto_line);
         bind(mappings, 'G', MDFR_CTRL, list_all_locations_of_selection);
         bind(mappings, 'K', MDFR_CTRL, kill_buffer);
-        bind(mappings, 'l', MDFR_CTRL, toggle_line_wrap);
         bind(mappings, 'L', MDFR_CTRL, duplicate_line);
         bind(mappings, 'm', MDFR_CTRL, cursor_mark_swap);
         bind(mappings, 'O', MDFR_CTRL, reopen);
@@ -795,11 +782,9 @@ generate_remapping_code_and_data(){
         bind(mappings, 'q', MDFR_ALT , query_replace_selection);
         bind(mappings, 'r', MDFR_CTRL, reverse_search);
         bind(mappings, 's', MDFR_CTRL, save);
-        bind(mappings, 's', MDFR_ALT , save_to_query);
         bind(mappings, 't', MDFR_CTRL, search_identifier);
         bind(mappings, 'T', MDFR_CTRL, list_all_locations_of_identifier);
         bind(mappings, 'v', MDFR_CTRL, paste_and_indent);
-        bind(mappings, 'v', MDFR_ALT , toggle_virtual_whitespace);
         bind(mappings, 'V', MDFR_CTRL, paste_next_and_indent);
         bind(mappings, 'x', MDFR_CTRL, cut);
         bind(mappings, 'y', MDFR_CTRL, redo);
@@ -808,10 +793,9 @@ generate_remapping_code_and_data(){
         bind(mappings, '1', MDFR_CTRL, view_buffer_other_panel);
         bind(mappings, '2', MDFR_CTRL, swap_buffers_between_panels);
         
-        bind(mappings, '?', MDFR_CTRL, toggle_show_whitespace);
-        bind(mappings, '~', MDFR_CTRL, clean_all_lines);
         bind(mappings, '\n', MDFR_NONE, newline_or_goto_position_sticky);
         bind(mappings, '\n', MDFR_SHIFT, newline_or_goto_position_same_panel_sticky);
+        bind(mappings, '>', MDFR_CTRL, view_jump_list_with_lister);
         bind(mappings, ' ', MDFR_SHIFT, write_character);
         
         end_map(mappings);
@@ -860,7 +844,6 @@ generate_remapping_code_and_data(){
         bind(mappings, '1', MDFR_ALT, open_file_in_quotes);
         bind(mappings, '2', MDFR_ALT, open_matching_file_cpp);
         bind(mappings, '0', MDFR_CTRL, write_zero_struct);
-        bind(mappings, 'I', MDFR_CTRL, list_all_functions_current_buffer);
         
         end_map(mappings);
         
@@ -892,9 +875,6 @@ generate_remapping_code_and_data(){
         // NOTE(allen): GLOBAL
         begin_map(mappings, mapid_global, "The following bindings apply in all situations.");
         
-        bind(mappings, 'p', MDFR_CMND, open_panel_vsplit);
-        bind(mappings, '_', MDFR_CMND, open_panel_hsplit);
-        bind(mappings, 'P', MDFR_CMND, close_panel);
         bind(mappings, ',', MDFR_CMND, change_active_panel);
         bind(mappings, '<', MDFR_CMND, change_active_panel_backwards);
         
@@ -906,8 +886,6 @@ generate_remapping_code_and_data(){
         bind(mappings, 'h', MDFR_CMND, project_go_to_root_directory);
         bind(mappings, 'S', MDFR_CMND, save_all_dirty_buffers);
         
-        bind(mappings, 'c', MDFR_CTRL, open_color_tweaker);
-        
         bind(mappings, '.', MDFR_CTRL, change_to_build_panel);
         bind(mappings, ',', MDFR_CTRL, close_build_panel);
         bind(mappings, 'n', MDFR_CTRL, goto_next_jump_sticky);
@@ -918,17 +896,10 @@ generate_remapping_code_and_data(){
         bind(mappings, 'z', MDFR_CTRL, execute_any_cli);
         bind(mappings, 'Z', MDFR_CTRL, execute_previous_cli);
         
-        bind(mappings, 'x', MDFR_CTRL, execute_arbitrary_command);
+        bind(mappings, 'x', MDFR_CTRL, command_lister);
         
-        bind(mappings, 'W', MDFR_CTRL, show_scrollbar);
-        bind(mappings, 'w', MDFR_CTRL, hide_scrollbar);
-        bind(mappings, 'b', MDFR_CTRL, toggle_filebar);
-        
-        bind(mappings, '@', MDFR_CTRL, toggle_mouse);
+        bind(mappings, 'I', MDFR_CMND, list_all_functions_current_buffer_lister);
         bind(mappings, 'E', MDFR_CTRL, exit_4coder);
-        
-        bind(mappings, '+', MDFR_CTRL, increase_face_size);
-        bind(mappings, '-', MDFR_CTRL, decrease_face_size);
         
         bind(mappings, key_f1, MDFR_NONE, project_fkey_command);
         bind(mappings, key_f2, MDFR_NONE, project_fkey_command);
@@ -982,6 +953,9 @@ generate_remapping_code_and_data(){
         bind(mappings, key_up, MDFR_CMND, seek_whitespace_up_end_line);
         bind(mappings, key_down, MDFR_CMND, seek_whitespace_down_end_line);
         
+        bind(mappings, key_up, MDFR_ALT, move_line_up);
+        bind(mappings, key_down, MDFR_ALT, move_line_down);
+        
         bind(mappings, key_back, MDFR_CMND, backspace_word);
         bind(mappings, key_del, MDFR_CMND, delete_word);
         bind(mappings, key_back, MDFR_CTRL, snipe_token_or_word);
@@ -1000,7 +974,6 @@ generate_remapping_code_and_data(){
         bind(mappings, 'g', MDFR_CMND, goto_line);
         bind(mappings, 'G', MDFR_CMND, list_all_locations_of_selection);
         bind(mappings, 'K', MDFR_CMND, kill_buffer);
-        bind(mappings, 'l', MDFR_CMND, toggle_line_wrap);
         bind(mappings, 'L', MDFR_CMND, duplicate_line);
         bind(mappings, 'm', MDFR_CMND, cursor_mark_swap);
         bind(mappings, 'O', MDFR_CMND, reopen);
@@ -1008,11 +981,9 @@ generate_remapping_code_and_data(){
         bind(mappings, 'Q', MDFR_CMND, query_replace_identifier);
         bind(mappings, 'r', MDFR_CMND, reverse_search);
         bind(mappings, 's', MDFR_CMND, save);
-        bind(mappings, 's', MDFR_CTRL, save_to_query);
         bind(mappings, 't', MDFR_CMND, search_identifier);
         bind(mappings, 'T', MDFR_CMND, list_all_locations_of_identifier);
         bind(mappings, 'v', MDFR_CMND, paste_and_indent);
-        bind(mappings, 'v', MDFR_CTRL, toggle_virtual_whitespace);
         bind(mappings, 'V', MDFR_CMND, paste_next_and_indent);
         bind(mappings, 'x', MDFR_CMND, cut);
         bind(mappings, 'y', MDFR_CMND, redo);
@@ -1021,10 +992,9 @@ generate_remapping_code_and_data(){
         bind(mappings, '1', MDFR_CMND, view_buffer_other_panel);
         bind(mappings, '2', MDFR_CMND, swap_buffers_between_panels);
         
-        bind(mappings, '?', MDFR_CMND, toggle_show_whitespace);
-        bind(mappings, '~', MDFR_CMND, clean_all_lines);
         bind(mappings, '\n', MDFR_NONE, newline_or_goto_position_sticky);
         bind(mappings, '\n', MDFR_SHIFT, newline_or_goto_position_same_panel_sticky);
+        bind(mappings, '>', MDFR_CMND, view_jump_list_with_lister);
         bind(mappings, ' ', MDFR_SHIFT, write_character);
         
         end_map(mappings);
@@ -1073,7 +1043,6 @@ generate_remapping_code_and_data(){
         bind(mappings, '1', MDFR_CTRL, open_file_in_quotes);
         bind(mappings, '2', MDFR_CTRL, open_matching_file_cpp);
         bind(mappings, '0', MDFR_CMND, write_zero_struct);
-        bind(mappings, 'I', MDFR_CMND, list_all_functions_current_buffer);
         
         end_map(mappings);
         

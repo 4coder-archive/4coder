@@ -205,7 +205,7 @@ get_marker_list_for_buffer(Buffer_ID buffer_id){
 }
 
 static Marker_List*
-get_or_make_list_for_buffer(Application_Links *app, Partition *part, Heap *heap, int32_t buffer_id){
+get_or_make_list_for_buffer(Application_Links *app, Partition *scratch, Heap *heap, Buffer_ID buffer_id){
     Marker_List *result = get_marker_list_for_buffer(buffer_id);
     if (result != 0){
         Buffer_Summary buffer = get_buffer(app, buffer_id, AccessAll);
@@ -217,7 +217,11 @@ get_or_make_list_for_buffer(Application_Links *app, Partition *part, Heap *heap,
     }
     if (result == 0){
         result = make_new_marker_list_for_buffer(heap, buffer_id);
-        init_marker_list(app, part, heap, buffer_id, result);
+        init_marker_list(app, scratch, heap, buffer_id, result);
+        if (result->jump_count == 0){
+            delete_marker_list(result);
+            result = 0;
+        }
     }
     return(result);
 }

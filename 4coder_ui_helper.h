@@ -19,25 +19,26 @@ typedef Lister_Activation_Code Lister_Activation_Function_Type(Application_Links
 
 typedef void Lister_Regenerate_List_Function_Type(Application_Links *app, Partition *arena, struct Lister *lister);
 
-struct Lister_Option_Node{
-    Lister_Option_Node *next;
-    Lister_Option_Node *prev;
+struct Lister_Node{
+    Lister_Node *next;
+    Lister_Node *prev;
     String string;
     union{
         String status;
         int32_t index;
     };
     void *user_data;
+    int32_t raw_index;
 };
 
 struct Lister_Option_List{
-    Lister_Option_Node *first;
-    Lister_Option_Node *last;
+    Lister_Node *first;
+    Lister_Node *last;
     int32_t count;
 };
 
-struct Lister_Option_Node_Ptr_Array{
-    Lister_Option_Node **node_ptrs;
+struct Lister_Node_Ptr_Array{
+    Lister_Node **node_ptrs;
     int32_t count;
 };
 
@@ -82,6 +83,12 @@ struct Lister_State{
 };
 
 ////////////////////////////////
+
+struct Lister_Option{
+    char *string;
+    char *status;
+    void *user_data;
+};
 
 struct Lister_Fixed_Option{
     char *string;

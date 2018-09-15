@@ -553,6 +553,7 @@ lifetime_get_or_create_intersection_key(Heap *heap, Lifetime_Allocator *lifetime
         new_key = lifetime_allocator->free_keys.first;
     }
     zdll_remove(lifetime_allocator->free_keys.first, lifetime_allocator->free_keys.last, new_key);
+    memset(new_key, 0, sizeof(*new_key));
     
     // Add to Objects
     Lifetime_Object **object_ptr = object_ptr_array;

@@ -3,8 +3,24 @@
 {
     Features
     {
-        [] Command Lister
-        [] Function Lister
+        [] fix the thing with thing in the lister thing with lister command things.
+        [] Cool Listers
+        {
+            [x] Command Lister
+            [x] Convert Jump List to Lister
+            [x] Function Lister
+            {
+                [x] Automatically Make Lister for Function List
+                [x] Make List For All Buffers
+            }
+            [] Snippet Lister
+            [] Turbo-Word-Complete Lister
+            [] Project Command Lister
+            [] Project FKey Remapper
+            [] Project Mode Lister
+        }
+        [] Clip-Box inside UI rects (or at least stop the string before it overflows.)
+        [] Automatically insert a space after the main name
         [] Color Pallette Expansion For Keywords
         [] Color Pallette Expansion For Paren/Brace Matching
         [] Visible Markers

@@ -35,6 +35,7 @@
 #include "4coder_search.h"
 #include "4coder_build_commands.h"
 #include "4coder_jump_sticky.h"
+#include "4coder_jump_lister.h"
 #include "4coder_project_commands.h"
 #include "4coder_function_list.h"
 #include "4coder_scope_commands.h"
@@ -54,6 +55,7 @@
 #include "4coder_jumping.cpp"
 #include "4coder_jump_direct.cpp"
 #include "4coder_jump_sticky.cpp"
+#include "4coder_jump_lister.cpp"
 #include "4coder_clipboard.cpp"
 #include "4coder_system_command.cpp"
 #include "4coder_build_commands.cpp"
@@ -61,7 +63,6 @@
 #include "4coder_function_list.cpp"
 #include "4coder_scope_commands.cpp"
 #include "4coder_combined_write_commands.cpp"
-#include "4coder_long_command_switch.cpp"
 
 #include "4coder_default_hooks.cpp"
 #include "4coder_remapping_commands.cpp"

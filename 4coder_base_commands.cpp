@@ -1054,7 +1054,7 @@ CUSTOM_DOC("Deletes the file of the current buffer if 4coder has the appropriate
 }
 
 CUSTOM_COMMAND_SIG(save_to_query)
-CUSTOM_DOC("Queries the user for a name and saves the contents of the current buffer, altering the buffer's name too.")
+CUSTOM_DOC("Queries the user for a file name and saves the contents of the current buffer, altering the buffer's name too.")
 {
     View_Summary view = get_active_view(app, AccessAll);
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessAll);

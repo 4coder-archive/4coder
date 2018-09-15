@@ -323,6 +323,7 @@ do_render_file_view(System_Functions *system, View *view, Models *models, GUI_Sc
                         i32 x = (i32)inner.x0 + 3;
                         i32 y = (i32)inner.y0 + line_height/2 - 1;
                         x = ceil32(draw_string(system, target, font_id, item->option.string, x, y, text_color));
+                        x += (i32)font_string_width(system, target, font_id, " ");
                         draw_string(system, target, font_id, item->option.status, x, y, pop_color);
                     }break;
                     
@@ -335,6 +336,7 @@ do_render_file_view(System_Functions *system, View *view, Models *models, GUI_Sc
                         i32 x = (i32)item_rect.x0;
                         i32 y = (i32)item_rect.y0 + 2;
                         x = ceil32(draw_string(system, target, font_id, item->text_field.query, x, y, text2_color));
+                        x += (i32)font_string_width(system, target, font_id, " ");
                         draw_string(system, target, font_id, item->text_field.string, x, y, text1_color);
                     }break;
                     

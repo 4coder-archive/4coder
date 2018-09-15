@@ -195,7 +195,7 @@ view_get_lister_state(View_Summary *view){
 }
 
 static void
-init_lister_state(Lister_State *state, Heap *heap){
+init_lister_state(Lister_State *state, Heap *heap, int32_t arena_size){
     state->initialized = true;
     state->hot_user_data = 0;
     state->item_index = 0;
@@ -204,9 +204,14 @@ init_lister_state(Lister_State *state, Heap *heap){
     if (state->arena.base != 0){
         heap_free(heap, state->arena.base);
     }
-    int32_t arena_size = (64 << 10);
     state->arena = make_part(heap_allocate(heap, arena_size), arena_size);
     memset(&state->lister, 0, sizeof(state->lister));
+}
+
+static void
+init_lister_state(Lister_State *state, Heap *heap){
+    int32_t arena_size = (64 << 10);
+    init_lister_state(state, heap, arena_size);
 }
 
 UI_QUIT_FUNCTION(lister_quit_function){
@@ -261,13 +266,13 @@ lister_update_ui(Application_Links *app, Partition *scratch, View_Summary *view,
     state->raw_item_index = -1;
     
     int32_t node_count = state->lister.options.count;
-    Lister_Option_Node_Ptr_Array exact_matches = {0};
-    exact_matches.node_ptrs = push_array(scratch, Lister_Option_Node*, 1);
-    Lister_Option_Node_Ptr_Array before_extension_matches = {0};
-    before_extension_matches.node_ptrs = push_array(scratch, Lister_Option_Node*, node_count);
-    Lister_Option_Node_Ptr_Array substring_matches = {0};
-    substring_matches.node_ptrs = push_array(scratch, Lister_Option_Node*, node_count);
-    for (Lister_Option_Node *node = state->lister.options.first;
+    Lister_Node_Ptr_Array exact_matches = {0};
+    exact_matches.node_ptrs = push_array(scratch, Lister_Node*, 1);
+    Lister_Node_Ptr_Array before_extension_matches = {0};
+    before_extension_matches.node_ptrs = push_array(scratch, Lister_Node*, node_count);
+    Lister_Node_Ptr_Array substring_matches = {0};
+    substring_matches.node_ptrs = push_array(scratch, Lister_Node*, node_count);
+    for (Lister_Node *node = state->lister.options.first;
          node != 0;
          node = node->next){
         if (state->lister.key_string.size == 0 ||
@@ -286,7 +291,7 @@ lister_update_ui(Application_Links *app, Partition *scratch, View_Summary *view,
         }
     }
     
-    Lister_Option_Node_Ptr_Array node_ptr_arrays[] = {
+    Lister_Node_Ptr_Array node_ptr_arrays[] = {
         exact_matches,
         before_extension_matches,
         substring_matches,
@@ -297,11 +302,10 @@ lister_update_ui(Application_Links *app, Partition *scratch, View_Summary *view,
     UI_Item *hot_item = 0;
     UI_Item *hovered_item = 0;
     int32_t item_index_counter = 0;
-    int32_t raw_index_counter = 0;
     for (int32_t array_index = 0; array_index < ArrayCount(node_ptr_arrays); array_index += 1){
-        Lister_Option_Node_Ptr_Array node_ptr_array = node_ptr_arrays[array_index];
+        Lister_Node_Ptr_Array node_ptr_array = node_ptr_arrays[array_index];
         for (int32_t node_index = 0; node_index < node_ptr_array.count; node_index += 1){
-            Lister_Option_Node *node = node_ptr_array.node_ptrs[node_index];
+            Lister_Node *node = node_ptr_array.node_ptrs[node_index];
             
             i32_Rect item_rect = {0};
             item_rect.x0 = x0;
@@ -331,15 +335,14 @@ lister_update_ui(Application_Links *app, Partition *scratch, View_Summary *view,
                 item_rect.y0 <= my && my < item_rect.y1){
                 hovered_item = item_ptr;
             }
-            if (item_index_counter == state->item_index){
+            if (state->item_index == item_index_counter){
                 highlighted_item = item_ptr;
-                state->raw_item_index = raw_index_counter;
+                state->raw_item_index = node->raw_index;
             }
             item_index_counter += 1;
             if (node->user_data == state->hot_user_data && hot_item != 0){
                 hot_item = item_ptr;
             }
-            raw_index_counter += 1;
         }
     }
     state->option_item_count = item_index_counter;
@@ -400,11 +403,16 @@ lister_prealloced(String string){
 }
 
 static void
-lister_first_init(Lister *lister){
+lister_first_init(Partition *arena, Lister *lister, void *user_data, int32_t user_data_size){
     memset(lister, 0, sizeof(*lister));
     lister->query      = make_fixed_width_string(lister->query_space);
     lister->text_field = make_fixed_width_string(lister->text_field_space);
     lister->key_string = make_fixed_width_string(lister->key_string_space);
+    if (user_data != 0){
+        lister->user_data  = push_array(arena, char, user_data_size);
+        push_align(arena, 8);
+        memcpy(lister->user_data, user_data, user_data_size);
+    }
 }
 
 static void
@@ -416,10 +424,11 @@ static void*
 lister_add_item(Partition *arena, Lister *lister,
                 Lister_Prealloced_String string, Lister_Prealloced_String status,
                 void *user_data, int32_t extra_space){
-    Lister_Option_Node *node = push_array(arena, Lister_Option_Node, 1);
+    Lister_Node *node = push_array(arena, Lister_Node, 1);
     node->string = string.string;
     node->status = status.string;
     node->user_data = user_data;
+    node->raw_index = lister->options.count;
     zdll_push_back(lister->options.first, lister->options.last, node);
     lister->options.count += 1;
     void *result = push_array(arena, char, extra_space);
@@ -461,7 +470,7 @@ static void*
 lister_add_ui_item(Partition *arena, Lister *lister,
                    Lister_Prealloced_String string, int32_t index,
                    void *user_data, int32_t extra_space){
-    Lister_Option_Node *node = push_array(arena, Lister_Option_Node, 1);
+    Lister_Node *node = push_array(arena, Lister_Node, 1);
     node->string = string.string;
     node->index = index;
     node->user_data = user_data;
@@ -486,7 +495,7 @@ static void*
 lister_get_user_data(Lister *lister, int32_t index){
     if (0 <= index && index < lister->options.count){
         int32_t counter = 0;
-        for (Lister_Option_Node *node = lister->options.first;
+        for (Lister_Node *node = lister->options.first;
              node != 0;
              node = node->next){
             if (counter == index){
@@ -526,8 +535,14 @@ lister_call_activate_handler(Application_Links *app, Partition *scratch, Heap *h
             }
         }break;
         
+        case ListerActivation_Continue:
+        {
+            view_start_ui_mode(app, view);
+        }break;
+        
         case ListerActivation_ContinueAndRefresh:
         {
+            view_start_ui_mode(app, view);
             state->item_index = 0;
             lister_call_refresh_handler(app, &state->arena, lister);
             lister_update_ui(app, scratch, view, state);

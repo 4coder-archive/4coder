@@ -1,9 +1,6 @@
 #if defined(CUSTOM_COMMAND_SIG)
 void fill_keys_default(Bind_Helper *context){
 begin_map(context, mapid_global);
-bind(context, 'p', MDFR_CTRL, open_panel_vsplit);
-bind(context, '_', MDFR_CTRL, open_panel_hsplit);
-bind(context, 'P', MDFR_CTRL, close_panel);
 bind(context, ',', MDFR_CTRL, change_active_panel);
 bind(context, '<', MDFR_CTRL, change_active_panel_backwards);
 bind(context, 'n', MDFR_CTRL, interactive_new);
@@ -13,7 +10,6 @@ bind(context, 'k', MDFR_CTRL, interactive_kill_buffer);
 bind(context, 'i', MDFR_CTRL, interactive_switch_buffer);
 bind(context, 'h', MDFR_CTRL, project_go_to_root_directory);
 bind(context, 'S', MDFR_CTRL, save_all_dirty_buffers);
-bind(context, 'c', MDFR_ALT, open_color_tweaker);
 bind(context, '.', MDFR_ALT, change_to_build_panel);
 bind(context, ',', MDFR_ALT, close_build_panel);
 bind(context, 'n', MDFR_ALT, goto_next_jump_no_skips_sticky);
@@ -22,14 +18,9 @@ bind(context, 'M', MDFR_ALT, goto_first_jump_sticky);
 bind(context, 'm', MDFR_ALT, build_in_build_panel);
 bind(context, 'z', MDFR_ALT, execute_any_cli);
 bind(context, 'Z', MDFR_ALT, execute_previous_cli);
-bind(context, 'x', MDFR_ALT, execute_arbitrary_command);
-bind(context, 'W', MDFR_ALT, show_scrollbar);
-bind(context, 'w', MDFR_ALT, hide_scrollbar);
-bind(context, 'b', MDFR_ALT, toggle_filebar);
-bind(context, '@', MDFR_ALT, toggle_mouse);
+bind(context, 'x', MDFR_ALT, command_lister);
+bind(context, 'I', MDFR_CTRL, list_all_functions_all_buffers_lister);
 bind(context, 'E', MDFR_ALT, exit_4coder);
-bind(context, '+', MDFR_CTRL, increase_face_size);
-bind(context, '-', MDFR_CTRL, decrease_face_size);
 bind(context, key_f1, MDFR_NONE, project_fkey_command);
 bind(context, key_f2, MDFR_NONE, project_fkey_command);
 bind(context, key_f3, MDFR_NONE, project_fkey_command);
@@ -89,7 +80,6 @@ bind(context, 'F', MDFR_ALT, list_all_substring_locations_case_insensitive);
 bind(context, 'g', MDFR_CTRL, goto_line);
 bind(context, 'G', MDFR_CTRL, list_all_locations_of_selection);
 bind(context, 'K', MDFR_CTRL, kill_buffer);
-bind(context, 'l', MDFR_CTRL, toggle_line_wrap);
 bind(context, 'L', MDFR_CTRL, duplicate_line);
 bind(context, 'm', MDFR_CTRL, cursor_mark_swap);
 bind(context, 'O', MDFR_CTRL, reopen);
@@ -98,21 +88,18 @@ bind(context, 'Q', MDFR_CTRL, query_replace_identifier);
 bind(context, 'q', MDFR_ALT, query_replace_selection);
 bind(context, 'r', MDFR_CTRL, reverse_search);
 bind(context, 's', MDFR_CTRL, save);
-bind(context, 's', MDFR_ALT, save_to_query);
 bind(context, 't', MDFR_CTRL, search_identifier);
 bind(context, 'T', MDFR_CTRL, list_all_locations_of_identifier);
 bind(context, 'v', MDFR_CTRL, paste_and_indent);
-bind(context, 'v', MDFR_ALT, toggle_virtual_whitespace);
 bind(context, 'V', MDFR_CTRL, paste_next_and_indent);
 bind(context, 'x', MDFR_CTRL, cut);
 bind(context, 'y', MDFR_CTRL, redo);
 bind(context, 'z', MDFR_CTRL, undo);
 bind(context, '1', MDFR_CTRL, view_buffer_other_panel);
 bind(context, '2', MDFR_CTRL, swap_buffers_between_panels);
-bind(context, '?', MDFR_CTRL, toggle_show_whitespace);
-bind(context, '~', MDFR_CTRL, clean_all_lines);
 bind(context, '\n', MDFR_NONE, newline_or_goto_position_sticky);
 bind(context, '\n', MDFR_SHIFT, newline_or_goto_position_same_panel_sticky);
+bind(context, '>', MDFR_CTRL, view_jump_list_with_lister);
 bind(context, ' ', MDFR_SHIFT, write_character);
 end_map(context);
 begin_map(context, default_code_map);
@@ -148,7 +135,6 @@ bind(context, 'i', MDFR_ALT, if0_off);
 bind(context, '1', MDFR_ALT, open_file_in_quotes);
 bind(context, '2', MDFR_ALT, open_matching_file_cpp);
 bind(context, '0', MDFR_CTRL, write_zero_struct);
-bind(context, 'I', MDFR_CTRL, list_all_functions_current_buffer);
 end_map(context);
 begin_map(context, default_lister_ui_map);
 bind_vanilla_keys(context, lister__write_character);
@@ -169,9 +155,6 @@ end_map(context);
 }
 void fill_keys_mac_default(Bind_Helper *context){
 begin_map(context, mapid_global);
-bind(context, 'p', MDFR_CMND, open_panel_vsplit);
-bind(context, '_', MDFR_CMND, open_panel_hsplit);
-bind(context, 'P', MDFR_CMND, close_panel);
 bind(context, ',', MDFR_CMND, change_active_panel);
 bind(context, '<', MDFR_CMND, change_active_panel_backwards);
 bind(context, 'n', MDFR_CMND, interactive_new);
@@ -181,7 +164,6 @@ bind(context, 'k', MDFR_CMND, interactive_kill_buffer);
 bind(context, 'i', MDFR_CMND, interactive_switch_buffer);
 bind(context, 'h', MDFR_CMND, project_go_to_root_directory);
 bind(context, 'S', MDFR_CMND, save_all_dirty_buffers);
-bind(context, 'c', MDFR_CTRL, open_color_tweaker);
 bind(context, '.', MDFR_CTRL, change_to_build_panel);
 bind(context, ',', MDFR_CTRL, close_build_panel);
 bind(context, 'n', MDFR_CTRL, goto_next_jump_sticky);
@@ -190,14 +172,9 @@ bind(context, 'M', MDFR_CTRL, goto_first_jump_sticky);
 bind(context, 'm', MDFR_CTRL, build_in_build_panel);
 bind(context, 'z', MDFR_CTRL, execute_any_cli);
 bind(context, 'Z', MDFR_CTRL, execute_previous_cli);
-bind(context, 'x', MDFR_CTRL, execute_arbitrary_command);
-bind(context, 'W', MDFR_CTRL, show_scrollbar);
-bind(context, 'w', MDFR_CTRL, hide_scrollbar);
-bind(context, 'b', MDFR_CTRL, toggle_filebar);
-bind(context, '@', MDFR_CTRL, toggle_mouse);
+bind(context, 'x', MDFR_CTRL, command_lister);
+bind(context, 'I', MDFR_CMND, list_all_functions_all_buffers_lister);
 bind(context, 'E', MDFR_CTRL, exit_4coder);
-bind(context, '+', MDFR_CTRL, increase_face_size);
-bind(context, '-', MDFR_CTRL, decrease_face_size);
 bind(context, key_f1, MDFR_NONE, project_fkey_command);
 bind(context, key_f2, MDFR_NONE, project_fkey_command);
 bind(context, key_f3, MDFR_NONE, project_fkey_command);
@@ -239,6 +216,8 @@ bind(context, key_right, MDFR_CMND, seek_whitespace_right);
 bind(context, key_left, MDFR_CMND, seek_whitespace_left);
 bind(context, key_up, MDFR_CMND, seek_whitespace_up_end_line);
 bind(context, key_down, MDFR_CMND, seek_whitespace_down_end_line);
+bind(context, key_up, MDFR_ALT, move_line_up);
+bind(context, key_down, MDFR_ALT, move_line_down);
 bind(context, key_back, MDFR_CMND, backspace_word);
 bind(context, key_del, MDFR_CMND, delete_word);
 bind(context, key_back, MDFR_CTRL, snipe_token_or_word);
@@ -256,7 +235,6 @@ bind(context, 'F', MDFR_CTRL, list_all_substring_locations_case_insensitive);
 bind(context, 'g', MDFR_CMND, goto_line);
 bind(context, 'G', MDFR_CMND, list_all_locations_of_selection);
 bind(context, 'K', MDFR_CMND, kill_buffer);
-bind(context, 'l', MDFR_CMND, toggle_line_wrap);
 bind(context, 'L', MDFR_CMND, duplicate_line);
 bind(context, 'm', MDFR_CMND, cursor_mark_swap);
 bind(context, 'O', MDFR_CMND, reopen);
@@ -264,21 +242,18 @@ bind(context, 'q', MDFR_CMND, query_replace);
 bind(context, 'Q', MDFR_CMND, query_replace_identifier);
 bind(context, 'r', MDFR_CMND, reverse_search);
 bind(context, 's', MDFR_CMND, save);
-bind(context, 's', MDFR_CTRL, save_to_query);
 bind(context, 't', MDFR_CMND, search_identifier);
 bind(context, 'T', MDFR_CMND, list_all_locations_of_identifier);
 bind(context, 'v', MDFR_CMND, paste_and_indent);
-bind(context, 'v', MDFR_CTRL, toggle_virtual_whitespace);
 bind(context, 'V', MDFR_CMND, paste_next_and_indent);
 bind(context, 'x', MDFR_CMND, cut);
 bind(context, 'y', MDFR_CMND, redo);
 bind(context, 'z', MDFR_CMND, undo);
 bind(context, '1', MDFR_CMND, view_buffer_other_panel);
 bind(context, '2', MDFR_CMND, swap_buffers_between_panels);
-bind(context, '?', MDFR_CMND, toggle_show_whitespace);
-bind(context, '~', MDFR_CMND, clean_all_lines);
 bind(context, '\n', MDFR_NONE, newline_or_goto_position_sticky);
 bind(context, '\n', MDFR_SHIFT, newline_or_goto_position_same_panel_sticky);
+bind(context, '>', MDFR_CMND, view_jump_list_with_lister);
 bind(context, ' ', MDFR_SHIFT, write_character);
 end_map(context);
 begin_map(context, default_code_map);
@@ -314,7 +289,6 @@ bind(context, 'i', MDFR_CTRL, if0_off);
 bind(context, '1', MDFR_CTRL, open_file_in_quotes);
 bind(context, '2', MDFR_CTRL, open_matching_file_cpp);
 bind(context, '0', MDFR_CMND, write_zero_struct);
-bind(context, 'I', MDFR_CMND, list_all_functions_current_buffer);
 end_map(context);
 begin_map(context, default_lister_ui_map);
 bind_vanilla_keys(context, lister__write_character);
@@ -366,10 +340,7 @@ Meta_Sub_Map *sub_maps;
 int32_t sub_map_count;
 LINK_PROCS(void (*fill_keys_proc)(Bind_Helper *context);)
 };
-static Meta_Key_Bind fcoder_binds_for_default_mapid_global[45] = {
-{0, 112, 1, "open_panel_vsplit", 17, LINK_PROCS(open_panel_vsplit)},
-{0, 95, 1, "open_panel_hsplit", 17, LINK_PROCS(open_panel_hsplit)},
-{0, 80, 1, "close_panel", 11, LINK_PROCS(close_panel)},
+static Meta_Key_Bind fcoder_binds_for_default_mapid_global[36] = {
 {0, 44, 1, "change_active_panel", 19, LINK_PROCS(change_active_panel)},
 {0, 60, 1, "change_active_panel_backwards", 29, LINK_PROCS(change_active_panel_backwards)},
 {0, 110, 1, "interactive_new", 15, LINK_PROCS(interactive_new)},
@@ -379,7 +350,6 @@ static Meta_Key_Bind fcoder_binds_for_default_mapid_global[45] = {
 {0, 105, 1, "interactive_switch_buffer", 25, LINK_PROCS(interactive_switch_buffer)},
 {0, 104, 1, "project_go_to_root_directory", 28, LINK_PROCS(project_go_to_root_directory)},
 {0, 83, 1, "save_all_dirty_buffers", 22, LINK_PROCS(save_all_dirty_buffers)},
-{0, 99, 2, "open_color_tweaker", 18, LINK_PROCS(open_color_tweaker)},
 {0, 46, 2, "change_to_build_panel", 21, LINK_PROCS(change_to_build_panel)},
 {0, 44, 2, "close_build_panel", 17, LINK_PROCS(close_build_panel)},
 {0, 110, 2, "goto_next_jump_no_skips_sticky", 30, LINK_PROCS(goto_next_jump_no_skips_sticky)},
@@ -388,14 +358,9 @@ static Meta_Key_Bind fcoder_binds_for_default_mapid_global[45] = {
 {0, 109, 2, "build_in_build_panel", 20, LINK_PROCS(build_in_build_panel)},
 {0, 122, 2, "execute_any_cli", 15, LINK_PROCS(execute_any_cli)},
 {0, 90, 2, "execute_previous_cli", 20, LINK_PROCS(execute_previous_cli)},
-{0, 120, 2, "execute_arbitrary_command", 25, LINK_PROCS(execute_arbitrary_command)},
-{0, 87, 2, "show_scrollbar", 14, LINK_PROCS(show_scrollbar)},
-{0, 119, 2, "hide_scrollbar", 14, LINK_PROCS(hide_scrollbar)},
-{0, 98, 2, "toggle_filebar", 14, LINK_PROCS(toggle_filebar)},
-{0, 64, 2, "toggle_mouse", 12, LINK_PROCS(toggle_mouse)},
+{0, 120, 2, "command_lister", 14, LINK_PROCS(command_lister)},
+{0, 73, 1, "list_all_functions_all_buffers_lister", 37, LINK_PROCS(list_all_functions_all_buffers_lister)},
 {0, 69, 2, "exit_4coder", 11, LINK_PROCS(exit_4coder)},
-{0, 43, 1, "increase_face_size", 18, LINK_PROCS(increase_face_size)},
-{0, 45, 1, "decrease_face_size", 18, LINK_PROCS(decrease_face_size)},
 {0, 55315, 0, "project_fkey_command", 20, LINK_PROCS(project_fkey_command)},
 {0, 55316, 0, "project_fkey_command", 20, LINK_PROCS(project_fkey_command)},
 {0, 55317, 0, "project_fkey_command", 20, LINK_PROCS(project_fkey_command)},
@@ -413,7 +378,7 @@ static Meta_Key_Bind fcoder_binds_for_default_mapid_global[45] = {
 {0, 55329, 0, "project_fkey_command", 20, LINK_PROCS(project_fkey_command)},
 {0, 55330, 0, "project_fkey_command", 20, LINK_PROCS(project_fkey_command)},
 };
-static Meta_Key_Bind fcoder_binds_for_default_mapid_file[66] = {
+static Meta_Key_Bind fcoder_binds_for_default_mapid_file[62] = {
 {1, 0, 0, "write_character", 15, LINK_PROCS(write_character)},
 {0, 55308, 0, "click_set_cursor", 16, LINK_PROCS(click_set_cursor)},
 {0, 55310, 0, "click_set_mark", 14, LINK_PROCS(click_set_mark)},
@@ -455,7 +420,6 @@ static Meta_Key_Bind fcoder_binds_for_default_mapid_file[66] = {
 {0, 103, 1, "goto_line", 9, LINK_PROCS(goto_line)},
 {0, 71, 1, "list_all_locations_of_selection", 31, LINK_PROCS(list_all_locations_of_selection)},
 {0, 75, 1, "kill_buffer", 11, LINK_PROCS(kill_buffer)},
-{0, 108, 1, "toggle_line_wrap", 16, LINK_PROCS(toggle_line_wrap)},
 {0, 76, 1, "duplicate_line", 14, LINK_PROCS(duplicate_line)},
 {0, 109, 1, "cursor_mark_swap", 16, LINK_PROCS(cursor_mark_swap)},
 {0, 79, 1, "reopen", 6, LINK_PROCS(reopen)},
@@ -464,24 +428,21 @@ static Meta_Key_Bind fcoder_binds_for_default_mapid_file[66] = {
 {0, 113, 2, "query_replace_selection", 23, LINK_PROCS(query_replace_selection)},
 {0, 114, 1, "reverse_search", 14, LINK_PROCS(reverse_search)},
 {0, 115, 1, "save", 4, LINK_PROCS(save)},
-{0, 115, 2, "save_to_query", 13, LINK_PROCS(save_to_query)},
 {0, 116, 1, "search_identifier", 17, LINK_PROCS(search_identifier)},
 {0, 84, 1, "list_all_locations_of_identifier", 32, LINK_PROCS(list_all_locations_of_identifier)},
 {0, 118, 1, "paste_and_indent", 16, LINK_PROCS(paste_and_indent)},
-{0, 118, 2, "toggle_virtual_whitespace", 25, LINK_PROCS(toggle_virtual_whitespace)},
 {0, 86, 1, "paste_next_and_indent", 21, LINK_PROCS(paste_next_and_indent)},
 {0, 120, 1, "cut", 3, LINK_PROCS(cut)},
 {0, 121, 1, "redo", 4, LINK_PROCS(redo)},
 {0, 122, 1, "undo", 4, LINK_PROCS(undo)},
 {0, 49, 1, "view_buffer_other_panel", 23, LINK_PROCS(view_buffer_other_panel)},
 {0, 50, 1, "swap_buffers_between_panels", 27, LINK_PROCS(swap_buffers_between_panels)},
-{0, 63, 1, "toggle_show_whitespace", 22, LINK_PROCS(toggle_show_whitespace)},
-{0, 126, 1, "clean_all_lines", 15, LINK_PROCS(clean_all_lines)},
 {0, 10, 0, "newline_or_goto_position_sticky", 31, LINK_PROCS(newline_or_goto_position_sticky)},
 {0, 10, 8, "newline_or_goto_position_same_panel_sticky", 42, LINK_PROCS(newline_or_goto_position_same_panel_sticky)},
+{0, 62, 1, "view_jump_list_with_lister", 26, LINK_PROCS(view_jump_list_with_lister)},
 {0, 32, 8, "write_character", 15, LINK_PROCS(write_character)},
 };
-static Meta_Key_Bind fcoder_binds_for_default_default_code_map[32] = {
+static Meta_Key_Bind fcoder_binds_for_default_default_code_map[31] = {
 {0, 55300, 1, "seek_alphanumeric_or_camel_right", 32, LINK_PROCS(seek_alphanumeric_or_camel_right)},
 {0, 55299, 1, "seek_alphanumeric_or_camel_left", 31, LINK_PROCS(seek_alphanumeric_or_camel_left)},
 {0, 10, 0, "write_and_auto_tab", 18, LINK_PROCS(write_and_auto_tab)},
@@ -513,7 +474,6 @@ static Meta_Key_Bind fcoder_binds_for_default_default_code_map[32] = {
 {0, 49, 2, "open_file_in_quotes", 19, LINK_PROCS(open_file_in_quotes)},
 {0, 50, 2, "open_matching_file_cpp", 22, LINK_PROCS(open_matching_file_cpp)},
 {0, 48, 1, "write_zero_struct", 17, LINK_PROCS(write_zero_struct)},
-{0, 73, 1, "list_all_functions_current_buffer", 33, LINK_PROCS(list_all_functions_current_buffer)},
 };
 static Meta_Key_Bind fcoder_binds_for_default_default_lister_ui_map[14] = {
 {1, 0, 0, "lister__write_character", 23, LINK_PROCS(lister__write_character)},
@@ -532,15 +492,12 @@ static Meta_Key_Bind fcoder_binds_for_default_default_lister_ui_map[14] = {
 {0, 55314, 0, "lister__repaint", 15, LINK_PROCS(lister__repaint)},
 };
 static Meta_Sub_Map fcoder_submaps_for_default[4] = {
-{"mapid_global", 12, "The following bindings apply in all situations.", 47, 0, 0, fcoder_binds_for_default_mapid_global, 45},
-{"mapid_file", 10, "The following bindings apply in general text files and most apply in code files, but some are overriden by other commands specific to code files.", 145, 0, 0, fcoder_binds_for_default_mapid_file, 66},
-{"default_code_map", 16, "The following commands only apply in files where the lexer (syntax highlighting) is turned on.", 94, "mapid_file", 10, fcoder_binds_for_default_default_code_map, 32},
+{"mapid_global", 12, "The following bindings apply in all situations.", 47, 0, 0, fcoder_binds_for_default_mapid_global, 36},
+{"mapid_file", 10, "The following bindings apply in general text files and most apply in code files, but some are overriden by other commands specific to code files.", 145, 0, 0, fcoder_binds_for_default_mapid_file, 62},
+{"default_code_map", 16, "The following commands only apply in files where the lexer (syntax highlighting) is turned on.", 94, "mapid_file", 10, fcoder_binds_for_default_default_code_map, 31},
 {"default_lister_ui_map", 21, "These commands apply in 'lister mode' such as when you open a file.", 67, 0, 0, fcoder_binds_for_default_default_lister_ui_map, 14},
 };
-static Meta_Key_Bind fcoder_binds_for_mac_default_mapid_global[45] = {
-{0, 112, 4, "open_panel_vsplit", 17, LINK_PROCS(open_panel_vsplit)},
-{0, 95, 4, "open_panel_hsplit", 17, LINK_PROCS(open_panel_hsplit)},
-{0, 80, 4, "close_panel", 11, LINK_PROCS(close_panel)},
+static Meta_Key_Bind fcoder_binds_for_mac_default_mapid_global[36] = {
 {0, 44, 4, "change_active_panel", 19, LINK_PROCS(change_active_panel)},
 {0, 60, 4, "change_active_panel_backwards", 29, LINK_PROCS(change_active_panel_backwards)},
 {0, 110, 4, "interactive_new", 15, LINK_PROCS(interactive_new)},
@@ -550,7 +507,6 @@ static Meta_Key_Bind fcoder_binds_for_mac_default_mapid_global[45] = {
 {0, 105, 4, "interactive_switch_buffer", 25, LINK_PROCS(interactive_switch_buffer)},
 {0, 104, 4, "project_go_to_root_directory", 28, LINK_PROCS(project_go_to_root_directory)},
 {0, 83, 4, "save_all_dirty_buffers", 22, LINK_PROCS(save_all_dirty_buffers)},
-{0, 99, 1, "open_color_tweaker", 18, LINK_PROCS(open_color_tweaker)},
 {0, 46, 1, "change_to_build_panel", 21, LINK_PROCS(change_to_build_panel)},
 {0, 44, 1, "close_build_panel", 17, LINK_PROCS(close_build_panel)},
 {0, 110, 1, "goto_next_jump_sticky", 21, LINK_PROCS(goto_next_jump_sticky)},
@@ -559,14 +515,9 @@ static Meta_Key_Bind fcoder_binds_for_mac_default_mapid_global[45] = {
 {0, 109, 1, "build_in_build_panel", 20, LINK_PROCS(build_in_build_panel)},
 {0, 122, 1, "execute_any_cli", 15, LINK_PROCS(execute_any_cli)},
 {0, 90, 1, "execute_previous_cli", 20, LINK_PROCS(execute_previous_cli)},
-{0, 120, 1, "execute_arbitrary_command", 25, LINK_PROCS(execute_arbitrary_command)},
-{0, 87, 1, "show_scrollbar", 14, LINK_PROCS(show_scrollbar)},
-{0, 119, 1, "hide_scrollbar", 14, LINK_PROCS(hide_scrollbar)},
-{0, 98, 1, "toggle_filebar", 14, LINK_PROCS(toggle_filebar)},
-{0, 64, 1, "toggle_mouse", 12, LINK_PROCS(toggle_mouse)},
+{0, 120, 1, "command_lister", 14, LINK_PROCS(command_lister)},
+{0, 73, 4, "list_all_functions_all_buffers_lister", 37, LINK_PROCS(list_all_functions_all_buffers_lister)},
 {0, 69, 1, "exit_4coder", 11, LINK_PROCS(exit_4coder)},
-{0, 43, 1, "increase_face_size", 18, LINK_PROCS(increase_face_size)},
-{0, 45, 1, "decrease_face_size", 18, LINK_PROCS(decrease_face_size)},
 {0, 55315, 0, "project_fkey_command", 20, LINK_PROCS(project_fkey_command)},
 {0, 55316, 0, "project_fkey_command", 20, LINK_PROCS(project_fkey_command)},
 {0, 55317, 0, "project_fkey_command", 20, LINK_PROCS(project_fkey_command)},
@@ -584,7 +535,7 @@ static Meta_Key_Bind fcoder_binds_for_mac_default_mapid_global[45] = {
 {0, 55329, 0, "project_fkey_command", 20, LINK_PROCS(project_fkey_command)},
 {0, 55330, 0, "project_fkey_command", 20, LINK_PROCS(project_fkey_command)},
 };
-static Meta_Key_Bind fcoder_binds_for_mac_default_mapid_file[64] = {
+static Meta_Key_Bind fcoder_binds_for_mac_default_mapid_file[62] = {
 {1, 0, 0, "write_character", 15, LINK_PROCS(write_character)},
 {1, 0, 2, "write_character", 15, LINK_PROCS(write_character)},
 {0, 55308, 0, "click_set_cursor", 16, LINK_PROCS(click_set_cursor)},
@@ -608,6 +559,8 @@ static Meta_Key_Bind fcoder_binds_for_mac_default_mapid_file[64] = {
 {0, 55299, 4, "seek_whitespace_left", 20, LINK_PROCS(seek_whitespace_left)},
 {0, 55297, 4, "seek_whitespace_up_end_line", 27, LINK_PROCS(seek_whitespace_up_end_line)},
 {0, 55298, 4, "seek_whitespace_down_end_line", 29, LINK_PROCS(seek_whitespace_down_end_line)},
+{0, 55297, 2, "move_line_up", 12, LINK_PROCS(move_line_up)},
+{0, 55298, 2, "move_line_down", 14, LINK_PROCS(move_line_down)},
 {0, 55296, 4, "backspace_word", 14, LINK_PROCS(backspace_word)},
 {0, 55301, 4, "delete_word", 11, LINK_PROCS(delete_word)},
 {0, 55296, 1, "snipe_token_or_word", 19, LINK_PROCS(snipe_token_or_word)},
@@ -625,7 +578,6 @@ static Meta_Key_Bind fcoder_binds_for_mac_default_mapid_file[64] = {
 {0, 103, 4, "goto_line", 9, LINK_PROCS(goto_line)},
 {0, 71, 4, "list_all_locations_of_selection", 31, LINK_PROCS(list_all_locations_of_selection)},
 {0, 75, 4, "kill_buffer", 11, LINK_PROCS(kill_buffer)},
-{0, 108, 4, "toggle_line_wrap", 16, LINK_PROCS(toggle_line_wrap)},
 {0, 76, 4, "duplicate_line", 14, LINK_PROCS(duplicate_line)},
 {0, 109, 4, "cursor_mark_swap", 16, LINK_PROCS(cursor_mark_swap)},
 {0, 79, 4, "reopen", 6, LINK_PROCS(reopen)},
@@ -633,24 +585,21 @@ static Meta_Key_Bind fcoder_binds_for_mac_default_mapid_file[64] = {
 {0, 81, 4, "query_replace_identifier", 24, LINK_PROCS(query_replace_identifier)},
 {0, 114, 4, "reverse_search", 14, LINK_PROCS(reverse_search)},
 {0, 115, 4, "save", 4, LINK_PROCS(save)},
-{0, 115, 1, "save_to_query", 13, LINK_PROCS(save_to_query)},
 {0, 116, 4, "search_identifier", 17, LINK_PROCS(search_identifier)},
 {0, 84, 4, "list_all_locations_of_identifier", 32, LINK_PROCS(list_all_locations_of_identifier)},
 {0, 118, 4, "paste_and_indent", 16, LINK_PROCS(paste_and_indent)},
-{0, 118, 1, "toggle_virtual_whitespace", 25, LINK_PROCS(toggle_virtual_whitespace)},
 {0, 86, 4, "paste_next_and_indent", 21, LINK_PROCS(paste_next_and_indent)},
 {0, 120, 4, "cut", 3, LINK_PROCS(cut)},
 {0, 121, 4, "redo", 4, LINK_PROCS(redo)},
 {0, 122, 4, "undo", 4, LINK_PROCS(undo)},
 {0, 49, 4, "view_buffer_other_panel", 23, LINK_PROCS(view_buffer_other_panel)},
 {0, 50, 4, "swap_buffers_between_panels", 27, LINK_PROCS(swap_buffers_between_panels)},
-{0, 63, 4, "toggle_show_whitespace", 22, LINK_PROCS(toggle_show_whitespace)},
-{0, 126, 4, "clean_all_lines", 15, LINK_PROCS(clean_all_lines)},
 {0, 10, 0, "newline_or_goto_position_sticky", 31, LINK_PROCS(newline_or_goto_position_sticky)},
 {0, 10, 8, "newline_or_goto_position_same_panel_sticky", 42, LINK_PROCS(newline_or_goto_position_same_panel_sticky)},
+{0, 62, 4, "view_jump_list_with_lister", 26, LINK_PROCS(view_jump_list_with_lister)},
 {0, 32, 8, "write_character", 15, LINK_PROCS(write_character)},
 };
-static Meta_Key_Bind fcoder_binds_for_mac_default_default_code_map[32] = {
+static Meta_Key_Bind fcoder_binds_for_mac_default_default_code_map[31] = {
 {0, 55300, 4, "seek_alphanumeric_or_camel_right", 32, LINK_PROCS(seek_alphanumeric_or_camel_right)},
 {0, 55299, 4, "seek_alphanumeric_or_camel_left", 31, LINK_PROCS(seek_alphanumeric_or_camel_left)},
 {0, 10, 0, "write_and_auto_tab", 18, LINK_PROCS(write_and_auto_tab)},
@@ -682,7 +631,6 @@ static Meta_Key_Bind fcoder_binds_for_mac_default_default_code_map[32] = {
 {0, 49, 1, "open_file_in_quotes", 19, LINK_PROCS(open_file_in_quotes)},
 {0, 50, 1, "open_matching_file_cpp", 22, LINK_PROCS(open_matching_file_cpp)},
 {0, 48, 4, "write_zero_struct", 17, LINK_PROCS(write_zero_struct)},
-{0, 73, 4, "list_all_functions_current_buffer", 33, LINK_PROCS(list_all_functions_current_buffer)},
 };
 static Meta_Key_Bind fcoder_binds_for_mac_default_default_lister_ui_map[14] = {
 {1, 0, 0, "lister__write_character", 23, LINK_PROCS(lister__write_character)},
@@ -701,9 +649,9 @@ static Meta_Key_Bind fcoder_binds_for_mac_default_default_lister_ui_map[14] = {
 {0, 55314, 0, "lister__repaint", 15, LINK_PROCS(lister__repaint)},
 };
 static Meta_Sub_Map fcoder_submaps_for_mac_default[4] = {
-{"mapid_global", 12, "The following bindings apply in all situations.", 47, 0, 0, fcoder_binds_for_mac_default_mapid_global, 45},
-{"mapid_file", 10, "The following bindings apply in general text files and most apply in code files, but some are overriden by other commands specific to code files.", 145, 0, 0, fcoder_binds_for_mac_default_mapid_file, 64},
-{"default_code_map", 16, "The following commands only apply in files where the lexer (syntax highlighting) is turned on.", 94, "mapid_file", 10, fcoder_binds_for_mac_default_default_code_map, 32},
+{"mapid_global", 12, "The following bindings apply in all situations.", 47, 0, 0, fcoder_binds_for_mac_default_mapid_global, 36},
+{"mapid_file", 10, "The following bindings apply in general text files and most apply in code files, but some are overriden by other commands specific to code files.", 145, 0, 0, fcoder_binds_for_mac_default_mapid_file, 62},
+{"default_code_map", 16, "The following commands only apply in files where the lexer (syntax highlighting) is turned on.", 94, "mapid_file", 10, fcoder_binds_for_mac_default_default_code_map, 31},
 {"default_lister_ui_map", 21, "These commands apply in 'lister mode' such as when you open a file.", 67, 0, 0, fcoder_binds_for_mac_default_default_lister_ui_map, 14},
 };
 static Meta_Mapping fcoder_meta_maps[2] = {
