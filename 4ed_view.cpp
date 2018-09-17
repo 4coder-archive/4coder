@@ -99,24 +99,6 @@ view_get_cursor_xy(View *view){
     return(result);
 }
 
-#if 0
-internal f32
-view_get_scroll_y(View *view){
-    f32 v = 0;
-    if (!view->transient.ui_mode){
-        File_Edit_Positions *edit_pos = view->transient.edit_pos;
-        TentativeAssert(edit_pos != 0);
-        if (edit_pos != 0){
-            v = edit_pos->scroll.scroll_y;
-        }
-    }
-    else{
-        // TODO(allen): // TODO(allen): // TODO(allen): // TODO(allen): 
-    }
-    return(v);
-}
-#endif
-
 inline Cursor_Limits
 view_cursor_limits(View *view){
     Cursor_Limits limits = {0};

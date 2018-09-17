@@ -31,8 +31,12 @@ begin_bind_helper(void *data, int32_t size){
 
 inline void
 begin_map(Bind_Helper *helper, int32_t mapid, bool32 replace){
-    if (helper->group != 0 && helper->error == 0) helper->error = BH_ERR_MISSING_END;
-    if (!helper->error && mapid < mapid_global) ++helper->header->header.user_map_count;
+    if (helper->group != 0 && helper->error == 0){
+        helper->error = BH_ERR_MISSING_END;
+    }
+    if (!helper->error && mapid < mapid_global){
+        ++helper->header->header.user_map_count;
+    }
     
     Binding_Unit unit;
     unit.type = unit_map_begin;
@@ -54,14 +58,20 @@ restart_map(Bind_Helper *helper, int32_t mapid){
 
 inline void
 end_map(Bind_Helper *helper){
-    if (helper->group == 0 && helper->error == 0) helper->error = BH_ERR_MISSING_BEGIN;
+    if (helper->group == 0 && helper->error == 0){
+        helper->error = BH_ERR_MISSING_BEGIN;
+    }
     helper->group = 0;
 }
 
 inline void
 bind(Bind_Helper *helper, Key_Code code, uint8_t modifiers, Command_ID cmdid){
-    if (helper->group == 0 && helper->error == 0) helper->error = BH_ERR_MISSING_BEGIN;
-    if (!helper->error) ++helper->group->map_begin.bind_count;
+    if (helper->group == 0 && helper->error == 0){
+        helper->error = BH_ERR_MISSING_BEGIN;
+    }
+    if (!helper->error){
+        ++helper->group->map_begin.bind_count;
+    }
     
     Binding_Unit unit;
     unit.type = unit_binding;
@@ -74,8 +84,12 @@ bind(Bind_Helper *helper, Key_Code code, uint8_t modifiers, Command_ID cmdid){
 
 inline void
 bind(Bind_Helper *helper, Key_Code code, uint8_t modifiers, Custom_Command_Function *func){
-    if (helper->group == 0 && helper->error == 0) helper->error = BH_ERR_MISSING_BEGIN;
-    if (!helper->error) ++helper->group->map_begin.bind_count;
+    if (helper->group == 0 && helper->error == 0){
+        helper->error = BH_ERR_MISSING_BEGIN;
+    }
+    if (!helper->error){
+        ++helper->group->map_begin.bind_count;
+    }
     
     Binding_Unit unit;
     unit.type = unit_callback;
@@ -1338,27 +1352,27 @@ sort_pairs_by_key__quick(Sort_Pair_i32 *pairs, int32_t first, int32_t one_past_l
     int32_t dif = one_past_last - first;
     if (dif >= 2){
         int32_t pivot = one_past_last - 1;
-        int32_t pivot_key = pairs[pivot].key;
+        Sort_Pair_i32 pivot_pair = pairs[pivot];
         int32_t j = first;
         bool32 interleave = false;
         for (int32_t i = first; i < pivot; i += 1){
-            int32_t key = pairs[i].key;
-            if (key < pivot_key){
-                pairs[i].key = pairs[j].key;
-                pairs[j].key = key;
+            Sort_Pair_i32 pair = pairs[i];
+            if (pair.key < pivot_pair.key){
+                pairs[i] = pairs[j];
+                pairs[j] = pair;
                 j += 1;
             }
-            else if (key == pivot_key){
+            else if (pair.key == pivot_pair.key){
                 if (interleave){
-                    pairs[i].key = pairs[j].key;
-                    pairs[j].key = key;
+                    pairs[i] = pairs[j];
+                    pairs[j] = pair;
                     j += 1;
                 }
                 interleave = !interleave;
             }
         }
-        pairs[pivot].key = pairs[j].key;
-        pairs[j].key = pivot_key;
+        pairs[pivot] = pairs[j];
+        pairs[j] = pivot_pair;
         sort_pairs_by_key__quick(pairs, first, j);
         sort_pairs_by_key__quick(pairs, j + 1, one_past_last);
     }

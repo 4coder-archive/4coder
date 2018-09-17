@@ -1,6 +1,5 @@
 /*
-4coder_combined_write_commands.cpp - Commands for writing text specialized for particular
-contexts.
+4coder_combined_write_commands.cpp - Commands for writing text specialized for particular contexts.
 */
 
 // TOP
@@ -113,6 +112,91 @@ CUSTOM_COMMAND_SIG(write_zero_struct)
 CUSTOM_DOC("At the cursor, insert a ' = {0};'.")
 {
     write_string(app, make_lit_string(" = {0};"));
+}
+
+////////////////////////////////
+
+static Snippet snippets[] = {
+    // general (for Allen's style)
+    {"if",     "if (){\n\n}\n", 4, 7},
+    {"ifelse", "if (){\n\n}\nelse{\n\n}", 4, 7},
+    {"forn",   "for (;\nnode != 0;\nnode = node->next){\n\n}\n", 5, 38},
+    {"fori",   "for (i = 0; i < ; i += 1){\n\n}\n", 5, 16},
+    {"for",    "for (;;){\n\n}\n", 5, 10},
+    {"case",   "case :\n{\n\n}break;\n", 5, 9},
+    {"///",    "////////////////////////////////", 32, 32},
+    {"#guard", "#if !defined(Z)\n#define Z\n#endif\n", 0, 26},
+    {"space",  "char space[256];", 0, 14},
+    
+    {"op+",  "Z\noperator+(Z a, Z b){\n,\n}\n", 0, 23},
+    {"op-",  "Z\noperator-(Z a, Z b){\n,\n}\n", 0, 23},
+    {"op*",  "Z\noperator*(Z a, Z b){\n,\n}\n", 0, 23},
+    {"op/",  "Z\noperator/(Z a, Z b){\n,\n}\n", 0, 23},
+    {"op+=", "Z&\noperator+=(Z &a, Z b){\n,\n}\n", 0, 26},
+    {"op-=", "Z&\noperator-=(Z &a, Z b){\n,\n}\n", 0, 26},
+    {"op*=", "Z&\noperator*=(Z &a, Z b){\n,\n}\n", 0, 26},
+    {"op/=", "Z&\noperator/=(Z &a, Z b){\n,\n}\n", 0, 26},
+    
+    // for 4coder development
+    {"4command", "CUSTOM_COMMAND_SIG()\nCUSTOM_DOC()\n{\n\n}\n", 19, 32},
+    {"4app", "Application_Links *app", 22, 22},
+    
+#if defined(SNIPPET_EXPANSION)
+#include SNIPPET_EXPANSION
+#endif
+};
+
+static void
+activate_snippet(Application_Links *app, Partition *scratch, Heap *heap,
+                 View_Summary *view, struct Lister_State *state,
+                 String text_field, void *user_data, bool32 activated_by_mouse){
+    int32_t index = (int32_t)PtrAsInt(user_data);
+    Snippet_Array snippets = *(Snippet_Array*)state->lister.user_data;
+    if (0 <= index && index < snippets.count){
+        Snippet snippet = snippets.snippets[index];
+        lister_default(app, scratch, heap, view, state, ListerActivation_Finished);
+        Buffer_Summary buffer = get_buffer(app, view->buffer_id, AccessOpen);
+        int32_t pos = view->cursor.pos;
+        int32_t len = str_size(snippet.text);
+        buffer_replace_range(app, &buffer, pos, pos, snippet.text, len);
+        view_set_cursor(app, view, seek_pos(pos + snippet.cursor_offset), true);
+        view_set_mark(app, view, seek_pos(pos + snippet.mark_offset));
+    }
+    else{
+        lister_default(app, scratch, heap, view, state, ListerActivation_Finished);
+    }
+    
+}
+
+static void
+snippet_lister__parameterized(Application_Links *app, Snippet_Array snippet_array){
+    Partition *arena = &global_part;
+    
+    View_Summary view = get_active_view(app, AccessAll);
+    view_end_ui_mode(app, &view);
+    Temp_Memory temp = begin_temp_memory(arena);
+    int32_t option_count = snippet_array.count;
+    Lister_Option *options = push_array(arena, Lister_Option, option_count);
+    for (int32_t i = 0; i < snippet_array.count; i += 1){
+        options[i].string = snippet_array.snippets[i].name;
+        options[i].status = snippet_array.snippets[i].text;
+        options[i].user_data = IntAsPtr(i);
+    }
+    begin_integrated_lister__basic_list(app, "Snippet:", activate_snippet,
+                                        &snippet_array, sizeof(snippet_array),
+                                        options, option_count,
+                                        0,
+                                        &view);
+    end_temp_memory(temp);
+}
+
+CUSTOM_COMMAND_SIG(snippet_lister)
+CUSTOM_DOC("Opens a snippet lister for inserting whole pre-written snippets of text.")
+{
+    Snippet_Array snippet_array = {0};
+    snippet_array.snippets = snippets;
+    snippet_array.count = ArrayCount(snippets);
+    snippet_lister__parameterized(app, snippet_array);
 }
 
 // BOTTOM

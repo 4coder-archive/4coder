@@ -89,9 +89,9 @@ generate_keycode_enum(){
     
     append(&out, "enum{\n");
 #define DefKeyEnum(n) append(&out, "key_" #n " = "); append_int_to_str(&out, key_##n); append(&out, ",\n");
-    KEY_LIST(DefKeyEnum)
+    KEY_LIST(DefKeyEnum);
 #undef DefKeyEnum
-        append(&out, "};\n");
+    append(&out, "};\n");
     
     append(&out,
            "static char*\n"
@@ -100,13 +100,13 @@ generate_keycode_enum(){
            "switch(key_code){\n");
     
 #define KeyCase(n) append(&out, "case key_" #n ": result = \"key_" #n "\"; *size = sizeof(\"key_" #n "\")-1; break;\n");
-    KEY_LIST(KeyCase)
+    KEY_LIST(KeyCase);
 #undef KeyCase
     
-        append(&out,
-               "}\n"
-               "return(result);\n"
-               "}\n");
+    append(&out,
+           "}\n"
+           "return(result);\n"
+           "}\n");
     
     fm_write_file(filename_keycodes, out.str, out.size);
     out.size = 0;
@@ -119,18 +119,18 @@ internal void
 struct_begin(String *str, char *name){
     append(str, "struct ");
     append(str, name);
-    append(str, "{\n"); //}
+    append(str, "{\n");
 }
 
 internal void
 enum_begin(String *str, char *name){
     append(str, "enum ");
     append(str, name);
-    append(str, "{\n"); //}
+    append(str, "{\n");
 }
 
 internal void
-struct_end(String *str){ //{
+struct_end(String *str){
     append(str, "};\n\n");
 }
 
@@ -773,6 +773,7 @@ generate_remapping_code_and_data(){
         bind(mappings, 'F', MDFR_ALT , list_all_substring_locations_case_insensitive);
         bind(mappings, 'g', MDFR_CTRL, goto_line);
         bind(mappings, 'G', MDFR_CTRL, list_all_locations_of_selection);
+        bind(mappings, 'j', MDFR_CTRL, snippet_lister);
         bind(mappings, 'K', MDFR_CTRL, kill_buffer);
         bind(mappings, 'L', MDFR_CTRL, duplicate_line);
         bind(mappings, 'm', MDFR_CTRL, cursor_mark_swap);

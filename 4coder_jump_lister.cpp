@@ -4,15 +4,15 @@
 
 // TOP
 
-static Lister_Activation_Code
-activate_jump(Application_Links *app, View_Summary *view, String text_field,
-              void *user_data, bool32 activated_by_mouse){
+static void
+activate_jump(Application_Links *app, Partition *scratch, Heap *heap,
+              View_Summary *view, struct Lister_State *state,
+              String text_field, void *user_data, bool32 activated_by_mouse){
+    Lister_Activation_Code result_code = ListerActivation_Finished;
     int32_t list_index = (int32_t)PtrAsInt(user_data);
-    Lister_State *state = view_get_lister_state(view);
     Jump_Lister_Parameters *params = (Jump_Lister_Parameters*)state->lister.user_data;
     Marker_List *list = get_marker_list_for_buffer(params->list_buffer_id);
     if (list != 0){
-        Lister_Activation_Code result_code = ListerActivation_Finished;
         View_Summary target_view = {0};
         switch (params->activation_rule){
             case JumpListerActivation_OpenInUIView:
@@ -57,9 +57,8 @@ activate_jump(Application_Links *app, View_Summary *view, String text_field,
             }
         }
         
-        return(result_code);
     }
-    return(ListerActivation_Finished);
+    lister_default(app, scratch, heap, view, state, result_code);
 }
 
 static void

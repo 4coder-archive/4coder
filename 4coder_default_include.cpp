@@ -39,6 +39,7 @@
 #include "4coder_project_commands.h"
 #include "4coder_function_list.h"
 #include "4coder_scope_commands.h"
+#include "4coder_combined_write_commands.h"
 
 #include "4coder_default_framework_variables.cpp"
 #include "4coder_buffer_seek_constructors.cpp"

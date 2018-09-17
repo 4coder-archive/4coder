@@ -14,8 +14,9 @@ enum{
     ListerActivation_ContinueAndRefresh = 2,
 };
 
-typedef Lister_Activation_Code Lister_Activation_Function_Type(Application_Links *app, View_Summary *view,
-                                                               String text_field, void *user_data, bool32 activated_by_mouse);
+typedef void Lister_Activation_Function_Type(Application_Links *app, Partition *scratch, Heap *heap,
+                                             View_Summary *view, struct Lister_State *state,
+                                             String text_field, void *user_data, bool32 activated_by_mouse);
 
 typedef void Lister_Regenerate_List_Function_Type(Application_Links *app, Partition *arena, struct Lister *lister);
 

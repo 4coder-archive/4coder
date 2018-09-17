@@ -31,16 +31,44 @@ edit_fix_marks__write_workspace_marks(Dynamic_Workspace *workspace, Buffer_ID bu
          node != 0;
          node = node->next){
         if (node->buffer_id == buffer_id){
-            Marker *markers = (Marker*)(node + 1);
-            Assert(sizeof(Marker) == node->std_header.item_size);
-            i32 count = node->std_header.count;
-            for (i32 i = 0; i < count; i += 1){
-                if (markers[i].lean_right){
-                    write_cursor_with_index(r_cursors, r_cursor_count, markers[i].pos);
-                }
-                else{
-                    write_cursor_with_index(cursors  , cursor_count  , markers[i].pos);
-                }
+            Marker_Type marker_type = MarkerType_Standard;
+            
+            switch (marker_type){
+                case MarkerType_Standard:
+                {
+                    Marker *markers = (Marker*)(node + 1);
+                    Assert(sizeof(*markers) == node->std_header.item_size);
+                    i32 count = node->std_header.count;
+                    for (i32 i = 0; i < count; i += 1){
+                        if (markers[i].lean_right){
+                            write_cursor_with_index(r_cursors, r_cursor_count, markers[i].pos);
+                        }
+                        else{
+                            write_cursor_with_index(cursors  , cursor_count  , markers[i].pos);
+                        }
+                    }
+                }break;
+                
+                case MarkerType_Pair:
+                {
+                    Marker_Pair *markers = (Marker_Pair*)(node + 1);
+                    Assert(sizeof(*markers) == node->std_header.item_size);
+                    i32 count = node->std_header.count;
+                    for (i32 i = 0; i < count; i += 1){
+                        if (markers[i].lean_right1){
+                            write_cursor_with_index(r_cursors, r_cursor_count, markers[i].pos1);
+                        }
+                        else{
+                            write_cursor_with_index(cursors  , cursor_count  , markers[i].pos1);
+                        }
+                        if (markers[i].lean_right2){
+                            write_cursor_with_index(r_cursors, r_cursor_count, markers[i].pos2);
+                        }
+                        else{
+                            write_cursor_with_index(cursors  , cursor_count  , markers[i].pos2);
+                        }
+                    }
+                }break;
             }
         }
     }
@@ -53,16 +81,44 @@ edit_fix_marks__read_workspace_marks(Dynamic_Workspace *workspace, Buffer_ID buf
          node != 0;
          node = node->next){
         if (node->buffer_id == buffer_id){
-            Marker *markers = (Marker*)(node + 1);
-            Assert(sizeof(Marker) == node->std_header.item_size);
-            i32 count = node->std_header.count;
-            for (i32 i = 0; i < count; i += 1){
-                if (markers[i].lean_right){
-                    markers[i].pos = r_cursors[(*r_cursor_count)++].pos;
-                }
-                else{
-                    markers[i].pos = cursors[(*cursor_count)++].pos;
-                }
+            Marker_Type marker_type = MarkerType_Standard;
+            
+            switch (marker_type){
+                case MarkerType_Standard:
+                {
+                    Marker *markers = (Marker*)(node + 1);
+                    Assert(sizeof(*markers) == node->std_header.item_size);
+                    i32 count = node->std_header.count;
+                    for (i32 i = 0; i < count; i += 1){
+                        if (markers[i].lean_right){
+                            markers[i].pos = r_cursors[(*r_cursor_count)++].pos;
+                        }
+                        else{
+                            markers[i].pos = cursors[(*cursor_count)++].pos;
+                        }
+                    }
+                }break;
+                
+                case MarkerType_Pair:
+                {
+                    Marker_Pair *markers = (Marker_Pair*)(node + 1);
+                    Assert(sizeof(*markers) == node->std_header.item_size);
+                    i32 count = node->std_header.count;
+                    for (i32 i = 0; i < count; i += 1){
+                        if (markers[i].lean_right1){
+                            markers[i].pos1 = r_cursors[(*r_cursor_count)++].pos;
+                        }
+                        else{
+                            markers[i].pos1 = cursors[(*cursor_count)++].pos;
+                        }
+                        if (markers[i].lean_right2){
+                            markers[i].pos2 = r_cursors[(*r_cursor_count)++].pos;
+                        }
+                        else{
+                            markers[i].pos2 = cursors[(*cursor_count)++].pos;
+                        }
+                    }
+                }break;
             }
         }
     }

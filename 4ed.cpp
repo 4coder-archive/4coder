@@ -315,37 +315,6 @@ COMMAND_DECL(save){
     }
 }
 
-internal void
-case_change_range(System_Functions *system, Models *models, View *view, Editing_File *file, u8 a, u8 z, u8 char_delta){
-    Range range  = {0};
-    range.min = Min(view->transient.edit_pos->cursor.pos, view->transient.edit_pos->mark);
-    range.max = Max(view->transient.edit_pos->cursor.pos, view->transient.edit_pos->mark);
-    if (range.start < range.end){
-        Edit_Step step = {};
-        step.type = ED_NORMAL;
-        step.edit.start = range.start;
-        step.edit.end = range.end;
-        step.edit.len = range.end - range.start;
-        
-        if (file->state.still_lexing){
-            system->cancel_job(BACKGROUND_THREADS, file->state.lex_job);
-        }
-        
-        file_update_history_before_edit(&models->mem, file, step, 0, hist_normal);
-        
-        u8 *data = (u8*)file->state.buffer.data;
-        for (i32 i = range.start; i < range.end; ++i){
-            if (data[i] >= a && data[i] <= z){
-                data[i] += char_delta;
-            }
-        }
-        
-        if (file->state.token_array.tokens){
-            file_relex_parallel(system, models, file, range.start, range.end, 0);
-        }
-    }
-}
-
 COMMAND_DECL(user_callback){
     USE_MODELS(models);
     if (binding.custom != 0){

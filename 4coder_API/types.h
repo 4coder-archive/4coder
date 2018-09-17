@@ -578,7 +578,7 @@ STRUCT Buffer_Summary{
     bool32 ready;
     /* DOC(If this is not a null summary this field is the id of the associated buffer. If this is a null summary then buffer_id is 0.) */
     int32_t buffer_id;
-    /*DOC(If this is not a null summary, this field contains flags describing the protection status of the buffer.)*/
+    /* DOC(If this is not a null summary, this field contains flags describing the protection status of the buffer.) */
     Access_Flag lock_flags;
     
     /* DOC(If this is not a null summary, this field specifies the number of bytes in the buffer.) */
@@ -609,6 +609,11 @@ STRUCT Buffer_Summary{
     bool32 unwrapped_lines;
 };
 
+ENUM(int32_t, Marker_Type){
+    MarkerType_Standard = 0,
+    MarkerType_Pair = 1,
+};
+
 /*
 DOC(A markers is a location in a buffer that, once placed, is effected by edits the same way characters are effected.  In particular if an edit occurs in a location in the buffer before a marker, the marker is shifted forward or backward so that it remains on the same character.)
 DOC_SEE(buffer_add_markers)
@@ -618,6 +623,13 @@ STRUCT Marker{
     int32_t pos;
     /* DOC(When a marker is inside a range that gets edited, by default the marker 'leans_left' which means it goes to the beginning of the edited range.  If the field lean_right is set to true, the marker will lean right with edits and will go to the end of edited range.) */
     bool32 lean_right;
+};
+
+STRUCT Marker_Pair{
+    int32_t pos1;
+    bool32 lean_right1;
+    int32_t pos2;
+    bool32 lean_right2;
 };
 
 /*
@@ -868,10 +880,10 @@ TYPEDEF void Custom_Command_Function(struct Application_Links *app);
 
 /* DOC(Generic_Command acts as a name for a command, and can name an internal command or a custom command.) */
 UNION Generic_Command{
-    /*DOC(If this Generic_Command represents an internal command the cmdid field will have a value less than cmdid_count, and this field is the command id for the command.)*/
+    /* DOC(If this Generic_Command represents an internal command the cmdid field will have a value less than cmdid_count, and this field is the command id for the command.) */
     Command_ID cmdid;
-    /*DOC(If this Generic_Command does not represent an internal command the command
-    field is the pointer to the custom command..)*/
+    /* DOC(If this Generic_Command does not represent an internal command the command
+    field is the pointer to the custom command..) */
     Custom_Command_Function *command;
 };
 

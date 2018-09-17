@@ -319,12 +319,12 @@ do_render_file_view(System_Functions *system, View *view, Models *models, GUI_Sc
                         u32 pop_color = style->main.file_info_style.pop2_color;
                         f32_Rect inner = get_inner_rect(item_rect, 3);
                         draw_rectangle(target, inner, back);
-                        draw_margin(target, item_rect, inner, margin_color);
                         i32 x = (i32)inner.x0 + 3;
                         i32 y = (i32)inner.y0 + line_height/2 - 1;
                         x = ceil32(draw_string(system, target, font_id, item->option.string, x, y, text_color));
                         x += (i32)font_string_width(system, target, font_id, " ");
                         draw_string(system, target, font_id, item->option.status, x, y, pop_color);
+                        draw_margin(target, item_rect, inner, margin_color);
                     }break;
                     
                     case UIType_TextField:

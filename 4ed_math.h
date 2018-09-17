@@ -26,7 +26,7 @@ ABS(f32 x){
 #if C_MATH
 #include <math.h>
 
-inline f32
+internal f32
 MOD(f32 x, i32 m){
     f32 whole;
     f32 frac = modff(x, &whole);
@@ -34,19 +34,19 @@ MOD(f32 x, i32 m){
     return(r);
 }
 
-inline f32
+internal f32
 SQRT(f32 x){
     f32 r = sqrtf(x);
     return(r);
 }
 
-inline f32
+internal f32
 SIN(f32 x_degrees){
     f32 r = sinf(x_degrees * DEG_TO_RAD);
     return(r);
 }
 
-inline f32
+internal f32
 COS(f32 x_degrees){
     f32 r = cosf(x_degrees * DEG_TO_RAD);
     return(r);
@@ -120,7 +120,7 @@ struct Vec4{
     };
 };
 
-inline internal Vec2
+internal Vec2
 V2(f32 x, f32 y){
     Vec2 result;
     result.x = x;
@@ -128,7 +128,7 @@ V2(f32 x, f32 y){
     return result;
 }
 
-inline internal Vec3
+internal Vec3
 V3(f32 x, f32 y, f32 z){
     Vec3 result;
     result.x = x;
@@ -137,7 +137,7 @@ V3(f32 x, f32 y, f32 z){
     return result;
 }
 
-inline internal Vec4
+internal Vec4
 V4(f32 x, f32 y, f32 z, f32 w){
     Vec4 result;
     result.x = x;
@@ -147,190 +147,189 @@ V4(f32 x, f32 y, f32 z, f32 w){
     return result;
 }
 
-inline internal Vec2
+internal Vec2
 operator+(Vec2 a, Vec2 b){
     Vec2 result;
     result.x = a.x + b.x;
     result.y = a.y + b.y;
-    return result;
+    return(a + b);
 }
 
-inline internal Vec3
+internal Vec3
 operator+(Vec3 a, Vec3 b){
     Vec3 result;
     result.x = a.x + b.x;
     result.y = a.y + b.y;
     result.z = a.z + b.z;
-    return result;
+    return(a + b);
 }
 
-inline internal Vec4
+internal Vec4
 operator+(Vec4 a, Vec4 b){
     Vec4 result;
     result.x = a.x + b.x;
     result.y = a.y + b.y;
     result.z = a.z + b.z;
     result.w = a.w + b.w;
-    return result;
+    return(a + b);
 }
 
-inline internal Vec2
+internal Vec2
 operator-(Vec2 a, Vec2 b){
     Vec2 result;
     result.x = a.x - b.x;
     result.y = a.y - b.y;
-    return result;
+    return(result);
 }
 
-inline internal Vec3
+internal Vec3
 operator-(Vec3 a, Vec3 b){
     Vec3 result;
     result.x = a.x - b.x;
     result.y = a.y - b.y;
     result.z = a.z - b.z;
-    return result;
+    return(result);
 }
 
-inline internal Vec4
+internal Vec4
 operator-(Vec4 a, Vec4 b){
     Vec4 result;
     result.x = a.x - b.x;
     result.y = a.y - b.y;
     result.z = a.z - b.z;
     result.w = a.w - b.w;
-    return result;
+    return(result);
 }
 
-inline internal Vec2
+internal Vec2
 operator*(Vec2 a, f32 k){
     Vec2 result;
     result.x = a.x * k;
     result.y = a.y * k;
-    return result;
+    return(result);
 }
 
-inline internal Vec3
+internal Vec3
 operator*(Vec3 a, f32 k){
     Vec3 result;
     result.x = a.x * k;
     result.y = a.y * k;
     result.z = a.z * k;
-    return result;
+    return(result);
 }
 
-inline internal Vec4
+internal Vec4
 operator*(Vec4 a, f32 k){
     Vec4 result;
     result.x = a.x * k;
     result.y = a.y * k;
     result.z = a.z * k;
     result.w = a.w * k;
-    return result;
+    return(result);
 }
 
-inline internal Vec2
+internal Vec2
 operator*(f32 k, Vec2 a){
     Vec2 result;
     result.x = a.x * k;
     result.y = a.y * k;
-    return result;
+    return(result);
 }
 
-inline internal Vec3
+internal Vec3
 operator*(f32 k, Vec3 a){
     Vec3 result;
     result.x = a.x * k;
     result.y = a.y * k;
     result.z = a.z * k;
-    return result;
+    return(result);
 }
 
-inline internal Vec4
+internal Vec4
 operator*(f32 k, Vec4 a){
     Vec4 result;
     result.x = a.x * k;
     result.y = a.y * k;
     result.z = a.z * k;
     result.w = a.w * k;
-    return result;
-}
+    return(result);}
 
-inline internal Vec2&
+internal Vec2&
 operator+=(Vec2 &a, Vec2 b){
     a = (a + b);
     return a;
 }
 
-inline internal Vec3&
+internal Vec3&
 operator+=(Vec3 &a, Vec3 b){
     a = (a + b);
     return a;
 }
 
-inline internal Vec4&
+internal Vec4&
 operator+=(Vec4 &a, Vec4 b){
     a = (a + b);
     return a;
 }
 
-inline internal Vec2&
+internal Vec2&
 operator-=(Vec2 &a, Vec2 b){
     a = (a - b);
     return a;
 }
 
-inline internal Vec3&
+internal Vec3&
 operator-=(Vec3 &a, Vec3 b){
     a = (a - b);
     return a;
 }
 
-inline internal Vec4&
+internal Vec4&
 operator-=(Vec4 &a, Vec4 b){
     a = (a - b);
     return a;
 }
 
-inline internal Vec2&
+internal Vec2&
 operator*=(Vec2 &a, f32 k){
-    a = (a * k);
+    a = (a*k);
     return a;
 }
 
-inline internal Vec3&
+internal Vec3&
 operator*=(Vec3 &a, f32 k){
-    a = (a * k);
+    a = (a*k);
     return a;
 }
 
-inline internal Vec4&
+internal Vec4&
 operator*=(Vec4 &a, f32 k){
-    a = (a * k);
+    a = (a*k);
     return a;
 }
 
-inline internal f32
+internal f32
 dot(Vec2 a, Vec2 b){
     f32 result;
     result = a.x*b.x + a.y*b.y;
     return result;
 }
 
-inline internal f32
+internal f32
 dot(Vec3 a, Vec3 b){
     f32 result;
     result = a.x*b.x + a.y*b.y + a.z*b.z;
     return result;
 }
 
-inline internal f32
+internal f32
 dot(Vec4 a, Vec4 b){
     f32 result;
     result = a.x*b.x + a.y*b.y + a.z*b.z + a.w*b.w;
     return result;
 }
 
-inline internal Vec3
+internal Vec3
 cross(Vec3 a, Vec3 b){
     Vec3 result;
     result.x = a.y*b.z - b.y*a.z;
@@ -339,90 +338,78 @@ cross(Vec3 a, Vec3 b){
     return result;
 }
 
-inline internal Vec2
+internal Vec2
 hadamard(Vec2 a, Vec2 b){
-    Vec2 result;
-    result.x = a.x*b.x;
-    result.y = a.y*b.y;
-    return result;
+    a.x *= b.x;
+    a.y *= b.y;
+    return(a);
 }
 
-inline internal Vec3
+internal Vec3
 hadamard(Vec3 a, Vec3 b){
-    Vec3 result;
-    result.x = a.x*b.x;
-    result.y = a.y*b.y;
-    result.z = a.z*b.z;
-    return result;
+    a.x *= b.x;
+    a.y *= b.y;
+    a.z *= b.z;
+    return(a);
 }
 
-inline internal Vec4
+internal Vec4
 hadamard(Vec4 a, Vec4 b){
-    Vec4 result;
-    result.x = a.x*b.x;
-    result.y = a.y*b.y;
-    result.z = a.z*b.z;
-    result.w = a.w*b.w;
-    return result;
+    a.x *= b.x;
+    a.y *= b.y;
+    a.z *= b.z;
+    a.w *= b.w;
+    return(a);
 }
 
-inline internal Vec2
+internal Vec2
 perp(Vec2 v){
-    Vec2 result;
-    result.x = -v.y;
-    result.y = v.x;
-    return result;
+    return(V2(-v.y, v.x));
 }
 
-inline Vec2
+internal Vec2
 polar_to_cartesian(f32 theta_degrees, f32 length){
-    Vec2 result;
-    result.x = COS(theta_degrees)*length;
-    result.y = SIN(theta_degrees)*length;
-    return result;
+    return(V2(COS(theta_degrees), SIN(theta_degrees))*length);
 }
 
-inline Vec2
+internal Vec2
 rotate(Vec2 v, f32 theta_degrees){
-    Vec2 result;
-    f32 c, s;
-    c = COS(theta_degrees);
-    s = SIN(theta_degrees);
-    result.x = v.x*c - v.y*s;
-    result.y = v.x*s + v.y*c;
-    return result;
+    f32 c = COS(theta_degrees);
+    f32 s = SIN(theta_degrees);
+    return(V2(v.x*c - v.y*s,
+              v.x*s + v.y*c));
 }
 
 /*
- * Lerps, Clamps, Thresholds, Etc
+*Lerps, Clamps, Thresholds, Etc
  */
 
-inline f32
+internal f32
 lerp(f32 a, f32 t, f32 b){
     return(a + (b-a)*t);
 }
 
-inline i32
+internal i32
 lerp(i32 a, f32 t, i32 b){
-    return ((i32)(lerp((f32)a, t, (f32)b)));
+    return((i32)(lerp((f32)a, t, (f32)b)));
 }
 
-inline Vec2
+internal Vec2
 lerp(Vec2 a, f32 t, Vec2 b){
     return(a + (b-a)*t);
 }
 
-inline Vec3
+internal Vec3
 lerp(Vec3 a, f32 t, Vec3 b){
     return(a + (b-a)*t);
 }
 
-inline Vec4
+internal Vec4
 lerp(Vec4 a, f32 t, Vec4 b){
     return(a + (b-a)*t);
 }
 
-inline f32
+internal f32
 unlerp(f32 a, f32 x, f32 b){
     f32 r = x;
     if (b > a){
@@ -431,36 +418,48 @@ unlerp(f32 a, f32 x, f32 b){
     return(r);
 }
 
-inline f32
+internal f32
 clamp(f32 a, f32 n, f32 z){
-    if (n < a) n = a;
-    else if (n  > z) n = z;
-    return (n);
+    if (n < a){
+        n = a;
+    }
+    else if (n  > z){
+        n = z;
+    }
+    return(n);
 }
 
-inline i32
+internal i32
 clamp(i32 a, i32 n, i32 z){
-    if (n < a) n = a;
-    else if (n  > z) n = z;
-    return (n);
+    if (n < a){
+        n = a;
+    }
+    else if (n  > z){
+        n = z;
+    }
+    return(n);
 }
 
-inline u32
+internal u32
 clamp(u32 a, u32 n, u32 z){
-    if (n < a) n = a;
-    else if (n  > z) n = z;
-    return (n);
+    if (n < a){
+        n = a;
+    }
+    else if (n  > z){
+        n = z;
+    }
+    return(n);
 }
 
 #define clamp_top(a,b) Min(a,b)
 #define clamp_bottom(a,b) Max(a,b)
 
 /*
- * Color
+*Color
  */
 
 // TODO(allen): Convert colors to Vec4
-inline u32
+internal u32
 color_blend(u32 a, f32 t, u32 b){
     union{
         u8 byte[4];
@@ -478,7 +477,7 @@ color_blend(u32 a, f32 t, u32 b){
     return R.comp;
 }
 
-inline Vec3
+internal Vec3
 unpack_color3(u32 color){
     Vec3 result;
     result.r = ((color >> 16) & 0xFF) / 255.f;
@@ -487,7 +486,7 @@ unpack_color3(u32 color){
     return result;
 }
 
-inline Vec4
+internal Vec4
 unpack_color4(u32 color){
     Vec4 result;
     result.a = ((color >> 24) & 0xFF) / 255.f;
@@ -497,13 +496,13 @@ unpack_color4(u32 color){
     return result;
 }
 
-inline u32
+internal u32
 pack_color4(Vec4 color){
     u32 result =
-        ((u8)(color.a * 255) << 24) |
-        ((u8)(color.r * 255) << 16) |
-        ((u8)(color.g * 255) << 8) |
-        ((u8)(color.b * 255) << 0);
+        ((u8)(color.a*255) << 24) |
+        ((u8)(color.r*255) << 16) |
+        ((u8)(color.g*255) << 8) |
+        ((u8)(color.b*255) << 0);
     return result;
 }
 
@@ -531,7 +530,7 @@ rgba_to_hsla(Vec4 rgba){
     }
     delta = max - min;
     
-    hsla.z = (max + min) * .5f;
+    hsla.z = (max + min)*.5f;
     if (delta == 0){
         hsla.x = 0.f;
         hsla.y = 0.f;
@@ -541,7 +540,7 @@ rgba_to_hsla(Vec4 rgba){
             case 0:
             {
                 hsla.x = (rgba.g - rgba.b) / delta;
-                hsla.x += (rgba.g < rgba.b) * 6.f;
+                hsla.x += (rgba.g < rgba.b)*6.f;
             }break;
             
             case 1:
@@ -556,7 +555,7 @@ rgba_to_hsla(Vec4 rgba){
                 hsla.x += 4.f;
             }break;
         }
-        hsla.x *= (1/6.f); // * 60 / 360
+        hsla.x *= (1/6.f); //*60 / 360
         hsla.y = delta / (1.f - ABS(2.f*hsla.z - 1.f));
     }
     
@@ -567,10 +566,10 @@ internal Vec4
 hsla_to_rgba(Vec4 hsla){
     if (hsla.h >= 1.f) hsla.h = 0.f;
     Vec4 rgba = {0};
-    f32 C = (1.f - ABS(2*hsla.z - 1.f)) * hsla.y;
-    f32 X = C * (1.f-ABS(MOD(hsla.x*6.f, 2)-1.f));
+    f32 C = (1.f - ABS(2*hsla.z - 1.f))*hsla.y;
+    f32 X = C*(1.f-ABS(MOD(hsla.x*6.f, 2)-1.f));
     f32 m = hsla.z - C*.5f;
-    i32 H = floor32(hsla.x * 6.f);
+    i32 H = floor32(hsla.x*6.f);
     rgba.a = hsla.a;
     switch (H){
         case 0: rgba.r = C; rgba.g = X; rgba.b = 0; break;
@@ -590,7 +589,7 @@ hsla_to_rgba(Vec4 hsla){
 // Rectangle Operations
 //
 
-inline i32_Rect
+internal i32_Rect
 i32R(int32_t l, int32_t t, int32_t r, int32_t b){
     i32_Rect rect;
     rect.x0 = l; rect.y0 = t;
@@ -598,7 +597,7 @@ i32R(int32_t l, int32_t t, int32_t r, int32_t b){
     return(rect);
 }
 
-inline i32_Rect
+internal i32_Rect
 i32R(f32_Rect r){
     i32_Rect rect;
     rect.x0 = (int32_t)r.x0;
@@ -608,7 +607,7 @@ i32R(f32_Rect r){
     return(rect);
 }
 
-inline f32_Rect
+internal f32_Rect
 f32R(float l, float t, float r, float b){
     f32_Rect rect;
     rect.x0 = l; rect.y0 = t;
@@ -616,7 +615,7 @@ f32R(float l, float t, float r, float b){
     return(rect);
 }
 
-inline f32_Rect
+internal f32_Rect
 f32R(i32_Rect r){
     f32_Rect rect;
     rect.x0 = (float)r.x0;
@@ -626,23 +625,23 @@ f32R(i32_Rect r){
     return(rect);
 }
 
-inline int32_t
+internal int32_t
 rect_equal(i32_Rect r1, i32_Rect r2){
     int32_t result = (r1.x0 == r2.x0 && r1.y0 == r2.y0 && r1.x1 == r2.x1 && r1.y1 == r2.y1);
     return(result);
 }
 
-inline int32_t
+internal int32_t
 hit_check(int32_t x, int32_t y, int32_t x0, int32_t y0, int32_t x1, int32_t y1){
     return(x >= x0 && x < x1 && y >= y0 && y < y1);
 }
 
-inline int32_t
+internal int32_t
 hit_check(int32_t x, int32_t y, i32_Rect rect){
     return(hit_check(x, y, rect.x0, rect.y0, rect.x1, rect.y1));
 }
 
-inline i32_Rect
+internal i32_Rect
 get_inner_rect(i32_Rect outer, i32 margin){
     i32_Rect r;
     r.x0 = outer.x0 + margin;
@@ -652,7 +651,7 @@ get_inner_rect(i32_Rect outer, i32 margin){
     return(r);
 }
 
-inline f32_Rect
+internal f32_Rect
 get_inner_rect(f32_Rect outer, f32 margin){
     f32_Rect r;
     r.x0 = outer.x0 + margin;
@@ -662,7 +661,7 @@ get_inner_rect(f32_Rect outer, f32 margin){
     return(r);
 }
 
-inline int32_t
+internal int32_t
 fits_inside(i32_Rect rect, i32_Rect outer){
     return(rect.x0 >= outer.x0 && rect.x1 <= outer.x1 && rect.y0 >= outer.y0 && rect.y1 <= outer.y1);
 }

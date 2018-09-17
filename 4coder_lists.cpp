@@ -624,11 +624,11 @@ enum{
     SureToKill_Save = 3,
 };
 
-static Lister_Activation_Code
-activate_confirm_kill(Application_Links *app, View_Summary *view, String text_field,
-                      void *user_data, bool32 clicked){
+static void
+activate_confirm_kill(Application_Links *app, Partition *scratch, Heap *heap,
+                      View_Summary *view, Lister_State *state,
+                      String text_field, void *user_data, bool32 clicked){
     int32_t behavior = (int32_t)PtrAsInt(user_data);
-    Lister_State *state = view_get_lister_state(view);
     Buffer_ID buffer_id = *(Buffer_ID*)(state->lister.user_data);
     switch (behavior){
         case SureToKill_No:
@@ -655,7 +655,7 @@ activate_confirm_kill(Application_Links *app, View_Summary *view, String text_fi
             }
         }break;
     }
-    return(ListerActivation_Finished);
+    lister_default(app, scratch, heap, view, state, ListerActivation_Finished);
 }
 
 static void
@@ -673,9 +673,10 @@ do_gui_sure_to_kill(Application_Links *app, Buffer_Summary *buffer, View_Summary
                                                 view);
 }
 
-static Lister_Activation_Code
-activate_confirm_close_4coder(Application_Links *app, View_Summary *view, String text_field,
-                              void *user_data, bool32 clicked){
+static void
+activate_confirm_close_4coder(Application_Links *app, Partition *scratch, Heap *heap,
+                              View_Summary *view, Lister_State *state,
+                              String text_field, void *user_data, bool32 clicked){
     int32_t behavior = (int32_t)PtrAsInt(user_data);
     switch (behavior){
         case SureToKill_No:
@@ -694,7 +695,7 @@ activate_confirm_close_4coder(Application_Links *app, View_Summary *view, String
             send_exit_signal(app);
         }break;
     }
-    return(ListerActivation_Finished);
+    lister_default(app, scratch, heap, view, state, ListerActivation_Finished);
 }
 
 static void
@@ -715,14 +716,15 @@ do_gui_sure_to_close_4coder(Application_Links *app, View_Summary *view){
 
 ////////////////////////////////
 
-static Lister_Activation_Code
-activate_switch_buffer(Application_Links *app, View_Summary *view, String text_field,
-                       void *user_data, bool32 activated_by_mouse){
+static void
+activate_switch_buffer(Application_Links *app, Partition *scratch, Heap *heap,
+                       View_Summary *view, Lister_State *state,
+                       String text_field, void *user_data, bool32 activated_by_mouse){
     if (user_data != 0){
         Buffer_ID buffer_id = (Buffer_ID)(PtrAsInt(user_data));
         view_set_buffer(app, view, buffer_id, SetBuffer_KeepOriginalGUI);
     }
-    return(ListerActivation_Finished);
+    lister_default(app, scratch, heap, view, state, ListerActivation_Finished);
 }
 
 CUSTOM_COMMAND_SIG(interactive_switch_buffer)
@@ -733,14 +735,15 @@ CUSTOM_DOC("Interactively switch to an open buffer.")
     begin_integrated_lister__buffer_list(app, "Switch:", activate_switch_buffer, 0, 0, &view);
 }
 
-static Lister_Activation_Code
-activate_kill_buffer(Application_Links *app, View_Summary *view, String text_field,
-                     void *user_data, bool32 activated_by_mouse){
+static void
+activate_kill_buffer(Application_Links *app, Partition *scratch, Heap *heap,
+                     View_Summary *view, struct Lister_State *state,
+                     String text_field, void *user_data, bool32 activated_by_mouse){
     if (user_data != 0){
         Buffer_ID buffer_id = (Buffer_ID)(PtrAsInt(user_data));
         kill_buffer(app, buffer_identifier(buffer_id), view->view_id, 0);
     }
-    return(ListerActivation_Finished);
+    lister_default(app, scratch, heap, view, state, ListerActivation_Finished);
 }
 
 CUSTOM_COMMAND_SIG(interactive_kill_buffer)
@@ -790,9 +793,10 @@ activate_open_or_new__generic(Application_Links *app, View_Summary *view,
     return(result);
 }
 
-static Lister_Activation_Code
-activate_open_or_new(Application_Links *app, View_Summary *view, String text_field,
-                     void *user_data, bool32 clicked){
+static void
+activate_open_or_new(Application_Links *app, Partition *scratch, Heap *heap,
+                     View_Summary *view, struct Lister_State *state,
+                     String text_field, void *user_data, bool32 clicked){
     Lister_Activation_Code result = 0;
     String file_name = {0};
     if (user_data == 0){
@@ -809,7 +813,7 @@ activate_open_or_new(Application_Links *app, View_Summary *view, String text_fie
         Buffer_Create_Flag flags = 0;
         result = activate_open_or_new__generic(app, view, file_name, is_folder, flags);
     }
-    return(result);
+    lister_default(app, scratch, heap, view, state, result);
 }
 
 CUSTOM_COMMAND_SIG(interactive_open_or_new)
@@ -820,9 +824,10 @@ CUSTOM_DOC("Interactively open a file out of the file system.")
     begin_integrated_lister__file_system_list(app, "Open:", activate_open_or_new, 0, 0, &view);
 }
 
-static Lister_Activation_Code
-activate_new(Application_Links *app, View_Summary *view, String text_field,
-             void *user_data, bool32 clicked){
+static void
+activate_new(Application_Links *app, Partition *scratch, Heap *heap,
+             View_Summary *view, struct Lister_State *state,
+             String text_field, void *user_data, bool32 clicked){
     Lister_Activation_Code result = 0;
     String file_name = front_of_directory(text_field);
     if (user_data != 0){
@@ -842,7 +847,7 @@ activate_new(Application_Links *app, View_Summary *view, String text_field,
         Buffer_Create_Flag flags = BufferCreate_AlwaysNew;
         result = activate_open_or_new__generic(app, view, file_name, is_folder, flags);
     }
-    return(result);
+    lister_default(app, scratch, heap, view, state, result);
 }
 
 CUSTOM_COMMAND_SIG(interactive_new)
@@ -853,9 +858,10 @@ CUSTOM_DOC("Interactively creates a new file.")
     begin_integrated_lister__file_system_list(app, "New:", activate_new, 0, 0, &view);
 }
 
-static Lister_Activation_Code
-activate_open(Application_Links *app, View_Summary *view, String text_field,
-              void *user_data, bool32 clicked){
+static void
+activate_open(Application_Links *app, Partition *scratch, Heap *heap,
+              View_Summary *view, struct Lister_State *state,
+              String text_field, void *user_data, bool32 clicked){
     Lister_Activation_Code result = 0;
     String file_name = {0};
     if (user_data != 0){
@@ -869,7 +875,7 @@ activate_open(Application_Links *app, View_Summary *view, String text_field,
         Buffer_Create_Flag flags = BufferCreate_NeverNew;
         result = activate_open_or_new__generic(app, view, file_name, is_folder, flags);
     }
-    return(result);
+    lister_default(app, scratch, heap, view, state, result);
 }
 
 CUSTOM_COMMAND_SIG(interactive_open)
@@ -880,12 +886,12 @@ CUSTOM_DOC("Interactively opens a file.")
     begin_integrated_lister__file_system_list(app, "Open:", activate_open, 0, 0, &view);
 }
 
-static Lister_Activation_Code
-activate_select_theme(Application_Links *app, View_Summary *view, String text_field,
-                      void *user_data, bool32 clicked){
-    Lister_Activation_Code result = ListerActivation_Finished;
+static void
+activate_select_theme(Application_Links *app, Partition *scratch, Heap *heap,
+                      View_Summary *view, struct Lister_State *state,
+                      String text_field, void *user_data, bool32 clicked){
     change_theme_by_index(app, (int32_t)PtrAsInt(user_data));
-    return(result);
+    lister_default(app, scratch, heap, view, state, ListerActivation_Finished);
 }
 
 CUSTOM_COMMAND_SIG(open_color_tweaker)
@@ -915,15 +921,15 @@ CUSTOM_DOC("Opens the 4coder theme selector list.")
 
 ////////////////////////////////
 
-static Lister_Activation_Code
-activate_command(Application_Links *app, View_Summary *view, String text_field,
-                 void *user_data, bool32 activated_by_mouse){
+static void
+activate_command(Application_Links *app, Partition *scratch, Heap *heap,
+                 View_Summary *view, Lister_State *state,
+                 String text_field, void *user_data, bool32 activated_by_mouse){
+    lister_default(app, scratch, heap, view, state, ListerActivation_Finished);
     if (user_data != 0){
         Custom_Command_Function *command = (Custom_Command_Function*)user_data;
-        view_end_ui_mode(app, view);
         command(app);
     }
-    return(ListerActivation_Finished);
 }
 
 CUSTOM_COMMAND_SIG(command_lister)

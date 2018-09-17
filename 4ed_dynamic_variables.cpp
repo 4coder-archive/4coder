@@ -377,7 +377,8 @@ lifetime__free_key(Heap *heap, Lifetime_Allocator *lifetime_allocator,
         
         Assert(delete_point_node != 0);
         Lifetime_Key_Ref_Node *last_node = object->key_node_last;
-        Lifetime_Key *last_key = last_node->keys[object->key_count % lifetime_key_reference_per_node];
+        Lifetime_Key *last_key = last_node->keys[(object->key_count - 1) % ArrayCount(last_node->keys)];
+        Assert(last_key != 0);
         delete_point_node->keys[delete_point_i] = last_key;
         object->key_count -= 1;
         

@@ -24,7 +24,7 @@ struct Sticky_Jump_Stored{
 };
 
 struct Sticky_Jump_Array{
-    struct Sticky_Jump *jumps;
+    Sticky_Jump *jumps;
     int32_t count;
 };
 

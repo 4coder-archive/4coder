@@ -1012,6 +1012,18 @@ exec_project_command(Application_Links *app, Project_Command *command){
 }
 
 static void
+exec_project_command_by_index(Application_Links *app, int32_t command_index){
+    if (!current_project.loaded){
+        return;
+    }
+    if (command_index < 0 || command_index >= current_project.command_array.count){
+        return;
+    }
+    Project_Command *command = &current_project.command_array.commands[command_index];
+    exec_project_command(app, command);
+}
+
+static void
 exec_project_fkey_command(Application_Links *app, int32_t fkey_index){
     if (!current_project.loaded){
         return;
@@ -1020,8 +1032,8 @@ exec_project_fkey_command(Application_Links *app, int32_t fkey_index){
     if (command_index < 0 || command_index >= current_project.command_array.count){
         return;
     }
-    Project_Command *fkey = &current_project.command_array.commands[command_index];
-    exec_project_command(app, fkey);
+    Project_Command *command = &current_project.command_array.commands[command_index];
+    exec_project_command(app, command);
 }
 
 static void
@@ -1501,6 +1513,45 @@ CUSTOM_COMMAND_SIG(setup_build_bat_and_sh)
 CUSTOM_DOC("Queries the user for several configuration options and initializes a new build batch script.")
 {
     project_setup_scripts__generic(app, &global_part, false, true, true);
+}
+
+///////////////////////////////
+
+static void
+activate_project_command(Application_Links *app, Partition *scratch, Heap *heap,
+                         View_Summary *view, Lister_State *state,
+                         String text_field, void *user_data, bool32 activated_by_mouse){
+    int32_t command_index = (int32_t)PtrAsInt(user_data);
+    exec_project_command_by_index(app, command_index);
+    lister_default(app, scratch, heap, view, state, ListerActivation_Finished);
+}
+
+CUSTOM_COMMAND_SIG(project_command_lister)
+CUSTOM_DOC("Open a lister of all commands in the currently loaded project.")
+{
+    if (!current_project.loaded){
+        return;
+    }
+    
+    Partition *arena = &global_part;
+    
+    View_Summary view = get_active_view(app, AccessAll);
+    view_end_ui_mode(app, &view);
+    Temp_Memory temp = begin_temp_memory(arena);
+    int32_t option_count = current_project.command_array.count;
+    Lister_Option *options = push_array(arena, Lister_Option, option_count);
+    for (int32_t i = 0; i < current_project.command_array.count; i += 1){
+        String string = push_string_copy(arena, current_project.command_array.commands[i].name);
+        String status = push_string_copy(arena, current_project.command_array.commands[i].cmd);
+        options[i].string = string.str;
+        options[i].status = status.str;
+        options[i].user_data = IntAsPtr(i);
+    }
+    begin_integrated_lister__basic_list(app, "Command:", activate_project_command, 0, 0,
+                                        options, option_count,
+                                        0,
+                                        &view);
+    end_temp_memory(temp);
 }
 
 // BOTTOM

@@ -3,34 +3,16 @@
 {
     Features
     {
-        [] fix the thing with thing in the lister thing with lister command things.
-        [] Cool Listers
-        {
-            [x] Command Lister
-            [x] Convert Jump List to Lister
-            [x] Function Lister
-            {
-                [x] Automatically Make Lister for Function List
-                [x] Make List For All Buffers
-            }
-            [] Snippet Lister
-            [] Turbo-Word-Complete Lister
-            [] Project Command Lister
-            [] Project FKey Remapper
-            [] Project Mode Lister
-        }
-        [] Clip-Box inside UI rects (or at least stop the string before it overflows.)
-        [] Automatically insert a space after the main name
-        [] Color Pallette Expansion For Keywords
-        [] Color Pallette Expansion For Paren/Brace Matching
         [] Visible Markers
         {
             [] Line Highlight
             [] Cursor Block
+            [] Cursor Bar
             [] Wire Cursor Block
-            [] Cursor Line
             [] Highlight Range
         }
+        [] Color Pallette Expansion For Keywords
+        [] Color Pallette Expansion For Paren/Brace Matching
         [] Reload all out of sync files
         [] Doubly Linked List Node Managed Object
     }
@@ -56,6 +38,9 @@ Long Term
 {
     Features
     {
+        [] Project FKey Remapper
+        [] Project Mode Lister
+        [] Turbo-Word-Complete Lister
         [] Renderer Modularity
         [] Software Renderer
         [] Undo Upgrade
@@ -81,7 +66,14 @@ Change Log
         [x] Separate distinct buffer groups by newline
         [x] If no results put message explaining that fact (search buffer)
         [x] Quit UI events
-        [x] Exact Matches Sort to Top Always ALWAYS ALWAYS ALWAYS
+        [x] Exact Matches Sort to Top Always ALWAYS ALWAYS ALWAYS[x] Cool Listers
+        {
+            [x] Command Lister
+            [x] Convert Jump List to Lister
+            [x] Function Lister
+            [x] Snippet Lister
+            [x] Project Command Lister
+        }
     }
 }
 

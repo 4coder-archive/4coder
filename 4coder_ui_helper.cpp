@@ -272,15 +272,21 @@ lister_update_ui(Application_Links *app, Partition *scratch, View_Summary *view,
     before_extension_matches.node_ptrs = push_array(scratch, Lister_Node*, node_count);
     Lister_Node_Ptr_Array substring_matches = {0};
     substring_matches.node_ptrs = push_array(scratch, Lister_Node*, node_count);
+    
+    Absolutes absolutes = {0};
+    get_absolutes(state->lister.key_string, &absolutes, true, true);
+    
     for (Lister_Node *node = state->lister.options.first;
          node != 0;
          node = node->next){
         if (state->lister.key_string.size == 0 ||
-            has_substr(node->string, state->lister.key_string)){
+            wildcard_match_s(&absolutes, node->string, false)){
+            bool32 has_wildcard = (absolutes.count > 2);
             if (match_insensitive(node->string, state->lister.key_string) && exact_matches.count == 0){
                 exact_matches.node_ptrs[exact_matches.count++] = node;
             }
-            else if (match_part_insensitive(node->string, state->lister.key_string) &&
+            else if (!has_wildcard &&
+                     match_part_insensitive(node->string, state->lister.key_string) &&
                      node->string.size > state->lister.key_string.size &&
                      node->string.str[state->lister.key_string.size] == '.'){
                 before_extension_matches.node_ptrs[before_extension_matches.count++] = node;
@@ -516,14 +522,9 @@ lister_call_refresh_handler(Application_Links *app, Partition *arena, Lister *li
 }
 
 static void
-lister_call_activate_handler(Application_Links *app, Partition *scratch, Heap *heap,
-                             View_Summary *view, Lister_State *state,
-                             void *user_data, bool32 activated_by_mouse){
-    Lister *lister = &state->lister;
-    Lister_Activation_Code code = ListerActivation_Finished;
-    if (lister->handlers.activate != 0){
-        code = lister->handlers.activate(app, view, lister->text_field, user_data, activated_by_mouse);
-    }
+lister_default(Application_Links *app, Partition *scratch, Heap *heap,
+               View_Summary *view, Lister_State *state,
+               Lister_Activation_Code code){
     switch (code){
         case ListerActivation_Finished:
         {
@@ -544,9 +545,23 @@ lister_call_activate_handler(Application_Links *app, Partition *scratch, Heap *h
         {
             view_start_ui_mode(app, view);
             state->item_index = 0;
-            lister_call_refresh_handler(app, &state->arena, lister);
+            lister_call_refresh_handler(app, &state->arena, &state->lister);
             lister_update_ui(app, scratch, view, state);
         }break;
+    }
+}
+
+static void
+lister_call_activate_handler(Application_Links *app, Partition *scratch, Heap *heap,
+                             View_Summary *view, Lister_State *state,
+                             void *user_data, bool32 activated_by_mouse){
+    Lister *lister = &state->lister;
+    if (lister->handlers.activate != 0){
+        lister->handlers.activate(app, scratch, heap, view, state,
+                                  lister->text_field, user_data, activated_by_mouse);
+    }
+    else{
+        lister_default(app, scratch, heap, view, state, ListerActivation_Finished);
     }
 }
 

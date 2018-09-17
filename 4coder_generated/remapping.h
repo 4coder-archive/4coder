@@ -19,7 +19,7 @@ bind(context, 'm', MDFR_ALT, build_in_build_panel);
 bind(context, 'z', MDFR_ALT, execute_any_cli);
 bind(context, 'Z', MDFR_ALT, execute_previous_cli);
 bind(context, 'x', MDFR_ALT, command_lister);
-bind(context, 'I', MDFR_CTRL, list_all_functions_all_buffers_lister);
+bind(context, 'I', MDFR_CTRL, list_all_functions_current_buffer_lister);
 bind(context, 'E', MDFR_ALT, exit_4coder);
 bind(context, key_f1, MDFR_NONE, project_fkey_command);
 bind(context, key_f2, MDFR_NONE, project_fkey_command);
@@ -79,6 +79,7 @@ bind(context, 'F', MDFR_CTRL, list_all_locations);
 bind(context, 'F', MDFR_ALT, list_all_substring_locations_case_insensitive);
 bind(context, 'g', MDFR_CTRL, goto_line);
 bind(context, 'G', MDFR_CTRL, list_all_locations_of_selection);
+bind(context, 'j', MDFR_CTRL, snippet_lister);
 bind(context, 'K', MDFR_CTRL, kill_buffer);
 bind(context, 'L', MDFR_CTRL, duplicate_line);
 bind(context, 'm', MDFR_CTRL, cursor_mark_swap);
@@ -173,7 +174,7 @@ bind(context, 'm', MDFR_CTRL, build_in_build_panel);
 bind(context, 'z', MDFR_CTRL, execute_any_cli);
 bind(context, 'Z', MDFR_CTRL, execute_previous_cli);
 bind(context, 'x', MDFR_CTRL, command_lister);
-bind(context, 'I', MDFR_CMND, list_all_functions_all_buffers_lister);
+bind(context, 'I', MDFR_CMND, list_all_functions_current_buffer_lister);
 bind(context, 'E', MDFR_CTRL, exit_4coder);
 bind(context, key_f1, MDFR_NONE, project_fkey_command);
 bind(context, key_f2, MDFR_NONE, project_fkey_command);
@@ -359,7 +360,7 @@ static Meta_Key_Bind fcoder_binds_for_default_mapid_global[36] = {
 {0, 122, 2, "execute_any_cli", 15, LINK_PROCS(execute_any_cli)},
 {0, 90, 2, "execute_previous_cli", 20, LINK_PROCS(execute_previous_cli)},
 {0, 120, 2, "command_lister", 14, LINK_PROCS(command_lister)},
-{0, 73, 1, "list_all_functions_all_buffers_lister", 37, LINK_PROCS(list_all_functions_all_buffers_lister)},
+{0, 73, 1, "list_all_functions_current_buffer_lister", 40, LINK_PROCS(list_all_functions_current_buffer_lister)},
 {0, 69, 2, "exit_4coder", 11, LINK_PROCS(exit_4coder)},
 {0, 55315, 0, "project_fkey_command", 20, LINK_PROCS(project_fkey_command)},
 {0, 55316, 0, "project_fkey_command", 20, LINK_PROCS(project_fkey_command)},
@@ -378,7 +379,7 @@ static Meta_Key_Bind fcoder_binds_for_default_mapid_global[36] = {
 {0, 55329, 0, "project_fkey_command", 20, LINK_PROCS(project_fkey_command)},
 {0, 55330, 0, "project_fkey_command", 20, LINK_PROCS(project_fkey_command)},
 };
-static Meta_Key_Bind fcoder_binds_for_default_mapid_file[62] = {
+static Meta_Key_Bind fcoder_binds_for_default_mapid_file[63] = {
 {1, 0, 0, "write_character", 15, LINK_PROCS(write_character)},
 {0, 55308, 0, "click_set_cursor", 16, LINK_PROCS(click_set_cursor)},
 {0, 55310, 0, "click_set_mark", 14, LINK_PROCS(click_set_mark)},
@@ -419,6 +420,7 @@ static Meta_Key_Bind fcoder_binds_for_default_mapid_file[62] = {
 {0, 70, 2, "list_all_substring_locations_case_insensitive", 45, LINK_PROCS(list_all_substring_locations_case_insensitive)},
 {0, 103, 1, "goto_line", 9, LINK_PROCS(goto_line)},
 {0, 71, 1, "list_all_locations_of_selection", 31, LINK_PROCS(list_all_locations_of_selection)},
+{0, 106, 1, "snippet_lister", 14, LINK_PROCS(snippet_lister)},
 {0, 75, 1, "kill_buffer", 11, LINK_PROCS(kill_buffer)},
 {0, 76, 1, "duplicate_line", 14, LINK_PROCS(duplicate_line)},
 {0, 109, 1, "cursor_mark_swap", 16, LINK_PROCS(cursor_mark_swap)},
@@ -493,7 +495,7 @@ static Meta_Key_Bind fcoder_binds_for_default_default_lister_ui_map[14] = {
 };
 static Meta_Sub_Map fcoder_submaps_for_default[4] = {
 {"mapid_global", 12, "The following bindings apply in all situations.", 47, 0, 0, fcoder_binds_for_default_mapid_global, 36},
-{"mapid_file", 10, "The following bindings apply in general text files and most apply in code files, but some are overriden by other commands specific to code files.", 145, 0, 0, fcoder_binds_for_default_mapid_file, 62},
+{"mapid_file", 10, "The following bindings apply in general text files and most apply in code files, but some are overriden by other commands specific to code files.", 145, 0, 0, fcoder_binds_for_default_mapid_file, 63},
 {"default_code_map", 16, "The following commands only apply in files where the lexer (syntax highlighting) is turned on.", 94, "mapid_file", 10, fcoder_binds_for_default_default_code_map, 31},
 {"default_lister_ui_map", 21, "These commands apply in 'lister mode' such as when you open a file.", 67, 0, 0, fcoder_binds_for_default_default_lister_ui_map, 14},
 };
@@ -516,7 +518,7 @@ static Meta_Key_Bind fcoder_binds_for_mac_default_mapid_global[36] = {
 {0, 122, 1, "execute_any_cli", 15, LINK_PROCS(execute_any_cli)},
 {0, 90, 1, "execute_previous_cli", 20, LINK_PROCS(execute_previous_cli)},
 {0, 120, 1, "command_lister", 14, LINK_PROCS(command_lister)},
-{0, 73, 4, "list_all_functions_all_buffers_lister", 37, LINK_PROCS(list_all_functions_all_buffers_lister)},
+{0, 73, 4, "list_all_functions_current_buffer_lister", 40, LINK_PROCS(list_all_functions_current_buffer_lister)},
 {0, 69, 1, "exit_4coder", 11, LINK_PROCS(exit_4coder)},
 {0, 55315, 0, "project_fkey_command", 20, LINK_PROCS(project_fkey_command)},
 {0, 55316, 0, "project_fkey_command", 20, LINK_PROCS(project_fkey_command)},
