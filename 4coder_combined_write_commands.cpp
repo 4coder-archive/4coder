@@ -116,7 +116,7 @@ CUSTOM_DOC("At the cursor, insert a ' = {0};'.")
 
 ////////////////////////////////
 
-static Snippet snippets[] = {
+static Snippet default_snippets[] = {
     // general (for Allen's style)
     {"if",     "if (){\n\n}\n", 4, 7},
     {"ifelse", "if (){\n\n}\nelse{\n\n}", 4, 7},
@@ -194,8 +194,8 @@ CUSTOM_COMMAND_SIG(snippet_lister)
 CUSTOM_DOC("Opens a snippet lister for inserting whole pre-written snippets of text.")
 {
     Snippet_Array snippet_array = {0};
-    snippet_array.snippets = snippets;
-    snippet_array.count = ArrayCount(snippets);
+    snippet_array.snippets = default_snippets;
+    snippet_array.count = ArrayCount(default_snippets);
     snippet_lister__parameterized(app, snippet_array);
 }
 
