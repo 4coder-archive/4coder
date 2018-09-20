@@ -230,21 +230,26 @@ static bool32
 get_stored_jump_from_list(Application_Links *app, Marker_List *list, int32_t index,
                           Sticky_Jump_Stored *stored_out){
     Sticky_Jump_Stored stored = {0};
-    if (managed_object_load_data(app, list->jump_array, index, 1, &stored)){
-        *stored_out = stored;
-        return(true);
+    if (list != 0){
+        if (managed_object_load_data(app, list->jump_array, index, 1, &stored)){
+            *stored_out = stored;
+            return(true);
+        }
     }
     return(false);
 }
 
 static Sticky_Jump_Stored*
 get_all_stored_jumps_from_list(Application_Links *app, Partition *arena, Marker_List *list){
-    Temp_Memory restore_point = begin_temp_memory(arena);
-    Sticky_Jump_Stored *stored = push_array(arena, Sticky_Jump_Stored, list->jump_count);
-    if (stored != 0){
-        if (!managed_object_load_data(app, list->jump_array, 0, list->jump_count, stored)){
-            stored = 0;
-            end_temp_memory(restore_point);
+    Sticky_Jump_Stored *stored = 0;
+    if (list != 0){
+        Temp_Memory restore_point = begin_temp_memory(arena);
+        stored = push_array(arena, Sticky_Jump_Stored, list->jump_count);
+        if (stored != 0){
+            if (!managed_object_load_data(app, list->jump_array, 0, list->jump_count, stored)){
+                stored = 0;
+                end_temp_memory(restore_point);
+            }
         }
     }
     return(stored);
@@ -277,9 +282,11 @@ get_jump_from_list(Application_Links *app, Marker_List *list, int32_t index, ID_
 static int32_t
 get_line_from_list(Application_Links *app, Marker_List *list, int32_t index){
     int32_t result = 0;
-    Sticky_Jump_Stored stored = {0};
-    if (get_stored_jump_from_list(app, list, index, &stored)){
-        result = stored.list_line;
+    if (list != 0){
+        Sticky_Jump_Stored stored = {0};
+        if (get_stored_jump_from_list(app, list, index, &stored)){
+            result = stored.list_line;
+        }
     }
     return(result);
 }
@@ -287,9 +294,11 @@ get_line_from_list(Application_Links *app, Marker_List *list, int32_t index){
 static bool32
 get_is_sub_error_from_list(Application_Links *app, Marker_List *list, int32_t index){
     bool32 result = false;
-    Sticky_Jump_Stored stored = {0};
-    if (get_stored_jump_from_list(app, list, index, &stored)){
-        result = stored.is_sub_error;
+    if (list != 0){
+        Sticky_Jump_Stored stored = {0};
+        if (get_stored_jump_from_list(app, list, index, &stored)){
+            result = stored.is_sub_error;
+        }
     }
     return(result);
 }
@@ -297,27 +306,31 @@ get_is_sub_error_from_list(Application_Links *app, Marker_List *list, int32_t in
 static int32_t
 get_index_nearest_from_list(Application_Links *app, Partition *scratch, Marker_List *list, int32_t line){
     int32_t result = -1;
-    Temp_Memory temp = begin_temp_memory(scratch);
-    Sticky_Jump_Stored *stored = get_all_stored_jumps_from_list(app, scratch, list);
-    if (stored != 0){
-        result = binary_search((uint32_t*)&stored->list_line, sizeof(*stored), list->jump_count, line);
+    if (list != 0){
+        Temp_Memory temp = begin_temp_memory(scratch);
+        Sticky_Jump_Stored *stored = get_all_stored_jumps_from_list(app, scratch, list);
+        if (stored != 0){
+            result = binary_search((uint32_t*)&stored->list_line, sizeof(*stored), list->jump_count, line);
+        }
+        end_temp_memory(temp);
     }
-    end_temp_memory(temp);
     return(result);
 }
 
 static int32_t
 get_index_exact_from_list(Application_Links *app, Partition *scratch, Marker_List *list, int32_t line){
     int32_t result = -1;
-    Temp_Memory temp = begin_temp_memory(scratch);
-    Sticky_Jump_Stored *stored = get_all_stored_jumps_from_list(app, scratch, list);
-    if (stored != 0){
-        int32_t index = binary_search((uint32_t*)&stored->list_line, sizeof(*stored), list->jump_count, line);
-        if (stored[index].list_line == line){
-            result = index;
+    if (list != 0){
+        Temp_Memory temp = begin_temp_memory(scratch);
+        Sticky_Jump_Stored *stored = get_all_stored_jumps_from_list(app, scratch, list);
+        if (stored != 0){
+            int32_t index = binary_search((uint32_t*)&stored->list_line, sizeof(*stored), list->jump_count, line);
+            if (stored[index].list_line == line){
+                result = index;
+            }
         }
+        end_temp_memory(temp);
     }
-    end_temp_memory(temp);
     return(result);
 }
 
@@ -408,26 +421,28 @@ static void
 goto_next_filtered_jump(Application_Links *app, Marker_List *list, View_Summary *jump_view, int32_t list_index, int32_t direction, bool32 skip_repeats, bool32 skip_sub_errors){
     Assert(direction == 1 || direction == -1);
     
-    while (list_index >= 0 && list_index < list->jump_count){
-        ID_Pos_Jump_Location location = {0};
-        if (get_jump_from_list(app, list, list_index, &location)){
-            bool32 skip_this = false;
-            if (skip_repeats && jump_is_repeat(prev_location, location)){
-                skip_this = true;
-            }
-            else if (skip_sub_errors && get_is_sub_error_from_list(app, list, list_index)){
-                skip_this = true;
+    if (list != 0){
+        for (;list_index >= 0 && list_index < list->jump_count;){
+            ID_Pos_Jump_Location location = {0};
+            if (get_jump_from_list(app, list, list_index, &location)){
+                bool32 skip_this = false;
+                if (skip_repeats && jump_is_repeat(prev_location, location)){
+                    skip_this = true;
+                }
+                else if (skip_sub_errors && get_is_sub_error_from_list(app, list, list_index)){
+                    skip_this = true;
+                }
+                
+                if (!skip_this){
+                    goto_jump_in_order(app, list, jump_view, location);
+                    int32_t updated_line = get_line_from_list(app, list, list_index);
+                    view_set_cursor(app, jump_view, seek_line_char(updated_line, 1), true);
+                    break;
+                }
             }
             
-            if (!skip_this){
-                goto_jump_in_order(app, list, jump_view, location);
-                int32_t updated_line = get_line_from_list(app, list, list_index);
-                view_set_cursor(app, jump_view, seek_line_char(updated_line, 1), true);
-                break;
-            }
+            list_index += direction;
         }
-        
-        list_index += direction;
     }
 }
 
