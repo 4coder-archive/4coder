@@ -97,6 +97,7 @@ static void
 init_marker_list(Application_Links *app, Partition *scratch, Heap *heap, Buffer_ID buffer_id,
                  Marker_List *list){
     Buffer_Summary buffer = get_buffer(app, buffer_id, AccessAll);
+    bool32 is_compilation_buffer = match(make_string(buffer.buffer_name, buffer.buffer_name_len), "*compilation*");
     
     Temp_Memory temp = begin_temp_memory(scratch);
     Sticky_Jump_Array jumps = parse_buffer_to_jump_array(app, scratch, buffer);
@@ -147,16 +148,29 @@ init_marker_list(Application_Links *app, Partition *scratch, Heap *heap, Buffer_
             }
         }
         
-        Theme_Color color = {};
-        color.tag = Stag_Pop2;
-        get_theme_colors(app, &color, 1);
+        Managed_Buffer_Markers_Type marker_type = 0;
+        uint32_t marker_color = 0;
+        
+        if (is_compilation_buffer){
+            marker_type = BufferMarkersType_LineHighlights;
+            Theme_Color color = {};
+            color.tag = Stag_Highlight_Junk;
+            get_theme_colors(app, &color, 1);
+            marker_color = color.color;
+        }
+        else{
+            marker_type = BufferMarkersType_CharacterBlocks;
+            Theme_Color color = {};
+            color.tag = Stag_Highlight;
+            get_theme_colors(app, &color, 1);
+            marker_color = color.color;
+        }
         
         scope_array[1] = buffer_get_managed_scope(app, target_buffer_id);
         Managed_Scope scope = get_managed_scope_with_multiple_dependencies(app, scope_array, ArrayCount(scope_array));
         Managed_Object marker_handle = alloc_buffer_markers_on_buffer(app, target_buffer_id, total_jump_count, &scope);
-        Managed_Buffer_Markers_Type marker_type = BufferMarkersType_CharacterWireFrames;
         buffer_markers_set_visuals(app, marker_handle,
-                                   marker_type, color.color, 0, 0);
+                                   marker_type, marker_color, 0, 0);
         managed_object_store_data(app, marker_handle, 0, total_jump_count, markers);
         end_temp_memory(marker_temp);
         

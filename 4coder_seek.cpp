@@ -1269,4 +1269,3 @@ CUSTOM_DOC("Delete a single, whole token on or to the right of the cursor and po
 }
 
 // BOTTOM
-

@@ -386,6 +386,7 @@ interpret_binding_buffer(Models *models, void *buffer, i32 size){
     models->hook_save_file = 0;
     models->hook_end_file = 0;
     models->command_caller = 0;
+    models->render_caller = 0;
     models->input_filter = 0;
     
     b32 did_top = false;
@@ -613,6 +614,11 @@ interpret_binding_buffer(Models *models, void *buffer, i32 size){
                                 case special_hook_command_caller:
                                 {
                                     models->command_caller = (Command_Caller_Hook_Function*)unit->hook.func;
+                                }break;
+                                
+                                case special_hook_render_caller:
+                                {
+                                    models->render_caller = (Render_Caller_Function*)unit->hook.func;
                                 }break;
                                 
                                 case special_hook_scroll_rule:
@@ -1863,6 +1869,8 @@ App_Step_Sig(app_step){
         USE_PANEL(active_panel);
         USE_VIEW(active_view);
         
+        cmd->target = target;
+        
         // NOTE(allen): render the panels
         for (Panel *panel = models->layout.used_sentinel.next;
              panel != &models->layout.used_sentinel;
@@ -1878,6 +1886,10 @@ App_Step_Sig(app_step){
             draw_rectangle(target, full, back_color);
             
             GUI_Scroll_Vars *scroll_vars = &view->transient.edit_pos->scroll;
+            
+            cmd->render_view = view;
+            cmd->render_rect = panel->inner;
+            cmd->render_is_active = active;
             
             do_render_file_view(system, view, models, scroll_vars, active_view, panel->inner, active, target, &dead_input);
             

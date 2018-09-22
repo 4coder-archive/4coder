@@ -45,6 +45,7 @@ The following bindings apply in all situations.
 \ITEM \STYLE{code} <alt z> \END Queries for an output buffer name and system command, runs the system command as a CLI and prints the output to the specified buffer.
 \ITEM \STYLE{code} <alt Z> \END If the command execute_any_cli has already been used, this will execute a CLI reusing the most recent buffer name and command.
 \ITEM \STYLE{code} <alt x> \END Opens an interactive list of all registered commands.
+\ITEM \STYLE{code} <ctrl I> \END Creates a lister of locations that look like function definitions and declarations in the buffer.
 \ITEM \STYLE{code} <alt E> \END Attempts to close 4coder.
 \ITEM \STYLE{code} <f1> \END Run an 'fkey command' configured in a project.4coder file.  Determines the index of the 'fkey command' by which function key or numeric key was pressed to trigger the command.
 \ITEM \STYLE{code} <f2> \END Run an 'fkey command' configured in a project.4coder file.  Determines the index of the 'fkey command' by which function key or numeric key was pressed to trigger the command.
@@ -107,6 +108,7 @@ The following bindings apply in general text files and most apply in code files,
 \ITEM \STYLE{code} <alt F> \END Queries the user for a string and lists all case-insensitive substring matches found in all open buffers.
 \ITEM \STYLE{code} <ctrl g> \END Queries the user for a number, and jumps the cursor to the corresponding line.
 \ITEM \STYLE{code} <ctrl G> \END Reads the string in the selected range and lists all exact case-sensitive mathces in all open buffers.
+\ITEM \STYLE{code} <ctrl j> \END Opens a snippet lister for inserting whole pre-written snippets of text.
 \ITEM \STYLE{code} <ctrl K> \END Kills the current buffer.
 \ITEM \STYLE{code} <ctrl L> \END Create a copy of the line on which the cursor sits.
 \ITEM \STYLE{code} <ctrl m> \END Swaps the position of the cursor and the mark.
@@ -165,7 +167,6 @@ The following commands only apply in files where the lexer (syntax highlighting)
 \ITEM \STYLE{code} <alt 1> \END Reads a filename from surrounding '"' characters and attempts to open the corresponding file.
 \ITEM \STYLE{code} <alt 2> \END If the current file is a *.cpp or *.h, attempts to open the corresponding *.h or *.cpp file in the other view.
 \ITEM \STYLE{code} <ctrl 0> \END At the cursor, insert a ' = {0};'.
-\ITEM \STYLE{code} <ctrl I> \END Creates a lister of locations that look like function definitions and declarations in the buffer.
 \END
 \END
 \SECTION{default-lister-ui-map}

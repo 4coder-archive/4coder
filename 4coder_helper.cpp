@@ -222,6 +222,15 @@ set_command_caller(Bind_Helper *helper, Command_Caller_Hook_Function *func){
 }
 
 inline void
+set_render_caller(Bind_Helper *helper, Render_Caller_Function *func){
+    Binding_Unit unit = {0};
+    unit.type = unit_hook;
+    unit.hook.hook_id = special_hook_render_caller;
+    unit.hook.func = (void*)func;
+    write_unit(helper, unit);
+}
+
+inline void
 set_input_filter(Bind_Helper *helper, Input_Filter_Function *func){
     Binding_Unit unit = {0};
     unit.type = unit_hook;

@@ -947,6 +947,8 @@ ENUM(int32_t, Special_Hook_ID){
     /* DOC(TODO) */
     special_hook_command_caller,
     /* DOC(TODO) */
+    special_hook_render_caller,
+    /* DOC(TODO) */
     special_hook_input_filter,
     /* DOC(TODO) */
     special_hook_start,
@@ -956,6 +958,11 @@ ENUM(int32_t, Special_Hook_ID){
 
 TYPEDEF_FUNC int32_t Command_Caller_Hook_Function(struct Application_Links *app, Generic_Command cmd);
 #define COMMAND_CALLER_HOOK(name) int32_t name(struct Application_Links *app, Generic_Command cmd)
+
+TYPEDEF_FUNC void Render_Callback(struct Application_Links *app);
+TYPEDEF_FUNC void Render_Caller_Function(struct Application_Links *app, View_ID view_id, Render_Callback *do_core_render);
+#define RENDER_CALLER_SIG(name) \
+void name(struct Application_Links *app, View_ID view_id, Render_Callback *do_core_render)
 
 TYPEDEF_FUNC int32_t Hook_Function(struct Application_Links *app);
 #define HOOK_SIG(name) int32_t name(struct Application_Links *app)
@@ -969,6 +976,7 @@ TYPEDEF_FUNC void Input_Filter_Function(Mouse_State *mouse);
 TYPEDEF_FUNC int32_t Scroll_Rule_Function(float target_x, float target_y, float *scroll_x, float *scroll_y, int32_t view_id, int32_t is_new_target, float dt);
 #define SCROLL_RULE_SIG(name) \
 int32_t name(float target_x, float target_y, float *scroll_x, float *scroll_y, int32_t view_id, int32_t is_new_target, float dt)
+
 
 STRUCT Buffer_Name_Conflict_Entry{
     Buffer_ID buffer_id;

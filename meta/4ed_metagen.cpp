@@ -152,6 +152,7 @@ static char* main_style_fields[] = {
     "list_item_active",
     "cursor",
     "at_cursor",
+    "highlight_cursor_line",
     "highlight",
     "at_highlight",
     "mark",
@@ -693,6 +694,7 @@ generate_remapping_code_and_data(){
         bind(mappings, 'N', MDFR_ALT, goto_prev_jump_no_skips_sticky);
         bind(mappings, 'M', MDFR_ALT, goto_first_jump_sticky);
         bind(mappings, 'm', MDFR_ALT, build_in_build_panel);
+        bind(mappings, 'b', MDFR_ALT, toggle_filebar);
         
         bind(mappings, 'z', MDFR_ALT, execute_any_cli);
         bind(mappings, 'Z', MDFR_ALT, execute_previous_cli);
@@ -721,6 +723,8 @@ generate_remapping_code_and_data(){
         bind(mappings, key_f14, MDFR_NONE, project_fkey_command);
         bind(mappings, key_f15, MDFR_NONE, project_fkey_command);
         bind(mappings, key_f16, MDFR_NONE, project_fkey_command);
+        
+        bind(mappings, key_mouse_wheel, MDFR_NONE, mouse_wheel_scroll);
         
         end_map(mappings);
         
@@ -893,6 +897,7 @@ generate_remapping_code_and_data(){
         bind(mappings, 'N', MDFR_CTRL, goto_prev_jump_sticky);
         bind(mappings, 'M', MDFR_CTRL, goto_first_jump_sticky);
         bind(mappings, 'm', MDFR_CTRL, build_in_build_panel);
+        bind(mappings, 'b', MDFR_ALT, toggle_filebar);
         
         bind(mappings, 'z', MDFR_CTRL, execute_any_cli);
         bind(mappings, 'Z', MDFR_CTRL, execute_previous_cli);
@@ -921,6 +926,8 @@ generate_remapping_code_and_data(){
         bind(mappings, key_f14, MDFR_NONE, project_fkey_command);
         bind(mappings, key_f15, MDFR_NONE, project_fkey_command);
         bind(mappings, key_f16, MDFR_NONE, project_fkey_command);
+        
+        bind(mappings, key_mouse_wheel, MDFR_NONE, mouse_wheel_scroll);
         
         end_map(mappings);
         

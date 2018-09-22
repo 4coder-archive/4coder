@@ -55,6 +55,7 @@ struct Models{
     Open_File_Hook_Function *hook_save_file;
     Open_File_Hook_Function *hook_end_file;
     Command_Caller_Hook_Function *command_caller;
+    Render_Caller_Function *render_caller;
     Input_Filter_Function *input_filter;
     Scroll_Rule_Function *scroll_rule;
     Buffer_Name_Resolver_Function *buffer_name_resolver;
@@ -126,6 +127,12 @@ struct Command_Data{
     i32 screen_height;
     
     Key_Event_Data key;
+    
+    // Render Context
+    View *render_view;
+    i32_Rect render_rect;
+    b32 render_is_active;
+    Render_Target *target;
 };
 
 enum Input_Types{

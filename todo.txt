@@ -3,18 +3,18 @@
 {
     Features
     {
-        [] Visible Markers
+        [] New Features with Visible Markers
         {
-            [] Line Highlight
-            [] Cursor Block
-            [] Cursor Bar
-            [] Wire Cursor Block
-            [] Highlight Range
+            [x] Customizable Highlight Line at Cursor All the Time
+            [x] Customizable Highlight Token at Cursor All the Time
+            [] Paren/Brace Matching (with color pallette expansion)
+            [] Figure out what to do with sticky jumps that would be helpful
+            [] isearch upgrade with full parse and all that
         }
         [] Color Pallette Expansion For Keywords
-        [] Color Pallette Expansion For Paren/Brace Matching
         [] Reload all out of sync files
         [] Doubly Linked List Node Managed Object
+        [] Jump to Command Definition (useful for 4coder customization developers only)
     }
     
     Bugs
@@ -73,6 +73,14 @@ Change Log
             [x] Function Lister
             [x] Snippet Lister
             [x] Project Command Lister
+        }
+        [x] Visible Markers
+        {
+            [x] Line Highlight
+            [x] Cursor Block
+            [x] Cursor Bar
+            [x] Wire Cursor Block
+            [x] Highlight Range
         }
     }
 }

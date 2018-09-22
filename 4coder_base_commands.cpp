@@ -180,9 +180,7 @@ global_point_to_view_point(View_Summary *view, int32_t x, int32_t y, float *x_ou
 CUSTOM_COMMAND_SIG(click_set_cursor)
 CUSTOM_DOC("Sets the cursor position to the mouse position.")
 {
-    uint32_t access = AccessProtected;
-    View_Summary view = get_active_view(app, access);
-    
+    View_Summary view = get_active_view(app, AccessProtected);
     Mouse_State mouse = get_mouse_state(app);
     float rx = 0, ry = 0;
     if (global_point_to_view_point(&view, mouse.x, mouse.y, &rx, &ry)){
@@ -193,13 +191,23 @@ CUSTOM_DOC("Sets the cursor position to the mouse position.")
 CUSTOM_COMMAND_SIG(click_set_mark)
 CUSTOM_DOC("Sets the mark position to the mouse position.")
 {
-    uint32_t access = AccessProtected;
-    View_Summary view = get_active_view(app, access);
-    
+    View_Summary view = get_active_view(app, AccessProtected);
     Mouse_State mouse = get_mouse_state(app);
     float rx = 0, ry = 0;
     if (global_point_to_view_point(&view, mouse.x, mouse.y, &rx, &ry)){
         view_set_mark(app, &view, seek_xy(rx, ry, 1, view.unwrapped_lines));
+    }
+}
+
+CUSTOM_COMMAND_SIG(mouse_wheel_scroll)
+CUSTOM_DOC("Reads the scroll wheel value from the mouse state and scrolls accordingly.")
+{
+    View_Summary view = get_active_view(app, AccessProtected);
+    Mouse_State mouse = get_mouse_state(app);
+    if (mouse.wheel != 0){
+        GUI_Scroll_Vars scroll = view.scroll_vars;
+        scroll.target_y += mouse.wheel;
+        view_set_scroll(app, &view, scroll);
     }
 }
 
@@ -611,12 +619,13 @@ CUSTOM_COMMAND_SIG(search);
 CUSTOM_COMMAND_SIG(reverse_search);
 
 static void
-isearch__update_highlight(Application_Links *app, Managed_Object highlight,
+isearch__update_highlight(Application_Links *app, View_Summary *view, Managed_Object highlight,
                           int32_t start, int32_t end){
-    Marker markers[2] = {0};
+    Marker markers[4] = {0};
     markers[0].pos = start;
     markers[1].pos = end;
     managed_object_store_data(app, highlight, 0, 2, markers);
+    view_set_cursor(app, view, seek_pos(start), false);
 }
 
 static void
@@ -657,13 +666,10 @@ isearch(Application_Links *app, bool32 start_reversed, String query_init, bool32
     Managed_Buffer_Markers_Type marker_type = BufferMarkersType_CharacterHighlightRanges;
     buffer_markers_set_visuals(app, highlight,
                                marker_type, color.color, 0, view.view_id);
-    isearch__update_highlight(app, highlight, start_pos, start_pos);
+    isearch__update_highlight(app, &view, highlight, match.start, match.end);
     
     User_Input in = {0};
     for (;;){
-        isearch__update_highlight(app, highlight,
-                                  match.start, match.end);
-        
         // NOTE(allen): Change the bar's prompt to match the current direction.
         if (reverse){
             bar.prompt = rsearch_str;
@@ -675,6 +681,7 @@ isearch(Application_Links *app, bool32 start_reversed, String query_init, bool32
         bool32 step_forward = false;
         bool32 step_backward = false;
         bool32 backspace = false;
+        bool32 suppress_highligh_update = false;
         
         if (!first_step){
             in = get_user_input(app, EventOnAnyKey, EventOnEsc);
@@ -718,6 +725,11 @@ isearch(Application_Links *app, bool32 start_reversed, String query_init, bool32
             
             if ((in.command.command == search) || in.key.keycode == key_page_down || in.key.keycode == key_down){
                 step_forward = true;
+            }
+            
+            if (in.command.command == mouse_wheel_scroll){
+                mouse_wheel_scroll(app);
+                suppress_highligh_update = true;
             }
             
             if ((in.command.command == reverse_search) || in.key.keycode == key_page_up || in.key.keycode == key_up){
@@ -784,6 +796,10 @@ isearch(Application_Links *app, bool32 start_reversed, String query_init, bool32
                 match.end = match.start + bar.string.size;
             }
         }
+        
+        if (!suppress_highligh_update){
+            isearch__update_highlight(app, &view, highlight, match.start, match.end);
+        }
     }
     
     managed_object_free(app, highlight);
@@ -795,8 +811,6 @@ isearch(Application_Links *app, bool32 start_reversed, String query_init, bool32
         view_set_cursor(app, &view, seek_pos(first_pos), true);
         return;
     }
-    
-    view_set_cursor(app, &view, seek_pos(match.min), true);
 }
 
 CUSTOM_COMMAND_SIG(search)

@@ -9,6 +9,7 @@ List_Item_Hover = Margin_Hover;
 List_Item_Active = Margin_Active;
 Cursor = 0xFFDDDDDD;
 At_Cursor = Back;
+Highlight_Cursor_Line = 0xFF383838;
 Mark = 0xFF808080;
 Highlight = 0xFF006080;
 At_Highlight = Back;

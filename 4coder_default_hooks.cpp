@@ -51,6 +51,62 @@ COMMAND_CALLER_HOOK(default_command_caller){
     return(0);
 }
 
+RENDER_CALLER_SIG(default_render_caller){
+    View_Summary view = get_view(app, view_id, AccessAll);
+    Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessAll);
+    
+    uint32_t line_color = 0;
+    uint32_t token_color = 0;
+    
+    {
+        Theme_Color color = {0};
+        color.tag = Stag_Highlight_Cursor_Line;
+        get_theme_colors(app, &color, 1);
+        line_color = color.color;
+    }
+    
+    {
+        Theme_Color color = {0};
+        color.tag = Stag_Cursor;
+        get_theme_colors(app, &color, 1);
+        token_color = (0x50 << 24) | (color.color&0xFFFFFF);
+    }
+    
+    // NOTE(allen): Line highlight setup
+    Managed_Object line_highlight = alloc_buffer_markers_on_buffer(app, buffer.buffer_id, 1, 0);
+    buffer_markers_set_visuals(app, line_highlight, BufferMarkersType_LineHighlights, line_color, 0, 0);
+    Marker marker = {0};
+    marker.pos = view.cursor.pos;
+    managed_object_store_data(app, line_highlight, 0, 1, &marker);
+    
+    // NOTE(allen): Token highlight setup
+    bool32 do_token_highlight = true;
+    Managed_Object token_highlight = 0;
+    
+    {
+        uint32_t token_flags = BoundaryToken|BoundaryWhitespace;
+        int32_t pos0 = view.cursor.pos;
+        int32_t pos1 = buffer_boundary_seek(app, &buffer, pos0, DirLeft , token_flags);
+        int32_t pos2 = buffer_boundary_seek(app, &buffer, pos1, DirRight, token_flags);
+        
+        if (do_token_highlight){
+            token_highlight = alloc_buffer_markers_on_buffer(app, buffer.buffer_id, 2, 0);
+            buffer_markers_set_visuals(app, token_highlight, BufferMarkersType_CharacterHighlightRanges, token_color, 0, 0);
+            Marker range_markers[2] = {0};
+            range_markers[0].pos = pos1;
+            range_markers[1].pos = pos2;
+            managed_object_store_data(app, token_highlight, 0, 2, range_markers);
+        }
+    }
+    
+    do_core_render(app);
+    
+    managed_object_free(app, line_highlight);
+    if (do_token_highlight){
+        managed_object_free(app, token_highlight);
+    }
+}
+
 HOOK_SIG(default_exit){
     // If this returns zero it cancels the exit.
     if (allow_immediate_close_without_checking_for_changes){
@@ -473,14 +529,12 @@ SCROLL_RULE_SIG(smooth_scroll_rule){
         velocity->x = 1.f;
         velocity->y = 1.f;
     }
-    
     if (smooth_camera_step(target_y, scroll_y, &velocity->y, 80.f, 1.f/2.f)){
         result = 1;
     }
     if (smooth_camera_step(target_x, scroll_x, &velocity->x, 80.f, 1.f/2.f)){
         result = 1;
     }
-    
     return(result);
 }
 
@@ -497,6 +551,7 @@ set_all_default_hooks(Bind_Helper *context){
     set_end_file_hook(context, end_file_close_jump_list);
     
     set_command_caller(context, default_command_caller);
+    set_render_caller(context, default_render_caller);
     set_input_filter(context, default_suppress_mouse_filter);
     set_scroll_rule(context, smooth_scroll_rule);
     set_buffer_name_resolver(context, default_buffer_name_resolution);

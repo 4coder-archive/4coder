@@ -16,6 +16,7 @@ bind(context, 'n', MDFR_ALT, goto_next_jump_no_skips_sticky);
 bind(context, 'N', MDFR_ALT, goto_prev_jump_no_skips_sticky);
 bind(context, 'M', MDFR_ALT, goto_first_jump_sticky);
 bind(context, 'm', MDFR_ALT, build_in_build_panel);
+bind(context, 'b', MDFR_ALT, toggle_filebar);
 bind(context, 'z', MDFR_ALT, execute_any_cli);
 bind(context, 'Z', MDFR_ALT, execute_previous_cli);
 bind(context, 'x', MDFR_ALT, command_lister);
@@ -37,6 +38,7 @@ bind(context, key_f13, MDFR_NONE, project_fkey_command);
 bind(context, key_f14, MDFR_NONE, project_fkey_command);
 bind(context, key_f15, MDFR_NONE, project_fkey_command);
 bind(context, key_f16, MDFR_NONE, project_fkey_command);
+bind(context, key_mouse_wheel, MDFR_NONE, mouse_wheel_scroll);
 end_map(context);
 begin_map(context, mapid_file);
 bind_vanilla_keys(context, write_character);
@@ -171,6 +173,7 @@ bind(context, 'n', MDFR_CTRL, goto_next_jump_sticky);
 bind(context, 'N', MDFR_CTRL, goto_prev_jump_sticky);
 bind(context, 'M', MDFR_CTRL, goto_first_jump_sticky);
 bind(context, 'm', MDFR_CTRL, build_in_build_panel);
+bind(context, 'b', MDFR_ALT, toggle_filebar);
 bind(context, 'z', MDFR_CTRL, execute_any_cli);
 bind(context, 'Z', MDFR_CTRL, execute_previous_cli);
 bind(context, 'x', MDFR_CTRL, command_lister);
@@ -192,6 +195,7 @@ bind(context, key_f13, MDFR_NONE, project_fkey_command);
 bind(context, key_f14, MDFR_NONE, project_fkey_command);
 bind(context, key_f15, MDFR_NONE, project_fkey_command);
 bind(context, key_f16, MDFR_NONE, project_fkey_command);
+bind(context, key_mouse_wheel, MDFR_NONE, mouse_wheel_scroll);
 end_map(context);
 begin_map(context, mapid_file);
 bind_vanilla_keys(context, write_character);
@@ -341,7 +345,7 @@ Meta_Sub_Map *sub_maps;
 int32_t sub_map_count;
 LINK_PROCS(void (*fill_keys_proc)(Bind_Helper *context);)
 };
-static Meta_Key_Bind fcoder_binds_for_default_mapid_global[36] = {
+static Meta_Key_Bind fcoder_binds_for_default_mapid_global[38] = {
 {0, 44, 1, "change_active_panel", 19, LINK_PROCS(change_active_panel)},
 {0, 60, 1, "change_active_panel_backwards", 29, LINK_PROCS(change_active_panel_backwards)},
 {0, 110, 1, "interactive_new", 15, LINK_PROCS(interactive_new)},
@@ -357,6 +361,7 @@ static Meta_Key_Bind fcoder_binds_for_default_mapid_global[36] = {
 {0, 78, 2, "goto_prev_jump_no_skips_sticky", 30, LINK_PROCS(goto_prev_jump_no_skips_sticky)},
 {0, 77, 2, "goto_first_jump_sticky", 22, LINK_PROCS(goto_first_jump_sticky)},
 {0, 109, 2, "build_in_build_panel", 20, LINK_PROCS(build_in_build_panel)},
+{0, 98, 2, "toggle_filebar", 14, LINK_PROCS(toggle_filebar)},
 {0, 122, 2, "execute_any_cli", 15, LINK_PROCS(execute_any_cli)},
 {0, 90, 2, "execute_previous_cli", 20, LINK_PROCS(execute_previous_cli)},
 {0, 120, 2, "command_lister", 14, LINK_PROCS(command_lister)},
@@ -378,6 +383,7 @@ static Meta_Key_Bind fcoder_binds_for_default_mapid_global[36] = {
 {0, 55328, 0, "project_fkey_command", 20, LINK_PROCS(project_fkey_command)},
 {0, 55329, 0, "project_fkey_command", 20, LINK_PROCS(project_fkey_command)},
 {0, 55330, 0, "project_fkey_command", 20, LINK_PROCS(project_fkey_command)},
+{0, 55312, 0, "mouse_wheel_scroll", 18, LINK_PROCS(mouse_wheel_scroll)},
 };
 static Meta_Key_Bind fcoder_binds_for_default_mapid_file[63] = {
 {1, 0, 0, "write_character", 15, LINK_PROCS(write_character)},
@@ -494,12 +500,12 @@ static Meta_Key_Bind fcoder_binds_for_default_default_lister_ui_map[14] = {
 {0, 55314, 0, "lister__repaint", 15, LINK_PROCS(lister__repaint)},
 };
 static Meta_Sub_Map fcoder_submaps_for_default[4] = {
-{"mapid_global", 12, "The following bindings apply in all situations.", 47, 0, 0, fcoder_binds_for_default_mapid_global, 36},
+{"mapid_global", 12, "The following bindings apply in all situations.", 47, 0, 0, fcoder_binds_for_default_mapid_global, 38},
 {"mapid_file", 10, "The following bindings apply in general text files and most apply in code files, but some are overriden by other commands specific to code files.", 145, 0, 0, fcoder_binds_for_default_mapid_file, 63},
 {"default_code_map", 16, "The following commands only apply in files where the lexer (syntax highlighting) is turned on.", 94, "mapid_file", 10, fcoder_binds_for_default_default_code_map, 31},
 {"default_lister_ui_map", 21, "These commands apply in 'lister mode' such as when you open a file.", 67, 0, 0, fcoder_binds_for_default_default_lister_ui_map, 14},
 };
-static Meta_Key_Bind fcoder_binds_for_mac_default_mapid_global[36] = {
+static Meta_Key_Bind fcoder_binds_for_mac_default_mapid_global[38] = {
 {0, 44, 4, "change_active_panel", 19, LINK_PROCS(change_active_panel)},
 {0, 60, 4, "change_active_panel_backwards", 29, LINK_PROCS(change_active_panel_backwards)},
 {0, 110, 4, "interactive_new", 15, LINK_PROCS(interactive_new)},
@@ -515,6 +521,7 @@ static Meta_Key_Bind fcoder_binds_for_mac_default_mapid_global[36] = {
 {0, 78, 1, "goto_prev_jump_sticky", 21, LINK_PROCS(goto_prev_jump_sticky)},
 {0, 77, 1, "goto_first_jump_sticky", 22, LINK_PROCS(goto_first_jump_sticky)},
 {0, 109, 1, "build_in_build_panel", 20, LINK_PROCS(build_in_build_panel)},
+{0, 98, 2, "toggle_filebar", 14, LINK_PROCS(toggle_filebar)},
 {0, 122, 1, "execute_any_cli", 15, LINK_PROCS(execute_any_cli)},
 {0, 90, 1, "execute_previous_cli", 20, LINK_PROCS(execute_previous_cli)},
 {0, 120, 1, "command_lister", 14, LINK_PROCS(command_lister)},
@@ -536,6 +543,7 @@ static Meta_Key_Bind fcoder_binds_for_mac_default_mapid_global[36] = {
 {0, 55328, 0, "project_fkey_command", 20, LINK_PROCS(project_fkey_command)},
 {0, 55329, 0, "project_fkey_command", 20, LINK_PROCS(project_fkey_command)},
 {0, 55330, 0, "project_fkey_command", 20, LINK_PROCS(project_fkey_command)},
+{0, 55312, 0, "mouse_wheel_scroll", 18, LINK_PROCS(mouse_wheel_scroll)},
 };
 static Meta_Key_Bind fcoder_binds_for_mac_default_mapid_file[62] = {
 {1, 0, 0, "write_character", 15, LINK_PROCS(write_character)},
@@ -651,7 +659,7 @@ static Meta_Key_Bind fcoder_binds_for_mac_default_default_lister_ui_map[14] = {
 {0, 55314, 0, "lister__repaint", 15, LINK_PROCS(lister__repaint)},
 };
 static Meta_Sub_Map fcoder_submaps_for_mac_default[4] = {
-{"mapid_global", 12, "The following bindings apply in all situations.", 47, 0, 0, fcoder_binds_for_mac_default_mapid_global, 36},
+{"mapid_global", 12, "The following bindings apply in all situations.", 47, 0, 0, fcoder_binds_for_mac_default_mapid_global, 38},
 {"mapid_file", 10, "The following bindings apply in general text files and most apply in code files, but some are overriden by other commands specific to code files.", 145, 0, 0, fcoder_binds_for_mac_default_mapid_file, 62},
 {"default_code_map", 16, "The following commands only apply in files where the lexer (syntax highlighting) is turned on.", 94, "mapid_file", 10, fcoder_binds_for_mac_default_default_code_map, 31},
 {"default_lister_ui_map", 21, "These commands apply in 'lister mode' such as when you open a file.", 67, 0, 0, fcoder_binds_for_mac_default_default_lister_ui_map, 14},
