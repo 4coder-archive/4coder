@@ -489,6 +489,98 @@ release_font_and_update_files(System_Functions *system, Models *models, Face_ID 
 
 ////////////////////////////////
 
+internal void
+get_visual_markers(Partition *arena, Dynamic_Workspace *workspace, i32 *range_counter_ptr,
+                   Range range, Buffer_ID buffer_id, i32 view_index){
+    View_ID view_id = view_index + 1;
+    for (Managed_Buffer_Markers_Header *node = workspace->buffer_markers_list.first;
+         node != 0;
+         node = node->next){
+        if (node->marker_type == BufferMarkersType_Invisible) continue;
+        if (node->buffer_id != buffer_id) continue;
+        if (node->key_view_id != 0 && node->key_view_id != view_id) continue;
+        
+        Managed_Buffer_Markers_Type marker_type = node->marker_type;
+        u32 color = node->color;
+        u32 text_color = node->text_color;
+        
+        Marker *markers = (Marker*)(node + 1);
+        Assert(sizeof(*markers) == node->std_header.item_size);
+        i32 count = node->std_header.count;
+        
+        if (marker_type != BufferMarkersType_CharacterHighlightRanges){
+            Marker *marker = markers;
+            for (i32 i = 0; i < count; i += 1, marker += 1){
+                if (range.first <= marker->pos &&
+                    marker->pos < range.one_past_last){
+                    Render_Marker *render_marker = push_array(arena, Render_Marker, 1);
+                    render_marker->type = marker_type;
+                    render_marker->pos = marker->pos;
+                    render_marker->color = color;
+                    render_marker->text_color = text_color;
+                    render_marker->range_id = -1;
+                }
+            }
+        }
+        else{
+            Marker *marker = markers;
+            for (i32 i = 0; i + 1 < count; i += 2, marker += 2){
+                Range range_b = {0};
+                range_b.first = marker[0].pos;
+                range_b.one_past_last = marker[1].pos;
+                
+                if (range_b.first >= range_b.one_past_last) continue;
+                if (!((range.min - range_b.max < 0) &&
+                      (range.max - range_b.min > 0))) continue;
+                
+                i32 range_id = *range_counter_ptr;
+                *range_counter_ptr += 2;
+                for (i32 j = 0; j < 2; j += 1){
+                    Render_Marker *render_marker = push_array(arena, Render_Marker, 1);
+                    render_marker->type = marker_type;
+                    render_marker->pos = marker[j].pos;
+                    render_marker->color = color;
+                    render_marker->text_color = text_color;
+                    render_marker->range_id = range_id + j;
+                }
+            }
+        }
+    }
+}
+
+internal void
+visual_markers_quick_sort(Render_Marker *markers, i32 first, i32 one_past_last){
+    if (first + 1 < one_past_last){
+        i32 pivot_index = one_past_last - 1;
+        {
+            b32 go_left = false;
+            i32 pivot_key = markers[pivot_index].pos;
+            i32 j = first;
+            for (i32 i = first; i < pivot_index; i += 1){
+                i32 key = markers[i].pos;
+                b32 swap_in = false;
+                if (key < pivot_key){
+                    swap_in = true;
+                }
+                else if (key == pivot_key){
+                    if (go_left){
+                        swap_in = true;
+                    }
+                    go_left = !go_left;
+                }
+                if (swap_in){
+                    Swap(Render_Marker, markers[i], markers[j]);
+                    j += 1;
+                }
+            }
+            Swap(Render_Marker, markers[j], markers[pivot_index]);
+            pivot_index = j;
+        }
+        visual_markers_quick_sort(markers, first, pivot_index);
+        visual_markers_quick_sort(markers, pivot_index + 1, one_past_last);
+    }
+}
+
 internal i32
 render_loaded_file_in_view(System_Functions *system, View *view, Models *models,
                            i32_Rect rect, b32 is_active, Render_Target *target){
@@ -518,8 +610,8 @@ render_loaded_file_in_view(System_Functions *system, View *view, Models *models,
     
     f32 left_side_space = 0;
     
-    i32 max = partition_remaining(part) / sizeof(Buffer_Render_Item);
-    Buffer_Render_Item *items = push_array(part, Buffer_Render_Item, max);
+    i32 max = partition_remaining(part)/sizeof(Buffer_Render_Item);
+    Buffer_Render_Item *items = push_array(part, Buffer_Render_Item, 0);
     
     Face_ID font_id = file->settings.font_id;
     Font_Pointers font = system->font.get_pointers_by_id(font_id);
@@ -532,7 +624,7 @@ render_loaded_file_in_view(System_Functions *system, View *view, Models *models,
     // to the gui system.
     scroll_y += view->transient.widget_height;
     
-    Full_Cursor render_cursor;
+    Full_Cursor render_cursor = {0};
     if (!file->settings.unwrapped_lines){
         render_cursor = file_compute_cursor(system, file, seek_wrapped_xy(0, scroll_y, 0), true);
     }
@@ -543,6 +635,7 @@ render_loaded_file_in_view(System_Functions *system, View *view, Models *models,
     view->transient.edit_pos->scroll_i = render_cursor.pos;
     
     i32 count = 0;
+    i32 end_pos = 0;
     {
         b32 wrapped = !file->settings.unwrapped_lines;
         
@@ -608,10 +701,53 @@ render_loaded_file_in_view(System_Functions *system, View *view, Models *models,
                 }break;
             }
         }while(stop.status != BLStatus_Finished);
+        
+        end_pos = state.i;
     }
+    push_array(part, Buffer_Render_Item, count);
     
-    i32 cursor_begin = 0, cursor_end = 0;
-    u32 cursor_color = 0, at_cursor_color = 0;
+    // NOTE(allen): Get visual markers
+    Render_Marker_Array markers = {0};
+    markers.markers = push_array(part, Render_Marker, 0);
+    {
+        Lifetime_Object *lifetime_object = file->lifetime_object;
+        Range range = {0};
+        range.first = render_cursor.pos;
+        range.one_past_last = end_pos;
+        Buffer_ID buffer_id = file->id.id;
+        i32 view_index = view->persistent.id;
+        
+        i32 range_counter = 0;
+        get_visual_markers(part, &lifetime_object->workspace, &range_counter,
+                           range, buffer_id, view_index);
+        
+        i32 key_count = lifetime_object->key_count;
+        i32 key_index = 0;
+        for (Lifetime_Key_Ref_Node *node = lifetime_object->key_node_first;
+             node != 0;
+             node = node->next){
+            i32 local_count = clamp_top(lifetime_key_reference_per_node, key_count - key_index);
+            for (i32 i = 0; i < local_count; i += 1){
+                Lifetime_Key *key = node->keys[i];
+                get_visual_markers(part, &key->dynamic_workspace, &range_counter,
+                                   range, buffer_id, view_index);
+            }
+            key_index += count;
+        }
+    }
+    markers.count = (i32)(push_array(part, Render_Marker, 0) - markers.markers);
+    
+    // NOTE(allen): Sort visual markers by position
+    visual_markers_quick_sort(markers.markers, 0, markers.count);
+    
+    i32 visual_markers_scan_index = 0;
+    i32 visual_markers_range_id = -1;
+    u32 visual_markers_range_color = 0;
+    
+    i32 cursor_begin = 0;
+    i32 cursor_end = 0;
+    u32 cursor_color = 0;
+    u32 at_cursor_color = 0;
     if (view->transient.file_data.show_temp_highlight){
         cursor_begin = view->transient.file_data.temp_highlight.pos;
         cursor_end = view->transient.file_data.temp_highlight_end_pos;
@@ -640,11 +776,10 @@ render_loaded_file_in_view(System_Functions *system, View *view, Models *models,
     Buffer_Render_Item *item_end = item + count;
     i32 prev_ind = -1;
     u32 highlight_color = 0;
-    u32 highlight_this_color = 0;
     
     for (; item < item_end; ++item){
         i32 ind = item->index;
-        highlight_this_color = 0;
+        u32 highlight_this_color = 0;
         if (tokens_use && ind != prev_ind){
             Cpp_Token current_token = token_array.tokens[token_i-1];
             
@@ -685,24 +820,112 @@ render_loaded_file_in_view(System_Functions *system, View *view, Models *models,
             highlight_this_color = highlight_color;
         }
         
+        // NOTE(allen): Visual marker colors
+        u32 marker_highlight = 0;
+        u32 marker_wireframe = 0;
+        u32 marker_ibar = 0;
+        for (;visual_markers_scan_index < markers.count &&
+             markers.markers[visual_markers_scan_index].pos <= ind;
+             visual_markers_scan_index += 1){
+            Render_Marker *marker = &markers.markers[visual_markers_scan_index];
+            switch (marker->type){
+                case BufferMarkersType_CharacterBlocks:
+                {
+                    marker_highlight = marker->color;
+                }break;
+                
+                case BufferMarkersType_CharacterHighlightRanges:
+                {
+                    if (marker->range_id&1){
+                        if (visual_markers_range_id == marker->range_id - 1){
+                            visual_markers_range_id = -1;
+                        }
+                    }
+                    else{
+                        visual_markers_range_id = marker->range_id;
+                        visual_markers_range_color = marker->color;
+                    }
+                }break;
+                
+                case BufferMarkersType_LineHighlights:
+                {
+                    NotImplemented;
+                }break;
+                
+                case BufferMarkersType_CharacterWireFrames:
+                {
+                    marker_wireframe = marker->color;
+                }break;
+                
+                case BufferMarkersType_CharacterIBars:
+                {
+                    marker_ibar = marker->color;
+                }break;
+                
+                default:
+                {
+                    InvalidCodePath;
+                }break;
+            }
+        }
+        if (visual_markers_range_id != -1 &&
+            marker_highlight == 0){
+            marker_highlight = visual_markers_range_color;
+            char_color = at_cursor_color;
+        }
+        
+        // NOTE(allen): Perform highlight, wireframe, and ibar renders
+        u32 color_highlight = 0;
+        u32 color_wireframe = 0;
+        u32 color_ibar = 0;
+        
+        if (ind == view->transient.edit_pos->mark && prev_ind != ind){
+            if (color_wireframe == 0){
+                color_wireframe = mark_color;
+            }
+        }
         if (cursor_begin <= ind && ind < cursor_end && (ind != prev_ind || cursor_begin < ind)){
             if (is_active){
-                draw_rectangle(target, char_rect, cursor_color);
+                if (color_highlight == 0){
+                    color_highlight = cursor_color;
+                }
                 char_color = at_cursor_color;
             }
             else{
                 if (!view->transient.file_data.show_temp_highlight){
-                    draw_rectangle_outline(target, char_rect, cursor_color);
+                    if (color_wireframe == 0){
+                        color_wireframe = cursor_color;
+                    }
                 }
             }
         }
-        else if (highlight_this_color){
-            draw_rectangle(target, char_rect, highlight_this_color);
+        if (marker_highlight != 0){
+            if (color_highlight == 0){
+                color_highlight = marker_highlight;
+            }
+        }
+        if (marker_wireframe != 0){
+            if (color_wireframe == 0){
+                color_wireframe = marker_wireframe;
+            }
+        }
+        if (marker_ibar != 0){
+            if (color_ibar == 0){
+                color_ibar = marker_ibar;
+            }
+        }
+        if (highlight_this_color != 0){
+            if (color_highlight == 0){
+                color_highlight = highlight_this_color;
+            }
+        }
+        
+        if (color_highlight != 0){
+            draw_rectangle(target, char_rect, color_highlight);
         }
         
         u32 fade_color = 0xFFFF00FF;
         f32 fade_amount = 0.f;
-        
         if (file->state.paste_effect.seconds_down > 0.f &&
             file->state.paste_effect.start <= ind &&
             ind < file->state.paste_effect.end){
@@ -710,15 +933,19 @@ render_loaded_file_in_view(System_Functions *system, View *view, Models *models,
             fade_amount = file->state.paste_effect.seconds_down;
             fade_amount /= file->state.paste_effect.seconds_max;
         }
-        
         char_color = color_blend(char_color, fade_amount, fade_color);
-        
-        if (ind == view->transient.edit_pos->mark && prev_ind != ind){
-            draw_rectangle_outline(target, char_rect, mark_color);
-        }
         if (item->codepoint != 0){
             draw_font_glyph(target, font_id, item->codepoint, item->x0, item->y0, char_color);
         }
+        
+        if (color_wireframe != 0){
+            draw_rectangle_outline(target, char_rect, color_wireframe);
+        }
+        if (color_ibar != 0){
+            f32_Rect ibar_rect = f32R(char_rect.x0, char_rect.y0, char_rect.x0 + 1, char_rect.y1);
+            draw_rectangle_outline(target, ibar_rect, color_ibar);
+        }
+        
         prev_ind = ind;
     }
     

@@ -609,11 +609,6 @@ STRUCT Buffer_Summary{
     bool32 unwrapped_lines;
 };
 
-ENUM(int32_t, Marker_Type){
-    MarkerType_Standard = 0,
-    MarkerType_Pair = 1,
-};
-
 /*
 DOC(A markers is a location in a buffer that, once placed, is effected by edits the same way characters are effected.  In particular if an edit occurs in a location in the buffer before a marker, the marker is shifted forward or backward so that it remains on the same character.)
 DOC_SEE(buffer_add_markers)
@@ -623,13 +618,6 @@ STRUCT Marker{
     int32_t pos;
     /* DOC(When a marker is inside a range that gets edited, by default the marker 'leans_left' which means it goes to the beginning of the edited range.  If the field lean_right is set to true, the marker will lean right with edits and will go to the end of edited range.) */
     bool32 lean_right;
-};
-
-STRUCT Marker_Pair{
-    int32_t pos1;
-    bool32 lean_right1;
-    int32_t pos2;
-    bool32 lean_right2;
 };
 
 /*
@@ -697,6 +685,17 @@ ENUM(int32_t, Managed_Object_Type)
     ManagedObjectType_Memory = 1,
     ManagedObjectType_Markers = 2,
     ManagedObjectType_COUNT = 3,
+};
+
+ENUM(int32_t, Managed_Buffer_Markers_Type)
+{
+    BufferMarkersType_Invisible = 0,
+    BufferMarkersType_CharacterBlocks = 1,
+    BufferMarkersType_CharacterHighlightRanges = 2,
+    BufferMarkersType_LineHighlights = 3,
+    BufferMarkersType_CharacterWireFrames = 4,
+    BufferMarkersType_CharacterIBars = 5,
+    BufferMarkersType_COUNT = 6,
 };
 
 TYPEDEF uint64_t Managed_Scope;
@@ -784,7 +783,7 @@ DOC_SEE(int_color)
 */
 STRUCT Theme_Color{
     /* DOC(The style slot in the style palette.) */
-    Style_Tag tag;
+    int32_t tag;
     /* DOC(The color in the slot.) */
     int_color color;
 };

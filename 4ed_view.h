@@ -77,11 +77,13 @@ struct View{
 struct Live_Views{
     View *views;
     View free_sentinel;
-    i32 count, max;
+    i32 count;
+    i32 max;
 };
 
 struct Cursor_Limits{
-    f32 min, max;
+    f32 min;
+    f32 max;
     f32 delta;
 };
 
@@ -112,7 +114,9 @@ struct Potential_Wrap_Indent_Pair{
 };
 
 struct Shift_Information{
-    i32 start, end, amount;
+    i32 start;
+    i32 end;
+    i32 amount;
 };
 
 struct Edit_Spec{
@@ -121,8 +125,10 @@ struct Edit_Spec{
 };
 
 struct Relative_Scrolling{
-    f32 scroll_x, scroll_y;
-    f32 target_x, target_y;
+    f32 scroll_x;
+    f32 scroll_y;
+    f32 target_x;
+    f32 target_y;
 };
 
 struct Cursor_Fix_Descriptor{
@@ -195,10 +201,24 @@ enum{
     FileCreateFlag_ReadOnly = 1,
 };
 
-enum History_Mode{
+typedef i32 History_Mode;
+enum{
     hist_normal,
     hist_backward,
     hist_forward
+};
+
+struct Render_Marker{
+    Managed_Buffer_Markers_Type type;
+    i32 pos;
+    u32 color;
+    u32 text_color;
+    i32 range_id;
+};
+
+struct Render_Marker_Array{
+    Render_Marker *markers;
+    i32 count;
 };
 
 #endif

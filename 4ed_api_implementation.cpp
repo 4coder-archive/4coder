@@ -153,7 +153,7 @@ imp_get_view(Command_Data *cmd, View_ID view_id){
     Live_Views *live_set = cmd->live_set;
     View *vptr = 0;
     view_id = view_id - 1;
-    if (view_id >= 0 && view_id < live_set->max){
+    if (0 <= view_id && view_id < live_set->max){
         vptr = live_set->views + view_id;
         if (!vptr->transient.in_use){
             vptr = 0;
@@ -2451,6 +2451,8 @@ Alloc_Buffer_Markers_On_Buffer(Application_Links *app, Buffer_ID buffer_id, int3
         zdll_push_back(workspace->buffer_markers_list.first, workspace->buffer_markers_list.last, header);
         workspace->buffer_markers_list.count += 1;
         header->buffer_id = buffer_id;
+        header->marker_type = BufferMarkersType_Invisible;
+        header->color = 0;
         file->state.total_marker_count += count;
         u32 id = dynamic_workspace_store_pointer(heap, workspace, ptr);
         result = ((u64)markers_scope << 32) | (u64)id;
@@ -2473,6 +2475,25 @@ get_dynamic_object_ptrs(Models *models, Managed_Object object){
         }
     }
     return(result);
+}
+
+API_EXPORT bool32
+Buffer_Markers_Set_Visuals(Application_Links *app, Managed_Object object, Managed_Buffer_Markers_Type marker_type, uint32_t color, uint32_t text_color, View_ID key_view_id){
+    Command_Data *cmd = (Command_Data*)app->cmd_context;
+    Models *models = cmd->models;
+    Managed_Object_Ptr_And_Workspace object_ptrs = get_dynamic_object_ptrs(models, object);
+    if (0 <= marker_type && marker_type < BufferMarkersType_COUNT){
+        if (object_ptrs.header != 0 &&
+            object_ptrs.header->type == ManagedObjectType_Markers){
+            Managed_Buffer_Markers_Header *header = (Managed_Buffer_Markers_Header*)object_ptrs.header;
+            header->marker_type = marker_type;
+            header->color = color;
+            header->text_color = text_color;
+            header->key_view_id = key_view_id;
+            return(true);
+        }
+    }
+    return(false);
 }
 
 internal u8*

@@ -30,6 +30,10 @@ struct Managed_Buffer_Markers_Header{
     Managed_Buffer_Markers_Header *next;
     Managed_Buffer_Markers_Header *prev;
     Buffer_ID buffer_id;
+    Managed_Buffer_Markers_Type marker_type;
+    u32 color;
+    u32 text_color;
+    View_ID key_view_id;
 };
 
 global_const i32 managed_header_type_sizes[ManagedObjectType_COUNT] = {

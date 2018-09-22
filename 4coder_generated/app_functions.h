@@ -58,6 +58,7 @@ struct Application_Links;
 #define MANAGED_VARIABLE_GET_SIG(n) bool32 n(Application_Links *app, Managed_Scope scope, Managed_Variable_ID location, uint64_t *value_out)
 #define ALLOC_MANAGED_MEMORY_IN_SCOPE_SIG(n) Managed_Object n(Application_Links *app, Managed_Scope scope, int32_t item_size, int32_t count)
 #define ALLOC_BUFFER_MARKERS_ON_BUFFER_SIG(n) Managed_Object n(Application_Links *app, Buffer_ID buffer_id, int32_t count, Managed_Scope *optional_extra_scope)
+#define BUFFER_MARKERS_SET_VISUALS_SIG(n) bool32 n(Application_Links *app, Managed_Object object, Managed_Buffer_Markers_Type marker_type, uint32_t color, uint32_t text_color, View_ID key_view_id)
 #define MANAGED_OBJECT_GET_ITEM_SIZE_SIG(n) uint32_t n(Application_Links *app, Managed_Object object)
 #define MANAGED_OBJECT_GET_ITEM_COUNT_SIG(n) uint32_t n(Application_Links *app, Managed_Object object)
 #define MANAGED_OBJECT_GET_TYPE_SIG(n) Managed_Object_Type n(Application_Links *app, Managed_Object object)
@@ -163,6 +164,7 @@ typedef MANAGED_VARIABLE_SET_SIG(Managed_Variable_Set_Function);
 typedef MANAGED_VARIABLE_GET_SIG(Managed_Variable_Get_Function);
 typedef ALLOC_MANAGED_MEMORY_IN_SCOPE_SIG(Alloc_Managed_Memory_In_Scope_Function);
 typedef ALLOC_BUFFER_MARKERS_ON_BUFFER_SIG(Alloc_Buffer_Markers_On_Buffer_Function);
+typedef BUFFER_MARKERS_SET_VISUALS_SIG(Buffer_Markers_Set_Visuals_Function);
 typedef MANAGED_OBJECT_GET_ITEM_SIZE_SIG(Managed_Object_Get_Item_Size_Function);
 typedef MANAGED_OBJECT_GET_ITEM_COUNT_SIG(Managed_Object_Get_Item_Count_Function);
 typedef MANAGED_OBJECT_GET_TYPE_SIG(Managed_Object_Get_Type_Function);
@@ -270,6 +272,7 @@ Managed_Variable_Set_Function *managed_variable_set;
 Managed_Variable_Get_Function *managed_variable_get;
 Alloc_Managed_Memory_In_Scope_Function *alloc_managed_memory_in_scope;
 Alloc_Buffer_Markers_On_Buffer_Function *alloc_buffer_markers_on_buffer;
+Buffer_Markers_Set_Visuals_Function *buffer_markers_set_visuals;
 Managed_Object_Get_Item_Size_Function *managed_object_get_item_size;
 Managed_Object_Get_Item_Count_Function *managed_object_get_item_count;
 Managed_Object_Get_Type_Function *managed_object_get_type;
@@ -376,6 +379,7 @@ Managed_Variable_Set_Function *managed_variable_set_;
 Managed_Variable_Get_Function *managed_variable_get_;
 Alloc_Managed_Memory_In_Scope_Function *alloc_managed_memory_in_scope_;
 Alloc_Buffer_Markers_On_Buffer_Function *alloc_buffer_markers_on_buffer_;
+Buffer_Markers_Set_Visuals_Function *buffer_markers_set_visuals_;
 Managed_Object_Get_Item_Size_Function *managed_object_get_item_size_;
 Managed_Object_Get_Item_Count_Function *managed_object_get_item_count_;
 Managed_Object_Get_Type_Function *managed_object_get_type_;
@@ -490,6 +494,7 @@ app_links->managed_variable_set_ = Managed_Variable_Set;\
 app_links->managed_variable_get_ = Managed_Variable_Get;\
 app_links->alloc_managed_memory_in_scope_ = Alloc_Managed_Memory_In_Scope;\
 app_links->alloc_buffer_markers_on_buffer_ = Alloc_Buffer_Markers_On_Buffer;\
+app_links->buffer_markers_set_visuals_ = Buffer_Markers_Set_Visuals;\
 app_links->managed_object_get_item_size_ = Managed_Object_Get_Item_Size;\
 app_links->managed_object_get_item_count_ = Managed_Object_Get_Item_Count;\
 app_links->managed_object_get_type_ = Managed_Object_Get_Type;\
@@ -596,6 +601,7 @@ static inline bool32 managed_variable_set(Application_Links *app, Managed_Scope 
 static inline bool32 managed_variable_get(Application_Links *app, Managed_Scope scope, Managed_Variable_ID location, uint64_t *value_out){return(app->managed_variable_get(app, scope, location, value_out));}
 static inline Managed_Object alloc_managed_memory_in_scope(Application_Links *app, Managed_Scope scope, int32_t item_size, int32_t count){return(app->alloc_managed_memory_in_scope(app, scope, item_size, count));}
 static inline Managed_Object alloc_buffer_markers_on_buffer(Application_Links *app, Buffer_ID buffer_id, int32_t count, Managed_Scope *optional_extra_scope){return(app->alloc_buffer_markers_on_buffer(app, buffer_id, count, optional_extra_scope));}
+static inline bool32 buffer_markers_set_visuals(Application_Links *app, Managed_Object object, Managed_Buffer_Markers_Type marker_type, uint32_t color, uint32_t text_color, View_ID key_view_id){return(app->buffer_markers_set_visuals(app, object, marker_type, color, text_color, key_view_id));}
 static inline uint32_t managed_object_get_item_size(Application_Links *app, Managed_Object object){return(app->managed_object_get_item_size(app, object));}
 static inline uint32_t managed_object_get_item_count(Application_Links *app, Managed_Object object){return(app->managed_object_get_item_count(app, object));}
 static inline Managed_Object_Type managed_object_get_type(Application_Links *app, Managed_Object object){return(app->managed_object_get_type(app, object));}
@@ -702,6 +708,7 @@ static inline bool32 managed_variable_set(Application_Links *app, Managed_Scope 
 static inline bool32 managed_variable_get(Application_Links *app, Managed_Scope scope, Managed_Variable_ID location, uint64_t *value_out){return(app->managed_variable_get_(app, scope, location, value_out));}
 static inline Managed_Object alloc_managed_memory_in_scope(Application_Links *app, Managed_Scope scope, int32_t item_size, int32_t count){return(app->alloc_managed_memory_in_scope_(app, scope, item_size, count));}
 static inline Managed_Object alloc_buffer_markers_on_buffer(Application_Links *app, Buffer_ID buffer_id, int32_t count, Managed_Scope *optional_extra_scope){return(app->alloc_buffer_markers_on_buffer_(app, buffer_id, count, optional_extra_scope));}
+static inline bool32 buffer_markers_set_visuals(Application_Links *app, Managed_Object object, Managed_Buffer_Markers_Type marker_type, uint32_t color, uint32_t text_color, View_ID key_view_id){return(app->buffer_markers_set_visuals_(app, object, marker_type, color, text_color, key_view_id));}
 static inline uint32_t managed_object_get_item_size(Application_Links *app, Managed_Object object){return(app->managed_object_get_item_size_(app, object));}
 static inline uint32_t managed_object_get_item_count(Application_Links *app, Managed_Object object){return(app->managed_object_get_item_count_(app, object));}
 static inline Managed_Object_Type managed_object_get_type(Application_Links *app, Managed_Object object){return(app->managed_object_get_type_(app, object));}

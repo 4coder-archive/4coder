@@ -611,6 +611,15 @@ CUSTOM_COMMAND_SIG(search);
 CUSTOM_COMMAND_SIG(reverse_search);
 
 static void
+isearch__update_highlight(Application_Links *app, Managed_Object highlight,
+                          int32_t start, int32_t end){
+    Marker markers[2] = {0};
+    markers[0].pos = start;
+    markers[1].pos = end;
+    managed_object_store_data(app, highlight, 0, 2, markers);
+}
+
+static void
 isearch(Application_Links *app, bool32 start_reversed, String query_init, bool32 on_the_query_init_string){
     View_Summary view = get_active_view(app, AccessProtected);
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessProtected);
@@ -639,9 +648,21 @@ isearch(Application_Links *app, bool32 start_reversed, String query_init, bool32
     
     bool32 first_step = true;
     
+    Theme_Color color = {0};
+    color.tag = Stag_Highlight;
+    get_theme_colors(app, &color, 1);
+    
+    Managed_Scope view_scope = view_get_managed_scope(app, view.view_id);
+    Managed_Object highlight = alloc_buffer_markers_on_buffer(app, buffer.buffer_id, 2, &view_scope);
+    Managed_Buffer_Markers_Type marker_type = BufferMarkersType_CharacterHighlightRanges;
+    buffer_markers_set_visuals(app, highlight,
+                               marker_type, color.color, 0, view.view_id);
+    isearch__update_highlight(app, highlight, start_pos, start_pos);
+    
     User_Input in = {0};
     for (;;){
-        view_set_highlight(app, &view, match.start, match.end, true);
+        isearch__update_highlight(app, highlight,
+                                  match.start, match.end);
         
         // NOTE(allen): Change the bar's prompt to match the current direction.
         if (reverse){
@@ -765,7 +786,8 @@ isearch(Application_Links *app, bool32 start_reversed, String query_init, bool32
         }
     }
     
-    view_set_highlight(app, &view, 0, 0, false);
+    managed_object_free(app, highlight);
+    
     if (in.abort){
         String previous_isearch_query_str = make_fixed_width_string(previous_isearch_query);
         append(&previous_isearch_query_str, bar.string);
