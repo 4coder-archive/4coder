@@ -285,6 +285,9 @@ do_render_file_view(System_Functions *system, View *view, Models *models, GUI_Sc
     if (!view->transient.ui_mode){
         if (file_is_ready(file)){
             if (models->render_caller != 0){
+                models->command_data.render_view = view;
+                models->command_data.render_rect = rect;
+                models->command_data.render_is_active = is_active;
                 models->render_caller(&models->app_links, view->persistent.id + 1, do_core_render);
             }
             else{

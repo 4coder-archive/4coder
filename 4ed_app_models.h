@@ -27,6 +27,24 @@ struct App_Settings{
     b32 use_hinting;
 };
 
+struct Command_Data{
+    struct Models *models;
+    struct App_Vars *vars;
+    System_Functions *system;
+    Live_Views *live_set;
+    
+    i32 screen_width;
+    i32 screen_height;
+    
+    Key_Event_Data key;
+    
+    // Render Context
+    View *render_view;
+    i32_Rect render_rect;
+    b32 render_is_active;
+    Render_Target *target;
+};
+
 struct Models{
     Mem_Options mem;
     App_Settings settings;
@@ -59,6 +77,8 @@ struct Models{
     Input_Filter_Function *input_filter;
     Scroll_Rule_Function *scroll_rule;
     Buffer_Name_Resolver_Function *buffer_name_resolver;
+    
+    Command_Data command_data;
     
     Style_Library styles;
     u32 *palette;
@@ -117,24 +137,6 @@ struct App_State_Resizing{
     Panel_Divider *divider;
 };
 
-struct Command_Data{
-    Models *models;
-    struct App_Vars *vars;
-    System_Functions *system;
-    Live_Views *live_set;
-    
-    i32 screen_width;
-    i32 screen_height;
-    
-    Key_Event_Data key;
-    
-    // Render Context
-    View *render_view;
-    i32_Rect render_rect;
-    b32 render_is_active;
-    Render_Target *target;
-};
-
 enum Input_Types{
     Input_AnyKey,
     Input_Esc,
@@ -163,8 +165,6 @@ struct App_Vars{
     
     App_State state;
     App_State_Resizing resizing;
-    
-    Command_Data command_data;
     
     Available_Input available_input;
 };

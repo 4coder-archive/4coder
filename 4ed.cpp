@@ -741,6 +741,7 @@ app_hardcode_default_style(Models *models){
     style->main.mark_color = 0xFF494949;
     style->main.default_color = 0xFF90B080;
     style->main.at_cursor_color = style->main.back_color;
+    style->main.highlight_cursor_line_color = 0xFF1E1E1E;
     style->main.at_highlight_color = 0xFFFF44DD;
     style->main.comment_color = 0xFF2090F0;
     style->main.keyword_color = 0xFFD08F20;
@@ -979,7 +980,7 @@ App_Init_Sig(app_init){
     app_links_init(system, &models->app_links, memory->user_memory, memory->user_memory_size);
     
     models->config_api = api;
-    models->app_links.cmd_context = &vars->command_data;
+    models->app_links.cmd_context = &models->command_data;
     
     Partition *partition = &models->mem.part;
     
@@ -1086,7 +1087,7 @@ App_Init_Sig(app_init){
     }
     
     // NOTE(allen): init first panel
-    Command_Data *cmd = &vars->command_data;
+    Command_Data *cmd = &models->command_data;
     
     cmd->models = models;
     cmd->vars = vars;
@@ -1382,7 +1383,7 @@ App_Step_Sig(app_step){
     }
     
     // NOTE(allen): prepare to start executing commands
-    Command_Data *cmd = &vars->command_data;
+    Command_Data *cmd = &models->command_data;
     cmd->models = models;
     cmd->vars = vars;
     cmd->system = system;
@@ -1886,10 +1887,6 @@ App_Step_Sig(app_step){
             draw_rectangle(target, full, back_color);
             
             GUI_Scroll_Vars *scroll_vars = &view->transient.edit_pos->scroll;
-            
-            cmd->render_view = view;
-            cmd->render_rect = panel->inner;
-            cmd->render_is_active = active;
             
             do_render_file_view(system, view, models, scroll_vars, active_view, panel->inner, active, target, &dead_input);
             

@@ -685,11 +685,11 @@ render_loaded_file_in_view(System_Functions *system, View *view, Models *models,
     
     view->transient.edit_pos->scroll_i = render_cursor.pos;
     
+    b32 wrapped = !file->settings.unwrapped_lines;
+    
     i32 count = 0;
     i32 end_pos = 0;
     {
-        b32 wrapped = !file->settings.unwrapped_lines;
-        
         Buffer_Render_Params params;
         params.buffer        = &file->state.buffer;
         params.items         = items;
@@ -891,17 +891,19 @@ render_loaded_file_in_view(System_Functions *system, View *view, Models *models,
         
         // NOTE(allen): Wrap scanning
         b32 is_new_wrap = false;
-        for (; wrap_scan_index < wrap_count;){
-            if (ind < first_byte_index_of_next_wrap){
-                break;
-            }
-            wrap_scan_index += 1;
-            is_new_wrap = true;
-            if (wrap_scan_index + 1 < wrap_count){
-                first_byte_index_of_next_wrap = wrap_starts[wrap_scan_index + 1];
-            }
-            else{
-                first_byte_index_of_next_wrap = max_i32;
+        if (wrapped){
+            for (; wrap_scan_index < wrap_count;){
+                if (ind < first_byte_index_of_next_wrap){
+                    break;
+                }
+                wrap_scan_index += 1;
+                is_new_wrap = true;
+                if (wrap_scan_index + 1 < wrap_count){
+                    first_byte_index_of_next_wrap = wrap_starts[wrap_scan_index + 1];
+                }
+                else{
+                    first_byte_index_of_next_wrap = max_i32;
+                }
             }
         }
         
