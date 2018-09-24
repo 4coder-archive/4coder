@@ -815,6 +815,7 @@ get_bindings(void *data, int32_t size){
     
     set_input_filter(context, default_suppress_mouse_filter);
     set_command_caller(context, default_command_caller);
+    set_render_caller(context, default_render_caller);
     
     set_scroll_rule(context, smooth_scroll_rule);
     set_buffer_name_resolver(context, default_buffer_name_resolution);
