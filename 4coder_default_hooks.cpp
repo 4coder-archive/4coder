@@ -55,56 +55,112 @@ RENDER_CALLER_SIG(default_render_caller){
     View_Summary view = get_view(app, view_id, AccessAll);
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessAll);
     
-    uint32_t line_color = 0;
-    uint32_t token_color = 0;
+    // NOTE(allen): Line highlight setup
+    Managed_Object line_highlight = 0;
     
-    {
+    if (highlight_line_at_cursor){
         Theme_Color color = {0};
         color.tag = Stag_Highlight_Cursor_Line;
         get_theme_colors(app, &color, 1);
-        line_color = color.color;
+        uint32_t line_color = color.color;
+        line_highlight = alloc_buffer_markers_on_buffer(app, buffer.buffer_id, 1, 0);
+        buffer_markers_set_visuals(app, line_highlight, BufferMarkersType_LineHighlights, line_color, 0, 0);
+        Marker marker = {0};
+        marker.pos = view.cursor.pos;
+        managed_object_store_data(app, line_highlight, 0, 1, &marker);
     }
     
-    {
+    // NOTE(allen): Token highlight setup
+    bool32 do_token_highlight = false;
+    Managed_Object token_highlight = 0;
+    
+    if (do_token_highlight){
         Theme_Color color = {0};
         color.tag = Stag_Cursor;
         get_theme_colors(app, &color, 1);
-        token_color = (0x50 << 24) | (color.color&0xFFFFFF);
-    }
-    
-    // NOTE(allen): Line highlight setup
-    Managed_Object line_highlight = alloc_buffer_markers_on_buffer(app, buffer.buffer_id, 1, 0);
-    buffer_markers_set_visuals(app, line_highlight, BufferMarkersType_LineHighlights, line_color, 0, 0);
-    Marker marker = {0};
-    marker.pos = view.cursor.pos;
-    managed_object_store_data(app, line_highlight, 0, 1, &marker);
-    
-    // NOTE(allen): Token highlight setup
-    bool32 do_token_highlight = true;
-    Managed_Object token_highlight = 0;
-    
-    {
+        uint32_t token_color = (0x50 << 24) | (color.color&0xFFFFFF);
+        
         uint32_t token_flags = BoundaryToken|BoundaryWhitespace;
         int32_t pos0 = view.cursor.pos;
         int32_t pos1 = buffer_boundary_seek(app, &buffer, pos0, DirLeft , token_flags);
         int32_t pos2 = buffer_boundary_seek(app, &buffer, pos1, DirRight, token_flags);
         
-        if (do_token_highlight){
-            token_highlight = alloc_buffer_markers_on_buffer(app, buffer.buffer_id, 2, 0);
-            buffer_markers_set_visuals(app, token_highlight, BufferMarkersType_CharacterHighlightRanges, token_color, 0, 0);
-            Marker range_markers[2] = {0};
-            range_markers[0].pos = pos1;
-            range_markers[1].pos = pos2;
-            managed_object_store_data(app, token_highlight, 0, 2, range_markers);
+        token_highlight = alloc_buffer_markers_on_buffer(app, buffer.buffer_id, 2, 0);
+        buffer_markers_set_visuals(app, token_highlight, BufferMarkersType_CharacterHighlightRanges, token_color, 0, 0);
+        Marker range_markers[2] = {0};
+        range_markers[0].pos = pos1;
+        range_markers[1].pos = pos2;
+        managed_object_store_data(app, token_highlight, 0, 2, range_markers);
+    }
+    
+    // NOTE(allen): Matching enclosure highlight setup
+    bool32 do_matching_enclosure_highlight = true;
+    static uint32_t enclosure_colors[4] = {
+        0x70A00000,
+        0x7000A000,
+        0x700000A0,
+        0x70A0A000,
+    };
+    Managed_Object matching_brace_highlights[ArrayCount(enclosure_colors)] = {0};
+    
+    if (do_matching_enclosure_highlight){
+        Partition *scratch = &global_part;
+        Temp_Memory temp = begin_temp_memory(scratch);
+        Range *ranges = push_array(scratch, Range, 0);
+        int32_t p = view.cursor.pos;
+        for (;;){
+            Range range = {0};
+            if (find_scope_range(app, &buffer, p, &range)){
+                p = range.first;
+                Range *r = push_array(scratch, Range, 1);
+                *r = range;
+            }
+            else{
+                break;
+            }
         }
+        int32_t count = (int32_t)(push_array(scratch, Range, 0) - ranges);
+        
+        int32_t bucket_count = count/ArrayCount(matching_brace_highlights);
+        int32_t left_over_count = count%ArrayCount(matching_brace_highlights);
+        
+        for (int32_t i = 0; i < ArrayCount(matching_brace_highlights); i += 1){
+            int32_t sub_count = bucket_count + (i < left_over_count?1:0);
+            if (sub_count > 0){
+                int32_t marker_count = sub_count*2;
+                Temp_Memory marker_temp = begin_temp_memory(scratch);
+                Marker *markers = push_array(scratch, Marker, marker_count);
+                memset(markers, 0, sizeof(*markers)*marker_count);
+                Range *range_ptr = ranges + i;
+                for (int32_t j = 0; j < marker_count; j += 2, range_ptr += 4){
+                    markers[j + 0].pos = range_ptr->first;
+                    markers[j + 1].pos = range_ptr->one_past_last - 1;
+                }
+                Managed_Object m = alloc_buffer_markers_on_buffer(app, buffer.buffer_id, marker_count, 0);
+                matching_brace_highlights[i] = m;
+                buffer_markers_set_visuals(app, m, BufferMarkersType_CharacterBlocks, enclosure_colors[i], 0, 0);
+                managed_object_store_data(app, m, 0, marker_count, markers);
+                end_temp_memory(marker_temp);
+            }
+        }
+        
+        end_temp_memory(temp);
     }
     
     do_core_render(app);
     
-    managed_object_free(app, line_highlight);
-    if (do_token_highlight){
+    if (line_highlight != 0){
+        managed_object_free(app, line_highlight);
+    }
+    if (token_highlight != 0){
         managed_object_free(app, token_highlight);
     }
+    for (int32_t i = 0; i < ArrayCount(matching_brace_highlights); i += 1){
+        if (matching_brace_highlights[i] != 0){
+            managed_object_free(app, matching_brace_highlights[i]);
+        }
+    }
+    
 }
 
 HOOK_SIG(default_exit){

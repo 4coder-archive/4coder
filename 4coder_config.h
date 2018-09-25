@@ -217,6 +217,8 @@ struct Config_Data{
     char default_theme_name_space[256];
     String default_theme_name;
     
+    bool32 highlight_line_at_cursor;
+    
     char default_font_name_space[256];
     String default_font_name;
     int32_t default_font_size;

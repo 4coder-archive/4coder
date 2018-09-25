@@ -289,6 +289,18 @@ find_prev_scope(Application_Links *app, Buffer_Summary *buffer, int32_t start_po
     return(success);
 }
 
+static bool32
+find_scope_range(Application_Links *app, Buffer_Summary *buffer, int32_t start_pos, Range *range_out){
+    Range range = {0};
+    if (find_scope_top(app, buffer, start_pos, FindScope_Parent, &range.start)){
+        if (find_scope_bottom(app, buffer, start_pos, FindScope_Parent|FindScope_EndOfToken, &range.end)){
+            *range_out = range;
+            return(true);
+        }
+    }
+    return(false);
+}
+
 static void
 view_set_to_region(Application_Links *app, View_Summary *view, int32_t major_pos, int32_t minor_pos, float normalized_threshold){
     Range range = make_range(major_pos, minor_pos);
@@ -345,18 +357,11 @@ CUSTOM_DOC("Finds the scope enclosed by '{' '}' surrounding the cursor and puts 
     View_Summary view = get_active_view(app, access);
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, access);
     
-    int32_t start_pos = view.cursor.pos;
-    int32_t top = 0;
-    int32_t bottom = 0;
-    if (find_scope_top(app, &buffer, start_pos, FindScope_Parent, &top)){
-        view_set_cursor(app, &view, seek_pos(top), true);
-        if (find_scope_bottom(app, &buffer, start_pos, FindScope_Parent | FindScope_EndOfToken, &bottom)){
-            view_set_mark(app, &view, seek_pos(bottom));
-            view_set_to_region(app, &view, top, bottom, scope_center_threshold);
-        }
-        else{
-            view_set_to_region(app, &view, top, top, scope_center_threshold);
-        }
+    Range range = {0};
+    if (find_scope_range(app, &buffer, view.cursor.pos, &range)){
+        view_set_cursor(app, &view, seek_pos(range.first), true);
+        view_set_mark(app, &view, seek_pos(range.end));
+        view_set_to_region(app, &view, range.first, range.end, scope_center_threshold);
     }
 }
 

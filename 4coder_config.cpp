@@ -1345,6 +1345,7 @@ config_init_default(Config_Data *config){
     
     config->default_theme_name = make_fixed_width_string(config->default_theme_name_space);
     copy(&config->default_theme_name, "4coder");
+    config->highlight_line_at_cursor = true;
     
     config->default_font_name = make_fixed_width_string(config->default_font_name_space);
     copy(&config->default_font_name, "");
@@ -1404,6 +1405,7 @@ config_parse__data(Partition *arena, String file_name, String data, Config_Data 
         
         config_fixed_string_var(parsed, "default_theme_name", 0,
                                 &config->default_theme_name, config->default_theme_name_space);
+        config_bool_var(parsed, "highlight_line_at_cursor", 0, &config->highlight_line_at_cursor);
         
         config_fixed_string_var(parsed, "default_font_name", 0,
                                 &config->default_font_name, config->default_font_name_space);
@@ -1613,6 +1615,7 @@ load_config_and_apply(Application_Links *app, Partition *scratch, Config_Data *c
             config_feedback_int(&space, "default_min_base_width", config->default_min_base_width);
             
             config_feedback_string(&space, "default_theme_name", config->default_theme_name);
+            config_feedback_bool(&space, "highlight_line_at_cursor", config->highlight_line_at_cursor);
             
             config_feedback_string(&space, "default_font_name", config->default_font_name);
             config_feedback_int(&space, "default_font_size", config->default_font_size);
@@ -1636,6 +1639,7 @@ load_config_and_apply(Application_Links *app, Partition *scratch, Config_Data *c
         global_set_setting(app, GlobalSetting_LAltLCtrlIsAltGr, config->lalt_lctrl_is_altgr);
         
         change_theme(app, config->default_theme_name.str, config->default_theme_name.size);
+        highlight_line_at_cursor = config->highlight_line_at_cursor;
         
         Face_Description description = {0};
         int32_t len = config->default_font_name.size;

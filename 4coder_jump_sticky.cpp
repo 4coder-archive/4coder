@@ -159,11 +159,8 @@ init_marker_list(Application_Links *app, Partition *scratch, Heap *heap, Buffer_
             marker_color = color.color;
         }
         else{
-            marker_type = BufferMarkersType_CharacterBlocks;
-            Theme_Color color = {};
-            color.tag = Stag_Highlight;
-            get_theme_colors(app, &color, 1);
-            marker_color = color.color;
+            marker_type = BufferMarkersType_Invisible;
+            marker_color = 0;
         }
         
         scope_array[1] = buffer_get_managed_scope(app, target_buffer_id);

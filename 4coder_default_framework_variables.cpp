@@ -17,6 +17,10 @@ static char *default_extensions[] = {
     "h",
     "cc",
     "cs",
+    "java",
+    "rs",
+    "glsl",
+    "m",
 };
 
 #if !defined(AUTO_CENTER_AFTER_JUMPS)
@@ -41,6 +45,7 @@ static char command_space[1024];
 static char hot_directory_space[1024];
 
 
+static bool32 highlight_line_at_cursor = false;
 static bool32 suppressing_mouse = false;
 
 

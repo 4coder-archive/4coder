@@ -220,13 +220,13 @@ create_or_switch_to_buffer_by_name(Application_Links *app, char *name, int32_t n
 ////////////////////////////////
 
 static void
-set_mouse_suppression(Application_Links *app, int32_t suppress){
+set_mouse_suppression(Application_Links *app, bool32 suppress){
     if (suppress){
-        suppressing_mouse = 1;
+        suppressing_mouse = true;
         show_mouse_cursor(app, MouseCursorShow_Never);
     }
     else{
-        suppressing_mouse = 0;
+        suppressing_mouse = false;
         show_mouse_cursor(app, MouseCursorShow_Always);
     }
 }
@@ -247,6 +247,24 @@ CUSTOM_COMMAND_SIG(toggle_mouse)
 CUSTOM_DOC("Toggles the mouse suppression mode, see suppress_mouse and allow_mouse.")
 {
     set_mouse_suppression(app, !suppressing_mouse);
+}
+
+CUSTOM_COMMAND_SIG(disable_highlight_line_at_cursor)
+CUSTOM_DOC("Disables the line highlight at the cursor.")
+{
+    highlight_line_at_cursor = false;
+}
+
+CUSTOM_COMMAND_SIG(enable_highlight_line_at_cursor)
+CUSTOM_DOC("Enables the line highlight at the cursor.")
+{
+    highlight_line_at_cursor = true;
+}
+
+CUSTOM_COMMAND_SIG(toggle_highlight_line_at_cursor)
+CUSTOM_DOC("Toggles the line highlight at the cursor.")
+{
+    highlight_line_at_cursor = !highlight_line_at_cursor;
 }
 
 CUSTOM_COMMAND_SIG(toggle_fullscreen)

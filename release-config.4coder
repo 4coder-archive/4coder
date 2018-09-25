@@ -34,6 +34,7 @@ indent_width = 4;
 
 // Theme
 default_theme_name = "4coder";
+highlight_line_at_cursor = true;
 
 // Font
 default_font_name = "Liberation Mono";
