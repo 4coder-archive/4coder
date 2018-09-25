@@ -816,6 +816,9 @@ render_loaded_file_in_view(System_Functions *system, View *view, Models *models,
     
     i32 *wrap_starts = file->state.wrap_positions;
     i32 wrap_count = file->state.wrap_position_count;
+    if (wrap_count > 0 && wrap_starts[wrap_count - 1] == buffer_size(&file->state.buffer)){
+        wrap_count -= 1;
+    }
     i32 wrap_scan_index = render_cursor.wrap_line - render_cursor.line;
     i32 first_byte_index_of_next_wrap = 0;
     if (wrap_scan_index + 1 < wrap_count){
