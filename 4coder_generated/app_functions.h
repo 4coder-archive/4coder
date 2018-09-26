@@ -49,6 +49,8 @@ struct Application_Links;
 #define VIEW_END_UI_MODE_SIG(n) int32_t n(Application_Links *app, View_Summary *view)
 #define VIEW_SET_UI_SIG(n) bool32 n(Application_Links *app, View_Summary *view, UI_Control *control, UI_Quit_Function_Type *quit_function)
 #define VIEW_GET_UI_COPY_SIG(n) UI_Control n(Application_Links *app, View_Summary *view, struct Partition *part)
+#define CREATE_USER_MANAGED_SCOPE_SIG(n) Managed_Scope n(Application_Links *app)
+#define DESTROY_USER_MANAGED_SCOPE_SIG(n) bool32 n(Application_Links *app, Managed_Scope scope)
 #define GET_GLOBAL_MANAGED_SCOPE_SIG(n) Managed_Scope n(Application_Links *app)
 #define GET_MANAGED_SCOPE_WITH_MULTIPLE_DEPENDENCIES_SIG(n) Managed_Scope n(Application_Links *app, Managed_Scope *intersected_scopes, int32_t count)
 #define MANAGED_VARIABLE_CREATE_SIG(n) Managed_Variable_ID n(Application_Links *app, char *null_terminated_name, uint64_t default_value)
@@ -155,6 +157,8 @@ typedef VIEW_START_UI_MODE_SIG(View_Start_UI_Mode_Function);
 typedef VIEW_END_UI_MODE_SIG(View_End_UI_Mode_Function);
 typedef VIEW_SET_UI_SIG(View_Set_UI_Function);
 typedef VIEW_GET_UI_COPY_SIG(View_Get_UI_Copy_Function);
+typedef CREATE_USER_MANAGED_SCOPE_SIG(Create_User_Managed_Scope_Function);
+typedef DESTROY_USER_MANAGED_SCOPE_SIG(Destroy_User_Managed_Scope_Function);
 typedef GET_GLOBAL_MANAGED_SCOPE_SIG(Get_Global_Managed_Scope_Function);
 typedef GET_MANAGED_SCOPE_WITH_MULTIPLE_DEPENDENCIES_SIG(Get_Managed_Scope_With_Multiple_Dependencies_Function);
 typedef MANAGED_VARIABLE_CREATE_SIG(Managed_Variable_Create_Function);
@@ -263,6 +267,8 @@ View_Start_UI_Mode_Function *view_start_ui_mode;
 View_End_UI_Mode_Function *view_end_ui_mode;
 View_Set_UI_Function *view_set_ui;
 View_Get_UI_Copy_Function *view_get_ui_copy;
+Create_User_Managed_Scope_Function *create_user_managed_scope;
+Destroy_User_Managed_Scope_Function *destroy_user_managed_scope;
 Get_Global_Managed_Scope_Function *get_global_managed_scope;
 Get_Managed_Scope_With_Multiple_Dependencies_Function *get_managed_scope_with_multiple_dependencies;
 Managed_Variable_Create_Function *managed_variable_create;
@@ -370,6 +376,8 @@ View_Start_UI_Mode_Function *view_start_ui_mode_;
 View_End_UI_Mode_Function *view_end_ui_mode_;
 View_Set_UI_Function *view_set_ui_;
 View_Get_UI_Copy_Function *view_get_ui_copy_;
+Create_User_Managed_Scope_Function *create_user_managed_scope_;
+Destroy_User_Managed_Scope_Function *destroy_user_managed_scope_;
 Get_Global_Managed_Scope_Function *get_global_managed_scope_;
 Get_Managed_Scope_With_Multiple_Dependencies_Function *get_managed_scope_with_multiple_dependencies_;
 Managed_Variable_Create_Function *managed_variable_create_;
@@ -485,6 +493,8 @@ app_links->view_start_ui_mode_ = View_Start_UI_Mode;\
 app_links->view_end_ui_mode_ = View_End_UI_Mode;\
 app_links->view_set_ui_ = View_Set_UI;\
 app_links->view_get_ui_copy_ = View_Get_UI_Copy;\
+app_links->create_user_managed_scope_ = Create_User_Managed_Scope;\
+app_links->destroy_user_managed_scope_ = Destroy_User_Managed_Scope;\
 app_links->get_global_managed_scope_ = Get_Global_Managed_Scope;\
 app_links->get_managed_scope_with_multiple_dependencies_ = Get_Managed_Scope_With_Multiple_Dependencies;\
 app_links->managed_variable_create_ = Managed_Variable_Create;\
@@ -592,6 +602,8 @@ static inline bool32 view_start_ui_mode(Application_Links *app, View_Summary *vi
 static inline int32_t view_end_ui_mode(Application_Links *app, View_Summary *view){return(app->view_end_ui_mode(app, view));}
 static inline bool32 view_set_ui(Application_Links *app, View_Summary *view, UI_Control *control, UI_Quit_Function_Type *quit_function){return(app->view_set_ui(app, view, control, quit_function));}
 static inline UI_Control view_get_ui_copy(Application_Links *app, View_Summary *view, struct Partition *part){return(app->view_get_ui_copy(app, view, part));}
+static inline Managed_Scope create_user_managed_scope(Application_Links *app){return(app->create_user_managed_scope(app));}
+static inline bool32 destroy_user_managed_scope(Application_Links *app, Managed_Scope scope){return(app->destroy_user_managed_scope(app, scope));}
 static inline Managed_Scope get_global_managed_scope(Application_Links *app){return(app->get_global_managed_scope(app));}
 static inline Managed_Scope get_managed_scope_with_multiple_dependencies(Application_Links *app, Managed_Scope *intersected_scopes, int32_t count){return(app->get_managed_scope_with_multiple_dependencies(app, intersected_scopes, count));}
 static inline Managed_Variable_ID managed_variable_create(Application_Links *app, char *null_terminated_name, uint64_t default_value){return(app->managed_variable_create(app, null_terminated_name, default_value));}
@@ -699,6 +711,8 @@ static inline bool32 view_start_ui_mode(Application_Links *app, View_Summary *vi
 static inline int32_t view_end_ui_mode(Application_Links *app, View_Summary *view){return(app->view_end_ui_mode_(app, view));}
 static inline bool32 view_set_ui(Application_Links *app, View_Summary *view, UI_Control *control, UI_Quit_Function_Type *quit_function){return(app->view_set_ui_(app, view, control, quit_function));}
 static inline UI_Control view_get_ui_copy(Application_Links *app, View_Summary *view, struct Partition *part){return(app->view_get_ui_copy_(app, view, part));}
+static inline Managed_Scope create_user_managed_scope(Application_Links *app){return(app->create_user_managed_scope_(app));}
+static inline bool32 destroy_user_managed_scope(Application_Links *app, Managed_Scope scope){return(app->destroy_user_managed_scope_(app, scope));}
 static inline Managed_Scope get_global_managed_scope(Application_Links *app){return(app->get_global_managed_scope_(app));}
 static inline Managed_Scope get_managed_scope_with_multiple_dependencies(Application_Links *app, Managed_Scope *intersected_scopes, int32_t count){return(app->get_managed_scope_with_multiple_dependencies_(app, intersected_scopes, count));}
 static inline Managed_Variable_ID managed_variable_create(Application_Links *app, char *null_terminated_name, uint64_t default_value){return(app->managed_variable_create_(app, null_terminated_name, default_value));}

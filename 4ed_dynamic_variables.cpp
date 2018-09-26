@@ -163,9 +163,7 @@ dynamic_memory_bank_free_all(Heap *heap, Dynamic_Memory_Bank *mem_bank){
 ////////////////////////////////
 
 internal void
-dynamic_workspace_init(Heap *heap, Lifetime_Allocator *lifetime_allocator,
-                       i32 user_type, void *user_back_ptr,
-                       Dynamic_Workspace *workspace){
+dynamic_workspace_init(Heap *heap, Lifetime_Allocator *lifetime_allocator, i32 user_type, void *user_back_ptr, Dynamic_Workspace *workspace){
     dynamic_variables_block_init(heap, &workspace->var_block);
     dynamic_memory_bank_init(heap, &workspace->mem_bank);
     if (lifetime_allocator->scope_id_counter == 0){
@@ -466,8 +464,7 @@ lifetime_alloc_object(Heap *heap, Lifetime_Allocator *lifetime_allocator, i32 us
 }
 
 internal void
-lifetime_free_object(Heap *heap, Lifetime_Allocator *lifetime_allocator,
-                     Lifetime_Object *lifetime_object){
+lifetime_free_object(Heap *heap, Lifetime_Allocator *lifetime_allocator, Lifetime_Object *lifetime_object){
     dynamic_workspace_free(heap, lifetime_allocator, &lifetime_object->workspace);
     
     i32 key_i = 0;

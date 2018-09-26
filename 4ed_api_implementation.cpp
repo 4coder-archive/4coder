@@ -2248,14 +2248,6 @@ View_Get_UI_Copy(Application_Links *app, View_Summary *view, struct Partition *p
     return(result);
 }
 
-API_EXPORT Managed_Scope
-Get_Global_Managed_Scope(Application_Links *app)
-{
-    Command_Data *cmd = (Command_Data*)app->cmd_context;
-    Models *models = cmd->models;
-    return((Managed_Scope)models->dynamic_workspace.scope_id);
-}
-
 internal Dynamic_Workspace*
 get_dynamic_workspace(Models *models, Managed_Scope handle){
     u32_Ptr_Lookup_Result lookup_result = lookup_u32_Ptr_table(&models->lifetime_allocator.scope_id_to_scope_ptr_table, (u32)handle);
@@ -2263,6 +2255,38 @@ get_dynamic_workspace(Models *models, Managed_Scope handle){
         return(0);
     }
     return((Dynamic_Workspace*)*lookup_result.val);
+}
+
+API_EXPORT Managed_Scope
+Create_User_Managed_Scope(Application_Links *app){
+    Command_Data *cmd = (Command_Data*)app->cmd_context;
+    Models *models = cmd->models;
+    Heap *heap = &models->mem.heap;
+    Lifetime_Object *object = lifetime_alloc_object(heap, &models->lifetime_allocator, DynamicWorkspace_Unassociated, 0);
+    object->workspace.user_back_ptr = object;
+    Managed_Scope scope = (Managed_Scope)object->workspace.scope_id;
+    return(scope);
+}
+
+API_EXPORT bool32
+Destroy_User_Managed_Scope(Application_Links *app, Managed_Scope scope){
+    Command_Data *cmd = (Command_Data*)app->cmd_context;
+    Models *models = cmd->models;
+    Dynamic_Workspace *workspace = get_dynamic_workspace(models, scope);
+    if (workspace != 0){
+        Lifetime_Object *lifetime_object = (Lifetime_Object*)workspace->user_back_ptr;
+        lifetime_free_object(&models->mem.heap, &models->lifetime_allocator, lifetime_object);
+        return(true);
+    }
+    return(false);
+}
+
+API_EXPORT Managed_Scope
+Get_Global_Managed_Scope(Application_Links *app)
+{
+    Command_Data *cmd = (Command_Data*)app->cmd_context;
+    Models *models = cmd->models;
+    return((Managed_Scope)models->dynamic_workspace.scope_id);
 }
 
 API_EXPORT Managed_Scope
@@ -2290,6 +2314,12 @@ Get_Managed_Scope_With_Multiple_Dependencies(Application_Links *app, Managed_Sco
                 // NOTE(allen): (global_scope INTERSECT X) == X for all X, therefore we emit nothing when a global group is in the key list.
             }break;
             
+            case DynamicWorkspace_Unassociated:
+            {
+                Lifetime_Object **new_object_ptr = push_array(scratch, Lifetime_Object*, 1);
+                *new_object_ptr = (Lifetime_Object*)workspace->user_back_ptr;
+            }break;
+            
             case DynamicWorkspace_Buffer:
             {
                 Editing_File *file = (Editing_File*)workspace->user_back_ptr;
@@ -2315,6 +2345,11 @@ Get_Managed_Scope_With_Multiple_Dependencies(Application_Links *app, Managed_Sco
                         *new_object_ptr = *key_member_ptr;
                     }
                 }
+            }break;
+            
+            default:
+            {
+                InvalidCodePath;
             }break;
         }
     }

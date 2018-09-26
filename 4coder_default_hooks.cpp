@@ -55,25 +55,23 @@ RENDER_CALLER_SIG(default_render_caller){
     View_Summary view = get_view(app, view_id, AccessAll);
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessAll);
     
-    // NOTE(allen): Line highlight setup
-    Managed_Object line_highlight = 0;
+    Managed_Scope render_scope = create_user_managed_scope(app);
     
+    // NOTE(allen): Line highlight setup
     if (highlight_line_at_cursor){
         Theme_Color color = {0};
         color.tag = Stag_Highlight_Cursor_Line;
         get_theme_colors(app, &color, 1);
         uint32_t line_color = color.color;
-        line_highlight = alloc_buffer_markers_on_buffer(app, buffer.buffer_id, 1, 0);
-        buffer_markers_set_visuals(app, line_highlight, BufferMarkersType_LineHighlights, line_color, 0, 0);
+        Managed_Object o = alloc_buffer_markers_on_buffer(app, buffer.buffer_id, 1, &render_scope);
+        buffer_markers_set_visuals(app, o, BufferMarkersType_LineHighlights, line_color, 0, 0);
         Marker marker = {0};
         marker.pos = view.cursor.pos;
-        managed_object_store_data(app, line_highlight, 0, 1, &marker);
+        managed_object_store_data(app, o, 0, 1, &marker);
     }
     
     // NOTE(allen): Token highlight setup
     bool32 do_token_highlight = false;
-    Managed_Object token_highlight = 0;
-    
     if (do_token_highlight){
         Theme_Color color = {0};
         color.tag = Stag_Cursor;
@@ -85,7 +83,7 @@ RENDER_CALLER_SIG(default_render_caller){
         int32_t pos1 = buffer_boundary_seek(app, &buffer, pos0, DirLeft , token_flags);
         int32_t pos2 = buffer_boundary_seek(app, &buffer, pos1, DirRight, token_flags);
         
-        token_highlight = alloc_buffer_markers_on_buffer(app, buffer.buffer_id, 2, 0);
+        Managed_Object token_highlight = alloc_buffer_markers_on_buffer(app, buffer.buffer_id, 2, &render_scope);
         buffer_markers_set_visuals(app, token_highlight, BufferMarkersType_CharacterHighlightRanges, token_color, 0, 0);
         Marker range_markers[2] = {0};
         range_markers[0].pos = pos1;
@@ -101,7 +99,7 @@ RENDER_CALLER_SIG(default_render_caller){
         0x700000A0,
         0x70A0A000,
     };
-    Managed_Object matching_brace_highlights[ArrayCount(enclosure_colors)] = {0};
+    int32_t color_count = ArrayCount(enclosure_colors);
     
     if (do_matching_enclosure_highlight){
         Partition *scratch = &global_part;
@@ -121,10 +119,10 @@ RENDER_CALLER_SIG(default_render_caller){
         }
         int32_t count = (int32_t)(push_array(scratch, Range, 0) - ranges);
         
-        int32_t bucket_count = count/ArrayCount(matching_brace_highlights);
-        int32_t left_over_count = count%ArrayCount(matching_brace_highlights);
+        int32_t bucket_count = count/color_count;
+        int32_t left_over_count = count%color_count;
         
-        for (int32_t i = 0; i < ArrayCount(matching_brace_highlights); i += 1){
+        for (int32_t i = 0; i < color_count; i += 1){
             int32_t sub_count = bucket_count + (i < left_over_count?1:0);
             if (sub_count > 0){
                 int32_t marker_count = sub_count*2;
@@ -136,8 +134,7 @@ RENDER_CALLER_SIG(default_render_caller){
                     markers[j + 0].pos = range_ptr->first;
                     markers[j + 1].pos = range_ptr->one_past_last - 1;
                 }
-                Managed_Object m = alloc_buffer_markers_on_buffer(app, buffer.buffer_id, marker_count, 0);
-                matching_brace_highlights[i] = m;
+                Managed_Object m = alloc_buffer_markers_on_buffer(app, buffer.buffer_id, marker_count, &render_scope);
                 buffer_markers_set_visuals(app, m, BufferMarkersType_CharacterBlocks, enclosure_colors[i], 0, 0);
                 managed_object_store_data(app, m, 0, marker_count, markers);
                 end_temp_memory(marker_temp);
@@ -149,18 +146,7 @@ RENDER_CALLER_SIG(default_render_caller){
     
     do_core_render(app);
     
-    if (line_highlight != 0){
-        managed_object_free(app, line_highlight);
-    }
-    if (token_highlight != 0){
-        managed_object_free(app, token_highlight);
-    }
-    for (int32_t i = 0; i < ArrayCount(matching_brace_highlights); i += 1){
-        if (matching_brace_highlights[i] != 0){
-            managed_object_free(app, matching_brace_highlights[i]);
-        }
-    }
-    
+    destroy_user_managed_scope(app, render_scope);
 }
 
 HOOK_SIG(default_exit){
