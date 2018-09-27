@@ -53,6 +53,9 @@ struct Application_Links;
 #define DESTROY_USER_MANAGED_SCOPE_SIG(n) bool32 n(Application_Links *app, Managed_Scope scope)
 #define GET_GLOBAL_MANAGED_SCOPE_SIG(n) Managed_Scope n(Application_Links *app)
 #define GET_MANAGED_SCOPE_WITH_MULTIPLE_DEPENDENCIES_SIG(n) Managed_Scope n(Application_Links *app, Managed_Scope *intersected_scopes, int32_t count)
+#define MANAGED_SCOPE_CLEAR_CONTENTS_SIG(n) bool32 n(Application_Links *app, Managed_Scope scope)
+#define CLEAR_MANAGED_SCOPE_SIG(n) bool32 n(Application_Links *app, Managed_Scope scope)
+#define CLEAR_MANAGED_SCOPE_AND_ALL_DEPENDENT_SCOPES_SIG(n) bool32 n(Application_Links *app, Managed_Scope scope)
 #define MANAGED_VARIABLE_CREATE_SIG(n) Managed_Variable_ID n(Application_Links *app, char *null_terminated_name, uint64_t default_value)
 #define MANAGED_VARIABLE_GET_ID_SIG(n) Managed_Variable_ID n(Application_Links *app, char *null_terminated_name)
 #define MANAGED_VARIABLE_CREATE_OR_GET_ID_SIG(n) Managed_Variable_ID n(Application_Links *app, char *null_terminated_name, uint64_t default_value)
@@ -161,6 +164,9 @@ typedef CREATE_USER_MANAGED_SCOPE_SIG(Create_User_Managed_Scope_Function);
 typedef DESTROY_USER_MANAGED_SCOPE_SIG(Destroy_User_Managed_Scope_Function);
 typedef GET_GLOBAL_MANAGED_SCOPE_SIG(Get_Global_Managed_Scope_Function);
 typedef GET_MANAGED_SCOPE_WITH_MULTIPLE_DEPENDENCIES_SIG(Get_Managed_Scope_With_Multiple_Dependencies_Function);
+typedef MANAGED_SCOPE_CLEAR_CONTENTS_SIG(Managed_Scope_Clear_Contents_Function);
+typedef CLEAR_MANAGED_SCOPE_SIG(Clear_Managed_Scope_Function);
+typedef CLEAR_MANAGED_SCOPE_AND_ALL_DEPENDENT_SCOPES_SIG(Clear_Managed_Scope_And_All_Dependent_Scopes_Function);
 typedef MANAGED_VARIABLE_CREATE_SIG(Managed_Variable_Create_Function);
 typedef MANAGED_VARIABLE_GET_ID_SIG(Managed_Variable_Get_ID_Function);
 typedef MANAGED_VARIABLE_CREATE_OR_GET_ID_SIG(Managed_Variable_Create_Or_Get_ID_Function);
@@ -271,6 +277,9 @@ Create_User_Managed_Scope_Function *create_user_managed_scope;
 Destroy_User_Managed_Scope_Function *destroy_user_managed_scope;
 Get_Global_Managed_Scope_Function *get_global_managed_scope;
 Get_Managed_Scope_With_Multiple_Dependencies_Function *get_managed_scope_with_multiple_dependencies;
+Managed_Scope_Clear_Contents_Function *managed_scope_clear_contents;
+Clear_Managed_Scope_Function *clear_managed_scope;
+Clear_Managed_Scope_And_All_Dependent_Scopes_Function *clear_managed_scope_and_all_dependent_scopes;
 Managed_Variable_Create_Function *managed_variable_create;
 Managed_Variable_Get_ID_Function *managed_variable_get_id;
 Managed_Variable_Create_Or_Get_ID_Function *managed_variable_create_or_get_id;
@@ -380,6 +389,9 @@ Create_User_Managed_Scope_Function *create_user_managed_scope_;
 Destroy_User_Managed_Scope_Function *destroy_user_managed_scope_;
 Get_Global_Managed_Scope_Function *get_global_managed_scope_;
 Get_Managed_Scope_With_Multiple_Dependencies_Function *get_managed_scope_with_multiple_dependencies_;
+Managed_Scope_Clear_Contents_Function *managed_scope_clear_contents_;
+Clear_Managed_Scope_Function *clear_managed_scope_;
+Clear_Managed_Scope_And_All_Dependent_Scopes_Function *clear_managed_scope_and_all_dependent_scopes_;
 Managed_Variable_Create_Function *managed_variable_create_;
 Managed_Variable_Get_ID_Function *managed_variable_get_id_;
 Managed_Variable_Create_Or_Get_ID_Function *managed_variable_create_or_get_id_;
@@ -497,6 +509,9 @@ app_links->create_user_managed_scope_ = Create_User_Managed_Scope;\
 app_links->destroy_user_managed_scope_ = Destroy_User_Managed_Scope;\
 app_links->get_global_managed_scope_ = Get_Global_Managed_Scope;\
 app_links->get_managed_scope_with_multiple_dependencies_ = Get_Managed_Scope_With_Multiple_Dependencies;\
+app_links->managed_scope_clear_contents_ = Managed_Scope_Clear_Contents;\
+app_links->clear_managed_scope_ = Clear_Managed_Scope;\
+app_links->clear_managed_scope_and_all_dependent_scopes_ = Clear_Managed_Scope_And_All_Dependent_Scopes;\
 app_links->managed_variable_create_ = Managed_Variable_Create;\
 app_links->managed_variable_get_id_ = Managed_Variable_Get_ID;\
 app_links->managed_variable_create_or_get_id_ = Managed_Variable_Create_Or_Get_ID;\
@@ -606,6 +621,9 @@ static inline Managed_Scope create_user_managed_scope(Application_Links *app){re
 static inline bool32 destroy_user_managed_scope(Application_Links *app, Managed_Scope scope){return(app->destroy_user_managed_scope(app, scope));}
 static inline Managed_Scope get_global_managed_scope(Application_Links *app){return(app->get_global_managed_scope(app));}
 static inline Managed_Scope get_managed_scope_with_multiple_dependencies(Application_Links *app, Managed_Scope *intersected_scopes, int32_t count){return(app->get_managed_scope_with_multiple_dependencies(app, intersected_scopes, count));}
+static inline bool32 managed_scope_clear_contents(Application_Links *app, Managed_Scope scope){return(app->managed_scope_clear_contents(app, scope));}
+static inline bool32 clear_managed_scope(Application_Links *app, Managed_Scope scope){return(app->clear_managed_scope(app, scope));}
+static inline bool32 clear_managed_scope_and_all_dependent_scopes(Application_Links *app, Managed_Scope scope){return(app->clear_managed_scope_and_all_dependent_scopes(app, scope));}
 static inline Managed_Variable_ID managed_variable_create(Application_Links *app, char *null_terminated_name, uint64_t default_value){return(app->managed_variable_create(app, null_terminated_name, default_value));}
 static inline Managed_Variable_ID managed_variable_get_id(Application_Links *app, char *null_terminated_name){return(app->managed_variable_get_id(app, null_terminated_name));}
 static inline Managed_Variable_ID managed_variable_create_or_get_id(Application_Links *app, char *null_terminated_name, uint64_t default_value){return(app->managed_variable_create_or_get_id(app, null_terminated_name, default_value));}
@@ -715,6 +733,9 @@ static inline Managed_Scope create_user_managed_scope(Application_Links *app){re
 static inline bool32 destroy_user_managed_scope(Application_Links *app, Managed_Scope scope){return(app->destroy_user_managed_scope_(app, scope));}
 static inline Managed_Scope get_global_managed_scope(Application_Links *app){return(app->get_global_managed_scope_(app));}
 static inline Managed_Scope get_managed_scope_with_multiple_dependencies(Application_Links *app, Managed_Scope *intersected_scopes, int32_t count){return(app->get_managed_scope_with_multiple_dependencies_(app, intersected_scopes, count));}
+static inline bool32 managed_scope_clear_contents(Application_Links *app, Managed_Scope scope){return(app->managed_scope_clear_contents_(app, scope));}
+static inline bool32 clear_managed_scope(Application_Links *app, Managed_Scope scope){return(app->clear_managed_scope_(app, scope));}
+static inline bool32 clear_managed_scope_and_all_dependent_scopes(Application_Links *app, Managed_Scope scope){return(app->clear_managed_scope_and_all_dependent_scopes_(app, scope));}
 static inline Managed_Variable_ID managed_variable_create(Application_Links *app, char *null_terminated_name, uint64_t default_value){return(app->managed_variable_create_(app, null_terminated_name, default_value));}
 static inline Managed_Variable_ID managed_variable_get_id(Application_Links *app, char *null_terminated_name){return(app->managed_variable_get_id_(app, null_terminated_name));}
 static inline Managed_Variable_ID managed_variable_create_or_get_id(Application_Links *app, char *null_terminated_name, uint64_t default_value){return(app->managed_variable_create_or_get_id_(app, null_terminated_name, default_value));}

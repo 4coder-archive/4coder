@@ -55,7 +55,10 @@ RENDER_CALLER_SIG(default_render_caller){
     View_Summary view = get_view(app, view_id, AccessAll);
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessAll);
     
-    Managed_Scope render_scope = create_user_managed_scope(app);
+    static Managed_Scope render_scope = 0;
+    if (render_scope == 0){
+        render_scope = create_user_managed_scope(app);
+    }
     
     // NOTE(allen): Line highlight setup
     if (highlight_line_at_cursor){
@@ -129,8 +132,10 @@ RENDER_CALLER_SIG(default_render_caller){
                 Temp_Memory marker_temp = begin_temp_memory(scratch);
                 Marker *markers = push_array(scratch, Marker, marker_count);
                 memset(markers, 0, sizeof(*markers)*marker_count);
-                Range *range_ptr = ranges + i;
-                for (int32_t j = 0; j < marker_count; j += 2, range_ptr += 4){
+                // NOTE(allen): Iterate the ranges in reverse order,
+                // to ensure top level scopes always get the first color.
+                Range *range_ptr = ranges + count - 1 - i;
+                for (int32_t j = 0; j < marker_count; j += 2, range_ptr -= 4){
                     markers[j + 0].pos = range_ptr->first;
                     markers[j + 1].pos = range_ptr->one_past_last - 1;
                 }
@@ -146,7 +151,7 @@ RENDER_CALLER_SIG(default_render_caller){
     
     do_core_render(app);
     
-    destroy_user_managed_scope(app, render_scope);
+    clear_managed_scope_and_all_dependent_scopes(app, render_scope);
 }
 
 HOOK_SIG(default_exit){

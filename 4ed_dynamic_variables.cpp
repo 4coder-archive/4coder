@@ -182,6 +182,14 @@ dynamic_workspace_free(Heap *heap, Lifetime_Allocator *lifetime_allocator, Dynam
     dynamic_memory_bank_free_all(heap, &workspace->mem_bank);
 }
 
+internal void
+dynamic_workspace_clear_contents(Heap *heap, Dynamic_Workspace *workspace){
+    dynamic_variables_block_free(heap, &workspace->var_block);
+    dynamic_memory_bank_free_all(heap, &workspace->mem_bank);
+    dynamic_variables_block_init(heap, &workspace->var_block);
+    dynamic_memory_bank_init(heap, &workspace->mem_bank);
+}
+
 internal u32
 dynamic_workspace_store_pointer(Heap *heap, Dynamic_Workspace *workspace, void *ptr){
     if (workspace->object_id_counter == 0){
@@ -342,8 +350,7 @@ lifetime__key_table_copy(Heap *heap, Lifetime_Key_Table table, u32 new_max){
 }
 
 internal void
-lifetime__free_key(Heap *heap, Lifetime_Allocator *lifetime_allocator,
-                   Lifetime_Key *key, Lifetime_Object *skip_object){
+lifetime__free_key(Heap *heap, Lifetime_Allocator *lifetime_allocator, Lifetime_Key *key, Lifetime_Object *skip_object){
     // Deinit
     dynamic_workspace_free(heap, lifetime_allocator, &key->dynamic_workspace);
     
@@ -464,9 +471,7 @@ lifetime_alloc_object(Heap *heap, Lifetime_Allocator *lifetime_allocator, i32 us
 }
 
 internal void
-lifetime_free_object(Heap *heap, Lifetime_Allocator *lifetime_allocator, Lifetime_Object *lifetime_object){
-    dynamic_workspace_free(heap, lifetime_allocator, &lifetime_object->workspace);
-    
+lifetime__object_free_all_keys(Heap *heap, Lifetime_Allocator *lifetime_allocator, Lifetime_Object *lifetime_object){
     i32 key_i = 0;
     for (Lifetime_Key_Ref_Node *node = lifetime_object->key_node_first;
          node != 0;
@@ -484,8 +489,22 @@ lifetime_free_object(Heap *heap, Lifetime_Allocator *lifetime_allocator, Lifetim
         i32 node_count = (lifetime_object->key_count + (lifetime_key_reference_per_node - 1))/lifetime_key_reference_per_node;
         lifetime_allocator->free_key_references.count += node_count;
     }
-    
+}
+
+internal void
+lifetime_free_object(Heap *heap, Lifetime_Allocator *lifetime_allocator, Lifetime_Object *lifetime_object){
+    lifetime__object_free_all_keys(heap, lifetime_allocator, lifetime_object);
+    dynamic_workspace_free(heap, lifetime_allocator, &lifetime_object->workspace);
     zdll_push_back(lifetime_allocator->free_objects.first, lifetime_allocator->free_objects.last, lifetime_object);
+}
+
+internal void
+lifetime_object_reset(Heap *heap, Lifetime_Allocator *lifetime_allocator, Lifetime_Object *lifetime_object){
+    lifetime__object_free_all_keys(heap, lifetime_allocator, lifetime_object);
+    lifetime_object->key_node_first = 0;
+    lifetime_object->key_node_last = 0;
+    lifetime_object->key_count = 0;
+    dynamic_workspace_clear_contents(heap, &lifetime_object->workspace);
 }
 
 internal i32

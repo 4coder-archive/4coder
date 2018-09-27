@@ -2273,7 +2273,7 @@ Destroy_User_Managed_Scope(Application_Links *app, Managed_Scope scope){
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     Models *models = cmd->models;
     Dynamic_Workspace *workspace = get_dynamic_workspace(models, scope);
-    if (workspace != 0){
+    if (workspace != 0 && workspace->user_type == DynamicWorkspace_Unassociated){
         Lifetime_Object *lifetime_object = (Lifetime_Object*)workspace->user_back_ptr;
         lifetime_free_object(&models->mem.heap, &models->lifetime_allocator, lifetime_object);
         return(true);
@@ -2287,6 +2287,28 @@ Get_Global_Managed_Scope(Application_Links *app)
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     Models *models = cmd->models;
     return((Managed_Scope)models->dynamic_workspace.scope_id);
+}
+
+internal Lifetime_Object*
+get_lifetime_object_from_workspace(Dynamic_Workspace *workspace){
+    Lifetime_Object *result = 0;
+    switch (workspace->user_type){
+        case DynamicWorkspace_Unassociated:
+        {
+            result = (Lifetime_Object*)workspace->user_back_ptr;
+        }break;
+        case DynamicWorkspace_Buffer:
+        {
+            Editing_File *file = (Editing_File*)workspace->user_back_ptr;
+            result = file->lifetime_object;
+        }break;
+        case DynamicWorkspace_View:
+        {
+            View *vptr = (View*)workspace->user_back_ptr;
+            result = vptr->transient.lifetime_object;
+        }break;
+    }
+    return(result);
 }
 
 API_EXPORT Managed_Scope
@@ -2315,23 +2337,13 @@ Get_Managed_Scope_With_Multiple_Dependencies(Application_Links *app, Managed_Sco
             }break;
             
             case DynamicWorkspace_Unassociated:
-            {
-                Lifetime_Object **new_object_ptr = push_array(scratch, Lifetime_Object*, 1);
-                *new_object_ptr = (Lifetime_Object*)workspace->user_back_ptr;
-            }break;
-            
             case DynamicWorkspace_Buffer:
-            {
-                Editing_File *file = (Editing_File*)workspace->user_back_ptr;
-                Lifetime_Object **new_object_ptr = push_array(scratch, Lifetime_Object*, 1);
-                *new_object_ptr = file->lifetime_object;
-            }break;
-            
             case DynamicWorkspace_View:
             {
-                View *vptr = (View*)workspace->user_back_ptr;
+                Lifetime_Object *object = get_lifetime_object_from_workspace(workspace);
+                Assert(object != 0);
                 Lifetime_Object **new_object_ptr = push_array(scratch, Lifetime_Object*, 1);
-                *new_object_ptr = vptr->transient.lifetime_object;
+                *new_object_ptr = object;
             }break;
             
             case DynamicWorkspace_Intersected:
@@ -2366,6 +2378,44 @@ Get_Managed_Scope_With_Multiple_Dependencies(Application_Links *app, Managed_Sco
     end_temp_memory(temp);
     
     return(result);
+}
+
+API_EXPORT bool32
+Managed_Scope_Clear_Contents(Application_Links *app, Managed_Scope scope){
+    Command_Data *cmd = (Command_Data*)app->cmd_context;
+    Models *models = cmd->models;
+    Dynamic_Workspace *workspace = get_dynamic_workspace(models, scope);
+    if (workspace != 0){
+        dynamic_workspace_clear_contents(&models->mem.heap, workspace);
+        return(true);
+    }
+    return(false);
+}
+
+API_EXPORT bool32
+Clear_Managed_Scope(Application_Links *app, Managed_Scope scope){
+    Command_Data *cmd = (Command_Data*)app->cmd_context;
+    Models *models = cmd->models;
+    Dynamic_Workspace *workspace = get_dynamic_workspace(models, scope);
+    if (workspace != 0){
+        dynamic_workspace_clear_contents(&models->mem.heap, workspace);
+        return(true);
+    }
+    return(false);
+}
+
+API_EXPORT bool32
+Clear_Managed_Scope_And_All_Dependent_Scopes(Application_Links *app, Managed_Scope scope){
+    Command_Data *cmd = (Command_Data*)app->cmd_context;
+    Models *models = cmd->models;
+    Dynamic_Workspace *workspace = get_dynamic_workspace(models, scope);
+    if (workspace != 0 && workspace->user_type != DynamicWorkspace_Global && workspace->user_type != DynamicWorkspace_Intersected){
+        Lifetime_Object *object = get_lifetime_object_from_workspace(workspace);
+        Assert(object != 0);
+        lifetime_object_reset(&models->mem.heap, &models->lifetime_allocator, object);
+        return(true);
+    }
+    return(false);
 }
 
 API_EXPORT Managed_Variable_ID
