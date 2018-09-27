@@ -837,23 +837,6 @@ render_loaded_file_in_view(System_Functions *system, View *view, Models *models,
     i32 visual_line_markers_scan_index = 0;
     u32 visual_line_markers_color = 0;
     
-    i32 cursor_begin = 0;
-    i32 cursor_end = 0;
-    u32 cursor_color = 0;
-    u32 at_cursor_color = 0;
-    if (view->transient.file_data.show_temp_highlight){
-        cursor_begin = view->transient.file_data.temp_highlight.pos;
-        cursor_end = view->transient.file_data.temp_highlight_end_pos;
-        cursor_color = style->main.highlight_color;
-        at_cursor_color = style->main.at_highlight_color;
-    }
-    else{
-        cursor_begin = view->transient.edit_pos->cursor.pos;
-        cursor_end = cursor_begin + 1;
-        cursor_color = style->main.cursor_color;
-        at_cursor_color = style->main.at_cursor_color;
-    }
-    
     i32 token_i = 0;
     u32 main_color = style->main.default_color;
     u32 special_color = style->main.special_character_color;
@@ -864,7 +847,6 @@ render_loaded_file_in_view(System_Functions *system, View *view, Models *models,
         token_i = result.token_index + 1;
     }
     
-    u32 mark_color = style->main.mark_color;
     Buffer_Render_Item *item = items;
     Buffer_Render_Item *item_end = item + count;
     i32 prev_ind = -1;
@@ -1024,26 +1006,6 @@ render_loaded_file_in_view(System_Functions *system, View *view, Models *models,
         u32 color_wireframe = 0;
         u32 color_ibar = 0;
         
-        if (ind == view->transient.edit_pos->mark && prev_ind != ind){
-            if (color_wireframe == 0){
-                color_wireframe = mark_color;
-            }
-        }
-        if (cursor_begin <= ind && ind < cursor_end && (ind != prev_ind || cursor_begin < ind)){
-            if (is_active){
-                if (color_highlight == 0){
-                    color_highlight = cursor_color;
-                }
-                char_color = at_cursor_color;
-            }
-            else{
-                if (!view->transient.file_data.show_temp_highlight){
-                    if (color_wireframe == 0){
-                        color_wireframe = cursor_color;
-                    }
-                }
-            }
-        }
         if (marker_highlight != 0){
             if (color_highlight == 0){
                 color_highlight = marker_highlight;

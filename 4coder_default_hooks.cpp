@@ -60,6 +60,30 @@ RENDER_CALLER_SIG(default_render_caller){
         render_scope = create_user_managed_scope(app);
     }
     
+    // NOTE(allen): Cursor and mark
+    {
+        Theme_Color colors[2] = {0};
+        colors[0].tag = Stag_Cursor;
+        colors[1].tag = Stag_Mark;
+        get_theme_colors(app, colors, 2);
+        uint32_t cursor_color = colors[0].color;
+        uint32_t mark_color = colors[1].color;
+        {
+            Managed_Object o = alloc_buffer_markers_on_buffer(app, buffer.buffer_id, 1, &render_scope);
+            buffer_markers_set_visuals(app, o, BufferMarkersType_CharacterBlocks, cursor_color, 0, 0);
+            Marker marker = {0};
+            marker.pos = view.cursor.pos;
+            managed_object_store_data(app, o, 0, 1, &marker);
+        }
+        {
+            Managed_Object o = alloc_buffer_markers_on_buffer(app, buffer.buffer_id, 1, &render_scope);
+            buffer_markers_set_visuals(app, o, BufferMarkersType_CharacterWireFrames, mark_color, 0, 0);
+            Marker marker = {0};
+            marker.pos = view.mark.pos;
+            managed_object_store_data(app, o, 0, 1, &marker);
+        }
+    }
+    
     // NOTE(allen): Line highlight setup
     if (highlight_line_at_cursor){
         Theme_Color color = {0};
