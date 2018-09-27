@@ -53,7 +53,7 @@ enum{
     CursorRenderMode_BlockCursorAndWireMark = 1,
     CursorRenderMode_IBarOrHighlightRange = 2,
 };
-static int32_t cursor_render_mode = CursorRenderMode_IBarOrHighlightRange;
+static int32_t cursor_render_mode = CursorRenderMode_BlockCursorAndWireMark;
 
 
 static ID_Line_Column_Jump_Location prev_location = {0};
