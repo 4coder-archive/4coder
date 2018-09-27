@@ -42,9 +42,9 @@ bind(context, key_mouse_wheel, MDFR_NONE, mouse_wheel_scroll);
 end_map(context);
 begin_map(context, mapid_file);
 bind_vanilla_keys(context, write_character);
-bind(context, key_mouse_left, MDFR_NONE, click_set_cursor);
-bind(context, key_mouse_left_release, MDFR_NONE, click_set_mark);
-bind(context, key_mouse_right, MDFR_NONE, click_set_mark);
+bind(context, key_mouse_left, MDFR_NONE, click_set_cursor_and_mark);
+bind(context, key_mouse_left_release, MDFR_NONE, click_set_cursor);
+bind(context, key_mouse_move, MDFR_NONE, click_set_cursor_if_lbutton);
 bind(context, key_left, MDFR_NONE, move_left);
 bind(context, key_right, MDFR_NONE, move_right);
 bind(context, key_del, MDFR_NONE, delete_char);
@@ -200,9 +200,9 @@ end_map(context);
 begin_map(context, mapid_file);
 bind_vanilla_keys(context, write_character);
 bind_vanilla_keys(context, MDFR_ALT, write_character);
-bind(context, key_mouse_left, MDFR_NONE, click_set_cursor);
-bind(context, key_mouse_left_release, MDFR_NONE, click_set_mark);
-bind(context, key_mouse_right, MDFR_NONE, click_set_mark);
+bind(context, key_mouse_left, MDFR_NONE, click_set_cursor_and_mark);
+bind(context, key_mouse_left_release, MDFR_NONE, click_set_cursor);
+bind(context, key_mouse_move, MDFR_NONE, click_set_cursor_if_lbutton);
 bind(context, key_left, MDFR_NONE, move_left);
 bind(context, key_right, MDFR_NONE, move_right);
 bind(context, key_del, MDFR_NONE, delete_char);
@@ -387,9 +387,9 @@ static Meta_Key_Bind fcoder_binds_for_default_mapid_global[38] = {
 };
 static Meta_Key_Bind fcoder_binds_for_default_mapid_file[63] = {
 {1, 0, 0, "write_character", 15, LINK_PROCS(write_character)},
-{0, 55308, 0, "click_set_cursor", 16, LINK_PROCS(click_set_cursor)},
-{0, 55310, 0, "click_set_mark", 14, LINK_PROCS(click_set_mark)},
-{0, 55309, 0, "click_set_mark", 14, LINK_PROCS(click_set_mark)},
+{0, 55308, 0, "click_set_cursor_and_mark", 25, LINK_PROCS(click_set_cursor_and_mark)},
+{0, 55310, 0, "click_set_cursor", 16, LINK_PROCS(click_set_cursor)},
+{0, 55313, 0, "click_set_cursor_if_lbutton", 27, LINK_PROCS(click_set_cursor_if_lbutton)},
 {0, 55299, 0, "move_left", 9, LINK_PROCS(move_left)},
 {0, 55300, 0, "move_right", 10, LINK_PROCS(move_right)},
 {0, 55301, 0, "delete_char", 11, LINK_PROCS(delete_char)},
@@ -548,9 +548,9 @@ static Meta_Key_Bind fcoder_binds_for_mac_default_mapid_global[38] = {
 static Meta_Key_Bind fcoder_binds_for_mac_default_mapid_file[62] = {
 {1, 0, 0, "write_character", 15, LINK_PROCS(write_character)},
 {1, 0, 2, "write_character", 15, LINK_PROCS(write_character)},
-{0, 55308, 0, "click_set_cursor", 16, LINK_PROCS(click_set_cursor)},
-{0, 55310, 0, "click_set_mark", 14, LINK_PROCS(click_set_mark)},
-{0, 55309, 0, "click_set_mark", 14, LINK_PROCS(click_set_mark)},
+{0, 55308, 0, "click_set_cursor_and_mark", 25, LINK_PROCS(click_set_cursor_and_mark)},
+{0, 55310, 0, "click_set_cursor", 16, LINK_PROCS(click_set_cursor)},
+{0, 55313, 0, "click_set_cursor_if_lbutton", 27, LINK_PROCS(click_set_cursor_if_lbutton)},
 {0, 55299, 0, "move_left", 9, LINK_PROCS(move_left)},
 {0, 55300, 0, "move_right", 10, LINK_PROCS(move_right)},
 {0, 55301, 0, "delete_char", 11, LINK_PROCS(delete_char)},

@@ -995,10 +995,8 @@ render_loaded_file_in_view(System_Functions *system, View *view, Models *models,
                 }break;
             }
         }
-        if (visual_markers_range_id != -1 &&
-            marker_highlight == 0){
+        if (visual_markers_range_id != -1 && marker_highlight == 0){
             marker_highlight = visual_markers_range_color;
-            char_color = at_cursor_color;
         }
         
         // NOTE(allen): Perform highlight, wireframe, and ibar renders
@@ -1033,6 +1031,7 @@ render_loaded_file_in_view(System_Functions *system, View *view, Models *models,
         }
         if (color_highlight != 0){
             draw_rectangle(target, char_rect, color_highlight);
+            char_color = style->main.at_cursor_color;
         }
         
         u32 fade_color = 0xFFFF00FF;

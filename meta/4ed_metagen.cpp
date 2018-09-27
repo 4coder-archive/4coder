@@ -733,9 +733,9 @@ generate_remapping_code_and_data(){
         
         bind_vanilla_keys(mappings, MDFR_NONE, write_character);
         
-        bind(mappings, key_mouse_left, MDFR_NONE, click_set_cursor);
-        bind(mappings, key_mouse_left_release, MDFR_NONE, click_set_mark);
-        bind(mappings, key_mouse_right, MDFR_NONE, click_set_mark);
+        bind(mappings, key_mouse_left, MDFR_NONE, click_set_cursor_and_mark);
+        bind(mappings, key_mouse_left_release, MDFR_NONE, click_set_cursor);
+        bind(mappings, key_mouse_move, MDFR_NONE, click_set_cursor_if_lbutton);
         
         bind(mappings, key_left,      MDFR_NONE, move_left);
         bind(mappings, key_right,     MDFR_NONE, move_right);
@@ -937,9 +937,9 @@ generate_remapping_code_and_data(){
         bind_vanilla_keys(mappings, MDFR_NONE, write_character);
         bind_vanilla_keys(mappings, MDFR_ALT, write_character);
         
-        bind(mappings, key_mouse_left, MDFR_NONE, click_set_cursor);
-        bind(mappings, key_mouse_left_release, MDFR_NONE, click_set_mark);
-        bind(mappings, key_mouse_right, MDFR_NONE, click_set_mark);
+        bind(mappings, key_mouse_left, MDFR_NONE, click_set_cursor_and_mark);
+        bind(mappings, key_mouse_left_release, MDFR_NONE, click_set_cursor);
+        bind(mappings, key_mouse_move, MDFR_NONE, click_set_cursor_if_lbutton);
         
         bind(mappings, key_left, MDFR_NONE, move_left);
         bind(mappings, key_right, MDFR_NONE, move_right);

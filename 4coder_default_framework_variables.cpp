@@ -48,6 +48,13 @@ static char hot_directory_space[1024];
 static bool32 highlight_line_at_cursor = false;
 static bool32 suppressing_mouse = false;
 
+enum{
+    CursorRenderMode_Hidden = 0,
+    CursorRenderMode_BlockCursorAndWireMark = 1,
+    CursorRenderMode_IBarOrHighlightRange = 2,
+};
+static int32_t cursor_render_mode = CursorRenderMode_IBarOrHighlightRange;
+
 
 static ID_Line_Column_Jump_Location prev_location = {0};
 

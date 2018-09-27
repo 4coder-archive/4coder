@@ -177,14 +177,42 @@ global_point_to_view_point(View_Summary *view, int32_t x, int32_t y, float *x_ou
     return(result);
 }
 
+CUSTOM_COMMAND_SIG(click_set_cursor_and_mark)
+CUSTOM_DOC("Sets the cursor position and mark to the mouse position.")
+{
+    View_Summary view = get_active_view(app, AccessProtected);
+    Mouse_State mouse = get_mouse_state(app);
+    float rx = 0;
+    float ry = 0;
+    if (global_point_to_view_point(&view, mouse.x, mouse.y, &rx, &ry)){
+        view_set_cursor(app, &view, seek_xy(rx, ry, true, view.unwrapped_lines), true);
+        view_set_mark(app, &view, seek_pos(view.cursor.pos));
+    }
+}
+
 CUSTOM_COMMAND_SIG(click_set_cursor)
 CUSTOM_DOC("Sets the cursor position to the mouse position.")
 {
     View_Summary view = get_active_view(app, AccessProtected);
     Mouse_State mouse = get_mouse_state(app);
-    float rx = 0, ry = 0;
+    float rx = 0;
+    float ry = 0;
     if (global_point_to_view_point(&view, mouse.x, mouse.y, &rx, &ry)){
-        view_set_cursor(app, &view, seek_xy(rx, ry, 1, view.unwrapped_lines), 1);
+        view_set_cursor(app, &view, seek_xy(rx, ry, true, view.unwrapped_lines), true);
+    }
+}
+
+CUSTOM_COMMAND_SIG(click_set_cursor_if_lbutton)
+CUSTOM_DOC("If the mouse left button is pressed, sets the cursor position to the mouse position.")
+{
+    Mouse_State mouse = get_mouse_state(app);
+    if (mouse.l){
+        View_Summary view = get_active_view(app, AccessProtected);
+        float rx = 0;
+        float ry = 0;
+        if (global_point_to_view_point(&view, mouse.x, mouse.y, &rx, &ry)){
+            view_set_cursor(app, &view, seek_xy(rx, ry, true, view.unwrapped_lines), true);
+        }
     }
 }
 
@@ -193,9 +221,10 @@ CUSTOM_DOC("Sets the mark position to the mouse position.")
 {
     View_Summary view = get_active_view(app, AccessProtected);
     Mouse_State mouse = get_mouse_state(app);
-    float rx = 0, ry = 0;
+    float rx = 0;
+    float ry = 0;
     if (global_point_to_view_point(&view, mouse.x, mouse.y, &rx, &ry)){
-        view_set_mark(app, &view, seek_xy(rx, ry, 1, view.unwrapped_lines));
+        view_set_mark(app, &view, seek_xy(rx, ry, true, view.unwrapped_lines));
     }
 }
 
@@ -632,10 +661,14 @@ static void
 isearch(Application_Links *app, bool32 start_reversed, String query_init, bool32 on_the_query_init_string){
     View_Summary view = get_active_view(app, AccessProtected);
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessProtected);
-    if (!buffer.exists) return;
+    if (!buffer.exists){
+        return;
+    }
     
     Query_Bar bar = {0};
-    if (start_query_bar(app, &bar, 0) == 0) return;
+    if (start_query_bar(app, &bar, 0) == 0){
+        return;
+    }
     
     bool32 reverse = start_reversed;
     int32_t first_pos = view.cursor.pos;
@@ -667,6 +700,8 @@ isearch(Application_Links *app, bool32 start_reversed, String query_init, bool32
     buffer_markers_set_visuals(app, highlight,
                                marker_type, color.color, 0, view.view_id);
     isearch__update_highlight(app, &view, highlight, match.start, match.end);
+    int32_t original_cursor_render_mode = cursor_render_mode;
+    cursor_render_mode = CursorRenderMode_Hidden;
     
     User_Input in = {0};
     for (;;){
@@ -804,12 +839,13 @@ isearch(Application_Links *app, bool32 start_reversed, String query_init, bool32
     
     managed_object_free(app, highlight);
     
+    cursor_render_mode = original_cursor_render_mode;
+    
     if (in.abort){
         String previous_isearch_query_str = make_fixed_width_string(previous_isearch_query);
         append(&previous_isearch_query_str, bar.string);
         terminate_with_null(&previous_isearch_query_str);
         view_set_cursor(app, &view, seek_pos(first_pos), true);
-        return;
     }
 }
 

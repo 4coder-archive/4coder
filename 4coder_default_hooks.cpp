@@ -54,6 +54,8 @@ COMMAND_CALLER_HOOK(default_command_caller){
 RENDER_CALLER_SIG(default_render_caller){
     View_Summary view = get_view(app, view_id, AccessAll);
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessAll);
+    View_Summary active_view = get_active_view(app, AccessAll);
+    bool32 is_active_view = (active_view.view_id == view_id);
     
     static Managed_Scope render_scope = 0;
     if (render_scope == 0){
@@ -61,27 +63,57 @@ RENDER_CALLER_SIG(default_render_caller){
     }
     
     // NOTE(allen): Cursor and mark
-    {
-        Theme_Color colors[2] = {0};
-        colors[0].tag = Stag_Cursor;
-        colors[1].tag = Stag_Mark;
-        get_theme_colors(app, colors, 2);
-        uint32_t cursor_color = colors[0].color;
-        uint32_t mark_color = colors[1].color;
+    switch (cursor_render_mode){
+        case CursorRenderMode_BlockCursorAndWireMark:
         {
-            Managed_Object o = alloc_buffer_markers_on_buffer(app, buffer.buffer_id, 1, &render_scope);
-            buffer_markers_set_visuals(app, o, BufferMarkersType_CharacterBlocks, cursor_color, 0, 0);
-            Marker marker = {0};
-            marker.pos = view.cursor.pos;
-            managed_object_store_data(app, o, 0, 1, &marker);
-        }
+            Theme_Color colors[2] = {0};
+            colors[0].tag = Stag_Cursor;
+            colors[1].tag = Stag_Mark;
+            get_theme_colors(app, colors, 2);
+            uint32_t cursor_color = colors[0].color;
+            uint32_t mark_color = colors[1].color;
+            {
+                Managed_Object o = alloc_buffer_markers_on_buffer(app, buffer.buffer_id, 1, &render_scope);
+                Managed_Buffer_Markers_Type type = is_active_view?BufferMarkersType_CharacterBlocks:BufferMarkersType_CharacterWireFrames;
+                buffer_markers_set_visuals(app, o, type, cursor_color, 0, 0);
+                Marker marker = {0};
+                marker.pos = view.cursor.pos;
+                managed_object_store_data(app, o, 0, 1, &marker);
+            }
+            {
+                Managed_Object o = alloc_buffer_markers_on_buffer(app, buffer.buffer_id, 1, &render_scope);
+                buffer_markers_set_visuals(app, o, BufferMarkersType_CharacterWireFrames, mark_color, 0, 0);
+                Marker marker = {0};
+                marker.pos = view.mark.pos;
+                managed_object_store_data(app, o, 0, 1, &marker);
+            }
+        }break;
+        
+        case CursorRenderMode_IBarOrHighlightRange:
         {
-            Managed_Object o = alloc_buffer_markers_on_buffer(app, buffer.buffer_id, 1, &render_scope);
-            buffer_markers_set_visuals(app, o, BufferMarkersType_CharacterWireFrames, mark_color, 0, 0);
-            Marker marker = {0};
-            marker.pos = view.mark.pos;
-            managed_object_store_data(app, o, 0, 1, &marker);
-        }
+            Theme_Color colors[2] = {0};
+            colors[0].tag = Stag_Cursor;
+            colors[1].tag = Stag_Highlight;
+            get_theme_colors(app, colors, 2);
+            uint32_t cursor_color = colors[0].color;
+            uint32_t highlight_color = colors[1].color;
+            {
+                Managed_Object o = alloc_buffer_markers_on_buffer(app, buffer.buffer_id, 1, &render_scope);
+                buffer_markers_set_visuals(app, o, BufferMarkersType_CharacterIBars, cursor_color, 0, 0);
+                Marker marker = {0};
+                marker.pos = view.cursor.pos;
+                managed_object_store_data(app, o, 0, 1, &marker);
+            }
+            if (view.cursor.pos != view.mark.pos){
+                Managed_Object o = alloc_buffer_markers_on_buffer(app, buffer.buffer_id, 2, &render_scope);
+                buffer_markers_set_visuals(app, o, BufferMarkersType_CharacterHighlightRanges, highlight_color, 0, 0);
+                Range range = make_range(view.cursor.pos, view.mark.pos);
+                Marker markers[2] = {0};
+                markers[0].pos = range.first;
+                markers[1].pos = range.one_past_last;
+                managed_object_store_data(app, o, 0, 2, markers);
+            }
+        }break;
     }
     
     // NOTE(allen): Line highlight setup

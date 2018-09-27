@@ -1242,8 +1242,7 @@ App_Step_Sig(app_step){
             input->keys.keys[input->keys.count++] = mouse_event;
         }
         
-        if (input->mouse.x != models->prev_x &&
-            input->mouse.y != models->prev_y){
+        if (input->mouse.x != models->prev_x || input->mouse.y != models->prev_y){
             mouse_event.keycode = key_mouse_move;
             input->keys.keys[input->keys.count++] = mouse_event;
         }
