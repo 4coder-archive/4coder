@@ -496,52 +496,56 @@ get_visual_markers(Partition *arena, Dynamic_Workspace *workspace, i32 *range_co
     for (Managed_Buffer_Markers_Header *node = workspace->buffer_markers_list.first;
          node != 0;
          node = node->next){
-        if (node->marker_type == BufferMarkersType_Invisible) continue;
         if (node->buffer_id != buffer_id) continue;
-        if (node->key_view_id != 0 && node->key_view_id != view_id) continue;
-        
-        Managed_Buffer_Markers_Type marker_type = node->marker_type;
-        u32 color = node->color;
-        u32 text_color = node->text_color;
-        
-        Marker *markers = (Marker*)(node + 1);
-        Assert(sizeof(*markers) == node->std_header.item_size);
-        i32 count = node->std_header.count;
-        
-        if (marker_type != BufferMarkersType_CharacterHighlightRanges){
-            Marker *marker = markers;
-            for (i32 i = 0; i < count; i += 1, marker += 1){
-                if (range.first <= marker->pos &&
-                    marker->pos <= range.one_past_last){
-                    Render_Marker *render_marker = push_array(arena, Render_Marker, 1);
-                    render_marker->type = marker_type;
-                    render_marker->pos = marker->pos;
-                    render_marker->color = color;
-                    render_marker->text_color = text_color;
-                    render_marker->range_id = -1;
+        for (Marker_Visuals_Data *data = node->visuals_first;
+             data != 0;
+             data = data->next){
+            if (data->type == BufferMarkersType_Invisible) continue;
+            if (data->key_view_id != 0 && data->key_view_id != view_id) continue;
+            
+            Marker_Visuals_Type type = data->type;
+            u32 color = data->color;
+            u32 text_color = data->text_color;
+            
+            Marker *markers = (Marker*)(node + 1);
+            Assert(sizeof(*markers) == node->std_header.item_size);
+            i32 count = node->std_header.count;
+            
+            if (type != BufferMarkersType_CharacterHighlightRanges){
+                Marker *marker = markers;
+                for (i32 i = 0; i < count; i += 1, marker += 1){
+                    if (range.first <= marker->pos &&
+                        marker->pos <= range.one_past_last){
+                        Render_Marker *render_marker = push_array(arena, Render_Marker, 1);
+                        render_marker->type = type;
+                        render_marker->pos = marker->pos;
+                        render_marker->color = color;
+                        render_marker->text_color = text_color;
+                        render_marker->range_id = -1;
+                    }
                 }
             }
-        }
-        else{
-            Marker *marker = markers;
-            for (i32 i = 0; i + 1 < count; i += 2, marker += 2){
-                Range range_b = {0};
-                range_b.first = marker[0].pos;
-                range_b.one_past_last = marker[1].pos;
-                
-                if (range_b.first >= range_b.one_past_last) continue;
-                if (!((range.min - range_b.max <= 0) &&
-                      (range.max - range_b.min >= 0))) continue;
-                
-                i32 range_id = *range_counter_ptr;
-                *range_counter_ptr += 2;
-                for (i32 j = 0; j < 2; j += 1){
-                    Render_Marker *render_marker = push_array(arena, Render_Marker, 1);
-                    render_marker->type = marker_type;
-                    render_marker->pos = marker[j].pos;
-                    render_marker->color = color;
-                    render_marker->text_color = text_color;
-                    render_marker->range_id = range_id + j;
+            else{
+                Marker *marker = markers;
+                for (i32 i = 0; i + 1 < count; i += 2, marker += 2){
+                    Range range_b = {0};
+                    range_b.first = marker[0].pos;
+                    range_b.one_past_last = marker[1].pos;
+                    
+                    if (range_b.first >= range_b.one_past_last) continue;
+                    if (!((range.min - range_b.max <= 0) &&
+                          (range.max - range_b.min >= 0))) continue;
+                    
+                    i32 range_id = *range_counter_ptr;
+                    *range_counter_ptr += 2;
+                    for (i32 j = 0; j < 2; j += 1){
+                        Render_Marker *render_marker = push_array(arena, Render_Marker, 1);
+                        render_marker->type = type;
+                        render_marker->pos = marker[j].pos;
+                        render_marker->color = color;
+                        render_marker->text_color = text_color;
+                        render_marker->range_id = range_id + j;
+                    }
                 }
             }
         }

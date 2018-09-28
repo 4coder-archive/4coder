@@ -2536,8 +2536,9 @@ Alloc_Buffer_Markers_On_Buffer(Application_Links *app, Buffer_ID buffer_id, int3
         zdll_push_back(workspace->buffer_markers_list.first, workspace->buffer_markers_list.last, header);
         workspace->buffer_markers_list.count += 1;
         header->buffer_id = buffer_id;
-        header->marker_type = BufferMarkersType_Invisible;
-        header->color = 0;
+        header->visuals_first = 0;
+        header->visuals_last = 0;
+        header->visuals_count = 0;
         file->state.total_marker_count += count;
         u32 id = dynamic_workspace_store_pointer(heap, workspace, ptr);
         result = ((u64)markers_scope << 32) | (u64)id;
@@ -2562,8 +2563,142 @@ get_dynamic_object_ptrs(Models *models, Managed_Object object){
     return(result);
 }
 
+API_EXPORT Marker_Visuals
+Create_Marker_Visuals(Application_Links *app, Managed_Object object){
+    Command_Data *cmd = (Command_Data*)app->cmd_context;
+    Models *models = cmd->models;
+    Managed_Object_Ptr_And_Workspace object_ptrs = get_dynamic_object_ptrs(models, object);
+    Marker_Visuals visuals = {0};
+    if (object_ptrs.header != 0 && object_ptrs.header->type == ManagedObjectType_Markers){
+        Heap *heap = &models->mem.heap;
+        Dynamic_Workspace *workspace = object_ptrs.workspace;
+        Marker_Visuals_Data *data = marker_visuals_alloc(heap, &workspace->mem_bank, &workspace->visuals_allocator);
+        
+        Managed_Buffer_Markers_Header *markers = (Managed_Buffer_Markers_Header*)object_ptrs.header;
+        zdll_push_back(markers->visuals_first, markers->visuals_last, data);
+        markers->visuals_count += 1;
+        data->owner_object = object;
+        marker_visuals_defaults(data);
+        
+        visuals.scope = workspace->scope_id;
+        visuals.slot_id = data->slot_id;
+        visuals.gen_id = data->gen_id;
+    }
+    return(visuals);
+}
+
+internal Marker_Visuals_Data*
+get_marker_visuals_pointer(Models *models, Marker_Visuals visuals){
+    Dynamic_Workspace *workspace = get_dynamic_workspace(models, visuals.scope);
+    if (workspace != 0){
+        return(dynamic_workspace_get_visuals_pointer(workspace, visuals.slot_id, visuals.gen_id));
+    }
+    return(0);
+}
+
 API_EXPORT bool32
-Buffer_Markers_Set_Visuals(Application_Links *app, Managed_Object object, Managed_Buffer_Markers_Type marker_type, uint32_t color, uint32_t text_color, View_ID key_view_id){
+Marker_Visuals_Set_Look(Application_Links *app, Marker_Visuals visuals, Marker_Visuals_Type type, int_color color, int_color text_color, Marker_Visuals_Text_Style text_style){
+    Command_Data *cmd = (Command_Data*)app->cmd_context;
+    Models *models = cmd->models;
+    Marker_Visuals_Data *data = get_marker_visuals_pointer(models, visuals);
+    if (data != 0){
+        data->type = type;
+        data->color = color;
+        data->text_color = text_color;
+        data->text_style = text_style;
+    }
+    return(false);
+}
+
+API_EXPORT bool32
+Marker_Visuals_Set_Take_Rule(Application_Links *app, Marker_Visuals visuals, Marker_Visuals_Take_Rule take_rule){
+    Command_Data *cmd = (Command_Data*)app->cmd_context;
+    Models *models = cmd->models;
+    Marker_Visuals_Data *data = get_marker_visuals_pointer(models, visuals);
+    if (data != 0){
+        data->take_rule = take_rule;
+    }
+    return(false);
+}
+
+API_EXPORT bool32
+Marker_Visuals_Set_Priority(Application_Links *app, Marker_Visuals visuals, Marker_Visuals_Priority_Level priority){
+    Command_Data *cmd = (Command_Data*)app->cmd_context;
+    Models *models = cmd->models;
+    Marker_Visuals_Data *data = get_marker_visuals_pointer(models, visuals);
+    if (data != 0){
+        data->priority = priority;
+    }
+    return(false);
+}
+
+API_EXPORT bool32
+Marker_Visuals_Set_View_Key(Application_Links *app, Marker_Visuals visuals, View_ID key_view_id){
+    Command_Data *cmd = (Command_Data*)app->cmd_context;
+    Models *models = cmd->models;
+    Marker_Visuals_Data *data = get_marker_visuals_pointer(models, visuals);
+    if (data != 0){
+        data->key_view_id = key_view_id;
+    }
+    return(false);
+}
+
+API_EXPORT bool32
+Destroy_Marker_Visuals(Application_Links *app, Marker_Visuals visuals){
+    Command_Data *cmd = (Command_Data*)app->cmd_context;
+    Models *models = cmd->models;
+    Dynamic_Workspace *workspace = get_dynamic_workspace(models, visuals.scope);
+    if (workspace != 0){
+        Marker_Visuals_Data *data = dynamic_workspace_get_visuals_pointer(workspace, visuals.slot_id, visuals.gen_id);
+        if (data != 0){
+            marker_visuals_free(&workspace->visuals_allocator, data);
+        }
+    }
+    return(false);
+}
+
+API_EXPORT int32_t
+Buffer_Markers_Get_Attached_Visuals_Count(Application_Links *app, Managed_Object object){
+    Command_Data *cmd = (Command_Data*)app->cmd_context;
+    Models *models = cmd->models;
+    Managed_Object_Ptr_And_Workspace object_ptrs = get_dynamic_object_ptrs(models, object);
+    if (object_ptrs.header != 0 && object_ptrs.header->type == ManagedObjectType_Markers){
+        Managed_Buffer_Markers_Header *markers = (Managed_Buffer_Markers_Header*)object_ptrs.header;
+        return(markers->visuals_count);
+    }
+    return(0);
+}
+
+API_EXPORT Marker_Visuals*
+Buffer_Markers_Get_Attached_Visuals(Application_Links *app, Partition *part, Managed_Object object){
+    Command_Data *cmd = (Command_Data*)app->cmd_context;
+    Models *models = cmd->models;
+    Managed_Object_Ptr_And_Workspace object_ptrs = get_dynamic_object_ptrs(models, object);
+    if (object_ptrs.header != 0 && object_ptrs.header->type == ManagedObjectType_Markers){
+        Managed_Buffer_Markers_Header *markers = (Managed_Buffer_Markers_Header*)object_ptrs.header;
+        i32 count = markers->visuals_count;
+        Marker_Visuals *visuals = push_array(part, Marker_Visuals, count);
+        if (visuals != 0){
+            Marker_Visuals *v = visuals;
+            Managed_Scope scope = object_ptrs.workspace->scope_id;
+            for (Marker_Visuals_Data *data = markers->visuals_first;
+                 data != 0;
+                 data = data->next, v += 1){
+                v->scope = scope;
+                v->slot_id = data->slot_id;
+                v->gen_id = data->gen_id;
+            }
+            Assert(v == visuals + count);
+        }
+        return(visuals);
+    }
+    return(0);
+}
+
+/*
+#if 0
+API_EXPORT bool32
+Buffer_Markers_Set_Visuals(Application_Links *app, Managed_Object object, Marker_Visuals_Type marker_type, uint32_t color, uint32_t text_color, View_ID key_view_id){
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     Models *models = cmd->models;
     Managed_Object_Ptr_And_Workspace object_ptrs = get_dynamic_object_ptrs(models, object);
@@ -2580,6 +2715,8 @@ Buffer_Markers_Set_Visuals(Application_Links *app, Managed_Object object, Manage
     }
     return(false);
 }
+#endif
+*/
 
 internal u8*
 get_dynamic_object_memory_ptr(Managed_Object_Standard_Header *header){
@@ -2658,6 +2795,7 @@ Managed_Object_Free(Application_Links *app, Managed_Object object)
             Managed_Object_Type *type = (Managed_Object_Type*)object_ptr;
             if (*type == ManagedObjectType_Markers){
                 Managed_Buffer_Markers_Header *header = (Managed_Buffer_Markers_Header*)object_ptr;
+                marker_visuals_free_chain(&workspace->visuals_allocator, header->visuals_first, header->visuals_last, header->visuals_count);
                 zdll_remove(workspace->buffer_markers_list.first, workspace->buffer_markers_list.last, header);
                 workspace->buffer_markers_list.count -= 1;
             }

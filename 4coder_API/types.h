@@ -687,7 +687,20 @@ ENUM(int32_t, Managed_Object_Type)
     ManagedObjectType_COUNT = 3,
 };
 
-ENUM(int32_t, Managed_Buffer_Markers_Type)
+TYPEDEF uint64_t Managed_Scope;
+TYPEDEF int32_t Managed_Variable_ID;
+TYPEDEF uint64_t Managed_Object;
+
+static Managed_Scope ManagedScope_NULL = 0;
+static Managed_Variable_ID ManagedVariableIndex_ERROR = -1;
+static Managed_Object ManagedObject_NULL = 0;
+
+STRUCT Marker_Visuals{
+    Managed_Scope scope;
+    uint32_t slot_id;
+    uint32_t gen_id;
+};
+ENUM(int32_t, Marker_Visuals_Type)
 {
     BufferMarkersType_Invisible = 0,
     BufferMarkersType_CharacterBlocks = 1,
@@ -697,14 +710,30 @@ ENUM(int32_t, Managed_Buffer_Markers_Type)
     BufferMarkersType_CharacterIBars = 5,
     BufferMarkersType_COUNT = 6,
 };
-
-TYPEDEF uint64_t Managed_Scope;
-TYPEDEF int32_t Managed_Variable_ID;
-TYPEDEF uint64_t Managed_Object;
-
-static Managed_Scope ManagedScope_NULL = 0;
-static Managed_Variable_ID ManagedVariableIndex_ERROR = -1;
-static Managed_Object ManagedObject_NULL = 0;
+ENUM(uint32_t, Marker_Visuals_Symbolic_Color)
+{
+    SymbolicColor_Default = 0,
+    SymbolicColor_Transparent = 1,
+    SymbolicColor__StagColorFlag = 0x00800000,
+};
+#define SymbolicColorFromPalette(x) ((x)|SymbolicColor__StagColorFlag)
+ENUM(int32_t, Marker_Visuals_Text_Style)
+{
+    MARKER_TEXT_STYLE_NOT_YET_IMPLEMENTED,
+};
+STRUCT Marker_Visuals_Take_Rule{
+    int32_t first_index;
+    int32_t take_count_per_step;
+    int32_t step_stride_in_marker_count;
+    int32_t maximum_number_of_markers;
+};
+ENUM(int32_t, Marker_Visuals_Priority_Level){
+    VisualPriority_Lowest = 0,
+    VisualPriority_Low = 1000,
+    VisualPriority_Normal = 2000,
+    VisualPriority_High = 3000,
+    VisualPriority_Highest = 4000,
+};
 
 /* DOC(Query_Bar is a struct used to store information in the user's control that will be displayed as a drop down bar durring an interactive command.) */
 STRUCT Query_Bar{

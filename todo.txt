@@ -3,18 +3,40 @@
 {
     Features
     {
+        [] Finalize visualizations API
+        {
+            [x] Add and remove visualizations, allow more than one on a single markers object
+            [x] Iterate visualizations
+            [] Take rule
+            [] Priority
+            [x] View key
+            [] Check it all
+        }
+        [] Better range handling (range contained inside range)
+        [] Range of line highlights
+        [] When clearing all dependent scopes, don't delete them, just clear them
         [] New Features with Visible Markers
         {
             [x] Customizable Highlight Line at Cursor All the Time
             [x] Customizable Highlight Token at Cursor All the Time
             [] Paren/Brace Matching (with color pallette expansion)
-            [] Figure out what to do with sticky jumps that would be helpful
-            [] isearch upgrade with full parse and all that
+            {
+                [x] Get ranges to mark and mark them
+                [] Works on parentheses
+                [] Colors pulled from color pallette
+                [] Optional modes: Off, Mark Delimters, Cover Ranges
+            }
         }
         [] Color Pallette Expansion For Keywords
         [] Reload all out of sync files
-        [] Doubly Linked List Node Managed Object
         [] Jump to Command Definition (useful for 4coder customization developers only)
+        [] I-Bar and Highlight Mode
+        {
+            [] Cursor navigation commands
+            [] Insert character
+            [] Paste
+            [] Backspace and delete
+        }
     }
     
     Bugs

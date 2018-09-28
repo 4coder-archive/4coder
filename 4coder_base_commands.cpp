@@ -696,9 +696,10 @@ isearch(Application_Links *app, bool32 start_reversed, String query_init, bool32
     
     Managed_Scope view_scope = view_get_managed_scope(app, view.view_id);
     Managed_Object highlight = alloc_buffer_markers_on_buffer(app, buffer.buffer_id, 2, &view_scope);
-    Managed_Buffer_Markers_Type marker_type = BufferMarkersType_CharacterHighlightRanges;
-    buffer_markers_set_visuals(app, highlight,
-                               marker_type, color.color, 0, view.view_id);
+    Marker_Visuals_Type marker_type = BufferMarkersType_CharacterHighlightRanges;
+    Marker_Visuals visuals = create_marker_visuals(app, highlight);
+    marker_visuals_set_look(app, visuals, marker_type, color.color, SymbolicColor_Default, 0);
+    marker_visuals_set_view_key(app, visuals, view.view_id);
     isearch__update_highlight(app, &view, highlight, match.start, match.end);
     int32_t original_cursor_render_mode = cursor_render_mode;
     cursor_render_mode = CursorRenderMode_Hidden;

@@ -163,9 +163,96 @@ dynamic_memory_bank_free_all(Heap *heap, Dynamic_Memory_Bank *mem_bank){
 ////////////////////////////////
 
 internal void
+insert_u32_Ptr_table(Heap *heap, Dynamic_Memory_Bank *mem_bank, u32_Ptr_Table *table, u32 key, void* val){
+    if (at_max_u32_Ptr_table(table)){
+        i32 new_max = (table->max + 1)*2;
+        i32 new_mem_size = max_to_memsize_u32_Ptr_table(new_max);
+        void *new_mem = dynamic_memory_bank_allocate(heap, mem_bank, new_mem_size);
+        u32_Ptr_Table new_table = make_u32_Ptr_table(new_mem, new_mem_size);
+        if (table->mem != 0){
+            b32 result = move_u32_Ptr_table(&new_table, table);
+            Assert(result);
+            AllowLocal(result);
+            dynamic_memory_bank_free(mem_bank, table->mem);
+        }
+        *table = new_table;
+    }
+    b32 result = insert_u32_Ptr_table(table, &key, &val);
+    Assert(result);
+    AllowLocal(result);
+}
+
+////////////////////////////////
+
+internal void
+marker_visuals_allocator_init(Marker_Visuals_Allocator *allocator){
+    memset(allocator, 0, sizeof(*allocator));
+}
+
+internal Marker_Visuals_Data*
+marker_visuals_alloc(Heap *heap, Dynamic_Memory_Bank *mem_bank, Marker_Visuals_Allocator *allocator){
+    if (allocator->free_count == 0){
+        i32 new_slots_count = clamp_bottom(16, allocator->total_visual_count);
+        i32 memsize = new_slots_count*sizeof(Marker_Visuals_Data);
+        void *new_slots_memory = dynamic_memory_bank_allocate(heap, mem_bank, memsize);
+        memset(new_slots_memory, 0, memsize);
+        Marker_Visuals_Data *new_slot = (Marker_Visuals_Data*)new_slots_memory;
+        allocator->free_count += new_slots_count;
+        allocator->total_visual_count += new_slots_count;
+        for (i32 i = 0; i < new_slots_count; i += 1, new_slot += 1){
+            zdll_push_back(allocator->free_first, allocator->free_last, new_slot);
+            new_slot->slot_id = ++allocator->slot_id_counter;
+            insert_u32_Ptr_table(heap, mem_bank, &allocator->id_to_ptr_table, new_slot->slot_id, new_slot);
+        }
+    }
+    Marker_Visuals_Data *data = allocator->free_first;
+    zdll_remove(allocator->free_first, allocator->free_last, data);
+    allocator->free_count -= 1;
+    data->gen_id += 1;
+    return(data);
+}
+
+internal void
+marker_visuals_free(Marker_Visuals_Allocator *allocator, Marker_Visuals_Data *data){
+    zdll_push_back(allocator->free_first, allocator->free_last, data);
+    allocator->free_count += 1;
+}
+
+internal void
+marker_visuals_free_chain(Marker_Visuals_Allocator *allocator, Marker_Visuals_Data *first, Marker_Visuals_Data *last, i32 count){
+    if (allocator->free_first == 0){
+        allocator->free_first = first;
+        allocator->free_last = last;
+    }
+    else{
+        allocator->free_last->next = first;
+        first->prev = allocator->free_last;
+        allocator->free_last = last;
+    }
+    allocator->free_count += count;
+}
+
+internal void
+marker_visuals_defaults(Marker_Visuals_Data *data){
+    data->type = BufferMarkersType_Invisible;
+    data->color = 0;
+    data->text_color = 0;
+    data->text_style = 0;
+    data->take_rule.first_index = 0;
+    data->take_rule.take_count_per_step = 1;
+    data->take_rule.step_stride_in_marker_count = 1;
+    data->take_rule.maximum_number_of_markers = max_i32;
+    data->priority = VisualPriority_Normal;
+    data->key_view_id = 0;
+}
+
+////////////////////////////////
+
+internal void
 dynamic_workspace_init(Heap *heap, Lifetime_Allocator *lifetime_allocator, i32 user_type, void *user_back_ptr, Dynamic_Workspace *workspace){
     dynamic_variables_block_init(heap, &workspace->var_block);
     dynamic_memory_bank_init(heap, &workspace->mem_bank);
+    marker_visuals_allocator_init(&workspace->visuals_allocator);
     if (lifetime_allocator->scope_id_counter == 0){
         lifetime_allocator->scope_id_counter = 1;
     }
@@ -188,6 +275,7 @@ dynamic_workspace_clear_contents(Heap *heap, Dynamic_Workspace *workspace){
     dynamic_memory_bank_free_all(heap, &workspace->mem_bank);
     dynamic_variables_block_init(heap, &workspace->var_block);
     dynamic_memory_bank_init(heap, &workspace->mem_bank);
+    marker_visuals_allocator_init(&workspace->visuals_allocator);
 }
 
 internal u32
@@ -210,6 +298,21 @@ dynamic_workspace_get_pointer(Dynamic_Workspace *workspace, u32 id){
     u32_Ptr_Lookup_Result lookup = lookup_u32_Ptr_table(&workspace->object_id_to_object_ptr, id);
     if (lookup.success){
         return(*lookup.val);
+    }
+    return(0);
+}
+
+internal Marker_Visuals_Data*
+dynamic_workspace_get_visuals_pointer(Dynamic_Workspace *workspace, u32 slot_id, u32 gen_id){
+    void *data_ptr = 0;
+    if (lookup_u32_Ptr_table(&workspace->visuals_allocator.id_to_ptr_table, slot_id, &data_ptr)){
+        Marker_Visuals_Data *data = (Marker_Visuals_Data*)data_ptr;
+        if (data->gen_id == gen_id){
+            void *object_ptr = dynamic_workspace_get_pointer(workspace, data->owner_object&max_u32);
+            if (object_ptr != 0){
+                return(data);
+            }
+        }
     }
     return(0);
 }
