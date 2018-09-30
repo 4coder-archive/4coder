@@ -190,7 +190,8 @@ marker_visuals_allocator_init(Marker_Visuals_Allocator *allocator){
 }
 
 internal Marker_Visuals_Data*
-marker_visuals_alloc(Heap *heap, Dynamic_Memory_Bank *mem_bank, Marker_Visuals_Allocator *allocator){
+dynamic_workspace_alloc_visuals(Heap *heap, Dynamic_Memory_Bank *mem_bank, Dynamic_Workspace *workspace){
+    Marker_Visuals_Allocator *allocator = &workspace->visuals_allocator;
     if (allocator->free_count == 0){
         i32 new_slots_count = clamp_bottom(16, allocator->total_visual_count);
         i32 memsize = new_slots_count*sizeof(Marker_Visuals_Data);
@@ -201,7 +202,7 @@ marker_visuals_alloc(Heap *heap, Dynamic_Memory_Bank *mem_bank, Marker_Visuals_A
         allocator->total_visual_count += new_slots_count;
         for (i32 i = 0; i < new_slots_count; i += 1, new_slot += 1){
             zdll_push_back(allocator->free_first, allocator->free_last, new_slot);
-            new_slot->slot_id = ++allocator->slot_id_counter;
+            new_slot->slot_id = ++workspace->visual_id_counter;
             insert_u32_Ptr_table(heap, mem_bank, &allocator->id_to_ptr_table, new_slot->slot_id, new_slot);
         }
     }
@@ -242,7 +243,8 @@ marker_visuals_defaults(Marker_Visuals_Data *data){
     data->take_rule.take_count_per_step = 1;
     data->take_rule.step_stride_in_marker_count = 1;
     data->take_rule.maximum_number_of_markers = max_i32;
-    data->priority = VisualPriority_Normal;
+    data->one_past_last_take_index = max_i32;
+    data->priority = VisualPriority_Default;
     data->key_view_id = 0;
 }
 
@@ -250,6 +252,7 @@ marker_visuals_defaults(Marker_Visuals_Data *data){
 
 internal void
 dynamic_workspace_init(Heap *heap, Lifetime_Allocator *lifetime_allocator, i32 user_type, void *user_back_ptr, Dynamic_Workspace *workspace){
+    memset(workspace, 0, sizeof(*workspace));
     dynamic_variables_block_init(heap, &workspace->var_block);
     dynamic_memory_bank_init(heap, &workspace->mem_bank);
     marker_visuals_allocator_init(&workspace->visuals_allocator);
@@ -273,6 +276,8 @@ internal void
 dynamic_workspace_clear_contents(Heap *heap, Dynamic_Workspace *workspace){
     dynamic_variables_block_free(heap, &workspace->var_block);
     dynamic_memory_bank_free_all(heap, &workspace->mem_bank);
+    memset(&workspace->object_id_to_object_ptr, 0, sizeof(workspace->object_id_to_object_ptr));
+    memset(&workspace->buffer_markers_list, 0, sizeof(workspace->buffer_markers_list));
     dynamic_variables_block_init(heap, &workspace->var_block);
     dynamic_memory_bank_init(heap, &workspace->mem_bank);
     marker_visuals_allocator_init(&workspace->visuals_allocator);
@@ -595,6 +600,21 @@ lifetime__object_free_all_keys(Heap *heap, Lifetime_Allocator *lifetime_allocato
 }
 
 internal void
+lifetime__object_clear_all_keys(Heap *heap, Lifetime_Allocator *lifetime_allocator, Lifetime_Object *lifetime_object){
+    i32 key_i = 0;
+    for (Lifetime_Key_Ref_Node *node = lifetime_object->key_node_first;
+         node != 0;
+         node = node->next){
+        i32 one_past_last = clamp_top(ArrayCount(node->keys), lifetime_object->key_count - key_i);
+        Lifetime_Key **key_ptr = node->keys;
+        for (i32 i = 0; i < one_past_last; i += 1, key_ptr += 1){
+            dynamic_workspace_clear_contents(heap, &(*key_ptr)->dynamic_workspace);
+        }
+        key_i += one_past_last;
+    }
+}
+
+internal void
 lifetime_free_object(Heap *heap, Lifetime_Allocator *lifetime_allocator, Lifetime_Object *lifetime_object){
     lifetime__object_free_all_keys(heap, lifetime_allocator, lifetime_object);
     dynamic_workspace_free(heap, lifetime_allocator, &lifetime_object->workspace);
@@ -603,10 +623,7 @@ lifetime_free_object(Heap *heap, Lifetime_Allocator *lifetime_allocator, Lifetim
 
 internal void
 lifetime_object_reset(Heap *heap, Lifetime_Allocator *lifetime_allocator, Lifetime_Object *lifetime_object){
-    lifetime__object_free_all_keys(heap, lifetime_allocator, lifetime_object);
-    lifetime_object->key_node_first = 0;
-    lifetime_object->key_node_last = 0;
-    lifetime_object->key_count = 0;
+    lifetime__object_clear_all_keys(heap, lifetime_allocator, lifetime_object);
     dynamic_workspace_clear_contents(heap, &lifetime_object->workspace);
 }
 

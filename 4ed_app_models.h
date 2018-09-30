@@ -40,9 +40,12 @@ struct Command_Data{
     
     // Render Context
     View *render_view;
-    i32_Rect render_rect;
-    b32 render_is_active;
     Render_Target *target;
+    i32_Rect render_rect;
+    Full_Cursor render_cursor;
+    Range render_range;
+    Buffer_Render_Item *render_items;
+    i32 render_item_count;
 };
 
 struct Models{

@@ -148,27 +148,20 @@ init_marker_list(Application_Links *app, Partition *scratch, Heap *heap, Buffer_
             }
         }
         
-        Marker_Visuals_Type marker_type = 0;
-        uint32_t marker_color = 0;
-        
-        if (is_compilation_buffer){
-            marker_type = BufferMarkersType_LineHighlights;
-            Theme_Color color = {};
-            color.tag = Stag_Highlight_Junk;
-            get_theme_colors(app, &color, 1);
-            marker_color = color.color;
-        }
-        else{
-            marker_type = BufferMarkersType_Invisible;
-            marker_color = 0;
-        }
-        
         scope_array[1] = buffer_get_managed_scope(app, target_buffer_id);
         Managed_Scope scope = get_managed_scope_with_multiple_dependencies(app, scope_array, ArrayCount(scope_array));
         Managed_Object marker_handle = alloc_buffer_markers_on_buffer(app, target_buffer_id, total_jump_count, &scope);
         managed_object_store_data(app, marker_handle, 0, total_jump_count, markers);
-        Marker_Visuals visuals = create_marker_visuals(app, marker_handle);
-        marker_visuals_set_look(app, visuals, marker_type, marker_color, SymbolicColor_Default, 0);
+        
+        if (is_compilation_buffer){
+            Theme_Color color = {};
+            color.tag = Stag_Highlight_Junk;
+            get_theme_colors(app, &color, 1);
+            Marker_Visuals visuals = create_marker_visuals(app, marker_handle);
+            marker_visuals_set_look(app, visuals,
+                                    BufferMarkersType_LineHighlights, color.color, 0, 0);
+        }
+        
         end_temp_memory(marker_temp);
         
         Assert(managed_object_get_item_size(app, marker_handle) == sizeof(Marker));

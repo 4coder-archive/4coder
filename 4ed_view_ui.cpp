@@ -225,18 +225,6 @@ draw_file_bar(System_Functions *system, Render_Target *target, View *view, Model
 }
 
 internal void
-do_core_render(Application_Links *app){
-    Command_Data *cmd = (Command_Data*)app->cmd_context;
-    System_Functions *system = cmd->system;
-    Models *models = cmd->models;
-    View *view = cmd->render_view;
-    i32_Rect rect = cmd->render_rect;
-    b32 is_active = cmd->render_is_active;
-    Render_Target *target = cmd->target;
-    render_loaded_file_in_view(system, view, models, rect, is_active, target);
-}
-
-internal void
 do_render_file_view(System_Functions *system, View *view, Models *models, GUI_Scroll_Vars *scroll, View *active, i32_Rect rect, b32 is_active, Render_Target *target, Input_Summary *user_input){
     
     Editing_File *file = view->transient.file_data.file;
@@ -284,15 +272,7 @@ do_render_file_view(System_Functions *system, View *view, Models *models, GUI_Sc
     draw_push_clip(target, rect);
     if (!view->transient.ui_mode){
         if (file_is_ready(file)){
-            if (models->render_caller != 0){
-                models->command_data.render_view = view;
-                models->command_data.render_rect = rect;
-                models->command_data.render_is_active = is_active;
-                models->render_caller(&models->app_links, view->persistent.id + 1, do_core_render);
-            }
-            else{
-                render_loaded_file_in_view(system, view, models, rect, is_active, target);
-            }
+            render_loaded_file_in_view(system, view, models, rect, is_active, target);
         }
     }
     else{

@@ -8,15 +8,24 @@
 #define FCODER_SCOPE_COMMANDS_H
 
 enum{
-    FindScope_Parent = 0x1,
-    FindScope_NextSibling = 0x1,
-    FindScope_EndOfToken = 0x2,
+    FindScope_Parent = 1,
+    FindScope_NextSibling = 2,
+    FindScope_EndOfToken = 4,
+    FindScope_Brace = 8,
+    FindScope_Paren = 16,
 };
 
 struct Statement_Parser{
     Stream_Tokens stream;
     int32_t token_index;
     Buffer_Summary *buffer;
+};
+
+typedef int32_t Find_Scope_Token_Type;
+enum{
+    FindScopeTokenType_None = 0,
+    FindScopeTokenType_Open = 1,
+    FindScopeTokenType_Close = 2,
 };
 
 #endif

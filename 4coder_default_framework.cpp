@@ -249,22 +249,34 @@ CUSTOM_DOC("Toggles the mouse suppression mode, see suppress_mouse and allow_mou
     set_mouse_suppression(app, !suppressing_mouse);
 }
 
-CUSTOM_COMMAND_SIG(disable_highlight_line_at_cursor)
-CUSTOM_DOC("Disables the line highlight at the cursor.")
+CUSTOM_COMMAND_SIG(set_mode_to_original)
+CUSTOM_DOC("Sets the edit mode to 4coder original.")
 {
-    highlight_line_at_cursor = false;
+    fcoder_mode = FCoderMode_Original;
 }
 
-CUSTOM_COMMAND_SIG(enable_highlight_line_at_cursor)
-CUSTOM_DOC("Enables the line highlight at the cursor.")
+CUSTOM_COMMAND_SIG(set_mode_to_notepad_like)
+CUSTOM_DOC("Sets the edit mode to Notepad like.")
 {
-    highlight_line_at_cursor = true;
+    begin_notepad_mode(app);
 }
 
 CUSTOM_COMMAND_SIG(toggle_highlight_line_at_cursor)
 CUSTOM_DOC("Toggles the line highlight at the cursor.")
 {
     highlight_line_at_cursor = !highlight_line_at_cursor;
+}
+
+CUSTOM_COMMAND_SIG(toggle_highlight_enclosing_scopes)
+CUSTOM_DOC("In code files scopes surrounding the cursor are highlighted with distinguishing colors.")
+{
+    do_matching_enclosure_highlight = !do_matching_enclosure_highlight;
+}
+
+CUSTOM_COMMAND_SIG(toggle_paren_matching_helper)
+CUSTOM_DOC("In code files matching parentheses pairs are colored with distinguishing colors.")
+{
+    do_matching_paren_highlight = !do_matching_paren_highlight;
 }
 
 CUSTOM_COMMAND_SIG(toggle_fullscreen)
@@ -313,10 +325,11 @@ default_4coder_initialize(Application_Links *app, int32_t override_font_size, bo
     load_folder_of_themes_into_live_set(app, &global_part, "themes");
     load_config_and_apply(app, &global_part, &global_config, override_font_size, override_hinting);
     
-    view_rewrite_loc      = managed_variable_create_or_get_id(app, "DEFAULT.rewrite"     , (uint64_t)0);
-    view_next_rewrite_loc = managed_variable_create_or_get_id(app, "DEFAULT.next_rewrite", (uint64_t)0);
-    view_paste_index_loc  = managed_variable_create_or_get_id(app, "DEFAULT.paste_index" , (uint64_t)0);
-    view_is_passive_loc   = managed_variable_create_or_get_id(app, "DEFAULT.is_passive"  , (uint64_t)false);
+    view_rewrite_loc         = managed_variable_create_or_get_id(app, "DEFAULT.rewrite"       , 0);
+    view_next_rewrite_loc    = managed_variable_create_or_get_id(app, "DEFAULT.next_rewrite"  , 0);
+    view_paste_index_loc     = managed_variable_create_or_get_id(app, "DEFAULT.paste_index"   , 0);
+    view_is_passive_loc      = managed_variable_create_or_get_id(app, "DEFAULT.is_passive"    , 0);
+    view_snap_mark_to_cursor = managed_variable_create_or_get_id(app, "DEFAULT.mark_to_cursor", 0);
 }
 
 static void

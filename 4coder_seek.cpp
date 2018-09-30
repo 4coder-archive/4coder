@@ -1023,6 +1023,7 @@ view_buffer_boundary_seek_set_pos(Application_Links *app, View_Summary *view, Bu
                                   int32_t dir, uint32_t flags){
     int32_t pos = buffer_boundary_seek(app, buffer, &global_part, view->cursor.pos, dir, flags);
     view_set_cursor(app, view, seek_pos(pos), true);
+    no_mark_snap_to_cursor_if_shift(app, view->view_id);
 }
 
 static void
@@ -1094,6 +1095,7 @@ CUSTOM_DOC("Seeks the cursor up to the next blank line.")
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessProtected);
     int32_t new_pos = buffer_seek_whitespace_up(app, &buffer, view.cursor.pos);
     view_set_cursor(app, &view, seek_pos(new_pos), true);
+    no_mark_snap_to_cursor_if_shift(app, view.view_id);
 }
 
 CUSTOM_COMMAND_SIG(seek_whitespace_down)
@@ -1103,6 +1105,7 @@ CUSTOM_DOC("Seeks the cursor down to the next blank line.")
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessProtected);
     int32_t new_pos = buffer_seek_whitespace_down(app, &buffer, view.cursor.pos);
     view_set_cursor(app, &view, seek_pos(new_pos), true);
+    no_mark_snap_to_cursor_if_shift(app, view.view_id);
 }
 
 CUSTOM_COMMAND_SIG(seek_beginning_of_textual_line)
@@ -1112,6 +1115,7 @@ CUSTOM_DOC("Seeks the cursor to the beginning of the line across all text.")
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessProtected);
     int32_t new_pos = seek_line_beginning(app, &buffer, view.cursor.pos);
     view_set_cursor(app, &view, seek_pos(new_pos), true);
+    no_mark_snap_to_cursor_if_shift(app, view.view_id);
 }
 
 CUSTOM_COMMAND_SIG(seek_end_of_textual_line)
@@ -1121,6 +1125,7 @@ CUSTOM_DOC("Seeks the cursor to the end of the line across all text.")
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessProtected);
     int32_t new_pos = seek_line_end(app, &buffer, view.cursor.pos);
     view_set_cursor(app, &view, seek_pos(new_pos), true);
+    no_mark_snap_to_cursor_if_shift(app, view.view_id);
 }
 
 CUSTOM_COMMAND_SIG(seek_beginning_of_line)
@@ -1132,6 +1137,7 @@ CUSTOM_DOC("Seeks the cursor to the beginning of the visual line.")
         y = view.cursor.unwrapped_y;
     }
     view_set_cursor(app, &view, seek_xy(0, y, 1, view.unwrapped_lines), 1);
+    no_mark_snap_to_cursor_if_shift(app, view.view_id);
 }
 
 CUSTOM_COMMAND_SIG(seek_end_of_line)
@@ -1143,6 +1149,7 @@ CUSTOM_DOC("Seeks the cursor to the end of the visual line.")
         y = view.cursor.unwrapped_y;
     }
     view_set_cursor(app, &view, seek_xy(max_f32, y, 1, view.unwrapped_lines), 1);
+    no_mark_snap_to_cursor_if_shift(app, view.view_id);
 }
 
 CUSTOM_COMMAND_SIG(seek_whitespace_up_end_line)
@@ -1153,6 +1160,7 @@ CUSTOM_DOC("Seeks the cursor up to the next blank line and places it at the end 
     int32_t new_pos = buffer_seek_whitespace_up(app, &buffer, view.cursor.pos);
     new_pos = seek_line_end(app, &buffer, new_pos);
     view_set_cursor(app, &view, seek_pos(new_pos), true);
+    no_mark_snap_to_cursor_if_shift(app, view.view_id);
 }
 
 CUSTOM_COMMAND_SIG(seek_whitespace_down_end_line)
@@ -1163,6 +1171,7 @@ CUSTOM_DOC("Seeks the cursor down to the next blank line and places it at the en
     int32_t new_pos = buffer_seek_whitespace_down(app, &buffer, view.cursor.pos);
     new_pos = seek_line_end(app, &buffer, new_pos);
     view_set_cursor(app, &view, seek_pos(new_pos), true);
+    no_mark_snap_to_cursor_if_shift(app, view.view_id);
 }
 
 CUSTOM_COMMAND_SIG(goto_beginning_of_file)
@@ -1170,6 +1179,7 @@ CUSTOM_DOC("Sets the cursor to the beginning of the file.")
 {
     View_Summary view = get_active_view(app, AccessProtected);
     view_set_cursor(app, &view, seek_pos(0), true);
+    no_mark_snap_to_cursor_if_shift(app, view.view_id);
 }
 
 CUSTOM_COMMAND_SIG(goto_end_of_file)
@@ -1178,6 +1188,7 @@ CUSTOM_DOC("Sets the cursor to the end of the file.")
     View_Summary view = get_active_view(app, AccessProtected);
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessProtected);
     view_set_cursor(app, &view, seek_pos(buffer.size), true);
+    no_mark_snap_to_cursor_if_shift(app, view.view_id);
 }
 
 ////////////////////////////////

@@ -6,9 +6,18 @@
 // <my-own-string>   - If you use the custom layer to make a named mapping you can use that here too.
 mapping = "";
 
+// MODE
+// "4coder"       - The default 4coder mode that has been around since the beginning of time (2015)
+// "notepad-like" - Single "thin" cursor and highlight ranges like in notepad, sublime, notepad++, etc
+mode = "notepad-like";
+
 // UI
 use_scroll_bars = false;
 use_file_bars = true;
+use_line_highlight = true;
+use_scope_highlight = true;
+use_paren_helper = true;
+use_comment_keywords = true;
 
 // Code Wrapping
 treat_as_code = ".cpp.c.hpp.h.cc.cs.java.rs.glsl.m";

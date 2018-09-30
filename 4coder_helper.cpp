@@ -1417,5 +1417,55 @@ get_ranges_of_duplicate_keys(Partition *arena, int32_t *keys, int32_t stride, in
     return(result);
 }
 
+static void
+no_mark_snap_to_cursor(Application_Links *app, Managed_Scope view_scope){
+    managed_variable_set(app, view_scope, view_snap_mark_to_cursor, false);
+}
+
+static void
+no_mark_snap_to_cursor(Application_Links *app, View_ID view_id){
+    Managed_Scope scope = view_get_managed_scope(app, view_id);
+    no_mark_snap_to_cursor(app, scope);
+}
+
+static void
+no_mark_snap_to_cursor_if_shift(Application_Links *app, View_ID view_id){
+    User_Input in = get_command_input(app);
+    if (in.type == UserInputKey && in.key.modifiers[MDFR_SHIFT_INDEX]){
+        no_mark_snap_to_cursor(app, view_id);
+    }
+}
+
+static bool32
+view_has_highlighted_range(Application_Links *app, View_ID view_id){
+    if (fcoder_mode == FCoderMode_NotepadLike){
+        View_Summary view = get_view(app, view_id, AccessAll);
+        return(view.cursor.pos != view.mark.pos);
+    }
+    return(false);
+}
+
+static bool32
+if_view_has_highlighted_range_delete_range(Application_Links *app, View_ID view_id){
+    if (view_has_highlighted_range(app, view_id)){
+        View_Summary view = get_view(app, view_id, AccessAll);
+        Range range = get_view_range(&view);
+        Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessOpen);
+        buffer_replace_range(app, &buffer, range.min, range.max, 0, 0);
+        return(true);
+    }
+    return(false);
+}
+
+static void
+begin_notepad_mode(Application_Links *app){
+    fcoder_mode = FCoderMode_NotepadLike;
+    for (View_Summary view = get_view_first(app, AccessAll);
+         view.exists;
+         get_view_next(app, &view, AccessAll)){
+        view_set_mark(app, &view, seek_pos(view.cursor.pos));
+    }
+}
+
 // BOTTOM
 

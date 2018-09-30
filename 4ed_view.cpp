@@ -490,8 +490,9 @@ release_font_and_update_files(System_Functions *system, Models *models, Face_ID 
 ////////////////////////////////
 
 internal void
-get_visual_markers(Partition *arena, Dynamic_Workspace *workspace, i32 *range_counter_ptr,
-                   Range range, Buffer_ID buffer_id, i32 view_index){
+get_visual_markers(Partition *arena, Dynamic_Workspace *workspace,
+                   Range range, Buffer_ID buffer_id, i32 view_index,
+                   Style_Main_Data *style_data){
     View_ID view_id = view_index + 1;
     for (Managed_Buffer_Markers_Header *node = workspace->buffer_markers_list.first;
          node != 0;
@@ -506,61 +507,131 @@ get_visual_markers(Partition *arena, Dynamic_Workspace *workspace, i32 *range_co
             Marker_Visuals_Type type = data->type;
             u32 color = data->color;
             u32 text_color = data->text_color;
+            i32 take_count_per_step = data->take_rule.take_count_per_step;
+            i32 step_stride_in_marker_count = data->take_rule.step_stride_in_marker_count;
+            i32 stride_size_from_last = step_stride_in_marker_count - take_count_per_step;
+            i32 priority = data->priority;
+            
+            if ((color&SymbolicColor__StagColorFlag) && (color&0xFF000000) == 0){
+                u32 *c = style_index_by_tag(style_data, color&0x007FFFFF);
+                if (c != 0){
+                    color = *c;
+                }
+                else{
+                    color = 0;
+                }
+            }
+            
+            if ((text_color&SymbolicColor__StagColorFlag) && (text_color&0xFF000000) == 0){
+                u32 *c = style_index_by_tag(style_data, text_color&0x007FFFFF);
+                if (c != 0){
+                    text_color = *c;
+                }
+                else{
+                    text_color = 0;
+                }
+            }
             
             Marker *markers = (Marker*)(node + 1);
             Assert(sizeof(*markers) == node->std_header.item_size);
             i32 count = node->std_header.count;
+            i32 one_past_last_index = clamp_top(data->one_past_last_take_index, count);
             
-            if (type != BufferMarkersType_CharacterHighlightRanges){
-                Marker *marker = markers;
-                for (i32 i = 0; i < count; i += 1, marker += 1){
-                    if (range.first <= marker->pos &&
-                        marker->pos <= range.one_past_last){
-                        Render_Marker *render_marker = push_array(arena, Render_Marker, 1);
-                        render_marker->type = type;
-                        render_marker->pos = marker->pos;
-                        render_marker->color = color;
-                        render_marker->text_color = text_color;
-                        render_marker->range_id = -1;
+            Marker *marker_one_past_last = markers + one_past_last_index;
+            Marker *marker = markers + data->take_rule.first_index;
+            
+            switch (type){
+                default:
+                {
+                    for (;marker < marker_one_past_last; marker += stride_size_from_last){
+                        for (i32 i = 0;
+                             i < take_count_per_step && marker < marker_one_past_last;
+                             marker += 1, i += 1){
+                            if (range.first <= marker->pos && marker->pos <= range.one_past_last){
+                                Render_Marker *render_marker = push_array(arena, Render_Marker, 1);
+                                render_marker->type = type;
+                                render_marker->pos = marker->pos;
+                                render_marker->color = color;
+                                render_marker->text_color = text_color;
+                                render_marker->one_past_last = marker->pos;
+                                render_marker->priority = priority;
+                            }
+                        }
                     }
-                }
-            }
-            else{
-                Marker *marker = markers;
-                for (i32 i = 0; i + 1 < count; i += 2, marker += 2){
-                    Range range_b = {0};
-                    range_b.first = marker[0].pos;
-                    range_b.one_past_last = marker[1].pos;
+                }break;
+                
+                case BufferMarkersType_CharacterHighlightRanges:
+                case BufferMarkersType_LineHighlightRanges:
+                {
+                    i32 pos_pair[2] = {0};
+                    i32 pair_index = 0;
                     
-                    if (range_b.first >= range_b.one_past_last) continue;
-                    if (!((range.min - range_b.max <= 0) &&
-                          (range.max - range_b.min >= 0))) continue;
-                    
-                    i32 range_id = *range_counter_ptr;
-                    *range_counter_ptr += 2;
-                    for (i32 j = 0; j < 2; j += 1){
-                        Render_Marker *render_marker = push_array(arena, Render_Marker, 1);
-                        render_marker->type = type;
-                        render_marker->pos = marker[j].pos;
-                        render_marker->color = color;
-                        render_marker->text_color = text_color;
-                        render_marker->range_id = range_id + j;
+                    for (;marker < marker_one_past_last; marker += stride_size_from_last){
+                        for (i32 i = 0;
+                             i < take_count_per_step && marker < marker_one_past_last;
+                             marker += 1, i += 1){
+                            pos_pair[pair_index++] = marker->pos;
+                            if (pair_index == 2){
+                                pair_index = 0;
+                                
+                                Range range_b = {0};
+                                range_b.first = pos_pair[0];
+                                range_b.one_past_last = pos_pair[1];
+                                
+                                if (range_b.first == range_b.one_past_last) continue;
+                                if (range_b.first > range_b.one_past_last){
+                                    Swap(i32, range_b.first, range_b.one_past_last);
+                                }
+                                if (!((range.min - range_b.max <= 0) &&
+                                      (range.max - range_b.min >= 0))) continue;
+                                
+                                Render_Marker *render_marker = push_array(arena, Render_Marker, 1);
+                                render_marker->type = type;
+                                render_marker->pos = range_b.min;
+                                render_marker->color = color;
+                                render_marker->text_color = text_color;
+                                render_marker->one_past_last = range_b.max;
+                                render_marker->priority = priority;
+                            }
+                        }
                     }
-                }
+                }break;
             }
         }
     }
 }
 
-internal void
-visual_markers_segment_sort(Render_Marker *markers, i32 first, i32 one_past_last, Range *ranges_out){
-    // NOTE(allen): This sort only works for a two segment sort, if we end up wanting more segments,
-    // scrap it and try again.
+internal i32
+marker_type_to_segment_rank(Marker_Visuals_Type type){
+    switch (type){
+        case BufferMarkersType_LineHighlights:
+        {
+            return(1);
+        }break;
+        case BufferMarkersType_CharacterHighlightRanges:
+        {
+            return(2);
+        }break;
+        case BufferMarkersType_LineHighlightRanges:
+        {
+            return(3);
+        }break;
+    }
+    return(0);
+}
+global_const i32 max_visual_type_rank = 3;
+
+internal i32
+split_sort(Render_Marker *markers, i32 first, i32 one_past_last, i32 min_in_high_segment){
     i32 i1 = first;
     i32 i0 = one_past_last - 1;
     for (;;){
-        for (; i1 < one_past_last && markers[i1].type != BufferMarkersType_LineHighlights; i1 += 1);
-        for (; i0 >= 0 && markers[i0].type == BufferMarkersType_LineHighlights; i0 -= 1);
+        for (;i1 < one_past_last &&
+             marker_type_to_segment_rank(markers[i1].type) < min_in_high_segment;
+             i1 += 1);
+        for (;i0 >= 0 &&
+             marker_type_to_segment_rank(markers[i0].type) >= min_in_high_segment;
+             i0 -= 1);
         if (i1 < i0){
             Swap(Render_Marker, markers[i0], markers[i1]);
         }
@@ -568,10 +639,19 @@ visual_markers_segment_sort(Render_Marker *markers, i32 first, i32 one_past_last
             break;
         }
     }
-    ranges_out[0].first = 0;
-    ranges_out[0].one_past_last = i1;
-    ranges_out[1].first = i1;
-    ranges_out[1].one_past_last = one_past_last;
+    return(i1);
+}
+
+internal void
+visual_markers_segment_sort(Render_Marker *markers, i32 first, i32 one_past_last, Range *ranges_out){
+    i32 pos = first;
+    for (i32 i = 0; i < max_visual_type_rank; i += 1){
+        ranges_out[i].first = pos;
+        pos = split_sort(markers, pos, one_past_last, i + 1);
+        ranges_out[i].one_past_last = pos;
+    }
+    ranges_out[max_visual_type_rank].first = pos;
+    ranges_out[max_visual_type_rank].one_past_last = one_past_last;
 }
 
 internal void
@@ -611,7 +691,6 @@ internal void
 visual_markers_replace_pos_with_first_byte_of_line(Render_Marker_Array markers, i32 *line_starts, i32 line_count, i32 hint_line_index){
     if (markers.count > 0){
         Assert(0 <= hint_line_index && hint_line_index < line_count);
-        Assert(line_starts[hint_line_index] <= markers.markers[0].pos);
         i32 marker_scan_index = 0;
         for (i32 line_scan_index = hint_line_index;; line_scan_index += 1){
             Assert(line_scan_index < line_count);
@@ -636,145 +715,74 @@ visual_markers_replace_pos_with_first_byte_of_line(Render_Marker_Array markers, 
     }
 }
 
+internal i32
+range_record_stack_get_insert_index(Render_Range_Record *records, i32 count, i32 priority){
+    i32 insert_pos = 0;
+    i32 first = 0;
+    i32 one_past_last = count + 1;
+    for (;;){
+        if (first + 1 >= one_past_last){
+            insert_pos = first;
+            break;
+        }
+        i32 mid = (first + one_past_last)/2;
+        // i - 1 is too big?
+        b32 too_big = false;
+        if (mid > 0){
+            if (records[mid - 1].priority > priority){
+                too_big = true;
+            }
+        }
+        // i is too small?
+        b32 too_small = false;
+        if (!too_big && mid < count){
+            if (records[mid].priority <= priority){
+                too_small = true;
+            }
+        }
+        // bisect
+        if (too_big){
+            one_past_last = mid;
+        }
+        else if (too_small){
+            first = mid + 1;
+        }
+        else{
+            insert_pos = mid;
+            break;
+        }
+    }
+    return(insert_pos);
+}
+
 internal void
-render_loaded_file_in_view(System_Functions *system, View *view, Models *models,
-                           i32_Rect rect, b32 is_active, Render_Target *target){
+render_loaded_file_in_view__inner(Models *models, Render_Target *target, View *view,
+                                  i32_Rect rect, Full_Cursor render_cursor, Range on_screen_range,
+                                  Buffer_Render_Item *items, i32 item_count){
     Editing_File *file = view->transient.file_data.file;
+    Partition *part = &models->mem.part;
     Style *style = &models->styles.styles[0];
-    i32 line_height = view->transient.line_height;
-    
-    f32 max_x = (f32)file->settings.display_width;
-    i32 max_y = rect.y1 - rect.y0 + line_height;
     
     Assert(file != 0);
     Assert(!file->is_dummy);
     Assert(buffer_good(&file->state.buffer));
     Assert(view->transient.edit_pos != 0);
     
-    b32 tokens_use = 0;
-    Cpp_Token_Array token_array = {};
-    if (file){
-        tokens_use = file->state.tokens_complete && (file->state.token_array.count > 0);
-        token_array = file->state.token_array;
-    }
-    
-    Partition *part = &models->mem.part;
-    Temp_Memory temp = begin_temp_memory(part);
-    
-    partition_align(part, 4);
-    
-    f32 left_side_space = 0;
-    
-    i32 max = partition_remaining(part)/sizeof(Buffer_Render_Item);
-    Buffer_Render_Item *items = push_array(part, Buffer_Render_Item, 0);
-    
-    Face_ID font_id = file->settings.font_id;
-    Font_Pointers font = system->font.get_pointers_by_id(font_id);
-    
-    f32 scroll_x = view->transient.edit_pos->scroll.scroll_x;
-    f32 scroll_y = view->transient.edit_pos->scroll.scroll_y;
-    
-    // NOTE(allen): For now we will temporarily adjust scroll_y to try
-    // to prevent the view moving around until floating sections are added
-    // to the gui system.
-    scroll_y += view->transient.widget_height;
-    
-    Full_Cursor render_cursor = {0};
-    if (!file->settings.unwrapped_lines){
-        render_cursor = file_compute_cursor(system, file, seek_wrapped_xy(0, scroll_y, 0), true);
-    }
-    else{
-        render_cursor = file_compute_cursor(system, file, seek_unwrapped_xy(0, scroll_y, 0), true);
-    }
-    
-    view->transient.edit_pos->scroll_i = render_cursor.pos;
-    
+    b32 tokens_use = file->state.tokens_complete && (file->state.token_array.count > 0);
+    Cpp_Token_Array token_array = file->state.token_array;
     b32 wrapped = !file->settings.unwrapped_lines;
-    
-    i32 count = 0;
-    i32 end_pos = 0;
-    {
-        Buffer_Render_Params params;
-        params.buffer        = &file->state.buffer;
-        params.items         = items;
-        params.max           = max;
-        params.count         = &count;
-        params.port_x        = (f32)rect.x0 + left_side_space;
-        params.port_y        = (f32)rect.y0;
-        params.clip_w        = view_width(view) - left_side_space;
-        params.scroll_x      = scroll_x;
-        params.scroll_y      = scroll_y;
-        params.width         = max_x;
-        params.height        = (f32)max_y;
-        params.start_cursor  = render_cursor;
-        params.wrapped       = wrapped;
-        params.system        = system;
-        params.font          = font;
-        params.virtual_white = file->settings.virtual_white;
-        params.wrap_slashes  = file->settings.wrap_indicator;
-        
-        Buffer_Render_State state = {0};
-        Buffer_Layout_Stop stop = {0};
-        
-        f32 line_shift = 0.f;
-        b32 do_wrap = 0;
-        i32 wrap_unit_end = 0;
-        
-        b32 first_wrap_determination = 1;
-        i32 wrap_array_index = 0;
-        
-        do{
-            stop = buffer_render_data(&state, params, line_shift, do_wrap, wrap_unit_end);
-            switch (stop.status){
-                case BLStatus_NeedWrapDetermination:
-                {
-                    if (first_wrap_determination){
-                        wrap_array_index = binary_search(file->state.wrap_positions, stop.pos, 0, file->state.wrap_position_count);
-                        ++wrap_array_index;
-                        if (file->state.wrap_positions[wrap_array_index] == stop.pos){
-                            do_wrap = 1;
-                            wrap_unit_end = file->state.wrap_positions[wrap_array_index];
-                        }
-                        else{
-                            do_wrap = 0;
-                            wrap_unit_end = file->state.wrap_positions[wrap_array_index];
-                        }
-                        first_wrap_determination = 0;
-                    }
-                    else{
-                        Assert(stop.pos == wrap_unit_end);
-                        do_wrap = 1;
-                        ++wrap_array_index;
-                        wrap_unit_end = file->state.wrap_positions[wrap_array_index];
-                    }
-                }break;
-                
-                case BLStatus_NeedWrapLineShift:
-                case BLStatus_NeedLineShift:
-                {
-                    line_shift = file->state.line_indents[stop.wrap_line_index];
-                }break;
-            }
-        }while(stop.status != BLStatus_Finished);
-        
-        end_pos = state.i;
-    }
-    push_array(part, Buffer_Render_Item, count);
+    Face_ID font_id = file->settings.font_id;
     
     // NOTE(allen): Get visual markers
     Render_Marker_Array markers = {0};
     markers.markers = push_array(part, Render_Marker, 0);
     {
         Lifetime_Object *lifetime_object = file->lifetime_object;
-        Range range = {0};
-        range.first = render_cursor.pos;
-        range.one_past_last = end_pos;
         Buffer_ID buffer_id = file->id.id;
         i32 view_index = view->persistent.id;
+        Style_Main_Data *style_data = &style->main;
         
-        i32 range_counter = 0;
-        get_visual_markers(part, &lifetime_object->workspace, &range_counter,
-                           range, buffer_id, view_index);
+        get_visual_markers(part, &lifetime_object->workspace, on_screen_range, buffer_id, view_index, style_data);
         
         i32 key_count = lifetime_object->key_count;
         i32 key_index = 0;
@@ -784,16 +792,15 @@ render_loaded_file_in_view(System_Functions *system, View *view, Models *models,
             i32 local_count = clamp_top(lifetime_key_reference_per_node, key_count - key_index);
             for (i32 i = 0; i < local_count; i += 1){
                 Lifetime_Key *key = node->keys[i];
-                get_visual_markers(part, &key->dynamic_workspace, &range_counter,
-                                   range, buffer_id, view_index);
+                get_visual_markers(part, &key->dynamic_workspace, on_screen_range, buffer_id, view_index, style_data);
             }
-            key_index += count;
+            key_index += local_count;
         }
     }
     markers.count = (i32)(push_array(part, Render_Marker, 0) - markers.markers);
     
     // NOTE(allen): Sort visual markers by position
-    Range marker_segments[2];
+    Range marker_segments[4];
     visual_markers_segment_sort(markers.markers, 0, markers.count, marker_segments);
     for (i32 i = 0; i < ArrayCount(marker_segments); i += 1){
         visual_markers_quick_sort(markers.markers, marker_segments[i].first, marker_segments[i].one_past_last);
@@ -806,6 +813,20 @@ render_loaded_file_in_view(System_Functions *system, View *view, Models *models,
     Render_Marker_Array line_markers = {0};
     line_markers.markers = markers.markers + marker_segments[1].first;
     line_markers.count = marker_segments[1].one_past_last - marker_segments[1].first;
+    
+    Render_Marker_Array range_markers = {0};
+    range_markers.markers = markers.markers + marker_segments[2].first;
+    range_markers.count = marker_segments[2].one_past_last - marker_segments[2].first;
+    
+    Render_Marker_Array line_range_markers = {0};
+    line_range_markers.markers = markers.markers + marker_segments[3].first;
+    line_range_markers.count = marker_segments[3].one_past_last - marker_segments[3].first;
+    
+    Render_Range_Record *range_stack = push_array(part, Render_Range_Record, range_markers.count);
+    i32 range_stack_top = -1;
+    
+    Render_Range_Record *line_range_stack = push_array(part, Render_Range_Record, line_range_markers.count);
+    i32 line_range_stack_top = -1;
     
     i32 *line_starts = file->state.buffer.line_starts;
     i32 line_count = file->state.buffer.line_count;
@@ -833,13 +854,15 @@ render_loaded_file_in_view(System_Functions *system, View *view, Models *models,
     }
     
     visual_markers_replace_pos_with_first_byte_of_line(line_markers, line_starts, line_count, line_scan_index);
+    visual_markers_replace_pos_with_first_byte_of_line(line_range_markers, line_starts, line_count, line_scan_index);
     
     i32 visual_markers_scan_index = 0;
-    i32 visual_markers_range_id = -1;
-    u32 visual_markers_range_color = 0;
     
     i32 visual_line_markers_scan_index = 0;
     u32 visual_line_markers_color = 0;
+    
+    i32 visual_range_markers_scan_index = 0;
+    i32 visual_line_range_markers_scan_index = 0;
     
     i32 token_i = 0;
     u32 main_color = style->main.default_color;
@@ -852,7 +875,7 @@ render_loaded_file_in_view(System_Functions *system, View *view, Models *models,
     }
     
     Buffer_Render_Item *item = items;
-    Buffer_Render_Item *item_end = item + count;
+    Buffer_Render_Item *item_end = item + item_count;
     i32 prev_ind = -1;
     u32 highlight_color = 0;
     
@@ -938,17 +961,44 @@ render_loaded_file_in_view(System_Functions *system, View *view, Models *models,
             highlight_this_color = highlight_color;
         }
         
-        // NOTE(allen): Line marker colors
+        // NOTE(allen): Line marker color
         if (is_new_line){
+            i32 visual_line_markers_best_priority = min_i32;
             visual_line_markers_color = 0;
-        }
-        
-        for (;visual_line_markers_scan_index < line_markers.count &&
-             line_markers.markers[visual_line_markers_scan_index].pos <= ind;
-             visual_line_markers_scan_index += 1){
-            Render_Marker *marker = &line_markers.markers[visual_line_markers_scan_index];
-            Assert(marker->type == BufferMarkersType_LineHighlights);
-            visual_line_markers_color = marker->color;
+            
+            for (;visual_line_markers_scan_index < line_markers.count &&
+                 line_markers.markers[visual_line_markers_scan_index].pos <= ind;
+                 visual_line_markers_scan_index += 1){
+                Render_Marker *marker = &line_markers.markers[visual_line_markers_scan_index];
+                Assert(marker->type == BufferMarkersType_LineHighlights);
+                if (marker->priority > visual_line_markers_best_priority){
+                    visual_line_markers_color = marker->color;
+                    visual_line_markers_best_priority = marker->priority;
+                }
+            }
+            
+            // NOTE(allen): Line range marker color
+            for (;visual_line_range_markers_scan_index < line_range_markers.count &&
+                 line_range_markers.markers[visual_line_range_markers_scan_index].pos <= ind;
+                 visual_line_range_markers_scan_index += 1){
+                Render_Marker *marker = &line_range_markers.markers[visual_line_range_markers_scan_index];
+                Render_Range_Record range_record = {0};
+                range_record.color = marker->color;
+                range_record.text_color = marker->text_color;
+                range_record.one_past_last = marker->one_past_last;
+                range_record.priority = marker->priority;
+                i32 insert_pos = range_record_stack_get_insert_index(line_range_stack, line_range_stack_top + 1, range_record.priority);
+                memmove(line_range_stack + insert_pos + 1,
+                        line_range_stack + insert_pos,
+                        sizeof(*line_range_stack)*(line_range_stack_top - insert_pos + 1));
+                line_range_stack[insert_pos] = range_record;
+                line_range_stack_top += 1;
+            }
+            for (;line_range_stack_top >= 0 && ind > line_range_stack[line_range_stack_top].one_past_last;
+                 line_range_stack_top -= 1);
+            if (visual_line_markers_color == 0 && line_range_stack_top >= 0){
+                visual_line_markers_color = line_range_stack[line_range_stack_top].color;
+            }
         }
         
         u32 marker_line_highlight = 0;
@@ -957,9 +1007,17 @@ render_loaded_file_in_view(System_Functions *system, View *view, Models *models,
         }
         
         // NOTE(allen): Visual marker colors
+        i32 marker_highlight_best_priority = min_i32;
+        b32 marker_highlight_is_set = false;
         u32 marker_highlight = 0;
+        u32 marker_highlight_text = 0;
+        
+        i32 marker_wireframe_best_priority = min_i32;
         u32 marker_wireframe = 0;
+        
+        i32 marker_ibar_best_priority = min_i32;
         u32 marker_ibar = 0;
+        
         for (;visual_markers_scan_index < character_markers.count &&
              character_markers.markers[visual_markers_scan_index].pos <= ind;
              visual_markers_scan_index += 1){
@@ -967,30 +1025,28 @@ render_loaded_file_in_view(System_Functions *system, View *view, Models *models,
             switch (marker->type){
                 case BufferMarkersType_CharacterBlocks:
                 {
-                    marker_highlight = marker->color;
-                }break;
-                
-                case BufferMarkersType_CharacterHighlightRanges:
-                {
-                    if (marker->range_id&1){
-                        if (visual_markers_range_id == marker->range_id - 1){
-                            visual_markers_range_id = -1;
-                        }
-                    }
-                    else{
-                        visual_markers_range_id = marker->range_id;
-                        visual_markers_range_color = marker->color;
+                    if (marker->priority > marker_highlight_best_priority){
+                        marker_highlight_is_set = true;
+                        marker_highlight = marker->color;
+                        marker_highlight_text = marker->text_color;
+                        marker_highlight_best_priority = marker->priority;
                     }
                 }break;
                 
                 case BufferMarkersType_CharacterWireFrames:
                 {
-                    marker_wireframe = marker->color;
+                    if (marker->priority > marker_wireframe_best_priority){
+                        marker_wireframe = marker->color;
+                        marker_wireframe_best_priority = marker->priority;
+                    }
                 }break;
                 
                 case BufferMarkersType_CharacterIBars:
                 {
-                    marker_ibar = marker->color;
+                    if (marker->priority > marker_ibar_best_priority){
+                        marker_ibar = marker->color;
+                        marker_ibar_best_priority = marker->priority;
+                    }
                 }break;
                 
                 default:
@@ -999,8 +1055,29 @@ render_loaded_file_in_view(System_Functions *system, View *view, Models *models,
                 }break;
             }
         }
-        if (visual_markers_range_id != -1 && marker_highlight == 0){
-            marker_highlight = visual_markers_range_color;
+        
+        // NOTE(allen): Highlight range marker color
+        for (;visual_range_markers_scan_index < range_markers.count &&
+             range_markers.markers[visual_range_markers_scan_index].pos <= ind;
+             visual_range_markers_scan_index += 1){
+            Render_Marker *marker = &range_markers.markers[visual_range_markers_scan_index];
+            Render_Range_Record range_record = {0};
+            range_record.color = marker->color;
+            range_record.text_color = marker->text_color;
+            range_record.one_past_last = marker->one_past_last;
+            range_record.priority = marker->priority;
+            i32 insert_pos = range_record_stack_get_insert_index(range_stack, range_stack_top + 1, range_record.priority);
+            memmove(range_stack + insert_pos + 1,
+                    range_stack + insert_pos,
+                    sizeof(*range_stack)*(range_stack_top - insert_pos + 1));
+            range_stack[insert_pos] = range_record;
+            range_stack_top += 1;
+        }
+        for (;range_stack_top >= 0 && ind >= range_stack[range_stack_top].one_past_last;
+             range_stack_top -= 1);
+        if (!marker_highlight_is_set && range_stack_top >= 0){
+            marker_highlight = range_stack[range_stack_top].color;
+            marker_highlight_text = range_stack[range_stack_top].text_color;
         }
         
         // NOTE(allen): Perform highlight, wireframe, and ibar renders
@@ -1035,7 +1112,10 @@ render_loaded_file_in_view(System_Functions *system, View *view, Models *models,
         }
         if (color_highlight != 0){
             draw_rectangle(target, char_rect, color_highlight);
-            char_color = style->main.at_cursor_color;
+        }
+        
+        if (marker_highlight_text != SymbolicColor_Default){
+            char_color = marker_highlight_text;
         }
         
         u32 fade_color = 0xFFFF00FF;
@@ -1061,6 +1141,161 @@ render_loaded_file_in_view(System_Functions *system, View *view, Models *models,
         }
         
         prev_ind = ind;
+    }
+}
+
+internal void
+do_core_render(Application_Links *app){
+    Command_Data *cmd = (Command_Data*)app->cmd_context;
+    Models *models = cmd->models;
+    Render_Target *target = cmd->target;
+    View *view = cmd->render_view;
+    i32_Rect rect = cmd->render_rect;
+    Full_Cursor render_cursor = cmd->render_cursor;
+    Range on_screen_range = cmd->render_range;
+    Buffer_Render_Item *items = cmd->render_items;
+    i32 item_count = cmd->render_item_count;
+    
+    render_loaded_file_in_view__inner(models, target, view,
+                                      rect, render_cursor, on_screen_range,
+                                      items, item_count);
+}
+
+internal void
+render_loaded_file_in_view(System_Functions *system, View *view, Models *models,
+                           i32_Rect rect, b32 is_active, Render_Target *target){
+    Editing_File *file = view->transient.file_data.file;
+    i32 line_height = view->transient.line_height;
+    
+    f32 max_x = (f32)file->settings.display_width;
+    i32 max_y = rect.y1 - rect.y0 + line_height;
+    
+    Assert(file != 0);
+    Assert(!file->is_dummy);
+    Assert(buffer_good(&file->state.buffer));
+    Assert(view->transient.edit_pos != 0);
+    
+    Partition *part = &models->mem.part;
+    Temp_Memory temp = begin_temp_memory(part);
+    
+    partition_align(part, 4);
+    
+    f32 left_side_space = 0;
+    
+    i32 max = partition_remaining(part)/sizeof(Buffer_Render_Item);
+    Buffer_Render_Item *items = push_array(part, Buffer_Render_Item, 0);
+    
+    b32 wrapped = !file->settings.unwrapped_lines;
+    Face_ID font_id = file->settings.font_id;
+    Font_Pointers font = system->font.get_pointers_by_id(font_id);
+    
+    f32 scroll_x = view->transient.edit_pos->scroll.scroll_x;
+    f32 scroll_y = view->transient.edit_pos->scroll.scroll_y;
+    
+    // NOTE(allen): For now we will temporarily adjust scroll_y to try
+    // to prevent the view moving around until floating sections are added
+    // to the gui system.
+    scroll_y += view->transient.widget_height;
+    
+    Full_Cursor render_cursor = {0};
+    if (!file->settings.unwrapped_lines){
+        render_cursor = file_compute_cursor(system, file, seek_wrapped_xy(0, scroll_y, 0), true);
+    }
+    else{
+        render_cursor = file_compute_cursor(system, file, seek_unwrapped_xy(0, scroll_y, 0), true);
+    }
+    
+    view->transient.edit_pos->scroll_i = render_cursor.pos;
+    
+    i32 item_count = 0;
+    i32 end_pos = 0;
+    {
+        Buffer_Render_Params params;
+        params.buffer        = &file->state.buffer;
+        params.items         = items;
+        params.max           = max;
+        params.count         = &item_count;
+        params.port_x        = (f32)rect.x0 + left_side_space;
+        params.port_y        = (f32)rect.y0;
+        params.clip_w        = view_width(view) - left_side_space;
+        params.scroll_x      = scroll_x;
+        params.scroll_y      = scroll_y;
+        params.width         = max_x;
+        params.height        = (f32)max_y;
+        params.start_cursor  = render_cursor;
+        params.wrapped       = wrapped;
+        params.system        = system;
+        params.font          = font;
+        params.virtual_white = file->settings.virtual_white;
+        params.wrap_slashes  = file->settings.wrap_indicator;
+        
+        Buffer_Render_State state = {0};
+        Buffer_Layout_Stop stop = {0};
+        
+        f32 line_shift = 0.f;
+        b32 do_wrap = 0;
+        i32 wrap_unit_end = 0;
+        
+        b32 first_wrap_determination = 1;
+        i32 wrap_array_index = 0;
+        
+        do{
+            stop = buffer_render_data(&state, params, line_shift, do_wrap, wrap_unit_end);
+            switch (stop.status){
+                case BLStatus_NeedWrapDetermination:
+                {
+                    if (first_wrap_determination){
+                        wrap_array_index = binary_search(file->state.wrap_positions, stop.pos, 0, file->state.wrap_position_count);
+                        ++wrap_array_index;
+                        if (file->state.wrap_positions[wrap_array_index] == stop.pos){
+                            do_wrap = 1;
+                            wrap_unit_end = file->state.wrap_positions[wrap_array_index];
+                        }
+                        else{
+                            do_wrap = 0;
+                            wrap_unit_end = file->state.wrap_positions[wrap_array_index];
+                        }
+                        first_wrap_determination = 0;
+                    }
+                    else{
+                        Assert(stop.pos == wrap_unit_end);
+                        do_wrap = 1;
+                        ++wrap_array_index;
+                        wrap_unit_end = file->state.wrap_positions[wrap_array_index];
+                    }
+                }break;
+                
+                case BLStatus_NeedWrapLineShift:
+                case BLStatus_NeedLineShift:
+                {
+                    line_shift = file->state.line_indents[stop.wrap_line_index];
+                }break;
+            }
+        }while(stop.status != BLStatus_Finished);
+        
+        end_pos = state.i;
+    }
+    push_array(part, Buffer_Render_Item, item_count);
+    
+    Range on_screen_range = {0};
+    on_screen_range.first = render_cursor.pos;
+    on_screen_range.one_past_last = end_pos;
+    
+    ////
+    
+    if (models->render_caller != 0){
+        models->command_data.render_view = view;
+        models->command_data.render_rect = rect;
+        models->command_data.render_cursor = render_cursor;
+        models->command_data.render_range = on_screen_range;
+        models->command_data.render_items = items;
+        models->command_data.render_item_count = item_count;
+        models->render_caller(&models->app_links, view->persistent.id + 1, on_screen_range, do_core_render);
+    }
+    else{
+        render_loaded_file_in_view__inner(models, target, view,
+                                          rect, render_cursor, on_screen_range,
+                                          items, item_count);
     }
     
     end_temp_memory(temp);

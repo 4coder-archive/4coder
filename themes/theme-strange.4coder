@@ -9,7 +9,7 @@ List_Item_Hover = Margin_Hover;
 List_Item_Active = Margin_Active;
 Cursor = 0xFFd96e26;
 At_Cursor = Back;
-Highlight_Cursor_Line = 0xFF003A3A;
+Highlight_Cursor_Line = 0xFF002222;
 Mark = 0xFF808080;
 Highlight = 0xFF703419;
 At_Highlight = 0xFFCDAA7D;
@@ -37,4 +37,13 @@ Bar_Active = 0xFF9A99E7;
 Base = 0xFF000000;
 Pop1 = 0xFF03CF0C;
 Pop2 = 0xFFFF0000;
+
+Back_Cycle_1 = 0x0CA00000;
+Back_Cycle_2 = 0x0C00A000;
+Back_Cycle_3 = 0x0C0000A0;
+Back_Cycle_4 = 0x0CA0A000;
+Text_Cycle_1 = 0xFFF00000;
+Text_Cycle_2 = 0xFF00F000;
+Text_Cycle_3 = 0xFF0080F0;
+Text_Cycle_4 = 0xFFF0F000;
 

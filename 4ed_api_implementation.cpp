@@ -2572,7 +2572,7 @@ Create_Marker_Visuals(Application_Links *app, Managed_Object object){
     if (object_ptrs.header != 0 && object_ptrs.header->type == ManagedObjectType_Markers){
         Heap *heap = &models->mem.heap;
         Dynamic_Workspace *workspace = object_ptrs.workspace;
-        Marker_Visuals_Data *data = marker_visuals_alloc(heap, &workspace->mem_bank, &workspace->visuals_allocator);
+        Marker_Visuals_Data *data = dynamic_workspace_alloc_visuals(heap, &workspace->mem_bank, workspace);
         
         Managed_Buffer_Markers_Header *markers = (Managed_Buffer_Markers_Header*)object_ptrs.header;
         zdll_push_back(markers->visuals_first, markers->visuals_last, data);
@@ -2616,7 +2616,20 @@ Marker_Visuals_Set_Take_Rule(Application_Links *app, Marker_Visuals visuals, Mar
     Models *models = cmd->models;
     Marker_Visuals_Data *data = get_marker_visuals_pointer(models, visuals);
     if (data != 0){
+        Assert(take_rule.take_count_per_step != 0);
+        take_rule.first_index = clamp_bottom(0, take_rule.first_index);
+        take_rule.take_count_per_step = clamp_bottom(1, take_rule.take_count_per_step);
+        take_rule.step_stride_in_marker_count = clamp_bottom(take_rule.take_count_per_step, take_rule.step_stride_in_marker_count);
         data->take_rule = take_rule;
+        if (data->take_rule.maximum_number_of_markers != 0){
+            i32 whole_steps = take_rule.maximum_number_of_markers/take_rule.take_count_per_step;
+            i32 extra_in_last = take_rule.maximum_number_of_markers%take_rule.take_count_per_step;
+            whole_steps = whole_steps + (extra_in_last > 0?1:0);
+            data->one_past_last_take_index = take_rule.first_index + whole_steps*take_rule.step_stride_in_marker_count + extra_in_last;
+        }
+        else{
+            data->one_past_last_take_index = max_i32;
+        }
     }
     return(false);
 }
@@ -3363,7 +3376,7 @@ DOC_SEE(Theme_Color)
     for (i32 i = 0; i < count; ++i, ++theme_color){
         int_color *color = style_index_by_tag(&style->main, theme_color->tag);
         if (color != 0){
-            *color = theme_color->color | 0xFF000000;
+            *color = theme_color->color;
         }
     }
 }
@@ -3382,7 +3395,7 @@ DOC_SEE(Theme_Color)
     for (i32 i = 0; i < count; ++i, ++theme_color){
         u32 *color = style_index_by_tag(&style->main, theme_color->tag);
         if (color != 0){
-            theme_color->color = *color | 0xFF000000;
+            theme_color->color = *color;
         }
         else{
             theme_color->color = 0xFF000000;

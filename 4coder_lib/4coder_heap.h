@@ -85,7 +85,7 @@ struct Heap{
     Heap_Basic_Node free_nodes;
 };
 
-#define DO_HEAP_CHECKS
+//#define DO_HEAP_CHECKS
 
 #endif
 

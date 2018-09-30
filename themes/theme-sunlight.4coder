@@ -37,3 +37,12 @@ Bar_Active = 0xFFC1C1C1;
 Base = 0xFFFFFFFF;
 Pop1 = 0xFFFF4F2F;
 Pop2 = 0xFF00C5FF;
+
+Back_Cycle_1 = 0x14A00000;
+Back_Cycle_2 = 0x1400A000;
+Back_Cycle_3 = 0x140000A0;
+Back_Cycle_4 = 0x14A0A000;
+Text_Cycle_1 = 0xFFF00000;
+Text_Cycle_2 = 0xFF00C030;
+Text_Cycle_3 = 0xFF0000F0;
+Text_Cycle_4 = 0xFFF0F000;

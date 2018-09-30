@@ -704,11 +704,12 @@ ENUM(int32_t, Marker_Visuals_Type)
 {
     BufferMarkersType_Invisible = 0,
     BufferMarkersType_CharacterBlocks = 1,
-    BufferMarkersType_CharacterHighlightRanges = 2,
-    BufferMarkersType_LineHighlights = 3,
-    BufferMarkersType_CharacterWireFrames = 4,
-    BufferMarkersType_CharacterIBars = 5,
-    BufferMarkersType_COUNT = 6,
+    BufferMarkersType_CharacterWireFrames = 2,
+    BufferMarkersType_CharacterIBars = 3,
+    BufferMarkersType_LineHighlights = 4,
+    BufferMarkersType_CharacterHighlightRanges = 5,
+    BufferMarkersType_LineHighlightRanges = 6,
+    BufferMarkersType_COUNT = 7,
 };
 ENUM(uint32_t, Marker_Visuals_Symbolic_Color)
 {
@@ -727,10 +728,10 @@ STRUCT Marker_Visuals_Take_Rule{
     int32_t step_stride_in_marker_count;
     int32_t maximum_number_of_markers;
 };
-ENUM(int32_t, Marker_Visuals_Priority_Level){
+ENUM(uint32_t, Marker_Visuals_Priority_Level){
     VisualPriority_Lowest = 0,
     VisualPriority_Low = 1000,
-    VisualPriority_Normal = 2000,
+    VisualPriority_Default = 2000,
     VisualPriority_High = 3000,
     VisualPriority_Highest = 4000,
 };
@@ -989,9 +990,9 @@ TYPEDEF_FUNC int32_t Command_Caller_Hook_Function(struct Application_Links *app,
 #define COMMAND_CALLER_HOOK(name) int32_t name(struct Application_Links *app, Generic_Command cmd)
 
 TYPEDEF_FUNC void Render_Callback(struct Application_Links *app);
-TYPEDEF_FUNC void Render_Caller_Function(struct Application_Links *app, View_ID view_id, Render_Callback *do_core_render);
+TYPEDEF_FUNC void Render_Caller_Function(struct Application_Links *app, View_ID view_id, Range on_screen_range, Render_Callback *do_core_render);
 #define RENDER_CALLER_SIG(name) \
-void name(struct Application_Links *app, View_ID view_id, Render_Callback *do_core_render)
+void name(struct Application_Links *app, View_ID view_id, Range on_screen_range, Render_Callback *do_core_render)
 
 TYPEDEF_FUNC int32_t Hook_Function(struct Application_Links *app);
 #define HOOK_SIG(name) int32_t name(struct Application_Links *app)

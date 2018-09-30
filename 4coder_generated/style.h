@@ -34,6 +34,14 @@ Stag_Highlight_White,
 Stag_Paste,
 Stag_Undo,
 Stag_Next_Undo,
+Stag_Back_Cycle_1,
+Stag_Back_Cycle_2,
+Stag_Back_Cycle_3,
+Stag_Back_Cycle_4,
+Stag_Text_Cycle_1,
+Stag_Text_Cycle_2,
+Stag_Text_Cycle_3,
+Stag_Text_Cycle_4,
 Stag_COUNT
 };
 
@@ -73,4 +81,12 @@ static char *style_tag_names[] = {
 "Paste",
 "Undo",
 "Next_Undo",
+"Back_Cycle_1",
+"Back_Cycle_2",
+"Back_Cycle_3",
+"Back_Cycle_4",
+"Text_Cycle_1",
+"Text_Cycle_2",
+"Text_Cycle_3",
+"Text_Cycle_4",
 };

@@ -3,40 +3,11 @@
 {
     Features
     {
-        [] Finalize visualizations API
-        {
-            [x] Add and remove visualizations, allow more than one on a single markers object
-            [x] Iterate visualizations
-            [] Take rule
-            [] Priority
-            [x] View key
-            [] Check it all
-        }
-        [] Better range handling (range contained inside range)
-        [] Range of line highlights
-        [] When clearing all dependent scopes, don't delete them, just clear them
-        [] New Features with Visible Markers
-        {
-            [x] Customizable Highlight Line at Cursor All the Time
-            [x] Customizable Highlight Token at Cursor All the Time
-            [] Paren/Brace Matching (with color pallette expansion)
-            {
-                [x] Get ranges to mark and mark them
-                [] Works on parentheses
-                [] Colors pulled from color pallette
-                [] Optional modes: Off, Mark Delimters, Cover Ranges
-            }
-        }
-        [] Color Pallette Expansion For Keywords
+        [] Performance of lots of highlighted rectangles on screen is pooooooooor, fix it.
         [] Reload all out of sync files
         [] Jump to Command Definition (useful for 4coder customization developers only)
-        [] I-Bar and Highlight Mode
-        {
-            [] Cursor navigation commands
-            [] Insert character
-            [] Paste
-            [] Backspace and delete
-        }
+        [] Cleanup names in Marker_Visuals API
+        [] Declarative system for keyword direct coloring
     }
     
     Bugs
@@ -103,6 +74,46 @@ Change Log
             [x] Cursor Bar
             [x] Wire Cursor Block
             [x] Highlight Range
+        }
+        
+        [x] Finalize visualizations API
+        {
+            [x] Add and remove visualizations, allow more than one on a single markers object
+            [x] Iterate visualizations
+            [x] Take rule
+            [x] Priority
+            [x] View key
+        }
+        [x] Better range handling (range contained inside range)
+        [x] Range of line highlights
+        [x] text color in marker highlights
+        [x] symbolic colors
+        [x] When clearing all dependent scopes, don't delete them, just clear them
+        
+        [x] I-Bar and Highlight Mode
+        {
+            [x] Cursor navigation commands
+            [x] Insert character
+            [x] Paste
+            [x] Backspace and delete
+            [x] config options
+            [x] toggle commands
+        }
+        [x] Highlight target in Query Replace
+        [x] Color Pallette Expansion For Keywords
+        [x] TODO Bright red
+        [x] NOTE Bright green
+        [x] New Features with Visible Markers
+        {
+            [x] Customizable Highlight Line at Cursor All the Time
+            [x] Customizable Highlight Token at Cursor All the Time
+            [] Paren/Brace Matching (with color pallette expansion)
+            {
+                [x] Get ranges to mark and mark them
+                [x] Works on parentheses
+                [x] Optional modes: Off, Mark Delimters, Cover Ranges
+                [x] Colors pulled from color pallette
+            }
         }
     }
 }

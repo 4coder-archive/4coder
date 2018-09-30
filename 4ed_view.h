@@ -210,10 +210,18 @@ enum{
 
 struct Render_Marker{
     Marker_Visuals_Type type;
-    i32 pos;
     u32 color;
     u32 text_color;
-    i32 range_id;
+    i32 pos;
+    i32 one_past_last;
+    i32 priority;
+};
+
+struct Render_Range_Record{
+    u32 color;
+    u32 text_color;
+    i32 one_past_last;
+    i32 priority;
 };
 
 struct Render_Marker_Array{

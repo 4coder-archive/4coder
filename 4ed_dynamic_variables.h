@@ -48,6 +48,7 @@ struct Marker_Visuals_Data{
     Marker_Visuals_Text_Style text_style;
     // "Take Rule"
     Marker_Visuals_Take_Rule take_rule;
+    i32 one_past_last_take_index;
     // "Priority"
     Marker_Visuals_Priority_Level priority;
     // "Key View ID"
@@ -60,7 +61,6 @@ struct Marker_Visuals_Allocator{
     i32 free_count;
     i32 total_visual_count;
     u32_Ptr_Table id_to_ptr_table;
-    u32 slot_id_counter;
 };
 
 global_const i32 managed_header_type_sizes[ManagedObjectType_COUNT] = {
@@ -116,6 +116,7 @@ struct Dynamic_Workspace{
     Marker_Visuals_Allocator visuals_allocator;
     u32_Ptr_Table object_id_to_object_ptr;
     u32 object_id_counter;
+    u32 visual_id_counter;
     u32 scope_id;
     i32 user_type;
     void *user_back_ptr;

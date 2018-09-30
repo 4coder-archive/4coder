@@ -38,23 +38,26 @@ static Managed_Variable_ID view_rewrite_loc = 0;
 static Managed_Variable_ID view_next_rewrite_loc = 0;
 static Managed_Variable_ID view_paste_index_loc = 0;
 static Managed_Variable_ID view_is_passive_loc = 0;
-
+static Managed_Variable_ID view_snap_mark_to_cursor = 0;
 
 static char out_buffer_space[1024];
 static char command_space[1024];
 static char hot_directory_space[1024];
 
 
-static bool32 highlight_line_at_cursor = false;
+static bool32 highlight_line_at_cursor = true;
+static bool32 do_matching_enclosure_highlight = true;
+static bool32 do_matching_paren_highlight = true;
+static bool32 do_colored_comment_keywords = true;
 static bool32 suppressing_mouse = false;
 
-enum{
-    CursorRenderMode_Hidden = 0,
-    CursorRenderMode_BlockCursorAndWireMark = 1,
-    CursorRenderMode_IBarOrHighlightRange = 2,
-};
-static int32_t cursor_render_mode = CursorRenderMode_IBarOrHighlightRange;
+static bool32 cursor_is_hidden = false;
 
+enum{
+    FCoderMode_Original = 0,
+    FCoderMode_NotepadLike = 1,
+};
+static int32_t fcoder_mode = FCoderMode_NotepadLike;
 
 static ID_Line_Column_Jump_Location prev_location = {0};
 

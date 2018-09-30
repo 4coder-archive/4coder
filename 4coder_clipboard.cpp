@@ -50,6 +50,9 @@ CUSTOM_DOC("At the cursor, insert the text at the top of the clipboard.")
     int32_t count = clipboard_count(app, 0);
     if (count > 0){
         View_Summary view = get_active_view(app, access);
+        if_view_has_highlighted_range_delete_range(app, view.view_id);
+        view = get_view(app, view.view_id, access);
+        
         Managed_Scope scope = view_get_managed_scope(app, view.view_id);
         managed_variable_set(app, scope, view_next_rewrite_loc, RewritePaste);
         int32_t paste_index = 0;
@@ -57,12 +60,11 @@ CUSTOM_DOC("At the cursor, insert the text at the top of the clipboard.")
         
         int32_t len = clipboard_index(app, 0, paste_index, 0, 0);
         char *str = 0;
-        
         if (len <= app->memory_size){
             str = (char*)app->memory;
         }
         
-        if (str){
+        if (str != 0){
             clipboard_index(app, 0, paste_index, str, len);
             
             Buffer_Summary buffer = get_buffer(app, view.buffer_id, access);
@@ -72,7 +74,7 @@ CUSTOM_DOC("At the cursor, insert the text at the top of the clipboard.")
             view_set_cursor(app, &view, seek_pos(pos + len), true);
             
             // TODO(allen): Send this to all views.
-            Theme_Color paste;
+            Theme_Color paste = {0};
             paste.tag = Stag_Paste;
             get_theme_colors(app, &paste, 1);
             view_post_fade(app, &view, 0.667f, pos, pos + len, paste.color);
@@ -88,6 +90,7 @@ CUSTOM_DOC("If the previous command was paste or paste_next, replaces the paste 
     if (count > 0){
         View_Summary view = get_active_view(app, access);
         Managed_Scope scope = view_get_managed_scope(app, view.view_id);
+        no_mark_snap_to_cursor(app, scope);
         
         uint64_t rewrite = 0;
         managed_variable_get(app, scope, view_rewrite_loc, &rewrite);
@@ -116,7 +119,7 @@ CUSTOM_DOC("If the previous command was paste or paste_next, replaces the paste 
                 view_set_cursor(app, &view, seek_pos(pos + len), true);
                 
                 // TODO(allen): Send this to all views.
-                Theme_Color paste;
+                Theme_Color paste = {0};
                 paste.tag = Stag_Paste;
                 get_theme_colors(app, &paste, 1);
                 view_post_fade(app, &view, 0.667f, pos, pos + len, paste.color);

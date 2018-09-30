@@ -37,6 +37,14 @@ u32 highlight_white_color;
 u32 paste_color;
 u32 undo_color;
 u32 next_undo_color;
+u32 back_cycle_1_color;
+u32 back_cycle_2_color;
+u32 back_cycle_3_color;
+u32 back_cycle_4_color;
+u32 text_cycle_1_color;
+u32 text_cycle_2_color;
+u32 text_cycle_3_color;
+u32 text_cycle_4_color;
 Interactive_Style file_info_style;
 };
 
@@ -79,6 +87,14 @@ case Stag_Highlight_White: result = &s->highlight_white_color; break;
 case Stag_Paste: result = &s->paste_color; break;
 case Stag_Undo: result = &s->undo_color; break;
 case Stag_Next_Undo: result = &s->next_undo_color; break;
+case Stag_Back_Cycle_1: result = &s->back_cycle_1_color; break;
+case Stag_Back_Cycle_2: result = &s->back_cycle_2_color; break;
+case Stag_Back_Cycle_3: result = &s->back_cycle_3_color; break;
+case Stag_Back_Cycle_4: result = &s->back_cycle_4_color; break;
+case Stag_Text_Cycle_1: result = &s->text_cycle_1_color; break;
+case Stag_Text_Cycle_2: result = &s->text_cycle_2_color; break;
+case Stag_Text_Cycle_3: result = &s->text_cycle_3_color; break;
+case Stag_Text_Cycle_4: result = &s->text_cycle_4_color; break;
 }
 return(result);
 }

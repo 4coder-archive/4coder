@@ -21,7 +21,7 @@ ms_style_verify(String line, int32_t left_paren_pos, int32_t right_paren_pos){
             int32_t comma_pos = find_s_char(number, 0, ',');
             if (comma_pos < number.size){
                 String sub_number0 = substr(number, 0, comma_pos);
-                String sub_number1 = substr(number, comma_pos, number.size - comma_pos - 1);
+                String sub_number1 = substr(number, comma_pos + 1, number.size - comma_pos - 1);
                 if (str_is_int_s(sub_number0) && str_is_int_s(sub_number1)){
                     result = true;
                 }

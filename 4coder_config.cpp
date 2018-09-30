@@ -1274,6 +1274,20 @@ change_mapping(Application_Links *app, String mapping){
     }
 }
 
+static void
+change_mode(Application_Links *app, String mode){
+    fcoder_mode = FCoderMode_Original;
+    if (match(mode, "4coder")){
+        fcoder_mode = FCoderMode_Original;
+    }
+    else if (match(mode, "notepad-like")){
+        begin_notepad_mode(app);
+    }
+    else{
+        print_message(app, literal("Unknown mode.\n"));
+    }
+}
+
 ////////////////////////////////
 
 static Cpp_Token_Array
@@ -1328,8 +1342,16 @@ config_init_default(Config_Data *config){
     config->current_mapping = make_fixed_width_string(config->current_mapping_space);
     copy(&config->current_mapping, "");
     
+    config->mode = make_fixed_width_string(config->mode_space);
+    copy(&config->mode, "4coder");
+    
     config->use_scroll_bars = false;
     config->use_file_bars = true;
+    config->use_line_highlight = true;
+    config->use_scope_highlight = true;
+    config->use_paren_helper = true;
+    config->use_comment_keyword = true;
+    
     config->enable_virtual_whitespace = true;
     config->enable_code_wrapping = true;
     config->automatically_adjust_wrapping = true;
@@ -1388,8 +1410,17 @@ config_parse__data(Partition *arena, String file_name, String data, Config_Data 
         config_fixed_string_var(parsed, "mapping", 0,
                                 &config->current_mapping, config->current_mapping_space);
         
+        config_fixed_string_var(parsed, "mode", 0,
+                                &config->mode, config->mode_space);
+        
         config_bool_var(parsed, "use_scroll_bars", 0, &config->use_scroll_bars);
         config_bool_var(parsed, "use_file_bars", 0, &config->use_file_bars);
+        config_bool_var(parsed, "use_line_highlight", 0, &config->use_line_highlight);
+        config_bool_var(parsed, "use_scope_highlight", 0, &config->use_scope_highlight);
+        config_bool_var(parsed, "use_paren_helper", 0, &config->use_paren_helper);
+        config_bool_var(parsed, "use_comment_keyword", 0, &config->use_comment_keyword);
+        
+        
         config_bool_var(parsed, "enable_virtual_whitespace", 0, &config->enable_virtual_whitespace);
         config_bool_var(parsed, "enable_code_wrapping", 0, &config->enable_code_wrapping);
         config_bool_var(parsed, "automatically_adjust_wrapping", 0, &config->automatically_adjust_wrapping);
@@ -1599,8 +1630,15 @@ load_config_and_apply(Application_Links *app, Partition *scratch, Config_Data *c
             config_feedback_extension_list(&space, "treat_as_code", &config->code_exts);
             config_feedback_string(&space, "current_mapping", config->current_mapping);
             
+            config_feedback_string(&space, "mode", config->mode);
+            
             config_feedback_bool(&space, "use_scroll_bars", config->use_scroll_bars);
             config_feedback_bool(&space, "use_file_bars", config->use_file_bars);
+            config_feedback_bool(&space, "use_line_highlight", config->use_line_highlight);
+            config_feedback_bool(&space, "use_scope_highlight", config->use_scope_highlight);
+            config_feedback_bool(&space, "use_paren_helper", config->use_paren_helper);
+            config_feedback_bool(&space, "use_comment_keyword", config->use_comment_keyword);
+            
             config_feedback_bool(&space, "enable_virtual_whitespace", config->enable_virtual_whitespace);
             config_feedback_bool(&space, "enable_code_wrapping", config->enable_code_wrapping);
             config_feedback_bool(&space, "automatically_indent_text_on_save", config->automatically_indent_text_on_save);
@@ -1635,6 +1673,11 @@ load_config_and_apply(Application_Links *app, Partition *scratch, Config_Data *c
         
         // Apply config
         change_mapping(app, config->current_mapping);
+        change_mode(app, config->mode);
+        highlight_line_at_cursor = config->use_line_highlight;
+        do_matching_enclosure_highlight = config->use_scope_highlight;
+        do_matching_paren_highlight = config->use_paren_helper;
+        do_colored_comment_keywords = config->use_comment_keyword;
         adjust_all_buffer_wrap_widths(app, config->default_wrap_width, config->default_min_base_width);
         global_set_setting(app, GlobalSetting_LAltLCtrlIsAltGr, config->lalt_lctrl_is_altgr);
         

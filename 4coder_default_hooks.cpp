@@ -44,11 +44,123 @@ COMMAND_CALLER_HOOK(default_command_caller){
     View_Summary view = get_active_view(app, AccessAll);
     Managed_Scope scope = view_get_managed_scope(app, view.view_id);
     managed_variable_set(app, scope, view_next_rewrite_loc, 0);
+    if (fcoder_mode == FCoderMode_NotepadLike){
+        managed_variable_set(app, scope, view_snap_mark_to_cursor, true);
+    }
     exec_command(app, cmd);
     uint64_t next_rewrite = 0;
     managed_variable_get(app, scope, view_next_rewrite_loc, &next_rewrite);
     managed_variable_set(app, scope, view_rewrite_loc, next_rewrite);
+    if (fcoder_mode == FCoderMode_NotepadLike){
+        uint64_t val = 0;
+        if (managed_variable_get(app, scope, view_snap_mark_to_cursor, &val)){
+            if (val != 0){
+                view = get_view(app, view.view_id, AccessAll);
+                view_set_mark(app, &view, seek_pos(view.cursor.pos));
+            }
+        }
+    }
     return(0);
+}
+
+struct Highlight_Record{
+    int32_t first;
+    int32_t one_past_last;
+    int_color color;
+};
+
+static void
+sort_highlight_record(Highlight_Record *records, int32_t first, int32_t one_past_last){
+    if (first + 1 < one_past_last){
+        int32_t pivot_index = one_past_last - 1;
+        int_color pivot_color = records[pivot_index].color;
+        int32_t j = first;
+        for (int32_t i = first; i < pivot_index; i += 1){
+            int_color color = records[i].color;
+            if (color < pivot_color){
+                Swap(Highlight_Record, records[i], records[j]);
+                j += 1;
+            }
+        }
+        Swap(Highlight_Record, records[pivot_index], records[j]);
+        pivot_index = j;
+        
+        sort_highlight_record(records, first, pivot_index);
+        sort_highlight_record(records, pivot_index + 1, one_past_last);
+    }
+}
+
+static Range_Array
+get_enclosure_ranges(Application_Links *app, Partition *part,
+                     Buffer_Summary *buffer, int32_t pos, uint32_t flags){
+    Range_Array array = {0};
+    array.ranges = push_array(part, Range, 0);
+    for (;;){
+        Range range = {0};
+        if (find_scope_range(app, buffer, pos, &range, flags)){
+            Range *r = push_array(part, Range, 1);
+            *r = range;
+            pos = range.first;
+        }
+        else{
+            break;
+        }
+    }
+    array.count = (int32_t)(push_array(part, Range, 0) - array.ranges);
+    return(array);
+}
+
+static void
+mark_enclosures(Application_Links *app, Partition *scratch, Managed_Scope render_scope,
+                Buffer_Summary *buffer, int32_t pos, uint32_t flags,
+                Marker_Visuals_Type type,
+                int_color *back_colors, int_color *fore_colors, int32_t color_count){
+    Temp_Memory temp = begin_temp_memory(scratch);
+    Range_Array ranges = get_enclosure_ranges(app, scratch,
+                                              buffer, pos, flags);
+    
+    if (ranges.count > 0){
+        int32_t marker_count = ranges.count*2;
+        Marker *markers = push_array(scratch, Marker, marker_count);
+        Marker *marker = markers;
+        Range *range = ranges.ranges;
+        for (int32_t i = 0;
+             i < ranges.count;
+             i += 1, range += 1, marker += 2){
+            marker[0].pos = range->first;
+            marker[1].pos = range->one_past_last - 1;
+        }
+        Managed_Object o = alloc_buffer_markers_on_buffer(app, buffer->buffer_id, marker_count, &render_scope);
+        managed_object_store_data(app, o, 0, marker_count, markers);
+        
+        Marker_Visuals_Take_Rule take_rule = {0};
+        take_rule.take_count_per_step = 2;
+        take_rule.step_stride_in_marker_count = 8;
+        
+        int32_t first_color_index = (ranges.count - 1)%color_count;
+        for (int32_t i = 0, color_index = first_color_index;
+             i < color_count;
+             i += 1){
+            Marker_Visuals visuals = create_marker_visuals(app, o);
+            int_color back = SymbolicColor_Transparent;
+            int_color fore = SymbolicColor_Default;
+            if (back_colors != 0){
+                back = back_colors[color_index];
+            }
+            if (fore_colors != 0){
+                fore = fore_colors[color_index];
+            }
+            marker_visuals_set_look(app, visuals, type, back, fore, 0);
+            take_rule.first_index = i*2;
+            marker_visuals_set_take_rule(app, visuals, take_rule);
+            color_index = color_index - 1;
+            if (color_index < 0){
+                color_index += color_count;
+            }
+        }
+    }
+    
+    end_temp_memory(temp);
 }
 
 RENDER_CALLER_SIG(default_render_caller){
@@ -62,62 +174,147 @@ RENDER_CALLER_SIG(default_render_caller){
         render_scope = create_user_managed_scope(app);
     }
     
-    // NOTE(allen): Cursor and mark
-    switch (cursor_render_mode){
-        case CursorRenderMode_BlockCursorAndWireMark:
-        {
-            Theme_Color colors[2] = {0};
-            colors[0].tag = Stag_Cursor;
-            colors[1].tag = Stag_Mark;
-            get_theme_colors(app, colors, 2);
-            uint32_t cursor_color = colors[0].color;
-            uint32_t mark_color = colors[1].color;
-            {
-                Managed_Object o = alloc_buffer_markers_on_buffer(app, buffer.buffer_id, 1, &render_scope);
-                Marker marker = {0};
-                marker.pos = view.cursor.pos;
-                managed_object_store_data(app, o, 0, 1, &marker);
-                Marker_Visuals_Type type = is_active_view?BufferMarkersType_CharacterBlocks:BufferMarkersType_CharacterWireFrames;
-                Marker_Visuals visuals = create_marker_visuals(app, o);
-                marker_visuals_set_look(app, visuals, type, cursor_color, SymbolicColor_Default, 0);
-            }
-            {
-                Managed_Object o = alloc_buffer_markers_on_buffer(app, buffer.buffer_id, 1, &render_scope);
-                Marker marker = {0};
-                marker.pos = view.mark.pos;
-                managed_object_store_data(app, o, 0, 1, &marker);
-                Marker_Visuals visuals = create_marker_visuals(app, o);
-                marker_visuals_set_look(app, visuals, BufferMarkersType_CharacterWireFrames, mark_color, SymbolicColor_Default, 0);
-            }
-        }break;
+    Partition *scratch = &global_part;
+    
+    // NOTE(allen): Scan for TODOs and NOTEs
+    {
+        Theme_Color colors[2];
+        colors[0].tag = Stag_Text_Cycle_2;
+        colors[1].tag = Stag_Text_Cycle_1;
+        get_theme_colors(app, colors, 2);
         
-        case CursorRenderMode_IBarOrHighlightRange:
-        {
-            Theme_Color colors[2] = {0};
-            colors[0].tag = Stag_Cursor;
-            colors[1].tag = Stag_Highlight;
-            get_theme_colors(app, colors, 2);
-            uint32_t cursor_color = colors[0].color;
-            uint32_t highlight_color = colors[1].color;
+        Temp_Memory temp = begin_temp_memory(scratch);
+        int32_t text_size = on_screen_range.one_past_last - on_screen_range.first;
+        char *text = push_array(scratch, char, text_size);
+        buffer_read_range(app, &buffer, on_screen_range.first, on_screen_range.one_past_last, text);
+        
+        Highlight_Record *records = push_array(scratch, Highlight_Record, 0);
+        String tail = make_string(text, text_size);
+        for (int32_t i = 0; i < text_size; tail.str += 1, tail.size -= 1, i += 1){
+            if (match_part(tail, make_lit_string("NOTE"))){
+                Highlight_Record *record = push_array(scratch, Highlight_Record, 1);
+                record->first = i + on_screen_range.first;
+                record->one_past_last = record->first + 4;
+                record->color = colors[0].color;
+                tail.str += 3;
+                tail.size -= 3;
+                i += 3;
+            }
+            else if (match_part(tail, make_lit_string("TODO"))){
+                Highlight_Record *record = push_array(scratch, Highlight_Record, 1);
+                record->first = i + on_screen_range.first;
+                record->one_past_last = record->first + 4;
+                record->color = colors[1].color;
+                tail.str += 3;
+                tail.size -= 3;
+                i += 3;
+            }
+        }
+        int32_t record_count = (int32_t)(push_array(scratch, Highlight_Record, 0) - records);
+        push_array(scratch, Highlight_Record, 1);
+        
+        if (record_count > 0){
+            sort_highlight_record(records, 0, record_count);
+            Temp_Memory marker_temp = begin_temp_memory(scratch);
+            Marker *markers = push_array(scratch, Marker, 0);
+            int_color current_color = records[0].color;
             {
-                Managed_Object o = alloc_buffer_markers_on_buffer(app, buffer.buffer_id, 1, &render_scope);
-                Marker marker = {0};
-                marker.pos = view.cursor.pos;
-                managed_object_store_data(app, o, 0, 1, &marker);
-                Marker_Visuals visuals = create_marker_visuals(app, o);
-                marker_visuals_set_look(app, visuals, BufferMarkersType_CharacterIBars, cursor_color, SymbolicColor_Default, 0);
+                Marker *marker = push_array(scratch, Marker, 2);
+                marker[0].pos = records[0].first;
+                marker[1].pos = records[0].one_past_last;
             }
-            if (view.cursor.pos != view.mark.pos){
-                Managed_Object o = alloc_buffer_markers_on_buffer(app, buffer.buffer_id, 2, &render_scope);
-                Range range = make_range(view.cursor.pos, view.mark.pos);
-                Marker markers[2] = {0};
-                markers[0].pos = range.first;
-                markers[1].pos = range.one_past_last;
-                managed_object_store_data(app, o, 0, 2, markers);
-                Marker_Visuals visuals = create_marker_visuals(app, o);
-                marker_visuals_set_look(app, visuals, BufferMarkersType_CharacterHighlightRanges, highlight_color, SymbolicColor_Default, 0);
+            for (int32_t i = 1; i <= record_count; i += 1){
+                bool32 do_emit = i == record_count || (records[i].color != current_color);
+                if (do_emit){
+                    int32_t marker_count = (int32_t)(push_array(scratch, Marker, 0) - markers);
+                    Managed_Object o = alloc_buffer_markers_on_buffer(app, buffer.buffer_id, marker_count, &render_scope);
+                    managed_object_store_data(app, o, 0, marker_count, markers);
+                    Marker_Visuals v = create_marker_visuals(app, o);
+                    marker_visuals_set_look(app, v,
+                                            BufferMarkersType_CharacterHighlightRanges,
+                                            SymbolicColor_Transparent, current_color, 0);
+                    marker_visuals_set_priority(app, v, VisualPriority_Lowest);
+                    end_temp_memory(marker_temp);
+                    current_color = records[i].color;
+                }
+                
+                Marker *marker = push_array(scratch, Marker, 2);
+                marker[0].pos = records[i].first;
+                marker[1].pos = records[i].one_past_last;
             }
-        }break;
+        }
+        
+        end_temp_memory(temp);
+    }
+    
+    // NOTE(allen): Cursor and mark
+    Managed_Object cursor_and_mark = alloc_buffer_markers_on_buffer(app, buffer.buffer_id, 2, &render_scope);
+    Marker cm_markers[2] = {0};
+    cm_markers[0].pos = view.cursor.pos;
+    cm_markers[1].pos = view.mark.pos;
+    managed_object_store_data(app, cursor_and_mark, 0, 2, cm_markers);
+    
+    if (!cursor_is_hidden){
+        switch (fcoder_mode){
+            case FCoderMode_Original:
+            {
+                Theme_Color colors[2] = {0};
+                colors[0].tag = Stag_Cursor;
+                colors[1].tag = Stag_Mark;
+                get_theme_colors(app, colors, 2);
+                uint32_t cursor_color = colors[0].color;
+                uint32_t mark_color = colors[1].color;
+                
+                Marker_Visuals_Take_Rule take_rule = {0};
+                take_rule.first_index = 0;
+                take_rule.take_count_per_step = 1;
+                take_rule.step_stride_in_marker_count = 1;
+                take_rule.maximum_number_of_markers = 1;
+                
+                Marker_Visuals visuals = create_marker_visuals(app, cursor_and_mark);
+                Marker_Visuals_Type type = is_active_view?BufferMarkersType_CharacterBlocks:BufferMarkersType_CharacterWireFrames;
+                marker_visuals_set_look(app, visuals,
+                                        type, cursor_color, SymbolicColorFromPalette(Stag_At_Cursor), 0);
+                marker_visuals_set_take_rule(app, visuals, take_rule);
+                marker_visuals_set_priority(app, visuals, VisualPriority_Highest);
+                
+                visuals = create_marker_visuals(app, cursor_and_mark);
+                marker_visuals_set_look(app, visuals,
+                                        BufferMarkersType_CharacterWireFrames, mark_color, 0, 0);
+                take_rule.first_index = 1;
+                marker_visuals_set_take_rule(app, visuals, take_rule);
+                marker_visuals_set_priority(app, visuals, VisualPriority_Highest);
+            }break;
+            
+            case FCoderMode_NotepadLike:
+            {
+                Theme_Color colors[2] = {0};
+                colors[0].tag = Stag_Cursor;
+                colors[1].tag = Stag_Highlight;
+                get_theme_colors(app, colors, 2);
+                uint32_t cursor_color = colors[0].color;
+                uint32_t highlight_color = colors[1].color;
+                
+                Marker_Visuals_Take_Rule take_rule = {0};
+                take_rule.first_index = 0;
+                take_rule.take_count_per_step = 1;
+                take_rule.step_stride_in_marker_count = 1;
+                take_rule.maximum_number_of_markers = 1;
+                
+                Marker_Visuals visuals = create_marker_visuals(app, cursor_and_mark);
+                marker_visuals_set_look(app, visuals, BufferMarkersType_CharacterIBars, cursor_color, 0, 0);
+                marker_visuals_set_take_rule(app, visuals, take_rule);
+                marker_visuals_set_priority(app, visuals, VisualPriority_Highest);
+                
+                if (view.cursor.pos != view.mark.pos){
+                    visuals = create_marker_visuals(app, cursor_and_mark);
+                    marker_visuals_set_look(app, visuals, BufferMarkersType_CharacterHighlightRanges, highlight_color, SymbolicColorFromPalette(Stag_At_Highlight), 0);
+                    take_rule.maximum_number_of_markers = 2;
+                    marker_visuals_set_take_rule(app, visuals, take_rule);
+                    marker_visuals_set_priority(app, visuals, VisualPriority_Highest);
+                }
+            }break;
+        }
     }
     
     // NOTE(allen): Line highlight setup
@@ -126,12 +323,16 @@ RENDER_CALLER_SIG(default_render_caller){
         color.tag = Stag_Highlight_Cursor_Line;
         get_theme_colors(app, &color, 1);
         uint32_t line_color = color.color;
-        Managed_Object o = alloc_buffer_markers_on_buffer(app, buffer.buffer_id, 1, &render_scope);
-        Marker marker = {0};
-        marker.pos = view.cursor.pos;
-        managed_object_store_data(app, o, 0, 1, &marker);
-        Marker_Visuals visuals = create_marker_visuals(app, o);
-        marker_visuals_set_look(app, visuals, BufferMarkersType_LineHighlights, line_color, SymbolicColor_Default, 0);
+        Marker_Visuals visuals = create_marker_visuals(app, cursor_and_mark);
+        marker_visuals_set_look(app, visuals, BufferMarkersType_LineHighlights,
+                                line_color, 0, 0);
+        Marker_Visuals_Take_Rule take_rule = {0};
+        take_rule.first_index = 0;
+        take_rule.take_count_per_step = 1;
+        take_rule.step_stride_in_marker_count = 1;
+        take_rule.maximum_number_of_markers = 1;
+        marker_visuals_set_take_rule(app, visuals, take_rule);
+        marker_visuals_set_priority(app, visuals, VisualPriority_Highest);
     }
     
     // NOTE(allen): Token highlight setup
@@ -153,63 +354,42 @@ RENDER_CALLER_SIG(default_render_caller){
         range_markers[1].pos = pos2;
         managed_object_store_data(app, token_highlight, 0, 2, range_markers);
         Marker_Visuals visuals = create_marker_visuals(app, token_highlight);
-        marker_visuals_set_look(app, visuals, BufferMarkersType_CharacterHighlightRanges, token_color, SymbolicColor_Default, 0);
+        marker_visuals_set_look(app, visuals,
+                                BufferMarkersType_CharacterHighlightRanges,
+                                token_color, SymbolicColorFromPalette(Stag_At_Highlight), 0);
     }
     
     // NOTE(allen): Matching enclosure highlight setup
-    bool32 do_matching_enclosure_highlight = true;
-    static uint32_t enclosure_colors[4] = {
-        0x70A00000,
-        0x7000A000,
-        0x700000A0,
-        0x70A0A000,
-    };
-    int32_t color_count = ArrayCount(enclosure_colors);
-    
+    static const int32_t color_count = 4;
     if (do_matching_enclosure_highlight){
-        Partition *scratch = &global_part;
-        Temp_Memory temp = begin_temp_memory(scratch);
-        Range *ranges = push_array(scratch, Range, 0);
-        int32_t p = view.cursor.pos;
-        for (;;){
-            Range range = {0};
-            if (find_scope_range(app, &buffer, p, &range)){
-                p = range.first;
-                Range *r = push_array(scratch, Range, 1);
-                *r = range;
-            }
-            else{
-                break;
-            }
+        Theme_Color theme_colors[color_count];
+        int_color colors[color_count];
+        for (int32_t i = 0; i < 4; i += 1){
+            theme_colors[i].tag = Stag_Back_Cycle_1 + i;
         }
-        int32_t count = (int32_t)(push_array(scratch, Range, 0) - ranges);
-        
-        int32_t bucket_count = count/color_count;
-        int32_t left_over_count = count%color_count;
-        
-        for (int32_t i = 0; i < color_count; i += 1){
-            int32_t sub_count = bucket_count + (i < left_over_count?1:0);
-            if (sub_count > 0){
-                int32_t marker_count = sub_count*2;
-                Temp_Memory marker_temp = begin_temp_memory(scratch);
-                Marker *markers = push_array(scratch, Marker, marker_count);
-                memset(markers, 0, sizeof(*markers)*marker_count);
-                // NOTE(allen): Iterate the ranges in reverse order,
-                // to ensure top level scopes always get the first color.
-                Range *range_ptr = ranges + count - 1 - i;
-                for (int32_t j = 0; j < marker_count; j += 2, range_ptr -= 4){
-                    markers[j + 0].pos = range_ptr->first;
-                    markers[j + 1].pos = range_ptr->one_past_last - 1;
-                }
-                Managed_Object m = alloc_buffer_markers_on_buffer(app, buffer.buffer_id, marker_count, &render_scope);
-                managed_object_store_data(app, m, 0, marker_count, markers);
-                Marker_Visuals visuals = create_marker_visuals(app, m);
-                marker_visuals_set_look(app, visuals, BufferMarkersType_CharacterBlocks, enclosure_colors[i], SymbolicColor_Default, 0);
-                end_temp_memory(marker_temp);
-            }
+        get_theme_colors(app, theme_colors, color_count);
+        for (int32_t i = 0; i < 4; i += 1){
+            colors[i] = theme_colors[i].color;
         }
-        
-        end_temp_memory(temp);
+        mark_enclosures(app, scratch, render_scope,
+                        &buffer, view.cursor.pos, FindScope_Brace,
+                        BufferMarkersType_LineHighlightRanges,
+                        colors, 0, color_count);
+    }
+    if (do_matching_paren_highlight){
+        Theme_Color theme_colors[color_count];
+        int_color colors[color_count];
+        for (int32_t i = 0; i < 4; i += 1){
+            theme_colors[i].tag = Stag_Text_Cycle_1 + i;
+        }
+        get_theme_colors(app, theme_colors, color_count);
+        for (int32_t i = 0; i < 4; i += 1){
+            colors[i] = theme_colors[i].color;
+        }
+        mark_enclosures(app, scratch, render_scope,
+                        &buffer, view.cursor.pos, FindScope_Paren,
+                        BufferMarkersType_CharacterBlocks,
+                        0, colors, color_count);
     }
     
     do_core_render(app);

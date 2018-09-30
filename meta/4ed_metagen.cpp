@@ -173,6 +173,14 @@ static char* main_style_fields[] = {
     "paste",
     "undo",
     "next_undo",
+    "back_cycle_1",
+    "back_cycle_2",
+    "back_cycle_3",
+    "back_cycle_4",
+    "text_cycle_1",
+    "text_cycle_2",
+    "text_cycle_3",
+    "text_cycle_4",
 };
 
 internal char*
@@ -737,27 +745,43 @@ generate_remapping_code_and_data(){
         bind(mappings, key_mouse_left_release, MDFR_NONE, click_set_cursor);
         bind(mappings, key_mouse_move, MDFR_NONE, click_set_cursor_if_lbutton);
         
-        bind(mappings, key_left,      MDFR_NONE, move_left);
-        bind(mappings, key_right,     MDFR_NONE, move_right);
-        bind(mappings, key_del,       MDFR_NONE, delete_char);
-        bind(mappings, key_del,       MDFR_SHIFT, delete_char);
-        bind(mappings, key_back,      MDFR_NONE, backspace_char);
-        bind(mappings, key_back,      MDFR_SHIFT, backspace_char);
-        bind(mappings, key_up,        MDFR_NONE, move_up);
-        bind(mappings, key_down,      MDFR_NONE, move_down);
+        bind(mappings, key_del,  MDFR_NONE, delete_char);
+        bind(mappings, key_del,  MDFR_SHIFT, delete_char);
+        bind(mappings, key_back, MDFR_NONE, backspace_char);
+        bind(mappings, key_back, MDFR_SHIFT, backspace_char);
+        
+        bind(mappings, key_up,    MDFR_NONE, move_up);
+        bind(mappings, key_down,  MDFR_NONE, move_down);
+        bind(mappings, key_left,  MDFR_NONE, move_left);
+        bind(mappings, key_right, MDFR_NONE, move_right);
+        bind(mappings, key_up,    MDFR_SHIFT, move_up);
+        bind(mappings, key_down,  MDFR_SHIFT, move_down);
+        bind(mappings, key_left,  MDFR_SHIFT, move_left);
+        bind(mappings, key_right, MDFR_SHIFT, move_right);
+        
         bind(mappings, key_end,       MDFR_NONE, seek_end_of_line);
         bind(mappings, key_home,      MDFR_NONE, seek_beginning_of_line);
         bind(mappings, key_page_up,   MDFR_CTRL, goto_beginning_of_file);
         bind(mappings, key_page_down, MDFR_CTRL, goto_end_of_file);
         bind(mappings, key_page_up,   MDFR_NONE, page_up);
         bind(mappings, key_page_down, MDFR_NONE, page_down);
+        bind(mappings, key_end,       MDFR_SHIFT, seek_end_of_line);
+        bind(mappings, key_home,      MDFR_SHIFT, seek_beginning_of_line);
+        bind(mappings, key_page_up,   MDFR_CTRL|MDFR_SHIFT, goto_beginning_of_file);
+        bind(mappings, key_page_down, MDFR_CTRL|MDFR_SHIFT, goto_end_of_file);
+        bind(mappings, key_page_up,   MDFR_SHIFT, page_up);
+        bind(mappings, key_page_down, MDFR_SHIFT, page_down);
         
-        bind(mappings, key_right, MDFR_CTRL, seek_whitespace_right);
-        bind(mappings, key_left,  MDFR_CTRL, seek_whitespace_left);
         bind(mappings, key_up,    MDFR_CTRL, seek_whitespace_up_end_line);
         bind(mappings, key_down,  MDFR_CTRL, seek_whitespace_down_end_line);
+        bind(mappings, key_right, MDFR_CTRL, seek_whitespace_right);
+        bind(mappings, key_left,  MDFR_CTRL, seek_whitespace_left);
+        bind(mappings, key_up,    MDFR_CTRL|MDFR_SHIFT, seek_whitespace_up_end_line);
+        bind(mappings, key_down,  MDFR_CTRL|MDFR_SHIFT, seek_whitespace_down_end_line);
+        bind(mappings, key_right, MDFR_CTRL|MDFR_SHIFT, seek_whitespace_right);
+        bind(mappings, key_left,  MDFR_CTRL|MDFR_SHIFT, seek_whitespace_left);
         
-        bind(mappings, key_up, MDFR_ALT, move_line_up);
+        bind(mappings, key_up,   MDFR_ALT, move_line_up);
         bind(mappings, key_down, MDFR_ALT, move_line_down);
         
         bind(mappings, key_back, MDFR_CTRL, backspace_word);
@@ -941,27 +965,43 @@ generate_remapping_code_and_data(){
         bind(mappings, key_mouse_left_release, MDFR_NONE, click_set_cursor);
         bind(mappings, key_mouse_move, MDFR_NONE, click_set_cursor_if_lbutton);
         
-        bind(mappings, key_left, MDFR_NONE, move_left);
-        bind(mappings, key_right, MDFR_NONE, move_right);
         bind(mappings, key_del, MDFR_NONE, delete_char);
         bind(mappings, key_del, MDFR_SHIFT, delete_char);
         bind(mappings, key_back, MDFR_NONE, backspace_char);
         bind(mappings, key_back, MDFR_SHIFT, backspace_char);
-        bind(mappings, key_up, MDFR_NONE, move_up);
-        bind(mappings, key_down, MDFR_NONE, move_down);
-        bind(mappings, key_end, MDFR_NONE, seek_end_of_line);
-        bind(mappings, key_home, MDFR_NONE, seek_beginning_of_line);
+        
+        bind(mappings, key_up,    MDFR_NONE, move_up);
+        bind(mappings, key_down,  MDFR_NONE, move_down);
+        bind(mappings, key_left,  MDFR_NONE, move_left);
+        bind(mappings, key_right, MDFR_NONE, move_right);
+        bind(mappings, key_up,    MDFR_SHIFT, move_up);
+        bind(mappings, key_down,  MDFR_SHIFT, move_down);
+        bind(mappings, key_left,  MDFR_SHIFT, move_left);
+        bind(mappings, key_right, MDFR_SHIFT, move_right);
+        
+        bind(mappings, key_end,       MDFR_NONE, seek_end_of_line);
+        bind(mappings, key_home,      MDFR_NONE, seek_beginning_of_line);
         bind(mappings, key_page_up,   MDFR_CTRL, goto_beginning_of_file);
         bind(mappings, key_page_down, MDFR_CTRL, goto_end_of_file);
-        bind(mappings, key_page_up, MDFR_NONE, page_up);
+        bind(mappings, key_page_up,   MDFR_NONE, page_up);
         bind(mappings, key_page_down, MDFR_NONE, page_down);
+        bind(mappings, key_end,       MDFR_SHIFT, seek_end_of_line);
+        bind(mappings, key_home,      MDFR_SHIFT, seek_beginning_of_line);
+        bind(mappings, key_page_up,   MDFR_CTRL|MDFR_SHIFT, goto_beginning_of_file);
+        bind(mappings, key_page_down, MDFR_CTRL|MDFR_SHIFT, goto_end_of_file);
+        bind(mappings, key_page_up,   MDFR_SHIFT, page_up);
+        bind(mappings, key_page_down, MDFR_SHIFT, page_down);
         
+        bind(mappings, key_up,    MDFR_CMND, seek_whitespace_up_end_line);
+        bind(mappings, key_down,  MDFR_CMND, seek_whitespace_down_end_line);
         bind(mappings, key_right, MDFR_CMND, seek_whitespace_right);
-        bind(mappings, key_left, MDFR_CMND, seek_whitespace_left);
-        bind(mappings, key_up, MDFR_CMND, seek_whitespace_up_end_line);
-        bind(mappings, key_down, MDFR_CMND, seek_whitespace_down_end_line);
+        bind(mappings, key_left,  MDFR_CMND, seek_whitespace_left);
+        bind(mappings, key_up,    MDFR_CMND|MDFR_SHIFT, seek_whitespace_up_end_line);
+        bind(mappings, key_down,  MDFR_CMND|MDFR_SHIFT, seek_whitespace_down_end_line);
+        bind(mappings, key_right, MDFR_CMND|MDFR_SHIFT, seek_whitespace_right);
+        bind(mappings, key_left,  MDFR_CMND|MDFR_SHIFT, seek_whitespace_left);
         
-        bind(mappings, key_up, MDFR_ALT, move_line_up);
+        bind(mappings, key_up,   MDFR_ALT, move_line_up);
         bind(mappings, key_down, MDFR_ALT, move_line_down);
         
         bind(mappings, key_back, MDFR_CMND, backspace_word);
@@ -1108,27 +1148,32 @@ generate_remapping_code_and_data(){
                             append(&m, "|");
                         }
                         append(&m, "MDFR_CTRL");
+                        has_base = true;
                     }
                     if (bind->modifiers & MDFR_ALT){
                         if (has_base){
                             append(&m, "|");
                         }
                         append(&m, "MDFR_ALT");
+                        has_base = true;
                     }
                     if (bind->modifiers & MDFR_CMND){
                         if (has_base){
                             append(&m, "|");
                         }
                         append(&m, "MDFR_CMND");
+                        has_base = true;
                     }
                     if (bind->modifiers & MDFR_SHIFT){
                         if (has_base){
                             append(&m, "|");
                         }
                         append(&m, "MDFR_SHIFT");
+                        has_base = true;
                     }
                     if (bind->modifiers == 0){
                         append(&m, "MDFR_NONE");
+                        has_base = true;
                     }
                     terminate_with_null(&m);
                     

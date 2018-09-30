@@ -199,8 +199,16 @@ struct Config_Data{
     char current_mapping_space[256];
     String current_mapping;
     
+    char mode_space[64];
+    String mode;
+    
     bool32 use_scroll_bars;
     bool32 use_file_bars;
+    bool32 use_line_highlight;
+    bool32 use_scope_highlight;
+    bool32 use_paren_helper;
+    bool32 use_comment_keyword;
+    
     bool32 enable_virtual_whitespace;
     bool32 enable_code_wrapping;
     bool32 automatically_indent_text_on_save;
