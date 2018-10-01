@@ -695,40 +695,40 @@ static Managed_Scope ManagedScope_NULL = 0;
 static Managed_Variable_ID ManagedVariableIndex_ERROR = -1;
 static Managed_Object ManagedObject_NULL = 0;
 
-STRUCT Marker_Visuals{
+STRUCT Marker_Visual{
     Managed_Scope scope;
     uint32_t slot_id;
     uint32_t gen_id;
 };
-ENUM(int32_t, Marker_Visuals_Type)
+ENUM(int32_t, Marker_Visual_Type)
 {
-    BufferMarkersType_Invisible = 0,
-    BufferMarkersType_CharacterBlocks = 1,
-    BufferMarkersType_CharacterWireFrames = 2,
-    BufferMarkersType_CharacterIBars = 3,
-    BufferMarkersType_LineHighlights = 4,
-    BufferMarkersType_CharacterHighlightRanges = 5,
-    BufferMarkersType_LineHighlightRanges = 6,
-    BufferMarkersType_COUNT = 7,
+    VisualType_Invisible = 0,
+    VisualType_CharacterBlocks = 1,
+    VisualType_CharacterWireFrames = 2,
+    VisualType_CharacterIBars = 3,
+    VisualType_LineHighlights = 4,
+    VisualType_CharacterHighlightRanges = 5,
+    VisualType_LineHighlightRanges = 6,
+    VisualType_COUNT = 7,
 };
-ENUM(uint32_t, Marker_Visuals_Symbolic_Color)
+ENUM(uint32_t, Marker_Visual_Symbolic_Color)
 {
     SymbolicColor_Default = 0,
     SymbolicColor_Transparent = 1,
     SymbolicColor__StagColorFlag = 0x00800000,
 };
 #define SymbolicColorFromPalette(x) ((x)|SymbolicColor__StagColorFlag)
-ENUM(int32_t, Marker_Visuals_Text_Style)
+ENUM(int32_t, Marker_Visual_Text_Style)
 {
     MARKER_TEXT_STYLE_NOT_YET_IMPLEMENTED,
 };
-STRUCT Marker_Visuals_Take_Rule{
+STRUCT Marker_Visual_Take_Rule{
     int32_t first_index;
     int32_t take_count_per_step;
     int32_t step_stride_in_marker_count;
     int32_t maximum_number_of_markers;
 };
-ENUM(uint32_t, Marker_Visuals_Priority_Level){
+ENUM(uint32_t, Marker_Visual_Priority_Level){
     VisualPriority_Lowest = 0,
     VisualPriority_Low = 1000,
     VisualPriority_Default = 2000,

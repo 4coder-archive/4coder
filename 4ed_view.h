@@ -209,7 +209,7 @@ enum{
 };
 
 struct Render_Marker{
-    Marker_Visuals_Type type;
+    Marker_Visual_Type type;
     u32 color;
     u32 text_color;
     i32 pos;

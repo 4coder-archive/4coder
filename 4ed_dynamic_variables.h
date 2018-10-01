@@ -30,34 +30,34 @@ struct Managed_Buffer_Markers_Header{
     Managed_Buffer_Markers_Header *next;
     Managed_Buffer_Markers_Header *prev;
     Buffer_ID buffer_id;
-    struct Marker_Visuals_Data *visuals_first;
-    struct Marker_Visuals_Data *visuals_last;
-    i32 visuals_count;
+    struct Marker_Visual_Data *visual_first;
+    struct Marker_Visual_Data *visual_last;
+    i32 visual_count;
 };
 
-struct Marker_Visuals_Data{
-    Marker_Visuals_Data *next;
-    Marker_Visuals_Data *prev;
+struct Marker_Visual_Data{
+    Marker_Visual_Data *next;
+    Marker_Visual_Data *prev;
     Managed_Object owner_object;
     u32 slot_id;
     u32 gen_id;
     // "Look"
-    Marker_Visuals_Type type;
+    Marker_Visual_Type type;
     u32 color;
     u32 text_color;
-    Marker_Visuals_Text_Style text_style;
+    Marker_Visual_Text_Style text_style;
     // "Take Rule"
-    Marker_Visuals_Take_Rule take_rule;
+    Marker_Visual_Take_Rule take_rule;
     i32 one_past_last_take_index;
     // "Priority"
-    Marker_Visuals_Priority_Level priority;
+    Marker_Visual_Priority_Level priority;
     // "Key View ID"
     View_ID key_view_id;
 };
 
-struct Marker_Visuals_Allocator{
-    Marker_Visuals_Data *free_first;
-    Marker_Visuals_Data *free_last;
+struct Marker_Visual_Allocator{
+    Marker_Visual_Data *free_first;
+    Marker_Visual_Data *free_last;
     i32 free_count;
     i32 total_visual_count;
     u32_Ptr_Table id_to_ptr_table;
@@ -113,7 +113,7 @@ struct Dynamic_Memory_Bank{
 struct Dynamic_Workspace{
     Dynamic_Variable_Block var_block;
     Dynamic_Memory_Bank mem_bank;
-    Marker_Visuals_Allocator visuals_allocator;
+    Marker_Visual_Allocator visual_allocator;
     u32_Ptr_Table object_id_to_object_ptr;
     u32 object_id_counter;
     u32 visual_id_counter;

@@ -113,7 +113,7 @@ get_enclosure_ranges(Application_Links *app, Partition *part,
 static void
 mark_enclosures(Application_Links *app, Partition *scratch, Managed_Scope render_scope,
                 Buffer_Summary *buffer, int32_t pos, uint32_t flags,
-                Marker_Visuals_Type type,
+                Marker_Visual_Type type,
                 int_color *back_colors, int_color *fore_colors, int32_t color_count){
     Temp_Memory temp = begin_temp_memory(scratch);
     Range_Array ranges = get_enclosure_ranges(app, scratch,
@@ -133,7 +133,7 @@ mark_enclosures(Application_Links *app, Partition *scratch, Managed_Scope render
         Managed_Object o = alloc_buffer_markers_on_buffer(app, buffer->buffer_id, marker_count, &render_scope);
         managed_object_store_data(app, o, 0, marker_count, markers);
         
-        Marker_Visuals_Take_Rule take_rule = {0};
+        Marker_Visual_Take_Rule take_rule = {0};
         take_rule.take_count_per_step = 2;
         take_rule.step_stride_in_marker_count = 8;
         
@@ -141,7 +141,7 @@ mark_enclosures(Application_Links *app, Partition *scratch, Managed_Scope render
         for (int32_t i = 0, color_index = first_color_index;
              i < color_count;
              i += 1){
-            Marker_Visuals visuals = create_marker_visuals(app, o);
+            Marker_Visual visual = create_marker_visual(app, o);
             int_color back = SymbolicColor_Transparent;
             int_color fore = SymbolicColor_Default;
             if (back_colors != 0){
@@ -150,9 +150,9 @@ mark_enclosures(Application_Links *app, Partition *scratch, Managed_Scope render
             if (fore_colors != 0){
                 fore = fore_colors[color_index];
             }
-            marker_visuals_set_look(app, visuals, type, back, fore, 0);
+            marker_visual_set_effect(app, visual, type, back, fore, 0);
             take_rule.first_index = i*2;
-            marker_visuals_set_take_rule(app, visuals, take_rule);
+            marker_visual_set_take_rule(app, visual, take_rule);
             color_index = color_index - 1;
             if (color_index < 0){
                 color_index += color_count;
@@ -229,11 +229,11 @@ RENDER_CALLER_SIG(default_render_caller){
                     int32_t marker_count = (int32_t)(push_array(scratch, Marker, 0) - markers);
                     Managed_Object o = alloc_buffer_markers_on_buffer(app, buffer.buffer_id, marker_count, &render_scope);
                     managed_object_store_data(app, o, 0, marker_count, markers);
-                    Marker_Visuals v = create_marker_visuals(app, o);
-                    marker_visuals_set_look(app, v,
-                                            BufferMarkersType_CharacterHighlightRanges,
-                                            SymbolicColor_Transparent, current_color, 0);
-                    marker_visuals_set_priority(app, v, VisualPriority_Lowest);
+                    Marker_Visual v = create_marker_visual(app, o);
+                    marker_visual_set_effect(app, v,
+                                             VisualType_CharacterHighlightRanges,
+                                             SymbolicColor_Transparent, current_color, 0);
+                    marker_visual_set_priority(app, v, VisualPriority_Lowest);
                     end_temp_memory(marker_temp);
                     current_color = records[i].color;
                 }
@@ -265,25 +265,25 @@ RENDER_CALLER_SIG(default_render_caller){
                 uint32_t cursor_color = colors[0].color;
                 uint32_t mark_color = colors[1].color;
                 
-                Marker_Visuals_Take_Rule take_rule = {0};
+                Marker_Visual_Take_Rule take_rule = {0};
                 take_rule.first_index = 0;
                 take_rule.take_count_per_step = 1;
                 take_rule.step_stride_in_marker_count = 1;
                 take_rule.maximum_number_of_markers = 1;
                 
-                Marker_Visuals visuals = create_marker_visuals(app, cursor_and_mark);
-                Marker_Visuals_Type type = is_active_view?BufferMarkersType_CharacterBlocks:BufferMarkersType_CharacterWireFrames;
-                marker_visuals_set_look(app, visuals,
-                                        type, cursor_color, SymbolicColorFromPalette(Stag_At_Cursor), 0);
-                marker_visuals_set_take_rule(app, visuals, take_rule);
-                marker_visuals_set_priority(app, visuals, VisualPriority_Highest);
+                Marker_Visual visual = create_marker_visual(app, cursor_and_mark);
+                Marker_Visual_Type type = is_active_view?VisualType_CharacterBlocks:VisualType_CharacterWireFrames;
+                marker_visual_set_effect(app, visual,
+                                         type, cursor_color, SymbolicColorFromPalette(Stag_At_Cursor), 0);
+                marker_visual_set_take_rule(app, visual, take_rule);
+                marker_visual_set_priority(app, visual, VisualPriority_Highest);
                 
-                visuals = create_marker_visuals(app, cursor_and_mark);
-                marker_visuals_set_look(app, visuals,
-                                        BufferMarkersType_CharacterWireFrames, mark_color, 0, 0);
+                visual = create_marker_visual(app, cursor_and_mark);
+                marker_visual_set_effect(app, visual,
+                                         VisualType_CharacterWireFrames, mark_color, 0, 0);
                 take_rule.first_index = 1;
-                marker_visuals_set_take_rule(app, visuals, take_rule);
-                marker_visuals_set_priority(app, visuals, VisualPriority_Highest);
+                marker_visual_set_take_rule(app, visual, take_rule);
+                marker_visual_set_priority(app, visual, VisualPriority_Highest);
             }break;
             
             case FCoderMode_NotepadLike:
@@ -295,23 +295,23 @@ RENDER_CALLER_SIG(default_render_caller){
                 uint32_t cursor_color = colors[0].color;
                 uint32_t highlight_color = colors[1].color;
                 
-                Marker_Visuals_Take_Rule take_rule = {0};
+                Marker_Visual_Take_Rule take_rule = {0};
                 take_rule.first_index = 0;
                 take_rule.take_count_per_step = 1;
                 take_rule.step_stride_in_marker_count = 1;
                 take_rule.maximum_number_of_markers = 1;
                 
-                Marker_Visuals visuals = create_marker_visuals(app, cursor_and_mark);
-                marker_visuals_set_look(app, visuals, BufferMarkersType_CharacterIBars, cursor_color, 0, 0);
-                marker_visuals_set_take_rule(app, visuals, take_rule);
-                marker_visuals_set_priority(app, visuals, VisualPriority_Highest);
+                Marker_Visual visual = create_marker_visual(app, cursor_and_mark);
+                marker_visual_set_effect(app, visual, VisualType_CharacterIBars, cursor_color, 0, 0);
+                marker_visual_set_take_rule(app, visual, take_rule);
+                marker_visual_set_priority(app, visual, VisualPriority_Highest);
                 
                 if (view.cursor.pos != view.mark.pos){
-                    visuals = create_marker_visuals(app, cursor_and_mark);
-                    marker_visuals_set_look(app, visuals, BufferMarkersType_CharacterHighlightRanges, highlight_color, SymbolicColorFromPalette(Stag_At_Highlight), 0);
+                    visual = create_marker_visual(app, cursor_and_mark);
+                    marker_visual_set_effect(app, visual, VisualType_CharacterHighlightRanges, highlight_color, SymbolicColorFromPalette(Stag_At_Highlight), 0);
                     take_rule.maximum_number_of_markers = 2;
-                    marker_visuals_set_take_rule(app, visuals, take_rule);
-                    marker_visuals_set_priority(app, visuals, VisualPriority_Highest);
+                    marker_visual_set_take_rule(app, visual, take_rule);
+                    marker_visual_set_priority(app, visual, VisualPriority_Highest);
                 }
             }break;
         }
@@ -323,16 +323,16 @@ RENDER_CALLER_SIG(default_render_caller){
         color.tag = Stag_Highlight_Cursor_Line;
         get_theme_colors(app, &color, 1);
         uint32_t line_color = color.color;
-        Marker_Visuals visuals = create_marker_visuals(app, cursor_and_mark);
-        marker_visuals_set_look(app, visuals, BufferMarkersType_LineHighlights,
-                                line_color, 0, 0);
-        Marker_Visuals_Take_Rule take_rule = {0};
+        Marker_Visual visual = create_marker_visual(app, cursor_and_mark);
+        marker_visual_set_effect(app, visual, VisualType_LineHighlights,
+                                 line_color, 0, 0);
+        Marker_Visual_Take_Rule take_rule = {0};
         take_rule.first_index = 0;
         take_rule.take_count_per_step = 1;
         take_rule.step_stride_in_marker_count = 1;
         take_rule.maximum_number_of_markers = 1;
-        marker_visuals_set_take_rule(app, visuals, take_rule);
-        marker_visuals_set_priority(app, visuals, VisualPriority_Highest);
+        marker_visual_set_take_rule(app, visual, take_rule);
+        marker_visual_set_priority(app, visual, VisualPriority_Highest);
     }
     
     // NOTE(allen): Token highlight setup
@@ -353,10 +353,10 @@ RENDER_CALLER_SIG(default_render_caller){
         range_markers[0].pos = pos1;
         range_markers[1].pos = pos2;
         managed_object_store_data(app, token_highlight, 0, 2, range_markers);
-        Marker_Visuals visuals = create_marker_visuals(app, token_highlight);
-        marker_visuals_set_look(app, visuals,
-                                BufferMarkersType_CharacterHighlightRanges,
-                                token_color, SymbolicColorFromPalette(Stag_At_Highlight), 0);
+        Marker_Visual visual = create_marker_visual(app, token_highlight);
+        marker_visual_set_effect(app, visual,
+                                 VisualType_CharacterHighlightRanges,
+                                 token_color, SymbolicColorFromPalette(Stag_At_Highlight), 0);
     }
     
     // NOTE(allen): Matching enclosure highlight setup
@@ -373,7 +373,7 @@ RENDER_CALLER_SIG(default_render_caller){
         }
         mark_enclosures(app, scratch, render_scope,
                         &buffer, view.cursor.pos, FindScope_Brace,
-                        BufferMarkersType_LineHighlightRanges,
+                        VisualType_LineHighlightRanges,
                         colors, 0, color_count);
     }
     if (do_matching_paren_highlight){
@@ -388,13 +388,13 @@ RENDER_CALLER_SIG(default_render_caller){
         }
         mark_enclosures(app, scratch, render_scope,
                         &buffer, view.cursor.pos, FindScope_Paren,
-                        BufferMarkersType_CharacterBlocks,
+                        VisualType_CharacterBlocks,
                         0, colors, color_count);
     }
     
     do_core_render(app);
     
-    clear_managed_scope_and_all_dependent_scopes(app, render_scope);
+    managed_scope_clear_self_all_dependent_scopes(app, render_scope);
 }
 
 HOOK_SIG(default_exit){

@@ -4,6 +4,8 @@
 
 // TOP
 
+
+
 static UI_Item*
 ui_list_add_item(Partition *arena, UI_List *list, UI_Item item){
     UI_Item_Node *node = push_array(arena, UI_Item_Node, 1);
@@ -538,12 +540,12 @@ lister_default(Application_Links *app, Partition *scratch, Heap *heap,
         
         case ListerActivation_Continue:
         {
-            view_start_ui_mode(app, view);
+            view_begin_ui_mode(app, view);
         }break;
         
         case ListerActivation_ContinueAndRefresh:
         {
-            view_start_ui_mode(app, view);
+            view_begin_ui_mode(app, view);
             state->item_index = 0;
             lister_call_refresh_handler(app, &state->arena, &state->lister);
             lister_update_ui(app, scratch, view, state);

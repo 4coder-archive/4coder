@@ -695,12 +695,12 @@ isearch(Application_Links *app, bool32 start_reversed, String query_init, bool32
     
     Managed_Scope view_scope = view_get_managed_scope(app, view.view_id);
     Managed_Object highlight = alloc_buffer_markers_on_buffer(app, buffer.buffer_id, 2, &view_scope);
-    Marker_Visuals visuals = create_marker_visuals(app, highlight);
-    marker_visuals_set_look(app, visuals,
-                            BufferMarkersType_CharacterHighlightRanges,
-                            SymbolicColorFromPalette(Stag_Highlight),
-                            SymbolicColorFromPalette(Stag_At_Highlight), 0);
-    marker_visuals_set_view_key(app, visuals, view.view_id);
+    Marker_Visual visual = create_marker_visual(app, highlight);
+    marker_visual_set_look(app, visual,
+                           VisualType_CharacterHighlightRanges,
+                           SymbolicColorFromPalette(Stag_Highlight),
+                           SymbolicColorFromPalette(Stag_At_Highlight), 0);
+    marker_visual_set_view_key(app, visual, view.view_id);
     isearch__update_highlight(app, &view, highlight, match.start, match.end);
     cursor_is_hidden = true;
     
@@ -932,12 +932,12 @@ query_replace_base(Application_Links *app, View_Summary *view, Buffer_Summary *b
     
     Managed_Scope view_scope = view_get_managed_scope(app, view->view_id);
     Managed_Object highlight = alloc_buffer_markers_on_buffer(app, buffer->buffer_id, 2, &view_scope);
-    Marker_Visuals visuals = create_marker_visuals(app, highlight);
-    marker_visuals_set_look(app, visuals,
-                            BufferMarkersType_CharacterHighlightRanges,
-                            SymbolicColorFromPalette(Stag_Highlight),
-                            SymbolicColorFromPalette(Stag_At_Highlight), 0);
-    marker_visuals_set_view_key(app, visuals, view->view_id);
+    Marker_Visual visual = create_marker_visual(app, highlight);
+    marker_visual_set_look(app, visual,
+                           VisualType_CharacterHighlightRanges,
+                           SymbolicColorFromPalette(Stag_Highlight),
+                           SymbolicColorFromPalette(Stag_At_Highlight), 0);
+    marker_visual_set_view_key(app, visual, view->view_id);
     cursor_is_hidden = true;
     
     User_Input in = {0};

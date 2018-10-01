@@ -1091,6 +1091,12 @@ buffer_get_managed_scope__inner(Editing_File *file){
 
 API_EXPORT Managed_Scope
 Buffer_Get_Managed_Scope(Application_Links *app, Buffer_ID buffer_id)
+/*
+DOC_PARAM(buffer_id, The id of the buffer from which to get a managed scope.)
+DOC_RETURN(If the buffer_id specifies a valid buffer, the scope returned is the scope tied to the
+lifetime of the buffer.  This is a 'basic scope' and is not considered a 'user managed scope'.
+If the buffer_id does not specify a valid buffer, the returned scope is null.)
+*/
 {
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     Editing_File *file = imp_get_file(cmd, buffer_id);
@@ -1827,6 +1833,12 @@ DOC_SEE(View_Setting_ID)
 
 API_EXPORT Managed_Scope
 View_Get_Managed_Scope(Application_Links *app, View_ID view_id)
+/*
+DOC_PARAM(view_id, The id of the view from which to get a managed scope.)
+DOC_RETURN(If the view_id specifies a valid view, the scope returned is the scope tied to the
+lifetime of the view.  This is a 'basic scope' and is not considered a 'user managed scope'.
+If the view_id does not specify a valid view, the returned scope is null.)
+*/
 {
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     View *view = imp_get_view(cmd, view_id);
@@ -2075,22 +2087,26 @@ DOC_SEE(int_color)
 */{
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     View *vptr = imp_get_view(cmd, view);
-    
     bool32 result = false;
-    
     int32_t size = end - start;
     if (vptr){
         if (size > 0){
             result = true;
-            view_post_paste_effect(vptr, seconds, start, size, color | 0xFF000000);
+            view_post_paste_effect(vptr, seconds, start, size, color|0xFF000000);
         }
     }
-    
     return(result);
 }
 
 API_EXPORT bool32
-View_Start_UI_Mode(Application_Links *app, View_Summary *view)
+View_Begin_UI_Mode(Application_Links *app, View_Summary *view)
+/*
+DOC_PARAM(view, A summary for the view which is to be placed into UI mode.)
+DOC_RETURN(This call returns non-zero on success.  It can fail if view is invalid, or if the view is already in UI mode.)
+DOC(In UI mode, the view no longer renders it's buffer.  Instead it renders UI elements attached to the view.  The UI elements attached to a view can be modified by a view_set_ui call.)
+DOC_SEE(view_end_ui_mode)
+DOC_SEE(view_set_ui)
+*/
 {
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     View *vptr = imp_get_view(cmd, view);
@@ -2110,6 +2126,14 @@ View_Start_UI_Mode(Application_Links *app, View_Summary *view)
 
 API_EXPORT int32_t
 View_End_UI_Mode(Application_Links *app, View_Summary *view)
+/*
+DOC_PARAM(view, A summary for the view which is to be taken out of UI mode.)
+DOC_RETURN(This call returns non-zero on success.  It can fail if view is invalid, or if the view is not in UI mode.)
+DOC(Taking a view out of UI mode not only causes it to resume showing a buffer, but also sends a quit UI signal.
+The exit signal calls the quit_function that is set by a view_set_ui call.)
+DOC_SEE(view_begin_ui_mode)
+DOC_SEE(view_set_ui)
+*/
 {
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     View *vptr = imp_get_view(cmd, view);
@@ -2132,6 +2156,17 @@ View_End_UI_Mode(Application_Links *app, View_Summary *view)
 
 API_EXPORT bool32
 View_Set_UI(Application_Links *app, View_Summary *view, UI_Control *control, UI_Quit_Function_Type *quit_function)
+/*
+DOC_PARAM(view, A summary for the view which is to get the new UI widget data.)
+DOC_PARAM(control, A pointer to the baked UI widget data.  To get data in the UI_Control format see the helper called ui_list_to_ui_control.  More information about specifying widget data can be found in a comment in '4coder_ui_helper.cpp'.  If this pointer is null the view's widget data is cleared to zero.  The core maintains it's own copy of the widget data, so after this call the memory used to specify widget data may be freed.)
+DOC_PARAM(quit_function, A function pointer to be called when a quit UI signal is sent to the view.  This pointer may be set to null.)
+DOC_RETURN(This call returns non-zero on success.  It can fail if view is invalid.)
+DOC(Setting the UI widget data determines what the view will look like in UI mode.  The UI widget data can be set no matter what the current mode is.  The UI widget data can be replaced any number of times regardless of whether the view is in UI mode or not.  See documentation on the UI widget data type UI_Control and the comments at the top of '4coder_ui_helper.cpp' for more information about the types of widgets that can be used.)
+DOC_SEE(view_begin_ui_mode)
+DOC_SEE(view_end_ui_mode)
+DOC_SEE(UI_Control)
+DOC_SEE(UI_Quit_Function_Type)
+*/
 {
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     Models *models = cmd->models;
@@ -2142,85 +2177,87 @@ View_Set_UI(Application_Links *app, View_Summary *view, UI_Control *control, UI_
             heap_free(heap, vptr->transient.ui_control.items);
         }
         memset(&vptr->transient.ui_control, 0, sizeof(vptr->transient.ui_control));
-        if (control->count > 0){
-            i32 string_size = 0;
-            for (UI_Item *item = control->items, *one_past_last = control->items + control->count;
-                 item < one_past_last;
-                 item += 1){
-                switch (item->type){
-                    case UIType_Option:
-                    {
-                        string_size += item->option.string.size;
-                        string_size += item->option.status.size;
-                    }break;
-                    
-                    case UIType_TextField:
-                    {
-                        string_size += item->text_field.query.size;
-                        string_size += item->text_field.string.size;
-                    }break;
-                    
-                    case UIType_ColorTheme:
-                    {
-                        string_size += item->color_theme.string.size;
-                    }break;
-                }
-            }
-            
-            i32 all_items_size = sizeof(UI_Item)*control->count;
-            i32 memory_size = all_items_size + string_size;
-            UI_Item *new_items = (UI_Item*)heap_allocate(heap, memory_size);
-            if (new_items != 0){
-                char *string_space = (char*)(new_items + control->count);
-                Partition string_alloc = make_part(string_space, string_size);
-                i32 count = control->count;
-                memcpy(new_items, control->items, all_items_size);
-                for (UI_Item *item = new_items, *one_past_last = new_items + count;
+        vptr->transient.ui_quit = quit_function;
+        if (control != 0){
+            if (control->count > 0){
+                i32 string_size = 0;
+                for (UI_Item *item = control->items, *one_past_last = control->items + control->count;
                      item < one_past_last;
                      item += 1){
-                    
-                    String *fixup[2];
-                    
-                    int32_t fixup_count = 0;
                     switch (item->type){
                         case UIType_Option:
                         {
-                            fixup[0] = &item->option.string;
-                            fixup[1] = &item->option.status;
-                            fixup_count = 2;
+                            string_size += item->option.string.size;
+                            string_size += item->option.status.size;
                         }break;
+                        
                         case UIType_TextField:
                         {
-                            fixup[0] = &item->text_field.query;
-                            fixup[1] = &item->text_field.string;
-                            fixup_count = 2;
+                            string_size += item->text_field.query.size;
+                            string_size += item->text_field.string.size;
                         }break;
+                        
                         case UIType_ColorTheme:
                         {
-                            fixup[0] = &item->color_theme.string;
-                            fixup_count = 1;
+                            string_size += item->color_theme.string.size;
                         }break;
                     }
-                    
-                    for (i32 i = 0; i < fixup_count; i += 1){
-                        String old = *fixup[i];
-                        char *new_str = push_array(&string_alloc, char, old.size);
-                        fixup[i]->str = new_str;
-                        fixup[i]->size = old.size;
-                        fixup[i]->memory_size = old.size;
-                        memcpy(new_str, old.str, old.size);
-                    }
                 }
-                vptr->transient.ui_control.items = new_items;
-                vptr->transient.ui_control.count = count;
+                
+                i32 all_items_size = sizeof(UI_Item)*control->count;
+                i32 memory_size = all_items_size + string_size;
+                UI_Item *new_items = (UI_Item*)heap_allocate(heap, memory_size);
+                if (new_items != 0){
+                    char *string_space = (char*)(new_items + control->count);
+                    Partition string_alloc = make_part(string_space, string_size);
+                    i32 count = control->count;
+                    memcpy(new_items, control->items, all_items_size);
+                    for (UI_Item *item = new_items, *one_past_last = new_items + count;
+                         item < one_past_last;
+                         item += 1){
+                        
+                        String *fixup[2];
+                        
+                        int32_t fixup_count = 0;
+                        switch (item->type){
+                            case UIType_Option:
+                            {
+                                fixup[0] = &item->option.string;
+                                fixup[1] = &item->option.status;
+                                fixup_count = 2;
+                            }break;
+                            case UIType_TextField:
+                            {
+                                fixup[0] = &item->text_field.query;
+                                fixup[1] = &item->text_field.string;
+                                fixup_count = 2;
+                            }break;
+                            case UIType_ColorTheme:
+                            {
+                                fixup[0] = &item->color_theme.string;
+                                fixup_count = 1;
+                            }break;
+                        }
+                        
+                        for (i32 i = 0; i < fixup_count; i += 1){
+                            String old = *fixup[i];
+                            char *new_str = push_array(&string_alloc, char, old.size);
+                            fixup[i]->str = new_str;
+                            fixup[i]->size = old.size;
+                            fixup[i]->memory_size = old.size;
+                            memcpy(new_str, old.str, old.size);
+                        }
+                    }
+                    vptr->transient.ui_control.items = new_items;
+                    vptr->transient.ui_control.count = count;
+                }
+                else{
+                    return(false);
+                }
             }
-            else{
-                return(false);
-            }
+            memcpy(vptr->transient.ui_control.bounding_box, control->bounding_box,
+                   sizeof(control->bounding_box));
         }
-        memcpy(vptr->transient.ui_control.bounding_box, control->bounding_box,
-               sizeof(control->bounding_box));
-        vptr->transient.ui_quit = quit_function;
         return(true);
     }
     return(false);
@@ -2228,11 +2265,17 @@ View_Set_UI(Application_Links *app, View_Summary *view, UI_Control *control, UI_
 
 API_EXPORT UI_Control
 View_Get_UI_Copy(Application_Links *app, View_Summary *view, struct Partition *part)
+/*
+DOC_PARAM(view, A summary for the view which is to get the new UI widget data.)
+DOC_PARAM(part, A memory arena onto which the UI widget data will be allocated.)
+DOC_RETURN(If the view is valid, and there is enough space in part, then the UI_Control stucture returned points to a copy of the widget data currently attached to the view.)
+DOC_SEE(view_set_ui)
+*/
 {
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     View *vptr = imp_get_view(cmd, view);
     UI_Control result = {0};
-    if (vptr != 0){
+    if (vptr != 0 && part != 0){
         UI_Control *control = &vptr->transient.ui_control;
         result.items = push_array(part, UI_Item, control->count);
         if (result.items != 0){
@@ -2258,7 +2301,12 @@ get_dynamic_workspace(Models *models, Managed_Scope handle){
 }
 
 API_EXPORT Managed_Scope
-Create_User_Managed_Scope(Application_Links *app){
+Create_User_Managed_Scope(Application_Links *app)
+/*
+DOC_RETURN(Always returns a newly created scope with a handle that is unique from all other scopes that have been created either by the core or the custom layer.  The new scope is a 'basic scope' and is a 'user managed scope'.)
+DOC_SEE(destroy_user_managed_scope)
+*/
+{
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     Models *models = cmd->models;
     Heap *heap = &models->mem.heap;
@@ -2269,7 +2317,14 @@ Create_User_Managed_Scope(Application_Links *app){
 }
 
 API_EXPORT bool32
-Destroy_User_Managed_Scope(Application_Links *app, Managed_Scope scope){
+Destroy_User_Managed_Scope(Application_Links *app, Managed_Scope scope)
+/*
+DOC_PARAM(scope, The handle for the scope which is to be destroyed)
+DOC_RETURN(If the scope is a valid 'user managed scope' this function returns non-zero, otherwise it returns zero.)
+DOC(This call only operates on 'user managed scopes'.  'User managed scopes' are those scopes created by create_user_managed_scope.  Scopes tied to views, and buffers, and the global scope are not 'user managed scopes'.)
+DOC_SEE(create_user_managed_scope)
+*/
+{
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     Models *models = cmd->models;
     Dynamic_Workspace *workspace = get_dynamic_workspace(models, scope);
@@ -2283,6 +2338,9 @@ Destroy_User_Managed_Scope(Application_Links *app, Managed_Scope scope){
 
 API_EXPORT Managed_Scope
 Get_Global_Managed_Scope(Application_Links *app)
+/*
+DOC_RETURN(Always returns the handle to the 'global scope'.  The 'global scope' is unique in that it is not dependent on any object at all.  The handle for the 'global scope' never changes in a 4coder session, and when used as a dependency in get_managed_scope_with_multiple_dependencies it has no effect.)
+*/
 {
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     Models *models = cmd->models;
@@ -2312,7 +2370,14 @@ get_lifetime_object_from_workspace(Dynamic_Workspace *workspace){
 }
 
 API_EXPORT Managed_Scope
-Get_Managed_Scope_With_Multiple_Dependencies(Application_Links *app, Managed_Scope *intersected_scopes, int32_t count)
+Get_Managed_Scope_With_Multiple_Dependencies(Application_Links *app, Managed_Scope *scopes, int32_t count)
+/*
+DOC_PARAM(scopes, An array of scope handles which are to represent the various dependencies that the returned scope will have.)
+DOC_PARAM(count, The number of scopes in the scopes array)
+DOC_RETURN(Always returns the handle to a scope with the appropriate dependencies.)
+DOC(Scopes with multiple dependencies are a subtle topic, for a full treatment please read
+https://4coder.handmade.network/blogs/p/3412-new_features_p3__memory_management_scopes)
+*/
 {
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     Models *models = cmd->models;
@@ -2324,7 +2389,7 @@ Get_Managed_Scope_With_Multiple_Dependencies(Application_Links *app, Managed_Sco
     b32 filled_array = true;
     Lifetime_Object **object_ptr_array = push_array(scratch, Lifetime_Object*, 0);
     for (i32 i = 0; i < count; i += 1){
-        Dynamic_Workspace *workspace = get_dynamic_workspace(models, intersected_scopes[i]);
+        Dynamic_Workspace *workspace = get_dynamic_workspace(models, scopes[i]);
         if (workspace == 0){
             filled_array = false;
             break;
@@ -2381,7 +2446,13 @@ Get_Managed_Scope_With_Multiple_Dependencies(Application_Links *app, Managed_Sco
 }
 
 API_EXPORT bool32
-Managed_Scope_Clear_Contents(Application_Links *app, Managed_Scope scope){
+Managed_Scope_Clear_Contents(Application_Links *app, Managed_Scope scope)
+/*
+DOC_PARAM(scope, A handle to the scope which is to be cleared.)
+DOC_RETURN(Returns non-zero on succes, and zero on failure.  This call fails when the scope handle does not refer to a valid scope.)
+DOC(Clearing the contents of a scope resets all managed variables to have their default values, and frees all managed objects.  The scope handle remains valid and refers to the same scope which still has the same dependencies.)
+*/
+{
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     Models *models = cmd->models;
     Dynamic_Workspace *workspace = get_dynamic_workspace(models, scope);
@@ -2393,19 +2464,15 @@ Managed_Scope_Clear_Contents(Application_Links *app, Managed_Scope scope){
 }
 
 API_EXPORT bool32
-Clear_Managed_Scope(Application_Links *app, Managed_Scope scope){
-    Command_Data *cmd = (Command_Data*)app->cmd_context;
-    Models *models = cmd->models;
-    Dynamic_Workspace *workspace = get_dynamic_workspace(models, scope);
-    if (workspace != 0){
-        dynamic_workspace_clear_contents(&models->mem.heap, workspace);
-        return(true);
-    }
-    return(false);
-}
-
-API_EXPORT bool32
-Clear_Managed_Scope_And_All_Dependent_Scopes(Application_Links *app, Managed_Scope scope){
+Managed_Scope_Clear_Self_All_Dependent_Scopes(Application_Links *app, Managed_Scope scope)
+/*
+DOC_PARAM(scope, A handle to the 'basic scope' which is to be cleared.)
+DOC_RETURN(Returns non-zero on succes, and zero on failure.  This call fails when the scope handle does not refer to a valid 'basic scope'.)
+DOC(The parameter scope must be a 'basic scope' which means a scope with a single dependency.  Scopes tied to buffers and view, and 'user managed scopes' are the 'basic scopes'.  This call treats the scope as an identifier for the single object up which the scope depends, and clears all scopes that depend on that object, this includes clearing 'scope' itself.  The scopes returned from get_managed_scope_with_multiple_dependencies that included 'scope' via the union rule are the only other scopes that can be cleared by this call.
+For more on the union rule read the full treatment of managed scopes
+https://4coder.handmade.network/blogs/p/3412-new_features_p3__memory_management_scopes)
+*/
+{
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     Models *models = cmd->models;
     Dynamic_Workspace *workspace = get_dynamic_workspace(models, scope);
@@ -2420,6 +2487,14 @@ Clear_Managed_Scope_And_All_Dependent_Scopes(Application_Links *app, Managed_Sco
 
 API_EXPORT Managed_Variable_ID
 Managed_Variable_Create(Application_Links *app, char *null_terminated_name, uint64_t default_value)
+/*
+DOC_PARAM(null_terminated_name, The unique name for this managed variable.)
+DOC_PARAM(default_value, The default value that this variable will have in a scope that has not set this variable.)
+DOC_RETURN(Returns the Managed_Variable_ID for the new variable on success or zero on failure.  This call fails when a variable with the given name alraedy exists.)
+DOC(Variables are stored in scopes but creating a variable does not mean that all scopes will allocate space for this variable.  Space for variables is allocated sparsly on demand in each scope.  Once a variable exists it will exist for the entire duration of the 4coder session and will never have a different id.  The id will be used to set and get the value of the variable in managed scopes.)
+DOC_SEE(managed_variable_get_id)
+DOC_SEE(managed_variable_create_or_get_id)
+*/
 {
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     Models *models = cmd->models;
@@ -2431,6 +2506,12 @@ Managed_Variable_Create(Application_Links *app, char *null_terminated_name, uint
 
 API_EXPORT Managed_Variable_ID
 Managed_Variable_Get_ID(Application_Links *app, char *null_terminated_name)
+/*
+DOC_PARAM(null_terminated_name, The unique name for this managed variable.)
+DOC_RETURN(Returns the Managed_Variable_ID for the variable on success or zero on failure.  This call fails when no variable that already exists has the given name.)
+DOC_SEE(managed_variable_create)
+DOC_SEE(managed_variable_create_or_get_id)
+*/
 {
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     Models *models = cmd->models;
@@ -2441,6 +2522,14 @@ Managed_Variable_Get_ID(Application_Links *app, char *null_terminated_name)
 
 API_EXPORT Managed_Variable_ID
 Managed_Variable_Create_Or_Get_ID(Application_Links *app, char *null_terminated_name, uint64_t default_value)
+/*
+DOC_PARAM(null_terminated_name, The unique name for this managed variable.)
+DOC_PARAM(default_value, The default value that this variable will have in a scope that has not set this variable.  This parameter is ignored if the variable already exists.)
+DOC_RETURN(Returns the Managed_Variable_ID for the variable on success, this call never fails.)
+DOC(This call first tries to get the variable id in the same way that managed_variable_get_id would, if this fails it creates the variable and returns the new id in the way that managed_variable_create would. )
+DOC_SEE(managed_variable_create)
+DOC_SEE(managed_variable_get_id)
+*/
 {
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     Models *models = cmd->models;
@@ -2466,11 +2555,17 @@ get_dynamic_variable(Command_Data *cmd, Managed_Scope handle, int32_t location, 
 }
 
 API_EXPORT bool32
-Managed_Variable_Set(Application_Links *app, Managed_Scope scope, Managed_Variable_ID location, uint64_t value)
+Managed_Variable_Set(Application_Links *app, Managed_Scope scope, Managed_Variable_ID id, uint64_t value)
+/*
+DOC_PARAM(scope, A handle to the scope in which the value of the given variable will be set.)
+DOC_PARAM(id, The id of the variable to set.) 
+DOC_PARAM(value, The new value of the variable.) 
+DOC_RETURN(Returns non-zero on success.  This call fails if scope does not refer to a valid managed scope, or id does not refer to an existing managed variable.)
+*/
 {
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     u64 *ptr = 0;
-    if (get_dynamic_variable(cmd, scope, location, &ptr)){
+    if (get_dynamic_variable(cmd, scope, id, &ptr)){
         *ptr = value;
         return(true);
     }
@@ -2478,11 +2573,17 @@ Managed_Variable_Set(Application_Links *app, Managed_Scope scope, Managed_Variab
 }
 
 API_EXPORT bool32
-Managed_Variable_Get(Application_Links *app, Managed_Scope scope, Managed_Variable_ID location, uint64_t *value_out)
+Managed_Variable_Get(Application_Links *app, Managed_Scope scope, Managed_Variable_ID id, uint64_t *value_out)
+/*
+DOC_PARAM(scope, A handle to the scope from which the value of the given variable will be queried.)
+DOC_PARAM(id, The id of the variable to get.) 
+DOC_PARAM(value_out, An address where the value of the given variable in the given scope will be stored.) 
+DOC_RETURN(Returns non-zero on success.  This call fails if scope does not refer to a valid managed scope, or id does not refer to an existing managed variable.  If the managed scope and managed variable both exist, but the variable has never been set, then the default value for the variable that was determined when the variable was created is used to fill value_out, this is treated as a success and returns non-zero.)
+*/
 {
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     u64 *ptr = 0;
-    if (get_dynamic_variable(cmd, scope, location, &ptr)){
+    if (get_dynamic_variable(cmd, scope, id, &ptr)){
         *value_out = *ptr;
         return(true);
     }
@@ -2491,6 +2592,13 @@ Managed_Variable_Get(Application_Links *app, Managed_Scope scope, Managed_Variab
 
 API_EXPORT Managed_Object
 Alloc_Managed_Memory_In_Scope(Application_Links *app, Managed_Scope scope, int32_t item_size, int32_t count)
+/*
+DOC_PARAM(scope, A handle to the scope in which the new object will be allocated.)
+DOC_PARAM(item_size, The size, in bytes, of a single 'item' in this memory object.  This effects the size of the allocation, and the indexing of the memory in the store and load calls.)
+DOC_PARAM(count, The number of 'items' allocated for this memory object.  The total memory size is item_size*count.)
+DOC_RETURN(Returns the handle to the new object on success, or zero on failure.  This call fails if scope does not refer to a valid managed scope.)
+DOC(Managed objects allocate memory that is tied to the scope.  When the scope is cleared or destroyed all of the memory allocated in it is freed in bulk and the handles to the objects never again become valid.  Thus the handle returned by this call will only ever refer to this memory allocation.)
+*/
 {
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     Models *models = cmd->models;
@@ -2512,6 +2620,15 @@ Alloc_Managed_Memory_In_Scope(Application_Links *app, Managed_Scope scope, int32
 
 API_EXPORT Managed_Object
 Alloc_Buffer_Markers_On_Buffer(Application_Links *app, Buffer_ID buffer_id, int32_t count, Managed_Scope *optional_extra_scope)
+/*
+DOC_PARAM(buffer_id, The id for the buffer onto which these markers will be attached.  The markers will live in the scope of the buffer, or in another scope dependent on this buffer, thus guaranteeing that when the buffer is closed, all attached markers are freed in bulk with it.)
+DOC_PARAM(count, The number of Marker items allocated in this object.  The total memory size is sizeof(Marker)*count.)
+DOC_PARAM(optional_extra_scope, If this pointer is non-null, then it is treated as a scope with additional dependencies for the allocated markers.  In this case, the scope of buffer and extra scope are unioned via get_managed_scope_with_multiple_dependencies and marker object lives in the resulting scope.)
+DOC_RETURN(Returns the handle to the new object on succes, or zero on failure.  This call fails if buffer_id does not refer to a valid buffer, or optional_extra_scope does not refer to a valid scope.)
+DOC(The created managed object is essentially a memory object with item size equal to sizeof(Marker).  The primary difference is that if the buffer referred to by buffer_id is edited, the position of all markers attached to that buffer can be changed by the core.  Thus this not a memory storage so much as position marking and tracking in a buffer.)
+DOC_SEE(alloc_managed_memory_in_scope)
+DOC_SEE(Marker)
+*/
 {
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     Editing_File *file = imp_get_file(cmd, buffer_id);
@@ -2536,9 +2653,9 @@ Alloc_Buffer_Markers_On_Buffer(Application_Links *app, Buffer_ID buffer_id, int3
         zdll_push_back(workspace->buffer_markers_list.first, workspace->buffer_markers_list.last, header);
         workspace->buffer_markers_list.count += 1;
         header->buffer_id = buffer_id;
-        header->visuals_first = 0;
-        header->visuals_last = 0;
-        header->visuals_count = 0;
+        header->visual_first = 0;
+        header->visual_last = 0;
+        header->visual_count = 0;
         file->state.total_marker_count += count;
         u32 id = dynamic_workspace_store_pointer(heap, workspace, ptr);
         result = ((u64)markers_scope << 32) | (u64)id;
@@ -2563,44 +2680,51 @@ get_dynamic_object_ptrs(Models *models, Managed_Object object){
     return(result);
 }
 
-API_EXPORT Marker_Visuals
-Create_Marker_Visuals(Application_Links *app, Managed_Object object){
+API_EXPORT Marker_Visual
+Create_Marker_Visual(Application_Links *app, Managed_Object object)
+/*
+DOC_PARAM(object, A handle to the marker object on which the new visual will be attached.)
+DOC_RETURN(Returns the handle to the newly created marker visual on success, or zero on failure.  This call fails when object does not refer to a valid marker object.)
+DOC(A marker visual adds graphical effects to markers such as cursors, highlight ranges, text colors, etc.  A marker object can have any number of attached visuals.  The memory in the 4coder core for visuals is stored in the same scope as the object.)
+DOC_SEE(destroy_marker_visuals)
+*/
+{
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     Models *models = cmd->models;
     Managed_Object_Ptr_And_Workspace object_ptrs = get_dynamic_object_ptrs(models, object);
-    Marker_Visuals visuals = {0};
+    Marker_Visual visual = {0};
     if (object_ptrs.header != 0 && object_ptrs.header->type == ManagedObjectType_Markers){
         Heap *heap = &models->mem.heap;
         Dynamic_Workspace *workspace = object_ptrs.workspace;
-        Marker_Visuals_Data *data = dynamic_workspace_alloc_visuals(heap, &workspace->mem_bank, workspace);
+        Marker_Visual_Data *data = dynamic_workspace_alloc_visual(heap, &workspace->mem_bank, workspace);
         
         Managed_Buffer_Markers_Header *markers = (Managed_Buffer_Markers_Header*)object_ptrs.header;
-        zdll_push_back(markers->visuals_first, markers->visuals_last, data);
-        markers->visuals_count += 1;
+        zdll_push_back(markers->visual_first, markers->visual_last, data);
+        markers->visual_count += 1;
         data->owner_object = object;
-        marker_visuals_defaults(data);
+        marker_visual_defaults(data);
         
-        visuals.scope = workspace->scope_id;
-        visuals.slot_id = data->slot_id;
-        visuals.gen_id = data->gen_id;
+        visual.scope = workspace->scope_id;
+        visual.slot_id = data->slot_id;
+        visual.gen_id = data->gen_id;
     }
-    return(visuals);
+    return(visual);
 }
 
-internal Marker_Visuals_Data*
-get_marker_visuals_pointer(Models *models, Marker_Visuals visuals){
-    Dynamic_Workspace *workspace = get_dynamic_workspace(models, visuals.scope);
+internal Marker_Visual_Data*
+get_marker_visual_pointer(Models *models, Marker_Visual visual){
+    Dynamic_Workspace *workspace = get_dynamic_workspace(models, visual.scope);
     if (workspace != 0){
-        return(dynamic_workspace_get_visuals_pointer(workspace, visuals.slot_id, visuals.gen_id));
+        return(dynamic_workspace_get_visual_pointer(workspace, visual.slot_id, visual.gen_id));
     }
     return(0);
 }
 
 API_EXPORT bool32
-Marker_Visuals_Set_Look(Application_Links *app, Marker_Visuals visuals, Marker_Visuals_Type type, int_color color, int_color text_color, Marker_Visuals_Text_Style text_style){
+Marker_Visual_Set_Effect(Application_Links *app, Marker_Visual visual, Marker_Visual_Type type, int_color color, int_color text_color, Marker_Visual_Text_Style text_style){
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     Models *models = cmd->models;
-    Marker_Visuals_Data *data = get_marker_visuals_pointer(models, visuals);
+    Marker_Visual_Data *data = get_marker_visual_pointer(models, visual);
     if (data != 0){
         data->type = type;
         data->color = color;
@@ -2611,10 +2735,10 @@ Marker_Visuals_Set_Look(Application_Links *app, Marker_Visuals visuals, Marker_V
 }
 
 API_EXPORT bool32
-Marker_Visuals_Set_Take_Rule(Application_Links *app, Marker_Visuals visuals, Marker_Visuals_Take_Rule take_rule){
+Marker_Visual_Set_Take_Rule(Application_Links *app, Marker_Visual visual, Marker_Visual_Take_Rule take_rule){
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     Models *models = cmd->models;
-    Marker_Visuals_Data *data = get_marker_visuals_pointer(models, visuals);
+    Marker_Visual_Data *data = get_marker_visual_pointer(models, visual);
     if (data != 0){
         Assert(take_rule.take_count_per_step != 0);
         take_rule.first_index = clamp_bottom(0, take_rule.first_index);
@@ -2635,10 +2759,10 @@ Marker_Visuals_Set_Take_Rule(Application_Links *app, Marker_Visuals visuals, Mar
 }
 
 API_EXPORT bool32
-Marker_Visuals_Set_Priority(Application_Links *app, Marker_Visuals visuals, Marker_Visuals_Priority_Level priority){
+Marker_Visual_Set_Priority(Application_Links *app, Marker_Visual visual, Marker_Visual_Priority_Level priority){
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     Models *models = cmd->models;
-    Marker_Visuals_Data *data = get_marker_visuals_pointer(models, visuals);
+    Marker_Visual_Data *data = get_marker_visual_pointer(models, visual);
     if (data != 0){
         data->priority = priority;
     }
@@ -2646,10 +2770,10 @@ Marker_Visuals_Set_Priority(Application_Links *app, Marker_Visuals visuals, Mark
 }
 
 API_EXPORT bool32
-Marker_Visuals_Set_View_Key(Application_Links *app, Marker_Visuals visuals, View_ID key_view_id){
+Marker_Visual_Set_View_Key(Application_Links *app, Marker_Visual visual, View_ID key_view_id){
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     Models *models = cmd->models;
-    Marker_Visuals_Data *data = get_marker_visuals_pointer(models, visuals);
+    Marker_Visual_Data *data = get_marker_visual_pointer(models, visual);
     if (data != 0){
         data->key_view_id = key_view_id;
     }
@@ -2657,79 +2781,56 @@ Marker_Visuals_Set_View_Key(Application_Links *app, Marker_Visuals visuals, View
 }
 
 API_EXPORT bool32
-Destroy_Marker_Visuals(Application_Links *app, Marker_Visuals visuals){
+Destroy_Marker_Visual(Application_Links *app, Marker_Visual visual){
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     Models *models = cmd->models;
-    Dynamic_Workspace *workspace = get_dynamic_workspace(models, visuals.scope);
+    Dynamic_Workspace *workspace = get_dynamic_workspace(models, visual.scope);
     if (workspace != 0){
-        Marker_Visuals_Data *data = dynamic_workspace_get_visuals_pointer(workspace, visuals.slot_id, visuals.gen_id);
+        Marker_Visual_Data *data = dynamic_workspace_get_visual_pointer(workspace, visual.slot_id, visual.gen_id);
         if (data != 0){
-            marker_visuals_free(&workspace->visuals_allocator, data);
+            marker_visual_free(&workspace->visual_allocator, data);
         }
     }
     return(false);
 }
 
 API_EXPORT int32_t
-Buffer_Markers_Get_Attached_Visuals_Count(Application_Links *app, Managed_Object object){
+Buffer_Markers_Get_Attached_Visual_Count(Application_Links *app, Managed_Object object){
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     Models *models = cmd->models;
     Managed_Object_Ptr_And_Workspace object_ptrs = get_dynamic_object_ptrs(models, object);
     if (object_ptrs.header != 0 && object_ptrs.header->type == ManagedObjectType_Markers){
         Managed_Buffer_Markers_Header *markers = (Managed_Buffer_Markers_Header*)object_ptrs.header;
-        return(markers->visuals_count);
+        return(markers->visual_count);
     }
     return(0);
 }
 
-API_EXPORT Marker_Visuals*
-Buffer_Markers_Get_Attached_Visuals(Application_Links *app, Partition *part, Managed_Object object){
+API_EXPORT Marker_Visual*
+Buffer_Markers_Get_Attached_Visual(Application_Links *app, Partition *part, Managed_Object object){
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     Models *models = cmd->models;
     Managed_Object_Ptr_And_Workspace object_ptrs = get_dynamic_object_ptrs(models, object);
     if (object_ptrs.header != 0 && object_ptrs.header->type == ManagedObjectType_Markers){
         Managed_Buffer_Markers_Header *markers = (Managed_Buffer_Markers_Header*)object_ptrs.header;
-        i32 count = markers->visuals_count;
-        Marker_Visuals *visuals = push_array(part, Marker_Visuals, count);
-        if (visuals != 0){
-            Marker_Visuals *v = visuals;
+        i32 count = markers->visual_count;
+        Marker_Visual *visual = push_array(part, Marker_Visual, count);
+        if (visual != 0){
+            Marker_Visual *v = visual;
             Managed_Scope scope = object_ptrs.workspace->scope_id;
-            for (Marker_Visuals_Data *data = markers->visuals_first;
+            for (Marker_Visual_Data *data = markers->visual_first;
                  data != 0;
                  data = data->next, v += 1){
                 v->scope = scope;
                 v->slot_id = data->slot_id;
                 v->gen_id = data->gen_id;
             }
-            Assert(v == visuals + count);
+            Assert(v == visual + count);
         }
-        return(visuals);
+        return(visual);
     }
     return(0);
 }
-
-/*
-#if 0
-API_EXPORT bool32
-Buffer_Markers_Set_Visuals(Application_Links *app, Managed_Object object, Marker_Visuals_Type marker_type, uint32_t color, uint32_t text_color, View_ID key_view_id){
-    Command_Data *cmd = (Command_Data*)app->cmd_context;
-    Models *models = cmd->models;
-    Managed_Object_Ptr_And_Workspace object_ptrs = get_dynamic_object_ptrs(models, object);
-    if (0 <= marker_type && marker_type < BufferMarkersType_COUNT){
-        if (object_ptrs.header != 0 &&
-            object_ptrs.header->type == ManagedObjectType_Markers){
-            Managed_Buffer_Markers_Header *header = (Managed_Buffer_Markers_Header*)object_ptrs.header;
-            header->marker_type = marker_type;
-            header->color = color;
-            header->text_color = text_color;
-            header->key_view_id = key_view_id;
-            return(true);
-        }
-    }
-    return(false);
-}
-#endif
-*/
 
 internal u8*
 get_dynamic_object_memory_ptr(Managed_Object_Standard_Header *header){
@@ -2808,7 +2909,7 @@ Managed_Object_Free(Application_Links *app, Managed_Object object)
             Managed_Object_Type *type = (Managed_Object_Type*)object_ptr;
             if (*type == ManagedObjectType_Markers){
                 Managed_Buffer_Markers_Header *header = (Managed_Buffer_Markers_Header*)object_ptr;
-                marker_visuals_free_chain(&workspace->visuals_allocator, header->visuals_first, header->visuals_last, header->visuals_count);
+                marker_visual_free_chain(&workspace->visual_allocator, header->visual_first, header->visual_last, header->visual_count);
                 zdll_remove(workspace->buffer_markers_list.first, workspace->buffer_markers_list.last, header);
                 workspace->buffer_markers_list.count -= 1;
             }

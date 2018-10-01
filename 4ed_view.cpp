@@ -498,13 +498,13 @@ get_visual_markers(Partition *arena, Dynamic_Workspace *workspace,
          node != 0;
          node = node->next){
         if (node->buffer_id != buffer_id) continue;
-        for (Marker_Visuals_Data *data = node->visuals_first;
+        for (Marker_Visual_Data *data = node->visual_first;
              data != 0;
              data = data->next){
-            if (data->type == BufferMarkersType_Invisible) continue;
+            if (data->type == VisualType_Invisible) continue;
             if (data->key_view_id != 0 && data->key_view_id != view_id) continue;
             
-            Marker_Visuals_Type type = data->type;
+            Marker_Visual_Type type = data->type;
             u32 color = data->color;
             u32 text_color = data->text_color;
             i32 take_count_per_step = data->take_rule.take_count_per_step;
@@ -560,8 +560,8 @@ get_visual_markers(Partition *arena, Dynamic_Workspace *workspace,
                     }
                 }break;
                 
-                case BufferMarkersType_CharacterHighlightRanges:
-                case BufferMarkersType_LineHighlightRanges:
+                case VisualType_CharacterHighlightRanges:
+                case VisualType_LineHighlightRanges:
                 {
                     i32 pos_pair[2] = {0};
                     i32 pair_index = 0;
@@ -602,17 +602,17 @@ get_visual_markers(Partition *arena, Dynamic_Workspace *workspace,
 }
 
 internal i32
-marker_type_to_segment_rank(Marker_Visuals_Type type){
+marker_type_to_segment_rank(Marker_Visual_Type type){
     switch (type){
-        case BufferMarkersType_LineHighlights:
+        case VisualType_LineHighlights:
         {
             return(1);
         }break;
-        case BufferMarkersType_CharacterHighlightRanges:
+        case VisualType_CharacterHighlightRanges:
         {
             return(2);
         }break;
-        case BufferMarkersType_LineHighlightRanges:
+        case VisualType_LineHighlightRanges:
         {
             return(3);
         }break;
@@ -970,7 +970,7 @@ render_loaded_file_in_view__inner(Models *models, Render_Target *target, View *v
                  line_markers.markers[visual_line_markers_scan_index].pos <= ind;
                  visual_line_markers_scan_index += 1){
                 Render_Marker *marker = &line_markers.markers[visual_line_markers_scan_index];
-                Assert(marker->type == BufferMarkersType_LineHighlights);
+                Assert(marker->type == VisualType_LineHighlights);
                 if (marker->priority > visual_line_markers_best_priority){
                     visual_line_markers_color = marker->color;
                     visual_line_markers_best_priority = marker->priority;
@@ -1023,7 +1023,7 @@ render_loaded_file_in_view__inner(Models *models, Render_Target *target, View *v
              visual_markers_scan_index += 1){
             Render_Marker *marker = &character_markers.markers[visual_markers_scan_index];
             switch (marker->type){
-                case BufferMarkersType_CharacterBlocks:
+                case VisualType_CharacterBlocks:
                 {
                     if (marker->priority > marker_highlight_best_priority){
                         marker_highlight_is_set = true;
@@ -1033,7 +1033,7 @@ render_loaded_file_in_view__inner(Models *models, Render_Target *target, View *v
                     }
                 }break;
                 
-                case BufferMarkersType_CharacterWireFrames:
+                case VisualType_CharacterWireFrames:
                 {
                     if (marker->priority > marker_wireframe_best_priority){
                         marker_wireframe = marker->color;
@@ -1041,7 +1041,7 @@ render_loaded_file_in_view__inner(Models *models, Render_Target *target, View *v
                     }
                 }break;
                 
-                case BufferMarkersType_CharacterIBars:
+                case VisualType_CharacterIBars:
                 {
                     if (marker->priority > marker_ibar_best_priority){
                         marker_ibar = marker->color;

@@ -184,6 +184,9 @@ generate_binding_list(char *code_directory, char *src_directory){
                         case key_mouse_right: key_str = "right click"; break; 
                         case key_mouse_left_release: key_str = "left release"; break; 
                         case key_mouse_right_release: key_str = "right release"; break; 
+                        case key_mouse_wheel: key_str = "mouse wheel"; break;
+                        case key_mouse_move: key_str = "mouse move"; break;
+                        case key_animate: key_str = "animate"; break;
                         case key_f1: key_str = "f1"; break; 
                         case key_f2: key_str = "f2"; break; 
                         case key_f3: key_str = "f3"; break; 

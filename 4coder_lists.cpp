@@ -313,7 +313,7 @@ begin_integrated_lister__with_refresh_handler(Application_Links *app, char *quer
     if (handlers.refresh != 0){
         Partition *scratch = &global_part;
         Heap *heap = &global_heap;
-        view_start_ui_mode(app, view);
+        view_begin_ui_mode(app, view);
         view_set_setting(app, view, ViewSetting_UICommandMap, default_lister_ui_map);
         Lister_State *state = view_get_lister_state(view);
         init_lister_state(state, heap);
@@ -342,7 +342,7 @@ begin_integrated_lister__basic_list(Application_Links *app, char *query_string,
                                     View_Summary *view){
     Partition *scratch = &global_part;
     Heap *heap = &global_heap;
-    view_start_ui_mode(app, view);
+    view_begin_ui_mode(app, view);
     view_set_setting(app, view, ViewSetting_UICommandMap, default_lister_ui_map);
     Lister_State *state = view_get_lister_state(view);
     int32_t arena_size = (user_data_size + option_count*sizeof(Lister_Node) + estimated_string_space_size);
@@ -373,7 +373,7 @@ begin_integrated_lister__with_fixed_options(Application_Links *app, char *query_
                                             View_Summary *view){
     Partition *scratch = &global_part;
     Heap *heap = &global_heap;
-    view_start_ui_mode(app, view);
+    view_begin_ui_mode(app, view);
     view_set_setting(app, view, ViewSetting_UICommandMap, default_lister_ui_map);
     Lister_State *state = view_get_lister_state(view);
     init_lister_state(state, heap);
@@ -416,7 +416,7 @@ begin_integrated_lister__ui_list(Application_Links *app, char *query_string,
                                  View_Summary *view){
     Partition *scratch = &global_part;
     Heap *heap = &global_heap;
-    view_start_ui_mode(app, view);
+    view_begin_ui_mode(app, view);
     view_set_setting(app, view, ViewSetting_UICommandMap, default_lister_ui_map);
     Lister_State *state = view_get_lister_state(view);
     init_lister_state(state, heap);

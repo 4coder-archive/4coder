@@ -185,19 +185,19 @@ insert_u32_Ptr_table(Heap *heap, Dynamic_Memory_Bank *mem_bank, u32_Ptr_Table *t
 ////////////////////////////////
 
 internal void
-marker_visuals_allocator_init(Marker_Visuals_Allocator *allocator){
+marker_visual_allocator_init(Marker_Visual_Allocator *allocator){
     memset(allocator, 0, sizeof(*allocator));
 }
 
-internal Marker_Visuals_Data*
-dynamic_workspace_alloc_visuals(Heap *heap, Dynamic_Memory_Bank *mem_bank, Dynamic_Workspace *workspace){
-    Marker_Visuals_Allocator *allocator = &workspace->visuals_allocator;
+internal Marker_Visual_Data*
+dynamic_workspace_alloc_visual(Heap *heap, Dynamic_Memory_Bank *mem_bank, Dynamic_Workspace *workspace){
+    Marker_Visual_Allocator *allocator = &workspace->visual_allocator;
     if (allocator->free_count == 0){
         i32 new_slots_count = clamp_bottom(16, allocator->total_visual_count);
-        i32 memsize = new_slots_count*sizeof(Marker_Visuals_Data);
+        i32 memsize = new_slots_count*sizeof(Marker_Visual_Data);
         void *new_slots_memory = dynamic_memory_bank_allocate(heap, mem_bank, memsize);
         memset(new_slots_memory, 0, memsize);
-        Marker_Visuals_Data *new_slot = (Marker_Visuals_Data*)new_slots_memory;
+        Marker_Visual_Data *new_slot = (Marker_Visual_Data*)new_slots_memory;
         allocator->free_count += new_slots_count;
         allocator->total_visual_count += new_slots_count;
         for (i32 i = 0; i < new_slots_count; i += 1, new_slot += 1){
@@ -206,7 +206,7 @@ dynamic_workspace_alloc_visuals(Heap *heap, Dynamic_Memory_Bank *mem_bank, Dynam
             insert_u32_Ptr_table(heap, mem_bank, &allocator->id_to_ptr_table, new_slot->slot_id, new_slot);
         }
     }
-    Marker_Visuals_Data *data = allocator->free_first;
+    Marker_Visual_Data *data = allocator->free_first;
     zdll_remove(allocator->free_first, allocator->free_last, data);
     allocator->free_count -= 1;
     data->gen_id += 1;
@@ -214,13 +214,13 @@ dynamic_workspace_alloc_visuals(Heap *heap, Dynamic_Memory_Bank *mem_bank, Dynam
 }
 
 internal void
-marker_visuals_free(Marker_Visuals_Allocator *allocator, Marker_Visuals_Data *data){
+marker_visual_free(Marker_Visual_Allocator *allocator, Marker_Visual_Data *data){
     zdll_push_back(allocator->free_first, allocator->free_last, data);
     allocator->free_count += 1;
 }
 
 internal void
-marker_visuals_free_chain(Marker_Visuals_Allocator *allocator, Marker_Visuals_Data *first, Marker_Visuals_Data *last, i32 count){
+marker_visual_free_chain(Marker_Visual_Allocator *allocator, Marker_Visual_Data *first, Marker_Visual_Data *last, i32 count){
     if (allocator->free_first == 0){
         allocator->free_first = first;
         allocator->free_last = last;
@@ -234,8 +234,8 @@ marker_visuals_free_chain(Marker_Visuals_Allocator *allocator, Marker_Visuals_Da
 }
 
 internal void
-marker_visuals_defaults(Marker_Visuals_Data *data){
-    data->type = BufferMarkersType_Invisible;
+marker_visual_defaults(Marker_Visual_Data *data){
+    data->type = VisualType_Invisible;
     data->color = 0;
     data->text_color = 0;
     data->text_style = 0;
@@ -255,7 +255,7 @@ dynamic_workspace_init(Heap *heap, Lifetime_Allocator *lifetime_allocator, i32 u
     memset(workspace, 0, sizeof(*workspace));
     dynamic_variables_block_init(heap, &workspace->var_block);
     dynamic_memory_bank_init(heap, &workspace->mem_bank);
-    marker_visuals_allocator_init(&workspace->visuals_allocator);
+    marker_visual_allocator_init(&workspace->visual_allocator);
     if (lifetime_allocator->scope_id_counter == 0){
         lifetime_allocator->scope_id_counter = 1;
     }
@@ -280,7 +280,7 @@ dynamic_workspace_clear_contents(Heap *heap, Dynamic_Workspace *workspace){
     memset(&workspace->buffer_markers_list, 0, sizeof(workspace->buffer_markers_list));
     dynamic_variables_block_init(heap, &workspace->var_block);
     dynamic_memory_bank_init(heap, &workspace->mem_bank);
-    marker_visuals_allocator_init(&workspace->visuals_allocator);
+    marker_visual_allocator_init(&workspace->visual_allocator);
 }
 
 internal u32
@@ -307,11 +307,11 @@ dynamic_workspace_get_pointer(Dynamic_Workspace *workspace, u32 id){
     return(0);
 }
 
-internal Marker_Visuals_Data*
-dynamic_workspace_get_visuals_pointer(Dynamic_Workspace *workspace, u32 slot_id, u32 gen_id){
+internal Marker_Visual_Data*
+dynamic_workspace_get_visual_pointer(Dynamic_Workspace *workspace, u32 slot_id, u32 gen_id){
     void *data_ptr = 0;
-    if (lookup_u32_Ptr_table(&workspace->visuals_allocator.id_to_ptr_table, slot_id, &data_ptr)){
-        Marker_Visuals_Data *data = (Marker_Visuals_Data*)data_ptr;
+    if (lookup_u32_Ptr_table(&workspace->visual_allocator.id_to_ptr_table, slot_id, &data_ptr)){
+        Marker_Visual_Data *data = (Marker_Visual_Data*)data_ptr;
         if (data->gen_id == gen_id){
             void *object_ptr = dynamic_workspace_get_pointer(workspace, data->owner_object&max_u32);
             if (object_ptr != 0){

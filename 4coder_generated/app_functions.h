@@ -45,32 +45,31 @@ struct Application_Links;
 #define VIEW_SET_HIGHLIGHT_SIG(n) bool32 n(Application_Links *app, View_Summary *view, int32_t start, int32_t end, bool32 turn_on)
 #define VIEW_SET_BUFFER_SIG(n) bool32 n(Application_Links *app, View_Summary *view, Buffer_ID buffer_id, Set_Buffer_Flag flags)
 #define VIEW_POST_FADE_SIG(n) bool32 n(Application_Links *app, View_Summary *view, float seconds, int32_t start, int32_t end, int_color color)
-#define VIEW_START_UI_MODE_SIG(n) bool32 n(Application_Links *app, View_Summary *view)
+#define VIEW_BEGIN_UI_MODE_SIG(n) bool32 n(Application_Links *app, View_Summary *view)
 #define VIEW_END_UI_MODE_SIG(n) int32_t n(Application_Links *app, View_Summary *view)
 #define VIEW_SET_UI_SIG(n) bool32 n(Application_Links *app, View_Summary *view, UI_Control *control, UI_Quit_Function_Type *quit_function)
 #define VIEW_GET_UI_COPY_SIG(n) UI_Control n(Application_Links *app, View_Summary *view, struct Partition *part)
 #define CREATE_USER_MANAGED_SCOPE_SIG(n) Managed_Scope n(Application_Links *app)
 #define DESTROY_USER_MANAGED_SCOPE_SIG(n) bool32 n(Application_Links *app, Managed_Scope scope)
 #define GET_GLOBAL_MANAGED_SCOPE_SIG(n) Managed_Scope n(Application_Links *app)
-#define GET_MANAGED_SCOPE_WITH_MULTIPLE_DEPENDENCIES_SIG(n) Managed_Scope n(Application_Links *app, Managed_Scope *intersected_scopes, int32_t count)
+#define GET_MANAGED_SCOPE_WITH_MULTIPLE_DEPENDENCIES_SIG(n) Managed_Scope n(Application_Links *app, Managed_Scope *scopes, int32_t count)
 #define MANAGED_SCOPE_CLEAR_CONTENTS_SIG(n) bool32 n(Application_Links *app, Managed_Scope scope)
-#define CLEAR_MANAGED_SCOPE_SIG(n) bool32 n(Application_Links *app, Managed_Scope scope)
-#define CLEAR_MANAGED_SCOPE_AND_ALL_DEPENDENT_SCOPES_SIG(n) bool32 n(Application_Links *app, Managed_Scope scope)
+#define MANAGED_SCOPE_CLEAR_SELF_ALL_DEPENDENT_SCOPES_SIG(n) bool32 n(Application_Links *app, Managed_Scope scope)
 #define MANAGED_VARIABLE_CREATE_SIG(n) Managed_Variable_ID n(Application_Links *app, char *null_terminated_name, uint64_t default_value)
 #define MANAGED_VARIABLE_GET_ID_SIG(n) Managed_Variable_ID n(Application_Links *app, char *null_terminated_name)
 #define MANAGED_VARIABLE_CREATE_OR_GET_ID_SIG(n) Managed_Variable_ID n(Application_Links *app, char *null_terminated_name, uint64_t default_value)
-#define MANAGED_VARIABLE_SET_SIG(n) bool32 n(Application_Links *app, Managed_Scope scope, Managed_Variable_ID location, uint64_t value)
-#define MANAGED_VARIABLE_GET_SIG(n) bool32 n(Application_Links *app, Managed_Scope scope, Managed_Variable_ID location, uint64_t *value_out)
+#define MANAGED_VARIABLE_SET_SIG(n) bool32 n(Application_Links *app, Managed_Scope scope, Managed_Variable_ID id, uint64_t value)
+#define MANAGED_VARIABLE_GET_SIG(n) bool32 n(Application_Links *app, Managed_Scope scope, Managed_Variable_ID id, uint64_t *value_out)
 #define ALLOC_MANAGED_MEMORY_IN_SCOPE_SIG(n) Managed_Object n(Application_Links *app, Managed_Scope scope, int32_t item_size, int32_t count)
 #define ALLOC_BUFFER_MARKERS_ON_BUFFER_SIG(n) Managed_Object n(Application_Links *app, Buffer_ID buffer_id, int32_t count, Managed_Scope *optional_extra_scope)
-#define CREATE_MARKER_VISUALS_SIG(n) Marker_Visuals n(Application_Links *app, Managed_Object object)
-#define MARKER_VISUALS_SET_LOOK_SIG(n) bool32 n(Application_Links *app, Marker_Visuals visuals, Marker_Visuals_Type type, int_color color, int_color text_color, Marker_Visuals_Text_Style text_style)
-#define MARKER_VISUALS_SET_TAKE_RULE_SIG(n) bool32 n(Application_Links *app, Marker_Visuals visuals, Marker_Visuals_Take_Rule take_rule)
-#define MARKER_VISUALS_SET_PRIORITY_SIG(n) bool32 n(Application_Links *app, Marker_Visuals visuals, Marker_Visuals_Priority_Level priority)
-#define MARKER_VISUALS_SET_VIEW_KEY_SIG(n) bool32 n(Application_Links *app, Marker_Visuals visuals, View_ID key_view_id)
-#define DESTROY_MARKER_VISUALS_SIG(n) bool32 n(Application_Links *app, Marker_Visuals visuals)
-#define BUFFER_MARKERS_GET_ATTACHED_VISUALS_COUNT_SIG(n) int32_t n(Application_Links *app, Managed_Object object)
-#define BUFFER_MARKERS_GET_ATTACHED_VISUALS_SIG(n) Marker_Visuals* n(Application_Links *app, Partition *part, Managed_Object object)
+#define CREATE_MARKER_VISUAL_SIG(n) Marker_Visual n(Application_Links *app, Managed_Object object)
+#define MARKER_VISUAL_SET_EFFECT_SIG(n) bool32 n(Application_Links *app, Marker_Visual visual, Marker_Visual_Type type, int_color color, int_color text_color, Marker_Visual_Text_Style text_style)
+#define MARKER_VISUAL_SET_TAKE_RULE_SIG(n) bool32 n(Application_Links *app, Marker_Visual visual, Marker_Visual_Take_Rule take_rule)
+#define MARKER_VISUAL_SET_PRIORITY_SIG(n) bool32 n(Application_Links *app, Marker_Visual visual, Marker_Visual_Priority_Level priority)
+#define MARKER_VISUAL_SET_VIEW_KEY_SIG(n) bool32 n(Application_Links *app, Marker_Visual visual, View_ID key_view_id)
+#define DESTROY_MARKER_VISUAL_SIG(n) bool32 n(Application_Links *app, Marker_Visual visual)
+#define BUFFER_MARKERS_GET_ATTACHED_VISUAL_COUNT_SIG(n) int32_t n(Application_Links *app, Managed_Object object)
+#define BUFFER_MARKERS_GET_ATTACHED_VISUAL_SIG(n) Marker_Visual* n(Application_Links *app, Partition *part, Managed_Object object)
 #define MANAGED_OBJECT_GET_ITEM_SIZE_SIG(n) uint32_t n(Application_Links *app, Managed_Object object)
 #define MANAGED_OBJECT_GET_ITEM_COUNT_SIG(n) uint32_t n(Application_Links *app, Managed_Object object)
 #define MANAGED_OBJECT_GET_TYPE_SIG(n) Managed_Object_Type n(Application_Links *app, Managed_Object object)
@@ -163,7 +162,7 @@ typedef VIEW_SET_MARK_SIG(View_Set_Mark_Function);
 typedef VIEW_SET_HIGHLIGHT_SIG(View_Set_Highlight_Function);
 typedef VIEW_SET_BUFFER_SIG(View_Set_Buffer_Function);
 typedef VIEW_POST_FADE_SIG(View_Post_Fade_Function);
-typedef VIEW_START_UI_MODE_SIG(View_Start_UI_Mode_Function);
+typedef VIEW_BEGIN_UI_MODE_SIG(View_Begin_UI_Mode_Function);
 typedef VIEW_END_UI_MODE_SIG(View_End_UI_Mode_Function);
 typedef VIEW_SET_UI_SIG(View_Set_UI_Function);
 typedef VIEW_GET_UI_COPY_SIG(View_Get_UI_Copy_Function);
@@ -172,8 +171,7 @@ typedef DESTROY_USER_MANAGED_SCOPE_SIG(Destroy_User_Managed_Scope_Function);
 typedef GET_GLOBAL_MANAGED_SCOPE_SIG(Get_Global_Managed_Scope_Function);
 typedef GET_MANAGED_SCOPE_WITH_MULTIPLE_DEPENDENCIES_SIG(Get_Managed_Scope_With_Multiple_Dependencies_Function);
 typedef MANAGED_SCOPE_CLEAR_CONTENTS_SIG(Managed_Scope_Clear_Contents_Function);
-typedef CLEAR_MANAGED_SCOPE_SIG(Clear_Managed_Scope_Function);
-typedef CLEAR_MANAGED_SCOPE_AND_ALL_DEPENDENT_SCOPES_SIG(Clear_Managed_Scope_And_All_Dependent_Scopes_Function);
+typedef MANAGED_SCOPE_CLEAR_SELF_ALL_DEPENDENT_SCOPES_SIG(Managed_Scope_Clear_Self_All_Dependent_Scopes_Function);
 typedef MANAGED_VARIABLE_CREATE_SIG(Managed_Variable_Create_Function);
 typedef MANAGED_VARIABLE_GET_ID_SIG(Managed_Variable_Get_ID_Function);
 typedef MANAGED_VARIABLE_CREATE_OR_GET_ID_SIG(Managed_Variable_Create_Or_Get_ID_Function);
@@ -181,14 +179,14 @@ typedef MANAGED_VARIABLE_SET_SIG(Managed_Variable_Set_Function);
 typedef MANAGED_VARIABLE_GET_SIG(Managed_Variable_Get_Function);
 typedef ALLOC_MANAGED_MEMORY_IN_SCOPE_SIG(Alloc_Managed_Memory_In_Scope_Function);
 typedef ALLOC_BUFFER_MARKERS_ON_BUFFER_SIG(Alloc_Buffer_Markers_On_Buffer_Function);
-typedef CREATE_MARKER_VISUALS_SIG(Create_Marker_Visuals_Function);
-typedef MARKER_VISUALS_SET_LOOK_SIG(Marker_Visuals_Set_Look_Function);
-typedef MARKER_VISUALS_SET_TAKE_RULE_SIG(Marker_Visuals_Set_Take_Rule_Function);
-typedef MARKER_VISUALS_SET_PRIORITY_SIG(Marker_Visuals_Set_Priority_Function);
-typedef MARKER_VISUALS_SET_VIEW_KEY_SIG(Marker_Visuals_Set_View_Key_Function);
-typedef DESTROY_MARKER_VISUALS_SIG(Destroy_Marker_Visuals_Function);
-typedef BUFFER_MARKERS_GET_ATTACHED_VISUALS_COUNT_SIG(Buffer_Markers_Get_Attached_Visuals_Count_Function);
-typedef BUFFER_MARKERS_GET_ATTACHED_VISUALS_SIG(Buffer_Markers_Get_Attached_Visuals_Function);
+typedef CREATE_MARKER_VISUAL_SIG(Create_Marker_Visual_Function);
+typedef MARKER_VISUAL_SET_EFFECT_SIG(Marker_Visual_Set_Effect_Function);
+typedef MARKER_VISUAL_SET_TAKE_RULE_SIG(Marker_Visual_Set_Take_Rule_Function);
+typedef MARKER_VISUAL_SET_PRIORITY_SIG(Marker_Visual_Set_Priority_Function);
+typedef MARKER_VISUAL_SET_VIEW_KEY_SIG(Marker_Visual_Set_View_Key_Function);
+typedef DESTROY_MARKER_VISUAL_SIG(Destroy_Marker_Visual_Function);
+typedef BUFFER_MARKERS_GET_ATTACHED_VISUAL_COUNT_SIG(Buffer_Markers_Get_Attached_Visual_Count_Function);
+typedef BUFFER_MARKERS_GET_ATTACHED_VISUAL_SIG(Buffer_Markers_Get_Attached_Visual_Function);
 typedef MANAGED_OBJECT_GET_ITEM_SIZE_SIG(Managed_Object_Get_Item_Size_Function);
 typedef MANAGED_OBJECT_GET_ITEM_COUNT_SIG(Managed_Object_Get_Item_Count_Function);
 typedef MANAGED_OBJECT_GET_TYPE_SIG(Managed_Object_Get_Type_Function);
@@ -283,7 +281,7 @@ View_Set_Mark_Function *view_set_mark;
 View_Set_Highlight_Function *view_set_highlight;
 View_Set_Buffer_Function *view_set_buffer;
 View_Post_Fade_Function *view_post_fade;
-View_Start_UI_Mode_Function *view_start_ui_mode;
+View_Begin_UI_Mode_Function *view_begin_ui_mode;
 View_End_UI_Mode_Function *view_end_ui_mode;
 View_Set_UI_Function *view_set_ui;
 View_Get_UI_Copy_Function *view_get_ui_copy;
@@ -292,8 +290,7 @@ Destroy_User_Managed_Scope_Function *destroy_user_managed_scope;
 Get_Global_Managed_Scope_Function *get_global_managed_scope;
 Get_Managed_Scope_With_Multiple_Dependencies_Function *get_managed_scope_with_multiple_dependencies;
 Managed_Scope_Clear_Contents_Function *managed_scope_clear_contents;
-Clear_Managed_Scope_Function *clear_managed_scope;
-Clear_Managed_Scope_And_All_Dependent_Scopes_Function *clear_managed_scope_and_all_dependent_scopes;
+Managed_Scope_Clear_Self_All_Dependent_Scopes_Function *managed_scope_clear_self_all_dependent_scopes;
 Managed_Variable_Create_Function *managed_variable_create;
 Managed_Variable_Get_ID_Function *managed_variable_get_id;
 Managed_Variable_Create_Or_Get_ID_Function *managed_variable_create_or_get_id;
@@ -301,14 +298,14 @@ Managed_Variable_Set_Function *managed_variable_set;
 Managed_Variable_Get_Function *managed_variable_get;
 Alloc_Managed_Memory_In_Scope_Function *alloc_managed_memory_in_scope;
 Alloc_Buffer_Markers_On_Buffer_Function *alloc_buffer_markers_on_buffer;
-Create_Marker_Visuals_Function *create_marker_visuals;
-Marker_Visuals_Set_Look_Function *marker_visuals_set_look;
-Marker_Visuals_Set_Take_Rule_Function *marker_visuals_set_take_rule;
-Marker_Visuals_Set_Priority_Function *marker_visuals_set_priority;
-Marker_Visuals_Set_View_Key_Function *marker_visuals_set_view_key;
-Destroy_Marker_Visuals_Function *destroy_marker_visuals;
-Buffer_Markers_Get_Attached_Visuals_Count_Function *buffer_markers_get_attached_visuals_count;
-Buffer_Markers_Get_Attached_Visuals_Function *buffer_markers_get_attached_visuals;
+Create_Marker_Visual_Function *create_marker_visual;
+Marker_Visual_Set_Effect_Function *marker_visual_set_effect;
+Marker_Visual_Set_Take_Rule_Function *marker_visual_set_take_rule;
+Marker_Visual_Set_Priority_Function *marker_visual_set_priority;
+Marker_Visual_Set_View_Key_Function *marker_visual_set_view_key;
+Destroy_Marker_Visual_Function *destroy_marker_visual;
+Buffer_Markers_Get_Attached_Visual_Count_Function *buffer_markers_get_attached_visual_count;
+Buffer_Markers_Get_Attached_Visual_Function *buffer_markers_get_attached_visual;
 Managed_Object_Get_Item_Size_Function *managed_object_get_item_size;
 Managed_Object_Get_Item_Count_Function *managed_object_get_item_count;
 Managed_Object_Get_Type_Function *managed_object_get_type;
@@ -402,7 +399,7 @@ View_Set_Mark_Function *view_set_mark_;
 View_Set_Highlight_Function *view_set_highlight_;
 View_Set_Buffer_Function *view_set_buffer_;
 View_Post_Fade_Function *view_post_fade_;
-View_Start_UI_Mode_Function *view_start_ui_mode_;
+View_Begin_UI_Mode_Function *view_begin_ui_mode_;
 View_End_UI_Mode_Function *view_end_ui_mode_;
 View_Set_UI_Function *view_set_ui_;
 View_Get_UI_Copy_Function *view_get_ui_copy_;
@@ -411,8 +408,7 @@ Destroy_User_Managed_Scope_Function *destroy_user_managed_scope_;
 Get_Global_Managed_Scope_Function *get_global_managed_scope_;
 Get_Managed_Scope_With_Multiple_Dependencies_Function *get_managed_scope_with_multiple_dependencies_;
 Managed_Scope_Clear_Contents_Function *managed_scope_clear_contents_;
-Clear_Managed_Scope_Function *clear_managed_scope_;
-Clear_Managed_Scope_And_All_Dependent_Scopes_Function *clear_managed_scope_and_all_dependent_scopes_;
+Managed_Scope_Clear_Self_All_Dependent_Scopes_Function *managed_scope_clear_self_all_dependent_scopes_;
 Managed_Variable_Create_Function *managed_variable_create_;
 Managed_Variable_Get_ID_Function *managed_variable_get_id_;
 Managed_Variable_Create_Or_Get_ID_Function *managed_variable_create_or_get_id_;
@@ -420,14 +416,14 @@ Managed_Variable_Set_Function *managed_variable_set_;
 Managed_Variable_Get_Function *managed_variable_get_;
 Alloc_Managed_Memory_In_Scope_Function *alloc_managed_memory_in_scope_;
 Alloc_Buffer_Markers_On_Buffer_Function *alloc_buffer_markers_on_buffer_;
-Create_Marker_Visuals_Function *create_marker_visuals_;
-Marker_Visuals_Set_Look_Function *marker_visuals_set_look_;
-Marker_Visuals_Set_Take_Rule_Function *marker_visuals_set_take_rule_;
-Marker_Visuals_Set_Priority_Function *marker_visuals_set_priority_;
-Marker_Visuals_Set_View_Key_Function *marker_visuals_set_view_key_;
-Destroy_Marker_Visuals_Function *destroy_marker_visuals_;
-Buffer_Markers_Get_Attached_Visuals_Count_Function *buffer_markers_get_attached_visuals_count_;
-Buffer_Markers_Get_Attached_Visuals_Function *buffer_markers_get_attached_visuals_;
+Create_Marker_Visual_Function *create_marker_visual_;
+Marker_Visual_Set_Effect_Function *marker_visual_set_effect_;
+Marker_Visual_Set_Take_Rule_Function *marker_visual_set_take_rule_;
+Marker_Visual_Set_Priority_Function *marker_visual_set_priority_;
+Marker_Visual_Set_View_Key_Function *marker_visual_set_view_key_;
+Destroy_Marker_Visual_Function *destroy_marker_visual_;
+Buffer_Markers_Get_Attached_Visual_Count_Function *buffer_markers_get_attached_visual_count_;
+Buffer_Markers_Get_Attached_Visual_Function *buffer_markers_get_attached_visual_;
 Managed_Object_Get_Item_Size_Function *managed_object_get_item_size_;
 Managed_Object_Get_Item_Count_Function *managed_object_get_item_count_;
 Managed_Object_Get_Type_Function *managed_object_get_type_;
@@ -529,7 +525,7 @@ app_links->view_set_mark_ = View_Set_Mark;\
 app_links->view_set_highlight_ = View_Set_Highlight;\
 app_links->view_set_buffer_ = View_Set_Buffer;\
 app_links->view_post_fade_ = View_Post_Fade;\
-app_links->view_start_ui_mode_ = View_Start_UI_Mode;\
+app_links->view_begin_ui_mode_ = View_Begin_UI_Mode;\
 app_links->view_end_ui_mode_ = View_End_UI_Mode;\
 app_links->view_set_ui_ = View_Set_UI;\
 app_links->view_get_ui_copy_ = View_Get_UI_Copy;\
@@ -538,8 +534,7 @@ app_links->destroy_user_managed_scope_ = Destroy_User_Managed_Scope;\
 app_links->get_global_managed_scope_ = Get_Global_Managed_Scope;\
 app_links->get_managed_scope_with_multiple_dependencies_ = Get_Managed_Scope_With_Multiple_Dependencies;\
 app_links->managed_scope_clear_contents_ = Managed_Scope_Clear_Contents;\
-app_links->clear_managed_scope_ = Clear_Managed_Scope;\
-app_links->clear_managed_scope_and_all_dependent_scopes_ = Clear_Managed_Scope_And_All_Dependent_Scopes;\
+app_links->managed_scope_clear_self_all_dependent_scopes_ = Managed_Scope_Clear_Self_All_Dependent_Scopes;\
 app_links->managed_variable_create_ = Managed_Variable_Create;\
 app_links->managed_variable_get_id_ = Managed_Variable_Get_ID;\
 app_links->managed_variable_create_or_get_id_ = Managed_Variable_Create_Or_Get_ID;\
@@ -547,14 +542,14 @@ app_links->managed_variable_set_ = Managed_Variable_Set;\
 app_links->managed_variable_get_ = Managed_Variable_Get;\
 app_links->alloc_managed_memory_in_scope_ = Alloc_Managed_Memory_In_Scope;\
 app_links->alloc_buffer_markers_on_buffer_ = Alloc_Buffer_Markers_On_Buffer;\
-app_links->create_marker_visuals_ = Create_Marker_Visuals;\
-app_links->marker_visuals_set_look_ = Marker_Visuals_Set_Look;\
-app_links->marker_visuals_set_take_rule_ = Marker_Visuals_Set_Take_Rule;\
-app_links->marker_visuals_set_priority_ = Marker_Visuals_Set_Priority;\
-app_links->marker_visuals_set_view_key_ = Marker_Visuals_Set_View_Key;\
-app_links->destroy_marker_visuals_ = Destroy_Marker_Visuals;\
-app_links->buffer_markers_get_attached_visuals_count_ = Buffer_Markers_Get_Attached_Visuals_Count;\
-app_links->buffer_markers_get_attached_visuals_ = Buffer_Markers_Get_Attached_Visuals;\
+app_links->create_marker_visual_ = Create_Marker_Visual;\
+app_links->marker_visual_set_effect_ = Marker_Visual_Set_Effect;\
+app_links->marker_visual_set_take_rule_ = Marker_Visual_Set_Take_Rule;\
+app_links->marker_visual_set_priority_ = Marker_Visual_Set_Priority;\
+app_links->marker_visual_set_view_key_ = Marker_Visual_Set_View_Key;\
+app_links->destroy_marker_visual_ = Destroy_Marker_Visual;\
+app_links->buffer_markers_get_attached_visual_count_ = Buffer_Markers_Get_Attached_Visual_Count;\
+app_links->buffer_markers_get_attached_visual_ = Buffer_Markers_Get_Attached_Visual;\
 app_links->managed_object_get_item_size_ = Managed_Object_Get_Item_Size;\
 app_links->managed_object_get_item_count_ = Managed_Object_Get_Item_Count;\
 app_links->managed_object_get_type_ = Managed_Object_Get_Type;\
@@ -648,32 +643,31 @@ static inline bool32 view_set_mark(Application_Links *app, View_Summary *view, B
 static inline bool32 view_set_highlight(Application_Links *app, View_Summary *view, int32_t start, int32_t end, bool32 turn_on){return(app->view_set_highlight(app, view, start, end, turn_on));}
 static inline bool32 view_set_buffer(Application_Links *app, View_Summary *view, Buffer_ID buffer_id, Set_Buffer_Flag flags){return(app->view_set_buffer(app, view, buffer_id, flags));}
 static inline bool32 view_post_fade(Application_Links *app, View_Summary *view, float seconds, int32_t start, int32_t end, int_color color){return(app->view_post_fade(app, view, seconds, start, end, color));}
-static inline bool32 view_start_ui_mode(Application_Links *app, View_Summary *view){return(app->view_start_ui_mode(app, view));}
+static inline bool32 view_begin_ui_mode(Application_Links *app, View_Summary *view){return(app->view_begin_ui_mode(app, view));}
 static inline int32_t view_end_ui_mode(Application_Links *app, View_Summary *view){return(app->view_end_ui_mode(app, view));}
 static inline bool32 view_set_ui(Application_Links *app, View_Summary *view, UI_Control *control, UI_Quit_Function_Type *quit_function){return(app->view_set_ui(app, view, control, quit_function));}
 static inline UI_Control view_get_ui_copy(Application_Links *app, View_Summary *view, struct Partition *part){return(app->view_get_ui_copy(app, view, part));}
 static inline Managed_Scope create_user_managed_scope(Application_Links *app){return(app->create_user_managed_scope(app));}
 static inline bool32 destroy_user_managed_scope(Application_Links *app, Managed_Scope scope){return(app->destroy_user_managed_scope(app, scope));}
 static inline Managed_Scope get_global_managed_scope(Application_Links *app){return(app->get_global_managed_scope(app));}
-static inline Managed_Scope get_managed_scope_with_multiple_dependencies(Application_Links *app, Managed_Scope *intersected_scopes, int32_t count){return(app->get_managed_scope_with_multiple_dependencies(app, intersected_scopes, count));}
+static inline Managed_Scope get_managed_scope_with_multiple_dependencies(Application_Links *app, Managed_Scope *scopes, int32_t count){return(app->get_managed_scope_with_multiple_dependencies(app, scopes, count));}
 static inline bool32 managed_scope_clear_contents(Application_Links *app, Managed_Scope scope){return(app->managed_scope_clear_contents(app, scope));}
-static inline bool32 clear_managed_scope(Application_Links *app, Managed_Scope scope){return(app->clear_managed_scope(app, scope));}
-static inline bool32 clear_managed_scope_and_all_dependent_scopes(Application_Links *app, Managed_Scope scope){return(app->clear_managed_scope_and_all_dependent_scopes(app, scope));}
+static inline bool32 managed_scope_clear_self_all_dependent_scopes(Application_Links *app, Managed_Scope scope){return(app->managed_scope_clear_self_all_dependent_scopes(app, scope));}
 static inline Managed_Variable_ID managed_variable_create(Application_Links *app, char *null_terminated_name, uint64_t default_value){return(app->managed_variable_create(app, null_terminated_name, default_value));}
 static inline Managed_Variable_ID managed_variable_get_id(Application_Links *app, char *null_terminated_name){return(app->managed_variable_get_id(app, null_terminated_name));}
 static inline Managed_Variable_ID managed_variable_create_or_get_id(Application_Links *app, char *null_terminated_name, uint64_t default_value){return(app->managed_variable_create_or_get_id(app, null_terminated_name, default_value));}
-static inline bool32 managed_variable_set(Application_Links *app, Managed_Scope scope, Managed_Variable_ID location, uint64_t value){return(app->managed_variable_set(app, scope, location, value));}
-static inline bool32 managed_variable_get(Application_Links *app, Managed_Scope scope, Managed_Variable_ID location, uint64_t *value_out){return(app->managed_variable_get(app, scope, location, value_out));}
+static inline bool32 managed_variable_set(Application_Links *app, Managed_Scope scope, Managed_Variable_ID id, uint64_t value){return(app->managed_variable_set(app, scope, id, value));}
+static inline bool32 managed_variable_get(Application_Links *app, Managed_Scope scope, Managed_Variable_ID id, uint64_t *value_out){return(app->managed_variable_get(app, scope, id, value_out));}
 static inline Managed_Object alloc_managed_memory_in_scope(Application_Links *app, Managed_Scope scope, int32_t item_size, int32_t count){return(app->alloc_managed_memory_in_scope(app, scope, item_size, count));}
 static inline Managed_Object alloc_buffer_markers_on_buffer(Application_Links *app, Buffer_ID buffer_id, int32_t count, Managed_Scope *optional_extra_scope){return(app->alloc_buffer_markers_on_buffer(app, buffer_id, count, optional_extra_scope));}
-static inline Marker_Visuals create_marker_visuals(Application_Links *app, Managed_Object object){return(app->create_marker_visuals(app, object));}
-static inline bool32 marker_visuals_set_look(Application_Links *app, Marker_Visuals visuals, Marker_Visuals_Type type, int_color color, int_color text_color, Marker_Visuals_Text_Style text_style){return(app->marker_visuals_set_look(app, visuals, type, color, text_color, text_style));}
-static inline bool32 marker_visuals_set_take_rule(Application_Links *app, Marker_Visuals visuals, Marker_Visuals_Take_Rule take_rule){return(app->marker_visuals_set_take_rule(app, visuals, take_rule));}
-static inline bool32 marker_visuals_set_priority(Application_Links *app, Marker_Visuals visuals, Marker_Visuals_Priority_Level priority){return(app->marker_visuals_set_priority(app, visuals, priority));}
-static inline bool32 marker_visuals_set_view_key(Application_Links *app, Marker_Visuals visuals, View_ID key_view_id){return(app->marker_visuals_set_view_key(app, visuals, key_view_id));}
-static inline bool32 destroy_marker_visuals(Application_Links *app, Marker_Visuals visuals){return(app->destroy_marker_visuals(app, visuals));}
-static inline int32_t buffer_markers_get_attached_visuals_count(Application_Links *app, Managed_Object object){return(app->buffer_markers_get_attached_visuals_count(app, object));}
-static inline Marker_Visuals* buffer_markers_get_attached_visuals(Application_Links *app, Partition *part, Managed_Object object){return(app->buffer_markers_get_attached_visuals(app, part, object));}
+static inline Marker_Visual create_marker_visual(Application_Links *app, Managed_Object object){return(app->create_marker_visual(app, object));}
+static inline bool32 marker_visual_set_effect(Application_Links *app, Marker_Visual visual, Marker_Visual_Type type, int_color color, int_color text_color, Marker_Visual_Text_Style text_style){return(app->marker_visual_set_effect(app, visual, type, color, text_color, text_style));}
+static inline bool32 marker_visual_set_take_rule(Application_Links *app, Marker_Visual visual, Marker_Visual_Take_Rule take_rule){return(app->marker_visual_set_take_rule(app, visual, take_rule));}
+static inline bool32 marker_visual_set_priority(Application_Links *app, Marker_Visual visual, Marker_Visual_Priority_Level priority){return(app->marker_visual_set_priority(app, visual, priority));}
+static inline bool32 marker_visual_set_view_key(Application_Links *app, Marker_Visual visual, View_ID key_view_id){return(app->marker_visual_set_view_key(app, visual, key_view_id));}
+static inline bool32 destroy_marker_visual(Application_Links *app, Marker_Visual visual){return(app->destroy_marker_visual(app, visual));}
+static inline int32_t buffer_markers_get_attached_visual_count(Application_Links *app, Managed_Object object){return(app->buffer_markers_get_attached_visual_count(app, object));}
+static inline Marker_Visual* buffer_markers_get_attached_visual(Application_Links *app, Partition *part, Managed_Object object){return(app->buffer_markers_get_attached_visual(app, part, object));}
 static inline uint32_t managed_object_get_item_size(Application_Links *app, Managed_Object object){return(app->managed_object_get_item_size(app, object));}
 static inline uint32_t managed_object_get_item_count(Application_Links *app, Managed_Object object){return(app->managed_object_get_item_count(app, object));}
 static inline Managed_Object_Type managed_object_get_type(Application_Links *app, Managed_Object object){return(app->managed_object_get_type(app, object));}
@@ -767,32 +761,31 @@ static inline bool32 view_set_mark(Application_Links *app, View_Summary *view, B
 static inline bool32 view_set_highlight(Application_Links *app, View_Summary *view, int32_t start, int32_t end, bool32 turn_on){return(app->view_set_highlight_(app, view, start, end, turn_on));}
 static inline bool32 view_set_buffer(Application_Links *app, View_Summary *view, Buffer_ID buffer_id, Set_Buffer_Flag flags){return(app->view_set_buffer_(app, view, buffer_id, flags));}
 static inline bool32 view_post_fade(Application_Links *app, View_Summary *view, float seconds, int32_t start, int32_t end, int_color color){return(app->view_post_fade_(app, view, seconds, start, end, color));}
-static inline bool32 view_start_ui_mode(Application_Links *app, View_Summary *view){return(app->view_start_ui_mode_(app, view));}
+static inline bool32 view_begin_ui_mode(Application_Links *app, View_Summary *view){return(app->view_begin_ui_mode_(app, view));}
 static inline int32_t view_end_ui_mode(Application_Links *app, View_Summary *view){return(app->view_end_ui_mode_(app, view));}
 static inline bool32 view_set_ui(Application_Links *app, View_Summary *view, UI_Control *control, UI_Quit_Function_Type *quit_function){return(app->view_set_ui_(app, view, control, quit_function));}
 static inline UI_Control view_get_ui_copy(Application_Links *app, View_Summary *view, struct Partition *part){return(app->view_get_ui_copy_(app, view, part));}
 static inline Managed_Scope create_user_managed_scope(Application_Links *app){return(app->create_user_managed_scope_(app));}
 static inline bool32 destroy_user_managed_scope(Application_Links *app, Managed_Scope scope){return(app->destroy_user_managed_scope_(app, scope));}
 static inline Managed_Scope get_global_managed_scope(Application_Links *app){return(app->get_global_managed_scope_(app));}
-static inline Managed_Scope get_managed_scope_with_multiple_dependencies(Application_Links *app, Managed_Scope *intersected_scopes, int32_t count){return(app->get_managed_scope_with_multiple_dependencies_(app, intersected_scopes, count));}
+static inline Managed_Scope get_managed_scope_with_multiple_dependencies(Application_Links *app, Managed_Scope *scopes, int32_t count){return(app->get_managed_scope_with_multiple_dependencies_(app, scopes, count));}
 static inline bool32 managed_scope_clear_contents(Application_Links *app, Managed_Scope scope){return(app->managed_scope_clear_contents_(app, scope));}
-static inline bool32 clear_managed_scope(Application_Links *app, Managed_Scope scope){return(app->clear_managed_scope_(app, scope));}
-static inline bool32 clear_managed_scope_and_all_dependent_scopes(Application_Links *app, Managed_Scope scope){return(app->clear_managed_scope_and_all_dependent_scopes_(app, scope));}
+static inline bool32 managed_scope_clear_self_all_dependent_scopes(Application_Links *app, Managed_Scope scope){return(app->managed_scope_clear_self_all_dependent_scopes_(app, scope));}
 static inline Managed_Variable_ID managed_variable_create(Application_Links *app, char *null_terminated_name, uint64_t default_value){return(app->managed_variable_create_(app, null_terminated_name, default_value));}
 static inline Managed_Variable_ID managed_variable_get_id(Application_Links *app, char *null_terminated_name){return(app->managed_variable_get_id_(app, null_terminated_name));}
 static inline Managed_Variable_ID managed_variable_create_or_get_id(Application_Links *app, char *null_terminated_name, uint64_t default_value){return(app->managed_variable_create_or_get_id_(app, null_terminated_name, default_value));}
-static inline bool32 managed_variable_set(Application_Links *app, Managed_Scope scope, Managed_Variable_ID location, uint64_t value){return(app->managed_variable_set_(app, scope, location, value));}
-static inline bool32 managed_variable_get(Application_Links *app, Managed_Scope scope, Managed_Variable_ID location, uint64_t *value_out){return(app->managed_variable_get_(app, scope, location, value_out));}
+static inline bool32 managed_variable_set(Application_Links *app, Managed_Scope scope, Managed_Variable_ID id, uint64_t value){return(app->managed_variable_set_(app, scope, id, value));}
+static inline bool32 managed_variable_get(Application_Links *app, Managed_Scope scope, Managed_Variable_ID id, uint64_t *value_out){return(app->managed_variable_get_(app, scope, id, value_out));}
 static inline Managed_Object alloc_managed_memory_in_scope(Application_Links *app, Managed_Scope scope, int32_t item_size, int32_t count){return(app->alloc_managed_memory_in_scope_(app, scope, item_size, count));}
 static inline Managed_Object alloc_buffer_markers_on_buffer(Application_Links *app, Buffer_ID buffer_id, int32_t count, Managed_Scope *optional_extra_scope){return(app->alloc_buffer_markers_on_buffer_(app, buffer_id, count, optional_extra_scope));}
-static inline Marker_Visuals create_marker_visuals(Application_Links *app, Managed_Object object){return(app->create_marker_visuals_(app, object));}
-static inline bool32 marker_visuals_set_look(Application_Links *app, Marker_Visuals visuals, Marker_Visuals_Type type, int_color color, int_color text_color, Marker_Visuals_Text_Style text_style){return(app->marker_visuals_set_look_(app, visuals, type, color, text_color, text_style));}
-static inline bool32 marker_visuals_set_take_rule(Application_Links *app, Marker_Visuals visuals, Marker_Visuals_Take_Rule take_rule){return(app->marker_visuals_set_take_rule_(app, visuals, take_rule));}
-static inline bool32 marker_visuals_set_priority(Application_Links *app, Marker_Visuals visuals, Marker_Visuals_Priority_Level priority){return(app->marker_visuals_set_priority_(app, visuals, priority));}
-static inline bool32 marker_visuals_set_view_key(Application_Links *app, Marker_Visuals visuals, View_ID key_view_id){return(app->marker_visuals_set_view_key_(app, visuals, key_view_id));}
-static inline bool32 destroy_marker_visuals(Application_Links *app, Marker_Visuals visuals){return(app->destroy_marker_visuals_(app, visuals));}
-static inline int32_t buffer_markers_get_attached_visuals_count(Application_Links *app, Managed_Object object){return(app->buffer_markers_get_attached_visuals_count_(app, object));}
-static inline Marker_Visuals* buffer_markers_get_attached_visuals(Application_Links *app, Partition *part, Managed_Object object){return(app->buffer_markers_get_attached_visuals_(app, part, object));}
+static inline Marker_Visual create_marker_visual(Application_Links *app, Managed_Object object){return(app->create_marker_visual_(app, object));}
+static inline bool32 marker_visual_set_effect(Application_Links *app, Marker_Visual visual, Marker_Visual_Type type, int_color color, int_color text_color, Marker_Visual_Text_Style text_style){return(app->marker_visual_set_effect_(app, visual, type, color, text_color, text_style));}
+static inline bool32 marker_visual_set_take_rule(Application_Links *app, Marker_Visual visual, Marker_Visual_Take_Rule take_rule){return(app->marker_visual_set_take_rule_(app, visual, take_rule));}
+static inline bool32 marker_visual_set_priority(Application_Links *app, Marker_Visual visual, Marker_Visual_Priority_Level priority){return(app->marker_visual_set_priority_(app, visual, priority));}
+static inline bool32 marker_visual_set_view_key(Application_Links *app, Marker_Visual visual, View_ID key_view_id){return(app->marker_visual_set_view_key_(app, visual, key_view_id));}
+static inline bool32 destroy_marker_visual(Application_Links *app, Marker_Visual visual){return(app->destroy_marker_visual_(app, visual));}
+static inline int32_t buffer_markers_get_attached_visual_count(Application_Links *app, Managed_Object object){return(app->buffer_markers_get_attached_visual_count_(app, object));}
+static inline Marker_Visual* buffer_markers_get_attached_visual(Application_Links *app, Partition *part, Managed_Object object){return(app->buffer_markers_get_attached_visual_(app, part, object));}
 static inline uint32_t managed_object_get_item_size(Application_Links *app, Managed_Object object){return(app->managed_object_get_item_size_(app, object));}
 static inline uint32_t managed_object_get_item_count(Application_Links *app, Managed_Object object){return(app->managed_object_get_item_count_(app, object));}
 static inline Managed_Object_Type managed_object_get_type(Application_Links *app, Managed_Object object){return(app->managed_object_get_type_(app, object));}
