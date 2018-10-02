@@ -76,8 +76,6 @@ struct Editing_File_State{
     i32 wrap_position_count;
     i32 wrap_position_max;
     
-    i32 total_marker_count;
-    
     Undo_Data undo;
     
     Cpp_Token_Array token_array;

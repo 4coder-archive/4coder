@@ -121,6 +121,7 @@ struct Dynamic_Workspace{
     i32 user_type;
     void *user_back_ptr;
     Managed_Buffer_Markers_Header_List buffer_markers_list;
+    i32 total_marker_count;
 };
 
 ////////////////////////////////

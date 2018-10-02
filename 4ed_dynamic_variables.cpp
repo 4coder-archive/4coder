@@ -278,6 +278,7 @@ dynamic_workspace_clear_contents(Heap *heap, Dynamic_Workspace *workspace){
     dynamic_memory_bank_free_all(heap, &workspace->mem_bank);
     memset(&workspace->object_id_to_object_ptr, 0, sizeof(workspace->object_id_to_object_ptr));
     memset(&workspace->buffer_markers_list, 0, sizeof(workspace->buffer_markers_list));
+    workspace->total_marker_count = 0;
     dynamic_variables_block_init(heap, &workspace->var_block);
     dynamic_memory_bank_init(heap, &workspace->mem_bank);
     marker_visual_allocator_init(&workspace->visual_allocator);

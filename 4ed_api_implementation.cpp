@@ -2652,11 +2652,11 @@ DOC_SEE(Marker)
         header->std_header.count = count;
         zdll_push_back(workspace->buffer_markers_list.first, workspace->buffer_markers_list.last, header);
         workspace->buffer_markers_list.count += 1;
+        workspace->total_marker_count += count;
         header->buffer_id = buffer_id;
         header->visual_first = 0;
         header->visual_last = 0;
         header->visual_count = 0;
-        file->state.total_marker_count += count;
         u32 id = dynamic_workspace_store_pointer(heap, workspace, ptr);
         result = ((u64)markers_scope << 32) | (u64)id;
     }
@@ -2909,6 +2909,7 @@ Managed_Object_Free(Application_Links *app, Managed_Object object)
             Managed_Object_Type *type = (Managed_Object_Type*)object_ptr;
             if (*type == ManagedObjectType_Markers){
                 Managed_Buffer_Markers_Header *header = (Managed_Buffer_Markers_Header*)object_ptr;
+                workspace->total_marker_count -= header->std_header.count;
                 marker_visual_free_chain(&workspace->visual_allocator, header->visual_first, header->visual_last, header->visual_count);
                 zdll_remove(workspace->buffer_markers_list.first, workspace->buffer_markers_list.last, header);
                 workspace->buffer_markers_list.count -= 1;

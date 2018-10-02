@@ -74,8 +74,30 @@ edit_fix_markers(System_Functions *system, Models *models, Editing_File *file, E
     Partition *part = &models->mem.part;
     
     Temp_Memory cursor_temp = begin_temp_memory(part);
+    
+    Lifetime_Object *file_lifetime_object = file->lifetime_object;
+    Assert(file_lifetime_object != 0);
+    
     i32 cursor_max = layout->panel_max_count * 3;
-    cursor_max += file->state.total_marker_count;
+    i32 total_marker_count = 0;
+    {
+        total_marker_count += file_lifetime_object->workspace.total_marker_count;
+        
+        i32 key_count = file_lifetime_object->key_count;
+        i32 key_index = 0;
+        for (Lifetime_Key_Ref_Node *key_node = file_lifetime_object->key_node_first;
+             key_node != 0;
+             key_node = key_node->next){
+            i32 count = clamp_top(lifetime_key_reference_per_node, key_count - key_index);
+            for (i32 i = 0; i < count; i += 1){
+                Lifetime_Key *key = key_node->keys[i];
+                total_marker_count += key->dynamic_workspace.total_marker_count;
+            }
+            key_index += count;
+        }
+    }
+    
+    cursor_max += total_marker_count;
     Cursor_With_Index *cursors = push_array(part, Cursor_With_Index, cursor_max);
     Cursor_With_Index *r_cursors = push_array(part, Cursor_With_Index, cursor_max);
     i32 cursor_count = 0;
@@ -94,9 +116,6 @@ edit_fix_markers(System_Functions *system, Models *models, Editing_File *file, E
             write_cursor_with_index(cursors, &cursor_count, view->transient.edit_pos->scroll_i);
         }
     }
-    
-    Lifetime_Object *file_lifetime_object = file->lifetime_object;
-    Assert(file_lifetime_object != 0);
     
     edit_fix_markers__write_workspace_markers(&file_lifetime_object->workspace, file->id.id,
                                               cursors, r_cursors, &cursor_count, &r_cursor_count);

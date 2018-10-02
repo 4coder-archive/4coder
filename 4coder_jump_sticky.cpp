@@ -158,8 +158,8 @@ init_marker_list(Application_Links *app, Partition *scratch, Heap *heap, Buffer_
             color.tag = Stag_Highlight_Junk;
             get_theme_colors(app, &color, 1);
             Marker_Visual visual = create_marker_visual(app, marker_handle);
-            marker_visual_set_look(app, visual,
-                                   VisualType_LineHighlights, color.color, 0, 0);
+            marker_visual_set_effect(app, visual,
+                                     VisualType_LineHighlights, color.color, 0, 0);
         }
         
         end_temp_memory(marker_temp);
