@@ -83,6 +83,8 @@ struct Heap_Node{
 struct Heap{
     Heap_Basic_Node in_order;
     Heap_Basic_Node free_nodes;
+    i32_4tech used_space;
+    i32_4tech total_space;
 };
 
 //#define DO_HEAP_CHECKS

@@ -47,6 +47,8 @@ static void
 heap_init(Heap *heap){
     heap__sent_init(&heap->in_order);
     heap__sent_init(&heap->free_nodes);
+    heap->used_space = 0;
+    heap->total_space = 0;
 }
 
 static void
@@ -57,12 +59,13 @@ heap_extend(Heap *heap, void *memory, i32_4tech size){
         heap__insert_prev(&heap->in_order, &new_node->order);
         heap__insert_next(&heap->free_nodes, &new_node->alloc);
         new_node->size = size - sizeof(*new_node);
+        heap->total_space += (umem_4tech)size;
     }
     heap_assert_good(heap);
 }
 
 static void*
-heap__reserve_chunk(Heap_Node *node, i32_4tech size){
+heap__reserve_chunk(Heap *heap, Heap_Node *node, i32_4tech size){
     u8_4tech *ptr = (u8_4tech*)(node + 1);
     i32_4tech left_over_size = node->size - size;
     if (left_over_size > sizeof(*node)){
@@ -76,6 +79,7 @@ heap__reserve_chunk(Heap_Node *node, i32_4tech size){
     node->alloc.next = 0;
     node->alloc.prev = 0;
     node->size = size;
+    heap->used_space += sizeof(*node) + size;
     return(ptr);
 }
 
@@ -90,7 +94,7 @@ heap_allocate(Heap *heap, i32_4tech size){
              n = n->next){
             Heap_Node *node = CastFromMember(Heap_Node, alloc, n);
             if (node->size >= aligned_size){
-                void *ptr = heap__reserve_chunk(node, aligned_size);
+                void *ptr = heap__reserve_chunk(heap, node, aligned_size);
                 heap_assert_good(heap);
                 return(ptr);
             }
@@ -122,6 +126,7 @@ heap_free(Heap *heap, void *memory){
         Heap_Node *node = ((Heap_Node*)memory) - 1;
         Assert(node->alloc.next == 0);
         Assert(node->alloc.prev == 0);
+        heap->used_space -= sizeof(*node) + node->size;
         heap_assert_good(heap);
         heap__insert_next(&heap->free_nodes, &node->alloc);
         heap_assert_good(heap);

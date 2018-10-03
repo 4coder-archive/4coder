@@ -64,30 +64,71 @@ dynamic_variables_create(Heap *heap, Dynamic_Variable_Layout *layout, String nam
     return(ManagedVariableIndex_ERROR);
 }
 
+////////////////////////////////
+
 internal void
-dynamic_variables_block_init(Heap *heap, Dynamic_Variable_Block *block){
-    i32 max = 64;
-    block->val_array = heap_array(heap, u64, max);
+dynamic_memory_bank_init(Heap *heap, Dynamic_Memory_Bank *mem_bank){
+    heap_init(&mem_bank->heap);
+    mem_bank->first = 0;
+    mem_bank->last = 0;
+    mem_bank->total_memory_size = 0;
+}
+
+internal void*
+dynamic_memory_bank_allocate(Heap *heap, Dynamic_Memory_Bank *mem_bank, i32 size){
+    void *ptr = heap_allocate(&mem_bank->heap, size);
+    if (ptr == 0){
+        i32 alloc_size = clamp_bottom(4096, size*4 + sizeof(Dynamic_Memory_Header));
+        void *new_block = heap_allocate(heap, alloc_size);
+        if (new_block != 0){
+            Dynamic_Memory_Header *header = (Dynamic_Memory_Header*)new_block;
+            sll_push(mem_bank->first, mem_bank->last, header);
+            mem_bank->total_memory_size += alloc_size;
+            heap_extend(&mem_bank->heap, header + 1, alloc_size - sizeof(*header));
+            ptr = heap_allocate(&mem_bank->heap, size);
+        }
+    }
+    return(ptr);
+}
+
+internal void
+dynamic_memory_bank_free(Dynamic_Memory_Bank *mem_bank, void *ptr){
+    heap_free(&mem_bank->heap, ptr);
+}
+
+internal void
+dynamic_memory_bank_free_all(Heap *heap, Dynamic_Memory_Bank *mem_bank){
+    for (Dynamic_Memory_Header *header = mem_bank->first, *next = 0;
+         header != 0;
+         header = next){
+        next = header->next;
+        heap_free(heap, header);
+    }
+    mem_bank->total_memory_size = 0;
+}
+
+////////////////////////////////
+
+internal void
+dynamic_variables_block_init(Dynamic_Variable_Block *block){
+    block->val_array = 0;
     block->count = 0;
-    block->max = max;
+    block->max = 0;
 }
 
 internal void
-dynamic_variables_block_free(Heap *heap, Dynamic_Variable_Block *block){
-    heap_free(heap, block->val_array);
-}
-
-internal void
-dynamic_variables_block_grow_max_to(Heap *heap, i32 new_max, Dynamic_Variable_Block *block){
-    u64 *new_array = heap_array(heap, u64, new_max);
-    memcpy(new_array, block->val_array, sizeof(u64)*block->count);
-    heap_free(heap, block->val_array);
+dynamic_variables_block_grow_max_to(Heap *heap, Dynamic_Memory_Bank *mem_bank, i32 new_max, Dynamic_Variable_Block *block){
+    i32 new_size = new_max*sizeof(u64);
+    u64 *new_array = (u64*)dynamic_memory_bank_allocate(heap, mem_bank, new_size);
+    if (block->val_array != 0){
+        memcpy(new_array, block->val_array, sizeof(u64)*block->count);
+        dynamic_memory_bank_free(mem_bank, block->val_array);
+    }
     block->val_array = new_array;
 }
 
 internal void
-dynamic_variables_block_fill_unset_values(Dynamic_Variable_Layout *layout, Dynamic_Variable_Block *block,
-                                          i32 one_past_last_index){
+dynamic_variables_block_fill_unset_values(Dynamic_Variable_Layout *layout, Dynamic_Variable_Block *block, i32 one_past_last_index){
     i32 first_location = block->count + 1;
     i32 one_past_last_location = one_past_last_index + 1;
     block->count = one_past_last_index;
@@ -101,7 +142,7 @@ dynamic_variables_block_fill_unset_values(Dynamic_Variable_Layout *layout, Dynam
 }
 
 internal b32
-dynamic_variables_get_ptr(Heap *heap,
+dynamic_variables_get_ptr(Heap *heap, Dynamic_Memory_Bank *mem_bank,
                           Dynamic_Variable_Layout *layout, Dynamic_Variable_Block *block,
                           i32 location, u64 **ptr_out){
     b32 result = false;
@@ -110,7 +151,7 @@ dynamic_variables_get_ptr(Heap *heap,
         if (index >= block->count){
             i32 minimum_max = layout->location_counter - 1;
             if (block->max < minimum_max){
-                dynamic_variables_block_grow_max_to(heap, minimum_max*2, block);
+                dynamic_variables_block_grow_max_to(heap, mem_bank, minimum_max*2, block);
             }
             dynamic_variables_block_fill_unset_values(layout, block, index + 1);
         }
@@ -118,46 +159,6 @@ dynamic_variables_get_ptr(Heap *heap,
         result = true;
     }
     return(result);
-}
-
-////////////////////////////////
-
-internal void
-dynamic_memory_bank_init(Heap *heap, Dynamic_Memory_Bank *mem_bank){
-    heap_init(&mem_bank->heap);
-    mem_bank->first = 0;
-    mem_bank->last = 0;
-}
-
-internal void*
-dynamic_memory_bank_allocate(Heap *heap, Dynamic_Memory_Bank *bank, i32 size){
-    void *ptr = heap_allocate(&bank->heap, size);
-    if (ptr == 0){
-        i32 alloc_size = clamp_bottom(4096, size*4);
-        void *new_block = heap_allocate(heap, alloc_size);
-        if (new_block != 0){
-            Dynamic_Memory_Header *header = (Dynamic_Memory_Header*)new_block;
-            sll_push(bank->first, bank->last, header);
-            heap_extend(&bank->heap, header + 1, alloc_size - sizeof(*header));
-            ptr = heap_allocate(&bank->heap, size);
-        }
-    }
-    return(ptr);
-}
-
-internal void
-dynamic_memory_bank_free(Dynamic_Memory_Bank *bank, void *ptr){
-    heap_free(&bank->heap, ptr);
-}
-
-internal void
-dynamic_memory_bank_free_all(Heap *heap, Dynamic_Memory_Bank *mem_bank){
-    for (Dynamic_Memory_Header *header = mem_bank->first, *next = 0;
-         header != 0;
-         header = next){
-        next = header->next;
-        heap_free(heap, header);
-    }
 }
 
 ////////////////////////////////
@@ -253,8 +254,8 @@ marker_visual_defaults(Marker_Visual_Data *data){
 internal void
 dynamic_workspace_init(Heap *heap, Lifetime_Allocator *lifetime_allocator, i32 user_type, void *user_back_ptr, Dynamic_Workspace *workspace){
     memset(workspace, 0, sizeof(*workspace));
-    dynamic_variables_block_init(heap, &workspace->var_block);
     dynamic_memory_bank_init(heap, &workspace->mem_bank);
+    dynamic_variables_block_init(&workspace->var_block);
     marker_visual_allocator_init(&workspace->visual_allocator);
     if (lifetime_allocator->scope_id_counter == 0){
         lifetime_allocator->scope_id_counter = 1;
@@ -268,20 +269,19 @@ dynamic_workspace_init(Heap *heap, Lifetime_Allocator *lifetime_allocator, i32 u
 internal void
 dynamic_workspace_free(Heap *heap, Lifetime_Allocator *lifetime_allocator, Dynamic_Workspace *workspace){
     erase_u32_Ptr_table(&lifetime_allocator->scope_id_to_scope_ptr_table, workspace->scope_id);
-    dynamic_variables_block_free(heap, &workspace->var_block);
     dynamic_memory_bank_free_all(heap, &workspace->mem_bank);
 }
 
 internal void
 dynamic_workspace_clear_contents(Heap *heap, Dynamic_Workspace *workspace){
-    dynamic_variables_block_free(heap, &workspace->var_block);
     dynamic_memory_bank_free_all(heap, &workspace->mem_bank);
+    dynamic_memory_bank_init(heap, &workspace->mem_bank);
+    
+    dynamic_variables_block_init(&workspace->var_block);
+    marker_visual_allocator_init(&workspace->visual_allocator);
     memset(&workspace->object_id_to_object_ptr, 0, sizeof(workspace->object_id_to_object_ptr));
     memset(&workspace->buffer_markers_list, 0, sizeof(workspace->buffer_markers_list));
     workspace->total_marker_count = 0;
-    dynamic_variables_block_init(heap, &workspace->var_block);
-    dynamic_memory_bank_init(heap, &workspace->mem_bank);
-    marker_visual_allocator_init(&workspace->visual_allocator);
 }
 
 internal u32
@@ -290,7 +290,7 @@ dynamic_workspace_store_pointer(Heap *heap, Dynamic_Workspace *workspace, void *
         workspace->object_id_counter = 1;
     }
     u32 id = workspace->object_id_counter++;
-    insert_u32_Ptr_table(heap, &workspace->object_id_to_object_ptr, id, ptr);
+    insert_u32_Ptr_table(heap, &workspace->mem_bank, &workspace->object_id_to_object_ptr, id, ptr);
     return(id);
 }
 

@@ -106,6 +106,7 @@ struct Dynamic_Memory_Bank{
     Heap heap;
     Dynamic_Memory_Header *first;
     Dynamic_Memory_Header *last;
+    umem total_memory_size;
 };
 
 ////////////////////////////////

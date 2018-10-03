@@ -2547,7 +2547,7 @@ get_dynamic_variable(Command_Data *cmd, Managed_Scope handle, int32_t location, 
     Dynamic_Workspace *workspace = get_dynamic_workspace(models, handle);
     bool32 result = false;
     if (workspace != 0){
-        if (dynamic_variables_get_ptr(heap, layout, &workspace->var_block, location, ptr_out)){
+        if (dynamic_variables_get_ptr(heap, &workspace->mem_bank, layout, &workspace->var_block, location, ptr_out)){
             result = true;
         }
     }
