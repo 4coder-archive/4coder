@@ -22,7 +22,8 @@
 
 # define FSTRING_IMPLEMENTATION
 # include "4coder_lib/4coder_string.h"
-# include "4coder_lib/4coder_mem.h"
+# include "4coder_lib/4coder_arena.h"
+# include "4coder_lib/4coder_arena.cpp"
 
 # include "4coder_API/types.h"
 
@@ -33,6 +34,8 @@
 #include "osx_objective_c_to_cpp_links.h"
 
 #include "4ed_math.h"
+
+#include <string.h>
 
 #include "4ed_font.h"
 #include "4ed_system.h"
@@ -579,7 +582,7 @@ osx_mouse_wheel(float dx, float dy){
 
 external void
 osx_try_to_close(void){
-    system_send_exit_signal();
+    osxvars.keep_running = false;
     osx_schedule_step();
 }
 

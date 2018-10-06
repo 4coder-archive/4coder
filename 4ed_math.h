@@ -668,8 +668,7 @@ fits_inside(i32_Rect rect, i32_Rect outer){
 
 static int32_t
 interval_overlap(float a0, float a1, float b0, float b1){
-    if (a0 <= b0 && b0 < a1 ||
-        b0 <= a0 && a0 < b1){
+    if ((a0 <= b0 && b0 < a1) || (b0 <= a0 && a0 < b1)){
         return(true);
     }
     return(false);

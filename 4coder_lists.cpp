@@ -945,7 +945,7 @@ CUSTOM_DOC("Opens an interactive list of all registered commands.")
     for (int32_t i = 0; i < command_one_past_last_id; i += 1){
         options[i].string = fcoder_metacmd_table[i].name;
         options[i].status = fcoder_metacmd_table[i].description;
-        options[i].user_data = fcoder_metacmd_table[i].proc;
+        options[i].user_data = (void*)fcoder_metacmd_table[i].proc;
     }
     begin_integrated_lister__basic_list(app, "Command:", activate_command, 0, 0,
                                         options, option_count,

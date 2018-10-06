@@ -46,15 +46,15 @@ insert_Ptr_table(Ptr_Table *table, void**key){
         if ((count + 1)*8 <= max*7){
             u64 hash = 0;
             block_copy(&hash, key, 8);
-            if (hash >= 18446744073709551614){ hash += 2; }
+            if (hash >= 18446744073709551614ULL){ hash += 2; }
             i32 first_index = hash%max;
             i32 index = first_index;
             u64 *hashes = table->hashes;
             for (;;){
-                if (hashes[index] == 18446744073709551615){
+                if (hashes[index] == 18446744073709551615ULL){
                     table->dirty_slot_count += 1;
                 }
-                if (hashes[index] == 18446744073709551615 || hashes[index] == 18446744073709551614){
+                if (hashes[index] == 18446744073709551615ULL || hashes[index] == 18446744073709551614ULL){
                     hashes[index] = hash;
                     table->count += 1;
                     return(true);
@@ -74,12 +74,12 @@ lookup_Ptr_table(Ptr_Table *table, void**key){
     if (max > 0){
         u64 hash = 0;
         block_copy(&hash, key, 8);
-        if (hash >= 18446744073709551614){ hash += 2; }
+        if (hash >= 18446744073709551614ULL){ hash += 2; }
         i32 first_index = hash%max;
         i32 index = first_index;
         u64 *hashes = table->hashes;
         for (;;){
-            if (hashes[index] == 18446744073709551615) break;
+            if (hashes[index] == 18446744073709551615ULL) break;
             if (hashes[index] == hash){
                 return(true);
             }
@@ -96,14 +96,14 @@ erase_Ptr_table(Ptr_Table *table, void**key){
     if (max > 0 && table->count > 0){
         u64 hash = 0;
         block_copy(&hash, key, 8);
-        if (hash >= 18446744073709551614){ hash += 2; }
+        if (hash >= 18446744073709551614ULL){ hash += 2; }
         i32 first_index = hash%max;
         i32 index = first_index;
         u64 *hashes = table->hashes;
         for (;;){
-            if (hashes[index] == 18446744073709551615) break;
+            if (hashes[index] == 18446744073709551615ULL) break;
             if (hashes[index] == hash){
-                hashes[index] = 18446744073709551614;
+                hashes[index] = 18446744073709551614ULL;
                 table->count -= 1;
                 return(true);
             }
@@ -120,7 +120,7 @@ move_Ptr_table(Ptr_Table *dst_table, Ptr_Table *src_table){
         i32 max = src_table->max;
         u64 *hashes = src_table->hashes;
         for (i32 index = 0; index < max; index += 1){
-            if (hashes[index] != 18446744073709551615 && hashes[index] != 18446744073709551614){
+            if (hashes[index] != 18446744073709551615ULL && hashes[index] != 18446744073709551614ULL){
                 void* key_;
                 void**key = &key_;
                 block_copy(key, &hashes[index], 8);
@@ -209,15 +209,15 @@ insert_u32_Ptr_table(u32_Ptr_Table *table, u32*key, void**val){
         if ((count + 1)*8 <= max*7){
             u64 hash = 0;
             block_copy(&hash, key, 4);
-            if (hash >= 18446744073709551614){ hash += 2; }
+            if (hash >= 18446744073709551614ULL){ hash += 2; }
             i32 first_index = hash%max;
             i32 index = first_index;
             u64 *hashes = table->hashes;
             for (;;){
-                if (hashes[index] == 18446744073709551615){
+                if (hashes[index] == 18446744073709551615ULL){
                     table->dirty_slot_count += 1;
                 }
-                if (hashes[index] == 18446744073709551615 || hashes[index] == 18446744073709551614){
+                if (hashes[index] == 18446744073709551615ULL || hashes[index] == 18446744073709551614ULL){
                     hashes[index] = hash;
                     table->vals[index] = *val;
                     table->count += 1;
@@ -239,12 +239,12 @@ lookup_u32_Ptr_table(u32_Ptr_Table *table, u32*key){
     if (max > 0){
         u64 hash = 0;
         block_copy(&hash, key, 4);
-        if (hash >= 18446744073709551614){ hash += 2; }
+        if (hash >= 18446744073709551614ULL){ hash += 2; }
         i32 first_index = hash%max;
         i32 index = first_index;
         u64 *hashes = table->hashes;
         for (;;){
-            if (hashes[index] == 18446744073709551615) break;
+            if (hashes[index] == 18446744073709551615ULL) break;
             if (hashes[index] == hash){
                 result.success = true;
                 result.val = &table->vals[index];
@@ -263,14 +263,14 @@ erase_u32_Ptr_table(u32_Ptr_Table *table, u32*key){
     if (max > 0 && table->count > 0){
         u64 hash = 0;
         block_copy(&hash, key, 4);
-        if (hash >= 18446744073709551614){ hash += 2; }
+        if (hash >= 18446744073709551614ULL){ hash += 2; }
         i32 first_index = hash%max;
         i32 index = first_index;
         u64 *hashes = table->hashes;
         for (;;){
-            if (hashes[index] == 18446744073709551615) break;
+            if (hashes[index] == 18446744073709551615ULL) break;
             if (hashes[index] == hash){
-                hashes[index] = 18446744073709551614;
+                hashes[index] = 18446744073709551614ULL;
                 table->count -= 1;
                 return(true);
             }
@@ -287,7 +287,7 @@ move_u32_Ptr_table(u32_Ptr_Table *dst_table, u32_Ptr_Table *src_table){
         i32 max = src_table->max;
         u64 *hashes = src_table->hashes;
         for (i32 index = 0; index < max; index += 1){
-            if (hashes[index] != 18446744073709551615 && hashes[index] != 18446744073709551614){
+            if (hashes[index] != 18446744073709551615ULL && hashes[index] != 18446744073709551614ULL){
                 u32 key_;
                 u32*key = &key_;
                 block_copy(key, &hashes[index], 4);
