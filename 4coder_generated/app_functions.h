@@ -79,6 +79,7 @@ struct Application_Links;
 #define MANAGED_OBJECT_LOAD_DATA_SIG(n) bool32 n(Application_Links *app, Managed_Object object, uint32_t first_index, uint32_t count, void *mem_out)
 #define GET_USER_INPUT_SIG(n) User_Input n(Application_Links *app, Input_Type_Flag get_type, Input_Type_Flag abort_type)
 #define GET_COMMAND_INPUT_SIG(n) User_Input n(Application_Links *app)
+#define SET_COMMAND_INPUT_SIG(n) void n(Application_Links *app, Key_Event_Data key_data)
 #define GET_MOUSE_STATE_SIG(n) Mouse_State n(Application_Links *app)
 #define START_QUERY_BAR_SIG(n) bool32 n(Application_Links *app, Query_Bar *bar, uint32_t flags)
 #define END_QUERY_BAR_SIG(n) void n(Application_Links *app, Query_Bar *bar, uint32_t flags)
@@ -196,6 +197,7 @@ typedef MANAGED_OBJECT_STORE_DATA_SIG(Managed_Object_Store_Data_Function);
 typedef MANAGED_OBJECT_LOAD_DATA_SIG(Managed_Object_Load_Data_Function);
 typedef GET_USER_INPUT_SIG(Get_User_Input_Function);
 typedef GET_COMMAND_INPUT_SIG(Get_Command_Input_Function);
+typedef SET_COMMAND_INPUT_SIG(Set_Command_Input_Function);
 typedef GET_MOUSE_STATE_SIG(Get_Mouse_State_Function);
 typedef START_QUERY_BAR_SIG(Start_Query_Bar_Function);
 typedef END_QUERY_BAR_SIG(End_Query_Bar_Function);
@@ -315,6 +317,7 @@ Managed_Object_Store_Data_Function *managed_object_store_data;
 Managed_Object_Load_Data_Function *managed_object_load_data;
 Get_User_Input_Function *get_user_input;
 Get_Command_Input_Function *get_command_input;
+Set_Command_Input_Function *set_command_input;
 Get_Mouse_State_Function *get_mouse_state;
 Start_Query_Bar_Function *start_query_bar;
 End_Query_Bar_Function *end_query_bar;
@@ -433,6 +436,7 @@ Managed_Object_Store_Data_Function *managed_object_store_data_;
 Managed_Object_Load_Data_Function *managed_object_load_data_;
 Get_User_Input_Function *get_user_input_;
 Get_Command_Input_Function *get_command_input_;
+Set_Command_Input_Function *set_command_input_;
 Get_Mouse_State_Function *get_mouse_state_;
 Start_Query_Bar_Function *start_query_bar_;
 End_Query_Bar_Function *end_query_bar_;
@@ -559,6 +563,7 @@ app_links->managed_object_store_data_ = Managed_Object_Store_Data;\
 app_links->managed_object_load_data_ = Managed_Object_Load_Data;\
 app_links->get_user_input_ = Get_User_Input;\
 app_links->get_command_input_ = Get_Command_Input;\
+app_links->set_command_input_ = Set_Command_Input;\
 app_links->get_mouse_state_ = Get_Mouse_State;\
 app_links->start_query_bar_ = Start_Query_Bar;\
 app_links->end_query_bar_ = End_Query_Bar;\
@@ -677,6 +682,7 @@ static inline bool32 managed_object_store_data(Application_Links *app, Managed_O
 static inline bool32 managed_object_load_data(Application_Links *app, Managed_Object object, uint32_t first_index, uint32_t count, void *mem_out){return(app->managed_object_load_data(app, object, first_index, count, mem_out));}
 static inline User_Input get_user_input(Application_Links *app, Input_Type_Flag get_type, Input_Type_Flag abort_type){return(app->get_user_input(app, get_type, abort_type));}
 static inline User_Input get_command_input(Application_Links *app){return(app->get_command_input(app));}
+static inline void set_command_input(Application_Links *app, Key_Event_Data key_data){(app->set_command_input(app, key_data));}
 static inline Mouse_State get_mouse_state(Application_Links *app){return(app->get_mouse_state(app));}
 static inline bool32 start_query_bar(Application_Links *app, Query_Bar *bar, uint32_t flags){return(app->start_query_bar(app, bar, flags));}
 static inline void end_query_bar(Application_Links *app, Query_Bar *bar, uint32_t flags){(app->end_query_bar(app, bar, flags));}
@@ -795,6 +801,7 @@ static inline bool32 managed_object_store_data(Application_Links *app, Managed_O
 static inline bool32 managed_object_load_data(Application_Links *app, Managed_Object object, uint32_t first_index, uint32_t count, void *mem_out){return(app->managed_object_load_data_(app, object, first_index, count, mem_out));}
 static inline User_Input get_user_input(Application_Links *app, Input_Type_Flag get_type, Input_Type_Flag abort_type){return(app->get_user_input_(app, get_type, abort_type));}
 static inline User_Input get_command_input(Application_Links *app){return(app->get_command_input_(app));}
+static inline void set_command_input(Application_Links *app, Key_Event_Data key_data){(app->set_command_input_(app, key_data));}
 static inline Mouse_State get_mouse_state(Application_Links *app){return(app->get_mouse_state_(app));}
 static inline bool32 start_query_bar(Application_Links *app, Query_Bar *bar, uint32_t flags){return(app->start_query_bar_(app, bar, flags));}
 static inline void end_query_bar(Application_Links *app, Query_Bar *bar, uint32_t flags){(app->end_query_bar_(app, bar, flags));}

@@ -212,10 +212,16 @@ ENUM(uint32_t, Buffer_Kill_Flag){
     BufferKill_AlwaysKill  = 0x2,
 };
 
+/* DOC(A status enumeration returned by kill_buffer.)
+DOC_SEE(kill_buffer) */
 ENUM(int32_t, Buffer_Kill_Result){
+    /* DOC(The buffer was successfully killed.) */
     BufferKillResult_Killed = 0,
+    /* DOC(The buffer was not killed because it is dirty.  This can be overriden with the flag BufferKill_AlwaysKill.  This result is usually followed up by launching a "sure to kill" dialogue, but that is entirely optional.) */
     BufferKillResult_Dirty = 1,
+    /* DOC(The buffer was not killed because it is unkillable.  Unkillable buffers are the buffers that must be open for the core's purposes.  *messages* and *scratch* are unkillable buffers.) */
     BufferKillResult_Unkillable = 2,
+    /* DOC(The specified buffer does not exist.) */
     BufferKillResult_DoesNotExist = 3,
 };
 
@@ -311,7 +317,8 @@ ENUM(int32_t, Mouse_Cursor_Show_Type){
     MouseCursorShow_Never,
     /* DOC(The MouseCursorShow_Never mode always shows the cursor.) */
     MouseCursorShow_Always,
-    //    MouseCursorShow_WhenActive,// TODO(allen): coming soon
+    // TODO(allen): coming soon
+    //    MouseCursorShow_WhenActive,
 };
 
 /* DOC(A View_Split_Position specifies where a new view should be placed as a result of a view split operation.) */
@@ -382,7 +389,7 @@ STRUCT Mouse_State{
 
 GLOBAL_VAR Mouse_State null_mouse_state = {0};
 
-/* DOC(Range describes an integer range typically used for ranges within a buffer. Ranges tend are usually not passed as a Range struct into the API, but this struct is used to return ranges.
+/* DOC(Range describes an integer range typically used for ranges within a buffer. Ranges are not used to pass into the API, but this struct is used for returns.
 
 Throughout the API ranges are thought of in the form [min,max) where max is "one past the end" of the range that is actually read/edited/modified.) */
 UNION Range{
@@ -406,8 +413,11 @@ UNION Range{
     };
 };
 
+/* DOC(An array of ranges.  This is just a plain pointer bundled with a count, no additional special structure.) */
 STRUCT Range_Array{
+    /* DOC(A pointer to the array of ranges.) */
     Range *ranges;
+    /* DOC(The number of ranges in the array.) */
     int32_t count;
 };
 
@@ -680,55 +690,127 @@ STRUCT View_Summary{
     GUI_Scroll_Vars scroll_vars;
 };
 
+/* DOC(The enumeration of types of managed objects.) */
 ENUM(int32_t, Managed_Object_Type)
 {
+    /* DOC(This type value indicates that the specified object for an operation is not a valid managed object.
+A handle for a managed object can "go bad" when it's scope is cleared, or when it is freed, so it is possible to store handles and check them for validity on use.  However, all managed object APIs do the necessary checks on their parameters and return appropriate failure results on bad handles.) */
     ManagedObjectType_Error = 0,
+    /* DOC(A memory object is used for straightforward memory allocation in a managed scope.  These objects have no special cleanup, no extra operations, and their memory storage is never touched by the core.) */
     ManagedObjectType_Memory = 1,
+    /* DOC(A marker object is used to place markers into buffers that move along with the text upon which they are placed.  A marker object has a specific buffer to which it is attached, and must be allocated in a scope dependent upon the lifetime of that buffer.  Marker objects always use the Marker type for their items, and their item size is always sizeof(Marker).  When a marker object is freed, all of the marker visuals attached to it are also freed and the specific buffer of the object no longer adjusts the marker data when edits occur.) */
     ManagedObjectType_Markers = 2,
     ManagedObjectType_COUNT = 3,
 };
 
+/* DOC(A handle to a managed scope.  A managed scope contains variables and objects all of which can be freed and reset in optimized bulk operations.  Many managed scopes are created and destroyed by the core to track the lifetime of entities like buffers and views.  Because a managed scope contains it's own copy of the managed variables, managed scopes can also be used as a keying mechanism to store and retrieve special information related to entities like buffers and views.) */
 TYPEDEF uint64_t Managed_Scope;
+
+/* DOC(An id refering to a managed variable.  Managed variables are created globally, but each managed scope has it's own set of values for the managed variables.  Managed variables are created via a unique string.  Attempting to create a variable with the same name as an existing variable fails.  When naming variables it is recommended that you place a 'module name' followed by a '.' and then a descriptive variable name to distinguish your variables from variables written by other 4coder users that might someday need to work together in the same configuration.  Example: "MyUniqueCustomization.variable_name").  The variable's id is used to set and get the value from managed scopes. */
 TYPEDEF int32_t Managed_Variable_ID;
+
+/* DOC(A handle to a managed object.  Managed objects have various behaviors and special uses depending on their type.  All managed objects share the property of being tied to a managed scope, so that they are cleaned up and freed when that scope's contents are cleared or when the scope is destroyed, they all support store and load operations, although not all with the exact same meanings and implications, and they can all be freed individually instead of with the entire scope.) */
 TYPEDEF uint64_t Managed_Object;
 
 static Managed_Scope ManagedScope_NULL = 0;
 static Managed_Variable_ID ManagedVariableIndex_ERROR = -1;
 static Managed_Object ManagedObject_NULL = 0;
 
+/* DOC(A multi-member identifier for a marker visual.  A marker visual is attached to a marker object (Marker_Object), it is freed when the marker object is freed or when it is specifically destroyed.  Multiple marker visuals can be placed on a single marker object.)
+DOC_SEE(Marker_Visual_Type)
+DOC_SEE(Marker_Visual_Symbolic_Color)
+DOC_SEE(Marker_Visual_Text_Style)
+DOC_SEE(Marker_Visual_Take_Rule)
+DOC_SEE(Marker_Visual_Priority_Level)
+*/
 STRUCT Marker_Visual{
     Managed_Scope scope;
     uint32_t slot_id;
     uint32_t gen_id;
 };
+
+/*
+DOC(The enumeration of visual effects that a marker visual can create.  All effects have a color aspect and text_color aspect.  The exact meaning of these aspects depends upon the effect's type.
+
+There are several effect styles, two effect styles never conflict with one another, each style can be applied to each character.  If two effects of the same style are applied to the same character, then the effect with the higher priority is rendered, and the lower priority effect is ignored.  The render order for effects is:
+
+Highlight Style
+
+Wire Frame Style
+
+I-Bar Style
+
+Some effects are character oriented, meaning they have an effect on the individual character/characters that the markers specify.  Other effects are line oriented, meaning that they effect the entire line on which their markers are placed.  Line oriented highlight style effects are always overriden by character oriented highlight style effects of the same style, regardless of relative priority levels.
+
+Single marked effects use each marker to specify a single point at which an effect is applied.  Range marked effects take pairs of markers to specify a left inclusive right eclusive range to effect.
+
+In range marked effects, two conflicting effects with the same priority level are further resolved by prefering the effect with the higher-index starting position.  This means that if range A completely contains range B and they have the same priority level, then range B will be visible, and range A will be visible wherever range B is not.
+)
+*/
 ENUM(int32_t, Marker_Visual_Type)
 {
+    /* DOC(No visual effect, with this type it is as if the marker visual does not exist.) */
     VisualType_Invisible = 0,
+    /* DOC(Shows a block around the background of each marked character.  The color aspect determines the color of the block behind the characters, the text_color aspect determines the color of the characters.
+    
+This is a character oriented highlight style single marked effect.) */
     VisualType_CharacterBlocks = 1,
+    /* DOC(Shows a rectangle outline around each marked character.  The color aspect determines the color of the rectangle, the text_color aspect is ignored.
+    
+This is a character oriented wire frame style single marked effect.) */
     VisualType_CharacterWireFrames = 2,
+    /* DOC(Shows a single pixel line on the left side of each marked character.  The color aspect determines the color of the line, the text_color aspect is ignored.
+    
+This is a character oriented wire frame style single marked effect.) */
     VisualType_CharacterIBars = 3,
+    /* DOC(Shows a block in the background of the entire line on which the marker is placed.  The color aspect determines the color of the highlight, the text_color aspect is ignored.
+    
+This is a line oriented highlight style single marked effect.) */
     VisualType_LineHighlights = 4,
+    /* DOC(Shows a block around the background of each character between the range pairs.  The color aspect determines the color of the highlight, the text_color aspect is ignored.
+    
+This is a character oriented highlight style range marked effect.) */
     VisualType_CharacterHighlightRanges = 5,
+    /* DOC(Shows a block in the background of the entire line on each line within the range.  The color aspect determines the color of the highlight, the text_color aspect is ignored.
+    
+This is a line oriented highlight style range marked effect.) */
     VisualType_LineHighlightRanges = 6,
     VisualType_COUNT = 7,
 };
+
+/* DOC(Special codes that can be used as the color aspects of marker visual effects.  These special codes are for convenience and in some cases effects that could not be expressed as 32-bit colors.) */
 ENUM(uint32_t, Marker_Visual_Symbolic_Color)
 {
+    /* DOC(When default is used for text_color aspect, the text is unchanged from the coloring the core would apply to it.  For all effects, the default value of the color aspect for all effects is the same as transparent.  For convenience it is guaranteed this will always be the zero value, so that users may simply pass 0 to color aspects they do not wish to set.) */
     SymbolicColor_Default = 0,
+    /* DOC(Since all symbolic color codes have their alpha channel set to zero, this code is reserved to get the effect one would get for using a tranparent 32-bit color.) */
     SymbolicColor_Transparent = 1,
+    /* DOC(This flag bit-ored with a style tag will be reevaluated at render time to the color of the specific tag in the currently active palette.  The macro SymbolicColorFromPalette(Stag_CODE) applies the bit-or to Stag_CODE.  For example SymbolicColorFromPalette(Stag_Cursor) will always evaluate to the color of the current cursor.  Note that this evaluation happens at render time, so that if the palette changes, the evaluated color will also change.) */
     SymbolicColor__StagColorFlag = 0x00800000,
 };
 #define SymbolicColorFromPalette(x) ((x)|SymbolicColor__StagColorFlag)
+
+/* DOC(Not implemented, but reserved for future use.  Where this type is used in the API the value passed should always be zero for now.) */
 ENUM(int32_t, Marker_Visual_Text_Style)
 {
     MARKER_TEXT_STYLE_NOT_YET_IMPLEMENTED,
 };
+
+/* DOC(The take rule of a marker visual specifies how to iterate the markers in the marker object when applying the visual effect.  For range marked effects, which use a pair of markers to specify a left inclusive right exclusive range, it is not necessary that two markers be adjacent in the marker object when they are taken.  The first taken marker is paired to the second taken marker, the third to the fourth, etc, regardless of any gaps between the consecutively taken markers.  If the take rule overflows the marker object, the effect is still applied, but the iteration is cut short as soon as it would overflow.) */
 STRUCT Marker_Visual_Take_Rule{
+    /* DOC(The index of the first marker to take.  Indices are zero based.  The default value is zero.) */
     int32_t first_index;
+    /* DOC(From the start of a "step" take_count_per_step markers.  Markers taken in the same step have consectuive indices.  For example, if the first marker taken has index = 0, and the take_count_per_step = 2, then the second marker taken will have index = 1. The default value is 1.) */
     int32_t take_count_per_step;
+    /* DOC(The stride between each "step".  After taking take_count_per_step markers from the current step, the iteation advances to the next step counting from the start of current step.  So if 2 markers are taken per step, and the stride is 3, then the pattern of taken markers will be **.**.**.**. where * is a tken marker.  The core automatically adjusts this field to be at least equal to take_count_per_step before using it to iterate. The default value is 1.) */
     int32_t step_stride_in_marker_count;
+    /* DOC(The maximum number of markers to be taken durring iteration.  Since overflow does not cause the visual effect to fail, and is prevented internally, this field can be set to the max value of a signed 32-bit integer and will take as many markers as possible until it hits the end of the marker object.  If the maximum count is reached mid-step, the iteration stops without completeing the step.) */
     int32_t maximum_number_of_markers;
 };
+
+/* DOC(A helper enumeration for common priority levels.  Although any unsigned integer is a valid priority level, the following five levels are used to establish a standard convention.  Highest priority is given to effects immediately at the cursor, mark, and highlighted range.  Default priority is given to actively attached effects like compilation error highlights.  Passive effects like scope highlighting go to Lowest priority.
+
+This system is considered a temporary measure and will eventually be replaced with a priority level brokering system to enable cooperation between modules [note made 4.0.29].) */
 ENUM(uint32_t, Marker_Visual_Priority_Level){
     VisualPriority_Lowest = 0,
     VisualPriority_Low = 1000,
@@ -745,59 +827,86 @@ STRUCT Query_Bar{
     String string;
 };
 
+/* DOC(An enumeration of the types of UI widget items that can be placed in a UI.) */
 ENUM(int16_t, UI_Item_Type){
+    /* DOC(An 'option' is a rectangle with a margin that can be highlighted, and a main string in default text color, and a secondary string in pop2 color, on a single line centered vertically in the item rectangle.) */
     UIType_Option = 0,
+    /* DOC(A 'text field' is a rectangle with a query string in pop1 color, and a main string in default text color, on a single line centered verticall in the item rectangle.) */
     UIType_TextField = 1,
+    /* DOC(A 'color theme' is a rectangle that ignores the active color palette and previews a specified color palette, with a specified string on the first line.  This item is particularly meant for creating the color theme lister, but could be reused for anything, however there is no way to remove all the sample text in the widget added alongside the main string.) */
     UIType_ColorTheme = 2,
 };
 
+/* DOC(An enumeration of the levels of activation that can be placed on an item in a UI, this can effect the appearance of some widgets.) */
 ENUM(int8_t, UI_Activation_Level){
     UIActivation_None = 0,
     UIActivation_Hover = 1,
     UIActivation_Active = 2,
 };
 
+/* DOC(An enumeration of the coordinate systems in which an item's rectangle can be specified.  This is not always a convenience feature as it means after scrolling the widget data does not necessarily needed to be updated, thus saving extra work.  All coordiante systems are in pixels, with y increasing downward, and x increasing rightward.) */
 ENUM(int8_t, UI_Coordinate_System){
+    /* DOC(The 'scrolled' coordiante system is effected by the scroll value of the view.  If the y scroll value is at 100 and an item is placed with a vertical range from 50 to 90, the item is not visible.  When the y scroll value is at 0, this coordinate system aligns with the view relative coordiante system.) */
     UICoordinates_Scrolled = 0,
+    /* DOC(The 'view relative' coordiante system is only effected by the screen coordinates of the view.  (0,0) is always the top left corner of space inside the view margin.) */
     UICoordinates_ViewRelative = 1,
     UICoordinates_COUNT = 2,
 };
 
+/* DOC(A UI_Item is essentially the data to specify a single widget.  The exact appearance and qualities of a displayed widget are determined by the item's type.)
+DOC_SEE(UI_Item_Type)
+DOC_SEE(UI_Activation_Level)
+DOC_SEE(UI_Coordinate_System)
+*/
 STRUCT UI_Item{
+    /* DOC(The type of the item.) */
     UI_Item_Type type;
+    /* DOC(The activation level of the item.) */
     UI_Activation_Level activation_level;
+    /* DOC(The coordinate system in which the item's rectanlge is expressed.) */
     UI_Coordinate_System coordinates;
+    /* DOC(The rectangle of an item, combined with it's coordinate system, specify where on the screen the widget will be rendered.) */
+    i32_Rect rectangle;
     // 32-bits of padding to fill here
     union{
         struct{
+            /* DOC(The main string of an 'option' widget.) */
             String string;
+            /* DOC(The secondary string of an 'option' widget.) */
             String status;
         } option;
         struct{
+            /* DOC(The query string of a 'text field' widget.) */
             String query;
+            /* DOC(The main string of an 'text field' widget.) */
             String string;
         } text_field;
         struct{
+            /* DOC(The custom first line string of the color theme preview block.) */
             String string;
+            /* DOC(The index of the color theme to be used with the preview block.) */
             int32_t index;
         } color_theme;
     };
+    /* DOC(All items can have an attached user_data pointer to associate the item back to whatever user space data or object is needed for interactign with the item.) */
     void *user_data;
-    i32_Rect rectangle;
 };
 
+/* DOC(Wraps a UI_Item in a doubly linked list node.) */
 STRUCT UI_Item_Node{
     UI_Item_Node *next;
     UI_Item_Node *prev;
     UI_Item fixed;
 };
 
+/* DOC(A zero-ended doubly linked list object.) */
 STRUCT UI_List{
     UI_Item_Node *first;
     UI_Item_Node *last;
     int32_t count;
 };
 
+/* DOC(An array of UI_Items and a set of bounding boxes that store the union item rectangle per coordiante system, used to optimize activation and re-render operations.) */
 STRUCT UI_Control{
     UI_Item *items;
     int32_t count;

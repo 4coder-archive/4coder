@@ -2504,7 +2504,7 @@ Managed_Variable_Create(Application_Links *app, char *null_terminated_name, uint
 /*
 DOC_PARAM(null_terminated_name, The unique name for this managed variable.)
 DOC_PARAM(default_value, The default value that this variable will have in a scope that has not set this variable.)
-DOC_RETURN(Returns the Managed_Variable_ID for the new variable on success or zero on failure.  This call fails when a variable with the given name alraedy exists.)
+DOC_RETURN(Returns the Managed_Variable_ID for the new variable on success and zero on failure.  This call fails when a variable with the given name alraedy exists.)
 DOC(Variables are stored in scopes but creating a variable does not mean that all scopes will allocate space for this variable.  Space for variables is allocated sparsly on demand in each scope.  Once a variable exists it will exist for the entire duration of the 4coder session and will never have a different id.  The id will be used to set and get the value of the variable in managed scopes.)
 DOC_SEE(managed_variable_get_id)
 DOC_SEE(managed_variable_create_or_get_id)
@@ -2522,7 +2522,7 @@ API_EXPORT Managed_Variable_ID
 Managed_Variable_Get_ID(Application_Links *app, char *null_terminated_name)
 /*
 DOC_PARAM(null_terminated_name, The unique name for this managed variable.)
-DOC_RETURN(Returns the Managed_Variable_ID for the variable on success or zero on failure.  This call fails when no variable that already exists has the given name.)
+DOC_RETURN(Returns the Managed_Variable_ID for the variable on success and zero on failure.  This call fails when no variable that already exists has the given name.)
 DOC_SEE(managed_variable_create)
 DOC_SEE(managed_variable_create_or_get_id)
 */
@@ -2610,7 +2610,7 @@ Alloc_Managed_Memory_In_Scope(Application_Links *app, Managed_Scope scope, int32
 DOC_PARAM(scope, A handle to the scope in which the new object will be allocated.)
 DOC_PARAM(item_size, The size, in bytes, of a single 'item' in this memory object.  This effects the size of the allocation, and the indexing of the memory in the store and load calls.)
 DOC_PARAM(count, The number of 'items' allocated for this memory object.  The total memory size is item_size*count.)
-DOC_RETURN(Returns the handle to the new object on success, or zero on failure.  This call fails if scope does not refer to a valid managed scope.)
+DOC_RETURN(Returns the handle to the new object on success, and zero on failure.  This call fails if scope does not refer to a valid managed scope.)
 DOC(Managed objects allocate memory that is tied to the scope.  When the scope is cleared or destroyed all of the memory allocated in it is freed in bulk and the handles to the objects never again become valid.  Thus the handle returned by this call will only ever refer to this memory allocation.)
 */
 {
@@ -2638,7 +2638,7 @@ Alloc_Buffer_Markers_On_Buffer(Application_Links *app, Buffer_ID buffer_id, int3
 DOC_PARAM(buffer_id, The id for the buffer onto which these markers will be attached.  The markers will live in the scope of the buffer, or in another scope dependent on this buffer, thus guaranteeing that when the buffer is closed, all attached markers are freed in bulk with it.)
 DOC_PARAM(count, The number of Marker items allocated in this object.  The total memory size is sizeof(Marker)*count.)
 DOC_PARAM(optional_extra_scope, If this pointer is non-null, then it is treated as a scope with additional dependencies for the allocated markers.  In this case, the scope of buffer and extra scope are unioned via get_managed_scope_with_multiple_dependencies and marker object lives in the resulting scope.)
-DOC_RETURN(Returns the handle to the new object on succes, or zero on failure.  This call fails if buffer_id does not refer to a valid buffer, or optional_extra_scope does not refer to a valid scope.)
+DOC_RETURN(Returns the handle to the new object on succes, and zero on failure.  This call fails if buffer_id does not refer to a valid buffer, or optional_extra_scope does not refer to a valid scope.)
 DOC(The created managed object is essentially a memory object with item size equal to sizeof(Marker).  The primary difference is that if the buffer referred to by buffer_id is edited, the position of all markers attached to that buffer can be changed by the core.  Thus this not a memory storage so much as position marking and tracking in a buffer.)
 DOC_SEE(alloc_managed_memory_in_scope)
 DOC_SEE(Marker)
@@ -2698,7 +2698,7 @@ API_EXPORT Marker_Visual
 Create_Marker_Visual(Application_Links *app, Managed_Object object)
 /*
 DOC_PARAM(object, A handle to the marker object on which the new visual will be attached.)
-DOC_RETURN(Returns the handle to the newly created marker visual on success, or zero on failure.  This call fails when object does not refer to a valid marker object.)
+DOC_RETURN(Returns the handle to the newly created marker visual on success, and zero on failure.  This call fails when object does not refer to a valid marker object.)
 DOC(A marker visual adds graphical effects to markers such as cursors, highlight ranges, text colors, etc.  A marker object can have any number of attached visuals.  The memory in the 4coder core for visuals is stored in the same scope as the object.)
 DOC_SEE(destroy_marker_visuals)
 */
@@ -2735,7 +2735,19 @@ get_marker_visual_pointer(Models *models, Marker_Visual visual){
 }
 
 API_EXPORT bool32
-Marker_Visual_Set_Effect(Application_Links *app, Marker_Visual visual, Marker_Visual_Type type, int_color color, int_color text_color, Marker_Visual_Text_Style text_style){
+Marker_Visual_Set_Effect(Application_Links *app, Marker_Visual visual, Marker_Visual_Type type, int_color color, int_color text_color, Marker_Visual_Text_Style text_style)
+/*
+DOC_PARAM(visual, A handle to the marker visual to be modified by this call.)
+DOC_PARAM(type, The new type of visual effect this marker visual will create.)
+DOC_PARAM(color, The new color aspect of the effect, exact meaning depends on the type.)
+DOC_PARAM(text_color, The new text color aspect of the effect, exact meaning depends on the type.)
+DOC_PARAM(text_style, This feature is not yet implemented and the parameter should always be 0.)
+DOC_RETURN(Returns non-zero on success, and zero on failure.  This call fails when the visual handle does not refer to a valid marker visual.)
+DOC(Each effect type uses the color and text_color aspects differently.  These aspects can be specified as 32-bit colors, or as "symbolic coloes" which are special values small enough that their alpha channels would be zero as 32-bit color codes.  Valid symbolic color values have special rules for evaluation, and sometimes their meaning depends on the effect type too.)
+DOC_SEE(Marker_Visuals_Type)
+DOC_SEE(Marker_Visuals_Symbolic_Color)
+*/
+{
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     Models *models = cmd->models;
     Marker_Visual_Data *data = get_marker_visual_pointer(models, visual);
@@ -2744,12 +2756,21 @@ Marker_Visual_Set_Effect(Application_Links *app, Marker_Visual visual, Marker_Vi
         data->color = color;
         data->text_color = text_color;
         data->text_style = text_style;
+        return(true);
     }
     return(false);
 }
 
 API_EXPORT bool32
-Marker_Visual_Set_Take_Rule(Application_Links *app, Marker_Visual visual, Marker_Visual_Take_Rule take_rule){
+Marker_Visual_Set_Take_Rule(Application_Links *app, Marker_Visual visual, Marker_Visual_Take_Rule take_rule)
+/*
+DOC_PARAM(visual, A handle to the marker visual to be modified by this call.)
+DOC_PARAM(take_rule, The new take rule for the marker visual.)
+DOC_RETURN(Returns non-zero on success, and zero on failure.  This call fails when the visual handle does not refer to a valid marker visual.)
+DOC(Marker visuals have take rules so that they do not necessarily effect every marker in the marker object they were created to visualize.  The take rule can effect the start of the run of markers, the total number of markers, and the stride of the markers, "taken" by this visual when applying it's effect.  The word "take" should not be thought of as reserving a marker to the particular marker visual, multiple visuals may add effects to a single marker.  See the documentation for Marker_Visual_Take_Rule for specifics about how the take rule can be configured.)
+DOC_SEE(Marker_Visual_Take_Rule)
+*/
+{
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     Models *models = cmd->models;
     Marker_Visual_Data *data = get_marker_visual_pointer(models, visual);
@@ -2768,48 +2789,84 @@ Marker_Visual_Set_Take_Rule(Application_Links *app, Marker_Visual visual, Marker
         else{
             data->one_past_last_take_index = max_i32;
         }
+        return(true);
     }
     return(false);
 }
 
 API_EXPORT bool32
-Marker_Visual_Set_Priority(Application_Links *app, Marker_Visual visual, Marker_Visual_Priority_Level priority){
+Marker_Visual_Set_Priority(Application_Links *app, Marker_Visual visual, Marker_Visual_Priority_Level priority)
+/*
+DOC_PARAM(visual, A handle to the marker visual to be modified by this call.)
+DOC_PARAM(priority, The new priority level for this marker visual.)
+DOC_RETURN(Returns non-zero on success, and zero on failure.  This call fails when the visual handle does not refer to a valid marker visual.)
+DOC(Multiple visuals effecting the same position, whether they are on the same marker object, or different marker objects, are sorted by their priority level, so that higher priority levels are displayed when they are in conflict with lower priority levels.  Some effects have implicit priorities over other effects which does not take priority level into account, other effects may occur in the same position without being considered "in conflict".  See the documentation for each effect for more information these relationships.)
+*/
+{
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     Models *models = cmd->models;
     Marker_Visual_Data *data = get_marker_visual_pointer(models, visual);
     if (data != 0){
         data->priority = priority;
+        return(true);
     }
     return(false);
 }
 
 API_EXPORT bool32
-Marker_Visual_Set_View_Key(Application_Links *app, Marker_Visual visual, View_ID key_view_id){
+Marker_Visual_Set_View_Key(Application_Links *app, Marker_Visual visual, View_ID key_view_id)
+/*
+DOC_PARAM(visual, A handle to the marker visual to be modified by this call.)
+DOC_PARAM(key_view_id, The new value of the marker visual's view keying.)
+DOC_RETURN(Returns non-zero on success, and zero on failure.  This call fails when the visual handle does notrefer to a valid marker visual.)
+DOC(View keying allows a marker visual to declare that it only appears in one view.  For instance, if a buffer is opened in two views side-by-side, and each view has it's own cursor position, this can be used to make sure that the cursor for one view does not appear in the other view.)
+*/
+{
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     Models *models = cmd->models;
     Marker_Visual_Data *data = get_marker_visual_pointer(models, visual);
     if (data != 0){
         data->key_view_id = key_view_id;
+        return(true);
     }
     return(false);
 }
 
 API_EXPORT bool32
-Destroy_Marker_Visual(Application_Links *app, Marker_Visual visual){
+Destroy_Marker_Visual(Application_Links *app, Marker_Visual visual)
+/*
+DOC_PARAM(visual, A handle to the marker visual to be destroyed.)
+DOC_RETURN(Returns non-zero on success, and zero on failure.  This call fails when the visual handle does not refer to a valid marker visual.)
+*/
+{
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     Models *models = cmd->models;
     Dynamic_Workspace *workspace = get_dynamic_workspace(models, visual.scope);
     if (workspace != 0){
         Marker_Visual_Data *data = dynamic_workspace_get_visual_pointer(workspace, visual.slot_id, visual.gen_id);
         if (data != 0){
-            marker_visual_free(&workspace->visual_allocator, data);
+            void *ptr = dynamic_workspace_get_pointer(workspace, data->owner_object&max_u32);
+            Managed_Object_Standard_Header *header = (Managed_Object_Standard_Header*)ptr;
+            if (header != 0){
+                Assert(header->type == ManagedObjectType_Markers);
+                Managed_Buffer_Markers_Header *markers = (Managed_Buffer_Markers_Header*)header;
+                zdll_remove(markers->visual_first, markers->visual_last, data);
+                markers->visual_count -= 1;
+                marker_visual_free(&workspace->visual_allocator, data);
+                return(true);
+            }
         }
     }
     return(false);
 }
 
 API_EXPORT int32_t
-Buffer_Markers_Get_Attached_Visual_Count(Application_Links *app, Managed_Object object){
+Buffer_Markers_Get_Attached_Visual_Count(Application_Links *app, Managed_Object object)
+/*
+DOC_PARAM(object, The handle to the marker object to be queried.)
+DOC_RETURN(Returns the number of marker visuals that are currently attached to the given object.  If the object handle does not refer to a valid marker object, then this call returns zero.)
+*/
+{
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     Models *models = cmd->models;
     Managed_Object_Ptr_And_Workspace object_ptrs = get_dynamic_object_ptrs(models, object);
@@ -2821,7 +2878,13 @@ Buffer_Markers_Get_Attached_Visual_Count(Application_Links *app, Managed_Object 
 }
 
 API_EXPORT Marker_Visual*
-Buffer_Markers_Get_Attached_Visual(Application_Links *app, Partition *part, Managed_Object object){
+Buffer_Markers_Get_Attached_Visual(Application_Links *app, Partition *part, Managed_Object object)
+/*
+DOC_PARAM(part, The arena to be used to allocate the returned array.)
+DOC_PARAM(object, The handle to the marker object to be queried.)
+DOC_RETURN(Pushes an array onto part containing the handle to every marker visual attached to this object, and returns the pointer to it's base.  If the object does not refer to a valid marker object or there is not enough space in part to allocate the array, then a null pointer is returned.)
+*/
+{
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     Models *models = cmd->models;
     Managed_Object_Ptr_And_Workspace object_ptrs = get_dynamic_object_ptrs(models, object);
@@ -2858,6 +2921,10 @@ get_dynamic_object_memory_ptr(Managed_Object_Standard_Header *header){
 
 API_EXPORT uint32_t
 Managed_Object_Get_Item_Size(Application_Links *app, Managed_Object object)
+/*
+DOC_PARAM(object, The handle to the managed object to be queried.)
+DOC_RETURN(Returns the size, in bytes, of a single item in the managed object.  Item size is multiplied by the indices in store and load calls, and it is multiplied by item count to discover the total memory size of the managed object.  If object does not refer to a valid managed object, this call returns zero.)
+*/
 {
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     Models *models = cmd->models;
@@ -2870,6 +2937,10 @@ Managed_Object_Get_Item_Size(Application_Links *app, Managed_Object object)
 
 API_EXPORT uint32_t
 Managed_Object_Get_Item_Count(Application_Links *app, Managed_Object object)
+/*
+DOC_PARAM(object, The handle to the managed object to be queried.)
+DOC_RETURN(Returns the count of items this object can store, this count is used to range check the indices in store and load calls.  If object does not refer to a valid managed object, this call returns zero.)
+*/
 {
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     Models *models = cmd->models;
@@ -2882,6 +2953,11 @@ Managed_Object_Get_Item_Count(Application_Links *app, Managed_Object object)
 
 API_EXPORT Managed_Object_Type
 Managed_Object_Get_Type(Application_Links *app, Managed_Object object)
+/*
+DOC_PARAM(object, The handle to the managed object to be queried.)
+DOC_RETURN(Returns the type of the managed object, see Managed_Object_Type for the enumeration of possible values and their special meanings.  If object does not refer to a valid managed object, this call returns ManagedObjectType_Error.)
+DOC_SEE(Managed_Object_Type)
+*/
 {
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     Models *models = cmd->models;
@@ -2898,6 +2974,10 @@ Managed_Object_Get_Type(Application_Links *app, Managed_Object object)
 
 API_EXPORT Managed_Scope
 Managed_Object_Get_Containing_Scope(Application_Links *app, Managed_Object object)
+/*
+DOC_PARAM(object, The handle to the managed object to be queried.)
+DOC_RETURN(Returns a handle to the managed scope in which this object is allocated, or zero if object does not refer to a valid managed object.)
+*/
 {
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     Models *models = cmd->models;
@@ -2911,6 +2991,11 @@ Managed_Object_Get_Containing_Scope(Application_Links *app, Managed_Object objec
 
 API_EXPORT bool32
 Managed_Object_Free(Application_Links *app, Managed_Object object)
+/*
+DOC_PARAM(object, The handle to the managed object to be freed.)
+DOC_RETURN(Returns non-zero on success and zero on failure.  This call fails when object does not refer to a valid managed object.)
+DOC(Permanently frees the specified object.  Not only does this free up the memory this object had allocated, but it also triggers cleanup for some types of managed objects.  For instance after markers are freed, any visual effects from the markers are removed as well.  See Managed_Object_Type for more information about what cleanup each type performs when it is freed.)
+ */
 {
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     Models *models = cmd->models;
@@ -2938,6 +3023,16 @@ Managed_Object_Free(Application_Links *app, Managed_Object object)
 
 API_EXPORT bool32
 Managed_Object_Store_Data(Application_Links *app, Managed_Object object, uint32_t first_index, uint32_t count, void *mem)
+/*
+DOC_PARAM(object, The handle to the managed object in which data will be stored.)
+DOC_PARAM(first_index, The first index of the range in the managed object to be stored.  Managed object indics are zero based.)
+DOC_PARAM(count, The number of items in the managed object to be stored.)
+DOC_PARAM(mem, A pointer to the data to be stored, it is expected that the size of this memory is item_size*count, item_size can be queried with managed_object_get_item_size.)
+DOC_RETURN(Returns non-zero on success and zero on failure.  This call fails when object does not refer to a valid managed object, and when the range of indices overflows the range of this managed object.  The range of the managed object can be queried with managed_object_get_item_count.)
+DOC(All managed objects, in addition to whatever special behaviors they have, have the ability to store and load data.  This storage can have special properties in certain managed object types, for instance, the data stored in marker objects are edited by the core when the buffer to which they are attached is edited.  This call stores the data pointed to by mem into the item range specified by first_index and count.)
+DOC_SEE(managed_object_get_item_size)
+DOC_SEE(managed_object_get_item_count)
+*/
 {
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     Models *models = cmd->models;
@@ -2957,6 +3052,16 @@ Managed_Object_Store_Data(Application_Links *app, Managed_Object object, uint32_
 
 API_EXPORT bool32
 Managed_Object_Load_Data(Application_Links *app, Managed_Object object, uint32_t first_index, uint32_t count, void *mem_out)
+/*
+DOC_PARAM(object, The handle to the managed object  from which data will be loaded.)
+DOC_PARAM(first_index, The first index of the range in the managed object to be loaded.  Managed object indics are zero based.)
+DOC_PARAM(count, The number of items in the managed object to be loaded.)
+DOC_PARAM(mem_out, A pointer to the memory where loaded data will be written, it is expected that the size of this memory is item_size*count, item_size can be queried with managed_object_get_item_size.)
+DOC_RETURN(Returns non-zero on success and zero on failure.  This call fails when object does not refer to a valid managed object, and when the range of indices overflows the range of this managed object.  The range of the managed object can be queried with managed_object_get_item_count.)
+DOC(All managed objects, in addition to whatever special behaviors they have, have the ability to store and load data.  This storage can have special properties in certain managed object types, for instance, the data stored in marker objects are edited by the core when the buffer to which they are attached is edited.  This call loads the data from the item range specified by first_index and count into mem_out.)
+DOC_SEE(managed_object_get_item_size)
+DOC_SEE(managed_object_get_item_count)
+*/
 {
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     Models *models = cmd->models;
@@ -3013,12 +3118,21 @@ DOC_RETURN(This call returns the input that triggered the currently executing co
 DOC_SEE(User_Input)
 */{
     Command_Data *cmd = (Command_Data*)app->cmd_context;
-    User_Input result;
+    User_Input result = {0};
     result.type = UserInputKey;
     result.abort = 0;
     result.key = cmd->key;
     result.command.cmdid = 0;
     return(result);
+}
+
+API_EXPORT void
+Set_Command_Input(Application_Links *app, Key_Event_Data key_data)
+/*
+DOC_PARAM(key_data, The new value of the "command input". Setting this effects the result returned by get_command_input until the end of this command.)
+*/{
+    Command_Data *cmd = (Command_Data*)app->cmd_context;
+    cmd->key = key_data;
 }
 
 API_EXPORT Mouse_State
@@ -3085,6 +3199,9 @@ DOC(This call posts a string to the *messages* buffer.)
 
 API_EXPORT int32_t
 Get_Theme_Count(Application_Links *app)
+/*
+DOC_RETURN(Returns the number of themes that currently exist in the core.)
+*/
 {
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     Style_Library *library = &cmd->models->styles;
@@ -3093,10 +3210,14 @@ Get_Theme_Count(Application_Links *app)
 
 API_EXPORT String
 Get_Theme_Name(Application_Links *app, struct Partition *arena, int32_t index)
+/*
+DOC_PARAM(arena, The arena which will be used to allocate the returned string.)
+DOC_PARAM(index, The index of the theme to query.  Index zero always refers to the active theme, all other indices refer to the static copies of available themes.)
+DOC_RETURN(On success this call returns a string allocated on arena that is the name of the queried theme, on failure a null string is returned.  This call fails when index is not less than the total number of themes, and when there is not enough space in arena to allocate the return string.)
+*/
 {
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     Style_Library *library = &cmd->models->styles;
-    
     String str = {0};
     if (0 <= index && index < library->count){
         Style *style = &library->styles[index];
@@ -3109,7 +3230,6 @@ Get_Theme_Name(Application_Links *app, struct Partition *arena, int32_t index)
             str.str[str.size] = 0;
         }
     }
-    
     return(str);
 }
 
@@ -3168,6 +3288,10 @@ DOC(This call changes 4coder's color pallet to one of the built in themes.)
 
 API_EXPORT bool32
 Change_Theme_By_Index(Application_Links *app, int32_t index)
+/*
+DOC_PARAM(index, The index parameter specifies the index of theme to begin using.)
+DOC_RETURN(Returns non-zero on success and zero on failure.  This call fails when index is not less than the total number of themes.)
+*/
 {
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     Style_Library *styles = &cmd->models->styles;
