@@ -40,11 +40,11 @@ table_hash_u32(u32 *v, i32 size){
     u64 hash = 0;
     for (u32 *p = v, *e = v + size; p < e; p += 1){
         u32 k = *p;
-        k *= 3432918353;
+        k *= 3432918353U;
         k = ((u32)(k << 16)) | ((u32)(k >> 16));
         hash ^= k;
         hash *= 11;
-        hash += 2041000173;
+        hash += 2041000173U;
     }
     return(hash);
 }
@@ -57,7 +57,7 @@ table_hash_u64(u64 *v, i32 size){
         k = ((u64)(k << 32)) | ((u64)(k >> 32));
         hash ^= k;
         hash *= 11;
-        hash += 8766028991911375085;
+        hash += 8766028991911375085ULL;
     }
     return(hash);
 }

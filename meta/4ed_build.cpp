@@ -307,7 +307,8 @@ build(u32 flags, u32 arch, char *code_path, char **code_files, char *out_path, c
 # define GCC_OPTS                     \
 "-Wno-write-strings "                 \
 "-D_GNU_SOURCE -fPIC "                \
-"-fno-threadsafe-statics -pthread"
+"-fno-threadsafe-statics -pthread "   \
+"-Wno-unused-result"
 
 #define GCC_LIBS_COMMON                        \
 "-L/usr/local/lib -lX11 -lpthread -lm -lrt "   \
@@ -320,8 +321,10 @@ build(u32 flags, u32 arch, char *code_path, char **code_files, char *out_path, c
 
 # define GCC_OPTS                                   \
 "-Wno-write-strings -Wno-deprecated-declarations "  \
-"-Wno-comment -Wno-switch -Wno-null-dereference " \
-"-Wno-tautological-compare"
+"-Wno-comment -Wno-switch -Wno-null-dereference "   \
+"-Wno-tautological-compare"                         \
+"-Wno-unused-result"
+
 
 #define GCC_LIBS_COMMON \
 "-framework Cocoa -framework QuartzCore " \
@@ -655,7 +658,7 @@ package(char *cdir){
             fm_copy_folder(cdir, dir, "themes");
             fm_copy_file(fm_str(cdir, "/LICENSE.txt"), fm_str(dir, "/LICENSE.txt"));
             fm_copy_file(fm_str(cdir, "/README.txt"), fm_str(dir, "/README.txt"));
-            fm_copy_file(fm_str(cdir, "/CHANGES.txt"), fm_str(dir, "/CHANGES.txt"));
+            fm_copy_file(fm_str(cdir, "/changes.txt"), fm_str(dir, "/changes.txt"));
             
             fm_make_folder_if_missing(fonts_dir);
             fm_copy_all(fonts_source_dir, "*", fonts_dir);
