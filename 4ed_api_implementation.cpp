@@ -1212,6 +1212,7 @@ DOC_SEE(Buffer_Create_Flag)
     Partition *part = &models->mem.part;
     
     Buffer_Summary result = {0};
+    b32 buffer_is_for_new_file = false;
     
     if (filename_len > 0){
         Temp_Memory temp = begin_temp_memory(part);
@@ -1257,6 +1258,9 @@ DOC_SEE(Buffer_Create_Flag)
             }
             
             if (do_empty_buffer){
+                if (has_canon_name){
+                    buffer_is_for_new_file = true;
+                }
                 if ((flags & BufferCreate_NeverNew) == 0){
                     file = working_set_alloc_always(working_set, heap, &models->lifetime_allocator);
                     if (file != 0){
@@ -1313,6 +1317,16 @@ DOC_SEE(Buffer_Create_Flag)
             i32 size = buffer_size(&file->state.buffer);
             if (size > 0){
                 edit_single(system, models, file, 0, size, 0, 0);
+                if (has_canon_name){
+                    buffer_is_for_new_file = true;
+                }
+            }
+        }
+        
+        if (file != 0 && buffer_is_for_new_file &&
+            (flags & BufferCreate_SuppressNewFileHook) == 0){
+            if (models->hook_new_file != 0){
+                models->hook_new_file(&models->app_links, file->id.id);
             }
         }
         

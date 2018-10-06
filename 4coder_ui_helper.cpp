@@ -275,22 +275,23 @@ lister_update_ui(Application_Links *app, Partition *scratch, View_Summary *view,
     Lister_Node_Ptr_Array substring_matches = {0};
     substring_matches.node_ptrs = push_array(scratch, Lister_Node*, node_count);
     
+    String key = state->lister.key_string;
     Absolutes absolutes = {0};
-    get_absolutes(state->lister.key_string, &absolutes, true, true);
+    get_absolutes(key, &absolutes, true, true);
+    bool32 has_wildcard = (absolutes.count > 3);
     
     for (Lister_Node *node = state->lister.options.first;
          node != 0;
          node = node->next){
-        if (state->lister.key_string.size == 0 ||
+        if (key.size == 0 ||
             wildcard_match_s(&absolutes, node->string, false)){
-            bool32 has_wildcard = (absolutes.count > 2);
-            if (match_insensitive(node->string, state->lister.key_string) && exact_matches.count == 0){
+            if (match_insensitive(node->string, key) && exact_matches.count == 0){
                 exact_matches.node_ptrs[exact_matches.count++] = node;
             }
             else if (!has_wildcard &&
-                     match_part_insensitive(node->string, state->lister.key_string) &&
-                     node->string.size > state->lister.key_string.size &&
-                     node->string.str[state->lister.key_string.size] == '.'){
+                     match_part_insensitive(node->string, key) &&
+                     node->string.size > key.size &&
+                     node->string.str[key.size] == '.'){
                 before_extension_matches.node_ptrs[before_extension_matches.count++] = node;
             }
             else{

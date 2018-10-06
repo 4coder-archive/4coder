@@ -1,4 +1,4 @@
-config := [version] {assignment}
+sconfig := [version] {assignment}
 
 version := "version" "(" INTEGER ")" ";"
 assignment := lvalue "=" rvalue ";"

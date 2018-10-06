@@ -1,4 +1,3 @@
-
 #if !defined(FCODER_TYPES_H)
 #define FCODER_TYPES_H
 
@@ -188,6 +187,8 @@ ENUM(uint32_t, Buffer_Create_Flag){
     BufferCreate_MustAttachToFile = 0x10,
     /* DOC(Indicates that when create_buffer searches for already existing buffers that match the name parameter, it should only search by buffer name, and that it should not attach a file to the buffer even if it can.  Caution! Buffers that don't have attached files cannot be saved.) */
     BufferCreate_NeverAttachToFile = 0x20,
+    /* DOC(Normally the new file hook is called on any created buffer.  Passing this flag will prevent the new file hook from being called automatically by the core.) */
+    BufferCreate_SuppressNewFileHook = 0x40,
 };
 
 /* DOC(Buffer_Creation_Data is a struct used as a local handle for the creation of a buffer. )

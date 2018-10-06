@@ -382,7 +382,7 @@ view_set_to_region(Application_Links *app, View_Summary *view, int32_t major_pos
     }
 }
 
-CUSTOM_COMMAND_SIG(highlight_surrounding_scope)
+CUSTOM_COMMAND_SIG(select_surrounding_scope)
 CUSTOM_DOC("Finds the scope enclosed by '{' '}' surrounding the cursor and puts the cursor and mark on the '{' and '}'.")
 {
     uint32_t access = AccessProtected;
@@ -394,10 +394,11 @@ CUSTOM_DOC("Finds the scope enclosed by '{' '}' surrounding the cursor and puts 
         view_set_cursor(app, &view, seek_pos(range.first), true);
         view_set_mark(app, &view, seek_pos(range.end));
         view_set_to_region(app, &view, range.first, range.end, scope_center_threshold);
+        no_mark_snap_to_cursor(app, view.view_id);
     }
 }
 
-CUSTOM_COMMAND_SIG(highlight_next_scope_absolute)
+CUSTOM_COMMAND_SIG(select_next_scope_absolute)
 CUSTOM_DOC("Finds the first scope started by '{' after the cursor and puts the cursor and mark on the '{' and '}'.")
 {
     uint32_t access = AccessProtected;
@@ -412,11 +413,12 @@ CUSTOM_DOC("Finds the first scope started by '{' after the cursor and puts the c
             view_set_cursor(app, &view, seek_pos(top), true);
             view_set_mark(app, &view, seek_pos(bottom));
             view_set_to_region(app, &view, top, bottom, scope_center_threshold);
+            no_mark_snap_to_cursor(app, view.view_id);
         }
     }
 }
 
-CUSTOM_COMMAND_SIG(highlight_prev_scope_absolute)
+CUSTOM_COMMAND_SIG(select_prev_scope_absolute)
 CUSTOM_DOC("Finds the first scope started by '{' before the cursor and puts the cursor and mark on the '{' and '}'.")
 {
     uint32_t access = AccessProtected;
@@ -430,6 +432,7 @@ CUSTOM_DOC("Finds the first scope started by '{' before the cursor and puts the 
             view_set_cursor(app, &view, seek_pos(top), true);
             view_set_mark(app, &view, seek_pos(bottom));
             view_set_to_region(app, &view, top, bottom, scope_center_threshold);
+            no_mark_snap_to_cursor(app, view.view_id);
         }
     }
 }
@@ -791,7 +794,7 @@ CUSTOM_DOC("If a scope is currently selected, and a statement or block statement
     
     Temp_Memory temp = begin_temp_memory(part);
     if (buffer_get_char(app, &buffer, top) == '{' && buffer_get_char(app, &buffer, bottom-1) == '}'){
-        Range range;
+        Range range = {0};
         if (find_whole_statement_down(app, &buffer, bottom, &range.start, &range.end)){
             char *string_space = push_array(part, char, range.end - range.start);
             buffer_read_range(app, &buffer, range.start, range.end, string_space);
@@ -842,6 +845,8 @@ CUSTOM_DOC("If a scope is currently selected, and a statement or block statement
         }
     }
     end_temp_memory(temp);
+    
+    no_mark_snap_to_cursor(app, view.view_id);
 }
 
 // BOTTOM

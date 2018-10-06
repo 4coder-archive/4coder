@@ -1,4 +1,3 @@
-
 [] Build 4.0.29
 {
     Features
@@ -8,7 +7,12 @@
     
     Bugs
     {
-        [] Before '.' name matches don't sort to the top like they're supposed to.
+        [x] Before '.' name matches don't sort to the top like they're supposed to.
+        [x] notepad like mode - select scope range snap shouldn't happen
+        [x] highlight high priority vs block low priority should win
+        [x] new files don't get their automatically inserted comments anymore
+        [x] nodepad like mode - when moving the cursor in a non-active view, there is no marker snap
+        [x] notepad like mode - can't tell which view is active, only highlight line in active view?
         Repro Needed
         {
         }
@@ -40,10 +44,10 @@
         [x] alloc_managed_memory_in_scope
         [x] alloc_buffer_markers_on_buffer
         [x] create_marker_visuals
-        [x] marker_visuals_set_look
-        [x] marker_visuals_set_take_rule
-        [x] marker_visuals_set_priority
-        [x] marker_visuals_set_view_key
+        [] marker_visuals_set_look
+        [] marker_visuals_set_take_rule
+        [] marker_visuals_set_priority
+        [] marker_visuals_set_view_key
         [] destroy_marker_visuals
         [] buffer_markers_get_attached_visuals_count
         [] buffer_markers_get_attached_visuals
@@ -92,6 +96,11 @@
     Bugs
     {
         [] Texture binding changes too often problem.
+        Repro Needed
+        {
+            [] pasting long comment at top of code files doesn't always parse right away???
+            [] saving to removable media -> Ask person who sent it in for more info
+        }
     }
 }
 

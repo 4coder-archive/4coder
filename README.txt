@@ -1,4 +1,3 @@
-
 Thank you for contributing to the 4coder project!
 
 To submit bug reports or to request particular features email:

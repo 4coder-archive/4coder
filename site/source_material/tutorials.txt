@@ -1,4 +1,3 @@
-
 \INCLUDE{site_header.txt}
 
 Getting started with 4coder and navigating your files:

@@ -45,21 +45,35 @@ COMMAND_CALLER_HOOK(default_command_caller){
     Managed_Scope scope = view_get_managed_scope(app, view.view_id);
     managed_variable_set(app, scope, view_next_rewrite_loc, 0);
     if (fcoder_mode == FCoderMode_NotepadLike){
-        managed_variable_set(app, scope, view_snap_mark_to_cursor, true);
+        for (View_Summary view_it = get_view_first(app, AccessAll);
+             view_it.exists;
+             get_view_next(app, &view_it, AccessAll)){
+            Managed_Scope scope_it = view_get_managed_scope(app, view_it.view_id);
+            managed_variable_set(app, scope_it, view_snap_mark_to_cursor, true);
+        }
     }
+    
+    ////
     exec_command(app, cmd);
+    ////
+    
     uint64_t next_rewrite = 0;
     managed_variable_get(app, scope, view_next_rewrite_loc, &next_rewrite);
     managed_variable_set(app, scope, view_rewrite_loc, next_rewrite);
     if (fcoder_mode == FCoderMode_NotepadLike){
-        uint64_t val = 0;
-        if (managed_variable_get(app, scope, view_snap_mark_to_cursor, &val)){
-            if (val != 0){
-                view = get_view(app, view.view_id, AccessAll);
-                view_set_mark(app, &view, seek_pos(view.cursor.pos));
+        for (View_Summary view_it = get_view_first(app, AccessAll);
+             view_it.exists;
+             get_view_next(app, &view_it, AccessAll)){
+            Managed_Scope scope_it = view_get_managed_scope(app, view_it.view_id);
+            uint64_t val = 0;
+            if (managed_variable_get(app, scope_it, view_snap_mark_to_cursor, &val)){
+                if (val != 0){
+                    view_set_mark(app, &view_it, seek_pos(view_it.cursor.pos));
+                }
             }
         }
     }
+    
     return(0);
 }
 
@@ -318,7 +332,7 @@ RENDER_CALLER_SIG(default_render_caller){
     }
     
     // NOTE(allen): Line highlight setup
-    if (highlight_line_at_cursor){
+    if (highlight_line_at_cursor && is_active_view){
         Theme_Color color = {0};
         color.tag = Stag_Highlight_Cursor_Line;
         get_theme_colors(app, &color, 1);
@@ -690,9 +704,11 @@ OPEN_FILE_HOOK_SIG(default_file_settings){
 }
 
 OPEN_FILE_HOOK_SIG(default_new_file){
+#if 0
     Buffer_Summary buffer = get_buffer(app, buffer_id, AccessOpen);
     char str[] = "/*\nNew File\n*/\n\n\n";
     buffer_replace_range(app, &buffer, 0, 0, str, sizeof(str)-1);
+#endif
     
     // no meaning for return
     return(0);

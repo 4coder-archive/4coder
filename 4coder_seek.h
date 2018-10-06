@@ -1,6 +1,3 @@
-/*
-New File
-*/
 
 // TOP
 

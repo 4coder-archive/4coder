@@ -1008,7 +1008,6 @@ render_loaded_file_in_view__inner(Models *models, Render_Target *target, View *v
         
         // NOTE(allen): Visual marker colors
         i32 marker_highlight_best_priority = min_i32;
-        b32 marker_highlight_is_set = false;
         u32 marker_highlight = 0;
         u32 marker_highlight_text = 0;
         
@@ -1026,7 +1025,6 @@ render_loaded_file_in_view__inner(Models *models, Render_Target *target, View *v
                 case VisualType_CharacterBlocks:
                 {
                     if (marker->priority > marker_highlight_best_priority){
-                        marker_highlight_is_set = true;
                         marker_highlight = marker->color;
                         marker_highlight_text = marker->text_color;
                         marker_highlight_best_priority = marker->priority;
@@ -1075,7 +1073,8 @@ render_loaded_file_in_view__inner(Models *models, Render_Target *target, View *v
         }
         for (;range_stack_top >= 0 && ind >= range_stack[range_stack_top].one_past_last;
              range_stack_top -= 1);
-        if (!marker_highlight_is_set && range_stack_top >= 0){
+        if (range_stack_top >= 0 &&
+            range_stack[range_stack_top].priority > marker_highlight_best_priority){
             marker_highlight = range_stack[range_stack_top].color;
             marker_highlight_text = range_stack[range_stack_top].text_color;
         }

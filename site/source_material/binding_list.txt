@@ -1,4 +1,3 @@
-
 \INCLUDE{site_header.txt}
 
 4coder version \VERSION
