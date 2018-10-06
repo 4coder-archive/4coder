@@ -483,6 +483,7 @@ lister_add_ui_item(Partition *arena, Lister *lister,
     node->string = string.string;
     node->index = index;
     node->user_data = user_data;
+    node->raw_index = lister->options.count;
     zdll_push_back(lister->options.first, lister->options.last, node);
     lister->options.count += 1;
     void *result = push_array(arena, char, extra_space);
