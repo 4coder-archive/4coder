@@ -153,6 +153,7 @@ file_cursor_to_end(System_Functions *system, Models *models, Editing_File *file)
             continue;
         }
         view_cursor_move(system, view, pos);
+        view->transient.edit_pos->mark = view->transient.edit_pos->cursor.pos;
     }
 }
 

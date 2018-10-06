@@ -1,4 +1,3 @@
-
 \INCLUDE{site_header.txt}
 
 This page provides a list of 4coder features for anyone trying to determine whether 4coder is the right editor for them.  To find a complete list of every default key binding visit \LINK{document:bindings} binding list \END. If a feature is missing here you should check out the \LINK{document:roadmap} roadmap \END page to see what is coming in the future.  If the feature you want is on neither, it might be missing from this list, or it might actually be missing from 4coder, you should contact \STYLE{code} editor@4coder.net \END to ask questions and make requests.

@@ -56,24 +56,6 @@ enum{
     MDFR_SHIFT = 0x8,
 };
 
-global char long_commands_str[] = R"foo(
-\SECTION{4coder Long Command}
-Long name commands that can be typed in after using the "long command" command for infrequently triggered commands.
-\LIST
-\ITEM \STYLE{code} "load project" \END Load a project.4coder file, ditching any previously loaded project
-\ITEM \STYLE{code} "open all code" \END Open all code files in the current directory, extensions set in config.4coder, default to C/C++ extensions
-\ITEM \STYLE{code} "open all code recursive" \END Like \STYLE{code} "open all code" \END but recurses through folders
-\ITEM \STYLE{code} "dos lines" \END Switch the buffer to 'dos' line ending mode CRLF
-\ITEM \STYLE{code} "nix lines" \END Switch the buffer to 'nix' line ending mode LF
-\ITEM \STYLE{code} "remap" \END Change to one of the built in command bindings
-\ITEM \STYLE{code} "new project" \END Setup a new project.4coder and accompanying build scripts
-\ITEM \STYLE{code} "delete file" \END Delete the file attached to the current buffer and close the buffer
-\ITEM \STYLE{code} "rename file" \END Rename the file attached to the current buffer and reopen the buffer
-\ITEM \STYLE{code} "mkdir" \END Make a new directory in 4coder's hot directory
-\END
-\END
-)foo";
-
 internal void
 generate_binding_list(char *code_directory, char *src_directory){
     char full_path[512];
@@ -103,8 +85,6 @@ generate_binding_list(char *code_directory, char *src_directory){
         fprintf(out, "\\ITEM \\STYLE{code} \"%s\" \\END %s\n", s, mapping->description);
     }
     fprintf(out, "\\END\n");
-    
-    fprintf(out, long_commands_str);
     
     for (i32 i = 0; i < ArrayCount(fcoder_meta_maps); ++i){
         Meta_Mapping *mapping = &fcoder_meta_maps[i];

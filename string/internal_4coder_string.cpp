@@ -1240,7 +1240,19 @@ non-zero if dest does not run out of space in the underlying memory.) */{
 //
 
 API_EXPORT FSTRING_LINK void
-string_interpret_escapes(String src, char *dst){
+string_interpret_escapes(String src, char *dst)
+/* DOC(Rewrites a string with escape sequences into a flattened string.  In particular:
+
+"\\" becomes "\"
+
+"\n" becomes LF
+
+"\t" becomes TAB
+
+"\"" becomes """
+
+"0" becomes NULL
+) */{
     i32_4tech mode = 0;
     i32_4tech j = 0;
     for (i32_4tech i = 0; i < src.size; ++i){

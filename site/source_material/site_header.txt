@@ -1,4 +1,3 @@
-
 \META_PARSE{custom_funcs}{4ed_api_implementation.cpp}
 \META_PARSE{custom_types}{4coder_API/types.h}
 \META_PARSE{string}      {string/internal_4coder_string.cpp}

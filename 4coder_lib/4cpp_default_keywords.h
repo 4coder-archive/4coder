@@ -1,4 +1,3 @@
-
 // For a quick way to extend the default keywords:
 // #define FCPP_LEXER_EXTRA_KEYWORDS "my_keywords.h"
 // And in the file "my_keywords.h", list the keywords you want.

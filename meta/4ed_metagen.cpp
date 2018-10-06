@@ -861,9 +861,9 @@ generate_remapping_code_and_data(){
         bind(mappings, '{', MDFR_CTRL, open_long_braces_semicolon);
         bind(mappings, '}', MDFR_CTRL, open_long_braces_break);
         
-        bind(mappings, '[', MDFR_ALT, highlight_surrounding_scope);
-        bind(mappings, ']', MDFR_ALT, highlight_prev_scope_absolute);
-        bind(mappings, '\'', MDFR_ALT, highlight_next_scope_absolute);
+        bind(mappings, '[', MDFR_ALT, select_surrounding_scope);
+        bind(mappings, ']', MDFR_ALT, select_prev_scope_absolute);
+        bind(mappings, '\'', MDFR_ALT, select_next_scope_absolute);
         bind(mappings, '/', MDFR_ALT, place_in_scope);
         bind(mappings, '-', MDFR_ALT, delete_current_scope);
         bind(mappings, 'j', MDFR_ALT, scope_absorb_down);
@@ -921,7 +921,7 @@ generate_remapping_code_and_data(){
         bind(mappings, 'N', MDFR_CTRL, goto_prev_jump_sticky);
         bind(mappings, 'M', MDFR_CTRL, goto_first_jump_sticky);
         bind(mappings, 'm', MDFR_CTRL, build_in_build_panel);
-        bind(mappings, 'b', MDFR_ALT, toggle_filebar);
+        bind(mappings, 'b', MDFR_CTRL, toggle_filebar);
         
         bind(mappings, 'z', MDFR_CTRL, execute_any_cli);
         bind(mappings, 'Z', MDFR_CTRL, execute_previous_cli);
@@ -1079,9 +1079,9 @@ generate_remapping_code_and_data(){
         bind(mappings, '{', MDFR_CMND, open_long_braces_semicolon);
         bind(mappings, '}', MDFR_CMND, open_long_braces_break);
         
-        bind(mappings, '[', MDFR_CTRL, highlight_surrounding_scope);
-        bind(mappings, ']', MDFR_CTRL, highlight_prev_scope_absolute);
-        bind(mappings, '\'', MDFR_CTRL, highlight_next_scope_absolute);
+        bind(mappings, '[', MDFR_CTRL, select_surrounding_scope);
+        bind(mappings, ']', MDFR_CTRL, select_prev_scope_absolute);
+        bind(mappings, '\'', MDFR_CTRL, select_next_scope_absolute);
         bind(mappings, '/', MDFR_CTRL, place_in_scope);
         bind(mappings, '-', MDFR_CTRL, delete_current_scope);
         bind(mappings, 'j', MDFR_CTRL, scope_absorb_down);

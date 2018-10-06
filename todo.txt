@@ -1,14 +1,13 @@
-
 [] Build 4.0.29
 {
     Features
     {
         [] Declarative system for keyword direct coloring
+        [] set_command_input
     }
     
     Bugs
     {
-        [] Before '.' name matches don't sort to the top like they're supposed to.
         Repro Needed
         {
         }
@@ -20,64 +19,6 @@
     
     Documentation
     {
-        [x] buffer_get_managed_scope
-        [x] view_get_managed_scope
-        [x] view_start_ui_mode
-        [x] view_end_ui_mode
-        [x] view_set_ui
-        [x] view_get_ui_copy
-        [x] create_user_managed_scope
-        [x] destroy_user_managed_scope
-        [x] get_global_managed_scope
-        [x] get_managed_scope_with_multiple_dependencies
-        [x] managed_scope_clear_contents
-        [x] clear_managed_scope_and_all_dependent_scopes
-        [x] managed_variable_create
-        [x] managed_variable_get_id
-        [x] managed_variable_create_or_get_id
-        [x] managed_variable_set
-        [x] managed_variable_get
-        [x] alloc_managed_memory_in_scope
-        [x] alloc_buffer_markers_on_buffer
-        [x] create_marker_visuals
-        [x] marker_visuals_set_look
-        [x] marker_visuals_set_take_rule
-        [x] marker_visuals_set_priority
-        [x] marker_visuals_set_view_key
-        [] destroy_marker_visuals
-        [] buffer_markers_get_attached_visuals_count
-        [] buffer_markers_get_attached_visuals
-        [] managed_object_get_item_size
-        [] managed_object_get_item_count
-        [] managed_object_get_type
-        [] managed_object_get_containing_scope
-        [] managed_object_free
-        [] managed_object_store_data
-        [] managed_object_load_data
-        [] get_theme_count
-        [] get_theme_name
-        [] change_theme_by_index
-        [] Buffer_Kill_Result
-        [] Range_Array
-        [] Managed_Object_Type
-        [] Managed_Scope
-        [] Managed_Variable_ID
-        [] Managed_Object
-        [] Marker_Visuals
-        [] Marker_Visuals_Type
-        [] Marker_Visuals_Symbolic_Color
-        [] Marker_Visuals_Text_Style
-        [] Marker_Visuals_Take_Rule
-        [] Marker_Visuals_Priority_Level
-        [] UI_Item_Type
-        [] UI_Activation_Level
-        [] UI_Coordinate_System
-        [] UI_Item
-        [] UI_Item_Node
-        [] UI_List
-        [] UI_Control
-        [] Buffer_Name_Conflict_Entry
-        [] string_interpret_escapes
     }
 }
 
@@ -92,6 +33,11 @@
     Bugs
     {
         [] Texture binding changes too often problem.
+        Repro Needed
+        {
+            [] pasting long comment at top of code files doesn't always parse right away???
+            [] saving to removable media -> Ask person who sent it in for more info
+        }
     }
 }
 
@@ -185,6 +131,67 @@ Change Log
         }
         
         [x] Cleanup names in Marker_Visuals API
+    }
+    
+    NEW THINGS
+    {
+        [x] buffer_get_managed_scope
+        [x] view_get_managed_scope
+        [x] view_start_ui_mode
+        [x] view_end_ui_mode
+        [x] view_set_ui
+        [x] view_get_ui_copy
+        [x] create_user_managed_scope
+        [x] destroy_user_managed_scope
+        [x] get_global_managed_scope
+        [x] get_managed_scope_with_multiple_dependencies
+        [x] managed_scope_clear_contents
+        [x] clear_managed_scope_and_all_dependent_scopes
+        [x] managed_variable_create
+        [x] managed_variable_get_id
+        [x] managed_variable_create_or_get_id
+        [x] managed_variable_set
+        [x] managed_variable_get
+        [x] alloc_managed_memory_in_scope
+        [x] alloc_buffer_markers_on_buffer
+        [x] create_marker_visuals
+        [x] marker_visuals_set_look
+        [x] marker_visuals_set_take_rule
+        [x] marker_visuals_set_priority
+        [x] marker_visuals_set_view_key
+        [x] destroy_marker_visuals
+        [x] buffer_markers_get_attached_visuals_count
+        [x] buffer_markers_get_attached_visuals
+        [x] managed_object_get_item_size
+        [x] managed_object_get_item_count
+        [x] managed_object_get_type
+        [x] managed_object_get_containing_scope
+        [x] managed_object_free
+        [x] managed_object_store_data
+        [x] managed_object_load_data
+        [x] get_theme_count
+        [x] get_theme_name
+        [x] change_theme_by_index
+        [x] Buffer_Kill_Result
+        [x] Range_Array
+        [x] Managed_Object_Type
+        [x] Managed_Scope
+        [x] Managed_Variable_ID
+        [x] Managed_Object
+        [x] Marker_Visuals
+        [x] Marker_Visuals_Type
+        [x] Marker_Visuals_Symbolic_Color
+        [x] Marker_Visuals_Text_Style
+        [x] Marker_Visuals_Take_Rule
+        [x] Marker_Visuals_Priority_Level
+        [x] UI_Item_Type
+        [x] UI_Activation_Level
+        [x] UI_Coordinate_System
+        [x] UI_Item
+        [x] UI_Item_Node
+        [x] UI_List
+        [x] UI_Control
+        [x] string_interpret_escapes
     }
 }
 

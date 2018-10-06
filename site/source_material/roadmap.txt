@@ -1,4 +1,3 @@
-
 \INCLUDE{site_header.txt}
 
 Right now I am working on upgrading some core internal systems that should buy me the flexibility I need to get the rest of the envisioned features done.  Because these core upgrades are experimental in nature, it's hard to predict how long it will take before they are ready.

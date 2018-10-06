@@ -142,9 +142,9 @@ bind(context, 'T', MDFR_ALT, list_all_locations_of_type_definition_of_identifier
 bind(context, '[', MDFR_CTRL, open_long_braces);
 bind(context, '{', MDFR_CTRL, open_long_braces_semicolon);
 bind(context, '}', MDFR_CTRL, open_long_braces_break);
-bind(context, '[', MDFR_ALT, highlight_surrounding_scope);
-bind(context, ']', MDFR_ALT, highlight_prev_scope_absolute);
-bind(context, '\'', MDFR_ALT, highlight_next_scope_absolute);
+bind(context, '[', MDFR_ALT, select_surrounding_scope);
+bind(context, ']', MDFR_ALT, select_prev_scope_absolute);
+bind(context, '\'', MDFR_ALT, select_next_scope_absolute);
 bind(context, '/', MDFR_ALT, place_in_scope);
 bind(context, '-', MDFR_ALT, delete_current_scope);
 bind(context, 'j', MDFR_ALT, scope_absorb_down);
@@ -187,7 +187,7 @@ bind(context, 'n', MDFR_CTRL, goto_next_jump_sticky);
 bind(context, 'N', MDFR_CTRL, goto_prev_jump_sticky);
 bind(context, 'M', MDFR_CTRL, goto_first_jump_sticky);
 bind(context, 'm', MDFR_CTRL, build_in_build_panel);
-bind(context, 'b', MDFR_ALT, toggle_filebar);
+bind(context, 'b', MDFR_CTRL, toggle_filebar);
 bind(context, 'z', MDFR_CTRL, execute_any_cli);
 bind(context, 'Z', MDFR_CTRL, execute_previous_cli);
 bind(context, 'x', MDFR_CTRL, command_lister);
@@ -312,9 +312,9 @@ bind(context, 'T', MDFR_CTRL, list_all_locations_of_type_definition_of_identifie
 bind(context, '[', MDFR_CMND, open_long_braces);
 bind(context, '{', MDFR_CMND, open_long_braces_semicolon);
 bind(context, '}', MDFR_CMND, open_long_braces_break);
-bind(context, '[', MDFR_CTRL, highlight_surrounding_scope);
-bind(context, ']', MDFR_CTRL, highlight_prev_scope_absolute);
-bind(context, '\'', MDFR_CTRL, highlight_next_scope_absolute);
+bind(context, '[', MDFR_CTRL, select_surrounding_scope);
+bind(context, ']', MDFR_CTRL, select_prev_scope_absolute);
+bind(context, '\'', MDFR_CTRL, select_next_scope_absolute);
 bind(context, '/', MDFR_CTRL, place_in_scope);
 bind(context, '-', MDFR_CTRL, delete_current_scope);
 bind(context, 'j', MDFR_CTRL, scope_absorb_down);
@@ -514,9 +514,9 @@ static Meta_Key_Bind fcoder_binds_for_default_default_code_map[31] = {
 {0, 91, 1, "open_long_braces", 16, LINK_PROCS(open_long_braces)},
 {0, 123, 1, "open_long_braces_semicolon", 26, LINK_PROCS(open_long_braces_semicolon)},
 {0, 125, 1, "open_long_braces_break", 22, LINK_PROCS(open_long_braces_break)},
-{0, 91, 2, "highlight_surrounding_scope", 27, LINK_PROCS(highlight_surrounding_scope)},
-{0, 93, 2, "highlight_prev_scope_absolute", 29, LINK_PROCS(highlight_prev_scope_absolute)},
-{0, 39, 2, "highlight_next_scope_absolute", 29, LINK_PROCS(highlight_next_scope_absolute)},
+{0, 91, 2, "select_surrounding_scope", 24, LINK_PROCS(select_surrounding_scope)},
+{0, 93, 2, "select_prev_scope_absolute", 26, LINK_PROCS(select_prev_scope_absolute)},
+{0, 39, 2, "select_next_scope_absolute", 26, LINK_PROCS(select_next_scope_absolute)},
 {0, 47, 2, "place_in_scope", 14, LINK_PROCS(place_in_scope)},
 {0, 45, 2, "delete_current_scope", 20, LINK_PROCS(delete_current_scope)},
 {0, 106, 2, "scope_absorb_down", 17, LINK_PROCS(scope_absorb_down)},
@@ -563,7 +563,7 @@ static Meta_Key_Bind fcoder_binds_for_mac_default_mapid_global[38] = {
 {0, 78, 1, "goto_prev_jump_sticky", 21, LINK_PROCS(goto_prev_jump_sticky)},
 {0, 77, 1, "goto_first_jump_sticky", 22, LINK_PROCS(goto_first_jump_sticky)},
 {0, 109, 1, "build_in_build_panel", 20, LINK_PROCS(build_in_build_panel)},
-{0, 98, 2, "toggle_filebar", 14, LINK_PROCS(toggle_filebar)},
+{0, 98, 1, "toggle_filebar", 14, LINK_PROCS(toggle_filebar)},
 {0, 122, 1, "execute_any_cli", 15, LINK_PROCS(execute_any_cli)},
 {0, 90, 1, "execute_previous_cli", 20, LINK_PROCS(execute_previous_cli)},
 {0, 120, 1, "command_lister", 14, LINK_PROCS(command_lister)},
@@ -687,9 +687,9 @@ static Meta_Key_Bind fcoder_binds_for_mac_default_default_code_map[31] = {
 {0, 91, 4, "open_long_braces", 16, LINK_PROCS(open_long_braces)},
 {0, 123, 4, "open_long_braces_semicolon", 26, LINK_PROCS(open_long_braces_semicolon)},
 {0, 125, 4, "open_long_braces_break", 22, LINK_PROCS(open_long_braces_break)},
-{0, 91, 1, "highlight_surrounding_scope", 27, LINK_PROCS(highlight_surrounding_scope)},
-{0, 93, 1, "highlight_prev_scope_absolute", 29, LINK_PROCS(highlight_prev_scope_absolute)},
-{0, 39, 1, "highlight_next_scope_absolute", 29, LINK_PROCS(highlight_next_scope_absolute)},
+{0, 91, 1, "select_surrounding_scope", 24, LINK_PROCS(select_surrounding_scope)},
+{0, 93, 1, "select_prev_scope_absolute", 26, LINK_PROCS(select_prev_scope_absolute)},
+{0, 39, 1, "select_next_scope_absolute", 26, LINK_PROCS(select_next_scope_absolute)},
 {0, 47, 1, "place_in_scope", 14, LINK_PROCS(place_in_scope)},
 {0, 45, 1, "delete_current_scope", 20, LINK_PROCS(delete_current_scope)},
 {0, 106, 1, "scope_absorb_down", 17, LINK_PROCS(scope_absorb_down)},

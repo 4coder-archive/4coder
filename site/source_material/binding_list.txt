@@ -7,22 +7,6 @@
 \ITEM \STYLE{code} "default" \END The default 4coder bindings - typically good for Windows and Linux
 \ITEM \STYLE{code} "mac-default" \END Default 4coder bindings on a Mac keyboard
 \END
-
-\SECTION{4coder Long Command}
-Long name commands that can be typed in after using the "long command" command for infrequently triggered commands.
-\LIST
-\ITEM \STYLE{code} "load project" \END Load a project.4coder file, ditching any previously loaded project
-\ITEM \STYLE{code} "open all code" \END Open all code files in the current directory, extensions set in config.4coder, default to C/C++ extensions
-\ITEM \STYLE{code} "open all code recursive" \END Like \STYLE{code} "open all code" \END but recurses through folders
-\ITEM \STYLE{code} "dos lines" \END Switch the buffer to 'dos' line ending mode CRLF
-\ITEM \STYLE{code} "nix lines" \END Switch the buffer to 'nix' line ending mode LF
-\ITEM \STYLE{code} "remap" \END Change to one of the built in command bindings
-\ITEM \STYLE{code} "new project" \END Setup a new project.4coder and accompanying build scripts
-\ITEM \STYLE{code} "delete file" \END Delete the file attached to the current buffer and close the buffer
-\ITEM \STYLE{code} "rename file" \END Rename the file attached to the current buffer and reopen the buffer
-\ITEM \STYLE{code} "mkdir" \END Make a new directory in 4coder's hot directory
-\END
-\END
 \SECTION{Map: default}
 \SECTION{mapid-global}
 The following bindings apply in all situations.
@@ -224,7 +208,7 @@ The following bindings apply in all situations.
 \ITEM \STYLE{code} <ctrl N> \END If a buffer containing jump locations has been locked in, goes to the previous jump in the buffer, skipping sub jump locations.
 \ITEM \STYLE{code} <ctrl M> \END If a buffer containing jump locations has been locked in, goes to the first jump in the buffer.
 \ITEM \STYLE{code} <ctrl m> \END Looks for a build.bat, build.sh, or makefile in the current and parent directories.  Runs the first that it finds and prints the output to *compilation*.  Puts the *compilation* buffer in a panel at the footer of the current view.
-\ITEM \STYLE{code} <alt b> \END Toggles the visibility status of the current view's filebar.
+\ITEM \STYLE{code} <ctrl b> \END Toggles the visibility status of the current view's filebar.
 \ITEM \STYLE{code} <ctrl z> \END Queries for an output buffer name and system command, runs the system command as a CLI and prints the output to the specified buffer.
 \ITEM \STYLE{code} <ctrl Z> \END If the command execute_any_cli has already been used, this will execute a CLI reusing the most recent buffer name and command.
 \ITEM \STYLE{code} <ctrl x> \END Opens an interactive list of all registered commands.

@@ -1,4 +1,3 @@
-
 // TOP
 
 #ifndef FCPP_LEXER_TYPES_INC
