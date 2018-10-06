@@ -1,3 +1,5 @@
+// Created by: Mikkel Hjortshoej
+
 name = "Hjortshoej";
 
 Back = 0xFFF0F0F0;

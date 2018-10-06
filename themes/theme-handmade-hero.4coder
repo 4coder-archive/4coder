@@ -1,3 +1,5 @@
+// Created by: Casey Muratori
+
 name = "Handmade Hero";
 
 Back = 0xFF161616;
