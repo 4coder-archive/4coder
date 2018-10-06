@@ -3,7 +3,6 @@
     Features
     {
         [] Declarative system for keyword direct coloring
-        [] set_command_input
     }
     
     Bugs
@@ -70,17 +69,6 @@ Change Log
     {
         [x] Lister API
         [x] Managed Cooperative Memory API
-        [x] Separate distinct buffer groups by newline
-        [x] If no results put message explaining that fact (search buffer)
-        [x] Quit UI events
-        [x] Exact Matches Sort to Top Always ALWAYS ALWAYS ALWAYS[x] Cool Listers
-        {
-            [x] Command Lister
-            [x] Convert Jump List to Lister
-            [x] Function Lister
-            [x] Snippet Lister
-            [x] Project Command Lister
-        }
         [x] Visible Markers
         {
             [x] Line Highlight
@@ -89,6 +77,18 @@ Change Log
             [x] Wire Cursor Block
             [x] Highlight Range
         }
+        [x] Quit UI events
+        [x] Cool Listers
+        {
+            [x] Command Lister
+            [x] Convert Jump List to Lister
+            [x] Function Lister
+            [x] Snippet Lister
+            [x] Project Command Lister
+        }
+        [x] Exact Matches Sort to Top Always ALWAYS ALWAYS ALWAYS
+        [x] If no results put message explaining that fact (search buffer)
+        [x] Separate distinct buffer groups by newline
         
         [x] Finalize visualizations API
         {
@@ -131,6 +131,8 @@ Change Log
         }
         
         [x] Cleanup names in Marker_Visuals API
+        
+        [x] set_command_input
     }
     
     NEW THINGS

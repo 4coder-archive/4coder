@@ -708,6 +708,7 @@ generate_remapping_code_and_data(){
         bind(mappings, 'Z', MDFR_ALT, execute_previous_cli);
         
         bind(mappings, 'x', MDFR_ALT, command_lister);
+        bind(mappings, 'X', MDFR_ALT, project_command_lister);
         
         bind(mappings, 'I', MDFR_CTRL, list_all_functions_current_buffer_lister);
         bind(mappings, 'E', MDFR_ALT, exit_4coder);
@@ -927,6 +928,7 @@ generate_remapping_code_and_data(){
         bind(mappings, 'Z', MDFR_CTRL, execute_previous_cli);
         
         bind(mappings, 'x', MDFR_CTRL, command_lister);
+        bind(mappings, 'X', MDFR_CTRL, project_command_lister);
         
         bind(mappings, 'I', MDFR_CMND, list_all_functions_current_buffer_lister);
         bind(mappings, 'E', MDFR_CTRL, exit_4coder);
