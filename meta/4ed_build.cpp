@@ -322,8 +322,8 @@ build(u32 flags, u32 arch, char *code_path, char **code_files, char *out_path, c
 # define GCC_OPTS                                   \
 "-Wno-write-strings -Wno-deprecated-declarations "  \
 "-Wno-comment -Wno-switch -Wno-null-dereference "   \
-"-Wno-tautological-compare"                         \
-"-Wno-unused-result"
+"-Wno-tautological-compare "                        \
+"-Wno-unused-result "
 
 
 #define GCC_LIBS_COMMON \
