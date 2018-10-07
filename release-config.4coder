@@ -9,7 +9,7 @@ mapping = "";
 // MODE
 // "4coder"       - The default 4coder mode that has been around since the beginning of time (2015)
 // "notepad-like" - Single "thin" cursor and highlight ranges like in notepad, sublime, notepad++, etc
-mode = "notepad-like";
+mode = "4coder";
 
 // UI
 use_scroll_bars = false;

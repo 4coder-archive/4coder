@@ -14,6 +14,7 @@ Highlight = 0xFF636066;
 Mark = Cursor;
 Default = 0xFFe3e0d7;
 At_Cursor = Back;
+Highlight_Cursor_Line = 0xFF383838;
 At_Highlight = 0xFFd787ff;
 Comment = 0xFF9c998e;
 Keyword = 0xFF88b8f6;
