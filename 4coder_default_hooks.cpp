@@ -686,10 +686,10 @@ OPEN_FILE_HOOK_SIG(default_file_settings){
     // Unfortunantely without tokens virtual whitespace doesn't really make sense.
     // So for now I have it automatically turning on lexing when virtual whitespace is turned on.
     // Cleaning some of that up is a goal for future versions.
-    buffer_set_setting(app, &buffer, lex_without_strings);
+    buffer_set_setting(app, &buffer, BufferSetting_LexWithoutStrings, lex_without_strings);
     buffer_set_setting(app, &buffer, BufferSetting_WrapLine, wrap_lines);
-    buffer_set_setting(app, &buffer, use_virtual_whitespace);
-    buffer_set_setting(app, &buffer, use_lexer);
+    buffer_set_setting(app, &buffer, BufferSetting_VirtualWhitespace, use_virtual_whitespace);
+    buffer_set_setting(app, &buffer, BufferSetting_Lex, use_lexer);
     
     // no meaning for return
     return(0);
