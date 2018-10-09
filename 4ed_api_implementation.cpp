@@ -3009,7 +3009,7 @@ DOC(Permanently frees the specified object.  Not only does this free up the memo
             if (*type == ManagedObjectType_Markers){
                 Managed_Buffer_Markers_Header *header = (Managed_Buffer_Markers_Header*)object_ptr;
                 workspace->total_marker_count -= header->std_header.count;
-                if (header->visual_count > 0´){
+                if (header->visual_count > 0){
                     marker_visual_free_chain(&workspace->visual_allocator, header->visual_first, header->visual_last, header->visual_count);
                 }
                 zdll_remove(workspace->buffer_markers_list.first, workspace->buffer_markers_list.last, header);
