@@ -1,37 +1,24 @@
-[] Build 4.0.29
-{
-    Features
-    {
-        [] Declarative system for keyword direct coloring
-    }
-    
-    Bugs
-    {
-        Repro Needed
-        {
-        }
-    }
-    
-    Followup
-    {
-    }
-    
-    Documentation
-    {
-    }
-}
-
 [] Build 4.0.30
 {
     Features
     {
+        [] Declarative system for keyword direct coloring
         [] Reload all out of sync files
         [] Jump to Command Definition (useful for 4coder customization developers only)
+        [] Recover scroll bars
     }
     
     Bugs
     {
+        [] High CPU usage in listers
+        [] Panel resizing doesn't work
+        [] Notepad like mode clicking to new view doesn't snap the mark
+        [] Notepad like mode replacing text with cursor at end of selection in middle of long file
+        [] Tab when no valid completions in open file lister
+        [] Graphics problem (fonts not rendering)
+        [] Crash when freeing marker object without visuals
         [] Texture binding changes too often problem.
+        [] SSHFS segfault on linux
         Repro Needed
         {
             [] pasting long comment at top of code files doesn't always parse right away???
