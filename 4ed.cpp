@@ -1199,12 +1199,11 @@ App_Step_Sig(app_step){
     }
     
     // NOTE(allen): reorganizing panels on screen
+    i32 prev_width = models->layout.full_width;
+    i32 prev_height = models->layout.full_height;
+    i32 current_width = target->width;
+    i32 current_height = target->height;
     {
-        i32 prev_width = models->layout.full_width;
-        i32 prev_height = models->layout.full_height;
-        i32 current_width = target->width;
-        i32 current_height = target->height;
-        
         models->layout.full_width = current_width;
         models->layout.full_height = current_height;
         
@@ -1244,8 +1243,12 @@ App_Step_Sig(app_step){
         }
         
         if (input->mouse.x != models->prev_x || input->mouse.y != models->prev_y){
-            mouse_event.keycode = key_mouse_move;
-            input->keys.keys[input->keys.count++] = mouse_event;
+            b32 was_in_window = hit_check(models->prev_x, models->prev_y, i32R(0, 0, prev_width, prev_height));
+            b32 is_in_window  = hit_check(input->mouse.x, input->mouse.y, i32R(0, 0, current_width, current_height));
+            if (is_in_window || (was_in_window != is_in_window)){
+                mouse_event.keycode = key_mouse_move;
+                input->keys.keys[input->keys.count++] = mouse_event;
+            }
         }
         
         if (models->animated_last_frame){
@@ -1682,7 +1685,9 @@ App_Step_Sig(app_step){
                         
                         models->prev_command = cmd_bind;
                         
-                        app_result.animating = true;
+                        if (key.keycode == key_animate){
+                            app_result.animating = true;
+                        }
                     }
                 }break;
                 

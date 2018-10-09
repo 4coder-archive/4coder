@@ -109,9 +109,9 @@ CUSTOM_DOC("At the cursor, insert a block comment.")
 }
 
 CUSTOM_COMMAND_SIG(write_zero_struct)
-CUSTOM_DOC("At the cursor, insert a ' = {0};'.")
+CUSTOM_DOC("At the cursor, insert a ' = {};'.")
 {
-    write_string(app, make_lit_string(" = {0};"));
+    write_string(app, make_lit_string(" = {};"));
 }
 
 ////////////////////////////////

@@ -1668,7 +1668,7 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
             if (samount > 0) Sleep(samount);
             timer_end = Win32HighResolutionTime();
         }
-        system_acquire_lock(FRAME_LOCK);
+        system_acquire_lock(FRAME_LOCK);	
         timer_start = Win32HighResolutionTime();
         
         // TODO(allen): Only rely on version right inside input?

@@ -452,7 +452,7 @@ static Command_Metadata fcoder_metacmd_table[216] = {
 { PROC_LINKS(write_note, 0), "write_note", 10,  "At the cursor, insert a '// NOTE' comment, includes user name if it was specified in config.4coder.", 99, "w:\\4ed\\code\\4coder_combined_write_commands.cpp", 46, 99 },
 { PROC_LINKS(write_todo, 0), "write_todo", 10,  "At the cursor, insert a '// TODO' comment, includes user name if it was specified in config.4coder.", 99, "w:\\4ed\\code\\4coder_combined_write_commands.cpp", 46, 87 },
 { PROC_LINKS(write_underscore, 0), "write_underscore", 16,  "Inserts an underscore.", 22, "w:\\4ed\\code\\4coder_base_commands.cpp", 36, 49 },
-{ PROC_LINKS(write_zero_struct, 0), "write_zero_struct", 17,  "At the cursor, insert a ' = {0};'.", 34, "w:\\4ed\\code\\4coder_combined_write_commands.cpp", 46, 111 },
+{ PROC_LINKS(write_zero_struct, 0), "write_zero_struct", 17,  "At the cursor, insert a ' = {};'.", 33, "w:\\4ed\\code\\4coder_combined_write_commands.cpp", 46, 111 },
 };
 static int32_t fcoder_metacmd_ID_allow_mouse = 0;
 static int32_t fcoder_metacmd_ID_auto_tab_line_at_cursor = 1;

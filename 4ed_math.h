@@ -591,9 +591,11 @@ hsla_to_rgba(Vec4 hsla){
 
 internal i32_Rect
 i32R(int32_t l, int32_t t, int32_t r, int32_t b){
-    i32_Rect rect;
-    rect.x0 = l; rect.y0 = t;
-    rect.x1 = r; rect.y1 = b;
+    i32_Rect rect = {0};
+    rect.x0 = l;
+    rect.y0 = t;
+    rect.x1 = r;
+    rect.y1 = b;
     return(rect);
 }
 
