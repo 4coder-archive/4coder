@@ -10,13 +10,13 @@
     
     Bugs
     {
+        [x] Crash when freeing marker object without visuals
         [] High CPU usage in listers
         [] Panel resizing doesn't work
         [] Notepad like mode clicking to new view doesn't snap the mark
         [] Notepad like mode replacing text with cursor at end of selection in middle of long file
         [] Tab when no valid completions in open file lister
         [] Graphics problem (fonts not rendering)
-        [] Crash when freeing marker object without visuals
         [] Texture binding changes too often problem.
         [] SSHFS segfault on linux
         Repro Needed
