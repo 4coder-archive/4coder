@@ -1213,6 +1213,7 @@ App_Step_Sig(app_step){
     }
     
     // NOTE(allen): prepare input information
+    b32 has_keyboard_event = (input->keys.count > 0);
     {
         if (models->input_filter != 0){
             models->input_filter(&input->mouse);
@@ -1693,7 +1694,7 @@ App_Step_Sig(app_step){
                 
                 case APP_STATE_RESIZING:
                 {
-                    if (key_data.count > 0){
+                    if (has_keyboard_event){
                         vars->state = APP_STATE_EDIT;
                     }
                 }break;

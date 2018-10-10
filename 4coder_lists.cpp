@@ -769,8 +769,9 @@ activate_open_or_new__generic(Application_Links *app, View_Summary *view,
         Partition *scratch = &global_part;
         Temp_Memory temp = begin_temp_memory(scratch);
         String full_file_name = get_hot_directory(app, scratch);
-        if (full_file_name.str[full_file_name.size - 1] != '/' &&
-            full_file_name.str[full_file_name.size - 1] != '\\'){
+        if (full_file_name.size == 0 ||
+            (full_file_name.str[full_file_name.size - 1] != '/' &&
+             full_file_name.str[full_file_name.size - 1] != '\\')){
             full_file_name = build_string(scratch, full_file_name, "/", file_name);
         }
         else{

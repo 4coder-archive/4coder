@@ -11,9 +11,8 @@
     Bugs
     {
         [x] Crash when freeing marker object without visuals
-        [x] High CPU usage in listers
-        [] Panel resizing doesn't work
-        [] Double free crash for markers object (not invaliding managed objects correctly?)
+        [x] High CPU usage in listers (endless animation bug)
+        [x] Panel resizing doesn't work
         [] Notepad like mode clicking to new view doesn't snap the mark
         [] Notepad like mode replacing text with cursor at end of selection in middle of long file
         [] Tab when no valid completions in open file lister
