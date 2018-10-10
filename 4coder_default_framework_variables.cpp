@@ -57,7 +57,7 @@ enum{
     FCoderMode_Original = 0,
     FCoderMode_NotepadLike = 1,
 };
-static int32_t fcoder_mode = FCoderMode_NotepadLike;
+static int32_t fcoder_mode = FCoderMode_Original;
 
 static ID_Line_Column_Jump_Location prev_location = {0};
 

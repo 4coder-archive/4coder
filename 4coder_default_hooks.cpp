@@ -495,23 +495,39 @@ BUFFER_NAME_RESOLVER_SIG(default_buffer_name_resolution){
                 memcpy(conflict->unique_name_in_out, conflict->base_name, len);
                 
                 if (conflict->file_name != 0){
+                    char uniqueifier_space[256];
+                    String uniqueifier = make_fixed_width_string(uniqueifier_space);
+                    
                     String s_file_name = make_string(conflict->file_name, conflict->file_name_len);
                     s_file_name = path_of_directory(s_file_name);
-                    s_file_name.size -= 1;
-                    char *end = s_file_name.str + s_file_name.size;
-                    for (int32_t j = 0; j < x; ++j){
-                        s_file_name = path_of_directory(s_file_name);
-                        if (j + 1 < x){
-                            s_file_name.size -= 1;
+                    if (s_file_name.size > 0){
+                        s_file_name.size -= 1;
+                        char *end = s_file_name.str + s_file_name.size;
+                        bool32 past_the_end = false;
+                        for (int32_t j = 0; j < x; ++j){
+                            s_file_name = path_of_directory(s_file_name);
+                            if (j + 1 < x){
+                                s_file_name.size -= 1;
+                            }
+                            if (s_file_name.size <= 0){
+                                if (j + 1 < x){
+                                    past_the_end = true;
+                                }
+                                s_file_name.size = 0;
+                                break;
+                            }
                         }
-                        if (s_file_name.size <= 0){
-                            s_file_name.size = 0;
-                            break;
+                        char *start = s_file_name.str + s_file_name.size;
+                        
+                        append(&uniqueifier, make_string(start, (int32_t)(end - start)));
+                        if (past_the_end){
+                            append(&uniqueifier, "~");
+                            append_int_to_str(&uniqueifier, i);
                         }
                     }
-                    char *start = s_file_name.str + s_file_name.size;
-                    
-                    String uniqueifier = make_string(start, (int32_t)(end - start));
+                    else{
+                        append_int_to_str(&uniqueifier, i);
+                    }
                     
                     String builder = make_string_cap(conflict->unique_name_in_out,
                                                      conflict->unique_name_len_in_out,

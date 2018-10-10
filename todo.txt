@@ -13,12 +13,14 @@
         [x] Crash when freeing marker object without visuals
         [x] High CPU usage in listers (endless animation bug)
         [x] Panel resizing doesn't work
+        [] On windows file lister: /foo/bar.txt
         [] Notepad like mode clicking to new view doesn't snap the mark
         [] Notepad like mode replacing text with cursor at end of selection in middle of long file
         [] Tab when no valid completions in open file lister
         [] Graphics problem (fonts not rendering)
         [] Texture binding changes too often problem.
         [] SSHFS segfault on linux
+        [] New file when the file is already open
         Repro Needed
         {
             [] pasting long comment at top of code files doesn't always parse right away???
