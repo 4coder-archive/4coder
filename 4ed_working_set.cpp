@@ -384,21 +384,16 @@ working_set_clipboard_roll_down(Working_Set *working){
 ////////////////////////////////
 
 internal b32
-get_canon_name(System_Functions *system, String filename,
-               Editing_File_Name *canon_name){
+get_canon_name(System_Functions *system, String filename, Editing_File_Name *canon_name){
     canon_name->name = make_fixed_width_string(canon_name->name_);
-    
     canon_name->name.size = system->get_canonical(filename.str, filename.size, canon_name->name.str, canon_name->name.memory_size);
     terminate_with_null(&canon_name->name);
-    
     b32 result = (canon_name->name.size != 0);
     return(result);
 }
 
 internal void
-buffer_bind_file(System_Functions *system, Heap *heap,
-                 Working_Set *working_set,
-                 Editing_File *file, String canon_filename){
+buffer_bind_file(System_Functions *system, Heap *heap, Working_Set *working_set, Editing_File *file, String canon_filename){
     Assert(file->unique_name.name.size == 0);
     Assert(file->canon.name.size == 0);
     

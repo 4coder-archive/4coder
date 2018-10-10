@@ -522,9 +522,11 @@ generate_hot_directory_file_list(Application_Links *app, Partition *arena, Liste
     {
         Temp_Memory temp = begin_temp_memory(arena);
         String hot = get_hot_directory(app, arena);
-        if (hot.str[hot.size - 1] != '/' &&
-            hot.str[hot.size - 1] != '\\'){
-            append_s_char(&hot, '/');
+        if (hot.size > 0 && hot.str[hot.size - 1] != '/' && hot.str[hot.size - 1] != '\\'){
+            if (push_array(arena, char, 1) != 0){
+                hot.memory_size += 1;
+                append_s_char(&hot, '/');
+            }
         }
         lister_set_text_field_string(lister, hot);
         lister_set_key_string(lister, front_of_directory(hot));

@@ -3697,10 +3697,13 @@ DOC_SEE(File_List)
     System_Functions *system = cmd->system;
     Partition *part = &cmd->models->mem.part;
     File_List result = {};
-    Temp_Memory temp = begin_temp_memory(part);
-    String str = push_string(part, dir, len);
-    system->set_file_list(&result, str.str, 0, 0, 0);
-    end_temp_memory(temp);
+    Editing_File_Name canon = {};
+    if (get_canon_name(system, make_string(dir, len), &canon)){
+        Temp_Memory temp = begin_temp_memory(part);
+        String str = push_string(part, canon.name.str, canon.name.size);
+        system->set_file_list(&result, str.str, 0, 0, 0);
+        end_temp_memory(temp);
+    }
     return(result);
 }
 
