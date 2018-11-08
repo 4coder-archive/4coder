@@ -1686,7 +1686,7 @@ App_Step_Sig(app_step){
                         
                         models->prev_command = cmd_bind;
                         
-                        if (key.keycode == key_animate){
+                        if (key.keycode != key_animate){
                             app_result.animating = true;
                         }
                     }
