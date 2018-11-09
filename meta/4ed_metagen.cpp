@@ -54,6 +54,7 @@ M(mouse_right_release) \
 M(mouse_wheel) \
 M(mouse_move) \
 M(animate) \
+M(view_activate) \
 M(f1) \
 M(f2) \
 M(f3) \
@@ -743,6 +744,7 @@ generate_remapping_code_and_data(){
         bind_vanilla_keys(mappings, MDFR_NONE, write_character);
         
         bind(mappings, key_mouse_left, MDFR_NONE, click_set_cursor_and_mark);
+        bind(mappings, key_view_activate, MDFR_NONE, click_set_cursor_and_mark);
         bind(mappings, key_mouse_left_release, MDFR_NONE, click_set_cursor);
         bind(mappings, key_mouse_move, MDFR_NONE, click_set_cursor_if_lbutton);
         
@@ -892,6 +894,7 @@ generate_remapping_code_and_data(){
         bind(mappings, key_page_down, MDFR_NONE, lister__move_down);
         bind(mappings, key_mouse_wheel       , MDFR_NONE, lister__wheel_scroll);
         bind(mappings, key_mouse_left        , MDFR_NONE, lister__mouse_press);
+        bind(mappings, key_view_activate     , MDFR_NONE, lister__mouse_press);
         bind(mappings, key_mouse_left_release, MDFR_NONE, lister__mouse_release);
         bind(mappings, key_mouse_move, MDFR_NONE, lister__repaint);
         bind(mappings, key_animate   , MDFR_NONE, lister__repaint);
@@ -964,6 +967,7 @@ generate_remapping_code_and_data(){
         bind_vanilla_keys(mappings, MDFR_ALT, write_character);
         
         bind(mappings, key_mouse_left, MDFR_NONE, click_set_cursor_and_mark);
+        bind(mappings, key_view_activate, MDFR_NONE, click_set_cursor_and_mark);
         bind(mappings, key_mouse_left_release, MDFR_NONE, click_set_cursor);
         bind(mappings, key_mouse_move, MDFR_NONE, click_set_cursor_if_lbutton);
         
@@ -1111,6 +1115,7 @@ generate_remapping_code_and_data(){
         bind(mappings, key_page_down, MDFR_NONE, lister__move_down);
         bind(mappings, key_mouse_wheel       , MDFR_NONE, lister__wheel_scroll);
         bind(mappings, key_mouse_left        , MDFR_NONE, lister__mouse_press);
+        bind(mappings, key_view_activate     , MDFR_NONE, click_set_cursor_and_mark);
         bind(mappings, key_mouse_left_release, MDFR_NONE, lister__mouse_release);
         bind(mappings, key_mouse_move, MDFR_NONE, lister__repaint);
         bind(mappings, key_animate   , MDFR_NONE, lister__repaint);

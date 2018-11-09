@@ -1561,12 +1561,12 @@ App_Step_Sig(app_step){
                 
                 app_result.animating = true;
                 
-                // TODO(allen): Should I somehow allow a view to clean up however it wants after a
-                // command finishes, or after transfering to another view mid command?
                 if (view != 0 && models->command_coroutine == 0){
                     init_query_set(&view->transient.query_set);
                 }
-                if (models->command_coroutine == 0) break;
+                if (models->command_coroutine == 0){
+                    break;
+                }
             }
         }
         
@@ -1574,19 +1574,7 @@ App_Step_Sig(app_step){
     }
     
     // NOTE(allen): pass raw input to the panels
-    Input_Summary dead_input = {};
-    dead_input.mouse.x = input->mouse.x;
-    dead_input.mouse.y = input->mouse.y;
-    dead_input.dt = input->dt;
-    
-    Input_Summary active_input = {};
-    active_input.mouse.x = input->mouse.x;
-    active_input.mouse.y = input->mouse.y;
-    active_input.dt = input->dt;
-    
-    active_input.keys = get_key_data(&vars->available_input);
-    
-    Mouse_State mouse_state = get_mouse_state(&vars->available_input);
+    f32 dt = input->dt;
     
     {
         Command_Data *command = cmd;
@@ -1597,12 +1585,6 @@ App_Step_Sig(app_step){
              panel != &models->layout.used_sentinel;
              panel = panel->next){
             View *view = panel->view;
-            b32 active = (panel == active_panel);
-            Input_Summary summary = (active)?(active_input):(dead_input);
-            
-            if (panel == mouse_panel && !input->mouse.out_of_window){
-                summary.mouse = mouse_state;
-            }
             
             GUI_Scroll_Vars *scroll_vars = 0;
             i32 max_y = 0;
@@ -1619,16 +1601,11 @@ App_Step_Sig(app_step){
                 file_scroll = false;
             }
             
-            Input_Process_Result ip_result = do_step_file_view(system, view, models, panel->inner, active, &summary, *scroll_vars, max_y);
+            b32 active = (panel == active_panel);
+            Input_Process_Result ip_result = do_step_file_view(system, view, models, panel->inner, active, dt, *scroll_vars, max_y);
             
             if (ip_result.is_animating){
                 app_result.animating = true;
-            }
-            if (ip_result.consumed_l){
-                consume_input(&vars->available_input, Input_MouseLeftButton, "file view step");
-            }
-            if (ip_result.consumed_r){
-                consume_input(&vars->available_input, Input_MouseRightButton, "file view step");
             }
             
             if (memcmp(scroll_vars, &ip_result.scroll, sizeof(*scroll_vars)) != 0){
@@ -1666,7 +1643,7 @@ App_Step_Sig(app_step){
                     i32 map = view_get_map(view);
                     Command_Binding cmd_bind = map_extract_recursive(&models->mapping, map, key);
                     
-                    if (cmd_bind.function){
+                    if (cmd_bind.function != 0){
                         if (key.keycode == key_esc){
                             hit_esc = true;
                         }
@@ -1748,7 +1725,7 @@ App_Step_Sig(app_step){
                     i32 top = 0;
                     divider_stack[top++] = div.id;
                     
-                    while (top > 0){
+                    for (;top > 0;){
                         --top;
                         Divider_And_ID other_div = layout_get_divider(&models->layout, divider_stack[top]);
                         b32 divider_match = (other_div.divider->v_divider == mouse_divider_vertical);
@@ -1778,28 +1755,16 @@ App_Step_Sig(app_step){
                 Panel_Divider *divider = vars->resizing.divider;
                 i32 mouse_position = 0;
                 
-                b32 do_absolute_positions = 1;
-                if (do_absolute_positions){
-                    i32 absolute_positions[MAX_VIEWS];
-                    i32 min = 0, max = 0;
-                    i32 div_id = (i32)(divider - models->layout.dividers);
-                    
-                    layout_compute_absolute_positions(&models->layout, absolute_positions);
-                    mouse_position = (divider->v_divider)?(mx):(my);
-                    layout_get_min_max(&models->layout, divider, absolute_positions, &min, &max);
-                    absolute_positions[div_id] = clamp(min, mouse_position, max);
-                    layout_update_all_positions(&models->layout, absolute_positions);
-                }
+                i32 absolute_positions[MAX_VIEWS];
+                i32 min = 0;
+                i32 max = 0;
+                i32 div_id = (i32)(divider - models->layout.dividers);
                 
-                else{
-                    if (divider->v_divider){
-                        mouse_position = clamp(0, mx, models->layout.full_width);
-                    }
-                    else{
-                        mouse_position = clamp(0, my, models->layout.full_height);
-                    }
-                    divider->pos = layout_compute_position(&models->layout, divider, mouse_position);
-                }
+                layout_compute_absolute_positions(&models->layout, absolute_positions);
+                mouse_position = (divider->v_divider)?(mx):(my);
+                layout_get_min_max(&models->layout, divider, absolute_positions, &min, &max);
+                absolute_positions[div_id] = clamp(min, mouse_position, max);
+                layout_update_all_positions(&models->layout, absolute_positions);
                 
                 layout_fix_all_panels(&models->layout);
             }
@@ -1837,6 +1802,32 @@ App_Step_Sig(app_step){
             
             models->layout.active_panel = new_panel_id;
             app_result.animating = true;
+            
+            {
+                Command_Data *command = cmd;
+                Key_Event_Data key = {};
+                key.keycode = key_view_activate;
+                cmd->key = key;
+                
+                USE_VIEW(view);
+                
+                i32 map = view_get_map(view);
+                Command_Binding cmd_bind = map_extract_recursive(&models->mapping, map, key);
+                
+                if (cmd_bind.function != 0){
+                    Assert(models->command_coroutine == 0);
+                    Coroutine_Head *command_coroutine = system->create_coroutine(command_caller);
+                    models->command_coroutine = command_coroutine;
+                    
+                    Command_In cmd_in;
+                    cmd_in.cmd = cmd;
+                    cmd_in.bind = cmd_bind;
+                    
+                    models->command_coroutine = app_launch_coroutine(system, &models->app_links, Co_Command, models->command_coroutine, &cmd_in, models->command_coroutine_flags);
+                    
+                    models->prev_command = cmd_bind;
+                }
+            }
         }
     }
     
@@ -1894,7 +1885,7 @@ App_Step_Sig(app_step){
             
             GUI_Scroll_Vars *scroll_vars = &view->transient.edit_pos->scroll;
             
-            do_render_file_view(system, view, models, scroll_vars, active_view, panel->inner, active, target, &dead_input);
+            do_render_file_view(system, view, models, scroll_vars, active_view, panel->inner, active, target);
             
             u32 margin_color;
             if (active){

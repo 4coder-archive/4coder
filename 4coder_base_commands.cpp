@@ -146,7 +146,7 @@ CUSTOM_DOC("Sets the left size of the view near the x position of the cursor.")
     view_set_scroll(app, &view, scroll);
 }
 
-bool32
+static bool32
 global_point_to_view_point(View_Summary *view, int32_t x, int32_t y, float *x_out, float *y_out){
     bool32 result = false;
     

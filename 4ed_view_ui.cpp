@@ -47,7 +47,7 @@ global_const Style_Color_Edit colors_to_edit[] = {
 };
 
 internal Input_Process_Result
-do_step_file_view(System_Functions *system, View *view, Models *models, i32_Rect rect, b32 is_active, Input_Summary *user_input, GUI_Scroll_Vars scroll, i32 max_y){
+do_step_file_view(System_Functions *system, View *view, Models *models, i32_Rect rect, b32 is_active, f32 dt, GUI_Scroll_Vars scroll, i32 max_y){
     scroll.target_y = clamp(0, scroll.target_y, max_y);
     
     Input_Process_Result result = {0};
@@ -70,10 +70,11 @@ do_step_file_view(System_Functions *system, View *view, Models *models, i32_Rect
          slot = slot->next, ++bar_count);
     view->transient.widget_height = (f32)bar_count*(view->transient.line_height + 2);
     
+    Editing_File *file = view->transient.file_data.file;
+    
     if (!view->transient.ui_mode){
         view->transient.file_region = rect;
         
-        Editing_File *file = view->transient.file_data.file;
         if (view->transient.reinit_scrolling){
             view->transient.reinit_scrolling = false;
             result.is_animating = true;
@@ -101,11 +102,11 @@ do_step_file_view(System_Functions *system, View *view, Models *models, i32_Rect
             result.scroll.scroll_x = (f32)target_x;
             result.scroll.prev_target_x = -1000;
         }
-        
-        if (!file->is_loading && file->state.paste_effect.seconds_down > 0.f){
-            file->state.paste_effect.seconds_down -= user_input->dt;
-            result.is_animating = true;
-        }
+    }
+    
+    if (!file->is_loading && file->state.paste_effect.seconds_down > 0.f){
+        file->state.paste_effect.seconds_down -= dt;
+        result.is_animating = true;
     }
     
     {    
@@ -116,7 +117,7 @@ do_step_file_view(System_Functions *system, View *view, Models *models, i32_Rect
         f32 target_x = (f32)scroll_vars.target_x;
         f32 target_y = (f32)scroll_vars.target_y;
         
-        if (models->scroll_rule(target_x, target_y, &scroll_vars.scroll_x, &scroll_vars.scroll_y, (view->persistent.id) + 1, is_new_target, user_input->dt)){
+        if (models->scroll_rule(target_x, target_y, &scroll_vars.scroll_x, &scroll_vars.scroll_y, (view->persistent.id) + 1, is_new_target, dt)){
             result.is_animating = true;
         }
         
@@ -225,7 +226,7 @@ draw_file_bar(System_Functions *system, Render_Target *target, View *view, Model
 }
 
 internal void
-do_render_file_view(System_Functions *system, View *view, Models *models, GUI_Scroll_Vars *scroll, View *active, i32_Rect rect, b32 is_active, Render_Target *target, Input_Summary *user_input){
+do_render_file_view(System_Functions *system, View *view, Models *models, GUI_Scroll_Vars *scroll, View *active, i32_Rect rect, b32 is_active, Render_Target *target){
     
     Editing_File *file = view->transient.file_data.file;
     Assert(file != 0);

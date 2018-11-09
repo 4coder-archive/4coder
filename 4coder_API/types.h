@@ -353,10 +353,9 @@ STRUCT Key_Event_Data{
     /* DOC(This field is like the field character, except that the state of caps lock is ignored in the translation.) */
     Key_Code character_no_caps_lock;
     
-    /* DOC(This field is an array indicating the state of modifiers at the time of the key press. The array is indexed using the values of Key_Modifier_Index.  1 indicates that the corresponding modifier was held, and a 0 indicates that it was not held.)
-    
-    DOC_SEE(Key_Modifier)
-    */
+    /* DOC(This field is an array indicating the state of modifiers at the time of the key press. The array is indexed using the values of Key_Modifier_Index.
+1 indicates that the corresponding modifier was held, and a 0 indicates that it was not held.)
+DOC_SEE(Key_Modifier) */
     int8_t modifiers[MDFR_INDEX_COUNT];
 };
 
