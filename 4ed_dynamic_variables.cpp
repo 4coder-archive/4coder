@@ -511,10 +511,12 @@ lifetime__free_key(Heap *heap, Lifetime_Allocator *lifetime_allocator, Lifetime_
 
 internal Lifetime_Key_Ref_Node*
 lifetime__alloc_key_reference_node(Heap *heap, Lifetime_Allocator *lifetime_allocator){
+    Assert(lifetime_allocator != 0);
     Lifetime_Key_Ref_Node *result = lifetime_allocator->free_key_references.first;
     if (result == 0){
         i32 new_node_count = 32;
         Lifetime_Key_Ref_Node *new_nodes = heap_array(heap, Lifetime_Key_Ref_Node, new_node_count);
+        Assert(new_nodes != 0);
         Lifetime_Key_Ref_Node *new_node_ptr = new_nodes;
         for (i32 i = 0; i < new_node_count; i += 1, new_node_ptr += 1){
             zdll_push_back(lifetime_allocator->free_key_references.first,
@@ -524,8 +526,7 @@ lifetime__alloc_key_reference_node(Heap *heap, Lifetime_Allocator *lifetime_allo
         lifetime_allocator->free_key_references.count += new_node_count;
         result = lifetime_allocator->free_key_references.first;
     }
-    zdll_remove(lifetime_allocator->free_key_references.first, lifetime_allocator->free_key_references.last,
-                result);
+    zdll_remove(lifetime_allocator->free_key_references.first, lifetime_allocator->free_key_references.last, result);
     return(result);
 }
 

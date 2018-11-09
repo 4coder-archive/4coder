@@ -400,8 +400,17 @@ RENDER_CALLER_SIG(default_render_caller){
         for (int32_t i = 0; i < 4; i += 1){
             colors[i] = theme_colors[i].color;
         }
+        int32_t pos = view.cursor.pos;
+        if (buffer_get_char(app, &buffer, pos) == '('){
+            pos += 1;
+        }
+        else if (pos > 0){
+            if (buffer_get_char(app, &buffer, pos - 1) == ')'){
+                pos -= 1;
+            }
+        }
         mark_enclosures(app, scratch, render_scope,
-                        &buffer, view.cursor.pos, FindScope_Paren,
+                        &buffer, pos, FindScope_Paren,
                         VisualType_CharacterBlocks,
                         0, colors, color_count);
     }

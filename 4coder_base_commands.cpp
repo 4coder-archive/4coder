@@ -11,6 +11,7 @@ write_character_parameter(Application_Links *app, uint8_t *character, uint32_t l
         uint32_t access = AccessOpen;
         View_Summary view = get_active_view(app, access);
         if_view_has_highlighted_range_delete_range(app, view.view_id);
+        view = get_view(app, view.view_id, AccessAll);
         
         Buffer_Summary buffer = get_buffer(app, view.buffer_id, access);
         int32_t pos = view.cursor.pos;
@@ -19,16 +20,10 @@ write_character_parameter(Application_Links *app, uint8_t *character, uint32_t l
         next_cursor_marker.pos = character_pos_to_pos(app, &view, &buffer, view.cursor.character_pos);
         next_cursor_marker.lean_right = true;
         
-        //Managed_Object handle = buffer_add_markers(app, buffer.buffer_id, 1, 0);
-        //buffer_set_markers(app, handle, 0, 1, &next_cursor_marker);
-        
         Managed_Object handle = alloc_buffer_markers_on_buffer(app, buffer.buffer_id, 1, 0);
         managed_object_store_data(app, handle, 0, 1, &next_cursor_marker);
         
         buffer_replace_range(app, &buffer, pos, pos, (char*)character, length);
-        
-        //buffer_get_markers(app, handle, 0, 1, &next_cursor_marker);
-        //buffer_remove_markers(app, handle);
         
         managed_object_load_data(app, handle, 0, 1, &next_cursor_marker);
         managed_object_free(app, handle);
@@ -59,6 +54,7 @@ CUSTOM_DOC("Deletes the character to the right of the cursor.")
     uint32_t access = AccessOpen;
     View_Summary view = get_active_view(app, access);
     if (!if_view_has_highlighted_range_delete_range(app, view.view_id)){
+        view = get_view(app, view.view_id, AccessAll);
         Buffer_Summary buffer = get_buffer(app, view.buffer_id, access);
         int32_t start = view.cursor.pos;
         if (0 <= start && start < buffer.size){
@@ -76,6 +72,7 @@ CUSTOM_DOC("Deletes the character to the left of the cursor.")
     uint32_t access = AccessOpen;
     View_Summary view = get_active_view(app, access);
     if (!if_view_has_highlighted_range_delete_range(app, view.view_id)){
+        view = get_view(app, view.view_id, AccessAll);
         Buffer_Summary buffer = get_buffer(app, view.buffer_id, access);
         int32_t end = view.cursor.pos;
         if (0 < end && end <= buffer.size){
