@@ -13,7 +13,7 @@
 #define FRED_COMMAND_H
 
 #define Command_Function_Sig(name) \
-void (name)(System_Functions *system, struct Command_Data *command, struct Command_Binding binding)
+void (name)(System_Functions *system, struct Models *models, struct Command_Binding binding)
 
 typedef Command_Function_Sig(Command_Function);
 

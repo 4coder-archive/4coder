@@ -27,7 +27,7 @@ struct App_Settings{
     b32 use_hinting;
 };
 
-struct Command_Data{
+struct Command_Data___{
     struct Models *models;
     struct App_Vars *vars;
     System_Functions *system;
@@ -81,8 +81,6 @@ struct Models{
     Scroll_Rule_Function *scroll_rule;
     Buffer_Name_Resolver_Function *buffer_name_resolver;
     
-    Command_Data command_data;
-    
     Style_Library styles;
     u32 *palette;
     
@@ -117,6 +115,22 @@ struct Models{
     
     i32 previous_mouse_x;
     i32 previous_mouse_y;
+    
+    // System Context
+    System_Functions *system;
+    struct App_Vars *vars;
+    
+    // Event Context
+    Key_Event_Data key;
+    
+    // Render Context
+    View *render_view;
+    Render_Target *target;
+    i32_Rect render_rect;
+    Full_Cursor render_cursor;
+    Range render_range;
+    Buffer_Render_Item *render_items;
+    i32 render_item_count;
 };
 
 ////////////////////////////////
@@ -183,7 +197,7 @@ struct App_Coroutine_State{
 };
 
 struct Command_In{
-    Command_Data *cmd;
+    Models *models;
     Command_Binding bind;
 };
 

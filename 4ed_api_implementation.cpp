@@ -58,12 +58,6 @@ fill_buffer_summary(Buffer_Summary *buffer, Editing_File *file, Working_Set *wor
 }
 
 internal void
-fill_buffer_summary(Buffer_Summary *buffer, Editing_File *file, Command_Data *cmd){
-    Working_Set *working_set = &cmd->models->working_set;
-    fill_buffer_summary(buffer, file, working_set);
-}
-
-internal void
 fill_view_summary(System_Functions *system, View_Summary *view, View *vptr, Live_Views *live_set, Working_Set *working_set){
     File_Viewing_Data *data = &vptr->transient.file_data;
     
@@ -100,11 +94,6 @@ fill_view_summary(System_Functions *system, View_Summary *view, View *vptr, Mode
     fill_view_summary(system, view, vptr, &models->live_set, &models->working_set);
 }
 
-inline void
-fill_view_summary(System_Functions *system, View_Summary *view, View *vptr, Command_Data *cmd){
-    fill_view_summary(system, view, vptr, cmd->models);
-}
-
 internal void
 view_quit_ui(System_Functions *system, Models *models, View *view){
     Assert(view != 0);
@@ -130,8 +119,8 @@ get_file_from_identifier(System_Functions *system, Working_Set *working_set, Buf
 }
 
 internal Editing_File*
-imp_get_file(Command_Data *cmd, Buffer_ID buffer_id){
-    Working_Set *working_set = &cmd->models->working_set;
+imp_get_file(Models *models, Buffer_ID buffer_id){
+    Working_Set *working_set = &models->working_set;
     Editing_File *file = working_set_get_active_file(working_set, buffer_id);
     if (file != 0 && !file_is_ready(file)){
         file = 0;
@@ -140,17 +129,17 @@ imp_get_file(Command_Data *cmd, Buffer_ID buffer_id){
 }
 
 internal Editing_File*
-imp_get_file(Command_Data *cmd, Buffer_Summary *buffer){
+imp_get_file(Models *models, Buffer_Summary *buffer){
     Editing_File *file = 0;
-    if (buffer && buffer->exists){
-        file = imp_get_file(cmd, buffer->buffer_id);
+    if (buffer != 0 && buffer->exists){
+        file = imp_get_file(models, buffer->buffer_id);
     }
     return(file);
 }
 
 internal View*
-imp_get_view(Command_Data *cmd, View_ID view_id){
-    Live_Views *live_set = cmd->live_set;
+imp_get_view(Models *models, View_ID view_id){
+    Live_Views *live_set = &models->live_set;
     View *vptr = 0;
     view_id = view_id - 1;
     if (0 <= view_id && view_id < live_set->max){
@@ -163,10 +152,10 @@ imp_get_view(Command_Data *cmd, View_ID view_id){
 }
 
 internal View*
-imp_get_view(Command_Data *cmd, View_Summary *view){
+imp_get_view(Models *models, View_Summary *view){
     View *vptr = 0;
     if (view != 0 && view->exists){
-        vptr = imp_get_view(cmd, view->view_id);
+        vptr = imp_get_view(models, view->view_id);
     }
     return(vptr);
 }
@@ -178,8 +167,7 @@ DOC_PARAM(setting, Which setting to change.)
 DOC_PARAM(value, The new value to set ont he specified setting.)
 DOC_SEE(Global_Setting_ID)
 */{
-    Command_Data *cmd = (Command_Data*)app->cmd_context;
-    Models *models = cmd->models;
+    Models *models = (Models*)app->cmd_context;
     
     b32 result = true;
     switch (setting){
@@ -205,8 +193,7 @@ DOC_PARAM(size, The size of the binding buffer in bytes.)
 DOC_RETURN(Returns non-zero if no errors occurred while interpretting the binding buffer.  A return value of zero does not indicate that the old mappings are still in place.)
 DOC(Dumps away the previous mappings and instantiates the mappings described in the binding buffer.  If any of the open buffers were bound to a command map that used to exist, but no command map with the same id exist after the new mappings are instantiated, the buffer's command map will be set to mapid_file and a warning will be posted to *messages*.)
 */{
-    Command_Data *cmd = (Command_Data*)app->cmd_context;
-    Models *models = cmd->models;
+    Models *models = (Models*)app->cmd_context;
     bool32 result = interpret_binding_buffer(models, data, size);
     return(result);
 }
@@ -222,12 +209,12 @@ DOC_SEE(Command_ID)
     bool32 result = false;
     
     if (command_id < cmdid_count){
-        Command_Data *cmd = (Command_Data*)app->cmd_context;
+        Models *models = (Models*)app->cmd_context;
         Command_Function *function = command_table[command_id];
         Command_Binding binding = {};
         binding.function = function;
         if (function != 0){
-            function(cmd->system, cmd, binding);
+            function(models->system, models, binding);
         }
         
         result = true;
@@ -258,10 +245,9 @@ If the view parameter is NULL, no view will switch to the output.)
 DOC_SEE(Buffer_Identifier)
 DOC_SEE(Command_Line_Interface_Flag)
 */{
-    Command_Data *cmd = (Command_Data*)app->cmd_context;
-    System_Functions *system = cmd->system;
-    App_Vars *vars = cmd->vars;
-    Models *models = cmd->models;
+    Models *models = (Models*)app->cmd_context;
+    System_Functions *system = models->system;
+    App_Vars *vars = models->vars;
     Partition *part = &models->mem.part;
     Heap *heap = &models->mem.heap;
     Working_Set *working_set = &models->working_set;
@@ -350,7 +336,7 @@ DOC_SEE(Command_Line_Interface_Flag)
             }
             
             if (bind_to_new_view){
-                View *vptr = imp_get_view(cmd, view);
+                View *vptr = imp_get_view(models, view);
                 if (vptr != 0){
                     view_set_file(system, models, vptr, file);
                     view_quit_ui(system, models, vptr);
@@ -405,15 +391,10 @@ DOC_PARAM(len, The len parameter specifies the length of the str string.)
 DOC(Stores the string str in the clipboard initially with index 0. Also reports the copy to the operating system, so that it may be pasted into other applications.)
 DOC_SEE(The_4coder_Clipboard)
 */{
-    Command_Data *cmd = (Command_Data*)app->cmd_context;
-    System_Functions *system = cmd->system;
-    Models *models = cmd->models;
-    Heap *heap = &models->mem.heap;
-    Working_Set *working = &models->working_set;
-    
-    String *dest = working_set_next_clipboard_string(heap, working, len);
-    copy_ss(dest, make_string(str, len));
-    system->post_clipboard(*dest);
+    Models *models = (Models*)app->cmd_context;
+    String *dest = working_set_next_clipboard_string(&models->mem.heap, &models->working_set, len);
+    copy(dest, make_string(str, len));
+    models->system->post_clipboard(*dest);
 }
 
 API_EXPORT int32_t
@@ -423,8 +404,8 @@ DOC_PARAM(clipboard_id, This parameter is set up to prepare for future features,
 DOC(This call returns the number of items in the clipboard.)
 DOC_SEE(The_4coder_Clipboard)
 */{
-    Command_Data *cmd = (Command_Data*)app->cmd_context;
-    Working_Set *working = &cmd->models->working_set;
+    Models *models = (Models*)app->cmd_context;
+    Working_Set *working = &models->working_set;
     int32_t count = working->clipboard_size;
     return(count);
 }
@@ -442,19 +423,17 @@ DOC(This function always returns the size of the item even if the output buffer 
 
 DOC_SEE(The_4coder_Clipboard)
 */{
-    Command_Data *cmd = (Command_Data*)app->cmd_context;
-    Working_Set *working = &cmd->models->working_set;
-    
+    Models *models = (Models*)app->cmd_context;
+    Working_Set *working = &models->working_set;
     int32_t size = 0;
     String *str = working_set_clipboard_index(working, item_index);
-    if (str){
+    if (str != 0){
         size = str->size;
-        if (out){
+        if (out != 0){
             String out_str = make_string_cap(out, 0, len);
-            copy_ss(&out_str, *str);
+            copy(&out_str, *str);
         }
     }
-    
     return(size);
 }
 
@@ -467,11 +446,8 @@ DOC_PARAM(pp, The list of preprocessor directives and the type of each.)
 DOC_PARAM(pp_count, The number of preprocessor directives in the list.)
 DOC_RETURN(On success returns an id for the new parse context.  If id == 0, then the maximum number of parse contexts has been reached.)
 */{
-    Command_Data *cmd = (Command_Data*)app->cmd_context;
-    Models *models = cmd->models;
-    
+    Models *models = (Models*)app->cmd_context;
     Parse_Context_ID id = parse_context_add(&models->parse_context_memory, &models->mem.heap, kw, kw_count, pp, pp_count);
-    
     return(id);
 }
 
@@ -480,8 +456,8 @@ Get_Buffer_Count(Application_Links *app)
 /*
 DOC(Gives the total number of buffers in the application.)
 */{
-    Command_Data *cmd = (Command_Data*)app->cmd_context;
-    Working_Set *working_set = &cmd->models->working_set;
+    Models *models = (Models*)app->cmd_context;
+    Working_Set *working_set = &models->working_set;
     int32_t result = working_set->file_count;
     return(result);
 }
@@ -494,7 +470,7 @@ internal_get_buffer_first(Working_Set *working_set, Buffer_Summary *buffer){
 }
 
 internal void
-internal_get_buffer_next(Working_Set *working_set, Buffer_Summary *buffer){
+get_buffer_next__internal(Working_Set *working_set, Buffer_Summary *buffer){
     Editing_File *file = working_set_get_active_file(working_set, buffer->buffer_id);
     if (file != 0){
         file = (Editing_File*)file->node.next;
@@ -524,15 +500,13 @@ DOC_SEE(Buffer_Summary)
 DOC_SEE(Access_Flag)
 DOC_SEE(get_buffer_next)
 */{
-    Command_Data *cmd = (Command_Data*)app->cmd_context;
-    Working_Set *working_set = &cmd->models->working_set;
-    Buffer_Summary buffer = {0};
-    
+    Models *models = (Models*)app->cmd_context;
+    Working_Set *working_set = &models->working_set;
+    Buffer_Summary buffer = {};
     internal_get_buffer_first(working_set, &buffer);
-    while (buffer.exists && !access_test(buffer.lock_flags, access)){
-        internal_get_buffer_next(working_set, &buffer);
+    for (;buffer.exists && !access_test(buffer.lock_flags, access);){
+        get_buffer_next__internal(working_set, &buffer);
     }
-    
     return(buffer);
 }
 
@@ -552,12 +526,11 @@ DOC_SEE(Buffer_Summary)
 DOC_SEE(Access_Flag)
 DOC_SEE(get_buffer_first)
 */{
-    Command_Data *cmd = (Command_Data*)app->cmd_context;
-    Working_Set *working_set = &cmd->models->working_set;
-    
-    internal_get_buffer_next(working_set, buffer);
-    while (buffer->exists && !access_test(buffer->lock_flags, access)){
-        internal_get_buffer_next(working_set, buffer);
+    Models *models = (Models*)app->cmd_context;
+    Working_Set *working_set = &models->working_set;
+    get_buffer_next__internal(working_set, buffer);
+    for (;buffer->exists && !access_test(buffer->lock_flags, access);){
+        get_buffer_next__internal(working_set, buffer);
     }
 }
 
@@ -571,9 +544,9 @@ DOC_SEE(Buffer_Summary)
 DOC_SEE(Access_Flag)
 DOC_SEE(Buffer_ID)
 */{
-    Command_Data *cmd = (Command_Data*)app->cmd_context;
-    Working_Set *working_set = &cmd->models->working_set;
-    Buffer_Summary buffer = {0};
+    Models *models = (Models*)app->cmd_context;
+    Working_Set *working_set = &models->working_set;
+    Buffer_Summary buffer = {};
     Editing_File *file = working_set_get_active_file(working_set, buffer_id);
     if (file != 0 && !file->is_dummy){
         fill_buffer_summary(&buffer, file, working_set);
@@ -598,9 +571,9 @@ DOC_SEE(get_buffer_by_file_name)
 DOC_SEE(Buffer_Summary)
 DOC_SEE(Access_Flag)
 */{
-    Command_Data *cmd = (Command_Data*)app->cmd_context;
-    Buffer_Summary buffer = {0};
-    Working_Set *working_set = &cmd->models->working_set;
+    Models *models = (Models*)app->cmd_context;
+    Working_Set *working_set = &models->working_set;
+    Buffer_Summary buffer = {};
     Editing_File *file = working_set_contains_name(working_set, make_string(name, len));
     if (file != 0 && !file->is_dummy){
         fill_buffer_summary(&buffer, file, working_set);
@@ -626,11 +599,10 @@ DOC_SEE(Buffer_Summary)
 DOC_SEE(Access_Flag)
 */
 {
-    Command_Data *cmd = (Command_Data*)app->cmd_context;
-    Buffer_Summary buffer = {0};
-    System_Functions *system = cmd->system;
-    Models *models = cmd->models;
+    Models *models = (Models*)app->cmd_context;
+    System_Functions *system = models->system;
     Working_Set *working_set = &models->working_set;
+    Buffer_Summary buffer = {};
     String fname = make_string(name, len);
     Editing_File_Name canon = {0};
     if (get_canon_name(system, fname, &canon)){
@@ -663,20 +635,18 @@ or if the read range is not within the bounds of the buffer.
 )
 DOC_SEE(4coder_Buffer_Positioning_System)
 */{
-    Command_Data *cmd = (Command_Data*)app->cmd_context;
-    Editing_File *file = imp_get_file(cmd, buffer);
+    Models *models = (Models*)app->cmd_context;
+    Editing_File *file = imp_get_file(models, buffer);
     bool32 result = false;
     int32_t size = 0;
-    
-    if (file){
+    if (file != 0){
         size = buffer_size(&file->state.buffer);
         if (0 <= start && start <= end && end <= size){
             result = true;
             buffer_stringify(&file->state.buffer, start, end, out);
         }
-        fill_buffer_summary(buffer, file, cmd);
+        fill_buffer_summary(buffer, file, &models->working_set);
     }
-    
     return(result);
 }
 
@@ -702,23 +672,18 @@ range is not within the bounds of the buffer.
 )
 DOC_SEE(4coder_Buffer_Positioning_System)
 */{
-    Command_Data *cmd = (Command_Data*)app->cmd_context;
-    Editing_File *file = imp_get_file(cmd, buffer);
-    
+    Models *models = (Models*)app->cmd_context;
+    Editing_File *file = imp_get_file(models, buffer);
     bool32 result = false;
     int32_t size = 0;
-    
-    if (file){
+    if (file != 0){
         size = buffer_size(&file->state.buffer);
         if (0 <= start && start <= end && end <= size){
             result = true;
-            
-            edit_single(cmd->system, cmd->models,
-                        file, start, end, str, len);
+            edit_single(models->system, models, file, start, end, str, len);
         }
-        fill_buffer_summary(buffer, file, cmd);
+        fill_buffer_summary(buffer, file, &models->working_set);
     }
-    
     return(result);
 }
 
@@ -737,17 +702,15 @@ types are absolute position and line,column position.)
 DOC_SEE(Buffer_Seek)
 DOC_SEE(Partial_Cursor)
 */{
-    Command_Data *cmd = (Command_Data*)app->cmd_context;
-    Editing_File *file = imp_get_file(cmd, buffer);
+    Models *models = (Models*)app->cmd_context;
+    Editing_File *file = imp_get_file(models, buffer);
     bool32 result = false;
-    
-    if (file){
+    if (file != 0){
         if (file_compute_partial_cursor(file, seek, cursor_out)){
             result = true;
-            fill_buffer_summary(buffer, file, cmd);
+            fill_buffer_summary(buffer, file, &models->working_set);
         }
     }
-    
     return(result);
 }
 
@@ -765,37 +728,26 @@ DOC(Apply an array of edits all at once.  This combines all the edits into one u
 DOC_SEE(Buffer_Edit)
 DOC_SEE(Buffer_Batch_Edit_Type)
 */{
-    Command_Data *cmd = (Command_Data*)app->cmd_context;
-    Models *models = cmd->models;
+    Models *models = (Models*)app->cmd_context;
     Mem_Options *mem = &models->mem;
     Partition *part = &mem->part;
-    Editing_File *file = imp_get_file(cmd, buffer);
-    System_Functions *system = cmd->system;
-    
+    System_Functions *system = models->system;
+    Editing_File *file = imp_get_file(models, buffer);
     bool32 result = false;
-    
-    if (file){
+    if (file != 0){
         if (edit_count > 0){
             Temp_Memory temp = begin_temp_memory(part);
             Buffer_Edit *inverse_edits = push_array(part, Buffer_Edit, edit_count);
-            Assert(inverse_edits);
-            
+            Assert(inverse_edits != 0);
             char *inv_str = (char*)part->base + part->pos;
             int32_t inv_str_max = part->max - part->pos;
-            
-            Edit_Spec spec = edit_compute_batch_spec(&mem->heap,
-                                                     file,
-                                                     edits, str, str_len,
+            Edit_Spec spec = edit_compute_batch_spec(&mem->heap, file, edits, str, str_len,
                                                      inverse_edits, inv_str, inv_str_max, edit_count, type);
-            
             edit_batch(system, models, file, spec, hist_normal, type);
-            
             end_temp_memory(temp);
         }
-        
         result = true;
     }
-    
     return(result);
 }
 
@@ -807,10 +759,9 @@ DOC_PARAM(setting, the setting to read from the buffer)
 DOC_PARAM(value_out, address to write the setting value on success)
 DOC_RETURN(returns non-zero on success)
 */{
-    Command_Data *cmd = (Command_Data*)app->cmd_context;
-    Editing_File *file = imp_get_file(cmd, buffer);
+    Models *models = (Models*)app->cmd_context;
+    Editing_File *file = imp_get_file(models, buffer);
     bool32 result = false;
-    
     if (file != 0){
         result = true;
         switch (setting){
@@ -875,7 +826,6 @@ DOC_RETURN(returns non-zero on success)
             }break;
         }
     }
-    
     return(result);
 }
 
@@ -887,13 +837,11 @@ DOC_PARAM(setting, The setting parameter identifies the setting that shall be ch
 DOC_PARAM(value, The value parameter specifies the value to which the setting shall be changed.)
 DOC_SEE(Buffer_Setting_ID)
 */{
-    Command_Data *cmd = (Command_Data*)app->cmd_context;
-    System_Functions *system = cmd->system;
-    Models *models = cmd->models;
-    Editing_File *file = imp_get_file(cmd, buffer);
+    Models *models = (Models*)app->cmd_context;
+    System_Functions *system = models->system;
+    Editing_File *file = imp_get_file(models, buffer);
     
     bool32 result = false;
-    
     i32 new_mapid = 0;
     
     if (file != 0){
@@ -1073,7 +1021,7 @@ DOC_SEE(Buffer_Setting_ID)
             
             default: result = 0; break;
         }
-        fill_buffer_summary(buffer, file, cmd);
+        fill_buffer_summary(buffer, file, &models->working_set);
     }
     
     return(result);
@@ -1098,8 +1046,8 @@ lifetime of the buffer.  This is a 'basic scope' and is not considered a 'user m
 If the buffer_id does not specify a valid buffer, the returned scope is null.)
 */
 {
-    Command_Data *cmd = (Command_Data*)app->cmd_context;
-    Editing_File *file = imp_get_file(cmd, buffer_id);
+    Models *models = (Models*)app->cmd_context;
+    Editing_File *file = imp_get_file(models, buffer_id);
     return(buffer_get_managed_scope__inner(file));
 }
 
@@ -1110,12 +1058,10 @@ DOC_PARAM(buffer, Specifies the buffer from which to read the token count.)
 DOC_RETURN(If tokens are available for the buffer, the number of tokens on the buffer is returned.
 If the buffer does not exist or if it is not a lexed buffer, the return is zero.)
 */{
-    Command_Data *cmd = (Command_Data*)app->cmd_context;
-    Editing_File *file = imp_get_file(cmd, buffer);
+    Models *models = (Models*)app->cmd_context;
+    Editing_File *file = imp_get_file(models, buffer);
     int32_t count = 0;
-    if (file != 0 &&
-        file->state.token_array.tokens &&
-        file->state.tokens_complete){
+    if (file != 0 && file->state.token_array.tokens && file->state.tokens_complete){
         count = file->state.token_array.count;
     }
     return(count);
@@ -1133,18 +1079,16 @@ exist or doesn't have tokens ready, or if either the first or last index is out 
 DOC(Puts the data for the tokens with the indices [first_token,last_token) into the tokens_out array.
 The number of output tokens will be end_token - start_token.)
 */{
-    Command_Data *cmd = (Command_Data*)app->cmd_context;
-    Editing_File *file = imp_get_file(cmd, buffer);
+    Models *models = (Models*)app->cmd_context;
+    Editing_File *file = imp_get_file(models, buffer);
     Cpp_Token_Array token_array = file->state.token_array;
-    
-    bool32 result = 0;
+    bool32 result = false;
     if (file && token_array.tokens && file->state.tokens_complete){
         if (0 <= start_token && start_token <= end_token && end_token <= token_array.count){
-            result = 1;
+            result = true;
             memcpy(tokens_out, token_array.tokens + start_token, sizeof(Cpp_Token)*(end_token - start_token));
         }
     }
-    
     return(result);
 }
 
@@ -1159,8 +1103,8 @@ DOC(This call finds the token that contains a particular position, or if the pos
 DOC_SEE(Cpp_Get_Token_Result)
 DOC_SEE(cpp_get_token)
 */{
-    Command_Data *cmd = (Command_Data*)app->cmd_context;
-    Editing_File *file = imp_get_file(cmd, buffer);
+    Models *models = (Models*)app->cmd_context;
+    Editing_File *file = imp_get_file(models, buffer);
     Cpp_Token_Array token_array = file->state.token_array;
     
     bool32 result = false;
@@ -1179,16 +1123,13 @@ DOC_PARAM(buffer, The buffer to which to send the end signal.)
 DOC_RETURN(Returns non-zero on success.  This call can fail if the buffer doesn't exist.)
 DOC(Whenever a buffer is killed an end signal is sent which triggers the end file hook.  This call sends the end signal to the buffer without killing the buffer.  This is useful in cases such as clearing a buffer and refilling it with new contents.)
 */{
-    Command_Data *cmd = (Command_Data*)app->cmd_context;
-    Models *models = cmd->models;
-    Editing_File *file = imp_get_file(cmd, buffer);
-    
+    Models *models = (Models*)app->cmd_context;
+    Editing_File *file = imp_get_file(models, buffer);
     bool32 result = false;
     if (file != 0){
         result = true;
         file_end_file(models, file);
     }
-    
     return(result);
 }
 
@@ -1204,9 +1145,8 @@ DOC(Try to create a new buffer.  This call first checks to see if a buffer alrea
 If no buffer exists with the given name, then a new buffer is created.  If a file that matches the given filename exists, the file is loaded as the contents of the new buffer.  Otherwise a buffer is created without a matching file until the buffer is saved and the buffer is left blank.)
 DOC_SEE(Buffer_Create_Flag)
 */{
-    Command_Data *cmd = (Command_Data*)app->cmd_context;
-    System_Functions *system = cmd->system;
-    Models *models = cmd->models;
+    Models *models = (Models*)app->cmd_context;
+    System_Functions *system = models->system;
     Working_Set *working_set = &models->working_set;
     Heap *heap = &models->mem.heap;
     Partition *part = &models->mem.part;
@@ -1269,7 +1209,7 @@ DOC_SEE(Buffer_Create_Flag)
                         }
                         buffer_bind_name(models, heap, part, working_set, file, front_of_directory(fname));
                         init_normal_file(system, models, 0, 0, file);
-                        fill_buffer_summary(&result, file, cmd);
+                        fill_buffer_summary(&result, file, &models->working_set);
                     }
                 }
             }
@@ -1293,7 +1233,7 @@ DOC_SEE(Buffer_Create_Flag)
                         buffer_bind_file(system, heap, working_set, file, canon.name);
                         buffer_bind_name(models, heap, part, working_set, file, front_of_directory(fname));
                         init_normal_file(system, models, buffer, size, file);
-                        fill_buffer_summary(&result, file, cmd);
+                        fill_buffer_summary(&result, file, &models->working_set);
                     }
                 }
                 else{
@@ -1306,7 +1246,7 @@ DOC_SEE(Buffer_Create_Flag)
             }
         }
         else{
-            fill_buffer_summary(&result, file, cmd);
+            fill_buffer_summary(&result, file, &models->working_set);
         }
         
         if (file != 0 && (flags & BufferCreate_JustChangedFile) != 0){
@@ -1347,12 +1287,11 @@ DOC_RETURN(This call returns non-zero on success.)
 DOC(Often it will make sense to set file_name and file_name_len to buffer.file_name and buffer.file_name_len)
 DOC_SEE(Buffer_Save_Flag)
 */{
-    Command_Data *cmd = (Command_Data*)app->cmd_context;
-    System_Functions *system = cmd->system;
-    Models *models = cmd->models;
+    Models *models = (Models*)app->cmd_context;
+    System_Functions *system = models->system;
+    Editing_File *file = imp_get_file(models, buffer);
     bool32 result = false;
     
-    Editing_File *file = imp_get_file(cmd, buffer);
     if (file != 0){
         b32 skip_save = false;
         if (!(flags & BufferSave_IgnoreDirtyFlag)){
@@ -1390,9 +1329,8 @@ DOC_SEE(Buffer_Kill_Result)
 DOC_SEE(Buffer_Kill_Flag)
 DOC_SEE(Buffer_Identifier)
 */{
-    Command_Data *cmd = (Command_Data*)app->cmd_context;
-    System_Functions *system = cmd->system;
-    Models *models = cmd->models;
+    Models *models = (Models*)app->cmd_context;
+    System_Functions *system = models->system;
     Buffer_Kill_Result result = BufferKillResult_DoesNotExist;
     Working_Set *working_set = &models->working_set;
     Editing_File *file = get_file_from_identifier(system, working_set, buffer);
@@ -1443,22 +1381,19 @@ DOC_SEE(Buffer_Identifier)
 }
 
 internal void
-internal_get_view_first(Command_Data *cmd, View_Summary *view){
-    Editing_Layout *layout = &cmd->models->layout;
+get_view_first__internal(Models *models, View_Summary *view){
+    Editing_Layout *layout = &models->layout;
     Panel *panel = layout->used_sentinel.next;
-    
     Assert(panel != &layout->used_sentinel);
-    System_Functions *system = cmd->system;
-    fill_view_summary(system, view, panel->view, cmd);
+    fill_view_summary(models->system, view, panel->view, models);
 }
 
 internal void
-internal_get_view_next(Command_Data *cmd, View_Summary *view){
-    System_Functions *system = cmd->system;
-    Editing_Layout *layout = &cmd->models->layout;
-    Live_Views *live_set = &cmd->models->live_set;
-    int32_t index = view->view_id - 1;
-    
+get_view_next__internal(Models *models, View_Summary *view){
+    System_Functions *system = models->system;
+    Editing_Layout *layout = &models->layout;
+    Live_Views *live_set = &models->live_set;
+    i32 index = view->view_id - 1;
     if (index >= 0 && index < live_set->max){
         View *vptr = live_set->views + index;
         Panel *panel = vptr->transient.panel;
@@ -1466,7 +1401,7 @@ internal_get_view_next(Command_Data *cmd, View_Summary *view){
             panel = panel->next;
         }
         if (panel != 0 && panel != &layout->used_sentinel){
-            fill_view_summary(system, view, panel->view, live_set, &cmd->models->working_set);
+            fill_view_summary(system, view, panel->view, models);
         }
         else{
             memset(view, 0, sizeof(*view));
@@ -1491,14 +1426,12 @@ Views should not be closed or opened durring a view loop.
 DOC_SEE(Access_Flag)
 DOC_SEE(get_view_next)
 */{
-    Command_Data *cmd = (Command_Data*)app->cmd_context;
+    Models *models = (Models*)app->cmd_context;
     View_Summary view = {};
-    
-    internal_get_view_first(cmd, &view);
+    get_view_first__internal(models, &view);
     while (view.exists && !access_test(view.lock_flags, access)){
-        internal_get_view_next(cmd, &view);
+        get_view_next__internal(models, &view);
     }
-    
     return(view);
 }
 
@@ -1517,11 +1450,10 @@ Views should not be closed or opened durring a view loop.
 DOC_SEE(Access_Flag)
 DOC_SEE(get_view_first)
 */{
-    Command_Data *cmd = (Command_Data*)app->cmd_context;
-    
-    internal_get_view_next(cmd, view);
+    Models *models = (Models*)app->cmd_context;
+    get_view_next__internal(models, view);
     while (view->exists && !access_test(view->lock_flags, access)){
-        internal_get_view_next(cmd, view);
+        get_view_next__internal(models, view);
     }
 }
 
@@ -1533,21 +1465,19 @@ DOC_PARAM(access, The access parameter determines what levels of protection this
 DOC_RETURN(This call returns a summary that describes the indicated view if it is open and accessible.)
 DOC_SEE(Access_Flag)
 */{
-    Command_Data *cmd = (Command_Data*)app->cmd_context;
-    System_Functions *system = cmd->system;
-    View_Summary view = {0};
-    Live_Views *live_set = cmd->live_set;
+    Models *models = (Models*)app->cmd_context;
+    System_Functions *system = models->system;
+    Live_Views *live_set = &models->live_set;
+    View_Summary view = {};
     i32 max = live_set->max;
-    
     view_id -= 1;
     if (view_id >= 0 && view_id < max){
         View *vptr = live_set->views + view_id;
-        fill_view_summary(system, &view, vptr, live_set, &cmd->models->working_set);
+        fill_view_summary(system, &view, vptr, models);
         if (!access_test(view.lock_flags, access)){
             memset(&view, 0, sizeof(view));
         }
     }
-    
     return(view);
 }
 
@@ -1559,13 +1489,10 @@ DOC_RETURN(This call returns a summary that describes the active view.)
 DOC_SEE(set_active_view)
 DOC_SEE(Access_Flag)
 */{
-    Command_Data *cmd = (Command_Data*)app->cmd_context;
-    System_Functions *system = cmd->system;
-    Models *models = cmd->models;
+    Models *models = (Models*)app->cmd_context;
+    System_Functions *system = models->system;
     Panel *panel = models->layout.panels + models->layout.active_panel;
-    
     Assert(panel->view != 0);
-    
     View_Summary view = {0};
     fill_view_summary(system, &view, panel->view, &models->live_set, &models->working_set);
     if (!access_test(view.lock_flags, access)){
@@ -1584,10 +1511,9 @@ returns a null summary.)
 DOC(4coder is built with a limit of 16 views.  If 16 views are already open when this is called the call will fail.)
 DOC_SEE(View_Split_Position)
 */{
-    Command_Data *cmd = (Command_Data*)app->cmd_context;
-    System_Functions *system = cmd->system;
-    Models *models = cmd->models;
-    View *vptr = imp_get_view(cmd, view_location);
+    Models *models = (Models*)app->cmd_context;
+    System_Functions *system = models->system;
+    View *vptr = imp_get_view(models, view_location);
     Panel *panel = vptr->transient.panel;
     View_Summary result = {0};
     
@@ -1626,9 +1552,9 @@ DOC_SEE(View_Split_Position)
         split.panel->prev_inner = split.panel->inner;
         
         models->layout.active_panel = (i32)(split.panel - models->layout.panels);
-        panel_make_empty(system, cmd->models, split.panel);
+        panel_make_empty(system, models, split.panel);
         
-        fill_view_summary(system, &result, split.panel->view, cmd);
+        fill_view_summary(system, &result, split.panel->view, models);
     }
     
     return(result);
@@ -1646,9 +1572,8 @@ order of view will be made active. If the given view is the last open view
 in the system, the call will fail.)
 
 */{
-    Command_Data *cmd = (Command_Data*)app->cmd_context;
-    Models *models = cmd->models;
-    View *vptr = imp_get_view(cmd, view);
+    Models *models = (Models*)app->cmd_context;
+    View *vptr = imp_get_view(models, view);
     
     bool32 result = false;
     
@@ -1737,17 +1662,14 @@ active view, and takes subsequent commands and is returned
 from get_active_view.)
 DOC_SEE(get_active_view)
 */{
-    Command_Data *cmd = (Command_Data*)app->cmd_context;
-    Models *models = cmd->models;
-    View *vptr = imp_get_view(cmd, view);
+    Models *models = (Models*)app->cmd_context;
+    View *vptr = imp_get_view(models, view);
     bool32 result = false;
-    
     if (vptr != 0){
         result = true;
         Panel *panel = vptr->transient.panel;
         models->layout.active_panel = (i32)(panel - models->layout.panels);
     }
-    
     return(result);
 }
 
@@ -1759,8 +1681,8 @@ DOC_PARAM(setting, the view setting to read)
 DOC_PARAM(value_out, address to write the setting value on success)
 DOC_RETURN(returns non-zero on success)
 */{
-    Command_Data *cmd = (Command_Data*)app->cmd_context;
-    View *vptr = imp_get_view(cmd, view);
+    Models *models = (Models*)app->cmd_context;
+    View *vptr = imp_get_view(models, view);
     int32_t result = 0;
     
     if (vptr != 0){
@@ -1805,9 +1727,9 @@ DOC_PARAM(value, The value parameter specifies the value to which the setting sh
 DOC_RETURN(This call returns non-zero on success.)
 DOC_SEE(View_Setting_ID)
 */{
-    Command_Data *cmd = (Command_Data*)app->cmd_context;
-    System_Functions *system = cmd->system;
-    View *vptr = imp_get_view(cmd, view);
+    Models *models = (Models*)app->cmd_context;
+    System_Functions *system = models->system;
+    View *vptr = imp_get_view(models, view);
     bool32 result = false;
     
     if (vptr != 0){
@@ -1839,7 +1761,7 @@ DOC_SEE(View_Setting_ID)
             }break;
         }
         
-        fill_view_summary(system, view, vptr, cmd);
+        fill_view_summary(system, view, vptr, models);
     }
     
     return(result);
@@ -1854,8 +1776,8 @@ lifetime of the view.  This is a 'basic scope' and is not considered a 'user man
 If the view_id does not specify a valid view, the returned scope is null.)
 */
 {
-    Command_Data *cmd = (Command_Data*)app->cmd_context;
-    View *view = imp_get_view(cmd, view_id);
+    Models *models = (Models*)app->cmd_context;
+    View *view = imp_get_view(models, view_id);
     Managed_Scope lifetime = 0;
     if (view != 0){
         Assert(view->transient.lifetime_object != 0);
@@ -1874,10 +1796,9 @@ DOC_RETURN(This call returns non-zero on success.)
     bool32 result = false;
     
     if (0 <= t && t <= 1.f){
-        Command_Data *cmd = (Command_Data*)app->cmd_context;
-        Models *models = cmd->models;
+        Models *models = (Models*)app->cmd_context;
         Editing_Layout *layout = &models->layout;
-        View *vptr = imp_get_view(cmd, view);
+        View *vptr = imp_get_view(models, view);
         
         if (vptr != 0){
             result = true;
@@ -1908,9 +1829,9 @@ DOC(Computes a Full_Cursor for the given seek position with no side effects.)
 DOC_SEE(Buffer_Seek)
 DOC_SEE(Full_Cursor)
 */{
-    Command_Data *cmd = (Command_Data*)app->cmd_context;
-    System_Functions *system = cmd->system;
-    View *vptr = imp_get_view(cmd, view);
+    Models *models = (Models*)app->cmd_context;
+    System_Functions *system = models->system;
+    View *vptr = imp_get_view(models, view);
     bool32 result = false;
     
     if (vptr != 0){
@@ -1919,7 +1840,7 @@ DOC_SEE(Full_Cursor)
         if (!file->is_loading){
             result = true;
             *cursor_out = file_compute_cursor(system, file, seek, 0);
-            fill_view_summary(system, view, vptr, cmd);
+            fill_view_summary(system, view, vptr, models);
         }
     }
     
@@ -1936,19 +1857,18 @@ DOC_RETURN(This call returns non-zero on success.)
 DOC(This call sets the the view's cursor position.  set_preferred_x should usually be true unless the change in cursor position is is a vertical motion that tries to keep the cursor in the same column or x position.)
 DOC_SEE(Buffer_Seek)
 */{
-    Command_Data *cmd = (Command_Data*)app->cmd_context;
-    System_Functions *system = cmd->system;
-    View *vptr = imp_get_view(cmd, view);
+    Models *models = (Models*)app->cmd_context;
+    System_Functions *system = models->system;
+    View *vptr = imp_get_view(models, view);
     bool32 result = false;
     
-    if (vptr){
+    if (vptr != 0){
         Editing_File *file = vptr->transient.file_data.file;
-        Assert(file != 0);
         if (!file->is_loading){
             result = true;
             Full_Cursor cursor = file_compute_cursor(system, file, seek, 0);
             view_set_cursor(vptr, cursor, set_preferred_x, file->settings.unwrapped_lines);
-            fill_view_summary(system, view, vptr, cmd);
+            fill_view_summary(system, view, vptr, models);
         }
     }
     
@@ -1963,14 +1883,13 @@ DOC_PARAM(scroll, The new scroll position for the view.)
 DOC(Set the scrolling state of the view.)
 DOC_SEE(GUI_Scroll_Vars)
 */{
-    Command_Data *cmd = (Command_Data*)app->cmd_context;
-    System_Functions *system = cmd->system;
-    View *vptr = imp_get_view(cmd, view);
+    Models *models = (Models*)app->cmd_context;
+    System_Functions *system = models->system;
+    View *vptr = imp_get_view(models, view);
     bool32 result = false;
     
     if (vptr != 0){
         Editing_File *file = vptr->transient.file_data.file;
-        Assert(file != 0);
         if (!file->is_loading){
             result = true;
             if (!vptr->transient.ui_mode){
@@ -1979,7 +1898,7 @@ DOC_SEE(GUI_Scroll_Vars)
             else{
                 vptr->transient.ui_scroll = scroll;
             }
-            fill_view_summary(system, view, vptr, cmd);
+            fill_view_summary(system, view, vptr, models);
         }
     }
     
@@ -1995,9 +1914,9 @@ DOC_RETURN(This call returns non-zero on success.)
 DOC(This call sets the the view's mark position.)
 DOC_SEE(Buffer_Seek)
 */{
-    Command_Data *cmd = (Command_Data*)app->cmd_context;
-    System_Functions *system = cmd->system;
-    View *vptr = imp_get_view(cmd, view);
+    Models *models = (Models*)app->cmd_context;
+    System_Functions *system = models->system;
+    View *vptr = imp_get_view(models, view);
     bool32 result = false;
     
     if (vptr != 0){
@@ -2013,7 +1932,7 @@ DOC_SEE(Buffer_Seek)
                 result = true;
                 vptr->transient.edit_pos->mark = seek.pos;
             }
-            fill_view_summary(system, view, vptr, cmd);
+            fill_view_summary(system, view, vptr, models);
         }
     }
     
@@ -2035,9 +1954,9 @@ that either setting the cursor with view_set_cursor or calling view_set_highligh
 and the turn_on set to false, will switch back to showing the cursor.
 )
 */{
-    Command_Data *cmd = (Command_Data*)app->cmd_context;
-    System_Functions *system = cmd->system;
-    View *vptr = imp_get_view(cmd, view);
+    Models *models = (Models*)app->cmd_context;
+    System_Functions *system = models->system;
+    View *vptr = imp_get_view(models, view);
     bool32 result = false;
     
     if (vptr != 0){
@@ -2048,7 +1967,7 @@ and the turn_on set to false, will switch back to showing the cursor.
         else{
             vptr->transient.file_data.show_temp_highlight = false;
         }
-        fill_view_summary(system, view, vptr, cmd);
+        fill_view_summary(system, view, vptr, models);
     }
     
     return(result);
@@ -2064,10 +1983,9 @@ DOC_RETURN(This call returns non-zero on success.)
 DOC(On success view_set_buffer sets the specified view's current buffer and cancels and dialogue shown in the view and displays the file.)
 DOC_SEE(Set_Buffer_Flag)
 */{
-    Command_Data *cmd = (Command_Data*)app->cmd_context;
-    System_Functions *system = cmd->system;
-    View *vptr = imp_get_view(cmd, view);
-    Models *models = cmd->models;
+    Models *models = (Models*)app->cmd_context;
+    System_Functions *system = models->system;
+    View *vptr = imp_get_view(models, view);
     bool32 result = false;
     
     if (vptr != 0){
@@ -2082,7 +2000,7 @@ DOC_SEE(Set_Buffer_Flag)
             }
         }
         
-        fill_view_summary(system, view, vptr, cmd);
+        fill_view_summary(system, view, vptr, models);
     }
     
     return(result);
@@ -2099,8 +2017,8 @@ DOC_PARAM(color, The color parameter specifies the initial color of the text bef
 DOC_RETURN(This call returns non-zero on success.)
 DOC_SEE(int_color)
 */{
-    Command_Data *cmd = (Command_Data*)app->cmd_context;
-    View *vptr = imp_get_view(cmd, view);
+    Models *models = (Models*)app->cmd_context;
+    View *vptr = imp_get_view(models, view);
     bool32 result = false;
     int32_t size = end - start;
     if (vptr){
@@ -2122,8 +2040,8 @@ DOC_SEE(view_end_ui_mode)
 DOC_SEE(view_set_ui)
 */
 {
-    Command_Data *cmd = (Command_Data*)app->cmd_context;
-    View *vptr = imp_get_view(cmd, view);
+    Models *models = (Models*)app->cmd_context;
+    View *vptr = imp_get_view(models, view);
     if (vptr != 0){
         if (vptr->transient.ui_mode){
             return(false);
@@ -2138,7 +2056,7 @@ DOC_SEE(view_set_ui)
     }
 }
 
-API_EXPORT int32_t
+API_EXPORT bool32
 View_End_UI_Mode(Application_Links *app, View_Summary *view)
 /*
 DOC_PARAM(view, A summary for the view which is to be taken out of UI mode.)
@@ -2149,23 +2067,15 @@ DOC_SEE(view_begin_ui_mode)
 DOC_SEE(view_set_ui)
 */
 {
-    Command_Data *cmd = (Command_Data*)app->cmd_context;
-    View *vptr = imp_get_view(cmd, view);
-    if (vptr != 0){
-        if (vptr->transient.ui_mode){
-            System_Functions *system = cmd->system;
-            Models *models = cmd->models;
-            view_quit_ui(system, models, vptr);
-            vptr->transient.ui_mode = false;
-            return(true);
-        }
-        else{
-            return(false);
-        }
+    bool32 result = false;
+    Models *models = (Models*)app->cmd_context;
+    View *vptr = imp_get_view(models, view);
+    if (vptr != 0 && vptr->transient.ui_mode){
+        view_quit_ui(models->system, models, vptr);
+        vptr->transient.ui_mode = false;
+        result = true;
     }
-    else{
-        return(false);
-    }
+    return(result);
 }
 
 API_EXPORT bool32
@@ -2182,10 +2092,9 @@ DOC_SEE(UI_Control)
 DOC_SEE(UI_Quit_Function_Type)
 */
 {
-    Command_Data *cmd = (Command_Data*)app->cmd_context;
-    Models *models = cmd->models;
+    Models *models = (Models*)app->cmd_context;
     Heap *heap = &models->mem.heap;
-    View *vptr = imp_get_view(cmd, view);
+    View *vptr = imp_get_view(models, view);
     if (vptr != 0){
         if (vptr->transient.ui_control.items != 0){
             heap_free(heap, vptr->transient.ui_control.items);
@@ -2286,8 +2195,8 @@ DOC_RETURN(If the view is valid, and there is enough space in part, then the UI_
 DOC_SEE(view_set_ui)
 */
 {
-    Command_Data *cmd = (Command_Data*)app->cmd_context;
-    View *vptr = imp_get_view(cmd, view);
+    Models *models = (Models*)app->cmd_context;
+    View *vptr = imp_get_view(models, view);
     UI_Control result = {0};
     if (vptr != 0 && part != 0){
         UI_Control *control = &vptr->transient.ui_control;
@@ -2321,8 +2230,7 @@ DOC_RETURN(Always returns a newly created scope with a handle that is unique fro
 DOC_SEE(destroy_user_managed_scope)
 */
 {
-    Command_Data *cmd = (Command_Data*)app->cmd_context;
-    Models *models = cmd->models;
+    Models *models = (Models*)app->cmd_context;
     Heap *heap = &models->mem.heap;
     Lifetime_Object *object = lifetime_alloc_object(heap, &models->lifetime_allocator, DynamicWorkspace_Unassociated, 0);
     object->workspace.user_back_ptr = object;
@@ -2339,8 +2247,7 @@ DOC(This call only operates on 'user managed scopes'.  'User managed scopes' are
 DOC_SEE(create_user_managed_scope)
 */
 {
-    Command_Data *cmd = (Command_Data*)app->cmd_context;
-    Models *models = cmd->models;
+    Models *models = (Models*)app->cmd_context;
     Dynamic_Workspace *workspace = get_dynamic_workspace(models, scope);
     if (workspace != 0 && workspace->user_type == DynamicWorkspace_Unassociated){
         Lifetime_Object *lifetime_object = (Lifetime_Object*)workspace->user_back_ptr;
@@ -2356,8 +2263,7 @@ Get_Global_Managed_Scope(Application_Links *app)
 DOC_RETURN(Always returns the handle to the 'global scope'.  The 'global scope' is unique in that it is not dependent on any object at all.  The handle for the 'global scope' never changes in a 4coder session, and when used as a dependency in get_managed_scope_with_multiple_dependencies it has no effect.)
 */
 {
-    Command_Data *cmd = (Command_Data*)app->cmd_context;
-    Models *models = cmd->models;
+    Models *models = (Models*)app->cmd_context;
     return((Managed_Scope)models->dynamic_workspace.scope_id);
 }
 
@@ -2393,8 +2299,7 @@ DOC(Scopes with multiple dependencies are a subtle topic, for a full treatment p
 https://4coder.handmade.network/blogs/p/3412-new_features_p3__memory_management_scopes)
 */
 {
-    Command_Data *cmd = (Command_Data*)app->cmd_context;
-    Models *models = cmd->models;
+    Models *models = (Models*)app->cmd_context;
     Lifetime_Allocator *lifetime_allocator = &models->lifetime_allocator;
     Partition *scratch = &models->mem.part;
     
@@ -2467,8 +2372,7 @@ DOC_RETURN(Returns non-zero on succes, and zero on failure.  This call fails whe
 DOC(Clearing the contents of a scope resets all managed variables to have their default values, and frees all managed objects.  The scope handle remains valid and refers to the same scope which still has the same dependencies.)
 */
 {
-    Command_Data *cmd = (Command_Data*)app->cmd_context;
-    Models *models = cmd->models;
+    Models *models = (Models*)app->cmd_context;
     Dynamic_Workspace *workspace = get_dynamic_workspace(models, scope);
     if (workspace != 0){
         dynamic_workspace_clear_contents(&models->mem.heap, workspace);
@@ -2487,8 +2391,7 @@ For more on the union rule read the full treatment of managed scopes
 https://4coder.handmade.network/blogs/p/3412-new_features_p3__memory_management_scopes)
 */
 {
-    Command_Data *cmd = (Command_Data*)app->cmd_context;
-    Models *models = cmd->models;
+    Models *models = (Models*)app->cmd_context;
     Dynamic_Workspace *workspace = get_dynamic_workspace(models, scope);
     if (workspace != 0 && workspace->user_type != DynamicWorkspace_Global && workspace->user_type != DynamicWorkspace_Intersected){
         Lifetime_Object *object = get_lifetime_object_from_workspace(workspace);
@@ -2510,8 +2413,7 @@ DOC_SEE(managed_variable_get_id)
 DOC_SEE(managed_variable_create_or_get_id)
 */
 {
-    Command_Data *cmd = (Command_Data*)app->cmd_context;
-    Models *models = cmd->models;
+    Models *models = (Models*)app->cmd_context;
     String name = make_string_slowly(null_terminated_name);
     Heap *heap = &models->mem.heap;
     Dynamic_Variable_Layout *layout = &models->variable_layout;
@@ -2527,8 +2429,7 @@ DOC_SEE(managed_variable_create)
 DOC_SEE(managed_variable_create_or_get_id)
 */
 {
-    Command_Data *cmd = (Command_Data*)app->cmd_context;
-    Models *models = cmd->models;
+    Models *models = (Models*)app->cmd_context;
     String name = make_string_slowly(null_terminated_name);
     Dynamic_Variable_Layout *layout = &models->variable_layout;
     return(dynamic_variables_lookup(layout, name));
@@ -2545,8 +2446,7 @@ DOC_SEE(managed_variable_create)
 DOC_SEE(managed_variable_get_id)
 */
 {
-    Command_Data *cmd = (Command_Data*)app->cmd_context;
-    Models *models = cmd->models;
+    Models *models = (Models*)app->cmd_context;
     String name = make_string_slowly(null_terminated_name);
     Heap *heap = &models->mem.heap;
     Dynamic_Variable_Layout *layout = &models->variable_layout;
@@ -2554,8 +2454,7 @@ DOC_SEE(managed_variable_get_id)
 }
 
 internal bool32
-get_dynamic_variable(Command_Data *cmd, Managed_Scope handle, int32_t location, uint64_t **ptr_out){
-    Models *models = cmd->models;
+get_dynamic_variable__internal(Models *models, Managed_Scope handle, int32_t location, uint64_t **ptr_out){
     Heap *heap = &models->mem.heap;
     Dynamic_Variable_Layout *layout = &models->variable_layout;
     Dynamic_Workspace *workspace = get_dynamic_workspace(models, handle);
@@ -2577,9 +2476,9 @@ DOC_PARAM(value, The new value of the variable.)
 DOC_RETURN(Returns non-zero on success.  This call fails if scope does not refer to a valid managed scope, or id does not refer to an existing managed variable.)
 */
 {
-    Command_Data *cmd = (Command_Data*)app->cmd_context;
+    Models *models = (Models*)app->cmd_context;
     u64 *ptr = 0;
-    if (get_dynamic_variable(cmd, scope, id, &ptr)){
+    if (get_dynamic_variable__internal(models, scope, id, &ptr)){
         *ptr = value;
         return(true);
     }
@@ -2595,9 +2494,9 @@ DOC_PARAM(value_out, An address where the value of the given variable in the giv
 DOC_RETURN(Returns non-zero on success.  This call fails if scope does not refer to a valid managed scope, or id does not refer to an existing managed variable.  If the managed scope and managed variable both exist, but the variable has never been set, then the default value for the variable that was determined when the variable was created is used to fill value_out, this is treated as a success and returns non-zero.)
 */
 {
-    Command_Data *cmd = (Command_Data*)app->cmd_context;
+    Models *models = (Models*)app->cmd_context;
     u64 *ptr = 0;
-    if (get_dynamic_variable(cmd, scope, id, &ptr)){
+    if (get_dynamic_variable__internal(models, scope, id, &ptr)){
         *value_out = *ptr;
         return(true);
     }
@@ -2614,8 +2513,7 @@ DOC_RETURN(Returns the handle to the new object on success, and zero on failure.
 DOC(Managed objects allocate memory that is tied to the scope.  When the scope is cleared or destroyed all of the memory allocated in it is freed in bulk and the handles to the objects never again become valid.  Thus the handle returned by this call will only ever refer to this memory allocation.)
 */
 {
-    Command_Data *cmd = (Command_Data*)app->cmd_context;
-    Models *models = cmd->models;
+    Models *models = (Models*)app->cmd_context;
     Heap *heap = &models->mem.heap;
     Dynamic_Workspace *workspace = get_dynamic_workspace(models, scope);
     Managed_Object result = 0;
@@ -2644,8 +2542,8 @@ DOC_SEE(alloc_managed_memory_in_scope)
 DOC_SEE(Marker)
 */
 {
-    Command_Data *cmd = (Command_Data*)app->cmd_context;
-    Editing_File *file = imp_get_file(cmd, buffer_id);
+    Models *models = (Models*)app->cmd_context;
+    Editing_File *file = imp_get_file(models, buffer_id);
     Managed_Scope markers_scope = buffer_get_managed_scope__inner(file);
     if (optional_extra_scope != 0){
         Managed_Object scope_array[2];
@@ -2653,7 +2551,6 @@ DOC_SEE(Marker)
         scope_array[1] = *optional_extra_scope;
         markers_scope = Get_Managed_Scope_With_Multiple_Dependencies(app, scope_array, 2);
     }
-    Models *models = cmd->models;
     Heap *heap = &models->mem.heap;
     Dynamic_Workspace *workspace = get_dynamic_workspace(models, markers_scope);
     Managed_Object result = 0;
@@ -2703,8 +2600,7 @@ DOC(A marker visual adds graphical effects to markers such as cursors, highlight
 DOC_SEE(destroy_marker_visuals)
 */
 {
-    Command_Data *cmd = (Command_Data*)app->cmd_context;
-    Models *models = cmd->models;
+    Models *models = (Models*)app->cmd_context;
     Managed_Object_Ptr_And_Workspace object_ptrs = get_dynamic_object_ptrs(models, object);
     Marker_Visual visual = {0};
     if (object_ptrs.header != 0 && object_ptrs.header->type == ManagedObjectType_Markers){
@@ -2748,8 +2644,7 @@ DOC_SEE(Marker_Visuals_Type)
 DOC_SEE(Marker_Visuals_Symbolic_Color)
 */
 {
-    Command_Data *cmd = (Command_Data*)app->cmd_context;
-    Models *models = cmd->models;
+    Models *models = (Models*)app->cmd_context;
     Marker_Visual_Data *data = get_marker_visual_pointer(models, visual);
     if (data != 0){
         data->type = type;
@@ -2771,8 +2666,7 @@ DOC(Marker visuals have take rules so that they do not necessarily effect every 
 DOC_SEE(Marker_Visual_Take_Rule)
 */
 {
-    Command_Data *cmd = (Command_Data*)app->cmd_context;
-    Models *models = cmd->models;
+    Models *models = (Models*)app->cmd_context;
     Marker_Visual_Data *data = get_marker_visual_pointer(models, visual);
     if (data != 0){
         Assert(take_rule.take_count_per_step != 0);
@@ -2803,8 +2697,7 @@ DOC_RETURN(Returns non-zero on success, and zero on failure.  This call fails wh
 DOC(Multiple visuals effecting the same position, whether they are on the same marker object, or different marker objects, are sorted by their priority level, so that higher priority levels are displayed when they are in conflict with lower priority levels.  Some effects have implicit priorities over other effects which does not take priority level into account, other effects may occur in the same position without being considered "in conflict".  See the documentation for each effect for more information these relationships.)
 */
 {
-    Command_Data *cmd = (Command_Data*)app->cmd_context;
-    Models *models = cmd->models;
+    Models *models = (Models*)app->cmd_context;
     Marker_Visual_Data *data = get_marker_visual_pointer(models, visual);
     if (data != 0){
         data->priority = priority;
@@ -2822,8 +2715,7 @@ DOC_RETURN(Returns non-zero on success, and zero on failure.  This call fails wh
 DOC(View keying allows a marker visual to declare that it only appears in one view.  For instance, if a buffer is opened in two views side-by-side, and each view has it's own cursor position, this can be used to make sure that the cursor for one view does not appear in the other view.)
 */
 {
-    Command_Data *cmd = (Command_Data*)app->cmd_context;
-    Models *models = cmd->models;
+    Models *models = (Models*)app->cmd_context;
     Marker_Visual_Data *data = get_marker_visual_pointer(models, visual);
     if (data != 0){
         data->key_view_id = key_view_id;
@@ -2839,8 +2731,7 @@ DOC_PARAM(visual, A handle to the marker visual to be destroyed.)
 DOC_RETURN(Returns non-zero on success, and zero on failure.  This call fails when the visual handle does not refer to a valid marker visual.)
 */
 {
-    Command_Data *cmd = (Command_Data*)app->cmd_context;
-    Models *models = cmd->models;
+    Models *models = (Models*)app->cmd_context;
     Dynamic_Workspace *workspace = get_dynamic_workspace(models, visual.scope);
     if (workspace != 0){
         Marker_Visual_Data *data = dynamic_workspace_get_visual_pointer(workspace, visual.slot_id, visual.gen_id);
@@ -2867,8 +2758,7 @@ DOC_PARAM(object, The handle to the marker object to be queried.)
 DOC_RETURN(Returns the number of marker visuals that are currently attached to the given object.  If the object handle does not refer to a valid marker object, then this call returns zero.)
 */
 {
-    Command_Data *cmd = (Command_Data*)app->cmd_context;
-    Models *models = cmd->models;
+    Models *models = (Models*)app->cmd_context;
     Managed_Object_Ptr_And_Workspace object_ptrs = get_dynamic_object_ptrs(models, object);
     if (object_ptrs.header != 0 && object_ptrs.header->type == ManagedObjectType_Markers){
         Managed_Buffer_Markers_Header *markers = (Managed_Buffer_Markers_Header*)object_ptrs.header;
@@ -2885,8 +2775,7 @@ DOC_PARAM(object, The handle to the marker object to be queried.)
 DOC_RETURN(Pushes an array onto part containing the handle to every marker visual attached to this object, and returns the pointer to it's base.  If the object does not refer to a valid marker object or there is not enough space in part to allocate the array, then a null pointer is returned.)
 */
 {
-    Command_Data *cmd = (Command_Data*)app->cmd_context;
-    Models *models = cmd->models;
+    Models *models = (Models*)app->cmd_context;
     Managed_Object_Ptr_And_Workspace object_ptrs = get_dynamic_object_ptrs(models, object);
     if (object_ptrs.header != 0 && object_ptrs.header->type == ManagedObjectType_Markers){
         Managed_Buffer_Markers_Header *markers = (Managed_Buffer_Markers_Header*)object_ptrs.header;
@@ -2926,8 +2815,7 @@ DOC_PARAM(object, The handle to the managed object to be queried.)
 DOC_RETURN(Returns the size, in bytes, of a single item in the managed object.  Item size is multiplied by the indices in store and load calls, and it is multiplied by item count to discover the total memory size of the managed object.  If object does not refer to a valid managed object, this call returns zero.)
 */
 {
-    Command_Data *cmd = (Command_Data*)app->cmd_context;
-    Models *models = cmd->models;
+    Models *models = (Models*)app->cmd_context;
     Managed_Object_Ptr_And_Workspace object_ptrs = get_dynamic_object_ptrs(models, object);
     if (object_ptrs.header != 0){
         return(object_ptrs.header->item_size);
@@ -2942,8 +2830,7 @@ DOC_PARAM(object, The handle to the managed object to be queried.)
 DOC_RETURN(Returns the count of items this object can store, this count is used to range check the indices in store and load calls.  If object does not refer to a valid managed object, this call returns zero.)
 */
 {
-    Command_Data *cmd = (Command_Data*)app->cmd_context;
-    Models *models = cmd->models;
+    Models *models = (Models*)app->cmd_context;
     Managed_Object_Ptr_And_Workspace object_ptrs = get_dynamic_object_ptrs(models, object);
     if (object_ptrs.header != 0){
         return(object_ptrs.header->count);
@@ -2959,8 +2846,7 @@ DOC_RETURN(Returns the type of the managed object, see Managed_Object_Type for t
 DOC_SEE(Managed_Object_Type)
 */
 {
-    Command_Data *cmd = (Command_Data*)app->cmd_context;
-    Models *models = cmd->models;
+    Models *models = (Models*)app->cmd_context;
     Managed_Object_Ptr_And_Workspace object_ptrs = get_dynamic_object_ptrs(models, object);
     if (object_ptrs.header != 0){
         Managed_Object_Type type = object_ptrs.header->type;
@@ -2979,8 +2865,7 @@ DOC_PARAM(object, The handle to the managed object to be queried.)
 DOC_RETURN(Returns a handle to the managed scope in which this object is allocated, or zero if object does not refer to a valid managed object.)
 */
 {
-    Command_Data *cmd = (Command_Data*)app->cmd_context;
-    Models *models = cmd->models;
+    Models *models = (Models*)app->cmd_context;
     u32 hi_id = (object >> 32)&max_u32;
     Dynamic_Workspace *workspace = get_dynamic_workspace(models, hi_id);
     if (workspace != 0){
@@ -2997,8 +2882,7 @@ DOC_RETURN(Returns non-zero on success and zero on failure.  This call fails whe
 DOC(Permanently frees the specified object.  Not only does this free up the memory this object had allocated, but it also triggers cleanup for some types of managed objects.  For instance after markers are freed, any visual effects from the markers are removed as well.  See Managed_Object_Type for more information about what cleanup each type performs when it is freed.)
  */
 {
-    Command_Data *cmd = (Command_Data*)app->cmd_context;
-    Models *models = cmd->models;
+    Models *models = (Models*)app->cmd_context;
     u32 hi_id = (object >> 32)&max_u32;
     Dynamic_Workspace *workspace = get_dynamic_workspace(models, hi_id);
     if (workspace != 0){
@@ -3036,8 +2920,7 @@ DOC_SEE(managed_object_get_item_size)
 DOC_SEE(managed_object_get_item_count)
 */
 {
-    Command_Data *cmd = (Command_Data*)app->cmd_context;
-    Models *models = cmd->models;
+    Models *models = (Models*)app->cmd_context;
     Managed_Object_Ptr_And_Workspace object_ptrs = get_dynamic_object_ptrs(models, object);
     u8 *ptr = get_dynamic_object_memory_ptr(object_ptrs.header);
     if (ptr != 0){
@@ -3065,8 +2948,7 @@ DOC_SEE(managed_object_get_item_size)
 DOC_SEE(managed_object_get_item_count)
 */
 {
-    Command_Data *cmd = (Command_Data*)app->cmd_context;
-    Models *models = cmd->models;
+    Models *models = (Models*)app->cmd_context;
     Managed_Object_Ptr_And_Workspace object_ptrs = get_dynamic_object_ptrs(models, object);
     u8 *ptr = get_dynamic_object_memory_ptr(object_ptrs.header);
     if (ptr != 0){
@@ -3097,8 +2979,8 @@ If a get condition is met the user input is returned.
 DOC_SEE(Input_Type_Flag)
 DOC_SEE(User_Input)
 */{
-    Command_Data *cmd = (Command_Data*)app->cmd_context;
-    System_Functions *system = cmd->system;
+    Models *models = (Models*)app->cmd_context;
+    System_Functions *system = models->system;
     Coroutine_Head *coroutine = (Coroutine_Head*)app->current_coroutine;
     User_Input result = {0};
     
@@ -3119,11 +3001,11 @@ Get_Command_Input(Application_Links *app)
 DOC_RETURN(This call returns the input that triggered the currently executing command.)
 DOC_SEE(User_Input)
 */{
-    Command_Data *cmd = (Command_Data*)app->cmd_context;
-    User_Input result = {0};
+    Models *models = (Models*)app->cmd_context;
+    User_Input result = {};
     result.type = UserInputKey;
     result.abort = 0;
-    result.key = cmd->key;
+    result.key = models->key;
     result.command.cmdid = 0;
     return(result);
 }
@@ -3133,8 +3015,8 @@ Set_Command_Input(Application_Links *app, Key_Event_Data key_data)
 /*
 DOC_PARAM(key_data, The new value of the "command input". Setting this effects the result returned by get_command_input until the end of this command.)
 */{
-    Command_Data *cmd = (Command_Data*)app->cmd_context;
-    cmd->key = key_data;
+    Models *models = (Models*)app->cmd_context;
+    models->key = key_data;
 }
 
 API_EXPORT Mouse_State
@@ -3143,9 +3025,8 @@ Get_Mouse_State(Application_Links *app)
 DOC_RETURN(This call returns the current mouse state as of the beginning of the frame.)
 DOC_SEE(Mouse_State)
 */{
-    Command_Data *cmd = (Command_Data*)app->cmd_context;
-    App_Vars *vars = cmd->vars;
-    return(direct_get_mouse_state(&vars->available_input));
+    Models *models = (Models*)app->cmd_context;
+    return(direct_get_mouse_state(&models->vars->available_input));
 }
 
 API_EXPORT bool32
@@ -3165,9 +3046,10 @@ will reflect the change.  Since the bar stops showing when the command exits the
 only use for this call is in an interactive command that makes calls to get_user_input.
 )
 */{
-    Command_Data *command = (Command_Data*)app->cmd_context;
-    USE_VIEW(vptr);
-    Query_Slot *slot = alloc_query_slot(&vptr->transient.query_set);
+    Models *models = (Models*)app->cmd_context;
+    Panel *active_panel = &models->layout.panels[models->layout.active_panel];
+    View *active_view = active_panel->view;
+    Query_Slot *slot = alloc_query_slot(&active_view->transient.query_set);
     bool32 result = (slot != 0);
     if (result){
         slot->query_bar = bar;
@@ -3182,9 +3064,10 @@ DOC_PARAM(bar, This parameter should be a bar pointer of a currently active quer
 DOC_PARAM(flags, This parameter is not currently used and should be 0 for now.)
 DOC(Stops showing the particular query bar specified by the bar parameter.)
 */{
-    Command_Data *command = (Command_Data*)app->cmd_context;
-    USE_VIEW(vptr);
-    free_query_slot(&vptr->transient.query_set, bar);
+    Models *models = (Models*)app->cmd_context;
+    Panel *active_panel = &models->layout.panels[models->layout.active_panel];
+    View *active_view = active_panel->view;
+    free_query_slot(&active_view->transient.query_set, bar);
 }
 
 API_EXPORT void
@@ -3194,9 +3077,8 @@ DOC_PARAM(str, The str parameter specifies the string to post to *messages*; it 
 DOC_PARAM(len, The len parameter specifies the length of the str string.)
 DOC(This call posts a string to the *messages* buffer.)
 */{
-    Command_Data *cmd = (Command_Data*)app->cmd_context;
-    Models *models = cmd->models;
-    do_feedback_message(cmd->system, models, make_string(str, len));
+    Models *models = (Models*)app->cmd_context;
+    do_feedback_message(models->system, models, make_string(str, len));
 }
 
 API_EXPORT int32_t
@@ -3205,9 +3087,8 @@ Get_Theme_Count(Application_Links *app)
 DOC_RETURN(Returns the number of themes that currently exist in the core.)
 */
 {
-    Command_Data *cmd = (Command_Data*)app->cmd_context;
-    Style_Library *library = &cmd->models->styles;
-    return(library->count);
+    Models *models = (Models*)app->cmd_context;
+    return(models->styles.count);
 }
 
 API_EXPORT String
@@ -3218,8 +3099,8 @@ DOC_PARAM(index, The index of the theme to query.  Index zero always refers to t
 DOC_RETURN(On success this call returns a string allocated on arena that is the name of the queried theme, on failure a null string is returned.  This call fails when index is not less than the total number of themes, and when there is not enough space in arena to allocate the return string.)
 */
 {
-    Command_Data *cmd = (Command_Data*)app->cmd_context;
-    Style_Library *library = &cmd->models->styles;
+    Models *models = (Models*)app->cmd_context;
+    Style_Library *library = &models->styles;
     String str = {0};
     if (0 <= index && index < library->count){
         Style *style = &library->styles[index];
@@ -3243,8 +3124,8 @@ DOC_PARAM(name, The name of the new theme. This string need not be null terminat
 DOC_PARAM(len, The length of the name string.)
 DOC(This call creates a new theme.  If the given name is already the name of a string, the old string will be replaced with the new one.  This call does not set the current theme.)
 */{
-    Command_Data *cmd = (Command_Data*)app->cmd_context;
-    Style_Library *library = &cmd->models->styles;
+    Models *models = (Models*)app->cmd_context;
+    Style_Library *library = &models->styles;
     String theme_name = make_string(name, len);
     
     b32 hit_existing_theme = false;
@@ -3274,8 +3155,8 @@ DOC_PARAM(name, The name parameter specifies the name of the theme to begin usin
 DOC_PARAM(len, The len parameter specifies the length of the name string.)
 DOC(This call changes 4coder's color pallet to one of the built in themes.)
 */{
-    Command_Data *cmd = (Command_Data*)app->cmd_context;
-    Style_Library *styles = &cmd->models->styles;
+    Models *models = (Models*)app->cmd_context;
+    Style_Library *styles = &models->styles;
     String theme_name = make_string(name, len);
     
     i32 count = styles->count;
@@ -3295,8 +3176,8 @@ DOC_PARAM(index, The index parameter specifies the index of theme to begin using
 DOC_RETURN(Returns non-zero on success and zero on failure.  This call fails when index is not less than the total number of themes.)
 */
 {
-    Command_Data *cmd = (Command_Data*)app->cmd_context;
-    Style_Library *styles = &cmd->models->styles;
+    Models *models = (Models*)app->cmd_context;
+    Style_Library *styles = &models->styles;
     i32 count = styles->count;
     if (0 <= index && index < count){
         style_copy(&styles->styles[0], &styles->styles[index]);
@@ -3311,9 +3192,8 @@ Get_Largest_Face_ID(Application_Links *app)
 DOC_RETURN(Returns the largest face ID that could be valid.  There is no guarantee that the returned value is a valid face, or that every face less than the returned value is valid.  The guarantee is that all valid face ids are in the range between 1 and the return value.)
 */
 {
-    Command_Data *cmd = (Command_Data*)app->cmd_context;
-    System_Functions *system = cmd->system;
-    Face_ID result = system->font.get_largest_id();
+    Models *models = (Models*)app->cmd_context;
+    Face_ID result = models->system->font.get_largest_id();
     return(result);
 }
 
@@ -3326,8 +3206,8 @@ DOC(Tries to set the global default face, which new buffers will use upon creati
 DOC_RETURN(Returns true if the given id was a valid face and the change was made successfully.)
 */
 {
-    Command_Data *cmd = (Command_Data*)app->cmd_context;
-    System_Functions *system = cmd->system;
+    Models *models = (Models*)app->cmd_context;
+    System_Functions *system = models->system;
     
     bool32 did_change = false;
     
@@ -3335,7 +3215,6 @@ DOC_RETURN(Returns true if the given id was a valid face and the change was made
     if (font.valid){
         did_change = true;
         
-        Models *models = cmd->models;
         if (apply_to_all_buffers){
             global_set_font_and_update_files(system, models, id);
         }
@@ -3356,18 +3235,16 @@ DOC(Tries to set the buffer's face.)
 DOC_RETURN(Returns true if the given id was a valid face and the change was made successfully.)
 */
 {
-    Command_Data *cmd = (Command_Data*)app->cmd_context;
-    Editing_File *file = imp_get_file(cmd, buffer);
+    Models *models = (Models*)app->cmd_context;
+    Editing_File *file = imp_get_file(models, buffer);
     
     bool32 did_change = false;
     
     if (file != 0){
-        System_Functions *system = cmd->system;
+        System_Functions *system = models->system;
         Font_Pointers font = system->font.get_pointers_by_id(id);
         if (font.valid){
             did_change = true;
-            
-            Models *models = cmd->models;
             file_set_font(system, models, file, id);
         }
     }
@@ -3446,9 +3323,8 @@ DOC_RETURN(Returns a Face_Description that is valid if the id references a valid
 DOC_SEE(Face_Description)
 */
 {
-    Command_Data *cmd = (Command_Data*)app->cmd_context;
-    System_Functions *system = cmd->system;
-    
+    Models *models = (Models*)app->cmd_context;
+    System_Functions *system = models->system;
     Face_Description description = {0};
     if (id != 0){
         Font_Pointers font = system->font.get_pointers_by_id(id);
@@ -3458,11 +3334,9 @@ DOC_SEE(Face_Description)
         }
     }
     else{
-        Models *models = cmd->models;
         description.pt_size = models->settings.font_size;
         description.hinting = models->settings.use_hinting;
     }
-    
     return(description);
 }
 
@@ -3474,20 +3348,17 @@ DOC(Retrieves a face id if buffer is a valid Buffer_Summary.  If buffer is set t
 DOC_RETURN(On success a valid Face_ID, otherwise returns zero.)
 */
 {
-    Command_Data *cmd = (Command_Data*)app->cmd_context;
-    
+    Models *models = (Models*)app->cmd_context;
     Face_ID id = 0;
     if (buffer != 0){
-        Editing_File *file = imp_get_file(cmd, buffer);
+        Editing_File *file = imp_get_file(models, buffer);
         if (file != 0){
             id = file->settings.font_id;
         }
     }
     else{
-        Models *models = cmd->models;
         id = models->global_font_id;
     }
-    
     return(id);
 }
 
@@ -3508,15 +3379,13 @@ DOC_RETURN(Returns a new valid face id if the font system successfully instanati
 DOC_SEE(Face_Description)
 */
 {
-    Command_Data *cmd = (Command_Data*)app->cmd_context;
-    System_Functions *system = cmd->system;
-    
+    Models *models = (Models*)app->cmd_context;
+    System_Functions *system = models->system;
     Face_ID id = 0;
     Font_Settings settings;
     if (face_description_to_settings(system, *description, &settings)){
         id = system->font.face_allocate_and_init(&settings);
     }
-    
     return(id);
 }
 
@@ -3534,18 +3403,15 @@ DOC_RETURN(Returns true on success and false on failure.)
 DOC_SEE(try_create_new_face)
 */
 {
-    Command_Data *cmd = (Command_Data*)app->cmd_context;
-    System_Functions *system = cmd->system;
-    
+    Models *models = (Models*)app->cmd_context;
+    System_Functions *system = models->system;
     bool32 success = false;
     Font_Settings settings;
     if (face_description_to_settings(system, *description, &settings)){
-        Models *models = cmd->models;
         if (alter_font_and_update_files(system, models, id, &settings)){
             success = true;
         }
     }
-    
     return(success);
 }
 
@@ -3562,10 +3428,8 @@ Performance Warning: Releasing a face slot should only be done a couple of times
 DOC_RETURN(Returns true on success and zero on failure.)
 */
 {
-    Command_Data *cmd = (Command_Data*)app->cmd_context;
-    System_Functions *system = cmd->system;
-    Models *models = cmd->models;
-    bool32 success = release_font_and_update_files(system, models, id, replacement_id);
+    Models *models = (Models*)app->cmd_context;
+    bool32 success = release_font_and_update_files(models->system, models, id, replacement_id);
     return(success);
 }
 
@@ -3576,9 +3440,8 @@ DOC(An available font is a font that the 4coder font system detected on initiali
 DOC_RETURN(Returns the number of available fonts that the user can query.)
 */
 {
-    Command_Data *cmd = (Command_Data*)app->cmd_context;
-    System_Functions *system = cmd->system;
-    i32 count = system->font.get_loadable_count();
+    Models *models = (Models*)app->cmd_context;
+    i32 count = models->system->font.get_loadable_count();
     return(count);
 }
 
@@ -3590,12 +3453,11 @@ DOC_RETURN(Returns a valid Available_Font if index is in the required range.  Ot
 DOC_SEE(get_available_font_count)
 */
 {
-    Command_Data *cmd = (Command_Data*)app->cmd_context;
-    System_Functions *system = cmd->system;
+    Models *models = (Models*)app->cmd_context;
     
-    Available_Font available = {0};
-    Font_Loadable_Description description = {0};
-    system->font.get_loadable(index, &description);
+    Available_Font available = {};
+    Font_Loadable_Description description = {};
+    models->system->font.get_loadable(index, &description);
     if (description.valid){
         memcpy(available.name, description.display_name, description.display_len);
         available.in_local_font_folder = description.stub.in_font_folder;
@@ -3612,8 +3474,8 @@ DOC_PARAM(count, The count parameter specifies the number of Theme_Color structs
 DOC(For each struct in the array, the slot in the main color pallet specified by the struct's tag is set to the color code in the struct. If the tag value is invalid no change is made to the color pallet.)
 DOC_SEE(Theme_Color)
 */{
-    Command_Data *cmd = (Command_Data*)app->cmd_context;
-    Style *style = &cmd->models->styles.styles[0];
+    Models *models = (Models*)app->cmd_context;
+    Style *style = &models->styles.styles[0];
     Theme_Color *theme_color = colors;
     for (i32 i = 0; i < count; ++i, ++theme_color){
         int_color *color = style_index_by_tag(&style->main, theme_color->tag);
@@ -3631,8 +3493,8 @@ DOC_PARAM(count, the number of color structs in the colors array)
 DOC(For each struct in the array, the color field of the struct is filled with the color from the slot in the main color pallet specified by the tag.  If the tag value is invalid the color is filled with black.)
 DOC_SEE(Theme_Color)
 */{
-    Command_Data *cmd = (Command_Data*)app->cmd_context;
-    Style *style = &cmd->models->styles.styles[0];
+    Models *models = (Models*)app->cmd_context;
+    Style *style = &models->styles.styles[0];
     Theme_Color *theme_color = colors;
     for (i32 i = 0; i < count; ++i, ++theme_color){
         u32 *color = style_index_by_tag(&style->main, theme_color->tag);
@@ -3654,8 +3516,8 @@ DOC(4coder has a concept of a 'hot directory' which is the directory most recent
 DOC_RETURN(This call returns the length of the hot directory string whether or not it was successfully copied into the output buffer.  The call is successful if and only if capacity is greater than or equal to the return value.)
 DOC_SEE(directory_set_hot)
 */{
-    Command_Data *cmd = (Command_Data*)app->cmd_context;
-    Hot_Directory *hot = &cmd->models->hot_directory;
+    Models *models = (Models*)app->cmd_context;
+    Hot_Directory *hot = &models->hot_directory;
     hot_directory_clean_end(hot);
     if (capacity >= hot->string.size){
         memcpy(out, hot->string.str, hot->string.size);
@@ -3675,11 +3537,11 @@ DOC_RETURN(Returns non-zero on success.)
 DOC(4coder has a concept of a 'hot directory' which is the directory most recently accessed in the GUI.  Whenever the GUI is opened it shows the hot directory. In the future this will be deprecated and eliminated in favor of more flexible directories controlled on the custom side.)
 DOC_SEE(directory_get_hot)
 */{
-    Command_Data *cmd = (Command_Data*)app->cmd_context;
-    Hot_Directory *hot = &cmd->models->hot_directory;
+    Models *models = (Models*)app->cmd_context;
+    Hot_Directory *hot = &models->hot_directory;
     b32 success = false;
     if (len < hot->string.memory_size){
-        hot_directory_set(cmd->system, hot, make_string(str, len));
+        hot_directory_set(models->system, hot, make_string(str, len));
         success = true;
     }
     return(success);
@@ -3693,9 +3555,9 @@ DOC_PARAM(len, This parameter the length of the dir string.)
 DOC_RETURN(This call returns a File_List struct containing pointers to the names of the files in the specified directory.  The File_List returned should be passed to free_file_list when it is no longer in use.)
 DOC_SEE(File_List)
 */{
-    Command_Data *cmd = (Command_Data*)app->cmd_context;
-    System_Functions *system = cmd->system;
-    Partition *part = &cmd->models->mem.part;
+    Models *models = (Models*)app->cmd_context;
+    System_Functions *system = models->system;
+    Partition *part = &models->mem.part;
     File_List result = {};
     Editing_File_Name canon = {};
     if (get_canon_name(system, make_string(dir, len), &canon)){
@@ -3714,9 +3576,8 @@ DOC_PARAM(list, This parameter provides the file list to be freed.)
 DOC(After this call the file list passed in should not be read or written to.)
 DOC_SEE(File_List)
 */{
-    Command_Data *cmd = (Command_Data*)app->cmd_context;
-    System_Functions *system = cmd->system;
-    system->set_file_list(&list, 0, 0, 0, 0);
+    Models *models = (Models*)app->cmd_context;
+    models->system->set_file_list(&list, 0, 0, 0, 0);
 }
 
 API_EXPORT void
@@ -3729,8 +3590,7 @@ DOC_PARAM(down_key_modifier, the modifier for the key that should be interpreted
 
 DOC(This is a temporary ad-hoc solution to allow some customization of the behavior of the built in GUI. There is a high chance that it will be removed and not replaced at some point, so it is not recommended that it be heavily used.) */
 {
-    Command_Data *cmd = (Command_Data*)app->cmd_context;
-    Models *models = cmd->models;
+    Models *models = (Models*)app->cmd_context;
     models->user_up_key = up_key;
     models->user_up_key_modifier = up_key_modifier;
     models->user_down_key = down_key;
@@ -3744,9 +3604,8 @@ DOC_PARAM(size, The size in bytes of the block that should be returned.)
 DOC(This calls to a low level OS allocator which means it is best used for infrequent, large allocations.  The size of the block must be remembered if it will be freed or if it's mem protection status will be changed.)
 DOC_SEE(memory_free)
 */{
-    Command_Data *cmd = (Command_Data*)app->cmd_context;
-    System_Functions *system = cmd->system;
-    void *result = system->memory_allocate(size);
+    Models *models = (Models*)app->cmd_context;
+    void *result = models->system->memory_allocate(size);
     return(result);
 }
 
@@ -3760,9 +3619,8 @@ DOC(This call sets the memory protection flags of a block of memory that was pre
 DOC_SEE(memory_allocate)
 DOC_SEE(Memory_Protect_Flags)
 */{
-    Command_Data *cmd = (Command_Data*)app->cmd_context;
-    System_Functions *system = cmd->system;
-    bool32 result = system->memory_set_protection(ptr, size, flags);
+    Models *models = (Models*)app->cmd_context;
+    bool32 result = models->system->memory_set_protection(ptr, size, flags);
     return(result);
 }
 
@@ -3774,9 +3632,8 @@ DOC_PARAM(size, The size that was originally used to allocate this block.)
 DOC(This call frees a block of memory that was previously allocated by memory_allocate.)
 DOC_SEE(memory_allocate)
 */{
-    Command_Data *cmd = (Command_Data*)app->cmd_context;
-    System_Functions *system = cmd->system;
-    system->memory_free(ptr, size);
+    Models *models = (Models*)app->cmd_context;
+    models->system->memory_free(ptr, size);
 }
 
 API_EXPORT bool32
@@ -3786,9 +3643,8 @@ DOC_PARAM(filename, This parameter specifies the full path to a file; it need no
 DOC_PARAM(len, This parameter specifies the length of the filename string.)
 DOC_RETURN(This call returns non-zero if and only if the file exists.)
 */{
-    Command_Data *cmd = (Command_Data*)app->cmd_context;
-    System_Functions *system = cmd->system;
-    bool32 result = system->file_exists(filename, len);
+    Models *models = (Models*)app->cmd_context;
+    bool32 result = models->system->file_exists(filename, len);
     return(result);
 }
 
@@ -3806,9 +3662,8 @@ This call succeeds if the new directory exists and it fits inside the dir buffer
 
 For instance if dir contains "C:/Users/MySelf" and rel is "Documents" the buffer will contain "C:/Users/MySelf/Documents" and len will contain the length of that string.  This call can also be used with rel set to ".." to traverse to parent folders.
 )*/{
-    Command_Data *cmd = (Command_Data*)app->cmd_context;
-    System_Functions *system = cmd->system;
-    bool32 result = system->directory_cd(dir, len, capacity, rel_path, rel_len);
+    Models *models = (Models*)app->cmd_context;
+    bool32 result = models->system->directory_cd(dir, len, capacity, rel_path, rel_len);
     return(result);
 }
 
@@ -3819,9 +3674,8 @@ DOC_PARAM(out, This parameter provides a character buffer that receives the path
 DOC_PARAM(capacity, This parameter specifies the maximum capacity of the out buffer.)
 DOC_RETURN(This call returns non-zero on success.)
 */{
-    Command_Data *cmd = (Command_Data*)app->cmd_context;
-    System_Functions *system = cmd->system;
-    int32_t result = system->get_4ed_path(out, capacity);
+    Models *models = (Models*)app->cmd_context;
+    int32_t result = models->system->get_4ed_path(out, capacity);
     return(result);
 }
 
@@ -3832,9 +3686,8 @@ Show_Mouse_Cursor(Application_Links *app, Mouse_Cursor_Show_Type show)
 DOC_PARAM(show, This parameter specifies the new state of the mouse cursor.)
 DOC_SEE(Mouse_Cursor_Show_Type)
 */{
-    Command_Data *cmd = (Command_Data*)app->cmd_context;
-    System_Functions *system = cmd->system;
-    system->show_mouse_cursor(show);
+    Models *models = (Models*)app->cmd_context;
+    models->system->show_mouse_cursor(show);
 }
 
 API_EXPORT bool32
@@ -3843,9 +3696,8 @@ Set_Fullscreen(Application_Links *app, bool32 full_screen)
 DOC_PARAM(full_screen, The new value of the global full_screen setting.)
 DOC(This call tells 4coder to set the full_screen mode.  The change to full screen mode does not take effect until the end of the current frame.  But is_fullscreen does report the new state.)
 */{
-    Command_Data *cmd = (Command_Data*)app->cmd_context;
-    System_Functions *system = cmd->system;
-    bool32 success = system->set_fullscreen(full_screen);
+    Models *models = (Models*)app->cmd_context;
+    bool32 success = models->system->set_fullscreen(full_screen);
     if (!success){
         print_message(app, literal("ERROR: Failed to go fullscreen.\n"));
     }
@@ -3857,9 +3709,8 @@ Is_Fullscreen(Application_Links *app)
 /*
 DOC(This call returns true if the 4coder is in full screen mode.  This call takes toggles that have already occured this frame into account.  So it may return true even though the frame has not ended and actually put 4coder into full screen. If it returns true though, 4coder will definitely be full screen by the beginning of the next frame if the state is not changed.)
 */{
-    Command_Data *cmd = (Command_Data*)app->cmd_context;
-    System_Functions *system = cmd->system;
-    bool32 result = system->is_fullscreen();
+    Models *models = (Models*)app->cmd_context;
+    bool32 result = models->system->is_fullscreen();
     return(result);
 }
 
@@ -3872,8 +3723,7 @@ In the default behavior of the exit hook, the exit is cancelled if there are uns
 
 To make send_exit_signal exit no matter what, setup your hook in such a way that it knows when you are trying to exit no matter what, such as with a global variable that you set before calling send_exit_signal.)
 */{
-    Command_Data *cmd = (Command_Data*)app->cmd_context;
-    Models *models = cmd->models;
+    Models *models = (Models*)app->cmd_context;
     models->keep_playing = false;
 }
 
@@ -3883,8 +3733,7 @@ Set_Window_Title(Application_Links *app, char *title)
 DOC_PARAM(title, A null terminated string indicating the new title for the 4coder window.)
 DOC(Sets 4coder's window title to the specified title string.)
 */{
-    Command_Data *cmd = (Command_Data*)app->cmd_context;
-    Models *models = cmd->models;
+    Models *models = (Models*)app->cmd_context;
     models->has_new_title = true;
     String dst = make_string_cap(models->title_space, 0, models->title_capacity);
     append(&dst, title);

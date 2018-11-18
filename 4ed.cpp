@@ -168,7 +168,6 @@ do_feedback_message(System_Functions *system, Models *models, String value){
 
 // Commands
 
-#define USE_MODELS(n) Models *n = command->models
 #define USE_VARS(n) App_Vars *n = command->vars
 #define USE_FILE(n,v) Editing_File *n = (v)->file_data.file
 
@@ -188,7 +187,7 @@ do_feedback_message(System_Functions *system, Models *models, String value){
 #define REQ_FILE(n,v) Editing_File *n = (v)->transient.file_data.file; if (n == 0) return
 #define REQ_FILE_HISTORY(n,v) Editing_File *n = (v)->transient.file_data.file; if (n == 0 || n->state.undo.undo.edits == 0) return
 
-#define COMMAND_DECL(n) internal void command_##n(System_Functions *system, Command_Data *command, Command_Binding binding)
+#define COMMAND_DECL(n) internal void command_##n(System_Functions *system, Models *models, Command_Binding binding)
 
 internal View*
 panel_make_empty(System_Functions *system, Models *models, Panel *panel){
@@ -198,9 +197,7 @@ panel_make_empty(System_Functions *system, Models *models, Panel *panel){
     return(new_view.view);
 }
 
-COMMAND_DECL(null){
-    AllowLocal(command);
-}
+COMMAND_DECL(null){}
 
 internal void
 view_undo_redo(System_Functions *system, Models *models, View *view, Edit_Stack *stack, Edit_Type expected_type){
@@ -216,17 +213,29 @@ view_undo_redo(System_Functions *system, Models *models, View *view, Edit_Stack 
 }
 
 COMMAND_DECL(undo){
-    USE_MODELS(models);
-    REQ_OPEN_VIEW(view);
-    REQ_FILE_HISTORY(file, view);
+    Panel *active_panel = &models->layout.panels[models->layout.active_panel];
+    View *view = active_panel->view;
+    if (view_lock_flags(view) != 0){
+        return;
+    }
+    Editing_File *file = view->transient.file_data.file;
+    if (file->state.undo.undo.edits == 0){
+        return;
+    }
     view_undo_redo(system, models, view, &file->state.undo.undo, ED_UNDO);
     Assert(file->state.undo.undo.size >= 0);
 }
 
 COMMAND_DECL(redo){
-    USE_MODELS(models);
-    REQ_OPEN_VIEW(view);
-    REQ_FILE_HISTORY(file, view);
+    Panel *active_panel = &models->layout.panels[models->layout.active_panel];
+    View *view = active_panel->view;
+    if (view_lock_flags(view) != 0){
+        return;
+    }
+    Editing_File *file = view->transient.file_data.file;
+    if (file->state.undo.undo.edits == 0){
+        return;
+    }
     view_undo_redo(system, models, view, &file->state.undo.redo, ED_REDO);
     Assert(file->state.undo.undo.size >= 0);
 }
@@ -235,12 +244,12 @@ COMMAND_DECL(redo){
 // - Perform a diff
 // - If the diff is not tremendously big, apply the edits.
 COMMAND_DECL(reopen){
-    USE_MODELS(models);
-    USE_VIEW(view);
-    REQ_FILE(file, view);
-    
-    if (file->canon.name.str == 0) return;
-    
+    Panel *active_panel = &models->layout.panels[models->layout.active_panel];
+    View *view = active_panel->view;
+    Editing_File *file = view->transient.file_data.file;
+    if (file->canon.name.str == 0){
+        return;
+    }
     if (file->canon.name.size != 0){
         Plat_Handle handle;
         if (system->load_handle(file->canon.name.str, &handle)){
@@ -307,17 +316,15 @@ COMMAND_DECL(reopen){
 }
 
 COMMAND_DECL(save){
-    USE_MODELS(models);
-    USE_VIEW(view);
-    REQ_FILE(file, view);
-    
+    Panel *active_panel = &models->layout.panels[models->layout.active_panel];
+    View *view = active_panel->view;
+    Editing_File *file = view->transient.file_data.file;
     if (!file->is_dummy && file_is_ready(file) && buffer_can_save(file)){
         save_file(system, models, file);
     }
 }
 
 COMMAND_DECL(user_callback){
-    USE_MODELS(models);
     if (binding.custom != 0){
         binding.custom(&models->app_links);
     }
@@ -351,11 +358,11 @@ setup_ui_commands(Command_Map *commands, Partition *part, i32 parent){
     u8 mdfr_array[] = {MDFR_NONE, MDFR_SHIFT, MDFR_CTRL, MDFR_SHIFT | MDFR_CTRL};
     for (i32 i = 0; i < 4; ++i){
         u8 mdfr = mdfr_array[i];
-        map_add(commands, key_left, mdfr, command_null);
-        map_add(commands, key_right, mdfr, command_null);
-        map_add(commands, key_up, mdfr, command_null);
-        map_add(commands, key_down, mdfr, command_null);
-        map_add(commands, key_back, mdfr, command_null);
+        map_add(commands, key_left , mdfr, command_null, (Custom_Command_Function*)0);
+        map_add(commands, key_right, mdfr, command_null, (Custom_Command_Function*)0);
+        map_add(commands, key_up   , mdfr, command_null, (Custom_Command_Function*)0);
+        map_add(commands, key_down , mdfr, command_null, (Custom_Command_Function*)0);
+        map_add(commands, key_back , mdfr, command_null, (Custom_Command_Function*)0);
     }
 }
 
@@ -1089,15 +1096,12 @@ App_Init_Sig(app_init){
     
     // NOTE(allen): init first panel
     Command_Data *cmd = &models->command_data;
-    
     cmd->models = models;
     cmd->vars = vars;
     cmd->system = system;
     cmd->live_set = &models->live_set;
-    
     cmd->screen_width = target->width;
     cmd->screen_height = target->height;
-    
     cmd->key = null_key_event_data;
     
     File_Init init_files[] = {
@@ -1301,6 +1305,19 @@ App_Step_Sig(app_step){
             models->hook_start(&models->app_links, files, files_count, flags, flags_count);
         }
     }
+    
+    Panel *mouse_panel = 0;
+    b32 mouse_in_edit_area = false;
+    b32 mouse_in_margin_area = false;
+    b32 mouse_on_divider = false;
+    b32 mouse_divider_vertical = false;
+    
+#if 0    
+    ////
+    ////
+    //// BEGIN INPUT PROCESSING
+    ////
+    ////
     
     // NOTE(allen): prepare input information
     b32 has_keyboard_event = (input->keys.count > 0);
@@ -1786,11 +1803,16 @@ App_Step_Sig(app_step){
         }
     }
     
+    ////
+    ////
+    //// END INPUT PROCESSING
+    ////
+    ////
+#endif
+    
     // NOTE(allen): step panels
     {
-        Command_Data *command = cmd;
-        USE_VIEW(active_view);
-        USE_PANEL(active_panel);
+        Panel *active_panel = &models->layout.panels[models->layout.active_panel];
         
         for (Panel *panel = models->layout.used_sentinel.next;
              panel != &models->layout.used_sentinel;
@@ -1862,11 +1884,8 @@ App_Step_Sig(app_step){
     {
         begin_render_section(target, system);
         
-        Command_Data *command = cmd;
-        USE_PANEL(active_panel);
-        USE_VIEW(active_view);
-        
-        cmd->target = target;
+        Panel *active_panel = &models->layout.panels[models->layout.active_panel];
+        View *active_view = active_panel->view;
         
         // NOTE(allen): render the panels
         for (Panel *panel = models->layout.used_sentinel.next;

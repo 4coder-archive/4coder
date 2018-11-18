@@ -1145,16 +1145,14 @@ render_loaded_file_in_view__inner(Models *models, Render_Target *target, View *v
 
 internal void
 do_core_render(Application_Links *app){
-    Command_Data *cmd = (Command_Data*)app->cmd_context;
-    Models *models = cmd->models;
-    Render_Target *target = cmd->target;
-    View *view = cmd->render_view;
-    i32_Rect rect = cmd->render_rect;
-    Full_Cursor render_cursor = cmd->render_cursor;
-    Range on_screen_range = cmd->render_range;
-    Buffer_Render_Item *items = cmd->render_items;
-    i32 item_count = cmd->render_item_count;
-    
+    Models *models = (Models*)app->cmd_context;
+    Render_Target *target = models->target;
+    View *view = models->render_view;
+    i32_Rect rect = models->render_rect;
+    Full_Cursor render_cursor = models->render_cursor;
+    Range on_screen_range = models->render_range;
+    Buffer_Render_Item *items = models->render_items;
+    i32 item_count = models->render_item_count;
     render_loaded_file_in_view__inner(models, target, view,
                                       rect, render_cursor, on_screen_range,
                                       items, item_count);
@@ -1283,12 +1281,12 @@ render_loaded_file_in_view(System_Functions *system, View *view, Models *models,
     ////
     
     if (models->render_caller != 0){
-        models->command_data.render_view = view;
-        models->command_data.render_rect = rect;
-        models->command_data.render_cursor = render_cursor;
-        models->command_data.render_range = on_screen_range;
-        models->command_data.render_items = items;
-        models->command_data.render_item_count = item_count;
+        models->render_view = view;
+        models->render_rect = rect;
+        models->render_cursor = render_cursor;
+        models->render_range = on_screen_range;
+        models->render_items = items;
+        models->render_item_count = item_count;
         models->render_caller(&models->app_links, view->persistent.id + 1, on_screen_range, do_core_render);
     }
     else{

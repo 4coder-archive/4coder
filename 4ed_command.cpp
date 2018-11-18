@@ -81,8 +81,6 @@ get_map(Mapping *mapping, i32 mapid){
 #define COMMAND_HASH_EMPTY 0
 #define COMMAND_HASH_ERASED max_u64
 
-internal void command_null(Command_Data *command);
-
 internal u64
 map_hash(Key_Code event_code, u8 modifiers){
     u64 result = (event_code << 8) | modifiers;
@@ -90,7 +88,7 @@ map_hash(Key_Code event_code, u8 modifiers){
 }
 
 internal b32
-map_add(Command_Map *map, Key_Code event_code, u8 modifiers, Command_Function *function, Custom_Command_Function *custom = 0, b32 override_original = true){
+map_add(Command_Map *map, Key_Code event_code, u8 modifiers, Command_Function *function, Custom_Command_Function *custom){
     b32 result = false;
     Assert(map->count * 8 < map->max * 7);
     u64 hash = map_hash(event_code, modifiers);
@@ -107,23 +105,21 @@ map_add(Command_Map *map, Key_Code event_code, u8 modifiers, Command_Function *f
         entry = map->commands[index];
     }
     
-    if (override_original || !result){
-        Command_Binding bind = {0};
-        bind.function = function;
-        bind.custom = custom;
-        bind.hash = hash;
-        map->commands[index] = bind;
-        if (!result){
-            ++map->count;
-        }
+    Command_Binding bind = {0};
+    bind.function = function;
+    bind.custom = custom;
+    bind.hash = hash;
+    map->commands[index] = bind;
+    if (!result){
+        ++map->count;
     }
     
     return(result);
 }
 
 inline b32
-map_add(Command_Map *map, Key_Code event_code, u8 modifiers, Command_Function *function, u64 custom_id, b32 override_original = true){
-    return (map_add(map, event_code, modifiers, function, (Custom_Command_Function*)custom_id, override_original));
+map_add(Command_Map *map, Key_Code event_code, u8 modifiers, Command_Function *function, u64 custom_id){
+    return(map_add(map, event_code, modifiers, function, (Custom_Command_Function*)custom_id));
 }
 
 internal b32
