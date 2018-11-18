@@ -698,6 +698,7 @@ isearch(Application_Links *app, bool32 start_reversed, String query_init, bool32
                              SymbolicColorFromPalette(Stag_Highlight),
                              SymbolicColorFromPalette(Stag_At_Highlight), 0);
     marker_visual_set_view_key(app, visual, view.view_id);
+    marker_visual_set_priority(app, visual, VisualPriority_Default + 1);
     isearch__update_highlight(app, &view, highlight, match.start, match.end);
     cursor_is_hidden = true;
     
