@@ -1213,7 +1213,8 @@ App_Step_Sig(app_step){
     }
     
     // NOTE(allen): update child processes
-    if (input->dt > 0){
+    f32 dt = input->dt;
+    if (dt > 0){
         Partition *scratch = &models->mem.part;
         
         CLI_List *list = &vars->cli_processes;
@@ -1263,6 +1264,42 @@ App_Step_Sig(app_step){
         }
         
         end_temp_memory(temp);
+    }
+    
+    // NOTE(allen): First frame initialization
+    if (input->first_step){
+        // Open command line files.
+        char space[512];
+        String cl_filename = make_fixed_width_string(space);
+        copy_ss(&cl_filename, models->hot_directory.string);
+        i32 cl_filename_len = cl_filename.size;
+        for (i32 i = 0; i < models->settings.init_files_count; ++i){
+            cl_filename.size = cl_filename_len;
+            
+            String filename = {0};
+            Editing_File_Name canon_name = {0};
+            if (get_canon_name(system, make_string_slowly(models->settings.init_files[i]),
+                               &canon_name)){
+                filename = canon_name.name;
+            }
+            else{
+                append_sc(&cl_filename, models->settings.init_files[i]);
+                filename = cl_filename;
+            }
+            
+            open_file(system, models, filename);
+        }
+        
+        if (models->hook_start != 0){
+            char **files = models->settings.init_files;
+            i32 files_count = models->settings.init_files_count;
+            
+            char **flags = models->settings.custom_flags;
+            i32 flags_count = models->settings.custom_flags_count;
+            
+            
+            models->hook_start(&models->app_links, files, files_count, flags, flags_count);
+        }
     }
     
     // NOTE(allen): prepare input information
@@ -1395,42 +1432,6 @@ App_Step_Sig(app_step){
     cmd->screen_width = target->width;
     cmd->screen_height = target->height;
     cmd->key = null_key_event_data;
-    
-    // NOTE(allen): First frame initialization
-    if (input->first_step){
-        // Open command line files.
-        char space[512];
-        String cl_filename = make_fixed_width_string(space);
-        copy_ss(&cl_filename, models->hot_directory.string);
-        i32 cl_filename_len = cl_filename.size;
-        for (i32 i = 0; i < models->settings.init_files_count; ++i){
-            cl_filename.size = cl_filename_len;
-            
-            String filename = {0};
-            Editing_File_Name canon_name = {0};
-            if (get_canon_name(system, make_string_slowly(models->settings.init_files[i]),
-                               &canon_name)){
-                filename = canon_name.name;
-            }
-            else{
-                append_sc(&cl_filename, models->settings.init_files[i]);
-                filename = cl_filename;
-            }
-            
-            open_file(system, models, filename);
-        }
-        
-        if (models->hook_start != 0){
-            char **files = models->settings.init_files;
-            i32 files_count = models->settings.init_files_count;
-            
-            char **flags = models->settings.custom_flags;
-            i32 flags_count = models->settings.custom_flags_count;
-            
-            
-            models->hook_start(&models->app_links, files, files_count, flags, flags_count);
-        }
-    }
     
     // NOTE(allen): Get Available Input
     vars->available_input = init_available_input(&input->keys, &input->mouse);
@@ -1571,52 +1572,6 @@ App_Step_Sig(app_step){
         }
         
         end_temp_memory(temp);
-    }
-    
-    // NOTE(allen): pass raw input to the panels
-    f32 dt = input->dt;
-    
-    {
-        Command_Data *command = cmd;
-        USE_VIEW(active_view);
-        USE_PANEL(active_panel);
-        
-        for (Panel *panel = models->layout.used_sentinel.next;
-             panel != &models->layout.used_sentinel;
-             panel = panel->next){
-            View *view = panel->view;
-            
-            GUI_Scroll_Vars *scroll_vars = 0;
-            i32 max_y = 0;
-            b32 file_scroll = false;
-            if (!view->transient.ui_mode){
-                scroll_vars = &view->transient.edit_pos->scroll;
-                max_y = view_compute_max_target_y(view);
-                file_scroll = true;
-            }
-            else{
-                scroll_vars = &view->transient.ui_scroll;
-                i32 bottom = view->transient.ui_control.bounding_box[UICoordinates_Scrolled].y1;
-                max_y = view_compute_max_target_y_from_bottom_y(view, (f32)bottom);
-                file_scroll = false;
-            }
-            
-            b32 active = (panel == active_panel);
-            Input_Process_Result ip_result = do_step_file_view(system, view, models, panel->inner, active, dt, *scroll_vars, max_y);
-            
-            if (ip_result.is_animating){
-                app_result.animating = true;
-            }
-            
-            if (memcmp(scroll_vars, &ip_result.scroll, sizeof(*scroll_vars)) != 0){
-                if (file_scroll){
-                    view_set_scroll(system, view, ip_result.scroll);
-                }
-                else{
-                    *scroll_vars = ip_result.scroll;
-                }
-            }
-        }
     }
     
     // NOTE(allen): command execution
@@ -1826,6 +1781,50 @@ App_Step_Sig(app_step){
                     models->command_coroutine = app_launch_coroutine(system, &models->app_links, Co_Command, models->command_coroutine, &cmd_in, models->command_coroutine_flags);
                     
                     models->prev_command = cmd_bind;
+                }
+            }
+        }
+    }
+    
+    // NOTE(allen): step panels
+    {
+        Command_Data *command = cmd;
+        USE_VIEW(active_view);
+        USE_PANEL(active_panel);
+        
+        for (Panel *panel = models->layout.used_sentinel.next;
+             panel != &models->layout.used_sentinel;
+             panel = panel->next){
+            View *view = panel->view;
+            
+            GUI_Scroll_Vars *scroll_vars = 0;
+            i32 max_y = 0;
+            b32 file_scroll = false;
+            if (!view->transient.ui_mode){
+                scroll_vars = &view->transient.edit_pos->scroll;
+                max_y = view_compute_max_target_y(view);
+                file_scroll = true;
+            }
+            else{
+                scroll_vars = &view->transient.ui_scroll;
+                i32 bottom = view->transient.ui_control.bounding_box[UICoordinates_Scrolled].y1;
+                max_y = view_compute_max_target_y_from_bottom_y(view, (f32)bottom);
+                file_scroll = false;
+            }
+            
+            b32 active = (panel == active_panel);
+            Input_Process_Result ip_result = do_step_file_view(system, view, models, panel->inner, active, dt, *scroll_vars, max_y);
+            
+            if (ip_result.is_animating){
+                app_result.animating = true;
+            }
+            
+            if (memcmp(scroll_vars, &ip_result.scroll, sizeof(*scroll_vars)) != 0){
+                if (file_scroll){
+                    view_set_scroll(system, view, ip_result.scroll);
+                }
+                else{
+                    *scroll_vars = ip_result.scroll;
                 }
             }
         }
