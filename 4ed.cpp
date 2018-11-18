@@ -1212,6 +1212,59 @@ App_Step_Sig(app_step){
         }
     }
     
+    // NOTE(allen): update child processes
+    if (input->dt > 0){
+        Partition *scratch = &models->mem.part;
+        
+        CLI_List *list = &vars->cli_processes;
+        
+        Temp_Memory temp = begin_temp_memory(&models->mem.part);
+        CLI_Process **procs_to_free = push_array(scratch, CLI_Process*, list->count);
+        u32 proc_free_count = 0;
+        
+        u32 max = KB(128);
+        char *dest = push_array(scratch, char, max);
+        
+        CLI_Process *proc_ptr = list->procs;
+        for (u32 i = 0; i < list->count; ++i, ++proc_ptr){
+            Editing_File *file = proc_ptr->out_file;
+            CLI_Handles *cli = &proc_ptr->cli;
+            
+            b32 edited_file = false;
+            u32 amount = 0;
+            system->cli_begin_update(cli);
+            if (system->cli_update_step(cli, dest, max, &amount)){
+                if (file != 0 && amount > 0){
+                    amount = eol_in_place_convert_in(dest, amount);
+                    output_file_append(system, models, file, make_string(dest, amount));
+                    edited_file = true;
+                }
+            }
+            
+            if (system->cli_end_update(cli)){
+                if (file != 0){
+                    char str_space[256];
+                    String str = make_fixed_width_string(str_space);
+                    append(&str, make_lit_string("exited with code "));
+                    append_int_to_str(&str, cli->exit);
+                    output_file_append(system, models, file, str);
+                    edited_file = true;
+                }
+                procs_to_free[proc_free_count++] = proc_ptr;
+            }
+            
+            if (proc_ptr->cursor_at_end && file != 0){
+                file_cursor_to_end(system, models, file);
+            }
+        }
+        
+        for (i32 i = proc_free_count - 1; i >= 0; --i){
+            cli_list_free_proc(list, procs_to_free[i]);
+        }
+        
+        end_temp_memory(temp);
+    }
+    
     // NOTE(allen): prepare input information
     b32 has_keyboard_event = (input->keys.count > 0);
     {
@@ -1331,59 +1384,6 @@ App_Step_Sig(app_step){
             mouse_on_divider = 0;
             mouse_divider_id = 0;
         }
-    }
-    
-    // NOTE(allen): update child processes
-    if (input->dt > 0){
-        Partition *scratch = &models->mem.part;
-        
-        CLI_List *list = &vars->cli_processes;
-        
-        Temp_Memory temp = begin_temp_memory(&models->mem.part);
-        CLI_Process **procs_to_free = push_array(scratch, CLI_Process*, list->count);
-        u32 proc_free_count = 0;
-        
-        u32 max = KB(128);
-        char *dest = push_array(scratch, char, max);
-        
-        CLI_Process *proc_ptr = list->procs;
-        for (u32 i = 0; i < list->count; ++i, ++proc_ptr){
-            Editing_File *file = proc_ptr->out_file;
-            CLI_Handles *cli = &proc_ptr->cli;
-            
-            b32 edited_file = false;
-            u32 amount = 0;
-            system->cli_begin_update(cli);
-            if (system->cli_update_step(cli, dest, max, &amount)){
-                if (file != 0 && amount > 0){
-                    amount = eol_in_place_convert_in(dest, amount);
-                    output_file_append(system, models, file, make_string(dest, amount));
-                    edited_file = true;
-                }
-            }
-            
-            if (system->cli_end_update(cli)){
-                if (file != 0){
-                    char str_space[256];
-                    String str = make_fixed_width_string(str_space);
-                    append(&str, make_lit_string("exited with code "));
-                    append_int_to_str(&str, cli->exit);
-                    output_file_append(system, models, file, str);
-                    edited_file = true;
-                }
-                procs_to_free[proc_free_count++] = proc_ptr;
-            }
-            
-            if (proc_ptr->cursor_at_end && file != 0){
-                file_cursor_to_end(system, models, file);
-            }
-        }
-        
-        for (i32 i = proc_free_count - 1; i >= 0; --i){
-            cli_list_free_proc(list, procs_to_free[i]);
-        }
-        
-        end_temp_memory(temp);
     }
     
     // NOTE(allen): prepare to start executing commands
