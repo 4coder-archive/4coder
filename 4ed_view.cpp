@@ -1281,6 +1281,7 @@ render_loaded_file_in_view(System_Functions *system, View *view, Models *models,
     ////
     
     if (models->render_caller != 0){
+        models->target = target;
         models->render_view = view;
         models->render_rect = rect;
         models->render_cursor = render_cursor;

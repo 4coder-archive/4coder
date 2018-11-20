@@ -685,10 +685,7 @@ interpret_binding_buffer(Models *models, void *buffer, i32 size){
 internal void
 command_caller(Coroutine_Head *coroutine){
     Command_In *cmd_in = (Command_In*)coroutine->in;
-    Command_Data *command = cmd_in->cmd;
-    Models *models = command->models;
-    USE_VIEW(view);
-    
+    Models *models = cmd_in->models;
     if (models->command_caller){
         Generic_Command generic;
         if (cmd_in->bind.function == command_user_callback){
@@ -700,7 +697,7 @@ command_caller(Coroutine_Head *coroutine){
         models->command_caller(&models->app_links, generic);
     }
     else{
-        cmd_in->bind.function(command->system, command, cmd_in->bind);
+        cmd_in->bind.function(models->system, models, cmd_in->bind);
     }
 }
 
@@ -988,7 +985,7 @@ App_Init_Sig(app_init){
     app_links_init(system, &models->app_links, memory->user_memory, memory->user_memory_size);
     
     models->config_api = api;
-    models->app_links.cmd_context = &models->command_data;
+    models->app_links.cmd_context = models;
     
     Partition *partition = &models->mem.part;
     
@@ -1094,16 +1091,11 @@ App_Init_Sig(app_init){
         terminate_with_null(&builder);
     }
     
-    // NOTE(allen): init first panel
-    Command_Data *cmd = &models->command_data;
-    cmd->models = models;
-    cmd->vars = vars;
-    cmd->system = system;
-    cmd->live_set = &models->live_set;
-    cmd->screen_width = target->width;
-    cmd->screen_height = target->height;
-    cmd->key = null_key_event_data;
+    // NOTE(allen): init system context
+    models->system = system;
+    models->vars = vars;
     
+    // NOTE(allen): init first panel
     File_Init init_files[] = {
         { make_lit_string("*messages*"), &models->message_buffer, true , },
         { make_lit_string("*scratch*"),  &models->scratch_buffer, false, },
@@ -1216,6 +1208,42 @@ App_Step_Sig(app_step){
         }
     }
     
+    // NOTE(allen): First frame initialization
+    if (input->first_step){
+        // Open command line files.
+        char space[512];
+        String cl_filename = make_fixed_width_string(space);
+        copy_ss(&cl_filename, models->hot_directory.string);
+        i32 cl_filename_len = cl_filename.size;
+        for (i32 i = 0; i < models->settings.init_files_count; ++i){
+            cl_filename.size = cl_filename_len;
+            
+            String filename = {};
+            Editing_File_Name canon_name = {};
+            if (get_canon_name(system, make_string_slowly(models->settings.init_files[i]),
+                               &canon_name)){
+                filename = canon_name.name;
+            }
+            else{
+                append_sc(&cl_filename, models->settings.init_files[i]);
+                filename = cl_filename;
+            }
+            
+            open_file(system, models, filename);
+        }
+        
+        if (models->hook_start != 0){
+            char **files = models->settings.init_files;
+            i32 files_count = models->settings.init_files_count;
+            
+            char **flags = models->settings.custom_flags;
+            i32 flags_count = models->settings.custom_flags_count;
+            
+            
+            models->hook_start(&models->app_links, files, files_count, flags, flags_count);
+        }
+    }
+    
     // NOTE(allen): update child processes
     f32 dt = input->dt;
     if (dt > 0){
@@ -1270,49 +1298,15 @@ App_Step_Sig(app_step){
         end_temp_memory(temp);
     }
     
-    // NOTE(allen): First frame initialization
-    if (input->first_step){
-        // Open command line files.
-        char space[512];
-        String cl_filename = make_fixed_width_string(space);
-        copy_ss(&cl_filename, models->hot_directory.string);
-        i32 cl_filename_len = cl_filename.size;
-        for (i32 i = 0; i < models->settings.init_files_count; ++i){
-            cl_filename.size = cl_filename_len;
-            
-            String filename = {0};
-            Editing_File_Name canon_name = {0};
-            if (get_canon_name(system, make_string_slowly(models->settings.init_files[i]),
-                               &canon_name)){
-                filename = canon_name.name;
-            }
-            else{
-                append_sc(&cl_filename, models->settings.init_files[i]);
-                filename = cl_filename;
-            }
-            
-            open_file(system, models, filename);
-        }
-        
-        if (models->hook_start != 0){
-            char **files = models->settings.init_files;
-            i32 files_count = models->settings.init_files_count;
-            
-            char **flags = models->settings.custom_flags;
-            i32 flags_count = models->settings.custom_flags_count;
-            
-            
-            models->hook_start(&models->app_links, files, files_count, flags, flags_count);
-        }
-    }
-    
+#if 0    
     Panel *mouse_panel = 0;
     b32 mouse_in_edit_area = false;
     b32 mouse_in_margin_area = false;
     b32 mouse_on_divider = false;
     b32 mouse_divider_vertical = false;
+#endif
     
-#if 0    
+#if 1
     ////
     ////
     //// BEGIN INPUT PROCESSING
@@ -1441,16 +1435,6 @@ App_Step_Sig(app_step){
     }
     
     // NOTE(allen): prepare to start executing commands
-    Command_Data *cmd = &models->command_data;
-    cmd->models = models;
-    cmd->vars = vars;
-    cmd->system = system;
-    cmd->live_set = &models->live_set;
-    cmd->screen_width = target->width;
-    cmd->screen_height = target->height;
-    cmd->key = null_key_event_data;
-    
-    // NOTE(allen): Get Available Input
     vars->available_input = init_available_input(&input->keys, &input->mouse);
     
     // NOTE(allen): Keyboard and Mouse input to command coroutine.
@@ -1461,8 +1445,8 @@ App_Step_Sig(app_step){
         
         get_flags |= abort_flags;
         
-        Command_Data *command = cmd;
-        USE_VIEW(view);
+        Panel *active_panel = &models->layout.panels[models->layout.active_panel];
+        View *view = active_panel->view;
         
         Partition *part = &models->mem.part;
         Temp_Memory temp = begin_temp_memory(part);
@@ -1498,7 +1482,7 @@ App_Step_Sig(app_step){
                 case Event_Keyboard:
                 {
                     Key_Event_Data key = key_data.keys[event->key_i];
-                    cmd->key = key;
+                    models->key = key;
                     
                     i32 map = mapid_global;
                     if (view != 0){
@@ -1606,10 +1590,10 @@ App_Step_Sig(app_step){
                 case APP_STATE_EDIT:
                 {
                     Key_Event_Data key = key_data.keys[key_i];
-                    cmd->key = key;
+                    models->key = key;
                     
-                    Command_Data *command = cmd;
-                    USE_VIEW(view);
+                    Panel *active_panel = &models->layout.panels[models->layout.active_panel];
+                    View *view = active_panel->view;
                     Assert(view != 0);
                     
                     i32 map = view_get_map(view);
@@ -1628,7 +1612,7 @@ App_Step_Sig(app_step){
                         models->command_coroutine = command_coroutine;
                         
                         Command_In cmd_in;
-                        cmd_in.cmd = cmd;
+                        cmd_in.models = models;
                         cmd_in.bind = cmd_bind;
                         
                         models->command_coroutine = app_launch_coroutine(system, &models->app_links, Co_Command, models->command_coroutine, &cmd_in, models->command_coroutine_flags);
@@ -1776,12 +1760,12 @@ App_Step_Sig(app_step){
             app_result.animating = true;
             
             {
-                Command_Data *command = cmd;
                 Key_Event_Data key = {};
                 key.keycode = key_view_activate;
-                cmd->key = key;
+                models->key = key;
                 
-                USE_VIEW(view);
+                Panel *active_panel = &models->layout.panels[models->layout.active_panel];
+                View *view = active_panel->view;
                 
                 i32 map = view_get_map(view);
                 Command_Binding cmd_bind = map_extract_recursive(&models->mapping, map, key);
@@ -1792,7 +1776,7 @@ App_Step_Sig(app_step){
                     models->command_coroutine = command_coroutine;
                     
                     Command_In cmd_in;
-                    cmd_in.cmd = cmd;
+                    cmd_in.models = models;
                     cmd_in.bind = cmd_bind;
                     
                     models->command_coroutine = app_launch_coroutine(system, &models->app_links, Co_Command, models->command_coroutine, &cmd_in, models->command_coroutine_flags);

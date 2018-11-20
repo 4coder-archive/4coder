@@ -124,8 +124,8 @@ struct Models{
     Key_Event_Data key;
     
     // Render Context
-    View *render_view;
     Render_Target *target;
+    View *render_view;
     i32_Rect render_rect;
     Full_Cursor render_cursor;
     Range render_range;
