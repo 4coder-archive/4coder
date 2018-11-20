@@ -1161,8 +1161,7 @@ App_Step_Sig(app_step){
         for (;system->get_file_change(buffer, buffer_size, &mem_too_small, &size);){
             Assert(!mem_too_small);
             Editing_File_Name canon = {};
-            if (get_canon_name(system, make_string(buffer, size),
-                               &canon)){
+            if (get_canon_name(system, make_string(buffer, size), &canon)){
                 Editing_File *file = working_set_contains_canon(working_set, canon.name);
                 if (file != 0){
                     if (file->state.ignore_behind_os == 0){
@@ -1574,11 +1573,6 @@ App_Step_Sig(app_step){
                         layout_update_all_positions(&models->layout, absolute_positions);
                         
                         layout_fix_all_panels(&models->layout);
-                        
-                        if (models->layout.panel_state_dirty && models->hooks[hook_view_size_change] != 0){
-                            models->layout.panel_state_dirty = false;
-                            models->hooks[hook_view_size_change](&models->app_links);
-                        }
                     }
                     else{
                         vars->state = APP_STATE_EDIT;
@@ -1586,6 +1580,12 @@ App_Step_Sig(app_step){
                 }
             }break;
         }
+    }
+    
+    // NOTE(allen): send panel size update
+    if (models->layout.panel_state_dirty && models->hooks[hook_view_size_change] != 0){
+        models->layout.panel_state_dirty = false;
+        models->hooks[hook_view_size_change](&models->app_links);
     }
     
     // NOTE(allen): step panels

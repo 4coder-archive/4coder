@@ -1555,6 +1555,8 @@ DOC_SEE(View_Split_Position)
         panel_make_empty(system, models, split.panel);
         
         fill_view_summary(system, &result, split.panel->view, models);
+        
+        models->layout.panel_state_dirty = true;
     }
     
     return(result);
