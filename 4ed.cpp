@@ -14,84 +14,6 @@
 #define DEFAULT_DISPLAY_WIDTH 672
 #define DEFAULT_MINIMUM_BASE_DISPLAY_WIDTH 550
 
-internal Available_Input
-init_available_input(Key_Input_Data *keys, Mouse_State *mouse){
-    Available_Input result = {0};
-    result.keys = keys;
-    result.mouse = mouse;
-    return(result);
-}
-
-internal Key_Input_Data
-direct_get_key_data(Available_Input *available){
-    Key_Input_Data result = *available->keys;
-    return(result);
-}
-
-internal Mouse_State
-direct_get_mouse_state(Available_Input *available){
-    Mouse_State result = *available->mouse;
-    return(result);
-}
-
-internal Key_Input_Data
-get_key_data(Available_Input *available){
-    Key_Input_Data result = {0};
-    
-    if (!available->records[Input_AnyKey].consumed){
-        result = *available->keys;
-    }
-    else if (!available->records[Input_Esc].consumed){
-        i32 count = available->keys->count;
-        for (i32 i = 0; i < count; ++i){
-            Key_Event_Data key = available->keys->keys[i];
-            if (key.keycode == key_esc){
-                result.count = 1;
-                result.keys[0] = key;
-                break;
-            }
-        }
-    }
-    
-    return(result);
-}
-
-internal Mouse_State
-get_mouse_state(Available_Input *available){
-    Mouse_State mouse = *available->mouse;
-    if (available->records[Input_MouseLeftButton].consumed){
-        mouse.l = 0;
-        mouse.press_l = 0;
-        mouse.release_l = 0;
-    }
-    
-    if (available->records[Input_MouseRightButton].consumed){
-        mouse.r = 0;
-        mouse.press_r = 0;
-        mouse.release_r = 0;
-    }
-    
-    if (available->records[Input_MouseWheel].consumed){
-        mouse.wheel = 0;
-    }
-    
-    return(mouse);
-}
-
-internal void
-consume_input(Available_Input *available, i32 input_type, char *consumer){
-    Consumption_Record *record = &available->records[input_type];
-    record->consumed = 1;
-    if (consumer){
-        String str = make_fixed_width_string(record->consumer);
-        copy_sc(&str, consumer);
-        terminate_with_null(&str);
-    }
-    else{
-        record->consumer[0] = 0;
-    }
-}
-
 inline App_Coroutine_State
 get_state(Application_Links *app){
     App_Coroutine_State state = {0};
@@ -960,20 +882,54 @@ app_setup_memory(System_Functions *system, Application_Memory *memory){
     return(vars);
 }
 
+internal u32
+get_event_flags(Key_Code keycode){
+    u32 event_flags = 0;
+    if (keycode == key_esc){
+        event_flags |= EventOnEsc;
+        event_flags |= EventOnAnyKey;
+    }
+    else if (keycode == key_mouse_left){
+        // TODO(allen): 
+    }
+    else if (keycode == key_mouse_right){
+        // TODO(allen): 
+    }
+    else if (keycode == key_mouse_left_release){
+        // TODO(allen): 
+    }
+    else if (keycode == key_mouse_right_release){
+        // TODO(allen): 
+    }
+    else if (keycode == key_mouse_wheel){
+        // TODO(allen): 
+    }
+    else if (keycode == key_mouse_move){
+        // TODO(allen): 
+    }
+    else if (keycode == key_animate){
+        // TODO(allen): 
+    }
+    else if (keycode == key_view_activate){
+        // TODO(allen): 
+    }
+    else{
+        event_flags |= EventOnAnyKey;
+    }
+    return(event_flags);
+}
+
 App_Read_Command_Line_Sig(app_read_command_line){
     i32 out_size = 0;
     App_Vars *vars = app_setup_memory(system, memory);
     App_Settings *settings = &vars->models.settings;
     memset(settings, 0, sizeof(*settings));
     plat_settings->font_size = 16;
-    
     if (argc > 1){
         init_command_line_settings(&vars->models.settings, plat_settings, argc, argv);
     }
-    
     *files = vars->models.settings.init_files;
     *file_count = &vars->models.settings.init_files_count;
-    
     return(out_size);
 }
 
@@ -1146,7 +1102,7 @@ App_Step_Sig(app_step){
     
     // NOTE(allen): OS clipboard event handling
     String clipboard = input->clipboard;
-    if (clipboard.str){
+    if (clipboard.str != 0){
         String *dest = working_set_next_clipboard_string(&models->mem.heap, &models->working_set, clipboard.size);
         dest->size = eol_convert_in(dest->str, clipboard.str, clipboard.size);
     }
@@ -1298,501 +1254,346 @@ App_Step_Sig(app_step){
         end_temp_memory(temp);
     }
     
-#if 0    
+    // NOTE(allen): init event context
+    models->input = input;
+    
+    // NOTE(allen): input filter and simulated events
+    if (models->input_filter != 0){
+        models->input_filter(&input->mouse);
+    }
+    
+    Key_Event_Data mouse_event = {0};
+    if (input->mouse.press_l){
+        mouse_event.keycode = key_mouse_left;
+        input->keys.keys[input->keys.count++] = mouse_event;
+    }
+    else if (input->mouse.release_l){
+        mouse_event.keycode = key_mouse_left_release;
+        input->keys.keys[input->keys.count++] = mouse_event;
+    }
+    
+    if (input->mouse.press_r){
+        mouse_event.keycode = key_mouse_right;
+        input->keys.keys[input->keys.count++] = mouse_event;
+    }
+    else if (input->mouse.release_r){
+        mouse_event.keycode = key_mouse_right_release;
+        input->keys.keys[input->keys.count++] = mouse_event;
+    }
+    
+    if (input->mouse.wheel != 0){
+        mouse_event.keycode = key_mouse_wheel;
+        input->keys.keys[input->keys.count++] = mouse_event;
+    }
+    
+    if (input->mouse.x != models->prev_x || input->mouse.y != models->prev_y){
+        b32 was_in_window = hit_check(models->prev_x, models->prev_y, i32R(0, 0, prev_width, prev_height));
+        b32 is_in_window  = hit_check(input->mouse.x, input->mouse.y, i32R(0, 0, current_width, current_height));
+        if (is_in_window || was_in_window){
+            mouse_event.keycode = key_mouse_move;
+            input->keys.keys[input->keys.count++] = mouse_event;
+        }
+    }
+    
+    if (models->animated_last_frame){
+        mouse_event.keycode = key_animate;
+        input->keys.keys[input->keys.count++] = mouse_event;
+    }
+    
+    // NOTE(allen): mouse hover status
     Panel *mouse_panel = 0;
     b32 mouse_in_edit_area = false;
     b32 mouse_in_margin_area = false;
     b32 mouse_on_divider = false;
     b32 mouse_divider_vertical = false;
-#endif
+    i32 mouse_divider_id = 0;
+    i32 mouse_divider_side = 0;
     
-#if 1
-    ////
-    ////
-    //// BEGIN INPUT PROCESSING
-    ////
-    ////
-    
-    // NOTE(allen): prepare input information
-    b32 has_keyboard_event = (input->keys.count > 0);
-    {
-        if (models->input_filter != 0){
-            models->input_filter(&input->mouse);
-        }
-        
-        Key_Event_Data mouse_event = {0};
-        if (input->mouse.press_l){
-            mouse_event.keycode = key_mouse_left;
-            input->keys.keys[input->keys.count++] = mouse_event;
-        }
-        else if (input->mouse.release_l){
-            mouse_event.keycode = key_mouse_left_release;
-            input->keys.keys[input->keys.count++] = mouse_event;
-        }
-        
-        if (input->mouse.press_r){
-            mouse_event.keycode = key_mouse_right;
-            input->keys.keys[input->keys.count++] = mouse_event;
-        }
-        else if (input->mouse.release_r){
-            mouse_event.keycode = key_mouse_right_release;
-            input->keys.keys[input->keys.count++] = mouse_event;
-        }
-        
-        if (input->mouse.wheel != 0){
-            mouse_event.keycode = key_mouse_wheel;
-            input->keys.keys[input->keys.count++] = mouse_event;
-        }
-        
-        if (input->mouse.x != models->prev_x || input->mouse.y != models->prev_y){
-            b32 was_in_window = hit_check(models->prev_x, models->prev_y, i32R(0, 0, prev_width, prev_height));
-            b32 is_in_window  = hit_check(input->mouse.x, input->mouse.y, i32R(0, 0, current_width, current_height));
-            if (is_in_window || (was_in_window != is_in_window)){
-                mouse_event.keycode = key_mouse_move;
-                input->keys.keys[input->keys.count++] = mouse_event;
-            }
-        }
-        
-        if (models->animated_last_frame){
-            mouse_event.keycode = key_animate;
-            input->keys.keys[input->keys.count++] = mouse_event;
-        }
-    }
-    
-    // NOTE(allen): detect mouse hover status
     i32 mx = input->mouse.x;
     i32 my = input->mouse.y;
-    b32 mouse_in_edit_area = false;
-    b32 mouse_in_margin_area = false;
-    
-    Panel *mouse_panel = 0;
     for (Panel *panel = models->layout.used_sentinel.next;
          panel != &models->layout.used_sentinel;
          panel = panel->next){
         if (hit_check(mx, my, panel->inner)){
             mouse_panel = panel;
             mouse_in_edit_area = true;
-            break;
         }
         else if (hit_check(mx, my, panel->full)){
             mouse_panel = panel;
             mouse_in_margin_area = true;
+            
+            if (mx >= panel->inner.x0 && mx < panel->inner.x1){
+                if (my > panel->inner.y0){
+                    mouse_divider_side = -1;
+                }
+                else{
+                    mouse_divider_side = 1;
+                }
+            }
+            else{
+                mouse_divider_vertical = true;
+                if (mx > panel->inner.x0){
+                    mouse_divider_side = -1;
+                }
+                else{
+                    mouse_divider_side = 1;
+                }
+            }
+            
+            if (models->layout.panel_count > 1){
+                mouse_divider_id = panel->parent;
+                
+                i32 which_child = panel->which_child;
+                for (;;){
+                    Divider_And_ID div = layout_get_divider(&models->layout, mouse_divider_id);
+                    if (which_child == mouse_divider_side && div.divider->v_divider == mouse_divider_vertical){
+                        mouse_on_divider = true;
+                        break;
+                    }
+                    if (mouse_divider_id == models->layout.root){
+                        break;
+                    }
+                    mouse_divider_id = div.divider->parent;
+                    which_child = div.divider->which_child;
+                }
+                
+            }
+            else{
+                mouse_on_divider = false;
+                mouse_divider_id = 0;
+            }
+        }
+        
+        if (mouse_panel != 0){
             break;
         }
     }
     
-    b32 mouse_on_divider = false;
-    b32 mouse_divider_vertical = false;
-    i32 mouse_divider_id = 0;
-    i32 mouse_divider_side = 0;
-    
-    if (mouse_in_margin_area){
-        Panel *panel = mouse_panel;
-        if (mx >= panel->inner.x0 && mx < panel->inner.x1){
-            mouse_divider_vertical = false;
-            if (my > panel->inner.y0){
-                mouse_divider_side = -1;
-            }
-            else{
-                mouse_divider_side = 1;
-            }
-        }
-        else{
-            mouse_divider_vertical = true;
-            if (mx > panel->inner.x0){
-                mouse_divider_side = -1;
-            }
-            else{
-                mouse_divider_side = 1;
-            }
-        }
-        
-        if (models->layout.panel_count > 1){
-            mouse_divider_id = panel->parent;
-            i32 which_child = panel->which_child;
-            for (;;){
-                Divider_And_ID div =layout_get_divider(&models->layout, mouse_divider_id);
-                
-                if (which_child == mouse_divider_side &&
-                    div.divider->v_divider == mouse_divider_vertical){
-                    mouse_on_divider = true;
-                    break;
-                }
-                
-                if (mouse_divider_id == models->layout.root){
-                    break;
-                }
-                else{
-                    mouse_divider_id = div.divider->parent;
-                    which_child = div.divider->which_child;
-                }
-            }
-        }
-        else{
-            mouse_on_divider = 0;
-            mouse_divider_id = 0;
-        }
-    }
-    
-    // NOTE(allen): prepare to start executing commands
-    vars->available_input = init_available_input(&input->keys, &input->mouse);
-    
-    // NOTE(allen): Keyboard and Mouse input to command coroutine.
-    if (models->command_coroutine != 0){
-        Coroutine_Head *command_coroutine = models->command_coroutine;
-        u32 get_flags = models->command_coroutine_flags[0];
-        u32 abort_flags = models->command_coroutine_flags[1];
-        
-        get_flags |= abort_flags;
-        
+    // NOTE(allen): consume event stream
+    Key_Event_Data *key_ptr = input->keys.keys;
+    Key_Event_Data *key_end = key_ptr + input->keys.count;
+    for (;key_ptr < key_end; key_ptr += 1){
         Panel *active_panel = &models->layout.panels[models->layout.active_panel];
         View *view = active_panel->view;
+        Assert(view != 0);
+        models->key = *key_ptr;
         
-        Partition *part = &models->mem.part;
-        Temp_Memory temp = begin_temp_memory(part);
-        
-        // HACK(allen): This can be simplified a lot more.
-        Coroutine_Event *events = push_array(part, Coroutine_Event, 32);
-        u32 event_count = 0;
-        
-        Key_Input_Data key_data = get_key_data(&vars->available_input);
-        
-        if ((get_flags & EventOnAnyKey) || (get_flags & EventOnEsc)){
-            for (i32 key_i = 0; key_i < key_data.count; ++key_i){
-                Key_Code keycode = key_data.keys[key_i].keycode;
-                if (keycode != key_animate && keycode != key_mouse_move){
-                    Coroutine_Event *new_event = &events[event_count++];
-                    new_event->type = Event_Keyboard;
-                    new_event->key_i = key_i;
-                }
-            }
-        }
-        
-        if (models->command_coroutine != 0 && (get_flags & EventOnMouse)){
-            Coroutine_Event *new_event = &events[event_count++];
-            new_event->type = Event_Mouse;
-        }
-        
-        Coroutine_Event *event = events;
-        for (u32 event_i = 0; event_i < event_count; ++event_i, ++event){
-            b32 pass_in = false;
-            User_Input user_in = {0};
-            
-            switch (event->type){
-                case Event_Keyboard:
-                {
-                    Key_Event_Data key = key_data.keys[event->key_i];
-                    models->key = key;
-                    
-                    i32 map = mapid_global;
-                    if (view != 0){
-                        map = view_get_map(view);
-                    }
-                    Command_Binding cmd_bind = map_extract_recursive(&models->mapping, map, key);
-                    
-                    user_in.type = UserInputKey;
-                    user_in.key = key;
-                    user_in.command.command = cmd_bind.custom;
-                    
-                    if ((abort_flags & EventOnEsc) && key.keycode == key_esc){
-                        user_in.abort = true;
-                    }
-                    else if (abort_flags & EventOnAnyKey){
-                        user_in.abort = true;
-                    }
-                    
-                    if (get_flags & EventOnAnyKey){
-                        pass_in = true;
-                        consume_input(&vars->available_input, Input_AnyKey, "command coroutine");
-                    }
-                    if (key.keycode == key_esc){
-                        if (get_flags & EventOnEsc){
-                            pass_in = true;
-                        }
-                        consume_input(&vars->available_input, Input_Esc, "command coroutine");
-                    }
-                }break;
+        // NOTE(allen): execute a command or resize panels
+        switch (vars->state){
+            case APP_STATE_EDIT:
+            {
+                Key_Code keycode = key_ptr->keycode;
                 
-                case Event_Mouse:
-                {
-                    user_in.type = UserInputMouse;
-                    user_in.mouse = input->mouse;
-                    
-                    if (abort_flags & EventOnMouseMove){
-                        user_in.abort = true;
-                    }
-                    if (get_flags & EventOnMouseMove){
-                        pass_in = true;
-                        consume_input(&vars->available_input, Input_MouseMove, "command coroutine");
-                    }
-                    
-                    if (input->mouse.press_l || input->mouse.release_l || input->mouse.l){
-                        if (abort_flags & EventOnLeftButton){
-                            user_in.abort = true;
-                        }
-                        if (get_flags & EventOnLeftButton){
-                            pass_in = true;
-                            consume_input(&vars->available_input, Input_MouseLeftButton, "command coroutine");
-                        }
-                    }
-                    
-                    if (input->mouse.press_r || input->mouse.release_r || input->mouse.r){
-                        if (abort_flags & EventOnRightButton){
-                            user_in.abort = true;
-                        }
-                        if (get_flags & EventOnRightButton){
-                            pass_in = true;
-                            consume_input(&vars->available_input, Input_MouseRightButton, "command coroutine");
-                        }
-                    }
-                    
-                    if (input->mouse.wheel != 0){
-                        if (abort_flags & EventOnWheel){
-                            user_in.abort = true;
-                        }
-                        if (get_flags & EventOnWheel){
-                            pass_in = true;
-                            consume_input(&vars->available_input, Input_MouseWheel, "command coroutine");
-                        }
-                    }
-                }break;
-            }
-            
-            if (pass_in){
-                models->command_coroutine =  app_resume_coroutine(system, &models->app_links, Co_Command, command_coroutine, &user_in, models->command_coroutine_flags);
-                
-                app_result.animating = true;
-                
-                if (view != 0 && models->command_coroutine == 0){
-                    init_query_set(&view->transient.query_set);
+                enum{
+                    EventConsume_None,
+                    EventConsume_BeginResize,
+                    EventConsume_ClickChangeView,
+                    EventConsume_Command,
+                };
+                i32 event_consume_mode = EventConsume_Command;
+                if (keycode == key_mouse_left && input->mouse.press_l && mouse_on_divider){
+                    event_consume_mode = EventConsume_BeginResize;
                 }
-                if (models->command_coroutine == 0){
-                    break;
+                else if (keycode == key_mouse_left && input->mouse.press_l && mouse_panel != 0 && mouse_panel != active_panel){
+                    event_consume_mode = EventConsume_ClickChangeView;
                 }
-            }
-        }
-        
-        end_temp_memory(temp);
-    }
-    
-    // NOTE(allen): command execution
-    {
-        Key_Input_Data key_data = get_key_data(&vars->available_input);
-        b32 hit_something = 0;
-        b32 hit_esc = 0;
-        
-        for (i32 key_i = 0; key_i < key_data.count; ++key_i){
-            if (models->command_coroutine != 0){
-                break;
-            }
-            
-            switch (vars->state){
-                case APP_STATE_EDIT:
-                {
-                    Key_Event_Data key = key_data.keys[key_i];
-                    models->key = key;
-                    
-                    Panel *active_panel = &models->layout.panels[models->layout.active_panel];
-                    View *view = active_panel->view;
-                    Assert(view != 0);
-                    
-                    i32 map = view_get_map(view);
-                    Command_Binding cmd_bind = map_extract_recursive(&models->mapping, map, key);
-                    
-                    if (cmd_bind.function != 0){
-                        if (key.keycode == key_esc){
-                            hit_esc = true;
+                
+                switch (event_consume_mode){
+                    case EventConsume_BeginResize:
+                    {
+                        vars->state = APP_STATE_RESIZING;
+                        Divider_And_ID div = layout_get_divider(&models->layout, mouse_divider_id);
+                        vars->resizing.divider = div.divider;
+                        
+                        f32 min = 0;
+                        f32 max = 0;
+                        if (mouse_divider_vertical){
+                            max = (f32)models->layout.full_width;
                         }
                         else{
-                            hit_something = true;
+                            max = (f32)models->layout.full_height;
+                        }
+                        f32 mid = layout_get_position(&models->layout, mouse_divider_id);
+                        
+                        i32 divider_id = div.id;
+                        do{
+                            Divider_And_ID other_div = layout_get_divider(&models->layout, divider_id);
+                            b32 divider_match = (other_div.divider->v_divider == mouse_divider_vertical);
+                            f32 pos = layout_get_position(&models->layout, divider_id);
+                            if (divider_match && pos > mid && pos < max){
+                                max = pos;
+                            }
+                            else if (divider_match && pos < mid && pos > min){
+                                min = pos;
+                            }
+                            divider_id = other_div.divider->parent;
+                        }while(divider_id != -1);
+                        
+                        Temp_Memory temp = begin_temp_memory(&models->mem.part);
+                        i32 *divider_stack = push_array(&models->mem.part, i32, models->layout.panel_count);
+                        i32 top = 0;
+                        divider_stack[top++] = div.id;
+                        for (;top > 0;){
+                            --top;
+                            Divider_And_ID other_div = layout_get_divider(&models->layout, divider_stack[top]);
+                            b32 divider_match = (other_div.divider->v_divider == mouse_divider_vertical);
+                            f32 pos = layout_get_position(&models->layout, divider_stack[top]);
+                            if (divider_match && pos > mid && pos < max){
+                                max = pos;
+                            }
+                            else if (divider_match && pos < mid && pos > min){
+                                min = pos;
+                            }
+                            if (other_div.divider->child1 != -1){
+                                divider_stack[top++] = other_div.divider->child1;
+                            }
+                            if (other_div.divider->child2 != -1){
+                                divider_stack[top++] = other_div.divider->child2;
+                            }
+                        }
+                        end_temp_memory(temp);
+                    }break;
+                    
+                    case EventConsume_ClickChangeView:
+                    {
+                        if (models->command_coroutine != 0){
+                            User_Input user_in = {0};
+                            user_in.abort = true;
+                            
+                            for (u32 j = 0; j < 10 && models->command_coroutine != 0; ++j){
+                                models->command_coroutine = app_resume_coroutine(system, &models->app_links, Co_Command, models->command_coroutine, &user_in, models->command_coroutine_flags);
+                            }
+                            
+                            if (models->command_coroutine != 0){
+                                // TODO(allen): post grave warning
+                                models->command_coroutine = 0;
+                            }
+                            
+                            init_query_set(&view->transient.query_set);
                         }
                         
-                        Assert(models->command_coroutine == 0);
-                        Coroutine_Head *command_coroutine = system->create_coroutine(command_caller);
-                        models->command_coroutine = command_coroutine;
+                        models->layout.active_panel = (i32)(mouse_panel - models->layout.panels);
+                        app_result.animating = true;
                         
-                        Command_In cmd_in;
-                        cmd_in.models = models;
-                        cmd_in.bind = cmd_bind;
-                        
-                        models->command_coroutine = app_launch_coroutine(system, &models->app_links, Co_Command, models->command_coroutine, &cmd_in, models->command_coroutine_flags);
-                        
-                        models->prev_command = cmd_bind;
-                        
-                        if (key.keycode != key_animate){
-                            app_result.animating = true;
+                        {
+                            Key_Event_Data key = {};
+                            key.keycode = key_view_activate;
+                            models->key = key;
+                            
+                            i32 map = view_get_map(view);
+                            Command_Binding cmd_bind = map_extract_recursive(&models->mapping, map, key);
+                            
+                            if (cmd_bind.function != 0){
+                                Assert(models->command_coroutine == 0);
+                                Coroutine_Head *command_coroutine = system->create_coroutine(command_caller);
+                                models->command_coroutine = command_coroutine;
+                                
+                                Command_In cmd_in;
+                                cmd_in.models = models;
+                                cmd_in.bind = cmd_bind;
+                                
+                                models->command_coroutine = app_launch_coroutine(system, &models->app_links, Co_Command, models->command_coroutine, &cmd_in, models->command_coroutine_flags);
+                                
+                                models->prev_command = cmd_bind;
+                                app_result.animating = true;
+                            }
                         }
-                    }
-                }break;
+                    }break;
+                    
+                    case EventConsume_Command:
+                    {
+                        
+                        if (models->command_coroutine != 0){
+                            Coroutine_Head *command_coroutine = models->command_coroutine;
+                            u32 abort_flags = models->command_coroutine_flags[1];
+                            u32 get_flags = models->command_coroutine_flags[0] | abort_flags;
+                            
+                            Partition *part = &models->mem.part;
+                            Temp_Memory temp = begin_temp_memory(part);
+                            
+                            u32 event_flags = get_event_flags(key_ptr->keycode);
+                            if ((get_flags & event_flags) != 0){
+                                i32 map = view_get_map(view);
+                                Command_Binding cmd_bind = map_extract_recursive(&models->mapping, map, *key_ptr);
+                                
+                                User_Input user_in = {};
+                                user_in.type = UserInputKey;
+                                user_in.key = *key_ptr;
+                                user_in.command.command = cmd_bind.custom;
+                                user_in.abort = ((abort_flags & event_flags) != 0);
+                                models->command_coroutine =  app_resume_coroutine(system, &models->app_links, Co_Command, command_coroutine, &user_in, models->command_coroutine_flags);
+                                
+                                app_result.animating = true;
+                                if (models->command_coroutine == 0){
+                                    init_query_set(&view->transient.query_set);
+                                }
+                            }
+                        }
+                        
+                        else{
+                            i32 map = view_get_map(view);
+                            Command_Binding cmd_bind = map_extract_recursive(&models->mapping, map, *key_ptr);
+                            
+                            if (cmd_bind.function != 0){
+                                Assert(models->command_coroutine == 0);
+                                Coroutine_Head *command_coroutine = system->create_coroutine(command_caller);
+                                models->command_coroutine = command_coroutine;
+                                
+                                Command_In cmd_in;
+                                cmd_in.models = models;
+                                cmd_in.bind = cmd_bind;
+                                
+                                models->command_coroutine = app_launch_coroutine(system, &models->app_links, Co_Command, models->command_coroutine, &cmd_in, models->command_coroutine_flags);
+                                
+                                models->prev_command = cmd_bind;
+                                
+                                if (keycode != key_animate){
+                                    app_result.animating = true;
+                                }
+                            }
+                        }
+                    }break;
+                }
                 
-                case APP_STATE_RESIZING:
-                {
-                    if (has_keyboard_event){
-                        vars->state = APP_STATE_EDIT;
-                    }
-                }break;
-            }
-        }
-        
-        if (hit_something){
-            consume_input(&vars->available_input, Input_AnyKey, "command dispatcher");
-        }
-        if (hit_esc){
-            consume_input(&vars->available_input, Input_Esc, "command dispatcher");
-        }
-    }
-    
-    // NOTE(allen): panel resizing
-    switch (vars->state){
-        case APP_STATE_EDIT:
-        {
-            if (input->mouse.press_l && mouse_on_divider){
-                vars->state = APP_STATE_RESIZING;
-                Divider_And_ID div = layout_get_divider(&models->layout, mouse_divider_id);
-                vars->resizing.divider = div.divider;
-                
-                f32 min = 0;
-                f32 max = 0;
-                {
-                    f32 mid = layout_get_position(&models->layout, mouse_divider_id);
-                    if (mouse_divider_vertical){
-                        max = (f32)models->layout.full_width;
+            }break;
+            
+            case APP_STATE_RESIZING:
+            {
+                Key_Code keycode = key_ptr->keycode;
+                u32 event_flags = get_event_flags(keycode);
+                if (event_flags & EventOnAnyKey || keycode == key_mouse_left_release){
+                    vars->state = APP_STATE_EDIT;
+                }
+                else if (keycode == key_mouse_move){
+                    if (input->mouse.l){
+                        Panel_Divider *divider = vars->resizing.divider;
+                        i32 mouse_position = 0;
+                        
+                        i32 absolute_positions[MAX_VIEWS];
+                        i32 min = 0;
+                        i32 max = 0;
+                        i32 div_id = (i32)(divider - models->layout.dividers);
+                        
+                        layout_compute_absolute_positions(&models->layout, absolute_positions);
+                        mouse_position = (divider->v_divider)?(mx):(my);
+                        layout_get_min_max(&models->layout, divider, absolute_positions, &min, &max);
+                        absolute_positions[div_id] = clamp(min, mouse_position, max);
+                        layout_update_all_positions(&models->layout, absolute_positions);
+                        
+                        layout_fix_all_panels(&models->layout);
+                        
+                        if (models->layout.panel_state_dirty && models->hooks[hook_view_size_change] != 0){
+                            models->layout.panel_state_dirty = false;
+                            models->hooks[hook_view_size_change](&models->app_links);
+                        }
                     }
                     else{
-                        max = (f32)models->layout.full_height;
+                        vars->state = APP_STATE_EDIT;
                     }
-                    
-                    i32 divider_id = div.id;
-                    do{
-                        Divider_And_ID other_div = layout_get_divider(&models->layout, divider_id);
-                        b32 divider_match = (other_div.divider->v_divider == mouse_divider_vertical);
-                        f32 pos = layout_get_position(&models->layout, divider_id);
-                        if (divider_match && pos > mid && pos < max){
-                            max = pos;
-                        }
-                        else if (divider_match && pos < mid && pos > min){
-                            min = pos;
-                        }
-                        divider_id = other_div.divider->parent;
-                    }while(divider_id != -1);
-                    
-                    Temp_Memory temp = begin_temp_memory(&models->mem.part);
-                    i32 *divider_stack = push_array(&models->mem.part, i32, models->layout.panel_count);
-                    i32 top = 0;
-                    divider_stack[top++] = div.id;
-                    
-                    for (;top > 0;){
-                        --top;
-                        Divider_And_ID other_div = layout_get_divider(&models->layout, divider_stack[top]);
-                        b32 divider_match = (other_div.divider->v_divider == mouse_divider_vertical);
-                        f32 pos = layout_get_position(&models->layout, divider_stack[top]);
-                        if (divider_match && pos > mid && pos < max){
-                            max = pos;
-                        }
-                        else if (divider_match && pos < mid && pos > min){
-                            min = pos;
-                        }
-                        if (other_div.divider->child1 != -1){
-                            divider_stack[top++] = other_div.divider->child1;
-                        }
-                        if (other_div.divider->child2 != -1){
-                            divider_stack[top++] = other_div.divider->child2;
-                        }
-                    }
-                    
-                    end_temp_memory(temp);
                 }
-            }
-        }break;
-        
-        case APP_STATE_RESIZING:
-        {
-            if (input->mouse.l){
-                Panel_Divider *divider = vars->resizing.divider;
-                i32 mouse_position = 0;
-                
-                i32 absolute_positions[MAX_VIEWS];
-                i32 min = 0;
-                i32 max = 0;
-                i32 div_id = (i32)(divider - models->layout.dividers);
-                
-                layout_compute_absolute_positions(&models->layout, absolute_positions);
-                mouse_position = (divider->v_divider)?(mx):(my);
-                layout_get_min_max(&models->layout, divider, absolute_positions, &min, &max);
-                absolute_positions[div_id] = clamp(min, mouse_position, max);
-                layout_update_all_positions(&models->layout, absolute_positions);
-                
-                layout_fix_all_panels(&models->layout);
-            }
-            else{
-                vars->state = APP_STATE_EDIT;
-            }
-        }break;
-    }
-    
-    if (models->layout.panel_state_dirty && models->hooks[hook_view_size_change] != 0){
-        models->layout.panel_state_dirty = 0;
-        models->hooks[hook_view_size_change](&models->app_links);
-    }
-    
-    if (mouse_in_edit_area && mouse_panel != 0 && input->mouse.press_l){
-        i32 new_panel_id = (i32)(mouse_panel - models->layout.panels);
-        if (models->layout.active_panel != new_panel_id){
-            if (models->command_coroutine != 0){
-                User_Input user_in = {0};
-                user_in.abort = true;
-                
-                for (u32 j = 0; j < 10 && models->command_coroutine != 0; ++j){
-                    models->command_coroutine = app_resume_coroutine(system, &models->app_links, Co_Command, models->command_coroutine, &user_in, models->command_coroutine_flags);
-                }
-                
-                if (models->command_coroutine != 0){
-                    // TODO(allen): post grave warning
-                    models->command_coroutine = 0;
-                }
-                
-                Panel *active_panel = &models->layout.panels[models->layout.active_panel];
-                View *view = active_panel->view;
-                init_query_set(&view->transient.query_set);
-            }
-            
-            models->layout.active_panel = new_panel_id;
-            app_result.animating = true;
-            
-            {
-                Key_Event_Data key = {};
-                key.keycode = key_view_activate;
-                models->key = key;
-                
-                Panel *active_panel = &models->layout.panels[models->layout.active_panel];
-                View *view = active_panel->view;
-                
-                i32 map = view_get_map(view);
-                Command_Binding cmd_bind = map_extract_recursive(&models->mapping, map, key);
-                
-                if (cmd_bind.function != 0){
-                    Assert(models->command_coroutine == 0);
-                    Coroutine_Head *command_coroutine = system->create_coroutine(command_caller);
-                    models->command_coroutine = command_coroutine;
-                    
-                    Command_In cmd_in;
-                    cmd_in.models = models;
-                    cmd_in.bind = cmd_bind;
-                    
-                    models->command_coroutine = app_launch_coroutine(system, &models->app_links, Co_Command, models->command_coroutine, &cmd_in, models->command_coroutine_flags);
-                    
-                    models->prev_command = cmd_bind;
-                }
-            }
+            }break;
         }
     }
-    
-    ////
-    ////
-    //// END INPUT PROCESSING
-    ////
-    ////
-#endif
     
     // NOTE(allen): step panels
     {

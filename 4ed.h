@@ -39,12 +39,6 @@ struct Key_Input_Data{
     i32 count;
 };
 
-struct Input_Summary{
-    Mouse_State mouse;
-    Key_Input_Data keys;
-    f32 dt;
-};
-
 typedef u8 Log_To_Type;
 enum{
     LogTo_Nothing,

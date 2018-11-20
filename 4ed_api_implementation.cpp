@@ -3026,7 +3026,7 @@ DOC_RETURN(This call returns the current mouse state as of the beginning of the 
 DOC_SEE(Mouse_State)
 */{
     Models *models = (Models*)app->cmd_context;
-    return(direct_get_mouse_state(&models->vars->available_input));
+    return(models->input->mouse);
 }
 
 API_EXPORT bool32

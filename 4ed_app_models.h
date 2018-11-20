@@ -27,27 +27,6 @@ struct App_Settings{
     b32 use_hinting;
 };
 
-struct Command_Data___{
-    struct Models *models;
-    struct App_Vars *vars;
-    System_Functions *system;
-    Live_Views *live_set;
-    
-    i32 screen_width;
-    i32 screen_height;
-    
-    Key_Event_Data key;
-    
-    // Render Context
-    View *render_view;
-    Render_Target *target;
-    i32_Rect render_rect;
-    Full_Cursor render_cursor;
-    Range render_range;
-    Buffer_Render_Item *render_items;
-    i32 render_item_count;
-};
-
 struct Models{
     Mem_Options mem;
     App_Settings settings;
@@ -121,6 +100,7 @@ struct Models{
     struct App_Vars *vars;
     
     // Event Context
+    Application_Step_Input *input;
     Key_Event_Data key;
     
     // Render Context
@@ -170,21 +150,11 @@ struct Consumption_Record{
     char consumer[32];
 };
 
-struct Available_Input{
-    Key_Input_Data *keys;
-    Mouse_State *mouse;
-    Consumption_Record records[Input_Count];
-};
-
 struct App_Vars{
     Models models;
-    
     CLI_List cli_processes;
-    
     App_State state;
     App_State_Resizing resizing;
-    
-    Available_Input available_input;
 };
 
 enum Coroutine_Type{
@@ -205,15 +175,6 @@ struct File_Init{
     String name;
     Editing_File **ptr;
     b32 read_only;
-};
-
-enum{
-    Event_Keyboard,
-    Event_Mouse,
-};
-struct Coroutine_Event{
-    u32 type;
-    u32 key_i;
 };
 
 enum Command_Line_Action{

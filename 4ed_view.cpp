@@ -1230,7 +1230,7 @@ render_loaded_file_in_view(System_Functions *system, View *view, Models *models,
         Buffer_Layout_Stop stop = {0};
         
         f32 line_shift = 0.f;
-        b32 do_wrap = 0;
+        b32 do_wrap = false;
         i32 wrap_unit_end = 0;
         
         b32 first_wrap_determination = 1;
@@ -1245,18 +1245,18 @@ render_loaded_file_in_view(System_Functions *system, View *view, Models *models,
                         wrap_array_index = binary_search(file->state.wrap_positions, stop.pos, 0, file->state.wrap_position_count);
                         ++wrap_array_index;
                         if (file->state.wrap_positions[wrap_array_index] == stop.pos){
-                            do_wrap = 1;
+                            do_wrap = true;
                             wrap_unit_end = file->state.wrap_positions[wrap_array_index];
                         }
                         else{
-                            do_wrap = 0;
+                            do_wrap = false;
                             wrap_unit_end = file->state.wrap_positions[wrap_array_index];
                         }
                         first_wrap_determination = 0;
                     }
                     else{
                         Assert(stop.pos == wrap_unit_end);
-                        do_wrap = 1;
+                        do_wrap = true;
                         ++wrap_array_index;
                         wrap_unit_end = file->state.wrap_positions[wrap_array_index];
                     }
@@ -1278,7 +1278,7 @@ render_loaded_file_in_view(System_Functions *system, View *view, Models *models,
     on_screen_range.first = render_cursor.pos;
     on_screen_range.one_past_last = end_pos;
     
-    ////
+    ////////////////////////////////
     
     if (models->render_caller != 0){
         models->target = target;
@@ -1291,9 +1291,7 @@ render_loaded_file_in_view(System_Functions *system, View *view, Models *models,
         models->render_caller(&models->app_links, view->persistent.id + 1, on_screen_range, do_core_render);
     }
     else{
-        render_loaded_file_in_view__inner(models, target, view,
-                                          rect, render_cursor, on_screen_range,
-                                          items, item_count);
+        render_loaded_file_in_view__inner(models, target, view, rect, render_cursor, on_screen_range, items, item_count);
     }
     
     end_temp_memory(temp);

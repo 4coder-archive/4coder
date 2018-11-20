@@ -346,14 +346,16 @@ backspace_utf8(String *str){
 
 static bool32
 query_user_general(Application_Links *app, Query_Bar *bar, bool32 force_number){
-    bool32 success = true;
-    
     // NOTE(allen|a3.4.4): It will not cause an *error* if we continue on after failing to.
     // start a query bar, but it will be unusual behavior from the point of view of the
     // user, if this command starts intercepting input even though no prompt is shown.
     // This will only happen if you have a lot of bars open already or if the current view
     // doesn't support query bars.
-    if (start_query_bar(app, bar, 0) == 0) return 0;
+    if (start_query_bar(app, bar, 0) == 0){
+        return(false);
+    }
+    
+    bool32 success = true;
     
     for (;;){
         // NOTE(allen|a3.4.4): This call will block until the user does one of the input
@@ -398,7 +400,7 @@ query_user_general(Application_Links *app, Query_Bar *bar, bool32 force_number){
                 backspace_utf8(&bar->string);
             }
             else if (good_character){
-                append_ss(&bar->string, make_string(character, length));
+                append(&bar->string, make_string(character, length));
             }
         }
     }
