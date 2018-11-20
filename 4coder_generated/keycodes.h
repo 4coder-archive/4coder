@@ -18,23 +18,24 @@ key_mouse_right_release = 55311,
 key_mouse_wheel = 55312,
 key_mouse_move = 55313,
 key_animate = 55314,
-key_view_activate = 55315,
-key_f1 = 55316,
-key_f2 = 55317,
-key_f3 = 55318,
-key_f4 = 55319,
-key_f5 = 55320,
-key_f6 = 55321,
-key_f7 = 55322,
-key_f8 = 55323,
-key_f9 = 55324,
-key_f10 = 55325,
-key_f11 = 55326,
-key_f12 = 55327,
-key_f13 = 55328,
-key_f14 = 55329,
-key_f15 = 55330,
-key_f16 = 55331,
+key_click_activate_view = 55315,
+key_click_deactivate_view = 55316,
+key_f1 = 55317,
+key_f2 = 55318,
+key_f3 = 55319,
+key_f4 = 55320,
+key_f5 = 55321,
+key_f6 = 55322,
+key_f7 = 55323,
+key_f8 = 55324,
+key_f9 = 55325,
+key_f10 = 55326,
+key_f11 = 55327,
+key_f12 = 55328,
+key_f13 = 55329,
+key_f14 = 55330,
+key_f15 = 55331,
+key_f16 = 55332,
 };
 static char*
 global_key_name(uint32_t key_code, int32_t *size){
@@ -59,7 +60,8 @@ case key_mouse_right_release: result = "key_mouse_right_release"; *size = sizeof
 case key_mouse_wheel: result = "key_mouse_wheel"; *size = sizeof("key_mouse_wheel")-1; break;
 case key_mouse_move: result = "key_mouse_move"; *size = sizeof("key_mouse_move")-1; break;
 case key_animate: result = "key_animate"; *size = sizeof("key_animate")-1; break;
-case key_view_activate: result = "key_view_activate"; *size = sizeof("key_view_activate")-1; break;
+case key_click_activate_view: result = "key_click_activate_view"; *size = sizeof("key_click_activate_view")-1; break;
+case key_click_deactivate_view: result = "key_click_deactivate_view"; *size = sizeof("key_click_deactivate_view")-1; break;
 case key_f1: result = "key_f1"; *size = sizeof("key_f1")-1; break;
 case key_f2: result = "key_f2"; *size = sizeof("key_f2")-1; break;
 case key_f3: result = "key_f3"; *size = sizeof("key_f3")-1; break;

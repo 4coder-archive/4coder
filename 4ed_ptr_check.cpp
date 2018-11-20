@@ -11,7 +11,7 @@
 
 internal Ptr_Table
 make_Ptr_table(void *mem, umem size){
-    Ptr_Table table = {0};
+    Ptr_Table table = {};
     i32 max = (i32)(size/8);
     if (max > 0){
         table.mem = mem;
@@ -173,7 +173,7 @@ insert_Ptr_table(Heap *heap, Ptr_Table *table, void* key){
 
 internal u32_Ptr_Table
 make_u32_Ptr_table(void *mem, umem size){
-    u32_Ptr_Table table = {0};
+    u32_Ptr_Table table = {};
     i32 max = (i32)(size/16);
     if (max > 0){
         table.mem = mem;
@@ -234,7 +234,7 @@ insert_u32_Ptr_table(u32_Ptr_Table *table, u32*key, void**val){
 
 internal u32_Ptr_Lookup_Result
 lookup_u32_Ptr_table(u32_Ptr_Table *table, u32*key){
-    u32_Ptr_Lookup_Result result = {0};
+    u32_Ptr_Lookup_Result result = {};
     i32 max = table->max;
     if (max > 0){
         u64 hash = 0;

@@ -101,7 +101,7 @@ view_get_cursor_xy(View *view){
 
 inline Cursor_Limits
 view_cursor_limits(View *view){
-    Cursor_Limits limits = {0};
+    Cursor_Limits limits = {};
     
     f32 line_height = (f32)view->transient.line_height;
     f32 visible_height = view_height(view);
@@ -287,7 +287,7 @@ view_set_cursor_and_scroll(View *view, Full_Cursor cursor, b32 set_preferred_x, 
 
 internal Relative_Scrolling
 view_get_relative_scrolling(View *view){
-    Relative_Scrolling result = {0};
+    Relative_Scrolling result = {};
     if (view->transient.edit_pos != 0){
         Vec2 cursor = view_get_cursor_xy(view);
         result.scroll_y = cursor.y - view->transient.edit_pos->scroll.scroll_y;
@@ -563,7 +563,7 @@ get_visual_markers(Partition *arena, Dynamic_Workspace *workspace,
                 case VisualType_CharacterHighlightRanges:
                 case VisualType_LineHighlightRanges:
                 {
-                    i32 pos_pair[2] = {0};
+                    i32 pos_pair[2] = {};
                     i32 pair_index = 0;
                     
                     for (;marker < marker_one_past_last; marker += stride_size_from_last){
@@ -574,7 +574,7 @@ get_visual_markers(Partition *arena, Dynamic_Workspace *workspace,
                             if (pair_index == 2){
                                 pair_index = 0;
                                 
-                                Range range_b = {0};
+                                Range range_b = {};
                                 range_b.first = pos_pair[0];
                                 range_b.one_past_last = pos_pair[1];
                                 
@@ -774,7 +774,7 @@ render_loaded_file_in_view__inner(Models *models, Render_Target *target, View *v
     Face_ID font_id = file->settings.font_id;
     
     // NOTE(allen): Get visual markers
-    Render_Marker_Array markers = {0};
+    Render_Marker_Array markers = {};
     markers.markers = push_array(part, Render_Marker, 0);
     {
         Lifetime_Object *lifetime_object = file->lifetime_object;
@@ -806,19 +806,19 @@ render_loaded_file_in_view__inner(Models *models, Render_Target *target, View *v
         visual_markers_quick_sort(markers.markers, marker_segments[i].first, marker_segments[i].one_past_last);
     }
     
-    Render_Marker_Array character_markers = {0};
+    Render_Marker_Array character_markers = {};
     character_markers.markers = markers.markers + marker_segments[0].first;
     character_markers.count = marker_segments[0].one_past_last - marker_segments[0].first;
     
-    Render_Marker_Array line_markers = {0};
+    Render_Marker_Array line_markers = {};
     line_markers.markers = markers.markers + marker_segments[1].first;
     line_markers.count = marker_segments[1].one_past_last - marker_segments[1].first;
     
-    Render_Marker_Array range_markers = {0};
+    Render_Marker_Array range_markers = {};
     range_markers.markers = markers.markers + marker_segments[2].first;
     range_markers.count = marker_segments[2].one_past_last - marker_segments[2].first;
     
-    Render_Marker_Array line_range_markers = {0};
+    Render_Marker_Array line_range_markers = {};
     line_range_markers.markers = markers.markers + marker_segments[3].first;
     line_range_markers.count = marker_segments[3].one_past_last - marker_segments[3].first;
     
@@ -982,7 +982,7 @@ render_loaded_file_in_view__inner(Models *models, Render_Target *target, View *v
                  line_range_markers.markers[visual_line_range_markers_scan_index].pos <= ind;
                  visual_line_range_markers_scan_index += 1){
                 Render_Marker *marker = &line_range_markers.markers[visual_line_range_markers_scan_index];
-                Render_Range_Record range_record = {0};
+                Render_Range_Record range_record = {};
                 range_record.color = marker->color;
                 range_record.text_color = marker->text_color;
                 range_record.one_past_last = marker->one_past_last;
@@ -1059,7 +1059,7 @@ render_loaded_file_in_view__inner(Models *models, Render_Target *target, View *v
              range_markers.markers[visual_range_markers_scan_index].pos <= ind;
              visual_range_markers_scan_index += 1){
             Render_Marker *marker = &range_markers.markers[visual_range_markers_scan_index];
-            Render_Range_Record range_record = {0};
+            Render_Range_Record range_record = {};
             range_record.color = marker->color;
             range_record.text_color = marker->text_color;
             range_record.one_past_last = marker->one_past_last;
@@ -1194,7 +1194,7 @@ render_loaded_file_in_view(System_Functions *system, View *view, Models *models,
     // to the gui system.
     scroll_y += view->transient.widget_height;
     
-    Full_Cursor render_cursor = {0};
+    Full_Cursor render_cursor = {};
     if (!file->settings.unwrapped_lines){
         render_cursor = file_compute_cursor(system, file, seek_wrapped_xy(0, scroll_y, 0), true);
     }
@@ -1226,8 +1226,8 @@ render_loaded_file_in_view(System_Functions *system, View *view, Models *models,
         params.virtual_white = file->settings.virtual_white;
         params.wrap_slashes  = file->settings.wrap_indicator;
         
-        Buffer_Render_State state = {0};
-        Buffer_Layout_Stop stop = {0};
+        Buffer_Render_State state = {};
+        Buffer_Layout_Stop stop = {};
         
         f32 line_shift = 0.f;
         b32 do_wrap = false;
@@ -1274,7 +1274,7 @@ render_loaded_file_in_view(System_Functions *system, View *view, Models *models,
     }
     push_array(part, Buffer_Render_Item, item_count);
     
-    Range on_screen_range = {0};
+    Range on_screen_range = {};
     on_screen_range.first = render_cursor.pos;
     on_screen_range.one_past_last = end_pos;
     

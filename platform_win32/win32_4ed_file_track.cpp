@@ -20,7 +20,7 @@ struct Win32_Directory_Listener{
     HANDLE dir;
     i32 user_count;
 };
-global_const OVERLAPPED null_overlapped = {0};
+global_const OVERLAPPED null_overlapped = {};
 
 struct Win32_Directory_Listener_Node{
     DLL_Node node;
@@ -135,7 +135,7 @@ add_listener(File_Track_System *system, Partition *scratch, u8 *filename){
         HANDLE dir = CreateFile_utf8(dir_name, FILE_LIST_DIRECTORY, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, 0, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OVERLAPPED, 0);
         
         if (dir != INVALID_HANDLE_VALUE){
-            BY_HANDLE_FILE_INFORMATION dir_info = {0};
+            BY_HANDLE_FILE_INFORMATION dir_info = {};
             DWORD getinfo_result = GetFileInformationByHandle(dir, &dir_info);
             
             if (getinfo_result){
@@ -217,7 +217,7 @@ remove_listener(File_Track_System *system, Partition *scratch, u8 *filename){
     HANDLE dir = CreateFile_utf8(dir_name, FILE_LIST_DIRECTORY, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, 0, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OVERLAPPED, 0);
     
     if (dir != INVALID_HANDLE_VALUE){
-        BY_HANDLE_FILE_INFORMATION dir_info = {0};
+        BY_HANDLE_FILE_INFORMATION dir_info = {};
         DWORD getinfo_result = GetFileInformationByHandle(dir, &dir_info);
         
         if (getinfo_result){
@@ -297,7 +297,7 @@ get_change_event(File_Track_System *system, Partition *scratch, u8 *buffer, i32 
     
     local_persist i32 has_buffered_event = 0;
     local_persist DWORD offset = 0;
-    local_persist Win32_Directory_Listener listener = {0};
+    local_persist Win32_Directory_Listener listener = {};
     
     EnterCriticalSection(&vars->table_lock);
     

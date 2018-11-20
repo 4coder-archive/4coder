@@ -166,7 +166,7 @@ The following commands only apply in files where the lexer (syntax highlighting)
 \ITEM \STYLE{code} <alt i> \END Surround the range between the cursor and mark with an '#if 0' and an '#endif'
 \ITEM \STYLE{code} <alt 1> \END Reads a filename from surrounding '"' characters and attempts to open the corresponding file.
 \ITEM \STYLE{code} <alt 2> \END If the current file is a *.cpp or *.h, attempts to open the corresponding *.h or *.cpp file in the other view.
-\ITEM \STYLE{code} <ctrl 0> \END At the cursor, insert a ' = {0};'.
+\ITEM \STYLE{code} <ctrl 0> \END At the cursor, insert a ' = {};'.
 \END
 \END
 \SECTION{default-lister-ui-map}
@@ -347,7 +347,7 @@ The following commands only apply in files where the lexer (syntax highlighting)
 \ITEM \STYLE{code} <ctrl i> \END Surround the range between the cursor and mark with an '#if 0' and an '#endif'
 \ITEM \STYLE{code} <ctrl 1> \END Reads a filename from surrounding '"' characters and attempts to open the corresponding file.
 \ITEM \STYLE{code} <ctrl 2> \END If the current file is a *.cpp or *.h, attempts to open the corresponding *.h or *.cpp file in the other view.
-\ITEM \STYLE{code} <cmnd 0> \END At the cursor, insert a ' = {0};'.
+\ITEM \STYLE{code} <cmnd 0> \END At the cursor, insert a ' = {};'.
 \END
 \END
 \SECTION{default-lister-ui-map}

@@ -6,7 +6,7 @@
 
 static CString_Array
 get_code_extensions(Extension_List *list){
-    CString_Array array = {0};
+    CString_Array array = {};
     array.strings = default_extensions;
     array.count = ArrayCount(default_extensions);
     if (list->count != 0){
@@ -50,7 +50,7 @@ parse_extension_line_to_extension_list(String str, Extension_List *list){
 
 static Error_Location
 get_error_location(char *base, char *pos){
-    Error_Location location = {0};
+    Error_Location location = {};
     location.line_number = 1;
     location.column_number = 1;
     for (char *ptr = base;
@@ -69,7 +69,7 @@ get_error_location(char *base, char *pos){
 
 static String
 config_stringize_errors(Partition *arena, Config *parsed){
-    String result = {0};
+    String result = {};
     if (parsed->errors.first != 0){
         result.str = push_array(arena, char, 0);
         result.memory_size = partition_remaining(arena);
@@ -104,7 +104,7 @@ config_parser__advance_to_next(Config_Parser *ctx){
 
 static Config_Parser
 make_config_parser(Partition *arena, String file_name, String data, Cpp_Token_Array array){
-    Config_Parser ctx = {0};
+    Config_Parser ctx = {};
     ctx.start = array.tokens;
     ctx.token = ctx.start - 1;
     ctx.end = ctx.start + array.count;
@@ -129,7 +129,7 @@ config_parser__recognize_token(Config_Parser *ctx, Cpp_Token_Type type){
 
 static String
 config_parser__get_lexeme(Config_Parser *ctx){
-    String lexeme = {0};
+    String lexeme = {};
     if (ctx->start <= ctx->token && ctx->token < ctx->end){
         lexeme = make_string(ctx->data.str + ctx->token->start, ctx->token->size);
     }
@@ -138,7 +138,7 @@ config_parser__get_lexeme(Config_Parser *ctx){
 
 static Config_Integer
 config_parser__get_int(Config_Parser *ctx){
-    Config_Integer config_integer = {0};
+    Config_Integer config_integer = {};
     String str = config_parser__get_lexeme(ctx);
     if (match(substr(str, 0, 2), "0x")){
         config_integer.is_signed = false;
@@ -512,7 +512,7 @@ config_parser__compound(Config_Parser *ctx){
 
 static Config_Compound_Element*
 config_parser__element(Config_Parser *ctx){
-    Config_Layout layout = {0};
+    Config_Layout layout = {};
     layout.pos = config_parser__get_pos(ctx);
     if (config_parser__match_token(ctx, CPP_TOKEN_DOT)){
         if (config_parser__recognize_token(ctx, CPP_TOKEN_IDENTIFIER)){
@@ -568,7 +568,7 @@ config_var(Config *config, String var_name, int32_t subscript);
 
 static Config_Get_Result
 config_evaluate_rvalue(Config *config, Config_Assignment *assignment, Config_RValue *r){
-    Config_Get_Result result = {0};
+    Config_Get_Result result = {};
     if (r != 0 && !assignment->visited){
         if (r->type == ConfigRValueType_LValue){
             assignment->visited = true;
@@ -613,7 +613,7 @@ config_evaluate_rvalue(Config *config, Config_Assignment *assignment, Config_RVa
 
 static Config_Get_Result
 config_var(Config *config, String var_name, int32_t subscript){
-    Config_Get_Result result = {0};
+    Config_Get_Result result = {};
     Config_Assignment *assignment = config_lookup_assignment(config, var_name, subscript);
     if (assignment != 0){
         result = config_evaluate_rvalue(config, assignment, assignment->r);
@@ -623,7 +623,7 @@ config_var(Config *config, String var_name, int32_t subscript){
 
 static Config_Get_Result
 config_compound_member(Config *config, Config_Compound *compound, String var_name, int32_t index){
-    Config_Get_Result result = {0};
+    Config_Get_Result result = {};
     int32_t implicit_index = 0;
     bool32 implicit_index_is_valid = true;
     for (Config_Compound_Element *element = compound->first;
@@ -655,7 +655,7 @@ config_compound_member(Config *config, Config_Compound *compound, String var_nam
             }break;
         }
         if (element_matches_query){
-            Config_Assignment dummy_assignment = {0};
+            Config_Assignment dummy_assignment = {};
             dummy_assignment.pos = element->l.pos;
             result = config_evaluate_rvalue(config, &dummy_assignment, element->r);
             break;
@@ -1207,7 +1207,7 @@ typed_no_type_array_reference_list(Partition *arena, Config *config, Config_Comp
 
 static Config_Iteration_Step_Result
 typed_array_iteration_step(Config *parsed, Config_Compound *compound, Config_RValue_Type type, int32_t index){
-    Config_Iteration_Step_Result result = {0};
+    Config_Iteration_Step_Result result = {};
     result.step = Iteration_Quit;
     Config_Get_Result get_result = config_compound_member(parsed, compound, make_lit_string("~"), index);
     if (get_result.success){
@@ -1240,7 +1240,7 @@ typed_array_get_count(Config *parsed, Config_Compound *compound, Config_RValue_T
 
 static Config_Get_Result_List
 typed_array_reference_list(Partition *arena, Config *parsed, Config_Compound *compound, Config_RValue_Type type){
-    Config_Get_Result_List list = {0};
+    Config_Get_Result_List list = {};
     for (int32_t i = 0;; ++i){
         Config_Iteration_Step_Result result = typed_array_iteration_step(parsed, compound, type, i);
         if (result.step == Iteration_Skip){
@@ -1295,12 +1295,12 @@ text_data_to_token_array(Partition *arena, String data){
     bool32 success = false;
     int32_t max_count = (1 << 20)/sizeof(Cpp_Token);
     Temp_Memory restore_point = begin_temp_memory(arena);
-    Cpp_Token_Array array = {0};
+    Cpp_Token_Array array = {};
     array.tokens = push_array(arena, Cpp_Token, max_count);
     if (array.tokens != 0){
         array.max_count = max_count;
-        Cpp_Keyword_Table kw_table = {0};
-        Cpp_Keyword_Table pp_table = {0};
+        Cpp_Keyword_Table kw_table = {};
+        Cpp_Keyword_Table pp_table = {};
         if (lexer_keywords_default_init(arena, &kw_table, &pp_table)){
             Cpp_Lex_Data S = cpp_lex_data_init(false, kw_table, pp_table);
             Cpp_Lex_Result result = cpp_lex_step(&S, data.str, data.size + 1, HAS_NULL_TERM, &array, NO_OUT_LIMIT);
@@ -1684,7 +1684,7 @@ load_config_and_apply(Application_Links *app, Partition *scratch, Config_Data *c
         change_theme(app, config->default_theme_name.str, config->default_theme_name.size);
         highlight_line_at_cursor = config->highlight_line_at_cursor;
         
-        Face_Description description = {0};
+        Face_Description description = {};
         int32_t len = config->default_font_name.size;
         char *name_ptr = config->default_font_name.str;
         if (len > sizeof(description.font.name) - 1){
@@ -1708,7 +1708,7 @@ load_config_and_apply(Application_Links *app, Partition *scratch, Config_Data *c
 static void
 load_theme_file_into_live_set(Application_Links *app, Partition *scratch, char *file_name){
     Temp_Memory temp = begin_temp_memory(scratch);
-    Theme_Data theme = {0};
+    Theme_Data theme = {};
     Config *config = theme_parse__file_name(app, scratch, file_name, &theme);
     String error_text = config_stringize_errors(scratch, config);
     print_message(app, error_text.str, error_text.size);

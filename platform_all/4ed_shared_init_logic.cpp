@@ -79,7 +79,7 @@ load_custom_code(){
         LoadLibrary_BinaryDirectory,
     };
     
-    char *custom_files[3] = {0};
+    char *custom_files[3] = {};
     if (plat_settings.custom_dll != 0){
         custom_files[0] = plat_settings.custom_dll;
         if (!plat_settings.custom_dll_is_strict){

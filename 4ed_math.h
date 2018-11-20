@@ -565,7 +565,7 @@ rgba_to_hsla(Vec4 rgba){
 internal Vec4
 hsla_to_rgba(Vec4 hsla){
     if (hsla.h >= 1.f) hsla.h = 0.f;
-    Vec4 rgba = {0};
+    Vec4 rgba = {};
     f32 C = (1.f - ABS(2*hsla.z - 1.f))*hsla.y;
     f32 X = C*(1.f-ABS(MOD(hsla.x*6.f, 2)-1.f));
     f32 m = hsla.z - C*.5f;
@@ -591,7 +591,7 @@ hsla_to_rgba(Vec4 hsla){
 
 internal i32_Rect
 i32R(int32_t l, int32_t t, int32_t r, int32_t b){
-    i32_Rect rect = {0};
+    i32_Rect rect = {};
     rect.x0 = l;
     rect.y0 = t;
     rect.x1 = r;

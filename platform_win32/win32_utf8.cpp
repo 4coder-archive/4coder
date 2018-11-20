@@ -14,7 +14,7 @@
 
 internal Win32_UTF16
 input_8_to_16(Partition *scratch, u8 *in){
-    Win32_UTF16 r = {0};
+    Win32_UTF16 r = {};
     
     u32 utf8_len = 0;
     for (;in[utf8_len];++utf8_len);

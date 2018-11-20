@@ -287,7 +287,7 @@ CUSTOM_DOC("A lister mode command that handles input for the fixed sure to kill 
 
 static Lister_Handlers
 lister_get_default_handlers(void){
-    Lister_Handlers handlers = {0};
+    Lister_Handlers handlers = {};
     handlers.write_character = lister__write_character__default;
     handlers.backspace       = lister__backspace_text_field__default;
     handlers.navigate_up     = lister__move_up__default;
@@ -297,7 +297,7 @@ lister_get_default_handlers(void){
 
 static Lister_Handlers
 lister_get_fixed_list_handlers(void){
-    Lister_Handlers handlers = {0};
+    Lister_Handlers handlers = {};
     handlers.write_character = lister__write_character__fixed_list;
     handlers.backspace       = 0;
     handlers.navigate_up     = lister__move_up__default;
@@ -452,7 +452,7 @@ begin_integrated_lister__ui_list(Application_Links *app, char *query_string,
 
 static void
 generate_all_buffers_list__output_buffer(Partition *arena, Lister *lister, Buffer_Summary buffer){
-    String status = {0};
+    String status = {};
     switch (buffer.dirty){
         case DirtyState_UnsavedChanges:  status = make_lit_string("*"); break;
         case DirtyState_UnloadedChanges: status = make_lit_string("!"); break;
@@ -536,7 +536,7 @@ generate_hot_directory_file_list(Application_Links *app, Partition *arena, Liste
     lister_begin_new_item_set(lister);
     String hot = get_hot_directory(app, arena);
     push_align(arena, 8);
-    File_List file_list = {0};
+    File_List file_list = {};
     if (hot.str != 0){
         file_list = get_file_list(app, hot.str, hot.size);
     }
@@ -561,7 +561,7 @@ generate_hot_directory_file_list(Application_Links *app, Partition *arena, Liste
             char *status_flag = "";
             
             Temp_Memory path_temp = begin_temp_memory(arena);
-            String full_file_path = {0};
+            String full_file_path = {};
             full_file_path.size = 0;
             full_file_path.memory_size = hot.size + 1 + info->filename_len + 1;
             full_file_path.str = push_array(arena, char, full_file_path.memory_size);
@@ -801,7 +801,7 @@ activate_open_or_new(Application_Links *app, Partition *scratch, Heap *heap,
                      View_Summary *view, struct Lister_State *state,
                      String text_field, void *user_data, bool32 clicked){
     Lister_Activation_Code result = 0;
-    String file_name = {0};
+    String file_name = {};
     if (user_data == 0){
         file_name = front_of_directory(text_field);
     }
@@ -866,7 +866,7 @@ activate_open(Application_Links *app, Partition *scratch, Heap *heap,
               View_Summary *view, struct Lister_State *state,
               String text_field, void *user_data, bool32 clicked){
     Lister_Activation_Code result = 0;
-    String file_name = {0};
+    String file_name = {};
     if (user_data != 0){
         file_name = make_string_slowly((char*)user_data);
     }

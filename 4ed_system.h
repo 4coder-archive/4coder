@@ -17,7 +17,7 @@ struct Plat_Handle{
     u32 d[4];
 };
 
-static Plat_Handle null_plat_handle = {0};
+static Plat_Handle null_plat_handle = {};
 
 inline b32
 handle_equal(Plat_Handle a, Plat_Handle b){
@@ -137,7 +137,7 @@ struct Thread_Memory{
     u32 size;
     u32 id;
 };
-global Thread_Memory null_thread_memory = {0};
+global Thread_Memory null_thread_memory = {};
 
 struct Thread_Exchange;
 struct System_Functions;

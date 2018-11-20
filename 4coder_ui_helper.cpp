@@ -36,9 +36,9 @@ ui__rect_union(i32_Rect a, i32_Rect b){
 
 static UI_Control
 ui_list_to_ui_control(Partition *arena, UI_List *list){
-    UI_Control control = {0};
+    UI_Control control = {};
     control.items = push_array(arena, UI_Item, list->count);
-    i32_Rect neg_inf_rect = {0};
+    i32_Rect neg_inf_rect = {};
     neg_inf_rect.x0 = INT32_MAX;
     neg_inf_rect.y0 = INT32_MAX;
     neg_inf_rect.x1 = INT32_MIN;
@@ -100,7 +100,7 @@ ui_control_get_mouse_hit(UI_Control *control,
 
 static void
 view_zero_scroll(Application_Links *app, View_Summary *view){
-    GUI_Scroll_Vars zero_scroll = {0};
+    GUI_Scroll_Vars zero_scroll = {};
     view_set_scroll(app, view, zero_scroll);
 }
 
@@ -232,7 +232,7 @@ lister_get_clicked_item(Application_Links *app, View_Summary *view, Partition *s
     int32_t myu = 0;
     get_view_relative_mouse_positions(mouse, *view, &mxs, &mys, &mxu, &myu);
     UI_Item *clicked = ui_control_get_mouse_hit(&control, mxs, mys, mxu, myu);
-    UI_Item result = {0};
+    UI_Item result = {};
     if (clicked != 0){
         result = *clicked;
     }
@@ -268,15 +268,15 @@ lister_update_ui(Application_Links *app, Partition *scratch, View_Summary *view,
     state->raw_item_index = -1;
     
     int32_t node_count = state->lister.options.count;
-    Lister_Node_Ptr_Array exact_matches = {0};
+    Lister_Node_Ptr_Array exact_matches = {};
     exact_matches.node_ptrs = push_array(scratch, Lister_Node*, 1);
-    Lister_Node_Ptr_Array before_extension_matches = {0};
+    Lister_Node_Ptr_Array before_extension_matches = {};
     before_extension_matches.node_ptrs = push_array(scratch, Lister_Node*, node_count);
-    Lister_Node_Ptr_Array substring_matches = {0};
+    Lister_Node_Ptr_Array substring_matches = {};
     substring_matches.node_ptrs = push_array(scratch, Lister_Node*, node_count);
     
     String key = state->lister.key_string;
-    Absolutes absolutes = {0};
+    Absolutes absolutes = {};
     get_absolutes(key, &absolutes, true, true);
     bool32 has_wildcard = (absolutes.count > 3);
     
@@ -306,7 +306,7 @@ lister_update_ui(Application_Links *app, Partition *scratch, View_Summary *view,
         substring_matches,
     };
     
-    UI_List list = {0};
+    UI_List list = {};
     UI_Item *highlighted_item = 0;
     UI_Item *hot_item = 0;
     UI_Item *hovered_item = 0;
@@ -316,14 +316,14 @@ lister_update_ui(Application_Links *app, Partition *scratch, View_Summary *view,
         for (int32_t node_index = 0; node_index < node_ptr_array.count; node_index += 1){
             Lister_Node *node = node_ptr_array.node_ptrs[node_index];
             
-            i32_Rect item_rect = {0};
+            i32_Rect item_rect = {};
             item_rect.x0 = x0;
             item_rect.y0 = y_pos;
             item_rect.x1 = x1;
             item_rect.y1 = y_pos + block_height;
             y_pos = item_rect.y1;
             
-            UI_Item item = {0};
+            UI_Item item = {};
             if (!is_theme_list){
                 item.type = UIType_Option;
                 item.option.string = node->string;
@@ -380,14 +380,14 @@ lister_update_ui(Application_Links *app, Partition *scratch, View_Summary *view,
     }
     
     {
-        i32_Rect item_rect = {0};
+        i32_Rect item_rect = {};
         item_rect.x0 = x0;
         item_rect.y0 = 0;
         item_rect.x1 = x1;
         item_rect.y1 = item_rect.y0 + line_height;
         y_pos = item_rect.y1;
         
-        UI_Item item = {0};
+        UI_Item item = {};
         item.type = UIType_TextField;
         item.activation_level = UIActivation_Active;
         item.coordinates = UICoordinates_ViewRelative;
@@ -406,7 +406,7 @@ lister_update_ui(Application_Links *app, Partition *scratch, View_Summary *view,
 
 static Lister_Prealloced_String
 lister_prealloced(String string){
-    Lister_Prealloced_String result = {0};
+    Lister_Prealloced_String result = {};
     result.string = string;
     return(result);
 }

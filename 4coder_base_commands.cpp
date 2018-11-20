@@ -16,7 +16,7 @@ write_character_parameter(Application_Links *app, uint8_t *character, uint32_t l
         Buffer_Summary buffer = get_buffer(app, view.buffer_id, access);
         int32_t pos = view.cursor.pos;
         
-        Marker next_cursor_marker = {0};
+        Marker next_cursor_marker = {};
         next_cursor_marker.pos = character_pos_to_pos(app, &view, &buffer, view.cursor.character_pos);
         next_cursor_marker.lean_right = true;
         
@@ -58,7 +58,7 @@ CUSTOM_DOC("Deletes the character to the right of the cursor.")
         Buffer_Summary buffer = get_buffer(app, view.buffer_id, access);
         int32_t start = view.cursor.pos;
         if (0 <= start && start < buffer.size){
-            Full_Cursor cursor = {0};
+            Full_Cursor cursor = {};
             view_compute_cursor(app, &view, seek_character_pos(view.cursor.character_pos + 1), &cursor);
             int32_t end = cursor.pos;
             buffer_replace_range(app, &buffer, start, end, 0, 0);
@@ -76,7 +76,7 @@ CUSTOM_DOC("Deletes the character to the left of the cursor.")
         Buffer_Summary buffer = get_buffer(app, view.buffer_id, access);
         int32_t end = view.cursor.pos;
         if (0 < end && end <= buffer.size){
-            Full_Cursor cursor = {0};
+            Full_Cursor cursor = {};
             view_compute_cursor(app, &view, seek_character_pos(view.cursor.character_pos - 1), &cursor);
             int32_t start = cursor.pos;
             buffer_replace_range(app, &buffer, start, end, 0, 0);
@@ -424,7 +424,7 @@ CUSTOM_DOC("Removes trailing whitespace from all lines in the current buffer.")
         Buffer_Edit *edits = (Buffer_Edit*)app->memory;
         
         char data[1024];
-        Stream_Chunk chunk = {0};
+        Stream_Chunk chunk = {};
         
         int32_t i = 0;
         if (init_stream_chunk(&chunk, app, &buffer, i, data, sizeof(data))){
@@ -630,7 +630,7 @@ CUSTOM_DOC("Queries the user for a number, and jumps the cursor to the correspon
 {
     uint32_t access = AccessProtected;
     
-    Query_Bar bar = {0};
+    Query_Bar bar = {};
     char string_space[256];
     
     bar.prompt = make_lit_string("Goto Line: ");
@@ -650,7 +650,7 @@ CUSTOM_COMMAND_SIG(reverse_search);
 static void
 isearch__update_highlight(Application_Links *app, View_Summary *view, Managed_Object highlight,
                           int32_t start, int32_t end){
-    Marker markers[4] = {0};
+    Marker markers[4] = {};
     markers[0].pos = start;
     markers[1].pos = end;
     managed_object_store_data(app, highlight, 0, 2, markers);
@@ -665,7 +665,7 @@ isearch(Application_Links *app, bool32 start_reversed, String query_init, bool32
         return;
     }
     
-    Query_Bar bar = {0};
+    Query_Bar bar = {};
     if (start_query_bar(app, &bar, 0) == 0){
         return;
     }
@@ -702,7 +702,7 @@ isearch(Application_Links *app, bool32 start_reversed, String query_init, bool32
     isearch__update_highlight(app, &view, highlight, match.start, match.end);
     cursor_is_hidden = true;
     
-    User_Input in = {0};
+    User_Input in = {};
     for (;;){
         // NOTE(allen): Change the bar's prompt to match the current direction.
         if (reverse){
@@ -720,9 +720,6 @@ isearch(Application_Links *app, bool32 start_reversed, String query_init, bool32
         if (!first_step){
             in = get_user_input(app, EventOnAnyKey, EventOnEsc);
             if (in.abort) break;
-            
-            // NOTE(allen): If we're getting mouse events here it's a 4coder bug, because we only asked to intercept key events.
-            Assert(in.type == UserInputKey);
             
             uint8_t character[4];
             uint32_t length = to_writable_character(in, character);
@@ -850,14 +847,14 @@ isearch(Application_Links *app, bool32 start_reversed, String query_init, bool32
 CUSTOM_COMMAND_SIG(search)
 CUSTOM_DOC("Begins an incremental search down through the current buffer for a user specified string.")
 {
-    String query = {0};
+    String query = {};
     isearch(app, false, query, false);
 }
 
 CUSTOM_COMMAND_SIG(reverse_search)
 CUSTOM_DOC("Begins an incremental search up through the current buffer for a user specified string.")
 {
-    String query = {0};
+    String query = {};
     isearch(app, true, query, false);
 }
 
@@ -938,12 +935,12 @@ query_replace_base(Application_Links *app, View_Summary *view, Buffer_Summary *b
     marker_visual_set_view_key(app, visual, view->view_id);
     cursor_is_hidden = true;
     
-    User_Input in = {0};
+    User_Input in = {};
     for (;new_pos < buffer->size;){
         Range match = make_range(new_pos, new_pos + r.size);
         isearch__update_highlight(app, view, highlight, match.min, match.max);
         
-        in = get_user_input(app, EventOnAnyKey, EventOnButton);
+        in = get_user_input(app, EventOnAnyKey, EventOnMouseLeftButton|EventOnMouseRightButton);
         if (in.abort || in.key.keycode == key_esc || !key_is_unmodified(&in.key)) break;
         
         if (in.key.character == 'y' || in.key.character == 'Y' ||
@@ -1011,7 +1008,7 @@ CUSTOM_DOC("Queries the user for two strings, and incrementally replaces every o
         return;
     }
     
-    Query_Bar replace = {0};
+    Query_Bar replace = {};
     char replace_space[1024];
     replace.prompt = make_lit_string("Replace: ");
     replace.string = make_fixed_width_string(replace_space);
@@ -1035,7 +1032,7 @@ CUSTOM_DOC("Queries the user for a string, and incrementally replace every occur
         return;
     }
     
-    Range range = {0};
+    Range range = {};
     char space[256];
     String replace = read_identifier_at_pos(app, &buffer, view.cursor.pos, space, sizeof(space), &range);
     
@@ -1091,7 +1088,7 @@ save_all_dirty_buffers_with_postfix(Application_Links *app, String postfix){
 CUSTOM_COMMAND_SIG(save_all_dirty_buffers)
 CUSTOM_DOC("Saves all buffers marked dirty (showing the '*' indicator).")
 {
-    String empty = {0};
+    String empty = {};
     save_all_dirty_buffers_with_postfix(app, empty);
 }
 
@@ -1125,7 +1122,7 @@ CUSTOM_DOC("Deletes the file of the current buffer if 4coder has the appropriate
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessAll);
     
     if (buffer.file_name != 0){
-        String file_name = {0};
+        String file_name = {};
         file_name = make_string(buffer.file_name, buffer.file_name_len);
         
         char space[4096];
@@ -1273,9 +1270,9 @@ CUSTOM_DOC("Swaps the line under the cursor with the line above it, and moves th
         return;
     }
     
-    Full_Cursor prev_line_cursor = {0};
-    Full_Cursor this_line_cursor = {0};
-    Full_Cursor next_line_cursor = {0};
+    Full_Cursor prev_line_cursor = {};
+    Full_Cursor this_line_cursor = {};
+    Full_Cursor next_line_cursor = {};
     
     int32_t this_line = view.cursor.line;
     int32_t prev_line = this_line - 1;
@@ -1336,7 +1333,7 @@ CUSTOM_DOC("Swaps the line under the cursor with the line below it, and moves th
     }
     
     int32_t next_line = view.cursor.line + 1;
-    Full_Cursor new_cursor = {0};
+    Full_Cursor new_cursor = {};
     if (view_compute_cursor(app, &view, seek_line_char(next_line, 1), &new_cursor)){
         if (new_cursor.line == next_line){
             view_set_cursor(app, &view, seek_pos(new_cursor.pos), true);
@@ -1355,7 +1352,7 @@ CUSTOM_DOC("Create a copy of the line on which the cursor sits.")
     Partition *part = &global_part;
     
     Temp_Memory temp = begin_temp_memory(part);
-    String line_string = {0};
+    String line_string = {};
     char *before_line = push_array(part, char, 1);
     if (read_line(app, part, &buffer, view.cursor.line, &line_string)){
         *before_line = '\n';
@@ -1406,7 +1403,7 @@ get_cpp_matching_file(Application_Links *app, Buffer_Summary buffer, Buffer_Summ
         append(&file_name, make_string(buffer.file_name, buffer.file_name_len));
         
         String extension = file_extension(file_name);
-        String new_extensions[2] = {0};
+        String new_extensions[2] = {};
         int32_t new_extensions_count = 0;
         
         if (match(extension, "cpp") || match(extension, "cc")){
@@ -1487,7 +1484,7 @@ CUSTOM_DOC("If the current file is a *.cpp or *.h, attempts to open the correspo
     View_Summary view = get_active_view(app, AccessAll);
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessAll);
     
-    Buffer_Summary new_buffer = {0};
+    Buffer_Summary new_buffer = {};
     if (get_cpp_matching_file(app, buffer, &new_buffer)){
         get_next_view_looped_primary_panels(app, &view, AccessAll);
         view_set_buffer(app, &view, new_buffer.buffer_id, 0);

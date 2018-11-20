@@ -59,7 +59,7 @@ struct Font_Vars{
     b32 use_hinting;
 };
 
-global Font_Vars fontvars = {0};
+global Font_Vars fontvars = {};
 
 struct Font_Setup{
     Font_Setup *next;
@@ -100,14 +100,14 @@ internal Sys_Font_Path(name, parameters);
 
 #define Sys_Font_Path_Not_Used \
 internal Sys_Font_Path(n,p){ \
-    Font_Path path = {0}; LOG("there is no font path retrieval procedure available\n"); return(path);}
+    Font_Path path = {}; LOG("there is no font path retrieval procedure available\n"); return(path);}
 
 #define Sys_Font_Data(name, parameters) Font_Raw_Data system_font_data(char *name, Font_Parameters *parameters)
 internal Sys_Font_Data(name, parameters);
 
 #define Sys_Font_Data_Not_Used \
 internal Sys_Font_Data(n,p){ \
-    Font_Raw_Data data = {0}; LOG("there is no font data retrieval procedure available\n"); return(data);}
+    Font_Raw_Data data = {}; LOG("there is no font data retrieval procedure available\n"); return(data);}
 
 #endif
 

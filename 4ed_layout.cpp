@@ -24,7 +24,7 @@ panel_init(Panel *panel){
 
 inline Panel_Divider
 panel_divider_zero(){
-    Panel_Divider divider={0};
+    Panel_Divider divider={};
     return(divider);
 }
 

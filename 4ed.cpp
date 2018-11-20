@@ -9,25 +9,23 @@
 
 // TOP
 
-// App Structs
-
 #define DEFAULT_DISPLAY_WIDTH 672
 #define DEFAULT_MINIMUM_BASE_DISPLAY_WIDTH 550
 
-inline App_Coroutine_State
+internal App_Coroutine_State
 get_state(Application_Links *app){
-    App_Coroutine_State state = {0};
+    App_Coroutine_State state = {};
     state.co = app->current_coroutine;
     state.type = app->type_coroutine;
     return(state);
 }
-inline void
+internal void
 restore_state(Application_Links *app, App_Coroutine_State state){
     app->current_coroutine = state.co;
     app->type_coroutine = state.type;
 }
 
-inline Coroutine_Head*
+internal Coroutine_Head*
 app_launch_coroutine(System_Functions *system, Application_Links *app, Coroutine_Type type, Coroutine_Head *co, void *in, void *out){
     Coroutine_Head *result = 0;
     
@@ -41,7 +39,7 @@ app_launch_coroutine(System_Functions *system, Application_Links *app, Coroutine
     return(result);
 }
 
-inline Coroutine_Head*
+internal Coroutine_Head*
 app_resume_coroutine(System_Functions *system, Application_Links *app, Coroutine_Type type, Coroutine_Head *co, void *in, void *out){
     Coroutine_Head *result = 0;
     
@@ -55,7 +53,7 @@ app_resume_coroutine(System_Functions *system, Application_Links *app, Coroutine
     return(result);
 }
 
-inline void
+internal void
 output_file_append(System_Functions *system, Models *models, Editing_File *file, String value){
     if (!file->is_dummy){
         i32 end = buffer_size(&file->state.buffer);
@@ -79,7 +77,7 @@ file_cursor_to_end(System_Functions *system, Models *models, Editing_File *file)
     }
 }
 
-inline void
+internal void
 do_feedback_message(System_Functions *system, Models *models, String value){
     Editing_File *file = models->message_buffer;
     if (file != 0){
@@ -306,9 +304,9 @@ interpret_binding_buffer(Models *models, void *buffer, i32 size){
     Partition *part = &models->mem.part;
     Temp_Memory temp = begin_temp_memory(part);
     
-    Partition local_part = {0};
+    Partition local_part = {};
     
-    Mapping new_mapping = {0};
+    Mapping new_mapping = {};
     
     models->scroll_rule = fallback_scroll_rule;
     models->hook_open_file = 0;
@@ -649,7 +647,7 @@ setup_command_table(void){
 
 internal void
 app_hardcode_default_style(Models *models){
-    Interactive_Style file_info_style = {0};
+    Interactive_Style file_info_style = {};
     Style *styles = models->styles.styles;
     Style *style = styles + 1;
     
@@ -873,7 +871,7 @@ init_command_line_settings(App_Settings *settings, Plat_Settings *plat_settings,
 internal App_Vars*
 app_setup_memory(System_Functions *system, Application_Memory *memory){
     Partition _partition = make_part(memory->vars_memory, memory->vars_memory_size);
-    App_Vars *vars = push_struct(&_partition, App_Vars);
+    App_Vars *vars = push_array(&_partition, App_Vars, 1);
     Assert(vars != 0);
     memset(vars, 0, sizeof(*vars));
     vars->models.mem.part = _partition;
@@ -889,34 +887,72 @@ get_event_flags(Key_Code keycode){
         event_flags |= EventOnEsc;
         event_flags |= EventOnAnyKey;
     }
-    else if (keycode == key_mouse_left){
-        // TODO(allen): 
+    else if (keycode == key_mouse_left || keycode == key_mouse_left_release){
+        event_flags |= EventOnMouseLeftButton;
     }
-    else if (keycode == key_mouse_right){
-        // TODO(allen): 
-    }
-    else if (keycode == key_mouse_left_release){
-        // TODO(allen): 
-    }
-    else if (keycode == key_mouse_right_release){
-        // TODO(allen): 
+    else if (keycode == key_mouse_right || keycode == key_mouse_right_release){
+        event_flags |= EventOnMouseRightButton;
     }
     else if (keycode == key_mouse_wheel){
-        // TODO(allen): 
+        event_flags |= EventOnMouseWheel;
     }
     else if (keycode == key_mouse_move){
-        // TODO(allen): 
+        event_flags |= EventOnMouseMove;
     }
     else if (keycode == key_animate){
-        // TODO(allen): 
+        event_flags |= EventOnAnimate;
     }
-    else if (keycode == key_view_activate){
-        // TODO(allen): 
+    else if (keycode == key_click_activate_view || keycode == key_click_deactivate_view){
+        event_flags |= EventOnViewActivation;
     }
     else{
         event_flags |= EventOnAnyKey;
     }
     return(event_flags);
+}
+
+internal void
+force_abort_coroutine(System_Functions *system, Models *models, View *view){
+    User_Input user_in = {};
+    user_in.abort = true;
+    for (u32 j = 0; j < 10 && models->command_coroutine != 0; ++j){
+        models->command_coroutine = app_resume_coroutine(system, &models->app_links, Co_Command, models->command_coroutine, &user_in, models->command_coroutine_flags);
+    }
+    if (models->command_coroutine != 0){
+        // TODO(allen): post grave warning
+        models->command_coroutine = 0;
+    }
+    init_query_set(&view->transient.query_set);
+}
+
+internal void
+launch_command_via_event(System_Functions *system, Application_Step_Result *app_result, Models *models, View *view, Key_Event_Data event){
+    models->key = event;
+    
+    i32 map = view_get_map(view);
+    Command_Binding cmd_bind = map_extract_recursive(&models->mapping, map, event);
+    
+    if (cmd_bind.function != 0){
+        Assert(models->command_coroutine == 0);
+        Coroutine_Head *command_coroutine = system->create_coroutine(command_caller);
+        models->command_coroutine = command_coroutine;
+        
+        Command_In cmd_in;
+        cmd_in.models = models;
+        cmd_in.bind = cmd_bind;
+        
+        models->command_coroutine = app_launch_coroutine(system, &models->app_links, Co_Command, models->command_coroutine, &cmd_in, models->command_coroutine_flags);
+        
+        models->prev_command = cmd_bind;
+        app_result->animating = true;
+    }
+}
+
+internal void
+launch_command_via_keycode(System_Functions *system, Application_Step_Result *app_result, Models *models, View *view, Key_Code keycode){
+    Key_Event_Data event = {};
+    event.keycode = keycode;
+    launch_command_via_event(system, app_result, models, view, event);
 }
 
 App_Read_Command_Line_Sig(app_read_command_line){
@@ -1027,7 +1063,7 @@ App_Init_Sig(app_init){
     models->working_set.clipboard_current = 0;
     models->working_set.clipboard_rolling = 0;
     
-    // TODO(allen): more robust allocation solution for the clipboard
+    // TODO(allen): do(better clipboard allocation)
     if (clipboard.str != 0){
         String *dest = working_set_next_clipboard_string(&models->mem.heap, &models->working_set, clipboard.size);
         copy(dest, make_string((char*)clipboard.str, clipboard.size));
@@ -1096,7 +1132,7 @@ App_Step_Sig(app_step){
     App_Vars *vars = (App_Vars*)memory->vars_memory;
     Models *models = &vars->models;
     
-    Application_Step_Result app_result = {0};
+    Application_Step_Result app_result = {};
     app_result.mouse_cursor_type = APP_MOUSE_CURSOR_DEFAULT;
     app_result.lctrl_lalt_is_altgr = models->settings.lctrl_lalt_is_altgr;
     
@@ -1124,7 +1160,7 @@ App_Step_Sig(app_step){
         
         for (;system->get_file_change(buffer, buffer_size, &mem_too_small, &size);){
             Assert(!mem_too_small);
-            Editing_File_Name canon = {0};
+            Editing_File_Name canon = {};
             if (get_canon_name(system, make_string(buffer, size),
                                &canon)){
                 Editing_File *file = working_set_contains_canon(working_set, canon.name);
@@ -1262,7 +1298,7 @@ App_Step_Sig(app_step){
         models->input_filter(&input->mouse);
     }
     
-    Key_Event_Data mouse_event = {0};
+    Key_Event_Data mouse_event = {};
     if (input->mouse.press_l){
         mouse_event.keycode = key_mouse_left;
         input->keys.keys[input->keys.count++] = mouse_event;
@@ -1376,9 +1412,7 @@ App_Step_Sig(app_step){
         Panel *active_panel = &models->layout.panels[models->layout.active_panel];
         View *view = active_panel->view;
         Assert(view != 0);
-        models->key = *key_ptr;
         
-        // NOTE(allen): execute a command or resize panels
         switch (vars->state){
             case APP_STATE_EDIT:
             {
@@ -1456,60 +1490,38 @@ App_Step_Sig(app_step){
                     
                     case EventConsume_ClickChangeView:
                     {
+                        // NOTE(allen): kill coroutine if we have one
                         if (models->command_coroutine != 0){
-                            User_Input user_in = {0};
-                            user_in.abort = true;
-                            
-                            for (u32 j = 0; j < 10 && models->command_coroutine != 0; ++j){
-                                models->command_coroutine = app_resume_coroutine(system, &models->app_links, Co_Command, models->command_coroutine, &user_in, models->command_coroutine_flags);
-                            }
-                            
-                            if (models->command_coroutine != 0){
-                                // TODO(allen): post grave warning
-                                models->command_coroutine = 0;
-                            }
-                            
-                            init_query_set(&view->transient.query_set);
+                            force_abort_coroutine(system, models, view);
+                        }
+                        
+                        // NOTE(allen): run deactivate command
+                        launch_command_via_keycode(system, &app_result, models, view, key_click_deactivate_view);
+                        
+                        // NOTE(allen): kill coroutine if we have one (again because we just launched a command)
+                        if (models->command_coroutine != 0){
+                            force_abort_coroutine(system, models, view);
                         }
                         
                         models->layout.active_panel = (i32)(mouse_panel - models->layout.panels);
                         app_result.animating = true;
+                        active_panel = mouse_panel;
+                        view = active_panel->view;
                         
-                        {
-                            Key_Event_Data key = {};
-                            key.keycode = key_view_activate;
-                            models->key = key;
-                            
-                            i32 map = view_get_map(view);
-                            Command_Binding cmd_bind = map_extract_recursive(&models->mapping, map, key);
-                            
-                            if (cmd_bind.function != 0){
-                                Assert(models->command_coroutine == 0);
-                                Coroutine_Head *command_coroutine = system->create_coroutine(command_caller);
-                                models->command_coroutine = command_coroutine;
-                                
-                                Command_In cmd_in;
-                                cmd_in.models = models;
-                                cmd_in.bind = cmd_bind;
-                                
-                                models->command_coroutine = app_launch_coroutine(system, &models->app_links, Co_Command, models->command_coroutine, &cmd_in, models->command_coroutine_flags);
-                                
-                                models->prev_command = cmd_bind;
-                                app_result.animating = true;
-                            }
-                        }
+                        // NOTE(allen): run activate command
+                        launch_command_via_keycode(system, &app_result, models, view, key_click_activate_view);
                     }break;
                     
                     case EventConsume_Command:
                     {
                         
+                        // NOTE(allen): update command coroutine
                         if (models->command_coroutine != 0){
+                            models->key = *key_ptr;
+                            
                             Coroutine_Head *command_coroutine = models->command_coroutine;
                             u32 abort_flags = models->command_coroutine_flags[1];
                             u32 get_flags = models->command_coroutine_flags[0] | abort_flags;
-                            
-                            Partition *part = &models->mem.part;
-                            Temp_Memory temp = begin_temp_memory(part);
                             
                             u32 event_flags = get_event_flags(key_ptr->keycode);
                             if ((get_flags & event_flags) != 0){
@@ -1517,7 +1529,6 @@ App_Step_Sig(app_step){
                                 Command_Binding cmd_bind = map_extract_recursive(&models->mapping, map, *key_ptr);
                                 
                                 User_Input user_in = {};
-                                user_in.type = UserInputKey;
                                 user_in.key = *key_ptr;
                                 user_in.command.command = cmd_bind.custom;
                                 user_in.abort = ((abort_flags & event_flags) != 0);
@@ -1530,27 +1541,9 @@ App_Step_Sig(app_step){
                             }
                         }
                         
+                        // NOTE(allen): launch command
                         else{
-                            i32 map = view_get_map(view);
-                            Command_Binding cmd_bind = map_extract_recursive(&models->mapping, map, *key_ptr);
-                            
-                            if (cmd_bind.function != 0){
-                                Assert(models->command_coroutine == 0);
-                                Coroutine_Head *command_coroutine = system->create_coroutine(command_caller);
-                                models->command_coroutine = command_coroutine;
-                                
-                                Command_In cmd_in;
-                                cmd_in.models = models;
-                                cmd_in.bind = cmd_bind;
-                                
-                                models->command_coroutine = app_launch_coroutine(system, &models->app_links, Co_Command, models->command_coroutine, &cmd_in, models->command_coroutine_flags);
-                                
-                                models->prev_command = cmd_bind;
-                                
-                                if (keycode != key_animate){
-                                    app_result.animating = true;
-                                }
-                            }
+                            launch_command_via_event(system, &app_result, models, view, *key_ptr);
                         }
                     }break;
                 }

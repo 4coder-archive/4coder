@@ -105,7 +105,7 @@ map_add(Command_Map *map, Key_Code event_code, u8 modifiers, Command_Function *f
         entry = map->commands[index];
     }
     
-    Command_Binding bind = {0};
+    Command_Binding bind = {};
     bind.function = function;
     bind.custom = custom;
     bind.hash = hash;
@@ -205,7 +205,7 @@ map_get_vanilla_keyboard_default(Command_Map *map, u8 command, Command_Binding *
 
 internal Command_Binding
 map_extract(Command_Map *map, Key_Event_Data key){
-    Command_Binding bind = {0};
+    Command_Binding bind = {};
     
     b32 ctrl    = key.modifiers[MDFR_CONTROL_INDEX];
     b32 alt     = key.modifiers[MDFR_ALT_INDEX];
@@ -243,10 +243,10 @@ map_extract_recursive(Mapping *mapping, i32 map_id, Key_Event_Data key){
         map = &mapping->map_top;
     }
     
-    Command_Map *visited_maps[16] = {0};
+    Command_Map *visited_maps[16] = {};
     i32 visited_top = 0;
     
-    Command_Binding cmd_bind = {0};
+    Command_Binding cmd_bind = {};
     for (; map != 0; ){
         cmd_bind = map_extract(map, key);
         if (cmd_bind.function == 0){

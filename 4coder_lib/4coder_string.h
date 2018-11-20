@@ -65,7 +65,7 @@ typedef struct String{
     i32_4tech memory_size;
 } String;
 
-static String null_string = {0};
+static String null_string = {};
 #endif
 
 #if !defined(FCODER_STRING_H)
@@ -551,7 +551,7 @@ substr(String str, i32_4tech start, i32_4tech size)
 FSTRING_LINK String
 skip_whitespace(String str)
 {
-    String result = {0};
+    String result = {};
     i32_4tech i = 0;
     for (; i < str.size && char_is_whitespace(str.str[i]); ++i);
     result = substr(str, i, str.size - i);
@@ -564,7 +564,7 @@ skip_whitespace(String str)
 FSTRING_LINK String
 skip_whitespace_measure(String str, i32_4tech *skip_length)
 {
-    String result = {0};
+    String result = {};
     i32_4tech i = 0;
     for (; i < str.size && char_is_whitespace(str.str[i]); ++i);
     result = substr(str, i, str.size - i);
@@ -577,7 +577,7 @@ skip_whitespace_measure(String str, i32_4tech *skip_length)
 FSTRING_LINK String
 chop_whitespace(String str)
 {
-    String result = {0};
+    String result = {};
     i32_4tech i = str.size;
     for (; i > 0 && char_is_whitespace(str.str[i-1]); --i);
     result = substr(str, 0, i);
@@ -1863,7 +1863,7 @@ typedef struct Float_To_Str_Variables{
 
 static Float_To_Str_Variables
 get_float_vars(float x){
-    Float_To_Str_Variables vars = {0};
+    Float_To_Str_Variables vars = {};
     
     if (x < 0){
         vars.negative = 1;
@@ -2219,7 +2219,7 @@ string_set_match(String *str_set, i32_4tech count, String str, i32_4tech *match_
 #if defined(FSTRING_IMPLEMENTATION)
 FSTRING_LINK String
 get_first_double_line(String source){
-    String line = {0};
+    String line = {};
     i32_4tech pos0 = find_substr_s(source, 0, make_lit_string("\n\n"));
     i32_4tech pos1 = find_substr_s(source, 0, make_lit_string("\r\n\r\n"));
     if (pos1 < pos0){
@@ -2233,7 +2233,7 @@ get_first_double_line(String source){
 #if defined(FSTRING_IMPLEMENTATION)
 FSTRING_LINK String
 get_next_double_line(String source, String line){
-    String next = {0};
+    String next = {};
     i32_4tech pos = (i32_4tech)(line.str - source.str) + line.size;
     i32_4tech start = 0, pos0 = 0, pos1 = 0;
     
@@ -2259,7 +2259,7 @@ get_next_double_line(String source, String line){
 FSTRING_LINK String
 get_next_word(String source, String prev_word){
     
-    String word = {0};
+    String word = {};
     i32_4tech pos0 = (i32_4tech)(prev_word.str - source.str) + prev_word.size;
     i32_4tech pos1 = 0;
     char c = 0;

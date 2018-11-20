@@ -107,10 +107,10 @@ sort_highlight_record(Highlight_Record *records, int32_t first, int32_t one_past
 static Range_Array
 get_enclosure_ranges(Application_Links *app, Partition *part,
                      Buffer_Summary *buffer, int32_t pos, uint32_t flags){
-    Range_Array array = {0};
+    Range_Array array = {};
     array.ranges = push_array(part, Range, 0);
     for (;;){
-        Range range = {0};
+        Range range = {};
         if (find_scope_range(app, buffer, pos, &range, flags)){
             Range *r = push_array(part, Range, 1);
             *r = range;
@@ -147,7 +147,7 @@ mark_enclosures(Application_Links *app, Partition *scratch, Managed_Scope render
         Managed_Object o = alloc_buffer_markers_on_buffer(app, buffer->buffer_id, marker_count, &render_scope);
         managed_object_store_data(app, o, 0, marker_count, markers);
         
-        Marker_Visual_Take_Rule take_rule = {0};
+        Marker_Visual_Take_Rule take_rule = {};
         take_rule.take_count_per_step = 2;
         take_rule.step_stride_in_marker_count = 8;
         
@@ -263,7 +263,7 @@ RENDER_CALLER_SIG(default_render_caller){
     
     // NOTE(allen): Cursor and mark
     Managed_Object cursor_and_mark = alloc_buffer_markers_on_buffer(app, buffer.buffer_id, 2, &render_scope);
-    Marker cm_markers[2] = {0};
+    Marker cm_markers[2] = {};
     cm_markers[0].pos = view.cursor.pos;
     cm_markers[1].pos = view.mark.pos;
     managed_object_store_data(app, cursor_and_mark, 0, 2, cm_markers);
@@ -272,14 +272,14 @@ RENDER_CALLER_SIG(default_render_caller){
         switch (fcoder_mode){
             case FCoderMode_Original:
             {
-                Theme_Color colors[2] = {0};
+                Theme_Color colors[2] = {};
                 colors[0].tag = Stag_Cursor;
                 colors[1].tag = Stag_Mark;
                 get_theme_colors(app, colors, 2);
                 uint32_t cursor_color = colors[0].color;
                 uint32_t mark_color = colors[1].color;
                 
-                Marker_Visual_Take_Rule take_rule = {0};
+                Marker_Visual_Take_Rule take_rule = {};
                 take_rule.first_index = 0;
                 take_rule.take_count_per_step = 1;
                 take_rule.step_stride_in_marker_count = 1;
@@ -302,14 +302,14 @@ RENDER_CALLER_SIG(default_render_caller){
             
             case FCoderMode_NotepadLike:
             {
-                Theme_Color colors[2] = {0};
+                Theme_Color colors[2] = {};
                 colors[0].tag = Stag_Cursor;
                 colors[1].tag = Stag_Highlight;
                 get_theme_colors(app, colors, 2);
                 uint32_t cursor_color = colors[0].color;
                 uint32_t highlight_color = colors[1].color;
                 
-                Marker_Visual_Take_Rule take_rule = {0};
+                Marker_Visual_Take_Rule take_rule = {};
                 take_rule.first_index = 0;
                 take_rule.take_count_per_step = 1;
                 take_rule.step_stride_in_marker_count = 1;
@@ -333,14 +333,14 @@ RENDER_CALLER_SIG(default_render_caller){
     
     // NOTE(allen): Line highlight setup
     if (highlight_line_at_cursor && is_active_view){
-        Theme_Color color = {0};
+        Theme_Color color = {};
         color.tag = Stag_Highlight_Cursor_Line;
         get_theme_colors(app, &color, 1);
         uint32_t line_color = color.color;
         Marker_Visual visual = create_marker_visual(app, cursor_and_mark);
         marker_visual_set_effect(app, visual, VisualType_LineHighlights,
                                  line_color, 0, 0);
-        Marker_Visual_Take_Rule take_rule = {0};
+        Marker_Visual_Take_Rule take_rule = {};
         take_rule.first_index = 0;
         take_rule.take_count_per_step = 1;
         take_rule.step_stride_in_marker_count = 1;
@@ -352,7 +352,7 @@ RENDER_CALLER_SIG(default_render_caller){
     // NOTE(allen): Token highlight setup
     bool32 do_token_highlight = false;
     if (do_token_highlight){
-        Theme_Color color = {0};
+        Theme_Color color = {};
         color.tag = Stag_Cursor;
         get_theme_colors(app, &color, 1);
         uint32_t token_color = (0x50 << 24) | (color.color&0xFFFFFF);
@@ -363,7 +363,7 @@ RENDER_CALLER_SIG(default_render_caller){
         int32_t pos2 = buffer_boundary_seek(app, &buffer, pos1, DirRight, token_flags);
         
         Managed_Object token_highlight = alloc_buffer_markers_on_buffer(app, buffer.buffer_id, 2, &render_scope);
-        Marker range_markers[2] = {0};
+        Marker range_markers[2] = {};
         range_markers[0].pos = pos1;
         range_markers[1].pos = pos2;
         managed_object_store_data(app, token_highlight, 0, 2, range_markers);
@@ -811,7 +811,7 @@ struct Scroll_Velocity{
     float x, y;
 };
 
-Scroll_Velocity scroll_velocity_[16] = {0};
+Scroll_Velocity scroll_velocity_[16] = {};
 Scroll_Velocity *scroll_velocity = scroll_velocity_ - 1;
 
 static int32_t

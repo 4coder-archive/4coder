@@ -603,7 +603,7 @@ Sys_Font_Get_Count_Sig(system_font_get_count){
 
 internal Font_Slot_Page_And_Index
 system_font_get_active_location(Face_ID font_id){
-    Font_Slot_Page_And_Index result = {0};
+    Font_Slot_Page_And_Index result = {};
     
     for (Font_Slot_Page *page = fontvars.slot_pages_sentinel.next;
          page != &fontvars.slot_pages_sentinel;
@@ -640,8 +640,8 @@ Sys_Font_Face_Change_Settings_Sig(system_font_face_change_settings, font_id, new
     
     b32 made_change = false;
     
-    Font_Metrics temp_metrics = {0};
-    Font_Page_Storage temp_pages = {0};
+    Font_Metrics temp_metrics = {};
+    Font_Page_Storage temp_pages = {};
     
     if (font_load(&sysfunc, new_settings, &temp_metrics, &temp_pages)){
         Font_Metrics *metrics_ptr = &page_and_index.page->metrics[page_and_index.index];
@@ -699,7 +699,7 @@ Sys_Font_Get_Name_By_ID_Sig(system_font_get_name_by_id, font_id, str_out, capaci
 
 internal
 Sys_Font_Get_Pointers_By_ID_Sig(system_font_get_pointers_by_id, font_id){
-    Font_Pointers font = {0};
+    Font_Pointers font = {};
     if (font_id == 0){
         return(font);
     }
@@ -725,7 +725,7 @@ Sys_Font_Load_Page_Sig(system_font_load_page, settings, metrics, page, page_numb
 
 internal Font_Setup_List
 system_font_get_local_stubs(Partition *part){
-    Font_Setup_List list = {0};
+    Font_Setup_List list = {};
     
     u32 dir_max = KB(32);
     u8 *directory = push_array(part, u8, dir_max);
@@ -740,7 +740,7 @@ system_font_get_local_stubs(Partition *part){
     partition_reduce(part, dir_max - dir_len - 1);
     partition_align(part, 8);
     
-    File_List file_list = {0};
+    File_List file_list = {};
     system_set_file_list(&file_list, (char*)directory, 0, 0, 0);
     
     for (u32 i = 0; i < file_list.count; ++i){
@@ -751,7 +751,7 @@ system_font_get_local_stubs(Partition *part){
         for (;filename[len];++len);
         
         if (dir_len + len + 1 <= sizeof(list.first->stub.name)){
-            Font_Setup *setup = push_struct(part, Font_Setup);
+            Font_Setup *setup = push_array(part, Font_Setup, 1);
             memset(setup, 0, sizeof(*setup));
             partition_align(part, 8);
             
@@ -846,7 +846,7 @@ system_font_init(Font_Functions *font_links, u32 pt_size, b32 use_hinting, Font_
     
     // Force load one font.
     Font_Setup *first_setup = list.first;
-    Font_Settings first_settings = {0};
+    Font_Settings first_settings = {};
     memcpy(&first_settings.stub, &first_setup->stub, sizeof(first_setup->stub));
     first_settings.parameters.pt_size = pt_size;
     first_settings.parameters.use_hinting = use_hinting;

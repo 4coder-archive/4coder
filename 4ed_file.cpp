@@ -308,7 +308,7 @@ file_compute_cursor(System_Functions *system, Editing_File *file, Buffer_Seek se
     Font_Pointers font = system->font.get_pointers_by_id(file->settings.font_id);
     Assert(font.valid);
     
-    Full_Cursor result = {0};
+    Full_Cursor result = {};
     
     Buffer_Cursor_Seek_Params params;
     params.buffer           = &file->state.buffer;
@@ -321,8 +321,8 @@ file_compute_cursor(System_Functions *system, Editing_File *file, Buffer_Seek se
     params.return_hint      = return_hint;
     params.cursor_out       = &result;
     
-    Buffer_Cursor_Seek_State state = {0};
-    Buffer_Layout_Stop stop = {0};
+    Buffer_Cursor_Seek_State state = {};
+    Buffer_Layout_Stop stop = {};
     
     i32 size = buffer_size(params.buffer);
     
@@ -409,7 +409,7 @@ file_measure_starts(Heap *heap, Gap_Buffer *buffer){
         Assert(buffer->line_starts != 0);
     }
     
-    Buffer_Measure_Starts state = {0};
+    Buffer_Measure_Starts state = {};
     for (;buffer_measure_starts(&state, buffer);){
         i32 count = state.count;
         i32 max = ((buffer->line_max + 1) << 1);

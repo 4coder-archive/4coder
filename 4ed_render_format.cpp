@@ -46,7 +46,7 @@ end_render_section(Render_Target *target, System_Functions *system){
 
 internal void
 draw_rectangle(Render_Target *target, f32_Rect rect, u32 color){
-    Render_Command_Rectangle cmd = {0};
+    Render_Command_Rectangle cmd = {};
     CmdHeader(RenCom_Rectangle);
     cmd.rect = rect;
     cmd.color = color;
@@ -61,7 +61,7 @@ draw_rectangle(Render_Target *target, i32_Rect rect, u32 color){
 
 internal void
 draw_rectangle_outline(Render_Target *target, f32_Rect rect, u32 color){
-    Render_Command_Rectangle cmd = {0};
+    Render_Command_Rectangle cmd = {};
     CmdHeader(RenCom_Outline);
     cmd.rect = rect;
     cmd.color = color;
@@ -130,8 +130,8 @@ draw_string_base(System_Functions *system, Render_Target *target, Face_ID font_i
         u8 *str = (u8*)str_.str;
         u8 *str_end = str + str_.size;
         
-        Translation_State tran = {0};
-        Translation_Emits emits = {0};
+        Translation_State tran = {};
+        Translation_Emits emits = {};
         
         for (u32 i = 0; str < str_end; ++str, ++i){
             translating_fully_process_byte(system, font, &tran, *str, i, str_.size, &emits);

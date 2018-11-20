@@ -170,7 +170,7 @@ struct Font_Cached_Lookup_Result{
 
 internal Font_Cached_Lookup_Result
 font_cached_lookup(Font_Page_Storage *pages, u32 page_number){
-    Font_Cached_Lookup_Result result = {0};
+    Font_Cached_Lookup_Result result = {};
     
     result.index = page_number % ArrayCount(pages->cache);
     if (pages->cache[result.index].page_number == page_number){

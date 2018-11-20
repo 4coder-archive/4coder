@@ -15,11 +15,11 @@
 
 static Get_Positions_Results
 get_function_positions(Application_Links *app, Buffer_Summary *buffer, int32_t token_index, Function_Positions *positions_array, int32_t positions_max){
-    Get_Positions_Results result = {0};
+    Get_Positions_Results result = {};
     
     static const int32_t token_chunk_size = 512;
     Cpp_Token token_chunk[token_chunk_size];
-    Stream_Tokens token_stream = {0};
+    Stream_Tokens token_stream = {};
     
     if (init_stream_tokens(&token_stream, app, buffer, token_index, token_chunk, token_chunk_size)){
         int32_t nest_level = 0;
@@ -171,7 +171,7 @@ print_positions(Application_Links *app, Buffer_Summary *buffer, Function_Positio
         
         static const int32_t sig_chunk_size = 64;
         Cpp_Token sig_chunk[sig_chunk_size];
-        Stream_Tokens sig_stream = {0};
+        Stream_Tokens sig_stream = {};
         if (init_stream_tokens(&sig_stream, app, buffer, local_index, sig_chunk, sig_chunk_size)){
             bool32 still_looping = false;
             do{

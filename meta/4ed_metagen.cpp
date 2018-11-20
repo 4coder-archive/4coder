@@ -54,7 +54,8 @@ M(mouse_right_release) \
 M(mouse_wheel) \
 M(mouse_move) \
 M(animate) \
-M(view_activate) \
+M(click_activate_view) \
+M(click_deactivate_view) \
 M(f1) \
 M(f2) \
 M(f3) \
@@ -326,7 +327,7 @@ struct App_API{
 
 internal App_API
 allocate_app_api(i32 count){
-    App_API app_api = {0};
+    App_API app_api = {};
     app_api.names = fm_push_array(App_API_Name, count);
     memset(app_api.names, 0, sizeof(App_API_Name)*count);
     return(app_api);
@@ -678,7 +679,7 @@ generate_remapping_code_and_data(){
     Temp temp = fm_begin_temp();
     
     // Generate mapping array data structure
-    Mapping_Array mappings_ = {0};
+    Mapping_Array mappings_ = {};
     Mapping_Array *mappings = &mappings_;
     
     begin_mapping(mappings, default, "The default 4coder bindings - typically good for Windows and Linux");
@@ -691,7 +692,7 @@ generate_remapping_code_and_data(){
         
         bind(mappings, 'n', MDFR_CTRL, interactive_new);
         bind(mappings, 'o', MDFR_CTRL, interactive_open_or_new);
-        bind(mappings, 'o', MDFR_ALT, open_in_other);
+        bind(mappings, 'o', MDFR_ALT , open_in_other);
         bind(mappings, 'k', MDFR_CTRL, interactive_kill_buffer);
         bind(mappings, 'i', MDFR_CTRL, interactive_switch_buffer);
         bind(mappings, 'h', MDFR_CTRL, project_go_to_root_directory);
@@ -744,7 +745,7 @@ generate_remapping_code_and_data(){
         bind_vanilla_keys(mappings, MDFR_NONE, write_character);
         
         bind(mappings, key_mouse_left, MDFR_NONE, click_set_cursor_and_mark);
-        bind(mappings, key_view_activate, MDFR_NONE, click_set_cursor_and_mark);
+        bind(mappings, key_click_activate_view, MDFR_NONE, click_set_cursor_and_mark);
         bind(mappings, key_mouse_left_release, MDFR_NONE, click_set_cursor);
         bind(mappings, key_mouse_move, MDFR_NONE, click_set_cursor_if_lbutton);
         
@@ -894,7 +895,6 @@ generate_remapping_code_and_data(){
         bind(mappings, key_page_down, MDFR_NONE, lister__move_down);
         bind(mappings, key_mouse_wheel       , MDFR_NONE, lister__wheel_scroll);
         bind(mappings, key_mouse_left        , MDFR_NONE, lister__mouse_press);
-        bind(mappings, key_view_activate     , MDFR_NONE, lister__mouse_press);
         bind(mappings, key_mouse_left_release, MDFR_NONE, lister__mouse_release);
         bind(mappings, key_mouse_move, MDFR_NONE, lister__repaint);
         bind(mappings, key_animate   , MDFR_NONE, lister__repaint);
@@ -967,7 +967,7 @@ generate_remapping_code_and_data(){
         bind_vanilla_keys(mappings, MDFR_ALT, write_character);
         
         bind(mappings, key_mouse_left, MDFR_NONE, click_set_cursor_and_mark);
-        bind(mappings, key_view_activate, MDFR_NONE, click_set_cursor_and_mark);
+        bind(mappings, key_click_activate_view, MDFR_NONE, click_set_cursor_and_mark);
         bind(mappings, key_mouse_left_release, MDFR_NONE, click_set_cursor);
         bind(mappings, key_mouse_move, MDFR_NONE, click_set_cursor_if_lbutton);
         
@@ -1115,7 +1115,6 @@ generate_remapping_code_and_data(){
         bind(mappings, key_page_down, MDFR_NONE, lister__move_down);
         bind(mappings, key_mouse_wheel       , MDFR_NONE, lister__wheel_scroll);
         bind(mappings, key_mouse_left        , MDFR_NONE, lister__mouse_press);
-        bind(mappings, key_view_activate     , MDFR_NONE, click_set_cursor_and_mark);
         bind(mappings, key_mouse_left_release, MDFR_NONE, lister__mouse_release);
         bind(mappings, key_mouse_move, MDFR_NONE, lister__repaint);
         bind(mappings, key_animate   , MDFR_NONE, lister__repaint);

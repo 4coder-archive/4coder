@@ -111,7 +111,7 @@ parse_context_add_default(Parse_Context_Memory *parse_mem, Heap *heap){
 
 internal Parse_Context
 parse_context_get(Parse_Context_Memory *parse_mem, Parse_Context_ID id, void *mem, umem memsize){
-    Parse_Context result = {0};
+    Parse_Context result = {};
     
     Stored_Parse_Context_Slot *slot = 0;
     if (id == 0){

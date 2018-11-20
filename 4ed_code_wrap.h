@@ -18,7 +18,7 @@ struct Code_Wrap_X{
     i32 paren_safe_top;
     i32 paren_top;
 };
-global Code_Wrap_X null_wrap_x  = {0};
+global Code_Wrap_X null_wrap_x  = {};
 
 struct Code_Wrap_State{
     Cpp_Token_Array token_array;

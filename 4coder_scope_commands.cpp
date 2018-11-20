@@ -41,7 +41,7 @@ find_scope_get_token_type(uint32_t flags, Cpp_Token_Type token_type){
 
 static bool32
 find_scope_top(Application_Links *app, Buffer_Summary *buffer, int32_t start_pos, uint32_t flags, int32_t *end_pos_out){
-    Cpp_Get_Token_Result get_result = {0};
+    Cpp_Get_Token_Result get_result = {};
     
     bool32 success = false;
     int32_t position = 0;
@@ -58,7 +58,7 @@ find_scope_top(Application_Links *app, Buffer_Summary *buffer, int32_t start_pos
         if (token_index >= 0){
             static const int32_t chunk_cap = 512;
             Cpp_Token chunk[chunk_cap];
-            Stream_Tokens stream = {0};
+            Stream_Tokens stream = {};
             
             if (init_stream_tokens(&stream, app, buffer, token_index, chunk, chunk_cap)){int32_t nest_level = 0;
                 bool32 still_looping = false;
@@ -100,7 +100,7 @@ find_scope_top(Application_Links *app, Buffer_Summary *buffer, int32_t start_pos
 
 static bool32
 find_scope_bottom(Application_Links *app, Buffer_Summary *buffer, int32_t start_pos, uint32_t flags, int32_t *end_pos_out){
-    Cpp_Get_Token_Result get_result = {0};
+    Cpp_Get_Token_Result get_result = {};
     
     bool32 success = false;
     int32_t position = 0;
@@ -117,7 +117,7 @@ find_scope_bottom(Application_Links *app, Buffer_Summary *buffer, int32_t start_
         if (token_index >= 0){
             static const int32_t chunk_cap = 512;
             Cpp_Token chunk[chunk_cap];
-            Stream_Tokens stream = {0};
+            Stream_Tokens stream = {};
             
             if (init_stream_tokens(&stream, app, buffer, token_index, chunk, chunk_cap)){
                 int32_t nest_level = 0;
@@ -160,7 +160,7 @@ find_scope_bottom(Application_Links *app, Buffer_Summary *buffer, int32_t start_
 
 static bool32
 find_next_scope(Application_Links *app, Buffer_Summary *buffer, int32_t start_pos, uint32_t flags, int32_t *end_pos_out){
-    Cpp_Get_Token_Result get_result = {0};
+    Cpp_Get_Token_Result get_result = {};
     
     bool32 success = 0;
     int32_t position = 0;
@@ -171,7 +171,7 @@ find_next_scope(Application_Links *app, Buffer_Summary *buffer, int32_t start_po
         if (token_index >= 0){
             static const int32_t chunk_cap = 512;
             Cpp_Token chunk[chunk_cap];
-            Stream_Tokens stream = {0};
+            Stream_Tokens stream = {};
             
             if (init_stream_tokens(&stream, app, buffer, token_index, chunk, chunk_cap)){
                 if (flags & FindScope_NextSibling){
@@ -239,7 +239,7 @@ find_next_scope(Application_Links *app, Buffer_Summary *buffer, int32_t start_po
 
 static bool32
 find_prev_scope(Application_Links *app, Buffer_Summary *buffer, int32_t start_pos, uint32_t flags, int32_t *end_pos_out){
-    Cpp_Get_Token_Result get_result = {0};
+    Cpp_Get_Token_Result get_result = {};
     
     bool32 success = 0;
     int32_t position = 0;
@@ -250,7 +250,7 @@ find_prev_scope(Application_Links *app, Buffer_Summary *buffer, int32_t start_po
         if (token_index >= 0){
             static const int32_t chunk_cap = 512;
             Cpp_Token chunk[chunk_cap];
-            Stream_Tokens stream = {0};
+            Stream_Tokens stream = {};
             
             if (init_stream_tokens(&stream, app, buffer, token_index, chunk, chunk_cap)){
                 if (flags & FindScope_NextSibling){
@@ -318,7 +318,7 @@ find_prev_scope(Application_Links *app, Buffer_Summary *buffer, int32_t start_po
 static bool32
 find_scope_range(Application_Links *app, Buffer_Summary *buffer, int32_t start_pos, Range *range_out,
                  uint32_t flags){
-    Range range = {0};
+    Range range = {};
     if (find_scope_top(app, buffer, start_pos,
                        FindScope_Parent|flags,
                        &range.start)){
@@ -340,8 +340,8 @@ view_set_to_region(Application_Links *app, View_Summary *view, int32_t major_pos
         bottom_major = true;
     }
     
-    Full_Cursor top = {0};
-    Full_Cursor bottom = {0};
+    Full_Cursor top = {};
+    Full_Cursor bottom = {};
     if (view_compute_cursor(app, view, seek_pos(range.min), &top)){
         if (view_compute_cursor(app, view, seek_pos(range.max), &bottom)){
             float top_y = top.wrapped_y;
@@ -389,7 +389,7 @@ CUSTOM_DOC("Finds the scope enclosed by '{' '}' surrounding the cursor and puts 
     View_Summary view = get_active_view(app, access);
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, access);
     
-    Range range = {0};
+    Range range = {};
     if (find_scope_range(app, &buffer, view.cursor.pos, &range, FindScope_Brace)){
         view_set_cursor(app, &view, seek_pos(range.first), true);
         view_set_mark(app, &view, seek_pos(range.end));
@@ -442,7 +442,7 @@ place_begin_and_end_on_own_lines(Application_Links *app, Partition *scratch, cha
     View_Summary view = get_active_view(app, AccessOpen);
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessOpen);
     
-    Range lines = {0};
+    Range lines = {};
     Range range = get_view_range(&view);
     lines.min = buffer_get_line_number(app, &buffer, range.min);
     lines.max = buffer_get_line_number(app, &buffer, range.max);
@@ -742,10 +742,10 @@ find_whole_statement_down(Application_Links *app, Buffer_Summary *buffer, int32_
     int32_t start = pos;
     int32_t end = start;
     
-    Cpp_Get_Token_Result get_result = {0};
+    Cpp_Get_Token_Result get_result = {};
     
     if (buffer_get_token_index(app, buffer, pos, &get_result)){
-        Statement_Parser parser = {0};
+        Statement_Parser parser = {};
         parser.token_index = get_result.token_index;
         
         if (parser.token_index < 0){
@@ -761,7 +761,7 @@ find_whole_statement_down(Application_Links *app, Buffer_Summary *buffer, int32_
         if (init_stream_tokens(&parser.stream, app, buffer, parser.token_index, chunk, chunk_cap)){
             parser.buffer = buffer;
             
-            Cpp_Token end_token = {0};
+            Cpp_Token end_token = {};
             if (parse_statement_down(app, &parser, &end_token)){
                 end = end_token.start + end_token.size;
                 result = true;
@@ -794,7 +794,7 @@ CUSTOM_DOC("If a scope is currently selected, and a statement or block statement
     
     Temp_Memory temp = begin_temp_memory(part);
     if (buffer_get_char(app, &buffer, top) == '{' && buffer_get_char(app, &buffer, bottom-1) == '}'){
-        Range range = {0};
+        Range range = {};
         if (find_whole_statement_down(app, &buffer, bottom, &range.start, &range.end)){
             char *string_space = push_array(part, char, range.end - range.start);
             buffer_read_range(app, &buffer, range.start, range.end, string_space);

@@ -59,12 +59,12 @@ enum{
 };
 static int32_t fcoder_mode = FCoderMode_Original;
 
-static ID_Line_Column_Jump_Location prev_location = {0};
+static ID_Line_Column_Jump_Location prev_location = {};
 
 
-static Config_Data global_config = {0};
+static Config_Data global_config = {};
 
-static char previous_isearch_query[256] = {0};
+static char previous_isearch_query[256] = {};
 
 // BOTTOM
 

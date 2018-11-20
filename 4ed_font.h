@@ -68,7 +68,7 @@ struct Glyph_Bounds{
     f32 xoff, yoff;
     f32 xoff2, yoff2;
 };
-global_const Glyph_Bounds null_glyph_bounds = {0};
+global_const Glyph_Bounds null_glyph_bounds = {};
 
 struct Glyph_Page{
     u32 page_number;

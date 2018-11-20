@@ -101,7 +101,7 @@ struct Used_Links{
     i32 count, max;
 };
 
-internal Item_Node null_item_node = {0};
+internal Item_Node null_item_node = {};
 
 internal String
 str_start_end(char *data, i32 start, i32 end){
@@ -192,7 +192,7 @@ str_alloc(i32 cap){
 
 internal Item_Set
 allocate_item_set(i32 count){
-    Item_Set item_set = {0};
+    Item_Set item_set = {};
     if (count > 0){
         item_set.items = fm_push_array(Item_Node, count);
         item_set.count = count;
@@ -203,7 +203,7 @@ allocate_item_set(i32 count){
 
 internal String
 file_dump(char *filename){
-    String result = {0};
+    String result = {};
     FILE *file = fopen(filename, "rb");
     
     if (file){
@@ -225,7 +225,7 @@ file_dump(char *filename){
 
 internal Parse
 meta_lex(char *filename){
-    Parse result = {0};
+    Parse result = {};
     result.code = file_dump(filename);
     if (result.code.str != 0){
         result.tokens = cpp_make_token_array(1024);
@@ -236,7 +236,7 @@ meta_lex(char *filename){
 
 internal String
 get_first_line(String source){
-    String line = {0};
+    String line = {};
     i32 pos = find_s_char(source, 0, '\n');
     line = substr(source, 0, pos);
     return(line);
@@ -244,7 +244,7 @@ get_first_line(String source){
 
 internal String
 get_next_line(String source, String line){
-    String next = {0};
+    String next = {};
     i32 pos = (i32)(line.str - source.str) + line.size;
     i32 start = 0;
     
@@ -335,7 +335,7 @@ get_doc_string_from_prev(Parse_Context *context, String *doc_string){
 
 internal String
 doc_parse_note(String source, i32 *pos){
-    String result = {0};
+    String result = {};
     
     i32 p = *pos;
     i32 start = p;
@@ -355,7 +355,7 @@ doc_parse_note(String source, i32 *pos){
 
 internal String
 doc_parse_note_string(String source, i32 *pos){
-    String result = {0};
+    String result = {};
     
     Assert(source.str[*pos] == '(');
     
@@ -389,7 +389,7 @@ doc_parse_note_string(String source, i32 *pos){
 
 internal String
 doc_parse_parameter(String source, i32 *pos){
-    String result = {0};
+    String result = {};
     
     i32 p = *pos;
     i32 start = p;
@@ -411,7 +411,7 @@ doc_parse_parameter(String source, i32 *pos){
 
 internal String
 doc_parse_last_parameter(String source, i32 *pos){
-    String result = {0};
+    String result = {};
     
     i32 p = *pos;
     i32 start = p;
@@ -528,7 +528,7 @@ struct_parse_member(Parse_Context *context, Item_Node *member){
     
     Cpp_Token *token = get_token(context);
     
-    String doc_string = {0};
+    String doc_string = {};
     get_doc_string_from_prev(context, &doc_string);
     
     Cpp_Token *start_token = token;
@@ -540,7 +540,7 @@ struct_parse_member(Parse_Context *context, Item_Node *member){
     }
     
     if (token){
-        String name = {0};
+        String name = {};
         Cpp_Token *token_j = 0;
         i32 nest_level = 0;
         
@@ -639,7 +639,7 @@ struct_parse(i32 is_struct, Parse_Context *context, Item_Node *top_member){
     Cpp_Token *start_token = get_token(context);
     Cpp_Token *token = 0;
     
-    String doc_string = {0};
+    String doc_string = {};
     get_doc_string_from_prev(context, &doc_string);
     
     for (; (token = get_token(context)) != 0; get_next_token(context)){
@@ -657,12 +657,12 @@ struct_parse(i32 is_struct, Parse_Context *context, Item_Node *top_member){
             }
         }
         
-        String name = {0};
+        String name = {};
         if (token_j != start_token){
             name = skip_chop_whitespace(get_lexeme(*token_j, context->data));
         }
         
-        String type = {0};
+        String type = {};
         if (is_struct){
             type = make_lit_string("struct");
         }
@@ -718,7 +718,7 @@ typedef_parse(Parse_Context *context, Item_Node *item){
     i32 result = false;
     
     Cpp_Token *token = get_token(context);
-    String doc_string = {0};
+    String doc_string = {};
     get_doc_string_from_prev(context, &doc_string);
     
     Cpp_Token *start_token = token;
@@ -758,7 +758,7 @@ internal i32
 enum_parse(Parse_Context *context, Item_Node *item){
     i32 result = false;
     
-    String parent_doc_string = {0};
+    String parent_doc_string = {};
     get_doc_string_from_prev(context, &parent_doc_string);
     
     Cpp_Token *parent_start_token = get_token(context);
@@ -771,7 +771,7 @@ enum_parse(Parse_Context *context, Item_Node *item){
     }
     
     if (token){
-        String parent_name = {0};
+        String parent_name = {};
         Cpp_Token *token_j = 0;
         
         for (; (token_j = get_token(context)) != 0; get_prev_token(context)){
@@ -798,9 +798,9 @@ enum_parse(Parse_Context *context, Item_Node *item){
                     break;
                 }
                 else if (token->type == CPP_TOKEN_IDENTIFIER){
-                    String doc_string = {0};
-                    String name = {0};
-                    String value = {0};
+                    String doc_string = {};
+                    String name = {};
+                    String value = {};
                     get_doc_string_from_prev(context, &doc_string);
                     
                     name = get_lexeme(*token, context->data);
@@ -866,7 +866,7 @@ enum_parse(Parse_Context *context, Item_Node *item){
 
 internal Argument_Breakdown
 allocate_argument_breakdown(i32 count){
-    Argument_Breakdown breakdown = {0};
+    Argument_Breakdown breakdown = {};
     if (count > 0){
         breakdown.count = count;
         breakdown.args = fm_push_array(Argument, count);
@@ -970,7 +970,7 @@ function_get_doc(Parse_Context *context, char *data, String *doc_string){
     i32 result = false;
     
     Cpp_Token *token = get_token(context);
-    String lexeme = {0};
+    String lexeme = {};
     
     if (function_parse_goto_name(context)){
         if (token->type == CPP_TOKEN_IDENTIFIER){
@@ -1068,7 +1068,7 @@ internal i32
 function_parse(Parse_Context *context, Item_Node *item, String cpp_name){
     i32 result = false;
     
-    String doc_string = {0};
+    String doc_string = {};
     Cpp_Token *token = get_token(context);
     
     item->marker = get_lexeme(*token, context->data);
@@ -1125,7 +1125,7 @@ macro_parse(Parse_Context *context, Item_Node *item){
     Cpp_Token *doc_token = 0;
     Cpp_Token *args_start_token = 0;
     
-    String doc_string = {0};
+    String doc_string = {};
     
     if (macro_parse_check(context)){
         token = get_token(context);
@@ -1189,7 +1189,7 @@ macro_parse(Parse_Context *context, Item_Node *item){
 
 internal Meta_Unit
 compile_meta_unit(char *code_directory, char **files, Meta_Keywords *meta_keywords, i32 key_count){
-    Meta_Unit unit = {0};
+    Meta_Unit unit = {};
     
     i32 file_count = 0;
     for (char **file_ptr = files; *file_ptr; ++file_ptr, ++file_count);
@@ -1255,7 +1255,7 @@ compile_meta_unit(char *code_directory, char **files, Meta_Keywords *meta_keywor
             Parse_Context context_ = setup_parse_context(unit.parse[J]);
             Parse_Context *context = &context_;
             
-            String cpp_name = {0};
+            String cpp_name = {};
             i32 has_cpp_name = 0;
             
             for (; (token = get_token(context)) != 0; get_next_token(context)){

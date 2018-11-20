@@ -191,7 +191,7 @@ interpret_render_buffer(Render_Target *t, Partition *growable_scratch){
                 f32 x = glyph->pos.x;
                 f32 y = glyph->pos.y;
                 
-                f32_Rect xy = {0};
+                f32_Rect xy = {};
                 xy.x0 = x + bounds.xoff;
                 xy.y0 = y + bounds.yoff;
                 xy.x1 = x + bounds.xoff2;
@@ -201,7 +201,7 @@ interpret_render_buffer(Render_Target *t, Partition *growable_scratch){
                 f32 unit_u = 1.f/tex_width;
                 f32 unit_v = 1.f/tex_height;
                 
-                f32_Rect uv = {0};
+                f32_Rect uv = {};
                 uv.x0 = bounds.x0*unit_u;
                 uv.y0 = bounds.y0*unit_v;
                 uv.x1 = bounds.x1*unit_u;

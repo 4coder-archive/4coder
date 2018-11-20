@@ -272,7 +272,7 @@ edit_single__inner(System_Functions *system, Models *models, Editing_File *file,
     file_measure_wraps(system, &models->mem, file, font);
     
     // NOTE(allen): cursor fixing
-    Cursor_Fix_Descriptor desc = {0};
+    Cursor_Fix_Descriptor desc = {};
     desc.start = start;
     desc.end = end;
     desc.shift_amount = shift_amount;
@@ -425,7 +425,7 @@ edit_batch(System_Functions *system, Models *models, Editing_File *file,
     file_measure_wraps(system, &models->mem, file, font);
     
     // NOTE(allen): cursor fixing
-    Cursor_Fix_Descriptor desc = {0};
+    Cursor_Fix_Descriptor desc = {};
     desc.is_batch = 1;
     desc.batch = batch;
     desc.batch_size = batch_size;
@@ -456,7 +456,7 @@ edit_clear(System_Functions *system, Models *models, Editing_File *file){
          panel = panel->next){
         View *view = panel->view;
         if (view->transient.file_data.file == file){
-            Full_Cursor cursor = {0};
+            Full_Cursor cursor = {};
             cursor.line = 1;
             cursor.character = 1;
             cursor.wrap_line = 1;

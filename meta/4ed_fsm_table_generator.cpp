@@ -828,11 +828,11 @@ do_table_reduction(FSM_Tables *table, uint16_t state_count){
 static FSM_Tables
 generate_whitespace_skip_table(){
     uint8_t state_count = LSPP_count;
-    FSM_Tables table = {0};
+    FSM_Tables table = {};
     allocate_full_tables(&table, state_count);
     
     int32_t i = 0;
-    Whitespace_FSM wfsm = {0};
+    Whitespace_FSM wfsm = {};
     Whitespace_FSM new_wfsm;
     for (uint16_t c = 0; c < 256; ++c){
         for (uint8_t state = 0; state < state_count; ++state){
@@ -850,12 +850,12 @@ generate_whitespace_skip_table(){
 
 static FSM_Tables
 generate_table(u8_4tech state_count, FSM_Function *fsm_call){
-    FSM_Tables table = {0};
+    FSM_Tables table = {};
     allocate_full_tables(&table, state_count);
     
     i32_4tech i = 0;
-    Cpp_Lex_FSM fsm = {0};
-    Cpp_Lex_FSM new_fsm = {0};
+    Cpp_Lex_FSM fsm = {};
+    Cpp_Lex_FSM new_fsm = {};
     for (uint16_t c = 0; c < 256; ++c){
         for (u8_4tech state = 0; state < state_count; ++state){
             fsm.state = state;
@@ -887,12 +887,12 @@ generate_table(u8_4tech state_count, FSM_Function *fsm_call){
 static FSM_Tables
 generate_fsm_table(uint8_t pp_state, bool32 ignore_string_delims){
     uint8_t state_count = LS_count;
-    FSM_Tables table = {0};
+    FSM_Tables table = {};
     allocate_full_tables(&table, state_count);
     
     int32_t i = 0;
-    Cpp_Lex_FSM fsm = {0};
-    Cpp_Lex_FSM new_fsm = {0};
+    Cpp_Lex_FSM fsm = {};
+    Cpp_Lex_FSM new_fsm = {};
     for (uint16_t c = 0; c < 256; ++c){
         for (uint8_t state = 0; state < state_count; ++state){
             fsm.state = state;

@@ -11,7 +11,7 @@
 
 inline CLI_List
 make_cli_list(Partition *part, u32 max){
-    CLI_List list = {0};
+    CLI_List list = {};
     partition_align(part, 8);
     list.procs = push_array(part, CLI_Process, max);
     list.max = max;

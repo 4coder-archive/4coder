@@ -128,9 +128,9 @@ Sys_Get_File_Change_Sig(system_get_file_change){
 
 internal File_Data
 sysshared_load_file(char *filename){
-    File_Data result = {0};
+    File_Data result = {};
     
-    Plat_Handle handle = {0};
+    Plat_Handle handle = {};
     if (system_load_handle(filename, &handle)){
         u32 size = system_load_size(handle);
         
@@ -193,10 +193,10 @@ sysshared_partition_grow(Partition *part, i32 new_size){
 
 internal void*
 sysshared_push_block(Partition *part, i32 size){
-    void *result = push_block(part, size);
+    void *result = push_array(part, i8, size);
     if (result == 0){
         sysshared_partition_grow(part, size + part->max);
-        result = push_block(part, size);
+        result = push_array(part, i8, size);
     }
     return(result);
 }

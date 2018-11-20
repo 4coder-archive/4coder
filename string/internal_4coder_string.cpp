@@ -42,7 +42,7 @@ typedef struct String{
     i32_4tech memory_size;
 } String;
 
-static String null_string = {0};
+static String null_string = {};
 #endif
 
 FSTRING_DECLS
@@ -277,7 +277,7 @@ skip_whitespace(String str)
 /* DOC(This call creates a substring that starts with the first non-whitespace character of str.
 Like other substr calls, the new string uses the underlying memory and so should usually be
 considered immutable.) DOC_SEE(substr) */{
-    String result = {0};
+    String result = {};
     i32_4tech i = 0;
     for (; i < str.size && char_is_whitespace(str.str[i]); ++i);
     result = substr(str, i, str.size - i);
@@ -290,7 +290,7 @@ skip_whitespace_measure(String str, i32_4tech *skip_length)
 /* DOC(This call creates a substring that starts with the first non-whitespace character of str.
 Like other substr calls, the new string uses the underlying memory and so should usually be
 considered immutable.) DOC_SEE(substr) */{
-    String result = {0};
+    String result = {};
     i32_4tech i = 0;
     for (; i < str.size && char_is_whitespace(str.str[i]); ++i);
     result = substr(str, i, str.size - i);
@@ -303,7 +303,7 @@ chop_whitespace(String str)
 /* DOC(This call creates a substring that ends with the last non-whitespace character of str.
 Like other substr calls, the new string uses the underlying memory and so should usually be
 considered immutable.) DOC_SEE(substr) */{
-    String result = {0};
+    String result = {};
     i32_4tech i = str.size;
     for (; i > 0 && char_is_whitespace(str.str[i-1]); --i);
     result = substr(str, 0, i);
@@ -1674,7 +1674,7 @@ typedef struct Float_To_Str_Variables{
 
 static Float_To_Str_Variables
 get_float_vars(float x){
-    Float_To_Str_Variables vars = {0};
+    Float_To_Str_Variables vars = {};
     
     if (x < 0){
         vars.negative = 1;
@@ -2042,7 +2042,7 @@ DOC_RETURN(The returned value is the first 'double line' in the source string.)
 DOC(A 'double line' is a string of characters delimited by two new line characters.  This call begins an iteration over all the double lines in the given source string.)
 DOC_SEE(get_next_double_line)
 */{
-    String line = {0};
+    String line = {};
     i32_4tech pos0 = find_substr_s(source, 0, make_lit_string("\n\n"));
     i32_4tech pos1 = find_substr_s(source, 0, make_lit_string("\r\n\r\n"));
     if (pos1 < pos0){
@@ -2059,7 +2059,7 @@ DOC_PARAM(line, the value returned from the previous call of get_first_double_li
 DOC_RETURN(The returned value is the first 'double line' in the source string.)
 DOC_SEE(get_first_double_line)
 */{
-    String next = {0};
+    String next = {};
     i32_4tech pos = (i32_4tech)(line.str - source.str) + line.size;
     i32_4tech start = 0, pos0 = 0, pos1 = 0;
     
@@ -2088,7 +2088,7 @@ DOC_RETURN(The returned value is the first 'word' in the source string.)
 DOC_SEE(get_first_word)
 */{
     
-    String word = {0};
+    String word = {};
     i32_4tech pos0 = (i32_4tech)(prev_word.str - source.str) + prev_word.size;
     i32_4tech pos1 = 0;
     char c = 0;

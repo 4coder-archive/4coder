@@ -82,16 +82,6 @@ ENUM(uint32_t, Memory_Protect_Flags){
     MemProtect_Execute = 0x4,
 };
 
-/* DOC(User_Input_Type_ID specifies a type of user input event.) */
-ENUM(int32_t, User_Input_Type_ID){
-    /* DOC(UserInputNone indicates that no event has occurred.) */
-    UserInputNone = 0,
-    /* DOC(UserInputKey indicates an event which can be described by a Key_Event_Data struct.) */
-    UserInputKey = 1,
-    /* DOC(UserInputMouse indicates an event which can be described by a Mouse_State struct.) */
-    UserInputMouse = 2
-};
-
 /* DOC(A Wrap_Indicator_Mode is used in the buffer setting BufferSetting_WrapIndicator to specify how to indicate that line has been wrapped.) */
 ENUM(int32_t, Wrap_Indicator_Mode){
     /* DOC(WrapIndicator_Hide tells the buffer rendering system not to put any indicator on wrapped lines.) */
@@ -290,25 +280,26 @@ ENUM(uint32_t, Set_Buffer_Flag){
 /* DOC(A Input_Type_Flag field specifies a set of input event types.) */
 ENUM(uint32_t, Input_Type_Flag){
     /* DOC(If EventOnAnyKey is set, all keyboard events are included in the set.) */
-    EventOnAnyKey      = 0x1,
+    EventOnAnyKey  = 0x1,
     /* DOC(If EventOnEsc is set, any press of the escape key is included in the set.) */
-    EventOnEsc         = 0x2,
-    /* DOC(If EventOnLeftButton is set, left clicks are included in the set.) */
-    EventOnLeftButton  = 0x4,
-    /* DOC(If EventOnRightButton is set, right clicks are included in the set.) */
-    EventOnRightButton = 0x8,
-    /* DOC(If EventOnWheel is set, any wheel movement is included in the set.) */
-    EventOnWheel       = 0x10,
-    /* DOC(This is not totally implemented yet.) */
-    EventOnMouseMove   = 0x20,
+    EventOnEsc     = 0x2,
     
-    /* DOC(If EventOnButton is set, all mouse button events are included in the set.) */
-    EventOnButton      = (EventOnLeftButton | EventOnRightButton | EventOnWheel),
-    /* DOC(This is not totally implemented yet.) */
-    EventOnMouse       = (EventOnButton | EventOnMouseMove),
+    /* DOC(If EventOnLeftButton is set, left clicks and releases are included in the set.) */
+    EventOnMouseLeftButton  = 0x4,
+    /* DOC(If EventOnRightButton is set, right clicks and releases are included in the set.) */
+    EventOnMouseRightButton = 0x8,
+    /* DOC(If EventOnWheel is set, any wheel movement is included in the set.) */
+    EventOnMouseWheel       = 0x10,
+    /* DOC(If EventOnMouseMove is set, mouse movement events are included in the set.) */
+    EventOnMouseMove        = 0x20,
+    
+    /* DOC(If EventOnAnimate is set, animate events are included in the set.) */
+    EventOnAnimate        = 0x40,
+    /* DOC(If EventOnViewActivation is set, view activation and deactivation events are included in the set.) */
+    EventOnViewActivation = 0x80,
     
     /* DOC(EventAll is a catch all name for including all possible events in the set.) */
-    EventAll           = 0xFF
+    EventAll = 0xFFFFFFFF,
 };
 
 /* DOC(A Mouse_Cursor_Show_Type value specifes a mode for 4coder to handle the mouse cursor.) */
@@ -360,7 +351,7 @@ DOC_SEE(Key_Modifier) */
 };
 
 // TODO(allen): GLOBAL_VAR meta parsing
-GLOBAL_VAR Key_Event_Data null_key_event_data = {0};
+GLOBAL_VAR Key_Event_Data null_key_event_data = {};
 
 /* DOC(Mouse_State describes an entire mouse state complete with the position, left and right button states, the wheel state, and whether or not the mouse if in the window.) */
 STRUCT Mouse_State{
@@ -386,7 +377,7 @@ STRUCT Mouse_State{
     int32_t y;
 };
 
-GLOBAL_VAR Mouse_State null_mouse_state = {0};
+GLOBAL_VAR Mouse_State null_mouse_state = {};
 
 /* DOC(Range describes an integer range typically used for ranges within a buffer. Ranges are not used to pass into the API, but this struct is used for returns.
 
@@ -640,7 +631,7 @@ STRUCT i32_Rect{
     int32_t y1;
 };
 
-GLOBAL_VAR i32_Rect null_i32_rect = {0};
+GLOBAL_VAR i32_Rect null_i32_rect = {};
 
 /*
 DOC(A four corner axis aligned rectangle, with floating point coordinates.)
@@ -652,7 +643,7 @@ STRUCT f32_Rect{
     float y1;
 };
 
-GLOBAL_VAR f32_Rect null_f32_rect = {0};
+GLOBAL_VAR f32_Rect null_f32_rect = {};
 
 /* DOC(View_Summary acts as a handle to a view and describes the state of the view.)
 DOC_SEE(Access_Flag)
@@ -1027,25 +1018,20 @@ UNION Generic_Command{
 
 
 /*
-DOC(User_Input describes a user input event which can be either a key press or mouse event.)
-DOC_SEE(User_Input_Type_ID)
+DOC(User_Input describes an event, such as key presses, mouse button presses, mouse moves,
+and also non-input related events like animation frames, and view activation changes.)
 DOC_SEE(Generic_Command)
 DOC_SEE(Key_Event_Data)
-DOC_SEE(Mouse_State)
 */
 STRUCT User_Input{
-    /* DOC(This field specifies whether the event was a key press or mouse event.) */
-    User_Input_Type_ID type;
-    /* DOC(This field indicates that an abort event has occurred and the command needs to shut down.) */
-    bool32 abort;
-    UNION{
-        /* DOC(This field describes a key press event.) */
-        Key_Event_Data key;
-        /* DOC(This field describes a mouse input event.) */
-        Mouse_State mouse;
-    };
+    /* DOC(The description of the event.) */
+    Key_Event_Data key;
     /* DOC(If this event would trigger a command, this field specifies what the command would be.) */
     Generic_Command command;
+    /* DOC(This field indicates that an abort event has occurred and the command needs to shut down.
+This can be set even if key and command are also set, in which case the command still needs to abort, and the key and command simply reflect
+what event triggered the abort event.) */
+    bool32 abort;
 };
 
 /*

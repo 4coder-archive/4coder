@@ -167,7 +167,7 @@ CUSTOM_DOC("Looks for a build.bat, build.sh, or makefile in the current and pare
 
 static View_Summary
 get_or_open_build_panel(Application_Links *app){
-    View_Summary view = {0};
+    View_Summary view = {};
     Buffer_Summary buffer = GET_COMP_BUFFER(app);
     if (buffer.exists){
         view = get_first_view_with_buffer(app, buffer.buffer_id);

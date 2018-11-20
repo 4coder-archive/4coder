@@ -14,7 +14,7 @@ get_numeric_string_at_cursor(Application_Links *app, Buffer_Summary *buffer, int
     if (char_is_numeric(current)){
         char chunk[1024];
         int32_t chunk_size = sizeof(chunk);
-        Stream_Chunk stream = {0};
+        Stream_Chunk stream = {};
         
         int32_t pos = start_pos;
         
@@ -97,7 +97,7 @@ CUSTOM_DOC("Increment an integer under the cursor by one.")
     View_Summary view = get_active_view(app, AccessOpen);
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessOpen);
     
-    Miblo_Number_Info number = {0};
+    Miblo_Number_Info number = {};
     if (get_numeric_at_cursor(app, &buffer, view.cursor.pos, &number)){
         char str_space[1024];
         String str = make_fixed_width_string(str_space);
@@ -113,7 +113,7 @@ CUSTOM_DOC("Decrement an integer under the cursor by one.")
     View_Summary view = get_active_view(app, AccessOpen);
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessOpen);
     
-    Miblo_Number_Info number = {0};
+    Miblo_Number_Info number = {};
     if (get_numeric_at_cursor(app, &buffer, view.cursor.pos, &number)){
         char str_space[1024];
         String str = make_fixed_width_string(str_space);
@@ -135,7 +135,7 @@ get_timestamp_string_at_cursor(Application_Links *app, Buffer_Summary *buffer, i
     if (char_is_numeric(current) || current == ':'){
         char chunk[1024];
         int32_t chunk_size = sizeof(chunk);
-        Stream_Chunk stream = {0};
+        Stream_Chunk stream = {};
         
         int32_t pos = start_pos;
         
@@ -188,7 +188,7 @@ struct Miblo_Timestamp{
     int32_t minute;
     int32_t hour;
 };
-static Miblo_Timestamp null_miblo_timestamp = {0};
+static Miblo_Timestamp null_miblo_timestamp = {};
 
 enum{
     MIBLO_SECOND,
@@ -298,7 +298,7 @@ get_timestamp_at_cursor(Application_Links *app, Buffer_Summary *buffer, int32_t 
             }
             
             if (count_colons == 1 || count_colons == 2){
-                Miblo_Timestamp t = {0};
+                Miblo_Timestamp t = {};
                 
                 int32_t success = 0;
                 
@@ -362,7 +362,7 @@ miblo_time_stamp_alter(Application_Links *app, int32_t unit_type, int32_t amt){
     View_Summary view = get_active_view(app, AccessOpen);
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessOpen);
     
-    Miblo_Timestamp_Info timestamp = {0};
+    Miblo_Timestamp_Info timestamp = {};
     if (get_timestamp_at_cursor(app, &buffer, view.cursor.pos, &timestamp)){
         char str_space[1024];
         String str = make_fixed_width_string(str_space);

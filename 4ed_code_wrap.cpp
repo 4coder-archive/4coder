@@ -42,12 +42,12 @@ wrap_state_set_top(Code_Wrap_State *state, f32 line_shift){
 
 internal Code_Wrap_Step
 wrap_state_consume_token(System_Functions *system, Font_Pointers font, Code_Wrap_State *state, i32 fixed_end_point){
-    Code_Wrap_Step result = {0};
+    Code_Wrap_Step result = {};
     i32 i = state->i;
     
     result.position_start = i;
     
-    Cpp_Token token = {0};
+    Cpp_Token token = {};
     
     token.start = state->size;
     if (state->token_ptr < state->end_token){
@@ -374,11 +374,11 @@ stickieness_guess(Cpp_Token_Type type, Cpp_Token_Type other_type, u16 flags, u16
 
 internal Wrap_Current_Shift
 get_current_shift(Code_Wrap_State *wrap_state, i32 next_line_start){
-    Wrap_Current_Shift result = {0};
+    Wrap_Current_Shift result = {};
     
     result.shift = wrap_state->wrap_x.paren_nesting[wrap_state->wrap_x.paren_safe_top];
     
-    Cpp_Token next_token = {0};
+    Cpp_Token next_token = {};
     if (wrap_state->token_ptr < wrap_state->end_token){
         next_token = *wrap_state->token_ptr;
     }
@@ -456,8 +456,8 @@ file_measure_wraps(System_Functions *system, Mem_Options *mem, Editing_File *fil
     
     i32 size = buffer_size(params.buffer);
     
-    Buffer_Measure_Wrap_State state = {0};
-    Buffer_Layout_Stop stop = {0};
+    Buffer_Measure_Wrap_State state = {};
+    Buffer_Layout_Stop stop = {};
     
     f32 edge_tolerance = 50.f;
     edge_tolerance = clamp_top(edge_tolerance, 50.f);
@@ -469,7 +469,7 @@ file_measure_wraps(System_Functions *system, Mem_Options *mem, Editing_File *fil
     i32 wrap_position_index = 0;
     file->state.wrap_positions[wrap_position_index++] = 0;
     
-    Code_Wrap_State wrap_state = {0};
+    Code_Wrap_State wrap_state = {};
     
     b32 use_tokens = false;
     
@@ -511,9 +511,9 @@ file_measure_wraps(System_Functions *system, Mem_Options *mem, Editing_File *fil
                     }
                 }
                 else{
-                    Translation_State tran = {0};
-                    Translation_Emits emits = {0};
-                    Gap_Buffer_Stream stream = {0};
+                    Translation_State tran = {};
+                    Translation_Emits emits = {};
+                    Gap_Buffer_Stream stream = {};
                     
                     i32 word_stage = 0;
                     i32 i = stop.pos;
@@ -614,7 +614,7 @@ file_measure_wraps(System_Functions *system, Mem_Options *mem, Editing_File *fil
                         wrap_state.wrap_x.base_x = wrap_state.wrap_x.paren_nesting[0];
                         
                         for (; wrap_state.token_ptr < wrap_state.end_token; ){
-                            Code_Wrap_Step step = {0};
+                            Code_Wrap_Step step = {};
                             b32 emit_comment_position = false;
                             b32 first_word = true;
                             
@@ -636,11 +636,11 @@ file_measure_wraps(System_Functions *system, Mem_Options *mem, Editing_File *fil
                                 step.start_x = x;
                                 step.this_token = wrap_state.token_ptr;
                                 
-                                Gap_Buffer_Stream stream = {0};
-                                Translation_State tran = {0};
-                                Translation_Emits emits = {0};
+                                Gap_Buffer_Stream stream = {};
+                                Translation_State tran = {};
+                                Translation_Emits emits = {};
                                 
-                                Potential_Wrap_Indent_Pair potential_wrap = {0};
+                                Potential_Wrap_Indent_Pair potential_wrap = {};
                                 potential_wrap.wrap_position = i;
                                 potential_wrap.line_shift = x;
                                 potential_wrap.wrappable_score = 5;

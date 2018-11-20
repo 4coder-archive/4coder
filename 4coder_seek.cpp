@@ -8,7 +8,7 @@ static int32_t
 seek_line_end(Application_Links *app, Buffer_Summary *buffer, int32_t pos){
     char chunk[1024];
     int32_t chunk_size = sizeof(chunk);
-    Stream_Chunk stream = {0};
+    Stream_Chunk stream = {};
     
     int32_t still_looping;
     char at_pos;
@@ -38,7 +38,7 @@ static int32_t
 seek_line_beginning(Application_Links *app, Buffer_Summary *buffer, int32_t pos){
     char chunk[1024];
     int32_t chunk_size = sizeof(chunk);
-    Stream_Chunk stream = {0};
+    Stream_Chunk stream = {};
     
     int32_t still_looping;
     char at_pos;
@@ -74,7 +74,7 @@ move_past_lead_whitespace(Application_Links *app, View_Summary *view, Buffer_Sum
     
     int32_t new_pos = seek_line_beginning(app, buffer, view->cursor.pos);
     char space[1024];
-    Stream_Chunk chunk = {0};
+    Stream_Chunk chunk = {};
     int32_t still_looping = false;
     
     int32_t i = new_pos;
@@ -100,7 +100,7 @@ static int32_t
 buffer_seek_whitespace_up(Application_Links *app, Buffer_Summary *buffer, int32_t pos){
     char chunk[1024];
     int32_t chunk_size = sizeof(chunk);
-    Stream_Chunk stream = {0};
+    Stream_Chunk stream = {};
     
     char at_pos;
     
@@ -157,7 +157,7 @@ static int32_t
 buffer_seek_whitespace_down(Application_Links *app, Buffer_Summary *buffer, int32_t pos){
     char chunk[1024];
     int32_t chunk_size = sizeof(chunk);
-    Stream_Chunk stream = {0};
+    Stream_Chunk stream = {};
     
     if (init_stream_chunk(&stream, app, buffer, pos, chunk, chunk_size)){
         // step 1: find the first non-whitespace character
@@ -215,7 +215,7 @@ buffer_seek_whitespace_down(Application_Links *app, Buffer_Summary *buffer, int3
 static int32_t
 buffer_seek_whitespace_right(Application_Links *app, Buffer_Summary *buffer, int32_t pos){
     char data_chunk[1024];
-    Stream_Chunk stream = {0};
+    Stream_Chunk stream = {};
     
     if (init_stream_chunk(&stream, app, buffer, pos, data_chunk, sizeof(data_chunk))){
         
@@ -248,7 +248,7 @@ buffer_seek_whitespace_right(Application_Links *app, Buffer_Summary *buffer, int
 static int32_t
 buffer_seek_whitespace_left(Application_Links *app, Buffer_Summary *buffer, int32_t pos){
     char data_chunk[1024];
-    Stream_Chunk stream = {0};
+    Stream_Chunk stream = {};
     
     --pos;
     if (pos > 0){
@@ -289,7 +289,7 @@ buffer_seek_whitespace_left(Application_Links *app, Buffer_Summary *buffer, int3
 static int32_t
 buffer_seek_alphanumeric_right(Application_Links *app, Buffer_Summary *buffer, int32_t pos){
     char data_chunk[1024];
-    Stream_Chunk stream = {0};
+    Stream_Chunk stream = {};
     
     if (init_stream_chunk(&stream, app, buffer, pos, data_chunk, sizeof(data_chunk))){
         
@@ -322,7 +322,7 @@ buffer_seek_alphanumeric_right(Application_Links *app, Buffer_Summary *buffer, i
 static int32_t
 buffer_seek_alphanumeric_left(Application_Links *app, Buffer_Summary *buffer, int32_t pos){
     char data_chunk[1024];
-    Stream_Chunk stream = {0};
+    Stream_Chunk stream = {};
     
     --pos;
     if (pos > 0){
@@ -361,7 +361,7 @@ buffer_seek_alphanumeric_left(Application_Links *app, Buffer_Summary *buffer, in
 static int32_t
 buffer_seek_alphanumeric_or_underscore_right(Application_Links *app, Buffer_Summary *buffer, int32_t pos){
     char data_chunk[1024];
-    Stream_Chunk stream = {0};
+    Stream_Chunk stream = {};
     
     if (init_stream_chunk(&stream, app, buffer, pos, data_chunk, sizeof(data_chunk))){
         bool32 still_looping = true;
@@ -393,7 +393,7 @@ buffer_seek_alphanumeric_or_underscore_right(Application_Links *app, Buffer_Summ
 static int32_t
 buffer_seek_alphanumeric_or_underscore_left(Application_Links *app, Buffer_Summary *buffer, int32_t pos){
     char data_chunk[1024];
-    Stream_Chunk stream = {0};
+    Stream_Chunk stream = {};
     
     --pos;
     if (pos > 0){
@@ -433,7 +433,7 @@ buffer_seek_alphanumeric_or_underscore_left(Application_Links *app, Buffer_Summa
 static int32_t
 buffer_seek_range_camel_right(Application_Links *app, Buffer_Summary *buffer, int32_t pos, int32_t an_pos){
     char data_chunk[1024];
-    Stream_Chunk stream = {0};
+    Stream_Chunk stream = {};
     
     ++pos;
     if (pos < an_pos){
@@ -467,7 +467,7 @@ buffer_seek_range_camel_right(Application_Links *app, Buffer_Summary *buffer, in
 static int32_t
 buffer_seek_range_camel_left(Application_Links *app, Buffer_Summary *buffer, int32_t pos, int32_t an_pos){
     char data_chunk[1024];
-    Stream_Chunk stream = {0};
+    Stream_Chunk stream = {};
     
     --pos;
     if (pos > 0){
@@ -542,7 +542,7 @@ seek_token_right(Cpp_Token_Array *tokens, int32_t pos){
 
 static Cpp_Token_Array
 buffer_get_all_tokens(Application_Links *app, Partition *part, Buffer_Summary *buffer){
-    Cpp_Token_Array array = {0};
+    Cpp_Token_Array array = {};
     
     if (buffer->exists && buffer->is_lexed){
         array.count = buffer_token_count(app, buffer);
@@ -674,7 +674,7 @@ buffer_seek_delimiter_forward(Application_Links *app, Buffer_Summary *buffer, in
     if (buffer->exists){
         char chunk[1024];
         int32_t size = sizeof(chunk);
-        Stream_Chunk stream = {0};
+        Stream_Chunk stream = {};
         
         if (init_stream_chunk(&stream, app, buffer, pos, chunk, size)){
             int32_t still_looping = 1;
@@ -701,7 +701,7 @@ buffer_seek_delimiter_backward(Application_Links *app, Buffer_Summary *buffer, i
     if (buffer->exists){
         char chunk[1024];
         int32_t size = sizeof(chunk);
-        Stream_Chunk stream = {0};
+        Stream_Chunk stream = {};
         
         if (init_stream_chunk(&stream, app, buffer, pos, chunk, size)){
             int32_t still_looping = 1;
@@ -746,7 +746,7 @@ buffer_seek_string_forward(Application_Links *app, Buffer_Summary *buffer, int32
             read_str.size = size;
             
             char chunk[1024];
-            Stream_Chunk stream = {0};
+            Stream_Chunk stream = {};
             stream.max_end = end;
             
             if (init_stream_chunk(&stream, app, buffer, pos, chunk, sizeof(chunk))){
@@ -795,7 +795,7 @@ buffer_seek_string_backward(Application_Links *app, Buffer_Summary *buffer, int3
             read_str.size = size;
             
             char chunk[1024];
-            Stream_Chunk stream = {0};
+            Stream_Chunk stream = {};
             stream.min_start = min;
             
             if (init_stream_chunk(&stream, app, buffer, pos, chunk, sizeof(chunk))){
@@ -828,7 +828,7 @@ buffer_seek_string_insensitive_forward(Application_Links *app, Buffer_Summary *b
     char read_buffer[512];
     char chunk[1024];
     int32_t chunk_size = sizeof(chunk);
-    Stream_Chunk stream = {0};
+    Stream_Chunk stream = {};
     stream.max_end = end;
     
     if (buffer->size > end){
@@ -876,7 +876,7 @@ buffer_seek_string_insensitive_backward(Application_Links *app, Buffer_Summary *
     char read_buffer[512];
     char chunk[1024];
     int32_t chunk_size = sizeof(chunk);
-    Stream_Chunk stream = {0};
+    Stream_Chunk stream = {};
     stream.min_start = min;
     
     *result = min-1;
@@ -941,8 +941,8 @@ buffer_seek_string(Application_Links *app, Buffer_Summary *buffer, int32_t pos, 
 
 static bool32
 buffer_line_is_blank(Application_Links *app, Buffer_Summary *buffer, int32_t line){
-    Partial_Cursor start = {0};
-    Partial_Cursor end = {0};
+    Partial_Cursor start = {};
+    Partial_Cursor end = {};
     bool32 result = false;
     if (line <= buffer->line_count){
         buffer_compute_cursor(app, buffer, seek_line_char(line, 1), &start);
@@ -950,7 +950,7 @@ buffer_line_is_blank(Application_Links *app, Buffer_Summary *buffer, int32_t lin
         
         static const int32_t chunk_size = 1024;
         char chunk[chunk_size];
-        Stream_Chunk stream = {0};
+        Stream_Chunk stream = {};
         int32_t i = start.pos;
         stream.max_end = end.pos;
         
@@ -975,7 +975,7 @@ buffer_line_is_blank(Application_Links *app, Buffer_Summary *buffer, int32_t lin
 
 static String
 read_identifier_at_pos(Application_Links *app, Buffer_Summary *buffer, int32_t pos, char *space, int32_t max, Range *range_out){
-    String query = {0};
+    String query = {};
     
     int32_t start = buffer_seek_alphanumeric_or_underscore_left(app, buffer, pos);
     int32_t end = buffer_seek_alphanumeric_or_underscore_right(app, buffer, start);

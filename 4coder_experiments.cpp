@@ -14,7 +14,7 @@
 
 static float
 get_line_y(Application_Links *app, View_Summary *view, int32_t line){
-    Full_Cursor cursor = {0};
+    Full_Cursor cursor = {};
     view_compute_cursor(app, view, seek_line_char(line, 1), &cursor);
     float y = cursor.wrapped_y;
     if (view->unwrapped_lines){
@@ -38,7 +38,7 @@ CUSTOM_DOC("Delete characters in a rectangular region. Range testing is done by 
         int32_t end = 0;
         
         bool32 success = 1;
-        Full_Cursor cursor = {0};
+        Full_Cursor cursor = {};
         
         float y = get_line_y(app, &view, line);
         
@@ -60,8 +60,8 @@ CUSTOM_DOC("Delete characters in a rectangular region. Range testing is done by 
 
 static void
 pad_buffer_line(Application_Links *app, Partition *part, Buffer_Summary *buffer, int32_t line, char padchar, int32_t target){
-    Partial_Cursor start = {0};
-    Partial_Cursor end = {0};
+    Partial_Cursor start = {};
+    Partial_Cursor end = {};
     
     if (buffer_compute_cursor(app, buffer, seek_line_char(line, 1), &start)){
         if (buffer_compute_cursor(app, buffer, seek_line_char(line, 65536), &end)){
@@ -145,7 +145,7 @@ CUSTOM_DOC("Begin multi-line mode.  In multi-line mode characters are inserted a
             Buffer_Edit *edits = edit;
             
             for (int32_t i = rect.line0; i <= rect.line1; ++i){
-                Partial_Cursor cursor = {0};
+                Partial_Cursor cursor = {};
                 
                 if (buffer_compute_cursor(app, &buffer, seek_line_char(i, pos+1), &cursor)){
                     edit->str_start = 0;
@@ -173,7 +173,7 @@ CUSTOM_DOC("Begin multi-line mode.  In multi-line mode characters are inserted a
                 Buffer_Edit *edits = edit;
                 
                 for (int32_t i = rect.line0; i <= rect.line1; ++i){
-                    Partial_Cursor cursor = {0};
+                    Partial_Cursor cursor = {};
                     
                     if (buffer_compute_cursor(app, &buffer, seek_line_char(i, pos+1), &cursor)){
                         edit->str_start = 0;
@@ -300,18 +300,18 @@ static void
 multi_paste_interactive_up_down(Application_Links *app, int32_t paste_count, int32_t clip_count){
     View_Summary view = get_active_view(app, AccessOpen);
     
-    Range range = {0};
+    Range range = {};
     range.min = range.max = view.cursor.pos;
     
     bool32 old_to_new = true;
     
     range = multi_paste_range(app, &view, range, paste_count, old_to_new);
     
-    Query_Bar bar = {0};
+    Query_Bar bar = {};
     bar.prompt = make_lit_string("Up and Down to condense and expand paste stages; R to reverse order; Return to finish; Escape to abort.");
     if (start_query_bar(app, &bar, 0) == 0) return;
     
-    User_Input in = {0};
+    User_Input in = {};
     for (;;){
         in = get_user_input(app, EventOnAnyKey, EventOnEsc);
         if (in.abort) break;
@@ -360,7 +360,7 @@ CUSTOM_COMMAND_SIG(multi_paste_interactive_quick){
     int32_t clip_count = clipboard_count(app, 0);
     if (clip_count > 0){
         char string_space[256];
-        Query_Bar bar = {0};
+        Query_Bar bar = {};
         bar.prompt = make_lit_string("How Many Slots To Paste: ");
         bar.string = make_fixed_width_string(string_space);
         query_user_number(app, &bar);
@@ -397,7 +397,7 @@ CUSTOM_DOC("If the cursor is found to be on the name of a function parameter in 
         if (!result.in_whitespace){
             static const int32_t stream_space_size = 512;
             Cpp_Token stream_space[stream_space_size];
-            Stream_Tokens stream = {0};
+            Stream_Tokens stream = {};
             
             if (init_stream_tokens(&stream, app, &buffer, result.token_index, stream_space, stream_space_size)){
                 int32_t token_index = result.token_index;
@@ -554,7 +554,7 @@ write_explicit_enum_values_parameters(Application_Links *app, Write_Explicit_Enu
     if (buffer_get_token_index(app, &buffer, view.cursor.pos, &result)){
         if (!result.in_whitespace){
             Cpp_Token stream_space[32];
-            Stream_Tokens stream = {0};
+            Stream_Tokens stream = {};
             
             if (init_stream_tokens(&stream, app, &buffer, result.token_index, stream_space, 32)){
                 int32_t token_index = result.token_index;
@@ -725,8 +725,8 @@ replace_all_occurrences_parameters(Application_Links *app, Heap *heap, Partition
     for (bool32 got_all_occurrences = false;
          !got_all_occurrences;){
         // Initialize a generic search all buffers
-        Search_Set set = {0};
-        Search_Iter iter = {0};
+        Search_Set set = {};
+        Search_Iter iter = {};
         initialize_generic_search_all_buffers(app, heap, &target_string, 1, SearchFlag_MatchSubstring, 0, 0, &set, &iter);
         
         // Visit all locations and create replacement list

@@ -96,7 +96,7 @@ save_build_number(char *file_name, i32 major, i32 minor, i32 build){
 
 internal void
 print_function_body_code(String *out, Parse_Context *context, i32 start){
-    String pstr = {0}, lexeme = {0};
+    String pstr = {}, lexeme = {};
     Cpp_Token *token = 0;
     
     i32 do_print = 0;
@@ -223,7 +223,7 @@ int main(){
     
     append(&out, "*/\n");
     
-    String pstr = {0};
+    String pstr = {};
     i32 do_whitespace_print = true;
     
     for(;(token = get_next_token(&pcontext)) != 0;){

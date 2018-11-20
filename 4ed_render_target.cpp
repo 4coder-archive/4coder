@@ -45,7 +45,7 @@ render_internal_push_clip(Render_Target *t, i32_Rect clip_box){
     
     // TODO(allen): If the previous command was also a push clip should
     // undo that one and just do this one. (OPTIMIZATION).
-    Render_Command_Change_Clip cmd = {0};
+    Render_Command_Change_Clip cmd = {};
     cmd.header.size = sizeof(cmd);
     cmd.header.type = RenCom_ChangeClip;
     cmd.box = clip_box;

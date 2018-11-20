@@ -31,7 +31,7 @@ mac_default_keys(Bind_Helper *context){
 
 static Bind_Helper
 get_context_on_global_part(void){
-    Bind_Helper result = {0};
+    Bind_Helper result = {};
     int32_t size = (1 << 20);
     for (;;){
         void *data = push_array(&global_part, char, size);

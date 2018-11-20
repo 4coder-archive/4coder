@@ -466,7 +466,7 @@ Sys_Font_Path(name, parameters){
         fc_config = FcInitLoadConfigAndFonts();
     }
     
-    Font_Path path = {0};
+    Font_Path path = {};
     
     FcPattern *pattern_regular = FcPatternBuild(
         0,
@@ -833,7 +833,7 @@ struct glx_config_result{
 internal glx_config_result
 ChooseGLXConfig(Display *XDisplay, int XScreenIndex)
 {
-    glx_config_result Result = {0};
+    glx_config_result Result = {};
     
     int DesiredAttributes[] = {
         GLX_X_RENDERABLE    , True,
@@ -881,7 +881,7 @@ struct Init_Input_Result{
     XIMStyle best_style;
     XIC xic;
 };
-static Init_Input_Result null_init_input_result = {0};
+static Init_Input_Result null_init_input_result = {};
 
 internal Init_Input_Result
 LinuxInputInit(Display *dpy, Window XWindow){
@@ -1385,7 +1385,7 @@ LinuxHandleX11Events(void)
                 u32 key_no_caps = key;
                 
                 if (mods[MDFR_CAPS_INDEX] && status == XLookupBoth && event.xkey.keycode){
-                    u8 buff_no_caps[32] = {0};
+                    u8 buff_no_caps[32] = {};
                     event.xkey.state &= ~(LockMask);
                     
                     Xutf8LookupString(linuxvars.input_context, &event.xkey, (char*)buff_no_caps, sizeof(buff_no_caps) - 1, NULL, &status);
@@ -2087,7 +2087,7 @@ main(int argc, char **argv){
             
             // NOTE(allen): Application Core Update
             target.buffer.pos = 0;
-            Application_Step_Result result = {0};
+            Application_Step_Result result = {};
             if (app.step != 0){
                 result = app.step(&sysfunc, &target, &memory_vars, &frame_input);
             }

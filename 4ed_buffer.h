@@ -45,7 +45,7 @@ struct Gap_Buffer_Stream{
     b32 use_termination_character;
     char terminator;
 };
-global Gap_Buffer_Stream null_buffer_stream = {0};
+global Gap_Buffer_Stream null_buffer_stream = {};
 
 struct Buffer_Batch_State{
     i32 i;

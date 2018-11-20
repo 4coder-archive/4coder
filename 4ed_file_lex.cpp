@@ -36,7 +36,7 @@ Job_Callback_Sig(job_full_lex){
     data_ptr += parse_context.memory_size;
     data_size -= parse_context.memory_size;
     
-    Cpp_Token_Array tokens = {0};
+    Cpp_Token_Array tokens = {};
     tokens.tokens = (Cpp_Token*)(data_ptr);
     tokens.max_count = (u32)(data_size / sizeof(Cpp_Token));
     tokens.count = 0;
@@ -191,7 +191,7 @@ file_first_lex_serial(Models *models, Editing_File *file){
             
             Parse_Context parse_context = parse_context_get(&models->parse_context_memory, file->settings.parse_context_id, partition_current(part), partition_remaining(part));
             Assert(parse_context.valid);
-            push_block(part, (i32)parse_context.memory_size);
+            push_array(part, char, (i32)parse_context.memory_size);
             
             Gap_Buffer *buffer = &file->state.buffer;
             i32 text_size = buffer_size(buffer);
@@ -312,7 +312,7 @@ file_relex_parallel(System_Functions *system, Models *models, Editing_File *file
         Temp_Memory temp = begin_temp_memory(part);
         Parse_Context parse_context = parse_context_get(&models->parse_context_memory, file->settings.parse_context_id, partition_current(part), partition_remaining(part));
         Assert(parse_context.valid);
-        push_block(part, (i32)parse_context.memory_size);
+        push_array(part, char, (i32)parse_context.memory_size);
         
         Cpp_Token_Array relex_array;
         relex_array.count = 0;
@@ -443,7 +443,7 @@ file_relex_serial(Models *models, Editing_File *file, i32 start_i, i32 end_i, i3
     Temp_Memory temp = begin_temp_memory(part);
     Parse_Context parse_context = parse_context_get(&models->parse_context_memory, file->settings.parse_context_id, partition_current(part), partition_remaining(part));
     Assert(parse_context.valid);
-    push_block(part, (i32)parse_context.memory_size);
+    push_array(part, char, (i32)parse_context.memory_size);
     
     Cpp_Token_Array relex_array;
     relex_array.count = 0;

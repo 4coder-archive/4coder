@@ -329,7 +329,7 @@ Sys_Load_Size_Sig(system_load_size){
     u32 result = 0;
     
     i32 fd = *(i32*)&handle;
-    struct stat st = {0};
+    struct stat st = {};
     
     if (fstat(fd, &st) == -1){
         LOGF("unable to stat a file\n");

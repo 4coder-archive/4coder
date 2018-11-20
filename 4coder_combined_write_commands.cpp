@@ -193,7 +193,7 @@ snippet_lister__parameterized(Application_Links *app, Snippet_Array snippet_arra
 CUSTOM_COMMAND_SIG(snippet_lister)
 CUSTOM_DOC("Opens a snippet lister for inserting whole pre-written snippets of text.")
 {
-    Snippet_Array snippet_array = {0};
+    Snippet_Array snippet_array = {};
     snippet_array.snippets = default_snippets;
     snippet_array.count = ArrayCount(default_snippets);
     snippet_lister__parameterized(app, snippet_array);

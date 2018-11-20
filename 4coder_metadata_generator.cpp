@@ -33,7 +33,7 @@ line_column_coordinates(String text, int32_t pos){
         pos = text.size;
     }
     
-    Line_Column_Coordinates coords = {0};
+    Line_Column_Coordinates coords = {};
     coords.line = 1;
     coords.column = 1;
     char *end = text.str + pos;
@@ -79,7 +79,7 @@ struct Temp_Read{
 
 static Reader
 make_reader(Cpp_Token_Array array, char *source_name, String text){
-    Reader reader = {0};
+    Reader reader = {};
     reader.tokens = array;
     reader.ptr = array.tokens;
     reader.source_name = source_name;
@@ -89,7 +89,7 @@ make_reader(Cpp_Token_Array array, char *source_name, String text){
 
 static Cpp_Token
 prev_token(Reader *reader){
-    Cpp_Token result = {0};
+    Cpp_Token result = {};
     
     for (;;){
         if (reader->ptr > reader->tokens.tokens + reader->tokens.count){
@@ -116,7 +116,7 @@ prev_token(Reader *reader){
 
 static Cpp_Token
 get_token(Reader *reader){
-    Cpp_Token result = {0};
+    Cpp_Token result = {};
     
     for (;;){
         if (reader->ptr < reader->tokens.tokens){
@@ -144,7 +144,7 @@ get_token(Reader *reader){
 
 static Cpp_Token
 peek_token(Reader *reader){
-    Cpp_Token result = {0};
+    Cpp_Token result = {};
     
     if (reader->ptr < reader->tokens.tokens){
         reader->ptr = reader->tokens.tokens;
@@ -179,7 +179,7 @@ error(Reader *reader, int32_t pos, char *msg){
 
 static Temp_Read
 begin_temp_read(Reader *reader){
-    Temp_Read temp = {0};
+    Temp_Read temp = {};
     temp.reader = reader;
     temp.pos = reader->ptr;
     return(temp);
@@ -466,10 +466,10 @@ extract_string(Reader *reader, String *str_out, int32_t *opt_pos_out = 0){
 
 static bool32
 parse_documented_command(Partition *part, Meta_Command_Entry_Arrays *arrays, Reader *reader){
-    String name = {0};
-    String file_name = {0};
-    String line_number = {0};
-    String doc = {0};
+    String name = {};
+    String file_name = {};
+    String line_number = {};
+    String doc = {};
     
     // Getting the command's name
     int32_t start_pos = 0;
@@ -552,8 +552,8 @@ parse_documented_command(Partition *part, Meta_Command_Entry_Arrays *arrays, Rea
 
 static bool32
 parse_alias(Partition *part, Meta_Command_Entry_Arrays *arrays, Reader *reader){
-    String name = {0};
-    String potential = {0};
+    String name = {};
+    String potential = {};
     
     // Getting the alias's name
     int32_t start_pos = 0;
@@ -765,7 +765,7 @@ main(int argc, char **argv){
         start_i = 3;
     }
     
-    Meta_Command_Entry_Arrays entry_arrays = {0};
+    Meta_Command_Entry_Arrays entry_arrays = {};
     for (int32_t i = start_i; i < argc; ++i){
         Filename_Character *pattern_name = encode(part, argv[i]);
         parse_files_by_pattern(part, &entry_arrays, pattern_name, recursive);

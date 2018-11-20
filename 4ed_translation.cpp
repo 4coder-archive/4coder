@@ -179,9 +179,9 @@ translating_generate_emits(Translation_State *tran, Translation_Emit_Rule emit_r
 
 internal void
 translating_fully_process_byte(System_Functions *system, Font_Pointers font, Translation_State *tran, u8 ch, u32 i, u32 size, Translation_Emits *emits_out){
-    Translation_Byte_Description description = {0};
+    Translation_Byte_Description description = {};
     translating_consume_byte(tran, ch, i, size, &description);
-    Translation_Emit_Rule emit_rule = {0};
+    Translation_Emit_Rule emit_rule = {};
     translating_select_emit_rule_with_font(system, font, tran, description, &emit_rule);
     translating_generate_emits(tran, emit_rule, ch, i, emits_out);
 }

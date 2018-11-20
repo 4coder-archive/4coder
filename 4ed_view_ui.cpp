@@ -50,13 +50,13 @@ internal Input_Process_Result
 do_step_file_view(System_Functions *system, View *view, Models *models, i32_Rect rect, b32 is_active, f32 dt, GUI_Scroll_Vars scroll, i32 max_y){
     scroll.target_y = clamp(0, scroll.target_y, max_y);
     
-    Input_Process_Result result = {0};
+    Input_Process_Result result = {};
     result.scroll = scroll;
     
     i32 line_height = view->transient.line_height;
     
     if (!view->transient.hide_file_bar){
-        i32_Rect top_bar_rect = {0};
+        i32_Rect top_bar_rect = {};
         top_bar_rect.x0 = rect.x0;
         top_bar_rect.y0 = rect.y0;
         top_bar_rect.x1 = rect.x1;
@@ -240,7 +240,7 @@ do_render_file_view(System_Functions *system, View *view, Models *models, GUI_Sc
     Font_Pointers font = system->font.get_pointers_by_id(font_id);
     
     if (!view->transient.hide_file_bar){
-        i32_Rect top_bar_rect = {0};
+        i32_Rect top_bar_rect = {};
         top_bar_rect.x0 = rect.x0;
         top_bar_rect.y0 = rect.y0;
         top_bar_rect.x1 = rect.x1;
@@ -253,7 +253,7 @@ do_render_file_view(System_Functions *system, View *view, Models *models, GUI_Sc
     for (Query_Slot *slot = view->transient.query_set.used_slot;
          slot != 0;
          slot = slot->next, ++bar_count){
-        i32_Rect query_bar_rect = {0};
+        i32_Rect query_bar_rect = {};
         query_bar_rect.x0 = rect.x0;
         query_bar_rect.y0 = rect.y0;
         query_bar_rect.x1 = rect.x1;

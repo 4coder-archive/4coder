@@ -508,7 +508,7 @@ buffer_edit_provide_memory(Gap_Buffer *buffer, void *new_data, i32 new_max){
 
 inline void
 buffer_stringify(Gap_Buffer *buffer, i32 start, i32 end, char *out){
-    Gap_Buffer_Stream stream = {0};
+    Gap_Buffer_Stream stream = {};
     
     i32 i = start;
     if (buffer_stringify_loop(&stream, buffer, i, end)){
@@ -525,7 +525,7 @@ buffer_stringify(Gap_Buffer *buffer, i32 start, i32 end, char *out){
 
 internal i32
 buffer_convert_out(Gap_Buffer *buffer, char *dest, i32 max){
-    Gap_Buffer_Stream stream = {0};
+    Gap_Buffer_Stream stream = {};
     i32 i = 0;
     i32 size = buffer_size(buffer);
     Assert(size + buffer->line_count <= max);
@@ -549,7 +549,7 @@ buffer_convert_out(Gap_Buffer *buffer, char *dest, i32 max){
 
 internal i32
 buffer_count_newlines(Gap_Buffer *buffer, i32 start, i32 end){
-    Gap_Buffer_Stream stream = {0};
+    Gap_Buffer_Stream stream = {};
     i32 i = start;
     i32 count = 0;
     
@@ -575,7 +575,7 @@ buffer_count_newlines(Gap_Buffer *buffer, i32 start, i32 end){
 // and stores the size in the extra spot.
 internal i32
 buffer_measure_starts(Buffer_Measure_Starts *state, Gap_Buffer *buffer){
-    Gap_Buffer_Stream stream = {0};
+    Gap_Buffer_Stream stream = {};
     i32 size = buffer_size(buffer);
     i32 start = state->start, i = state->i;
     i32 *start_ptr = buffer->line_starts + state->count;
@@ -624,7 +624,7 @@ internal void
 buffer_measure_character_starts(System_Functions *system, Font_Pointers font, Gap_Buffer *buffer, i32 *character_starts, i32 mode, i32 virtual_white){
     Assert(mode == 0);
     
-    Gap_Buffer_Stream stream = {0};
+    Gap_Buffer_Stream stream = {};
     i32 i = 0;
     i32 size = buffer_size(buffer);
     
@@ -639,8 +639,8 @@ buffer_measure_character_starts(System_Functions *system, Font_Pointers font, Ga
         skipping_whitespace = 1;
     }
     
-    Translation_State tran = {0};
-    Translation_Emits emits = {0};
+    Translation_State tran = {};
+    Translation_Emits emits = {};
     
     stream.use_termination_character = 1;
     stream.terminator = '\n';
@@ -846,7 +846,7 @@ buffer_remeasure_starts(Gap_Buffer *buffer, i32 line_start, i32 line_end, i32 li
     }
     
     // Iteration data (yikes! Need better loop system)
-    Gap_Buffer_Stream stream = {0};
+    Gap_Buffer_Stream stream = {};
     i32 size = buffer_size(buffer);
     i32 char_i = starts[line_start];
     i32 line_i = line_start;
@@ -909,7 +909,7 @@ buffer_remeasure_character_starts(System_Functions *system, Font_Pointers font, 
     }
     
     // Iteration data
-    Gap_Buffer_Stream stream = {0};
+    Gap_Buffer_Stream stream = {};
     i32 size = buffer_size(buffer);
     i32 char_i = buffer->line_starts[line_start];
     i32 line_i = line_start;
@@ -925,8 +925,8 @@ buffer_remeasure_character_starts(System_Functions *system, Font_Pointers font, 
     }
     
     // Translation
-    Translation_State tran = {0};
-    Translation_Emits emits = {0};
+    Translation_State tran = {};
+    Translation_Emits emits = {};
     
     stream.use_termination_character = 1;
     stream.terminator = '\n';
@@ -1006,7 +1006,7 @@ buffer_remeasure_wrap_y(Gap_Buffer *buffer, i32 line_start, i32 line_end, i32 li
     }
     
     // Iteration data (yikes! Need better loop system)
-    Gap_Buffer_Stream stream = {0};
+    Gap_Buffer_Stream stream = {};
     i32 size = buffer_size(buffer);
     i32 char_i = buffer->line_starts[line_start];
     i32 line_i = line_start;
@@ -1130,7 +1130,7 @@ buffer_get_line_index_from_wrapped_y(i32 *wrap_line_index, f32 y, i32 line_heigh
 
 internal Partial_Cursor
 buffer_partial_from_pos(Gap_Buffer *buffer, i32 pos){
-    Partial_Cursor result = {0};
+    Partial_Cursor result = {};
     
     int32_t size = buffer_size(buffer);
     if (pos > size){
@@ -1150,7 +1150,7 @@ buffer_partial_from_pos(Gap_Buffer *buffer, i32 pos){
 
 internal Partial_Cursor
 buffer_partial_from_line_character(Gap_Buffer *buffer, i32 line, i32 character){
-    Partial_Cursor result = {0};
+    Partial_Cursor result = {};
     
     i32 line_index = line - 1;
     if (line_index >= buffer->line_count){

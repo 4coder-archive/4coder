@@ -11,7 +11,7 @@ distribute, and modify this file as you see fit.
 
 inline Partition
 make_part(void *memory, i32_4tech size){
-    Partition partition = {0};
+    Partition partition = {};
     partition.base = (char*)memory;
     partition.pos = 0;
     partition.max = size;
@@ -65,9 +65,7 @@ partition_sub_part(Partition *data, i32_4tech size){
     return(result);
 }
 
-#define push_struct(part, T) (T*)partition_allocate(part, sizeof(T))
 #define push_array(part, T, size) (T*)partition_allocate(part, sizeof(T)*(size))
-#define push_block(part, size) partition_allocate(part, size)
 #define push_align(part, b) partition_align(part, b)
 
 inline Temp_Memory
@@ -85,7 +83,7 @@ end_temp_memory(Temp_Memory temp){
 
 inline Tail_Temp_Partition
 begin_tail_part(Partition *data, i32_4tech size){
-    Tail_Temp_Partition result = {0};
+    Tail_Temp_Partition result = {};
     if (data->pos + size <= data->max){
         result.handle = data;
         result.old_max = data->max;

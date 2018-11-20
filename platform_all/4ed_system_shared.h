@@ -22,7 +22,7 @@ struct File_Data{
     u32 size;
     b32 got_file;
 };
-global File_Data null_file_data = {0};
+global File_Data null_file_data = {};
 
 #define Sys_File_Can_Be_Made_Sig(name) b32 name(u8 *filename)
 internal Sys_File_Can_Be_Made_Sig(system_file_can_be_made);

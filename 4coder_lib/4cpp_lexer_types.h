@@ -279,7 +279,7 @@ STRUCT Cpp_Token_Array{
     int32_t max_count;
 };
 
-static Cpp_Token_Array null_cpp_token_array = {0};
+static Cpp_Token_Array null_cpp_token_array = {};
 
 /* DOC(Cpp_Get_Token_Result is the return result of the cpp_get_token call.)
 DOC_SEE(cpp_get_token) */
@@ -312,7 +312,7 @@ struct Cpp_Lex_FSM{
     uint8_t emit_token;
     uint8_t flags;
 };
-static Cpp_Lex_FSM null_lex_fsm = {0};
+static Cpp_Lex_FSM null_lex_fsm = {};
 
 /* DOC(A Cpp_Keyword_Table contains a list of keywords and a hashed lookup table for the keywords.  They are used to setup a parse context.)
 DOC_SEE(cpp_make_token_array)

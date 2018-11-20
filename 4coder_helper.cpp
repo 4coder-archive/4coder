@@ -17,11 +17,11 @@ write_unit(Bind_Helper *helper, Binding_Unit unit){
 
 inline Bind_Helper
 begin_bind_helper(void *data, int32_t size){
-    Bind_Helper result = {0};
+    Bind_Helper result = {};
     result.cursor = (Binding_Unit*)data;
     result.start = result.cursor;
     result.end = result.start + size / sizeof(*result.cursor);
-    Binding_Unit unit = {0};
+    Binding_Unit unit = {};
     unit.type = unit_header;
     unit.header.total_size = sizeof(*result.header);
     result.header = write_unit(&result, unit);
@@ -134,7 +134,7 @@ inline void
 inherit_map(Bind_Helper *helper, int32_t mapid){
     if (helper->group == 0 && helper->error == 0) helper->error = BH_ERR_MISSING_BEGIN;
     if (!helper->error && mapid < mapid_global) ++helper->header->header.user_map_count;
-    Binding_Unit unit = {0};
+    Binding_Unit unit = {};
     unit.type = unit_inherit;
     unit.map_inherit.mapid = mapid;
     write_unit(helper, unit);
@@ -142,7 +142,7 @@ inherit_map(Bind_Helper *helper, int32_t mapid){
 
 inline void
 set_hook(Bind_Helper *helper, int32_t hook_id, Hook_Function *func){
-    Binding_Unit unit = {0};
+    Binding_Unit unit = {};
     unit.type = unit_hook;
     unit.hook.hook_id = hook_id;
     unit.hook.func = (void*)func;
@@ -151,7 +151,7 @@ set_hook(Bind_Helper *helper, int32_t hook_id, Hook_Function *func){
 
 inline void
 set_scroll_rule(Bind_Helper *helper, Scroll_Rule_Function *func){
-    Binding_Unit unit = {0};
+    Binding_Unit unit = {};
     unit.type = unit_hook;
     unit.hook.hook_id = special_hook_scroll_rule;
     unit.hook.func = (void*)func;
@@ -160,7 +160,7 @@ set_scroll_rule(Bind_Helper *helper, Scroll_Rule_Function *func){
 
 inline void
 set_buffer_name_resolver(Bind_Helper *helper, Buffer_Name_Resolver_Function *func){
-    Binding_Unit unit = {0};
+    Binding_Unit unit = {};
     unit.type = unit_hook;
     unit.hook.hook_id = special_hook_buffer_name_resolver;
     unit.hook.func = (void*)func;
@@ -169,7 +169,7 @@ set_buffer_name_resolver(Bind_Helper *helper, Buffer_Name_Resolver_Function *fun
 
 inline void
 set_new_file_hook(Bind_Helper *helper, Open_File_Hook_Function *func){
-    Binding_Unit unit = {0};
+    Binding_Unit unit = {};
     unit.type = unit_hook;
     unit.hook.hook_id = special_hook_new_file;
     unit.hook.func = (void*)func;
@@ -178,7 +178,7 @@ set_new_file_hook(Bind_Helper *helper, Open_File_Hook_Function *func){
 
 inline void
 set_start_hook(Bind_Helper *helper, Start_Hook_Function *func){
-    Binding_Unit unit = {0};
+    Binding_Unit unit = {};
     unit.type = unit_hook;
     unit.hook.hook_id = special_hook_start;
     unit.hook.func = (void*)func;
@@ -187,7 +187,7 @@ set_start_hook(Bind_Helper *helper, Start_Hook_Function *func){
 
 inline void
 set_open_file_hook(Bind_Helper *helper, Open_File_Hook_Function *func){
-    Binding_Unit unit = {0};
+    Binding_Unit unit = {};
     unit.type = unit_hook;
     unit.hook.hook_id = special_hook_open_file;
     unit.hook.func = (void*)func;
@@ -196,7 +196,7 @@ set_open_file_hook(Bind_Helper *helper, Open_File_Hook_Function *func){
 
 inline void
 set_save_file_hook(Bind_Helper *helper, Open_File_Hook_Function *func){
-    Binding_Unit unit = {0};
+    Binding_Unit unit = {};
     unit.type = unit_hook;
     unit.hook.hook_id = special_hook_save_file;
     unit.hook.func = (void*)func;
@@ -205,7 +205,7 @@ set_save_file_hook(Bind_Helper *helper, Open_File_Hook_Function *func){
 
 inline void
 set_end_file_hook(Bind_Helper *helper, Open_File_Hook_Function *func){
-    Binding_Unit unit = {0};
+    Binding_Unit unit = {};
     unit.type = unit_hook;
     unit.hook.hook_id = special_hook_end_file;
     unit.hook.func = (void*)func;
@@ -214,7 +214,7 @@ set_end_file_hook(Bind_Helper *helper, Open_File_Hook_Function *func){
 
 inline void
 set_command_caller(Bind_Helper *helper, Command_Caller_Hook_Function *func){
-    Binding_Unit unit = {0};
+    Binding_Unit unit = {};
     unit.type = unit_hook;
     unit.hook.hook_id = special_hook_command_caller;
     unit.hook.func = (void*)func;
@@ -223,7 +223,7 @@ set_command_caller(Bind_Helper *helper, Command_Caller_Hook_Function *func){
 
 inline void
 set_render_caller(Bind_Helper *helper, Render_Caller_Function *func){
-    Binding_Unit unit = {0};
+    Binding_Unit unit = {};
     unit.type = unit_hook;
     unit.hook.hook_id = special_hook_render_caller;
     unit.hook.func = (void*)func;
@@ -232,7 +232,7 @@ set_render_caller(Bind_Helper *helper, Render_Caller_Function *func){
 
 inline void
 set_input_filter(Bind_Helper *helper, Input_Filter_Function *func){
-    Binding_Unit unit = {0};
+    Binding_Unit unit = {};
     unit.type = unit_hook;
     unit.hook.hook_id = special_hook_input_filter;
     unit.hook.func = (void*)func;
@@ -252,7 +252,7 @@ end_bind_helper(Bind_Helper *helper){
 inline Bind_Buffer
 end_bind_helper_get_buffer(Bind_Helper *helper){
     int32_t size = end_bind_helper(helper);
-    Bind_Buffer result = {0};
+    Bind_Buffer result = {};
     result.data = helper->start;
     result.size = size;
     return(result);
@@ -310,10 +310,8 @@ key_is_unmodified(Key_Event_Data *key){
 static uint32_t
 to_writable_character(User_Input in, uint8_t *character){
     uint32_t result = 0;
-    if (in.type == UserInputKey){
-        if (in.key.character != 0){
-            u32_to_utf8_unchecked(in.key.character, character, &result);
-        }
+    if (in.key.character != 0){
+        u32_to_utf8_unchecked(in.key.character, character, &result);
     }
     return(result);
 }
@@ -362,7 +360,7 @@ query_user_general(Application_Links *app, Query_Bar *bar, bool32 force_number){
         // types specified in the flags.  The first set of flags are inputs you'd like to intercept
         // that you don't want to abort on.  The second set are inputs that you'd like to cause
         // the command to abort.  If an event satisfies both flags, it is treated as an abort.
-        User_Input in = get_user_input(app, EventOnAnyKey, EventOnEsc | EventOnButton);
+        User_Input in = get_user_input(app, EventOnAnyKey, EventOnEsc|EventOnMouseLeftButton|EventOnMouseRightButton);
         
         // NOTE(allen|a3.4.4): The responsible thing to do on abort is to end the command
         // without waiting on get_user_input again.
@@ -392,16 +390,14 @@ query_user_general(Application_Links *app, Query_Bar *bar, bool32 force_number){
         // NOTE(allen|a3.4.4): All we have to do to update the query bar is edit our
         // local Query_Bar struct!  This is handy because it means our Query_Bar
         // is always correct for typical use without extra work updating the bar.
-        if (in.type == UserInputKey){
-            if (in.key.keycode == '\n' || in.key.keycode == '\t'){
-                break;
-            }
-            else if (in.key.keycode == key_back){
-                backspace_utf8(&bar->string);
-            }
-            else if (good_character){
-                append(&bar->string, make_string(character, length));
-            }
+        if (in.key.keycode == '\n' || in.key.keycode == '\t'){
+            break;
+        }
+        else if (in.key.keycode == key_back){
+            backspace_utf8(&bar->string);
+        }
+        else if (good_character){
+            append(&bar->string, make_string(character, length));
         }
     }
     
@@ -474,7 +470,7 @@ adjust_all_buffer_wrap_widths(Application_Links *app, int32_t wrap_width, int32_
 
 static Buffer_Rect
 get_rect(View_Summary *view){
-    Buffer_Rect rect = {0};
+    Buffer_Rect rect = {};
     
     rect.char0 = view->mark.character;
     rect.line0 = view->mark.line;
@@ -494,7 +490,7 @@ get_rect(View_Summary *view){
 
 static i32_Rect
 get_line_x_rect(View_Summary *view){
-    i32_Rect rect = {0};
+    i32_Rect rect = {};
     
     if (view->unwrapped_lines){
         rect.x0 = (int32_t)view->mark.unwrapped_x;
@@ -519,8 +515,8 @@ get_line_x_rect(View_Summary *view){
 
 static View_Summary
 get_first_view_with_buffer(Application_Links *app, int32_t buffer_id){
-    View_Summary result = {0};
-    View_Summary test = {0};
+    View_Summary result = {};
+    View_Summary test = {};
     
     if (buffer_id != 0){
         uint32_t access = AccessAll;
@@ -591,7 +587,7 @@ buffer_identifier_to_id(Application_Links *app, Buffer_Identifier identifier){
 
 static Buffer_Summary
 buffer_identifier_to_buffer_summary(Application_Links *app, Buffer_Identifier identifier, Access_Flag access){
-    Buffer_Summary buffer = {0};
+    Buffer_Summary buffer = {};
     if (identifier.id != 0){
         buffer = get_buffer(app, identifier.id, access);
     }
@@ -610,7 +606,7 @@ view_open_file(Application_Links *app, View_Summary *view,
     bool32 result = false;
     
     if (view != 0){
-        Buffer_Summary buffer = {0};
+        Buffer_Summary buffer = {};
         if (open_file(app, &buffer, filename, filename_len, false, never_new)){
             view_set_buffer(app, view, buffer.buffer_id, 0);
             result = true;
@@ -626,7 +622,7 @@ get_view_prev(Application_Links *app, View_Summary *view, uint32_t access){
         View_ID original_id = view->view_id;
         View_ID check_id = original_id;
         
-        View_Summary new_view = {0};
+        View_Summary new_view = {};
         
         for (;;){
             --check_id;
@@ -660,7 +656,7 @@ kill_buffer(Application_Links *app, Buffer_Identifier identifier, View_ID gui_vi
 
 static View_Summary
 get_view_last(Application_Links *app, uint32_t access){
-    View_Summary view = {0};
+    View_Summary view = {};
     view.exists = true;
     get_view_prev(app, &view, access);
     if (view.view_id < 1 || view.view_id > 16){
@@ -699,7 +695,7 @@ refresh_view(Application_Links *app, View_Summary *view){
 static int32_t
 character_pos_to_pos(Application_Links *app, View_Summary *view, Buffer_Summary *buffer, int32_t character_pos){
     int32_t result = 0;
-    Full_Cursor cursor = {0};
+    Full_Cursor cursor = {};
     if (view_compute_cursor(app, view, seek_character_pos(character_pos), &cursor)){
         result = cursor.pos;
     }
@@ -731,8 +727,8 @@ get_view_range(View_Summary *view){
 
 static bool32
 read_line(Application_Links *app, Partition *part, Buffer_Summary *buffer, int32_t line, String *str){
-    Partial_Cursor begin = {0};
-    Partial_Cursor end = {0};
+    Partial_Cursor begin = {};
+    Partial_Cursor end = {};
     
     bool32 success = false;
     if (buffer_compute_cursor(app, buffer, seek_line_char(line, 1), &begin)){
@@ -761,7 +757,7 @@ static int32_t
 buffer_get_line_start(Application_Links *app, Buffer_Summary *buffer, int32_t line){
     int32_t result = buffer->size;
     if (line <= buffer->line_count){
-        Partial_Cursor partial_cursor = {0};
+        Partial_Cursor partial_cursor = {};
         buffer_compute_cursor(app, buffer, seek_line_char(line, 1), &partial_cursor);
         result = partial_cursor.pos;
     }
@@ -772,7 +768,7 @@ static int32_t
 buffer_get_line_end(Application_Links *app, Buffer_Summary *buffer, int32_t line){
     int32_t result = buffer->size;
     if (line <= buffer->line_count){
-        Partial_Cursor partial_cursor = {0};
+        Partial_Cursor partial_cursor = {};
         buffer_compute_cursor(app, buffer, seek_line_char(line, -1), &partial_cursor);
         result = partial_cursor.pos;
     }
@@ -781,7 +777,7 @@ buffer_get_line_end(Application_Links *app, Buffer_Summary *buffer, int32_t line
 
 static int32_t
 buffer_get_line_number(Application_Links *app, Buffer_Summary *buffer, int32_t pos){
-    Partial_Cursor partial_cursor = {0};
+    Partial_Cursor partial_cursor = {};
     buffer_compute_cursor(app, buffer, seek_pos(pos), &partial_cursor);
     return(partial_cursor.line);
 }
@@ -1029,7 +1025,7 @@ get_query_string(Application_Links *app, char *query_str, char *string_space, in
 
 static String
 get_string_in_view_range(Application_Links *app, Partition *arena, View_Summary *view){
-    String str = {0};
+    String str = {};
     Buffer_Summary buffer = get_buffer(app, view->buffer_id, AccessProtected);
     if (!buffer.exists) return(str);
     Range range = get_view_range(view);
@@ -1045,8 +1041,8 @@ get_string_in_view_range(Application_Links *app, Partition *arena, View_Summary 
 
 static String
 get_token_or_word_under_pos(Application_Links *app, Buffer_Summary *buffer, int32_t pos, char *space, int32_t capacity){
-    String result = {0};
-    Cpp_Get_Token_Result get_result = {0};
+    String result = {};
+    Cpp_Get_Token_Result get_result = {};
     bool32 success = buffer_get_token_index(app, buffer, pos, &get_result);
     if (success && !get_result.in_whitespace){
         int32_t size = get_result.token_end - get_result.token_start;
@@ -1062,7 +1058,7 @@ get_token_or_word_under_pos(Application_Links *app, Buffer_Summary *buffer, int3
 
 static String
 build_string(Partition *part, char *s0, char *s1, char *s2){
-    String sr = {0};
+    String sr = {};
     sr.memory_size = str_size(s0) + str_size(s1) + str_size(s2) + 1;
     sr.str = push_array(part, char, sr.memory_size);
     if (sr.str != 0){
@@ -1075,7 +1071,7 @@ build_string(Partition *part, char *s0, char *s1, char *s2){
 
 static String
 build_string(Partition *part, char *s0, char *s1, String s2){
-    String sr = {0};
+    String sr = {};
     sr.memory_size = str_size(s0) + str_size(s1) + s2.size + 1;
     sr.str = push_array(part, char, sr.memory_size);
     if (sr.str != 0){
@@ -1089,7 +1085,7 @@ build_string(Partition *part, char *s0, char *s1, String s2){
 
 static String
 build_string(Partition *part, char *s0, String s1, char *s2){
-    String sr = {0};
+    String sr = {};
     sr.memory_size = str_size(s0) + s1.size + str_size(s2) + 1;
     sr.str = push_array(part, char, sr.memory_size);
     if (sr.str != 0){
@@ -1103,7 +1099,7 @@ build_string(Partition *part, char *s0, String s1, char *s2){
 
 static String
 build_string(Partition *part, char *s0, String s1, String s2){
-    String sr = {0};
+    String sr = {};
     sr.memory_size = str_size(s0) + s1.size + s2.size + 1;
     sr.str = push_array(part, char, sr.memory_size);
     if (sr.str != 0){
@@ -1117,7 +1113,7 @@ build_string(Partition *part, char *s0, String s1, String s2){
 
 static String
 build_string(Partition *part, String s0, char *s1, char *s2){
-    String sr = {0};
+    String sr = {};
     sr.memory_size = s0.size + str_size(s1) + str_size(s2) + 1;
     sr.str = push_array(part, char, sr.memory_size);
     if (sr.str != 0){
@@ -1131,7 +1127,7 @@ build_string(Partition *part, String s0, char *s1, char *s2){
 
 static String
 build_string(Partition *part, String s0, char *s1, String s2){
-    String sr = {0};
+    String sr = {};
     sr.memory_size = s0.size + str_size(s1) + s2.size + 1;
     sr.str = push_array(part, char, sr.memory_size);
     if (sr.str != 0){
@@ -1145,7 +1141,7 @@ build_string(Partition *part, String s0, char *s1, String s2){
 
 static String
 build_string(Partition *part, String s0, String s1, char *s2){
-    String sr = {0};
+    String sr = {};
     sr.memory_size = s0.size + s1.size + str_size(s2) + 1;
     sr.str = push_array(part, char, sr.memory_size);
     if (sr.str != 0){
@@ -1159,7 +1155,7 @@ build_string(Partition *part, String s0, String s1, char *s2){
 
 static String
 build_string(Partition *part, String s0, String s1, String s2){
-    String sr = {0};
+    String sr = {};
     sr.memory_size = s0.size + s1.size + s2.size + 1;
     sr.str = push_array(part, char, sr.memory_size);
     if (sr.str != 0){
@@ -1205,7 +1201,7 @@ get_hot_directory(Application_Links *app, Partition *arena){
 
 static String
 dump_file_handle(Partition *arena, FILE *file){
-    String str = {0};
+    String str = {};
     if (file != 0){
         fseek(file, 0, SEEK_END);
         int32_t size = ftell(file);
@@ -1223,7 +1219,7 @@ dump_file_handle(Partition *arena, FILE *file){
 
 static File_Handle_Path
 open_file_search_up_path(Partition *arena, String path, String file_name){
-    File_Handle_Path result = {0};
+    File_Handle_Path result = {};
     
     int32_t cap = path.size + file_name.size + 2;
     char *space = push_array(arena, char, cap);
@@ -1301,7 +1297,7 @@ open_file(Partition *scratch, String name){
 
 static File_Name_Data
 dump_file(Partition *arena, String file_name){
-    File_Name_Data result = {0};
+    File_Name_Data result = {};
     FILE *file = open_file(arena, file_name);
     if (file != 0){
         result.file_name = file_name;
@@ -1313,7 +1309,7 @@ dump_file(Partition *arena, String file_name){
 
 static File_Name_Path_Data
 dump_file_search_up_path(Partition *arena, String path, String file_name){
-    File_Name_Path_Data result = {0};
+    File_Name_Path_Data result = {};
     File_Handle_Path file = open_file_search_up_path(arena, path, file_name);
     if (file.file != 0){
         result.file_name = file_name;
@@ -1327,7 +1323,7 @@ dump_file_search_up_path(Partition *arena, String path, String file_name){
 static String
 push_string(Partition *arena, int32_t cap){
     char *mem = push_array(arena, char, cap);
-    String result = {0};
+    String result = {};
     if (mem != 0){
         result = make_string_cap(mem, 0, cap);
     }
@@ -1336,7 +1332,7 @@ push_string(Partition *arena, int32_t cap){
 
 static String
 push_string_copy(Partition *arena, String str){
-    String result = {0};
+    String result = {};
     if (str.str != 0){
         result = push_string(arena, str.size + 1);
         push_align(arena, 8);
@@ -1396,7 +1392,7 @@ sort_pairs_by_key(Sort_Pair_i32 *pairs, int32_t count){
 
 static Range_Array
 get_ranges_of_duplicate_keys(Partition *arena, int32_t *keys, int32_t stride, int32_t count){
-    Range_Array result = {0};
+    Range_Array result = {};
     result.ranges = push_array(arena, Range, 0);
     uint8_t *ptr = (uint8_t*)keys;
     int32_t start_i = 0;
@@ -1433,7 +1429,7 @@ no_mark_snap_to_cursor(Application_Links *app, View_ID view_id){
 static void
 no_mark_snap_to_cursor_if_shift(Application_Links *app, View_ID view_id){
     User_Input in = get_command_input(app);
-    if (in.type == UserInputKey && in.key.modifiers[MDFR_SHIFT_INDEX]){
+    if (in.key.modifiers[MDFR_SHIFT_INDEX]){
         no_mark_snap_to_cursor(app, view_id);
     }
 }

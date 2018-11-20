@@ -1140,7 +1140,7 @@ CUSTOM_COMMAND_SIG(casey_force_codelegal_characters)
         Buffer_Edit *edits = (Buffer_Edit*)app->memory;
         
         char data[1024];
-        Stream_Chunk chunk = {0};
+        Stream_Chunk chunk = {};
         
         int32_t i = 0;
         int32_t last_utf = 0;
@@ -1244,7 +1244,7 @@ casey_list_all_functions(Application_Links *app, Partition *part, Buffer_Summary
     
     static const int32_t token_chunk_size = 512;
     Cpp_Token token_chunk[token_chunk_size];
-    Stream_Tokens token_stream = {0};
+    Stream_Tokens token_stream = {};
     
     if (init_stream_tokens(&token_stream, app, buffer, 0, token_chunk, token_chunk_size)){
         Stream_Tokens start_position_stream_temp = begin_temp_stream_token(&token_stream);
@@ -1779,7 +1779,7 @@ struct Casey_Scroll_Velocity
     float x, y, t;
 };
 
-Casey_Scroll_Velocity casey_scroll_velocity_[16] = {0};
+Casey_Scroll_Velocity casey_scroll_velocity_[16] = {};
 Casey_Scroll_Velocity *casey_scroll_velocity = casey_scroll_velocity_ - 1;
 
 SCROLL_RULE_SIG(casey_smooth_scroll_rule){

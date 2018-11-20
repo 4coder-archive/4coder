@@ -22,7 +22,7 @@ struct File_Track_Entry{
     File_Index hash;
     u32 opaque[4];
 };
-global_const File_Track_Entry null_file_track_entry = {0};
+global_const File_Track_Entry null_file_track_entry = {};
 
 struct File_Track_Tables{
     i32 size;
@@ -38,7 +38,7 @@ struct DLL_Node {
 
 internal File_Index
 zero_file_index(){
-    File_Index a = {0};
+    File_Index a = {};
     return(a);
 }
 

@@ -84,7 +84,7 @@ struct Control_Keys{
     b8 l_alt;
     b8 r_alt;
 };
-global Control_Keys null_control_keys = {0};
+global Control_Keys null_control_keys = {};
 
 struct Win32_Input_Chunk_Transient{
     Key_Input_Data key_data;
@@ -94,7 +94,7 @@ struct Win32_Input_Chunk_Transient{
     i8 mouse_wheel;
     b8 trying_to_kill;
 };
-global Win32_Input_Chunk_Transient null_input_chunk_transient = {0};
+global Win32_Input_Chunk_Transient null_input_chunk_transient = {};
 
 struct Win32_Input_Chunk_Persistent{
     i32 mouse_x, mouse_y;
@@ -207,7 +207,7 @@ handle_type(Plat_Handle h){
 
 internal Plat_Handle
 handle_type(HANDLE h){
-    Plat_Handle result = {0};
+    Plat_Handle result = {};
     memcpy(&result, &h, sizeof(h));
     return(result);
 }
@@ -563,7 +563,7 @@ Sys_Font_Path_Not_Used;
 
 internal
 Sys_Font_Data(name, parameters){
-    Font_Raw_Data data = {0};
+    Font_Raw_Data data = {};
     
     int weight = FW_REGULAR;
     if (parameters->bold){
@@ -678,11 +678,11 @@ internal void
 win32_get_loadable_fonts(Partition *part, Font_Setup_List *list){
     HDC hdc= GetDC(0);
     
-    LOGFONT log_font = {0};
+    LOGFONT log_font = {};
     log_font.lfCharSet = ANSI_CHARSET;
     log_font.lfFaceName[0] = 0;
     
-    Win32_Font_Enum p = {0};
+    Win32_Font_Enum p = {};
     p.part = part;
     p.list = list;
     
@@ -762,7 +762,7 @@ win32_init_gl(HDC hdc){
 #define GLInitFail(s) system_error_box(FNLN "\nOpenGL init fail - " s )
     
     // Init First Context
-    WNDCLASSA wglclass = {0};
+    WNDCLASSA wglclass = {};
     wglclass.lpfnWndProc = DefWindowProcA;
     wglclass.hInstance = GetModuleHandle(0);
     wglclass.lpszClassName = "4ed-wgl-loader";
@@ -777,7 +777,7 @@ win32_init_gl(HDC hdc){
     
     HDC hwgldc = GetDC(hwglwnd);
     
-    PIXELFORMATDESCRIPTOR format = {0};
+    PIXELFORMATDESCRIPTOR format = {};
     format.nSize = sizeof(format);
     format.nVersion = 1;
     //format.dwFlags = PFD_SUPPORT_OPENGL | PFD_DRAW_TO_WINDOW | PFD_DOUBLEBUFFER;
@@ -1242,7 +1242,7 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
     // Window and GL Initialization
     //
     
-    WNDCLASS window_class = {0};
+    WNDCLASS window_class = {};
     window_class.style = CS_HREDRAW|CS_VREDRAW;
     window_class.lpfnWndProc = (WNDPROC)(win32_proc);
     window_class.hInstance = hInstance;
@@ -1253,7 +1253,7 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
         exit(1);
     }
     
-    RECT window_rect = {0};
+    RECT window_rect = {};
     if (plat_settings.set_window_size){
         window_rect.right = plat_settings.window_w;
         window_rect.bottom = plat_settings.window_h;
@@ -1530,7 +1530,7 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
         
         input_chunk.pers.control_keys[MDFR_CAPS_INDEX] = GetKeyState(VK_CAPITAL) & 0x1;
         
-        Application_Step_Input input = {0};
+        Application_Step_Input input = {};
         
         input.first_step = win32vars.first;
         input.dt = frame_useconds/1000000.f;
@@ -1588,7 +1588,7 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
         
         // NOTE(allen): Application Core Update
         target.buffer.pos = 0;
-        Application_Step_Result result = {0};
+        Application_Step_Result result = {};
         if (app.step != 0){
             result = app.step(&sysfunc, &target, &memory_vars, &input);
         }

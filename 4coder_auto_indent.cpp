@@ -8,13 +8,13 @@ static Hard_Start_Result
 buffer_find_hard_start(Application_Links *app, Buffer_Summary *buffer, int32_t line_start, int32_t tab_width){
     tab_width -= 1;
     
-    Hard_Start_Result result = {0};
+    Hard_Start_Result result = {};
     result.all_space = 1;
     result.indent_pos = 0;
     result.char_pos = line_start;
     
     char data_chunk[1024];
-    Stream_Chunk stream = {0};
+    Stream_Chunk stream = {};
     stream.add_null = true;
     if (init_stream_chunk(&stream, app, buffer, line_start, data_chunk, sizeof(data_chunk))){
         int32_t still_looping = 1;
@@ -110,7 +110,7 @@ make_batch_from_indent_marks(Application_Links *app, Partition *arena, Buffer_Su
         Assert(edit_count <= edit_max);
     }
     
-    Buffer_Batch_Edit result = {0};
+    Buffer_Batch_Edit result = {};
     result.str = str_base;
     result.str_len = (int32_t)(push_array(arena, char, 0) - str_base);
     result.edits = edits;
@@ -164,7 +164,7 @@ find_anchor_token(Application_Links *app, Buffer_Summary *buffer, Cpp_Token_Arra
                   int32_t line_start, int32_t tab_width){
 #if 1
     // NOTE(allen): New implementation of find_anchor_token (4.0.26) revert if it is a problem.
-    Indent_Anchor_Position anchor = {0};
+    Indent_Anchor_Position anchor = {};
     
     if (tokens.count > 0){
         Cpp_Token *first_invalid_token = get_first_token_at_line(app, buffer, tokens, line_start);
@@ -242,7 +242,7 @@ find_anchor_token(Application_Links *app, Buffer_Summary *buffer, Cpp_Token_Arra
     
 #else
     // NOTE(allen): Old (4.0.25) implementation of find_anchor_token.
-    Indent_Anchor_Position anchor = {0};
+    Indent_Anchor_Position anchor = {};
     
     if (tokens.count != 0){
         anchor.token = get_first_token_at_line(app, buffer, tokens, line_start);
@@ -352,7 +352,7 @@ get_indentation_marks(Application_Links *app, Partition *arena, Buffer_Summary *
     // Decide where to start indentation parsing.
     Indent_Anchor_Position anchor = find_anchor_token(app, buffer, tokens, first_line, tab_width);
     Cpp_Token *token_ptr = anchor.token;
-    Indent_Parse_State indent = {0};
+    Indent_Parse_State indent = {};
     indent.current_indent = anchor.indentation;
     
     if (token_ptr == 0){
@@ -372,8 +372,8 @@ get_indentation_marks(Application_Links *app, Partition *arena, Buffer_Summary *
         
         int32_t next_line_start_pos = buffer_get_line_start(app, buffer, line_number);
         indent.previous_line_indent = indent.current_indent;
-        Cpp_Token prev_token = {0};
-        Cpp_Token token = {0};
+        Cpp_Token prev_token = {};
+        Cpp_Token token = {};
         if (token_ptr < tokens.tokens + tokens.count){
             token = *token_ptr;
         }
@@ -462,7 +462,7 @@ get_indentation_marks(Application_Links *app, Partition *arena, Buffer_Summary *
                                     bool32 statement_complete = false;
                                     
                                     Cpp_Token *prev_usable_token_ptr = token_ptr - 1;
-                                    Cpp_Token prev_usable_token = {0};
+                                    Cpp_Token prev_usable_token = {};
                                     if (prev_usable_token_ptr >= tokens.tokens){
                                         prev_usable_token = *prev_usable_token_ptr;
                                     }
@@ -678,7 +678,7 @@ buffer_auto_indent(Application_Links *app, Partition *part, Buffer_Summary *buff
         int32_t *indent_marks = get_indentation_marks(app, part, buffer, tokens, line_start, line_end, (flags & AutoIndent_ExactAlignBlock), tab_width);
         
         // Stage 4: Set the Line Indents
-        Indent_Options opts = {0};
+        Indent_Options opts = {};
         opts.empty_blank_lines = (flags & AutoIndent_ClearLine);
         opts.use_tabs = (flags & AutoIndent_UseTab);
         opts.tab_width = tab_width;
@@ -753,7 +753,7 @@ CUSTOM_DOC("Inserts a character and auto-indents the line on which the cursor si
     
     uint32_t flags = DEFAULT_INDENT_FLAGS;
     User_Input in = get_command_input(app);
-    if (in.type == UserInputKey && in.key.character == '\n'){
+    if (in.key.character == '\n'){
         flags |= AutoIndent_ExactAlignBlock;
     }
     buffer_auto_indent(app, &global_part, &buffer, view.cursor.pos, view.cursor.pos, DEF_TAB_WIDTH, DEFAULT_INDENT_FLAGS);

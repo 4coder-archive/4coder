@@ -99,7 +99,7 @@ view_quit_ui(System_Functions *system, Models *models, View *view){
     Assert(view != 0);
     view->transient.ui_mode = false;
     if (view->transient.ui_quit != 0){
-        View_Summary view_summary = {0};
+        View_Summary view_summary = {};
         fill_view_summary(system, &view_summary, view, models);
         view->transient.ui_quit(&models->app_links, view_summary);
     }
@@ -345,7 +345,7 @@ DOC_SEE(Command_Line_Interface_Flag)
         }
         
         // NOTE(allen): Figure out the root path for the command.
-        String path_string = {0};
+        String path_string = {};
         if (path == 0){
             terminate_with_null(&models->hot_directory.string);
             path_string = models->hot_directory.string;
@@ -355,7 +355,7 @@ DOC_SEE(Command_Line_Interface_Flag)
         }
         
         // NOTE(allen): Figure out the command string.
-        String command_string = {0};
+        String command_string = {};
         if (command == 0){
             command_string = make_lit_string(" echo no script specified");
         }
@@ -604,7 +604,7 @@ DOC_SEE(Access_Flag)
     Working_Set *working_set = &models->working_set;
     Buffer_Summary buffer = {};
     String fname = make_string(name, len);
-    Editing_File_Name canon = {0};
+    Editing_File_Name canon = {};
     if (get_canon_name(system, fname, &canon)){
         Editing_File *file = working_set_contains_canon(working_set, canon.name);
         if (file != 0){
@@ -1151,7 +1151,7 @@ DOC_SEE(Buffer_Create_Flag)
     Heap *heap = &models->mem.heap;
     Partition *part = &models->mem.part;
     
-    Buffer_Summary result = {0};
+    Buffer_Summary result = {};
     b32 buffer_is_for_new_file = false;
     
     if (filename_len > 0){
@@ -1160,7 +1160,7 @@ DOC_SEE(Buffer_Create_Flag)
         String fname = make_string(filename, filename_len);
         Editing_File *file = 0;
         b32 do_empty_buffer = false;
-        Editing_File_Name canon = {0};
+        Editing_File_Name canon = {};
         b32 has_canon_name = false;
         
         // NOTE(allen): Try to get the file by canon name.
@@ -1183,7 +1183,7 @@ DOC_SEE(Buffer_Create_Flag)
         
         // NOTE(allen): If there is still no file, create a new buffer.
         if (file == 0){
-            Plat_Handle handle = {0};
+            Plat_Handle handle = {};
             
             // NOTE(allen): Figure out whether this is a new file, or an existing file.
             if (!do_empty_buffer){
@@ -1493,7 +1493,7 @@ DOC_SEE(Access_Flag)
     System_Functions *system = models->system;
     Panel *panel = models->layout.panels + models->layout.active_panel;
     Assert(panel->view != 0);
-    View_Summary view = {0};
+    View_Summary view = {};
     fill_view_summary(system, &view, panel->view, &models->live_set, &models->working_set);
     if (!access_test(view.lock_flags, access)){
         memset(&view, 0, sizeof(view));
@@ -1515,7 +1515,7 @@ DOC_SEE(View_Split_Position)
     System_Functions *system = models->system;
     View *vptr = imp_get_view(models, view_location);
     Panel *panel = vptr->transient.panel;
-    View_Summary result = {0};
+    View_Summary result = {};
     
     if (models->layout.panel_count < models->layout.panel_max_count){
         b32 vsplit = ((position == ViewSplit_Left) || (position == ViewSplit_Right));
@@ -2197,7 +2197,7 @@ DOC_SEE(view_set_ui)
 {
     Models *models = (Models*)app->cmd_context;
     View *vptr = imp_get_view(models, view);
-    UI_Control result = {0};
+    UI_Control result = {};
     if (vptr != 0 && part != 0){
         UI_Control *control = &vptr->transient.ui_control;
         result.items = push_array(part, UI_Item, control->count);
@@ -2576,7 +2576,7 @@ DOC_SEE(Marker)
 
 internal Managed_Object_Ptr_And_Workspace
 get_dynamic_object_ptrs(Models *models, Managed_Object object){
-    Managed_Object_Ptr_And_Workspace result = {0};
+    Managed_Object_Ptr_And_Workspace result = {};
     u32 hi_id = (object >> 32)&max_u32;
     Dynamic_Workspace *workspace = get_dynamic_workspace(models, hi_id);
     if (workspace != 0){
@@ -2602,7 +2602,7 @@ DOC_SEE(destroy_marker_visuals)
 {
     Models *models = (Models*)app->cmd_context;
     Managed_Object_Ptr_And_Workspace object_ptrs = get_dynamic_object_ptrs(models, object);
-    Marker_Visual visual = {0};
+    Marker_Visual visual = {};
     if (object_ptrs.header != 0 && object_ptrs.header->type == ManagedObjectType_Markers){
         Heap *heap = &models->mem.heap;
         Dynamic_Workspace *workspace = object_ptrs.workspace;
@@ -2982,7 +2982,7 @@ DOC_SEE(User_Input)
     Models *models = (Models*)app->cmd_context;
     System_Functions *system = models->system;
     Coroutine_Head *coroutine = (Coroutine_Head*)app->current_coroutine;
-    User_Input result = {0};
+    User_Input result = {};
     
     if (app->type_coroutine == Co_Command){
         Assert(coroutine != 0);
@@ -3003,10 +3003,7 @@ DOC_SEE(User_Input)
 */{
     Models *models = (Models*)app->cmd_context;
     User_Input result = {};
-    result.type = UserInputKey;
-    result.abort = 0;
     result.key = models->key;
-    result.command.cmdid = 0;
     return(result);
 }
 
@@ -3101,7 +3098,7 @@ DOC_RETURN(On success this call returns a string allocated on arena that is the 
 {
     Models *models = (Models*)app->cmd_context;
     Style_Library *library = &models->styles;
-    String str = {0};
+    String str = {};
     if (0 <= index && index < library->count){
         Style *style = &library->styles[index];
         char *mem = push_array(arena, char, style->name.size + 1);
@@ -3274,7 +3271,7 @@ face_description_to_settings(System_Functions *system, Face_Description descript
     if (description.font.in_local_font_folder){
         i32 count = system->font.get_loadable_count();
         for (i32 i = 0; i < count; ++i){
-            Font_Loadable_Description loadable = {0};
+            Font_Loadable_Description loadable = {};
             system->font.get_loadable(i, &loadable);
             
             if (loadable.valid){
@@ -3325,7 +3322,7 @@ DOC_SEE(Face_Description)
 {
     Models *models = (Models*)app->cmd_context;
     System_Functions *system = models->system;
-    Face_Description description = {0};
+    Face_Description description = {};
     if (id != 0){
         Font_Pointers font = system->font.get_pointers_by_id(id);
         if (font.valid){

@@ -13,7 +13,7 @@ activate_jump(Application_Links *app, Partition *scratch, Heap *heap,
     Jump_Lister_Parameters *params = (Jump_Lister_Parameters*)state->lister.user_data;
     Marker_List *list = get_marker_list_for_buffer(params->list_buffer_id);
     if (list != 0){
-        View_Summary target_view = {0};
+        View_Summary target_view = {};
         switch (params->activation_rule){
             case JumpListerActivation_OpenInUIView:
             {
@@ -48,9 +48,9 @@ activate_jump(Application_Links *app, Partition *scratch, Heap *heap,
             }break;
         }
         
-        ID_Pos_Jump_Location location = {0};
+        ID_Pos_Jump_Location location = {};
         if (get_jump_from_list(app, list, list_index, &location)){
-            Buffer_Summary buffer = {0};
+            Buffer_Summary buffer = {};
             if (get_jump_buffer(app, &buffer, &location)){
                 set_active_view(app, &target_view);
                 jump_to_location(app, &target_view, &buffer, location);
@@ -77,9 +77,9 @@ open_jump_lister(Application_Links *app, Partition *scratch, Heap *heap,
         Lister_Option *options = push_array(scratch, Lister_Option, option_count);
         Managed_Object stored_jumps = list->jump_array;
         for (int32_t i = 0; i < option_count; i += 1){
-            Sticky_Jump_Stored stored = {0};
+            Sticky_Jump_Stored stored = {};
             managed_object_load_data(app, stored_jumps, i, 1, &stored);
-            String line = {0};
+            String line = {};
             read_line(app, scratch, &list_buffer, stored.list_line, &line);
             options[i].string = line.str;
             options[i].status = 0;
@@ -89,7 +89,7 @@ open_jump_lister(Application_Links *app, Partition *scratch, Heap *heap,
             estimated_string_space_size += aligned_size;
         }
         
-        Jump_Lister_Parameters jump_lister_params = {0};
+        Jump_Lister_Parameters jump_lister_params = {};
         jump_lister_params.list_buffer_id = list_buffer_id;
         jump_lister_params.activation_rule = activation_rule;
         if (optional_target_view != 0){

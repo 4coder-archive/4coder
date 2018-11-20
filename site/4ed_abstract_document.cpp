@@ -35,7 +35,7 @@ struct Enriched_Text{
 
 internal Enriched_Text
 load_enriched_text(char *directory, char *filename){
-    Enriched_Text result = {0};
+    Enriched_Text result = {};
     char *fname = fm_str(directory, "/", filename);
     result.fname = str_alloc(str_size(fname) + 1);
     fm_align();
@@ -68,7 +68,7 @@ get_mangle_rule(String mangle){
 
 internal String
 apply_mangle_rule(String name, u32 mangle_rule){
-    String result = {0};
+    String result = {};
     switch (mangle_rule){
         case MangleRule_MacroSig:
         {
@@ -154,7 +154,7 @@ struct Document_Item{
         } include;
     };
 };
-global Document_Item null_document_item = {0};
+global Document_Item null_document_item = {};
 
 ////////////////////////////////
 
@@ -235,7 +235,7 @@ struct Abstract_Item{
     // Meta parse members
     Meta_Unit *unit;
 };
-global Abstract_Item null_abstract_item = {0};
+global Abstract_Item null_abstract_item = {};
 
 internal Abstract_Item*
 get_item_by_name(Basic_List list, String name){
@@ -271,7 +271,7 @@ struct Abstract_Item_Array{
 
 internal Abstract_Item_Array
 get_abstract_item_array(Basic_List *list){
-    Abstract_Item_Array result = {0};
+    Abstract_Item_Array result = {};
     
     result.items = (Abstract_Item**)fm_push_array(Abstract_Item*, list->count);
     result.count = list->count;
@@ -303,7 +303,7 @@ struct Document_System{
 
 internal Document_System
 create_document_system(char *code_dir, char *asset_dir, char *src_dir){
-    Document_System system = {0};
+    Document_System system = {};
     system.code_dir = code_dir;
     system.asset_dir = asset_dir;
     system.src_dir = src_dir;
@@ -434,7 +434,7 @@ struct Document_Builder{
 
 internal Document_Builder
 begin_document_description(Document_System *system, char *title, char *name, b32 show_title){
-    Document_Builder builder = {0};
+    Document_Builder builder = {};
     Abstract_Item *doc = create_abstract_item(&system->doc_list, name);
     if (doc != 0){
         builder.doc = doc;
@@ -753,9 +753,9 @@ make_document_from_text(Document_System *doc_system, char *title, char *name, En
                         
                         case Cmd_Section:
                         {
-                            String body_text = {0};
+                            String body_text = {};
                             if (extract_command_body(l, &i, &body_text)){
-                                String extra_text = {0};
+                                String extra_text = {};
                                 extract_command_body(l, &i, &extra_text);
                                 
                                 char *title = get_null_terminated_version(body_text);
@@ -770,7 +770,7 @@ make_document_from_text(Document_System *doc_system, char *title, char *name, En
                         
                         case Cmd_Style:
                         {
-                            String body_text = {0};
+                            String body_text = {};
                             if (extract_command_body(l, &i, &body_text)){
                                 begin_style(&builder, body_text);
                             }
@@ -795,7 +795,7 @@ make_document_from_text(Document_System *doc_system, char *title, char *name, En
                         
                         case Cmd_Link:
                         {
-                            String body_text = {0};
+                            String body_text = {};
                             if (extract_command_body(l, &i, &body_text)){
                                 begin_link(&builder, body_text);
                             }
@@ -807,7 +807,7 @@ make_document_from_text(Document_System *doc_system, char *title, char *name, En
                         // TODO(allen): upgrade this bs
                         case Cmd_DocumentLink:
                         {
-                            String body_text = {0};
+                            String body_text = {};
                             if (extract_command_body(l, &i, &body_text)){
                                 add_document_link(&builder, body_text);
                             }
@@ -818,9 +818,9 @@ make_document_from_text(Document_System *doc_system, char *title, char *name, En
                         
                         case Cmd_Image:
                         {
-                            String body_text = {0};
+                            String body_text = {};
                             if (extract_command_body(l, &i, &body_text)){
-                                String size_parameter = {0};
+                                String size_parameter = {};
                                 extract_command_body(l, &i, &size_parameter);
                                 add_image(&builder, body_text, size_parameter);
                             }
@@ -831,7 +831,7 @@ make_document_from_text(Document_System *doc_system, char *title, char *name, En
                         
                         case Cmd_Video:
                         {
-                            String body_text = {0};
+                            String body_text = {};
                             if (extract_command_body(l, &i, &body_text)){
                                 add_video(&builder, body_text);
                             }
@@ -857,7 +857,7 @@ make_document_from_text(Document_System *doc_system, char *title, char *name, En
                         
                         case Cmd_Include:
                         {
-                            String body_text = {0};
+                            String body_text = {};
                             if (extract_command_body(l, &i, &body_text)){
                                 add_include(doc_system, &builder, body_text);
                             }
@@ -868,8 +868,8 @@ make_document_from_text(Document_System *doc_system, char *title, char *name, En
                         
                         case Cmd_MetaParse:
                         {
-                            String name = {0};
-                            String file = {0};
+                            String name = {};
+                            String file = {};
                             if (extract_command_body(l, &i, &name)){
                                 if (extract_command_body(l, &i, &file)){
                                     u32 result = create_meta_unit(doc_system, name, file);
@@ -893,9 +893,9 @@ make_document_from_text(Document_System *doc_system, char *title, char *name, En
                         case Cmd_DocList:
                         case Cmd_DocFull:
                         {
-                            String name = {0};
+                            String name = {};
                             if (extract_command_body(l, &i, &name)){
-                                String mangle = {0};
+                                String mangle = {};
                                 extract_command_body(l, &i, &mangle);
                                 
                                 u32 mangle_rule = MangleRule_None;
@@ -953,7 +953,7 @@ struct Unresolved_Include_Array{
 
 internal Unresolved_Include_Array
 get_unresolved_includes(Document_System *doc_system){
-    Unresolved_Include_Array result = {0};
+    Unresolved_Include_Array result = {};
     
     Basic_List *list = &doc_system->unresolved_includes;
     result.items = (Document_Item**)fm_push_array(Document_Item*, list->count);
@@ -1460,8 +1460,8 @@ global String doc_chunk_headers[] = {
 
 internal String
 get_next_doc_chunk(String source, String prev_chunk, Doc_Chunk_Type *type){
-    String chunk = {0};
-    String word = {0};
+    String chunk = {};
+    String word = {};
     i32 pos = source.size;
     i32 word_index = 0;
     Doc_Chunk_Type t = DocChunk_PlainText;
@@ -1604,7 +1604,7 @@ print_struct_docs(String *out, Item_Node *member){
             print_struct_docs(out, member_iter);
         }
         else{
-            Documentation doc = {0};
+            Documentation doc = {};
             perform_doc_parse(member_iter->doc_string, &doc);
             
             append(out, "<div>");
@@ -1648,7 +1648,7 @@ print_function_docs(String *out, String name, String doc_string){
     
     Temp temp = fm_begin_temp();
     
-    Documentation doc = {0};
+    Documentation doc = {};
     
     perform_doc_parse(doc_string, &doc);
     
@@ -1767,7 +1767,7 @@ print_item_html(String *out, Used_Links *used, Item_Node *item, char *id_postfix
             
             // NOTE(allen): Descriptive section
             String doc_string = item->doc_string;
-            Documentation doc = {0};
+            Documentation doc = {};
             perform_doc_parse(doc_string, &doc);
             
             String main_doc = doc.main_doc;
@@ -1798,7 +1798,7 @@ print_item_html(String *out, Used_Links *used, Item_Node *item, char *id_postfix
             
             // NOTE(allen): Descriptive section
             String doc_string = item->doc_string;
-            Documentation doc = {0};
+            Documentation doc = {};
             perform_doc_parse(doc_string, &doc);
             
             String main_doc = doc.main_doc;
@@ -1819,7 +1819,7 @@ print_item_html(String *out, Used_Links *used, Item_Node *item, char *id_postfix
                 for (Item_Node *member = item->first_child;
                      member;
                      member = member->next_sibling){
-                    Documentation doc = {0};
+                    Documentation doc = {};
                     perform_doc_parse(member->doc_string, &doc);
                     
                     append(out, "<div>");
@@ -1876,7 +1876,7 @@ print_item_html(String *out, Used_Links *used, Item_Node *item, char *id_postfix
             
             // NOTE(allen): Descriptive section
             {
-                Documentation doc = {0};
+                Documentation doc = {};
                 perform_doc_parse(doc_string, &doc);
                 
                 String main_doc = doc.main_doc;
@@ -1973,7 +1973,7 @@ struct Document_Output_System{
 
 internal Document_Output_System
 make_output_system(String *out, Document_System *doc_system, Used_Links *used_links, Section_Counter *section_counter, Include_Stack *inc_stack){
-    Document_Output_System sys = {0};
+    Document_Output_System sys = {};
     sys.out = out;
     sys.doc_system = doc_system;
     sys.used_links = used_links;
@@ -2239,7 +2239,7 @@ generate_item_html(Document_Output_System sys, Document_Item *item){
             
             if (duplicate){
                 String error = make_lit_string("recursive inclusion, halted here");
-                Document_Item temp_item = {0};
+                Document_Item temp_item = {};
                 temp_item.type = Doc_Error;
                 set_item_string(&temp_item.string.string, error);
                 generate_item_html(sys, &temp_item);
@@ -2265,13 +2265,13 @@ internal void
 generate_document_html(String *out, Document_System *doc_system, Abstract_Item *doc){
     Assert(doc->root_item != 0);
     
-    Used_Links used_links = {0};
+    Used_Links used_links = {};
     init_used_links(&used_links, 4000);
     
-    Section_Counter section_counter = {0};
+    Section_Counter section_counter = {};
     section_counter.counter[section_counter.nest_level] = 1;
     
-    Include_Stack inc_stack = {0};
+    Include_Stack inc_stack = {};
     
     Document_Output_System sys = make_output_system(out, doc_system, &used_links, &section_counter, &inc_stack);
     

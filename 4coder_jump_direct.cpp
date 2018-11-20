@@ -11,12 +11,12 @@ CUSTOM_DOC("If the cursor is found to be on a jump location, parses the jump loc
     Temp_Memory temp = begin_temp_memory(&global_part);
     View_Summary view = get_active_view(app, AccessProtected);
     
-    Name_Line_Column_Location location = {0};
+    Name_Line_Column_Location location = {};
     if (parse_jump_from_buffer_line(app, &global_part, view.buffer_id, view.cursor.line, false, &location)){
         change_active_panel(app);
         View_Summary target_view = get_active_view(app, AccessAll);
         
-        Buffer_Summary buffer = {0};
+        Buffer_Summary buffer = {};
         if (get_jump_buffer(app, &buffer, &location)){
             switch_to_existing_view(app, &target_view, &buffer);
             jump_to_location(app, &target_view, &buffer, location);
@@ -32,11 +32,11 @@ CUSTOM_DOC("If the cursor is found to be on a jump location, parses the jump loc
     Temp_Memory temp = begin_temp_memory(&global_part);
     View_Summary view = get_active_view(app, AccessProtected);
     
-    Name_Line_Column_Location location = {0};
+    Name_Line_Column_Location location = {};
     if (parse_jump_from_buffer_line(app, &global_part, view.buffer_id, view.cursor.line, false, &location)){
         View_Summary target_view = view;
         
-        Buffer_Summary buffer = {0};
+        Buffer_Summary buffer = {};
         if (get_jump_buffer(app, &buffer, &location)){
             jump_to_location(app, &target_view, &buffer, location);
         }

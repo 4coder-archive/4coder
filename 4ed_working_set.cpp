@@ -53,7 +53,7 @@ working_set_extend_memory(Working_Set *working_set, Editing_File *new_space, i16
     
     working_set->file_max += number_of_files;
     
-    Buffer_Slot_ID id = {0};
+    Buffer_Slot_ID id = {};
     id.part[1] = high_part;
     
     Editing_File *file_ptr = new_space;
@@ -191,7 +191,7 @@ working_set_init(Working_Set *working_set, Partition *partition, Heap *heap){
 inline void
 working_set__grow_if_needed(Table *table, Heap *heap, void *arg, Hash_Function *hash_func, Compare_Function *comp_func){
     if (table_at_capacity(table)){
-        Table btable = {0};
+        Table btable = {};
         i32 new_max = table->max * 2;
         i32 mem_size = table_required_mem_size(new_max, table->item_size);
         void *mem = heap_allocate(heap, mem_size);
@@ -456,7 +456,7 @@ buffer_bind_name_low_level(Heap *heap, Working_Set *working_set, Editing_File *f
     Assert(file->base_name.name.size == 0);
     Assert(file->unique_name.name.size == 0);
     
-    Editing_File_Name new_name = {0};
+    Editing_File_Name new_name = {};
     new_name.name = make_fixed_width_string(new_name.name_);
     buffer_resolve_name_low_level(working_set, &new_name, name);
     
@@ -560,7 +560,7 @@ buffer_bind_name(Models *models, Heap *heap, Partition *scratch,
 internal Editing_File*
 open_file(System_Functions *system, Models *models, String filename){
     Editing_File *file = 0;
-    Editing_File_Name canon_name = {0};
+    Editing_File_Name canon_name = {};
     
     if (terminate_with_null(&filename) &&
         get_canon_name(system, filename, &canon_name)){

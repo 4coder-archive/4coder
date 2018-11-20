@@ -27,7 +27,7 @@ struct File_Viewing_Data{
     b32 show_whitespace;
     b32 file_locked;
 };
-global File_Viewing_Data null_file_viewing_data = {0};
+global File_Viewing_Data null_file_viewing_data = {};
 
 struct View_Transient{
     struct View *next;

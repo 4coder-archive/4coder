@@ -358,7 +358,7 @@ Sys_Font_Path(name, parameters){
     
     OSX_Font_Match match = osx_get_font_match(name, pt_size, italic, bold);
     
-    Font_Path path = {0};
+    Font_Path path = {};
     Partition *part = &shared_vars.font_scratch;
     path.temp = begin_temp_memory(part);
     
@@ -513,7 +513,7 @@ osx_character_input(u32 code, OSX_Keyboard_Modifiers modifier_flags){
         case 0xF713: c = key_f16; break;
     }
     
-    b8 mods[MDFR_INDEX_COUNT] = {0};
+    b8 mods[MDFR_INDEX_COUNT] = {};
     
     if (modifier_flags.shift)   mods[MDFR_SHIFT_INDEX] = true;
     if (modifier_flags.control) mods[MDFR_CONTROL_INDEX] = true;
@@ -761,7 +761,7 @@ osx_init(){
     
     
     
-    String clipboard_string = {0};
+    String clipboard_string = {};
     if (osx_objc.has_clipboard_item){
         clipboard_string = make_string(osx_objc.clipboard_data, osx_objc.clipboard_size);
     }

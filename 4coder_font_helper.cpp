@@ -7,7 +7,7 @@
 static Face_Description
 get_buffer_face_description(Application_Links *app, Buffer_Summary *buffer){
     Face_ID current_id = get_face_id(app, buffer);
-    Face_Description description = {0};
+    Face_Description description = {};
     if (current_id != 0){
         description = get_face_description(app, current_id);
     }

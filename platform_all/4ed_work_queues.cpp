@@ -258,7 +258,7 @@ Sys_Post_Job_Sig(system_post_job){
         queue->max = new_max;
     }
     
-    Full_Job_Data full_job = {0};
+    Full_Job_Data full_job = {};
     full_job.job = job;
     full_job.running_thread = THREAD_NOT_ASSIGNED;
     full_job.id = result;

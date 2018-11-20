@@ -442,7 +442,7 @@ lifetime__key_table_erase(Lifetime_Key_Table *table, Lifetime_Key *erase_key){
 
 internal Lifetime_Key_Table
 lifetime__key_table_copy(Heap *heap, Lifetime_Key_Table table, u32 new_max){
-    Lifetime_Key_Table new_table = {0};
+    Lifetime_Key_Table new_table = {};
     new_table.max = clamp_bottom(table.max, new_max);
     new_table.max = clamp_bottom(307, new_table.max);
     i32 item_size = sizeof(*new_table.hashes) + sizeof(*new_table.keys);

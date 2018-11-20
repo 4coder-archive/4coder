@@ -27,7 +27,7 @@ lock_jump_buffer(Buffer_Summary buffer){
 
 static View_Summary
 get_view_for_locked_jump_buffer(Application_Links *app){
-    View_Summary view = {0};
+    View_Summary view = {};
     if (locked_buffer.size > 0){
         Buffer_Summary buffer = get_buffer_by_name(app, locked_buffer.str, locked_buffer.size, AccessAll);
         if (buffer.exists){
@@ -290,7 +290,7 @@ CUSTOM_DOC("Toggle fullscreen mode on or off.  The change(s) do not take effect 
 CUSTOM_COMMAND_SIG(remap_interactive)
 CUSTOM_DOC("Switch to a named key binding map.")
 {
-    Query_Bar bar = {0};
+    Query_Bar bar = {};
     char space[1024];
     bar.prompt = make_lit_string("Map Name: ");
     bar.string = make_fixed_width_string(space);

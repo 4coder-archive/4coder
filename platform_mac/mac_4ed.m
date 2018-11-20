@@ -96,7 +96,7 @@ static DISPLINK_SIG(osx_display_link);
         is_dead_key = true;
     }
     
-    OSX_Keyboard_Modifiers mods = {0};
+    OSX_Keyboard_Modifiers mods = {};
     NSEventModifierFlags flags = [NSEvent modifierFlags];
     mods.shift = ((flags & NSEventModifierFlagShift) != 0);
     mods.command = ((flags & NSEventModifierFlagCommand) != 0);
@@ -334,7 +334,7 @@ typedef struct{
     volatile i64 lock;
 } File_Change_Queue;
 
-static File_Change_Queue file_queue = {0};
+static File_Change_Queue file_queue = {};
 
 File_Change_Node*
 file_change_node(char *name){
@@ -376,7 +376,7 @@ typedef struct{
 
 File_Watching_Handle
 schedule_file_watching(char *f){
-    File_Watching_Handle handle = {0};
+    File_Watching_Handle handle = {};
     
     CFStringRef arg = CFStringCreateWithCString(0, f, kCFStringEncodingUTF8);
     
@@ -416,7 +416,7 @@ typedef struct File_Change_Table{
     i32 size;
 } File_Change_Table;
 
-static File_Change_Table file_change_table = {0};
+static File_Change_Table file_change_table = {};
 
 void*
 osx_file_name_prefixed_length(char *name){
@@ -774,7 +774,7 @@ osx_get_font_match(char *name, i32 pt_size, b32 italic, b32 bold){
         used_base_file = true;
     }
     
-    OSX_Font_Match match = {0};
+    OSX_Font_Match match = {};
     if (font != nil){
         NSString *path = get_font_path(font);
         char *path_c = 0;
@@ -798,7 +798,7 @@ osx_list_loadable_fonts(void){
     
     NSArray<NSString*> *fonts = [font_manager availableFontFamilies];
     
-    OSX_Loadable_Fonts result = {0};
+    OSX_Loadable_Fonts result = {};
     NSUInteger count_u = [fonts count];
     int count = (int)count_u;
     

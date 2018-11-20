@@ -201,7 +201,7 @@ DOC(This call reads in an array of strings, either null terminated or not, and o
 DOC_SEE(cpp_get_table_memory_size_null_terminated)
 DOC_SEE(cpp_get_table_memory_size_string_lengths)
 */{
-    Cpp_Keyword_Table table = {0};
+    Cpp_Keyword_Table table = {};
     table.mem = memory;
     table.memsize = memsize;
     table.keywords = (u64_4tech*)memory;
@@ -1326,7 +1326,7 @@ File_Data file = read_whole_file(file_name);
 
 Cpp_Lex_Data lex_state = cpp_lex_data_init(false); 
 
-Cpp_Token_Array array = {0};
+Cpp_Token_Array array = {};
 array.tokens = (Cpp_Token*)malloc(1 << 20); // hopefully big enough
 array.max_count = (1 << 20)/sizeof(Cpp_Token);
 
@@ -1370,7 +1370,7 @@ DOC_RETURN(A brand new lex state setup to lex from the beginning of the file.)
 
 DOC(Creates a new lex state in the form of a Cpp_Lex_Data struct and returns the struct.)
 */{
-    Cpp_Lex_Data data = {0};
+    Cpp_Lex_Data data = {};
     data.ignore_string_delims = (b8_4tech)ignore_string_delims;
     data.keyword_table = keywords;
     data.preprops_table = preprocessor_words;
@@ -1434,8 +1434,8 @@ DOC_PARAM(start_pos, The start position of the edited region of the file.
 The start and end points are based on the edited region of the file before the edit.)
 DOC_PARAM(end_pos, The end position of the edited region of the file. In particular, end_pos is the first character after the edited region not effected by the edit. Thus if the edited region contained one character end_pos - start_pos should equal 1. The start and end points are based on the edited region of the file before the edit.)
 */{
-    Cpp_Relex_Range range = {0};
-    Cpp_Get_Token_Result get_result = {0};
+    Cpp_Relex_Range range = {};
+    Cpp_Get_Token_Result get_result = {};
     
     get_result = cpp_get_token(*array, start_pos);
     range.start_token_index = get_result.token_index-1;
@@ -1477,7 +1477,7 @@ DOC_SEE(cpp_relex_declare_first_chunk_position)
 DOC_SEE(cpp_relex_is_start_chunk)
 
 */{
-    Cpp_Relex_Data state = {0};
+    Cpp_Relex_Data state = {};
     
     Cpp_Relex_Range range = cpp_get_relex_range(array, start_pos, end_pos);
     state.start_token_index = range.start_token_index;
@@ -1832,7 +1832,7 @@ DOC_SEE(cpp_free_table)
 DOC_SEE(Cpp_Word_Table_Type)
 DOC_SEE(cpp_make_table)
 */{
-    Cpp_Keyword_Table result = {0};
+    Cpp_Keyword_Table result = {};
     umem_4tech size = cpp_get_table_memory_size_default(type);
     if (size > 0){
         void *mem = malloc((size_t)size);

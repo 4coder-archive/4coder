@@ -200,7 +200,7 @@ get_file_list(Partition *part, Filename_Character *pattern, File_Filter *filter)
     // TODO(allen): // TODO(allen): // TODO(allen): // TODO(allen): // TODO(allen): 
     // Get this working with the new search by pattern structure!!!
     
-    WIN32_FIND_DATA find_data = {0};
+    WIN32_FIND_DATA find_data = {};
     HANDLE search = FindFirstFile(pattern, &find_data);
     if (search == INVALID_HANDLE_VALUE){
         fprintf(stdout, "fatal error: could not begin a file search\n");
@@ -231,7 +231,7 @@ get_file_list(Partition *part, Filename_Character *pattern, File_Filter *filter)
     }while(more_files);
     FindClose(search);
     
-    Cross_Platform_File_List list = {0};
+    Cross_Platform_File_List list = {};
     Temp_Memory part_reset = begin_temp_memory(part);
     
     int32_t rounded_char_size = (character_count*sizeof(Filename_Character) + 7)&(~7);
@@ -311,7 +311,7 @@ static bool32
 match_pattern(Filename_Character *name, Filename_Character *pattern){
     bool32 match = false;
     if (sizeof(*name) == 1){
-        Absolutes absolutes = {0};
+        Absolutes absolutes = {};
         String pattern_str = make_string_slowly(pattern);
         get_absolutes(pattern_str, &absolutes, false, false);
         match = wildcard_match_c(&absolutes, name, false);
@@ -397,7 +397,7 @@ get_file_list(Partition *part, Filename_Character *pattern, File_Filter *filter)
         }
     }
     
-    Cross_Platform_File_List list = {0};
+    Cross_Platform_File_List list = {};
     Temp_Memory part_reset = begin_temp_memory(part);
     
     int32_t rounded_char_size = (character_count*sizeof(Filename_Character) + 7)&(~7);
@@ -479,7 +479,7 @@ get_file_list(Partition *part, Filename_Character *pattern, File_Filter *filter)
 
 static String
 file_dump(Partition *part, char *name){
-    String text = {0};
+    String text = {};
     
     FILE *file = fopen(name, "rb");
     if (file != 0){

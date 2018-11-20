@@ -321,7 +321,7 @@ fm_init_system(){
 
 internal Temp_Dir
 fm_pushdir(char *dir){
-    Temp_Dir temp = {0};
+    Temp_Dir temp = {};
     GetCurrentDirectoryA(sizeof(temp.dir), temp.dir);
     SetCurrentDirectoryA(dir);
     return(temp);

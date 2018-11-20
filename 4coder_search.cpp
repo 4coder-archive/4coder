@@ -137,7 +137,7 @@ search_hit_add(Heap *heap, Table *hits, String_Space *space, char *str, int32_t 
     Assert(ostring.size != 0);
     
     if (table_at_capacity(hits)){
-        Table new_hits = {0};
+        Table new_hits = {};
         search_hits_table_alloc(heap, &new_hits, hits->max*2);
         table_clear(&new_hits);
         table_rehash(hits, &new_hits, space->space, tbl_offset_string_hash, tbl_offset_string_compare);
@@ -200,7 +200,7 @@ seek_potential_match(Application_Links *app, Search_Range *range, Search_Key key
 static int32_t
 buffer_seek_alpha_numeric_end(Application_Links *app, Buffer_Summary *buffer, int32_t pos){
     char space[1024];
-    Stream_Chunk chunk = {0};
+    Stream_Chunk chunk = {};
     if (init_stream_chunk(&chunk, app, buffer, pos, space, sizeof(space))){
         int32_t still_looping = true;
         do{
@@ -378,7 +378,7 @@ search_iter_next_range(Search_Iter *it){
 
 static Search_Match
 search_next_match(Application_Links *app, Search_Set *set, Search_Iter *it_ptr){
-    Search_Match result = {0};
+    Search_Match result = {};
     Search_Iter iter = *it_ptr;
     
     int32_t count = set->count;
@@ -416,8 +416,8 @@ search_next_match(Application_Links *app, Search_Set *set, Search_Iter *it_ptr){
             
             case SearchRange_Wave:
             {
-                Search_Match forward_match = {0};
-                Search_Match backward_match = {0};
+                Search_Match forward_match = {};
+                Search_Match backward_match = {};
                 
                 int32_t forward_result = FindResult_PastEnd;
                 int32_t backward_result = FindResult_PastEnd;
@@ -488,7 +488,7 @@ initialize_generic_search_all_buffers(Application_Links *app, Heap *heap, String
     memset(set, 0, sizeof(*set));
     memset(iter, 0, sizeof(*iter));
     
-    Search_Key key = {0};
+    Search_Key key = {};
     int32_t sizes[ArrayCount(key.words)];
     memset(sizes, 0, sizeof(sizes));
     
@@ -598,7 +598,7 @@ buffered_print_match_jump_line(Application_Links *app, Partition *part, Temp_Mem
     int32_t column_num_len = int_to_str_size(word_pos.character);
     
     Temp_Memory line_temp = begin_temp_memory(line_part);
-    String line_str = {0};
+    String line_str = {};
     if (read_line(app, line_part, match_buffer, word_pos.line, &line_str)){
         line_str = skip_chop_whitespace(line_str);
         
@@ -633,8 +633,8 @@ list__parameters(Application_Links *app, Heap *heap, Partition *scratch,
     Buffer_Summary search_buffer = get_buffer(app, search_buffer_id, AccessAll);
     
     // Initialize a generic search all buffers
-    Search_Set set = {0};
-    Search_Iter iter = {0};
+    Search_Set set = {};
+    Search_Iter iter = {};
     initialize_generic_search_all_buffers(app, heap, strings, count, match_flags, &search_buffer.buffer_id, 1, &set, &iter);
     
     // List all locations into search buffer
@@ -646,7 +646,7 @@ list__parameters(Application_Links *app, Heap *heap, Partition *scratch,
     for (Search_Match match = search_next_match(app, &set, &iter);
          match.found_match;
          match = search_next_match(app, &set, &iter)){
-        Partial_Cursor word_pos = {0};
+        Partial_Cursor word_pos = {};
         if (buffer_compute_cursor(app, &match.buffer, seek_pos(match.start), &word_pos)){
             if (prev_match_id != match.buffer.buffer_id){
                 if (prev_match_id != 0){
@@ -851,7 +851,7 @@ CUSTOM_DOC("Reads a token or word under the cursor and lists all locations of st
 // Word Complete Command
 //
 
-static Word_Complete_State complete_state = {0};
+static Word_Complete_State complete_state = {};
 
 CUSTOM_COMMAND_SIG(word_complete)
 CUSTOM_DOC("Iteratively tries completing the word to the left of the cursor with other words in open buffers that have the same prefix string.")
@@ -889,7 +889,7 @@ CUSTOM_DOC("Iteratively tries completing the word to the left of the cursor with
             cursor_pos = word_end - 1;
             
             char space[1024];
-            Stream_Chunk chunk = {0};
+            Stream_Chunk chunk = {};
             if (init_stream_chunk(&chunk, app, &buffer, cursor_pos, space, sizeof(space))){
                 int32_t still_looping = true;
                 do{
@@ -916,7 +916,7 @@ CUSTOM_DOC("Iteratively tries completing the word to the left of the cursor with
             
             // NOTE(allen): Initialize the search iterator with the partial word.
             complete_state.initialized = true;
-            Search_Key key = {0};
+            Search_Key key = {};
             search_key_alloc(&global_heap, &key, &size, 1);
             buffer_read_range(app, &buffer, word_start, word_end, key.words[0].str);
             key.words[0].size = size;
