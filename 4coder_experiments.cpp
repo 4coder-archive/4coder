@@ -134,7 +134,7 @@ CUSTOM_DOC("Begin multi-line mode.  In multi-line mode characters are inserted a
     int32_t line_count = rect.line1 - rect.line0 + 1;
     
     for (;;){
-        User_Input in = get_user_input(app, EventOnAnyKey, EventOnEsc | EventOnButton);
+        User_Input in = get_user_input(app, EventOnAnyKey, EventOnEsc|EventOnMouseLeftButton|EventOnMouseRightButton);
         if (in.abort) break;
         
         if (in.key.character && key_is_unmodified(&in.key)){
@@ -315,7 +315,6 @@ multi_paste_interactive_up_down(Application_Links *app, int32_t paste_count, int
     for (;;){
         in = get_user_input(app, EventOnAnyKey, EventOnEsc);
         if (in.abort) break;
-        Assert(in.type == UserInputKey);
         
         bool32 did_modify = false;
         if (in.key.keycode == key_up){
