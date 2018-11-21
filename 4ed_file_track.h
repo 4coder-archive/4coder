@@ -22,12 +22,12 @@ struct File_Track_System{
 
 typedef i32 File_Track_Result;
 enum{
-    FileTrack_Good,
-    FileTrack_MemoryTooSmall,
-    FileTrack_OutOfTableMemory,
-    FileTrack_OutOfListenerMemory,
-    FileTrack_NoMoreEvents,
-    FileTrack_FileSystemError
+    FileTrack_Good = 0,
+    FileTrack_MemoryTooSmall = 1,
+    FileTrack_OutOfTableMemory = 2,
+    FileTrack_OutOfListenerMemory = 3,
+    FileTrack_NoMoreEvents = 4,
+    FileTrack_FileSystemError = 5
 };
 
 FILE_TRACK_LINK File_Track_Result

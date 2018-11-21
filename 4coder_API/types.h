@@ -64,10 +64,6 @@ ENUM(uint64_t, Command_ID){
     cmdid_undo,
     /* DOC(cmdid_redo reperforms an edit that was undone.) */
     cmdid_redo,
-    /* DOC(cmdid_reopen reloads the active buffer's associated file and discards the old buffer contents for the reloaded file.) */
-    cmdid_reopen,
-    /* DOC(cmdid_save saves the buffer's contents into the associated file.) */
-    cmdid_save,
     // count
     cmdid_count
 };
@@ -202,6 +198,9 @@ ENUM(uint32_t, Buffer_Kill_Flag){
     BufferKill_AlwaysKill  = 0x2,
 };
 
+/* DOC(A Buffer_Reopen_Flag field specifies how a buffer should be reopened -- currently no flags are provided.) */
+ENUM(uint32_t, Buffer_Reopen_Flag){};
+
 /* DOC(A status enumeration returned by kill_buffer.)
 DOC_SEE(kill_buffer) */
 ENUM(int32_t, Buffer_Kill_Result){
@@ -213,6 +212,15 @@ ENUM(int32_t, Buffer_Kill_Result){
     BufferKillResult_Unkillable = 2,
     /* DOC(The specified buffer does not exist.) */
     BufferKillResult_DoesNotExist = 3,
+};
+
+/* DOC(A status enumeration returned by reopen_buffer.)
+DOC_SEE(kill_buffer) */
+ENUM(int32_t, Buffer_Reopen_Result){
+    /* DOC(The buffer was successfully reopened.) */
+    BufferReopenResult_Reopened = 0,
+    /* DOC(The buffer was not reopened, because either the buffer has no attached file, or the attached file could not be loaded.) */
+    BufferReopenResult_Failed = 1,
 };
 
 /* DOC(An Access_Flag field specifies what sort of permission you grant to an access call.  An access call is usually one the returns a summary struct.  If a 4coder object has a particular protection flag set and the corresponding bit is not set in the access field, that 4coder object is hidden.  On the other hand if a protection flag is set in the access parameter and the object does not have that protection flag, the object is still returned from the access call.) */

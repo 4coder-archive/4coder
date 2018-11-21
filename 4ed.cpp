@@ -160,90 +160,6 @@ COMMAND_DECL(redo){
     Assert(file->state.undo.undo.size >= 0);
 }
 
-// TODO(allen): Improvements to reopen
-// - Perform a diff
-// - If the diff is not tremendously big, apply the edits.
-COMMAND_DECL(reopen){
-    Panel *active_panel = &models->layout.panels[models->layout.active_panel];
-    View *view = active_panel->view;
-    Editing_File *file = view->transient.file_data.file;
-    if (file->canon.name.str == 0){
-        return;
-    }
-    if (file->canon.name.size != 0){
-        Plat_Handle handle;
-        if (system->load_handle(file->canon.name.str, &handle)){
-            
-            i32 size = system->load_size(handle);
-            
-            Partition *part = &models->mem.part;
-            Temp_Memory temp = begin_temp_memory(part);
-            char *buffer = push_array(part, char, size);
-            
-            if (buffer != 0){
-                if (system->load_file(handle, buffer, size)){
-                    system->load_close(handle);
-                    
-                    Heap *heap = &models->mem.heap;
-                    
-                    File_Edit_Positions edit_poss[16];
-                    int32_t line_number[16];
-                    int32_t column_number[16];
-                    View *vptrs[16];
-                    i32 vptr_count = 0;
-                    
-                    for (Panel *panel = models->layout.used_sentinel.next;
-                         panel != &models->layout.used_sentinel;
-                         panel = panel->next){
-                        View *view_it = panel->view;
-                        if (view_it->transient.file_data.file != file){
-                            continue;
-                        }
-                        vptrs[vptr_count] = view_it;
-                        edit_poss[vptr_count] = view_it->transient.edit_pos[0];
-                        line_number[vptr_count] = view_it->transient.edit_pos[0].cursor.line;
-                        column_number[vptr_count] = view_it->transient.edit_pos[0].cursor.character;
-                        view_it->transient.edit_pos = 0;
-                        ++vptr_count;
-                    }
-                    
-                    file_free(system, &models->app_links, heap, &models->lifetime_allocator, file);
-                    init_normal_file(system, models, buffer, size, file);
-                    
-                    for (i32 i = 0; i < vptr_count; ++i){
-                        view_set_file(system, models, vptrs[i], file);
-                        
-                        int32_t line = line_number[i];
-                        int32_t character = column_number[i];
-                        
-                        *vptrs[i]->transient.edit_pos = edit_poss[i];
-                        Full_Cursor cursor = file_compute_cursor(system, file, seek_line_char(line, character), 0);
-                        
-                        view_set_cursor(vptrs[i], cursor, true, file->settings.unwrapped_lines);
-                    }
-                }
-                else{
-                    system->load_close(handle);
-                }
-            }
-            else{
-                system->load_close(handle);
-            }
-            
-            end_temp_memory(temp);
-        }
-    }
-}
-
-COMMAND_DECL(save){
-    Panel *active_panel = &models->layout.panels[models->layout.active_panel];
-    View *view = active_panel->view;
-    Editing_File *file = view->transient.file_data.file;
-    if (!file->is_dummy && file_is_ready(file) && buffer_can_save(file)){
-        save_file(system, models, file);
-    }
-}
-
 COMMAND_DECL(user_callback){
     if (binding.custom != 0){
         binding.custom(&models->app_links);
@@ -625,9 +541,7 @@ internal void
 app_links_init(System_Functions *system, Application_Links *app_links, void *data, i32 size){
     app_links->memory = data;
     app_links->memory_size = size;
-    
     FillAppLinksAPI(app_links);
-    
     app_links->current_coroutine = 0;
     app_links->system_links = system;
 }
@@ -638,8 +552,6 @@ setup_command_table(void){
     SET(null);
     SET(undo);
     SET(redo);
-    SET(reopen);
-    SET(save);
 #undef SET
 }
 

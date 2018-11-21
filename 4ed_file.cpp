@@ -552,6 +552,16 @@ file_create_from_string(System_Functions *system, Models *models, Editing_File *
     if (hook_open_file != 0){
         hook_open_file(app_links, file->id.id);
     }
+    
+    if (file->settings.tokens_exist && file->state.token_array.tokens == 0){
+        if (!file->settings.virtual_white){
+            file_first_lex_parallel(system, models, file);
+        }
+        else{
+            file_first_lex_serial(models, file);
+        }
+    }
+    
     file->settings.is_initialized = true;
 }
 
@@ -597,35 +607,15 @@ file_free(System_Functions *system, Application_Links *app, Heap *heap, Lifetime
 }
 
 internal void
-init_normal_file(System_Functions *system, Models *models,
-                 char *buffer, i32 size,
-                 Editing_File *file){
+init_normal_file(System_Functions *system, Models *models, char *buffer, i32 size, Editing_File *file){
     String val = make_string(buffer, size);
     file_create_from_string(system, models, file, val, 0);
-    
-    if (file->settings.tokens_exist && file->state.token_array.tokens == 0){
-        if (!file->settings.virtual_white){
-            file_first_lex_parallel(system, models, file);
-        }
-        else{
-            file_first_lex_serial(models, file);
-        }
-    }
 }
 
 internal void
 init_read_only_file(System_Functions *system, Models *models, Editing_File *file){
     String val = null_string;
     file_create_from_string(system, models, file, val, FileCreateFlag_ReadOnly);
-    
-    if (file->settings.tokens_exist && file->state.token_array.tokens == 0){
-        if (!file->settings.virtual_white){
-            file_first_lex_parallel(system, models, file);
-        }
-        else{
-            file_first_lex_serial(models, file);
-        }
-    }
 }
 
 // BOTTOM

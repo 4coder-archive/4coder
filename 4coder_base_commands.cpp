@@ -1542,6 +1542,22 @@ CUSTOM_DOC("Kills the current buffer.")
     kill_buffer(app, buffer_identifier(view.buffer_id), view.view_id, 0);
 }
 
+CUSTOM_COMMAND_SIG(save)
+CUSTOM_DOC("Saves the current buffer.")
+{
+    View_Summary view = get_active_view(app, AccessProtected);
+    Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessProtected);
+    save_buffer(app, &buffer, buffer.file_name, buffer.file_name_len, 0);
+}
+
+CUSTOM_COMMAND_SIG(reopen)
+CUSTOM_DOC("Reopen the current buffer from the hard drive.")
+{
+    View_Summary view = get_active_view(app, AccessProtected);
+    Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessProtected);
+    reopen_buffer(app, &buffer, 0);
+}
+
 ////////////////////////////////
 
 CUSTOM_COMMAND_SIG(undo)
@@ -1554,18 +1570,6 @@ CUSTOM_COMMAND_SIG(redo)
 CUSTOM_DOC("Advances forewards through the undo history.")
 {
     exec_command(app, cmdid_redo);
-}
-
-CUSTOM_COMMAND_SIG(reopen)
-CUSTOM_DOC("Reopen the current buffer from the hard drive.")
-{
-    exec_command(app, cmdid_reopen);
-}
-
-CUSTOM_COMMAND_SIG(save)
-CUSTOM_DOC("Saves the current buffer.")
-{
-    exec_command(app, cmdid_save);
 }
 
 ////////////////////////////////

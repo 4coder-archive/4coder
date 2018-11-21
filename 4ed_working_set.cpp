@@ -65,6 +65,15 @@ working_set_extend_memory(Working_Set *working_set, Editing_File *new_space, i16
     }
 }
 
+internal void
+working_set_file_default_settings(Working_Set *working_set, Editing_File *file){
+    memset(&file->settings, 0, sizeof(file->settings));
+    file->settings.display_width = working_set->default_display_width;
+    file->settings.minimum_base_display_width = working_set->default_minimum_base_display_width;
+    file->settings.wrap_indicator = WrapIndicator_Show_At_Wrap_Edge;
+}
+
+// TODO(allen): do(restructure so that editing file is returned cleared to zero)
 internal Editing_File*
 working_set_alloc_always(Working_Set *working_set, Heap *heap, Lifetime_Allocator *lifetime_allocator){
     Editing_File *result = 0;
@@ -79,15 +88,18 @@ working_set_alloc_always(Working_Set *working_set, Heap *heap, Lifetime_Allocato
         Assert(node != &working_set->free_sentinel);
         result = (Editing_File*)node;
         
-        dll_remove(node);
-        Buffer_Slot_ID id = result->id;
-        memset(result, 0, sizeof(*result));
-        result->id = id;
-        dll_insert(&working_set->used_sentinel, node);
-        result->settings.display_width = working_set->default_display_width;
-        result->settings.minimum_base_display_width = working_set->default_minimum_base_display_width;
-        result->settings.wrap_indicator = WrapIndicator_Show_At_Wrap_Edge;
         ++working_set->file_count;
+        
+        dll_remove(node);
+        dll_insert(&working_set->used_sentinel, node);
+        
+        File_Node node_val = result->node;
+        Buffer_Slot_ID id_val = result->id;
+        memset(result, 0, sizeof(*result));
+        result->node  = node_val;
+        result->id = id_val;
+        
+        working_set_file_default_settings(working_set, result);
     }
     
     return(result);

@@ -1380,6 +1380,86 @@ DOC_SEE(Buffer_Identifier)
     return(result);
 }
 
+API_EXPORT Buffer_Reopen_Result
+Reopen_Buffer(Application_Links *app, Buffer_Summary *buffer, Buffer_Reopen_Flag flags)
+{
+    Models *models = (Models*)app->cmd_context;
+    System_Functions *system = models->system;
+    Editing_File *file = imp_get_file(models, buffer);
+    
+    Buffer_Reopen_Result result = BufferReopenResult_Failed;
+    
+    if (file->canon.name.str != 0 && file->canon.name.size != 0){
+        Plat_Handle handle = {};
+        if (system->load_handle(file->canon.name.str, &handle)){
+            i32 size = system->load_size(handle);
+            
+            Partition *part = &models->mem.part;
+            Temp_Memory temp = begin_temp_memory(part);
+            char *buffer = push_array(part, char, size);
+            
+            if (buffer != 0){
+                if (system->load_file(handle, buffer, size)){
+                    system->load_close(handle);
+                    
+                    // TODO(allen): try(perform a diff maybe apply edits in reopen)
+                    
+                    File_Edit_Positions edit_poss[16];
+                    int32_t line_number[16];
+                    int32_t column_number[16];
+                    View *vptrs[16];
+                    i32 vptr_count = 0;
+                    
+                    for (Panel *panel = models->layout.used_sentinel.next;
+                         panel != &models->layout.used_sentinel;
+                         panel = panel->next){
+                        View *view_it = panel->view;
+                        if (view_it->transient.file_data.file != file){
+                            continue;
+                        }
+                        vptrs[vptr_count] = view_it;
+                        edit_poss[vptr_count] = view_it->transient.edit_pos[0];
+                        line_number[vptr_count] = view_it->transient.edit_pos[0].cursor.line;
+                        column_number[vptr_count] = view_it->transient.edit_pos[0].cursor.character;
+                        view_it->transient.file_data.file = models->scratch_buffer;
+                        view_it->transient.edit_pos = 0;
+                        ++vptr_count;
+                    }
+                    
+                    file_free(system, &models->app_links, &models->mem.heap, &models->lifetime_allocator, file);
+                    working_set_file_default_settings(&models->working_set, file);
+                    init_normal_file(system, models, buffer, size, file);
+                    
+                    for (i32 i = 0; i < vptr_count; ++i){
+                        view_set_file(system, models, vptrs[i], file);
+                        
+                        int32_t line = line_number[i];
+                        int32_t character = column_number[i];
+                        
+                        vptrs[i]->transient.file_data.file = file;
+                        *vptrs[i]->transient.edit_pos = edit_poss[i];
+                        Full_Cursor cursor = file_compute_cursor(system, file, seek_line_char(line, character), 0);
+                        
+                        view_set_cursor(vptrs[i], cursor, true, file->settings.unwrapped_lines);
+                    }
+                    
+                    result = BufferReopenResult_Reopened;
+                }
+                else{
+                    system->load_close(handle);
+                }
+            }
+            else{
+                system->load_close(handle);
+            }
+            
+            end_temp_memory(temp);
+        }
+    }
+    
+    return(result);
+}
+
 internal void
 get_view_first__internal(Models *models, View_Summary *view){
     Editing_Layout *layout = &models->layout;

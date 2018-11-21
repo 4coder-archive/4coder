@@ -27,6 +27,7 @@ struct Application_Links;
 #define CREATE_BUFFER_SIG(n) Buffer_Summary n(Application_Links *app, char *filename, int32_t filename_len, Buffer_Create_Flag flags)
 #define SAVE_BUFFER_SIG(n) bool32 n(Application_Links *app, Buffer_Summary *buffer, char *file_name, int32_t file_name_len, uint32_t flags)
 #define KILL_BUFFER_SIG(n) Buffer_Kill_Result n(Application_Links *app, Buffer_Identifier buffer, Buffer_Kill_Flag flags)
+#define REOPEN_BUFFER_SIG(n) Buffer_Reopen_Result n(Application_Links *app, Buffer_Summary *buffer, Buffer_Reopen_Flag flags)
 #define GET_VIEW_FIRST_SIG(n) View_Summary n(Application_Links *app, Access_Flag access)
 #define GET_VIEW_NEXT_SIG(n) void n(Application_Links *app, View_Summary *view, Access_Flag access)
 #define GET_VIEW_SIG(n) View_Summary n(Application_Links *app, View_ID view_id, Access_Flag access)
@@ -145,6 +146,7 @@ typedef BUFFER_SEND_END_SIGNAL_SIG(Buffer_Send_End_Signal_Function);
 typedef CREATE_BUFFER_SIG(Create_Buffer_Function);
 typedef SAVE_BUFFER_SIG(Save_Buffer_Function);
 typedef KILL_BUFFER_SIG(Kill_Buffer_Function);
+typedef REOPEN_BUFFER_SIG(Reopen_Buffer_Function);
 typedef GET_VIEW_FIRST_SIG(Get_View_First_Function);
 typedef GET_VIEW_NEXT_SIG(Get_View_Next_Function);
 typedef GET_VIEW_SIG(Get_View_Function);
@@ -265,6 +267,7 @@ Buffer_Send_End_Signal_Function *buffer_send_end_signal;
 Create_Buffer_Function *create_buffer;
 Save_Buffer_Function *save_buffer;
 Kill_Buffer_Function *kill_buffer;
+Reopen_Buffer_Function *reopen_buffer;
 Get_View_First_Function *get_view_first;
 Get_View_Next_Function *get_view_next;
 Get_View_Function *get_view;
@@ -384,6 +387,7 @@ Buffer_Send_End_Signal_Function *buffer_send_end_signal_;
 Create_Buffer_Function *create_buffer_;
 Save_Buffer_Function *save_buffer_;
 Kill_Buffer_Function *kill_buffer_;
+Reopen_Buffer_Function *reopen_buffer_;
 Get_View_First_Function *get_view_first_;
 Get_View_Next_Function *get_view_next_;
 Get_View_Function *get_view_;
@@ -511,6 +515,7 @@ app_links->buffer_send_end_signal_ = Buffer_Send_End_Signal;\
 app_links->create_buffer_ = Create_Buffer;\
 app_links->save_buffer_ = Save_Buffer;\
 app_links->kill_buffer_ = Kill_Buffer;\
+app_links->reopen_buffer_ = Reopen_Buffer;\
 app_links->get_view_first_ = Get_View_First;\
 app_links->get_view_next_ = Get_View_Next;\
 app_links->get_view_ = Get_View;\
@@ -630,6 +635,7 @@ static inline bool32 buffer_send_end_signal(Application_Links *app, Buffer_Summa
 static inline Buffer_Summary create_buffer(Application_Links *app, char *filename, int32_t filename_len, Buffer_Create_Flag flags){return(app->create_buffer(app, filename, filename_len, flags));}
 static inline bool32 save_buffer(Application_Links *app, Buffer_Summary *buffer, char *file_name, int32_t file_name_len, uint32_t flags){return(app->save_buffer(app, buffer, file_name, file_name_len, flags));}
 static inline Buffer_Kill_Result kill_buffer(Application_Links *app, Buffer_Identifier buffer, Buffer_Kill_Flag flags){return(app->kill_buffer(app, buffer, flags));}
+static inline Buffer_Reopen_Result reopen_buffer(Application_Links *app, Buffer_Summary *buffer, Buffer_Reopen_Flag flags){return(app->reopen_buffer(app, buffer, flags));}
 static inline View_Summary get_view_first(Application_Links *app, Access_Flag access){return(app->get_view_first(app, access));}
 static inline void get_view_next(Application_Links *app, View_Summary *view, Access_Flag access){(app->get_view_next(app, view, access));}
 static inline View_Summary get_view(Application_Links *app, View_ID view_id, Access_Flag access){return(app->get_view(app, view_id, access));}
@@ -749,6 +755,7 @@ static inline bool32 buffer_send_end_signal(Application_Links *app, Buffer_Summa
 static inline Buffer_Summary create_buffer(Application_Links *app, char *filename, int32_t filename_len, Buffer_Create_Flag flags){return(app->create_buffer_(app, filename, filename_len, flags));}
 static inline bool32 save_buffer(Application_Links *app, Buffer_Summary *buffer, char *file_name, int32_t file_name_len, uint32_t flags){return(app->save_buffer_(app, buffer, file_name, file_name_len, flags));}
 static inline Buffer_Kill_Result kill_buffer(Application_Links *app, Buffer_Identifier buffer, Buffer_Kill_Flag flags){return(app->kill_buffer_(app, buffer, flags));}
+static inline Buffer_Reopen_Result reopen_buffer(Application_Links *app, Buffer_Summary *buffer, Buffer_Reopen_Flag flags){return(app->reopen_buffer_(app, buffer, flags));}
 static inline View_Summary get_view_first(Application_Links *app, Access_Flag access){return(app->get_view_first_(app, access));}
 static inline void get_view_next(Application_Links *app, View_Summary *view, Access_Flag access){(app->get_view_next_(app, view, access));}
 static inline View_Summary get_view(Application_Links *app, View_ID view_id, Access_Flag access){return(app->get_view_(app, view_id, access));}

@@ -107,6 +107,7 @@ struct File_Node{
 struct Editing_File{
     // NOTE(allen): node must be the first member of Editing_File!
     File_Node node;
+    Buffer_Slot_ID id;
     Editing_File_Settings settings;
     b32 is_loading;
     b32 is_dummy;
@@ -115,7 +116,6 @@ struct Editing_File{
     Editing_File_Name base_name;
     Editing_File_Name unique_name;
     Editing_File_Name canon;
-    Buffer_Slot_ID id;
 };
 
 #endif
