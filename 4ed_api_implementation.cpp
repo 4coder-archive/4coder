@@ -1396,10 +1396,10 @@ Reopen_Buffer(Application_Links *app, Buffer_Summary *buffer, Buffer_Reopen_Flag
             
             Partition *part = &models->mem.part;
             Temp_Memory temp = begin_temp_memory(part);
-            char *buffer = push_array(part, char, size);
+            char *file_memory = push_array(part, char, size);
             
-            if (buffer != 0){
-                if (system->load_file(handle, buffer, size)){
+            if (file_memory != 0){
+                if (system->load_file(handle, file_memory, size)){
                     system->load_close(handle);
                     
                     // TODO(allen): try(perform a diff maybe apply edits in reopen)
@@ -1428,7 +1428,7 @@ Reopen_Buffer(Application_Links *app, Buffer_Summary *buffer, Buffer_Reopen_Flag
                     
                     file_free(system, &models->app_links, &models->mem.heap, &models->lifetime_allocator, file);
                     working_set_file_default_settings(&models->working_set, file);
-                    init_normal_file(system, models, buffer, size, file);
+                    init_normal_file(system, models, file_memory, size, file);
                     
                     for (i32 i = 0; i < vptr_count; ++i){
                         view_set_file(system, models, vptrs[i], file);

@@ -9,7 +9,6 @@
 
 // TOP
 
-#define KEYCODES_FILE "4coder_generated/keycodes.h"
 #define STYLE_FILE "4coder_generated/style.h"
 #define API_H "4coder_generated/app_functions.h"
 #define REMAPPING_FILE "4coder_generated/remapping.h"
@@ -17,6 +16,7 @@
 #include "../4ed_defines.h"
 #include "4ed_meta_defines.h"
 #include "../4coder_API/version.h"
+#include "4coder_API/4coder_keycodes.h"
 
 #define FSTRING_IMPLEMENTATION
 #include "../4coder_lib/4coder_string.h"
@@ -32,89 +32,6 @@
 #include "4ed_file_moving.h"
 #include "4ed_meta_parser.cpp"
 #include "4ed_meta_keywords.h"
-
-//////////////////////////////////////////////////////////////////////////////////////////////////
-#define KEY_LIST(M)\
-M(back) \
-M(up) \
-M(down) \
-M(left) \
-M(right) \
-M(del) \
-M(insert) \
-M(home) \
-M(end) \
-M(page_up) \
-M(page_down) \
-M(esc) \
-M(mouse_left) \
-M(mouse_right) \
-M(mouse_left_release) \
-M(mouse_right_release) \
-M(mouse_wheel) \
-M(mouse_move) \
-M(animate) \
-M(click_activate_view) \
-M(click_deactivate_view) \
-M(f1) \
-M(f2) \
-M(f3) \
-M(f4) \
-M(f5) \
-M(f6) \
-M(f7) \
-M(f8) \
-M(f9) \
-M(f10) \
-M(f11) \
-M(f12) \
-M(f13) \
-M(f14) \
-M(f15) \
-M(f16)
-
-
-enum{
-    key_enum_kicker_offer = 0xD800 - 1,
-#define DefKeyEnum(n) key_##n,
-    KEY_LIST(DefKeyEnum)
-#undef DefKeyEnum
-};
-
-internal void
-generate_keycode_enum(){
-    Temp temp = fm_begin_temp();
-    
-    char *filename_keycodes = KEYCODES_FILE;
-    
-    String out = str_alloc(10 << 20);
-    
-    append(&out, "enum{\n");
-#define DefKeyEnum(n) append(&out, "key_" #n " = "); append_int_to_str(&out, key_##n); append(&out, ",\n");
-    KEY_LIST(DefKeyEnum);
-#undef DefKeyEnum
-    append(&out, "};\n");
-    
-    append(&out,
-           "static char*\n"
-           "global_key_name(uint32_t key_code, int32_t *size){\n"
-           "char *result = 0;\n"
-           "switch(key_code){\n");
-    
-#define KeyCase(n) append(&out, "case key_" #n ": result = \"key_" #n "\"; *size = sizeof(\"key_" #n "\")-1; break;\n");
-    KEY_LIST(KeyCase);
-#undef KeyCase
-    
-    append(&out,
-           "}\n"
-           "return(result);\n"
-           "}\n");
-    
-    fm_write_file(filename_keycodes, out.str, out.size);
-    out.size = 0;
-    
-    fm_end_temp(temp);
-}
 
 //////////////////////////////////////////////////////////////////////////////////////////////////
 internal void
@@ -1193,13 +1110,8 @@ generate_remapping_code_and_data(){
                     }
                     else{
                         char key_str_space[16];
-                        char *key_str = 0;
-                        switch (bind->keycode){
-#define KeyCase(n) case key_##n: key_str = "key_" #n; break;
-                            KEY_LIST(KeyCase)
-#undef KeyCase
-                        }
-                        
+                        i32 size = 0;
+                        char *key_str = global_key_name(bind->keycode, &size);
                         if (key_str == 0){
                             key_str = key_str_space;
                             if (bind->keycode == '\n'){
@@ -1223,10 +1135,7 @@ generate_remapping_code_and_data(){
                             }
                         }
                         
-                        fprintf(out, "bind(context, %s, %s, %s);\n",
-                                key_str,
-                                mdfr_str,
-                                bind->command);
+                        fprintf(out, "bind(context, %s, %s, %s);\n", key_str, mdfr_str, bind->command);
                     }
                 }
                 
@@ -1345,7 +1254,6 @@ int main(int argc, char **argv){
     META_BEGIN();
     
     fm_init_system();
-    generate_keycode_enum();
     generate_style();
     generate_custom_headers();
     generate_remapping_code_and_data();

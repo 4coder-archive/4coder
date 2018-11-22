@@ -9,9 +9,6 @@
 // through.  Once I build a real parser this should become almost just as easy as 
 // iterating tokens is now.
 //
-// This version can be dropped anywhere underneath 4coder_default_include.cpp and
-// will then provide the "list_all_functions_current_buffer" command.
-//
 
 static Get_Positions_Results
 get_function_positions(Application_Links *app, Buffer_Summary *buffer, int32_t token_index, Function_Positions *positions_array, int32_t positions_max){
