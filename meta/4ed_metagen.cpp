@@ -509,16 +509,16 @@ generate_remapping_code_and_data(){
         bind(mappings, key_left,  MDFR_CTRL|MDFR_SHIFT, seek_whitespace_left);
         bind(mappings, key_right, MDFR_CTRL|MDFR_SHIFT, seek_whitespace_right);
         
-        bind(mappings, 'k', MDFR_ALT|MDFR_CTRL, seek_whitespace_up_end_line);
-        bind(mappings, 'j', MDFR_ALT|MDFR_CTRL, seek_whitespace_down_end_line);
-        bind(mappings, 'h', MDFR_ALT|MDFR_CTRL, seek_whitespace_left);
-        bind(mappings, 'l', MDFR_ALT|MDFR_CTRL, seek_whitespace_right);
+        bind(mappings, 'K', MDFR_ALT, seek_whitespace_up_end_line);
+        bind(mappings, 'J', MDFR_ALT, seek_whitespace_down_end_line);
+        bind(mappings, 'H', MDFR_ALT, seek_whitespace_left);
+        bind(mappings, 'L', MDFR_ALT, seek_whitespace_right);
         
         bind(mappings, key_up,   MDFR_ALT, move_line_up);
         bind(mappings, key_down, MDFR_ALT, move_line_down);
         
-        bind(mappings, 'K', MDFR_ALT, move_line_up);
-        bind(mappings, 'J', MDFR_ALT, move_line_down);
+        bind(mappings, 'k', MDFR_ALT|MDFR_CTRL, move_line_up);
+        bind(mappings, 'j', MDFR_ALT|MDFR_CTRL, move_line_down);
         
         bind(mappings, key_back, MDFR_CTRL, backspace_word);
         bind(mappings, key_del,  MDFR_CTRL, delete_word);
