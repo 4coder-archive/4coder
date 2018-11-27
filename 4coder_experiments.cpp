@@ -827,8 +827,8 @@ get_bindings(void *data, int32_t size){
     // begin_map to clear everything that was in the map and
     // bind new things instead.
     begin_map(context, mapid_file);
-    bind(context, 'k', MDFR_ALT, kill_rect);
-    bind(context, ' ', MDFR_ALT | MDFR_CTRL, multi_line_edit);
+    bind(context, key_back, MDFR_ALT|MDFR_CTRL, kill_rect);
+    bind(context, ' ', MDFR_ALT|MDFR_CTRL, multi_line_edit);
     
     bind(context, key_page_up, MDFR_ALT, miblo_increment_time_stamp);
     bind(context, key_page_down, MDFR_ALT, miblo_decrement_time_stamp);
