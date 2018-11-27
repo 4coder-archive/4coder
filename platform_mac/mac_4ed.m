@@ -14,7 +14,7 @@
 #define inline internal
 #include "4ed_defines.h"
 #undef inline
-#include "4coder_API/version.h"
+#include "4coder_API/4coder_version.h"
 #include "4coder_generated/keycodes.h"
 
 #include "4ed_log.h"

@@ -12,16 +12,15 @@
 #define API_H "4coder_generated/app_functions.h"
 #define REMAPPING_FILE "4coder_generated/remapping.h"
 
-#include "../4ed_defines.h"
+#include "4ed_defines.h"
 #include "4ed_meta_defines.h"
-#include "../4coder_API/version.h"
+#include "4coder_API/4coder_version.h"
 #include "4coder_API/4coder_keycodes.h"
 
 #define FSTRING_IMPLEMENTATION
-#include "../4coder_lib/4coder_string.h"
-
-#include "../4coder_lib/4cpp_lexer.h"
-#include "../4ed_linked_node_macros.h"
+#include "4coder_lib/4coder_string.h"
+#include "4coder_lib/4cpp_lexer.h"
+#include "4ed_linked_node_macros.h"
 
 #include <stdlib.h>
 #include <stdio.h>

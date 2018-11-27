@@ -16,7 +16,7 @@
 #define FTECH_FILE_MOVING_IMPLEMENTATION
 #include "4ed_file_moving.h"
 
-#include "../4coder_API/version.h"
+#include "../4coder_API/4coder_version.h"
 
 //
 // OS and compiler index

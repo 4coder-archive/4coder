@@ -10,7 +10,7 @@
 // NOTE(allen): Define USE_OLD_STYLE_JUMPS before 4coder_default_include.cpp to get
 // the direct jumps (instead of sticky jumps).
 
-#include "4coder_API/custom.h"
+#include "4coder_API/4coder_custom.h"
 #include "4coder_os_comp_cracking.h"
 
 #include "4coder_generated/command_metadata.h"

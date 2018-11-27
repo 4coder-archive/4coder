@@ -12,7 +12,7 @@
 #define IS_PLAT_LAYER
 
 #include "4ed_defines.h"
-#include "4coder_API/version.h"
+#include "4coder_API/4coder_version.h"
 
 #include "4coder_lib/4coder_utf8.h"
 
@@ -25,7 +25,7 @@
 # include "4coder_lib/4coder_arena.h"
 # include "4coder_lib/4coder_arena.cpp"
 
-# include "4coder_API/types.h"
+# include "4coder_API/4coder_types.h"
 
 #else
 # include "4coder_default_bindings.cpp"
