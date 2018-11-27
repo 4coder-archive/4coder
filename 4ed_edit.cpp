@@ -492,7 +492,7 @@ edit_historical(System_Functions *system, Models *models, Editing_File *file, Vi
             view->transient.edit_pos->mark = view->transient.edit_pos->cursor.pos;
             
             Style *style = &models->styles.styles[0];
-            view_post_paste_effect(view, 0.333f, step.edit.start, step.edit.len, style->main.undo_color);
+            view_post_paste_effect(view, 0.333f, step.edit.start, step.edit.len, style->theme.colors[Stag_Undo]);
         }
     }
     else{

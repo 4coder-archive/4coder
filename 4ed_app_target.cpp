@@ -85,7 +85,6 @@ struct Mem_Options{
 #include "4ed_file.cpp"
 #include "4ed_code_wrap.cpp"
 #include "4ed_working_set.cpp"
-#include "4ed_style.cpp"
 #include "4ed_hot_directory.cpp"
 #include "4ed_cli.cpp"
 #include "4ed_gui.cpp"

@@ -16,7 +16,7 @@
 /* DOC(bool32 is an alias name to signal that an integer parameter or field is for true/false values.) */
 TYPEDEF int32_t bool32;
 
-/* DOC(int_color is an alias name to signal that an integer parameter or field is for a color value, colors are specified as 32 bit integers (8 bit + 24 bit) with 3 channels: 0x**RRGGBB.) */
+/* DOC(int_color is an alias name to signal that an integer parameter or field is for a color value, colors are specified as 32 bit integers with 4 channels: 0xAARRGGBB.  In some APIs if the alpha channel is zero, then the integer is a symbolic color with a special interpretation.) */
 TYPEDEF uint32_t int_color;
 
 /* DOC(Parse_Context_ID identifies a parse context, which is a guiding rule for the parser.  Each buffer sets which parse context to use when it is parsed.) */

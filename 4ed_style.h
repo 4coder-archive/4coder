@@ -21,7 +21,7 @@ struct Style_Font{
 struct Style{
     char name_[32];
     String name;
-    Style_Main_Data main;
+    Theme theme;
 };
 
 internal void

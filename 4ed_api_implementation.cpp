@@ -3207,24 +3207,22 @@ DOC(This call creates a new theme.  If the given name is already the name of a s
     Style_Library *library = &models->styles;
     String theme_name = make_string(name, len);
     
-    b32 hit_existing_theme = false;
     i32 count = library->count;
+    Style *destination_style = 0;
     Style *style = library->styles + 1;
     for (i32 i = 1; i < count; ++i, ++style){
         if (match(style->name, theme_name)){
-            style_set_colors(style, theme);
-            hit_existing_theme = true;
+            destination_style = style;
             break;
         }
     }
     
-    if (!hit_existing_theme){
-        if (library->count < library->max){
-            Style *new_style = &library->styles[library->count++];
-            style_set_colors(new_style, theme);
-            style_set_name(new_style, make_string(name, len));
-        }
+    if (destination_style != 0 && library->count < library->max){
+        destination_style = &library->styles[library->count++];
+        style_set_name(destination_style, make_string(name, len));
     }
+    
+    memcpy(&style->theme, theme, sizeof(*theme));
 }
 
 API_EXPORT void
@@ -3557,7 +3555,7 @@ DOC_SEE(Theme_Color)
     Style *style = &models->styles.styles[0];
     Theme_Color *theme_color = colors;
     for (i32 i = 0; i < count; ++i, ++theme_color){
-        int_color *color = style_index_by_tag(&style->main, theme_color->tag);
+        int_color *color = &style->theme.colors[theme_color->tag];
         if (color != 0){
             *color = theme_color->color;
         }
@@ -3576,9 +3574,8 @@ DOC_SEE(Theme_Color)
     Style *style = &models->styles.styles[0];
     Theme_Color *theme_color = colors;
     for (i32 i = 0; i < count; ++i, ++theme_color){
-        u32 *color = style_index_by_tag(&style->main, theme_color->tag);
-        if (color != 0){
-            theme_color->color = *color;
+        if (theme_color->tag < Stag_COUNT){
+            theme_color->color = style->theme.colors[theme_color->tag];
         }
         else{
             theme_color->color = 0xFF000000;

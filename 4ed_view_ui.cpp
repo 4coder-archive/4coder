@@ -134,16 +134,13 @@ do_step_file_view(System_Functions *system, View *view, Models *models, i32_Rect
 
 internal void
 draw_text_field(System_Functions *system, Render_Target *target, View *view, Models *models, Face_ID font_id, i32_Rect rect, String p, String t){
-    Style *style = &models->styles.styles[0];
-    
-    u32 back_color = style->main.margin_color;
-    u32 text1_color = style->main.default_color;
-    u32 text2_color = style->main.file_info_style.pop1_color;
-    
-    i32 x = rect.x0;
-    i32 y = rect.y0 + 2;
-    
-    if (target){
+    if (target != 0){
+        Style *style = &models->styles.styles[0];
+        u32 back_color  = style->theme.colors[Stag_Margin];
+        u32 text1_color = style->theme.colors[Stag_Default];
+        u32 text2_color = style->theme.colors[Stag_Pop1];
+        i32 x = rect.x0;
+        i32 y = rect.y0 + 2;
         draw_rectangle(target, rect, back_color);
         x = ceil32(draw_string(system, target, font_id, p, x, y, text2_color));
         draw_string(system, target, font_id, t, x, y, text1_color);
@@ -160,12 +157,11 @@ internal void
 draw_file_bar(System_Functions *system, Render_Target *target, View *view, Models *models, Editing_File *file, i32_Rect rect){
     File_Bar bar;
     Style *style = &models->styles.styles[0];
-    Interactive_Style bar_style = style->main.file_info_style;
     
-    u32 back_color = bar_style.bar_color;
-    u32 base_color = bar_style.base_color;
-    u32 pop1_color = bar_style.pop1_color;
-    u32 pop2_color = bar_style.pop2_color;
+    u32 back_color = style->theme.colors[Stag_Bar];
+    u32 base_color = style->theme.colors[Stag_Base];
+    u32 pop1_color = style->theme.colors[Stag_Pop1];
+    u32 pop2_color = style->theme.colors[Stag_Pop2];
     
     bar.rect = rect;
     
@@ -225,6 +221,27 @@ draw_file_bar(System_Functions *system, Render_Target *target, View *view, Model
     }
 }
 
+internal u32
+get_margin_color(Style *style, i32 level){
+    u32 margin = 0xFFFFFFFF;
+    switch (level){
+        default:
+        case UIActivation_None:
+        {
+            margin = style->theme.colors[Stag_List_Item];
+        }break;
+        case UIActivation_Hover:
+        {
+            margin = style->theme.colors[Stag_List_Item_Hover];
+        }break;
+        case UIActivation_Active:
+        {
+            margin = style->theme.colors[Stag_List_Item_Active];
+        }break;
+    }
+    return(margin);
+}
+
 internal void
 do_render_file_view(System_Functions *system, View *view, Models *models, GUI_Scroll_Vars *scroll, View *active, i32_Rect rect, b32 is_active, Render_Target *target){
     
@@ -259,9 +276,9 @@ do_render_file_view(System_Functions *system, View *view, Models *models, GUI_Sc
         query_bar_rect.x1 = rect.x1;
         query_bar_rect.y1 = rect.y0 + line_height + 2;
         rect.y0 = query_bar_rect.y1;
-        u32 back_color = style->main.margin_color;
-        u32 text1_color = style->main.default_color;
-        u32 text2_color = style->main.file_info_style.pop1_color;
+        u32 back_color  = style->theme.colors[Stag_Back];
+        u32 text1_color = style->theme.colors[Stag_Default];
+        u32 text2_color = style->theme.colors[Stag_Pop1];
         i32 x = query_bar_rect.x0;
         i32 y = query_bar_rect.y0 + 2;
         draw_rectangle(target, query_bar_rect, back_color);
@@ -283,6 +300,7 @@ do_render_file_view(System_Functions *system, View *view, Models *models, GUI_Sc
         UI_Item *item = view->transient.ui_control.items;
         GUI_Scroll_Vars ui_scroll = view->transient.ui_scroll;
         for (i32 i = 0; i < item_count; ++i, item += 1){
+            
             f32_Rect item_rect = f32R(item->rectangle);
             switch (item->coordinates){
                 case UICoordinates_Scrolled:
@@ -292,7 +310,6 @@ do_render_file_view(System_Functions *system, View *view, Models *models, GUI_Sc
                     item_rect.x1 += rect_f32.x0 - ui_scroll.scroll_x;
                     item_rect.y1 += rect_f32.y0 - ui_scroll.scroll_y;
                 }break;
-                
                 case UICoordinates_ViewRelative:
                 {
                     item_rect.x0 += rect_f32.x0;
@@ -306,10 +323,10 @@ do_render_file_view(System_Functions *system, View *view, Models *models, GUI_Sc
                 switch (item->type){
                     case UIType_Option:
                     {
-                        u32 back = style->main.back_color;
-                        u32 margin_color = style_get_margin_color(item->activation_level, style);
-                        u32 text_color = style->main.default_color;
-                        u32 pop_color = style->main.file_info_style.pop2_color;
+                        u32 back       = style->theme.colors[Stag_Back];
+                        u32 text_color = style->theme.colors[Stag_Default];
+                        u32 pop_color  = style->theme.colors[Stag_Pop2];
+                        u32 margin_color = get_margin_color(style, item->activation_level);
                         f32_Rect inner = get_inner_rect(item_rect, 3);
                         draw_rectangle(target, inner, back);
                         i32 x = (i32)inner.x0 + 3;
@@ -322,26 +339,26 @@ do_render_file_view(System_Functions *system, View *view, Models *models, GUI_Sc
                     
                     case UIType_TextField:
                     {
-                        u32 back_color = style->main.margin_color;
-                        u32 text1_color = style->main.default_color;
-                        u32 text2_color = style->main.file_info_style.pop1_color;
-                        draw_rectangle(target, item_rect, back_color);
+                        u32 back  = style->theme.colors[Stag_Back];
+                        u32 text1 = style->theme.colors[Stag_Default];
+                        u32 text2 = style->theme.colors[Stag_Pop1];
+                        draw_rectangle(target, item_rect, back);
                         i32 x = (i32)item_rect.x0;
                         i32 y = (i32)item_rect.y0 + 2;
-                        x = ceil32(draw_string(system, target, font_id, item->text_field.query, x, y, text2_color));
+                        x = ceil32(draw_string(system, target, font_id, item->text_field.query, x, y, text2));
                         x += (i32)font_string_width(system, target, font_id, " ");
-                        draw_string(system, target, font_id, item->text_field.string, x, y, text1_color);
+                        draw_string(system, target, font_id, item->text_field.string, x, y, text1);
                     }break;
                     
                     case UIType_ColorTheme:
                     {
                         Style *style_preview = &models->styles.styles[item->color_theme.index];
-                        u32 margin_color = style_get_margin_color(item->activation_level, style_preview);
-                        u32 back = style_preview->main.back_color;
-                        u32 text_color = style_preview->main.default_color;
-                        u32 keyword_color = style_preview->main.keyword_color;
-                        u32 int_constant_color = style_preview->main.int_constant_color;
-                        u32 comment_color = style_preview->main.comment_color;
+                        u32 margin_color = get_margin_color(style_preview, item->activation_level);
+                        u32 back               = style_preview->theme.colors[Stag_Back];
+                        u32 text_color         = style_preview->theme.colors[Stag_Default];
+                        u32 keyword_color      = style_preview->theme.colors[Stag_Keyword];
+                        u32 int_constant_color = style_preview->theme.colors[Stag_Int_Constant];
+                        u32 comment_color      = style_preview->theme.colors[Stag_Comment];
                         
                         f32_Rect inner = get_inner_rect(item_rect, 3);
                         

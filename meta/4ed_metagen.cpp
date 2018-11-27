@@ -1254,7 +1254,7 @@ int main(int argc, char **argv){
     META_BEGIN();
     
     fm_init_system();
-    generate_style();
+    //generate_style();
     generate_custom_headers();
     generate_remapping_code_and_data();
     

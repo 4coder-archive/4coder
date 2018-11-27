@@ -492,7 +492,7 @@ release_font_and_update_files(System_Functions *system, Models *models, Face_ID 
 internal void
 get_visual_markers(Partition *arena, Dynamic_Workspace *workspace,
                    Range range, Buffer_ID buffer_id, i32 view_index,
-                   Style_Main_Data *style_data){
+                   Theme *theme_data){
     View_ID view_id = view_index + 1;
     for (Managed_Buffer_Markers_Header *node = workspace->buffer_markers_list.first;
          node != 0;
@@ -513,7 +513,7 @@ get_visual_markers(Partition *arena, Dynamic_Workspace *workspace,
             i32 priority = data->priority;
             
             if ((color&SymbolicColor__StagColorFlag) && (color&0xFF000000) == 0){
-                u32 *c = style_index_by_tag(style_data, color&0x007FFFFF);
+                u32 *c = &theme_data->colors[color&0x007FFFFF];
                 if (c != 0){
                     color = *c;
                 }
@@ -523,7 +523,7 @@ get_visual_markers(Partition *arena, Dynamic_Workspace *workspace,
             }
             
             if ((text_color&SymbolicColor__StagColorFlag) && (text_color&0xFF000000) == 0){
-                u32 *c = style_index_by_tag(style_data, text_color&0x007FFFFF);
+                u32 *c = &theme_data->colors[color&0x007FFFFF];
                 if (c != 0){
                     text_color = *c;
                 }
@@ -755,6 +755,55 @@ range_record_stack_get_insert_index(Render_Range_Record *records, i32 count, i32
     return(insert_pos);
 }
 
+internal u32
+get_token_color(Style *style, Cpp_Token token){
+    u32 result = 0;
+    if ((token.flags & CPP_TFLAG_IS_KEYWORD) != 0){
+        if (token.type == CPP_TOKEN_BOOLEAN_CONSTANT){
+            result = style->theme.colors[Stag_Bool_Constant];
+        }
+        else{
+            result = style->theme.colors[Stag_Keyword];
+        }
+    }
+    else if ((token.flags & CPP_TFLAG_PP_DIRECTIVE) != 0){
+        result = style->theme.colors[Stag_Preproc];
+    }
+    else{
+        switch (token.type){
+            case CPP_TOKEN_COMMENT:
+            {
+                result = style->theme.colors[Stag_Comment];
+            }break;
+            case CPP_TOKEN_STRING_CONSTANT:
+            {
+                result = style->theme.colors[Stag_Str_Constant];
+            }break;
+            case CPP_TOKEN_CHARACTER_CONSTANT:
+            {
+                result = style->theme.colors[Stag_Char_Constant];
+            }break;
+            case CPP_TOKEN_INTEGER_CONSTANT:
+            {
+                result = style->theme.colors[Stag_Int_Constant];
+            }break;
+            case CPP_TOKEN_FLOATING_CONSTANT:
+            {
+                result = style->theme.colors[Stag_Float_Constant];
+            }break;
+            case CPP_PP_INCLUDE_FILE:
+            {
+                result = style->theme.colors[Stag_Include];
+            }break;
+            default:
+            {
+                result = style->theme.colors[Stag_Default];
+            }break;
+        }
+    }
+    return(result);
+}
+
 internal void
 render_loaded_file_in_view__inner(Models *models, Render_Target *target, View *view,
                                   i32_Rect rect, Full_Cursor render_cursor, Range on_screen_range,
@@ -780,9 +829,9 @@ render_loaded_file_in_view__inner(Models *models, Render_Target *target, View *v
         Lifetime_Object *lifetime_object = file->lifetime_object;
         Buffer_ID buffer_id = file->id.id;
         i32 view_index = view->persistent.id;
-        Style_Main_Data *style_data = &style->main;
+        Theme *theme_data = &style->theme;
         
-        get_visual_markers(part, &lifetime_object->workspace, on_screen_range, buffer_id, view_index, style_data);
+        get_visual_markers(part, &lifetime_object->workspace, on_screen_range, buffer_id, view_index, theme_data);
         
         i32 key_count = lifetime_object->key_count;
         i32 key_index = 0;
@@ -792,7 +841,7 @@ render_loaded_file_in_view__inner(Models *models, Render_Target *target, View *v
             i32 local_count = clamp_top(lifetime_key_reference_per_node, key_count - key_index);
             for (i32 i = 0; i < local_count; i += 1){
                 Lifetime_Key *key = node->keys[i];
-                get_visual_markers(part, &key->dynamic_workspace, on_screen_range, buffer_id, view_index, style_data);
+                get_visual_markers(part, &key->dynamic_workspace, on_screen_range, buffer_id, view_index, theme_data);
             }
             key_index += local_count;
         }
@@ -865,12 +914,12 @@ render_loaded_file_in_view__inner(Models *models, Render_Target *target, View *v
     i32 visual_line_range_markers_scan_index = 0;
     
     i32 token_i = 0;
-    u32 main_color = style->main.default_color;
-    u32 special_color = style->main.special_character_color;
-    u32 ghost_color = style->main.ghost_character_color;
+    u32 main_color = style->theme.colors[Stag_Default];
+    u32 special_color = style->theme.colors[Stag_Special_Character];
+    u32 ghost_color = style->theme.colors[Stag_Ghost_Character];
     if (tokens_use){
         Cpp_Get_Token_Result result = cpp_get_token(token_array, items->index);
-        main_color = *style_get_color(style, token_array.tokens[result.token_index]);
+        main_color = get_token_color(style, token_array.tokens[result.token_index]);
         token_i = result.token_index + 1;
     }
     
@@ -927,17 +976,17 @@ render_loaded_file_in_view__inner(Models *models, Render_Target *target, View *v
             if (token_i < token_array.count){
                 if (ind >= token_array.tokens[token_i].start){
                     for (;token_i < token_array.count && ind >= token_array.tokens[token_i].start; ++token_i){
-                        main_color = *style_get_color(style, token_array.tokens[token_i]);
+                        main_color = get_token_color(style, token_array.tokens[token_i]);
                         current_token = token_array.tokens[token_i];
                     }
                 }
                 else if (ind >= current_token.start + current_token.size){
-                    main_color = style->main.default_color;
+                    main_color = style->theme.colors[Stag_Default];
                 }
             }
             
             if (current_token.type == CPP_TOKEN_JUNK && ind >= current_token.start && ind < current_token.start + current_token.size){
-                highlight_color = style->main.highlight_junk_color;
+                highlight_color = style->theme.colors[Stag_Highlight_Junk];
             }
             else{
                 highlight_color = 0;
@@ -955,7 +1004,7 @@ render_loaded_file_in_view__inner(Models *models, Render_Target *target, View *v
         f32_Rect char_rect = f32R(item->x0, item->y0, item->x1,  item->y1);
         
         if (view->transient.file_data.show_whitespace && highlight_color == 0 && codepoint_is_whitespace(item->codepoint)){
-            highlight_this_color = style->main.highlight_white_color;
+            highlight_this_color = style->theme.colors[Stag_Highlight_White];
         }
         else{
             highlight_this_color = highlight_color;

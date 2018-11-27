@@ -559,51 +559,51 @@ setup_command_table(void){
 
 internal void
 app_hardcode_default_style(Models *models){
-    Interactive_Style file_info_style = {};
     Style *styles = models->styles.styles;
     Style *style = styles + 1;
     
     /////////////////
     style_set_name(style, make_lit_string("4coder"));
     
-    style->main.back_color = 0xFF0C0C0C;
-    style->main.margin_color = 0xFF181818;
-    style->main.margin_hover_color = 0xFF252525;
-    style->main.margin_active_color = 0xFF323232;
-    style->main.list_item_color = style->main.margin_color;
-    style->main.list_item_hover_color = style->main.margin_hover_color;
-    style->main.list_item_active_color = style->main.margin_active_color;
-    style->main.cursor_color = 0xFF00EE00;
-    style->main.highlight_color = 0xFFDDEE00;
-    style->main.mark_color = 0xFF494949;
-    style->main.default_color = 0xFF90B080;
-    style->main.at_cursor_color = style->main.back_color;
-    style->main.highlight_cursor_line_color = 0xFF1E1E1E;
-    style->main.at_highlight_color = 0xFFFF44DD;
-    style->main.comment_color = 0xFF2090F0;
-    style->main.keyword_color = 0xFFD08F20;
-    style->main.str_constant_color = 0xFF50FF30;
-    style->main.char_constant_color = style->main.str_constant_color;
-    style->main.int_constant_color = style->main.str_constant_color;
-    style->main.float_constant_color = style->main.str_constant_color;
-    style->main.bool_constant_color = style->main.str_constant_color;
-    style->main.include_color = style->main.str_constant_color;
-    style->main.preproc_color = style->main.default_color;
-    style->main.special_character_color = 0xFFFF0000;
-    style->main.ghost_character_color = color_blend(style->main.default_color, 0.5f, style->main.back_color);
+    style->theme.colors[Stag_Back]                  = 0xFF0C0C0C;
+    style->theme.colors[Stag_Margin]                = 0xFF181818;
+    style->theme.colors[Stag_Margin_Hover]          = 0xFF252525;
+    style->theme.colors[Stag_Margin_Active]         = 0xFF323232;
+    style->theme.colors[Stag_List_Item]             = style->theme.colors[Stag_Margin];
+    style->theme.colors[Stag_List_Item_Hover]       = style->theme.colors[Stag_Margin_Hover];
+    style->theme.colors[Stag_List_Item_Active]      = style->theme.colors[Stag_Margin_Active];
+    style->theme.colors[Stag_Cursor]                = 0xFF00EE00;
+    style->theme.colors[Stag_Highlight]             = 0xFFDDEE00;
+    style->theme.colors[Stag_Mark]                  = 0xFF494949;
+    style->theme.colors[Stag_Default]               = 0xFF90B080;
+    style->theme.colors[Stag_At_Cursor]             = style->theme.colors[Stag_Back];
+    style->theme.colors[Stag_Highlight_Cursor_Line] = 0xFF1E1E1E;
+    style->theme.colors[Stag_At_Highlight]          = 0xFFFF44DD;
+    style->theme.colors[Stag_Comment]               = 0xFF2090F0;
+    style->theme.colors[Stag_Keyword]               = 0xFFD08F20;
+    style->theme.colors[Stag_Str_Constant]          = 0xFF50FF30;
+    style->theme.colors[Stag_Char_Constant]         = style->theme.colors[Stag_Str_Constant];
+    style->theme.colors[Stag_Int_Constant]          = style->theme.colors[Stag_Str_Constant];
+    style->theme.colors[Stag_Float_Constant]        = style->theme.colors[Stag_Str_Constant];
+    style->theme.colors[Stag_Bool_Constant]         = style->theme.colors[Stag_Str_Constant];
+    style->theme.colors[Stag_Include]               = style->theme.colors[Stag_Str_Constant];
+    style->theme.colors[Stag_Preproc]               = style->theme.colors[Stag_Default];
+    style->theme.colors[Stag_Special_Character]     = 0xFFFF0000;
+    style->theme.colors[Stag_Ghost_Character] = color_blend(style->theme.colors[Stag_Default],
+                                                            0.5f,
+                                                            style->theme.colors[Stag_Back]);
     
-    style->main.paste_color = 0xFFDDEE00;
-    style->main.undo_color = 0xFF00DDEE;
+    style->theme.colors[Stag_Paste] = 0xFFDDEE00;
+    style->theme.colors[Stag_Undo]  = 0xFF00DDEE;
     
-    style->main.highlight_junk_color = 0xff3a0000;
-    style->main.highlight_white_color = 0xff003a3a;
+    style->theme.colors[Stag_Highlight_Junk]  = 0xff3a0000;
+    style->theme.colors[Stag_Highlight_White] = 0xff003a3a;
     
-    file_info_style.bar_color = 0xFF888888;
-    file_info_style.bar_active_color = 0xFF666666;
-    file_info_style.base_color = 0xFF000000;
-    file_info_style.pop1_color = 0xFF3C57DC;
-    file_info_style.pop2_color = 0xFFFF0000;
-    style->main.file_info_style = file_info_style;
+    style->theme.colors[Stag_Bar]        = 0xFF888888;
+    style->theme.colors[Stag_Bar_Active] = 0xFF666666;
+    style->theme.colors[Stag_Base]       = 0xFF000000;
+    style->theme.colors[Stag_Pop1]       = 0xFF3C57DC;
+    style->theme.colors[Stag_Pop2]       = 0xFFFF0000;
     ++style;
     
     /////////////////
@@ -1587,28 +1587,27 @@ App_Step_Sig(app_step){
             View *view = panel->view;
             Style *style = &models->styles.styles[0];
             
-            b32 active = (panel == active_panel);
-            u32 back_color = style->main.back_color;
-            draw_rectangle(target, full, back_color);
+            draw_rectangle(target, full, style->theme.colors[Stag_Back]);
             
             GUI_Scroll_Vars *scroll_vars = &view->transient.edit_pos->scroll;
             
+            b32 active = (panel == active_panel);
             do_render_file_view(system, view, models, scroll_vars, active_view, panel->inner, active, target);
             
-            u32 margin_color;
+            u32 margin_color = 0;
             if (active){
-                margin_color = style->main.margin_active_color;
+                margin_color = style->theme.colors[Stag_Margin_Active];
             }
             else if (panel == mouse_panel){
-                margin_color = style->main.margin_hover_color;
+                margin_color = style->theme.colors[Stag_Margin_Hover];
             }
             else{
-                margin_color = style->main.margin_color;
+                margin_color = style->theme.colors[Stag_Margin];
             }
-            draw_rectangle(target, i32R(full.x0, full.y0, full.x1, inner.y0), margin_color);
-            draw_rectangle(target, i32R(full.x0, inner.y1, full.x1, full.y1), margin_color);
-            draw_rectangle(target, i32R(full.x0, inner.y0, inner.x0, inner.y1), margin_color);
-            draw_rectangle(target, i32R(inner.x1, inner.y0, full.x1, inner.y1), margin_color);
+            draw_rectangle(target, i32R( full.x0,  full.y0,  full.x1, inner.y0), margin_color);
+            draw_rectangle(target, i32R( full.x0, inner.y1,  full.x1,  full.y1), margin_color);
+            draw_rectangle(target, i32R( full.x0, inner.y0, inner.x0, inner.y1), margin_color);
+            draw_rectangle(target, i32R(inner.x1, inner.y0,  full.x1, inner.y1), margin_color);
         }
         
         end_render_section(target, system);
