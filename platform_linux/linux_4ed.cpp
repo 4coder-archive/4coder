@@ -21,7 +21,7 @@
 
 #if defined(FRED_SUPER)
 # include "4coder_API/4coder_keycodes.h"
-# include "4coder_generated/style.h"
+# include "4coder_API/4coder_style.h"
 
 # define FSTRING_IMPLEMENTATION
 # include "4coder_lib/4coder_string.h"
