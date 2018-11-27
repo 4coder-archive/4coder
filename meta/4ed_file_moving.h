@@ -46,22 +46,22 @@ static i32 prev_error = 0;
 internal void fm_execute_in_dir(char *dir, char *str, char *args);
 
 // Init
-internal void fm_init_system();
+internal Partition fm_init_system();
 
 // Timing
-internal u64  fm_get_time();
+internal u64 fm_get_time();
 
 #define LLU_CAST(n) (long long unsigned int)(n)
 #define BEGIN_TIME_SECTION() u64 start = fm_get_time()
 #define END_TIME_SECTION(n) u64 total = fm_get_time() - start; printf("%-20s: %.2llu.%.6llu\n", (n), LLU_CAST(total/1000000), LLU_CAST(total%1000000));
 
 // Files and Folders Manipulation
-internal void fm_make_folder_if_missing(char *dir);
+internal void fm_make_folder_if_missing(Partition *part, char *dir);
 internal void fm_clear_folder(char *folder);
 internal void fm_delete_file(char *file);
 internal void fm_copy_file(char *file, char *newname);
 internal void fm_copy_all(char *source, char *tag, char *folder);
-internal void fm_copy_folder(char *src_dir, char *dst_dir, char *src_folder);
+internal void fm_copy_folder(Partition *part, char *src_dir, char *dst_dir, char *src_folder);
 
 // File Reading and Writing
 internal void fm_write_file(char *file_name, char *data, u32 size);
@@ -73,27 +73,18 @@ internal void fm_zip(char *parent, char *folder, char *dest);
 internal void fm_slash_fix(char *path);
 
 // Memory concat helpers
-internal char *fm_prepare_string_internal(char *s1, ...);
+internal char *fm_prepare_string_internal(Partition *part, char *s1, ...);
 #define fm_str(...) fm_prepare_string_internal(__VA_ARGS__, (void*)0)
 
-internal char *fm_basic_string_internal(char *s1, ...);
+internal char *fm_basic_string_internal(Partition *part, char *s1, ...);
 #define fm_basic_str(...) fm_basic_string_internal(__VA_ARGS__, (void*)0)
 
-internal char **fm_prepare_list_internal(char **l1, ...);
+internal char **fm_prepare_list_internal(Partition *part, char **l1, ...);
 #define fm_list(...) fm_prepare_list_internal(__VA_ARGS__, (void*)0)
 
-internal char **fm_list_one_item(char *item);
-
-internal void *fm__push(umem size);
-internal void fm_align();
-
-#define fm_push_array(T,c) (T*)fm__push(sizeof(T)*c)
+internal char **fm_list_one_item(Partition *part, char *item);
 
 // File System Navigation
-typedef umem Temp;
-internal Temp fm_begin_temp();
-internal void fm_end_temp(Temp temp);
-
 internal i32  fm_get_current_directory(char *buffer, i32 max);
 
 struct Temp_Dir{
@@ -190,42 +181,11 @@ static char platform_correct_slash = '/';
 #if defined(FTECH_FILE_MOVING_IMPLEMENTATION) && !defined(FTECH_FILE_MOVING_IMPL_GUARD)
 #define FTECH_FILE_MOVING_IMPL_GUARD
 
-char *fm_arena_memory = 0;
-umem fm_arena_pos = 0;
-umem fm_arena_max = 0;
-
-internal void
+internal Partition
 fm__init_memory(){
-    Assert(fm_arena_memory == 0);
-    fm_arena_max = MB(512);
-    fm_arena_memory = (char*)malloc((size_t)fm_arena_max);
-}
-
-internal Temp
-fm_begin_temp(){
-    return(fm_arena_pos);
-}
-
-internal void
-fm_end_temp(Temp temp){
-    fm_arena_pos = temp;
-}
-
-internal void*
-fm__push(umem size){
-    void *result = fm_arena_memory + fm_arena_pos;
-    if (size + fm_arena_pos > fm_arena_max){
-        result = 0;
-    }
-    else{
-        fm_arena_pos += size;
-    }
-    return(result);
-}
-
-internal void
-fm_align(){
-    fm_arena_pos = (fm_arena_pos+7)&(~7);
+    i32_4tech size = MB(512);
+    Partition part = make_part(malloc(size), size);
+    return(part);
 }
 
 //
@@ -310,13 +270,13 @@ extern "C"{
 
 global u64 perf_frequency;
 
-internal void
+internal Partition
 fm_init_system(){
     LARGE_INTEGER lint;
     if (QueryPerformanceFrequency(&lint)){
         perf_frequency = lint.QuadPart;
     }
-    fm__init_memory();
+    return(fm__init_memory());
 }
 
 internal Temp_Dir
@@ -381,8 +341,8 @@ fm_slash_fix(char *path){
 }
 
 internal void
-fm_make_folder_if_missing(char *dir){
-    char *path = fm_str(dir);
+fm_make_folder_if_missing(Partition *part, char *dir){
+    char *path = fm_str(part, dir);
     char *p = path;
     for (; *p; ++p){
         if (*p == '\\'){
@@ -478,9 +438,9 @@ fm_popdir(Temp_Dir temp){
     chdir(temp.dir);
 }
 
-internal void
+internal Partition
 fm_init_system(){
-    fm__init_memory();
+    return(fm__init_memory());
 }
 
 internal u64
@@ -585,77 +545,77 @@ fm_zip(char *parent, char *folder, char *file){
 #endif
 
 internal void
-fm_copy_folder(char *src_dir, char *dst_dir, char *src_folder){
+fm_copy_folder(Partition *part, char *src_dir, char *dst_dir, char *src_folder){
     Temp_Dir temp = fm_pushdir(src_dir);
-    fm_make_folder_if_missing(fm_str(dst_dir, "/", src_folder));
-    char *copy_name = fm_str(dst_dir, "/", src_folder);
+    fm_make_folder_if_missing(part, fm_str(part, dst_dir, "/", src_folder));
+    char *copy_name = fm_str(part, dst_dir, "/", src_folder);
     fm_copy_all(src_folder, "*", copy_name);
     fm_popdir(temp);
 }
 
 // List Helpers
-internal umem
+internal i32
 listsize(void *p, umem item_size){
     u64 zero = 0;
     u8 *ptr = (u8*)p;
     for (;memcmp(ptr, &zero, (size_t)item_size) != 0; ptr += item_size);
-    umem size = (ptr - (u8*)p);
+    i32 size = (i32)(ptr - (u8*)p);
     return(size);
 }
 
 internal void*
-fm__prepare(umem item_size, void *i1, va_list list){
-    umem size = listsize(i1, item_size);
-    void *result = (void*)fm__push(size);
+fm__prepare(Partition *part, i32 item_size, void *i1, va_list list){
+    i32 size = listsize(i1, item_size);
+    void *result = push_array(part, char, size);
     memcpy(result, i1, (size_t)size);
     
     void *ln = va_arg(list, void*);
     for (;ln != 0;){
         size = listsize(ln, item_size);
-        void *new_str = (void*)fm__push(size);
+        void *new_str = push_array(part, char, size);
         memcpy(new_str, ln, (size_t)size);
         ln = va_arg(list, void*);
     }
     
-    void *terminator = (void*)fm__push(item_size);
+    void *terminator = push_array(part, char, item_size);
     memset(terminator, 0, (size_t)item_size);
     return(result);
 }
 
 internal char*
-fm_basic_string_internal(char *s1, ...){
-    umem item_size = sizeof(*s1);
+fm_basic_string_internal(Partition *part, char *s1, ...){
+    i32 item_size = sizeof(*s1);
     va_list list;
     va_start(list, s1);
-    char *result = (char*)fm__prepare(item_size, s1, list);
+    char *result = (char*)fm__prepare(part, item_size, s1, list);
     va_end(list);
     return(result);
 }
 
 internal char*
-fm_prepare_string_internal(char *s1, ...){
-    umem item_size = sizeof(*s1);
+fm_prepare_string_internal(Partition *part, char *s1, ...){
+    i32 item_size = sizeof(*s1);
     va_list list;
     va_start(list, s1);
-    char *result = (char*)fm__prepare(item_size, s1, list);
+    char *result = (char*)fm__prepare(part, item_size, s1, list);
     va_end(list);
     fm_slash_fix(result);
     return(result);
 }
 
 internal char**
-fm_prepare_list_internal(char **p1, ...){
-    umem item_size = sizeof(*p1);
+fm_prepare_list_internal(Partition *part, char **p1, ...){
+    i32 item_size = sizeof(*p1);
     va_list list;
     va_start(list, p1);
-    char **result = (char**)fm__prepare(item_size, p1, list);
+    char **result = (char**)fm__prepare(part, item_size, p1, list);
     va_end(list);
     return(result);
 }
 
 internal char**
-fm_list_one_item(char *item){
-    char **result = (char**)fm__push(sizeof(char*)*2);
+fm_list_one_item(Partition *part, char *item){
+    char **result = push_array(part, char*, 2);
     result[0] = item;
     result[1] = 0;
     return(result);

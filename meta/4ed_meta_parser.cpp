@@ -186,15 +186,15 @@ set_token(Parse_Context *context, Cpp_Token *token){
 }
 
 internal String
-str_alloc(i32 cap){
-    return(make_string_cap(fm_push_array(char, cap), 0, cap));
+str_alloc(Partition *part, i32 cap){
+    return(make_string_cap(push_array(part, char, cap), 0, cap));
 }
 
 internal Item_Set
-allocate_item_set(i32 count){
+allocate_item_set(Partition *part, i32 count){
     Item_Set item_set = {};
     if (count > 0){
-        item_set.items = fm_push_array(Item_Node, count);
+        item_set.items = push_array(part, Item_Node, count);
         item_set.count = count;
         memset(item_set.items, 0, sizeof(Item_Node)*count);
     }
@@ -431,7 +431,7 @@ doc_parse_last_parameter(String source, i32 *pos){
 }
 
 internal void
-perform_doc_parse(String doc_string, Documentation *doc){
+perform_doc_parse(Partition *part, String doc_string, Documentation *doc){
     i32 keep_parsing = true;
     i32 pos = 0;
     
@@ -459,7 +459,7 @@ perform_doc_parse(String doc_string, Documentation *doc){
     
     if (param_count + see_count > 0){
         i32 memory_size = sizeof(String)*(2*param_count + see_count);
-        doc->param_name = fm_push_array(String, memory_size);
+        doc->param_name = push_array(part, String, memory_size);
         doc->param_docs = doc->param_name + param_count;
         doc->see_also   = doc->param_docs + param_count;
         
@@ -520,7 +520,7 @@ perform_doc_parse(String doc_string, Documentation *doc){
 }
 
 internal i32
-struct_parse(i32 is_struct, Parse_Context *context, Item_Node *top_member);
+struct_parse(Partition *part, i32 is_struct, Parse_Context *context, Item_Node *top_member);
 
 internal i32
 struct_parse_member(Parse_Context *context, Item_Node *member){
@@ -583,7 +583,7 @@ struct_parse_member(Parse_Context *context, Item_Node *member){
 }
 
 internal Item_Node*
-struct_parse_next_member(Parse_Context *context){
+struct_parse_next_member(Partition *part, Parse_Context *context){
     Item_Node *result = 0;
     
     Cpp_Token *token = 0;
@@ -594,8 +594,8 @@ struct_parse_next_member(Parse_Context *context){
             String lexeme = get_lexeme(*token, context->data);
             
             if (match(lexeme, "STRUCT")){
-                Item_Node *member = fm_push_array(Item_Node, 1);
-                if (struct_parse(true, context, member)){
+                Item_Node *member = push_array(part, Item_Node, 1);
+                if (struct_parse(part, true, context, member)){
                     result = member;
                     break;
                 }
@@ -604,8 +604,8 @@ struct_parse_next_member(Parse_Context *context){
                 }
             }
             else if (match(lexeme, "UNION")){
-                Item_Node *member = fm_push_array(Item_Node, 1);
-                if (struct_parse(false, context, member)){
+                Item_Node *member = push_array(part, Item_Node, 1);
+                if (struct_parse(part, false, context, member)){
                     result = member;
                     break;
                 }
@@ -614,7 +614,7 @@ struct_parse_next_member(Parse_Context *context){
                 }
             }
             else{
-                Item_Node *member = fm_push_array(Item_Node, 1);
+                Item_Node *member = push_array(part, Item_Node, 1);
                 if (struct_parse_member(context, member)){
                     result = member;
                     break;
@@ -633,7 +633,7 @@ struct_parse_next_member(Parse_Context *context){
 }
 
 internal i32
-struct_parse(i32 is_struct, Parse_Context *context, Item_Node *top_member){
+struct_parse(Partition *part, i32 is_struct, Parse_Context *context, Item_Node *top_member){
     i32 result = false;
     
     Cpp_Token *start_token = get_token(context);
@@ -671,14 +671,14 @@ struct_parse(i32 is_struct, Parse_Context *context, Item_Node *top_member){
         }
         
         set_token(context, token+1);
-        Item_Node *new_member = struct_parse_next_member(context);
+        Item_Node *new_member = struct_parse_next_member(part, context);
         
         if (new_member){
             top_member->first_child = new_member;
             
             Item_Node *head_member = new_member;
             for(;;){
-                new_member = struct_parse_next_member(context);
+                new_member = struct_parse_next_member(part, context);
                 if (new_member){
                     head_member->next_sibling = new_member;
                     head_member = new_member;
@@ -755,7 +755,7 @@ typedef_parse(Parse_Context *context, Item_Node *item){
 }
 
 internal i32
-enum_parse(Parse_Context *context, Item_Node *item){
+enum_parse(Partition *part, Parse_Context *context, Item_Node *item){
     i32 result = false;
     
     String parent_doc_string = {};
@@ -827,7 +827,7 @@ enum_parse(Parse_Context *context, Item_Node *item){
                         }
                     }
                     
-                    Item_Node *new_member = fm_push_array(Item_Node, 1);
+                    Item_Node *new_member = push_array(part, Item_Node, 1);
                     if (first_member == 0){
                         first_member = new_member;
                     }
@@ -865,11 +865,11 @@ enum_parse(Parse_Context *context, Item_Node *item){
 }
 
 internal Argument_Breakdown
-allocate_argument_breakdown(i32 count){
+allocate_argument_breakdown(Partition *part, i32 count){
     Argument_Breakdown breakdown = {};
     if (count > 0){
         breakdown.count = count;
-        breakdown.args = fm_push_array(Argument, count);
+        breakdown.args = push_array(part, Argument, count);
         memset(breakdown.args, 0, sizeof(Argument)*count);
     }
     return(breakdown);
@@ -881,7 +881,7 @@ foo(a, ... , z)
    ^          ^
 */
 internal Argument_Breakdown
-parameter_parse(char *data, Cpp_Token *args_start_token, Cpp_Token *args_end_token){
+parameter_parse(Partition *part, char *data, Cpp_Token *args_start_token, Cpp_Token *args_end_token){
     i32 arg_index = 0;
     Cpp_Token *arg_token = args_start_token + 1;
     i32 param_string_start = arg_token->start;
@@ -894,7 +894,7 @@ parameter_parse(char *data, Cpp_Token *args_start_token, Cpp_Token *args_end_tok
         }
     }
     
-    Argument_Breakdown breakdown = allocate_argument_breakdown(arg_count);
+    Argument_Breakdown breakdown = allocate_argument_breakdown(part, arg_count);
     
     arg_token = args_start_token + 1;
     for (; arg_token <= args_end_token; ++arg_token){
@@ -1025,7 +1025,7 @@ Moves the context in the following way:
  ^  --------------->  ^
 */
 internal i32
-function_sig_parse(Parse_Context *context, Item_Node *item, String cpp_name){
+function_sig_parse(Partition *part, Parse_Context *context, Item_Node *item, String cpp_name){
     i32 result = false;
     
     Cpp_Token *token = 0;
@@ -1049,7 +1049,7 @@ function_sig_parse(Parse_Context *context, Item_Node *item, String cpp_name){
             item->args = str_start_end(context->data, args_start_token->start, token->start + token->size);
             item->t = Item_Function;
             item->cpp_name = cpp_name;
-            item->breakdown = parameter_parse(context->data, args_start_token, token);
+            item->breakdown = parameter_parse(part, context->data, args_start_token, token);
             
             Assert(get_token(context)->type == CPP_TOKEN_PARENTHESE_CLOSE);
             result = true;
@@ -1065,7 +1065,7 @@ Moves the context in the following way:
  ^  ------------------->  ^
 */
 internal i32
-function_parse(Parse_Context *context, Item_Node *item, String cpp_name){
+function_parse(Partition *part, Parse_Context *context, Item_Node *item, String cpp_name){
     i32 result = false;
     
     String doc_string = {};
@@ -1079,7 +1079,7 @@ function_parse(Parse_Context *context, Item_Node *item, String cpp_name){
     
     set_token(context, token);
     if (get_next_token(context)){
-        if (function_sig_parse(context, item, cpp_name)){
+        if (function_sig_parse(part, context, item, cpp_name)){
             Assert(get_token(context)->type == CPP_TOKEN_PARENTHESE_CLOSE);
             result = true;
         }
@@ -1118,7 +1118,7 @@ Moves the context in the following way:
  ^  ---------------------------->  ^
 */
 internal i32
-macro_parse(Parse_Context *context, Item_Node *item){
+macro_parse(Partition *part, Parse_Context *context, Item_Node *item){
     i32 result = false;
     
     Cpp_Token *token = 0;
@@ -1157,7 +1157,7 @@ macro_parse(Parse_Context *context, Item_Node *item){
                         if (token){
                             item->args = str_start_end(context->data, args_start_token->start, token->start + token->size);
                             
-                            item->breakdown = parameter_parse(context->data, args_start_token, token);
+                            item->breakdown = parameter_parse(part, context->data, args_start_token, token);
                             
                             if ((token = get_next_token(context)) != 0){
                                 Cpp_Token *body_start = token;
@@ -1188,14 +1188,14 @@ macro_parse(Parse_Context *context, Item_Node *item){
 }
 
 internal Meta_Unit
-compile_meta_unit(char *code_directory, char **files, Meta_Keywords *meta_keywords, i32 key_count){
+compile_meta_unit(Partition *part, char *code_directory, char **files, Meta_Keywords *meta_keywords, i32 key_count){
     Meta_Unit unit = {};
     
     i32 file_count = 0;
     for (char **file_ptr = files; *file_ptr; ++file_ptr, ++file_count);
     
     unit.count = file_count;
-    unit.parse = fm_push_array(Parse, file_count);
+    unit.parse = push_array(part, Parse, file_count);
     
     b32 all_files_lexed = true;
     i32 i = 0;
@@ -1245,7 +1245,7 @@ compile_meta_unit(char *code_directory, char **files, Meta_Keywords *meta_keywor
         }
         
         if (unit.set.count >  0){
-            unit.set = allocate_item_set(unit.set.count);
+            unit.set = allocate_item_set(part, unit.set.count);
         }
         
         i32 index = 0;
@@ -1269,7 +1269,7 @@ compile_meta_unit(char *code_directory, char **files, Meta_Keywords *meta_keywor
                         switch (type){
                             case Item_Function:
                             {
-                                if (function_parse(context, unit.set.items + index, cpp_name)){
+                                if (function_parse(part, context, unit.set.items + index, cpp_name)){
                                     Assert(unit.set.items[index].t == Item_Function);
                                     ++index;
                                 }
@@ -1290,7 +1290,7 @@ compile_meta_unit(char *code_directory, char **files, Meta_Keywords *meta_keywor
                             
                             case Item_Macro:
                             {
-                                if (macro_parse(context, unit.set.items + index)){
+                                if (macro_parse(part, context, unit.set.items + index)){
                                     Assert(unit.set.items[index].t == Item_Macro);
                                     ++index;
                                 }
@@ -1312,7 +1312,7 @@ compile_meta_unit(char *code_directory, char **files, Meta_Keywords *meta_keywor
                             
                             case Item_Struct: case Item_Union: //struct/union
                             {
-                                if (struct_parse((type == Item_Struct), context, unit.set.items + index)){
+                                if (struct_parse(part, (type == Item_Struct), context, unit.set.items + index)){
                                     Assert(unit.set.items[index].t == Item_Struct ||unit.set.items[index].t == Item_Union);
                                     ++index;
                                 }
@@ -1323,7 +1323,7 @@ compile_meta_unit(char *code_directory, char **files, Meta_Keywords *meta_keywor
                             
                             case Item_Enum: //ENUM
                             {
-                                if (enum_parse(context, unit.set.items + index)){
+                                if (enum_parse(part, context, unit.set.items + index)){
                                     Assert(unit.set.items[index].t == Item_Enum);
                                     ++index;
                                 }
@@ -1361,9 +1361,9 @@ compile_meta_unit(char *code_directory, char **files, Meta_Keywords *meta_keywor
 }
 
 internal Meta_Unit
-compile_meta_unit(char *code_directory, char *file, Meta_Keywords *meta_keywords, i32 key_count){
+compile_meta_unit(Partition *part, char *code_directory, char *file, Meta_Keywords *meta_keywords, i32 key_count){
     char *file_array[2] = {file, 0};
-    Meta_Unit unit = compile_meta_unit(code_directory, file_array, meta_keywords, key_count);
+    Meta_Unit unit = compile_meta_unit(part, code_directory, file_array, meta_keywords, key_count);
     return(unit);
 }
 

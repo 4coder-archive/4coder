@@ -17,8 +17,10 @@
 #include "4coder_API/4coder_version.h"
 #include "4coder_API/4coder_keycodes.h"
 
-#define FSTRING_IMPLEMENTATION
-#include "4coder_lib/4coder_string.h"
+# include "4coder_lib/4coder_arena.h"
+# include "4coder_lib/4coder_arena.cpp"
+# define FSTRING_IMPLEMENTATION
+# include "4coder_lib/4coder_string.h"
 #include "4coder_lib/4cpp_lexer.h"
 #include "4ed_linked_node_macros.h"
 
@@ -45,44 +47,44 @@ struct App_API{
 };
 
 internal App_API
-allocate_app_api(i32 count){
+allocate_app_api(Partition *part, i32 count){
     App_API app_api = {};
-    app_api.names = fm_push_array(App_API_Name, count);
+    app_api.names = push_array(part, App_API_Name, count);
     memset(app_api.names, 0, sizeof(App_API_Name)*count);
     return(app_api);
 }
 
 internal void
-generate_custom_headers(){
-    Temp temp = fm_begin_temp();
+generate_custom_headers(Partition *part){
+    Temp_Memory temp = begin_temp_memory(part);
     
     // NOTE(allen): Parse the customization API files
     static char *functions_files[] = { "4ed_api_implementation.cpp", 0 };
-    Meta_Unit unit_custom = compile_meta_unit(".", functions_files, ExpandArray(meta_keywords));
+    Meta_Unit unit_custom = compile_meta_unit(part, ".", functions_files, ExpandArray(meta_keywords));
     if (unit_custom.parse == 0){
         Assert(!"Missing one or more input files!");
     }
     
     // NOTE(allen): Compute and store variations of the function names
-    App_API func_4ed_names = allocate_app_api(unit_custom.set.count);
+    App_API func_4ed_names = allocate_app_api(part, unit_custom.set.count);
     
     for (i32 i = 0; i < unit_custom.set.count; ++i){
         String name_string = unit_custom.set.items[i].name;
         String *macro = &func_4ed_names.names[i].macro;
         String *public_name = &func_4ed_names.names[i].public_name;
         
-        *macro = str_alloc(name_string.size+4);
+        *macro = str_alloc(part, name_string.size+4);
         to_upper(macro, name_string);
         append(macro, make_lit_string("_SIG"));
         
-        *public_name = str_alloc(name_string.size);
+        *public_name = str_alloc(part, name_string.size);
         to_lower(public_name, name_string);
         
-        fm_align();
+        push_align(part, 8);
     }
     
     // NOTE(allen): Output
-    String out = str_alloc(10 << 20);
+    String out = str_alloc(part, 10 << 20);
     
     // NOTE(allen): Custom API headers
     append(&out, "struct Application_Links;\n");
@@ -198,7 +200,7 @@ generate_custom_headers(){
     fm_write_file(API_H, out.str, out.size);
     out.size = 0;
     
-    fm_end_temp(temp);
+    end_temp_memory(temp);
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////
@@ -261,13 +263,13 @@ enum{
 //////////////////////////////////////////////////////////////////////////////////////////////////
 
 internal void
-emit_begin_mapping(Mapping_Array *array, char *name, char *description){
+emit_begin_mapping(Partition *part, Mapping_Array *array, char *name, char *description){
     Assert(array->current_mapping == 0);
     
-    Mapping *mapping = fm_push_array(Mapping, 1);
-    mapping->name = fm_basic_str(name);
+    Mapping *mapping = push_array(part, Mapping, 1);
+    mapping->name = fm_basic_str(part, name);
     mapping->name_len = str_size(name);
-    mapping->description = fm_basic_str(description);
+    mapping->description = fm_basic_str(part, description);
     mapping->description_len = str_size(description);
     mapping->first_sub_map = 0;
     mapping->last_sub_map = 0;
@@ -284,14 +286,14 @@ emit_end_mapping(Mapping_Array *array){
 }
 
 internal void
-emit_begin_map(Mapping_Array *array, char *mapid, char *description){
+emit_begin_map(Partition *part, Mapping_Array *array, char *mapid, char *description){
     Assert(array->current_mapping != 0);
     Assert(array->current_sub_map == 0);
     
-    Sub_Map *sub_map = fm_push_array(Sub_Map, 1);
-    sub_map->name = fm_basic_str(mapid);
+    Sub_Map *sub_map = push_array(part, Sub_Map, 1);
+    sub_map->name = fm_basic_str(part, mapid);
     sub_map->name_len = str_size(mapid);
-    sub_map->description = fm_basic_str(description);
+    sub_map->description = fm_basic_str(part, description);
     sub_map->description_len = str_size(description);
     sub_map->parent = 0;
     sub_map->parent_len = 0;
@@ -314,19 +316,19 @@ emit_end_map(Mapping_Array *array){
 }
 
 internal void
-emit_inherit_map(Mapping_Array *array, char *mapid){
+emit_inherit_map(Partition *part, Mapping_Array *array, char *mapid){
     Assert(array->current_mapping != 0);
     Assert(array->current_sub_map != 0);
     
     Sub_Map *sub_map = array->current_sub_map;
     Assert(sub_map->parent == 0);
     
-    sub_map->parent = fm_basic_str(mapid);
+    sub_map->parent = fm_basic_str(part, mapid);
     sub_map->parent_len = str_size(mapid);
 }
 
 internal void
-emit_bind(Mapping_Array *array, u32 keycode, u32 modifiers, char *command){
+emit_bind(Partition *part, Mapping_Array *array, u32 keycode, u32 modifiers, char *command){
     Assert(array->current_mapping != 0);
     Assert(array->current_sub_map != 0);
     
@@ -343,11 +345,11 @@ emit_bind(Mapping_Array *array, u32 keycode, u32 modifiers, char *command){
     }
     
     if (!is_duplicate){
-        Key_Bind *bind = fm_push_array(Key_Bind, 1);
+        Key_Bind *bind = push_array(part, Key_Bind, 1);
         bind->vanilla = false;
         bind->keycode = keycode;
         bind->modifiers = modifiers;
-        bind->command = fm_basic_str(command);
+        bind->command = fm_basic_str(part, command);
         bind->command_len = str_size(command);
         sll_push(sub_map->first_key_bind, sub_map->last_key_bind, bind);
         ++sub_map->key_bind_count;
@@ -355,7 +357,7 @@ emit_bind(Mapping_Array *array, u32 keycode, u32 modifiers, char *command){
 }
 
 internal void
-emit_bind_vanilla_keys(Mapping_Array *array, u32 modifiers, char *command){
+emit_bind_vanilla_keys(Partition *part, Mapping_Array *array, u32 modifiers, char *command){
     Assert(array->current_mapping != 0);
     Assert(array->current_sub_map != 0);
     
@@ -372,497 +374,503 @@ emit_bind_vanilla_keys(Mapping_Array *array, u32 modifiers, char *command){
     }
     
     if (!is_duplicate){
-        Key_Bind *bind = fm_push_array(Key_Bind, 1);
+        Key_Bind *bind = push_array(part, Key_Bind, 1);
         bind->vanilla = true;
         bind->keycode = 0;
         bind->modifiers = modifiers;
-        bind->command = fm_basic_str(command);
+        bind->command = fm_basic_str(part, command);
         bind->command_len = str_size(command);
         sll_push(sub_map->first_key_bind, sub_map->last_key_bind, bind);
         ++sub_map->key_bind_count;
     }
 }
 
-#define begin_mapping(mp,n,d) emit_begin_mapping(mp, #n, d)
-#define end_mapping(mp)       emit_end_mapping(mp)
-#define begin_map(mp,mapid,d) emit_begin_map(mp, #mapid, d)
-#define end_map(mp)           emit_end_map(mp)
-#define inherit_map(mp,mapid)      emit_inherit_map(mp, #mapid)
-#define bind(mp,k,md,c)            emit_bind(mp, k, md, #c)
-#define bind_vanilla_keys(mp,md,c) emit_bind_vanilla_keys(mp, md, #c)
+#define begin_mapping(pa,mp,n,d) emit_begin_mapping(pa,mp, #n, d)
+#define end_mapping(mp)          emit_end_mapping(mp)
+#define begin_map(pa,mp,mapid,d) emit_begin_map(pa,mp, #mapid, d)
+#define end_map(mp)              emit_end_map(mp)
+#define inherit_map(pa,mp,mapid)      emit_inherit_map(pa,mp, #mapid)
+#define bind(pa,mp,k,md,c)            emit_bind(pa,mp, k, md, #c)
+#define bind_vanilla_keys(pa,mp,md,c) emit_bind_vanilla_keys(pa,mp, md, #c)
 
 //////////////////////////////////////////////////////////////////////////////////////////////////
 
 internal void
-generate_remapping_code_and_data(){
-    Temp temp = fm_begin_temp();
+generate_remapping_code_and_data(Partition *part){
+    Temp_Memory temp = begin_temp_memory(part);
     
     // Generate mapping array data structure
     Mapping_Array mappings_ = {};
     Mapping_Array *mappings = &mappings_;
     
-    begin_mapping(mappings, default, "The default 4coder bindings - typically good for Windows and Linux");
+    begin_mapping(part, mappings, default, "The default 4coder bindings - typically good for Windows and Linux");
     {
         // NOTE(allen): GLOBAL
-        begin_map(mappings, mapid_global, "The following bindings apply in all situations.");
+        begin_map(part, mappings, mapid_global, "The following bindings apply in all situations.");
         
-        bind(mappings, ',', MDFR_CTRL, change_active_panel);
-        bind(mappings, '<', MDFR_CTRL, change_active_panel_backwards);
+        bind(part, mappings, ',', MDFR_CTRL, change_active_panel);
+        bind(part, mappings, '<', MDFR_CTRL, change_active_panel_backwards);
         
-        bind(mappings, 'n', MDFR_CTRL, interactive_new);
-        bind(mappings, 'o', MDFR_CTRL, interactive_open_or_new);
-        bind(mappings, 'o', MDFR_ALT , open_in_other);
-        bind(mappings, 'k', MDFR_CTRL, interactive_kill_buffer);
-        bind(mappings, 'i', MDFR_CTRL, interactive_switch_buffer);
-        bind(mappings, 'h', MDFR_CTRL, project_go_to_root_directory);
-        bind(mappings, 'S', MDFR_CTRL, save_all_dirty_buffers);
+        bind(part, mappings, 'n', MDFR_CTRL, interactive_new);
+        bind(part, mappings, 'o', MDFR_CTRL, interactive_open_or_new);
+        bind(part, mappings, 'o', MDFR_ALT , open_in_other);
+        bind(part, mappings, 'k', MDFR_CTRL, interactive_kill_buffer);
+        bind(part, mappings, 'i', MDFR_CTRL, interactive_switch_buffer);
+        bind(part, mappings, 'h', MDFR_CTRL, project_go_to_root_directory);
+        bind(part, mappings, 'S', MDFR_CTRL, save_all_dirty_buffers);
         
-        bind(mappings, '.', MDFR_ALT, change_to_build_panel);
-        bind(mappings, ',', MDFR_ALT, close_build_panel);
-        bind(mappings, 'n', MDFR_ALT, goto_next_jump_no_skips_sticky);
-        bind(mappings, 'N', MDFR_ALT, goto_prev_jump_no_skips_sticky);
-        bind(mappings, 'M', MDFR_ALT, goto_first_jump_sticky);
-        bind(mappings, 'm', MDFR_ALT, build_in_build_panel);
-        bind(mappings, 'b', MDFR_ALT, toggle_filebar);
+        bind(part, mappings, '.', MDFR_ALT, change_to_build_panel);
+        bind(part, mappings, ',', MDFR_ALT, close_build_panel);
+        bind(part, mappings, 'n', MDFR_ALT, goto_next_jump_no_skips_sticky);
+        bind(part, mappings, 'N', MDFR_ALT, goto_prev_jump_no_skips_sticky);
+        bind(part, mappings, 'M', MDFR_ALT, goto_first_jump_sticky);
+        bind(part, mappings, 'm', MDFR_ALT, build_in_build_panel);
+        bind(part, mappings, 'b', MDFR_ALT, toggle_filebar);
         
-        bind(mappings, 'z', MDFR_ALT, execute_any_cli);
-        bind(mappings, 'Z', MDFR_ALT, execute_previous_cli);
+        bind(part, mappings, 'z', MDFR_ALT, execute_any_cli);
+        bind(part, mappings, 'Z', MDFR_ALT, execute_previous_cli);
         
-        bind(mappings, 'x', MDFR_ALT, command_lister);
-        bind(mappings, 'X', MDFR_ALT, project_command_lister);
+        bind(part, mappings, 'x', MDFR_ALT, command_lister);
+        bind(part, mappings, 'X', MDFR_ALT, project_command_lister);
         
-        bind(mappings, 'I', MDFR_CTRL, list_all_functions_current_buffer_lister);
-        bind(mappings, 'E', MDFR_ALT, exit_4coder);
+        bind(part, mappings, 'I', MDFR_CTRL, list_all_functions_current_buffer_lister);
+        bind(part, mappings, 'E', MDFR_ALT, exit_4coder);
         
-        bind(mappings, key_f1, MDFR_NONE, project_fkey_command);
-        bind(mappings, key_f2, MDFR_NONE, project_fkey_command);
-        bind(mappings, key_f3, MDFR_NONE, project_fkey_command);
-        bind(mappings, key_f4, MDFR_NONE, project_fkey_command);
+        bind(part, mappings, key_f1, MDFR_NONE, project_fkey_command);
+        bind(part, mappings, key_f2, MDFR_NONE, project_fkey_command);
+        bind(part, mappings, key_f3, MDFR_NONE, project_fkey_command);
+        bind(part, mappings, key_f4, MDFR_NONE, project_fkey_command);
         
-        bind(mappings, key_f5, MDFR_NONE, project_fkey_command);
-        bind(mappings, key_f6, MDFR_NONE, project_fkey_command);
-        bind(mappings, key_f7, MDFR_NONE, project_fkey_command);
-        bind(mappings, key_f8, MDFR_NONE, project_fkey_command);
+        bind(part, mappings, key_f5, MDFR_NONE, project_fkey_command);
+        bind(part, mappings, key_f6, MDFR_NONE, project_fkey_command);
+        bind(part, mappings, key_f7, MDFR_NONE, project_fkey_command);
+        bind(part, mappings, key_f8, MDFR_NONE, project_fkey_command);
         
-        bind(mappings, key_f9, MDFR_NONE, project_fkey_command);
-        bind(mappings, key_f10, MDFR_NONE, project_fkey_command);
-        bind(mappings, key_f11, MDFR_NONE, project_fkey_command);
-        bind(mappings, key_f12, MDFR_NONE, project_fkey_command);
+        bind(part, mappings, key_f9, MDFR_NONE, project_fkey_command);
+        bind(part, mappings, key_f10, MDFR_NONE, project_fkey_command);
+        bind(part, mappings, key_f11, MDFR_NONE, project_fkey_command);
+        bind(part, mappings, key_f12, MDFR_NONE, project_fkey_command);
         
-        bind(mappings, key_f13, MDFR_NONE, project_fkey_command);
-        bind(mappings, key_f14, MDFR_NONE, project_fkey_command);
-        bind(mappings, key_f15, MDFR_NONE, project_fkey_command);
-        bind(mappings, key_f16, MDFR_NONE, project_fkey_command);
+        bind(part, mappings, key_f13, MDFR_NONE, project_fkey_command);
+        bind(part, mappings, key_f14, MDFR_NONE, project_fkey_command);
+        bind(part, mappings, key_f15, MDFR_NONE, project_fkey_command);
+        bind(part, mappings, key_f16, MDFR_NONE, project_fkey_command);
         
-        bind(mappings, key_mouse_wheel, MDFR_NONE, mouse_wheel_scroll);
+        bind(part, mappings, key_mouse_wheel, MDFR_NONE, mouse_wheel_scroll);
         
         end_map(mappings);
         
         // NOTE(allen): FILE
-        begin_map(mappings, mapid_file, "The following bindings apply in general text files and most apply in code files, but some are overriden by other commands specific to code files.");
+        begin_map(part, mappings, mapid_file, "The following bindings apply in general text files and most apply in code files, but some are overriden by other commands specific to code files.");
         
-        bind_vanilla_keys(mappings, MDFR_NONE, write_character);
+        bind_vanilla_keys(part, mappings, MDFR_NONE, write_character);
         
-        bind(mappings, key_mouse_left, MDFR_NONE, click_set_cursor_and_mark);
-        bind(mappings, key_click_activate_view, MDFR_NONE, click_set_cursor_and_mark);
-        bind(mappings, key_mouse_left_release, MDFR_NONE, click_set_cursor);
-        bind(mappings, key_mouse_move, MDFR_NONE, click_set_cursor_if_lbutton);
+        bind(part, mappings, key_mouse_left, MDFR_NONE, click_set_cursor_and_mark);
+        bind(part, mappings, key_click_activate_view, MDFR_NONE, click_set_cursor_and_mark);
+        bind(part, mappings, key_mouse_left_release, MDFR_NONE, click_set_cursor);
+        bind(part, mappings, key_mouse_move, MDFR_NONE, click_set_cursor_if_lbutton);
         
-        bind(mappings, key_del,  MDFR_NONE, delete_char);
-        bind(mappings, key_del,  MDFR_SHIFT, delete_char);
-        bind(mappings, key_back, MDFR_NONE, backspace_char);
-        bind(mappings, key_back, MDFR_SHIFT, backspace_char);
+        bind(part, mappings, key_del,  MDFR_NONE, delete_char);
+        bind(part, mappings, key_del,  MDFR_SHIFT, delete_char);
+        bind(part, mappings, key_back, MDFR_NONE, backspace_char);
+        bind(part, mappings, key_back, MDFR_SHIFT, backspace_char);
         
-        bind(mappings, key_up,    MDFR_NONE, move_up);
-        bind(mappings, key_down,  MDFR_NONE, move_down);
-        bind(mappings, key_left,  MDFR_NONE, move_left);
-        bind(mappings, key_right, MDFR_NONE, move_right);
-        bind(mappings, key_up,    MDFR_SHIFT, move_up);
-        bind(mappings, key_down,  MDFR_SHIFT, move_down);
-        bind(mappings, key_left,  MDFR_SHIFT, move_left);
-        bind(mappings, key_right, MDFR_SHIFT, move_right);
+        bind(part, mappings, key_up,    MDFR_NONE, move_up);
+        bind(part, mappings, key_down,  MDFR_NONE, move_down);
+        bind(part, mappings, key_left,  MDFR_NONE, move_left);
+        bind(part, mappings, key_right, MDFR_NONE, move_right);
+        bind(part, mappings, key_up,    MDFR_SHIFT, move_up);
+        bind(part, mappings, key_down,  MDFR_SHIFT, move_down);
+        bind(part, mappings, key_left,  MDFR_SHIFT, move_left);
+        bind(part, mappings, key_right, MDFR_SHIFT, move_right);
         
-        bind(mappings, 'k', MDFR_ALT, move_up);
-        bind(mappings, 'j', MDFR_ALT, move_down);
-        bind(mappings, 'h', MDFR_ALT, move_left);
-        bind(mappings, 'l', MDFR_ALT, move_right);
+        bind(part, mappings, 'k', MDFR_ALT, move_up);
+        bind(part, mappings, 'j', MDFR_ALT, move_down);
+        bind(part, mappings, 'h', MDFR_ALT, move_left);
+        bind(part, mappings, 'l', MDFR_ALT, move_right);
         
-        bind(mappings, key_end,       MDFR_NONE, seek_end_of_line);
-        bind(mappings, key_home,      MDFR_NONE, seek_beginning_of_line);
-        bind(mappings, key_page_up,   MDFR_CTRL, goto_beginning_of_file);
-        bind(mappings, key_page_down, MDFR_CTRL, goto_end_of_file);
-        bind(mappings, key_page_up,   MDFR_NONE, page_up);
-        bind(mappings, key_page_down, MDFR_NONE, page_down);
-        bind(mappings, key_end,       MDFR_SHIFT, seek_end_of_line);
-        bind(mappings, key_home,      MDFR_SHIFT, seek_beginning_of_line);
-        bind(mappings, key_page_up,   MDFR_CTRL|MDFR_SHIFT, goto_beginning_of_file);
-        bind(mappings, key_page_down, MDFR_CTRL|MDFR_SHIFT, goto_end_of_file);
-        bind(mappings, key_page_up,   MDFR_SHIFT, page_up);
-        bind(mappings, key_page_down, MDFR_SHIFT, page_down);
+        bind(part, mappings, key_end,       MDFR_NONE, seek_end_of_line);
+        bind(part, mappings, key_home,      MDFR_NONE, seek_beginning_of_line);
+        bind(part, mappings, key_page_up,   MDFR_CTRL, goto_beginning_of_file);
+        bind(part, mappings, key_page_down, MDFR_CTRL, goto_end_of_file);
+        bind(part, mappings, key_page_up,   MDFR_NONE, page_up);
+        bind(part, mappings, key_page_down, MDFR_NONE, page_down);
+        bind(part, mappings, key_end,       MDFR_SHIFT, seek_end_of_line);
+        bind(part, mappings, key_home,      MDFR_SHIFT, seek_beginning_of_line);
+        bind(part, mappings, key_page_up,   MDFR_CTRL|MDFR_SHIFT, goto_beginning_of_file);
+        bind(part, mappings, key_page_down, MDFR_CTRL|MDFR_SHIFT, goto_end_of_file);
+        bind(part, mappings, key_page_up,   MDFR_SHIFT, page_up);
+        bind(part, mappings, key_page_down, MDFR_SHIFT, page_down);
         
-        bind(mappings, key_up,    MDFR_CTRL, seek_whitespace_up_end_line);
-        bind(mappings, key_down,  MDFR_CTRL, seek_whitespace_down_end_line);
-        bind(mappings, key_left,  MDFR_CTRL, seek_whitespace_left);
-        bind(mappings, key_right, MDFR_CTRL, seek_whitespace_right);
-        bind(mappings, key_up,    MDFR_CTRL|MDFR_SHIFT, seek_whitespace_up_end_line);
-        bind(mappings, key_down,  MDFR_CTRL|MDFR_SHIFT, seek_whitespace_down_end_line);
-        bind(mappings, key_left,  MDFR_CTRL|MDFR_SHIFT, seek_whitespace_left);
-        bind(mappings, key_right, MDFR_CTRL|MDFR_SHIFT, seek_whitespace_right);
+        bind(part, mappings, key_up,    MDFR_CTRL, seek_whitespace_up_end_line);
+        bind(part, mappings, key_down,  MDFR_CTRL, seek_whitespace_down_end_line);
+        bind(part, mappings, key_left,  MDFR_CTRL, seek_whitespace_left);
+        bind(part, mappings, key_right, MDFR_CTRL, seek_whitespace_right);
+        bind(part, mappings, key_up,    MDFR_CTRL|MDFR_SHIFT, seek_whitespace_up_end_line);
+        bind(part, mappings, key_down,  MDFR_CTRL|MDFR_SHIFT, seek_whitespace_down_end_line);
+        bind(part, mappings, key_left,  MDFR_CTRL|MDFR_SHIFT, seek_whitespace_left);
+        bind(part, mappings, key_right, MDFR_CTRL|MDFR_SHIFT, seek_whitespace_right);
         
-        bind(mappings, 'K', MDFR_ALT, seek_whitespace_up_end_line);
-        bind(mappings, 'J', MDFR_ALT, seek_whitespace_down_end_line);
-        bind(mappings, 'H', MDFR_ALT, seek_whitespace_left);
-        bind(mappings, 'L', MDFR_ALT, seek_whitespace_right);
+        bind(part, mappings, 'K', MDFR_ALT, seek_whitespace_up_end_line);
+        bind(part, mappings, 'J', MDFR_ALT, seek_whitespace_down_end_line);
+        bind(part, mappings, 'H', MDFR_ALT, seek_whitespace_left);
+        bind(part, mappings, 'L', MDFR_ALT, seek_whitespace_right);
         
-        bind(mappings, key_up,   MDFR_ALT, move_line_up);
-        bind(mappings, key_down, MDFR_ALT, move_line_down);
+        bind(part, mappings, key_up,   MDFR_ALT, move_line_up);
+        bind(part, mappings, key_down, MDFR_ALT, move_line_down);
         
-        bind(mappings, 'k', MDFR_ALT|MDFR_CTRL, move_line_up);
-        bind(mappings, 'j', MDFR_ALT|MDFR_CTRL, move_line_down);
+        bind(part, mappings, 'k', MDFR_ALT|MDFR_CTRL, move_line_up);
+        bind(part, mappings, 'j', MDFR_ALT|MDFR_CTRL, move_line_down);
         
-        bind(mappings, key_back, MDFR_CTRL, backspace_word);
-        bind(mappings, key_del,  MDFR_CTRL, delete_word);
-        bind(mappings, key_back, MDFR_ALT, snipe_token_or_word);
-        bind(mappings, key_del,  MDFR_ALT, snipe_token_or_word_right);
+        bind(part, mappings, key_back, MDFR_CTRL, backspace_word);
+        bind(part, mappings, key_del,  MDFR_CTRL, delete_word);
+        bind(part, mappings, key_back, MDFR_ALT, snipe_token_or_word);
+        bind(part, mappings, key_del,  MDFR_ALT, snipe_token_or_word_right);
         
-        bind(mappings, ' ', MDFR_CTRL, set_mark);
-        bind(mappings, 'a', MDFR_CTRL, replace_in_range);
-        bind(mappings, 'c', MDFR_CTRL, copy);
-        bind(mappings, 'd', MDFR_CTRL, delete_range);
-        bind(mappings, 'D', MDFR_CTRL, delete_line);
-        bind(mappings, 'e', MDFR_CTRL, center_view);
-        bind(mappings, 'E', MDFR_CTRL, left_adjust_view);
-        bind(mappings, 'f', MDFR_CTRL, search);
-        bind(mappings, 'F', MDFR_CTRL, list_all_locations);
-        bind(mappings, 'F', MDFR_ALT , list_all_substring_locations_case_insensitive);
-        bind(mappings, 'g', MDFR_CTRL, goto_line);
-        bind(mappings, 'G', MDFR_CTRL, list_all_locations_of_selection);
-        bind(mappings, 'j', MDFR_CTRL, snippet_lister);
-        bind(mappings, 'K', MDFR_CTRL, kill_buffer);
-        bind(mappings, 'L', MDFR_CTRL, duplicate_line);
-        bind(mappings, 'm', MDFR_CTRL, cursor_mark_swap);
-        bind(mappings, 'O', MDFR_CTRL, reopen);
-        bind(mappings, 'q', MDFR_CTRL, query_replace);
-        bind(mappings, 'Q', MDFR_CTRL, query_replace_identifier);
-        bind(mappings, 'q', MDFR_ALT , query_replace_selection);
-        bind(mappings, 'r', MDFR_CTRL, reverse_search);
-        bind(mappings, 's', MDFR_CTRL, save);
-        bind(mappings, 't', MDFR_CTRL, search_identifier);
-        bind(mappings, 'T', MDFR_CTRL, list_all_locations_of_identifier);
-        bind(mappings, 'v', MDFR_CTRL, paste_and_indent);
-        bind(mappings, 'V', MDFR_CTRL, paste_next_and_indent);
-        bind(mappings, 'x', MDFR_CTRL, cut);
-        bind(mappings, 'y', MDFR_CTRL, redo);
-        bind(mappings, 'z', MDFR_CTRL, undo);
+        bind(part, mappings, ' ', MDFR_CTRL, set_mark);
+        bind(part, mappings, 'a', MDFR_CTRL, replace_in_range);
+        bind(part, mappings, 'c', MDFR_CTRL, copy);
+        bind(part, mappings, 'd', MDFR_CTRL, delete_range);
+        bind(part, mappings, 'D', MDFR_CTRL, delete_line);
+        bind(part, mappings, 'e', MDFR_CTRL, center_view);
+        bind(part, mappings, 'E', MDFR_CTRL, left_adjust_view);
+        bind(part, mappings, 'f', MDFR_CTRL, search);
+        bind(part, mappings, 'F', MDFR_CTRL, list_all_locations);
+        bind(part, mappings, 'F', MDFR_ALT , list_all_substring_locations_case_insensitive);
+        bind(part, mappings, 'g', MDFR_CTRL, goto_line);
+        bind(part, mappings, 'G', MDFR_CTRL, list_all_locations_of_selection);
+        bind(part, mappings, 'j', MDFR_CTRL, snippet_lister);
+        bind(part, mappings, 'K', MDFR_CTRL, kill_buffer);
+        bind(part, mappings, 'L', MDFR_CTRL, duplicate_line);
+        bind(part, mappings, 'm', MDFR_CTRL, cursor_mark_swap);
+        bind(part, mappings, 'O', MDFR_CTRL, reopen);
+        bind(part, mappings, 'q', MDFR_CTRL, query_replace);
+        bind(part, mappings, 'Q', MDFR_CTRL, query_replace_identifier);
+        bind(part, mappings, 'q', MDFR_ALT , query_replace_selection);
+        bind(part, mappings, 'r', MDFR_CTRL, reverse_search);
+        bind(part, mappings, 's', MDFR_CTRL, save);
+        bind(part, mappings, 't', MDFR_CTRL, search_identifier);
+        bind(part, mappings, 'T', MDFR_CTRL, list_all_locations_of_identifier);
+        bind(part, mappings, 'v', MDFR_CTRL, paste_and_indent);
+        bind(part, mappings, 'V', MDFR_CTRL, paste_next_and_indent);
+        bind(part, mappings, 'x', MDFR_CTRL, cut);
+        bind(part, mappings, 'y', MDFR_CTRL, redo);
+        bind(part, mappings, 'z', MDFR_CTRL, undo);
         
-        bind(mappings, '1', MDFR_CTRL, view_buffer_other_panel);
-        bind(mappings, '2', MDFR_CTRL, swap_buffers_between_panels);
+        bind(part, mappings, '1', MDFR_CTRL, view_buffer_other_panel);
+        bind(part, mappings, '2', MDFR_CTRL, swap_buffers_between_panels);
         
-        bind(mappings, '\n', MDFR_NONE, newline_or_goto_position_sticky);
-        bind(mappings, '\n', MDFR_SHIFT, newline_or_goto_position_same_panel_sticky);
-        bind(mappings, '>', MDFR_CTRL, view_jump_list_with_lister);
-        bind(mappings, ' ', MDFR_SHIFT, write_character);
+        bind(part, mappings, '\n', MDFR_NONE, newline_or_goto_position_sticky);
+        bind(part, mappings, '\n', MDFR_SHIFT, newline_or_goto_position_same_panel_sticky);
+        bind(part, mappings, '>', MDFR_CTRL, view_jump_list_with_lister);
+        bind(part, mappings, ' ', MDFR_SHIFT, write_character);
         
         end_map(mappings);
         
         // NOTE(allen): CODE
-        begin_map(mappings, default_code_map, "The following commands only apply in files where the lexer (syntax highlighting) is turned on.");
+        begin_map(part, mappings, default_code_map, "The following commands only apply in files where the lexer (syntax highlighting) is turned on.");
         
-        inherit_map(mappings, mapid_file);
+        inherit_map(part, mappings, mapid_file);
         
-        bind(mappings, key_right, MDFR_CTRL, seek_alphanumeric_or_camel_right);
-        bind(mappings, key_left, MDFR_CTRL, seek_alphanumeric_or_camel_left);
+        bind(part, mappings, key_left, MDFR_CTRL, seek_alphanumeric_or_camel_left);
+        bind(part, mappings, key_right, MDFR_CTRL, seek_alphanumeric_or_camel_right);
         
-        bind(mappings, '\n', MDFR_NONE, write_and_auto_tab);
-        bind(mappings, '\n', MDFR_SHIFT, write_and_auto_tab);
-        bind(mappings, '}', MDFR_NONE, write_and_auto_tab);
-        bind(mappings, ')', MDFR_NONE, write_and_auto_tab);
-        bind(mappings, ']', MDFR_NONE, write_and_auto_tab);
-        bind(mappings, ';', MDFR_NONE, write_and_auto_tab);
-        bind(mappings, '#', MDFR_NONE, write_and_auto_tab);
+        bind(part, mappings, 'H', MDFR_ALT, seek_alphanumeric_or_camel_left);
+        bind(part, mappings, 'L', MDFR_ALT, seek_alphanumeric_or_camel_right);
         
-        bind(mappings, '\t', MDFR_NONE, word_complete);
-        bind(mappings, '\t', MDFR_CTRL, auto_tab_range);
-        bind(mappings, '\t', MDFR_SHIFT, auto_tab_line_at_cursor);
+        bind(part, mappings, '\n', MDFR_NONE, write_and_auto_tab);
+        bind(part, mappings, '\n', MDFR_SHIFT, write_and_auto_tab);
+        bind(part, mappings, '}', MDFR_NONE, write_and_auto_tab);
+        bind(part, mappings, ')', MDFR_NONE, write_and_auto_tab);
+        bind(part, mappings, ']', MDFR_NONE, write_and_auto_tab);
+        bind(part, mappings, ';', MDFR_NONE, write_and_auto_tab);
+        bind(part, mappings, '#', MDFR_NONE, write_and_auto_tab);
         
-        bind(mappings, 'r', MDFR_ALT, write_block);
-        bind(mappings, 't', MDFR_ALT, write_todo);
-        bind(mappings, 'y', MDFR_ALT, write_note);
+        bind(part, mappings, '\t', MDFR_NONE, word_complete);
+        bind(part, mappings, '\t', MDFR_CTRL, auto_tab_range);
+        bind(part, mappings, '\t', MDFR_SHIFT, auto_tab_line_at_cursor);
         
-        bind(mappings, 'D', MDFR_ALT, list_all_locations_of_type_definition);
-        bind(mappings, 'T', MDFR_ALT, list_all_locations_of_type_definition_of_identifier);
+        bind(part, mappings, 'r', MDFR_ALT, write_block);
+        bind(part, mappings, 't', MDFR_ALT, write_todo);
+        bind(part, mappings, 'y', MDFR_ALT, write_note);
         
-        bind(mappings, '[', MDFR_CTRL, open_long_braces);
-        bind(mappings, '{', MDFR_CTRL, open_long_braces_semicolon);
-        bind(mappings, '}', MDFR_CTRL, open_long_braces_break);
+        bind(part, mappings, 'D', MDFR_ALT, list_all_locations_of_type_definition);
+        bind(part, mappings, 'T', MDFR_ALT, list_all_locations_of_type_definition_of_identifier);
         
-        bind(mappings, '[', MDFR_ALT, select_surrounding_scope);
-        bind(mappings, ']', MDFR_ALT, select_prev_scope_absolute);
-        bind(mappings, '\'', MDFR_ALT, select_next_scope_absolute);
-        bind(mappings, '/', MDFR_ALT, place_in_scope);
-        bind(mappings, '-', MDFR_ALT, delete_current_scope);
-        bind(mappings, '}', MDFR_ALT, scope_absorb_down);
+        bind(part, mappings, '[', MDFR_CTRL, open_long_braces);
+        bind(part, mappings, '{', MDFR_CTRL, open_long_braces_semicolon);
+        bind(part, mappings, '}', MDFR_CTRL, open_long_braces_break);
         
-        bind(mappings, 'i', MDFR_ALT, if0_off);
+        bind(part, mappings, '[', MDFR_ALT, select_surrounding_scope);
+        bind(part, mappings, ']', MDFR_ALT, select_prev_scope_absolute);
+        bind(part, mappings, '\'', MDFR_ALT, select_next_scope_absolute);
+        bind(part, mappings, '/', MDFR_ALT, place_in_scope);
+        bind(part, mappings, '-', MDFR_ALT, delete_current_scope);
+        bind(part, mappings, '}', MDFR_ALT, scope_absorb_down);
         
-        bind(mappings, '1', MDFR_ALT, open_file_in_quotes);
-        bind(mappings, '2', MDFR_ALT, open_matching_file_cpp);
-        bind(mappings, '0', MDFR_CTRL, write_zero_struct);
+        bind(part, mappings, 'i', MDFR_ALT, if0_off);
+        
+        bind(part, mappings, '1', MDFR_ALT, open_file_in_quotes);
+        bind(part, mappings, '2', MDFR_ALT, open_matching_file_cpp);
+        bind(part, mappings, '0', MDFR_CTRL, write_zero_struct);
         
         end_map(mappings);
         
         // NOTE(allen): LISTER
-        begin_map(mappings, default_lister_ui_map,
+        begin_map(part, mappings, default_lister_ui_map,
                   "These commands apply in 'lister mode' such as when you open a file.");
         
-        bind_vanilla_keys(mappings, MDFR_NONE, lister__write_character);
-        bind(mappings, key_esc, MDFR_NONE, lister__quit);
-        bind(mappings, '\n', MDFR_NONE, lister__activate);
-        bind(mappings, '\t', MDFR_NONE, lister__activate);
-        bind(mappings, key_back     , MDFR_NONE, lister__backspace_text_field);
-        bind(mappings, key_up       , MDFR_NONE, lister__move_up);
-        bind(mappings, 'k'          , MDFR_ALT , lister__move_up);
-        bind(mappings, key_page_up  , MDFR_NONE, lister__move_up);
-        bind(mappings, key_down     , MDFR_NONE, lister__move_down);
-        bind(mappings, 'j'          , MDFR_ALT , lister__move_up);
-        bind(mappings, key_page_down, MDFR_NONE, lister__move_down);
-        bind(mappings, key_mouse_wheel       , MDFR_NONE, lister__wheel_scroll);
-        bind(mappings, key_mouse_left        , MDFR_NONE, lister__mouse_press);
-        bind(mappings, key_mouse_left_release, MDFR_NONE, lister__mouse_release);
-        bind(mappings, key_mouse_move, MDFR_NONE, lister__repaint);
-        bind(mappings, key_animate   , MDFR_NONE, lister__repaint);
+        bind_vanilla_keys(part, mappings, MDFR_NONE, lister__write_character);
+        bind(part, mappings, key_esc, MDFR_NONE, lister__quit);
+        bind(part, mappings, '\n', MDFR_NONE, lister__activate);
+        bind(part, mappings, '\t', MDFR_NONE, lister__activate);
+        bind(part, mappings, key_back     , MDFR_NONE, lister__backspace_text_field);
+        bind(part, mappings, key_up       , MDFR_NONE, lister__move_up);
+        bind(part, mappings, 'k'          , MDFR_ALT , lister__move_up);
+        bind(part, mappings, key_page_up  , MDFR_NONE, lister__move_up);
+        bind(part, mappings, key_down     , MDFR_NONE, lister__move_down);
+        bind(part, mappings, 'j'          , MDFR_ALT , lister__move_up);
+        bind(part, mappings, key_page_down, MDFR_NONE, lister__move_down);
+        bind(part, mappings, key_mouse_wheel       , MDFR_NONE, lister__wheel_scroll);
+        bind(part, mappings, key_mouse_left        , MDFR_NONE, lister__mouse_press);
+        bind(part, mappings, key_mouse_left_release, MDFR_NONE, lister__mouse_release);
+        bind(part, mappings, key_mouse_move, MDFR_NONE, lister__repaint);
+        bind(part, mappings, key_animate   , MDFR_NONE, lister__repaint);
         
         end_map(mappings);
     }
     end_mapping(mappings);
     
-    begin_mapping(mappings, mac_default, "Default 4coder bindings on a Mac keyboard");
+    begin_mapping(part, mappings, mac_default, "Default 4coder bindings on a Mac keyboard");
     {
         // NOTE(allen): GLOBAL
-        begin_map(mappings, mapid_global, "The following bindings apply in all situations.");
+        begin_map(part, mappings, mapid_global, "The following bindings apply in all situations.");
         
-        bind(mappings, ',', MDFR_CMND, change_active_panel);
-        bind(mappings, '<', MDFR_CMND, change_active_panel_backwards);
+        bind(part, mappings, ',', MDFR_CMND, change_active_panel);
+        bind(part, mappings, '<', MDFR_CMND, change_active_panel_backwards);
         
-        bind(mappings, 'n', MDFR_CMND, interactive_new);
-        bind(mappings, 'o', MDFR_CMND, interactive_open_or_new);
-        bind(mappings, 'o', MDFR_CTRL, open_in_other);
-        bind(mappings, 'k', MDFR_CMND, interactive_kill_buffer);
-        bind(mappings, 'i', MDFR_CMND, interactive_switch_buffer);
-        bind(mappings, 'h', MDFR_CMND, project_go_to_root_directory);
-        bind(mappings, 'S', MDFR_CMND, save_all_dirty_buffers);
+        bind(part, mappings, 'n', MDFR_CMND, interactive_new);
+        bind(part, mappings, 'o', MDFR_CMND, interactive_open_or_new);
+        bind(part, mappings, 'o', MDFR_CTRL, open_in_other);
+        bind(part, mappings, 'k', MDFR_CMND, interactive_kill_buffer);
+        bind(part, mappings, 'i', MDFR_CMND, interactive_switch_buffer);
+        bind(part, mappings, 'h', MDFR_CMND, project_go_to_root_directory);
+        bind(part, mappings, 'S', MDFR_CMND, save_all_dirty_buffers);
         
-        bind(mappings, '.', MDFR_CTRL, change_to_build_panel);
-        bind(mappings, ',', MDFR_CTRL, close_build_panel);
-        bind(mappings, 'n', MDFR_CTRL, goto_next_jump_sticky);
-        bind(mappings, 'N', MDFR_CTRL, goto_prev_jump_sticky);
-        bind(mappings, 'M', MDFR_CTRL, goto_first_jump_sticky);
-        bind(mappings, 'm', MDFR_CTRL, build_in_build_panel);
-        bind(mappings, 'b', MDFR_CTRL, toggle_filebar);
+        bind(part, mappings, '.', MDFR_CTRL, change_to_build_panel);
+        bind(part, mappings, ',', MDFR_CTRL, close_build_panel);
+        bind(part, mappings, 'n', MDFR_CTRL, goto_next_jump_sticky);
+        bind(part, mappings, 'N', MDFR_CTRL, goto_prev_jump_sticky);
+        bind(part, mappings, 'M', MDFR_CTRL, goto_first_jump_sticky);
+        bind(part, mappings, 'm', MDFR_CTRL, build_in_build_panel);
+        bind(part, mappings, 'b', MDFR_CTRL, toggle_filebar);
         
-        bind(mappings, 'z', MDFR_CTRL, execute_any_cli);
-        bind(mappings, 'Z', MDFR_CTRL, execute_previous_cli);
+        bind(part, mappings, 'z', MDFR_CTRL, execute_any_cli);
+        bind(part, mappings, 'Z', MDFR_CTRL, execute_previous_cli);
         
-        bind(mappings, 'x', MDFR_CTRL, command_lister);
-        bind(mappings, 'X', MDFR_CTRL, project_command_lister);
+        bind(part, mappings, 'x', MDFR_CTRL, command_lister);
+        bind(part, mappings, 'X', MDFR_CTRL, project_command_lister);
         
-        bind(mappings, 'I', MDFR_CMND, list_all_functions_current_buffer_lister);
-        bind(mappings, 'E', MDFR_CTRL, exit_4coder);
+        bind(part, mappings, 'I', MDFR_CMND, list_all_functions_current_buffer_lister);
+        bind(part, mappings, 'E', MDFR_CTRL, exit_4coder);
         
-        bind(mappings, key_f1, MDFR_NONE, project_fkey_command);
-        bind(mappings, key_f2, MDFR_NONE, project_fkey_command);
-        bind(mappings, key_f3, MDFR_NONE, project_fkey_command);
-        bind(mappings, key_f4, MDFR_NONE, project_fkey_command);
+        bind(part, mappings, key_f1, MDFR_NONE, project_fkey_command);
+        bind(part, mappings, key_f2, MDFR_NONE, project_fkey_command);
+        bind(part, mappings, key_f3, MDFR_NONE, project_fkey_command);
+        bind(part, mappings, key_f4, MDFR_NONE, project_fkey_command);
         
-        bind(mappings, key_f5, MDFR_NONE, project_fkey_command);
-        bind(mappings, key_f6, MDFR_NONE, project_fkey_command);
-        bind(mappings, key_f7, MDFR_NONE, project_fkey_command);
-        bind(mappings, key_f8, MDFR_NONE, project_fkey_command);
+        bind(part, mappings, key_f5, MDFR_NONE, project_fkey_command);
+        bind(part, mappings, key_f6, MDFR_NONE, project_fkey_command);
+        bind(part, mappings, key_f7, MDFR_NONE, project_fkey_command);
+        bind(part, mappings, key_f8, MDFR_NONE, project_fkey_command);
         
-        bind(mappings, key_f9, MDFR_NONE, project_fkey_command);
-        bind(mappings, key_f10, MDFR_NONE, project_fkey_command);
-        bind(mappings, key_f11, MDFR_NONE, project_fkey_command);
-        bind(mappings, key_f12, MDFR_NONE, project_fkey_command);
+        bind(part, mappings, key_f9, MDFR_NONE, project_fkey_command);
+        bind(part, mappings, key_f10, MDFR_NONE, project_fkey_command);
+        bind(part, mappings, key_f11, MDFR_NONE, project_fkey_command);
+        bind(part, mappings, key_f12, MDFR_NONE, project_fkey_command);
         
-        bind(mappings, key_f13, MDFR_NONE, project_fkey_command);
-        bind(mappings, key_f14, MDFR_NONE, project_fkey_command);
-        bind(mappings, key_f15, MDFR_NONE, project_fkey_command);
-        bind(mappings, key_f16, MDFR_NONE, project_fkey_command);
+        bind(part, mappings, key_f13, MDFR_NONE, project_fkey_command);
+        bind(part, mappings, key_f14, MDFR_NONE, project_fkey_command);
+        bind(part, mappings, key_f15, MDFR_NONE, project_fkey_command);
+        bind(part, mappings, key_f16, MDFR_NONE, project_fkey_command);
         
-        bind(mappings, key_mouse_wheel, MDFR_NONE, mouse_wheel_scroll);
+        bind(part, mappings, key_mouse_wheel, MDFR_NONE, mouse_wheel_scroll);
         
         end_map(mappings);
         
         // NOTE(allen): FILE
-        begin_map(mappings, mapid_file, "The following bindings apply in general text files and most apply in code files, but some are overriden by other commands specific to code files.");
+        begin_map(part, mappings, mapid_file, "The following bindings apply in general text files and most apply in code files, but some are overriden by other commands specific to code files.");
         
-        bind_vanilla_keys(mappings, MDFR_NONE, write_character);
-        bind_vanilla_keys(mappings, MDFR_ALT, write_character);
+        bind_vanilla_keys(part, mappings, MDFR_NONE, write_character);
+        bind_vanilla_keys(part, mappings, MDFR_ALT, write_character);
         
-        bind(mappings, key_mouse_left, MDFR_NONE, click_set_cursor_and_mark);
-        bind(mappings, key_click_activate_view, MDFR_NONE, click_set_cursor_and_mark);
-        bind(mappings, key_mouse_left_release, MDFR_NONE, click_set_cursor);
-        bind(mappings, key_mouse_move, MDFR_NONE, click_set_cursor_if_lbutton);
+        bind(part, mappings, key_mouse_left, MDFR_NONE, click_set_cursor_and_mark);
+        bind(part, mappings, key_click_activate_view, MDFR_NONE, click_set_cursor_and_mark);
+        bind(part, mappings, key_mouse_left_release, MDFR_NONE, click_set_cursor);
+        bind(part, mappings, key_mouse_move, MDFR_NONE, click_set_cursor_if_lbutton);
         
-        bind(mappings, key_del, MDFR_NONE, delete_char);
-        bind(mappings, key_del, MDFR_SHIFT, delete_char);
-        bind(mappings, key_back, MDFR_NONE, backspace_char);
-        bind(mappings, key_back, MDFR_SHIFT, backspace_char);
+        bind(part, mappings, key_del, MDFR_NONE, delete_char);
+        bind(part, mappings, key_del, MDFR_SHIFT, delete_char);
+        bind(part, mappings, key_back, MDFR_NONE, backspace_char);
+        bind(part, mappings, key_back, MDFR_SHIFT, backspace_char);
         
-        bind(mappings, key_up,    MDFR_NONE, move_up);
-        bind(mappings, key_down,  MDFR_NONE, move_down);
-        bind(mappings, key_left,  MDFR_NONE, move_left);
-        bind(mappings, key_right, MDFR_NONE, move_right);
-        bind(mappings, key_up,    MDFR_SHIFT, move_up);
-        bind(mappings, key_down,  MDFR_SHIFT, move_down);
-        bind(mappings, key_left,  MDFR_SHIFT, move_left);
-        bind(mappings, key_right, MDFR_SHIFT, move_right);
+        bind(part, mappings, key_up,    MDFR_NONE, move_up);
+        bind(part, mappings, key_down,  MDFR_NONE, move_down);
+        bind(part, mappings, key_left,  MDFR_NONE, move_left);
+        bind(part, mappings, key_right, MDFR_NONE, move_right);
+        bind(part, mappings, key_up,    MDFR_SHIFT, move_up);
+        bind(part, mappings, key_down,  MDFR_SHIFT, move_down);
+        bind(part, mappings, key_left,  MDFR_SHIFT, move_left);
+        bind(part, mappings, key_right, MDFR_SHIFT, move_right);
         
-        bind(mappings, 'k', MDFR_ALT, move_up);
-        bind(mappings, 'j', MDFR_ALT, move_down);
-        bind(mappings, 'h', MDFR_ALT, move_left);
-        bind(mappings, 'l', MDFR_ALT, move_right);
+        bind(part, mappings, 'k', MDFR_CTRL, move_up);
+        bind(part, mappings, 'j', MDFR_CTRL, move_down);
+        bind(part, mappings, 'h', MDFR_CTRL, move_left);
+        bind(part, mappings, 'l', MDFR_CTRL, move_right);
         
-        bind(mappings, key_end,       MDFR_NONE, seek_end_of_line);
-        bind(mappings, key_home,      MDFR_NONE, seek_beginning_of_line);
-        bind(mappings, key_page_up,   MDFR_CTRL, goto_beginning_of_file);
-        bind(mappings, key_page_down, MDFR_CTRL, goto_end_of_file);
-        bind(mappings, key_page_up,   MDFR_NONE, page_up);
-        bind(mappings, key_page_down, MDFR_NONE, page_down);
-        bind(mappings, key_end,       MDFR_SHIFT, seek_end_of_line);
-        bind(mappings, key_home,      MDFR_SHIFT, seek_beginning_of_line);
-        bind(mappings, key_page_up,   MDFR_CTRL|MDFR_SHIFT, goto_beginning_of_file);
-        bind(mappings, key_page_down, MDFR_CTRL|MDFR_SHIFT, goto_end_of_file);
-        bind(mappings, key_page_up,   MDFR_SHIFT, page_up);
-        bind(mappings, key_page_down, MDFR_SHIFT, page_down);
+        bind(part, mappings, key_end,       MDFR_NONE, seek_end_of_line);
+        bind(part, mappings, key_home,      MDFR_NONE, seek_beginning_of_line);
+        bind(part, mappings, key_page_up,   MDFR_CTRL, goto_beginning_of_file);
+        bind(part, mappings, key_page_down, MDFR_CTRL, goto_end_of_file);
+        bind(part, mappings, key_page_up,   MDFR_NONE, page_up);
+        bind(part, mappings, key_page_down, MDFR_NONE, page_down);
+        bind(part, mappings, key_end,       MDFR_SHIFT, seek_end_of_line);
+        bind(part, mappings, key_home,      MDFR_SHIFT, seek_beginning_of_line);
+        bind(part, mappings, key_page_up,   MDFR_CTRL|MDFR_SHIFT, goto_beginning_of_file);
+        bind(part, mappings, key_page_down, MDFR_CTRL|MDFR_SHIFT, goto_end_of_file);
+        bind(part, mappings, key_page_up,   MDFR_SHIFT, page_up);
+        bind(part, mappings, key_page_down, MDFR_SHIFT, page_down);
         
-        bind(mappings, key_up,    MDFR_CMND, seek_whitespace_up_end_line);
-        bind(mappings, key_down,  MDFR_CMND, seek_whitespace_down_end_line);
-        bind(mappings, key_left,  MDFR_CMND, seek_whitespace_left);
-        bind(mappings, key_right, MDFR_CMND, seek_whitespace_right);
-        bind(mappings, key_up,    MDFR_CMND|MDFR_SHIFT, seek_whitespace_up_end_line);
-        bind(mappings, key_down,  MDFR_CMND|MDFR_SHIFT, seek_whitespace_down_end_line);
-        bind(mappings, key_left,  MDFR_CMND|MDFR_SHIFT, seek_whitespace_left);
-        bind(mappings, key_right, MDFR_CMND|MDFR_SHIFT, seek_whitespace_right);
+        bind(part, mappings, key_up,    MDFR_CMND, seek_whitespace_up_end_line);
+        bind(part, mappings, key_down,  MDFR_CMND, seek_whitespace_down_end_line);
+        bind(part, mappings, key_left,  MDFR_CMND, seek_whitespace_left);
+        bind(part, mappings, key_right, MDFR_CMND, seek_whitespace_right);
+        bind(part, mappings, key_up,    MDFR_CMND|MDFR_SHIFT, seek_whitespace_up_end_line);
+        bind(part, mappings, key_down,  MDFR_CMND|MDFR_SHIFT, seek_whitespace_down_end_line);
+        bind(part, mappings, key_left,  MDFR_CMND|MDFR_SHIFT, seek_whitespace_left);
+        bind(part, mappings, key_right, MDFR_CMND|MDFR_SHIFT, seek_whitespace_right);
         
-        bind(mappings, 'k', MDFR_CTRL|MDFR_CMND, seek_whitespace_up_end_line);
-        bind(mappings, 'j', MDFR_CTRL|MDFR_CMND, seek_whitespace_down_end_line);
-        bind(mappings, 'h', MDFR_CTRL|MDFR_CMND, seek_whitespace_left);
-        bind(mappings, 'l', MDFR_CTRL|MDFR_CMND, seek_whitespace_right);
+        bind(part, mappings, 'K', MDFR_CTRL, seek_whitespace_up_end_line);
+        bind(part, mappings, 'J', MDFR_CTRL, seek_whitespace_down_end_line);
+        bind(part, mappings, 'H', MDFR_CTRL, seek_whitespace_left);
+        bind(part, mappings, 'L', MDFR_CTRL, seek_whitespace_right);
         
-        bind(mappings, key_up,   MDFR_ALT, move_line_up);
-        bind(mappings, key_down, MDFR_ALT, move_line_down);
+        bind(part, mappings, key_up,   MDFR_ALT, move_line_up);
+        bind(part, mappings, key_down, MDFR_ALT, move_line_down);
         
-        bind(mappings, 'k', MDFR_CTRL|MDFR_ALT, move_line_up);
-        bind(mappings, 'j', MDFR_CTRL|MDFR_ALT, move_line_down);
+        bind(part, mappings, 'k', MDFR_CTRL|MDFR_ALT, move_line_up);
+        bind(part, mappings, 'j', MDFR_CTRL|MDFR_ALT, move_line_down);
         
-        bind(mappings, key_back, MDFR_CMND, backspace_word);
-        bind(mappings, key_del, MDFR_CMND, delete_word);
-        bind(mappings, key_back, MDFR_CTRL, snipe_token_or_word);
-        bind(mappings, key_del, MDFR_CTRL, snipe_token_or_word_right);
+        bind(part, mappings, key_back, MDFR_CMND, backspace_word);
+        bind(part, mappings, key_del, MDFR_CMND, delete_word);
+        bind(part, mappings, key_back, MDFR_CTRL, snipe_token_or_word);
+        bind(part, mappings, key_del, MDFR_CTRL, snipe_token_or_word_right);
         
-        bind(mappings, '/', MDFR_CMND, set_mark);
-        bind(mappings, 'a', MDFR_CMND, replace_in_range);
-        bind(mappings, 'c', MDFR_CMND, copy);
-        bind(mappings, 'd', MDFR_CMND, delete_range);
-        bind(mappings, 'D', MDFR_CMND, delete_line);
-        bind(mappings, 'e', MDFR_CMND, center_view);
-        bind(mappings, 'E', MDFR_CMND, left_adjust_view);
-        bind(mappings, 'f', MDFR_CMND, search);
-        bind(mappings, 'F', MDFR_CMND, list_all_locations);
-        bind(mappings, 'F', MDFR_CTRL, list_all_substring_locations_case_insensitive);
-        bind(mappings, 'g', MDFR_CMND, goto_line);
-        bind(mappings, 'G', MDFR_CMND, list_all_locations_of_selection);
-        bind(mappings, 'K', MDFR_CMND, kill_buffer);
-        bind(mappings, 'L', MDFR_CMND, duplicate_line);
-        bind(mappings, 'm', MDFR_CMND, cursor_mark_swap);
-        bind(mappings, 'O', MDFR_CMND, reopen);
-        bind(mappings, 'q', MDFR_CMND, query_replace);
-        bind(mappings, 'Q', MDFR_CMND, query_replace_identifier);
-        bind(mappings, 'r', MDFR_CMND, reverse_search);
-        bind(mappings, 's', MDFR_CMND, save);
-        bind(mappings, 't', MDFR_CMND, search_identifier);
-        bind(mappings, 'T', MDFR_CMND, list_all_locations_of_identifier);
-        bind(mappings, 'v', MDFR_CMND, paste_and_indent);
-        bind(mappings, 'V', MDFR_CMND, paste_next_and_indent);
-        bind(mappings, 'x', MDFR_CMND, cut);
-        bind(mappings, 'y', MDFR_CMND, redo);
-        bind(mappings, 'z', MDFR_CMND, undo);
+        bind(part, mappings, '/', MDFR_CMND, set_mark);
+        bind(part, mappings, 'a', MDFR_CMND, replace_in_range);
+        bind(part, mappings, 'c', MDFR_CMND, copy);
+        bind(part, mappings, 'd', MDFR_CMND, delete_range);
+        bind(part, mappings, 'D', MDFR_CMND, delete_line);
+        bind(part, mappings, 'e', MDFR_CMND, center_view);
+        bind(part, mappings, 'E', MDFR_CMND, left_adjust_view);
+        bind(part, mappings, 'f', MDFR_CMND, search);
+        bind(part, mappings, 'F', MDFR_CMND, list_all_locations);
+        bind(part, mappings, 'F', MDFR_CTRL, list_all_substring_locations_case_insensitive);
+        bind(part, mappings, 'g', MDFR_CMND, goto_line);
+        bind(part, mappings, 'G', MDFR_CMND, list_all_locations_of_selection);
+        bind(part, mappings, 'K', MDFR_CMND, kill_buffer);
+        bind(part, mappings, 'L', MDFR_CMND, duplicate_line);
+        bind(part, mappings, 'm', MDFR_CMND, cursor_mark_swap);
+        bind(part, mappings, 'O', MDFR_CMND, reopen);
+        bind(part, mappings, 'q', MDFR_CMND, query_replace);
+        bind(part, mappings, 'Q', MDFR_CMND, query_replace_identifier);
+        bind(part, mappings, 'r', MDFR_CMND, reverse_search);
+        bind(part, mappings, 's', MDFR_CMND, save);
+        bind(part, mappings, 't', MDFR_CMND, search_identifier);
+        bind(part, mappings, 'T', MDFR_CMND, list_all_locations_of_identifier);
+        bind(part, mappings, 'v', MDFR_CMND, paste_and_indent);
+        bind(part, mappings, 'V', MDFR_CMND, paste_next_and_indent);
+        bind(part, mappings, 'x', MDFR_CMND, cut);
+        bind(part, mappings, 'y', MDFR_CMND, redo);
+        bind(part, mappings, 'z', MDFR_CMND, undo);
         
-        bind(mappings, '1', MDFR_CMND, view_buffer_other_panel);
-        bind(mappings, '2', MDFR_CMND, swap_buffers_between_panels);
+        bind(part, mappings, '1', MDFR_CMND, view_buffer_other_panel);
+        bind(part, mappings, '2', MDFR_CMND, swap_buffers_between_panels);
         
-        bind(mappings, '\n', MDFR_NONE, newline_or_goto_position_sticky);
-        bind(mappings, '\n', MDFR_SHIFT, newline_or_goto_position_same_panel_sticky);
-        bind(mappings, '>', MDFR_CMND, view_jump_list_with_lister);
-        bind(mappings, ' ', MDFR_SHIFT, write_character);
+        bind(part, mappings, '\n', MDFR_NONE, newline_or_goto_position_sticky);
+        bind(part, mappings, '\n', MDFR_SHIFT, newline_or_goto_position_same_panel_sticky);
+        bind(part, mappings, '>', MDFR_CMND, view_jump_list_with_lister);
+        bind(part, mappings, ' ', MDFR_SHIFT, write_character);
         
         end_map(mappings);
         
         // NOTE(allen): CODE
-        begin_map(mappings, default_code_map, "The following commands only apply in files where the lexer (syntax highlighting) is turned on.");
+        begin_map(part, mappings, default_code_map, "The following commands only apply in files where the lexer (syntax highlighting) is turned on.");
         
-        inherit_map(mappings, mapid_file);
+        inherit_map(part, mappings, mapid_file);
         
-        bind(mappings, key_right, MDFR_CMND, seek_alphanumeric_or_camel_right);
-        bind(mappings, key_left, MDFR_CMND, seek_alphanumeric_or_camel_left);
+        bind(part, mappings, key_left, MDFR_CMND, seek_alphanumeric_or_camel_left);
+        bind(part, mappings, key_right, MDFR_CMND, seek_alphanumeric_or_camel_right);
         
-        bind(mappings, '\n', MDFR_NONE, write_and_auto_tab);
-        bind(mappings, '\n', MDFR_SHIFT, write_and_auto_tab);
-        bind(mappings, '}', MDFR_NONE, write_and_auto_tab);
-        bind(mappings, ')', MDFR_NONE, write_and_auto_tab);
-        bind(mappings, ']', MDFR_NONE, write_and_auto_tab);
-        bind(mappings, ';', MDFR_NONE, write_and_auto_tab);
-        bind(mappings, '#', MDFR_NONE, write_and_auto_tab);
+        bind(part, mappings, 'H', MDFR_CTRL, seek_alphanumeric_or_camel_left);
+        bind(part, mappings, 'L', MDFR_CTRL, seek_alphanumeric_or_camel_right);
         
-        bind(mappings, '\t', MDFR_NONE, word_complete);
-        bind(mappings, '\t', MDFR_CMND, auto_tab_range);
-        bind(mappings, '\t', MDFR_SHIFT, auto_tab_line_at_cursor);
+        bind(part, mappings, '\n', MDFR_NONE, write_and_auto_tab);
+        bind(part, mappings, '\n', MDFR_SHIFT, write_and_auto_tab);
+        bind(part, mappings, '}', MDFR_NONE, write_and_auto_tab);
+        bind(part, mappings, ')', MDFR_NONE, write_and_auto_tab);
+        bind(part, mappings, ']', MDFR_NONE, write_and_auto_tab);
+        bind(part, mappings, ';', MDFR_NONE, write_and_auto_tab);
+        bind(part, mappings, '#', MDFR_NONE, write_and_auto_tab);
         
-        bind(mappings, 'r', MDFR_CTRL, write_block);
-        bind(mappings, 't', MDFR_CTRL, write_todo);
-        bind(mappings, 'y', MDFR_CTRL, write_note);
+        bind(part, mappings, '\t', MDFR_NONE, word_complete);
+        bind(part, mappings, '\t', MDFR_CMND, auto_tab_range);
+        bind(part, mappings, '\t', MDFR_SHIFT, auto_tab_line_at_cursor);
         
-        bind(mappings, 'D', MDFR_CTRL, list_all_locations_of_type_definition);
-        bind(mappings, 'T', MDFR_CTRL, list_all_locations_of_type_definition_of_identifier);
+        bind(part, mappings, 'r', MDFR_CTRL, write_block);
+        bind(part, mappings, 't', MDFR_CTRL, write_todo);
+        bind(part, mappings, 'y', MDFR_CTRL, write_note);
         
-        bind(mappings, '[', MDFR_CMND, open_long_braces);
-        bind(mappings, '{', MDFR_CMND, open_long_braces_semicolon);
-        bind(mappings, '}', MDFR_CMND, open_long_braces_break);
+        bind(part, mappings, 'D', MDFR_CTRL, list_all_locations_of_type_definition);
+        bind(part, mappings, 'T', MDFR_CTRL, list_all_locations_of_type_definition_of_identifier);
         
-        bind(mappings, '[', MDFR_CTRL, select_surrounding_scope);
-        bind(mappings, ']', MDFR_CTRL, select_prev_scope_absolute);
-        bind(mappings, '\'', MDFR_CTRL, select_next_scope_absolute);
-        bind(mappings, '/', MDFR_CTRL, place_in_scope);
-        bind(mappings, '-', MDFR_CTRL, delete_current_scope);
-        bind(mappings, '}', MDFR_CTRL, scope_absorb_down);
+        bind(part, mappings, '[', MDFR_CMND, open_long_braces);
+        bind(part, mappings, '{', MDFR_CMND, open_long_braces_semicolon);
+        bind(part, mappings, '}', MDFR_CMND, open_long_braces_break);
         
-        bind(mappings, 'i', MDFR_CTRL, if0_off);
+        bind(part, mappings, '[', MDFR_CTRL, select_surrounding_scope);
+        bind(part, mappings, ']', MDFR_CTRL, select_prev_scope_absolute);
+        bind(part, mappings, '\'', MDFR_CTRL, select_next_scope_absolute);
+        bind(part, mappings, '/', MDFR_CTRL, place_in_scope);
+        bind(part, mappings, '-', MDFR_CTRL, delete_current_scope);
+        bind(part, mappings, '}', MDFR_CTRL, scope_absorb_down);
         
-        bind(mappings, '1', MDFR_CTRL, open_file_in_quotes);
-        bind(mappings, '2', MDFR_CTRL, open_matching_file_cpp);
-        bind(mappings, '0', MDFR_CMND, write_zero_struct);
+        bind(part, mappings, 'i', MDFR_CTRL, if0_off);
+        
+        bind(part, mappings, '1', MDFR_CTRL, open_file_in_quotes);
+        bind(part, mappings, '2', MDFR_CTRL, open_matching_file_cpp);
+        bind(part, mappings, '0', MDFR_CMND, write_zero_struct);
         
         end_map(mappings);
         
         // NOTE(allen): LISTER
-        begin_map(mappings, default_lister_ui_map,
+        begin_map(part, mappings, default_lister_ui_map,
                   "These commands apply in 'lister mode' such as when you open a file.");
         
-        bind_vanilla_keys(mappings, MDFR_NONE, lister__write_character);
-        bind(mappings, key_esc, MDFR_NONE, lister__quit);
-        bind(mappings, '\n', MDFR_NONE, lister__activate);
-        bind(mappings, '\t', MDFR_NONE, lister__activate);
-        bind(mappings, key_back     , MDFR_NONE, lister__backspace_text_field);
-        bind(mappings, key_up       , MDFR_NONE, lister__move_up);
-        bind(mappings, key_page_up  , MDFR_NONE, lister__move_up);
-        bind(mappings, key_down     , MDFR_NONE, lister__move_down);
-        bind(mappings, key_page_down, MDFR_NONE, lister__move_down);
-        bind(mappings, key_mouse_wheel       , MDFR_NONE, lister__wheel_scroll);
-        bind(mappings, key_mouse_left        , MDFR_NONE, lister__mouse_press);
-        bind(mappings, key_mouse_left_release, MDFR_NONE, lister__mouse_release);
-        bind(mappings, key_mouse_move, MDFR_NONE, lister__repaint);
-        bind(mappings, key_animate   , MDFR_NONE, lister__repaint);
+        bind_vanilla_keys(part, mappings, MDFR_NONE, lister__write_character);
+        bind(part, mappings, key_esc, MDFR_NONE, lister__quit);
+        bind(part, mappings, '\n', MDFR_NONE, lister__activate);
+        bind(part, mappings, '\t', MDFR_NONE, lister__activate);
+        bind(part, mappings, key_back     , MDFR_NONE, lister__backspace_text_field);
+        bind(part, mappings, key_up       , MDFR_NONE, lister__move_up);
+        bind(part, mappings, key_page_up  , MDFR_NONE, lister__move_up);
+        bind(part, mappings, key_down     , MDFR_NONE, lister__move_down);
+        bind(part, mappings, key_page_down, MDFR_NONE, lister__move_down);
+        bind(part, mappings, key_mouse_wheel       , MDFR_NONE, lister__wheel_scroll);
+        bind(part, mappings, key_mouse_left        , MDFR_NONE, lister__mouse_press);
+        bind(part, mappings, key_mouse_left_release, MDFR_NONE, lister__mouse_release);
+        bind(part, mappings, key_mouse_move, MDFR_NONE, lister__repaint);
+        bind(part, mappings, key_animate   , MDFR_NONE, lister__repaint);
         
         end_map(mappings);
     }
@@ -1073,19 +1081,16 @@ generate_remapping_code_and_data(){
         fclose(out);
     }
     
-    fm_end_temp(temp);
+    end_temp_memory(temp);
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////
 
 int main(int argc, char **argv){
     META_BEGIN();
-    
-    fm_init_system();
-    //generate_style();
-    generate_custom_headers();
-    generate_remapping_code_and_data();
-    
+    Partition part = fm_init_system();
+    generate_custom_headers(&part);
+    generate_remapping_code_and_data(&part);
     META_FINISH();
 }
 
