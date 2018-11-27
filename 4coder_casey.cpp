@@ -413,14 +413,14 @@ IsDoc(String extension)
 CUSTOM_COMMAND_SIG(casey_open_in_other)
 {
     exec_command(app, change_active_panel);
-    exec_command(app, cmdid_interactive_open_or_new);
+    exec_command(app, interactive_open_or_new);
 }
 
 CUSTOM_COMMAND_SIG(casey_clean_and_save)
 {
     exec_command(app, clean_all_lines);
     exec_command(app, eol_nixify);
-    exec_command(app, cmdid_save);
+    exec_command(app, save);
 }
 
 CUSTOM_COMMAND_SIG(casey_newline_and_indent)
@@ -444,13 +444,13 @@ CUSTOM_COMMAND_SIG(casey_newline_and_indent)
 CUSTOM_COMMAND_SIG(casey_open_file_other_window)
 {
     exec_command(app, change_active_panel);
-    exec_command(app, cmdid_interactive_open_or_new);
+    exec_command(app, interactive_open_or_new);
 }
 
 CUSTOM_COMMAND_SIG(casey_switch_buffer_other_window)
 {
     exec_command(app, change_active_panel);
-    exec_command(app, cmdid_interactive_switch_buffer);
+    exec_command(app, interactive_switch_buffer);
 }
 
 internal void
@@ -1192,36 +1192,6 @@ CUSTOM_COMMAND_SIG(casey_force_codelegal_characters)
     }
 }
 
-CUSTOM_COMMAND_SIG(casey_execute_arbitrary_command)
-{
-    Query_Bar bar;
-    char space[1024], more_space[1024];
-    bar.prompt = make_lit_string("Command: ");
-    bar.string = make_fixed_width_string(space);
-    
-    if (!query_user_string(app, &bar)) return;
-    end_query_bar(app, &bar, 0);
-    
-    if(match(bar.string, make_lit_string("codelegal")))
-    {
-        exec_command(app, casey_force_codelegal_characters);
-    }
-    else if(match(bar.string, make_lit_string("open menu")))
-    {
-        //        exec_command(app, cmdid_open_menu);
-    }
-    else
-    {
-        bar.prompt = make_fixed_width_string(more_space);
-        append(&bar.prompt, make_lit_string("Unrecognized: "));
-        append(&bar.prompt, bar.string);
-        bar.string.size = 0;
-        
-        start_query_bar(app, &bar, 0);
-        get_user_input(app, EventOnAnyKey | EventOnButton, 0);
-    }
-}
-
 static void
 casey_list_all_functions(Application_Links *app, Partition *part, Buffer_Summary *buffer, Buffer_Summary *decls_buffer){
     
@@ -1510,31 +1480,24 @@ CUSTOM_COMMAND_SIG(casey_list_all_functions_globally){
 internal void
 UpdateModalIndicator(Application_Links *app)
 {
-    int unsigned Background = (GlobalBrightMode ? 0xFFFFFF : 0x161616);
-    int unsigned Default = (GlobalBrightMode ? 0x000000 : 0xA08563);
-    int unsigned Constant = 0x6B8E23;
+    int unsigned Background = (GlobalBrightMode ? 0xFFFFFFFF : 0xFF161616);
+    int unsigned Default = (GlobalBrightMode ? 0xFF000000 : 0xFFA08563);
+    int unsigned Constant = 0xFF6B8E23;
     
     Theme_Color normal_colors[] =
     {
-        {Stag_Cursor, 0x40FF40},
-        {Stag_At_Cursor, 0x161616},
-        {Stag_Mark, 0x808080},
-        //{Stag_Margin, 0x262626},
-        //{Stag_Margin_Hover, 0x333333},
-        //{Stag_Margin_Active, 0x404040},
-        {Stag_Bar, 0xCACACA}
+        {Stag_Cursor, 0xFF40FF40},
+        {Stag_At_Cursor, 0xFF161616},
+        {Stag_Mark, 0xFF808080},
+        {Stag_Bar, 0xFFCACACA}
     };
     
     Theme_Color edit_colors[] =
     {
-        {Stag_Cursor, 0xFF0000},
-        {Stag_At_Cursor, 0x00FFFF},
-        {Stag_Mark, 0xFF6F1A},
-        //{Stag_Margin, 0x33170B},
-        //{Stag_Margin_Hover, 0x49200F},
-        //{Stag_Margin_Active, 0x934420},
-        {Stag_Bar, 0xCACACA}
-        // {Stag_Bar, 0x934420}
+        {Stag_Cursor, 0xFFFF0000},
+        {Stag_At_Cursor, 0xFF00FFFF},
+        {Stag_Mark, 0xFFFF6F1A},
+        {Stag_Bar, 0xFFCACACA}
     };
     
     if (GlobalEditMode)
@@ -1548,17 +1511,17 @@ UpdateModalIndicator(Application_Links *app)
     
     Theme_Color common_colors[] =
     {
-        {Stag_Comment, 0x7D7D7D},
-        {Stag_Keyword, 0xCD950C},
-        {Stag_Preproc, 0xDAB98F},
+        {Stag_Comment, 0xFF7D7D7D},
+        {Stag_Keyword, 0xFFCD950C},
+        {Stag_Preproc, 0xFFDAB98F},
         {Stag_Include, Constant},
         {Stag_Back, Background},
         {Stag_Margin, Background},
         {Stag_Margin_Hover, Background},
         {Stag_Margin_Active, Background},
         {Stag_List_Item,Background},
-        {Stag_List_Item_Hover, 0x934420},
-        {Stag_List_Item_Active, 0x934420},
+        {Stag_List_Item_Hover, 0xFF934420},
+        {Stag_List_Item_Active, 0xFF934420},
         {Stag_Default, Default},
         
         {Stag_Str_Constant, Constant},
@@ -1619,7 +1582,7 @@ DEFINE_MODAL_KEY(modal_semicolon, seek_white_or_token_right);
 DEFINE_BIMODAL_KEY(modal_open_bracket, casey_begin_keyboard_macro_recording, write_and_auto_tab);
 DEFINE_BIMODAL_KEY(modal_close_bracket, casey_end_keyboard_macro_recording, write_and_auto_tab);
 DEFINE_MODAL_KEY(modal_a, write_character); // TODO(casey): Arbitrary command + casey_quick_calc
-DEFINE_MODAL_KEY(modal_b, cmdid_interactive_switch_buffer);
+DEFINE_MODAL_KEY(modal_b, interactive_switch_buffer);
 DEFINE_MODAL_KEY(modal_c, casey_find_corresponding_file);
 DEFINE_MODAL_KEY(modal_d, casey_kill_to_end_of_line);
 DEFINE_MODAL_KEY(modal_e, write_character);
@@ -1642,8 +1605,8 @@ DEFINE_MODAL_KEY(modal_u, cmdid_undo);
 DEFINE_MODAL_KEY(modal_v, casey_switch_buffer_other_window);
 DEFINE_MODAL_KEY(modal_w, cut);
 DEFINE_MODAL_KEY(modal_x, casey_find_corresponding_file_other_window);
-DEFINE_MODAL_KEY(modal_y, cmdid_redo);
-DEFINE_MODAL_KEY(modal_z, cmdid_interactive_open_or_new);
+DEFINE_MODAL_KEY(modal_y, redo);
+DEFINE_MODAL_KEY(modal_z, interactive_open_or_new);
 
 DEFINE_MODAL_KEY(modal_1, casey_build_search); // TODO(casey): Shouldn't need to bind a key for this?
 DEFINE_MODAL_KEY(modal_2, write_character); // TODO(casey): Available
@@ -1654,9 +1617,9 @@ DEFINE_MODAL_KEY(modal_6, auto_tab_range); // TODO(casey): Available
 DEFINE_MODAL_KEY(modal_7, write_character); // TODO(casey): Available
 DEFINE_MODAL_KEY(modal_8, seek_whitespace_up); // TODO(casey): Available
 DEFINE_MODAL_KEY(modal_9, write_character); // TODO(casey): Available
-DEFINE_MODAL_KEY(modal_0, cmdid_kill_buffer);
+DEFINE_MODAL_KEY(modal_0, kill_buffer);
 DEFINE_MODAL_KEY(modal_minus, write_character); // TODO(casey): Available
-DEFINE_MODAL_KEY(modal_equals, casey_execute_arbitrary_command);
+DEFINE_MODAL_KEY(modal_equals, command_lister); // TODO(allen): Available
 
 DEFINE_BIMODAL_KEY(modal_backspace, casey_delete_token_left, backspace_char);
 DEFINE_BIMODAL_KEY(modal_up, move_up, move_up);
@@ -1838,17 +1801,18 @@ extern "C" GET_BINDING_DATA(get_bindings)
     
     set_start_hook(context, casey_start);
     set_command_caller(context, default_command_caller);
+    set_render_caller(context, default_render_caller);
     set_open_file_hook(context, casey_file_settings);
     set_scroll_rule(context, casey_smooth_scroll_rule);
     set_end_file_hook(context, end_file_close_jump_list);
     
     begin_map(context, mapid_global);
     {
-        bind(context, 'z', MDFR_NONE, cmdid_interactive_open_or_new);
+        bind(context, 'z', MDFR_NONE, interactive_open_or_new);
         bind(context, 'x', MDFR_NONE, casey_open_in_other);
         bind(context, 't', MDFR_NONE, casey_load_todo);
         bind(context, '/', MDFR_NONE, change_active_panel);
-        bind(context, 'b', MDFR_NONE, cmdid_interactive_switch_buffer);
+        bind(context, 'b', MDFR_NONE, interactive_switch_buffer);
         bind(context, key_page_up, MDFR_NONE, search);
         bind(context, key_page_down, MDFR_NONE, reverse_search);
         bind(context, 'm', MDFR_NONE, casey_save_and_make_without_asking);
@@ -1962,6 +1926,23 @@ extern "C" GET_BINDING_DATA(get_bindings)
     
     bind(context, key_f4, MDFR_ALT, exit_4coder);
     
+    end_map(context);
+    
+    begin_map(context, default_lister_ui_map);
+    bind_vanilla_keys(context, lister__write_character);
+    bind(context, key_esc, MDFR_NONE, lister__quit);
+    bind(context, '\n', MDFR_NONE, lister__activate);
+    bind(context, '\t', MDFR_NONE, lister__activate);
+    bind(context, key_back, MDFR_NONE, lister__backspace_text_field);
+    bind(context, key_up, MDFR_NONE, lister__move_up);
+    bind(context, key_page_up, MDFR_NONE, lister__move_up);
+    bind(context, key_down, MDFR_NONE, lister__move_down);
+    bind(context, key_page_down, MDFR_NONE, lister__move_down);
+    bind(context, key_mouse_wheel, MDFR_NONE, lister__wheel_scroll);
+    bind(context, key_mouse_left, MDFR_NONE, lister__mouse_press);
+    bind(context, key_mouse_left_release, MDFR_NONE, lister__mouse_release);
+    bind(context, key_mouse_move, MDFR_NONE, lister__repaint);
+    bind(context, key_animate, MDFR_NONE, lister__repaint);
     end_map(context);
     
     end_bind_helper(context);

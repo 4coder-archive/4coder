@@ -559,57 +559,56 @@ setup_command_table(void){
 
 internal void
 app_hardcode_default_style(Models *models){
-    Style *styles = models->styles.styles;
-    Style *style = styles + 1;
+    Style_Library *styles = &models->styles;
+    styles->count = 2;
+    styles->max = ArrayCount(models->styles.styles);
     
-    /////////////////
-    style_set_name(style, make_lit_string("4coder"));
-    
-    style->theme.colors[Stag_Back]                  = 0xFF0C0C0C;
-    style->theme.colors[Stag_Margin]                = 0xFF181818;
-    style->theme.colors[Stag_Margin_Hover]          = 0xFF252525;
-    style->theme.colors[Stag_Margin_Active]         = 0xFF323232;
-    style->theme.colors[Stag_List_Item]             = style->theme.colors[Stag_Margin];
-    style->theme.colors[Stag_List_Item_Hover]       = style->theme.colors[Stag_Margin_Hover];
-    style->theme.colors[Stag_List_Item_Active]      = style->theme.colors[Stag_Margin_Active];
-    style->theme.colors[Stag_Cursor]                = 0xFF00EE00;
-    style->theme.colors[Stag_Highlight]             = 0xFFDDEE00;
-    style->theme.colors[Stag_Mark]                  = 0xFF494949;
-    style->theme.colors[Stag_Default]               = 0xFF90B080;
-    style->theme.colors[Stag_At_Cursor]             = style->theme.colors[Stag_Back];
-    style->theme.colors[Stag_Highlight_Cursor_Line] = 0xFF1E1E1E;
-    style->theme.colors[Stag_At_Highlight]          = 0xFFFF44DD;
-    style->theme.colors[Stag_Comment]               = 0xFF2090F0;
-    style->theme.colors[Stag_Keyword]               = 0xFFD08F20;
-    style->theme.colors[Stag_Str_Constant]          = 0xFF50FF30;
-    style->theme.colors[Stag_Char_Constant]         = style->theme.colors[Stag_Str_Constant];
-    style->theme.colors[Stag_Int_Constant]          = style->theme.colors[Stag_Str_Constant];
-    style->theme.colors[Stag_Float_Constant]        = style->theme.colors[Stag_Str_Constant];
-    style->theme.colors[Stag_Bool_Constant]         = style->theme.colors[Stag_Str_Constant];
-    style->theme.colors[Stag_Include]               = style->theme.colors[Stag_Str_Constant];
-    style->theme.colors[Stag_Preproc]               = style->theme.colors[Stag_Default];
-    style->theme.colors[Stag_Special_Character]     = 0xFFFF0000;
-    style->theme.colors[Stag_Ghost_Character] = color_blend(style->theme.colors[Stag_Default],
-                                                            0.5f,
-                                                            style->theme.colors[Stag_Back]);
-    
-    style->theme.colors[Stag_Paste] = 0xFFDDEE00;
-    style->theme.colors[Stag_Undo]  = 0xFF00DDEE;
-    
-    style->theme.colors[Stag_Highlight_Junk]  = 0xff3a0000;
-    style->theme.colors[Stag_Highlight_White] = 0xff003a3a;
-    
-    style->theme.colors[Stag_Bar]        = 0xFF888888;
-    style->theme.colors[Stag_Bar_Active] = 0xFF666666;
-    style->theme.colors[Stag_Base]       = 0xFF000000;
-    style->theme.colors[Stag_Pop1]       = 0xFF3C57DC;
-    style->theme.colors[Stag_Pop2]       = 0xFFFF0000;
-    ++style;
-    
-    /////////////////
-    models->styles.count = (i32)(style - styles);
-    models->styles.max = ArrayCount(models->styles.styles);
-    style_copy(&models->styles.styles[0], models->styles.styles + 1);
+    Style *style = styles->styles;
+    for (i32 i = 0; i < 2; i += 1, style += 1){
+        style->name = make_fixed_width_string(style->name_);
+        copy(&style->name, make_lit_string("4coder"));
+        terminate_with_null(&style->name);
+        
+        style->theme.colors[Stag_Back]                  = 0xFF0C0C0C;
+        style->theme.colors[Stag_Margin]                = 0xFF181818;
+        style->theme.colors[Stag_Margin_Hover]          = 0xFF252525;
+        style->theme.colors[Stag_Margin_Active]         = 0xFF323232;
+        style->theme.colors[Stag_List_Item]             = style->theme.colors[Stag_Margin];
+        style->theme.colors[Stag_List_Item_Hover]       = style->theme.colors[Stag_Margin_Hover];
+        style->theme.colors[Stag_List_Item_Active]      = style->theme.colors[Stag_Margin_Active];
+        style->theme.colors[Stag_Cursor]                = 0xFF00EE00;
+        style->theme.colors[Stag_Highlight]             = 0xFFDDEE00;
+        style->theme.colors[Stag_Mark]                  = 0xFF494949;
+        style->theme.colors[Stag_Default]               = 0xFF90B080;
+        style->theme.colors[Stag_At_Cursor]             = style->theme.colors[Stag_Back];
+        style->theme.colors[Stag_Highlight_Cursor_Line] = 0xFF1E1E1E;
+        style->theme.colors[Stag_At_Highlight]          = 0xFFFF44DD;
+        style->theme.colors[Stag_Comment]               = 0xFF2090F0;
+        style->theme.colors[Stag_Keyword]               = 0xFFD08F20;
+        style->theme.colors[Stag_Str_Constant]          = 0xFF50FF30;
+        style->theme.colors[Stag_Char_Constant]         = style->theme.colors[Stag_Str_Constant];
+        style->theme.colors[Stag_Int_Constant]          = style->theme.colors[Stag_Str_Constant];
+        style->theme.colors[Stag_Float_Constant]        = style->theme.colors[Stag_Str_Constant];
+        style->theme.colors[Stag_Bool_Constant]         = style->theme.colors[Stag_Str_Constant];
+        style->theme.colors[Stag_Include]               = style->theme.colors[Stag_Str_Constant];
+        style->theme.colors[Stag_Preproc]               = style->theme.colors[Stag_Default];
+        style->theme.colors[Stag_Special_Character]     = 0xFFFF0000;
+        style->theme.colors[Stag_Ghost_Character] = color_blend(style->theme.colors[Stag_Default],
+                                                                0.5f,
+                                                                style->theme.colors[Stag_Back]);
+        
+        style->theme.colors[Stag_Paste] = 0xFFDDEE00;
+        style->theme.colors[Stag_Undo]  = 0xFF00DDEE;
+        
+        style->theme.colors[Stag_Highlight_Junk]  = 0xff3a0000;
+        style->theme.colors[Stag_Highlight_White] = 0xff003a3a;
+        
+        style->theme.colors[Stag_Bar]        = 0xFF888888;
+        style->theme.colors[Stag_Bar_Active] = 0xFF666666;
+        style->theme.colors[Stag_Base]       = 0xFF000000;
+        style->theme.colors[Stag_Pop1]       = 0xFF3C57DC;
+        style->theme.colors[Stag_Pop2]       = 0xFFFF0000;
+    }
 }
 
 internal void

@@ -276,8 +276,10 @@ RENDER_CALLER_SIG(default_render_caller){
                 colors[0].tag = Stag_Cursor;
                 colors[1].tag = Stag_Mark;
                 get_theme_colors(app, colors, 2);
-                uint32_t cursor_color = colors[0].color;
-                uint32_t mark_color = colors[1].color;
+                int_color cursor_color = SymbolicColorFromPalette(Stag_Cursor);
+                int_color mark_color   = SymbolicColorFromPalette(Stag_Mark);
+                int_color text_color    = is_active_view?
+                    SymbolicColorFromPalette(Stag_At_Cursor):SymbolicColorFromPalette(Stag_Default);
                 
                 Marker_Visual_Take_Rule take_rule = {};
                 take_rule.first_index = 0;
@@ -288,7 +290,7 @@ RENDER_CALLER_SIG(default_render_caller){
                 Marker_Visual visual = create_marker_visual(app, cursor_and_mark);
                 Marker_Visual_Type type = is_active_view?VisualType_CharacterBlocks:VisualType_CharacterWireFrames;
                 marker_visual_set_effect(app, visual,
-                                         type, cursor_color, SymbolicColorFromPalette(Stag_At_Cursor), 0);
+                                         type, cursor_color, text_color, 0);
                 marker_visual_set_take_rule(app, visual, take_rule);
                 marker_visual_set_priority(app, visual, VisualPriority_Highest);
                 
@@ -306,8 +308,8 @@ RENDER_CALLER_SIG(default_render_caller){
                 colors[0].tag = Stag_Cursor;
                 colors[1].tag = Stag_Highlight;
                 get_theme_colors(app, colors, 2);
-                uint32_t cursor_color = colors[0].color;
-                uint32_t highlight_color = colors[1].color;
+                int_color cursor_color    = SymbolicColorFromPalette(Stag_Cursor);
+                int_color highlight_color = SymbolicColorFromPalette(Stag_Highlight);
                 
                 Marker_Visual_Take_Rule take_rule = {};
                 take_rule.first_index = 0;

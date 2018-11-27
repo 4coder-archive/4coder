@@ -3217,12 +3217,14 @@ DOC(This call creates a new theme.  If the given name is already the name of a s
         }
     }
     
-    if (destination_style != 0 && library->count < library->max){
+    if (destination_style == 0 && library->count < library->max){
         destination_style = &library->styles[library->count++];
-        style_set_name(destination_style, make_string(name, len));
+        destination_style->name = make_fixed_width_string(destination_style->name_);
+        copy(&destination_style->name, make_string(name, len));
+        terminate_with_null(&destination_style->name);
     }
     
-    memcpy(&style->theme, theme, sizeof(*theme));
+    memcpy(&destination_style->theme, theme, sizeof(*theme));
 }
 
 API_EXPORT void
@@ -3240,7 +3242,8 @@ DOC(This call changes 4coder's color pallet to one of the built in themes.)
     Style *s = styles->styles + 1;
     for (i32 i = 1; i < count; ++i, ++s){
         if (match(s->name, theme_name)){
-            style_copy(&styles->styles[0], s);
+            styles->styles[0] = *s;
+            styles->styles[0].name.str = styles->styles[0].name_;
             break;
         }
     }
@@ -3257,7 +3260,8 @@ DOC_RETURN(Returns non-zero on success and zero on failure.  This call fails whe
     Style_Library *styles = &models->styles;
     i32 count = styles->count;
     if (0 <= index && index < count){
-        style_copy(&styles->styles[0], &styles->styles[index]);
+        styles->styles[0] = styles->styles[index];
+        styles->styles[0].name.str = styles->styles[0].name_;
         return(true);
     }
     return(false);
@@ -3531,7 +3535,6 @@ DOC_SEE(get_available_font_count)
 */
 {
     Models *models = (Models*)app->cmd_context;
-    
     Available_Font available = {};
     Font_Loadable_Description description = {};
     models->system->font.get_loadable(index, &description);
@@ -3539,7 +3542,6 @@ DOC_SEE(get_available_font_count)
         memcpy(available.name, description.display_name, description.display_len);
         available.in_local_font_folder = description.stub.in_font_folder;
     }
-    
     return(available);
 }
 
@@ -3555,9 +3557,8 @@ DOC_SEE(Theme_Color)
     Style *style = &models->styles.styles[0];
     Theme_Color *theme_color = colors;
     for (i32 i = 0; i < count; ++i, ++theme_color){
-        int_color *color = &style->theme.colors[theme_color->tag];
-        if (color != 0){
-            *color = theme_color->color;
+        if (theme_color->tag < Stag_COUNT){
+            style->theme.colors[theme_color->tag] = theme_color->color;
         }
     }
 }

@@ -513,22 +513,28 @@ get_visual_markers(Partition *arena, Dynamic_Workspace *workspace,
             i32 priority = data->priority;
             
             if ((color&SymbolicColor__StagColorFlag) && (color&0xFF000000) == 0){
-                u32 *c = &theme_data->colors[color&0x007FFFFF];
-                if (c != 0){
-                    color = *c;
-                }
-                else{
-                    color = 0;
+                u32 color_index = color&0x007FFFFF;
+                if (color_index < Stag_COUNT){
+                    u32 *c = &theme_data->colors[color_index];
+                    if (c != 0){
+                        color = *c;
+                    }
+                    else{
+                        color = 0;
+                    }
                 }
             }
             
             if ((text_color&SymbolicColor__StagColorFlag) && (text_color&0xFF000000) == 0){
-                u32 *c = &theme_data->colors[color&0x007FFFFF];
-                if (c != 0){
-                    text_color = *c;
-                }
-                else{
-                    text_color = 0;
+                u32 color_index = text_color&0x007FFFFF;
+                if (color_index < Stag_COUNT){
+                    u32 *c = &theme_data->colors[color_index];
+                    if (c != 0){
+                        text_color = *c;
+                    }
+                    else{
+                        text_color = 0;
+                    }
                 }
             }
             
