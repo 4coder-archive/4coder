@@ -176,7 +176,7 @@ bind(context, key_up, MDFR_NONE, lister__move_up);
 bind(context, 'k', MDFR_ALT, lister__move_up);
 bind(context, key_page_up, MDFR_NONE, lister__move_up);
 bind(context, key_down, MDFR_NONE, lister__move_down);
-bind(context, 'j', MDFR_ALT, lister__move_up);
+bind(context, 'j', MDFR_ALT, lister__move_down);
 bind(context, key_page_down, MDFR_NONE, lister__move_down);
 bind(context, key_mouse_wheel, MDFR_NONE, lister__wheel_scroll);
 bind(context, key_mouse_left, MDFR_NONE, lister__mouse_press);
@@ -576,7 +576,7 @@ static Meta_Key_Bind fcoder_binds_for_default_default_lister_ui_map[16] = {
 {0, 107, 2, "lister__move_up", 15, LINK_PROCS(lister__move_up)},
 {0, 55305, 0, "lister__move_up", 15, LINK_PROCS(lister__move_up)},
 {0, 55298, 0, "lister__move_down", 17, LINK_PROCS(lister__move_down)},
-{0, 106, 2, "lister__move_up", 15, LINK_PROCS(lister__move_up)},
+{0, 106, 2, "lister__move_down", 17, LINK_PROCS(lister__move_down)},
 {0, 55306, 0, "lister__move_down", 17, LINK_PROCS(lister__move_down)},
 {0, 55312, 0, "lister__wheel_scroll", 20, LINK_PROCS(lister__wheel_scroll)},
 {0, 55308, 0, "lister__mouse_press", 19, LINK_PROCS(lister__mouse_press)},

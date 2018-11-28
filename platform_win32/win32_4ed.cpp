@@ -28,16 +28,14 @@
 #include "4coder_lib/4coder_utf8.h"
 
 #if defined(FRED_SUPER)
-# include "4coder_API/4coder_keycodes.h"
-# include "4coder_API/4coder_style.h"
-
-# define FSTRING_IMPLEMENTATION
-# include "4coder_lib/4coder_string.h"
 # include "4coder_lib/4coder_arena.h"
 # include "4coder_lib/4coder_arena.cpp"
+# define FSTRING_IMPLEMENTATION
+# include "4coder_lib/4coder_string.h"
 
+# include "4coder_API/4coder_keycodes.h"
+# include "4coder_API/4coder_style.h"
 # include "4coder_API/4coder_types.h"
-
 #else
 # include "4coder_default_bindings.cpp"
 #endif
@@ -59,8 +57,13 @@
 
 //////////////////////////////
 
+enum{
+    ErrorString_UseLog = 0,
+    ErrorString_UseErrorBox = 1,
+};
+
 internal void
-win32_output_error_string(b32 use_error_box = true);
+win32_output_error_string(i32 error_string_type);
 
 //////////////////////////////
 
@@ -293,7 +296,7 @@ internal void
 win32_post_clipboard(char *text, i32 len){
     if (OpenClipboard(win32vars.window_handle)){
         if (!EmptyClipboard()){
-            win32_output_error_string(false);
+            win32_output_error_string(ErrorString_UseLog);
         }
         HANDLE memory_handle = GlobalAlloc(GMEM_MOVEABLE, len  + 1);
         if (memory_handle){
@@ -789,24 +792,24 @@ win32_init_gl(HDC hdc){
     format.iLayerType = PFD_MAIN_PLANE;
     i32 suggested_format_index = ChoosePixelFormat(hwgldc, &format);
     if (suggested_format_index == 0){
-        win32_output_error_string();
+        win32_output_error_string(ErrorString_UseErrorBox);
         GLInitFail("ChoosePixelFormat");
     }
     
     DescribePixelFormat(hwgldc, suggested_format_index, sizeof(format), &format);
     if (!SetPixelFormat(hwgldc, suggested_format_index, &format)){
-        win32_output_error_string();
+        win32_output_error_string(ErrorString_UseErrorBox);
         GLInitFail("SetPixelFormat");
     }
     
     HGLRC wglcontext = wglCreateContext(hwgldc);
     if (wglcontext == 0){
-        win32_output_error_string();
+        win32_output_error_string(ErrorString_UseErrorBox);
         GLInitFail("wglCreateContext");
     }
     
     if (!wglMakeCurrent(hwgldc, wglcontext)){
-        win32_output_error_string();
+        win32_output_error_string(ErrorString_UseErrorBox);
         GLInitFail("wglMakeCurrent");
     }
     
@@ -1326,7 +1329,7 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
     
     LOG("Initializing clipboard\n");
     if (!AddClipboardFormatListener(win32vars.window_handle)){
-        win32_output_error_string(false);
+        win32_output_error_string(ErrorString_UseLog);
     }
     
     win32vars.clip_max = KB(16);

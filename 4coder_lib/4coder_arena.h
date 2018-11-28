@@ -55,12 +55,6 @@ struct Temp_Memory{
     i32_4tech pos;
 };
 
-struct Tail_Temp_Partition{
-    Partition part;
-    void *handle;
-    i32_4tech old_max;
-};
-
 #endif
 
 // BOTTOM

@@ -629,7 +629,7 @@ generate_remapping_code_and_data(Partition *part){
         bind(part, mappings, 'k'          , MDFR_ALT , lister__move_up);
         bind(part, mappings, key_page_up  , MDFR_NONE, lister__move_up);
         bind(part, mappings, key_down     , MDFR_NONE, lister__move_down);
-        bind(part, mappings, 'j'          , MDFR_ALT , lister__move_up);
+        bind(part, mappings, 'j'          , MDFR_ALT , lister__move_down);
         bind(part, mappings, key_page_down, MDFR_NONE, lister__move_down);
         bind(part, mappings, key_mouse_wheel       , MDFR_NONE, lister__wheel_scroll);
         bind(part, mappings, key_mouse_left        , MDFR_NONE, lister__mouse_press);

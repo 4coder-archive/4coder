@@ -18,9 +18,11 @@
 
 #define BACKUP_FOLDER ".." SLASH ".." SLASH "string_backup"
 
-#include "../4coder_lib/4cpp_lexer.h"
+#include "../4coder_lib/4coder_arena.h"
+#include "../4coder_lib/4coder_arena.cpp"
 #define FSTRING_IMPLEMENTATION
 #include "../4coder_lib/4coder_string.h"
+#include "../4coder_lib/4cpp_lexer.h"
 
 #include "../4ed_defines.h"
 #include "../meta/4ed_meta_defines.h"
@@ -149,17 +151,18 @@ print_function_body_code(String *out, Parse_Context *context, i32 start){
 }
 
 internal void
-file_move(char *path, char *file_name){
-    fm_copy_file(fm_str(file_name), fm_str(path, "/", file_name));
+file_move(Partition *part, char *path, char *file_name){
+    fm_copy_file(fm_str(part, file_name), fm_str(part, path, "/", file_name));
 }
 
 int main(){
     META_BEGIN();
-    fm_init_system();
+    Partition part_ = fm_init_system();
+    Partition *part = &part_;
     
     // NOTE(allen): Parse the internal string file.
     char *string_files[] = { INTERNAL_STRING, 0 };
-    Meta_Unit string_unit = compile_meta_unit(".", string_files, ExpandArray(meta_keywords));
+    Meta_Unit string_unit = compile_meta_unit(part, ".", string_files, ExpandArray(meta_keywords));
     
     if (string_unit.parse == 0){
         Assert(!"Missing one or more input files!");
@@ -191,7 +194,7 @@ int main(){
     }
     
     // NOTE(allen): String Library
-    String out = str_alloc(10 << 20);
+    String out = str_alloc(part, 10 << 20);
     
     Cpp_Token *token = 0;
     i32 start = 0;
@@ -212,7 +215,7 @@ int main(){
     
     append(&out, "/*\n");
     
-    append(&out, GENERATED_FILE " - Version "V_MAJ"."V_MIN".");
+    append(&out, GENERATED_FILE " - Version " V_MAJ "." V_MIN ".");
     append_int_to_str(&out, build_number);
     append(&out, "\n");
     
@@ -436,11 +439,11 @@ int main(){
     
     // NOTE(allen): Publish the new file.  (Would like to be able to automatically test the result before publishing).
     {
-        fm_make_folder_if_missing(BACKUP_FOLDER SLASH V_MAJ SLASH V_MIN);
-        file_move(BACKUP_FOLDER SLASH V_MAJ SLASH V_MIN, INTERNAL_STRING);
-        file_move(BACKUP_FOLDER SLASH V_MAJ SLASH V_MIN, GENERATED_FILE);
+        fm_make_folder_if_missing(part, BACKUP_FOLDER SLASH V_MAJ SLASH V_MIN);
+        file_move(part, BACKUP_FOLDER SLASH V_MAJ SLASH V_MIN, INTERNAL_STRING);
+        file_move(part, BACKUP_FOLDER SLASH V_MAJ SLASH V_MIN, GENERATED_FILE);
         fm_delete_file(GENERATED_FILE);
-        printf("published "GENERATED_FILE": v%d.%d.%d\n", major_number, minor_number, build_number);
+        printf("published " GENERATED_FILE ": v%d.%d.%d\n", major_number, minor_number, build_number);
         save_build_number(BUILD_NUMBER_FILE, major_number, minor_number, build_number + 1);
     }
     

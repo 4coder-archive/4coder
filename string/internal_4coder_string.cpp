@@ -201,11 +201,7 @@ does not specify the size of the memory it is also assumed that this size is the
 of the memory.)
 DOC(This call returns the String created from the parameters.)
 */{
-    String result;
-    result.str = (char*)str;
-    result.size = size;
-    result.memory_size = size;
-    return(result);
+    return(make_string(str, size, size));
 }
 
 API_EXPORT_MACRO 
@@ -2124,6 +2120,33 @@ DOC_SEE(get_next_word)
     String start_str = make_string(source.str, 0);
     String word = get_next_word(source, start_str);
     return(word);
+}
+
+API_EXPORT FSTRING_LINK String
+string_push(Partition *part, i32_4tech size)/*
+DOC_PARAM(part, A partition on which the string will be allocated.)
+DOC_PARAM(size, The number of bytes to allocated for the new string.)
+DOC_RETURN(If successfull returns an empty string with capacity equal to the size parameter, otherwise returns a null string.)*/{
+    String result = {};
+    result.str = push_array(part, char, size);
+    if (result.str != 0){
+        result.memory_size = size;
+    }
+    return(result);
+}
+
+API_EXPORT FSTRING_LINK String
+string_push_copy(Partition *part, String str)/*
+DOC_PARAM(part, A partition on which the string will be allocated.)
+DOC_PARAM(str, The source string to copy into the new string.  The copy includes a null terminator whther or not the source does.)
+DOC_RETURN(If successfull returns a string copy of str,  otherwise returns a null string.)*/{
+    String result = {};
+    result.str = push_array(part, char, str.size + 1);
+    if (result.str != 0){
+        result.memory_size = str.size + 1;
+        copy(&result, str);
+    }
+    return(result);
 }
 
 // TODO(allen): eliminate this.

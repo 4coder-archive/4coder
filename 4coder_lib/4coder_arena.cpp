@@ -81,26 +81,6 @@ end_temp_memory(Temp_Memory temp){
     ((Partition*)temp.handle)->pos = temp.pos;
 }
 
-inline Tail_Temp_Partition
-begin_tail_part(Partition *data, i32_4tech size){
-    Tail_Temp_Partition result = {};
-    if (data->pos + size <= data->max){
-        result.handle = data;
-        result.old_max = data->max;
-        data->max -= size;
-        result.part = make_part(data->base + data->max, size);
-    }
-    return(result);
-}
-
-inline void
-end_tail_part(Tail_Temp_Partition temp){
-    if (temp.handle){
-        Partition *part = (Partition*)temp.handle;
-        part->max = temp.old_max;
-    }
-}
-
 #define reset_temp_memory end_temp_memory
 
 // BOTTOM

@@ -23,10 +23,10 @@
 # include "4coder_API/4coder_keycodes.h"
 # include "4coder_API/4coder_style.h"
 
-# define FSTRING_IMPLEMENTATION
-# include "4coder_lib/4coder_string.h"
 # include "4coder_lib/4coder_arena.h"
 # include "4coder_lib/4coder_arena.cpp"
+# define FSTRING_IMPLEMENTATION
+# include "4coder_lib/4coder_string.h"
 
 # include "4coder_API/4coder_types.h"
 

@@ -1,5 +1,5 @@
 /*
-4coder_string.h - Version 1.0.114
+4coder_string.h - Version 1.0.116
 no warranty implied; use at your own risk
 
 This software is in the public domain. Where that dedication is not
@@ -217,6 +217,8 @@ FSTRING_LINK String                get_first_double_line(String source);
 FSTRING_LINK String                get_next_double_line(String source, String line);
 FSTRING_LINK String                get_next_word(String source, String prev_word);
 FSTRING_LINK String                get_first_word(String source);
+FSTRING_LINK String                string_push(Partition *part, i32_4tech size);
+FSTRING_LINK String                string_push_copy(Partition *part, String str);
 
 #endif
 
@@ -487,11 +489,7 @@ make_string_cap(void *str, i32_4tech size, i32_4tech mem_size){
 #if !defined(FSTRING_GUARD)
 FSTRING_INLINE String
 make_string(void *str, i32_4tech size){
-    String result;
-    result.str = (char*)str;
-    result.size = size;
-    result.memory_size = size;
-    return(result);
+    return(make_string(str, size, size));
 }
 #endif
 
@@ -975,6 +973,7 @@ compare_ss(String a, String b){
 //
 // Finding Characters and Substrings
 //
+
 
 #if defined(FSTRING_IMPLEMENTATION)
 FSTRING_LINK i32_4tech
@@ -1476,7 +1475,8 @@ append_padding(String *dest, char c, i32_4tech target_size){
 
 #if defined(FSTRING_IMPLEMENTATION)
 FSTRING_LINK void
-string_interpret_escapes(String src, char *dst){
+string_interpret_escapes(String src, char *dst)
+{
     i32_4tech mode = 0;
     i32_4tech j = 0;
     for (i32_4tech i = 0; i < src.size; ++i){
@@ -2292,6 +2292,31 @@ get_first_word(String source){
     String start_str = make_string(source.str, 0);
     String word = get_next_word(source, start_str);
     return(word);
+}
+#endif
+
+#if defined(FSTRING_IMPLEMENTATION)
+FSTRING_LINK String
+string_push(Partition *part, i32_4tech size){
+    String result = {};
+    result.str = push_array(part, char, size);
+    if (result.str != 0){
+        result.memory_size = size;
+    }
+    return(result);
+}
+#endif
+
+#if defined(FSTRING_IMPLEMENTATION)
+FSTRING_LINK String
+string_push_copy(Partition *part, String str){
+    String result = {};
+    result.str = push_array(part, char, str.size + 1);
+    if (result.str != 0){
+        result.memory_size = str.size + 1;
+        copy(&result, str);
+    }
+    return(result);
 }
 #endif
 

@@ -15,16 +15,15 @@
 
 #include "4coder_generated/command_metadata.h"
 
+#include "4coder_lib/4coder_arena.cpp"
+#include "4coder_lib/4coder_heap.cpp"
+
 #define FSTRING_IMPLEMENTATION
 #include "4coder_lib/4coder_string.h"
 #include "4coder_lib/4coder_table.h"
-#include "4coder_lib/4coder_arena.h"
-#include "4coder_lib/4coder_heap.h"
 #include "4coder_lib/4coder_utf8.h"
 #include "4coder_lib/4cpp_lexer.h"
 
-#include "4coder_lib/4coder_arena.cpp"
-#include "4coder_lib/4coder_heap.cpp"
 
 #include "4coder_ui_helper.h"
 #include "4coder_helper.h"

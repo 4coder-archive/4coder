@@ -20,7 +20,7 @@ system_load_library_direct(Library *library, char *name){
     library->lib = LoadLibraryA(name);
     b32 success = (library->lib != 0);
     if (!success){
-        win32_output_error_string(false);
+        win32_output_error_string(ErrorString_UseLog);
     }
     return(success);
 }
