@@ -48,7 +48,7 @@ check_is_note(String line, int32_t colon_pos){
     int32_t note_pos = find_substr(line, colon_pos, make_lit_string("note"));
     if (note_pos < line.size){
         bool32 is_all_whitespace = true;
-        for (int32_t i = colon_pos; i < note_pos; i += 1){
+        for (int32_t i = colon_pos + 1; i < note_pos; i += 1){
             if (!char_is_whitespace(line.str[i])){
                 is_all_whitespace = false;
                 break;
