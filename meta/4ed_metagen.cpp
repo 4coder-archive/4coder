@@ -606,7 +606,7 @@ generate_remapping_code_and_data(Partition *part){
         bind(part, mappings, '\'', MDFR_ALT, select_next_scope_absolute);
         bind(part, mappings, '/', MDFR_ALT, place_in_scope);
         bind(part, mappings, '-', MDFR_ALT, delete_current_scope);
-        bind(part, mappings, '}', MDFR_ALT, scope_absorb_down);
+        bind(part, mappings, '"', MDFR_ALT, scope_absorb_down);
         
         bind(part, mappings, 'i', MDFR_ALT, if0_off);
         
@@ -843,7 +843,7 @@ generate_remapping_code_and_data(Partition *part){
         bind(part, mappings, '\'', MDFR_CTRL, select_next_scope_absolute);
         bind(part, mappings, '/', MDFR_CTRL, place_in_scope);
         bind(part, mappings, '-', MDFR_CTRL, delete_current_scope);
-        bind(part, mappings, '}', MDFR_CTRL, scope_absorb_down);
+        bind(part, mappings, '"', MDFR_CTRL, scope_absorb_down);
         
         bind(part, mappings, 'i', MDFR_CTRL, if0_off);
         
