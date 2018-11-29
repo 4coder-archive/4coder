@@ -12,8 +12,8 @@ bind(context, 'h', MDFR_CTRL, project_go_to_root_directory);
 bind(context, 'S', MDFR_CTRL, save_all_dirty_buffers);
 bind(context, '.', MDFR_ALT, change_to_build_panel);
 bind(context, ',', MDFR_ALT, close_build_panel);
-bind(context, 'n', MDFR_ALT, goto_next_jump_no_skips_sticky);
-bind(context, 'N', MDFR_ALT, goto_prev_jump_no_skips_sticky);
+bind(context, 'n', MDFR_ALT, goto_next_jump_sticky);
+bind(context, 'N', MDFR_ALT, goto_prev_jump_sticky);
 bind(context, 'M', MDFR_ALT, goto_first_jump_sticky);
 bind(context, 'm', MDFR_ALT, build_in_build_panel);
 bind(context, 'b', MDFR_ALT, toggle_filebar);
@@ -413,8 +413,8 @@ static Meta_Key_Bind fcoder_binds_for_default_mapid_global[39] = {
 {0, 83, 1, "save_all_dirty_buffers", 22, LINK_PROCS(save_all_dirty_buffers)},
 {0, 46, 2, "change_to_build_panel", 21, LINK_PROCS(change_to_build_panel)},
 {0, 44, 2, "close_build_panel", 17, LINK_PROCS(close_build_panel)},
-{0, 110, 2, "goto_next_jump_no_skips_sticky", 30, LINK_PROCS(goto_next_jump_no_skips_sticky)},
-{0, 78, 2, "goto_prev_jump_no_skips_sticky", 30, LINK_PROCS(goto_prev_jump_no_skips_sticky)},
+{0, 110, 2, "goto_next_jump_sticky", 21, LINK_PROCS(goto_next_jump_sticky)},
+{0, 78, 2, "goto_prev_jump_sticky", 21, LINK_PROCS(goto_prev_jump_sticky)},
 {0, 77, 2, "goto_first_jump_sticky", 22, LINK_PROCS(goto_first_jump_sticky)},
 {0, 109, 2, "build_in_build_panel", 20, LINK_PROCS(build_in_build_panel)},
 {0, 98, 2, "toggle_filebar", 14, LINK_PROCS(toggle_filebar)},
