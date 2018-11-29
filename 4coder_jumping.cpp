@@ -43,6 +43,25 @@ try_skip_rust_arrow(String line){
 }
 
 static bool32
+check_is_note(String line, int32_t colon_pos){
+    bool32 is_note = false;
+    int32_t note_pos = find_substr(line, colon_pos, make_lit_string("note"));
+    if (note_pos < line.size){
+        bool32 is_all_whitespace = true;
+        for (int32_t i = colon_pos; i < note_pos; i += 1){
+            if (!char_is_whitespace(line.str[i])){
+                is_all_whitespace = false;
+                break;
+            }
+        }
+        if (is_all_whitespace){
+            is_note = true;
+        }
+    }
+    return(is_note);
+}
+
+static bool32
 parse_jump_location(String line, Name_Line_Column_Location *location, int32_t *colon_char, bool32 *is_sub_error){
     bool32 result = false;
     *is_sub_error = (line.str[0] == ' ');
@@ -60,6 +79,10 @@ parse_jump_location(String line, Name_Line_Column_Location *location, int32_t *c
             is_ms_style = true;
             colon_pos = find_s_char(line, right_paren_pos, ':');
             if (colon_pos < line.size){
+                if (check_is_note(line, colon_pos)){
+                    *is_sub_error = true;
+                }
+                
                 String location_str = substr(line, 0, colon_pos);
                 
                 location_str = skip_chop_whitespace(location_str);
@@ -120,7 +143,11 @@ parse_jump_location(String line, Name_Line_Column_Location *location, int32_t *c
         int32_t colon_pos2 = find_s_char(line, colon_pos1 + 1, ':');
         int32_t colon_pos3 = find_s_char(line, colon_pos2 + 1, ':');
         
-        if (colon_pos3 + 1 <= line.size){
+        if (colon_pos3 < line.size){
+            if (check_is_note(line, colon_pos3)){
+                *is_sub_error = true;
+            }
+            
             String filename = substr(line, start, colon_pos1 - start);
             String line_number = substr(line, colon_pos1 + 1, colon_pos2 - colon_pos1 - 1);
             String column_number = substr(line, colon_pos2 + 1, colon_pos3 - colon_pos2 - 1);
@@ -136,7 +163,11 @@ parse_jump_location(String line, Name_Line_Column_Location *location, int32_t *c
             }
         }
         else{
-            if (colon_pos2 + 1 <= line.size){
+            if (colon_pos2 < line.size){
+                if (check_is_note(line, colon_pos2)){
+                    *is_sub_error = true;
+                }
+                
                 String filename = substr(line, 0, colon_pos1);
                 String line_number = substr(line, colon_pos1 + 1, colon_pos2 - colon_pos1 - 1);
                 
