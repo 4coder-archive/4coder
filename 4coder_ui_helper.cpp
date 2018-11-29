@@ -451,7 +451,7 @@ lister_add_item(Partition *arena, Lister *lister,
                 void *user_data, int32_t extra_space){
     return(lister_add_item(arena, lister,
                            string,
-                           lister_prealloced(push_string_copy(arena, status)),
+                           lister_prealloced(string_push_copy(arena, status)),
                            user_data, extra_space));
 }
 
@@ -460,7 +460,7 @@ lister_add_item(Partition *arena, Lister *lister,
                 String string, Lister_Prealloced_String status,
                 void *user_data, int32_t extra_space){
     return(lister_add_item(arena, lister,
-                           lister_prealloced(push_string_copy(arena, string)),
+                           lister_prealloced(string_push_copy(arena, string)),
                            status,
                            user_data, extra_space));
 }
@@ -470,8 +470,8 @@ lister_add_item(Partition *arena, Lister *lister,
                 String string, String status,
                 void *user_data, int32_t extra_space){
     return(lister_add_item(arena, lister,
-                           lister_prealloced(push_string_copy(arena, string)),
-                           lister_prealloced(push_string_copy(arena, status)),
+                           lister_prealloced(string_push_copy(arena, string)),
+                           lister_prealloced(string_push_copy(arena, status)),
                            user_data, extra_space));
 }
 
@@ -496,7 +496,7 @@ lister_add_ui_item(Partition *arena, Lister *lister,
                    String string, int32_t index,
                    void *user_data, int32_t extra_space){
     return(lister_add_ui_item(arena, lister,
-                              lister_prealloced(push_string_copy(arena, string)),
+                              lister_prealloced(string_push_copy(arena, string)),
                               index,
                               user_data, extra_space));
 }

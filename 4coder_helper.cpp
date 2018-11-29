@@ -1320,40 +1320,6 @@ dump_file_search_up_path(Partition *arena, String path, String file_name){
     return(result);
 }
 
-static String
-push_string(Partition *arena, int32_t cap){
-    char *mem = push_array(arena, char, cap);
-    String result = {};
-    if (mem != 0){
-        result = make_string_cap(mem, 0, cap);
-    }
-    return(result);
-}
-
-static String
-push_string_copy(Partition *arena, String str){
-    String result = {};
-    if (str.str != 0){
-        result = push_string(arena, str.size + 1);
-        push_align(arena, 8);
-        if (result.str != 0){
-            copy(&result, str);
-            terminate_with_null(&result);
-        }
-    }
-    return(result);
-}
-
-static String
-push_string_copy(Partition *arena, char *str, int32_t size){
-    return(push_string_copy(arena, make_string(str, size)));
-}
-
-static String
-push_string_copy(Partition *arena, char *str){
-    return(push_string_copy(arena, make_string_slowly(str)));
-}
-
 static void
 sort_pairs_by_key__quick(Sort_Pair_i32 *pairs, int32_t first, int32_t one_past_last){
     int32_t dif = one_past_last - first;

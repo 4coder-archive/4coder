@@ -73,18 +73,18 @@ generate_custom_headers(Partition *part){
         String *macro = &func_4ed_names.names[i].macro;
         String *public_name = &func_4ed_names.names[i].public_name;
         
-        *macro = str_alloc(part, name_string.size+4);
+        *macro = string_push(part, name_string.size + 4);
         to_upper(macro, name_string);
         append(macro, make_lit_string("_SIG"));
         
-        *public_name = str_alloc(part, name_string.size);
+        *public_name = string_push(part, name_string.size);
         to_lower(public_name, name_string);
         
         push_align(part, 8);
     }
     
     // NOTE(allen): Output
-    String out = str_alloc(part, 10 << 20);
+    String out = string_push(part, 10 << 20);
     
     // NOTE(allen): Custom API headers
     append(&out, "struct Application_Links;\n");

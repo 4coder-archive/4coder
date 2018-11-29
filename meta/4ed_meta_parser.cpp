@@ -185,11 +185,6 @@ set_token(Parse_Context *context, Cpp_Token *token){
     return(result);
 }
 
-internal String
-str_alloc(Partition *part, i32 cap){
-    return(make_string_cap(push_array(part, char, cap), 0, cap));
-}
-
 internal Item_Set
 allocate_item_set(Partition *part, i32 count){
     Item_Set item_set = {};

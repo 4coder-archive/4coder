@@ -17,7 +17,7 @@ get_pattern_array_from_cstring_array(Partition *arena, CString_Array list){
     array.count = count;
     for (int32_t i = 0; i < count; ++i){
         String base_str = make_string_slowly(list.strings[i]);
-        String str = push_string(arena, base_str.size + 3);
+        String str = string_push(arena, base_str.size + 3);
         append(&str, "*.");
         append(&str, base_str);
         terminate_with_null(&str);
@@ -259,18 +259,18 @@ parse_project__config_data__version_0(Partition *arena, String file_dir, Config 
         
         Config_Compound *compound = 0;
         if (config_compound_var(parsed, fkey_command_name, j, &compound)){
-            command->name = push_string(arena, 4);
+            command->name = string_push(arena, 4);
             append_int_to_str(&command->name, j);
             terminate_with_null(&command->name);
             
             String cmd = {};
             if (config_compound_string_member(parsed, compound, "cmd", 0, &cmd)){
-                command->cmd = push_string_copy(arena, cmd);
+                command->cmd = string_push_copy(arena, cmd);
             }
             
             String out = {};
             if (config_compound_string_member(parsed, compound, "out", 1, &out)){
-                command->out = push_string_copy(arena, out);
+                command->out = string_push_copy(arena, out);
             }
             
             bool32 footer_panel = false;
@@ -284,7 +284,7 @@ parse_project__config_data__version_0(Partition *arena, String file_dir, Config 
             }
         }
         else{
-            command->name = push_string(arena, 4);
+            command->name = string_push(arena, 4);
             append_int_to_str(&command->name, j);
             terminate_with_null(&command->name);
         }
@@ -309,7 +309,7 @@ parse_project__extract_pattern_array(Partition *arena, Config *parsed,
         for (Config_Get_Result_Node *node = list.first;
              node != 0;
              node = node->next, i += 1){
-            String str = push_string_copy(arena, node->result.string);
+            String str = string_push_copy(arena, node->result.string);
             get_absolutes(str, &array_out->patterns[i].absolutes, false, false);
         }
     }
@@ -337,7 +337,7 @@ parse_project__config_data__version_1(Partition *arena, String root_dir, Config 
     // Set new project directory
     {
         int32_t cap = root_dir.size + 1;
-        project->dir = push_string(arena, cap);
+        project->dir = string_push(arena, cap);
         copy(&project->dir, root_dir);
         terminate_with_null(&project->dir);
     }
@@ -346,7 +346,7 @@ parse_project__config_data__version_1(Partition *arena, String root_dir, Config 
     {
         String str = {};
         if (config_string_var(parsed, "project_name", 0, &str)){
-            project->name = push_string_copy(arena, str);
+            project->name = string_push_copy(arena, str);
         }
         else{
             project->name = make_lit_string("");
@@ -413,7 +413,7 @@ parse_project__config_data__version_1(Partition *arena, String root_dir, Config 
                     
                     String str = {};
                     if (config_compound_string_member(parsed, src, "path", 0, &str)){
-                        dst->path = push_string_copy(arena, str);
+                        dst->path = string_push_copy(arena, str);
                     }
                     
                     config_compound_bool_member(parsed, src, "recursive", 1, &dst->recursive);
@@ -513,9 +513,9 @@ parse_project__config_data__version_1(Partition *arena, String root_dir, Config 
                 config_compound_bool_member(parsed, src, "cursor_at_end", 5,
                                             &cursor_at_end);
                 
-                dst->name = push_string_copy(arena, name);
-                dst->cmd = push_string_copy(arena, cmd_str);
-                dst->out = push_string_copy(arena, out);
+                dst->name = string_push_copy(arena, name);
+                dst->cmd = string_push_copy(arena, cmd_str);
+                dst->out = string_push_copy(arena, out);
                 dst->footer_panel = footer_panel;
                 dst->save_dirty_files = save_dirty_files;
                 dst->cursor_at_end = cursor_at_end;
@@ -652,7 +652,7 @@ project_deep_copy__pattern_array(Partition *arena, Project_File_Pattern_Array *s
         int32_t abs_count = src->absolutes.count;
         dst->absolutes.count = abs_count;
         for (int32_t j = 0; j < abs_count; ++j){
-            dst->absolutes.a[j] = push_string_copy(arena, src->absolutes.a[j]);
+            dst->absolutes.a[j] = string_push_copy(arena, src->absolutes.a[j]);
             if (dst->absolutes.a[j].str == 0){
                 return(false);
             }
@@ -666,12 +666,12 @@ static Project
 project_deep_copy__inner(Partition *arena, Project *project){
     Project result = {};
     
-    result.dir = push_string_copy(arena, project->dir);
+    result.dir = string_push_copy(arena, project->dir);
     if (result.dir.str == 0){
         return(result);
     }
     
-    result.name = push_string_copy(arena, project->name);
+    result.name = string_push_copy(arena, project->name);
     if (result.name.str == 0){
         return(result);
     }
@@ -694,7 +694,7 @@ project_deep_copy__inner(Partition *arena, Project *project){
         Project_File_Load_Path *dst = result.load_path_array.paths;
         Project_File_Load_Path *src = project->load_path_array.paths;
         for (int32_t i = 0; i < path_count; ++i, ++dst, ++src){
-            dst->path = push_string_copy(arena, src->path);
+            dst->path = string_push_copy(arena, src->path);
             if (dst->path.str == 0){
                 return(result);
             }
@@ -716,19 +716,19 @@ project_deep_copy__inner(Partition *arena, Project *project){
         for (int32_t i = 0; i < command_count; ++i, ++dst, ++src){
             memset(dst, 0, sizeof(*dst));
             if (src->name.str != 0){
-                dst->name = push_string_copy(arena, src->name);
+                dst->name = string_push_copy(arena, src->name);
                 if (dst->name.str == 0){
                     return(result);
                 }
             }
             if (src->cmd.str != 0){
-                dst->cmd = push_string_copy(arena, src->cmd);
+                dst->cmd = string_push_copy(arena, src->cmd);
                 if (dst->cmd.str == 0){
                     return(result);
                 }
             }
             if (src->out.str != 0){
-                dst->out = push_string_copy(arena, src->out);
+                dst->out = string_push_copy(arena, src->out);
                 if (dst->out.str == 0){
                     return(result);
                 }
@@ -922,7 +922,7 @@ set_current_project(Application_Links *app, Partition *scratch, Project *project
         }
         else{
             Temp_Memory temp2 = begin_temp_memory(scratch);
-            String space = push_string(scratch, partition_remaining(scratch));
+            String space = string_push(scratch, partition_remaining(scratch));
             
             {
                 config_feedback_string(&space, "'root_directory'", project->dir);
@@ -1218,9 +1218,9 @@ project_generate_bat_script(Partition *scratch, String opts, String compiler,
     
     Temp_Memory temp = begin_temp_memory(scratch);
     
-    String cf = push_string_copy(scratch, code_file);
-    String od = push_string_copy(scratch, output_dir);
-    String bf = push_string_copy(scratch, binary_file);
+    String cf = string_push_copy(scratch, code_file);
+    String od = string_push_copy(scratch, output_dir);
+    String bf = string_push_copy(scratch, binary_file);
     
     replace_char(&cf, '/', '\\');
     replace_char(&od, '/', '\\');
@@ -1309,8 +1309,8 @@ project_generate_project_4coder_file(Partition *scratch,
     String od = output_dir;
     String bf = binary_file;
     
-    String od_win = push_string(scratch, od.size*2);
-    String bf_win = push_string(scratch, bf.size*2);
+    String od_win = string_push(scratch, od.size*2);
+    String bf_win = string_push(scratch, bf.size*2);
     
     append(&od_win, od);
     append(&bf_win, bf);
@@ -1539,8 +1539,8 @@ CUSTOM_DOC("Open a lister of all commands in the currently loaded project.")
     int32_t option_count = current_project.command_array.count;
     Lister_Option *options = push_array(arena, Lister_Option, option_count);
     for (int32_t i = 0; i < current_project.command_array.count; i += 1){
-        String string = push_string_copy(arena, current_project.command_array.commands[i].name);
-        String status = push_string_copy(arena, current_project.command_array.commands[i].cmd);
+        String string = string_push_copy(arena, current_project.command_array.commands[i].name);
+        String status = string_push_copy(arena, current_project.command_array.commands[i].cmd);
         options[i].string = string.str;
         options[i].status = status.str;
         options[i].user_data = IntAsPtr(i);

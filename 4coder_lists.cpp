@@ -556,7 +556,7 @@ generate_hot_directory_file_list(Application_Links *app, Partition *arena, Liste
              info < one_past_last;
              info += 1){
             if (info->folder) continue;
-            String file_name = push_string_copy(arena, make_string(info->filename, info->filename_len));
+            String file_name = string_push_copy(arena, make_string(info->filename, info->filename_len));
             char *is_loaded = "";
             char *status_flag = "";
             

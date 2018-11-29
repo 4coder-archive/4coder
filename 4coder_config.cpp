@@ -1623,7 +1623,7 @@ load_config_and_apply(Application_Links *app, Partition *scratch, Config_Data *c
         
         // Values
         Temp_Memory temp2 = begin_temp_memory(scratch);
-        String space = push_string(scratch, partition_remaining(scratch));
+        String space = string_push(scratch, partition_remaining(scratch));
         
         {
             config_feedback_string(&space, "user_name", config->user_name);
