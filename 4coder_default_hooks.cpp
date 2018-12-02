@@ -268,7 +268,8 @@ RENDER_CALLER_SIG(default_render_caller){
     cm_markers[1].pos = view.mark.pos;
     managed_object_store_data(app, cursor_and_mark, 0, 2, cm_markers);
     
-    if (!cursor_is_hidden){
+    bool32 cursor_is_hidden_in_this_view = (cursor_is_hidden && is_active_view);
+    if (!cursor_is_hidden_in_this_view){
         switch (fcoder_mode){
             case FCoderMode_Original:
             {

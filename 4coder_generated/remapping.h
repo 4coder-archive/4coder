@@ -160,7 +160,7 @@ bind(context, ']', MDFR_ALT, select_prev_scope_absolute);
 bind(context, '\'', MDFR_ALT, select_next_scope_absolute);
 bind(context, '/', MDFR_ALT, place_in_scope);
 bind(context, '-', MDFR_ALT, delete_current_scope);
-bind(context, '}', MDFR_ALT, scope_absorb_down);
+bind(context, '"', MDFR_ALT, scope_absorb_down);
 bind(context, 'i', MDFR_ALT, if0_off);
 bind(context, '1', MDFR_ALT, open_file_in_quotes);
 bind(context, '2', MDFR_ALT, open_matching_file_cpp);
@@ -345,7 +345,7 @@ bind(context, ']', MDFR_CTRL, select_prev_scope_absolute);
 bind(context, '\'', MDFR_CTRL, select_next_scope_absolute);
 bind(context, '/', MDFR_CTRL, place_in_scope);
 bind(context, '-', MDFR_CTRL, delete_current_scope);
-bind(context, '}', MDFR_CTRL, scope_absorb_down);
+bind(context, '"', MDFR_CTRL, scope_absorb_down);
 bind(context, 'i', MDFR_CTRL, if0_off);
 bind(context, '1', MDFR_CTRL, open_file_in_quotes);
 bind(context, '2', MDFR_CTRL, open_matching_file_cpp);
@@ -560,7 +560,7 @@ static Meta_Key_Bind fcoder_binds_for_default_default_code_map[32] = {
 {0, 39, 2, "select_next_scope_absolute", 26, LINK_PROCS(select_next_scope_absolute)},
 {0, 47, 2, "place_in_scope", 14, LINK_PROCS(place_in_scope)},
 {0, 45, 2, "delete_current_scope", 20, LINK_PROCS(delete_current_scope)},
-{0, 125, 2, "scope_absorb_down", 17, LINK_PROCS(scope_absorb_down)},
+{0, 34, 2, "scope_absorb_down", 17, LINK_PROCS(scope_absorb_down)},
 {0, 105, 2, "if0_off", 7, LINK_PROCS(if0_off)},
 {0, 49, 2, "open_file_in_quotes", 19, LINK_PROCS(open_file_in_quotes)},
 {0, 50, 2, "open_matching_file_cpp", 22, LINK_PROCS(open_matching_file_cpp)},
@@ -748,7 +748,7 @@ static Meta_Key_Bind fcoder_binds_for_mac_default_default_code_map[32] = {
 {0, 39, 1, "select_next_scope_absolute", 26, LINK_PROCS(select_next_scope_absolute)},
 {0, 47, 1, "place_in_scope", 14, LINK_PROCS(place_in_scope)},
 {0, 45, 1, "delete_current_scope", 20, LINK_PROCS(delete_current_scope)},
-{0, 125, 1, "scope_absorb_down", 17, LINK_PROCS(scope_absorb_down)},
+{0, 34, 1, "scope_absorb_down", 17, LINK_PROCS(scope_absorb_down)},
 {0, 105, 1, "if0_off", 7, LINK_PROCS(if0_off)},
 {0, 49, 1, "open_file_in_quotes", 19, LINK_PROCS(open_file_in_quotes)},
 {0, 50, 1, "open_matching_file_cpp", 22, LINK_PROCS(open_matching_file_cpp)},
