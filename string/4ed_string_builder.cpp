@@ -194,7 +194,7 @@ int main(){
     }
     
     // NOTE(allen): String Library
-    String out = str_alloc(part, 10 << 20);
+    String out = string_push(part, 10 << 20);
     
     Cpp_Token *token = 0;
     i32 start = 0;

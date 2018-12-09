@@ -1,5 +1,5 @@
 /*
-4coder_string.h - Version 1.0.117
+4coder_string.h - Version 1.0.118
 no warranty implied; use at your own risk
 
 This software is in the public domain. Where that dedication is not

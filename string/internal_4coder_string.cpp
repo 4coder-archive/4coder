@@ -2145,6 +2145,7 @@ DOC_RETURN(If successfull returns a string copy of str,  otherwise returns a nul
     if (result.str != 0){
         result.memory_size = str.size + 1;
         copy(&result, str);
+        result.str[result.size] = 0;
     }
     return(result);
 }
