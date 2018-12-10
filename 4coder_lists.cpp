@@ -354,10 +354,7 @@ begin_integrated_lister__basic_list(Application_Links *app, char *query_string,
     init_lister_state(state, heap, arena_size);
     lister_first_init(&state->arena, &state->lister, user_data, user_data_size);
     for (int32_t i = 0; i < option_count; i += 1){
-        lister_add_item(&state->arena, &state->lister,
-                        make_string_slowly(options[i].string),
-                        make_string_slowly(options[i].status),
-                        options[i].user_data, 0);
+        lister_add_item(&state->arena, &state->lister, options[i].string, options[i].status, options[i].user_data, 0);
     }
     lister_set_query_string(&state->lister, query_string);
     state->lister.handlers = lister_get_default_handlers();
@@ -946,8 +943,8 @@ CUSTOM_DOC("Opens an interactive list of all registered commands.")
     int32_t option_count = command_one_past_last_id;
     Lister_Option *options = push_array(arena, Lister_Option, option_count);
     for (int32_t i = 0; i < command_one_past_last_id; i += 1){
-        options[i].string = fcoder_metacmd_table[i].name;
-        options[i].status = fcoder_metacmd_table[i].description;
+        options[i].string = make_string_slowly(fcoder_metacmd_table[i].name);
+        options[i].status = make_string_slowly(fcoder_metacmd_table[i].description);
         options[i].user_data = (void*)fcoder_metacmd_table[i].proc;
     }
     begin_integrated_lister__basic_list(app, "Command:", activate_command, 0, 0,

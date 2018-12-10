@@ -34,7 +34,7 @@ FSTRING_BEGIN
 #endif
 
 #if !defined(FSTRING_GUARD)
-#define literal(s) (s), (sizeof(s)-1)
+#define literal(s) (s), (sizeof(s) - 1)
 
 typedef struct String{
     char *str;
@@ -2128,9 +2128,11 @@ DOC_PARAM(part, A partition on which the string will be allocated.)
 DOC_PARAM(size, The number of bytes to allocated for the new string.)
 DOC_RETURN(If successfull returns an empty string with capacity equal to the size parameter, otherwise returns a null string.)*/{
     String result = {};
-    result.str = push_array(part, char, size);
-    if (result.str != 0){
-        result.memory_size = size;
+    if (size > 0){
+        result.str = push_array(part, char, size);
+        if (result.str != 0){
+            result.memory_size = size;
+        }
     }
     return(result);
 }
@@ -2141,11 +2143,13 @@ DOC_PARAM(part, A partition on which the string will be allocated.)
 DOC_PARAM(str, The source string to copy into the new string.  The copy includes a null terminator whther or not the source does.)
 DOC_RETURN(If successfull returns a string copy of str,  otherwise returns a null string.)*/{
     String result = {};
-    result.str = push_array(part, char, str.size + 1);
-    if (result.str != 0){
-        result.memory_size = str.size + 1;
-        copy(&result, str);
-        result.str[result.size] = 0;
+    if (str.str != 0){
+        result.str = push_array(part, char, str.size + 1);
+        if (result.str != 0){
+            result.memory_size = str.size + 1;
+            copy(&result, str);
+            result.str[result.size] = 0;
+        }
     }
     return(result);
 }

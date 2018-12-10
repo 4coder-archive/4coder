@@ -86,8 +86,8 @@ struct Lister_State{
 ////////////////////////////////
 
 struct Lister_Option{
-    char *string;
-    char *status;
+    String string;
+    String status;
     void *user_data;
 };
 

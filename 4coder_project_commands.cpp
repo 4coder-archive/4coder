@@ -1539,10 +1539,8 @@ CUSTOM_DOC("Open a lister of all commands in the currently loaded project.")
     int32_t option_count = current_project.command_array.count;
     Lister_Option *options = push_array(arena, Lister_Option, option_count);
     for (int32_t i = 0; i < current_project.command_array.count; i += 1){
-        String string = string_push_copy(arena, current_project.command_array.commands[i].name);
-        String status = string_push_copy(arena, current_project.command_array.commands[i].cmd);
-        options[i].string = string.str;
-        options[i].status = status.str;
+        options[i].string = string_push_copy(arena, current_project.command_array.commands[i].name);
+        options[i].status = string_push_copy(arena, current_project.command_array.commands[i].cmd);
         options[i].user_data = IntAsPtr(i);
     }
     begin_integrated_lister__basic_list(app, "Command:", activate_project_command, 0, 0,

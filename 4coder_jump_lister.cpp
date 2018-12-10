@@ -81,8 +81,8 @@ open_jump_lister(Application_Links *app, Partition *scratch, Heap *heap,
             managed_object_load_data(app, stored_jumps, i, 1, &stored);
             String line = {};
             read_line(app, scratch, &list_buffer, stored.list_line, &line);
-            options[i].string = line.str;
-            options[i].status = 0;
+            options[i].string = line;
+            memset(&options[i].status, 0, sizeof(options[i].status));
             options[i].user_data = IntAsPtr(i);
             int32_t aligned_size = line.size + 1 + 7;
             aligned_size = aligned_size - aligned_size%8;

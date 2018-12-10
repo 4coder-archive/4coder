@@ -178,15 +178,13 @@ snippet_lister__parameterized(Application_Links *app, Snippet_Array snippet_arra
     int32_t option_count = snippet_array.count;
     Lister_Option *options = push_array(arena, Lister_Option, option_count);
     for (int32_t i = 0; i < snippet_array.count; i += 1){
-        options[i].string = snippet_array.snippets[i].name;
-        options[i].status = snippet_array.snippets[i].text;
+        options[i].string = make_string_slowly(snippet_array.snippets[i].name);
+        options[i].status = make_string_slowly(snippet_array.snippets[i].text);
         options[i].user_data = IntAsPtr(i);
     }
     begin_integrated_lister__basic_list(app, "Snippet:", activate_snippet,
                                         &snippet_array, sizeof(snippet_array),
-                                        options, option_count,
-                                        0,
-                                        &view);
+                                        options, option_count, 0, &view);
     end_temp_memory(temp);
 }
 

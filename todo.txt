@@ -14,8 +14,8 @@
         [x] High CPU usage in listers (endless animation bug)
         [x] Panel resizing doesn't work
         [x] On windows file lister: /foo/bar.txt
-        [] Notepad like mode clicking to new view doesn't snap the mark
-        [] Notepad like mode replacing text with cursor at end of selection in middle of long file
+        [x] Notepad like mode clicking to new view doesn't snap the mark
+        [x] Notepad like mode replacing text with cursor at end of selection in middle of long file
         [] Tab when no valid completions in open file lister
         [] Graphics problem (fonts not rendering)
         [] Texture binding changes too often problem.
