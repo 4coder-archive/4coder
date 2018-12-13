@@ -490,7 +490,7 @@ internal void
 fm_slash_fix(char *path){}
 
 internal void
-fm_make_folder_if_missing(char *dir){
+fm_make_folder_if_missing(Partition *part, char *dir){
     systemf("mkdir -p %s", dir);
 }
 

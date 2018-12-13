@@ -369,7 +369,7 @@ build(Partition *part, u32 flags, u32 arch, char *code_path, char **code_files, 
     fm_add_to_line(line, "-I%s", code_path);
     if (inc_folders != 0){
         for (u32 i = 0; inc_folders[i] != 0; ++i){
-            char *str = fm_str(code_path, "/", inc_folders[i]);
+            char *str = fm_str(part, code_path, "/", inc_folders[i]);
             fm_add_to_line(line, "-I%s", str);
         }
     }
@@ -388,7 +388,7 @@ build(Partition *part, u32 flags, u32 arch, char *code_path, char **code_files, 
     
     if (defines != 0){
         for (u32 i = 0; defines[i]; ++i){
-            char *define_flag = fm_str("-D", defines[i]);
+            char *define_flag = fm_str(part, "-D", defines[i]);
             fm_add_to_line(line, "%s", define_flag);
         }
     }
