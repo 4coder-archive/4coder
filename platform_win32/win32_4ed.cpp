@@ -289,6 +289,55 @@ Sys_Is_Fullscreen_Sig(system_is_fullscreen){
 #include "4ed_system_shared.cpp"
 
 //
+// File Change Listener
+//
+
+internal
+Sys_Add_Listener_Sig(system_add_listener){
+    b32 result = false;
+    for (;;){
+        i32 track_result = add_listener(&shared_vars.track, &shared_vars.scratch, (u8*)filename);
+        if (handle_track_out_of_memory(track_result)){
+            if (track_result == FileTrack_Good){
+                result = true;
+            }
+            break;
+        }
+    }
+    return(result);
+}
+
+internal
+Sys_Remove_Listener_Sig(system_remove_listener){
+    b32 result = false;
+    i32 track_result = remove_listener(&shared_vars.track, &shared_vars.scratch, (u8*)filename);
+    if (track_result == FileTrack_Good){
+        result = true;
+    }
+    return(result);
+}
+
+internal
+Sys_Get_File_Change_Sig(system_get_file_change){
+    b32 result = false;
+    
+    i32 size = 0;
+    i32 get_result = get_change_event(&shared_vars.track, &shared_vars.scratch, (u8*)buffer, max, &size);
+    
+    *required_size = size;
+    *mem_too_small = false;
+    if (get_result == FileTrack_Good){
+        result = true;
+    }
+    else if (get_result == FileTrack_MemoryTooSmall){
+        *mem_too_small = true;
+        result = true;
+    }
+    
+    return(result);
+}
+
+//
 // Clipboard
 //
 
