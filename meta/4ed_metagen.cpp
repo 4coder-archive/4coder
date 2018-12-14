@@ -484,11 +484,6 @@ generate_remapping_code_and_data(Partition *part){
         bind(part, mappings, key_left,  MDFR_SHIFT, move_left);
         bind(part, mappings, key_right, MDFR_SHIFT, move_right);
         
-        bind(part, mappings, 'k', MDFR_ALT, move_up);
-        bind(part, mappings, 'j', MDFR_ALT, move_down);
-        bind(part, mappings, 'h', MDFR_ALT, move_left);
-        bind(part, mappings, 'l', MDFR_ALT, move_right);
-        
         bind(part, mappings, key_end,       MDFR_NONE, seek_end_of_line);
         bind(part, mappings, key_home,      MDFR_NONE, seek_beginning_of_line);
         bind(part, mappings, key_page_up,   MDFR_CTRL, goto_beginning_of_file);
@@ -511,16 +506,8 @@ generate_remapping_code_and_data(Partition *part){
         bind(part, mappings, key_left,  MDFR_CTRL|MDFR_SHIFT, seek_whitespace_left);
         bind(part, mappings, key_right, MDFR_CTRL|MDFR_SHIFT, seek_whitespace_right);
         
-        bind(part, mappings, 'K', MDFR_ALT, seek_whitespace_up_end_line);
-        bind(part, mappings, 'J', MDFR_ALT, seek_whitespace_down_end_line);
-        bind(part, mappings, 'H', MDFR_ALT, seek_whitespace_left);
-        bind(part, mappings, 'L', MDFR_ALT, seek_whitespace_right);
-        
         bind(part, mappings, key_up,   MDFR_ALT, move_line_up);
         bind(part, mappings, key_down, MDFR_ALT, move_line_down);
-        
-        bind(part, mappings, 'k', MDFR_ALT|MDFR_CTRL, move_line_up);
-        bind(part, mappings, 'j', MDFR_ALT|MDFR_CTRL, move_line_down);
         
         bind(part, mappings, key_back, MDFR_CTRL, backspace_word);
         bind(part, mappings, key_del,  MDFR_CTRL, delete_word);
@@ -575,9 +562,6 @@ generate_remapping_code_and_data(Partition *part){
         bind(part, mappings, key_left, MDFR_CTRL, seek_alphanumeric_or_camel_left);
         bind(part, mappings, key_right, MDFR_CTRL, seek_alphanumeric_or_camel_right);
         
-        bind(part, mappings, 'H', MDFR_ALT, seek_alphanumeric_or_camel_left);
-        bind(part, mappings, 'L', MDFR_ALT, seek_alphanumeric_or_camel_right);
-        
         bind(part, mappings, '\n', MDFR_NONE, write_and_auto_tab);
         bind(part, mappings, '\n', MDFR_SHIFT, write_and_auto_tab);
         bind(part, mappings, '}', MDFR_NONE, write_and_auto_tab);
@@ -606,7 +590,7 @@ generate_remapping_code_and_data(Partition *part){
         bind(part, mappings, '\'', MDFR_ALT, select_next_scope_absolute);
         bind(part, mappings, '/', MDFR_ALT, place_in_scope);
         bind(part, mappings, '-', MDFR_ALT, delete_current_scope);
-        bind(part, mappings, '"', MDFR_ALT, scope_absorb_down);
+        bind(part, mappings, 'j', MDFR_ALT, scope_absorb_down);
         
         bind(part, mappings, 'i', MDFR_ALT, if0_off);
         
@@ -723,11 +707,6 @@ generate_remapping_code_and_data(Partition *part){
         bind(part, mappings, key_left,  MDFR_SHIFT, move_left);
         bind(part, mappings, key_right, MDFR_SHIFT, move_right);
         
-        bind(part, mappings, 'k', MDFR_CTRL, move_up);
-        bind(part, mappings, 'j', MDFR_CTRL, move_down);
-        bind(part, mappings, 'h', MDFR_CTRL, move_left);
-        bind(part, mappings, 'l', MDFR_CTRL, move_right);
-        
         bind(part, mappings, key_end,       MDFR_NONE, seek_end_of_line);
         bind(part, mappings, key_home,      MDFR_NONE, seek_beginning_of_line);
         bind(part, mappings, key_page_up,   MDFR_CTRL, goto_beginning_of_file);
@@ -750,16 +729,8 @@ generate_remapping_code_and_data(Partition *part){
         bind(part, mappings, key_left,  MDFR_CMND|MDFR_SHIFT, seek_whitespace_left);
         bind(part, mappings, key_right, MDFR_CMND|MDFR_SHIFT, seek_whitespace_right);
         
-        bind(part, mappings, 'K', MDFR_CTRL, seek_whitespace_up_end_line);
-        bind(part, mappings, 'J', MDFR_CTRL, seek_whitespace_down_end_line);
-        bind(part, mappings, 'H', MDFR_CTRL, seek_whitespace_left);
-        bind(part, mappings, 'L', MDFR_CTRL, seek_whitespace_right);
-        
         bind(part, mappings, key_up,   MDFR_ALT, move_line_up);
         bind(part, mappings, key_down, MDFR_ALT, move_line_down);
-        
-        bind(part, mappings, 'k', MDFR_CTRL|MDFR_ALT, move_line_up);
-        bind(part, mappings, 'j', MDFR_CTRL|MDFR_ALT, move_line_down);
         
         bind(part, mappings, key_back, MDFR_CMND, backspace_word);
         bind(part, mappings, key_del, MDFR_CMND, delete_word);
@@ -812,9 +783,6 @@ generate_remapping_code_and_data(Partition *part){
         bind(part, mappings, key_left, MDFR_CMND, seek_alphanumeric_or_camel_left);
         bind(part, mappings, key_right, MDFR_CMND, seek_alphanumeric_or_camel_right);
         
-        bind(part, mappings, 'H', MDFR_CTRL, seek_alphanumeric_or_camel_left);
-        bind(part, mappings, 'L', MDFR_CTRL, seek_alphanumeric_or_camel_right);
-        
         bind(part, mappings, '\n', MDFR_NONE, write_and_auto_tab);
         bind(part, mappings, '\n', MDFR_SHIFT, write_and_auto_tab);
         bind(part, mappings, '}', MDFR_NONE, write_and_auto_tab);
@@ -843,7 +811,7 @@ generate_remapping_code_and_data(Partition *part){
         bind(part, mappings, '\'', MDFR_CTRL, select_next_scope_absolute);
         bind(part, mappings, '/', MDFR_CTRL, place_in_scope);
         bind(part, mappings, '-', MDFR_CTRL, delete_current_scope);
-        bind(part, mappings, '"', MDFR_CTRL, scope_absorb_down);
+        bind(part, mappings, 'j', MDFR_CTRL, scope_absorb_down);
         
         bind(part, mappings, 'i', MDFR_CTRL, if0_off);
         

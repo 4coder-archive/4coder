@@ -15,7 +15,7 @@
 #include "4ed_defines.h"
 #undef inline
 #include "4coder_API/4coder_version.h"
-#include "4coder_generated/keycodes.h"
+#include "4coder_API/4coder_keycodes.h"
 
 #include "4ed_log.h"
 #include "4ed_cursor_codes.h"
