@@ -220,19 +220,19 @@ handle_track_out_of_memory(i32 val){
     switch (val){
         case FileTrack_OutOfTableMemory:
         {
-            u32 new_table_size = shared_vars.track_table_size*2;
+            u32 new_table_size = osxvars.track_table_size*2;
             void *new_table = system_memory_allocate(new_table_size);
-            move_track_system(&shared_vars.track, &shared_vars.scratch, new_table, new_table_size);
-            system_memory_free(shared_vars.track_table, shared_vars.track_table_size);
-            shared_vars.track_table_size = new_table_size;
-            shared_vars.track_table = new_table;
+            move_track_system(&osxvars.track, &shared_vars.scratch, new_table, new_table_size);
+            system_memory_free(osxvars.track_table, osxvars.track_table_size);
+            osxvars.track_table_size = new_table_size;
+            osxvars.track_table = new_table;
         }break;
         
         case FileTrack_OutOfListenerMemory:
         {
-            shared_vars.track_node_size *= 2;
-            void *node_expansion = system_memory_allocate(shared_vars.track_node_size);
-            expand_track_system_listeners(&shared_vars.track, &shared_vars.scratch, node_expansion, shared_vars.track_node_size);
+            osxvars.track_node_size *= 2;
+            void *node_expansion = system_memory_allocate(osxvars.track_node_size);
+            expand_track_system_listeners(&osxvars.track, &shared_vars.scratch, node_expansion, osxvars.track_node_size);
         }break;
         
         default: result = true; break;
@@ -245,7 +245,7 @@ internal
 Sys_Add_Listener_Sig(system_add_listener){
     b32 result = false;
     for (;;){
-        i32 track_result = add_listener(&osx_vars.track, &osx_vars.scratch, (u8*)filename);
+        i32 track_result = add_listener(&osxvars.track, &shared_vars.scratch, (u8*)filename);
         if (handle_track_out_of_memory(track_result)){
             if (track_result == FileTrack_Good){
                 result = true;
@@ -259,7 +259,7 @@ Sys_Add_Listener_Sig(system_add_listener){
 internal
 Sys_Remove_Listener_Sig(system_remove_listener){
     b32 result = false;
-    i32 track_result = remove_listener(&osx_vars.track, &shared_vars.scratch, (u8*)filename);
+    i32 track_result = remove_listener(&osxvars.track, &shared_vars.scratch, (u8*)filename);
     if (track_result == FileTrack_Good){
         result = true;
     }
@@ -271,7 +271,7 @@ Sys_Get_File_Change_Sig(system_get_file_change){
     b32 result = false;
     
     i32 size = 0;
-    i32 get_result = get_change_event(&osx_vars.track, &shared_vars.scratch, (u8*)buffer, max, &size);
+    i32 get_result = get_change_event(&osxvars.track, &shared_vars.scratch, (u8*)buffer, max, &size);
     
     *required_size = size;
     *mem_too_small = false;
@@ -784,15 +784,15 @@ osx_init(){
     
     init_shared_vars();
     
-    osx_vars.track_table_size = KB(16);
-    osx_vars.track_table = system_memory_allocate(osx_vars.track_table_size);
+    osxvars.track_table_size = KB(16);
+    osxvars.track_table = system_memory_allocate(osxvars.track_table_size);
     
-    osx_vars.track_node_size = KB(16);
-    void *track_nodes = system_memory_allocate(osx_vars.track_node_size);
+    osxvars.track_node_size = KB(16);
+    void *track_nodes = system_memory_allocate(osxvars.track_node_size);
     
-    i32 track_result = init_track_system(&osx_vars.track, &shared_vars.scratch,
-                                         osx_vars.track_table, osx_vars.track_table_size,
-                                         track_nodes, osx_vars.track_node_size);
+    i32 track_result = init_track_system(&osxvars.track, &shared_vars.scratch,
+                                         osxvars.track_table, osxvars.track_table_size,
+                                         track_nodes, osxvars.track_node_size);
     
     if (track_result != FileTrack_Good){
         exit(1);
