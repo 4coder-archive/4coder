@@ -345,19 +345,19 @@ handle_track_out_of_memory(i32 val){
     switch (val){
         case FileTrack_OutOfTableMemory:
         {
-            u32 new_table_size = shared_vars.track_table_size*2;
+            u32 new_table_size = linuxvars.track_table_size*2;
             void *new_table = system_memory_allocate(new_table_size);
-            move_track_system(&shared_vars.track, &shared_vars.scratch, new_table, new_table_size);
-            system_memory_free(shared_vars.track_table, shared_vars.track_table_size);
-            shared_vars.track_table_size = new_table_size;
-            shared_vars.track_table = new_table;
+            move_track_system(&linuxvars.track, &shared_vars.scratch, new_table, new_table_size);
+            system_memory_free(linuxvars.track_table, linuxvars.track_table_size);
+            linuxvars.track_table_size = new_table_size;
+            linuxvars.track_table = new_table;
         }break;
         
         case FileTrack_OutOfListenerMemory:
         {
-            shared_vars.track_node_size *= 2;
-            void *node_expansion = system_memory_allocate(shared_vars.track_node_size);
-            expand_track_system_listeners(&shared_vars.track, &shared_vars.scratch, node_expansion, shared_vars.track_node_size);
+            linuxvars.track_node_size *= 2;
+            void *node_expansion = system_memory_allocate(linuxvars.track_node_size);
+            expand_track_system_listeners(&linuxvars.track, &shared_vars.scratch, node_expansion, linuxvars.track_node_size);
         }break;
         
         default: result = true; break;
@@ -370,7 +370,7 @@ internal
 Sys_Add_Listener_Sig(system_add_listener){
     b32 result = false;
     for (;;){
-        i32 track_result = add_listener(&linux_vars.track, &shared_vars.scratch, (u8*)filename);
+        i32 track_result = add_listener(&linuxvars.track, &shared_vars.scratch, (u8*)filename);
         if (handle_track_out_of_memory(track_result)){
             if (track_result == FileTrack_Good){
                 result = true;
@@ -384,7 +384,7 @@ Sys_Add_Listener_Sig(system_add_listener){
 internal
 Sys_Remove_Listener_Sig(system_remove_listener){
     b32 result = false;
-    i32 track_result = remove_listener(&linux_vars.track, &shared_vars.scratch, (u8*)filename);
+    i32 track_result = remove_listener(&linuxvars.track, &shared_vars.scratch, (u8*)filename);
     if (track_result == FileTrack_Good){
         result = true;
     }
@@ -396,7 +396,7 @@ Sys_Get_File_Change_Sig(system_get_file_change){
     b32 result = false;
     
     i32 size = 0;
-    i32 get_result = get_change_event(&shared_vars.track, &shared_vars.scratch, (u8*)buffer, max, &size);
+    i32 get_result = get_change_event(&linuxvars.track, &shared_vars.scratch, (u8*)buffer, max, &size);
     
     *required_size = size;
     *mem_too_small = false;
@@ -1897,15 +1897,15 @@ main(int argc, char **argv){
     
     init_shared_vars();
     
-    linux_vars.track_table_size = KB(16);
-    linux_vars.track_table = system_memory_allocate(linux_vars.track_table_size);
+    linuxvars.track_table_size = KB(16);
+    linuxvars.track_table = system_memory_allocate(linuxvars.track_table_size);
     
-    linux_vars.track_node_size = KB(16);
-    void *track_nodes = system_memory_allocate(linux_vars.track_node_size);
+    linuxvars.track_node_size = KB(16);
+    void *track_nodes = system_memory_allocate(linuxvars.track_node_size);
     
-    i32 track_result = init_track_system(&linux_vars.track, &shared_vars.scratch,
-                                         linux_vars.track_table, linux_vars.track_table_size,
-                                         track_nodes, linux_vars.track_node_size);
+    i32 track_result = init_track_system(&linuxvars.track, &shared_vars.scratch,
+                                         linuxvars.track_table, linuxvars.track_table_size,
+                                         track_nodes, linuxvars.track_node_size);
     
     if (track_result != FileTrack_Good){
         exit(1);
