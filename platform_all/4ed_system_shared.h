@@ -28,11 +28,6 @@ global File_Data null_file_data = {};
 internal Sys_File_Can_Be_Made_Sig(system_file_can_be_made);
 
 struct Shared_Vars{
-    File_Track_System track;
-    void *track_table;
-    u32 track_table_size;
-    u32 track_node_size;
-    
     Partition scratch;
     Partition font_scratch;
     Partition pixel_scratch;

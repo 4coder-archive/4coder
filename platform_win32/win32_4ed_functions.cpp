@@ -85,8 +85,7 @@ system_memory_allocate_extended(void *base, umem size){
 
 internal
 Sys_Memory_Allocate_Sig(system_memory_allocate){
-    void *result = system_memory_allocate_extended(0, size);
-    return(result);
+    return(system_memory_allocate_extended(0, size));
 }
 
 internal

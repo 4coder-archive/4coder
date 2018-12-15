@@ -55,7 +55,7 @@ typedef Sys_Add_Listener_Sig(System_Add_Listener);
 #define Sys_Remove_Listener_Sig(name) b32 name(char *filename)
 typedef Sys_Remove_Listener_Sig(System_Remove_Listener);
 
-#define Sys_Get_File_Change_Sig(name) i32 name(char *buffer, i32 max, b32 *mem_too_small, i32 *required_size)
+#define Sys_Get_File_Change_Sig(name) b32 name(char *buffer, i32 max, b32 *mem_too_small, i32 *required_size)
 typedef Sys_Get_File_Change_Sig(System_Get_File_Change);
 
 // time

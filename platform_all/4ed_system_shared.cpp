@@ -35,46 +35,6 @@ init_shared_vars(){
     umem pixel_scratch_size = MB(4);
     void *pixel_scratch_memory = system_memory_allocate(pixel_scratch_size);
     shared_vars.pixel_scratch = make_part(pixel_scratch_memory, (i32)pixel_scratch_size);
-    
-    shared_vars.track_table_size = KB(16);
-    shared_vars.track_table = system_memory_allocate(shared_vars.track_table_size);
-    
-    shared_vars.track_node_size = KB(16);
-    void *track_nodes = system_memory_allocate(shared_vars.track_node_size);
-    
-    i32 track_result = init_track_system(&shared_vars.track, &shared_vars.scratch, shared_vars.track_table, shared_vars.track_table_size, track_nodes, shared_vars.track_node_size);
-    
-    if (track_result != FileTrack_Good){
-        exit(1);
-    }
-}
-
-internal b32
-handle_track_out_of_memory(i32 val){
-    b32 result = false;
-    
-    switch (val){
-        case FileTrack_OutOfTableMemory:
-        {
-            u32 new_table_size = shared_vars.track_table_size*2;
-            void *new_table = system_memory_allocate(new_table_size);
-            move_track_system(&shared_vars.track, &shared_vars.scratch, new_table, new_table_size);
-            system_memory_free(shared_vars.track_table, shared_vars.track_table_size);
-            shared_vars.track_table_size = new_table_size;
-            shared_vars.track_table = new_table;
-        }break;
-        
-        case FileTrack_OutOfListenerMemory:
-        {
-            shared_vars.track_node_size *= 2;
-            void *node_expansion = system_memory_allocate(shared_vars.track_node_size);
-            expand_track_system_listeners(&shared_vars.track, &shared_vars.scratch, node_expansion, shared_vars.track_node_size);
-        }break;
-        
-        default: result = true; break;
-    }
-    
-    return(result);
 }
 
 //

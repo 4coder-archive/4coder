@@ -29,7 +29,9 @@
 
 #if defined(FRED_SUPER)
 # include "4coder_lib/4coder_arena.h"
+# include "4coder_lib/4coder_heap.h"
 # include "4coder_lib/4coder_arena.cpp"
+# include "4coder_lib/4coder_heap.cpp"
 # define FSTRING_IMPLEMENTATION
 # include "4coder_lib/4coder_string.h"
 
@@ -69,7 +71,6 @@ win32_output_error_string(i32 error_string_type);
 
 #include "win32_utf8.h"
 
-#include "4ed_file_track.h"
 #include "4ed_system_shared.h"
 
 #include "4ed_shared_thread_constants.h"
@@ -292,49 +293,459 @@ Sys_Is_Fullscreen_Sig(system_is_fullscreen){
 // File Change Listener
 //
 
-internal
-Sys_Add_Listener_Sig(system_add_listener){
-    b32 result = false;
-    for (;;){
-        i32 track_result = add_listener(&shared_vars.track, &shared_vars.scratch, (u8*)filename);
-        if (handle_track_out_of_memory(track_result)){
-            if (track_result == FileTrack_Good){
-                result = true;
-            }
+struct Directory_Track_Node{
+    OVERLAPPED overlapped;
+    HANDLE dir_handle;
+    Directory_Track_Node *next;
+    Directory_Track_Node *prev;
+    char buffer[(32 << 10) + 12];
+    String dir_name;
+    i32 ref_count;
+};
+
+struct File_Track_Node{
+    File_Track_Node *next;
+    File_Track_Node *prev;
+    String file_name;
+    i32 ref_count;
+    Directory_Track_Node *parent_dir;
+};
+
+typedef i32 File_Track_Instruction;
+enum{
+    FileTrackInstruction_None,
+    FileTrackInstruction_BeginTracking,
+    FileTrackInstruction_Cancel,
+};
+
+union File_Track_Instruction_Node{
+    struct{
+        File_Track_Instruction instruction;
+        Directory_Track_Node *dir_node;
+    };
+    struct{
+        File_Track_Instruction_Node *next;
+        File_Track_Instruction_Node *prev;
+    };
+};
+
+struct File_Track_Note_Node{
+    File_Track_Note_Node *next;
+    File_Track_Note_Node *prev;
+    String file_name;
+};
+
+Heap file_track_heap = {};
+Directory_Track_Node *file_track_dir_first = 0;
+Directory_Track_Node *file_track_dir_last = 0;
+Directory_Track_Node *file_track_dir_free_first = 0;
+Directory_Track_Node *file_track_dir_free_last = 0;
+File_Track_Node *file_track_first = 0;
+File_Track_Node *file_track_last = 0;
+File_Track_Node *file_track_free_first = 0;
+File_Track_Node *file_track_free_last = 0;
+File_Track_Instruction_Node *file_track_ins_free_first = 0;
+File_Track_Instruction_Node *file_track_ins_free_last = 0;
+File_Track_Note_Node *file_track_note_first = 0;
+File_Track_Note_Node *file_track_note_last = 0;
+File_Track_Note_Node *file_track_note_free_first = 0;
+File_Track_Note_Node *file_track_note_free_last = 0;
+
+CRITICAL_SECTION file_track_critical_section;
+HANDLE file_track_iocp;
+HANDLE file_track_thread;
+
+global_const u32 file_track_flags = 0
+|FILE_NOTIFY_CHANGE_FILE_NAME
+|FILE_NOTIFY_CHANGE_DIR_NAME
+|FILE_NOTIFY_CHANGE_ATTRIBUTES
+|FILE_NOTIFY_CHANGE_SIZE
+|FILE_NOTIFY_CHANGE_LAST_WRITE
+|FILE_NOTIFY_CHANGE_LAST_ACCESS
+|FILE_NOTIFY_CHANGE_CREATION
+|FILE_NOTIFY_CHANGE_SECURITY
+;
+
+internal String
+file_track_store_string_copy(String string){
+    i32 alloc_size = string.size + 1;
+    alloc_size = l_round_up_i32(alloc_size, 16);
+    char *buffer = (char*)heap_allocate(&file_track_heap, alloc_size);
+    if (buffer == 0){
+        i32 size = MB(1);
+        void *new_block = system_memory_allocate(size);
+        heap_extend(&file_track_heap, new_block, size);
+        buffer = (char*)heap_allocate(&file_track_heap, alloc_size);
+    }
+    Assert(buffer != 0);
+    memcpy(buffer, string.str, string.size);
+    buffer[string.size] = 0;
+    return(make_string(buffer, string.size, alloc_size));
+}
+
+internal void
+file_track_free_string(String string){
+    Assert(string.str != 0);
+    heap_free(&file_track_heap, string.str);
+}
+
+internal Directory_Track_Node*
+file_track_store_new_dir_node(String dir_name_string, HANDLE dir_handle){
+    if (file_track_dir_free_first == 0){
+        u32 size = MB(1);
+        void *new_block = system_memory_allocate(size);
+        u32 count = size/sizeof(Directory_Track_Node);
+        Directory_Track_Node *nodes = (Directory_Track_Node*)new_block;
+        Directory_Track_Node *node = nodes;
+        node->next = node + 1;
+        node->prev = 0;
+        node += 1;
+        for (u32 i = 1; i < count - 1; i += 1, node += 1){
+            node->next = node + 1;
+            node->prev = node - 1;
+        }
+        node->next = 0;
+        node->prev = node - 1;
+        file_track_dir_free_first = nodes;
+        file_track_dir_free_last = node;
+    }
+    Directory_Track_Node *new_node = file_track_dir_free_first;
+    zdll_remove(file_track_dir_free_first, file_track_dir_free_last, new_node);
+    zdll_push_back(file_track_dir_first, file_track_dir_last, new_node);
+    memset(&new_node->overlapped, 0, sizeof(new_node->overlapped));
+    new_node->dir_handle = dir_handle;
+    new_node->dir_name = file_track_store_string_copy(dir_name_string);
+    new_node->ref_count = 1;
+    return(new_node);
+}
+
+internal void
+file_track_free_dir_node(Directory_Track_Node *node){
+    file_track_free_string(node->dir_name);
+    memset(&node->dir_name, 0, sizeof(node->dir_name));
+    zdll_remove(file_track_dir_first, file_track_dir_last, node);
+    zdll_push_back(file_track_dir_free_first, file_track_dir_free_last, node);
+}
+
+internal File_Track_Node*
+file_track_store_new_file_node(String file_name_string, Directory_Track_Node *existing_dir_node){
+    if (file_track_free_first == 0){
+        u32 size = KB(16);
+        void *new_block = system_memory_allocate(size);
+        u32 count = size/sizeof(File_Track_Node);
+        File_Track_Node *nodes = (File_Track_Node*)new_block;
+        File_Track_Node *node = nodes;
+        node->next = node + 1;
+        node->prev = 0;
+        node += 1;
+        for (u32 i = 1; i < count - 1; i += 1, node += 1){
+            node->next = node + 1;
+            node->prev = node - 1;
+        }
+        node->next = 0;
+        node->prev = node - 1;
+        file_track_free_first = nodes;
+        file_track_free_last = node;
+    }
+    File_Track_Node *new_node = file_track_free_first;
+    zdll_remove(file_track_free_first, file_track_free_last, new_node);
+    zdll_push_back(file_track_first, file_track_last, new_node);
+    new_node->file_name = file_track_store_string_copy(file_name_string);
+    new_node->ref_count = 1;
+    new_node->parent_dir = existing_dir_node;
+    return(new_node);
+}
+
+internal void
+file_track_free_file_node(File_Track_Node *node){
+    file_track_free_string(node->file_name);
+    memset(&node->file_name, 0, sizeof(node->file_name));
+    zdll_remove(file_track_first, file_track_last, node);
+    zdll_push_back(file_track_free_first, file_track_free_last, node);
+}
+
+internal File_Track_Note_Node*
+file_track_store_new_note_node(String file_name){
+    if (file_track_note_free_first == 0){
+        u32 size = KB(16);
+        void *new_block = system_memory_allocate(size);
+        u32 count = size/sizeof(File_Track_Note_Node);
+        File_Track_Note_Node *nodes = (File_Track_Note_Node*)new_block;
+        File_Track_Note_Node *node = nodes;
+        node->next = node + 1;
+        node->prev = 0;
+        node += 1;
+        for (u32 i = 1; i < count - 1; i += 1, node += 1){
+            node->next = node + 1;
+            node->prev = node - 1;
+        }
+        node->next = 0;
+        node->prev = node - 1;
+        file_track_note_free_first = nodes;
+        file_track_note_free_last = node;
+    }
+    File_Track_Note_Node *new_node = file_track_note_free_first;
+    zdll_remove(file_track_note_free_first, file_track_note_free_last, new_node);
+    zdll_push_back(file_track_note_first, file_track_note_last, new_node);
+    new_node->file_name = file_track_store_string_copy(file_name);
+    return(new_node);
+}
+
+internal void
+file_track_free_note_node(File_Track_Note_Node *node){
+    file_track_free_string(node->file_name);
+    memset(&node->file_name, 0, sizeof(node->file_name));
+    zdll_remove(file_track_note_first, file_track_note_last, node);
+    zdll_push_back(file_track_note_free_first, file_track_note_free_last, node);
+}
+
+internal File_Track_Instruction_Node*
+file_track_new_instruction_node(){
+    if (file_track_ins_free_first == 0){
+        u32 size = KB(16);
+        void *new_block = system_memory_allocate(size);
+        u32 count = size/sizeof(File_Track_Instruction_Node);
+        File_Track_Instruction_Node *nodes = (File_Track_Instruction_Node*)new_block;
+        File_Track_Instruction_Node *node = nodes;
+        node->next = node + 1;
+        node->prev = 0;
+        node += 1;
+        for (u32 i = 1; i < count - 1; i += 1, node += 1){
+            node->next = node + 1;
+            node->prev = node - 1;
+        }
+        node->next = 0;
+        node->prev = node - 1;
+        file_track_ins_free_first = nodes;
+        file_track_ins_free_last = node;
+    }
+    File_Track_Instruction_Node *new_node = file_track_ins_free_first;
+    zdll_remove(file_track_ins_free_first, file_track_ins_free_last, new_node);
+    return(new_node);
+}
+
+internal void
+file_track_free_instruction_node(File_Track_Instruction_Node *node){
+    zdll_push_back(file_track_ins_free_first, file_track_ins_free_last, node);
+}
+
+internal Directory_Track_Node*
+file_track_dir_lookup(String dir_name_string){
+    Directory_Track_Node *existing_dir_node = 0;
+    for (Directory_Track_Node *node = file_track_dir_first;
+         node != 0;
+         node = node->next){
+        if (match(dir_name_string, node->dir_name)){
+            existing_dir_node = node;
             break;
         }
     }
-    return(result);
+    return(existing_dir_node);
+}
+
+internal File_Track_Node*
+file_track_file_lookup(String file_name_string){
+    File_Track_Node *existing_file_node = 0;
+    for (File_Track_Node *node = file_track_first;
+         node != 0;
+         node = node->next){
+        if (match(file_name_string, node->file_name)){
+            existing_file_node = node;
+            break;
+        }
+    }
+    return(existing_file_node);
+}
+
+internal DWORD
+file_track_worker(void*){
+    for (;;){
+        DWORD number_of_bytes = 0;
+        ULONG_PTR key = 0;
+        OVERLAPPED *overlapped = 0;
+        if (GetQueuedCompletionStatus(file_track_iocp, &number_of_bytes, &key, &overlapped, INFINITE)){
+            EnterCriticalSection(&file_track_critical_section);
+            if (number_of_bytes == 0 && key == 0){
+                File_Track_Instruction_Node *instruction = (File_Track_Instruction_Node*)overlapped;
+                switch (instruction->instruction){
+                    case FileTrackInstruction_None:
+                    {}break;
+                    case FileTrackInstruction_BeginTracking:
+                    {
+                        Directory_Track_Node *dir_node = instruction->dir_node;
+                        ReadDirectoryChangesW(dir_node->dir_handle, dir_node->buffer, sizeof(dir_node->buffer), FALSE,
+                                              file_track_flags, 0, &dir_node->overlapped, 0);
+                    }break;
+                    case FileTrackInstruction_Cancel:
+                    {
+                        Directory_Track_Node *dir_node = instruction->dir_node;
+                        CancelIo(dir_node->dir_handle);
+                        CloseHandle(dir_node->dir_handle);
+                        file_track_free_dir_node(dir_node);
+                    }break;
+                }
+                file_track_free_instruction_node(instruction);
+            }
+            else{
+                Directory_Track_Node *dir_node = (Directory_Track_Node*)overlapped;
+                Directory_Track_Node node_copy = *dir_node;
+                memset(&dir_node->overlapped, 0, sizeof(dir_node->overlapped));
+                ReadDirectoryChangesW(dir_node->dir_handle, dir_node->buffer, sizeof(dir_node->buffer), FALSE,
+                                      file_track_flags, 0, &dir_node->overlapped, 0);
+                
+                FILE_NOTIFY_INFORMATION *info = (FILE_NOTIFY_INFORMATION*)node_copy.buffer;
+                
+                i32 len = info->FileNameLength/2;
+                i32 dir_len = GetFinalPathNameByHandle_utf8(dir_node->dir_handle, 0, 0, FILE_NAME_NORMALIZED);
+                
+                i32 req_size = dir_len + (len + 1)*2 + 4;
+                
+                Temp_Memory temp = begin_temp_memory(&shared_vars.scratch);
+                u8 *buffer = push_array(&shared_vars.scratch, u8, req_size);
+                
+                if (buffer != 0){
+                    u32 path_pos = GetFinalPathNameByHandle_utf8(dir_node->dir_handle, buffer, req_size, FILE_NAME_NORMALIZED);
+                    buffer[path_pos] = '\\';
+                    path_pos += 1;
+                    
+                    u32 name_max = req_size - path_pos;
+                    u8 *name_buffer = buffer + path_pos;
+                    
+                    b32 convert_error = false;
+                    u32 name_pos = (u32)utf16_to_utf8_minimal_checking(name_buffer, name_max, (u16*)info->FileName, len, &convert_error);
+                    if (name_pos < name_max && !convert_error){
+                        u32 pos = path_pos + name_pos;
+                        if (buffer[0] == '\\'){
+                            for (u32 i = 0; i + 4 < pos; i += 1){
+                                buffer[i] = buffer[i + 4];
+                            }
+                            pos -= 4;
+                        }
+                        String file_name = make_string((char*)buffer, pos);
+                        file_track_store_new_note_node(file_name);
+                        
+                        system_schedule_step();
+                    }
+                }
+                
+                end_temp_memory(temp);
+            }
+            LeaveCriticalSection(&file_track_critical_section);
+        }
+    }
+}
+
+internal void
+file_track_init(){
+    heap_init(&file_track_heap);
+    InitializeCriticalSection(&file_track_critical_section);
+    file_track_iocp = CreateIoCompletionPort(INVALID_HANDLE_VALUE, 0, 0, 1);
+    file_track_thread = CreateThread(0, 0, file_track_worker, 0, 0, 0);
+}
+
+internal
+Sys_Add_Listener_Sig(system_add_listener){
+    b32 added_new_listener = false;
+    
+    EnterCriticalSection(&file_track_critical_section);
+    
+    String file_name_string = make_string_slowly(filename);
+    File_Track_Node *existing_file_node = file_track_file_lookup(file_name_string);
+    
+    if (existing_file_node != 0){
+        existing_file_node->ref_count += 1;
+        added_new_listener = true;
+    }
+    else{
+        String dir_name_string = path_of_directory(file_name_string);
+        Directory_Track_Node *existing_dir_node = file_track_dir_lookup(dir_name_string);
+        
+        if (existing_dir_node == 0){
+            Temp_Memory temp = begin_temp_memory(&shared_vars.scratch);
+            String dir_name_string_terminated = string_push_copy(&shared_vars.scratch, dir_name_string);
+            HANDLE dir_handle = CreateFile_utf8((u8*)dir_name_string_terminated.str,
+                                                FILE_LIST_DIRECTORY,
+                                                FILE_SHARE_READ|FILE_SHARE_WRITE|FILE_SHARE_DELETE, 0,
+                                                OPEN_EXISTING,
+                                                FILE_FLAG_BACKUP_SEMANTICS|FILE_FLAG_OVERLAPPED, 0);
+            
+            if (dir_handle != 0 && dir_handle != INVALID_HANDLE_VALUE){
+                Directory_Track_Node *new_node = file_track_store_new_dir_node(dir_name_string, dir_handle);
+                CreateIoCompletionPort(dir_handle, file_track_iocp, (ULONG_PTR)&new_node->overlapped, 1);
+                // TODO(allen): // TODO(allen): // TODO(allen): // TODO(allen): // TODO(allen): // TODO(allen): 
+                // Actually need to issue this from the file_track_worker thread as an instruction!
+                ReadDirectoryChangesW(dir_handle, new_node->buffer, sizeof(new_node->buffer), FALSE,
+                                      file_track_flags, 0, &new_node->overlapped, 0);
+                existing_dir_node = new_node;
+            }
+            
+            end_temp_memory(temp);
+        }
+        
+        if (existing_dir_node != 0){
+            file_track_store_new_file_node(file_name_string, existing_dir_node);
+            added_new_listener = true;
+        }
+    }
+    
+    LeaveCriticalSection(&file_track_critical_section);
+    
+    return(added_new_listener);
 }
 
 internal
 Sys_Remove_Listener_Sig(system_remove_listener){
-    b32 result = false;
-    i32 track_result = remove_listener(&shared_vars.track, &shared_vars.scratch, (u8*)filename);
-    if (track_result == FileTrack_Good){
-        result = true;
+    b32 removed_listener = false;
+    
+    EnterCriticalSection(&file_track_critical_section);
+    
+    String file_name_string = make_string_slowly(filename);
+    File_Track_Node *existing_file_node = file_track_file_lookup(file_name_string);
+    
+    if (existing_file_node != 0){
+        existing_file_node->ref_count -= 1;
+        if (existing_file_node->ref_count == 0){
+            Directory_Track_Node *existing_dir_node = existing_file_node->parent_dir;
+            existing_dir_node->ref_count -= 1;
+            if (existing_dir_node->ref_count == 0){
+                File_Track_Instruction_Node *instruction_node = file_track_new_instruction_node();
+                instruction_node->instruction = FileTrackInstruction_Cancel;
+                instruction_node->dir_node = existing_dir_node;
+                PostQueuedCompletionStatus(file_track_iocp, 0, 0, (LPOVERLAPPED)instruction_node);
+            }
+            file_track_free_file_node(existing_file_node);
+        }
+        removed_listener = true;
     }
-    return(result);
+    
+    LeaveCriticalSection(&file_track_critical_section);
+    
+    return(removed_listener);
 }
 
 internal
 Sys_Get_File_Change_Sig(system_get_file_change){
-    b32 result = false;
+    b32 has_or_got_a_change = false;
     
-    i32 size = 0;
-    i32 get_result = get_change_event(&shared_vars.track, &shared_vars.scratch, (u8*)buffer, max, &size);
+    EnterCriticalSection(&file_track_critical_section);
     
-    *required_size = size;
-    *mem_too_small = false;
-    if (get_result == FileTrack_Good){
-        result = true;
+    if (file_track_note_first != 0){
+        has_or_got_a_change = true;
+        File_Track_Note_Node *node = file_track_note_first;
+        *required_size = node->file_name.size + 1;
+        if (node->file_name.size < max){
+            memcpy(buffer, node->file_name.str, node->file_name.size);
+            buffer[node->file_name.size] = 0;
+            file_track_free_note_node(node);
+        }
+        else{
+            *mem_too_small = true;
+        }
     }
-    else if (get_result == FileTrack_MemoryTooSmall){
-        *mem_too_small = true;
-        result = true;
-    }
     
-    return(result);
+    LeaveCriticalSection(&file_track_critical_section);
+    
+    return(has_or_got_a_change);
 }
 
 //
@@ -1259,6 +1670,11 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
     init_shared_vars();
     
     //
+    // Init Filetrack
+    //
+    file_track_init();
+    
+    //
     // Load Core Code
     //
     load_app_code();
@@ -1730,7 +2146,6 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
     return(0);
 }
 
-#include "win32_4ed_file_track.cpp"
 #include "win32_utf8.cpp"
 
 #if 0

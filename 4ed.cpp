@@ -19,6 +19,7 @@ get_state(Application_Links *app){
     state.type = app->type_coroutine;
     return(state);
 }
+
 internal void
 restore_state(Application_Links *app, App_Coroutine_State state){
     app->current_coroutine = state.co;
