@@ -2,10 +2,8 @@
 {
     Features
     {
-        [] Declarative system for keyword direct coloring
-        [] Reload all out of sync files
-        [] Jump to Command Definition (useful for 4coder customization developers only)
         [] Recover scroll bars
+        [] Cold scroll
     }
     
     Bugs
@@ -17,15 +15,18 @@
         [x] Notepad like mode clicking to new view doesn't snap the mark
         [x] Notepad like mode replacing text with cursor at end of selection in middle of long file
         [] Tab when no valid completions in open file lister
-        [] Graphics problem (fonts not rendering)
-        [] Texture binding changes too often problem.
+        [] Texture binding changes too often problem
         [] SSHFS segfault on linux
         [] New file when the file is already open
-        [] crash on obj file (san-miguel-low-poly.obj)
         Repro Needed
         {
-            [] pasting long comment at top of code files doesn't always parse right away???
-            [] saving to removable media -> Ask person who sent it in for more info
+            [?] pasting long comment at top of code files doesn't always parse right away???
+        }
+        Followup Needed
+        {
+            [] saving to removable media -> need more info
+            [] crash on obj file (san-miguel-low-poly.obj) -> need more info
+            [] Graphics problem (fonts not rendering) -> need more info
         }
     }
 }
@@ -43,6 +44,9 @@ Long Term
         [] Meta Buffer
         [] Multi Cursor
         [] Commands in Input Bar
+        [] Declarative system for keyword direct coloring
+        [] Reload all out of sync files
+        [] Jump to Command Definition (useful for 4coder customization developers only)
     }
     
     Bugs

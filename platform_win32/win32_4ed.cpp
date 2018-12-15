@@ -415,7 +415,7 @@ file_track_store_new_dir_node(String dir_name_string, HANDLE dir_handle){
     memset(&new_node->overlapped, 0, sizeof(new_node->overlapped));
     new_node->dir_handle = dir_handle;
     new_node->dir_name = file_track_store_string_copy(dir_name_string);
-    new_node->ref_count = 1;
+    new_node->ref_count = 0;
     return(new_node);
 }
 
@@ -453,6 +453,7 @@ file_track_store_new_file_node(String file_name_string, Directory_Track_Node *ex
     new_node->file_name = file_track_store_string_copy(file_name_string);
     new_node->ref_count = 1;
     new_node->parent_dir = existing_dir_node;
+    existing_dir_node->ref_count += 1;
     return(new_node);
 }
 
@@ -557,7 +558,7 @@ file_track_file_lookup(String file_name_string){
     return(existing_file_node);
 }
 
-internal DWORD
+internal DWORD CALL_CONVENTION
 file_track_worker(void*){
     for (;;){
         DWORD number_of_bytes = 0;
@@ -586,7 +587,7 @@ file_track_worker(void*){
                 }
                 file_track_free_instruction_node(instruction);
             }
-            else{
+            else if (number_of_bytes != 0 && key != 0){
                 Directory_Track_Node *dir_node = (Directory_Track_Node*)overlapped;
                 Directory_Track_Node node_copy = *dir_node;
                 memset(&dir_node->overlapped, 0, sizeof(dir_node->overlapped));
