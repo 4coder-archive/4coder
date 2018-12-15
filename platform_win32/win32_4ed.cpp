@@ -336,6 +336,7 @@ struct File_Track_Note_Node{
 };
 
 Heap file_track_heap = {};
+Partition file_track_scratch = {};
 Directory_Track_Node *file_track_dir_first = 0;
 Directory_Track_Node *file_track_dir_last = 0;
 Directory_Track_Node *file_track_dir_free_first = 0;
@@ -597,15 +598,15 @@ file_track_worker(void*){
                 FILE_NOTIFY_INFORMATION *info = (FILE_NOTIFY_INFORMATION*)node_copy.buffer;
                 
                 i32 len = info->FileNameLength/2;
-                i32 dir_len = GetFinalPathNameByHandle_utf8(dir_node->dir_handle, 0, 0, FILE_NAME_NORMALIZED);
+                i32 dir_len = GetFinalPathNameByHandle_utf8(&file_track_scratch, dir_node->dir_handle, 0, 0, FILE_NAME_NORMALIZED);
                 
                 i32 req_size = dir_len + (len + 1)*2 + 4;
                 
-                Temp_Memory temp = begin_temp_memory(&shared_vars.scratch);
-                u8 *buffer = push_array(&shared_vars.scratch, u8, req_size);
+                Temp_Memory temp = begin_temp_memory(&file_track_scratch);
+                u8 *buffer = push_array(&file_track_scratch, u8, req_size);
                 
                 if (buffer != 0){
-                    u32 path_pos = GetFinalPathNameByHandle_utf8(dir_node->dir_handle, buffer, req_size, FILE_NAME_NORMALIZED);
+                    u32 path_pos = GetFinalPathNameByHandle_utf8(&file_track_scratch, dir_node->dir_handle, buffer, req_size, FILE_NAME_NORMALIZED);
                     buffer[path_pos] = '\\';
                     path_pos += 1;
                     
@@ -639,6 +640,8 @@ file_track_worker(void*){
 internal void
 file_track_init(){
     heap_init(&file_track_heap);
+    i32 scratch_size = KB(128);
+    file_track_scratch = make_part(system_memory_allocate(scratch_size), scratch_size);
     InitializeCriticalSection(&file_track_critical_section);
     file_track_iocp = CreateIoCompletionPort(INVALID_HANDLE_VALUE, 0, 0, 1);
     file_track_thread = CreateThread(0, 0, file_track_worker, 0, 0, 0);
@@ -662,9 +665,9 @@ Sys_Add_Listener_Sig(system_add_listener){
         Directory_Track_Node *existing_dir_node = file_track_dir_lookup(dir_name_string);
         
         if (existing_dir_node == 0){
-            Temp_Memory temp = begin_temp_memory(&shared_vars.scratch);
-            String dir_name_string_terminated = string_push_copy(&shared_vars.scratch, dir_name_string);
-            HANDLE dir_handle = CreateFile_utf8((u8*)dir_name_string_terminated.str,
+            Temp_Memory temp = begin_temp_memory(&file_track_scratch);
+            String dir_name_string_terminated = string_push_copy(&file_track_scratch, dir_name_string);
+            HANDLE dir_handle = CreateFile_utf8(&file_track_scratch, (u8*)dir_name_string_terminated.str,
                                                 FILE_LIST_DIRECTORY,
                                                 FILE_SHARE_READ|FILE_SHARE_WRITE|FILE_SHARE_DELETE, 0,
                                                 OPEN_EXISTING,
@@ -912,7 +915,7 @@ Sys_CLI_Call_Sig(system_cli_call, path, script_name, cli_out){
                 startup.wShowWindow = SW_HIDE;
                 
                 PROCESS_INFORMATION info = {};
-                if (CreateProcess_utf8((u8*)cmd, (u8*)command_line, 0, 0, TRUE, 0, env_variables, (u8*)path, &startup, &info)){
+                if (CreateProcess_utf8(&shared_vars.scratch, (u8*)cmd, (u8*)command_line, 0, 0, TRUE, 0, env_variables, (u8*)path, &startup, &info)){
                     success = 1;
                     CloseHandle(info.hThread);
                     *(HANDLE*)&cli_out->proc = info.hProcess;
@@ -2077,7 +2080,7 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
         
         // NOTE(allen): Switch to New Title
         if (result.has_new_title){
-            SetWindowText_utf8(win32vars.window_handle, (u8*)result.title_string);
+            SetWindowText_utf8(&shared_vars.scratch, win32vars.window_handle, (u8*)result.title_string);
         }
         
         // NOTE(allen): Switch to New Cursor

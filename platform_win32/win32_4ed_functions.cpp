@@ -15,13 +15,13 @@
 
 internal
 Sys_Get_Current_Path_Sig(system_get_current_path){
-    i32 result = GetCurrentDirectory_utf8(capacity, (u8*)out);
+    i32 result = GetCurrentDirectory_utf8(&shared_vars.scratch, capacity, (u8*)out);
     return(result);
 }
 
 internal
 Sys_Get_4ed_Path_Sig(system_get_4ed_path){
-    i32 size = GetModuleFileName_utf8(0, (u8*)out, capacity);
+    i32 size = GetModuleFileName_utf8(&shared_vars.scratch, 0, (u8*)out, capacity);
     if (size < capacity - 1){
         String str = make_string(out, size);
         remove_last_folder(&str);
@@ -43,7 +43,7 @@ Sys_Log_Sig(system_log){
         str.size = system_get_4ed_path(str.str, str.memory_size);
         append_sc(&str, "4coder_log.txt");
         terminate_with_null(&str);
-        HANDLE file = CreateFile_utf8(space, GENERIC_WRITE, 0, 0, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, 0);
+        HANDLE file = CreateFile_utf8(&shared_vars.scratch, space, GENERIC_WRITE, 0, 0, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, 0);
         if (file != INVALID_HANDLE_VALUE){
             SetFilePointer(file, win32vars.log_position, 0, FILE_BEGIN);
             win32vars.log_position += length;
@@ -64,7 +64,7 @@ Sys_Log_Sig(system_log){
 
 internal
 Sys_File_Can_Be_Made_Sig(system_file_can_be_made){
-    HANDLE file = CreateFile_utf8(filename, FILE_APPEND_DATA, 0, 0, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, 0);
+    HANDLE file = CreateFile_utf8(&shared_vars.scratch, filename, FILE_APPEND_DATA, 0, 0, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, 0);
     b32 result = false;
     if (file != INVALID_HANDLE_VALUE){
         CloseHandle(file);
@@ -141,10 +141,10 @@ Sys_Set_File_List_Sig(system_set_file_list){
         append_sc(&dir, directory);
         terminate_with_null(&dir);
         
-        HANDLE dir_handle = CreateFile_utf8((u8*)dir.str, FILE_LIST_DIRECTORY, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, 0, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OVERLAPPED, 0);
+        HANDLE dir_handle = CreateFile_utf8(&shared_vars.scratch, (u8*)dir.str, FILE_LIST_DIRECTORY, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, 0, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OVERLAPPED, 0);
         
         if (dir_handle != INVALID_HANDLE_VALUE){
-            DWORD final_length = GetFinalPathNameByHandle_utf8(dir_handle, (u8*)dir_space, sizeof(dir_space), 0);
+            DWORD final_length = GetFinalPathNameByHandle_utf8(&shared_vars.scratch, dir_handle, (u8*)dir_space, sizeof(dir_space), 0);
             CloseHandle(dir_handle);
             
             if (final_length + 3 < sizeof(dir_space)){
@@ -178,7 +178,7 @@ Sys_Set_File_List_Sig(system_set_file_list){
                 }
                 
                 WIN32_FIND_DATA find_data;
-                HANDLE search = FindFirstFile_utf8(c_str_dir, &find_data);
+                HANDLE search = FindFirstFile_utf8(&shared_vars.scratch, c_str_dir, &find_data);
                 
                 if (search != INVALID_HANDLE_VALUE){            
                     u32 character_count = 0;
@@ -209,7 +209,7 @@ Sys_Set_File_List_Sig(system_set_file_list){
                     u8 *name = (u8*)(file_list->infos + file_count);
                     u32 corrected_file_count = 0;
                     if (file_list->block != 0){
-                        search = FindFirstFile_utf8(c_str_dir, &find_data);
+                        search = FindFirstFile_utf8(&shared_vars.scratch, c_str_dir, &find_data);
                         
                         if (search != INVALID_HANDLE_VALUE){
                             File_Info *info = file_list->infos;
@@ -279,10 +279,10 @@ Sys_Get_Canonical_Sig(system_get_canonical){
         memcpy(src_space, filename, len);
         src_space[len] = 0;
         
-        HANDLE file = CreateFile_utf8((u8*)src_space, GENERIC_READ, 0, 0, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
+        HANDLE file = CreateFile_utf8(&shared_vars.scratch, (u8*)src_space, GENERIC_READ, 0, 0, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
         
         if (file != INVALID_HANDLE_VALUE){
-            DWORD final_length = GetFinalPathNameByHandle_utf8(file, (u8*)buffer, max, 0);
+            DWORD final_length = GetFinalPathNameByHandle_utf8(&shared_vars.scratch, file, (u8*)buffer, max, 0);
             
             if (final_length + 3 < max){
                 if (buffer[final_length - 1] == 0){
@@ -306,10 +306,10 @@ Sys_Get_Canonical_Sig(system_get_canonical){
             memcpy(src_space, path_str.str, path_str.size);
             src_space[path_str.size] = 0;
             
-            HANDLE dir = CreateFile_utf8((u8*)src_space, FILE_LIST_DIRECTORY, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, 0, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OVERLAPPED, 0);
+            HANDLE dir = CreateFile_utf8(&shared_vars.scratch, (u8*)src_space, FILE_LIST_DIRECTORY, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, 0, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OVERLAPPED, 0);
             
             if (dir != INVALID_HANDLE_VALUE){
-                DWORD final_length = GetFinalPathNameByHandle_utf8(dir, (u8*)buffer, max, 0);
+                DWORD final_length = GetFinalPathNameByHandle_utf8(&shared_vars.scratch, dir, (u8*)buffer, max, 0);
                 
                 if (final_length + 3 < max){
                     if (buffer[final_length-1] == 0){
@@ -337,7 +337,7 @@ Sys_Get_Canonical_Sig(system_get_canonical){
 internal
 Sys_Load_Handle_Sig(system_load_handle){
     b32 result = false;
-    HANDLE file = CreateFile_utf8((u8*)filename, GENERIC_READ, 0, 0, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
+    HANDLE file = CreateFile_utf8(&shared_vars.scratch, (u8*)filename, GENERIC_READ, 0, 0, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
     
     if (file != INVALID_HANDLE_VALUE){
         *(HANDLE*)handle_out = file;
@@ -391,7 +391,7 @@ Sys_Load_Close_Sig(system_load_close){
 internal
 Sys_Save_File_Sig(system_save_file){
     b32 result = false;
-    HANDLE file = CreateFile_utf8((u8*)filename, GENERIC_WRITE, 0, 0, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, 0);
+    HANDLE file = CreateFile_utf8(&shared_vars.scratch, (u8*)filename, GENERIC_WRITE, 0, 0, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, 0);
     
     if (file != INVALID_HANDLE_VALUE){
         DWORD written_total = 0;
@@ -429,7 +429,7 @@ Sys_File_Exists_Sig(system_file_exists){
         copy_ss(&full_filename, make_string(filename, len));
         terminate_with_null(&full_filename);
         
-        file = CreateFile_utf8((u8*)full_filename.str, GENERIC_READ, 0, 0, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
+        file = CreateFile_utf8(&shared_vars.scratch, (u8*)full_filename.str, GENERIC_READ, 0, 0, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
         
         if (file != INVALID_HANDLE_VALUE){
             CloseHandle(file);
@@ -442,7 +442,7 @@ Sys_File_Exists_Sig(system_file_exists){
 
 internal b32
 system_directory_exists(char *path){
-    DWORD attrib = GetFileAttributes_utf8((u8*)path);
+    DWORD attrib = GetFileAttributes_utf8(&shared_vars.scratch, (u8*)path);
     return(attrib != INVALID_FILE_ATTRIBUTES && (attrib & FILE_ATTRIBUTE_DIRECTORY));
 }
 

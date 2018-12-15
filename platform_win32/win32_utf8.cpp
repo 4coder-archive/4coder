@@ -38,10 +38,9 @@ input_8_to_16(Partition *scratch, u8 *in){
 }
 
 internal HANDLE
-CreateFile_utf8(u8 *name, DWORD access, DWORD share, LPSECURITY_ATTRIBUTES security, DWORD creation, DWORD flags, HANDLE template_file){
+CreateFile_utf8(Partition *scratch, u8 *name, DWORD access, DWORD share, LPSECURITY_ATTRIBUTES security, DWORD creation, DWORD flags, HANDLE template_file){
     HANDLE result = INVALID_HANDLE_VALUE;
     
-    Partition *scratch = &shared_vars.scratch;
     Temp_Memory temp = begin_temp_memory(scratch);
     
     Win32_UTF16 name_16 = input_8_to_16(scratch, name);
@@ -55,7 +54,7 @@ CreateFile_utf8(u8 *name, DWORD access, DWORD share, LPSECURITY_ATTRIBUTES secur
 }
 
 internal DWORD
-GetFinalPathNameByHandle_utf8(HANDLE file, u8 *file_path_out, DWORD path_max, DWORD flags){
+GetFinalPathNameByHandle_utf8(Partition *scratch, HANDLE file, u8 *file_path_out, DWORD path_max, DWORD flags){
     DWORD result = 0;
     
     if (file_path_out == 0){
@@ -63,7 +62,6 @@ GetFinalPathNameByHandle_utf8(HANDLE file, u8 *file_path_out, DWORD path_max, DW
         result *= 2;
     }
     else{
-        Partition *scratch = &shared_vars.scratch;
         Temp_Memory temp = begin_temp_memory(scratch);
         
         u32 path_16_max = KB(32);
@@ -87,10 +85,9 @@ GetFinalPathNameByHandle_utf8(HANDLE file, u8 *file_path_out, DWORD path_max, DW
 }
 
 internal HANDLE
-FindFirstFile_utf8(u8 *name, LPWIN32_FIND_DATA find_data){
+FindFirstFile_utf8(Partition *scratch, u8 *name, LPWIN32_FIND_DATA find_data){
     HANDLE result = INVALID_HANDLE_VALUE;
     
-    Partition *scratch = &shared_vars.scratch;
     Temp_Memory temp = begin_temp_memory(scratch);
     
     Win32_UTF16 name_16 = input_8_to_16(scratch, name);
@@ -104,10 +101,9 @@ FindFirstFile_utf8(u8 *name, LPWIN32_FIND_DATA find_data){
 }
 
 internal DWORD
-GetFileAttributes_utf8(u8 *name){
+GetFileAttributes_utf8(Partition *scratch, u8 *name){
     DWORD result = 0;
     
-    Partition *scratch = &shared_vars.scratch;
     Temp_Memory temp = begin_temp_memory(scratch);
     
     Win32_UTF16 name_16 = input_8_to_16(scratch, name);
@@ -121,10 +117,9 @@ GetFileAttributes_utf8(u8 *name){
 }
 
 internal DWORD
-GetModuleFileName_utf8(HMODULE module, u8 *file_out, DWORD max){
+GetModuleFileName_utf8(Partition *scratch, HMODULE module, u8 *file_out, DWORD max){
     DWORD result = 0;
     
-    Partition *scratch = &shared_vars.scratch;
     Temp_Memory temp = begin_temp_memory(scratch);
     
     u32 file_16_max = KB(40);
@@ -147,10 +142,9 @@ GetModuleFileName_utf8(HMODULE module, u8 *file_out, DWORD max){
 }
 
 internal BOOL
-CreateProcess_utf8(u8 *app_name, u8 *command, LPSECURITY_ATTRIBUTES security, LPSECURITY_ATTRIBUTES thread, BOOL inherit_handles, DWORD creation, LPVOID environment, u8 *curdir, LPSTARTUPINFO startup, LPPROCESS_INFORMATION process){
+CreateProcess_utf8(Partition *scratch, u8 *app_name, u8 *command, LPSECURITY_ATTRIBUTES security, LPSECURITY_ATTRIBUTES thread, BOOL inherit_handles, DWORD creation, LPVOID environment, u8 *curdir, LPSTARTUPINFO startup, LPPROCESS_INFORMATION process){
     BOOL result = false;
     
-    Partition *scratch = &shared_vars.scratch;
     Temp_Memory temp = begin_temp_memory(scratch);
     
     Win32_UTF16 app_name_16 = input_8_to_16(scratch, app_name);
@@ -171,10 +165,9 @@ CreateProcess_utf8(u8 *app_name, u8 *command, LPSECURITY_ATTRIBUTES security, LP
 }
 
 internal DWORD
-GetCurrentDirectory_utf8(DWORD max, u8 *buffer){
+GetCurrentDirectory_utf8(Partition *scratch, DWORD max, u8 *buffer){
     DWORD result = 0;
     
-    Partition *scratch = &shared_vars.scratch;
     Temp_Memory temp = begin_temp_memory(scratch);
     
     u32 buffer_16_max = KB(40);
@@ -196,10 +189,9 @@ GetCurrentDirectory_utf8(DWORD max, u8 *buffer){
 }
 
 internal int
-MessageBox_utf8(HWND owner, u8 *text, u8 *caption, UINT type){
+MessageBox_utf8(Partition *scratch, HWND owner, u8 *text, u8 *caption, UINT type){
     int result = 0;
     
-    Partition *scratch = &shared_vars.scratch;
     Temp_Memory temp = begin_temp_memory(scratch);
     
     Win32_UTF16 text_16 = input_8_to_16(scratch, text);
@@ -216,10 +208,9 @@ MessageBox_utf8(HWND owner, u8 *text, u8 *caption, UINT type){
 }
 
 internal BOOL
-SetWindowText_utf8(HWND window, u8 *string){
+SetWindowText_utf8(Partition *scratch, HWND window, u8 *string){
     BOOL result = FALSE;
     
-    Partition *scratch = &shared_vars.scratch;
     Temp_Memory temp = begin_temp_memory(scratch);
     
     Win32_UTF16 string_16 = input_8_to_16(scratch, string);

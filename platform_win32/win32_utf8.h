@@ -13,31 +13,31 @@
 #define FRED_WIN32_UTF8_H
 
 internal HANDLE
-CreateFile_utf8(u8 *name, DWORD access, DWORD share, LPSECURITY_ATTRIBUTES security, DWORD creation, DWORD flags, HANDLE template_file);
+CreateFile_utf8(Partition *scratch, u8 *name, DWORD access, DWORD share, LPSECURITY_ATTRIBUTES security, DWORD creation, DWORD flags, HANDLE template_file);
 
 internal DWORD
-GetFinalPathNameByHandle_utf8(HANDLE file, u8 *file_path_out, DWORD path_max, DWORD flags);
+GetFinalPathNameByHandle_utf8(Partition *scratch, HANDLE file, u8 *file_path_out, DWORD path_max, DWORD flags);
 
 internal HANDLE
-FindFirstFile_utf8(u8 *name, LPWIN32_FIND_DATA find_data);
+FindFirstFile_utf8(Partition *scratch, u8 *name, LPWIN32_FIND_DATA find_data);
 
 internal DWORD
-GetFileAttributes_utf8(u8 *name);
+GetFileAttributes_utf8(Partition *scratch, u8 *name);
 
 internal DWORD
-GetModuleFileName_utf8(HMODULE module, u8 *file_out, DWORD max);
+GetModuleFileName_utf8(Partition *scratch, HMODULE module, u8 *file_out, DWORD max);
 
 internal BOOL
-CreateProcess_utf8(u8 *app_name, u8 *command, LPSECURITY_ATTRIBUTES security, LPSECURITY_ATTRIBUTES thread, BOOL inherit_handles, DWORD creation, LPVOID environment, u8 *curdir, LPSTARTUPINFO startup, LPPROCESS_INFORMATION process);
+CreateProcess_utf8(Partition *scratch, u8 *app_name, u8 *command, LPSECURITY_ATTRIBUTES security, LPSECURITY_ATTRIBUTES thread, BOOL inherit_handles, DWORD creation, LPVOID environment, u8 *curdir, LPSTARTUPINFO startup, LPPROCESS_INFORMATION process);
 
 internal DWORD
-GetCurrentDirectory_utf8(DWORD max, u8 *buffer);
+GetCurrentDirectory_utf8(Partition *scratch, DWORD max, u8 *buffer);
 
 internal int
-MessageBox_utf8(HWND owner, u8 *text, u8 *caption, UINT type);
+MessageBox_utf8(Partition *scratch, HWND owner, u8 *text, u8 *caption, UINT type);
 
 internal BOOL
-SetWindowText_utf8(HWND window, u8 *string);
+SetWindowText_utf8(Partition *scratch, HWND window, u8 *string);
 
 // For implementation
 
