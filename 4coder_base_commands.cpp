@@ -1215,9 +1215,11 @@ CUSTOM_DOC("Queries the user for a new name and renames the file of the current 
             terminate_with_null(&new_file_name);
             
             if (save_buffer(app, &buffer, new_file_name.str, new_file_name.size, BufferSave_IgnoreDirtyFlag)){
-                delete_file_base(app, file_name, buffer.buffer_id);
                 Buffer_Summary new_buffer = create_buffer(app, new_file_name.str, new_file_name.size, BufferCreate_NeverNew|BufferCreate_JustChangedFile);
-                view_set_buffer(app, &view, new_buffer.buffer_id, 0);
+                if (new_buffer.exists && new_buffer.buffer_id != buffer.buffer_id){
+                    delete_file_base(app, file_name, buffer.buffer_id);
+                    view_set_buffer(app, &view, new_buffer.buffer_id, 0);
+                }
             }
         }
     }
