@@ -4,6 +4,7 @@
     {
         [] Recover scroll bars
         [] Cold scroll
+        [] Optimize lookup in file track data structures
     }
     
     Bugs
@@ -12,12 +13,20 @@
         [x] High CPU usage in listers (endless animation bug)
         [x] Panel resizing doesn't work
         [x] On windows file lister: /foo/bar.txt
+        [?] Press Tab in Open File Lister With Text "C:"/Tab when no valid completions in open file lister
         [x] Notepad like mode clicking to new view doesn't snap the mark
         [x] Notepad like mode replacing text with cursor at end of selection in middle of long file
-        [] Tab when no valid completions in open file lister
+        [x] Renaming a file to a case insensitively equivalent name on windows deletes the file
+        [x] Start from windows start menu and open file
+        [] opening large projects
+        [] Make lots of new files
         [] Texture binding changes too often problem
         [] SSHFS segfault on linux
         [] New file when the file is already open
+        [] really long single line wrapped (300,000?)
+        [] Mac german keyboard layout
+        [] Linux animate bug? (Lister lag)
+        [] Modifiers on scroll wheels not working?
         Repro Needed
         {
             [?] pasting long comment at top of code files doesn't always parse right away???
@@ -26,7 +35,6 @@
         {
             [] saving to removable media -> need more info
             [] crash on obj file (san-miguel-low-poly.obj) -> need more info
-            [] Graphics problem (fonts not rendering) -> need more info
         }
     }
 }
@@ -52,6 +60,7 @@ Long Term
     Bugs
     {
         [] Remote Desktop Doesn't Work -> Need Renderer Modularity & Software Renderer
+        [] Graphics problem (fonts not rendering) -> need more info
         [] Jim's file is blank even though it tries to load a real file (wtf)
         [] Lexing Scientific Notation " 3.402823466e+38F "
     }

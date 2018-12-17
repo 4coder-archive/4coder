@@ -18,7 +18,7 @@ typedef void Lister_Activation_Function_Type(Application_Links *app, Partition *
                                              View_Summary *view, struct Lister_State *state,
                                              String text_field, void *user_data, bool32 activated_by_mouse);
 
-typedef void Lister_Regenerate_List_Function_Type(Application_Links *app, Partition *arena, struct Lister *lister);
+typedef void Lister_Regenerate_List_Function_Type(Application_Links *app, struct Lister *lister);
 
 struct Lister_Node{
     Lister_Node *next;
@@ -52,12 +52,13 @@ struct Lister_Handlers{
     Custom_Command_Function *navigate_down;
 };
 
-struct Lister{
+struct Lister_Data{
     // Event Handlers
     Lister_Handlers handlers;
     
     // List Data
     void *user_data;
+    int32_t user_data_size;
     char query_space[256];
     String query;
     char text_field_space[256];
@@ -68,19 +69,29 @@ struct Lister{
     bool32 theme_list;
 };
 
-struct Lister_Prealloced_String{
-    String string;
+struct Lister{
+    Partition arena;
+    Lister_Data data;
 };
 
 struct Lister_State{
     bool32 initialized;
+    Lister lister;
+    
+    // Action defered to next UI update
+    bool32 set_view_vertical_focus_to_item;
+    
+    // State set directly by input handlers
     void *hot_user_data;
     int32_t item_index;
+    
+    // State of UI computed during UI update
     int32_t raw_item_index;
-    bool32 set_view_vertical_focus_to_item;
-    int32_t option_item_count;
-    Partition arena;
-    Lister lister;
+    int32_t item_count_after_filter;
+};
+
+struct Lister_Prealloced_String{
+    String string;
 };
 
 ////////////////////////////////

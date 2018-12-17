@@ -21,8 +21,8 @@ CUSTOM_DOC("A lister mode command that activates the list's action on the highli
     Lister_State *state = view_get_lister_state(&view);
     if (state->initialized){
         void *user_data = 0;
-        if (0 <= state->raw_item_index && state->raw_item_index < state->lister.options.count){
-            user_data = lister_get_user_data(&state->lister, state->raw_item_index);
+        if (0 <= state->raw_item_index && state->raw_item_index < state->lister.data.options.count){
+            user_data = lister_get_user_data(&state->lister.data, state->raw_item_index);
         }
         lister_call_activate_handler(app, scratch, heap, &view, state, user_data, false);
     }
@@ -33,8 +33,8 @@ CUSTOM_DOC("A lister mode command that dispatches to the lister's write characte
 {
     View_Summary view = get_active_view(app, AccessAll);
     Lister_State *state = view_get_lister_state(&view);
-    if (state->lister.handlers.write_character != 0){
-        state->lister.handlers.write_character(app);
+    if (state->lister.data.handlers.write_character != 0){
+        state->lister.data.handlers.write_character(app);
     }
 }
 
@@ -43,8 +43,8 @@ CUSTOM_DOC("A lister mode command that dispatches to the lister's backspace text
 {
     View_Summary view = get_active_view(app, AccessAll);
     Lister_State *state = view_get_lister_state(&view);
-    if (state->lister.handlers.backspace != 0){
-        state->lister.handlers.backspace(app);
+    if (state->lister.data.handlers.backspace != 0){
+        state->lister.data.handlers.backspace(app);
     }
 }
 
@@ -53,8 +53,8 @@ CUSTOM_DOC("A lister mode command that dispatches to the lister's navigate up ha
 {
     View_Summary view = get_active_view(app, AccessAll);
     Lister_State *state = view_get_lister_state(&view);
-    if (state->lister.handlers.navigate_up != 0){
-        state->lister.handlers.navigate_up(app);
+    if (state->lister.data.handlers.navigate_up != 0){
+        state->lister.data.handlers.navigate_up(app);
     }
 }
 
@@ -63,8 +63,8 @@ CUSTOM_DOC("A lister mode command that dispatches to the lister's navigate down 
 {
     View_Summary view = get_active_view(app, AccessAll);
     Lister_State *state = view_get_lister_state(&view);
-    if (state->lister.handlers.navigate_down != 0){
-        state->lister.handlers.navigate_down(app);
+    if (state->lister.data.handlers.navigate_down != 0){
+        state->lister.data.handlers.navigate_down(app);
     }
 }
 
@@ -134,8 +134,8 @@ CUSTOM_DOC("A lister mode command that inserts a new character to the text field
         uint8_t character[4];
         uint32_t length = to_writable_character(in, character);
         if (length > 0){
-            append(&state->lister.text_field, make_string(character, length));
-            append(&state->lister.key_string, make_string(character, length));
+            append(&state->lister.data.text_field, make_string(character, length));
+            append(&state->lister.data.key_string, make_string(character, length));
             state->item_index = 0;
             view_zero_scroll(app, &view);
             lister_update_ui(app, scratch, &view, state);
@@ -150,8 +150,8 @@ CUSTOM_DOC("A lister mode command that backspaces one character from the text fi
     View_Summary view = get_active_view(app, AccessAll);
     Lister_State *state = view_get_lister_state(&view);
     if (state->initialized){
-        backspace_utf8(&state->lister.text_field);
-        backspace_utf8(&state->lister.key_string);
+        backspace_utf8(&state->lister.data.text_field);
+        backspace_utf8(&state->lister.data.key_string);
         state->item_index = 0;
         view_zero_scroll(app, &view);
         lister_update_ui(app, scratch, &view, state);
@@ -167,7 +167,7 @@ CUSTOM_DOC("A lister mode command that moves the highlighted item one up in the 
     if (state->initialized){
         state->item_index = state->item_index - 1;
         if (state->item_index < 0){
-            state->item_index = state->option_item_count - 1;
+            state->item_index = state->item_count_after_filter - 1;
         }
         state->set_view_vertical_focus_to_item = true;
         lister_update_ui(app, scratch, &view, state);
@@ -182,7 +182,7 @@ CUSTOM_DOC("A lister mode command that moves the highlighted item one down in th
     Lister_State *state = view_get_lister_state(&view);
     if (state->initialized){
         state->item_index = state->item_index + 1;
-        if (state->item_index > state->option_item_count - 1){
+        if (state->item_index > state->item_count_after_filter - 1){
             state->item_index = 0;
         }
         state->set_view_vertical_focus_to_item = true;
@@ -201,12 +201,12 @@ CUSTOM_DOC("A lister mode command that inserts a character into the text field o
         uint8_t character[4];
         uint32_t length = to_writable_character(in, character);
         if (length > 0){
-            append(&state->lister.text_field, make_string(character, length));
-            copy(&state->lister.key_string, front_of_directory(state->lister.text_field));
+            append(&state->lister.data.text_field, make_string(character, length));
+            copy(&state->lister.data.key_string, front_of_directory(state->lister.data.text_field));
             if (character[0] == '/' || character[0] == '\\'){
-                String new_hot = state->lister.text_field;
+                String new_hot = state->lister.data.text_field;
                 directory_set_hot(app, new_hot.str, new_hot.size);
-                lister_call_refresh_handler(app, &state->arena, &state->lister);
+                lister_call_refresh_handler(app, &state->lister);
             }
             state->item_index = 0;
             view_zero_scroll(app, &view);
@@ -222,9 +222,9 @@ CUSTOM_DOC("A lister mode command that backspaces one character from the text fi
     View_Summary view = get_active_view(app, AccessAll);
     Lister_State *state = view_get_lister_state(&view);
     if (state->initialized){
-        if (state->lister.text_field.size > 0){
-            char last_char = state->lister.text_field.str[state->lister.text_field.size - 1];
-            backspace_utf8(&state->lister.text_field);
+        if (state->lister.data.text_field.size > 0){
+            char last_char = state->lister.data.text_field.str[state->lister.data.text_field.size - 1];
+            backspace_utf8(&state->lister.data.text_field);
             if (last_char == '/' || last_char == '\\'){
                 User_Input input = get_command_input(app);
                 bool32 is_modified =
@@ -232,15 +232,15 @@ CUSTOM_DOC("A lister mode command that backspaces one character from the text fi
                     input.key.modifiers[MDFR_CONTROL_INDEX] ||
                     input.key.modifiers[MDFR_ALT_INDEX] ||
                     input.key.modifiers[MDFR_COMMAND_INDEX];
-                String new_hot = path_of_directory(state->lister.text_field);
+                String new_hot = path_of_directory(state->lister.data.text_field);
                 if (!is_modified){
-                    state->lister.text_field.size = new_hot.size;
+                    state->lister.data.text_field.size = new_hot.size;
                 }
                 directory_set_hot(app, new_hot.str, new_hot.size);
-                lister_call_refresh_handler(app, &state->arena, &state->lister);
+                lister_call_refresh_handler(app, &state->lister);
             }
             else{
-                copy(&state->lister.key_string, front_of_directory(state->lister.text_field));
+                copy(&state->lister.data.key_string, front_of_directory(state->lister.data.text_field));
             }
             
             state->item_index = 0;
@@ -264,7 +264,7 @@ CUSTOM_DOC("A lister mode command that handles input for the fixed sure to kill 
         if (length > 0){
             void *user_data = 0;
             bool32 did_shortcut_key = false;
-            for (Lister_Node *node = state->lister.options.first;
+            for (Lister_Node *node = state->lister.data.options.first;
                  node != 0;
                  node = node->next){
                 char *hotkeys = (char*)(node + 1);
@@ -316,11 +316,11 @@ begin_integrated_lister__with_refresh_handler(Application_Links *app, char *quer
         view_begin_ui_mode(app, view);
         view_set_setting(app, view, ViewSetting_UICommandMap, default_lister_ui_map);
         Lister_State *state = view_get_lister_state(view);
-        init_lister_state(state, heap);
-        lister_first_init(&state->arena, &state->lister, user_data, user_data_size);
-        lister_set_query_string(&state->lister, query_string);
-        state->lister.handlers = handlers;
-        handlers.refresh(app, &state->arena, &state->lister);
+        init_lister_state(app, state, heap);
+        lister_first_init(app, &state->lister, user_data, user_data_size, 0);
+        lister_set_query_string(&state->lister.data, query_string);
+        state->lister.data.handlers = handlers;
+        handlers.refresh(app, &state->lister);
         lister_update_ui(app, scratch, view, state);
     }
     else{
@@ -331,6 +331,15 @@ begin_integrated_lister__with_refresh_handler(Application_Links *app, char *quer
         append(&str, "\")\n");
         print_message(app, str.str, str.size);
     }
+}
+
+static const int32_t default_string_size_estimation = 0;
+
+static int32_t
+lister__get_arena_size(int32_t option_count, int32_t user_data_size,
+                       int32_t estimated_string_space_size){
+    int32_t arena_size = (user_data_size + 7 + option_count*sizeof(Lister_Node) + estimated_string_space_size);
+    return(arena_size);
 }
 
 static void
@@ -345,20 +354,15 @@ begin_integrated_lister__basic_list(Application_Links *app, char *query_string,
     view_begin_ui_mode(app, view);
     view_set_setting(app, view, ViewSetting_UICommandMap, default_lister_ui_map);
     Lister_State *state = view_get_lister_state(view);
-    int32_t arena_size = (user_data_size + option_count*sizeof(Lister_Node) + estimated_string_space_size);
-    arena_size = (arena_size + (4 << 10) - 1);
-    arena_size = arena_size - arena_size%(4 << 10);
-    if (arena_size < (64 << 10)){
-        arena_size = (64 << 10);
-    }
-    init_lister_state(state, heap, arena_size);
-    lister_first_init(&state->arena, &state->lister, user_data, user_data_size);
+    int32_t arena_size = lister__get_arena_size(option_count, user_data_size, estimated_string_space_size);
+    init_lister_state(app, state, heap);
+    lister_first_init(app, &state->lister, user_data, user_data_size, arena_size);
     for (int32_t i = 0; i < option_count; i += 1){
-        lister_add_item(&state->arena, &state->lister, options[i].string, options[i].status, options[i].user_data, 0);
+        lister_add_item(&state->lister, options[i].string, options[i].status, options[i].user_data, 0);
     }
-    lister_set_query_string(&state->lister, query_string);
-    state->lister.handlers = lister_get_default_handlers();
-    state->lister.handlers.activate = activate;
+    lister_set_query_string(&state->lister.data, query_string);
+    state->lister.data.handlers = lister_get_default_handlers();
+    state->lister.data.handlers.activate = activate;
     lister_update_ui(app, scratch, view, state);
 }
 
@@ -367,27 +371,29 @@ begin_integrated_lister__with_fixed_options(Application_Links *app, char *query_
                                             Lister_Handlers handlers,
                                             void *user_data, int32_t user_data_size,
                                             Lister_Fixed_Option *options, int32_t option_count,
+                                            int32_t estimated_string_space_size,
                                             View_Summary *view){
     Partition *scratch = &global_part;
     Heap *heap = &global_heap;
     view_begin_ui_mode(app, view);
     view_set_setting(app, view, ViewSetting_UICommandMap, default_lister_ui_map);
     Lister_State *state = view_get_lister_state(view);
-    init_lister_state(state, heap);
-    lister_first_init(&state->arena, &state->lister, user_data, user_data_size);
+    init_lister_state(app, state, heap);
+    int32_t arena_size = lister__get_arena_size(option_count, user_data_size, estimated_string_space_size);
+    lister_first_init(app, &state->lister, user_data, user_data_size, arena_size);
     for (int32_t i = 0; i < option_count; i += 1){
         char *shortcut_chars = options[i].shortcut_chars;
         int32_t shortcut_chars_length = str_size(shortcut_chars);
-        void *extra = lister_add_item(&state->arena, &state->lister,
+        void *extra = lister_add_item(&state->lister,
                                       make_string_slowly(options[i].string),
                                       make_string_slowly(options[i].status),
                                       options[i].user_data,
                                       shortcut_chars_length + 1);
         memcpy(extra, shortcut_chars, shortcut_chars_length + 1);
     }
-    lister_set_query_string(&state->lister, query_string);
-    state->lister.handlers = handlers;
-    state->lister.handlers.refresh = 0;
+    lister_set_query_string(&state->lister.data, query_string);
+    state->lister.data.handlers = handlers;
+    state->lister.data.handlers.refresh = 0;
     lister_update_ui(app, scratch, view, state);
 }
 
@@ -396,71 +402,86 @@ begin_integrated_lister__with_fixed_options(Application_Links *app, char *query_
                                             Lister_Activation_Function_Type *activate,
                                             void *user_data, int32_t user_data_size,
                                             Lister_Fixed_Option *options, int32_t option_count,
+                                            int32_t estimated_string_space_size,
                                             View_Summary *view){
     Lister_Handlers handlers = lister_get_fixed_list_handlers();
     handlers.activate = activate;
     begin_integrated_lister__with_fixed_options(app, query_string,
                                                 handlers, user_data, user_data_size,
                                                 options, option_count,
+                                                estimated_string_space_size,
                                                 view);
 }
 
 static void
-begin_integrated_lister__ui_list(Application_Links *app, char *query_string,
-                                 Lister_Handlers handlers,
-                                 void *user_data, int32_t user_data_size,
-                                 Lister_UI_Option *options, int32_t option_count,
-                                 View_Summary *view){
+begin_integrated_lister__theme_list(Application_Links *app, char *query_string,
+                                    Lister_Handlers handlers,
+                                    void *user_data, int32_t user_data_size,
+                                    Lister_UI_Option *options, int32_t option_count,
+                                    int32_t estimated_string_space_size,
+                                    View_Summary *view){
     Partition *scratch = &global_part;
     Heap *heap = &global_heap;
     view_begin_ui_mode(app, view);
     view_set_setting(app, view, ViewSetting_UICommandMap, default_lister_ui_map);
     Lister_State *state = view_get_lister_state(view);
-    init_lister_state(state, heap);
-    lister_first_init(&state->arena, &state->lister, user_data, user_data_size);
-    state->lister.theme_list = true;
+    init_lister_state(app, state, heap);
+    int32_t arena_size = lister__get_arena_size(option_count, user_data_size, estimated_string_space_size);
+    lister_first_init(app, &state->lister, user_data, user_data_size, arena_size);
+    state->lister.data.theme_list = true;
     for (int32_t i = 0; i < option_count; i += 1){
-        lister_add_ui_item(&state->arena, &state->lister,
-                           make_string_slowly(options[i].string),
-                           options[i].index,
-                           options[i].user_data, 0);
+        lister_add_theme_item(&state->lister,
+                              make_string_slowly(options[i].string),
+                              options[i].index,
+                              options[i].user_data, 0);
     }
-    lister_set_query_string(&state->lister, query_string);
-    state->lister.handlers = handlers;
-    state->lister.handlers.refresh = 0;
+    lister_set_query_string(&state->lister.data, query_string);
+    state->lister.data.handlers = handlers;
+    state->lister.data.handlers.refresh = 0;
     lister_update_ui(app, scratch, view, state);
 }
 
 static void
-begin_integrated_lister__ui_list(Application_Links *app, char *query_string,
-                                 Lister_Activation_Function_Type *activate,
-                                 void *user_data, int32_t user_data_size,
-                                 Lister_UI_Option *options, int32_t option_count,
-                                 View_Summary *view){
+begin_integrated_lister__theme_list(Application_Links *app, char *query_string,
+                                    Lister_Activation_Function_Type *activate,
+                                    void *user_data, int32_t user_data_size,
+                                    Lister_UI_Option *options, int32_t option_count,
+                                    int32_t estimated_string_space_size,
+                                    View_Summary *view){
     Lister_Handlers handlers = lister_get_default_handlers();
     handlers.activate = activate;
-    begin_integrated_lister__ui_list(app, query_string,
-                                     handlers, user_data, user_data_size,
-                                     options, option_count,
-                                     view);
+    begin_integrated_lister__theme_list(app, query_string,
+                                        handlers, user_data, user_data_size,
+                                        options, option_count,
+                                        estimated_string_space_size,
+                                        view);
 }
 
 ////////////////////////////////
 
 static void
-generate_all_buffers_list__output_buffer(Partition *arena, Lister *lister, Buffer_Summary buffer){
+generate_all_buffers_list__output_buffer(Lister *lister, Buffer_Summary buffer){
     String status = {};
     switch (buffer.dirty){
         case DirtyState_UnsavedChanges:  status = make_lit_string("*"); break;
         case DirtyState_UnloadedChanges: status = make_lit_string("!"); break;
     }
     String buffer_name = make_string(buffer.buffer_name, buffer.buffer_name_len);
-    lister_add_item(arena, lister, buffer_name, status, IntAsPtr(buffer.buffer_id), 0);
+    lister_add_item(lister, buffer_name, status, IntAsPtr(buffer.buffer_id), 0);
 }
 
 static void
-generate_all_buffers_list(Application_Links *app, Partition *arena, Lister *lister){
-    lister_begin_new_item_set(lister);
+generate_all_buffers_list(Application_Links *app, Lister *lister){
+    int32_t buffer_count = get_buffer_count(app);
+    int32_t memory_size = 0;
+    memory_size += buffer_count*(sizeof(Lister_Node) + 3);
+    for (Buffer_Summary buffer = get_buffer_first(app, AccessAll);
+         buffer.exists;
+         get_buffer_next(app, &buffer, AccessAll)){
+        memory_size += buffer.buffer_name_len;
+    }
+    
+    lister_begin_new_item_set(app, lister, memory_size);
     
     Buffer_ID buffers_currently_being_viewed[16];
     int32_t currently_viewed_buffer_count = 0;
@@ -489,7 +510,7 @@ generate_all_buffers_list(Application_Links *app, Partition *arena, Lister *list
             }
         }
         if (buffer.buffer_name_len == 0 || buffer.buffer_name[0] != '*'){
-            generate_all_buffers_list__output_buffer(arena, lister, buffer);
+            generate_all_buffers_list__output_buffer(lister, buffer);
         }
         skip1:;
     }
@@ -503,65 +524,79 @@ generate_all_buffers_list(Application_Links *app, Partition *arena, Lister *list
             }
         }
         if (buffer.buffer_name_len != 0 && buffer.buffer_name[0] == '*'){
-            generate_all_buffers_list__output_buffer(arena, lister, buffer);
+            generate_all_buffers_list__output_buffer(lister, buffer);
         }
         skip2:;
     }
     // Buffers That Are Open in Views
     for (int32_t i = 0; i < currently_viewed_buffer_count; i += 1){
         Buffer_Summary buffer = get_buffer(app, buffers_currently_being_viewed[i], AccessAll);
-        generate_all_buffers_list__output_buffer(arena, lister, buffer);
+        generate_all_buffers_list__output_buffer(lister, buffer);
     }
 }
 
 static void
-generate_hot_directory_file_list(Application_Links *app, Partition *arena, Lister *lister){
-    {
-        Temp_Memory temp = begin_temp_memory(arena);
-        String hot = get_hot_directory(app, arena);
-        if (hot.size > 0 && hot.str[hot.size - 1] != '/' && hot.str[hot.size - 1] != '\\'){
-            if (push_array(arena, char, 1) != 0){
-                hot.memory_size += 1;
-                append_s_char(&hot, '/');
-            }
-        }
-        lister_set_text_field_string(lister, hot);
-        lister_set_key_string(lister, front_of_directory(hot));
-        end_temp_memory(temp);
+generate_hot_directory_file_list(Application_Links *app, Lister *lister){
+    if (lister->arena.max < (64 << 10)){
+        lister_arena_clear_data_ensure_bytes(app, lister, (64 << 10));
     }
     
-    lister_begin_new_item_set(lister);
-    String hot = get_hot_directory(app, arena);
-    push_align(arena, 8);
-    File_List file_list = {};
-    if (hot.str != 0){
-        file_list = get_file_list(app, hot.str, hot.size);
+    Temp_Memory temp = begin_temp_memory(&lister->arena);
+    String hot = get_hot_directory(app, &lister->arena);
+    if (hot.size > 0 && hot.str[hot.size - 1] != '/' && hot.str[hot.size - 1] != '\\'){
+        if (push_array(&lister->arena, char, 1) != 0){
+            hot.memory_size += 1;
+            append_s_char(&hot, '/');
+        }
     }
+    lister_set_text_field_string(&lister->data, hot);
+    lister_set_key_string(&lister->data, front_of_directory(hot));
+    
+    File_List file_list = get_file_list(app, hot.str, hot.size);
+    end_temp_memory(temp);
+    
+    File_Info *one_past_last = file_list.infos + file_list.count;
+    
+    int32_t memory_requirement = 0;
+    memory_requirement += lister->data.user_data_size;
+    memory_requirement += file_list.count*(sizeof(Lister_Node) + 10);
+    memory_requirement += hot.size + 2;
+    for (File_Info *info = file_list.infos;
+         info < one_past_last;
+         info += 1){
+        memory_requirement += info->filename_len;
+    }
+    
+    lister_begin_new_item_set(app, lister, memory_requirement);
+    
+    hot = get_hot_directory(app, &lister->arena);
+    push_align(&lister->arena, 8);
     if (hot.str != 0){
-        for (File_Info *info = file_list.infos, *one_past_last = file_list.infos + file_list.count;
+        String empty_string = make_lit_string("");
+        Lister_Prealloced_String empty_string_prealloced = {empty_string};
+        for (File_Info *info = file_list.infos;
              info < one_past_last;
              info += 1){
             if (!info->folder) continue;
-            String file_name = build_string(arena,
+            String file_name = build_string(&lister->arena,
                                             make_string(info->filename, info->filename_len),
                                             "/", "");
-            String status = make_lit_string("");
-            lister_add_item(arena, lister, lister_prealloced(file_name), status, file_name.str, 0);
+            lister_add_item(lister, lister_prealloced(file_name), empty_string_prealloced, file_name.str, 0);
         }
         
         for (File_Info *info = file_list.infos, *one_past_last = file_list.infos + file_list.count;
              info < one_past_last;
              info += 1){
             if (info->folder) continue;
-            String file_name = string_push_copy(arena, make_string(info->filename, info->filename_len));
+            String file_name = string_push_copy(&lister->arena, make_string(info->filename, info->filename_len));
             char *is_loaded = "";
             char *status_flag = "";
             
-            Temp_Memory path_temp = begin_temp_memory(arena);
+            Temp_Memory path_temp = begin_temp_memory(&lister->arena);
             String full_file_path = {};
             full_file_path.size = 0;
             full_file_path.memory_size = hot.size + 1 + info->filename_len + 1;
-            full_file_path.str = push_array(arena, char, full_file_path.memory_size);
+            full_file_path.str = push_array(&lister->arena, char, full_file_path.memory_size);
             append(&full_file_path, hot);
             if (full_file_path.size == 0 ||
                 char_is_slash(full_file_path.str[full_file_path.size - 1])){
@@ -571,7 +606,6 @@ generate_hot_directory_file_list(Application_Links *app, Partition *arena, Liste
             Buffer_Summary buffer = get_buffer_by_file_name(app,
                                                             full_file_path.str, full_file_path.size,
                                                             AccessAll);
-            
             end_temp_memory(path_temp);
             
             if (buffer.exists){
@@ -581,11 +615,12 @@ generate_hot_directory_file_list(Application_Links *app, Partition *arena, Liste
                     case DirtyState_UnloadedChanges: status_flag = " !"; break;
                 }
             }
-            String status = build_string(arena, is_loaded, status_flag, "");
-            lister_add_item(arena, lister, lister_prealloced(file_name), lister_prealloced(status), file_name.str, 0);
+            String status = build_string(&lister->arena, is_loaded, status_flag, "");
+            lister_add_item(lister, lister_prealloced(file_name), lister_prealloced(status), file_name.str, 0);
         }
-        free_file_list(app, file_list);
     }
+    
+    free_file_list(app, file_list);
 }
 
 static void
@@ -628,7 +663,7 @@ activate_confirm_kill(Application_Links *app, Partition *scratch, Heap *heap,
                       View_Summary *view, Lister_State *state,
                       String text_field, void *user_data, bool32 clicked){
     int32_t behavior = (int32_t)PtrAsInt(user_data);
-    Buffer_ID buffer_id = *(Buffer_ID*)(state->lister.user_data);
+    Buffer_ID buffer_id = *(Buffer_ID*)(state->lister.data.user_data);
     switch (behavior){
         case SureToKill_No:
         {}break;
@@ -668,7 +703,7 @@ do_gui_sure_to_kill(Application_Links *app, Buffer_Summary *buffer, View_Summary
     begin_integrated_lister__with_fixed_options(app, "There are unsaved changes, close anyway?",
                                                 activate_confirm_kill,
                                                 &buffer->buffer_id, sizeof(buffer->buffer_id),
-                                                options, option_count,
+                                                options, option_count, default_string_size_estimation,
                                                 view);
 }
 
@@ -694,7 +729,7 @@ activate_confirm_close_4coder(Application_Links *app, Partition *scratch, Heap *
             send_exit_signal(app);
         }break;
     }
-    lister_default(app, scratch, heap, view, state, ListerActivation_Finished);
+    
 }
 
 static void
@@ -710,6 +745,7 @@ do_gui_sure_to_close_4coder(Application_Links *app, View_Summary *view){
                                                 activate_confirm_close_4coder,
                                                 0, 0,
                                                 options, option_count,
+                                                default_string_size_estimation,
                                                 view);
 }
 
@@ -738,11 +774,11 @@ static void
 activate_kill_buffer(Application_Links *app, Partition *scratch, Heap *heap,
                      View_Summary *view, struct Lister_State *state,
                      String text_field, void *user_data, bool32 activated_by_mouse){
+    lister_default(app, scratch, heap, view, state, ListerActivation_Finished);
     if (user_data != 0){
         Buffer_ID buffer_id = (Buffer_ID)(PtrAsInt(user_data));
         kill_buffer(app, buffer_identifier(buffer_id), view->view_id, 0);
     }
-    lister_default(app, scratch, heap, view, state, ListerActivation_Finished);
 }
 
 CUSTOM_COMMAND_SIG(interactive_kill_buffer)
@@ -910,11 +946,12 @@ CUSTOM_DOC("Opens the 4coder theme selector list.")
         options[i].index = i;
         options[i].user_data = IntAsPtr(i);
     }
-    begin_integrated_lister__ui_list(app,
-                                     "Select a theme:",
-                                     activate_select_theme, 0, 0,
-                                     options, theme_count,
-                                     &view);
+    begin_integrated_lister__theme_list(app,
+                                        "Select a theme:",
+                                        activate_select_theme, 0, 0,
+                                        options, theme_count,
+                                        default_string_size_estimation,
+                                        &view);
     
     end_temp_memory(temp);
 }

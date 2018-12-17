@@ -10,7 +10,7 @@ activate_jump(Application_Links *app, Partition *scratch, Heap *heap,
               String text_field, void *user_data, bool32 activated_by_mouse){
     Lister_Activation_Code result_code = ListerActivation_Finished;
     int32_t list_index = (int32_t)PtrAsInt(user_data);
-    Jump_Lister_Parameters *params = (Jump_Lister_Parameters*)state->lister.user_data;
+    Jump_Lister_Parameters *params = (Jump_Lister_Parameters*)state->lister.data.user_data;
     Marker_List *list = get_marker_list_for_buffer(params->list_buffer_id);
     if (list != 0){
         View_Summary target_view = {};

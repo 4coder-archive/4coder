@@ -4,7 +4,7 @@
 
 // TOP
 
-
+// TODO(allen): documentation comment here
 
 static UI_Item*
 ui_list_add_item(Partition *arena, UI_List *list, UI_Item item){
@@ -196,24 +196,48 @@ view_get_lister_state(View_Summary *view){
     return(&global_lister_state[view->view_id]);
 }
 
+static int32_t
+lister_standard_arena_size_round_up(int32_t arena_size){
+    if (arena_size < (64 << 10)){
+        arena_size = (64 << 10);
+    }
+    else{
+        arena_size += (4 << 10) - 1;
+        arena_size -= arena_size%(4 << 10);
+    }
+    return(arena_size);
+}
+
 static void
-init_lister_state(Lister_State *state, Heap *heap, int32_t arena_size){
+lister_arena_clear_data_ensure_bytes(Application_Links *app, Lister *lister, int32_t minimum_bytes){
+    if (lister->arena.base == 0 || lister->arena.max < minimum_bytes){
+        int32_t rounded_user_data_size = lister->data.user_data_size;
+        rounded_user_data_size += 7;
+        rounded_user_data_size -= rounded_user_data_size%8;
+        int32_t new_size = (lister->arena.max + rounded_user_data_size + minimum_bytes + 1)*2;
+        new_size = lister_standard_arena_size_round_up(new_size);
+        void *new_memory = memory_allocate(app, new_size);
+        memcpy(new_memory, lister->data.user_data, lister->data.user_data_size);
+        lister->data.user_data = new_memory;
+        if (lister->arena.base != 0){
+            memory_free(app, lister->arena.base, lister->arena.max);
+        }
+        lister->arena = make_part(new_memory, new_size);
+        push_array(&lister->arena, char, lister->data.user_data_size);
+    }
+}
+
+static void
+init_lister_state(Application_Links *app, Lister_State *state, Heap *heap){
     state->initialized = true;
     state->hot_user_data = 0;
     state->item_index = 0;
     state->set_view_vertical_focus_to_item = false;
-    state->option_item_count = 0;
-    if (state->arena.base != 0){
-        heap_free(heap, state->arena.base);
+    state->item_count_after_filter = 0;
+    if (state->lister.arena.base != 0){
+        memory_free(app, state->lister.arena.base, state->lister.arena.max);
     }
-    state->arena = make_part(heap_allocate(heap, arena_size), arena_size);
     memset(&state->lister, 0, sizeof(state->lister));
-}
-
-static void
-init_lister_state(Lister_State *state, Heap *heap){
-    int32_t arena_size = (64 << 10);
-    init_lister_state(state, heap, arena_size);
 }
 
 UI_QUIT_FUNCTION(lister_quit_function){
@@ -240,14 +264,18 @@ lister_get_clicked_item(Application_Links *app, View_Summary *view, Partition *s
     return(result);
 }
 
-static void
-lister_update_ui(Application_Links *app, Partition *scratch, View_Summary *view,
-                 Lister_State *state){
-    bool32 is_theme_list = state->lister.theme_list;
-    
-    int32_t x0 = 0;
-    int32_t x1 = view->view_region.x1 - view->view_region.x0;
-    int32_t line_height = (int32_t)view->line_height;
+static int32_t
+lister_get_line_height(View_Summary *view){
+    return((int32_t)view->line_height);
+}
+
+static int32_t
+lister_get_text_field_height(View_Summary *view){
+    return((int32_t)view->line_height);
+}
+
+static int32_t
+lister_get_block_height(int32_t line_height, bool32 is_theme_list){
     int32_t block_height = 0;
     if (is_theme_list){
         block_height = line_height*3 + 6;
@@ -255,6 +283,19 @@ lister_update_ui(Application_Links *app, Partition *scratch, View_Summary *view,
     else{
         block_height = line_height*2;
     }
+    return(block_height);
+}
+
+static void
+lister_update_ui(Application_Links *app, Partition *scratch, View_Summary *view,
+                 Lister_State *state){
+    bool32 is_theme_list = state->lister.data.theme_list;
+    
+    int32_t x0 = 0;
+    int32_t x1 = view->view_region.x1 - view->view_region.x0;
+    int32_t line_height = lister_get_line_height(view);
+    int32_t block_height = lister_get_block_height(line_height, is_theme_list);
+    int32_t text_field_height = lister_get_text_field_height(view);
     
     Temp_Memory full_temp = begin_temp_memory(scratch);
     
@@ -263,11 +304,11 @@ lister_update_ui(Application_Links *app, Partition *scratch, View_Summary *view,
     refresh_view(app, view);
     get_view_relative_mouse_positions(app, *view, &mx, &my, 0, 0);
     
-    int32_t y_pos = line_height;
+    int32_t y_pos = text_field_height;
     
     state->raw_item_index = -1;
     
-    int32_t node_count = state->lister.options.count;
+    int32_t node_count = state->lister.data.options.count;
     Lister_Node_Ptr_Array exact_matches = {};
     exact_matches.node_ptrs = push_array(scratch, Lister_Node*, 1);
     Lister_Node_Ptr_Array before_extension_matches = {};
@@ -275,12 +316,12 @@ lister_update_ui(Application_Links *app, Partition *scratch, View_Summary *view,
     Lister_Node_Ptr_Array substring_matches = {};
     substring_matches.node_ptrs = push_array(scratch, Lister_Node*, node_count);
     
-    String key = state->lister.key_string;
+    String key = state->lister.data.key_string;
     Absolutes absolutes = {};
     get_absolutes(key, &absolutes, true, true);
     bool32 has_wildcard = (absolutes.count > 3);
     
-    for (Lister_Node *node = state->lister.options.first;
+    for (Lister_Node *node = state->lister.data.options.first;
          node != 0;
          node = node->next){
         if (key.size == 0 ||
@@ -354,7 +395,7 @@ lister_update_ui(Application_Links *app, Partition *scratch, View_Summary *view,
             }
         }
     }
-    state->option_item_count = item_index_counter;
+    state->item_count_after_filter = item_index_counter;
     
     if (hovered_item != 0){
         hovered_item->activation_level = UIActivation_Hover;
@@ -373,8 +414,7 @@ lister_update_ui(Application_Links *app, Partition *scratch, View_Summary *view,
     
     if (state->set_view_vertical_focus_to_item){
         if (highlighted_item != 0){
-            view_set_vertical_focus(app, view,
-                                    highlighted_item->rectangle.y0, highlighted_item->rectangle.y1);
+            view_set_vertical_focus(app, view, highlighted_item->rectangle.y0, highlighted_item->rectangle.y1);
         }
         state->set_view_vertical_focus_to_item = false;
     }
@@ -384,15 +424,15 @@ lister_update_ui(Application_Links *app, Partition *scratch, View_Summary *view,
         item_rect.x0 = x0;
         item_rect.y0 = 0;
         item_rect.x1 = x1;
-        item_rect.y1 = item_rect.y0 + line_height;
+        item_rect.y1 = item_rect.y0 + text_field_height;
         y_pos = item_rect.y1;
         
         UI_Item item = {};
         item.type = UIType_TextField;
         item.activation_level = UIActivation_Active;
         item.coordinates = UICoordinates_ViewRelative;
-        item.text_field.query = state->lister.query;
-        item.text_field.string = state->lister.text_field;
+        item.text_field.query = state->lister.data.query;
+        item.text_field.string = state->lister.data.text_field;
         item.user_data = 0;
         item.rectangle = item_rect;
         ui_list_add_item(scratch, &list, item);
@@ -412,100 +452,97 @@ lister_prealloced(String string){
 }
 
 static void
-lister_first_init(Partition *arena, Lister *lister, void *user_data, int32_t user_data_size){
+lister_first_init(Application_Links *app, Lister *lister, void *user_data, int32_t user_data_size, int32_t arena_size){
     memset(lister, 0, sizeof(*lister));
-    lister->query      = make_fixed_width_string(lister->query_space);
-    lister->text_field = make_fixed_width_string(lister->text_field_space);
-    lister->key_string = make_fixed_width_string(lister->key_string_space);
-    if (user_data != 0){
-        lister->user_data  = push_array(arena, char, user_data_size);
-        push_align(arena, 8);
-        memcpy(lister->user_data, user_data, user_data_size);
+    lister->data.query      = make_fixed_width_string(lister->data.query_space);
+    lister->data.text_field = make_fixed_width_string(lister->data.text_field_space);
+    lister->data.key_string = make_fixed_width_string(lister->data.key_string_space);
+    if (arena_size < user_data_size){
+        arena_size = user_data_size;
+    }
+    lister->data.user_data_size = 0;
+    if (arena_size != 0){
+        lister_arena_clear_data_ensure_bytes(app, lister, arena_size);
+        lister->data.user_data = push_array(&lister->arena, char, user_data_size);
+        push_align(&lister->arena, 8);
+        if (user_data != 0){
+            memcpy(lister->data.user_data, user_data, user_data_size);
+        }
+        lister->data.user_data_size = user_data_size;
     }
 }
 
 static void
-lister_begin_new_item_set(Lister *lister){
-    memset(&lister->options, 0, sizeof(lister->options));
+lister_begin_new_item_set(Application_Links *app, Lister *lister, int32_t list_memory_size){
+    lister_arena_clear_data_ensure_bytes(app, lister, list_memory_size);
+    memset(&lister->data.options, 0, sizeof(lister->data.options));
 }
 
 static void*
-lister_add_item(Partition *arena, Lister *lister,
-                Lister_Prealloced_String string, Lister_Prealloced_String status,
+lister_add_item(Lister *lister, Lister_Prealloced_String string, Lister_Prealloced_String status,
                 void *user_data, int32_t extra_space){
-    Lister_Node *node = push_array(arena, Lister_Node, 1);
+    Lister_Node *node = push_array(&lister->arena, Lister_Node, 1);
     node->string = string.string;
     node->status = status.string;
     node->user_data = user_data;
-    node->raw_index = lister->options.count;
-    zdll_push_back(lister->options.first, lister->options.last, node);
-    lister->options.count += 1;
-    void *result = push_array(arena, char, extra_space);
-    push_align(arena, 8);
+    node->raw_index = lister->data.options.count;
+    zdll_push_back(lister->data.options.first, lister->data.options.last, node);
+    lister->data.options.count += 1;
+    void *result = push_array(&lister->arena, char, extra_space);
+    push_align(&lister->arena, 8);
     return(result);
 }
 
 static void*
-lister_add_item(Partition *arena, Lister *lister,
-                Lister_Prealloced_String string, String status,
+lister_add_item(Lister *lister, Lister_Prealloced_String string, String status,
                 void *user_data, int32_t extra_space){
-    return(lister_add_item(arena, lister,
-                           string,
-                           lister_prealloced(string_push_copy(arena, status)),
+    return(lister_add_item(lister, string, lister_prealloced(string_push_copy(&lister->arena, status)),
                            user_data, extra_space));
 }
 
 static void*
-lister_add_item(Partition *arena, Lister *lister,
-                String string, Lister_Prealloced_String status,
+lister_add_item(Lister *lister, String string, Lister_Prealloced_String status,
                 void *user_data, int32_t extra_space){
-    return(lister_add_item(arena, lister,
-                           lister_prealloced(string_push_copy(arena, string)),
-                           status,
+    return(lister_add_item(lister, lister_prealloced(string_push_copy(&lister->arena, string)), status,
                            user_data, extra_space));
 }
 
 static void*
-lister_add_item(Partition *arena, Lister *lister,
-                String string, String status,
-                void *user_data, int32_t extra_space){
-    return(lister_add_item(arena, lister,
-                           lister_prealloced(string_push_copy(arena, string)),
-                           lister_prealloced(string_push_copy(arena, status)),
+lister_add_item(Lister *lister, String string, String status, void *user_data, int32_t extra_space){
+    return(lister_add_item(lister,
+                           lister_prealloced(string_push_copy(&lister->arena, string)),
+                           lister_prealloced(string_push_copy(&lister->arena, status)),
                            user_data, extra_space));
 }
 
 static void*
-lister_add_ui_item(Partition *arena, Lister *lister,
-                   Lister_Prealloced_String string, int32_t index,
-                   void *user_data, int32_t extra_space){
-    Lister_Node *node = push_array(arena, Lister_Node, 1);
+lister_add_theme_item(Lister *lister,
+                      Lister_Prealloced_String string, int32_t index,
+                      void *user_data, int32_t extra_space){
+    Lister_Node *node = push_array(&lister->arena, Lister_Node, 1);
     node->string = string.string;
     node->index = index;
     node->user_data = user_data;
-    node->raw_index = lister->options.count;
-    zdll_push_back(lister->options.first, lister->options.last, node);
-    lister->options.count += 1;
-    void *result = push_array(arena, char, extra_space);
-    push_align(arena, 8);
+    node->raw_index = lister->data.options.count;
+    zdll_push_back(lister->data.options.first, lister->data.options.last, node);
+    lister->data.options.count += 1;
+    void *result = push_array(&lister->arena, char, extra_space);
+    push_align(&lister->arena, 8);
     return(result);
 }
 
 static void*
-lister_add_ui_item(Partition *arena, Lister *lister,
-                   String string, int32_t index,
-                   void *user_data, int32_t extra_space){
-    return(lister_add_ui_item(arena, lister,
-                              lister_prealloced(string_push_copy(arena, string)),
-                              index,
-                              user_data, extra_space));
+lister_add_theme_item(Lister *lister, String string, int32_t index,
+                      void *user_data, int32_t extra_space){
+    return(lister_add_theme_item(lister, lister_prealloced(string_push_copy(&lister->arena, string)), index,
+                                 user_data, extra_space));
 }
 
 static void*
-lister_get_user_data(Lister *lister, int32_t index){
-    if (0 <= index && index < lister->options.count){
+lister_get_user_data(Lister_Data *lister_data, int32_t index){
+    if (0 <= index && index < lister_data->options.count){
         int32_t counter = 0;
-        for (Lister_Node *node = lister->options.first;
+        for (Lister_Node *node = lister_data->options.first;
              node != 0;
              node = node->next){
             if (counter == index){
@@ -518,10 +555,9 @@ lister_get_user_data(Lister *lister, int32_t index){
 }
 
 static void
-lister_call_refresh_handler(Application_Links *app, Partition *arena, Lister *lister){
-    if (lister->handlers.refresh != 0){
-        arena->pos = 0;
-        lister->handlers.refresh(app, arena, lister);
+lister_call_refresh_handler(Application_Links *app, Lister *lister){
+    if (lister->data.handlers.refresh != 0){
+        lister->data.handlers.refresh(app, lister);
     }
 }
 
@@ -534,9 +570,9 @@ lister_default(Application_Links *app, Partition *scratch, Heap *heap,
         {
             view_end_ui_mode(app, view);
             state->initialized = false;
-            if (state->arena.base != 0){
-                heap_free(heap, state->arena.base);
-                memset(&state->arena, 0, sizeof(state->arena));
+            if (state->lister.arena.base != 0){
+                memory_free(app, state->lister.arena.base, state->lister.arena.max);
+                memset(&state->lister.arena, 0, sizeof(state->lister.arena));
             }
         }break;
         
@@ -549,7 +585,7 @@ lister_default(Application_Links *app, Partition *scratch, Heap *heap,
         {
             view_begin_ui_mode(app, view);
             state->item_index = 0;
-            lister_call_refresh_handler(app, &state->arena, &state->lister);
+            lister_call_refresh_handler(app, &state->lister);
             lister_update_ui(app, scratch, view, state);
         }break;
     }
@@ -559,7 +595,7 @@ static void
 lister_call_activate_handler(Application_Links *app, Partition *scratch, Heap *heap,
                              View_Summary *view, Lister_State *state,
                              void *user_data, bool32 activated_by_mouse){
-    Lister *lister = &state->lister;
+    Lister_Data *lister = &state->lister.data;
     if (lister->handlers.activate != 0){
         lister->handlers.activate(app, scratch, heap, view, state,
                                   lister->text_field, user_data, activated_by_mouse);
@@ -570,32 +606,32 @@ lister_call_activate_handler(Application_Links *app, Partition *scratch, Heap *h
 }
 
 static void
-lister_set_query_string(Lister *lister, char *string){
+lister_set_query_string(Lister_Data *lister, char *string){
     copy(&lister->query, string);
 }
 
 static void
-lister_set_query_string(Lister *lister, String string){
+lister_set_query_string(Lister_Data *lister, String string){
     copy(&lister->query, string);
 }
 
 static void
-lister_set_text_field_string(Lister *lister, char *string){
+lister_set_text_field_string(Lister_Data *lister, char *string){
     copy(&lister->text_field, string);
 }
 
 static void
-lister_set_text_field_string(Lister *lister, String string){
+lister_set_text_field_string(Lister_Data *lister, String string){
     copy(&lister->text_field, string);
 }
 
 static void
-lister_set_key_string(Lister *lister, char *string){
+lister_set_key_string(Lister_Data *lister, char *string){
     copy(&lister->key_string, string);
 }
 
 static void
-lister_set_key_string(Lister *lister, String string){
+lister_set_key_string(Lister_Data *lister, String string){
     copy(&lister->key_string, string);
 }
 

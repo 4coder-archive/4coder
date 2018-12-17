@@ -151,7 +151,7 @@ activate_snippet(Application_Links *app, Partition *scratch, Heap *heap,
                  View_Summary *view, struct Lister_State *state,
                  String text_field, void *user_data, bool32 activated_by_mouse){
     int32_t index = (int32_t)PtrAsInt(user_data);
-    Snippet_Array snippets = *(Snippet_Array*)state->lister.user_data;
+    Snippet_Array snippets = *(Snippet_Array*)state->lister.data.user_data;
     if (0 <= index && index < snippets.count){
         Snippet snippet = snippets.snippets[index];
         lister_default(app, scratch, heap, view, state, ListerActivation_Finished);
