@@ -8,7 +8,7 @@
         [] Fill Key_Input_Data's modifiers field
         {
             [x] windows
-            [] linux
+            [x] linux
             [] mac
         }
     }

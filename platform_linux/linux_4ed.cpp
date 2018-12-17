@@ -136,6 +136,7 @@ struct Linux_Vars{
     XIC input_context;
     
     Application_Step_Input input;
+    b8 modifiers[MDFR_INDEX_COUNT];
     
     String clipboard_contents;
     String clipboard_outgoing;
@@ -1413,7 +1414,15 @@ LinuxX11WindowInit(int argc, char** argv, int* window_width, int* window_height)
 }
 
 internal void
-LinuxHandleX11Events(void)
+linux_mod_flags_to_array(u32 state, b8 *mods){
+    mods[MDFR_SHIFT_INDEX] = ((state & ShiftMask) != 0);
+    mods[MDFR_CONTROL_INDEX] = ((state & ControlMask) != 0);
+    mods[MDFR_CAPS_INDEX] = ((state & LockMask) != 0);
+    mods[MDFR_ALT_INDEX] = ((state & Mod1Mask) != 0);
+}
+
+internal void
+linux_handle_x11_events(void)
 {
     static XEvent prev_event = {};
     b32 should_step = false;
@@ -1428,7 +1437,8 @@ LinuxHandleX11Events(void)
         }
         
         switch (event.type){
-            case KeyPress: {
+            case KeyPress:
+            {
                 should_step = true;
                 
                 b32 is_hold = (prev_event.type         == KeyRelease &&
@@ -1436,12 +1446,9 @@ LinuxHandleX11Events(void)
                                prev_event.xkey.keycode == event.xkey.keycode);
                 
                 b8 mods[MDFR_INDEX_COUNT] = {};
+                linux_mod_flags_to_array(event.xkey.state, mods);
+                linux_mod_flags_to_array(event.xkey.state, linuxvars.modifiers);
                 mods[MDFR_HOLD_INDEX] = is_hold;
-                
-                if (event.xkey.state & ShiftMask) mods[MDFR_SHIFT_INDEX] = 1;
-                if (event.xkey.state & ControlMask) mods[MDFR_CONTROL_INDEX] = 1;
-                if (event.xkey.state & LockMask) mods[MDFR_CAPS_INDEX] = 1;
-                if (event.xkey.state & Mod1Mask) mods[MDFR_ALT_INDEX] = 1;
                 
                 event.xkey.state &= ~(ControlMask);
                 
@@ -1640,79 +1647,98 @@ LinuxHandleX11Events(void)
                 
                 if (special_key){
                     LinuxPushKey(special_key, 0, 0, mods);
-                } else if (key != 0){
+                }
+                else if (key != 0){
                     LinuxPushKey(key, key, key_no_caps, mods);
-                } else {
+                }
+                else{
                     LinuxPushKey(0, 0, 0, mods);
                 }
             }break;
             
-            case KeyRelease: {
+            case KeyRelease:
+            {
                 should_step = true;
             }break;
             
-            case MotionNotify: {
+            case MotionNotify:
+            {
                 should_step = true;
                 linuxvars.input.mouse.x = event.xmotion.x;
                 linuxvars.input.mouse.y = event.xmotion.y;
+                linux_mod_flags_to_array(event.xmotion.state, linuxvars.modifiers);
             }break;
             
-            case ButtonPress: {
+            case ButtonPress:
+            {
                 should_step = true;
-                switch(event.xbutton.button){
-                    case Button1: {
-                        linuxvars.input.mouse.press_l = 1;
-                        linuxvars.input.mouse.l = 1;
+                linux_mod_flags_to_array(event.xbutton.state, linuxvars.modifiers);
+                switch (event.xbutton.button){
+                    case Button1:
+                    {
+                        linuxvars.input.mouse.press_l = true;
+                        linuxvars.input.mouse.l = true;
                     } break;
-                    case Button3: {
-                        linuxvars.input.mouse.press_r = 1;
-                        linuxvars.input.mouse.r = 1;
+                    case Button3:
+                    {
+                        linuxvars.input.mouse.press_r = true;
+                        linuxvars.input.mouse.r = true;
                     } break;
                     
-                    //NOTE(inso): scroll up
-                    case Button4: {
+                    // NOTE(inso): scroll up
+                    case Button4:
+                    {
                         linuxvars.input.mouse.wheel = -100;
                     }break;
                     
-                    //NOTE(inso): scroll down
-                    case Button5: {
+                    // NOTE(inso): scroll down
+                    case Button5:
+                    {
                         linuxvars.input.mouse.wheel =  100;
                     }break;
                 }
             }break;
             
-            case ButtonRelease: {
+            case ButtonRelease:
+            {
                 should_step = true;
+                linux_mod_flags_to_array(event.xbutton.state, linuxvars.modifiers);
                 switch(event.xbutton.button){
-                    case Button1: {
+                    case Button1:
+                    {
                         linuxvars.input.mouse.release_l = 1;
                         linuxvars.input.mouse.l = 0;
-                    } break;
-                    case Button3: {
+                    }break;
+                    case Button3:
+                    {
                         linuxvars.input.mouse.release_r = 1;
                         linuxvars.input.mouse.r = 0;
-                    } break;
+                    }break;
                 }
             }break;
             
-            case EnterNotify: {
+            case EnterNotify:
+            {
                 should_step = true;
                 linuxvars.input.mouse.out_of_window = 0;
             }break;
             
-            case LeaveNotify: {
+            case LeaveNotify:
+            {
                 should_step = true;
                 linuxvars.input.mouse.out_of_window = 1;
             }break;
             
             case FocusIn:
-            case FocusOut: {
+            case FocusOut:
+            {
                 should_step = true;
                 linuxvars.input.mouse.l = 0;
                 linuxvars.input.mouse.r = 0;
             }break;
             
-            case ConfigureNotify: {
+            case ConfigureNotify:
+            {
                 should_step = true;
                 i32 w = event.xconfigure.width;
                 i32 h = event.xconfigure.height;
@@ -1722,19 +1748,21 @@ LinuxHandleX11Events(void)
                 }
             }break;
             
-            case MappingNotify: {
+            case MappingNotify:
+            {
                 if (event.xmapping.request == MappingModifier || event.xmapping.request == MappingKeyboard){
                     XRefreshKeyboardMapping(&event.xmapping);
                     //LinuxKeycodeInit(linuxvars.XDisplay);
                 }
             }break;
             
-            case ClientMessage: {
-                if ((Atom)event.xclient.data.l[0] == linuxvars.atom_WM_DELETE_WINDOW) {
+            case ClientMessage:
+            {
+                if ((Atom)event.xclient.data.l[0] == linuxvars.atom_WM_DELETE_WINDOW){
                     should_step = true;
                     linuxvars.keep_running = 0;
                 }
-                else if ((Atom)event.xclient.data.l[0] == linuxvars.atom__NET_WM_PING) {
+                else if ((Atom)event.xclient.data.l[0] == linuxvars.atom__NET_WM_PING){
                     event.xclient.window = DefaultRootWindow(linuxvars.XDisplay);
                     XSendEvent(
                         linuxvars.XDisplay,
@@ -1846,7 +1874,8 @@ LinuxHandleX11Events(void)
                 should_step = true;
             }break;
             
-            default: {
+            default:
+            {
                 if (event.type == linuxvars.xfixes_selection_event){
                     XFixesSelectionNotifyEvent* sne = (XFixesSelectionNotifyEvent*)&event;
                     if (sne->subtype == XFixesSelectionNotify && sne->owner != linuxvars.XWindow){
@@ -2104,7 +2133,7 @@ main(int argc, char **argv){
     
     for (;;){
         if (XEventsQueued(linuxvars.XDisplay, QueuedAlready)){
-            LinuxHandleX11Events();
+            linux_handle_x11_events();
         }
         
         system_release_lock(FRAME_LOCK);
@@ -2128,8 +2157,9 @@ main(int argc, char **argv){
             u64 type = events[i].data.u64 & ~fd;
             
             switch (type){
-                case LINUX_4ED_EVENT_X11: {
-                    LinuxHandleX11Events();
+                case LINUX_4ED_EVENT_X11:
+                {
+                    linux_handle_x11_events();
                 } break;
                 
                 case LINUX_4ED_EVENT_X11_INTERNAL: {
@@ -2171,12 +2201,14 @@ main(int argc, char **argv){
             if (linuxvars.new_clipboard){
                 linuxvars.input.clipboard = linuxvars.clipboard_contents;
                 linuxvars.new_clipboard = 0;
-            } else {
+            }
+            else{
                 linuxvars.input.clipboard = null_string;
             }
             
             Application_Step_Input frame_input = linuxvars.input;
             frame_input.trying_to_kill = !linuxvars.keep_running;
+            memcpy(frame_input.keys.modifiers, linuxvars.modifiers, sizeof(frame_input.keys.modifiers));
             
             // HACK(allen): THIS SHIT IS FUCKED (happens on mac too)
             b32 keep_running = linuxvars.keep_running;
