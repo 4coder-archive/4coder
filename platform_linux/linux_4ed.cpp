@@ -98,7 +98,7 @@ __sync_val_compare_and_swap((dest), (comp), (ex))
 // Linux structs / enums
 //
 
-enum {
+enum{
     LINUX_4ED_EVENT_X11          = (UINT64_C(1) << 32),
     LINUX_4ED_EVENT_X11_INTERNAL = (UINT64_C(2) << 32),
     LINUX_4ED_EVENT_STEP         = (UINT64_C(3) << 32),
@@ -110,7 +110,7 @@ enum {
 // Linux forward declarations
 //
 
-internal void        LinuxStringDup(String*, void*, size_t);
+internal void LinuxStringDup(String*, void*, size_t);
 
 ////////////////////////////////
 
@@ -258,7 +258,6 @@ internal void
 system_schedule_step(){
     u64 now  = system_now_time();
     u64 diff = (now - linuxvars.last_step);
-    
     if (diff > (u64)frame_useconds){
         u64 ev = 1;
         ssize_t size = write(linuxvars.step_event_fd, &ev, sizeof(ev));
@@ -267,7 +266,6 @@ system_schedule_step(){
     else{
         struct itimerspec its = {};
         timerfd_gettime(linuxvars.step_timer_fd, &its);
-        
         if (its.it_value.tv_sec == 0 && its.it_value.tv_nsec == 0){
             its.it_value.tv_nsec = (frame_useconds - diff) * 1000UL;
             timerfd_settime(linuxvars.step_timer_fd, 0, &its, NULL);

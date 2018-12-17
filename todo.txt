@@ -2,15 +2,10 @@
 {
     Features
     {
+        [x] Fill Key_Input_Data's modifiers field
         [] Recover scroll bars
         [] Cold scroll
         [] Optimize lookup in file track data structures
-        [] Fill Key_Input_Data's modifiers field
-        {
-            [x] windows
-            [x] linux
-            [] mac
-        }
     }
     
     Bugs
