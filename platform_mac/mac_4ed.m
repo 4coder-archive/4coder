@@ -85,6 +85,17 @@ osx_error_dialogue(char *str){
 #define DISPLINK_SIG(n) CVReturn n(CVDisplayLinkRef link, const CVTimeStamp *now, const CVTimeStamp *output, CVOptionFlags flags_in, CVOptionFlags *flags_out, void *context)
 static DISPLINK_SIG(osx_display_link);
 
+static OSX_Keyboard_Modifiers
+osx_mods_nsevent_to_struct(NSEventModifierFlags flags){
+    OSX_Keyboard_Modifiers mods = {};
+    mods.shift = ((flags & NSEventModifierFlagShift) != 0);
+    mods.command = ((flags & NSEventModifierFlagCommand) != 0);
+    mods.control = ((flags & NSEventModifierFlagControl) != 0);
+    mods.option = ((flags & NSEventModifierFlagOption) != 0);
+    mods.caps = ((flags & NSEventModifierFlagCapsLock) != 0);
+    return(mods);
+}
+
 @implementation My4coderView
 
 - (void)keyDown:(NSEvent *)event{
@@ -96,13 +107,7 @@ static DISPLINK_SIG(osx_display_link);
         is_dead_key = true;
     }
     
-    OSX_Keyboard_Modifiers mods = {};
-    NSEventModifierFlags flags = [NSEvent modifierFlags];
-    mods.shift = ((flags & NSEventModifierFlagShift) != 0);
-    mods.command = ((flags & NSEventModifierFlagCommand) != 0);
-    mods.control = ((flags & NSEventModifierFlagControl) != 0);
-    mods.option = ((flags & NSEventModifierFlagOption) != 0);
-    mods.caps = ((flags & NSEventModifierFlagCapsLock) != 0);
+    OSX_Keyboard_Modifiers mods = osx_get_modifiers();
     
     // TODO(allen): Not ideal solution, look for realer text
     // input on Mac.  This just makes sure we're getting good
@@ -833,6 +838,11 @@ void
 osx_change_title(char *str_c){
     NSString *str = [NSString stringWithUTF8String:str_c];
     [window setTitle:str];
+}
+
+OSX_Keyboard_Modifiers
+osx_get_modifiers(void){
+    return(osx_mods_nsevent_to_struct([NSEvent modifierFlags]));
 }
 
 int

@@ -151,6 +151,9 @@ osx_list_loadable_fonts(void);
 external void
 osx_change_title(char *str);
 
+external OSX_Keyboard_Modifiers
+osx_get_modifiers(void);
+
 #endif
 
 // BOTTOM

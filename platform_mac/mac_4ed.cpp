@@ -555,6 +555,15 @@ osx_push_key(Key_Code code, Key_Code chr, Key_Code chr_nocaps, b8 *mods){
     }
 }
 
+internal void
+osx_mods_struct_to_array(OSX_Keyboard_Modifiers flags, b8 *mods){
+    mods[MDFR_SHIFT_INDEX]   = ((flags.shift) != 0);
+    mods[MDFR_CONTROL_INDEX] = ((flags.control) != 0);
+    mods[MDFR_ALT_INDEX]     = ((flags.option) != 0);
+    mods[MDFR_COMMAND_INDEX] = ((flags.command) != 0);
+    mods[MDFR_CAPS_INDEX]    = ((flags.caps) != 0);
+}
+
 external void
 osx_character_input(u32 code, OSX_Keyboard_Modifiers modifier_flags){
     Key_Code c = 0;
@@ -594,12 +603,7 @@ osx_character_input(u32 code, OSX_Keyboard_Modifiers modifier_flags){
     }
     
     b8 mods[MDFR_INDEX_COUNT] = {};
-    
-    if (modifier_flags.shift)   mods[MDFR_SHIFT_INDEX] = true;
-    if (modifier_flags.control) mods[MDFR_CONTROL_INDEX] = true;
-    if (modifier_flags.option)  mods[MDFR_ALT_INDEX] = true;
-    if (modifier_flags.command) mods[MDFR_COMMAND_INDEX] = true;
-    if (modifier_flags.caps)    mods[MDFR_CAPS_INDEX] = true;
+    osx_mods_struct_to_array(modifier_flags, mods);
     
     if (c != 0){
         osx_push_key(c, 0, 0, mods);
@@ -686,6 +690,10 @@ osx_step(void){
     
     // TODO(allen): CROSS REFERENCE WITH WINDOWS SPECIAL CODE "TIC898989"
     Application_Step_Input frame_input = osxvars.input;
+    frame_input.trying_to_kill = !osxvars.keep_running;
+    OSX_Keyboard_Modifiers mods = osx_get_modifiers();
+    osx_mods_struct_to_array(mods, frame_input.keys.modifiers);
+    
     osxvars.input.first_step = false;
     memset(&osxvars.input.keys, 0, sizeof(osxvars.input.keys));
     osxvars.input.mouse.press_l = false;
@@ -694,7 +702,6 @@ osx_step(void){
     osxvars.input.mouse.release_r = false;
     osxvars.input.mouse.wheel = 0;
     
-    frame_input.trying_to_kill = !osxvars.keep_running;
     
     // NOTE(allen): Frame Clipboard Input
     if (osx_objc.has_clipboard_item){

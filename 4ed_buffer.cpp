@@ -1578,7 +1578,7 @@ write_render_item(Render_Item_Write write, i32 index, u32 codepoint, u32 flags,
     if (write.item < write.item_end){
         f32 ch_width = font_get_glyph_advance(write.system, write.font.settings, write.font.metrics, write.font.pages, codepoint);
         
-        if (write.x_min <= write.x + ch_width && write.x <= write.x_max ||
+        if ((write.x_min <= write.x + ch_width && write.x <= write.x_max) ||
             force_emit){
             write.item->index = index;
             write.item->codepoint = codepoint;
