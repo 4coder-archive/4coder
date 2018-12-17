@@ -33,7 +33,7 @@
             [] Can we prevent creation of Buffer_Render_Items that are off the top?
         }
         [x] scope coloring when scrolled to the right problem
-        [] Open file when lister hot directory doesn't match lister current directory
+        [x] Open file when lister hot directory doesn't match lister current directory
         [] Mac german keyboard layout
         [] Linux animate bug? (Lister lag)
         [] SSHFS segfault on linux
@@ -41,11 +41,6 @@
         Repro Needed
         {
             [?] pasting long comment at top of code files doesn't always parse right away???
-        }
-        Followup Needed
-        {
-            [] saving to removable media -> need more info
-            [] crash on obj file (san-miguel-low-poly.obj) -> need more info
         }
     }
 }
@@ -74,6 +69,8 @@ Long Term
         [] Graphics problem (fonts not rendering) -> need more info
         [] Jim's file is blank even though it tries to load a real file (wtf)
         [] Texture binding changes too often problem
+        [] saving to removable media -> need more info
+        [] crash on obj file (san-miguel-low-poly.obj) -> need more info
     }
 }
 

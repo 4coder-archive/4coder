@@ -790,8 +790,8 @@ CUSTOM_DOC("Interactively kill an open buffer.")
 }
 
 static Lister_Activation_Code
-activate_open_or_new__generic(Application_Links *app, View_Summary *view,
-                              String file_name, bool32 is_folder,
+activate_open_or_new__generic(Application_Links *app, Partition *scratch, View_Summary *view,
+                              String path, String file_name, bool32 is_folder,
                               Buffer_Create_Flag flags){
     Lister_Activation_Code result = 0;
     
@@ -801,16 +801,13 @@ activate_open_or_new__generic(Application_Links *app, View_Summary *view,
         result = ListerActivation_Finished;
     }
     else{
-        Partition *scratch = &global_part;
         Temp_Memory temp = begin_temp_memory(scratch);
-        String full_file_name = get_hot_directory(app, scratch);
-        if (full_file_name.size == 0 ||
-            (full_file_name.str[full_file_name.size - 1] != '/' &&
-             full_file_name.str[full_file_name.size - 1] != '\\')){
-            full_file_name = build_string(scratch, full_file_name, "/", file_name);
+        String full_file_name = {};
+        if (path.size == 0 || !char_is_slash(path.str[path.size - 1])){
+            full_file_name = build_string(scratch, path, "/", file_name);
         }
         else{
-            full_file_name = build_string(scratch, full_file_name, "", file_name);
+            full_file_name = build_string(scratch, path, "", file_name);
         }
         if (is_folder){
             directory_set_hot(app, full_file_name.str, full_file_name.size);
@@ -845,9 +842,13 @@ activate_open_or_new(Application_Links *app, Partition *scratch, Heap *heap,
         result = ListerActivation_Finished;
     }
     else{
+        String path = state->lister.data.text_field;
+        if (path.size > 0 && !char_is_slash(path.str[path.size - 1])){
+            path = path_of_directory(path);
+        }
         bool32 is_folder = (file_name.str[file_name.size - 1] == '/' && user_data != 0);
         Buffer_Create_Flag flags = 0;
-        result = activate_open_or_new__generic(app, view, file_name, is_folder, flags);
+        result = activate_open_or_new__generic(app, scratch, view, path, file_name, is_folder, flags);
     }
     lister_default(app, scratch, heap, view, state, result);
 }
@@ -879,9 +880,13 @@ activate_new(Application_Links *app, Partition *scratch, Heap *heap,
         result = ListerActivation_Finished;
     }
     else{
+        String path = state->lister.data.text_field;
+        if (path.size > 0 && !char_is_slash(path.str[path.size - 1])){
+            path = path_of_directory(path);
+        }
         bool32 is_folder = (file_name.str[file_name.size - 1] == '/' && user_data != 0);
         Buffer_Create_Flag flags = BufferCreate_AlwaysNew;
-        result = activate_open_or_new__generic(app, view, file_name, is_folder, flags);
+        result = activate_open_or_new__generic(app, scratch, view, path, file_name, is_folder, flags);
     }
     lister_default(app, scratch, heap, view, state, result);
 }
@@ -907,9 +912,13 @@ activate_open(Application_Links *app, Partition *scratch, Heap *heap,
         result = ListerActivation_Finished;
     }
     else{
+        String path = state->lister.data.text_field;
+        if (path.size > 0 && !char_is_slash(path.str[path.size - 1])){
+            path = path_of_directory(path);
+        }
         bool32 is_folder = (file_name.str[file_name.size - 1] == '/' && user_data != 0);
         Buffer_Create_Flag flags = BufferCreate_NeverNew;
-        result = activate_open_or_new__generic(app, view, file_name, is_folder, flags);
+        result = activate_open_or_new__generic(app, scratch, view, path, file_name, is_folder, flags);
     }
     lister_default(app, scratch, heap, view, state, result);
 }
