@@ -557,7 +557,7 @@ main_fsm(Cpp_Lex_FSM fsm, uint8_t pp_state, uint8_t c, bool32 ignore_string_deli
                 
                 case LS_crazy_float0:
                 {
-                    if ((c >= '0' && c <= '9') || c == '-'){
+                    if (('0' <= c && c <= '9') || c == '-' || c == '+'){
                         fsm.state = LS_crazy_float1;
                     }
                     else{

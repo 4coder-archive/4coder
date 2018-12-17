@@ -168,7 +168,9 @@ struct Buffer_Render_Item{
 
 struct Render_Item_Write{
     Buffer_Render_Item *item;
-    f32 x, y;
+    Buffer_Render_Item *item_end;
+    f32 x;
+    f32 y;
     System_Functions *system;
     Font_Pointers font;
     i32 font_height;
@@ -212,8 +214,9 @@ struct Buffer_Render_State{
     
     i32 line;
     i32 wrap_line;
-    b32 skipping_whitespace;
-    b32 first_of_the_line;
+    b8 skipping_whitespace;
+    b8 first_of_the_line;
+    b8 first_of_the_wrap;
     i32 wrap_unit_end;
     
     Translation_State tran;

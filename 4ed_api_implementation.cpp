@@ -3817,5 +3817,17 @@ DOC(Sets 4coder's window title to the specified title string.)
     terminate_with_null(&dst);
 }
 
+API_EXPORT Microsecond_Time_Stamp
+Get_Microseconds_Timestamp(Application_Links *app)
+/*
+DOC(Returns a microsecond resolution timestamp.)
+*/
+{
+    // TODO(allen): do(decrease indirection in API calls)
+    Models *models = (Models*)app->cmd_context;
+    System_Functions *system = models->system;
+    return(system->now_time());
+}
+
 // BOTTOM
 

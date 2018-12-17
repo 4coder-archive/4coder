@@ -40,6 +40,7 @@ bind(context, key_f14, MDFR_NONE, project_fkey_command);
 bind(context, key_f15, MDFR_NONE, project_fkey_command);
 bind(context, key_f16, MDFR_NONE, project_fkey_command);
 bind(context, key_mouse_wheel, MDFR_NONE, mouse_wheel_scroll);
+bind(context, key_mouse_wheel, MDFR_CTRL, mouse_wheel_change_face_size);
 end_map(context);
 begin_map(context, mapid_file);
 bind_vanilla_keys(context, write_character);
@@ -214,6 +215,7 @@ bind(context, key_f14, MDFR_NONE, project_fkey_command);
 bind(context, key_f15, MDFR_NONE, project_fkey_command);
 bind(context, key_f16, MDFR_NONE, project_fkey_command);
 bind(context, key_mouse_wheel, MDFR_NONE, mouse_wheel_scroll);
+bind(context, key_mouse_wheel, MDFR_CMND, mouse_wheel_change_face_size);
 end_map(context);
 begin_map(context, mapid_file);
 bind_vanilla_keys(context, write_character);
@@ -377,7 +379,7 @@ Meta_Sub_Map *sub_maps;
 int32_t sub_map_count;
 LINK_PROCS(void (*fill_keys_proc)(Bind_Helper *context);)
 };
-static Meta_Key_Bind fcoder_binds_for_default_mapid_global[39] = {
+static Meta_Key_Bind fcoder_binds_for_default_mapid_global[40] = {
 {0, 44, 1, "change_active_panel", 19, LINK_PROCS(change_active_panel)},
 {0, 60, 1, "change_active_panel_backwards", 29, LINK_PROCS(change_active_panel_backwards)},
 {0, 110, 1, "interactive_new", 15, LINK_PROCS(interactive_new)},
@@ -417,6 +419,7 @@ static Meta_Key_Bind fcoder_binds_for_default_mapid_global[39] = {
 {0, 55331, 0, "project_fkey_command", 20, LINK_PROCS(project_fkey_command)},
 {0, 55332, 0, "project_fkey_command", 20, LINK_PROCS(project_fkey_command)},
 {0, 55312, 0, "mouse_wheel_scroll", 18, LINK_PROCS(mouse_wheel_scroll)},
+{0, 55312, 1, "mouse_wheel_change_face_size", 28, LINK_PROCS(mouse_wheel_change_face_size)},
 };
 static Meta_Key_Bind fcoder_binds_for_default_mapid_file[78] = {
 {1, 0, 0, "write_character", 15, LINK_PROCS(write_character)},
@@ -549,12 +552,12 @@ static Meta_Key_Bind fcoder_binds_for_default_default_lister_ui_map[16] = {
 {0, 55314, 0, "lister__repaint", 15, LINK_PROCS(lister__repaint)},
 };
 static Meta_Sub_Map fcoder_submaps_for_default[4] = {
-{"mapid_global", 12, "The following bindings apply in all situations.", 47, 0, 0, fcoder_binds_for_default_mapid_global, 39},
+{"mapid_global", 12, "The following bindings apply in all situations.", 47, 0, 0, fcoder_binds_for_default_mapid_global, 40},
 {"mapid_file", 10, "The following bindings apply in general text files and most apply in code files, but some are overriden by other commands specific to code files.", 145, 0, 0, fcoder_binds_for_default_mapid_file, 78},
 {"default_code_map", 16, "The following commands only apply in files where the lexer (syntax highlighting) is turned on.", 94, "mapid_file", 10, fcoder_binds_for_default_default_code_map, 30},
 {"default_lister_ui_map", 21, "These commands apply in 'lister mode' such as when you open a file.", 67, 0, 0, fcoder_binds_for_default_default_lister_ui_map, 16},
 };
-static Meta_Key_Bind fcoder_binds_for_mac_default_mapid_global[39] = {
+static Meta_Key_Bind fcoder_binds_for_mac_default_mapid_global[40] = {
 {0, 44, 4, "change_active_panel", 19, LINK_PROCS(change_active_panel)},
 {0, 60, 4, "change_active_panel_backwards", 29, LINK_PROCS(change_active_panel_backwards)},
 {0, 110, 4, "interactive_new", 15, LINK_PROCS(interactive_new)},
@@ -594,6 +597,7 @@ static Meta_Key_Bind fcoder_binds_for_mac_default_mapid_global[39] = {
 {0, 55331, 0, "project_fkey_command", 20, LINK_PROCS(project_fkey_command)},
 {0, 55332, 0, "project_fkey_command", 20, LINK_PROCS(project_fkey_command)},
 {0, 55312, 0, "mouse_wheel_scroll", 18, LINK_PROCS(mouse_wheel_scroll)},
+{0, 55312, 4, "mouse_wheel_change_face_size", 28, LINK_PROCS(mouse_wheel_change_face_size)},
 };
 static Meta_Key_Bind fcoder_binds_for_mac_default_mapid_file[77] = {
 {1, 0, 0, "write_character", 15, LINK_PROCS(write_character)},
@@ -723,7 +727,7 @@ static Meta_Key_Bind fcoder_binds_for_mac_default_default_lister_ui_map[14] = {
 {0, 55314, 0, "lister__repaint", 15, LINK_PROCS(lister__repaint)},
 };
 static Meta_Sub_Map fcoder_submaps_for_mac_default[4] = {
-{"mapid_global", 12, "The following bindings apply in all situations.", 47, 0, 0, fcoder_binds_for_mac_default_mapid_global, 39},
+{"mapid_global", 12, "The following bindings apply in all situations.", 47, 0, 0, fcoder_binds_for_mac_default_mapid_global, 40},
 {"mapid_file", 10, "The following bindings apply in general text files and most apply in code files, but some are overriden by other commands specific to code files.", 145, 0, 0, fcoder_binds_for_mac_default_mapid_file, 77},
 {"default_code_map", 16, "The following commands only apply in files where the lexer (syntax highlighting) is turned on.", 94, "mapid_file", 10, fcoder_binds_for_mac_default_default_code_map, 30},
 {"default_lister_ui_map", 21, "These commands apply in 'lister mode' such as when you open a file.", 67, 0, 0, fcoder_binds_for_mac_default_default_lister_ui_map, 14},

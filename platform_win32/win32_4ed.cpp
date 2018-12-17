@@ -92,8 +92,10 @@ global Control_Keys null_control_keys = {};
 
 struct Win32_Input_Chunk_Transient{
     Key_Input_Data key_data;
-    b8 mouse_l_press, mouse_l_release;
-    b8 mouse_r_press, mouse_r_release;
+    b8 mouse_l_press;
+    b8 mouse_l_release;
+    b8 mouse_r_press;
+    b8 mouse_r_release;
     b8 out_of_window;
     i8 mouse_wheel;
     b8 trying_to_kill;
@@ -676,7 +678,7 @@ Sys_Add_Listener_Sig(system_add_listener){
             if (dir_handle != 0 && dir_handle != INVALID_HANDLE_VALUE){
                 Directory_Track_Node *new_node = file_track_store_new_dir_node(dir_name_string, dir_handle);
                 CreateIoCompletionPort(dir_handle, file_track_iocp, (ULONG_PTR)&new_node->overlapped, 1);
-                // TODO(allen): // TODO(allen): // TODO(allen): // TODO(allen): // TODO(allen): // TODO(allen): 
+                // TODO(allen): // TODO(allen): // TODO(allen): // TODO(allen): // TODO(allen): // TODO(allen):
                 // Actually need to issue this from the file_track_worker thread as an instruction!
                 ReadDirectoryChangesW(dir_handle, new_node->buffer, sizeof(new_node->buffer), FALSE,
                                       file_track_flags, 0, &new_node->overlapped, 0);
@@ -1368,8 +1370,8 @@ Win32SetCursorFromUpdate(Application_Mouse_Cursor cursor){
     }
 }
 
-internal u64
-Win32HighResolutionTime(){
+internal
+Sys_Now_Time_Sig(system_now_time){
     u64 result = 0;
     LARGE_INTEGER t;
     if (QueryPerformanceCounter(&t)){
@@ -1667,7 +1669,7 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
     win32vars.prev_cursor_show = MouseCursorShow_Always;
     
     //
-    // HACK(allen): 
+    // HACK(allen):
     // Previously zipped stuff is here, it should be zipped in the new pattern now.
     //
     
@@ -1871,13 +1873,13 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
     ShowWindow(win32vars.window_handle, SW_SHOW);
     
     LOG("Beginning main loop\n");
-    u64 timer_start = Win32HighResolutionTime();
+    u64 timer_start = system_now_time();
     system_acquire_lock(FRAME_LOCK);
     MSG msg;
     for (;keep_running;){
         // TODO(allen): Find a good way to wait on a pipe
         // without interfering with the reading process.
-        // NOTE(allen): Looks like we can ReadFile with a 
+        // NOTE(allen): Looks like we can ReadFile with a
         // size of zero in an IOCP for this effect.
         if (!win32vars.first){
             system_release_lock(FRAME_LOCK);
@@ -2008,6 +2010,7 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
         input.dt = frame_useconds/1000000.f;
         
         input.keys = input_chunk.trans.key_data;
+        memcpy(input.keys.modifiers, input_chunk.pers.control_keys, sizeof(input.keys.modifiers));
         
         input.mouse.out_of_window = input_chunk.trans.out_of_window;
         
@@ -2131,17 +2134,17 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
         // NOTE(allen): Sleep a Bit to Cool Off :)
         flush_thread_group(BACKGROUND_THREADS);
         
-        u64 timer_end = Win32HighResolutionTime();
+        u64 timer_end = system_now_time();
         u64 end_target = timer_start + frame_useconds;
         
         system_release_lock(FRAME_LOCK);
         while (timer_end < end_target){
             DWORD samount = (DWORD)((end_target - timer_end) / 1000);
             if (samount > 0) Sleep(samount);
-            timer_end = Win32HighResolutionTime();
+            timer_end = system_now_time();
         }
-        system_acquire_lock(FRAME_LOCK);	
-        timer_start = Win32HighResolutionTime();
+        system_acquire_lock(FRAME_LOCK);
+        timer_start = system_now_time();
         
         // TODO(allen): Only rely on version right inside input?
         win32vars.first = 0;

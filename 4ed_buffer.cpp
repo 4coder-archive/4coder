@@ -1573,24 +1573,26 @@ buffer_invert_batch(Buffer_Invert_Batch *state, Gap_Buffer *buffer, Buffer_Edit 
 }
 
 inline Render_Item_Write
-write_render_item(Render_Item_Write write, i32 index, u32 codepoint, u32 flags){
-    
-    f32 ch_width = font_get_glyph_advance(write.system, write.font.settings, write.font.metrics, write.font.pages, codepoint);
-    
-    if (write.x <= write.x_max && write.x + ch_width >= write.x_min){
-        write.item->index = index;
-        write.item->codepoint = codepoint;
-        write.item->flags = flags;
-        write.item->x0 = write.x;
-        write.item->y0 = write.y;
-        write.item->x1 = write.x + ch_width;
-        write.item->y1 = write.y + write.font_height;
+write_render_item(Render_Item_Write write, i32 index, u32 codepoint, u32 flags,
+                  b32 force_emit){
+    if (write.item < write.item_end){
+        f32 ch_width = font_get_glyph_advance(write.system, write.font.settings, write.font.metrics, write.font.pages, codepoint);
         
-        ++write.item;
+        if (write.x_min <= write.x + ch_width && write.x <= write.x_max ||
+            force_emit){
+            write.item->index = index;
+            write.item->codepoint = codepoint;
+            write.item->flags = flags;
+            write.item->x0 = write.x;
+            write.item->y0 = write.y;
+            write.item->x1 = write.x + ch_width;
+            write.item->y1 = write.y + write.font_height;
+            
+            ++write.item;
+        }
+        
+        write.x += ch_width;
     }
-    
-    write.x += ch_width;
-    
     return(write);
 }
 
@@ -1604,7 +1606,7 @@ buffer_render_data(Buffer_Render_State *S_ptr, Buffer_Render_Params params, f32 
     Buffer_Render_State S = *S_ptr;
     Buffer_Layout_Stop S_stop;
     
-    Buffer_Render_Item *item_end = params.items + params.max;
+    S.write.item_end = params.items + params.max;
     
     switch (S.__pc__){
         DrCase(1);
@@ -1646,10 +1648,11 @@ buffer_render_data(Buffer_Render_State *S_ptr, Buffer_Render_Params params, f32 
     S.byte_advance = params.font.metrics->byte_advance;
     
     if (params.virtual_white){
-        S.skipping_whitespace = 1;
+        S.skipping_whitespace = true;
     }
     
-    S.first_of_the_line = 1;
+    S.first_of_the_line = true;
+    S.first_of_the_wrap = true;
     S.i = params.start_cursor.pos;
     if (buffer_stringify_loop(&S.stream, params.buffer, S.i, S.size)){
         do{
@@ -1686,7 +1689,8 @@ buffer_render_data(Buffer_Render_State *S_ptr, Buffer_Render_Params params, f32 
                                 switch (params.wrap_slashes){
                                     case WrapIndicator_Show_After_Line:
                                     {
-                                        S.write = write_render_item(S.write, S.step.i-1, '\\', BRFlag_Ghost_Character);
+                                        S.write = write_render_item(S.write, S.step.i-1, '\\', BRFlag_Ghost_Character,
+                                                                    false);
                                     }break;
                                     
                                     case WrapIndicator_Show_At_Wrap_Edge:
@@ -1694,23 +1698,24 @@ buffer_render_data(Buffer_Render_State *S_ptr, Buffer_Render_Params params, f32 
                                         if (S.write.x < S.shift_x + params.width){
                                             S.write.x = S.shift_x + params.width;
                                         }
-                                        S.write = write_render_item(S.write, S.step.i-1, '\\', BRFlag_Ghost_Character);
+                                        S.write = write_render_item(S.write, S.step.i-1, '\\', BRFlag_Ghost_Character,
+                                                                    false);
                                     }break;
                                 }
                                 
                                 S.write.x = S.shift_x + line_shift;
                                 S.write.y += S.write.font_height;
+                                S.first_of_the_wrap = true;
                             }
                         }
                     }
                     
-                    if (S.write.y > params.height + params.port_y || S.write.item >= item_end){
+                    if (S.write.y > params.height + params.port_y || S.write.item >= S.write.item_end){
                         goto buffer_get_render_data_end;
                     }
                     
-                    S.first_of_the_line = false;
                     if (S.behavior.do_newline){
-                        S.write = write_render_item(S.write, S.step.i, ' ', 0);
+                        S.write = write_render_item(S.write, S.step.i, ' ', 0, S.first_of_the_wrap);
                         
                         if (params.virtual_white){
                             S_stop.status          = BLStatus_NeedLineShift;
@@ -1728,6 +1733,7 @@ buffer_render_data(Buffer_Render_State *S_ptr, Buffer_Render_Params params, f32 
                         S.write.y += S.write.font_height;
                         
                         S.first_of_the_line = true;
+                        S.first_of_the_wrap = true;
                     }
                     else if (S.behavior.do_codepoint_advance){
                         u32 n = S.step.value;
@@ -1735,32 +1741,40 @@ buffer_render_data(Buffer_Render_State *S_ptr, Buffer_Render_Params params, f32 
                             S.skipping_whitespace = false;
                         }
                         
+                        u32 I = S.step.i;
                         if (!S.skipping_whitespace){
-                            u32 I = S.step.i;
                             switch (n){
                                 case '\r':
                                 {
-                                    S.write = write_render_item(S.write, I, '\\', BRFlag_Special_Character);
-                                    if (S.write.item < item_end){
-                                        S.write = write_render_item(S.write, I, 'r', BRFlag_Special_Character);
-                                    }
+                                    S.write = write_render_item(S.write, I, '\\', BRFlag_Special_Character,
+                                                                S.first_of_the_wrap);
+                                    S.write = write_render_item(S.write, I, 'r', BRFlag_Special_Character,
+                                                                S.first_of_the_wrap);
                                 }break;
                                 
                                 case '\t':
                                 {
-                                    S.ch_width = font_get_glyph_advance(params.system, params.font.settings, params.font.metrics, params.font.pages, '\t');
+                                    S.ch_width = font_get_glyph_advance(params.system, params.font.settings,
+                                                                        params.font.metrics, params.font.pages,
+                                                                        '\t');
                                     
                                     f32 new_x = S.write.x + S.ch_width;
-                                    S.write = write_render_item(S.write, I, ' ', 0);
+                                    S.write = write_render_item(S.write, I, ' ', 0, S.first_of_the_wrap);
                                     S.write.x = new_x;
                                 }break;
                                 
                                 default:
                                 {
-                                    S.write = write_render_item(S.write, I, n, 0);
+                                    S.write = write_render_item(S.write, I, n, 0, S.first_of_the_wrap);
                                 }break;
                             }
                         }
+                        else if (S.first_of_the_wrap){
+                            S.write = write_render_item(S.write, I, ' ', 0, true);
+                        }
+                        
+                        S.first_of_the_line = false;
+                        S.first_of_the_wrap = false;
                     }
                     else if (S.behavior.do_number_advance){
                         u8 n = (u8)S.step.value;
@@ -1774,18 +1788,20 @@ buffer_render_data(Buffer_Render_State *S_ptr, Buffer_Render_Params params, f32 
                         cs[0] = '\\';
                         byte_to_ascii(n, cs+1);
                         
-                        if (S.write.item < item_end){
-                            S.write = write_render_item(S.write, I, cs[0], BRFlag_Special_Character);
-                            if (S.write.item < item_end){
-                                S.write = write_render_item(S.write, I, cs[1], BRFlag_Special_Character);
-                                if (S.write.item < item_end){
-                                    S.write = write_render_item(S.write, I, cs[2], BRFlag_Special_Character);
-                                }
-                            }
-                        }
+                        S.write = write_render_item(S.write, I, cs[0], BRFlag_Special_Character,
+                                                    S.first_of_the_wrap);
+                        S.write = write_render_item(S.write, I, cs[1], BRFlag_Special_Character,
+                                                    S.first_of_the_wrap);
+                        S.write = write_render_item(S.write, I, cs[2], BRFlag_Special_Character,
+                                                    S.first_of_the_wrap);
+                        
                         Assert(S.write.x <= new_x);
                         S.write.x = new_x;
+                        
+                        S.first_of_the_line = false;
+                        S.first_of_the_wrap = false;
                     }
+                    
                     
                     if (!S.skipping_whitespace && !S.behavior.do_newline){
                         S.first_of_the_line = false;
@@ -1798,9 +1814,7 @@ buffer_render_data(Buffer_Render_State *S_ptr, Buffer_Render_Params params, f32 
     
     buffer_get_render_data_end:;
     if (S.write.y <= params.height + S.shift_y || S.write.item == params.items){
-        if (S.write.item < item_end){
-            S.write = write_render_item(S.write, S.size, ' ', 0);
-        }
+        S.write = write_render_item(S.write, S.size, ' ', 0, false);
     }
     
     *params.count = (i32)(S.write.item - params.items);

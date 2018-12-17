@@ -446,15 +446,5 @@ system_directory_exists(char *path){
     return(attrib != INVALID_FILE_ATTRIBUTES && (attrib & FILE_ATTRIBUTE_DIRECTORY));
 }
 
-//
-// Time
-//
-
-internal
-Sys_Now_Time_Sig(system_now_time){
-    u64 result = __rdtsc();
-    return(result);
-}
-
 // BOTTOM
 

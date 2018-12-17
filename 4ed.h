@@ -37,6 +37,7 @@ struct Application_Memory{
 struct Key_Input_Data{
     Key_Event_Data keys[KEY_INPUT_BUFFER_SIZE + KEY_EXTRA_SIZE];
     i32 count;
+    b8 modifiers[MDFR_INDEX_COUNT];
 };
 
 typedef u8 Log_To_Type;

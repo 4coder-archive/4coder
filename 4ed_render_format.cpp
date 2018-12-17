@@ -92,6 +92,7 @@ internal void
 draw_margin(Render_Target *target, i32_Rect outer, i32_Rect inner, u32 color){
     draw_rectangle(target, i32R(outer.x0, outer.y0, outer.x1, inner.y0), color);
     draw_rectangle(target, i32R(outer.x0, inner.y1, outer.x1, outer.y1), color);
+    
     draw_rectangle(target, i32R(outer.x0, inner.y0, inner.x0, inner.y1), color);
     draw_rectangle(target, i32R(inner.x1, inner.y0, outer.x1, inner.y1), color);
 }

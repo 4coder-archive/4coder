@@ -225,6 +225,10 @@ lister_arena_clear_data_ensure_bytes(Application_Links *app, Lister *lister, int
         lister->arena = make_part(new_memory, new_size);
         push_array(&lister->arena, char, lister->data.user_data_size);
     }
+    else{
+        lister->arena.pos = lister->data.user_data_size;
+    }
+    push_align(&lister->arena, 8);
 }
 
 static void

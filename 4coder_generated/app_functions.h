@@ -118,6 +118,7 @@ struct Application_Links;
 #define IS_FULLSCREEN_SIG(n) bool32 n(Application_Links *app)
 #define SEND_EXIT_SIGNAL_SIG(n) void n(Application_Links *app)
 #define SET_WINDOW_TITLE_SIG(n) void n(Application_Links *app, char *title)
+#define GET_MICROSECONDS_TIMESTAMP_SIG(n) Microsecond_Time_Stamp n(Application_Links *app)
 typedef GLOBAL_SET_SETTING_SIG(Global_Set_Setting_Function);
 typedef GLOBAL_SET_MAPPING_SIG(Global_Set_Mapping_Function);
 typedef EXEC_COMMAND_SIG(Exec_Command_Function);
@@ -237,6 +238,7 @@ typedef SET_FULLSCREEN_SIG(Set_Fullscreen_Function);
 typedef IS_FULLSCREEN_SIG(Is_Fullscreen_Function);
 typedef SEND_EXIT_SIGNAL_SIG(Send_Exit_Signal_Function);
 typedef SET_WINDOW_TITLE_SIG(Set_Window_Title_Function);
+typedef GET_MICROSECONDS_TIMESTAMP_SIG(Get_Microseconds_Timestamp_Function);
 struct Application_Links{
 #if defined(ALLOW_DEP_4CODER)
 Global_Set_Setting_Function *global_set_setting;
@@ -358,6 +360,7 @@ Set_Fullscreen_Function *set_fullscreen;
 Is_Fullscreen_Function *is_fullscreen;
 Send_Exit_Signal_Function *send_exit_signal;
 Set_Window_Title_Function *set_window_title;
+Get_Microseconds_Timestamp_Function *get_microseconds_timestamp;
 #else
 Global_Set_Setting_Function *global_set_setting_;
 Global_Set_Mapping_Function *global_set_mapping_;
@@ -478,6 +481,7 @@ Set_Fullscreen_Function *set_fullscreen_;
 Is_Fullscreen_Function *is_fullscreen_;
 Send_Exit_Signal_Function *send_exit_signal_;
 Set_Window_Title_Function *set_window_title_;
+Get_Microseconds_Timestamp_Function *get_microseconds_timestamp_;
 #endif
 void *memory;
 int32_t memory_size;
@@ -605,7 +609,8 @@ app_links->show_mouse_cursor_ = Show_Mouse_Cursor;\
 app_links->set_fullscreen_ = Set_Fullscreen;\
 app_links->is_fullscreen_ = Is_Fullscreen;\
 app_links->send_exit_signal_ = Send_Exit_Signal;\
-app_links->set_window_title_ = Set_Window_Title;} while(false)
+app_links->set_window_title_ = Set_Window_Title;\
+app_links->get_microseconds_timestamp_ = Get_Microseconds_Timestamp;} while(false)
 #if defined(ALLOW_DEP_4CODER)
 static inline bool32 global_set_setting(Application_Links *app, Global_Setting_ID setting, int32_t value){return(app->global_set_setting(app, setting, value));}
 static inline bool32 global_set_mapping(Application_Links *app, void *data, int32_t size){return(app->global_set_mapping(app, data, size));}
@@ -726,6 +731,7 @@ static inline bool32 set_fullscreen(Application_Links *app, bool32 full_screen){
 static inline bool32 is_fullscreen(Application_Links *app){return(app->is_fullscreen(app));}
 static inline void send_exit_signal(Application_Links *app){(app->send_exit_signal(app));}
 static inline void set_window_title(Application_Links *app, char *title){(app->set_window_title(app, title));}
+static inline Microsecond_Time_Stamp get_microseconds_timestamp(Application_Links *app){return(app->get_microseconds_timestamp(app));}
 #else
 static inline bool32 global_set_setting(Application_Links *app, Global_Setting_ID setting, int32_t value){return(app->global_set_setting_(app, setting, value));}
 static inline bool32 global_set_mapping(Application_Links *app, void *data, int32_t size){return(app->global_set_mapping_(app, data, size));}
@@ -846,4 +852,5 @@ static inline bool32 set_fullscreen(Application_Links *app, bool32 full_screen){
 static inline bool32 is_fullscreen(Application_Links *app){return(app->is_fullscreen_(app));}
 static inline void send_exit_signal(Application_Links *app){(app->send_exit_signal_(app));}
 static inline void set_window_title(Application_Links *app, char *title){(app->set_window_title_(app, title));}
+static inline Microsecond_Time_Stamp get_microseconds_timestamp(Application_Links *app){return(app->get_microseconds_timestamp_(app));}
 #endif

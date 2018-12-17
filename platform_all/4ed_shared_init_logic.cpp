@@ -15,17 +15,17 @@ memory_init(){
 # if defined(FTECH_64_BIT)
     void *bases[] = { (void*)TB(1), (void*)TB(2), };
 # elif defined(FTECH_32_BIT)
-    void *bases[] = { (void*)MB(96), (void*)MB(98), };
+    void *bases[] = { (void*)MB(96), (void*)MB(512), };
 # endif
 #else
     void *bases[] = { (void*)0, (void*)0, };
 #endif
     
-    memory_vars.vars_memory_size = MB(2);
+    memory_vars.vars_memory_size = MB(128);
     memory_vars.vars_memory = system_memory_allocate_extended(bases[0], memory_vars.vars_memory_size);
     memory_vars.target_memory_size = MB(512);
     memory_vars.target_memory = system_memory_allocate_extended(bases[1], memory_vars.target_memory_size);
-    memory_vars.user_memory_size = MB(2);
+    memory_vars.user_memory_size = MB(32);
     memory_vars.user_memory = system_memory_allocate_extended(0, memory_vars.user_memory_size);
     memory_vars.debug_memory_size = MB(512);
     memory_vars.debug_memory = system_memory_allocate_extended(0, memory_vars.debug_memory_size);

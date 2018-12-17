@@ -429,6 +429,9 @@ STRUCT Parser_String_And_Type{
     uint32_t type;
 };
 
+/* DOC(Microsecond_Time_Stamp is a typedef of an unsigned 64 bit integer used to signify that the value is an arbitrary for a moment in time.) */
+TYPEDEF uint64_t Microsecond_Time_Stamp;
+
 /*
 DOC(File_Info describes the name and type of a file.)
 DOC_SEE(File_List)

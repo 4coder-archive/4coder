@@ -1210,6 +1210,8 @@ App_Step_Sig(app_step){
     }
     
     Key_Event_Data mouse_event = {};
+    block_copy(mouse_event.modifiers, input->keys.modifiers, sizeof(mouse_event.modifiers));
+    
     if (input->mouse.press_l){
         mouse_event.keycode = key_mouse_left;
         input->keys.keys[input->keys.count++] = mouse_event;

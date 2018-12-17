@@ -5,6 +5,12 @@
         [] Recover scroll bars
         [] Cold scroll
         [] Optimize lookup in file track data structures
+        [] Fill Key_Input_Data's modifiers field
+        {
+            [x] windows
+            [] linux
+            [] mac
+        }
     }
     
     Bugs
@@ -18,15 +24,20 @@
         [x] Notepad like mode replacing text with cursor at end of selection in middle of long file
         [x] Renaming a file to a case insensitively equivalent name on windows deletes the file
         [x] Start from windows start menu and open file
-        [] opening large projects
-        [] Make lots of new files
-        [] Texture binding changes too often problem
-        [] SSHFS segfault on linux
-        [] New file when the file is already open
-        [] really long single line wrapped (300,000?)
+        [?] opening large projects
+        [x] Make lots of new files
+        [x] Modifiers on scroll wheels not working?
+        [x] Lexing Scientific Notation " 3.402823466e+38F "
+        [x] really long single line wrapped (300,000?)
+        {
+            [] Can we prevent creation of Buffer_Render_Items that are off the top?
+        }
+        [x] scope coloring when scrolled to the right problem
+        [] Open file when lister hot directory doesn't match lister current directory
         [] Mac german keyboard layout
         [] Linux animate bug? (Lister lag)
-        [] Modifiers on scroll wheels not working?
+        [] SSHFS segfault on linux
+        
         Repro Needed
         {
             [?] pasting long comment at top of code files doesn't always parse right away???
@@ -62,7 +73,7 @@ Long Term
         [] Remote Desktop Doesn't Work -> Need Renderer Modularity & Software Renderer
         [] Graphics problem (fonts not rendering) -> need more info
         [] Jim's file is blank even though it tries to load a real file (wtf)
-        [] Lexing Scientific Notation " 3.402823466e+38F "
+        [] Texture binding changes too often problem
     }
 }
 

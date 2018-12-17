@@ -457,6 +457,7 @@ generate_remapping_code_and_data(Partition *part){
         bind(part, mappings, key_f16, MDFR_NONE, project_fkey_command);
         
         bind(part, mappings, key_mouse_wheel, MDFR_NONE, mouse_wheel_scroll);
+        bind(part, mappings, key_mouse_wheel, MDFR_CTRL, mouse_wheel_change_face_size);
         
         end_map(mappings);
         
@@ -679,6 +680,7 @@ generate_remapping_code_and_data(Partition *part){
         bind(part, mappings, key_f16, MDFR_NONE, project_fkey_command);
         
         bind(part, mappings, key_mouse_wheel, MDFR_NONE, mouse_wheel_scroll);
+        bind(part, mappings, key_mouse_wheel, MDFR_CMND, mouse_wheel_change_face_size);
         
         end_map(mappings);
         

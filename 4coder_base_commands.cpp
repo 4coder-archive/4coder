@@ -583,6 +583,23 @@ CUSTOM_DOC("Decrease the size of the face used by the current buffer.")
     try_modify_face(app, face_id, &description);
 }
 
+CUSTOM_COMMAND_SIG(mouse_wheel_change_face_size)
+CUSTOM_DOC("Reads the state of the mouse wheel and uses it to either increase or decrease the face size.")
+{
+    static Microsecond_Time_Stamp next_resize_time = 0;
+    Microsecond_Time_Stamp now = get_microseconds_timestamp(app);
+    if (now >= next_resize_time){
+        next_resize_time = now + 50*1000;
+        Mouse_State mouse = get_mouse_state(app);
+        if (mouse.wheel > 0){
+            decrease_face_size(app);
+        }
+        else if (mouse.wheel < 0){
+            increase_face_size(app);
+        }
+    }
+}
+
 CUSTOM_COMMAND_SIG(toggle_virtual_whitespace)
 CUSTOM_DOC("Toggles the current buffer's virtual whitespace status.")
 {
