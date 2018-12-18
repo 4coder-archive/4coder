@@ -133,6 +133,7 @@ bind(context, ')', MDFR_NONE, write_and_auto_tab);
 bind(context, ']', MDFR_NONE, write_and_auto_tab);
 bind(context, ';', MDFR_NONE, write_and_auto_tab);
 bind(context, '#', MDFR_NONE, write_and_auto_tab);
+bind(context, ';', MDFR_CTRL, comment_line_toggle);
 bind(context, '\t', MDFR_NONE, word_complete);
 bind(context, '\t', MDFR_CTRL, auto_tab_range);
 bind(context, '\t', MDFR_SHIFT, auto_tab_line_at_cursor);
@@ -307,6 +308,7 @@ bind(context, ')', MDFR_NONE, write_and_auto_tab);
 bind(context, ']', MDFR_NONE, write_and_auto_tab);
 bind(context, ';', MDFR_NONE, write_and_auto_tab);
 bind(context, '#', MDFR_NONE, write_and_auto_tab);
+bind(context, ';', MDFR_CTRL, comment_line_toggle);
 bind(context, '\t', MDFR_NONE, word_complete);
 bind(context, '\t', MDFR_CMND, auto_tab_range);
 bind(context, '\t', MDFR_SHIFT, auto_tab_line_at_cursor);
@@ -501,7 +503,7 @@ static Meta_Key_Bind fcoder_binds_for_default_mapid_file[78] = {
 {0, 62, 1, "view_jump_list_with_lister", 26, LINK_PROCS(view_jump_list_with_lister)},
 {0, 32, 8, "write_character", 15, LINK_PROCS(write_character)},
 };
-static Meta_Key_Bind fcoder_binds_for_default_default_code_map[30] = {
+static Meta_Key_Bind fcoder_binds_for_default_default_code_map[31] = {
 {0, 55299, 1, "seek_alphanumeric_or_camel_left", 31, LINK_PROCS(seek_alphanumeric_or_camel_left)},
 {0, 55300, 1, "seek_alphanumeric_or_camel_right", 32, LINK_PROCS(seek_alphanumeric_or_camel_right)},
 {0, 10, 0, "write_and_auto_tab", 18, LINK_PROCS(write_and_auto_tab)},
@@ -511,6 +513,7 @@ static Meta_Key_Bind fcoder_binds_for_default_default_code_map[30] = {
 {0, 93, 0, "write_and_auto_tab", 18, LINK_PROCS(write_and_auto_tab)},
 {0, 59, 0, "write_and_auto_tab", 18, LINK_PROCS(write_and_auto_tab)},
 {0, 35, 0, "write_and_auto_tab", 18, LINK_PROCS(write_and_auto_tab)},
+{0, 59, 1, "comment_line_toggle", 19, LINK_PROCS(comment_line_toggle)},
 {0, 9, 0, "word_complete", 13, LINK_PROCS(word_complete)},
 {0, 9, 1, "auto_tab_range", 14, LINK_PROCS(auto_tab_range)},
 {0, 9, 8, "auto_tab_line_at_cursor", 23, LINK_PROCS(auto_tab_line_at_cursor)},
@@ -554,7 +557,7 @@ static Meta_Key_Bind fcoder_binds_for_default_default_lister_ui_map[16] = {
 static Meta_Sub_Map fcoder_submaps_for_default[4] = {
 {"mapid_global", 12, "The following bindings apply in all situations.", 47, 0, 0, fcoder_binds_for_default_mapid_global, 40},
 {"mapid_file", 10, "The following bindings apply in general text files and most apply in code files, but some are overriden by other commands specific to code files.", 145, 0, 0, fcoder_binds_for_default_mapid_file, 78},
-{"default_code_map", 16, "The following commands only apply in files where the lexer (syntax highlighting) is turned on.", 94, "mapid_file", 10, fcoder_binds_for_default_default_code_map, 30},
+{"default_code_map", 16, "The following commands only apply in files where the lexer (syntax highlighting) is turned on.", 94, "mapid_file", 10, fcoder_binds_for_default_default_code_map, 31},
 {"default_lister_ui_map", 21, "These commands apply in 'lister mode' such as when you open a file.", 67, 0, 0, fcoder_binds_for_default_default_lister_ui_map, 16},
 };
 static Meta_Key_Bind fcoder_binds_for_mac_default_mapid_global[40] = {
@@ -678,7 +681,7 @@ static Meta_Key_Bind fcoder_binds_for_mac_default_mapid_file[77] = {
 {0, 62, 4, "view_jump_list_with_lister", 26, LINK_PROCS(view_jump_list_with_lister)},
 {0, 32, 8, "write_character", 15, LINK_PROCS(write_character)},
 };
-static Meta_Key_Bind fcoder_binds_for_mac_default_default_code_map[30] = {
+static Meta_Key_Bind fcoder_binds_for_mac_default_default_code_map[31] = {
 {0, 55299, 4, "seek_alphanumeric_or_camel_left", 31, LINK_PROCS(seek_alphanumeric_or_camel_left)},
 {0, 55300, 4, "seek_alphanumeric_or_camel_right", 32, LINK_PROCS(seek_alphanumeric_or_camel_right)},
 {0, 10, 0, "write_and_auto_tab", 18, LINK_PROCS(write_and_auto_tab)},
@@ -688,6 +691,7 @@ static Meta_Key_Bind fcoder_binds_for_mac_default_default_code_map[30] = {
 {0, 93, 0, "write_and_auto_tab", 18, LINK_PROCS(write_and_auto_tab)},
 {0, 59, 0, "write_and_auto_tab", 18, LINK_PROCS(write_and_auto_tab)},
 {0, 35, 0, "write_and_auto_tab", 18, LINK_PROCS(write_and_auto_tab)},
+{0, 59, 1, "comment_line_toggle", 19, LINK_PROCS(comment_line_toggle)},
 {0, 9, 0, "word_complete", 13, LINK_PROCS(word_complete)},
 {0, 9, 4, "auto_tab_range", 14, LINK_PROCS(auto_tab_range)},
 {0, 9, 8, "auto_tab_line_at_cursor", 23, LINK_PROCS(auto_tab_line_at_cursor)},
@@ -729,7 +733,7 @@ static Meta_Key_Bind fcoder_binds_for_mac_default_default_lister_ui_map[14] = {
 static Meta_Sub_Map fcoder_submaps_for_mac_default[4] = {
 {"mapid_global", 12, "The following bindings apply in all situations.", 47, 0, 0, fcoder_binds_for_mac_default_mapid_global, 40},
 {"mapid_file", 10, "The following bindings apply in general text files and most apply in code files, but some are overriden by other commands specific to code files.", 145, 0, 0, fcoder_binds_for_mac_default_mapid_file, 77},
-{"default_code_map", 16, "The following commands only apply in files where the lexer (syntax highlighting) is turned on.", 94, "mapid_file", 10, fcoder_binds_for_mac_default_default_code_map, 30},
+{"default_code_map", 16, "The following commands only apply in files where the lexer (syntax highlighting) is turned on.", 94, "mapid_file", 10, fcoder_binds_for_mac_default_default_code_map, 31},
 {"default_lister_ui_map", 21, "These commands apply in 'lister mode' such as when you open a file.", 67, 0, 0, fcoder_binds_for_mac_default_default_lister_ui_map, 14},
 };
 static Meta_Mapping fcoder_meta_maps[2] = {

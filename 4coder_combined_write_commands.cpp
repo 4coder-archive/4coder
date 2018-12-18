@@ -42,11 +42,9 @@ write_named_comment_string(Application_Links *app, char *type_string){
 
 static void
 long_braces(Application_Links *app, char *text, int32_t size){
-    uint32_t access = AccessOpen;
-    View_Summary view = get_active_view(app, access);
-    Buffer_Summary buffer = get_buffer(app, view.buffer_id, access);
+    View_Summary view = get_active_view(app, AccessOpen);
+    Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessOpen);
     int32_t pos = view.cursor.pos;
-    
     buffer_replace_range(app, &buffer, pos, pos, text, size);
     view_set_cursor(app, &view, seek_pos(pos + 2), true);
     
@@ -112,6 +110,65 @@ CUSTOM_COMMAND_SIG(write_zero_struct)
 CUSTOM_DOC("At the cursor, insert a ' = {};'.")
 {
     write_string(app, make_lit_string(" = {};"));
+}
+
+static int32_t
+get_start_of_line_at_cursor(Application_Links *app, View_Summary *view, Buffer_Summary *buffer){
+    Full_Cursor cursor = {};
+    view_compute_cursor(app, view, seek_line_char(view->cursor.line, 1), &cursor);
+    Hard_Start_Result hard_start = buffer_find_hard_start(app, buffer, cursor.pos, DEF_TAB_WIDTH);
+    return(hard_start.char_pos);
+}
+
+static bool32
+c_line_comment_starts_at_position(Application_Links *app, Buffer_Summary *buffer, int32_t pos){
+    bool32 alread_has_comment = false;
+    char check_buffer[2];
+    if (buffer_read_range(app, buffer, pos, pos + 2, check_buffer)){
+        if (check_buffer[0] == '/' && check_buffer[1] == '/'){
+            alread_has_comment = true;
+        }
+    }
+    return(alread_has_comment);
+}
+
+CUSTOM_COMMAND_SIG(comment_line)
+CUSTOM_DOC("Insert '//' at the beginning of the line after leading whitespace.")
+{
+    View_Summary view = get_active_view(app, AccessOpen);
+    Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessOpen);
+    int32_t pos = get_start_of_line_at_cursor(app, &view, &buffer);
+    bool32 alread_has_comment = c_line_comment_starts_at_position(app, &buffer, pos);
+    if (!alread_has_comment){
+        buffer_replace_range(app, &buffer, pos, pos, "//", 2);
+    }
+}
+
+CUSTOM_COMMAND_SIG(uncomment_line)
+CUSTOM_DOC("If present, delete '//' at the beginning of the line after leading whitespace.")
+{
+    View_Summary view = get_active_view(app, AccessOpen);
+    Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessOpen);
+    int32_t pos = get_start_of_line_at_cursor(app, &view, &buffer);
+    bool32 alread_has_comment = c_line_comment_starts_at_position(app, &buffer, pos);
+    if (alread_has_comment){
+        buffer_replace_range(app, &buffer, pos, pos + 2, 0, 0);
+    }
+}
+
+CUSTOM_COMMAND_SIG(comment_line_toggle)
+CUSTOM_DOC("Turns uncommented lines into commented lines and vice versa for comments starting with '//'.")
+{
+    View_Summary view = get_active_view(app, AccessOpen);
+    Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessOpen);
+    int32_t pos = get_start_of_line_at_cursor(app, &view, &buffer);
+    bool32 alread_has_comment = c_line_comment_starts_at_position(app, &buffer, pos);
+    if (alread_has_comment){
+        buffer_replace_range(app, &buffer, pos, pos + 2, 0, 0);
+    }
+    else{
+        buffer_replace_range(app, &buffer, pos, pos, "//", 2);
+    }
 }
 
 ////////////////////////////////

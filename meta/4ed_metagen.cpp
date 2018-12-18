@@ -571,6 +571,8 @@ generate_remapping_code_and_data(Partition *part){
         bind(part, mappings, ';', MDFR_NONE, write_and_auto_tab);
         bind(part, mappings, '#', MDFR_NONE, write_and_auto_tab);
         
+        bind(part, mappings, ';', MDFR_CTRL, comment_line_toggle);
+        
         bind(part, mappings, '\t', MDFR_NONE, word_complete);
         bind(part, mappings, '\t', MDFR_CTRL, auto_tab_range);
         bind(part, mappings, '\t', MDFR_SHIFT, auto_tab_line_at_cursor);
@@ -792,6 +794,8 @@ generate_remapping_code_and_data(Partition *part){
         bind(part, mappings, ']', MDFR_NONE, write_and_auto_tab);
         bind(part, mappings, ';', MDFR_NONE, write_and_auto_tab);
         bind(part, mappings, '#', MDFR_NONE, write_and_auto_tab);
+        
+        bind(part, mappings, ';', MDFR_CTRL, comment_line_toggle);
         
         bind(part, mappings, '\t', MDFR_NONE, word_complete);
         bind(part, mappings, '\t', MDFR_CMND, auto_tab_range);
