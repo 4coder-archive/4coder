@@ -128,6 +128,9 @@ global System_Functions sysfunc;
 #include "4ed_coroutine.cpp"
 #include "4ed_font.cpp"
 
+#include "4ed_mem.cpp"
+#include "4ed_hash_functions.cpp"
+
 ////////////////////////////////
 
 struct Win32_Vars{
@@ -295,22 +298,50 @@ Sys_Is_Fullscreen_Sig(system_is_fullscreen){
 // File Change Listener
 //
 
-struct Directory_Track_Node{
-    OVERLAPPED overlapped;
-    HANDLE dir_handle;
-    Directory_Track_Node *next;
-    Directory_Track_Node *prev;
-    char buffer[(32 << 10) + 12];
-    String dir_name;
-    i32 ref_count;
+union Directory_Track_Node{
+    struct{
+        Directory_Track_Node *next;
+        Directory_Track_Node *prev;
+    };
+    struct{
+        OVERLAPPED overlapped;
+        HANDLE dir_handle;
+        char buffer[(32 << 10) + 12];
+        String dir_name;
+        i32 ref_count;
+    };
 };
 
-struct File_Track_Node{
-    File_Track_Node *next;
-    File_Track_Node *prev;
-    String file_name;
-    i32 ref_count;
-    Directory_Track_Node *parent_dir;
+union File_Track_Node{
+    struct{
+        File_Track_Node *next;
+        File_Track_Node *prev;
+    };
+    struct{
+        String file_name;
+        i32 ref_count;
+        Directory_Track_Node *parent_dir;
+    };
+};
+#if !defined(CString_Key_Reference_GAURD)
+#define CString_Key_Reference_GAURD
+struct CString_Key_Reference{
+    char*key;
+    i32 size;
+};
+#endif
+struct CString_Ptr_Lookup_Result{
+    b32 success;
+    void **val;
+};
+struct CString_Ptr_Table{
+    void *mem;
+    u64 *hashes;
+    CString_Key_Reference*keys;
+    void **vals;
+    i32 count;
+    i32 dirty_slot_count;
+    i32 max;
 };
 
 typedef i32 File_Track_Instruction;
@@ -339,12 +370,11 @@ struct File_Track_Note_Node{
 
 Heap file_track_heap = {};
 Partition file_track_scratch = {};
-Directory_Track_Node *file_track_dir_first = 0;
-Directory_Track_Node *file_track_dir_last = 0;
+
+CString_Ptr_Table file_track_dir_table = {};
 Directory_Track_Node *file_track_dir_free_first = 0;
 Directory_Track_Node *file_track_dir_free_last = 0;
-File_Track_Node *file_track_first = 0;
-File_Track_Node *file_track_last = 0;
+CString_Ptr_Table file_track_table = {};
 File_Track_Node *file_track_free_first = 0;
 File_Track_Node *file_track_free_last = 0;
 File_Track_Instruction_Node *file_track_ins_free_first = 0;
@@ -368,6 +398,177 @@ global_const u32 file_track_flags = 0
 |FILE_NOTIFY_CHANGE_CREATION
 |FILE_NOTIFY_CHANGE_SECURITY
 ;
+
+////////////////////////////////
+
+internal CString_Ptr_Table
+make_CString_Ptr_table(void *mem, umem size){
+    CString_Ptr_Table table = {};
+    i32 max = (i32)(size/32ULL);
+    if (max > 0){
+        table.mem = mem;
+        u8 *cursor = (u8*)mem;
+        table.hashes = (u64*)cursor;
+        cursor += 8*max;
+        table.keys = (CString_Key_Reference*)cursor;
+        cursor += 16*max;
+        table.vals = (void **)cursor;
+        table.count = 0;
+        table.max = max;
+        block_fill_ones(table.hashes, sizeof(*table.hashes)*max);
+    }
+    return(table);
+}
+
+internal i32
+max_to_memsize_CString_Ptr_table(i32 max){
+    return(max*32ULL);
+}
+
+internal b32
+at_max_CString_Ptr_table(CString_Ptr_Table *table){
+    if (table->max > 0 && (table->count + 1)*8 <= table->max*7){
+        return(false);
+    }
+    return(true);
+}
+
+internal b32
+insert_CString_Ptr_table(CString_Ptr_Table *table, char*key, i32 key_size, void **val){
+    i32 max = table->max;
+    if (max > 0){
+        i32 count = table->count;
+        if ((count + 1)*8 <= max*7){
+            u64 hash = table_hash_u8((u8*)key, key_size);
+            if (hash >= 18446744073709551614ULL){ hash += 2; }
+            i32 first_index = hash%max;
+            i32 index = first_index;
+            u64 *hashes = table->hashes;
+            for (;;){
+                if (hashes[index] == 18446744073709551615ULL){
+                    table->dirty_slot_count += 1;
+                }
+                if (hashes[index] == 18446744073709551615ULL || hashes[index] == 18446744073709551614ULL){
+                    hashes[index] = hash;
+                    CString_Key_Reference new_key = {key, key_size};
+                    table->keys[index] = new_key;
+                    table->vals[index] = *val;
+                    table->count += 1;
+                    return(true);
+                }
+                if (hashes[index] == hash) return(false);
+                index = (index + 1)%max;
+                if (index == first_index) return(false);
+            }
+        }
+    }
+    return(false);
+}
+
+internal CString_Ptr_Lookup_Result
+lookup_CString_Ptr_table(CString_Ptr_Table *table, char*key, i32 key_size){
+    CString_Ptr_Lookup_Result result = {};
+    i32 max = table->max;
+    if (max > 0){
+        u64 hash = table_hash_u8((u8*)key, key_size);
+        if (hash >= 18446744073709551614ULL){ hash += 2; }
+        i32 first_index = hash%max;
+        i32 index = first_index;
+        u64 *hashes = table->hashes;
+        for (;;){
+            if (hashes[index] == 18446744073709551615ULL) break;
+            if (hashes[index] == hash){
+                CString_Key_Reference *key_check = &table->keys[index];
+                b32 key_match = (key_size == key_check->size && block_compare(key, key_check->key, key_size*sizeof(*key)) == 0);
+                if (key_match){
+                    result.success = true;
+                    result.val = &table->vals[index];
+                    return(result);
+                }
+            }
+            index = (index + 1)%max;
+            if (index == first_index) break;
+        }
+    }
+    return(result);
+}
+
+internal b32
+erase_CString_Ptr_table(CString_Ptr_Table *table, char*key, i32 key_size){
+    i32 max = table->max;
+    if (max > 0 && table->count > 0){
+        u64 hash = table_hash_u8((u8*)key, key_size);
+        if (hash >= 18446744073709551614ULL){ hash += 2; }
+        i32 first_index = hash%max;
+        i32 index = first_index;
+        u64 *hashes = table->hashes;
+        for (;;){
+            if (hashes[index] == 18446744073709551615ULL) break;
+            if (hashes[index] == hash){
+                CString_Key_Reference *key_check = &table->keys[index];
+                b32 key_match = (key_size == key_check->size && block_compare(key, key_check->key, key_size*sizeof(*key)) == 0);
+                if (key_match){
+                    hashes[index] = 18446744073709551614ULL;
+                    table->count -= 1;
+                    return(true);
+                }
+            }
+            index = (index + 1)%max;
+            if (index == first_index) break;
+        }
+    }
+    return(false);
+}
+
+internal b32
+move_CString_Ptr_table(CString_Ptr_Table *dst_table, CString_Ptr_Table *src_table){
+    if ((src_table->count + dst_table->count)*8 <= dst_table->max*7){
+        i32 max = src_table->max;
+        u64 *hashes = src_table->hashes;
+        for (i32 index = 0; index < max; index += 1){
+            if (hashes[index] != 18446744073709551615ULL && hashes[index] != 18446744073709551614ULL){
+                char*key = src_table->keys[index].key;
+                i32 key_size = src_table->keys[index].size;
+                void **val = &src_table->vals[index];
+                insert_CString_Ptr_table(dst_table, key, key_size, val);
+            }
+        }
+        return(true);
+    }
+    return(false);
+}
+
+internal b32
+lookup_CString_Ptr_table(CString_Ptr_Table *table, char *key, i32 key_size, void * *val_out){
+    CString_Ptr_Lookup_Result result = lookup_CString_Ptr_table(table, key, key_size);
+    if (result.success){
+        *val_out = *result.val;
+    }
+    return(result.success);
+}
+
+internal b32
+insert_CString_Ptr_table(CString_Ptr_Table *table, char*key, i32 key_size, void * val){
+    return(insert_CString_Ptr_table(table, key, key_size, &val));
+}
+
+internal b32
+alloc_insert_CString_Ptr_table(CString_Ptr_Table *table, char*key, i32 key_size, void *val){
+    if (at_max_CString_Ptr_table(table)){
+        i32 new_max = (table->max + 1)*2;
+        i32 new_size = max_to_memsize_CString_Ptr_table(new_max);
+        void *new_mem = system_memory_allocate(new_size);
+        CString_Ptr_Table new_table = make_CString_Ptr_table(new_mem, new_size);
+        if (table->mem != 0){
+            i32 old_size = max_to_memsize_CString_Ptr_table(table->max);
+            system_memory_free(table->mem, old_size);
+        }
+        *table = new_table;
+    }
+    return(insert_CString_Ptr_table(table, key, key_size, val));
+}
+
+////////////////////////////////
 
 internal String
 file_track_store_string_copy(String string){
@@ -414,7 +615,7 @@ file_track_store_new_dir_node(String dir_name_string, HANDLE dir_handle){
     }
     Directory_Track_Node *new_node = file_track_dir_free_first;
     zdll_remove(file_track_dir_free_first, file_track_dir_free_last, new_node);
-    zdll_push_back(file_track_dir_first, file_track_dir_last, new_node);
+    alloc_insert_CString_Ptr_table(&file_track_dir_table, dir_name_string.str, dir_name_string.size, new_node);
     memset(&new_node->overlapped, 0, sizeof(new_node->overlapped));
     new_node->dir_handle = dir_handle;
     new_node->dir_name = file_track_store_string_copy(dir_name_string);
@@ -424,9 +625,9 @@ file_track_store_new_dir_node(String dir_name_string, HANDLE dir_handle){
 
 internal void
 file_track_free_dir_node(Directory_Track_Node *node){
+    erase_CString_Ptr_table(&file_track_dir_table, node->dir_name.str, node->dir_name.size);
     file_track_free_string(node->dir_name);
     memset(&node->dir_name, 0, sizeof(node->dir_name));
-    zdll_remove(file_track_dir_first, file_track_dir_last, node);
     zdll_push_back(file_track_dir_free_first, file_track_dir_free_last, node);
 }
 
@@ -452,7 +653,7 @@ file_track_store_new_file_node(String file_name_string, Directory_Track_Node *ex
     }
     File_Track_Node *new_node = file_track_free_first;
     zdll_remove(file_track_free_first, file_track_free_last, new_node);
-    zdll_push_back(file_track_first, file_track_last, new_node);
+    alloc_insert_CString_Ptr_table(&file_track_table, file_name_string.str, file_name_string.size, new_node);
     new_node->file_name = file_track_store_string_copy(file_name_string);
     new_node->ref_count = 1;
     new_node->parent_dir = existing_dir_node;
@@ -462,9 +663,9 @@ file_track_store_new_file_node(String file_name_string, Directory_Track_Node *ex
 
 internal void
 file_track_free_file_node(File_Track_Node *node){
+    erase_CString_Ptr_table(&file_track_table, node->file_name.str, node->file_name.size);
     file_track_free_string(node->file_name);
     memset(&node->file_name, 0, sizeof(node->file_name));
-    zdll_remove(file_track_first, file_track_last, node);
     zdll_push_back(file_track_free_first, file_track_free_last, node);
 }
 
@@ -535,30 +736,16 @@ file_track_free_instruction_node(File_Track_Instruction_Node *node){
 
 internal Directory_Track_Node*
 file_track_dir_lookup(String dir_name_string){
-    Directory_Track_Node *existing_dir_node = 0;
-    for (Directory_Track_Node *node = file_track_dir_first;
-         node != 0;
-         node = node->next){
-        if (match(dir_name_string, node->dir_name)){
-            existing_dir_node = node;
-            break;
-        }
-    }
-    return(existing_dir_node);
+    void *ptr = 0;
+    lookup_CString_Ptr_table(&file_track_dir_table, dir_name_string.str, dir_name_string.size, &ptr);
+    return((Directory_Track_Node*)ptr);
 }
 
 internal File_Track_Node*
 file_track_file_lookup(String file_name_string){
-    File_Track_Node *existing_file_node = 0;
-    for (File_Track_Node *node = file_track_first;
-         node != 0;
-         node = node->next){
-        if (match(file_name_string, node->file_name)){
-            existing_file_node = node;
-            break;
-        }
-    }
-    return(existing_file_node);
+    void *ptr = 0;
+    lookup_CString_Ptr_table(&file_track_table, file_name_string.str, file_name_string.size, &ptr);
+    return((File_Track_Node*)ptr);
 }
 
 internal DWORD CALL_CONVENTION

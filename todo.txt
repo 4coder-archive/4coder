@@ -3,9 +3,8 @@
     Features
     {
         [x] Fill Key_Input_Data's modifiers field
-        [] Recover scroll bars
-        [] Cold scroll
-        [] Optimize lookup in file track data structures
+        [x] Optimize lookup in file track data structures
+        [] Comment line/Uncomment line
     }
     
     Bugs
@@ -56,6 +55,8 @@ Long Term
         [] Declarative system for keyword direct coloring
         [] Reload all out of sync files
         [] Jump to Command Definition (useful for 4coder customization developers only)
+        [] Recover scroll bars
+        [] Cold scroll
     }
     
     Bugs

@@ -9,7 +9,7 @@
 
 // TOP
 
-#ifndef FRED_H
+#if !defined(FRED_H)
 #define FRED_H
 
 #define MAX_VIEWS 16
