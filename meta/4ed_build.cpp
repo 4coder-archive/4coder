@@ -315,7 +315,7 @@ build(Partition *part, u32 flags, u32 arch, char *code_path, char **code_files, 
 "-Wno-unused-result"
 
 #define GCC_LIBS_COMMON                        \
-"-L/usr/local/lib -lX11 -lpthread -lm -lrt "   \
+"-L/usr/lib -lX11 -lpthread -lm -lrt "   \
 "-lGL -ldl -lXfixes -lfreetype -lfontconfig"
 
 #define GCC_LIBS_X64 GCC_LIBS_COMMON
@@ -329,17 +329,16 @@ build(Partition *part, u32 flags, u32 arch, char *code_path, char **code_files, 
 "-Wno-tautological-compare "                        \
 "-Wno-unused-result "
 
-
 #define GCC_LIBS_COMMON \
 "-framework Cocoa -framework QuartzCore " \
 "-framework CoreServices " \
 "-framework OpenGL -framework IOKit "
 
 #define GCC_LIBS_X64 GCC_LIBS_COMMON \
-FOREIGN"/x64/libfreetype-mac.a"
+FOREIGN "/x64/libfreetype-mac.a"
 
 #define GCC_LIBS_X86 GCC_LIBS_COMMON \
-FOREIGN"/x86/libfreetype-mac.a"
+FOREIGN "/x86/libfreetype-mac.a"
 
 #else
 # error gcc options not set for this platform
