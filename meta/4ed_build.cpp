@@ -314,8 +314,8 @@ build(Partition *part, u32 flags, u32 arch, char *code_path, char **code_files, 
 "-fno-threadsafe-statics -pthread "   \
 "-Wno-unused-result"
 
-#define GCC_LIBS_COMMON                                   \
-"-L/usr/local/lib -L/usr/bin -lX11 -lpthread -lm -lrt "   \
+#define GCC_LIBS_COMMON                        \
+"-L/usr/local/lib -lX11 -lpthread -lm -lrt "   \
 "-lGL -ldl -lXfixes -lfreetype -lfontconfig"
 
 #define GCC_LIBS_X64 GCC_LIBS_COMMON
