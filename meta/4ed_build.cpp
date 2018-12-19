@@ -315,7 +315,7 @@ build(Partition *part, u32 flags, u32 arch, char *code_path, char **code_files, 
 "-Wno-unused-result"
 
 #define GCC_LIBS_COMMON                        \
-"-L/usr/lib -lX11 -lpthread -lm -lrt "   \
+"-L/usr/lib/i386-linux-gnu -lX11 -lpthread -lm -lrt "   \
 "-lGL -ldl -lXfixes -lfreetype -lfontconfig"
 
 #define GCC_LIBS_X64 GCC_LIBS_COMMON
