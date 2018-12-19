@@ -22,15 +22,16 @@ The following bindings apply in all situations.
 \ITEM \STYLE{code} <ctrl S> \END Saves all buffers marked dirty (showing the '*' indicator).
 \ITEM \STYLE{code} <alt .> \END If the special build panel is open, makes the build panel the active panel.
 \ITEM \STYLE{code} <alt ,> \END If the special build panel is open, closes it.
-\ITEM \STYLE{code} <alt n> \END If a buffer containing jump locations has been locked in, goes to the next jump in the buffer, and does not skip sub jump locations.
-\ITEM \STYLE{code} <alt N> \END If a buffer containing jump locations has been locked in, goes to the previous jump in the buffer, and does not skip sub jump locations.
+\ITEM \STYLE{code} <alt n> \END If a buffer containing jump locations has been locked in, goes to the next jump in the buffer, skipping sub jump locations.
+\ITEM \STYLE{code} <alt N> \END If a buffer containing jump locations has been locked in, goes to the previous jump in the buffer, skipping sub jump locations.
 \ITEM \STYLE{code} <alt M> \END If a buffer containing jump locations has been locked in, goes to the first jump in the buffer.
 \ITEM \STYLE{code} <alt m> \END Looks for a build.bat, build.sh, or makefile in the current and parent directories.  Runs the first that it finds and prints the output to *compilation*.  Puts the *compilation* buffer in a panel at the footer of the current view.
 \ITEM \STYLE{code} <alt b> \END Toggles the visibility status of the current view's filebar.
 \ITEM \STYLE{code} <alt z> \END Queries for an output buffer name and system command, runs the system command as a CLI and prints the output to the specified buffer.
 \ITEM \STYLE{code} <alt Z> \END If the command execute_any_cli has already been used, this will execute a CLI reusing the most recent buffer name and command.
 \ITEM \STYLE{code} <alt x> \END Opens an interactive list of all registered commands.
-\ITEM \STYLE{code} <ctrl I> \END Creates a lister of locations that look like function definitions and declarations in the buffer.
+\ITEM \STYLE{code} <alt X> \END Open a lister of all commands in the currently loaded project.
+\ITEM \STYLE{code} <ctrl I> \END Creates a lister of locations that look like function definitions and declarations all buffers.
 \ITEM \STYLE{code} <alt E> \END Attempts to close 4coder.
 \ITEM \STYLE{code} <f1> \END Run an 'fkey command' configured in a project.4coder file.  Determines the index of the 'fkey command' by which function key or numeric key was pressed to trigger the command.
 \ITEM \STYLE{code} <f2> \END Run an 'fkey command' configured in a project.4coder file.  Determines the index of the 'fkey command' by which function key or numeric key was pressed to trigger the command.
@@ -49,6 +50,7 @@ The following bindings apply in all situations.
 \ITEM \STYLE{code} <f15> \END Run an 'fkey command' configured in a project.4coder file.  Determines the index of the 'fkey command' by which function key or numeric key was pressed to trigger the command.
 \ITEM \STYLE{code} <f16> \END Run an 'fkey command' configured in a project.4coder file.  Determines the index of the 'fkey command' by which function key or numeric key was pressed to trigger the command.
 \ITEM \STYLE{code} <mouse wheel> \END Reads the scroll wheel value from the mouse state and scrolls accordingly.
+\ITEM \STYLE{code} <ctrl mouse wheel> \END Reads the state of the mouse wheel and uses it to either increase or decrease the face size.
 \END
 \END
 \SECTION{mapid-file}
@@ -56,6 +58,7 @@ The following bindings apply in general text files and most apply in code files,
 \LIST
 \ITEM \STYLE{code} <any character> \END Inserts whatever character was used to trigger this command.
 \ITEM \STYLE{code} <left click> \END Sets the cursor position and mark to the mouse position.
+\ITEM \STYLE{code} <click_activate_view> \END Sets the cursor position and mark to the mouse position.
 \ITEM \STYLE{code} <left release> \END Sets the cursor position to the mouse position.
 \ITEM \STYLE{code} <mouse move> \END If the mouse left button is pressed, sets the cursor position to the mouse position.
 \ITEM \STYLE{code} <delete> \END Deletes the character to the right of the cursor.
@@ -84,12 +87,12 @@ The following bindings apply in general text files and most apply in code files,
 \ITEM \STYLE{code} <shift page down> \END Scrolls the view down one view height and moves the cursor down one view height.
 \ITEM \STYLE{code} <ctrl up> \END Seeks the cursor up to the next blank line and places it at the end of the line.
 \ITEM \STYLE{code} <ctrl down> \END Seeks the cursor down to the next blank line and places it at the end of the line.
-\ITEM \STYLE{code} <ctrl right> \END Seek right for the next boundary between whitespace and non-whitespace.
 \ITEM \STYLE{code} <ctrl left> \END Seek left for the next boundary between whitespace and non-whitespace.
+\ITEM \STYLE{code} <ctrl right> \END Seek right for the next boundary between whitespace and non-whitespace.
 \ITEM \STYLE{code} <ctrlshift up> \END Seeks the cursor up to the next blank line and places it at the end of the line.
 \ITEM \STYLE{code} <ctrlshift down> \END Seeks the cursor down to the next blank line and places it at the end of the line.
-\ITEM \STYLE{code} <ctrlshift right> \END Seek right for the next boundary between whitespace and non-whitespace.
 \ITEM \STYLE{code} <ctrlshift left> \END Seek left for the next boundary between whitespace and non-whitespace.
+\ITEM \STYLE{code} <ctrlshift right> \END Seek right for the next boundary between whitespace and non-whitespace.
 \ITEM \STYLE{code} <alt up> \END Swaps the line under the cursor with the line above it, and moves the cursor up with it.
 \ITEM \STYLE{code} <alt down> \END Swaps the line under the cursor with the line below it, and moves the cursor down with it.
 \ITEM \STYLE{code} <ctrl backspace> \END Delete characters between the cursor position and the first alphanumeric boundary to the left.
@@ -136,8 +139,8 @@ The following bindings apply in general text files and most apply in code files,
 \SECTION{default-code-map}
 The following commands only apply in files where the lexer (syntax highlighting) is turned on.
 \LIST
-\ITEM \STYLE{code} <ctrl right> \END Seek right for boundary between alphanumeric characters or camel case word and non-alphanumeric characters.
 \ITEM \STYLE{code} <ctrl left> \END Seek left for boundary between alphanumeric characters or camel case word and non-alphanumeric characters.
+\ITEM \STYLE{code} <ctrl right> \END Seek right for boundary between alphanumeric characters or camel case word and non-alphanumeric characters.
 \ITEM \STYLE{code} <return> \END Inserts a character and auto-indents the line on which the cursor sits.
 \ITEM \STYLE{code} <shift return> \END Inserts a character and auto-indents the line on which the cursor sits.
 \ITEM \STYLE{code} <}> \END Inserts a character and auto-indents the line on which the cursor sits.
@@ -145,10 +148,10 @@ The following commands only apply in files where the lexer (syntax highlighting)
 \ITEM \STYLE{code} <]> \END Inserts a character and auto-indents the line on which the cursor sits.
 \ITEM \STYLE{code} <;> \END Inserts a character and auto-indents the line on which the cursor sits.
 \ITEM \STYLE{code} <#> \END Inserts a character and auto-indents the line on which the cursor sits.
+\ITEM \STYLE{code} <ctrl ;> \END Turns uncommented lines into commented lines and vice versa for comments starting with '//'.
 \ITEM \STYLE{code} <tab> \END Iteratively tries completing the word to the left of the cursor with other words in open buffers that have the same prefix string.
 \ITEM \STYLE{code} <ctrl tab> \END Auto-indents the range between the cursor and the mark.
 \ITEM \STYLE{code} <shift tab> \END Auto-indents the line on which the cursor sits.
-\ITEM \STYLE{code} <alt h> \END At the cursor, insert a '// HACK' comment, includes user name if it was specified in config.4coder.
 \ITEM \STYLE{code} <alt r> \END At the cursor, insert a block comment.
 \ITEM \STYLE{code} <alt t> \END At the cursor, insert a '// TODO' comment, includes user name if it was specified in config.4coder.
 \ITEM \STYLE{code} <alt y> \END At the cursor, insert a '// NOTE' comment, includes user name if it was specified in config.4coder.
@@ -178,8 +181,10 @@ These commands apply in 'lister mode' such as when you open a file.
 \ITEM \STYLE{code} <tab> \END A lister mode command that activates the list's action on the highlighted item.
 \ITEM \STYLE{code} <backspace> \END A lister mode command that dispatches to the lister's backspace text field handler.
 \ITEM \STYLE{code} <up> \END A lister mode command that dispatches to the lister's navigate up handler.
+\ITEM \STYLE{code} <alt k> \END A lister mode command that dispatches to the lister's navigate up handler.
 \ITEM \STYLE{code} <page up> \END A lister mode command that dispatches to the lister's navigate up handler.
 \ITEM \STYLE{code} <down> \END A lister mode command that dispatches to the lister's navigate down handler.
+\ITEM \STYLE{code} <alt j> \END A lister mode command that dispatches to the lister's navigate down handler.
 \ITEM \STYLE{code} <page down> \END A lister mode command that dispatches to the lister's navigate down handler.
 \ITEM \STYLE{code} <mouse wheel> \END A lister mode command that scrolls the list in response to the mouse wheel.
 \ITEM \STYLE{code} <left click> \END A lister mode command that beings a click interaction with a list item under the mouse.
@@ -212,7 +217,8 @@ The following bindings apply in all situations.
 \ITEM \STYLE{code} <ctrl z> \END Queries for an output buffer name and system command, runs the system command as a CLI and prints the output to the specified buffer.
 \ITEM \STYLE{code} <ctrl Z> \END If the command execute_any_cli has already been used, this will execute a CLI reusing the most recent buffer name and command.
 \ITEM \STYLE{code} <ctrl x> \END Opens an interactive list of all registered commands.
-\ITEM \STYLE{code} <cmnd I> \END Creates a lister of locations that look like function definitions and declarations in the buffer.
+\ITEM \STYLE{code} <ctrl X> \END Open a lister of all commands in the currently loaded project.
+\ITEM \STYLE{code} <cmnd I> \END Creates a lister of locations that look like function definitions and declarations all buffers.
 \ITEM \STYLE{code} <ctrl E> \END Attempts to close 4coder.
 \ITEM \STYLE{code} <f1> \END Run an 'fkey command' configured in a project.4coder file.  Determines the index of the 'fkey command' by which function key or numeric key was pressed to trigger the command.
 \ITEM \STYLE{code} <f2> \END Run an 'fkey command' configured in a project.4coder file.  Determines the index of the 'fkey command' by which function key or numeric key was pressed to trigger the command.
@@ -231,6 +237,7 @@ The following bindings apply in all situations.
 \ITEM \STYLE{code} <f15> \END Run an 'fkey command' configured in a project.4coder file.  Determines the index of the 'fkey command' by which function key or numeric key was pressed to trigger the command.
 \ITEM \STYLE{code} <f16> \END Run an 'fkey command' configured in a project.4coder file.  Determines the index of the 'fkey command' by which function key or numeric key was pressed to trigger the command.
 \ITEM \STYLE{code} <mouse wheel> \END Reads the scroll wheel value from the mouse state and scrolls accordingly.
+\ITEM \STYLE{code} <cmnd mouse wheel> \END Reads the state of the mouse wheel and uses it to either increase or decrease the face size.
 \END
 \END
 \SECTION{mapid-file}
@@ -239,6 +246,7 @@ The following bindings apply in general text files and most apply in code files,
 \ITEM \STYLE{code} <any character> \END Inserts whatever character was used to trigger this command.
 \ITEM \STYLE{code} <alt any character> \END Inserts whatever character was used to trigger this command.
 \ITEM \STYLE{code} <left click> \END Sets the cursor position and mark to the mouse position.
+\ITEM \STYLE{code} <click_activate_view> \END Sets the cursor position and mark to the mouse position.
 \ITEM \STYLE{code} <left release> \END Sets the cursor position to the mouse position.
 \ITEM \STYLE{code} <mouse move> \END If the mouse left button is pressed, sets the cursor position to the mouse position.
 \ITEM \STYLE{code} <delete> \END Deletes the character to the right of the cursor.
@@ -267,12 +275,12 @@ The following bindings apply in general text files and most apply in code files,
 \ITEM \STYLE{code} <shift page down> \END Scrolls the view down one view height and moves the cursor down one view height.
 \ITEM \STYLE{code} <cmnd up> \END Seeks the cursor up to the next blank line and places it at the end of the line.
 \ITEM \STYLE{code} <cmnd down> \END Seeks the cursor down to the next blank line and places it at the end of the line.
-\ITEM \STYLE{code} <cmnd right> \END Seek right for the next boundary between whitespace and non-whitespace.
 \ITEM \STYLE{code} <cmnd left> \END Seek left for the next boundary between whitespace and non-whitespace.
+\ITEM \STYLE{code} <cmnd right> \END Seek right for the next boundary between whitespace and non-whitespace.
 \ITEM \STYLE{code} <cmndshift up> \END Seeks the cursor up to the next blank line and places it at the end of the line.
 \ITEM \STYLE{code} <cmndshift down> \END Seeks the cursor down to the next blank line and places it at the end of the line.
-\ITEM \STYLE{code} <cmndshift right> \END Seek right for the next boundary between whitespace and non-whitespace.
 \ITEM \STYLE{code} <cmndshift left> \END Seek left for the next boundary between whitespace and non-whitespace.
+\ITEM \STYLE{code} <cmndshift right> \END Seek right for the next boundary between whitespace and non-whitespace.
 \ITEM \STYLE{code} <alt up> \END Swaps the line under the cursor with the line above it, and moves the cursor up with it.
 \ITEM \STYLE{code} <alt down> \END Swaps the line under the cursor with the line below it, and moves the cursor down with it.
 \ITEM \STYLE{code} <cmnd backspace> \END Delete characters between the cursor position and the first alphanumeric boundary to the left.
@@ -317,8 +325,8 @@ The following bindings apply in general text files and most apply in code files,
 \SECTION{default-code-map}
 The following commands only apply in files where the lexer (syntax highlighting) is turned on.
 \LIST
-\ITEM \STYLE{code} <cmnd right> \END Seek right for boundary between alphanumeric characters or camel case word and non-alphanumeric characters.
 \ITEM \STYLE{code} <cmnd left> \END Seek left for boundary between alphanumeric characters or camel case word and non-alphanumeric characters.
+\ITEM \STYLE{code} <cmnd right> \END Seek right for boundary between alphanumeric characters or camel case word and non-alphanumeric characters.
 \ITEM \STYLE{code} <return> \END Inserts a character and auto-indents the line on which the cursor sits.
 \ITEM \STYLE{code} <shift return> \END Inserts a character and auto-indents the line on which the cursor sits.
 \ITEM \STYLE{code} <}> \END Inserts a character and auto-indents the line on which the cursor sits.
@@ -326,10 +334,10 @@ The following commands only apply in files where the lexer (syntax highlighting)
 \ITEM \STYLE{code} <]> \END Inserts a character and auto-indents the line on which the cursor sits.
 \ITEM \STYLE{code} <;> \END Inserts a character and auto-indents the line on which the cursor sits.
 \ITEM \STYLE{code} <#> \END Inserts a character and auto-indents the line on which the cursor sits.
+\ITEM \STYLE{code} <ctrl ;> \END Turns uncommented lines into commented lines and vice versa for comments starting with '//'.
 \ITEM \STYLE{code} <tab> \END Iteratively tries completing the word to the left of the cursor with other words in open buffers that have the same prefix string.
 \ITEM \STYLE{code} <cmnd tab> \END Auto-indents the range between the cursor and the mark.
 \ITEM \STYLE{code} <shift tab> \END Auto-indents the line on which the cursor sits.
-\ITEM \STYLE{code} <ctrl h> \END At the cursor, insert a '// HACK' comment, includes user name if it was specified in config.4coder.
 \ITEM \STYLE{code} <ctrl r> \END At the cursor, insert a block comment.
 \ITEM \STYLE{code} <ctrl t> \END At the cursor, insert a '// TODO' comment, includes user name if it was specified in config.4coder.
 \ITEM \STYLE{code} <ctrl y> \END At the cursor, insert a '// NOTE' comment, includes user name if it was specified in config.4coder.

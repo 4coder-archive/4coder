@@ -9,39 +9,16 @@
 
 // TOP
 
-internal char*
-get_null_terminated_version(String str){
-    char *ptr = 0;
-    if (str.size > 0){
-        if (terminate_with_null(&str)){
-            ptr = str.str;
-        }
-        else{
-            String b = str_alloc(str.size + 1);
-            copy(&b, str);
-            terminate_with_null(&b);
-            ptr = b.str;
-        }
-    }
-    return(ptr);
-}
-
-////////////////////////////////
-
 struct Enriched_Text{
     String fname;
     String source;
 };
 
 internal Enriched_Text
-load_enriched_text(char *directory, char *filename){
+load_enriched_text(Partition *arena, char *directory, char *filename){
     Enriched_Text result = {};
-    char *fname = fm_str(directory, "/", filename);
-    result.fname = str_alloc(str_size(fname) + 1);
-    fm_align();
-    copy(&result.fname, fname);
-    terminate_with_null(&result.fname);
-    result.source = file_dump(fname);
+    result.fname = make_string_slowly(fm_str(arena, directory, "/", filename));
+    result.source = file_dump(result.fname.str);
     return(result);
 }
 
@@ -67,34 +44,31 @@ get_mangle_rule(String mangle){
 }
 
 internal String
-apply_mangle_rule(String name, u32 mangle_rule){
+apply_mangle_rule(Partition *arena, String name, u32 mangle_rule){
     String result = {};
     switch (mangle_rule){
         case MangleRule_MacroSig:
         {
-            result = str_alloc(name.size + 5);
-            fm_align();
+            result = string_push(arena, name.size + 5);
+            push_align(arena, 8);
             copy(&result, name);
             to_upper(&result);
             append(&result, "_SIG");
             terminate_with_null(&result);
         }break;
-        
         case MangleRule_ToLower:
         {
-            result = str_alloc(name.size + 1);
-            fm_align();
+            result = string_push(arena, name.size + 1);
+            push_align(arena, 8);
             copy(&result, name);
             to_lower(&result);
             terminate_with_null(&result);
         }break;
-        
         default:
         {
             result = name;
         }break;
     }
-    
     return(result);
 }
 
@@ -159,11 +133,9 @@ global Document_Item null_document_item = {};
 ////////////////////////////////
 
 internal void
-set_item_string(String *out, String text){
-    *out = str_alloc(text.size + 1);
-    fm_align();
-    copy(out, text);
-    terminate_with_null(out);
+set_item_string(Partition *arena, String *out, String text){
+    *out = string_push_copy(arena, text);
+    push_align(arena, 8);
 }
 
 ////////////////////////////////
@@ -186,11 +158,12 @@ clear_list(Basic_List *list){
 }
 
 internal void*
-push_item_on_list(Basic_List *list, i32 item_size){
+push_item_on_list(Partition *arena, Basic_List *list, i32 item_size){
     i32 mem_size = item_size + sizeof(Basic_Node);
-    void *mem = fm__push(mem_size);
+    void *mem = push_array(arena, char, mem_size);
     Assert(mem != 0);
     memset(mem, 0, mem_size);
+    push_align(arena, 8);
     
     Basic_Node *node = (Basic_Node*)mem;
     if (list->head == 0){
@@ -255,11 +228,11 @@ get_item_by_name(Basic_List list, String name){
 }
 
 internal Abstract_Item*
-create_abstract_item(Basic_List *list, char *name){
+create_abstract_item(Partition *arena, Basic_List *list, char *name){
     Abstract_Item *result = 0;
     Abstract_Item *lookup = get_item_by_name(*list, make_string_slowly(name));
     if (lookup == 0){
-        result = (Abstract_Item*)push_item_on_list(list, sizeof(*result));
+        result = (Abstract_Item*)push_item_on_list(arena, list, sizeof(*result));
     }
     return(result);
 }
@@ -270,10 +243,10 @@ struct Abstract_Item_Array{
 };
 
 internal Abstract_Item_Array
-get_abstract_item_array(Basic_List *list){
+get_abstract_item_array(Partition *arena, Basic_List *list){
     Abstract_Item_Array result = {};
     
-    result.items = (Abstract_Item**)fm_push_array(Abstract_Item*, list->count);
+    result.items = (Abstract_Item**)push_array(arena, Abstract_Item*, list->count);
     result.count = list->count;
     
     u32 i = 0;
@@ -311,8 +284,8 @@ create_document_system(char *code_dir, char *asset_dir, char *src_dir){
 }
 
 internal void
-create_unresolved_include(Document_System *doc_system, Document_Item *include_item){
-    Document_Item **new_item = (Document_Item**)push_item_on_list(&doc_system->unresolved_includes, sizeof(*new_item));
+create_unresolved_include(Partition *arena, Document_System *doc_system, Document_Item *include_item){
+    Document_Item **new_item = (Document_Item**)push_item_on_list(arena, &doc_system->unresolved_includes, sizeof(*new_item));
     *new_item = include_item;
 }
 
@@ -325,17 +298,19 @@ enum{
 };
 
 internal u32
-create_meta_unit(Document_System *doc_system, String name_str, String file_str){
+create_meta_unit(Partition *arena, Document_System *doc_system, String name_str, String file_str){
     u32 result = MetaResult_DidParse;
     
-    char *name = get_null_terminated_version(name_str);
-    char *file = get_null_terminated_version(file_str);
+    String name_z = string_push_copy(arena, name_str);
+    String file_z = string_push_copy(arena, file_str);
+    char *name = name_z.str;
+    char *file = file_z.str;
     
-    Abstract_Item *item = create_abstract_item(&doc_system->meta_list, name);
+    Abstract_Item *item = create_abstract_item(arena, &doc_system->meta_list, name);
     
     if (item != 0){
-        Meta_Unit *unit = fm_push_array(Meta_Unit, 1);
-        *unit = compile_meta_unit(doc_system->code_dir, file, ExpandArray(meta_keywords));
+        Meta_Unit *unit = push_array(arena, Meta_Unit, 1);
+        *unit = compile_meta_unit(arena, doc_system->code_dir, file, ExpandArray(meta_keywords));
         
         if (unit->count != 0){
             result = true;
@@ -355,10 +330,10 @@ create_meta_unit(Document_System *doc_system, String name_str, String file_str){
 }
 
 internal Abstract_Item*
-add_generic_file(Document_System *system, char *source_file, char *extension, char *name){
-    Abstract_Item *item = create_abstract_item(&system->file_list, name);
+add_generic_file(Partition *arena, Document_System *system, char *source_file, char *extension, char *name){
+    Abstract_Item *item = create_abstract_item(arena, &system->file_list, name);
     if (item){
-        char *full_file = fm_str(system->asset_dir, "/", source_file);
+        char *full_file = fm_str(arena, system->asset_dir, "/", source_file);
         
         item->item_type = ItemType_GenericFile;
         item->extension = extension;
@@ -369,10 +344,10 @@ add_generic_file(Document_System *system, char *source_file, char *extension, ch
 }
 
 internal Abstract_Item*
-add_image_description(Document_System *system, char *source_file, char *extension, char *name){
-    Abstract_Item *item = create_abstract_item(&system->img_list, name);
+add_image_description(Partition *arena, Document_System *system, char *source_file, char *extension, char *name){
+    Abstract_Item *item = create_abstract_item(arena, &system->img_list, name);
     if (item != 0){
-        char *full_file = fm_str(system->asset_dir, "/", source_file);
+        char *full_file = fm_str(arena, system->asset_dir, "/", source_file);
         
         item->item_type = ItemType_Image;
         item->name = name;
@@ -418,8 +393,8 @@ get_image_instantiation(Basic_List list, i32 w, i32 h){
 }
 
 internal void
-add_image_instantiation(Basic_List *list, i32 w, i32 h){
-    Image_Instantiation *instantiation = (Image_Instantiation*)push_item_on_list(list, sizeof(*instantiation));
+add_image_instantiation(Partition *arena, Basic_List *list, i32 w, i32 h){
+    Image_Instantiation *instantiation = (Image_Instantiation*)push_item_on_list(arena, list, sizeof(*instantiation));
     instantiation->w = w;
     instantiation->h = h;
 }
@@ -433,9 +408,9 @@ struct Document_Builder{
 };
 
 internal Document_Builder
-begin_document_description(Document_System *system, char *title, char *name, b32 show_title){
+begin_document_description(Partition *arena, Document_System *system, char *title, char *name, b32 show_title){
     Document_Builder builder = {};
-    Abstract_Item *doc = create_abstract_item(&system->doc_list, name);
+    Abstract_Item *doc = create_abstract_item(arena, &system->doc_list, name);
     if (doc != 0){
         builder.doc = doc;
         
@@ -443,11 +418,11 @@ begin_document_description(Document_System *system, char *title, char *name, b32
         doc->item_type = ItemType_Document;
         
         doc->name = name;
-        doc->root_item = fm_push_array(Document_Item, 1);
+        doc->root_item = push_array(arena, Document_Item, 1);
         *doc->root_item = null_document_item;
         
         Document_Item *item = doc->root_item;
-        set_item_string(&item->section.name, make_string_slowly(name));
+        set_item_string(arena, &item->section.name, make_string_slowly(name));
         item->section.show_title = show_title;
         item->type = Doc_Root;
         
@@ -484,9 +459,9 @@ doc_get_item_top(Document_Builder *builder){
 }
 
 internal Document_Item*
-doc_new_item(Document_Builder *builder, u32 type, b32 push = false){
+doc_new_item(Partition *arena, Document_Builder *builder, u32 type, b32 push = false){
     Document_Item *parent = doc_get_item_top(builder);
-    Document_Item *item = fm_push_array(Document_Item, 1);
+    Document_Item *item = push_array(arena, Document_Item, 1);
     *item = null_document_item;
     item->type = type;
     append_child(parent, item);
@@ -497,13 +472,13 @@ doc_new_item(Document_Builder *builder, u32 type, b32 push = false){
 }
 
 internal Document_Item*
-doc_new_item_strings(Document_Builder *builder, u32 type, String s1, String s2, b32 push = false){
-    Document_Item *item = doc_new_item(builder, type);
+doc_new_item_strings(Partition *arena, Document_Builder *builder, u32 type, String s1, String s2, b32 push = false){
+    Document_Item *item = doc_new_item(arena, builder, type);
     if (s1.size > 0){
-        set_item_string(&item->string.string, s1);
+        set_item_string(arena, &item->string.string, s1);
     }
     if (s2.size > 0){
-        set_item_string(&item->string.string2, s2);
+        set_item_string(arena, &item->string.string2, s2);
     }
     if (push){
         doc_push(builder, item);
@@ -512,9 +487,9 @@ doc_new_item_strings(Document_Builder *builder, u32 type, String s1, String s2, 
 }
 
 internal Document_Item*
-doc_new_item_documentation(Document_Builder *builder, u32 type, String unit, Mangle_Rule mangle_rule, b32 push = false){
-    Document_Item *item = doc_new_item(builder, type);
-    set_item_string(&item->unit_elements.unit, unit);
+doc_new_item_documentation(Partition *arena, Document_Builder *builder, u32 type, String unit, Mangle_Rule mangle_rule, b32 push = false){
+    Document_Item *item = doc_new_item(arena, builder, type);
+    set_item_string(arena, &item->unit_elements.unit, unit);
     item->unit_elements.mangle_rule = mangle_rule;
     if (push){
         doc_push(builder, item);
@@ -523,73 +498,73 @@ doc_new_item_documentation(Document_Builder *builder, u32 type, String unit, Man
 }
 
 internal void
-begin_section(Document_Builder *builder, char *title, char *id){
-    Document_Item *item = doc_new_item(builder, Doc_Section, PUSH);
-    set_item_string(&item->section.name, make_string_slowly(title));
+begin_section(Partition *arena, Document_Builder *builder, char *title, char *id){
+    Document_Item *item = doc_new_item(arena, builder, Doc_Section, PUSH);
+    set_item_string(arena, &item->section.name, make_string_slowly(title));
     item->section.show_title = true;
     if (id != 0){
-        set_item_string(&item->section.id, make_lit_string(id));
+        set_item_string(arena, &item->section.id, make_lit_string(id));
     }
 }
 
-#define doc_end(b) doc_pop(b)
+#define doc_end(a,b) doc_pop(a,b)
 
-#define begin_style(b,t)   doc_new_item_strings(b, Doc_Style, t, null_string, PUSH)
-#define begin_link(b,t)    doc_new_item_strings(b, Doc_Link, t, null_string, PUSH);
-#define begin_list(b)      doc_new_item(b, Doc_List, PUSH)
-#define begin_item(b)      doc_new_item(b, Doc_Item, PUSH)
+#define begin_style(a,b,t)   doc_new_item_strings(a, b, Doc_Style, t, null_string, PUSH)
+#define begin_link(a,b,t)    doc_new_item_strings(a, b, Doc_Link, t, null_string, PUSH);
+#define begin_list(a,b)      doc_new_item(a, b, Doc_List, PUSH)
+#define begin_item(a,b)      doc_new_item(a, b, Doc_Item, PUSH)
 
 internal void
-add_include(Document_System *doc_system, Document_Builder *builder, String text){
-    Document_Item *item = doc_new_item(builder, Doc_Include);
-    set_item_string(&item->include.name, text);
-    create_unresolved_include(doc_system, item);
+add_include(Partition *arena, Document_System *doc_system, Document_Builder *builder, String text){
+    Document_Item *item = doc_new_item(arena, builder, Doc_Include);
+    set_item_string(arena, &item->include.name, text);
+    create_unresolved_include(arena, doc_system, item);
 }
 
-#define add_error(b,t)           doc_new_item_strings(b, Doc_Error, t, null_string)
-#define add_todo(b)              doc_new_item(b, Doc_Todo)
-#define add_doc_list(b,u,m)      doc_new_item_documentation(b, Doc_DocList, u,  m)
-#define add_doc_full(b,u,m)      doc_new_item_documentation(b, Doc_DocFull, u,  m)
-#define add_table_of_contents(b) doc_new_item(b, Doc_TableOfContents)
-#define add_plain_old_text(b,t)  doc_new_item_strings(b, Doc_PlainOldText, t, null_string);
-#define add_version(b)           doc_new_item(b, Doc_Version)
-#define add_document_link(b,t)   doc_new_item_strings(b, Doc_DocumentLink, t, null_string)
-#define add_image(b,t,e)         doc_new_item_strings(b, Doc_Image, t, e)
-#define add_video(b,t)           doc_new_item_strings(b, Doc_Video, t, null_string)
-#define add_begin_paragraph(b)   doc_new_item(b, Doc_BeginParagraph)
-#define add_end_paragraph(b)     doc_new_item(b, Doc_EndParagraph)
+#define add_error(a,b,t)           doc_new_item_strings(a, b, Doc_Error, t, null_string)
+#define add_todo(a,b)              doc_new_item(a, b, Doc_Todo)
+#define add_doc_list(a,b,u,m)      doc_new_item_documentation(a, b, Doc_DocList, u,  m)
+#define add_doc_full(a,b,u,m)      doc_new_item_documentation(a, b, Doc_DocFull, u,  m)
+#define add_table_of_contents(a,b) doc_new_item(a, b, Doc_TableOfContents)
+#define add_plain_old_text(a,b,t)  doc_new_item_strings(a, b, Doc_PlainOldText, t, null_string);
+#define add_version(a,b)           doc_new_item(a, b, Doc_Version)
+#define add_document_link(a,b,t)   doc_new_item_strings(a, b, Doc_DocumentLink, t, null_string)
+#define add_image(a,b,t,e)         doc_new_item_strings(a, b, Doc_Image, t, e)
+#define add_video(a,b,t)           doc_new_item_strings(a, b, Doc_Video, t, null_string)
+#define add_begin_paragraph(a,b)   doc_new_item(a, b, Doc_BeginParagraph)
+#define add_end_paragraph(a,b)     doc_new_item(a, b, Doc_EndParagraph)
 
 internal void
-doc_pop(Document_Builder *builder){
+doc_pop(Partition *arena, Document_Builder *builder){
     if (builder->item_top > 0){
         --builder->item_top;
     }
     else{
-        add_error(builder, make_lit_string("unbalanced groups -- extra end"));
+        add_error(arena, builder, make_lit_string("unbalanced groups -- extra end"));
     }
 }
 
 internal void
-end_document_description(Document_Builder *builder){
+end_document_description(Partition *arena, Document_Builder *builder){
     b32 closing_error = (builder->item_top != 0);
     if (closing_error){
-        add_error(builder, make_lit_string("unbalanced groups -- extra begin"));
+        add_error(arena, builder, make_lit_string("unbalanced groups -- extra begin"));
     }
     
     for (;builder->item_top > 0;){
-        doc_end(builder);
+        doc_end(arena, builder);
     }
 }
 
 ////////////////////////////////
 
 internal void
-report_error_missing_body(Document_Builder *builder, String command_body){
+report_error_missing_body(Partition *arena, Document_Builder *builder, String command_body){
     char space[512];
     String error_string = make_fixed_width_string(space);
     append(&error_string, "missing body for ");
     append(&error_string, command_body);
-    add_error(builder, error_string);
+    add_error(arena, builder, error_string);
 }
 
 ////////////////////////////////
@@ -683,16 +658,16 @@ extract_command_body(String l, i32 *i_in_out, String *body_text_out){
 }
 
 internal Abstract_Item*
-make_document_from_text(Document_System *doc_system, char *title, char *name, Enriched_Text *text){
+make_document_from_text(Partition *arena, Document_System *doc_system, char *title, char *name, Enriched_Text *text){
     String source = text->source;
-    Document_Builder builder = begin_document_description(doc_system, title, name, false);
+    Document_Builder builder = begin_document_description(arena, doc_system, title, name, false);
     
     if (source.str == 0){
         char space[512];
         String str = make_fixed_width_string(space);
         copy(&str, "could not open source file ");
         copy(&str, text->fname);
-        add_error(&builder, str);
+        add_error(arena, &builder, str);
     }
     else{
         for (String line = get_first_double_line(source);
@@ -701,13 +676,13 @@ make_document_from_text(Document_System *doc_system, char *title, char *name, En
             String l = skip_chop_whitespace(line);
             if (l.size == 0) continue;
             
-            add_begin_paragraph(&builder);
+            add_begin_paragraph(arena, &builder);
             
             i32 start = 0, i = 0;
             for (; i < l.size; ++i){
                 char ch = l.str[i];
                 if (ch == '\\'){
-                    add_plain_old_text(&builder, substr(l, start, i - start));
+                    add_plain_old_text(arena, &builder, substr(l, start, i - start));
                     
                     i32 command_start = i + 1;
                     i32 command_end = command_start;
@@ -738,7 +713,7 @@ make_document_from_text(Document_System *doc_system, char *title, char *name, En
                     switch (match_index){
                         case Cmd_BackSlash:
                         {
-                            add_plain_old_text(&builder, make_lit_string("\\"));
+                            add_plain_old_text(arena, &builder, make_lit_string("\\"));
                         }break;
                         
                         case Cmd_End:
@@ -746,9 +721,9 @@ make_document_from_text(Document_System *doc_system, char *title, char *name, En
                             for (Document_Item *top = doc_get_item_top(&builder);
                                  top->type == Doc_Item;
                                  top = doc_get_item_top(&builder)){
-                                doc_end(&builder);
+                                doc_end(arena, &builder);
                             }
-                            doc_end(&builder);
+                            doc_end(arena, &builder);
                         }break;
                         
                         case Cmd_Section:
@@ -757,14 +732,12 @@ make_document_from_text(Document_System *doc_system, char *title, char *name, En
                             if (extract_command_body(l, &i, &body_text)){
                                 String extra_text = {};
                                 extract_command_body(l, &i, &extra_text);
-                                
-                                char *title = get_null_terminated_version(body_text);
-                                char *id = get_null_terminated_version(extra_text);
-                                
-                                begin_section(&builder, title, id);
+                                String title = string_push_copy(arena, body_text);
+                                String id    = string_push_copy(arena, extra_text);
+                                begin_section(arena, &builder, title.str, id.str);
                             }
                             else{
-                                report_error_missing_body(&builder, command_string);
+                                report_error_missing_body(arena, &builder, command_string);
                             }
                         }break;
                         
@@ -772,35 +745,35 @@ make_document_from_text(Document_System *doc_system, char *title, char *name, En
                         {
                             String body_text = {};
                             if (extract_command_body(l, &i, &body_text)){
-                                begin_style(&builder, body_text);
+                                begin_style(arena, &builder, body_text);
                             }
                             else{
-                                report_error_missing_body(&builder, command_string);
+                                report_error_missing_body(arena, &builder, command_string);
                             }
                         }break;
                         
                         case Cmd_List:
                         {
-                            begin_list(&builder);
+                            begin_list(arena, &builder);
                         }break;
                         
                         case Cmd_Item:
                         {
                             Document_Item *top = doc_get_item_top(&builder);
                             if (top->type == Doc_Item){
-                                doc_end(&builder);
+                                doc_end(arena, &builder);
                             }
-                            begin_item(&builder);
+                            begin_item(arena, &builder);
                         }break;
                         
                         case Cmd_Link:
                         {
                             String body_text = {};
                             if (extract_command_body(l, &i, &body_text)){
-                                begin_link(&builder, body_text);
+                                begin_link(arena, &builder, body_text);
                             }
                             else{
-                                report_error_missing_body(&builder, command_string);
+                                report_error_missing_body(arena, &builder, command_string);
                             }
                         }break;
                         
@@ -809,10 +782,10 @@ make_document_from_text(Document_System *doc_system, char *title, char *name, En
                         {
                             String body_text = {};
                             if (extract_command_body(l, &i, &body_text)){
-                                add_document_link(&builder, body_text);
+                                add_document_link(arena, &builder, body_text);
                             }
                             else{
-                                report_error_missing_body(&builder, command_string);
+                                report_error_missing_body(arena, &builder, command_string);
                             }
                         }break;
                         
@@ -822,10 +795,10 @@ make_document_from_text(Document_System *doc_system, char *title, char *name, En
                             if (extract_command_body(l, &i, &body_text)){
                                 String size_parameter = {};
                                 extract_command_body(l, &i, &size_parameter);
-                                add_image(&builder, body_text, size_parameter);
+                                add_image(arena, &builder, body_text, size_parameter);
                             }
                             else{
-                                report_error_missing_body(&builder, command_string);
+                                report_error_missing_body(arena, &builder, command_string);
                             }
                         }break;
                         
@@ -833,36 +806,36 @@ make_document_from_text(Document_System *doc_system, char *title, char *name, En
                         {
                             String body_text = {};
                             if (extract_command_body(l, &i, &body_text)){
-                                add_video(&builder, body_text);
+                                add_video(arena, &builder, body_text);
                             }
                             else{
-                                report_error_missing_body(&builder, command_string);
+                                report_error_missing_body(arena, &builder, command_string);
                             }
                         }break;
                         
                         case Cmd_Version:
                         {
-                            add_version(&builder);
+                            add_version(arena, &builder);
                         }break;
                         
                         case Cmd_TableOfContents:
                         {
-                            add_table_of_contents(&builder);
+                            add_table_of_contents(arena, &builder);
                         }break;
                         
                         case Cmd_Todo:
                         {
-                            add_todo(&builder);
+                            add_todo(arena, &builder);
                         }break;
                         
                         case Cmd_Include:
                         {
                             String body_text = {};
                             if (extract_command_body(l, &i, &body_text)){
-                                add_include(doc_system, &builder, body_text);
+                                add_include(arena, doc_system, &builder, body_text);
                             }
                             else{
-                                report_error_missing_body(&builder, command_string);
+                                report_error_missing_body(arena, &builder, command_string);
                             }
                         }break;
                         
@@ -872,21 +845,21 @@ make_document_from_text(Document_System *doc_system, char *title, char *name, En
                             String file = {};
                             if (extract_command_body(l, &i, &name)){
                                 if (extract_command_body(l, &i, &file)){
-                                    u32 result = create_meta_unit(doc_system, name, file);
+                                    u32 result = create_meta_unit(arena, doc_system, name, file);
                                     if (result == MetaResult_FailedToParse){
                                         char space[512];
                                         String str = make_fixed_width_string(space);
                                         append(&str, "parse failed for ");
                                         append(&str, file);
-                                        add_error(&builder, str);
+                                        add_error(arena, &builder, str);
                                     }
                                 }
                                 else{
-                                    report_error_missing_body(&builder, command_string);
+                                    report_error_missing_body(arena, &builder, command_string);
                                 }
                             }
                             else{
-                                report_error_missing_body(&builder, command_string);
+                                report_error_missing_body(arena, &builder, command_string);
                             }
                         }break;
                         
@@ -906,15 +879,15 @@ make_document_from_text(Document_System *doc_system, char *title, char *name, En
                                 }
                                 
                                 if (match_index == Cmd_DocList){
-                                    add_doc_list(&builder, name, mangle_rule);
+                                    add_doc_list(arena, &builder, name, mangle_rule);
                                 }
                                 else{
-                                    add_doc_full(&builder, name, mangle_rule);
+                                    add_doc_full(arena, &builder, name, mangle_rule);
                                 }
                                 
                             }
                             else{
-                                report_error_missing_body(&builder, command_string);
+                                report_error_missing_body(arena, &builder, command_string);
                             }
                         }break;
                         
@@ -924,7 +897,7 @@ make_document_from_text(Document_System *doc_system, char *title, char *name, En
                             String error = make_fixed_width_string(space);
                             append(&error, "unrecognized command ");
                             append(&error, command_string);
-                            add_error(&builder, error);
+                            add_error(arena, &builder, error);
                         }break;
                     }
                     
@@ -933,14 +906,14 @@ make_document_from_text(Document_System *doc_system, char *title, char *name, En
             }
             
             if (start != i){
-                add_plain_old_text(&builder, substr(l, start, i - start));
+                add_plain_old_text(arena, &builder, substr(l, start, i - start));
             }
             
-            add_end_paragraph(&builder);
+            add_end_paragraph(arena, &builder);
         }
     }
     
-    end_document_description(&builder);
+    end_document_description(arena, &builder);
     return(builder.doc);
 }
 
@@ -952,11 +925,11 @@ struct Unresolved_Include_Array{
 };
 
 internal Unresolved_Include_Array
-get_unresolved_includes(Document_System *doc_system){
+get_unresolved_includes(Partition *arena, Document_System *doc_system){
     Unresolved_Include_Array result = {};
     
     Basic_List *list = &doc_system->unresolved_includes;
-    result.items = (Document_Item**)fm_push_array(Document_Item*, list->count);
+    result.items = (Document_Item**)push_array(arena, Document_Item*, list->count);
     result.count = list->count;
     
     u32 i = 0;
@@ -970,9 +943,9 @@ get_unresolved_includes(Document_System *doc_system){
 }
 
 internal void
-resolve_all_includes(Document_System *doc_system){
+resolve_all_includes(Partition *arena, Document_System *doc_system){
     for (;doc_system->unresolved_includes.count > 0;){
-        Unresolved_Include_Array includes = get_unresolved_includes(doc_system);
+        Unresolved_Include_Array includes = get_unresolved_includes(arena, doc_system);
         clear_list(&doc_system->unresolved_includes);
         
         Document_Item **item_ptr = includes.items;
@@ -982,9 +955,9 @@ resolve_all_includes(Document_System *doc_system){
             Abstract_Item *inc_doc = get_item_by_name(doc_system->doc_list, item->include.name);
             if (inc_doc == 0){
                 String source_text = item->include.name;
-                Enriched_Text *text = fm_push_array(Enriched_Text, 1);
-                *text = load_enriched_text(doc_system->src_dir, source_text.str);
-                inc_doc = make_document_from_text(doc_system, source_text.str, source_text.str, text);
+                Enriched_Text *text = push_array(arena, Enriched_Text, 1);
+                *text = load_enriched_text(arena, doc_system->src_dir, source_text.str);
+                inc_doc = make_document_from_text(arena, doc_system, source_text.str, source_text.str, text);
             }
             item->include.document = inc_doc;
         }
@@ -1219,7 +1192,7 @@ output_end_link(String *out){
 }
 
 internal void
-output_image(Document_System *doc_system, String *out, String l, String l2){
+output_image(Partition *arena, Document_System *doc_system, String *out, String l, String l2){
     i32 pixel_height = 10;
     i32 pixel_width = HTML_WIDTH;
     
@@ -1244,7 +1217,7 @@ output_image(Document_System *doc_system, String *out, String l, String l2){
             char space[256];
             if (img_get_link_string(img_lookup, space, sizeof(space), pixel_width, pixel_height)){
                 append(out, space);
-                add_image_instantiation(&img_lookup->img_instantiations, pixel_width, pixel_height);
+                add_image_instantiation(arena, &img_lookup->img_instantiations, pixel_width, pixel_height);
             }
             else{
                 NotImplemented;
@@ -1332,8 +1305,8 @@ print_item_in_list(String *out, String name, char *id_postfix){
 }
 
 internal void
-init_used_links(Used_Links *used, i32 count){
-    used->strs = fm_push_array(String, count);
+init_used_links(Partition *arena, Used_Links *used, i32 count){
+    used->strs = push_array(arena, String, count);
     used->count = 0;
     used->max = count;
 }
@@ -1594,18 +1567,18 @@ print_doc_description(String *out, String src){
 }
 
 internal void
-print_struct_docs(String *out, Item_Node *member){
+print_struct_docs(Partition *arena, String *out, Item_Node *member){
     for (Item_Node *member_iter = member->first_child;
          member_iter != 0;
          member_iter = member_iter->next_sibling){
         String type = member_iter->type;
         if (match_ss(type, make_lit_string("struct")) ||
             match_ss(type, make_lit_string("union"))){
-            print_struct_docs(out, member_iter);
+            print_struct_docs(arena, out, member_iter);
         }
         else{
             Documentation doc = {};
-            perform_doc_parse(member_iter->doc_string, &doc);
+            perform_doc_parse(arena, member_iter->doc_string, &doc);
             
             append(out, "<div>");
             
@@ -1640,17 +1613,17 @@ print_see_also(String *out, Documentation *doc){
 }
 
 internal void
-print_function_docs(String *out, String name, String doc_string){
+print_function_docs(Partition *arena, String *out, String name, String doc_string){
     if (doc_string.size == 0){
         append(out, "No documentation generated for this function.");
         fprintf(stdout, "warning: no documentation string for %.*s\n", name.size, name.str);
     }
     
-    Temp temp = fm_begin_temp();
+    Temp_Memory temp = begin_temp_memory(arena);
     
     Documentation doc = {};
     
-    perform_doc_parse(doc_string, &doc);
+    perform_doc_parse(arena, doc_string, &doc);
     
     i32 doc_param_count = doc.param_count;
     if (doc_param_count > 0){
@@ -1686,14 +1659,14 @@ print_function_docs(String *out, String name, String doc_string){
     
     print_see_also(out, &doc);
     
-    fm_end_temp(temp);
+    end_temp_memory(temp);
 }
 
 internal void
-print_item_html(String *out, Used_Links *used, Item_Node *item, char *id_postfix, char *section, i32 I, u32 mangle_rule){
-    Temp temp = fm_begin_temp();
+print_item_html(Partition *arena, String *out, Used_Links *used, Item_Node *item, char *id_postfix, char *section, i32 I, u32 mangle_rule){
+    Temp_Memory temp = begin_temp_memory(arena);
     
-    String name = apply_mangle_rule(item->name, mangle_rule);
+    String name = apply_mangle_rule(arena, item->name, mangle_rule);
     
     /* NOTE(allen):
     Open a div for the whole item.
@@ -1736,7 +1709,7 @@ print_item_html(String *out, Used_Links *used, Item_Node *item, char *id_postfix
             append(out, "</div>");
             
             // NOTE(allen): Descriptive section
-            print_function_docs(out, name, item->doc_string);
+            print_function_docs(arena, out, name, item->doc_string);
         }break;
         
         case Item_Macro:
@@ -1748,7 +1721,7 @@ print_item_html(String *out, Used_Links *used, Item_Node *item, char *id_postfix
             append(out, "</div>");
             
             // NOTE(allen): Descriptive section
-            print_function_docs(out, name, item->doc_string);
+            print_function_docs(arena, out, name, item->doc_string);
         }break;
         
         case Item_Typedef:
@@ -1768,7 +1741,7 @@ print_item_html(String *out, Used_Links *used, Item_Node *item, char *id_postfix
             // NOTE(allen): Descriptive section
             String doc_string = item->doc_string;
             Documentation doc = {};
-            perform_doc_parse(doc_string, &doc);
+            perform_doc_parse(arena, doc_string, &doc);
             
             String main_doc = doc.main_doc;
             if (main_doc.size != 0){
@@ -1799,7 +1772,7 @@ print_item_html(String *out, Used_Links *used, Item_Node *item, char *id_postfix
             // NOTE(allen): Descriptive section
             String doc_string = item->doc_string;
             Documentation doc = {};
-            perform_doc_parse(doc_string, &doc);
+            perform_doc_parse(arena, doc_string, &doc);
             
             String main_doc = doc.main_doc;
             if (main_doc.size != 0){
@@ -1820,7 +1793,7 @@ print_item_html(String *out, Used_Links *used, Item_Node *item, char *id_postfix
                      member;
                      member = member->next_sibling){
                     Documentation doc = {};
-                    perform_doc_parse(member->doc_string, &doc);
+                    perform_doc_parse(arena, member->doc_string, &doc);
                     
                     append(out, "<div>");
                     
@@ -1877,7 +1850,7 @@ print_item_html(String *out, Used_Links *used, Item_Node *item, char *id_postfix
             // NOTE(allen): Descriptive section
             {
                 Documentation doc = {};
-                perform_doc_parse(doc_string, &doc);
+                perform_doc_parse(arena, doc_string, &doc);
                 
                 String main_doc = doc.main_doc;
                 if (main_doc.size != 0){
@@ -1894,7 +1867,7 @@ print_item_html(String *out, Used_Links *used, Item_Node *item, char *id_postfix
                 if (!hide_members){
                     if (item->first_child){
                         append(out, HTML_DOC_HEAD_OPEN"Fields"HTML_DOC_HEAD_CLOSE);
-                        print_struct_docs(out, item);
+                        print_struct_docs(arena, out, item);
                     }
                 }
                 
@@ -1910,7 +1883,7 @@ print_item_html(String *out, Used_Links *used, Item_Node *item, char *id_postfix
     // NOTE(allen): Close the item box
     append(out, "</div><hr>");
     
-    fm_end_temp(temp);
+    end_temp_memory(temp);
 }
 
 global char* html_css =
@@ -1983,7 +1956,7 @@ make_output_system(String *out, Document_System *doc_system, Used_Links *used_li
 }
 
 internal void
-doc_item_html(Document_Output_System sys, Document_Item *item, b32 head){
+doc_item_html(Partition *arena, Document_Output_System sys, Document_Item *item, b32 head){
     switch (item->type){
         case Doc_Root:
         {
@@ -2059,7 +2032,7 @@ doc_item_html(Document_Output_System sys, Document_Item *item, b32 head){
                     append(sys.out, "<ul>");
                     
                     for (i32 i = 0; i < count; ++i){
-                        String name = apply_mangle_rule(unit->set.items[i].name, mangle_rule);
+                        String name = apply_mangle_rule(arena, unit->set.items[i].name, mangle_rule);
                         print_item_in_list(sys.out, name, "_doc");
                     }
                     
@@ -2073,7 +2046,7 @@ doc_item_html(Document_Output_System sys, Document_Item *item, b32 head){
                     
                     i32 I = 1;
                     for (i32 i = 0; i < count; ++i, ++I){
-                        print_item_html(sys.out, sys.used_links, &unit->set.items[i], "_doc", section_str.str, I, mangle_rule);
+                        print_item_html(arena, sys.out, sys.used_links, &unit->set.items[i], "_doc", section_str.str, I, mangle_rule);
                     }
                 }
             }
@@ -2153,7 +2126,7 @@ doc_item_html(Document_Output_System sys, Document_Item *item, b32 head){
         case Doc_Image:
         {
             if (head){
-                output_image(sys.doc_system, sys.out, item->string.string, item->string.string2);
+                output_image(arena, sys.doc_system, sys.out, item->string.string, item->string.string2);
             }
         }break;
         
@@ -2201,11 +2174,11 @@ doc_item_html(Document_Output_System sys, Document_Item *item, b32 head){
 }
 
 internal void
-generate_document_html_inner(Document_Output_System sys, Abstract_Item *doc);
+generate_document_html_inner(Partition *arena, Document_Output_System sys, Abstract_Item *doc);
 
 internal void
-generate_item_html(Document_Output_System sys, Document_Item *item){
-    doc_item_html(sys, item, true);
+generate_item_html(Partition *arena, Document_Output_System sys, Document_Item *item){
+    doc_item_html(arena, sys, item, true);
     
     if (item->section.first_child != 0){
         if (item->type == Doc_Section){
@@ -2217,7 +2190,7 @@ generate_item_html(Document_Output_System sys, Document_Item *item){
         for (Document_Item *m = item->section.first_child;
              m != 0;
              m = m->next){
-            generate_item_html(sys, m);
+            generate_item_html(arena, sys, m);
         }
         
         if (item->type == Doc_Section){
@@ -2241,32 +2214,32 @@ generate_item_html(Document_Output_System sys, Document_Item *item){
                 String error = make_lit_string("recursive inclusion, halted here");
                 Document_Item temp_item = {};
                 temp_item.type = Doc_Error;
-                set_item_string(&temp_item.string.string, error);
-                generate_item_html(sys, &temp_item);
+                set_item_string(arena, &temp_item.string.string, error);
+                generate_item_html(arena, sys, &temp_item);
             }
             else{
-                generate_document_html_inner(sys, new_doc);
+                generate_document_html_inner(arena, sys, new_doc);
             }
         }
     }
     
-    doc_item_html(sys, item, false);
+    doc_item_html(arena, sys, item, false);
 }
 
 internal void
-generate_document_html_inner(Document_Output_System sys, Abstract_Item *doc){
+generate_document_html_inner(Partition *arena, Document_Output_System sys, Abstract_Item *doc){
     Assert(sys.inc_stack->top < ArrayCount(sys.inc_stack->stack));
     sys.inc_stack->stack[sys.inc_stack->top++] = doc;
-    generate_item_html(sys, doc->root_item);
+    generate_item_html(arena, sys, doc->root_item);
     --sys.inc_stack->top;
 }
 
 internal void
-generate_document_html(String *out, Document_System *doc_system, Abstract_Item *doc){
+generate_document_html(Partition *arena, String *out, Document_System *doc_system, Abstract_Item *doc){
     Assert(doc->root_item != 0);
     
     Used_Links used_links = {};
-    init_used_links(&used_links, 4000);
+    init_used_links(arena, &used_links, 4000);
     
     Section_Counter section_counter = {};
     section_counter.counter[section_counter.nest_level] = 1;
@@ -2275,7 +2248,7 @@ generate_document_html(String *out, Document_System *doc_system, Abstract_Item *
     
     Document_Output_System sys = make_output_system(out, doc_system, &used_links, &section_counter, &inc_stack);
     
-    generate_document_html_inner(sys, doc);
+    generate_document_html_inner(arena, sys, doc);
 }
 
 // BOTTOM

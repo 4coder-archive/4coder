@@ -24,6 +24,8 @@
 #include "../meta/4ed_meta_defines.h"
 
 #include "../4coder_API/4coder_version.h"
+#include "4coder_lib/4coder_arena.h"
+#include "4coder_lib/4coder_arena.cpp"
 #define FSTRING_IMPLEMENTATION
 #include "../4coder_lib/4coder_string.h"
 #include "../4coder_lib/4cpp_lexer.h"
@@ -36,7 +38,7 @@
 
 #include "../4coder_generated/command_metadata.h"
 #include "../4coder_generated/remapping.h"
-#include "../4coder_generated/keycodes.h"
+#include "../4coder_API/4coder_keycodes.h"
 
 ///////////////////////////////////////////////////////////////////////////
 
@@ -167,6 +169,8 @@ generate_binding_list(char *code_directory, char *src_directory){
                         case key_mouse_wheel: key_str = "mouse wheel"; break;
                         case key_mouse_move: key_str = "mouse move"; break;
                         case key_animate: key_str = "animate"; break;
+                        case key_click_activate_view: key_str = "click_activate_view"; break;
+                        case key_click_deactivate_view: key_str = "click_deactivate_view"; break;
                         case key_f1: key_str = "f1"; break; 
                         case key_f2: key_str = "f2"; break; 
                         case key_f3: key_str = "f3"; break; 
@@ -236,11 +240,11 @@ generate_binding_list(char *code_directory, char *src_directory){
 //
 
 internal Abstract_Item*
-generate_page(Document_System *doc_system, char *source_text, char *big_title, char *small_name){
-    Enriched_Text *home = fm_push_array(Enriched_Text, 1);
-    *home = load_enriched_text(doc_system->src_dir, source_text);
+generate_page(Partition *arena, Document_System *doc_system, char *source_text, char *big_title, char *small_name){
+    Enriched_Text *home = push_array(arena, Enriched_Text, 1);
+    *home = load_enriched_text(arena, doc_system->src_dir, source_text);
     
-    Abstract_Item *doc = make_document_from_text(doc_system, big_title, small_name, home);
+    Abstract_Item *doc = make_document_from_text(arena, doc_system, big_title, small_name, home);
     if (doc == 0){
         fprintf(stdout, "warning: could not create document %s from file %s\n", small_name, source_text);
     }
@@ -249,13 +253,13 @@ generate_page(Document_System *doc_system, char *source_text, char *big_title, c
 }
 
 internal void
-do_image_resize(char *src_file, char *dst_file, char *extension, i32 w, i32 h){
-    Temp temp = fm_begin_temp();
+do_image_resize(Partition *arena, char *src_file, char *dst_file, char *extension, i32 w, i32 h){
+    Temp_Memory temp = begin_temp_memory(arena);
     
     i32 x = 0, y = 0, channels = 0;
     stbi_uc *image = stbi_load(src_file, &x, &y, &channels, 0);
     if (image != 0){
-        stbi_uc *resized_image = fm_push_array(stbi_uc, w*h*channels);
+        stbi_uc *resized_image = push_array(arena, stbi_uc, w*h*channels);
         stbir_resize_uint8(image, x, y, x*channels, resized_image, w, h, w*channels, channels);
         if (match_cc(extension, "png")){
             stbi_write_png(dst_file, w, h, channels, resized_image, w*channels);
@@ -263,39 +267,39 @@ do_image_resize(char *src_file, char *dst_file, char *extension, i32 w, i32 h){
         free(image);
     }
     
-    fm_end_temp(temp);
+    end_temp_memory(temp);
 }
 
 internal void
-generate_site(char *code_directory, char *asset_directory, char *src_directory, char *dst_directory){
+generate_site(Partition *arena, char *code_directory, char *asset_directory, char *src_directory, char *dst_directory){
     fm_clear_folder(dst_directory);
     
     Document_System doc_system = create_document_system(code_directory, asset_directory, src_directory);
     Document_System *docs = &doc_system;
     
     // TODO(allen): Declare these in the source files.
-    add_image_description(docs, "4coder_logo_low_green.png", "png", "4coder_logo" );
-    add_image_description(docs, "screen_1.png",              "png", "screen_1"    );
-    add_image_description(docs, "screen_2.png",              "png", "screen_2"    );
-    add_image_description(docs, "screen_3.png",              "png", "screen_3"    );
-    add_generic_file     (docs, "4coder_icon.ico",           "ico", "4coder_icon" );
+    add_image_description(arena, docs, "4coder_logo_low_green.png", "png", "4coder_logo" );
+    add_image_description(arena, docs, "screen_1.png",              "png", "screen_1"    );
+    add_image_description(arena, docs, "screen_2.png",              "png", "screen_2"    );
+    add_image_description(arena, docs, "screen_3.png",              "png", "screen_3"    );
+    add_generic_file     (arena, docs, "4coder_icon.ico",           "ico", "4coder_icon" );
     
     // TODO(allen): From the text file get  "Big Title" and        "smallname".
-    generate_page(docs, "docs.txt"        , "4coder API Docs"    , "custom_docs" );
-    generate_page(docs, "home.txt"        , "4coder Home"        , "home"        );
-    generate_page(docs, "feature_list.txt", "4coder Feature List", "features"    );
-    generate_page(docs, "binding_list.txt", "4coder Binding List", "bindings"    );
-    generate_page(docs, "roadmap.txt"     , "4coder Roadmap"     , "roadmap"     );
-    generate_page(docs, "tutorials.txt"   , "4coder Tutorials"   , "tutorials"   );
+    generate_page(arena, docs, "docs.txt"        , "4coder API Docs"    , "custom_docs" );
+    generate_page(arena, docs, "home.txt"        , "4coder Home"        , "home"        );
+    generate_page(arena, docs, "feature_list.txt", "4coder Feature List", "features"    );
+    generate_page(arena, docs, "binding_list.txt", "4coder Binding List", "bindings"    );
+    generate_page(arena, docs, "roadmap.txt"     , "4coder Roadmap"     , "roadmap"     );
+    generate_page(arena, docs, "tutorials.txt"   , "4coder Tutorials"   , "tutorials"   );
     
     // NOTE(allen): Create a list of the primary documents to generate.
-    Abstract_Item_Array original_documents = get_abstract_item_array(&doc_system.doc_list);
+    Abstract_Item_Array original_documents = get_abstract_item_array(arena, &doc_system.doc_list);
     
     // NOTE(allen): Cross link all the includes and pull in any non-primary documents.
-    resolve_all_includes(&doc_system);
+    resolve_all_includes(arena, &doc_system);
     
     // NOTE(allen): Generate the html from the primary documents and publish them.
-    String out = make_string_cap(fm__push(10 << 20), 0, 10 << 20);
+    String out = make_string_cap(push_array(arena, char, 10 << 20), 0, 10 << 20);
     Assert(out.str != 0);
     
     Abstract_Item **doc_ptr = original_documents.items;
@@ -305,9 +309,9 @@ generate_site(char *code_directory, char *asset_directory, char *src_directory, 
         
         char doc_link[256];
         if (doc_get_link_string(doc, doc_link, sizeof(doc_link))){
-            generate_document_html(&out, &doc_system, doc);
+            generate_document_html(arena, &out, &doc_system, doc);
             
-            char *name = fm_str(dst_directory, "/", doc_link);
+            char *name = fm_str(arena, dst_directory, "/", doc_link);
             fm_write_file(name, out.str, out.size);
             out.size = 0;
         }
@@ -319,8 +323,8 @@ generate_site(char *code_directory, char *asset_directory, char *src_directory, 
          node = node->next){
         Abstract_Item *file = NodeGetData(node, Abstract_Item);
         Assert(file->item_type == ItemType_GenericFile);
-        char *file_name = fm_str(file->name, ".", file->extension);
-        fm_copy_file(fm_str(file_name), fm_str(dst_directory, "/", file_name));
+        char *file_name = fm_str(arena, file->name, ".", file->extension);
+        fm_copy_file(fm_str(arena, file_name), fm_str(arena, dst_directory, "/", file_name));
     }
     
     // NOTE(allen): Publish images
@@ -337,8 +341,8 @@ generate_site(char *code_directory, char *asset_directory, char *src_directory, 
             
             char img_link[256];
             if (img_get_link_string(img, img_link, sizeof(img_link), inst->w, inst->h)){
-                char *dest_file = fm_str(dst_directory, "/", img_link);
-                do_image_resize(img->source_file, dest_file, img->extension, inst->w, inst->h);
+                char *dest_file = fm_str(arena, dst_directory, "/", img_link);
+                do_image_resize(arena, img->source_file, dest_file, img->extension, inst->w, inst->h);
             }
         }
     }
@@ -348,14 +352,14 @@ int main(int argc, char **argv){
     META_BEGIN();
     
     if (argc == 5){
-        fm_init_system();
+        Partition arena = fm_init_system();
         
         char *code_directory = argv[1];
         char *asset_directory = argv[2];
         char *src_directory = argv[3];
         char *dst_directory = argv[4];
         generate_binding_list(code_directory, src_directory);
-        generate_site(code_directory, asset_directory, src_directory, dst_directory);
+        generate_site(&arena, code_directory, asset_directory, src_directory, dst_directory);
     }
     
     META_FINISH();
