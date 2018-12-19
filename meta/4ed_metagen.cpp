@@ -433,7 +433,7 @@ generate_remapping_code_and_data(Partition *part){
         bind(part, mappings, 'x', MDFR_ALT, command_lister);
         bind(part, mappings, 'X', MDFR_ALT, project_command_lister);
         
-        bind(part, mappings, 'I', MDFR_CTRL, list_all_functions_current_buffer_lister);
+        bind(part, mappings, 'I', MDFR_CTRL, list_all_functions_all_buffers_lister);
         bind(part, mappings, 'E', MDFR_ALT, exit_4coder);
         
         bind(part, mappings, key_f1, MDFR_NONE, project_fkey_command);
@@ -658,7 +658,7 @@ generate_remapping_code_and_data(Partition *part){
         bind(part, mappings, 'x', MDFR_CTRL, command_lister);
         bind(part, mappings, 'X', MDFR_CTRL, project_command_lister);
         
-        bind(part, mappings, 'I', MDFR_CMND, list_all_functions_current_buffer_lister);
+        bind(part, mappings, 'I', MDFR_CMND, list_all_functions_all_buffers_lister);
         bind(part, mappings, 'E', MDFR_CTRL, exit_4coder);
         
         bind(part, mappings, key_f1, MDFR_NONE, project_fkey_command);

@@ -1,3 +1,20 @@
+New in alpha 4.0.30:
+-Mouse events (clicking, scroll wheel, mouse move) can now be bound with modifier keys
+-New and changed commands:
+ <ctrl scroll_wheel> change font size
+ <ctrl ;> toggle line comment (C++ type comments)
+ <ctrl I> open a lister for all functions in all buffers (heuristic parse can have false positives)
+-Bug fix: Fixed occasional crash when rendering a new buffer
+-Bug fix: High CPU usage in lister from perpetual animation mode
+-Bug fix: Panel resizing by mouse
+-Bug fix: Crashes from entering incomplete/nonsense file paths in file open/new listers
+-Bug fix: Various bugs in the notepad like mode
+-Bug fix: Crashes in file and buffer listers with a lot of items
+-Bug fix: Lexing scientific notation floats with + signs
+-Bug fix: Really long wrapped line using up entire render scratch buffer
+-Bug fix: Line highlights when scrolled to the right so the beginning of the line is off screen
+-Bug fix: Mismatch between lister state and hot directory leading to confusing file open/new behavior
+
 New in alpha 4.0.29:
 -New UI api supporting customizable UIs
 -Managed memory API
