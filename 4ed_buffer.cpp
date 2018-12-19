@@ -1721,11 +1721,13 @@ buffer_render_data(Buffer_Render_State *S_ptr, Buffer_Render_Params params, f32 
                     }
                     
                     if (S.behavior.do_newline){
-                        Render_Item_Flag flags = 0;
-                        if (S.first_of_the_wrap){
-                            flags |= RenderItemFlag_ForceEmit;
+                        {
+                            Render_Item_Flag flags = 0;
+                            if (S.first_of_the_wrap){
+                                flags |= RenderItemFlag_ForceEmit;
+                            }
+                            S.write = write_render_item(S.write, S.step.i, ' ', 0, flags);
                         }
-                        S.write = write_render_item(S.write, S.step.i, ' ', 0, flags);
                         
                         if (params.virtual_white){
                             S_stop.status          = BLStatus_NeedLineShift;
