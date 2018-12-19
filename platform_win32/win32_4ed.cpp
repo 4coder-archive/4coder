@@ -764,6 +764,7 @@ file_track_worker(void*){
                     case FileTrackInstruction_BeginTracking:
                     {
                         Directory_Track_Node *dir_node = instruction->dir_node;
+                        CreateIoCompletionPort(dir_node->dir_handle, file_track_iocp, (ULONG_PTR)&dir_node->overlapped, 1);
                         ReadDirectoryChangesW(dir_node->dir_handle, dir_node->buffer, sizeof(dir_node->buffer), FALSE,
                                               file_track_flags, 0, &dir_node->overlapped, 0);
                     }break;
@@ -864,11 +865,10 @@ Sys_Add_Listener_Sig(system_add_listener){
             
             if (dir_handle != 0 && dir_handle != INVALID_HANDLE_VALUE){
                 Directory_Track_Node *new_node = file_track_store_new_dir_node(dir_name_string, dir_handle);
-                CreateIoCompletionPort(dir_handle, file_track_iocp, (ULONG_PTR)&new_node->overlapped, 1);
-                // TODO(allen): // TODO(allen): // TODO(allen): // TODO(allen): // TODO(allen): // TODO(allen):
-                // Actually need to issue this from the file_track_worker thread as an instruction!
-                ReadDirectoryChangesW(dir_handle, new_node->buffer, sizeof(new_node->buffer), FALSE,
-                                      file_track_flags, 0, &new_node->overlapped, 0);
+                File_Track_Instruction_Node *instruction_node = file_track_new_instruction_node();
+                instruction_node->instruction = FileTrackInstruction_BeginTracking;
+                instruction_node->dir_node = new_node;
+                PostQueuedCompletionStatus(file_track_iocp, 0, 0, (LPOVERLAPPED)instruction_node);
                 existing_dir_node = new_node;
             }
             
