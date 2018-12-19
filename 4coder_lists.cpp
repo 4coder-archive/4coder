@@ -584,7 +584,7 @@ generate_hot_directory_file_list(Application_Links *app, Lister *lister){
             lister_add_item(lister, lister_prealloced(file_name), empty_string_prealloced, file_name.str, 0);
         }
         
-        for (File_Info *info = file_list.infos, *one_past_last = file_list.infos + file_list.count;
+        for (File_Info *info = file_list.infos;
              info < one_past_last;
              info += 1){
             if (info->folder) continue;
