@@ -820,6 +820,12 @@ ENUM(uint32_t, Marker_Visual_Priority_Level){
     VisualPriority_Highest = 4000,
 };
 
+/* DOC(Flags that control how font glyphs are modified before drawing.) */
+ENUM(uint32_t, Glyph_Flag){
+    GlyphFlag_None = 0x0, 
+    GlyphFlag_Rotate90 = 0x1, 
+};
+
 /* DOC(Query_Bar is a struct used to store information in the user's control that will be displayed as a drop down bar durring an interactive command.) */
 STRUCT Query_Bar{
     /* DOC(This specifies the prompt portion of the drop down bar.) */

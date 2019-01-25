@@ -254,6 +254,7 @@ layout_refit(Editing_Layout *layout, i32 prev_width, i32 prev_height){
     if (layout->panel_count > 1){
         Assert(prev_width != 0 && prev_height != 0);
         for (i32 i = 0; i < max; ++i, ++divider){
+            // TODO(casey): Allen, is this doing something?  Is it just reserved for future use I guess?
             if (divider->v_divider){
                 divider->pos = divider->pos;
             }

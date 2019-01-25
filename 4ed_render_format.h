@@ -48,6 +48,7 @@ struct Render_Command_Glyph{
     u32 color;
     Face_ID font_id;
     u32 codepoint;
+    u32 flags;
 };
 
 struct Render_Command_Change_Clip{

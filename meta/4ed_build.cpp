@@ -271,7 +271,7 @@ build(Partition *part, u32 flags, u32 arch, char *code_path, char **code_files, 
     
     fm_add_to_line(line, "-Fe%s", out_file);
     
-    fm_add_to_line(line, "-link -INCREMENTAL:NO");
+    fm_add_to_line(line, "-link -INCREMENTAL:NO -RELEASE -PDBALTPATH:%%_PDB%%");
     switch (arch){
         case Arch_X64: fm_add_to_line(line, "-MACHINE:X64"); break;
         case Arch_X86: fm_add_to_line(line, "-MACHINE:X86"); break;

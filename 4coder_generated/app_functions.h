@@ -39,6 +39,7 @@ struct Application_Links;
 #define VIEW_SET_SETTING_SIG(n) bool32 n(Application_Links *app, View_Summary *view, View_Setting_ID setting, int32_t value)
 #define VIEW_GET_MANAGED_SCOPE_SIG(n) Managed_Scope n(Application_Links *app, View_ID view_id)
 #define VIEW_SET_SPLIT_PROPORTION_SIG(n) bool32 n(Application_Links *app, View_Summary *view, float t)
+#define VIEW_GET_ENCLOSURE_RECT_SIG(n) i32_Rect n(Application_Links *app, View_Summary *view)
 #define VIEW_COMPUTE_CURSOR_SIG(n) bool32 n(Application_Links *app, View_Summary *view, Buffer_Seek seek, Full_Cursor *cursor_out)
 #define VIEW_SET_CURSOR_SIG(n) bool32 n(Application_Links *app, View_Summary *view, Buffer_Seek seek, bool32 set_preferred_x)
 #define VIEW_SET_SCROLL_SIG(n) bool32 n(Application_Links *app, View_Summary *view, GUI_Scroll_Vars scroll)
@@ -82,6 +83,7 @@ struct Application_Links;
 #define GET_COMMAND_INPUT_SIG(n) User_Input n(Application_Links *app)
 #define SET_COMMAND_INPUT_SIG(n) void n(Application_Links *app, Key_Event_Data key_data)
 #define GET_MOUSE_STATE_SIG(n) Mouse_State n(Application_Links *app)
+#define GET_ACTIVE_QUERY_BARS_SIG(n) int32_t n(Application_Links *app, View_ID view_id, int32_t max_result_count, Query_Bar **result_array)
 #define START_QUERY_BAR_SIG(n) bool32 n(Application_Links *app, Query_Bar *bar, uint32_t flags)
 #define END_QUERY_BAR_SIG(n) void n(Application_Links *app, Query_Bar *bar, uint32_t flags)
 #define PRINT_MESSAGE_SIG(n) void n(Application_Links *app, char *str, int32_t len)
@@ -119,6 +121,11 @@ struct Application_Links;
 #define SEND_EXIT_SIGNAL_SIG(n) void n(Application_Links *app)
 #define SET_WINDOW_TITLE_SIG(n) void n(Application_Links *app, char *title)
 #define GET_MICROSECONDS_TIMESTAMP_SIG(n) Microsecond_Time_Stamp n(Application_Links *app)
+#define DRAW_STRING_SIG(n) float n(Application_Links *app, Face_ID font_id, String str, float x, float y, uint32_t color, uint32_t flags, float dx, float dy)
+#define GET_STRING_ADVANCE_SIG(n) float n(Application_Links *app, Face_ID font_id, String str)
+#define DRAW_RECTANGLE_SIG(n) void n(Application_Links *app, f32_Rect rect, int_color color)
+#define DRAW_RECTANGLE_OUTLINE_SIG(n) void n(Application_Links *app, f32_Rect rect, int_color color)
+#define GET_DEFAULT_FONT_FOR_VIEW_SIG(n) Face_ID n(Application_Links *app, View_ID view_id)
 typedef GLOBAL_SET_SETTING_SIG(Global_Set_Setting_Function);
 typedef GLOBAL_SET_MAPPING_SIG(Global_Set_Mapping_Function);
 typedef EXEC_COMMAND_SIG(Exec_Command_Function);
@@ -159,6 +166,7 @@ typedef VIEW_GET_SETTING_SIG(View_Get_Setting_Function);
 typedef VIEW_SET_SETTING_SIG(View_Set_Setting_Function);
 typedef VIEW_GET_MANAGED_SCOPE_SIG(View_Get_Managed_Scope_Function);
 typedef VIEW_SET_SPLIT_PROPORTION_SIG(View_Set_Split_Proportion_Function);
+typedef VIEW_GET_ENCLOSURE_RECT_SIG(View_Get_Enclosure_Rect_Function);
 typedef VIEW_COMPUTE_CURSOR_SIG(View_Compute_Cursor_Function);
 typedef VIEW_SET_CURSOR_SIG(View_Set_Cursor_Function);
 typedef VIEW_SET_SCROLL_SIG(View_Set_Scroll_Function);
@@ -202,6 +210,7 @@ typedef GET_USER_INPUT_SIG(Get_User_Input_Function);
 typedef GET_COMMAND_INPUT_SIG(Get_Command_Input_Function);
 typedef SET_COMMAND_INPUT_SIG(Set_Command_Input_Function);
 typedef GET_MOUSE_STATE_SIG(Get_Mouse_State_Function);
+typedef GET_ACTIVE_QUERY_BARS_SIG(Get_Active_Query_Bars_Function);
 typedef START_QUERY_BAR_SIG(Start_Query_Bar_Function);
 typedef END_QUERY_BAR_SIG(End_Query_Bar_Function);
 typedef PRINT_MESSAGE_SIG(Print_Message_Function);
@@ -239,6 +248,11 @@ typedef IS_FULLSCREEN_SIG(Is_Fullscreen_Function);
 typedef SEND_EXIT_SIGNAL_SIG(Send_Exit_Signal_Function);
 typedef SET_WINDOW_TITLE_SIG(Set_Window_Title_Function);
 typedef GET_MICROSECONDS_TIMESTAMP_SIG(Get_Microseconds_Timestamp_Function);
+typedef DRAW_STRING_SIG(Draw_String_Function);
+typedef GET_STRING_ADVANCE_SIG(Get_String_Advance_Function);
+typedef DRAW_RECTANGLE_SIG(Draw_Rectangle_Function);
+typedef DRAW_RECTANGLE_OUTLINE_SIG(Draw_Rectangle_Outline_Function);
+typedef GET_DEFAULT_FONT_FOR_VIEW_SIG(Get_Default_Font_For_View_Function);
 struct Application_Links{
 #if defined(ALLOW_DEP_4CODER)
 Global_Set_Setting_Function *global_set_setting;
@@ -281,6 +295,7 @@ View_Get_Setting_Function *view_get_setting;
 View_Set_Setting_Function *view_set_setting;
 View_Get_Managed_Scope_Function *view_get_managed_scope;
 View_Set_Split_Proportion_Function *view_set_split_proportion;
+View_Get_Enclosure_Rect_Function *view_get_enclosure_rect;
 View_Compute_Cursor_Function *view_compute_cursor;
 View_Set_Cursor_Function *view_set_cursor;
 View_Set_Scroll_Function *view_set_scroll;
@@ -324,6 +339,7 @@ Get_User_Input_Function *get_user_input;
 Get_Command_Input_Function *get_command_input;
 Set_Command_Input_Function *set_command_input;
 Get_Mouse_State_Function *get_mouse_state;
+Get_Active_Query_Bars_Function *get_active_query_bars;
 Start_Query_Bar_Function *start_query_bar;
 End_Query_Bar_Function *end_query_bar;
 Print_Message_Function *print_message;
@@ -361,6 +377,11 @@ Is_Fullscreen_Function *is_fullscreen;
 Send_Exit_Signal_Function *send_exit_signal;
 Set_Window_Title_Function *set_window_title;
 Get_Microseconds_Timestamp_Function *get_microseconds_timestamp;
+Draw_String_Function *draw_string;
+Get_String_Advance_Function *get_string_advance;
+Draw_Rectangle_Function *draw_rectangle;
+Draw_Rectangle_Outline_Function *draw_rectangle_outline;
+Get_Default_Font_For_View_Function *get_default_font_for_view;
 #else
 Global_Set_Setting_Function *global_set_setting_;
 Global_Set_Mapping_Function *global_set_mapping_;
@@ -402,6 +423,7 @@ View_Get_Setting_Function *view_get_setting_;
 View_Set_Setting_Function *view_set_setting_;
 View_Get_Managed_Scope_Function *view_get_managed_scope_;
 View_Set_Split_Proportion_Function *view_set_split_proportion_;
+View_Get_Enclosure_Rect_Function *view_get_enclosure_rect_;
 View_Compute_Cursor_Function *view_compute_cursor_;
 View_Set_Cursor_Function *view_set_cursor_;
 View_Set_Scroll_Function *view_set_scroll_;
@@ -445,6 +467,7 @@ Get_User_Input_Function *get_user_input_;
 Get_Command_Input_Function *get_command_input_;
 Set_Command_Input_Function *set_command_input_;
 Get_Mouse_State_Function *get_mouse_state_;
+Get_Active_Query_Bars_Function *get_active_query_bars_;
 Start_Query_Bar_Function *start_query_bar_;
 End_Query_Bar_Function *end_query_bar_;
 Print_Message_Function *print_message_;
@@ -482,6 +505,11 @@ Is_Fullscreen_Function *is_fullscreen_;
 Send_Exit_Signal_Function *send_exit_signal_;
 Set_Window_Title_Function *set_window_title_;
 Get_Microseconds_Timestamp_Function *get_microseconds_timestamp_;
+Draw_String_Function *draw_string_;
+Get_String_Advance_Function *get_string_advance_;
+Draw_Rectangle_Function *draw_rectangle_;
+Draw_Rectangle_Outline_Function *draw_rectangle_outline_;
+Get_Default_Font_For_View_Function *get_default_font_for_view_;
 #endif
 void *memory;
 int32_t memory_size;
@@ -531,6 +559,7 @@ app_links->view_get_setting_ = View_Get_Setting;\
 app_links->view_set_setting_ = View_Set_Setting;\
 app_links->view_get_managed_scope_ = View_Get_Managed_Scope;\
 app_links->view_set_split_proportion_ = View_Set_Split_Proportion;\
+app_links->view_get_enclosure_rect_ = View_Get_Enclosure_Rect;\
 app_links->view_compute_cursor_ = View_Compute_Cursor;\
 app_links->view_set_cursor_ = View_Set_Cursor;\
 app_links->view_set_scroll_ = View_Set_Scroll;\
@@ -574,6 +603,7 @@ app_links->get_user_input_ = Get_User_Input;\
 app_links->get_command_input_ = Get_Command_Input;\
 app_links->set_command_input_ = Set_Command_Input;\
 app_links->get_mouse_state_ = Get_Mouse_State;\
+app_links->get_active_query_bars_ = Get_Active_Query_Bars;\
 app_links->start_query_bar_ = Start_Query_Bar;\
 app_links->end_query_bar_ = End_Query_Bar;\
 app_links->print_message_ = Print_Message;\
@@ -610,7 +640,12 @@ app_links->set_fullscreen_ = Set_Fullscreen;\
 app_links->is_fullscreen_ = Is_Fullscreen;\
 app_links->send_exit_signal_ = Send_Exit_Signal;\
 app_links->set_window_title_ = Set_Window_Title;\
-app_links->get_microseconds_timestamp_ = Get_Microseconds_Timestamp;} while(false)
+app_links->get_microseconds_timestamp_ = Get_Microseconds_Timestamp;\
+app_links->draw_string_ = Draw_String;\
+app_links->get_string_advance_ = Get_String_Advance;\
+app_links->draw_rectangle_ = Draw_Rectangle;\
+app_links->draw_rectangle_outline_ = Draw_Rectangle_Outline;\
+app_links->get_default_font_for_view_ = Get_Default_Font_For_View;} while(false)
 #if defined(ALLOW_DEP_4CODER)
 static inline bool32 global_set_setting(Application_Links *app, Global_Setting_ID setting, int32_t value){return(app->global_set_setting(app, setting, value));}
 static inline bool32 global_set_mapping(Application_Links *app, void *data, int32_t size){return(app->global_set_mapping(app, data, size));}
@@ -652,6 +687,7 @@ static inline bool32 view_get_setting(Application_Links *app, View_Summary *view
 static inline bool32 view_set_setting(Application_Links *app, View_Summary *view, View_Setting_ID setting, int32_t value){return(app->view_set_setting(app, view, setting, value));}
 static inline Managed_Scope view_get_managed_scope(Application_Links *app, View_ID view_id){return(app->view_get_managed_scope(app, view_id));}
 static inline bool32 view_set_split_proportion(Application_Links *app, View_Summary *view, float t){return(app->view_set_split_proportion(app, view, t));}
+static inline i32_Rect view_get_enclosure_rect(Application_Links *app, View_Summary *view){return(app->view_get_enclosure_rect(app, view));}
 static inline bool32 view_compute_cursor(Application_Links *app, View_Summary *view, Buffer_Seek seek, Full_Cursor *cursor_out){return(app->view_compute_cursor(app, view, seek, cursor_out));}
 static inline bool32 view_set_cursor(Application_Links *app, View_Summary *view, Buffer_Seek seek, bool32 set_preferred_x){return(app->view_set_cursor(app, view, seek, set_preferred_x));}
 static inline bool32 view_set_scroll(Application_Links *app, View_Summary *view, GUI_Scroll_Vars scroll){return(app->view_set_scroll(app, view, scroll));}
@@ -695,6 +731,7 @@ static inline User_Input get_user_input(Application_Links *app, Input_Type_Flag 
 static inline User_Input get_command_input(Application_Links *app){return(app->get_command_input(app));}
 static inline void set_command_input(Application_Links *app, Key_Event_Data key_data){(app->set_command_input(app, key_data));}
 static inline Mouse_State get_mouse_state(Application_Links *app){return(app->get_mouse_state(app));}
+static inline int32_t get_active_query_bars(Application_Links *app, View_ID view_id, int32_t max_result_count, Query_Bar **result_array){return(app->get_active_query_bars(app, view_id, max_result_count, result_array));}
 static inline bool32 start_query_bar(Application_Links *app, Query_Bar *bar, uint32_t flags){return(app->start_query_bar(app, bar, flags));}
 static inline void end_query_bar(Application_Links *app, Query_Bar *bar, uint32_t flags){(app->end_query_bar(app, bar, flags));}
 static inline void print_message(Application_Links *app, char *str, int32_t len){(app->print_message(app, str, len));}
@@ -732,6 +769,11 @@ static inline bool32 is_fullscreen(Application_Links *app){return(app->is_fullsc
 static inline void send_exit_signal(Application_Links *app){(app->send_exit_signal(app));}
 static inline void set_window_title(Application_Links *app, char *title){(app->set_window_title(app, title));}
 static inline Microsecond_Time_Stamp get_microseconds_timestamp(Application_Links *app){return(app->get_microseconds_timestamp(app));}
+static inline float draw_string(Application_Links *app, Face_ID font_id, String str, float x, float y, uint32_t color, uint32_t flags, float dx, float dy){return(app->draw_string(app, font_id, str, x, y, color, flags, dx, dy));}
+static inline float get_string_advance(Application_Links *app, Face_ID font_id, String str){return(app->get_string_advance(app, font_id, str));}
+static inline void draw_rectangle(Application_Links *app, f32_Rect rect, int_color color){(app->draw_rectangle(app, rect, color));}
+static inline void draw_rectangle_outline(Application_Links *app, f32_Rect rect, int_color color){(app->draw_rectangle_outline(app, rect, color));}
+static inline Face_ID get_default_font_for_view(Application_Links *app, View_ID view_id){return(app->get_default_font_for_view(app, view_id));}
 #else
 static inline bool32 global_set_setting(Application_Links *app, Global_Setting_ID setting, int32_t value){return(app->global_set_setting_(app, setting, value));}
 static inline bool32 global_set_mapping(Application_Links *app, void *data, int32_t size){return(app->global_set_mapping_(app, data, size));}
@@ -773,6 +815,7 @@ static inline bool32 view_get_setting(Application_Links *app, View_Summary *view
 static inline bool32 view_set_setting(Application_Links *app, View_Summary *view, View_Setting_ID setting, int32_t value){return(app->view_set_setting_(app, view, setting, value));}
 static inline Managed_Scope view_get_managed_scope(Application_Links *app, View_ID view_id){return(app->view_get_managed_scope_(app, view_id));}
 static inline bool32 view_set_split_proportion(Application_Links *app, View_Summary *view, float t){return(app->view_set_split_proportion_(app, view, t));}
+static inline i32_Rect view_get_enclosure_rect(Application_Links *app, View_Summary *view){return(app->view_get_enclosure_rect_(app, view));}
 static inline bool32 view_compute_cursor(Application_Links *app, View_Summary *view, Buffer_Seek seek, Full_Cursor *cursor_out){return(app->view_compute_cursor_(app, view, seek, cursor_out));}
 static inline bool32 view_set_cursor(Application_Links *app, View_Summary *view, Buffer_Seek seek, bool32 set_preferred_x){return(app->view_set_cursor_(app, view, seek, set_preferred_x));}
 static inline bool32 view_set_scroll(Application_Links *app, View_Summary *view, GUI_Scroll_Vars scroll){return(app->view_set_scroll_(app, view, scroll));}
@@ -816,6 +859,7 @@ static inline User_Input get_user_input(Application_Links *app, Input_Type_Flag 
 static inline User_Input get_command_input(Application_Links *app){return(app->get_command_input_(app));}
 static inline void set_command_input(Application_Links *app, Key_Event_Data key_data){(app->set_command_input_(app, key_data));}
 static inline Mouse_State get_mouse_state(Application_Links *app){return(app->get_mouse_state_(app));}
+static inline int32_t get_active_query_bars(Application_Links *app, View_ID view_id, int32_t max_result_count, Query_Bar **result_array){return(app->get_active_query_bars_(app, view_id, max_result_count, result_array));}
 static inline bool32 start_query_bar(Application_Links *app, Query_Bar *bar, uint32_t flags){return(app->start_query_bar_(app, bar, flags));}
 static inline void end_query_bar(Application_Links *app, Query_Bar *bar, uint32_t flags){(app->end_query_bar_(app, bar, flags));}
 static inline void print_message(Application_Links *app, char *str, int32_t len){(app->print_message_(app, str, len));}
@@ -853,4 +897,9 @@ static inline bool32 is_fullscreen(Application_Links *app){return(app->is_fullsc
 static inline void send_exit_signal(Application_Links *app){(app->send_exit_signal_(app));}
 static inline void set_window_title(Application_Links *app, char *title){(app->set_window_title_(app, title));}
 static inline Microsecond_Time_Stamp get_microseconds_timestamp(Application_Links *app){return(app->get_microseconds_timestamp_(app));}
+static inline float draw_string(Application_Links *app, Face_ID font_id, String str, float x, float y, uint32_t color, uint32_t flags, float dx, float dy){return(app->draw_string_(app, font_id, str, x, y, color, flags, dx, dy));}
+static inline float get_string_advance(Application_Links *app, Face_ID font_id, String str){return(app->get_string_advance_(app, font_id, str));}
+static inline void draw_rectangle(Application_Links *app, f32_Rect rect, int_color color){(app->draw_rectangle_(app, rect, color));}
+static inline void draw_rectangle_outline(Application_Links *app, f32_Rect rect, int_color color){(app->draw_rectangle_outline_(app, rect, color));}
+static inline Face_ID get_default_font_for_view(Application_Links *app, View_ID view_id){return(app->get_default_font_for_view_(app, view_id));}
 #endif

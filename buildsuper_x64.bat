@@ -15,16 +15,16 @@ if "%src%" == "" set src=4coder_default_bindings.cpp
 set opts=/W4 /wd4310 /wd4100 /wd4201 /wd4505 /wd4996 /wd4127 /wd4510 /wd4512 /wd4610 /wd4457 /WX
 set opts=%opts% /GR- /nologo /FC
 set debug=/Zi
-set build_dll=/LD /link /INCREMENTAL:NO /OPT:REF
+set build_dll=/LD /link /INCREMENTAL:NO /OPT:REF /RELEASE /PDBALTPATH:%%%%_PDB%%%%
 set exports=/EXPORT:get_bindings /EXPORT:get_alpha_4coder_version
 
 set preproc_file=4coder_command_metadata.i
 set meta_macros=/DMETA_PASS
-cl /I"%code_home%" %opts% %debug% %src% /P /Fi%preproc_file% %meta_macros%
-cl /I"%code_home%" %opts% %debug% "%code_home%\4coder_metadata_generator.cpp" /Femetadata_generator
+call cl /I"%code_home%" %opts% %debug% %src% /P /Fi%preproc_file% %meta_macros%
+call cl /I"%code_home%" %opts% %debug% "%code_home%\4coder_metadata_generator.cpp" /Femetadata_generator
 metadata_generator -R "%code_home%" "%cd%\\%preproc_file%"
 
-cl /I"%code_home%" %opts% %debug% %src% /Fecustom_4coder %build_dll% %exports%
+call cl /I"%code_home%" %opts% %debug% %src% /Fecustom_4coder %build_dll% %exports%
 
 REM file spammation preventation
 del metadata_generator*

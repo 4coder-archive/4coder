@@ -1900,6 +1900,35 @@ DOC_RETURN(This call returns non-zero on success.)
     return(result);
 }
 
+API_EXPORT i32_Rect
+View_Get_Enclosure_Rect(Application_Links *app, View_Summary *view)
+/*
+DOC_PARAM(view, The view whose parent rent will be returned.)
+DOC_RETURN(The rectangle of the panel containing this view.)
+*/{
+    // TODO(allen): Update implementation of layout for better queries and traversals
+    
+    i32_Rect result = {};
+    
+    Models *models = (Models*)app->cmd_context;
+    Editing_Layout *layout = &models->layout;
+    View *vptr = imp_get_view(models, view);
+    
+    if (vptr != 0){
+        Panel *panel = vptr->transient.panel;
+        
+        i32_Rect a = layout_get_rect(layout, panel->parent, panel->which_child);
+        i32_Rect b = layout_get_rect(layout, panel->parent, !panel->which_child);
+        
+        result.x0 = Min(a.x0, b.x0);
+        result.y0 = Min(a.y0, b.y0);
+        result.x1 = Max(a.x0, b.x1);
+        result.y1 = Max(a.y0, b.y1);
+    }
+    
+    return(result);
+}
+
 API_EXPORT bool32
 View_Compute_Cursor(Application_Links *app, View_Summary *view, Buffer_Seek seek, Full_Cursor *cursor_out)
 /*
@@ -2553,8 +2582,8 @@ API_EXPORT bool32
 Managed_Variable_Set(Application_Links *app, Managed_Scope scope, Managed_Variable_ID id, uint64_t value)
 /*
 DOC_PARAM(scope, A handle to the scope in which the value of the given variable will be set.)
-DOC_PARAM(id, The id of the variable to set.) 
-DOC_PARAM(value, The new value of the variable.) 
+DOC_PARAM(id, The id of the variable to set.)
+DOC_PARAM(value, The new value of the variable.)
 DOC_RETURN(Returns non-zero on success.  This call fails if scope does not refer to a valid managed scope, or id does not refer to an existing managed variable.)
 */
 {
@@ -2571,8 +2600,8 @@ API_EXPORT bool32
 Managed_Variable_Get(Application_Links *app, Managed_Scope scope, Managed_Variable_ID id, uint64_t *value_out)
 /*
 DOC_PARAM(scope, A handle to the scope from which the value of the given variable will be queried.)
-DOC_PARAM(id, The id of the variable to get.) 
-DOC_PARAM(value_out, An address where the value of the given variable in the given scope will be stored.) 
+DOC_PARAM(id, The id of the variable to get.)
+DOC_PARAM(value_out, An address where the value of the given variable in the given scope will be stored.)
 DOC_RETURN(Returns non-zero on success.  This call fails if scope does not refer to a valid managed scope, or id does not refer to an existing managed variable.  If the managed scope and managed variable both exist, but the variable has never been set, then the default value for the variable that was determined when the variable was created is used to fill value_out, this is treated as a success and returns non-zero.)
 */
 {
@@ -3106,6 +3135,36 @@ DOC_SEE(Mouse_State)
 */{
     Models *models = (Models*)app->cmd_context;
     return(models->input->mouse);
+}
+
+API_EXPORT int32_t
+Get_Active_Query_Bars(Application_Links *app, View_ID view_id, int32_t max_result_count, Query_Bar **result_array)
+/*
+DOC_PARAM(view_id, Specifies the view for which query bars should be retrieved.)
+DOC_PARAM(max_result_count, Specifies the number of Query_Bar pointers available in result_array.)
+DOC_PARAM(result_array, User-supplied empty array of max_result_count Query_Bar pointers.)
+DOC_RETURN(This call returns the number of Query_Bar pointers successfully placed in result_array.)
+DOC
+(
+This call allows the customization layer to inspect the set of active Query_Bar slots for a given
+view_id.  By convention, the most recent query will be entry 0, the next most recent 1, etc., such
+that if you only care about the most recent query bar, you can call Get_Active_Query_Bars with a
+max_result_count of 1 and be assured you will get the most recent bar if any exist.
+)
+*/{
+    int32_t result = 0;
+    Models *models = (Models*)app->cmd_context;
+    View *view = imp_get_view(models, view_id);
+    if (view != 0){
+        for (Query_Slot *slot = view->transient.query_set.used_slot;
+             slot != 0 && (result < max_result_count);
+             slot = slot->next){
+            if (slot->query_bar != 0){
+                result_array[result++] = slot->query_bar;
+            }
+        }
+    }
+    return(result);
 }
 
 API_EXPORT bool32
@@ -3829,5 +3888,56 @@ DOC(Returns a microsecond resolution timestamp.)
     return(system->now_time());
 }
 
-// BOTTOM
+API_EXPORT float
+Draw_String(Application_Links *app, Face_ID font_id, String str, float x, float y, uint32_t color, uint32_t flags, float dx, float dy)
+{
+    // TODO(allen): do(Documentation and parameter review for draw_* related calls)
+    
+    Models *models = (Models*)app->cmd_context;
+    Style *style = &models->styles.styles[0];
+    Theme *theme_data = &style->theme;
+    
+    float w = draw_string_base(models->system, models->target, font_id, str, round32(x), round32(y), finalize_color(theme_data, color), flags, dx, dy);
+    return(w);
+}
 
+API_EXPORT float
+Get_String_Advance(Application_Links *app, Face_ID font_id, String str)
+{
+    Models *models = (Models*)app->cmd_context;
+    float w = font_string_width(models->system, models->target, font_id, str);
+    return(w);
+}
+
+API_EXPORT void
+Draw_Rectangle(Application_Links *app, f32_Rect rect, int_color color)
+{
+    Models *models = (Models*)app->cmd_context;
+    Style *style = &models->styles.styles[0];
+    Theme *theme_data = &style->theme;
+    
+    draw_rectangle(models->target, rect, finalize_color(theme_data, color));
+}
+
+API_EXPORT void
+Draw_Rectangle_Outline(Application_Links *app, f32_Rect rect, int_color color)
+{
+    Models *models = (Models*)app->cmd_context;
+    Style *style = &models->styles.styles[0];
+    Theme *theme_data = &style->theme;
+    
+    draw_rectangle_outline(models->target, rect, finalize_color(theme_data, color));
+}
+
+API_EXPORT Face_ID
+Get_Default_Font_For_View(Application_Links *app, View_ID view_id)
+{
+    Models *models = (Models*)app->cmd_context;
+    View *view = imp_get_view(models, view_id);
+    Editing_File *file = view->transient.file_data.file;
+    Assert(file != 0);
+    Face_ID face_id = file->settings.font_id;
+    return(face_id);
+}
+
+// BOTTOM

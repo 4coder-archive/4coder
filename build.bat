@@ -9,7 +9,7 @@ set build_mode=%1
 if "%build_mode%" == "" (set build_mode="/DDEV_BUILD")
 
 pushd ..\build
-cl %opts% kernel32.lib ..\code\meta\4ed_build.cpp /Zi /Febuild %build_mode%
+call cl %opts% kernel32.lib ..\code\meta\4ed_build.cpp /Zi /Febuild %build_mode%
 if %ERRORLEVEL% neq 0 (set FirstError=1)
 if %ERRORLEVEL% neq 0 (goto END)
 popd

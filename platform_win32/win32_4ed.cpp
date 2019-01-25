@@ -396,9 +396,7 @@ global_const u32 file_track_flags = 0
 |FILE_NOTIFY_CHANGE_LAST_WRITE
 |FILE_NOTIFY_CHANGE_CREATION
 |FILE_NOTIFY_CHANGE_SECURITY
-|FILE_NOTIFY_CHANGE_LAST_ACCESS
 ;
-
 
 ////////////////////////////////
 

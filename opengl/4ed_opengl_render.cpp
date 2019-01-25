@@ -69,9 +69,9 @@ interpret_render_buffer(Render_Target *t, Partition *growable_scratch){
         
         void CALL_CONVENTION gl_dbg(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const char *message, const void *userParam);
         
-        glDebugMessageCallback_type *glDebugMessageCallback = 
+        glDebugMessageCallback_type *glDebugMessageCallback =
             (glDebugMessageCallback_type *)win32_load_gl_always("glDebugMessageCallback", module);
-        glDebugMessageControl_type *glDebugMessageControl = 
+        glDebugMessageControl_type *glDebugMessageControl =
             (glDebugMessageControl_type *)win32_load_gl_always("glDebugMessageControl", module);
         if(glDebugMessageCallback != 0 && glDebugMessageControl != 0)
         {
@@ -192,10 +192,19 @@ interpret_render_buffer(Render_Target *t, Partition *growable_scratch){
                 f32 y = glyph->pos.y;
                 
                 f32_Rect xy = {};
-                xy.x0 = x + bounds.xoff;
-                xy.y0 = y + bounds.yoff;
-                xy.x1 = x + bounds.xoff2;
-                xy.y1 = y + bounds.yoff2;
+                
+                if (glyph->flags & GlyphFlag_Rotate90){
+                    xy.x0 = x + bounds.xoff;
+                    xy.y0 = y + bounds.yoff;
+                    xy.x1 = x + bounds.xoff2;
+                    xy.y1 = y + bounds.yoff2;
+                }
+                else{
+                    xy.x0 = x + bounds.yoff;
+                    xy.y0 = y + bounds.xoff;
+                    xy.x1 = x + bounds.yoff2;
+                    xy.y1 = y + bounds.xoff2;
+                }
                 
                 // TODO(allen): Why aren't these baked in???
                 f32 unit_u = 1.f/tex_width;

@@ -489,6 +489,23 @@ release_font_and_update_files(System_Functions *system, Models *models, Face_ID 
 
 ////////////////////////////////
 
+internal u32
+finalize_color(Theme *theme_data, u32 color){
+    if ((color&SymbolicColor__StagColorFlag) && (color&0xFF000000) == 0){
+        u32 color_index = color&0x007FFFFF;
+        if (color_index < Stag_COUNT){
+            u32 *c = &theme_data->colors[color_index];
+            if (c != 0){
+                color = *c;
+            }
+            else{
+                color = 0;
+            }
+        }
+    }
+    return(color);
+}
+
 internal void
 get_visual_markers(Partition *arena, Dynamic_Workspace *workspace,
                    Range range, Buffer_ID buffer_id, i32 view_index,
@@ -505,38 +522,13 @@ get_visual_markers(Partition *arena, Dynamic_Workspace *workspace,
             if (data->key_view_id != 0 && data->key_view_id != view_id) continue;
             
             Marker_Visual_Type type = data->type;
-            u32 color = data->color;
-            u32 text_color = data->text_color;
             i32 take_count_per_step = data->take_rule.take_count_per_step;
             i32 step_stride_in_marker_count = data->take_rule.step_stride_in_marker_count;
             i32 stride_size_from_last = step_stride_in_marker_count - take_count_per_step;
             i32 priority = data->priority;
             
-            if ((color&SymbolicColor__StagColorFlag) && (color&0xFF000000) == 0){
-                u32 color_index = color&0x007FFFFF;
-                if (color_index < Stag_COUNT){
-                    u32 *c = &theme_data->colors[color_index];
-                    if (c != 0){
-                        color = *c;
-                    }
-                    else{
-                        color = 0;
-                    }
-                }
-            }
-            
-            if ((text_color&SymbolicColor__StagColorFlag) && (text_color&0xFF000000) == 0){
-                u32 color_index = text_color&0x007FFFFF;
-                if (color_index < Stag_COUNT){
-                    u32 *c = &theme_data->colors[color_index];
-                    if (c != 0){
-                        text_color = *c;
-                    }
-                    else{
-                        text_color = 0;
-                    }
-                }
-            }
+            u32 color = finalize_color(theme_data, data->color);
+            u32 text_color = finalize_color(theme_data, data->text_color);
             
             Marker *markers = (Marker*)(node + 1);
             Assert(sizeof(*markers) == node->std_header.item_size);
