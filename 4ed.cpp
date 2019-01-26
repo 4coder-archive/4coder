@@ -189,9 +189,7 @@ internal void
 setup_ui_commands(Command_Map *commands, Partition *part, i32 parent){
     map_init(commands, part, DEFAULT_UI_MAP_SIZE, parent);
     
-    // TODO(allen): This is hacky, when the new UI stuff happens, let's fix it,
-    // and by that I mean actually fix it, don't just say you fixed it with
-    // something stupid again.
+    // TODO(allen): do(fix the weird built-in-ness of the ui map)
     u8 mdfr_array[] = {MDFR_NONE, MDFR_SHIFT, MDFR_CTRL, MDFR_SHIFT | MDFR_CTRL};
     for (i32 i = 0; i < 4; ++i){
         u8 mdfr = mdfr_array[i];
@@ -501,13 +499,13 @@ interpret_binding_buffer(Models *models, void *buffer, i32 size){
         setup_ui_commands(&new_mapping.map_ui, &local_part, mapid_global);
     }
     else{
-        // TODO(allen): Probably should have some recovery plan here.
+        // TODO(allen): do(Error report: bad binding units map.)
+        // TODO(allen): do(no bindings set recovery plan.)
         InvalidCodePath;
     }
     
     Mapping old_mapping = models->mapping;
     if (old_mapping.memory != 0){
-        // TODO(allen): Do I need to explicity work on recovering the old ids of buffers?
         heap_free(gen, old_mapping.memory);
     }
     
@@ -1047,6 +1045,9 @@ App_Step_Sig(app_step){
     Application_Step_Result app_result = {};
     app_result.mouse_cursor_type = APP_MOUSE_CURSOR_DEFAULT;
     app_result.lctrl_lalt_is_altgr = models->settings.lctrl_lalt_is_altgr;
+    
+    // NOTE(allen): per-frame update of models state
+    models->target = target;
     
     // NOTE(allen): OS clipboard event handling
     String clipboard = input->clipboard;

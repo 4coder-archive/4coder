@@ -191,26 +191,12 @@ interpret_render_buffer(Render_Target *t, Partition *growable_scratch){
                 f32 x = glyph->pos.x;
                 f32 y = glyph->pos.y;
                 
-                f32_Rect xy = {};
+                f32_Rect uv = {};
                 
-                if (glyph->flags & GlyphFlag_Rotate90){
-                    xy.x0 = x + bounds.xoff;
-                    xy.y0 = y + bounds.yoff;
-                    xy.x1 = x + bounds.xoff2;
-                    xy.y1 = y + bounds.yoff2;
-                }
-                else{
-                    xy.x0 = x + bounds.yoff;
-                    xy.y0 = y + bounds.xoff;
-                    xy.x1 = x + bounds.yoff2;
-                    xy.y1 = y + bounds.xoff2;
-                }
-                
-                // TODO(allen): Why aren't these baked in???
+                // TODO(allen): do(think about baking unit_u/unit_v into font data)
                 f32 unit_u = 1.f/tex_width;
                 f32 unit_v = 1.f/tex_height;
                 
-                f32_Rect uv = {};
                 uv.x0 = bounds.x0*unit_u;
                 uv.y0 = bounds.y0*unit_v;
                 uv.x1 = bounds.x1*unit_u;
@@ -219,11 +205,17 @@ interpret_render_buffer(Render_Target *t, Partition *growable_scratch){
                 private_draw_set_color(t, glyph->color);
                 private_draw_bind_texture(t, tex);
                 glBegin(GL_QUADS);
-                {
-                    glTexCoord2f(uv.x0, uv.y1); glVertex2f(xy.x0, xy.y1);
-                    glTexCoord2f(uv.x1, uv.y1); glVertex2f(xy.x1, xy.y1);
-                    glTexCoord2f(uv.x1, uv.y0); glVertex2f(xy.x1, xy.y0);
-                    glTexCoord2f(uv.x0, uv.y0); glVertex2f(xy.x0, xy.y0);
+                if ((glyph->flags & GlyphFlag_Rotate90) == 0){
+                    glTexCoord2f(uv.x0, uv.y1); glVertex2f(x + bounds.xoff , y + bounds.yoff2);
+                    glTexCoord2f(uv.x1, uv.y1); glVertex2f(x + bounds.xoff2, y + bounds.yoff2);
+                    glTexCoord2f(uv.x1, uv.y0); glVertex2f(x + bounds.xoff2, y + bounds.yoff );
+                    glTexCoord2f(uv.x0, uv.y0); glVertex2f(x + bounds.xoff , y + bounds.yoff );
+                }
+                else{
+                    glTexCoord2f(uv.x0, uv.y1); glVertex2f(x + bounds.yoff2, y + bounds.xoff2);
+                    glTexCoord2f(uv.x1, uv.y1); glVertex2f(x + bounds.yoff2, y + bounds.xoff );
+                    glTexCoord2f(uv.x1, uv.y0); glVertex2f(x + bounds.yoff , y + bounds.xoff );
+                    glTexCoord2f(uv.x0, uv.y0); glVertex2f(x + bounds.yoff , y + bounds.xoff2);
                 }
                 glEnd();
                 

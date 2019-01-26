@@ -121,7 +121,7 @@ struct Application_Links;
 #define SEND_EXIT_SIGNAL_SIG(n) void n(Application_Links *app)
 #define SET_WINDOW_TITLE_SIG(n) void n(Application_Links *app, char *title)
 #define GET_MICROSECONDS_TIMESTAMP_SIG(n) Microsecond_Time_Stamp n(Application_Links *app)
-#define DRAW_STRING_SIG(n) float n(Application_Links *app, Face_ID font_id, String str, float x, float y, uint32_t color, uint32_t flags, float dx, float dy)
+#define DRAW_STRING_SIG(n) float n(Application_Links *app, Face_ID font_id, String str, int32_t x, int32_t y, int_color color, uint32_t flags, float dx, float dy)
 #define GET_STRING_ADVANCE_SIG(n) float n(Application_Links *app, Face_ID font_id, String str)
 #define DRAW_RECTANGLE_SIG(n) void n(Application_Links *app, f32_Rect rect, int_color color)
 #define DRAW_RECTANGLE_OUTLINE_SIG(n) void n(Application_Links *app, f32_Rect rect, int_color color)
@@ -769,7 +769,7 @@ static inline bool32 is_fullscreen(Application_Links *app){return(app->is_fullsc
 static inline void send_exit_signal(Application_Links *app){(app->send_exit_signal(app));}
 static inline void set_window_title(Application_Links *app, char *title){(app->set_window_title(app, title));}
 static inline Microsecond_Time_Stamp get_microseconds_timestamp(Application_Links *app){return(app->get_microseconds_timestamp(app));}
-static inline float draw_string(Application_Links *app, Face_ID font_id, String str, float x, float y, uint32_t color, uint32_t flags, float dx, float dy){return(app->draw_string(app, font_id, str, x, y, color, flags, dx, dy));}
+static inline float draw_string(Application_Links *app, Face_ID font_id, String str, int32_t x, int32_t y, int_color color, uint32_t flags, float dx, float dy){return(app->draw_string(app, font_id, str, x, y, color, flags, dx, dy));}
 static inline float get_string_advance(Application_Links *app, Face_ID font_id, String str){return(app->get_string_advance(app, font_id, str));}
 static inline void draw_rectangle(Application_Links *app, f32_Rect rect, int_color color){(app->draw_rectangle(app, rect, color));}
 static inline void draw_rectangle_outline(Application_Links *app, f32_Rect rect, int_color color){(app->draw_rectangle_outline(app, rect, color));}
@@ -897,7 +897,7 @@ static inline bool32 is_fullscreen(Application_Links *app){return(app->is_fullsc
 static inline void send_exit_signal(Application_Links *app){(app->send_exit_signal_(app));}
 static inline void set_window_title(Application_Links *app, char *title){(app->set_window_title_(app, title));}
 static inline Microsecond_Time_Stamp get_microseconds_timestamp(Application_Links *app){return(app->get_microseconds_timestamp_(app));}
-static inline float draw_string(Application_Links *app, Face_ID font_id, String str, float x, float y, uint32_t color, uint32_t flags, float dx, float dy){return(app->draw_string_(app, font_id, str, x, y, color, flags, dx, dy));}
+static inline float draw_string(Application_Links *app, Face_ID font_id, String str, int32_t x, int32_t y, int_color color, uint32_t flags, float dx, float dy){return(app->draw_string_(app, font_id, str, x, y, color, flags, dx, dy));}
 static inline float get_string_advance(Application_Links *app, Face_ID font_id, String str){return(app->get_string_advance_(app, font_id, str));}
 static inline void draw_rectangle(Application_Links *app, f32_Rect rect, int_color color){(app->draw_rectangle_(app, rect, color));}
 static inline void draw_rectangle_outline(Application_Links *app, f32_Rect rect, int_color color){(app->draw_rectangle_outline_(app, rect, color));}

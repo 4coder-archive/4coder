@@ -1176,7 +1176,7 @@ render_loaded_file_in_view__inner(Models *models, Render_Target *target, View *v
             }
             char_color = color_blend(char_color, fade_amount, fade_color);
             if (item->codepoint != 0){
-                draw_font_glyph(target, font_id, item->codepoint, item->x0, item->y0, char_color);
+                draw_font_glyph(target, font_id, item->codepoint, item->x0, item->y0, char_color, GlyphFlag_None);
             }
             
             if (color_wireframe != 0){
@@ -1330,7 +1330,6 @@ render_loaded_file_in_view(System_Functions *system, View *view, Models *models,
     ////////////////////////////////
     
     if (models->render_caller != 0){
-        models->target = target;
         models->render_view = view;
         models->render_rect = rect;
         models->render_cursor = render_cursor;
@@ -1338,6 +1337,7 @@ render_loaded_file_in_view(System_Functions *system, View *view, Models *models,
         models->render_items = items;
         models->render_item_count = item_count;
         models->render_caller(&models->app_links, view->persistent.id + 1, on_screen_range, do_core_render);
+        models->render_view = 0;
     }
     else{
         render_loaded_file_in_view__inner(models, target, view, rect, render_cursor, on_screen_range, items, item_count);

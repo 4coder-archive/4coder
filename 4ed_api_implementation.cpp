@@ -1906,7 +1906,7 @@ View_Get_Enclosure_Rect(Application_Links *app, View_Summary *view)
 DOC_PARAM(view, The view whose parent rent will be returned.)
 DOC_RETURN(The rectangle of the panel containing this view.)
 */{
-    // TODO(allen): Update implementation of layout for better queries and traversals
+    // TODO(allen): do(update implementation of layout for better queries and traversals)
     
     i32_Rect result = {};
     
@@ -2314,7 +2314,7 @@ DOC_SEE(view_set_ui)
         result.items = push_array(part, UI_Item, control->count);
         if (result.items != 0){
             result.count = control->count;
-            // TODO(allen): Fixup the pointers
+            // TODO(allen): do(fixup the pointers)
             memcpy(result.items, control->items, sizeof(*result.items)*result.count);
         }
         else{
@@ -3815,7 +3815,7 @@ DOC_RETURN(This call returns non-zero on success.)
     return(result);
 }
 
-// TODO(allen): add a "shown but auto-hides on timer" setting here.
+// TODO(allen): do(add a "shown but auto-hides on timer" setting for cursor show type)
 API_EXPORT void
 Show_Mouse_Cursor(Application_Links *app, Mouse_Cursor_Show_Type show)
 /*
@@ -3888,16 +3888,42 @@ DOC(Returns a microsecond resolution timestamp.)
     return(system->now_time());
 }
 
+internal void
+draw_helper__view_space_to_screen_space(Models *models, i32 *x, i32 *y){
+    i32_Rect region = models->render_rect;
+    *x += region.x0;
+    *y += region.y0;
+}
+
+internal void
+draw_helper__view_space_to_screen_space(Models *models, f32_Rect *rect){
+    i32_Rect region = models->render_rect;
+    f32 x_corner = (f32)region.x0;
+    f32 y_corner = (f32)region.y0;
+    rect->x0 += x_corner;
+    rect->y0 += y_corner;
+    rect->x1 += x_corner;
+    rect->y1 += y_corner;
+}
+
+// TODO(allen): do(Documentation for draw_* related calls)
+
 API_EXPORT float
-Draw_String(Application_Links *app, Face_ID font_id, String str, float x, float y, uint32_t color, uint32_t flags, float dx, float dy)
+Draw_String(Application_Links *app, Face_ID font_id, String str, int32_t x, int32_t y, int_color color, uint32_t flags, float dx, float dy)
 {
-    // TODO(allen): do(Documentation and parameter review for draw_* related calls)
-    
     Models *models = (Models*)app->cmd_context;
+    if (models->render_view == 0){
+        float w = font_string_width(models->system, models->target, font_id, str);
+        return(w);
+    }
     Style *style = &models->styles.styles[0];
     Theme *theme_data = &style->theme;
     
-    float w = draw_string_base(models->system, models->target, font_id, str, round32(x), round32(y), finalize_color(theme_data, color), flags, dx, dy);
+    draw_helper__view_space_to_screen_space(models, &x, &y);
+    
+    u32 actual_color = finalize_color(theme_data, color);
+    float w = draw_string_base(models->system, models->target, font_id, str, x, y,
+                               actual_color, flags, dx, dy);
     return(w);
 }
 
@@ -3913,20 +3939,34 @@ API_EXPORT void
 Draw_Rectangle(Application_Links *app, f32_Rect rect, int_color color)
 {
     Models *models = (Models*)app->cmd_context;
+    if (models->render_view == 0){
+        return;
+    }
+    
     Style *style = &models->styles.styles[0];
     Theme *theme_data = &style->theme;
     
-    draw_rectangle(models->target, rect, finalize_color(theme_data, color));
+    draw_helper__view_space_to_screen_space(models, &rect);
+    
+    u32 actual_color = finalize_color(theme_data, color);
+    draw_rectangle(models->target, rect, actual_color);
 }
 
 API_EXPORT void
 Draw_Rectangle_Outline(Application_Links *app, f32_Rect rect, int_color color)
 {
     Models *models = (Models*)app->cmd_context;
+    if (models->render_view == 0){
+        return;
+    }
+    
     Style *style = &models->styles.styles[0];
     Theme *theme_data = &style->theme;
     
-    draw_rectangle_outline(models->target, rect, finalize_color(theme_data, color));
+    draw_helper__view_space_to_screen_space(models, &rect);
+    
+    u32 actual_color = finalize_color(theme_data, color);
+    draw_rectangle_outline(models->target, rect, actual_color);
 }
 
 API_EXPORT Face_ID

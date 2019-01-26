@@ -117,6 +117,7 @@ draw_font_glyph(Render_Target *target, Face_ID font_id, u32 codepoint, f32 x, f3
     render_end_push(target, h);
 }
 
+// TODO(allen): do(merge draw_string_base into draw_string)
 internal f32
 draw_string_base(System_Functions *system, Render_Target *target, Face_ID font_id, String str_, i32 x_, i32 y_, u32 color,
                  u32 flags, f32 dx, f32 dy){
@@ -200,13 +201,13 @@ draw_string(System_Functions *system, Render_Target *target, Face_ID font_id, ch
 
 internal f32
 draw_string(System_Functions *system, Render_Target *target, Face_ID font_id, String str, i32 x, i32 y, u32 color){
-    f32 w = draw_string_base(system, target, font_id, str, x, y, color, 0, 1.f, 0.f);
+    f32 w = draw_string(system, target, font_id, str, x, y, color, 0, 1.f, 0.f);
     return(w);
 }
 
 internal f32
 draw_string(System_Functions *system, Render_Target *target, Face_ID font_id, char *str, i32 x, i32 y, u32 color){
-    f32 w = draw_string_base(system, target, font_id, str, x, y, color, 0, 1.f, 0.f);
+    f32 w = draw_string(system, target, font_id, str, x, y, color, 0, 1.f, 0.f);
     return(w);
 }
 
