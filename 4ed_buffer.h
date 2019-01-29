@@ -12,6 +12,11 @@
 #if !defined(FRED_BUFFER_H)
 #define FRED_BUFFER_H
 
+struct String_Array{
+    String *vals;
+    i32 count;
+};
+
 struct Cursor_With_Index{
     i32 pos;
     i32 index;

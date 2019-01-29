@@ -244,12 +244,7 @@ edit_single__inner(System_Functions *system, Models *models, Editing_File *file,
     
     // NOTE(allen): token fixing
     if (file->settings.tokens_exist){
-        if (!file->settings.virtual_white){
-            file_relex_parallel(system, models, file, start, end, shift_amount);
-        }
-        else{
-            file_relex_serial(models, file, start, end, shift_amount);
-        }
+        file_relex(system, models, file, start, end, shift_amount);
     }
     
     // NOTE(allen): meta data
@@ -365,13 +360,7 @@ edit_batch(System_Functions *system, Models *models, Editing_File *file,
                 // TODO(allen): Write a smart fast one here someday.
                 Buffer_Edit *first_edit = batch;
                 Buffer_Edit *last_edit = batch + batch_size - 1;
-                
-                if (!file->settings.virtual_white){
-                    file_relex_parallel(system, models, file, first_edit->start, last_edit->end, shift_total);
-                }
-                else{
-                    file_relex_serial(models, file, first_edit->start, last_edit->end, shift_total);
-                }
+                file_relex(system, models, file, first_edit->start, last_edit->end, shift_total);
             }
         }break;
         

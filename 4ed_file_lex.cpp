@@ -9,8 +9,26 @@
 
 // TOP
 
-internal
-Job_Callback_Sig(job_full_lex){
+internal String_Array
+file_lex_chunks(Partition *part, Gap_Buffer *buffer){
+    String_Array result = {};
+    result.vals = push_array(part, String, 0);
+    buffer_get_chunks(part, buffer);
+    {
+        String *s = push_array(part, String, 1);
+        block_zero(s, sizeof(*s));
+    }
+    result.count = (i32)(push_array(part, String, 0) - result.vals);
+    return(result);
+}
+
+internal void
+file_lex_mark_new_tokens(System_Functions *system, Models *models, Editing_File *file){
+    // TODO(allen): Figure out what we want to do to mark these files.
+}
+
+internal void
+job_full_lex(System_Functions *system, Thread_Context *thread, Thread_Memory *memory, void *data[4]){
     Editing_File *file = (Editing_File*)data[0];
     Heap *heap = (Heap*)data[1];
     Models *models = (Models*)data[2];
@@ -45,30 +63,22 @@ Job_Callback_Sig(job_full_lex){
     
     Cpp_Lex_Data lex = cpp_lex_data_init(file->settings.tokens_without_strings, parse_context.kw_table, parse_context.pp_table);
     
-    // TODO(allen): deduplicate this against relex
-    char *chunks[3];
-    i32 chunk_sizes[3];
-    chunks[0] = buffer->data;
-    chunk_sizes[0] = buffer->size1;
-    chunks[1] = buffer->data + buffer->size1 + buffer->gap_size;
-    chunk_sizes[1] = buffer->size2;
-    chunks[2] = 0;
-    chunk_sizes[2] = 0;
+    String chunk_space[3];
+    Partition chunk_part = make_part(chunk_space, sizeof(chunk_space));
+    String_Array chunks = file_lex_chunks(&chunk_part, buffer);
     
     i32 chunk_index = 0;
     
     do{
-        char *chunk = chunks[chunk_index];
-        i32 chunk_size = chunk_sizes[chunk_index];
+        char *chunk = chunks.vals[chunk_index].str;
+        i32 chunk_size = chunks.vals[chunk_index].size;
         
-        i32 result =
-            cpp_lex_step(&lex, chunk, chunk_size, text_size, &tokens, 2048);
-        
+        i32 result = cpp_lex_step(&lex, chunk, chunk_size, text_size, &tokens, 2048);
         switch (result){
             case LexResult_NeedChunk:
             {
                 ++chunk_index;
-                Assert(chunk_index < ArrayCount(chunks));
+                Assert(chunk_index < chunks.count);
             }break;
             
             case LexResult_NeedTokenMemory:
@@ -128,18 +138,15 @@ Job_Callback_Sig(job_full_lex){
         file_token_array->tokens = file->state.swap_array.tokens;
         file->state.swap_array.tokens = 0;
     }
-    system->release_lock(FRAME_LOCK);
-    
-    // NOTE(allen): These are outside the locked section because I don't
-    // think getting these out of order will cause critical bugs, and I
-    // want to minimize what's done in locked sections.
     file->state.tokens_complete = true;
     file->state.still_lexing = false;
+    file_lex_mark_new_tokens(system, models, file);
+    system->release_lock(FRAME_LOCK);
 }
 
 internal void
 file_kill_tokens(System_Functions *system, Heap *heap, Editing_File *file){
-    file->settings.tokens_exist = 0;
+    file->settings.tokens_exist = false;
     if (file->state.still_lexing){
         system->cancel_job(BACKGROUND_THREADS, file->state.lex_job);
         if (file->state.swap_array.tokens){
@@ -159,7 +166,7 @@ file_first_lex_parallel(System_Functions *system, Models *models, Editing_File *
     Heap *heap = &models->mem.heap;
     file->settings.tokens_exist = true;
     
-    if (file->is_loading == 0 && file->state.still_lexing == 0){
+    if (!file->is_loading && !file->state.still_lexing){
         Assert(file->state.token_array.tokens == 0);
         
         file->state.tokens_complete = false;
@@ -175,7 +182,7 @@ file_first_lex_parallel(System_Functions *system, Models *models, Editing_File *
 }
 
 internal void
-file_first_lex_serial(Models *models, Editing_File *file){
+file_first_lex_serial(System_Functions *system, Models *models, Editing_File *file){
     Mem_Options *mem = &models->mem;
     Partition *part = &mem->part;
     Heap *heap = &mem->heap;
@@ -186,103 +193,96 @@ file_first_lex_serial(Models *models, Editing_File *file){
     if (file->is_loading == 0){
         Assert(file->state.token_array.tokens == 0);
         
-        {
-            Temp_Memory temp = begin_temp_memory(part);
+        Temp_Memory temp = begin_temp_memory(part);
+        
+        Parse_Context parse_context = parse_context_get(&models->parse_context_memory, file->settings.parse_context_id, partition_current(part), partition_remaining(part));
+        Assert(parse_context.valid);
+        push_array(part, char, (i32)parse_context.memory_size);
+        
+        Gap_Buffer *buffer = &file->state.buffer;
+        i32 text_size = buffer_size(buffer);
+        
+        i32 mem_size = partition_remaining(part);
+        
+        Cpp_Token_Array new_tokens;
+        new_tokens.max_count = mem_size/sizeof(Cpp_Token);
+        new_tokens.count = 0;
+        new_tokens.tokens = push_array(part, Cpp_Token, new_tokens.max_count);
+        
+        b32 still_lexing = true;
+        
+        Cpp_Lex_Data lex = cpp_lex_data_init(file->settings.tokens_without_strings, parse_context.kw_table, parse_context.pp_table);
+        
+        String chunk_space[3];
+        Partition chunk_part = make_part(chunk_space, sizeof(chunk_space));
+        String_Array chunks = file_lex_chunks(&chunk_part, buffer);
+        
+        i32 chunk_index = 0;
+        
+        Cpp_Token_Array *swap_array = &file->state.swap_array;
+        
+        do{
+            char *chunk = chunks.vals[chunk_index].str;
+            i32 chunk_size = chunks.vals[chunk_index].size;
             
-            Parse_Context parse_context = parse_context_get(&models->parse_context_memory, file->settings.parse_context_id, partition_current(part), partition_remaining(part));
-            Assert(parse_context.valid);
-            push_array(part, char, (i32)parse_context.memory_size);
+            i32 result = cpp_lex_step(&lex, chunk, chunk_size, text_size, &new_tokens, NO_OUT_LIMIT);
             
-            Gap_Buffer *buffer = &file->state.buffer;
-            i32 text_size = buffer_size(buffer);
-            
-            i32 mem_size = partition_remaining(part);
-            
-            Cpp_Token_Array new_tokens;
-            new_tokens.max_count = mem_size/sizeof(Cpp_Token);
-            new_tokens.count = 0;
-            new_tokens.tokens = push_array(part, Cpp_Token, new_tokens.max_count);
-            
-            b32 still_lexing = true;
-            
-            Cpp_Lex_Data lex = cpp_lex_data_init(file->settings.tokens_without_strings, parse_context.kw_table, parse_context.pp_table);
-            
-            // TODO(allen): deduplicate this against relex
-            char *chunks[3];
-            i32 chunk_sizes[3];
-            chunks[0] = buffer->data;
-            chunk_sizes[0] = buffer->size1;
-            chunks[1] = buffer->data + buffer->size1 + buffer->gap_size;
-            chunk_sizes[1] = buffer->size2;
-            chunks[2] = 0;
-            chunk_sizes[2] = 0;
-            
-            i32 chunk_index = 0;
-            
-            Cpp_Token_Array *swap_array = &file->state.swap_array;
-            
-            do{
-                char *chunk = chunks[chunk_index];
-                i32 chunk_size = chunk_sizes[chunk_index];
+            switch (result){
+                case LexResult_NeedChunk:
+                {
+                    ++chunk_index;
+                    Assert(chunk_index < chunks.count);
+                }break;
                 
-                i32 result = cpp_lex_step(&lex, chunk, chunk_size, text_size, &new_tokens, NO_OUT_LIMIT);
+                case LexResult_Finished:
+                case LexResult_NeedTokenMemory:
+                {
+                    u32 new_max = l_round_up_u32(swap_array->count + new_tokens.count + 1, KB(1));
+                    if (swap_array->tokens == 0){
+                        swap_array->tokens = heap_array(heap, Cpp_Token, new_max);
+                    }
+                    else{
+                        u32 old_count = swap_array->count;
+                        Cpp_Token *new_token_mem = heap_array(heap, Cpp_Token, new_max);
+                        memcpy(new_token_mem, swap_array->tokens, sizeof(*new_token_mem)*old_count);
+                        heap_free(heap, swap_array->tokens);
+                        swap_array->tokens = new_token_mem;
+                    }
+                    swap_array->max_count = new_max;
+                    
+                    Assert(swap_array->count + new_tokens.count <= swap_array->max_count);
+                    memcpy(swap_array->tokens + swap_array->count, new_tokens.tokens, new_tokens.count*sizeof(Cpp_Token));
+                    swap_array->count += new_tokens.count;
+                    new_tokens.count = 0;
+                    
+                    if (result == LexResult_Finished){
+                        still_lexing = false;
+                    }
+                }break;
                 
-                switch (result){
-                    case LexResult_NeedChunk:
-                    {
-                        ++chunk_index;
-                        Assert(chunk_index < ArrayCount(chunks));
-                    }break;
-                    
-                    case LexResult_Finished:
-                    case LexResult_NeedTokenMemory:
-                    {
-                        u32 new_max = l_round_up_u32(swap_array->count + new_tokens.count + 1, KB(1));
-                        if (swap_array->tokens == 0){
-                            swap_array->tokens = heap_array(heap, Cpp_Token, new_max);
-                        }
-                        else{
-                            u32 old_count = swap_array->count;
-                            Cpp_Token *new_token_mem = heap_array(heap, Cpp_Token, new_max);
-                            memcpy(new_token_mem, swap_array->tokens, sizeof(*new_token_mem)*old_count);
-                            heap_free(heap, swap_array->tokens);
-                            swap_array->tokens = new_token_mem;
-                        }
-                        swap_array->max_count = new_max;
-                        
-                        Assert(swap_array->count + new_tokens.count <= swap_array->max_count);
-                        memcpy(swap_array->tokens + swap_array->count, new_tokens.tokens, new_tokens.count*sizeof(Cpp_Token));
-                        swap_array->count += new_tokens.count;
-                        new_tokens.count = 0;
-                        
-                        if (result == LexResult_Finished){
-                            still_lexing = false;
-                        }
-                    }break;
-                    
-                    case LexResult_HitTokenLimit: InvalidCodePath;
-                }
-            } while (still_lexing);
-            
-            Cpp_Token_Array *token_array = &file->state.token_array;
-            token_array->count = swap_array->count;
-            token_array->max_count = swap_array->max_count;
-            if (token_array->tokens != 0){
-                heap_free(heap, token_array->tokens);
+                case LexResult_HitTokenLimit: InvalidCodePath;
             }
-            token_array->tokens = swap_array->tokens;
-            
-            swap_array->tokens = 0;
-            swap_array->count = 0;
-            swap_array->max_count = 0;
-            
-            file->state.tokens_complete = true;
-            file->state.still_lexing = false;
-            
-            end_temp_memory(temp);
+        } while (still_lexing);
+        
+        Cpp_Token_Array *token_array = &file->state.token_array;
+        token_array->count = swap_array->count;
+        token_array->max_count = swap_array->max_count;
+        if (token_array->tokens != 0){
+            heap_free(heap, token_array->tokens);
         }
+        token_array->tokens = swap_array->tokens;
+        
+        swap_array->tokens = 0;
+        swap_array->count = 0;
+        swap_array->max_count = 0;
         
         file->state.tokens_complete = true;
+        file->state.still_lexing = false;
+        
+        end_temp_memory(temp);
+        
+        file->state.tokens_complete = true;
+        file_lex_mark_new_tokens(system, models, file);
     }
 }
 
@@ -294,7 +294,7 @@ file_relex_parallel(System_Functions *system, Models *models, Editing_File *file
     
     if (file->state.token_array.tokens == 0){
         file_first_lex_parallel(system, models, file);
-        return(false);
+        return(true);
     }
     
     b32 result = true;
@@ -323,30 +323,22 @@ file_relex_parallel(System_Functions *system, Models *models, Editing_File *file
         
         Cpp_Relex_Data state = cpp_relex_init(array, start_i, end_i, shift_amount, file->settings.tokens_without_strings, parse_context.kw_table, parse_context.pp_table);
         
-        char *chunks[3];
-        i32 chunk_sizes[3];
-        
-        chunks[0] = buffer->data;
-        chunk_sizes[0] = buffer->size1;
-        
-        chunks[1] = buffer->data + buffer->size1 + buffer->gap_size;
-        chunk_sizes[1] = buffer->size2;
-        
-        chunks[2] = 0;
-        chunk_sizes[2] = 0;
+        String chunk_space[3];
+        Partition chunk_part = make_part(chunk_space, sizeof(chunk_space));
+        String_Array chunks = file_lex_chunks(&chunk_part, buffer);
         
         i32 chunk_index = 0;
-        char *chunk = chunks[chunk_index];
-        i32 chunk_size = chunk_sizes[chunk_index];
+        char *chunk = chunks.vals[chunk_index].str;
+        i32 chunk_size = chunks.vals[chunk_index].size;
         
-        while (!cpp_relex_is_start_chunk(&state, chunk, chunk_size)){
+        for (;!cpp_relex_is_start_chunk(&state, chunk, chunk_size);){
             ++chunk_index;
-            Assert(chunk_index < ArrayCount(chunks));
-            chunk = chunks[chunk_index];
-            chunk_size = chunk_sizes[chunk_index];
+            Assert(chunk_index < chunks.count);
+            chunk = chunks.vals[chunk_index].str;
+            chunk_size = chunks.vals[chunk_index].size;
         }
         
-        for(;;){
+        for (;;){
             Cpp_Lex_Result lex_result =
                 cpp_relex_step(&state, chunk, chunk_size, size, array, &relex_array);
             
@@ -354,9 +346,9 @@ file_relex_parallel(System_Functions *system, Models *models, Editing_File *file
                 case LexResult_NeedChunk:
                 {
                     ++chunk_index;
-                    Assert(chunk_index < ArrayCount(chunks));
-                    chunk = chunks[chunk_index];
-                    chunk_size = chunk_sizes[chunk_index];
+                    Assert(chunk_index < chunks.count);
+                    chunk = chunks.vals[chunk_index].str;
+                    chunk_size = chunks.vals[chunk_index].size;
                 }break;
                 
                 case LexResult_NeedTokenMemory:
@@ -381,6 +373,7 @@ file_relex_parallel(System_Functions *system, Models *models, Editing_File *file
             }
             
             cpp_relex_complete(&state, array, &relex_array);
+            file_lex_mark_new_tokens(system, models, file);
         }
         else{
             cpp_relex_abort(&state, array);
@@ -425,14 +418,14 @@ file_relex_parallel(System_Functions *system, Models *models, Editing_File *file
 }
 
 internal b32
-file_relex_serial(Models *models, Editing_File *file, i32 start_i, i32 end_i, i32 shift_amount){
+file_relex_serial(System_Functions *system, Models *models, Editing_File *file, i32 start_i, i32 end_i, i32 shift_amount){
     Mem_Options *mem = &models->mem;
     Heap *heap = &mem->heap;
     Partition *part = &mem->part;
     
     if (file->state.token_array.tokens == 0){
-        file_first_lex_serial(models, file);
-        return(1);
+        file_first_lex_serial(system, models, file);
+        return(true);
     }
     
     Assert(!file->state.still_lexing);
@@ -454,27 +447,19 @@ file_relex_serial(Models *models, Editing_File *file, i32 start_i, i32 end_i, i3
     
     Cpp_Relex_Data state = cpp_relex_init(array, start_i, end_i, shift_amount, file->settings.tokens_without_strings, parse_context.kw_table, parse_context.pp_table);
     
-    char *chunks[3];
-    i32 chunk_sizes[3];
-    
-    chunks[0] = buffer->data;
-    chunk_sizes[0] = buffer->size1;
-    
-    chunks[1] = buffer->data + buffer->size1 + buffer->gap_size;
-    chunk_sizes[1] = buffer->size2;
-    
-    chunks[2] = 0;
-    chunk_sizes[2] = 0;
+    String chunk_space[3];
+    Partition chunk_part = make_part(chunk_space, sizeof(chunk_space));
+    String_Array chunks = file_lex_chunks(&chunk_part, buffer);
     
     i32 chunk_index = 0;
-    char *chunk = chunks[chunk_index];
-    i32 chunk_size = chunk_sizes[chunk_index];
+    char *chunk = chunks.vals[chunk_index].str;
+    i32 chunk_size = chunks.vals[chunk_index].size;
     
-    while (!cpp_relex_is_start_chunk(&state, chunk, chunk_size)){
+    for (;!cpp_relex_is_start_chunk(&state, chunk, chunk_size);){
         ++chunk_index;
-        Assert(chunk_index < ArrayCount(chunks));
-        chunk = chunks[chunk_index];
-        chunk_size = chunk_sizes[chunk_index];
+        Assert(chunk_index < chunks.count);
+        chunk = chunks.vals[chunk_index].str;
+        chunk_size = chunks.vals[chunk_index].size;
     }
     
     for(;;){
@@ -484,9 +469,9 @@ file_relex_serial(Models *models, Editing_File *file, i32 start_i, i32 end_i, i3
             case LexResult_NeedChunk:
             {
                 ++chunk_index;
-                Assert(chunk_index < ArrayCount(chunks));
-                chunk = chunks[chunk_index];
-                chunk_size = chunk_sizes[chunk_index];
+                Assert(chunk_index < chunks.count);
+                chunk = chunks.vals[chunk_index].str;
+                chunk_size = chunks.vals[chunk_index].size;
             }break;
             
             case LexResult_NeedTokenMemory: InvalidCodePath;
@@ -507,10 +492,31 @@ file_relex_serial(Models *models, Editing_File *file, i32 start_i, i32 end_i, i3
     }
     
     cpp_relex_complete(&state, array, &relex_array);
+    file_lex_mark_new_tokens(system, models, file);
     
     end_temp_memory(temp);
     
     return(1);
+}
+
+internal void
+file_first_lex(System_Functions *system, Models *models, Editing_File *file){
+    if (!file->settings.virtual_white){
+        file_first_lex_parallel(system, models, file);
+    }
+    else{
+        file_first_lex_serial(system, models, file);
+    }
+}
+
+internal void
+file_relex(System_Functions *system, Models *models, Editing_File *file, i32 start, i32 end, i32 shift_amount){
+    if (!file->settings.virtual_white){
+        file_relex_parallel(system, models, file, start, end, shift_amount);
+    }
+    else{
+        file_relex_serial(system, models, file, start, end, shift_amount);
+    }
 }
 
 // BOTTOM

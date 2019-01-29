@@ -137,7 +137,7 @@ edit_pos_get_new(Editing_File *file, i32 index){
 ////////////////////////////////
 
 inline b32
-buffer_needs_save(Editing_File *file){
+file_needs_save(Editing_File *file){
     b32 result = false;
     if (file->state.dirty == DirtyState_UnsavedChanges){
         result = true;
@@ -146,7 +146,7 @@ buffer_needs_save(Editing_File *file){
 }
 
 inline b32
-buffer_can_save(Editing_File *file){
+file_can_save(Editing_File *file){
     b32 result = false;
     if (file->state.dirty == DirtyState_UnsavedChanges ||
         file->state.dirty == DirtyState_UnloadedChanges){
@@ -554,12 +554,7 @@ file_create_from_string(System_Functions *system, Models *models, Editing_File *
     }
     
     if (file->settings.tokens_exist && file->state.token_array.tokens == 0){
-        if (!file->settings.virtual_white){
-            file_first_lex_parallel(system, models, file);
-        }
-        else{
-            file_first_lex_serial(models, file);
-        }
+        file_first_lex(system, models, file);
     }
     
     file->settings.is_initialized = true;

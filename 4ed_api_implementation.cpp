@@ -38,15 +38,7 @@ fill_buffer_summary(Buffer_Summary *buffer, Editing_File *file, Working_Set *wor
         
         buffer->is_lexed = file->settings.tokens_exist;
         
-        if (file->state.token_array.tokens &&
-            file->state.tokens_complete &&
-            !file->state.still_lexing){
-            buffer->tokens_are_ready = 1;
-        }
-        else{
-            buffer->tokens_are_ready = 0;
-        }
-        
+        buffer->tokens_are_ready = (file->state.token_array.tokens && file->state.tokens_complete && !file->state.still_lexing);
         buffer->map_id = file->settings.base_map_id;
         buffer->unwrapped_lines = file->settings.unwrapped_lines;
         
@@ -111,7 +103,7 @@ get_file_from_identifier(System_Functions *system, Working_Set *working_set, Buf
     if (buffer.id){
         file = working_set_get_active_file(working_set, buffer.id);
     }
-    else if (buffer.name){
+    else if (buffer.name != 0){
         String name = make_string(buffer.name, buffer.name_len);
         file = working_set_contains_name(working_set, name);
     }
@@ -856,12 +848,7 @@ DOC_SEE(Buffer_Setting_ID)
                 }
                 else{
                     if (value){
-                        if (!file->settings.virtual_white){
-                            file_first_lex_parallel(system, models, file);
-                        }
-                        else{
-                            file_first_lex_serial(models, file);
-                        }
+                        file_first_lex(system, models, file);
                     }
                 }
             }break;
@@ -872,12 +859,7 @@ DOC_SEE(Buffer_Setting_ID)
                     if ((b8)value != file->settings.tokens_without_strings){
                         file_kill_tokens(system, &models->mem.heap, file);
                         file->settings.tokens_without_strings = (b8)value;
-                        if (!file->settings.virtual_white){
-                            file_first_lex_parallel(system, models, file);
-                        }
-                        else{
-                            file_first_lex_serial(models, file);
-                        }
+                        file_first_lex(system, models, file);
                     }
                 }
                 else{
@@ -893,12 +875,7 @@ DOC_SEE(Buffer_Setting_ID)
                     if (fixed_value != file->settings.parse_context_id){
                         file_kill_tokens(system, &models->mem.heap, file);
                         file->settings.parse_context_id = fixed_value;
-                        if (!file->settings.virtual_white){
-                            file_first_lex_parallel(system, models, file);
-                        }
-                        else{
-                            file_first_lex_serial(models, file);
-                        }
+                        file_first_lex(system, models, file);
                     }
                 }
                 else{
@@ -991,7 +968,7 @@ DOC_SEE(Buffer_Setting_ID)
                 if (value){
                     if (!file->settings.virtual_white){
                         if (!file->settings.tokens_exist){
-                            file_first_lex_serial(models, file);
+                            file_first_lex_serial(system, models, file);
                         }
                         if (!file->state.still_lexing){
                             file->settings.virtual_white = true;
@@ -1337,7 +1314,7 @@ DOC_SEE(Buffer_Identifier)
     if (file != 0){
         result = BufferKillResult_Unkillable;
         if (!file->settings.never_kill){
-            b32 needs_to_save = buffer_needs_save(file);
+            b32 needs_to_save = file_needs_save(file);
             if (!needs_to_save || (flags & BufferKill_AlwaysKill) != 0){
                 if (models->hook_end_file != 0){
                     models->hook_end_file(&models->app_links, file->id.id);

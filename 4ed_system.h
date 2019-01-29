@@ -147,7 +147,8 @@ System_Functions *system,                \
 Thread_Context *thread,                  \
 Thread_Memory *memory,                   \
 void *data[4])
-typedef Job_Callback_Sig(Job_Callback);
+
+typedef void Job_Callback(System_Functions *system, Thread_Context *thread, Thread_Memory *memory, void *data[4]);
 
 struct Job_Data{
     Job_Callback *callback;

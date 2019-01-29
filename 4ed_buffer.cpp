@@ -186,7 +186,9 @@ buffer_batch_edit_update_cursors(Cursor_With_Index *sorted_positions, i32 count,
 
 internal i32
 eol_convert_in(char *dest, char *src, i32 size){
-    i32 i = 0, j = 0, k = 0;
+    i32 i = 0;
+    i32 j = 0;
+    i32 k = 0;
     
     for (; j < size && src[j] != '\r'; ++j);
     memcpy(dest, src, j);
@@ -210,7 +212,9 @@ eol_convert_in(char *dest, char *src, i32 size){
 
 internal i32
 eol_in_place_convert_in(char *data, i32 size){
-    i32 i = 0, j = 0, k = 0;
+    i32 i = 0;
+    i32 j = 0;
+    i32 k = 0;
     
     for (; j < size && data[j] != '\r'; ++j);
     
@@ -235,7 +239,8 @@ eol_in_place_convert_in(char *data, i32 size){
 internal i32
 eol_convert_out(char *dest, i32 max, char *src, i32 size, i32 *size_out){
     i32 result = 1;
-    i32 i = 0, j = 0;
+    i32 i = 0;
+    i32 j = 0;
     
     for (; i < size; ++i, ++j){
         if (src[i] == '\n'){
@@ -505,6 +510,22 @@ buffer_edit_provide_memory(Gap_Buffer *buffer, void *new_data, i32 new_max){
 //
 // High level buffer operations
 //
+
+internal String_Array
+buffer_get_chunks(Partition *part, Gap_Buffer *buffer){
+    String_Array result = {};
+    result.vals = push_array(part, String, 0);
+    if (buffer->size1 > 0){
+        String *s = push_array(part, String, 1);
+        *s = make_string(buffer->data, buffer->size1);
+    }
+    if (buffer->size2 > 0){
+        String *s = push_array(part, String, 1);
+        *s = make_string(buffer->data + buffer->size1 + buffer->gap_size, buffer->size2);
+    }
+    result.count = (i32)(push_array(part, String, 0) - result.vals);
+    return(result);
+}
 
 inline void
 buffer_stringify(Gap_Buffer *buffer, i32 start, i32 end, char *out){
