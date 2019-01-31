@@ -44,7 +44,7 @@ live_set_alloc_view(Heap *heap, Lifetime_Allocator *lifetime_allocator, Live_Vie
     return(result);
 }
 
-inline void
+internal void
 live_set_free_view(Heap *heap, Lifetime_Allocator *lifetime_allocator, Live_Views *live_set, View *view){
     Assert(live_set->count > 0);
     --live_set->count;
@@ -65,21 +65,21 @@ live_set_free_view(Heap *heap, Lifetime_Allocator *lifetime_allocator, Live_View
 ////////////////////////////////
 
 // TODO(allen): Switch over to using an i32 for these.
-inline f32
+internal f32
 view_width(View *view){
     i32_Rect file_rect = view->transient.file_region;
     f32 result = (f32)(file_rect.x1 - file_rect.x0);
     return (result);
 }
 
-inline f32
+internal f32
 view_height(View *view){
     i32_Rect file_rect = view->transient.file_region;
     f32 result = (f32)(file_rect.y1 - file_rect.y0);
     return (result);
 }
 
-inline Vec2
+internal Vec2
 view_get_cursor_xy(View *view){
     Full_Cursor *cursor = 0;
     if (view->transient.file_data.show_temp_highlight){
@@ -99,7 +99,7 @@ view_get_cursor_xy(View *view){
     return(result);
 }
 
-inline Cursor_Limits
+internal Cursor_Limits
 view_cursor_limits(View *view){
     Cursor_Limits limits = {};
     
@@ -128,7 +128,7 @@ view_cursor_limits(View *view){
     return(limits);
 }
 
-inline i32
+internal i32
 view_compute_max_target_y_from_bottom_y(View *view, f32 max_item_y){
     i32 line_height = view->transient.line_height;
     f32 height = clamp_bottom((f32)line_height, view_height(view));
@@ -136,7 +136,7 @@ view_compute_max_target_y_from_bottom_y(View *view, f32 max_item_y){
     return(ceil32(max_target_y));
 }
 
-inline i32
+internal i32
 view_compute_max_target_y(View *view){
     i32 line_height = view->transient.line_height;
     Editing_File *file = view->transient.file_data.file;
@@ -148,7 +148,7 @@ view_compute_max_target_y(View *view){
     return(view_compute_max_target_y_from_bottom_y(view, (lowest_line + 0.5f)*(f32)line_height));
 }
 
-inline u32
+internal u32
 view_lock_flags(View *view){
     u32 result = AccessOpen;
     File_Viewing_Data *data = &view->transient.file_data;
@@ -305,7 +305,7 @@ view_set_relative_scrolling(View *view, Relative_Scrolling scrolling){
     }
 }
 
-inline void
+internal void
 view_cursor_move(System_Functions *system, View *view, i32 pos){
     Editing_File *file = view->transient.file_data.file;
     Assert(file != 0);
@@ -314,7 +314,7 @@ view_cursor_move(System_Functions *system, View *view, i32 pos){
     view->transient.file_data.show_temp_highlight = false;
 }
 
-inline void
+internal void
 view_set_temp_highlight(System_Functions *system, View *view, i32 pos, i32 end_pos){
     Editing_File *file = view->transient.file_data.file;
     Assert(file != 0);
@@ -324,7 +324,7 @@ view_set_temp_highlight(System_Functions *system, View *view, i32 pos, i32 end_p
     view_set_cursor(view, view->transient.file_data.temp_highlight, 0, file->settings.unwrapped_lines);
 }
 
-inline void
+internal void
 view_post_paste_effect(View *view, f32 seconds, i32 start, i32 size, u32 color){
     Editing_File *file = view->transient.file_data.file;
     file->state.paste_effect.start = start;

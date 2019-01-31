@@ -237,7 +237,7 @@ CUSTOM_DOC("Reads the scroll wheel value from the mouse state and scrolls accord
 
 ////////////////////////////////
 
-inline void
+static void
 move_vertical(Application_Links *app, float line_multiplier){
     uint32_t access = AccessProtected;
     View_Summary view = get_active_view(app, access);

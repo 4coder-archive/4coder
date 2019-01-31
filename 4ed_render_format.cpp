@@ -9,18 +9,18 @@
 
 // TOP
 
-inline void
+internal void
 draw_push_clip(Render_Target *target, i32_Rect clip_box){
     render_push_clip(target, clip_box);
 }
 
-inline i32_Rect
+internal i32_Rect
 draw_pop_clip(Render_Target *target){
     i32_Rect result = render_pop_clip(target);
     return(result);
 }
 
-inline void
+internal void
 draw_change_clip(Render_Target *target, i32_Rect clip_box){
     render_change_clip(target, clip_box);
 }
@@ -69,7 +69,7 @@ draw_rectangle_outline(Render_Target *target, f32_Rect rect, u32 color){
     render_end_push(target, h);
 }
 
-inline void
+internal void
 draw_rectangle_outline(Render_Target *target, i32_Rect rect, u32 color){
     draw_rectangle_outline(target, f32R(rect), color);
 }
@@ -82,7 +82,7 @@ draw_margin(Render_Target *target, f32_Rect outer, f32_Rect inner, u32 color){
     draw_rectangle(target, f32R(inner.x1, inner.y0, outer.x1, inner.y1), color);
 }
 
-inline void
+internal void
 draw_margin(Render_Target *target, f32_Rect outer, f32 width, u32 color){
     f32_Rect inner = get_inner_rect(outer, width);
     draw_margin(target, outer, inner, color);
@@ -97,7 +97,7 @@ draw_margin(Render_Target *target, i32_Rect outer, i32_Rect inner, u32 color){
     draw_rectangle(target, i32R(inner.x1, inner.y0, outer.x1, inner.y1), color);
 }
 
-inline void
+internal void
 draw_margin(Render_Target *target, i32_Rect outer, i32 width, u32 color){
     i32_Rect inner = get_inner_rect(outer, width);
     draw_margin(target, outer, inner, color);

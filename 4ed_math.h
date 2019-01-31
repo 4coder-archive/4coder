@@ -17,7 +17,7 @@
 
 #define DEG_TO_RAD (0.0174533f)
 
-inline f32
+internal f32
 ABS(f32 x){
     if (x < 0) x = -x;
     return(x);

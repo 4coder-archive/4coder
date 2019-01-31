@@ -11,7 +11,7 @@
 
 #define API_EXPORT
 
-inline b32
+internal b32
 access_test(u32 lock_flags, u32 access_flags){
     b32 result = ((lock_flags & ~access_flags) == 0);
     return(result);
@@ -81,7 +81,7 @@ fill_view_summary(System_Functions *system, View_Summary *view, View *vptr, Live
     }
 }
 
-inline void
+internal void
 fill_view_summary(System_Functions *system, View_Summary *view, View *vptr, Models *models){
     fill_view_summary(system, view, vptr, &models->live_set, &models->working_set);
 }

@@ -31,7 +31,7 @@ private_texture_initialize(GLint tex_width, GLint tex_height, u32 *pixels){
     return(tex);
 }
 
-inline void
+internal void
 private_draw_bind_texture(Render_Target *t, i32 texid){
     if (t->bound_texture != texid){
         glBindTexture(GL_TEXTURE_2D, texid);
@@ -39,7 +39,7 @@ private_draw_bind_texture(Render_Target *t, i32 texid){
     }
 }
 
-inline void
+internal void
 private_draw_set_color(Render_Target *t, u32 color){
     if (t->color != color){
         t->color = color;

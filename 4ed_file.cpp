@@ -9,7 +9,7 @@
 
 // TOP
 
-inline Buffer_Slot_ID
+internal Buffer_Slot_ID
 to_file_id(i32 id){
     Buffer_Slot_ID result;
     result.id = id;
@@ -136,7 +136,7 @@ edit_pos_get_new(Editing_File *file, i32 index){
 
 ////////////////////////////////
 
-inline b32
+internal b32
 file_needs_save(Editing_File *file){
     b32 result = false;
     if (file->state.dirty == DirtyState_UnsavedChanges){
@@ -145,7 +145,7 @@ file_needs_save(Editing_File *file){
     return(result);
 }
 
-inline b32
+internal b32
 file_can_save(Editing_File *file){
     b32 result = false;
     if (file->state.dirty == DirtyState_UnsavedChanges ||
@@ -155,7 +155,7 @@ file_can_save(Editing_File *file){
     return(result);
 }
 
-inline b32
+internal b32
 file_is_ready(Editing_File *file){
     b32 result = false;
     if (file != 0 && file->is_loading == 0){
@@ -164,7 +164,7 @@ file_is_ready(Editing_File *file){
     return(result);
 }
 
-inline void
+internal void
 file_set_unimportant(Editing_File *file, b32 val){
     if (val){
         file->state.dirty = DirtyState_UpToDate;
@@ -172,14 +172,14 @@ file_set_unimportant(Editing_File *file, b32 val){
     file->settings.unimportant = (b8)(val != false);
 }
 
-inline void
+internal void
 file_set_to_loading(Editing_File *file){
     memset(&file->state, 0, sizeof(file->state));
     memset(&file->settings, 0, sizeof(file->settings));
     file->is_loading = true;
 }
 
-inline void
+internal void
 file_set_dirty_flag(Editing_File *file, Dirty_State state){
     if (!file->settings.unimportant){
         file->state.dirty = state;
@@ -273,7 +273,7 @@ save_file_to_name(System_Functions *system, Models *models, Editing_File *file, 
     return(result);
 }
 
-inline b32
+internal b32
 save_file(System_Functions *system, Models *models, Editing_File *file){
     b32 result = save_file_to_name(system, models, file, 0);
     return(result);
@@ -281,7 +281,7 @@ save_file(System_Functions *system, Models *models, Editing_File *file){
 
 ////////////////////////////////
 
-inline b32
+internal b32
 file_compute_partial_cursor(Editing_File *file, Buffer_Seek seek, Partial_Cursor *cursor){
     b32 result = true;
     switch (seek.type){
@@ -442,7 +442,7 @@ file_allocate_metadata_as_needed(Heap *heap, Gap_Buffer *buffer, void **mem, i32
     }
 }
 
-inline void
+internal void
 file_allocate_character_starts_as_needed(Heap *heap, Editing_File *file){
     file_allocate_metadata_as_needed(heap,
                                      &file->state.buffer, (void**)&file->state.character_starts,
@@ -457,14 +457,14 @@ file_allocate_indents_as_needed(Heap *heap, Editing_File *file, i32 min_last_ind
                                      &file->state.line_indent_max, min_amount, sizeof(f32));
 }
 
-inline void
+internal void
 file_allocate_wraps_as_needed(Heap *heap, Editing_File *file){
     file_allocate_metadata_as_needed(heap,
                                      &file->state.buffer, (void**)&file->state.wrap_line_index,
                                      &file->state.wrap_max, file->state.buffer.line_count + 1, sizeof(f32));
 }
 
-inline void
+internal void
 file_allocate_wrap_positions_as_needed(Heap *heap, Editing_File *file, i32 min_last_index){
     i32 min_amount = min_last_index + 1;
     file_allocate_metadata_as_needed(heap,

@@ -293,8 +293,8 @@ file_relex_parallel(System_Functions *system, Models *models, Editing_File *file
     }
     
     b32 result = true;
-    b32 inline_lex = !file->state.still_lexing;
-    if (inline_lex){
+    b32 internal_lex = !file->state.still_lexing;
+    if (internal_lex){
         Gap_Buffer *buffer = &file->state.buffer;
         i32 extra_tolerance = 100;
         
@@ -348,7 +348,7 @@ file_relex_parallel(System_Functions *system, Models *models, Editing_File *file
                 
                 case LexResult_NeedTokenMemory:
                 {
-                    inline_lex = false;
+                    internal_lex = false;
                 }goto doublebreak;
                 
                 case LexResult_Finished: goto doublebreak;
@@ -356,7 +356,7 @@ file_relex_parallel(System_Functions *system, Models *models, Editing_File *file
         }
         doublebreak:;
         
-        if (inline_lex){
+        if (internal_lex){
             i32 new_count = cpp_relex_get_new_count(&state, array->count, &relex_array);
             if (new_count > array->max_count){
                 i32 new_max = l_round_up_i32(new_count, KB(1));
@@ -377,7 +377,7 @@ file_relex_parallel(System_Functions *system, Models *models, Editing_File *file
         end_temp_memory(temp);
     }
     
-    if (!inline_lex){
+    if (!internal_lex){
         Cpp_Token_Array *array = &file->state.token_array;
         Cpp_Get_Token_Result get_token_result = cpp_get_token(*array, end_i);
         i32 end_token_i = get_token_result.token_index;

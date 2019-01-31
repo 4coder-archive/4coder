@@ -117,7 +117,7 @@ map_add(Command_Map *map, Key_Code event_code, u8 modifiers, Command_Function *f
     return(result);
 }
 
-inline b32
+internal b32
 map_add(Command_Map *map, Key_Code event_code, u8 modifiers, Command_Function *function, u64 custom_id){
     return(map_add(map, event_code, modifiers, function, (Custom_Command_Function*)custom_id));
 }

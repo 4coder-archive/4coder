@@ -105,7 +105,7 @@ working_set_alloc_always(Working_Set *working_set, Heap *heap, Lifetime_Allocato
     return(result);
 }
 
-inline void
+internal void
 working_set_free_file(Heap *heap, Working_Set  *working_set, Editing_File *file){
     if (working_set->sync_check_iter == &file->main_chain_node){
         working_set->sync_check_iter = working_set->sync_check_iter->next;
@@ -116,7 +116,7 @@ working_set_free_file(Heap *heap, Working_Set  *working_set, Editing_File *file)
     --working_set->file_count;
 }
 
-inline Editing_File*
+internal Editing_File*
 working_set_index(Working_Set *working_set, Buffer_Slot_ID id){
     Editing_File *result = 0;
     File_Array *array = 0;
@@ -131,13 +131,13 @@ working_set_index(Working_Set *working_set, Buffer_Slot_ID id){
     return(result);
 }
 
-inline Editing_File*
+internal Editing_File*
 working_set_index(Working_Set *working_set, i32 id){
     Editing_File *result = working_set_index(working_set, to_file_id(id));
     return(result);
 }
 
-inline Editing_File*
+internal Editing_File*
 working_set_get_active_file(Working_Set *working_set, Buffer_Slot_ID id){
     Editing_File *result = 0;
     result = working_set_index(working_set, id);
@@ -147,7 +147,7 @@ working_set_get_active_file(Working_Set *working_set, Buffer_Slot_ID id){
     return(result);
 }
 
-inline Editing_File*
+internal Editing_File*
 working_set_get_active_file(Working_Set *working_set, i32 id){
     Editing_File *result= working_set_get_active_file(working_set, to_file_id(id));
     return(result);
@@ -199,7 +199,7 @@ working_set_init(Working_Set *working_set, Partition *partition, Heap *heap){
     }
 }
 
-inline void
+internal void
 working_set__grow_if_needed(Table *table, Heap *heap, void *arg, Hash_Function *hash_func, Compare_Function *comp_func){
     if (table_at_capacity(table)){
         Table btable = {};

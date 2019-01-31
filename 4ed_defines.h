@@ -100,37 +100,37 @@ typedef double f64;
 
 #define FixSize(s) struct{ u8 __size_fixer__[s]; }
 
-inline i32 ceil32(f32 v){
+internal i32 ceil32(f32 v){
     return(((v)>0)?( (v == (i32)(v))?((i32)(v)):((i32)((v)+1.f)) ):( ((i32)(v)) ));
 }
 
-inline i32 floor32(f32 v){
+internal i32 floor32(f32 v){
     return(((v)<0)?( (v == (i32)(v))?((i32)(v)):((i32)((v)-1.f)) ):( ((i32)(v)) ));
 }
 
-inline i32 round32(f32 v){
+internal i32 round32(f32 v){
     return(floor32(v + 0.5f));
 }
 
-inline i32 trun32(f32 v){
+internal i32 trun32(f32 v){
     return((i32)(v));
 }
 
-inline i32 div_ceil(i32 n, i32 d){
+internal i32 div_ceil(i32 n, i32 d){
     return( ((n) % (d) != 0) + ((n) / (d)) );
 }
 
-inline i32 l_round_up_i32(i32 x, i32 b){
+internal i32 l_round_up_i32(i32 x, i32 b){
     i32 t = x + b - 1;
     return(t - (t%b));
 }
 
-inline u32 l_round_up_u32(u32 x, u32 b){
+internal u32 l_round_up_u32(u32 x, u32 b){
     i32 t = x + b - 1;
     return(t - (t%b));
 }
 
-inline u32 round_up_pot_u32(u32 x){
+internal u32 round_up_pot_u32(u32 x){
     --x;
     x |= x >> 1;
     x |= x >> 2;
@@ -172,7 +172,7 @@ inline u32 round_up_pot_u32(u32 x){
 #define min_u64 ((u64)0)
 
 #if !defined(max_f32)
-inline f32
+internal f32
 max_f32_proc(void){
     union{
         u32 x;

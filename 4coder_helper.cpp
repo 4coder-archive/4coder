@@ -4,7 +4,7 @@
 
 // TOP
 
-inline Binding_Unit*
+static Binding_Unit*
 write_unit(Bind_Helper *helper, Binding_Unit unit){
     Binding_Unit *p = 0;
     helper->write_total += sizeof(*p);
@@ -15,7 +15,7 @@ write_unit(Bind_Helper *helper, Binding_Unit unit){
     return p;
 }
 
-inline Bind_Helper
+static Bind_Helper
 begin_bind_helper(void *data, int32_t size){
     Bind_Helper result = {};
     result.cursor = (Binding_Unit*)data;
@@ -29,7 +29,7 @@ begin_bind_helper(void *data, int32_t size){
     return(result);
 }
 
-inline void
+static void
 begin_map(Bind_Helper *helper, int32_t mapid, bool32 replace){
     if (helper->group != 0 && helper->error == 0){
         helper->error = BH_ERR_MISSING_END;
@@ -46,17 +46,17 @@ begin_map(Bind_Helper *helper, int32_t mapid, bool32 replace){
     helper->group->map_begin.bind_count = 0;
 }
 
-inline void
+static void
 begin_map(Bind_Helper *helper, int32_t mapid){
     begin_map(helper, mapid, false);
 }
 
-inline void
+static void
 restart_map(Bind_Helper *helper, int32_t mapid){
     begin_map(helper, mapid, true);
 }
 
-inline void
+static void
 end_map(Bind_Helper *helper){
     if (helper->group == 0 && helper->error == 0){
         helper->error = BH_ERR_MISSING_BEGIN;
@@ -64,7 +64,7 @@ end_map(Bind_Helper *helper){
     helper->group = 0;
 }
 
-inline void
+static void
 bind(Bind_Helper *helper, Key_Code code, uint8_t modifiers, Command_ID cmdid){
     if (helper->group == 0 && helper->error == 0){
         helper->error = BH_ERR_MISSING_BEGIN;
@@ -82,7 +82,7 @@ bind(Bind_Helper *helper, Key_Code code, uint8_t modifiers, Command_ID cmdid){
     write_unit(helper, unit);
 }
 
-inline void
+static void
 bind(Bind_Helper *helper, Key_Code code, uint8_t modifiers, Custom_Command_Function *func){
     if (helper->group == 0 && helper->error == 0){
         helper->error = BH_ERR_MISSING_BEGIN;
@@ -100,7 +100,7 @@ bind(Bind_Helper *helper, Key_Code code, uint8_t modifiers, Custom_Command_Funct
     write_unit(helper, unit);
 }
 
-inline void
+static void
 bind(Bind_Helper *helper, Key_Code code, uint8_t modifiers, Generic_Command cmd){
     if (cmd.cmdid < cmdid_count){
         bind(helper, code, modifiers, cmd.cmdid);
@@ -110,27 +110,27 @@ bind(Bind_Helper *helper, Key_Code code, uint8_t modifiers, Generic_Command cmd)
     }
 }
 
-inline void
+static void
 bind_vanilla_keys(Bind_Helper *helper, int32_t cmdid){
     bind(helper, 0, 0, cmdid);
 }
 
-inline void
+static void
 bind_vanilla_keys(Bind_Helper *helper, Custom_Command_Function *func){
     bind(helper, 0, 0, func);
 }
 
-inline void
+static void
 bind_vanilla_keys(Bind_Helper *helper, unsigned char modifiers, int32_t cmdid){
     bind(helper, 0, modifiers, cmdid);
 }
 
-inline void
+static void
 bind_vanilla_keys(Bind_Helper *helper, unsigned char modifiers, Custom_Command_Function *func){
     bind(helper, 0, modifiers, func);
 }
 
-inline void
+static void
 inherit_map(Bind_Helper *helper, int32_t mapid){
     if (helper->group == 0 && helper->error == 0) helper->error = BH_ERR_MISSING_BEGIN;
     if (!helper->error && mapid < mapid_global) ++helper->header->header.user_map_count;
@@ -140,7 +140,7 @@ inherit_map(Bind_Helper *helper, int32_t mapid){
     write_unit(helper, unit);
 }
 
-inline void
+static void
 set_hook(Bind_Helper *helper, int32_t hook_id, Hook_Function *func){
     Binding_Unit unit = {};
     unit.type = unit_hook;
@@ -149,7 +149,7 @@ set_hook(Bind_Helper *helper, int32_t hook_id, Hook_Function *func){
     write_unit(helper, unit);
 }
 
-inline void
+static void
 set_scroll_rule(Bind_Helper *helper, Scroll_Rule_Function *func){
     Binding_Unit unit = {};
     unit.type = unit_hook;
@@ -158,7 +158,7 @@ set_scroll_rule(Bind_Helper *helper, Scroll_Rule_Function *func){
     write_unit(helper, unit);
 }
 
-inline void
+static void
 set_buffer_name_resolver(Bind_Helper *helper, Buffer_Name_Resolver_Function *func){
     Binding_Unit unit = {};
     unit.type = unit_hook;
@@ -167,7 +167,7 @@ set_buffer_name_resolver(Bind_Helper *helper, Buffer_Name_Resolver_Function *fun
     write_unit(helper, unit);
 }
 
-inline void
+static void
 set_new_file_hook(Bind_Helper *helper, Open_File_Hook_Function *func){
     Binding_Unit unit = {};
     unit.type = unit_hook;
@@ -176,7 +176,7 @@ set_new_file_hook(Bind_Helper *helper, Open_File_Hook_Function *func){
     write_unit(helper, unit);
 }
 
-inline void
+static void
 set_start_hook(Bind_Helper *helper, Start_Hook_Function *func){
     Binding_Unit unit = {};
     unit.type = unit_hook;
@@ -185,7 +185,7 @@ set_start_hook(Bind_Helper *helper, Start_Hook_Function *func){
     write_unit(helper, unit);
 }
 
-inline void
+static void
 set_open_file_hook(Bind_Helper *helper, Open_File_Hook_Function *func){
     Binding_Unit unit = {};
     unit.type = unit_hook;
@@ -194,7 +194,7 @@ set_open_file_hook(Bind_Helper *helper, Open_File_Hook_Function *func){
     write_unit(helper, unit);
 }
 
-inline void
+static void
 set_save_file_hook(Bind_Helper *helper, Open_File_Hook_Function *func){
     Binding_Unit unit = {};
     unit.type = unit_hook;
@@ -203,7 +203,7 @@ set_save_file_hook(Bind_Helper *helper, Open_File_Hook_Function *func){
     write_unit(helper, unit);
 }
 
-inline void
+static void
 set_end_file_hook(Bind_Helper *helper, Open_File_Hook_Function *func){
     Binding_Unit unit = {};
     unit.type = unit_hook;
@@ -221,7 +221,7 @@ set_file_edit_finished_hook(Bind_Helper *helper, File_Edit_Finished_Function *fu
     write_unit(helper, unit);
 }
 
-inline void
+static void
 set_command_caller(Bind_Helper *helper, Command_Caller_Hook_Function *func){
     Binding_Unit unit = {};
     unit.type = unit_hook;
@@ -230,7 +230,7 @@ set_command_caller(Bind_Helper *helper, Command_Caller_Hook_Function *func){
     write_unit(helper, unit);
 }
 
-inline void
+static void
 set_render_caller(Bind_Helper *helper, Render_Caller_Function *func){
     Binding_Unit unit = {};
     unit.type = unit_hook;
@@ -239,7 +239,7 @@ set_render_caller(Bind_Helper *helper, Render_Caller_Function *func){
     write_unit(helper, unit);
 }
 
-inline void
+static void
 set_input_filter(Bind_Helper *helper, Input_Filter_Function *func){
     Binding_Unit unit = {};
     unit.type = unit_hook;
@@ -248,7 +248,7 @@ set_input_filter(Bind_Helper *helper, Input_Filter_Function *func){
     write_unit(helper, unit);
 }
 
-inline int32_t
+static int32_t
 end_bind_helper(Bind_Helper *helper){
     if (helper->header){
         helper->header->header.total_size = (int32_t)(helper->cursor - helper->start);
@@ -258,7 +258,7 @@ end_bind_helper(Bind_Helper *helper){
     return(result);
 }
 
-inline Bind_Buffer
+static Bind_Buffer
 end_bind_helper_get_buffer(Bind_Helper *helper){
     int32_t size = end_bind_helper(helper);
     Bind_Buffer result = {};

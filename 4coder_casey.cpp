@@ -155,7 +155,7 @@ struct tokenizer
     char *At;
 };
 
-inline bool
+internal bool
 IsEndOfLine(char C)
 {
     bool Result = ((C == '\n') ||
@@ -164,7 +164,7 @@ IsEndOfLine(char C)
     return(Result);
 }
 
-inline bool
+internal bool
 IsWhitespace(char C)
 {
     bool Result = ((C == ' ') ||
@@ -176,7 +176,7 @@ IsWhitespace(char C)
     return(Result);
 }
 
-inline bool
+internal bool
 IsAlpha(char C)
 {
     bool Result = (((C >= 'a') && (C <= 'z')) ||
@@ -185,7 +185,7 @@ IsAlpha(char C)
     return(Result);
 }
 
-inline bool
+internal bool
 IsNumeric(char C)
 {
     bool Result = ((C >= '0') && (C <= '9'));
@@ -290,7 +290,7 @@ PeekToken(tokenizer *Tokenizer)
     return(Result);
 }
 
-inline bool
+internal bool
 IsH(String extension)
 {
     bool Result = (match(extension, make_lit_string("h")) ||
@@ -300,7 +300,7 @@ IsH(String extension)
     return(Result);
 }
 
-inline bool
+internal bool
 IsCPP(String extension)
 {
     bool Result = (match(extension, make_lit_string("c")) ||
@@ -310,7 +310,7 @@ IsCPP(String extension)
     return(Result);
 }
 
-inline bool
+internal bool
 IsBee(String extension)
 {
     bool Result = (match(extension, make_lit_string("bee")) != 0);
@@ -318,7 +318,7 @@ IsBee(String extension)
     return(Result);
 }
 
-inline bool
+internal bool
 IsShader(String extension)
 {
     bool Result = (match(extension, make_lit_string("ps")) ||
@@ -330,7 +330,7 @@ IsShader(String extension)
     return(Result);
 }
 
-inline bool
+internal bool
 IsINL(String extension)
 {
     bool Result = (match(extension, make_lit_string("inl")) != 0);
@@ -338,7 +338,7 @@ IsINL(String extension)
     return(Result);
 }
 
-inline bool
+internal bool
 IsJavascript(String extension)
 {
     bool Result = (match(extension, make_lit_string("js")) != 0);
@@ -346,7 +346,7 @@ IsJavascript(String extension)
     return(Result);
 }
 
-inline bool
+internal bool
 IsBAT(String extension)
 {
     bool Result = (match(extension, make_lit_string("bat")) != 0);
@@ -354,7 +354,7 @@ IsBAT(String extension)
     return(Result);
 }
 
-inline bool
+internal bool
 IsTXT(String extension)
 {
     bool Result = (match(extension, make_lit_string("txt")) != 0);
@@ -362,7 +362,7 @@ IsTXT(String extension)
     return(Result);
 }
 
-inline bool
+internal bool
 IsCMirror(String extension)
 {
     bool Result = (match(extension, make_lit_string("cmirror")) != 0);
@@ -370,7 +370,7 @@ IsCMirror(String extension)
     return(Result);
 }
 
-inline bool
+internal bool
 IsMTD(String extension)
 {
     bool Result = (match(extension, make_lit_string("mtd")) != 0);
@@ -378,7 +378,7 @@ IsMTD(String extension)
     return(Result);
 }
 
-inline bool
+internal bool
 IsOutline(String extension)
 {
     bool Result = (match(extension, make_lit_string("tol")) != 0);
@@ -386,7 +386,7 @@ IsOutline(String extension)
     return(Result);
 }
 
-inline bool
+internal bool
 IsMollyWebMarkup(String extension)
 {
     bool Result = (match(extension, make_lit_string("mwm")) != 0);
@@ -394,7 +394,7 @@ IsMollyWebMarkup(String extension)
     return(Result);
 }
 
-inline bool
+internal bool
 IsCode(String extension)
 {
     bool Result = (IsJavascript(extension) || IsBee(extension) || IsH(extension) || IsCPP(extension) || IsINL(extension) || IsBAT(extension) || IsCMirror(extension) || IsShader(extension) || IsMTD(extension));
@@ -402,7 +402,7 @@ IsCode(String extension)
     return(Result);
 }
 
-inline bool
+internal bool
 IsDoc(String extension)
 {
     bool Result = (IsTXT(extension) || IsOutline(extension) || IsMollyWebMarkup(extension));
@@ -545,7 +545,7 @@ struct switch_to_result
     Buffer_Summary buffer;
 };
 
-inline void
+internal void
 SanitizeSlashes(String Value)
 {
     for(int At = 0;
@@ -559,7 +559,7 @@ SanitizeSlashes(String Value)
     }
 }
 
-inline switch_to_result
+internal switch_to_result
 SwitchToOrLoadFile(struct Application_Links *app, String FileName, bool CreateIfNotFound = false)
 {
     switch_to_result Result = {};
@@ -1116,7 +1116,7 @@ OpenProject(Application_Links *app, char *Contents)
     }
 }
 
-inline int
+internal int
 IsCodeLegal(int32_t Codepoint)
 {
     int Result = ((Codepoint == '\n') ||

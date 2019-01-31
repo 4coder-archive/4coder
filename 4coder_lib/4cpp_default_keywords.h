@@ -133,7 +133,7 @@ static String_And_Flag default_keywords[] = {
     
     {make_stafl("extern"  , CPP_TOKEN_KEY_LINKAGE)},
     {make_stafl("export"  , CPP_TOKEN_KEY_LINKAGE)},
-    {make_stafl("inline"  , CPP_TOKEN_KEY_LINKAGE)},
+    {make_stafl("internal"  , CPP_TOKEN_KEY_LINKAGE)},
     {make_stafl("static"  , CPP_TOKEN_KEY_LINKAGE)},
     {make_stafl("virtual" , CPP_TOKEN_KEY_LINKAGE)},
     

@@ -277,7 +277,7 @@ edit_single__inner(System_Functions *system, Models *models, Editing_File *file,
     edit_fix_markers(system, models, file, layout, desc);
 }
 
-inline void
+internal void
 edit_single(System_Functions *system, Models *models, Editing_File *file,
             i32 start, i32 end, char *str, i32 len){
     Edit_Spec spec = {};
@@ -440,7 +440,7 @@ file_end_file(Models *models, Editing_File *file){
     file->lifetime_object = lifetime_alloc_object(heap, lifetime_allocator, DynamicWorkspace_Buffer, file);
 }
 
-inline void
+internal void
 edit_clear(System_Functions *system, Models *models, Editing_File *file){
     file_end_file(models, file);
     

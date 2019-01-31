@@ -150,7 +150,7 @@ initialize_unbounded_queue(Unbounded_Work_Queue *source_queue){
     source_queue->skip = 0;
 }
 
-inline i32
+internal i32
 get_work_queue_available_space(i32 write, i32 read){
     // NOTE(allen): The only time that queue->write_position == queue->read_position
     // is allowed is when the queue is empty.  Thus if (write_position+1 == read_position) 

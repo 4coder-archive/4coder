@@ -13,7 +13,7 @@
 // Buffer low level operations
 //
 
-inline void
+internal void
 write_cursor_with_index(Cursor_With_Index *positions, i32 *count, i32 pos){
     positions[(*count)].index = *count;
     positions[(*count)].pos = pos;
@@ -61,13 +61,13 @@ buffer_quick_unsort_cursors(Cursor_With_Index *positions, i32 start, i32 pivot){
 
 #undef CursorSwap__
 
-inline void
+internal void
 buffer_sort_cursors(Cursor_With_Index *positions, i32 count){
     Assert(count > 0);
     buffer_quick_sort_cursors(positions, 0, count-1);
 }
 
-inline void
+internal void
 buffer_unsort_cursors(Cursor_With_Index *positions, i32 count){
     Assert(count > 0);
     buffer_quick_unsort_cursors(positions, 0, count-1);
@@ -280,13 +280,13 @@ eol_in_place_convert_out(char *data, i32 size, i32 max, i32 *size_out){
 // Implementation of the gap buffer
 //
 
-inline i32
+internal i32
 buffer_good(Gap_Buffer *buffer){
     i32 good = (buffer->data != 0);
     return(good);
 }
 
-inline i32
+internal i32
 buffer_size(Gap_Buffer *buffer){
     i32 size = buffer->size1 + buffer->size2;
     return(size);
@@ -527,7 +527,7 @@ buffer_get_chunks(Partition *part, Gap_Buffer *buffer){
     return(result);
 }
 
-inline void
+internal void
 buffer_stringify(Gap_Buffer *buffer, i32 start, i32 end, char *out){
     Gap_Buffer_Stream stream = {};
     
@@ -1118,7 +1118,7 @@ binary_search(i32 *array, i32 value, i32 l_bound, i32 u_bound){
 }
 
 // TODO(allen): CHECK
-inline i32
+internal i32
 buffer_get_line_index_range(Gap_Buffer *buffer, i32 pos, i32 l_bound, i32 u_bound){
     Assert(0 <= l_bound);
     Assert(l_bound <= u_bound);
@@ -1130,19 +1130,19 @@ buffer_get_line_index_range(Gap_Buffer *buffer, i32 pos, i32 l_bound, i32 u_boun
     return(i);
 }
 
-inline i32
+internal i32
 buffer_get_line_number(Gap_Buffer *buffer, i32 pos){
     i32 result = buffer_get_line_index_range(buffer, pos, 0, buffer->line_count);
     return(result);
 }
 
-inline i32
+internal i32
 buffer_get_line_index_from_character_pos(i32 *character_starts, i32 pos, i32 l_bound, i32 u_bound){
     i32 i = binary_search(character_starts, pos, l_bound, u_bound);
     return(i);
 }
 
-inline i32
+internal i32
 buffer_get_line_index_from_wrapped_y(i32 *wrap_line_index, f32 y, i32 line_height, i32 l_bound, i32 u_bound){
     i32 wrap_index = floor32(y/line_height);
     i32 i = binary_search(wrap_line_index, wrap_index, l_bound, u_bound);
@@ -1561,7 +1561,7 @@ buffer_invert_edit_shift(Gap_Buffer *buffer, Buffer_Edit edit, Buffer_Edit *inve
     buffer_stringify(buffer, edit.start, edit.end, strings + pos);
 }
 
-inline void
+internal void
 buffer_invert_edit(Gap_Buffer *buffer, Buffer_Edit edit, Buffer_Edit *inverse, char *strings,
                    i32 *str_pos, i32 max){
     buffer_invert_edit_shift(buffer, edit, inverse, strings, str_pos, max, 0);
@@ -1599,7 +1599,7 @@ enum{
     RenderItemFlag_NoAdvance = 2,
 };
 
-inline Render_Item_Write
+internal Render_Item_Write
 write_render_item(Render_Item_Write write, i32 index, u32 codepoint, u32 flags,
                   Render_Item_Flag render_flags){
     if (write.item < write.item_end){

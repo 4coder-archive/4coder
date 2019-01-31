@@ -22,7 +22,7 @@ panel_init(Panel *panel){
     panel->b_margin = 3;
 }
 
-inline Panel_Divider
+internal Panel_Divider
 panel_divider_zero(){
     Panel_Divider divider={};
     return(divider);

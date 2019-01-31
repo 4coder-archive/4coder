@@ -91,7 +91,7 @@ init_language_cpp(Application_Links *app){
         
         PSAT("extern"  , CPP_TOKEN_KEY_LINKAGE),
         PSAT("export"  , CPP_TOKEN_KEY_LINKAGE),
-        PSAT("inline"  , CPP_TOKEN_KEY_LINKAGE),
+        PSAT("internal"  , CPP_TOKEN_KEY_LINKAGE),
         PSAT("static"  , CPP_TOKEN_KEY_LINKAGE),
         PSAT("virtual" , CPP_TOKEN_KEY_LINKAGE),
         

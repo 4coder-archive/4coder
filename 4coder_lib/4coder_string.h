@@ -49,11 +49,7 @@ typedef int32_t b32_4tech;
 #endif
 
 #if !defined(FSTRING_INLINE)
-# if defined(FSTRING_C)
-#  define FSTRING_INLINE static
-# else
-#  define FSTRING_INLINE inline
-# endif
+# define FSTRING_INLINE static
 #endif
 
 #if !defined(FSTRING_GUARD)

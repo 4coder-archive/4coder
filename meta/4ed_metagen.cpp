@@ -153,7 +153,7 @@ generate_custom_headers(Partition *part){
             String ret = unit_custom.set.items[i].ret;
             String public_name = func_4ed_names.names[i].public_name;
             
-            append(&out, "static inline ");
+            append(&out, "static ");
             append(&out, ret);
             append(&out, " ");
             append(&out, public_name);

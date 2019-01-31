@@ -9,7 +9,7 @@ distribute, and modify this file as you see fit.
 
 // TOP
 
-inline Partition
+static Partition
 make_part(void *memory, i32_4tech size){
     Partition partition = {};
     partition.base = (char*)memory;
@@ -18,7 +18,7 @@ make_part(void *memory, i32_4tech size){
     return partition;
 }
 
-inline void*
+static void*
 partition_allocate(Partition *data, i32_4tech size){
     void *ret = 0;
     if (size < 0){
@@ -31,31 +31,31 @@ partition_allocate(Partition *data, i32_4tech size){
     return(ret);
 }
 
-inline void
+static void
 partition_reduce(Partition *data, i32_4tech size){
     if (size > 0 && size <= data->pos){
         data->pos -= size;
     }
 }
 
-inline void*
+static void*
 partition_align(Partition *data, u32_4tech boundary){
     --boundary;
     data->pos = (data->pos + boundary) & (~boundary);
     return(data->base + data->pos);
 }
 
-inline void*
+static void*
 partition_current(Partition *data){
     return(data->base + data->pos);
 }
 
-inline i32_4tech
+static i32_4tech
 partition_remaining(Partition *data){
     return(data->max - data->pos);
 }
 
-inline Partition
+static Partition
 partition_sub_part(Partition *data, i32_4tech size){
     Partition result = {};
     void *d = partition_allocate(data, size);
@@ -68,7 +68,7 @@ partition_sub_part(Partition *data, i32_4tech size){
 #define push_array(part, T, size) (T*)partition_allocate(part, sizeof(T)*(size))
 #define push_align(part, b) partition_align(part, b)
 
-inline Temp_Memory
+static Temp_Memory
 begin_temp_memory(Partition *data){
     Temp_Memory result;
     result.handle = data;
@@ -76,7 +76,7 @@ begin_temp_memory(Partition *data){
     return(result);
 }
 
-inline void
+static void
 end_temp_memory(Temp_Memory temp){
     ((Partition*)temp.handle)->pos = temp.pos;
 }

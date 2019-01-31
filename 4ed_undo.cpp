@@ -148,7 +148,7 @@ file_post_undo(Heap *heap, Editing_File *file, Edit_Step step, b32 do_merge, b32
     return result;
 }
 
-inline void
+internal void
 undo_stack_pop(Edit_Stack *stack){
     if (stack->edit_count > 0){
         Edit_Step *edit = stack->edits + (--stack->edit_count);
@@ -195,7 +195,7 @@ file_post_redo(Heap *heap, Editing_File *file, Edit_Step step){
     }
 }
 
-inline void
+internal void
 file_post_history_block(Editing_File *file, i32 pos){
     Assert(file->state.undo.history_head_block < pos);
     Assert(pos < file->state.undo.history.edit_count);
@@ -209,7 +209,7 @@ file_post_history_block(Editing_File *file, i32 pos){
     ++file->state.undo.history_block_count;
 }
 
-inline void
+internal void
 file_unpost_history_block(Editing_File *file){
     Assert(file->state.undo.history_block_count > 1);
     --file->state.undo.history_block_count;

@@ -44,7 +44,7 @@ hot_directory_quick_sort(File_Info *infos, i32 start, i32 pivot){
     if (mid+1 < pivot) hot_directory_quick_sort(infos, mid+1, pivot);
 }
 
-inline void
+internal void
 hot_directory_fixup(Hot_Directory *hot_directory){
     File_List *files = &hot_directory->file_list;
     if (files->count >= 2){
@@ -52,7 +52,7 @@ hot_directory_fixup(Hot_Directory *hot_directory){
     }
 }
 
-inline void
+internal void
 hot_directory_set(System_Functions *system, Hot_Directory *hot_directory, String str){
     copy_checked_ss(&hot_directory->string, str);
     b32 success = terminate_with_null(&hot_directory->string);
@@ -80,7 +80,7 @@ hot_directory_set(System_Functions *system, Hot_Directory *hot_directory, String
     hot_directory_fixup(hot_directory);
 }
 
-inline void
+internal void
 hot_directory_reload(System_Functions *system, Hot_Directory *hot_directory){
     hot_directory_set(system, hot_directory, hot_directory->string);
 }

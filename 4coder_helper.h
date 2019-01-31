@@ -50,7 +50,7 @@ struct Bind_Buffer{
 #define IntAsPtr(a) (void*)(((uint8_t*)0) + a)
 
 #if !defined(max_f32)
-inline float
+static float
 max_f32_proc(void){
     union{
         uint32_t x;

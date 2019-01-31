@@ -19,7 +19,7 @@ struct Plat_Handle{
 
 static Plat_Handle null_plat_handle = {};
 
-inline b32
+internal b32
 handle_equal(Plat_Handle a, Plat_Handle b){
     b32 result = (memcmp(&a, &b, sizeof(a)) == 0);
     return(result);
