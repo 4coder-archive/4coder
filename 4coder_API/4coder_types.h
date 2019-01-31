@@ -1087,6 +1087,8 @@ ENUM(int32_t, Special_Hook_ID){
     /* DOC(TODO) */
     special_hook_end_file,
     /* DOC(TODO) */
+    special_hook_file_edit_finished,
+    /* DOC(TODO) */
     special_hook_command_caller,
     /* DOC(TODO) */
     special_hook_render_caller,
@@ -1112,13 +1114,15 @@ TYPEDEF_FUNC int32_t Hook_Function(struct Application_Links *app);
 TYPEDEF_FUNC int32_t Open_File_Hook_Function(struct Application_Links *app, Buffer_ID buffer_id);
 #define OPEN_FILE_HOOK_SIG(name) int32_t name(struct Application_Links *app, Buffer_ID buffer_id)
 
+TYPEDEF_FUNC int32_t File_Edit_Finished_Function(struct Application_Links *app, Buffer_ID buffer_id);
+#define FILE_EDIT_FINISHED_SIG(name) int32_t name(struct Application_Links *app, Buffer_ID buffer_id)
+
 TYPEDEF_FUNC void Input_Filter_Function(Mouse_State *mouse);
 #define INPUT_FILTER_SIG(name) void name(Mouse_State *mouse)
 
 TYPEDEF_FUNC int32_t Scroll_Rule_Function(float target_x, float target_y, float *scroll_x, float *scroll_y, int32_t view_id, int32_t is_new_target, float dt);
 #define SCROLL_RULE_SIG(name) \
 int32_t name(float target_x, float target_y, float *scroll_x, float *scroll_y, int32_t view_id, int32_t is_new_target, float dt)
-
 
 STRUCT Buffer_Name_Conflict_Entry{
     Buffer_ID buffer_id;

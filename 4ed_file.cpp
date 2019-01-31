@@ -478,7 +478,6 @@ internal void
 file_create_from_string(System_Functions *system, Models *models, Editing_File *file, String val, u32 flags){
     Heap *heap = &models->mem.heap;
     Partition *part = &models->mem.part;
-    Open_File_Hook_Function *hook_open_file = models->hook_open_file;
     Application_Links *app_links = &models->app_links;
     
     memset(&file->state, 0, sizeof(file->state));
@@ -549,6 +548,7 @@ file_create_from_string(System_Functions *system, Models *models, Editing_File *
         file->state.undo.current_block_normal = 1;
     }
     
+    Open_File_Hook_Function *hook_open_file = models->hook_open_file;
     if (hook_open_file != 0){
         hook_open_file(app_links, file->id.id);
     }

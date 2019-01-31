@@ -750,6 +750,24 @@ OPEN_FILE_HOOK_SIG(default_file_save){
     return(0);
 }
 
+OPEN_FILE_HOOK_SIG(default_file_edit){
+    Buffer_Summary buffer = get_buffer(app, buffer_id, AccessAll);
+    Assert(buffer.exists);
+    
+    if (buffer.buffer_name_len > 0 && buffer.buffer_name[0] != '*'){
+        char space[256];
+        String str = make_fixed_width_string(space);
+        append(&str, "edit finished: ");
+        append(&str, make_string(buffer.file_name, buffer.file_name_len));
+        append(&str, "\n");
+        
+        print_message(app, str.str, str.size);
+    }
+    
+    // no meaning for return
+    return(0);
+}
+
 OPEN_FILE_HOOK_SIG(default_end_file){
     Buffer_Summary buffer = get_buffer(app, buffer_id, AccessAll);
     Assert(buffer.exists);
@@ -873,6 +891,7 @@ set_all_default_hooks(Bind_Helper *context){
     set_open_file_hook(context, default_file_settings);
     set_new_file_hook(context, default_new_file);
     set_save_file_hook(context, default_file_save);
+    set_file_edit_finished_hook(context, default_file_edit);
     
     set_end_file_hook(context, end_file_close_jump_list);
     

@@ -228,6 +228,7 @@ interpret_binding_buffer(Models *models, void *buffer, i32 size){
     models->hook_new_file = 0;
     models->hook_save_file = 0;
     models->hook_end_file = 0;
+    models->hook_file_edit_finished = 0;
     models->command_caller = 0;
     models->render_caller = 0;
     models->input_filter = 0;
@@ -452,6 +453,11 @@ interpret_binding_buffer(Models *models, void *buffer, i32 size){
                                 case special_hook_end_file:
                                 {
                                     models->hook_end_file = (Open_File_Hook_Function*)unit->hook.func;
+                                }break;
+                                
+                                case special_hook_file_edit_finished:
+                                {
+                                    models->hook_file_edit_finished = (File_Edit_Finished_Function*)unit->hook.func;
                                 }break;
                                 
                                 case special_hook_command_caller:
@@ -1559,7 +1565,29 @@ App_Step_Sig(app_step){
         }
     }
     
-    // NOTE(allen): If the exit signal has been sent, run the exit hook.
+    // NOTE(allen): hook for marked edited files
+    {
+        File_Edit_Finished_Function *hook_file_edit_finished = models->hook_file_edit_finished;
+        if (hook_file_edit_finished != 0){
+            Working_Set *working_set = &models->working_set;
+            if (working_set->edit_finished_list.next != 0){
+                Node *first = working_set->edit_finished_list.next;
+                working_set->edit_finished_list.next = 0;
+                working_set->edit_finished_list.prev = 0;
+                for (Node *node = first, *next = 0;
+                     node != 0;
+                     node = next){
+                    next = node->next;
+                    Editing_File *file = CastFromMember(Editing_File, edit_finished_mark_node, node);
+                    hook_file_edit_finished(&models->app_links, file->id.id);
+                    node->next = 0;
+                    node->prev = 0;
+                }
+            }
+        }
+    }
+    
+    // NOTE(allen): if the exit signal has been sent, run the exit hook.
     if (input->trying_to_kill){
         models->keep_playing = false;
     }

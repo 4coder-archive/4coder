@@ -457,7 +457,9 @@ DOC(Gives the total number of buffers in the application.)
 internal void
 internal_get_buffer_first(Working_Set *working_set, Buffer_Summary *buffer){
     if (working_set->file_count > 0){
-        fill_buffer_summary(buffer, (Editing_File*)working_set->used_sentinel.next, working_set);
+        Node *node = working_set->used_sentinel.next;
+        Editing_File *file = CastFromMember(Editing_File, main_chain_node, node);
+        fill_buffer_summary(buffer, file, working_set);
     }
 }
 
@@ -465,8 +467,9 @@ internal void
 get_buffer_next__internal(Working_Set *working_set, Buffer_Summary *buffer){
     Editing_File *file = working_set_get_active_file(working_set, buffer->buffer_id);
     if (file != 0){
-        file = (Editing_File*)file->node.next;
-        if (file != (Editing_File*)&working_set->used_sentinel){
+        file = CastFromMember(Editing_File, main_chain_node, file->main_chain_node.next);
+        Editing_File *sentinel_file_ptr = CastFromMember(Editing_File, main_chain_node, &working_set->used_sentinel);
+        if (file != sentinel_file_ptr){
             fill_buffer_summary(buffer, file, working_set);
         }
         else{
@@ -1182,7 +1185,7 @@ DOC_SEE(Buffer_Create_Flag)
                     file = working_set_alloc_always(working_set, heap, &models->lifetime_allocator);
                     if (file != 0){
                         if (has_canon_name){
-                            buffer_bind_file(system, heap, working_set, file, canon.name);
+                            file_bind_filename(system, heap, working_set, file, canon.name);
                         }
                         buffer_bind_name(models, heap, part, working_set, file, front_of_directory(fname));
                         init_normal_file(system, models, 0, 0, file);
@@ -1207,7 +1210,7 @@ DOC_SEE(Buffer_Create_Flag)
                     system->load_close(handle);
                     file = working_set_alloc_always(working_set, heap, &models->lifetime_allocator);
                     if (file != 0){
-                        buffer_bind_file(system, heap, working_set, file, canon.name);
+                        file_bind_filename(system, heap, working_set, file, canon.name);
                         buffer_bind_name(models, heap, part, working_set, file, front_of_directory(fname));
                         init_normal_file(system, models, buffer, size, file);
                         fill_buffer_summary(&result, file, &models->working_set);
@@ -1327,8 +1330,8 @@ DOC_SEE(Buffer_Identifier)
                 file_free(system, &models->app_links, &models->mem.heap, &models->lifetime_allocator, file);
                 working_set_free_file(&models->mem.heap, working_set, file);
                 
-                File_Node *used = &working_set->used_sentinel;
-                File_Node *node = used->next;
+                Node *used = &working_set->used_sentinel;
+                Node *node = used->next;
                 for (Panel *panel = models->layout.used_sentinel.next;
                      panel != &models->layout.used_sentinel;
                      panel = panel->next){
@@ -1336,7 +1339,8 @@ DOC_SEE(Buffer_Identifier)
                     if (view->transient.file_data.file == file){
                         Assert(node != used);
                         view->transient.file_data.file = 0;
-                        view_set_file(system, models, view, (Editing_File*)node);
+                        Editing_File *new_file = CastFromMember(Editing_File, main_chain_node, node);
+                        view_set_file(system, models, view, new_file);
                         if (node->next != used){
                             node = node->next;
                         }
@@ -2372,6 +2376,10 @@ get_lifetime_object_from_workspace(Dynamic_Workspace *workspace){
         {
             View *vptr = (View*)workspace->user_back_ptr;
             result = vptr->transient.lifetime_object;
+        }break;
+        default:
+        {
+            InvalidCodePath;
         }break;
     }
     return(result);

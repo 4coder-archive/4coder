@@ -265,7 +265,6 @@ enum{
 internal void
 emit_begin_mapping(Partition *part, Mapping_Array *array, char *name, char *description){
     Assert(array->current_mapping == 0);
-    
     Mapping *mapping = push_array(part, Mapping, 1);
     mapping->name = fm_basic_str(part, name);
     mapping->name_len = str_size(name);

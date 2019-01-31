@@ -23,11 +23,6 @@ file_lex_chunks(Partition *part, Gap_Buffer *buffer){
 }
 
 internal void
-file_lex_mark_new_tokens(System_Functions *system, Models *models, Editing_File *file){
-    // TODO(allen): Figure out what we want to do to mark these files.
-}
-
-internal void
 job_full_lex(System_Functions *system, Thread_Context *thread, Thread_Memory *memory, void *data[4]){
     Editing_File *file = (Editing_File*)data[0];
     Heap *heap = (Heap*)data[1];
@@ -140,7 +135,7 @@ job_full_lex(System_Functions *system, Thread_Context *thread, Thread_Memory *me
     }
     file->state.tokens_complete = true;
     file->state.still_lexing = false;
-    file_lex_mark_new_tokens(system, models, file);
+    file_mark_edit_finished(&models->working_set, file);
     system->release_lock(FRAME_LOCK);
 }
 
@@ -282,7 +277,7 @@ file_first_lex_serial(System_Functions *system, Models *models, Editing_File *fi
         end_temp_memory(temp);
         
         file->state.tokens_complete = true;
-        file_lex_mark_new_tokens(system, models, file);
+        file_mark_edit_finished(&models->working_set, file);
     }
 }
 
@@ -373,7 +368,7 @@ file_relex_parallel(System_Functions *system, Models *models, Editing_File *file
             }
             
             cpp_relex_complete(&state, array, &relex_array);
-            file_lex_mark_new_tokens(system, models, file);
+            file_mark_edit_finished(&models->working_set, file);
         }
         else{
             cpp_relex_abort(&state, array);
@@ -492,7 +487,7 @@ file_relex_serial(System_Functions *system, Models *models, Editing_File *file, 
     }
     
     cpp_relex_complete(&state, array, &relex_array);
-    file_lex_mark_new_tokens(system, models, file);
+    file_mark_edit_finished(&models->working_set, file);
     
     end_temp_memory(temp);
     

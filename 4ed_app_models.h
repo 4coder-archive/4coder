@@ -44,16 +44,17 @@ struct Models{
     Coroutine_Head *command_coroutine;
     u32 command_coroutine_flags[2];
     
-    Hook_Function *hooks[hook_type_count];
-    Application_Links app_links;
-    
     Custom_API config_api;
     
+    Application_Links app_links;
+    
+    Hook_Function *hooks[hook_type_count];
     Start_Hook_Function *hook_start;
     Open_File_Hook_Function *hook_open_file;
     Open_File_Hook_Function *hook_new_file;
     Open_File_Hook_Function *hook_save_file;
     Open_File_Hook_Function *hook_end_file;
+    File_Edit_Finished_Function *hook_file_edit_finished;
     Command_Caller_Hook_Function *command_caller;
     Render_Caller_Function *render_caller;
     Input_Filter_Function *input_filter;

@@ -77,6 +77,8 @@ typedef double f64;
 #define CastFromMember(S,m,ptr) (S*)( (uint8_t*)(ptr) - OffsetOfMember(S,m) )
 #define IntAsPtr(a) (void*)(((uint8_t*)0) + a)
 
+#define Stmnt(s) do{ s }while(0)
+
 #define STR__(s) #s
 #define STR_(s) STR__(s)
 #define LINE_STR STR_(__LINE__)

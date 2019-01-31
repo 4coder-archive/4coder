@@ -99,14 +99,7 @@ struct Editing_File_Name{
     String name;
 };
 
-struct File_Node{
-    File_Node *next;
-    File_Node *prev;
-};
-
 struct Editing_File{
-    // NOTE(allen): node must be the first member of Editing_File!
-    File_Node node;
     Buffer_Slot_ID id;
     Editing_File_Settings settings;
     b32 is_loading;
@@ -116,6 +109,8 @@ struct Editing_File{
     Editing_File_Name base_name;
     Editing_File_Name unique_name;
     Editing_File_Name canon;
+    Node main_chain_node;
+    Node edit_finished_mark_node;
 };
 
 #endif

@@ -246,6 +246,9 @@ edit_single__inner(System_Functions *system, Models *models, Editing_File *file,
     if (file->settings.tokens_exist){
         file_relex(system, models, file, start, end, shift_amount);
     }
+    else{
+        file_mark_edit_finished(&models->working_set, file);
+    }
     
     // NOTE(allen): meta data
     Gap_Buffer *buffer = &file->state.buffer;
@@ -362,6 +365,9 @@ edit_batch(System_Functions *system, Models *models, Editing_File *file,
                 Buffer_Edit *last_edit = batch + batch_size - 1;
                 file_relex(system, models, file, first_edit->start, last_edit->end, shift_total);
             }
+            else{
+                file_mark_edit_finished(&models->working_set, file);
+            }
         }break;
         
         case BatchEdit_PreserveTokens:
@@ -370,7 +376,7 @@ edit_batch(System_Functions *system, Models *models, Editing_File *file,
                 Cpp_Token_Array tokens = file->state.token_array;
                 Cpp_Token *token = tokens.tokens;
                 Cpp_Token *end_token = tokens.tokens + tokens.count;
-                Cpp_Token original = {(Cpp_Token_Type)0};
+                Cpp_Token original = {};
                 
                 Buffer_Edit *edit = batch;
                 Buffer_Edit *end_edit = batch + batch_size;
@@ -378,7 +384,7 @@ edit_batch(System_Functions *system, Models *models, Editing_File *file,
                 i32 shift_amount = 0;
                 i32 local_shift = 0;
                 
-                for (; token < end_token; ++token){
+                for (;token < end_token; ++token){
                     original = *token;
                     for (; edit < end_edit && edit->start <= original.start; ++edit){
                         local_shift = (edit->len - (edit->end - edit->start));
@@ -392,6 +398,7 @@ edit_batch(System_Functions *system, Models *models, Editing_File *file,
                     token->size += local_shift;
                     shift_amount += local_shift;
                 }
+                file_mark_edit_finished(&models->working_set, file);
             }
         }break;
     }

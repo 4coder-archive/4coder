@@ -341,7 +341,7 @@ view_set_file(System_Functions *system, Models *models, View *view, Editing_File
     Assert(file != 0);
     
     if (view->transient.file_data.file != 0){
-        touch_file(&models->working_set, view->transient.file_data.file);
+        file_touch(&models->working_set, view->transient.file_data.file);
     }
     
     File_Edit_Positions *edit_pos = view->transient.edit_pos;
@@ -433,10 +433,10 @@ file_set_font(System_Functions *system, Models *models, Editing_File *file, Face
 
 internal void
 global_set_font_and_update_files(System_Functions *system, Models *models, Face_ID font_id){
-    for (File_Node *node = models->working_set.used_sentinel.next;
+    for (Node *node = models->working_set.used_sentinel.next;
          node != &models->working_set.used_sentinel;
          node = node->next){
-        Editing_File *file = (Editing_File*)node;
+        Editing_File *file = CastFromMember(Editing_File, main_chain_node, node);
         file_set_font(system, models, file, font_id);
     }
     models->global_font_id = font_id;
@@ -447,10 +447,10 @@ alter_font_and_update_files(System_Functions *system, Models *models, Face_ID fo
     b32 success = false;
     if (system->font.face_change_settings(font_id, new_settings)){
         success = true;
-        for (File_Node *node = models->working_set.used_sentinel.next;
+        for (Node *node = models->working_set.used_sentinel.next;
              node != &models->working_set.used_sentinel;
              node = node->next){
-            Editing_File *file = (Editing_File*)node;
+            Editing_File *file = CastFromMember(Editing_File, main_chain_node, node);
             if (file->settings.font_id == font_id){
                 file_full_remeasure(system, models, file);
             }
@@ -475,10 +475,10 @@ release_font_and_update_files(System_Functions *system, Models *models, Face_ID 
             Assert(replacement_id <= largest_id && replacement_id > 0);
         }
         success = true;
-        for (File_Node *node = models->working_set.used_sentinel.next;
+        for (Node *node = models->working_set.used_sentinel.next;
              node != &models->working_set.used_sentinel;
              node = node->next){
-            Editing_File *file = (Editing_File*)node;
+            Editing_File *file = CastFromMember(Editing_File, main_chain_node, node);
             if (file->settings.font_id == font_id){
                 file_set_font(system, models, file, replacement_id);
             }

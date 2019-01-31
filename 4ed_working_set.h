@@ -27,20 +27,22 @@ struct Working_Set{
     i32 file_count, file_max;
     i16 array_count, array_max;
     
-    File_Node free_sentinel;
-    File_Node used_sentinel;
+    Node free_sentinel;
+    Node used_sentinel;
+    
+    Node edit_finished_list;
     
     Table canon_table;
     Table name_table;
     
     // TODO(allen): WTF?
     String clipboards[64];
-    i32 clipboard_size, clipboard_max_size;
-    i32 clipboard_current, clipboard_rolling;
+    i32 clipboard_size;
+    i32 clipboard_max_size;
+    i32 clipboard_current;
+    i32 clipboard_rolling;
     
-    //u64 unique_file_counter;
-    
-    File_Node *sync_check_iter;
+    Node *sync_check_iter;
     
     i32 default_display_width;
     i32 default_minimum_base_display_width;
@@ -50,6 +52,9 @@ struct File_Name_Entry{
     String name;
     Buffer_Slot_ID id;
 };
+
+internal void
+file_mark_edit_finished(Working_Set *working_set, Editing_File *file);
 
 #endif
 

@@ -57,11 +57,11 @@ working_set_extend_memory(Working_Set *working_set, Editing_File *new_space, i16
     id.part[1] = high_part;
     
     Editing_File *file_ptr = new_space;
-    File_Node *free_sentinel = &working_set->free_sentinel;
+    Node *free_sentinel = &working_set->free_sentinel;
     for (i16 i = 0; i < number_of_files; ++i, ++file_ptr){
         id.part[0] = i;
         file_ptr->id = id;
-        dll_insert(free_sentinel, &file_ptr->node);
+        dll_insert(free_sentinel, &file_ptr->main_chain_node);
     }
 }
 
@@ -84,19 +84,19 @@ working_set_alloc_always(Working_Set *working_set, Heap *heap, Lifetime_Allocato
     }
     
     if (working_set->file_count < working_set->file_max){
-        File_Node *node = working_set->free_sentinel.next;
+        Node *node = working_set->free_sentinel.next;
         Assert(node != &working_set->free_sentinel);
-        result = (Editing_File*)node;
+        result = CastFromMember(Editing_File, main_chain_node, node);
         
         ++working_set->file_count;
         
         dll_remove(node);
         dll_insert(&working_set->used_sentinel, node);
         
-        File_Node node_val = result->node;
+        Node node_val = result->main_chain_node;
         Buffer_Slot_ID id_val = result->id;
         memset(result, 0, sizeof(*result));
-        result->node  = node_val;
+        result->main_chain_node  = node_val;
         result->id = id_val;
         
         working_set_file_default_settings(working_set, result);
@@ -107,13 +107,12 @@ working_set_alloc_always(Working_Set *working_set, Heap *heap, Lifetime_Allocato
 
 inline void
 working_set_free_file(Heap *heap, Working_Set  *working_set, Editing_File *file){
-    if (working_set->sync_check_iter == &file->node){
+    if (working_set->sync_check_iter == &file->main_chain_node){
         working_set->sync_check_iter = working_set->sync_check_iter->next;
     }
-    
     file->is_dummy = true;
-    dll_remove(&file->node);
-    dll_insert(&working_set->free_sentinel, &file->node);
+    dll_remove(&file->main_chain_node);
+    dll_insert(&working_set->free_sentinel, &file->main_chain_node);
     --working_set->file_count;
 }
 
@@ -173,8 +172,8 @@ working_set_init(Working_Set *working_set, Partition *partition, Heap *heap){
     // NOTE(allen): init null file
     {
         Editing_File *null_file = working_set_index(working_set, 0);
-        dll_remove(&null_file->node);
-        null_file->is_dummy = 1;
+        dll_remove(&null_file->main_chain_node);
+        null_file->is_dummy = true;
         ++working_set->file_count;
     }
 #endif
@@ -285,10 +284,10 @@ working_set_lookup_file(Working_Set *working_set, String string){
     Editing_File *file = 0;
     
     // TODO(allen): use the name table for this
-    for (File_Node *node = working_set->used_sentinel.next;
+    for (Node *node = working_set->used_sentinel.next;
          node != &working_set->used_sentinel;
          node = node->next){
-        Editing_File *nfile = (Editing_File*)node;
+        Editing_File *nfile = CastFromMember(Editing_File, main_chain_node, node);
         if (string.size == 0 || match_ss(string, nfile->unique_name.name)){
             file = nfile;
             break;
@@ -296,10 +295,10 @@ working_set_lookup_file(Working_Set *working_set, String string){
     }
     
     if (file == 0){
-        for (File_Node *node = working_set->used_sentinel.next;
+        for (Node *node = working_set->used_sentinel.next;
              node != &working_set->used_sentinel;
              node = node->next){
-            Editing_File *nfile = (Editing_File*)node;
+            Editing_File *nfile = CastFromMember(Editing_File, main_chain_node, node);
             if (string.size == 0 || has_substr_s(nfile->unique_name.name, string)){
                 file = nfile;
                 break;
@@ -308,14 +307,6 @@ working_set_lookup_file(Working_Set *working_set, String string){
     }
     
     return(file);
-}
-
-internal void
-touch_file(Working_Set *working_set, Editing_File *file){
-    Assert(file != 0);
-    Assert(!file->is_dummy);
-    dll_remove(&file->node);
-    dll_insert(&working_set->used_sentinel, &file->node);
 }
 
 ////////////////////////////////
@@ -405,10 +396,9 @@ get_canon_name(System_Functions *system, String filename, Editing_File_Name *can
 }
 
 internal void
-buffer_bind_file(System_Functions *system, Heap *heap, Working_Set *working_set, Editing_File *file, String canon_filename){
+file_bind_filename(System_Functions *system, Heap *heap, Working_Set *working_set, Editing_File *file, String canon_filename){
     Assert(file->unique_name.name.size == 0);
     Assert(file->canon.name.size == 0);
-    
     file->canon.name = make_fixed_width_string(file->canon.name_);
     copy(&file->canon.name, canon_filename);
     terminate_with_null(&file->canon.name);
@@ -432,9 +422,10 @@ internal b32
 buffer_name_has_conflict(Working_Set *working_set, String base_name){
     b32 hit_conflict = false;
     
-    File_Node *used_nodes = &working_set->used_sentinel;
-    for (File_Node *node = used_nodes->next; node != used_nodes; node = node->next){
-        Editing_File *file_ptr = (Editing_File*)node;if (file_is_ready(file_ptr) && match(base_name, file_ptr->unique_name.name)){
+    Node *used_nodes = &working_set->used_sentinel;
+    for (Node *node = used_nodes->next; node != used_nodes; node = node->next){
+        Editing_File *file_ptr = CastFromMember(Editing_File, main_chain_node, node);
+        if (file_is_ready(file_ptr) && match(base_name, file_ptr->unique_name.name)){
             hit_conflict = true;
             break;
         }
@@ -508,9 +499,9 @@ buffer_bind_name(Models *models, Heap *heap, Partition *scratch,
         ++conflict_count;
     }
     
-    File_Node *used_nodes = &working_set->used_sentinel;
-    for (File_Node *node = used_nodes->next; node != used_nodes; node = node->next){
-        Editing_File *file_ptr = (Editing_File*)node;
+    Node *used_nodes = &working_set->used_sentinel;
+    for (Node *node = used_nodes->next; node != used_nodes; node = node->next){
+        Editing_File *file_ptr = CastFromMember(Editing_File, main_chain_node, node);
         if (file_is_ready(file_ptr) && match(base_name, file_ptr->base_name.name)){
             Editing_File **new_file_ptr = push_array(scratch, Editing_File*, 1);
             *new_file_ptr = file_ptr;
@@ -586,7 +577,7 @@ open_file(System_Functions *system, Models *models, String filename){
                 Partition *part = &mem->part;
                 
                 file = working_set_alloc_always(working_set, heap, &models->lifetime_allocator);
-                buffer_bind_file(system, heap, working_set, file, canon_name.name);
+                file_bind_filename(system, heap, working_set, file, canon_name.name);
                 buffer_bind_name(models, heap, part, working_set, file, front_of_directory(filename));
                 
                 Temp_Memory temp = begin_temp_memory(part);
@@ -616,6 +607,25 @@ open_file(System_Functions *system, Models *models, String filename){
     }
     
     return(file);
+}
+
+////////////////////////////////
+
+internal void
+file_touch(Working_Set *working_set, Editing_File *file){
+    Assert(file != 0);
+    Assert(!file->is_dummy);
+    dll_remove(&file->main_chain_node);
+    dll_insert(&working_set->used_sentinel, &file->main_chain_node);
+}
+
+internal void
+file_mark_edit_finished(Working_Set *working_set, Editing_File *file){
+    if (file->edit_finished_mark_node.next == 0){
+        zdll_push_back(working_set->edit_finished_list.next,
+                       working_set->edit_finished_list.prev,
+                       &file->edit_finished_mark_node);
+    }
 }
 
 // BOTTOM
