@@ -46,7 +46,6 @@ struct Editing_File_Settings{
     i32 wrap_indicator;
     Parse_Context_ID parse_context_id;
     b32 dos_write_mode;
-    b32 virtual_white;
     Face_ID font_id;
     b8 unwrapped_lines;
     b8 tokens_exist;
@@ -55,7 +54,7 @@ struct Editing_File_Settings{
     b8 unimportant;
     b8 read_only;
     b8 never_kill;
-    u8 pad[1];
+    b8 virtual_white;
 };
 
 struct Editing_File_State{

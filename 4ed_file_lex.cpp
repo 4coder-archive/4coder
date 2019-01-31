@@ -135,7 +135,7 @@ job_full_lex(System_Functions *system, Thread_Context *thread, Thread_Memory *me
     }
     file->state.tokens_complete = true;
     file->state.still_lexing = false;
-    file_mark_edit_finished(&models->working_set, file);
+    file_mark_edit_finished(models, file);
     system->release_lock(FRAME_LOCK);
 }
 
@@ -277,7 +277,7 @@ file_first_lex_serial(System_Functions *system, Models *models, Editing_File *fi
         end_temp_memory(temp);
         
         file->state.tokens_complete = true;
-        file_mark_edit_finished(&models->working_set, file);
+        file_mark_edit_finished(models, file);
     }
 }
 
@@ -368,7 +368,7 @@ file_relex_parallel(System_Functions *system, Models *models, Editing_File *file
             }
             
             cpp_relex_complete(&state, array, &relex_array);
-            file_mark_edit_finished(&models->working_set, file);
+            file_mark_edit_finished(models, file);
         }
         else{
             cpp_relex_abort(&state, array);
@@ -487,7 +487,7 @@ file_relex_serial(System_Functions *system, Models *models, Editing_File *file, 
     }
     
     cpp_relex_complete(&state, array, &relex_array);
-    file_mark_edit_finished(&models->working_set, file);
+    file_mark_edit_finished(models, file);
     
     end_temp_memory(temp);
     

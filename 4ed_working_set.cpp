@@ -620,8 +620,10 @@ file_touch(Working_Set *working_set, Editing_File *file){
 }
 
 internal void
-file_mark_edit_finished(Working_Set *working_set, Editing_File *file){
-    if (file->edit_finished_mark_node.next == 0){
+file_mark_edit_finished(Models *models, Editing_File *file){
+    Editing_File *message_buffer = models->message_buffer;
+    if (file != message_buffer && file->edit_finished_mark_node.next == 0){
+        Working_Set *working_set = &models->working_set;
         zdll_push_back(working_set->edit_finished_list.next,
                        working_set->edit_finished_list.prev,
                        &file->edit_finished_mark_node);

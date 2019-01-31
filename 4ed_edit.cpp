@@ -247,7 +247,7 @@ edit_single__inner(System_Functions *system, Models *models, Editing_File *file,
         file_relex(system, models, file, start, end, shift_amount);
     }
     else{
-        file_mark_edit_finished(&models->working_set, file);
+        file_mark_edit_finished(models, file);
     }
     
     // NOTE(allen): meta data
@@ -366,7 +366,7 @@ edit_batch(System_Functions *system, Models *models, Editing_File *file,
                 file_relex(system, models, file, first_edit->start, last_edit->end, shift_total);
             }
             else{
-                file_mark_edit_finished(&models->working_set, file);
+                file_mark_edit_finished(models, file);
             }
         }break;
         
@@ -398,7 +398,7 @@ edit_batch(System_Functions *system, Models *models, Editing_File *file,
                     token->size += local_shift;
                     shift_amount += local_shift;
                 }
-                file_mark_edit_finished(&models->working_set, file);
+                file_mark_edit_finished(models, file);
             }
         }break;
     }
@@ -422,7 +422,7 @@ edit_batch(System_Functions *system, Models *models, Editing_File *file,
     
     // NOTE(allen): cursor fixing
     Cursor_Fix_Descriptor desc = {};
-    desc.is_batch = 1;
+    desc.is_batch = true;
     desc.batch = batch;
     desc.batch_size = batch_size;
     edit_fix_markers(system, models, file, layout, desc);

@@ -54,7 +54,7 @@ struct File_Name_Entry{
 };
 
 internal void
-file_mark_edit_finished(Working_Set *working_set, Editing_File *file);
+file_mark_edit_finished(Models *models, Editing_File *file);
 
 #endif
 

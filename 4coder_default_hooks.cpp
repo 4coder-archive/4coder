@@ -754,7 +754,7 @@ OPEN_FILE_HOOK_SIG(default_file_edit){
     Buffer_Summary buffer = get_buffer(app, buffer_id, AccessAll);
     Assert(buffer.exists);
     
-    if (buffer.buffer_name_len > 0 && buffer.buffer_name[0] != '*'){
+    if (buffer.buffer_name[0] != '*'){
         char space[256];
         String str = make_fixed_width_string(space);
         append(&str, "edit finished: ");
