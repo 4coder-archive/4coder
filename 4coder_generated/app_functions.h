@@ -22,6 +22,7 @@ struct Application_Links;
 #define BUFFER_GET_MANAGED_SCOPE_SIG(n) Managed_Scope n(Application_Links *app, Buffer_ID buffer_id)
 #define BUFFER_TOKEN_COUNT_SIG(n) int32_t n(Application_Links *app, Buffer_Summary *buffer)
 #define BUFFER_READ_TOKENS_SIG(n) bool32 n(Application_Links *app, Buffer_Summary *buffer, int32_t start_token, int32_t end_token, Cpp_Token *tokens_out)
+#define BUFFER_GET_TOKEN_RANGE_SIG(n) bool32 n(Application_Links *app, Buffer_Summary *buffer, Cpp_Token **first_token_out, Cpp_Token **one_past_last_token_out)
 #define BUFFER_GET_TOKEN_INDEX_SIG(n) bool32 n(Application_Links *app, Buffer_Summary *buffer, int32_t pos, Cpp_Get_Token_Result *get_result)
 #define BUFFER_SEND_END_SIGNAL_SIG(n) bool32 n(Application_Links *app, Buffer_Summary *buffer)
 #define CREATE_BUFFER_SIG(n) Buffer_Summary n(Application_Links *app, char *filename, int32_t filename_len, Buffer_Create_Flag flags)
@@ -149,6 +150,7 @@ typedef BUFFER_SET_SETTING_SIG(Buffer_Set_Setting_Function);
 typedef BUFFER_GET_MANAGED_SCOPE_SIG(Buffer_Get_Managed_Scope_Function);
 typedef BUFFER_TOKEN_COUNT_SIG(Buffer_Token_Count_Function);
 typedef BUFFER_READ_TOKENS_SIG(Buffer_Read_Tokens_Function);
+typedef BUFFER_GET_TOKEN_RANGE_SIG(Buffer_Get_Token_Range_Function);
 typedef BUFFER_GET_TOKEN_INDEX_SIG(Buffer_Get_Token_Index_Function);
 typedef BUFFER_SEND_END_SIGNAL_SIG(Buffer_Send_End_Signal_Function);
 typedef CREATE_BUFFER_SIG(Create_Buffer_Function);
@@ -278,6 +280,7 @@ Buffer_Set_Setting_Function *buffer_set_setting;
 Buffer_Get_Managed_Scope_Function *buffer_get_managed_scope;
 Buffer_Token_Count_Function *buffer_token_count;
 Buffer_Read_Tokens_Function *buffer_read_tokens;
+Buffer_Get_Token_Range_Function *buffer_get_token_range;
 Buffer_Get_Token_Index_Function *buffer_get_token_index;
 Buffer_Send_End_Signal_Function *buffer_send_end_signal;
 Create_Buffer_Function *create_buffer;
@@ -406,6 +409,7 @@ Buffer_Set_Setting_Function *buffer_set_setting_;
 Buffer_Get_Managed_Scope_Function *buffer_get_managed_scope_;
 Buffer_Token_Count_Function *buffer_token_count_;
 Buffer_Read_Tokens_Function *buffer_read_tokens_;
+Buffer_Get_Token_Range_Function *buffer_get_token_range_;
 Buffer_Get_Token_Index_Function *buffer_get_token_index_;
 Buffer_Send_End_Signal_Function *buffer_send_end_signal_;
 Create_Buffer_Function *create_buffer_;
@@ -542,6 +546,7 @@ app_links->buffer_set_setting_ = Buffer_Set_Setting;\
 app_links->buffer_get_managed_scope_ = Buffer_Get_Managed_Scope;\
 app_links->buffer_token_count_ = Buffer_Token_Count;\
 app_links->buffer_read_tokens_ = Buffer_Read_Tokens;\
+app_links->buffer_get_token_range_ = Buffer_Get_Token_Range;\
 app_links->buffer_get_token_index_ = Buffer_Get_Token_Index;\
 app_links->buffer_send_end_signal_ = Buffer_Send_End_Signal;\
 app_links->create_buffer_ = Create_Buffer;\
@@ -670,6 +675,7 @@ static bool32 buffer_set_setting(Application_Links *app, Buffer_Summary *buffer,
 static Managed_Scope buffer_get_managed_scope(Application_Links *app, Buffer_ID buffer_id){return(app->buffer_get_managed_scope(app, buffer_id));}
 static int32_t buffer_token_count(Application_Links *app, Buffer_Summary *buffer){return(app->buffer_token_count(app, buffer));}
 static bool32 buffer_read_tokens(Application_Links *app, Buffer_Summary *buffer, int32_t start_token, int32_t end_token, Cpp_Token *tokens_out){return(app->buffer_read_tokens(app, buffer, start_token, end_token, tokens_out));}
+static bool32 buffer_get_token_range(Application_Links *app, Buffer_Summary *buffer, Cpp_Token **first_token_out, Cpp_Token **one_past_last_token_out){return(app->buffer_get_token_range(app, buffer, first_token_out, one_past_last_token_out));}
 static bool32 buffer_get_token_index(Application_Links *app, Buffer_Summary *buffer, int32_t pos, Cpp_Get_Token_Result *get_result){return(app->buffer_get_token_index(app, buffer, pos, get_result));}
 static bool32 buffer_send_end_signal(Application_Links *app, Buffer_Summary *buffer){return(app->buffer_send_end_signal(app, buffer));}
 static Buffer_Summary create_buffer(Application_Links *app, char *filename, int32_t filename_len, Buffer_Create_Flag flags){return(app->create_buffer(app, filename, filename_len, flags));}
@@ -798,6 +804,7 @@ static bool32 buffer_set_setting(Application_Links *app, Buffer_Summary *buffer,
 static Managed_Scope buffer_get_managed_scope(Application_Links *app, Buffer_ID buffer_id){return(app->buffer_get_managed_scope_(app, buffer_id));}
 static int32_t buffer_token_count(Application_Links *app, Buffer_Summary *buffer){return(app->buffer_token_count_(app, buffer));}
 static bool32 buffer_read_tokens(Application_Links *app, Buffer_Summary *buffer, int32_t start_token, int32_t end_token, Cpp_Token *tokens_out){return(app->buffer_read_tokens_(app, buffer, start_token, end_token, tokens_out));}
+static bool32 buffer_get_token_range(Application_Links *app, Buffer_Summary *buffer, Cpp_Token **first_token_out, Cpp_Token **one_past_last_token_out){return(app->buffer_get_token_range_(app, buffer, first_token_out, one_past_last_token_out));}
 static bool32 buffer_get_token_index(Application_Links *app, Buffer_Summary *buffer, int32_t pos, Cpp_Get_Token_Result *get_result){return(app->buffer_get_token_index_(app, buffer, pos, get_result));}
 static bool32 buffer_send_end_signal(Application_Links *app, Buffer_Summary *buffer){return(app->buffer_send_end_signal_(app, buffer));}
 static Buffer_Summary create_buffer(Application_Links *app, char *filename, int32_t filename_len, Buffer_Create_Flag flags){return(app->create_buffer_(app, filename, filename_len, flags));}

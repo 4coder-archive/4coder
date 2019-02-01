@@ -51,6 +51,131 @@ static Get_Positions_Results
 get_function_positions(Application_Links *app, Buffer_Summary *buffer, int32_t token_index, Function_Positions *positions_array, int32_t positions_max){
     Get_Positions_Results result = {};
     
+    Token_Range token_range = buffer_get_token_range(app, buffer->buffer_id);
+    if (token_range.first != 0){
+        Token_Iterator token_it = make_token_iterator(token_range, token_index);
+        
+        
+        int32_t nest_level = 0;
+        int32_t paren_nest_level = 0;
+        
+        int32_t first_paren_index = 0;
+        int32_t first_paren_position = 0;
+        int32_t last_paren_index = 0;
+        
+        // Look for the next token at global scope that might need to be printed.
+        mode1:
+        Assert(nest_level == 0);
+        Assert(paren_nest_level == 0);
+        first_paren_index = 0;
+        first_paren_position = 0;
+        last_paren_index = 0;
+        for (Cpp_Token *token = token_iterator_current(&token_it);
+             token != 0;
+             token = token_iterator_goto_next(&token_it)){
+            if (!(token->flags & CPP_TFLAG_PP_BODY)){
+                switch (token->type){
+                    case CPP_TOKEN_BRACE_OPEN:
+                    {
+                        ++nest_level;
+                    }break;
+                    
+                    case CPP_TOKEN_BRACE_CLOSE:
+                    {
+                        if (nest_level > 0){
+                            --nest_level;
+                        }
+                    }break;
+                    
+                    case CPP_TOKEN_PARENTHESE_OPEN:
+                    {
+                        if (nest_level == 0){
+                            first_paren_index = token_index;
+                            first_paren_position = token->start;
+                            goto paren_mode1;
+                        }
+                    }break;
+                }
+            }
+        }
+        goto end;
+        
+        // Look for a closing parenthese to mark the end of a function signature.
+        paren_mode1:
+        paren_nest_level = 0;
+        for (Cpp_Token *token = token_iterator_current(&token_it);
+             token != 0;
+             token = token_iterator_goto_next(&token_it)){
+            if (!(token->flags & CPP_TFLAG_PP_BODY)){
+                switch (token->type){
+                    case CPP_TOKEN_PARENTHESE_OPEN:
+                    {
+                        ++paren_nest_level;
+                    }break;
+                    
+                    case CPP_TOKEN_PARENTHESE_CLOSE:
+                    {
+                        --paren_nest_level;
+                        if (paren_nest_level == 0){
+                            last_paren_index = token_index;
+                            goto paren_mode2;
+                        }
+                    }break;
+                }
+            }
+        }
+        goto end;
+        
+        // Look backwards from an open parenthese to find the start of a function signature.
+        paren_mode2:
+        {
+            Cpp_Token *restore_point = token_iterator_current(&token_it);
+            int32_t local_index = first_paren_index;
+            int32_t signature_start_index = 0;
+            
+            for (Cpp_Token *token = token_iterator_current(&token_it);
+                 token != 0;
+                 token = token_iterator_goto_prev(&token_it)){
+                if ((token->flags & CPP_TFLAG_PP_BODY) || (token->flags & CPP_TFLAG_PP_DIRECTIVE) || token->type == CPP_TOKEN_BRACE_CLOSE || token->type == CPP_TOKEN_SEMICOLON || token->type == CPP_TOKEN_PARENTHESE_CLOSE){
+                    ++local_index;
+                    signature_start_index = local_index;
+                    goto paren_mode2_done;
+                }
+            }
+            
+            // When this loop ends by going all the way back to the beginning set the signature start to 0 and fall through to the printing phase.
+            signature_start_index = 0;
+            
+            paren_mode2_done:;
+            {
+                Function_Positions positions;
+                positions.sig_start_index = signature_start_index;
+                positions.sig_end_index = last_paren_index;
+                positions.open_paren_pos = first_paren_position;
+                positions_array[result.positions_count++] = positions;
+            }
+            
+            token_iterator_set(&token_it, restore_point);
+            if (result.positions_count >= positions_max){
+                result.next_token_index = token_index;
+                result.still_looping = true;
+                goto end;
+            }
+            
+            goto mode1;
+        }
+        end:;
+        
+    }
+    
+    return(result);
+}
+
+#if 0
+static Get_Positions_Results
+get_function_positions(Application_Links *app, Buffer_Summary *buffer, int32_t token_index, Function_Positions *positions_array, int32_t positions_max){
+    Get_Positions_Results result = {};
+    
     static const int32_t token_chunk_size = 512;
     Cpp_Token token_chunk[token_chunk_size];
     Stream_Tokens token_stream = {};
@@ -178,6 +303,7 @@ get_function_positions(Application_Links *app, Buffer_Summary *buffer, int32_t t
     
     return(result);
 }
+#endif
 
 static void
 print_positions_buffered(Application_Links *app, Buffer_Summary *buffer, Function_Positions *positions_array, int32_t positions_count, Buffered_Write_Stream *stream){

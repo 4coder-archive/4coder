@@ -924,7 +924,7 @@ backward_stream_chunk(Stream_Chunk *chunk){
 ////////////////////////////////
 
 static bool32
-init_stream_tokens(Stream_Tokens *stream, Application_Links *app, Buffer_Summary *buffer,
+init_stream_tokens(Stream_Tokens_DEP *stream, Application_Links *app, Buffer_Summary *buffer,
                    int32_t pos, Cpp_Token *data, int32_t count){
     bool32 result = false;
     
@@ -955,13 +955,13 @@ init_stream_tokens(Stream_Tokens *stream, Application_Links *app, Buffer_Summary
     return(result);
 }
 
-static Stream_Tokens
-begin_temp_stream_token(Stream_Tokens *stream){
+static Stream_Tokens_DEP
+begin_temp_stream_token(Stream_Tokens_DEP *stream){
     return(*stream);
 }
 
 static void
-end_temp_stream_token(Stream_Tokens *stream, Stream_Tokens temp){
+end_temp_stream_token(Stream_Tokens_DEP *stream, Stream_Tokens_DEP temp){
     if (stream->start != temp.start || stream->end != temp.end){
         Application_Links *app = stream->app;
         buffer_read_tokens(app, temp.buffer, temp.start, temp.end, temp.base_tokens);
@@ -972,7 +972,7 @@ end_temp_stream_token(Stream_Tokens *stream, Stream_Tokens temp){
 }
 
 static bool32
-forward_stream_tokens(Stream_Tokens *stream){
+forward_stream_tokens(Stream_Tokens_DEP *stream){
     Application_Links *app = stream->app;
     Buffer_Summary *buffer = stream->buffer;
     bool32 result = false;
@@ -997,7 +997,7 @@ forward_stream_tokens(Stream_Tokens *stream){
 }
 
 static bool32
-backward_stream_tokens(Stream_Tokens *stream){
+backward_stream_tokens(Stream_Tokens_DEP *stream){
     Application_Links *app = stream->app;
     Buffer_Summary *buffer = stream->buffer;
     bool32 result = false;
@@ -1020,6 +1020,101 @@ backward_stream_tokens(Stream_Tokens *stream){
     
     return(result);
 }
+
+////////////////////////////////
+
+static Token_Range
+buffer_get_token_range(Application_Links *app, Buffer_ID buffer_id){
+    Token_Range range = {};
+    Buffer_Summary buffer = get_buffer(app, buffer_id, AccessAll);
+    buffer_get_token_range(app, &buffer, &range.first, &range.one_past_last);
+    return(range);
+}
+
+static Token_Iterator
+make_token_iterator(Token_Range range, Cpp_Token *token){
+    Token_Iterator iterator = {};
+    if (range.first != 0 && range.one_past_last != 0){
+        if (token == 0 || token < range.first){
+            token = range.first;
+        }
+        if (token > range.one_past_last){
+            token = range.one_past_last;
+        }
+        iterator.token = token;
+        iterator.range = range;
+    }
+    return(iterator);
+}
+
+static Token_Iterator
+make_token_iterator(Token_Range range, int32_t index){
+    return(make_token_iterator(range, range.first + index));
+}
+
+static void
+token_iterator_set(Token_Iterator *iterator, Cpp_Token *token){
+    *iterator = make_token_iterator(iterator->range, token);
+}
+
+static Cpp_Token*
+token_iterator_current(Token_Iterator *iterator){
+    Cpp_Token *token = iterator->token;
+    if (token < iterator->range.first || iterator->range.one_past_last <= token){
+        token = 0;
+    }
+    return(token);
+}
+
+static int32_t
+token_iterator_current_index(Token_Iterator *iterator){
+    int32_t index = -1;
+    Cpp_Token *token = token_iterator_current(iterator);
+    if (token != 0 && iterator->range.first <= token && token <= iterator->range.one_past_last){
+        index = (int32_t)(token - iterator->range.first);
+    }
+    return(index);
+}
+
+static Cpp_Token*
+token_iterator_goto_next(Token_Iterator *iterator){
+    Cpp_Token *token = iterator->token;
+    Cpp_Token *one_past_last = iterator->range.one_past_last;
+    for (token += 1; token < one_past_last; token += 1){
+        if (token->type != CPP_TOKEN_COMMENT){
+            break;
+        }
+    }
+    *iterator = make_token_iterator(iterator->range, token);
+    return(token_iterator_current(iterator));
+}
+
+static Cpp_Token*
+token_iterator_goto_next_raw(Token_Iterator *iterator){
+    *iterator = make_token_iterator(iterator->range, iterator->token + 1);
+    return(token_iterator_current(iterator));
+}
+
+static Cpp_Token*
+token_iterator_goto_prev(Token_Iterator *iterator){
+    Cpp_Token *token = iterator->token;
+    Cpp_Token *first = iterator->range.first;
+    for (token -= 1; token > first; token -= 1){
+        if (token->type != CPP_TOKEN_COMMENT){
+            break;
+        }
+    }
+    *iterator = make_token_iterator(iterator->range, token);
+    return(token_iterator_current(iterator));
+}
+
+static Cpp_Token*
+token_iterator_goto_prev_raw(Token_Iterator *iterator){
+    *iterator = make_token_iterator(iterator->range, iterator->token - 1);
+    return(token_iterator_current(iterator));
+}
+
+////////////////////////////////
 
 static String
 get_query_string(Application_Links *app, char *query_str, char *string_space, int32_t space_size){

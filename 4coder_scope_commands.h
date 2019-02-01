@@ -16,8 +16,7 @@ enum{
 };
 
 struct Statement_Parser{
-    Stream_Tokens stream;
-    int32_t token_index;
+    Token_Iterator token_iterator;
     Buffer_Summary *buffer;
 };
 

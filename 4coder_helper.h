@@ -115,14 +115,26 @@ struct Stream_Chunk{
     char *data;
 };
 
-struct Stream_Tokens{
+struct Stream_Tokens_DEP{
     Application_Links *app;
     Buffer_Summary *buffer;
     
     Cpp_Token *base_tokens;
     Cpp_Token *tokens;
-    int32_t start, end;
-    int32_t count, token_count;
+    int32_t start;
+    int32_t end;
+    int32_t count;
+    int32_t token_count;
+};
+
+struct Token_Range{
+    Cpp_Token *first;
+    Cpp_Token *one_past_last;
+};
+
+struct Token_Iterator{
+    Cpp_Token *token;
+    Token_Range range;
 };
 
 ////////////////////////////////

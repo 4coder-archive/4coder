@@ -1063,11 +1063,26 @@ The number of output tokens will be end_token - start_token.)
     Editing_File *file = imp_get_file(models, buffer);
     Cpp_Token_Array token_array = file->state.token_array;
     bool32 result = false;
-    if (file && token_array.tokens && file->state.tokens_complete){
+    if (file != 0 && token_array.tokens != 0 && file->state.tokens_complete){
         if (0 <= start_token && start_token <= end_token && end_token <= token_array.count){
             result = true;
             memcpy(tokens_out, token_array.tokens + start_token, sizeof(Cpp_Token)*(end_token - start_token));
         }
+    }
+    return(result);
+}
+
+API_EXPORT bool32
+Buffer_Get_Token_Range(Application_Links *app, Buffer_Summary *buffer, Cpp_Token **first_token_out, Cpp_Token **one_past_last_token_out)
+{
+    Models *models = (Models*)app->cmd_context;
+    Editing_File *file = imp_get_file(models, buffer);
+    Cpp_Token_Array token_array = file->state.token_array;
+    bool32 result = false;
+    if (file != 0 && token_array.tokens != 0 && file->state.tokens_complete){
+        result = true;
+        *first_token_out = token_array.tokens;
+        *one_past_last_token_out = token_array.tokens + token_array.count;
     }
     return(result);
 }
