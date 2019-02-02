@@ -115,6 +115,9 @@ struct Stream_Chunk{
     char *data;
 };
 
+// NOTE(allen|4.0.31): Stream_Tokens has been deprecated in favor of the Token_Iterator below.
+// For examples of usage: 4coder_function_list.cpp 4coder_scope_commands.cpp
+// If you want to keep your code working easily uncomment the typedef for Stream_Tokens.
 struct Stream_Tokens_DEP{
     Application_Links *app;
     Buffer_Summary *buffer;

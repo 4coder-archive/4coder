@@ -1122,6 +1122,33 @@ token_iterator_goto_prev_raw(Token_Iterator *iterator){
     return(result);
 }
 
+static String
+token_get_lexeme(Application_Links *app, Buffer_Summary *buffer, Cpp_Token *token, char *out_buffer, int32_t out_buffer_size){
+    String result = {};
+    if (out_buffer_size > 1){
+        int32_t read_size = token->size;
+        if (read_size >= out_buffer_size){
+            read_size = out_buffer_size - 1;
+        }
+        if (buffer_read_range(app, buffer, token->start, token->start + read_size, out_buffer)){
+            result = make_string(out_buffer, read_size, out_buffer_size);
+            out_buffer[read_size] = 0;
+        }
+    }
+    return(result);
+}
+
+static String
+token_get_lexeme(Application_Links *app, Partition *part, Buffer_Summary *buffer, Cpp_Token *token){
+    String result = {};
+    Temp_Memory restore_point = begin_temp_memory(part);
+    char *s = push_array(part, char, token->size);
+    if (s != 0){
+        result = token_get_lexeme(app, buffer, token, s, token->size);
+    }
+    return(result);
+}
+
 ////////////////////////////////
 
 static String

@@ -39,67 +39,6 @@ find_scope_get_token_type(uint32_t flags, Cpp_Token_Type token_type){
     return(type);
 }
 
-#if 0
-static bool32
-find_scope_top(Application_Links *app, Buffer_Summary *buffer, int32_t start_pos, uint32_t flags, int32_t *end_pos_out){
-    Cpp_Get_Token_Result get_result = {};
-    
-    bool32 success = false;
-    int32_t position = 0;
-    
-    if (buffer_get_token_index(app, buffer, start_pos, &get_result)){
-        int32_t token_index = get_result.token_index;
-        if (flags & FindScope_Parent){
-            --token_index;
-            if (get_result.in_whitespace){
-                ++token_index;
-            }
-        }
-        
-        if (token_index >= 0){
-            static const int32_t chunk_cap = 512;
-            Cpp_Token chunk[chunk_cap];
-            Stream_Tokens stream = {};
-            
-            if (init_stream_tokens(&stream, app, buffer, token_index, chunk, chunk_cap)){int32_t nest_level = 0;
-                bool32 still_looping = false;
-                do{
-                    for (; token_index >= stream.start; --token_index){
-                        Cpp_Token *token = &stream.tokens[token_index];
-                        Find_Scope_Token_Type type = find_scope_get_token_type(flags, token->type);
-                        switch (type){
-                            case FindScopeTokenType_Open:
-                            {
-                                if (nest_level == 0){
-                                    success = true;
-                                    position = token->start;
-                                    if (flags & FindScope_EndOfToken){
-                                        position += token->size;
-                                    }
-                                    goto finished;
-                                }
-                                else{
-                                    --nest_level;
-                                }
-                            }break;
-                            case FindScopeTokenType_Close:
-                            {
-                                ++nest_level;
-                            }break;
-                        }
-                    }
-                    still_looping = backward_stream_tokens(&stream);
-                }while(still_looping);
-            }
-        }
-    }
-    
-    finished:;
-    *end_pos_out = position;
-    return(success);
-}
-#endif
-
 static bool32
 find_scope_top(Application_Links *app, Buffer_Summary *buffer, int32_t start_pos, uint32_t flags, int32_t *end_pos_out){
     Cpp_Get_Token_Result get_result = {};
@@ -157,68 +96,6 @@ find_scope_top(Application_Links *app, Buffer_Summary *buffer, int32_t start_pos
     return(success);
 }
 
-#if 0
-static bool32
-find_scope_bottom(Application_Links *app, Buffer_Summary *buffer, int32_t start_pos, uint32_t flags, int32_t *end_pos_out){
-    Cpp_Get_Token_Result get_result = {};
-    
-    bool32 success = false;
-    int32_t position = 0;
-    
-    if (buffer_get_token_index(app, buffer, start_pos, &get_result)){
-        int32_t token_index = get_result.token_index+1;
-        if (flags & FindScope_Parent){
-            --token_index;
-            if (get_result.in_whitespace){
-                ++token_index;
-            }
-        }
-        
-        if (token_index >= 0){
-            static const int32_t chunk_cap = 512;
-            Cpp_Token chunk[chunk_cap];
-            Stream_Tokens stream = {};
-            
-            if (init_stream_tokens(&stream, app, buffer, token_index, chunk, chunk_cap)){
-                int32_t nest_level = 0;
-                bool32 still_looping = false;
-                do{
-                    for (; token_index < stream.end; ++token_index){
-                        Cpp_Token *token = &stream.tokens[token_index];
-                        Find_Scope_Token_Type type = find_scope_get_token_type(flags, token->type);
-                        switch (type){
-                            case FindScopeTokenType_Open:
-                            {
-                                ++nest_level;
-                            }break;
-                            case FindScopeTokenType_Close:
-                            {
-                                if (nest_level == 0){
-                                    success = true;
-                                    position = token->start;
-                                    if (flags & FindScope_EndOfToken){
-                                        position += token->size;
-                                    }
-                                    goto finished;
-                                }
-                                else{
-                                    --nest_level;
-                                }
-                            }break;
-                        }
-                    }
-                    still_looping = forward_stream_tokens(&stream);
-                }while(still_looping);
-            }
-        }
-    }
-    
-    finished:;
-    *end_pos_out = position;
-    return(success);
-}
-#endif
-
 static bool32
 find_scope_bottom(Application_Links *app, Buffer_Summary *buffer, int32_t start_pos, uint32_t flags, int32_t *end_pos_out){
     Cpp_Get_Token_Result get_result = {};
@@ -275,87 +152,6 @@ find_scope_bottom(Application_Links *app, Buffer_Summary *buffer, int32_t start_
     *end_pos_out = position;
     return(success);
 }
-
-#if 0
-static bool32
-find_next_scope(Application_Links *app, Buffer_Summary *buffer, int32_t start_pos, uint32_t flags, int32_t *end_pos_out){
-    Cpp_Get_Token_Result get_result = {};
-    
-    bool32 success = 0;
-    int32_t position = 0;
-    
-    if (buffer_get_token_index(app, buffer, start_pos, &get_result)){
-        int32_t token_index = get_result.token_index+1;
-        
-        if (token_index >= 0){
-            static const int32_t chunk_cap = 512;
-            Cpp_Token chunk[chunk_cap];
-            Stream_Tokens stream = {};
-            
-            if (init_stream_tokens(&stream, app, buffer, token_index, chunk, chunk_cap)){
-                if (flags & FindScope_NextSibling){
-                    int32_t nest_level = 1;
-                    
-                    bool32 still_looping = false;
-                    do{
-                        for (; token_index < stream.end; ++token_index){
-                            Cpp_Token *token = &stream.tokens[token_index];
-                            Find_Scope_Token_Type type = find_scope_get_token_type(flags, token->type);
-                            switch (type){
-                                case FindScopeTokenType_Open:
-                                {
-                                    if (nest_level == 0){
-                                        success = 1;
-                                        position = token->start;
-                                        if (flags & FindScope_EndOfToken){
-                                            position += token->size;
-                                        }
-                                        goto finished;
-                                    }
-                                    else{
-                                        ++nest_level;
-                                    }
-                                }break;
-                                case FindScopeTokenType_Close:
-                                {
-                                    --nest_level;
-                                    if (nest_level == -1){
-                                        position = start_pos;
-                                        goto finished;
-                                    }
-                                }break;
-                            }
-                        }
-                        still_looping = forward_stream_tokens(&stream);
-                    }while(still_looping);
-                }
-                else{
-                    bool32 still_looping = false;
-                    do{
-                        for (; token_index < stream.end; ++token_index){
-                            Cpp_Token *token = &stream.tokens[token_index];
-                            Find_Scope_Token_Type type = find_scope_get_token_type(flags, token->type);
-                            if (type == FindScopeTokenType_Open){
-                                success = 1;
-                                position = token->start;
-                                if (flags & FindScope_EndOfToken){
-                                    position += token->size;
-                                }
-                                goto finished;
-                            }
-                        }
-                        still_looping = forward_stream_tokens(&stream);
-                    }while(still_looping);
-                }
-            }
-        }
-    }
-    
-    finished:;
-    *end_pos_out = position;
-    return(success);
-}
-#endif
 
 static bool32
 find_next_scope(Application_Links *app, Buffer_Summary *buffer, int32_t start_pos, uint32_t flags, int32_t *end_pos_out){
@@ -430,86 +226,6 @@ find_next_scope(Application_Links *app, Buffer_Summary *buffer, int32_t start_po
     *end_pos_out = position;
     return(success);
 }
-
-#if 0
-static bool32
-find_prev_scope(Application_Links *app, Buffer_Summary *buffer, int32_t start_pos, uint32_t flags, int32_t *end_pos_out){
-    Cpp_Get_Token_Result get_result = {};
-    
-    bool32 success = 0;
-    int32_t position = 0;
-    
-    if (buffer_get_token_index(app, buffer, start_pos, &get_result)){
-        int32_t token_index = get_result.token_index-1;
-        
-        if (token_index >= 0){
-            static const int32_t chunk_cap = 512;
-            Cpp_Token chunk[chunk_cap];
-            Stream_Tokens stream = {};
-            
-            if (init_stream_tokens(&stream, app, buffer, token_index, chunk, chunk_cap)){
-                if (flags & FindScope_NextSibling){
-                    int32_t nest_level = -1;
-                    bool32 still_looping = 0;
-                    do{
-                        for (; token_index >= stream.start; --token_index){
-                            Cpp_Token *token = &stream.tokens[token_index];
-                            Find_Scope_Token_Type type = find_scope_get_token_type(flags, token->type);
-                            switch (type){
-                                case FindScopeTokenType_Open:
-                                {
-                                    if (nest_level == -1){
-                                        position = start_pos;
-                                        goto finished;
-                                    }
-                                    else if (nest_level == 0){
-                                        success = 1;
-                                        position = token->start;
-                                        if (flags & FindScope_EndOfToken){
-                                            position += token->size;
-                                        }
-                                        goto finished;
-                                    }
-                                    else{
-                                        --nest_level;
-                                    }
-                                }break;
-                                case FindScopeTokenType_Close:
-                                {
-                                    ++nest_level;
-                                }break;
-                            }
-                        }
-                        still_looping = backward_stream_tokens(&stream);
-                    }while(still_looping);
-                }
-                else{
-                    bool32 still_looping = 0;
-                    do{
-                        for (; token_index >= stream.start; --token_index){
-                            Cpp_Token *token = &stream.tokens[token_index];
-                            Find_Scope_Token_Type type = find_scope_get_token_type(flags, token->type);
-                            if (type == FindScopeTokenType_Open){
-                                success = 1;
-                                position = token->start;
-                                if (flags & FindScope_EndOfToken){
-                                    position += token->size;
-                                }
-                                goto finished;
-                            }
-                        }
-                        still_looping = backward_stream_tokens(&stream);
-                    }while(still_looping);
-                }
-            }
-        }
-    }
-    
-    finished:;
-    *end_pos_out = position;
-    return(success);
-}
-#endif
 
 static bool32
 find_prev_scope(Application_Links *app, Buffer_Summary *buffer, int32_t start_pos, uint32_t flags, int32_t *end_pos_out){
@@ -886,13 +602,9 @@ parse_if_down(Application_Links *app, Statement_Parser *parser, Cpp_Token *token
             token = parser_next_token(parser);
             if (token != 0 && token->type == CPP_TOKEN_KEY_CONTROL_FLOW){
                 char lexeme[32];
-                if (sizeof(lexeme)-1 >= token->size){
-                    if (buffer_read_range(app, parser->buffer, token->start, token->start + token->size, lexeme)){
-                        lexeme[token->size] = 0;
-                        if (match(lexeme, "else")){
-                            success = parse_statement_down(app, parser, token_out);
-                        }
-                    }
+                token_get_lexeme(app, parser->buffer, token, lexeme, sizeof(lexeme));
+                if (match(lexeme, "else")){
+                    success = parse_statement_down(app, parser, token_out);
                 }
             }
         }
