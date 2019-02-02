@@ -1058,12 +1058,16 @@ token_iterator_set(Token_Iterator *iterator, Cpp_Token *token){
 }
 
 static Cpp_Token*
-token_iterator_current(Token_Iterator *iterator){
-    Cpp_Token *token = iterator->token;
-    if (token < iterator->range.first || iterator->range.one_past_last <= token){
+token_range_check(Token_Range range, Cpp_Token *token){
+    if (token < range.first || range.one_past_last <= token){
         token = 0;
     }
     return(token);
+}
+
+static Cpp_Token*
+token_iterator_current(Token_Iterator *iterator){
+    return(token_range_check(iterator->range, iterator->token));
 }
 
 static int32_t
@@ -1085,33 +1089,37 @@ token_iterator_goto_next(Token_Iterator *iterator){
             break;
         }
     }
+    Cpp_Token *result = token_range_check(iterator->range, token);
     *iterator = make_token_iterator(iterator->range, token);
-    return(token_iterator_current(iterator));
+    return(result);
 }
 
 static Cpp_Token*
 token_iterator_goto_next_raw(Token_Iterator *iterator){
+    Cpp_Token *result = token_range_check(iterator->range, iterator->token + 1);
     *iterator = make_token_iterator(iterator->range, iterator->token + 1);
-    return(token_iterator_current(iterator));
+    return(result);
 }
 
 static Cpp_Token*
 token_iterator_goto_prev(Token_Iterator *iterator){
     Cpp_Token *token = iterator->token;
     Cpp_Token *first = iterator->range.first;
-    for (token -= 1; token > first; token -= 1){
+    for (token -= 1; token >= first; token -= 1){
         if (token->type != CPP_TOKEN_COMMENT){
             break;
         }
     }
+    Cpp_Token *result = token_range_check(iterator->range, token);
     *iterator = make_token_iterator(iterator->range, token);
-    return(token_iterator_current(iterator));
+    return(result);
 }
 
 static Cpp_Token*
 token_iterator_goto_prev_raw(Token_Iterator *iterator){
+    Cpp_Token *result = token_range_check(iterator->range, iterator->token - 1);
     *iterator = make_token_iterator(iterator->range, iterator->token - 1);
-    return(token_iterator_current(iterator));
+    return(result);
 }
 
 ////////////////////////////////

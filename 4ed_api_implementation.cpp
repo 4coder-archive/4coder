@@ -1072,6 +1072,7 @@ The number of output tokens will be end_token - start_token.)
     return(result);
 }
 
+// TODO(allen): Include warning note about pointers and editing buffers.
 API_EXPORT bool32
 Buffer_Get_Token_Range(Application_Links *app, Buffer_Summary *buffer, Cpp_Token **first_token_out, Cpp_Token **one_past_last_token_out)
 {

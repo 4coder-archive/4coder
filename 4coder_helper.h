@@ -126,6 +126,7 @@ struct Stream_Tokens_DEP{
     int32_t count;
     int32_t token_count;
 };
+//typedef Stream_Tokens_DEP Stream_Tokens;
 
 struct Token_Range{
     Cpp_Token *first;

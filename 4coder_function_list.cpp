@@ -47,6 +47,14 @@ buffered_write_stream_write(Application_Links *app, Buffered_Write_Stream *strea
     }
 }
 
+static void
+buffered_write_stream_write_int(Application_Links *app, Buffered_Write_Stream *stream, int32_t x){
+    char space[128];
+    String integer_string = make_fixed_width_string(space);
+    append_int_to_str(&integer_string, x);
+    buffered_write_stream_write(app, stream, integer_string);
+}
+
 static Get_Positions_Results
 get_function_positions(Application_Links *app, Buffer_Summary *buffer, int32_t token_index, Function_Positions *positions_array, int32_t positions_max){
     Get_Positions_Results result = {};
@@ -305,6 +313,7 @@ get_function_positions(Application_Links *app, Buffer_Summary *buffer, int32_t t
 }
 #endif
 
+#if 0
 static void
 print_positions_buffered(Application_Links *app, Buffer_Summary *buffer, Function_Positions *positions_array, int32_t positions_count, Buffered_Write_Stream *stream){
     
@@ -323,6 +332,7 @@ print_positions_buffered(Application_Links *app, Buffer_Summary *buffer, Functio
         static const int32_t sig_chunk_size = 64;
         Cpp_Token sig_chunk[sig_chunk_size];
         Stream_Tokens sig_stream = {};
+        
         if (init_stream_tokens(&sig_stream, app, buffer, local_index, sig_chunk, sig_chunk_size)){
             buffered_write_stream_write(app, stream, buffer_name);
             buffered_write_stream_write(app, stream, make_lit_string(":"));
@@ -374,6 +384,69 @@ print_positions_buffered(Application_Links *app, Buffer_Summary *buffer, Functio
                 still_looping = forward_stream_tokens(&sig_stream);
             }while(still_looping);
             doublebreak:;
+            
+            buffered_write_stream_write(app, stream, make_lit_string("\n"));
+        }
+    }
+}
+#endif
+
+static void
+print_positions_buffered(Application_Links *app, Buffer_Summary *buffer, Function_Positions *positions_array, int32_t positions_count, Buffered_Write_Stream *stream){
+    
+    String buffer_name = make_string(buffer->buffer_name, buffer->buffer_name_len);
+    
+    for (int32_t i = 0; i < positions_count; ++i){
+        Function_Positions *positions = &positions_array[i];
+        
+        int32_t local_index = positions->sig_start_index;
+        int32_t end_index = positions->sig_end_index;
+        int32_t open_paren_pos = positions->open_paren_pos;
+        int32_t line_number = buffer_get_line_number(app, buffer, open_paren_pos);
+        
+        Assert(end_index > local_index);
+        
+        Token_Range token_range = buffer_get_token_range(app, buffer->buffer_id);
+        if (token_range.first != 0){
+            buffered_write_stream_write(app, stream, buffer_name);
+            buffered_write_stream_write(app, stream, make_lit_string(":"));
+            buffered_write_stream_write_int(app, stream, line_number);
+            buffered_write_stream_write(app, stream, make_lit_string(": "));
+            
+            Cpp_Token prev_token = {};
+            Token_Iterator token_it = make_token_iterator(token_range, local_index);
+            for (Cpp_Token *token = token_iterator_current(&token_it);
+                 token != 0;
+                 token = token_iterator_goto_next(&token_it)){
+                if ((token->flags & CPP_TFLAG_PP_BODY) == 0){
+                    char space[2 << 10];
+                    int32_t token_size = token->size;
+                    if (token_size > sizeof(space)){
+                        token_size = sizeof(space);
+                    }
+                    buffer_read_range(app, buffer, token->start, token->start + token_size, space);
+                    
+                    if ((prev_token.type == CPP_TOKEN_IDENTIFIER ||
+                         prev_token.type == CPP_TOKEN_STAR ||
+                         prev_token.type == CPP_TOKEN_COMMA ||
+                         (prev_token.flags & CPP_TFLAG_IS_KEYWORD) != 0
+                         ) &&
+                        !(token->type == CPP_TOKEN_PARENTHESE_OPEN ||
+                          token->type == CPP_TOKEN_PARENTHESE_CLOSE ||
+                          token->type == CPP_TOKEN_COMMA
+                          )
+                        ){
+                        buffered_write_stream_write(app, stream, make_lit_string(" "));
+                    }
+                    buffered_write_stream_write(app, stream, make_string(space, token_size));
+                    
+                    prev_token = *token;
+                }
+                
+                if (local_index == end_index){
+                    break;
+                }
+            }
             
             buffered_write_stream_write(app, stream, make_lit_string("\n"));
         }
