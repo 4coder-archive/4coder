@@ -17,6 +17,8 @@ block_zero(void *a, umem_4tech size){
     }
 }
 
+#define block_zero_struct(s) block_zero((s), sizeof(*(s)))
+
 internal void
 block_fill_ones(void *a, umem_4tech size){
     for (u8_4tech *ptr = (u8_4tech*)a, *e = ptr + size; ptr < e; ptr += 1){

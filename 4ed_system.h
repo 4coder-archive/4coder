@@ -62,6 +62,18 @@ typedef Sys_Get_File_Change_Sig(System_Get_File_Change);
 #define Sys_Now_Time_Sig(name) u64 name()
 typedef Sys_Now_Time_Sig(System_Now_Time);
 
+#define Sys_Wake_Up_Timer_Create_Sig(name) Plat_Handle name()
+typedef Sys_Wake_Up_Timer_Create_Sig(System_Wake_Up_Timer_Create);
+
+#define Sys_Wake_Up_Timer_Release_Sig(name) void name(Plat_Handle handle)
+typedef Sys_Wake_Up_Timer_Release_Sig(System_Wake_Up_Timer_Release);
+
+#define Sys_Wake_Up_Timer_Set_Sig(name) void name(Plat_Handle handle, u32 time_milliseconds)
+typedef Sys_Wake_Up_Timer_Set_Sig(System_Wake_Up_Timer_Set);
+
+#define Sys_Wake_Up_Timer_Check_Sig(name) u64 name(Plat_Handle handle)
+typedef Sys_Wake_Up_Timer_Check_Sig(System_Wake_Up_Timer_Check);
+
 // clipboard
 #define Sys_Post_Clipboard_Sig(name) void name(String str)
 typedef Sys_Post_Clipboard_Sig(System_Post_Clipboard);
@@ -232,8 +244,11 @@ struct System_Functions{
     System_Load_Close      *load_close;
     System_Save_File       *save_file;
     
-    // time: 1
+    // time: 4
     System_Now_Time *now_time;
+    System_Wake_Up_Timer_Create *wake_up_timer_create;
+    System_Wake_Up_Timer_Release *wake_up_timer_release;
+    System_Wake_Up_Timer_Set *wake_up_timer_set;
     
     // clipboard: 1
     System_Post_Clipboard *post_clipboard;

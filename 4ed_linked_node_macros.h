@@ -15,7 +15,7 @@
 #define dll_init_sentinel(s) (s)->next=(s),(s)->prev=(s)
 #define dll_insert(p,n)      (n)->next=(p)->next,(n)->prev=(p),(p)->next=(n),(n)->next->prev=(n)
 #define dll_insert_back(p,n) (n)->prev=(p)->prev,(n)->next=(p),(p)->prev=(n),(n)->prev->next=(n)
-#define dll_remove(n)        (n)->next->prev=(n)->prev,(n)->prev->next=(n)->next
+#define dll_remove(n)        (n)->next->prev=(n)->prev,(n)->prev->next=(n)->next,(n)->next=(n)->prev=0
 
 #define zdll_push_back_(f,l,n) if(f==0){n->next=n->prev=0;f=l=n;}else{n->prev=l;n->next=0;l->next=n;l=n;}
 #define zdll_push_back(f,l,n) Stmnt( zdll_push_back_((f),(l),(n)) )

@@ -969,7 +969,7 @@ App_Init_Sig(app_init){
                            &models->dynamic_workspace);
     
     // NOTE(allen): file setup
-    working_set_init(&models->working_set, partition, &vars->models.mem.heap);
+    working_set_init(system, &models->working_set, partition, &vars->models.mem.heap);
     models->working_set.default_display_width = DEFAULT_DISPLAY_WIDTH;
     models->working_set.default_minimum_base_display_width = DEFAULT_MINIMUM_BASE_DISPLAY_WIDTH;
     
@@ -1014,6 +1014,10 @@ App_Init_Sig(app_init){
         Editing_File *file = working_set_alloc_always(&models->working_set, heap, &models->lifetime_allocator);
         buffer_bind_name(models, heap, partition, &models->working_set, file, init_files[i].name);
         
+        if (init_files[i].ptr != 0){
+            *init_files[i].ptr = file;
+        }
+        
         if (init_files[i].read_only){
             init_read_only_file(system, models, file);
         }
@@ -1024,10 +1028,6 @@ App_Init_Sig(app_init){
         file->settings.never_kill = true;
         file_set_unimportant(file, true);
         file->settings.unwrapped_lines = true;
-        
-        if (init_files[i].ptr != 0){
-            *init_files[i].ptr = file;
-        }
     }
     
     Panel_And_ID p = layout_alloc_panel(&models->layout);
@@ -1565,23 +1565,50 @@ App_Step_Sig(app_step){
         }
     }
     
-    // NOTE(allen): hook for marked edited files
+    // NOTE(allen): hook for files marked "edit finished"
     {
         File_Edit_Finished_Function *hook_file_edit_finished = models->hook_file_edit_finished;
         if (hook_file_edit_finished != 0){
             Working_Set *working_set = &models->working_set;
-            if (working_set->edit_finished_list.next != 0){
-                Node *first = working_set->edit_finished_list.next;
-                working_set->edit_finished_list.next = 0;
-                working_set->edit_finished_list.prev = 0;
-                for (Node *node = first, *next = 0;
-                     node != 0;
-                     node = next){
-                    next = node->next;
-                    Editing_File *file = CastFromMember(Editing_File, edit_finished_mark_node, node);
-                    hook_file_edit_finished(&models->app_links, file->id.id);
-                    node->next = 0;
-                    node->prev = 0;
+            if (working_set->edit_finished_list.next != &working_set->edit_finished_list){
+                if (working_set->time_of_next_edit_finished_signal == 0){
+                    local_const u32 elapse_time = 1000;
+                    working_set->time_of_next_edit_finished_signal = system->now_time() + (u64)(elapse_time - 5)*(u64)1000;
+                    system->wake_up_timer_set(working_set->edit_finished_timer, elapse_time);
+                }
+                else{
+                    if (system->now_time() >= working_set->time_of_next_edit_finished_signal){
+                        Partition *scratch = &models->mem.part;
+                        
+                        Temp_Memory temp = begin_temp_memory(scratch);
+                        Buffer_ID *ids = push_array(scratch, Buffer_ID, 0);
+                        Node *first = working_set->edit_finished_list.next;
+                        Node *stop = &working_set->edit_finished_list;
+                        for (Node *node = first;
+                             node != stop;
+                             node = node->next){
+                            Editing_File *file = CastFromMember(Editing_File, edit_finished_mark_node, node);
+                            Buffer_ID *new_id = push_array(scratch, Buffer_ID, 1);
+                            *new_id = file->id.id;
+                        }
+                        i32 id_count = (i32)(push_array(scratch, Buffer_ID, 0) - ids);
+                        
+                        working_set->do_not_mark_edits = true;
+                        hook_file_edit_finished(&models->app_links, ids, id_count);
+                        working_set->do_not_mark_edits = false;
+                        
+                        for (Node *node = first, *next = 0;
+                             node != stop;
+                             node = next){
+                            next = node->next;
+                            node->next = 0;
+                            node->prev = 0;
+                        }
+                        dll_init_sentinel(&working_set->edit_finished_list);
+                        working_set->time_of_next_edit_finished_signal = 0;
+                        
+                        end_temp_memory(temp);
+                    }
                 }
             }
         }

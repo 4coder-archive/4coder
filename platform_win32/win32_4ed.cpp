@@ -103,10 +103,11 @@ struct Win32_Input_Chunk_Transient{
 global Win32_Input_Chunk_Transient null_input_chunk_transient = {};
 
 struct Win32_Input_Chunk_Persistent{
-    i32 mouse_x, mouse_y;
-    b8 mouse_l, mouse_r;
-    
+    i32 mouse_x;
+    i32 mouse_y;
     Control_Keys controls;
+    b8 mouse_l;
+    b8 mouse_r;
     b8 control_keys[MDFR_INDEX_COUNT];
 };
 
@@ -133,13 +134,30 @@ global System_Functions sysfunc;
 
 ////////////////////////////////
 
+typedef i32 Win32_Object_Kind;
+enum{
+    Win32ObjectKind_ERROR = 0,
+    Win32ObjectKind_Timer = 1,
+};
+
+struct Win32_Object{
+    Node node;
+    Win32_Object_Kind kind;
+    union{
+        // NOTE(allen): Timer object
+        struct{
+            UINT_PTR id;
+        } timer;
+    };
+};
+
 struct Win32_Vars{
     Win32_Input_Chunk input_chunk;
-    b32 lctrl_lalt_is_altgr;
-    b32 got_useful_event;
+    b8 lctrl_lalt_is_altgr;
+    b8 got_useful_event;
     
-    b32 full_screen;
-    b32 do_toggle;
+    b8 full_screen;
+    b8 do_toggle;
     WINDOWPLACEMENT bordered_win_pos;
     b32 send_exit_signal;
     
@@ -160,11 +178,16 @@ struct Win32_Vars{
     i32 clip_post_len;
     
     HWND window_handle;
-    i32 dpi_x, dpi_y;
+    i32 dpi_x;
+    i32 dpi_y;
     
     f64 count_per_usecond;
     b32 first;
     i32 running_cli;
+    
+    Node free_win32_objects;
+    Node timer_objects;
+    UINT_PTR timer_counter;
     
     u32 log_position;
 };
@@ -210,14 +233,28 @@ win32_output_error_string(b32 use_error_box){
 internal HANDLE
 handle_type(Plat_Handle h){
     HANDLE result;
-    memcpy(&result, &h, sizeof(result));
+    block_copy(&result, &h, sizeof(result));
     return(result);
 }
 
 internal Plat_Handle
 handle_type(HANDLE h){
     Plat_Handle result = {};
-    memcpy(&result, &h, sizeof(h));
+    block_copy(&result, &h, sizeof(h));
+    return(result);
+}
+
+internal void*
+handle_type_ptr(Plat_Handle h){
+    void *result;
+    block_copy(&result, &h, sizeof(result));
+    return(result);
+}
+
+internal Plat_Handle
+handle_type_ptr(void *ptr){
+    Plat_Handle result = {};
+    block_copy(&result, &ptr, sizeof(ptr));
     return(result);
 }
 
@@ -1556,14 +1593,73 @@ Win32SetCursorFromUpdate(Application_Mouse_Cursor cursor){
     }
 }
 
+internal Win32_Object*
+win32_alloc_object(void){
+    Win32_Object *result = 0;
+    if (win32vars.free_win32_objects.next != &win32vars.free_win32_objects){
+        result = CastFromMember(Win32_Object, node, win32vars.free_win32_objects.next);
+    }
+    if (result == 0){
+        i32 count = 512;
+        Win32_Object *objects = (Win32_Object*)system_memory_allocate(count*sizeof(Win32_Object));
+        objects[0].node.prev = &win32vars.free_win32_objects;
+        win32vars.free_win32_objects.next = &objects[0].node;
+        for (i32 i = 1; i < count; i += 1){
+            objects[i - 1].node.next = &objects[i].node;
+            objects[i].node.prev = &objects[i - 1].node;
+        }
+        objects[count - 1].node.next = &win32vars.free_win32_objects;
+        win32vars.free_win32_objects.prev = &objects[count - 1].node;
+        result = CastFromMember(Win32_Object, node, win32vars.free_win32_objects.next);
+    }
+    Assert(result != 0);
+    dll_remove(&result->node);
+    return(result);
+}
+
+internal void
+win32_free_object(Win32_Object *object){
+    if (object->node.next != 0){
+        dll_remove(&object->node);
+    }
+    dll_insert(&win32vars.free_win32_objects, &object->node);
+}
+
 internal
 Sys_Now_Time_Sig(system_now_time){
     u64 result = 0;
     LARGE_INTEGER t;
     if (QueryPerformanceCounter(&t)){
-        result = (u64) (t.QuadPart / win32vars.count_per_usecond);
+        result = (u64)(t.QuadPart/win32vars.count_per_usecond);
     }
     return(result);
+}
+
+internal
+Sys_Wake_Up_Timer_Create_Sig(system_wake_up_timer_create){
+    Win32_Object *object = win32_alloc_object();
+    block_zero_struct(object);
+    dll_insert(&win32vars.timer_objects, &object->node);
+    object->kind = Win32ObjectKind_Timer;
+    object->timer.id = ++win32vars.timer_counter;
+    return(handle_type(object));
+}
+
+internal
+Sys_Wake_Up_Timer_Release_Sig(system_wake_up_timer_release){
+    Win32_Object *object = (Win32_Object*)handle_type_ptr(handle);
+    if (object->kind == Win32ObjectKind_Timer){
+        KillTimer(win32vars.window_handle, object->timer.id);
+        win32_free_object(object);
+    }
+}
+
+internal
+Sys_Wake_Up_Timer_Set_Sig(system_wake_up_timer_set){
+    Win32_Object *object = (Win32_Object*)handle_type_ptr(handle);
+    if (object->kind == Win32ObjectKind_Timer){
+        object->timer.id = SetTimer(win32vars.window_handle, object->timer.id, time_milliseconds, 0);
+    }
 }
 
 internal LRESULT
@@ -1808,6 +1904,13 @@ win32_proc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
             win32vars.input_chunk.trans.trying_to_kill = true;
         }break;
         
+        case WM_TIMER:
+        {
+            UINT_PTR timer_id = (UINT_PTR)wParam;
+            KillTimer(win32vars.window_handle, timer_id);
+            win32vars.got_useful_event = true;
+        }break;
+        
         case WM_4coder_ANIMATE:
         {
             win32vars.got_useful_event = true;
@@ -1853,6 +1956,9 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
     
     win32vars.cursor_show = MouseCursorShow_Always;
     win32vars.prev_cursor_show = MouseCursorShow_Always;
+    
+    dll_init_sentinel(&win32vars.free_win32_objects);
+    dll_init_sentinel(&win32vars.timer_objects);
     
     //
     // HACK(allen):
@@ -2297,43 +2403,44 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
             }
         }
         
-        // NOTE(allen): Update lctrl_lalt_is_altgr Status
-        win32vars.lctrl_lalt_is_altgr = result.lctrl_lalt_is_altgr;
+        // NOTE(allen): update lctrl_lalt_is_altgr status
+        win32vars.lctrl_lalt_is_altgr = (b8)result.lctrl_lalt_is_altgr;
         
-        // NOTE(allen): Render
+        // NOTE(allen): render
         HDC hdc = GetDC(win32vars.window_handle);
         interpret_render_buffer(&target, &shared_vars.pixel_scratch);
         SwapBuffers(hdc);
         ReleaseDC(win32vars.window_handle, hdc);
         
-        // NOTE(allen): Toggle Full Screen
+        // NOTE(allen): toggle full screen
         if (win32vars.do_toggle){
             win32_toggle_fullscreen();
             win32vars.do_toggle = false;
         }
         
-        // NOTE(allen): Schedule Another Step if Needed
+        // NOTE(allen): schedule another step if needed
         if (result.animating){
             system_schedule_step();
         }
         
-        // NOTE(allen): Sleep a Bit to Cool Off :)
+        // NOTE(allen): sleep a bit to cool off :)
         flush_thread_group(BACKGROUND_THREADS);
         
         u64 timer_end = system_now_time();
         u64 end_target = timer_start + frame_useconds;
         
         system_release_lock(FRAME_LOCK);
-        while (timer_end < end_target){
-            DWORD samount = (DWORD)((end_target - timer_end) / 1000);
-            if (samount > 0) Sleep(samount);
+        for (;timer_end < end_target;){
+            DWORD samount = (DWORD)((end_target - timer_end)/1000);
+            if (samount > 0){
+                Sleep(samount);
+            }
             timer_end = system_now_time();
         }
         system_acquire_lock(FRAME_LOCK);
         timer_start = system_now_time();
         
-        // TODO(allen): Only rely on version right inside input?
-        win32vars.first = 0;
+        win32vars.first = false;
     }
     
     return(0);

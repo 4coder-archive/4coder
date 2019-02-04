@@ -27,6 +27,9 @@ link_system_code(){
     SYSLINK(save_file);
     
     SYSLINK(now_time);
+    SYSLINK(wake_up_timer_create);
+    SYSLINK(wake_up_timer_release);
+    SYSLINK(wake_up_timer_set);
     
     SYSLINK(post_clipboard);
     

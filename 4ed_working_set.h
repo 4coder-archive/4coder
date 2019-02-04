@@ -24,18 +24,23 @@ struct File_Array{
 
 struct Working_Set{
     File_Array *file_arrays;
-    i32 file_count, file_max;
-    i16 array_count, array_max;
+    i32 file_count;
+    i32 file_max;
+    i16 array_count;
+    i16 array_max;
     
     Node free_sentinel;
     Node used_sentinel;
     
     Node edit_finished_list;
+    u64 time_of_next_edit_finished_signal;
+    Plat_Handle edit_finished_timer;
+    b32 do_not_mark_edits;
     
     Table canon_table;
     Table name_table;
     
-    // TODO(allen): WTF?
+    // TODO(allen): do(update clipboard system to exist fully in the custom layer)
     String clipboards[64];
     i32 clipboard_size;
     i32 clipboard_max_size;
@@ -54,7 +59,7 @@ struct File_Name_Entry{
 };
 
 internal void
-file_mark_edit_finished(Models *models, Editing_File *file);
+file_mark_edit_finished(Working_Set *working_set, Editing_File *file);
 
 #endif
 

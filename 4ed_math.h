@@ -440,8 +440,30 @@ clamp(i32 a, i32 n, i32 z){
     return(n);
 }
 
+internal i64
+clamp(i64 a, i64 n, i64 z){
+    if (n < a){
+        n = a;
+    }
+    else if (n  > z){
+        n = z;
+    }
+    return(n);
+}
+
 internal u32
 clamp(u32 a, u32 n, u32 z){
+    if (n < a){
+        n = a;
+    }
+    else if (n  > z){
+        n = z;
+    }
+    return(n);
+}
+
+internal u64
+clamp(u64 a, u64 n, u64 z){
     if (n < a){
         n = a;
     }

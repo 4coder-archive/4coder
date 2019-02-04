@@ -10,7 +10,7 @@
 // TOP
 
 internal void
-edit_pre_maintenance(System_Functions *system, Heap *heap, Editing_File *file){
+edit_pre_state_change(System_Functions *system, Heap *heap, Models *models, Editing_File *file){
     if (file->state.still_lexing){
         system->cancel_job(BACKGROUND_THREADS, file->state.lex_job);
         if (file->state.swap_array.tokens){
@@ -22,6 +22,7 @@ edit_pre_maintenance(System_Functions *system, Heap *heap, Editing_File *file){
     if (file->state.dirty == DirtyState_UpToDate){
         file_set_dirty_flag(file, DirtyState_UnsavedChanges);
     }
+    file_unmark_edit_finished(file);
 }
 
 internal void
@@ -214,7 +215,7 @@ edit_single__inner(System_Functions *system, Models *models, Editing_File *file,
     
     // NOTE(allen): fixing stuff beforewards????
     file_update_history_before_edit(mem, file, spec.step, spec.str, history_mode);
-    edit_pre_maintenance(system, &mem->heap, file);
+    edit_pre_state_change(system, &mem->heap, models, file);
     
     // NOTE(allen): actual text replacement
     i32 shift_amount = 0;
@@ -247,7 +248,7 @@ edit_single__inner(System_Functions *system, Models *models, Editing_File *file,
         file_relex(system, models, file, start, end, shift_amount);
     }
     else{
-        file_mark_edit_finished(models, file);
+        file_mark_edit_finished(&models->working_set, file);
     }
     
     // NOTE(allen): meta data
@@ -327,7 +328,7 @@ edit_batch(System_Functions *system, Models *models, Editing_File *file,
     // NOTE(allen): fixing stuff "beforewards"???
     Assert(spec.str == 0);
     file_update_history_before_edit(mem, file, spec.step, 0, history_mode);
-    edit_pre_maintenance(system, &mem->heap, file);
+    edit_pre_state_change(system, &mem->heap, models, file);
     
     // NOTE(allen): actual text replacement
     u8 *str_base = file->state.undo.children.strings;
@@ -366,7 +367,7 @@ edit_batch(System_Functions *system, Models *models, Editing_File *file,
                 file_relex(system, models, file, first_edit->start, last_edit->end, shift_total);
             }
             else{
-                file_mark_edit_finished(models, file);
+                file_mark_edit_finished(&models->working_set, file);
             }
         }break;
         
@@ -398,7 +399,7 @@ edit_batch(System_Functions *system, Models *models, Editing_File *file,
                     token->size += local_shift;
                     shift_amount += local_shift;
                 }
-                file_mark_edit_finished(models, file);
+                file_mark_edit_finished(&models->working_set, file);
             }
         }break;
     }

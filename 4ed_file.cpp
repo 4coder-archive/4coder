@@ -548,13 +548,23 @@ file_create_from_string(System_Functions *system, Models *models, Editing_File *
         file->state.undo.current_block_normal = 1;
     }
     
+    // TODO(allen): do(cleanup the create and settings dance)
+    // Right now we have this thing where we call hook_open_file, which may or may not
+    // trigger a lex job or serial lex, or might just flag the buffer to say it wants
+    // tokens.  Then we check if we need to lex still and do it here too.  Better would
+    // be to make sure it always happens in one way.
     Open_File_Hook_Function *hook_open_file = models->hook_open_file;
     if (hook_open_file != 0){
         hook_open_file(app_links, file->id.id);
     }
     
-    if (file->settings.tokens_exist && file->state.token_array.tokens == 0){
-        file_first_lex(system, models, file);
+    if (file->settings.tokens_exist){
+        if (file->state.token_array.tokens == 0){
+            file_first_lex(system, models, file);
+        }
+    }
+    else{
+        file_mark_edit_finished(&models->working_set, file);
     }
     
     file->settings.is_initialized = true;

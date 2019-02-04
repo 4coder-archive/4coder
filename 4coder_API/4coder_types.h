@@ -1114,8 +1114,8 @@ TYPEDEF_FUNC int32_t Hook_Function(struct Application_Links *app);
 TYPEDEF_FUNC int32_t Open_File_Hook_Function(struct Application_Links *app, Buffer_ID buffer_id);
 #define OPEN_FILE_HOOK_SIG(name) int32_t name(struct Application_Links *app, Buffer_ID buffer_id)
 
-TYPEDEF_FUNC int32_t File_Edit_Finished_Function(struct Application_Links *app, Buffer_ID buffer_id);
-#define FILE_EDIT_FINISHED_SIG(name) int32_t name(struct Application_Links *app, Buffer_ID buffer_id)
+TYPEDEF_FUNC int32_t File_Edit_Finished_Function(struct Application_Links *app, Buffer_ID *buffer_ids, int32_t buffer_id_count);
+#define FILE_EDIT_FINISHED_SIG(name) int32_t name(struct Application_Links *app, Buffer_ID *buffer_ids, int32_t buffer_id_count)
 
 TYPEDEF_FUNC void Input_Filter_Function(Mouse_State *mouse);
 #define INPUT_FILTER_SIG(name) void name(Mouse_State *mouse)

@@ -154,12 +154,17 @@ working_set_get_active_file(Working_Set *working_set, i32 id){
 }
 
 internal void
-working_set_init(Working_Set *working_set, Partition *partition, Heap *heap){
+working_set_init(System_Functions *system, Working_Set *working_set, Partition *partition, Heap *heap){
     i16 init_count = 16;
     i16 array_init_count = 256;
     
     dll_init_sentinel(&working_set->free_sentinel);
     dll_init_sentinel(&working_set->used_sentinel);
+    
+    dll_init_sentinel(&working_set->edit_finished_list);
+    working_set->time_of_next_edit_finished_signal = 0;
+    working_set->edit_finished_timer = system->wake_up_timer_create();
+    working_set->do_not_mark_edits = false;
     
     working_set->array_max = array_init_count;
     working_set->file_arrays = push_array(partition, File_Array, array_init_count);
@@ -167,7 +172,9 @@ working_set_init(Working_Set *working_set, Partition *partition, Heap *heap){
     Editing_File *files = push_array(partition, Editing_File, init_count);
     working_set_extend_memory(working_set, files, init_count);
     
-    // TODO(NAME): Unclear that this is still needed.  But double check that the buffer id 0 does not start getting used by the next real buffer when this is removed before actually removing it.  Buffer id cannot be allowed to be zero on real buffers.
+    // TODO(NAME): do(clean up the rest of the null_file)
+    // Unclear that this is still needed.  But double check that the buffer id 0 does not start getting used by the next real buffer when this 
+    // is removed before actually removing it.  Buffer id cannot be allowed to be zero on real buffers.
 #if 1
     // NOTE(allen): init null file
     {
@@ -620,14 +627,25 @@ file_touch(Working_Set *working_set, Editing_File *file){
 }
 
 internal void
-file_mark_edit_finished(Models *models, Editing_File *file){
-    Editing_File *message_buffer = models->message_buffer;
-    if (file != message_buffer && file->edit_finished_mark_node.next == 0){
-        Working_Set *working_set = &models->working_set;
-        zdll_push_back(working_set->edit_finished_list.next,
-                       working_set->edit_finished_list.prev,
-                       &file->edit_finished_mark_node);
+file_mark_edit_finished(Working_Set *working_set, Editing_File *file){
+    // TODO(allen): do(propogate do_not_mark_edits down the edit pipeline to here)
+    // This current method only works for synchronous calls, asynchronous calls will get the
+    // wrong do_not_mark_edits value.
+    if (!working_set->do_not_mark_edits){
+        if (file->edit_finished_mark_node.next == 0){
+            dll_insert_back(&working_set->edit_finished_list, &file->edit_finished_mark_node);
+        }
     }
+}
+
+internal b32
+file_unmark_edit_finished(Editing_File *file){
+    b32 result = false;
+    if (file->edit_finished_mark_node.next != 0){
+        dll_remove(&file->edit_finished_mark_node);
+        result = true;
+    }
+    return(result);
 }
 
 // BOTTOM

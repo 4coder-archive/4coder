@@ -750,18 +750,22 @@ OPEN_FILE_HOOK_SIG(default_file_save){
     return(0);
 }
 
-OPEN_FILE_HOOK_SIG(default_file_edit){
-    Buffer_Summary buffer = get_buffer(app, buffer_id, AccessAll);
-    Assert(buffer.exists);
-    
-    if (buffer.buffer_name[0] != '*'){
+FILE_EDIT_FINISHED_SIG(default_file_edit){
+    for (int32_t i = 0; i < buffer_id_count; i += 1){
+#if 0
+        // NOTE(allen|4.0.31): This code is example usage, it's not a particularly nice feature to actually have.
+        
+        Buffer_Summary buffer = get_buffer(app, buffer_ids[i], AccessAll);
+        Assert(buffer.exists);
+        
+        String buffer_name = make_string(buffer.buffer_name, buffer.buffer_name_len);
         char space[256];
         String str = make_fixed_width_string(space);
         append(&str, "edit finished: ");
-        append(&str, make_string(buffer.file_name, buffer.file_name_len));
+        append(&str, buffer_name);
         append(&str, "\n");
-        
         print_message(app, str.str, str.size);
+#endif
     }
     
     // no meaning for return

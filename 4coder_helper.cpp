@@ -1146,6 +1146,9 @@ token_get_lexeme(Application_Links *app, Partition *part, Buffer_Summary *buffer
     if (s != 0){
         result = token_get_lexeme(app, buffer, token, s, token->size);
     }
+    else{
+        end_temp_memory(restore_point);
+    }
     return(result);
 }
 
