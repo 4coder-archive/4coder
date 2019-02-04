@@ -71,12 +71,12 @@ edit_fix_markers__read_workspace_markers(Dynamic_Workspace *workspace, Buffer_ID
 
 internal void
 edit_fix_markers(System_Functions *system, Models *models, Editing_File *file, Editing_Layout *layout, Cursor_Fix_Descriptor desc){
-    
     Partition *part = &models->mem.part;
     
     Temp_Memory cursor_temp = begin_temp_memory(part);
     
     Lifetime_Object *file_lifetime_object = file->lifetime_object;
+    Buffer_ID file_id = file->id.id;
     Assert(file_lifetime_object != 0);
     
     i32 cursor_max = layout->panel_max_count * 3;
@@ -111,15 +111,13 @@ edit_fix_markers(System_Functions *system, Models *models, Editing_File *file, E
          panel = panel->next){
         View *view = panel->view;
         if (view->transient.file_data.file == file){
-            Assert(view->transient.edit_pos != 0);
-            write_cursor_with_index(cursors, &cursor_count, view->transient.edit_pos->cursor.pos);
-            write_cursor_with_index(cursors, &cursor_count, view->transient.edit_pos->mark);
-            write_cursor_with_index(cursors, &cursor_count, view->transient.edit_pos->scroll_i);
+            write_cursor_with_index(cursors, &cursor_count, view->transient.edit_pos.cursor.pos);
+            write_cursor_with_index(cursors, &cursor_count, view->transient.edit_pos.mark);
+            write_cursor_with_index(cursors, &cursor_count, view->transient.edit_pos.scroll_i);
         }
     }
     
-    edit_fix_markers__write_workspace_markers(&file_lifetime_object->workspace, file->id.id,
-                                              cursors, r_cursors, &cursor_count, &r_cursor_count);
+    edit_fix_markers__write_workspace_markers(&file_lifetime_object->workspace, file_id, cursors, r_cursors, &cursor_count, &r_cursor_count);
     
     {
         i32 key_count = file_lifetime_object->key_count;
@@ -130,8 +128,7 @@ edit_fix_markers(System_Functions *system, Models *models, Editing_File *file, E
             i32 count = clamp_top(lifetime_key_reference_per_node, key_count - key_index);
             for (i32 i = 0; i < count; i += 1){
                 Lifetime_Key *key = key_node->keys[i];
-                edit_fix_markers__write_workspace_markers(&key->dynamic_workspace, file->id.id,
-                                                          cursors, r_cursors, &cursor_count, &r_cursor_count);
+                edit_fix_markers__write_workspace_markers(&key->dynamic_workspace, file_id, cursors, r_cursors, &cursor_count, &r_cursor_count);
             }
             key_index += count;
         }
@@ -156,21 +153,19 @@ edit_fix_markers(System_Functions *system, Models *models, Editing_File *file, E
              panel = panel->next){
             View *view = panel->view;
             if (view->transient.file_data.file == file){
-                Assert(view->transient.edit_pos != 0);
-                
                 i32 cursor_pos = cursors[cursor_count++].pos;
                 Full_Cursor new_cursor = file_compute_cursor(system, file, seek_pos(cursor_pos), 0);
                 
-                GUI_Scroll_Vars scroll = view->transient.edit_pos->scroll;
+                GUI_Scroll_Vars scroll = view->transient.edit_pos.scroll;
                 
-                view->transient.edit_pos->mark = cursors[cursor_count++].pos;
+                view->transient.edit_pos.mark = cursors[cursor_count++].pos;
                 i32 new_scroll_i = cursors[cursor_count++].pos;
-                if (view->transient.edit_pos->scroll_i != new_scroll_i){
-                    view->transient.edit_pos->scroll_i = new_scroll_i;
+                if (view->transient.edit_pos.scroll_i != new_scroll_i){
+                    view->transient.edit_pos.scroll_i = new_scroll_i;
                     
-                    Full_Cursor temp_cursor = file_compute_cursor(system, file, seek_pos(view->transient.edit_pos->scroll_i), 0);
+                    Full_Cursor temp_cursor = file_compute_cursor(system, file, seek_pos(view->transient.edit_pos.scroll_i), 0);
                     
-                    f32 y_offset = MOD(view->transient.edit_pos->scroll.scroll_y, view->transient.line_height);
+                    f32 y_offset = MOD(view->transient.edit_pos.scroll.scroll_y, view->transient.line_height);
                     f32 y_position = temp_cursor.wrapped_y;
                     if (file->settings.unwrapped_lines){
                         y_position = temp_cursor.unwrapped_y;
@@ -185,8 +180,7 @@ edit_fix_markers(System_Functions *system, Models *models, Editing_File *file, E
             }
         }
         
-        edit_fix_markers__read_workspace_markers(&file_lifetime_object->workspace, file->id.id,
-                                                 cursors, r_cursors, &cursor_count, &r_cursor_count);
+        edit_fix_markers__read_workspace_markers(&file_lifetime_object->workspace, file_id, cursors, r_cursors, &cursor_count, &r_cursor_count);
         
         i32 key_count = file_lifetime_object->key_count;
         i32 key_index = 0;
@@ -196,8 +190,7 @@ edit_fix_markers(System_Functions *system, Models *models, Editing_File *file, E
             i32 count = clamp_top(lifetime_key_reference_per_node, key_count - key_index);
             for (i32 i = 0; i < count; i += 1){
                 Lifetime_Key *key = key_node->keys[i];
-                edit_fix_markers__read_workspace_markers(&key->dynamic_workspace, file->id.id,
-                                                         cursors, r_cursors, &cursor_count, &r_cursor_count);
+                edit_fix_markers__read_workspace_markers(&key->dynamic_workspace, file_id, cursors, r_cursors, &cursor_count, &r_cursor_count);
             }
             key_index += count;
         }
@@ -207,32 +200,36 @@ edit_fix_markers(System_Functions *system, Models *models, Editing_File *file, E
 }
 
 internal void
-edit_single__inner(System_Functions *system, Models *models, Editing_File *file,
-                   Edit_Spec spec, History_Mode history_mode){
-    
+edit_single__inner(System_Functions *system, Models *models, Editing_File *file, Edit_Spec spec, History_Mode history_mode){
     Mem_Options *mem = &models->mem;
     Editing_Layout *layout = &models->layout;
+    Heap *heap = &mem->heap;
+    Partition *part = &mem->part;
     
     // NOTE(allen): fixing stuff beforewards????
     file_update_history_before_edit(mem, file, spec.step, spec.str, history_mode);
     edit_pre_state_change(system, &mem->heap, models, file);
     
-    // NOTE(allen): actual text replacement
-    i32 shift_amount = 0;
-    Heap *heap = &mem->heap;
-    Partition *part = &mem->part;
-    
+    // NOTE(allen): expand spec, compute shift
     char *str = (char*)spec.str;
     i32 start = spec.step.edit.start;
     i32 end = spec.step.edit.end;
     i32 str_len = spec.step.edit.len;
+    i32 shift_amount = buffer_replace_range_compute_shift(start, end, str_len);
     
+    // NOTE(allen): cursor fixing
+    Cursor_Fix_Descriptor desc = {};
+    desc.start = start;
+    desc.end = end;
+    desc.shift_amount = shift_amount;
+    edit_fix_markers(system, models, file, layout, desc);
+    
+    // NOTE(allen): actual text replacement
     i32 scratch_size = partition_remaining(part);
-    
     Assert(scratch_size > 0);
     i32 request_amount = 0;
     Assert(end <= buffer_size(&file->state.buffer));
-    while (buffer_replace_range(&file->state.buffer, start, end, str, str_len, &shift_amount, part->base + part->pos, scratch_size, &request_amount)){
+    for (;buffer_replace_range(&file->state.buffer, start, end, str, str_len, shift_amount, part->base + part->pos, scratch_size, &request_amount);){
         void *new_data = 0;
         if (request_amount > 0){
             new_data = heap_allocate(heap, request_amount);
@@ -243,15 +240,7 @@ edit_single__inner(System_Functions *system, Models *models, Editing_File *file,
         }
     }
     
-    // NOTE(allen): token fixing
-    if (file->settings.tokens_exist){
-        file_relex(system, models, file, start, end, shift_amount);
-    }
-    else{
-        file_mark_edit_finished(&models->working_set, file);
-    }
-    
-    // NOTE(allen): meta data
+    // NOTE(allen): line meta data
     Gap_Buffer *buffer = &file->state.buffer;
     i32 line_start = buffer_get_line_number(&file->state.buffer, start);
     i32 line_end = buffer_get_line_number(&file->state.buffer, end);
@@ -268,14 +257,23 @@ edit_single__inner(System_Functions *system, Models *models, Editing_File *file,
     file_allocate_character_starts_as_needed(heap, file);
     buffer_remeasure_character_starts(system, font, buffer, line_start, line_end, line_shift, file->state.character_starts, 0, file->settings.virtual_white);
     
-    file_measure_wraps(system, &models->mem, file, font);
+    // NOTE(allen): token fixing
+    if (file->settings.tokens_exist){
+        file_relex(system, models, file, start, end, shift_amount);
+    }
     
-    // NOTE(allen): cursor fixing
-    Cursor_Fix_Descriptor desc = {};
-    desc.start = start;
-    desc.end = end;
-    desc.shift_amount = shift_amount;
-    edit_fix_markers(system, models, file, layout, desc);
+    // NOTE(allen): mark edit finished
+    if (file->settings.tokens_exist){
+        if (file->settings.virtual_white){
+            file_mark_edit_finished(&models->working_set, file);
+        }
+    }
+    else{
+        file_mark_edit_finished(&models->working_set, file);
+    }
+    
+    // NOTE(allen): wrap meta data
+    file_measure_wraps(system, &models->mem, file, font);
 }
 
 internal void
@@ -317,9 +315,7 @@ edit_compute_batch_spec(Heap *heap,
 }
 
 internal void
-edit_batch(System_Functions *system, Models *models, Editing_File *file,
-           Edit_Spec spec, History_Mode history_mode, Buffer_Batch_Edit_Type batch_type){
-    
+edit_batch(System_Functions *system, Models *models, Editing_File *file, Edit_Spec spec, History_Mode history_mode, Buffer_Batch_Edit_Type batch_type){
     Mem_Options *mem = &models->mem;
     Heap *heap = &mem->heap;
     Partition *part = &mem->part;
@@ -330,20 +326,25 @@ edit_batch(System_Functions *system, Models *models, Editing_File *file,
     file_update_history_before_edit(mem, file, spec.step, 0, history_mode);
     edit_pre_state_change(system, &mem->heap, models, file);
     
-    // NOTE(allen): actual text replacement
+    // NOTE(allen): expand spec
     u8 *str_base = file->state.undo.children.strings;
     i32 batch_size = spec.step.child_count;
     Buffer_Edit *batch = file->state.undo.children.edits + spec.step.first_child;
-    
     Assert(spec.step.first_child < file->state.undo.children.edit_count);
     Assert(batch_size >= 0);
     
+    // NOTE(allen): cursor fixing
+    Cursor_Fix_Descriptor desc = {};
+    desc.is_batch = true;
+    desc.batch = batch;
+    desc.batch_size = batch_size;
+    edit_fix_markers(system, models, file, layout, desc);
+    
+    // NOTE(allen): actual text replacement
     i32 scratch_size = partition_remaining(part);
     Buffer_Batch_State state = {};
     i32 request_amount = 0;
-    while (buffer_batch_edit_step(&state, &file->state.buffer, batch,
-                                  (char*)str_base, batch_size, part->base + part->pos,
-                                  scratch_size, &request_amount)){
+    for (;buffer_batch_edit_step(&state, &file->state.buffer, batch, (char*)str_base, batch_size, part->base + part->pos, scratch_size, &request_amount);){
         void *new_data = 0;
         if (request_amount > 0){
             new_data = heap_allocate(heap, request_amount);
@@ -353,8 +354,17 @@ edit_batch(System_Functions *system, Models *models, Editing_File *file,
             heap_free(heap, old_data);
         }
     }
-    
     i32 shift_total = state.shift_total;
+    
+    // NOTE(allen): line meta data
+    // TODO(allen): Let's try to switch to remeasuring here moron!
+    file_measure_starts(heap, &file->state.buffer);
+    
+    Font_Pointers font = system->font.get_pointers_by_id(file->settings.font_id);
+    Assert(font.valid);
+    
+    file_allocate_character_starts_as_needed(heap, file);
+    buffer_measure_character_starts(system, font, &file->state.buffer, file->state.character_starts, 0, file->settings.virtual_white);
     
     // NOTE(allen): token fixing
     switch (batch_type){
@@ -404,29 +414,18 @@ edit_batch(System_Functions *system, Models *models, Editing_File *file,
         }break;
     }
     
-    // TODO(allen): Let's try to switch to remeasuring here moron!
-    // We'll need to get the total shift from the actual batch edit state
-    // instead of from the cursor fixing.  The only reason we're getting
-    // it from cursor fixing is because you're a lazy asshole.
+    // NOTE(allen): mark edit finished
+    if (file->settings.tokens_exist){
+        if (file->settings.virtual_white){
+            file_mark_edit_finished(&models->working_set, file);
+        }
+    }
+    else{
+        file_mark_edit_finished(&models->working_set, file);
+    }
     
-    // NOTE(allen): meta data
-    file_measure_starts(heap, &file->state.buffer);
-    
-    Font_Pointers font = system->font.get_pointers_by_id(file->settings.font_id);
-    Assert(font.valid);
-    
-    // TODO(allen): write the remeasurement version
-    file_allocate_character_starts_as_needed(heap, file);
-    buffer_measure_character_starts(system, font, &file->state.buffer, file->state.character_starts, 0, file->settings.virtual_white);
-    
+    // NOTE(allen): wrap meta data
     file_measure_wraps(system, &models->mem, file, font);
-    
-    // NOTE(allen): cursor fixing
-    Cursor_Fix_Descriptor desc = {};
-    desc.is_batch = true;
-    desc.batch = batch;
-    desc.batch_size = batch_size;
-    edit_fix_markers(system, models, file, layout, desc);
 }
 
 internal void
@@ -463,12 +462,11 @@ edit_clear(System_Functions *system, Models *models, Editing_File *file){
     }
     
     if (no_views_see_file){
-        memset(file->state.edit_pos_space, 0, sizeof(file->state.edit_pos_space));
-        file->state.edit_poss_count = 0;
+        block_zero(file->state.edit_pos_stack, sizeof(file->state.edit_pos_stack));
+        file->state.edit_pos_stack_top = -1;
     }
     
-    edit_single(system, models, file,
-                0, buffer_size(&file->state.buffer), 0, 0);
+    edit_single(system, models, file, 0, buffer_size(&file->state.buffer), 0, 0);
 }
 
 internal void
@@ -481,12 +479,11 @@ edit_historical(System_Functions *system, Models *models, Editing_File *file, Vi
         spec.step.edit.str_start = 0;
         spec.str = stack->strings + step.edit.str_start;
         
-        edit_single__inner(system, models, file,
-                           spec, history_mode);
+        edit_single__inner(system, models, file, spec, history_mode);
         
         if (view != 0){
             view_cursor_move(system, view, step.edit.start + step.edit.len);
-            view->transient.edit_pos->mark = view->transient.edit_pos->cursor.pos;
+            view->transient.edit_pos.mark = view->transient.edit_pos.cursor.pos;
             
             Style *style = &models->styles.styles[0];
             view_post_paste_effect(view, 0.333f, step.edit.start, step.edit.len, style->theme.colors[Stag_Undo]);

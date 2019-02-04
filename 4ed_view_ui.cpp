@@ -186,9 +186,9 @@ draw_file_bar(System_Functions *system, Render_Target *target, View *view, Model
             char bar_space[526];
             String bar_text = make_fixed_width_string(bar_space);
             append_ss        (&bar_text, lit(" L#"));
-            append_int_to_str(&bar_text, view->transient.edit_pos->cursor.line);
+            append_int_to_str(&bar_text, view->transient.edit_pos.cursor.line);
             append_ss        (&bar_text, lit(" C#"));
-            append_int_to_str(&bar_text, view->transient.edit_pos->cursor.character);
+            append_int_to_str(&bar_text, view->transient.edit_pos.cursor.character);
             
             append_ss(&bar_text, lit(" -"));
             

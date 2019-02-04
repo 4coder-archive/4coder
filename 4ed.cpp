@@ -74,7 +74,7 @@ file_cursor_to_end(System_Functions *system, Models *models, Editing_File *file)
             continue;
         }
         view_cursor_move(system, view, pos);
-        view->transient.edit_pos->mark = view->transient.edit_pos->cursor.pos;
+        view->transient.edit_pos.mark = view->transient.edit_pos.cursor.pos;
     }
 }
 
@@ -124,7 +124,6 @@ internal void
 view_undo_redo(System_Functions *system, Models *models, View *view, Edit_Stack *stack, Edit_Type expected_type){
     Editing_File *file = view->transient.file_data.file;
     Assert(file != 0);
-    Assert(view->transient.edit_pos != 0);
     if (stack->edit_count > 0){
         Edit_Step step = stack->edits[stack->edit_count - 1];
         Assert(step.type == expected_type);
@@ -1522,7 +1521,7 @@ App_Step_Sig(app_step){
             i32 max_y = 0;
             b32 file_scroll = false;
             if (!view->transient.ui_mode){
-                scroll_vars = &view->transient.edit_pos->scroll;
+                scroll_vars = &view->transient.edit_pos.scroll;
                 max_y = view_compute_max_target_y(view);
                 file_scroll = true;
             }
@@ -1557,11 +1556,9 @@ App_Step_Sig(app_step){
              panel != &models->layout.used_sentinel;
              panel = panel->next){
             View *view = panel->view;
-            if (view->transient.edit_pos != 0){
-                GUI_Scroll_Vars *scroll_vars = &view->transient.edit_pos->scroll;
-                scroll_vars->scroll_x = (f32)scroll_vars->target_x;
-                scroll_vars->scroll_y = (f32)scroll_vars->target_y;
-            }
+            GUI_Scroll_Vars *scroll_vars = &view->transient.edit_pos.scroll;
+            scroll_vars->scroll_x = (f32)scroll_vars->target_x;
+            scroll_vars->scroll_y = (f32)scroll_vars->target_y;
         }
     }
     
@@ -1590,6 +1587,7 @@ App_Step_Sig(app_step){
                             Editing_File *file = CastFromMember(Editing_File, edit_finished_mark_node, node);
                             Buffer_ID *new_id = push_array(scratch, Buffer_ID, 1);
                             *new_id = file->id.id;
+                            
                         }
                         i32 id_count = (i32)(push_array(scratch, Buffer_ID, 0) - ids);
                         
@@ -1647,7 +1645,7 @@ App_Step_Sig(app_step){
             
             draw_rectangle(target, full, style->theme.colors[Stag_Back]);
             
-            GUI_Scroll_Vars *scroll_vars = &view->transient.edit_pos->scroll;
+            GUI_Scroll_Vars *scroll_vars = &view->transient.edit_pos.scroll;
             
             b32 active = (panel == active_panel);
             do_render_file_view(system, view, models, scroll_vars, active_view, panel->inner, active, target);

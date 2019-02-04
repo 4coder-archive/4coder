@@ -422,19 +422,23 @@ buffer_stringify_next(Gap_Buffer_Stream *stream){
 }
 
 internal i32
-buffer_replace_range(Gap_Buffer *buffer, i32 start, i32 end, char *str, i32 len, i32 *shift_amount,
+buffer_replace_range_compute_shift(i32 start, i32 end, i32 len){
+    return(len - (end - start));
+}
+
+internal i32
+buffer_replace_range(Gap_Buffer *buffer, i32 start, i32 end, char *str, i32 len, i32 shift_amount,
                      void *scratch, i32 scratch_memory, i32 *request_amount){
     char *data = buffer->data;
     i32 size = buffer_size(buffer);
-    i32 result = 0;
+    i32 result = false;
     i32 move_size = 0;
     
     Assert(0 <= start);
     Assert(start <= end);
     Assert(end <= size);
     
-    *shift_amount = (len - (end - start));
-    if (*shift_amount + size <= buffer->max){
+    if (shift_amount + size <= buffer->max){
         if (end < buffer->size1){
             move_size = buffer->size1 - end;
             memmove(data + buffer->size1 + buffer->gap_size - move_size, data + end, move_size);
@@ -451,35 +455,40 @@ buffer_replace_range(Gap_Buffer *buffer, i32 start, i32 end, char *str, i32 len,
         memcpy(data + start, str, len);
         buffer->size2 = size - end;
         buffer->size1 = start + len;
-        buffer->gap_size -= *shift_amount;
+        buffer->gap_size -= shift_amount;
         
-        Assert(buffer->size1 + buffer->size2 == size + *shift_amount);
+        Assert(buffer->size1 + buffer->size2 == size + shift_amount);
         Assert(buffer->size1 + buffer->gap_size + buffer->size2 == buffer->max);
     }
     else{
-        *request_amount = l_round_up_i32(2*(*shift_amount + size), 4 << 10);
-        result = 1;
+        *request_amount = l_round_up_i32(2*(shift_amount + size), 4 << 10);
+        result = true;
     }
     
     return(result);
 }
 
-// TODO(allen): Now that we are just using Gap_Buffer we could afford to improve
+// TODO(allen): do(optimize Gap_Buffer batch edit)
+// Now that we are just using Gap_Buffer we could afford to improve
 // this for the Gap_Buffer's behavior.
 internal i32
-buffer_batch_edit_step(Buffer_Batch_State *state, Gap_Buffer *buffer, Buffer_Edit *sorted_edits, char *strings, i32 edit_count, void *scratch, i32 scratch_size, i32 *request_amount){
+buffer_batch_edit_step(Buffer_Batch_State *state, Gap_Buffer *buffer, Buffer_Edit *sorted_edits, char *strings, i32 edit_count,
+                       void *scratch, i32 scratch_size, i32 *request_amount){
     Buffer_Edit *edit = 0;
-    i32 i = state->i;
     i32 shift_total = state->shift_total;
-    i32 shift_amount = 0;
     i32 result = 0;
     
+    i32 i = state->i;
     edit = sorted_edits + i;
     for (; i < edit_count; ++i, ++edit){
-        result = buffer_replace_range(buffer, edit->start + shift_total, edit->end + shift_total,
-                                      strings + edit->str_start, edit->len, &shift_amount,
-                                      scratch, scratch_size, request_amount);
-        if (result) break;
+        i32 start = edit->start + shift_total;
+        i32 end = edit->end + shift_total;
+        i32 len = edit->len;
+        i32 shift_amount = buffer_replace_range_compute_shift(start, end, len);
+        result = buffer_replace_range(buffer, start, end, strings + edit->str_start, len, shift_amount, scratch, scratch_size, request_amount);
+        if (result){
+            break;
+        }
         shift_total += shift_amount;
     }
     

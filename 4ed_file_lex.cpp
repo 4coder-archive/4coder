@@ -152,7 +152,7 @@ file_kill_tokens(System_Functions *system, Heap *heap, Editing_File *file){
     if (file->state.token_array.tokens){
         heap_free(heap, file->state.token_array.tokens);
     }
-    file->state.tokens_complete = 0;
+    file->state.tokens_complete = false;
     file->state.token_array = null_cpp_token_array;
 }
 
@@ -400,7 +400,7 @@ file_relex_parallel(System_Functions *system, Models *models, Editing_File *file
         
         file->state.still_lexing = true;
         
-        Job_Data job;
+        Job_Data job = {};
         job.callback = job_full_lex;
         job.data[0] = file;
         job.data[1] = heap;
@@ -487,11 +487,10 @@ file_relex_serial(System_Functions *system, Models *models, Editing_File *file, 
     }
     
     cpp_relex_complete(&state, array, &relex_array);
-    file_mark_edit_finished(&models->working_set, file);
     
     end_temp_memory(temp);
     
-    return(1);
+    return(true);
 }
 
 internal void

@@ -88,9 +88,8 @@ struct Editing_File_State{
     Dirty_State dirty;
     u32 ignore_behind_os;
     
-    File_Edit_Positions edit_pos_space[16];
-    File_Edit_Positions *edit_poss[16];
-    i32 edit_poss_count;
+    File_Edit_Positions edit_pos_stack[16];
+    i32 edit_pos_stack_top;
 };
 
 struct Editing_File_Name{

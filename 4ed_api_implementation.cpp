@@ -66,9 +66,9 @@ fill_view_summary(System_Functions *system, View_Summary *view, View *vptr, Live
         view->buffer_id = vptr->transient.file_data.file->id.id;
         
         Assert(data->file != 0);
-        view->mark = file_compute_cursor(system, data->file, seek_pos(vptr->transient.edit_pos->mark), 0);
-        view->cursor = vptr->transient.edit_pos->cursor;
-        view->preferred_x = vptr->transient.edit_pos->preferred_x;
+        view->mark = file_compute_cursor(system, data->file, seek_pos(vptr->transient.edit_pos.mark), 0);
+        view->cursor = vptr->transient.edit_pos.cursor;
+        view->preferred_x = vptr->transient.edit_pos.preferred_x;
         
         view->view_region = vptr->transient.panel->inner;
         view->file_region = vptr->transient.file_region;
@@ -76,7 +76,7 @@ fill_view_summary(System_Functions *system, View_Summary *view, View *vptr, Live
             view->scroll_vars = vptr->transient.ui_scroll;
         }
         else{
-            view->scroll_vars = vptr->transient.edit_pos->scroll;
+            view->scroll_vars = vptr->transient.edit_pos.scroll;
         }
     }
 }
@@ -1401,9 +1401,9 @@ Reopen_Buffer(Application_Links *app, Buffer_Summary *buffer, Buffer_Reopen_Flag
                     
                     // TODO(allen): try(perform a diff maybe apply edits in reopen)
                     
-                    File_Edit_Positions edit_poss[16];
-                    int32_t line_number[16];
-                    int32_t column_number[16];
+                    File_Edit_Positions edit_positions[16];
+                    int32_t line_numbers[16];
+                    int32_t column_numbers[16];
                     View *vptrs[16];
                     i32 vptr_count = 0;
                     
@@ -1415,11 +1415,10 @@ Reopen_Buffer(Application_Links *app, Buffer_Summary *buffer, Buffer_Reopen_Flag
                             continue;
                         }
                         vptrs[vptr_count] = view_it;
-                        edit_poss[vptr_count] = view_it->transient.edit_pos[0];
-                        line_number[vptr_count] = view_it->transient.edit_pos[0].cursor.line;
-                        column_number[vptr_count] = view_it->transient.edit_pos[0].cursor.character;
+                        edit_positions[vptr_count] = view_it->transient.edit_pos;
+                        line_numbers[vptr_count] = view_it->transient.edit_pos.cursor.line;
+                        column_numbers[vptr_count] = view_it->transient.edit_pos.cursor.character;
                         view_it->transient.file_data.file = models->scratch_buffer;
-                        view_it->transient.edit_pos = 0;
                         ++vptr_count;
                     }
                     
@@ -1430,12 +1429,9 @@ Reopen_Buffer(Application_Links *app, Buffer_Summary *buffer, Buffer_Reopen_Flag
                     for (i32 i = 0; i < vptr_count; ++i){
                         view_set_file(system, models, vptrs[i], file);
                         
-                        int32_t line = line_number[i];
-                        int32_t character = column_number[i];
-                        
                         vptrs[i]->transient.file_data.file = file;
-                        *vptrs[i]->transient.edit_pos = edit_poss[i];
-                        Full_Cursor cursor = file_compute_cursor(system, file, seek_line_char(line, character), 0);
+                        vptrs[i]->transient.edit_pos = edit_positions[i];
+                        Full_Cursor cursor = file_compute_cursor(system, file, seek_line_char(line_numbers[i], column_numbers[i]), 0);
                         
                         view_set_cursor(vptrs[i], cursor, true, file->settings.unwrapped_lines);
                     }
@@ -2034,11 +2030,11 @@ DOC_SEE(Buffer_Seek)
             if (seek.type != buffer_seek_pos){
                 result = true;
                 Full_Cursor cursor = file_compute_cursor(system, file, seek, 0);
-                vptr->transient.edit_pos->mark = cursor.pos;
+                vptr->transient.edit_pos.mark = cursor.pos;
             }
             else{
                 result = true;
-                vptr->transient.edit_pos->mark = seek.pos;
+                vptr->transient.edit_pos.mark = seek.pos;
             }
             fill_view_summary(system, view, vptr, models);
         }

@@ -36,102 +36,22 @@ edit_pos_set_scroll(File_Edit_Positions *edit_pos, GUI_Scroll_Vars scroll){
     edit_pos->last_set_type = EditPos_ScrollSet;
 }
 
-internal i32
-edit_pos_get_index(Editing_File *file, File_Edit_Positions *edit_pos){
-    i32 edit_pos_index = -1;
-    
-    i32 count = file->state.edit_poss_count;
-    File_Edit_Positions **edit_poss = file->state.edit_poss;
-    for (i32 i = 0; i < count; ++i){
-        if (edit_poss[i] == edit_pos){
-            edit_pos_index = i;
-            break;
-        }
+internal void
+edit_pos_push(Editing_File *file, File_Edit_Positions edit_pos){
+    if (file->state.edit_pos_stack_top + 1 < ArrayCount(file->state.edit_pos_stack)){
+        file->state.edit_pos_stack_top += 1;
+        file->state.edit_pos_stack[file->state.edit_pos_stack_top] = edit_pos;
     }
-    
-    return(edit_pos_index);
 }
 
-internal b32
-edit_pos_move_to_front(Editing_File *file, File_Edit_Positions *edit_pos){
-    b32 result = false;
-    
-    if (file && edit_pos){
-        i32 edit_pos_index = edit_pos_get_index(file, edit_pos);
-        Assert(edit_pos_index != -1);
-        
-        File_Edit_Positions **edit_poss = file->state.edit_poss;
-        
-        memmove(edit_poss + 1, edit_poss, edit_pos_index*sizeof(*edit_poss));
-        
-        edit_poss[0] = edit_pos;
-        result = true;
+internal File_Edit_Positions
+edit_pos_pop(Editing_File *file){
+    File_Edit_Positions edit_pos = {};
+    if (file->state.edit_pos_stack_top >= 0){
+        edit_pos = file->state.edit_pos_stack[file->state.edit_pos_stack_top];
+        file->state.edit_pos_stack_top -= 1;
     }
-    
-    return(result);
-}
-
-internal b32
-edit_pos_unset(Editing_File *file, File_Edit_Positions *edit_pos){
-    b32 result = false;
-    
-    if (file && edit_pos){
-        i32 edit_pos_index = edit_pos_get_index(file, edit_pos);
-        Assert(edit_pos_index != -1);
-        
-        i32 count = file->state.edit_poss_count;
-        File_Edit_Positions **edit_poss = file->state.edit_poss;
-        
-        memmove(edit_poss + edit_pos_index,
-                edit_poss + edit_pos_index + 1,
-                (count - edit_pos_index - 1)*sizeof(*edit_poss));
-        
-        edit_pos->in_view = false;
-        
-        if (file->state.edit_poss_count > 1){
-            file->state.edit_poss_count -= 1;
-        }
-        result = true;
-    }
-    
-    return(result);
-}
-
-internal File_Edit_Positions*
-edit_pos_get_new(Editing_File *file, i32 index){
-    File_Edit_Positions *result = 0;
-    
-    if (file && 0 <= index && index < 16){
-        result = file->state.edit_pos_space + index;
-        i32 edit_pos_index = edit_pos_get_index(file, result);
-        
-        if (edit_pos_index == -1){
-            File_Edit_Positions **edit_poss = file->state.edit_poss;
-            i32 count = file->state.edit_poss_count;
-            
-            if (count > 0){
-                if (edit_poss[0]->in_view){
-                    memcpy(result, edit_poss[0], sizeof(*result));
-                    memmove(edit_poss+1, edit_poss, sizeof(*edit_poss)*count);
-                    file->state.edit_poss_count = count + 1;
-                }
-                else{
-                    Assert(count == 1);
-                    memcpy(result, edit_poss[0], sizeof(*result));
-                }
-            }
-            else{
-                memset(result, 0, sizeof(*result));
-                file->state.edit_poss_count = 1;
-            }
-            
-            edit_poss[0] = result;
-        }
-        
-        result->in_view = true;
-    }
-    
-    return(result);
+    return(edit_pos);
 }
 
 ////////////////////////////////
