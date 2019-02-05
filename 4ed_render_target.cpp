@@ -29,7 +29,8 @@ Render_Begin_Push_Sig(render_internal_begin_push, t, ptr, size){
 internal
 Render_End_Push_Sig(render_internal_end_push, t, h){
     if (h != 0){
-        u8 *end_ptr = (u8*)push_align(&t->buffer, 8);
+        push_align(&t->buffer, 8);
+        u8 *end_ptr = push_array(&t->buffer, u8, 0);
         Render_Command_Header *header = (Render_Command_Header*)h;
         header->size = (i32)(end_ptr - (u8*)h);
     }

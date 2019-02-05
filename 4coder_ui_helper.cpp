@@ -209,38 +209,13 @@ lister_standard_arena_size_round_up(int32_t arena_size){
 }
 
 static void
-lister_arena_clear_data_ensure_bytes(Application_Links *app, Lister *lister, int32_t minimum_bytes){
-    if (lister->arena.base == 0 || lister->arena.max < minimum_bytes){
-        int32_t rounded_user_data_size = lister->data.user_data_size;
-        rounded_user_data_size += 7;
-        rounded_user_data_size -= rounded_user_data_size%8;
-        int32_t new_size = (lister->arena.max + rounded_user_data_size + minimum_bytes + 1)*2;
-        new_size = lister_standard_arena_size_round_up(new_size);
-        void *new_memory = memory_allocate(app, new_size);
-        memcpy(new_memory, lister->data.user_data, lister->data.user_data_size);
-        lister->data.user_data = new_memory;
-        if (lister->arena.base != 0){
-            memory_free(app, lister->arena.base, lister->arena.max);
-        }
-        lister->arena = make_part(new_memory, new_size);
-        push_array(&lister->arena, char, lister->data.user_data_size);
-    }
-    else{
-        lister->arena.pos = lister->data.user_data_size;
-    }
-    push_align(&lister->arena, 8);
-}
-
-static void
 init_lister_state(Application_Links *app, Lister_State *state, Heap *heap){
     state->initialized = true;
     state->hot_user_data = 0;
     state->item_index = 0;
     state->set_view_vertical_focus_to_item = false;
     state->item_count_after_filter = 0;
-    if (state->lister.arena.base != 0){
-        memory_free(app, state->lister.arena.base, state->lister.arena.max);
-    }
+    arena_release_all(&state->lister.arena);
     memset(&state->lister, 0, sizeof(state->lister));
 }
 
@@ -456,29 +431,23 @@ lister_prealloced(String string){
 }
 
 static void
-lister_first_init(Application_Links *app, Lister *lister, void *user_data, int32_t user_data_size, int32_t arena_size){
+lister_first_init(Application_Links *app, Lister *lister, void *user_data, int32_t user_data_size){
     memset(lister, 0, sizeof(*lister));
+    lister->arena = make_arena(app, (16 << 10));
     lister->data.query      = make_fixed_width_string(lister->data.query_space);
     lister->data.text_field = make_fixed_width_string(lister->data.text_field_space);
     lister->data.key_string = make_fixed_width_string(lister->data.key_string_space);
-    if (arena_size < user_data_size){
-        arena_size = user_data_size;
-    }
-    lister->data.user_data_size = 0;
-    if (arena_size != 0){
-        lister_arena_clear_data_ensure_bytes(app, lister, arena_size);
-        lister->data.user_data = push_array(&lister->arena, char, user_data_size);
-        push_align(&lister->arena, 8);
-        if (user_data != 0){
-            memcpy(lister->data.user_data, user_data, user_data_size);
-        }
-        lister->data.user_data_size = user_data_size;
+    lister->data.user_data = push_array(&lister->arena, char, user_data_size);
+    lister->data.user_data_size = user_data_size;
+    push_align(&lister->arena, 8);
+    if (user_data != 0){
+        memcpy(lister->data.user_data, user_data, user_data_size);
     }
 }
 
 static void
 lister_begin_new_item_set(Application_Links *app, Lister *lister, int32_t list_memory_size){
-    lister_arena_clear_data_ensure_bytes(app, lister, list_memory_size);
+    arena_release_all(&lister->arena);
     memset(&lister->data.options, 0, sizeof(lister->data.options));
 }
 
@@ -574,10 +543,7 @@ lister_default(Application_Links *app, Partition *scratch, Heap *heap,
         {
             view_end_ui_mode(app, view);
             state->initialized = false;
-            if (state->lister.arena.base != 0){
-                memory_free(app, state->lister.arena.base, state->lister.arena.max);
-                memset(&state->lister.arena, 0, sizeof(state->lister.arena));
-            }
+            arena_release_all(&state->lister.arena);
         }break;
         
         case ListerActivation_Continue:

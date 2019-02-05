@@ -317,7 +317,7 @@ begin_integrated_lister__with_refresh_handler(Application_Links *app, char *quer
         view_set_setting(app, view, ViewSetting_UICommandMap, default_lister_ui_map);
         Lister_State *state = view_get_lister_state(view);
         init_lister_state(app, state, heap);
-        lister_first_init(app, &state->lister, user_data, user_data_size, 0);
+        lister_first_init(app, &state->lister, user_data, user_data_size);
         lister_set_query_string(&state->lister.data, query_string);
         state->lister.data.handlers = handlers;
         handlers.refresh(app, &state->lister);
@@ -336,8 +336,8 @@ begin_integrated_lister__with_refresh_handler(Application_Links *app, char *quer
 static const int32_t default_string_size_estimation = 0;
 
 static int32_t
-lister__get_arena_size(int32_t option_count, int32_t user_data_size,
-                       int32_t estimated_string_space_size){
+lister__get_arena_size_(int32_t option_count, int32_t user_data_size,
+                        int32_t estimated_string_space_size){
     int32_t arena_size = (user_data_size + 7 + option_count*sizeof(Lister_Node) + estimated_string_space_size);
     return(arena_size);
 }
@@ -354,9 +354,8 @@ begin_integrated_lister__basic_list(Application_Links *app, char *query_string,
     view_begin_ui_mode(app, view);
     view_set_setting(app, view, ViewSetting_UICommandMap, default_lister_ui_map);
     Lister_State *state = view_get_lister_state(view);
-    int32_t arena_size = lister__get_arena_size(option_count, user_data_size, estimated_string_space_size);
     init_lister_state(app, state, heap);
-    lister_first_init(app, &state->lister, user_data, user_data_size, arena_size);
+    lister_first_init(app, &state->lister, user_data, user_data_size);
     for (int32_t i = 0; i < option_count; i += 1){
         lister_add_item(&state->lister, options[i].string, options[i].status, options[i].user_data, 0);
     }
@@ -379,8 +378,7 @@ begin_integrated_lister__with_fixed_options(Application_Links *app, char *query_
     view_set_setting(app, view, ViewSetting_UICommandMap, default_lister_ui_map);
     Lister_State *state = view_get_lister_state(view);
     init_lister_state(app, state, heap);
-    int32_t arena_size = lister__get_arena_size(option_count, user_data_size, estimated_string_space_size);
-    lister_first_init(app, &state->lister, user_data, user_data_size, arena_size);
+    lister_first_init(app, &state->lister, user_data, user_data_size);
     for (int32_t i = 0; i < option_count; i += 1){
         char *shortcut_chars = options[i].shortcut_chars;
         int32_t shortcut_chars_length = str_size(shortcut_chars);
@@ -426,8 +424,7 @@ begin_integrated_lister__theme_list(Application_Links *app, char *query_string,
     view_set_setting(app, view, ViewSetting_UICommandMap, default_lister_ui_map);
     Lister_State *state = view_get_lister_state(view);
     init_lister_state(app, state, heap);
-    int32_t arena_size = lister__get_arena_size(option_count, user_data_size, estimated_string_space_size);
-    lister_first_init(app, &state->lister, user_data, user_data_size, arena_size);
+    lister_first_init(app, &state->lister, user_data, user_data_size);
     state->lister.data.theme_list = true;
     for (int32_t i = 0; i < option_count; i += 1){
         lister_add_theme_item(&state->lister,
@@ -537,11 +534,7 @@ generate_all_buffers_list(Application_Links *app, Lister *lister){
 
 static void
 generate_hot_directory_file_list(Application_Links *app, Lister *lister){
-    if (lister->arena.max < (64 << 10)){
-        lister_arena_clear_data_ensure_bytes(app, lister, (64 << 10));
-    }
-    
-    Temp_Memory temp = begin_temp_memory(&lister->arena);
+    Temp_Memory_Arena temp = begin_temp_memory(&lister->arena);
     String hot = get_hot_directory(app, &lister->arena);
     if (hot.size > 0 && hot.str[hot.size - 1] != '/' && hot.str[hot.size - 1] != '\\'){
         if (push_array(&lister->arena, char, 1) != 0){
@@ -578,9 +571,8 @@ generate_hot_directory_file_list(Application_Links *app, Lister *lister){
              info < one_past_last;
              info += 1){
             if (!info->folder) continue;
-            String file_name = build_string(&lister->arena,
-                                            make_string(info->filename, info->filename_len),
-                                            "/", "");
+            String file_name = build_string(arena_use_as_part(&lister->arena, info->filename_len + 1),
+                                            make_string(info->filename, info->filename_len), "/", "");
             lister_add_item(lister, lister_prealloced(file_name), empty_string_prealloced, file_name.str, 0);
         }
         
@@ -592,21 +584,24 @@ generate_hot_directory_file_list(Application_Links *app, Lister *lister){
             char *is_loaded = "";
             char *status_flag = "";
             
-            Temp_Memory path_temp = begin_temp_memory(&lister->arena);
-            String full_file_path = {};
-            full_file_path.size = 0;
-            full_file_path.memory_size = hot.size + 1 + info->filename_len + 1;
-            full_file_path.str = push_array(&lister->arena, char, full_file_path.memory_size);
-            append(&full_file_path, hot);
-            if (full_file_path.size == 0 ||
-                char_is_slash(full_file_path.str[full_file_path.size - 1])){
-                append(&full_file_path, "/");
+            
+            Buffer_Summary buffer = {};
+            
+            {
+                Temp_Memory_Arena path_temp = begin_temp_memory(&lister->arena);
+                String full_file_path = {};
+                full_file_path.size = 0;
+                full_file_path.memory_size = hot.size + 1 + info->filename_len + 1;
+                full_file_path.str = push_array(&lister->arena, char, full_file_path.memory_size);
+                append(&full_file_path, hot);
+                if (full_file_path.size == 0 ||
+                    char_is_slash(full_file_path.str[full_file_path.size - 1])){
+                    append(&full_file_path, "/");
+                }
+                append(&full_file_path, make_string(info->filename, info->filename_len));
+                buffer = get_buffer_by_file_name(app, full_file_path.str, full_file_path.size, AccessAll);
+                end_temp_memory(path_temp);
             }
-            append(&full_file_path, make_string(info->filename, info->filename_len));
-            Buffer_Summary buffer = get_buffer_by_file_name(app,
-                                                            full_file_path.str, full_file_path.size,
-                                                            AccessAll);
-            end_temp_memory(path_temp);
             
             if (buffer.exists){
                 is_loaded = "LOADED";
@@ -615,7 +610,8 @@ generate_hot_directory_file_list(Application_Links *app, Lister *lister){
                     case DirtyState_UnloadedChanges: status_flag = " !"; break;
                 }
             }
-            String status = build_string(&lister->arena, is_loaded, status_flag, "");
+            int32_t more_than_enough_memory = 32;
+            String status = build_string(arena_use_as_part(&lister->arena, more_than_enough_memory), is_loaded, status_flag, "");
             lister_add_item(lister, lister_prealloced(file_name), lister_prealloced(status), file_name.str, 0);
         }
     }

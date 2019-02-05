@@ -483,7 +483,7 @@ file_measure_wraps(System_Functions *system, Mem_Options *mem, Editing_File *fil
         
         potential_marks = push_array(part, Potential_Wrap_Indent_Pair, floor32(width));
         
-        max_wrap_indent_mark = partition_remaining(part)/sizeof(Wrap_Indent_Pair);
+        max_wrap_indent_mark = part_remaining(part)/sizeof(Wrap_Indent_Pair);
         wrap_indent_marks = push_array(part, Wrap_Indent_Pair, max_wrap_indent_mark);
     }
     

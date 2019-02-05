@@ -412,7 +412,7 @@ file_create_from_string(System_Functions *system, Models *models, Editing_File *
         buffer_init_provide_page(&init, data, page_size);
     }
     
-    i32 scratch_size = partition_remaining(part);
+    i32 scratch_size = part_remaining(part);
     Assert(scratch_size > 0);
     b32 init_success = buffer_end_init(&init, part->base + part->pos, scratch_size);
     AllowLocal(init_success); Assert(init_success);

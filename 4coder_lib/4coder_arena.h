@@ -51,9 +51,31 @@ struct Partition{
 };
 
 struct Temp_Memory{
-    void *handle;
+    Partition *part;
     i32_4tech pos;
 };
+
+#if defined(FCODER_CUSTOM_H)
+
+struct Partition_Chained{
+    Partition_Chained *prev;
+    Partition part;
+};
+
+struct Arena{
+    struct Application_Links *app;
+    Partition_Chained *part;
+    i32_4tech chunk_size;
+    i32_4tech align;
+};
+
+struct Temp_Memory_Arena{
+    Arena *arena;
+    Partition_Chained *part;
+    i32_4tech pos;
+};
+
+#endif
 
 #endif
 

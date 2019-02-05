@@ -1197,11 +1197,11 @@ render_loaded_file_in_view(System_Functions *system, View *view, Models *models,
     Partition *part = &models->mem.part;
     Temp_Memory temp = begin_temp_memory(part);
     
-    partition_align(part, 4);
+    push_align(part, 4);
     
     f32 left_side_space = 0;
     
-    i32 max = partition_remaining(part)/sizeof(Buffer_Render_Item);
+    i32 max = part_remaining(part)/sizeof(Buffer_Render_Item);
     Buffer_Render_Item *items = push_array(part, Buffer_Render_Item, 0);
     
     b32 wrapped = !file->settings.unwrapped_lines;

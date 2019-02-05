@@ -1309,6 +1309,20 @@ build_string(Partition *part, String s0, String s1, String s2){
     return(sr);
 }
 
+static String
+string_push_copy(Arena *arena, String str){
+    String result = {};
+    if (str.str != 0){
+        result.str = push_array(arena, char, str.size + 1);
+        if (result.str != 0){
+            result.memory_size = str.size + 1;
+            copy(&result, str);
+            result.str[result.size] = 0;
+        }
+    }
+    return(result);
+}
+
 static bool32
 lexer_keywords_default_init(Partition *arena, Cpp_Keyword_Table *kw_out, Cpp_Keyword_Table *pp_out){
     bool32 success = false;
@@ -1327,15 +1341,24 @@ lexer_keywords_default_init(Partition *arena, Cpp_Keyword_Table *kw_out, Cpp_Key
 ////////////////////////////////
 
 static String
-get_hot_directory(Application_Links *app, Partition *arena){
-    Temp_Memory temp = begin_temp_memory(arena);
-    int32_t space_cap = partition_remaining(arena);
-    char *space = push_array(arena, char, space_cap);
+get_hot_directory(Application_Links *app, Partition *part){
+    Temp_Memory temp = begin_temp_memory(part);
+    int32_t space_cap = part_remaining(part);
+    char *space = push_array(part, char, space_cap);
     String hot_dir = make_string_cap(space, 0, space_cap);
     hot_dir.size = directory_get_hot(app, hot_dir.str, hot_dir.memory_size);
     end_temp_memory(temp);
-    push_array(arena, char, hot_dir.size);
+    push_array(part, char, hot_dir.size);
     hot_dir.memory_size = hot_dir.size;
+    return(hot_dir);
+}
+
+static String
+get_hot_directory(Application_Links *app, Arena *arena){
+    int32_t space_required = directory_get_hot(app, 0, 0);
+    char *space = push_array(arena, char, space_required);
+    String hot_dir = make_string_cap(space, 0, space_required);
+    hot_dir.size = directory_get_hot(app, hot_dir.str, hot_dir.memory_size);
     return(hot_dir);
 }
 

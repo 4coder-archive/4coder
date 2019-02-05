@@ -41,7 +41,7 @@ close_all_files_with_extension(Application_Links *app, Partition *scratch_part,
                                CString_Array extension_array){
     Temp_Memory temp = begin_temp_memory(scratch_part);
     
-    int32_t buffers_to_close_max = partition_remaining(scratch_part)/sizeof(int32_t);
+    int32_t buffers_to_close_max = part_remaining(scratch_part)/sizeof(int32_t);
     int32_t *buffers_to_close = push_array(scratch_part, int32_t, buffers_to_close_max);
     
     int32_t buffers_to_close_count = 0;
@@ -922,7 +922,7 @@ set_current_project(Application_Links *app, Partition *scratch, Project *project
         }
         else{
             Temp_Memory temp2 = begin_temp_memory(scratch);
-            String space = string_push(scratch, partition_remaining(scratch));
+            String space = string_push(scratch, part_remaining(scratch));
             
             {
                 config_feedback_string(&space, "'root_directory'", project->dir);
@@ -1226,7 +1226,7 @@ project_generate_bat_script(Partition *scratch, String opts, String compiler,
     replace_char(&od, '/', '\\');
     replace_char(&bf, '/', '\\');
     
-    int32_t space_cap = partition_remaining(scratch);
+    int32_t space_cap = part_remaining(scratch);
     char *space = push_array(scratch, char, space_cap);
     String file_name = make_string_cap(space, 0, space_cap);
     append(&file_name, script_path);
@@ -1267,7 +1267,7 @@ project_generate_sh_script(Partition *scratch, String opts, String compiler,
     String od = output_dir;
     String bf = binary_file;
     
-    int32_t space_cap = partition_remaining(scratch);
+    int32_t space_cap = part_remaining(scratch);
     char *space = push_array(scratch, char, space_cap);
     String file_name = make_string_cap(space, 0, space_cap);
     append(&file_name, script_path);
@@ -1318,7 +1318,7 @@ project_generate_project_4coder_file(Partition *scratch,
     replace_str(&od_win, "/", "\\\\");
     replace_str(&bf_win, "/", "\\\\");
     
-    int32_t space_cap = partition_remaining(scratch);
+    int32_t space_cap = part_remaining(scratch);
     char *space = push_array(scratch, char, space_cap);
     String file_name = make_string_cap(space, 0, space_cap);
     append(&file_name, script_path);

@@ -70,7 +70,7 @@ struct Lister_Data{
 };
 
 struct Lister{
-    Partition arena;
+    Arena arena;
     Lister_Data data;
 };
 

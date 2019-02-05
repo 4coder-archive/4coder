@@ -36,7 +36,7 @@ buffered_write_stream_write(Application_Links *app, Buffered_Write_Stream *strea
             text.size = 0;
         }
         else{
-            int32_t partial_size = partition_remaining(stream->buffering_arena);
+            int32_t partial_size = part_remaining(stream->buffering_arena);
             buffered = push_array(stream->buffering_arena, char, partial_size);
             Assert(partial_size < text.size);
             memcpy(buffered, text.str, partial_size);

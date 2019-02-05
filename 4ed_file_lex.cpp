@@ -190,14 +190,14 @@ file_first_lex_serial(System_Functions *system, Models *models, Editing_File *fi
         
         Temp_Memory temp = begin_temp_memory(part);
         
-        Parse_Context parse_context = parse_context_get(&models->parse_context_memory, file->settings.parse_context_id, partition_current(part), partition_remaining(part));
+        Parse_Context parse_context = parse_context_get(&models->parse_context_memory, file->settings.parse_context_id, push_array(part, u8, 0), part_remaining(part));
         Assert(parse_context.valid);
         push_array(part, char, (i32)parse_context.memory_size);
         
         Gap_Buffer *buffer = &file->state.buffer;
         i32 text_size = buffer_size(buffer);
         
-        i32 mem_size = partition_remaining(part);
+        i32 mem_size = part_remaining(part);
         
         Cpp_Token_Array new_tokens;
         new_tokens.max_count = mem_size/sizeof(Cpp_Token);
@@ -305,7 +305,7 @@ file_relex_parallel(System_Functions *system, Models *models, Editing_File *file
             relex_range.end_token_index - relex_range.start_token_index + extra_tolerance;
         
         Temp_Memory temp = begin_temp_memory(part);
-        Parse_Context parse_context = parse_context_get(&models->parse_context_memory, file->settings.parse_context_id, partition_current(part), partition_remaining(part));
+        Parse_Context parse_context = parse_context_get(&models->parse_context_memory, file->settings.parse_context_id, push_array(part, u8, 0), part_remaining(part));
         Assert(parse_context.valid);
         push_array(part, char, (i32)parse_context.memory_size);
         
@@ -429,13 +429,13 @@ file_relex_serial(System_Functions *system, Models *models, Editing_File *file, 
     Cpp_Token_Array *array = &file->state.token_array;
     
     Temp_Memory temp = begin_temp_memory(part);
-    Parse_Context parse_context = parse_context_get(&models->parse_context_memory, file->settings.parse_context_id, partition_current(part), partition_remaining(part));
+    Parse_Context parse_context = parse_context_get(&models->parse_context_memory, file->settings.parse_context_id, push_array(part, u8, 0), part_remaining(part));
     Assert(parse_context.valid);
     push_array(part, char, (i32)parse_context.memory_size);
     
     Cpp_Token_Array relex_array;
     relex_array.count = 0;
-    relex_array.max_count = partition_remaining(part) / sizeof(Cpp_Token);
+    relex_array.max_count = part_remaining(part) / sizeof(Cpp_Token);
     relex_array.tokens = push_array(part, Cpp_Token, relex_array.max_count);
     
     i32 size = buffer_size(buffer);

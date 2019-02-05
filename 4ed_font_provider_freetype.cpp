@@ -737,8 +737,8 @@ system_font_get_local_stubs(Partition *part){
     terminate_with_null(&dir_str);
     dir_len = dir_str.size;
     
-    partition_reduce(part, dir_max - dir_len - 1);
-    partition_align(part, 8);
+    part_reduce(part, dir_max - dir_len - 1);
+    push_align(part, 8);
     
     File_List file_list = {};
     system_set_file_list(&file_list, (char*)directory, 0, 0, 0);
@@ -753,7 +753,7 @@ system_font_get_local_stubs(Partition *part){
         if (dir_len + len + 1 <= sizeof(list.first->stub.name)){
             Font_Setup *setup = push_array(part, Font_Setup, 1);
             memset(setup, 0, sizeof(*setup));
-            partition_align(part, 8);
+            part_align(part, 8);
             
             sll_push(list.first, list.last, setup);
             

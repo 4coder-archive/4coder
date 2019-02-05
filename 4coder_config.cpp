@@ -72,7 +72,7 @@ config_stringize_errors(Partition *arena, Config *parsed){
     String result = {};
     if (parsed->errors.first != 0){
         result.str = push_array(arena, char, 0);
-        result.memory_size = partition_remaining(arena);
+        result.memory_size = part_remaining(arena);
         for (Config_Error *error = parsed->errors.first;
              error != 0;
              error = error->next){
@@ -1623,7 +1623,7 @@ load_config_and_apply(Application_Links *app, Partition *scratch, Config_Data *c
         
         // Values
         Temp_Memory temp2 = begin_temp_memory(scratch);
-        String space = string_push(scratch, partition_remaining(scratch));
+        String space = string_push(scratch, part_remaining(scratch));
         
         {
             config_feedback_string(&space, "user_name", config->user_name);

@@ -639,7 +639,7 @@ list__parameters(Application_Links *app, Heap *heap, Partition *scratch,
     
     // List all locations into search buffer
     Temp_Memory all_temp = begin_temp_memory(scratch);
-    Partition line_part = partition_sub_part(scratch, (4 << 10));
+    Partition line_part = part_sub_part(scratch, (4 << 10));
     Temp_Memory temp = begin_temp_memory(scratch);
     Buffer_ID prev_match_id = 0;
     bool32 no_matches = true;

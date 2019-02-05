@@ -225,7 +225,7 @@ edit_single__inner(System_Functions *system, Models *models, Editing_File *file,
     edit_fix_markers(system, models, file, layout, desc);
     
     // NOTE(allen): actual text replacement
-    i32 scratch_size = partition_remaining(part);
+    i32 scratch_size = part_remaining(part);
     Assert(scratch_size > 0);
     i32 request_amount = 0;
     Assert(end <= buffer_size(&file->state.buffer));
@@ -341,7 +341,7 @@ edit_batch(System_Functions *system, Models *models, Editing_File *file, Edit_Sp
     edit_fix_markers(system, models, file, layout, desc);
     
     // NOTE(allen): actual text replacement
-    i32 scratch_size = partition_remaining(part);
+    i32 scratch_size = part_remaining(part);
     Buffer_Batch_State state = {};
     i32 request_amount = 0;
     for (;buffer_batch_edit_step(&state, &file->state.buffer, batch, (char*)str_base, batch_size, part->base + part->pos, scratch_size, &request_amount);){

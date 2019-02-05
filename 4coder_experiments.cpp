@@ -448,7 +448,7 @@ CUSTOM_DOC("If the cursor is found to be on the name of a function parameter in 
                             String replace_string = with.string;
                             
                             Buffer_Edit *edits = (Buffer_Edit*)partition_current(part);
-                            int32_t edit_max = (partition_remaining(part))/sizeof(Buffer_Edit);
+                            int32_t edit_max = (part_remaining(part))/sizeof(Buffer_Edit);
                             int32_t edit_count = 0;
                             
                             if (edit_max >= 1){
@@ -592,7 +592,7 @@ write_explicit_enum_values_parameters(Application_Links *app, Write_Explicit_Enu
                         Buffer_Edit *edits = push_array(part, Buffer_Edit, count_estimate);
                         
                         char *string_base = (char*)partition_current(part);
-                        String string = make_string(string_base, 0, partition_remaining(part));
+                        String string = make_string(string_base, 0, part_remaining(part));
                         
                         closed_correctly = false;
                         still_looping = false;
