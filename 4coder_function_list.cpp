@@ -56,17 +56,17 @@ buffered_write_stream_write_int(Application_Links *app, Buffered_Write_Stream *s
 }
 
 static Get_Positions_Results
-get_function_positions(Application_Links *app, Buffer_Summary *buffer, int32_t token_index, Function_Positions *positions_array, int32_t positions_max){
+get_function_positions(Application_Links *app, Buffer_Summary *buffer, int32_t first_token_index, Function_Positions *positions_array, int32_t positions_max){
     Get_Positions_Results result = {};
     
     Token_Range token_range = buffer_get_token_range(app, buffer->buffer_id);
     if (token_range.first != 0){
-        Token_Iterator token_it = make_token_iterator(token_range, token_index);
-        
+        Token_Iterator token_it = make_token_iterator(token_range, first_token_index);
         
         int32_t nest_level = 0;
         int32_t paren_nest_level = 0;
         
+        Cpp_Token *first_paren = 0;
         int32_t first_paren_index = 0;
         int32_t first_paren_position = 0;
         int32_t last_paren_index = 0;
@@ -98,7 +98,8 @@ get_function_positions(Application_Links *app, Buffer_Summary *buffer, int32_t t
                     case CPP_TOKEN_PARENTHESE_OPEN:
                     {
                         if (nest_level == 0){
-                            first_paren_index = token_index;
+                            first_paren = token;
+                            first_paren_index = token_iterator_current_index(&token_it);
                             first_paren_position = token->start;
                             goto paren_mode1;
                         }
@@ -125,7 +126,7 @@ get_function_positions(Application_Links *app, Buffer_Summary *buffer, int32_t t
                     {
                         --paren_nest_level;
                         if (paren_nest_level == 0){
-                            last_paren_index = token_index;
+                            last_paren_index = token_iterator_current_index(&token_it);
                             goto paren_mode2;
                         }
                     }break;
@@ -138,20 +139,25 @@ get_function_positions(Application_Links *app, Buffer_Summary *buffer, int32_t t
         paren_mode2:
         {
             Cpp_Token *restore_point = token_iterator_current(&token_it);
-            int32_t local_index = first_paren_index;
-            int32_t signature_start_index = 0;
             
+            token_iterator_set(&token_it, first_paren);
+            int32_t signature_start_index = 0;
             for (Cpp_Token *token = token_iterator_current(&token_it);
                  token != 0;
                  token = token_iterator_goto_prev(&token_it)){
-                if ((token->flags & CPP_TFLAG_PP_BODY) || (token->flags & CPP_TFLAG_PP_DIRECTIVE) || token->type == CPP_TOKEN_BRACE_CLOSE || token->type == CPP_TOKEN_SEMICOLON || token->type == CPP_TOKEN_PARENTHESE_CLOSE){
-                    ++local_index;
-                    signature_start_index = local_index;
+                if ((token->flags & CPP_TFLAG_PP_BODY) || (token->flags & CPP_TFLAG_PP_DIRECTIVE) ||
+                    token->type == CPP_TOKEN_BRACE_CLOSE || token->type == CPP_TOKEN_SEMICOLON || token->type == CPP_TOKEN_PARENTHESE_CLOSE){
+                    token_iterator_goto_next(&token_it);
+                    signature_start_index = token_iterator_current_index(&token_it);
+                    if (signature_start_index == -1){
+                        signature_start_index = first_paren_index;
+                    }
                     goto paren_mode2_done;
                 }
             }
             
-            // When this loop ends by going all the way back to the beginning set the signature start to 0 and fall through to the printing phase.
+            // When this loop ends by going all the way back to the beginning set the 
+            // signature start to 0 and fall through to the printing phase.
             signature_start_index = 0;
             
             paren_mode2_done:;
@@ -165,7 +171,7 @@ get_function_positions(Application_Links *app, Buffer_Summary *buffer, int32_t t
             
             token_iterator_set(&token_it, restore_point);
             if (result.positions_count >= positions_max){
-                result.next_token_index = token_index;
+                result.next_token_index = token_iterator_current_index(&token_it);
                 result.still_looping = true;
                 goto end;
             }
@@ -187,12 +193,12 @@ print_positions_buffered(Application_Links *app, Buffer_Summary *buffer, Functio
     for (int32_t i = 0; i < positions_count; ++i){
         Function_Positions *positions = &positions_array[i];
         
-        int32_t local_index = positions->sig_start_index;
+        int32_t start_index = positions->sig_start_index;
         int32_t end_index = positions->sig_end_index;
         int32_t open_paren_pos = positions->open_paren_pos;
         int32_t line_number = buffer_get_line_number(app, buffer, open_paren_pos);
         
-        Assert(end_index > local_index);
+        Assert(end_index > start_index);
         
         Token_Range token_range = buffer_get_token_range(app, buffer->buffer_id);
         if (token_range.first != 0){
@@ -202,11 +208,11 @@ print_positions_buffered(Application_Links *app, Buffer_Summary *buffer, Functio
             buffered_write_stream_write(app, stream, make_lit_string(": "));
             
             Cpp_Token prev_token = {};
-            Token_Iterator token_it = make_token_iterator(token_range, local_index);
+            Token_Iterator token_it = make_token_iterator(token_range, start_index);
             for (Cpp_Token *token = token_iterator_current(&token_it);
-                 token != 0;
-                 token = token_iterator_goto_next(&token_it)){
-                if ((token->flags & CPP_TFLAG_PP_BODY) == 0){
+                 token != 0 && token_iterator_current_index(&token_it) <= end_index;
+                 token = token_iterator_goto_next_raw(&token_it)){
+                if ((token->flags & CPP_TFLAG_PP_BODY) == 0 && token->type != CPP_TOKEN_COMMENT){
                     char space[2 << 10];
                     int32_t token_size = token->size;
                     if (token_size > sizeof(space)){
@@ -229,10 +235,6 @@ print_positions_buffered(Application_Links *app, Buffer_Summary *buffer, Functio
                     buffered_write_stream_write(app, stream, make_string(space, token_size));
                     
                     prev_token = *token;
-                }
-                
-                if (local_index == end_index){
-                    break;
                 }
             }
             
