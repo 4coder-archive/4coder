@@ -64,7 +64,7 @@ struct Models{
     Style_Library styles;
     u32 *palette;
     
-    Editing_Layout layout;
+    Layout layout;
     Working_Set working_set;
     Live_Views live_set;
     Parse_Context_Memory parse_context_memory;
@@ -95,6 +95,8 @@ struct Models{
     
     i32 previous_mouse_x;
     i32 previous_mouse_y;
+    
+    Panel *resizing_intermediate_panel;
     
     // System Context
     System_Functions *system;
@@ -132,10 +134,6 @@ enum App_State{
     APP_STATE_COUNT
 };
 
-struct App_State_Resizing{
-    Panel_Divider *divider;
-};
-
 enum Input_Types{
     Input_AnyKey,
     Input_Esc,
@@ -155,7 +153,6 @@ struct App_Vars{
     Models models;
     CLI_List cli_processes;
     App_State state;
-    App_State_Resizing resizing;
 };
 
 enum Coroutine_Type{

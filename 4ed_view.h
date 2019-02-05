@@ -87,11 +87,6 @@ struct Cursor_Limits{
     f32 delta;
 };
 
-struct View_And_ID{
-    View *view;
-    i32 id;
-};
-
 enum{
     GROW_FAILED,
     GROW_NOT_NEEDED,

@@ -92,6 +92,7 @@ typedef double f64;
 #define TentativeAssert(c) Assert(c)
 #define InvalidCodePath Assert(!"Invalid Code Path!")
 #define NotImplemented Assert(!"Not Implemented!")
+#define AssertImplies(a,b) Assert(!(a) || (b))
 
 #define Swap(t,a,b) do { t x = a; a = b; b = x; } while(0)
 

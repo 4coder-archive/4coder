@@ -9,468 +9,439 @@
 
 // TOP
 
-internal void
-panel_init(Panel *panel){
-    panel->view = 0;
-    panel->parent = -1;
-    panel->which_child = 0;
-    panel->screen_region.full = null_i32_rect;
-    panel->screen_region.inner = null_i32_rect;
-    panel->l_margin = 3;
-    panel->r_margin = 3;
-    panel->t_margin = 3;
-    panel->b_margin = 3;
+internal Panel_Split
+make_panel_split(Panel_Split_Kind kind, i32 v){
+    Panel_Split split = {};
+    split.kind = kind;
+    split.v_i32 = v;
+    return(split);
 }
 
-internal Panel_Divider
-panel_divider_zero(){
-    Panel_Divider divider={};
-    return(divider);
+internal Panel_Split
+make_panel_split(Panel_Split_Kind kind, f32 v){
+    Panel_Split split = {};
+    split.kind = kind;
+    split.v_f32 = v;
+    return(split);
 }
 
-internal Divider_And_ID
-layout_alloc_divider(Editing_Layout *layout){
-    Assert(layout->free_divider);
-    
-    Divider_And_ID result;
-    result.divider = layout->free_divider;
-    layout->free_divider = result.divider->next;
-    
-    *result.divider = panel_divider_zero();
-    result.divider->parent = -1;
-    result.divider->child1 = -1;
-    result.divider->child2 = -1;
-    result.id = (i32)(result.divider - layout->dividers);
-    if (layout->panel_count == 1){
-        layout->root = result.id;
+internal Panel_Split
+make_panel_split_50_50(void){
+    return(make_panel_split(PanelSplitKind_Ratio_TL, 0.5f));
+}
+
+internal Panel*
+layout__alloc_panel(Layout *layout){
+    Panel *panel = 0;
+    Node *node = layout->free_panels.next;
+    if (node != &layout->free_panels){
+        dll_remove(node);
+        panel = CastFromMember(Panel, node, node);
     }
-    
-    return(result);
-}
-
-internal Divider_And_ID
-layout_get_divider(Editing_Layout *layout, i32 id){
-    Assert(id >= 0 && id < layout->panel_max_count-1);
-    Divider_And_ID result;
-    result.id = id;
-    result.divider = layout->dividers + id;
-    return(result);
+    return(panel);
 }
 
 internal void
-layout_free_divider(Editing_Layout *layout, Panel_Divider *divider){
-    divider->next = layout->free_divider;
-    layout->free_divider = divider;
-}
-
-internal Panel_And_ID
-layout_alloc_panel(Editing_Layout *layout){
-    Panel_And_ID result = {};
-    
-    Assert(layout->panel_count < layout->panel_max_count);
-    ++layout->panel_count;
-    
-    result.panel = layout->free_sentinel.next;
-    dll_remove(result.panel);
-    dll_insert(&layout->used_sentinel, result.panel);
-    
-    panel_init(result.panel);
-    
-    result.id = (i32)(result.panel - layout->panels);
-    
-    return(result);
+layout__free_panel(Layout *layout, Panel *panel){
+    Assert(panel != layout->active_panel);
+    Assert(panel != layout->root);
+    dll_remove(&panel->node);
+    dll_insert(&layout->free_panels, &panel->node);
 }
 
 internal void
-layout_free_panel(Editing_Layout *layout, Panel *panel){
-    dll_remove(panel);
-    dll_insert(&layout->free_sentinel, panel);
-    --layout->panel_count;
+layout__set_panel_rectangle(Layout *layout, Panel *panel, i32_Rect rect){
+    panel->rect_full = rect;
+    panel->rect_inner = get_inner_rect(rect, layout->margin);
 }
 
-internal Divider_And_ID
-layout_calc_divider_id(Editing_Layout *layout, Panel_Divider *divider){
-    Divider_And_ID result;
-    result.divider = divider;
-    result.id = (i32)(divider - layout->dividers);
-    return result;
-}
-
-struct Split_Result{
-    Panel_Divider *divider;
-    Panel *panel;
-};
-
-internal Split_Result
-layout_split_panel(Editing_Layout *layout, Panel *panel, b32 vertical){
-    Split_Result result = {};
-    Divider_And_ID div = {}, parent_div = {};
-    Panel_And_ID new_panel = {};
-    
-    div = layout_alloc_divider(layout);
-    if (panel->parent != -1){
-        parent_div = layout_get_divider(layout, panel->parent);
-        if (panel->which_child == -1){
-            parent_div.divider->child1 = div.id;
-        }
-        else{
-            parent_div.divider->child2 = div.id;
-        }
-    }
-    
-    div.divider->parent = panel->parent;
-    div.divider->which_child = panel->which_child;
-    if (vertical){
-        div.divider->v_divider = 1;
-    }
-    else{
-        div.divider->v_divider = 0;
-    }
-    div.divider->pos = 0.5f;
-    
-    new_panel = layout_alloc_panel(layout);
-    panel->parent = div.id;
-    panel->which_child = -1;
-    new_panel.panel->parent = div.id;
-    new_panel.panel->which_child = 1;
-    
-    result.divider = div.divider;
-    result.panel = new_panel.panel;
-    
-    return(result);
-}
-
-internal void
-panel_fix_internal_area(Panel *panel){
-    panel->inner.x0 = panel->full.x0 + panel->l_margin;
-    panel->inner.x1 = panel->full.x1 - panel->r_margin;
-    panel->inner.y0 = panel->full.y0 + panel->t_margin;
-    panel->inner.y1 = panel->full.y1 - panel->b_margin;
-}
-
-internal i32_Rect
-layout_get_rect(Editing_Layout *layout, i32 id, i32 which_child){
-    i32 divider_chain[MAX_VIEWS];
-    i32 chain_count = 0;
-    
-    Panel_Divider *dividers = layout->dividers;
-    Panel_Divider *original_div = dividers + id;
-    i32 root = layout->root;
-    
-    Assert(0 <= id && id <= layout->panel_max_count - 1);
-    
-    divider_chain[chain_count++] = id;
-    for (;id != root;){
-        Panel_Divider *div = dividers + id;
-        id = div->parent;
-        divider_chain[chain_count++] = id;
-    }
-    
-    i32_Rect r = i32R(0, 0, layout->full_width, layout->full_height);
-    
-    for (i32 i = chain_count-1; i > 0; --i){
-        Panel_Divider *div = dividers + divider_chain[i];
-        if (div->v_divider){
-            if (div->child1 == divider_chain[i-1]){
-                r.x1 = round32(lerp((f32)r.x0, div->pos, (f32)r.x1));
-            }
-            else{
-                r.x0 = round32(lerp((f32)r.x0, div->pos, (f32)r.x1));
-            }
-        }
-        else{
-            if (div->child1 == divider_chain[i-1]){
-                r.y1 = round32(lerp((f32)r.y0, div->pos, (f32)r.y1));
-            }
-            else{
-                r.y0 = round32(lerp((f32)r.y0, div->pos, (f32)r.y1));
-            }
-        }
-    }
-    
-    switch (which_child){
-        case 1:
+internal i32
+layout__evaluate_split(Panel_Split split, i32 v0, i32 v1){
+    i32 v = 0;
+    switch (split.kind){
+        case PanelSplitKind_Ratio_TL:
         {
-            if (original_div->v_divider){
-                r.x0 = round32(lerp((f32)r.x0, original_div->pos, (f32)r.x1));
-            }
-            else{
-                r.y0 = round32(lerp((f32)r.y0, original_div->pos, (f32)r.y1));
-            }
+            v = round32(lerp((f32)v0, split.v_f32, (f32)v1));
         }break;
+        case PanelSplitKind_Ratio_BR:
+        {
+            v = round32(lerp((f32)v1, split.v_f32, (f32)v0));
+        }break;
+        case PanelSplitKind_FixedPixels_TL:
+        {
+            v = clamp_top(v0 + split.v_i32, v1);
+        }break;
+        case PanelSplitKind_FixedPixels_BR:
+        {
+            v = clamp_bottom(v0, v1 - split.v_i32);
+        }break;
+    }
+    return(v);
+}
+
+internal void
+layout_propogate_sizes_down_from_node(Layout *layout, Panel *panel){
+    if (panel->kind == PanelKind_Intermediate){
+        Panel *tl_panel = panel->tl_panel;
+        Panel *br_panel = panel->br_panel;
         
-        case -1:
-        {
-            if (original_div->v_divider){
-                r.x1 = round32(lerp((f32)r.x0, original_div->pos, (f32)r.x1));
-            }
-            else{
-                r.y1 = round32(lerp((f32)r.y0, original_div->pos, (f32)r.y1));
-            }
-        }break;
+        i32_Rect r1 = panel->rect_full;
+        i32_Rect r2 = panel->rect_full;
+        
+        if (panel->vertical_split){
+            i32 x_pos = layout__evaluate_split(panel->split, r1.x0, r1.x1);
+            r1.x1 = x_pos;
+            r2.x0 = x_pos;
+        }
+        else{
+            i32 y_pos = layout__evaluate_split(panel->split, r1.y0, r1.y1);
+            r1.y1 = y_pos;
+            r2.y0 = y_pos;
+        }
+        
+        layout__set_panel_rectangle(layout, tl_panel, r1);
+        layout__set_panel_rectangle(layout, br_panel, r2);
+        
+        layout_propogate_sizes_down_from_node(layout, tl_panel);
+        layout_propogate_sizes_down_from_node(layout, br_panel);
     }
-    
-    return(r);
 }
 
-internal i32_Rect
-layout_get_panel_rect(Editing_Layout *layout, Panel *panel){
-    Assert(layout->panel_count > 1);
-    i32_Rect r = layout_get_rect(layout, panel->parent, panel->which_child);
-    return(r);
+internal i32
+layout_get_open_panel_count(Layout *layout){
+    return(layout->open_panel_count);
+}
+
+internal Panel*
+layout_get_first_open_panel(Layout *layout){
+    Panel *panel = CastFromMember(Panel, node, layout->open_panels.next);
+    if (panel != 0 && &panel->node == &layout->open_panels){
+        panel = 0;
+    }
+    AssertImplies(panel != 0, panel->kind == PanelKind_Final);
+    return(panel);
+}
+
+internal Panel*
+layout_get_next_open_panel(Layout *layout, Panel *panel){
+    panel = CastFromMember(Panel, node, panel->node.next);
+    if (&panel->node == &layout->open_panels){
+        panel = 0;
+    }
+    AssertImplies(panel != 0, panel->kind == PanelKind_Final);
+    return(panel);
+}
+
+internal Panel*
+layout_get_active_panel(Layout *layout){
+    return(layout->active_panel);
+}
+
+internal Panel*
+layout_split_panel(Layout *layout, Panel *panel, b32 vertical_split, b32 br_split){
+    Panel *new_panel = 0;
+    if (layout->open_panel_count < layout->open_panel_max_count){
+        Panel *intermediate = layout__alloc_panel(layout);
+        new_panel = layout__alloc_panel(layout);
+        
+        dll_insert(&layout->open_panels, &new_panel->node);
+        dll_insert(&layout->intermediate_panels, &intermediate->node);
+        
+        Panel *parent = panel->parent;
+        
+        // link new intermediate and parent
+        intermediate->parent = parent;
+        if (parent != 0){
+            Assert(parent->kind == PanelKind_Intermediate);
+            if (parent->tl_panel == panel){
+                parent->tl_panel = intermediate;
+            }
+            else{
+                Assert(parent->br_panel == panel);
+                parent->br_panel = intermediate;
+            }
+        }
+        else{
+            Assert(layout->root == panel);
+            layout->root = intermediate;
+        }
+        
+        // link new intermediate and child panels
+        panel->parent = intermediate;
+        new_panel->parent = intermediate;
+        if (br_split){
+            intermediate->br_panel = new_panel;
+            intermediate->tl_panel = panel;
+        }
+        else{
+            intermediate->tl_panel = new_panel;
+            intermediate->br_panel = panel;
+        }
+        
+        // init the intermediate
+        intermediate->kind = PanelKind_Intermediate;
+        intermediate->vertical_split = vertical_split;
+        intermediate->split = make_panel_split_50_50();
+        intermediate->screen_region = panel->screen_region;
+        
+        // init the new panel
+        new_panel->kind = PanelKind_Final;
+        new_panel->view = 0;
+        
+        // propogate rectangle sizes down from the new intermediate to
+        // resize the panel and the new panel.
+        layout_propogate_sizes_down_from_node(layout, intermediate);
+        
+        // update layout state
+        layout->open_panel_count += 1;
+        layout->active_panel = new_panel;
+        layout->panel_state_dirty = true;
+    }
+    return(new_panel);
+}
+
+internal b32
+layout_close_panel(Layout *layout, Panel *panel){
+    b32 result = false;
+    if (layout->open_panel_count > 1){
+        Panel *parent = panel->parent;
+        Assert(parent != 0);
+        
+        // find sibling
+        Panel *sibling = 0;
+        if (parent->tl_panel == panel){
+            sibling = parent->br_panel;
+        }
+        else{
+            Assert(parent->br_panel == panel);
+            sibling = parent->tl_panel;
+        }
+        
+        // update layout state
+        if (layout->active_panel == panel){
+            Panel *new_active = sibling;
+            for (;new_active->kind == PanelKind_Intermediate;){
+                new_active = new_active->br_panel;
+            }
+            layout->active_panel = new_active;
+        }
+        layout->panel_state_dirty = true;
+        layout->open_panel_count -= 1;
+        
+        // link grand parent and sibling
+        Panel *g_parent = parent->parent;
+        sibling->parent = g_parent;
+        if (g_parent != 0){
+            if (g_parent->tl_panel == parent){
+                g_parent->tl_panel = sibling;
+            }
+            else{
+                Assert(g_parent->br_panel == parent);
+                g_parent->br_panel = sibling;
+            }
+        }
+        else{
+            Assert(parent == layout->root);
+            layout->root = sibling;
+        }
+        
+        // set sibling's size
+        sibling->screen_region = parent->screen_region;
+        
+        // set the sizes down stream of sibling
+        layout_propogate_sizes_down_from_node(layout, sibling);
+        
+        // free panel and parent
+        layout__free_panel(layout, panel);
+        layout__free_panel(layout, parent);
+        
+        result = true;
+    }
+    return(result);
+}
+
+internal Panel*
+layout_initialize(Partition *part, Layout *layout){
+    i32 panel_alloc_count = MAX_VIEWS*2 - 1;
+    Panel *panels = push_array(part, Panel, panel_alloc_count);
+    
+    layout->margin = 3;
+    layout->open_panel_count = 0;
+    layout->open_panel_max_count = MAX_VIEWS;
+    
+    dll_init_sentinel(&layout->open_panels);
+    dll_init_sentinel(&layout->intermediate_panels);
+    
+    Panel *panel = panels;
+    layout->free_panels.next = &panel->node;
+    panel->node.prev = &layout->free_panels;
+    for (i32 i = 1; i < MAX_VIEWS; i += 1, panel += 1){
+        panel[1].node.prev = &panel[0].node;
+        panel[0].node.next = &panel[1].node;
+    }
+    panel->node.next = &layout->free_panels;
+    layout->free_panels.prev = &panel->node;
+    
+    panel = layout__alloc_panel(layout);
+    panel->parent = 0;
+    panel->kind = PanelKind_Final;
+    panel->view = 0;
+    block_zero_struct(&panel->screen_region);
+    
+    dll_insert(&layout->open_panels, &panel->node);
+    layout->open_panel_count += 1;
+    layout->root = panel;
+    layout->active_panel = panel;
+    layout->panel_state_dirty = true;
+    
+    return(panel);
 }
 
 internal void
-layout_fix_all_panels(Editing_Layout *layout){
-    Panel_Divider *dividers = layout->dividers; AllowLocal(dividers);
-    i32 panel_count = layout->panel_count;
-    
-    if (panel_count > 1){
-        for (Panel *panel = layout->used_sentinel.next;
-             panel != &layout->used_sentinel;
-             panel = panel->next){
-            panel->full = layout_get_panel_rect(layout, panel);
-            panel_fix_internal_area(panel);
-        }
+layout_set_margin(Layout *layout, i32 margin){
+    if (layout->margin != margin){
+        layout->margin = margin;
+        layout__set_panel_rectangle(layout, layout->root, i32R(0, 0, layout->full_dim.x, layout->full_dim.y));
+        layout_propogate_sizes_down_from_node(layout, layout->root);
     }
-    else{
-        Panel *panel = layout->used_sentinel.next;
-        panel->full.x0 = 0;
-        panel->full.y0 = 0;
-        panel->full.x1 = layout->full_width;
-        panel->full.y1 = layout->full_height;
-        panel_fix_internal_area(panel);
-    }
-    
-    layout->panel_state_dirty = 1;
 }
 
 internal void
-layout_refit(Editing_Layout *layout, i32 prev_width, i32 prev_height){
-    Panel_Divider *dividers = layout->dividers;
-    i32 max = layout->panel_max_count - 1;
-    
-    Panel_Divider *divider = dividers;
-    if (layout->panel_count > 1){
-        Assert(prev_width != 0 && prev_height != 0);
-        for (i32 i = 0; i < max; ++i, ++divider){
-            // TODO(casey): Allen, is this doing something?  Is it just reserved for future use I guess?
-            if (divider->v_divider){
-                divider->pos = divider->pos;
-            }
-            else{
-                divider->pos = divider->pos;
-            }
-        }
+layout_set_root_size(Layout *layout, Vec2_i32 dim){
+    if (layout->full_dim != dim){
+        layout->full_dim = dim;
+        layout__set_panel_rectangle(layout, layout->root, i32R(0, 0, dim.x, dim.y));
+        layout_propogate_sizes_down_from_node(layout, layout->root);
     }
-    
-    layout_fix_all_panels(layout);
 }
 
-internal f32
-layout_get_position(Editing_Layout *layout, i32 id){
-    Panel_Divider *dividers = layout->dividers;
-    Panel_Divider *original_div = dividers + id;
-    
-    i32_Rect r = layout_get_rect(layout, id, 0);
-    f32 pos = 0;
-    if (original_div->v_divider){
-        pos = lerp((f32)r.x0, original_div->pos, (f32)r.x1);
+internal Vec2_i32
+layout_get_root_size(Layout *layout){
+    return(layout->full_dim);
+}
+
+internal i32
+layout_get_absolute_position_of_split(Panel *panel){
+    i32 pos = 0;
+    if (panel->vertical_split){
+        pos = layout__evaluate_split(panel->split, panel->rect_full.x0, panel->rect_full.x1);
     }
     else{
-        pos = lerp((f32)r.y0, original_div->pos, (f32)r.y1);
+        pos = layout__evaluate_split(panel->split, panel->rect_full.y0, panel->rect_full.y1);
     }
-    
     return(pos);
 }
 
-internal f32
-layout_compute_position(Editing_Layout *layout, Panel_Divider *divider, i32 pos){
-    Panel_Divider *dividers = layout->dividers;
-    Panel_Divider *original_div = divider;
-    i32 id = (i32)(divider - dividers);
-    
-    i32_Rect r = layout_get_rect(layout, id, 0);
-    f32 l = 0;
-    if (original_div->v_divider){
-        l = unlerp((f32)r.x0, (f32)pos, (f32)r.x1);
-    }
-    else{
-        l = unlerp((f32)r.y0, (f32)pos, (f32)r.y1);
-    }
-    
-    Assert(0.f <= l && l <= 1.f);
-    
-    return(l);
-}
-
-internal void
-layout_compute_abs_step(Editing_Layout *layout, i32 divider_id, i32_Rect rect, i32 *abs_pos){
-    Panel_Divider *div = layout->dividers + divider_id;
-    
-    i32 p0 = 0, p1 = 0;
-    if (div->v_divider){
-        p0 = rect.x0; p1 = rect.x1;
-    }
-    else{
-        p0 = rect.y0; p1 = rect.y1;
-    }
-    
-    i32 pos = lerp(p0, div->pos, p1);
-    i32_Rect r1 = rect, r2 = rect;
-    
-    abs_pos[divider_id] = pos;
-    
-    if (div->v_divider){
-        r1.x1 = pos; r2.x0 = pos;
-    }
-    else{
-        r1.y1 = pos; r2.y0 = pos;
-    }
-    
-    if (div->child1 != -1){
-        layout_compute_abs_step(layout, div->child1, r1, abs_pos);
-    }
-    
-    if (div->child2 != -1){
-        layout_compute_abs_step(layout, div->child2, r2, abs_pos);
-    }
-}
-
-internal void
-layout_compute_absolute_positions(Editing_Layout *layout, i32 *abs_pos){
-    i32_Rect r = i32R(0, 0, layout->full_width, layout->full_height);
-    if (layout->panel_count > 1){
-        layout_compute_abs_step(layout, layout->root, r, abs_pos);
-    }
-}
-
-internal void
-layout_get_min_max_step_up(Editing_Layout *layout, b32 v, i32 divider_id, i32 which_child,
-                           i32 *abs_pos, i32 *min_out, i32 *max_out){
-    Panel_Divider *divider = layout->dividers + divider_id;
-    
-    if (divider->v_divider == v){
-        if (which_child == -1){
-            if (*max_out > abs_pos[divider_id]){
-                *max_out = abs_pos[divider_id];
+internal Range
+layout__get_limiting_range_on_split_children(i32 mid, b32 vertical_split, Panel *panel, Range range){
+    if (panel->kind == PanelKind_Intermediate){
+        if (vertical_split == panel->vertical_split){
+            i32 pos = layout_get_absolute_position_of_split(panel);
+            if (mid < pos && pos < range.max){
+                range.max = pos;
             }
+            else if (range.min < pos && pos < mid){
+                range.min = pos;
+            }
+        }
+        range = layout__get_limiting_range_on_split_children(mid, vertical_split, panel->tl_panel, range);
+        range = layout__get_limiting_range_on_split_children(mid, vertical_split, panel->br_panel, range);
+    }
+    return(range);
+}
+
+internal Range
+layout_get_limiting_range_on_split(Layout *layout, Panel *panel){
+    // root level min max
+    Range range = {};
+    if (panel->vertical_split){
+        range.max = layout->full_dim.x;
+    }
+    else{
+        range.max = layout->full_dim.y;
+    }
+    
+    // get mid
+    i32 mid = layout_get_absolute_position_of_split(panel);
+    
+    // parents min max
+    for (Panel *panel_it = panel;
+         panel_it != 0;
+         panel_it = panel_it->parent){
+        if (panel->vertical_split == panel_it->vertical_split){
+            i32 pos = layout_get_absolute_position_of_split(panel_it);
+            if (mid < pos && pos < range.max){
+                range.max = pos;
+            }
+            else if (range.min < pos && pos < mid){
+                range.min = pos;
+            }
+        }
+    }
+    
+    // children min max
+    if (panel->kind == PanelKind_Intermediate){
+        range = layout__get_limiting_range_on_split_children(mid, panel->vertical_split, panel->tl_panel, range);
+        range = layout__get_limiting_range_on_split_children(mid, panel->vertical_split, panel->br_panel, range);
+    }
+    
+    return(range);
+}
+
+internal void
+layout__reverse_evaluate_panel_split(Panel *panel, i32 position){
+    i32 v0 = 0;
+    i32 v1 = 0;
+    if (panel->vertical_split){
+        v0 = panel->rect_full.x0;
+        v1 = panel->rect_full.x1;
+    }
+    else{
+        v0 = panel->rect_full.y0;
+        v1 = panel->rect_full.y1;
+    }
+    switch (panel->split.kind){
+        case PanelSplitKind_Ratio_TL:
+        {
+            panel->split.v_f32 = unlerp((f32)v0, (f32)position, (f32)v1);
+        }break;
+        case PanelSplitKind_Ratio_BR:
+        {
+            panel->split.v_f32 = unlerp((f32)v1, (f32)position, (f32)v0);
+        }break;
+        case PanelSplitKind_FixedPixels_TL:
+        {
+            panel->split.v_i32 = clamp(v0, position, v1) - v0;
+        }break;
+        case PanelSplitKind_FixedPixels_BR:
+        {
+            panel->split.v_i32 = v1 - clamp(v0, position, v1);
+        }break;
+    }
+}
+
+internal void
+layout__set_split_absolute_position_inner(Panel *panel){
+    if (panel->kind == PanelKind_Intermediate){
+        i32_Rect r = panel->rect_full;
+        i32 position = 0;
+        if (panel->vertical_split){
+            position = layout__evaluate_split(panel->split, r.x0, r.x1);
         }
         else{
-            if (*min_out < abs_pos[divider_id]){
-                *min_out = abs_pos[divider_id];
-            }
+            position = layout__evaluate_split(panel->split, r.y0, r.y1);
         }
-    }
-    
-    if (divider->parent != -1){
-        layout_get_min_max_step_up(layout, v, divider->parent, divider->which_child, abs_pos, min_out, max_out);
+        layout__reverse_evaluate_panel_split(panel, position);
     }
 }
 
 internal void
-layout_get_min_max_step_down(Editing_Layout *layout, b32 v, i32 divider_id, i32 which_child, i32 *abs_pos, i32 *min_out, i32 *max_out){
-    Panel_Divider *divider = layout->dividers + divider_id;
-    
-    // NOTE(allen): The min/max is switched here, because children on the -1 side
-    // effect min, while if you are on the -1 side your parent effects max.
-    if (divider->v_divider == v){
-        if (which_child == -1){
-            if (*min_out < abs_pos[divider_id]){
-                *min_out = abs_pos[divider_id];
-            }
-        }
-        else{
-            if (*max_out > abs_pos[divider_id]){
-                *max_out = abs_pos[divider_id];
-            }
-        }
-    }
-    
-    if (divider->child1 != -1){
-        layout_get_min_max_step_down(layout, v, divider->child1, which_child,
-                                     abs_pos, min_out, max_out);
-    }
-    
-    if (divider->child2 != -1){
-        layout_get_min_max_step_down(layout, v, divider->child2, which_child,
-                                     abs_pos, min_out, max_out);
-    }
-}
-
-internal void
-layout_get_min_max(Editing_Layout *layout, Panel_Divider *divider, i32 *abs_pos, i32 *min_out, i32 *max_out){
-    *min_out = 0;
-    *max_out = max_i32;
-    
-    if (layout->panel_count > 1){
-        if (divider->parent != -1){
-            layout_get_min_max_step_up(layout, divider->v_divider, divider->parent, divider->which_child,
-                                       abs_pos, min_out, max_out);
-        }
-        
-        if (divider->child1 != -1){
-            layout_get_min_max_step_down(layout, divider->v_divider, divider->child1, -1,
-                                         abs_pos, min_out, max_out);
-        }
-        
-        if (divider->child2 != -1){
-            layout_get_min_max_step_down(layout, divider->v_divider, divider->child2, 1,
-                                         abs_pos, min_out, max_out);
-        }
-    }
-    else{
-        if (divider->v_divider){
-            *max_out = layout->full_width;
-        }
-        else{
-            *max_out = layout->full_height;
-        }
-    }
-}
-
-internal void
-layout_update_pos_step(Editing_Layout *layout, i32 divider_id, i32_Rect rect, i32 *abs_pos){
-    Panel_Divider *div = layout->dividers + divider_id;
-    
-    i32 p0 = 0, p1 = 0;
-    if (div->v_divider){
-        p0 = rect.x0; p1 = rect.x1;
-    }
-    else{
-        p0 = rect.y0; p1 = rect.y1;
-    }
-    
-    i32 pos = abs_pos[divider_id];
-    i32_Rect r1 = rect, r2 = rect;
-    f32 lpos = unlerp((f32)p0, (f32)pos, (f32)p1);
-    lpos = clamp(0.f, lpos, 1.f);
-    
-    div->pos = lpos;
-    
-    if (div->v_divider){
-        pos = clamp(r1.x0, pos, r2.x1);
-        r1.x1 = pos; r2.x0 = pos;
-    }
-    else{
-        pos = clamp(r1.y0, pos, r2.y1);
-        r1.y1 = pos; r2.y0 = pos;
-    }
-    
-    if (div->child1 != -1){
-        layout_update_pos_step(layout, div->child1, r1, abs_pos);
-    }
-    
-    if (div->child2 != -1){
-        layout_update_pos_step(layout, div->child2, r2, abs_pos);
-    }
-}
-
-internal void
-layout_update_all_positions(Editing_Layout *layout, i32 *abs_pos){
-    i32_Rect r = i32R(0, 0, layout->full_width, layout->full_height);
-    if (layout->panel_count > 1){
-        layout_update_pos_step(layout, layout->root, r, abs_pos);
+layout_set_split_absolute_position(Layout *layout, Panel *panel, i32 absolute_position){
+    if (panel->kind == PanelKind_Intermediate){
+        layout__reverse_evaluate_panel_split(panel, absolute_position);
+        layout__set_split_absolute_position_inner(panel->tl_panel);
+        layout__set_split_absolute_position_inner(panel->br_panel);
+        layout_propogate_sizes_down_from_node(layout, panel);
     }
 }
 

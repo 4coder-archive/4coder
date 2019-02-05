@@ -66,24 +66,16 @@ internal void
 file_cursor_to_end(System_Functions *system, Models *models, Editing_File *file){
     Assert(file != 0);
     i32 pos = buffer_size(&file->state.buffer);
-    for (Panel *panel = models->layout.used_sentinel.next;
-         panel != &models->layout.used_sentinel;
-         panel = panel->next){
+    Layout *layout = &models->layout;
+    for (Panel *panel = layout_get_first_open_panel(layout);
+         panel != 0;
+         panel = layout_get_next_open_panel(layout, panel)){
         View *view = panel->view;
         if (view->transient.file_data.file != file){
             continue;
         }
         view_cursor_move(system, view, pos);
         view->transient.edit_pos.mark = view->transient.edit_pos.cursor.pos;
-    }
-}
-
-internal void
-do_feedback_message(System_Functions *system, Models *models, String value){
-    Editing_File *file = models->message_buffer;
-    if (file != 0){
-        output_file_append(system, models, file, value);
-        file_cursor_to_end(system, models, file);
     }
 }
 
@@ -110,14 +102,6 @@ do_feedback_message(System_Functions *system, Models *models, String value){
 
 #define COMMAND_DECL(n) internal void command_##n(System_Functions *system, Models *models, Command_Binding binding)
 
-internal View*
-panel_make_empty(System_Functions *system, Models *models, Panel *panel){
-    Assert(panel->view == 0);
-    View_And_ID new_view = live_set_alloc_view(&models->mem.heap, &models->lifetime_allocator, &models->live_set, panel);
-    view_set_file(system, models, new_view.view, models->scratch_buffer);
-    return(new_view.view);
-}
-
 COMMAND_DECL(null){}
 
 internal void
@@ -133,7 +117,7 @@ view_undo_redo(System_Functions *system, Models *models, View *view, Edit_Stack 
 }
 
 COMMAND_DECL(undo){
-    Panel *active_panel = &models->layout.panels[models->layout.active_panel];
+    Panel *active_panel = layout_get_active_panel(&models->layout);
     View *view = active_panel->view;
     if (view_lock_flags(view) != 0){
         return;
@@ -147,7 +131,7 @@ COMMAND_DECL(undo){
 }
 
 COMMAND_DECL(redo){
-    Panel *active_panel = &models->layout.panels[models->layout.active_panel];
+    Panel *active_panel = layout_get_active_panel(&models->layout);
     View *view = active_panel->view;
     if (view_lock_flags(view) != 0){
         return;
@@ -894,39 +878,13 @@ App_Init_Sig(app_init){
     models->config_api = api;
     models->app_links.cmd_context = models;
     
-    Partition *partition = &models->mem.part;
+    Partition *part = &models->mem.part;
     
-    i32 panel_max_count = MAX_VIEWS;
-    models->layout.panel_max_count = panel_max_count;
-    i32 divider_max_count = panel_max_count - 1;
-    models->layout.panel_count = 0;
-    
-    Panel *panels = push_array(partition, Panel, panel_max_count);
-    models->layout.panels = panels;
-    
-    dll_init_sentinel(&models->layout.free_sentinel);
-    dll_init_sentinel(&models->layout.used_sentinel);
-    
-    Panel *panel = panels;
-    for (i32 i = 0; i < panel_max_count; ++i, ++panel){
-        dll_insert(&models->layout.free_sentinel, panel);
-    }
-    
-    Panel_Divider *dividers = push_array(partition, Panel_Divider, divider_max_count);
-    models->layout.dividers = dividers;
-    
-    Panel_Divider *div = dividers;
-    for (i32 i = 0; i < divider_max_count-1; ++i, ++div){
-        div->next = (div + 1);
-    }
-    div->next = 0;
-    models->layout.free_divider = dividers;
-    
+    // NOTE(allen): live set
     {
         models->live_set.count = 0;
-        models->live_set.max = panel_max_count;
-        
-        models->live_set.views = push_array(partition, View, models->live_set.max);
+        models->live_set.max = MAX_VIEWS;
+        models->live_set.views = push_array(part, View, models->live_set.max);
         
         //dll_init_sentinel
         models->live_set.free_sentinel.transient.next = &models->live_set.free_sentinel;
@@ -948,7 +906,7 @@ App_Init_Sig(app_init){
     
     {
         umem memsize = KB(8);
-        void *mem = push_array(partition, u8, (i32)memsize);
+        void *mem = push_array(part, u8, (i32)memsize);
         parse_context_init_memory(&models->parse_context_memory, mem, memsize);
         parse_context_add_default(&models->parse_context_memory, &models->mem.heap);
     }
@@ -963,12 +921,10 @@ App_Init_Sig(app_init){
     }
     
     dynamic_variables_init(&models->variable_layout);
-    dynamic_workspace_init(&models->mem.heap, &models->lifetime_allocator,
-                           DynamicWorkspace_Global, 0,
-                           &models->dynamic_workspace);
+    dynamic_workspace_init(&models->mem.heap, &models->lifetime_allocator, DynamicWorkspace_Global, 0, &models->dynamic_workspace);
     
     // NOTE(allen): file setup
-    working_set_init(system, &models->working_set, partition, &vars->models.mem.heap);
+    working_set_init(system, &models->working_set, part, &vars->models.mem.heap);
     models->working_set.default_display_width = DEFAULT_DISPLAY_WIDTH;
     models->working_set.default_minimum_base_display_width = DEFAULT_MINIMUM_BASE_DISPLAY_WIDTH;
     
@@ -991,7 +947,7 @@ App_Init_Sig(app_init){
     // NOTE(allen): title space
     models->has_new_title = true;
     models->title_capacity = KB(4);
-    models->title_space = push_array(partition, char, models->title_capacity);
+    models->title_space = push_array(part, char, models->title_capacity);
     {
         String builder = make_string_cap(models->title_space, 0, models->title_capacity);
         append(&builder, WINDOW_NAME);
@@ -1002,7 +958,7 @@ App_Init_Sig(app_init){
     models->system = system;
     models->vars = vars;
     
-    // NOTE(allen): init first panel
+    // NOTE(allen): init baked in buffers
     File_Init init_files[] = {
         { make_lit_string("*messages*"), &models->message_buffer, true , },
         { make_lit_string("*scratch*"),  &models->scratch_buffer, false, },
@@ -1011,7 +967,7 @@ App_Init_Sig(app_init){
     Heap *heap = &models->mem.heap;
     for (i32 i = 0; i < ArrayCount(init_files); ++i){
         Editing_File *file = working_set_alloc_always(&models->working_set, heap, &models->lifetime_allocator);
-        buffer_bind_name(models, heap, partition, &models->working_set, file, init_files[i].name);
+        buffer_bind_name(models, heap, part, &models->working_set, file, init_files[i].name);
         
         if (init_files[i].ptr != 0){
             *init_files[i].ptr = file;
@@ -1029,14 +985,20 @@ App_Init_Sig(app_init){
         file->settings.unwrapped_lines = true;
     }
     
-    Panel_And_ID p = layout_alloc_panel(&models->layout);
-    panel_make_empty(system, models, p.panel);
-    models->layout.active_panel = p.id;
+    // NOTE(allen): setup first panel
+    {
+        Panel *panel = layout_initialize(part, &models->layout);
+        View *new_view = live_set_alloc_view(&models->mem.heap, &models->lifetime_allocator, &models->live_set);
+        panel->view = new_view;
+        new_view->transient.panel = panel;
+        view_set_file(system, models, new_view, models->scratch_buffer);
+    }
     
+    // NOTE(allen): hot directory
     hot_directory_init(&models->hot_directory, current_directory);
     
     // NOTE(allen): child proc list setup
-    vars->cli_processes = make_cli_list(partition, 16);
+    vars->cli_processes = make_cli_list(part, MAX_VIEWS);
     
     // NOTE(allen): init GUI keys
     models->user_up_key = key_up;
@@ -1104,18 +1066,9 @@ App_Step_Sig(app_step){
     }
     
     // NOTE(allen): reorganizing panels on screen
-    i32 prev_width = models->layout.full_width;
-    i32 prev_height = models->layout.full_height;
-    i32 current_width = target->width;
-    i32 current_height = target->height;
-    {
-        models->layout.full_width = current_width;
-        models->layout.full_height = current_height;
-        
-        if (prev_width != current_width || prev_height != current_height){
-            layout_refit(&models->layout, prev_width, prev_height);
-        }
-    }
+    Vec2_i32 prev_dim = layout_get_root_size(&models->layout);
+    Vec2_i32 current_dim = V2(target->width, target->height);
+    layout_set_root_size(&models->layout, current_dim);
     
     // NOTE(allen): First frame initialization
     if (input->first_step){
@@ -1242,8 +1195,8 @@ App_Step_Sig(app_step){
     }
     
     if (input->mouse.x != models->prev_x || input->mouse.y != models->prev_y){
-        b32 was_in_window = hit_check(models->prev_x, models->prev_y, i32R(0, 0, prev_width, prev_height));
-        b32 is_in_window  = hit_check(input->mouse.x, input->mouse.y, i32R(0, 0, current_width, current_height));
+        b32 was_in_window = hit_check(models->prev_x, models->prev_y, i32R(0, 0, prev_dim.x, prev_dim.y));
+        b32 is_in_window  = hit_check(input->mouse.x, input->mouse.y, i32R(0, 0, current_dim.x, current_dim.y));
         if (is_in_window || was_in_window){
             mouse_event.keycode = key_mouse_move;
             input->keys.keys[input->keys.count++] = mouse_event;
@@ -1255,72 +1208,34 @@ App_Step_Sig(app_step){
         input->keys.keys[input->keys.count++] = mouse_event;
     }
     
+    // NOTE(allen): expose layout
+    Layout *layout = &models->layout;
+    
     // NOTE(allen): mouse hover status
     Panel *mouse_panel = 0;
-    b32 mouse_in_edit_area = false;
-    b32 mouse_in_margin_area = false;
-    b32 mouse_on_divider = false;
-    b32 mouse_divider_vertical = false;
-    i32 mouse_divider_id = 0;
-    i32 mouse_divider_side = 0;
-    
-    i32 mx = input->mouse.x;
-    i32 my = input->mouse.y;
-    for (Panel *panel = models->layout.used_sentinel.next;
-         panel != &models->layout.used_sentinel;
-         panel = panel->next){
-        if (hit_check(mx, my, panel->inner)){
-            mouse_panel = panel;
-            mouse_in_edit_area = true;
-        }
-        else if (hit_check(mx, my, panel->full)){
-            mouse_panel = panel;
-            mouse_in_margin_area = true;
-            
-            if (mx >= panel->inner.x0 && mx < panel->inner.x1){
-                if (my > panel->inner.y0){
-                    mouse_divider_side = -1;
-                }
-                else{
-                    mouse_divider_side = 1;
-                }
-            }
-            else{
-                mouse_divider_vertical = true;
-                if (mx > panel->inner.x0){
-                    mouse_divider_side = -1;
-                }
-                else{
-                    mouse_divider_side = 1;
-                }
-            }
-            
-            if (models->layout.panel_count > 1){
-                mouse_divider_id = panel->parent;
-                
-                i32 which_child = panel->which_child;
-                for (;;){
-                    Divider_And_ID div = layout_get_divider(&models->layout, mouse_divider_id);
-                    if (which_child == mouse_divider_side && div.divider->v_divider == mouse_divider_vertical){
-                        mouse_on_divider = true;
-                        break;
+    Panel *divider_panel = 0;
+    b32 mouse_in_margin = false;
+    Vec2_i32 mouse = V2(input->mouse.x, input->mouse.y);
+    {
+        for (Panel *panel = layout_get_first_open_panel(layout);
+             panel != 0;
+             panel = layout_get_next_open_panel(layout, panel)){
+            if (hit_check(mouse.x, mouse.y, panel->rect_full)){
+                mouse_panel = panel;
+                if (!hit_check(mouse.x, mouse.y, panel->rect_inner)){
+                    mouse_in_margin = true;
+                    for (divider_panel = mouse_panel->parent;
+                         divider_panel != 0;
+                         divider_panel = divider_panel->parent){
+                        if (hit_check(mouse.x, mouse.y, divider_panel->rect_inner)){
+                            break;
+                        }
                     }
-                    if (mouse_divider_id == models->layout.root){
-                        break;
-                    }
-                    mouse_divider_id = div.divider->parent;
-                    which_child = div.divider->which_child;
                 }
-                
             }
-            else{
-                mouse_on_divider = false;
-                mouse_divider_id = 0;
+            if (mouse_panel != 0){
+                break;
             }
-        }
-        
-        if (mouse_panel != 0){
-            break;
         }
     }
     
@@ -1328,7 +1243,7 @@ App_Step_Sig(app_step){
     Key_Event_Data *key_ptr = input->keys.keys;
     Key_Event_Data *key_end = key_ptr + input->keys.count;
     for (;key_ptr < key_end; key_ptr += 1){
-        Panel *active_panel = &models->layout.panels[models->layout.active_panel];
+        Panel *active_panel = layout_get_active_panel(layout);
         View *view = active_panel->view;
         Assert(view != 0);
         
@@ -1344,7 +1259,7 @@ App_Step_Sig(app_step){
                     EventConsume_Command,
                 };
                 i32 event_consume_mode = EventConsume_Command;
-                if (keycode == key_mouse_left && input->mouse.press_l && mouse_on_divider){
+                if (keycode == key_mouse_left && input->mouse.press_l && (divider_panel != 0)){
                     event_consume_mode = EventConsume_BeginResize;
                 }
                 else if (keycode == key_mouse_left && input->mouse.press_l && mouse_panel != 0 && mouse_panel != active_panel){
@@ -1355,56 +1270,7 @@ App_Step_Sig(app_step){
                     case EventConsume_BeginResize:
                     {
                         vars->state = APP_STATE_RESIZING;
-                        Divider_And_ID div = layout_get_divider(&models->layout, mouse_divider_id);
-                        vars->resizing.divider = div.divider;
-                        
-                        f32 min = 0;
-                        f32 max = 0;
-                        if (mouse_divider_vertical){
-                            max = (f32)models->layout.full_width;
-                        }
-                        else{
-                            max = (f32)models->layout.full_height;
-                        }
-                        f32 mid = layout_get_position(&models->layout, mouse_divider_id);
-                        
-                        i32 divider_id = div.id;
-                        do{
-                            Divider_And_ID other_div = layout_get_divider(&models->layout, divider_id);
-                            b32 divider_match = (other_div.divider->v_divider == mouse_divider_vertical);
-                            f32 pos = layout_get_position(&models->layout, divider_id);
-                            if (divider_match && pos > mid && pos < max){
-                                max = pos;
-                            }
-                            else if (divider_match && pos < mid && pos > min){
-                                min = pos;
-                            }
-                            divider_id = other_div.divider->parent;
-                        }while(divider_id != -1);
-                        
-                        Temp_Memory temp = begin_temp_memory(&models->mem.part);
-                        i32 *divider_stack = push_array(&models->mem.part, i32, models->layout.panel_count);
-                        i32 top = 0;
-                        divider_stack[top++] = div.id;
-                        for (;top > 0;){
-                            --top;
-                            Divider_And_ID other_div = layout_get_divider(&models->layout, divider_stack[top]);
-                            b32 divider_match = (other_div.divider->v_divider == mouse_divider_vertical);
-                            f32 pos = layout_get_position(&models->layout, divider_stack[top]);
-                            if (divider_match && pos > mid && pos < max){
-                                max = pos;
-                            }
-                            else if (divider_match && pos < mid && pos > min){
-                                min = pos;
-                            }
-                            if (other_div.divider->child1 != -1){
-                                divider_stack[top++] = other_div.divider->child1;
-                            }
-                            if (other_div.divider->child2 != -1){
-                                divider_stack[top++] = other_div.divider->child2;
-                            }
-                        }
-                        end_temp_memory(temp);
+                        models->resizing_intermediate_panel = divider_panel;
                     }break;
                     
                     case EventConsume_ClickChangeView:
@@ -1422,7 +1288,7 @@ App_Step_Sig(app_step){
                             force_abort_coroutine(system, models, view);
                         }
                         
-                        models->layout.active_panel = (i32)(mouse_panel - models->layout.panels);
+                        layout->active_panel = mouse_panel;
                         app_result.animating = true;
                         active_panel = mouse_panel;
                         view = active_panel->view;
@@ -1478,21 +1344,11 @@ App_Step_Sig(app_step){
                 }
                 else if (keycode == key_mouse_move){
                     if (input->mouse.l){
-                        Panel_Divider *divider = vars->resizing.divider;
-                        i32 mouse_position = 0;
-                        
-                        i32 absolute_positions[MAX_VIEWS];
-                        i32 min = 0;
-                        i32 max = 0;
-                        i32 div_id = (i32)(divider - models->layout.dividers);
-                        
-                        layout_compute_absolute_positions(&models->layout, absolute_positions);
-                        mouse_position = (divider->v_divider)?(mx):(my);
-                        layout_get_min_max(&models->layout, divider, absolute_positions, &min, &max);
-                        absolute_positions[div_id] = clamp(min, mouse_position, max);
-                        layout_update_all_positions(&models->layout, absolute_positions);
-                        
-                        layout_fix_all_panels(&models->layout);
+                        Panel *split = models->resizing_intermediate_panel;
+                        Range limits = layout_get_limiting_range_on_split(layout, split);
+                        i32 mouse_position = (split->vertical_split)?(mouse.x):(mouse.y);
+                        mouse_position = clamp(limits.min, mouse_position, limits.max);
+                        layout_set_split_absolute_position(layout, split, mouse_position);
                     }
                     else{
                         vars->state = APP_STATE_EDIT;
@@ -1510,11 +1366,11 @@ App_Step_Sig(app_step){
     
     // NOTE(allen): step panels
     {
-        Panel *active_panel = &models->layout.panels[models->layout.active_panel];
+        Panel *active_panel = layout_get_active_panel(layout);
         
-        for (Panel *panel = models->layout.used_sentinel.next;
-             panel != &models->layout.used_sentinel;
-             panel = panel->next){
+        for (Panel *panel = layout_get_first_open_panel(layout);
+             panel != 0;
+             panel = layout_get_next_open_panel(layout, panel)){
             View *view = panel->view;
             
             GUI_Scroll_Vars *scroll_vars = 0;
@@ -1533,7 +1389,7 @@ App_Step_Sig(app_step){
             }
             
             b32 active = (panel == active_panel);
-            Input_Process_Result ip_result = do_step_file_view(system, view, models, panel->inner, active, dt, *scroll_vars, max_y);
+            Input_Process_Result ip_result = do_step_file_view(system, view, models, panel->rect_inner, active, dt, *scroll_vars, max_y);
             
             if (ip_result.is_animating){
                 app_result.animating = true;
@@ -1552,9 +1408,9 @@ App_Step_Sig(app_step){
     
     // NOTE(allen): on the first frame there should be no scrolling
     if (input->first_step){
-        for (Panel *panel = models->layout.used_sentinel.next;
-             panel != &models->layout.used_sentinel;
-             panel = panel->next){
+        for (Panel *panel = layout_get_first_open_panel(layout);
+             panel != 0;
+             panel = layout_get_next_open_panel(layout, panel)){
             View *view = panel->view;
             GUI_Scroll_Vars *scroll_vars = &view->transient.edit_pos.scroll;
             scroll_vars->scroll_x = (f32)scroll_vars->target_x;
@@ -1578,30 +1434,31 @@ App_Step_Sig(app_step){
                         Partition *scratch = &models->mem.part;
                         
                         Temp_Memory temp = begin_temp_memory(scratch);
-                        Buffer_ID *ids = push_array(scratch, Buffer_ID, 0);
                         Node *first = working_set->edit_finished_list.next;
                         Node *stop = &working_set->edit_finished_list;
+                        
+                        Editing_File **file_ptrs = push_array(scratch, Editing_File*, 0);
                         for (Node *node = first;
                              node != stop;
                              node = node->next){
-                            Editing_File *file = CastFromMember(Editing_File, edit_finished_mark_node, node);
-                            Buffer_ID *new_id = push_array(scratch, Buffer_ID, 1);
-                            *new_id = file->id.id;
-                            
+                            Editing_File **file_ptr = push_array(scratch, Editing_File*, 1);
+                            *file_ptr = CastFromMember(Editing_File, edit_finished_mark_node, node);
                         }
-                        i32 id_count = (i32)(push_array(scratch, Buffer_ID, 0) - ids);
+                        i32 id_count = (i32)(push_array(scratch, Editing_File*, 0) - file_ptrs);
+                        
+                        Buffer_ID *ids = push_array(scratch, Buffer_ID, id_count);
+                        for (i32 i = 0; i < id_count; i += 1){
+                            ids[i] = file_ptrs[i]->id.id;
+                        }
                         
                         working_set->do_not_mark_edits = true;
                         hook_file_edit_finished(&models->app_links, ids, id_count);
                         working_set->do_not_mark_edits = false;
                         
-                        for (Node *node = first, *next = 0;
-                             node != stop;
-                             node = next){
-                            next = node->next;
-                            node->next = 0;
-                            node->prev = 0;
+                        for (i32 i = 0; i < id_count; i += 1){
+                            block_zero_struct(&file_ptrs[i]->edit_finished_mark_node);
                         }
+                        
                         dll_init_sentinel(&working_set->edit_finished_list);
                         working_set->time_of_next_edit_finished_signal = 0;
                         
@@ -1630,15 +1487,15 @@ App_Step_Sig(app_step){
     {
         begin_render_section(target, system);
         
-        Panel *active_panel = &models->layout.panels[models->layout.active_panel];
+        Panel *active_panel = layout_get_active_panel(layout);
         View *active_view = active_panel->view;
         
         // NOTE(allen): render the panels
-        for (Panel *panel = models->layout.used_sentinel.next;
-             panel != &models->layout.used_sentinel;
-             panel = panel->next){
-            i32_Rect full = panel->full;
-            i32_Rect inner = panel->inner;
+        for (Panel *panel = layout_get_first_open_panel(layout);
+             panel != 0;
+             panel = layout_get_next_open_panel(layout, panel)){
+            i32_Rect full = panel->rect_full;
+            i32_Rect inner = panel->rect_inner;
             
             View *view = panel->view;
             Style *style = &models->styles.styles[0];
@@ -1648,7 +1505,7 @@ App_Step_Sig(app_step){
             GUI_Scroll_Vars *scroll_vars = &view->transient.edit_pos.scroll;
             
             b32 active = (panel == active_panel);
-            do_render_file_view(system, view, models, scroll_vars, active_view, panel->inner, active, target);
+            do_render_file_view(system, view, models, scroll_vars, active_view, inner, active, target);
             
             u32 margin_color = 0;
             if (active){
@@ -1677,22 +1534,21 @@ App_Step_Sig(app_step){
     }
     
     // NOTE(allen): get cursor type
-    if (mouse_in_edit_area){
+    if (mouse_panel != 0 && !mouse_in_margin){
         app_result.mouse_cursor_type = APP_MOUSE_CURSOR_ARROW;
     }
-    else if (mouse_in_margin_area){
-        if (mouse_on_divider){
-            if (mouse_divider_vertical){
-                app_result.mouse_cursor_type = APP_MOUSE_CURSOR_LEFTRIGHT;
-            }
-            else{
-                app_result.mouse_cursor_type = APP_MOUSE_CURSOR_UPDOWN;
-            }
+    else if (divider_panel != 0){
+        if (divider_panel->vertical_split){
+            app_result.mouse_cursor_type = APP_MOUSE_CURSOR_LEFTRIGHT;
         }
         else{
-            app_result.mouse_cursor_type = APP_MOUSE_CURSOR_ARROW;
+            app_result.mouse_cursor_type = APP_MOUSE_CURSOR_UPDOWN;
         }
     }
+    else{
+        app_result.mouse_cursor_type = APP_MOUSE_CURSOR_ARROW;
+    }
+    
     models->prev_mouse_panel = mouse_panel;
     
     app_result.lctrl_lalt_is_altgr = models->settings.lctrl_lalt_is_altgr;

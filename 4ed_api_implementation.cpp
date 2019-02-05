@@ -70,7 +70,7 @@ fill_view_summary(System_Functions *system, View_Summary *view, View *vptr, Live
         view->cursor = vptr->transient.edit_pos.cursor;
         view->preferred_x = vptr->transient.edit_pos.preferred_x;
         
-        view->view_region = vptr->transient.panel->inner;
+        view->view_region = vptr->transient.panel->rect_inner;
         view->file_region = vptr->transient.file_region;
         if (vptr->transient.ui_mode){
             view->scroll_vars = vptr->transient.ui_scroll;
@@ -212,7 +212,7 @@ DOC_SEE(Command_ID)
         result = true;
     }
     else{
-        print_message(app,literal("WARNING: An invalid Command_ID was passed to exec_command."));
+        print_message(app, literal("WARNING: An invalid Command_ID was passed to exec_command."));
     }
     
     return(result);
@@ -367,7 +367,7 @@ DOC_SEE(Command_Line_Interface_Flag)
     
     done:;
     if (!result){
-        do_feedback_message(system, models, feedback_str);
+        print_message(app, feedback_str.str, feedback_str.size);
     }
     
     end_temp_memory(temp);
@@ -1346,23 +1346,25 @@ DOC_SEE(Buffer_Identifier)
                 file_free(system, &models->app_links, &models->mem.heap, &models->lifetime_allocator, file);
                 working_set_free_file(&models->mem.heap, working_set, file);
                 
+                Layout *layout = &models->layout;
+                
                 Node *used = &working_set->used_sentinel;
-                Node *node = used->next;
-                for (Panel *panel = models->layout.used_sentinel.next;
-                     panel != &models->layout.used_sentinel;
-                     panel = panel->next){
+                Node *file_node = used->next;
+                for (Panel *panel = layout_get_first_open_panel(layout);
+                     panel != 0;
+                     panel = layout_get_next_open_panel(layout, panel)){
                     View *view = panel->view;
                     if (view->transient.file_data.file == file){
-                        Assert(node != used);
+                        Assert(file_node != used);
                         view->transient.file_data.file = 0;
-                        Editing_File *new_file = CastFromMember(Editing_File, main_chain_node, node);
+                        Editing_File *new_file = CastFromMember(Editing_File, main_chain_node, file_node);
                         view_set_file(system, models, view, new_file);
-                        if (node->next != used){
-                            node = node->next;
+                        if (file_node->next != used){
+                            file_node = file_node->next;
                         }
                         else{
-                            node = node->next->next;
-                            Assert(node != used);
+                            file_node = file_node->next->next;
+                            Assert(file_node != used);
                         }
                     }
                 }
@@ -1407,9 +1409,10 @@ Reopen_Buffer(Application_Links *app, Buffer_Summary *buffer, Buffer_Reopen_Flag
                     View *vptrs[16];
                     i32 vptr_count = 0;
                     
-                    for (Panel *panel = models->layout.used_sentinel.next;
-                         panel != &models->layout.used_sentinel;
-                         panel = panel->next){
+                    Layout *layout = &models->layout;
+                    for (Panel *panel = layout_get_first_open_panel(layout);
+                         panel != 0;
+                         panel = layout_get_next_open_panel(layout, panel)){
                         View *view_it = panel->view;
                         if (view_it->transient.file_data.file != file){
                             continue;
@@ -1455,33 +1458,31 @@ Reopen_Buffer(Application_Links *app, Buffer_Summary *buffer, Buffer_Reopen_Flag
 
 internal void
 get_view_first__internal(Models *models, View_Summary *view){
-    Editing_Layout *layout = &models->layout;
-    Panel *panel = layout->used_sentinel.next;
-    Assert(panel != &layout->used_sentinel);
+    Panel *panel = layout_get_first_open_panel(&models->layout);
     fill_view_summary(models->system, view, panel->view, models);
 }
 
 internal void
 get_view_next__internal(Models *models, View_Summary *view){
     System_Functions *system = models->system;
-    Editing_Layout *layout = &models->layout;
+    Layout *layout = &models->layout;
     Live_Views *live_set = &models->live_set;
     i32 index = view->view_id - 1;
     if (index >= 0 && index < live_set->max){
         View *vptr = live_set->views + index;
         Panel *panel = vptr->transient.panel;
         if (panel != 0){
-            panel = panel->next;
+            panel = layout_get_next_open_panel(layout, panel);
         }
-        if (panel != 0 && panel != &layout->used_sentinel){
+        if (panel != 0){
             fill_view_summary(system, view, panel->view, models);
         }
         else{
-            memset(view, 0, sizeof(*view));
+            block_zero_struct(view);
         }
     }
     else{
-        memset(view, 0, sizeof(*view));
+        block_zero_struct(view);
     }
 }
 
@@ -1564,12 +1565,12 @@ DOC_SEE(Access_Flag)
 */{
     Models *models = (Models*)app->cmd_context;
     System_Functions *system = models->system;
-    Panel *panel = models->layout.panels + models->layout.active_panel;
+    Panel *panel = layout_get_active_panel(&models->layout);
     Assert(panel->view != 0);
     View_Summary view = {};
     fill_view_summary(system, &view, panel->view, &models->live_set, &models->working_set);
     if (!access_test(view.lock_flags, access)){
-        memset(&view, 0, sizeof(view));
+        block_zero_struct(&view);
     }
     return(view);
 }
@@ -1586,52 +1587,20 @@ DOC_SEE(View_Split_Position)
 */{
     Models *models = (Models*)app->cmd_context;
     System_Functions *system = models->system;
+    Layout *layout = &models->layout;
     View *vptr = imp_get_view(models, view_location);
     Panel *panel = vptr->transient.panel;
     View_Summary result = {};
-    
-    if (models->layout.panel_count < models->layout.panel_max_count){
-        b32 vsplit = ((position == ViewSplit_Left) || (position == ViewSplit_Right));
-        b32 grtsplit = ((position == ViewSplit_Bottom) || (position == ViewSplit_Right));
-        
-        Split_Result split = layout_split_panel(&models->layout, panel, vsplit);
-        
-        Panel *grtpanel = split.panel;
-        Panel *lsrpanel = panel;
-        
-        if (!grtsplit){
-            Swap(i32, panel->which_child, split.panel->which_child);
-            Swap(Panel*, grtpanel, lsrpanel);
-        }
-        
-        split.panel->screen_region = panel->screen_region;
-        if (vsplit){
-            i32 x_pos = round32(lerp((f32)lsrpanel->full.x0, split.divider->pos, (f32)lsrpanel->full.x1));
-            
-            grtpanel->full.x0 = x_pos;
-            grtpanel->full.x1 = lsrpanel->full.x1;
-            lsrpanel->full.x1 = x_pos;
-        }
-        else{
-            i32 y_pos = round32(lerp((f32)lsrpanel->full.y0, split.divider->pos, (f32)lsrpanel->full.y1));
-            
-            grtpanel->full.y0 = y_pos;
-            grtpanel->full.y1 = lsrpanel->full.y1;
-            lsrpanel->full.y1 = y_pos;
-        }
-        
-        panel_fix_internal_area(panel);
-        panel_fix_internal_area(split.panel);
-        split.panel->prev_inner = split.panel->inner;
-        
-        models->layout.active_panel = (i32)(split.panel - models->layout.panels);
-        panel_make_empty(system, models, split.panel);
-        
-        fill_view_summary(system, &result, split.panel->view, models);
-        
-        models->layout.panel_state_dirty = true;
+    b32 vertical_split = ((position == ViewSplit_Left) || (position == ViewSplit_Right));
+    b32 br_split = ((position == ViewSplit_Bottom) || (position == ViewSplit_Right));
+    Panel *new_panel  = layout_split_panel(layout, panel, vertical_split, br_split);
+    if (new_panel != 0){
+        View *new_view = live_set_alloc_view(&models->mem.heap, &models->lifetime_allocator, &models->live_set);
+        new_panel->view = new_view;
+        new_view->transient.panel = new_panel;
+        view_set_file(system, models, new_view, models->scratch_buffer);
+        fill_view_summary(system, &result, new_view, models);
     }
-    
     return(result);
 }
 
@@ -1648,82 +1617,17 @@ in the system, the call will fail.)
 
 */{
     Models *models = (Models*)app->cmd_context;
+    Layout *layout = &models->layout;
     View *vptr = imp_get_view(models, view);
     
     bool32 result = false;
-    
-    if (vptr != 0 && models->layout.panel_count > 1){
-        Panel *panel = vptr->transient.panel;
-        
-        live_set_free_view(&models->mem.heap, &models->lifetime_allocator, &models->live_set, vptr);
-        panel->view = 0;
-        
-        Divider_And_ID div = layout_get_divider(&models->layout, panel->parent);
-        
-        // This divider cannot have two child dividers.
-        Assert(div.divider->child1 == -1 || div.divider->child2 == -1);
-        
-        // Get the child who needs to fill in this node's spot
-        i32 child = div.divider->child1;
-        if (child == -1) child = div.divider->child2;
-        
-        i32 parent = div.divider->parent;
-        i32 which_child = div.divider->which_child;
-        
-        // Fill the child in the slot this node use to hold
-        if (parent == -1){
-            Assert(models->layout.root == div.id);
-            models->layout.root = child;
+    if (vptr != 0){
+        if (layout_close_panel(layout, vptr->transient.panel)){
+            live_set_free_view(&models->mem.heap, &models->lifetime_allocator, &models->live_set, vptr);
+            result = true;
         }
-        else{
-            Divider_And_ID parent_div = layout_get_divider(&models->layout, parent);
-            if (which_child == -1){
-                parent_div.divider->child1 = child;
-            }
-            else{
-                parent_div.divider->child2 = child;
-            }
-        }
-        
-        // If there was a child divider, give it information about it's new parent.
-        if (child != -1){
-            Divider_And_ID child_div = layout_get_divider(&models->layout, child);
-            child_div.divider->parent = parent;
-            child_div.divider->which_child = div.divider->which_child;
-        }
-        
-        // What is the new active panel?
-        i32 active = -1;
-        if (child == -1){
-            for (Panel *panel_ptr = models->layout.used_sentinel.next;
-                 panel_ptr != &models->layout.used_sentinel;
-                 panel_ptr = panel_ptr->next){
-                if (panel_ptr != panel && panel_ptr->parent == div.id){
-                    panel_ptr->parent = parent;
-                    panel_ptr->which_child = which_child;
-                    active = (i32)(panel_ptr - models->layout.panels);
-                    break;
-                }
-            }
-        }
-        else{
-            Panel *panel_ptr = panel->next;
-            if (panel_ptr == &models->layout.used_sentinel) panel_ptr = panel_ptr->next;
-            Assert(panel_ptr != panel);
-            active = (i32)(panel_ptr - models->layout.panels);
-        }
-        Assert(active != -1 && panel != models->layout.panels + active);
-        
-        // If the panel we're closing was previously active, we have to switch to it's sibling.
-        if (models->layout.active_panel == (i32)(panel - models->layout.panels)){
-            models->layout.active_panel = active;
-        }
-        
-        layout_free_divider(&models->layout, div.divider);
-        layout_free_panel(&models->layout, panel);
-        layout_fix_all_panels(&models->layout);
     }
-    
+        
     return(result);
 }
 
@@ -1741,9 +1645,8 @@ DOC_SEE(get_active_view)
     View *vptr = imp_get_view(models, view);
     bool32 result = false;
     if (vptr != 0){
+        models->layout.active_panel = vptr->transient.panel;
         result = true;
-        Panel *panel = vptr->transient.panel;
-        models->layout.active_panel = (i32)(panel - models->layout.panels);
     }
     return(result);
 }
@@ -1862,31 +1765,59 @@ If the view_id does not specify a valid view, the returned scope is null.)
 }
 
 API_EXPORT bool32
-View_Set_Split_Proportion(Application_Links *app, View_Summary *view, float t)
+View_Set_Split(Application_Links *app, View_Summary *view, View_Split_Kind kind, float t)
 /*
 DOC_PARAM(view, The view parameter specifies which view shall have it's size adjusted.)
-DOC_PARAM(t, The t parameter specifies the proportion of the containing box that the view should occupy. t should be in [0,1].)
+DOC_PARAM(kind, There are different kinds of split, see View_Split_Kind documentation for more information.)
+DOC_PARAM(t, The t parameter specifies the proportion of the containing box that the view should occupy.
+
+For proportion values, t will be clamped to [0,1].
+
+For integer values, t will be rounded to the nearest integer.
+)
+DOC_SEE(View_Split_Kind)
 DOC_RETURN(This call returns non-zero on success.)
 */{
-    bool32 result = false;
+    Models *models = (Models*)app->cmd_context;
+    Layout *layout = &models->layout;
     
-    if (0 <= t && t <= 1.f){
-        Models *models = (Models*)app->cmd_context;
-        Editing_Layout *layout = &models->layout;
-        View *vptr = imp_get_view(models, view);
-        
-        if (vptr != 0){
-            result = true;
-            
-            Panel *panel = vptr->transient.panel;
-            Panel_Divider *div = layout->dividers + panel->parent;
-            
-            if (panel->which_child == 1){
-                t = 1 - t;
+    View *vptr = imp_get_view(models, view);
+    bool32 result = false;
+    if (vptr != 0){
+        Panel *panel = vptr->transient.panel;
+        Panel *intermediate = panel->parent;
+        if (intermediate != 0){
+            Assert(intermediate->kind == PanelKind_Intermediate);
+            switch (kind){
+                case ViewSplitKind_Ratio:
+                {
+                    if (intermediate->br_panel == panel){
+                        intermediate->split.kind = PanelSplitKind_Ratio_BR;
+                    }
+                    else{
+                        intermediate->split.kind = PanelSplitKind_Ratio_TL;
+                    }
+                    intermediate->split.v_f32 = clamp(0.f, t, 1.f);
+                }break;
+                
+                case ViewSplitKind_FixedPixels:
+                {
+                    if (intermediate->br_panel == panel){
+                        intermediate->split.kind = PanelSplitKind_FixedPixels_BR;
+                    }
+                    else{
+                        intermediate->split.kind = PanelSplitKind_FixedPixels_TL;
+                    }
+                    intermediate->split.v_i32 = round32(t);
+                }break;
+                
+                default:
+                {
+                    print_message(app, literal("Invalid split kind passed to view_set_split, no change made to view layout"));
+                }break;
             }
-            
-            div->pos = t;
-            layout_fix_all_panels(layout);
+            layout_propogate_sizes_down_from_node(layout, intermediate);
+            result = true;
         }
     }
     
@@ -1899,26 +1830,22 @@ View_Get_Enclosure_Rect(Application_Links *app, View_Summary *view)
 DOC_PARAM(view, The view whose parent rent will be returned.)
 DOC_RETURN(The rectangle of the panel containing this view.)
 */{
-    // TODO(allen): do(update implementation of layout for better queries and traversals)
-    
-    i32_Rect result = {};
-    
+    // TODO(allen): do(remove this from the API and put it in the custom helpers)
+    // we should just have full tree traversal API for the splits between views.
     Models *models = (Models*)app->cmd_context;
-    Editing_Layout *layout = &models->layout;
     View *vptr = imp_get_view(models, view);
-    
+    i32_Rect result = {};
     if (vptr != 0){
         Panel *panel = vptr->transient.panel;
-        
-        i32_Rect a = layout_get_rect(layout, panel->parent, panel->which_child);
-        i32_Rect b = layout_get_rect(layout, panel->parent, !panel->which_child);
-        
-        result.x0 = Min(a.x0, b.x0);
-        result.y0 = Min(a.y0, b.y0);
-        result.x1 = Max(a.x0, b.x1);
-        result.y1 = Max(a.y0, b.y1);
+        Assert(panel != 0);
+        Panel *parent = panel->parent;
+        if (parent != 0){
+            result = parent->rect_full;
+        }
+        else{
+            result = panel->rect_full;
+        }
     }
-    
     return(result);
 }
 
@@ -3091,7 +3018,6 @@ DOC_SEE(User_Input)
     System_Functions *system = models->system;
     Coroutine_Head *coroutine = (Coroutine_Head*)app->current_coroutine;
     User_Input result = {};
-    
     if (app->type_coroutine == Co_Command){
         Assert(coroutine != 0);
         *((u32*)coroutine->out + 0) = get_type;
@@ -3099,7 +3025,6 @@ DOC_SEE(User_Input)
         system->yield_coroutine(coroutine);
         result = *(User_Input*)coroutine->in;
     }
-    
     return(result);
 }
 
@@ -3182,7 +3107,7 @@ only use for this call is in an interactive command that makes calls to get_user
 )
 */{
     Models *models = (Models*)app->cmd_context;
-    Panel *active_panel = &models->layout.panels[models->layout.active_panel];
+    Panel *active_panel = layout_get_active_panel(&models->layout);
     View *active_view = active_panel->view;
     Query_Slot *slot = alloc_query_slot(&active_view->transient.query_set);
     bool32 result = (slot != 0);
@@ -3200,7 +3125,7 @@ DOC_PARAM(flags, This parameter is not currently used and should be 0 for now.)
 DOC(Stops showing the particular query bar specified by the bar parameter.)
 */{
     Models *models = (Models*)app->cmd_context;
-    Panel *active_panel = &models->layout.panels[models->layout.active_panel];
+    Panel *active_panel = layout_get_active_panel(&models->layout);
     View *active_view = active_panel->view;
     free_query_slot(&active_view->transient.query_set, bar);
 }
@@ -3213,7 +3138,12 @@ DOC_PARAM(len, The len parameter specifies the length of the str string.)
 DOC(This call posts a string to the *messages* buffer.)
 */{
     Models *models = (Models*)app->cmd_context;
-    do_feedback_message(models->system, models, make_string(str, len));
+    System_Functions *system = models->system;
+    Editing_File *file = models->message_buffer;
+    if (file != 0){
+        output_file_append(system, models, file, make_string(str, len));
+        file_cursor_to_end(system, models, file);
+    }
 }
 
 API_EXPORT int32_t

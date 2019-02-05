@@ -95,7 +95,6 @@ struct Vec4{
         struct{
             f32 r, g, b, a;
         };
-        
         struct{
             f32 h, s, l, __a;
         };
@@ -120,31 +119,120 @@ struct Vec4{
     };
 };
 
+struct Vec2_i32{
+    union{
+        struct{
+            i32 x, y;
+        };
+        struct{
+            i32 v[2];
+        };
+    };
+};
+
+struct Vec3_i32{
+    union{
+        struct{
+            i32 x, y, z;
+        };
+        struct{
+            i32 r, g, b;
+        };
+        struct{
+            Vec2 xy;
+            i32 _z;
+        };
+        struct{
+            i32 _x;
+            Vec2 yz;
+        };
+        struct{
+            i32 v[3];
+        };
+    };
+};
+
+struct Vec4_i32{
+    union{
+        struct{
+            i32 r, g, b, a;
+        };
+        struct{
+            i32 h, s, l, __a;
+        };
+        struct{
+            i32 x, y, z, w;
+        };
+        struct{
+            Vec3 rgb;
+            i32 _a;
+        };
+        struct{
+            Vec3 xyz;
+            i32 _w;
+        };
+        struct{
+            i32 _x;
+            Vec3 yzw;
+        };
+        struct{
+            i32 v[4];
+        };
+    };
+};
+
 internal Vec2
 V2(f32 x, f32 y){
-    Vec2 result;
+    Vec2 result = {};
     result.x = x;
     result.y = y;
-    return result;
+    return(result);
 }
 
 internal Vec3
 V3(f32 x, f32 y, f32 z){
-    Vec3 result;
+    Vec3 result = {};
     result.x = x;
     result.y = y;
     result.z = z;
-    return result;
+    return(result);
 }
 
 internal Vec4
 V4(f32 x, f32 y, f32 z, f32 w){
-    Vec4 result;
+    Vec4 result = {};
     result.x = x;
     result.y = y;
     result.z = z;
     result.w = w;
-    return result;
+    return(result);
+}
+
+internal Vec2_i32
+V2(i32 x, i32 y){
+    Vec2_i32 result = {};
+    result.x = x;
+    result.y = y;
+    return(result);
+}
+
+internal Vec3_i32
+V3(i32 x, i32 y, i32 z){
+    Vec3_i32 result = {};
+    result.x = x;
+    result.y = y;
+    result.z = z;
+    return(result);
+}
+
+internal Vec4_i32
+V4(i32 x, i32 y, i32 z, i32 w){
+    Vec4_i32 result = {};
+    result.x = x;
+    result.y = y;
+    result.z = z;
+    result.w = w;
+    return(result);
 }
 
 internal Vec2
@@ -152,7 +240,7 @@ operator+(Vec2 a, Vec2 b){
     Vec2 result;
     result.x = a.x + b.x;
     result.y = a.y + b.y;
-    return(a + b);
+    return(result);
 }
 
 internal Vec3
@@ -161,7 +249,7 @@ operator+(Vec3 a, Vec3 b){
     result.x = a.x + b.x;
     result.y = a.y + b.y;
     result.z = a.z + b.z;
-    return(a + b);
+    return(result);
 }
 
 internal Vec4
@@ -171,7 +259,7 @@ operator+(Vec4 a, Vec4 b){
     result.y = a.y + b.y;
     result.z = a.z + b.z;
     result.w = a.w + b.w;
-    return(a + b);
+    return(result);
 }
 
 internal Vec2
@@ -308,6 +396,66 @@ operator*=(Vec4 &a, f32 k){
     return a;
 }
 
+internal b32
+operator==(Vec2 a, Vec2 b){
+    return(a.x == b.x && a.y == b.y);
+}
+
+internal b32
+operator!=(Vec2 a, Vec2 b){
+    return(!(a.x == b.x && a.y == b.y));
+}
+
+internal b32
+operator==(Vec3 a, Vec3 b){
+    return(a.x == b.x && a.y == b.y && a.z == b.z);
+}
+
+internal b32
+operator!=(Vec3 a, Vec3 b){
+    return(!(a.x == b.x && a.y == b.y && a.z == b.z));
+}
+
+internal b32
+operator==(Vec4 a, Vec4 b){
+    return(a.x == b.x && a.y == b.y && a.z == b.z && a.w == b.w);
+}
+
+internal b32
+operator!=(Vec4 a, Vec4 b){
+    return(!(a.x == b.x && a.y == b.y && a.z == b.z && a.w == b.w));
+}
+
+internal b32
+operator==(Vec2_i32 a, Vec2_i32 b){
+    return(a.x == b.x && a.y == b.y);
+}
+
+internal b32
+operator!=(Vec2_i32 a, Vec2_i32 b){
+    return(!(a.x == b.x && a.y == b.y));
+}
+
+internal b32
+operator==(Vec3_i32 a, Vec3_i32 b){
+    return(a.x == b.x && a.y == b.y && a.z == b.z);
+}
+
+internal b32
+operator!=(Vec3_i32 a, Vec3_i32 b){
+    return(!(a.x == b.x && a.y == b.y && a.z == b.z));
+}
+
+internal b32
+operator==(Vec4_i32 a, Vec4_i32 b){
+    return(a.x == b.x && a.y == b.y && a.z == b.z && a.w == b.w);
+}
+
+internal b32
+operator!=(Vec4_i32 a, Vec4_i32 b){
+    return(!(a.x == b.x && a.y == b.y && a.z == b.z && a.w == b.w));
+}
+
 internal f32
 dot(Vec2 a, Vec2 b){
     f32 result;
@@ -412,7 +560,7 @@ lerp(Vec4 a, f32 t, Vec4 b){
 internal f32
 unlerp(f32 a, f32 x, f32 b){
     f32 r = x;
-    if (b > a){
+    if (b != a){
         r = (x - a) / (b - a);
     }
     return(r);
@@ -423,7 +571,7 @@ clamp(f32 a, f32 n, f32 z){
     if (n < a){
         n = a;
     }
-    else if (n  > z){
+    else if (n > z){
         n = z;
     }
     return(n);
@@ -434,7 +582,7 @@ clamp(i32 a, i32 n, i32 z){
     if (n < a){
         n = a;
     }
-    else if (n  > z){
+    else if (n > z){
         n = z;
     }
     return(n);
@@ -445,7 +593,7 @@ clamp(i64 a, i64 n, i64 z){
     if (n < a){
         n = a;
     }
-    else if (n  > z){
+    else if (n > z){
         n = z;
     }
     return(n);
@@ -456,7 +604,7 @@ clamp(u32 a, u32 n, u32 z){
     if (n < a){
         n = a;
     }
-    else if (n  > z){
+    else if (n > z){
         n = z;
     }
     return(n);
@@ -467,7 +615,7 @@ clamp(u64 a, u64 n, u64 z){
     if (n < a){
         n = a;
     }
-    else if (n  > z){
+    else if (n > z){
         n = z;
     }
     return(n);
@@ -667,7 +815,7 @@ hit_check(int32_t x, int32_t y, i32_Rect rect){
 
 internal i32_Rect
 get_inner_rect(i32_Rect outer, i32 margin){
-    i32_Rect r;
+    i32_Rect r = {};
     r.x0 = outer.x0 + margin;
     r.y0 = outer.y0 + margin;
     r.x1 = outer.x1 - margin;
@@ -677,7 +825,7 @@ get_inner_rect(i32_Rect outer, i32 margin){
 
 internal f32_Rect
 get_inner_rect(f32_Rect outer, f32 margin){
-    f32_Rect r;
+    f32_Rect r = {};
     r.x0 = outer.x0 + margin;
     r.y0 = outer.y0 + margin;
     r.x1 = outer.x1 - margin;

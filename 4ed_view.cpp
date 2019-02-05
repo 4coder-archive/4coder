@@ -19,27 +19,21 @@ view_get_map(View *view){
     }
 }
 
-internal View_And_ID
-live_set_alloc_view(Heap *heap, Lifetime_Allocator *lifetime_allocator, Live_Views *live_set, Panel *panel){
+internal View*
+live_set_alloc_view(Heap *heap, Lifetime_Allocator *lifetime_allocator, Live_Views *live_set){
     Assert(live_set->count < live_set->max);
     ++live_set->count;
     
-    View_And_ID result = {};
-    result.view = live_set->free_sentinel.transient.next;
-    result.id = (i32)(result.view - live_set->views);
-    Assert(result.id == result.view->persistent.id);
+    View *result = live_set->free_sentinel.transient.next;
+    Assert((i32)(result - live_set->views) == result->persistent.id);
     
-    result.view->transient.next->transient.prev = result.view->transient.prev;
-    result.view->transient.prev->transient.next = result.view->transient.next;
-    memset(&result.view->transient, 0, sizeof(result.view->transient));
+    result->transient.next->transient.prev = result->transient.prev;
+    result->transient.prev->transient.next = result->transient.next;
+    block_zero_struct(&result->transient);
     
-    result.view->transient.in_use = true;
-    panel->view = result.view;
-    result.view->transient.panel = panel;
-    
-    init_query_set(&result.view->transient.query_set);
-    
-    result.view->transient.lifetime_object = lifetime_alloc_object(heap, lifetime_allocator, DynamicWorkspace_View, result.view);
+    result->transient.in_use = true;
+    init_query_set(&result->transient.query_set);
+    result->transient.lifetime_object = lifetime_alloc_object(heap, lifetime_allocator, DynamicWorkspace_View, result);
     
     return(result);
 }
@@ -344,11 +338,11 @@ view_set_file(System_Functions *system, Models *models, View *view, Editing_File
 ////////////////////////////////
 
 internal b32
-file_is_viewed(Editing_Layout *layout, Editing_File *file){
+file_is_viewed(Layout *layout, Editing_File *file){
     b32 is_viewed = false;
-    for (Panel *panel = layout->used_sentinel.next;
-         panel != &layout->used_sentinel;
-         panel = panel->next){
+    for (Panel *panel = layout_get_first_open_panel(layout);
+         panel != 0;
+         panel = layout_get_next_open_panel(layout, panel)){
         View *view = panel->view;
         if (view->transient.file_data.file == file){
             is_viewed = true;
@@ -360,11 +354,11 @@ file_is_viewed(Editing_Layout *layout, Editing_File *file){
 
 internal void
 adjust_views_looking_at_file_to_new_cursor(System_Functions *system, Models *models, Editing_File *file){
-    Editing_Layout *layout = &models->layout;
+    Layout *layout = &models->layout;
     
-    for (Panel *panel = layout->used_sentinel.next;
-         panel != &layout->used_sentinel;
-         panel = panel->next){
+    for (Panel *panel = layout_get_first_open_panel(layout);
+         panel != 0;
+         panel = layout_get_next_open_panel(layout, panel)){
         View *view = panel->view;
         if (view->transient.file_data.file == file){
             if (!view->transient.file_data.show_temp_highlight){
@@ -388,11 +382,11 @@ file_full_remeasure(System_Functions *system, Models *models, Editing_File *file
     file_measure_wraps(system, &models->mem, file, font);
     adjust_views_looking_at_file_to_new_cursor(system, models, file);
     
-    Editing_Layout *layout = &models->layout;
+    Layout *layout = &models->layout;
     
-    for (Panel *panel = layout->used_sentinel.next;
-         panel != &layout->used_sentinel;
-         panel = panel->next){
+    for (Panel *panel = layout_get_first_open_panel(layout);
+         panel != 0;
+         panel = layout_get_next_open_panel(layout, panel)){
         View *view = panel->view;
         if (view->transient.file_data.file == file){
             view->transient.line_height = font.metrics->height;

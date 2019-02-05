@@ -1596,5 +1596,17 @@ begin_notepad_mode(Application_Links *app){
     }
 }
 
+////////////////////////////////
+
+static bool32
+view_set_split_proportion(Application_Links *app, View_Summary *view, float t){
+    return(view_set_split(app, view, ViewSplitKind_Ratio, t));
+}
+
+static bool32
+view_set_split_pixel_size(Application_Links *app, View_Summary *view, int32_t t){
+    return(view_set_split(app, view, ViewSplitKind_FixedPixels, (float)t));
+}
+
 // BOTTOM
 

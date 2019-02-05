@@ -329,7 +329,12 @@ ENUM(int32_t, View_Split_Position){
     /* DOC(This value indicates that the new view should be left of the existing view.) */
     ViewSplit_Left,
     /* DOC(This value indicates that the new view should be right of the existing view.) */
-    ViewSplit_Right
+    ViewSplit_Right,
+};
+
+ENUM(int32_t, View_Split_Kind){
+    ViewSplitKind_Ratio,
+    ViewSplitKind_FixedPixels,
 };
 
 /* DOC(Key_Code is the alias for key codes including raw codes and codes translated to textual input that takes modifiers into account.) */
@@ -641,8 +646,6 @@ STRUCT i32_Rect{
     int32_t x1;
     int32_t y1;
 };
-
-GLOBAL_VAR i32_Rect null_i32_rect = {};
 
 /*
 DOC(A four corner axis aligned rectangle, with floating point coordinates.)

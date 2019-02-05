@@ -39,7 +39,7 @@ struct Application_Links;
 #define VIEW_GET_SETTING_SIG(n) bool32 n(Application_Links *app, View_Summary *view, View_Setting_ID setting, int32_t *value_out)
 #define VIEW_SET_SETTING_SIG(n) bool32 n(Application_Links *app, View_Summary *view, View_Setting_ID setting, int32_t value)
 #define VIEW_GET_MANAGED_SCOPE_SIG(n) Managed_Scope n(Application_Links *app, View_ID view_id)
-#define VIEW_SET_SPLIT_PROPORTION_SIG(n) bool32 n(Application_Links *app, View_Summary *view, float t)
+#define VIEW_SET_SPLIT_SIG(n) bool32 n(Application_Links *app, View_Summary *view, View_Split_Kind kind, float t)
 #define VIEW_GET_ENCLOSURE_RECT_SIG(n) i32_Rect n(Application_Links *app, View_Summary *view)
 #define VIEW_COMPUTE_CURSOR_SIG(n) bool32 n(Application_Links *app, View_Summary *view, Buffer_Seek seek, Full_Cursor *cursor_out)
 #define VIEW_SET_CURSOR_SIG(n) bool32 n(Application_Links *app, View_Summary *view, Buffer_Seek seek, bool32 set_preferred_x)
@@ -167,7 +167,7 @@ typedef SET_ACTIVE_VIEW_SIG(Set_Active_View_Function);
 typedef VIEW_GET_SETTING_SIG(View_Get_Setting_Function);
 typedef VIEW_SET_SETTING_SIG(View_Set_Setting_Function);
 typedef VIEW_GET_MANAGED_SCOPE_SIG(View_Get_Managed_Scope_Function);
-typedef VIEW_SET_SPLIT_PROPORTION_SIG(View_Set_Split_Proportion_Function);
+typedef VIEW_SET_SPLIT_SIG(View_Set_Split_Function);
 typedef VIEW_GET_ENCLOSURE_RECT_SIG(View_Get_Enclosure_Rect_Function);
 typedef VIEW_COMPUTE_CURSOR_SIG(View_Compute_Cursor_Function);
 typedef VIEW_SET_CURSOR_SIG(View_Set_Cursor_Function);
@@ -297,7 +297,7 @@ Set_Active_View_Function *set_active_view;
 View_Get_Setting_Function *view_get_setting;
 View_Set_Setting_Function *view_set_setting;
 View_Get_Managed_Scope_Function *view_get_managed_scope;
-View_Set_Split_Proportion_Function *view_set_split_proportion;
+View_Set_Split_Function *view_set_split;
 View_Get_Enclosure_Rect_Function *view_get_enclosure_rect;
 View_Compute_Cursor_Function *view_compute_cursor;
 View_Set_Cursor_Function *view_set_cursor;
@@ -426,7 +426,7 @@ Set_Active_View_Function *set_active_view_;
 View_Get_Setting_Function *view_get_setting_;
 View_Set_Setting_Function *view_set_setting_;
 View_Get_Managed_Scope_Function *view_get_managed_scope_;
-View_Set_Split_Proportion_Function *view_set_split_proportion_;
+View_Set_Split_Function *view_set_split_;
 View_Get_Enclosure_Rect_Function *view_get_enclosure_rect_;
 View_Compute_Cursor_Function *view_compute_cursor_;
 View_Set_Cursor_Function *view_set_cursor_;
@@ -563,7 +563,7 @@ app_links->set_active_view_ = Set_Active_View;\
 app_links->view_get_setting_ = View_Get_Setting;\
 app_links->view_set_setting_ = View_Set_Setting;\
 app_links->view_get_managed_scope_ = View_Get_Managed_Scope;\
-app_links->view_set_split_proportion_ = View_Set_Split_Proportion;\
+app_links->view_set_split_ = View_Set_Split;\
 app_links->view_get_enclosure_rect_ = View_Get_Enclosure_Rect;\
 app_links->view_compute_cursor_ = View_Compute_Cursor;\
 app_links->view_set_cursor_ = View_Set_Cursor;\
@@ -692,7 +692,7 @@ static bool32 set_active_view(Application_Links *app, View_Summary *view){return
 static bool32 view_get_setting(Application_Links *app, View_Summary *view, View_Setting_ID setting, int32_t *value_out){return(app->view_get_setting(app, view, setting, value_out));}
 static bool32 view_set_setting(Application_Links *app, View_Summary *view, View_Setting_ID setting, int32_t value){return(app->view_set_setting(app, view, setting, value));}
 static Managed_Scope view_get_managed_scope(Application_Links *app, View_ID view_id){return(app->view_get_managed_scope(app, view_id));}
-static bool32 view_set_split_proportion(Application_Links *app, View_Summary *view, float t){return(app->view_set_split_proportion(app, view, t));}
+static bool32 view_set_split(Application_Links *app, View_Summary *view, View_Split_Kind kind, float t){return(app->view_set_split(app, view, kind, t));}
 static i32_Rect view_get_enclosure_rect(Application_Links *app, View_Summary *view){return(app->view_get_enclosure_rect(app, view));}
 static bool32 view_compute_cursor(Application_Links *app, View_Summary *view, Buffer_Seek seek, Full_Cursor *cursor_out){return(app->view_compute_cursor(app, view, seek, cursor_out));}
 static bool32 view_set_cursor(Application_Links *app, View_Summary *view, Buffer_Seek seek, bool32 set_preferred_x){return(app->view_set_cursor(app, view, seek, set_preferred_x));}
@@ -821,7 +821,7 @@ static bool32 set_active_view(Application_Links *app, View_Summary *view){return
 static bool32 view_get_setting(Application_Links *app, View_Summary *view, View_Setting_ID setting, int32_t *value_out){return(app->view_get_setting_(app, view, setting, value_out));}
 static bool32 view_set_setting(Application_Links *app, View_Summary *view, View_Setting_ID setting, int32_t value){return(app->view_set_setting_(app, view, setting, value));}
 static Managed_Scope view_get_managed_scope(Application_Links *app, View_ID view_id){return(app->view_get_managed_scope_(app, view_id));}
-static bool32 view_set_split_proportion(Application_Links *app, View_Summary *view, float t){return(app->view_set_split_proportion_(app, view, t));}
+static bool32 view_set_split(Application_Links *app, View_Summary *view, View_Split_Kind kind, float t){return(app->view_set_split_(app, view, kind, t));}
 static i32_Rect view_get_enclosure_rect(Application_Links *app, View_Summary *view){return(app->view_get_enclosure_rect_(app, view));}
 static bool32 view_compute_cursor(Application_Links *app, View_Summary *view, Buffer_Seek seek, Full_Cursor *cursor_out){return(app->view_compute_cursor_(app, view, seek, cursor_out));}
 static bool32 view_set_cursor(Application_Links *app, View_Summary *view, Buffer_Seek seek, bool32 set_preferred_x){return(app->view_set_cursor_(app, view, seek, set_preferred_x));}

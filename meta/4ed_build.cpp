@@ -248,6 +248,7 @@ build(Partition *part, u32 flags, u32 arch, char *code_path, char **code_files, 
     
     if (flags & DEBUG_INFO){
         fm_add_to_line(line, "-Zi");
+        fm_add_to_line(line, "-DDO_CRAZY_EXPENSIVE_ASSERTS");
     }
     
     if (flags & OPTIMIZATION){
@@ -540,8 +541,7 @@ get_freetype_include(char *out, u32 max){
 #elif defined(IS_MAC)
     char *freetype_include = "/usr/local/include/freetype2";
     size = strlen(freetype_include);
-    memcpy(out, freetype_include, size
-           );
+    memcpy(out, freetype_include, size);
 #endif
 #endif
     return(size);

@@ -72,7 +72,7 @@ static View_Summary
 open_footer_panel(Application_Links *app, View_Summary *view){
     View_Summary special_view = open_view(app, view, ViewSplit_Bottom);
     new_view_settings(app, &special_view);
-    view_set_split_proportion(app, &special_view, .2f);
+    view_set_split_pixel_size(app, &special_view, (int32_t)(special_view.line_height*10.f));
     view_set_passive(app, &special_view, true);
     return(special_view);
 }

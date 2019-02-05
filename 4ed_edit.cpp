@@ -70,7 +70,7 @@ edit_fix_markers__read_workspace_markers(Dynamic_Workspace *workspace, Buffer_ID
 }
 
 internal void
-edit_fix_markers(System_Functions *system, Models *models, Editing_File *file, Editing_Layout *layout, Cursor_Fix_Descriptor desc){
+edit_fix_markers(System_Functions *system, Models *models, Editing_File *file, Layout *layout, Cursor_Fix_Descriptor desc){
     Partition *part = &models->mem.part;
     
     Temp_Memory cursor_temp = begin_temp_memory(part);
@@ -79,7 +79,7 @@ edit_fix_markers(System_Functions *system, Models *models, Editing_File *file, E
     Buffer_ID file_id = file->id.id;
     Assert(file_lifetime_object != 0);
     
-    i32 cursor_max = layout->panel_max_count * 3;
+    i32 cursor_max = layout_get_open_panel_count(layout)*3;
     i32 total_marker_count = 0;
     {
         total_marker_count += file_lifetime_object->workspace.total_marker_count;
@@ -106,9 +106,9 @@ edit_fix_markers(System_Functions *system, Models *models, Editing_File *file, E
     Assert(cursors != 0);
     Assert(r_cursors != 0);
     
-    for (Panel *panel = layout->used_sentinel.next;
-         panel != &layout->used_sentinel;
-         panel = panel->next){
+    for (Panel *panel = layout_get_first_open_panel(layout);
+         panel != 0;
+         panel = layout_get_next_open_panel(layout, panel)){
         View *view = panel->view;
         if (view->transient.file_data.file == file){
             write_cursor_with_index(cursors, &cursor_count, view->transient.edit_pos.cursor.pos);
@@ -148,9 +148,9 @@ edit_fix_markers(System_Functions *system, Models *models, Editing_File *file, E
         
         cursor_count = 0;
         r_cursor_count = 0;
-        for (Panel *panel = layout->used_sentinel.next;
-             panel != &layout->used_sentinel;
-             panel = panel->next){
+        for (Panel *panel = layout_get_first_open_panel(layout);
+             panel != 0;
+             panel = layout_get_next_open_panel(layout, panel)){
             View *view = panel->view;
             if (view->transient.file_data.file == file){
                 i32 cursor_pos = cursors[cursor_count++].pos;
@@ -202,7 +202,7 @@ edit_fix_markers(System_Functions *system, Models *models, Editing_File *file, E
 internal void
 edit_single__inner(System_Functions *system, Models *models, Editing_File *file, Edit_Spec spec, History_Mode history_mode){
     Mem_Options *mem = &models->mem;
-    Editing_Layout *layout = &models->layout;
+    Layout *layout = &models->layout;
     Heap *heap = &mem->heap;
     Partition *part = &mem->part;
     
@@ -319,7 +319,7 @@ edit_batch(System_Functions *system, Models *models, Editing_File *file, Edit_Sp
     Mem_Options *mem = &models->mem;
     Heap *heap = &mem->heap;
     Partition *part = &mem->part;
-    Editing_Layout *layout = &models->layout;
+    Layout *layout = &models->layout;
     
     // NOTE(allen): fixing stuff "beforewards"???
     Assert(spec.str == 0);
@@ -446,10 +446,10 @@ edit_clear(System_Functions *system, Models *models, Editing_File *file){
     
     b32 no_views_see_file = true;
     
-    Editing_Layout *layout = &models->layout;
-    for (Panel *panel = layout->used_sentinel.next;
-         panel != &layout->used_sentinel;
-         panel = panel->next){
+    Layout *layout = &models->layout;
+    for (Panel *panel = layout_get_first_open_panel(layout);
+         panel != 0;
+         panel = layout_get_next_open_panel(layout, panel)){
         View *view = panel->view;
         if (view->transient.file_data.file == file){
             Full_Cursor cursor = {};

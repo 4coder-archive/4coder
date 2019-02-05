@@ -12,63 +12,68 @@
 #if !defined(FRED_LAYOUT_H)
 #define FRED_LAYOUT_H
 
-struct Panel_Divider{
-    Panel_Divider *next;
-    i32 parent;
-    i32 which_child;
-    i32 child1, child2;
-    b32 v_divider;
-    f32 pos;
+typedef i32 Panel_Split_Kind;
+enum{
+    PanelSplitKind_Ratio_TL = 0,
+    PanelSplitKind_Ratio_BR = 1,
+    PanelSplitKind_FixedPixels_TL = 2,
+    PanelSplitKind_FixedPixels_BR = 3,
 };
 
-struct Screen_Region{
-    i32_Rect full;
-    i32_Rect inner;
-    i32 l_margin, r_margin;
-    i32 t_margin, b_margin;
-};
-
-struct Panel{
-    Panel *next;
-    Panel *prev;
-    
-    struct View *view;
-    i32 parent;
-    i32 which_child;
-    
+struct Panel_Split{
+    Panel_Split_Kind kind;
     union{
-        struct{
-            i32_Rect full;
-            i32_Rect inner;
-            i32_Rect prev_inner;
-            i32 l_margin, r_margin;
-            i32 t_margin, b_margin;
-        };
-        Screen_Region screen_region;
+        f32 v_f32;
+        i32 v_i32;
     };
 };
 
-struct Editing_Layout{
-    Panel *panels;
-    Panel free_sentinel;
-    Panel used_sentinel;
-    Panel_Divider *dividers;
-    Panel_Divider *free_divider;
-    i32 panel_count, panel_max_count;
-    i32 root;
-    i32 active_panel;
-    i32 full_width, full_height;
+typedef i32 Panel_Kind;
+enum{
+    PanelKind_Intermediate = 0,
+    PanelKind_Final = 1,
+};
+
+struct Panel{
+    Node node;
+    
+    Panel *parent;
+    Panel_Kind kind;
+    union{
+        struct View *view;
+        struct{
+            struct Panel *tl_panel;
+            struct Panel *br_panel;
+            b32 vertical_split;
+            Panel_Split split;
+        };
+    };
+    
+    union{
+        struct{
+            i32_Rect rect_full;
+            i32_Rect rect_inner;
+        } screen_region;
+        struct{
+            i32_Rect rect_full;
+            i32_Rect rect_inner;
+        };
+    };
+};
+
+struct Layout{
+    Node free_panels;
+    Node open_panels;
+    Node intermediate_panels;
+    
+    Panel *root;
+    Panel *active_panel;
+    
+    i32 margin;
+    i32 open_panel_count;
+    i32 open_panel_max_count;
+    Vec2_i32 full_dim;
     b32 panel_state_dirty;
-};
-
-struct Divider_And_ID{
-    Panel_Divider* divider;
-    i32 id;
-};
-
-struct Panel_And_ID{
-    Panel* panel;
-    i32 id;
 };
 
 #endif
