@@ -303,6 +303,7 @@ layout_set_margin(Layout *layout, i32 margin){
         layout->margin = margin;
         layout__set_panel_rectangle(layout, layout->root, i32R(0, 0, layout->full_dim.x, layout->full_dim.y));
         layout_propogate_sizes_down_from_node(layout, layout->root);
+        layout->panel_state_dirty = true;
     }
 }
 
@@ -312,6 +313,7 @@ layout_set_root_size(Layout *layout, Vec2_i32 dim){
         layout->full_dim = dim;
         layout__set_panel_rectangle(layout, layout->root, i32R(0, 0, dim.x, dim.y));
         layout_propogate_sizes_down_from_node(layout, layout->root);
+        layout->panel_state_dirty = true;
     }
 }
 
@@ -442,6 +444,7 @@ layout_set_split_absolute_position(Layout *layout, Panel *panel, i32 absolute_po
         layout__set_split_absolute_position_inner(panel->tl_panel);
         layout__set_split_absolute_position_inner(panel->br_panel);
         layout_propogate_sizes_down_from_node(layout, panel);
+        layout->panel_state_dirty = true;
     }
 }
 
