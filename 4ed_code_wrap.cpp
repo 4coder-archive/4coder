@@ -234,12 +234,17 @@ internal i32
 stickieness_guess(Cpp_Token_Type type, Cpp_Token_Type other_type, u16 flags, u16 other_flags, b32 on_left){
     i32 guess = 0;
     
-    b32 is_words = 0, other_is_words = 0;
-    if (type == CPP_TOKEN_IDENTIFIER || (type >= CPP_TOKEN_KEY_TYPE && type <= CPP_TOKEN_KEY_OTHER)){
-        is_words = 1;
+    b32 is_words = false;
+    b32 other_is_words = false;
+    
+    Cpp_Token_Category cat = cpp_token_category_from_type(type);
+    Cpp_Token_Category other_cat = cpp_token_category_from_type(other_type);
+    
+    if (type == CPP_TOKEN_IDENTIFIER || (CPP_TOKEN_CAT_TYPE <= cat && cat <= CPP_TOKEN_CAT_OTHER)){
+        is_words = true;
     }
-    if (other_type == CPP_TOKEN_IDENTIFIER || (other_type >= CPP_TOKEN_KEY_TYPE && other_type <= CPP_TOKEN_KEY_OTHER)){
-        other_is_words = 1;
+    if (other_type == CPP_TOKEN_IDENTIFIER || (CPP_TOKEN_CAT_TYPE <= other_cat && other_cat <= CPP_TOKEN_CAT_OTHER)){
+        other_is_words = true;
     }
     
     b32 is_operator = 0, other_is_operator = 0;

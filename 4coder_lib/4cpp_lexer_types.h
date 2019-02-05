@@ -51,183 +51,238 @@ ENUM(uint32_t, Cpp_Token_Type){
     CPP_PP_INCLUDE_FILE = 21,
     CPP_PP_ERROR_MESSAGE = 22,
     
-    CPP_TOKEN_KEY_TYPE = 23,
-    CPP_TOKEN_KEY_MODIFIER = 24,
-    CPP_TOKEN_KEY_QUALIFIER = 25,
-    /* DOC(This type is not stored in token output from the lexer.) */
-    CPP_TOKEN_KEY_OPERATOR = 26,
-    CPP_TOKEN_KEY_CONTROL_FLOW = 27,
-    CPP_TOKEN_KEY_CAST = 28,
-    CPP_TOKEN_KEY_TYPE_DECLARATION = 29,
-    CPP_TOKEN_KEY_ACCESS = 30,
-    CPP_TOKEN_KEY_LINKAGE = 31,
-    CPP_TOKEN_KEY_OTHER = 32,
+    CPP_TOKEN_VOID = 23,
+    CPP_TOKEN_BOOL = 24,
+    CPP_TOKEN_CHAR = 25,
+    CPP_TOKEN_INT = 26,
+    CPP_TOKEN_FLOAT = 27,
+    CPP_TOKEN_DOUBLE = 28,
+    CPP_TOKEN_LONG = 29,
+    CPP_TOKEN_SHORT = 30,
+    CPP_TOKEN_UNSIGNED = 31,
+    CPP_TOKEN_SIGNED = 32,
     
-    CPP_TOKEN_IDENTIFIER = 33,
-    CPP_TOKEN_INTEGER_CONSTANT = 34,
-    CPP_TOKEN_CHARACTER_CONSTANT = 35,
-    CPP_TOKEN_FLOATING_CONSTANT = 36,
-    CPP_TOKEN_STRING_CONSTANT = 37,
-    CPP_TOKEN_BOOLEAN_CONSTANT = 38,
+    CPP_TOKEN_CONST = 33,
+    CPP_TOKEN_VOLATILE = 34,
     
-    CPP_TOKEN_STATIC_ASSERT = 39,
+    CPP_TOKEN_ASM = 35,
+    CPP_TOKEN_BREAK = 36,
+    CPP_TOKEN_CASE = 37,
+    CPP_TOKEN_CATCH = 38,
+    CPP_TOKEN_CONTINUE = 39,
+    CPP_TOKEN_DEFAULT = 40,
+    CPP_TOKEN_DO = 41,
+    CPP_TOKEN_ELSE = 42,
+    CPP_TOKEN_FOR = 43,
+    CPP_TOKEN_GOTO = 44,
+    CPP_TOKEN_IF = 45,
+    CPP_TOKEN_RETURN = 46,
+    CPP_TOKEN_SWITCH = 47,
+    CPP_TOKEN_TRY = 48,
+    CPP_TOKEN_WHILE = 49,
+    CPP_TOKEN_STATIC_ASSERT = 50,
     
-    CPP_TOKEN_BRACKET_OPEN = 40,
-    CPP_TOKEN_BRACKET_CLOSE = 41,
-    CPP_TOKEN_PARENTHESE_OPEN = 42,
-    CPP_TOKEN_PARENTHESE_CLOSE = 43,
-    CPP_TOKEN_BRACE_OPEN = 44,
-    CPP_TOKEN_BRACE_CLOSE = 45,
-    CPP_TOKEN_SEMICOLON = 46,
-    CPP_TOKEN_ELLIPSIS = 47,
+    CPP_TOKEN_CONST_CAST = 51,
+    CPP_TOKEN_DYNAMIC_CAST = 52,
+    CPP_TOKEN_REINTERPRET_CAST = 53,
+    CPP_TOKEN_STATIC_CAST = 54,
+    
+    CPP_TOKEN_CLASS = 55,
+    CPP_TOKEN_ENUM = 56,
+    CPP_TOKEN_STRUCT = 57,
+    CPP_TOKEN_TYPEDEF = 58,
+    CPP_TOKEN_UNION = 59,
+    CPP_TOKEN_TEMPLATE = 60,
+    CPP_TOKEN_TYPENAME = 61,
+    
+    CPP_TOKEN_FRIEND = 62,
+    CPP_TOKEN_NAMESPACE = 63,
+    CPP_TOKEN_PRIVATE = 64,
+    CPP_TOKEN_PROTECTED = 65,
+    CPP_TOKEN_PUBLIC = 66,
+    CPP_TOKEN_USING = 67,
+    
+    CPP_TOKEN_EXTERN = 68,
+    CPP_TOKEN_EXPORT = 69,
+    CPP_TOKEN_INLINE = 70,
+    CPP_TOKEN_STATIC = 71,
+    CPP_TOKEN_VIRTUAL = 72,
+    
+    CPP_TOKEN_ALIGNAS = 73,
+    CPP_TOKEN_EXPLICIT = 74,
+    CPP_TOKEN_NOEXCEPT = 75,
+    CPP_TOKEN_NULLPTR = 76,
+    CPP_TOKEN_OPERATOR = 77,
+    CPP_TOKEN_REGISTER = 78,
+    CPP_TOKEN_THIS = 79,
+    CPP_TOKEN_THREAD_LOCAL = 80,
+    
+    CPP_TOKEN_KEY_OTHER = 81,
+    
+    CPP_TOKEN_IDENTIFIER = 82,
+    CPP_TOKEN_INTEGER_CONSTANT = 83,
+    CPP_TOKEN_CHARACTER_CONSTANT = 84,
+    CPP_TOKEN_FLOATING_CONSTANT = 85,
+    CPP_TOKEN_STRING_CONSTANT = 86,
+    CPP_TOKEN_TRUE = 87,
+    CPP_TOKEN_FALSE = 88,
+    
+    CPP_TOKEN_BRACKET_OPEN = 89,
+    CPP_TOKEN_BRACKET_CLOSE = 90,
+    CPP_TOKEN_PARENTHESE_OPEN = 91,
+    CPP_TOKEN_PARENTHESE_CLOSE = 92,
+    CPP_TOKEN_BRACE_OPEN = 93,
+    CPP_TOKEN_BRACE_CLOSE = 94,
+    CPP_TOKEN_SEMICOLON = 95,
+    CPP_TOKEN_ELLIPSIS = 96,
     
     /* DOC(This is an 'ambiguous' token type because it requires parsing to determine the full nature of the token.) */
-    CPP_TOKEN_STAR = 48,
+    CPP_TOKEN_STAR = 97,
     
     /* DOC(This is an 'ambiguous' token type because it requires parsing to determine the full nature of the token.) */
-    CPP_TOKEN_AMPERSAND = 49,
+    CPP_TOKEN_AMPERSAND = 98,
     
     /* DOC(This is an 'ambiguous' token type because it requires parsing to determine the full nature of the token.) */
-    CPP_TOKEN_TILDE = 50,
+    CPP_TOKEN_TILDE = 99,
     
     /* DOC(This is an 'ambiguous' token type because it requires parsing to determine the full nature of the token.) */
-    CPP_TOKEN_PLUS = 51,
+    CPP_TOKEN_PLUS = 100,
     
     /* DOC(This is an 'ambiguous' token type because it requires parsing to determine the full nature of the token.) */
-    CPP_TOKEN_MINUS = 52,
+    CPP_TOKEN_MINUS = 101,
     
     /* DOC(This is an 'ambiguous' token type because it requires parsing to determine the full nature of the token.) */
-    CPP_TOKEN_INCREMENT = 53,
+    CPP_TOKEN_INCREMENT = 102,
     
     /* DOC(This is an 'ambiguous' token type because it requires parsing to determine the full nature of the token.) */
-    CPP_TOKEN_DECREMENT = 54,
+    CPP_TOKEN_DECREMENT = 103,
     
     // NOTE(allen): Precedence 1, LtoR
-    CPP_TOKEN_SCOPE = 55,
+    CPP_TOKEN_SCOPE = 104,
     
     // NOTE(allen): Precedence 2, LtoR
     /* DOC(This type is for parser use, it is not output by the lexer.) */
-    CPP_TOKEN_POSTINC = 56,
+    CPP_TOKEN_POSTINC = 105,
     /* DOC(This type is for parser use, it is not output by the lexer.) */
-    CPP_TOKEN_POSTDEC = 57,
+    CPP_TOKEN_POSTDEC = 106,
     /* DOC(This type is for parser use, it is not output by the lexer.) */
-    CPP_TOKEN_FUNC_STYLE_CAST = 58,
-    CPP_TOKEN_CPP_STYLE_CAST = 59,
+    CPP_TOKEN_FUNC_STYLE_CAST = 107,
+    CPP_TOKEN_CPP_STYLE_CAST = 108,
     /* DOC(This type is for parser use, it is not output by the lexer.) */
-    CPP_TOKEN_CALL = 60,
+    CPP_TOKEN_CALL = 109,
     /* DOC(This type is for parser use, it is not output by the lexer.) */
-    CPP_TOKEN_INDEX = 61,
-    CPP_TOKEN_DOT = 62,
-    CPP_TOKEN_ARROW = 63,
+    CPP_TOKEN_INDEX = 110,
+    CPP_TOKEN_DOT = 111,
+    CPP_TOKEN_ARROW = 112,
     
     // NOTE(allen): Precedence 3, RtoL
     /* DOC(This token is for parser use, it is not output by the lexer.) */
-    CPP_TOKEN_PREINC = 64,
+    CPP_TOKEN_PREINC = 113,
     /* DOC(This token is for parser use, it is not output by the lexer.) */
-    CPP_TOKEN_PREDEC = 65,
+    CPP_TOKEN_PREDEC = 114,
     /* DOC(This token is for parser use, it is not output by the lexer.) */
-    CPP_TOKEN_POSITIVE = 66,
+    CPP_TOKEN_POSITIVE = 115,
     /* DOC(This token is for parser use, it is not output by the lexer.) */
-    CPP_TOKEN_NEGAITVE = 67,
-    CPP_TOKEN_NOT = 68,
+    CPP_TOKEN_NEGAITVE = 116,
+    CPP_TOKEN_NOT = 117,
     
     /* DOC(This type is for parser use, it is not output by the lexer.) */
-    CPP_TOKEN_BIT_NOT = 69,
+    CPP_TOKEN_BIT_NOT = 118,
     
     /* DOC(This type is for parser use, it is not output by the lexer.) */
-    CPP_TOKEN_CAST = 70,
+    CPP_TOKEN_CAST = 119,
     /* DOC(This type is for parser use, it is not output by the lexer.) */
-    CPP_TOKEN_DEREF = 71,
+    CPP_TOKEN_DEREF = 120,
     /* DOC(This type is for parser use, it is not output by the lexer.) */
-    CPP_TOKEN_TYPE_PTR = 72,
+    CPP_TOKEN_TYPE_PTR = 121,
     /* DOC(This type is for parser use, it is not output by the lexer.) */
-    CPP_TOKEN_ADDRESS = 73,
+    CPP_TOKEN_ADDRESS = 122,
     /* DOC(This type is for parser use, it is not output by the lexer.) */
-    CPP_TOKEN_TYPE_REF = 74,
-    CPP_TOKEN_SIZEOF = 75,
-    CPP_TOKEN_ALIGNOF = 76,
-    CPP_TOKEN_DECLTYPE = 77,
-    CPP_TOKEN_TYPEID = 78,
-    CPP_TOKEN_NEW = 79,
-    CPP_TOKEN_DELETE = 80,
+    CPP_TOKEN_TYPE_REF = 123,
+    CPP_TOKEN_SIZEOF = 124,
+    CPP_TOKEN_ALIGNOF = 125,
+    CPP_TOKEN_DECLTYPE = 126,
+    CPP_TOKEN_TYPEID = 127,
+    CPP_TOKEN_NEW = 128,
+    CPP_TOKEN_DELETE = 129,
     /* DOC(This type is for parser use, it is not output by the lexer.) */
-    CPP_TOKEN_NEW_ARRAY = 81,
+    CPP_TOKEN_NEW_ARRAY = 130,
     /* DOC(This type is for parser use, it is not output by the lexer.) */
-    CPP_TOKEN_DELETE_ARRAY = 82,
+    CPP_TOKEN_DELETE_ARRAY = 131,
     
     // NOTE(allen): Precedence 4, LtoR
-    CPP_TOKEN_PTRDOT = 83,
-    CPP_TOKEN_PTRARROW = 84,
+    CPP_TOKEN_PTRDOT = 132,
+    CPP_TOKEN_PTRARROW = 133,
     
     // NOTE(allen): Precedence 5, LtoR
     
     /* DOC(This type is for parser use, it is not output by the lexer.) */
-    CPP_TOKEN_MUL = 85,
-    CPP_TOKEN_DIV = 86,
-    CPP_TOKEN_MOD = 87,
+    CPP_TOKEN_MUL = 134,
+    CPP_TOKEN_DIV = 135,
+    CPP_TOKEN_MOD = 136,
     
     // NOTE(allen): Precedence 6, LtoR
     
     /* DOC(This type is for parser use, it is not output by the lexer.) */
-    CPP_TOKEN_ADD = 88,
+    CPP_TOKEN_ADD = 137,
     
     /* DOC(This type is for parser use, it is not output by the lexer.) */
-    CPP_TOKEN_SUB = 89,
+    CPP_TOKEN_SUB = 138,
     
     // NOTE(allen): Precedence 7, LtoR
-    CPP_TOKEN_LSHIFT = 90,
-    CPP_TOKEN_RSHIFT = 91,
+    CPP_TOKEN_LSHIFT = 139,
+    CPP_TOKEN_RSHIFT = 140,
     
     // NOTE(allen): Precedence 8, LtoR
-    CPP_TOKEN_LESS = 92,
-    CPP_TOKEN_GRTR = 93,
-    CPP_TOKEN_GRTREQ = 94,
-    CPP_TOKEN_LESSEQ = 95,
+    CPP_TOKEN_LESS = 141,
+    CPP_TOKEN_GRTR = 142,
+    CPP_TOKEN_GRTREQ = 143,
+    CPP_TOKEN_LESSEQ = 144,
     
     // NOTE(allen): Precedence 9, LtoR
-    CPP_TOKEN_EQEQ = 96,
-    CPP_TOKEN_NOTEQ = 97,
+    CPP_TOKEN_EQEQ = 145,
+    CPP_TOKEN_NOTEQ = 146,
     
     // NOTE(allen): Precedence 10, LtoR
     
     /* DOC(This type is for parser use, it is not output by the lexer.) */
-    CPP_TOKEN_BIT_AND = 98,
+    CPP_TOKEN_BIT_AND = 147,
     
     // NOTE(allen): Precedence 11, LtoR
-    CPP_TOKEN_BIT_XOR = 99,
+    CPP_TOKEN_BIT_XOR = 148,
     
     // NOTE(allen): Precedence 12, LtoR
-    CPP_TOKEN_BIT_OR = 100,
+    CPP_TOKEN_BIT_OR = 149,
     
     // NOTE(allen): Precedence 13, LtoR
-    CPP_TOKEN_AND = 101,
+    CPP_TOKEN_AND = 150,
     
     // NOTE(allen): Precedence 14, LtoR
-    CPP_TOKEN_OR = 102,
+    CPP_TOKEN_OR = 151,
     
     // NOTE(allen): Precedence 15, RtoL
-    CPP_TOKEN_TERNARY_QMARK = 103,
-    CPP_TOKEN_COLON = 104,
-    CPP_TOKEN_THROW = 105,
-    CPP_TOKEN_EQ = 106,
-    CPP_TOKEN_ADDEQ = 107,
-    CPP_TOKEN_SUBEQ = 108,
-    CPP_TOKEN_MULEQ = 109,
-    CPP_TOKEN_DIVEQ = 110,
-    CPP_TOKEN_MODEQ = 111,
-    CPP_TOKEN_LSHIFTEQ = 112,
-    CPP_TOKEN_RSHIFTEQ = 113,
-    CPP_TOKEN_ANDEQ = 114,
-    CPP_TOKEN_OREQ = 115,
-    CPP_TOKEN_XOREQ = 116,
+    CPP_TOKEN_TERNARY_QMARK = 152,
+    CPP_TOKEN_COLON = 153,
+    CPP_TOKEN_THROW = 154,
+    CPP_TOKEN_EQ = 155,
+    CPP_TOKEN_ADDEQ = 156,
+    CPP_TOKEN_SUBEQ = 157,
+    CPP_TOKEN_MULEQ = 158,
+    CPP_TOKEN_DIVEQ = 159,
+    CPP_TOKEN_MODEQ = 160,
+    CPP_TOKEN_LSHIFTEQ = 161,
+    CPP_TOKEN_RSHIFTEQ = 162,
+    CPP_TOKEN_ANDEQ = 163,
+    CPP_TOKEN_OREQ = 164,
+    CPP_TOKEN_XOREQ = 165,
     
     // NOTE(allen): Precedence 16, LtoR
-    CPP_TOKEN_COMMA = 117,
+    CPP_TOKEN_COMMA = 166,
     
     /* DOC(This type is for parser use, it is not output by the lexer.) */
-    CPP_TOKEN_EOF = 118,
+    CPP_TOKEN_EOF = 167,
     
-    CPP_TOKEN_TYPE_COUNT = 119
+    CPP_TOKEN_TYPE_COUNT = 168,
 };
 
 /* DOC(Cpp_Token represents a single lexed token. It is the primary output of the lexing system.)
@@ -249,6 +304,24 @@ STRUCT Cpp_Token{
     uint16_t flags;
 };
 
+/* DOC(The Cpp_Token_Category enum groups certain Cpp_Token_Type values into greater categories)
+DOC_SEE(cpp_token_category_from_type) */
+ENUM(uint32_t, Cpp_Token_Category){
+    CPP_TOKEN_CAT_NONE = 0,
+    CPP_TOKEN_CAT_BOOLEAN_CONSTANT = 1,
+    CPP_TOKEN_CAT_TYPE = 2,
+    CPP_TOKEN_CAT_MODIFIER = 3,
+    CPP_TOKEN_CAT_QUALIFIER = 4,
+    CPP_TOKEN_CAT_OPERATOR = 5,
+    CPP_TOKEN_CAT_CONTROL_FLOW = 6,
+    CPP_TOKEN_CAT_CAST = 7,
+    CPP_TOKEN_CAT_TYPE_DECLARATION = 8,
+    CPP_TOKEN_CAT_ACCESS = 9,
+    CPP_TOKEN_CAT_LINKAGE = 10,
+    CPP_TOKEN_CAT_OTHER = 11,
+    CPP_TOKEN_CAT_EOF = 12,
+};
+
 /* DOC(The Cpp_Token_Flags are used to mark up tokens with additional information.) */
 ENUM(uint16_t, Cpp_Token_Flag){
     /* DOC(Indicates that the token is a preprocessor directive.) */
@@ -264,7 +337,7 @@ ENUM(uint16_t, Cpp_Token_Flag){
     CPP_TFLAG_IS_OPERATOR = 0x8,
     
     /* DOC(Indicates that the token is a keyword.) */
-    CPP_TFLAG_IS_KEYWORD = 0x10
+    CPP_TFLAG_IS_KEYWORD = 0x10,
 };
 
 /* DOC(Cpp_Token_Array is used to bundle together the common elements of a growing array of Cpp_Tokens.  To initialize it the tokens field should point to a block of memory with a size equal to max_count*sizeof(Cpp_Token) and the count should be initialized to zero.) */

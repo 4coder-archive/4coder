@@ -386,6 +386,142 @@ DOC_SEE(cpp_make_table)
 
 ////////////////
 
+API_EXPORT FCPP_LINK Cpp_Token_Category
+cpp_token_category_from_type(Cpp_Token_Type type){
+    Cpp_Token_Category cat = 0;
+    switch (type){
+        case CPP_TOKEN_TRUE:
+        case CPP_TOKEN_FALSE:
+        {
+            cat = CPP_TOKEN_CAT_BOOLEAN_CONSTANT;
+        }break;
+        
+        case CPP_TOKEN_AND:
+        case CPP_TOKEN_ANDEQ:
+        case CPP_TOKEN_BIT_AND:
+        case CPP_TOKEN_BIT_OR:
+        case CPP_TOKEN_OR:
+        case CPP_TOKEN_OREQ:
+        case CPP_TOKEN_SIZEOF:
+        case CPP_TOKEN_ALIGNOF:
+        case CPP_TOKEN_DECLTYPE:
+        case CPP_TOKEN_THROW:
+        case CPP_TOKEN_NEW:
+        case CPP_TOKEN_DELETE:
+        case CPP_TOKEN_BIT_XOR:
+        case CPP_TOKEN_XOREQ:
+        case CPP_TOKEN_NOT:
+        case CPP_TOKEN_NOTEQ:
+        case CPP_TOKEN_TYPEID:
+        case CPP_TOKEN_BIT_NOT:
+        {
+            cat = CPP_TOKEN_CAT_OPERATOR;
+        }break;
+        
+        
+        case CPP_TOKEN_VOID:
+        case CPP_TOKEN_BOOL:
+        case CPP_TOKEN_CHAR:
+        case CPP_TOKEN_INT:
+        case CPP_TOKEN_FLOAT:
+        case CPP_TOKEN_DOUBLE:
+        {
+            cat = CPP_TOKEN_CAT_TYPE;
+        }break;
+        
+        case CPP_TOKEN_LONG:
+        case CPP_TOKEN_SHORT:
+        case CPP_TOKEN_UNSIGNED:
+        case CPP_TOKEN_SIGNED:
+        {
+            cat = CPP_TOKEN_CAT_MODIFIER;
+        }break;
+        
+        case CPP_TOKEN_CONST:
+        case CPP_TOKEN_VOLATILE:
+        {
+            cat = CPP_TOKEN_CAT_QUALIFIER;
+        }break;
+        
+        case CPP_TOKEN_ASM:
+        case CPP_TOKEN_BREAK:
+        case CPP_TOKEN_CASE:
+        case CPP_TOKEN_CATCH:
+        case CPP_TOKEN_CONTINUE:
+        case CPP_TOKEN_DEFAULT:
+        case CPP_TOKEN_DO:
+        case CPP_TOKEN_ELSE:
+        case CPP_TOKEN_FOR:
+        case CPP_TOKEN_GOTO:
+        case CPP_TOKEN_IF:
+        case CPP_TOKEN_RETURN:
+        case CPP_TOKEN_SWITCH:
+        case CPP_TOKEN_TRY:
+        case CPP_TOKEN_WHILE:
+        case CPP_TOKEN_STATIC_ASSERT:
+        {
+            cat = CPP_TOKEN_CAT_CONTROL_FLOW;
+        }break;
+        
+        case CPP_TOKEN_CONST_CAST:
+        case CPP_TOKEN_DYNAMIC_CAST:
+        case CPP_TOKEN_REINTERPRET_CAST:
+        case CPP_TOKEN_STATIC_CAST:
+        {
+            cat = CPP_TOKEN_CAT_CAST;
+        }break;
+        
+        case CPP_TOKEN_CLASS:
+        case CPP_TOKEN_ENUM:
+        case CPP_TOKEN_STRUCT:
+        case CPP_TOKEN_TYPEDEF:
+        case CPP_TOKEN_UNION:
+        case CPP_TOKEN_TEMPLATE:
+        case CPP_TOKEN_TYPENAME:
+        {
+            cat = CPP_TOKEN_CAT_TYPE_DECLARATION;
+        }break;
+        
+        case CPP_TOKEN_FRIEND:
+        case CPP_TOKEN_NAMESPACE:
+        case CPP_TOKEN_PRIVATE:
+        case CPP_TOKEN_PROTECTED:
+        case CPP_TOKEN_PUBLIC:
+        case CPP_TOKEN_USING:
+        {
+            cat = CPP_TOKEN_CAT_ACCESS;
+        }break;
+        
+        case CPP_TOKEN_EXTERN:
+        case CPP_TOKEN_EXPORT:
+        case CPP_TOKEN_INLINE:
+        case CPP_TOKEN_STATIC:
+        case CPP_TOKEN_VIRTUAL:
+        {
+            cat = CPP_TOKEN_CAT_LINKAGE;
+        }break;
+        
+        case CPP_TOKEN_ALIGNAS:
+        case CPP_TOKEN_EXPLICIT:
+        case CPP_TOKEN_NOEXCEPT:
+        case CPP_TOKEN_NULLPTR:
+        case CPP_TOKEN_OPERATOR:
+        case CPP_TOKEN_REGISTER:
+        case CPP_TOKEN_THIS:
+        case CPP_TOKEN_THREAD_LOCAL:
+        case CPP_TOKEN_KEY_OTHER:
+        {
+            cat = CPP_TOKEN_CAT_OTHER;
+        }break;
+        
+        case CPP_TOKEN_EOF:
+        {
+            cat = CPP_TOKEN_CAT_EOF;
+        }break;
+    }
+    return(cat);
+}
+
 API_EXPORT FCPP_LINK Cpp_Get_Token_Result
 cpp_get_token(Cpp_Token_Array array, i32_4tech pos)/*
 DOC_PARAM(array, The array of tokens from which to get a token.)

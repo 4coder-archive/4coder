@@ -60,14 +60,14 @@ init_language_rust(Application_Links *app){
         PSAT("virtual", CPP_TOKEN_KEY_OTHER),
         PSAT("where", CPP_TOKEN_KEY_OTHER),
         
-        PSAT("break",    CPP_TOKEN_KEY_CONTROL_FLOW),
-        PSAT("continue", CPP_TOKEN_KEY_CONTROL_FLOW),
-        PSAT("do",       CPP_TOKEN_KEY_CONTROL_FLOW),
-        PSAT("else",     CPP_TOKEN_KEY_CONTROL_FLOW),
-        PSAT("for",      CPP_TOKEN_KEY_CONTROL_FLOW),
-        PSAT("if",       CPP_TOKEN_KEY_CONTROL_FLOW),
-        PSAT("while",    CPP_TOKEN_KEY_CONTROL_FLOW),
-        PSAT("yield",    CPP_TOKEN_KEY_CONTROL_FLOW),
+        PSAT("break",    CPP_TOKEN_BREAK),
+        PSAT("continue", CPP_TOKEN_CONTINUE),
+        PSAT("do",       CPP_TOKEN_DO),
+        PSAT("else",     CPP_TOKEN_ELSE),
+        PSAT("for",      CPP_TOKEN_FOR),
+        PSAT("if",       CPP_TOKEN_IF),
+        PSAT("while",    CPP_TOKEN_WHILE),
+        PSAT("yield",    CPP_TOKEN_KEY_OTHER),
     };
     
     parse_context_language_rust = create_parse_context(app, kw, ArrayCount(kw), 0, 0);

@@ -600,7 +600,7 @@ parse_if_down(Application_Links *app, Statement_Parser *parser, Cpp_Token *token
         success = parse_statement_down(app, parser, token_out);
         if (success){
             token = parser_next_token(parser);
-            if (token != 0 && token->type == CPP_TOKEN_KEY_CONTROL_FLOW){
+            if (token != 0 && cpp_token_category_from_type(token->type) == CPP_TOKEN_CAT_CONTROL_FLOW){
                 char lexeme[32];
                 token_get_lexeme(app, parser->buffer, token, lexeme, sizeof(lexeme));
                 if (match(lexeme, "else")){
@@ -658,26 +658,22 @@ parse_statement_down(Application_Links *app, Statement_Parser *parser, Cpp_Token
                     goto finished;
                 }break;
                 
-                case CPP_TOKEN_KEY_CONTROL_FLOW:
+                case CPP_TOKEN_FOR:
                 {
-                    char lexeme[32];
-                    if (sizeof(lexeme)-1 >= token->size){
-                        if (buffer_read_range(app, parser->buffer, token->start, token->start + token->size, lexeme)){
-                            lexeme[token->size] = 0;
-                            if (match(lexeme, "for")){
-                                success = parse_for_down(app, parser, token_out);
-                                goto finished;
-                            }
-                            else if (match(lexeme, "if")){
-                                success = parse_if_down(app, parser, token_out);
-                                goto finished;
-                            }
-                            else if (match(lexeme, "else")){
-                                success = false;
-                                goto finished;
-                            }
-                        }
-                    }
+                    success = parse_for_down(app, parser, token_out);
+                    goto finished;
+                }break;
+                
+                case CPP_TOKEN_IF:
+                {
+                    success = parse_if_down(app, parser, token_out);
+                    goto finished;
+                }break;
+                
+                case CPP_TOKEN_ELSE:
+                {
+                    success = false;
+                    goto finished;
                 }break;
                 
                 case CPP_TOKEN_BRACE_OPEN:

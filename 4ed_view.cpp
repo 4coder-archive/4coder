@@ -732,7 +732,7 @@ internal u32
 get_token_color(Style *style, Cpp_Token token){
     u32 result = 0;
     if ((token.flags & CPP_TFLAG_IS_KEYWORD) != 0){
-        if (token.type == CPP_TOKEN_BOOLEAN_CONSTANT){
+        if (cpp_token_category_from_type(token.type) == CPP_TOKEN_CAT_BOOLEAN_CONSTANT){
             result = style->theme.colors[Stag_Bool_Constant];
         }
         else{

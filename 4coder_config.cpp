@@ -127,6 +127,18 @@ config_parser__recognize_token(Config_Parser *ctx, Cpp_Token_Type type){
     return(result);
 }
 
+static bool32
+config_parser__recognize_token_category(Config_Parser *ctx, Cpp_Token_Category category){
+    bool32 result = false;
+    if (ctx->start <= ctx->token && ctx->token < ctx->end){
+        result = (cpp_token_category_from_type(ctx->token->type) == category);
+    }
+    else if (category == CPP_TOKEN_CAT_EOF){
+        result = true;
+    }
+    return(result);
+}
+
 static String
 config_parser__get_lexeme(Config_Parser *ctx){
     String lexeme = {};
@@ -410,7 +422,7 @@ config_parser__rvalue(Config_Parser *ctx){
         rvalue->compound = compound;
         return(rvalue);
     }
-    else if (config_parser__recognize_token(ctx, CPP_TOKEN_BOOLEAN_CONSTANT)){
+    else if (config_parser__recognize_token_category(ctx, CPP_TOKEN_CAT_BOOLEAN_CONSTANT)){
         bool32 b = config_parser__get_boolean(ctx);
         config_parser__advance_to_next(ctx);
         Config_RValue *rvalue = push_array(ctx->arena, Config_RValue, 1);
