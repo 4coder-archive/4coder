@@ -217,13 +217,6 @@ edit_single__inner(System_Functions *system, Models *models, Editing_File *file,
     i32 str_len = spec.step.edit.len;
     i32 shift_amount = buffer_replace_range_compute_shift(start, end, str_len);
     
-    // NOTE(allen): cursor fixing
-    Cursor_Fix_Descriptor desc = {};
-    desc.start = start;
-    desc.end = end;
-    desc.shift_amount = shift_amount;
-    edit_fix_markers(system, models, file, layout, desc);
-    
     // NOTE(allen): actual text replacement
     i32 scratch_size = part_remaining(part);
     Assert(scratch_size > 0);
@@ -262,6 +255,16 @@ edit_single__inner(System_Functions *system, Models *models, Editing_File *file,
         file_relex(system, models, file, start, end, shift_amount);
     }
     
+    // NOTE(allen): wrap meta data
+    file_measure_wraps(system, &models->mem, file, font);
+    
+    // NOTE(allen): cursor fixing
+    Cursor_Fix_Descriptor desc = {};
+    desc.start = start;
+    desc.end = end;
+    desc.shift_amount = shift_amount;
+    edit_fix_markers(system, models, file, layout, desc);
+    
     // NOTE(allen): mark edit finished
     if (file->settings.tokens_exist){
         if (file->settings.virtual_white){
@@ -271,9 +274,6 @@ edit_single__inner(System_Functions *system, Models *models, Editing_File *file,
     else{
         file_mark_edit_finished(&models->working_set, file);
     }
-    
-    // NOTE(allen): wrap meta data
-    file_measure_wraps(system, &models->mem, file, font);
 }
 
 internal void
@@ -332,13 +332,6 @@ edit_batch(System_Functions *system, Models *models, Editing_File *file, Edit_Sp
     Buffer_Edit *batch = file->state.undo.children.edits + spec.step.first_child;
     Assert(spec.step.first_child < file->state.undo.children.edit_count);
     Assert(batch_size >= 0);
-    
-    // NOTE(allen): cursor fixing
-    Cursor_Fix_Descriptor desc = {};
-    desc.is_batch = true;
-    desc.batch = batch;
-    desc.batch_size = batch_size;
-    edit_fix_markers(system, models, file, layout, desc);
     
     // NOTE(allen): actual text replacement
     i32 scratch_size = part_remaining(part);
@@ -414,6 +407,16 @@ edit_batch(System_Functions *system, Models *models, Editing_File *file, Edit_Sp
         }break;
     }
     
+    // NOTE(allen): wrap meta data
+    file_measure_wraps(system, &models->mem, file, font);
+    
+    // NOTE(allen): cursor fixing
+    Cursor_Fix_Descriptor desc = {};
+    desc.is_batch = true;
+    desc.batch = batch;
+    desc.batch_size = batch_size;
+    edit_fix_markers(system, models, file, layout, desc);
+    
     // NOTE(allen): mark edit finished
     if (file->settings.tokens_exist){
         if (file->settings.virtual_white){
@@ -423,9 +426,6 @@ edit_batch(System_Functions *system, Models *models, Editing_File *file, Edit_Sp
     else{
         file_mark_edit_finished(&models->working_set, file);
     }
-    
-    // NOTE(allen): wrap meta data
-    file_measure_wraps(system, &models->mem, file, font);
 }
 
 internal void
