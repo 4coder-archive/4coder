@@ -75,6 +75,11 @@ struct Temp_Memory_Arena{
     i32_4tech pos;
 };
 
+struct Temp_Memory_Arena_Light{
+    Partition_Chained *part;
+    i32_4tech pos;
+};
+
 #endif
 
 #endif

@@ -441,31 +441,7 @@ file_create_from_string(System_Functions *system, Models *models, Editing_File *
     
     file->settings.read_only = ((flags & FileCreateFlag_ReadOnly) != 0);
     if (!file->settings.read_only){
-        // TODO(allen): Redo undo system (if you don't mind the pun)
-        i32 request_size = KB(64);
-        file->state.undo.undo.max = request_size;
-        file->state.undo.undo.strings = (u8*)heap_allocate(heap, request_size);
-        file->state.undo.undo.edit_max = request_size/sizeof(Edit_Step);
-        file->state.undo.undo.edits = (Edit_Step*)heap_allocate(heap, request_size);
-        
-        file->state.undo.redo.max = request_size;
-        file->state.undo.redo.strings = (u8*)heap_allocate(heap, request_size);
-        file->state.undo.redo.edit_max = request_size/sizeof(Edit_Step);
-        file->state.undo.redo.edits = (Edit_Step*)heap_allocate(heap, request_size);
-        
-        file->state.undo.history.max = request_size;
-        file->state.undo.history.strings = (u8*)heap_allocate(heap, request_size);
-        file->state.undo.history.edit_max = request_size/sizeof(Edit_Step);
-        file->state.undo.history.edits = (Edit_Step*)heap_allocate(heap, request_size);
-        
-        file->state.undo.children.max = request_size;
-        file->state.undo.children.strings = (u8*)heap_allocate(heap, request_size);
-        file->state.undo.children.edit_max = request_size/sizeof(Buffer_Edit);
-        file->state.undo.children.edits = (Buffer_Edit*)heap_allocate(heap, request_size);
-        
-        file->state.undo.history_block_count = 1;
-        file->state.undo.history_head_block = 0;
-        file->state.undo.current_block_normal = 1;
+        history_init(&models->app_links, &file->state.history);
     }
     
     // TODO(allen): do(cleanup the create and settings dance)
@@ -491,8 +467,7 @@ file_create_from_string(System_Functions *system, Models *models, Editing_File *
 }
 
 internal void
-file_free(System_Functions *system, Application_Links *app, Heap *heap, Lifetime_Allocator *lifetime_allocator,
-          Editing_File *file){
+file_free(System_Functions *system, Heap *heap, Lifetime_Allocator *lifetime_allocator, Editing_File *file){
     if (file->state.still_lexing){
         system->cancel_job(BACKGROUND_THREADS, file->state.lex_job);
         if (file->state.swap_array.tokens){
@@ -516,19 +491,7 @@ file_free(System_Functions *system, Application_Links *app, Heap *heap, Lifetime
     heap_free(heap, file->state.character_starts);
     heap_free(heap, file->state.line_indents);
     
-    if (file->state.undo.undo.edits){
-        heap_free(heap, file->state.undo.undo.strings);
-        heap_free(heap, file->state.undo.undo.edits);
-        
-        heap_free(heap, file->state.undo.redo.strings);
-        heap_free(heap, file->state.undo.redo.edits);
-        
-        heap_free(heap, file->state.undo.history.strings);
-        heap_free(heap, file->state.undo.history.edits);
-        
-        heap_free(heap, file->state.undo.children.strings);
-        heap_free(heap, file->state.undo.children.edits);
-    }
+    history_free(heap, &file->state.history);
 }
 
 internal void
@@ -541,6 +504,13 @@ internal void
 init_read_only_file(System_Functions *system, Models *models, Editing_File *file){
     String val = null_string;
     file_create_from_string(system, models, file, val, FileCreateFlag_ReadOnly);
+}
+
+////////////////////////////////
+
+internal i32
+file_get_current_record_index(Editing_File *file){
+    return(file->state.current_record_index);
 }
 
 // BOTTOM

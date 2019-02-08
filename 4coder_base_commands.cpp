@@ -1582,23 +1582,26 @@ CUSTOM_DOC("Reopen the current buffer from the hard drive.")
 CUSTOM_COMMAND_SIG(undo)
 CUSTOM_DOC("Advances backwards through the undo history.")
 {
-    // TODO(allen): // TODO(allen): // TODO(allen): // TODO(allen): // TODO(allen): 
-    // TODO(allen): // TODO(allen): // TODO(allen): // TODO(allen): // TODO(allen): 
-    // TODO(allen): // TODO(allen): // TODO(allen): // TODO(allen): // TODO(allen): 
-    // TODO(allen): // TODO(allen): // TODO(allen): // TODO(allen): // TODO(allen): 
-    // TODO(allen): // TODO(allen): // TODO(allen): // TODO(allen): // TODO(allen): 
-    // re-implement undo
+    View_Summary view = get_active_view(app, AccessOpen);
+    Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessOpen);
+    History_Record_Index current = buffer_history_get_current_state_index(app, &buffer);
+    if (current > 0){
+        current -= 1;
+        buffer_history_set_current_state_index(app, &buffer, current);
+    }
 }
 
 CUSTOM_COMMAND_SIG(redo)
-CUSTOM_DOC("Advances forewards through the undo history.")
+CUSTOM_DOC("Advances forwards through the undo history.")
 {
-    // TODO(allen): // TODO(allen): // TODO(allen): // TODO(allen): // TODO(allen): 
-    // TODO(allen): // TODO(allen): // TODO(allen): // TODO(allen): // TODO(allen): 
-    // TODO(allen): // TODO(allen): // TODO(allen): // TODO(allen): // TODO(allen): 
-    // TODO(allen): // TODO(allen): // TODO(allen): // TODO(allen): // TODO(allen): 
-    // TODO(allen): // TODO(allen): // TODO(allen): // TODO(allen): // TODO(allen): 
-    // re-implement redo
+    View_Summary view = get_active_view(app, AccessOpen);
+    Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessOpen);
+    History_Record_Index current = buffer_history_get_current_state_index(app, &buffer);
+    History_Record_Index max_index = buffer_history_newest_record_index(app, &buffer);
+    if (current < max_index){
+        current += 1;
+        buffer_history_set_current_state_index(app, &buffer, current);
+    }
 }
 
 ////////////////////////////////

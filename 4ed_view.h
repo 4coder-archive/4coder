@@ -114,30 +114,11 @@ struct Shift_Information{
     i32 amount;
 };
 
-struct Edit_Spec{
-    u8 *str;
-    Edit_Step step;
-};
-
 struct Relative_Scrolling{
     f32 scroll_x;
     f32 scroll_y;
     f32 target_x;
     f32 target_y;
-};
-
-struct Cursor_Fix_Descriptor{
-    b32 is_batch;
-    union{
-        struct{
-            Buffer_Edit *batch;
-            i32 batch_size;
-        };
-        struct{
-            i32 start, end;
-            i32 shift_amount;
-        };
-    };
 };
 
 struct File_Bar{
@@ -194,13 +175,6 @@ struct Input_Process_Result{
 
 enum{
     FileCreateFlag_ReadOnly = 1,
-};
-
-typedef i32 History_Mode;
-enum{
-    hist_normal,
-    hist_backward,
-    hist_forward
 };
 
 struct Render_Marker{

@@ -646,8 +646,14 @@ DOC_SEE(4coder_Buffer_Positioning_System)
     if (file != 0){
         size = buffer_size(&file->state.buffer);
         if (0 <= start && start <= end && end <= size){
+            Edit edit = {};
+            edit.str = str;
+            edit.length = len;
+            edit.range.first = start;
+            edit.range.one_past_last = end;
+            Edit_Behaviors behaviors = {};
+            edit_single(models->system, models, file, edit, behaviors);
             result = true;
-            edit_single(models->system, models, file, start, end, str, len);
         }
         fill_buffer_summary(buffer, file, &models->working_set);
     }
@@ -704,13 +710,22 @@ DOC_SEE(Buffer_Batch_Edit_Type)
     if (file != 0){
         if (edit_count > 0){
             Temp_Memory temp = begin_temp_memory(part);
-            Buffer_Edit *inverse_edits = push_array(part, Buffer_Edit, edit_count);
-            Assert(inverse_edits != 0);
-            char *inv_str = (char*)part->base + part->pos;
-            int32_t inv_str_max = part->max - part->pos;
-            Edit_Spec spec = edit_compute_batch_spec(&mem->heap, file, edits, str, str_len,
-                                                     inverse_edits, inv_str, inv_str_max, edit_count, type);
-            edit_batch(system, models, file, spec, hist_normal, type);
+            Edit_Array real_edits = {};
+            real_edits.vals = push_array(part, Edit, edit_count);
+            real_edits.count = edit_count;
+            Edit *edit_out = real_edits.vals;
+            Buffer_Edit *edit_in = edits;
+            Edit *one_past_last_edit_out = real_edits.vals + edit_count;
+            for (;edit_out < one_past_last_edit_out;
+                 edit_out += 1, edit_in += 1){
+                edit_out->str = str + edit_in->str_start;
+                edit_out->length = edit_in->len;
+                edit_out->range.first = edit_in->start;
+                edit_out->range.one_past_last = edit_in->end;
+            }
+            Edit_Behaviors behaviors = {};
+            behaviors.batch_type = type;
+            edit_batch(system, models, file, real_edits, behaviors);
             end_temp_memory(temp);
         }
         result = true;
@@ -1224,7 +1239,10 @@ DOC_SEE(Buffer_Create_Flag)
         if (file != 0 && (flags & BufferCreate_AlwaysNew) != 0){
             i32 size = buffer_size(&file->state.buffer);
             if (size > 0){
-                edit_single(system, models, file, 0, size, 0, 0);
+                Edit edit = {};
+                edit.range.one_past_last = size;
+                Edit_Behaviors behaviors = {};
+                edit_single(system, models, file, edit, behaviors);
                 if (has_canon_name){
                     buffer_is_for_new_file = true;
                 }
@@ -1315,7 +1333,7 @@ DOC_SEE(Buffer_Identifier)
                 if (file->canon.name.size != 0){
                     buffer_unbind_file(system, working_set, file);
                 }
-                file_free(system, &models->app_links, &models->mem.heap, &models->lifetime_allocator, file);
+                file_free(system, &models->mem.heap, &models->lifetime_allocator, file);
                 working_set_free_file(&models->mem.heap, working_set, file);
                 
                 Layout *layout = &models->layout;
@@ -1397,7 +1415,7 @@ Reopen_Buffer(Application_Links *app, Buffer_Summary *buffer, Buffer_Reopen_Flag
                         ++vptr_count;
                     }
                     
-                    file_free(system, &models->app_links, &models->mem.heap, &models->lifetime_allocator, file);
+                    file_free(system, &models->mem.heap, &models->lifetime_allocator, file);
                     working_set_file_default_settings(&models->working_set, file);
                     init_normal_file(system, models, file_memory, size, file);
                     
@@ -2526,7 +2544,7 @@ DOC(Managed objects allocate memory that is tied to the scope.  When the scope i
     Managed_Object result = 0;
     if (workspace != 0){
         int32_t size = count*item_size;
-        void *ptr = dynamic_memory_bank_allocate(heap, &workspace->mem_bank, size + sizeof(Managed_Memory_Header));
+        void *ptr = memory_bank_allocate(heap, &workspace->mem_bank, size + sizeof(Managed_Memory_Header));
         Managed_Memory_Header *header = (Managed_Memory_Header*)ptr;
         header->std_header.type = ManagedObjectType_Memory;
         header->std_header.item_size = item_size;
@@ -2563,7 +2581,7 @@ DOC_SEE(Marker)
     Managed_Object result = 0;
     if (workspace != 0){
         i32 size = count*sizeof(Marker);
-		void *ptr = dynamic_memory_bank_allocate(heap, &workspace->mem_bank, size + sizeof(Managed_Buffer_Markers_Header));
+		void *ptr = memory_bank_allocate(heap, &workspace->mem_bank, size + sizeof(Managed_Buffer_Markers_Header));
         Managed_Buffer_Markers_Header *header = (Managed_Buffer_Markers_Header*)ptr;
         header->std_header.type = ManagedObjectType_Markers;
         header->std_header.item_size = sizeof(Marker);
@@ -2907,7 +2925,7 @@ DOC(Permanently frees the specified object.  Not only does this free up the memo
                 workspace->buffer_markers_list.count -= 1;
             }
             dynamic_workspace_erase_pointer(workspace, lo_id);
-            dynamic_memory_bank_free(&workspace->mem_bank, object_ptr);
+            memory_bank_free(&workspace->mem_bank, object_ptr);
             return(true);
         }
     }
@@ -3289,6 +3307,84 @@ DOC_RETURN(Returns true if the given id was a valid face and the change was made
     }
     
     return(did_change);
+}
+
+API_EXPORT History_Record_Index
+Buffer_History_Newest_Record_Index(Application_Links *app, Buffer_Summary *buffer){
+    Models *models = (Models*)app->cmd_context;
+    Editing_File *file = imp_get_file(models, buffer);
+    History_Record_Index result = 0;
+    if (file != 0){
+        result = history_get_record_count(&file->state.history);
+    }
+    return(result);
+}
+
+API_EXPORT Record_Data
+Buffer_History_Get_Record(Application_Links *app, Buffer_Summary *buffer, History_Record_Index record){
+    Record_Data result = {};
+    return(result);
+}
+
+API_EXPORT History_Record_Index
+Buffer_History_Get_Current_State_Index(Application_Links *app, Buffer_Summary *buffer){
+    Models *models = (Models*)app->cmd_context;
+    Editing_File *file = imp_get_file(models, buffer);
+    History_Record_Index result = 0;
+    if (file != 0){
+        result = file_get_current_record_index(file);
+    }
+    return(result);
+}
+
+API_EXPORT bool32
+Buffer_History_Set_Current_State_Index(Application_Links *app, Buffer_Summary *buffer, History_Record_Index index){
+    Models *models = (Models*)app->cmd_context;
+    Editing_File *file = imp_get_file(models, buffer);
+    bool32 result = false;
+    if (file != 0){
+        i32 max_index = history_get_record_count(&file->state.history);
+        if (0 <= index && index <= max_index){
+            System_Functions *system = models->system;
+            edit_change_current_history_state(system, models, file, index);
+            result = true;
+        }
+    }
+    return(result);
+}
+
+API_EXPORT bool32
+Buffer_History_Merge_Records_Between_States(Application_Links *app, Buffer_Summary *buffer, History_Record_Index first_index, History_Record_Index last_index){
+    bool32 result = false;
+    return(result);
+}
+
+API_EXPORT bool32
+Buffer_History_Split_Group_Record(Application_Links *app, Buffer_Summary *buffer, History_Record_Index record_index, int32_t sub_record_index){
+    bool32 result = false;
+    return(result);
+}
+
+API_EXPORT bool32
+Buffer_History_Split_Single_Record(Application_Links *app, Buffer_Summary *buffer, History_Record_Index record_index, int32_t forward_str_split, int32_t backward_str_split){
+    bool32 result = false;
+    return(result);
+}
+
+API_EXPORT bool32
+Buffer_History_Clear_After_Undo_Position(Application_Links *app, Buffer_Summary *buffer){
+    bool32 result = false;
+    return(result);
+}
+
+API_EXPORT void
+Global_History_Edit_Group_Begin(Application_Links *app){
+    
+}
+
+API_EXPORT void
+Global_History_Edit_Group_End(Application_Links *app){
+    
 }
 
 internal void

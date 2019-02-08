@@ -58,7 +58,14 @@ internal void
 output_file_append(System_Functions *system, Models *models, Editing_File *file, String value){
     if (!file->is_dummy){
         i32 end = buffer_size(&file->state.buffer);
-        edit_single(system, models, file, end, end, value.str, value.size);
+        Edit edit = {};
+        edit.str = value.str;
+        edit.length = value.size;
+        edit.range.first = end;
+        edit.range.one_past_last = end;
+        
+        Edit_Behaviors behaviors = {};
+        edit_single(system, models, file, edit, behaviors);
     }
 }
 
@@ -833,6 +840,9 @@ App_Init_Sig(app_init){
     working_set_init(system, &models->working_set, part, &vars->models.mem.heap);
     models->working_set.default_display_width = DEFAULT_DISPLAY_WIDTH;
     models->working_set.default_minimum_base_display_width = DEFAULT_MINIMUM_BASE_DISPLAY_WIDTH;
+    
+    // NOTE(allen): history setup
+    global_history_init(&models->global_history);
     
     // NOTE(allen): clipboard setup
     models->working_set.clipboard_max_size = ArrayCount(models->working_set.clipboards);

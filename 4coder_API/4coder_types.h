@@ -561,18 +561,6 @@ STRUCT Partial_Cursor{
     int32_t character;
 };
 
-/* DOC(Buffer_Edit describes a range of a buffer and string to replace that range. A Buffer_Edit has to be paired with a string that contains the actual text that will be replaced into the buffer.) */
-STRUCT Buffer_Edit{
-    /* DOC(The str_start field specifies the first character in the accompanying string that corresponds with this edit.) */
-    int32_t str_start;
-    /* DOC(The len field specifies the length of the string being written into the buffer.) */
-    int32_t len;
-    /* DOC(The start field specifies the start of the range in the buffer to replace in absolute position.) */
-    int32_t start;
-    /* DOC(The end field specifies one past the end of the range in the buffer to replace in absolute position.) */
-    int32_t end;
-};
-
 /* DOC(Buffer_Summary acts as a handle to a buffer and describes the state of the buffer.)
 DOC_SEE(Access_Flag)
 DOC_SEE(Dirty_State) */
@@ -981,8 +969,22 @@ ENUM(int32_t, Buffer_Batch_Edit_Type){
     BatchEdit_PreserveTokens
 };
 
+/* DOC(Buffer_Edit describes a range of a buffer and string to replace that range. A Buffer_Edit has to be paired with a string that contains the actual
+text that will be replaced into the buffer.) */
+STRUCT Buffer_Edit{
+    /* DOC(The str_start field specifies the first character in the accompanying string that corresponds with this edit.) */
+    int32_t str_start;
+    /* DOC(The len field specifies the length of the string being written into the buffer.) */
+    int32_t len;
+    /* DOC(The start field specifies the start of the range in the buffer to replace in absolute position.) */
+    int32_t start;
+    /* DOC(The end field specifies one past the end of the range in the buffer to replace in absolute position.) */
+    int32_t end;
+};
+
 /*
 DOC(This struct is used to bundle the parameters of the buffer_batch_edit function.  It is convenient for a few functions that return a batch edit to the user.)
+DOC_SEE(Buffer_Edit)
 DOC_SEE(buffer_batch_edit)
 */
 STRUCT Buffer_Batch_Edit{
@@ -997,6 +999,17 @@ STRUCT Buffer_Batch_Edit{
     int32_t edit_count;
 };
 
+ENUM(int32_t, Record_Kind){
+    RecordKind_Single,
+    RecordKind_Batch,
+    RecordKind_Group,
+};
+
+TYPEDEF int32_t History_Record_Index;
+
+STRUCT Record_Data{
+    
+};
 
 /* DOC(Custom_Command_Function is a function type which matches the signature used for commands.  To declare a command use CUSTOM_COMMAND_SIG.) DOC_SEE(CUSTOM_COMMAND_SIG) */
 TYPEDEF void Custom_Command_Function(struct Application_Links *app);

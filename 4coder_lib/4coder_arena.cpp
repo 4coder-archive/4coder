@@ -236,6 +236,23 @@ end_temp_memory(Temp_Memory_Arena temp){
     }
 }
 
+static Temp_Memory_Arena_Light
+temp_memory_light(Temp_Memory_Arena temp){
+    Temp_Memory_Arena_Light light = {};
+    light.part = temp.part;
+    light.pos = temp.pos;
+    return(light);
+}
+
+static void
+end_temp_memory(Arena *arena, Temp_Memory_Arena_Light temp){
+    Temp_Memory_Arena full_temp = {};
+    full_temp.arena = arena;
+    full_temp.part = temp.part;
+    full_temp.pos = temp.pos;
+    end_temp_memory(full_temp);
+}
+
 static void*
 push_allocator_allocate(Arena *arena, i32_4tech size){
     return(arena_allocate(arena, size));

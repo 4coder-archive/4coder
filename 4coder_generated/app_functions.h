@@ -95,6 +95,16 @@ struct Application_Links;
 #define GET_LARGEST_FACE_ID_SIG(n) Face_ID n(Application_Links *app)
 #define SET_GLOBAL_FACE_SIG(n) bool32 n(Application_Links *app, Face_ID id, bool32 apply_to_all_buffers)
 #define BUFFER_SET_FACE_SIG(n) bool32 n(Application_Links *app, Buffer_Summary *buffer, Face_ID id)
+#define BUFFER_HISTORY_NEWEST_RECORD_INDEX_SIG(n) History_Record_Index n(Application_Links *app, Buffer_Summary *buffer)
+#define BUFFER_HISTORY_GET_RECORD_SIG(n) Record_Data n(Application_Links *app, Buffer_Summary *buffer, History_Record_Index record)
+#define BUFFER_HISTORY_GET_CURRENT_STATE_INDEX_SIG(n) History_Record_Index n(Application_Links *app, Buffer_Summary *buffer)
+#define BUFFER_HISTORY_SET_CURRENT_STATE_INDEX_SIG(n) bool32 n(Application_Links *app, Buffer_Summary *buffer, History_Record_Index index)
+#define BUFFER_HISTORY_MERGE_RECORDS_BETWEEN_STATES_SIG(n) bool32 n(Application_Links *app, Buffer_Summary *buffer, History_Record_Index first_index, History_Record_Index last_index)
+#define BUFFER_HISTORY_SPLIT_GROUP_RECORD_SIG(n) bool32 n(Application_Links *app, Buffer_Summary *buffer, History_Record_Index record_index, int32_t sub_record_index)
+#define BUFFER_HISTORY_SPLIT_SINGLE_RECORD_SIG(n) bool32 n(Application_Links *app, Buffer_Summary *buffer, History_Record_Index record_index, int32_t forward_str_split, int32_t backward_str_split)
+#define BUFFER_HISTORY_CLEAR_AFTER_UNDO_POSITION_SIG(n) bool32 n(Application_Links *app, Buffer_Summary *buffer)
+#define GLOBAL_HISTORY_EDIT_GROUP_BEGIN_SIG(n) void n(Application_Links *app)
+#define GLOBAL_HISTORY_EDIT_GROUP_END_SIG(n) void n(Application_Links *app)
 #define GET_FACE_DESCRIPTION_SIG(n) Face_Description n(Application_Links *app, Face_ID id)
 #define GET_FACE_ID_SIG(n) Face_ID n(Application_Links *app, Buffer_Summary *buffer)
 #define TRY_CREATE_NEW_FACE_SIG(n) Face_ID n(Application_Links *app, Face_Description *description)
@@ -222,6 +232,16 @@ typedef CHANGE_THEME_BY_INDEX_SIG(Change_Theme_By_Index_Function);
 typedef GET_LARGEST_FACE_ID_SIG(Get_Largest_Face_ID_Function);
 typedef SET_GLOBAL_FACE_SIG(Set_Global_Face_Function);
 typedef BUFFER_SET_FACE_SIG(Buffer_Set_Face_Function);
+typedef BUFFER_HISTORY_NEWEST_RECORD_INDEX_SIG(Buffer_History_Newest_Record_Index_Function);
+typedef BUFFER_HISTORY_GET_RECORD_SIG(Buffer_History_Get_Record_Function);
+typedef BUFFER_HISTORY_GET_CURRENT_STATE_INDEX_SIG(Buffer_History_Get_Current_State_Index_Function);
+typedef BUFFER_HISTORY_SET_CURRENT_STATE_INDEX_SIG(Buffer_History_Set_Current_State_Index_Function);
+typedef BUFFER_HISTORY_MERGE_RECORDS_BETWEEN_STATES_SIG(Buffer_History_Merge_Records_Between_States_Function);
+typedef BUFFER_HISTORY_SPLIT_GROUP_RECORD_SIG(Buffer_History_Split_Group_Record_Function);
+typedef BUFFER_HISTORY_SPLIT_SINGLE_RECORD_SIG(Buffer_History_Split_Single_Record_Function);
+typedef BUFFER_HISTORY_CLEAR_AFTER_UNDO_POSITION_SIG(Buffer_History_Clear_After_Undo_Position_Function);
+typedef GLOBAL_HISTORY_EDIT_GROUP_BEGIN_SIG(Global_History_Edit_Group_Begin_Function);
+typedef GLOBAL_HISTORY_EDIT_GROUP_END_SIG(Global_History_Edit_Group_End_Function);
 typedef GET_FACE_DESCRIPTION_SIG(Get_Face_Description_Function);
 typedef GET_FACE_ID_SIG(Get_Face_ID_Function);
 typedef TRY_CREATE_NEW_FACE_SIG(Try_Create_New_Face_Function);
@@ -351,6 +371,16 @@ Change_Theme_By_Index_Function *change_theme_by_index;
 Get_Largest_Face_ID_Function *get_largest_face_id;
 Set_Global_Face_Function *set_global_face;
 Buffer_Set_Face_Function *buffer_set_face;
+Buffer_History_Newest_Record_Index_Function *buffer_history_newest_record_index;
+Buffer_History_Get_Record_Function *buffer_history_get_record;
+Buffer_History_Get_Current_State_Index_Function *buffer_history_get_current_state_index;
+Buffer_History_Set_Current_State_Index_Function *buffer_history_set_current_state_index;
+Buffer_History_Merge_Records_Between_States_Function *buffer_history_merge_records_between_states;
+Buffer_History_Split_Group_Record_Function *buffer_history_split_group_record;
+Buffer_History_Split_Single_Record_Function *buffer_history_split_single_record;
+Buffer_History_Clear_After_Undo_Position_Function *buffer_history_clear_after_undo_position;
+Global_History_Edit_Group_Begin_Function *global_history_edit_group_begin;
+Global_History_Edit_Group_End_Function *global_history_edit_group_end;
 Get_Face_Description_Function *get_face_description;
 Get_Face_ID_Function *get_face_id;
 Try_Create_New_Face_Function *try_create_new_face;
@@ -479,6 +509,16 @@ Change_Theme_By_Index_Function *change_theme_by_index_;
 Get_Largest_Face_ID_Function *get_largest_face_id_;
 Set_Global_Face_Function *set_global_face_;
 Buffer_Set_Face_Function *buffer_set_face_;
+Buffer_History_Newest_Record_Index_Function *buffer_history_newest_record_index_;
+Buffer_History_Get_Record_Function *buffer_history_get_record_;
+Buffer_History_Get_Current_State_Index_Function *buffer_history_get_current_state_index_;
+Buffer_History_Set_Current_State_Index_Function *buffer_history_set_current_state_index_;
+Buffer_History_Merge_Records_Between_States_Function *buffer_history_merge_records_between_states_;
+Buffer_History_Split_Group_Record_Function *buffer_history_split_group_record_;
+Buffer_History_Split_Single_Record_Function *buffer_history_split_single_record_;
+Buffer_History_Clear_After_Undo_Position_Function *buffer_history_clear_after_undo_position_;
+Global_History_Edit_Group_Begin_Function *global_history_edit_group_begin_;
+Global_History_Edit_Group_End_Function *global_history_edit_group_end_;
 Get_Face_Description_Function *get_face_description_;
 Get_Face_ID_Function *get_face_id_;
 Try_Create_New_Face_Function *try_create_new_face_;
@@ -615,6 +655,16 @@ app_links->change_theme_by_index_ = Change_Theme_By_Index;\
 app_links->get_largest_face_id_ = Get_Largest_Face_ID;\
 app_links->set_global_face_ = Set_Global_Face;\
 app_links->buffer_set_face_ = Buffer_Set_Face;\
+app_links->buffer_history_newest_record_index_ = Buffer_History_Newest_Record_Index;\
+app_links->buffer_history_get_record_ = Buffer_History_Get_Record;\
+app_links->buffer_history_get_current_state_index_ = Buffer_History_Get_Current_State_Index;\
+app_links->buffer_history_set_current_state_index_ = Buffer_History_Set_Current_State_Index;\
+app_links->buffer_history_merge_records_between_states_ = Buffer_History_Merge_Records_Between_States;\
+app_links->buffer_history_split_group_record_ = Buffer_History_Split_Group_Record;\
+app_links->buffer_history_split_single_record_ = Buffer_History_Split_Single_Record;\
+app_links->buffer_history_clear_after_undo_position_ = Buffer_History_Clear_After_Undo_Position;\
+app_links->global_history_edit_group_begin_ = Global_History_Edit_Group_Begin;\
+app_links->global_history_edit_group_end_ = Global_History_Edit_Group_End;\
 app_links->get_face_description_ = Get_Face_Description;\
 app_links->get_face_id_ = Get_Face_ID;\
 app_links->try_create_new_face_ = Try_Create_New_Face;\
@@ -743,6 +793,16 @@ static bool32 change_theme_by_index(Application_Links *app, int32_t index){retur
 static Face_ID get_largest_face_id(Application_Links *app){return(app->get_largest_face_id(app));}
 static bool32 set_global_face(Application_Links *app, Face_ID id, bool32 apply_to_all_buffers){return(app->set_global_face(app, id, apply_to_all_buffers));}
 static bool32 buffer_set_face(Application_Links *app, Buffer_Summary *buffer, Face_ID id){return(app->buffer_set_face(app, buffer, id));}
+static History_Record_Index buffer_history_newest_record_index(Application_Links *app, Buffer_Summary *buffer){return(app->buffer_history_newest_record_index(app, buffer));}
+static Record_Data buffer_history_get_record(Application_Links *app, Buffer_Summary *buffer, History_Record_Index record){return(app->buffer_history_get_record(app, buffer, record));}
+static History_Record_Index buffer_history_get_current_state_index(Application_Links *app, Buffer_Summary *buffer){return(app->buffer_history_get_current_state_index(app, buffer));}
+static bool32 buffer_history_set_current_state_index(Application_Links *app, Buffer_Summary *buffer, History_Record_Index index){return(app->buffer_history_set_current_state_index(app, buffer, index));}
+static bool32 buffer_history_merge_records_between_states(Application_Links *app, Buffer_Summary *buffer, History_Record_Index first_index, History_Record_Index last_index){return(app->buffer_history_merge_records_between_states(app, buffer, first_index, last_index));}
+static bool32 buffer_history_split_group_record(Application_Links *app, Buffer_Summary *buffer, History_Record_Index record_index, int32_t sub_record_index){return(app->buffer_history_split_group_record(app, buffer, record_index, sub_record_index));}
+static bool32 buffer_history_split_single_record(Application_Links *app, Buffer_Summary *buffer, History_Record_Index record_index, int32_t forward_str_split, int32_t backward_str_split){return(app->buffer_history_split_single_record(app, buffer, record_index, forward_str_split, backward_str_split));}
+static bool32 buffer_history_clear_after_undo_position(Application_Links *app, Buffer_Summary *buffer){return(app->buffer_history_clear_after_undo_position(app, buffer));}
+static void global_history_edit_group_begin(Application_Links *app){(app->global_history_edit_group_begin(app));}
+static void global_history_edit_group_end(Application_Links *app){(app->global_history_edit_group_end(app));}
 static Face_Description get_face_description(Application_Links *app, Face_ID id){return(app->get_face_description(app, id));}
 static Face_ID get_face_id(Application_Links *app, Buffer_Summary *buffer){return(app->get_face_id(app, buffer));}
 static Face_ID try_create_new_face(Application_Links *app, Face_Description *description){return(app->try_create_new_face(app, description));}
@@ -871,6 +931,16 @@ static bool32 change_theme_by_index(Application_Links *app, int32_t index){retur
 static Face_ID get_largest_face_id(Application_Links *app){return(app->get_largest_face_id_(app));}
 static bool32 set_global_face(Application_Links *app, Face_ID id, bool32 apply_to_all_buffers){return(app->set_global_face_(app, id, apply_to_all_buffers));}
 static bool32 buffer_set_face(Application_Links *app, Buffer_Summary *buffer, Face_ID id){return(app->buffer_set_face_(app, buffer, id));}
+static History_Record_Index buffer_history_newest_record_index(Application_Links *app, Buffer_Summary *buffer){return(app->buffer_history_newest_record_index_(app, buffer));}
+static Record_Data buffer_history_get_record(Application_Links *app, Buffer_Summary *buffer, History_Record_Index record){return(app->buffer_history_get_record_(app, buffer, record));}
+static History_Record_Index buffer_history_get_current_state_index(Application_Links *app, Buffer_Summary *buffer){return(app->buffer_history_get_current_state_index_(app, buffer));}
+static bool32 buffer_history_set_current_state_index(Application_Links *app, Buffer_Summary *buffer, History_Record_Index index){return(app->buffer_history_set_current_state_index_(app, buffer, index));}
+static bool32 buffer_history_merge_records_between_states(Application_Links *app, Buffer_Summary *buffer, History_Record_Index first_index, History_Record_Index last_index){return(app->buffer_history_merge_records_between_states_(app, buffer, first_index, last_index));}
+static bool32 buffer_history_split_group_record(Application_Links *app, Buffer_Summary *buffer, History_Record_Index record_index, int32_t sub_record_index){return(app->buffer_history_split_group_record_(app, buffer, record_index, sub_record_index));}
+static bool32 buffer_history_split_single_record(Application_Links *app, Buffer_Summary *buffer, History_Record_Index record_index, int32_t forward_str_split, int32_t backward_str_split){return(app->buffer_history_split_single_record_(app, buffer, record_index, forward_str_split, backward_str_split));}
+static bool32 buffer_history_clear_after_undo_position(Application_Links *app, Buffer_Summary *buffer){return(app->buffer_history_clear_after_undo_position_(app, buffer));}
+static void global_history_edit_group_begin(Application_Links *app){(app->global_history_edit_group_begin_(app));}
+static void global_history_edit_group_end(Application_Links *app){(app->global_history_edit_group_end_(app));}
 static Face_Description get_face_description(Application_Links *app, Face_ID id){return(app->get_face_description_(app, id));}
 static Face_ID get_face_id(Application_Links *app, Buffer_Summary *buffer){return(app->get_face_id_(app, buffer));}
 static Face_ID try_create_new_face(Application_Links *app, Face_Description *description){return(app->try_create_new_face_(app, description));}

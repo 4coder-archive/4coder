@@ -67,49 +67,6 @@ dynamic_variables_create(Heap *heap, Dynamic_Variable_Layout *layout, String nam
 ////////////////////////////////
 
 internal void
-dynamic_memory_bank_init(Heap *heap, Dynamic_Memory_Bank *mem_bank){
-    heap_init(&mem_bank->heap);
-    mem_bank->first = 0;
-    mem_bank->last = 0;
-    mem_bank->total_memory_size = 0;
-}
-
-internal void*
-dynamic_memory_bank_allocate(Heap *heap, Dynamic_Memory_Bank *mem_bank, i32 size){
-    void *ptr = heap_allocate(&mem_bank->heap, size);
-    if (ptr == 0){
-        i32 alloc_size = clamp_bottom(4096, size*4 + sizeof(Dynamic_Memory_Header));
-        void *new_block = heap_allocate(heap, alloc_size);
-        if (new_block != 0){
-            Dynamic_Memory_Header *header = (Dynamic_Memory_Header*)new_block;
-            sll_push(mem_bank->first, mem_bank->last, header);
-            mem_bank->total_memory_size += alloc_size;
-            heap_extend(&mem_bank->heap, header + 1, alloc_size - sizeof(*header));
-            ptr = heap_allocate(&mem_bank->heap, size);
-        }
-    }
-    return(ptr);
-}
-
-internal void
-dynamic_memory_bank_free(Dynamic_Memory_Bank *mem_bank, void *ptr){
-    heap_free(&mem_bank->heap, ptr);
-}
-
-internal void
-dynamic_memory_bank_free_all(Heap *heap, Dynamic_Memory_Bank *mem_bank){
-    for (Dynamic_Memory_Header *header = mem_bank->first, *next = 0;
-         header != 0;
-         header = next){
-        next = header->next;
-        heap_free(heap, header);
-    }
-    mem_bank->total_memory_size = 0;
-}
-
-////////////////////////////////
-
-internal void
 dynamic_variables_block_init(Dynamic_Variable_Block *block){
     block->val_array = 0;
     block->count = 0;
@@ -117,12 +74,12 @@ dynamic_variables_block_init(Dynamic_Variable_Block *block){
 }
 
 internal void
-dynamic_variables_block_grow_max_to(Heap *heap, Dynamic_Memory_Bank *mem_bank, i32 new_max, Dynamic_Variable_Block *block){
+dynamic_variables_block_grow_max_to(Heap *heap, Memory_Bank *mem_bank, i32 new_max, Dynamic_Variable_Block *block){
     i32 new_size = new_max*sizeof(u64);
-    u64 *new_array = (u64*)dynamic_memory_bank_allocate(heap, mem_bank, new_size);
+    u64 *new_array = (u64*)memory_bank_allocate(heap, mem_bank, new_size);
     if (block->val_array != 0){
         memcpy(new_array, block->val_array, sizeof(u64)*block->count);
-        dynamic_memory_bank_free(mem_bank, block->val_array);
+        memory_bank_free(mem_bank, block->val_array);
     }
     block->val_array = new_array;
 }
@@ -142,7 +99,7 @@ dynamic_variables_block_fill_unset_values(Dynamic_Variable_Layout *layout, Dynam
 }
 
 internal b32
-dynamic_variables_get_ptr(Heap *heap, Dynamic_Memory_Bank *mem_bank,
+dynamic_variables_get_ptr(Heap *heap, Memory_Bank *mem_bank,
                           Dynamic_Variable_Layout *layout, Dynamic_Variable_Block *block,
                           i32 location, u64 **ptr_out){
     b32 result = false;
@@ -164,17 +121,17 @@ dynamic_variables_get_ptr(Heap *heap, Dynamic_Memory_Bank *mem_bank,
 ////////////////////////////////
 
 internal void
-insert_u32_Ptr_table(Heap *heap, Dynamic_Memory_Bank *mem_bank, u32_Ptr_Table *table, u32 key, void* val){
+insert_u32_Ptr_table(Heap *heap, Memory_Bank *mem_bank, u32_Ptr_Table *table, u32 key, void* val){
     if (at_max_u32_Ptr_table(table)){
         i32 new_max = (table->max + 1)*2;
         i32 new_mem_size = max_to_memsize_u32_Ptr_table(new_max);
-        void *new_mem = dynamic_memory_bank_allocate(heap, mem_bank, new_mem_size);
+        void *new_mem = memory_bank_allocate(heap, mem_bank, new_mem_size);
         u32_Ptr_Table new_table = make_u32_Ptr_table(new_mem, new_mem_size);
         if (table->mem != 0){
             b32 result = move_u32_Ptr_table(&new_table, table);
             Assert(result);
             AllowLocal(result);
-            dynamic_memory_bank_free(mem_bank, table->mem);
+            memory_bank_free(mem_bank, table->mem);
         }
         *table = new_table;
     }
@@ -191,12 +148,12 @@ marker_visual_allocator_init(Marker_Visual_Allocator *allocator){
 }
 
 internal Marker_Visual_Data*
-dynamic_workspace_alloc_visual(Heap *heap, Dynamic_Memory_Bank *mem_bank, Dynamic_Workspace *workspace){
+dynamic_workspace_alloc_visual(Heap *heap, Memory_Bank *mem_bank, Dynamic_Workspace *workspace){
     Marker_Visual_Allocator *allocator = &workspace->visual_allocator;
     if (allocator->free_count == 0){
         i32 new_slots_count = clamp_bottom(16, allocator->total_visual_count);
         i32 memsize = new_slots_count*sizeof(Marker_Visual_Data);
-        void *new_slots_memory = dynamic_memory_bank_allocate(heap, mem_bank, memsize);
+        void *new_slots_memory = memory_bank_allocate(heap, mem_bank, memsize);
         memset(new_slots_memory, 0, memsize);
         Marker_Visual_Data *new_slot = (Marker_Visual_Data*)new_slots_memory;
         allocator->free_count += new_slots_count;
@@ -254,7 +211,7 @@ marker_visual_defaults(Marker_Visual_Data *data){
 internal void
 dynamic_workspace_init(Heap *heap, Lifetime_Allocator *lifetime_allocator, i32 user_type, void *user_back_ptr, Dynamic_Workspace *workspace){
     memset(workspace, 0, sizeof(*workspace));
-    dynamic_memory_bank_init(heap, &workspace->mem_bank);
+    memory_bank_init(&workspace->mem_bank);
     dynamic_variables_block_init(&workspace->var_block);
     marker_visual_allocator_init(&workspace->visual_allocator);
     if (lifetime_allocator->scope_id_counter == 0){
@@ -269,13 +226,13 @@ dynamic_workspace_init(Heap *heap, Lifetime_Allocator *lifetime_allocator, i32 u
 internal void
 dynamic_workspace_free(Heap *heap, Lifetime_Allocator *lifetime_allocator, Dynamic_Workspace *workspace){
     erase_u32_Ptr_table(&lifetime_allocator->scope_id_to_scope_ptr_table, workspace->scope_id);
-    dynamic_memory_bank_free_all(heap, &workspace->mem_bank);
+    memory_bank_free_all(heap, &workspace->mem_bank);
 }
 
 internal void
 dynamic_workspace_clear_contents(Heap *heap, Dynamic_Workspace *workspace){
-    dynamic_memory_bank_free_all(heap, &workspace->mem_bank);
-    dynamic_memory_bank_init(heap, &workspace->mem_bank);
+    memory_bank_free_all(heap, &workspace->mem_bank);
+    memory_bank_init(&workspace->mem_bank);
     
     dynamic_variables_block_init(&workspace->var_block);
     marker_visual_allocator_init(&workspace->visual_allocator);
