@@ -191,34 +191,6 @@ DOC(Dumps away the previous mappings and instantiates the mappings described in 
 }
 
 API_EXPORT bool32
-Exec_Command(Application_Links *app, Command_ID command_id)
-/*
-DOC_PARAM(command_id, The command_id parameter specifies which internal command to execute.)
-DOC_RETURN(This call returns non-zero if command_id named a valid internal command.)
-DOC(A call to exec_command executes an internal command. If command_id is invalid a warning is posted to *messages*.)
-DOC_SEE(Command_ID)
-*/{
-    bool32 result = false;
-    
-    if (command_id < cmdid_count){
-        Models *models = (Models*)app->cmd_context;
-        Command_Function *function = command_table[command_id];
-        Command_Binding binding = {};
-        binding.function = function;
-        if (function != 0){
-            function(models->system, models, binding);
-        }
-        
-        result = true;
-    }
-    else{
-        print_message(app, literal("WARNING: An invalid Command_ID was passed to exec_command."));
-    }
-    
-    return(result);
-}
-
-API_EXPORT bool32
 Exec_System_Command(Application_Links *app, View_Summary *view, Buffer_Identifier buffer_id, char *path, int32_t path_len, char *command, int32_t command_len, Command_Line_Interface_Flag flags)
 /*
 DOC_PARAM(view, If the view parameter is non-null it specifies a view to display the command's output buffer, otherwise the command will still work but if there is a buffer capturing the output it will not automatically be displayed.)

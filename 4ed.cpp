@@ -100,58 +100,6 @@ file_cursor_to_end(System_Functions *system, Models *models, Editing_File *file)
 #define REQ_FILE(n,v) Editing_File *n = (v)->transient.file_data.file; if (n == 0) return
 #define REQ_FILE_HISTORY(n,v) Editing_File *n = (v)->transient.file_data.file; if (n == 0 || n->state.undo.undo.edits == 0) return
 
-#define COMMAND_DECL(n) internal void command_##n(System_Functions *system, Models *models, Command_Binding binding)
-
-COMMAND_DECL(null){}
-
-internal void
-view_undo_redo(System_Functions *system, Models *models, View *view, Edit_Stack *stack, Edit_Type expected_type){
-    Editing_File *file = view->transient.file_data.file;
-    Assert(file != 0);
-    if (stack->edit_count > 0){
-        Edit_Step step = stack->edits[stack->edit_count - 1];
-        Assert(step.type == expected_type);
-        edit_historical(system, models, file, view, stack,
-                        step, hist_normal);
-    }
-}
-
-COMMAND_DECL(undo){
-    Panel *active_panel = layout_get_active_panel(&models->layout);
-    View *view = active_panel->view;
-    if (view_lock_flags(view) != 0){
-        return;
-    }
-    Editing_File *file = view->transient.file_data.file;
-    if (file->state.undo.undo.edits == 0){
-        return;
-    }
-    view_undo_redo(system, models, view, &file->state.undo.undo, ED_UNDO);
-    Assert(file->state.undo.undo.size >= 0);
-}
-
-COMMAND_DECL(redo){
-    Panel *active_panel = layout_get_active_panel(&models->layout);
-    View *view = active_panel->view;
-    if (view_lock_flags(view) != 0){
-        return;
-    }
-    Editing_File *file = view->transient.file_data.file;
-    if (file->state.undo.undo.edits == 0){
-        return;
-    }
-    view_undo_redo(system, models, view, &file->state.undo.redo, ED_REDO);
-    Assert(file->state.undo.undo.size >= 0);
-}
-
-COMMAND_DECL(user_callback){
-    if (binding.custom != 0){
-        binding.custom(&models->app_links);
-    }
-}
-
-global Command_Function *command_table[cmdid_count];
-
 SCROLL_RULE_SIG(fallback_scroll_rule){
     b32 result = false;
     if (target_x != *scroll_x){
@@ -171,16 +119,15 @@ SCROLL_RULE_SIG(fallback_scroll_rule){
 internal void
 setup_ui_commands(Command_Map *commands, Partition *part, i32 parent){
     map_init(commands, part, DEFAULT_UI_MAP_SIZE, parent);
-    
     // TODO(allen): do(fix the weird built-in-ness of the ui map)
     u8 mdfr_array[] = {MDFR_NONE, MDFR_SHIFT, MDFR_CTRL, MDFR_SHIFT | MDFR_CTRL};
     for (i32 i = 0; i < 4; ++i){
         u8 mdfr = mdfr_array[i];
-        map_add(commands, key_left , mdfr, command_null, (Custom_Command_Function*)0);
-        map_add(commands, key_right, mdfr, command_null, (Custom_Command_Function*)0);
-        map_add(commands, key_up   , mdfr, command_null, (Custom_Command_Function*)0);
-        map_add(commands, key_down , mdfr, command_null, (Custom_Command_Function*)0);
-        map_add(commands, key_back , mdfr, command_null, (Custom_Command_Function*)0);
+        map_add(commands, key_left , mdfr, (Custom_Command_Function*)0);
+        map_add(commands, key_right, mdfr, (Custom_Command_Function*)0);
+        map_add(commands, key_up   , mdfr, (Custom_Command_Function*)0);
+        map_add(commands, key_down , mdfr, (Custom_Command_Function*)0);
+        map_add(commands, key_back , mdfr, (Custom_Command_Function*)0);
     }
 }
 
@@ -367,44 +314,18 @@ interpret_binding_buffer(Models *models, void *buffer, i32 size){
                     }
                 }break;
                 
-                case unit_binding:
-                {
-                    if (map_ptr != 0){
-                        Command_Function *func = 0;
-                        if (unit->binding.command_id < cmdid_count){
-                            func = command_table[unit->binding.command_id];
-                        }
-                        if (func != 0){
-                            if (unit->binding.code == 0){
-                                u32 index = 0;
-                                if (map_get_modifiers_hash(unit->binding.modifiers, &index)){
-                                    map_ptr->vanilla_keyboard_default[index].function = func;
-                                    map_ptr->vanilla_keyboard_default[index].custom_id = unit->binding.command_id;
-                                }
-                            }
-                            else{
-                                map_add(map_ptr, unit->binding.code, unit->binding.modifiers, func, unit->binding.command_id);
-                            }
-                        }
-                    }
-                }break;
-                
                 case unit_callback:
                 {
                     if (map_ptr != 0){
-                        Command_Function *func = command_user_callback;
                         Custom_Command_Function *custom = unit->callback.func;
-                        if (func != 0){
-                            if (unit->callback.code == 0){
-                                u32 index = 0;
-                                if (map_get_modifiers_hash(unit->binding.modifiers, &index)){
-                                    map_ptr->vanilla_keyboard_default[index].function = func;
-                                    map_ptr->vanilla_keyboard_default[index].custom = custom;
-                                }
+                        if (unit->callback.code == 0){
+                            u32 index = 0;
+                            if (map_get_modifiers_hash(unit->callback.modifiers, &index)){
+                                map_ptr->vanilla_keyboard_default[index].custom = custom;
                             }
-                            else{
-                                map_add(map_ptr, unit->callback.code, unit->callback.modifiers, func, custom);
-                            }
+                        }
+                        else{
+                            map_add(map_ptr, unit->callback.code, unit->callback.modifiers, custom);
                         }
                     }
                 }break;
@@ -510,18 +431,13 @@ internal void
 command_caller(Coroutine_Head *coroutine){
     Command_In *cmd_in = (Command_In*)coroutine->in;
     Models *models = cmd_in->models;
-    if (models->command_caller){
-        Generic_Command generic;
-        if (cmd_in->bind.function == command_user_callback){
-            generic.command = cmd_in->bind.custom;
-        }
-        else{
-            generic.cmdid = (Command_ID)cmd_in->bind.custom_id;
-        }
+    if (models->command_caller != 0){
+        Generic_Command generic = {};
+        generic.command = cmd_in->bind.custom;
         models->command_caller(&models->app_links, generic);
     }
     else{
-        cmd_in->bind.function(models->system, models, cmd_in->bind);
+        cmd_in->bind.custom(&models->app_links);
     }
 }
 
@@ -532,15 +448,6 @@ app_links_init(System_Functions *system, Application_Links *app_links, void *dat
     FillAppLinksAPI(app_links);
     app_links->current_coroutine = 0;
     app_links->system_links = system;
-}
-
-internal void
-setup_command_table(void){
-#define SET(n) command_table[cmdid_##n] = command_##n
-    SET(null);
-    SET(undo);
-    SET(redo);
-#undef SET
 }
 
 // App Functions
@@ -831,12 +738,12 @@ launch_command_via_event(System_Functions *system, Application_Step_Result *app_
     i32 map = view_get_map(view);
     Command_Binding cmd_bind = map_extract_recursive(&models->mapping, map, event);
     
-    if (cmd_bind.function != 0){
+    if (cmd_bind.custom != 0){
         Assert(models->command_coroutine == 0);
         Coroutine_Head *command_coroutine = system->create_coroutine(command_caller);
         models->command_coroutine = command_coroutine;
         
-        Command_In cmd_in;
+        Command_In cmd_in = {};
         cmd_in.models = models;
         cmd_in.bind = cmd_bind;
         
@@ -912,7 +819,6 @@ App_Init_Sig(app_init){
     }
     
     {
-        setup_command_table();
         Assert(models->config_api.get_bindings != 0);
         i32 wanted_size = models->config_api.get_bindings(models->app_links.memory, models->app_links.memory_size);
         Assert(wanted_size <= models->app_links.memory_size);

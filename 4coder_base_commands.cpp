@@ -1582,13 +1582,23 @@ CUSTOM_DOC("Reopen the current buffer from the hard drive.")
 CUSTOM_COMMAND_SIG(undo)
 CUSTOM_DOC("Advances backwards through the undo history.")
 {
-    exec_command(app, cmdid_undo);
+    // TODO(allen): // TODO(allen): // TODO(allen): // TODO(allen): // TODO(allen): 
+    // TODO(allen): // TODO(allen): // TODO(allen): // TODO(allen): // TODO(allen): 
+    // TODO(allen): // TODO(allen): // TODO(allen): // TODO(allen): // TODO(allen): 
+    // TODO(allen): // TODO(allen): // TODO(allen): // TODO(allen): // TODO(allen): 
+    // TODO(allen): // TODO(allen): // TODO(allen): // TODO(allen): // TODO(allen): 
+    // re-implement undo
 }
 
 CUSTOM_COMMAND_SIG(redo)
 CUSTOM_DOC("Advances forewards through the undo history.")
 {
-    exec_command(app, cmdid_redo);
+    // TODO(allen): // TODO(allen): // TODO(allen): // TODO(allen): // TODO(allen): 
+    // TODO(allen): // TODO(allen): // TODO(allen): // TODO(allen): // TODO(allen): 
+    // TODO(allen): // TODO(allen): // TODO(allen): // TODO(allen): // TODO(allen): 
+    // TODO(allen): // TODO(allen): // TODO(allen): // TODO(allen): // TODO(allen): 
+    // TODO(allen): // TODO(allen): // TODO(allen): // TODO(allen): // TODO(allen): 
+    // re-implement redo
 }
 
 ////////////////////////////////

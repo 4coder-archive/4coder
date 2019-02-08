@@ -56,18 +56,6 @@ ENUM(uint32_t, Key_Modifier_Flag){
     MDFR_SHIFT = 0x8,
 };
 
-/* DOC(A Command_ID is used as a name for commands implemented internally in 4coder.) */
-ENUM(uint64_t, Command_ID){
-    /* DOC(cmdid_null is set aside to always be zero and is not associated with any command.) */
-    cmdid_null,
-    /* DOC(cmdid_undo performs a standard undo behavior.) */
-    cmdid_undo,
-    /* DOC(cmdid_redo reperforms an edit that was undone.) */
-    cmdid_redo,
-    // count
-    cmdid_count
-};
-
 /* DOC(Flags for describing the memory protection status of pages that come back from memory allocate.  Some combinations may not be available on some platforms, but you are gauranteed to get back a page with at least the permissions you requested.  For example if you request just write permission, you may get back a page with read and write permission, but you will never get back a page that doesn't have write permission.) */
 ENUM(uint32_t, Memory_Protect_Flags){
     /* DOC(Allows the page to be read.) */
@@ -1029,10 +1017,7 @@ TYPEDEF void Custom_Command_Function(struct Application_Links *app);
 
 /* DOC(Generic_Command acts as a name for a command, and can name an internal command or a custom command.) */
 UNION Generic_Command{
-    /* DOC(If this Generic_Command represents an internal command the cmdid field will have a value less than cmdid_count, and this field is the command id for the command.) */
-    Command_ID cmdid;
-    /* DOC(If this Generic_Command does not represent an internal command the command
-    field is the pointer to the custom command..) */
+    /* DOC(If this Generic_Command does not represent an internal command the command field is the pointer to the custom command..) */
     Custom_Command_Function *command;
 };
 
@@ -1159,7 +1144,6 @@ DOC_SEE(Binding_Unit)
 ENUM(int32_t, Binding_Unit_Type){
     unit_header,
     unit_map_begin,
-    unit_binding,
     unit_callback,
     unit_inherit,
     unit_hook
@@ -1185,7 +1169,6 @@ STRUCT Binding_Unit{
         STRUCT{ int32_t total_size; int32_t user_map_count; int32_t error; } header;
         STRUCT{ int32_t mapid; int32_t replace; int32_t bind_count; } map_begin;
         STRUCT{ int32_t mapid; } map_inherit;
-        STRUCT{ Key_Code code; uint8_t modifiers; Command_ID command_id; } binding;
         STRUCT{ Key_Code code; uint8_t modifiers; Custom_Command_Function *func; } callback;
         STRUCT{ int32_t hook_id; void *func; } hook;
     };

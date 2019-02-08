@@ -1,7 +1,6 @@
 struct Application_Links;
 #define GLOBAL_SET_SETTING_SIG(n) bool32 n(Application_Links *app, Global_Setting_ID setting, int32_t value)
 #define GLOBAL_SET_MAPPING_SIG(n) bool32 n(Application_Links *app, void *data, int32_t size)
-#define EXEC_COMMAND_SIG(n) bool32 n(Application_Links *app, Command_ID command_id)
 #define EXEC_SYSTEM_COMMAND_SIG(n) bool32 n(Application_Links *app, View_Summary *view, Buffer_Identifier buffer_id, char *path, int32_t path_len, char *command, int32_t command_len, Command_Line_Interface_Flag flags)
 #define CLIPBOARD_POST_SIG(n) void n(Application_Links *app, int32_t clipboard_id, char *str, int32_t len)
 #define CLIPBOARD_COUNT_SIG(n) int32_t n(Application_Links *app, int32_t clipboard_id)
@@ -129,7 +128,6 @@ struct Application_Links;
 #define GET_DEFAULT_FONT_FOR_VIEW_SIG(n) Face_ID n(Application_Links *app, View_ID view_id)
 typedef GLOBAL_SET_SETTING_SIG(Global_Set_Setting_Function);
 typedef GLOBAL_SET_MAPPING_SIG(Global_Set_Mapping_Function);
-typedef EXEC_COMMAND_SIG(Exec_Command_Function);
 typedef EXEC_SYSTEM_COMMAND_SIG(Exec_System_Command_Function);
 typedef CLIPBOARD_POST_SIG(Clipboard_Post_Function);
 typedef CLIPBOARD_COUNT_SIG(Clipboard_Count_Function);
@@ -259,7 +257,6 @@ struct Application_Links{
 #if defined(ALLOW_DEP_4CODER)
 Global_Set_Setting_Function *global_set_setting;
 Global_Set_Mapping_Function *global_set_mapping;
-Exec_Command_Function *exec_command;
 Exec_System_Command_Function *exec_system_command;
 Clipboard_Post_Function *clipboard_post;
 Clipboard_Count_Function *clipboard_count;
@@ -388,7 +385,6 @@ Get_Default_Font_For_View_Function *get_default_font_for_view;
 #else
 Global_Set_Setting_Function *global_set_setting_;
 Global_Set_Mapping_Function *global_set_mapping_;
-Exec_Command_Function *exec_command_;
 Exec_System_Command_Function *exec_system_command_;
 Clipboard_Post_Function *clipboard_post_;
 Clipboard_Count_Function *clipboard_count_;
@@ -525,7 +521,6 @@ int32_t type_coroutine;
 #define FillAppLinksAPI(app_links) do{\
 app_links->global_set_setting_ = Global_Set_Setting;\
 app_links->global_set_mapping_ = Global_Set_Mapping;\
-app_links->exec_command_ = Exec_Command;\
 app_links->exec_system_command_ = Exec_System_Command;\
 app_links->clipboard_post_ = Clipboard_Post;\
 app_links->clipboard_count_ = Clipboard_Count;\
@@ -654,7 +649,6 @@ app_links->get_default_font_for_view_ = Get_Default_Font_For_View;} while(false)
 #if defined(ALLOW_DEP_4CODER)
 static bool32 global_set_setting(Application_Links *app, Global_Setting_ID setting, int32_t value){return(app->global_set_setting(app, setting, value));}
 static bool32 global_set_mapping(Application_Links *app, void *data, int32_t size){return(app->global_set_mapping(app, data, size));}
-static bool32 exec_command(Application_Links *app, Command_ID command_id){return(app->exec_command(app, command_id));}
 static bool32 exec_system_command(Application_Links *app, View_Summary *view, Buffer_Identifier buffer_id, char *path, int32_t path_len, char *command, int32_t command_len, Command_Line_Interface_Flag flags){return(app->exec_system_command(app, view, buffer_id, path, path_len, command, command_len, flags));}
 static void clipboard_post(Application_Links *app, int32_t clipboard_id, char *str, int32_t len){(app->clipboard_post(app, clipboard_id, str, len));}
 static int32_t clipboard_count(Application_Links *app, int32_t clipboard_id){return(app->clipboard_count(app, clipboard_id));}
@@ -783,7 +777,6 @@ static Face_ID get_default_font_for_view(Application_Links *app, View_ID view_id
 #else
 static bool32 global_set_setting(Application_Links *app, Global_Setting_ID setting, int32_t value){return(app->global_set_setting_(app, setting, value));}
 static bool32 global_set_mapping(Application_Links *app, void *data, int32_t size){return(app->global_set_mapping_(app, data, size));}
-static bool32 exec_command(Application_Links *app, Command_ID command_id){return(app->exec_command_(app, command_id));}
 static bool32 exec_system_command(Application_Links *app, View_Summary *view, Buffer_Identifier buffer_id, char *path, int32_t path_len, char *command, int32_t command_len, Command_Line_Interface_Flag flags){return(app->exec_system_command_(app, view, buffer_id, path, path_len, command, command_len, flags));}
 static void clipboard_post(Application_Links *app, int32_t clipboard_id, char *str, int32_t len){(app->clipboard_post_(app, clipboard_id, str, len));}
 static int32_t clipboard_count(Application_Links *app, int32_t clipboard_id){return(app->clipboard_count_(app, clipboard_id));}

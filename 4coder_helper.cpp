@@ -65,24 +65,6 @@ end_map(Bind_Helper *helper){
 }
 
 static void
-bind(Bind_Helper *helper, Key_Code code, uint8_t modifiers, Command_ID cmdid){
-    if (helper->group == 0 && helper->error == 0){
-        helper->error = BH_ERR_MISSING_BEGIN;
-    }
-    if (!helper->error){
-        ++helper->group->map_begin.bind_count;
-    }
-    
-    Binding_Unit unit;
-    unit.type = unit_binding;
-    unit.binding.command_id = cmdid;
-    unit.binding.code = code;
-    unit.binding.modifiers = modifiers;
-    
-    write_unit(helper, unit);
-}
-
-static void
 bind(Bind_Helper *helper, Key_Code code, uint8_t modifiers, Custom_Command_Function *func){
     if (helper->group == 0 && helper->error == 0){
         helper->error = BH_ERR_MISSING_BEGIN;
@@ -102,27 +84,12 @@ bind(Bind_Helper *helper, Key_Code code, uint8_t modifiers, Custom_Command_Funct
 
 static void
 bind(Bind_Helper *helper, Key_Code code, uint8_t modifiers, Generic_Command cmd){
-    if (cmd.cmdid < cmdid_count){
-        bind(helper, code, modifiers, cmd.cmdid);
-    }
-    else{
-        bind(helper, code, modifiers, cmd.command);
-    }
-}
-
-static void
-bind_vanilla_keys(Bind_Helper *helper, int32_t cmdid){
-    bind(helper, 0, 0, cmdid);
+    bind(helper, code, modifiers, cmd.command);
 }
 
 static void
 bind_vanilla_keys(Bind_Helper *helper, Custom_Command_Function *func){
     bind(helper, 0, 0, func);
-}
-
-static void
-bind_vanilla_keys(Bind_Helper *helper, unsigned char modifiers, int32_t cmdid){
-    bind(helper, 0, modifiers, cmdid);
 }
 
 static void
@@ -301,12 +268,7 @@ exec_command(Application_Links *app, Custom_Command_Function *func){
 
 static void
 exec_command(Application_Links *app, Generic_Command cmd){
-    if (cmd.cmdid < cmdid_count){
-        exec_command(app, cmd.cmdid);
-    }
-    else{
-        exec_command(app, cmd.command);
-    }
+    exec_command(app, cmd.command);
 }
 
 static int32_t

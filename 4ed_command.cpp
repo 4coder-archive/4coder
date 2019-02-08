@@ -88,7 +88,7 @@ map_hash(Key_Code event_code, u8 modifiers){
 }
 
 internal b32
-map_add(Command_Map *map, Key_Code event_code, u8 modifiers, Command_Function *function, Custom_Command_Function *custom){
+map_add(Command_Map *map, Key_Code event_code, u8 modifiers, Custom_Command_Function *custom){
     b32 result = false;
     Assert(map->count * 8 < map->max * 7);
     u64 hash = map_hash(event_code, modifiers);
@@ -96,7 +96,7 @@ map_add(Command_Map *map, Key_Code event_code, u8 modifiers, Command_Function *f
     u32 max = map->max;
     u32 index = hash % max;
     Command_Binding entry = map->commands[index];
-    for (; entry.function != 0 && entry.hash != COMMAND_HASH_ERASED;){
+    for (; entry.custom != 0 && entry.hash != COMMAND_HASH_ERASED;){
         if (entry.hash == hash){
             result = true;
             break;
@@ -106,7 +106,6 @@ map_add(Command_Map *map, Key_Code event_code, u8 modifiers, Command_Function *f
     }
     
     Command_Binding bind = {};
-    bind.function = function;
     bind.custom = custom;
     bind.hash = hash;
     map->commands[index] = bind;
@@ -118,18 +117,13 @@ map_add(Command_Map *map, Key_Code event_code, u8 modifiers, Command_Function *f
 }
 
 internal b32
-map_add(Command_Map *map, Key_Code event_code, u8 modifiers, Command_Function *function, u64 custom_id){
-    return(map_add(map, event_code, modifiers, function, (Custom_Command_Function*)custom_id));
-}
-
-internal b32
 map_find_entry(Command_Map *map, Key_Code event_code, u8 modifiers, u32 *index_out){
     u64 hash = map_hash(event_code, modifiers);
     u32 max = map->max;
     u32 index = hash % max;
     b32 result = false;
     Command_Binding entry = map->commands[index];
-    for (; entry.function != 0;){
+    for (; entry.custom != 0;){
         if (entry.hash == hash){
             *index_out = index;
             result = true;
@@ -156,7 +150,7 @@ map_drop(Command_Map *map, Key_Code event_code, u8 modifiers){
     u32 index = 0;
     b32 result = map_find_entry(map, event_code, modifiers, &index);
     if (result){
-        map->commands[index].function = 0;
+        map->commands[index].custom = 0;
         map->commands[index].hash = COMMAND_HASH_ERASED;
     }
     return(result);
@@ -228,7 +222,7 @@ map_extract(Command_Map *map, Key_Event_Data key){
             mod_flags &= ~(MDFR_SHIFT);
         }
         map_find(map, code, mod_flags, &bind);
-        if (bind.function == 0){
+        if (bind.custom == 0){
             map_get_vanilla_keyboard_default(map, mod_flags, &bind);
         }
     }
@@ -249,7 +243,7 @@ map_extract_recursive(Mapping *mapping, i32 map_id, Key_Event_Data key){
     Command_Binding cmd_bind = {};
     for (; map != 0; ){
         cmd_bind = map_extract(map, key);
-        if (cmd_bind.function == 0){
+        if (cmd_bind.custom == 0){
             if (visited_top < ArrayCount(visited_maps)){
                 visited_maps[visited_top++] = map;
                 map = get_map(mapping, map->parent);
