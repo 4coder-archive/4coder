@@ -40,18 +40,20 @@ struct Edit_Step{
 
 struct Edit_Stack{
     u8 *strings;
-    i32 size, max;
-    
+    i32 size;
+    i32 max;
     Edit_Step *edits;
-    i32 edit_count, edit_max;
+    i32 edit_count;
+    i32 edit_max;
 };
 
 struct Small_Edit_Stack{
     u8 *strings;
-    i32 size, max;
-    
+    i32 size;
+    i32 max;
     Buffer_Edit *edits;
-    i32 edit_count, edit_max;
+    i32 edit_count;
+    i32 edit_max;
 };
 
 struct Undo_Data{
@@ -60,7 +62,8 @@ struct Undo_Data{
     Edit_Stack history;
     Small_Edit_Stack children;
     
-    i32 history_block_count, history_head_block;
+    i32 history_block_count;
+    i32 history_head_block;
     i32 edit_history_cursor;
     b32 current_block_normal;
 };
