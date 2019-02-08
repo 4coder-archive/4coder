@@ -11,10 +11,9 @@
 // TODO(allen): do(make an index <-> node acceleration structure for history)
 
 internal i32
-history__to_index(History *history, Node *node){
+history__to_index(Node *sentinel, Node *node){
     i32 result = -1;
     i32 counter = 0;
-    Node *sentinel = &history->records;
     Node *it = sentinel;
     do{
         if (it == node){
@@ -28,20 +27,33 @@ history__to_index(History *history, Node *node){
 }
 
 internal Node*
+history__to_node(Node *sentinel, int32_t index){
+    Node *result = 0;
+    i32 counter = 0;
+    Node *it = sentinel;
+    do{
+        if (counter == index){
+            result = it;
+            break;
+        }
+        counter += 1;
+        it = it->next;
+    } while (it != sentinel);
+    return(result);
+}
+
+internal i32
+history__to_index(History *history, Node *node){
+    Node *sentinel = &history->records;
+    return(history__to_index(sentinel, node));
+}
+
+internal Node*
 history__to_node(History *history, int32_t index){
     Node *result = 0;
     if (0 <= index && index <= history->record_count){
-        i32 counter = 0;
         Node *sentinel = &history->records;
-        Node *it = sentinel;
-        do{
-            if (counter == index){
-                result = it;
-                break;
-            }
-            counter += 1;
-            it = it->next;
-        } while (it != sentinel);
+        result = history__to_node(sentinel, index);
     }
     return(result);
 }
@@ -136,6 +148,20 @@ history_get_record(History *history, i32 index){
         record = CastFromMember(Record, node, node);
     }
     return(record);
+}
+
+internal Record*
+history_get_sub_record(Record *record, i32 sub_index){
+    Record *result = 0;
+    if (record->kind == RecordKind_Group){
+        if (0 <= sub_index && sub_index <= record->group.count){
+            Node *node = history__to_node(&record->group.children, sub_index);
+            if (node != 0){
+                result = CastFromMember(Record, node, node);
+            }
+        }
+    }
+    return(result);
 }
 
 internal Record*

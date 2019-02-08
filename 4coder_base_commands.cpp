@@ -16,23 +16,68 @@ write_character_parameter(Application_Links *app, uint8_t *character, uint32_t l
         Buffer_Summary buffer = get_buffer(app, view.buffer_id, access);
         int32_t pos = view.cursor.pos;
         
+        // NOTE(allen): setup markers to figure out the new position of cursor after the insert
         Marker next_cursor_marker = {};
         next_cursor_marker.pos = character_pos_to_pos(app, &view, &buffer, view.cursor.character_pos);
         next_cursor_marker.lean_right = true;
-        
         Managed_Object handle = alloc_buffer_markers_on_buffer(app, buffer.buffer_id, 1, 0);
         managed_object_store_data(app, handle, 0, 1, &next_cursor_marker);
         
+        // NOTE(allen): consecutive inserts merge logic
         History_Record_Index first_index = buffer_history_get_current_state_index(app, &buffer);
+        bool32 do_merge = true;
+        if (character[0] == '\n'){
+            do_merge = false;
+        }
+        else{
+            do_merge = false;
+            Record_Info record = buffer_history_get_record_info(app, &buffer, first_index);
+            
+            if (record.error == RecordError_NoError){
+                switch (record.kind){
+                    case RecordKind_Group:
+                    {
+                        record = buffer_history_get_group_sub_record(app, &buffer, first_index, record.group.count);
+                        if (record.error != RecordError_NoError || record.kind != RecordKind_Single){
+                            break;
+                        }
+                    }
+                    // NOTE(allen): fall through here to the 'Single' case
+                    
+                    case RecordKind_Single:
+                    {
+                        String string = record.single.string_forward;
+                        if (string.size > 0){
+                            char c = string.str[string.size - 1];
+                            if (c != '\n'){
+                                if (char_is_whitespace(character[0]) && char_is_whitespace(c)){
+                                    do_merge = true;
+                                }
+                                else if (char_is_alpha_numeric(character[0]) && char_is_alpha_numeric(c)){
+                                    do_merge = true;
+                                }
+                            }
+                        }
+                    }break;
+                    
+                    case RecordKind_Batch:
+                    {}break;
+                }
+            }
+        }
         
+        // NOTE(allen): perform the edit
         buffer_replace_range(app, &buffer, pos, pos, (char*)character, length);
         
-        History_Record_Index last_index = buffer_history_get_current_state_index(app, &buffer);
-        buffer_history_merge_record_range(app, &buffer, first_index, last_index);
+        // NOTE(allen): finish merging records if necessary
+        if (do_merge){
+            History_Record_Index last_index = buffer_history_get_current_state_index(app, &buffer);
+            buffer_history_merge_record_range(app, &buffer, first_index, last_index);
+        }
         
+        // NOTE(allen): finish updating the cursor
         managed_object_load_data(app, handle, 0, 1, &next_cursor_marker);
         managed_object_free(app, handle);
-        
         view_set_cursor(app, &view, seek_pos(next_cursor_marker.pos), true);
     }
 }

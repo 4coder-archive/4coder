@@ -96,7 +96,8 @@ struct Application_Links;
 #define SET_GLOBAL_FACE_SIG(n) bool32 n(Application_Links *app, Face_ID id, bool32 apply_to_all_buffers)
 #define BUFFER_SET_FACE_SIG(n) bool32 n(Application_Links *app, Buffer_Summary *buffer, Face_ID id)
 #define BUFFER_HISTORY_NEWEST_RECORD_INDEX_SIG(n) History_Record_Index n(Application_Links *app, Buffer_Summary *buffer)
-#define BUFFER_HISTORY_GET_RECORD_SIG(n) Record_Data n(Application_Links *app, Buffer_Summary *buffer, History_Record_Index record)
+#define BUFFER_HISTORY_GET_RECORD_INFO_SIG(n) Record_Info n(Application_Links *app, Buffer_Summary *buffer, History_Record_Index index)
+#define BUFFER_HISTORY_GET_GROUP_SUB_RECORD_SIG(n) Record_Info n(Application_Links *app, Buffer_Summary *buffer, History_Record_Index index, int32_t sub_index)
 #define BUFFER_HISTORY_GET_CURRENT_STATE_INDEX_SIG(n) History_Record_Index n(Application_Links *app, Buffer_Summary *buffer)
 #define BUFFER_HISTORY_SET_CURRENT_STATE_INDEX_SIG(n) bool32 n(Application_Links *app, Buffer_Summary *buffer, History_Record_Index index)
 #define BUFFER_HISTORY_MERGE_RECORD_RANGE_SIG(n) bool32 n(Application_Links *app, Buffer_Summary *buffer, History_Record_Index first_index, History_Record_Index last_index)
@@ -231,7 +232,8 @@ typedef GET_LARGEST_FACE_ID_SIG(Get_Largest_Face_ID_Function);
 typedef SET_GLOBAL_FACE_SIG(Set_Global_Face_Function);
 typedef BUFFER_SET_FACE_SIG(Buffer_Set_Face_Function);
 typedef BUFFER_HISTORY_NEWEST_RECORD_INDEX_SIG(Buffer_History_Newest_Record_Index_Function);
-typedef BUFFER_HISTORY_GET_RECORD_SIG(Buffer_History_Get_Record_Function);
+typedef BUFFER_HISTORY_GET_RECORD_INFO_SIG(Buffer_History_Get_Record_Info_Function);
+typedef BUFFER_HISTORY_GET_GROUP_SUB_RECORD_SIG(Buffer_History_Get_Group_Sub_Record_Function);
 typedef BUFFER_HISTORY_GET_CURRENT_STATE_INDEX_SIG(Buffer_History_Get_Current_State_Index_Function);
 typedef BUFFER_HISTORY_SET_CURRENT_STATE_INDEX_SIG(Buffer_History_Set_Current_State_Index_Function);
 typedef BUFFER_HISTORY_MERGE_RECORD_RANGE_SIG(Buffer_History_Merge_Record_Range_Function);
@@ -368,7 +370,8 @@ Get_Largest_Face_ID_Function *get_largest_face_id;
 Set_Global_Face_Function *set_global_face;
 Buffer_Set_Face_Function *buffer_set_face;
 Buffer_History_Newest_Record_Index_Function *buffer_history_newest_record_index;
-Buffer_History_Get_Record_Function *buffer_history_get_record;
+Buffer_History_Get_Record_Info_Function *buffer_history_get_record_info;
+Buffer_History_Get_Group_Sub_Record_Function *buffer_history_get_group_sub_record;
 Buffer_History_Get_Current_State_Index_Function *buffer_history_get_current_state_index;
 Buffer_History_Set_Current_State_Index_Function *buffer_history_set_current_state_index;
 Buffer_History_Merge_Record_Range_Function *buffer_history_merge_record_range;
@@ -504,7 +507,8 @@ Get_Largest_Face_ID_Function *get_largest_face_id_;
 Set_Global_Face_Function *set_global_face_;
 Buffer_Set_Face_Function *buffer_set_face_;
 Buffer_History_Newest_Record_Index_Function *buffer_history_newest_record_index_;
-Buffer_History_Get_Record_Function *buffer_history_get_record_;
+Buffer_History_Get_Record_Info_Function *buffer_history_get_record_info_;
+Buffer_History_Get_Group_Sub_Record_Function *buffer_history_get_group_sub_record_;
 Buffer_History_Get_Current_State_Index_Function *buffer_history_get_current_state_index_;
 Buffer_History_Set_Current_State_Index_Function *buffer_history_set_current_state_index_;
 Buffer_History_Merge_Record_Range_Function *buffer_history_merge_record_range_;
@@ -648,7 +652,8 @@ app_links->get_largest_face_id_ = Get_Largest_Face_ID;\
 app_links->set_global_face_ = Set_Global_Face;\
 app_links->buffer_set_face_ = Buffer_Set_Face;\
 app_links->buffer_history_newest_record_index_ = Buffer_History_Newest_Record_Index;\
-app_links->buffer_history_get_record_ = Buffer_History_Get_Record;\
+app_links->buffer_history_get_record_info_ = Buffer_History_Get_Record_Info;\
+app_links->buffer_history_get_group_sub_record_ = Buffer_History_Get_Group_Sub_Record;\
 app_links->buffer_history_get_current_state_index_ = Buffer_History_Get_Current_State_Index;\
 app_links->buffer_history_set_current_state_index_ = Buffer_History_Set_Current_State_Index;\
 app_links->buffer_history_merge_record_range_ = Buffer_History_Merge_Record_Range;\
@@ -784,7 +789,8 @@ static Face_ID get_largest_face_id(Application_Links *app){return(app->get_large
 static bool32 set_global_face(Application_Links *app, Face_ID id, bool32 apply_to_all_buffers){return(app->set_global_face(app, id, apply_to_all_buffers));}
 static bool32 buffer_set_face(Application_Links *app, Buffer_Summary *buffer, Face_ID id){return(app->buffer_set_face(app, buffer, id));}
 static History_Record_Index buffer_history_newest_record_index(Application_Links *app, Buffer_Summary *buffer){return(app->buffer_history_newest_record_index(app, buffer));}
-static Record_Data buffer_history_get_record(Application_Links *app, Buffer_Summary *buffer, History_Record_Index record){return(app->buffer_history_get_record(app, buffer, record));}
+static Record_Info buffer_history_get_record_info(Application_Links *app, Buffer_Summary *buffer, History_Record_Index index){return(app->buffer_history_get_record_info(app, buffer, index));}
+static Record_Info buffer_history_get_group_sub_record(Application_Links *app, Buffer_Summary *buffer, History_Record_Index index, int32_t sub_index){return(app->buffer_history_get_group_sub_record(app, buffer, index, sub_index));}
 static History_Record_Index buffer_history_get_current_state_index(Application_Links *app, Buffer_Summary *buffer){return(app->buffer_history_get_current_state_index(app, buffer));}
 static bool32 buffer_history_set_current_state_index(Application_Links *app, Buffer_Summary *buffer, History_Record_Index index){return(app->buffer_history_set_current_state_index(app, buffer, index));}
 static bool32 buffer_history_merge_record_range(Application_Links *app, Buffer_Summary *buffer, History_Record_Index first_index, History_Record_Index last_index){return(app->buffer_history_merge_record_range(app, buffer, first_index, last_index));}
@@ -920,7 +926,8 @@ static Face_ID get_largest_face_id(Application_Links *app){return(app->get_large
 static bool32 set_global_face(Application_Links *app, Face_ID id, bool32 apply_to_all_buffers){return(app->set_global_face_(app, id, apply_to_all_buffers));}
 static bool32 buffer_set_face(Application_Links *app, Buffer_Summary *buffer, Face_ID id){return(app->buffer_set_face_(app, buffer, id));}
 static History_Record_Index buffer_history_newest_record_index(Application_Links *app, Buffer_Summary *buffer){return(app->buffer_history_newest_record_index_(app, buffer));}
-static Record_Data buffer_history_get_record(Application_Links *app, Buffer_Summary *buffer, History_Record_Index record){return(app->buffer_history_get_record_(app, buffer, record));}
+static Record_Info buffer_history_get_record_info(Application_Links *app, Buffer_Summary *buffer, History_Record_Index index){return(app->buffer_history_get_record_info_(app, buffer, index));}
+static Record_Info buffer_history_get_group_sub_record(Application_Links *app, Buffer_Summary *buffer, History_Record_Index index, int32_t sub_index){return(app->buffer_history_get_group_sub_record_(app, buffer, index, sub_index));}
 static History_Record_Index buffer_history_get_current_state_index(Application_Links *app, Buffer_Summary *buffer){return(app->buffer_history_get_current_state_index_(app, buffer));}
 static bool32 buffer_history_set_current_state_index(Application_Links *app, Buffer_Summary *buffer, History_Record_Index index){return(app->buffer_history_set_current_state_index_(app, buffer, index));}
 static bool32 buffer_history_merge_record_range(Application_Links *app, Buffer_Summary *buffer, History_Record_Index first_index, History_Record_Index last_index){return(app->buffer_history_merge_record_range_(app, buffer, first_index, last_index));}

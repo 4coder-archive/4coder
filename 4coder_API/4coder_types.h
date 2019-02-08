@@ -1005,10 +1005,35 @@ ENUM(int32_t, Record_Kind){
     RecordKind_Group,
 };
 
+ENUM(int32_t, Record_Error){
+    RecordError_NoError,
+    RecordError_InvalidBuffer,
+    RecordError_NoHistoryAttached,
+    RecordError_IndexOutOfBounds,
+    RecordError_InitialStateDummyRecord,
+    RecordError_WrongRecordTypeAtIndex,
+};
+
 TYPEDEF int32_t History_Record_Index;
 
-STRUCT Record_Data{
-    
+STRUCT Record_Info{
+    Record_Error error;
+    Record_Kind kind;
+    int32_t edit_number;
+    union{
+        struct{
+            String string_forward;
+            String string_backward;
+            int32_t first;
+        } single;
+        struct{
+            Buffer_Batch_Edit_Type type;
+            int32_t count;
+        } batch;
+        struct{
+            int32_t count;
+        } group;
+    };
 };
 
 /* DOC(Custom_Command_Function is a function type which matches the signature used for commands.  To declare a command use CUSTOM_COMMAND_SIG.) DOC_SEE(CUSTOM_COMMAND_SIG) */

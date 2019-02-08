@@ -3320,9 +3320,100 @@ Buffer_History_Newest_Record_Index(Application_Links *app, Buffer_Summary *buffe
     return(result);
 }
 
-API_EXPORT Record_Data
-Buffer_History_Get_Record(Application_Links *app, Buffer_Summary *buffer, History_Record_Index record){
-    Record_Data result = {};
+internal void
+buffer_history__fill_record_info(Record *record, Record_Info *out){
+    out->kind = record->kind;
+    out->edit_number = record->edit_number;
+    switch (out->kind){
+        case RecordKind_Single:
+        {
+            out->single.string_forward  = make_string(record->single.str_forward , record->single.length_forward );
+            out->single.string_backward = make_string(record->single.str_backward, record->single.length_backward);
+            out->single.first = record->single.first;
+        }break;
+        case RecordKind_Batch:
+        {
+            out->batch.type = record->batch.type;
+            out->batch.count = record->batch.count;
+        }break;
+        case RecordKind_Group:
+        {
+            out->group.count = record->group.count;
+        }break;
+        default:
+        {
+            InvalidCodePath;
+        }break;
+    }
+}
+
+API_EXPORT Record_Info
+Buffer_History_Get_Record_Info(Application_Links *app, Buffer_Summary *buffer, History_Record_Index index){
+    Models *models = (Models*)app->cmd_context;
+    Editing_File *file = imp_get_file(models, buffer);
+    Record_Info result = {};
+    if (file != 0){
+        History *history = &file->state.history;
+        if (history_is_activated(history)){
+            i32 max_index = history_get_record_count(history);
+            if (0 <= index && index <= max_index){
+                if (0 < index){
+                    Record *record = history_get_record(history, index);
+                    buffer_history__fill_record_info(record, &result);
+                }
+                else{
+                    result.error = RecordError_InitialStateDummyRecord;
+                }
+            }
+            else{
+                result.error = RecordError_IndexOutOfBounds;
+            }
+        }
+        else{
+            result.error = RecordError_NoHistoryAttached;
+        }
+    }
+    else{
+        result.error = RecordError_InvalidBuffer;
+    }
+    return(result);
+}
+
+API_EXPORT Record_Info
+Buffer_History_Get_Group_Sub_Record(Application_Links *app, Buffer_Summary *buffer, History_Record_Index index, int32_t sub_index){
+    Models *models = (Models*)app->cmd_context;
+    Editing_File *file = imp_get_file(models, buffer);
+    Record_Info result = {};
+    if (file != 0){
+        History *history = &file->state.history;
+        if (history_is_activated(history)){
+            i32 max_index = history_get_record_count(history);
+            if (0 <= index && index <= max_index){
+                if (0 < index){
+                    Record *record = history_get_record(history, index);
+                    if (record->kind == RecordKind_Group){
+                        record = history_get_sub_record(record, sub_index);
+                        buffer_history__fill_record_info(record, &result);
+                    }
+                    else{
+                        result.error = RecordError_WrongRecordTypeAtIndex;
+                    }
+                }
+                else{
+                    result.error = RecordError_InitialStateDummyRecord;
+                }
+            }
+            else{
+                result.error = RecordError_IndexOutOfBounds;
+            }
+        }
+        else{
+            result.error = RecordError_NoHistoryAttached;
+        }
+    }
+    else{
+        result.error = RecordError_InvalidBuffer;
+    }
     return(result);
 }
 
