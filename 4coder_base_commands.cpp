@@ -23,7 +23,12 @@ write_character_parameter(Application_Links *app, uint8_t *character, uint32_t l
         Managed_Object handle = alloc_buffer_markers_on_buffer(app, buffer.buffer_id, 1, 0);
         managed_object_store_data(app, handle, 0, 1, &next_cursor_marker);
         
+        History_Record_Index first_index = buffer_history_get_current_state_index(app, &buffer);
+        
         buffer_replace_range(app, &buffer, pos, pos, (char*)character, length);
+        
+        History_Record_Index last_index = buffer_history_get_current_state_index(app, &buffer);
+        buffer_history_merge_record_range(app, &buffer, first_index, last_index);
         
         managed_object_load_data(app, handle, 0, 1, &next_cursor_marker);
         managed_object_free(app, handle);

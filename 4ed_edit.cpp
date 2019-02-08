@@ -539,6 +539,11 @@ edit__apply_record_forward(System_Functions *system, Models *models, Editing_Fil
                 edit__apply_record_forward(system, models, file, record, behaviors_prototype);
             }
         }break;
+        
+        default:
+        {
+            InvalidCodePath;
+        }break;
     }
 }
 
@@ -598,6 +603,11 @@ edit__apply_record_backward(System_Functions *system, Models *models, Editing_Fi
                 Record *record = CastFromMember(Record, node, node);
                 edit__apply_record_backward(system, models, file, record, behaviors_prototype);
             }
+        }break;
+        
+        default:
+        {
+            InvalidCodePath;
         }break;
     }
 }

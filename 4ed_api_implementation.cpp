@@ -3314,7 +3314,7 @@ Buffer_History_Newest_Record_Index(Application_Links *app, Buffer_Summary *buffe
     Models *models = (Models*)app->cmd_context;
     Editing_File *file = imp_get_file(models, buffer);
     History_Record_Index result = 0;
-    if (file != 0){
+    if (file != 0 && history_is_activated(&file->state.history)){
         result = history_get_record_count(&file->state.history);
     }
     return(result);
@@ -3331,7 +3331,7 @@ Buffer_History_Get_Current_State_Index(Application_Links *app, Buffer_Summary *b
     Models *models = (Models*)app->cmd_context;
     Editing_File *file = imp_get_file(models, buffer);
     History_Record_Index result = 0;
-    if (file != 0){
+    if (file != 0 && history_is_activated(&file->state.history)){
         result = file_get_current_record_index(file);
     }
     return(result);
@@ -3342,7 +3342,7 @@ Buffer_History_Set_Current_State_Index(Application_Links *app, Buffer_Summary *b
     Models *models = (Models*)app->cmd_context;
     Editing_File *file = imp_get_file(models, buffer);
     bool32 result = false;
-    if (file != 0){
+    if (file != 0 && history_is_activated(&file->state.history)){
         i32 max_index = history_get_record_count(&file->state.history);
         if (0 <= index && index <= max_index){
             System_Functions *system = models->system;
@@ -3354,11 +3354,36 @@ Buffer_History_Set_Current_State_Index(Application_Links *app, Buffer_Summary *b
 }
 
 API_EXPORT bool32
-Buffer_History_Merge_Records_Between_States(Application_Links *app, Buffer_Summary *buffer, History_Record_Index first_index, History_Record_Index last_index){
+Buffer_History_Merge_Record_Range(Application_Links *app, Buffer_Summary *buffer, History_Record_Index first_index, History_Record_Index last_index){
+    Models *models = (Models*)app->cmd_context;
+    Editing_File *file = imp_get_file(models, buffer);
     bool32 result = false;
+    if (file != 0 && history_is_activated(&file->state.history)){
+        History *history = &file->state.history;
+        i32 max_index = history_get_record_count(history);
+        first_index = clamp_bottom(1, first_index);
+        if (first_index <= last_index && last_index <= max_index){
+            i32 current_index = file->state.current_record_index;
+            // TODO(allen): do(flags for controlling the behavior of the current position correction in merge)
+            if (first_index <= current_index && current_index < last_index){
+                System_Functions *system = models->system;
+                edit_change_current_history_state(system, models, file, last_index);
+                current_index = last_index;
+            }
+            if (first_index < last_index){
+                history_merge_records(&models->mem.heap, history, first_index, last_index);
+            }
+            if (current_index >= last_index){
+                current_index -= (last_index - first_index);
+            }
+            file->state.current_record_index = current_index;
+            result = true;
+        }
+    }
     return(result);
 }
 
+/*
 API_EXPORT bool32
 Buffer_History_Split_Group_Record(Application_Links *app, Buffer_Summary *buffer, History_Record_Index record_index, int32_t sub_record_index){
     bool32 result = false;
@@ -3370,21 +3395,30 @@ Buffer_History_Split_Single_Record(Application_Links *app, Buffer_Summary *buffe
     bool32 result = false;
     return(result);
 }
+*/
 
 API_EXPORT bool32
-Buffer_History_Clear_After_Undo_Position(Application_Links *app, Buffer_Summary *buffer){
+Buffer_History_Clear_After_Current_State(Application_Links *app, Buffer_Summary *buffer){
+    Models *models = (Models*)app->cmd_context;
+    Editing_File *file = imp_get_file(models, buffer);
     bool32 result = false;
+    if (file != 0 && history_is_activated(&file->state.history)){
+        history_dump_records_after_index(&file->state.history, file->state.current_record_index);
+        result = true;
+    }
     return(result);
 }
 
 API_EXPORT void
 Global_History_Edit_Group_Begin(Application_Links *app){
-    
+    Models *models = (Models*)app->cmd_context;
+    global_history_adjust_edit_grouping_counter(&models->global_history, 1);
 }
 
 API_EXPORT void
 Global_History_Edit_Group_End(Application_Links *app){
-    
+    Models *models = (Models*)app->cmd_context;
+    global_history_adjust_edit_grouping_counter(&models->global_history, -1);
 }
 
 internal void
