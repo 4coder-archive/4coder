@@ -3445,7 +3445,7 @@ Buffer_History_Set_Current_State_Index(Application_Links *app, Buffer_Summary *b
 }
 
 API_EXPORT bool32
-Buffer_History_Merge_Record_Range(Application_Links *app, Buffer_Summary *buffer, History_Record_Index first_index, History_Record_Index last_index){
+Buffer_History_Merge_Record_Range(Application_Links *app, Buffer_Summary *buffer, History_Record_Index first_index, History_Record_Index last_index, Record_Merge_Flag flags){
     Models *models = (Models*)app->cmd_context;
     Editing_File *file = imp_get_file(models, buffer);
     bool32 result = false;
@@ -3455,11 +3455,27 @@ Buffer_History_Merge_Record_Range(Application_Links *app, Buffer_Summary *buffer
         first_index = clamp_bottom(1, first_index);
         if (first_index <= last_index && last_index <= max_index){
             i32 current_index = file->state.current_record_index;
-            // TODO(allen): do(flags for controlling the behavior of the current position correction in merge)
             if (first_index <= current_index && current_index < last_index){
                 System_Functions *system = models->system;
-                edit_change_current_history_state(system, models, file, last_index);
-                current_index = last_index;
+                u32 in_range_handler = flags & (bit_0 | bit_1);
+                switch (in_range_handler){
+                    case RecordMergeFlag_StateInRange_MoveStateForward:
+                    {
+                        edit_change_current_history_state(system, models, file, last_index);
+                        current_index = last_index;
+                    }break;
+                    
+                    case RecordMergeFlag_StateInRange_MoveStateBackward:
+                    {
+                        edit_change_current_history_state(system, models, file, first_index);
+                        current_index = first_index;
+                    }break;
+                    
+                    case RecordMergeFlag_StateInRange_ErrorOut:
+                    {
+                        goto done;
+                    }break;
+                }
             }
             if (first_index < last_index){
                 history_merge_records(&models->mem.heap, history, first_index, last_index);
@@ -3471,22 +3487,9 @@ Buffer_History_Merge_Record_Range(Application_Links *app, Buffer_Summary *buffer
             result = true;
         }
     }
+    done:;
     return(result);
 }
-
-/*
-API_EXPORT bool32
-Buffer_History_Split_Group_Record(Application_Links *app, Buffer_Summary *buffer, History_Record_Index record_index, int32_t sub_record_index){
-    bool32 result = false;
-    return(result);
-}
-
-API_EXPORT bool32
-Buffer_History_Split_Single_Record(Application_Links *app, Buffer_Summary *buffer, History_Record_Index record_index, int32_t forward_str_split, int32_t backward_str_split){
-    bool32 result = false;
-    return(result);
-}
-*/
 
 API_EXPORT bool32
 Buffer_History_Clear_After_Current_State(Application_Links *app, Buffer_Summary *buffer){

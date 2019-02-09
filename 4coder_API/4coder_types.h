@@ -1014,6 +1014,12 @@ ENUM(int32_t, Record_Error){
     RecordError_WrongRecordTypeAtIndex,
 };
 
+ENUM(uint32_t, Record_Merge_Flag){
+    RecordMergeFlag_StateInRange_MoveStateForward = 0x0,
+    RecordMergeFlag_StateInRange_MoveStateBackward = 0x1,
+    RecordMergeFlag_StateInRange_ErrorOut = 0x2,
+};
+
 TYPEDEF int32_t History_Record_Index;
 
 STRUCT Record_Info{

@@ -100,7 +100,7 @@ struct Application_Links;
 #define BUFFER_HISTORY_GET_GROUP_SUB_RECORD_SIG(n) Record_Info n(Application_Links *app, Buffer_Summary *buffer, History_Record_Index index, int32_t sub_index)
 #define BUFFER_HISTORY_GET_CURRENT_STATE_INDEX_SIG(n) History_Record_Index n(Application_Links *app, Buffer_Summary *buffer)
 #define BUFFER_HISTORY_SET_CURRENT_STATE_INDEX_SIG(n) bool32 n(Application_Links *app, Buffer_Summary *buffer, History_Record_Index index)
-#define BUFFER_HISTORY_MERGE_RECORD_RANGE_SIG(n) bool32 n(Application_Links *app, Buffer_Summary *buffer, History_Record_Index first_index, History_Record_Index last_index)
+#define BUFFER_HISTORY_MERGE_RECORD_RANGE_SIG(n) bool32 n(Application_Links *app, Buffer_Summary *buffer, History_Record_Index first_index, History_Record_Index last_index, Record_Merge_Flag flags)
 #define BUFFER_HISTORY_CLEAR_AFTER_CURRENT_STATE_SIG(n) bool32 n(Application_Links *app, Buffer_Summary *buffer)
 #define GLOBAL_HISTORY_EDIT_GROUP_BEGIN_SIG(n) void n(Application_Links *app)
 #define GLOBAL_HISTORY_EDIT_GROUP_END_SIG(n) void n(Application_Links *app)
@@ -793,7 +793,7 @@ static Record_Info buffer_history_get_record_info(Application_Links *app, Buffer
 static Record_Info buffer_history_get_group_sub_record(Application_Links *app, Buffer_Summary *buffer, History_Record_Index index, int32_t sub_index){return(app->buffer_history_get_group_sub_record(app, buffer, index, sub_index));}
 static History_Record_Index buffer_history_get_current_state_index(Application_Links *app, Buffer_Summary *buffer){return(app->buffer_history_get_current_state_index(app, buffer));}
 static bool32 buffer_history_set_current_state_index(Application_Links *app, Buffer_Summary *buffer, History_Record_Index index){return(app->buffer_history_set_current_state_index(app, buffer, index));}
-static bool32 buffer_history_merge_record_range(Application_Links *app, Buffer_Summary *buffer, History_Record_Index first_index, History_Record_Index last_index){return(app->buffer_history_merge_record_range(app, buffer, first_index, last_index));}
+static bool32 buffer_history_merge_record_range(Application_Links *app, Buffer_Summary *buffer, History_Record_Index first_index, History_Record_Index last_index, Record_Merge_Flag flags){return(app->buffer_history_merge_record_range(app, buffer, first_index, last_index, flags));}
 static bool32 buffer_history_clear_after_current_state(Application_Links *app, Buffer_Summary *buffer){return(app->buffer_history_clear_after_current_state(app, buffer));}
 static void global_history_edit_group_begin(Application_Links *app){(app->global_history_edit_group_begin(app));}
 static void global_history_edit_group_end(Application_Links *app){(app->global_history_edit_group_end(app));}
@@ -930,7 +930,7 @@ static Record_Info buffer_history_get_record_info(Application_Links *app, Buffer
 static Record_Info buffer_history_get_group_sub_record(Application_Links *app, Buffer_Summary *buffer, History_Record_Index index, int32_t sub_index){return(app->buffer_history_get_group_sub_record_(app, buffer, index, sub_index));}
 static History_Record_Index buffer_history_get_current_state_index(Application_Links *app, Buffer_Summary *buffer){return(app->buffer_history_get_current_state_index_(app, buffer));}
 static bool32 buffer_history_set_current_state_index(Application_Links *app, Buffer_Summary *buffer, History_Record_Index index){return(app->buffer_history_set_current_state_index_(app, buffer, index));}
-static bool32 buffer_history_merge_record_range(Application_Links *app, Buffer_Summary *buffer, History_Record_Index first_index, History_Record_Index last_index){return(app->buffer_history_merge_record_range_(app, buffer, first_index, last_index));}
+static bool32 buffer_history_merge_record_range(Application_Links *app, Buffer_Summary *buffer, History_Record_Index first_index, History_Record_Index last_index, Record_Merge_Flag flags){return(app->buffer_history_merge_record_range_(app, buffer, first_index, last_index, flags));}
 static bool32 buffer_history_clear_after_current_state(Application_Links *app, Buffer_Summary *buffer){return(app->buffer_history_clear_after_current_state_(app, buffer));}
 static void global_history_edit_group_begin(Application_Links *app){(app->global_history_edit_group_begin_(app));}
 static void global_history_edit_group_end(Application_Links *app){(app->global_history_edit_group_end_(app));}

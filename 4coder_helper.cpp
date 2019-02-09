@@ -1570,5 +1570,17 @@ view_set_split_pixel_size(Application_Links *app, View_Summary *view, int32_t t)
     return(view_set_split(app, view, ViewSplitKind_FixedPixels, (float)t));
 }
 
+////////////////////////////////
+
+static Record_Info
+get_single_record(Application_Links *app, Buffer_ID buffer_id, History_Record_Index index){
+    Buffer_Summary buffer = get_buffer(app, buffer_id, AccessOpen);
+    Record_Info record = buffer_history_get_record_info(app, &buffer, index);
+    if (record.error == RecordError_NoError && record.kind == RecordKind_Group){
+        record = buffer_history_get_group_sub_record(app, &buffer, index, record.group.count);
+    }
+    return(record);
+}
+
 // BOTTOM
 

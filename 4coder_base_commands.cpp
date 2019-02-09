@@ -8,12 +8,11 @@ moving the cursor, which work even without the default 4coder framework.
 static void
 write_character_parameter(Application_Links *app, uint8_t *character, uint32_t length){
     if (length != 0){
-        uint32_t access = AccessOpen;
-        View_Summary view = get_active_view(app, access);
+        View_Summary view = get_active_view(app, AccessOpen);
         if_view_has_highlighted_range_delete_range(app, view.view_id);
         view = get_view(app, view.view_id, AccessAll);
         
-        Buffer_Summary buffer = get_buffer(app, view.buffer_id, access);
+        Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessOpen);
         int32_t pos = view.cursor.pos;
         
         // NOTE(allen): setup markers to figure out the new position of cursor after the insert
@@ -25,43 +24,22 @@ write_character_parameter(Application_Links *app, uint8_t *character, uint32_t l
         
         // NOTE(allen): consecutive inserts merge logic
         History_Record_Index first_index = buffer_history_get_current_state_index(app, &buffer);
-        bool32 do_merge = true;
-        if (character[0] == '\n'){
-            do_merge = false;
-        }
-        else{
-            do_merge = false;
-            Record_Info record = buffer_history_get_record_info(app, &buffer, first_index);
-            
-            if (record.error == RecordError_NoError){
-                switch (record.kind){
-                    case RecordKind_Group:
-                    {
-                        record = buffer_history_get_group_sub_record(app, &buffer, first_index, record.group.count);
-                        if (record.error != RecordError_NoError || record.kind != RecordKind_Single){
-                            break;
+        bool32 do_merge = false;
+        if (character[0] != '\n'){
+            Record_Info record = get_single_record(app, buffer.buffer_id, first_index);
+            if (record.error == RecordError_NoError && record.kind == RecordKind_Single){
+                String string = record.single.string_forward;
+                int32_t last_end = record.single.first + string.size;
+                if (last_end == pos && string.size > 0){
+                    char c = string.str[string.size - 1];
+                    if (c != '\n'){
+                        if (char_is_whitespace(character[0]) && char_is_whitespace(c)){
+                            do_merge = true;
+                        }
+                        else if (char_is_alpha_numeric(character[0]) && char_is_alpha_numeric(c)){
+                            do_merge = true;
                         }
                     }
-                    // NOTE(allen): fall through here to the 'Single' case
-                    
-                    case RecordKind_Single:
-                    {
-                        String string = record.single.string_forward;
-                        if (string.size > 0){
-                            char c = string.str[string.size - 1];
-                            if (c != '\n'){
-                                if (char_is_whitespace(character[0]) && char_is_whitespace(c)){
-                                    do_merge = true;
-                                }
-                                else if (char_is_alpha_numeric(character[0]) && char_is_alpha_numeric(c)){
-                                    do_merge = true;
-                                }
-                            }
-                        }
-                    }break;
-                    
-                    case RecordKind_Batch:
-                    {}break;
                 }
             }
         }
@@ -72,7 +50,7 @@ write_character_parameter(Application_Links *app, uint8_t *character, uint32_t l
         // NOTE(allen): finish merging records if necessary
         if (do_merge){
             History_Record_Index last_index = buffer_history_get_current_state_index(app, &buffer);
-            buffer_history_merge_record_range(app, &buffer, first_index, last_index);
+            buffer_history_merge_record_range(app, &buffer, first_index, last_index, RecordMergeFlag_StateInRange_MoveStateForward);
         }
         
         // NOTE(allen): finish updating the cursor
