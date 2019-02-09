@@ -47,6 +47,12 @@ struct Record{
     };
 };
 
+struct Record_Ptr_Lookup_Table{
+    Record **records;
+    i32 count;
+    i32 max;
+};
+
 struct History{
     b32 activated;
     Arena arena;
@@ -54,6 +60,7 @@ struct History{
     Node free_records;
     Node records;
     i32 record_count;
+    Record_Ptr_Lookup_Table record_lookup;
 };
 
 struct Global_History{

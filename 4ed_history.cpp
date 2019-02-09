@@ -8,24 +8,6 @@
 
 // TOP
 
-// TODO(allen): do(make an index <-> node acceleration structure for history)
-
-internal i32
-history__to_index(Node *sentinel, Node *node){
-    i32 result = -1;
-    i32 counter = 0;
-    Node *it = sentinel;
-    do{
-        if (it == node){
-            result = counter;
-            break;
-        }
-        counter += 1;
-        it = it->next;
-    } while (it != sentinel);
-    return(result);
-}
-
 internal Node*
 history__to_node(Node *sentinel, int32_t index){
     Node *result = 0;
@@ -42,12 +24,37 @@ history__to_node(Node *sentinel, int32_t index){
     return(result);
 }
 
-internal i32
-history__to_index(History *history, Node *node){
-    Node *sentinel = &history->records;
-    return(history__to_index(sentinel, node));
+internal void
+history__push_back_record_ptr(Heap *heap, Record_Ptr_Lookup_Table *lookup, Record *record){
+    if (lookup->records == 0 || lookup->count == lookup->max){
+        i32 new_max = clamp_bottom(1024, lookup->max*2);
+        Record **new_records = (Record**)heap_allocate(heap, sizeof(Record*)*new_max);
+        block_copy(new_records, lookup->records, sizeof(*new_records)*lookup->count);
+        if (lookup->records != 0){
+            heap_free(heap, lookup->records);
+        }
+        lookup->records = new_records;
+        lookup->max = new_max;
+    }
+    Assert(lookup->count < lookup->max);
+    lookup->records[lookup->count] = record;
+    lookup->count += 1;
 }
 
+internal void
+history__merge_record_ptr_range_to_one_ptr(Record_Ptr_Lookup_Table *lookup, int32_t first, int32_t one_past_last, Record *record){
+    first -= 1;
+    one_past_last -= 1;
+    Assert(0 <= first && first <= one_past_last && one_past_last <= lookup->count);
+    if (first < one_past_last){
+        i32 shift = 1 + first - one_past_last;
+        block_copy(lookup->records + one_past_last + shift, lookup->records + one_past_last, lookup->count - one_past_last);
+        lookup->count += shift;
+    }
+    lookup->records[first] = record;
+}
+
+#if 0
 internal Node*
 history__to_node(History *history, int32_t index){
     Node *result = 0;
@@ -57,6 +64,23 @@ history__to_node(History *history, int32_t index){
     }
     return(result);
 }
+#else
+internal Node*
+history__to_node(History *history, int32_t index){
+    Node *result = 0;
+    if (index == 0){
+        result = &history->records;
+    }
+    else if (0 < index && index <= history->record_count){
+        Record_Ptr_Lookup_Table *lookup = &history->record_lookup;
+        Assert(lookup->count == history->record_count);
+        result = &lookup->records[index - 1]->node;
+    }
+    return(result);
+}
+#endif
+
+////////////////////////////////
 
 internal Record*
 history__allocate_record(Heap *heap, History *history){
@@ -112,6 +136,7 @@ history_init(Application_Links *app, History *history){
     dll_init_sentinel(&history->free_records);
     dll_init_sentinel(&history->records);
     history->record_count = 0;
+    block_zero_struct(&history->record_lookup);
 }
 
 internal b32
@@ -173,9 +198,10 @@ history_get_dummy_record(History *history){
 }
 
 internal void
-history__stash_record(History *history, Record *new_record){
+history__stash_record(Heap *heap, History *history, Record *new_record){
     dll_insert_back(&history->records, &new_record->node);
     history->record_count += 1;
+    history__push_back_record_ptr(heap, &history->record_lookup, new_record);
 }
 
 internal void
@@ -212,7 +238,7 @@ history_record_edit(Heap *heap, Global_History *global_history, History *history
     }
     
     Record *new_record = history__allocate_record(heap, history);
-    history__stash_record(history, new_record);
+    history__stash_record(heap, history, new_record);
     
     new_record->restore_point = temp_memory_light(begin_temp_memory(&history->arena));
     new_record->edit_number = global_history_get_edit_number(global_history);
@@ -239,7 +265,7 @@ history_record_edit(Heap *heap, Global_History *global_history, History *history
     }
     
     Record *new_record = history__allocate_record(heap, history);
-    history__stash_record(history, new_record);
+    history__stash_record(heap, history, new_record);
     
     new_record->restore_point = temp_memory_light(begin_temp_memory(&history->arena));
     new_record->edit_number = global_history_get_edit_number(global_history);
@@ -380,6 +406,8 @@ history_merge_records(Heap *heap, History *history, i32 first_index, i32 last_in
     }
     
     new_record->group.count = count;
+    
+    history__merge_record_ptr_range_to_one_ptr(&history->record_lookup, first_index, last_index + 1, new_record);
 }
 
 // BOTTOM
