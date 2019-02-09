@@ -9,7 +9,7 @@
 // TOP
 
 internal Node*
-history__to_node(Node *sentinel, int32_t index){
+history__to_node(Node *sentinel, i32 index){
     Node *result = 0;
     i32 counter = 0;
     Node *it = sentinel;
@@ -42,9 +42,15 @@ history__push_back_record_ptr(Heap *heap, Record_Ptr_Lookup_Table *lookup, Recor
 }
 
 internal void
-history__merge_record_ptr_range_to_one_ptr(Record_Ptr_Lookup_Table *lookup, int32_t first, int32_t one_past_last, Record *record){
-    first -= 1;
-    one_past_last -= 1;
+history__shrink_array(Record_Ptr_Lookup_Table *lookup, i32 new_count){
+    Assert(0 <= new_count && new_count <= lookup->count);
+    lookup->count = new_count;
+}
+
+internal void
+history__merge_record_ptr_range_to_one_ptr(Record_Ptr_Lookup_Table *lookup, i32 first_one_based, i32 last_one_based, Record *record){
+    i32 first = first_one_based - 1;
+    i32 one_past_last = last_one_based;
     Assert(0 <= first && first <= one_past_last && one_past_last <= lookup->count);
     if (first < one_past_last){
         i32 shift = 1 + first - one_past_last;
@@ -56,7 +62,7 @@ history__merge_record_ptr_range_to_one_ptr(Record_Ptr_Lookup_Table *lookup, int3
 
 #if 0
 internal Node*
-history__to_node(History *history, int32_t index){
+history__to_node(History *history, i32 index){
     Node *result = 0;
     if (0 <= index && index <= history->record_count){
         Node *sentinel = &history->records;
@@ -66,7 +72,7 @@ history__to_node(History *history, int32_t index){
 }
 #else
 internal Node*
-history__to_node(History *history, int32_t index){
+history__to_node(History *history, i32 index){
     Node *result = 0;
     if (index == 0){
         result = &history->records;
@@ -199,16 +205,23 @@ history_get_dummy_record(History *history){
 
 internal void
 history__stash_record(Heap *heap, History *history, Record *new_record){
+    Assert(history->record_lookup.count == history->record_count);
     dll_insert_back(&history->records, &new_record->node);
     history->record_count += 1;
     history__push_back_record_ptr(heap, &history->record_lookup, new_record);
+    Assert(history->record_lookup.count == history->record_count);
+}
+
+internal void
+history__free_single_node(History *history, Node *node){
+    dll_remove(node);
+    dll_insert(&history->free_records, node);
 }
 
 internal void
 history__free_nodes(History *history, i32 first_index, Node *first_node, Node *last_node){
     if (first_node == last_node){
-        dll_remove(first_node);
-        dll_insert(&history->free_records, first_node);
+        history__free_single_node(history, first_node);
     }
     else{
         {
@@ -229,6 +242,7 @@ history__free_nodes(History *history, i32 first_index, Node *first_node, Node *l
     }
     Assert(first_index != 0);
     history->record_count = first_index - 1;
+    history__shrink_array(&history->record_lookup, history->record_count);
 }
 
 internal void
@@ -236,6 +250,8 @@ history_record_edit(Heap *heap, Global_History *global_history, History *history
     if (!history->activated){
         return;
     }
+    
+    Assert(history->record_lookup.count == history->record_count);
     
     Record *new_record = history__allocate_record(heap, history);
     history__stash_record(heap, history, new_record);
@@ -256,6 +272,8 @@ history_record_edit(Heap *heap, Global_History *global_history, History *history
     
     block_copy(new_record->single.str_forward, edit.str, length_forward);
     buffer_stringify_range(buffer, edit.range, new_record->single.str_backward);
+    
+    Assert(history->record_lookup.count == history->record_count);
 }
 
 internal void
@@ -263,6 +281,7 @@ history_record_edit(Heap *heap, Global_History *global_history, History *history
     if (!history->activated){
         return;
     }
+    Assert(history->record_lookup.count == history->record_count);
     
     Record *new_record = history__allocate_record(heap, history);
     history__stash_record(heap, history, new_record);
@@ -310,10 +329,16 @@ history_record_edit(Heap *heap, Global_History *global_history, History *history
         cursor_backward += length_backward;
     }
     
+    Assert(history->record_lookup.count == history->record_count);
 }
 
 internal void
 history_dump_records_after_index(History *history, i32 index){
+    if (!history->activated){
+        return;
+    }
+    Assert(history->record_lookup.count == history->record_count);
+    
     Assert(0 <= index && index <= history->record_count);
     if (index < history->record_count){
         Node *node = history__to_node(history, index);
@@ -329,10 +354,95 @@ history_dump_records_after_index(History *history, i32 index){
         
         history__free_nodes(history, index + 1, first_node_to_clear, last_node_to_clear);
     }
+    
+    Assert(history->record_lookup.count == history->record_count);
 }
 
 internal void
-history_merge_records(Heap *heap, History *history, i32 first_index, i32 last_index){
+history__optimize_group(Partition *scratch, History *history, Record *record){
+    Assert(record->kind == RecordKind_Group);
+    for (;;){
+        Record *right = CastFromMember(Record, node, record->group.children.prev);
+        if (record->group.count == 1){
+            Record *child = right;
+            record->restore_point = child->restore_point;
+            record->edit_number = child->edit_number;
+            record->kind = RecordKind_Single;
+            record->single = child->single;
+            // NOTE(allen): don't use "free" because the child node is no longer linked
+            // to a valid sentinel, and removing it first (as free does) will mess with
+            // the data in record->single
+            dll_insert(&history->free_records, &child->node);
+            break;
+        }
+        Record *left  = CastFromMember(Record, node, right->node.prev);
+        if (right->kind == RecordKind_Single && left->kind == RecordKind_Single){
+            b32 do_merge = false;
+            
+            Temp_Memory temp = begin_temp_memory(scratch);
+            i32 new_length_forward  = left->single.length_forward  + right->single.length_forward ;
+            i32 new_length_backward = left->single.length_backward + right->single.length_backward;
+            
+            char *temp_str_forward  = 0;
+            char *temp_str_backward = 0;
+            
+            if (left->single.first + left->single.length_forward == right->single.first){
+                do_merge = true;
+                temp_str_forward  = push_array(scratch, char, new_length_forward );
+                temp_str_backward = push_array(scratch, char, new_length_backward);
+                block_copy(temp_str_forward                              , left->single.str_forward , left->single.length_forward );
+                block_copy(temp_str_forward + left->single.length_forward, right->single.str_forward, right->single.length_forward);
+                block_copy(temp_str_backward                               , left->single.str_backward , left->single.length_backward );
+                block_copy(temp_str_backward + left->single.length_backward, right->single.str_backward, right->single.length_backward);
+            }
+            else if (right->single.first + right->single.length_backward == left->single.first){
+                do_merge = true;
+                temp_str_forward  = push_array(scratch, char, new_length_forward );
+                temp_str_backward = push_array(scratch, char, new_length_backward);
+                block_copy(temp_str_forward                               , right->single.str_forward, right->single.length_forward);
+                block_copy(temp_str_forward + right->single.length_forward, left->single.str_forward , left->single.length_forward );
+                block_copy(temp_str_backward                                , right->single.str_backward, right->single.length_backward);
+                block_copy(temp_str_backward + right->single.length_backward, left->single.str_backward , left->single.length_backward );
+            }
+            else{
+                break;
+            }
+            
+            if (do_merge){
+                end_temp_memory(&history->arena, left->restore_point);
+                
+                char *new_str_forward  = push_array(&history->arena, char, new_length_forward );
+                char *new_str_backward = push_array(&history->arena, char, new_length_backward);
+                
+                block_copy(new_str_forward , temp_str_forward , new_length_forward );
+                block_copy(new_str_backward, temp_str_backward, new_length_backward);
+                
+                left->edit_number = right->edit_number;
+                left->single.str_forward  = new_str_forward ;
+                left->single.str_backward = new_str_backward;
+                left->single.length_forward  = new_length_forward ;
+                left->single.length_backward = new_length_backward;
+                
+                history__free_single_node(history, &right->node);
+                record->group.count -= 1;
+            }
+            
+            end_temp_memory(temp);
+        }
+        else{
+            break;
+        }
+    }
+}
+
+internal void
+history_merge_records(Partition *scratch, Heap *heap, History *history, i32 first_index, i32 last_index){
+    if (!history->activated){
+        return;
+    }
+    
+    Assert(history->record_lookup.count == history->record_count);
+    
     Assert(first_index < last_index);
     Node *first_node = history__to_node(history, first_index);
     Node *last_node  = history__to_node(history, last_index );
@@ -407,7 +517,12 @@ history_merge_records(Heap *heap, History *history, i32 first_index, i32 last_in
     
     new_record->group.count = count;
     
-    history__merge_record_ptr_range_to_one_ptr(&history->record_lookup, first_index, last_index + 1, new_record);
+    history__merge_record_ptr_range_to_one_ptr(&history->record_lookup, first_index, last_index, new_record);
+    Assert(history->record_lookup.count == history->record_count);
+    
+    if (first_index == history->record_count){
+        history__optimize_group(scratch, history, new_record);
+    }
 }
 
 // BOTTOM

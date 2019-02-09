@@ -3478,7 +3478,7 @@ Buffer_History_Merge_Record_Range(Application_Links *app, Buffer_Summary *buffer
                 }
             }
             if (first_index < last_index){
-                history_merge_records(&models->mem.heap, history, first_index, last_index);
+                history_merge_records(&models->mem.part, &models->mem.heap, history, first_index, last_index);
             }
             if (current_index >= last_index){
                 current_index -= (last_index - first_index);

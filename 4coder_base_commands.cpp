@@ -30,7 +30,7 @@ write_character_parameter(Application_Links *app, uint8_t *character, uint32_t l
             if (record.error == RecordError_NoError && record.kind == RecordKind_Single){
                 String string = record.single.string_forward;
                 int32_t last_end = record.single.first + string.size;
-                if (last_end == pos && string.size > 0){
+                if ((last_end == pos || true) && string.size > 0){
                     char c = string.str[string.size - 1];
                     if (c != '\n'){
                         if (char_is_whitespace(character[0]) && char_is_whitespace(c)){
