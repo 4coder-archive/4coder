@@ -177,63 +177,6 @@ buffer_batch_edit_update_cursors(Cursor_With_Index *sorted_positions, i32 count,
     return(shift_amount);
 }
 
-#if 0
-
-internal i32
-buffer_batch_edit_update_cursors(Cursor_With_Index *sorted_positions, i32 count, Buffer_Edit *sorted_edits, i32 edit_count, b32 lean_right){
-    Cursor_With_Index *position = sorted_positions;
-    Cursor_With_Index *end_position = sorted_positions + count;
-    Buffer_Edit *edit = sorted_edits;
-    Buffer_Edit *end_edit = sorted_edits + edit_count;
-    i32 shift_amount = 0;
-    
-    if (lean_right){
-        for (; edit < end_edit && position < end_position; ++edit){
-            i32 start = edit->start;
-            i32 end = edit->end;
-            
-            for (; position->pos < start && position < end_position; ++position){
-                position->pos += shift_amount;
-            }
-            
-            i32 new_end = start + edit->len + shift_amount;
-            for (; position->pos <= end && position < end_position; ++position){
-                position->pos = new_end;
-            }
-            
-            shift_amount += (edit->len - (end - start));
-        }
-    }
-    else{
-        for (; edit < end_edit && position < end_position; ++edit){
-            i32 start = edit->start;
-            i32 end = edit->end;
-            
-            for (; position->pos < start && position < end_position; ++position){
-                position->pos += shift_amount;
-            }
-            
-            i32 new_end = start + shift_amount;
-            for (; position->pos <= end && position < end_position; ++position){
-                position->pos = new_end;
-            }
-            
-            shift_amount += (edit->len - (end - start));
-        }
-    }
-    
-    for (; position < end_position; ++position){
-        position->pos += shift_amount;
-    }
-    
-    for (; edit < end_edit; ++edit){
-        shift_amount += (edit->len - (edit->end - edit->start));
-    }
-    
-    return(shift_amount);
-}
-#endif
-
 //////////////////////////////////////
 
 internal i32
@@ -553,35 +496,6 @@ buffer_batch_edit_step(Buffer_Batch_State *state, Gap_Buffer *buffer, Edit_Array
     
     return(result);
 }
-
-#if 0
-internal i32
-buffer_batch_edit_step(Buffer_Batch_State *state, Gap_Buffer *buffer, Buffer_Edit *sorted_edits, char *strings, i32 edit_count,
-                       void *scratch, i32 scratch_size, i32 *request_amount){
-    Buffer_Edit *edit = 0;
-    i32 shift_total = state->shift_total;
-    i32 result = 0;
-    
-    i32 i = state->i;
-    edit = sorted_edits + i;
-    for (; i < edit_count; ++i, ++edit){
-        i32 start = edit->start + shift_total;
-        i32 end = edit->end + shift_total;
-        i32 len = edit->len;
-        i32 shift_amount = buffer_replace_range_compute_shift(start, end, len);
-        result = buffer_replace_range(buffer, start, end, strings + edit->str_start, len, shift_amount, scratch, scratch_size, request_amount);
-        if (result){
-            break;
-        }
-        shift_total += shift_amount;
-    }
-    
-    state->shift_total = shift_total;
-    state->i = i;
-    
-    return(result);
-}
-#endif
 
 internal void*
 buffer_edit_provide_memory(Gap_Buffer *buffer, void *new_data, i32 new_max){

@@ -58,6 +58,19 @@ live_set_free_view(Heap *heap, Lifetime_Allocator *lifetime_allocator, Live_View
 
 ////////////////////////////////
 
+internal File_Edit_Positions
+view_get_edit_pos(View *view){
+    return(view->transient.edit_pos_);
+}
+
+internal void
+view_set_edit_pos(View *view, File_Edit_Positions edit_pos){
+    view->transient.edit_pos_ = edit_pos;
+    view->transient.file_data.file->state.edit_pos_most_recent = edit_pos;
+}
+
+////////////////////////////////
+
 // TODO(allen): Switch over to using an i32 for these.
 internal f32
 view_width(View *view){
@@ -80,7 +93,8 @@ view_get_cursor_xy(View *view){
         cursor = &view->transient.file_data.temp_highlight;
     }
     else{
-        cursor = &view->transient.edit_pos.cursor;
+        File_Edit_Positions edit_pos = view_get_edit_pos(view);
+        cursor = &edit_pos.cursor;
     }
     Vec2 result = V2(cursor->wrapped_x, cursor->wrapped_y);
     if (view->transient.file_data.file->settings.unwrapped_lines){
@@ -241,44 +255,52 @@ view_move_cursor_to_view(System_Functions *system, View *view, GUI_Scroll_Vars s
 
 internal void
 view_set_cursor(View *view, Full_Cursor cursor, b32 set_preferred_x, b32 unwrapped_lines){
-    edit_pos_set_cursor(&view->transient.edit_pos, cursor, set_preferred_x, unwrapped_lines);
-    GUI_Scroll_Vars scroll = view->transient.edit_pos.scroll;
+    File_Edit_Positions edit_pos = view_get_edit_pos(view);
+    edit_pos_set_cursor(&edit_pos, cursor, set_preferred_x, unwrapped_lines);
+    GUI_Scroll_Vars scroll = edit_pos.scroll;
     if (view_move_view_to_cursor(view, &scroll, 0)){
-        view->transient.edit_pos.scroll = scroll;
+        edit_pos.scroll = scroll;
     }
+    view_set_edit_pos(view, edit_pos);
 }
 
 internal void
 view_set_scroll(System_Functions *system, View *view, GUI_Scroll_Vars scroll){
-    edit_pos_set_scroll(&view->transient.edit_pos, scroll);
-    Full_Cursor cursor = view->transient.edit_pos.cursor;
-    if (view_move_cursor_to_view(system, view, view->transient.edit_pos.scroll, &cursor, view->transient.edit_pos.preferred_x)){
-        view->transient.edit_pos.cursor = cursor;
+    File_Edit_Positions edit_pos = view_get_edit_pos(view);
+    edit_pos_set_scroll(&edit_pos, scroll);
+    Full_Cursor cursor = edit_pos.cursor;
+    if (view_move_cursor_to_view(system, view, edit_pos.scroll, &cursor, edit_pos.preferred_x)){
+        edit_pos.cursor = cursor;
     }
+    view_set_edit_pos(view, edit_pos);
 }
 
 internal void
 view_set_cursor_and_scroll(View *view, Full_Cursor cursor, b32 set_preferred_x, b32 unwrapped_lines, GUI_Scroll_Vars scroll){
-    File_Edit_Positions *edit_pos = &view->transient.edit_pos;
-    edit_pos_set_cursor(edit_pos, cursor, set_preferred_x, unwrapped_lines);
-    edit_pos_set_scroll(edit_pos, scroll);
-    edit_pos->last_set_type = EditPos_None;
+    File_Edit_Positions edit_pos = view_get_edit_pos(view);
+    edit_pos_set_cursor(&edit_pos, cursor, set_preferred_x, unwrapped_lines);
+    edit_pos_set_scroll(&edit_pos, scroll);
+    edit_pos.last_set_type = EditPos_None;
+    view_set_edit_pos(view, edit_pos);
 }
 
 internal Relative_Scrolling
 view_get_relative_scrolling(View *view){
     Vec2 cursor = view_get_cursor_xy(view);
+    File_Edit_Positions edit_pos = view_get_edit_pos(view);
     Relative_Scrolling result = {};
-    result.scroll_y = cursor.y - view->transient.edit_pos.scroll.scroll_y;
-    result.target_y = cursor.y - view->transient.edit_pos.scroll.target_y;
+    result.scroll_y = cursor.y - edit_pos.scroll.scroll_y;
+    result.target_y = cursor.y - edit_pos.scroll.target_y;
     return(result);
 }
 
 internal void
 view_set_relative_scrolling(View *view, Relative_Scrolling scrolling){
     Vec2 cursor = view_get_cursor_xy(view);
-    view->transient.edit_pos.scroll.scroll_y = cursor.y - scrolling.scroll_y;
-    view->transient.edit_pos.scroll.target_y = round32(clamp_bottom(0.f, cursor.y - scrolling.target_y));
+    File_Edit_Positions edit_pos = view_get_edit_pos(view);
+    edit_pos.scroll.scroll_y = cursor.y - scrolling.scroll_y;
+    edit_pos.scroll.target_y = round32(clamp_bottom(0.f, cursor.y - scrolling.target_y));
+    view_set_edit_pos(view, edit_pos);
 }
 
 internal void
@@ -319,18 +341,20 @@ view_set_file(System_Functions *system, Models *models, View *view, Editing_File
     Editing_File *old_file = view->transient.file_data.file;
     if (old_file != 0){
         file_touch(&models->working_set, old_file);
-        edit_pos_push(old_file, view->transient.edit_pos);
+        edit_pos_push(old_file, view_get_edit_pos(view));
     }
     
     block_zero(&view->transient.file_data, sizeof(view->transient.file_data));
     view->transient.file_data.file = file;
     
-    view->transient.edit_pos = edit_pos_pop(file);
+    // TODO(allen): do(set edit pos without updating file when popping)
+    view->transient.edit_pos_ = edit_pos_pop(file);
     
     Font_Pointers font = system->font.get_pointers_by_id(file->settings.font_id);
     view->transient.line_height = font.metrics->height;
     
-    if (view->transient.edit_pos.cursor.line == 0){
+    File_Edit_Positions edit_pos = view_get_edit_pos(view);
+    if (edit_pos.cursor.line == 0){
         view_cursor_move(system, view, 0);
     }
 }
@@ -362,7 +386,8 @@ adjust_views_looking_at_file_to_new_cursor(System_Functions *system, Models *mod
         View *view = panel->view;
         if (view->transient.file_data.file == file){
             if (!view->transient.file_data.show_temp_highlight){
-                i32 pos = view->transient.edit_pos.cursor.pos;
+                File_Edit_Positions edit_pos = view_get_edit_pos(view);
+                i32 pos = edit_pos.cursor.pos;
                 Full_Cursor cursor = file_compute_cursor(system, file, seek_pos(pos), 0);
                 view_set_cursor(view, cursor, 1, file->settings.unwrapped_lines);
             }
@@ -1202,8 +1227,9 @@ render_loaded_file_in_view(System_Functions *system, View *view, Models *models,
     Face_ID font_id = file->settings.font_id;
     Font_Pointers font = system->font.get_pointers_by_id(font_id);
     
-    f32 scroll_x = view->transient.edit_pos.scroll.scroll_x;
-    f32 scroll_y = view->transient.edit_pos.scroll.scroll_y;
+    File_Edit_Positions edit_pos = view_get_edit_pos(view);
+    f32 scroll_x = edit_pos.scroll.scroll_x;
+    f32 scroll_y = edit_pos.scroll.scroll_y;
     
     // NOTE(allen): For now we will temporarily adjust scroll_y to try
     // to prevent the view moving around until floating sections are added
@@ -1218,7 +1244,8 @@ render_loaded_file_in_view(System_Functions *system, View *view, Models *models,
         render_cursor = file_compute_cursor(system, file, seek_unwrapped_xy(0, scroll_y, 0), true);
     }
     
-    view->transient.edit_pos.scroll_i = render_cursor.pos;
+    // TODO(allen): do(eliminate scroll_i nonsense)
+    view->transient.edit_pos_.scroll_i = render_cursor.pos;
     
     i32 item_count = 0;
     i32 end_pos = 0;

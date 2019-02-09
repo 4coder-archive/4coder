@@ -114,9 +114,10 @@ edit_fix_markers(System_Functions *system, Models *models, Editing_File *file, E
          panel = layout_get_next_open_panel(layout, panel)){
         View *view = panel->view;
         if (view->transient.file_data.file == file){
-            write_cursor_with_index(cursors, &cursor_count, view->transient.edit_pos.cursor.pos);
-            write_cursor_with_index(cursors, &cursor_count, view->transient.edit_pos.mark);
-            write_cursor_with_index(cursors, &cursor_count, view->transient.edit_pos.scroll_i);
+            File_Edit_Positions edit_pos = view_get_edit_pos(view);
+            write_cursor_with_index(cursors, &cursor_count, edit_pos.cursor.pos);
+            write_cursor_with_index(cursors, &cursor_count, edit_pos.mark      );
+            write_cursor_with_index(cursors, &cursor_count, edit_pos.scroll_i  );
         }
     }
     
@@ -139,17 +140,6 @@ edit_fix_markers(System_Functions *system, Models *models, Editing_File *file, E
     
     if (cursor_count > 0 || r_cursor_count > 0){
         buffer_sort_cursors(cursors, cursor_count);
-#if 0
-        if (desc.is_batch){
-            buffer_batch_edit_update_cursors(cursors, cursor_count, desc.batch, desc.batch_size, false);
-            buffer_batch_edit_update_cursors(r_cursors, r_cursor_count, desc.batch, desc.batch_size, true);
-        }
-        else{
-            buffer_update_cursors(cursors, cursor_count, desc.start, desc.end, desc.shift_amount + (desc.end - desc.start), false);
-            buffer_update_cursors(r_cursors, r_cursor_count, desc.start, desc.end, desc.shift_amount + (desc.end - desc.start), true);
-        }
-#endif
-        
         if (edits.count > 1){
             buffer_batch_edit_update_cursors(  cursors,   cursor_count, edits, false);
             buffer_batch_edit_update_cursors(r_cursors, r_cursor_count, edits, true);
@@ -172,16 +162,17 @@ edit_fix_markers(System_Functions *system, Models *models, Editing_File *file, E
                 i32 cursor_pos = cursors[cursor_count++].pos;
                 Full_Cursor new_cursor = file_compute_cursor(system, file, seek_pos(cursor_pos), 0);
                 
-                GUI_Scroll_Vars scroll = view->transient.edit_pos.scroll;
+                File_Edit_Positions edit_pos = view_get_edit_pos(view);
+                GUI_Scroll_Vars scroll = edit_pos.scroll;
                 
-                view->transient.edit_pos.mark = cursors[cursor_count++].pos;
+                edit_pos.mark = cursors[cursor_count++].pos;
                 i32 new_scroll_i = cursors[cursor_count++].pos;
-                if (view->transient.edit_pos.scroll_i != new_scroll_i){
-                    view->transient.edit_pos.scroll_i = new_scroll_i;
+                if (edit_pos.scroll_i != new_scroll_i){
+                    edit_pos.scroll_i = new_scroll_i;
                     
-                    Full_Cursor temp_cursor = file_compute_cursor(system, file, seek_pos(view->transient.edit_pos.scroll_i), 0);
+                    Full_Cursor temp_cursor = file_compute_cursor(system, file, seek_pos(edit_pos.scroll_i), 0);
                     
-                    f32 y_offset = MOD(view->transient.edit_pos.scroll.scroll_y, view->transient.line_height);
+                    f32 y_offset = MOD(edit_pos.scroll.scroll_y, view->transient.line_height);
                     f32 y_position = temp_cursor.wrapped_y;
                     if (file->settings.unwrapped_lines){
                         y_position = temp_cursor.unwrapped_y;
@@ -192,7 +183,9 @@ edit_fix_markers(System_Functions *system, Models *models, Editing_File *file, E
                     scroll.scroll_y = y_position;
                 }
                 
-                view_set_cursor_and_scroll(view, new_cursor, 1, view->transient.file_data.file->settings.unwrapped_lines, scroll);
+                // TODO(allen): do(remove view_set_edit_pos from marker unrolling if it is redundant)
+                view_set_edit_pos(view, edit_pos);
+                view_set_cursor_and_scroll(view, new_cursor, true, view->transient.file_data.file->settings.unwrapped_lines, scroll);
             }
         }
         
@@ -300,31 +293,6 @@ edit_single(System_Functions *system, Models *models, Editing_File *file, Edit e
         file_mark_edit_finished(&models->working_set, file);
     }
 }
-
-#if 0
-internal Edit_Spec
-edit_compute_batch_spec(Heap *heap, Editing_File *file, Buffer_Edit *edits, char *str_base, i32 str_size,
-                        Buffer_Edit *inverse_array, char *inv_str, i32 inv_max, i32 edit_count, i32 batch_type){
-    
-    i32 inv_str_pos = 0;
-    Buffer_Invert_Batch state = {};
-    if (buffer_invert_batch(&state, &file->state.buffer, edits, edit_count, inverse_array, inv_str, &inv_str_pos, inv_max)){
-        InvalidCodePath;
-    }
-    
-    i32 first_child = undo_children_push(heap, &file->state.undo.children, edits, edit_count, (u8*)(str_base), str_size);
-    i32 inverse_first_child = undo_children_push(heap, &file->state.undo.children, inverse_array, edit_count, (u8*)(inv_str), inv_str_pos);
-    
-    Edit_Spec spec = {};
-    spec.step.type = ED_NORMAL;
-    spec.step.first_child = first_child;
-    spec.step.inverse_first_child = inverse_first_child;
-    spec.step.special_type = batch_type;
-    spec.step.child_count = edit_count;
-    spec.step.inverse_child_count = edit_count;
-    return(spec);
-}
-#endif
 
 internal void
 edit_batch(System_Functions *system, Models *models, Editing_File *file, Edit_Array edits, Edit_Behaviors behaviors){

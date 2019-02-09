@@ -22,9 +22,11 @@ internal void
 edit_pos_set_cursor(File_Edit_Positions *edit_pos, Full_Cursor cursor, b32 set_preferred_x, b32 unwrapped_lines){
     edit_pos->cursor = cursor;
     if (set_preferred_x){
-        edit_pos->preferred_x = cursor.wrapped_x;
         if (unwrapped_lines){
             edit_pos->preferred_x = cursor.unwrapped_x;
+        }
+        else{
+            edit_pos->preferred_x = cursor.wrapped_x;
         }
     }
     edit_pos->last_set_type = EditPos_CursorSet;
@@ -50,6 +52,9 @@ edit_pos_pop(Editing_File *file){
     if (file->state.edit_pos_stack_top >= 0){
         edit_pos = file->state.edit_pos_stack[file->state.edit_pos_stack_top];
         file->state.edit_pos_stack_top -= 1;
+    }
+    else{
+        edit_pos = file->state.edit_pos_most_recent;
     }
     return(edit_pos);
 }

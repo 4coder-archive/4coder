@@ -82,7 +82,9 @@ file_cursor_to_end(System_Functions *system, Models *models, Editing_File *file)
             continue;
         }
         view_cursor_move(system, view, pos);
-        view->transient.edit_pos.mark = view->transient.edit_pos.cursor.pos;
+        File_Edit_Positions edit_pos = view_get_edit_pos(view);
+        edit_pos.mark = edit_pos.cursor.pos;
+        view_set_edit_pos(view, edit_pos);
     }
 }
 
@@ -1292,8 +1294,9 @@ App_Step_Sig(app_step){
             GUI_Scroll_Vars *scroll_vars = 0;
             i32 max_y = 0;
             b32 file_scroll = false;
+            File_Edit_Positions edit_pos = view_get_edit_pos(view);
             if (!view->transient.ui_mode){
-                scroll_vars = &view->transient.edit_pos.scroll;
+                scroll_vars = &edit_pos.scroll;
                 max_y = view_compute_max_target_y(view);
                 file_scroll = true;
             }
@@ -1309,6 +1312,11 @@ App_Step_Sig(app_step){
             
             if (ip_result.is_animating){
                 app_result.animating = true;
+            }
+            
+            if (file_scroll){
+                // TODO(allen): do(eliminate view_set_edit_pos if it is redundant)
+                view_set_edit_pos(view, edit_pos);
             }
             
             if (memcmp(scroll_vars, &ip_result.scroll, sizeof(*scroll_vars)) != 0){
@@ -1328,9 +1336,10 @@ App_Step_Sig(app_step){
              panel != 0;
              panel = layout_get_next_open_panel(layout, panel)){
             View *view = panel->view;
-            GUI_Scroll_Vars *scroll_vars = &view->transient.edit_pos.scroll;
-            scroll_vars->scroll_x = (f32)scroll_vars->target_x;
-            scroll_vars->scroll_y = (f32)scroll_vars->target_y;
+            File_Edit_Positions edit_pos = view_get_edit_pos(view);
+            edit_pos.scroll.scroll_x = (f32)edit_pos.scroll.target_x;
+            edit_pos.scroll.scroll_y = (f32)edit_pos.scroll.target_y;
+            view_set_edit_pos(view, edit_pos);
         }
     }
     
@@ -1418,10 +1427,13 @@ App_Step_Sig(app_step){
             
             draw_rectangle(target, full, style->theme.colors[Stag_Back]);
             
-            GUI_Scroll_Vars *scroll_vars = &view->transient.edit_pos.scroll;
+            File_Edit_Positions edit_pos = view_get_edit_pos(view);
+            GUI_Scroll_Vars *scroll_vars = &edit_pos.scroll;
             
             b32 active = (panel == active_panel);
             do_render_file_view(system, view, models, scroll_vars, active_view, inner, active, target);
+            
+            view_set_edit_pos(view, edit_pos);
             
             u32 margin_color = 0;
             if (active){

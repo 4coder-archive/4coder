@@ -60,17 +60,6 @@ history__merge_record_ptr_range_to_one_ptr(Record_Ptr_Lookup_Table *lookup, i32 
     lookup->records[first] = record;
 }
 
-#if 0
-internal Node*
-history__to_node(History *history, i32 index){
-    Node *result = 0;
-    if (0 <= index && index <= history->record_count){
-        Node *sentinel = &history->records;
-        result = history__to_node(sentinel, index);
-    }
-    return(result);
-}
-#else
 internal Node*
 history__to_node(History *history, i32 index){
     Node *result = 0;
@@ -84,7 +73,6 @@ history__to_node(History *history, i32 index){
     }
     return(result);
 }
-#endif
 
 ////////////////////////////////
 

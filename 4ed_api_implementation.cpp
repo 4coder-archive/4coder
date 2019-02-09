@@ -66,9 +66,12 @@ fill_view_summary(System_Functions *system, View_Summary *view, View *vptr, Live
         view->buffer_id = vptr->transient.file_data.file->id.id;
         
         Assert(data->file != 0);
-        view->mark = file_compute_cursor(system, data->file, seek_pos(vptr->transient.edit_pos.mark), 0);
-        view->cursor = vptr->transient.edit_pos.cursor;
-        view->preferred_x = vptr->transient.edit_pos.preferred_x;
+        File_Edit_Positions edit_pos = view_get_edit_pos(vptr);
+        
+        view->mark  = file_compute_cursor(system, data->file, seek_pos(edit_pos.mark), 0);
+        
+        view->cursor      = edit_pos.cursor;
+        view->preferred_x = edit_pos.preferred_x;
         
         view->view_region = vptr->transient.panel->rect_inner;
         view->file_region = vptr->transient.file_region;
@@ -76,7 +79,7 @@ fill_view_summary(System_Functions *system, View_Summary *view, View *vptr, Live
             view->scroll_vars = vptr->transient.ui_scroll;
         }
         else{
-            view->scroll_vars = vptr->transient.edit_pos.scroll;
+            view->scroll_vars = edit_pos.scroll;
         }
     }
 }
@@ -1408,9 +1411,10 @@ Reopen_Buffer(Application_Links *app, Buffer_Summary *buffer, Buffer_Reopen_Flag
                             continue;
                         }
                         vptrs[vptr_count] = view_it;
-                        edit_positions[vptr_count] = view_it->transient.edit_pos;
-                        line_numbers[vptr_count] = view_it->transient.edit_pos.cursor.line;
-                        column_numbers[vptr_count] = view_it->transient.edit_pos.cursor.character;
+                        File_Edit_Positions edit_pos = view_get_edit_pos(view_it);
+                        edit_positions[vptr_count] = edit_pos;
+                        line_numbers[vptr_count]   = edit_pos.cursor.line;
+                        column_numbers[vptr_count] = edit_pos.cursor.character;
                         view_it->transient.file_data.file = models->scratch_buffer;
                         ++vptr_count;
                     }
@@ -1423,7 +1427,7 @@ Reopen_Buffer(Application_Links *app, Buffer_Summary *buffer, Buffer_Reopen_Flag
                         view_set_file(system, models, vptrs[i], file);
                         
                         vptrs[i]->transient.file_data.file = file;
-                        vptrs[i]->transient.edit_pos = edit_positions[i];
+                        view_set_edit_pos(vptrs[i], edit_positions[i]);
                         Full_Cursor cursor = file_compute_cursor(system, file, seek_line_char(line_numbers[i], column_numbers[i]), 0);
                         
                         view_set_cursor(vptrs[i], cursor, true, file->settings.unwrapped_lines);
@@ -1944,15 +1948,17 @@ DOC_SEE(Buffer_Seek)
         Editing_File *file = vptr->transient.file_data.file;
         Assert(file != 0);
         if (!file->is_loading){
+            File_Edit_Positions edit_pos = view_get_edit_pos(vptr);
             if (seek.type != buffer_seek_pos){
                 result = true;
                 Full_Cursor cursor = file_compute_cursor(system, file, seek, 0);
-                vptr->transient.edit_pos.mark = cursor.pos;
+                edit_pos.mark = cursor.pos;
             }
             else{
                 result = true;
-                vptr->transient.edit_pos.mark = seek.pos;
+                edit_pos.mark = seek.pos;
             }
+            view_set_edit_pos(vptr, edit_pos);
             fill_view_summary(system, view, vptr, models);
         }
     }
