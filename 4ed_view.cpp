@@ -1190,9 +1190,43 @@ do_core_render(Application_Links *app){
                                       items, item_count);
 }
 
+internal Full_Cursor
+view_get_render_cursor(System_Functions *system, View *view, f32 scroll_y){
+    Full_Cursor result = {};
+    Editing_File *file = view->transient.file_data.file;
+    if (file->settings.unwrapped_lines){
+        result = file_compute_cursor_hint(system, file, seek_unwrapped_xy(0, scroll_y, false));
+    }
+    else{
+        result = file_compute_cursor(system, file, seek_wrapped_xy(0, scroll_y, false));
+    }
+    return(result);
+}
+
+internal Full_Cursor
+view_get_render_cursor(System_Functions *system, View *view){
+    File_Edit_Positions edit_pos = view_get_edit_pos(view);
+    f32 scroll_y = edit_pos.scroll.scroll_y;
+    // NOTE(allen): For now we will temporarily adjust scroll_y to try
+    // to prevent the view moving around until floating sections are added
+    // to the gui system.
+    scroll_y += view->transient.widget_height;
+    return(view_get_render_cursor(system, view, scroll_y));
+}
+
+internal Full_Cursor
+view_get_render_cursor_target(System_Functions *system, View *view){
+    File_Edit_Positions edit_pos = view_get_edit_pos(view);
+    f32 scroll_y = (f32)edit_pos.scroll.target_y;
+    // NOTE(allen): For now we will temporarily adjust scroll_y to try
+    // to prevent the view moving around until floating sections are added
+    // to the gui system.
+    scroll_y += view->transient.widget_height;
+    return(view_get_render_cursor(system, view, scroll_y));
+}
+
 internal void
-render_loaded_file_in_view(System_Functions *system, View *view, Models *models,
-                           i32_Rect rect, b32 is_active, Render_Target *target){
+render_loaded_file_in_view(System_Functions *system, View *view, Models *models, i32_Rect rect, b32 is_active, Render_Target *target){
     Editing_File *file = view->transient.file_data.file;
     i32 line_height = view->transient.line_height;
     
@@ -1226,16 +1260,12 @@ render_loaded_file_in_view(System_Functions *system, View *view, Models *models,
     // to the gui system.
     scroll_y += view->transient.widget_height;
     
-    Full_Cursor render_cursor = {};
-    if (!file->settings.unwrapped_lines){
-        render_cursor = file_compute_cursor_hint(system, file, seek_wrapped_xy(0, scroll_y, 0));
-    }
-    else{
-        render_cursor = file_compute_cursor_hint(system, file, seek_unwrapped_xy(0, scroll_y, 0));
-    }
+    Full_Cursor render_cursor = view_get_render_cursor(system, view);
     
+#if 0    
     // TODO(allen): do(eliminate scroll_i nonsense)
     view->transient.edit_pos_.scroll_i = render_cursor.pos;
+#endif
     
     i32 item_count = 0;
     i32 end_pos = 0;

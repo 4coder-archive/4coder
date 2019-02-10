@@ -39,6 +39,9 @@ struct View_Transient{
     File_Edit_Positions edit_pos_;
     i32 mark;
     
+    i32 temp_view_top_left_pos;
+    i32 temp_view_top_left_target_pos;
+    
     b32 ui_mode;
     UI_Quit_Function_Type *ui_quit;
     UI_Control ui_control;
@@ -56,7 +59,6 @@ struct View_Transient{
     // It's what I've always wanted!!!! :D
     i32 line_height;
     
-    // TODO(allen): Do I still use mode?
     Query_Set query_set;
     f32 widget_height;
     

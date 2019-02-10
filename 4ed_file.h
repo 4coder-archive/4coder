@@ -12,18 +12,18 @@
 #if !defined(FRED_FILE_H)
 #define FRED_FILE_H
 
-enum Edit_Pos_Set_Type{
+typedef i32 Edit_Pos_Set_Type;
+enum{
     EditPos_None,
     EditPos_CursorSet,
     EditPos_ScrollSet
 };
 struct File_Edit_Positions{
+    Edit_Pos_Set_Type last_set_type;
     GUI_Scroll_Vars scroll;
     i32 cursor_pos;
     f32 preferred_x;
-    i32 scroll_i;
-    i32 last_set_type;
-    b32 in_view;
+    //i32 scroll_i;
 };
 
 // TODO(NAME): do(replace Text_Effect with markers over time)
