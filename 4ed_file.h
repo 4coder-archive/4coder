@@ -20,7 +20,6 @@ enum Edit_Pos_Set_Type{
 struct File_Edit_Positions{
     GUI_Scroll_Vars scroll;
     i32 cursor_pos;
-    i32 mark;
     f32 preferred_x;
     i32 scroll_i;
     i32 last_set_type;

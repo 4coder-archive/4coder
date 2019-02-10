@@ -68,7 +68,7 @@ fill_view_summary(System_Functions *system, View_Summary *view, View *vptr, Live
         Assert(data->file != 0);
         File_Edit_Positions edit_pos = view_get_edit_pos(vptr);
         
-        view->mark    = file_compute_cursor(system, data->file, seek_pos(edit_pos.mark));
+        view->mark    = file_compute_cursor(system, data->file, seek_pos(vptr->transient.mark));
         view->cursor  = file_compute_cursor(system, data->file, seek_pos(edit_pos.cursor_pos));
         
         view->preferred_x = edit_pos.preferred_x;
@@ -1948,16 +1948,12 @@ DOC_SEE(Buffer_Seek)
         if (!file->is_loading){
             if (seek.type != buffer_seek_pos){
                 result = true;
-                File_Edit_Positions edit_pos = view_get_edit_pos(vptr);
                 Full_Cursor cursor = file_compute_cursor(system, file, seek);
-                edit_pos.mark = cursor.pos;
-                view_set_edit_pos(vptr, edit_pos);
+                vptr->transient.mark = cursor.pos;
             }
             else{
                 result = true;
-                File_Edit_Positions edit_pos = view_get_edit_pos(vptr);
-                edit_pos.mark = seek.pos;
-                view_set_edit_pos(vptr, edit_pos);
+                vptr->transient.mark = seek.pos;
             }
             fill_view_summary(system, view, vptr, models);
         }

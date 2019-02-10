@@ -37,6 +37,7 @@ struct View_Transient{
     
     i32_Rect scroll_region;
     File_Edit_Positions edit_pos_;
+    i32 mark;
     
     b32 ui_mode;
     UI_Quit_Function_Type *ui_quit;

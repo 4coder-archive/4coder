@@ -115,9 +115,9 @@ edit_fix_markers(System_Functions *system, Models *models, Editing_File *file, E
         View *view = panel->view;
         if (view->transient.file_data.file == file){
             File_Edit_Positions edit_pos = view_get_edit_pos(view);
-            write_cursor_with_index(cursors, &cursor_count, edit_pos.cursor_pos);
-            write_cursor_with_index(cursors, &cursor_count, edit_pos.mark      );
-            write_cursor_with_index(cursors, &cursor_count, edit_pos.scroll_i  );
+            write_cursor_with_index(cursors, &cursor_count, edit_pos.cursor_pos );
+            write_cursor_with_index(cursors, &cursor_count, view->transient.mark);
+            write_cursor_with_index(cursors, &cursor_count, edit_pos.scroll_i   );
         }
     }
     
@@ -165,8 +165,7 @@ edit_fix_markers(System_Functions *system, Models *models, Editing_File *file, E
                 File_Edit_Positions edit_pos = view_get_edit_pos(view);
                 GUI_Scroll_Vars scroll = edit_pos.scroll;
                 
-                edit_pos.mark = cursors[cursor_count++].pos;
-                view_set_edit_pos(view, edit_pos);
+                view->transient.mark = cursors[cursor_count++].pos;
                 i32 new_scroll_i = cursors[cursor_count++].pos;
                 if (edit_pos.scroll_i != new_scroll_i){
                     edit_pos.scroll_i = new_scroll_i;

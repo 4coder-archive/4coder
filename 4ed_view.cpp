@@ -342,8 +342,9 @@ view_set_file(System_Functions *system, Models *models, View *view, Editing_File
     block_zero(&view->transient.file_data, sizeof(view->transient.file_data));
     view->transient.file_data.file = file;
     
-    // TODO(allen): do(set edit pos without updating file when popping)
-    view->transient.edit_pos_ = file_edit_positions_pop(file);
+    File_Edit_Positions edit_pos = file_edit_positions_pop(file);
+    view_set_edit_pos(view, edit_pos);
+    view->transient.mark = edit_pos.cursor_pos;
     
     Font_Pointers font = system->font.get_pointers_by_id(file->settings.font_id);
     view->transient.line_height = font.metrics->height;

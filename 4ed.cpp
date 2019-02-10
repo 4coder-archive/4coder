@@ -83,8 +83,7 @@ file_cursor_to_end(System_Functions *system, Models *models, Editing_File *file)
         }
         view_cursor_move(system, view, pos);
         File_Edit_Positions edit_pos = view_get_edit_pos(view);
-        edit_pos.mark = edit_pos.cursor_pos;
-        view_set_edit_pos(view, edit_pos);
+        view->transient.mark = edit_pos.cursor_pos;
     }
 }
 
