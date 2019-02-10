@@ -19,16 +19,8 @@ to_file_id(i32 id){
 ////////////////////////////////
 
 internal void
-file_edit_positions_set_cursor(File_Edit_Positions *edit_pos, Full_Cursor cursor, b32 set_preferred_x, b32 unwrapped_lines){
-    edit_pos->cursor_pos = cursor.pos;
-    if (set_preferred_x){
-        if (unwrapped_lines){
-            edit_pos->preferred_x = cursor.unwrapped_x;
-        }
-        else{
-            edit_pos->preferred_x = cursor.wrapped_x;
-        }
-    }
+file_edit_positions_set_cursor(File_Edit_Positions *edit_pos, i32 pos){
+    edit_pos->cursor_pos = pos;
     edit_pos->last_set_type = EditPos_CursorSet;
 }
 

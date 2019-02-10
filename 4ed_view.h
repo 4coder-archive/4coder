@@ -12,18 +12,13 @@
 #if !defined(FRED_VIEW_H)
 #define FRED_VIEW_H
 
-struct View_Persistent{
-    i32 id;
-    Coroutine_Head *coroutine;
-};
-
 struct File_Viewing_Data{
     Editing_File *file;
     b32 show_whitespace;
     b32 file_locked;
 };
 
-struct View_Transient{
+struct View{
     struct View *next;
     struct View *prev;
     struct Panel *panel;
@@ -38,6 +33,7 @@ struct View_Transient{
     i32_Rect scroll_region;
     File_Edit_Positions edit_pos_;
     i32 mark;
+    f32 preferred_x;
     
     i32 temp_view_top_left_pos;
     i32 temp_view_top_left_target_pos;
@@ -52,8 +48,6 @@ struct View_Transient{
     b32 hide_scrollbar;
     b32 hide_file_bar;
     
-    b32 changed_context_in_step;
-    
     // misc
     
     // TODO(allen): Can we burn line_height to the ground now?
@@ -62,12 +56,6 @@ struct View_Transient{
     
     Query_Set query_set;
     f32 widget_height;
-};
-
-struct View{
-    // TODO(allen): Why is this this way?
-    View_Persistent persistent;
-    View_Transient  transient;
 };
 
 struct Live_Views{

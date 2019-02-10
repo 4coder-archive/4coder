@@ -9,7 +9,7 @@ buffer_find_hard_start(Application_Links *app, Buffer_Summary *buffer, int32_t l
     tab_width -= 1;
     
     Hard_Start_Result result = {};
-    result.all_space = 1;
+    result.all_space = true;
     result.indent_pos = 0;
     result.char_pos = line_start;
     
@@ -17,7 +17,7 @@ buffer_find_hard_start(Application_Links *app, Buffer_Summary *buffer, int32_t l
     Stream_Chunk stream = {};
     stream.add_null = true;
     if (init_stream_chunk(&stream, app, buffer, line_start, data_chunk, sizeof(data_chunk))){
-        int32_t still_looping = 1;
+        bool32 still_looping = true;
         do{
             for (; result.char_pos < stream.end; ++result.char_pos){
                 char c = stream.data[result.char_pos];
@@ -36,7 +36,7 @@ buffer_find_hard_start(Application_Links *app, Buffer_Summary *buffer, int32_t l
                 }
                 
                 if (c != ' '){
-                    result.all_space = 0;
+                    result.all_space = false;
                 }
                 
                 result.indent_pos += 1;
@@ -51,8 +51,7 @@ buffer_find_hard_start(Application_Links *app, Buffer_Summary *buffer, int32_t l
 
 static Buffer_Batch_Edit
 make_batch_from_indent_marks(Application_Links *app, Partition *arena, Buffer_Summary *buffer,
-                             int32_t first_line, int32_t one_past_last_line,
-                             int32_t *indent_marks, Indent_Options opts){
+                             int32_t first_line, int32_t one_past_last_line, int32_t *indent_marks, Indent_Options opts){
     int32_t *shifted_indent_marks = indent_marks - first_line;
     
     int32_t edit_count = 0;

@@ -47,14 +47,14 @@ global_const Style_Color_Edit colors_to_edit[] = {
 };
 
 internal Input_Process_Result
-do_step_file_view(System_Functions *system, View *view, Models *models, i32_Rect rect, b32 is_active, f32 dt, GUI_Scroll_Vars scroll, i32 max_y){
+do_step_file_view(System_Functions *system, Models *models, View *view, i32_Rect rect, b32 is_active, f32 dt, GUI_Scroll_Vars scroll, i32 max_y){
     Input_Process_Result result = {};
     scroll.target_y = clamp(0, scroll.target_y, max_y);
     result.scroll = scroll;
     
-    i32 line_height = view->transient.line_height;
+    i32 line_height = view->line_height;
     
-    if (!view->transient.hide_file_bar){
+    if (!view->hide_file_bar){
         i32_Rect top_bar_rect = {};
         top_bar_rect.x0 = rect.x0;
         top_bar_rect.y0 = rect.y0;
@@ -62,15 +62,15 @@ do_step_file_view(System_Functions *system, View *view, Models *models, i32_Rect
         top_bar_rect.y1 = rect.y0 + line_height + 2;
         rect.y0 = top_bar_rect.y1;
     }
-    view->transient.file_region = rect;
+    view->file_region = rect;
     
     i32 bar_count = 0;
-    for (Query_Slot *slot = view->transient.query_set.used_slot;
+    for (Query_Slot *slot = view->query_set.used_slot;
          slot != 0;
          slot = slot->next, ++bar_count);
-    view->transient.widget_height = (f32)bar_count*(view->transient.line_height + 2);
+    view->widget_height = (f32)bar_count*(view->line_height + 2);
     
-    Editing_File *file = view->transient.file_data.file;
+    Editing_File *file = view->file_data.file;
     
     // TODO(allen): do(eliminate the built in paste_effect)
     if (!file->is_loading && file->state.paste_effect.seconds_down > 0.f){
@@ -79,18 +79,19 @@ do_step_file_view(System_Functions *system, View *view, Models *models, i32_Rect
     }
     
     // NOTE(allen): call scroll rule hook
-    b32 is_new_target = (result.scroll.target_x != view->transient.prev_target.x ||
-                         result.scroll.target_y != view->transient.prev_target.y);
+    b32 is_new_target = (result.scroll.target_x != view->prev_target.x ||
+                         result.scroll.target_y != view->prev_target.y);
     
     f32 target_x = (f32)result.scroll.target_x;
     f32 target_y = (f32)result.scroll.target_y;
     
-    if (models->scroll_rule(target_x, target_y, &result.scroll.scroll_x, &result.scroll.scroll_y, (view->persistent.id) + 1, is_new_target, dt)){
+    View_ID view_id = view_get_id(&models->live_set, view);
+    if (models->scroll_rule(target_x, target_y, &result.scroll.scroll_x, &result.scroll.scroll_y, view_id, is_new_target, dt)){
         result.is_animating = true;
     }
     
-    view->transient.prev_target.x = result.scroll.target_x;
-    view->transient.prev_target.y = result.scroll.target_y;
+    view->prev_target.x = result.scroll.target_x;
+    view->prev_target.y = result.scroll.target_y;
     
     return(result);
 }
@@ -149,7 +150,7 @@ draw_file_bar(System_Functions *system, Render_Target *target, View *view, Model
         }
         else{
             File_Edit_Positions edit_pos = view_get_edit_pos(view);
-            Full_Cursor cursor = file_compute_cursor(system, view->transient.file_data.file, seek_pos(edit_pos.cursor_pos));
+            Full_Cursor cursor = file_compute_cursor(system, view->file_data.file, seek_pos(edit_pos.cursor_pos));
             
             char bar_space[526];
             String bar_text = make_fixed_width_string(bar_space);
@@ -213,10 +214,10 @@ get_margin_color(Style *style, i32 level){
 internal void
 do_render_file_view(System_Functions *system, View *view, Models *models, GUI_Scroll_Vars *scroll, View *active, i32_Rect rect, b32 is_active, Render_Target *target){
     
-    Editing_File *file = view->transient.file_data.file;
+    Editing_File *file = view->file_data.file;
     Assert(file != 0);
     
-    i32 line_height = view->transient.line_height;
+    i32 line_height = view->line_height;
     Style *style = &models->styles.styles[0];
     Face_ID font_id = file->settings.font_id;
     char font_name_space[256];
@@ -224,7 +225,7 @@ do_render_file_view(System_Functions *system, View *view, Models *models, GUI_Sc
     font_name.size = system->font.get_name_by_id(font_id, font_name.str, font_name.memory_size);
     Font_Pointers font = system->font.get_pointers_by_id(font_id);
     
-    if (!view->transient.hide_file_bar){
+    if (!view->hide_file_bar){
         i32_Rect top_bar_rect = {};
         top_bar_rect.x0 = rect.x0;
         top_bar_rect.y0 = rect.y0;
@@ -235,7 +236,7 @@ do_render_file_view(System_Functions *system, View *view, Models *models, GUI_Sc
     }
     
     i32 bar_count = 0;
-    for (Query_Slot *slot = view->transient.query_set.used_slot;
+    for (Query_Slot *slot = view->query_set.used_slot;
          slot != 0;
          slot = slot->next, ++bar_count){
         i32_Rect query_bar_rect = {};
@@ -253,10 +254,10 @@ do_render_file_view(System_Functions *system, View *view, Models *models, GUI_Sc
         x = ceil32(draw_string(system, target, font_id, slot->query_bar->prompt, x, y, text2_color));
         draw_string(system, target, font_id, slot->query_bar->string, x, y, text1_color);
     }
-    view->transient.widget_height = (f32)bar_count*(view->transient.line_height + 2);
+    view->widget_height = (f32)bar_count*(view->line_height + 2);
     
     draw_push_clip(target, rect);
-    if (!view->transient.ui_mode){
+    if (!view->ui_mode){
         if (file_is_ready(file)){
             render_loaded_file_in_view(system, view, models, rect, is_active, target);
         }
@@ -264,9 +265,9 @@ do_render_file_view(System_Functions *system, View *view, Models *models, GUI_Sc
     else{
         f32_Rect rect_f32 = f32R(rect);
         
-        i32 item_count = view->transient.ui_control.count;
-        UI_Item *item = view->transient.ui_control.items;
-        GUI_Scroll_Vars ui_scroll = view->transient.ui_scroll;
+        i32 item_count = view->ui_control.count;
+        UI_Item *item = view->ui_control.items;
+        GUI_Scroll_Vars ui_scroll = view->ui_scroll;
         for (i32 i = 0; i < item_count; ++i, item += 1){
             
             f32_Rect item_rect = f32R(item->rectangle);

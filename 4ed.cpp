@@ -78,12 +78,12 @@ file_cursor_to_end(System_Functions *system, Models *models, Editing_File *file)
          panel != 0;
          panel = layout_get_next_open_panel(layout, panel)){
         View *view = panel->view;
-        if (view->transient.file_data.file != file){
+        if (view->file_data.file != file){
             continue;
         }
         view_cursor_move(system, view, pos);
         File_Edit_Positions edit_pos = view_get_edit_pos(view);
-        view->transient.mark = edit_pos.cursor_pos;
+        view->mark = edit_pos.cursor_pos;
     }
 }
 
@@ -105,8 +105,8 @@ file_cursor_to_end(System_Functions *system, Models *models, Editing_File *file)
 
 #define REQ_OPEN_VIEW(n) USE_VIEW(n); if (view_lock_flags(n) != 0) return
 
-#define REQ_FILE(n,v) Editing_File *n = (v)->transient.file_data.file; if (n == 0) return
-#define REQ_FILE_HISTORY(n,v) Editing_File *n = (v)->transient.file_data.file; if (n == 0 || n->state.undo.undo.edits == 0) return
+#define REQ_FILE(n,v) Editing_File *n = (v)->file_data.file; if (n == 0) return
+#define REQ_FILE_HISTORY(n,v) Editing_File *n = (v)->file_data.file; if (n == 0 || n->state.undo.undo.edits == 0) return
 
 SCROLL_RULE_SIG(fallback_scroll_rule){
     b32 result = false;
@@ -736,7 +736,7 @@ force_abort_coroutine(System_Functions *system, Models *models, View *view){
         // TODO(allen): post grave warning
         models->command_coroutine = 0;
     }
-    init_query_set(&view->transient.query_set);
+    init_query_set(&view->query_set);
 }
 
 internal void
@@ -802,20 +802,17 @@ App_Init_Sig(app_init){
         models->live_set.views = push_array(part, View, models->live_set.max);
         
         //dll_init_sentinel
-        models->live_set.free_sentinel.transient.next = &models->live_set.free_sentinel;
-        models->live_set.free_sentinel.transient.prev = &models->live_set.free_sentinel;
+        models->live_set.free_sentinel.next = &models->live_set.free_sentinel;
+        models->live_set.free_sentinel.prev = &models->live_set.free_sentinel;
         
         i32 max = models->live_set.max;
         View *view = models->live_set.views;
         for (i32 i = 0; i < max; ++i, ++view){
             //dll_insert(&models->live_set.free_sentinel, view);
-            view->transient.next = models->live_set.free_sentinel.transient.next;
-            view->transient.prev = &models->live_set.free_sentinel;
-            models->live_set.free_sentinel.transient.next = view;
-            view->transient.next->transient.prev = view;
-            
-            View_Persistent *persistent = &view->persistent;
-            persistent->id = i;
+            view->next = models->live_set.free_sentinel.next;
+            view->prev = &models->live_set.free_sentinel;
+            models->live_set.free_sentinel.next = view;
+            view->next->prev = view;
         }
     }
     
@@ -907,7 +904,7 @@ App_Init_Sig(app_init){
         Panel *panel = layout_initialize(part, &models->layout);
         View *new_view = live_set_alloc_view(&models->mem.heap, &models->lifetime_allocator, &models->live_set);
         panel->view = new_view;
-        new_view->transient.panel = panel;
+        new_view->panel = panel;
         view_set_file(system, models, new_view, models->scratch_buffer);
     }
     
@@ -1238,7 +1235,7 @@ App_Step_Sig(app_step){
                                 
                                 app_result.animating = true;
                                 if (models->command_coroutine == 0){
-                                    init_query_set(&view->transient.query_set);
+                                    init_query_set(&view->query_set);
                                 }
                             }
                         }
@@ -1294,20 +1291,20 @@ App_Step_Sig(app_step){
             i32 max_y = 0;
             b32 file_scroll = false;
             File_Edit_Positions edit_pos = view_get_edit_pos(view);
-            if (!view->transient.ui_mode){
+            if (!view->ui_mode){
                 scroll_vars = &edit_pos.scroll;
                 max_y = view_compute_max_target_y(view);
                 file_scroll = true;
             }
             else{
-                scroll_vars = &view->transient.ui_scroll;
-                i32 bottom = view->transient.ui_control.bounding_box[UICoordinates_Scrolled].y1;
+                scroll_vars = &view->ui_scroll;
+                i32 bottom = view->ui_control.bounding_box[UICoordinates_Scrolled].y1;
                 max_y = view_compute_max_target_y_from_bottom_y(view, (f32)bottom);
                 file_scroll = false;
             }
             
             b32 active = (panel == active_panel);
-            Input_Process_Result ip_result = do_step_file_view(system, view, models, panel->rect_inner, active, dt, *scroll_vars, max_y);
+            Input_Process_Result ip_result = do_step_file_view(system, models, view, panel->rect_inner, active, dt, *scroll_vars, max_y);
             
             if (ip_result.is_animating){
                 app_result.animating = true;

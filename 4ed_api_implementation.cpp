@@ -51,32 +51,32 @@ fill_buffer_summary(Buffer_Summary *buffer, Editing_File *file, Working_Set *wor
 
 internal void
 fill_view_summary(System_Functions *system, View_Summary *view, View *vptr, Live_Views *live_set, Working_Set *working_set){
-    File_Viewing_Data *data = &vptr->transient.file_data;
+    File_Viewing_Data *data = &vptr->file_data;
     
     memset(view, 0, sizeof(*view));
     
-    if (vptr->transient.in_use){
+    if (vptr->in_use){
         view->exists = true;
         view->view_id = (int32_t)(vptr - live_set->views) + 1;
-        view->line_height = (f32)(vptr->transient.line_height);
+        view->line_height = (f32)(vptr->line_height);
         view->unwrapped_lines = data->file->settings.unwrapped_lines;
         view->show_whitespace = data->show_whitespace;
         view->lock_flags = view_lock_flags(vptr);
         
-        view->buffer_id = vptr->transient.file_data.file->id.id;
+        view->buffer_id = vptr->file_data.file->id.id;
         
         Assert(data->file != 0);
         File_Edit_Positions edit_pos = view_get_edit_pos(vptr);
         
-        view->mark    = file_compute_cursor(system, data->file, seek_pos(vptr->transient.mark));
+        view->mark    = file_compute_cursor(system, data->file, seek_pos(vptr->mark));
         view->cursor  = file_compute_cursor(system, data->file, seek_pos(edit_pos.cursor_pos));
         
-        view->preferred_x = edit_pos.preferred_x;
+        view->preferred_x = vptr->preferred_x;
         
-        view->view_region = vptr->transient.panel->rect_inner;
-        view->file_region = vptr->transient.file_region;
-        if (vptr->transient.ui_mode){
-            view->scroll_vars = vptr->transient.ui_scroll;
+        view->view_region = vptr->panel->rect_inner;
+        view->file_region = vptr->file_region;
+        if (vptr->ui_mode){
+            view->scroll_vars = vptr->ui_scroll;
         }
         else{
             view->scroll_vars = edit_pos.scroll;
@@ -92,11 +92,11 @@ fill_view_summary(System_Functions *system, View_Summary *view, View *vptr, Mode
 internal void
 view_quit_ui(System_Functions *system, Models *models, View *view){
     Assert(view != 0);
-    view->transient.ui_mode = false;
-    if (view->transient.ui_quit != 0){
+    view->ui_mode = false;
+    if (view->ui_quit != 0){
         View_Summary view_summary = {};
         fill_view_summary(system, &view_summary, view, models);
-        view->transient.ui_quit(&models->app_links, view_summary);
+        view->ui_quit(&models->app_links, view_summary);
     }
 }
 
@@ -139,7 +139,7 @@ imp_get_view(Models *models, View_ID view_id){
     view_id = view_id - 1;
     if (0 <= view_id && view_id < live_set->max){
         vptr = live_set->views + view_id;
-        if (!vptr->transient.in_use){
+        if (!vptr->in_use){
             vptr = 0;
         }
     }
@@ -1347,9 +1347,9 @@ DOC_SEE(Buffer_Identifier)
                      panel != 0;
                      panel = layout_get_next_open_panel(layout, panel)){
                     View *view = panel->view;
-                    if (view->transient.file_data.file == file){
+                    if (view->file_data.file == file){
                         Assert(file_node != used);
-                        view->transient.file_data.file = 0;
+                        view->file_data.file = 0;
                         Editing_File *new_file = CastFromMember(Editing_File, main_chain_node, file_node);
                         view_set_file(system, models, view, new_file);
                         if (file_node->next != used){
@@ -1406,15 +1406,15 @@ Reopen_Buffer(Application_Links *app, Buffer_Summary *buffer, Buffer_Reopen_Flag
                          panel != 0;
                          panel = layout_get_next_open_panel(layout, panel)){
                         View *view_it = panel->view;
-                        if (view_it->transient.file_data.file != file){
+                        if (view_it->file_data.file != file){
                             continue;
                         }
                         vptrs[vptr_count] = view_it;
                         File_Edit_Positions edit_pos = view_get_edit_pos(view_it);
-                        Full_Cursor cursor = file_compute_cursor(system, view_it->transient.file_data.file, seek_pos(edit_pos.cursor_pos));
+                        Full_Cursor cursor = file_compute_cursor(system, view_it->file_data.file, seek_pos(edit_pos.cursor_pos));
                         line_numbers[vptr_count]   = cursor.line;
                         column_numbers[vptr_count] = cursor.character;
-                        view_it->transient.file_data.file = models->scratch_buffer;
+                        view_it->file_data.file = models->scratch_buffer;
                         ++vptr_count;
                     }
                     
@@ -1425,10 +1425,10 @@ Reopen_Buffer(Application_Links *app, Buffer_Summary *buffer, Buffer_Reopen_Flag
                     for (i32 i = 0; i < vptr_count; ++i){
                         view_set_file(system, models, vptrs[i], file);
                         
-                        vptrs[i]->transient.file_data.file = file;
+                        vptrs[i]->file_data.file = file;
                         Full_Cursor cursor = file_compute_cursor(system, file, seek_line_char(line_numbers[i], column_numbers[i]));
                         
-                        view_set_cursor(system, vptrs[i], cursor, true, file->settings.unwrapped_lines);
+                        view_set_cursor(system, vptrs[i], cursor, true);
                     }
                     
                     result = BufferReopenResult_Reopened;
@@ -1462,7 +1462,7 @@ get_view_next__internal(Models *models, View_Summary *view){
     i32 index = view->view_id - 1;
     if (index >= 0 && index < live_set->max){
         View *vptr = live_set->views + index;
-        Panel *panel = vptr->transient.panel;
+        Panel *panel = vptr->panel;
         if (panel != 0){
             panel = layout_get_next_open_panel(layout, panel);
         }
@@ -1581,7 +1581,7 @@ DOC_SEE(View_Split_Position)
     System_Functions *system = models->system;
     Layout *layout = &models->layout;
     View *vptr = imp_get_view(models, view_location);
-    Panel *panel = vptr->transient.panel;
+    Panel *panel = vptr->panel;
     View_Summary result = {};
     b32 vertical_split = ((position == ViewSplit_Left) || (position == ViewSplit_Right));
     b32 br_split = ((position == ViewSplit_Bottom) || (position == ViewSplit_Right));
@@ -1589,7 +1589,7 @@ DOC_SEE(View_Split_Position)
     if (new_panel != 0){
         View *new_view = live_set_alloc_view(&models->mem.heap, &models->lifetime_allocator, &models->live_set);
         new_panel->view = new_view;
-        new_view->transient.panel = new_panel;
+        new_view->panel = new_panel;
         view_set_file(system, models, new_view, models->scratch_buffer);
         fill_view_summary(system, &result, new_view, models);
     }
@@ -1614,7 +1614,7 @@ in the system, the call will fail.)
     
     bool32 result = false;
     if (vptr != 0){
-        if (layout_close_panel(layout, vptr->transient.panel)){
+        if (layout_close_panel(layout, vptr->panel)){
             live_set_free_view(&models->mem.heap, &models->lifetime_allocator, &models->live_set, vptr);
             result = true;
         }
@@ -1637,7 +1637,7 @@ DOC_SEE(get_active_view)
     View *vptr = imp_get_view(models, view);
     bool32 result = false;
     if (vptr != 0){
-        models->layout.active_panel = vptr->transient.panel;
+        models->layout.active_panel = vptr->panel;
         result = true;
     }
     return(result);
@@ -1660,22 +1660,22 @@ DOC_RETURN(returns non-zero on success)
         switch (setting){
             case ViewSetting_ShowWhitespace:
             {
-                *value_out = vptr->transient.file_data.show_whitespace;
+                *value_out = vptr->file_data.show_whitespace;
             }break;
             
             case ViewSetting_ShowScrollbar:
             {
-                *value_out = !vptr->transient.hide_scrollbar;
+                *value_out = !vptr->hide_scrollbar;
             }break;
             
             case ViewSetting_ShowFileBar:
             {
-                *value_out = !vptr->transient.hide_file_bar;
+                *value_out = !vptr->hide_file_bar;
             }break;
             
             case ViewSetting_UICommandMap:
             {
-                *value_out = vptr->transient.ui_map_id;
+                *value_out = vptr->ui_map_id;
             }break;
             
             default:
@@ -1707,22 +1707,22 @@ DOC_SEE(View_Setting_ID)
         switch (setting){
             case ViewSetting_ShowWhitespace:
             {
-                vptr->transient.file_data.show_whitespace = value;
+                vptr->file_data.show_whitespace = value;
             }break;
             
             case ViewSetting_ShowScrollbar:
             {
-                vptr->transient.hide_scrollbar = !value;
+                vptr->hide_scrollbar = !value;
             }break;
             
             case ViewSetting_ShowFileBar:
             {
-                vptr->transient.hide_file_bar = !value;
+                vptr->hide_file_bar = !value;
             }break;
             
             case ViewSetting_UICommandMap:
             {
-                vptr->transient.ui_map_id = value;
+                vptr->ui_map_id = value;
             }break;
             
             default:
@@ -1750,8 +1750,8 @@ If the view_id does not specify a valid view, the returned scope is null.)
     View *view = imp_get_view(models, view_id);
     Managed_Scope lifetime = 0;
     if (view != 0){
-        Assert(view->transient.lifetime_object != 0);
-        lifetime = (Managed_Scope)(view->transient.lifetime_object->workspace.scope_id);
+        Assert(view->lifetime_object != 0);
+        lifetime = (Managed_Scope)(view->lifetime_object->workspace.scope_id);
     }
     return(lifetime);
 }
@@ -1776,7 +1776,7 @@ DOC_RETURN(This call returns non-zero on success.)
     View *vptr = imp_get_view(models, view);
     bool32 result = false;
     if (vptr != 0){
-        Panel *panel = vptr->transient.panel;
+        Panel *panel = vptr->panel;
         Panel *intermediate = panel->parent;
         if (intermediate != 0){
             Assert(intermediate->kind == PanelKind_Intermediate);
@@ -1828,7 +1828,7 @@ DOC_RETURN(The rectangle of the panel containing this view.)
     View *vptr = imp_get_view(models, view);
     i32_Rect result = {};
     if (vptr != 0){
-        Panel *panel = vptr->transient.panel;
+        Panel *panel = vptr->panel;
         Assert(panel != 0);
         Panel *parent = panel->parent;
         if (parent != 0){
@@ -1858,7 +1858,7 @@ DOC_SEE(Full_Cursor)
     bool32 result = false;
     
     if (vptr != 0){
-        Editing_File *file = vptr->transient.file_data.file;
+        Editing_File *file = vptr->file_data.file;
         Assert(file != 0);
         if (!file->is_loading){
             result = true;
@@ -1886,12 +1886,12 @@ DOC_SEE(Buffer_Seek)
     bool32 result = false;
     
     if (vptr != 0){
-        Editing_File *file = vptr->transient.file_data.file;
+        Editing_File *file = vptr->file_data.file;
         if (!file->is_loading){
-            result = true;
             Full_Cursor cursor = file_compute_cursor(system, file, seek);
-            view_set_cursor(system, vptr, cursor, set_preferred_x, file->settings.unwrapped_lines);
+            view_set_cursor(system, vptr, cursor, set_preferred_x);
             fill_view_summary(system, view, vptr, models);
+            result = true;
         }
     }
     
@@ -1912,14 +1912,14 @@ DOC_SEE(GUI_Scroll_Vars)
     bool32 result = false;
     
     if (vptr != 0){
-        Editing_File *file = vptr->transient.file_data.file;
+        Editing_File *file = vptr->file_data.file;
         if (!file->is_loading){
             result = true;
-            if (!vptr->transient.ui_mode){
+            if (!vptr->ui_mode){
                 view_set_scroll(system, vptr, scroll);
             }
             else{
-                vptr->transient.ui_scroll = scroll;
+                vptr->ui_scroll = scroll;
             }
             fill_view_summary(system, view, vptr, models);
         }
@@ -1943,17 +1943,17 @@ DOC_SEE(Buffer_Seek)
     bool32 result = false;
     
     if (vptr != 0){
-        Editing_File *file = vptr->transient.file_data.file;
+        Editing_File *file = vptr->file_data.file;
         Assert(file != 0);
         if (!file->is_loading){
             if (seek.type != buffer_seek_pos){
                 result = true;
                 Full_Cursor cursor = file_compute_cursor(system, file, seek);
-                vptr->transient.mark = cursor.pos;
+                vptr->mark = cursor.pos;
             }
             else{
                 result = true;
-                vptr->transient.mark = seek.pos;
+                vptr->mark = seek.pos;
             }
             fill_view_summary(system, view, vptr, models);
         }
@@ -1989,7 +1989,7 @@ DOC_SEE(Set_Buffer_Flag)
         Editing_File *file = working_set_get_active_file(&models->working_set, buffer_id);
         if (file != 0){
             result = true;
-            if (file != vptr->transient.file_data.file){
+            if (file != vptr->file_data.file){
                 view_set_file(system, models, vptr, file);
                 if (!(flags & SetBuffer_KeepOriginalGUI)){
                     view_quit_ui(system, models, vptr);
@@ -2040,11 +2040,11 @@ DOC_SEE(view_set_ui)
     Models *models = (Models*)app->cmd_context;
     View *vptr = imp_get_view(models, view);
     if (vptr != 0){
-        if (vptr->transient.ui_mode){
+        if (vptr->ui_mode){
             return(false);
         }
         else{
-            vptr->transient.ui_mode = true;
+            vptr->ui_mode = true;
             return(true);
         }
     }
@@ -2067,9 +2067,9 @@ DOC_SEE(view_set_ui)
     bool32 result = false;
     Models *models = (Models*)app->cmd_context;
     View *vptr = imp_get_view(models, view);
-    if (vptr != 0 && vptr->transient.ui_mode){
+    if (vptr != 0 && vptr->ui_mode){
         view_quit_ui(models->system, models, vptr);
-        vptr->transient.ui_mode = false;
+        vptr->ui_mode = false;
         result = true;
     }
     return(result);
@@ -2093,11 +2093,11 @@ DOC_SEE(UI_Quit_Function_Type)
     Heap *heap = &models->mem.heap;
     View *vptr = imp_get_view(models, view);
     if (vptr != 0){
-        if (vptr->transient.ui_control.items != 0){
-            heap_free(heap, vptr->transient.ui_control.items);
+        if (vptr->ui_control.items != 0){
+            heap_free(heap, vptr->ui_control.items);
         }
-        memset(&vptr->transient.ui_control, 0, sizeof(vptr->transient.ui_control));
-        vptr->transient.ui_quit = quit_function;
+        memset(&vptr->ui_control, 0, sizeof(vptr->ui_control));
+        vptr->ui_quit = quit_function;
         if (control != 0){
             if (control->count > 0){
                 i32 string_size = 0;
@@ -2168,14 +2168,14 @@ DOC_SEE(UI_Quit_Function_Type)
                             memcpy(new_str, old.str, old.size);
                         }
                     }
-                    vptr->transient.ui_control.items = new_items;
-                    vptr->transient.ui_control.count = count;
+                    vptr->ui_control.items = new_items;
+                    vptr->ui_control.count = count;
                 }
                 else{
                     return(false);
                 }
             }
-            memcpy(vptr->transient.ui_control.bounding_box, control->bounding_box,
+            memcpy(vptr->ui_control.bounding_box, control->bounding_box,
                    sizeof(control->bounding_box));
         }
         return(true);
@@ -2196,7 +2196,7 @@ DOC_SEE(view_set_ui)
     View *vptr = imp_get_view(models, view);
     UI_Control result = {};
     if (vptr != 0 && part != 0){
-        UI_Control *control = &vptr->transient.ui_control;
+        UI_Control *control = &vptr->ui_control;
         result.items = push_array(part, UI_Item, control->count);
         if (result.items != 0){
             result.count = control->count;
@@ -2280,7 +2280,7 @@ get_lifetime_object_from_workspace(Dynamic_Workspace *workspace){
         case DynamicWorkspace_View:
         {
             View *vptr = (View*)workspace->user_back_ptr;
-            result = vptr->transient.lifetime_object;
+            result = vptr->lifetime_object;
         }break;
         default:
         {
@@ -3044,7 +3044,7 @@ max_result_count of 1 and be assured you will get the most recent bar if any exi
     Models *models = (Models*)app->cmd_context;
     View *view = imp_get_view(models, view_id);
     if (view != 0){
-        for (Query_Slot *slot = view->transient.query_set.used_slot;
+        for (Query_Slot *slot = view->query_set.used_slot;
              slot != 0 && (result < max_result_count);
              slot = slot->next){
             if (slot->query_bar != 0){
@@ -3075,7 +3075,7 @@ only use for this call is in an interactive command that makes calls to get_user
     Models *models = (Models*)app->cmd_context;
     Panel *active_panel = layout_get_active_panel(&models->layout);
     View *active_view = active_panel->view;
-    Query_Slot *slot = alloc_query_slot(&active_view->transient.query_set);
+    Query_Slot *slot = alloc_query_slot(&active_view->query_set);
     bool32 result = (slot != 0);
     if (result){
         slot->query_bar = bar;
@@ -3093,7 +3093,7 @@ DOC(Stops showing the particular query bar specified by the bar parameter.)
     Models *models = (Models*)app->cmd_context;
     Panel *active_panel = layout_get_active_panel(&models->layout);
     View *active_view = active_panel->view;
-    free_query_slot(&active_view->transient.query_set, bar);
+    free_query_slot(&active_view->query_set, bar);
 }
 
 API_EXPORT void
@@ -4073,7 +4073,7 @@ Get_Default_Font_For_View(Application_Links *app, View_ID view_id)
 {
     Models *models = (Models*)app->cmd_context;
     View *view = imp_get_view(models, view_id);
-    Editing_File *file = view->transient.file_data.file;
+    Editing_File *file = view->file_data.file;
     Assert(file != 0);
     Face_ID face_id = file->settings.font_id;
     return(face_id);
