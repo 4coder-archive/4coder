@@ -82,7 +82,7 @@ do_step_file_view(System_Functions *system, View *view, Models *models, i32_Rect
             i32 target_x = 0;
             i32 target_y = 0;
             if (file_is_ready(file)){
-                Vec2 cursor = view_get_cursor_xy(view);
+                Vec2 cursor = view_get_cursor_xy(system, view);
                 
                 f32 width = view_width(view);
                 f32 height = view_height(view);
@@ -184,12 +184,14 @@ draw_file_bar(System_Functions *system, Render_Target *target, View *view, Model
         }
         else{
             File_Edit_Positions edit_pos = view_get_edit_pos(view);
+            Full_Cursor cursor = file_compute_cursor(system, view->transient.file_data.file, seek_pos(edit_pos.cursor_pos));
+            
             char bar_space[526];
             String bar_text = make_fixed_width_string(bar_space);
             append_ss        (&bar_text, lit(" L#"));
-            append_int_to_str(&bar_text, edit_pos.cursor.line);
+            append_int_to_str(&bar_text, cursor.line);
             append_ss        (&bar_text, lit(" C#"));
-            append_int_to_str(&bar_text, edit_pos.cursor.character);
+            append_int_to_str(&bar_text, cursor.character);
             
             append_ss(&bar_text, lit(" -"));
             

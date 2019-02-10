@@ -19,7 +19,7 @@ enum Edit_Pos_Set_Type{
 };
 struct File_Edit_Positions{
     GUI_Scroll_Vars scroll;
-    Full_Cursor cursor;
+    i32 cursor_pos;
     i32 mark;
     f32 preferred_x;
     i32 scroll_i;
@@ -27,11 +27,13 @@ struct File_Edit_Positions{
     b32 in_view;
 };
 
-// TODO(NAME): Replace this with markers over time.
+// TODO(NAME): do(replace Text_Effect with markers over time)
 struct Text_Effect{
-    i32 start, end;
+    i32 start;
+    i32 end;
     u32 color;
-    f32 seconds_down, seconds_max;
+    f32 seconds_down;
+    f32 seconds_max;
 };
 
 union Buffer_Slot_ID{

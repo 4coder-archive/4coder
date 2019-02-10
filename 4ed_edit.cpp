@@ -115,7 +115,7 @@ edit_fix_markers(System_Functions *system, Models *models, Editing_File *file, E
         View *view = panel->view;
         if (view->transient.file_data.file == file){
             File_Edit_Positions edit_pos = view_get_edit_pos(view);
-            write_cursor_with_index(cursors, &cursor_count, edit_pos.cursor.pos);
+            write_cursor_with_index(cursors, &cursor_count, edit_pos.cursor_pos);
             write_cursor_with_index(cursors, &cursor_count, edit_pos.mark      );
             write_cursor_with_index(cursors, &cursor_count, edit_pos.scroll_i  );
         }
@@ -160,17 +160,19 @@ edit_fix_markers(System_Functions *system, Models *models, Editing_File *file, E
             View *view = panel->view;
             if (view->transient.file_data.file == file){
                 i32 cursor_pos = cursors[cursor_count++].pos;
-                Full_Cursor new_cursor = file_compute_cursor(system, file, seek_pos(cursor_pos), 0);
+                Full_Cursor new_cursor = file_compute_cursor(system, file, seek_pos(cursor_pos));
                 
                 File_Edit_Positions edit_pos = view_get_edit_pos(view);
                 GUI_Scroll_Vars scroll = edit_pos.scroll;
                 
                 edit_pos.mark = cursors[cursor_count++].pos;
+                view_set_edit_pos(view, edit_pos);
                 i32 new_scroll_i = cursors[cursor_count++].pos;
                 if (edit_pos.scroll_i != new_scroll_i){
                     edit_pos.scroll_i = new_scroll_i;
+                    view_set_edit_pos(view, edit_pos);
                     
-                    Full_Cursor temp_cursor = file_compute_cursor(system, file, seek_pos(edit_pos.scroll_i), 0);
+                    Full_Cursor temp_cursor = file_compute_cursor(system, file, seek_pos(edit_pos.scroll_i));
                     
                     f32 y_offset = MOD(edit_pos.scroll.scroll_y, view->transient.line_height);
                     f32 y_position = temp_cursor.wrapped_y;
@@ -183,8 +185,6 @@ edit_fix_markers(System_Functions *system, Models *models, Editing_File *file, E
                     scroll.scroll_y = y_position;
                 }
                 
-                // TODO(allen): do(remove view_set_edit_pos from marker unrolling if it is redundant)
-                view_set_edit_pos(view, edit_pos);
                 view_set_cursor_and_scroll(view, new_cursor, true, view->transient.file_data.file->settings.unwrapped_lines, scroll);
             }
         }
@@ -436,12 +436,13 @@ edit_clear(System_Functions *system, Models *models, Editing_File *file){
             cursor.line = 1;
             cursor.character = 1;
             cursor.wrap_line = 1;
-            view_set_cursor(view, cursor, true, file->settings.unwrapped_lines);
+            view_set_cursor(system, view, cursor, true, file->settings.unwrapped_lines);
             no_views_see_file = false;
         }
     }
     
     if (no_views_see_file){
+        block_zero_struct(&file->state.edit_pos_most_recent);
         block_zero(file->state.edit_pos_stack, sizeof(file->state.edit_pos_stack));
         file->state.edit_pos_stack_top = -1;
     }

@@ -19,15 +19,9 @@ struct View_Persistent{
 
 struct File_Viewing_Data{
     Editing_File *file;
-    
-    Full_Cursor temp_highlight;
-    i32 temp_highlight_end_pos;
-    b32 show_temp_highlight;
-    
     b32 show_whitespace;
     b32 file_locked;
 };
-global File_Viewing_Data null_file_viewing_data = {};
 
 struct View_Transient{
     struct View *next;

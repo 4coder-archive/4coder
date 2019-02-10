@@ -83,7 +83,7 @@ file_cursor_to_end(System_Functions *system, Models *models, Editing_File *file)
         }
         view_cursor_move(system, view, pos);
         File_Edit_Positions edit_pos = view_get_edit_pos(view);
-        edit_pos.mark = edit_pos.cursor.pos;
+        edit_pos.mark = edit_pos.cursor_pos;
         view_set_edit_pos(view, edit_pos);
     }
 }
@@ -1312,11 +1312,6 @@ App_Step_Sig(app_step){
             
             if (ip_result.is_animating){
                 app_result.animating = true;
-            }
-            
-            if (file_scroll){
-                // TODO(allen): do(eliminate view_set_edit_pos if it is redundant)
-                view_set_edit_pos(view, edit_pos);
             }
             
             if (memcmp(scroll_vars, &ip_result.scroll, sizeof(*scroll_vars)) != 0){

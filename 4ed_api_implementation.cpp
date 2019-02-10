@@ -68,9 +68,9 @@ fill_view_summary(System_Functions *system, View_Summary *view, View *vptr, Live
         Assert(data->file != 0);
         File_Edit_Positions edit_pos = view_get_edit_pos(vptr);
         
-        view->mark  = file_compute_cursor(system, data->file, seek_pos(edit_pos.mark), 0);
+        view->mark    = file_compute_cursor(system, data->file, seek_pos(edit_pos.mark));
+        view->cursor  = file_compute_cursor(system, data->file, seek_pos(edit_pos.cursor_pos));
         
-        view->cursor      = edit_pos.cursor;
         view->preferred_x = edit_pos.preferred_x;
         
         view->view_region = vptr->transient.panel->rect_inner;
@@ -1396,7 +1396,6 @@ Reopen_Buffer(Application_Links *app, Buffer_Summary *buffer, Buffer_Reopen_Flag
                     
                     // TODO(allen): try(perform a diff maybe apply edits in reopen)
                     
-                    File_Edit_Positions edit_positions[16];
                     int32_t line_numbers[16];
                     int32_t column_numbers[16];
                     View *vptrs[16];
@@ -1412,9 +1411,9 @@ Reopen_Buffer(Application_Links *app, Buffer_Summary *buffer, Buffer_Reopen_Flag
                         }
                         vptrs[vptr_count] = view_it;
                         File_Edit_Positions edit_pos = view_get_edit_pos(view_it);
-                        edit_positions[vptr_count] = edit_pos;
-                        line_numbers[vptr_count]   = edit_pos.cursor.line;
-                        column_numbers[vptr_count] = edit_pos.cursor.character;
+                        Full_Cursor cursor = file_compute_cursor(system, view_it->transient.file_data.file, seek_pos(edit_pos.cursor_pos));
+                        line_numbers[vptr_count]   = cursor.line;
+                        column_numbers[vptr_count] = cursor.character;
                         view_it->transient.file_data.file = models->scratch_buffer;
                         ++vptr_count;
                     }
@@ -1427,10 +1426,9 @@ Reopen_Buffer(Application_Links *app, Buffer_Summary *buffer, Buffer_Reopen_Flag
                         view_set_file(system, models, vptrs[i], file);
                         
                         vptrs[i]->transient.file_data.file = file;
-                        view_set_edit_pos(vptrs[i], edit_positions[i]);
-                        Full_Cursor cursor = file_compute_cursor(system, file, seek_line_char(line_numbers[i], column_numbers[i]), 0);
+                        Full_Cursor cursor = file_compute_cursor(system, file, seek_line_char(line_numbers[i], column_numbers[i]));
                         
-                        view_set_cursor(vptrs[i], cursor, true, file->settings.unwrapped_lines);
+                        view_set_cursor(system, vptrs[i], cursor, true, file->settings.unwrapped_lines);
                     }
                     
                     result = BufferReopenResult_Reopened;
@@ -1864,7 +1862,7 @@ DOC_SEE(Full_Cursor)
         Assert(file != 0);
         if (!file->is_loading){
             result = true;
-            *cursor_out = file_compute_cursor(system, file, seek, 0);
+            *cursor_out = file_compute_cursor(system, file, seek);
             fill_view_summary(system, view, vptr, models);
         }
     }
@@ -1891,8 +1889,8 @@ DOC_SEE(Buffer_Seek)
         Editing_File *file = vptr->transient.file_data.file;
         if (!file->is_loading){
             result = true;
-            Full_Cursor cursor = file_compute_cursor(system, file, seek, 0);
-            view_set_cursor(vptr, cursor, set_preferred_x, file->settings.unwrapped_lines);
+            Full_Cursor cursor = file_compute_cursor(system, file, seek);
+            view_set_cursor(system, vptr, cursor, set_preferred_x, file->settings.unwrapped_lines);
             fill_view_summary(system, view, vptr, models);
         }
     }
@@ -1948,17 +1946,19 @@ DOC_SEE(Buffer_Seek)
         Editing_File *file = vptr->transient.file_data.file;
         Assert(file != 0);
         if (!file->is_loading){
-            File_Edit_Positions edit_pos = view_get_edit_pos(vptr);
             if (seek.type != buffer_seek_pos){
                 result = true;
-                Full_Cursor cursor = file_compute_cursor(system, file, seek, 0);
+                File_Edit_Positions edit_pos = view_get_edit_pos(vptr);
+                Full_Cursor cursor = file_compute_cursor(system, file, seek);
                 edit_pos.mark = cursor.pos;
+                view_set_edit_pos(vptr, edit_pos);
             }
             else{
                 result = true;
+                File_Edit_Positions edit_pos = view_get_edit_pos(vptr);
                 edit_pos.mark = seek.pos;
+                view_set_edit_pos(vptr, edit_pos);
             }
-            view_set_edit_pos(vptr, edit_pos);
             fill_view_summary(system, view, vptr, models);
         }
     }
@@ -1968,36 +1968,10 @@ DOC_SEE(Buffer_Seek)
 
 API_EXPORT bool32
 View_Set_Highlight(Application_Links *app, View_Summary *view, int32_t start, int32_t end, bool32 turn_on)/*
-DOC_PARAM(view, The view parameter specifies the view in which to set the highlight.)
-DOC_PARAM(start, This parameter specifies the absolute position of the first character of the highlight range.)
-DOC_PARAM(end, This parameter specifies the absolute position of the character one past the end of the highlight range.)
-DOC_PARAM(turn_on, This parameter indicates whether the highlight is being turned on or off.)
-DOC_RETURN(This call returns non-zero on success.)
-DOC
-(
-The highlight is mutually exclusive to the cursor.  When the turn_on parameter
-is set to true the highlight will be shown and the cursor will be hidden.  After
-that either setting the cursor with view_set_cursor or calling view_set_highlight
-and the turn_on set to false, will switch back to showing the cursor.
-)
+DOC(This feature has been removed.  Transition to the new highlighting system view markers which allow for
+arbitrarily many highlights, and cursors, at the same time.)
 */{
-    Models *models = (Models*)app->cmd_context;
-    System_Functions *system = models->system;
-    View *vptr = imp_get_view(models, view);
-    bool32 result = false;
-    
-    if (vptr != 0){
-        result = true;
-        if (turn_on){
-            view_set_temp_highlight(system, vptr, start, end);
-        }
-        else{
-            vptr->transient.file_data.show_temp_highlight = false;
-        }
-        fill_view_summary(system, view, vptr, models);
-    }
-    
-    return(result);
+    return(false);
 }
 
 API_EXPORT bool32
