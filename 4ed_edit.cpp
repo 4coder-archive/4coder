@@ -44,7 +44,6 @@ edit_fix_markers__write_workspace_markers(Dynamic_Workspace *workspace, Buffer_I
          node != 0;
          node = node->next){
         if (node->buffer_id != buffer_id) continue;
-        
         Marker *markers = (Marker*)(node + 1);
         Assert(sizeof(*markers) == node->std_header.item_size);
         i32 count = node->std_header.count;
@@ -94,10 +93,10 @@ edit_fix_markers__compute_scroll_y(i32 line_height, i32 old_y_val, f32 new_y_val
 
 internal void
 edit_fix_markers(System_Functions *system, Models *models, Editing_File *file, Edit_Array edits){
+    Assert(edits.count > 0);
+    
     Partition *part = &models->mem.part;
     Layout *layout = &models->layout;
-    
-    Assert(edits.count > 0);
     
     Temp_Memory cursor_temp = begin_temp_memory(part);
     

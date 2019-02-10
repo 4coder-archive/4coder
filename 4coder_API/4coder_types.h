@@ -467,15 +467,10 @@ STRUCT GUI_Scroll_Vars{
     float   scroll_y;
     /* DOC(The target y position to which the view is moving.  If scroll_y is not the same value, then it is still sliding to the target by the smooth scroll rule.) */
     int32_t target_y;
-    /* DOC(The previous value of target y.  This value should be ignored as it is the "vestigial" remain of a system that will not be around much longer.) */
-    int32_t prev_target_y;
-    
     /* DOC(The current actual x position of the view scroll.) */
     float   scroll_x;
     /* DOC(The target x position to which the view is moving.  If scroll_x is not the same value, then it is still sliding to the target by the smooth scroll rule.) */
     int32_t target_x;
-    /* DOC(The previous value of target x.  This value should be ignored as it is the "vestigial" remain of a system that will not be around much longer.) */
-    int32_t prev_target_x;
 };
 
 /* DOC(The Buffer_Seek_Type is is used in a Buffer_Seek to identify which coordinates are suppose to be used for the seek.)

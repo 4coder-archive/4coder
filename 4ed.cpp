@@ -984,7 +984,7 @@ App_Step_Sig(app_step){
     
     // NOTE(allen): reorganizing panels on screen
     Vec2_i32 prev_dim = layout_get_root_size(&models->layout);
-    Vec2_i32 current_dim = V2(target->width, target->height);
+    Vec2_i32 current_dim = V2i32(target->width, target->height);
     layout_set_root_size(&models->layout, current_dim);
     
     // NOTE(allen): First frame initialization
@@ -1132,7 +1132,7 @@ App_Step_Sig(app_step){
     Panel *mouse_panel = 0;
     Panel *divider_panel = 0;
     b32 mouse_in_margin = false;
-    Vec2_i32 mouse = V2(input->mouse.x, input->mouse.y);
+    Vec2_i32 mouse = V2i32(input->mouse.x, input->mouse.y);
     {
         for (Panel *panel = layout_get_first_open_panel(layout);
              panel != 0;

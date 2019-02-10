@@ -23,7 +23,6 @@ struct File_Edit_Positions{
     GUI_Scroll_Vars scroll;
     i32 cursor_pos;
     f32 preferred_x;
-    //i32 scroll_i;
 };
 
 // TODO(NAME): do(replace Text_Effect with markers over time)

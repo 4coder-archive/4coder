@@ -46,6 +46,7 @@ struct View_Transient{
     UI_Quit_Function_Type *ui_quit;
     UI_Control ui_control;
     GUI_Scroll_Vars ui_scroll;
+    Vec2_i32 prev_target;
     i32 ui_map_id;
     
     b32 hide_scrollbar;
@@ -61,8 +62,6 @@ struct View_Transient{
     
     Query_Set query_set;
     f32 widget_height;
-    
-    b32 reinit_scrolling;
 };
 
 struct View{
@@ -79,9 +78,9 @@ struct Live_Views{
 };
 
 struct Cursor_Limits{
-    f32 min;
-    f32 max;
-    f32 delta;
+    i32 min;
+    i32 max;
+    i32 delta;
 };
 
 enum{
@@ -109,13 +108,6 @@ struct Shift_Information{
     i32 start;
     i32 end;
     i32 amount;
-};
-
-struct Relative_Scrolling{
-    f32 scroll_x;
-    f32 scroll_y;
-    f32 target_x;
-    f32 target_y;
 };
 
 struct File_Bar{

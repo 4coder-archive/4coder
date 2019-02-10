@@ -48,9 +48,8 @@ global_const Style_Color_Edit colors_to_edit[] = {
 
 internal Input_Process_Result
 do_step_file_view(System_Functions *system, View *view, Models *models, i32_Rect rect, b32 is_active, f32 dt, GUI_Scroll_Vars scroll, i32 max_y){
-    scroll.target_y = clamp(0, scroll.target_y, max_y);
-    
     Input_Process_Result result = {};
+    scroll.target_y = clamp(0, scroll.target_y, max_y);
     result.scroll = scroll;
     
     i32 line_height = view->transient.line_height;
@@ -63,6 +62,7 @@ do_step_file_view(System_Functions *system, View *view, Models *models, i32_Rect
         top_bar_rect.y1 = rect.y0 + line_height + 2;
         rect.y0 = top_bar_rect.y1;
     }
+    view->transient.file_region = rect;
     
     i32 bar_count = 0;
     for (Query_Slot *slot = view->transient.query_set.used_slot;
@@ -72,60 +72,25 @@ do_step_file_view(System_Functions *system, View *view, Models *models, i32_Rect
     
     Editing_File *file = view->transient.file_data.file;
     
-    if (!view->transient.ui_mode){
-        view->transient.file_region = rect;
-        
-        if (view->transient.reinit_scrolling){
-            view->transient.reinit_scrolling = false;
-            result.is_animating = true;
-            
-            i32 target_x = 0;
-            i32 target_y = 0;
-            if (file_is_ready(file)){
-                Vec2 cursor = view_get_cursor_xy(system, view);
-                
-                f32 width = view_width(view);
-                f32 height = view_height(view);
-                
-                if (cursor.x >= target_x + width){
-                    target_x = round32(cursor.x - width*.35f);
-                }
-                
-                target_y = clamp_bottom(0, floor32(cursor.y - height*.5f));
-            }
-            
-            result.scroll.target_y = target_y;
-            result.scroll.scroll_y = (f32)target_y;
-            result.scroll.prev_target_y = -1000;
-            
-            result.scroll.target_x = target_x;
-            result.scroll.scroll_x = (f32)target_x;
-            result.scroll.prev_target_x = -1000;
-        }
-    }
-    
+    // TODO(allen): do(eliminate the built in paste_effect)
     if (!file->is_loading && file->state.paste_effect.seconds_down > 0.f){
         file->state.paste_effect.seconds_down -= dt;
         result.is_animating = true;
     }
     
-    {    
-        GUI_Scroll_Vars scroll_vars = result.scroll;
-        b32 is_new_target = (scroll_vars.target_x != scroll_vars.prev_target_x ||
-                             scroll_vars.target_y != scroll_vars.prev_target_y);
-        
-        f32 target_x = (f32)scroll_vars.target_x;
-        f32 target_y = (f32)scroll_vars.target_y;
-        
-        if (models->scroll_rule(target_x, target_y, &scroll_vars.scroll_x, &scroll_vars.scroll_y, (view->persistent.id) + 1, is_new_target, dt)){
-            result.is_animating = true;
-        }
-        
-        scroll_vars.prev_target_x = scroll_vars.target_x;
-        scroll_vars.prev_target_y = scroll_vars.target_y;
-        
-        result.scroll = scroll_vars;
+    // NOTE(allen): call scroll rule hook
+    b32 is_new_target = (result.scroll.target_x != view->transient.prev_target.x ||
+                         result.scroll.target_y != view->transient.prev_target.y);
+    
+    f32 target_x = (f32)result.scroll.target_x;
+    f32 target_y = (f32)result.scroll.target_y;
+    
+    if (models->scroll_rule(target_x, target_y, &result.scroll.scroll_x, &result.scroll.scroll_y, (view->persistent.id) + 1, is_new_target, dt)){
+        result.is_animating = true;
     }
+    
+    view->transient.prev_target.x = result.scroll.target_x;
+    view->transient.prev_target.y = result.scroll.target_y;
     
     return(result);
 }
@@ -322,7 +287,7 @@ do_render_file_view(System_Functions *system, View *view, Models *models, GUI_Sc
                 }break;
             }
             
-            if (rect_opverlap(item_rect, rect_f32)){
+            if (rect_overlap(item_rect, rect_f32)){
                 switch (item->type){
                     case UIType_Option:
                     {

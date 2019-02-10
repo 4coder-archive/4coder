@@ -71,62 +71,49 @@ view_set_edit_pos(View *view, File_Edit_Positions edit_pos){
 
 ////////////////////////////////
 
-// TODO(allen): Switch over to using an i32 for these.
-internal f32
+internal i32
 view_width(View *view){
-    i32_Rect file_rect = view->transient.file_region;
-    f32 result = (f32)(file_rect.x1 - file_rect.x0);
-    return (result);
+    return(rect_width(view->transient.file_region));
 }
 
-internal f32
+internal i32
 view_height(View *view){
-    i32_Rect file_rect = view->transient.file_region;
-    f32 result = (f32)(file_rect.y1 - file_rect.y0);
-    return (result);
+    return(rect_height(view->transient.file_region));
 }
 
-internal Vec2
+internal Vec2_i32
 view_get_cursor_xy(System_Functions *system, View *view){
     File_Edit_Positions edit_pos = view_get_edit_pos(view);
-    i32 pos = edit_pos.cursor_pos;
-    Full_Cursor cursor = file_compute_cursor(system, view->transient.file_data.file, seek_pos(pos));
-    Vec2 result = {};
+    Full_Cursor cursor = file_compute_cursor(system, view->transient.file_data.file, seek_pos(edit_pos.cursor_pos));
+    Vec2_i32 result = {};
     if (view->transient.file_data.file->settings.unwrapped_lines){
-        result = V2(cursor.unwrapped_x, cursor.unwrapped_y);
+        result = V2i32((i32)cursor.unwrapped_x, (i32)cursor.unwrapped_y);
     }
     else{
-        result = V2(cursor.wrapped_x, cursor.wrapped_y);
+        result = V2i32((i32)cursor.wrapped_x, (i32)cursor.wrapped_y);
     }
     return(result);
 }
 
 internal Cursor_Limits
 view_cursor_limits(View *view){
+    i32 line_height = view->transient.line_height;
+    i32 visible_height = view_height(view);
     Cursor_Limits limits = {};
-    
-    f32 line_height = (f32)view->transient.line_height;
-    f32 visible_height = view_height(view);
-    
-    limits.max = visible_height - line_height*3.f;
-    limits.min = line_height * 2;
-    
+    limits.max = visible_height - line_height*3;
+    limits.min = line_height*2;
     if (limits.max - limits.min <= line_height){
         if (visible_height >= line_height){
             limits.max = visible_height - line_height;
-            limits.min = -line_height;
         }
         else{
             limits.max = visible_height;
-            limits.min = -line_height;
         }
+        limits.min = 0;
     }
-    
-    limits.max = (limits.max > 0)?(limits.max):(0);
-    limits.min = (limits.min > 0)?(limits.min):(0);
-    
-    limits.delta = clamp_top(line_height*3.f, (limits.max - limits.min)*.5f);
-    
+    limits.max = clamp_bottom(0, limits.max);
+    limits.min = clamp(0, limits.min, limits.max);
+    limits.delta = clamp_top(line_height*5, (limits.max - limits.min + 1)/2);
     return(limits);
 }
 
@@ -166,49 +153,38 @@ view_lock_flags(View *view){
 ////////////////////////////////
 
 internal b32
-view_move_view_to_cursor(System_Functions *system, View *view, GUI_Scroll_Vars *scroll, b32 center_view){
-    b32 result = 0;
-    f32 max_x = view_width(view);
+view_move_view_to_cursor(System_Functions *system, View *view, GUI_Scroll_Vars *scroll){
+    b32 result = false;
+    i32 max_x = view_width(view);
     i32 max_y = view_compute_max_target_y(view);
     
-    Vec2 cursor = view_get_cursor_xy(system, view);
+    Vec2_i32 cursor = view_get_cursor_xy(system, view);
     
     GUI_Scroll_Vars scroll_vars = *scroll;
     i32 target_x = scroll_vars.target_x;
     i32 target_y = scroll_vars.target_y;
     
     Cursor_Limits limits = view_cursor_limits(view);
-    
     if (cursor.y > target_y + limits.max){
-        if (center_view){
-            target_y = round32(cursor.y - limits.max*.5f);
-        }
-        else{
-            target_y = ceil32(cursor.y - limits.max + limits.delta);
-        }
+        target_y = cursor.y - limits.max + limits.delta;
     }
     if (cursor.y < target_y + limits.min){
-        if (center_view){
-            target_y = round32(cursor.y - limits.max*.5f);
-        }
-        else{
-            target_y = floor32(cursor.y - limits.delta - limits.min);
-        }
+        target_y = cursor.y - limits.delta - limits.min;
     }
     
     target_y = clamp(0, target_y, max_y);
     
     if (cursor.x >= target_x + max_x){
-        target_x = ceil32(cursor.x - max_x/2);
+        target_x = cursor.x - max_x/2;
     }
     else if (cursor.x < target_x){
-        target_x = floor32(Max(0, cursor.x - max_x/2));
+        target_x = clamp_bottom(0, cursor.x - max_x/2);
     }
     
     if (target_x != scroll_vars.target_x || target_y != scroll_vars.target_y){
         scroll->target_x = target_x;
         scroll->target_y = target_y;
-        result = 1;
+        result = true;
     }
     
     return(result);
@@ -262,7 +238,7 @@ view_set_cursor(System_Functions *system, View *view, Full_Cursor cursor, b32 se
     file_edit_positions_set_cursor(&edit_pos, cursor, set_preferred_x, unwrapped_lines);
     view_set_edit_pos(view, edit_pos);
     GUI_Scroll_Vars scroll = edit_pos.scroll;
-    if (view_move_view_to_cursor(system, view, &scroll, 0)){
+    if (view_move_view_to_cursor(system, view, &scroll)){
         edit_pos.scroll = scroll;
         view_set_edit_pos(view, edit_pos);
     }
@@ -287,25 +263,6 @@ view_set_cursor_and_scroll(View *view, Full_Cursor cursor, b32 set_preferred_x, 
     file_edit_positions_set_cursor(&edit_pos, cursor, set_preferred_x, unwrapped_lines);
     file_edit_positions_set_scroll(&edit_pos, scroll);
     edit_pos.last_set_type = EditPos_None;
-    view_set_edit_pos(view, edit_pos);
-}
-
-internal Relative_Scrolling
-view_get_relative_scrolling(System_Functions *system, View *view){
-    Vec2 cursor = view_get_cursor_xy(system, view);
-    File_Edit_Positions edit_pos = view_get_edit_pos(view);
-    Relative_Scrolling result = {};
-    result.scroll_y = cursor.y - edit_pos.scroll.scroll_y;
-    result.target_y = cursor.y - edit_pos.scroll.target_y;
-    return(result);
-}
-
-internal void
-view_set_relative_scrolling(System_Functions *system, View *view, Relative_Scrolling scrolling){
-    Vec2 cursor = view_get_cursor_xy(system, view);
-    File_Edit_Positions edit_pos = view_get_edit_pos(view);
-    edit_pos.scroll.scroll_y = cursor.y - scrolling.scroll_y;
-    edit_pos.scroll.target_y = round32(clamp_bottom(0.f, cursor.y - scrolling.target_y));
     view_set_edit_pos(view, edit_pos);
 }
 
@@ -377,7 +334,6 @@ file_is_viewed(Layout *layout, Editing_File *file){
 internal void
 adjust_views_looking_at_file_to_new_cursor(System_Functions *system, Models *models, Editing_File *file){
     Layout *layout = &models->layout;
-    
     for (Panel *panel = layout_get_first_open_panel(layout);
          panel != 0;
          panel = layout_get_next_open_panel(layout, panel)){
@@ -398,7 +354,6 @@ file_full_remeasure(System_Functions *system, Models *models, Editing_File *file
     adjust_views_looking_at_file_to_new_cursor(system, models, file);
     
     Layout *layout = &models->layout;
-    
     for (Panel *panel = layout_get_first_open_panel(layout);
          panel != 0;
          panel = layout_get_next_open_panel(layout, panel)){
@@ -491,9 +446,7 @@ finalize_color(Theme *theme_data, u32 color){
 }
 
 internal void
-get_visual_markers(Partition *arena, Dynamic_Workspace *workspace,
-                   Range range, Buffer_ID buffer_id, i32 view_index,
-                   Theme *theme_data){
+get_visual_markers(Partition *arena, Dynamic_Workspace *workspace, Range range, Buffer_ID buffer_id, i32 view_index, Theme *theme_data){
     View_ID view_id = view_index + 1;
     for (Managed_Buffer_Markers_Header *node = workspace->buffer_markers_list.first;
          node != 0;
@@ -564,8 +517,9 @@ get_visual_markers(Partition *arena, Dynamic_Workspace *workspace,
                                 if (range_b.first > range_b.one_past_last){
                                     Swap(i32, range_b.first, range_b.one_past_last);
                                 }
-                                if (!((range.min - range_b.max <= 0) &&
-                                      (range.max - range_b.min >= 0))) continue;
+                                if (!((range.min - range_b.max <= 0) && (range.max - range_b.min >= 0))) {
+                                    continue;
+                                }
                                 
                                 Render_Marker *render_marker = push_array(arena, Render_Marker, 1);
                                 render_marker->type = type;
@@ -1185,9 +1139,7 @@ do_core_render(Application_Links *app){
     Range on_screen_range = models->render_range;
     Buffer_Render_Item *items = models->render_items;
     i32 item_count = models->render_item_count;
-    render_loaded_file_in_view__inner(models, target, view,
-                                      rect, render_cursor, on_screen_range,
-                                      items, item_count);
+    render_loaded_file_in_view__inner(models, target, view, rect, render_cursor, on_screen_range, items, item_count);
 }
 
 internal Full_Cursor
