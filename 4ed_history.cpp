@@ -306,19 +306,19 @@ history_record_edit(Heap *heap, Global_History *global_history, History *history
     Edit *edit = edits.vals;
     
     for (i32 i = 0; i < edits.count; i += 1, batch_slot += 1, edit += 1){
-        i32 first = edit->range.first;
-        i32 length_forward = edit->length;
-        i32 length_backward = edit->range.one_past_last - first;
+        i32 edit_first = edit->range.first;
+        i32 edit_length_forward = edit->length;
+        i32 edit_length_backward = edit->range.one_past_last - edit_first;
         
-        batch_slot->length_forward  = length_forward ;
-        batch_slot->length_backward = length_backward;
-        batch_slot->first = first;
+        batch_slot->length_forward  = edit_length_forward ;
+        batch_slot->length_backward = edit_length_backward;
+        batch_slot->first = edit_first;
         
-        block_copy(cursor_forward , edit->str, length_forward);
+        block_copy(cursor_forward , edit->str, edit_length_forward);
         buffer_stringify_range(buffer, edit->range, cursor_backward);
         
-        cursor_forward  += length_forward ;
-        cursor_backward += length_backward;
+        cursor_forward  += edit_length_forward ;
+        cursor_backward += edit_length_backward;
     }
     
     Assert(history->record_lookup.count == history->record_count);
@@ -491,12 +491,12 @@ history_merge_records(Partition *scratch, Heap *heap, History *history, i32 firs
                 Assert(first != &record->group.children);
                 Assert(last  != &record->group.children);
                 
-                Node *right = new_sentinel;
-                Node *left = new_sentinel->prev;
-                left->next = first;
-                first->prev = left;
-                last->next = right;
-                right->prev = last;
+                Node *sub_right = new_sentinel;
+                Node *sub_left = new_sentinel->prev;
+                sub_left->next = first;
+                first->prev = sub_left;
+                last->next = sub_right;
+                sub_right->prev = last;
                 count += record->group.count;
             }break;
             

@@ -534,8 +534,8 @@ edit__apply_record_forward(System_Functions *system, Models *models, Editing_Fil
             for (Node *node = sentinel->next;
                  node != sentinel;
                  node = node->next){
-                Record *record = CastFromMember(Record, node, node);
-                edit__apply_record_forward(system, models, file, record, behaviors_prototype);
+                Record *sub_record = CastFromMember(Record, node, node);
+                edit__apply_record_forward(system, models, file, sub_record, behaviors_prototype);
             }
         }break;
         
@@ -599,8 +599,8 @@ edit__apply_record_backward(System_Functions *system, Models *models, Editing_Fi
             for (Node *node = sentinel->prev;
                  node != sentinel;
                  node = node->prev){
-                Record *record = CastFromMember(Record, node, node);
-                edit__apply_record_backward(system, models, file, record, behaviors_prototype);
+                Record *sub_record = CastFromMember(Record, node, node);
+                edit__apply_record_backward(system, models, file, sub_record, behaviors_prototype);
             }
         }break;
         
