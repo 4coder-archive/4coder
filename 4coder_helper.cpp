@@ -1592,5 +1592,12 @@ get_single_record(Application_Links *app, Buffer_ID buffer_id, History_Record_In
     return(record);
 }
 
+////////////////////////////////
+
+static void
+view_buffer_set(Application_Links *app, Buffer_ID *buffers, int32_t count){
+    // TODO(allen): do(implement view_buffer_set)
+}
+
 // BOTTOM
 

@@ -1633,9 +1633,11 @@ CUSTOM_DOC("Advances forwards through the undo history of the current buffer.")
 CUSTOM_COMMAND_SIG(undo)
 CUSTOM_DOC("Advances backward through the undo history in the buffer containing the most recent regular edit.")
 {
+    Partition *scratch = &global_part;
     int32_t highest_edit_number = -1;
     Buffer_ID first_buffer_match = 0;
     Buffer_ID last_buffer_match = 0;
+    int32_t match_count = 0;
     
     for (Buffer_Summary buffer = get_buffer_first(app, AccessAll);
          buffer.exists;
@@ -1647,22 +1649,30 @@ CUSTOM_DOC("Advances backward through the undo history in the buffer containing 
                 highest_edit_number = record.edit_number;
                 first_buffer_match = buffer.buffer_id;
                 last_buffer_match = buffer.buffer_id;
+                match_count = 1;
             }
             else if (record.edit_number == highest_edit_number){
                 last_buffer_match = buffer.buffer_id;
+                match_count += 1;
             }
         }
     }
+    
+    Temp_Memory temp = begin_temp_memory(scratch);
+    Buffer_ID *match_buffers = push_array(scratch, Buffer_ID, match_count);
+    match_count = 0;
     
     if (highest_edit_number != -1){
         for (Buffer_Summary buffer = get_buffer(app, first_buffer_match, AccessAll);
              buffer.exists;
              get_buffer_next(app, &buffer, AccessAll)){
+            bool32 did_match = false;
             for (;;){
                 History_Record_Index index = buffer_history_get_current_state_index(app, &buffer);
                 if (index > 0){
                     Record_Info record = buffer_history_get_record_info(app, &buffer, index);
                     if (record.edit_number == highest_edit_number){
+                        did_match = true;
                         buffer_history_set_current_state_index(app, &buffer, index - 1);
                     }
                     else{
@@ -1673,19 +1683,29 @@ CUSTOM_DOC("Advances backward through the undo history in the buffer containing 
                     break;
                 }
             }
+            if (did_match){
+                match_buffers[match_count] = buffer.buffer_id;
+                match_count += 1;
+            }
             if (buffer.buffer_id == last_buffer_match){
                 break;
             }
         }
     }
+    
+    view_buffer_set(app, match_buffers, match_count);
+    
+    end_temp_memory(temp);
 }
 
 CUSTOM_COMMAND_SIG(redo)
 CUSTOM_DOC("Advances forward through the undo history in the buffer containing the most recent regular edit.")
 {
+    Partition *scratch = &global_part;
     int32_t lowest_edit_number = 0x7FFFFFFF;
     Buffer_ID first_buffer_match = 0;
     Buffer_ID last_buffer_match = 0;
+    int32_t match_count = 0;
     
     for (Buffer_Summary buffer = get_buffer_first(app, AccessAll);
          buffer.exists;
@@ -1698,30 +1718,52 @@ CUSTOM_DOC("Advances forward through the undo history in the buffer containing t
                 lowest_edit_number = record.edit_number;
                 first_buffer_match = buffer.buffer_id;
                 last_buffer_match = buffer.buffer_id;
+                match_count = 1;
             }
             else if (record.edit_number == lowest_edit_number){
                 last_buffer_match = buffer.buffer_id;
+                match_count += 1;
             }
         }
     }
+    
+    Temp_Memory temp = begin_temp_memory(scratch);
     
     if (lowest_edit_number != -1){
         for (Buffer_Summary buffer = get_buffer(app, first_buffer_match, AccessAll);
              buffer.exists;
              get_buffer_next(app, &buffer, AccessAll)){
+            bool32 did_match = false;
             History_Record_Index max_index = buffer_history_get_max_record_index(app, &buffer);
-            History_Record_Index index = buffer_history_get_current_state_index(app, &buffer);
-            if (index < max_index){
-                Record_Info record = buffer_history_get_record_info(app, &buffer, index + 1);
-                if (record.edit_number == lowest_edit_number){
-                    buffer_history_set_current_state_index(app, &buffer, index + 1);
+            for (;;){
+                History_Record_Index index = buffer_history_get_current_state_index(app, &buffer);
+                if (index < max_index){
+                    Record_Info record = buffer_history_get_record_info(app, &buffer, index + 1);
+                    if (record.edit_number == lowest_edit_number){
+                        did_match = true;
+                        buffer_history_set_current_state_index(app, &buffer, index + 1);
+                    }
+                    else{
+                        break;
+                    }
                 }
+                else{
+                    break;
+                }
+            }
+            if (did_match){
+                match_buffers[match_count] = buffer.buffer_id;
+                match_count += 1;
             }
             if (buffer.buffer_id == last_buffer_match){
                 break;
             }
         }
     }
+    
+    view_buffer_set(app, match_buffers, match_count);
+    
+    end_temp_memory(temp);
 }
 
 ////////////////////////////////
