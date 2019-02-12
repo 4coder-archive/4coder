@@ -721,6 +721,7 @@ static void
 replace_all_occurrences_parameters(Application_Links *app, Heap *heap, Partition *part, String target_string, String new_string){
     if (target_string.size <= 0) return;
     
+    global_history_edit_group_begin(app);
     for (bool32 got_all_occurrences = false;
          !got_all_occurrences;){
         // Initialize a generic search all buffers
@@ -773,6 +774,7 @@ replace_all_occurrences_parameters(Application_Links *app, Heap *heap, Partition
         
         end_temp_memory(temp);
     }
+    global_history_edit_group_end(app);
 }
 
 CUSTOM_COMMAND_SIG(replace_all_occurrences)

@@ -956,13 +956,15 @@ CUSTOM_DOC("Queries the user for two strings, and replaces all occurences of the
     int32_t new_pos;
     buffer_seek_string_forward(app, &buffer, pos, 0, r.str, r.size, &new_pos);
     
-    while (new_pos + r.size <= range.end){
+    global_history_edit_group_begin(app);
+    for (;new_pos + r.size <= range.end;){
         buffer_replace_range(app, &buffer, new_pos, new_pos + r.size, w.str, w.size);
         refresh_view(app, &view);
         range = get_view_range(&view);
         pos = new_pos + w.size;
         buffer_seek_string_forward(app, &buffer, pos, 0, r.str, r.size, &new_pos);
     }
+    global_history_edit_group_end(app);
 }
 
 static void
@@ -1728,6 +1730,8 @@ CUSTOM_DOC("Advances forward through the undo history in the buffer containing t
     }
     
     Temp_Memory temp = begin_temp_memory(scratch);
+    Buffer_ID *match_buffers = push_array(scratch, Buffer_ID, match_count);
+    match_count = 0;
     
     if (lowest_edit_number != -1){
         for (Buffer_Summary buffer = get_buffer(app, first_buffer_match, AccessAll);
