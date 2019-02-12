@@ -697,7 +697,8 @@ get_view_range(View_Summary *view){
 }
 
 static bool32
-read_line(Application_Links *app, Partition *part, Buffer_Summary *buffer, int32_t line, String *str){
+read_line(Application_Links *app, Partition *part, Buffer_Summary *buffer, int32_t line, String *str,
+          Partial_Cursor *start_out, Partial_Cursor *one_past_last_out){
     Partial_Cursor begin = {};
     Partial_Cursor end = {};
     
@@ -711,10 +712,13 @@ read_line(Application_Links *app, Partition *part, Buffer_Summary *buffer, int32
                     char *memory = push_array(part, char, alloc_size);
                     if (memory != 0){
                         *str = make_string(memory, 0, alloc_size);
-                        success = true;
                         buffer_read_range(app, buffer, begin.pos, end.pos, str->str);
                         str->size = size;
                         terminate_with_null(str);
+                        
+                        *start_out = begin;
+                        *one_past_last_out = end;
+                        success = true;
                     }
                 }
             }
@@ -722,6 +726,12 @@ read_line(Application_Links *app, Partition *part, Buffer_Summary *buffer, int32
     }
     
     return(success);
+}
+
+static bool32
+read_line(Application_Links *app, Partition *part, Buffer_Summary *buffer, int32_t line, String *str){
+    Partial_Cursor ignore = {};
+    return(read_line(app, part, buffer, line, str, &ignore, &ignore));
 }
 
 static int32_t

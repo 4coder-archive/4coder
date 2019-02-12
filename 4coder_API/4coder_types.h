@@ -127,6 +127,9 @@ ENUM(int32_t, Buffer_Setting_ID){
     
     /* DOC(The BufferSetting_VirtualWhitespace setting enables virtual whitespace on a buffer. Text buffers with virtual whitespace will set the indentation of every line to zero. Buffers with lexing enabled will use virtual white space to present the code with appealing indentation.) */
     BufferSetting_VirtualWhitespace,
+    
+    /* DOC(TODO) */
+    BufferSetting_RecordsHistory,
 };
 
 /* DOC(A View_Setting_ID names an adjustable setting in a view.) */
@@ -556,6 +559,9 @@ STRUCT Partial_Cursor{
     int32_t character;
 };
 
+TYPEDEF_FUNC bool32 Buffer_Edit_Handler(struct Application_Links *app, Buffer_ID buffer_id, int32_t start, int32_t one_past_last, String str);
+// TODO(allen): what to do with batches???
+
 /* DOC(Buffer_Summary acts as a handle to a buffer and describes the state of the buffer.)
 DOC_SEE(Access_Flag)
 DOC_SEE(Dirty_State) */
@@ -568,6 +574,9 @@ STRUCT Buffer_Summary{
     int32_t buffer_id;
     /* DOC(If this is not a null summary, this field contains flags describing the protection status of the buffer.) */
     Access_Flag lock_flags;
+    
+    /* DOC(TODO) */
+    Buffer_Edit_Handler *edit_handler;
     
     /* DOC(If this is not a null summary, this field specifies the number of bytes in the buffer.) */
     int32_t size;

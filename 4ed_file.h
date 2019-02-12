@@ -39,6 +39,7 @@ union Buffer_Slot_ID{
 };
 
 struct Editing_File_Settings{
+    Buffer_Edit_Handler *edit_handler;
     i32 base_map_id;
     i32 display_width;
     i32 minimum_base_display_width;
@@ -80,8 +81,9 @@ struct Editing_File_State{
     Cpp_Token_Array token_array;
     Cpp_Token_Array swap_array;
     u32 lex_job;
-    b32 tokens_complete;
-    b32 still_lexing;
+    b8 tokens_complete;
+    b8 still_lexing;
+    b8 in_edit_handler;
     
     Text_Effect paste_effect;
     

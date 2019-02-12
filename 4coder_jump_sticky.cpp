@@ -268,6 +268,7 @@ get_all_stored_jumps_from_list(Application_Links *app, Partition *arena, Marker_
 
 static bool32
 get_jump_from_list(Application_Links *app, Marker_List *list, int32_t index, ID_Pos_Jump_Location *location){
+    bool32 result = false;
     Sticky_Jump_Stored stored = {};
     if (get_stored_jump_from_list(app, list, index, &stored)){
         Buffer_ID target_buffer_id = stored.jump_buffer_id;
@@ -284,10 +285,10 @@ get_jump_from_list(Application_Links *app, Marker_List *list, int32_t index, ID_
             managed_object_load_data(app, marker_array, stored.index_into_marker_array, 1, &marker);
             location->buffer_id = target_buffer_id;
             location->pos = marker.pos;
-            return(true);
+            result = true;
         }
     }
-    return(false);
+    return(result);
 }
 
 static int32_t
@@ -575,7 +576,6 @@ CUSTOM_DOC("If the buffer in the active view is writable, inserts a character, o
 {
     View_Summary view = get_active_view(app, AccessProtected);
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessProtected);
-    
     if (buffer.lock_flags & AccessProtected){
         goto_jump_at_cursor_sticky(app);
         lock_jump_buffer(buffer);
@@ -590,7 +590,6 @@ CUSTOM_DOC("If the buffer in the active view is writable, inserts a character, o
 {
     View_Summary view = get_active_view(app, AccessProtected);
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessProtected);
-    
     if (buffer.lock_flags & AccessProtected){
         goto_jump_at_cursor_same_panel_sticky(app);
         lock_jump_buffer(buffer);
@@ -612,6 +611,131 @@ OPEN_FILE_HOOK_SIG(end_file_close_jump_list){
     }
     default_end_file(app, buffer_id);
     return(0);
+}
+
+////////////////////////////////
+
+static bool32
+search_buffer_edit_handler__inner(Application_Links *app, Partition *part, Buffer_ID buffer_id, int32_t start, int32_t one_past_last, String text){
+    Buffer_Summary buffer = get_buffer(app, buffer_id, AccessProtected);
+    
+    // NOTE(allen): get the list for this buffer
+    Marker_List *list = get_or_make_list_for_buffer(app, part, &global_heap, buffer_id);
+    if (list == 0){
+        return(false);
+    }
+    
+    // NOTE(allen): activate jumps
+    if (match(text, "\n")){
+        // TODO(allen): do(determine when shift is held here and do *same_panel* version of goto_jump_at_cursor_sticky)
+        goto_jump_at_cursor_sticky(app);
+        lock_jump_buffer(buffer);
+        return(false);
+    }
+    
+    // NOTE(allen): do not allow new lines to be inserted ever
+    if (find_s_char(text, 0, '\n') != text.size){
+        return(false);
+    }
+    
+    // NOTE(allen): check that the range is entirely inside an editable range
+    Partial_Cursor start_cursor = {};
+    Partial_Cursor one_past_last_cursor = {};
+    if (!(buffer_compute_cursor(app, &buffer, seek_pos(start), &start_cursor) &&
+          buffer_compute_cursor(app, &buffer, seek_pos(one_past_last), &one_past_last_cursor))){
+        return(false);
+    }
+    if (start_cursor.line != one_past_last_cursor.line){
+        return(false);
+    }
+    
+    int32_t line_number = start_cursor.line;
+    Partial_Cursor line_start_cursor = {};
+    Partial_Cursor line_one_past_last_cursor = {};
+    String line = {};
+    if (!read_line(app, part, &buffer, line_number, &line, &line_start_cursor, &line_one_past_last_cursor)){
+        return(false);
+    }
+    
+    int32_t line_start = line_start_cursor.pos;
+    int32_t line_one_past_last = line_one_past_last_cursor.pos;
+    
+    int32_t colon_index = find_substr(line, 0, make_lit_string(": "));
+    if (colon_index == line.size){
+        return(false);
+    }
+    
+    int32_t editable_start = line_start + colon_index + 2;
+    int32_t editable_one_past_last = line_one_past_last;
+    if (!(editable_start <= start && one_past_last <= editable_one_past_last)){
+        return(false);
+    }
+    
+    // NOTE(allen): figure out the target buffer make sure we want to edit it
+    int32_t list_index = get_index_exact_from_list(app, part, list, line_number);
+    if (list_index < 0){
+        return(false);
+    }
+    
+    ID_Pos_Jump_Location location = {};
+    if (!get_jump_from_list(app, list, list_index, &location)){
+        return(false);
+    }
+    
+    Buffer_Summary target_buffer = {};
+    if (!get_jump_buffer(app, &target_buffer, &location, AccessOpen)){
+        return(false);
+    }
+    
+    int32_t is_unimportant = false;
+    if (!buffer_get_setting(app, &target_buffer, BufferSetting_Unimportant, &is_unimportant)){
+        return(false);
+    }
+    
+    if (is_unimportant){
+        return(false);
+    }
+    
+    // NOTE(allen): figure out the shift of the edit from the search buffer to the target buffer
+    Partial_Cursor target_pos = {};
+    if (!buffer_compute_cursor(app, &target_buffer, seek_pos(location.pos), &target_pos)){
+        return(false);
+    }
+    
+    int32_t target_line_number = target_pos.line;
+    Partial_Cursor target_line_start_cursor = {};
+    Partial_Cursor target_line_one_past_last_cursor = {};
+    String target_line = {};
+    if (!read_line(app, part, &target_buffer, target_line_number, &target_line, &target_line_start_cursor, &target_line_one_past_last_cursor)){
+        return(false);
+    }
+    
+    int32_t target_line_start = target_line_start_cursor.pos;
+    //int32_t target_line_one_past_last = target_line_one_past_last_cursor.pos;
+    
+    String target_line_skip_whitespace = skip_whitespace(target_line);
+    int32_t skip_into_line_amount = (int32_t)(target_line_skip_whitespace.str - target_line.str);
+    
+    int32_t target_editable_start = target_line_start + skip_into_line_amount;
+    int32_t edit_range_shift = target_editable_start - editable_start;
+    
+    // NOTE(allen): try to apply the edits
+    if (buffer_replace_range(app, &target_buffer, start + edit_range_shift, one_past_last + edit_range_shift, text.str, text.size)){
+        if (buffer_replace_range(app, &buffer, start, one_past_last, text.str, text.size)){
+            return(true);
+        }
+    }
+    
+    return(false);
+}
+
+static bool32
+search_buffer_edit_handler(Application_Links *app, Buffer_ID buffer_id, int32_t start, int32_t one_past_last, String text){
+    Partition *scratch = &global_part;
+    Temp_Memory temp = begin_temp_memory(scratch);
+    bool32 result = search_buffer_edit_handler__inner(app, scratch, buffer_id, start, one_past_last, text);
+    end_temp_memory(temp);
+    return(result);
 }
 
 // BOTTOM

@@ -221,18 +221,18 @@ parse_jump_from_buffer_line(Application_Links *app, Partition *arena,
 
 static bool32
 get_jump_buffer(Application_Links *app, Buffer_Summary *buffer, Name_Line_Column_Location *location){
-    bool32 result = open_file(app, buffer, location->file.str, location->file.size, false, true);
-    return(result);
+    return(open_file(app, buffer, location->file.str, location->file.size, false, true));
+}
+
+static bool32
+get_jump_buffer(Application_Links *app, Buffer_Summary *buffer, ID_Pos_Jump_Location *location, Access_Flag access){
+    *buffer = get_buffer(app, location->buffer_id, access);
+    return((bool32)buffer->exists);
 }
 
 static bool32
 get_jump_buffer(Application_Links *app, Buffer_Summary *buffer, ID_Pos_Jump_Location *location){
-    *buffer = get_buffer(app, location->buffer_id, AccessAll);
-    bool32 result = false;
-    if (buffer->exists){
-        result = true;
-    }
-    return(result);
+    return(get_jump_buffer(app, buffer, location, AccessAll));
 }
 
 static void

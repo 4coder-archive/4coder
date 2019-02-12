@@ -590,7 +590,8 @@ buffered_memory_reserve(Application_Links *app, Partition *part, Temp_Memory tem
 }
 
 static void
-buffered_print_match_jump_line(Application_Links *app, Partition *part, Temp_Memory temp, Partition *line_part, Buffer_Summary *output_buffer, Buffer_Summary *match_buffer, Partial_Cursor word_pos){
+buffered_print_match_jump_line(Application_Links *app, Partition *part, Temp_Memory temp, Partition *line_part, Buffer_Summary *output_buffer,
+                               Buffer_Summary *match_buffer, Partial_Cursor word_pos){
     char *file_name = match_buffer->buffer_name;
     int32_t file_len = match_buffer->buffer_name_len;
     
@@ -622,14 +623,16 @@ buffered_print_match_jump_line(Application_Links *app, Partition *part, Temp_Mem
     end_temp_memory(line_temp);
 }
 
+static bool32
+search_buffer_edit_handler(Application_Links *app, Buffer_ID buffer_id, int32_t start, int32_t one_past_last, String text);
+
 static void
 list__parameters(Application_Links *app, Heap *heap, Partition *scratch,
                  String *strings, int32_t count, Search_Range_Flag match_flags,
                  View_Summary default_target_view){
     // Open the search buffer
     String search_name = make_lit_string("*search*");
-    Buffer_ID search_buffer_id = create_or_switch_to_buffer_by_name(app, search_name.str, search_name.size,
-                                                                    default_target_view);
+    Buffer_ID search_buffer_id = create_or_switch_to_buffer_by_name(app, search_name.str, search_name.size, default_target_view);
     Buffer_Summary search_buffer = get_buffer(app, search_buffer_id, AccessAll);
     
     // Initialize a generic search all buffers
@@ -672,6 +675,10 @@ list__parameters(Application_Links *app, Heap *heap, Partition *scratch,
     
     // Lock *search* as the jump buffer
     lock_jump_buffer(search_name.str, search_name.size);
+    
+    // Setup the search buffer for 'reference editing' mode
+    buffer_set_setting(app, &search_buffer, BufferSetting_ReadOnly, false);
+    buffer_set_edit_handler(app, search_buffer_id, search_buffer_edit_handler);
 }
 
 static void

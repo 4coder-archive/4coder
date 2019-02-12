@@ -621,21 +621,21 @@ DOC_SEE(4coder_Buffer_Positioning_System)
 }
 
 API_EXPORT bool32
-Buffer_Replace_Range(Application_Links *app, Buffer_Summary *buffer, int32_t start, int32_t end, char *str, int32_t len)
+Buffer_Replace_Range(Application_Links *app, Buffer_Summary *buffer, int32_t start, int32_t one_past_last, char *str, int32_t len)
 /*
 DOC_PARAM(buffer, This parameter specifies the buffer to edit.)
 DOC_PARAM(start, This parameter specifies absolute position of the first character in the replace range.)
-DOC_PARAM(end, This parameter specifies the absolute position of the the character one past the end of the replace range.)
+DOC_PARAM(one_past_last, This parameter specifies the absolute position of the the character one past the end of the replace range.)
 DOC_PARAM(str, This parameter specifies the the string to write into the range; it need not be null terminated.)
 DOC_PARAM(len, This parameter specifies the length of the str string.)
 DOC_RETURN(This call returns non-zero if the replacement succeeds.)
 DOC
 (
-If this call succeeds it deletes the range from start to end
-and writes str in the same position.  If end == start then
+If this call succeeds it deletes the range from start to one_past_last
+and writes str in the same position.  If one_past_last == start then
 this call is equivalent to inserting the string at start.
 If len == 0 this call is equivalent to deleteing the range
-from start to end.
+from start to one_past_last.
 
 This call fails if the buffer does not exist, or if the replace
 range is not within the bounds of the buffer.
@@ -648,17 +648,36 @@ DOC_SEE(4coder_Buffer_Positioning_System)
     int32_t size = 0;
     if (file != 0){
         size = buffer_size(&file->state.buffer);
-        if (0 <= start && start <= end && end <= size){
-            Edit edit = {};
-            edit.str = str;
-            edit.length = len;
-            edit.range.first = start;
-            edit.range.one_past_last = end;
-            Edit_Behaviors behaviors = {};
-            edit_single(models->system, models, file, edit, behaviors);
-            result = true;
+        if (0 <= start && start <= one_past_last && one_past_last <= size){
+            b32 do_low_level_edit = (file->settings.edit_handler == 0 || file->state.in_edit_handler);
+            if (do_low_level_edit){
+                Edit edit = {};
+                edit.str = str;
+                edit.length = len;
+                edit.range.first = start;
+                edit.range.one_past_last = one_past_last;
+                Edit_Behaviors behaviors = {};
+                edit_single(models->system, models, file, edit, behaviors);
+                result = true;
+            }
+            else{
+                file->state.in_edit_handler = true;
+                result = file->settings.edit_handler(app, buffer->buffer_id, start, one_past_last, make_string(str, len));
+                file->state.in_edit_handler = false;
+            }
         }
         fill_buffer_summary(buffer, file, &models->working_set);
+    }
+    return(result);
+}
+
+API_EXPORT bool32
+Buffer_Set_Edit_Handler(Application_Links *app, Buffer_ID buffer_id, Buffer_Edit_Handler *handler){
+    Models *models = (Models*)app->cmd_context;
+    Editing_File *file = imp_get_file(models, buffer_id);
+    bool32 result = (file != 0);
+    if (result){
+        file->settings.edit_handler = handler;
     }
     return(result);
 }
@@ -683,8 +702,8 @@ DOC_SEE(Partial_Cursor)
     bool32 result = false;
     if (file != 0){
         if (file_compute_partial_cursor(file, seek, cursor_out)){
-            result = true;
             fill_buffer_summary(buffer, file, &models->working_set);
+            result = true;
         }
     }
     return(result);
@@ -803,6 +822,11 @@ DOC_RETURN(returns non-zero on success)
             case BufferSetting_VirtualWhitespace:
             {
                 *value_out = file->settings.virtual_white;
+            }break;
+            
+            case BufferSetting_RecordsHistory:
+            {
+                *value_out = history_is_activated(&file->state.history);
             }break;
             
             default:
@@ -989,7 +1013,24 @@ DOC_SEE(Buffer_Setting_ID)
                 }
             }break;
             
-            default: result = 0; break;
+            case BufferSetting_RecordsHistory:
+            {
+                if (value){
+                    if (!history_is_activated(&file->state.history)){
+                        history_init(app, &file->state.history);
+                    }
+                }
+                else{
+                    if (history_is_activated(&file->state.history)){
+                        history_free(&models->mem.heap, &file->state.history);
+                    }
+                }
+            }break;
+            
+            default:
+            {
+                result = 0;
+            }break;
         }
         fill_buffer_summary(buffer, file, &models->working_set);
     }
