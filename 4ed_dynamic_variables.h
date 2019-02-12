@@ -98,22 +98,9 @@ struct Dynamic_Variable_Block{
 
 ////////////////////////////////
 
-struct Dynamic_Memory_Header{
-    Dynamic_Memory_Header *next;
-};
-
-struct Dynamic_Memory_Bank{
-    Heap heap;
-    Dynamic_Memory_Header *first;
-    Dynamic_Memory_Header *last;
-    umem total_memory_size;
-};
-
-////////////////////////////////
-
 struct Dynamic_Workspace{
     Dynamic_Variable_Block var_block;
-    Dynamic_Memory_Bank mem_bank;
+    Memory_Bank mem_bank;
     Marker_Visual_Allocator visual_allocator;
     u32_Ptr_Table object_id_to_object_ptr;
     u32 object_id_counter;

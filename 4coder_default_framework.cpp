@@ -184,12 +184,14 @@ CUSTOM_DOC("Create a new panel by horizontally splitting the active panel.")
 // NOTE(allen): Credits to nj/FlyingSolomon for authoring the original version of this helper.
 
 static Buffer_ID
-create_or_switch_to_buffer_by_name(Application_Links *app, char *name, int32_t name_length,
-                                   View_Summary default_target_view){
+create_or_switch_to_buffer_by_name(Application_Links *app, char *name, int32_t name_length, View_Summary default_target_view){
     uint32_t access = AccessAll;
     Buffer_Summary search_buffer = get_buffer_by_name(app, name, name_length, access);
     
     if (search_buffer.exists){
+        buffer_set_setting(app, &search_buffer, BufferSetting_ReadOnly, true);
+        buffer_set_edit_handler(app, search_buffer.buffer_id, 0);
+        
         View_Summary target_view = default_target_view;
         
         View_Summary view_with_buffer_already_open = get_first_view_with_buffer(app, search_buffer.buffer_id);

@@ -51,32 +51,35 @@ fill_buffer_summary(Buffer_Summary *buffer, Editing_File *file, Working_Set *wor
 
 internal void
 fill_view_summary(System_Functions *system, View_Summary *view, View *vptr, Live_Views *live_set, Working_Set *working_set){
-    File_Viewing_Data *data = &vptr->transient.file_data;
+    File_Viewing_Data *data = &vptr->file_data;
     
     memset(view, 0, sizeof(*view));
     
-    if (vptr->transient.in_use){
+    if (vptr->in_use){
         view->exists = true;
         view->view_id = (int32_t)(vptr - live_set->views) + 1;
-        view->line_height = (f32)(vptr->transient.line_height);
+        view->line_height = (f32)(vptr->line_height);
         view->unwrapped_lines = data->file->settings.unwrapped_lines;
         view->show_whitespace = data->show_whitespace;
         view->lock_flags = view_lock_flags(vptr);
         
-        view->buffer_id = vptr->transient.file_data.file->id.id;
+        view->buffer_id = vptr->file_data.file->id.id;
         
         Assert(data->file != 0);
-        view->mark = file_compute_cursor(system, data->file, seek_pos(vptr->transient.edit_pos.mark), 0);
-        view->cursor = vptr->transient.edit_pos.cursor;
-        view->preferred_x = vptr->transient.edit_pos.preferred_x;
+        File_Edit_Positions edit_pos = view_get_edit_pos(vptr);
         
-        view->view_region = vptr->transient.panel->rect_inner;
-        view->file_region = vptr->transient.file_region;
-        if (vptr->transient.ui_mode){
-            view->scroll_vars = vptr->transient.ui_scroll;
+        view->mark    = file_compute_cursor(system, data->file, seek_pos(vptr->mark));
+        view->cursor  = file_compute_cursor(system, data->file, seek_pos(edit_pos.cursor_pos));
+        
+        view->preferred_x = vptr->preferred_x;
+        
+        view->view_region = vptr->panel->rect_inner;
+        view->file_region = vptr->file_region;
+        if (vptr->ui_mode){
+            view->scroll_vars = vptr->ui_scroll;
         }
         else{
-            view->scroll_vars = vptr->transient.edit_pos.scroll;
+            view->scroll_vars = edit_pos.scroll;
         }
     }
 }
@@ -89,11 +92,11 @@ fill_view_summary(System_Functions *system, View_Summary *view, View *vptr, Mode
 internal void
 view_quit_ui(System_Functions *system, Models *models, View *view){
     Assert(view != 0);
-    view->transient.ui_mode = false;
-    if (view->transient.ui_quit != 0){
+    view->ui_mode = false;
+    if (view->ui_quit != 0){
         View_Summary view_summary = {};
         fill_view_summary(system, &view_summary, view, models);
-        view->transient.ui_quit(&models->app_links, view_summary);
+        view->ui_quit(&models->app_links, view_summary);
     }
 }
 
@@ -136,7 +139,7 @@ imp_get_view(Models *models, View_ID view_id){
     view_id = view_id - 1;
     if (0 <= view_id && view_id < live_set->max){
         vptr = live_set->views + view_id;
-        if (!vptr->transient.in_use){
+        if (!vptr->in_use){
             vptr = 0;
         }
     }
@@ -187,34 +190,6 @@ DOC(Dumps away the previous mappings and instantiates the mappings described in 
 */{
     Models *models = (Models*)app->cmd_context;
     bool32 result = interpret_binding_buffer(models, data, size);
-    return(result);
-}
-
-API_EXPORT bool32
-Exec_Command(Application_Links *app, Command_ID command_id)
-/*
-DOC_PARAM(command_id, The command_id parameter specifies which internal command to execute.)
-DOC_RETURN(This call returns non-zero if command_id named a valid internal command.)
-DOC(A call to exec_command executes an internal command. If command_id is invalid a warning is posted to *messages*.)
-DOC_SEE(Command_ID)
-*/{
-    bool32 result = false;
-    
-    if (command_id < cmdid_count){
-        Models *models = (Models*)app->cmd_context;
-        Command_Function *function = command_table[command_id];
-        Command_Binding binding = {};
-        binding.function = function;
-        if (function != 0){
-            function(models->system, models, binding);
-        }
-        
-        result = true;
-    }
-    else{
-        print_message(app, literal("WARNING: An invalid Command_ID was passed to exec_command."));
-    }
-    
     return(result);
 }
 
@@ -646,21 +621,21 @@ DOC_SEE(4coder_Buffer_Positioning_System)
 }
 
 API_EXPORT bool32
-Buffer_Replace_Range(Application_Links *app, Buffer_Summary *buffer, int32_t start, int32_t end, char *str, int32_t len)
+Buffer_Replace_Range(Application_Links *app, Buffer_Summary *buffer, int32_t start, int32_t one_past_last, char *str, int32_t len)
 /*
 DOC_PARAM(buffer, This parameter specifies the buffer to edit.)
 DOC_PARAM(start, This parameter specifies absolute position of the first character in the replace range.)
-DOC_PARAM(end, This parameter specifies the absolute position of the the character one past the end of the replace range.)
+DOC_PARAM(one_past_last, This parameter specifies the absolute position of the the character one past the end of the replace range.)
 DOC_PARAM(str, This parameter specifies the the string to write into the range; it need not be null terminated.)
 DOC_PARAM(len, This parameter specifies the length of the str string.)
 DOC_RETURN(This call returns non-zero if the replacement succeeds.)
 DOC
 (
-If this call succeeds it deletes the range from start to end
-and writes str in the same position.  If end == start then
+If this call succeeds it deletes the range from start to one_past_last
+and writes str in the same position.  If one_past_last == start then
 this call is equivalent to inserting the string at start.
 If len == 0 this call is equivalent to deleteing the range
-from start to end.
+from start to one_past_last.
 
 This call fails if the buffer does not exist, or if the replace
 range is not within the bounds of the buffer.
@@ -673,11 +648,36 @@ DOC_SEE(4coder_Buffer_Positioning_System)
     int32_t size = 0;
     if (file != 0){
         size = buffer_size(&file->state.buffer);
-        if (0 <= start && start <= end && end <= size){
-            result = true;
-            edit_single(models->system, models, file, start, end, str, len);
+        if (0 <= start && start <= one_past_last && one_past_last <= size){
+            b32 do_low_level_edit = (file->settings.edit_handler == 0 || file->state.in_edit_handler);
+            if (do_low_level_edit){
+                Edit edit = {};
+                edit.str = str;
+                edit.length = len;
+                edit.range.first = start;
+                edit.range.one_past_last = one_past_last;
+                Edit_Behaviors behaviors = {};
+                edit_single(models->system, models, file, edit, behaviors);
+                result = true;
+            }
+            else{
+                file->state.in_edit_handler = true;
+                result = file->settings.edit_handler(app, buffer->buffer_id, start, one_past_last, make_string(str, len));
+                file->state.in_edit_handler = false;
+            }
         }
         fill_buffer_summary(buffer, file, &models->working_set);
+    }
+    return(result);
+}
+
+API_EXPORT bool32
+Buffer_Set_Edit_Handler(Application_Links *app, Buffer_ID buffer_id, Buffer_Edit_Handler *handler){
+    Models *models = (Models*)app->cmd_context;
+    Editing_File *file = imp_get_file(models, buffer_id);
+    bool32 result = (file != 0);
+    if (result){
+        file->settings.edit_handler = handler;
     }
     return(result);
 }
@@ -702,8 +702,8 @@ DOC_SEE(Partial_Cursor)
     bool32 result = false;
     if (file != 0){
         if (file_compute_partial_cursor(file, seek, cursor_out)){
-            result = true;
             fill_buffer_summary(buffer, file, &models->working_set);
+            result = true;
         }
     }
     return(result);
@@ -732,13 +732,22 @@ DOC_SEE(Buffer_Batch_Edit_Type)
     if (file != 0){
         if (edit_count > 0){
             Temp_Memory temp = begin_temp_memory(part);
-            Buffer_Edit *inverse_edits = push_array(part, Buffer_Edit, edit_count);
-            Assert(inverse_edits != 0);
-            char *inv_str = (char*)part->base + part->pos;
-            int32_t inv_str_max = part->max - part->pos;
-            Edit_Spec spec = edit_compute_batch_spec(&mem->heap, file, edits, str, str_len,
-                                                     inverse_edits, inv_str, inv_str_max, edit_count, type);
-            edit_batch(system, models, file, spec, hist_normal, type);
+            Edit_Array real_edits = {};
+            real_edits.vals = push_array(part, Edit, edit_count);
+            real_edits.count = edit_count;
+            Edit *edit_out = real_edits.vals;
+            Buffer_Edit *edit_in = edits;
+            Edit *one_past_last_edit_out = real_edits.vals + edit_count;
+            for (;edit_out < one_past_last_edit_out;
+                 edit_out += 1, edit_in += 1){
+                edit_out->str = str + edit_in->str_start;
+                edit_out->length = edit_in->len;
+                edit_out->range.first = edit_in->start;
+                edit_out->range.one_past_last = edit_in->end;
+            }
+            Edit_Behaviors behaviors = {};
+            behaviors.batch_type = type;
+            edit_batch(system, models, file, real_edits, behaviors);
             end_temp_memory(temp);
         }
         result = true;
@@ -813,6 +822,11 @@ DOC_RETURN(returns non-zero on success)
             case BufferSetting_VirtualWhitespace:
             {
                 *value_out = file->settings.virtual_white;
+            }break;
+            
+            case BufferSetting_RecordsHistory:
+            {
+                *value_out = history_is_activated(&file->state.history);
             }break;
             
             default:
@@ -999,7 +1013,24 @@ DOC_SEE(Buffer_Setting_ID)
                 }
             }break;
             
-            default: result = 0; break;
+            case BufferSetting_RecordsHistory:
+            {
+                if (value){
+                    if (!history_is_activated(&file->state.history)){
+                        history_init(app, &file->state.history);
+                    }
+                }
+                else{
+                    if (history_is_activated(&file->state.history)){
+                        history_free(&models->mem.heap, &file->state.history);
+                    }
+                }
+            }break;
+            
+            default:
+            {
+                result = 0;
+            }break;
         }
         fill_buffer_summary(buffer, file, &models->working_set);
     }
@@ -1252,7 +1283,10 @@ DOC_SEE(Buffer_Create_Flag)
         if (file != 0 && (flags & BufferCreate_AlwaysNew) != 0){
             i32 size = buffer_size(&file->state.buffer);
             if (size > 0){
-                edit_single(system, models, file, 0, size, 0, 0);
+                Edit edit = {};
+                edit.range.one_past_last = size;
+                Edit_Behaviors behaviors = {};
+                edit_single(system, models, file, edit, behaviors);
                 if (has_canon_name){
                     buffer_is_for_new_file = true;
                 }
@@ -1343,7 +1377,7 @@ DOC_SEE(Buffer_Identifier)
                 if (file->canon.name.size != 0){
                     buffer_unbind_file(system, working_set, file);
                 }
-                file_free(system, &models->app_links, &models->mem.heap, &models->lifetime_allocator, file);
+                file_free(system, &models->mem.heap, &models->lifetime_allocator, file);
                 working_set_free_file(&models->mem.heap, working_set, file);
                 
                 Layout *layout = &models->layout;
@@ -1354,9 +1388,9 @@ DOC_SEE(Buffer_Identifier)
                      panel != 0;
                      panel = layout_get_next_open_panel(layout, panel)){
                     View *view = panel->view;
-                    if (view->transient.file_data.file == file){
+                    if (view->file_data.file == file){
                         Assert(file_node != used);
-                        view->transient.file_data.file = 0;
+                        view->file_data.file = 0;
                         Editing_File *new_file = CastFromMember(Editing_File, main_chain_node, file_node);
                         view_set_file(system, models, view, new_file);
                         if (file_node->next != used){
@@ -1403,7 +1437,6 @@ Reopen_Buffer(Application_Links *app, Buffer_Summary *buffer, Buffer_Reopen_Flag
                     
                     // TODO(allen): try(perform a diff maybe apply edits in reopen)
                     
-                    File_Edit_Positions edit_positions[16];
                     int32_t line_numbers[16];
                     int32_t column_numbers[16];
                     View *vptrs[16];
@@ -1414,29 +1447,29 @@ Reopen_Buffer(Application_Links *app, Buffer_Summary *buffer, Buffer_Reopen_Flag
                          panel != 0;
                          panel = layout_get_next_open_panel(layout, panel)){
                         View *view_it = panel->view;
-                        if (view_it->transient.file_data.file != file){
+                        if (view_it->file_data.file != file){
                             continue;
                         }
                         vptrs[vptr_count] = view_it;
-                        edit_positions[vptr_count] = view_it->transient.edit_pos;
-                        line_numbers[vptr_count] = view_it->transient.edit_pos.cursor.line;
-                        column_numbers[vptr_count] = view_it->transient.edit_pos.cursor.character;
-                        view_it->transient.file_data.file = models->scratch_buffer;
+                        File_Edit_Positions edit_pos = view_get_edit_pos(view_it);
+                        Full_Cursor cursor = file_compute_cursor(system, view_it->file_data.file, seek_pos(edit_pos.cursor_pos));
+                        line_numbers[vptr_count]   = cursor.line;
+                        column_numbers[vptr_count] = cursor.character;
+                        view_it->file_data.file = models->scratch_buffer;
                         ++vptr_count;
                     }
                     
-                    file_free(system, &models->app_links, &models->mem.heap, &models->lifetime_allocator, file);
+                    file_free(system, &models->mem.heap, &models->lifetime_allocator, file);
                     working_set_file_default_settings(&models->working_set, file);
                     init_normal_file(system, models, file_memory, size, file);
                     
                     for (i32 i = 0; i < vptr_count; ++i){
                         view_set_file(system, models, vptrs[i], file);
                         
-                        vptrs[i]->transient.file_data.file = file;
-                        vptrs[i]->transient.edit_pos = edit_positions[i];
-                        Full_Cursor cursor = file_compute_cursor(system, file, seek_line_char(line_numbers[i], column_numbers[i]), 0);
+                        vptrs[i]->file_data.file = file;
+                        Full_Cursor cursor = file_compute_cursor(system, file, seek_line_char(line_numbers[i], column_numbers[i]));
                         
-                        view_set_cursor(vptrs[i], cursor, true, file->settings.unwrapped_lines);
+                        view_set_cursor(system, vptrs[i], cursor, true);
                     }
                     
                     result = BufferReopenResult_Reopened;
@@ -1470,7 +1503,7 @@ get_view_next__internal(Models *models, View_Summary *view){
     i32 index = view->view_id - 1;
     if (index >= 0 && index < live_set->max){
         View *vptr = live_set->views + index;
-        Panel *panel = vptr->transient.panel;
+        Panel *panel = vptr->panel;
         if (panel != 0){
             panel = layout_get_next_open_panel(layout, panel);
         }
@@ -1589,7 +1622,7 @@ DOC_SEE(View_Split_Position)
     System_Functions *system = models->system;
     Layout *layout = &models->layout;
     View *vptr = imp_get_view(models, view_location);
-    Panel *panel = vptr->transient.panel;
+    Panel *panel = vptr->panel;
     View_Summary result = {};
     b32 vertical_split = ((position == ViewSplit_Left) || (position == ViewSplit_Right));
     b32 br_split = ((position == ViewSplit_Bottom) || (position == ViewSplit_Right));
@@ -1597,7 +1630,7 @@ DOC_SEE(View_Split_Position)
     if (new_panel != 0){
         View *new_view = live_set_alloc_view(&models->mem.heap, &models->lifetime_allocator, &models->live_set);
         new_panel->view = new_view;
-        new_view->transient.panel = new_panel;
+        new_view->panel = new_panel;
         view_set_file(system, models, new_view, models->scratch_buffer);
         fill_view_summary(system, &result, new_view, models);
     }
@@ -1622,7 +1655,7 @@ in the system, the call will fail.)
     
     bool32 result = false;
     if (vptr != 0){
-        if (layout_close_panel(layout, vptr->transient.panel)){
+        if (layout_close_panel(layout, vptr->panel)){
             live_set_free_view(&models->mem.heap, &models->lifetime_allocator, &models->live_set, vptr);
             result = true;
         }
@@ -1645,7 +1678,7 @@ DOC_SEE(get_active_view)
     View *vptr = imp_get_view(models, view);
     bool32 result = false;
     if (vptr != 0){
-        models->layout.active_panel = vptr->transient.panel;
+        models->layout.active_panel = vptr->panel;
         result = true;
     }
     return(result);
@@ -1668,22 +1701,22 @@ DOC_RETURN(returns non-zero on success)
         switch (setting){
             case ViewSetting_ShowWhitespace:
             {
-                *value_out = vptr->transient.file_data.show_whitespace;
+                *value_out = vptr->file_data.show_whitespace;
             }break;
             
             case ViewSetting_ShowScrollbar:
             {
-                *value_out = !vptr->transient.hide_scrollbar;
+                *value_out = !vptr->hide_scrollbar;
             }break;
             
             case ViewSetting_ShowFileBar:
             {
-                *value_out = !vptr->transient.hide_file_bar;
+                *value_out = !vptr->hide_file_bar;
             }break;
             
             case ViewSetting_UICommandMap:
             {
-                *value_out = vptr->transient.ui_map_id;
+                *value_out = vptr->ui_map_id;
             }break;
             
             default:
@@ -1715,22 +1748,22 @@ DOC_SEE(View_Setting_ID)
         switch (setting){
             case ViewSetting_ShowWhitespace:
             {
-                vptr->transient.file_data.show_whitespace = value;
+                vptr->file_data.show_whitespace = value;
             }break;
             
             case ViewSetting_ShowScrollbar:
             {
-                vptr->transient.hide_scrollbar = !value;
+                vptr->hide_scrollbar = !value;
             }break;
             
             case ViewSetting_ShowFileBar:
             {
-                vptr->transient.hide_file_bar = !value;
+                vptr->hide_file_bar = !value;
             }break;
             
             case ViewSetting_UICommandMap:
             {
-                vptr->transient.ui_map_id = value;
+                vptr->ui_map_id = value;
             }break;
             
             default:
@@ -1758,8 +1791,8 @@ If the view_id does not specify a valid view, the returned scope is null.)
     View *view = imp_get_view(models, view_id);
     Managed_Scope lifetime = 0;
     if (view != 0){
-        Assert(view->transient.lifetime_object != 0);
-        lifetime = (Managed_Scope)(view->transient.lifetime_object->workspace.scope_id);
+        Assert(view->lifetime_object != 0);
+        lifetime = (Managed_Scope)(view->lifetime_object->workspace.scope_id);
     }
     return(lifetime);
 }
@@ -1784,7 +1817,7 @@ DOC_RETURN(This call returns non-zero on success.)
     View *vptr = imp_get_view(models, view);
     bool32 result = false;
     if (vptr != 0){
-        Panel *panel = vptr->transient.panel;
+        Panel *panel = vptr->panel;
         Panel *intermediate = panel->parent;
         if (intermediate != 0){
             Assert(intermediate->kind == PanelKind_Intermediate);
@@ -1836,7 +1869,7 @@ DOC_RETURN(The rectangle of the panel containing this view.)
     View *vptr = imp_get_view(models, view);
     i32_Rect result = {};
     if (vptr != 0){
-        Panel *panel = vptr->transient.panel;
+        Panel *panel = vptr->panel;
         Assert(panel != 0);
         Panel *parent = panel->parent;
         if (parent != 0){
@@ -1866,11 +1899,11 @@ DOC_SEE(Full_Cursor)
     bool32 result = false;
     
     if (vptr != 0){
-        Editing_File *file = vptr->transient.file_data.file;
+        Editing_File *file = vptr->file_data.file;
         Assert(file != 0);
         if (!file->is_loading){
             result = true;
-            *cursor_out = file_compute_cursor(system, file, seek, 0);
+            *cursor_out = file_compute_cursor(system, file, seek);
             fill_view_summary(system, view, vptr, models);
         }
     }
@@ -1894,12 +1927,12 @@ DOC_SEE(Buffer_Seek)
     bool32 result = false;
     
     if (vptr != 0){
-        Editing_File *file = vptr->transient.file_data.file;
+        Editing_File *file = vptr->file_data.file;
         if (!file->is_loading){
-            result = true;
-            Full_Cursor cursor = file_compute_cursor(system, file, seek, 0);
-            view_set_cursor(vptr, cursor, set_preferred_x, file->settings.unwrapped_lines);
+            Full_Cursor cursor = file_compute_cursor(system, file, seek);
+            view_set_cursor(system, vptr, cursor, set_preferred_x);
             fill_view_summary(system, view, vptr, models);
+            result = true;
         }
     }
     
@@ -1920,14 +1953,14 @@ DOC_SEE(GUI_Scroll_Vars)
     bool32 result = false;
     
     if (vptr != 0){
-        Editing_File *file = vptr->transient.file_data.file;
+        Editing_File *file = vptr->file_data.file;
         if (!file->is_loading){
             result = true;
-            if (!vptr->transient.ui_mode){
+            if (!vptr->ui_mode){
                 view_set_scroll(system, vptr, scroll);
             }
             else{
-                vptr->transient.ui_scroll = scroll;
+                vptr->ui_scroll = scroll;
             }
             fill_view_summary(system, view, vptr, models);
         }
@@ -1951,17 +1984,17 @@ DOC_SEE(Buffer_Seek)
     bool32 result = false;
     
     if (vptr != 0){
-        Editing_File *file = vptr->transient.file_data.file;
+        Editing_File *file = vptr->file_data.file;
         Assert(file != 0);
         if (!file->is_loading){
             if (seek.type != buffer_seek_pos){
                 result = true;
-                Full_Cursor cursor = file_compute_cursor(system, file, seek, 0);
-                vptr->transient.edit_pos.mark = cursor.pos;
+                Full_Cursor cursor = file_compute_cursor(system, file, seek);
+                vptr->mark = cursor.pos;
             }
             else{
                 result = true;
-                vptr->transient.edit_pos.mark = seek.pos;
+                vptr->mark = seek.pos;
             }
             fill_view_summary(system, view, vptr, models);
         }
@@ -1972,36 +2005,10 @@ DOC_SEE(Buffer_Seek)
 
 API_EXPORT bool32
 View_Set_Highlight(Application_Links *app, View_Summary *view, int32_t start, int32_t end, bool32 turn_on)/*
-DOC_PARAM(view, The view parameter specifies the view in which to set the highlight.)
-DOC_PARAM(start, This parameter specifies the absolute position of the first character of the highlight range.)
-DOC_PARAM(end, This parameter specifies the absolute position of the character one past the end of the highlight range.)
-DOC_PARAM(turn_on, This parameter indicates whether the highlight is being turned on or off.)
-DOC_RETURN(This call returns non-zero on success.)
-DOC
-(
-The highlight is mutually exclusive to the cursor.  When the turn_on parameter
-is set to true the highlight will be shown and the cursor will be hidden.  After
-that either setting the cursor with view_set_cursor or calling view_set_highlight
-and the turn_on set to false, will switch back to showing the cursor.
-)
+DOC(This feature has been removed.  Transition to the new highlighting system view markers which allow for
+arbitrarily many highlights, and cursors, at the same time.)
 */{
-    Models *models = (Models*)app->cmd_context;
-    System_Functions *system = models->system;
-    View *vptr = imp_get_view(models, view);
-    bool32 result = false;
-    
-    if (vptr != 0){
-        result = true;
-        if (turn_on){
-            view_set_temp_highlight(system, vptr, start, end);
-        }
-        else{
-            vptr->transient.file_data.show_temp_highlight = false;
-        }
-        fill_view_summary(system, view, vptr, models);
-    }
-    
-    return(result);
+    return(false);
 }
 
 API_EXPORT bool32
@@ -2023,7 +2030,7 @@ DOC_SEE(Set_Buffer_Flag)
         Editing_File *file = working_set_get_active_file(&models->working_set, buffer_id);
         if (file != 0){
             result = true;
-            if (file != vptr->transient.file_data.file){
+            if (file != vptr->file_data.file){
                 view_set_file(system, models, vptr, file);
                 if (!(flags & SetBuffer_KeepOriginalGUI)){
                     view_quit_ui(system, models, vptr);
@@ -2074,11 +2081,11 @@ DOC_SEE(view_set_ui)
     Models *models = (Models*)app->cmd_context;
     View *vptr = imp_get_view(models, view);
     if (vptr != 0){
-        if (vptr->transient.ui_mode){
+        if (vptr->ui_mode){
             return(false);
         }
         else{
-            vptr->transient.ui_mode = true;
+            vptr->ui_mode = true;
             return(true);
         }
     }
@@ -2101,9 +2108,9 @@ DOC_SEE(view_set_ui)
     bool32 result = false;
     Models *models = (Models*)app->cmd_context;
     View *vptr = imp_get_view(models, view);
-    if (vptr != 0 && vptr->transient.ui_mode){
+    if (vptr != 0 && vptr->ui_mode){
         view_quit_ui(models->system, models, vptr);
-        vptr->transient.ui_mode = false;
+        vptr->ui_mode = false;
         result = true;
     }
     return(result);
@@ -2127,11 +2134,11 @@ DOC_SEE(UI_Quit_Function_Type)
     Heap *heap = &models->mem.heap;
     View *vptr = imp_get_view(models, view);
     if (vptr != 0){
-        if (vptr->transient.ui_control.items != 0){
-            heap_free(heap, vptr->transient.ui_control.items);
+        if (vptr->ui_control.items != 0){
+            heap_free(heap, vptr->ui_control.items);
         }
-        memset(&vptr->transient.ui_control, 0, sizeof(vptr->transient.ui_control));
-        vptr->transient.ui_quit = quit_function;
+        memset(&vptr->ui_control, 0, sizeof(vptr->ui_control));
+        vptr->ui_quit = quit_function;
         if (control != 0){
             if (control->count > 0){
                 i32 string_size = 0;
@@ -2202,14 +2209,14 @@ DOC_SEE(UI_Quit_Function_Type)
                             memcpy(new_str, old.str, old.size);
                         }
                     }
-                    vptr->transient.ui_control.items = new_items;
-                    vptr->transient.ui_control.count = count;
+                    vptr->ui_control.items = new_items;
+                    vptr->ui_control.count = count;
                 }
                 else{
                     return(false);
                 }
             }
-            memcpy(vptr->transient.ui_control.bounding_box, control->bounding_box,
+            memcpy(vptr->ui_control.bounding_box, control->bounding_box,
                    sizeof(control->bounding_box));
         }
         return(true);
@@ -2230,7 +2237,7 @@ DOC_SEE(view_set_ui)
     View *vptr = imp_get_view(models, view);
     UI_Control result = {};
     if (vptr != 0 && part != 0){
-        UI_Control *control = &vptr->transient.ui_control;
+        UI_Control *control = &vptr->ui_control;
         result.items = push_array(part, UI_Item, control->count);
         if (result.items != 0){
             result.count = control->count;
@@ -2314,7 +2321,7 @@ get_lifetime_object_from_workspace(Dynamic_Workspace *workspace){
         case DynamicWorkspace_View:
         {
             View *vptr = (View*)workspace->user_back_ptr;
-            result = vptr->transient.lifetime_object;
+            result = vptr->lifetime_object;
         }break;
         default:
         {
@@ -2554,7 +2561,7 @@ DOC(Managed objects allocate memory that is tied to the scope.  When the scope i
     Managed_Object result = 0;
     if (workspace != 0){
         int32_t size = count*item_size;
-        void *ptr = dynamic_memory_bank_allocate(heap, &workspace->mem_bank, size + sizeof(Managed_Memory_Header));
+        void *ptr = memory_bank_allocate(heap, &workspace->mem_bank, size + sizeof(Managed_Memory_Header));
         Managed_Memory_Header *header = (Managed_Memory_Header*)ptr;
         header->std_header.type = ManagedObjectType_Memory;
         header->std_header.item_size = item_size;
@@ -2591,7 +2598,7 @@ DOC_SEE(Marker)
     Managed_Object result = 0;
     if (workspace != 0){
         i32 size = count*sizeof(Marker);
-		void *ptr = dynamic_memory_bank_allocate(heap, &workspace->mem_bank, size + sizeof(Managed_Buffer_Markers_Header));
+		void *ptr = memory_bank_allocate(heap, &workspace->mem_bank, size + sizeof(Managed_Buffer_Markers_Header));
         Managed_Buffer_Markers_Header *header = (Managed_Buffer_Markers_Header*)ptr;
         header->std_header.type = ManagedObjectType_Markers;
         header->std_header.item_size = sizeof(Marker);
@@ -2935,7 +2942,7 @@ DOC(Permanently frees the specified object.  Not only does this free up the memo
                 workspace->buffer_markers_list.count -= 1;
             }
             dynamic_workspace_erase_pointer(workspace, lo_id);
-            dynamic_memory_bank_free(&workspace->mem_bank, object_ptr);
+            memory_bank_free(&workspace->mem_bank, object_ptr);
             return(true);
         }
     }
@@ -3078,7 +3085,7 @@ max_result_count of 1 and be assured you will get the most recent bar if any exi
     Models *models = (Models*)app->cmd_context;
     View *view = imp_get_view(models, view_id);
     if (view != 0){
-        for (Query_Slot *slot = view->transient.query_set.used_slot;
+        for (Query_Slot *slot = view->query_set.used_slot;
              slot != 0 && (result < max_result_count);
              slot = slot->next){
             if (slot->query_bar != 0){
@@ -3109,7 +3116,7 @@ only use for this call is in an interactive command that makes calls to get_user
     Models *models = (Models*)app->cmd_context;
     Panel *active_panel = layout_get_active_panel(&models->layout);
     View *active_view = active_panel->view;
-    Query_Slot *slot = alloc_query_slot(&active_view->transient.query_set);
+    Query_Slot *slot = alloc_query_slot(&active_view->query_set);
     bool32 result = (slot != 0);
     if (result){
         slot->query_bar = bar;
@@ -3127,7 +3134,7 @@ DOC(Stops showing the particular query bar specified by the bar parameter.)
     Models *models = (Models*)app->cmd_context;
     Panel *active_panel = layout_get_active_panel(&models->layout);
     View *active_view = active_panel->view;
-    free_query_slot(&active_view->transient.query_set, bar);
+    free_query_slot(&active_view->query_set, bar);
 }
 
 API_EXPORT void
@@ -3317,6 +3324,212 @@ DOC_RETURN(Returns true if the given id was a valid face and the change was made
     }
     
     return(did_change);
+}
+
+API_EXPORT History_Record_Index
+Buffer_History_Get_Max_Record_Index(Application_Links *app, Buffer_Summary *buffer){
+    Models *models = (Models*)app->cmd_context;
+    Editing_File *file = imp_get_file(models, buffer);
+    History_Record_Index result = 0;
+    if (file != 0 && history_is_activated(&file->state.history)){
+        result = history_get_record_count(&file->state.history);
+    }
+    return(result);
+}
+
+internal void
+buffer_history__fill_record_info(Record *record, Record_Info *out){
+    out->kind = record->kind;
+    out->edit_number = record->edit_number;
+    switch (out->kind){
+        case RecordKind_Single:
+        {
+            out->single.string_forward  = make_string(record->single.str_forward , record->single.length_forward );
+            out->single.string_backward = make_string(record->single.str_backward, record->single.length_backward);
+            out->single.first = record->single.first;
+        }break;
+        case RecordKind_Batch:
+        {
+            out->batch.type = record->batch.type;
+            out->batch.count = record->batch.count;
+        }break;
+        case RecordKind_Group:
+        {
+            out->group.count = record->group.count;
+        }break;
+        default:
+        {
+            InvalidCodePath;
+        }break;
+    }
+}
+
+API_EXPORT Record_Info
+Buffer_History_Get_Record_Info(Application_Links *app, Buffer_Summary *buffer, History_Record_Index index){
+    Models *models = (Models*)app->cmd_context;
+    Editing_File *file = imp_get_file(models, buffer);
+    Record_Info result = {};
+    if (file != 0){
+        History *history = &file->state.history;
+        if (history_is_activated(history)){
+            i32 max_index = history_get_record_count(history);
+            if (0 <= index && index <= max_index){
+                if (0 < index){
+                    Record *record = history_get_record(history, index);
+                    buffer_history__fill_record_info(record, &result);
+                }
+                else{
+                    result.error = RecordError_InitialStateDummyRecord;
+                }
+            }
+            else{
+                result.error = RecordError_IndexOutOfBounds;
+            }
+        }
+        else{
+            result.error = RecordError_NoHistoryAttached;
+        }
+    }
+    else{
+        result.error = RecordError_InvalidBuffer;
+    }
+    return(result);
+}
+
+API_EXPORT Record_Info
+Buffer_History_Get_Group_Sub_Record(Application_Links *app, Buffer_Summary *buffer, History_Record_Index index, int32_t sub_index){
+    Models *models = (Models*)app->cmd_context;
+    Editing_File *file = imp_get_file(models, buffer);
+    Record_Info result = {};
+    if (file != 0){
+        History *history = &file->state.history;
+        if (history_is_activated(history)){
+            i32 max_index = history_get_record_count(history);
+            if (0 <= index && index <= max_index){
+                if (0 < index){
+                    Record *record = history_get_record(history, index);
+                    if (record->kind == RecordKind_Group){
+                        record = history_get_sub_record(record, sub_index);
+                        buffer_history__fill_record_info(record, &result);
+                    }
+                    else{
+                        result.error = RecordError_WrongRecordTypeAtIndex;
+                    }
+                }
+                else{
+                    result.error = RecordError_InitialStateDummyRecord;
+                }
+            }
+            else{
+                result.error = RecordError_IndexOutOfBounds;
+            }
+        }
+        else{
+            result.error = RecordError_NoHistoryAttached;
+        }
+    }
+    else{
+        result.error = RecordError_InvalidBuffer;
+    }
+    return(result);
+}
+
+API_EXPORT History_Record_Index
+Buffer_History_Get_Current_State_Index(Application_Links *app, Buffer_Summary *buffer){
+    Models *models = (Models*)app->cmd_context;
+    Editing_File *file = imp_get_file(models, buffer);
+    History_Record_Index result = 0;
+    if (file != 0 && history_is_activated(&file->state.history)){
+        result = file_get_current_record_index(file);
+    }
+    return(result);
+}
+
+API_EXPORT bool32
+Buffer_History_Set_Current_State_Index(Application_Links *app, Buffer_Summary *buffer, History_Record_Index index){
+    Models *models = (Models*)app->cmd_context;
+    Editing_File *file = imp_get_file(models, buffer);
+    bool32 result = false;
+    if (file != 0 && history_is_activated(&file->state.history)){
+        i32 max_index = history_get_record_count(&file->state.history);
+        if (0 <= index && index <= max_index){
+            System_Functions *system = models->system;
+            edit_change_current_history_state(system, models, file, index);
+            result = true;
+        }
+    }
+    return(result);
+}
+
+API_EXPORT bool32
+Buffer_History_Merge_Record_Range(Application_Links *app, Buffer_Summary *buffer, History_Record_Index first_index, History_Record_Index last_index, Record_Merge_Flag flags){
+    Models *models = (Models*)app->cmd_context;
+    Editing_File *file = imp_get_file(models, buffer);
+    bool32 result = false;
+    if (file != 0 && history_is_activated(&file->state.history)){
+        History *history = &file->state.history;
+        i32 max_index = history_get_record_count(history);
+        first_index = clamp_bottom(1, first_index);
+        if (first_index <= last_index && last_index <= max_index){
+            i32 current_index = file->state.current_record_index;
+            if (first_index <= current_index && current_index < last_index){
+                System_Functions *system = models->system;
+                u32 in_range_handler = flags & (bit_0 | bit_1);
+                switch (in_range_handler){
+                    case RecordMergeFlag_StateInRange_MoveStateForward:
+                    {
+                        edit_change_current_history_state(system, models, file, last_index);
+                        current_index = last_index;
+                    }break;
+                    
+                    case RecordMergeFlag_StateInRange_MoveStateBackward:
+                    {
+                        edit_change_current_history_state(system, models, file, first_index);
+                        current_index = first_index;
+                    }break;
+                    
+                    case RecordMergeFlag_StateInRange_ErrorOut:
+                    {
+                        goto done;
+                    }break;
+                }
+            }
+            if (first_index < last_index){
+                history_merge_records(&models->mem.part, &models->mem.heap, history, first_index, last_index);
+            }
+            if (current_index >= last_index){
+                current_index -= (last_index - first_index);
+            }
+            file->state.current_record_index = current_index;
+            result = true;
+        }
+    }
+    done:;
+    return(result);
+}
+
+API_EXPORT bool32
+Buffer_History_Clear_After_Current_State(Application_Links *app, Buffer_Summary *buffer){
+    Models *models = (Models*)app->cmd_context;
+    Editing_File *file = imp_get_file(models, buffer);
+    bool32 result = false;
+    if (file != 0 && history_is_activated(&file->state.history)){
+        history_dump_records_after_index(&file->state.history, file->state.current_record_index);
+        result = true;
+    }
+    return(result);
+}
+
+API_EXPORT void
+Global_History_Edit_Group_Begin(Application_Links *app){
+    Models *models = (Models*)app->cmd_context;
+    global_history_adjust_edit_grouping_counter(&models->global_history, 1);
+}
+
+API_EXPORT void
+Global_History_Edit_Group_End(Application_Links *app){
+    Models *models = (Models*)app->cmd_context;
+    global_history_adjust_edit_grouping_counter(&models->global_history, -1);
 }
 
 internal void
@@ -3901,7 +4114,7 @@ Get_Default_Font_For_View(Application_Links *app, View_ID view_id)
 {
     Models *models = (Models*)app->cmd_context;
     View *view = imp_get_view(models, view_id);
-    Editing_File *file = view->transient.file_data.file;
+    Editing_File *file = view->file_data.file;
     Assert(file != 0);
     Face_ID face_id = file->settings.font_id;
     return(face_id);

@@ -12,26 +12,25 @@
 #if !defined(FRED_FILE_H)
 #define FRED_FILE_H
 
-enum Edit_Pos_Set_Type{
+typedef i32 Edit_Pos_Set_Type;
+enum{
     EditPos_None,
     EditPos_CursorSet,
     EditPos_ScrollSet
 };
 struct File_Edit_Positions{
+    Edit_Pos_Set_Type last_set_type;
     GUI_Scroll_Vars scroll;
-    Full_Cursor cursor;
-    i32 mark;
-    f32 preferred_x;
-    i32 scroll_i;
-    i32 last_set_type;
-    b32 in_view;
+    i32 cursor_pos;
 };
 
-// TODO(NAME): Replace this with markers over time.
+// TODO(NAME): do(replace Text_Effect with markers over time)
 struct Text_Effect{
-    i32 start, end;
+    i32 start;
+    i32 end;
     u32 color;
-    f32 seconds_down, seconds_max;
+    f32 seconds_down;
+    f32 seconds_max;
 };
 
 union Buffer_Slot_ID{
@@ -40,6 +39,7 @@ union Buffer_Slot_ID{
 };
 
 struct Editing_File_Settings{
+    Buffer_Edit_Handler *edit_handler;
     i32 base_map_id;
     i32 display_width;
     i32 minimum_base_display_width;
@@ -75,19 +75,22 @@ struct Editing_File_State{
     i32 wrap_position_count;
     i32 wrap_position_max;
     
-    Undo_Data undo;
+    History history;
+    i32 current_record_index;
     
     Cpp_Token_Array token_array;
     Cpp_Token_Array swap_array;
     u32 lex_job;
-    b32 tokens_complete;
-    b32 still_lexing;
+    b8 tokens_complete;
+    b8 still_lexing;
+    b8 in_edit_handler;
     
     Text_Effect paste_effect;
     
     Dirty_State dirty;
     u32 ignore_behind_os;
     
+    File_Edit_Positions edit_pos_most_recent;
     File_Edit_Positions edit_pos_stack[16];
     i32 edit_pos_stack_top;
 };

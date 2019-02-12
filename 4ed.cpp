@@ -58,7 +58,14 @@ internal void
 output_file_append(System_Functions *system, Models *models, Editing_File *file, String value){
     if (!file->is_dummy){
         i32 end = buffer_size(&file->state.buffer);
-        edit_single(system, models, file, end, end, value.str, value.size);
+        Edit edit = {};
+        edit.str = value.str;
+        edit.length = value.size;
+        edit.range.first = end;
+        edit.range.one_past_last = end;
+        
+        Edit_Behaviors behaviors = {};
+        edit_single(system, models, file, edit, behaviors);
     }
 }
 
@@ -71,11 +78,12 @@ file_cursor_to_end(System_Functions *system, Models *models, Editing_File *file)
          panel != 0;
          panel = layout_get_next_open_panel(layout, panel)){
         View *view = panel->view;
-        if (view->transient.file_data.file != file){
+        if (view->file_data.file != file){
             continue;
         }
         view_cursor_move(system, view, pos);
-        view->transient.edit_pos.mark = view->transient.edit_pos.cursor.pos;
+        File_Edit_Positions edit_pos = view_get_edit_pos(view);
+        view->mark = edit_pos.cursor_pos;
     }
 }
 
@@ -97,60 +105,8 @@ file_cursor_to_end(System_Functions *system, Models *models, Editing_File *file)
 
 #define REQ_OPEN_VIEW(n) USE_VIEW(n); if (view_lock_flags(n) != 0) return
 
-#define REQ_FILE(n,v) Editing_File *n = (v)->transient.file_data.file; if (n == 0) return
-#define REQ_FILE_HISTORY(n,v) Editing_File *n = (v)->transient.file_data.file; if (n == 0 || n->state.undo.undo.edits == 0) return
-
-#define COMMAND_DECL(n) internal void command_##n(System_Functions *system, Models *models, Command_Binding binding)
-
-COMMAND_DECL(null){}
-
-internal void
-view_undo_redo(System_Functions *system, Models *models, View *view, Edit_Stack *stack, Edit_Type expected_type){
-    Editing_File *file = view->transient.file_data.file;
-    Assert(file != 0);
-    if (stack->edit_count > 0){
-        Edit_Step step = stack->edits[stack->edit_count - 1];
-        Assert(step.type == expected_type);
-        edit_historical(system, models, file, view, stack,
-                        step, hist_normal);
-    }
-}
-
-COMMAND_DECL(undo){
-    Panel *active_panel = layout_get_active_panel(&models->layout);
-    View *view = active_panel->view;
-    if (view_lock_flags(view) != 0){
-        return;
-    }
-    Editing_File *file = view->transient.file_data.file;
-    if (file->state.undo.undo.edits == 0){
-        return;
-    }
-    view_undo_redo(system, models, view, &file->state.undo.undo, ED_UNDO);
-    Assert(file->state.undo.undo.size >= 0);
-}
-
-COMMAND_DECL(redo){
-    Panel *active_panel = layout_get_active_panel(&models->layout);
-    View *view = active_panel->view;
-    if (view_lock_flags(view) != 0){
-        return;
-    }
-    Editing_File *file = view->transient.file_data.file;
-    if (file->state.undo.undo.edits == 0){
-        return;
-    }
-    view_undo_redo(system, models, view, &file->state.undo.redo, ED_REDO);
-    Assert(file->state.undo.undo.size >= 0);
-}
-
-COMMAND_DECL(user_callback){
-    if (binding.custom != 0){
-        binding.custom(&models->app_links);
-    }
-}
-
-global Command_Function *command_table[cmdid_count];
+#define REQ_FILE(n,v) Editing_File *n = (v)->file_data.file; if (n == 0) return
+#define REQ_FILE_HISTORY(n,v) Editing_File *n = (v)->file_data.file; if (n == 0 || n->state.undo.undo.edits == 0) return
 
 SCROLL_RULE_SIG(fallback_scroll_rule){
     b32 result = false;
@@ -171,16 +127,15 @@ SCROLL_RULE_SIG(fallback_scroll_rule){
 internal void
 setup_ui_commands(Command_Map *commands, Partition *part, i32 parent){
     map_init(commands, part, DEFAULT_UI_MAP_SIZE, parent);
-    
     // TODO(allen): do(fix the weird built-in-ness of the ui map)
     u8 mdfr_array[] = {MDFR_NONE, MDFR_SHIFT, MDFR_CTRL, MDFR_SHIFT | MDFR_CTRL};
     for (i32 i = 0; i < 4; ++i){
         u8 mdfr = mdfr_array[i];
-        map_add(commands, key_left , mdfr, command_null, (Custom_Command_Function*)0);
-        map_add(commands, key_right, mdfr, command_null, (Custom_Command_Function*)0);
-        map_add(commands, key_up   , mdfr, command_null, (Custom_Command_Function*)0);
-        map_add(commands, key_down , mdfr, command_null, (Custom_Command_Function*)0);
-        map_add(commands, key_back , mdfr, command_null, (Custom_Command_Function*)0);
+        map_add(commands, key_left , mdfr, (Custom_Command_Function*)0);
+        map_add(commands, key_right, mdfr, (Custom_Command_Function*)0);
+        map_add(commands, key_up   , mdfr, (Custom_Command_Function*)0);
+        map_add(commands, key_down , mdfr, (Custom_Command_Function*)0);
+        map_add(commands, key_back , mdfr, (Custom_Command_Function*)0);
     }
 }
 
@@ -367,44 +322,18 @@ interpret_binding_buffer(Models *models, void *buffer, i32 size){
                     }
                 }break;
                 
-                case unit_binding:
-                {
-                    if (map_ptr != 0){
-                        Command_Function *func = 0;
-                        if (unit->binding.command_id < cmdid_count){
-                            func = command_table[unit->binding.command_id];
-                        }
-                        if (func != 0){
-                            if (unit->binding.code == 0){
-                                u32 index = 0;
-                                if (map_get_modifiers_hash(unit->binding.modifiers, &index)){
-                                    map_ptr->vanilla_keyboard_default[index].function = func;
-                                    map_ptr->vanilla_keyboard_default[index].custom_id = unit->binding.command_id;
-                                }
-                            }
-                            else{
-                                map_add(map_ptr, unit->binding.code, unit->binding.modifiers, func, unit->binding.command_id);
-                            }
-                        }
-                    }
-                }break;
-                
                 case unit_callback:
                 {
                     if (map_ptr != 0){
-                        Command_Function *func = command_user_callback;
                         Custom_Command_Function *custom = unit->callback.func;
-                        if (func != 0){
-                            if (unit->callback.code == 0){
-                                u32 index = 0;
-                                if (map_get_modifiers_hash(unit->binding.modifiers, &index)){
-                                    map_ptr->vanilla_keyboard_default[index].function = func;
-                                    map_ptr->vanilla_keyboard_default[index].custom = custom;
-                                }
+                        if (unit->callback.code == 0){
+                            u32 index = 0;
+                            if (map_get_modifiers_hash(unit->callback.modifiers, &index)){
+                                map_ptr->vanilla_keyboard_default[index].custom = custom;
                             }
-                            else{
-                                map_add(map_ptr, unit->callback.code, unit->callback.modifiers, func, custom);
-                            }
+                        }
+                        else{
+                            map_add(map_ptr, unit->callback.code, unit->callback.modifiers, custom);
                         }
                     }
                 }break;
@@ -510,18 +439,13 @@ internal void
 command_caller(Coroutine_Head *coroutine){
     Command_In *cmd_in = (Command_In*)coroutine->in;
     Models *models = cmd_in->models;
-    if (models->command_caller){
-        Generic_Command generic;
-        if (cmd_in->bind.function == command_user_callback){
-            generic.command = cmd_in->bind.custom;
-        }
-        else{
-            generic.cmdid = (Command_ID)cmd_in->bind.custom_id;
-        }
+    if (models->command_caller != 0){
+        Generic_Command generic = {};
+        generic.command = cmd_in->bind.custom;
         models->command_caller(&models->app_links, generic);
     }
     else{
-        cmd_in->bind.function(models->system, models, cmd_in->bind);
+        cmd_in->bind.custom(&models->app_links);
     }
 }
 
@@ -532,15 +456,6 @@ app_links_init(System_Functions *system, Application_Links *app_links, void *dat
     FillAppLinksAPI(app_links);
     app_links->current_coroutine = 0;
     app_links->system_links = system;
-}
-
-internal void
-setup_command_table(void){
-#define SET(n) command_table[cmdid_##n] = command_##n
-    SET(null);
-    SET(undo);
-    SET(redo);
-#undef SET
 }
 
 // App Functions
@@ -821,7 +736,7 @@ force_abort_coroutine(System_Functions *system, Models *models, View *view){
         // TODO(allen): post grave warning
         models->command_coroutine = 0;
     }
-    init_query_set(&view->transient.query_set);
+    init_query_set(&view->query_set);
 }
 
 internal void
@@ -831,12 +746,12 @@ launch_command_via_event(System_Functions *system, Application_Step_Result *app_
     i32 map = view_get_map(view);
     Command_Binding cmd_bind = map_extract_recursive(&models->mapping, map, event);
     
-    if (cmd_bind.function != 0){
+    if (cmd_bind.custom != 0){
         Assert(models->command_coroutine == 0);
         Coroutine_Head *command_coroutine = system->create_coroutine(command_caller);
         models->command_coroutine = command_coroutine;
         
-        Command_In cmd_in;
+        Command_In cmd_in = {};
         cmd_in.models = models;
         cmd_in.bind = cmd_bind;
         
@@ -887,20 +802,17 @@ App_Init_Sig(app_init){
         models->live_set.views = push_array(part, View, models->live_set.max);
         
         //dll_init_sentinel
-        models->live_set.free_sentinel.transient.next = &models->live_set.free_sentinel;
-        models->live_set.free_sentinel.transient.prev = &models->live_set.free_sentinel;
+        models->live_set.free_sentinel.next = &models->live_set.free_sentinel;
+        models->live_set.free_sentinel.prev = &models->live_set.free_sentinel;
         
         i32 max = models->live_set.max;
         View *view = models->live_set.views;
         for (i32 i = 0; i < max; ++i, ++view){
             //dll_insert(&models->live_set.free_sentinel, view);
-            view->transient.next = models->live_set.free_sentinel.transient.next;
-            view->transient.prev = &models->live_set.free_sentinel;
-            models->live_set.free_sentinel.transient.next = view;
-            view->transient.next->transient.prev = view;
-            
-            View_Persistent *persistent = &view->persistent;
-            persistent->id = i;
+            view->next = models->live_set.free_sentinel.next;
+            view->prev = &models->live_set.free_sentinel;
+            models->live_set.free_sentinel.next = view;
+            view->next->prev = view;
         }
     }
     
@@ -912,7 +824,6 @@ App_Init_Sig(app_init){
     }
     
     {
-        setup_command_table();
         Assert(models->config_api.get_bindings != 0);
         i32 wanted_size = models->config_api.get_bindings(models->app_links.memory, models->app_links.memory_size);
         Assert(wanted_size <= models->app_links.memory_size);
@@ -927,6 +838,9 @@ App_Init_Sig(app_init){
     working_set_init(system, &models->working_set, part, &vars->models.mem.heap);
     models->working_set.default_display_width = DEFAULT_DISPLAY_WIDTH;
     models->working_set.default_minimum_base_display_width = DEFAULT_MINIMUM_BASE_DISPLAY_WIDTH;
+    
+    // NOTE(allen): history setup
+    global_history_init(&models->global_history);
     
     // NOTE(allen): clipboard setup
     models->working_set.clipboard_max_size = ArrayCount(models->working_set.clipboards);
@@ -990,7 +904,7 @@ App_Init_Sig(app_init){
         Panel *panel = layout_initialize(part, &models->layout);
         View *new_view = live_set_alloc_view(&models->mem.heap, &models->lifetime_allocator, &models->live_set);
         panel->view = new_view;
-        new_view->transient.panel = panel;
+        new_view->panel = panel;
         view_set_file(system, models, new_view, models->scratch_buffer);
     }
     
@@ -1067,7 +981,7 @@ App_Step_Sig(app_step){
     
     // NOTE(allen): reorganizing panels on screen
     Vec2_i32 prev_dim = layout_get_root_size(&models->layout);
-    Vec2_i32 current_dim = V2(target->width, target->height);
+    Vec2_i32 current_dim = V2i32(target->width, target->height);
     layout_set_root_size(&models->layout, current_dim);
     
     // NOTE(allen): First frame initialization
@@ -1215,7 +1129,7 @@ App_Step_Sig(app_step){
     Panel *mouse_panel = 0;
     Panel *divider_panel = 0;
     b32 mouse_in_margin = false;
-    Vec2_i32 mouse = V2(input->mouse.x, input->mouse.y);
+    Vec2_i32 mouse = V2i32(input->mouse.x, input->mouse.y);
     {
         for (Panel *panel = layout_get_first_open_panel(layout);
              panel != 0;
@@ -1321,7 +1235,7 @@ App_Step_Sig(app_step){
                                 
                                 app_result.animating = true;
                                 if (models->command_coroutine == 0){
-                                    init_query_set(&view->transient.query_set);
+                                    init_query_set(&view->query_set);
                                 }
                             }
                         }
@@ -1376,20 +1290,21 @@ App_Step_Sig(app_step){
             GUI_Scroll_Vars *scroll_vars = 0;
             i32 max_y = 0;
             b32 file_scroll = false;
-            if (!view->transient.ui_mode){
-                scroll_vars = &view->transient.edit_pos.scroll;
+            File_Edit_Positions edit_pos = view_get_edit_pos(view);
+            if (!view->ui_mode){
+                scroll_vars = &edit_pos.scroll;
                 max_y = view_compute_max_target_y(view);
                 file_scroll = true;
             }
             else{
-                scroll_vars = &view->transient.ui_scroll;
-                i32 bottom = view->transient.ui_control.bounding_box[UICoordinates_Scrolled].y1;
+                scroll_vars = &view->ui_scroll;
+                i32 bottom = view->ui_control.bounding_box[UICoordinates_Scrolled].y1;
                 max_y = view_compute_max_target_y_from_bottom_y(view, (f32)bottom);
                 file_scroll = false;
             }
             
             b32 active = (panel == active_panel);
-            Input_Process_Result ip_result = do_step_file_view(system, view, models, panel->rect_inner, active, dt, *scroll_vars, max_y);
+            Input_Process_Result ip_result = do_step_file_view(system, models, view, panel->rect_inner, active, dt, *scroll_vars, max_y);
             
             if (ip_result.is_animating){
                 app_result.animating = true;
@@ -1412,9 +1327,10 @@ App_Step_Sig(app_step){
              panel != 0;
              panel = layout_get_next_open_panel(layout, panel)){
             View *view = panel->view;
-            GUI_Scroll_Vars *scroll_vars = &view->transient.edit_pos.scroll;
-            scroll_vars->scroll_x = (f32)scroll_vars->target_x;
-            scroll_vars->scroll_y = (f32)scroll_vars->target_y;
+            File_Edit_Positions edit_pos = view_get_edit_pos(view);
+            edit_pos.scroll.scroll_x = (f32)edit_pos.scroll.target_x;
+            edit_pos.scroll.scroll_y = (f32)edit_pos.scroll.target_y;
+            view_set_edit_pos(view, edit_pos);
         }
     }
     
@@ -1502,10 +1418,13 @@ App_Step_Sig(app_step){
             
             draw_rectangle(target, full, style->theme.colors[Stag_Back]);
             
-            GUI_Scroll_Vars *scroll_vars = &view->transient.edit_pos.scroll;
+            File_Edit_Positions edit_pos = view_get_edit_pos(view);
+            GUI_Scroll_Vars *scroll_vars = &edit_pos.scroll;
             
             b32 active = (panel == active_panel);
             do_render_file_view(system, view, models, scroll_vars, active_view, inner, active, target);
+            
+            view_set_edit_pos(view, edit_pos);
             
             u32 margin_color = 0;
             if (active){

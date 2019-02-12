@@ -11,12 +11,22 @@
 
 internal i32
 view_get_map(View *view){
-    if (view->transient.ui_mode){
-        return(view->transient.ui_map_id);
+    if (view->ui_mode){
+        return(view->ui_map_id);
     }
     else{
-        return(view->transient.file_data.file->settings.base_map_id);
+        return(view->file_data.file->settings.base_map_id);
     }
+}
+
+internal i32
+view_get_index(Live_Views *live_set, View *view){
+    return((i32)(view - live_set->views));
+}
+
+internal i32
+view_get_id(Live_Views *live_set, View *view){
+    return((i32)(view - live_set->views) + 1);
 }
 
 internal View*
@@ -24,16 +34,14 @@ live_set_alloc_view(Heap *heap, Lifetime_Allocator *lifetime_allocator, Live_Vie
     Assert(live_set->count < live_set->max);
     ++live_set->count;
     
-    View *result = live_set->free_sentinel.transient.next;
-    Assert((i32)(result - live_set->views) == result->persistent.id);
+    View *result = live_set->free_sentinel.next;
+    result->next->prev = result->prev;
+    result->prev->next = result->next;
+    block_zero_struct(result);
     
-    result->transient.next->transient.prev = result->transient.prev;
-    result->transient.prev->transient.next = result->transient.next;
-    block_zero_struct(&result->transient);
-    
-    result->transient.in_use = true;
-    init_query_set(&result->transient.query_set);
-    result->transient.lifetime_object = lifetime_alloc_object(heap, lifetime_allocator, DynamicWorkspace_View, result);
+    result->in_use = true;
+    init_query_set(&result->query_set);
+    result->lifetime_object = lifetime_alloc_object(heap, lifetime_allocator, DynamicWorkspace_View, result);
     
     return(result);
 }
@@ -43,85 +51,83 @@ live_set_free_view(Heap *heap, Lifetime_Allocator *lifetime_allocator, Live_View
     Assert(live_set->count > 0);
     --live_set->count;
     
-    if (view->transient.ui_control.items != 0){
-        heap_free(heap, view->transient.ui_control.items);
+    if (view->ui_control.items != 0){
+        heap_free(heap, view->ui_control.items);
     }
     
-    view->transient.next = live_set->free_sentinel.transient.next;
-    view->transient.prev = &live_set->free_sentinel;
-    live_set->free_sentinel.transient.next = view;
-    view->transient.next->transient.prev = view;
-    view->transient.in_use = false;
+    view->next = live_set->free_sentinel.next;
+    view->prev = &live_set->free_sentinel;
+    live_set->free_sentinel.next = view;
+    view->next->prev = view;
+    view->in_use = false;
     
-    lifetime_free_object(heap, lifetime_allocator, view->transient.lifetime_object);
+    lifetime_free_object(heap, lifetime_allocator, view->lifetime_object);
 }
 
 ////////////////////////////////
 
-// TODO(allen): Switch over to using an i32 for these.
-internal f32
+internal File_Edit_Positions
+view_get_edit_pos(View *view){
+    return(view->edit_pos_);
+}
+
+internal void
+view_set_edit_pos(View *view, File_Edit_Positions edit_pos){
+    view->edit_pos_ = edit_pos;
+    view->file_data.file->state.edit_pos_most_recent = edit_pos;
+}
+
+////////////////////////////////
+
+internal i32
 view_width(View *view){
-    i32_Rect file_rect = view->transient.file_region;
-    f32 result = (f32)(file_rect.x1 - file_rect.x0);
-    return (result);
+    return(rect_width(view->file_region));
 }
 
-internal f32
+internal i32
 view_height(View *view){
-    i32_Rect file_rect = view->transient.file_region;
-    f32 result = (f32)(file_rect.y1 - file_rect.y0);
-    return (result);
+    return(rect_height(view->file_region));
 }
 
-internal Vec2
-view_get_cursor_xy(View *view){
-    Full_Cursor *cursor = 0;
-    if (view->transient.file_data.show_temp_highlight){
-        cursor = &view->transient.file_data.temp_highlight;
+internal Vec2_i32
+view_get_cursor_xy(System_Functions *system, View *view){
+    File_Edit_Positions edit_pos = view_get_edit_pos(view);
+    Full_Cursor cursor = file_compute_cursor(system, view->file_data.file, seek_pos(edit_pos.cursor_pos));
+    Vec2_i32 result = {};
+    if (view->file_data.file->settings.unwrapped_lines){
+        result = V2i32((i32)cursor.unwrapped_x, (i32)cursor.unwrapped_y);
     }
     else{
-        cursor = &view->transient.edit_pos.cursor;
-    }
-    Vec2 result = V2(cursor->wrapped_x, cursor->wrapped_y);
-    if (view->transient.file_data.file->settings.unwrapped_lines){
-        result.x = cursor->unwrapped_x;
-        result.y = cursor->unwrapped_y;
+        result = V2i32((i32)cursor.wrapped_x, (i32)cursor.wrapped_y);
     }
     return(result);
 }
 
 internal Cursor_Limits
 view_cursor_limits(View *view){
+    i32 line_height = view->line_height;
+    i32 visible_height = view_height(view);
     Cursor_Limits limits = {};
-    
-    f32 line_height = (f32)view->transient.line_height;
-    f32 visible_height = view_height(view);
-    
-    limits.max = visible_height - line_height*3.f;
-    limits.min = line_height * 2;
-    
+    limits.max = visible_height - line_height*3;
+    limits.min = line_height*2;
     if (limits.max - limits.min <= line_height){
         if (visible_height >= line_height){
             limits.max = visible_height - line_height;
-            limits.min = -line_height;
         }
         else{
             limits.max = visible_height;
-            limits.min = -line_height;
         }
+        limits.min = 0;
     }
-    
-    limits.max = (limits.max > 0)?(limits.max):(0);
-    limits.min = (limits.min > 0)?(limits.min):(0);
-    
-    limits.delta = clamp_top(line_height*3.f, (limits.max - limits.min)*.5f);
-    
+    limits.max = clamp_bottom(0, limits.max);
+    limits.min = clamp(0, limits.min, limits.max);
+    limits.delta = clamp_top(line_height*5, (limits.max - limits.min + 1)/2);
     return(limits);
 }
 
 internal i32
 view_compute_max_target_y_from_bottom_y(View *view, f32 max_item_y){
-    i32 line_height = view->transient.line_height;
+    i32 line_height = view->line_height;
     f32 height = clamp_bottom((f32)line_height, view_height(view));
     f32 max_target_y = clamp_bottom(0.f, max_item_y - height*0.5f);
     return(ceil32(max_target_y));
@@ -129,8 +135,8 @@ view_compute_max_target_y_from_bottom_y(View *view, f32 max_item_y){
 
 internal i32
 view_compute_max_target_y(View *view){
-    i32 line_height = view->transient.line_height;
-    Editing_File *file = view->transient.file_data.file;
+    i32 line_height = view->line_height;
+    Editing_File *file = view->file_data.file;
     Gap_Buffer *buffer = &file->state.buffer;
     i32 lowest_line = buffer->line_count;
     if (!file->settings.unwrapped_lines){
@@ -142,8 +148,8 @@ view_compute_max_target_y(View *view){
 internal u32
 view_lock_flags(View *view){
     u32 result = AccessOpen;
-    File_Viewing_Data *data = &view->transient.file_data;
-    if (view->transient.ui_mode){
+    File_Viewing_Data *data = &view->file_data;
+    if (view->ui_mode){
         result |= AccessHidden;
     }
     if (data->file_locked || (data->file && data->file->settings.read_only)){
@@ -155,64 +161,58 @@ view_lock_flags(View *view){
 ////////////////////////////////
 
 internal b32
-view_move_view_to_cursor(View *view, GUI_Scroll_Vars *scroll, b32 center_view){
-    b32 result = 0;
-    f32 max_x = view_width(view);
+view_move_view_to_cursor(System_Functions *system, View *view, GUI_Scroll_Vars *scroll){
+    b32 result = false;
+    i32 max_x = view_width(view);
     i32 max_y = view_compute_max_target_y(view);
     
-    Vec2 cursor = view_get_cursor_xy(view);
+    Vec2_i32 cursor = view_get_cursor_xy(system, view);
     
     GUI_Scroll_Vars scroll_vars = *scroll;
     i32 target_x = scroll_vars.target_x;
     i32 target_y = scroll_vars.target_y;
     
     Cursor_Limits limits = view_cursor_limits(view);
-    
     if (cursor.y > target_y + limits.max){
-        if (center_view){
-            target_y = round32(cursor.y - limits.max*.5f);
-        }
-        else{
-            target_y = ceil32(cursor.y - limits.max + limits.delta);
-        }
+        target_y = cursor.y - limits.max + limits.delta;
     }
     if (cursor.y < target_y + limits.min){
-        if (center_view){
-            target_y = round32(cursor.y - limits.max*.5f);
-        }
-        else{
-            target_y = floor32(cursor.y - limits.delta - limits.min);
-        }
+        target_y = cursor.y - limits.delta - limits.min;
     }
     
     target_y = clamp(0, target_y, max_y);
     
     if (cursor.x >= target_x + max_x){
-        target_x = ceil32(cursor.x - max_x/2);
+        target_x = cursor.x - max_x/2;
     }
     else if (cursor.x < target_x){
-        target_x = floor32(Max(0, cursor.x - max_x/2));
+        target_x = clamp_bottom(0, cursor.x - max_x/2);
     }
     
     if (target_x != scroll_vars.target_x || target_y != scroll_vars.target_y){
         scroll->target_x = target_x;
         scroll->target_y = target_y;
-        result = 1;
+        result = true;
     }
     
     return(result);
 }
 
 internal b32
-view_move_cursor_to_view(System_Functions *system, View *view, GUI_Scroll_Vars scroll, Full_Cursor *cursor, f32 preferred_x){
-    i32 line_height = view->transient.line_height;
-    f32 old_cursor_y = cursor->wrapped_y;
-    Editing_File *file = view->transient.file_data.file;
+view_move_cursor_to_view(System_Functions *system, View *view, GUI_Scroll_Vars scroll, i32 *pos_in_out, f32 preferred_x){
+    Editing_File *file = view->file_data.file;
+    Full_Cursor cursor = file_compute_cursor(system, file, seek_pos(*pos_in_out));
+    
+    i32 line_height = view->line_height;
+    f32 old_cursor_y = 0.f;
     if (file->settings.unwrapped_lines){
-        old_cursor_y = cursor->unwrapped_y;
+        old_cursor_y = cursor.unwrapped_y;
+    }
+    else{
+        old_cursor_y = cursor.wrapped_y;
     }
     f32 cursor_y = old_cursor_y;
-    f32 target_y = scroll.target_y + view->transient.widget_height;
+    f32 target_y = scroll.target_y + view->widget_height;
     
     Cursor_Limits limits = view_cursor_limits(view);
     
@@ -232,77 +232,87 @@ view_move_cursor_to_view(System_Functions *system, View *view, GUI_Scroll_Vars s
             cursor_y -= line_height;
         }
         Buffer_Seek seek = seek_xy(preferred_x, cursor_y, false, file->settings.unwrapped_lines);
-        *cursor = file_compute_cursor(system, file, seek, false);
+        cursor = file_compute_cursor(system, file, seek);
+        *pos_in_out = cursor.pos;
         result = true;
     }
     
     return(result);
 }
 
+internal b32
+view_has_unwrapped_lines(View *view){
+    return(view->file_data.file->settings.unwrapped_lines);
+}
+
 internal void
-view_set_cursor(View *view, Full_Cursor cursor, b32 set_preferred_x, b32 unwrapped_lines){
-    edit_pos_set_cursor(&view->transient.edit_pos, cursor, set_preferred_x, unwrapped_lines);
-    GUI_Scroll_Vars scroll = view->transient.edit_pos.scroll;
-    if (view_move_view_to_cursor(view, &scroll, 0)){
-        view->transient.edit_pos.scroll = scroll;
+view_set_preferred_x(View *view, Full_Cursor cursor){
+    if (view_has_unwrapped_lines(view)){
+        view->preferred_x = cursor.unwrapped_x;
+    }
+    else{
+        view->preferred_x = cursor.wrapped_x;
+    }
+}
+
+internal void
+view_set_preferred_x_to_current_position(System_Functions *system, View *view){
+    File_Edit_Positions edit_pos = view_get_edit_pos(view);
+    Full_Cursor cursor = file_compute_cursor(system, view->file_data.file, seek_pos(edit_pos.cursor_pos));
+    view_set_preferred_x(view, cursor);
+}
+
+internal void
+view_set_cursor(System_Functions *system, View *view, Full_Cursor cursor, b32 set_preferred_x){
+    File_Edit_Positions edit_pos = view_get_edit_pos(view);
+    file_edit_positions_set_cursor(&edit_pos, cursor.pos);
+    if (set_preferred_x){
+        view_set_preferred_x(view, cursor);
+    }
+    view_set_edit_pos(view, edit_pos);
+    GUI_Scroll_Vars scroll = edit_pos.scroll;
+    if (view_move_view_to_cursor(system, view, &scroll)){
+        edit_pos.scroll = scroll;
+        view_set_edit_pos(view, edit_pos);
     }
 }
 
 internal void
 view_set_scroll(System_Functions *system, View *view, GUI_Scroll_Vars scroll){
-    edit_pos_set_scroll(&view->transient.edit_pos, scroll);
-    Full_Cursor cursor = view->transient.edit_pos.cursor;
-    if (view_move_cursor_to_view(system, view, view->transient.edit_pos.scroll, &cursor, view->transient.edit_pos.preferred_x)){
-        view->transient.edit_pos.cursor = cursor;
+    File_Edit_Positions edit_pos = view_get_edit_pos(view);
+    file_edit_positions_set_scroll(&edit_pos, scroll);
+    view_set_edit_pos(view, edit_pos);
+    i32 pos = edit_pos.cursor_pos;
+    if (view_move_cursor_to_view(system, view, edit_pos.scroll, &pos, view->preferred_x)){
+        Full_Cursor cursor = file_compute_cursor(system, view->file_data.file, seek_pos(pos));
+        edit_pos.cursor_pos = cursor.pos;
+        view_set_edit_pos(view, edit_pos);
     }
 }
 
 internal void
-view_set_cursor_and_scroll(View *view, Full_Cursor cursor, b32 set_preferred_x, b32 unwrapped_lines, GUI_Scroll_Vars scroll){
-    File_Edit_Positions *edit_pos = &view->transient.edit_pos;
-    edit_pos_set_cursor(edit_pos, cursor, set_preferred_x, unwrapped_lines);
-    edit_pos_set_scroll(edit_pos, scroll);
-    edit_pos->last_set_type = EditPos_None;
-}
-
-internal Relative_Scrolling
-view_get_relative_scrolling(View *view){
-    Vec2 cursor = view_get_cursor_xy(view);
-    Relative_Scrolling result = {};
-    result.scroll_y = cursor.y - view->transient.edit_pos.scroll.scroll_y;
-    result.target_y = cursor.y - view->transient.edit_pos.scroll.target_y;
-    return(result);
-}
-
-internal void
-view_set_relative_scrolling(View *view, Relative_Scrolling scrolling){
-    Vec2 cursor = view_get_cursor_xy(view);
-    view->transient.edit_pos.scroll.scroll_y = cursor.y - scrolling.scroll_y;
-    view->transient.edit_pos.scroll.target_y = round32(clamp_bottom(0.f, cursor.y - scrolling.target_y));
+view_set_cursor_and_scroll(View *view, Full_Cursor cursor, b32 set_preferred_x, GUI_Scroll_Vars scroll){
+    File_Edit_Positions edit_pos = view_get_edit_pos(view);
+    file_edit_positions_set_cursor(&edit_pos, cursor.pos);
+    if (set_preferred_x){
+        view_set_preferred_x(view, cursor);
+    }
+    file_edit_positions_set_scroll(&edit_pos, scroll);
+    edit_pos.last_set_type = EditPos_None;
+    view_set_edit_pos(view, edit_pos);
 }
 
 internal void
 view_cursor_move(System_Functions *system, View *view, i32 pos){
-    Editing_File *file = view->transient.file_data.file;
+    Editing_File *file = view->file_data.file;
     Assert(file != 0);
-    Full_Cursor cursor = file_compute_cursor(system, file, seek_pos(pos), 0);
-    view_set_cursor(view, cursor, true, file->settings.unwrapped_lines);
-    view->transient.file_data.show_temp_highlight = false;
-}
-
-internal void
-view_set_temp_highlight(System_Functions *system, View *view, i32 pos, i32 end_pos){
-    Editing_File *file = view->transient.file_data.file;
-    Assert(file != 0);
-    view->transient.file_data.temp_highlight = file_compute_cursor(system, file, seek_pos(pos), 0);
-    view->transient.file_data.temp_highlight_end_pos = end_pos;
-    view->transient.file_data.show_temp_highlight = true;
-    view_set_cursor(view, view->transient.file_data.temp_highlight, 0, file->settings.unwrapped_lines);
+    Full_Cursor cursor = file_compute_cursor(system, file, seek_pos(pos));
+    view_set_cursor(system, view, cursor, true);
 }
 
 internal void
 view_post_paste_effect(View *view, f32 seconds, i32 start, i32 size, u32 color){
-    Editing_File *file = view->transient.file_data.file;
+    Editing_File *file = view->file_data.file;
     file->state.paste_effect.start = start;
     file->state.paste_effect.end = start + size;
     file->state.paste_effect.color = color;
@@ -316,23 +326,22 @@ internal void
 view_set_file(System_Functions *system, Models *models, View *view, Editing_File *file){
     Assert(file != 0);
     
-    Editing_File *old_file = view->transient.file_data.file;
+    Editing_File *old_file = view->file_data.file;
     if (old_file != 0){
         file_touch(&models->working_set, old_file);
-        edit_pos_push(old_file, view->transient.edit_pos);
+        file_edit_positions_push(old_file, view_get_edit_pos(view));
     }
     
-    block_zero(&view->transient.file_data, sizeof(view->transient.file_data));
-    view->transient.file_data.file = file;
+    block_zero(&view->file_data, sizeof(view->file_data));
+    view->file_data.file = file;
     
-    view->transient.edit_pos = edit_pos_pop(file);
+    File_Edit_Positions edit_pos = file_edit_positions_pop(file);
+    view_set_edit_pos(view, edit_pos);
+    view->mark = edit_pos.cursor_pos;
+    view_set_preferred_x_to_current_position(system, view);
     
     Font_Pointers font = system->font.get_pointers_by_id(file->settings.font_id);
-    view->transient.line_height = font.metrics->height;
-    
-    if (view->transient.edit_pos.cursor.line == 0){
-        view_cursor_move(system, view, 0);
-    }
+    view->line_height = font.metrics->height;
 }
 
 ////////////////////////////////
@@ -344,7 +353,7 @@ file_is_viewed(Layout *layout, Editing_File *file){
          panel != 0;
          panel = layout_get_next_open_panel(layout, panel)){
         View *view = panel->view;
-        if (view->transient.file_data.file == file){
+        if (view->file_data.file == file){
             is_viewed = true;
             break;
         }
@@ -355,22 +364,14 @@ file_is_viewed(Layout *layout, Editing_File *file){
 internal void
 adjust_views_looking_at_file_to_new_cursor(System_Functions *system, Models *models, Editing_File *file){
     Layout *layout = &models->layout;
-    
     for (Panel *panel = layout_get_first_open_panel(layout);
          panel != 0;
          panel = layout_get_next_open_panel(layout, panel)){
         View *view = panel->view;
-        if (view->transient.file_data.file == file){
-            if (!view->transient.file_data.show_temp_highlight){
-                i32 pos = view->transient.edit_pos.cursor.pos;
-                Full_Cursor cursor = file_compute_cursor(system, file, seek_pos(pos), 0);
-                view_set_cursor(view, cursor, 1, file->settings.unwrapped_lines);
-            }
-            else{
-                i32 pos = view->transient.file_data.temp_highlight.pos;
-                i32 end = view->transient.file_data.temp_highlight_end_pos;
-                view_set_temp_highlight(system, view, pos, end);
-            }
+        if (view->file_data.file == file){
+            File_Edit_Positions edit_pos = view_get_edit_pos(view);
+            Full_Cursor cursor = file_compute_cursor(system, file, seek_pos(edit_pos.cursor_pos));
+            view_set_cursor(system, view, cursor, true);
         }
     }
 }
@@ -383,13 +384,12 @@ file_full_remeasure(System_Functions *system, Models *models, Editing_File *file
     adjust_views_looking_at_file_to_new_cursor(system, models, file);
     
     Layout *layout = &models->layout;
-    
     for (Panel *panel = layout_get_first_open_panel(layout);
          panel != 0;
          panel = layout_get_next_open_panel(layout, panel)){
         View *view = panel->view;
-        if (view->transient.file_data.file == file){
-            view->transient.line_height = font.metrics->height;
+        if (view->file_data.file == file){
+            view->line_height = font.metrics->height;
         }
     }
 }
@@ -476,9 +476,7 @@ finalize_color(Theme *theme_data, u32 color){
 }
 
 internal void
-get_visual_markers(Partition *arena, Dynamic_Workspace *workspace,
-                   Range range, Buffer_ID buffer_id, i32 view_index,
-                   Theme *theme_data){
+get_visual_markers(Partition *arena, Dynamic_Workspace *workspace, Range range, Buffer_ID buffer_id, i32 view_index, Theme *theme_data){
     View_ID view_id = view_index + 1;
     for (Managed_Buffer_Markers_Header *node = workspace->buffer_markers_list.first;
          node != 0;
@@ -549,8 +547,9 @@ get_visual_markers(Partition *arena, Dynamic_Workspace *workspace,
                                 if (range_b.first > range_b.one_past_last){
                                     Swap(i32, range_b.first, range_b.one_past_last);
                                 }
-                                if (!((range.min - range_b.max <= 0) &&
-                                      (range.max - range_b.min >= 0))) continue;
+                                if (!((range.min - range_b.max <= 0) && (range.max - range_b.min >= 0))) {
+                                    continue;
+                                }
                                 
                                 Render_Marker *render_marker = push_array(arena, Render_Marker, 1);
                                 render_marker->type = type;
@@ -775,7 +774,7 @@ internal void
 render_loaded_file_in_view__inner(Models *models, Render_Target *target, View *view,
                                   i32_Rect rect, Full_Cursor render_cursor, Range on_screen_range,
                                   Buffer_Render_Item *items, i32 item_count){
-    Editing_File *file = view->transient.file_data.file;
+    Editing_File *file = view->file_data.file;
     Partition *part = &models->mem.part;
     Style *style = &models->styles.styles[0];
     
@@ -794,7 +793,7 @@ render_loaded_file_in_view__inner(Models *models, Render_Target *target, View *v
     {
         Lifetime_Object *lifetime_object = file->lifetime_object;
         Buffer_ID buffer_id = file->id.id;
-        i32 view_index = view->persistent.id;
+        i32 view_index = view_get_index(&models->live_set, view);
         Theme *theme_data = &style->theme;
         
         get_visual_markers(part, &lifetime_object->workspace, on_screen_range, buffer_id, view_index, theme_data);
@@ -970,7 +969,7 @@ render_loaded_file_in_view__inner(Models *models, Render_Target *target, View *v
                 char_color = ghost_color;
             }
             
-            if (view->transient.file_data.show_whitespace && highlight_color == 0 && codepoint_is_whitespace(item->codepoint)){
+            if (view->file_data.show_whitespace && highlight_color == 0 && codepoint_is_whitespace(item->codepoint)){
                 highlight_this_color = style->theme.colors[Stag_Highlight_White];
             }
             else{
@@ -1170,16 +1169,48 @@ do_core_render(Application_Links *app){
     Range on_screen_range = models->render_range;
     Buffer_Render_Item *items = models->render_items;
     i32 item_count = models->render_item_count;
-    render_loaded_file_in_view__inner(models, target, view,
-                                      rect, render_cursor, on_screen_range,
-                                      items, item_count);
+    render_loaded_file_in_view__inner(models, target, view, rect, render_cursor, on_screen_range, items, item_count);
+}
+
+internal Full_Cursor
+view_get_render_cursor(System_Functions *system, View *view, f32 scroll_y){
+    Full_Cursor result = {};
+    Editing_File *file = view->file_data.file;
+    if (file->settings.unwrapped_lines){
+        result = file_compute_cursor_hint(system, file, seek_unwrapped_xy(0, scroll_y, false));
+    }
+    else{
+        result = file_compute_cursor(system, file, seek_wrapped_xy(0, scroll_y, false));
+    }
+    return(result);
+}
+
+internal Full_Cursor
+view_get_render_cursor(System_Functions *system, View *view){
+    File_Edit_Positions edit_pos = view_get_edit_pos(view);
+    f32 scroll_y = edit_pos.scroll.scroll_y;
+    // NOTE(allen): For now we will temporarily adjust scroll_y to try
+    // to prevent the view moving around until floating sections are added
+    // to the gui system.
+    scroll_y += view->widget_height;
+    return(view_get_render_cursor(system, view, scroll_y));
+}
+
+internal Full_Cursor
+view_get_render_cursor_target(System_Functions *system, View *view){
+    File_Edit_Positions edit_pos = view_get_edit_pos(view);
+    f32 scroll_y = (f32)edit_pos.scroll.target_y;
+    // NOTE(allen): For now we will temporarily adjust scroll_y to try
+    // to prevent the view moving around until floating sections are added
+    // to the gui system.
+    scroll_y += view->widget_height;
+    return(view_get_render_cursor(system, view, scroll_y));
 }
 
 internal void
-render_loaded_file_in_view(System_Functions *system, View *view, Models *models,
-                           i32_Rect rect, b32 is_active, Render_Target *target){
-    Editing_File *file = view->transient.file_data.file;
-    i32 line_height = view->transient.line_height;
+render_loaded_file_in_view(System_Functions *system, View *view, Models *models, i32_Rect rect, b32 is_active, Render_Target *target){
+    Editing_File *file = view->file_data.file;
+    i32 line_height = view->line_height;
     
     f32 max_x = (f32)file->settings.display_width;
     i32 max_y = rect.y1 - rect.y0 + line_height;
@@ -1202,23 +1233,21 @@ render_loaded_file_in_view(System_Functions *system, View *view, Models *models,
     Face_ID font_id = file->settings.font_id;
     Font_Pointers font = system->font.get_pointers_by_id(font_id);
     
-    f32 scroll_x = view->transient.edit_pos.scroll.scroll_x;
-    f32 scroll_y = view->transient.edit_pos.scroll.scroll_y;
+    File_Edit_Positions edit_pos = view_get_edit_pos(view);
+    f32 scroll_x = edit_pos.scroll.scroll_x;
+    f32 scroll_y = edit_pos.scroll.scroll_y;
     
     // NOTE(allen): For now we will temporarily adjust scroll_y to try
     // to prevent the view moving around until floating sections are added
     // to the gui system.
-    scroll_y += view->transient.widget_height;
+    scroll_y += view->widget_height;
     
-    Full_Cursor render_cursor = {};
-    if (!file->settings.unwrapped_lines){
-        render_cursor = file_compute_cursor(system, file, seek_wrapped_xy(0, scroll_y, 0), true);
-    }
-    else{
-        render_cursor = file_compute_cursor(system, file, seek_unwrapped_xy(0, scroll_y, 0), true);
-    }
+    Full_Cursor render_cursor = view_get_render_cursor(system, view);
     
-    view->transient.edit_pos.scroll_i = render_cursor.pos;
+#if 0    
+    // TODO(allen): do(eliminate scroll_i nonsense)
+    view->edit_pos_.scroll_i = render_cursor.pos;
+#endif
     
     i32 item_count = 0;
     i32 end_pos = 0;
@@ -1297,13 +1326,14 @@ render_loaded_file_in_view(System_Functions *system, View *view, Models *models,
     ////////////////////////////////
     
     if (models->render_caller != 0){
+        View_ID view_id = view_get_id(&models->live_set, view);
         models->render_view = view;
         models->render_rect = rect;
         models->render_cursor = render_cursor;
         models->render_range = on_screen_range;
         models->render_items = items;
         models->render_item_count = item_count;
-        models->render_caller(&models->app_links, view->persistent.id + 1, on_screen_range, do_core_render);
+        models->render_caller(&models->app_links, view_id, on_screen_range, do_core_render);
         models->render_view = 0;
     }
     else{

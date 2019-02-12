@@ -65,24 +65,6 @@ end_map(Bind_Helper *helper){
 }
 
 static void
-bind(Bind_Helper *helper, Key_Code code, uint8_t modifiers, Command_ID cmdid){
-    if (helper->group == 0 && helper->error == 0){
-        helper->error = BH_ERR_MISSING_BEGIN;
-    }
-    if (!helper->error){
-        ++helper->group->map_begin.bind_count;
-    }
-    
-    Binding_Unit unit;
-    unit.type = unit_binding;
-    unit.binding.command_id = cmdid;
-    unit.binding.code = code;
-    unit.binding.modifiers = modifiers;
-    
-    write_unit(helper, unit);
-}
-
-static void
 bind(Bind_Helper *helper, Key_Code code, uint8_t modifiers, Custom_Command_Function *func){
     if (helper->group == 0 && helper->error == 0){
         helper->error = BH_ERR_MISSING_BEGIN;
@@ -102,27 +84,12 @@ bind(Bind_Helper *helper, Key_Code code, uint8_t modifiers, Custom_Command_Funct
 
 static void
 bind(Bind_Helper *helper, Key_Code code, uint8_t modifiers, Generic_Command cmd){
-    if (cmd.cmdid < cmdid_count){
-        bind(helper, code, modifiers, cmd.cmdid);
-    }
-    else{
-        bind(helper, code, modifiers, cmd.command);
-    }
-}
-
-static void
-bind_vanilla_keys(Bind_Helper *helper, int32_t cmdid){
-    bind(helper, 0, 0, cmdid);
+    bind(helper, code, modifiers, cmd.command);
 }
 
 static void
 bind_vanilla_keys(Bind_Helper *helper, Custom_Command_Function *func){
     bind(helper, 0, 0, func);
-}
-
-static void
-bind_vanilla_keys(Bind_Helper *helper, unsigned char modifiers, int32_t cmdid){
-    bind(helper, 0, modifiers, cmdid);
 }
 
 static void
@@ -301,12 +268,7 @@ exec_command(Application_Links *app, Custom_Command_Function *func){
 
 static void
 exec_command(Application_Links *app, Generic_Command cmd){
-    if (cmd.cmdid < cmdid_count){
-        exec_command(app, cmd.cmdid);
-    }
-    else{
-        exec_command(app, cmd.command);
-    }
+    exec_command(app, cmd.command);
 }
 
 static int32_t
@@ -735,7 +697,8 @@ get_view_range(View_Summary *view){
 }
 
 static bool32
-read_line(Application_Links *app, Partition *part, Buffer_Summary *buffer, int32_t line, String *str){
+read_line(Application_Links *app, Partition *part, Buffer_Summary *buffer, int32_t line, String *str,
+          Partial_Cursor *start_out, Partial_Cursor *one_past_last_out){
     Partial_Cursor begin = {};
     Partial_Cursor end = {};
     
@@ -749,10 +712,13 @@ read_line(Application_Links *app, Partition *part, Buffer_Summary *buffer, int32
                     char *memory = push_array(part, char, alloc_size);
                     if (memory != 0){
                         *str = make_string(memory, 0, alloc_size);
-                        success = true;
                         buffer_read_range(app, buffer, begin.pos, end.pos, str->str);
                         str->size = size;
                         terminate_with_null(str);
+                        
+                        *start_out = begin;
+                        *one_past_last_out = end;
+                        success = true;
                     }
                 }
             }
@@ -760,6 +726,12 @@ read_line(Application_Links *app, Partition *part, Buffer_Summary *buffer, int32
     }
     
     return(success);
+}
+
+static bool32
+read_line(Application_Links *app, Partition *part, Buffer_Summary *buffer, int32_t line, String *str){
+    Partial_Cursor ignore = {};
+    return(read_line(app, part, buffer, line, str, &ignore, &ignore));
 }
 
 static int32_t
@@ -1606,6 +1578,25 @@ view_set_split_proportion(Application_Links *app, View_Summary *view, float t){
 static bool32
 view_set_split_pixel_size(Application_Links *app, View_Summary *view, int32_t t){
     return(view_set_split(app, view, ViewSplitKind_FixedPixels, (float)t));
+}
+
+////////////////////////////////
+
+static Record_Info
+get_single_record(Application_Links *app, Buffer_ID buffer_id, History_Record_Index index){
+    Buffer_Summary buffer = get_buffer(app, buffer_id, AccessOpen);
+    Record_Info record = buffer_history_get_record_info(app, &buffer, index);
+    if (record.error == RecordError_NoError && record.kind == RecordKind_Group){
+        record = buffer_history_get_group_sub_record(app, &buffer, index, record.group.count);
+    }
+    return(record);
+}
+
+////////////////////////////////
+
+static void
+view_buffer_set(Application_Links *app, Buffer_ID *buffers, int32_t count){
+    // TODO(allen): do(implement view_buffer_set)
 }
 
 // BOTTOM

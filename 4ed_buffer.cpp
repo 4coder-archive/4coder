@@ -112,71 +112,66 @@ buffer_batch_debug_sort_check(Buffer_Edit *sorted_edits, i32 edit_count){
     return(result);
 }
 
-internal i32
-buffer_batch_edit_max_shift(Buffer_Edit *sorted_edits, i32 edit_count){
-    i32 i = 0;
-    i32 shift_total = 0, shift_max = 0;
-    
-    Buffer_Edit *edit = sorted_edits;
-    for (i = 0; i < edit_count; ++i, ++edit){
-        shift_total += (edit->len - (edit->end - edit->start));
-        if (shift_total > shift_max){
-            shift_max = shift_total;
-        }
-    }
-    
-    return(shift_max);
-}
+// TODO(allen): This now relies on Edit and Edit_Array from 4ed_edit.h even though we sort of think of that
+// as cheating... gotta rethink the separation of buffer from everything else moving forward or something.
 
 internal i32
-buffer_batch_edit_update_cursors(Cursor_With_Index *sorted_positions, i32 count, Buffer_Edit *sorted_edits, i32 edit_count, b32 lean_right){
+buffer_batch_edit_update_cursors(Cursor_With_Index *sorted_positions, i32 count, Edit_Array sorted_edits, b32 lean_right){
     Cursor_With_Index *position = sorted_positions;
-    Cursor_With_Index *end_position = sorted_positions + count;
-    Buffer_Edit *edit = sorted_edits;
-    Buffer_Edit *end_edit = sorted_edits + edit_count;
-    i32 shift_amount = 0;
+    Cursor_With_Index *one_past_last_position = sorted_positions + count;
+    Edit *edit = sorted_edits.vals;
+    Edit *one_past_last_edit = sorted_edits.vals + sorted_edits.count;
     
+    i32 shift_amount = 0;
     if (lean_right){
-        for (; edit < end_edit && position < end_position; ++edit){
-            i32 start = edit->start;
-            i32 end = edit->end;
+        for (;edit < one_past_last_edit && position < one_past_last_position;
+             ++edit){
+            i32 start = edit->range.first;
+            i32 end = edit->range.one_past_last;
             
-            for (; position->pos < start && position < end_position; ++position){
+            for (;position->pos < start && position < one_past_last_position;
+                 ++position){
                 position->pos += shift_amount;
             }
             
-            i32 new_end = start + edit->len + shift_amount;
-            for (; position->pos <= end && position < end_position; ++position){
+            i32 new_end = start + edit->length + shift_amount;
+            for (;position->pos <= end && position < one_past_last_position;
+                 ++position){
                 position->pos = new_end;
             }
             
-            shift_amount += (edit->len - (end - start));
+            shift_amount += (edit->length - (end - start));
         }
     }
     else{
-        for (; edit < end_edit && position < end_position; ++edit){
-            i32 start = edit->start;
-            i32 end = edit->end;
+        for (;edit < one_past_last_edit && position < one_past_last_position;
+             ++edit){
+            i32 start = edit->range.first;
+            i32 end = edit->range.one_past_last;
             
-            for (; position->pos < start && position < end_position; ++position){
+            for (;position->pos < start && position < one_past_last_position;
+                 ++position){
                 position->pos += shift_amount;
             }
             
             i32 new_end = start + shift_amount;
-            for (; position->pos <= end && position < end_position; ++position){
+            for (;position->pos <= end && position < one_past_last_position;
+                 ++position){
                 position->pos = new_end;
             }
             
-            shift_amount += (edit->len - (end - start));
+            shift_amount += (edit->length - (end - start));
         }
     }
     
-    for (; position < end_position; ++position){
+    for (;position < one_past_last_position;
+         ++position){
         position->pos += shift_amount;
     }
     
-    for (; edit < end_edit; ++edit){
-        shift_amount += (edit->len - (edit->end - edit->start));
+    for (;edit < one_past_last_edit;
+         ++edit){
+        shift_amount += (edit->length - (edit->range.one_past_last - edit->range.first));
     }
     
     return(shift_amount);
@@ -471,21 +466,25 @@ buffer_replace_range(Gap_Buffer *buffer, i32 start, i32 end, char *str, i32 len,
 // TODO(allen): do(optimize Gap_Buffer batch edit)
 // Now that we are just using Gap_Buffer we could afford to improve
 // this for the Gap_Buffer's behavior.
-internal i32
-buffer_batch_edit_step(Buffer_Batch_State *state, Gap_Buffer *buffer, Buffer_Edit *sorted_edits, char *strings, i32 edit_count,
-                       void *scratch, i32 scratch_size, i32 *request_amount){
-    Buffer_Edit *edit = 0;
-    i32 shift_total = state->shift_total;
-    i32 result = 0;
+
+// TODO(allen): This now relies on Edit and Edit_Array from 4ed_edit.h even though we sort of think of that
+// as cheating... gotta rethink the separation of buffer from everything else moving forward or something.
+
+internal b32
+buffer_batch_edit_step(Buffer_Batch_State *state, Gap_Buffer *buffer, Edit_Array sorted_edits, void *scratch, i32 scratch_size, i32 *request_amount){
+    b32 result = false;
     
+    i32 shift_total = state->shift_total;
     i32 i = state->i;
-    edit = sorted_edits + i;
-    for (; i < edit_count; ++i, ++edit){
-        i32 start = edit->start + shift_total;
-        i32 end = edit->end + shift_total;
-        i32 len = edit->len;
-        i32 shift_amount = buffer_replace_range_compute_shift(start, end, len);
-        result = buffer_replace_range(buffer, start, end, strings + edit->str_start, len, shift_amount, scratch, scratch_size, request_amount);
+    
+    Edit *edit = sorted_edits.vals + i;
+    for (; i < sorted_edits.count; ++i, ++edit){
+        char *str = edit->str;
+        i32 length = edit->length;
+        i32 start = edit->range.first + shift_total;
+        i32 end = edit->range.one_past_last + shift_total;
+        i32 shift_amount = buffer_replace_range_compute_shift(start, end, length);
+        result = buffer_replace_range(buffer, start, end, str, length, shift_amount, scratch, scratch_size, request_amount);
         if (result){
             break;
         }
@@ -551,6 +550,11 @@ buffer_stringify(Gap_Buffer *buffer, i32 start, i32 end, char *out){
             still_looping = buffer_stringify_next(&stream);
         }while(still_looping);
     }
+}
+
+internal void
+buffer_stringify_range(Gap_Buffer *buffer, Range range, char *out){
+    buffer_stringify(buffer, range.first, range.one_past_last, out);
 }
 
 internal i32

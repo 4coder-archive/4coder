@@ -19,25 +19,19 @@ to_file_id(i32 id){
 ////////////////////////////////
 
 internal void
-edit_pos_set_cursor(File_Edit_Positions *edit_pos, Full_Cursor cursor, b32 set_preferred_x, b32 unwrapped_lines){
-    edit_pos->cursor = cursor;
-    if (set_preferred_x){
-        edit_pos->preferred_x = cursor.wrapped_x;
-        if (unwrapped_lines){
-            edit_pos->preferred_x = cursor.unwrapped_x;
-        }
-    }
+file_edit_positions_set_cursor(File_Edit_Positions *edit_pos, i32 pos){
+    edit_pos->cursor_pos = pos;
     edit_pos->last_set_type = EditPos_CursorSet;
 }
 
 internal void
-edit_pos_set_scroll(File_Edit_Positions *edit_pos, GUI_Scroll_Vars scroll){
+file_edit_positions_set_scroll(File_Edit_Positions *edit_pos, GUI_Scroll_Vars scroll){
     edit_pos->scroll = scroll;
     edit_pos->last_set_type = EditPos_ScrollSet;
 }
 
 internal void
-edit_pos_push(Editing_File *file, File_Edit_Positions edit_pos){
+file_edit_positions_push(Editing_File *file, File_Edit_Positions edit_pos){
     if (file->state.edit_pos_stack_top + 1 < ArrayCount(file->state.edit_pos_stack)){
         file->state.edit_pos_stack_top += 1;
         file->state.edit_pos_stack[file->state.edit_pos_stack_top] = edit_pos;
@@ -45,11 +39,14 @@ edit_pos_push(Editing_File *file, File_Edit_Positions edit_pos){
 }
 
 internal File_Edit_Positions
-edit_pos_pop(Editing_File *file){
+file_edit_positions_pop(Editing_File *file){
     File_Edit_Positions edit_pos = {};
     if (file->state.edit_pos_stack_top >= 0){
         edit_pos = file->state.edit_pos_stack[file->state.edit_pos_stack_top];
         file->state.edit_pos_stack_top -= 1;
+    }
+    else{
+        edit_pos = file->state.edit_pos_most_recent;
     }
     return(edit_pos);
 }
@@ -215,6 +212,8 @@ file_compute_partial_cursor(Editing_File *file, Buffer_Seek seek, Partial_Cursor
             *cursor = buffer_partial_from_line_character(&file->state.buffer, seek.line, seek.character);
         }break;
         
+        // TODO(allen): do(support buffer_seek_character_pos and character_pos coordiantes in partial cursor system)
+        
         default:
         {
             result = false;
@@ -224,7 +223,7 @@ file_compute_partial_cursor(Editing_File *file, Buffer_Seek seek, Partial_Cursor
 }
 
 internal Full_Cursor
-file_compute_cursor(System_Functions *system, Editing_File *file, Buffer_Seek seek, b32 return_hint){
+file_compute_cursor__inner(System_Functions *system, Editing_File *file, Buffer_Seek seek, b32 return_hint){
     Font_Pointers font = system->font.get_pointers_by_id(file->settings.font_id);
     Assert(font.valid);
     
@@ -247,10 +246,10 @@ file_compute_cursor(System_Functions *system, Editing_File *file, Buffer_Seek se
     i32 size = buffer_size(params.buffer);
     
     f32 line_shift = 0.f;
-    b32 do_wrap = 0;
+    b32 do_wrap = false;
     i32 wrap_unit_end = 0;
     
-    b32 first_wrap_determination = 1;
+    b32 first_wrap_determination = true;
     i32 wrap_array_index = 0;
     
     do{
@@ -259,7 +258,7 @@ file_compute_cursor(System_Functions *system, Editing_File *file, Buffer_Seek se
             case BLStatus_NeedWrapDetermination:
             {
                 if (stop.pos >= size){
-                    do_wrap = 0;
+                    do_wrap = false;
                     wrap_unit_end = max_i32;
                 }
                 else{
@@ -267,18 +266,18 @@ file_compute_cursor(System_Functions *system, Editing_File *file, Buffer_Seek se
                         wrap_array_index = binary_search(file->state.wrap_positions, stop.pos, 0, file->state.wrap_position_count);
                         ++wrap_array_index;
                         if (file->state.wrap_positions[wrap_array_index] == stop.pos){
-                            do_wrap = 1;
+                            do_wrap = true;
                             wrap_unit_end = file->state.wrap_positions[wrap_array_index];
                         }
                         else{
-                            do_wrap = 0;
+                            do_wrap = false;
                             wrap_unit_end = file->state.wrap_positions[wrap_array_index];
                         }
-                        first_wrap_determination = 0;
+                        first_wrap_determination = false;
                     }
                     else{
                         Assert(stop.pos == wrap_unit_end);
-                        do_wrap = 1;
+                        do_wrap = true;
                         ++wrap_array_index;
                         wrap_unit_end = file->state.wrap_positions[wrap_array_index];
                     }
@@ -294,6 +293,16 @@ file_compute_cursor(System_Functions *system, Editing_File *file, Buffer_Seek se
     }while(stop.status != BLStatus_Finished);
     
     return(result);
+}
+
+internal Full_Cursor
+file_compute_cursor(System_Functions *system, Editing_File *file, Buffer_Seek seek){
+    return(file_compute_cursor__inner(system, file, seek, false));
+}
+
+internal Full_Cursor
+file_compute_cursor_hint(System_Functions *system, Editing_File *file, Buffer_Seek seek){
+    return(file_compute_cursor__inner(system, file, seek, true));
 }
 
 ////////////////////////////////
@@ -441,31 +450,7 @@ file_create_from_string(System_Functions *system, Models *models, Editing_File *
     
     file->settings.read_only = ((flags & FileCreateFlag_ReadOnly) != 0);
     if (!file->settings.read_only){
-        // TODO(allen): Redo undo system (if you don't mind the pun)
-        i32 request_size = KB(64);
-        file->state.undo.undo.max = request_size;
-        file->state.undo.undo.strings = (u8*)heap_allocate(heap, request_size);
-        file->state.undo.undo.edit_max = request_size/sizeof(Edit_Step);
-        file->state.undo.undo.edits = (Edit_Step*)heap_allocate(heap, request_size);
-        
-        file->state.undo.redo.max = request_size;
-        file->state.undo.redo.strings = (u8*)heap_allocate(heap, request_size);
-        file->state.undo.redo.edit_max = request_size/sizeof(Edit_Step);
-        file->state.undo.redo.edits = (Edit_Step*)heap_allocate(heap, request_size);
-        
-        file->state.undo.history.max = request_size;
-        file->state.undo.history.strings = (u8*)heap_allocate(heap, request_size);
-        file->state.undo.history.edit_max = request_size/sizeof(Edit_Step);
-        file->state.undo.history.edits = (Edit_Step*)heap_allocate(heap, request_size);
-        
-        file->state.undo.children.max = request_size;
-        file->state.undo.children.strings = (u8*)heap_allocate(heap, request_size);
-        file->state.undo.children.edit_max = request_size/sizeof(Buffer_Edit);
-        file->state.undo.children.edits = (Buffer_Edit*)heap_allocate(heap, request_size);
-        
-        file->state.undo.history_block_count = 1;
-        file->state.undo.history_head_block = 0;
-        file->state.undo.current_block_normal = 1;
+        history_init(&models->app_links, &file->state.history);
     }
     
     // TODO(allen): do(cleanup the create and settings dance)
@@ -491,8 +476,7 @@ file_create_from_string(System_Functions *system, Models *models, Editing_File *
 }
 
 internal void
-file_free(System_Functions *system, Application_Links *app, Heap *heap, Lifetime_Allocator *lifetime_allocator,
-          Editing_File *file){
+file_free(System_Functions *system, Heap *heap, Lifetime_Allocator *lifetime_allocator, Editing_File *file){
     if (file->state.still_lexing){
         system->cancel_job(BACKGROUND_THREADS, file->state.lex_job);
         if (file->state.swap_array.tokens){
@@ -516,19 +500,7 @@ file_free(System_Functions *system, Application_Links *app, Heap *heap, Lifetime
     heap_free(heap, file->state.character_starts);
     heap_free(heap, file->state.line_indents);
     
-    if (file->state.undo.undo.edits){
-        heap_free(heap, file->state.undo.undo.strings);
-        heap_free(heap, file->state.undo.undo.edits);
-        
-        heap_free(heap, file->state.undo.redo.strings);
-        heap_free(heap, file->state.undo.redo.edits);
-        
-        heap_free(heap, file->state.undo.history.strings);
-        heap_free(heap, file->state.undo.history.edits);
-        
-        heap_free(heap, file->state.undo.children.strings);
-        heap_free(heap, file->state.undo.children.edits);
-    }
+    history_free(heap, &file->state.history);
 }
 
 internal void
@@ -541,6 +513,13 @@ internal void
 init_read_only_file(System_Functions *system, Models *models, Editing_File *file){
     String val = null_string;
     file_create_from_string(system, models, file, val, FileCreateFlag_ReadOnly);
+}
+
+////////////////////////////////
+
+internal i32
+file_get_current_record_index(Editing_File *file){
+    return(file->state.current_record_index);
 }
 
 // BOTTOM

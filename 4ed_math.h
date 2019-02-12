@@ -209,7 +209,7 @@ V4(f32 x, f32 y, f32 z, f32 w){
 }
 
 internal Vec2_i32
-V2(i32 x, i32 y){
+V2i32(i32 x, i32 y){
     Vec2_i32 result = {};
     result.x = x;
     result.y = y;
@@ -217,7 +217,7 @@ V2(i32 x, i32 y){
 }
 
 internal Vec3_i32
-V3(i32 x, i32 y, i32 z){
+V3i32(i32 x, i32 y, i32 z){
     Vec3_i32 result = {};
     result.x = x;
     result.y = y;
@@ -226,7 +226,7 @@ V3(i32 x, i32 y, i32 z){
 }
 
 internal Vec4_i32
-V4(i32 x, i32 y, i32 z, i32 w){
+V4i32(i32 x, i32 y, i32 z, i32 w){
     Vec4_i32 result = {};
     result.x = x;
     result.y = y;
@@ -734,12 +734,14 @@ rgba_to_hsla(Vec4 rgba){
 
 internal Vec4
 hsla_to_rgba(Vec4 hsla){
-    if (hsla.h >= 1.f) hsla.h = 0.f;
-    Vec4 rgba = {};
+    if (hsla.h >= 1.f){
+        hsla.h = 0.f;
+    }
     f32 C = (1.f - ABS(2*hsla.z - 1.f))*hsla.y;
     f32 X = C*(1.f-ABS(MOD(hsla.x*6.f, 2)-1.f));
     f32 m = hsla.z - C*.5f;
     i32 H = floor32(hsla.x*6.f);
+    Vec4 rgba = {};
     rgba.a = hsla.a;
     switch (H){
         case 0: rgba.r = C; rgba.g = X; rgba.b = 0; break;
@@ -760,7 +762,7 @@ hsla_to_rgba(Vec4 hsla){
 //
 
 internal i32_Rect
-i32R(int32_t l, int32_t t, int32_t r, int32_t b){
+i32R(i32 l, i32 t, i32 r, i32 b){
     i32_Rect rect = {};
     rect.x0 = l;
     rect.y0 = t;
@@ -771,45 +773,46 @@ i32R(int32_t l, int32_t t, int32_t r, int32_t b){
 
 internal i32_Rect
 i32R(f32_Rect r){
-    i32_Rect rect;
-    rect.x0 = (int32_t)r.x0;
-    rect.y0 = (int32_t)r.y0;
-    rect.x1 = (int32_t)r.x1;
-    rect.y1 = (int32_t)r.y1;
+    i32_Rect rect = {};
+    rect.x0 = (i32)r.x0;
+    rect.y0 = (i32)r.y0;
+    rect.x1 = (i32)r.x1;
+    rect.y1 = (i32)r.y1;
     return(rect);
 }
 
 internal f32_Rect
-f32R(float l, float t, float r, float b){
-    f32_Rect rect;
-    rect.x0 = l; rect.y0 = t;
-    rect.x1 = r; rect.y1 = b;
+f32R(f32 l, f32 t, f32 r, f32 b){
+    f32_Rect rect = {};
+    rect.x0 = l;
+    rect.y0 = t;
+    rect.x1 = r;
+    rect.y1 = b;
     return(rect);
 }
 
 internal f32_Rect
 f32R(i32_Rect r){
-    f32_Rect rect;
-    rect.x0 = (float)r.x0;
-    rect.y0 = (float)r.y0;
-    rect.x1 = (float)r.x1;
-    rect.y1 = (float)r.y1;
+    f32_Rect rect = {};
+    rect.x0 = (f32)r.x0;
+    rect.y0 = (f32)r.y0;
+    rect.x1 = (f32)r.x1;
+    rect.y1 = (f32)r.y1;
     return(rect);
 }
 
-internal int32_t
+internal i32
 rect_equal(i32_Rect r1, i32_Rect r2){
-    int32_t result = (r1.x0 == r2.x0 && r1.y0 == r2.y0 && r1.x1 == r2.x1 && r1.y1 == r2.y1);
-    return(result);
+    return(r1.x0 == r2.x0 && r1.y0 == r2.y0 && r1.x1 == r2.x1 && r1.y1 == r2.y1);
 }
 
-internal int32_t
-hit_check(int32_t x, int32_t y, int32_t x0, int32_t y0, int32_t x1, int32_t y1){
+internal i32
+hit_check(i32 x, i32 y, i32 x0, i32 y0, i32 x1, i32 y1){
     return(x >= x0 && x < x1 && y >= y0 && y < y1);
 }
 
-internal int32_t
-hit_check(int32_t x, int32_t y, i32_Rect rect){
+internal i32
+hit_check(i32 x, i32 y, i32_Rect rect){
     return(hit_check(x, y, rect.x0, rect.y0, rect.x1, rect.y1));
 }
 
@@ -833,26 +836,40 @@ get_inner_rect(f32_Rect outer, f32 margin){
     return(r);
 }
 
-internal int32_t
+internal i32
+rect_height(i32_Rect rect){
+    return(rect.y1 - rect.y0);
+}
+
+internal i32
+rect_width(i32_Rect rect){
+    return(rect.x1 - rect.x0);
+}
+
+internal i32
 fits_inside(i32_Rect rect, i32_Rect outer){
     return(rect.x0 >= outer.x0 && rect.x1 <= outer.x1 && rect.y0 >= outer.y0 && rect.y1 <= outer.y1);
 }
 
-static int32_t
-interval_overlap(float a0, float a1, float b0, float b1){
-    if ((a0 <= b0 && b0 < a1) || (b0 <= a0 && a0 < b1)){
-        return(true);
-    }
-    return(false);
+internal i32
+interval_overlap(f32 a0, f32 a1, f32 b0, f32 b1){
+    return(a0 < b1 && b0 < a1);
 }
 
-static int32_t
-rect_opverlap(f32_Rect a, f32_Rect b){
-    if (interval_overlap(a.x0, a.x1, b.x0, b.x1) &&
-        interval_overlap(a.y0, a.y1, b.y0, b.y1)){
-        return(true);
-    }
-    return(false);
+internal i32
+rect_overlap(f32_Rect a, f32_Rect b){
+    return(interval_overlap(a.x0, a.x1, b.x0, b.x1) &&
+           interval_overlap(a.y0, a.y1, b.y0, b.y1));
+}
+
+internal f32
+rect_height(f32_Rect rect){
+    return(rect.y1 - rect.y0);
+}
+
+internal f32
+rect_width(f32_Rect rect){
+    return(rect.x1 - rect.x0);
 }
 
 // BOTTOM

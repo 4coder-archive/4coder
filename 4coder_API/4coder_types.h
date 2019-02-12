@@ -56,18 +56,6 @@ ENUM(uint32_t, Key_Modifier_Flag){
     MDFR_SHIFT = 0x8,
 };
 
-/* DOC(A Command_ID is used as a name for commands implemented internally in 4coder.) */
-ENUM(uint64_t, Command_ID){
-    /* DOC(cmdid_null is set aside to always be zero and is not associated with any command.) */
-    cmdid_null,
-    /* DOC(cmdid_undo performs a standard undo behavior.) */
-    cmdid_undo,
-    /* DOC(cmdid_redo reperforms an edit that was undone.) */
-    cmdid_redo,
-    // count
-    cmdid_count
-};
-
 /* DOC(Flags for describing the memory protection status of pages that come back from memory allocate.  Some combinations may not be available on some platforms, but you are gauranteed to get back a page with at least the permissions you requested.  For example if you request just write permission, you may get back a page with read and write permission, but you will never get back a page that doesn't have write permission.) */
 ENUM(uint32_t, Memory_Protect_Flags){
     /* DOC(Allows the page to be read.) */
@@ -139,6 +127,9 @@ ENUM(int32_t, Buffer_Setting_ID){
     
     /* DOC(The BufferSetting_VirtualWhitespace setting enables virtual whitespace on a buffer. Text buffers with virtual whitespace will set the indentation of every line to zero. Buffers with lexing enabled will use virtual white space to present the code with appealing indentation.) */
     BufferSetting_VirtualWhitespace,
+    
+    /* DOC(TODO) */
+    BufferSetting_RecordsHistory,
 };
 
 /* DOC(A View_Setting_ID names an adjustable setting in a view.) */
@@ -479,15 +470,10 @@ STRUCT GUI_Scroll_Vars{
     float   scroll_y;
     /* DOC(The target y position to which the view is moving.  If scroll_y is not the same value, then it is still sliding to the target by the smooth scroll rule.) */
     int32_t target_y;
-    /* DOC(The previous value of target y.  This value should be ignored as it is the "vestigial" remain of a system that will not be around much longer.) */
-    int32_t prev_target_y;
-    
     /* DOC(The current actual x position of the view scroll.) */
     float   scroll_x;
     /* DOC(The target x position to which the view is moving.  If scroll_x is not the same value, then it is still sliding to the target by the smooth scroll rule.) */
     int32_t target_x;
-    /* DOC(The previous value of target x.  This value should be ignored as it is the "vestigial" remain of a system that will not be around much longer.) */
-    int32_t prev_target_x;
 };
 
 /* DOC(The Buffer_Seek_Type is is used in a Buffer_Seek to identify which coordinates are suppose to be used for the seek.)
@@ -573,17 +559,8 @@ STRUCT Partial_Cursor{
     int32_t character;
 };
 
-/* DOC(Buffer_Edit describes a range of a buffer and string to replace that range. A Buffer_Edit has to be paired with a string that contains the actual text that will be replaced into the buffer.) */
-STRUCT Buffer_Edit{
-    /* DOC(The str_start field specifies the first character in the accompanying string that corresponds with this edit.) */
-    int32_t str_start;
-    /* DOC(The len field specifies the length of the string being written into the buffer.) */
-    int32_t len;
-    /* DOC(The start field specifies the start of the range in the buffer to replace in absolute position.) */
-    int32_t start;
-    /* DOC(The end field specifies one past the end of the range in the buffer to replace in absolute position.) */
-    int32_t end;
-};
+TYPEDEF_FUNC bool32 Buffer_Edit_Handler(struct Application_Links *app, Buffer_ID buffer_id, int32_t start, int32_t one_past_last, String str);
+// TODO(allen): what to do with batches???
 
 /* DOC(Buffer_Summary acts as a handle to a buffer and describes the state of the buffer.)
 DOC_SEE(Access_Flag)
@@ -597,6 +574,9 @@ STRUCT Buffer_Summary{
     int32_t buffer_id;
     /* DOC(If this is not a null summary, this field contains flags describing the protection status of the buffer.) */
     Access_Flag lock_flags;
+    
+    /* DOC(TODO) */
+    Buffer_Edit_Handler *edit_handler;
     
     /* DOC(If this is not a null summary, this field specifies the number of bytes in the buffer.) */
     int32_t size;
@@ -993,8 +973,22 @@ ENUM(int32_t, Buffer_Batch_Edit_Type){
     BatchEdit_PreserveTokens
 };
 
+/* DOC(Buffer_Edit describes a range of a buffer and string to replace that range. A Buffer_Edit has to be paired with a string that contains the actual
+text that will be replaced into the buffer.) */
+STRUCT Buffer_Edit{
+    /* DOC(The str_start field specifies the first character in the accompanying string that corresponds with this edit.) */
+    int32_t str_start;
+    /* DOC(The len field specifies the length of the string being written into the buffer.) */
+    int32_t len;
+    /* DOC(The start field specifies the start of the range in the buffer to replace in absolute position.) */
+    int32_t start;
+    /* DOC(The end field specifies one past the end of the range in the buffer to replace in absolute position.) */
+    int32_t end;
+};
+
 /*
 DOC(This struct is used to bundle the parameters of the buffer_batch_edit function.  It is convenient for a few functions that return a batch edit to the user.)
+DOC_SEE(Buffer_Edit)
 DOC_SEE(buffer_batch_edit)
 */
 STRUCT Buffer_Batch_Edit{
@@ -1009,6 +1003,48 @@ STRUCT Buffer_Batch_Edit{
     int32_t edit_count;
 };
 
+ENUM(int32_t, Record_Kind){
+    RecordKind_Single,
+    RecordKind_Batch,
+    RecordKind_Group,
+};
+
+ENUM(int32_t, Record_Error){
+    RecordError_NoError,
+    RecordError_InvalidBuffer,
+    RecordError_NoHistoryAttached,
+    RecordError_IndexOutOfBounds,
+    RecordError_InitialStateDummyRecord,
+    RecordError_WrongRecordTypeAtIndex,
+};
+
+ENUM(uint32_t, Record_Merge_Flag){
+    RecordMergeFlag_StateInRange_MoveStateForward = 0x0,
+    RecordMergeFlag_StateInRange_MoveStateBackward = 0x1,
+    RecordMergeFlag_StateInRange_ErrorOut = 0x2,
+};
+
+TYPEDEF int32_t History_Record_Index;
+
+STRUCT Record_Info{
+    Record_Error error;
+    Record_Kind kind;
+    int32_t edit_number;
+    union{
+        struct{
+            String string_forward;
+            String string_backward;
+            int32_t first;
+        } single;
+        struct{
+            Buffer_Batch_Edit_Type type;
+            int32_t count;
+        } batch;
+        struct{
+            int32_t count;
+        } group;
+    };
+};
 
 /* DOC(Custom_Command_Function is a function type which matches the signature used for commands.  To declare a command use CUSTOM_COMMAND_SIG.) DOC_SEE(CUSTOM_COMMAND_SIG) */
 TYPEDEF void Custom_Command_Function(struct Application_Links *app);
@@ -1029,10 +1065,7 @@ TYPEDEF void Custom_Command_Function(struct Application_Links *app);
 
 /* DOC(Generic_Command acts as a name for a command, and can name an internal command or a custom command.) */
 UNION Generic_Command{
-    /* DOC(If this Generic_Command represents an internal command the cmdid field will have a value less than cmdid_count, and this field is the command id for the command.) */
-    Command_ID cmdid;
-    /* DOC(If this Generic_Command does not represent an internal command the command
-    field is the pointer to the custom command..) */
+    /* DOC(If this Generic_Command does not represent an internal command the command field is the pointer to the custom command..) */
     Custom_Command_Function *command;
 };
 
@@ -1159,7 +1192,6 @@ DOC_SEE(Binding_Unit)
 ENUM(int32_t, Binding_Unit_Type){
     unit_header,
     unit_map_begin,
-    unit_binding,
     unit_callback,
     unit_inherit,
     unit_hook
@@ -1185,7 +1217,6 @@ STRUCT Binding_Unit{
         STRUCT{ int32_t total_size; int32_t user_map_count; int32_t error; } header;
         STRUCT{ int32_t mapid; int32_t replace; int32_t bind_count; } map_begin;
         STRUCT{ int32_t mapid; } map_inherit;
-        STRUCT{ Key_Code code; uint8_t modifiers; Command_ID command_id; } binding;
         STRUCT{ Key_Code code; uint8_t modifiers; Custom_Command_Function *func; } callback;
         STRUCT{ int32_t hook_id; void *func; } hook;
     };
