@@ -627,8 +627,13 @@ search_buffer_edit_handler__inner(Application_Links *app, Partition *part, Buffe
     
     // NOTE(allen): activate jumps
     if (match(text, "\n")){
-        // TODO(allen): do(determine when shift is held here and do *same_panel* version of goto_jump_at_cursor_sticky)
-        goto_jump_at_cursor_sticky(app);
+        User_Input in = get_command_input(app);
+        if (in.key.modifiers[MDFR_SHIFT_INDEX]){
+            goto_jump_at_cursor_same_panel_sticky(app);
+        }
+        else{
+            goto_jump_at_cursor_sticky(app);
+        }
         lock_jump_buffer(buffer);
         return(false);
     }

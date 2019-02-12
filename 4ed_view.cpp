@@ -303,14 +303,6 @@ view_set_cursor_and_scroll(View *view, Full_Cursor cursor, b32 set_preferred_x, 
 }
 
 internal void
-view_cursor_move(System_Functions *system, View *view, i32 pos){
-    Editing_File *file = view->file_data.file;
-    Assert(file != 0);
-    Full_Cursor cursor = file_compute_cursor(system, file, seek_pos(pos));
-    view_set_cursor(system, view, cursor, true);
-}
-
-internal void
 view_post_paste_effect(View *view, f32 seconds, i32 start, i32 size, u32 color){
     Editing_File *file = view->file_data.file;
     file->state.paste_effect.start = start;

@@ -81,9 +81,9 @@ file_cursor_to_end(System_Functions *system, Models *models, Editing_File *file)
         if (view->file_data.file != file){
             continue;
         }
-        view_cursor_move(system, view, pos);
-        File_Edit_Positions edit_pos = view_get_edit_pos(view);
-        view->mark = edit_pos.cursor_pos;
+        Full_Cursor cursor = file_compute_cursor(system, file, seek_pos(pos));
+        view_set_cursor(system, view, cursor, true);
+        view->mark = cursor.pos;
     }
 }
 

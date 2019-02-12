@@ -45,7 +45,7 @@ write_character_parameter(Application_Links *app, uint8_t *character, uint32_t l
         }
         
         // NOTE(allen): perform the edit
-        buffer_replace_range(app, &buffer, pos, pos, (char*)character, length);
+        bool32 edit_success = buffer_replace_range(app, &buffer, pos, pos, (char*)character, length);
         
         // NOTE(allen): finish merging records if necessary
         if (do_merge){
@@ -56,7 +56,9 @@ write_character_parameter(Application_Links *app, uint8_t *character, uint32_t l
         // NOTE(allen): finish updating the cursor
         managed_object_load_data(app, handle, 0, 1, &next_cursor_marker);
         managed_object_free(app, handle);
-        view_set_cursor(app, &view, seek_pos(next_cursor_marker.pos), true);
+        if (edit_success){
+            view_set_cursor(app, &view, seek_pos(next_cursor_marker.pos), true);
+        }
     }
 }
 
@@ -107,8 +109,9 @@ CUSTOM_DOC("Deletes the character to the left of the cursor.")
             Full_Cursor cursor = {};
             view_compute_cursor(app, &view, seek_character_pos(view.cursor.character_pos - 1), &cursor);
             int32_t start = cursor.pos;
-            buffer_replace_range(app, &buffer, start, end, 0, 0);
-            view_set_cursor(app, &view, seek_character_pos(view.cursor.character_pos - 1), true);
+            if (buffer_replace_range(app, &buffer, start, end, 0, 0)){
+                view_set_cursor(app, &view, seek_character_pos(view.cursor.character_pos - 1), true);
+            }
         }
     }
 }

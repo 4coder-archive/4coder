@@ -61,6 +61,9 @@ struct File_Name_Entry{
 internal void
 file_mark_edit_finished(Working_Set *working_set, Editing_File *file);
 
+internal b32
+file_unmark_edit_finished(Editing_File *file);
+
 #endif
 
 // BOTTOM

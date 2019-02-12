@@ -501,6 +501,8 @@ file_free(System_Functions *system, Heap *heap, Lifetime_Allocator *lifetime_all
     heap_free(heap, file->state.line_indents);
     
     history_free(heap, &file->state.history);
+    
+    file_unmark_edit_finished(file);
 }
 
 internal void
