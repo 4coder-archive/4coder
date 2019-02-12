@@ -635,6 +635,9 @@ list__parameters(Application_Links *app, Heap *heap, Partition *scratch,
     Buffer_ID search_buffer_id = create_or_switch_to_buffer_by_name(app, search_name.str, search_name.size, default_target_view);
     Buffer_Summary search_buffer = get_buffer(app, search_buffer_id, AccessAll);
     
+    // Setup the search buffer for 'init' mode - the history will begin only AFTER the buffer is filled
+    buffer_set_setting(app, &search_buffer, BufferSetting_RecordsHistory, false);
+    
     // Initialize a generic search all buffers
     Search_Set set = {};
     Search_Iter iter = {};
@@ -678,6 +681,7 @@ list__parameters(Application_Links *app, Heap *heap, Partition *scratch,
     
     // Setup the search buffer for 'reference editing' mode
     buffer_set_setting(app, &search_buffer, BufferSetting_ReadOnly, false);
+    buffer_set_setting(app, &search_buffer, BufferSetting_RecordsHistory, true);
     buffer_set_edit_handler(app, search_buffer_id, search_buffer_edit_handler);
 }
 

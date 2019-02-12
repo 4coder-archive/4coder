@@ -119,7 +119,11 @@ global_history_get_edit_number(Global_History *global_history){
 
 internal void
 global_history_adjust_edit_grouping_counter(Global_History *global_history, i32 adjustment){
+    i32 original = global_history->edit_grouping_counter;
     global_history->edit_grouping_counter = clamp_bottom(0, global_history->edit_grouping_counter + adjustment);
+    if (global_history->edit_grouping_counter == 0 && original > 0){
+        global_history->edit_number_counter += 1;
+    }
 }
 
 internal void

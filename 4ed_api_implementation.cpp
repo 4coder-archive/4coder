@@ -3327,7 +3327,7 @@ DOC_RETURN(Returns true if the given id was a valid face and the change was made
 }
 
 API_EXPORT History_Record_Index
-Buffer_History_Newest_Record_Index(Application_Links *app, Buffer_Summary *buffer){
+Buffer_History_Get_Max_Record_Index(Application_Links *app, Buffer_Summary *buffer){
     Models *models = (Models*)app->cmd_context;
     Editing_File *file = imp_get_file(models, buffer);
     History_Record_Index result = 0;

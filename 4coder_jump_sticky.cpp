@@ -665,7 +665,8 @@ search_buffer_edit_handler__inner(Application_Links *app, Partition *part, Buffe
         return(false);
     }
     
-    int32_t editable_start = line_start + colon_index + 2;
+    int32_t editable_start_from_line_start = colon_index + 2;
+    int32_t editable_start = line_start + editable_start_from_line_start;
     int32_t editable_one_past_last = line_one_past_last;
     if (!(editable_start <= start && one_past_last <= editable_one_past_last)){
         return(false);
@@ -710,6 +711,11 @@ search_buffer_edit_handler__inner(Application_Links *app, Partition *part, Buffe
         return(false);
     }
     
+    String editable_string = substr(line, editable_start_from_line_start, editable_one_past_last - editable_start);
+    if (!match(skip_chop_whitespace(target_line), editable_string)){
+        return(false);
+    }
+    
     int32_t target_line_start = target_line_start_cursor.pos;
     //int32_t target_line_one_past_last = target_line_one_past_last_cursor.pos;
     
@@ -720,13 +726,15 @@ search_buffer_edit_handler__inner(Application_Links *app, Partition *part, Buffe
     int32_t edit_range_shift = target_editable_start - editable_start;
     
     // NOTE(allen): try to apply the edits
+    global_history_edit_group_begin(app);
+    bool32 result = false;
     if (buffer_replace_range(app, &target_buffer, start + edit_range_shift, one_past_last + edit_range_shift, text.str, text.size)){
         if (buffer_replace_range(app, &buffer, start, one_past_last, text.str, text.size)){
-            return(true);
+            result = true;
         }
     }
-    
-    return(false);
+    global_history_edit_group_end(app);
+    return(result);
 }
 
 static bool32
