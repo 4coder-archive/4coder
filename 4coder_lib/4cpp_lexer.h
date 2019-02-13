@@ -1620,7 +1620,12 @@ DOC_SEE(cpp_relex_is_start_chunk)
     state.end_token_index = range.end_token_index;
     state.original_end_token_index = range.end_token_index;
     
-    state.relex_start_position = array->tokens[state.start_token_index].start;
+    if (state.start_token_index < array->count){
+        state.relex_start_position = array->tokens[state.start_token_index].start;
+    }
+    else{
+        state.relex_start_position = 0;
+    }
     if (start_pos < state.relex_start_position){
         state.relex_start_position = start_pos;
     }
@@ -1628,7 +1633,12 @@ DOC_SEE(cpp_relex_is_start_chunk)
     state.character_shift_amount = character_shift_amount;
     
     state.lex = cpp_lex_data_init(ignore_string_delims, keywords, preprocessor_words);
-    state.lex.pp_state = cpp_token_get_pp_state(array->tokens[state.start_token_index].state_flags);
+    if (state.start_token_index < array->count){
+        state.lex.pp_state = cpp_token_get_pp_state(array->tokens[state.start_token_index].state_flags);
+    }
+    else{
+        state.lex.pp_state = 0;
+    }
     state.lex.pos = state.relex_start_position;
     
     return(state);
