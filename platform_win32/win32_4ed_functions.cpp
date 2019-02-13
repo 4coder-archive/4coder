@@ -334,77 +334,76 @@ Sys_Get_Canonical_Sig(system_get_canonical){
     return(result);
 }
 
+internal File_Attributes
+win32_file_attributes_from_HANDLE(HANDLE file){
+    BY_HANDLE_FILE_INFORMATION info = {};
+    GetFileInformationByHandle(file, &info);
+    File_Attributes result = {};
+    result.size = ((u64)info.nFileSizeHigh << 32LL) | ((u64)info.nFileSizeLow);
+    result.last_write_time = ((u64)info.ftLastWriteTime.dwHighDateTime << 32LL) | ((u64)info.ftLastWriteTime.dwLowDateTime);
+    return(result);
+}
+
 internal
 Sys_Load_Handle_Sig(system_load_handle){
     b32 result = false;
     HANDLE file = CreateFile_utf8(&shared_vars.scratch, (u8*)filename, GENERIC_READ, 0, 0, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
-    
     if (file != INVALID_HANDLE_VALUE){
         *(HANDLE*)handle_out = file;
         result = true;
     }
-    
     return(result);
 }
 
 internal
-Sys_Load_Size_Sig(system_load_size){
-    u32 result = 0;
+Sys_Load_Attributes_Sig(system_load_attributes){
     HANDLE file = *(HANDLE*)(&handle);
-    
-    DWORD hi = 0;
-    DWORD lo = GetFileSize(file, &hi);
-    
-    if (hi == 0){
-        result = lo;
-    }
-    
-    return(result);
+    return(win32_file_attributes_from_HANDLE(file));
 }
 
 internal
 Sys_Load_File_Sig(system_load_file){
-    b32 result = 0;
     HANDLE file = *(HANDLE*)(&handle);
-    
     DWORD read_size = 0;
-    
+    b32 result = false;
     if (ReadFile(file, buffer, size, &read_size, 0)){
         if (read_size == size){
-            result = 1;
+            result = true;
         }
     }
-    
     return(result);
 }
 
 internal
 Sys_Load_Close_Sig(system_load_close){
-    b32 result = 0;
+    b32 result = false;
     HANDLE file = *(HANDLE*)(&handle);
     if (CloseHandle(file)){
-        result = 1;
+        result = true;
     }
     return(result);
 }
 
 internal
 Sys_Save_File_Sig(system_save_file){
-    b32 result = false;
+    File_Attributes result = {};
     HANDLE file = CreateFile_utf8(&shared_vars.scratch, (u8*)filename, GENERIC_WRITE, 0, 0, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, 0);
     
     if (file != INVALID_HANDLE_VALUE){
         DWORD written_total = 0;
         DWORD written_size = 0;
         
-        result = true;
-        
-        while (written_total < size){
+        b32 success = true;
+        for (;written_total < size;){
             if (!WriteFile(file, buffer + written_total, size - written_total, &written_size, 0)){
-                result = 0;
+                success = false;
                 break;
             }
             written_total += written_size;
+        }
+        
+        if (success){
+            result = win32_file_attributes_from_HANDLE(file);
         }
         
         CloseHandle(file);

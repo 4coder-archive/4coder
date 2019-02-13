@@ -106,6 +106,7 @@ struct Editing_File{
     b32 is_loading;
     b32 is_dummy;
     Editing_File_State state;
+    File_Attributes attributes;
     Lifetime_Object *lifetime_object;
     Editing_File_Name base_name;
     Editing_File_Name unique_name;

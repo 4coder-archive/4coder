@@ -181,10 +181,12 @@ save_file_to_name(System_Functions *system, Models *models, Editing_File *file, 
             }
         }
         
-        result = system->save_file(file_name, data, size);
-        
-        if (result && using_actual_file_name){
-            file->state.ignore_behind_os = 1;
+        File_Attributes new_attributes = system->save_file(file_name, data, size);
+        if (new_attributes.last_write_time > 0){
+            if (using_actual_file_name){
+                file->state.ignore_behind_os = 1;
+            }
+            file->attributes = new_attributes;
         }
         
         file_set_dirty_flag(file, DirtyState_UpToDate);
@@ -413,12 +415,12 @@ file_allocate_wrap_positions_as_needed(Heap *heap, Editing_File *file, i32 min_l
 ////////////////////////////////
 
 internal void
-file_create_from_string(System_Functions *system, Models *models, Editing_File *file, String val, u32 flags){
+file_create_from_string(System_Functions *system, Models *models, Editing_File *file, String val, File_Attributes attributes, u32 flags){
     Heap *heap = &models->mem.heap;
     Partition *part = &models->mem.part;
     Application_Links *app_links = &models->app_links;
     
-    memset(&file->state, 0, sizeof(file->state));
+    block_zero_struct(&file->state);
     Gap_Buffer_Init init = buffer_begin_init(&file->state.buffer, val.str, val.size);
     for (; buffer_init_need_more(&init); ){
         i32 page_size = buffer_init_page_size(&init);
@@ -436,9 +438,10 @@ file_create_from_string(System_Functions *system, Models *models, Editing_File *
     AllowLocal(init_success); Assert(init_success);
     
     if (buffer_size(&file->state.buffer) < val.size){
-        file->settings.dos_write_mode = 1;
+        file->settings.dos_write_mode = true;
     }
     file_set_dirty_flag(file, DirtyState_UpToDate);
+    file->attributes = attributes;
     
     Face_ID font_id = models->global_font_id;
     file->settings.font_id = font_id;
@@ -515,15 +518,16 @@ file_free(System_Functions *system, Heap *heap, Lifetime_Allocator *lifetime_all
 }
 
 internal void
-init_normal_file(System_Functions *system, Models *models, char *buffer, i32 size, Editing_File *file){
+init_normal_file(System_Functions *system, Models *models, char *buffer, i32 size, File_Attributes attributes, Editing_File *file){
     String val = make_string(buffer, size);
-    file_create_from_string(system, models, file, val, 0);
+    file_create_from_string(system, models, file, val, attributes, 0);
 }
 
 internal void
 init_read_only_file(System_Functions *system, Models *models, Editing_File *file){
-    String val = null_string;
-    file_create_from_string(system, models, file, val, FileCreateFlag_ReadOnly);
+    String val = {};
+    File_Attributes attributes = {};
+    file_create_from_string(system, models, file, val, attributes, FileCreateFlag_ReadOnly);
 }
 
 ////////////////////////////////

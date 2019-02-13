@@ -562,6 +562,11 @@ STRUCT Partial_Cursor{
 TYPEDEF_FUNC bool32 Buffer_Edit_Handler(struct Application_Links *app, Buffer_ID buffer_id, int32_t start, int32_t one_past_last, String str);
 // TODO(allen): what to do with batches???
 
+STRUCT File_Attributes{
+    uint64_t size;
+    uint64_t last_write_time;
+};
+
 /* DOC(Buffer_Summary acts as a handle to a buffer and describes the state of the buffer.)
 DOC_SEE(Access_Flag)
 DOC_SEE(Dirty_State) */

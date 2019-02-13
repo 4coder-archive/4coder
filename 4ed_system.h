@@ -17,8 +17,6 @@ struct Plat_Handle{
     u32 d[4];
 };
 
-static Plat_Handle null_plat_handle = {};
-
 internal b32
 handle_equal(Plat_Handle a, Plat_Handle b){
     b32 result = (memcmp(&a, &b, sizeof(a)) == 0);
@@ -36,8 +34,8 @@ typedef Sys_Get_Canonical_Sig(System_Get_Canonical);
 #define Sys_Load_Handle_Sig(name) b32 name(char *filename, Plat_Handle *handle_out)
 typedef Sys_Load_Handle_Sig(System_Load_Handle);
 
-#define Sys_Load_Size_Sig(name) u32 name(Plat_Handle handle)
-typedef Sys_Load_Size_Sig(System_Load_Size);
+#define Sys_Load_Attributes_Sig(name) File_Attributes name(Plat_Handle handle)
+typedef Sys_Load_Attributes_Sig(System_Load_Attributes);
 
 #define Sys_Load_File_Sig(name) b32 name(Plat_Handle handle, char *buffer, u32 size)
 typedef Sys_Load_File_Sig(System_Load_File);
@@ -45,7 +43,7 @@ typedef Sys_Load_File_Sig(System_Load_File);
 #define Sys_Load_Close_Sig(name) b32 name(Plat_Handle handle)
 typedef Sys_Load_Close_Sig(System_Load_Close);
 
-#define Sys_Save_File_Sig(name) b32 name(char *filename, char *buffer, u32 size)
+#define Sys_Save_File_Sig(name) File_Attributes name(char *filename, char *buffer, u32 size)
 typedef Sys_Save_File_Sig(System_Save_File);
 
 // file changes
@@ -239,7 +237,7 @@ struct System_Functions{
     System_Remove_Listener *remove_listener;
     System_Get_File_Change *get_file_change;
     System_Load_Handle     *load_handle;
-    System_Load_Size       *load_size;
+    System_Load_Attributes *load_attributes;
     System_Load_File       *load_file;
     System_Load_Close      *load_close;
     System_Save_File       *save_file;

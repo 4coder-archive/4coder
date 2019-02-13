@@ -567,57 +567,6 @@ buffer_bind_name(Models *models, Heap *heap, Partition *scratch,
 
 ////////////////////////////////
 
-internal Editing_File*
-open_file(System_Functions *system, Models *models, String file_name){
-    Editing_File *file = 0;
-    Editing_File_Name canon_name = {};
-    
-    if (terminate_with_null(&file_name) &&
-        get_canon_name(system, file_name, &canon_name)){
-        Working_Set *working_set = &models->working_set;
-        file = working_set_contains_canon(working_set, canon_name.name);
-        if (file == 0){
-            Plat_Handle handle;
-            if (system->load_handle(canon_name.name.str, &handle)){
-                Mem_Options *mem = &models->mem;
-                Heap *heap = &mem->heap;
-                Partition *part = &mem->part;
-                
-                file = working_set_alloc_always(working_set, heap, &models->lifetime_allocator);
-                file_bind_file_name(system, heap, working_set, file, canon_name.name);
-                buffer_bind_name(models, heap, part, working_set, file, front_of_directory(file_name));
-                
-                Temp_Memory temp = begin_temp_memory(part);
-                
-                i32 size = system->load_size(handle);
-                char *buffer = push_array(part, char, size);
-                b32 gen_buffer = false;
-                if (buffer == 0){
-                    buffer = heap_array(heap, char, size);
-                    Assert(buffer != 0);
-                    gen_buffer = true;
-                }
-                
-                b32 good_load = system->load_file(handle, buffer, size);
-                system->load_close(handle);
-                if (good_load){
-                    init_normal_file(system, models, buffer, size, file);
-                }
-                
-                if (gen_buffer){
-                    heap_free(heap, buffer);
-                }
-                
-                end_temp_memory(temp);
-            }
-        }
-    }
-    
-    return(file);
-}
-
-////////////////////////////////
-
 internal void
 file_touch(Working_Set *working_set, Editing_File *file){
     Assert(file != 0);

@@ -1255,32 +1255,31 @@ DOC_SEE(Buffer_Create_Flag)
                             file_bind_file_name(system, heap, working_set, file, canon.name);
                         }
                         buffer_bind_name(models, heap, part, working_set, file, front_of_directory(file_name));
-                        init_normal_file(system, models, 0, 0, file);
+                        File_Attributes attributes = {};
+                        init_normal_file(system, models, 0, 0, attributes, file);
                         *new_buffer_id_out = file->id.id;
                         result = true;
                     }
                 }
             }
             else{
-                Assert(!handle_equal(handle, null_plat_handle));
-                
-                i32 size = system->load_size(handle);
+                File_Attributes attributes = system->load_attributes(handle);
                 b32 in_heap_mem = false;
-                char *buffer = push_array(part, char, size);
+                char *buffer = push_array(part, char, (i32)attributes.size);
                 
                 if (buffer == 0){
-                    buffer = heap_array(heap, char, size);
+                    buffer = heap_array(heap, char, (i32)attributes.size);
                     Assert(buffer != 0);
                     in_heap_mem = true;
                 }
                 
-                if (system->load_file(handle, buffer, size)){
+                if (system->load_file(handle, buffer, (i32)attributes.size)){
                     system->load_close(handle);
                     file = working_set_alloc_always(working_set, heap, &models->lifetime_allocator);
                     if (file != 0){
                         file_bind_file_name(system, heap, working_set, file, canon.name);
                         buffer_bind_name(models, heap, part, working_set, file, front_of_directory(file_name));
-                        init_normal_file(system, models, buffer, size, file);
+                        init_normal_file(system, models, buffer, (i32)attributes.size, attributes, file);
                         *new_buffer_id_out = file->id.id;
                         result = true;
                     }
@@ -1316,11 +1315,9 @@ DOC_SEE(Buffer_Create_Flag)
             }
         }
         
-        if (file != 0 && buffer_is_for_new_file &&
-            (flags & BufferCreate_SuppressNewFileHook) == 0){
-            if (models->hook_new_file != 0){
-                models->hook_new_file(&models->app_links, file->id.id);
-            }
+        if (file != 0 && buffer_is_for_new_file && (flags & BufferCreate_SuppressNewFileHook) == 0 &&
+            models->hook_new_file != 0){
+            models->hook_new_file(&models->app_links, file->id.id);
         }
         
         end_temp_memory(temp);
@@ -1450,14 +1447,14 @@ Buffer_Reopen(Application_Links *app, Buffer_ID buffer_id, Buffer_Reopen_Flag fl
         if (file->canon.name.str != 0 && file->canon.name.size != 0){
             Plat_Handle handle = {};
             if (system->load_handle(file->canon.name.str, &handle)){
-                i32 size = system->load_size(handle);
+                File_Attributes attributes = system->load_attributes(handle);
                 
                 Partition *part = &models->mem.part;
                 Temp_Memory temp = begin_temp_memory(part);
-                char *file_memory = push_array(part, char, size);
+                char *file_memory = push_array(part, char, (i32)attributes.size);
                 
                 if (file_memory != 0){
-                    if (system->load_file(handle, file_memory, size)){
+                    if (system->load_file(handle, file_memory, (i32)attributes.size)){
                         system->load_close(handle);
                         
                         // TODO(allen): try(perform a diff maybe apply edits in reopen)
@@ -1486,7 +1483,7 @@ Buffer_Reopen(Application_Links *app, Buffer_ID buffer_id, Buffer_Reopen_Flag fl
                         
                         file_free(system, &models->mem.heap, &models->lifetime_allocator, file);
                         working_set_file_default_settings(&models->working_set, file);
-                        init_normal_file(system, models, file_memory, size, file);
+                        init_normal_file(system, models, file_memory, (i32)attributes.size, attributes, file);
                         
                         for (i32 i = 0; i < vptr_count; ++i){
                             view_set_file(system, models, vptrs[i], file);
@@ -1513,6 +1510,19 @@ Buffer_Reopen(Application_Links *app, Buffer_ID buffer_id, Buffer_Reopen_Flag fl
     }
     
     return(*result == BufferReopenResult_Reopened);
+}
+
+API_EXPORT bool32
+Buffer_Get_File_Attributes(Application_Links *app, Buffer_ID buffer_id, File_Attributes *attributes_out)
+{
+    Models *models = (Models*)app->cmd_context;
+    Editing_File *file = imp_get_file(models, buffer_id);
+    if (buffer_api_check_file(file)){
+        block_copy(attributes_out, &file->attributes, sizeof(*attributes_out));
+        return(true);
+    }
+    block_zero_struct(attributes_out);
+    return(false);
 }
 
 internal View*

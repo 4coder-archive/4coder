@@ -10,7 +10,6 @@ bind(context, 'k', MDFR_CTRL, interactive_kill_buffer);
 bind(context, 'i', MDFR_CTRL, interactive_switch_buffer);
 bind(context, 'h', MDFR_CTRL, project_go_to_root_directory);
 bind(context, 'S', MDFR_CTRL, save_all_dirty_buffers);
-bind(context, key_print_screen, MDFR_NONE, toggle_filebar);
 bind(context, key_scroll_lock, MDFR_NONE, toggle_filebar);
 bind(context, key_pause, MDFR_NONE, toggle_filebar);
 bind(context, key_caps, MDFR_NONE, toggle_filebar);
@@ -385,7 +384,7 @@ Meta_Sub_Map *sub_maps;
 int32_t sub_map_count;
 LINK_PROCS(void (*fill_keys_proc)(Bind_Helper *context);)
 };
-static Meta_Key_Bind fcoder_binds_for_default_mapid_global[44] = {
+static Meta_Key_Bind fcoder_binds_for_default_mapid_global[43] = {
 {0, 44, 1, "change_active_panel", 19, LINK_PROCS(change_active_panel)},
 {0, 60, 1, "change_active_panel_backwards", 29, LINK_PROCS(change_active_panel_backwards)},
 {0, 110, 1, "interactive_new", 15, LINK_PROCS(interactive_new)},
@@ -395,7 +394,6 @@ static Meta_Key_Bind fcoder_binds_for_default_mapid_global[44] = {
 {0, 105, 1, "interactive_switch_buffer", 25, LINK_PROCS(interactive_switch_buffer)},
 {0, 104, 1, "project_go_to_root_directory", 28, LINK_PROCS(project_go_to_root_directory)},
 {0, 83, 1, "save_all_dirty_buffers", 22, LINK_PROCS(save_all_dirty_buffers)},
-{0, 55316, 0, "toggle_filebar", 14, LINK_PROCS(toggle_filebar)},
 {0, 55315, 0, "toggle_filebar", 14, LINK_PROCS(toggle_filebar)},
 {0, 55308, 0, "toggle_filebar", 14, LINK_PROCS(toggle_filebar)},
 {0, 55313, 0, "toggle_filebar", 14, LINK_PROCS(toggle_filebar)},
@@ -412,6 +410,7 @@ static Meta_Key_Bind fcoder_binds_for_default_mapid_global[44] = {
 {0, 88, 2, "project_command_lister", 22, LINK_PROCS(project_command_lister)},
 {0, 73, 1, "list_all_functions_all_buffers_lister", 37, LINK_PROCS(list_all_functions_all_buffers_lister)},
 {0, 69, 2, "exit_4coder", 11, LINK_PROCS(exit_4coder)},
+{0, 55325, 0, "project_fkey_command", 20, LINK_PROCS(project_fkey_command)},
 {0, 55326, 0, "project_fkey_command", 20, LINK_PROCS(project_fkey_command)},
 {0, 55327, 0, "project_fkey_command", 20, LINK_PROCS(project_fkey_command)},
 {0, 55328, 0, "project_fkey_command", 20, LINK_PROCS(project_fkey_command)},
@@ -427,16 +426,15 @@ static Meta_Key_Bind fcoder_binds_for_default_mapid_global[44] = {
 {0, 55338, 0, "project_fkey_command", 20, LINK_PROCS(project_fkey_command)},
 {0, 55339, 0, "project_fkey_command", 20, LINK_PROCS(project_fkey_command)},
 {0, 55340, 0, "project_fkey_command", 20, LINK_PROCS(project_fkey_command)},
-{0, 55341, 0, "project_fkey_command", 20, LINK_PROCS(project_fkey_command)},
-{0, 55321, 0, "mouse_wheel_scroll", 18, LINK_PROCS(mouse_wheel_scroll)},
-{0, 55321, 1, "mouse_wheel_change_face_size", 28, LINK_PROCS(mouse_wheel_change_face_size)},
+{0, 55320, 0, "mouse_wheel_scroll", 18, LINK_PROCS(mouse_wheel_scroll)},
+{0, 55320, 1, "mouse_wheel_change_face_size", 28, LINK_PROCS(mouse_wheel_change_face_size)},
 };
 static Meta_Key_Bind fcoder_binds_for_default_mapid_file[78] = {
 {1, 0, 0, "write_character", 15, LINK_PROCS(write_character)},
-{0, 55317, 0, "click_set_cursor_and_mark", 25, LINK_PROCS(click_set_cursor_and_mark)},
-{0, 55324, 0, "click_set_cursor_and_mark", 25, LINK_PROCS(click_set_cursor_and_mark)},
-{0, 55319, 0, "click_set_cursor", 16, LINK_PROCS(click_set_cursor)},
-{0, 55322, 0, "click_set_cursor_if_lbutton", 27, LINK_PROCS(click_set_cursor_if_lbutton)},
+{0, 55316, 0, "click_set_cursor_and_mark", 25, LINK_PROCS(click_set_cursor_and_mark)},
+{0, 55323, 0, "click_set_cursor_and_mark", 25, LINK_PROCS(click_set_cursor_and_mark)},
+{0, 55318, 0, "click_set_cursor", 16, LINK_PROCS(click_set_cursor)},
+{0, 55321, 0, "click_set_cursor_if_lbutton", 27, LINK_PROCS(click_set_cursor_if_lbutton)},
 {0, 55301, 0, "delete_char", 11, LINK_PROCS(delete_char)},
 {0, 55301, 8, "delete_char", 11, LINK_PROCS(delete_char)},
 {0, 55296, 0, "backspace_char", 14, LINK_PROCS(backspace_char)},
@@ -556,14 +554,14 @@ static Meta_Key_Bind fcoder_binds_for_default_default_lister_ui_map[16] = {
 {0, 55298, 0, "lister__move_down", 17, LINK_PROCS(lister__move_down)},
 {0, 106, 2, "lister__move_down", 17, LINK_PROCS(lister__move_down)},
 {0, 55306, 0, "lister__move_down", 17, LINK_PROCS(lister__move_down)},
-{0, 55321, 0, "lister__wheel_scroll", 20, LINK_PROCS(lister__wheel_scroll)},
-{0, 55317, 0, "lister__mouse_press", 19, LINK_PROCS(lister__mouse_press)},
-{0, 55319, 0, "lister__mouse_release", 21, LINK_PROCS(lister__mouse_release)},
+{0, 55320, 0, "lister__wheel_scroll", 20, LINK_PROCS(lister__wheel_scroll)},
+{0, 55316, 0, "lister__mouse_press", 19, LINK_PROCS(lister__mouse_press)},
+{0, 55318, 0, "lister__mouse_release", 21, LINK_PROCS(lister__mouse_release)},
+{0, 55321, 0, "lister__repaint", 15, LINK_PROCS(lister__repaint)},
 {0, 55322, 0, "lister__repaint", 15, LINK_PROCS(lister__repaint)},
-{0, 55323, 0, "lister__repaint", 15, LINK_PROCS(lister__repaint)},
 };
 static Meta_Sub_Map fcoder_submaps_for_default[4] = {
-{"mapid_global", 12, "The following bindings apply in all situations.", 47, 0, 0, fcoder_binds_for_default_mapid_global, 44},
+{"mapid_global", 12, "The following bindings apply in all situations.", 47, 0, 0, fcoder_binds_for_default_mapid_global, 43},
 {"mapid_file", 10, "The following bindings apply in general text files and most apply in code files, but some are overriden by other commands specific to code files.", 145, 0, 0, fcoder_binds_for_default_mapid_file, 78},
 {"default_code_map", 16, "The following commands only apply in files where the lexer (syntax highlighting) is turned on.", 94, "mapid_file", 10, fcoder_binds_for_default_default_code_map, 31},
 {"default_lister_ui_map", 21, "These commands apply in 'lister mode' such as when you open a file.", 67, 0, 0, fcoder_binds_for_default_default_lister_ui_map, 16},
@@ -591,6 +589,7 @@ static Meta_Key_Bind fcoder_binds_for_mac_default_mapid_global[40] = {
 {0, 88, 1, "project_command_lister", 22, LINK_PROCS(project_command_lister)},
 {0, 73, 4, "list_all_functions_all_buffers_lister", 37, LINK_PROCS(list_all_functions_all_buffers_lister)},
 {0, 69, 1, "exit_4coder", 11, LINK_PROCS(exit_4coder)},
+{0, 55325, 0, "project_fkey_command", 20, LINK_PROCS(project_fkey_command)},
 {0, 55326, 0, "project_fkey_command", 20, LINK_PROCS(project_fkey_command)},
 {0, 55327, 0, "project_fkey_command", 20, LINK_PROCS(project_fkey_command)},
 {0, 55328, 0, "project_fkey_command", 20, LINK_PROCS(project_fkey_command)},
@@ -606,17 +605,16 @@ static Meta_Key_Bind fcoder_binds_for_mac_default_mapid_global[40] = {
 {0, 55338, 0, "project_fkey_command", 20, LINK_PROCS(project_fkey_command)},
 {0, 55339, 0, "project_fkey_command", 20, LINK_PROCS(project_fkey_command)},
 {0, 55340, 0, "project_fkey_command", 20, LINK_PROCS(project_fkey_command)},
-{0, 55341, 0, "project_fkey_command", 20, LINK_PROCS(project_fkey_command)},
-{0, 55321, 0, "mouse_wheel_scroll", 18, LINK_PROCS(mouse_wheel_scroll)},
-{0, 55321, 4, "mouse_wheel_change_face_size", 28, LINK_PROCS(mouse_wheel_change_face_size)},
+{0, 55320, 0, "mouse_wheel_scroll", 18, LINK_PROCS(mouse_wheel_scroll)},
+{0, 55320, 4, "mouse_wheel_change_face_size", 28, LINK_PROCS(mouse_wheel_change_face_size)},
 };
 static Meta_Key_Bind fcoder_binds_for_mac_default_mapid_file[77] = {
 {1, 0, 0, "write_character", 15, LINK_PROCS(write_character)},
 {1, 0, 2, "write_character", 15, LINK_PROCS(write_character)},
-{0, 55317, 0, "click_set_cursor_and_mark", 25, LINK_PROCS(click_set_cursor_and_mark)},
-{0, 55324, 0, "click_set_cursor_and_mark", 25, LINK_PROCS(click_set_cursor_and_mark)},
-{0, 55319, 0, "click_set_cursor", 16, LINK_PROCS(click_set_cursor)},
-{0, 55322, 0, "click_set_cursor_if_lbutton", 27, LINK_PROCS(click_set_cursor_if_lbutton)},
+{0, 55316, 0, "click_set_cursor_and_mark", 25, LINK_PROCS(click_set_cursor_and_mark)},
+{0, 55323, 0, "click_set_cursor_and_mark", 25, LINK_PROCS(click_set_cursor_and_mark)},
+{0, 55318, 0, "click_set_cursor", 16, LINK_PROCS(click_set_cursor)},
+{0, 55321, 0, "click_set_cursor_if_lbutton", 27, LINK_PROCS(click_set_cursor_if_lbutton)},
 {0, 55301, 0, "delete_char", 11, LINK_PROCS(delete_char)},
 {0, 55301, 8, "delete_char", 11, LINK_PROCS(delete_char)},
 {0, 55296, 0, "backspace_char", 14, LINK_PROCS(backspace_char)},
@@ -732,11 +730,11 @@ static Meta_Key_Bind fcoder_binds_for_mac_default_default_lister_ui_map[14] = {
 {0, 55305, 0, "lister__move_up", 15, LINK_PROCS(lister__move_up)},
 {0, 55298, 0, "lister__move_down", 17, LINK_PROCS(lister__move_down)},
 {0, 55306, 0, "lister__move_down", 17, LINK_PROCS(lister__move_down)},
-{0, 55321, 0, "lister__wheel_scroll", 20, LINK_PROCS(lister__wheel_scroll)},
-{0, 55317, 0, "lister__mouse_press", 19, LINK_PROCS(lister__mouse_press)},
-{0, 55319, 0, "lister__mouse_release", 21, LINK_PROCS(lister__mouse_release)},
+{0, 55320, 0, "lister__wheel_scroll", 20, LINK_PROCS(lister__wheel_scroll)},
+{0, 55316, 0, "lister__mouse_press", 19, LINK_PROCS(lister__mouse_press)},
+{0, 55318, 0, "lister__mouse_release", 21, LINK_PROCS(lister__mouse_release)},
+{0, 55321, 0, "lister__repaint", 15, LINK_PROCS(lister__repaint)},
 {0, 55322, 0, "lister__repaint", 15, LINK_PROCS(lister__repaint)},
-{0, 55323, 0, "lister__repaint", 15, LINK_PROCS(lister__repaint)},
 };
 static Meta_Sub_Map fcoder_submaps_for_mac_default[4] = {
 {"mapid_global", 12, "The following bindings apply in all situations.", 47, 0, 0, fcoder_binds_for_mac_default_mapid_global, 40},

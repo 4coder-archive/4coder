@@ -41,36 +41,6 @@ init_shared_vars(){
 // General shared pieces
 //
 
-internal File_Data
-sysshared_load_file(char *filename){
-    File_Data result = {};
-    
-    Plat_Handle handle = {};
-    if (system_load_handle(filename, &handle)){
-        u32 size = system_load_size(handle);
-        
-        result.got_file = 1;
-        if (size > 0){
-            result.size = size;
-            result.data = (char*)system_memory_allocate(size+1);
-            
-            if (!result.data){
-                result = null_file_data;
-            }
-            else{
-                if (!system_load_file(handle, result.data, size)){
-                    system_memory_free(result.data, size+1);
-                    result = null_file_data;
-                }
-            }
-        }
-        
-        system_load_close(handle);
-    }
-    
-    return(result);
-}
-
 internal void
 sysshared_filter_real_files(char **files, i32 *file_count){
     i32 end = *file_count;

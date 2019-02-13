@@ -891,7 +891,8 @@ App_Init_Sig(app_init){
             init_read_only_file(system, models, file);
         }
         else{
-            init_normal_file(system, models, 0, 0, file);
+            File_Attributes attributes = {};
+            init_normal_file(system, models, 0, 0, attributes, file);
         }
         
         file->settings.never_kill = true;
@@ -988,24 +989,26 @@ App_Step_Sig(app_step){
     if (input->first_step){
         // Open command line files.
         char space[512];
-        String cl_filename = make_fixed_width_string(space);
-        copy_ss(&cl_filename, models->hot_directory.string);
-        i32 cl_filename_len = cl_filename.size;
+        String cl_file_name = make_fixed_width_string(space);
+        copy_ss(&cl_file_name, models->hot_directory.string);
+        i32 cl_file_name_len = cl_file_name.size;
         for (i32 i = 0; i < models->settings.init_files_count; ++i){
-            cl_filename.size = cl_filename_len;
+            cl_file_name.size = cl_file_name_len;
             
-            String filename = {};
+            String file_name = {};
             Editing_File_Name canon_name = {};
             if (get_canon_name(system, make_string_slowly(models->settings.init_files[i]),
                                &canon_name)){
-                filename = canon_name.name;
+                file_name = canon_name.name;
             }
             else{
-                append_sc(&cl_filename, models->settings.init_files[i]);
-                filename = cl_filename;
+                append_sc(&cl_file_name, models->settings.init_files[i]);
+                file_name = cl_file_name;
             }
             
-            open_file(system, models, filename);
+            //open_file(system, models, file_name);
+            Buffer_ID id = 0;
+            create_buffer(&models->app_links, file_name, 0, &id);
         }
         
         if (models->hook_start != 0){

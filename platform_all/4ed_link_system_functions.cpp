@@ -21,7 +21,7 @@ link_system_code(){
     SYSLINK(remove_listener);
     SYSLINK(get_file_change);
     SYSLINK(load_handle);
-    SYSLINK(load_size);
+    SYSLINK(load_attributes);
     SYSLINK(load_file);
     SYSLINK(load_close);
     SYSLINK(save_file);
