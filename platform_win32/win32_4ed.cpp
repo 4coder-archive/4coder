@@ -1408,6 +1408,23 @@ Win32KeycodeInit(void){
     keycode_lookup_table[VK_NEXT] = key_page_down;
     keycode_lookup_table[VK_ESCAPE] = key_esc;
     
+    keycode_lookup_table[VK_CONTROL] = key_ctrl;
+    keycode_lookup_table[VK_LCONTROL] = key_ctrl;
+    keycode_lookup_table[VK_RCONTROL] = key_ctrl;
+    
+    keycode_lookup_table[VK_MENU] = key_alt;
+    keycode_lookup_table[VK_LMENU] = key_alt;
+    keycode_lookup_table[VK_RMENU] = key_alt;
+    
+    keycode_lookup_table[VK_SHIFT] = key_shift;
+    keycode_lookup_table[VK_LSHIFT] = key_shift;
+    keycode_lookup_table[VK_RSHIFT] = key_shift;
+    
+    keycode_lookup_table[VK_PAUSE] = key_pause;
+    keycode_lookup_table[VK_CAPITAL] = key_caps;
+    keycode_lookup_table[VK_NUMLOCK] = key_num_lock;
+    keycode_lookup_table[VK_SCROLL] = key_scroll_lock;
+    
     keycode_lookup_table[VK_F1] = key_f1;
     keycode_lookup_table[VK_F2] = key_f2;
     keycode_lookup_table[VK_F3] = key_f3;
@@ -1719,32 +1736,28 @@ win32_proc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
                         control_keys[MDFR_ALT_INDEX] = alt;
                     }
                 }break;
+            }
+            
+            b8 current_state = ((lParam & bit_31)?(0):(1));
+            if (current_state){
+                Key_Code key = keycode_lookup_table[(u8)wParam];
                 
-                default:
-                {
-                    b8 current_state = ((lParam & bit_31)?(0):(1));
+                if (key != 0){
+                    i32 *count = &win32vars.input_chunk.trans.key_data.count;
+                    Key_Event_Data *data = win32vars.input_chunk.trans.key_data.keys;
+                    b8 *control_keys = win32vars.input_chunk.pers.control_keys;
+                    i32 control_keys_size = sizeof(win32vars.input_chunk.pers.control_keys);
                     
-                    if (current_state){
-                        Key_Code key = keycode_lookup_table[(u8)wParam];
-                        
-                        if (key != 0){
-                            i32 *count = &win32vars.input_chunk.trans.key_data.count;
-                            Key_Event_Data *data = win32vars.input_chunk.trans.key_data.keys;
-                            b8 *control_keys = win32vars.input_chunk.pers.control_keys;
-                            i32 control_keys_size = sizeof(win32vars.input_chunk.pers.control_keys);
-                            
-                            Assert(*count < KEY_INPUT_BUFFER_SIZE);
-                            data[*count].character = 0;
-                            data[*count].character_no_caps_lock = 0;
-                            data[*count].keycode = key;
-                            memcpy(data[*count].modifiers, control_keys, control_keys_size);
-                            ++(*count);
-                            
-                            win32vars.got_useful_event = true;
-                        }
-                    }
-                }break;
-            }/* switch */
+                    Assert(*count < KEY_INPUT_BUFFER_SIZE);
+                    data[*count].character = 0;
+                    data[*count].character_no_caps_lock = 0;
+                    data[*count].keycode = key;
+                    memcpy(data[*count].modifiers, control_keys, control_keys_size);
+                    ++(*count);
+                    
+                    win32vars.got_useful_event = true;
+                }
+            }
         }break;
         
         case WM_CHAR: case WM_SYSCHAR: case WM_UNICHAR:

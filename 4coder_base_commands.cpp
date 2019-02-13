@@ -23,7 +23,8 @@ write_character_parameter(Application_Links *app, uint8_t *character, uint32_t l
         managed_object_store_data(app, handle, 0, 1, &next_cursor_marker);
         
         // NOTE(allen): consecutive inserts merge logic
-        History_Record_Index first_index = buffer_history_get_current_state_index(app, &buffer);
+        History_Record_Index first_index = 0;
+        buffer_history_get_current_state_index(app, buffer.buffer_id, &first_index);
         bool32 do_merge = false;
         if (character[0] != '\n'){
             Record_Info record = get_single_record(app, buffer.buffer_id, first_index);
@@ -49,8 +50,9 @@ write_character_parameter(Application_Links *app, uint8_t *character, uint32_t l
         
         // NOTE(allen): finish merging records if necessary
         if (do_merge){
-            History_Record_Index last_index = buffer_history_get_current_state_index(app, &buffer);
-            buffer_history_merge_record_range(app, &buffer, first_index, last_index, RecordMergeFlag_StateInRange_MoveStateForward);
+            History_Record_Index last_index = 0;
+            buffer_history_get_current_state_index(app, buffer.buffer_id, &last_index);
+            buffer_history_merge_record_range(app, buffer.buffer_id, first_index, last_index, RecordMergeFlag_StateInRange_MoveStateForward);
         }
         
         // NOTE(allen): finish updating the cursor
@@ -1616,10 +1618,11 @@ CUSTOM_COMMAND_SIG(undo_this_buffer)
 CUSTOM_DOC("Advances backwards through the undo history of the current buffer.")
 {
     View_Summary view = get_active_view(app, AccessOpen);
-    Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessOpen);
-    History_Record_Index current = buffer_history_get_current_state_index(app, &buffer);
+    Buffer_ID buffer_id = view.buffer_id;
+    History_Record_Index current = 0;
+    buffer_history_get_current_state_index(app, buffer_id, &current);
     if (current > 0){
-        buffer_history_set_current_state_index(app, &buffer, current - 1);
+        buffer_history_set_current_state_index(app, buffer_id, current - 1);
     }
 }
 
@@ -1627,11 +1630,13 @@ CUSTOM_COMMAND_SIG(redo_this_buffer)
 CUSTOM_DOC("Advances forwards through the undo history of the current buffer.")
 {
     View_Summary view = get_active_view(app, AccessOpen);
-    Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessOpen);
-    History_Record_Index current = buffer_history_get_current_state_index(app, &buffer);
-    History_Record_Index max_index = buffer_history_get_max_record_index(app, &buffer);
+    Buffer_ID buffer_id = view.buffer_id;
+    History_Record_Index current = 0;
+    History_Record_Index max_index = 0;
+    buffer_history_get_current_state_index(app, buffer_id, &current);
+    buffer_history_get_max_record_index(app, buffer_id, &max_index);
     if (current < max_index){
-        buffer_history_set_current_state_index(app, &buffer, current + 1);
+        buffer_history_set_current_state_index(app, buffer_id, current + 1);
     }
 }
 
@@ -1647,9 +1652,11 @@ CUSTOM_DOC("Advances backward through the undo history in the buffer containing 
     for (Buffer_Summary buffer = get_buffer_first(app, AccessAll);
          buffer.exists;
          get_buffer_next(app, &buffer, AccessAll)){
-        History_Record_Index index = buffer_history_get_current_state_index(app, &buffer);
+        History_Record_Index index = 0;
+        buffer_history_get_current_state_index(app, buffer.buffer_id, &index);
         if (index > 0){
-            Record_Info record = buffer_history_get_record_info(app, &buffer, index);
+            Record_Info record = {};
+            buffer_history_get_record_info(app, buffer.buffer_id, index, &record);
             if (record.edit_number > highest_edit_number){
                 highest_edit_number = record.edit_number;
                 first_buffer_match = buffer.buffer_id;
@@ -1673,12 +1680,14 @@ CUSTOM_DOC("Advances backward through the undo history in the buffer containing 
              get_buffer_next(app, &buffer, AccessAll)){
             bool32 did_match = false;
             for (;;){
-                History_Record_Index index = buffer_history_get_current_state_index(app, &buffer);
+                History_Record_Index index = 0;
+                buffer_history_get_current_state_index(app, buffer.buffer_id, &index);
                 if (index > 0){
-                    Record_Info record = buffer_history_get_record_info(app, &buffer, index);
+                    Record_Info record = {};
+                    buffer_history_get_record_info(app, buffer.buffer_id, index, &record);
                     if (record.edit_number == highest_edit_number){
                         did_match = true;
-                        buffer_history_set_current_state_index(app, &buffer, index - 1);
+                        buffer_history_set_current_state_index(app, buffer.buffer_id, index - 1);
                     }
                     else{
                         break;
@@ -1715,10 +1724,13 @@ CUSTOM_DOC("Advances forward through the undo history in the buffer containing t
     for (Buffer_Summary buffer = get_buffer_first(app, AccessAll);
          buffer.exists;
          get_buffer_next(app, &buffer, AccessAll)){
-        History_Record_Index max_index = buffer_history_get_max_record_index(app, &buffer);
-        History_Record_Index index = buffer_history_get_current_state_index(app, &buffer);
+        History_Record_Index max_index = 0;
+        History_Record_Index index = 0;
+        buffer_history_get_max_record_index(app, buffer.buffer_id, &max_index);
+        buffer_history_get_current_state_index(app, buffer.buffer_id, &index);
         if (index < max_index){
-            Record_Info record = buffer_history_get_record_info(app, &buffer, index + 1);
+            Record_Info record = {};
+            buffer_history_get_record_info(app, buffer.buffer_id, index + 1, &record);
             if (record.edit_number < lowest_edit_number){
                 lowest_edit_number = record.edit_number;
                 first_buffer_match = buffer.buffer_id;
@@ -1741,14 +1753,17 @@ CUSTOM_DOC("Advances forward through the undo history in the buffer containing t
              buffer.exists;
              get_buffer_next(app, &buffer, AccessAll)){
             bool32 did_match = false;
-            History_Record_Index max_index = buffer_history_get_max_record_index(app, &buffer);
+            History_Record_Index max_index = 0;
+            buffer_history_get_max_record_index(app, buffer.buffer_id, &max_index);
             for (;;){
-                History_Record_Index index = buffer_history_get_current_state_index(app, &buffer);
+                History_Record_Index index = 0;
+                buffer_history_get_current_state_index(app, buffer.buffer_id, &index);
                 if (index < max_index){
-                    Record_Info record = buffer_history_get_record_info(app, &buffer, index + 1);
+                    Record_Info record = {};
+                    buffer_history_get_record_info(app, buffer.buffer_id, index + 1, &record);
                     if (record.edit_number == lowest_edit_number){
                         did_match = true;
-                        buffer_history_set_current_state_index(app, &buffer, index + 1);
+                        buffer_history_set_current_state_index(app, buffer.buffer_id, index + 1);
                     }
                     else{
                         break;

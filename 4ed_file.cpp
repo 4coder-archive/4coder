@@ -53,6 +53,15 @@ file_edit_positions_pop(Editing_File *file){
 
 ////////////////////////////////
 
+internal u32
+file_get_access_flags(Editing_File *file){
+    u32 flags = 0;
+    if (file->settings.read_only){
+        flags |= AccessProtected;
+    }
+    return(flags);
+}
+
 internal b32
 file_needs_save(Editing_File *file){
     b32 result = false;
@@ -109,17 +118,17 @@ file_set_dirty_flag(Editing_File *file, Dirty_State state){
 ////////////////////////////////
 
 internal b32
-save_file_to_name(System_Functions *system, Models *models, Editing_File *file, char *filename){
+save_file_to_name(System_Functions *system, Models *models, Editing_File *file, char *file_name){
     b32 result = false;
-    b32 using_actual_filename = false;
+    b32 using_actual_file_name = false;
     
-    if (filename == 0){
+    if (file_name == 0){
         terminate_with_null(&file->canon.name);
-        filename = file->canon.name.str;
-        using_actual_filename = true;
+        file_name = file->canon.name.str;
+        using_actual_file_name = true;
     }
     
-    if (filename != 0){
+    if (file_name != 0){
         Mem_Options *mem = &models->mem;
         if (models->hook_save_file != 0){
             models->hook_save_file(&models->app_links, file->id.id);
@@ -161,20 +170,20 @@ save_file_to_name(System_Functions *system, Models *models, Editing_File *file, 
             buffer_stringify(buffer, 0, size, data);
         }
         
-        if (!using_actual_filename && file->canon.name.str != 0){
+        if (!using_actual_file_name && file->canon.name.str != 0){
             char space[512];
-            u32 length = str_size(filename);
-            system->get_canonical(filename, length, space, sizeof(space));
+            u32 length = str_size(file_name);
+            system->get_canonical(file_name, length, space, sizeof(space));
             
             char *source_path = file->canon.name.str;
             if (match(space, source_path)){
-                using_actual_filename = true;
+                using_actual_file_name = true;
             }
         }
         
-        result = system->save_file(filename, data, size);
+        result = system->save_file(file_name, data, size);
         
-        if (result && using_actual_filename){
+        if (result && using_actual_file_name){
             file->state.ignore_behind_os = 1;
         }
         

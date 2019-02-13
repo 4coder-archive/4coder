@@ -394,20 +394,20 @@ working_set_clipboard_roll_down(Working_Set *working){
 ////////////////////////////////
 
 internal b32
-get_canon_name(System_Functions *system, String filename, Editing_File_Name *canon_name){
+get_canon_name(System_Functions *system, String file_name, Editing_File_Name *canon_name){
     canon_name->name = make_fixed_width_string(canon_name->name_);
-    canon_name->name.size = system->get_canonical(filename.str, filename.size, canon_name->name.str, canon_name->name.memory_size);
+    canon_name->name.size = system->get_canonical(file_name.str, file_name.size, canon_name->name.str, canon_name->name.memory_size);
     terminate_with_null(&canon_name->name);
     b32 result = (canon_name->name.size != 0);
     return(result);
 }
 
 internal void
-file_bind_filename(System_Functions *system, Heap *heap, Working_Set *working_set, Editing_File *file, String canon_filename){
+file_bind_file_name(System_Functions *system, Heap *heap, Working_Set *working_set, Editing_File *file, String canon_file_name){
     Assert(file->unique_name.name.size == 0);
     Assert(file->canon.name.size == 0);
     file->canon.name = make_fixed_width_string(file->canon.name_);
-    copy(&file->canon.name, canon_filename);
+    copy(&file->canon.name, canon_file_name);
     terminate_with_null(&file->canon.name);
     system->add_listener(file->canon.name.str);
     if (!working_set_canon_add(heap, working_set, file, file->canon.name)){
@@ -568,12 +568,12 @@ buffer_bind_name(Models *models, Heap *heap, Partition *scratch,
 ////////////////////////////////
 
 internal Editing_File*
-open_file(System_Functions *system, Models *models, String filename){
+open_file(System_Functions *system, Models *models, String file_name){
     Editing_File *file = 0;
     Editing_File_Name canon_name = {};
     
-    if (terminate_with_null(&filename) &&
-        get_canon_name(system, filename, &canon_name)){
+    if (terminate_with_null(&file_name) &&
+        get_canon_name(system, file_name, &canon_name)){
         Working_Set *working_set = &models->working_set;
         file = working_set_contains_canon(working_set, canon_name.name);
         if (file == 0){
@@ -584,8 +584,8 @@ open_file(System_Functions *system, Models *models, String filename){
                 Partition *part = &mem->part;
                 
                 file = working_set_alloc_always(working_set, heap, &models->lifetime_allocator);
-                file_bind_filename(system, heap, working_set, file, canon_name.name);
-                buffer_bind_name(models, heap, part, working_set, file, front_of_directory(filename));
+                file_bind_file_name(system, heap, working_set, file, canon_name.name);
+                buffer_bind_name(models, heap, part, working_set, file, front_of_directory(file_name));
                 
                 Temp_Memory temp = begin_temp_memory(part);
                 

@@ -19,6 +19,19 @@ view_get_map(View *view){
     }
 }
 
+internal u32
+view_get_access_flags(View *view){
+    u32 result = AccessOpen;
+    if (view->ui_mode){
+        result |= AccessHidden;
+    }
+    if (view->file_data.file_locked){
+        result |= AccessProtected;
+    }
+    result |= file_get_access_flags(view->file_data.file);
+    return(result);
+}
+
 internal i32
 view_get_index(Live_Views *live_set, View *view){
     return((i32)(view - live_set->views));
@@ -143,19 +156,6 @@ view_compute_max_target_y(View *view){
         lowest_line = file->state.wrap_line_index[buffer->line_count];
     }
     return(view_compute_max_target_y_from_bottom_y(view, (lowest_line + 0.5f)*(f32)line_height));
-}
-
-internal u32
-view_lock_flags(View *view){
-    u32 result = AccessOpen;
-    File_Viewing_Data *data = &view->file_data;
-    if (view->ui_mode){
-        result |= AccessHidden;
-    }
-    if (data->file_locked || (data->file && data->file->settings.read_only)){
-        result |= AccessProtected;
-    }
-    return(result);
 }
 
 ////////////////////////////////

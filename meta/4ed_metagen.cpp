@@ -418,6 +418,10 @@ generate_remapping_code_and_data(Partition *part){
         bind(part, mappings, 'h', MDFR_CTRL, project_go_to_root_directory);
         bind(part, mappings, 'S', MDFR_CTRL, save_all_dirty_buffers);
         
+        bind(part, mappings, key_scroll_lock, MDFR_NONE, toggle_filebar);
+        bind(part, mappings, key_pause, MDFR_NONE, toggle_filebar);
+        bind(part, mappings, key_caps, MDFR_NONE, toggle_filebar);
+        
         bind(part, mappings, '.', MDFR_ALT, change_to_build_panel);
         bind(part, mappings, ',', MDFR_ALT, close_build_panel);
         bind(part, mappings, 'n', MDFR_ALT, goto_next_jump_sticky);
