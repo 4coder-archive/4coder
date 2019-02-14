@@ -124,25 +124,17 @@ GetFileAttributes_utf8(Partition *scratch, u8 *name){
 internal DWORD
 GetModuleFileName_utf8(Partition *scratch, HMODULE module, u8 *file_out, DWORD max){
     DWORD result = 0;
-    
     Temp_Memory temp = begin_temp_memory(scratch);
-    
     u32 file_16_max = KB(40);
     u16 *file_16 = push_array(scratch, u16, file_16_max);
-    
     DWORD file_16_len = GetModuleFileNameW(module, (LPWSTR)file_16, file_16_max);
-    
-    if (max > 0){
-        b32 convert_error = false;
-        u32 file_8_len = (u32)utf16_to_utf8_minimal_checking(file_out, max - 1, file_16, file_16_len, &convert_error);
-        result = file_8_len;
-        if (convert_error || file_8_len >= max){
-            result = 0;
-        }
+    b32 convert_error = false;
+    u32 file_8_len = (u32)utf16_to_utf8_minimal_checking(file_out, max - 1, file_16, file_16_len, &convert_error);
+    result = file_8_len;
+    if (convert_error || file_8_len >= max){
+        result = 0;
     }
-    
     end_temp_memory(temp);
-    
     return(result);
 }
 

@@ -10,55 +10,6 @@
 // TOP
 
 //
-// 4ed path
-//
-
-internal
-Sys_Get_Current_Path_Sig(system_get_current_path){
-    i32 result = GetCurrentDirectory_utf8(&shared_vars.scratch, capacity, (u8*)out);
-    return(result);
-}
-
-internal
-Sys_Get_4ed_Path_Sig(system_get_4ed_path){
-    i32 size = GetModuleFileName_utf8(&shared_vars.scratch, 0, (u8*)out, capacity);
-    if (size < capacity - 1){
-        String str = make_string(out, size);
-        remove_last_folder(&str);
-        terminate_with_null(&str);
-        size = str.size;
-    }
-    return(size);
-}
-
-//
-// Logging
-//
-
-internal
-Sys_Log_Sig(system_log){
-    if (plat_settings.use_log){
-        u8 space[4096];
-        String str = make_fixed_width_string(space);
-        str.size = system_get_4ed_path(str.str, str.memory_size);
-        append_sc(&str, "4coder_log.txt");
-        terminate_with_null(&str);
-        HANDLE file = CreateFile_utf8(&shared_vars.scratch, space, GENERIC_WRITE, 0, 0, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, 0);
-        if (file != INVALID_HANDLE_VALUE){
-            SetFilePointer(file, win32vars.log_position, 0, FILE_BEGIN);
-            win32vars.log_position += length;
-            DWORD written = 0;
-            DWORD total_written = 0;
-            do{
-                WriteFile(file, message + total_written, length - total_written, &written, 0);
-                total_written += written;
-            }while (total_written < length);
-            CloseHandle(file);
-        }
-    }
-}
-
-//
 // Shared system functions (system_shared.h)
 //
 
@@ -112,6 +63,61 @@ Sys_Memory_Set_Protection_Sig(system_memory_set_protection){
 internal
 Sys_Memory_Free_Sig(system_memory_free){
     VirtualFree(ptr, 0, MEM_RELEASE);
+}
+
+//
+// 4ed path
+//
+
+internal
+Sys_Get_Current_Path_Sig(system_get_current_path){
+    i32 result = GetCurrentDirectory_utf8(&shared_vars.scratch, capacity, (u8*)out);
+    return(result);
+}
+
+internal
+Sys_Get_4ed_Path_Sig(system_get_4ed_path){
+    local_persist b32 has_stashed_4ed_path = false;
+    if (!has_stashed_4ed_path){
+        has_stashed_4ed_path = true;
+        local_const i32 binary_path_capacity = KB(32);
+        u8 *memory = (u8*)system_memory_allocate(binary_path_capacity);
+        i32 size = GetModuleFileName_utf8(&shared_vars.scratch, 0, memory, binary_path_capacity);
+        Assert(size <= binary_path_capacity - 1);
+        win32vars.binary_path = make_string(memory, size);
+        remove_last_folder(&win32vars.binary_path);
+        terminate_with_null(&win32vars.binary_path);
+    }
+    i32 copy_size = Min(win32vars.binary_path.size, capacity);
+    block_copy(out, win32vars.binary_path.str, copy_size);
+    return(win32vars.binary_path.size);
+}
+
+//
+// Logging
+//
+
+internal
+Sys_Log_Sig(system_log){
+    if (plat_settings.use_log){
+        u8 space[4096];
+        String str = make_fixed_width_string(space);
+        str.size = system_get_4ed_path(str.str, str.memory_size);
+        append_sc(&str, "4coder_log.txt");
+        terminate_with_null(&str);
+        HANDLE file = CreateFile_utf8(&shared_vars.scratch, space, GENERIC_WRITE, 0, 0, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, 0);
+        if (file != INVALID_HANDLE_VALUE){
+            SetFilePointer(file, win32vars.log_position, 0, FILE_BEGIN);
+            win32vars.log_position += length;
+            DWORD written = 0;
+            DWORD total_written = 0;
+            do{
+                WriteFile(file, message + total_written, length - total_written, &written, 0);
+                total_written += written;
+            }while (total_written < length);
+            CloseHandle(file);
+        }
+    }
 }
 
 //

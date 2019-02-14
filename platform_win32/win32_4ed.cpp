@@ -76,10 +76,6 @@ win32_output_error_string(i32 error_string_type);
 #include "4ed_shared_thread_constants.h"
 #include "win32_threading_wrapper.h"
 
-//
-// Win32_Vars structs
-//
-
 #define WM_4coder_ANIMATE (WM_USER + 0)
 
 struct Control_Keys{
@@ -167,6 +163,8 @@ struct Win32_Vars{
     HCURSOR cursor_updown;
     i32 cursor_show;
     i32 prev_cursor_show;
+    
+    String binary_path;
     
     u8 *clip_buffer;
     u32 clip_max;

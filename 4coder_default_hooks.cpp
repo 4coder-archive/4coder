@@ -752,7 +752,7 @@ OPEN_FILE_HOOK_SIG(default_file_save){
 
 FILE_EDIT_FINISHED_SIG(default_file_edit){
     for (int32_t i = 0; i < buffer_id_count; i += 1){
-#if 1
+#if 0
         // NOTE(allen|4.0.31): This code is example usage, it's not a particularly nice feature to actually have.
         
         Buffer_Summary buffer = get_buffer(app, buffer_ids[i], AccessAll);

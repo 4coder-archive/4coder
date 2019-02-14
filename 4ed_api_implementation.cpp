@@ -3999,7 +3999,7 @@ DOC_RETURN(This call returns non-zero on success.)
     *required_size_out = required_size;
     i32 remaining_size = path_out->memory_size - path_out->size;
     if (required_size <= remaining_size){
-        system->get_4ed_path(path_out->str + path_out->size, remaining_size);
+        *required_size_out = system->get_4ed_path(path_out->str + path_out->size, remaining_size);
         path_out->size += required_size;
         return(true);
     }
