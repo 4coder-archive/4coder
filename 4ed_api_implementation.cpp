@@ -302,7 +302,7 @@ DOC_SEE(Command_Line_Interface_Flag)
         
         // NOTE(allen): Figure out the command string.
         String command_string = {};
-        if (command.size){
+        if (command.size == 0){
             command_string = make_lit_string(" echo no script specified");
         }
         else{
