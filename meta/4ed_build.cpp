@@ -592,8 +592,8 @@ internal void
 standard_build(Partition *part, char *cdir, u32 flags, u32 arch){
     fsm_generator(part, cdir);
     metagen(part, cdir);
-    do_buildsuper(part, cdir, fm_str(part, custom_files[Custom_Default]), arch);
-    //do_buildsuper(part, cdir, fm_str(part, custom_files[Custom_Experiments]), arch);
+    //do_buildsuper(part, cdir, fm_str(part, custom_files[Custom_Default]), arch);
+    do_buildsuper(part, cdir, fm_str(part, custom_files[Custom_Experiments]), arch);
     //do_buildsuper(part, cdir, fm_str(part, custom_files[Custom_Casey]), arch);
     //do_buildsuper(part, cdir, fm_str(part, custom_files[Custom_ChronalVim]), arch);
     build_main(part, cdir, true, flags, arch);

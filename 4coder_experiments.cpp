@@ -396,7 +396,7 @@ CUSTOM_DOC("If the cursor is found to be on the name of a function parameter in 
         if (!result.in_whitespace){
             static const int32_t stream_space_size = 512;
             Cpp_Token stream_space[stream_space_size];
-            Stream_Tokens stream = {};
+            Stream_Tokens_DEP stream = {};
             
             if (init_stream_tokens(&stream, app, &buffer, result.token_index, stream_space, stream_space_size)){
                 int32_t token_index = result.token_index;
@@ -447,7 +447,7 @@ CUSTOM_DOC("If the cursor is found to be on the name of a function parameter in 
                             
                             String replace_string = with.string;
                             
-                            Buffer_Edit *edits = (Buffer_Edit*)partition_current(part);
+                            Buffer_Edit *edits = push_array(part, Buffer_Edit, 0);
                             int32_t edit_max = (part_remaining(part))/sizeof(Buffer_Edit);
                             int32_t edit_count = 0;
                             
@@ -553,7 +553,7 @@ write_explicit_enum_values_parameters(Application_Links *app, Write_Explicit_Enu
     if (buffer_get_token_index(app, &buffer, view.cursor.pos, &result)){
         if (!result.in_whitespace){
             Cpp_Token stream_space[32];
-            Stream_Tokens stream = {};
+            Stream_Tokens_DEP stream = {};
             
             if (init_stream_tokens(&stream, app, &buffer, result.token_index, stream_space, 32)){
                 int32_t token_index = result.token_index;
@@ -564,7 +564,7 @@ write_explicit_enum_values_parameters(Application_Links *app, Write_Explicit_Enu
                     ++token_index;
                     
                     int32_t seeker_index = token_index;
-                    Stream_Tokens seek_stream = begin_temp_stream_token(&stream);
+                    Stream_Tokens_DEP seek_stream = begin_temp_stream_token(&stream);
                     
                     bool32 closed_correctly = false;
                     bool32 still_looping = false;
@@ -591,7 +591,7 @@ write_explicit_enum_values_parameters(Application_Links *app, Write_Explicit_Enu
                         int32_t edit_count = 0;
                         Buffer_Edit *edits = push_array(part, Buffer_Edit, count_estimate);
                         
-                        char *string_base = (char*)partition_current(part);
+                        char *string_base = push_array(part, char, 0);
                         String string = make_string(string_base, 0, part_remaining(part));
                         
                         closed_correctly = false;
