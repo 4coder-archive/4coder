@@ -6,7 +6,7 @@
 
 static Hard_Start_Result
 buffer_find_hard_start(Application_Links *app, Buffer_Summary *buffer, int32_t line_start, int32_t tab_width){
-    tab_width -= 1;
+    int32_t tab_additional_width = tab_width - 1;
     
     Hard_Start_Result result = {};
     result.all_space = true;
@@ -32,7 +32,7 @@ buffer_find_hard_start(Application_Links *app, Buffer_Summary *buffer, int32_t l
                 }
                 
                 if (c == '\t'){
-                    result.indent_pos += tab_width;
+                    result.indent_pos += tab_additional_width;
                 }
                 
                 if (c != ' '){

@@ -491,9 +491,7 @@ buffer_unbind_name_low_level(Working_Set *working_set, Editing_File *file){
 }
 
 internal void
-buffer_bind_name(Models *models, Heap *heap, Partition *scratch,
-                 Working_Set *working_set,
-                 Editing_File *file, String base_name){
+buffer_bind_name(Models *models, Heap *heap, Partition *scratch, Working_Set *working_set, Editing_File *file, String base_name){
     Temp_Memory temp = begin_temp_memory(scratch);
     
     // List of conflict files.

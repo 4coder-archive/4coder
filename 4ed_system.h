@@ -31,6 +31,9 @@ typedef Sys_Set_File_List_Sig(System_Set_File_List);
 typedef Sys_Get_Canonical_Sig(System_Get_Canonical);
 
 // file load/save
+#define Sys_Quick_File_Attributes_Sig(name) File_Attributes name(String file_name)
+typedef Sys_Quick_File_Attributes_Sig(System_Quick_File_Attributes);
+
 #define Sys_Load_Handle_Sig(name) b32 name(char *filename, Plat_Handle *handle_out)
 typedef Sys_Load_Handle_Sig(System_Load_Handle);
 
@@ -198,9 +201,6 @@ typedef Sys_Memory_Set_Protection_Sig(System_Memory_Set_Protection);
 typedef Sys_Memory_Free_Sig(System_Memory_Free);
 
 // file system
-#define Sys_File_Exists_Sig(name) b32 name(char *filename, i32 len)
-typedef Sys_File_Exists_Sig(System_File_Exists);
-
 #define Sys_Directory_CD_Sig(name) bool32 name(char *dir, i32 *len, i32 cap, char *rel_path, i32 rel_len)
 typedef Sys_Directory_CD_Sig(System_Directory_CD);
 
@@ -224,23 +224,21 @@ typedef Sys_Is_Fullscreen_Sig(System_Is_Fullscreen);
 #define Sys_Log_Sig(name) void name(char *message, u32 length)
 typedef Sys_Log_Sig(System_Log);
 
-#define INTERNAL_Sys_Get_Thread_States_Sig(name) void name(Thread_Group_ID id, b8 *running, i32 *pending)
-typedef INTERNAL_Sys_Get_Thread_States_Sig(INTERNAL_System_Get_Thread_States);
-
 struct System_Functions{
     Font_Functions font;
     
-    // files (tracked api): 10
-    System_Set_File_List   *set_file_list;
-    System_Get_Canonical   *get_canonical;
-    System_Add_Listener    *add_listener;  
-    System_Remove_Listener *remove_listener;
-    System_Get_File_Change *get_file_change;
-    System_Load_Handle     *load_handle;
-    System_Load_Attributes *load_attributes;
-    System_Load_File       *load_file;
-    System_Load_Close      *load_close;
-    System_Save_File       *save_file;
+    // files (tracked api): 11
+    System_Set_File_List         *set_file_list;
+    System_Get_Canonical         *get_canonical;
+    System_Add_Listener          *add_listener;  
+    System_Remove_Listener       *remove_listener;
+    System_Get_File_Change       *get_file_change;
+    System_Quick_File_Attributes *quick_file_attributes;
+    System_Load_Handle           *load_handle;
+    System_Load_Attributes       *load_attributes;
+    System_Load_File             *load_file;
+    System_Load_Close            *load_close;
+    System_Save_File             *save_file;
     
     // time: 4
     System_Now_Time *now_time;
@@ -271,12 +269,11 @@ struct System_Functions{
     System_Acquire_Lock       *acquire_lock;
     System_Release_Lock       *release_lock;
     
-    // custom: 10
+    // custom: 9
     System_Memory_Allocate        *memory_allocate;
     System_Memory_Set_Protection  *memory_set_protection;
     System_Memory_Free            *memory_free;
     
-    System_File_Exists            *file_exists;
     System_Directory_CD           *directory_cd;
     System_Get_Current_Path       *get_current_path;
     System_Get_4ed_Path           *get_4ed_path;
@@ -287,7 +284,6 @@ struct System_Functions{
     
     // debug: 1
     System_Log *log;
-    INTERNAL_System_Get_Thread_States *internal_get_thread_states;
 };
 
 #endif

@@ -20,6 +20,7 @@ link_system_code(){
     SYSLINK(add_listener);
     SYSLINK(remove_listener);
     SYSLINK(get_file_change);
+    SYSLINK(quick_file_attributes);
     SYSLINK(load_handle);
     SYSLINK(load_attributes);
     SYSLINK(load_file);
@@ -54,7 +55,6 @@ link_system_code(){
     SYSLINK(memory_set_protection);
     SYSLINK(memory_free);
     
-    SYSLINK(file_exists);
     SYSLINK(directory_cd);
     SYSLINK(get_current_path);
     SYSLINK(get_4ed_path);
@@ -64,9 +64,6 @@ link_system_code(){
     SYSLINK(show_mouse_cursor);
     
     SYSLINK(log);
-#if defined(FRED_INTERNAL)
-    SYSLINK(internal_get_thread_states);
-#endif
 }
 
 // BOTTOM

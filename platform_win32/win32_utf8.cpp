@@ -13,28 +13,33 @@
 #define FRED_WIN32_UTF8_CPP
 
 internal Win32_UTF16
-input_8_to_16(Partition *scratch, u8 *in){
+input_8_to_16(Partition *scratch, u8 *in, u32 in_length){
     Win32_UTF16 r = {};
-    
-    u32 utf8_len = 0;
-    for (;in[utf8_len];++utf8_len);
-    u32 utf16_max = (utf8_len + 1)*2;
+    u32 utf16_max = (in_length + 1)*2;
     u16 *utf16 = push_array(scratch, u16, utf16_max);
-    
     b32 error = false;
-    u32 utf16_len = (u32)utf8_to_utf16_minimal_checking(utf16, utf16_max - 1, in, utf8_len, &error);
-    
+    u32 utf16_len = (u32)utf8_to_utf16_minimal_checking(utf16, utf16_max - 1, in, in_length, &error);
     if (!error && utf16_len < utf16_max){
         utf16[utf16_len] = 0;
-        
         r.success = true;
-        r.utf8_len = utf8_len;
+        r.utf8_len = in_length;
         r.utf16_max = utf16_max;
         r.utf16_len = utf16_len;
         r.utf16 = utf16;
     }
-    
     return(r);
+}
+
+internal Win32_UTF16
+input_8_to_16(Partition *scratch, u8 *in){
+    u32 length = 0;
+    for (;in[length];++length);
+    return(input_8_to_16(scratch, in, length));
+}
+
+internal Win32_UTF16
+input_8_to_16(Partition *scratch, String in){
+    return(input_8_to_16(scratch, (u8*)in.str, in.size));
 }
 
 internal HANDLE
@@ -191,9 +196,7 @@ GetCurrentDirectory_utf8(Partition *scratch, DWORD max, u8 *buffer){
 internal int
 MessageBox_utf8(Partition *scratch, HWND owner, u8 *text, u8 *caption, UINT type){
     int result = 0;
-    
     Temp_Memory temp = begin_temp_memory(scratch);
-    
     Win32_UTF16 text_16 = input_8_to_16(scratch, text);
     if (text_16.success){
         Win32_UTF16 caption_16 = input_8_to_16(scratch, caption);
@@ -201,25 +204,31 @@ MessageBox_utf8(Partition *scratch, HWND owner, u8 *text, u8 *caption, UINT type
             result = MessageBoxW(owner, (LPWSTR)text_16.utf16, (LPWSTR)caption_16.utf16, type);
         }
     }
-    
     end_temp_memory(temp);
-    
     return(result);
 }
 
 internal BOOL
 SetWindowText_utf8(Partition *scratch, HWND window, u8 *string){
     BOOL result = FALSE;
-    
     Temp_Memory temp = begin_temp_memory(scratch);
-    
     Win32_UTF16 string_16 = input_8_to_16(scratch, string);
     if (string_16.success){
         result = SetWindowTextW(window, (LPWSTR)string_16.utf16);
     }
-    
     end_temp_memory(temp);
-    
+    return(result);
+}
+
+internal BOOL
+GetFileAttributesEx_utf8String(Partition *scratch, String file_name, GET_FILEEX_INFO_LEVELS info_level_id, LPVOID file_info){
+    BOOL result = FALSE;
+    Temp_Memory temp = begin_temp_memory(scratch);
+    Win32_UTF16 string_16 = input_8_to_16(scratch, file_name);
+    if (string_16.success){
+        result = GetFileAttributesExW((LPWSTR)string_16.utf16, info_level_id, file_info);
+    }
+    end_temp_memory(temp);
     return(result);
 }
 

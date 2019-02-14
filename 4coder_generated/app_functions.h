@@ -122,7 +122,7 @@ struct Application_Links;
 #define MEMORY_ALLOCATE_SIG(n) void* n(Application_Links *app, int32_t size)
 #define MEMORY_SET_PROTECTION_SIG(n) bool32 n(Application_Links *app, void *ptr, int32_t size, Memory_Protect_Flags flags)
 #define MEMORY_FREE_SIG(n) void n(Application_Links *app, void *ptr, int32_t size)
-#define FILE_EXISTS_SIG(n) bool32 n(Application_Links *app, String file_name)
+#define FILE_GET_ATTRIBUTES_SIG(n) bool32 n(Application_Links *app, String file_name, File_Attributes *attributes_out)
 #define DIRECTORY_CD_SIG(n) bool32 n(Application_Links *app, String *directory, String relative_path)
 #define GET_4ED_PATH_SIG(n) bool32 n(Application_Links *app, String *path_out, int32_t *required_size_out)
 #define SHOW_MOUSE_CURSOR_SIG(n) void n(Application_Links *app, Mouse_Cursor_Show_Type show)
@@ -259,7 +259,7 @@ typedef SET_GUI_UP_DOWN_KEYS_SIG(Set_GUI_Up_Down_Keys_Function);
 typedef MEMORY_ALLOCATE_SIG(Memory_Allocate_Function);
 typedef MEMORY_SET_PROTECTION_SIG(Memory_Set_Protection_Function);
 typedef MEMORY_FREE_SIG(Memory_Free_Function);
-typedef FILE_EXISTS_SIG(File_Exists_Function);
+typedef FILE_GET_ATTRIBUTES_SIG(File_Get_Attributes_Function);
 typedef DIRECTORY_CD_SIG(Directory_CD_Function);
 typedef GET_4ED_PATH_SIG(Get_4ed_Path_Function);
 typedef SHOW_MOUSE_CURSOR_SIG(Show_Mouse_Cursor_Function);
@@ -398,7 +398,7 @@ Set_GUI_Up_Down_Keys_Function *set_gui_up_down_keys;
 Memory_Allocate_Function *memory_allocate;
 Memory_Set_Protection_Function *memory_set_protection;
 Memory_Free_Function *memory_free;
-File_Exists_Function *file_exists;
+File_Get_Attributes_Function *file_get_attributes;
 Directory_CD_Function *directory_cd;
 Get_4ed_Path_Function *get_4ed_path;
 Show_Mouse_Cursor_Function *show_mouse_cursor;
@@ -536,7 +536,7 @@ Set_GUI_Up_Down_Keys_Function *set_gui_up_down_keys_;
 Memory_Allocate_Function *memory_allocate_;
 Memory_Set_Protection_Function *memory_set_protection_;
 Memory_Free_Function *memory_free_;
-File_Exists_Function *file_exists_;
+File_Get_Attributes_Function *file_get_attributes_;
 Directory_CD_Function *directory_cd_;
 Get_4ed_Path_Function *get_4ed_path_;
 Show_Mouse_Cursor_Function *show_mouse_cursor_;
@@ -682,7 +682,7 @@ app_links->set_gui_up_down_keys_ = Set_GUI_Up_Down_Keys;\
 app_links->memory_allocate_ = Memory_Allocate;\
 app_links->memory_set_protection_ = Memory_Set_Protection;\
 app_links->memory_free_ = Memory_Free;\
-app_links->file_exists_ = File_Exists;\
+app_links->file_get_attributes_ = File_Get_Attributes;\
 app_links->directory_cd_ = Directory_CD;\
 app_links->get_4ed_path_ = Get_4ed_Path;\
 app_links->show_mouse_cursor_ = Show_Mouse_Cursor;\
@@ -820,7 +820,7 @@ static void set_gui_up_down_keys(Application_Links *app, Key_Code up_key, Key_Mo
 static void* memory_allocate(Application_Links *app, int32_t size){return(app->memory_allocate(app, size));}
 static bool32 memory_set_protection(Application_Links *app, void *ptr, int32_t size, Memory_Protect_Flags flags){return(app->memory_set_protection(app, ptr, size, flags));}
 static void memory_free(Application_Links *app, void *ptr, int32_t size){(app->memory_free(app, ptr, size));}
-static bool32 file_exists(Application_Links *app, String file_name){return(app->file_exists(app, file_name));}
+static bool32 file_get_attributes(Application_Links *app, String file_name, File_Attributes *attributes_out){return(app->file_get_attributes(app, file_name, attributes_out));}
 static bool32 directory_cd(Application_Links *app, String *directory, String relative_path){return(app->directory_cd(app, directory, relative_path));}
 static bool32 get_4ed_path(Application_Links *app, String *path_out, int32_t *required_size_out){return(app->get_4ed_path(app, path_out, required_size_out));}
 static void show_mouse_cursor(Application_Links *app, Mouse_Cursor_Show_Type show){(app->show_mouse_cursor(app, show));}
@@ -958,7 +958,7 @@ static void set_gui_up_down_keys(Application_Links *app, Key_Code up_key, Key_Mo
 static void* memory_allocate(Application_Links *app, int32_t size){return(app->memory_allocate_(app, size));}
 static bool32 memory_set_protection(Application_Links *app, void *ptr, int32_t size, Memory_Protect_Flags flags){return(app->memory_set_protection_(app, ptr, size, flags));}
 static void memory_free(Application_Links *app, void *ptr, int32_t size){(app->memory_free_(app, ptr, size));}
-static bool32 file_exists(Application_Links *app, String file_name){return(app->file_exists_(app, file_name));}
+static bool32 file_get_attributes(Application_Links *app, String file_name, File_Attributes *attributes_out){return(app->file_get_attributes_(app, file_name, attributes_out));}
 static bool32 directory_cd(Application_Links *app, String *directory, String relative_path){return(app->directory_cd_(app, directory, relative_path));}
 static bool32 get_4ed_path(Application_Links *app, String *path_out, int32_t *required_size_out){return(app->get_4ed_path_(app, path_out, required_size_out));}
 static void show_mouse_cursor(Application_Links *app, Mouse_Cursor_Show_Type show){(app->show_mouse_cursor_(app, show));}

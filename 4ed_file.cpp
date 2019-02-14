@@ -422,7 +422,7 @@ file_create_from_string(System_Functions *system, Models *models, Editing_File *
     
     block_zero_struct(&file->state);
     Gap_Buffer_Init init = buffer_begin_init(&file->state.buffer, val.str, val.size);
-    for (; buffer_init_need_more(&init); ){
+    for (;buffer_init_need_more(&init);){
         i32 page_size = buffer_init_page_size(&init);
         page_size = l_round_up_i32(page_size, KB(4));
         if (page_size < KB(4)){
@@ -448,15 +448,13 @@ file_create_from_string(System_Functions *system, Models *models, Editing_File *
     Font_Pointers font = system->font.get_pointers_by_id(font_id);
     Assert(font.valid);
     
-    {
-        file_measure_starts(heap, &file->state.buffer);
-        
-        file_allocate_character_starts_as_needed(heap, file);
-        buffer_measure_character_starts(system, font, &file->state.buffer, file->state.character_starts, 0, file->settings.virtual_white);
-        
-        file_measure_wraps(system, &models->mem, file, font);
-        //adjust_views_looking_at_files_to_new_cursor(system, models, file);
-    }
+    file_measure_starts(heap, &file->state.buffer);
+    
+    file_allocate_character_starts_as_needed(heap, file);
+    buffer_measure_character_starts(system, font, &file->state.buffer, file->state.character_starts, 0, file->settings.virtual_white);
+    
+    file_measure_wraps(system, &models->mem, file, font);
+    //adjust_views_looking_at_files_to_new_cursor(system, models, file);
     
     file->lifetime_object = lifetime_alloc_object(heap, &models->lifetime_allocator, DynamicWorkspace_Buffer, file);
     

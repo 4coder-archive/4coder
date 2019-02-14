@@ -3942,8 +3942,7 @@ DOC_SEE(memory_allocate)
 DOC_SEE(Memory_Protect_Flags)
 */{
     Models *models = (Models*)app->cmd_context;
-    bool32 result = models->system->memory_set_protection(ptr, size, flags);
-    return(result);
+    return(models->system->memory_set_protection(ptr, size, flags));
 }
 
 API_EXPORT void
@@ -3958,16 +3957,12 @@ DOC_SEE(memory_allocate)
     models->system->memory_free(ptr, size);
 }
 
-// TODO(allen): redocument
 API_EXPORT bool32
-File_Exists(Application_Links *app, String file_name)
-/*
-DOC_PARAM(filename, This parameter specifies the full path to a file; it need not be null terminated.)
-DOC_PARAM(len, This parameter specifies the length of the filename string.)
-DOC_RETURN(This call returns non-zero if and only if the file exists.)
-*/{
+File_Get_Attributes(Application_Links *app, String file_name, File_Attributes *attributes_out)
+{
     Models *models = (Models*)app->cmd_context;
-    return(models->system->file_exists(file_name.str, file_name.size));
+    *attributes_out = models->system->quick_file_attributes(file_name);
+    return(attributes_out->last_write_time > 0);
 }
 
 // TODO(allen): redocument

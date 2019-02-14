@@ -547,7 +547,9 @@ get_file_list(Application_Links *app, char *dir, int32_t len){
 
 static bool32
 file_exists(Application_Links *app, char *file_name, int32_t len){
-    return(file_exists(app, make_string(file_name, len)));
+    File_Attributes attributes = {};
+    file_get_attributes(app, make_string(file_name, len), &attributes);
+    return(attributes.last_write_time > 0);
 }
 
 static bool32

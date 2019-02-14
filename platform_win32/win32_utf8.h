@@ -39,6 +39,9 @@ MessageBox_utf8(Partition *scratch, HWND owner, u8 *text, u8 *caption, UINT type
 internal BOOL
 SetWindowText_utf8(Partition *scratch, HWND window, u8 *string);
 
+internal BOOL
+GetFileAttributesEx_utf8String(Partition *scratch, String file_name, GET_FILEEX_INFO_LEVELS info_level_id, LPVOID file_info);
+
 // For implementation
 
 struct Win32_UTF16{

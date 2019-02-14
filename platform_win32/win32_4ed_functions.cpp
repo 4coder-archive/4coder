@@ -345,6 +345,17 @@ win32_file_attributes_from_HANDLE(HANDLE file){
 }
 
 internal
+Sys_Quick_File_Attributes_Sig(system_quick_file_attributes){
+    WIN32_FILE_ATTRIBUTE_DATA info = {};
+    File_Attributes result = {};
+    if (GetFileAttributesEx_utf8String(&shared_vars.scratch, file_name, GetFileExInfoStandard, &info)){
+        result.size = ((u64)info.nFileSizeHigh << 32LL) | ((u64)info.nFileSizeLow);
+        result.last_write_time = ((u64)info.ftLastWriteTime.dwHighDateTime << 32LL) | ((u64)info.ftLastWriteTime.dwLowDateTime);
+    }
+    return(result);
+}
+
+internal
 Sys_Load_Handle_Sig(system_load_handle){
     b32 result = false;
     HANDLE file = CreateFile_utf8(&shared_vars.scratch, (u8*)filename, GENERIC_READ, 0, 0, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
@@ -415,29 +426,6 @@ Sys_Save_File_Sig(system_save_file){
 //
 // File System
 //
-
-internal
-Sys_File_Exists_Sig(system_file_exists){
-    char full_filename_space[1024];
-    String full_filename;
-    HANDLE file;
-    b32 result = 0;
-    
-    if (len < sizeof(full_filename_space)){
-        full_filename = make_fixed_width_string(full_filename_space);
-        copy_ss(&full_filename, make_string(filename, len));
-        terminate_with_null(&full_filename);
-        
-        file = CreateFile_utf8(&shared_vars.scratch, (u8*)full_filename.str, GENERIC_READ, 0, 0, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
-        
-        if (file != INVALID_HANDLE_VALUE){
-            CloseHandle(file);
-            result = 1;
-        }
-    }
-    
-    return(result);
-}
 
 internal b32
 system_directory_exists(char *path){

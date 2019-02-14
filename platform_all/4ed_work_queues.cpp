@@ -351,23 +351,6 @@ Sys_Grow_Thread_Memory_Sig(system_grow_thread_memory){
     system_release_lock(cancel_lock);
 }
 
-internal
-INTERNAL_Sys_Get_Thread_States_Sig(system_internal_get_thread_states){
-    Thread_Group *group = threadvars.groups + id;
-    Work_Queue *queue = threadvars.queues + id;
-    Unbounded_Work_Queue *source_queue = &group->queue;
-    u32 write = queue->write_position;
-    u32 read = queue->read_position;
-    if (write < read){
-        write += QUEUE_WRAP;
-    }
-    *pending = (i32)(write - read) + source_queue->count - source_queue->skip;
-    
-    for (i32 i = 0; i < group->count; ++i){
-        running[i] = (group->threads[i].running != 0);
-    }
-}
-
 internal void
 work_system_init(){
     AssertThreadSizes();

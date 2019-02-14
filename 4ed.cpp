@@ -1006,7 +1006,6 @@ App_Step_Sig(app_step){
                 file_name = cl_file_name;
             }
             
-            //open_file(system, models, file_name);
             Buffer_ID id = 0;
             create_buffer(&models->app_links, file_name, 0, &id);
         }
