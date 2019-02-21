@@ -50,7 +50,7 @@ find_scope_top(Application_Links *app, Buffer_Summary *buffer, int32_t start_pos
         int32_t token_index = get_result.token_index;
         if (flags & FindScope_Parent){
             --token_index;
-            if (get_result.in_whitespace){
+            if (get_result.in_whitespace_after_token){
                 ++token_index;
             }
         }
@@ -107,7 +107,7 @@ find_scope_bottom(Application_Links *app, Buffer_Summary *buffer, int32_t start_
         int32_t token_index = get_result.token_index + 1;
         if (flags & FindScope_Parent){
             --token_index;
-            if (get_result.in_whitespace){
+            if (get_result.in_whitespace_after_token){
                 ++token_index;
             }
         }
@@ -727,7 +727,7 @@ find_whole_statement_down(Application_Links *app, Buffer_Summary *buffer, int32_
     if (buffer_get_token_index(app, buffer, pos, &get_result)){
         Statement_Parser parser = make_statement_parser(app, buffer, get_result.token_index);
         if (parser.buffer != 0){
-            if (get_result.in_whitespace){
+            if (get_result.in_whitespace_after_token){
                 parser_next_token(&parser);
             }
             

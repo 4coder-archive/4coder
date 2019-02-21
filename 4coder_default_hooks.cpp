@@ -353,7 +353,7 @@ RENDER_CALLER_SIG(default_render_caller){
     }
     
     // NOTE(allen): Token highlight setup
-    bool32 do_token_highlight = false;
+    bool32 do_token_highlight = true;
     if (do_token_highlight){
         Theme_Color color = {};
         color.tag = Stag_Cursor;
@@ -363,15 +363,18 @@ RENDER_CALLER_SIG(default_render_caller){
         uint32_t token_flags = BoundaryToken|BoundaryWhitespace;
         int32_t pos0 = view.cursor.pos;
         int32_t pos1 = buffer_boundary_seek(app, &buffer, pos0, DirLeft , token_flags);
-        int32_t pos2 = buffer_boundary_seek(app, &buffer, pos1, DirRight, token_flags);
-        
-        Managed_Object token_highlight = alloc_buffer_markers_on_buffer(app, buffer.buffer_id, 2, &render_scope);
-        Marker range_markers[2] = {};
-        range_markers[0].pos = pos1;
-        range_markers[1].pos = pos2;
-        managed_object_store_data(app, token_highlight, 0, 2, range_markers);
-        Marker_Visual visual = create_marker_visual(app, token_highlight);
-        marker_visual_set_effect(app, visual, VisualType_CharacterHighlightRanges, token_color, SymbolicColorFromPalette(Stag_At_Highlight), 0);
+        if (pos1 >= 0){
+            int32_t pos2 = buffer_boundary_seek(app, &buffer, pos1, DirRight, token_flags);
+            if (pos2 <= buffer.size){
+                Managed_Object token_highlight = alloc_buffer_markers_on_buffer(app, buffer.buffer_id, 2, &render_scope);
+                Marker range_markers[2] = {};
+                range_markers[0].pos = pos1;
+                range_markers[1].pos = pos2;
+                managed_object_store_data(app, token_highlight, 0, 2, range_markers);
+                Marker_Visual visual = create_marker_visual(app, token_highlight);
+                marker_visual_set_effect(app, visual, VisualType_CharacterHighlightRanges, token_color, SymbolicColorFromPalette(Stag_At_Highlight), 0);
+            }
+        }
     }
     
     // NOTE(allen): Matching enclosure highlight setup
@@ -386,10 +389,7 @@ RENDER_CALLER_SIG(default_render_caller){
         for (int32_t i = 0; i < 4; i += 1){
             colors[i] = theme_colors[i].color;
         }
-        mark_enclosures(app, scratch, render_scope,
-                        &buffer, view.cursor.pos, FindScope_Brace,
-                        VisualType_LineHighlightRanges,
-                        colors, 0, color_count);
+        mark_enclosures(app, scratch, render_scope, &buffer, view.cursor.pos, FindScope_Brace, VisualType_LineHighlightRanges, colors, 0, color_count);
     }
     if (do_matching_paren_highlight){
         Theme_Color theme_colors[color_count];
@@ -410,10 +410,7 @@ RENDER_CALLER_SIG(default_render_caller){
                 pos -= 1;
             }
         }
-        mark_enclosures(app, scratch, render_scope,
-                        &buffer, pos, FindScope_Paren,
-                        VisualType_CharacterBlocks,
-                        0, colors, color_count);
+        mark_enclosures(app, scratch, render_scope, &buffer, pos, FindScope_Paren, VisualType_CharacterBlocks, 0, colors, color_count);
     }
     
     do_core_render(app);

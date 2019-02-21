@@ -393,7 +393,7 @@ CUSTOM_DOC("If the cursor is found to be on the name of a function parameter in 
     
     Cpp_Get_Token_Result result;
     if (buffer_get_token_index(app, &buffer, view.cursor.pos, &result)){
-        if (!result.in_whitespace){
+        if (!result.in_whitespace_after_token){
             static const int32_t stream_space_size = 512;
             Cpp_Token stream_space[stream_space_size];
             Stream_Tokens_DEP stream = {};
@@ -551,7 +551,7 @@ write_explicit_enum_values_parameters(Application_Links *app, Write_Explicit_Enu
     
     Cpp_Get_Token_Result result;
     if (buffer_get_token_index(app, &buffer, view.cursor.pos, &result)){
-        if (!result.in_whitespace){
+        if (!result.in_whitespace_after_token){
             Cpp_Token stream_space[32];
             Stream_Tokens_DEP stream = {};
             

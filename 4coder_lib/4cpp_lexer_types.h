@@ -361,13 +361,13 @@ STRUCT Cpp_Get_Token_Result{
     int32_t token_index;
     
     /* DOC(The in_whitespace field is true when the query position was actually in whitespace after the result token.) */
-    int32_t in_whitespace;
+    int32_t in_whitespace_after_token;
     
     /* DOC(If the token_index refers to an actual token, this is the start value of the token. Otherwise this is zero.) */
     int32_t token_start;
     
     /* DOC(If the token_index refers to an actual token, this is the start + size value of the token. Otherwise this is zero.) */
-    int32_t token_end;
+    int32_t token_one_past_last;
 };
 
 /* DOC(Cpp_Relex_Range is the return result of the cpp_get_relex_range call.)

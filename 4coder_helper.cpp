@@ -768,7 +768,7 @@ get_first_token_at_line(Application_Links *app, Buffer_Summary *buffer, Cpp_Toke
     int32_t line_start = buffer_get_line_start(app, buffer, line);
     Cpp_Get_Token_Result get_token = cpp_get_token(tokens, line_start);
     
-    if (get_token.in_whitespace){
+    if (get_token.in_whitespace_after_token){
         get_token.token_index += 1;
     }
     
@@ -1158,10 +1158,10 @@ get_token_or_word_under_pos(Application_Links *app, Buffer_Summary *buffer, int3
     String result = {};
     Cpp_Get_Token_Result get_result = {};
     bool32 success = buffer_get_token_index(app, buffer, pos, &get_result);
-    if (success && !get_result.in_whitespace){
-        int32_t size = get_result.token_end - get_result.token_start;
+    if (success && !get_result.in_whitespace_after_token){
+        int32_t size = get_result.token_one_past_last - get_result.token_start;
         if (size > 0 && size <= capacity){
-            success = buffer_read_range(app, buffer, get_result.token_start, get_result.token_end, space);
+            success = buffer_read_range(app, buffer, get_result.token_start, get_result.token_one_past_last, space);
             if (success){
                 result = make_string(space, size);
             }

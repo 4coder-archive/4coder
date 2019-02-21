@@ -533,6 +533,49 @@ DOC(This call finds the token that contains a particular position, or if the pos
 DOC_SEE(Cpp_Get_Token_Result)
 */{
     Cpp_Get_Token_Result result = {};
+    Cpp_Token *tokens = array.tokens;
+    i32_4tech count = array.count;
+    
+    i32_4tech first_index = 0;
+    i32_4tech one_past_last_index = count;
+    for (;;){
+        if (first_index == one_past_last_index){
+            result.token_index = -1;
+            result.in_whitespace_after_token = 1;
+            break;
+        }
+        
+        i32_4tech mid_index = (first_index + one_past_last_index)/2;
+        Cpp_Token *token = tokens + mid_index;
+        
+        i32_4tech range_first = token->start;
+        i32_4tech range_one_past_last = 0x7FFFFFFF;
+        if (mid_index + 1 < count){
+            range_one_past_last = tokens[mid_index + 1].start;
+        }
+        
+        if (range_first <= pos && pos < range_one_past_last){
+            result.token_index = mid_index;
+            i32_4tech token_one_past_last = range_first + token->size;
+            if (token_one_past_last <= pos){
+                result.in_whitespace_after_token = 1;
+            }
+            result.token_start = range_first;
+            result.token_one_past_last = token_one_past_last;
+            break;
+        }
+        if (pos < range_first){
+            one_past_last_index = mid_index;
+        }
+        else if (range_one_past_last <= pos){
+            first_index = mid_index + 1;
+        }
+    }
+    
+    return(result);
+    
+#if 0
+    Cpp_Get_Token_Result result = {};
     Cpp_Token *token_array = array.tokens;
     Cpp_Token *token = 0;
     i32_4tech first = 0;
@@ -591,6 +634,7 @@ DOC_SEE(Cpp_Get_Token_Result)
     }
     
     return(result);
+#endif
 }
 
 // TODO(allen): eliminate this and just make a table.

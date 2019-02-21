@@ -214,76 +214,74 @@ buffer_seek_whitespace_down(Application_Links *app, Buffer_Summary *buffer, int3
 
 static int32_t
 buffer_seek_whitespace_right(Application_Links *app, Buffer_Summary *buffer, int32_t pos){
-    char data_chunk[1024];
-    Stream_Chunk stream = {};
-    
-    if (init_stream_chunk(&stream, app, buffer, pos, data_chunk, sizeof(data_chunk))){
-        
-        bool32 still_looping = true;
-        do{
-            for (; pos < stream.end; ++pos){
-                if (!char_is_whitespace(stream.data[pos])){
-                    goto double_break1;
-                }
-            }
-            still_looping = forward_stream_chunk(&stream);
-        }while(still_looping);
-        double_break1:;
-        
-        still_looping = true;
-        do{
-            for (; pos < stream.end; ++pos){
-                if (char_is_whitespace(stream.data[pos])){
-                    goto double_break2;
-                }
-            }
-            still_looping = forward_stream_chunk(&stream);
-        }while(still_looping);
-        double_break2:;
+    int32_t result = buffer->size + 1;
+    if (pos < 0){
+        pos = 0;
     }
-    
-    return(pos);
+    pos += 1;
+    if (pos < buffer->size){
+        char data_chunk[1024];
+        Stream_Chunk stream = {};
+        stream.add_null = true;
+        if (init_stream_chunk(&stream, app, buffer, pos, data_chunk, sizeof(data_chunk))){
+            bool32 still_looping = true;
+            bool32 is_whitespace_1 = true;
+            is_whitespace_1 = char_is_whitespace(buffer_get_char(app, buffer, pos - 1));
+            do{
+                for (; pos < stream.end; ++pos){
+                    char c2 = stream.data[pos];
+                    bool32 is_whitespace_2 = true;
+                    if (c2 != 0){
+                        is_whitespace_2 = char_is_whitespace(c2);
+                    }
+                    if (!is_whitespace_1 && is_whitespace_2){
+                        result = pos;
+                        goto double_break;
+                    }
+                    is_whitespace_1 = is_whitespace_2;
+                }
+                still_looping = forward_stream_chunk(&stream);
+            }while(still_looping);
+            double_break:;
+        }
+    }
+    return(result);
 }
 
 static int32_t
 buffer_seek_whitespace_left(Application_Links *app, Buffer_Summary *buffer, int32_t pos){
-    char data_chunk[1024];
-    Stream_Chunk stream = {};
-    
-    --pos;
-    if (pos > 0){
-        if (init_stream_chunk(&stream, app, buffer,
-                              pos, data_chunk, sizeof(data_chunk))){
-            
-            bool32 still_looping = 1;
+    int32_t result = -1;
+    if (pos > buffer->size){
+        pos = buffer->size;
+    }
+    pos -= 2;
+    if (pos >= 0){
+        char data_chunk[1024];
+        Stream_Chunk stream = {};
+        if (init_stream_chunk(&stream, app, buffer, pos, data_chunk, sizeof(data_chunk))){
+            bool32 still_looping = true;
+            bool32 is_whitespace_2 = char_is_whitespace(buffer_get_char(app, buffer, pos + 1));
             do{
                 for (; pos >= stream.start; --pos){
-                    if (!char_is_whitespace(stream.data[pos])){
-                        goto double_break1;
+                    char c1 = stream.data[pos];
+                    bool32 is_whitespace_1 = char_is_whitespace(c1);
+                    if (is_whitespace_1 && !is_whitespace_2){
+                        result = pos + 1;
+                        goto double_break;
                     }
+                    is_whitespace_2 = is_whitespace_1;
                 }
                 still_looping = backward_stream_chunk(&stream);
             }while(still_looping);
-            double_break1:;
-            
-            still_looping = 1;
-            do{
-                for (; pos >= stream.start; --pos){
-                    if (char_is_whitespace(stream.data[pos])){
-                        ++pos;
-                        goto double_break2;
-                    }
-                }
-                still_looping = backward_stream_chunk(&stream);
-            }while(still_looping);
-            double_break2:;
+            double_break:;
         }
     }
-    else{
-        pos = 0;
+    if (pos == -1){
+        if (!char_is_whitespace(buffer_get_char(app, buffer, 0))){
+            result = 0;
+        }
     }
-    
-    return(pos);
+    return(result);
 }
 
 static int32_t
@@ -513,8 +511,8 @@ buffer_seek_alphanumeric_or_camel_left(Application_Links *app, Buffer_Summary *b
 
 static int32_t
 seek_token_left(Cpp_Token_Array *tokens, int32_t pos){
-    int32_t result = 0;
-    int32_t token_get_pos = (pos > 0)?(pos - 1):0;
+    int32_t result = -1;
+    int32_t token_get_pos = pos - 1;
     Cpp_Get_Token_Result get = cpp_get_token(*tokens, token_get_pos);
     if (get.token_index >= 0){
         result = get.token_start;
@@ -524,20 +522,17 @@ seek_token_left(Cpp_Token_Array *tokens, int32_t pos){
 
 static int32_t
 seek_token_right(Cpp_Token_Array *tokens, int32_t pos, int32_t buffer_end){
-    int32_t result = 0;
+    int32_t result = buffer_end + 1;
     Cpp_Get_Token_Result get = cpp_get_token(*tokens, pos);
-    if (get.in_whitespace){
+    if (get.in_whitespace_after_token){
         get.token_index += 1;
         if (get.token_index < tokens->count){
             Cpp_Token *token = tokens->tokens + get.token_index;
             result = token->start + token->size;
         }
-        else{
-            result = buffer_end;
-        }
     }
     else{
-        result = get.token_end;
+        result = get.token_one_past_last;
     }
     return(result);
 }
@@ -588,7 +583,7 @@ DOC_SEE(4coder_Buffer_Positioning_System)
         
         if (seek_forward){
             for (int32_t i = 0; i < ArrayCount(pos); ++i){
-                pos[i] = size;
+                pos[i] = size + 1;
             }
             
             if (flags & BoundaryWhitespace){
@@ -617,16 +612,16 @@ DOC_SEE(4coder_Buffer_Positioning_System)
                 }
             }
             
-            new_pos = size;
+            new_pos = size + 1;
             for (int32_t i = 0; i < ArrayCount(pos); ++i){
-                if (pos[i] < new_pos){
+                if (new_pos > pos[i]){
                     new_pos = pos[i];
                 }
             }
         }
         else{
             for (int32_t i = 0; i < ArrayCount(pos); ++i){
-                pos[i] = 0;
+                pos[i] = -1;
             }
             
             if (flags & BoundaryWhitespace){
@@ -655,9 +650,9 @@ DOC_SEE(4coder_Buffer_Positioning_System)
                 }
             }
             
-            new_pos = 0;
+            new_pos = -1;
             for (int32_t i = 0; i < ArrayCount(pos); ++i){
-                if (pos[i] > new_pos){
+                if (new_pos < pos[i]){
                     new_pos = pos[i];
                 }
             }
@@ -1006,31 +1001,29 @@ read_identifier_at_pos(Application_Links *app, Buffer_Summary *buffer, int32_t p
 static int32_t
 flip_dir(int32_t dir){
     if (dir == DirLeft){
-        return(DirRight);
+        dir = DirRight;
     }
     else{
-        return(DirLeft);
+        dir = DirLeft;
     }
+    return(dir);
 }
 
 static int32_t
-buffer_boundary_seek(Application_Links *app, Buffer_Summary *buffer,
-                     int32_t start_pos, int32_t dir, Seek_Boundary_Flag flags){
-    bool32 forward = (dir == DirRight);
+buffer_boundary_seek(Application_Links *app, Buffer_Summary *buffer, int32_t start_pos, int32_t dir, Seek_Boundary_Flag flags){
+    bool32 forward = (dir != DirLeft);
     return(buffer_boundary_seek(app, buffer, &global_part, start_pos, forward, flags));
 }
 
 static void
-view_buffer_boundary_seek_set_pos(Application_Links *app, View_Summary *view, Buffer_Summary *buffer,
-                                  int32_t dir, uint32_t flags){
+view_buffer_boundary_seek_set_pos(Application_Links *app, View_Summary *view, Buffer_Summary *buffer, int32_t dir, uint32_t flags){
     int32_t pos = buffer_boundary_seek(app, buffer, &global_part, view->cursor.pos, dir, flags);
     view_set_cursor(app, view, seek_pos(pos), true);
     no_mark_snap_to_cursor_if_shift(app, view->view_id);
 }
 
 static void
-view_boundary_seek_set_pos(Application_Links *app, View_Summary *view,
-                           int32_t dir, uint32_t flags){
+view_boundary_seek_set_pos(Application_Links *app, View_Summary *view, int32_t dir, uint32_t flags){
     Buffer_Summary buffer = get_buffer(app, view->buffer_id, AccessProtected);
     view_buffer_boundary_seek_set_pos(app, view, &buffer, dir, flags);
 }
@@ -1042,30 +1035,34 @@ current_view_boundary_seek_set_pos(Application_Links *app, int32_t dir, uint32_t
 }
 
 static Range
-view_buffer_boundary_range(Application_Links *app, View_Summary *view, Buffer_Summary *buffer,
-                           int32_t dir, uint32_t flags){
+view_buffer_boundary_range(Application_Links *app, View_Summary *view, Buffer_Summary *buffer, int32_t dir, uint32_t flags){
     int32_t pos1 = view->cursor.pos;
     int32_t pos2 = buffer_boundary_seek(app, buffer, pos1, dir, flags);
     return(make_range(pos1, pos2));
 }
 
 static Range
-view_buffer_snipe_range(Application_Links *app, View_Summary *view, Buffer_Summary *buffer,
-                        int32_t dir, uint32_t flags){
+view_buffer_snipe_range(Application_Links *app, View_Summary *view, Buffer_Summary *buffer, int32_t dir, uint32_t flags){
+    Range result = {};
     int32_t pos0 = view->cursor.pos;
-    int32_t pos1 = buffer_boundary_seek(app, buffer, pos0, dir          , flags);
-    int32_t pos2 = buffer_boundary_seek(app, buffer, pos1, flip_dir(dir), flags);
-    if (dir == DirLeft){
-        if (pos2 < pos0){
-            pos2 = pos0;
+    int32_t pos1 = buffer_boundary_seek(app, buffer, pos0, dir, flags);
+    if (0 <= pos1 && pos1 <= buffer->size){
+        int32_t pos2 = buffer_boundary_seek(app, buffer, pos1, flip_dir(dir), flags);
+        if (0 <= pos2 && pos2 <= buffer->size){
+            if (dir == DirLeft){
+                if (pos2 < pos0){
+                    pos2 = pos0;
+                }
+            }
+            else{
+                if (pos2 > pos0){
+                    pos2 = pos0;
+                }
+            }
+            result = make_range(pos1, pos2);
         }
     }
-    else{
-        if (pos2 > pos0){
-            pos2 = pos0;
-        }
-    }
-    return(make_range(pos1, pos2));
+    return(result);
 }
 
 static void

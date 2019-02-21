@@ -107,8 +107,10 @@ struct Stream_Chunk{
     Buffer_Summary *buffer;
     
     char *base_data;
-    int32_t start, end;
-    int32_t min_start, max_end;
+    int32_t start;
+    int32_t end;
+    int32_t min_start;
+    int32_t max_end;
     bool32 add_null;
     uint32_t data_size;
     
