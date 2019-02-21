@@ -513,31 +513,33 @@ buffer_seek_alphanumeric_or_camel_left(Application_Links *app, Buffer_Summary *b
 
 static int32_t
 seek_token_left(Cpp_Token_Array *tokens, int32_t pos){
-    Cpp_Get_Token_Result get = cpp_get_token(*tokens, pos);
-    if (get.token_index == -1){
-        get.token_index = 0;
+    int32_t result = 0;
+    int32_t token_get_pos = (pos > 0)?(pos - 1):0;
+    Cpp_Get_Token_Result get = cpp_get_token(*tokens, token_get_pos);
+    if (get.token_index >= 0){
+        result = get.token_start;
     }
-    
-    Cpp_Token *token = tokens->tokens + get.token_index;
-    if (token->start == pos && get.token_index > 0){
-        --token;
-    }
-    
-    return(token->start);
+    return(result);
 }
 
 static int32_t
-seek_token_right(Cpp_Token_Array *tokens, int32_t pos){
+seek_token_right(Cpp_Token_Array *tokens, int32_t pos, int32_t buffer_end){
+    int32_t result = 0;
     Cpp_Get_Token_Result get = cpp_get_token(*tokens, pos);
     if (get.in_whitespace){
-        ++get.token_index;
+        get.token_index += 1;
+        if (get.token_index < tokens->count){
+            Cpp_Token *token = tokens->tokens + get.token_index;
+            result = token->start + token->size;
+        }
+        else{
+            result = buffer_end;
+        }
     }
-    if (get.token_index >= tokens->count){
-        get.token_index = tokens->count-1;
+    else{
+        result = get.token_end;
     }
-    
-    Cpp_Token *token = tokens->tokens + get.token_index;
-    return(token->start + token->size);
+    return(result);
 }
 
 static Cpp_Token_Array
@@ -596,7 +598,7 @@ DOC_SEE(4coder_Buffer_Positioning_System)
             if (flags & BoundaryToken){
                 if (buffer->tokens_are_ready){
                     Cpp_Token_Array array = buffer_get_all_tokens(app, part, buffer);
-                    pos[1] = seek_token_right(&array, start_pos);
+                    pos[1] = seek_token_right(&array, start_pos, size);
                 }
                 else{
                     pos[1] = buffer_seek_whitespace_right(app, buffer, start_pos);
@@ -1280,3 +1282,5 @@ CUSTOM_DOC("Delete a single, whole token on or to the right of the cursor and po
 }
 
 // BOTTOM
+
+

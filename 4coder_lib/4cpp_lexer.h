@@ -538,7 +538,8 @@ DOC_SEE(Cpp_Get_Token_Result)
     i32_4tech first = 0;
     i32_4tech count = array.count;
     i32_4tech last = count;
-    i32_4tech this_start = 0, next_start = 0;
+    i32_4tech this_start = 0;
+    i32_4tech next_start = 0;
     
     if (count > 0){
         for (;;){

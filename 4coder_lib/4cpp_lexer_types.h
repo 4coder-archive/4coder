@@ -366,7 +366,7 @@ STRUCT Cpp_Get_Token_Result{
     /* DOC(If the token_index refers to an actual token, this is the start value of the token. Otherwise this is zero.) */
     int32_t token_start;
     
-    /* DOC(If the token_index refers to an actual token, this is the start+size value of the token. Otherwise this is zero.) */
+    /* DOC(If the token_index refers to an actual token, this is the start + size value of the token. Otherwise this is zero.) */
     int32_t token_end;
 };
 

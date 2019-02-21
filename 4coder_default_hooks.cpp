@@ -371,9 +371,7 @@ RENDER_CALLER_SIG(default_render_caller){
         range_markers[1].pos = pos2;
         managed_object_store_data(app, token_highlight, 0, 2, range_markers);
         Marker_Visual visual = create_marker_visual(app, token_highlight);
-        marker_visual_set_effect(app, visual,
-                                 VisualType_CharacterHighlightRanges,
-                                 token_color, SymbolicColorFromPalette(Stag_At_Highlight), 0);
+        marker_visual_set_effect(app, visual, VisualType_CharacterHighlightRanges, token_color, SymbolicColorFromPalette(Stag_At_Highlight), 0);
     }
     
     // NOTE(allen): Matching enclosure highlight setup
