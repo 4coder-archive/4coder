@@ -162,7 +162,8 @@ edit_fix_markers(System_Functions *system, Models *models, Editing_File *file, E
     }
     
     if (cursor_count > 0 || r_cursor_count > 0){
-        buffer_sort_cursors(cursors, cursor_count);
+        buffer_sort_cursors(  cursors,   cursor_count);
+        buffer_sort_cursors(r_cursors, r_cursor_count);
         if (edits.count > 1){
             buffer_batch_edit_update_cursors(  cursors,   cursor_count, edits, false);
             buffer_batch_edit_update_cursors(r_cursors, r_cursor_count, edits, true);
@@ -172,7 +173,8 @@ edit_fix_markers(System_Functions *system, Models *models, Editing_File *file, E
             buffer_update_cursors(  cursors,   cursor_count, edit.range.first, edit.range.one_past_last, edit.length, false);
             buffer_update_cursors(r_cursors, r_cursor_count, edit.range.first, edit.range.one_past_last, edit.length, true);
         }
-        buffer_unsort_cursors(cursors, cursor_count);
+        buffer_unsort_cursors(  cursors,   cursor_count);
+        buffer_unsort_cursors(r_cursors, r_cursor_count);
         
         cursor_count = 0;
         r_cursor_count = 0;

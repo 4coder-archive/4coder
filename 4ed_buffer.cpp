@@ -63,14 +63,16 @@ buffer_quick_unsort_cursors(Cursor_With_Index *positions, i32 start, i32 pivot){
 
 internal void
 buffer_sort_cursors(Cursor_With_Index *positions, i32 count){
-    Assert(count > 0);
-    buffer_quick_sort_cursors(positions, 0, count-1);
+    if (count > 0){
+        buffer_quick_sort_cursors(positions, 0, count - 1);
+    }
 }
 
 internal void
 buffer_unsort_cursors(Cursor_With_Index *positions, i32 count){
-    Assert(count > 0);
-    buffer_quick_unsort_cursors(positions, 0, count-1);
+    if (count > 0){
+        buffer_quick_unsort_cursors(positions, 0, count - 1);
+    }
 }
 
 internal void

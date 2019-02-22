@@ -353,7 +353,7 @@ RENDER_CALLER_SIG(default_render_caller){
     }
     
     // NOTE(allen): Token highlight setup
-    bool32 do_token_highlight = true;
+    bool32 do_token_highlight = false;
     if (do_token_highlight){
         Theme_Color color = {};
         color.tag = Stag_Cursor;

@@ -25,6 +25,14 @@ lock_jump_buffer(Buffer_Summary buffer){
     lock_jump_buffer(buffer.buffer_name, buffer.buffer_name_len);
 }
 
+static void
+lock_jump_buffer(Application_Links *app, Buffer_ID buffer_id){
+    Buffer_Summary buffer = {};
+    if (get_buffer_summary(app, buffer_id, AccessAll, &buffer)){
+        lock_jump_buffer(buffer.buffer_name, buffer.buffer_name_len);
+    }
+}
+
 static View_Summary
 get_view_for_locked_jump_buffer(Application_Links *app){
     View_Summary view = {};
