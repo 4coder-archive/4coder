@@ -1,23 +1,66 @@
 /*
- * Mr. 4th Dimention - Allen Webster
- *
- * 15.05.2015
- *
- * Math functions for 4coder
- *
+ * 4coder base types
  */
 
 // TOP
 
 #define C_MATH 1
 
-/*
- * Scalar operators
- */
+static i32
+ceil32(f32 v){
+    return(((v)>0)?( (v == (i32)(v))?((i32)(v)):((i32)((v)+1.f)) ):( ((i32)(v)) ));
+}
+
+static i32
+floor32(f32 v){
+    return(((v)<0)?( (v == (i32)(v))?((i32)(v)):((i32)((v)-1.f)) ):( ((i32)(v)) ));
+}
+
+static i32
+round32(f32 v){
+    return(floor32(v + 0.5f));
+}
+
+static i32
+trun32(f32 v){
+    return((i32)(v));
+}
+
+static i32
+div_ceil(i32 n, i32 d){
+    return( ((n) % (d) != 0) + ((n) / (d)) );
+}
+
+static i32
+l_round_up_i32(i32 x, i32 b){
+    i32 t = x + b - 1;
+    return(t - (t%b));
+}
+
+static u32
+l_round_up_u32(u32 x, u32 b){
+    i32 t = x + b - 1;
+    return(t - (t%b));
+}
+
+static u32 round_up_pot_u32(u32 x){
+    --x;
+    x |= x >> 1;
+    x |= x >> 2;
+    x |= x >> 4;
+    x |= x >> 8;
+    x |= x >> 16;
+    ++x;
+    return(x);
+}
+
+////////////////////////////////
+
+// scalars
 
 #define DEG_TO_RAD (0.0174533f)
 
-internal f32
+static f32
 ABS(f32 x){
     if (x < 0) x = -x;
     return(x);
@@ -26,7 +69,7 @@ ABS(f32 x){
 #if C_MATH
 #include <math.h>
 
-internal f32
+static f32
 MOD(f32 x, i32 m){
     f32 whole;
     f32 frac = modff(x, &whole);
@@ -34,30 +77,30 @@ MOD(f32 x, i32 m){
     return(r);
 }
 
-internal f32
+static f32
 SQRT(f32 x){
     f32 r = sqrtf(x);
     return(r);
 }
 
-internal f32
+static f32
 SIN(f32 x_degrees){
     f32 r = sinf(x_degrees * DEG_TO_RAD);
     return(r);
 }
 
-internal f32
+static f32
 COS(f32 x_degrees){
     f32 r = cosf(x_degrees * DEG_TO_RAD);
     return(r);
 }
 #endif
 
-/*
- * Vectors
- */
+////////////////////////////////
 
-internal Vec2
+// vectors
+
+static Vec2
 V2(f32 x, f32 y){
     Vec2 result = {};
     result.x = x;
@@ -65,7 +108,7 @@ V2(f32 x, f32 y){
     return(result);
 }
 
-internal Vec3
+static Vec3
 V3(f32 x, f32 y, f32 z){
     Vec3 result = {};
     result.x = x;
@@ -74,7 +117,7 @@ V3(f32 x, f32 y, f32 z){
     return(result);
 }
 
-internal Vec4
+static Vec4
 V4(f32 x, f32 y, f32 z, f32 w){
     Vec4 result = {};
     result.x = x;
@@ -84,7 +127,37 @@ V4(f32 x, f32 y, f32 z, f32 w){
     return(result);
 }
 
-internal Vec2_i32
+static Vec2
+V2(Vec2_i32 pi){
+    return(V2((f32)pi.x, (f32)pi.y));
+}
+
+static Vec3
+V3(Vec3_i32 pi){
+    return(V3((f32)pi.x, (f32)pi.y, (f32)pi.z));
+}
+
+static Vec4
+V4(Vec4_i32 pi){
+    return(V4((f32)pi.x, (f32)pi.y, (f32)pi.z, (f32)pi.w));
+}
+
+static Vec2
+V2(Vec2 pi){
+    return(pi);
+}
+
+static Vec3
+V3(Vec3 pi){
+    return(pi);
+}
+
+static Vec4
+V4(Vec4 pi){
+    return(pi);
+}
+
+static Vec2_i32
 V2i32(i32 x, i32 y){
     Vec2_i32 result = {};
     result.x = x;
@@ -92,7 +165,7 @@ V2i32(i32 x, i32 y){
     return(result);
 }
 
-internal Vec3_i32
+static Vec3_i32
 V3i32(i32 x, i32 y, i32 z){
     Vec3_i32 result = {};
     result.x = x;
@@ -101,7 +174,7 @@ V3i32(i32 x, i32 y, i32 z){
     return(result);
 }
 
-internal Vec4_i32
+static Vec4_i32
 V4i32(i32 x, i32 y, i32 z, i32 w){
     Vec4_i32 result = {};
     result.x = x;
@@ -111,7 +184,37 @@ V4i32(i32 x, i32 y, i32 z, i32 w){
     return(result);
 }
 
-internal Vec2
+static Vec2_i32
+V2i32(Vec2_f32 pi){
+    return(V2i32((i32)pi.x, (i32)pi.y));
+}
+
+static Vec3_i32
+V3i32(Vec3_f32 pi){
+    return(V3i32((i32)pi.x, (i32)pi.y, (i32)pi.z));
+}
+
+static Vec4_i32
+V4i32(Vec4_f32 pi){
+    return(V4i32((i32)pi.x, (i32)pi.y, (i32)pi.z, (i32)pi.w));
+}
+
+static Vec2_i32
+V2i32(Vec2_i32 pi){
+    return(pi);
+}
+
+static Vec3_i32
+V3i32(Vec3_i32 pi){
+    return(pi);
+}
+
+static Vec4_i32
+V4i32(Vec4_i32 pi){
+    return(pi);
+}
+
+static Vec2
 operator+(Vec2 a, Vec2 b){
     Vec2 result;
     result.x = a.x + b.x;
@@ -119,7 +222,7 @@ operator+(Vec2 a, Vec2 b){
     return(result);
 }
 
-internal Vec3
+static Vec3
 operator+(Vec3 a, Vec3 b){
     Vec3 result;
     result.x = a.x + b.x;
@@ -128,7 +231,7 @@ operator+(Vec3 a, Vec3 b){
     return(result);
 }
 
-internal Vec4
+static Vec4
 operator+(Vec4 a, Vec4 b){
     Vec4 result;
     result.x = a.x + b.x;
@@ -138,7 +241,7 @@ operator+(Vec4 a, Vec4 b){
     return(result);
 }
 
-internal Vec2
+static Vec2
 operator-(Vec2 a, Vec2 b){
     Vec2 result;
     result.x = a.x - b.x;
@@ -146,7 +249,7 @@ operator-(Vec2 a, Vec2 b){
     return(result);
 }
 
-internal Vec3
+static Vec3
 operator-(Vec3 a, Vec3 b){
     Vec3 result;
     result.x = a.x - b.x;
@@ -155,7 +258,7 @@ operator-(Vec3 a, Vec3 b){
     return(result);
 }
 
-internal Vec4
+static Vec4
 operator-(Vec4 a, Vec4 b){
     Vec4 result;
     result.x = a.x - b.x;
@@ -165,7 +268,7 @@ operator-(Vec4 a, Vec4 b){
     return(result);
 }
 
-internal Vec2
+static Vec2
 operator*(Vec2 a, f32 k){
     Vec2 result;
     result.x = a.x * k;
@@ -173,7 +276,7 @@ operator*(Vec2 a, f32 k){
     return(result);
 }
 
-internal Vec3
+static Vec3
 operator*(Vec3 a, f32 k){
     Vec3 result;
     result.x = a.x * k;
@@ -182,7 +285,7 @@ operator*(Vec3 a, f32 k){
     return(result);
 }
 
-internal Vec4
+static Vec4
 operator*(Vec4 a, f32 k){
     Vec4 result;
     result.x = a.x * k;
@@ -192,7 +295,7 @@ operator*(Vec4 a, f32 k){
     return(result);
 }
 
-internal Vec2
+static Vec2
 operator*(f32 k, Vec2 a){
     Vec2 result;
     result.x = a.x * k;
@@ -200,7 +303,7 @@ operator*(f32 k, Vec2 a){
     return(result);
 }
 
-internal Vec3
+static Vec3
 operator*(f32 k, Vec3 a){
     Vec3 result;
     result.x = a.x * k;
@@ -209,7 +312,7 @@ operator*(f32 k, Vec3 a){
     return(result);
 }
 
-internal Vec4
+static Vec4
 operator*(f32 k, Vec4 a){
     Vec4 result;
     result.x = a.x * k;
@@ -218,142 +321,142 @@ operator*(f32 k, Vec4 a){
     result.w = a.w * k;
     return(result);}
 
-internal Vec2&
+static Vec2&
 operator+=(Vec2 &a, Vec2 b){
     a = (a + b);
     return a;
 }
 
-internal Vec3&
+static Vec3&
 operator+=(Vec3 &a, Vec3 b){
     a = (a + b);
     return a;
 }
 
-internal Vec4&
+static Vec4&
 operator+=(Vec4 &a, Vec4 b){
     a = (a + b);
     return a;
 }
 
-internal Vec2&
+static Vec2&
 operator-=(Vec2 &a, Vec2 b){
     a = (a - b);
     return a;
 }
 
-internal Vec3&
+static Vec3&
 operator-=(Vec3 &a, Vec3 b){
     a = (a - b);
     return a;
 }
 
-internal Vec4&
+static Vec4&
 operator-=(Vec4 &a, Vec4 b){
     a = (a - b);
     return a;
 }
 
-internal Vec2&
+static Vec2&
 operator*=(Vec2 &a, f32 k){
     a = (a*k);
     return a;
 }
 
-internal Vec3&
+static Vec3&
 operator*=(Vec3 &a, f32 k){
     a = (a*k);
     return a;
 }
 
-internal Vec4&
+static Vec4&
 operator*=(Vec4 &a, f32 k){
     a = (a*k);
     return a;
 }
 
-internal b32
+static b32
 operator==(Vec2 a, Vec2 b){
     return(a.x == b.x && a.y == b.y);
 }
 
-internal b32
+static b32
 operator!=(Vec2 a, Vec2 b){
     return(!(a.x == b.x && a.y == b.y));
 }
 
-internal b32
+static b32
 operator==(Vec3 a, Vec3 b){
     return(a.x == b.x && a.y == b.y && a.z == b.z);
 }
 
-internal b32
+static b32
 operator!=(Vec3 a, Vec3 b){
     return(!(a.x == b.x && a.y == b.y && a.z == b.z));
 }
 
-internal b32
+static b32
 operator==(Vec4 a, Vec4 b){
     return(a.x == b.x && a.y == b.y && a.z == b.z && a.w == b.w);
 }
 
-internal b32
+static b32
 operator!=(Vec4 a, Vec4 b){
     return(!(a.x == b.x && a.y == b.y && a.z == b.z && a.w == b.w));
 }
 
-internal b32
+static b32
 operator==(Vec2_i32 a, Vec2_i32 b){
     return(a.x == b.x && a.y == b.y);
 }
 
-internal b32
+static b32
 operator!=(Vec2_i32 a, Vec2_i32 b){
     return(!(a.x == b.x && a.y == b.y));
 }
 
-internal b32
+static b32
 operator==(Vec3_i32 a, Vec3_i32 b){
     return(a.x == b.x && a.y == b.y && a.z == b.z);
 }
 
-internal b32
+static b32
 operator!=(Vec3_i32 a, Vec3_i32 b){
     return(!(a.x == b.x && a.y == b.y && a.z == b.z));
 }
 
-internal b32
+static b32
 operator==(Vec4_i32 a, Vec4_i32 b){
     return(a.x == b.x && a.y == b.y && a.z == b.z && a.w == b.w);
 }
 
-internal b32
+static b32
 operator!=(Vec4_i32 a, Vec4_i32 b){
     return(!(a.x == b.x && a.y == b.y && a.z == b.z && a.w == b.w));
 }
 
-internal f32
+static f32
 dot(Vec2 a, Vec2 b){
     f32 result;
     result = a.x*b.x + a.y*b.y;
     return result;
 }
 
-internal f32
+static f32
 dot(Vec3 a, Vec3 b){
     f32 result;
     result = a.x*b.x + a.y*b.y + a.z*b.z;
     return result;
 }
 
-internal f32
+static f32
 dot(Vec4 a, Vec4 b){
     f32 result;
     result = a.x*b.x + a.y*b.y + a.z*b.z + a.w*b.w;
     return result;
 }
 
-internal Vec3
+static Vec3
 cross(Vec3 a, Vec3 b){
     Vec3 result;
     result.x = a.y*b.z - b.y*a.z;
@@ -362,14 +465,14 @@ cross(Vec3 a, Vec3 b){
     return result;
 }
 
-internal Vec2
+static Vec2
 hadamard(Vec2 a, Vec2 b){
     a.x *= b.x;
     a.y *= b.y;
     return(a);
 }
 
-internal Vec3
+static Vec3
 hadamard(Vec3 a, Vec3 b){
     a.x *= b.x;
     a.y *= b.y;
@@ -377,7 +480,7 @@ hadamard(Vec3 a, Vec3 b){
     return(a);
 }
 
-internal Vec4
+static Vec4
 hadamard(Vec4 a, Vec4 b){
     a.x *= b.x;
     a.y *= b.y;
@@ -386,17 +489,17 @@ hadamard(Vec4 a, Vec4 b){
     return(a);
 }
 
-internal Vec2
+static Vec2
 perp(Vec2 v){
     return(V2(-v.y, v.x));
 }
 
-internal Vec2
+static Vec2
 polar_to_cartesian(f32 theta_degrees, f32 length){
     return(V2(COS(theta_degrees), SIN(theta_degrees))*length);
 }
 
-internal Vec2
+static Vec2
 rotate(Vec2 v, f32 theta_degrees){
     f32 c = COS(theta_degrees);
     f32 s = SIN(theta_degrees);
@@ -404,36 +507,34 @@ rotate(Vec2 v, f32 theta_degrees){
               v.x*s + v.y*c));
 }
 
-/*
-*Lerps, Clamps, Thresholds, Etc
- */
+////////////////////////////////
 
-internal f32
+static f32
 lerp(f32 a, f32 t, f32 b){
     return(a + (b-a)*t);
 }
 
-internal i32
+static i32
 lerp(i32 a, f32 t, i32 b){
     return((i32)(lerp((f32)a, t, (f32)b)));
 }
 
-internal Vec2
+static Vec2
 lerp(Vec2 a, f32 t, Vec2 b){
     return(a + (b-a)*t);
 }
 
-internal Vec3
+static Vec3
 lerp(Vec3 a, f32 t, Vec3 b){
     return(a + (b-a)*t);
 }
 
-internal Vec4
+static Vec4
 lerp(Vec4 a, f32 t, Vec4 b){
     return(a + (b-a)*t);
 }
 
-internal f32
+static f32
 unlerp(f32 a, f32 x, f32 b){
     f32 r = x;
     if (b != a){
@@ -442,7 +543,7 @@ unlerp(f32 a, f32 x, f32 b){
     return(r);
 }
 
-internal f32
+static f32
 clamp(f32 a, f32 n, f32 z){
     if (n < a){
         n = a;
@@ -453,7 +554,7 @@ clamp(f32 a, f32 n, f32 z){
     return(n);
 }
 
-internal i32
+static i32
 clamp(i32 a, i32 n, i32 z){
     if (n < a){
         n = a;
@@ -464,7 +565,7 @@ clamp(i32 a, i32 n, i32 z){
     return(n);
 }
 
-internal i64
+static i64
 clamp(i64 a, i64 n, i64 z){
     if (n < a){
         n = a;
@@ -475,7 +576,7 @@ clamp(i64 a, i64 n, i64 z){
     return(n);
 }
 
-internal u32
+static u32
 clamp(u32 a, u32 n, u32 z){
     if (n < a){
         n = a;
@@ -486,7 +587,7 @@ clamp(u32 a, u32 n, u32 z){
     return(n);
 }
 
-internal u64
+static u64
 clamp(u64 a, u64 n, u64 z){
     if (n < a){
         n = a;
@@ -497,15 +598,12 @@ clamp(u64 a, u64 n, u64 z){
     return(n);
 }
 
-#define clamp_top(a,b) Min(a,b)
-#define clamp_bottom(a,b) Max(a,b)
+////////////////////////////////
 
-/*
-*Color
- */
+// color
 
 // TODO(allen): Convert colors to Vec4
-internal u32
+static u32
 color_blend(u32 a, f32 t, u32 b){
     union{
         u8 byte[4];
@@ -523,7 +621,7 @@ color_blend(u32 a, f32 t, u32 b){
     return R.comp;
 }
 
-internal Vec3
+static Vec3
 unpack_color3(u32 color){
     Vec3 result;
     result.r = ((color >> 16) & 0xFF) / 255.f;
@@ -532,7 +630,7 @@ unpack_color3(u32 color){
     return result;
 }
 
-internal Vec4
+static Vec4
 unpack_color4(u32 color){
     Vec4 result;
     result.a = ((color >> 24) & 0xFF) / 255.f;
@@ -542,7 +640,7 @@ unpack_color4(u32 color){
     return result;
 }
 
-internal u32
+static u32
 pack_color4(Vec4 color){
     u32 result =
         ((u8)(color.a*255) << 24) |
@@ -552,7 +650,7 @@ pack_color4(Vec4 color){
     return result;
 }
 
-internal Vec4
+static Vec4
 rgba_to_hsla(Vec4 rgba){
     Vec4 hsla = {};
     f32 max, min, delta;
@@ -608,7 +706,7 @@ rgba_to_hsla(Vec4 rgba){
     return hsla;
 }
 
-internal Vec4
+static Vec4
 hsla_to_rgba(Vec4 hsla){
     if (hsla.h >= 1.f){
         hsla.h = 0.f;
@@ -633,11 +731,9 @@ hsla_to_rgba(Vec4 hsla){
     return(rgba);
 }
 
-//
-// Rectangle Operations
-//
+////////////////////////////////
 
-internal i32_Rect
+static i32_Rect
 i32R(i32 l, i32 t, i32 r, i32 b){
     i32_Rect rect = {};
     rect.x0 = l;
@@ -647,12 +743,12 @@ i32R(i32 l, i32 t, i32 r, i32 b){
     return(rect);
 }
 
-internal i32_Rect
+static i32_Rect
 i32R_xy_wh(i32 x, i32 y, i32 w, i32 h){
     return(i32R(x, y, x + w, y + h));
 }
 
-internal i32_Rect
+static i32_Rect
 i32R(f32_Rect r){
     i32_Rect rect = {};
     rect.x0 = (i32)r.x0;
@@ -662,7 +758,7 @@ i32R(f32_Rect r){
     return(rect);
 }
 
-internal f32_Rect
+static f32_Rect
 f32R(f32 l, f32 t, f32 r, f32 b){
     f32_Rect rect = {};
     rect.x0 = l;
@@ -672,7 +768,7 @@ f32R(f32 l, f32 t, f32 r, f32 b){
     return(rect);
 }
 
-internal f32_Rect
+static f32_Rect
 f32R(i32_Rect r){
     f32_Rect rect = {};
     rect.x0 = (f32)r.x0;
@@ -682,22 +778,22 @@ f32R(i32_Rect r){
     return(rect);
 }
 
-internal i32
+static i32
 rect_equal(i32_Rect r1, i32_Rect r2){
     return(r1.x0 == r2.x0 && r1.y0 == r2.y0 && r1.x1 == r2.x1 && r1.y1 == r2.y1);
 }
 
-internal i32
+static i32
 hit_check(i32 x, i32 y, i32 x0, i32 y0, i32 x1, i32 y1){
     return(x >= x0 && x < x1 && y >= y0 && y < y1);
 }
 
-internal i32
+static i32
 hit_check(i32 x, i32 y, i32_Rect rect){
     return(hit_check(x, y, rect.x0, rect.y0, rect.x1, rect.y1));
 }
 
-internal i32_Rect
+static i32_Rect
 get_inner_rect(i32_Rect outer, i32 margin){
     i32_Rect r = {};
     r.x0 = outer.x0 + margin;
@@ -707,7 +803,7 @@ get_inner_rect(i32_Rect outer, i32 margin){
     return(r);
 }
 
-internal f32_Rect
+static f32_Rect
 get_inner_rect(f32_Rect outer, f32 margin){
     f32_Rect r = {};
     r.x0 = outer.x0 + margin;
@@ -717,38 +813,38 @@ get_inner_rect(f32_Rect outer, f32 margin){
     return(r);
 }
 
-internal i32
+static i32
 rect_height(i32_Rect rect){
     return(rect.y1 - rect.y0);
 }
 
-internal i32
+static i32
 rect_width(i32_Rect rect){
     return(rect.x1 - rect.x0);
 }
 
-internal i32
+static i32
 fits_inside(i32_Rect rect, i32_Rect outer){
     return(rect.x0 >= outer.x0 && rect.x1 <= outer.x1 && rect.y0 >= outer.y0 && rect.y1 <= outer.y1);
 }
 
-internal i32
+static i32
 interval_overlap(f32 a0, f32 a1, f32 b0, f32 b1){
     return(a0 < b1 && b0 < a1);
 }
 
-internal i32
+static i32
 rect_overlap(f32_Rect a, f32_Rect b){
     return(interval_overlap(a.x0, a.x1, b.x0, b.x1) &&
            interval_overlap(a.y0, a.y1, b.y0, b.y1));
 }
 
-internal f32
+static f32
 rect_height(f32_Rect rect){
     return(rect.y1 - rect.y0);
 }
 
-internal f32
+static f32
 rect_width(f32_Rect rect){
     return(rect.x1 - rect.x0);
 }

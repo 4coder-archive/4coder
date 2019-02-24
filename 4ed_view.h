@@ -99,10 +99,8 @@ struct Shift_Information{
 };
 
 struct File_Bar{
-    f32 pos_x;
-    f32 pos_y;
-    f32 text_shift_x;
-    f32 text_shift_y;
+    Vec2 pos;
+    Vec2 text_shift;
     i32_Rect rect;
     Face_ID font_id;
 };

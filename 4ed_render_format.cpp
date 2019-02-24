@@ -120,28 +120,33 @@ draw_font_glyph(Render_Target *target, Face_ID font_id, u32 codepoint, f32 x, f3
     render_end_push(target, h);
 }
 
-// TODO(allen): do(merge draw_string_base into draw_string)
+internal Vec2
+snap_point_to_boundary(Vec2 point){
+    point.x = (f32)(floor32(point.x));
+    point.y = (f32)(floor32(point.y));
+    return(point);
+}
+
 internal f32
-draw_string_base(System_Functions *system, Render_Target *target, Face_ID font_id, String str_, i32 x_, i32 y_, u32 color,
-                 u32 flags, f32 dx, f32 dy){
-    f32 x = 0;
+draw_string(System_Functions *system, Render_Target *target, Face_ID font_id, String string, Vec2 point,
+            u32 color, u32 flags, Vec2 delta){
+    f32 total_delta = 0.f;
     
     Font_Pointers font = system->font.get_pointers_by_id(font_id);
     if (font.valid != 0){
-        f32 y = (f32)y_;
-        x = (f32)x_;
+        point = snap_point_to_boundary(point);
         
         f32 byte_advance = font.metrics->byte_advance;
         f32 *sub_advances = font.metrics->sub_advances;
         
-        u8 *str = (u8*)str_.str;
-        u8 *str_end = str + str_.size;
+        u8 *str = (u8*)string.str;
+        u8 *str_end = str + string.size;
         
         Translation_State tran = {};
         Translation_Emits emits = {};
         
         for (u32 i = 0; str < str_end; ++str, ++i){
-            translating_fully_process_byte(system, font, &tran, *str, i, str_.size, &emits);
+            translating_fully_process_byte(system, font, &tran, *str, i, string.size, &emits);
             
             for (TRANSLATION_DECL_EMIT_LOOP(J, emits)){
                 TRANSLATION_DECL_GET_STEP(step, behavior, J, emits);
@@ -149,11 +154,11 @@ draw_string_base(System_Functions *system, Render_Target *target, Face_ID font_i
                 if (behavior.do_codepoint_advance){
                     u32 codepoint = step.value;
                     if (color != 0){
-                        draw_font_glyph(target, font_id, codepoint, x, y, color, flags);
+                        draw_font_glyph(target, font_id, codepoint, point.x, point.y, color, flags);
                     }
                     f32 d = font_get_glyph_advance(system, font.settings, font.metrics, font.pages, codepoint);
-                    x += d*dx;
-                    y += d*dy;
+                    point += d*delta;
+                    total_delta += d;
                 }
                 else if (behavior.do_number_advance){
                     u8 n = (u8)(step.value);
@@ -161,70 +166,48 @@ draw_string_base(System_Functions *system, Render_Target *target, Face_ID font_i
                         u8 cs[3];
                         cs[0] = '\\';
                         byte_to_ascii(n, cs+1);
-                        
-                        f32 xx = x;
-                        f32 yy = y;
+                        Vec2 pp = point;
                         for (u32 j = 0; j < 3; ++j){
-                            draw_font_glyph(target, font_id, cs[j], xx, yy, color, flags);
-                            xx += dx*sub_advances[j];
-                            yy += dy*sub_advances[j];
+                            draw_font_glyph(target, font_id, cs[j], pp.x, pp.y, color, flags);
+                            pp += delta*sub_advances[j];
                         }
                     }
-                    
-                    x += dx*byte_advance;
-                    y += dy*byte_advance;
+                    point += byte_advance*delta;
+                    total_delta += byte_advance;
                 }
             }
         }
     }
     
-    return(x);
+    return(total_delta);
 }
 
 internal f32
-draw_string_base(System_Functions *system, Render_Target *target, Face_ID font_id, String str_, i32 x_, i32 y_, u32 color){
-    f32 result = draw_string_base(system, target, font_id, str_, x_, y_, color, 0, 1.f, 0.f);
-    return(result);
+draw_string(System_Functions *system, Render_Target *target, Face_ID font_id, String string, Vec2 point,
+            u32 color){
+    return(draw_string(system, target, font_id, string, point, color, 0, V2(1.f, 0.f)));
 }
 
 internal f32
-draw_string(System_Functions *system, Render_Target *target, Face_ID font_id, String str, i32 x, i32 y, u32 color,
-            u32 flags, f32 dx, f32 dy){
-    f32 w = draw_string_base(system, target, font_id, str, x, y, color, flags, dx, dy);
-    return(w);
+draw_string(System_Functions *system, Render_Target *target, Face_ID font_id, char *str, Vec2 point,
+            u32 color, u32 flags, Vec2 delta){
+    return(draw_string(system, target, font_id, make_string_slowly(str), point, color, flags, delta));
 }
 
 internal f32
-draw_string(System_Functions *system, Render_Target *target, Face_ID font_id, char *str, i32 x, i32 y, u32 color, 
-            u32 flags, f32 dx, f32 dy){
-    String string = make_string_slowly(str);
-    f32 w = draw_string_base(system, target, font_id, string, x, y, color, flags, dx, dy);
-    return(w);
-}
-
-internal f32
-draw_string(System_Functions *system, Render_Target *target, Face_ID font_id, String str, i32 x, i32 y, u32 color){
-    f32 w = draw_string(system, target, font_id, str, x, y, color, 0, 1.f, 0.f);
-    return(w);
-}
-
-internal f32
-draw_string(System_Functions *system, Render_Target *target, Face_ID font_id, char *str, i32 x, i32 y, u32 color){
-    f32 w = draw_string(system, target, font_id, str, x, y, color, 0, 1.f, 0.f);
-    return(w);
+draw_string(System_Functions *system, Render_Target *target, Face_ID font_id, char *str, Vec2 point,
+            u32 color){
+    return(draw_string(system, target, font_id, make_string_slowly(str), point, color, 0, V2(1.f, 0.f)));
 }
 
 internal f32
 font_string_width(System_Functions *system, Render_Target *target, Face_ID font_id, String str){
-    f32 w = draw_string_base(system, target, font_id, str, 0, 0, 0);
-    return(w);
+    return(draw_string(system, target, font_id, str, V2(0, 0), 0, 0, V2(0, 0)));
 }
 
 internal f32
 font_string_width(System_Functions *system, Render_Target *target, Face_ID font_id, char *str){
-    String string = make_string_slowly(str);
-    f32 w = draw_string_base(system, target, font_id, string, 0, 0, 0);
-    return(w);
+    return(draw_string(system, target, font_id, make_string_slowly(str), V2(0, 0), 0, 0, V2(0, 0)));
 }
 
 // BOTTOM

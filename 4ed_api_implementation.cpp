@@ -4231,22 +4231,24 @@ DOC(Returns a microsecond resolution timestamp.)
     return(system->now_time());
 }
 
-internal void
-draw_helper__view_space_to_screen_space(Models *models, i32 *x, i32 *y){
+internal Vec2
+draw_helper__view_space_to_screen_space(Models *models, Vec2 point){
     i32_Rect region = models->render_rect;
-    *x += region.x0;
-    *y += region.y0;
+    point.x += (f32)region.x0;
+    point.y += (f32)region.y0;
+    return(point);
 }
 
-internal void
-draw_helper__view_space_to_screen_space(Models *models, f32_Rect *rect){
+internal f32_Rect
+draw_helper__view_space_to_screen_space(Models *models, f32_Rect rect){
     i32_Rect region = models->render_rect;
     f32 x_corner = (f32)region.x0;
     f32 y_corner = (f32)region.y0;
-    rect->x0 += x_corner;
-    rect->y0 += y_corner;
-    rect->x1 += x_corner;
-    rect->y1 += y_corner;
+    rect.x0 += x_corner;
+    rect.y0 += y_corner;
+    rect.x1 += x_corner;
+    rect.y1 += y_corner;
+    return(rect);
 }
 
 // NOTE(allen): Coordinate space of draw calls:
@@ -4254,64 +4256,60 @@ draw_helper__view_space_to_screen_space(Models *models, f32_Rect *rect){
 // To make text scroll with the buffer users should read the view's scroll position and subtract it first.
 
 API_EXPORT float
-Draw_String(Application_Links *app, Face_ID font_id, String str, int32_t x, int32_t y, int_color color, uint32_t flags, float dx, float dy)
+Draw_String(Application_Links *app, Face_ID font_id, String str, Vec2 point, int_color color, u32 flags, Vec2 delta)
 {
+    f32 result = 0.f;
     Models *models = (Models*)app->cmd_context;
     if (models->render_view == 0){
-        float w = font_string_width(models->system, models->target, font_id, str);
-        return(w);
+        result  = font_string_width(models->system, models->target, font_id, str);
     }
-    Style *style = &models->styles.styles[0];
-    Theme *theme_data = &style->theme;
-    
-    draw_helper__view_space_to_screen_space(models, &x, &y);
-    
-    u32 actual_color = finalize_color(theme_data, color);
-    float w = draw_string_base(models->system, models->target, font_id, str, x, y,
-                               actual_color, flags, dx, dy);
-    return(w);
+    else{
+        Style *style = &models->styles.styles[0];
+        Theme *theme_data = &style->theme;
+        
+        point = draw_helper__view_space_to_screen_space(models, point);
+        
+        u32 actual_color = finalize_color(theme_data, color);
+        result = draw_string(models->system, models->target, font_id, str, point, actual_color, flags, delta);
+    }
+    return(result);
 }
 
 API_EXPORT float
 Get_String_Advance(Application_Links *app, Face_ID font_id, String str)
 {
     Models *models = (Models*)app->cmd_context;
-    float w = font_string_width(models->system, models->target, font_id, str);
-    return(w);
+    return(font_string_width(models->system, models->target, font_id, str));
 }
 
 API_EXPORT void
 Draw_Rectangle(Application_Links *app, f32_Rect rect, int_color color)
 {
     Models *models = (Models*)app->cmd_context;
-    if (models->render_view == 0){
-        return;
+    if (models->render_view != 0){
+        Style *style = &models->styles.styles[0];
+        Theme *theme_data = &style->theme;
+        
+        rect = draw_helper__view_space_to_screen_space(models, rect);
+        
+        u32 actual_color = finalize_color(theme_data, color);
+        draw_rectangle(models->target, rect, actual_color);
     }
-    
-    Style *style = &models->styles.styles[0];
-    Theme *theme_data = &style->theme;
-    
-    draw_helper__view_space_to_screen_space(models, &rect);
-    
-    u32 actual_color = finalize_color(theme_data, color);
-    draw_rectangle(models->target, rect, actual_color);
 }
 
 API_EXPORT void
 Draw_Rectangle_Outline(Application_Links *app, f32_Rect rect, int_color color)
 {
     Models *models = (Models*)app->cmd_context;
-    if (models->render_view == 0){
-        return;
+    if (models->render_view != 0){
+        Style *style = &models->styles.styles[0];
+        Theme *theme_data = &style->theme;
+        
+        rect = draw_helper__view_space_to_screen_space(models, rect);
+        
+        u32 actual_color = finalize_color(theme_data, color);
+        draw_rectangle_outline(models->target, rect, actual_color);
     }
-    
-    Style *style = &models->styles.styles[0];
-    Theme *theme_data = &style->theme;
-    
-    draw_helper__view_space_to_screen_space(models, &rect);
-    
-    u32 actual_color = finalize_color(theme_data, color);
-    draw_rectangle_outline(models->target, rect, actual_color);
 }
 
 API_EXPORT Face_ID

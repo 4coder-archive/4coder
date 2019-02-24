@@ -99,24 +99,9 @@ do_step_file_view(System_Functions *system, Models *models, View *view, i32_Rect
 ////////////////////////////////
 
 internal void
-draw_text_field(System_Functions *system, Render_Target *target, View *view, Models *models, Face_ID font_id, i32_Rect rect, String p, String t){
-    if (target != 0){
-        Style *style = &models->styles.styles[0];
-        u32 back_color  = style->theme.colors[Stag_Margin];
-        u32 text1_color = style->theme.colors[Stag_Default];
-        u32 text2_color = style->theme.colors[Stag_Pop1];
-        i32 x = rect.x0;
-        i32 y = rect.y0 + 2;
-        draw_rectangle(target, rect, back_color);
-        x = ceil32(draw_string(system, target, font_id, p, x, y, text2_color));
-        draw_string(system, target, font_id, t, x, y, text1_color);
-    }
-}
-
-internal void
 intbar_draw_string(System_Functions *system, Render_Target *target, File_Bar *bar, String str, u32 char_color){
-    draw_string(system, target, bar->font_id, str, (i32)(bar->pos_x + bar->text_shift_x), (i32)(bar->pos_y + bar->text_shift_y), char_color);
-    bar->pos_x += font_string_width(system, target, bar->font_id, str);
+    Vec2 p = bar->pos + bar->text_shift;
+    bar->pos.x += draw_string(system, target, bar->font_id, str, p, char_color);
 }
 
 internal void
@@ -133,10 +118,8 @@ draw_file_bar(System_Functions *system, Render_Target *target, View *view, Model
     
     if (target != 0){
         bar.font_id = file->settings.font_id;
-        bar.pos_x = (f32)bar.rect.x0;
-        bar.pos_y = (f32)bar.rect.y0;
-        bar.text_shift_y = 2;
-        bar.text_shift_x = 0;
+        bar.pos = V2(bar.rect.p0);
+        bar.text_shift = V2(0.f, 2.f);
         
         draw_rectangle(target, bar.rect, back_color);
         
@@ -248,11 +231,11 @@ do_render_file_view(System_Functions *system, View *view, Models *models, GUI_Sc
         u32 back_color  = style->theme.colors[Stag_Back];
         u32 text1_color = style->theme.colors[Stag_Default];
         u32 text2_color = style->theme.colors[Stag_Pop1];
-        i32 x = query_bar_rect.x0;
-        i32 y = query_bar_rect.y0 + 2;
+        Vec2 p = V2(query_bar_rect.p0);
+        p.y += 2.f;
         draw_rectangle(target, query_bar_rect, back_color);
-        x = ceil32(draw_string(system, target, font_id, slot->query_bar->prompt, x, y, text2_color));
-        draw_string(system, target, font_id, slot->query_bar->string, x, y, text1_color);
+        p.x += draw_string(system, target, font_id, slot->query_bar->prompt, p, text2_color);
+        draw_string(system, target, font_id, slot->query_bar->string, p, text1_color);
     }
     view->widget_height = (f32)bar_count*(view->line_height + 2);
     
@@ -298,11 +281,10 @@ do_render_file_view(System_Functions *system, View *view, Models *models, GUI_Sc
                         u32 margin_color = get_margin_color(style, item->activation_level);
                         f32_Rect inner = get_inner_rect(item_rect, 3);
                         draw_rectangle(target, inner, back);
-                        i32 x = (i32)inner.x0 + 3;
-                        i32 y = (i32)inner.y0 + line_height/2 - 1;
-                        x = ceil32(draw_string(system, target, font_id, item->option.string, x, y, text_color));
-                        x += (i32)font_string_width(system, target, font_id, " ");
-                        draw_string(system, target, font_id, item->option.status, x, y, pop_color);
+                        Vec2 p = V2(inner.p0) + V2(3.f, line_height*0.5f - 1.f);
+                        p.x += draw_string(system, target, font_id, item->option.string, p, text_color);
+                        p.x += font_string_width(system, target, font_id, make_lit_string(" "));
+                        draw_string(system, target, font_id, item->option.status, p, pop_color);
                         draw_margin(target, item_rect, inner, margin_color);
                     }break;
                     
@@ -312,11 +294,10 @@ do_render_file_view(System_Functions *system, View *view, Models *models, GUI_Sc
                         u32 text1 = style->theme.colors[Stag_Default];
                         u32 text2 = style->theme.colors[Stag_Pop1];
                         draw_rectangle(target, item_rect, back);
-                        i32 x = (i32)item_rect.x0;
-                        i32 y = (i32)item_rect.y0 + 2;
-                        x = ceil32(draw_string(system, target, font_id, item->text_field.query, x, y, text2));
-                        x += (i32)font_string_width(system, target, font_id, " ");
-                        draw_string(system, target, font_id, item->text_field.string, x, y, text1);
+                        Vec2 p = V2(item_rect.p0) + V2(0.f, 2.f);
+                        p.x += draw_string(system, target, font_id, item->text_field.query, p, text2);
+                        p.x += font_string_width(system, target, font_id, make_lit_string(" "));
+                        p.x += draw_string(system, target, font_id, item->text_field.string, p, text1);
                     }break;
                     
                     case UIType_ColorTheme:
@@ -334,32 +315,29 @@ do_render_file_view(System_Functions *system, View *view, Models *models, GUI_Sc
                         draw_margin(target, item_rect, inner, margin_color);
                         draw_rectangle(target, inner, back);
                         
-                        i32 y = (i32)inner.y0;
-                        i32 x = (i32)inner.x0;
+                        Vec2 p = V2(inner.p0);
                         String str = item->color_theme.string;
                         if (str.str == 0){
                             str = style_preview->name;
                         }
-                        x = ceil32(draw_string(system, target, font_id, str, x, y, text_color));
-                        i32 font_x = (i32)(inner.x1 - font_string_width(system, target, font_id, font_name));
-                        if (font_x > x + 10){
-                            draw_string(system, target, font_id, font_name, font_x, y, text_color);
+                        p.x += draw_string(system, target, font_id, str, p, text_color);
+                        f32 font_x = inner.x1 - font_string_width(system, target, font_id, font_name);
+                        if (font_x > p.x + 10.f){
+                            draw_string(system, target, font_id, font_name, V2(font_x, p.y), text_color);
                         }
                         
                         i32 height = font.metrics->height;
-                        x = (i32)inner.x0;
-                        y += height;
-                        x = ceil32(draw_string(system, target, font_id, "if", x, y, keyword_color));
-                        x = ceil32(draw_string(system, target, font_id, "(x < ", x, y, text_color));
-                        x = ceil32(draw_string(system, target, font_id, "0", x, y, int_constant_color));
-                        x = ceil32(draw_string(system, target, font_id, ") { x = ", x, y, text_color));
-                        x = ceil32(draw_string(system, target, font_id, "0", x, y, int_constant_color));
-                        x = ceil32(draw_string(system, target, font_id, "; } ", x, y, text_color));
-                        x = ceil32(draw_string(system, target, font_id, "// comment", x, y, comment_color));
+                        p = V2(inner.x0, p.y + (f32)height);
+                        p.x += draw_string(system, target, font_id, "if", p, keyword_color);
+                        p.x += draw_string(system, target, font_id, "(x < ", p, text_color);
+                        p.x += draw_string(system, target, font_id, "0", p, int_constant_color);
+                        p.x += draw_string(system, target, font_id, ") { x = ", p, text_color);
+                        p.x += draw_string(system, target, font_id, "0", p, int_constant_color);
+                        p.x += draw_string(system, target, font_id, "; } ", p, text_color);
+                        p.x += draw_string(system, target, font_id, "// comment", p, comment_color);
                         
-                        x = (i32)inner.x0;
-                        y += height;
-                        draw_string(system, target, font_id, "[] () {}; * -> +-/ <>= ! && || % ^", x, y, text_color);
+                        p = V2(inner.x0, p.y + (f32)height);
+                        draw_string(system, target, font_id, "[] () {}; * -> +-/ <>= ! && || % ^", p, text_color);
                     }break;
                 }
             }

@@ -15,7 +15,7 @@
 #include "4coder_API/4coder_custom.h"
 
 #include "4ed_defines.h"
-#include "4ed_math.h"
+//#include "4ed_math.h"
 #include "4ed_font.h"
 #include "4ed_system.h"
 

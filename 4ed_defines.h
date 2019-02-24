@@ -101,47 +101,6 @@ typedef double f64;
 
 #define FixSize(s) struct{ u8 __size_fixer__[s]; }
 
-internal i32 ceil32(f32 v){
-    return(((v)>0)?( (v == (i32)(v))?((i32)(v)):((i32)((v)+1.f)) ):( ((i32)(v)) ));
-}
-
-internal i32 floor32(f32 v){
-    return(((v)<0)?( (v == (i32)(v))?((i32)(v)):((i32)((v)-1.f)) ):( ((i32)(v)) ));
-}
-
-internal i32 round32(f32 v){
-    return(floor32(v + 0.5f));
-}
-
-internal i32 trun32(f32 v){
-    return((i32)(v));
-}
-
-internal i32 div_ceil(i32 n, i32 d){
-    return( ((n) % (d) != 0) + ((n) / (d)) );
-}
-
-internal i32 l_round_up_i32(i32 x, i32 b){
-    i32 t = x + b - 1;
-    return(t - (t%b));
-}
-
-internal u32 l_round_up_u32(u32 x, u32 b){
-    i32 t = x + b - 1;
-    return(t - (t%b));
-}
-
-internal u32 round_up_pot_u32(u32 x){
-    --x;
-    x |= x >> 1;
-    x |= x >> 2;
-    x |= x >> 4;
-    x |= x >> 8;
-    x |= x >> 16;
-    ++x;
-    return(x);
-}
-
 #define DrCase(PC) case PC: goto resumespot_##PC
 #define DrYield(PC, n) { *S_ptr = S; S_ptr->__pc__ = PC; return(n); resumespot_##PC:; }
 #define DrReturn(n) { *S_ptr = S; S_ptr->__pc__ = -1; return(n); }

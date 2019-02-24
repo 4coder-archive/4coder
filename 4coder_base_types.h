@@ -58,6 +58,10 @@ typedef double f64;
 #define Max(a,b) (((a)>(b))?(a):(b))
 #define Min(a,b) (((a)<(b))?(a):(b))
 
+#define clamp_top(a,b) Min(a,b)
+#define clamp_bottom(a,b) Max(a,b)
+//#define clamp(a,x,b) Min(
+
 ////////////////////////////////
 
 struct Vec2_f32{

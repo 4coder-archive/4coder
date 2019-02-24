@@ -418,7 +418,6 @@ cpp_token_category_from_type(Cpp_Token_Type type){
             cat = CPP_TOKEN_CAT_OPERATOR;
         }break;
         
-        
         case CPP_TOKEN_VOID:
         case CPP_TOKEN_BOOL:
         case CPP_TOKEN_CHAR:

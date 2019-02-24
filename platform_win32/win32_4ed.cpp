@@ -43,7 +43,8 @@
 # include "4coder_default_bindings.cpp"
 #endif
 
-#include "4ed_math.h"
+#include "4coder_base_types.cpp"
+//#include "4ed_math.h"
 
 #include "4ed_font.h"
 #include "4ed_system.h"
@@ -1748,12 +1749,13 @@ win32_proc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
                     b8 *control_keys = win32vars.input_chunk.pers.control_keys;
                     i32 control_keys_size = sizeof(win32vars.input_chunk.pers.control_keys);
                     
-                    Assert(*count < KEY_INPUT_BUFFER_SIZE);
-                    data[*count].character = 0;
-                    data[*count].character_no_caps_lock = 0;
-                    data[*count].keycode = key;
-                    memcpy(data[*count].modifiers, control_keys, control_keys_size);
-                    ++(*count);
+                    if (*count < KEY_INPUT_BUFFER_SIZE){
+                        data[*count].character = 0;
+                        data[*count].character_no_caps_lock = 0;
+                        data[*count].keycode = key;
+                        memcpy(data[*count].modifiers, control_keys, control_keys_size);
+                        ++(*count);
+                    }
                     
                     win32vars.got_useful_event = true;
                 }
@@ -1792,12 +1794,13 @@ win32_proc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
                 }
             }
             
-            Assert(*count < KEY_INPUT_BUFFER_SIZE);
-            data[*count].character = character;
-            data[*count].character_no_caps_lock = character_no_caps_lock;
-            data[*count].keycode = character_no_caps_lock;
-            memcpy(data[*count].modifiers, control_keys, control_keys_size);
-            ++(*count);
+            if (*count < KEY_INPUT_BUFFER_SIZE){
+                data[*count].character = character;
+                data[*count].character_no_caps_lock = character_no_caps_lock;
+                data[*count].keycode = character_no_caps_lock;
+                memcpy(data[*count].modifiers, control_keys, control_keys_size);
+                ++(*count);
+            }
             
             win32vars.got_useful_event = true;
         }break;
