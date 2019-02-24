@@ -245,10 +245,10 @@ print_positions_buffered(Application_Links *app, Buffer_Summary *buffer, Functio
 
 static void
 list_all_functions(Application_Links *app, Partition *part, Buffer_Summary *optional_target_buffer){
-    String search_name = make_lit_string("*decls*");
-    Buffer_Summary decls_buffer = get_buffer_by_name(app, search_name.str, search_name.size, AccessAll);
+    String decls_name = make_lit_string("*decls*");
+    Buffer_Summary decls_buffer = get_buffer_by_name(app, decls_name.str, decls_name.size, AccessAll);
     if (!decls_buffer.exists){
-        decls_buffer = create_buffer(app, search_name.str, search_name.size, BufferCreate_AlwaysNew);
+        decls_buffer = create_buffer(app, decls_name.str, decls_name.size, BufferCreate_AlwaysNew);
         buffer_set_setting(app, &decls_buffer, BufferSetting_Unimportant, true);
         buffer_set_setting(app, &decls_buffer, BufferSetting_ReadOnly, true);
         buffer_set_setting(app, &decls_buffer, BufferSetting_WrapLine, false);
@@ -300,7 +300,7 @@ list_all_functions(Application_Links *app, Partition *part, Buffer_Summary *opti
     View_Summary view = get_active_view(app, AccessAll);
     view_set_buffer(app, &view, decls_buffer.buffer_id, 0);
     
-    lock_jump_buffer(search_name.str, search_name.size);
+    lock_jump_buffer(decls_name.str, decls_name.size);
     
     end_temp_memory(temp);
     

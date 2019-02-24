@@ -33,6 +33,7 @@ link_system_code(){
     SYSLINK(wake_up_timer_set);
     
     SYSLINK(post_clipboard);
+    SYSLINK(animate);
     
     SYSLINK(create_coroutine);
     SYSLINK(launch_coroutine);
@@ -43,6 +44,8 @@ link_system_code(){
     SYSLINK(cli_begin_update);
     SYSLINK(cli_update_step);
     SYSLINK(cli_end_update);
+    
+    SYSLINK(open_color_picker);
     
     SYSLINK(post_job);
     SYSLINK(cancel_job);

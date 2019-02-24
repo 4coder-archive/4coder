@@ -139,6 +139,7 @@ struct Token_Range{
 };
 
 struct Token_Iterator{
+    // TODO(allen): source buffer
     Cpp_Token *token;
     Token_Range range;
 };
@@ -148,6 +149,15 @@ struct Token_Iterator{
 struct Sort_Pair_i32{
     int32_t index;
     int32_t key;
+};
+
+////////////////////////////////
+
+struct Buffer_Insertion
+{
+    Application_Links *app;
+    Buffer_ID buffer;
+    int32_t at;
 };
 
 #endif

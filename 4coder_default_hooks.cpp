@@ -24,7 +24,45 @@ START_HOOK_SIG(default_start){
     named_map_count = ArrayCount(named_maps_values);
     
     default_4coder_initialize(app);
+    
     default_4coder_side_by_side_panels(app, files, file_count);
+    
+#if 0
+    
+    default_4coder_one_panel(app, files, file_count);
+    
+    View_ID left_view = 0;
+    
+    Panel_ID left = 0;
+    Panel_ID right = 0;
+    Panel_ID bottom = 0;
+    Panel_ID header = 0;
+    
+    get_active_view(app, AccessAll, &left_view);
+    
+    view_get_panel(app, left_view, &left);
+    
+    Panel_ID h_split_main = 0;
+    Panel_ID h_split_minor = 0;
+    
+    panel_create_split(app, left  , ViewSplit_Bottom, &bottom, &h_split_main);
+    panel_create_split(app, bottom, ViewSplit_Top   , &header, &h_split_minor);
+    panel_create_split(app, left  , ViewSplit_Right , &right,  0);
+    
+    i32_Rect header_margin = {};
+    i32_Rect bottom_margin = {};
+    panel_get_margin(app, header, &header_margin);
+    panel_get_margin(app, header, &bottom_margin);
+    
+    int32_t header_vertical_pixels = header_margin.y0 + header_margin.y1;
+    int32_t margin_vertical_pixels = header_vertical_pixels + bottom_margin.y0 + bottom_margin.y1;
+    
+    View_Summary view = {};
+    get_view_summary(app, left_view, AccessAll, &view);
+    float line = view.line_height;
+    panel_set_split(app, h_split_main , PanelSplitKind_FixedPixels_BR, line*6.f + margin_vertical_pixels);
+    panel_set_split(app, h_split_minor, PanelSplitKind_FixedPixels_TL, line + header_vertical_pixels);
+#endif
     
     if (global_config.automatically_load_project){
         load_project(app);
@@ -444,7 +482,33 @@ HOOK_SIG(default_exit){
     return(1);
 }
 
+// TODO(allen): call this hook when a view's buffer is set.
+// TODO(allen): how to deal with multiple sizes on a single view
+// TODO(allen): expected character advance.
 HOOK_SIG(default_view_adjust){
+    for (View_Summary view = get_view_first(app, AccessAll);
+         view.exists;
+         get_view_next(app, &view, AccessAll)){
+        Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessAll);
+        int32_t view_width = view.render_region.x1 - view.render_region.x0;
+        Face_ID face_id = get_default_font_for_view(app, view.view_id);
+        float em = get_string_advance(app, face_id, make_lit_string("m"));
+        
+        float wrap_width = view_width - 2.0f*em;
+        float min_width = 40.0f*em;
+        if (wrap_width < min_width){
+            wrap_width = min_width;
+        }
+        
+        float min_base_width = 20.0f*em;
+        buffer_set_setting(app, &buffer, BufferSetting_WrapPosition, (int32_t)(wrap_width));
+        buffer_set_setting(app, &buffer, BufferSetting_MinimumBaseWrapPosition, (int32_t)(min_base_width));
+    }
+    return(0);
+}
+
+#if 0
+{
     int32_t count = 0;
     int32_t new_wrap_width = 0;
     for (View_Summary view = get_view_first(app, AccessAll);
@@ -467,6 +531,7 @@ HOOK_SIG(default_view_adjust){
     // no meaning for return
     return(0);
 }
+#endif
 
 BUFFER_NAME_RESOLVER_SIG(default_buffer_name_resolution){
     if (conflict_count > 1){
@@ -884,7 +949,7 @@ SCROLL_RULE_SIG(smooth_scroll_rule){
 static void
 set_all_default_hooks(Bind_Helper *context){
     set_hook(context, hook_exit, default_exit);
-    set_hook(context, hook_view_size_change, default_view_adjust);
+    set_hook(context, hook_buffer_viewer_update, default_view_adjust);
     
     set_start_hook(context, default_start);
     set_open_file_hook(context, default_file_settings);

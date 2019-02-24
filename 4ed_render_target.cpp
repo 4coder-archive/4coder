@@ -23,6 +23,9 @@ Render_Begin_Push_Sig(render_internal_begin_push, t, ptr, size){
     if (out != 0){
         memcpy(out, ptr, size);
     }
+    else{
+        t->clear_color = 0xFF00FF00;
+    }
     return(out);
 }
 

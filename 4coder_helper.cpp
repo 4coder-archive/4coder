@@ -734,6 +734,25 @@ read_line(Application_Links *app, Partition *part, Buffer_Summary *buffer, int32
     return(read_line(app, part, buffer, line, str, &ignore, &ignore));
 }
 
+static String
+scratch_read(Application_Links *app, Partition *scratch, Buffer_ID buffer, int32_t start, int32_t end){
+    String result = {};
+    if (start <= end){
+        int32_t len = end - start;
+        result = string_push(scratch, len);
+        if (buffer_read_range(app, buffer, start, end, result.str)){
+            result.size = len;
+        }
+    }
+    return(result);
+}
+
+static String
+scratch_read(Application_Links *app, Partition *scratch, Buffer_ID buffer, Cpp_Token token){
+    String result = scratch_read(app, scratch, buffer, token.start, token.start + token.size);
+    return(result);
+}
+
 static int32_t
 buffer_get_line_start(Application_Links *app, Buffer_Summary *buffer, int32_t line){
     int32_t result = buffer->size;
@@ -1597,6 +1616,33 @@ get_single_record(Application_Links *app, Buffer_ID buffer_id, History_Record_In
 static void
 view_buffer_set(Application_Links *app, Buffer_ID *buffers, int32_t count){
     // TODO(allen): do(implement view_buffer_set)
+}
+
+////////////////////////////////
+
+static void
+condense_whitespace(String *a)
+{
+    *a = skip_chop_whitespace(*a);
+    
+    int size = a->size;
+    a->size = 0;
+    int i = 0;
+    while(i < size)
+    {
+        if(char_is_whitespace(a->str[i]))
+        {
+            a->str[a->size++] = ' ';
+            while((i < size) && char_is_whitespace(a->str[i]))
+            {
+                ++i;
+            }
+        }
+        else
+        {
+            a->str[a->size++] = a->str[i++];
+        }
+    }
 }
 
 // BOTTOM

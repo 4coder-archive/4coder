@@ -34,13 +34,23 @@ struct Application_Links;
 #define GET_VIEW_NEXT_SIG(n) bool32 n(Application_Links *app, View_ID view_id, Access_Flag access, View_ID *view_id_out)
 #define GET_VIEW_SUMMARY_SIG(n) bool32 n(Application_Links *app, View_ID view_id, Access_Flag access, View_Summary *view_summary_out)
 #define GET_ACTIVE_VIEW_SIG(n) bool32 n(Application_Links *app, Access_Flag access, View_ID *view_id_out)
-#define OPEN_VIEW_SIG(n) bool32 n(Application_Links *app, View_ID location, View_Split_Position position, View_ID *view_id_out)
+#define GET_ACTIVE_PANEL_SIG(n) bool32 n(Application_Links *app, Panel_ID *panel_id_out)
+#define VIEW_GET_PANEL_SIG(n) bool32 n(Application_Links *app, View_ID view_id, Panel_ID *panel_id_out)
+#define PANEL_GET_VIEW_SIG(n) bool32 n(Application_Links *app, Panel_ID panel_id, View_ID *view_id_out)
+#define PANEL_IS_SPLIT_SIG(n) bool32 n(Application_Links *app, Panel_ID panel_id)
+#define PANEL_IS_LEAF_SIG(n) bool32 n(Application_Links *app, Panel_ID panel_id)
+#define PANEL_SPLIT_SIG(n) bool32 n(Application_Links *app, Panel_ID panel_id, Panel_Split_Orientation orientation)
+#define PANEL_SET_SPLIT_SIG(n) bool32 n(Application_Links *app, Panel_ID panel_id, Panel_Split_Kind kind, float t)
+#define PANEL_SWAP_CHILDREN_SIG(n) bool32 n(Application_Links *app, Panel_ID panel_id, Panel_Split_Kind kind, float t)
+#define PANEL_GET_PARENT_SIG(n) bool32 n(Application_Links *app, Panel_ID panel_id, Panel_ID *panel_id_out)
+#define PANEL_GET_CHILD_SIG(n) bool32 n(Application_Links *app, Panel_ID panel_id, Panel_Child which_child, Panel_ID *panel_id_out)
+#define PANEL_GET_MAX_SIG(n) bool32 n(Application_Links *app, Panel_ID panel_id, Panel_ID *panel_id_out)
+#define PANEL_GET_MARGIN_SIG(n) bool32 n(Application_Links *app, Panel_ID panel_id, i32_Rect *margins_out)
 #define VIEW_CLOSE_SIG(n) bool32 n(Application_Links *app, View_ID view_id)
 #define VIEW_SET_ACTIVE_SIG(n) bool32 n(Application_Links *app, View_ID view_id)
 #define VIEW_GET_SETTING_SIG(n) bool32 n(Application_Links *app, View_ID view_id, View_Setting_ID setting, int32_t *value_out)
 #define VIEW_SET_SETTING_SIG(n) bool32 n(Application_Links *app, View_ID view_id, View_Setting_ID setting, int32_t value)
 #define VIEW_GET_MANAGED_SCOPE_SIG(n) bool32 n(Application_Links *app, View_ID view_id, Managed_Scope *scope)
-#define VIEW_SET_SPLIT_SIG(n) bool32 n(Application_Links *app, View_ID view_id, View_Split_Kind kind, float t)
 #define VIEW_GET_ENCLOSURE_RECT_SIG(n) bool32 n(Application_Links *app, View_ID view_id, i32_Rect *rect_out)
 #define VIEW_COMPUTE_CURSOR_SIG(n) bool32 n(Application_Links *app, View_ID view_id, Buffer_Seek seek, Full_Cursor *cursor_out)
 #define VIEW_SET_CURSOR_SIG(n) bool32 n(Application_Links *app, View_ID view_id, Buffer_Seek seek, bool32 set_preferred_x)
@@ -136,6 +146,9 @@ struct Application_Links;
 #define DRAW_RECTANGLE_SIG(n) void n(Application_Links *app, f32_Rect rect, int_color color)
 #define DRAW_RECTANGLE_OUTLINE_SIG(n) void n(Application_Links *app, f32_Rect rect, int_color color)
 #define GET_DEFAULT_FONT_FOR_VIEW_SIG(n) Face_ID n(Application_Links *app, View_ID view_id)
+#define OPEN_COLOR_PICKER_SIG(n) void n(Application_Links *app, color_picker *picker)
+#define ANIMATE_SIG(n) void n(Application_Links *app)
+#define FIND_ALL_IN_RANGE_INSENSITIVE_SIG(n) Found_String_List n(Application_Links *app, Buffer_ID buffer_id, int32_t start, int32_t end, String key, Partition *memory)
 typedef GLOBAL_SET_SETTING_SIG(Global_Set_Setting_Function);
 typedef GLOBAL_SET_MAPPING_SIG(Global_Set_Mapping_Function);
 typedef EXEC_SYSTEM_COMMAND_SIG(Exec_System_Command_Function);
@@ -171,13 +184,23 @@ typedef GET_VIEW_FIRST_SIG(Get_View_First_Function);
 typedef GET_VIEW_NEXT_SIG(Get_View_Next_Function);
 typedef GET_VIEW_SUMMARY_SIG(Get_View_Summary_Function);
 typedef GET_ACTIVE_VIEW_SIG(Get_Active_View_Function);
-typedef OPEN_VIEW_SIG(Open_View_Function);
+typedef GET_ACTIVE_PANEL_SIG(Get_Active_Panel_Function);
+typedef VIEW_GET_PANEL_SIG(View_Get_Panel_Function);
+typedef PANEL_GET_VIEW_SIG(Panel_Get_View_Function);
+typedef PANEL_IS_SPLIT_SIG(Panel_Is_Split_Function);
+typedef PANEL_IS_LEAF_SIG(Panel_Is_Leaf_Function);
+typedef PANEL_SPLIT_SIG(Panel_Split_Function);
+typedef PANEL_SET_SPLIT_SIG(Panel_Set_Split_Function);
+typedef PANEL_SWAP_CHILDREN_SIG(Panel_Swap_Children_Function);
+typedef PANEL_GET_PARENT_SIG(Panel_Get_Parent_Function);
+typedef PANEL_GET_CHILD_SIG(Panel_Get_Child_Function);
+typedef PANEL_GET_MAX_SIG(Panel_Get_Max_Function);
+typedef PANEL_GET_MARGIN_SIG(Panel_Get_Margin_Function);
 typedef VIEW_CLOSE_SIG(View_Close_Function);
 typedef VIEW_SET_ACTIVE_SIG(View_Set_Active_Function);
 typedef VIEW_GET_SETTING_SIG(View_Get_Setting_Function);
 typedef VIEW_SET_SETTING_SIG(View_Set_Setting_Function);
 typedef VIEW_GET_MANAGED_SCOPE_SIG(View_Get_Managed_Scope_Function);
-typedef VIEW_SET_SPLIT_SIG(View_Set_Split_Function);
 typedef VIEW_GET_ENCLOSURE_RECT_SIG(View_Get_Enclosure_Rect_Function);
 typedef VIEW_COMPUTE_CURSOR_SIG(View_Compute_Cursor_Function);
 typedef VIEW_SET_CURSOR_SIG(View_Set_Cursor_Function);
@@ -273,6 +296,9 @@ typedef GET_STRING_ADVANCE_SIG(Get_String_Advance_Function);
 typedef DRAW_RECTANGLE_SIG(Draw_Rectangle_Function);
 typedef DRAW_RECTANGLE_OUTLINE_SIG(Draw_Rectangle_Outline_Function);
 typedef GET_DEFAULT_FONT_FOR_VIEW_SIG(Get_Default_Font_For_View_Function);
+typedef OPEN_COLOR_PICKER_SIG(Open_Color_Picker_Function);
+typedef ANIMATE_SIG(Animate_Function);
+typedef FIND_ALL_IN_RANGE_INSENSITIVE_SIG(Find_All_In_Range_Insensitive_Function);
 struct Application_Links{
 #if defined(ALLOW_DEP_4CODER)
 Global_Set_Setting_Function *global_set_setting;
@@ -310,13 +336,23 @@ Get_View_First_Function *get_view_first;
 Get_View_Next_Function *get_view_next;
 Get_View_Summary_Function *get_view_summary;
 Get_Active_View_Function *get_active_view;
-Open_View_Function *open_view;
+Get_Active_Panel_Function *get_active_panel;
+View_Get_Panel_Function *view_get_panel;
+Panel_Get_View_Function *panel_get_view;
+Panel_Is_Split_Function *panel_is_split;
+Panel_Is_Leaf_Function *panel_is_leaf;
+Panel_Split_Function *panel_split;
+Panel_Set_Split_Function *panel_set_split;
+Panel_Swap_Children_Function *panel_swap_children;
+Panel_Get_Parent_Function *panel_get_parent;
+Panel_Get_Child_Function *panel_get_child;
+Panel_Get_Max_Function *panel_get_max;
+Panel_Get_Margin_Function *panel_get_margin;
 View_Close_Function *view_close;
 View_Set_Active_Function *view_set_active;
 View_Get_Setting_Function *view_get_setting;
 View_Set_Setting_Function *view_set_setting;
 View_Get_Managed_Scope_Function *view_get_managed_scope;
-View_Set_Split_Function *view_set_split;
 View_Get_Enclosure_Rect_Function *view_get_enclosure_rect;
 View_Compute_Cursor_Function *view_compute_cursor;
 View_Set_Cursor_Function *view_set_cursor;
@@ -412,6 +448,9 @@ Get_String_Advance_Function *get_string_advance;
 Draw_Rectangle_Function *draw_rectangle;
 Draw_Rectangle_Outline_Function *draw_rectangle_outline;
 Get_Default_Font_For_View_Function *get_default_font_for_view;
+Open_Color_Picker_Function *open_color_picker;
+Animate_Function *animate;
+Find_All_In_Range_Insensitive_Function *find_all_in_range_insensitive;
 #else
 Global_Set_Setting_Function *global_set_setting_;
 Global_Set_Mapping_Function *global_set_mapping_;
@@ -448,13 +487,23 @@ Get_View_First_Function *get_view_first_;
 Get_View_Next_Function *get_view_next_;
 Get_View_Summary_Function *get_view_summary_;
 Get_Active_View_Function *get_active_view_;
-Open_View_Function *open_view_;
+Get_Active_Panel_Function *get_active_panel_;
+View_Get_Panel_Function *view_get_panel_;
+Panel_Get_View_Function *panel_get_view_;
+Panel_Is_Split_Function *panel_is_split_;
+Panel_Is_Leaf_Function *panel_is_leaf_;
+Panel_Split_Function *panel_split_;
+Panel_Set_Split_Function *panel_set_split_;
+Panel_Swap_Children_Function *panel_swap_children_;
+Panel_Get_Parent_Function *panel_get_parent_;
+Panel_Get_Child_Function *panel_get_child_;
+Panel_Get_Max_Function *panel_get_max_;
+Panel_Get_Margin_Function *panel_get_margin_;
 View_Close_Function *view_close_;
 View_Set_Active_Function *view_set_active_;
 View_Get_Setting_Function *view_get_setting_;
 View_Set_Setting_Function *view_set_setting_;
 View_Get_Managed_Scope_Function *view_get_managed_scope_;
-View_Set_Split_Function *view_set_split_;
 View_Get_Enclosure_Rect_Function *view_get_enclosure_rect_;
 View_Compute_Cursor_Function *view_compute_cursor_;
 View_Set_Cursor_Function *view_set_cursor_;
@@ -550,6 +599,9 @@ Get_String_Advance_Function *get_string_advance_;
 Draw_Rectangle_Function *draw_rectangle_;
 Draw_Rectangle_Outline_Function *draw_rectangle_outline_;
 Get_Default_Font_For_View_Function *get_default_font_for_view_;
+Open_Color_Picker_Function *open_color_picker_;
+Animate_Function *animate_;
+Find_All_In_Range_Insensitive_Function *find_all_in_range_insensitive_;
 #endif
 void *memory;
 int32_t memory_size;
@@ -594,13 +646,23 @@ app_links->get_view_first_ = Get_View_First;\
 app_links->get_view_next_ = Get_View_Next;\
 app_links->get_view_summary_ = Get_View_Summary;\
 app_links->get_active_view_ = Get_Active_View;\
-app_links->open_view_ = Open_View;\
+app_links->get_active_panel_ = Get_Active_Panel;\
+app_links->view_get_panel_ = View_Get_Panel;\
+app_links->panel_get_view_ = Panel_Get_View;\
+app_links->panel_is_split_ = Panel_Is_Split;\
+app_links->panel_is_leaf_ = Panel_Is_Leaf;\
+app_links->panel_split_ = Panel_Split;\
+app_links->panel_set_split_ = Panel_Set_Split;\
+app_links->panel_swap_children_ = Panel_Swap_Children;\
+app_links->panel_get_parent_ = Panel_Get_Parent;\
+app_links->panel_get_child_ = Panel_Get_Child;\
+app_links->panel_get_max_ = Panel_Get_Max;\
+app_links->panel_get_margin_ = Panel_Get_Margin;\
 app_links->view_close_ = View_Close;\
 app_links->view_set_active_ = View_Set_Active;\
 app_links->view_get_setting_ = View_Get_Setting;\
 app_links->view_set_setting_ = View_Set_Setting;\
 app_links->view_get_managed_scope_ = View_Get_Managed_Scope;\
-app_links->view_set_split_ = View_Set_Split;\
 app_links->view_get_enclosure_rect_ = View_Get_Enclosure_Rect;\
 app_links->view_compute_cursor_ = View_Compute_Cursor;\
 app_links->view_set_cursor_ = View_Set_Cursor;\
@@ -695,7 +757,10 @@ app_links->draw_string_ = Draw_String;\
 app_links->get_string_advance_ = Get_String_Advance;\
 app_links->draw_rectangle_ = Draw_Rectangle;\
 app_links->draw_rectangle_outline_ = Draw_Rectangle_Outline;\
-app_links->get_default_font_for_view_ = Get_Default_Font_For_View;} while(false)
+app_links->get_default_font_for_view_ = Get_Default_Font_For_View;\
+app_links->open_color_picker_ = Open_Color_Picker;\
+app_links->animate_ = Animate;\
+app_links->find_all_in_range_insensitive_ = Find_All_In_Range_Insensitive;} while(false)
 #if defined(ALLOW_DEP_4CODER)
 static bool32 global_set_setting(Application_Links *app, Global_Setting_ID setting, int32_t value){return(app->global_set_setting(app, setting, value));}
 static bool32 global_set_mapping(Application_Links *app, void *data, int32_t size){return(app->global_set_mapping(app, data, size));}
@@ -732,13 +797,23 @@ static bool32 get_view_first(Application_Links *app, Access_Flag access, View_ID
 static bool32 get_view_next(Application_Links *app, View_ID view_id, Access_Flag access, View_ID *view_id_out){return(app->get_view_next(app, view_id, access, view_id_out));}
 static bool32 get_view_summary(Application_Links *app, View_ID view_id, Access_Flag access, View_Summary *view_summary_out){return(app->get_view_summary(app, view_id, access, view_summary_out));}
 static bool32 get_active_view(Application_Links *app, Access_Flag access, View_ID *view_id_out){return(app->get_active_view(app, access, view_id_out));}
-static bool32 open_view(Application_Links *app, View_ID location, View_Split_Position position, View_ID *view_id_out){return(app->open_view(app, location, position, view_id_out));}
+static bool32 get_active_panel(Application_Links *app, Panel_ID *panel_id_out){return(app->get_active_panel(app, panel_id_out));}
+static bool32 view_get_panel(Application_Links *app, View_ID view_id, Panel_ID *panel_id_out){return(app->view_get_panel(app, view_id, panel_id_out));}
+static bool32 panel_get_view(Application_Links *app, Panel_ID panel_id, View_ID *view_id_out){return(app->panel_get_view(app, panel_id, view_id_out));}
+static bool32 panel_is_split(Application_Links *app, Panel_ID panel_id){return(app->panel_is_split(app, panel_id));}
+static bool32 panel_is_leaf(Application_Links *app, Panel_ID panel_id){return(app->panel_is_leaf(app, panel_id));}
+static bool32 panel_split(Application_Links *app, Panel_ID panel_id, Panel_Split_Orientation orientation){return(app->panel_split(app, panel_id, orientation));}
+static bool32 panel_set_split(Application_Links *app, Panel_ID panel_id, Panel_Split_Kind kind, float t){return(app->panel_set_split(app, panel_id, kind, t));}
+static bool32 panel_swap_children(Application_Links *app, Panel_ID panel_id, Panel_Split_Kind kind, float t){return(app->panel_swap_children(app, panel_id, kind, t));}
+static bool32 panel_get_parent(Application_Links *app, Panel_ID panel_id, Panel_ID *panel_id_out){return(app->panel_get_parent(app, panel_id, panel_id_out));}
+static bool32 panel_get_child(Application_Links *app, Panel_ID panel_id, Panel_Child which_child, Panel_ID *panel_id_out){return(app->panel_get_child(app, panel_id, which_child, panel_id_out));}
+static bool32 panel_get_max(Application_Links *app, Panel_ID panel_id, Panel_ID *panel_id_out){return(app->panel_get_max(app, panel_id, panel_id_out));}
+static bool32 panel_get_margin(Application_Links *app, Panel_ID panel_id, i32_Rect *margins_out){return(app->panel_get_margin(app, panel_id, margins_out));}
 static bool32 view_close(Application_Links *app, View_ID view_id){return(app->view_close(app, view_id));}
 static bool32 view_set_active(Application_Links *app, View_ID view_id){return(app->view_set_active(app, view_id));}
 static bool32 view_get_setting(Application_Links *app, View_ID view_id, View_Setting_ID setting, int32_t *value_out){return(app->view_get_setting(app, view_id, setting, value_out));}
 static bool32 view_set_setting(Application_Links *app, View_ID view_id, View_Setting_ID setting, int32_t value){return(app->view_set_setting(app, view_id, setting, value));}
 static bool32 view_get_managed_scope(Application_Links *app, View_ID view_id, Managed_Scope *scope){return(app->view_get_managed_scope(app, view_id, scope));}
-static bool32 view_set_split(Application_Links *app, View_ID view_id, View_Split_Kind kind, float t){return(app->view_set_split(app, view_id, kind, t));}
 static bool32 view_get_enclosure_rect(Application_Links *app, View_ID view_id, i32_Rect *rect_out){return(app->view_get_enclosure_rect(app, view_id, rect_out));}
 static bool32 view_compute_cursor(Application_Links *app, View_ID view_id, Buffer_Seek seek, Full_Cursor *cursor_out){return(app->view_compute_cursor(app, view_id, seek, cursor_out));}
 static bool32 view_set_cursor(Application_Links *app, View_ID view_id, Buffer_Seek seek, bool32 set_preferred_x){return(app->view_set_cursor(app, view_id, seek, set_preferred_x));}
@@ -834,6 +909,9 @@ static float get_string_advance(Application_Links *app, Face_ID font_id, String 
 static void draw_rectangle(Application_Links *app, f32_Rect rect, int_color color){(app->draw_rectangle(app, rect, color));}
 static void draw_rectangle_outline(Application_Links *app, f32_Rect rect, int_color color){(app->draw_rectangle_outline(app, rect, color));}
 static Face_ID get_default_font_for_view(Application_Links *app, View_ID view_id){return(app->get_default_font_for_view(app, view_id));}
+static void open_color_picker(Application_Links *app, color_picker *picker){(app->open_color_picker(app, picker));}
+static void animate(Application_Links *app){(app->animate(app));}
+static Found_String_List find_all_in_range_insensitive(Application_Links *app, Buffer_ID buffer_id, int32_t start, int32_t end, String key, Partition *memory){return(app->find_all_in_range_insensitive(app, buffer_id, start, end, key, memory));}
 #else
 static bool32 global_set_setting(Application_Links *app, Global_Setting_ID setting, int32_t value){return(app->global_set_setting_(app, setting, value));}
 static bool32 global_set_mapping(Application_Links *app, void *data, int32_t size){return(app->global_set_mapping_(app, data, size));}
@@ -870,13 +948,23 @@ static bool32 get_view_first(Application_Links *app, Access_Flag access, View_ID
 static bool32 get_view_next(Application_Links *app, View_ID view_id, Access_Flag access, View_ID *view_id_out){return(app->get_view_next_(app, view_id, access, view_id_out));}
 static bool32 get_view_summary(Application_Links *app, View_ID view_id, Access_Flag access, View_Summary *view_summary_out){return(app->get_view_summary_(app, view_id, access, view_summary_out));}
 static bool32 get_active_view(Application_Links *app, Access_Flag access, View_ID *view_id_out){return(app->get_active_view_(app, access, view_id_out));}
-static bool32 open_view(Application_Links *app, View_ID location, View_Split_Position position, View_ID *view_id_out){return(app->open_view_(app, location, position, view_id_out));}
+static bool32 get_active_panel(Application_Links *app, Panel_ID *panel_id_out){return(app->get_active_panel_(app, panel_id_out));}
+static bool32 view_get_panel(Application_Links *app, View_ID view_id, Panel_ID *panel_id_out){return(app->view_get_panel_(app, view_id, panel_id_out));}
+static bool32 panel_get_view(Application_Links *app, Panel_ID panel_id, View_ID *view_id_out){return(app->panel_get_view_(app, panel_id, view_id_out));}
+static bool32 panel_is_split(Application_Links *app, Panel_ID panel_id){return(app->panel_is_split_(app, panel_id));}
+static bool32 panel_is_leaf(Application_Links *app, Panel_ID panel_id){return(app->panel_is_leaf_(app, panel_id));}
+static bool32 panel_split(Application_Links *app, Panel_ID panel_id, Panel_Split_Orientation orientation){return(app->panel_split_(app, panel_id, orientation));}
+static bool32 panel_set_split(Application_Links *app, Panel_ID panel_id, Panel_Split_Kind kind, float t){return(app->panel_set_split_(app, panel_id, kind, t));}
+static bool32 panel_swap_children(Application_Links *app, Panel_ID panel_id, Panel_Split_Kind kind, float t){return(app->panel_swap_children_(app, panel_id, kind, t));}
+static bool32 panel_get_parent(Application_Links *app, Panel_ID panel_id, Panel_ID *panel_id_out){return(app->panel_get_parent_(app, panel_id, panel_id_out));}
+static bool32 panel_get_child(Application_Links *app, Panel_ID panel_id, Panel_Child which_child, Panel_ID *panel_id_out){return(app->panel_get_child_(app, panel_id, which_child, panel_id_out));}
+static bool32 panel_get_max(Application_Links *app, Panel_ID panel_id, Panel_ID *panel_id_out){return(app->panel_get_max_(app, panel_id, panel_id_out));}
+static bool32 panel_get_margin(Application_Links *app, Panel_ID panel_id, i32_Rect *margins_out){return(app->panel_get_margin_(app, panel_id, margins_out));}
 static bool32 view_close(Application_Links *app, View_ID view_id){return(app->view_close_(app, view_id));}
 static bool32 view_set_active(Application_Links *app, View_ID view_id){return(app->view_set_active_(app, view_id));}
 static bool32 view_get_setting(Application_Links *app, View_ID view_id, View_Setting_ID setting, int32_t *value_out){return(app->view_get_setting_(app, view_id, setting, value_out));}
 static bool32 view_set_setting(Application_Links *app, View_ID view_id, View_Setting_ID setting, int32_t value){return(app->view_set_setting_(app, view_id, setting, value));}
 static bool32 view_get_managed_scope(Application_Links *app, View_ID view_id, Managed_Scope *scope){return(app->view_get_managed_scope_(app, view_id, scope));}
-static bool32 view_set_split(Application_Links *app, View_ID view_id, View_Split_Kind kind, float t){return(app->view_set_split_(app, view_id, kind, t));}
 static bool32 view_get_enclosure_rect(Application_Links *app, View_ID view_id, i32_Rect *rect_out){return(app->view_get_enclosure_rect_(app, view_id, rect_out));}
 static bool32 view_compute_cursor(Application_Links *app, View_ID view_id, Buffer_Seek seek, Full_Cursor *cursor_out){return(app->view_compute_cursor_(app, view_id, seek, cursor_out));}
 static bool32 view_set_cursor(Application_Links *app, View_ID view_id, Buffer_Seek seek, bool32 set_preferred_x){return(app->view_set_cursor_(app, view_id, seek, set_preferred_x));}
@@ -972,4 +1060,7 @@ static float get_string_advance(Application_Links *app, Face_ID font_id, String 
 static void draw_rectangle(Application_Links *app, f32_Rect rect, int_color color){(app->draw_rectangle_(app, rect, color));}
 static void draw_rectangle_outline(Application_Links *app, f32_Rect rect, int_color color){(app->draw_rectangle_outline_(app, rect, color));}
 static Face_ID get_default_font_for_view(Application_Links *app, View_ID view_id){return(app->get_default_font_for_view_(app, view_id));}
+static void open_color_picker(Application_Links *app, color_picker *picker){(app->open_color_picker_(app, picker));}
+static void animate(Application_Links *app){(app->animate_(app));}
+static Found_String_List find_all_in_range_insensitive(Application_Links *app, Buffer_ID buffer_id, int32_t start, int32_t end, String key, Partition *memory){return(app->find_all_in_range_insensitive_(app, buffer_id, start, end, key, memory));}
 #endif

@@ -21,9 +21,12 @@ struct Render_Target{
     i32_Rect clip_boxes[5];
     i32 clip_top;
     b32 clip_all;
-    i32 width, height;
+    i32 width;
+    i32 height;
     i32 bound_texture;
     u32 color;
+    
+    u32 clear_color;
     
     Render_Free_Texture *free_texture_first;
     Render_Free_Texture *free_texture_last;

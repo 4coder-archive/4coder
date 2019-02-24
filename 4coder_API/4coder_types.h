@@ -28,6 +28,8 @@ TYPEDEF int32_t Buffer_ID;
 /* DOC(View_ID is used to name a 4coder view.  Each view has a unique id in the interval [1,16].) */
 TYPEDEF int32_t View_ID;
 
+TYPEDEF int32_t Panel_ID;
+
 /* DOC(A Key_Modifier_Index acts as an index for specifying modifiers in arrays.) */
 ENUM(int32_t, Key_Modifier_Index){
     MDFR_SHIFT_INDEX,
@@ -323,9 +325,21 @@ ENUM(int32_t, View_Split_Position){
     ViewSplit_Right,
 };
 
-ENUM(int32_t, View_Split_Kind){
-    ViewSplitKind_Ratio,
-    ViewSplitKind_FixedPixels,
+ENUM(int32_t, Panel_Split_Kind){
+    PanelSplitKind_Ratio_Min = 0,
+    PanelSplitKind_Ratio_Max = 1,
+    PanelSplitKind_FixedPixels_Min = 2,
+    PanelSplitKind_FixedPixels_Max = 3,
+};
+
+ENUM(int32_t, Panel_Split_Orientation){
+    PanelSplit_LeftAndRight,
+    PanelSplit_TopAndBottom,
+};
+
+ENUM(int32_t, Panel_Child){
+    PanelChild_Min,
+    PanelChild_Max,
 };
 
 /* DOC(Key_Code is the alias for key codes including raw codes and codes translated to textual input that takes modifiers into account.) */
@@ -484,7 +498,7 @@ ENUM(int32_t, Buffer_Seek_Type){
     /* DOC(This value indicates absolute byte index positioning
     where positions are measured as the number of bytes from the start of the file.) */
     buffer_seek_pos,
-    /* DOC(This value indicates apparent character index positioning 
+    /* DOC(This value indicates apparent character index positioning
     where positions are measured as the number of apparent characters from the starts of the file.) */
     buffer_seek_character_pos,
     /* DOC(This value indicates xy positioning with wrapped lines where the x and y values are in pixels.) */
@@ -622,27 +636,6 @@ STRUCT Marker{
     bool32 lean_right;
 };
 
-/*
-DOC(A four corner axis aligned rectangle, with integer coordinates.)
-*/
-STRUCT i32_Rect{
-    int32_t x0;
-    int32_t y0;
-    int32_t x1;
-    int32_t y1;
-};
-
-/*
-DOC(A four corner axis aligned rectangle, with floating point coordinates.)
-*/
-STRUCT f32_Rect{
-    float x0;
-    float y0;
-    float x1;
-    float y1;
-};
-
-GLOBAL_VAR f32_Rect null_f32_rect = {};
 
 /* DOC(View_Summary acts as a handle to a view and describes the state of the view.)
 DOC_SEE(Access_Flag)
@@ -673,6 +666,8 @@ STRUCT View_Summary{
     
     /* DOC(This describes the screen position in which this view is displayed.) */
     i32_Rect view_region;
+    /* DOC(TODO) */
+    i32_Rect render_region;
     /* DOC(This describes the screen position in which this view's buffer is displayed.  This is different from view_region, because it does not include any fixed height GUI at the top of the view.) */
     i32_Rect file_region;
     /* DOC(This describes the scrolling position inside the view.) */
@@ -810,8 +805,8 @@ ENUM(uint32_t, Marker_Visual_Priority_Level){
 
 /* DOC(Flags that control how font glyphs are modified before drawing.) */
 ENUM(uint32_t, Glyph_Flag){
-    GlyphFlag_None = 0x0, 
-    GlyphFlag_Rotate90 = 0x1, 
+    GlyphFlag_None = 0x0,
+    GlyphFlag_Rotate90 = 0x1,
 };
 
 /* DOC(Query_Bar is a struct used to store information in the user's control that will be displayed as a drop down bar durring an interactive command.) */
@@ -911,7 +906,7 @@ STRUCT UI_Control{
 TYPEDEF_FUNC void UI_Quit_Function_Type(struct Application_Links *app, View_Summary view);
 #define UI_QUIT_FUNCTION(name) void name(struct Application_Links *app, View_Summary view)
 
-/* 
+/*
 DOC(Theme_Color stores a style tag/color pair, for the purpose of setting and getting colors in the theme.)
 DOC_SEE(Style_Tag)
 DOC_SEE(int_color)
@@ -1110,7 +1105,7 @@ ENUM(int32_t, Hook_ID){
     /* DOC(TODO) */
     hook_exit,
     /* DOC(TODO) */
-    hook_view_size_change,
+    hook_buffer_viewer_update,
     // never below this
     hook_type_count
 };
@@ -1229,6 +1224,42 @@ STRUCT Binding_Unit{
 
 typedef int32_t _Get_Version_Function(int32_t maj, int32_t min, int32_t patch);
 #define _GET_VERSION_SIG(n) int32_t n(int32_t maj, int32_t min, int32_t patch)
+
+STRUCT color_picker
+{
+    String title;
+    int_color *dest;
+    bool32 *finished;
+};
+
+enum Found_String_Flag
+{
+    FoundString_Sensitive = 0x1,
+    FoundString_Insensitive = 0x2,
+    FoundString_CleanEdges = 0x4,
+    
+    FoundString_Straddled = 0x10,
+};
+
+STRUCT Found_String
+{
+    Found_String *next;
+    Buffer_ID buffer_id;
+    
+    uint32_t flags;
+    int32_t string_id;
+    
+    int32_t start;
+    int32_t end;
+};
+
+// TODO(casey): If this sticks around, there should be a way to export add/remove/merge as inlines that are shared
+STRUCT Found_String_List
+{
+    Found_String *first;
+    Found_String *last;
+    int32_t count;
+};
 
 #endif
 

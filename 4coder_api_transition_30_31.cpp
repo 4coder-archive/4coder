@@ -309,9 +309,18 @@ static View_Summary
 open_view(Application_Links *app, View_Summary *view_location, View_Split_Position position){
     View_Summary view = {};
     if (view_location != 0 && view_location->exists){
-        View_ID id = 0;
-        if (open_view(app, view_location->view_id, position, &id)){
-            get_view_summary(app, id, AccessAll, &view);
+        Panel_ID panel_id = 0;
+        if (view_get_panel(app, view_location->view_id, &panel_id)){
+            bool32 vertical = (position == ViewSplit_Left || position == ViewSplit_Right);
+            if (panel_split(app, panel_id, vertical?PanelSplit_LeftAndRight:PanelSplit_TopAndBottom)){
+                Panel_ID left_panel_id = 0;
+                if (panel_get_child(app, panel_id, PanelChild_Min, &left_panel_id)){
+                    View_ID new_view_id = 0;
+                    if (panel_get_view(app, left_panel_id, &new_view_id)){
+                        get_view_summary(app, new_view_id, AccessAll, view_location);
+                    }
+                }
+            }
         }
     }
     return(view);
@@ -362,12 +371,21 @@ view_get_managed_scope(Application_Links *app, View_ID view_id){
     return(scope);
 }
 
+typedef int32_t View_Split_Kind;
+enum{
+    ViewSplitKind_Ratio,
+    ViewSplitKind_FixedPixels,
+};
+
 static bool32
 view_set_split(Application_Links *app, View_Summary *view, View_Split_Kind kind, float t){
     bool32 result = false;
     if (view != 0 && view->exists){
-        result = view_set_split(app, view->view_id, kind, t);
-        get_view_summary(app, view->view_id, AccessAll, view);
+        Panel_ID panel_id = 0;
+        if (view_get_panel(app, view->view_id, &panel_id)){
+            result = panel_set_split(app, panel_id, kind, t);
+            get_view_summary(app, view->view_id, AccessAll, view);
+        }
     }
     return(result);
 }

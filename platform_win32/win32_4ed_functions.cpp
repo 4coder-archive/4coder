@@ -439,5 +439,160 @@ system_directory_exists(char *path){
     return(attrib != INVALID_FILE_ATTRIBUTES && (attrib & FILE_ATTRIBUTE_DIRECTORY));
 }
 
+//
+// Color picker
+//
+
+internal int_color
+swap_r_and_b(int_color a)
+{
+    int_color result = a & 0xff00ff00;
+    result |= ((a >> 16) & 0xff);
+    result |= ((a & 0xff) << 16);
+    return(result);
+}
+
+internal int_color
+int_color_from_colorref(COLORREF ref, int_color alpha_from)
+{
+    int_color rgb = swap_r_and_b(ref & 0xffffff);
+    
+    int_color result = ((0xff000000 & alpha_from) | rgb);
+    return(result);
+}
+
+void system_schedule_step();
+internal UINT_PTR CALLBACK
+color_picker_hook(HWND Window, UINT Message, WPARAM WParam, LPARAM LParam)
+{
+    UINT_PTR result = 0;
+    switch(Message)
+    {
+        case WM_INITDIALOG:
+        {
+            CHOOSECOLORW *win32_params = (CHOOSECOLORW *)LParam;
+            color_picker *picker = (color_picker *)win32_params->lCustData;
+            SetWindowLongPtr(Window, GWLP_USERDATA, (LONG_PTR)LParam);
+            
+            u16_4tech Temp[256];
+            Temp[ArrayCount(Temp) - 1] = 0;
+            
+            b32_4tech ignored;
+            utf8_to_utf16_minimal_checking(Temp, ArrayCount(Temp), (u8_4tech *)picker->title.str, picker->title.size, &ignored);
+            if(picker->title.size < ArrayCount(Temp))
+            {
+                Temp[picker->title.size] = 0;
+            }
+            
+            SetWindowTextW(Window, (LPCWSTR)Temp);
+        } break;
+        
+        case WM_CTLCOLORSTATIC:
+        {
+            // NOTE(casey): I can't believe I'm 42 years old and I still have to do this fucking crap.
+            // Microsoft is so fucking fired every god damn day.  Would it have killed you to update rgbResult
+            // continuously, or at least provide a GetCurrentColor() call???
+            //
+            // Anyway, since the color picker doesn't tell us when the color is changed, what we do is watch for messages
+            // that repaint the color swatch, which is dialog id 0x2c5, and then we sample it to see what color it is.
+            // No, I'm not fucking kidding, that's what we do.
+            HWND swatch_window = (HWND)LParam;
+            if(GetDlgCtrlID(swatch_window) == 0x2c5)
+            {
+                CHOOSECOLORW *win32_params = (CHOOSECOLORW *)GetWindowLongPtr(Window, GWLP_USERDATA);
+                if(win32_params)
+                {
+                    color_picker *picker = (color_picker *)win32_params->lCustData;
+                    
+                    RECT rect;
+                    GetClientRect(swatch_window, &rect);
+                    HDC swatch_dc = (HDC)WParam;
+                    COLORREF Probe = GetPixel(swatch_dc, (rect.left + rect.right) / 4, (rect.top + rect.bottom) / 2);
+                    int_color new_color = int_color_from_colorref(Probe, *picker->dest);
+                    
+                    if(*picker->dest != new_color)
+                    {
+                        *picker->dest = new_color;
+                        system_schedule_step();
+                    }
+                }
+            }
+        } break;
+        
+        default:
+        {
+#if 0
+            // NOTE(casey): Enable this if you want to dump the color edit dialog messages to the debug log
+            short Temp[256];
+            wsprintf((LPWSTR)Temp, L"%u 0x%x 0x%x\n", Message, WParam, LParam);
+            OutputDebugStringW((LPWSTR)Temp);
+#endif
+        } break;
+    }
+    
+    return(result);
+}
+
+internal DWORD WINAPI
+color_picker_thread(LPVOID Param)
+{
+    color_picker *picker = (color_picker *)Param;
+    
+    int_color color = 0;
+    if(picker->dest)
+    {
+        color = *picker->dest;
+    }
+    
+    COLORREF custom_colors[16] = {};
+    
+    CHOOSECOLORW win32_params = {};
+    win32_params.lStructSize = sizeof(win32_params);
+    //win32_params.hwndOwner = win32vars.window_handle;
+    win32_params.hInstance = win32vars.window_handle;
+    win32_params.rgbResult = swap_r_and_b(color) & 0xffffff;
+    win32_params.lpCustColors = custom_colors;
+    win32_params.Flags = CC_RGBINIT | CC_FULLOPEN | CC_ANYCOLOR | CC_ENABLEHOOK;
+    win32_params.lCustData = (LPARAM)picker;
+    win32_params.lpfnHook = color_picker_hook;
+    
+    if(ChooseColorW(&win32_params))
+    {
+        color = int_color_from_colorref(win32_params.rgbResult, color);
+    }
+    
+    if(picker->dest)
+    {
+        *picker->dest = color;
+    }
+    
+    if(picker->finished)
+    {
+        *picker->finished = true;
+    }
+    
+    system_memory_free(picker, sizeof(*picker));
+    
+    return(0);
+}
+
+internal
+Sys_Open_Color_Picker_Sig(system_open_color_picker){
+    
+    // NOTE(casey): Because this is going to be used by a semi-permanent thread, we need to copy
+    // it to system memory where it can live as long as it wants, no matter what we do over here
+    // on the 4coder threads.
+    color_picker *perm = (color_picker *)system_memory_allocate_extended(0, sizeof(color_picker));
+    *perm = *picker;
+    
+    HANDLE ThreadHandle = CreateThread(0, 0, color_picker_thread, perm, 0, 0);
+    CloseHandle(ThreadHandle);
+}
+
+internal
+Sys_Animate_Sig(system_animate){
+    system_schedule_step();
+};
+
 // BOTTOM
 

@@ -57,130 +57,6 @@ COS(f32 x_degrees){
  * Vectors
  */
 
-struct Vec2{
-    union{
-        struct{
-            f32 x, y;
-        };
-        struct{
-            f32 v[2];
-        };
-    };
-};
-
-struct Vec3{
-    union{
-        struct{
-            f32 x, y, z;
-        };
-        struct{
-            f32 r, g, b;
-        };
-        struct{
-            Vec2 xy;
-            f32 _z;
-        };
-        struct{
-            f32 _x;
-            Vec2 yz;
-        };
-        struct{
-            f32 v[3];
-        };
-    };
-};
-
-struct Vec4{
-    union{
-        struct{
-            f32 r, g, b, a;
-        };
-        struct{
-            f32 h, s, l, __a;
-        };
-        struct{
-            f32 x, y, z, w;
-        };
-        struct{
-            Vec3 rgb;
-            f32 _a;
-        };
-        struct{
-            Vec3 xyz;
-            f32 _w;
-        };
-        struct{
-            f32 _x;
-            Vec3 yzw;
-        };
-        struct{
-            f32 v[4];
-        };
-    };
-};
-
-struct Vec2_i32{
-    union{
-        struct{
-            i32 x, y;
-        };
-        struct{
-            i32 v[2];
-        };
-    };
-};
-
-struct Vec3_i32{
-    union{
-        struct{
-            i32 x, y, z;
-        };
-        struct{
-            i32 r, g, b;
-        };
-        struct{
-            Vec2 xy;
-            i32 _z;
-        };
-        struct{
-            i32 _x;
-            Vec2 yz;
-        };
-        struct{
-            i32 v[3];
-        };
-    };
-};
-
-struct Vec4_i32{
-    union{
-        struct{
-            i32 r, g, b, a;
-        };
-        struct{
-            i32 h, s, l, __a;
-        };
-        struct{
-            i32 x, y, z, w;
-        };
-        struct{
-            Vec3 rgb;
-            i32 _a;
-        };
-        struct{
-            Vec3 xyz;
-            i32 _w;
-        };
-        struct{
-            i32 _x;
-            Vec3 yzw;
-        };
-        struct{
-            i32 v[4];
-        };
-    };
-};
-
 internal Vec2
 V2(f32 x, f32 y){
     Vec2 result = {};
@@ -769,6 +645,11 @@ i32R(i32 l, i32 t, i32 r, i32 b){
     rect.x1 = r;
     rect.y1 = b;
     return(rect);
+}
+
+internal i32_Rect
+i32R_xy_wh(i32 x, i32 y, i32 w, i32 h){
+    return(i32R(x, y, x + w, y + h));
 }
 
 internal i32_Rect

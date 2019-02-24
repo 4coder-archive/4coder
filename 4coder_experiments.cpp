@@ -806,7 +806,7 @@ get_bindings(void *data, int32_t size){
     Bind_Helper context_ = begin_bind_helper(data, size);
     Bind_Helper *context = &context_;
     
-    set_hook(context, hook_view_size_change, default_view_adjust);
+    set_hook(context, hook_buffer_viewer_update, default_view_adjust);
     
     set_start_hook(context, default_start);
     set_open_file_hook(context, default_file_settings);

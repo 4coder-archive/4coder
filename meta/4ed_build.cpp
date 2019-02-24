@@ -194,11 +194,11 @@ get_defines_from_flags(Partition *part, u32 flags){
 "-wd4611 -WX -GR- -EHa- -nologo -FC"
 
 #define CL_LIBS_X64                              \
-"user32.lib winmm.lib gdi32.lib opengl32.lib "   \
+"user32.lib winmm.lib gdi32.lib opengl32.lib comdlg32.lib "   \
 FOREIGN_WIN"\\x64\\freetype.lib"
 
 #define CL_LIBS_X86                              \
-"user32.lib winmm.lib gdi32.lib opengl32.lib "   \
+"user32.lib winmm.lib gdi32.lib opengl32.lib comdlg32.lib "   \
 FOREIGN_WIN"\\x86\\freetype.lib"
 
 #define CL_ICON "..\\4coder-non-source\\res\\icon.res"

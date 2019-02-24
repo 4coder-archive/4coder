@@ -1275,9 +1275,9 @@ App_Step_Sig(app_step){
     }
     
     // NOTE(allen): send panel size update
-    if (models->layout.panel_state_dirty && models->hooks[hook_view_size_change] != 0){
+    if (models->layout.panel_state_dirty && models->hooks[hook_buffer_viewer_update] != 0){
         models->layout.panel_state_dirty = false;
-        models->hooks[hook_view_size_change](&models->app_links);
+        models->hooks[hook_buffer_viewer_update](&models->app_links);
     }
     
     // NOTE(allen): step panels

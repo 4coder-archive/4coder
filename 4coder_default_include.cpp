@@ -50,6 +50,7 @@
 #include "4coder_font_helper.cpp"
 #include "4coder_config.cpp"
 #include "4coder_default_framework.cpp"
+#include "4coder_insertion.cpp"
 #include "4coder_mirror.cpp"
 #include "4coder_seek.cpp"
 #include "4coder_base_commands.cpp"

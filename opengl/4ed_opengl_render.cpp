@@ -96,7 +96,10 @@ interpret_render_buffer(Render_Target *t, Partition *growable_scratch){
     glLoadIdentity();
     glOrtho(0, width, height, 0, -1, 1);
     glScissor(0, 0, width, height);
-    glClearColor(1.f, 0.f, 1.f, 1.f);
+    {
+        Vec4 color = unpack_color4(t->clear_color);
+        glClearColor(color.r, color.g, color.b, color.a);
+    }
     glClear(GL_COLOR_BUFFER_BIT);
     
     glBindTexture(GL_TEXTURE_2D, 0);

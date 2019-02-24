@@ -334,6 +334,8 @@ view_set_file(System_Functions *system, Models *models, View *view, Editing_File
     
     Font_Pointers font = system->font.get_pointers_by_id(file->settings.font_id);
     view->line_height = font.metrics->height;
+    
+    models->layout.panel_state_dirty = true;
 }
 
 ////////////////////////////////

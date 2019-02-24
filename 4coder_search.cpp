@@ -642,12 +642,12 @@ static bool32
 search_buffer_edit_handler(Application_Links *app, Buffer_ID buffer_id, int32_t start, int32_t one_past_last, String text);
 #endif
 
+static String search_name = make_lit_string("*search*");
+
 static void
-list__parameters(Application_Links *app, Heap *heap, Partition *scratch, String *strings, int32_t count,
-                 Search_Range_Flag match_flags, View_Summary default_target_view){
-    // Open the search buffer
-    String search_name = make_lit_string("*search*");
-    Buffer_ID search_buffer_id = create_or_switch_to_buffer_by_name(app, search_name.str, search_name.size, default_target_view);
+list__parameters_buffer(Application_Links *app, Heap *heap, Partition *scratch,
+                        String *strings, int32_t count, Search_Range_Flag match_flags,
+                        Buffer_ID search_buffer_id){
     Buffer_Summary search_buffer = get_buffer(app, search_buffer_id, AccessAll);
     
     // Setup the search buffer for 'init' mode - the history will begin only AFTER the buffer is filled
@@ -766,9 +766,14 @@ list__parameters(Application_Links *app, Heap *heap, Partition *scratch, String 
     mirror_buffer_set_mode(app, search_buffer_id, MirrorMode_Reflecting);
     buffer_set_setting(app, &search_buffer, BufferSetting_ReadOnly, false);
     buffer_set_setting(app, &search_buffer, BufferSetting_RecordsHistory, true);
-#if 0
-    buffer_set_edit_handler(app, search_buffer_id, search_buffer_edit_handler);
-#endif
+}
+
+static void
+list__parameters(Application_Links *app, Heap *heap, Partition *scratch, String *strings, int32_t count,
+                 Search_Range_Flag match_flags, View_Summary default_target_view){
+    // Open the search buffer
+    Buffer_ID search_buffer_id = create_or_switch_to_buffer_by_name(app, search_name.str, search_name.size, default_target_view);
+    list__parameters_buffer(app, heap, scratch, strings, count, match_flags, search_buffer_id);
 }
 
 static void

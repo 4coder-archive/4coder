@@ -8,7 +8,9 @@
 #define FCODER_CUSTOM_H
 
 #include <stdint.h>
+#include <stdarg.h>
 
+#include "4coder_base_types.h"
 #include "4coder_lib/4coder_arena.h"
 #include "4coder_lib/4coder_heap.h"
 #include "4coder_lib/4coder_string.h"

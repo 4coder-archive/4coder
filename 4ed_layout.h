@@ -12,14 +12,6 @@
 #if !defined(FRED_LAYOUT_H)
 #define FRED_LAYOUT_H
 
-typedef i32 Panel_Split_Kind;
-enum{
-    PanelSplitKind_Ratio_TL = 0,
-    PanelSplitKind_Ratio_BR = 1,
-    PanelSplitKind_FixedPixels_TL = 2,
-    PanelSplitKind_FixedPixels_BR = 3,
-};
-
 struct Panel_Split{
     Panel_Split_Kind kind;
     union{
@@ -30,8 +22,9 @@ struct Panel_Split{
 
 typedef i32 Panel_Kind;
 enum{
-    PanelKind_Intermediate = 0,
-    PanelKind_Final = 1,
+    PanelKind_Unused = 0,
+    PanelKind_Intermediate = 1,
+    PanelKind_Final = 2,
 };
 
 struct Panel{
@@ -68,6 +61,8 @@ struct Layout{
     
     Panel *root;
     Panel *active_panel;
+    Panel *panel_first;
+    Panel *panel_one_past_last;
     
     i32 margin;
     i32 open_panel_count;

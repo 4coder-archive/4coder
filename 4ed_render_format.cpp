@@ -35,6 +35,9 @@ begin_render_section(Render_Target *target, System_Functions *system){
     clip.x1 = target->width;
     clip.y1 = target->height;
     draw_push_clip(target, clip);
+    
+    target->buffer.pos = 0;
+    target->clear_color = 0xFFFF00FF;
 }
 
 internal void

@@ -27,7 +27,7 @@ make_panel_split(Panel_Split_Kind kind, f32 v){
 
 internal Panel_Split
 make_panel_split_50_50(void){
-    return(make_panel_split(PanelSplitKind_Ratio_TL, 0.5f));
+    return(make_panel_split(PanelSplitKind_Ratio_Min, 0.5f));
 }
 
 internal Panel*
@@ -47,6 +47,7 @@ layout__free_panel(Layout *layout, Panel *panel){
     Assert(panel != layout->root);
     dll_remove(&panel->node);
     dll_insert(&layout->free_panels, &panel->node);
+    panel->kind = PanelKind_Unused;
 }
 
 internal void
@@ -59,19 +60,19 @@ internal i32
 layout__evaluate_split(Panel_Split split, i32 v0, i32 v1){
     i32 v = 0;
     switch (split.kind){
-        case PanelSplitKind_Ratio_TL:
+        case PanelSplitKind_Ratio_Min:
         {
             v = round32(lerp((f32)v0, split.v_f32, (f32)v1));
         }break;
-        case PanelSplitKind_Ratio_BR:
+        case PanelSplitKind_Ratio_Max:
         {
             v = round32(lerp((f32)v1, split.v_f32, (f32)v0));
         }break;
-        case PanelSplitKind_FixedPixels_TL:
+        case PanelSplitKind_FixedPixels_Min:
         {
             v = clamp_top(v0 + split.v_i32, v1);
         }break;
-        case PanelSplitKind_FixedPixels_BR:
+        case PanelSplitKind_FixedPixels_Max:
         {
             v = clamp_bottom(v0, v1 - split.v_i32);
         }break;
@@ -137,67 +138,50 @@ layout_get_active_panel(Layout *layout){
     return(layout->active_panel);
 }
 
-internal Panel*
-layout_split_panel(Layout *layout, Panel *panel, b32 vertical_split, b32 br_split){
-    Panel *new_panel = 0;
+internal bool32
+layout_split_panel(Layout *layout, Panel *panel, b32 vertical_split, Panel **new_panel_out){
+    b32 result = false;
     if (layout->open_panel_count < layout->open_panel_max_count){
-        Panel *intermediate = layout__alloc_panel(layout);
-        new_panel = layout__alloc_panel(layout);
+        Panel *min_panel = layout__alloc_panel(layout);
+        Panel *max_panel = layout__alloc_panel(layout);
         
-        dll_insert(&layout->open_panels, &new_panel->node);
-        dll_insert(&layout->intermediate_panels, &intermediate->node);
+        dll_remove(&panel->node);
+        dll_insert(&layout->intermediate_panels, &panel->node);
         
-        Panel *parent = panel->parent;
+        dll_insert(&layout->open_panels, &min_panel->node);
+        dll_insert(&layout->open_panels, &max_panel->node);
         
-        // link new intermediate and parent
-        intermediate->parent = parent;
-        if (parent != 0){
-            Assert(parent->kind == PanelKind_Intermediate);
-            if (parent->tl_panel == panel){
-                parent->tl_panel = intermediate;
-            }
-            else{
-                Assert(parent->br_panel == panel);
-                parent->br_panel = intermediate;
-            }
-        }
-        else{
-            Assert(layout->root == panel);
-            layout->root = intermediate;
-        }
+        // init min_panel
+        panel->view->panel = min_panel;
+        min_panel->parent = panel;
+        min_panel->kind = PanelKind_Final;
+        min_panel->view = panel->view;
         
-        // link new intermediate and child panels
-        panel->parent = intermediate;
-        new_panel->parent = intermediate;
-        if (br_split){
-            intermediate->br_panel = new_panel;
-            intermediate->tl_panel = panel;
-        }
-        else{
-            intermediate->tl_panel = new_panel;
-            intermediate->br_panel = panel;
-        }
+        // init max_panel
+        *new_panel_out = max_panel;
+        max_panel->parent = panel;
+        max_panel->kind = PanelKind_Final;
+        max_panel->view = 0;
         
-        // init the intermediate
-        intermediate->kind = PanelKind_Intermediate;
-        intermediate->vertical_split = vertical_split;
-        intermediate->split = make_panel_split_50_50();
-        intermediate->screen_region = panel->screen_region;
-        
-        // init the new panel
-        new_panel->kind = PanelKind_Final;
-        new_panel->view = 0;
+        // modify panel
+        panel->kind = PanelKind_Intermediate;
+        panel->tl_panel = min_panel;
+        panel->br_panel = max_panel;
+        panel->vertical_split = vertical_split;
+        panel->split = make_panel_split_50_50();
         
         // propogate rectangle sizes down from the new intermediate to
         // resize the panel and the new panel.
-        layout_propogate_sizes_down_from_node(layout, intermediate);
+        layout_propogate_sizes_down_from_node(layout, panel);
         
         // update layout state
         layout->open_panel_count += 1;
-        layout->active_panel = new_panel;
+        layout->active_panel = max_panel;
         layout->panel_state_dirty = true;
+        
+        result = true;
     }
-    return(new_panel);
+    return(result);
 }
 
 internal b32
@@ -264,6 +248,10 @@ internal Panel*
 layout_initialize(Partition *part, Layout *layout){
     i32 panel_alloc_count = MAX_VIEWS*2 - 1;
     Panel *panels = push_array(part, Panel, panel_alloc_count);
+    block_zero(panels, sizeof(*panels)*panel_alloc_count);
+    
+    layout->panel_first = panels;
+    layout->panel_one_past_last = panels + panel_alloc_count;
     
     layout->margin = 3;
     layout->open_panel_count = 0;
@@ -403,19 +391,19 @@ layout__reverse_evaluate_panel_split(Panel *panel, i32 position){
         v1 = panel->rect_full.y1;
     }
     switch (panel->split.kind){
-        case PanelSplitKind_Ratio_TL:
+        case PanelSplitKind_Ratio_Min:
         {
             panel->split.v_f32 = unlerp((f32)v0, (f32)position, (f32)v1);
         }break;
-        case PanelSplitKind_Ratio_BR:
+        case PanelSplitKind_Ratio_Max:
         {
             panel->split.v_f32 = unlerp((f32)v1, (f32)position, (f32)v0);
         }break;
-        case PanelSplitKind_FixedPixels_TL:
+        case PanelSplitKind_FixedPixels_Min:
         {
             panel->split.v_i32 = clamp(v0, position, v1) - v0;
         }break;
-        case PanelSplitKind_FixedPixels_BR:
+        case PanelSplitKind_FixedPixels_Max:
         {
             panel->split.v_i32 = v1 - clamp(v0, position, v1);
         }break;
@@ -446,6 +434,15 @@ layout_set_split_absolute_position(Layout *layout, Panel *panel, i32 absolute_po
         layout_propogate_sizes_down_from_node(layout, panel);
         layout->panel_state_dirty = true;
     }
+}
+
+internal Panel_ID
+panel_get_id(Layout *layout, Panel *panel){
+    Panel_ID id = 0;
+    if (layout->panel_first <= panel && panel < layout->panel_one_past_last){
+        id = (Panel_ID)(panel - layout->panel_first) + 1;
+    }
+    return(id);
 }
 
 // BOTTOM

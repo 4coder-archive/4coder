@@ -69,7 +69,10 @@ fill_view_summary(System_Functions *system, View_Summary *view, View *vptr, Live
         
         view->preferred_x = vptr->preferred_x;
         
-        view->view_region = vptr->panel->rect_inner;
+        i32_Rect view_region = vptr->panel->rect_inner;
+        view->view_region = view_region;
+        view->render_region = i32R(0, 0, rect_width(view_region), rect_height(view_region));
+        
         view->file_region = vptr->file_region;
         if (vptr->ui_mode){
             view->scroll_vars = vptr->ui_scroll;
@@ -123,7 +126,7 @@ internal View*
 imp_get_view(Models *models, View_ID view_id){
     Live_Views *live_set = &models->live_set;
     View *view = 0;
-    view_id = view_id - 1;
+    view_id -= 1;
     if (0 <= view_id && view_id < live_set->max){
         view = live_set->views + view_id;
         if (!view->in_use){
@@ -131,6 +134,25 @@ imp_get_view(Models *models, View_ID view_id){
         }
     }
     return(view);
+}
+
+internal Panel*
+imp_get_panel(Models *models, Panel_ID panel_id){
+    Layout *layout = &models->layout;
+    Panel *panel = layout->panel_first + panel_id - 1;
+    if (!(layout->panel_first <= panel && panel < layout->panel_one_past_last)){
+        panel = 0;
+    }
+    return(panel);
+}
+
+internal bool32
+panel_api_check_panel(Panel *panel){
+    bool32 result = false;
+    if (panel != 0 && panel->kind != PanelKind_Unused){
+        result = true;
+    }
+    return(result);
 }
 
 API_EXPORT bool32
@@ -1638,45 +1660,233 @@ DOC_SEE(Access_Flag)
     Assert(panel != 0);
     View *view = panel->view;
     Assert(view != 0);
+    bool32 result = false;
     if (view_api_check_view(view, access)){
         *view_id_out = view_get_id(&models->live_set, view);
-        return(true);
+        result = true;
     }
-    *view_id_out = 0;
-    return(false);
+    return(result);
 }
 
-// TODO(allen): redocument
 API_EXPORT bool32
-Open_View(Application_Links *app, View_ID location, View_Split_Position position, View_ID *view_id_out)
-/*
-DOC_PARAM(view_location, The view_location parameter specifies the view to split to open the new view.)
-DOC_PARAM(position, The position parameter specifies how to split the view and where to place the new view.)
-DOC_RETURN(If this call succeeds it returns a View_Summary describing the newly created view, if it fails it
-returns a null summary.)
-DOC(4coder is built with a limit of 16 views.  If 16 views are already open when this is called the call will fail.)
-DOC_SEE(View_Split_Position)
-*/{
+Get_Active_Panel(Application_Links *app, Panel_ID *panel_id_out){
+    Models *models = (Models*)app->cmd_context;
+    Panel *panel = layout_get_active_panel(&models->layout);
+    Assert(panel != 0);
+    bool32 result = false;
+    if (panel_api_check_panel(panel)){
+        *panel_id_out = panel_get_id(&models->layout, panel);
+        result = true;
+    }
+    else{
+        *panel_id_out = 0;
+    }
+    return(result);
+}
+
+API_EXPORT bool32
+View_Get_Panel(Application_Links *app, View_ID view_id, Panel_ID *panel_id_out){
     Models *models = (Models*)app->cmd_context;
     Layout *layout = &models->layout;
-    View *view = imp_get_view(models, location);
+    bool32 result = false;
+    View *view = imp_get_view(models, view_id);
+    *panel_id_out = 0;
     if (view_api_check_view(view)){
         Panel *panel = view->panel;
-        b32 vertical_split = ((position == ViewSplit_Left) || (position == ViewSplit_Right));
-        b32 br_split = ((position == ViewSplit_Bottom) || (position == ViewSplit_Right));
-        Panel *new_panel  = layout_split_panel(layout, panel, vertical_split, br_split);
-        if (new_panel != 0){
+        *panel_id_out = panel_get_id(layout, panel);
+        result = true;
+    }
+    return(result);
+}
+
+API_EXPORT bool32
+Panel_Get_View(Application_Links *app, Panel_ID panel_id, View_ID *view_id_out){
+    Models *models = (Models*)app->cmd_context;
+    bool32 result = false;
+    Panel *panel = imp_get_panel(models, panel_id);
+    *view_id_out = 0;
+    if (panel_api_check_panel(panel)){
+        if (panel->kind == PanelKind_Final){
+            View *view = panel->view;
+            Assert(view != 0);
+            *view_id_out = view_get_id(&models->live_set, view);
+            result = true;
+        }
+    }
+    return(result);
+}
+
+API_EXPORT bool32
+Panel_Is_Split(Application_Links *app, Panel_ID panel_id){
+    Models *models = (Models*)app->cmd_context;
+    bool32 result = false;
+    Panel *panel = imp_get_panel(models, panel_id);
+    if (panel_api_check_panel(panel)){
+        if (panel->kind == PanelKind_Intermediate){
+            result = true;
+        }
+    }
+    return(result);
+}
+
+API_EXPORT bool32
+Panel_Is_Leaf(Application_Links *app, Panel_ID panel_id){
+    Models *models = (Models*)app->cmd_context;
+    bool32 result = false;
+    Panel *panel = imp_get_panel(models, panel_id);
+    if (panel_api_check_panel(panel)){
+        if (panel->kind == PanelKind_Final){
+            result = true;
+        }
+    }
+    return(result);
+}
+
+API_EXPORT bool32
+Panel_Split(Application_Links *app, Panel_ID panel_id, Panel_Split_Orientation orientation){
+    Models *models = (Models*)app->cmd_context;
+    Layout *layout = &models->layout;
+    bool32 result = false;
+    Panel *panel = imp_get_panel(models, panel_id);
+    if (panel_api_check_panel(panel)){
+        Panel *new_panel = 0;
+        if (layout_split_panel(layout, panel, (orientation == PanelSplit_LeftAndRight), &new_panel)){
             Live_Views *live_set = &models->live_set;
             View *new_view = live_set_alloc_view(&models->mem.heap, &models->lifetime_allocator, live_set);
             new_panel->view = new_view;
             new_view->panel = new_panel;
             view_set_file(models->system, models, new_view, models->scratch_buffer);
-            *view_id_out = view_get_id(live_set, new_view);
-            return(true);
+            result = true;
         }
     }
-    *view_id_out = 0;
-    return(false);
+    return(result);
+}
+
+API_EXPORT bool32
+Panel_Set_Split(Application_Links *app, Panel_ID panel_id, Panel_Split_Kind kind, float t){
+    Models *models = (Models*)app->cmd_context;
+    Layout *layout = &models->layout;
+    bool32 result = false;
+    Panel *panel = imp_get_panel(models, panel_id);
+    if (panel_api_check_panel(panel)){
+        if (panel->kind == PanelKind_Intermediate){
+            panel->split.kind = kind;
+            switch (kind){
+                case PanelSplitKind_Ratio_Max:
+                case PanelSplitKind_Ratio_Min:
+                {
+                    panel->split.v_f32 = clamp(0.f, t, 1.f);
+                }break;
+                
+                case PanelSplitKind_FixedPixels_Max:
+                case PanelSplitKind_FixedPixels_Min:
+                {
+                    panel->split.v_i32 = round32(t);
+                }break;
+                
+                default:
+                {
+                    print_message(app, make_lit_string("Invalid split kind passed to panel_set_split, no change made to view layout"));
+                }break;
+            }
+            layout_propogate_sizes_down_from_node(layout, panel);
+            result = true;
+        }
+    }
+    return(result);
+}
+
+API_EXPORT bool32
+Panel_Swap_Children(Application_Links *app, Panel_ID panel_id, Panel_Split_Kind kind, float t){
+    Models *models = (Models*)app->cmd_context;
+    Layout *layout = &models->layout;
+    bool32 result = false;
+    Panel *panel = imp_get_panel(models, panel_id);
+    if (panel_api_check_panel(panel)){
+        if (panel->kind == PanelKind_Intermediate){
+            Swap(Panel*, panel->tl_panel, panel->br_panel);
+            layout_propogate_sizes_down_from_node(layout, panel);
+        }
+    }
+    return(result);
+}
+
+API_EXPORT bool32
+Panel_Get_Parent(Application_Links *app, Panel_ID panel_id, Panel_ID *panel_id_out){
+    Models *models = (Models*)app->cmd_context;
+    Layout *layout = &models->layout;
+    bool32 result = false;
+    Panel *panel = imp_get_panel(models, panel_id);
+    *panel_id_out = 0;
+    if (panel_api_check_panel(panel)){
+        *panel_id_out = panel_get_id(layout, panel->parent);
+        result = true;
+    }
+    return(result);
+}
+
+API_EXPORT bool32
+Panel_Get_Child(Application_Links *app, Panel_ID panel_id, Panel_Child which_child, Panel_ID *panel_id_out){
+    Models *models = (Models*)app->cmd_context;
+    Layout *layout = &models->layout;
+    bool32 result = false;
+    Panel *panel = imp_get_panel(models, panel_id);
+    *panel_id_out = 0;
+    if (panel_api_check_panel(panel)){
+        if (panel->kind == PanelKind_Intermediate){
+            Panel *child = 0;
+            switch (which_child){
+                case PanelChild_Min:
+                {
+                    child = panel->tl_panel;
+                }break;
+                case PanelChild_Max:
+                {
+                    child = panel->br_panel;
+                }break;
+            }
+            if (child != 0){
+                *panel_id_out = panel_get_id(layout, child);
+                result = true;
+            }
+        }
+    }
+    return(result);
+}
+
+API_EXPORT bool32
+Panel_Get_Max(Application_Links *app, Panel_ID panel_id, Panel_ID *panel_id_out){
+    Models *models = (Models*)app->cmd_context;
+    Layout *layout = &models->layout;
+    bool32 result = false;
+    Panel *panel = imp_get_panel(models, panel_id);
+    if (panel_api_check_panel(panel)){
+        if (panel->kind == PanelKind_Intermediate){
+            Panel *child = panel->br_panel;
+            *panel_id_out = panel_get_id(layout, child);
+            result = true;
+        }
+    }
+    return(result);
+}
+
+API_EXPORT bool32
+Panel_Get_Margin(Application_Links *app, Panel_ID panel_id, i32_Rect *margins_out){
+    Models *models = (Models*)app->cmd_context;
+    Layout *layout = &models->layout;
+    bool32 result = false;
+    Panel *panel = imp_get_panel(models, panel_id);
+    if (panel_api_check_panel(panel)){
+        if (panel->kind == PanelKind_Final){
+            i32 margin = layout->margin;
+            margins_out->x0 = margin;
+            margins_out->x1 = margin;
+            margins_out->y0 = margin;
+            margins_out->y1 = margin;
+            result = true;
+        }
+    }
+    return(result);
 }
 
 // TODO(allen): redocument
@@ -1840,67 +2050,6 @@ If the view_id does not specify a valid view, the returned scope is null.)
 
 // TODO(allen): redocument
 API_EXPORT bool32
-View_Set_Split(Application_Links *app, View_ID view_id, View_Split_Kind kind, float t)
-/*
-DOC_PARAM(view, The view parameter specifies which view shall have it's size adjusted.)
-DOC_PARAM(kind, There are different kinds of split, see View_Split_Kind documentation for more information.)
-DOC_PARAM(t, The t parameter specifies the proportion of the containing box that the view should occupy.
-
-For proportion values, t will be clamped to [0,1].
-
-For integer values, t will be rounded to the nearest integer.
-)
-DOC_SEE(View_Split_Kind)
-DOC_RETURN(This call returns non-zero on success.)
-*/{
-    Models *models = (Models*)app->cmd_context;
-    Layout *layout = &models->layout;
-    View *view = imp_get_view(models, view_id);
-    
-    bool32 result = false;
-    if (view_api_check_view(view)){
-        Panel *panel = view->panel;
-        Panel *intermediate = panel->parent;
-        if (intermediate != 0){
-            Assert(intermediate->kind == PanelKind_Intermediate);
-            switch (kind){
-                case ViewSplitKind_Ratio:
-                {
-                    if (intermediate->br_panel == panel){
-                        intermediate->split.kind = PanelSplitKind_Ratio_BR;
-                    }
-                    else{
-                        intermediate->split.kind = PanelSplitKind_Ratio_TL;
-                    }
-                    intermediate->split.v_f32 = clamp(0.f, t, 1.f);
-                }break;
-                
-                case ViewSplitKind_FixedPixels:
-                {
-                    if (intermediate->br_panel == panel){
-                        intermediate->split.kind = PanelSplitKind_FixedPixels_BR;
-                    }
-                    else{
-                        intermediate->split.kind = PanelSplitKind_FixedPixels_TL;
-                    }
-                    intermediate->split.v_i32 = round32(t);
-                }break;
-                
-                default:
-                {
-                    print_message(app, make_lit_string("Invalid split kind passed to view_set_split, no change made to view layout"));
-                }break;
-            }
-            layout_propogate_sizes_down_from_node(layout, intermediate);
-            result = true;
-        }
-    }
-    
-    return(result);
-}
-
-// TODO(allen): redocument
-API_EXPORT bool32
 View_Get_Enclosure_Rect(Application_Links *app, View_ID view_id, i32_Rect *rect_out)
 /*
 DOC_PARAM(view, The view whose parent rent will be returned.)
@@ -2057,7 +2206,6 @@ DOC_SEE(Set_Buffer_Flag)
     bool32 result = false;
     if (view_api_check_view(view)){
         Editing_File *file = working_set_get_active_file(&models->working_set, buffer_id);
-        Assert(file != 0);
         if (buffer_api_check_file(file)){
             if (file != view->file_data.file){
                 view_set_file(models->system, models, view, file);
@@ -4101,6 +4249,10 @@ draw_helper__view_space_to_screen_space(Models *models, f32_Rect *rect){
     rect->y1 += y_corner;
 }
 
+// NOTE(allen): Coordinate space of draw calls:
+// The render space is such that 0,0 is _always_ the top left corner of the renderable region of the view.
+// To make text scroll with the buffer users should read the view's scroll position and subtract it first.
+
 API_EXPORT float
 Draw_String(Application_Links *app, Face_ID font_id, String str, int32_t x, int32_t y, int_color color, uint32_t flags, float dx, float dy)
 {
@@ -4171,6 +4323,240 @@ Get_Default_Font_For_View(Application_Links *app, View_ID view_id)
     Assert(file != 0);
     Face_ID face_id = file->settings.font_id;
     return(face_id);
+}
+
+API_EXPORT void
+Open_Color_Picker(Application_Links *app, color_picker *picker)
+/*
+DOC(Opens a color picker using the parameters in the supplied structure.)
+*/
+{
+    Models *models = (Models*)app->cmd_context;
+    System_Functions *system = models->system;
+    
+    if(picker->finished)
+    {
+        *picker->finished = false;
+    }
+    system->open_color_picker(picker);
+}
+
+void system_schedule_step();
+API_EXPORT void
+Animate(Application_Links *app)
+{
+    Models *models = (Models*)app->cmd_context;
+    System_Functions *system = models->system;
+    
+    /* TODO(casey): Allen, I don't _really_ need system_schedule_step() here (which is what animate() does), I just need to know that somebody _will_ perform a system_schedule_step(), so multiple people all trying to do a step schedule can all be condensed into one... but it _looks_ like that is what already happens with system_schedule_step, since if it pushes multiple animate messages into the queue, they will all be consumed in a single frame, so it's fine, I think?  But I of course don't know how it would work on other platforms, since I haven't looked at the Mac OS / Linux code.
+    
+    The more "correct" way to make this work, I suspect, is to just make a way for me to set the app_result.animating flag to "true", but I don't know how I would go about doing that from here :(
+     */
+    system->animate();
+}
+
+// NOTE(casey): Find_All_In_Range_Insensitive is the only routine supplied, because anyone who would prefer case-sensitive can
+// check afterward.
+// TODO(casey): Allen, this routine is very intricate and needs to be tested thoroughly before mainlining.  I've only done cursory testing on it and have probably missed bugs that only occur in highly segmented buffers.
+// TODO(casey): I think this routine could potentially be simplified by making it into something that always works with a partial match list, where the partial matches have 0 characters matched, and they just get moved forward as they go.  This would solve the duplicate code problem the routine currently has where it does the same thing in its two halves, but slightly differently.
+API_EXPORT Found_String_List
+Find_All_In_Range_Insensitive(Application_Links *app, Buffer_ID buffer_id, int32_t start, int32_t end, String key, Partition *memory)
+{
+    Found_String_List result = {};
+    
+    Found_String *first_partial = 0;
+    Found_String *first_free = 0;
+    
+    Models *models = (Models*)app->cmd_context;
+    Editing_File *file = imp_get_file(models, buffer_id);
+    if((file != 0) && key.size)
+    {
+        int32_t total_size = buffer_size(&file->state.buffer);
+        u32 clean_edegs = FoundString_CleanEdges;
+        
+        if (0 <= start && start <= end && end <= total_size)
+        {
+            Gap_Buffer *gap = &file->state.buffer;
+            Gap_Buffer_Stream stream = {};
+            i32 i = start;
+            if (buffer_stringify_loop(&stream, gap, i, end))
+            {
+                b32 still_looping = 0;
+                do
+                {
+                    i32 size = stream.end - i;
+                    char *data = stream.data + i;
+                    
+                    // NOTE(casey): Check all partial matches
+                    Found_String **partial = &first_partial;
+                    while(*partial)
+                    {
+                        Found_String *check = *partial;
+                        i32 trailing_char_at = ((check->start + key.size) - check->end);
+                        i32 remaining = trailing_char_at;
+                        b32 valid = true;
+                        b32 full = true;
+                        if(remaining > size)
+                        {
+                            full = false;
+                            remaining = size;
+                        }
+                        
+                        for(i32 test = 0;
+                            test < remaining;
+                            ++test)
+                        {
+                            char a = key.str[test];
+                            char b = data[test];
+                            
+                            if(a != b)
+                            {
+                                check->flags &= ~FoundString_Sensitive;
+                            }
+                            
+                            if(char_to_lower(a) != char_to_lower(b))
+                            {
+                                valid = false;
+                                break;
+                            }
+                        }
+                        check->end += remaining;
+                        
+                        if(valid)
+                        {
+                            // NOTE(casey): Although technically "full matches" are full, we haven't yet checked the trailing edge for tokenization,
+                            // so we need to shunt to partial in the cases where we _can't_ check the overhanging character.
+                            full = full && (trailing_char_at < size);
+                            if(full)
+                            {
+                                if(char_is_alpha_numeric(data[trailing_char_at]) || (data[trailing_char_at] == '_'))
+                                {
+                                    check->flags &= ~FoundString_CleanEdges;
+                                }
+                                
+                                // NOTE(casey): This is a full match now, so we can move it to the result list
+                                *partial = check->next;
+                                check->next = 0;
+                                result.last = (result.last ? result.last->next : result.first) = check;
+                                ++result.count;
+                            }
+                            else
+                            {
+                                // NOTE(casey): This is still a partial match, so we just look at the next one
+                                partial = &check->next;
+                            }
+                        }
+                        else
+                        {
+                            // NOTE(casey): This is no longer a potential match, eliminate it.
+                            *partial = check->next;
+                            check->next = first_free;
+                            first_free = check;
+                        }
+                    }
+                    
+                    // NOTE(casey): Check for new matches
+                    // TODO(casey): We could definitely do way more efficient string matching here
+                    for(i32 at = 0;
+                        at < size;
+                        ++at)
+                    {
+                        i32 remaining = size - at;
+                        b32 full = false;
+                        if(remaining >= key.size)
+                        {
+                            full = true;
+                            remaining = key.size;
+                        }
+                        
+                        u32 exact_matched = FoundString_Sensitive;
+                        b32 lower_matched = true;
+                        for(i32 test = 0;
+                            test < remaining;
+                            ++test)
+                        {
+                            char a = key.str[test];
+                            char b = data[at + test];
+                            
+                            if(a != b)
+                            {
+                                exact_matched = 0;
+                            }
+                            
+                            if(char_to_lower(a) != char_to_lower(b))
+                            {
+                                lower_matched = false;
+                                break;
+                            }
+                        }
+                        
+                        if(lower_matched)
+                        {
+                            Found_String *found = first_free;
+                            if(found)
+                            {
+                                first_free = found->next;
+                            }
+                            else
+                            {
+                                found = push_array(memory, Found_String, 1);
+                            }
+
+                            if(found)
+                            {
+                                found->next = 0;
+                                found->buffer_id = buffer_id;
+                                found->flags = FoundString_Insensitive | exact_matched | clean_edegs;
+                                found->string_id = 0;
+                                found->start = i + at;
+                                found->end = found->start + remaining;
+                            
+                                // NOTE(casey): Although technically "full matches" are full, we haven't yet checked the trailing edge for tokenization,
+                                // so we need to shunt to partial in the cases where we _can't_ check the overhanging character.
+                                i32 trailing_char_at = (at + key.size);
+                                full = full && (trailing_char_at < size);
+                                
+                                if(full)
+                                {
+                                    if(char_is_alpha_numeric(data[trailing_char_at]) || (data[trailing_char_at] == '_'))
+                                    {
+                                        found->flags &= ~FoundString_CleanEdges;
+                                    }
+                                    result.last = (result.last ? result.last->next : result.first) = found;
+                                    ++result.count;
+                                }
+                                else
+                                {
+                                    found->flags |= FoundString_Straddled;
+                                    *partial = (*partial ? (*partial)->next : first_partial) = found;
+                                }
+                            }
+                            else
+                            {
+                                // TODO(casey): Allen, this is a non-fatal error that produces bad results - eg., there's not enough
+                                // memory to actually store all the locations found.  Hopefully this will never happen once this can
+                                // be fed through a growable arena - right now it happens all the time, because the partition is too f'ing tiny.
+                            }
+                        }
+                        
+                        if(char_is_alpha(data[at]) || (data[at] == '_'))
+                        {
+                            clean_edegs = 0;
+                        }
+                        else
+                        {
+                            clean_edegs = FoundString_CleanEdges;
+                        }
+                    }
+                    
+                    i = stream.end;
+                    still_looping = buffer_stringify_next(&stream);
+                } while(still_looping);
+            }
+        }
+    }
+
+    return(result);
 }
 
 // BOTTOM

@@ -22,6 +22,7 @@
 #define frame_useconds (1000000 / FPS)
 
 #include "4ed_defines.h"
+#include "4coder_base_types.h"
 #include "4coder_API/4coder_version.h"
 
 #include <string.h>
@@ -263,7 +264,7 @@ handle_type_ptr(void *ptr){
 
 ////////////////////////////////
 
-internal void
+void
 system_schedule_step(){
     PostMessage(win32vars.window_handle, WM_4coder_ANIMATE, 0, 0);
 }
@@ -1422,6 +1423,7 @@ Win32KeycodeInit(void){
     keycode_lookup_table[VK_CAPITAL] = key_caps;
     keycode_lookup_table[VK_NUMLOCK] = key_num_lock;
     keycode_lookup_table[VK_SCROLL] = key_scroll_lock;
+    keycode_lookup_table[VK_APPS] = key_menu;
     
     keycode_lookup_table[VK_F1] = key_f1;
     keycode_lookup_table[VK_F2] = key_f2;
@@ -2365,7 +2367,6 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
         
         
         // NOTE(allen): Application Core Update
-        target.buffer.pos = 0;
         Application_Step_Result result = {};
         if (app.step != 0){
             result = app.step(&sysfunc, &target, &memory_vars, &input);
