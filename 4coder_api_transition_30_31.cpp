@@ -533,6 +533,7 @@ print_message(Application_Links *app, char *str, int32_t len){
     print_message(app, make_string(str, len));
 }
 
+#if 0
 static void
 create_theme(Application_Links *app, Theme *theme, char *name, int32_t len){
     create_theme(app, theme, make_string(name, len));
@@ -542,6 +543,7 @@ static void
 change_theme(Application_Links *app, char *name, int32_t len){
     change_theme(app, make_string(name, len));
 }
+#endif
 
 static int32_t
 directory_get_hot(Application_Links *app, char *out, int32_t capacity){

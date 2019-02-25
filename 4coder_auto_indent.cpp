@@ -51,7 +51,8 @@ buffer_find_hard_start(Application_Links *app, Buffer_Summary *buffer, int32_t l
 
 static Buffer_Batch_Edit
 make_batch_from_indent_marks(Application_Links *app, Partition *arena, Buffer_Summary *buffer,
-                             int32_t first_line, int32_t one_past_last_line, int32_t *indent_marks, Indent_Options opts){
+                             int32_t first_line, int32_t one_past_last_line, int32_t *indent_marks,
+                             Indent_Options opts){
     int32_t *shifted_indent_marks = indent_marks - first_line;
     
     int32_t edit_count = 0;
@@ -125,8 +126,7 @@ set_line_indents(Application_Links *app, Partition *part, Buffer_Summary *buffer
                                                            first_line, one_past_last_line,
                                                            indent_marks, opts);
     if (batch.edit_count > 0){
-        buffer_batch_edit(app, buffer,
-                          batch.str, batch.str_len, batch.edits, batch.edit_count,
+        buffer_batch_edit(app, buffer, batch.str, batch.str_len, batch.edits, batch.edit_count,
                           BatchEdit_PreserveTokens);
     }
 }
@@ -161,7 +161,6 @@ seek_matching_token_backwards(Cpp_Token_Array tokens, Cpp_Token *token,
 static Indent_Anchor_Position
 find_anchor_token(Application_Links *app, Buffer_Summary *buffer, Cpp_Token_Array tokens,
                   int32_t line_start, int32_t tab_width){
-#if 1
     // NOTE(allen): New implementation of find_anchor_token (4.0.26) revert if it is a problem.
     Indent_Anchor_Position anchor = {};
     
@@ -238,105 +237,6 @@ find_anchor_token(Application_Links *app, Buffer_Summary *buffer, Cpp_Token_Arra
         }
     }
     return(anchor);
-    
-#else
-    // NOTE(allen): Old (4.0.25) implementation of find_anchor_token.
-    Indent_Anchor_Position anchor = {};
-    
-    if (tokens.count != 0){
-        anchor.token = get_first_token_at_line(app, buffer, tokens, line_start);
-        if (anchor.token == 0){
-            anchor.token = tokens.tokens + (tokens.count - 1);
-        }
-        
-        if (anchor.token > tokens.tokens){
-            --anchor.token;
-            for (; anchor.token > tokens.tokens; --anchor.token){
-                if (!(anchor.token->flags & CPP_TFLAG_PP_BODY)){
-                    switch(anchor.token->type){
-                        case CPP_TOKEN_BRACE_OPEN:
-                        case CPP_TOKEN_BRACE_CLOSE:
-                        goto out_of_loop;
-                    }
-                }
-            }
-            out_of_loop:;
-        }
-        
-        int32_t current_indent = 0;
-        int32_t found_safe_start_position = 0;
-        do{
-            int32_t line = buffer_get_line_number(app, buffer, anchor.token->start);
-            int32_t start = buffer_get_line_start(app, buffer, line);
-            
-            Hard_Start_Result hard_start = buffer_find_hard_start(app, buffer, start, tab_width);
-            current_indent = hard_start.indent_pos;
-            
-            Cpp_Token *start_token = get_first_token_at_line(app, buffer, tokens, line);
-            Cpp_Token *brace_token = anchor.token;
-            
-            if (start_token->type == CPP_TOKEN_PARENTHESE_OPEN){
-                if (start_token == tokens.tokens){
-                    found_safe_start_position = true;
-                }
-                else{
-                    anchor.token = start_token - 1;
-                }
-            }
-            else{
-                int32_t close = 0;
-                
-                for (anchor.token = brace_token;
-                     anchor.token > start_token;
-                     --anchor.token){
-                    switch (anchor.token->type){
-                        case CPP_TOKEN_PARENTHESE_CLOSE:
-                        case CPP_TOKEN_BRACKET_CLOSE:
-                        case CPP_TOKEN_BRACE_CLOSE:
-                        {
-                            close = anchor.token->type;
-                        }goto out_of_loop2;
-                    }
-                }
-                out_of_loop2:;
-                
-                Cpp_Token_Type open_type = CPP_TOKEN_JUNK;
-                Cpp_Token_Type close_type = CPP_TOKEN_JUNK;
-                switch (close){
-                    case 0:
-                    {
-                        anchor.token = start_token;
-                        found_safe_start_position = true;
-                    }break;
-                    
-                    case CPP_TOKEN_PARENTHESE_CLOSE:
-                    {
-                        open_type = CPP_TOKEN_PARENTHESE_OPEN;
-                        close_type = CPP_TOKEN_PARENTHESE_CLOSE;
-                    }break;
-                    
-                    case CPP_TOKEN_BRACKET_CLOSE:
-                    {
-                        open_type = CPP_TOKEN_BRACKET_OPEN;
-                        close_type = CPP_TOKEN_BRACKET_CLOSE;
-                    }break;
-                    
-                    case CPP_TOKEN_BRACE_CLOSE:
-                    {
-                        open_type = CPP_TOKEN_BRACE_OPEN;
-                        close_type = CPP_TOKEN_BRACE_CLOSE;
-                    }break;
-                }
-                if (open_type != CPP_TOKEN_JUNK){
-                    anchor.token = seek_matching_token_backwards(tokens, anchor.token - 1, open_type, close_type);
-                }
-            }
-        } while(found_safe_start_position == 0);
-        anchor.indentation = current_indent;
-    }
-    
-    return(anchor);
-#endif
 }
 
 static int32_t*
@@ -452,9 +352,16 @@ get_indentation_marks(Application_Links *app, Partition *arena, Buffer_Summary *
                         }
                         else{
                             switch (token.type){
-                                case CPP_TOKEN_BRACKET_CLOSE: this_indent -= tab_width; break;
-                                case CPP_TOKEN_BRACE_CLOSE: this_indent -= tab_width; break;
-                                case CPP_TOKEN_BRACE_OPEN: break;
+                                case CPP_TOKEN_BRACKET_CLOSE:
+                                {
+                                    this_indent -= tab_width;
+                                }break;
+                                case CPP_TOKEN_BRACE_CLOSE:
+                                {
+                                    this_indent -= tab_width;
+                                }break;
+                                case CPP_TOKEN_BRACE_OPEN: 
+                                {}break;
                                 
                                 default:
                                 if (indent.current_indent > 0){
@@ -507,14 +414,16 @@ get_indentation_marks(Application_Links *app, Partition *arena, Buffer_Summary *
                             }
                         }
                     }
-                    if (this_indent < 0) this_indent = 0;
+                    if (this_indent < 0){
+                        this_indent = 0;
+                    }
                 }
                 
                 if (indent.paren_nesting > 0){
                     if (prev_token.type != CPP_TOKEN_PARENTHESE_OPEN){
-                        int32_t level = indent.paren_nesting-1;
+                        int32_t level = indent.paren_nesting - 1;
                         if (level >= ArrayCount(indent.paren_anchor_indent)){
-                            level = ArrayCount(indent.paren_anchor_indent)-1;
+                            level = ArrayCount(indent.paren_anchor_indent) - 1;
                         }
                         this_indent = indent.paren_anchor_indent[level];
                     }
@@ -524,9 +433,9 @@ get_indentation_marks(Application_Links *app, Partition *arena, Buffer_Summary *
                 // after the open paren is on the next line.
                 if (indent.paren_nesting > 0){
                     if (prev_token.type == CPP_TOKEN_PARENTHESE_OPEN){
-                        int32_t level = indent.paren_nesting-1;
+                        int32_t level = indent.paren_nesting - 1;
                         if (level >= ArrayCount(indent.paren_anchor_indent)){
-                            level = ArrayCount(indent.paren_anchor_indent)-1;
+                            level = ArrayCount(indent.paren_anchor_indent) - 1;
                         }
                         indent.paren_anchor_indent[level] = this_indent;
                     }
@@ -755,7 +664,7 @@ CUSTOM_DOC("Inserts a character and auto-indents the line on which the cursor si
     if (in.key.character == '\n'){
         flags |= AutoIndent_ExactAlignBlock;
     }
-    buffer_auto_indent(app, &global_part, &buffer, view.cursor.pos, view.cursor.pos, DEF_TAB_WIDTH, DEFAULT_INDENT_FLAGS);
+    buffer_auto_indent(app, &global_part, &buffer, view.cursor.pos, view.cursor.pos, DEF_TAB_WIDTH, flags);
     move_past_lead_whitespace(app, &view, &buffer);
 }
 

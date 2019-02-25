@@ -106,13 +106,13 @@ intbar_draw_string(System_Functions *system, Render_Target *target, File_Bar *ba
 
 internal void
 draw_file_bar(System_Functions *system, Render_Target *target, View *view, Models *models, Editing_File *file, i32_Rect rect){
-    File_Bar bar;
-    Style *style = &models->styles.styles[0];
+    File_Bar bar = {};
+    Color_Table color_table = models->color_table;
     
-    u32 back_color = style->theme.colors[Stag_Bar];
-    u32 base_color = style->theme.colors[Stag_Base];
-    u32 pop1_color = style->theme.colors[Stag_Pop1];
-    u32 pop2_color = style->theme.colors[Stag_Pop2];
+    u32 back_color = color_table.vals[Stag_Bar];
+    u32 base_color = color_table.vals[Stag_Base];
+    u32 pop1_color = color_table.vals[Stag_Pop1];
+    u32 pop2_color = color_table.vals[Stag_Pop2];
     
     bar.rect = rect;
     
@@ -174,21 +174,21 @@ draw_file_bar(System_Functions *system, Render_Target *target, View *view, Model
 }
 
 internal u32
-get_margin_color(Style *style, i32 level){
-    u32 margin = 0xFFFFFFFF;
+get_margin_color(Color_Table color_table, i32 level){
+    u32 margin = 0;
     switch (level){
         default:
         case UIActivation_None:
         {
-            margin = style->theme.colors[Stag_List_Item];
+            margin = color_table.vals[Stag_List_Item];
         }break;
         case UIActivation_Hover:
         {
-            margin = style->theme.colors[Stag_List_Item_Hover];
+            margin = color_table.vals[Stag_List_Item_Hover];
         }break;
         case UIActivation_Active:
         {
-            margin = style->theme.colors[Stag_List_Item_Active];
+            margin = color_table.vals[Stag_List_Item_Active];
         }break;
     }
     return(margin);
@@ -201,12 +201,11 @@ do_render_file_view(System_Functions *system, View *view, Models *models, GUI_Sc
     Assert(file != 0);
     
     i32 line_height = view->line_height;
-    Style *style = &models->styles.styles[0];
+    Color_Table color_table = models->color_table;
     Face_ID font_id = file->settings.font_id;
     char font_name_space[256];
     String font_name = make_fixed_width_string(font_name_space);
     font_name.size = system->font.get_name_by_id(font_id, font_name.str, font_name.memory_size);
-    Font_Pointers font = system->font.get_pointers_by_id(font_id);
     
     if (!view->hide_file_bar){
         i32_Rect top_bar_rect = {};
@@ -228,9 +227,9 @@ do_render_file_view(System_Functions *system, View *view, Models *models, GUI_Sc
         query_bar_rect.x1 = rect.x1;
         query_bar_rect.y1 = rect.y0 + line_height + 2;
         rect.y0 = query_bar_rect.y1;
-        u32 back_color  = style->theme.colors[Stag_Back];
-        u32 text1_color = style->theme.colors[Stag_Default];
-        u32 text2_color = style->theme.colors[Stag_Pop1];
+        u32 back_color  = color_table.vals[Stag_Back];
+        u32 text1_color = color_table.vals[Stag_Default];
+        u32 text2_color = color_table.vals[Stag_Pop1];
         Vec2 p = V2(query_bar_rect.p0);
         p.y += 2.f;
         draw_rectangle(target, query_bar_rect, back_color);
@@ -255,14 +254,14 @@ do_render_file_view(System_Functions *system, View *view, Models *models, GUI_Sc
             
             f32_Rect item_rect = f32R(item->rectangle);
             switch (item->coordinates){
-                case UICoordinates_Scrolled:
+                case UICoordinates_ViewSpace:
                 {
                     item_rect.x0 += rect_f32.x0 - ui_scroll.scroll_x;
                     item_rect.y0 += rect_f32.y0 - ui_scroll.scroll_y;
                     item_rect.x1 += rect_f32.x0 - ui_scroll.scroll_x;
                     item_rect.y1 += rect_f32.y0 - ui_scroll.scroll_y;
                 }break;
-                case UICoordinates_ViewRelative:
+                case UICoordinates_PanelSpace:
                 {
                     item_rect.x0 += rect_f32.x0;
                     item_rect.y0 += rect_f32.y0;
@@ -275,10 +274,10 @@ do_render_file_view(System_Functions *system, View *view, Models *models, GUI_Sc
                 switch (item->type){
                     case UIType_Option:
                     {
-                        u32 back       = style->theme.colors[Stag_Back];
-                        u32 text_color = style->theme.colors[Stag_Default];
-                        u32 pop_color  = style->theme.colors[Stag_Pop2];
-                        u32 margin_color = get_margin_color(style, item->activation_level);
+                        u32 back       = color_table.vals[Stag_Back];
+                        u32 text_color = color_table.vals[Stag_Default];
+                        u32 pop_color  = color_table.vals[Stag_Pop2];
+                        u32 margin_color = get_margin_color(color_table, item->activation_level);
                         f32_Rect inner = get_inner_rect(item_rect, 3);
                         draw_rectangle(target, inner, back);
                         Vec2 p = V2(inner.p0) + V2(3.f, line_height*0.5f - 1.f);
@@ -290,9 +289,9 @@ do_render_file_view(System_Functions *system, View *view, Models *models, GUI_Sc
                     
                     case UIType_TextField:
                     {
-                        u32 back  = style->theme.colors[Stag_Back];
-                        u32 text1 = style->theme.colors[Stag_Default];
-                        u32 text2 = style->theme.colors[Stag_Pop1];
+                        u32 back  = color_table.vals[Stag_Back];
+                        u32 text1 = color_table.vals[Stag_Default];
+                        u32 text2 = color_table.vals[Stag_Pop1];
                         draw_rectangle(target, item_rect, back);
                         Vec2 p = V2(item_rect.p0) + V2(0.f, 2.f);
                         p.x += draw_string(system, target, font_id, item->text_field.query, p, text2);
@@ -300,6 +299,11 @@ do_render_file_view(System_Functions *system, View *view, Models *models, GUI_Sc
                         p.x += draw_string(system, target, font_id, item->text_field.string, p, text1);
                     }break;
                     
+                    // TODO(allen): figure out how this should work again later
+                    case UIType_ColorTheme:
+                    {}break;
+                    
+#if 0
                     case UIType_ColorTheme:
                     {
                         Style *style_preview = &models->styles.styles[item->color_theme.index];
@@ -326,6 +330,7 @@ do_render_file_view(System_Functions *system, View *view, Models *models, GUI_Sc
                             draw_string(system, target, font_id, font_name, V2(font_x, p.y), text_color);
                         }
                         
+                        Font_Pointers font = system->font.get_pointers_by_id(font_id);
                         i32 height = font.metrics->height;
                         p = V2(inner.x0, p.y + (f32)height);
                         p.x += draw_string(system, target, font_id, "if", p, keyword_color);
@@ -339,6 +344,7 @@ do_render_file_view(System_Functions *system, View *view, Models *models, GUI_Sc
                         p = V2(inner.x0, p.y + (f32)height);
                         draw_string(system, target, font_id, "[] () {}; * -> +-/ <>= ! && || % ^", p, text_color);
                     }break;
+#endif
                 }
             }
         }

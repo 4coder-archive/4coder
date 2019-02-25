@@ -927,6 +927,7 @@ CUSTOM_DOC("Interactively opens a file.")
     begin_integrated_lister__file_system_list(app, "Open:", activate_open, 0, 0, &view);
 }
 
+#if 0
 static void
 activate_select_theme(Application_Links *app, Partition *scratch, Heap *heap,
                       View_Summary *view, struct Lister_State *state,
@@ -960,6 +961,7 @@ CUSTOM_DOC("Opens the 4coder theme selector list.")
     
     end_temp_memory(temp);
 }
+#endif
 
 ////////////////////////////////
 

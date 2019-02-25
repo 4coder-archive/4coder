@@ -37,7 +37,7 @@
 # include "4coder_lib/4coder_string.h"
 
 # include "4coder_API/4coder_keycodes.h"
-# include "4coder_API/4coder_style.h"
+# include "4coder_API/4coder_default_colors.h"
 # include "4coder_API/4coder_types.h"
 #else
 # include "4coder_default_bindings.cpp"
@@ -101,8 +101,7 @@ struct Win32_Input_Chunk_Transient{
 global Win32_Input_Chunk_Transient null_input_chunk_transient = {};
 
 struct Win32_Input_Chunk_Persistent{
-    i32 mouse_x;
-    i32 mouse_y;
+    Vec2_i32 mouse;
     Control_Keys controls;
     b8 mouse_l;
     b8 mouse_r;
@@ -265,7 +264,7 @@ handle_type_ptr(void *ptr){
 
 ////////////////////////////////
 
-void
+internal void
 system_schedule_step(){
     PostMessage(win32vars.window_handle, WM_4coder_ANIMATE, 0, 0);
 }
@@ -1807,13 +1806,9 @@ win32_proc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
         
         case WM_MOUSEMOVE:
         {
-            i32 new_x = LOWORD(lParam);
-            i32 new_y = HIWORD(lParam);
-            
-            if (new_x != win32vars.input_chunk.pers.mouse_x || new_y != win32vars.input_chunk.pers.mouse_y){
-                win32vars.input_chunk.pers.mouse_x = new_x;
-                win32vars.input_chunk.pers.mouse_y = new_y;
-                
+            Vec2_i32 new_m = V2i32(LOWORD(lParam), HIWORD(lParam));
+            if (new_m != win32vars.input_chunk.pers.mouse){
+                win32vars.input_chunk.pers.mouse = new_m;
                 win32vars.got_useful_event = true;
             }
         }break;
@@ -2297,8 +2292,7 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
                 win32vars.input_chunk.trans.out_of_window = true;
             }
             
-            win32vars.input_chunk.pers.mouse_x = mouse_point.x;
-            win32vars.input_chunk.pers.mouse_y = mouse_point.y;
+            win32vars.input_chunk.pers.mouse = V2i32(mouse_point.x, mouse_point.y);
         }
         else{
             win32vars.input_chunk.trans.out_of_window = true;
@@ -2331,8 +2325,7 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
         input.mouse.release_r = input_chunk.trans.mouse_r_release;
         
         input.mouse.wheel = input_chunk.trans.mouse_wheel;
-        input.mouse.x = input_chunk.pers.mouse_x;
-        input.mouse.y = input_chunk.pers.mouse_y;
+        input.mouse.p = input_chunk.pers.mouse;
         
         input.trying_to_kill = input_chunk.trans.trying_to_kill;
         

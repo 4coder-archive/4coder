@@ -56,7 +56,6 @@ struct Mem_Options{
 #include "4ed_code_wrap.h"
 
 #include "4ed_working_set.h"
-#include "4ed_style.h"
 #include "4ed_hot_directory.h"
 #include "4ed_parse_context.h"
 #include "4ed_cli.h"

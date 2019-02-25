@@ -69,11 +69,10 @@ fill_view_summary(System_Functions *system, View_Summary *view, View *vptr, Live
         
         view->preferred_x = vptr->preferred_x;
         
-        i32_Rect view_region = vptr->panel->rect_inner;
-        view->view_region = view_region;
-        view->render_region = i32R(0, 0, rect_width(view_region), rect_height(view_region));
-        
-        view->file_region = vptr->file_region;
+        view->view_region = vptr->panel->rect_inner;
+        i32_Rect file_region = vptr->file_region;
+        view->file_region = file_region;
+        view->render_region = i32R(0, 0, rect_width(file_region), rect_height(file_region));
         if (vptr->ui_mode){
             view->scroll_vars = vptr->ui_scroll;
         }
@@ -2096,6 +2095,10 @@ DOC_SEE(Full_Cursor)
         Assert(file != 0);
         if (buffer_api_check_file(file)){
             *cursor_out = file_compute_cursor(models->system, file, seek);
+            if (file->settings.unwrapped_lines){
+                cursor_out->wrapped_x = cursor_out->unwrapped_x;
+                cursor_out->wrapped_y = cursor_out->unwrapped_y;
+            }
             result = true;
         }
     }
@@ -3334,7 +3337,8 @@ DOC(This call posts a string to the *messages* buffer.)
     return(false);
 }
 
-API_EXPORT int32_t
+#if 0
+//API_EXPORT int32_t
 Get_Theme_Count(Application_Links *app)
 /*
 DOC_RETURN(Returns the number of themes that currently exist in the core.)
@@ -3344,7 +3348,7 @@ DOC_RETURN(Returns the number of themes that currently exist in the core.)
     return(models->styles.count);
 }
 
-API_EXPORT String
+//API_EXPORT String
 Get_Theme_Name(Application_Links *app, struct Partition *arena, int32_t index)
 /*
 DOC_PARAM(arena, The arena which will be used to allocate the returned string.)
@@ -3370,7 +3374,7 @@ DOC_RETURN(On success this call returns a string allocated on arena that is the 
 }
 
 // TODO(allen): redocument
-API_EXPORT bool32
+//API_EXPORT bool32
 Create_Theme(Application_Links *app, Theme *theme, String theme_name)
 /*
 DOC_PARAM(theme, The color data of the new theme.)
@@ -3406,7 +3410,7 @@ DOC(This call creates a new theme.  If the given name is already the name of a s
 }
 
 // TODO(allen): redocument
-API_EXPORT bool32
+//API_EXPORT bool32
 Change_Theme(Application_Links *app, String theme_name)
 /*
 DOC_PARAM(name, The name parameter specifies the name of the theme to begin using; it need not be null terminated.)
@@ -3429,7 +3433,7 @@ DOC(This call changes 4coder's color pallet to one of the built in themes.)
     return(result);
 }
 
-API_EXPORT bool32
+//API_EXPORT bool32
 Change_Theme_By_Index(Application_Links *app, int32_t index)
 /*
 DOC_PARAM(index, The index parameter specifies the index of theme to begin using.)
@@ -3446,6 +3450,7 @@ DOC_RETURN(Returns non-zero on success and zero on failure.  This call fails whe
     }
     return(false);
 }
+#endif
 
 API_EXPORT Face_ID
 Get_Largest_Face_ID(Application_Links *app)
@@ -3819,17 +3824,19 @@ DOC_RETURN(On success a valid Face_ID, otherwise returns zero.)
 */
 {
     Models *models = (Models*)app->cmd_context;
-    Face_ID id = 0;
+    bool32 result = false;
     if (buffer_id != 0){
         Editing_File *file = imp_get_file(models, buffer_id);
         if (buffer_api_check_file(file)){
-            id = file->settings.font_id;
+            *face_id_out = file->settings.font_id;
+            result = true;
         }
     }
     else{
-        id = models->global_font_id;
+        *face_id_out = models->global_font_id;
+        result = true;
     }
-    return(id);
+    return(result);
 }
 
 API_EXPORT Face_ID
@@ -3943,11 +3950,11 @@ DOC(For each struct in the array, the slot in the main color pallet specified by
 DOC_SEE(Theme_Color)
 */{
     Models *models = (Models*)app->cmd_context;
-    Style *style = &models->styles.styles[0];
+    Color_Table color_table = models->color_table;
     Theme_Color *theme_color = colors;
     for (i32 i = 0; i < count; ++i, ++theme_color){
-        if (theme_color->tag < Stag_COUNT){
-            style->theme.colors[theme_color->tag] = theme_color->color;
+        if (theme_color->tag < color_table.count){
+            color_table.vals[theme_color->tag] = theme_color->color;
         }
     }
 }
@@ -3961,16 +3968,22 @@ DOC(For each struct in the array, the color field of the struct is filled with t
 DOC_SEE(Theme_Color)
 */{
     Models *models = (Models*)app->cmd_context;
-    Style *style = &models->styles.styles[0];
+    Color_Table color_table = models->color_table;
     Theme_Color *theme_color = colors;
     for (i32 i = 0; i < count; ++i, ++theme_color){
-        if (theme_color->tag < Stag_COUNT){
-            theme_color->color = style->theme.colors[theme_color->tag];
-        }
-        else{
-            theme_color->color = 0xFF000000;
-        }
+        theme_color->color = finalize_color(color_table, theme_color->tag);
     }
+}
+
+API_EXPORT argb_color
+Finalize_Color(Application_Links *app, int_color color){
+    Models *models = (Models*)app->cmd_context;
+    Color_Table color_table = models->color_table;
+    u32 color_rgb = color;
+    if ((color & 0xFF000000) == 0){
+        color_rgb = color_table.vals[color % color_table.count];
+    }
+    return(color_rgb);
 }
 
 // TODO(allen): redocument
@@ -4166,6 +4179,13 @@ DOC_SEE(Mouse_Cursor_Show_Type)
 }
 
 API_EXPORT bool32
+Set_Edit_Finished_Hook_Repeat_Speed(Application_Links *app, u32 milliseconds){
+    Models *models = (Models*)app->cmd_context;
+    models->edit_finished_hook_repeat_speed = milliseconds;
+    return(true);
+}
+
+API_EXPORT bool32
 Set_Fullscreen(Application_Links *app, bool32 full_screen)
 /*
 DOC_PARAM(full_screen, The new value of the global full_screen setting.)
@@ -4255,27 +4275,28 @@ draw_helper__view_space_to_screen_space(Models *models, f32_Rect rect){
 // The render space is such that 0,0 is _always_ the top left corner of the renderable region of the view.
 // To make text scroll with the buffer users should read the view's scroll position and subtract it first.
 
-API_EXPORT float
+API_EXPORT Vec2
 Draw_String(Application_Links *app, Face_ID font_id, String str, Vec2 point, int_color color, u32 flags, Vec2 delta)
 {
-    f32 result = 0.f;
+    Vec2 result = {};
     Models *models = (Models*)app->cmd_context;
     if (models->render_view == 0){
-        result  = font_string_width(models->system, models->target, font_id, str);
+        f32 width = font_string_width(models->system, models->target, font_id, str);
+        result = delta*width;
     }
     else{
-        Style *style = &models->styles.styles[0];
-        Theme *theme_data = &style->theme;
-        
+        Color_Table color_table = models->color_table;
+        //Style *style = &models->styles.styles[0];
+        //Theme *theme_data = &style->theme;
         point = draw_helper__view_space_to_screen_space(models, point);
-        
-        u32 actual_color = finalize_color(theme_data, color);
-        result = draw_string(models->system, models->target, font_id, str, point, actual_color, flags, delta);
+        u32 actual_color = finalize_color(color_table, color);
+        f32 width = draw_string(models->system, models->target, font_id, str, point, actual_color, flags, delta);
+        result = delta*width;
     }
     return(result);
 }
 
-API_EXPORT float
+API_EXPORT f32
 Get_String_Advance(Application_Links *app, Face_ID font_id, String str)
 {
     Models *models = (Models*)app->cmd_context;
@@ -4287,12 +4308,12 @@ Draw_Rectangle(Application_Links *app, f32_Rect rect, int_color color)
 {
     Models *models = (Models*)app->cmd_context;
     if (models->render_view != 0){
-        Style *style = &models->styles.styles[0];
-        Theme *theme_data = &style->theme;
+        Color_Table color_table = models->color_table;
+        //Style *style = &models->styles.styles[0];
+        //Theme *theme_data = &style->theme;
         
         rect = draw_helper__view_space_to_screen_space(models, rect);
-        
-        u32 actual_color = finalize_color(theme_data, color);
+        u32 actual_color = finalize_color(color_table, color);
         draw_rectangle(models->target, rect, actual_color);
     }
 }
@@ -4302,12 +4323,13 @@ Draw_Rectangle_Outline(Application_Links *app, f32_Rect rect, int_color color)
 {
     Models *models = (Models*)app->cmd_context;
     if (models->render_view != 0){
-        Style *style = &models->styles.styles[0];
-        Theme *theme_data = &style->theme;
+        Color_Table color_table = models->color_table;
+        //Style *style = &models->styles.styles[0];
+        //Theme *theme_data = &style->theme;
         
         rect = draw_helper__view_space_to_screen_space(models, rect);
         
-        u32 actual_color = finalize_color(theme_data, color);
+        u32 actual_color = finalize_color(color_table, color);
         draw_rectangle_outline(models->target, rect, actual_color);
     }
 }
@@ -4339,18 +4361,11 @@ DOC(Opens a color picker using the parameters in the supplied structure.)
     system->open_color_picker(picker);
 }
 
-void system_schedule_step();
 API_EXPORT void
 Animate(Application_Links *app)
 {
     Models *models = (Models*)app->cmd_context;
-    System_Functions *system = models->system;
-    
-    /* TODO(casey): Allen, I don't _really_ need system_schedule_step() here (which is what animate() does), I just need to know that somebody _will_ perform a system_schedule_step(), so multiple people all trying to do a step schedule can all be condensed into one... but it _looks_ like that is what already happens with system_schedule_step, since if it pushes multiple animate messages into the queue, they will all be consumed in a single frame, so it's fine, I think?  But I of course don't know how it would work on other platforms, since I haven't looked at the Mac OS / Linux code.
-    
-    The more "correct" way to make this work, I suspect, is to just make a way for me to set the app_result.animating flag to "true", but I don't know how I would go about doing that from here :(
-     */
-    system->animate();
+    models->animate_next_frame = true;
 }
 
 // NOTE(casey): Find_All_In_Range_Insensitive is the only routine supplied, because anyone who would prefer case-sensitive can

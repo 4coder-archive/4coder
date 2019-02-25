@@ -60,7 +60,9 @@ typedef double f64;
 
 #define clamp_top(a,b) Min(a,b)
 #define clamp_bottom(a,b) Max(a,b)
-//#define clamp(a,x,b) Min(
+#define clamp(a,x,b) (((a)>(x))?(a):(((b)<(x))?(b):(x)))
+
+#define HasFlag(field,flag) ((field)&(flag))
 
 ////////////////////////////////
 

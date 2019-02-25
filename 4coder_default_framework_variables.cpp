@@ -53,6 +53,8 @@ static bool32 suppressing_mouse = false;
 
 static bool32 cursor_is_hidden = false;
 
+static b32 show_fps_hud = false;
+
 enum{
     FCoderMode_Original = 0,
     FCoderMode_NotepadLike = 1,

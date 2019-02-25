@@ -392,6 +392,11 @@ interpret_binding_buffer(Models *models, void *buffer, i32 size){
                                     models->buffer_name_resolver = (Buffer_Name_Resolver_Function*)unit->hook.func;
                                 }break;
                                 
+                                case special_hook_modify_color_table:
+                                {
+                                    models->modify_color_table = (Modify_Color_Table_Function*)unit->hook.func;
+                                }break;
+                                
                                 case special_hook_input_filter:
                                 {
                                     models->input_filter = (Input_Filter_Function*)unit->hook.func;
@@ -461,57 +466,65 @@ app_links_init(System_Functions *system, Application_Links *app_links, void *dat
 // App Functions
 
 internal void
-app_hardcode_default_style(Models *models){
-    Style_Library *styles = &models->styles;
-    styles->count = 2;
-    styles->max = ArrayCount(models->styles.styles);
+fill_hardcode_default_style(Color_Table color_table){
+    color_table.vals[Stag_Back]                  = 0xFF0C0C0C;
+    color_table.vals[Stag_Margin]                = 0xFF181818;
+    color_table.vals[Stag_Margin_Hover]          = 0xFF252525;
+    color_table.vals[Stag_Margin_Active]         = 0xFF323232;
+    color_table.vals[Stag_List_Item]             = color_table.vals[Stag_Margin];
+    color_table.vals[Stag_List_Item_Hover]       = color_table.vals[Stag_Margin_Hover];
+    color_table.vals[Stag_List_Item_Active]      = color_table.vals[Stag_Margin_Active];
+    color_table.vals[Stag_Cursor]                = 0xFF00EE00;
+    color_table.vals[Stag_Highlight]             = 0xFFDDEE00;
+    color_table.vals[Stag_Mark]                  = 0xFF494949;
+    color_table.vals[Stag_Default]               = 0xFF90B080;
+    color_table.vals[Stag_At_Cursor]             = color_table.vals[Stag_Back];
+    color_table.vals[Stag_Highlight_Cursor_Line] = 0xFF1E1E1E;
+    color_table.vals[Stag_At_Highlight]          = 0xFFFF44DD;
+    color_table.vals[Stag_Comment]               = 0xFF2090F0;
+    color_table.vals[Stag_Keyword]               = 0xFFD08F20;
+    color_table.vals[Stag_Str_Constant]          = 0xFF50FF30;
+    color_table.vals[Stag_Char_Constant]         = color_table.vals[Stag_Str_Constant];
+    color_table.vals[Stag_Int_Constant]          = color_table.vals[Stag_Str_Constant];
+    color_table.vals[Stag_Float_Constant]        = color_table.vals[Stag_Str_Constant];
+    color_table.vals[Stag_Bool_Constant]         = color_table.vals[Stag_Str_Constant];
+    color_table.vals[Stag_Include]               = color_table.vals[Stag_Str_Constant];
+    color_table.vals[Stag_Preproc]               = color_table.vals[Stag_Default];
+    color_table.vals[Stag_Special_Character]     = 0xFFFF0000;
+    color_table.vals[Stag_Ghost_Character]       = color_blend(color_table.vals[Stag_Default],
+                                                               0.5f,
+                                                               color_table.vals[Stag_Back]);
     
-    Style *style = styles->styles;
-    for (i32 i = 0; i < 2; i += 1, style += 1){
-        style->name = make_fixed_width_string(style->name_);
-        copy(&style->name, make_lit_string("4coder"));
-        terminate_with_null(&style->name);
-        
-        style->theme.colors[Stag_Back]                  = 0xFF0C0C0C;
-        style->theme.colors[Stag_Margin]                = 0xFF181818;
-        style->theme.colors[Stag_Margin_Hover]          = 0xFF252525;
-        style->theme.colors[Stag_Margin_Active]         = 0xFF323232;
-        style->theme.colors[Stag_List_Item]             = style->theme.colors[Stag_Margin];
-        style->theme.colors[Stag_List_Item_Hover]       = style->theme.colors[Stag_Margin_Hover];
-        style->theme.colors[Stag_List_Item_Active]      = style->theme.colors[Stag_Margin_Active];
-        style->theme.colors[Stag_Cursor]                = 0xFF00EE00;
-        style->theme.colors[Stag_Highlight]             = 0xFFDDEE00;
-        style->theme.colors[Stag_Mark]                  = 0xFF494949;
-        style->theme.colors[Stag_Default]               = 0xFF90B080;
-        style->theme.colors[Stag_At_Cursor]             = style->theme.colors[Stag_Back];
-        style->theme.colors[Stag_Highlight_Cursor_Line] = 0xFF1E1E1E;
-        style->theme.colors[Stag_At_Highlight]          = 0xFFFF44DD;
-        style->theme.colors[Stag_Comment]               = 0xFF2090F0;
-        style->theme.colors[Stag_Keyword]               = 0xFFD08F20;
-        style->theme.colors[Stag_Str_Constant]          = 0xFF50FF30;
-        style->theme.colors[Stag_Char_Constant]         = style->theme.colors[Stag_Str_Constant];
-        style->theme.colors[Stag_Int_Constant]          = style->theme.colors[Stag_Str_Constant];
-        style->theme.colors[Stag_Float_Constant]        = style->theme.colors[Stag_Str_Constant];
-        style->theme.colors[Stag_Bool_Constant]         = style->theme.colors[Stag_Str_Constant];
-        style->theme.colors[Stag_Include]               = style->theme.colors[Stag_Str_Constant];
-        style->theme.colors[Stag_Preproc]               = style->theme.colors[Stag_Default];
-        style->theme.colors[Stag_Special_Character]     = 0xFFFF0000;
-        style->theme.colors[Stag_Ghost_Character] = color_blend(style->theme.colors[Stag_Default],
-                                                                0.5f,
-                                                                style->theme.colors[Stag_Back]);
-        
-        style->theme.colors[Stag_Paste] = 0xFFDDEE00;
-        style->theme.colors[Stag_Undo]  = 0xFF00DDEE;
-        
-        style->theme.colors[Stag_Highlight_Junk]  = 0xff3a0000;
-        style->theme.colors[Stag_Highlight_White] = 0xff003a3a;
-        
-        style->theme.colors[Stag_Bar]        = 0xFF888888;
-        style->theme.colors[Stag_Bar_Active] = 0xFF666666;
-        style->theme.colors[Stag_Base]       = 0xFF000000;
-        style->theme.colors[Stag_Pop1]       = 0xFF3C57DC;
-        style->theme.colors[Stag_Pop2]       = 0xFFFF0000;
-    }
+    color_table.vals[Stag_Paste] = 0xFFDDEE00;
+    color_table.vals[Stag_Undo]  = 0xFF00DDEE;
+    
+    color_table.vals[Stag_Highlight_Junk]  = 0xff3a0000;
+    color_table.vals[Stag_Highlight_White] = 0xff003a3a;
+    
+    color_table.vals[Stag_Bar]        = 0xFF888888;
+    color_table.vals[Stag_Bar_Active] = 0xFF666666;
+    color_table.vals[Stag_Base]       = 0xFF000000;
+    color_table.vals[Stag_Pop1]       = 0xFF3C57DC;
+    color_table.vals[Stag_Pop2]       = 0xFFFF0000;
+    
+    color_table.vals[Stag_Back_Cycle_1] = 0x10A00000;
+    color_table.vals[Stag_Back_Cycle_2] = 0x0C00A000;
+    color_table.vals[Stag_Back_Cycle_3] = 0x0C0000A0;
+    color_table.vals[Stag_Back_Cycle_4] = 0x0CA0A000;
+    color_table.vals[Stag_Text_Cycle_1] = 0xFFA00000;
+    color_table.vals[Stag_Text_Cycle_2] = 0xFF00A000;
+    color_table.vals[Stag_Text_Cycle_3] = 0xFF0030B0;
+    color_table.vals[Stag_Text_Cycle_4] = 0xFFA0A000;
+}
+
+internal void
+app_hardcode_default_style(Models *models){
+    Partition *part = &models->mem.part;
+    Color_Table color_table = {};
+    color_table.vals = push_array(part, u32, Stag_COUNT);
+    color_table.count = Stag_COUNT;
+    fill_hardcode_default_style(color_table);
+    models->fallback_color_table = color_table;
 }
 
 internal void
@@ -758,7 +771,9 @@ launch_command_via_event(System_Functions *system, Application_Step_Result *app_
         models->command_coroutine = app_launch_coroutine(system, &models->app_links, Co_Command, models->command_coroutine, &cmd_in, models->command_coroutine_flags);
         
         models->prev_command = cmd_bind;
-        app_result->animating = true;
+        if (event.keycode != key_animate){
+            app_result->animating = true;
+        }
     }
 }
 
@@ -927,6 +942,7 @@ App_Step_Sig(app_step){
     Application_Step_Result app_result = {};
     app_result.mouse_cursor_type = APP_MOUSE_CURSOR_DEFAULT;
     app_result.lctrl_lalt_is_altgr = models->settings.lctrl_lalt_is_altgr;
+    models->animate_next_frame = false;
     
     // NOTE(allen): per-frame update of models state
     models->target = target;
@@ -960,7 +976,7 @@ App_Step_Sig(app_step){
                 Editing_File *file = working_set_contains_canon(working_set, canon.name);
                 if (file != 0){
                     if (file->state.ignore_behind_os == 0){
-                        file_set_dirty_flag(file, DirtyState_UnloadedChanges);
+                        file_add_dirty_flag(file, DirtyState_UnloadedChanges);
                     }
                     else if (file->state.ignore_behind_os == 1){
                         file->state.ignore_behind_os = 2;
@@ -984,43 +1000,6 @@ App_Step_Sig(app_step){
     Vec2_i32 prev_dim = layout_get_root_size(&models->layout);
     Vec2_i32 current_dim = V2i32(target->width, target->height);
     layout_set_root_size(&models->layout, current_dim);
-    
-    // NOTE(allen): First frame initialization
-    if (input->first_step){
-        // Open command line files.
-        char space[512];
-        String cl_file_name = make_fixed_width_string(space);
-        copy_ss(&cl_file_name, models->hot_directory.string);
-        i32 cl_file_name_len = cl_file_name.size;
-        for (i32 i = 0; i < models->settings.init_files_count; ++i){
-            cl_file_name.size = cl_file_name_len;
-            
-            String file_name = {};
-            Editing_File_Name canon_name = {};
-            if (get_canon_name(system, make_string_slowly(models->settings.init_files[i]),
-                               &canon_name)){
-                file_name = canon_name.name;
-            }
-            else{
-                append_sc(&cl_file_name, models->settings.init_files[i]);
-                file_name = cl_file_name;
-            }
-            
-            Buffer_ID id = 0;
-            create_buffer(&models->app_links, file_name, 0, &id);
-        }
-        
-        if (models->hook_start != 0){
-            char **files = models->settings.init_files;
-            i32 files_count = models->settings.init_files_count;
-            
-            char **flags = models->settings.custom_flags;
-            i32 flags_count = models->settings.custom_flags_count;
-            
-            
-            models->hook_start(&models->app_links, files, files_count, flags, flags_count);
-        }
-    }
     
     // NOTE(allen): update child processes
     f32 dt = input->dt;
@@ -1110,9 +1089,9 @@ App_Step_Sig(app_step){
         input->keys.keys[input->keys.count++] = mouse_event;
     }
     
-    if (input->mouse.x != models->prev_x || input->mouse.y != models->prev_y){
-        b32 was_in_window = hit_check(models->prev_x, models->prev_y, i32R(0, 0, prev_dim.x, prev_dim.y));
-        b32 is_in_window  = hit_check(input->mouse.x, input->mouse.y, i32R(0, 0, current_dim.x, current_dim.y));
+    if (input->mouse.p != models->prev_p){
+        b32 was_in_window = hit_check(i32R(0, 0, prev_dim.x, prev_dim.y), models->prev_p);
+        b32 is_in_window  = hit_check(i32R(0, 0, current_dim.x, current_dim.y), input->mouse.p);
         if (is_in_window || was_in_window){
             mouse_event.keycode = key_mouse_move;
             input->keys.keys[input->keys.count++] = mouse_event;
@@ -1131,7 +1110,7 @@ App_Step_Sig(app_step){
     Panel *mouse_panel = 0;
     Panel *divider_panel = 0;
     b32 mouse_in_margin = false;
-    Vec2_i32 mouse = V2i32(input->mouse.x, input->mouse.y);
+    Vec2_i32 mouse = input->mouse.p;
     {
         for (Panel *panel = layout_get_first_open_panel(layout);
              panel != 0;
@@ -1152,6 +1131,43 @@ App_Step_Sig(app_step){
             if (mouse_panel != 0){
                 break;
             }
+        }
+    }
+    
+    // NOTE(allen): First frame initialization
+    if (input->first_step){
+        // Open command line files.
+        char space[512];
+        String cl_file_name = make_fixed_width_string(space);
+        copy_ss(&cl_file_name, models->hot_directory.string);
+        i32 cl_file_name_len = cl_file_name.size;
+        for (i32 i = 0; i < models->settings.init_files_count; ++i){
+            cl_file_name.size = cl_file_name_len;
+            
+            String file_name = {};
+            Editing_File_Name canon_name = {};
+            if (get_canon_name(system, make_string_slowly(models->settings.init_files[i]),
+                               &canon_name)){
+                file_name = canon_name.name;
+            }
+            else{
+                append_sc(&cl_file_name, models->settings.init_files[i]);
+                file_name = cl_file_name;
+            }
+            
+            Buffer_ID id = 0;
+            create_buffer(&models->app_links, file_name, 0, &id);
+        }
+        
+        if (models->hook_start != 0){
+            char **files = models->settings.init_files;
+            i32 files_count = models->settings.init_files_count;
+            
+            char **flags = models->settings.custom_flags;
+            i32 flags_count = models->settings.custom_flags_count;
+            
+            
+            models->hook_start(&models->app_links, files, files_count, flags, flags_count);
         }
     }
     
@@ -1235,7 +1251,10 @@ App_Step_Sig(app_step){
                                 user_in.abort = ((abort_flags & event_flags) != 0);
                                 models->command_coroutine =  app_resume_coroutine(system, &models->app_links, Co_Command, command_coroutine, &user_in, models->command_coroutine_flags);
                                 
-                                app_result.animating = true;
+                                if (user_in.key.keycode != key_animate){
+                                    app_result.animating = true;
+                                }
+                                
                                 if (models->command_coroutine == 0){
                                     init_query_set(&view->query_set);
                                 }
@@ -1300,7 +1319,7 @@ App_Step_Sig(app_step){
             }
             else{
                 scroll_vars = &view->ui_scroll;
-                i32 bottom = view->ui_control.bounding_box[UICoordinates_Scrolled].y1;
+                i32 bottom = view->ui_control.bounding_box[UICoordinates_ViewSpace].y1;
                 max_y = view_compute_max_target_y_from_bottom_y(view, (f32)bottom);
                 file_scroll = false;
             }
@@ -1342,46 +1361,57 @@ App_Step_Sig(app_step){
         if (hook_file_edit_finished != 0){
             Working_Set *working_set = &models->working_set;
             if (working_set->edit_finished_list.next != &working_set->edit_finished_list){
-                if (working_set->time_of_next_edit_finished_signal == 0){
-                    local_const u32 elapse_time = 1000;
-                    working_set->time_of_next_edit_finished_signal = system->now_time() + (u64)(elapse_time - 5)*(u64)1000;
+                b32 trigger_hook = false;
+                
+                u32 elapse_time = models->edit_finished_hook_repeat_speed;
+                if (elapse_time != 0){
+                    trigger_hook = true;
+                }
+                else if (working_set->time_of_next_edit_finished_signal == 0){
+                    u32 trigger_window_length = 0;
+                    if (elapse_time > 5){
+                        trigger_window_length = elapse_time - 5;
+                    }
+                    u64 trigger_time = system->now_time() + (u64)trigger_window_length*1000LLU;
+                    working_set->time_of_next_edit_finished_signal = trigger_time;
                     system->wake_up_timer_set(working_set->edit_finished_timer, elapse_time);
                 }
-                else{
-                    if (system->now_time() >= working_set->time_of_next_edit_finished_signal){
-                        Partition *scratch = &models->mem.part;
-                        
-                        Temp_Memory temp = begin_temp_memory(scratch);
-                        Node *first = working_set->edit_finished_list.next;
-                        Node *stop = &working_set->edit_finished_list;
-                        
-                        Editing_File **file_ptrs = push_array(scratch, Editing_File*, 0);
-                        for (Node *node = first;
-                             node != stop;
-                             node = node->next){
-                            Editing_File **file_ptr = push_array(scratch, Editing_File*, 1);
-                            *file_ptr = CastFromMember(Editing_File, edit_finished_mark_node, node);
-                        }
-                        i32 id_count = (i32)(push_array(scratch, Editing_File*, 0) - file_ptrs);
-                        
-                        Buffer_ID *ids = push_array(scratch, Buffer_ID, id_count);
-                        for (i32 i = 0; i < id_count; i += 1){
-                            ids[i] = file_ptrs[i]->id.id;
-                        }
-                        
-                        working_set->do_not_mark_edits = true;
-                        hook_file_edit_finished(&models->app_links, ids, id_count);
-                        working_set->do_not_mark_edits = false;
-                        
-                        for (i32 i = 0; i < id_count; i += 1){
-                            block_zero_struct(&file_ptrs[i]->edit_finished_mark_node);
-                        }
-                        
-                        dll_init_sentinel(&working_set->edit_finished_list);
-                        working_set->time_of_next_edit_finished_signal = 0;
-                        
-                        end_temp_memory(temp);
+                else if (system->now_time() >= working_set->time_of_next_edit_finished_signal){
+                    trigger_hook = true;
+                }
+                if (trigger_hook){
+                    Partition *scratch = &models->mem.part;
+                    
+                    Temp_Memory temp = begin_temp_memory(scratch);
+                    Node *first = working_set->edit_finished_list.next;
+                    Node *stop = &working_set->edit_finished_list;
+                    
+                    Editing_File **file_ptrs = push_array(scratch, Editing_File*, 0);
+                    for (Node *node = first;
+                         node != stop;
+                         node = node->next){
+                        Editing_File **file_ptr = push_array(scratch, Editing_File*, 1);
+                        *file_ptr = CastFromMember(Editing_File, edit_finished_mark_node, node);
                     }
+                    i32 id_count = (i32)(push_array(scratch, Editing_File*, 0) - file_ptrs);
+                    
+                    Buffer_ID *ids = push_array(scratch, Buffer_ID, id_count);
+                    for (i32 i = 0; i < id_count; i += 1){
+                        ids[i] = file_ptrs[i]->id.id;
+                    }
+                    
+                    working_set->do_not_mark_edits = true;
+                    hook_file_edit_finished(&models->app_links, ids, id_count);
+                    working_set->do_not_mark_edits = false;
+                    
+                    for (i32 i = 0; i < id_count; i += 1){
+                        block_zero_struct(&file_ptrs[i]->edit_finished_mark_node);
+                    }
+                    
+                    dll_init_sentinel(&working_set->edit_finished_list);
+                    working_set->time_of_next_edit_finished_signal = 0;
+                    
+                    end_temp_memory(temp);
                 }
             }
         }
@@ -1403,7 +1433,26 @@ App_Step_Sig(app_step){
     
     // NOTE(allen): rendering
     {
-        begin_render_section(target, system);
+        f32 literal_dt = 0.f;
+        u64 now_usecond_stamp = system->now_time();
+        if (!input->first_step){
+            u64 elapsed_useconds = now_usecond_stamp - models->last_render_usecond_stamp;
+            literal_dt = (f32)((f64)(elapsed_useconds)/1000000.f);
+        }
+        models->last_render_usecond_stamp = now_usecond_stamp;
+        
+        f32 animation_dt = 0.f;
+        if (models->animated_last_frame){
+            animation_dt = literal_dt;
+        }
+        
+        Color_Table color_table = models->fallback_color_table;
+        if (models->modify_color_table != 0){
+            color_table = models->modify_color_table(&models->app_links, models->frame_counter, literal_dt, animation_dt);
+        }
+        models->color_table = color_table;
+        
+        begin_render_section(target, system, models->frame_counter, literal_dt, animation_dt);
         
         Panel *active_panel = layout_get_active_panel(layout);
         View *active_view = active_panel->view;
@@ -1416,9 +1465,10 @@ App_Step_Sig(app_step){
             i32_Rect inner = panel->rect_inner;
             
             View *view = panel->view;
-            Style *style = &models->styles.styles[0];
+            //Style *style = &models->styles.styles[0];
+            Color_Table color_table = models->color_table;
             
-            draw_rectangle(target, full, style->theme.colors[Stag_Back]);
+            draw_rectangle(target, full, color_table.vals[Stag_Back]);
             
             File_Edit_Positions edit_pos = view_get_edit_pos(view);
             GUI_Scroll_Vars *scroll_vars = &edit_pos.scroll;
@@ -1430,13 +1480,13 @@ App_Step_Sig(app_step){
             
             u32 margin_color = 0;
             if (active){
-                margin_color = style->theme.colors[Stag_Margin_Active];
+                margin_color = color_table.vals[Stag_Margin_Active];
             }
             else if (panel == mouse_panel){
-                margin_color = style->theme.colors[Stag_Margin_Hover];
+                margin_color = color_table.vals[Stag_Margin_Hover];
             }
             else{
-                margin_color = style->theme.colors[Stag_Margin];
+                margin_color = color_table.vals[Stag_Margin];
             }
             draw_rectangle(target, i32R( full.x0,  full.y0,  full.x1, inner.y0), margin_color);
             draw_rectangle(target, i32R( full.x0, inner.y1,  full.x1,  full.y1), margin_color);
@@ -1474,10 +1524,11 @@ App_Step_Sig(app_step){
     
     app_result.lctrl_lalt_is_altgr = models->settings.lctrl_lalt_is_altgr;
     app_result.perform_kill = !models->keep_playing;
+    // TODO(allen): whenever something wants to animate it should set animate_next_frame now.
+    app_result.animating = app_result.animating || models->animate_next_frame;
     
     // NOTE(allen): Update Frame to Frame States
-    models->prev_x = input->mouse.x;
-    models->prev_y = input->mouse.y;
+    models->prev_p = input->mouse.p;
     models->animated_last_frame = app_result.animating;
     models->frame_counter += 1;
     

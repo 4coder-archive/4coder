@@ -1508,6 +1508,7 @@ config_parse__file_name(Application_Links *app, Partition *arena,
     return(parsed);
 }
 
+#if 0
 static void
 init_theme_zero(Theme *theme){
     for (int32_t i = 0; i < Stag_COUNT; ++i){
@@ -1568,6 +1569,7 @@ theme_parse__file_name(Application_Links *app, Partition *arena,
     }
     return(parsed);
 }
+#endif
 
 ////////////////////////////////
 
@@ -1693,7 +1695,7 @@ load_config_and_apply(Application_Links *app, Partition *scratch, Config_Data *c
         adjust_all_buffer_wrap_widths(app, config->default_wrap_width, config->default_min_base_width);
         global_set_setting(app, GlobalSetting_LAltLCtrlIsAltGr, config->lalt_lctrl_is_altgr);
         
-        change_theme(app, config->default_theme_name.str, config->default_theme_name.size);
+        //change_theme(app, config->default_theme_name.str, config->default_theme_name.size);
         highlight_line_at_cursor = config->highlight_line_at_cursor;
         
         Face_Description description = {};
@@ -1717,6 +1719,7 @@ load_config_and_apply(Application_Links *app, Partition *scratch, Config_Data *c
     end_temp_memory(temp);
 }
 
+#if 0
 static void
 load_theme_file_into_live_set(Application_Links *app, Partition *scratch, char *file_name){
     Temp_Memory temp = begin_temp_memory(scratch);
@@ -1756,6 +1759,7 @@ load_folder_of_themes_into_live_set(Application_Links *app, Partition *scratch,
         free_file_list(app, list);
     }
 }
+#endif
 
 // BOTTOM
 

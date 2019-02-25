@@ -26,7 +26,8 @@ draw_change_clip(Render_Target *target, i32_Rect clip_box){
 }
 
 internal void
-begin_render_section(Render_Target *target, System_Functions *system){
+begin_render_section(Render_Target *target, System_Functions *system,
+                     i32 frame_index, f32 literal_dt, f32 animation_dt){
     target->clip_top = -1;
     
     i32_Rect clip;
@@ -37,7 +38,9 @@ begin_render_section(Render_Target *target, System_Functions *system){
     draw_push_clip(target, clip);
     
     target->buffer.pos = 0;
-    target->clear_color = 0xFFFF00FF;
+    target->frame_index = frame_index;
+    target->literal_dt = literal_dt;
+    target->animation_dt = animation_dt;
 }
 
 internal void

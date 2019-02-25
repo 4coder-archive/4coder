@@ -180,25 +180,15 @@ CUSTOM_DOC("Sets the left size of the view near the x position of the cursor.")
 }
 
 static bool32
-global_point_to_view_point(View_Summary *view, int32_t x, int32_t y, float *x_out, float *y_out){
+view_space_from_screen_space_checked(Vec2_i32 p, Rect_i32 file_region, Vec2 scroll_p, Vec2 *p_out){
     bool32 result = false;
-    
-    i32_Rect region = view->file_region;
-    
-    int32_t max_x = (region.x1 - region.x0);
-    int32_t max_y = (region.y1 - region.y0);
-    GUI_Scroll_Vars scroll_vars = view->scroll_vars;
-    
-    int32_t rx = x - region.x0;
-    int32_t ry = y - region.y0;
-    
-    if (ry >= 0 && rx >= 0 && rx < max_x && ry < max_y){
-        result = 1;
+    if (hit_check(file_region, p)){
+        *p_out = view_space_from_screen_space(V2(p), V2(file_region.p0), scroll_p);
+        result = true;
     }
-    
-    *x_out = (float)rx + scroll_vars.scroll_x;
-    *y_out = (float)ry + scroll_vars.scroll_y;
-    
+    else{
+        *p_out = V2(0.f, 0.f);
+    }
     return(result);
 }
 
@@ -207,10 +197,9 @@ CUSTOM_DOC("Sets the cursor position and mark to the mouse position.")
 {
     View_Summary view = get_active_view(app, AccessProtected);
     Mouse_State mouse = get_mouse_state(app);
-    float rx = 0;
-    float ry = 0;
-    if (global_point_to_view_point(&view, mouse.x, mouse.y, &rx, &ry)){
-        view_set_cursor(app, &view, seek_xy(rx, ry, true, view.unwrapped_lines), true);
+    Vec2 p = {};
+    if (view_space_from_screen_space_checked(mouse.p, view.file_region, view.scroll_vars.scroll_p, &p)){
+        view_set_cursor(app, &view, seek_xy(p.x, p.y, true, view.unwrapped_lines), true);
         view_set_mark(app, &view, seek_pos(view.cursor.pos));
     }
 }
@@ -220,10 +209,9 @@ CUSTOM_DOC("Sets the cursor position to the mouse position.")
 {
     View_Summary view = get_active_view(app, AccessProtected);
     Mouse_State mouse = get_mouse_state(app);
-    float rx = 0;
-    float ry = 0;
-    if (global_point_to_view_point(&view, mouse.x, mouse.y, &rx, &ry)){
-        view_set_cursor(app, &view, seek_xy(rx, ry, true, view.unwrapped_lines), true);
+    Vec2 p = {};
+    if (view_space_from_screen_space_checked(mouse.p, view.file_region, view.scroll_vars.scroll_p, &p)){
+        view_set_cursor(app, &view, seek_xy(p.x, p.y, true, view.unwrapped_lines), true);
     }
     no_mark_snap_to_cursor(app, view.view_id);
 }
@@ -234,10 +222,9 @@ CUSTOM_DOC("If the mouse left button is pressed, sets the cursor position to the
     View_Summary view = get_active_view(app, AccessProtected);
     Mouse_State mouse = get_mouse_state(app);
     if (mouse.l){
-        float rx = 0;
-        float ry = 0;
-        if (global_point_to_view_point(&view, mouse.x, mouse.y, &rx, &ry)){
-            view_set_cursor(app, &view, seek_xy(rx, ry, true, view.unwrapped_lines), true);
+        Vec2 p = {};
+        if (view_space_from_screen_space_checked(mouse.p, view.file_region, view.scroll_vars.scroll_p, &p)){
+            view_set_cursor(app, &view, seek_xy(p.x, p.y, true, view.unwrapped_lines), true);
         }
     }
     no_mark_snap_to_cursor(app, view.view_id);
@@ -248,10 +235,9 @@ CUSTOM_DOC("Sets the mark position to the mouse position.")
 {
     View_Summary view = get_active_view(app, AccessProtected);
     Mouse_State mouse = get_mouse_state(app);
-    float rx = 0;
-    float ry = 0;
-    if (global_point_to_view_point(&view, mouse.x, mouse.y, &rx, &ry)){
-        view_set_mark(app, &view, seek_xy(rx, ry, true, view.unwrapped_lines));
+    Vec2 p = {};
+    if (view_space_from_screen_space_checked(mouse.p, view.file_region, view.scroll_vars.scroll_p, &p)){
+        view_set_mark(app, &view, seek_xy(p.x, p.y, true, view.unwrapped_lines));
     }
     no_mark_snap_to_cursor(app, view.view_id);
 }
@@ -565,9 +551,14 @@ CUSTOM_DOC("Toggles the current buffer's line wrapping status.")
 {
     View_Summary view = get_active_view(app, AccessProtected);
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessProtected);
-    
     bool32 unwrapped = view.unwrapped_lines;
     buffer_set_setting(app, &buffer, BufferSetting_WrapLine, unwrapped);
+}
+
+CUSTOM_COMMAND_SIG(toggle_fps_meter)
+CUSTOM_DOC("Toggles the visibility of the FPS performance meter")
+{
+    show_fps_hud = !show_fps_hud;
 }
 
 CUSTOM_COMMAND_SIG(increase_line_wrap)
@@ -745,8 +736,8 @@ isearch(Application_Links *app, bool32 start_reversed, String query_init, bool32
     Marker_Visual visual = create_marker_visual(app, highlight);
     marker_visual_set_effect(app, visual,
                              VisualType_CharacterHighlightRanges,
-                             SymbolicColorFromPalette(Stag_Highlight),
-                             SymbolicColorFromPalette(Stag_At_Highlight), 0);
+                             Stag_Highlight,
+                             Stag_At_Highlight, 0);
     marker_visual_set_view_key(app, visual, view.view_id);
     marker_visual_set_priority(app, visual, VisualPriority_Default + 1);
     isearch__update_highlight(app, &view, highlight, match.start, match.end);
@@ -982,8 +973,8 @@ query_replace_base(Application_Links *app, View_Summary *view, Buffer_Summary *b
     Marker_Visual visual = create_marker_visual(app, highlight);
     marker_visual_set_effect(app, visual,
                              VisualType_CharacterHighlightRanges,
-                             SymbolicColorFromPalette(Stag_Highlight),
-                             SymbolicColorFromPalette(Stag_At_Highlight), 0);
+                             Stag_Highlight,
+                             Stag_At_Highlight, 0);
     marker_visual_set_view_key(app, visual, view->view_id);
     cursor_is_hidden = true;
     
@@ -1790,6 +1781,7 @@ CUSTOM_DOC("Advances forward through the undo history in the buffer containing t
 
 ////////////////////////////////
 
+#if 0
 CUSTOM_COMMAND_SIG(reload_themes)
 CUSTOM_DOC("Loads all the theme files in the theme folder, replacing duplicates with the new theme data.")
 {
@@ -1812,6 +1804,7 @@ CUSTOM_DOC("Loads all the theme files in the theme folder, replacing duplicates 
     }
     end_temp_memory(temp);
 }
+#endif
 
 CUSTOM_COMMAND_SIG(open_in_other)
 CUSTOM_DOC("Interactively opens a file in the other panel.")

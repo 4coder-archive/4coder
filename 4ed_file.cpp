@@ -74,8 +74,8 @@ file_needs_save(Editing_File *file){
 internal b32
 file_can_save(Editing_File *file){
     b32 result = false;
-    if (file->state.dirty == DirtyState_UnsavedChanges ||
-        file->state.dirty == DirtyState_UnloadedChanges){
+    if (HasFlag(file->state.dirty, DirtyState_UnsavedChanges) ||
+        HasFlag(file->state.dirty, DirtyState_UnloadedChanges)){
         result = true;
     }
     return(result);
@@ -106,13 +106,18 @@ file_set_to_loading(Editing_File *file){
 }
 
 internal void
-file_set_dirty_flag(Editing_File *file, Dirty_State state){
+file_add_dirty_flag(Editing_File *file, Dirty_State state){
     if (!file->settings.unimportant){
-        file->state.dirty = state;
+        file->state.dirty |= state;
     }
     else{
         file->state.dirty = DirtyState_UpToDate;
     }
+}
+
+internal void
+file_clear_dirty_flags(Editing_File *file){
+    file->state.dirty = DirtyState_UpToDate;
 }
 
 ////////////////////////////////
@@ -189,7 +194,7 @@ save_file_to_name(System_Functions *system, Models *models, Editing_File *file, 
             file->attributes = new_attributes;
         }
         
-        file_set_dirty_flag(file, DirtyState_UpToDate);
+        file_clear_dirty_flags(file);
         
         if (used_heap){
             heap_free(&mem->heap, data);
@@ -440,7 +445,7 @@ file_create_from_string(System_Functions *system, Models *models, Editing_File *
     if (buffer_size(&file->state.buffer) < val.size){
         file->settings.dos_write_mode = true;
     }
-    file_set_dirty_flag(file, DirtyState_UpToDate);
+    file_clear_dirty_flags(file);
     file->attributes = attributes;
     
     Face_ID font_id = models->global_font_id;

@@ -247,11 +247,13 @@ struct Config_Data{
     bool32 lalt_lctrl_is_altgr;
 };
 
+#if 0
 struct Theme_Data{
     char space[128];
     String name;
     Theme theme;
 };
+#endif
 
 #endif
 

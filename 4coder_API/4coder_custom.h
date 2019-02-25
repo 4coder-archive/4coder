@@ -18,7 +18,7 @@
 #include "4coder_lib/4cpp_lexer_types.h"
 #include "4coder_API/4coder_version.h"
 #include "4coder_API/4coder_keycodes.h"
-#include "4coder_API/4coder_style.h"
+#include "4coder_API/4coder_default_colors.h"
 #include "4coder_API/4coder_types.h"
 #include "4coder_generated/app_functions.h"
 

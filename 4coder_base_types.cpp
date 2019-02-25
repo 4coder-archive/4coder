@@ -319,60 +319,61 @@ operator*(f32 k, Vec4 a){
     result.y = a.y * k;
     result.z = a.z * k;
     result.w = a.w * k;
-    return(result);}
+    return(result);
+}
 
 static Vec2&
 operator+=(Vec2 &a, Vec2 b){
     a = (a + b);
-    return a;
+    return(a);
 }
 
 static Vec3&
 operator+=(Vec3 &a, Vec3 b){
     a = (a + b);
-    return a;
+    return(a);
 }
 
 static Vec4&
 operator+=(Vec4 &a, Vec4 b){
     a = (a + b);
-    return a;
+    return(a);
 }
 
 static Vec2&
 operator-=(Vec2 &a, Vec2 b){
     a = (a - b);
-    return a;
+    return(a);
 }
 
 static Vec3&
 operator-=(Vec3 &a, Vec3 b){
     a = (a - b);
-    return a;
+    return(a);
 }
 
 static Vec4&
 operator-=(Vec4 &a, Vec4 b){
     a = (a - b);
-    return a;
+    return(a);
 }
 
 static Vec2&
 operator*=(Vec2 &a, f32 k){
     a = (a*k);
-    return a;
+    return(a);
 }
 
 static Vec3&
 operator*=(Vec3 &a, f32 k){
     a = (a*k);
-    return a;
+    return(a);
 }
 
 static Vec4&
 operator*=(Vec4 &a, f32 k){
     a = (a*k);
-    return a;
+    return(a);
 }
 
 static b32
@@ -403,6 +404,167 @@ operator==(Vec4 a, Vec4 b){
 static b32
 operator!=(Vec4 a, Vec4 b){
     return(!(a.x == b.x && a.y == b.y && a.z == b.z && a.w == b.w));
+}
+
+static Vec2_i32
+operator+(Vec2_i32 a, Vec2_i32 b){
+    Vec2_i32 result;
+    result.x = a.x + b.x;
+    result.y = a.y + b.y;
+    return(result);
+}
+
+static Vec3_i32
+operator+(Vec3_i32 a, Vec3_i32 b){
+    Vec3_i32 result;
+    result.x = a.x + b.x;
+    result.y = a.y + b.y;
+    result.z = a.z + b.z;
+    return(result);
+}
+
+static Vec4_i32
+operator+(Vec4_i32 a, Vec4_i32 b){
+    Vec4_i32 result;
+    result.x = a.x + b.x;
+    result.y = a.y + b.y;
+    result.z = a.z + b.z;
+    result.w = a.w + b.w;
+    return(result);
+}
+
+static Vec2_i32
+operator-(Vec2_i32 a, Vec2_i32 b){
+    Vec2_i32 result;
+    result.x = a.x - b.x;
+    result.y = a.y - b.y;
+    return(result);
+}
+
+static Vec3_i32
+operator-(Vec3_i32 a, Vec3_i32 b){
+    Vec3_i32 result;
+    result.x = a.x - b.x;
+    result.y = a.y - b.y;
+    result.z = a.z - b.z;
+    return(result);
+}
+
+static Vec4_i32
+operator-(Vec4_i32 a, Vec4_i32 b){
+    Vec4_i32 result;
+    result.x = a.x - b.x;
+    result.y = a.y - b.y;
+    result.z = a.z - b.z;
+    result.w = a.w - b.w;
+    return(result);
+}
+
+static Vec2_i32
+operator*(Vec2_i32 a, i32 k){
+    Vec2_i32 result;
+    result.x = a.x * k;
+    result.y = a.y * k;
+    return(result);
+}
+
+static Vec3_i32
+operator*(Vec3_i32 a, i32 k){
+    Vec3_i32 result;
+    result.x = a.x * k;
+    result.y = a.y * k;
+    result.z = a.z * k;
+    return(result);
+}
+
+static Vec4_i32
+operator*(Vec4_i32 a, i32 k){
+    Vec4_i32 result;
+    result.x = a.x * k;
+    result.y = a.y * k;
+    result.z = a.z * k;
+    result.w = a.w * k;
+    return(result);
+}
+
+static Vec2_i32
+operator*(i32 k, Vec2_i32 a){
+    Vec2_i32 result;
+    result.x = a.x * k;
+    result.y = a.y * k;
+    return(result);
+}
+
+static Vec3_i32
+operator*(i32 k, Vec3_i32 a){
+    Vec3_i32 result;
+    result.x = a.x * k;
+    result.y = a.y * k;
+    result.z = a.z * k;
+    return(result);
+}
+
+static Vec4_i32
+operator*(i32 k, Vec4_i32 a){
+    Vec4_i32 result;
+    result.x = a.x * k;
+    result.y = a.y * k;
+    result.z = a.z * k;
+    result.w = a.w * k;
+    return(result);}
+
+static Vec2_i32&
+operator+=(Vec2_i32 &a, Vec2_i32 b){
+    a = (a + b);
+    return(a);
+}
+
+static Vec3_i32&
+operator+=(Vec3_i32 &a, Vec3_i32 b){
+    a = (a + b);
+    return(a);
+}
+
+static Vec4_i32&
+operator+=(Vec4_i32 &a, Vec4_i32 b){
+    a = (a + b);
+    return(a);
+}
+
+static Vec2_i32&
+operator-=(Vec2_i32 &a, Vec2_i32 b){
+    a = (a - b);
+    return(a);
+}
+
+static Vec3_i32&
+operator-=(Vec3_i32 &a, Vec3_i32 b){
+    a = (a - b);
+    return(a);
+}
+
+static Vec4_i32&
+operator-=(Vec4_i32 &a, Vec4_i32 b){
+    a = (a - b);
+    return(a);
+}
+
+static Vec2_i32&
+operator*=(Vec2_i32 &a, i32 k){
+    a = (a*k);
+    return(a);
+}
+
+static Vec3_i32&
+operator*=(Vec3_i32 &a, i32 k){
+    a = (a*k);
+    return(a);
+}
+
+static Vec4_i32&
+operator*=(Vec4_i32 &a, i32 k){
+    a = (a*k);
+    return(a);
 }
 
 static b32
@@ -439,21 +601,21 @@ static f32
 dot(Vec2 a, Vec2 b){
     f32 result;
     result = a.x*b.x + a.y*b.y;
-    return result;
+    return(result);
 }
 
 static f32
 dot(Vec3 a, Vec3 b){
     f32 result;
     result = a.x*b.x + a.y*b.y + a.z*b.z;
-    return result;
+    return(result);
 }
 
 static f32
 dot(Vec4 a, Vec4 b){
     f32 result;
     result = a.x*b.x + a.y*b.y + a.z*b.z + a.w*b.w;
-    return result;
+    return(result);
 }
 
 static Vec3
@@ -462,7 +624,7 @@ cross(Vec3 a, Vec3 b){
     result.x = a.y*b.z - b.y*a.z;
     result.y = a.z*b.x - b.z*a.x;
     result.z = a.x*b.y - b.x*a.y;
-    return result;
+    return(result);
 }
 
 static Vec2
@@ -543,61 +705,6 @@ unlerp(f32 a, f32 x, f32 b){
     return(r);
 }
 
-static f32
-clamp(f32 a, f32 n, f32 z){
-    if (n < a){
-        n = a;
-    }
-    else if (n > z){
-        n = z;
-    }
-    return(n);
-}
-
-static i32
-clamp(i32 a, i32 n, i32 z){
-    if (n < a){
-        n = a;
-    }
-    else if (n > z){
-        n = z;
-    }
-    return(n);
-}
-
-static i64
-clamp(i64 a, i64 n, i64 z){
-    if (n < a){
-        n = a;
-    }
-    else if (n > z){
-        n = z;
-    }
-    return(n);
-}
-
-static u32
-clamp(u32 a, u32 n, u32 z){
-    if (n < a){
-        n = a;
-    }
-    else if (n > z){
-        n = z;
-    }
-    return(n);
-}
-
-static u64
-clamp(u64 a, u64 n, u64 z){
-    if (n < a){
-        n = a;
-    }
-    else if (n > z){
-        n = z;
-    }
-    return(n);
-}
-
 ////////////////////////////////
 
 // color
@@ -618,7 +725,7 @@ color_blend(u32 a, f32 t, u32 b){
     R.byte[2] = (u8)lerp(A.byte[2], t, B.byte[2]);
     R.byte[3] = (u8)lerp(A.byte[3], t, B.byte[3]);
     
-    return R.comp;
+    return(R.comp);
 }
 
 static Vec3
@@ -627,7 +734,7 @@ unpack_color3(u32 color){
     result.r = ((color >> 16) & 0xFF) / 255.f;
     result.g = ((color >> 8) & 0xFF) / 255.f;
     result.b = ((color >> 0) & 0xFF) / 255.f;
-    return result;
+    return(result);
 }
 
 static Vec4
@@ -637,7 +744,7 @@ unpack_color4(u32 color){
     result.r = ((color >> 16) & 0xFF) / 255.f;
     result.g = ((color >> 8) & 0xFF) / 255.f;
     result.b = ((color >> 0) & 0xFF) / 255.f;
-    return result;
+    return(result);
 }
 
 static u32
@@ -647,7 +754,7 @@ pack_color4(Vec4 color){
         ((u8)(color.r*255) << 16) |
         ((u8)(color.g*255) << 8) |
         ((u8)(color.b*255) << 0);
-    return result;
+    return(result);
 }
 
 static Vec4
@@ -703,7 +810,7 @@ rgba_to_hsla(Vec4 rgba){
         hsla.y = delta / (1.f - ABS(2.f*hsla.z - 1.f));
     }
     
-    return hsla;
+    return(hsla);
 }
 
 static Vec4
@@ -769,6 +876,14 @@ f32R(f32 l, f32 t, f32 r, f32 b){
 }
 
 static f32_Rect
+f32R(Vec2 p0, Vec2 p1){
+    f32_Rect rect = {};
+    rect.p0 = p0;
+    rect.p1 = p1;
+    return(rect);
+}
+
+static f32_Rect
 f32R(i32_Rect r){
     f32_Rect rect = {};
     rect.x0 = (f32)r.x0;
@@ -783,14 +898,34 @@ rect_equal(i32_Rect r1, i32_Rect r2){
     return(r1.x0 == r2.x0 && r1.y0 == r2.y0 && r1.x1 == r2.x1 && r1.y1 == r2.y1);
 }
 
-static i32
+static b32
+hit_check(f32 x, f32 y, f32 x0, f32 y0, f32 x1, f32 y1){
+    return(x >= x0 && x < x1 && y >= y0 && y < y1);
+}
+
+static b32
+hit_check(f32 x, f32 y, f32_Rect rect){
+    return(hit_check(x, y, rect.x0, rect.y0, rect.x1, rect.y1));
+}
+
+static b32
+hit_check(Rect_f32 rect, Vec2_f32 p){
+    return(hit_check(p.x, p.y, rect.x0, rect.y0, rect.x1, rect.y1));
+}
+
+static b32
 hit_check(i32 x, i32 y, i32 x0, i32 y0, i32 x1, i32 y1){
     return(x >= x0 && x < x1 && y >= y0 && y < y1);
 }
 
-static i32
+static b32
 hit_check(i32 x, i32 y, i32_Rect rect){
     return(hit_check(x, y, rect.x0, rect.y0, rect.x1, rect.y1));
+}
+
+static b32
+hit_check(Rect_i32 rect, Vec2_i32 p){
+    return(hit_check(p.x, p.y, rect.x0, rect.y0, rect.x1, rect.y1));
 }
 
 static i32_Rect

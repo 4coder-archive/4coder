@@ -20,13 +20,16 @@ struct Render_Free_Texture{
 struct Render_Target{
     i32_Rect clip_boxes[5];
     i32 clip_top;
-    b32 clip_all;
+    b8 clip_all;
+    b8 out_of_memory;
     i32 width;
     i32 height;
     i32 bound_texture;
     u32 color;
     
-    u32 clear_color;
+    i32 frame_index;
+    f32 literal_dt;
+    f32 animation_dt;
     
     Render_Free_Texture *free_texture_first;
     Render_Free_Texture *free_texture_last;

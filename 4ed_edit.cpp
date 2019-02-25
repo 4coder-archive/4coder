@@ -19,9 +19,7 @@ edit_pre_state_change(System_Functions *system, Heap *heap, Models *models, Edit
         }
         file->state.still_lexing = 0;
     }
-    if (file->state.dirty == DirtyState_UpToDate){
-        file_set_dirty_flag(file, DirtyState_UnsavedChanges);
-    }
+    file_add_dirty_flag(file, DirtyState_UnsavedChanges);
     file_unmark_edit_finished(file);
     Layout *layout = &models->layout;
     for (Panel *panel = layout_get_first_open_panel(layout);

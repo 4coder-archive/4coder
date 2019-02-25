@@ -444,8 +444,7 @@ system_directory_exists(char *path){
 //
 
 internal int_color
-swap_r_and_b(int_color a)
-{
+swap_r_and_b(int_color a){
     int_color result = a & 0xff00ff00;
     result |= ((a >> 16) & 0xff);
     result |= ((a & 0xff) << 16);
@@ -453,18 +452,18 @@ swap_r_and_b(int_color a)
 }
 
 internal int_color
-int_color_from_colorref(COLORREF ref, int_color alpha_from)
-{
+int_color_from_colorref(COLORREF ref, int_color alpha_from){
     int_color rgb = swap_r_and_b(ref & 0xffffff);
     
     int_color result = ((0xff000000 & alpha_from) | rgb);
     return(result);
 }
 
-void system_schedule_step();
+internal void
+system_schedule_step();
+
 internal UINT_PTR CALLBACK
-color_picker_hook(HWND Window, UINT Message, WPARAM WParam, LPARAM LParam)
-{
+color_picker_hook(HWND Window, UINT Message, WPARAM WParam, LPARAM LParam){
     UINT_PTR result = 0;
     switch(Message)
     {

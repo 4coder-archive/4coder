@@ -152,18 +152,23 @@ enum{
     FileCreateFlag_ReadOnly = 1,
 };
 
+struct Render_Marker_Brush{
+    b8 color_noop;
+    b8 text_color_noop;
+    argb_color color;
+    argb_color text_color;
+};
+
 struct Render_Marker{
     Marker_Visual_Type type;
-    u32 color;
-    u32 text_color;
+    Render_Marker_Brush brush;
     i32 pos;
     i32 one_past_last;
     i32 priority;
 };
 
 struct Render_Range_Record{
-    u32 color;
-    u32 text_color;
+    Render_Marker_Brush brush;
     i32 one_past_last;
     i32 priority;
 };

@@ -135,6 +135,15 @@ set_buffer_name_resolver(Bind_Helper *helper, Buffer_Name_Resolver_Function *fun
 }
 
 static void
+set_modify_color_table_hook(Bind_Helper *helper, Modify_Color_Table_Function *func){
+    Binding_Unit unit = {};
+    unit.type = unit_hook;
+    unit.hook.hook_id = special_hook_modify_color_table;
+    unit.hook.func = (void*)func;
+    write_unit(helper, unit);
+}
+
+static void
 set_new_file_hook(Bind_Helper *helper, Open_File_Hook_Function *func){
     Binding_Unit unit = {};
     unit.type = unit_hook;
@@ -1314,6 +1323,16 @@ string_push_copy(Arena *arena, String str){
     return(result);
 }
 
+static void
+append_int_to_str_left_pad(String *str, i32 x, i32 minimum_width, char pad_char){
+    i32 length = int_to_str_size(x);
+    i32 left_over = minimum_width - length;
+    if (left_over > 0){
+        append_padding(str, pad_char, str->size + left_over);
+    }
+    append_int_to_str(str, x);
+}
+
 static bool32
 lexer_keywords_default_init(Partition *arena, Cpp_Keyword_Table *kw_out, Cpp_Keyword_Table *pp_out){
     bool32 success = false;
@@ -1643,6 +1662,13 @@ condense_whitespace(String *a)
             a->str[a->size++] = a->str[i++];
         }
     }
+}
+
+////////////////////////////////
+
+static Vec2
+draw_string(Application_Links *app, Face_ID font_id, String string, Vec2 p, int_color color){
+    return(draw_string(app, font_id, string, p, color, 0, V2(1.f, 0.f)));
 }
 
 // BOTTOM

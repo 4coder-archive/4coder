@@ -52,7 +52,7 @@ ui_list_to_ui_control(Partition *arena, UI_List *list){
         UI_Item *item = &control.items[control.count++];
         *item = node->fixed;
         if (item->coordinates >= UICoordinates_COUNT){
-            item->coordinates = UICoordinates_Scrolled;
+            item->coordinates = UICoordinates_ViewSpace;
         }
         control.bounding_box[item->coordinates] = ui__rect_union(control.bounding_box[item->coordinates], item->rectangle);
     }
@@ -61,39 +61,46 @@ ui_list_to_ui_control(Partition *arena, UI_List *list){
 
 static void
 ui_control_set_top(UI_Control *control, int32_t top_y){
-    control->bounding_box[UICoordinates_Scrolled].y0 = top_y;
+    control->bounding_box[UICoordinates_ViewSpace].y0 = top_y;
 }
 
 static void
 ui_control_set_bottom(UI_Control *control, int32_t bottom_y){
-    control->bounding_box[UICoordinates_Scrolled].y1 = bottom_y;
+    control->bounding_box[UICoordinates_ViewSpace].y1 = bottom_y;
+}
+
+static UI_Item*
+ui_control_get_mouse_hit(UI_Control *control, Vec2_i32 view_p, Vec2_i32 panel_p){
+    UI_Item *result = 0;
+    int32_t count = control->count;
+    UI_Item *item = control->items + count - 1;
+    for (int32_t i = 0; i < count && result == 0; ++i, item -= 1){
+        i32_Rect r = item->rectangle;
+        switch (item->coordinates){
+            case UICoordinates_ViewSpace:
+            {
+                if (hit_check(r, view_p)){
+                    result = item;
+                }
+            }break;
+            case UICoordinates_PanelSpace:
+            {
+                if (hit_check(r, panel_p)){
+                    result = item;
+                }
+            }break;
+        }
+    }
+    return(result);
 }
 
 static UI_Item*
 ui_control_get_mouse_hit(UI_Control *control,
                          int32_t mx_scrolled, int32_t my_scrolled,
                          int32_t mx_unscrolled, int32_t my_unscrolled){
-    int32_t count = control->count;
-    UI_Item *item = control->items + count - 1;
-    for (int32_t i = 0; i < count; ++i, item -= 1){
-        i32_Rect r = item->rectangle;
-        switch (item->coordinates){
-            case UICoordinates_Scrolled:
-            {
-                if (r.x0 <= mx_scrolled && mx_scrolled < r.x1 && r.y0 <= my_scrolled && my_scrolled < r.y1){
-                    return(item);
-                }
-            }break;
-            
-            case UICoordinates_ViewRelative:
-            {
-                if (r.x0 <= mx_unscrolled && mx_unscrolled < r.x1 && r.y0 <= my_unscrolled && my_unscrolled < r.y1){
-                    return(item);
-                }
-            }break;
-        }
-    }
-    return(0);
+    return(ui_control_get_mouse_hit(control,
+                                    V2i32(mx_scrolled, my_scrolled),
+                                    V2i32(mx_unscrolled, my_unscrolled)));
 }
 
 ////////////////////////////////
@@ -138,52 +145,44 @@ view_set_vertical_focus(Application_Links *app, View_Summary *view,
     }
 }
 
-static void
-get_view_relative_points(int32_t x_window, int32_t y_window, View_Summary view,
-                         int32_t *x_scrolled_out, int32_t *y_scrolled_out,
-                         int32_t *x_view_out, int32_t *y_view_out){
-    int32_t x = x_window - view.file_region.x0;
-    int32_t y = y_window - view.file_region.y0;
-    if (x_scrolled_out != 0 && y_scrolled_out != 0){
-        *x_scrolled_out = x + (int32_t)view.scroll_vars.scroll_x;
-        *y_scrolled_out = y + (int32_t)view.scroll_vars.scroll_y;
-    }
-    if (x_view_out != 0 && y_view_out != 0){
-        *x_view_out = x;
-        *y_view_out = y;
-    }
+static Vec2
+view_space_from_screen_space(Vec2 p, Vec2 file_region_p0, Vec2 scroll_p){
+    return(p - file_region_p0 + scroll_p);
 }
 
-static void
-get_view_relative_points_x(int32_t x_window, View_Summary view, int32_t *x_scrolled_out, int32_t *x_view_out){
-    int32_t y_ignore = 0;
-    get_view_relative_points(x_window, y_ignore, view,
-                             x_scrolled_out, &y_ignore, x_view_out, &y_ignore);
+static Vec2_i32
+view_space_from_screen_space(Vec2_i32 p, Vec2_i32 file_region_p0, Vec2_i32 scroll_p){
+    return(p - file_region_p0 + scroll_p);
 }
 
-static void
-get_view_relative_points_y(int32_t y_window, View_Summary view, int32_t *y_scrolled_out, int32_t *y_view_out){
-    int32_t x_ignore = 0;
-    get_view_relative_points(x_ignore, y_window, view,
-                             &x_ignore, y_scrolled_out, &x_ignore, y_view_out);
+static Vec2_i32
+get_mouse_position_in_view_space(Mouse_State mouse, Vec2_i32 file_region_p0, Vec2_i32 scroll_p){
+    return(view_space_from_screen_space(mouse.p, file_region_p0, scroll_p));
 }
 
-static void
-get_view_relative_mouse_positions(Mouse_State mouse, View_Summary view,
-                                  int32_t *x_scrolled_out, int32_t *y_scrolled_out,
-                                  int32_t *x_view_out, int32_t *y_view_out){
-    get_view_relative_points(mouse.x, mouse.y, view,
-                             x_scrolled_out, y_scrolled_out,
-                             x_view_out, y_view_out);
+static Vec2_i32
+get_mouse_position_in_view_space(Application_Links *app, Vec2_i32 file_region_p0, Vec2_i32 scroll_p){
+    return(get_mouse_position_in_view_space(get_mouse_state(app), file_region_p0, scroll_p));
 }
 
-static void
-get_view_relative_mouse_positions(Application_Links *app, View_Summary view,
-                                  int32_t *x_scrolled_out, int32_t *y_scrolled_out,
-                                  int32_t *x_view_out, int32_t *y_view_out){
-    get_view_relative_mouse_positions(get_mouse_state(app), view,
-                                      x_scrolled_out, y_scrolled_out,
-                                      x_view_out, y_view_out);
+static Vec2
+panel_space_from_screen_space(Vec2 p, Vec2 file_region_p0){
+    return(p - file_region_p0);
+}
+
+static Vec2_i32
+panel_space_from_screen_space(Vec2_i32 p, Vec2_i32 file_region_p0){
+    return(p - file_region_p0);
+}
+
+static Vec2_i32
+get_mouse_position_in_panel_space(Mouse_State mouse, Vec2_i32 file_region_p0){
+    return(panel_space_from_screen_space(mouse.p, file_region_p0));
+}
+
+static Vec2_i32
+get_mouse_position_in_panel_space(Application_Links *app, Vec2_i32 file_region_p0){
+    return(get_mouse_position_in_panel_space(get_mouse_state(app), file_region_p0));
 }
 
 ////////////////////////////////
@@ -229,12 +228,10 @@ lister_get_clicked_item(Application_Links *app, View_Summary *view, Partition *s
     Temp_Memory temp = begin_temp_memory(scratch);
     UI_Control control = view_get_ui_copy(app, view, scratch);
     Mouse_State mouse = get_mouse_state(app);
-    int32_t mxs = 0;
-    int32_t mys = 0;
-    int32_t mxu = 0;
-    int32_t myu = 0;
-    get_view_relative_mouse_positions(mouse, *view, &mxs, &mys, &mxu, &myu);
-    UI_Item *clicked = ui_control_get_mouse_hit(&control, mxs, mys, mxu, myu);
+    Vec2_i32 region_p0 = view->file_region.p0;
+    Vec2_i32 m_view_space = get_mouse_position_in_view_space(mouse, region_p0, V2i32(view->scroll_vars.scroll_p));
+    Vec2_i32 m_panel_space = get_mouse_position_in_panel_space(mouse, region_p0);
+    UI_Item *clicked = ui_control_get_mouse_hit(&control, m_view_space, m_panel_space);
     UI_Item result = {};
     if (clicked != 0){
         result = *clicked;
@@ -278,10 +275,9 @@ lister_update_ui(Application_Links *app, Partition *scratch, View_Summary *view,
     
     Temp_Memory full_temp = begin_temp_memory(scratch);
     
-    int32_t mx = 0;
-    int32_t my = 0;
     refresh_view(app, view);
-    get_view_relative_mouse_positions(app, *view, &mx, &my, 0, 0);
+    Vec2_i32 view_m = get_mouse_position_in_view_space(app, view->file_region.p0,
+                                                       V2i32(view->scroll_vars.scroll_p));
     
     int32_t y_pos = text_field_height;
     
@@ -355,13 +351,12 @@ lister_update_ui(Application_Links *app, Partition *scratch, View_Summary *view,
                 item.color_theme.index = node->index;
             }
             item.activation_level = UIActivation_None;
-            item.coordinates = UICoordinates_Scrolled;
+            item.coordinates = UICoordinates_ViewSpace;
             item.user_data = node->user_data;
             item.rectangle = item_rect;
             
             UI_Item *item_ptr = ui_list_add_item(scratch, &list, item);
-            if (item_rect.x0 <= mx && mx < item_rect.x1 &&
-                item_rect.y0 <= my && my < item_rect.y1){
+            if (hit_check(item_rect, view_m)){
                 hovered_item = item_ptr;
             }
             if (state->item_index == item_index_counter){
@@ -409,7 +404,7 @@ lister_update_ui(Application_Links *app, Partition *scratch, View_Summary *view,
         UI_Item item = {};
         item.type = UIType_TextField;
         item.activation_level = UIActivation_Active;
-        item.coordinates = UICoordinates_ViewRelative;
+        item.coordinates = UICoordinates_PanelSpace;
         item.text_field.query = state->lister.data.query;
         item.text_field.string = state->lister.data.text_field;
         item.user_data = 0;

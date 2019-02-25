@@ -16,8 +16,13 @@
 /* DOC(bool32 is an alias name to signal that an integer parameter or field is for true/false values.) */
 TYPEDEF int32_t bool32;
 
-/* DOC(int_color is an alias name to signal that an integer parameter or field is for a color value, colors are specified as 32 bit integers with 4 channels: 0xAARRGGBB.  In some APIs if the alpha channel is zero, then the integer is a symbolic color with a special interpretation.) */
-TYPEDEF uint32_t int_color;
+/* DOC(argb_color is an alias name to signal that an integer parameter or field is for a color value,
+colors are specified as 32 bit integers with 4 channels: 0xAARRGGBB.) */
+TYPEDEF u32 argb_color;
+
+TYPEDEF u32 int_color;
+
+TYPEDEF u16 id_color;
 
 /* DOC(Parse_Context_ID identifies a parse context, which is a guiding rule for the parser.  Each buffer sets which parse context to use when it is parsed.) */
 TYPEDEF uint32_t Parse_Context_ID;
@@ -228,16 +233,25 @@ ENUM(uint32_t, Access_Flag){
     AccessAll       = 0xFF
 };
 
-/* DOC(A Dirty_State value describes whether changes have been made to a buffer or to an underlying file since the last sync time between the two.  Saving a buffer to it's file or loading the buffer from the file both act as sync points.) */
+/* DOC(A Dirty_State value describes whether changes have been made to a buffer or to an underlying
+file since the last sync time between the two.  Saving a buffer to it's file or loading the buffer
+from the file both act as sync points.) */
 ENUM(uint32_t, Dirty_State){
-    /* DOC(DirtyState_UpToDate indicates that there are no unsaved changes and the underlying system file still agrees with the buffer's state.) */
+    /* DOC(DirtyState_UpToDate indicates that there are no unsaved changes and the underlying
+system file still agrees with the buffer's state.) */
     DirtyState_UpToDate = 0,
     
-    /* DOC(DirtyState_UnsavedChanges indicates that there have been changes in the buffer since the last sync point.) */
+    /* DOC(DirtyState_UnsavedChanges indicates that there have been changes in the buffer since
+the last sync point.) */
     DirtyState_UnsavedChanges = 1,
     
-    /* DOC(DirtyState_UnsavedChanges indicates that the underlying file has been edited since the last sync point with the buffer.) */
-    DirtyState_UnloadedChanges = 2
+    /* DOC(DirtyState_UnsavedChanges indicates that the underlying file has been edited since
+the last sync point .) */
+    DirtyState_UnloadedChanges = 2,
+    
+    /* DOC(DirtyState_UnsavedChanges indicates that there have been changes in the buffer since
+the last sync point and that the underlying file ahs been edited since the last sync point.) */
+    DirtyState_UnsavedChangesAndUnloadedChanges = 3,
 };
 
 /* DOC(A Seek_Boundary_Flag field specifies a set of "boundary" types used in seeks for the beginning or end of different types of words.) */
@@ -389,13 +403,17 @@ STRUCT Mouse_State{
     int8_t out_of_window;
     /* DOC(The motion of the wheel. Zero indicates no motion. Positive indicates downard scrolling. Negative indicates upward scrolling. The magnitude corresponds to the number of pixels of scroll that would be applied at standard scroll speeds.) */
     int32_t wheel;
-    /* DOC(X position of the mouse where the left of the window is x = 0, and x grows to the right.) */
-    int32_t x;
-    /* DOC(Y position of the mouse where the top of the window is y = 0, and y grows to downward.) */
-    int32_t y;
+    UNION{
+        STRUCT{
+            /* DOC(X position of the mouse where the left of the window is x = 0, and x grows to the right.) */
+            int32_t x;
+            /* DOC(Y position of the mouse where the top of the window is y = 0, and y grows to downward.) */
+            int32_t y;
+        };
+        /* DOC(TODO) */
+        Vec2_i32 p;
+    };
 };
-
-GLOBAL_VAR Mouse_State null_mouse_state = {};
 
 /* DOC(Range describes an integer range typically used for ranges within a buffer. Ranges are not used to pass into the API, but this struct is used for returns.
 
@@ -480,14 +498,26 @@ STRUCT Buffer_Identifier{
 
 /* DOC(Describes the various coordinate locations associated with the view's scroll position within it's buffer.) */
 STRUCT GUI_Scroll_Vars{
-    /* DOC(The current actual y position of the view scroll.) */
-    float   scroll_y;
-    /* DOC(The target y position to which the view is moving.  If scroll_y is not the same value, then it is still sliding to the target by the smooth scroll rule.) */
-    int32_t target_y;
-    /* DOC(The current actual x position of the view scroll.) */
-    float   scroll_x;
-    /* DOC(The target x position to which the view is moving.  If scroll_x is not the same value, then it is still sliding to the target by the smooth scroll rule.) */
-    int32_t target_x;
+    UNION{
+        STRUCT{
+            /* DOC(The current actual x position of the view scroll.) */
+            f32 scroll_x;
+            /* DOC(The current actual y position of the view scroll.) */
+            f32 scroll_y;
+        };
+        /* DOC(TODO) */
+        Vec2 scroll_p;
+    };
+    UNION{
+        STRUCT{
+            /* DOC(The target x position to which the view is moving.  If scroll_x is not the same value, then it is still sliding to the target by the smooth scroll rule.) */
+            i32 target_x;
+            /* DOC(The target y position to which the view is moving.  If scroll_y is not the same value, then it is still sliding to the target by the smooth scroll rule.) */
+            i32 target_y;
+        };
+        /* DOC(TODO) */
+        Vec2_i32 target_p;
+    };
 };
 
 /* DOC(The Buffer_Seek_Type is is used in a Buffer_Seek to identify which coordinates are suppose to be used for the seek.)
@@ -767,12 +797,9 @@ ENUM(uint32_t, Marker_Visual_Symbolic_Color)
 {
     /* DOC(When default is used for text_color aspect, the text is unchanged from the coloring the core would apply to it.  For all effects, the default value of the color aspect for all effects is the same as transparent.  For convenience it is guaranteed this will always be the zero value, so that users may simply pass 0 to color aspects they do not wish to set.) */
     SymbolicColor_Default = 0,
-    /* DOC(Since all symbolic color codes have their alpha channel set to zero, this code is reserved to get the effect one would get for using a tranparent 32-bit color.) */
-    SymbolicColor_Transparent = 1,
     /* DOC(This flag bit-ored with a style tag will be reevaluated at render time to the color of the specific tag in the currently active palette.  The macro SymbolicColorFromPalette(Stag_CODE) applies the bit-or to Stag_CODE.  For example SymbolicColorFromPalette(Stag_Cursor) will always evaluate to the color of the current cursor.  Note that this evaluation happens at render time, so that if the palette changes, the evaluated color will also change.) */
     SymbolicColor__StagColorFlag = 0x00800000,
 };
-#define SymbolicColorFromPalette(x) ((x)|SymbolicColor__StagColorFlag)
 
 /* DOC(Not implemented, but reserved for future use.  Where this type is used in the API the value passed should always be zero for now.) */
 ENUM(int32_t, Marker_Visual_Text_Style)
@@ -836,10 +863,10 @@ ENUM(int8_t, UI_Activation_Level){
 
 /* DOC(An enumeration of the coordinate systems in which an item's rectangle can be specified.  This is not always a convenience feature as it means after scrolling the widget data does not necessarily needed to be updated, thus saving extra work.  All coordiante systems are in pixels, with y increasing downward, and x increasing rightward.) */
 ENUM(int8_t, UI_Coordinate_System){
-    /* DOC(The 'scrolled' coordiante system is effected by the scroll value of the view.  If the y scroll value is at 100 and an item is placed with a vertical range from 50 to 90, the item is not visible.  When the y scroll value is at 0, this coordinate system aligns with the view relative coordiante system.) */
-    UICoordinates_Scrolled = 0,
-    /* DOC(The 'view relative' coordiante system is only effected by the screen coordinates of the view.  (0,0) is always the top left corner of space inside the view margin.) */
-    UICoordinates_ViewRelative = 1,
+    /* DOC(The 'view' coordiante system is effected by the scroll value of the view.  If the y scroll value is at 100 and an item is placed with a vertical range from 50 to 90, the item is not visible.  When the scroll value is at (0,0), this coordinate system aligns with the view relative coordiante system.) */
+    UICoordinates_ViewSpace = 0,
+    /* DOC(The 'panel' coordiante system is only effected by the screen coordinates of the panel.  (0,0) is always the top left corner of space inside the panel margin.) */
+    UICoordinates_PanelSpace = 1,
     UICoordinates_COUNT = 2,
 };
 
@@ -913,19 +940,19 @@ DOC_SEE(int_color)
 */
 STRUCT Theme_Color{
     /* DOC(The style slot in the style palette.) */
-    int32_t tag;
+    id_color tag;
     /* DOC(The color in the slot.) */
-    int_color color;
+    argb_color color;
 };
 
 /*
 DOC(Theme lists every color that makes up a standard color scheme.)
 DOC_SEE(int_color)
 */
-STRUCT Theme{
-    /* DOC(The colors array.  Every style tag, beginning with "Stag", is an index into it's corresponding color in the array.) */
-    int_color colors[Stag_COUNT];
-};
+//STRUCT Theme{
+/* DOC(The colors array.  Every style tag, beginning with "Stag", is an index into it's corresponding color in the array.) */
+//int_color colors[Stag_COUNT];
+//};
 
 /*
 DOC(Available_Font contains a name for a font was detected at startup either in the local 4coder font folder, or by the system.  An available font is not necessarily loaded yet, and may fail to load for various reasons even though it appearsin the available font list.)
@@ -1134,15 +1161,18 @@ ENUM(int32_t, Special_Hook_ID){
     special_hook_start,
     /* DOC(TODO) */
     special_hook_buffer_name_resolver,
+    /* DOC(TODO) */
+    special_hook_modify_color_table,
 };
 
 TYPEDEF_FUNC int32_t Command_Caller_Hook_Function(struct Application_Links *app, Generic_Command cmd);
 #define COMMAND_CALLER_HOOK(name) int32_t name(struct Application_Links *app, Generic_Command cmd)
 
 TYPEDEF_FUNC void Render_Callback(struct Application_Links *app);
-TYPEDEF_FUNC void Render_Caller_Function(struct Application_Links *app, View_ID view_id, Range on_screen_range, Render_Callback *do_core_render);
+TYPEDEF_FUNC void Render_Caller_Function(struct Application_Links *app, View_ID view_id, Range on_screen_range, i32 frame_index, f32 literal_dt, f32 animation_dt, Render_Callback *do_core_render);
 #define RENDER_CALLER_SIG(name) \
-void name(struct Application_Links *app, View_ID view_id, Range on_screen_range, Render_Callback *do_core_render)
+void name(struct Application_Links *app, View_ID view_id, Range on_screen_range, \
+i32 frame_index, f32 literal_dt, f32 animation_dt, Render_Callback *do_core_render)
 
 TYPEDEF_FUNC int32_t Hook_Function(struct Application_Links *app);
 #define HOOK_SIG(name) int32_t name(struct Application_Links *app)
@@ -1159,6 +1189,14 @@ TYPEDEF_FUNC void Input_Filter_Function(Mouse_State *mouse);
 TYPEDEF_FUNC int32_t Scroll_Rule_Function(float target_x, float target_y, float *scroll_x, float *scroll_y, int32_t view_id, int32_t is_new_target, float dt);
 #define SCROLL_RULE_SIG(name) \
 int32_t name(float target_x, float target_y, float *scroll_x, float *scroll_y, int32_t view_id, int32_t is_new_target, float dt)
+
+STRUCT Color_Table{
+    argb_color *vals;
+    u32 count;
+};
+
+TYPEDEF_FUNC Color_Table Modify_Color_Table_Function(struct Application_Links *app, i32 frame_index, f32 literal_dt, f32 animation_dt);
+#define MODIFY_COLOR_TABLE_SIG(name) Color_Table name(struct Application_Links *app, i32 frame_index, f32 literal_dt, f32 animation_dt)
 
 STRUCT Buffer_Name_Conflict_Entry{
     Buffer_ID buffer_id;
@@ -1197,9 +1235,7 @@ ENUM(int32_t, Binding_Unit_Type){
     unit_hook
 };
 
-/*
-DOC(Values for built in command maps.)
-*/
+/* DOC(Values for built in command maps.) */
 ENUM(int32_t, Map_ID){
     mapid_global = (1 << 24),
     mapid_file,
@@ -1209,8 +1245,7 @@ ENUM(int32_t, Map_ID){
 
 
 /*
-DOC(Describes a unit of information for setting up key bindings.  A unit can set a key binding, switch the active map, set the inherited map, or set a hook.)
-*/
+DOC(Describes a unit of information for setting up key bindings.  A unit can set a key binding, switch the active map, set the inherited map, or set a hook.) */
 STRUCT Binding_Unit{
     Binding_Unit_Type type;
     UNION{
@@ -1225,15 +1260,13 @@ STRUCT Binding_Unit{
 typedef int32_t _Get_Version_Function(int32_t maj, int32_t min, int32_t patch);
 #define _GET_VERSION_SIG(n) int32_t n(int32_t maj, int32_t min, int32_t patch)
 
-STRUCT color_picker
-{
+STRUCT color_picker{
     String title;
-    int_color *dest;
+    argb_color *dest;
     bool32 *finished;
 };
 
-enum Found_String_Flag
-{
+enum Found_String_Flag{
     FoundString_Sensitive = 0x1,
     FoundString_Insensitive = 0x2,
     FoundString_CleanEdges = 0x4,
@@ -1241,8 +1274,7 @@ enum Found_String_Flag
     FoundString_Straddled = 0x10,
 };
 
-STRUCT Found_String
-{
+STRUCT Found_String{
     Found_String *next;
     Buffer_ID buffer_id;
     
@@ -1254,8 +1286,7 @@ STRUCT Found_String
 };
 
 // TODO(casey): If this sticks around, there should be a way to export add/remove/merge as inlines that are shared
-STRUCT Found_String_List
-{
+STRUCT Found_String_List{
     Found_String *first;
     Found_String *last;
     int32_t count;

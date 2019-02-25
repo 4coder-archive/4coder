@@ -34,12 +34,7 @@ struct Models{
     Face_ID global_font_id;
     
     Mapping mapping;
-    
     Command_Binding prev_command;
-    
-    i32 prev_x;
-    i32 prev_y;
-    b32 animated_last_frame;
     
     Coroutine_Head *command_coroutine;
     u32 command_coroutine_flags[2];
@@ -60,9 +55,10 @@ struct Models{
     Input_Filter_Function *input_filter;
     Scroll_Rule_Function *scroll_rule;
     Buffer_Name_Resolver_Function *buffer_name_resolver;
+    Modify_Color_Table_Function *modify_color_table;
     
-    Style_Library styles;
-    u32 *palette;
+    Color_Table fallback_color_table;
+    Color_Table color_table;
     
     Layout layout;
     Working_Set working_set;
@@ -79,8 +75,6 @@ struct Models{
     
     Hot_Directory hot_directory;
     
-    Panel *prev_mouse_panel;
-    
     b32 keep_playing;
     
     Key_Code user_up_key;
@@ -92,12 +86,19 @@ struct Models{
     char *title_space;
     i32 title_capacity;
     
+    u32 edit_finished_hook_repeat_speed;
+    
     i32 frame_counter;
     
-    i32 previous_mouse_x;
-    i32 previous_mouse_y;
-    
     Panel *resizing_intermediate_panel;
+    
+    b32 animate_next_frame;
+    
+    // Last frame state
+    Vec2_i32 prev_p;
+    Panel *prev_mouse_panel;
+    b32 animated_last_frame;
+    u64 last_render_usecond_stamp;
     
     // System Context
     System_Functions *system;

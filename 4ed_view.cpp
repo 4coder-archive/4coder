@@ -452,25 +452,17 @@ release_font_and_update_files(System_Functions *system, Models *models, Face_ID 
 
 ////////////////////////////////
 
-internal u32
-finalize_color(Theme *theme_data, u32 color){
-    if ((color&SymbolicColor__StagColorFlag) && (color&0xFF000000) == 0){
-        u32 color_index = color&0x007FFFFF;
-        if (color_index < Stag_COUNT){
-            u32 *c = &theme_data->colors[color_index];
-            if (c != 0){
-                color = *c;
-            }
-            else{
-                color = 0;
-            }
-        }
+internal argb_color
+finalize_color(Color_Table color_table, int_color color){
+    argb_color color_argb = color;
+    if ((color & 0xFF000000) == 0){
+        color_argb = color_table.vals[color % color_table.count];
     }
-    return(color);
+    return(color_argb);
 }
 
 internal void
-get_visual_markers(Partition *arena, Dynamic_Workspace *workspace, Range range, Buffer_ID buffer_id, i32 view_index, Theme *theme_data){
+get_visual_markers(Partition *arena, Dynamic_Workspace *workspace, Range range, Buffer_ID buffer_id, i32 view_index, Color_Table color_table){
     View_ID view_id = view_index + 1;
     for (Managed_Buffer_Markers_Header *node = workspace->buffer_markers_list.first;
          node != 0;
@@ -488,8 +480,15 @@ get_visual_markers(Partition *arena, Dynamic_Workspace *workspace, Range range, 
             i32 stride_size_from_last = step_stride_in_marker_count - take_count_per_step;
             i32 priority = data->priority;
             
-            u32 color = finalize_color(theme_data, data->color);
-            u32 text_color = finalize_color(theme_data, data->text_color);
+            Render_Marker_Brush brush = {};
+            brush.color_noop = (data->color == 0);
+            brush.text_color_noop = (data->text_color == 0);
+            if (!brush.color_noop){
+                brush.color = finalize_color(color_table, data->color);
+            }
+            if (!brush.text_color_noop){
+                brush.text_color = finalize_color(color_table, data->text_color);
+            }
             
             Marker *markers = (Marker*)(node + 1);
             Assert(sizeof(*markers) == node->std_header.item_size);
@@ -510,8 +509,7 @@ get_visual_markers(Partition *arena, Dynamic_Workspace *workspace, Range range, 
                                 Render_Marker *render_marker = push_array(arena, Render_Marker, 1);
                                 render_marker->type = type;
                                 render_marker->pos = marker->pos;
-                                render_marker->color = color;
-                                render_marker->text_color = text_color;
+                                render_marker->brush = brush;
                                 render_marker->one_past_last = marker->pos;
                                 render_marker->priority = priority;
                             }
@@ -548,8 +546,7 @@ get_visual_markers(Partition *arena, Dynamic_Workspace *workspace, Range range, 
                                 Render_Marker *render_marker = push_array(arena, Render_Marker, 1);
                                 render_marker->type = type;
                                 render_marker->pos = range_b.min;
-                                render_marker->color = color;
-                                render_marker->text_color = text_color;
+                                render_marker->brush = brush;
                                 render_marker->one_past_last = range_b.max;
                                 render_marker->priority = priority;
                             }
@@ -716,52 +713,72 @@ range_record_stack_get_insert_index(Render_Range_Record *records, i32 count, i32
 }
 
 internal u32
-get_token_color(Style *style, Cpp_Token token){
+get_token_color(Color_Table color_table, Cpp_Token token){
     u32 result = 0;
     if ((token.flags & CPP_TFLAG_IS_KEYWORD) != 0){
         if (cpp_token_category_from_type(token.type) == CPP_TOKEN_CAT_BOOLEAN_CONSTANT){
-            result = style->theme.colors[Stag_Bool_Constant];
+            result = color_table.vals[Stag_Bool_Constant];
         }
         else{
-            result = style->theme.colors[Stag_Keyword];
+            result = color_table.vals[Stag_Keyword];
         }
     }
     else if ((token.flags & CPP_TFLAG_PP_DIRECTIVE) != 0){
-        result = style->theme.colors[Stag_Preproc];
+        result = color_table.vals[Stag_Preproc];
     }
     else{
         switch (token.type){
             case CPP_TOKEN_COMMENT:
             {
-                result = style->theme.colors[Stag_Comment];
+                result = color_table.vals[Stag_Comment];
             }break;
             case CPP_TOKEN_STRING_CONSTANT:
             {
-                result = style->theme.colors[Stag_Str_Constant];
+                result = color_table.vals[Stag_Str_Constant];
             }break;
             case CPP_TOKEN_CHARACTER_CONSTANT:
             {
-                result = style->theme.colors[Stag_Char_Constant];
+                result = color_table.vals[Stag_Char_Constant];
             }break;
             case CPP_TOKEN_INTEGER_CONSTANT:
             {
-                result = style->theme.colors[Stag_Int_Constant];
+                result = color_table.vals[Stag_Int_Constant];
             }break;
             case CPP_TOKEN_FLOATING_CONSTANT:
             {
-                result = style->theme.colors[Stag_Float_Constant];
+                result = color_table.vals[Stag_Float_Constant];
             }break;
             case CPP_PP_INCLUDE_FILE:
             {
-                result = style->theme.colors[Stag_Include];
+                result = color_table.vals[Stag_Include];
             }break;
             default:
             {
-                result = style->theme.colors[Stag_Default];
+                result = color_table.vals[Stag_Default];
             }break;
         }
     }
     return(result);
+}
+
+internal Render_Marker_Brush
+render__get_brush_from_range_stack(Render_Range_Record *stack, i32 stack_top){
+    Render_Marker_Brush brush = {true, true};
+    Render_Range_Record *record = &stack[stack_top];
+    for (i32 i = stack_top; i >= 0; i -= 1, record -= 1){
+        if (brush.color_noop && !record->brush.color_noop){
+            brush.color_noop = false;
+            brush.color = record->brush.color;
+        }
+        if (brush.text_color_noop && !record->brush.text_color_noop){
+            brush.text_color_noop = false;
+            brush.text_color = record->brush.text_color;
+        }
+        if (!brush.color_noop && !brush.text_color_noop){
+            break;
+        }
+    }
+    return(brush);
 }
 
 internal void
@@ -770,7 +787,7 @@ render_loaded_file_in_view__inner(Models *models, Render_Target *target, View *v
                                   Buffer_Render_Item *items, i32 item_count){
     Editing_File *file = view->file_data.file;
     Partition *part = &models->mem.part;
-    Style *style = &models->styles.styles[0];
+    Color_Table color_table = models->color_table;
     
     Assert(file != 0);
     Assert(!file->is_dummy);
@@ -788,9 +805,8 @@ render_loaded_file_in_view__inner(Models *models, Render_Target *target, View *v
         Lifetime_Object *lifetime_object = file->lifetime_object;
         Buffer_ID buffer_id = file->id.id;
         i32 view_index = view_get_index(&models->live_set, view);
-        Theme *theme_data = &style->theme;
         
-        get_visual_markers(part, &lifetime_object->workspace, on_screen_range, buffer_id, view_index, theme_data);
+        get_visual_markers(part, &lifetime_object->workspace, on_screen_range, buffer_id, view_index, color_table);
         
         i32 key_count = lifetime_object->key_count;
         i32 key_index = 0;
@@ -800,7 +816,7 @@ render_loaded_file_in_view__inner(Models *models, Render_Target *target, View *v
             i32 local_count = clamp_top(lifetime_key_reference_per_node, key_count - key_index);
             for (i32 i = 0; i < local_count; i += 1){
                 Lifetime_Key *key = node->keys[i];
-                get_visual_markers(part, &key->dynamic_workspace, on_screen_range, buffer_id, view_index, theme_data);
+                get_visual_markers(part, &key->dynamic_workspace, on_screen_range, buffer_id, view_index, color_table);
             }
             key_index += local_count;
         }
@@ -873,12 +889,12 @@ render_loaded_file_in_view__inner(Models *models, Render_Target *target, View *v
     i32 visual_line_range_markers_scan_index = 0;
     
     i32 token_i = 0;
-    u32 main_color = style->theme.colors[Stag_Default];
-    u32 special_color = style->theme.colors[Stag_Special_Character];
-    u32 ghost_color = style->theme.colors[Stag_Ghost_Character];
+    u32 main_color    = color_table.vals[Stag_Default];
+    u32 special_color = color_table.vals[Stag_Special_Character];
+    u32 ghost_color   = color_table.vals[Stag_Ghost_Character];
     if (tokens_use){
         Cpp_Get_Token_Result result = cpp_get_token(token_array, items->index);
-        main_color = get_token_color(style, token_array.tokens[result.token_index]);
+        main_color = get_token_color(color_table, token_array.tokens[result.token_index]);
         token_i = result.token_index + 1;
     }
     
@@ -935,17 +951,17 @@ render_loaded_file_in_view__inner(Models *models, Render_Target *target, View *v
             if (token_i < token_array.count){
                 if (ind >= token_array.tokens[token_i].start){
                     for (;token_i < token_array.count && ind >= token_array.tokens[token_i].start; ++token_i){
-                        main_color = get_token_color(style, token_array.tokens[token_i]);
+                        main_color = get_token_color(color_table, token_array.tokens[token_i]);
                         current_token = token_array.tokens[token_i];
                     }
                 }
                 else if (ind >= current_token.start + current_token.size){
-                    main_color = style->theme.colors[Stag_Default];
+                    main_color = color_table.vals[Stag_Default];
                 }
             }
             
             if (current_token.type == CPP_TOKEN_JUNK && ind >= current_token.start && ind < current_token.start + current_token.size){
-                highlight_color = style->theme.colors[Stag_Highlight_Junk];
+                highlight_color = color_table.vals[Stag_Highlight_Junk];
             }
             else{
                 highlight_color = 0;
@@ -964,7 +980,7 @@ render_loaded_file_in_view__inner(Models *models, Render_Target *target, View *v
             }
             
             if (view->file_data.show_whitespace && highlight_color == 0 && codepoint_is_whitespace(item->codepoint)){
-                highlight_this_color = style->theme.colors[Stag_Highlight_White];
+                highlight_this_color = color_table.vals[Stag_Highlight_White];
             }
             else{
                 highlight_this_color = highlight_color;
@@ -972,41 +988,40 @@ render_loaded_file_in_view__inner(Models *models, Render_Target *target, View *v
             
             // NOTE(allen): Line marker color
             if (is_new_line){
-                i32 visual_line_markers_best_priority = min_i32;
-                visual_line_markers_color = 0;
-                
-                for (;visual_line_markers_scan_index < line_markers.count &&
-                     line_markers.markers[visual_line_markers_scan_index].pos <= ind;
-                     visual_line_markers_scan_index += 1){
-                    Render_Marker *marker = &line_markers.markers[visual_line_markers_scan_index];
-                    Assert(marker->type == VisualType_LineHighlights);
-                    if (marker->priority > visual_line_markers_best_priority){
-                        visual_line_markers_color = marker->color;
-                        visual_line_markers_best_priority = marker->priority;
-                    }
-                }
-                
                 // NOTE(allen): Line range marker color
                 for (;visual_line_range_markers_scan_index < line_range_markers.count &&
                      line_range_markers.markers[visual_line_range_markers_scan_index].pos <= ind;
                      visual_line_range_markers_scan_index += 1){
                     Render_Marker *marker = &line_range_markers.markers[visual_line_range_markers_scan_index];
                     Render_Range_Record range_record = {};
-                    range_record.color = marker->color;
-                    range_record.text_color = marker->text_color;
+                    range_record.brush = marker->brush;
                     range_record.one_past_last = marker->one_past_last;
                     range_record.priority = marker->priority;
                     i32 insert_pos = range_record_stack_get_insert_index(line_range_stack, line_range_stack_top + 1, range_record.priority);
-                    memmove(line_range_stack + insert_pos + 1,
-                            line_range_stack + insert_pos,
-                            sizeof(*line_range_stack)*(line_range_stack_top - insert_pos + 1));
+                    memmove(line_range_stack + insert_pos + 1, line_range_stack + insert_pos, sizeof(*line_range_stack)*(line_range_stack_top - insert_pos + 1));
                     line_range_stack[insert_pos] = range_record;
                     line_range_stack_top += 1;
                 }
-                for (;line_range_stack_top >= 0 && ind > line_range_stack[line_range_stack_top].one_past_last;
-                     line_range_stack_top -= 1);
-                if (visual_line_markers_color == 0 && line_range_stack_top >= 0){
-                    visual_line_markers_color = line_range_stack[line_range_stack_top].color;
+                for (;line_range_stack_top >= 0 && ind > line_range_stack[line_range_stack_top].one_past_last; line_range_stack_top -= 1);
+                Render_Marker_Brush brush = render__get_brush_from_range_stack(line_range_stack, line_range_stack_top);
+                if (!brush.color_noop){
+                    visual_line_markers_color = brush.color;
+                }
+                
+                // NOTE(allen): Single line marker color
+                i32 visual_line_markers_best_priority = min_i32;
+                visual_line_markers_color = 0;
+                for (;visual_line_markers_scan_index < line_markers.count &&
+                     line_markers.markers[visual_line_markers_scan_index].pos <= ind;
+                     visual_line_markers_scan_index += 1){
+                    Render_Marker *marker = &line_markers.markers[visual_line_markers_scan_index];
+                    Assert(marker->type == VisualType_LineHighlights);
+                    if (marker->priority > visual_line_markers_best_priority){
+                        if (!marker->brush.color_noop){
+                            visual_line_markers_color = marker->brush.color;
+                            visual_line_markers_best_priority = marker->priority;
+                        }
+                    }
                 }
             }
             
@@ -1017,6 +1032,7 @@ render_loaded_file_in_view__inner(Models *models, Render_Target *target, View *v
             
             // NOTE(allen): Visual marker colors
             i32 marker_highlight_best_priority = min_i32;
+            i32 marker_highlight_text_best_priority = min_i32;
             u32 marker_highlight = 0;
             u32 marker_highlight_text = 0;
             
@@ -1026,6 +1042,32 @@ render_loaded_file_in_view__inner(Models *models, Render_Target *target, View *v
             i32 marker_ibar_best_priority = min_i32;
             u32 marker_ibar = 0;
             
+            // NOTE(allen): Highlight range marker color
+            for (;visual_range_markers_scan_index < range_markers.count &&
+                 range_markers.markers[visual_range_markers_scan_index].pos <= ind;
+                 visual_range_markers_scan_index += 1){
+                Render_Marker *marker = &range_markers.markers[visual_range_markers_scan_index];
+                Render_Range_Record range_record = {};
+                range_record.brush = marker->brush;
+                range_record.one_past_last = marker->one_past_last;
+                range_record.priority = marker->priority;
+                i32 insert_pos = range_record_stack_get_insert_index(range_stack, range_stack_top + 1, range_record.priority);
+                memmove(range_stack + insert_pos + 1, range_stack + insert_pos, sizeof(*range_stack)*(range_stack_top - insert_pos + 1));
+                range_stack[insert_pos] = range_record;
+                range_stack_top += 1;
+            }
+            for (;range_stack_top >= 0 && ind >= range_stack[range_stack_top].one_past_last; range_stack_top -= 1);
+            {
+                Render_Marker_Brush brush = render__get_brush_from_range_stack(range_stack, range_stack_top);
+                if (!brush.color_noop){
+                    marker_highlight = brush.color;
+                }
+                if (!brush.text_color_noop){
+                    marker_highlight_text = brush.text_color;
+                }
+            }
+            
+            // NOTE(allen): Highlight single characters
             for (;visual_markers_scan_index < character_markers.count &&
                  character_markers.markers[visual_markers_scan_index].pos <= ind;
                  visual_markers_scan_index += 1){
@@ -1034,25 +1076,36 @@ render_loaded_file_in_view__inner(Models *models, Render_Target *target, View *v
                     case VisualType_CharacterBlocks:
                     {
                         if (marker->priority > marker_highlight_best_priority){
-                            marker_highlight = marker->color;
-                            marker_highlight_text = marker->text_color;
+                            if (!marker->brush.color_noop){
+                                marker_highlight = marker->brush.color;
+                            }
                             marker_highlight_best_priority = marker->priority;
+                        }
+                        if (marker->priority > marker_highlight_text_best_priority){
+                            if (!marker->brush.text_color_noop){
+                                marker_highlight_text = marker->brush.text_color;
+                            }
+                            marker_highlight_text_best_priority = marker->priority;
                         }
                     }break;
                     
                     case VisualType_CharacterWireFrames:
                     {
                         if (marker->priority > marker_wireframe_best_priority){
-                            marker_wireframe = marker->color;
-                            marker_wireframe_best_priority = marker->priority;
+                            if (!marker->brush.color_noop){
+                                marker_wireframe = marker->brush.color;
+                                marker_wireframe_best_priority = marker->priority;
+                            }
                         }
                     }break;
                     
                     case VisualType_CharacterIBars:
                     {
                         if (marker->priority > marker_ibar_best_priority){
-                            marker_ibar = marker->color;
-                            marker_ibar_best_priority = marker->priority;
+                            if (!marker->brush.color_noop){
+                                marker_ibar = marker->brush.color;
+                                marker_ibar_best_priority = marker->priority;
+                            }
                         }
                     }break;
                     
@@ -1061,31 +1114,6 @@ render_loaded_file_in_view__inner(Models *models, Render_Target *target, View *v
                         InvalidCodePath;
                     }break;
                 }
-            }
-            
-            // NOTE(allen): Highlight range marker color
-            for (;visual_range_markers_scan_index < range_markers.count &&
-                 range_markers.markers[visual_range_markers_scan_index].pos <= ind;
-                 visual_range_markers_scan_index += 1){
-                Render_Marker *marker = &range_markers.markers[visual_range_markers_scan_index];
-                Render_Range_Record range_record = {};
-                range_record.color = marker->color;
-                range_record.text_color = marker->text_color;
-                range_record.one_past_last = marker->one_past_last;
-                range_record.priority = marker->priority;
-                i32 insert_pos = range_record_stack_get_insert_index(range_stack, range_stack_top + 1, range_record.priority);
-                memmove(range_stack + insert_pos + 1,
-                        range_stack + insert_pos,
-                        sizeof(*range_stack)*(range_stack_top - insert_pos + 1));
-                range_stack[insert_pos] = range_record;
-                range_stack_top += 1;
-            }
-            for (;range_stack_top >= 0 && ind >= range_stack[range_stack_top].one_past_last;
-                 range_stack_top -= 1);
-            if (range_stack_top >= 0 &&
-                range_stack[range_stack_top].priority > marker_highlight_best_priority){
-                marker_highlight = range_stack[range_stack_top].color;
-                marker_highlight_text = range_stack[range_stack_top].text_color;
             }
             
             // NOTE(allen): Perform highlight, wireframe, and ibar renders
@@ -1327,7 +1355,12 @@ render_loaded_file_in_view(System_Functions *system, View *view, Models *models,
         models->render_range = on_screen_range;
         models->render_items = items;
         models->render_item_count = item_count;
-        models->render_caller(&models->app_links, view_id, on_screen_range, do_core_render);
+        
+        i32 frame_index = target->frame_index;
+        f32 literal_dt = target->literal_dt;
+        f32 animation_dt = target->animation_dt;
+        models->render_caller(&models->app_links, view_id, on_screen_range,
+                              frame_index, literal_dt, animation_dt, do_core_render);
         models->render_view = 0;
     }
     else{

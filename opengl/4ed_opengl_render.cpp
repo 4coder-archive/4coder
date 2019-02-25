@@ -96,10 +96,7 @@ interpret_render_buffer(Render_Target *t, Partition *growable_scratch){
     glLoadIdentity();
     glOrtho(0, width, height, 0, -1, 1);
     glScissor(0, 0, width, height);
-    {
-        Vec4 color = unpack_color4(t->clear_color);
-        glClearColor(color.r, color.g, color.b, color.a);
-    }
+    glClearColor(1.f, 0.f, 1.f, 1.f);
     glClear(GL_COLOR_BUFFER_BIT);
     
     glBindTexture(GL_TEXTURE_2D, 0);
@@ -250,6 +247,13 @@ interpret_render_buffer(Render_Target *t, Partition *growable_scratch){
                 glScissor(box.x0, height - box.y1, box.x1 - box.x0, box.y1 - box.y0);
             }break;
         }
+    }
+    
+    if (target.out_of_memory){
+        glScissor(0, 0, width, height);
+        glClearColor(0.f, 1.f, 0.f, 1.f);
+        glClear(GL_COLOR_BUFFER_BIT);
+        target.out_of_memory = false;
     }
     
     glFlush();

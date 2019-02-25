@@ -24,7 +24,7 @@ Render_Begin_Push_Sig(render_internal_begin_push, t, ptr, size){
         memcpy(out, ptr, size);
     }
     else{
-        t->clear_color = 0xFF00FF00;
+        t->out_of_memory = true;
     }
     return(out);
 }

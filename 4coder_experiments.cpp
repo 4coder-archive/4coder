@@ -820,6 +820,7 @@ get_bindings(void *data, int32_t size){
     
     set_scroll_rule(context, smooth_scroll_rule);
     set_buffer_name_resolver(context, default_buffer_name_resolution);
+    set_modify_color_table_hook(context, default_modify_color_table);
     
     default_keys(context);
     

@@ -98,11 +98,6 @@ struct Application_Links;
 #define START_QUERY_BAR_SIG(n) bool32 n(Application_Links *app, Query_Bar *bar, uint32_t flags)
 #define END_QUERY_BAR_SIG(n) void n(Application_Links *app, Query_Bar *bar, uint32_t flags)
 #define PRINT_MESSAGE_SIG(n) bool32 n(Application_Links *app, String message)
-#define GET_THEME_COUNT_SIG(n) int32_t n(Application_Links *app)
-#define GET_THEME_NAME_SIG(n) String n(Application_Links *app, struct Partition *arena, int32_t index)
-#define CREATE_THEME_SIG(n) bool32 n(Application_Links *app, Theme *theme, String theme_name)
-#define CHANGE_THEME_SIG(n) bool32 n(Application_Links *app, String theme_name)
-#define CHANGE_THEME_BY_INDEX_SIG(n) bool32 n(Application_Links *app, int32_t index)
 #define GET_LARGEST_FACE_ID_SIG(n) Face_ID n(Application_Links *app)
 #define SET_GLOBAL_FACE_SIG(n) bool32 n(Application_Links *app, Face_ID id, bool32 apply_to_all_buffers)
 #define BUFFER_HISTORY_GET_MAX_RECORD_INDEX_SIG(n) bool32 n(Application_Links *app, Buffer_ID buffer_id, History_Record_Index *index_out)
@@ -124,6 +119,7 @@ struct Application_Links;
 #define GET_AVAILABLE_FONT_SIG(n) Available_Font n(Application_Links *app, int32_t index)
 #define SET_THEME_COLORS_SIG(n) void n(Application_Links *app, Theme_Color *colors, int32_t count)
 #define GET_THEME_COLORS_SIG(n) void n(Application_Links *app, Theme_Color *colors, int32_t count)
+#define FINALIZE_COLOR_SIG(n) argb_color n(Application_Links *app, int_color color)
 #define GET_HOT_DIRECTORY_SIG(n) int32_t n(Application_Links *app, String *out, int32_t *required_size_out)
 #define SET_HOT_DIRECTORY_SIG(n) bool32 n(Application_Links *app, String string)
 #define GET_FILE_LIST_SIG(n) bool32 n(Application_Links *app, String directory, File_List *list_out)
@@ -136,13 +132,14 @@ struct Application_Links;
 #define DIRECTORY_CD_SIG(n) bool32 n(Application_Links *app, String *directory, String relative_path)
 #define GET_4ED_PATH_SIG(n) bool32 n(Application_Links *app, String *path_out, int32_t *required_size_out)
 #define SHOW_MOUSE_CURSOR_SIG(n) void n(Application_Links *app, Mouse_Cursor_Show_Type show)
+#define SET_EDIT_FINISHED_HOOK_REPEAT_SPEED_SIG(n) bool32 n(Application_Links *app, u32 milliseconds)
 #define SET_FULLSCREEN_SIG(n) bool32 n(Application_Links *app, bool32 full_screen)
 #define IS_FULLSCREEN_SIG(n) bool32 n(Application_Links *app)
 #define SEND_EXIT_SIGNAL_SIG(n) void n(Application_Links *app)
 #define SET_WINDOW_TITLE_SIG(n) bool32 n(Application_Links *app, String title)
 #define GET_MICROSECONDS_TIMESTAMP_SIG(n) Microsecond_Time_Stamp n(Application_Links *app)
-#define DRAW_STRING_SIG(n) float n(Application_Links *app, Face_ID font_id, String str, Vec2 point, int_color color, u32 flags, Vec2 delta)
-#define GET_STRING_ADVANCE_SIG(n) float n(Application_Links *app, Face_ID font_id, String str)
+#define DRAW_STRING_SIG(n) Vec2 n(Application_Links *app, Face_ID font_id, String str, Vec2 point, int_color color, u32 flags, Vec2 delta)
+#define GET_STRING_ADVANCE_SIG(n) f32 n(Application_Links *app, Face_ID font_id, String str)
 #define DRAW_RECTANGLE_SIG(n) void n(Application_Links *app, f32_Rect rect, int_color color)
 #define DRAW_RECTANGLE_OUTLINE_SIG(n) void n(Application_Links *app, f32_Rect rect, int_color color)
 #define GET_DEFAULT_FONT_FOR_VIEW_SIG(n) Face_ID n(Application_Links *app, View_ID view_id)
@@ -248,11 +245,6 @@ typedef GET_ACTIVE_QUERY_BARS_SIG(Get_Active_Query_Bars_Function);
 typedef START_QUERY_BAR_SIG(Start_Query_Bar_Function);
 typedef END_QUERY_BAR_SIG(End_Query_Bar_Function);
 typedef PRINT_MESSAGE_SIG(Print_Message_Function);
-typedef GET_THEME_COUNT_SIG(Get_Theme_Count_Function);
-typedef GET_THEME_NAME_SIG(Get_Theme_Name_Function);
-typedef CREATE_THEME_SIG(Create_Theme_Function);
-typedef CHANGE_THEME_SIG(Change_Theme_Function);
-typedef CHANGE_THEME_BY_INDEX_SIG(Change_Theme_By_Index_Function);
 typedef GET_LARGEST_FACE_ID_SIG(Get_Largest_Face_ID_Function);
 typedef SET_GLOBAL_FACE_SIG(Set_Global_Face_Function);
 typedef BUFFER_HISTORY_GET_MAX_RECORD_INDEX_SIG(Buffer_History_Get_Max_Record_Index_Function);
@@ -274,6 +266,7 @@ typedef GET_AVAILABLE_FONT_COUNT_SIG(Get_Available_Font_Count_Function);
 typedef GET_AVAILABLE_FONT_SIG(Get_Available_Font_Function);
 typedef SET_THEME_COLORS_SIG(Set_Theme_Colors_Function);
 typedef GET_THEME_COLORS_SIG(Get_Theme_Colors_Function);
+typedef FINALIZE_COLOR_SIG(Finalize_Color_Function);
 typedef GET_HOT_DIRECTORY_SIG(Get_Hot_Directory_Function);
 typedef SET_HOT_DIRECTORY_SIG(Set_Hot_Directory_Function);
 typedef GET_FILE_LIST_SIG(Get_File_List_Function);
@@ -286,6 +279,7 @@ typedef FILE_GET_ATTRIBUTES_SIG(File_Get_Attributes_Function);
 typedef DIRECTORY_CD_SIG(Directory_CD_Function);
 typedef GET_4ED_PATH_SIG(Get_4ed_Path_Function);
 typedef SHOW_MOUSE_CURSOR_SIG(Show_Mouse_Cursor_Function);
+typedef SET_EDIT_FINISHED_HOOK_REPEAT_SPEED_SIG(Set_Edit_Finished_Hook_Repeat_Speed_Function);
 typedef SET_FULLSCREEN_SIG(Set_Fullscreen_Function);
 typedef IS_FULLSCREEN_SIG(Is_Fullscreen_Function);
 typedef SEND_EXIT_SIGNAL_SIG(Send_Exit_Signal_Function);
@@ -400,11 +394,6 @@ Get_Active_Query_Bars_Function *get_active_query_bars;
 Start_Query_Bar_Function *start_query_bar;
 End_Query_Bar_Function *end_query_bar;
 Print_Message_Function *print_message;
-Get_Theme_Count_Function *get_theme_count;
-Get_Theme_Name_Function *get_theme_name;
-Create_Theme_Function *create_theme;
-Change_Theme_Function *change_theme;
-Change_Theme_By_Index_Function *change_theme_by_index;
 Get_Largest_Face_ID_Function *get_largest_face_id;
 Set_Global_Face_Function *set_global_face;
 Buffer_History_Get_Max_Record_Index_Function *buffer_history_get_max_record_index;
@@ -426,6 +415,7 @@ Get_Available_Font_Count_Function *get_available_font_count;
 Get_Available_Font_Function *get_available_font;
 Set_Theme_Colors_Function *set_theme_colors;
 Get_Theme_Colors_Function *get_theme_colors;
+Finalize_Color_Function *finalize_color;
 Get_Hot_Directory_Function *get_hot_directory;
 Set_Hot_Directory_Function *set_hot_directory;
 Get_File_List_Function *get_file_list;
@@ -438,6 +428,7 @@ File_Get_Attributes_Function *file_get_attributes;
 Directory_CD_Function *directory_cd;
 Get_4ed_Path_Function *get_4ed_path;
 Show_Mouse_Cursor_Function *show_mouse_cursor;
+Set_Edit_Finished_Hook_Repeat_Speed_Function *set_edit_finished_hook_repeat_speed;
 Set_Fullscreen_Function *set_fullscreen;
 Is_Fullscreen_Function *is_fullscreen;
 Send_Exit_Signal_Function *send_exit_signal;
@@ -551,11 +542,6 @@ Get_Active_Query_Bars_Function *get_active_query_bars_;
 Start_Query_Bar_Function *start_query_bar_;
 End_Query_Bar_Function *end_query_bar_;
 Print_Message_Function *print_message_;
-Get_Theme_Count_Function *get_theme_count_;
-Get_Theme_Name_Function *get_theme_name_;
-Create_Theme_Function *create_theme_;
-Change_Theme_Function *change_theme_;
-Change_Theme_By_Index_Function *change_theme_by_index_;
 Get_Largest_Face_ID_Function *get_largest_face_id_;
 Set_Global_Face_Function *set_global_face_;
 Buffer_History_Get_Max_Record_Index_Function *buffer_history_get_max_record_index_;
@@ -577,6 +563,7 @@ Get_Available_Font_Count_Function *get_available_font_count_;
 Get_Available_Font_Function *get_available_font_;
 Set_Theme_Colors_Function *set_theme_colors_;
 Get_Theme_Colors_Function *get_theme_colors_;
+Finalize_Color_Function *finalize_color_;
 Get_Hot_Directory_Function *get_hot_directory_;
 Set_Hot_Directory_Function *set_hot_directory_;
 Get_File_List_Function *get_file_list_;
@@ -589,6 +576,7 @@ File_Get_Attributes_Function *file_get_attributes_;
 Directory_CD_Function *directory_cd_;
 Get_4ed_Path_Function *get_4ed_path_;
 Show_Mouse_Cursor_Function *show_mouse_cursor_;
+Set_Edit_Finished_Hook_Repeat_Speed_Function *set_edit_finished_hook_repeat_speed_;
 Set_Fullscreen_Function *set_fullscreen_;
 Is_Fullscreen_Function *is_fullscreen_;
 Send_Exit_Signal_Function *send_exit_signal_;
@@ -710,11 +698,6 @@ app_links->get_active_query_bars_ = Get_Active_Query_Bars;\
 app_links->start_query_bar_ = Start_Query_Bar;\
 app_links->end_query_bar_ = End_Query_Bar;\
 app_links->print_message_ = Print_Message;\
-app_links->get_theme_count_ = Get_Theme_Count;\
-app_links->get_theme_name_ = Get_Theme_Name;\
-app_links->create_theme_ = Create_Theme;\
-app_links->change_theme_ = Change_Theme;\
-app_links->change_theme_by_index_ = Change_Theme_By_Index;\
 app_links->get_largest_face_id_ = Get_Largest_Face_ID;\
 app_links->set_global_face_ = Set_Global_Face;\
 app_links->buffer_history_get_max_record_index_ = Buffer_History_Get_Max_Record_Index;\
@@ -736,6 +719,7 @@ app_links->get_available_font_count_ = Get_Available_Font_Count;\
 app_links->get_available_font_ = Get_Available_Font;\
 app_links->set_theme_colors_ = Set_Theme_Colors;\
 app_links->get_theme_colors_ = Get_Theme_Colors;\
+app_links->finalize_color_ = Finalize_Color;\
 app_links->get_hot_directory_ = Get_Hot_Directory;\
 app_links->set_hot_directory_ = Set_Hot_Directory;\
 app_links->get_file_list_ = Get_File_List;\
@@ -748,6 +732,7 @@ app_links->file_get_attributes_ = File_Get_Attributes;\
 app_links->directory_cd_ = Directory_CD;\
 app_links->get_4ed_path_ = Get_4ed_Path;\
 app_links->show_mouse_cursor_ = Show_Mouse_Cursor;\
+app_links->set_edit_finished_hook_repeat_speed_ = Set_Edit_Finished_Hook_Repeat_Speed;\
 app_links->set_fullscreen_ = Set_Fullscreen;\
 app_links->is_fullscreen_ = Is_Fullscreen;\
 app_links->send_exit_signal_ = Send_Exit_Signal;\
@@ -861,11 +846,6 @@ static int32_t get_active_query_bars(Application_Links *app, View_ID view_id, in
 static bool32 start_query_bar(Application_Links *app, Query_Bar *bar, uint32_t flags){return(app->start_query_bar(app, bar, flags));}
 static void end_query_bar(Application_Links *app, Query_Bar *bar, uint32_t flags){(app->end_query_bar(app, bar, flags));}
 static bool32 print_message(Application_Links *app, String message){return(app->print_message(app, message));}
-static int32_t get_theme_count(Application_Links *app){return(app->get_theme_count(app));}
-static String get_theme_name(Application_Links *app, struct Partition *arena, int32_t index){return(app->get_theme_name(app, arena, index));}
-static bool32 create_theme(Application_Links *app, Theme *theme, String theme_name){return(app->create_theme(app, theme, theme_name));}
-static bool32 change_theme(Application_Links *app, String theme_name){return(app->change_theme(app, theme_name));}
-static bool32 change_theme_by_index(Application_Links *app, int32_t index){return(app->change_theme_by_index(app, index));}
 static Face_ID get_largest_face_id(Application_Links *app){return(app->get_largest_face_id(app));}
 static bool32 set_global_face(Application_Links *app, Face_ID id, bool32 apply_to_all_buffers){return(app->set_global_face(app, id, apply_to_all_buffers));}
 static bool32 buffer_history_get_max_record_index(Application_Links *app, Buffer_ID buffer_id, History_Record_Index *index_out){return(app->buffer_history_get_max_record_index(app, buffer_id, index_out));}
@@ -887,6 +867,7 @@ static int32_t get_available_font_count(Application_Links *app){return(app->get_
 static Available_Font get_available_font(Application_Links *app, int32_t index){return(app->get_available_font(app, index));}
 static void set_theme_colors(Application_Links *app, Theme_Color *colors, int32_t count){(app->set_theme_colors(app, colors, count));}
 static void get_theme_colors(Application_Links *app, Theme_Color *colors, int32_t count){(app->get_theme_colors(app, colors, count));}
+static argb_color finalize_color(Application_Links *app, int_color color){return(app->finalize_color(app, color));}
 static int32_t get_hot_directory(Application_Links *app, String *out, int32_t *required_size_out){return(app->get_hot_directory(app, out, required_size_out));}
 static bool32 set_hot_directory(Application_Links *app, String string){return(app->set_hot_directory(app, string));}
 static bool32 get_file_list(Application_Links *app, String directory, File_List *list_out){return(app->get_file_list(app, directory, list_out));}
@@ -899,13 +880,14 @@ static bool32 file_get_attributes(Application_Links *app, String file_name, File
 static bool32 directory_cd(Application_Links *app, String *directory, String relative_path){return(app->directory_cd(app, directory, relative_path));}
 static bool32 get_4ed_path(Application_Links *app, String *path_out, int32_t *required_size_out){return(app->get_4ed_path(app, path_out, required_size_out));}
 static void show_mouse_cursor(Application_Links *app, Mouse_Cursor_Show_Type show){(app->show_mouse_cursor(app, show));}
+static bool32 set_edit_finished_hook_repeat_speed(Application_Links *app, u32 milliseconds){return(app->set_edit_finished_hook_repeat_speed(app, milliseconds));}
 static bool32 set_fullscreen(Application_Links *app, bool32 full_screen){return(app->set_fullscreen(app, full_screen));}
 static bool32 is_fullscreen(Application_Links *app){return(app->is_fullscreen(app));}
 static void send_exit_signal(Application_Links *app){(app->send_exit_signal(app));}
 static bool32 set_window_title(Application_Links *app, String title){return(app->set_window_title(app, title));}
 static Microsecond_Time_Stamp get_microseconds_timestamp(Application_Links *app){return(app->get_microseconds_timestamp(app));}
-static float draw_string(Application_Links *app, Face_ID font_id, String str, Vec2 point, int_color color, u32 flags, Vec2 delta){return(app->draw_string(app, font_id, str, point, color, flags, delta));}
-static float get_string_advance(Application_Links *app, Face_ID font_id, String str){return(app->get_string_advance(app, font_id, str));}
+static Vec2 draw_string(Application_Links *app, Face_ID font_id, String str, Vec2 point, int_color color, u32 flags, Vec2 delta){return(app->draw_string(app, font_id, str, point, color, flags, delta));}
+static f32 get_string_advance(Application_Links *app, Face_ID font_id, String str){return(app->get_string_advance(app, font_id, str));}
 static void draw_rectangle(Application_Links *app, f32_Rect rect, int_color color){(app->draw_rectangle(app, rect, color));}
 static void draw_rectangle_outline(Application_Links *app, f32_Rect rect, int_color color){(app->draw_rectangle_outline(app, rect, color));}
 static Face_ID get_default_font_for_view(Application_Links *app, View_ID view_id){return(app->get_default_font_for_view(app, view_id));}
@@ -1012,11 +994,6 @@ static int32_t get_active_query_bars(Application_Links *app, View_ID view_id, in
 static bool32 start_query_bar(Application_Links *app, Query_Bar *bar, uint32_t flags){return(app->start_query_bar_(app, bar, flags));}
 static void end_query_bar(Application_Links *app, Query_Bar *bar, uint32_t flags){(app->end_query_bar_(app, bar, flags));}
 static bool32 print_message(Application_Links *app, String message){return(app->print_message_(app, message));}
-static int32_t get_theme_count(Application_Links *app){return(app->get_theme_count_(app));}
-static String get_theme_name(Application_Links *app, struct Partition *arena, int32_t index){return(app->get_theme_name_(app, arena, index));}
-static bool32 create_theme(Application_Links *app, Theme *theme, String theme_name){return(app->create_theme_(app, theme, theme_name));}
-static bool32 change_theme(Application_Links *app, String theme_name){return(app->change_theme_(app, theme_name));}
-static bool32 change_theme_by_index(Application_Links *app, int32_t index){return(app->change_theme_by_index_(app, index));}
 static Face_ID get_largest_face_id(Application_Links *app){return(app->get_largest_face_id_(app));}
 static bool32 set_global_face(Application_Links *app, Face_ID id, bool32 apply_to_all_buffers){return(app->set_global_face_(app, id, apply_to_all_buffers));}
 static bool32 buffer_history_get_max_record_index(Application_Links *app, Buffer_ID buffer_id, History_Record_Index *index_out){return(app->buffer_history_get_max_record_index_(app, buffer_id, index_out));}
@@ -1038,6 +1015,7 @@ static int32_t get_available_font_count(Application_Links *app){return(app->get_
 static Available_Font get_available_font(Application_Links *app, int32_t index){return(app->get_available_font_(app, index));}
 static void set_theme_colors(Application_Links *app, Theme_Color *colors, int32_t count){(app->set_theme_colors_(app, colors, count));}
 static void get_theme_colors(Application_Links *app, Theme_Color *colors, int32_t count){(app->get_theme_colors_(app, colors, count));}
+static argb_color finalize_color(Application_Links *app, int_color color){return(app->finalize_color_(app, color));}
 static int32_t get_hot_directory(Application_Links *app, String *out, int32_t *required_size_out){return(app->get_hot_directory_(app, out, required_size_out));}
 static bool32 set_hot_directory(Application_Links *app, String string){return(app->set_hot_directory_(app, string));}
 static bool32 get_file_list(Application_Links *app, String directory, File_List *list_out){return(app->get_file_list_(app, directory, list_out));}
@@ -1050,13 +1028,14 @@ static bool32 file_get_attributes(Application_Links *app, String file_name, File
 static bool32 directory_cd(Application_Links *app, String *directory, String relative_path){return(app->directory_cd_(app, directory, relative_path));}
 static bool32 get_4ed_path(Application_Links *app, String *path_out, int32_t *required_size_out){return(app->get_4ed_path_(app, path_out, required_size_out));}
 static void show_mouse_cursor(Application_Links *app, Mouse_Cursor_Show_Type show){(app->show_mouse_cursor_(app, show));}
+static bool32 set_edit_finished_hook_repeat_speed(Application_Links *app, u32 milliseconds){return(app->set_edit_finished_hook_repeat_speed_(app, milliseconds));}
 static bool32 set_fullscreen(Application_Links *app, bool32 full_screen){return(app->set_fullscreen_(app, full_screen));}
 static bool32 is_fullscreen(Application_Links *app){return(app->is_fullscreen_(app));}
 static void send_exit_signal(Application_Links *app){(app->send_exit_signal_(app));}
 static bool32 set_window_title(Application_Links *app, String title){return(app->set_window_title_(app, title));}
 static Microsecond_Time_Stamp get_microseconds_timestamp(Application_Links *app){return(app->get_microseconds_timestamp_(app));}
-static float draw_string(Application_Links *app, Face_ID font_id, String str, Vec2 point, int_color color, u32 flags, Vec2 delta){return(app->draw_string_(app, font_id, str, point, color, flags, delta));}
-static float get_string_advance(Application_Links *app, Face_ID font_id, String str){return(app->get_string_advance_(app, font_id, str));}
+static Vec2 draw_string(Application_Links *app, Face_ID font_id, String str, Vec2 point, int_color color, u32 flags, Vec2 delta){return(app->draw_string_(app, font_id, str, point, color, flags, delta));}
+static f32 get_string_advance(Application_Links *app, Face_ID font_id, String str){return(app->get_string_advance_(app, font_id, str));}
 static void draw_rectangle(Application_Links *app, f32_Rect rect, int_color color){(app->draw_rectangle_(app, rect, color));}
 static void draw_rectangle_outline(Application_Links *app, f32_Rect rect, int_color color){(app->draw_rectangle_outline_(app, rect, color));}
 static Face_ID get_default_font_for_view(Application_Links *app, View_ID view_id){return(app->get_default_font_for_view_(app, view_id));}

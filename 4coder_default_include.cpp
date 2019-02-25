@@ -27,6 +27,7 @@
 
 #include "4coder_ui_helper.h"
 #include "4coder_helper.h"
+#include "4coder_fancy.h"
 #include "4coder_default_framework.h"
 #include "4coder_mirror.h"
 #include "4coder_config.h"
@@ -46,6 +47,7 @@
 #include "4coder_default_framework_variables.cpp"
 #include "4coder_buffer_seek_constructors.cpp"
 #include "4coder_helper.cpp"
+#include "4coder_fancy.cpp"
 #include "4coder_ui_helper.cpp"
 #include "4coder_font_helper.cpp"
 #include "4coder_config.cpp"

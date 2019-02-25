@@ -116,8 +116,8 @@ COMMAND_CALLER_HOOK(default_command_caller){
 }
 
 struct Highlight_Record{
-    int32_t first;
-    int32_t one_past_last;
+    i32 first;
+    i32 one_past_last;
     int_color color;
 };
 
@@ -168,8 +168,7 @@ mark_enclosures(Application_Links *app, Partition *scratch, Managed_Scope render
                 Marker_Visual_Type type,
                 int_color *back_colors, int_color *fore_colors, int32_t color_count){
     Temp_Memory temp = begin_temp_memory(scratch);
-    Range_Array ranges = get_enclosure_ranges(app, scratch,
-                                              buffer, pos, flags);
+    Range_Array ranges = get_enclosure_ranges(app, scratch, buffer, pos, flags);
     
     if (ranges.count > 0){
         int32_t marker_count = ranges.count*2;
@@ -194,8 +193,8 @@ mark_enclosures(Application_Links *app, Partition *scratch, Managed_Scope render
              i < color_count;
              i += 1){
             Marker_Visual visual = create_marker_visual(app, o);
-            int_color back = SymbolicColor_Transparent;
-            int_color fore = SymbolicColor_Default;
+            int_color back = 0;
+            int_color fore = 0;
             if (back_colors != 0){
                 back = back_colors[color_index];
             }
@@ -215,6 +214,66 @@ mark_enclosures(Application_Links *app, Partition *scratch, Managed_Scope render
     end_temp_memory(temp);
 }
 
+static argb_color default_colors[Stag_COUNT] = {};
+
+MODIFY_COLOR_TABLE_SIG(default_modify_color_table){
+    if (default_colors[Stag_NOOP] == 0){
+        default_colors[Stag_NOOP]                  = 0xFFFF00FF;
+        
+        default_colors[Stag_Back]                  = 0xFF0C0C0C;
+        default_colors[Stag_Margin]                = 0xFF181818;
+        default_colors[Stag_Margin_Hover]          = 0xFF252525;
+        default_colors[Stag_Margin_Active]         = 0xFF323232;
+        default_colors[Stag_List_Item]             = default_colors[Stag_Margin];
+        default_colors[Stag_List_Item_Hover]       = default_colors[Stag_Margin_Hover];
+        default_colors[Stag_List_Item_Active]      = default_colors[Stag_Margin_Active];
+        default_colors[Stag_Cursor]                = 0xFF00EE00;
+        default_colors[Stag_Highlight]             = 0xFFDDEE00;
+        default_colors[Stag_Mark]                  = 0xFF494949;
+        default_colors[Stag_Default]               = 0xFF90B080;
+        default_colors[Stag_At_Cursor]             = default_colors[Stag_Back];
+        default_colors[Stag_Highlight_Cursor_Line] = 0xFF1E1E1E;
+        default_colors[Stag_At_Highlight]          = 0xFFFF44DD;
+        default_colors[Stag_Comment]               = 0xFF2090F0;
+        default_colors[Stag_Keyword]               = 0xFFD08F20;
+        default_colors[Stag_Str_Constant]          = 0xFF50FF30;
+        default_colors[Stag_Char_Constant]         = default_colors[Stag_Str_Constant];
+        default_colors[Stag_Int_Constant]          = default_colors[Stag_Str_Constant];
+        default_colors[Stag_Float_Constant]        = default_colors[Stag_Str_Constant];
+        default_colors[Stag_Bool_Constant]         = default_colors[Stag_Str_Constant];
+        default_colors[Stag_Include]               = default_colors[Stag_Str_Constant];
+        default_colors[Stag_Preproc]               = default_colors[Stag_Default];
+        default_colors[Stag_Special_Character]     = 0xFFFF0000;
+        default_colors[Stag_Ghost_Character]       = 0xFF4E5E46;
+        
+        default_colors[Stag_Paste] = 0xFFDDEE00;
+        default_colors[Stag_Undo]  = 0xFF00DDEE;
+        
+        default_colors[Stag_Highlight_Junk]  = 0xFF3A0000;
+        default_colors[Stag_Highlight_White] = 0xFF003A3A;
+        
+        default_colors[Stag_Bar]        = 0xFF888888;
+        default_colors[Stag_Bar_Active] = 0xFF666666;
+        default_colors[Stag_Base]       = 0xFF000000;
+        default_colors[Stag_Pop1]       = 0xFF3C57DC;
+        default_colors[Stag_Pop2]       = 0xFFFF0000;
+        
+        default_colors[Stag_Back_Cycle_1] = 0x10A00000;
+        default_colors[Stag_Back_Cycle_2] = 0x0C00A000;
+        default_colors[Stag_Back_Cycle_3] = 0x0C0000A0;
+        default_colors[Stag_Back_Cycle_4] = 0x0CA0A000;
+        default_colors[Stag_Text_Cycle_1] = 0xFFA00000;
+        default_colors[Stag_Text_Cycle_2] = 0xFF00A000;
+        default_colors[Stag_Text_Cycle_3] = 0xFF0030B0;
+        default_colors[Stag_Text_Cycle_4] = 0xFFA0A000;
+    }
+    
+    Color_Table color_table = {};
+    color_table.vals = default_colors;
+    color_table.count = ArrayCount(default_colors);
+    return(color_table);
+}
+
 RENDER_CALLER_SIG(default_render_caller){
     View_Summary view = get_view(app, view_id, AccessAll);
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessAll);
@@ -230,11 +289,6 @@ RENDER_CALLER_SIG(default_render_caller){
     
     // NOTE(allen): Scan for TODOs and NOTEs
     {
-        Theme_Color colors[2];
-        colors[0].tag = Stag_Text_Cycle_2;
-        colors[1].tag = Stag_Text_Cycle_1;
-        get_theme_colors(app, colors, 2);
-        
         Temp_Memory temp = begin_temp_memory(scratch);
         int32_t text_size = on_screen_range.one_past_last - on_screen_range.first;
         char *text = push_array(scratch, char, text_size);
@@ -247,7 +301,7 @@ RENDER_CALLER_SIG(default_render_caller){
                 Highlight_Record *record = push_array(scratch, Highlight_Record, 1);
                 record->first = i + on_screen_range.first;
                 record->one_past_last = record->first + 4;
-                record->color = colors[0].color;
+                record->color = Stag_COUNT + 1;
                 tail.str += 3;
                 tail.size -= 3;
                 i += 3;
@@ -256,7 +310,7 @@ RENDER_CALLER_SIG(default_render_caller){
                 Highlight_Record *record = push_array(scratch, Highlight_Record, 1);
                 record->first = i + on_screen_range.first;
                 record->one_past_last = record->first + 4;
-                record->color = colors[1].color;
+                record->color = Stag_COUNT + 10;
                 tail.str += 3;
                 tail.size -= 3;
                 i += 3;
@@ -282,9 +336,7 @@ RENDER_CALLER_SIG(default_render_caller){
                     Managed_Object o = alloc_buffer_markers_on_buffer(app, buffer.buffer_id, marker_count, &render_scope);
                     managed_object_store_data(app, o, 0, marker_count, markers);
                     Marker_Visual v = create_marker_visual(app, o);
-                    marker_visual_set_effect(app, v,
-                                             VisualType_CharacterHighlightRanges,
-                                             SymbolicColor_Transparent, current_color, 0);
+                    marker_visual_set_effect(app, v, VisualType_CharacterHighlightRanges, SymbolicColor_Default, current_color, 0);
                     marker_visual_set_priority(app, v, VisualPriority_Lowest);
                     end_temp_memory(marker_temp);
                     current_color = records[i].color;
@@ -311,15 +363,6 @@ RENDER_CALLER_SIG(default_render_caller){
         switch (fcoder_mode){
             case FCoderMode_Original:
             {
-                Theme_Color colors[2] = {};
-                colors[0].tag = Stag_Cursor;
-                colors[1].tag = Stag_Mark;
-                get_theme_colors(app, colors, 2);
-                int_color cursor_color = SymbolicColorFromPalette(Stag_Cursor);
-                int_color mark_color   = SymbolicColorFromPalette(Stag_Mark);
-                int_color text_color    = is_active_view?
-                    SymbolicColorFromPalette(Stag_At_Cursor):SymbolicColorFromPalette(Stag_Default);
-                
                 Marker_Visual_Take_Rule take_rule = {};
                 take_rule.first_index = 0;
                 take_rule.take_count_per_step = 1;
@@ -328,14 +371,13 @@ RENDER_CALLER_SIG(default_render_caller){
                 
                 Marker_Visual visual = create_marker_visual(app, cursor_and_mark);
                 Marker_Visual_Type type = is_active_view?VisualType_CharacterBlocks:VisualType_CharacterWireFrames;
-                marker_visual_set_effect(app, visual,
-                                         type, cursor_color, text_color, 0);
+                int_color text_color = is_active_view?Stag_At_Cursor:Stag_Default;
+                marker_visual_set_effect(app, visual, type, Stag_Cursor, text_color, 0);
                 marker_visual_set_take_rule(app, visual, take_rule);
                 marker_visual_set_priority(app, visual, VisualPriority_Highest);
                 
                 visual = create_marker_visual(app, cursor_and_mark);
-                marker_visual_set_effect(app, visual,
-                                         VisualType_CharacterWireFrames, mark_color, 0, 0);
+                marker_visual_set_effect(app, visual, VisualType_CharacterWireFrames, Stag_Mark, 0, 0);
                 take_rule.first_index = 1;
                 marker_visual_set_take_rule(app, visual, take_rule);
                 marker_visual_set_priority(app, visual, VisualPriority_Highest);
@@ -343,12 +385,8 @@ RENDER_CALLER_SIG(default_render_caller){
             
             case FCoderMode_NotepadLike:
             {
-                Theme_Color colors[2] = {};
-                colors[0].tag = Stag_Cursor;
-                colors[1].tag = Stag_Highlight;
-                get_theme_colors(app, colors, 2);
-                int_color cursor_color    = SymbolicColorFromPalette(Stag_Cursor);
-                int_color highlight_color = SymbolicColorFromPalette(Stag_Highlight);
+                int_color cursor_color    = Stag_Cursor;
+                int_color highlight_color = Stag_Highlight;
                 
                 Marker_Visual_Take_Rule take_rule = {};
                 take_rule.first_index = 0;
@@ -363,7 +401,7 @@ RENDER_CALLER_SIG(default_render_caller){
                 
                 if (view.cursor.pos != view.mark.pos){
                     visual = create_marker_visual(app, cursor_and_mark);
-                    marker_visual_set_effect(app, visual, VisualType_CharacterHighlightRanges, highlight_color, SymbolicColorFromPalette(Stag_At_Highlight), 0);
+                    marker_visual_set_effect(app, visual, VisualType_CharacterHighlightRanges, highlight_color, Stag_At_Highlight, 0);
                     take_rule.maximum_number_of_markers = 2;
                     marker_visual_set_take_rule(app, visual, take_rule);
                     marker_visual_set_priority(app, visual, VisualPriority_Highest);
@@ -374,13 +412,9 @@ RENDER_CALLER_SIG(default_render_caller){
     
     // NOTE(allen): Line highlight setup
     if (highlight_line_at_cursor && is_active_view){
-        Theme_Color color = {};
-        color.tag = Stag_Highlight_Cursor_Line;
-        get_theme_colors(app, &color, 1);
-        uint32_t line_color = color.color;
+        uint32_t line_color = Stag_Highlight_Cursor_Line;
         Marker_Visual visual = create_marker_visual(app, cursor_and_mark);
-        marker_visual_set_effect(app, visual, VisualType_LineHighlights,
-                                 line_color, 0, 0);
+        marker_visual_set_effect(app, visual, VisualType_LineHighlights, line_color, 0, 0);
         Marker_Visual_Take_Rule take_rule = {};
         take_rule.first_index = 0;
         take_rule.take_count_per_step = 1;
@@ -393,10 +427,7 @@ RENDER_CALLER_SIG(default_render_caller){
     // NOTE(allen): Token highlight setup
     bool32 do_token_highlight = false;
     if (do_token_highlight){
-        Theme_Color color = {};
-        color.tag = Stag_Cursor;
-        get_theme_colors(app, &color, 1);
-        uint32_t token_color = (0x50 << 24) | (color.color&0xFFFFFF);
+        int_color token_color = 0x5000EE00;
         
         uint32_t token_flags = BoundaryToken|BoundaryWhitespace;
         int32_t pos0 = view.cursor.pos;
@@ -410,7 +441,7 @@ RENDER_CALLER_SIG(default_render_caller){
                 range_markers[1].pos = pos2;
                 managed_object_store_data(app, token_highlight, 0, 2, range_markers);
                 Marker_Visual visual = create_marker_visual(app, token_highlight);
-                marker_visual_set_effect(app, visual, VisualType_CharacterHighlightRanges, token_color, SymbolicColorFromPalette(Stag_At_Highlight), 0);
+                marker_visual_set_effect(app, visual, VisualType_CharacterHighlightRanges, token_color, Stag_At_Highlight, 0);
             }
         }
     }
@@ -418,27 +449,13 @@ RENDER_CALLER_SIG(default_render_caller){
     // NOTE(allen): Matching enclosure highlight setup
     static const int32_t color_count = 4;
     if (do_matching_enclosure_highlight){
-        Theme_Color theme_colors[color_count];
         int_color colors[color_count];
-        for (int32_t i = 0; i < 4; i += 1){
-            theme_colors[i].tag = Stag_Back_Cycle_1 + i;
-        }
-        get_theme_colors(app, theme_colors, color_count);
-        for (int32_t i = 0; i < 4; i += 1){
-            colors[i] = theme_colors[i].color;
+        for (u16 i = 0; i < color_count; i += 1){
+            colors[i] = Stag_Back_Cycle_1 + i;
         }
         mark_enclosures(app, scratch, render_scope, &buffer, view.cursor.pos, FindScope_Brace, VisualType_LineHighlightRanges, colors, 0, color_count);
     }
     if (do_matching_paren_highlight){
-        Theme_Color theme_colors[color_count];
-        int_color colors[color_count];
-        for (int32_t i = 0; i < 4; i += 1){
-            theme_colors[i].tag = Stag_Text_Cycle_1 + i;
-        }
-        get_theme_colors(app, theme_colors, color_count);
-        for (int32_t i = 0; i < 4; i += 1){
-            colors[i] = theme_colors[i].color;
-        }
         int32_t pos = view.cursor.pos;
         if (buffer_get_char(app, &buffer, pos) == '('){
             pos += 1;
@@ -448,10 +465,84 @@ RENDER_CALLER_SIG(default_render_caller){
                 pos -= 1;
             }
         }
+        int_color colors[color_count];
+        for (u16 i = 0; i < color_count; i += 1){
+            colors[i] = Stag_Text_Cycle_1 + i;
+        }
         mark_enclosures(app, scratch, render_scope, &buffer, pos, FindScope_Paren, VisualType_CharacterBlocks, 0, colors, color_count);
     }
     
     do_core_render(app);
+    
+    // NOTE(allen): FPS HUD
+    if (show_fps_hud){
+        static const i32 history_depth = 10;
+        static f32 history_literal_dt[history_depth] = {};
+        static f32 history_animation_dt[history_depth] = {};
+        static i32 history_frame_index[history_depth] = {};
+        
+        i32 wrapped_index = frame_index%history_depth;
+        history_literal_dt[wrapped_index] = literal_dt;
+        history_animation_dt[wrapped_index] = animation_dt;
+        history_frame_index[wrapped_index] = frame_index;
+        
+        Rect_f32 hud_rect = f32R(view.render_region);
+        hud_rect.y0 = hud_rect.y1 - view.line_height*(f32)(history_depth);
+        draw_rectangle(app, hud_rect, 0xFF000000);
+        draw_rectangle_outline(app, hud_rect, 0xFFFFFFFF);
+        
+        Face_ID font_id = 0;
+        get_face_id(app, 0, &font_id);
+        
+        Vec2 p = hud_rect.p0;
+        
+        Range ranges[2];
+        ranges[0].first = wrapped_index;
+        ranges[0].one_past_last = -1;
+        ranges[1].first = history_depth - 1;
+        ranges[1].one_past_last = wrapped_index;
+        for (i32 i = 0; i < 2; i += 1){
+            Range r = ranges[i];
+            for (i32 j = r.first; j > r.one_past_last; j -= 1, p.y += view.line_height){
+                f32 dts[2];
+                dts[0] = history_literal_dt[j];
+                dts[1] = history_animation_dt[j];
+                i32 frame_index = history_frame_index[j];
+                
+                Arena arena = make_arena(app);
+                
+                char space[256];
+                String str = make_fixed_width_string(space);
+                
+                Fancy_String_List list = {};
+                push_fancy_string(&arena, &list, make_lit_string("FPS: "), fancy_from_rgba_color(1.f, 0.f, 1.f, 1.f));
+                push_fancy_string(&arena, &list, make_lit_string("["), fancy_from_rgba_color(0.f, 1.f, 0.f, 1.f));
+                {
+                    str.size = 0;
+                    append_int_to_str_left_pad(&str, frame_index, 6, ' ');
+                    push_fancy_string(&arena, &list, str, fancy_from_rgba_color(1.f, 1.f, 1.f, 1.f));
+                }
+                push_fancy_string(&arena, &list, make_lit_string("]: "), fancy_from_rgba_color(0.f, 1.f, 0.f, 1.f));
+                
+                for (i32 k = 0; k < 2; k += 1){
+                    f32 dt = dts[k];
+                    str.size = 0;
+                    if (dt == 0.f){
+                        append_padding(&str, '-', str.size + 10);
+                    }
+                    else{
+                        append_int_to_str_left_pad(&str, round32(1.f/dt), 10, ' ');
+                    }
+                    push_fancy_string(&arena, &list, str, fancy_from_rgba_color(1.f, 1.f, 1.f, 1.f));
+                    push_fancy_string(&arena, &list, make_lit_string(" | "), fancy_from_rgba_color(0.f, 1.f, 0.f, 1.f));
+                }
+                
+                draw_fancy_string(app, font_id, list.first, p, Stag_Default, 0, 0, V2(1.f, 0.f));
+                
+                arena_release_all(&arena);
+            }
+        }
+    }
     
     managed_scope_clear_self_all_dependent_scopes(app, render_scope);
 }
@@ -855,9 +946,9 @@ OPEN_FILE_HOOK_SIG(default_end_file){
 // extended to have access to the key presses soon.
 INPUT_FILTER_SIG(default_suppress_mouse_filter){
     if (suppressing_mouse){
-        *mouse = null_mouse_state;
-        mouse->x = -100;
-        mouse->y = -100;
+        memset(mouse, 0, sizeof(*mouse));
+        mouse->p.x = -100;
+        mouse->p.y = -100;
     }
 }
 
@@ -964,6 +1055,7 @@ set_all_default_hooks(Bind_Helper *context){
     set_input_filter(context, default_suppress_mouse_filter);
     set_scroll_rule(context, smooth_scroll_rule);
     set_buffer_name_resolver(context, default_buffer_name_resolution);
+    set_modify_color_table_hook(context, default_modify_color_table);
 }
 
 // BOTTOM
