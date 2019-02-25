@@ -462,6 +462,7 @@ generate_all_buffers_list__output_buffer(Lister *lister, Buffer_Summary buffer){
     switch (buffer.dirty){
         case DirtyState_UnsavedChanges:  status = make_lit_string("*"); break;
         case DirtyState_UnloadedChanges: status = make_lit_string("!"); break;
+        case DirtyState_UnsavedChangesAndUnloadedChanges: status = make_lit_string("*!"); break;
     }
     String buffer_name = make_string(buffer.buffer_name, buffer.buffer_name_len);
     lister_add_item(lister, buffer_name, status, IntAsPtr(buffer.buffer_id), 0);
@@ -608,6 +609,7 @@ generate_hot_directory_file_list(Application_Links *app, Lister *lister){
                 switch (buffer.dirty){
                     case DirtyState_UnsavedChanges:  status_flag = " *"; break;
                     case DirtyState_UnloadedChanges: status_flag = " !"; break;
+                    case DirtyState_UnsavedChangesAndUnloadedChanges: status_flag = " *!"; break;
                 }
             }
             int32_t more_than_enough_memory = 32;

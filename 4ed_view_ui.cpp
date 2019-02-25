@@ -159,14 +159,19 @@ draw_file_bar(System_Functions *system, Render_Target *target, View *view, Model
             }
             
             switch (file->state.dirty){
+                case DirtyState_UnsavedChanges:
+                {
+                    intbar_draw_string(system, target, &bar, lit(" *"), pop2_color);
+                }break;
+                
                 case DirtyState_UnloadedChanges:
                 {
                     intbar_draw_string(system, target, &bar, lit(" !"), pop2_color);
                 }break;
                 
-                case DirtyState_UnsavedChanges:
+                case DirtyState_UnsavedChangesAndUnloadedChanges:
                 {
-                    intbar_draw_string(system, target, &bar, lit(" *"), pop2_color);
+                    intbar_draw_string(system, target, &bar, lit(" *!"), pop2_color);
                 }break;
             }
         }

@@ -558,7 +558,7 @@ HOOK_SIG(default_exit){
     for (Buffer_Summary buffer = get_buffer_first(app, AccessAll);
          buffer.exists;
          get_buffer_next(app, &buffer, AccessAll)){
-        if (buffer.dirty == DirtyState_UnsavedChanges){
+        if (buffer.dirty & DirtyState_UnsavedChanges){
             has_unsaved_changes = true;
             break;
         }
