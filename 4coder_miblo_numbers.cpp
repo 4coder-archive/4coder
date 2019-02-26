@@ -5,25 +5,25 @@ and decrementing various forms of number as numerical objects despite being enco
 
 // TOP
 
-static int32_t
-get_numeric_string_at_cursor(Application_Links *app, Buffer_Summary *buffer, int32_t start_pos, int32_t *numeric_start, int32_t *numeric_end){
-    int32_t result = 0;
+static i32
+get_numeric_string_at_cursor(Application_Links *app, Buffer_Summary *buffer, i32 start_pos, i32 *numeric_start, i32 *numeric_end){
+    i32 result = 0;
     
     char current = buffer_get_char(app, buffer, start_pos);
     
     if (char_is_numeric(current)){
         char chunk[1024];
-        int32_t chunk_size = sizeof(chunk);
+        i32 chunk_size = sizeof(chunk);
         Stream_Chunk stream = {};
         
-        int32_t pos = start_pos;
+        i32 pos = start_pos;
         
-        int32_t pos1 = 0;
-        int32_t pos2 = 0;
+        i32 pos1 = 0;
+        i32 pos2 = 0;
         
         if (init_stream_chunk(&stream, app, buffer, start_pos, chunk, chunk_size)){
             
-            int32_t still_looping = 1;
+            i32 still_looping = 1;
             while (still_looping){
                 for (; pos >= stream.start; --pos){
                     char at_pos = stream.data[pos];
@@ -63,22 +63,22 @@ get_numeric_string_at_cursor(Application_Links *app, Buffer_Summary *buffer, int
 }
 
 struct Miblo_Number_Info{
-    int32_t start, end;
-    int32_t x;
+    i32 start, end;
+    i32 x;
 };
 
-static int32_t
-get_numeric_at_cursor(Application_Links *app, Buffer_Summary *buffer, int32_t pos, Miblo_Number_Info *info){
-    int32_t result = 0;
+static i32
+get_numeric_at_cursor(Application_Links *app, Buffer_Summary *buffer, i32 pos, Miblo_Number_Info *info){
+    i32 result = 0;
     
-    int32_t numeric_start = 0, numeric_end = 0;
+    i32 numeric_start = 0, numeric_end = 0;
     if (get_numeric_string_at_cursor(app, buffer, pos, &numeric_start, &numeric_end)){
         char numeric_string[1024];
         String str = make_string(numeric_string, numeric_end - numeric_start, sizeof(numeric_string));
         if (str.size < str.memory_size){
             buffer_read_range(app, buffer, numeric_start, numeric_end, numeric_string);
             
-            int32_t x = str_to_int(str);
+            i32 x = str_to_int(str);
             int_to_str(&str, x+1);
             
             info->start = numeric_start;
@@ -126,25 +126,25 @@ CUSTOM_DOC("Decrement an integer under the cursor by one.")
 // NOTE(allen): miblo time stamp format
 // (h+:)?m?m:ss
 
-static int32_t
-get_timestamp_string_at_cursor(Application_Links *app, Buffer_Summary *buffer, int32_t start_pos, int32_t *timestamp_start, int32_t *timestamp_end){
-    int32_t result = 0;
+static i32
+get_timestamp_string_at_cursor(Application_Links *app, Buffer_Summary *buffer, i32 start_pos, i32 *timestamp_start, i32 *timestamp_end){
+    i32 result = 0;
     
     char current = buffer_get_char(app, buffer, start_pos);
     
     if (char_is_numeric(current) || current == ':'){
         char chunk[1024];
-        int32_t chunk_size = sizeof(chunk);
+        i32 chunk_size = sizeof(chunk);
         Stream_Chunk stream = {};
         
-        int32_t pos = start_pos;
+        i32 pos = start_pos;
         
-        int32_t pos1 = 0;
-        int32_t pos2 = 0;
+        i32 pos1 = 0;
+        i32 pos2 = 0;
         
         if (init_stream_chunk(&stream, app, buffer, start_pos, chunk, chunk_size)){
             
-            int32_t still_looping = 1;
+            i32 still_looping = 1;
             while (still_looping){
                 for (; pos >= stream.start; --pos){
                     char at_pos = stream.data[pos];
@@ -184,9 +184,9 @@ get_timestamp_string_at_cursor(Application_Links *app, Buffer_Summary *buffer, i
 }
 
 struct Miblo_Timestamp{
-    int32_t second;
-    int32_t minute;
-    int32_t hour;
+    i32 second;
+    i32 minute;
+    i32 hour;
 };
 static Miblo_Timestamp null_miblo_timestamp = {};
 
@@ -197,7 +197,7 @@ enum{
 };
 
 static Miblo_Timestamp
-increment_timestamp(Miblo_Timestamp t, int32_t type, int32_t amt){
+increment_timestamp(Miblo_Timestamp t, i32 type, i32 amt){
     Miblo_Timestamp r = t;
     switch (type){
         case MIBLO_SECOND: /* CASE second */
@@ -207,7 +207,7 @@ increment_timestamp(Miblo_Timestamp t, int32_t type, int32_t amt){
         // 2. What is thrown away by (1) store in amt, divide by 60, round down even when negative.
         amt = 0;
         if (r.second < 0){
-            int32_t pos_second = -r.second;
+            i32 pos_second = -r.second;
             amt = -((pos_second + 59)/60);
             r.second = 60 - (pos_second % 60);
         }
@@ -223,7 +223,7 @@ increment_timestamp(Miblo_Timestamp t, int32_t type, int32_t amt){
         // 2. What is thrown away by (1) store in amt, divide by 60, round down even when negative.
         amt = 0;
         if (r.minute < 0){
-            int32_t pos_minute = -r.minute;
+            i32 pos_minute = -r.minute;
             amt = -((pos_minute + 59)/60);
             r.minute = 60 - (pos_minute % 60);
         }
@@ -275,23 +275,23 @@ timestamp_to_str(String *dest, Miblo_Timestamp t){
 }
 
 struct Miblo_Timestamp_Info{
-    int32_t start, end;
+    i32 start, end;
     Miblo_Timestamp time;
 };
 
-static int32_t
-get_timestamp_at_cursor(Application_Links *app, Buffer_Summary *buffer, int32_t pos, Miblo_Timestamp_Info *info){
-    int32_t result = 0;
+static i32
+get_timestamp_at_cursor(Application_Links *app, Buffer_Summary *buffer, i32 pos, Miblo_Timestamp_Info *info){
+    i32 result = 0;
     
-    int32_t timestamp_start = 0, timestamp_end = 0;
+    i32 timestamp_start = 0, timestamp_end = 0;
     if (get_timestamp_string_at_cursor(app, buffer, pos, &timestamp_start, &timestamp_end)){
         char timestamp_string[1024];
         String str = make_string(timestamp_string, timestamp_end - timestamp_start, sizeof(timestamp_string));
         if (str.size < str.memory_size){
             buffer_read_range(app, buffer, timestamp_start, timestamp_end, timestamp_string);
             
-            int32_t count_colons = 0;
-            for (int32_t i = 0; i < str.size; ++i){
+            i32 count_colons = 0;
+            for (i32 i = 0; i < str.size; ++i){
                 if (str.str[i] == ':'){
                     ++count_colons;
                 }
@@ -300,11 +300,11 @@ get_timestamp_at_cursor(Application_Links *app, Buffer_Summary *buffer, int32_t 
             if (count_colons == 1 || count_colons == 2){
                 Miblo_Timestamp t = {};
                 
-                int32_t success = 0;
+                i32 success = 0;
                 
-                int32_t i = 0;
-                int32_t number_start[3], number_end[3];
-                for (int32_t k = 0; k < 3; ++k){
+                i32 i = 0;
+                i32 number_start[3], number_end[3];
+                for (i32 k = 0; k < 3; ++k){
                     number_start[k] = i;
                     for (; i <= str.size; ++i){
                         if (i == str.size || str.str[i] == ':'){
@@ -358,7 +358,7 @@ get_timestamp_at_cursor(Application_Links *app, Buffer_Summary *buffer, int32_t 
 }
 
 static void
-miblo_time_stamp_alter(Application_Links *app, int32_t unit_type, int32_t amt){
+miblo_time_stamp_alter(Application_Links *app, i32 unit_type, i32 amt){
     View_Summary view = get_active_view(app, AccessOpen);
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessOpen);
     

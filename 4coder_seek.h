@@ -4,7 +4,7 @@
 #if !defined(FCODER_SEEK_H)
 #define FCODER_SEEK_H
 
-typedef uint32_t Buffer_Seek_String_Flags;
+typedef u32 Buffer_Seek_String_Flags;
 enum{
     BufferSeekString_Backward = 1,
     BufferSeekString_CaseInsensitive = 2,

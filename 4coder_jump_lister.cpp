@@ -9,7 +9,7 @@ activate_jump(Application_Links *app, Partition *scratch, Heap *heap,
               View_Summary *view, struct Lister_State *state,
               String text_field, void *user_data, b32 activated_by_mouse){
     Lister_Activation_Code result_code = ListerActivation_Finished;
-    int32_t list_index = (int32_t)PtrAsInt(user_data);
+    i32 list_index = (i32)PtrAsInt(user_data);
     Jump_Lister_Parameters *params = (Jump_Lister_Parameters*)state->lister.data.user_data;
     Marker_List *list = get_marker_list_for_buffer(params->list_buffer_id);
     if (list != 0){
@@ -70,13 +70,13 @@ open_jump_lister(Application_Links *app, Partition *scratch, Heap *heap,
     if (list != 0){
         Buffer_Summary list_buffer = get_buffer(app, list_buffer_id, AccessAll);
         
-        int32_t estimated_string_space_size = 0;
+        i32 estimated_string_space_size = 0;
         view_end_ui_mode(app, ui_view);
         Temp_Memory temp = begin_temp_memory(scratch);
-        int32_t option_count = list->jump_count;
+        i32 option_count = list->jump_count;
         Lister_Option *options = push_array(scratch, Lister_Option, option_count);
         Managed_Object stored_jumps = list->jump_array;
-        for (int32_t i = 0; i < option_count; i += 1){
+        for (i32 i = 0; i < option_count; i += 1){
             Sticky_Jump_Stored stored = {};
             managed_object_load_data(app, stored_jumps, i, 1, &stored);
             String line = {};
@@ -84,7 +84,7 @@ open_jump_lister(Application_Links *app, Partition *scratch, Heap *heap,
             options[i].string = line;
             memset(&options[i].status, 0, sizeof(options[i].status));
             options[i].user_data = IntAsPtr(i);
-            int32_t aligned_size = line.size + 1 + 7;
+            i32 aligned_size = line.size + 1 + 7;
             aligned_size = aligned_size - aligned_size%8;
             estimated_string_space_size += aligned_size;
         }

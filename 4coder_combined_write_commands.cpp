@@ -12,7 +12,7 @@ write_string(Application_Links *app, View_Summary *view, Buffer_Summary *buffer,
 
 static void
 write_string(Application_Links *app, String string){
-    uint32_t access = AccessOpen;
+    u32 access = AccessOpen;
     View_Summary view = get_active_view(app, access);
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, access);
     write_string(app, &view, &buffer, string);
@@ -41,10 +41,10 @@ write_named_comment_string(Application_Links *app, char *type_string){
 }
 
 static void
-long_braces(Application_Links *app, char *text, int32_t size){
+long_braces(Application_Links *app, char *text, i32 size){
     View_Summary view = get_active_view(app, AccessOpen);
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessOpen);
-    int32_t pos = view.cursor.pos;
+    i32 pos = view.cursor.pos;
     buffer_replace_range(app, &buffer, pos, pos, text, size);
     view_set_cursor(app, &view, seek_pos(pos + 2), true);
     
@@ -56,7 +56,7 @@ CUSTOM_COMMAND_SIG(open_long_braces)
 CUSTOM_DOC("At the cursor, insert a '{' and '}' separated by a blank line.")
 {
     char text[] = "{\n\n}";
-    int32_t size = sizeof(text) - 1;
+    i32 size = sizeof(text) - 1;
     long_braces(app, text, size);
 }
 
@@ -64,7 +64,7 @@ CUSTOM_COMMAND_SIG(open_long_braces_semicolon)
 CUSTOM_DOC("At the cursor, insert a '{' and '};' separated by a blank line.")
 {
     char text[] = "{\n\n};";
-    int32_t size = sizeof(text) - 1;
+    i32 size = sizeof(text) - 1;
     long_braces(app, text, size);
 }
 
@@ -72,7 +72,7 @@ CUSTOM_COMMAND_SIG(open_long_braces_break)
 CUSTOM_DOC("At the cursor, insert a '{' and '}break;' separated by a blank line.")
 {
     char text[] = "{\n\n}break;";
-    int32_t size = sizeof(text) - 1;
+    i32 size = sizeof(text) - 1;
     long_braces(app, text, size);
 }
 
@@ -112,7 +112,7 @@ CUSTOM_DOC("At the cursor, insert a ' = {};'.")
     write_string(app, make_lit_string(" = {};"));
 }
 
-static int32_t
+static i32
 get_start_of_line_at_cursor(Application_Links *app, View_Summary *view, Buffer_Summary *buffer){
     Full_Cursor cursor = {};
     view_compute_cursor(app, view, seek_line_char(view->cursor.line, 1), &cursor);

@@ -7,7 +7,7 @@
 #if !defined(FCODER_SEARCH_H)
 #define FCODER_SEARCH_H
 
-typedef int32_t Seek_Potential_Match_Direction;
+typedef i32  Seek_Potential_Match_Direction;
 enum{
     SeekPotentialMatch_Forward = 0,
     SeekPotentialMatch_Backward = 1,
@@ -19,14 +19,14 @@ enum{
     FindResult_PastEnd,
 };
 
-typedef int32_t Search_Range_Type;
+typedef i32 Search_Range_Type;
 enum{
     SearchRange_FrontToBack = 0,
     SearchRange_BackToFront = 1,
     SearchRange_Wave = 2,
 };
 
-typedef uint32_t Search_Range_Flag;
+typedef u32 Search_Range_Flag;
 enum{
     SearchFlag_MatchWholeWord  = 0x0000,
     SearchFlag_MatchWordPrefix = 0x0001,
@@ -36,43 +36,43 @@ enum{
 };
 
 struct Search_Range{
-    int32_t type;
-    uint32_t flags;
-    int32_t buffer;
-    int32_t start;
-    int32_t size;
-    int32_t mid_start;
-    int32_t mid_size;
+    i32 type;
+    u32 flags;
+    i32 buffer;
+    i32 start;
+    i32 size;
+    i32 mid_start;
+    i32 mid_size;
 };
 
 struct Search_Set{
     Search_Range *ranges;
-    int32_t count;
-    int32_t max;
+    i32 count;
+    i32 max;
 };
 
 struct Search_Key{
     char *base;
-    int32_t base_size;
+    i32 base_size;
     String words[16];
-    int32_t count;
-    int32_t min_size;
+    i32 count;
+    i32 min_size;
 };
 
 struct Search_Iter{
     Search_Key key;
-    int32_t pos;
-    int32_t back_pos;
-    int32_t i;
-    int32_t range_initialized;
+    i32 pos;
+    i32 back_pos;
+    i32 i;
+    i32 range_initialized;
 };
 
 struct Search_Match{
     Buffer_Summary buffer;
-    int32_t start;
-    int32_t end;
-    int32_t match_word_index;
-    int32_t found_match;
+    i32 start;
+    i32 end;
+    i32 match_word_index;
+    i32 found_match;
 };
 
 struct Word_Complete_State{
@@ -80,9 +80,9 @@ struct Word_Complete_State{
     Search_Iter iter;
     Table hits;
     String_Space str;
-    int32_t word_start;
-    int32_t word_end;
-    int32_t initialized;
+    i32 word_start;
+    i32 word_end;
+    i32 initialized;
 };
 
 #endif

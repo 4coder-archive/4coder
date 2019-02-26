@@ -212,10 +212,10 @@ typedef Sys_Memory_Free_Sig(System_Memory_Free);
 #define Sys_Directory_CD_Sig(name) b32 name(char *dir, i32 *len, i32 cap, char *rel_path, i32 rel_len)
 typedef Sys_Directory_CD_Sig(System_Directory_CD);
 
-#define Sys_Get_Current_Path_Sig(name) int32_t name(char *out, i32 capacity)
+#define Sys_Get_Current_Path_Sig(name) i32 name(char *out, i32 capacity)
 typedef Sys_Get_Current_Path_Sig(System_Get_Current_Path);
 
-#define Sys_Get_4ed_Path_Sig(name) int32_t name(char *out, i32 capacity)
+#define Sys_Get_4ed_Path_Sig(name) i32 name(char *out, i32 capacity)
 typedef Sys_Get_4ed_Path_Sig(System_Get_4ed_Path);
 
 // behavior and appearance options

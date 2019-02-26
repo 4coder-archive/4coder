@@ -11,7 +11,7 @@ unlock_jump_buffer(void){
 }
 
 static void
-lock_jump_buffer(char *name, int32_t size){
+lock_jump_buffer(char *name, i32 size){
     if (size <= locked_buffer.memory_size){
         copy(&locked_buffer, make_string(name, size));
     }
@@ -77,7 +77,7 @@ static View_Summary
 open_footer_panel(Application_Links *app, View_Summary *view){
     View_Summary special_view = open_view(app, view, ViewSplit_Bottom);
     new_view_settings(app, &special_view);
-    view_set_split_pixel_size(app, &special_view, (int32_t)(special_view.line_height*20.f));
+    view_set_split_pixel_size(app, &special_view, (i32)(special_view.line_height*20.f));
     view_set_passive(app, &special_view, true);
     return(special_view);
 }
@@ -138,7 +138,7 @@ get_prev_view_looped_primary_panels(Application_Links *app, View_Summary *view_s
 }
 
 static View_Summary
-get_next_view_after_active(Application_Links *app, uint32_t access){
+get_next_view_after_active(Application_Links *app, u32 access){
     View_Summary view = get_active_view(app, access);
     if (view.exists){
         get_next_view_looped_primary_panels(app, &view, access);
@@ -189,8 +189,8 @@ CUSTOM_DOC("Create a new panel by horizontally splitting the active panel.")
 // NOTE(allen): Credits to nj/FlyingSolomon for authoring the original version of this helper.
 
 static Buffer_ID
-create_or_switch_to_buffer_by_name(Application_Links *app, char *name, int32_t name_length, View_Summary default_target_view){
-    uint32_t access = AccessAll;
+create_or_switch_to_buffer_by_name(Application_Links *app, char *name, i32 name_length, View_Summary default_target_view){
+    u32 access = AccessAll;
     Buffer_Summary search_buffer = get_buffer_by_name(app, name, name_length, access);
     
     if (search_buffer.exists){
@@ -366,18 +366,18 @@ default_4coder_side_by_side_panels(Application_Links *app, Buffer_Identifier lef
 }
 
 static void
-default_4coder_side_by_side_panels(Application_Links *app, char **command_line_files, int32_t file_count){
+default_4coder_side_by_side_panels(Application_Links *app, char **command_line_files, i32 file_count){
     Buffer_Identifier left = buffer_identifier(literal("*scratch*"));
     Buffer_Identifier right = buffer_identifier(literal("*messages*"));
     
     if (file_count > 0){
         char *left_name = command_line_files[0];
-        int32_t left_len = str_size(left_name);
+        i32 left_len = str_size(left_name);
         left = buffer_identifier(left_name, left_len);
         
         if (file_count > 1){
             char *right_name = command_line_files[1];
-            int32_t right_len = str_size(right_name);
+            i32 right_len = str_size(right_name);
             right = buffer_identifier(right_name, right_len);
         }
     }
@@ -400,12 +400,12 @@ default_4coder_one_panel(Application_Links *app, Buffer_Identifier buffer){
 }
 
 static void
-default_4coder_one_panel(Application_Links *app, char **command_line_files, int32_t file_count){
+default_4coder_one_panel(Application_Links *app, char **command_line_files, i32 file_count){
     Buffer_Identifier buffer = buffer_identifier(literal("*messages*"));
     
     if (file_count > 0){
         char *name = command_line_files[0];
-        int32_t len = str_size(name);
+        i32 len = str_size(name);
         buffer = buffer_identifier(name, len);
     }
     

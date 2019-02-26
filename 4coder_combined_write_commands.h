@@ -7,13 +7,13 @@
 struct Snippet{
     char *name;
     char *text;
-    int32_t cursor_offset;
-    int32_t mark_offset;
+    i32 cursor_offset;
+    i32 mark_offset;
 };
 
 struct Snippet_Array{
     Snippet *snippets;
-    int32_t count;
+    i32 count;
 };
 
 // BOTTOM

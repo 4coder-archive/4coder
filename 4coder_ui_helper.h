@@ -36,7 +36,7 @@ struct UI_Item{
 struct UI_List{
     UI_Item *first;
     UI_Item *last;
-    int32_t count;
+    i32 count;
 };
 
 struct UI_Data{
@@ -53,7 +53,7 @@ struct UI_Storage{
 
 ////////////////////////////////
 
-typedef int32_t Lister_Activation_Code;
+typedef i32 Lister_Activation_Code;
 enum{
     ListerActivation_Finished = 0,
     ListerActivation_Continue = 1,
@@ -72,21 +72,21 @@ struct Lister_Node{
     String string;
     union{
         String status;
-        int32_t index;
+        i32 index;
     };
     void *user_data;
-    int32_t raw_index;
+    i32 raw_index;
 };
 
 struct Lister_Option_List{
     Lister_Node *first;
     Lister_Node *last;
-    int32_t count;
+    i32 count;
 };
 
 struct Lister_Node_Ptr_Array{
     Lister_Node **node_ptrs;
-    int32_t count;
+    i32 count;
 };
 
 struct Lister_Handlers{
@@ -104,7 +104,7 @@ struct Lister_Data{
     
     // List Data
     void *user_data;
-    int32_t user_data_size;
+    i32 user_data_size;
     char query_space[256];
     String query;
     char text_field_space[256];
@@ -129,11 +129,11 @@ struct Lister_State{
     
     // State set directly by input handlers
     void *hot_user_data;
-    int32_t item_index;
+    i32 item_index;
     
     // State of UI computed during UI update
-    int32_t raw_item_index;
-    int32_t item_count_after_filter;
+    i32 raw_item_index;
+    i32 item_count_after_filter;
 };
 
 struct Lister_Prealloced_String{
@@ -157,7 +157,7 @@ struct Lister_Fixed_Option{
 
 struct Lister_UI_Option{
     char *string;
-    int32_t index;
+    i32 index;
     void *user_data;
 };
 

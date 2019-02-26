@@ -12,7 +12,7 @@ CUSTOM_DOC("If the command execute_any_cli has already been used, this will exec
     String hot_directory = make_string_slowly(hot_directory_space);
     
     if (out_buffer.size > 0 && cmd.size > 0 && hot_directory.size > 0){
-        uint32_t access = AccessAll;
+        u32 access = AccessAll;
         View_Summary view = get_active_view(app, access);
         
         exec_system_command(app, &view, buffer_identifier(out_buffer.str, out_buffer.size), hot_directory.str, hot_directory.size, cmd.str, cmd.size, CLI_OverlapWithConflict | CLI_CursorAtEnd);

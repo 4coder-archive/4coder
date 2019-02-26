@@ -29,7 +29,7 @@ dynamic_variables_lookup(Dynamic_Variable_Layout *layout, String name){
 
 internal Managed_Variable_ID
 dynamic_variables_create__always(Heap *heap, Dynamic_Variable_Layout *layout, String name, u64 default_value){
-    int32_t alloc_size = name.size + 1 + sizeof(Dynamic_Variable_Slot);
+    i32 alloc_size = name.size + 1 + sizeof(Dynamic_Variable_Slot);
     void *ptr = heap_allocate(heap, alloc_size);
     if (ptr != 0){
         Dynamic_Variable_Slot *new_slot = (Dynamic_Variable_Slot*)ptr;

@@ -40,9 +40,9 @@ struct Font_Slot_Page_And_Index{
 };
 
 // NOTE(allen): SLOT_PER_PAGE must be >= 1
-global int32_t SLOT_PER_PAGE = 32;
-global int32_t SLOT_SIZE = sizeof(Font_Settings) + sizeof(Font_Metrics) + sizeof(Font_Page_Storage);
-global int32_t SLOT_PAGE_SIZE = sizeof(Font_Slot_Page) + ((SLOT_PER_PAGE + 63)/64)*8 + SLOT_PER_PAGE*SLOT_SIZE;
+global i32 SLOT_PER_PAGE = 32;
+global i32 SLOT_SIZE = sizeof(Font_Settings) + sizeof(Font_Metrics) + sizeof(Font_Page_Storage);
+global i32 SLOT_PAGE_SIZE = sizeof(Font_Slot_Page) + ((SLOT_PER_PAGE + 63)/64)*8 + SLOT_PER_PAGE*SLOT_SIZE;
 
 struct Font_Vars{
     Font_Slot_Page slot_pages_sentinel;

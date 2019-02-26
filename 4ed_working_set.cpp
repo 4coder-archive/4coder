@@ -496,7 +496,7 @@ buffer_bind_name(Models *models, Heap *heap, Partition *scratch, Working_Set *wo
     
     // List of conflict files.
     Editing_File **conflict_file_ptrs = push_array(scratch, Editing_File*, 0);
-    int32_t conflict_count = 0;
+    i32 conflict_count = 0;
     
     {
         Editing_File **new_file_ptr = push_array(scratch, Editing_File*, 1);
@@ -517,7 +517,7 @@ buffer_bind_name(Models *models, Heap *heap, Partition *scratch, Working_Set *wo
     // Fill conflict array.
     Buffer_Name_Conflict_Entry *conflicts = push_array(scratch, Buffer_Name_Conflict_Entry, conflict_count);
     
-    for (int32_t i = 0; i < conflict_count; ++i){
+    for (i32 i = 0; i < conflict_count; ++i){
         Editing_File *file_ptr = conflict_file_ptrs[i];
         Buffer_Name_Conflict_Entry *entry = &conflicts[i];
         entry->buffer_id = file_ptr->id.id;
@@ -547,13 +547,13 @@ buffer_bind_name(Models *models, Heap *heap, Partition *scratch, Working_Set *wo
     }
     
     // Re-bind all of the files
-    for (int32_t i = 0; i < conflict_count; ++i){
+    for (i32 i = 0; i < conflict_count; ++i){
         Editing_File *file_ptr = conflict_file_ptrs[i];
         if (file_ptr->unique_name.name.str != 0){
             buffer_unbind_name_low_level(working_set, file_ptr);
         }
     }
-    for (int32_t i = 0; i < conflict_count; ++i){
+    for (i32 i = 0; i < conflict_count; ++i){
         Editing_File *file_ptr = conflict_file_ptrs[i];
         Buffer_Name_Conflict_Entry *entry = &conflicts[i];
         String unique_name = make_string(entry->unique_name_in_out, entry->unique_name_len_in_out);

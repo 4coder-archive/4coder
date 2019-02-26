@@ -33,7 +33,7 @@ descriptions_match(Face_Description *a, Face_Description *b){
 }
 
 static Face_ID
-get_existing_face_id_matching_name(Application_Links *app, char *name, int32_t len){
+get_existing_face_id_matching_name(Application_Links *app, char *name, i32 len){
     String name_str = make_string(name, len);
     Face_ID largest_id = get_largest_face_id(app);
     Face_ID result = 0;
@@ -62,7 +62,7 @@ get_existing_face_id_matching_description(Application_Links *app, Face_Descripti
 }
 
 static Face_ID
-get_face_id_by_name(Application_Links *app, char *name, int32_t len, Face_Description *base_description){
+get_face_id_by_name(Application_Links *app, char *name, i32 len, Face_Description *base_description){
     Face_ID new_id = 0;
     String str = make_string(name, len);
     if (!match(str, base_description->font.name)){
@@ -95,7 +95,7 @@ get_face_id_by_description(Application_Links *app, Face_Description *description
 }
 
 static void
-set_global_face_by_name(Application_Links *app, char *name, int32_t len, b32 apply_to_all_buffers){
+set_global_face_by_name(Application_Links *app, char *name, i32 len, b32 apply_to_all_buffers){
     Face_ID global_face_id = get_face_id(app, 0);
     Face_Description description = get_face_description(app, global_face_id);
     Face_ID new_id = get_face_id_by_name(app, name, len, &description);
@@ -114,7 +114,7 @@ change_global_face_by_description(Application_Links *app, Face_Description descr
 }
 
 static void
-set_buffer_face_by_name(Application_Links *app, Buffer_Summary *buffer, char *name, int32_t len){
+set_buffer_face_by_name(Application_Links *app, Buffer_Summary *buffer, char *name, i32 len){
     Face_ID current_id = get_face_id(app, buffer);
     if (current_id != 0){
         Face_Description description = get_face_description(app, current_id);

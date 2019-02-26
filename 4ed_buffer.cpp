@@ -1168,7 +1168,7 @@ internal Partial_Cursor
 buffer_partial_from_pos(Gap_Buffer *buffer, i32 pos){
     Partial_Cursor result = {};
     
-    int32_t size = buffer_size(buffer);
+    i32 size = buffer_size(buffer);
     if (pos > size){
         pos = size;
     }

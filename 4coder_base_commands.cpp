@@ -6,14 +6,14 @@ moving the cursor, which work even without the default 4coder framework.
 // TOP
 
 static void
-write_character_parameter(Application_Links *app, uint8_t *character, uint32_t length){
+write_character_parameter(Application_Links *app, uint8_t *character, u32 length){
     if (length != 0){
         View_Summary view = get_active_view(app, AccessOpen);
         if_view_has_highlighted_range_delete_range(app, view.view_id);
         view = get_view(app, view.view_id, AccessAll);
         
         Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessOpen);
-        int32_t pos = view.cursor.pos;
+        i32 pos = view.cursor.pos;
         
         // NOTE(allen): setup markers to figure out the new position of cursor after the insert
         Marker next_cursor_marker = {};
@@ -30,7 +30,7 @@ write_character_parameter(Application_Links *app, uint8_t *character, uint32_t l
             Record_Info record = get_single_record(app, buffer.buffer_id, first_index);
             if (record.error == RecordError_NoError && record.kind == RecordKind_Single){
                 String string = record.single.string_forward;
-                int32_t last_end = record.single.first + string.size;
+                i32 last_end = record.single.first + string.size;
                 if (last_end == pos && string.size > 0){
                     char c = string.str[string.size - 1];
                     if (c != '\n'){
@@ -69,7 +69,7 @@ CUSTOM_DOC("Inserts whatever character was used to trigger this command.")
 {
     User_Input in = get_command_input(app);
     uint8_t character[4];
-    uint32_t length = to_writable_character(in, character);
+    u32 length = to_writable_character(in, character);
     write_character_parameter(app, character, length);
 }
 
@@ -83,16 +83,16 @@ CUSTOM_DOC("Inserts an underscore.")
 CUSTOM_COMMAND_SIG(delete_char)
 CUSTOM_DOC("Deletes the character to the right of the cursor.")
 {
-    uint32_t access = AccessOpen;
+    u32 access = AccessOpen;
     View_Summary view = get_active_view(app, access);
     if (!if_view_has_highlighted_range_delete_range(app, view.view_id)){
         view = get_view(app, view.view_id, AccessAll);
         Buffer_Summary buffer = get_buffer(app, view.buffer_id, access);
-        int32_t start = view.cursor.pos;
+        i32 start = view.cursor.pos;
         if (0 <= start && start < buffer.size){
             Full_Cursor cursor = {};
             view_compute_cursor(app, &view, seek_character_pos(view.cursor.character_pos + 1), &cursor);
-            int32_t end = cursor.pos;
+            i32 end = cursor.pos;
             buffer_replace_range(app, &buffer, start, end, 0, 0);
         }
     }
@@ -101,16 +101,16 @@ CUSTOM_DOC("Deletes the character to the right of the cursor.")
 CUSTOM_COMMAND_SIG(backspace_char)
 CUSTOM_DOC("Deletes the character to the left of the cursor.")
 {
-    uint32_t access = AccessOpen;
+    u32 access = AccessOpen;
     View_Summary view = get_active_view(app, access);
     if (!if_view_has_highlighted_range_delete_range(app, view.view_id)){
         view = get_view(app, view.view_id, AccessAll);
         Buffer_Summary buffer = get_buffer(app, view.buffer_id, access);
-        int32_t end = view.cursor.pos;
+        i32 end = view.cursor.pos;
         if (0 < end && end <= buffer.size){
             Full_Cursor cursor = {};
             view_compute_cursor(app, &view, seek_character_pos(view.cursor.character_pos - 1), &cursor);
-            int32_t start = cursor.pos;
+            i32 start = cursor.pos;
             if (buffer_replace_range(app, &buffer, start, end, 0, 0)){
                 view_set_cursor(app, &view, seek_character_pos(view.cursor.character_pos - 1), true);
             }
@@ -130,8 +130,8 @@ CUSTOM_COMMAND_SIG(cursor_mark_swap)
 CUSTOM_DOC("Swaps the position of the cursor and the mark.")
 {
     View_Summary view = get_active_view(app, AccessProtected);
-    int32_t cursor = view.cursor.pos;
-    int32_t mark = view.mark.pos;
+    i32 cursor = view.cursor.pos;
+    i32 mark = view.mark.pos;
     view_set_cursor(app, &view, seek_pos(mark), true);
     view_set_mark(app, &view, seek_pos(cursor));
 }
@@ -139,7 +139,7 @@ CUSTOM_DOC("Swaps the position of the cursor and the mark.")
 CUSTOM_COMMAND_SIG(delete_range)
 CUSTOM_DOC("Deletes the text in the range between the cursor and the mark.")
 {
-    uint32_t access = AccessOpen;
+    u32 access = AccessOpen;
     View_Summary view = get_active_view(app, access);
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, access);
     Range range = get_view_range(&view);
@@ -159,7 +159,7 @@ CUSTOM_DOC("Centers the view vertically on the line on which the cursor sits.")
     float h = (float)(region.y1 - region.y0);
     float y = get_view_y(&view);
     y = y - h*.5f;
-    scroll.target_y = (int32_t)(y + .5f);
+    scroll.target_y = (i32)(y + .5f);
     view_set_scroll(app, &view, scroll);
 }
 
@@ -175,7 +175,7 @@ CUSTOM_DOC("Sets the left size of the view near the x position of the cursor.")
         x = 0.f;
     }
     
-    scroll.target_x = (int32_t)(x + .5f);
+    scroll.target_x = (i32)(x + .5f);
     view_set_scroll(app, &view, scroll);
 }
 
@@ -258,7 +258,7 @@ CUSTOM_DOC("Reads the scroll wheel value from the mouse state and scrolls accord
 
 static void
 move_vertical(Application_Links *app, float line_multiplier){
-    uint32_t access = AccessProtected;
+    u32 access = AccessProtected;
     View_Summary view = get_active_view(app, access);
     
     float delta_y = line_multiplier*view.line_height;
@@ -269,11 +269,11 @@ move_vertical(Application_Links *app, float line_multiplier){
     float actual_new_y = get_view_y(&view);
     if (actual_new_y < new_y){
         i32_Rect file_region = view.file_region;
-        int32_t height = file_region.y1 - file_region.y0;
-        int32_t full_scroll_y = (int32_t)actual_new_y - height/2;
+        i32 height = file_region.y1 - file_region.y0;
+        i32 full_scroll_y = (i32)actual_new_y - height/2;
         if (view.scroll_vars.target_y < full_scroll_y){
             GUI_Scroll_Vars new_scroll_vars = view.scroll_vars;
-            new_scroll_vars.target_y += (int32_t)delta_y;
+            new_scroll_vars.target_y += (i32)delta_y;
             if (new_scroll_vars.target_y > full_scroll_y){
                 new_scroll_vars.target_y = full_scroll_y;
             }
@@ -289,9 +289,9 @@ get_page_jump(View_Summary *view){
     i32_Rect region = view->file_region;
     float page_jump = 1.f;
     if (view->line_height > 0.f){
-        int32_t height = region.y1 - region.y0;
+        i32 height = region.y1 - region.y0;
         float line_count = (float)(height)/view->line_height;
-        int32_t line_count_rounded = (int32_t)line_count;
+        i32 line_count_rounded = (i32)line_count;
         page_jump = (float)line_count_rounded - 3.f;
         if (page_jump <= 1.f){
             page_jump = 1.f;
@@ -331,14 +331,14 @@ CUSTOM_DOC("Moves down to the next line of actual text, regardless of line wrapp
     if (!view.exists){
         return;
     }
-    int32_t next_line = view.cursor.line + 1;
+    i32 next_line = view.cursor.line + 1;
     view_set_cursor(app, &view, seek_line_char(next_line, 1), true);
 }
 
 CUSTOM_COMMAND_SIG(page_up)
 CUSTOM_DOC("Scrolls the view up one view height and moves the cursor up one view height.")
 {
-    uint32_t access = AccessProtected;
+    u32 access = AccessProtected;
     View_Summary view = get_active_view(app, access);
     float page_jump = get_page_jump(&view);
     move_vertical(app, -page_jump);
@@ -347,7 +347,7 @@ CUSTOM_DOC("Scrolls the view up one view height and moves the cursor up one view
 CUSTOM_COMMAND_SIG(page_down)
 CUSTOM_DOC("Scrolls the view down one view height and moves the cursor down one view height.")
 {
-    uint32_t access = AccessProtected;
+    u32 access = AccessProtected;
     View_Summary view = get_active_view(app, access);
     float page_jump = get_page_jump(&view);
     move_vertical(app, page_jump);
@@ -358,9 +358,9 @@ CUSTOM_DOC("Scrolls the view down one view height and moves the cursor down one 
 CUSTOM_COMMAND_SIG(move_left)
 CUSTOM_DOC("Moves the cursor one character to the left.")
 {
-    uint32_t access = AccessProtected;
+    u32 access = AccessProtected;
     View_Summary view = get_active_view(app, access);
-    int32_t new_pos = view.cursor.character_pos - 1;
+    i32 new_pos = view.cursor.character_pos - 1;
     view_set_cursor(app, &view, seek_character_pos(new_pos), 1);
     no_mark_snap_to_cursor_if_shift(app, view.view_id);
 }
@@ -368,9 +368,9 @@ CUSTOM_DOC("Moves the cursor one character to the left.")
 CUSTOM_COMMAND_SIG(move_right)
 CUSTOM_DOC("Moves the cursor one character to the right.")
 {
-    uint32_t access = AccessProtected;
+    u32 access = AccessProtected;
     View_Summary view = get_active_view(app, access);
-    int32_t new_pos = view.cursor.character_pos + 1;
+    i32 new_pos = view.cursor.character_pos + 1;
     view_set_cursor(app, &view, seek_character_pos(new_pos), 1);
     no_mark_snap_to_cursor_if_shift(app, view.view_id);
 }
@@ -394,12 +394,12 @@ CUSTOM_DOC("Converts all ascii text in the range between the cursor and the mark
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessOpen);
     
     Range range = get_view_range(&view);
-    int32_t size = range.max - range.min;
+    i32 size = range.max - range.min;
     if (size <= app->memory_size){
         char *mem = (char*)app->memory;
         
         buffer_read_range(app, &buffer, range.min, range.max, mem);
-        for (int32_t i = 0; i < size; ++i){
+        for (i32 i = 0; i < size; ++i){
             mem[i] = char_to_upper(mem[i]);
         }
         buffer_replace_range(app, &buffer, range.min, range.max, mem, size);
@@ -414,12 +414,12 @@ CUSTOM_DOC("Converts all ascii text in the range between the cursor and the mark
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessOpen);
     
     Range range = get_view_range(&view);
-    int32_t size = range.max - range.min;
+    i32 size = range.max - range.min;
     if (size <= app->memory_size){
         char *mem = (char*)app->memory;
         
         buffer_read_range(app, &buffer, range.min, range.max, mem);
-        for (int32_t i = 0; i < size; ++i){
+        for (i32 i = 0; i < size; ++i){
             mem[i] = char_to_lower(mem[i]);
         }
         buffer_replace_range(app, &buffer, range.min, range.max, mem, size);
@@ -436,22 +436,22 @@ CUSTOM_DOC("Removes trailing whitespace from all lines in the current buffer.")
     View_Summary view = get_active_view(app, AccessOpen);
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessOpen);
     
-    int32_t line_count = buffer.line_count;
-    int32_t edit_max = line_count;
+    i32 line_count = buffer.line_count;
+    i32 edit_max = line_count;
     
-    if (edit_max*(int32_t)sizeof(Buffer_Edit) < app->memory_size){
+    if (edit_max*(i32)sizeof(Buffer_Edit) < app->memory_size){
         Buffer_Edit *edits = (Buffer_Edit*)app->memory;
         
         char data[1024];
         Stream_Chunk chunk = {};
         
-        int32_t i = 0;
+        i32 i = 0;
         if (init_stream_chunk(&chunk, app, &buffer, i, data, sizeof(data))){
             Buffer_Edit *edit = edits;
             
-            int32_t buffer_size = buffer.size;
-            int32_t still_looping = true;
-            int32_t last_hard = buffer_size;
+            i32 buffer_size = buffer.size;
+            i32 still_looping = true;
+            i32 last_hard = buffer_size;
             do{
                 for (; i < chunk.end; ++i){
                     char at_pos = chunk.data[i];
@@ -484,7 +484,7 @@ CUSTOM_DOC("Removes trailing whitespace from all lines in the current buffer.")
                 ++edit;
             }
             
-            int32_t edit_count = (int32_t)(edit - edits);
+            i32 edit_count = (i32)(edit - edits);
             buffer_batch_edit(app, &buffer, 0, 0, edits, edit_count, BatchEdit_PreserveTokens);
         }
     }
@@ -567,7 +567,7 @@ CUSTOM_DOC("Increases the current buffer's width for line wrapping.")
     View_Summary view = get_active_view(app, AccessProtected);
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessProtected);
     
-    int32_t wrap = 0;
+    i32 wrap = 0;
     buffer_get_setting(app, &buffer, BufferSetting_WrapPosition, &wrap);
     buffer_set_setting(app, &buffer, BufferSetting_WrapPosition, wrap + 10);
 }
@@ -578,7 +578,7 @@ CUSTOM_DOC("Decrases the current buffer's width for line wrapping.")
     View_Summary view = get_active_view(app, AccessProtected);
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessProtected);
     
-    int32_t wrap = 0;
+    i32 wrap = 0;
     buffer_get_setting(app, &buffer, BufferSetting_WrapPosition, &wrap);
     buffer_set_setting(app, &buffer, BufferSetting_WrapPosition, wrap - 10);
 }
@@ -630,7 +630,7 @@ CUSTOM_DOC("Toggles the current buffer's virtual whitespace status.")
     View_Summary view = get_active_view(app, AccessProtected);
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessProtected);
     
-    int32_t vwhite = 0;
+    i32 vwhite = 0;
     buffer_get_setting(app, &buffer, BufferSetting_VirtualWhitespace, &vwhite);
     buffer_set_setting(app, &buffer, BufferSetting_VirtualWhitespace, !vwhite);
 }
@@ -669,7 +669,7 @@ CUSTOM_DOC("Attempts to close 4coder.")
 CUSTOM_COMMAND_SIG(goto_line)
 CUSTOM_DOC("Queries the user for a number, and jumps the cursor to the corresponding line.")
 {
-    uint32_t access = AccessProtected;
+    u32 access = AccessProtected;
     
     Query_Bar bar = {};
     char string_space[256];
@@ -678,7 +678,7 @@ CUSTOM_DOC("Queries the user for a number, and jumps the cursor to the correspon
     bar.string = make_fixed_width_string(string_space);
     
     if (query_user_number(app, &bar)){
-        int32_t line_number = str_to_int_s(bar.string);
+        i32 line_number = str_to_int_s(bar.string);
         
         View_Summary view = get_active_view(app, access);
         view_set_cursor(app, &view, seek_line_char(line_number, 0), true);
@@ -690,7 +690,7 @@ CUSTOM_COMMAND_SIG(reverse_search);
 
 static void
 isearch__update_highlight(Application_Links *app, View_Summary *view, Managed_Object highlight,
-                          int32_t start, int32_t end){
+                          i32 start, i32 end){
     Marker markers[4] = {};
     markers[0].pos = start;
     markers[1].pos = end;
@@ -712,14 +712,14 @@ isearch(Application_Links *app, b32 start_reversed, String query_init, b32 on_th
     }
     
     b32 reverse = start_reversed;
-    int32_t first_pos = view.cursor.pos;
+    i32 first_pos = view.cursor.pos;
     
-    int32_t pos = first_pos;
+    i32 pos = first_pos;
     if (query_init.size != 0){
         pos += 2;
     }
     
-    int32_t start_pos = pos;
+    i32 start_pos = pos;
     Range match = make_range(pos, pos);
     
     char bar_string_space[256];
@@ -763,7 +763,7 @@ isearch(Application_Links *app, b32 start_reversed, String query_init, b32 on_th
             if (in.abort) break;
             
             uint8_t character[4];
-            uint32_t length = to_writable_character(in, character);
+            u32 length = to_writable_character(in, character);
             
             b32 made_change = false;
             if (in.key.keycode == '\n' || in.key.keycode == '\t'){
@@ -831,7 +831,7 @@ isearch(Application_Links *app, b32 start_reversed, String query_init, b32 on_th
         
         if (!backspace){
             if (reverse){
-                int32_t new_pos = 0;
+                i32 new_pos = 0;
                 buffer_seek_string_insensitive_backward(app, &buffer, start_pos - 1, 0, bar.string.str, bar.string.size, &new_pos);
                 if (new_pos >= 0){
                     if (step_backward){
@@ -847,7 +847,7 @@ isearch(Application_Links *app, b32 start_reversed, String query_init, b32 on_th
                 }
             }
             else{
-                int32_t new_pos = 0;
+                i32 new_pos = 0;
                 buffer_seek_string_insensitive_forward(app, &buffer, start_pos + 1, 0, bar.string.str, bar.string.size, &new_pos);
                 if (new_pos < buffer.size){
                     if (step_forward){
@@ -942,14 +942,14 @@ CUSTOM_DOC("Queries the user for two strings, and replaces all occurences of the
     String r = replace.string;
     String w = with.string;
     
-    uint32_t access = AccessOpen;
+    u32 access = AccessOpen;
     View_Summary view = get_active_view(app, access);
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, access);
     
     Range range = get_view_range(&view);
     
-    int32_t pos = range.min;
-    int32_t new_pos;
+    i32 pos = range.min;
+    i32 new_pos;
     buffer_seek_string_forward(app, &buffer, pos, 0, r.str, r.size, &new_pos);
     
     global_history_edit_group_begin(app);
@@ -964,8 +964,8 @@ CUSTOM_DOC("Queries the user for two strings, and replaces all occurences of the
 }
 
 static void
-query_replace_base(Application_Links *app, View_Summary *view, Buffer_Summary *buffer, int32_t pos, String r, String w){
-    int32_t new_pos = 0;
+query_replace_base(Application_Links *app, View_Summary *view, Buffer_Summary *buffer, i32 pos, String r, String w){
+    i32 new_pos = 0;
     buffer_seek_string_forward(app, buffer, pos, 0, r.str, r.size, &new_pos);
     
     Managed_Scope view_scope = view_get_managed_scope(app, view->view_id);
@@ -1009,7 +1009,7 @@ query_replace_base(Application_Links *app, View_Summary *view, Buffer_Summary *b
 }
 
 static void
-query_replace_parameter(Application_Links *app, String replace_str, int32_t start_pos, b32 add_replace_query_bar){
+query_replace_parameter(Application_Links *app, String replace_str, i32 start_pos, b32 add_replace_query_bar){
     Query_Bar replace;
     replace.prompt = make_lit_string("Replace: ");
     replace.string = replace_str;
@@ -1032,7 +1032,7 @@ query_replace_parameter(Application_Links *app, String replace_str, int32_t star
     
     View_Summary view = get_active_view(app, AccessOpen);
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessOpen);
-    int32_t pos = start_pos;
+    i32 pos = start_pos;
     
     Query_Bar bar;
     bar.prompt = make_lit_string("Replace? (y)es, (n)ext, (esc)\n");
@@ -1097,7 +1097,7 @@ CUSTOM_DOC("Queries the user for a string, and incrementally replace every occur
     Temp_Memory temp = begin_temp_memory(part);
     
     Range range = get_view_range(&view);
-    int32_t replace_length = range.max - range.min;
+    i32 replace_length = range.max - range.min;
     if (replace_length != 0){
         char *replace_space = push_array(part, char, replace_length);
         if (buffer_read_range(app, &buffer, range.min, range.max, replace_space)){
@@ -1206,7 +1206,7 @@ CUSTOM_DOC("Queries the user for a file name and saves the contents of the curre
     
     char new_file_name_space[4096];
     String new_file_name = make_fixed_width_string(new_file_name_space);
-    int32_t hot_dir_size = directory_get_hot(app, 0, 0);
+    i32 hot_dir_size = directory_get_hot(app, 0, 0);
     if (new_file_name.size + hot_dir_size <= new_file_name.memory_size){
         new_file_name.size += directory_get_hot(app, new_file_name.str + new_file_name.size, new_file_name.memory_size - new_file_name.size);
         //append(&new_file_name, "/");
@@ -1272,7 +1272,7 @@ CUSTOM_COMMAND_SIG(make_directory_query)
 CUSTOM_DOC("Queries the user for a name and creates a new directory with the given name.")
 {
     char hot_space[2048];
-    int32_t hot_length = directory_get_hot(app, hot_space, sizeof(hot_space));
+    i32 hot_length = directory_get_hot(app, hot_space, sizeof(hot_space));
     if (hot_length < sizeof(hot_space)){
         String hot = make_string(hot_space, hot_length);
         
@@ -1319,28 +1319,28 @@ CUSTOM_DOC("Swaps the line under the cursor with the line above it, and moves th
     Full_Cursor this_line_cursor = {};
     Full_Cursor next_line_cursor = {};
     
-    int32_t this_line = view.cursor.line;
-    int32_t prev_line = this_line - 1;
-    int32_t next_line = this_line +1;
+    i32 this_line = view.cursor.line;
+    i32 prev_line = this_line - 1;
+    i32 next_line = this_line +1;
     
     if (view_compute_cursor(app, &view, seek_line_char(prev_line, 1), &prev_line_cursor) &&
         view_compute_cursor(app, &view, seek_line_char(this_line, 1), &this_line_cursor) &&
         view_compute_cursor(app, &view, seek_line_char(next_line, 1), &next_line_cursor)){
         
-        int32_t prev_line_pos = prev_line_cursor.pos;
-        int32_t this_line_pos = this_line_cursor.pos;
-        int32_t next_line_pos = next_line_cursor.pos;
+        i32 prev_line_pos = prev_line_cursor.pos;
+        i32 this_line_pos = this_line_cursor.pos;
+        i32 next_line_pos = next_line_cursor.pos;
         
         Partition *part = &global_part;
         Temp_Memory temp = begin_temp_memory(part);
         
-        int32_t length = next_line_pos - prev_line_pos;
+        i32 length = next_line_pos - prev_line_pos;
         char *swap = push_array(part, char, length + 1);
-        int32_t first_len = next_line_pos - this_line_pos;
+        i32 first_len = next_line_pos - this_line_pos;
         
         if (buffer_read_range(app, &buffer, this_line_pos, next_line_pos, swap)){
             b32 second_line_didnt_have_newline = true;
-            for (int32_t i = first_len - 1; i >= 0; --i){
+            for (i32 i = first_len - 1; i >= 0; --i){
                 if (swap[i] == '\n'){
                     second_line_didnt_have_newline = false;
                     break;
@@ -1377,7 +1377,7 @@ CUSTOM_DOC("Swaps the line under the cursor with the line below it, and moves th
         return;
     }
     
-    int32_t next_line = view.cursor.line + 1;
+    i32 next_line = view.cursor.line + 1;
     Full_Cursor new_cursor = {};
     if (view_compute_cursor(app, &view, seek_line_char(next_line, 1), &new_cursor)){
         if (new_cursor.line == next_line){
@@ -1404,7 +1404,7 @@ CUSTOM_DOC("Create a copy of the line on which the cursor sits.")
         line_string.str = before_line;
         line_string.size += 1;
         
-        int32_t pos = buffer_get_line_end(app, &buffer, view.cursor.line);
+        i32 pos = buffer_get_line_end(app, &buffer, view.cursor.line);
         buffer_replace_range(app, &buffer, pos, pos, line_string.str, line_string.size);
     }
     end_temp_memory(temp);
@@ -1419,8 +1419,8 @@ CUSTOM_DOC("Delete the line the on which the cursor sits.")
     Partition *part = &global_part;
     
     Temp_Memory temp = begin_temp_memory(part);
-    int32_t start = buffer_get_line_start(app, &buffer, view.cursor.line);
-    int32_t end = buffer_get_line_end(app, &buffer, view.cursor.line) + 1;
+    i32 start = buffer_get_line_start(app, &buffer, view.cursor.line);
+    i32 end = buffer_get_line_end(app, &buffer, view.cursor.line) + 1;
     if (end > buffer.size){
         end = buffer.size;
     }
@@ -1449,7 +1449,7 @@ get_cpp_matching_file(Application_Links *app, Buffer_Summary buffer, Buffer_Summ
         
         String extension = file_extension(file_name);
         String new_extensions[2] = {};
-        int32_t new_extensions_count = 0;
+        i32 new_extensions_count = 0;
         
         if (match(extension, "cpp") || match(extension, "cc")){
             new_extensions[0] = make_lit_string("h");
@@ -1471,8 +1471,8 @@ get_cpp_matching_file(Application_Links *app, Buffer_Summary buffer, Buffer_Summ
         }
         
         remove_extension(&file_name);
-        int32_t base_pos = file_name.size;
-        for (int32_t i = 0; i < new_extensions_count; ++i){
+        i32 base_pos = file_name.size;
+        for (i32 i = 0; i < new_extensions_count; ++i){
             String ext = new_extensions[i];
             file_name.size = base_pos;
             append(&file_name, ext);
@@ -1497,14 +1497,14 @@ CUSTOM_DOC("Reads a filename from surrounding '\"' characters and attempts to op
     char file_name_[256];
     String file_name = make_fixed_width_string(file_name_);
     
-    int32_t pos = view.cursor.pos;
-    int32_t start = 0;
-    int32_t end = 0;
+    i32 pos = view.cursor.pos;
+    i32 start = 0;
+    i32 end = 0;
     buffer_seek_delimiter_forward(app, &buffer, pos, '"', &end);
     buffer_seek_delimiter_backward(app, &buffer, pos, '"', &start);
     ++start;
     
-    int32_t size = end - start;
+    i32 size = end - start;
     
     char short_file_name[128];
     if (size < sizeof(short_file_name)){
@@ -1541,7 +1541,7 @@ CUSTOM_COMMAND_SIG(view_buffer_other_panel)
 CUSTOM_DOC("Set the other non-active panel to view the buffer that the active panel views, and switch to that panel.")
 {
     View_Summary view = get_active_view(app, AccessAll);
-    int32_t buffer_id = view.buffer_id;
+    i32 buffer_id = view.buffer_id;
     change_active_panel(app);
     view = get_active_view(app, AccessAll);
     view_set_buffer(app, &view, buffer_id, 0);
@@ -1555,8 +1555,8 @@ CUSTOM_DOC("Set the other non-active panel to view the buffer that the active pa
     View_Summary view2 = get_active_view(app, AccessAll);
     
     if (view1.view_id != view2.view_id){
-        int32_t buffer_id1 = view1.buffer_id;
-        int32_t buffer_id2 = view2.buffer_id;
+        i32 buffer_id1 = view1.buffer_id;
+        i32 buffer_id2 = view2.buffer_id;
         if (buffer_id1 != buffer_id2){
             view_set_buffer(app, &view1, buffer_id2, 0);
             view_set_buffer(app, &view2, buffer_id1, 0);
@@ -1635,10 +1635,10 @@ CUSTOM_COMMAND_SIG(undo)
 CUSTOM_DOC("Advances backward through the undo history in the buffer containing the most recent regular edit.")
 {
     Partition *scratch = &global_part;
-    int32_t highest_edit_number = -1;
+    i32 highest_edit_number = -1;
     Buffer_ID first_buffer_match = 0;
     Buffer_ID last_buffer_match = 0;
-    int32_t match_count = 0;
+    i32 match_count = 0;
     
     for (Buffer_Summary buffer = get_buffer_first(app, AccessAll);
          buffer.exists;
@@ -1707,10 +1707,10 @@ CUSTOM_COMMAND_SIG(redo)
 CUSTOM_DOC("Advances forward through the undo history in the buffer containing the most recent regular edit.")
 {
     Partition *scratch = &global_part;
-    int32_t lowest_edit_number = 0x7FFFFFFF;
+    i32 lowest_edit_number = 0x7FFFFFFF;
     Buffer_ID first_buffer_match = 0;
     Buffer_ID last_buffer_match = 0;
-    int32_t match_count = 0;
+    i32 match_count = 0;
     
     for (Buffer_Summary buffer = get_buffer_first(app, AccessAll);
          buffer.exists;
@@ -1792,8 +1792,8 @@ CUSTOM_DOC("Loads all the theme files in the theme folder, replacing duplicates 
     Temp_Memory temp = begin_temp_memory(scratch);
     load_folder_of_themes_into_live_set(app, scratch, "themes");
     String name = get_theme_name(app, scratch, 0);
-    int32_t theme_count = get_theme_count(app);
-    for (int32_t i = 1; i < theme_count; i += 1){
+    i32 theme_count = get_theme_count(app);
+    for (i32 i = 1; i < theme_count; i += 1){
         Temp_Memory sub_temp = begin_temp_memory(scratch);
         String style_name = get_theme_name(app, scratch, i);
         if (match(name, style_name)){

@@ -5,7 +5,7 @@
 // TOP
 
 static Buffer_Insertion
-begin_buffer_insertion_at(Application_Links *app, Buffer_ID buffer_id, int32_t at){
+begin_buffer_insertion_at(Application_Links *app, Buffer_ID buffer_id, i32 at){
     Buffer_Insertion result = {};
     result.app = app;
     result.buffer = buffer_id;
@@ -33,14 +33,14 @@ insert_string(Buffer_Insertion *insertion, String string){
     insertion->at += string.size;
 }
 
-static int32_t
+static i32
 insertf(Buffer_Insertion *insertion, char *format, ...){
     // TODO(casey): Allen, ideally we would have our own formatter here that just outputs into a buffer and can't ever "run out of space".
     char temp[1024];
     
     va_list args;
     va_start(args, format);
-    int32_t result = vsprintf(temp, format, args);
+    i32 result = vsprintf(temp, format, args);
     va_end(args);
     
     insert_string(insertion, make_string(temp, result));
@@ -55,7 +55,7 @@ insertc(Buffer_Insertion *insertion, char C){
 }
 
 static b32
-insert_line_from_buffer(Buffer_Insertion *insertion, Buffer_ID buffer_id, int32_t line, int32_t truncate_at){
+insert_line_from_buffer(Buffer_Insertion *insertion, Buffer_ID buffer_id, i32 line, i32 truncate_at){
     Partition *part = &global_part;
     Temp_Memory temp = begin_temp_memory(part);
     
@@ -69,7 +69,7 @@ insert_line_from_buffer(Buffer_Insertion *insertion, Buffer_ID buffer_id, int32_
         if (buffer_compute_cursor(insertion->app, &buffer, seek_line_char(line, -1), &end)){
             if (begin.line == line){
                 if (0 <= begin.pos && begin.pos <= end.pos && end.pos <= buffer.size){
-                    int32_t size = (end.pos - begin.pos);
+                    i32 size = (end.pos - begin.pos);
                     if(truncate_at && (size > truncate_at))
                     {
                         size = truncate_at;
@@ -93,7 +93,7 @@ insert_line_from_buffer(Buffer_Insertion *insertion, Buffer_ID buffer_id, int32_
 }
 
 static b32
-insert_line_from_buffer(Buffer_Insertion *insertion, Buffer_ID buffer_id, int32_t line){
+insert_line_from_buffer(Buffer_Insertion *insertion, Buffer_ID buffer_id, i32 line){
     return(insert_line_from_buffer(insertion, buffer_id, line, 0));
 }
 

@@ -14,8 +14,8 @@
 // to 4coder_remapping_commands.cpp for examples of what binding code looks like.
 
 #if !defined(NO_BINDING)
-extern "C" int32_t
-get_bindings(void *data, int32_t size){
+extern "C" i32
+get_bindings(void *data, i32 size){
     Bind_Helper context_ = begin_bind_helper(data, size);
     Bind_Helper *context = &context_;
     
@@ -26,8 +26,7 @@ get_bindings(void *data, int32_t size){
     default_keys(context);
 #endif
     
-    int32_t result = end_bind_helper(context);
-    return(result);
+    return(end_bind_helper(context));
 }
 #endif //NO_BINDING
 

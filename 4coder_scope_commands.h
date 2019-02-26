@@ -20,7 +20,7 @@ struct Statement_Parser{
     Buffer_Summary *buffer;
 };
 
-typedef int32_t Find_Scope_Token_Type;
+typedef i32 Find_Scope_Token_Type;
 enum{
     FindScopeTokenType_None = 0,
     FindScopeTokenType_Open = 1,

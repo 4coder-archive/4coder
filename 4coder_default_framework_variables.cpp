@@ -6,7 +6,7 @@ the default 4coder behavior.
 // TOP
 
 static Named_Mapping *named_maps = 0;
-static int32_t named_map_count = 0;
+static i32 named_map_count = 0;
 
 static b32 allow_immediate_close_without_checking_for_changes = false;
 
@@ -63,7 +63,7 @@ enum{
     FCoderMode_Original = 0,
     FCoderMode_NotepadLike = 1,
 };
-static int32_t fcoder_mode = FCoderMode_Original;
+static i32 fcoder_mode = FCoderMode_Original;
 
 static ID_Line_Column_Jump_Location prev_location = {};
 

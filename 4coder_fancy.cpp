@@ -134,7 +134,7 @@ static Fancy_String*
 push_fancy_vstringf(Arena *arena, Fancy_String_List *list, Fancy_Color fore, Fancy_Color back, char *format, va_list args){
     // TODO(casey): Allen, ideally we would have our own formatter here that just outputs into a buffer and can't ever "run out of space".
     char temp[1024];
-    int32_t length = vsprintf(temp, format, args);
+    i32 length = vsprintf(temp, format, args);
     Fancy_String *result = 0;
     if (length > 0){
         result = push_fancy_string(arena, list, fore, back, make_string(temp, length));

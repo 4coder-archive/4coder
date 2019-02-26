@@ -4,7 +4,7 @@
 
 // TOP
 
-typedef int32_t Jump_Lister_Activation_Rule;
+typedef i32 Jump_Lister_Activation_Rule;
 enum{
     JumpListerActivation_OpenInUIView = 0,
     JumpListerActivation_OpenInTargetViewKeepUI = 1,

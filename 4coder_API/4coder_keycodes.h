@@ -48,7 +48,7 @@ enum{
     key_f16 = 55296 + 45,
 };
 static char*
-global_key_name(uint32_t key_code, int32_t *size){
+global_key_name(u32 key_code, i32 *size){
     char *result = 0;
     switch(key_code){
         case key_back: result = "key_back"; *size = sizeof("key_back")-1; break;

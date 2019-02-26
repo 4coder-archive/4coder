@@ -12,10 +12,9 @@
 internal void
 init_query_set(Query_Set *set){
     Query_Slot *slot = set->slots;
-    int32_t i;
     set->free_slot = slot;
     set->used_slot = 0;
-    for (i = 0; i+1 < ArrayCount(set->slots); ++i, ++slot){
+    for (i32 i = 0; i+1 < ArrayCount(set->slots); ++i, ++slot){
         slot->next = slot + 1;
     }
 }

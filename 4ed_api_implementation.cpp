@@ -53,7 +53,7 @@ fill_view_summary(System_Functions *system, View_Summary *view, View *vptr, Live
     
     if (vptr->in_use){
         view->exists = true;
-        view->view_id = (int32_t)(vptr - live_set->views) + 1;
+        view->view_id = (i32)(vptr - live_set->views) + 1;
         view->line_height = (f32)(vptr->line_height);
         view->unwrapped_lines = data->file->settings.unwrapped_lines;
         view->show_whitespace = data->show_whitespace;
@@ -155,7 +155,7 @@ panel_api_check_panel(Panel *panel){
 }
 
 API_EXPORT b32
-Global_Set_Setting(Application_Links *app, Global_Setting_ID setting, int32_t value)
+Global_Set_Setting(Application_Links *app, Global_Setting_ID setting, i32 value)
 /*
 DOC_PARAM(setting, Which setting to change.)
 DOC_PARAM(value, The new value to set ont he specified setting.)
@@ -180,7 +180,7 @@ DOC_SEE(Global_Setting_ID)
 }
 
 API_EXPORT b32
-Global_Set_Mapping(Application_Links *app, void *data, int32_t size)
+Global_Set_Mapping(Application_Links *app, void *data, i32 size)
 /*
 DOC_PARAM(data, The beginning of a binding buffer.  Bind_Helper is designed to make it easy to produce such a buffer.)
 DOC_PARAM(size, The size of the binding buffer in bytes.)
@@ -351,7 +351,7 @@ DOC_SEE(Command_Line_Interface_Flag)
 
 // TODO(allen): redocument
 API_EXPORT b32
-Clipboard_Post(Application_Links *app, int32_t clipboard_id, String string)
+Clipboard_Post(Application_Links *app, i32 clipboard_id, String string)
 /*
 DOC_PARAM(clipboard_id, This parameter is set up to prepare for future features, it should always be 0 for now.)
 DOC_PARAM(str, The str parameter specifies the string to be posted to the clipboard, it need not be null terminated.)
@@ -367,7 +367,7 @@ DOC_SEE(The_4coder_Clipboard)
 }
 
 API_EXPORT b32
-Clipboard_Count(Application_Links *app, int32_t clipboard_id, int32_t *count_out)
+Clipboard_Count(Application_Links *app, i32 clipboard_id, i32 *count_out)
 /*
 DOC_PARAM(clipboard_id, This parameter is set up to prepare for future features, it should always be 0 for now.)
 DOC(This call returns the number of items in the clipboard.)
@@ -380,7 +380,7 @@ DOC_SEE(The_4coder_Clipboard)
 }
 
 API_EXPORT b32
-Clipboard_Index(Application_Links *app, int32_t clipboard_id, int32_t item_index, String *string_out, int32_t *required_size_out)
+Clipboard_Index(Application_Links *app, i32 clipboard_id, i32 item_index, String *string_out, i32 *required_size_out)
 /*
 DOC_PARAM(clipboard_id, This parameter is set up to prepare for future features, it should always be 0 for now.)
 DOC_PARAM(item_index, This parameter specifies which item to read, 0 is the most recent copy, 1 is the second most recent copy, etc.)
@@ -406,7 +406,7 @@ DOC_SEE(The_4coder_Clipboard)
 }
 
 API_EXPORT Parse_Context_ID
-Create_Parse_Context(Application_Links *app, Parser_String_And_Type *kw, uint32_t kw_count, Parser_String_And_Type *pp, uint32_t pp_count)
+Create_Parse_Context(Application_Links *app, Parser_String_And_Type *kw, u32 kw_count, Parser_String_And_Type *pp, u32 pp_count)
 /*
 DOC_PARAM(kw, The list of keywords and type of each.)
 DOC_PARAM(kw_count, The number of keywords in the list.)
@@ -419,14 +419,14 @@ DOC_RETURN(On success returns an id for the new parse context.  If id == 0, then
     return(id);
 }
 
-API_EXPORT int32_t
+API_EXPORT i32
 Get_Buffer_Count(Application_Links *app)
 /*
 DOC(Gives the total number of buffers in the application.)
 */{
     Models *models = (Models*)app->cmd_context;
     Working_Set *working_set = &models->working_set;
-    int32_t result = working_set->file_count;
+    i32 result = working_set->file_count;
     return(result);
 }
 
@@ -614,7 +614,7 @@ DOC_SEE(Access_Flag)
 
 // TODO(allen): redocument
 API_EXPORT b32
-Buffer_Read_Range(Application_Links *app, Buffer_ID buffer_id, int32_t start, int32_t one_past_last, char *out)
+Buffer_Read_Range(Application_Links *app, Buffer_ID buffer_id, i32 start, i32 one_past_last, char *out)
 /*
 DOC_PARAM(buffer, This parameter specifies the buffer to read.)
 DOC_PARAM(start, This parameter specifies absolute position of the first character in the read range.)
@@ -646,7 +646,7 @@ DOC_SEE(4coder_Buffer_Positioning_System)
 
 // TODO(allen): redocument
 API_EXPORT b32
-Buffer_Replace_Range(Application_Links *app, Buffer_ID buffer_id, int32_t start, int32_t one_past_last, String string)
+Buffer_Replace_Range(Application_Links *app, Buffer_ID buffer_id, i32 start, i32 one_past_last, String string)
 /*
 DOC_PARAM(buffer, This parameter specifies the buffer to edit.)
 DOC_PARAM(start, This parameter specifies absolute position of the first character in the replace range.)
@@ -670,7 +670,7 @@ DOC_SEE(4coder_Buffer_Positioning_System)
     Models *models = (Models*)app->cmd_context;
     Editing_File *file = imp_get_file(models, buffer_id);
     b32 result = false;
-    int32_t size = 0;
+    i32 size = 0;
     if (buffer_api_check_file(file)){
         size = buffer_size(&file->state.buffer);
         if (0 <= start && start <= one_past_last && one_past_last <= size){
@@ -736,7 +736,7 @@ DOC_SEE(Partial_Cursor)
 // TODO(allen): work with edit handler
 // TODO(allen): redocument
 API_EXPORT b32
-Buffer_Batch_Edit(Application_Links *app, Buffer_ID buffer_id, char *str, int32_t str_len, Buffer_Edit *edits, int32_t edit_count, Buffer_Batch_Edit_Type type)
+Buffer_Batch_Edit(Application_Links *app, Buffer_ID buffer_id, char *str, i32 str_len, Buffer_Edit *edits, i32 edit_count, Buffer_Batch_Edit_Type type)
 /*
 DOC_PARAM(buffer, The buffer on which to apply the batch of edits.)
 DOC_PARAM(str, This parameter provides all of the source string for the edits in the batch.)
@@ -783,7 +783,7 @@ DOC_SEE(Buffer_Batch_Edit_Type)
 
 // TODO(allen): redocument
 API_EXPORT b32
-Buffer_Get_Setting(Application_Links *app, Buffer_ID buffer_id, Buffer_Setting_ID setting, int32_t *value_out)
+Buffer_Get_Setting(Application_Links *app, Buffer_ID buffer_id, Buffer_Setting_ID setting, i32 *value_out)
 /*
 DOC_PARAM(buffer, the buffer from which to read a setting)
 DOC_PARAM(setting, the setting to read from the buffer)
@@ -867,7 +867,7 @@ DOC_RETURN(returns non-zero on success)
 
 // TODO(allen): redocument
 API_EXPORT b32
-Buffer_Set_Setting(Application_Links *app, Buffer_ID buffer_id, Buffer_Setting_ID setting, int32_t value)
+Buffer_Set_Setting(Application_Links *app, Buffer_ID buffer_id, Buffer_Setting_ID setting, i32 value)
 /*
 DOC_PARAM(buffer, The buffer parameter specifies the buffer on which to set a setting.)
 DOC_PARAM(setting, The setting parameter identifies the setting that shall be changed.)
@@ -1095,7 +1095,7 @@ If the buffer_id does not specify a valid buffer, the returned scope is null.)
 
 // TODO(allen): redocument
 API_EXPORT b32
-Buffer_Token_Count(Application_Links *app, Buffer_ID buffer_id, int32_t *count_out)
+Buffer_Token_Count(Application_Links *app, Buffer_ID buffer_id, i32 *count_out)
 /*
 DOC_PARAM(buffer, Specifies the buffer from which to read the token count.)
 DOC_RETURN(If tokens are available for the buffer, the number of tokens on the buffer is returned.
@@ -1113,7 +1113,7 @@ If the buffer does not exist or if it is not a lexed buffer, the return is zero.
 
 // TODO(allen): redocument
 API_EXPORT b32
-Buffer_Read_Tokens(Application_Links *app, Buffer_ID buffer_id, int32_t start_token, int32_t end_token, Cpp_Token *tokens_out)
+Buffer_Read_Tokens(Application_Links *app, Buffer_ID buffer_id, i32 start_token, i32 end_token, Cpp_Token *tokens_out)
 /*
 DOC_PARAM(buffer, Specifies the buffer from which to read tokens.)
 DOC_PARAM(first_token, Specifies the index of the first token to read.)
@@ -1157,7 +1157,7 @@ Buffer_Get_Token_Range(Application_Links *app, Buffer_ID buffer_id, Cpp_Token **
 
 // TODO(allen): redocument
 API_EXPORT b32
-Buffer_Get_Token_Index(Application_Links *app, Buffer_ID buffer_id, int32_t pos, Cpp_Get_Token_Result *get_result)
+Buffer_Get_Token_Index(Application_Links *app, Buffer_ID buffer_id, i32 pos, Cpp_Get_Token_Result *get_result)
 /*
 DOC_PARAM(buffer, The buffer from which to get a token.)
 DOC_PARAM(pos, The position in the buffer in absolute coordinates.)
@@ -1349,7 +1349,7 @@ DOC_SEE(Buffer_Create_Flag)
 
 // TODO(allen): redocument
 API_EXPORT b32
-Buffer_Save(Application_Links *app, Buffer_ID buffer_id, String file_name, uint32_t flags)
+Buffer_Save(Application_Links *app, Buffer_ID buffer_id, String file_name, u32 flags)
 /*
 DOC_PARAM(buffer, The buffer parameter specifies the buffer to save to a file.)
 DOC_PARAM(file_name, The file_name parameter specifies the name of the file to write with the contents of the buffer; it need not be null terminated.)
@@ -1480,8 +1480,8 @@ Buffer_Reopen(Application_Links *app, Buffer_ID buffer_id, Buffer_Reopen_Flag fl
                         
                         // TODO(allen): try(perform a diff maybe apply edits in reopen)
                         
-                        int32_t line_numbers[16];
-                        int32_t column_numbers[16];
+                        i32 line_numbers[16];
+                        i32 column_numbers[16];
                         View *vptrs[16];
                         i32 vptr_count = 0;
                         
@@ -1937,7 +1937,7 @@ DOC_SEE(get_active_view)
 
 // TODO(allen): redocument
 API_EXPORT b32
-View_Get_Setting(Application_Links *app, View_ID view_id, View_Setting_ID setting, int32_t *value_out)
+View_Get_Setting(Application_Links *app, View_ID view_id, View_Setting_ID setting, i32 *value_out)
 /*
 DOC_PARAM(view, the view from which to read a setting)
 DOC_PARAM(setting, the view setting to read)
@@ -1982,7 +1982,7 @@ DOC_RETURN(returns non-zero on success)
 
 // TODO(allen): redocument
 API_EXPORT b32
-View_Set_Setting(Application_Links *app, View_ID view_id, View_Setting_ID setting, int32_t value)
+View_Set_Setting(Application_Links *app, View_ID view_id, View_Setting_ID setting, i32 value)
 /*
 DOC_PARAM(view, The view parameter specifies the view on which to set a setting.)
 DOC_PARAM(setting, The setting parameter identifies the setting that shall be changed.)
@@ -2224,7 +2224,7 @@ DOC_SEE(Set_Buffer_Flag)
 
 // TODO(allen): redocument
 API_EXPORT b32
-View_Post_Fade(Application_Links *app, View_ID view_id, float seconds, int32_t start, int32_t end, int_color color)
+View_Post_Fade(Application_Links *app, View_ID view_id, float seconds, i32 start, i32 end, int_color color)
 /*
 DOC_PARAM(view, The view parameter specifies the view onto which the fade effect shall be posted.)
 DOC_PARAM(seconds, This parameter specifies the number of seconds the fade effect should last.)
@@ -2238,7 +2238,7 @@ DOC_SEE(int_color)
     View *view = imp_get_view(models, view_id);
     b32 result = false;
     if (view_api_check_view(view)){
-        int32_t size = end - start;
+        i32 size = end - start;
         if (size > 0){
             view_post_paste_effect(view, seconds, start, size, color|0xFF000000);
             result = true;
@@ -2429,7 +2429,7 @@ get_lifetime_object_from_workspace(Dynamic_Workspace *workspace){
 }
 
 API_EXPORT Managed_Scope
-Get_Managed_Scope_With_Multiple_Dependencies(Application_Links *app, Managed_Scope *scopes, int32_t count)
+Get_Managed_Scope_With_Multiple_Dependencies(Application_Links *app, Managed_Scope *scopes, i32 count)
 /*
 DOC_PARAM(scopes, An array of scope handles which are to represent the various dependencies that the returned scope will have.)
 DOC_PARAM(count, The number of scopes in the scopes array)
@@ -2593,7 +2593,7 @@ DOC_SEE(managed_variable_get_id)
 }
 
 internal b32
-get_dynamic_variable__internal(Models *models, Managed_Scope handle, int32_t location, uint64_t **ptr_out){
+get_dynamic_variable__internal(Models *models, Managed_Scope handle, i32 location, uint64_t **ptr_out){
     Heap *heap = &models->mem.heap;
     Dynamic_Variable_Layout *layout = &models->variable_layout;
     Dynamic_Workspace *workspace = get_dynamic_workspace(models, handle);
@@ -2657,7 +2657,7 @@ DOC(Managed objects allocate memory that is tied to the scope.  When the scope i
     Dynamic_Workspace *workspace = get_dynamic_workspace(models, scope);
     Managed_Object result = 0;
     if (workspace != 0){
-        int32_t size = count*item_size;
+        i32 size = count*item_size;
         void *ptr = memory_bank_allocate(heap, &workspace->mem_bank, size + sizeof(Managed_Memory_Header));
         Managed_Memory_Header *header = (Managed_Memory_Header*)ptr;
         header->std_header.type = ManagedObjectType_Memory;
@@ -2670,7 +2670,7 @@ DOC(Managed objects allocate memory that is tied to the scope.  When the scope i
 }
 
 API_EXPORT Managed_Object
-Alloc_Buffer_Markers_On_Buffer(Application_Links *app, Buffer_ID buffer_id, int32_t count, Managed_Scope *optional_extra_scope)
+Alloc_Buffer_Markers_On_Buffer(Application_Links *app, Buffer_ID buffer_id, i32 count, Managed_Scope *optional_extra_scope)
 /*
 DOC_PARAM(buffer_id, The id for the buffer onto which these markers will be attached.  The markers will live in the scope of the buffer, or in another scope dependent on this buffer, thus guaranteeing that when the buffer is closed, all attached markers are freed in bulk with it.)
 DOC_PARAM(count, The number of Marker items allocated in this object.  The total memory size is sizeof(Marker)*count.)
@@ -2910,7 +2910,7 @@ DOC_RETURN(Returns non-zero on success, and zero on failure.  This call fails wh
     return(false);
 }
 
-API_EXPORT int32_t
+API_EXPORT i32
 Buffer_Markers_Get_Attached_Visual_Count(Application_Links *app, Managed_Object object)
 /*
 DOC_PARAM(object, The handle to the marker object to be queried.)
@@ -2979,7 +2979,7 @@ get_dynamic_object_memory_ptr(Managed_Object_Standard_Header *header){
     return(ptr);
 }
 
-API_EXPORT uint32_t
+API_EXPORT u32
 Managed_Object_Get_Item_Size(Application_Links *app, Managed_Object object)
 /*
 DOC_PARAM(object, The handle to the managed object to be queried.)
@@ -2994,7 +2994,7 @@ DOC_RETURN(Returns the size, in bytes, of a single item in the managed object.  
     return(0);
 }
 
-API_EXPORT uint32_t
+API_EXPORT u32
 Managed_Object_Get_Item_Count(Application_Links *app, Managed_Object object)
 /*
 DOC_PARAM(object, The handle to the managed object to be queried.)
@@ -3090,7 +3090,7 @@ DOC(Permanently frees the specified object.  Not only does this free up the memo
 }
 
 API_EXPORT b32
-Managed_Object_Store_Data(Application_Links *app, Managed_Object object, uint32_t first_index, uint32_t count, void *mem)
+Managed_Object_Store_Data(Application_Links *app, Managed_Object object, u32 first_index, u32 count, void *mem)
 /*
 DOC_PARAM(object, The handle to the managed object in which data will be stored.)
 DOC_PARAM(first_index, The first index of the range in the managed object to be stored.  Managed object indics are zero based.)
@@ -3119,7 +3119,7 @@ DOC_SEE(managed_object_get_item_count)
 }
 
 API_EXPORT b32
-Managed_Object_Load_Data(Application_Links *app, Managed_Object object, uint32_t first_index, uint32_t count, void *mem_out)
+Managed_Object_Load_Data(Application_Links *app, Managed_Object object, u32 first_index, u32 count, void *mem_out)
 /*
 DOC_PARAM(object, The handle to the managed object  from which data will be loaded.)
 DOC_PARAM(first_index, The first index of the range in the managed object to be loaded.  Managed object indics are zero based.)
@@ -3208,8 +3208,8 @@ DOC_SEE(Mouse_State)
     return(models->input->mouse);
 }
 
-API_EXPORT int32_t
-Get_Active_Query_Bars(Application_Links *app, View_ID view_id, int32_t max_result_count, Query_Bar **result_array)
+API_EXPORT i32
+Get_Active_Query_Bars(Application_Links *app, View_ID view_id, i32 max_result_count, Query_Bar **result_array)
 /*
 DOC_PARAM(view_id, Specifies the view for which query bars should be retrieved.)
 DOC_PARAM(max_result_count, Specifies the number of Query_Bar pointers available in result_array.)
@@ -3223,7 +3223,7 @@ that if you only care about the most recent query bar, you can call Get_Active_Q
 max_result_count of 1 and be assured you will get the most recent bar if any exist.
 )
 */{
-    int32_t result = 0;
+    i32 result = 0;
     Models *models = (Models*)app->cmd_context;
     View *view = imp_get_view(models, view_id);
     if (view != 0){
@@ -3239,7 +3239,7 @@ max_result_count of 1 and be assured you will get the most recent bar if any exi
 }
 
 API_EXPORT b32
-Start_Query_Bar(Application_Links *app, Query_Bar *bar, uint32_t flags)
+Start_Query_Bar(Application_Links *app, Query_Bar *bar, u32 flags)
 /*
 DOC_PARAM(bar, This parameter provides a Query_Bar that should remain in valid memory
 until end_query_bar or the end of the command.  It is commonly a good idea to make
@@ -3267,7 +3267,7 @@ only use for this call is in an interactive command that makes calls to get_user
 }
 
 API_EXPORT void
-End_Query_Bar(Application_Links *app, Query_Bar *bar, uint32_t flags)
+End_Query_Bar(Application_Links *app, Query_Bar *bar, u32 flags)
 /*
 DOC_PARAM(bar, This parameter should be a bar pointer of a currently active query bar.)
 DOC_PARAM(flags, This parameter is not currently used and should be 0 for now.)
@@ -3297,7 +3297,7 @@ DOC(This call posts a string to the *messages* buffer.)
 }
 
 #if 0
-//API_EXPORT int32_t
+//API_EXPORT i32
 Get_Theme_Count(Application_Links *app)
 /*
 DOC_RETURN(Returns the number of themes that currently exist in the core.)
@@ -3308,7 +3308,7 @@ DOC_RETURN(Returns the number of themes that currently exist in the core.)
 }
 
 //API_EXPORT String
-Get_Theme_Name(Application_Links *app, struct Partition *arena, int32_t index)
+Get_Theme_Name(Application_Links *app, struct Partition *arena, i32 index)
 /*
 DOC_PARAM(arena, The arena which will be used to allocate the returned string.)
 DOC_PARAM(index, The index of the theme to query.  Index zero always refers to the active theme, all other indices refer to the static copies of available themes.)
@@ -3393,7 +3393,7 @@ DOC(This call changes 4coder's color pallet to one of the built in themes.)
 }
 
 //API_EXPORT b32
-Change_Theme_By_Index(Application_Links *app, int32_t index)
+Change_Theme_By_Index(Application_Links *app, i32 index)
 /*
 DOC_PARAM(index, The index parameter specifies the index of theme to begin using.)
 DOC_RETURN(Returns non-zero on success and zero on failure.  This call fails when index is not less than the total number of themes.)
@@ -3524,7 +3524,7 @@ Buffer_History_Get_Record_Info(Application_Links *app, Buffer_ID buffer_id, Hist
 }
 
 API_EXPORT b32
-Buffer_History_Get_Group_Sub_Record(Application_Links *app, Buffer_ID buffer_id, History_Record_Index index, int32_t sub_index, Record_Info *record_out){
+Buffer_History_Get_Group_Sub_Record(Application_Links *app, Buffer_ID buffer_id, History_Record_Index index, i32 sub_index, Record_Info *record_out){
     Models *models = (Models*)app->cmd_context;
     Editing_File *file = imp_get_file(models, buffer_id);
     block_zero_struct(record_out);
@@ -3869,7 +3869,7 @@ DOC_RETURN(Returns true on success and zero on failure.)
     return(success);
 }
 
-API_EXPORT int32_t
+API_EXPORT i32
 Get_Available_Font_Count(Application_Links *app)
 /*
 DOC(An available font is a font that the 4coder font system detected on initialization.  Available fonts either come from the font folder in the same path as the 4ed executable, or from the system fonts.  Attempting to load fonts not in returned by available fonts will likely fail, but is permitted.  Available fonts are not updated after initialization.  Just because a font is returned by the available font system does not necessarily mean that it can be loaded.)
@@ -3882,7 +3882,7 @@ DOC_RETURN(Returns the number of available fonts that the user can query.)
 }
 
 API_EXPORT Available_Font
-Get_Available_Font(Application_Links *app, int32_t index)
+Get_Available_Font(Application_Links *app, i32 index)
 /*
 DOC_PARAM(index, The index of the available font to retrieve.  Must be in the range [0,count-1] where count is the value returned by get_available_font_count.)
 DOC_RETURN(Returns a valid Available_Font if index is in the required range.  Otherwise returns an invalid Available_Font.  An Available_Font is valid if and only if it's name field contains a string with a non-zero length (i.e. font.name[0] != 0))
@@ -3901,7 +3901,7 @@ DOC_SEE(get_available_font_count)
 }
 
 API_EXPORT void
-Set_Theme_Colors(Application_Links *app, Theme_Color *colors, int32_t count)
+Set_Theme_Colors(Application_Links *app, Theme_Color *colors, i32 count)
 /*
 DOC_PARAM(colors, The colors pointer provides an array of color structs pairing differet style tags to color codes.)
 DOC_PARAM(count, The count parameter specifies the number of Theme_Color structs in the colors array.)
@@ -3919,7 +3919,7 @@ DOC_SEE(Theme_Color)
 }
 
 API_EXPORT void
-Get_Theme_Colors(Application_Links *app, Theme_Color *colors, int32_t count)
+Get_Theme_Colors(Application_Links *app, Theme_Color *colors, i32 count)
 /*
 DOC_PARAM(colors, an array of color structs listing style tags to get color values for)
 DOC_PARAM(count, the number of color structs in the colors array)
@@ -3946,8 +3946,8 @@ Finalize_Color(Application_Links *app, int_color color){
 }
 
 // TODO(allen): redocument
-API_EXPORT int32_t
-Get_Hot_Directory(Application_Links *app, String *out, int32_t *required_size_out)
+API_EXPORT i32
+Get_Hot_Directory(Application_Links *app, String *out, i32 *required_size_out)
 /*
 DOC_PARAM(out, On success this character buffer is filled with the 4coder 'hot directory'.)
 DOC_PARAM(capacity, Specifies the capacity in bytes of the of the out buffer.)
@@ -4040,7 +4040,7 @@ DOC(This is a temporary ad-hoc solution to allow some customization of the behav
 }
 
 API_EXPORT void*
-Memory_Allocate(Application_Links *app, int32_t size)
+Memory_Allocate(Application_Links *app, i32 size)
 /*
 DOC_PARAM(size, The size in bytes of the block that should be returned.)
 DOC(This calls to a low level OS allocator which means it is best used for infrequent, large allocations.  The size of the block must be remembered if it will be freed or if it's mem protection status will be changed.)
@@ -4052,7 +4052,7 @@ DOC_SEE(memory_free)
 }
 
 API_EXPORT b32
-Memory_Set_Protection(Application_Links *app, void *ptr, int32_t size, Memory_Protect_Flags flags)
+Memory_Set_Protection(Application_Links *app, void *ptr, i32 size, Memory_Protect_Flags flags)
 /*
 DOC_PARAM(ptr, The base of the block on which to set memory protection flags.)
 DOC_PARAM(size, The size that was originally used to allocate this block.)
@@ -4066,7 +4066,7 @@ DOC_SEE(Memory_Protect_Flags)
 }
 
 API_EXPORT void
-Memory_Free(Application_Links *app, void *ptr, int32_t size)
+Memory_Free(Application_Links *app, void *ptr, i32 size)
 /*
 DOC_PARAM(mem, The base of a block to free.)
 DOC_PARAM(size, The size that was originally used to allocate this block.)
@@ -4107,7 +4107,7 @@ For instance if dir contains "C:/Users/MySelf" and rel is "Documents" the buffer
 
 // TODO(allen): redocument
 API_EXPORT b32
-Get_4ed_Path(Application_Links *app, String *path_out, int32_t *required_size_out)
+Get_4ed_Path(Application_Links *app, String *path_out, i32 *required_size_out)
 /*
 DOC_PARAM(out, This parameter provides a character buffer that receives the path to the 4ed executable file.)
 DOC_PARAM(capacity, This parameter specifies the maximum capacity of the out buffer.)
@@ -4332,7 +4332,7 @@ Animate(Application_Links *app)
 // TODO(casey): Allen, this routine is very intricate and needs to be tested thoroughly before mainlining.  I've only done cursory testing on it and have probably missed bugs that only occur in highly segmented buffers.
 // TODO(casey): I think this routine could potentially be simplified by making it into something that always works with a partial match list, where the partial matches have 0 characters matched, and they just get moved forward as they go.  This would solve the duplicate code problem the routine currently has where it does the same thing in its two halves, but slightly differently.
 API_EXPORT Found_String_List
-Find_All_In_Range_Insensitive(Application_Links *app, Buffer_ID buffer_id, int32_t start, int32_t end, String key, Partition *memory)
+Find_All_In_Range_Insensitive(Application_Links *app, Buffer_ID buffer_id, i32 start, i32 end, String key, Partition *memory)
 {
     Found_String_List result = {};
     
@@ -4343,7 +4343,7 @@ Find_All_In_Range_Insensitive(Application_Links *app, Buffer_ID buffer_id, int32
     Editing_File *file = imp_get_file(models, buffer_id);
     if((file != 0) && key.size)
     {
-        int32_t total_size = buffer_size(&file->state.buffer);
+        i32 total_size = buffer_size(&file->state.buffer);
         u32 clean_edegs = FoundString_CleanEdges;
         
         if (0 <= start && start <= end && end <= total_size)
