@@ -2,6 +2,8 @@
 * Fancy string - immediate mode renderer for colored strings
 */
 
+// TOP
+
 static Fancy_Color
 blend_color(id_color a, f32 t, id_color b){
     Fancy_Color result = {};
@@ -83,11 +85,11 @@ is_valid(Fancy_Color source){
 }
 
 static Fancy_String *
-push_fancy_string(Arena *arena, Fancy_String_List *list, String value, Fancy_Color fore){
+push_fancy_string(Arena *arena, Fancy_String_List *list, Fancy_Color fore, Fancy_Color back, String value){
     Fancy_String *result = push_array(arena, Fancy_String, 1);
     result->value = string_push_copy(arena, value);
     result->fore = fore;
-    result->back = pass_through_fancy_color();
+    result->back = back;
     result->pre_margin = 0;
     result->post_margin = 0;
     result->next = 0;
@@ -100,8 +102,52 @@ push_fancy_string(Arena *arena, Fancy_String_List *list, String value, Fancy_Col
 }
 
 static Fancy_String *
+push_fancy_string(Arena *arena, Fancy_String_List *list, Fancy_Color fore, String value){
+    return(push_fancy_string(arena, list, fore, pass_through_fancy_color(), value));
+}
+
+static Fancy_String *
 push_fancy_string(Arena *arena, Fancy_String_List *list, String value){
-    return(push_fancy_string(arena, list, value, pass_through_fancy_color()));
+    return(push_fancy_string(arena, list, pass_through_fancy_color(), pass_through_fancy_color(), value));
+}
+
+static Fancy_String*
+push_fancy_vstringf(Arena *arena, Fancy_String_List *list, Fancy_Color fore, Fancy_Color back, char *format, va_list args){
+    // TODO(casey): Allen, ideally we would have our own formatter here that just outputs into a buffer and can't ever "run out of space".
+    char temp[1024];
+    int32_t length = vsprintf(temp, format, args);
+    Fancy_String *result = 0;
+    if (length > 0){
+        result = push_fancy_string(arena, list, fore, back, make_string(temp, length));
+    }
+    return(result);
+}
+
+static Fancy_String*
+push_fancy_stringf(Arena *arena, Fancy_String_List *list, Fancy_Color fore, Fancy_Color back, char *format, ...){
+    va_list args;
+    va_start(args, format);
+    Fancy_String *result = push_fancy_vstringf(arena, list, fore, back, format, args);
+    va_end(args);
+    return(result);
+}
+
+static Fancy_String*
+push_fancy_stringf(Arena *arena, Fancy_String_List *list, Fancy_Color fore, char *format, ...){
+    va_list args;
+    va_start(args, format);
+    Fancy_String *result = push_fancy_vstringf(arena, list, fore, pass_through_fancy_color(), format, args);
+    va_end(args);
+    return(result);
+}
+
+static Fancy_String*
+push_fancy_stringf(Arena *arena, Fancy_String_List *list, char *format, ...){
+    va_list args;
+    va_start(args, format);
+    Fancy_String *result = push_fancy_vstringf(arena, list, pass_through_fancy_color(), pass_through_fancy_color(), format, args);
+    va_end(args);
+    return(result);
 }
 
 static Vec2
@@ -123,3 +169,6 @@ draw_fancy_string(Application_Links *app, Face_ID font_id, Fancy_String *string,
     }
     return(P);
 }
+
+// BOTTOM
+

@@ -622,29 +622,23 @@ generate_hot_directory_file_list(Application_Links *app, Lister *lister){
 }
 
 static void
-begin_integrated_lister__buffer_list(Application_Links *app, char *query_string,
-                                     Lister_Activation_Function_Type *activate_procedure,
-                                     void *user_data, int32_t user_data_size,
-                                     View_Summary *target_view){
+begin_integrated_lister__buffer_list(Application_Links *app, char *query_string, Lister_Activation_Function_Type *activate_procedure,
+                                     void *user_data, int32_t user_data_size, View_Summary *target_view){
     Lister_Handlers handlers = lister_get_default_handlers();
     handlers.activate = activate_procedure;
     handlers.refresh = generate_all_buffers_list;
-    begin_integrated_lister__with_refresh_handler(app, query_string, handlers, user_data, user_data_size,
-                                                  target_view);
+    begin_integrated_lister__with_refresh_handler(app, query_string, handlers, user_data, user_data_size, target_view);
 }
 
 static void
-begin_integrated_lister__file_system_list(Application_Links *app, char *query_string,
-                                          Lister_Activation_Function_Type *activate_procedure,
-                                          void *user_data, int32_t user_data_size,
-                                          View_Summary *target_view){
+begin_integrated_lister__file_system_list(Application_Links *app, char *query_string, Lister_Activation_Function_Type *activate_procedure,
+                                          void *user_data, int32_t user_data_size, View_Summary *target_view){
     Lister_Handlers handlers = lister_get_default_handlers();
     handlers.activate = activate_procedure;
     handlers.refresh = generate_hot_directory_file_list;
     handlers.write_character = lister__write_character__file_path;
     handlers.backspace = lister__backspace_text_field__file_path;
-    begin_integrated_lister__with_refresh_handler(app, query_string, handlers, user_data, user_data_size,
-                                                  target_view);
+    begin_integrated_lister__with_refresh_handler(app, query_string, handlers, user_data, user_data_size, target_view);
 }
 
 ////////////////////////////////
@@ -657,8 +651,7 @@ enum{
 };
 
 static void
-activate_confirm_kill(Application_Links *app, Partition *scratch, Heap *heap,
-                      View_Summary *view, Lister_State *state,
+activate_confirm_kill(Application_Links *app, Partition *scratch, Heap *heap, View_Summary *view, Lister_State *state,
                       String text_field, void *user_data, bool32 clicked){
     int32_t behavior = (int32_t)PtrAsInt(user_data);
     Buffer_ID buffer_id = *(Buffer_ID*)(state->lister.data.user_data);

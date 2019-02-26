@@ -514,27 +514,25 @@ RENDER_CALLER_SIG(default_render_caller){
                 char space[256];
                 String str = make_fixed_width_string(space);
                 
+                Fancy_Color white = fancy_from_rgba_color(1.f, 1.f, 1.f, 1.f);
+                Fancy_Color pink = fancy_from_rgba_color(1.f, 0.f, 1.f, 1.f);
+                Fancy_Color green = fancy_from_rgba_color(0.f, 1.f, 0.f, 1.f);
                 Fancy_String_List list = {};
-                push_fancy_string(&arena, &list, make_lit_string("FPS: "), fancy_from_rgba_color(1.f, 0.f, 1.f, 1.f));
-                push_fancy_string(&arena, &list, make_lit_string("["), fancy_from_rgba_color(0.f, 1.f, 0.f, 1.f));
-                {
-                    str.size = 0;
-                    append_int_to_str_left_pad(&str, frame_index, 6, ' ');
-                    push_fancy_string(&arena, &list, str, fancy_from_rgba_color(1.f, 1.f, 1.f, 1.f));
-                }
-                push_fancy_string(&arena, &list, make_lit_string("]: "), fancy_from_rgba_color(0.f, 1.f, 0.f, 1.f));
+                push_fancy_stringf(&arena, &list, pink , "FPS: ");
+                push_fancy_stringf(&arena, &list, green, "[");
+                push_fancy_stringf(&arena, &list, white, "%5d", frame_index);
+                push_fancy_stringf(&arena, &list, green, "]: ");
                 
                 for (i32 k = 0; k < 2; k += 1){
                     f32 dt = dts[k];
                     str.size = 0;
                     if (dt == 0.f){
-                        append_padding(&str, '-', str.size + 10);
+                        push_fancy_stringf(&arena, &list, white, "-----");
                     }
                     else{
-                        append_int_to_str_left_pad(&str, round32(1.f/dt), 10, ' ');
+                        push_fancy_stringf(&arena, &list, white, "%5d", round32(1.f/dt));
                     }
-                    push_fancy_string(&arena, &list, str, fancy_from_rgba_color(1.f, 1.f, 1.f, 1.f));
-                    push_fancy_string(&arena, &list, make_lit_string(" | "), fancy_from_rgba_color(0.f, 1.f, 0.f, 1.f));
+                    push_fancy_stringf(&arena, &list, green, " | ");
                 }
                 
                 draw_fancy_string(app, font_id, list.first, p, Stag_Default, 0, 0, V2(1.f, 0.f));
